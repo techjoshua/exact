@@ -1,0 +1,28 @@
+--- a/tsc/internal/ast/precedence.go
++++ b/tsc/internal/ast/precedence.go
+@@ -258,8 +258,13 @@
+ 			return GetBinaryOperatorPrecedence(operatorKind)
+ 		}
+ 	// TODO: Should prefix `++` and `--` be moved to the `Update` precedence?
++	case KindNonNullExpression:
++		if flags&OperatorPrecedenceFlagsOptionalChain != 0 {
++			return OperatorPrecedenceOptionalChain
++		}
++		return OperatorPrecedenceUnary
++
+ 	case KindTypeAssertionExpression,
+-		KindNonNullExpression,
+ 		KindPrefixUnaryExpression,
+ 		KindTypeOfExpression,
+ 		KindVoidExpression,
+--- a/tsc/internal/printer/printer.go
++++ b/tsc/internal/printer/printer.go
+@@ -3011,7 +3011,7 @@
+ 
+ func (p *Printer) emitNonNullExpression(node *ast.NonNullExpression) {
+ 	state := p.enterNode(node.AsNode())
+-	p.emitExpression(node.Expression, ast.OperatorPrecedenceMember)
++	p.emitExpression(node.Expression, core.IfElse(ast.IsOptionalChain(node.AsNode()), ast.OperatorPrecedenceOptionalChain, ast.OperatorPrecedenceMember))
+ 	p.writeOperator("!")
+ 	p.exitNode(node.AsNode(), state)
+ }

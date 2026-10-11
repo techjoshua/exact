@@ -77,7 +77,7 @@ jobs:
           cache: npm
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.26.2'
+          go-version: '1.27.1'
           cache: false
       - run: npm ci
       - run: npm run test:build-scripts
@@ -86,6 +86,7 @@ jobs:
         shell: bash
         run: |
           mkdir -p .tmp/native-artifact/native-package-artifacts
+          node scripts/build-native-compiler.mjs --all-targets --package
           for target in \
             linux-x64 \
             linux-arm64 \
@@ -94,12 +95,6 @@ jobs:
             win32-x64 \
             win32-arm64
           do
-            platform="${target%-*}"
-            arch="${target#*-}"
-            node scripts/build-native-compiler.mjs \
-              --platform "$platform" \
-              --arch "$arch" \
-              --package
             npm pack \
               ".tmp/native-packages/compiler-native-$target" \
               --pack-destination .tmp/native-artifact/native-package-artifacts
@@ -113,6 +108,8 @@ jobs:
           cp \
             .tmp/native-packages/compiler-native-linux-x64/exactc \
             .tmp/native-artifact/exactc
+      - name: Preserve compiler source and executable identity
+        run: cp .tmp/native-compiler/linux-x64.build.json .tmp/native-artifact/compiler-build.json
       - name: Build isolated compiler mutation witnesses
         run: node scripts/check-framework-mutations.mjs --build
       - uses: actions/upload-artifact@v4
@@ -134,6 +131,9 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
           cache: npm
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.2
       - uses: actions/download-artifact@v4
         with:
           name: native-compiler
@@ -144,6 +144,22 @@ jobs:
       - run: npm run build:workspaces
       - run: npm run check:typescript-compatibility
       - run: npm run test:compiler
+      - name: Verify compiler language and contract execution evidence
+        if: matrix.node == 26
+        run: npm run test:compiler:confidence
+      - name: Verify composition and localization integrations
+        if: matrix.node == 26
+        run: |
+          npm run test:composition-corpus
+          npx vitest run packages/intl-analyzer/src packages/intl-build/src packages/intl/src/language.test.ts packages/language-server/src/intl-language.integration.test.ts
+      - uses: actions/upload-artifact@v4
+        if: always() && matrix.node == 26
+        with:
+          name: compiler-behavior-evidence
+          path: .tmp/compiler-confidence/behavior/
+          include-hidden-files: true
+          retention-days: 7
+          if-no-files-found: error
       - run: npm run test:build-adapters
       - run: npm run test:task-progress:contracts
       - run: npm run test:ownership-contracts
@@ -153,6 +169,7 @@ jobs:
         run: npm run check:framework-mutations
     env:
       EXACT_COMPILER_EXECUTABLE: ${{ github.workspace }}/.tmp/native-artifact/exactc
+      EXACT_COMPILER_BUILD_STAMP: ${{ github.workspace }}/.tmp/native-artifact/compiler-build.json
 
   acceptance:
     name: Compiler browser acceptance
@@ -175,6 +192,7 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: npm run build:prerequisites
       - run: npm run build:workspaces
+      - run: npm run test:development-browser
       - run: npm run check:compiler-acceptance:built
       - run: npm run test:packed-apps
       - run: npm run test:task-progress
@@ -182,10 +200,18 @@ jobs:
         with:
           bun-version: 1.4.2
       - run: npm run test:packed-testing
-      - name: Verify shared native runtime acceptance
+      - name: Verify compiler, adapter and native runtime execution evidence
         run: |
           npm ci --prefix scripts/runtime-acceptance
-          npm run test:runtimes
+          npm run test:compiler:confidence:environments
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: compiler-environment-evidence
+          path: .tmp/compiler-confidence/behavior/
+          include-hidden-files: true
+          if-no-files-found: ignore
+          retention-days: 7
       - run: npm run test:packed-shipping
       - name: Installed workbench acceptance
         env:
@@ -208,6 +234,7 @@ jobs:
           retention-days: 7
     env:
       EXACT_COMPILER_EXECUTABLE: ${{ github.workspace }}/.tmp/native-artifact/exactc
+      EXACT_COMPILER_BUILD_STAMP: ${{ github.workspace }}/.tmp/native-artifact/compiler-build.json
 
   bun:
     name: Bun integration
@@ -232,6 +259,7 @@ jobs:
       - run: npm run test:bun
     env:
       EXACT_COMPILER_EXECUTABLE: ${{ github.workspace }}/.tmp/native-artifact/exactc
+      EXACT_COMPILER_BUILD_STAMP: ${{ github.workspace }}/.tmp/native-artifact/compiler-build.json
 
   package:
     name: Package release artifacts
@@ -351,6 +379,7 @@ jobs:
           if-no-files-found: error
     env:
       EXACT_COMPILER_EXECUTABLE: ${{ github.workspace }}/.tmp/native-artifact/exactc
+      EXACT_COMPILER_BUILD_STAMP: ${{ github.workspace }}/.tmp/native-artifact/compiler-build.json
       RELEASE_ABI_BASE: ${{ inputs.abi_base || github.event.pull_request.base.sha || github.event.before || github.sha }}
       RELEASE_ABI_REQUIRE_PRIOR: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.publish) }}
 
@@ -432,3 +461,4 @@ jobs:
           commit_message: 'Deploy documentation and sample apps'
     env:
       EXACT_COMPILER_EXECUTABLE: ${{ github.workspace }}/.tmp/native-artifact/exactc
+      EXACT_COMPILER_BUILD_STAMP: ${{ github.workspace }}/.tmp/native-artifact/compiler-build.json

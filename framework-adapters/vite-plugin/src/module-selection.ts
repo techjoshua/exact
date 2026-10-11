@@ -1,3 +1,4 @@
+import path from 'node:path';
 import type { TransformTarget } from '@exactjs/compiler';
 
 type FilterPattern = string | RegExp | readonly (string | RegExp)[];
@@ -81,4 +82,14 @@ export function exactTestTargetRequest(
 	const selected = query.get('exact-target');
 	if (selected !== 'client' && selected !== 'server') return undefined;
 	return { request: source.slice(0, separator), query: query.toString() };
+}
+
+/** Excludes generated optimizer modules from source compilation, including custom Vite caches. */
+export function isExactViteCacheModule(id: string, cacheDir: string | undefined): boolean {
+	if (!cacheDir || id.startsWith('\0')) return false;
+	const relative = path.relative(cacheDir, exactModuleFilename(id));
+	return (
+		relative === '' ||
+		(!relative.startsWith('..' + path.sep) && relative !== '..' && !path.isAbsolute(relative))
+	);
 }

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
+	"github.com/microsoft/TypeScript/tsc/internal/compiler"
 	"github.com/microsoft/TypeScript/tsc/internal/core"
 	"github.com/microsoft/TypeScript/tsc/internal/printer"
 	"github.com/microsoft/TypeScript/tsc/internal/sourcemap"
@@ -18,8 +19,11 @@ import (
 
 // Session owns persistent native compiler state for a stream of requests.
 type Session struct {
-	mu       sync.Mutex
-	projects map[string]*projectState
+	generatedValidations map[Target]*generatedValidationProject
+	mu                   sync.Mutex
+	projects             map[string]*projectState
+	validationProgram    *compiler.Program
+	authoredValidations  map[*compiler.Program]map[[32]byte]authoredValidation
 }
 
 // NewSession creates an isolated compiler session.
@@ -33,6 +37,55 @@ func NewSession() *Session {
 func (s *Session) Execute(request Request) Response {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	defer s.pruneAuthoredValidations()
+	started := time.Now()
+	response := s.executeLocked(request)
+	// Task captures also transform authored type context without mutating state.
+	needsAuthoredProof := len(response.Analysis.StateWrites) != 0 || len(response.Analysis.Tasks) != 0 || len(response.Analysis.ValueBindings) != 0
+	for _, element := range response.Analysis.JSX {
+		if !jsxIntrinsic(element.Tag) {
+			needsAuthoredProof = true
+			break
+		}
+	}
+	if response.Error == "" && request.Kind == "compile" && request.Target != TargetDefault && request.Diagnostics == "semantic" && needsAuthoredProof {
+		checking := request
+		checking.Kind = "check"
+		checking.Target = TargetDefault
+		checking.ModuleRewrite = nil
+		checking.SourceMap = false
+		checked := s.validateAuthored(checking)
+		if checked.Error != "" {
+			response.Error = checked.Error
+		}
+		for _, diagnostic := range checked.Diagnostics {
+			// Neutral validation supplies authored TypeScript proof. Framework
+			// contracts are already checked for the requested executable target.
+			if strings.HasPrefix(diagnostic.Code, "EXACT") {
+				continue
+			}
+
+			duplicate := false
+			for _, existing := range response.Diagnostics {
+				if existing.Code == diagnostic.Code && existing.Start == diagnostic.Start && existing.Message == diagnostic.Message {
+					duplicate = true
+					break
+				}
+			}
+			if !duplicate {
+				response.Diagnostics = append(response.Diagnostics, diagnostic)
+			}
+		}
+		response.Timings.CheckMicroseconds += checked.Timings.TotalMicroseconds
+		response.Timings.TotalMicroseconds = time.Since(started).Microseconds()
+	}
+	return response
+}
+
+// executeLocked also serves the framework-aware checking projection of executable mutations.
+// It shares the retained authored program and never recursively acquires the session mutex.
+func (s *Session) executeLocked(request Request) Response {
+	s.validationProgram = nil
 	requestStarted := time.Now()
 
 	response := Response{
@@ -54,8 +107,13 @@ func (s *Session) Execute(request Request) Response {
 	if request.Kind == "project-files" {
 		return projectFiles(request, response)
 	}
+	if request.Kind == "watch-files" {
+		response.ProjectFiles = s.watchedProjectFiles(request.ID)
+		return response
+	}
 	if request.Kind == "reset" {
 		s.projects = make(map[string]*projectState)
+		s.authoredValidations = nil
 		return response
 	}
 	if request.Kind == "synchronize" {
@@ -202,6 +260,16 @@ func (s *Session) Execute(request Request) Response {
 			defer generation.release()
 		}
 	}
+	// Retained identity must match the prepared program text, including virtual package imports.
+	// Keep the authored-only projection separate for diagnostic and source-map remapping.
+	retainedNormalization := normalization
+	retainedNormalization.text = request.Source
+	project.retainNormalization(fileName, retainedNormalization)
+	if request.Kind == "diagnose" {
+		s.refreshWatchedConsumers(project, fileName, retainedNormalization)
+	}
+	s.validationProgram = generation.program
+	s.pruneAuthoredValidations()
 	response.CacheHit = generation.reused
 	sourceFile := generation.sourceFile
 	if request.Kind == "extension" {
@@ -223,11 +291,13 @@ func (s *Session) Execute(request Request) Response {
 	if request.Kind == "diagnose" {
 		checkStarted := time.Now()
 		for _, projectSource := range generation.program.GetSourceFiles() {
-			for _, diagnostic := range projectSource.BindDiagnostics() {
-				response.Diagnostics = append(response.Diagnostics, projectDiagnostic(diagnostic))
+			// Match the program-level TypeScript policy before using the retained checker.
+			if isLoweredWatchTarget(projectSource.FileName()) || generation.program.SkipTypeChecking(projectSource, false) {
+				continue
 			}
-			for _, diagnostic := range generation.checker.GetDiagnostics(
+			for _, diagnostic := range generation.program.GetExactSemanticDiagnostics(
 				context.Background(),
+				generation.checker,
 				projectSource,
 			) {
 				response.Diagnostics = append(response.Diagnostics, projectDiagnostic(diagnostic))
@@ -243,7 +313,7 @@ func (s *Session) Execute(request Request) Response {
 			response.Code = authoredSource
 			if request.Diagnostics == "semantic" {
 				validationStarted := time.Now()
-				validated, validationErr := validateGeneratedCode(request, fileName, response.Code)
+				validated, validationErr := s.validateGeneratedCode(request, fileName, response.Code, project.fs)
 				response.Timings.CheckMicroseconds += time.Since(validationStarted).Microseconds()
 				if validationErr != nil {
 					response.Error = fmt.Sprintf(
@@ -265,11 +335,18 @@ func (s *Session) Execute(request Request) Response {
 	directives := collectDirectives(sourceFile.Text())
 	imports := collectImports(sourceFile)
 	assets := analyzeAssets(sourceFile, generation.checker, request)
-	components := collectComponents(sourceFile)
-	assignComponentIDs(sourceFile, components, request.ID)
+	ensureProjectComponentCaches(project)
+	nodeIDs := projectComponentNodeIDs(project, sourceFile)
+	components := collectComponentsWithIDs(sourceFile, nodeIDs)
+	// Build hosts own ordinary bootstrap and test registration. Component definitions in a
+	// test module still compile normally, and known target and data-policy checks remain intact.
+	hostOwnedModule := request.Kind == "compile" && request.PreserveOrdinaryModules &&
+		((len(components) == 0 && sourceFile.AsNode().SubtreeFacts()&ast.SubtreeContainsJsx == 0) || hostOwnedTestFilename(fileName))
+	assignComponentIDs(sourceFile, components, request.ID, nodeIDs)
 	markExportedComponents(sourceFile, components, generation.checker)
 	jsx := collectJSX(sourceFile)
-	stateAliases, stateReads, stateWrites := collectStateAnalysis(sourceFile, generation.checker)
+	analysisFacts := newSourceAnalysisFacts(sourceFile, generation.checker)
+	stateAliases, stateReads, stateWrites := collectStateAnalysis(sourceFile, generation.checker, analysisFacts)
 	applyNormalizedSetupAssignmentExecutions(stateWrites, setupAssignmentExecutions, normalization)
 	preliminaryEnhancements := collectEnhancementImports(
 		sourceFile,
@@ -287,6 +364,7 @@ func (s *Session) Execute(request Request) Response {
 		sourceFile,
 		generation.checker,
 		stateReads,
+		components,
 		preliminaryEnhancements,
 	)
 	skippedEnhancementAttributes := make(
@@ -314,6 +392,7 @@ func (s *Session) Execute(request Request) Response {
 	stateWriteDiagnostics := unsupportedStateWriteDiagnostics(
 		sourceFile,
 		generation.checker,
+		analysisFacts,
 	)
 	classNameDiagnostics := analyzeClassNames(sourceFile)
 	renderContractDiagnostics := renderDiagnostics(
@@ -356,16 +435,11 @@ func (s *Session) Execute(request Request) Response {
 		stateReads,
 		stateWrites,
 		componentBindings,
+		assets,
+		request.AssetRules,
 	)
 	response.Timings.CallableMicroseconds = time.Since(callableStarted).Microseconds()
 	policyTaskStarted := time.Now()
-	policy := collectPolicyAnalysis(
-		sourceFile,
-		generation.checker,
-		components,
-		stateReads,
-		request,
-	)
 	capabilities, capabilityDiagnostics := collectCapabilityRequirements(
 		sourceFile,
 		generation.checker,
@@ -378,6 +452,7 @@ func (s *Session) Execute(request Request) Response {
 		stateWrites,
 		reactiveBindings,
 		callables,
+		analysisFacts,
 	)
 	tasks = append(
 		tasks,
@@ -387,11 +462,20 @@ func (s *Session) Execute(request Request) Response {
 			tasks,
 		)...,
 	)
+	attachNormalizedTaskOrigins(tasks, sourceFile, normalization)
+	policy := collectPolicyAnalysis(
+		sourceFile,
+		generation.checker,
+		components,
+		stateReads,
+		tasks,
+		project.completedPolicyTypes(generation.checker),
+	)
 	assignTaskIDs(tasks, components, request.ID)
 	tasks = applyTaskPolicies(tasks, policy)
 	intlPlan := planIntlOperations(sourceFile, generation.checker, tasks)
 	planComponentIntlSurfaces(sourceFile, components, intlPlan)
-	propagateComponentSurfacePlans(sourceFile, components, callables)
+	propagateComponentSurfacePlans(sourceFile, components, callables, generation.checker)
 	planTaskLocalization(sourceFile, tasks, intlPlan)
 	operations := invokedTaskOperations(tasks, sourceFile, reactiveBindings, generation.checker)
 	components = analyzeComponents(
@@ -400,6 +484,7 @@ func (s *Session) Execute(request Request) Response {
 		callables,
 		tasks,
 		generation.checker,
+		nodeIDs,
 	)
 	components = applyComponentPolicies(
 		sourceFile,
@@ -409,6 +494,7 @@ func (s *Session) Execute(request Request) Response {
 		stateReads,
 		request,
 	)
+	collectSecretConsumptions(sourceFile, generation.checker, request, tasks, &policy)
 	response.Timings.PolicyTaskMicroseconds = time.Since(
 		policyTaskStarted,
 	).Microseconds()
@@ -419,6 +505,7 @@ func (s *Session) Execute(request Request) Response {
 		generation.checker,
 		components,
 		callables,
+		policy.sourceTypes,
 	)
 	if request.JSXInterop != nil {
 		components = applyJSXInteropBoundaries(components)
@@ -443,6 +530,9 @@ func (s *Session) Execute(request Request) Response {
 	attachComponentStateSlots(components, stateReads, stateWrites, sourceFile, generation.checker)
 	attachComponentPropsSlots(components, sourceFile, generation.checker)
 	attachComponentPropsSerialization(components, sourceFile, generation.checker)
+	if request.ServerComponents {
+		retainMutableContextOwners(components)
+	}
 	clientIslands := indexClientElementIslands(
 		sourceFile,
 		components,
@@ -451,6 +541,7 @@ func (s *Session) Execute(request Request) Response {
 		stateWrites,
 		reactiveBindings,
 		generation.checker,
+		nodeIDs,
 	)
 	symbols, boundaries := createArtifactRecords(
 		sourceFile,
@@ -480,6 +571,7 @@ func (s *Session) Execute(request Request) Response {
 	)
 	partitionPlan := createPartitionPlan(
 		sourceFile,
+		generation.checker,
 		request.BuildKey,
 		components,
 		clientIslands,
@@ -495,14 +587,17 @@ func (s *Session) Execute(request Request) Response {
 	planComponentTargets(sourceFile, components, tasks, resumptions, request.JSXInterop, generation.checker, dynamicComponents.uses, intlPlan)
 	if request.ServerComponents {
 		// Partition planning needs setup-task flow, but same-build SSR executes that setup
-		// directly and hydrates its published state. Only authored invocation paths retain
-		// transport continuations and executors in the emitted contract.
-		continuations = retainInvokedContinuations(continuations, operations)
+		// directly and hydrates its published state. Reactive setup and authored invocation paths
+		// retain transport continuations and executors for subsequent interactions.
+		continuations = retainInvokedContinuations(sourceFile, components, tasks, continuations, operations)
 		symbols, boundaries = retainIndependentElementIslands(components, symbols, boundaries, continuations, resumptions)
 	}
 	response.Timings.AnalysisMicroseconds = time.Since(
 		analysisStarted,
 	).Microseconds()
+	for index := range components {
+		components[index].StandaloneClientActivation = componentPublishesLocalActivation(components[index], request.ServerComponents)
+	}
 	response.Analysis = NewAnalysis(
 		imports,
 		components,
@@ -536,6 +631,7 @@ func (s *Session) Execute(request Request) Response {
 			request.Target,
 			sourceFile,
 			policy.graph,
+			hostOwnedModule,
 		)...,
 	)
 	response.Diagnostics = append(
@@ -572,6 +668,7 @@ func (s *Session) Execute(request Request) Response {
 			stateWrites,
 			reactiveBindings,
 			request.Target,
+			nodeIDs,
 		)...,
 	)
 	response.Diagnostics = append(response.Diagnostics, formBindingDiagnostics...)
@@ -586,6 +683,7 @@ func (s *Session) Execute(request Request) Response {
 	response.Diagnostics = append(response.Diagnostics, enhancementImports.diagnostics...)
 	response.Diagnostics = append(response.Diagnostics, timeDiagnostics(sourceFile, generation.checker, enhancementImports)...)
 	response.Diagnostics = append(response.Diagnostics, stateWriteDiagnostics...)
+	response.Diagnostics = append(response.Diagnostics, taskHelperBoundaryDiagnostics(sourceFile, generation.checker, tasks, request.Target, analysisFacts)...)
 	response.Diagnostics = append(response.Diagnostics, policy.diagnostics...)
 	response.Diagnostics = append(response.Diagnostics, capabilityDiagnostics...)
 	response.Diagnostics = append(response.Diagnostics, assets.diagnostics...)
@@ -640,11 +738,17 @@ func (s *Session) Execute(request Request) Response {
 	// project analyses remain valid for the next request.
 	defer ast.SetParentInChildren(sourceFile.AsNode())
 	emitContext := printer.NewEmitContext()
+	// Capture lexical module ownership before lowering can reparent shared source nodes.
+	omittedModuleValues := planModuleValuePruning(sourceFile, generation.checker, request.Target)
 	loweringStarted := time.Now()
+	secretQualifications := planSecretQualifications(policy.qualifications, generation.checker)
 	transformed, componentUpdates, componentInputUpdates, componentInputTaskIDs, componentRangeOutputs, artifactStructure, componentListOwners := lowerExactJSX(
 		sourceFile,
 		emitContext,
 		jsxLoweringPlan{
+			analysisFacts:        analysisFacts,
+			nodeIDs:              nodeIDs,
+			checking:             request.Kind == "check",
 			stateWrites:          stateWrites,
 			stateReads:           stateReads,
 			reactiveBindings:     reactiveBindings,
@@ -654,6 +758,7 @@ func (s *Session) Execute(request Request) Response {
 			tasks:                tasks,
 			operations:           operations,
 			continuations:        continuations,
+			contextWrites:        indexContinuationContextWrites(continuations, tasks, policy),
 			clientIslands:        clientIslands,
 			target:               request.Target,
 			contractProjection:   request.ComponentContractProjection,
@@ -704,12 +809,13 @@ func (s *Session) Execute(request Request) Response {
 		transformed,
 		emitContext.Factory,
 		callables,
+		request.Target,
+		policy,
 	)
 	transformed = lowerSecretQualifications(
 		transformed,
 		emitContext.Factory,
-		policy.qualifications,
-		generation.checker,
+		secretQualifications,
 	)
 	response.Timings.LoweringMicroseconds = time.Since(
 		loweringStarted,
@@ -720,6 +826,8 @@ func (s *Session) Execute(request Request) Response {
 		request.Target,
 		callables,
 		exports,
+		omittedModuleValues,
+		assets,
 	)
 	transformed = pruneArtifactImports(
 		transformed,
@@ -729,6 +837,9 @@ func (s *Session) Execute(request Request) Response {
 		targetImportUses,
 	)
 	if request.ModuleRewrite != nil {
+		// Namespace replacement uses authored checker identities. Lowering can reparent
+		// shared source nodes, so restore that proof tree first.
+		ast.SetParentInChildren(sourceFile.AsNode())
 		transformed, err = rewriteModuleReferences(
 			sourceFile,
 			transformed,
@@ -791,10 +902,11 @@ func (s *Session) Execute(request Request) Response {
 	response.Structure.RecordEmittedGenericNativeExecution(response.Code)
 	response.Timings.PrintMicroseconds = time.Since(printStarted).Microseconds()
 	validationStarted := time.Now()
-	generatedDiagnostics, validationErr := validateGeneratedCode(
+	generatedDiagnostics, validationErr := s.validateGeneratedCode(
 		request,
 		fileName,
 		response.Code,
+		project.fs,
 	)
 	response.Timings.CheckMicroseconds += time.Since(
 		validationStarted,
@@ -809,6 +921,7 @@ func (s *Session) Execute(request Request) Response {
 	mapGeneratedDiagnostics(generatedDiagnostics, response.Code, fileName, response.SourceMap, normalization)
 	sourceDiagnosticCount := len(response.Diagnostics)
 	response.Diagnostics = append(response.Diagnostics, generatedDiagnostics...)
+
 	if request.Kind == "check" {
 		// Check lowering exists only to validate the compiler-aware TypeScript projection.
 		// Never expose its target-neutral executable representation to build hosts.

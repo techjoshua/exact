@@ -9,41 +9,49 @@ import (
 	"github.com/microsoft/TypeScript/tsc/internal/printer"
 )
 
-// lowerSecretQualifications preserves compiler-proven secret types in emitted
-// TypeScript without changing runtime values.
+// planSecretQualifications reconstructs types while source nodes still belong to the checker.
+// Lowering reparents shared nodes, so its application phase must not query lexical type scope.
+func planSecretQualifications(sites []*ast.Node, typeChecker *checker.Checker) map[string]*ast.Node {
+	result := make(map[string]*ast.Node, len(sites))
+	for _, site := range sites {
+		result[nodeSpanKey(site)] = typeChecker.TypeToTypeNode(
+			typeChecker.GetTypeAtLocation(site), site, nodebuilder.FlagsNoTruncation, nil,
+		)
+	}
+	return result
+}
+
+// lowerSecretQualifications preserves planned secret types without changing runtime values.
 func lowerSecretQualifications(
 	sourceFile *ast.SourceFile,
 	factory *printer.NodeFactory,
-	sites []*ast.Node,
-	typeChecker *checker.Checker,
+	types map[string]*ast.Node,
 ) *ast.SourceFile {
-	if len(sites) == 0 {
+	if len(types) == 0 {
 		return sourceFile
-	}
-	bySpan := make(map[string]*ast.Node, len(sites))
-	for _, site := range sites {
-		bySpan[nodeSpanKey(site)] = site
 	}
 	alias := secretTypeAlias(sourceFile)
 	used := false
+	qualifications := 0
 	var visitor *ast.NodeVisitor
 	visitor = ast.NewNodeVisitor(
 		func(node *ast.Node) *ast.Node {
+			before := qualifications
 			visited := visitor.VisitEachChild(node)
-			site, qualify := bySpan[nodeSpanKey(node)]
+			underlying, qualify := types[nodeSpanKey(node)]
 			if !qualify || !ast.IsExpression(visited) {
 				return visited
 			}
-			underlying := typeChecker.TypeToTypeNode(
-				typeChecker.GetTypeAtLocation(site),
-				site,
-				nodebuilder.FlagsNoTruncation,
-				nil,
-			)
 			if underlying == nil {
 				underlying = factory.NewKeywordTypeNode(ast.KindUnknownKeyword)
 			}
 			used = true
+			// Child qualifications can replace plain fields with opaque Secret values.
+			// The original checker type then intentionally differs from this derived shape.
+			if qualifications != before {
+				visited = factory.NewAsExpression(visited, factory.NewKeywordTypeNode(ast.KindUnknownKeyword))
+			}
+			qualifications++
 			return factory.NewAsExpression(
 				visited,
 				factory.NewTypeReferenceNode(

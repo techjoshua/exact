@@ -57,6 +57,7 @@ export type NativeCompilerRequest = Readonly<{
 	kind:
 		| 'version'
 		| 'project-files'
+		| 'watch-files'
 		| 'reset'
 		| 'synchronize'
 		| 'diagnose'
@@ -70,6 +71,7 @@ export type NativeCompilerRequest = Readonly<{
 	buildKey?: string;
 	configFile?: string;
 	target?: 'default' | 'client' | 'server';
+	preserveOrdinaryModules?: boolean;
 	componentContractProjection?: 'complete' | 'hydrate' | 'client' | 'server-render';
 	serverComponents?: boolean;
 	preserveComponentHoisting?: boolean;

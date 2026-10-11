@@ -1,4 +1,4 @@
-import { lstat, mkdir, rename, unlink, writeFile } from 'node:fs/promises';
+import { lstat, mkdir, readFile, rename, unlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 /** Describes one file replacement or deletion in a compiler publication transaction. */
@@ -22,6 +22,7 @@ const publicationTails = new Map<string, Promise<void>>();
  * Stages a complete compiler output set before replacing its published files.
  * A commit failure restores every prior file before rejecting, preventing a
  * failed build from leaving client, server, shared, or map generations mixed.
+ * Byte-identical regular files retain their identity and do not notify watchers.
  */
 export async function publishOutputTransaction(
 	mutations: readonly CompilerOutputMutation[],
@@ -51,6 +52,7 @@ async function publishLockedOutputTransaction(
 		for (let index = 0; index < mutations.length; index++) {
 			const mutation = mutations[index]!;
 			const file = path.resolve(mutation.file);
+			if (await outputAlreadyMatches(file, mutation.content)) continue;
 			await mkdir(path.dirname(file), { recursive: true });
 			const content = mutation.content;
 			let stageFile: string | undefined;
@@ -99,6 +101,19 @@ async function publishLockedOutputTransaction(
 	}
 
 	await cleanupTransactionFiles(staged);
+}
+
+/** Compares under the publication lock, preserving links as replacements rather than following them. */
+async function outputAlreadyMatches(file: string, content: string | undefined): Promise<boolean> {
+	try {
+		const info = await lstat(file);
+		return (
+			content !== undefined && info.isFile() && (await readFile(file)).equals(Buffer.from(content))
+		);
+	} catch (error) {
+		if ((error as NodeJS.ErrnoException).code === 'ENOENT') return content === undefined;
+		throw error;
+	}
 }
 
 async function acquirePublicationPaths(files: readonly string[]): Promise<() => void> {

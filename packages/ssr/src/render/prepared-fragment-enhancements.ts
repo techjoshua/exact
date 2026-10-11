@@ -12,7 +12,6 @@ import {
 } from '@exactjs/core/framework/render-structure';
 import {
 	createChildRangeReceipt,
-	createCompiledComponentReceipt,
 	createCompiledFragmentPresentation,
 	createCompiledFragmentReceipt,
 	createCompiledTargetReceipt,
@@ -26,6 +25,7 @@ import { renderChildren } from './children.js';
 import type { SsrRenderOptions } from './entrypoints.js';
 import { withRenderCleanup, type RenderValue } from './execution.js';
 import { captureSsrProgramOutput } from './program-capture.js';
+import { createSsrEnhancementOperation } from './enhancement-provider-operation.js';
 
 /**
  * Buffers one prepared fragment chain while normal request-owned component execution supplies its
@@ -104,7 +104,7 @@ export function renderPreparedFragmentEnhancements(
 					const component = context.enhancementCatalog?.get(entry.identity);
 					if (!component) throw new Error(`Prepared enhancement is unavailable: ${entry.identity}`);
 					const child = chain;
-					chain = createCompiledComponentReceipt(component, { ...entry.props }, child);
+					chain = createSsrEnhancementOperation(context, component, { ...entry.props }, child);
 					const receipt = readCompiledComponentReceipt(chain)!;
 					const record: (typeof owners)[number] = {
 						identity: Symbol(entry.identity),

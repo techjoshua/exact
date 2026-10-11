@@ -26,8 +26,7 @@ func componentRegistryDiagnostics(
 			return true
 		}
 		call := node.AsCallExpression()
-		if strings.TrimSpace(sourceText(sourceFile, call.Expression)) !=
-			"createComponentRegistry" {
+		if !componentRegistryFactoryCall(call.Expression, sourceFile, typeChecker) {
 			return true
 		}
 		declaration := componentRegistryDeclaration(node)
@@ -49,7 +48,7 @@ func componentRegistryDiagnostics(
 			return false
 		}
 		symbol := typeChecker.GetSymbolAtLocation(name)
-		if symbol != nil && componentValueSymbolIsWrittenAfter(
+		if symbol != nil && componentRegistrySymbolIsWrittenAfter(
 			symbol, declaration.End(), sourceFile, typeChecker,
 		) {
 			diagnostics = append(diagnostics, componentRegistryDiagnostic(
@@ -64,7 +63,7 @@ func componentRegistryDiagnostics(
 			))
 			return false
 		}
-		define := call.Arguments.Nodes[0]
+		define := unwrapRegistryDefinitionBody(call.Arguments.Nodes[0])
 		if !ast.IsArrowFunction(define) && !ast.IsFunctionExpression(define) {
 			diagnostics = append(diagnostics, componentRegistryDiagnostic(
 				define,
@@ -72,7 +71,7 @@ func componentRegistryDiagnostics(
 			))
 			return false
 		}
-		body := unwrapRegistryDefinitionBody(define.Body())
+		body := registryCallbackResult(define.Body())
 		if body == nil || !ast.IsObjectLiteralExpression(body) {
 			diagnostics = append(diagnostics, componentRegistryDiagnostic(
 				define.Body(),
@@ -112,18 +111,9 @@ func componentRegistryDiagnostics(
 				keys[key] = struct{}{}
 			}
 		}
-		registryName := strings.TrimSpace(sourceText(
-			sourceFile,
-			member.Expression,
-		))
-		if !registrySelectionKeyIsFinite(
-			typeChecker.GetTypeAtLocation(member.ArgumentExpression),
-			typeChecker,
-			keys,
-		) && !strings.Contains(
-			sourceFile.Text(),
-			"KeyOf<typeof "+registryName+">",
-		) {
+		// Proof belongs to the selected expression. Unrelated aliases, comments and strings
+		// elsewhere in the module cannot narrow this key.
+		if !registrySelectionKeyIsFinite(typeChecker.GetTypeAtLocation(member.ArgumentExpression), keys) {
 			diagnostics = append(diagnostics, componentRegistryDiagnostic(
 				member.ArgumentExpression,
 				"dynamic component registry keys must be proven by KeyOf<typeof Registry> or hasComponent() narrowing",
@@ -136,7 +126,6 @@ func componentRegistryDiagnostics(
 
 func registrySelectionKeyIsFinite(
 	value *checker.Type,
-	typeChecker *checker.Checker,
 	keys map[string]struct{},
 ) bool {
 	if value == nil || value.Flags()&checker.TypeFlagsAnyOrUnknown != 0 {
@@ -153,10 +142,10 @@ func registrySelectionKeyIsFinite(
 		if member.Flags()&checker.TypeFlagsStringLiteral == 0 {
 			return false
 		}
-		literal := strings.Trim(
-			typeChecker.TypeToString(member),
-			"'\"",
-		)
+		literal, valid := member.AsLiteralType().Value().(string)
+		if !valid {
+			return false
+		}
 		if _, exists := keys[literal]; !exists {
 			return false
 		}
@@ -165,18 +154,11 @@ func registrySelectionKeyIsFinite(
 }
 
 func componentRegistryDeclaration(call *ast.Node) *ast.Node {
-	parent := call.Parent
-	for parent != nil && ast.IsParenthesizedExpression(parent) {
-		parent = parent.Parent
-	}
-	if parent == nil || !ast.IsVariableDeclaration(parent) ||
-		parent.AsVariableDeclaration().Initializer != call {
+	declaration := sourceCallableBinding(call)
+	if declaration == nil || declaration.Parent == nil || !ast.IsVariableDeclarationList(declaration.Parent) {
 		return nil
 	}
-	if parent.Parent == nil || !ast.IsVariableDeclarationList(parent.Parent) {
-		return nil
-	}
-	return parent
+	return declaration
 }
 
 func componentRegistryDeclarationIsModuleLevel(declaration *ast.Node) bool {
@@ -188,19 +170,7 @@ func componentRegistryDeclarationIsModuleLevel(declaration *ast.Node) bool {
 }
 
 func unwrapRegistryDefinitionBody(body *ast.Node) *ast.Node {
-	for body != nil {
-		switch {
-		case ast.IsParenthesizedExpression(body):
-			body = body.AsParenthesizedExpression().Expression
-		case ast.IsAsExpression(body):
-			body = body.AsAsExpression().Expression
-		case ast.IsSatisfiesExpression(body):
-			body = body.AsSatisfiesExpression().Expression
-		default:
-			return body
-		}
-	}
-	return body
+	return unwrapSourceCallableReference(body)
 }
 
 func validateComponentRegistryDefinition(
@@ -214,6 +184,7 @@ func validateComponentRegistryDefinition(
 	seen := make(map[string]struct{})
 	for _, property := range body.AsObjectLiteralExpression().Properties.Nodes {
 		key, value, valid := componentRegistryProperty(property)
+		value = unwrapRegistryDefinitionBody(value)
 		if !valid {
 			diagnostics = append(diagnostics, componentRegistryDiagnostic(
 				property,
@@ -252,7 +223,7 @@ func validateComponentRegistryDefinition(
 			))
 			continue
 		}
-		if registryLazyCall(value) {
+		if registryLazyCall(value, typeChecker) {
 			call := value.AsCallExpression()
 			if call.Arguments == nil || len(call.Arguments.Nodes) != 1 {
 				diagnostics = append(diagnostics, componentRegistryEntryDiagnostic(
@@ -303,63 +274,33 @@ func registryLazyLoaderIsStatic(
 	return valid
 }
 
-func registryLazyCall(node *ast.Node) bool {
-	return node != nil && ast.IsCallExpression(node) &&
-		ast.IsIdentifier(node.AsCallExpression().Expression) &&
-		node.AsCallExpression().Expression.Text() == "lazy"
-}
-
 func componentRegistryLazyEscapeDiagnostics(
 	registryName string,
 	define *ast.Node,
 	typeChecker *checker.Checker,
 ) []Diagnostic {
 	var diagnostics []Diagnostic
-	for _, parameter := range define.Parameters() {
-		name := parameter.Name()
-		if !ast.IsObjectBindingPattern(name) {
-			continue
+	walkNode(define.Body(), func(node *ast.Node) bool {
+		if ast.IsPartOfTypeNode(node) || (!ast.IsIdentifier(node) && !ast.IsPropertyAccessExpression(node) && !ast.IsElementAccessExpression(node)) {
+			return true
 		}
-		for _, element := range name.AsBindingPattern().Elements.Nodes {
-			binding := element.AsBindingElement()
-			property := binding.PropertyName
-			if property == nil {
-				property = binding.Name()
-			}
-			if !ast.IsIdentifier(property) || property.Text() != "lazy" {
-				continue
-			}
-			local := binding.Name().Text()
-			capability := typeChecker.GetSymbolAtLocation(binding.Name())
-			walkNode(define.Body(), func(node *ast.Node) bool {
-				if !ast.IsIdentifier(node) || node.Text() != local {
-					return true
-				}
-				parent := node.Parent
-				shorthand := parent != nil && ast.IsShorthandPropertyAssignment(parent)
-				if ast.IsPartOfTypeNode(node) || (!shorthand &&
-					(ast.IsDeclarationName(node) || isStaticPropertyName(node))) {
-					return true
-				}
-				symbol := typeChecker.GetSymbolAtLocation(node)
-				if shorthand {
-					symbol = typeChecker.GetShorthandAssignmentValueSymbol(parent)
-				}
-				if capability != nil && symbol != capability {
-					return true
-				}
-				if parent != nil && ast.IsCallExpression(parent) &&
-					parent.AsCallExpression().Expression == node {
-					return true
-				}
-				diagnostics = append(diagnostics, componentRegistryDiagnostic(
-					node,
-					fmt.Sprintf("component registry %s scoped lazy() capability may not escape its definition callback. Call lazy() when declaring entries inside that callback", registryName),
-				))
-				return true
-			})
+		parameter := registryLazyCapabilityParameter(node, typeChecker)
+		if parameter == nil || parameter.Parent != define {
+			return true
 		}
-	}
+		parent := node.Parent
+		for parent != nil && unwrapSourceCallableReference(parent) == node {
+			parent = parent.Parent
+		}
+		if parent != nil && ast.IsCallExpression(parent) && unwrapSourceCallableReference(parent.AsCallExpression().Expression) == node {
+			return true
+		}
+		diagnostics = append(diagnostics, componentRegistryDiagnostic(
+			node,
+			fmt.Sprintf("component registry %s scoped lazy() capability may not escape its definition callback. Call lazy() when declaring entries inside that callback", registryName),
+		))
+		return true
+	})
 	return diagnostics
 }
 

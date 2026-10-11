@@ -82,7 +82,10 @@ function hasConsistentServerPublication(value: Record<PropertyKey, unknown>): bo
 		value.resumption !== undefined &&
 		Array.isArray(value.continuations) &&
 		value.continuations.length !== 0;
-	return (value.artifact.execution.publication !== undefined) === resumable;
+	const published = value.artifact.execution.publication !== undefined;
+	// Local handlers and lifecycle work can require an island without server operations
+	// or serialized state. Continuation-backed resumptions still require publication.
+	return published ? value.placement === 'isomorphic' : !resumable;
 }
 
 function isExecutableArtifact(value: unknown, componentId: string, role: unknown): boolean {

@@ -283,26 +283,6 @@ func (lowering *jsxLowering) directServerComponentOwner(node *ast.Node) (string,
 	return name, name != ""
 }
 
-func (lowering *jsxLowering) containsIndependentAsyncSiblings(children *ast.NodeList) bool {
-	if children == nil {
-		return false
-	}
-	if lowering.independentAsyncSiblings(children) {
-		return true
-	}
-	for _, child := range ast.GetSemanticJsxChildren(children.Nodes) {
-		if !ast.IsJsxElement(child) {
-			continue
-		}
-		element := child.AsJsxElement()
-		if jsxIntrinsic(sourceText(lowering.sourceFile, openingTag(element.OpeningElement))) &&
-			lowering.containsIndependentAsyncSiblings(element.Children) {
-			return true
-		}
-	}
-	return false
-}
-
 func (lowering *jsxLowering) renderProgramPropertyWriter(
 	build *renderProgramBuild,
 	readers []*ast.Node,
@@ -566,6 +546,11 @@ func (lowering *jsxLowering) appendRenderProgramElement(
 		}
 	}
 	namespace := renderProgramNamespace(tag, parentNamespace)
+	if tag == "annotation-xml" && (namespace == "mathml" || namespace == "contextual") {
+		if _, known := renderProgramAnnotationEncoding(opening.Attributes()); !known {
+			return build.decline("dynamic-mathml-integration")
+		}
+	}
 	if len(path) == 0 {
 		build.namespace = namespace
 	}
@@ -589,7 +574,13 @@ func (lowering *jsxLowering) appendRenderProgramElement(
 		// Compact descendants still need the compiler identity used by loading-time replay.
 		id := lowering.elementID(identityNode)
 		if _, exists := lowering.islandReplayTargets[id]; exists {
-			build.write(` data-exact-id="` + html.EscapeString(id) + `"`)
+			if lowering.target == TargetServer {
+				// Replay identity belongs to live elements, not inert text presentation.
+				// An attribute slot lets the existing serializer apply the current host contract.
+				build.propertySlot(id, path, nodeIndex, "data-exact-id", lowering.factory.NewStringLiteral(id, ast.TokenFlagsNone))
+			} else {
+				build.write(` data-exact-id="` + html.EscapeString(id) + `"`)
+			}
 		}
 		if !lowering.appendRenderProgramAttributes(build, opening.Attributes(), tag, path, nodeIndex) {
 			return false
@@ -688,8 +679,19 @@ func (lowering *jsxLowering) appendRenderProgramElement(
 				continue
 			}
 			projection := textProjections.values[childIndex]
+			var reader *ast.Node
+			if lowering.target != TargetServer {
+				// Capture authored locals before lowering retained derived references clones the
+				// expression and drops the parent chain needed for materialization.
+				if closure := lowering.reactiveClosure(expression); closure != nil {
+					reader = lowering.call(lowering.names.expression, []*ast.Node{closure})
+				}
+			}
+			if reader == nil {
+				reader = lowering.visitor.VisitNode(expression)
+			}
 			build.textSlot(
-				lowering.dynamicID(child), childPath, lowering.visitor.VisitNode(expression),
+				lowering.dynamicID(child), childPath, reader,
 				projection.prefix, projection.suffix,
 			)
 			build.slots[len(build.slots)-1].textRun = textRun
@@ -712,13 +714,8 @@ func (lowering *jsxLowering) appendRenderProgramElement(
 					boundedMarkerless = !markerlessTail &&
 						lowering.nextRenderedProgramChildIsPlainIntrinsic(semantic, childIndex) &&
 						build.boundedComponentParentIsStable(path)
-					reader := lowering.visitRenderProgramComponent(child)
-					serverComponent, serverProps := lowering.directServerRenderProgramComponent(reader)
-					if serverComponent != nil {
-						reader = serverProps
-					}
-					build.componentSlot(
-						lowering.dynamicID(child), childPath, reader, markerlessTail, boundedMarkerless, serverComponent,
+					boundedMarkerless = lowering.appendRenderProgramComponentSlot(
+						build, child, childPath, markerlessTail, boundedMarkerless,
 					)
 				} else {
 					// The focused range owns the value as an opaque child. Its ordinary lowering
@@ -760,7 +757,7 @@ func (lowering *jsxLowering) appendRenderProgramElement(
 				}
 				continue
 			}
-			if !lowering.appendRenderProgramElement(build, child, element.OpeningElement, element.Children, childPath, renderProgramChildNamespace(tag, namespace)) {
+			if !lowering.appendRenderProgramElement(build, child, element.OpeningElement, element.Children, childPath, renderProgramChildNamespace(tag, namespace, opening.Attributes())) {
 				return false
 			}
 			domIndex++
@@ -778,13 +775,8 @@ func (lowering *jsxLowering) appendRenderProgramElement(
 					boundedMarkerless = !markerlessTail &&
 						lowering.nextRenderedProgramChildIsPlainIntrinsic(semantic, childIndex) &&
 						build.boundedComponentParentIsStable(path)
-					reader := lowering.visitRenderProgramComponent(child)
-					serverComponent, serverProps := lowering.directServerRenderProgramComponent(reader)
-					if serverComponent != nil {
-						reader = serverProps
-					}
-					build.componentSlot(
-						lowering.dynamicID(child), childPath, reader, markerlessTail, boundedMarkerless, serverComponent,
+					boundedMarkerless = lowering.appendRenderProgramComponentSlot(
+						build, child, childPath, markerlessTail, boundedMarkerless,
 					)
 				} else {
 					build.childSlot(
@@ -823,7 +815,7 @@ func (lowering *jsxLowering) appendRenderProgramElement(
 				}
 				continue
 			}
-			if !lowering.appendRenderProgramElement(build, child, child, nil, childPath, renderProgramChildNamespace(tag, namespace)) {
+			if !lowering.appendRenderProgramElement(build, child, child, nil, childPath, renderProgramChildNamespace(tag, namespace, opening.Attributes())) {
 				return false
 			}
 			domIndex++
@@ -861,8 +853,7 @@ func componentChildInsideMap(node *ast.Node) bool {
 			continue
 		}
 		expression := current.AsCallExpression().Expression
-		if ast.IsPropertyAccessExpression(expression) &&
-			expression.AsPropertyAccessExpression().Name().Text() == "map" {
+		if collectionMapReceiver(expression) != nil {
 			return true
 		}
 	}
@@ -892,8 +883,7 @@ func (lowering *jsxLowering) renderProgramListExpression(node *ast.Node) bool {
 		return false
 	}
 	call := node.AsCallExpression()
-	if ast.IsPropertyAccessExpression(call.Expression) &&
-		call.Expression.AsPropertyAccessExpression().Name().Text() == "map" {
+	if collectionMapReceiver(call.Expression) != nil {
 		return true
 	}
 	plan, exists := lowering.collectionMaps[nodeSpanKey(node)]

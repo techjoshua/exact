@@ -16,6 +16,7 @@ type LoaderContext = {
 	_compiler?: ExactWebpackLoaderBridgeCarrier;
 	getOptions?(): ExactWebpackLoaderOptions;
 	async?(): LoaderContext['callback'];
+	emitWarning?(warning: Error): void;
 	callback(error: Error | null, code?: string, map?: unknown): void;
 };
 
@@ -24,7 +25,8 @@ export default function exactWebpackLoader(this: LoaderContext, source: string):
 	const callback = this.async?.() ?? this.callback.bind(this);
 	const options = this.getOptions?.() ?? {};
 	const bridge = exactWebpackLoaderBridge(this._compiler);
-	void Promise.resolve(bridge?.configurationWatchFiles?.())
+	const session = bridge?.session ?? compilerSessionForWebpackLoader(options.__exactSessionId);
+	void Promise.resolve(bridge?.configurationWatchFiles?.(this.resourcePath))
 		.then((files) => {
 			for (const file of files ?? []) {
 				if (file.missing) this.addMissingDependency?.(file.filename);
@@ -34,18 +36,22 @@ export default function exactWebpackLoader(this: LoaderContext, source: string):
 				source,
 				this.resourcePath ?? 'input.tsx',
 				options,
-				bridge?.session ?? compilerSessionForWebpackLoader(options.__exactSessionId),
+				session,
 				bridge
 					? (result) => bridge.record(this.resourcePath ?? 'input.tsx', source, result)
 					: undefined,
 				bridge?.intl,
 				bridge?.intlReady(),
 				bridge?.validate,
-				bridge?.packageEnhancements()
+				bridge?.packageEnhancements(),
+				bridge?.warn ?? ((message) => this.emitWarning?.(new Error(message))),
+				bridge?.resolveEnhancement
 			);
 		})
 		.then(
 			async (result) => {
+				for (const filename of session?.watchFiles(this.resourcePath) ?? [])
+					this.addDependency?.(filename);
 				const executable = await transpileExactWebpackResult(
 					result ?? { code: source, map: null },
 					this.resourcePath ?? 'input.tsx',

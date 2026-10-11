@@ -40,9 +40,9 @@ function IndexedOuterList(
 		<div {...props.attributes}>
 			<table>
 				<tbody>
-					{props.rows.map((row, index) => (
+					{props.rows['map']((row, index) => (
 						<tr key={row}>
-							{props.columns.map((column) => (
+							{(props.columns.map satisfies typeof props.columns.map)((column) => (
 								<td key={column.name}>{column.values[index]}</td>
 							))}
 						</tr>

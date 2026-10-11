@@ -4,6 +4,8 @@ Bun build integration for eXact TypeScript and TSX.
 
 ## Configuration
 
+Configuration discovery and authorization follow Bun's build `root` (otherwise the process directory). Override with `applicationRoot`.
+
 ```ts
 import { exact } from '@exactjs/bun-plugin';
 
@@ -55,8 +57,6 @@ available when one output must support either mode.
 For an SSR-only server entry, set `renderMode: 'server-render'` to omit continuation-dispatch
 executors. Keep the default for a Bun server bundle that also handles continuation requests.
 
-## What the plugin handles
-
 The plugin compiles eXact source, resolves generated `.exact` facades, selects client or server
 exports, and participates in Bun watch builds. Use `@exactjs/bun-adapter` separately to connect
 the generated server runtime to `Bun.serve()`.
@@ -72,8 +72,8 @@ the compiler does not decide package trust or maintain a plugin registry.
 An attributed namespace export with `scope: 'package'` in `exact.config.*` supplies a virtual namespace to
 every package component; Bun emits its catalog registration only from modules that activate it.
 
-Optional `debug` settings control private server catalogs and compact browser instrumentation.
-Disable both for hardened output. See [eXact DevTools](https://github.com/techjoshua/exact/blob/main/docs/devtools.md).
+Optional `debug` settings control private server catalogs and browser instrumentation. Disable both for hardened output. See [eXact DevTools](https://github.com/techjoshua/exact/blob/main/docs/devtools.md).
+Shared `.ts` and `.js` helpers support pending state. See the [task reference](https://github.com/techjoshua/exact/blob/main/docs/tasks.md) for receiver limits.
 
 Policy conflicts warn at build and reject execution. Correct the policy and rebuild before deployment.
 

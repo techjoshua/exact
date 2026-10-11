@@ -33,12 +33,22 @@ A standalone computed that has no watcher is pull-only. It retains enough source
 to validate a later read, but its sources do not retain it after that read. `watch()` or
 `subscribe()` attaches the reverse edges needed for push scheduling and releases them when stopped.
 Computeds created inside an effect scope remain scope-owned and release their dependencies when the
-scope stops. `inspectComputed()` returns value-free status and bounded edge counts without observing
+scope stops. Already evaluated values remain frozen after disposal. An unread disposed computed
+resolves once on its first explicit read without restoring subscriptions. `inspectComputed()`
+returns value-free status and bounded edge counts without observing
 the value.
 
 The package includes reactive objects and collections, computed values, watchers, batching, effect
 scopes, scheduling priorities, structural result equality, and external-source support.
 Arrays, `Map`, and `Set` retain their familiar JavaScript operations.
+
+For an ordinary helper that needs explicit access to caller-supplied state, use
+`stateAccess(value)` and accept a `StateAccess<T>` parameter. Its `read`, `write`, and `remove`
+operations preserve the supplied value's reactive or task-view policy. `sameStateTarget(a, b)`
+compares storage identity across views without exposing raw storage. These optional named exports
+are tree-shakeable. Task views retain their creating task's lifetime and must not be reused later.
+See the [task reference](https://github.com/techjoshua/exact/blob/main/docs/tasks.md#pending-transaction-ownership)
+for identity, native receiver and transactional limits.
 
 For application task and optimistic-state patterns, see
 [actions and forms](https://github.com/techjoshua/exact/blob/main/docs/actions-and-forms.md).

@@ -1,4 +1,5 @@
 import process from 'node:process';
+import { measurePendingRuntime } from './foundation-pending-runtime.mjs';
 import { summarizeValues } from './measurement.mjs';
 import { disposeBuildHost, measureBuildHost, measureTransport } from './foundation-transport.mjs';
 
@@ -7,7 +8,8 @@ const warmups = positiveInteger(process.env.EXACT_PERFORMANCE_WARMUPS ?? '2', 'w
 const samples = positiveInteger(process.env.EXACT_PERFORMANCE_INNER_SAMPLES ?? '7', 'samples', 1);
 const runners = {
 	transport: measureTransport,
-	'build-host': measureBuildHost
+	'build-host': measureBuildHost,
+	'pending-runtime': measurePendingRuntime
 };
 const runner = runners[scenario];
 if (!runner) throw new Error(`Unknown performance-foundation scenario ${scenario}`);

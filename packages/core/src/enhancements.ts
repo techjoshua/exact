@@ -1,3 +1,10 @@
+import { exactEnhancementContexts } from './enhancement-context/contracts.js';
+import type { EnhancementContextContract } from './enhancement-context/contracts.js';
+import { attachCompiledEnhancementContexts } from './enhancement-context/registration.js';
+export {
+	exactEnhancementContexts,
+	type EnhancementContextContract
+} from './enhancement-context/contracts.js';
 import type {
 	AnyComponentFunction,
 	ComponentFunction,
@@ -7,8 +14,6 @@ import type {
 	RenderResult
 } from './component/contracts.js';
 
-/** Global property carrying compiler-derived context effects needed before enhancement activation. */
-export const exactEnhancementContexts = Symbol.for('@exactjs/enhancement-contexts');
 const exactEnhancementPassThroughBrand = Symbol.for('@exactjs/enhancement-pass-through');
 
 type EnhancementComponent = ComponentFunction<Record<string, never>, Record<string, unknown>>;
@@ -37,15 +42,6 @@ export function isExactEnhancementPassThrough(value: unknown): boolean {
 		typeof value === 'function' &&
 		(value as BrandedEnhancementComponent)[exactEnhancementPassThroughBrand] === true
 	);
-}
-
-/** Minimal context effects used to order co-targeted ordinary components. */
-export interface EnhancementContextContract {
-	/** Compiler proof that preparation can share hosts without crossing structural output. */
-	readonly transparentTarget?: boolean;
-	readonly provides?: readonly symbol[];
-	readonly requires?: readonly symbol[];
-	readonly optionallyConsumes?: readonly symbol[];
 }
 
 /** Creates the opaque grouped marker used by compiler-owned JSX enhancement lowering. */
@@ -111,13 +107,7 @@ export function markExactEnhancementContexts<Component extends AnyComponentFunct
 				}
 			: {})
 	});
-	Object.defineProperty(component, exactEnhancementContexts, {
-		configurable: false,
-		enumerable: false,
-		value: normalized,
-		writable: false
-	});
-	return component;
+	return attachCompiledEnhancementContexts(component, normalized);
 }
 
 /** Reads the pre-activation context effects carried by one component value. */

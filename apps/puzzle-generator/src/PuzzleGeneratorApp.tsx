@@ -52,11 +52,12 @@ const initialStyle: PuzzleStyle = {
 	pageMargin: 0.5,
 	ink: '#17251e',
 	accent: '#d85f3d',
-	paper: '#fffdf6',
+	paper: '#ffffff',
 	lineWidth: 1.5,
 	monochromeSolution: false,
 	crosswordGrid: '#17251e',
-	crosswordBlocks: '#fffdf6',
+	crosswordBlocks: '#ffffff',
+	crosswordEnclosedBlocks: '#000000',
 	sudokuSolutionFont: 'inherit',
 	sudokuSolutionBold: false
 };

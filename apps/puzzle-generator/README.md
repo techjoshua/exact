@@ -8,7 +8,11 @@ Titles, puzzle grids, and word-list or crossword-clue sections each have indepen
 controls, with expanded type-size ranges. The three publishing presets are 8.5 × 11, 7 × 10, and
 6 × 9 inches, joined by custom page width and height controls. Narrow, standard, and wide margin
 presets can likewise be replaced with a custom uniform margin. The 8.5 × 11-inch format is always
-the initial page. The preview scales the resulting fixed-size page to the screen.
+the initial page. The preview scales the resulting fixed-size page to the screen. Printable
+backgrounds start pure white. Crosswords have separate colors for letter cells, outer unused cells,
+and enclosed unused cells. Enclosed unused cells default to black so they cannot be mistaken for
+answer spaces. An unused cell is enclosed when no orthogonal path of unused cells reaches the grid
+edge. These settings apply to both the puzzle and its solution.
 
 ## Run locally
 

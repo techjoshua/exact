@@ -21,13 +21,38 @@ func lowerEnhancementContextContracts(
 	sourceFile *ast.SourceFile,
 	factory *printer.NodeFactory,
 	callables callableAnalysis,
+	target Target,
+	policies policyAnalysis,
 ) *ast.SourceFile {
 	contracts := enhancementCallableContextContracts(sourceFile, callables)
+	if target == TargetClient {
+		// Private context declarations are erased from client artifacts. Context
+		// attachments must describe only capabilities available in this target.
+		filter := func(tokens []string) []string {
+			result := []string{}
+			for _, token := range tokens {
+				policy, exists := policies.contextPolicies[token]
+				if !exists || (policy.Policy.Residency != "server" && !policy.Policy.Secret) {
+					result = append(result, token)
+				}
+			}
+			return result
+		}
+		for name, contract := range contracts {
+			contract.effects.Provides = filter(contract.effects.Provides)
+			contract.effects.Requires = filter(contract.effects.Requires)
+			contract.effects.OptionallyConsumes = filter(contract.effects.OptionallyConsumes)
+			contracts[name] = contract
+		}
+	}
 	if len(contracts) == 0 {
 		return sourceFile
 	}
 
-	statements := make([]*ast.Node, 0, len(sourceFile.Statements.Nodes)+len(contracts))
+	used := sourceIdentifiers(sourceFile)
+	attach := allocateGeneratedName(used, "__exactAttachEnhancementContexts")
+	read := allocateGeneratedName(used, "__exactReadEnhancementDependency")
+	statements := make([]*ast.Node, 0, len(sourceFile.Statements.Nodes)+len(contracts)+1)
 	attached := make(map[string]struct{})
 	for _, statement := range sourceFile.Statements.Nodes {
 		statements = append(statements, statement)
@@ -35,6 +60,20 @@ func lowerEnhancementContextContracts(
 			attached[name] = struct{}{}
 		}
 	}
+	if len(attached) == 0 {
+		return sourceFile
+	}
+	specifiers := []*ast.Node{factory.NewImportSpecifier(false, factory.NewIdentifier("attachCompiledEnhancementContexts"), factory.NewIdentifier(attach))}
+	for name := range attached {
+		if len(contracts[name].dependencies) != 0 {
+			specifiers = append(specifiers, factory.NewImportSpecifier(false, factory.NewIdentifier("readCompiledEnhancementContextDependency"), factory.NewIdentifier(read)))
+			break
+		}
+	}
+	imports := factory.NewImportDeclaration(nil,
+		factory.NewImportClause(ast.KindUnknown, nil, factory.NewNamedImports(factory.NewNodeList(specifiers))),
+		factory.NewStringLiteral("@exactjs/core/runtime/enhancement-contexts", ast.TokenFlagsNone), nil)
+	statements = append(statements, imports)
 	// Attach after module initialization so local tokens declared later in the
 	// source cannot cross their TDZ. Imported dependencies have completed their
 	// own module initialization before this module evaluates.
@@ -47,7 +86,7 @@ func lowerEnhancementContextContracts(
 		statements = append(
 			statements,
 			factory.NewExpressionStatement(
-				enhancementContextAttachment(factory, name, contracts[name]),
+				enhancementContextAttachment(factory, name, contracts[name], attach, read),
 			),
 		)
 	}
@@ -141,7 +180,7 @@ func enhancementCallableContextForFact(
 			if enhancementCallableContextEmpty(targetContract) {
 				continue
 			}
-			reference := enhancementCallableReference(fact.callExpressions[edge.ID])
+			reference := fact.contextReferences[edge.ID]
 			if reference == nil {
 				continue
 			}
@@ -214,57 +253,34 @@ func enhancementContextAttachment(
 	factory *printer.NodeFactory,
 	component string,
 	contract enhancementCallableContextContract,
+	attach string, read string,
 ) *ast.Node {
 	valueProperties := []*ast.Node{
 		contractProperty(factory, "provides", frozenContextTokenArray(
-			factory, contract.effects.Provides, contract.dependencies, "provides",
+			factory, contract.effects.Provides, contract.dependencies, "provides", read,
 		)),
 		contractProperty(factory, "requires", frozenContextTokenArray(
-			factory, contract.effects.Requires, contract.dependencies, "requires",
+			factory, contract.effects.Requires, contract.dependencies, "requires", read,
 		)),
 		contractProperty(factory, "optionallyConsumes", frozenContextTokenArray(
 			factory,
 			contract.effects.OptionallyConsumes,
 			contract.dependencies,
-			"optionallyConsumes",
+			"optionallyConsumes", read,
 		)),
 	}
 	if contract.transparentTarget {
 		valueProperties = append(valueProperties, contractProperty(factory, "transparentTarget", factory.NewTrueExpression()))
 	}
-	value := frozenExpression(factory, contractObject(factory, true, valueProperties...))
-	symbol := enhancementContextSymbol(factory)
-	descriptor := contractObject(
-		factory,
-		true,
-		contractProperty(factory, "configurable", factory.NewFalseExpression()),
-		contractProperty(factory, "enumerable", factory.NewFalseExpression()),
-		contractProperty(factory, "value", value),
-		contractProperty(factory, "writable", factory.NewFalseExpression()),
-	)
-	return factory.NewCallExpression(
-		factory.NewPropertyAccessExpression(
-			factory.NewIdentifier("Object"),
-			nil,
-			factory.NewIdentifier("defineProperty"),
-			ast.NodeFlagsNone,
-		),
-		nil,
-		nil,
-		factory.NewNodeList([]*ast.Node{
-			factory.NewIdentifier(component),
-			symbol,
-			descriptor,
-		}),
-		ast.NodeFlagsNone,
-	)
+	return factory.NewCallExpression(factory.NewIdentifier(attach), nil, nil,
+		factory.NewNodeList([]*ast.Node{factory.NewIdentifier(component), contractObject(factory, true, valueProperties...)}), ast.NodeFlagsNone)
 }
 
 func frozenContextTokenArray(
 	factory *printer.NodeFactory,
 	tokens []string,
 	dependencies []*ast.Node,
-	property string,
+	property string, read string,
 ) *ast.Node {
 	values := make([]*ast.Node, 0, len(tokens))
 	for _, token := range tokens {
@@ -272,12 +288,17 @@ func frozenContextTokenArray(
 	}
 	value := contractArray(factory, values...)
 	if len(dependencies) != 0 {
+		// Generated empty arrays infer never[], and unique token IDs can infer a
+		// narrower element type. Validate the symbols before broadening this
+		// compiler-owned array for transitive dependency concatenation.
+		symbols := factory.NewArrayTypeNode(factory.NewKeywordTypeNode(ast.KindSymbolKeyword))
+		value = factory.NewAsExpression(factory.NewSatisfiesExpression(value, symbols), symbols)
 		arguments := make([]*ast.Node, 0, len(dependencies))
 		for _, dependency := range dependencies {
 			arguments = append(arguments, enhancementDependencyContextProperty(
 				factory,
 				dependency,
-				property,
+				property, read,
 			))
 		}
 		value = factory.NewCallExpression(
@@ -293,52 +314,16 @@ func frozenContextTokenArray(
 			ast.NodeFlagsNone,
 		)
 	}
-	return frozenExpression(factory, value)
+	return value
 }
 
 func enhancementDependencyContextProperty(
 	factory *printer.NodeFactory,
 	dependency *ast.Node,
-	property string,
+	property string, read string,
 ) *ast.Node {
-	contract := factory.NewCallExpression(
-		factory.NewPropertyAccessExpression(
-			factory.NewIdentifier("Reflect"),
-			nil,
-			factory.NewIdentifier("get"),
-			ast.NodeFlagsNone,
-		),
-		nil,
-		nil,
-		factory.NewNodeList([]*ast.Node{
-			dependency.Clone(factory),
-			enhancementContextSymbol(factory),
-		}),
-		ast.NodeFlagsNone,
-	)
-	return factory.NewPropertyAccessExpression(
-		contract,
-		nil,
-		factory.NewIdentifier(property),
-		ast.NodeFlagsNone,
-	)
-}
-
-func enhancementContextSymbol(factory *printer.NodeFactory) *ast.Node {
-	return factory.NewCallExpression(
-		factory.NewPropertyAccessExpression(
-			factory.NewIdentifier("Symbol"),
-			nil,
-			factory.NewIdentifier("for"),
-			ast.NodeFlagsNone,
-		),
-		nil,
-		nil,
-		factory.NewNodeList([]*ast.Node{
-			contractString(factory, "@exactjs/enhancement-contexts"),
-		}),
-		ast.NodeFlagsNone,
-	)
+	return factory.NewCallExpression(factory.NewIdentifier(read), nil, nil,
+		factory.NewNodeList([]*ast.Node{dependency.Clone(factory), contractString(factory, property)}), ast.NodeFlagsNone)
 }
 
 func contextTokenIDExpression(factory *printer.NodeFactory, token string) *ast.Node {
@@ -356,21 +341,6 @@ func contextTokenIDExpression(factory *printer.NodeFactory, token string) *ast.N
 		expression,
 		nil,
 		factory.NewIdentifier("id"),
-		ast.NodeFlagsNone,
-	)
-}
-
-func frozenExpression(factory *printer.NodeFactory, value *ast.Node) *ast.Node {
-	return factory.NewCallExpression(
-		factory.NewPropertyAccessExpression(
-			factory.NewIdentifier("Object"),
-			nil,
-			factory.NewIdentifier("freeze"),
-			ast.NodeFlagsNone,
-		),
-		nil,
-		nil,
-		factory.NewNodeList([]*ast.Node{value}),
 		ast.NodeFlagsNone,
 	)
 }

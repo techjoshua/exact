@@ -1,8 +1,22 @@
 # Component composition corpus
 
 The component composition corpus is the normative acceptance suite for native eXact compilation.
+
 It lives in `packages/component-composition-corpus` and protects semantics that otherwise tend to
 surface as isolated application regressions after compiler changes.
+The ordinary package declaration build excludes native TSX fixtures and their test-support
+harnesses. The compiler and Vitest configuration own checking and executing those authored sources.
+
+Reactive ownership tests also protect synchronous observer handoff. A last-observer callback may
+attach a replacement observer to the same dependency before cleanup returns. That replacement
+must retain its subscription, including when other keys on the target remain observed.
+
+Reactive property-creation tests protect key enumeration, membership, array length, and rollback
+when a new own property has an unchanged read value. Missing `undefined` properties, array holes,
+array extension, and inherited-value shadowing still publish structural changes. General and
+compiler-selected object/array proxies share this contract. General proxies also cover custom
+Map and Set fields. Raw-receiver method/accessor fixtures distinguish own-property enumeration
+from native collection entry iteration and preserve rollback, readonly, and unchanged-write controls.
 
 The acceptance matrix crosses supported value families with publication boundaries, rather than
 using only the data shape from the latest application report. Collection checks include Maps,
@@ -11,6 +25,8 @@ state, indexed resumptions, and island payloads. The shared adapter fixture carr
 through SSR, hydration, repeated local or remote updates, and disposal. Native host acceptance
 also observes server error logs during disconnect: cleanup and absence of browser errors alone
 do not prove correct cancellation classification. Deliberate application failure remains observable.
+The native host page reads a nested state field through a work-local key before publishing an
+update. Its browser round trips verify receiver inputs across Node, Bun, Deno and workerd.
 
 Compiler-closed bundle guards also run in each build adapter's ordinary integration suite. The
 fragment corpus checks async contribution settlement, owner disposal, and hydration identity;
@@ -25,23 +41,73 @@ Exact synchronous server value propagation also emits direct assignments while a
 calculations retain their executable setup boundary.
 Compiler-proven single-slot task inputs subscribe directly to the receiving component's indexed
 state or prop dependency; arbitrary task expressions retain their executable tracked source.
+The captured-task-input fixture also protects literal key types, callback inference and dynamic
+selector evaluation inside task work. Compiler acceptance executes local mounting and local or
+server-task hydration, retained prop updates, repeated invocations and removal. All three build
+adapters compile the same source in both targets and reject unauthorized computed state writes.
+The activation-capture fixture pairs direct SSR with client invocation through the actual server
+request handler. It covers local helper closure reconstruction, public defaults with body-only
+server contexts, shared context publication, repeated captures, retained prop updates, returned
+values, removal, and retired event cleanup. Its Node/jsdom journey uses a trusted request provider
+and explicit public context projection. Adapter checks compile both targets and reject direct
+private-context defaults and protected helper inputs. The same adapter fixtures compile awaited annotated factories, guarded nullable collections,
+adjacent reactive setup assignments, and reject erased collection publication and known object Map keys.
+Native runtime acceptance also executes captured helper constants, helper context reads, publication, and awaited annotated resource disposal through
+Node, Bun, both Deno cancellation modes, and workerd. Those host checks cover direct SSR and
+repeated request-adapter execution with exact disposal counts, destructured task contexts,
+local resource-return helpers, optional manual release, and generated binding collision controls. The full capture and DOM removal journey remains Node/jsdom
+evidence rather than browser evidence.
+That fixture also invokes ordinary and optional private methods from task-local class field
+initializers. Adapter checks compile its client-task and server-task forms. Pending expression
+journeys cover deletion, copying, iteration, template tags and private receiver/accessor order,
+with repeated updates, retained DOM identity and disposal.
+
+The native host fixture also invokes local callbacks that shadow named and namespace SSR imports,
+and a local callback named `unsafeHtml`. Node, Bun, both Deno cancellation modes and workerd verify
+that these calls retain their arguments and ordinary results. The shared adapter identity fixture
+executes named and namespace renderer callbacks in client and server builds through Vite, Webpack
+and Bun. Compiler source tests separately cover virtual dependency generations, runtime export
+metadata, module replacements and authored source locations.
+The namespace JSX regression compiles lowercase and uppercase core namespaces into matching
+isomorphic artifacts. Its Node/jsdom SSR and hydration journey protects input edits, retained
+input and button identity, reactive updates and disposal. Plain custom-element tags remain hosts.
+
 Finite nested root props also carry the same immutable positional publication schema in client and
 server artifacts; behavioral tests independently protect round-trip decoding and named fallback.
 Compiler-proven indexed state and prop reads used by intrinsic properties are encoded in the
 component-local `wire`; mixed property groups retain executable writers only for their arbitrary
 expressions and callbacks. Fully reconstructible transition-free components omit their resumption
 contract and value record rather than shipping an empty activation protocol.
+Captured component aliases retain their state facade when ordinary object methods write through
+a context. The public testing harness exercises child mounting, repeated events, instance identity,
+and exactly-once cleanup. Installed-library acceptance exercises the same method receiver through
+each adapter and native runtime.
+
 Checker-proven whole-state aliases also retain indexed reads inside derived authored expressions;
 invalidated, nested, dynamic, and broad alias paths keep their general property semantics.
 Direct properties of keyed items and object-valued indexed props forwarded across native component
 boundaries use compact component-local operands. Replacing the outer prop rebinds the child-owned
 property dependency without accumulating computation owners; arbitrary and derived expressions
 retain their computation owners.
+The grouped derived-collection and indexed outer-list fixtures use literal-indexed map calls
+and a type-wrapped callee. Their existing membership and identity transitions protect
+collection recognition and item-local capture across these source forms. SDK artifact journeys
+also cross mount and hydration with inferred destructured and quoted-field keys. Shared adapter
+contracts build both targets, execute server output, and reject eager callback state writes.
+
 Nested keyed cells beneath an indexed native map also retain each outer callback's values instead
 of reusing the first row's closure through a shared list-site cache.
 Exact prop snapshots expressed through `peek()` also remain compiler-known resumption inputs: the
 server verifies equality before omitting redundant nested state, while those server-only source
 paths do not ship in hydration artifacts.
+The reactive provenance journey pairs ordinary mounting with strict hydration. Imported snapshots,
+namespace access, captured helper aliases, and same-named application helpers cross repeated state
+updates while retaining DOM identity. Calculations mixing snapshot reads with live inputs keep their
+own subscription boundary, including when an immutable helper alias supplies the calculation.
+Framework reactive value reads cross readonly aliases and finite member keys. A callable Array
+`thisArg` stays dormant while its surrounding computation updates. The shared adapter counter
+checks that same declaration and callback-slot contract through SSR, hydration and two retained
+updates.
 Compiler-closed single-scalar text runs also retain adjacent authored text in one focused operation,
 while multi-expression runs keep their independent reactive owners. Whole-intrinsic scalar runs
 omit server comments and split the adopted text into independently updated nodes. Focused hydration
@@ -64,9 +130,27 @@ TypeScript program. Native partition tests protect file-local pruning and preser
 initializer's target restriction. Compiler helper tests cover parameter forms, imported rendering,
 updates, and call-effect collisions at identical source offsets. The shared adapter fixture in
 `framework-adapters/test-support/project-source-isolation.ts` executes retained helper exports from
-both client and server bundles through Vite, Webpack, and native Bun; each adapter's integration
-suite runs it in CI. The Node 24/26 compatibility jobs also run the complete compiler test suite
+both client and server bundles through Vite, Webpack, and native Bun. It verifies ordinary
+TypeScript, JavaScript and CommonJS helpers with private configuration and supplied state inputs, native
+binding, readonly aliases, discard, and subsequent publication. Each
+adapter's integration suite runs it in CI. The helper-publication suite also compares in-project
+helpers with untouched source-removed ESM and CommonJS helpers installed as physical package dependencies. Shared
+component assertions cover synchronous/asynchronous calls, latest/parallel tasks, pending visibility,
+subsequent publication, retained DOM, cancellation and disposal. The helper-call-selection corpus
+journey exercises lexical shadowing, aliases, explicit extracted-method receivers and higher-order
+calls in blocking component tasks. Mount and full-root hydration assert evaluation order, returned
+values, native callable identity/name/arity/prototype shape, pending invisibility, repeated publication,
+retained DOM and disposal. The Node 24/26 compatibility jobs also run the complete compiler test suite
 through `npm run test:compiler`, including helper rendering and portable placement checks.
+
+Library publication regressions reject opaque component placement, shadowed portable globals,
+application-added collection methods, and declarations with standard-library lookalike filenames.
+Each failed generation preserves the previous artifacts. Native source controls pair those failures
+with standard methods, aliases, and literal or narrowed computed member keys. They check execution
+placement alongside emitted artifacts, and keep method ownership distinct from receiver spelling.
+Intl receiver controls repeat this contract across seven standard formatter interfaces and both
+compiler targets. Shared Vite, Webpack and native Bun builds render a formatter whose interface has
+an unrelated application-added method, preserving the selected standard method's placement.
 
 The compiler's project-context invariant suite recompiles the existing fundamentals, state,
 structure, registry, and task fixtures under bounded, semantics-preserving perturbations. It
@@ -86,7 +170,38 @@ restoration, retained identity, and disposal. The shared
 `framework-adapters/test-support/compiler-diagnostics.ts` fixture requires Vite, Webpack, and Bun
 to preserve the operation, imported filename, diagnostic code, and supported annotation guidance
 in both target builds, then accept the corrected source. Diagnostic tests also check Unicode
-spans and imported locations independently of the caller's normalization map.
+spans and imported locations independently of the caller's normalization map. Recursive helper context
+controls check termination for cyclic effect propagation and reject request-only context access
+from client tasks through each adapter's client and server builds.
+
+The secret-containment corpus fixture uses a credential in a server-owned component task and
+passes it through a declared secret parameter using computed native `call`, consumes the preserved
+secret explicitly at its server call site, and renders a public service result. Buffered HTML,
+hydration records, and ordinary and hydratable progressive stream bytes exclude a recognizable credential before any client code
+executes. A generated paired-artifact loopback check also invokes a server task twice in batched and
+unbatched transport modes. It checks request and serialized response bytes before hydration receives
+them, while the server resolves a qualified credential and publishes only a public service result.
+These are source-runtime Node checks. They complement compiler rejection of protected
+captures and do not establish acceptance across every adapter or native execution runtime.
+
+The render-attribute-order fixture crosses literal and spread precedence with retained DOM updates,
+boolean and numeric control properties, removed and restored keys, inline function readers, and
+serialized direct, fragmented, and compiled children inside a text host. Scalar roots include
+static attributes and event-bearing descendants. The fixture also checks generation-owned waiting
+and staged publication. It rejects framework error reports and checks
+matching hydration before subsequent interactions. Its nested property fixtures check
+prototype-named conditional classes on compiled and general hosts, MathML attributes without
+reflected DOM properties, plus event arguments for
+reassigned handlers. The same authored component is built through Vite, Webpack, and Bun for
+executable client and server checks. Its event journey also runs in the
+native runtime page across Node, Bun, Deno, and workerd. Deep contextual claim fixtures separately
+verify that cursor fallback retains SVG and MathML integration namespaces during mount and hydration.
+
+The nested-input relationship journey checks direct, optional, literal-indexed, and computed
+reads through retained parent mutations, replacement, removal, obsolete-object isolation, and
+disposal. The applied-component surface fixture checks context capability through a helper’s
+`apply()` argument tuple. Both have strict hydration tests, shared adapter execution, and
+checks in the native runtime page.
 
 ## Contract model
 
@@ -130,7 +245,7 @@ The lazy-registry variant uses an entry named `lazy` to distinguish the property
 from the scoped loader function through compilation, SSR, hydration, updates, and cleanup.
 The browser bundle also mounts a compiled task beneath Activity, resolves its source while parked,
 and verifies deferred publication, retained DOM identity, and resumption through the bundled runtime.
-It checks two updates, retained DOM identity, and disposal across 20 common modes, including buffered
+It checks two updates, retained DOM identity, and disposal across 21 common modes, including buffered
 and progressive document shells and two real continuation requests through the server dispatcher.
 The wrapper modes add intrinsic, ordinary-fragment, and theme-enhanced transparent roots under a
 server-only page, with captured labels and forwarded server content. They verify theme updates,
@@ -242,6 +357,14 @@ storage, independently observable object replacements, and compiler property ope
 objects initially compare equal. Changing
 the new source must update consumers after the old source is retired.
 
+The localization projection fixture compares native date-method defaults with compiled output,
+reads Date subclass internal values, retains invalid-date text and custom list iteration, and checks native unit formatting of nonfinite
+numbers and large BigInts. It also distinguishes absolute temperatures from signed temperature
+differences and converts reciprocal fuel-economy endpoints before subtracting. Its owned component retains DOM identity across two updates and is
+disposed after mounting and strict hydration. Shared Vite, Bun, and Webpack checks build both
+artifact targets and execute server output. The native-host journey executes the prepared value
+contracts through Node, Bun, both Deno modes, and workerd alongside browser hydration.
+
 The same adapter journey exercises a shared Map iterator snapshot consumed by another derived
 helper and a superseded optimistic task whose `catch` writes state. Focused compiled-task checks include current-failure recovery,
 `finally`, assignment expressions, aliased writes, return values, scalar updates, array and Map
@@ -253,6 +376,26 @@ exploratory generation remains a local command. Compiler checking-projection tes
 require semantic success in checking, client, and server outputs for shared Map/Set snapshots and
 array projections, including invalid argument controls. Successful artifact execution alone does
 not establish that the generated types are correct.
+
+The shared adapter and native-runtime journey includes an independently owned manual clock.
+It checks a finite time window through initial provider observation, completion of its schedule,
+a changed reactive anchor, the next boundary, retained DOM identity, removal, reinsertion, and
+owned timer cleanup. Its anchor uses a literal computed record key, with finite computed `Date` and `Math` clock
+and rounding members. A separate explicit-accuracy
+range checks reactive named-policy progression, disable, reenable catch-up, retained DOM and timer
+release without automatic quantization. The same retained component publishes a synchronous
+client task result selected through a destructured local task-table member at initialization and
+after repeated reactive input changes, preserving the output element. Its defaulted argument before
+a required input checks that available `undefined` reaches capture without becoming an unresolved
+execution dependency. Focused forwarding checks preserve clock transitions through ordinary wrapper
+components. Focused compiler journeys also compare all nine Temporal rounding modes with native Temporal values
+through mount and strict hydration, including negative offsets and tie boundaries. Half-even
+plan deadlines receive a separate native-value oracle. These checks use local runtime hosts.
+
+The mutation-contract journey also invokes a returned helper immediately, assigns a collection
+element through an ordinary helper's destructuring pattern. An ordinary helper receives explicit
+state inputs, and a copied local getter supplies a Map update. The same retained-update and
+identity assertions run through mount, hydration and native runtime acceptance.
 
 The collection-projection journey additionally shares a shallow object-array spread with a
 calculation, an event, and a task. It checks insertion, replacement, sorting, field updates, removal,
@@ -411,6 +554,14 @@ preserve edits made while imports are pending, resolve nested lazy registries, a
 imports across disposal and root replacement. The shared adapter fixture exercises lazy selection
 adoption and subsequent local tasks through Vite, Webpack, and native Bun.
 
+The registry source fixture also exercises a wrapped factory, an immutable registry alias, a
+renamed scoped loader, exact quoted and escaped keys, and literal template imports and export
+selections. Client checks retain same-key DOM and replace different-key ranges. SSR and hydration
+checks use the same roots. Compiler artifact tests relocate this fixture's emitted modules outside
+the source directory and verify deferred loading, DOM adoption, retained updates, and replacement.
+Shared adapter controls build both targets, render the selected registry component on the server,
+and reject entry assignment or deletion through type assertions and immutable aliases.
+
 Seeded reference models compare reactive mutation journals and task status with independently
 recorded command histories. They exercise completion, failure, cancellation, queueing, owner disposal,
 and subsequent work. Task generations also account for cleanup and owned disposables. Normal runs
@@ -449,6 +600,9 @@ Existing suites own the remaining public testing workflows:
 | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------ |
 | Mounting, props, context, state inspection, event settlement and cleanup | `packages/testing/src/component-testing.test.ts`                                     |
 | Accessible controls and user interactions                                | `packages/testing/src/query-semantics.test.ts`                                       |
+| Queried class assertions and retained control identity                   | `packages/testing/src/class-matcher.test.ts`                                         |
+| Generated server factory props and authored state type preservation      | `packages/testing/src/server-types.test.ts`                                          |
+| Installed helper imports across typed-array realms                       | `packages/vitest/src/runtime-import.test.ts`                                         |
 | Server state and context inspection after rendering                      | `packages/testing/src/server-testing.test.ts` and `server/component-capture.test.ts` |
 | Streaming protocol observation, cancellation and errors                  | `packages/testing/src/protocol.test.ts`                                              |
 | Compiled paired tasks, progress and intermediate state                   | `packages/compiler/src/compilation/task-progress-testing.test.ts`                    |
@@ -470,42 +624,78 @@ as in the native runtime suite's deliberately failing server task.
 `npm run test:runtimes` executes one owned application and shared assertions over actual loopback
 HTTP in Node, Bun, Deno, and Cloudflare workerd. Install its pinned tools with
 `npm ci --prefix scripts/runtime-acceptance`; Bun and Playwright Chromium are also required.
-Missing runtimes fail the suite. CI runs every row on Linux, with both Deno cancellation modes.
+Missing runtimes fail the suite. CI runs the shared application on Linux with both Deno cancellation
+modes. The installed-package extension uses default Deno cancellation and jsdom client assertions.
+After every host and final cleanup succeeds, the runner writes fresh structured evidence under
+`.tmp/runtime-acceptance/evidence.json`. The runner removes the previous report before starting
+the scenarios and publishes no success report when a scenario or cleanup fails.
 Chromium runs on ordinary builds. Local extended checks can run Firefox and WebKit against
 the same native hosts using `EXACT_ACCEPTANCE_BROWSER=firefox` or `webkit`. Browser selection changes
 the engine, without changing the fixture or assertions.
 
-| Boundary                                                                                    | Node                         | Bun                          | Deno                         | workerd                                 |
-| ------------------------------------------------------------------------------------------- | ---------------------------- | ---------------------------- | ---------------------------- | --------------------------------------- |
-| Eager island module delay, selection replay once, subsequent change and disposal            | Native HTTP                  | Native HTTP                  | Native HTTP                  | Native HTTP                             |
-| Equal-valued prop source replacement, shared Map snapshots, and cancelled catch writes      | Native HTTP and browser      | Native HTTP and browser      | Native HTTP and browser      | Native HTTP and browser                 |
-| Nonce-only bootstrap authorization, single/multiple scripts, string/stream output           | Native HTTP                  | Native HTTP                  | Native HTTP                  | Native HTTP                             |
-| Progress before completion, terminal failure, fallback diagnostics                          | Native HTTP                  | Native HTTP                  | Native HTTP                  | Native HTTP                             |
-| Task pending status across blocking, nonblocking, deferred, completion and cancellation     | Native HTTP                  | Native HTTP                  | Native HTTP                  | Native HTTP                             |
-| Overlapping optimistic task failures, moved array entries, and a subsequent successful task | Native HTTP                  | Native HTTP                  | Native HTTP                  | Native HTTP                             |
-| Default resource disposal chooses one method and preserves subsequent owners                | Native HTTP                  | Native HTTP                  | Native HTTP                  | Native HTTP                             |
-| Repeated and changed theme SSR, system CSS, typography and independent rendered content     | Native HTTP                  | Native HTTP                  | Native HTTP                  | Native HTTP                             |
-| Disconnect cleanup and subsequent invocation                                                | Native HTTP                  | Native HTTP                  | Native HTTP                  | Native HTTP, detection on a later write |
-| Allowlisted dispatch, invalid payloads, authorization and CSRF rejection                    | Shared HTTP assertions       | Shared HTTP assertions       | Shared HTTP assertions       | Shared HTTP assertions                  |
-| JSON round trips, private error redaction, unsafe HTML rejection                            | Shared HTTP assertions       | Shared HTTP assertions       | Shared HTTP assertions       | Shared HTTP assertions                  |
-| Retained application context, concurrent request isolation and disposal                     | Shared HTTP assertions       | Shared HTTP assertions       | Shared HTTP assertions       | Shared HTTP assertions                  |
-| Buffered and progressive SSR followed by hydration                                          | Chromium against native host | Chromium against native host | Chromium against native host | Chromium against native host            |
-| General-runtime expression props entering direct SSR, retained after hydration              | Shared browser journey       | Shared browser journey       | Shared browser journey       | Shared browser journey                  |
-| Nested transparent enhancement contexts and sibling isolation                               | Shared browser journey       | Shared browser journey       | Shared browser journey       | Shared browser journey                  |
-| Awaited task return values assigned by the invoking event                                   | Shared browser journey       | Shared browser journey       | Shared browser journey       | Shared browser journey                  |
-| Component locale policy in SSR, hydration and repeated server continuations                 | Shared browser journey       | Shared browser journey       | Shared browser journey       | Shared browser journey                  |
-| DOM identity, edited input, out-of-order independent updates and disposal                   | Shared browser journey       | Shared browser journey       | Shared browser journey       | Shared browser journey                  |
+| Boundary                                                                                                                                                                                        | Node                                     | Bun                          | Deno                         | workerd                                 |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- | ---------------------------- | ---------------------------- | --------------------------------------- |
+| Source-removed installed paired components, UTF-8 documents, retained edits, continuation updates, lazy replacement and disposal                                                                | Separate Node HTTP/jsdom adapter journey | Bun.serve HTTP and jsdom     | Deno.serve HTTP and jsdom    | Native HTTP and jsdom                   |
+| Eager island module delay, selection replay once, subsequent change and disposal                                                                                                                | Native HTTP                              | Native HTTP                  | Native HTTP                  | Native HTTP                             |
+| Equal-valued prop source replacement, shared Map snapshots, and cancelled catch writes                                                                                                          | Native HTTP and browser                  | Native HTTP and browser      | Native HTTP and browser      | Native HTTP and browser                 |
+| Nonce-only bootstrap authorization, single/multiple scripts, string/stream output                                                                                                               | Native HTTP                              | Native HTTP                  | Native HTTP                  | Native HTTP                             |
+| Inert hydration JSON, escaped property names, mixed Unicode, dense escapes, repeated serialization and retained following markup                                                                | Native HTTP and browser                  | Native HTTP and browser      | Native HTTP and browser      | Native HTTP and browser                 |
+| Hidden JSON hooks and array indices, native collection iterator rejection, sparse-cell budgets and browser decoding                                                                             | Native HTTP and browser                  | Native HTTP and browser      | Native HTTP and browser      | Native HTTP and browser                 |
+| Checked URL coercion, buffered/streamed publication, browser property updates and removal                                                                                                       | Native HTTP and browser                  | Native HTTP and browser      | Native HTTP and browser      | Native HTTP and browser                 |
+| Captured task arguments, local context-reading/publishing helpers, direct SSR and repeated invocation                                                                                           | Native HTTP                              | Native HTTP                  | Native HTTP (both modes)     | Native HTTP                             |
+| Progress before completion, computed collection selection, terminal failure, fallback diagnostics                                                                                               | Native HTTP                              | Native HTTP                  | Native HTTP                  | Native HTTP                             |
+| Task pending status across blocking, nonblocking, deferred, completion and cancellation                                                                                                         | Native HTTP                              | Native HTTP                  | Native HTTP                  | Native HTTP                             |
+| Overlapping optimistic task failures, moved array entries, and a subsequent successful task                                                                                                     | Native HTTP                              | Native HTTP                  | Native HTTP                  | Native HTTP                             |
+| Default resource disposal chooses one method and preserves subsequent owners                                                                                                                    | Native HTTP                              | Native HTTP                  | Native HTTP                  | Native HTTP                             |
+| Repeated and changed theme SSR, system CSS, typography and independent rendered content                                                                                                         | Native HTTP                              | Native HTTP                  | Native HTTP                  | Native HTTP                             |
+| Lifecycle enhancement providers with local callback props, buffered/streamed parity and ordinary island serialization rejection                                                                 | Native HTTP                              | Native HTTP                  | Native HTTP                  | Native HTTP                             |
+| Disconnect cleanup and subsequent invocation                                                                                                                                                    | Native HTTP                              | Native HTTP                  | Native HTTP                  | Native HTTP, detection on a later write |
+| Allowlisted dispatch, invalid payloads, authorization and CSRF rejection                                                                                                                        | Shared HTTP assertions                   | Shared HTTP assertions       | Shared HTTP assertions       | Shared HTTP assertions                  |
+| JSON round trips, private error redaction, unsafe HTML rejection                                                                                                                                | Shared HTTP assertions                   | Shared HTTP assertions       | Shared HTTP assertions       | Shared HTTP assertions                  |
+| Retained application context, concurrent request isolation and disposal                                                                                                                         | Shared HTTP assertions                   | Shared HTTP assertions       | Shared HTTP assertions       | Shared HTTP assertions                  |
+| SSR task deadline, cancellation of an active response body, exactly-once cleanup and the next successful request                                                                                | Shared HTTP assertions                   | Shared HTTP assertions       | Shared HTTP assertions       | Shared HTTP assertions                  |
+| Buffered and progressive SSR followed by hydration                                                                                                                                              | Chromium against native host             | Chromium against native host | Chromium against native host | Chromium against native host            |
+| Authored target attributes, changing classes/styles/token lists, native properties and retained identity                                                                                        | Shared browser journey                   | Shared browser journey       | Shared browser journey       | Shared browser journey                  |
+| Literal and spread precedence, reconciled key removal/restoration, control properties and text-host serialization                                                                               | Shared browser journey                   | Shared browser journey       | Shared browser journey       | Shared browser journey                  |
+| General-runtime expression props entering direct SSR, retained after hydration                                                                                                                  | Shared browser journey                   | Shared browser journey       | Shared browser journey       | Shared browser journey                  |
+| Deferred intrinsic spreads, enhancement preparation and keyed intrinsic/fragment hydration with retained updates                                                                                | Shared browser journey                   | Shared browser journey       | Shared browser journey       | Shared browser journey                  |
+| Nested transparent enhancement contexts, ordinary helper parameters, marked children beneath omitted wrappers and sibling isolation                                                             | Shared browser journey                   | Shared browser journey       | Shared browser journey       | Shared browser journey                  |
+| Captured task defaults and collection inputs, computed member key order, iterator-derived updates, ordered local reads, suspended mutations and ordinary helpers receiving explicit state views | Shared browser journey                   | Shared browser journey       | Shared browser journey       | Shared browser journey                  |
+| Awaited task return values assigned by the invoking event                                                                                                                                       | Shared browser journey                   | Shared browser journey       | Shared browser journey       | Shared browser journey                  |
+| Component locale policy in SSR, hydration and repeated server continuations                                                                                                                     | Shared browser journey                   | Shared browser journey       | Shared browser journey       | Shared browser journey                  |
+| Numeric and currency message ranges, equal endpoints, strict hydration and retained local updates                                                                                               | Shared browser journey                   | Shared browser journey       | Shared browser journey       | Shared browser journey                  |
+| Date prototype defaults, invalid dates, list iterator behavior, hydration and retained local updates                                                                                            | Shared browser journey                   | Shared browser journey       | Shared browser journey       | Shared browser journey                  |
+| Typed controls, temporal units/types, Date task helpers, nullable groups, retained edits and modal closure                                                                                      | Shared browser journey                   | Shared browser journey       | Shared browser journey       | Shared browser journey                  |
+| DOM identity, edited input, out-of-order independent updates and disposal                                                                                                                       | Shared browser journey                   | Shared browser journey       | Shared browser journey       | Shared browser journey                  |
+
+Native-host hydration acceptance also checks browser-coalesced scalar arrays. Buffered, progressive
+and island journeys retain the server host and first Text, then exercise replacement, empty output
+and reinsertion through local updates.
 
 The browser journey also covers generated-island descendant resumptions in buffered and
 progressive output, including a lazy registry-selected task owner. It preserves edited inputs and child DOM identity through activation,
-remote updates, and disposal. The Vite, Webpack, and native Bun fixture checks that descendant
+remote updates, and disposal. Its TSX client entry imports a source-removed library stylesheet
+alongside a JSX helper. Vite, Webpack and native Bun must emit the stylesheet, and Chromium checks
+its computed appearance. The Vite, Webpack, and native Bun fixture checks that descendant
 records remain in the parent island payload with the selected component's activation identity.
 
 The suite also checks default after-load and normal bootstrap loading in buffered and streamed
 HTML on every native host. Browser checks execute ordered module and classic descriptors under
 a nonce-based CSP and verify that deferred descriptors run only after window load.
 
-The fixture lives in `test-support/runtime-acceptance`. Named task definitions remain definitions:
+The fixture lives in `test-support/runtime-acceptance`.
+The source-normalization fixture checks inferred setup calculations through two retained updates,
+strict hydration identity, and disposal. Its async setup fixture combines an awaited state write
+with an independently scoped collection callback parameter. Both run through the native hosts'
+shared browser journey. Snapshot-only helper captures remain untracked and refresh when an
+independent input changes. Zero-argument policy tasks retain one startup run while awaiting
+producer availability. The suite checks subsequent input changes and disposal. Shared paired-artifact
+loopback tests exercise reactive async setup and named snapshot callbacks through server dispatch.
+The native browser journey repeats both contracts after same-build hydration with extracted
+event islands, retaining the setup activation owner. Native source controls separately reject synchronous and async feedback
+cycles and setup locals that escape their managed continuation.
+
+Named task definitions remain definitions:
 state feedback inside their bodies must not enter setup-derived cycle analysis. The shared browser
 journey holds an older continuation while two independent updates complete, then checks that
 its disjoint state write still publishes. A prop-dependent nested write also verifies capture
@@ -519,12 +709,31 @@ unsupported live-progress path, checked by the existing adapter contracts. Cloud
 buffering, provider execution limits, and deployment configuration still require deployed probes.
 The matrix records representative checks, not exhaustive execution of every unit test in each host.
 
+The dormant-island journey also places one or two eager hover children inside a server-owned
+slot under a parent with a different interaction policy. A controlled parent-loading gate checks
+shared ancestor loading and settlement. It retains the ancestor, slot and buttons, delivers two
+hover rounds, rejects unexpected reports and verifies disposal removes handlers. Removing an
+ancestor during pending activation fences its children, and a new registered owner then progresses. The same portable
+journey runs in hydration unit tests and Chromium across every native host.
+
 Eager-island acceptance holds module loading behind an explicit gate, selects an SSR control before
 adoption, and verifies the value and one handler invocation after release. It also checks the next
 change and disposal. This runs through buffered and streaming responses on all native hosts.
 The shared Vite, Bun, and Webpack wrapper fixtures exercise the generated replay metadata and
 compact descendant DOM identities. Timing sleeps or hydration-readiness waits before the first
 interaction cannot substitute for this loading-window check.
+
+The owned native page also reuses one component under HTML and SVG, including property-only
+claims beyond the compact path depth, and verifies retained updates. MathML text and reactive
+annotation encoding integration points produce HTML children. Changing encoding while inserting
+and removing a child range checks namespace construction against the current input. A client-only child mounts in its
+compiler-identified server placeholder while parent hydration retains edited input and focus.
+Spread-key rows retain
+edited inputs through prop copying, overridden-key changes, replacement, reorder and removal,
+including helper return types that omit a key present at runtime.
+The native progress fixture calls an ordinary helper named `optimistic` on the server, protecting
+placement independently of task-context capability names. These checks execute in each native
+host journey rather than relying on a declared corpus mode.
 
 ## Local extended discovery
 
@@ -543,3 +752,180 @@ EXACT_ACCEPTANCE_BROWSER=webkit npm run test:runtimes
 
 Turn discovered defects into focused regression tests after fixing their owning framework contract.
 Keep raw exploratory captures local.
+
+The [compiler confidence workflow](native-compiler.md#compiler-confidence-workflow) connects a
+bounded set of language families and contract edges to fresh, exact test executions. Its inventory
+records producer and consumer obligations and preserves scope limits and known evidence gaps.
+The environment profile, `npm run test:compiler:confidence:environments`, reruns the existing
+Vite, Webpack, native Bun and HTTP/browser acceptance journeys and registers exact executions
+alongside the compiler evidence. It keeps installed enhancement SSR, workspace split-build
+hydration and native runtime acceptance separate. The default compiler profile leaves those
+environment edges explicitly unexecuted.
+The installed enhancement fixture also exercises ordinary JSX helper imports, separately built
+libraries using transparent JSX fragments, and duplicate physical runtime packages through Vite, Webpack, and Bun. Its controls
+check active providers, denied optional implementations, absent providers, and providers installed
+only by the library. The paired test-helper fixture checks default Vitest, Jest, and Bun test
+hosts with server rendering and a subsequent client counter interaction in the same test process.
+The installed-library Vitest fixture separately renders generated server artifacts and theme
+providers under Node and jsdom, invokes server progress through the same task authority, and
+checks that a retained reporter stops after settlement. Authored client/server enhancement
+projections and their bundle catalogs remain separate in the existing transition matrix.
+Compiler artifact test bundles preserve their target even when their temporary filenames differ.
+Discovery controls cover physical linked roots, participating
+transitive dependencies, cycles, absent optional packages, and malformed manifests.
+Application-root fixtures build an unpublished application outside the process working directory.
+Vite's resolved root, Webpack's compiler context, and Bun's build root must select the application's
+own configuration and authorization boundary. Each adapter also checks an explicit application-root
+override. These are executable build and SSR checks, independent of source-placement analysis.
+These checks complement this corpus's path declarations. They do not treat those declarations as
+execution or claim that workspace hydration witnesses cover independently installed split-build islands.
+
+The shared `framework-adapters/test-support/partition-island-contracts` source also runs through
+compiler artifact emission and the Vite, Webpack and Bun workspace hydration journeys. Its finite
+fallbacks retain DOM identity, custom event data requires eager activation, a dormant nested await
+permits interaction replay, and nested methods keep captured native events eager. Literal and nested
+state keys update independently. An opaque derived callback spread activates in its client
+placeholder, invokes its reconstructed callback twice and releases its owner on disposal.
+The shared form binding journey includes finite string union radio selections and checkbox
+collections. It checks repeated selection, removal, clearing and reset while retaining each control.
+Its shared fixture also crosses asserted intrinsic targets, computed component notification
+targets, ordinary asserted assignments, and writable copies whose receivers become derived
+cells. The next event selects the current state member and preserves its sibling. These checks
+run through mount, strict hydration, installed adapter consumers, and native runtime acceptance.
+
+The owned target-attribute fixture also checks authored overrides, class/style/token replacement,
+native properties, retained DOM and disposal through mount, strict hydration and the shared
+adapter journeys. Native-host acceptance carries its transitions through both buffered and
+progressive output. Workspace checks remain separate from independently installed package evidence.
+
+The shared `framework-adapters/test-support/installed-islands` journey builds a library separately,
+copies its paired artifacts and runtime dependencies into an isolated consumer, and removes producer
+source. Its client uses the consumer's generated hydration registration, including the library's
+aliased public root and private component closure, rather than manually composing library roots.
+Portable event dispatch also crosses this boundary through a `Readonly<EventTarget>` alias.
+Vite, Webpack and native Bun execute buffered and progressive server-parent hydration,
+continuation updates, a private eager/lazy registry child, retained DOM and input, key replacement
+and disposal. Consumer builds reject missing metadata, incompatible metadata and a missing client
+target. A stateful library context provider without a local event handler retains its server-authored
+children and DOM identity through two descendant control updates. The control resolves the same
+provider before and after each update. The provider also uses a motion enhancement, whose activation
+registration must be discovered through the library's enhancement edge without framework reports. A spread-attribute class map also crosses SSR, strict hydration and retained
+updates, preserving native integer-key order and prototype setter semantics. Initial documents and task dispatch travel over an owned loopback HTTP server. The
+installed child also crosses explicit and defaulted destructured props. Its typed event receiver
+retains a Boolean capture option, removes listeners after successful settlement and owner
+replacement, and verifies that explicit symbolic disposal of a published native helper class
+and explicit task-context ownership each run once. Conditional disposal preserves fallback
+ownership when its branch does not execute. Native lexical disposal runs once, including
+cancellation. Fixed tuple spread setup follows retained prop updates without replacing the row. It verifies listener isolation on the next invocation and final disposal. It starts controlled blocking
+client work, cancels it on registry replacement, makes subsequent progress in the new owner and
+cancels unfinished work on final disposal. Releasing retired work must not publish into its successor.
+jsdom client preserves the existing identity and cleanup assertions, and the host verifies the
+initial GET and four operation POSTs without unexpected transport errors. Progressive fixture
+output is assembled before the initial HTTP response, so it does not prove progressive document
+delivery. Registration is composed eagerly from executable component contracts.
+`npm run test:runtimes` also runs the installed journey using Vite-built consumer bundles on
+Bun.serve, Deno.serve and local workerd. The same jsdom assertions verify both buffered output and
+assembled progressive output, including UTF-8 text, initial input edits, four remote operations,
+retained DOM, eager/lazy replacement and disposal. Native hosts own their Fetch requests and
+responses. A fresh named-test report is required before the runtime runner records success.
+These host combinations complement the adapter matrix rather than replacing it.
+Automatic package bootstrap discovery, real-browser behavior and other adapter/native-host
+combinations need separate evidence.
+
+The installed provider and report fixtures add separately published, typed library controls.
+Vite, Webpack and native Bun verify transparent provider children through two appearance changes,
+with retained DOM identity and no hydration reports. Report fixtures verify keyed and scalar prop
+spreads, explicit and spread callback props beneath a continuation owner, two hover updates and
+listener disposal. They check buffered and assembled progressive SSR before hydration. Enhanced
+render programs retain the authored component as their reactive owner when adopted inside SSR
+marker ranges. Vite also runs explicit-prop and unenhanced controls. A Chromium development fixture
+uses a custom cache directory and automatic library handling, without authored SSR inlining,
+optimizer exclusions or a shell event anchor. It checks two appearance changes and cookies.
+
+The Vite library-watch SSR fixture waits for initial publication before loading the consumer. It
+checks authored consumers and regenerated paired consumers through repeated valid edits to an
+internally imported sibling component, retention
+of the last successful output after an invalid edit, recovery on the next valid edit, and
+watcher/server shutdown. This edit/reload journey checks the Vite development host separately
+from the shared library builder's serialization and lifecycle tests. Native watch diagnostics
+independently cross declaration checking, JavaScript checking, disabled checking, and retained
+reverse-dependent source errors, unchecked JavaScript, diagnostic directives, and producer-owned
+paired targets. Sibling-project source and declaration edits also cross scalar/list lowering in
+both targets, linked physical paths, recovery, and unchanged notifications. Emitted artifacts are
+checked semantically and execute client mounting and buffered/streamed server rendering. The SSR
+watch fixture checks normal Vite invalidation and explicit full-module reloads. Authorization
+generation tests also reload a published child with its consumer cached, before and after the
+first commit. They check cycles, fresh metadata after removing an internal import, revoked
+application dependencies, denied policies, and recovery. Bun and Webpack independently repeat
+root and delegated package authorization across fresh generations. Vite controls also replace
+an authorization generation during an active resolver request, preserving current-policy denials
+and final disposal. A published source transform before root replay cannot replace published
+authority. The configuration watch journey checks this through five enable/remove/restore
+transitions. Installed enhancement fixtures render newly loaded authored and paired pages
+through a retained renderer after full graph invalidation, assert status and field output without
+unavailable-provider warnings, and repeat four reloads. Catalog controls check application and
+target isolation, stale provider completion, same-evaluation conflicts, explicit caller catalogs,
+and owner cleanup. An owned Chromium development fixture mounts an enhanced button with
+optimized dependencies, clicks it, and repeats source edits with enhancement and interaction
+assertions. Run it with `npm run test:development-browser` after building workspace packages
+and installing Chromium. The compiler browser acceptance job executes this check. Browser catalog resolution remains the core entry used by optimized dependencies.
+Vite SSR and Webpack watch fixtures execute unchanged consumers through scalar/list declaration
+edits and recovery. Native Bun repeats the same transitions with one retained plugin. Native watch
+input tests cover erased imports, transitive types, ambient declarations, source scoping, unresolved
+imports, default-library exclusion, and reset.
+The library watcher separately verifies that asset edits do not rebuild components
+while JSON and authored edits still do. Output transactions protect unchanged file identity alongside
+rollback and overlapping publication. Library replacement additionally protects unchanged file
+identity, changed and removed files, permission changes, unsupported links, and fresh publication
+markers. Hydration registration checks private runtime exports against
+a library declaration surface that intentionally omits them.
+
+The shared adapter diagnostic fixture also builds object and array state assignments in strict
+projects through Vite, Webpack, and native Bun, for both executable targets. Native semantic
+checks own the valid and incompatible-type assertions. Bundler build acceptance alone does not
+establish TypeScript type rejection.
+
+Imported helper write-authority controls build both targets through each adapter. A static member
+write is accepted, while a dynamic member destination cannot grant finite server publication
+authority. The source corpus's `pending-owner-overlap` journey independently crosses ordinary
+helper mutation, captured/defaulted props, retained enhanced hosts, keyed replacement and disposal
+through mounting and full-root hydration. It asserts pending isolation, abort signals, subsequent
+progress, stale handler removal and exactly-once cleanup without unexpected framework reports.
+
+The pending-owner journey shares observable assertions between jsdom and Chromium. Both mount and
+full-root hydration cross plain/enhanced hosts. Two fixed seeds each execute 48 steps across latest
+and parallel tasks, prop rebinding and replacement against a model of committed state and current
+ownership, then verify disposal. Browser
+acceptance repeats these journeys on each native runtime's paired output. The installed-library
+journey also executes in Chromium against an owned Node HTTP server and Vite consumer bundles for
+both buffered and assembled progressive output. Native Bun/Deno/workerd installed delivery remains
+independently checked with jsdom. Browser execution does not establish deployed-provider behavior.
+Imported bare-value policy controls include actual and type-only client references through all
+three build adapters, with public sibling controls.
+
+The computed-component-member fixture checks finite resource ownership, lifecycle key evaluation,
+optional ref calls, extracted reactive methods, and ordinary object receivers. Mount and strict
+hydration retain DOM across two interactions and release component resources exactly once without
+unexpected framework reports. The native runtime page shares these assertions across Node, Bun,
+both Deno cancellation modes, and workerd. Paired Vite, Webpack, and native Bun builds also execute
+computed ownership, lifecycle, ref, and reactive SSR through the shared source-contract fixture.
+The shared owned-protocol island source crosses generated island hydration in the adapter journeys
+and every native-host browser journey. Direct and finite-spread refs are ready for the first
+interaction, reactive methods retain captured props, two updates preserve DOM, and disposal
+removes interaction authority. Native paired-target source witnesses check the equivalent ownership and lowering contracts.
+
+The shared `framework-adapters/test-support/compiler-state-alias-contract.ts` fixture builds both
+targets through Vite, Webpack and native Bun. Its server execution checks nested array holes, a
+setup state alias mutated by an ordinary helper inside a blocking task, renamed DOM teardown
+placement, and an imported component with an inferred browser computation under package-scoped
+enhancements. Neither browser-only component executes during SSR. The emitted SDK controls
+additionally check retained client DOM identity after the next
+interaction, direct and object aliases, lexical shadowing, defaulted receiver rejection and rest-copy
+validation. Native runtime acceptance exercises the same nested alias and helper publication through
+Node, Bun, Deno and workerd in the owned task-capture journey.
+
+The shared `framework-adapters/test-support/compiler-intl-structure-contract.ts` fixture builds
+localized client and server artifacts through Vite, Webpack and native Bun under strict TypeScript
+checking. It combines element and opaque message structures with a reactive time value. Analyzer
+tests also compile both generated targets directly, protecting callback input types independently
+of bundler execution.

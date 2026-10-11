@@ -63,7 +63,10 @@ export function EnhancementsPage(this: Component<{}>) {
 					Here, <code>motion:fade</code> selects the fade enhancement and
 					<code>motion:duration</code> supplies its duration. The enhancement is itself an eXact
 					component, with its own state and cleanup. The import tells the compiler which provider
-					the attributes refer to. It does not force that provider into every consumer’s build.
+					the attributes refer to. Use the same attributed import when supplying enhancement
+					properties through a finite spread object. An ordinary import does not establish an
+					enhancement namespace. The attributed import does not force that provider into every
+					consumer’s build.
 				</p>
 			</section>
 
@@ -105,7 +108,10 @@ export function EnhancementsPage(this: Component<{}>) {
 				</p>
 				<p>
 					Updating contributed properties on the same target retains unchanged refs and event
-					subscriptions. Removing a contribution releases only the resources it owns.
+					subscriptions. Hydrated targets keep authored properties separate from server
+					contributions, so later changes replace contributed classes, styles and attributes while
+					preserving authored overrides. Removing a contribution releases only the resources it
+					owns.
 				</p>
 				<p>
 					When an enhancement contributes additional <code>_target</code> properties to a fragment,
@@ -140,7 +146,17 @@ export function EnhancementsPage(this: Component<{}>) {
 					establish services, themes, or policies that descendant components consume during setup,
 					with nested enhanced targets constructing inside the outer provider chain.
 				</p>
+				<p>
+					A keyed enhanced element or fragment keeps its identity during hydration and reactive
+					updates. Changing its key replaces that target and releases its owned resources.
+				</p>
 				<CodeBlock source={packageScopeSource} language="ts" title="exact.config.ts" />
+				<p>
+					Enhancement props follow the provider's TypeScript types. A quoted attribute remains a
+					string, including when its type constrains the text with a template literal. It has the
+					same type requirements as a string passed in an expression and is not converted into a
+					number or bigint at runtime.
+				</p>
 				<p>
 					A package-scoped export behaves like a virtual enhancement import in every component owned
 					by that package, while generated code imports it only where the namespace is used. A

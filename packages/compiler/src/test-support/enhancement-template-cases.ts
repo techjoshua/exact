@@ -1,0 +1,26 @@
+/** Quoted JSX props must retain the same literal constraints as ordinary string expressions. */
+export const enhancementTemplateCases = [
+	['bigint', '123456789012345678901234567890', true],
+	['bigint', '-123456789012345678901234567890', true],
+	['bigint', '0x10', true],
+	['bigint', '0b101', true],
+	['bigint', '0o17', true],
+	['bigint', '12n', false],
+	['bigint', '1.5', false],
+	['bigint', '', false],
+	['number', '0x10', true],
+	['number', '0b101', true],
+	['number', '1e3', true],
+	['number', '-1.5', true],
+	['number', 'NaN', false],
+	['number', 'Infinity', false],
+	['number', '', false],
+	['boolean', 'true', true],
+	['boolean', 'false', true],
+	['boolean', 'other', false],
+	['null | undefined', 'null', true],
+	['null | undefined', 'undefined', true],
+	['null | undefined', 'other', false],
+	['Uppercase<string>', 'NAME', true],
+	['Uppercase<string>', 'Name', false]
+] as const;

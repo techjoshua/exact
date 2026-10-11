@@ -20,7 +20,10 @@ describe('compiler watch invalidation classification', () => {
 		'/app/tsconfig.client.json',
 		'/app/jsconfig.json',
 		'/app/package.json',
-		'/app/src/fixtures/data.JSON'
+		'/app/src/fixtures/data.JSON',
+		'/app/.exact/Page.exact.server.ts',
+		'/app/generated/Page.exact.client.mjs',
+		'C:\\app\\generated\\Page.exact.SERVER.ts'
 	])('resets the project for configuration or JSON module %s', (filename) => {
 		expect(classifyExactWatchInvalidation(filename)).toBe('project');
 	});

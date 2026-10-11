@@ -4,6 +4,8 @@ import (
 	"reflect"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/microsoft/TypeScript/tsc/internal/ast"
 )
 
 // remapAuthoredLocations translates public analysis and source diagnostics
@@ -100,6 +102,12 @@ func remapLineColumn(line *int, column *int, source normalizedSource) {
 	*column = authoredColumn
 }
 
+// sourceLocation shares the Unicode scalar columns used by authored source
+// normalization. Diagnostic spans cross the process boundary as UTF-16 separately.
+func sourceLocation(sourceFile *ast.SourceFile, position int) (int, int) {
+	return sourceLineAndColumn(sourceFile.Text(), position)
+}
+
 func sourceOffsetForLineColumn(source string, line int, column int) int {
 	if line < 1 {
 		line = 1
@@ -112,8 +120,9 @@ func sourceOffsetForLineColumn(source string, line int, column int) int {
 		if currentLine == line && currentColumn == column {
 			return offset
 		}
-		r, size := utf8.DecodeRuneInString(source[offset:])
-		if r == '\n' {
+		_, size := utf8.DecodeRuneInString(source[offset:])
+		if lineBreak := sourceLineBreakSize(source, offset); lineBreak != 0 {
+			size = lineBreak
 			currentLine++
 			currentColumn = 1
 		} else {
@@ -127,6 +136,8 @@ func sourceOffsetForLineColumn(source string, line int, column int) int {
 const sourceMapBase64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
 
 func remapSourceMapMappings(mappings string, source normalizedSource) string {
+	normalizedIndex := indexSourceLocations(source.text)
+	authoredIndex := indexSourceLocations(source.authored)
 	inputPreviousSource := 0
 	inputPreviousLine := 0
 	inputPreviousColumn := 0
@@ -156,14 +167,12 @@ func remapSourceMapMappings(mappings string, source normalizedSource) string {
 				inputPreviousLine += values[2]
 				inputPreviousColumn += values[3]
 				authoredOffset := source.authoredOffset(
-					sourceOffsetForUTF16LineColumn(
-						source.text,
+					normalizedIndex.offset(
 						inputPreviousLine,
 						inputPreviousColumn,
 					),
 				)
-				authoredLine, authoredColumn := sourceUTF16LineColumn(
-					source.authored,
+				authoredLine, authoredColumn := authoredIndex.lineColumn(
 					authoredOffset,
 				)
 				outputValues = append(
@@ -242,34 +251,13 @@ func encodeSourceMapSegment(values []int) string {
 	return result.String()
 }
 
-func sourceOffsetForUTF16LineColumn(source string, line int, column int) int {
-	currentLine, currentColumn := 0, 0
-	for offset := 0; offset < len(source); {
-		if currentLine == line && currentColumn >= column {
-			return offset
-		}
-		r, size := utf8.DecodeRuneInString(source[offset:])
-		if r == '\n' {
-			currentLine++
-			currentColumn = 0
-		} else if r > 0xffff {
-			currentColumn += 2
-		} else {
-			currentColumn++
-		}
-		offset += size
-	}
-	return len(source)
-}
-
 func sourceUTF16LineColumn(source string, position int) (int, int) {
 	line, column := 0, 0
-	if position > len(source) {
-		position = len(source)
-	}
+	position = max(0, min(position, len(source)))
 	for offset := 0; offset < position; {
 		r, size := utf8.DecodeRuneInString(source[offset:])
-		if r == '\n' {
+		if lineBreak := sourceLineBreakSize(source, offset); lineBreak != 0 {
+			size = lineBreak
 			line++
 			column = 0
 		} else if r > 0xffff {

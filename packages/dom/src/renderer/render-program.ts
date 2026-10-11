@@ -34,7 +34,8 @@ export function adoptRenderProgram(
 		scope: EffectScope,
 		cursor: number,
 		end: number,
-		compilerOwnedComponent?: boolean
+		compilerOwnedComponent?: boolean,
+		physicalParent?: Node
 	) => Mounted[] | undefined
 ): Mounted | undefined {
 	const invocation = readRenderProgram(value);
@@ -96,7 +97,8 @@ export function adoptCompiledRenderProgram(
 		scope: EffectScope,
 		cursor: number,
 		end: number,
-		compilerOwnedComponent?: boolean
+		compilerOwnedComponent?: boolean,
+		physicalParent?: Node
 	) => Mounted[] | undefined
 ): { mounted: Mounted; next: number } | undefined {
 	const marked = adoptMarkedRenderProgram(
@@ -136,11 +138,13 @@ function adoptMarkedRenderProgram(
 		scope: EffectScope,
 		cursor: number,
 		end: number,
-		compilerOwnedComponent?: boolean
+		compilerOwnedComponent?: boolean,
+		physicalParent?: Node
 	) => Mounted[] | undefined
 ): { mounted: Mounted; next: number } | undefined {
 	const invocation = readRenderProgram(value);
 	if (!invocation) return undefined;
+	const bindingOwner = (invocation.owner as AnyComponentInstance | undefined) ?? parentInstance;
 	const program = directProgram(invocation.program);
 	const range = markedProgramRange(nodes, cursor, end);
 	if (!range) return undefined;
@@ -173,6 +177,7 @@ function adoptMarkedRenderProgram(
 			...(direct.textRuns ? { textRuns: direct.textRuns } : {}),
 			...(direct.componentSlots ? { componentSlots: direct.componentSlots } : {}),
 			root,
+			bindingOwner,
 			parentInstance
 		}
 	};
@@ -182,7 +187,7 @@ function adoptMarkedRenderProgram(
 	if (!adoptedChildren) return undefined;
 	// Compiler-generated claims deliberately omit inert static intrinsics. They remain owned by
 	// the enclosing DOM range and need no per-element bookkeeping of their own.
-	ownDirectProgramNodes(direct.elements, parentInstance);
+	ownDirectProgramNodes(direct.elements, bindingOwner);
 	countProgramWork(root, direct.work, true);
 	const bindingStarted = beginDomProfile(root);
 	const bound = !renderProgramHasBindings(program) || bindRenderProgram(mounted);

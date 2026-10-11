@@ -31,3 +31,35 @@ export function Existing(this: Component<{ alternate: boolean }>) {
 	this.state.alternate = false;
 	return () => (this.state.alternate ? <span>New</span> : <button>Old</button>);
 }
+
+const AliasContext = createContext<{ increment(): void; release(): void }>('test.alias-owner');
+/** Records cleanup of the child that invokes its parent's captured state callbacks. */
+export const aliasCleanup = { count: 0 };
+/** Publishes ordinary object methods backed by a durable component alias. */
+export function AliasContextCounter(this: Component<{ count: number }>) {
+	this.state.count = 0;
+	const owner = this;
+	const callbacks = {
+		increment() {
+			owner.state.count++;
+		},
+		release() {
+			owner.state.count += 2;
+			aliasCleanup.count++;
+		}
+	};
+	this.setContext(AliasContext, callbacks);
+	return () => (
+		<section>
+			<output>{this.state.count}</output>
+			<AliasContextChild />
+		</section>
+	);
+}
+/** Invokes parent-owned callbacks during mounting, repeated events, and cleanup. */
+export function AliasContextChild(this: Component<{}>) {
+	const callbacks = this.getContext(AliasContext);
+	this.onMount(() => callbacks.increment());
+	this.onUnmount(() => callbacks.release());
+	return () => <button onClick={() => callbacks.increment()}>Increment</button>;
+}

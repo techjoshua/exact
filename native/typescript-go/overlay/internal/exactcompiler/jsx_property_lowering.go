@@ -1,6 +1,7 @@
 package exactcompiler
 
 import (
+	"strconv"
 	"strings"
 	"unicode"
 
@@ -57,7 +58,17 @@ func (lowering *jsxLowering) propsWithProjection(
 	reactive bool,
 	serverOnly bool,
 ) *ast.Node {
+	return lowering.propsWithDeferredProjection(attributes, elementID, intrinsic, tag, reactive, serverOnly, nil)
+}
+
+// propsWithDeferredProjection separates eager enhancement ownership from a clock-bearing
+// host property group. The group remains one expression to preserve spread evaluation order.
+func (lowering *jsxLowering) propsWithDeferredProjection(
+	attributes *ast.Node, elementID string, intrinsic bool, tag string, reactive bool,
+	serverOnly bool, metadata *[]*ast.Node,
+) *ast.Node {
 	properties := []*ast.Node{}
+	deferredTimeProperties := []*ast.Node{}
 	projectedTargetHostProps := false
 	application := enhancementApplication{}
 	if attributes != nil {
@@ -79,13 +90,23 @@ func (lowering *jsxLowering) propsWithProjection(
 		for _, property := range attributes.AsJsxAttributes().Properties.Nodes {
 			if conditionalClasses && jsxClassNameContribution(property) {
 				if !classNameEmitted {
-					properties = append(
-						properties,
-						lowering.property(
-							lowering.factory.NewIdentifier("className"),
-							lowering.lowerClassNameValue(attributes, reactive, false),
-						),
-					)
+					name := lowering.factory.NewIdentifier("className")
+					value := lowering.lowerClassNameValue(attributes, reactive, false)
+					classProperty := lowering.property(name, value)
+					if metadata == nil && lowering.target == TargetServer && lowering.timeActivation != "" {
+						for _, contribution := range attributes.AsJsxAttributes().Properties.Nodes {
+							if !jsxClassNameContribution(contribution) {
+								continue
+							}
+							initializer := contribution.AsJsxAttribute().Initializer
+							if initializer != nil && ast.IsJsxExpression(initializer) && initializer.AsJsxExpression().Expression != nil &&
+								timeExpressionHasClockDependency(initializer.AsJsxExpression().Expression, lowering.checker, lowering.sourceFile, map[ast.SymbolId]struct{}{}) {
+								classProperty = lowering.timeDeferredServerProperty(name, value, &deferredTimeProperties)
+								break
+							}
+						}
+					}
+					properties = append(properties, classProperty)
 					classNameEmitted = true
 				}
 				continue
@@ -201,10 +222,18 @@ func (lowering *jsxLowering) propsWithProjection(
 			default:
 				initializer = lowering.visitor.VisitNode(attribute.Initializer)
 			}
-			properties = append(
-				properties,
-				lowering.property(jsxPropertyName(lowering.factory, name), initializer),
-			)
+			propertyNode := lowering.property(jsxPropertyName(lowering.factory, name), initializer)
+			if metadata == nil && lowering.target == TargetServer && lowering.timeActivation != "" && attribute.Initializer != nil && ast.IsJsxExpression(attribute.Initializer) {
+				expression := attribute.Initializer.AsJsxExpression().Expression
+				if expression != nil && timeExpressionHasClockDependency(expression, lowering.checker, lowering.sourceFile, map[ast.SymbolId]struct{}{}) {
+					propertyNode = lowering.timeDeferredServerProperty(jsxPropertyName(lowering.factory, name), initializer, &deferredTimeProperties)
+				}
+			}
+			if metadata != nil && name == "key" {
+				*metadata = append(*metadata, propertyNode)
+			} else {
+				properties = append(properties, propertyNode)
+			}
 		}
 	}
 	if projectedTargetHostProps {
@@ -214,15 +243,32 @@ func (lowering *jsxLowering) propsWithProjection(
 		))
 	}
 	if marker := lowering.enhancementMarker(enhancements); marker != nil {
-		properties = append(properties, lowering.property(
-			lowering.factory.NewIdentifier("__exactEnhancements"),
-			marker,
-		))
+		property := lowering.property(lowering.factory.NewIdentifier("__exactEnhancements"), marker)
+		if metadata != nil {
+			*metadata = append(*metadata, property)
+		} else {
+			properties = append(properties, property)
+		}
 	}
-	return lowering.factory.NewObjectLiteralExpression(
-		lowering.factory.NewNodeList(properties),
-		false,
-	)
+	props := lowering.factory.NewObjectLiteralExpression(lowering.factory.NewNodeList(properties), false)
+	if len(deferredTimeProperties) == 0 {
+		return props
+	}
+	// Reader arrows are created in the component's lexical scope, rather than in a
+	// getter whose JavaScript this would be the props object.
+	return lowering.factory.NewCallExpression(lowering.factory.NewParenthesizedExpression(lowering.arrowWithParameter(lowering.factory.NewIdentifier(lowering.names.timePropertyReaders), props)), nil, nil,
+		lowering.factory.NewNodeList([]*ast.Node{lowering.factory.NewArrayLiteralExpression(lowering.factory.NewNodeList(deferredTimeProperties), false)}), ast.NodeFlagsNone)
+}
+
+// timeDeferredServerProperty retains the original expression's lexical receiver until
+// the server enhancement has selected the provider. It allocates no reactive observer.
+func (lowering *jsxLowering) timeDeferredServerProperty(name, value *ast.Node, readers *[]*ast.Node) *ast.Node {
+	index := len(*readers)
+	*readers = append(*readers, lowering.arrow(value))
+	read := lowering.factory.NewElementAccessExpression(lowering.factory.NewIdentifier(lowering.names.timePropertyReaders), nil, lowering.factory.NewNumericLiteral(strconv.Itoa(index), ast.TokenFlagsNone), ast.NodeFlagsNone)
+	value = lowering.factory.NewCallExpression(read, nil, nil, lowering.factory.NewNodeList(nil), ast.NodeFlagsNone)
+	return lowering.factory.NewGetAccessorDeclaration(nil, name, nil, lowering.factory.NewNodeList(nil), nil, nil,
+		lowering.factory.NewBlock(lowering.factory.NewNodeList([]*ast.Node{lowering.factory.NewReturnStatement(value)}), true))
 }
 
 // lowerCompilerClosedServerClassName removes request-local arrays and truthy-map objects only when
@@ -249,6 +295,7 @@ func (lowering *jsxLowering) lowerCompilerClosedServerClassName(expression *ast.
 				lowering.factory.NewStringLiteral(" "+element.Text(), ast.TokenFlagsNone),
 			)
 		case ast.IsObjectLiteralExpression(element):
+			names := map[string]bool{}
 			for _, property := range element.AsObjectLiteralExpression().Properties.Nodes {
 				if !ast.IsPropertyAssignment(property) {
 					return nil
@@ -258,6 +305,17 @@ func (lowering *jsxLowering) lowerCompilerClosedServerClassName(expression *ast.
 				if name == nil || (!ast.IsIdentifier(name) && !ast.IsStringLiteral(name)) || name.Text() == "" {
 					return nil
 				}
+				// Native object enumeration sorts index keys, retains only the final
+				// duplicate value and treats __proto__ as a setter. The linear token
+				// concatenation proof does not reproduce those object operations.
+				key := name.Text()
+				if key == "__proto__" || names[key] {
+					return nil
+				}
+				if index, err := strconv.ParseUint(key, 10, 32); err == nil && index < 4294967295 && strconv.FormatUint(index, 10) == key {
+					return nil
+				}
+				names[key] = true
 				condition := assignment.Initializer
 				if condition == nil ||
 					!compilerClosedBooleanExpression(condition, lowering.checker) {
@@ -358,6 +416,9 @@ func (lowering *jsxLowering) appendEnhancementSpread(
 					break
 				}
 			}
+		} else if lowering.timeActivation != "" && member.prop == "update" &&
+			(member.identity == "@exactjs/time/enhancements#update" || member.identity == "@exactjs/time/enhancements#default") {
+			value = lowering.timeActivationExpression(expression)
 		} else if reactive {
 			value = lowering.reactiveExpression(expression, value)
 		}
@@ -486,24 +547,6 @@ func (lowering *jsxLowering) jsxAttributeInitializer(
 	default:
 		return lowering.visitor.VisitNode(attribute.Initializer)
 	}
-}
-
-func kebabToCamel(value string) string {
-	result := ""
-	upper := false
-	for _, character := range value {
-		if character == '-' {
-			upper = true
-			continue
-		}
-		if upper {
-			result += strings.ToUpper(string(character))
-			upper = false
-			continue
-		}
-		result += string(character)
-	}
-	return result
 }
 
 func jsxClassNameContribution(property *ast.Node) bool {
@@ -952,7 +995,7 @@ func (lowering *jsxLowering) contextualCallbackParameterTypes(
 func (lowering *jsxLowering) componentBindingProperties(
 	binding componentBinding,
 ) []*ast.Node {
-	target := lowering.visitor.VisitNode(binding.target)
+	target := lowering.formBindingReadTarget(binding.target)
 	next := lowering.factory.NewIdentifier("__exactBindingValue")
 	name, reference := lowering.stateWriteReference(
 		binding.target,
@@ -972,6 +1015,10 @@ func (lowering *jsxLowering) componentBindingProperties(
 			argument,
 		},
 	)
+	if lowering.checking {
+		// Generated notification handlers must preserve the target's authored assignment contract.
+		write = lowering.factory.NewAssignmentExpression(lowering.formBindingAssignmentTarget(binding.target), next)
+	}
 	body := lowering.factory.NewBlock(
 		lowering.factory.NewNodeList([]*ast.Node{
 			lowering.factory.NewExpressionStatement(write),
@@ -1001,10 +1048,14 @@ func (lowering *jsxLowering) componentBindingProperties(
 		lowering.factory.NewToken(ast.KindEqualsGreaterThanToken),
 		body,
 	)
+	value := target
+	if !lowering.checking {
+		value = lowering.reactiveExpression(binding.target, target)
+	}
 	return []*ast.Node{
 		lowering.property(
 			jsxPropertyName(lowering.factory, binding.valueProp),
-			lowering.reactiveExpression(binding.target, target),
+			value,
 		),
 		lowering.property(
 			jsxPropertyName(lowering.factory, binding.callbackProp),
@@ -1035,16 +1086,6 @@ func (lowering *jsxLowering) formBindingProperties(
 		return nil
 	}
 	return lowering.lowerFormBinding(binding, attributes)
-}
-
-func (lowering *jsxLowering) stateReadPath(node *ast.Node) []string {
-	for _, read := range lowering.stateReads {
-		if read.Start == node.Pos() && read.Length == node.End()-node.Pos() &&
-			read.Confidence == "exact" {
-			return append([]string(nil), read.Path...)
-		}
-	}
-	return nil
 }
 
 func jsxAttributeText(name *ast.Node) string {
@@ -1097,6 +1138,15 @@ func jsxEventOmitsArgument(expression *ast.Node, typeChecker *checker.Checker) b
 		}
 		if symbol != nil {
 			declaration := symbol.ValueDeclaration
+			if declaration == nil {
+				return false
+			}
+			// A declaration's initial body cannot prove event omission after its binding
+			// changes. Function declarations are hoisted, so include writes before it too.
+			owner := ast.GetSourceFileOfNode(declaration)
+			if owner == nil || componentValueSymbolIsWrittenAfter(symbol, -1, owner, typeChecker) {
+				return false
+			}
 			switch {
 			case declaration != nil && ast.IsFunctionDeclaration(declaration):
 				callable = declaration
@@ -1105,7 +1155,7 @@ func jsxEventOmitsArgument(expression *ast.Node, typeChecker *checker.Checker) b
 			}
 		}
 	}
-	if callable == nil || (!ast.IsArrowFunction(callable) && !ast.IsFunctionExpression(callable) && !ast.IsFunctionDeclaration(callable)) || len(callable.Parameters()) != 0 {
+	if callable == nil || (!ast.IsArrowFunction(callable) && !ast.IsFunctionExpression(callable) && !ast.IsFunctionDeclaration(callable)) || callable.Body() == nil || len(callable.Parameters()) != 0 {
 		return false
 	}
 	if ast.IsArrowFunction(callable) {

@@ -45,6 +45,7 @@ type Request struct {
 	ConfigFile                  string                      `json:"configFile,omitempty"`
 	Target                      Target                      `json:"target,omitempty"`
 	ComponentContractProjection ComponentContractProjection `json:"componentContractProjection,omitempty"`
+	PreserveOrdinaryModules     bool                        `json:"preserveOrdinaryModules,omitempty"`
 	ServerComponents            bool                        `json:"serverComponents,omitempty"`
 	PreserveComponentHoisting   bool                        `json:"preserveComponentHoisting,omitempty"`
 	Diagnostics                 string                      `json:"diagnostics,omitempty"`
@@ -152,42 +153,43 @@ type Directive struct {
 
 // Component identifies a native eXact component declaration.
 type Component struct {
-	ID                   string                    `json:"id"`
-	Name                 string                    `json:"name"`
-	Start                int                       `json:"start"`
-	Length               int                       `json:"length"`
-	Exported             bool                      `json:"exported"`
-	Signals              []string                  `json:"signals"`
-	Placement            string                    `json:"placement"`
-	SubgraphPlacement    string                    `json:"subgraphPlacement"`
-	EnvironmentEffect    string                    `json:"environmentEffect"`
-	ArtifactTargets      []string                  `json:"artifactTargets"`
-	RenderEdges          []RenderEdge              `json:"renderEdges"`
-	ClientIslandCount    int                       `json:"clientIslandCount"`
-	Contexts             []ContextEffect           `json:"contexts"`
-	EnhancementContexts  EnhancementContextEffects `json:"enhancementContexts"`
-	SplitBoundaries      []string                  `json:"splitBoundaries"`
-	Diagnostics          []string                  `json:"diagnostics"`
-	Execution            ComponentExecution        `json:"execution"`
-	Interactions         bool                      `json:"-"`
-	DynamicComponents    bool                      `json:"-"`
-	StateSlots           []string                  `json:"-"`
-	PropsSlots           []string                  `json:"-"`
-	PropsSerialization   *ComponentValueSchema     `json:"-"`
-	Collections          bool                      `json:"-"`
-	Targets              bool                      `json:"-"`
-	CompiledRender       bool                      `json:"-"`
-	DocumentRoot         bool                      `json:"-"`
-	StaticDocumentHead   bool                      `json:"-"`
-	ClientCompiledRender bool                      `json:"-"`
-	ClientRangeOutput    bool                      `json:"-"`
-	TargetArtifact       bool                      `json:"-"`
-	Lifecycle            bool                      `json:"-"`
-	Lists                bool                      `json:"-"`
-	DirectSurface        ComponentSurfacePlan      `json:"-"`
-	ForwardedSurface     ComponentSurfacePlan      `json:"-"`
-	Surface              ComponentSurfacePlan      `json:"-"`
-	TargetPlan           ComponentTargetPlan       `json:"-"`
+	ID                         string                    `json:"id"`
+	Name                       string                    `json:"name"`
+	Start                      int                       `json:"start"`
+	Length                     int                       `json:"length"`
+	Exported                   bool                      `json:"exported"`
+	Signals                    []string                  `json:"signals"`
+	Placement                  string                    `json:"placement"`
+	SubgraphPlacement          string                    `json:"subgraphPlacement"`
+	EnvironmentEffect          string                    `json:"environmentEffect"`
+	ArtifactTargets            []string                  `json:"artifactTargets"`
+	RenderEdges                []RenderEdge              `json:"renderEdges"`
+	ClientIslandCount          int                       `json:"clientIslandCount"`
+	StandaloneClientActivation bool                      `json:"standaloneClientActivation,omitempty"`
+	Contexts                   []ContextEffect           `json:"contexts"`
+	EnhancementContexts        EnhancementContextEffects `json:"enhancementContexts"`
+	SplitBoundaries            []string                  `json:"splitBoundaries"`
+	Diagnostics                []string                  `json:"diagnostics"`
+	Execution                  ComponentExecution        `json:"execution"`
+	Interactions               bool                      `json:"-"`
+	DynamicComponents          bool                      `json:"-"`
+	StateSlots                 []string                  `json:"-"`
+	PropsSlots                 []string                  `json:"-"`
+	PropsSerialization         *ComponentValueSchema     `json:"-"`
+	Collections                bool                      `json:"-"`
+	Targets                    bool                      `json:"-"`
+	CompiledRender             bool                      `json:"-"`
+	DocumentRoot               bool                      `json:"-"`
+	StaticDocumentHead         bool                      `json:"-"`
+	ClientCompiledRender       bool                      `json:"-"`
+	ClientRangeOutput          bool                      `json:"-"`
+	TargetArtifact             bool                      `json:"-"`
+	Lifecycle                  bool                      `json:"-"`
+	Lists                      bool                      `json:"-"`
+	DirectSurface              ComponentSurfacePlan      `json:"-"`
+	ForwardedSurface           ComponentSurfacePlan      `json:"-"`
+	Surface                    ComponentSurfacePlan      `json:"-"`
+	TargetPlan                 ComponentTargetPlan       `json:"-"`
 }
 
 // ComponentSurfacePlan records compiler-observed instance capabilities before lowering rewrites
@@ -318,15 +320,19 @@ type DataPolicy struct {
 
 // PolicySubject describes one source or inferred value governed by a data policy.
 type PolicySubject struct {
-	ID             string     `json:"id"`
-	Kind           string     `json:"kind"`
-	Name           string     `json:"name"`
-	Path           string     `json:"path,omitempty"`
-	ComponentID    string     `json:"componentId,omitempty"`
-	CallableID     string     `json:"callableId,omitempty"`
-	ParameterIndex int        `json:"parameterIndex,omitempty"`
-	Policy         DataPolicy `json:"policy"`
-	Source         string     `json:"source"`
+	// Inferred aliases of type-qualified aggregates may narrow at a proven public field.
+	// Explicit kept receivers do not acquire this permission from their runtime shape.
+	typeDerivedAggregate   bool
+	publicSelectionBlocked bool
+	ID                     string     `json:"id"`
+	Kind                   string     `json:"kind"`
+	Name                   string     `json:"name"`
+	Path                   string     `json:"path,omitempty"`
+	ComponentID            string     `json:"componentId,omitempty"`
+	CallableID             string     `json:"callableId,omitempty"`
+	ParameterIndex         int        `json:"parameterIndex,omitempty"`
+	Policy                 DataPolicy `json:"policy"`
+	Source                 string     `json:"source"`
 }
 
 // PolicyFlow describes one checked propagation or transfer between policy subjects.
@@ -399,6 +405,7 @@ type StateWrite struct {
 	Length          int               `json:"length"`
 	RootAlias       string            `json:"-"`
 	RootDepth       int               `json:"-"`
+	RootComponent   bool              `json:"-"`
 	DynamicSegments map[int]*ast.Node `json:"-"`
 	Interaction     bool              `json:"-"`
 	InputPath       string            `json:"-"`
@@ -514,17 +521,19 @@ type CallableSummary struct {
 	ReevaluationSafe    bool                      `json:"reevaluationSafe"`
 }
 
-// TaskResource describes one value whose lifetime belongs to a task generation.
+// TaskResource carries private release witnesses without changing the process record.
 type TaskResource struct {
-	Kind        string `json:"kind"`
-	Disposal    string `json:"disposal,omitempty"`
-	Description string `json:"description,omitempty"`
-	Start       int    `json:"start"`
-	Length      int    `json:"length"`
+	ReleaseCalls []taskResourceRelease `json:"-"`
+	Kind         string                `json:"kind"`
+	Disposal     string                `json:"disposal,omitempty"`
+	Description  string                `json:"description,omitempty"`
+	Start        int                   `json:"start"`
+	Length       int                   `json:"length"`
 }
 
 // TaskSignalCall describes one call which receives the task abort signal.
 type TaskSignalCall struct {
+	ExistingOnly bool   `json:"-"`
 	Parameter    int    `json:"parameter"`
 	Mode         string `json:"mode"`
 	EventOptions bool   `json:"eventOptions,omitempty"`
@@ -551,16 +560,18 @@ type TaskCapturedInput struct {
 
 // ReactiveBinding describes the provenance of one component lexical binding.
 type ReactiveBinding struct {
-	Component        string       `json:"component"`
-	Name             string       `json:"name"`
-	Provenance       string       `json:"provenance"`
-	ContextToken     string       `json:"contextToken,omitempty"`
-	Dependencies     []string     `json:"dependencies"`
-	Definition       SourceSpan   `json:"definition"`
-	References       []SourceSpan `json:"references"`
-	SafeToReevaluate bool         `json:"safeToReevaluate"`
-	Start            int          `json:"start"`
-	Length           int          `json:"length"`
+	// Snapshot reads require a separate invalidation boundary even for a sole consumer.
+	retainSubscriptionBoundary bool
+	Component                  string       `json:"component"`
+	Name                       string       `json:"name"`
+	Provenance                 string       `json:"provenance"`
+	ContextToken               string       `json:"contextToken,omitempty"`
+	Dependencies               []string     `json:"dependencies"`
+	Definition                 SourceSpan   `json:"definition"`
+	References                 []SourceSpan `json:"references"`
+	SafeToReevaluate           bool         `json:"safeToReevaluate"`
+	Start                      int          `json:"start"`
+	Length                     int          `json:"length"`
 }
 
 // SourceSpan identifies one authored compiler-recognized source occurrence.
@@ -571,6 +582,9 @@ type SourceSpan struct {
 
 // Task identifies one component task registration and its authored facets.
 type Task struct {
+	helperCaptures          []invokedTaskCapture
+	localReads              []taskCaptureRange
+	potentialLocalReads     []taskCaptureRange
 	localization            bool
 	ID                      string                    `json:"id"`
 	Component               string                    `json:"component"`
@@ -597,6 +611,7 @@ type Task struct {
 	Start                   int                       `json:"start"`
 	Length                  int                       `json:"length"`
 	SyntheticSetup          bool                      `json:"-"`
+	CompilerSetup           bool                      `json:"-"`
 	CompilerComputation     bool                      `json:"-"`
 	FunctionDefined         bool                      `json:"functionDefined,omitempty"`
 	WorkStart               int                       `json:"workStart,omitempty"`
@@ -644,23 +659,25 @@ type ContinuationOwnership struct {
 
 // Continuation is the compiler-owned cross-runtime task contract.
 type Continuation struct {
-	localization bool
-	captures     []invokedTaskCapture
-	Progress     []TaskProgressContract  `json:"progress,omitempty"`
-	ID           string                  `json:"id"`
-	Kind         string                  `json:"kind"`
-	Label        string                  `json:"label,omitempty"`
-	ComponentID  string                  `json:"componentId"`
-	TaskID       string                  `json:"taskId"`
-	Placement    string                  `json:"placement"`
-	Readiness    string                  `json:"readiness"`
-	Concurrency  string                  `json:"concurrency"`
-	Async        bool                    `json:"async"`
-	Activation   ContinuationActivation  `json:"activation"`
-	Effects      ContinuationEffects     `json:"effects"`
-	Ownership    ContinuationOwnership   `json:"ownership"`
-	Cancellation string                  `json:"cancellation"`
-	Invocation   *ContinuationInvocation `json:"invocation,omitempty"`
+	helperCaptures      []invokedTaskCapture
+	helperCaptureOffset int
+	localization        bool
+	captures            []invokedTaskCapture
+	Progress            []TaskProgressContract  `json:"progress,omitempty"`
+	ID                  string                  `json:"id"`
+	Kind                string                  `json:"kind"`
+	Label               string                  `json:"label,omitempty"`
+	ComponentID         string                  `json:"componentId"`
+	TaskID              string                  `json:"taskId"`
+	Placement           string                  `json:"placement"`
+	Readiness           string                  `json:"readiness"`
+	Concurrency         string                  `json:"concurrency"`
+	Async               bool                    `json:"async"`
+	Activation          ContinuationActivation  `json:"activation"`
+	Effects             ContinuationEffects     `json:"effects"`
+	Ownership           ContinuationOwnership   `json:"ownership"`
+	Cancellation        string                  `json:"cancellation"`
+	Invocation          *ContinuationInvocation `json:"invocation,omitempty"`
 }
 
 // ServerRenderRecord contains server-only activation requirements.

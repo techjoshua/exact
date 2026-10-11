@@ -3,6 +3,7 @@ import { registerReactiveListKey } from '@exactjs/reactive';
 import { describe, expect, it, vi } from 'vitest';
 import {
 	HydrationPanel,
+	RetainedProviderPage,
 	PositionalPublishedRoot,
 	renderAccessorPositionalPublishedRoot,
 	renderMismatchedPositionalPublishedRoot,
@@ -21,6 +22,24 @@ import { createOperation } from './test-support/native-operations.js';
 import { readStreamText } from './test-support/streams.js';
 
 describe('@exactjs/ssr hydration', () => {
+	it.each([
+		['absent', undefined, ''],
+		['null', null, ''],
+		['text', 'Retained text', 'Retained text'],
+		['number', 7, '7'],
+		['element', createOperation('strong', {}, 'Retained element'), 'Retained element'],
+		['siblings', [createOperation('b', {}, 'First'), createOperation('i', {}, 'Second')], 'Second']
+	])('publishes a standalone provider with %s children', async (_name, children, content) => {
+		const result = await renderToHydratableString(
+			createOperation(RetainedProviderPage, {}, children)
+		);
+		expect(result.html).toContain('data-exact-client-name="RetainedProvider"');
+		expect(result.html).toContain('data-retained-provider');
+		if (content) expect(result.html).toContain(content);
+		if (children && typeof children === 'object')
+			expect(result.html).toContain('data-exact-server-slot=');
+	});
+
 	it('uses adapter byte accounting without changing hydration bytes or byte limits', () => {
 		const options = {
 			state: { message: '\u6f22\u5b57\ud83d\ude80</script>\u2028\u2029\ud800' },

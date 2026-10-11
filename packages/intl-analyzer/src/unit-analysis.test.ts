@@ -52,6 +52,39 @@ describe('expanded semantic unit analysis', () => {
 		}
 	);
 
+	it.each([
+		`intl:unit="distance-road" intl:source-unit="kilogram"`,
+		`intl:unit="distance-road" intl:source-unit="unsupported"`,
+		`intl:unit={{unit:'distance-road',sourceUnit:'kilogram'}}`,
+		`intl:unit="distance-road"`
+	])('rejects incompatible source units without changing authored fallback: %s', (attributes) => {
+		const content = attributes === `intl:unit="distance-road"` ? '{value} kilograms' : '{value}';
+		const source = `export function Measurement(value:number){return()=> <output ${attributes}>${content}</output>;}`;
+		const result = analyzeIntlSource(source, {
+			filename: '/src/Units.tsx',
+			owner: 'example',
+			sourceLocale: 'en-US'
+		});
+		expect(result.descriptors).toEqual([]);
+		expect(result.diagnostics[0]?.message).toContain('recognizable source unit');
+		expect(result.code).toBe(source);
+	});
+
+	it.each(['Math.round(value)', 'rounded(value)'])(
+		'keeps evaluated scalar helper values in measurements: %s',
+		(expression) => {
+			const source = `function rounded(value:number){return Math.round(value);}export function Measurement(value:number){return()=> <output intl:unit="distance-road">{${expression}} miles</output>;}`;
+			const result = analyzeIntlSource(source, {
+				filename: '/src/Helpers.tsx',
+				owner: 'example',
+				sourceLocale: 'en-US'
+			});
+			expect(result.diagnostics).toEqual([]);
+			expect(result.descriptors[0]?.capabilities).toContain('unit');
+			expect(result.code).toContain(`[${expression}]`);
+		}
+	);
+
 	it('keeps case-significant digital symbols distinct', () => {
 		const megabits = analyzeIntlSource(
 			'export function Rate(value: number) { return () => <output intl:unit="digital">{value} Mb</output>; }',

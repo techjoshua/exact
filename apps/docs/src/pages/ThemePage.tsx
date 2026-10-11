@@ -15,6 +15,41 @@ const themeSource = `<_ theme:scope
   <Application />
 </_>`;
 
+const appearanceSource = `import { createContext, type Component } from '@exactjs/core';
+import type { ThemeAppearancePreference } from '@exactjs/theme';
+import * as theme from '@exactjs/theme/enhancements'
+  with { type: 'exact-enhancement' };
+
+type AppearanceControl = {
+  readonly appearance: ThemeAppearancePreference;
+  choose(value: ThemeAppearancePreference): void;
+};
+const AppearanceContext = createContext<AppearanceControl>('app.appearance');
+
+export function AppTheme(this: Component<{ appearance: ThemeAppearancePreference }>) {
+  this.state.appearance = 'system';
+  const owner = this;
+  this.setContext(AppearanceContext, {
+    get appearance() { return owner.state.appearance; },
+    choose: value => { owner.state.appearance = value; }
+  });
+  return () => (
+    <main theme:scope theme:appearance={this.state.appearance}>
+      <AppearanceButtons />
+    </main>
+  );
+}
+
+function AppearanceButtons(this: Component<{}>) {
+  const preference = this.getContext(AppearanceContext);
+  return () => <>
+    <button type="button" aria-pressed={preference.appearance === 'light'}
+      onClick={() => preference.choose('light')}>Light</button>
+    <button type="button" aria-pressed={preference.appearance === 'dark'}
+      onClick={() => preference.choose('dark')}>Dark</button>
+  </>;
+}`;
+
 const chartSource = `function SalesChart(this: Component<{}>, props: ChartProps) {
   const theme = this.getContext(ThemeContext);
   const surface = this.getContext(ThemeSurfaceContext);
@@ -54,6 +89,22 @@ export function ThemePage(this: Component<{}>) {
 					pickers for reactive root and nested custom tonics.
 				</p>
 				<CodeBlock source={themeSource} language="tsx" title="Application theme scope" />
+				<h3>Change appearance from a nested control</h3>
+				<p>
+					Keep the chosen appearance in the component that owns the scope. Share the preference and
+					a callback through an application context when controls live deeper in the tree. A direct
+					child can receive the callback as a prop instead.
+				</p>
+				<CodeBlock
+					source={appearanceSource}
+					language="tsx"
+					title="A descendant appearance control"
+				/>
+				<p>
+					Clicking Dark updates the owning component&apos;s inspectable state, the scope, and both
+					buttons&apos; pressed states. <code>ThemeContext</code> describes the resolved theme. Keep
+					application preference changes in the state that supplies the scope inputs.
+				</p>
 				<p>
 					Built-in temperaments are <code>balanced</code>, <code>restrained</code>,
 					<code>expressive</code>, <code>dramatic</code>, <code>soft</code>, <code>stark</code>, and
@@ -196,10 +247,11 @@ export function ThemePage(this: Component<{}>) {
 				<p>
 					The built-in data-color deriver supports categorical sets of one through twelve,
 					sequential sets of two through twelve, and odd diverging sets of three through eleven. It
-					returns foregrounds, strokes, patterns, and warnings as well as colors. Categorical
-					palettes reserve the semantic accent and its immediate perceptual neighborhood for
-					interaction and emphasis. Components must still use labels, symbols, patterns, or another
-					non-color encoding when color identity is necessary to understand the content.
+					returns foregrounds, strokes, patterns, and warnings as well as colors. Its published
+					purity contract supports calls from reactive derived expressions. Categorical palettes
+					reserve the semantic accent and its immediate perceptual neighborhood for interaction and
+					emphasis. Components must still use labels, symbols, patterns, or another non-color
+					encoding when color identity is necessary to understand the content.
 				</p>
 			</section>
 

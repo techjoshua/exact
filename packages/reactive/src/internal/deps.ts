@@ -1,3 +1,4 @@
+import { KeyedVersionStore } from './keyed-version-store.js';
 import {
 	arrayIndex,
 	arrayPosition,
@@ -21,6 +22,7 @@ export {
 	peek,
 	reactionDependencies,
 	registerDependencyObservationHooks,
+	releaseDependencyObservationHooks,
 	runTracked,
 	track,
 	type DependencyObservationHooks,
@@ -29,8 +31,8 @@ export {
 
 type Transaction = {
 	readonly undos?: TransactionUndo[];
-	readonly cleanups?: Array<() => void>;
-	readonly trackedArrays?: Set<unknown[]>;
+	cleanups?: Array<() => void>;
+	trackedArrays?: Set<unknown[]>;
 	readonly triggers: Map<object, Set<PropertyKey>>;
 	readonly versionRanges?: Map<object, Map<PropertyKey, MutationVersionRange>>;
 };
@@ -57,9 +59,9 @@ type TransactionUndo = {
 };
 
 const transactions: Transaction[] = [];
-const mutationVersions = new WeakMap<object, Map<PropertyKey, number>>();
+const mutationVersions = new KeyedVersionStore();
 // Observable revisions only advance. Rollback ownership can return to a prior journal or baseline.
-const ownershipVersions = new WeakMap<object, Map<PropertyKey, number>>();
+const ownershipVersions = new KeyedVersionStore();
 let restorationVersion = 0;
 let mutationGeneration = 0;
 
@@ -74,7 +76,7 @@ export type ReactiveMutationJournal = {
 /** Schedules every reaction currently subscribed to a target/key pair. */
 export function trigger(target: object, key: PropertyKey): void {
 	const location = mutationLocation(target, key);
-	const previousVersion = readOwnershipVersion(location.target, location.key);
+	const previousVersion = ownershipVersions.get(location.target, location.key);
 	const nextVersion = incrementMutationVersion(target, key);
 	setOwnershipVersion(location.target, location.key, nextVersion);
 	const transaction = transactions[transactions.length - 1];
@@ -248,7 +250,7 @@ export function hasActiveReactiveTransaction(): boolean {
 function mergeTransaction(parent: Transaction, child: Transaction): void {
 	if (parent.undos && child.undos) {
 		parent.undos.push(...child.undos);
-		parent.cleanups!.push(...child.cleanups!);
+		if (child.cleanups?.length) (parent.cleanups ??= []).push(...child.cleanups);
 	} else releaseTransaction(child);
 	mergeTriggers(parent.triggers, child.triggers);
 	if (parent.versionRanges && child.versionRanges)
@@ -335,22 +337,31 @@ function transactionMutationVersions(
 }
 
 function incrementMutationVersion(target: object, key: PropertyKey): number {
-	let versions = mutationVersions.get(target);
-	if (!versions) mutationVersions.set(target, (versions = new Map()));
 	const next = ++mutationGeneration;
-	versions.set(key, next);
+	mutationVersions.set(target, key, next);
 	return next;
 }
 
 /** Returns the current mutation generation for one dependency without tracking it. */
 export function readMutationVersion(target: object, key: PropertyKey): number {
-	return mutationVersions.get(target)?.get(key) ?? 0;
+	return mutationVersions.get(target, key);
+}
+
+/** Retains a pull computation's version key after its observer membership detaches. */
+export function retainMutationVersion(target: object, key: PropertyKey): number {
+	return mutationVersions.retain(target, key);
+}
+
+/** Visits versioned dependencies without scanning receiver storage or requiring an active observer. */
+export function reactiveMutationKeys(target: object): Iterable<PropertyKey> {
+	return mutationVersions.keys(target);
 }
 
 /** Reads the current rollback owner, which can return to an earlier owner after restoration. */
 export function readOwnershipVersion(target: object, key: PropertyKey): number {
+	if (!Array.isArray(target)) return ownershipVersions.get(target, key);
 	const location = mutationLocation(target, key);
-	return ownershipVersions.get(location.target)?.get(location.key) ?? 0;
+	return ownershipVersions.get(location.target, location.key);
 }
 
 /** Returns the generation of the most recent transaction restoration. */
@@ -362,8 +373,8 @@ function createTransaction(rollback: boolean, retainVersions = false): Transacti
 	// Keep publication and rollback records in one layout without allocating unused collections.
 	return {
 		undos: rollback ? [] : undefined,
-		cleanups: rollback ? [] : undefined,
-		trackedArrays: rollback ? new Set() : undefined,
+		cleanups: undefined,
+		trackedArrays: undefined,
 		triggers: new Map(),
 		versionRanges: retainVersions ? new Map() : undefined
 	};
@@ -438,17 +449,15 @@ function mutationLocation(target: object, key: PropertyKey): { target: object; k
 	const position = arrayPosition(target, index, hasActiveTransaction());
 	if (!position) return { target, key };
 	if (!ownershipVersions.has(position)) {
-		ownershipVersions.set(
-			position,
-			new Map([[arrayPositionKey, mutationVersions.get(target)?.get(key) ?? 0]])
-		);
+		ownershipVersions.set(position, arrayPositionKey, mutationVersions.get(target, key));
 	}
 	return { target: position, key: arrayPositionKey };
 }
 
 /** Releases structural rollback metadata when the containing inverse journal is retired. */
 export function recordTransactionCleanup(cleanup: () => void): void {
-	transactions[transactions.length - 1]?.cleanups?.push(cleanup);
+	const transaction = transactions[transactions.length - 1];
+	if (transaction?.undos) (transaction.cleanups ??= []).push(cleanup);
 }
 
 /** Publishes a moved numeric dependency without superseding the moved entry's journal. */
@@ -468,13 +477,13 @@ function releaseTransaction(transaction: Transaction): void {
 /** Retains sequence addresses until every inverse captured by this transaction is retired. */
 export function retainTransactionArray(array: unknown[]): void {
 	const transaction = transactions[transactions.length - 1];
-	if (!transaction?.trackedArrays || transaction.trackedArrays.has(array)) return;
-	transaction.trackedArrays.add(array);
-	transaction.cleanups!.push(retainArrayTracking(array));
+	if (!transaction?.undos) return;
+	const trackedArrays = (transaction.trackedArrays ??= new Set());
+	if (trackedArrays.has(array)) return;
+	trackedArrays.add(array);
+	(transaction.cleanups ??= []).push(retainArrayTracking(array));
 }
 
 function setOwnershipVersion(target: object, key: PropertyKey, version: number): void {
-	let versions = ownershipVersions.get(target);
-	if (!versions) ownershipVersions.set(target, (versions = new Map()));
-	versions.set(key, version);
+	ownershipVersions.set(target, key, version);
 }

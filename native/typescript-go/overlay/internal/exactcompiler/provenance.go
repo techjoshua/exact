@@ -76,8 +76,9 @@ func collectReactiveBindings(
 			}
 		}
 		for _, state := range states {
-			if state.initializer == nil || ast.IsArrowFunction(state.initializer) ||
-				ast.IsFunctionExpression(state.initializer) {
+			initializer := unwrapSourceCallableReference(state.initializer)
+			if initializer == nil || ast.IsArrowFunction(initializer) ||
+				ast.IsFunctionExpression(initializer) {
 				continue
 			}
 			seen := make(map[ast.SymbolId]struct{})
@@ -97,13 +98,13 @@ func collectReactiveBindings(
 						isStaticPropertyName(node) {
 						if ast.IsCallExpression(node) {
 							call := node.AsCallExpression()
-							if ast.IsIdentifier(call.Expression) {
-								symbol := typeChecker.GetSymbolAtLocation(call.Expression)
+							if ast.IsIdentifier(call.Expression) || ast.IsPropertyAccessExpression(call.Expression) || ast.IsElementAccessExpression(call.Expression) {
+								symbol := sourceCallableSymbol(sourceCallableReferenceSymbol(call.Expression, typeChecker), typeChecker)
 								if symbol != nil {
 									id := ast.GetSymbolId(symbol)
 									if _, visited := visitedHelpers[id]; !visited {
 										visitedHelpers[id] = struct{}{}
-										if body := localCallableBody(symbol); body != nil {
+										if body := localCallableBody(symbol, typeChecker); body != nil {
 											collectDependencies(body)
 										}
 									}
@@ -165,16 +166,17 @@ func collectReactiveBindings(
 				}
 			}
 			output = append(output, ReactiveBinding{
-				Component:        candidate.name,
-				Name:             state.name,
-				Provenance:       classify(state),
-				ContextToken:     reactiveContextToken(state.initializer),
-				Dependencies:     dependencies,
-				Definition:       reactiveBindingDefinition(state),
-				References:       references[state],
-				SafeToReevaluate: state.safe,
-				Start:            state.node.Pos(),
-				Length:           state.node.End() - state.node.Pos(),
+				retainSubscriptionBoundary: classify(state) == "derived" && reactiveInitializerHasSnapshot(state.initializer, sourceFile, typeChecker),
+				Component:                  candidate.name,
+				Name:                       state.name,
+				Provenance:                 classify(state),
+				ContextToken:               reactiveContextToken(state.initializer),
+				Dependencies:               dependencies,
+				Definition:                 reactiveBindingDefinition(state),
+				References:                 references[state],
+				SafeToReevaluate:           state.safe,
+				Start:                      state.node.Pos(),
+				Length:                     state.node.End() - state.node.Pos(),
 			})
 		}
 	}
@@ -231,23 +233,6 @@ func reactiveBindingReferences(
 		return true
 	})
 	return references
-}
-
-func localCallableBody(symbol *ast.Symbol) *ast.Node {
-	for _, declaration := range symbol.Declarations {
-		switch {
-		case ast.IsFunctionDeclaration(declaration):
-			return declaration.Body()
-		case ast.IsVariableDeclaration(declaration):
-			initializer := declaration.AsVariableDeclaration().Initializer
-			if initializer != nil &&
-				(ast.IsArrowFunction(initializer) ||
-					ast.IsFunctionExpression(initializer)) {
-				return initializer.Body()
-			}
-		}
-	}
-	return nil
 }
 
 func markWrittenReactiveBindingsUnsafe(
@@ -308,19 +293,18 @@ func identifierIsDirectWriteTarget(node *ast.Node) bool {
 
 func identifierIsWriteTarget(node *ast.Node) bool {
 	current := node
-	for current.Parent != nil &&
-		(ast.IsPropertyAccessExpression(current.Parent) ||
-			ast.IsElementAccessExpression(current.Parent)) {
+	for current.Parent != nil {
 		parent := current.Parent
-		if ast.IsPropertyAccessExpression(parent) &&
-			parent.AsPropertyAccessExpression().Expression != current {
-			break
+		if parent != unwrapSourceCallableReference(parent) && parent.Expression() == current {
+			current = parent
+			continue
 		}
-		if ast.IsElementAccessExpression(parent) &&
-			parent.AsElementAccessExpression().Expression != current {
-			break
+		if ast.IsPropertyAccessExpression(parent) && parent.AsPropertyAccessExpression().Expression == current ||
+			ast.IsElementAccessExpression(parent) && parent.AsElementAccessExpression().Expression == current {
+			current = parent
+			continue
 		}
-		current = parent
+		break
 	}
 	parent := current.Parent
 	if parent == nil {
@@ -335,7 +319,7 @@ func identifierIsWriteTarget(node *ast.Node) bool {
 		return operator == ast.KindPlusPlusToken ||
 			operator == ast.KindMinusMinusToken
 	}
-	return ast.IsPostfixUnaryExpression(parent)
+	return ast.IsPostfixUnaryExpression(parent) || ast.IsDeleteExpression(parent)
 }
 
 func reactiveContextToken(initializer *ast.Node) string {
@@ -389,30 +373,25 @@ func collectComponentReactiveStates(
 				candidate.name,
 				name.Pos(),
 			)
-			functionInitializer := analysisInitializer != nil &&
-				(ast.IsArrowFunction(analysisInitializer) ||
-					ast.IsFunctionExpression(analysisInitializer))
+			callableInitializer := unwrapSourceCallableReference(analysisInitializer)
+			functionInitializer := callableInitializer != nil &&
+				(ast.IsArrowFunction(callableInitializer) ||
+					ast.IsFunctionExpression(callableInitializer))
 			if !functionInitializer {
 				initializer := unwrapRenderExpression(analysisInitializer)
 				if initializer != nil && ast.IsCallExpression(initializer) &&
-					componentReactiveMember(initializer.AsCallExpression().Expression) {
+					componentReactiveMember(initializer.AsCallExpression().Expression, typeChecker) {
 					// An explicitly owned reactive value has a stable identity. Its reads remain
 					// live, but recreating the cell is not a derived initializer evaluation.
 					hint = "cell"
-				} else if containsNamedCall(declaration.Initializer, "peek") {
+				} else if reactiveSnapshotInitializer(declaration.Initializer, sourceFile, typeChecker) {
 					hint = "snapshot"
 				} else if directStateAlias {
 					// A direct state alias retains the component's observable proxy.
 					// It is not a computed value: wrapping it in createDerived()
 					// would unwrap the proxy and make writes through the alias silent.
 					hint = "state"
-				} else if reactiveReadWithinInitializer(
-					stateReads,
-					candidate.name,
-					analysisInitializer,
-				) {
-					hint = "derived"
-				} else if containsThisMember(analysisInitializer, "props") {
+				} else if reactiveInitializerHasLiveInput(analysisInitializer, sourceFile, typeChecker, stateReads, candidate.name) {
 					hint = "derived"
 				} else if containsThisMember(analysisInitializer, "getContext") ||
 					containsThisMember(analysisInitializer, "context") {
@@ -458,20 +437,17 @@ func renderCollectionCallbackOwnedNode(
 		(!ast.IsArrowFunction(callable) && !ast.IsFunctionExpression(callable)) {
 		return false
 	}
-	parent := callable.Parent
-	if parent == nil || !ast.IsCallExpression(parent) {
+	parent := collectionMapCallbackInvocation(callable)
+	if parent == nil {
 		return false
 	}
 	call := parent.AsCallExpression()
-	if !ast.IsPropertyAccessExpression(call.Expression) ||
-		call.Expression.AsPropertyAccessExpression().Name().Text() != "map" ||
-		call.Arguments == nil || len(call.Arguments.Nodes) != 1 ||
-		call.Arguments.Nodes[0] != callable {
+	if collectionMapRender(call) != callable {
 		return false
 	}
 	// Explicit JSX keys establish item ownership even when the resulting array passes
 	// through a helper or slice before rendering. Its local calculations remain reactive.
-	if collectionMapExplicitJSXKey(callable) != nil {
+	if collectionMapExplicitJSXKey(callable, false) != nil {
 		return true
 	}
 	if !jsxChildValuePath(parent, true) {
@@ -479,73 +455,9 @@ func renderCollectionCallbackOwnedNode(
 	}
 	_, _, keyed := safeCollectionKeyForChecker(
 		typeChecker,
-		call.Expression.AsPropertyAccessExpression().Expression,
+		collectionMapReceiver(call.Expression),
 	)
 	return keyed
-}
-
-func reactiveReadWithinInitializer(
-	reads []StateRead,
-	component string,
-	initializer *ast.Node,
-) bool {
-	if initializer == nil {
-		return false
-	}
-	if !ast.IsObjectLiteralExpression(initializer) {
-		for _, read := range reads {
-			if read.Component == component && read.Start >= initializer.Pos() &&
-				read.Start+read.Length <= initializer.End() &&
-				!readInsideComponentLog(initializer, read) {
-				return true
-			}
-		}
-		return false
-	}
-	for _, read := range reads {
-		if read.Component != component ||
-			read.Start < initializer.Pos() ||
-			read.Start+read.Length > initializer.End() {
-			continue
-		}
-		if readInsideComponentLog(initializer, read) {
-			continue
-		}
-		deferred := false
-		walkNode(initializer, func(node *ast.Node) bool {
-			if (!isCallableNode(node) &&
-				!ast.IsMethodDeclaration(node) &&
-				!ast.IsGetAccessorDeclaration(node) &&
-				!ast.IsSetAccessorDeclaration(node)) ||
-				node == initializer {
-				return true
-			}
-			if read.Start >= node.Pos() &&
-				read.Start+read.Length <= node.End() {
-				deferred = true
-				return false
-			}
-			return true
-		})
-		if !deferred {
-			return true
-		}
-	}
-	return false
-}
-
-func readInsideComponentLog(root *ast.Node, read StateRead) bool {
-	observed := false
-	walkNode(root, func(node *ast.Node) bool {
-		if _, logging := canonicalComponentLogLevel(node); !logging {
-			return true
-		}
-		if read.Start >= node.Pos() && read.Start+read.Length <= node.End() {
-			observed = true
-		}
-		return false
-	})
-	return observed
 }
 
 func bindingIdentifiers(name *ast.Node) []*ast.Node {
@@ -588,19 +500,6 @@ func directStateAliasAt(aliases []StateAlias, component string, start int) bool 
 	return false
 }
 
-func readWithin(reads []StateRead, component string, node *ast.Node) bool {
-	if node == nil {
-		return false
-	}
-	for _, read := range reads {
-		if read.Component == component && read.Start >= node.Pos() &&
-			read.Start+read.Length <= node.End() {
-			return true
-		}
-	}
-	return false
-}
-
 func containsThisMember(node *ast.Node, name string) bool {
 	found := false
 	walkNode(node, func(candidate *ast.Node) bool {
@@ -610,27 +509,6 @@ func containsThisMember(node *ast.Node, name string) bool {
 		member := candidate.AsPropertyAccessExpression()
 		if member.Expression.Kind == ast.KindThisKeyword &&
 			member.Name() != nil && member.Name().Text() == name {
-			found = true
-			return false
-		}
-		return true
-	})
-	return found
-}
-
-// containsNamedCall recognizes the explicit eXact setup-snapshot boundary.
-//
-// Snapshot provenance deliberately wins over dependencies inside the callback:
-// peek() asks the compiler to retain the setup value instead of subscribing to
-// the reactive reads used to calculate it.
-func containsNamedCall(node *ast.Node, name string) bool {
-	found := false
-	walkNode(node, func(candidate *ast.Node) bool {
-		if !ast.IsCallExpression(candidate) {
-			return true
-		}
-		expression := candidate.AsCallExpression().Expression
-		if ast.IsIdentifier(expression) && expression.Text() == name {
 			found = true
 			return false
 		}
@@ -666,6 +544,14 @@ func safeReactiveInitializerWithHelpers(
 	safe := true
 	walkNode(node, func(candidate *ast.Node) bool {
 		if !safe {
+			return false
+		}
+		// Stored callbacks do not execute when their containing value is reconstructed.
+		// Call arguments remain subject to callback effect validation.
+		if ast.IsFunctionLike(candidate) && deferredReactiveCallable(candidate, node) {
+			if name := candidate.Name(); name != nil && ast.IsComputedPropertyName(name) {
+				safe = safeReactiveInitializerWithHelpers(name.AsComputedPropertyName().Expression, sourceFile, typeChecker, resolving, reason)
+			}
 			return false
 		}
 		switch {
@@ -747,6 +633,9 @@ func safeDerivedCall(
 	reason *reevaluationFailure,
 ) bool {
 	call := node.AsCallExpression()
+	if reactivePeekOperation(call.Expression, sourceFile, typeChecker) {
+		return true
+	}
 	if ast.IsIdentifier(call.Expression) {
 		name := call.Expression.Text()
 		if _, safe := safeDerivedScalarFunctions[name]; safe &&
@@ -764,17 +653,20 @@ func safeDerivedCall(
 			reason,
 		)
 	}
-	if !ast.IsPropertyAccessExpression(call.Expression) {
-		return false
+	receiver, name := restrictedInvocationMember(unwrapSourceCallableReference(call.Expression), typeChecker)
+	if receiver == nil {
+		return safeDerivedSignature(call, sourceFile, typeChecker) || safeLocalDerivedHelper(call.Expression, sourceFile, typeChecker, resolving, reason)
 	}
-	member := call.Expression.AsPropertyAccessExpression()
-	name := member.Name().Text()
-	receiverText := strings.TrimSpace(sourceText(sourceFile, member.Expression))
+	receiverText := strings.TrimSpace(sourceText(sourceFile, receiver))
 	if (receiverText == "Array" && name == "isArray") ||
 		(receiverText == "JSON" && (name == "parse" || name == "stringify")) ||
 		(receiverText == "Date" && name == "now") ||
 		(receiverText == "Math" && safeMathMethod(name)) {
-		return standardLibraryValue(member.Expression, typeChecker)
+		if standardLibraryValue(receiver, typeChecker) {
+			return true
+		}
+		// A shadowed name can still carry its own explicit or locally proven purity.
+		// The native fast path supplies no authority, so continue ordinary validation.
 	}
 	// Resolve the selected method declaration. A display name such as
 	// ImpostorString, or a state-owned receiver, does not grant built-in semantics.
@@ -783,7 +675,7 @@ func safeDerivedCall(
 		return true
 	}
 	if owner == "ArrayConstructor" && receiverText == "Array" && name == "from" &&
-		standardLibraryValue(member.Expression, typeChecker) {
+		standardLibraryValue(receiver, typeChecker) {
 		arguments := callArguments(node)
 		if len(arguments) == 0 || !freshCollectionIterator(arguments[0], typeChecker) {
 			return false
@@ -808,6 +700,14 @@ func safeDerivedCall(
 	if _, safe := safeDerivedStringMethods[name]; safe && owner == "String" {
 		return true
 	}
+	// Boolean's native toString signature is inherited from Object. The primitive
+	// receiver proof prevents object conversion hooks from acquiring purity.
+	if name == "toString" && owner == "Object" && primitiveBooleanReceiver(receiver, typeChecker) {
+		return true
+	}
+	if (name == "toString" || name == "valueOf") && (owner == "Boolean" || owner == "Symbol") {
+		return true
+	}
 	if _, safe := safeDerivedNumericMethods[name]; safe && (owner == "Number" || owner == "BigInt") {
 		return true
 	}
@@ -824,7 +724,7 @@ func safeDerivedCall(
 		}
 		return true
 	}
-	return safeDerivedSignature(call, sourceFile, typeChecker)
+	return safeDerivedSignature(call, sourceFile, typeChecker) || safeLocalDerivedHelper(call.Expression, sourceFile, typeChecker, resolving, reason)
 }
 
 func safeDerivedSignature(
@@ -846,66 +746,6 @@ func safeDerivedSignature(
 	}
 	if (ast.IsArrowFunction(declaration) || ast.IsFunctionExpression(declaration)) && declaration.Parent != nil && ast.IsVariableDeclaration(declaration.Parent) {
 		return policyNodeAnnotations(declaration.Parent, declarationSource).pure
-	}
-	return false
-}
-
-func safeLocalDerivedHelper(
-	expression *ast.Node,
-	sourceFile *ast.SourceFile,
-	typeChecker *checker.Checker,
-	resolving map[ast.SymbolId]struct{},
-	reason *reevaluationFailure,
-) bool {
-	symbol := typeChecker.GetSymbolAtLocation(expression)
-	if symbol == nil {
-		return false
-	}
-	if symbol.Flags&ast.SymbolFlagsAlias != 0 {
-		symbol = typeChecker.GetAliasedSymbol(symbol)
-	}
-	if symbol == nil {
-		return false
-	}
-	id := ast.GetSymbolId(symbol)
-	if _, recursive := resolving[id]; recursive {
-		return true
-	}
-	next := make(map[ast.SymbolId]struct{}, len(resolving)+1)
-	for key := range resolving {
-		next[key] = struct{}{}
-	}
-	next[id] = struct{}{}
-	for _, declaration := range symbol.Declarations {
-		declarationSource := ast.GetSourceFileOfNode(declaration)
-		if declarationSource != nil && policyNodeAnnotations(declaration, declarationSource).pure {
-			return true
-		}
-		var work *ast.Node
-		switch {
-		case ast.IsFunctionDeclaration(declaration):
-			work = declaration.Body()
-		case ast.IsVariableDeclaration(declaration):
-			initializer := declaration.AsVariableDeclaration().Initializer
-			if initializer != nil &&
-				(ast.IsArrowFunction(initializer) ||
-					ast.IsFunctionExpression(initializer)) {
-				work = initializer.Body()
-			}
-		}
-		if work != nil {
-			declarationSource := ast.GetSourceFileOfNode(declaration)
-			if declarationSource == nil {
-				continue
-			}
-			return safeReactiveInitializerWithHelpers(
-				work,
-				declarationSource,
-				typeChecker,
-				next,
-				reason,
-			)
-		}
 	}
 	return false
 }

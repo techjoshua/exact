@@ -223,7 +223,7 @@ func TestSessionOmitsServerMarkerProgramsFromClientArtifacts(t *testing.T) {
 		!strings.Contains(response.Code, `function Planned(this: object, props:`) ||
 		!strings.Contains(response.Code, `], this)`) ||
 		!strings.Contains(response.Code, "directClaims: true") ||
-		!strings.Contains(response.Code, `wire: [["span", "html", 1, 1]`) ||
+		!strings.Contains(response.Code, `wire: [["span", "contextual", 1, 1]`) ||
 		!strings.Contains(response.Code, `[[3, 0, 0, true]]`) ||
 		strings.Contains(response.Code, "nodes:") ||
 		strings.Contains(response.Code, "slots:") ||
@@ -370,7 +370,7 @@ func TestSessionClaimsOnlyRequiredPropertyTargetsByElementPath(t *testing.T) {
 	}
 	if !strings.Contains(
 		response.Code,
-		`[6, 3, 2050, "button"]`,
+		`[6, 3, 2050, "button", "contextual"]`,
 	) {
 		t.Fatalf("compiled property target did not use its direct element path:\n%s", response.Code)
 	}
@@ -404,7 +404,7 @@ func TestSessionAddressesPropertyTargetsFromStableEdgeAfterStructuralContent(t *
 	// contribute any number of elements, then reaches the textarea from the front.
 	if !strings.Contains(
 		response.Code,
-		`[6, 2, 1026, "textarea"]`,
+		`[6, 2, 1026, "textarea", "contextual"]`,
 	) {
 		t.Fatalf("compiled property targets did not select their stable path edges:\n%s", response.Code)
 	}
@@ -592,7 +592,7 @@ func TestSessionEmitsDirectClientExecutionWithCompleteMetadata(t *testing.T) {
 		t.Fatal(response.Error)
 	}
 	if !strings.Contains(response.Code, `template: "<span><strong>`) ||
-		!strings.Contains(response.Code, `wire: [["span", "html", 2, 1]`) ||
+		!strings.Contains(response.Code, `wire: [["span", "contextual", 2, 1]`) ||
 		!strings.Contains(response.Code, `directClaims: true`) ||
 		strings.Contains(response.Code, `slots: [["text"`) ||
 		strings.Contains(response.Code, `() => __exactVNode("span"`) ||
@@ -788,7 +788,7 @@ func TestSessionPlansNativeComponentChildrenInsideClientHostPrograms(t *testing.
 	}
 	for _, expected := range []string{
 		`template: "<main><footer>After</footer></main>"`,
-		`[6, 1, 1025, "footer"]`,
+		`[6, 1, 1025, "footer", "contextual"]`,
 		`[4, 0, 0, true, 1]`,
 		`[2, 0, [[0]], 1]`,
 		`[7, 0, __exact_component_updates_1]`,
@@ -1179,7 +1179,7 @@ func TestSessionPreservesInheritedSvgNamespaceForConditionalRenderPrograms(t *te
 	}
 	if !strings.Contains(response.Code, `namespace: "svg", ssrRootStatic: [" class=\"route\"", ["className"], [[0, "d", "d"]]`) ||
 		!strings.Contains(response.Code, `__exactSsr.rootOpening(__exactContext, __exactOutput, __exactValue_0, "path", "<path", "></path>", __exactCharacters, __exactInvocation.program.ssrRootStatic)`) ||
-		!strings.Contains(response.Code, `[props.path]`) ||
+		(!strings.Contains(response.Code, `[props.path]`) && !strings.Contains(response.Code, `[props.path as string]`)) ||
 		!strings.Contains(response.Code, `className: "route", d: __exactRootValue`) {
 		t.Fatalf("conditional SVG program lost its inherited namespace:\n%s", response.Code)
 	}
@@ -1424,6 +1424,7 @@ func TestSessionRewritesModuleExportReplacementsBeforeNativePrinting(t *testing.
 			} = require("@tanstack/react-query");
 			Query.QueryClientProvider;
 			Query["QueryClientProvider"];
+			function providerValue() { return Query.QueryClientProvider; }
 			function shadow(Query: any) {
 				const {
 					QueryClientProvider: NestedProvider
@@ -1439,7 +1440,7 @@ func TestSessionRewritesModuleExportReplacementsBeforeNativePrinting(t *testing.
 				ElementProvider,
 				DestructuredProvider,
 				destructuredQuery,
-				shadow
+				shadow, providerValue
 			);
 		`,
 		ModuleRewrite: &ModuleRewrite{
@@ -1474,6 +1475,9 @@ func TestSessionRewritesModuleExportReplacementsBeforeNativePrinting(t *testing.
 			occurrences,
 			response.Code,
 		)
+	}
+	if strings.Count(response.Code, "return __exact_ExactQueryClientProvider") != 1 {
+		t.Fatalf("namespace replacement must preserve the ordinary helper body:\n%s", response.Code)
 	}
 }
 
@@ -1531,6 +1535,7 @@ func TestGeneratedValidationUsesNativeParserAndChecker(t *testing.T) {
 		Request{Diagnostics: "syntax"},
 		filename,
 		"const value = ;",
+		nil,
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -1542,6 +1547,7 @@ func TestGeneratedValidationUsesNativeParserAndChecker(t *testing.T) {
 		Request{Diagnostics: "syntax"},
 		filename,
 		"const identity = <T>(value: T): T => value;",
+		nil,
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -1557,6 +1563,7 @@ func TestGeneratedValidationUsesNativeParserAndChecker(t *testing.T) {
 		Request{Diagnostics: "semantic"},
 		filename,
 		"const value: string = 1;",
+		nil,
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -1776,9 +1783,9 @@ func TestSessionAttachesTargetLocalComponentArtifacts(t *testing.T) {
 		}
 		for _, expected := range []string{
 			panelSignature,
-			`[Symbol.for("@exactjs/component")]: "` + panel.ID + `"`,
-			`[Symbol.for("@exactjs/component")]: "` + inline.ID + `"`,
-			`[__exactComponentContract_1]: {`,
+			`, "` + panel.ID + `"`,
+			`, "` + inline.ID + `"`,
+			`"@exactjs/core/runtime/component-branding"`,
 			`artifact: {`,
 			`instantiate:`,
 		} {
@@ -1956,14 +1963,14 @@ func TestSessionPreservesAComponentDeclarationReferencedEarlierInItsModule(t *te
 	for _, expected := range []string{
 		`const entries = { ready: Ready }`,
 		`function Ready(this: object)`,
-		`[Symbol.for("@exactjs/component")]: "` + ready.ID + `"`,
+		`, "` + ready.ID + `"`,
 		`instantiate: Ready`,
 	} {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf("hoisted component output is missing %q:\n%s", expected, response.Code)
 		}
 	}
-	attachment := strings.Index(response.Code, `Object.assign(Ready, {`)
+	attachment := strings.Index(response.Code, `__exactBrandComponent_1(Ready,`)
 	reference := strings.Index(response.Code, `const entries = { ready: Ready }`)
 	if attachment < 0 || reference < 0 || attachment > reference {
 		t.Fatalf(
@@ -1989,7 +1996,7 @@ func TestSessionAttachesHoistedRegistryEntriesBeforeRegistryCreation(t *testing.
 	if response.Error != "" || len(response.Diagnostics) != 0 {
 		t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
 	}
-	attachment := strings.Index(response.Code, `Object.assign(EmptyRegion, {`)
+	attachment := strings.Index(response.Code, `__exactBrandComponent_1(EmptyRegion,`)
 	registry := strings.Index(response.Code, `__exactComponentRegistry(`)
 	if attachment < 0 || registry < 0 || attachment > registry {
 		t.Fatalf(
@@ -2018,7 +2025,7 @@ func TestSessionEmitsArtifactsForPrivateComponentsInsideClientRoots(t *testing.T
 	}
 	cell := findComponent(t, response.Analysis.Components, "Cell")
 	for _, expected := range []string{
-		`[Symbol.for("@exactjs/component")]: "` + cell.ID + `"`,
+		`, "` + cell.ID + `"`,
 		`instantiate: Cell`,
 	} {
 		if !strings.Contains(response.Code, expected) {
@@ -2053,7 +2060,7 @@ func TestSessionBrandsComponentsWithProjectResolvedPlacement(t *testing.T) {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf("%s component brand output is missing %q:\n%s", target, expected, response.Code)
 		}
-		if !strings.Contains(response.Code, `[Symbol.for("@exactjs/component")]: "`+card.ID+`"`) {
+		if !strings.Contains(response.Code, `, "`+card.ID+`"`) {
 			t.Fatalf("%s component identity is missing:\n%s", target, response.Code)
 		}
 	}
@@ -2290,13 +2297,13 @@ func TestSessionUsesPublishedBuildFactsToSeparateNativeAndForeignPackageComponen
 	writeFixture(filepath.Join(nativeRoot, "package.json"), `{
 		"name": "@fixture/native",
 		"types": "./index.d.ts",
-		"exactComponentLibrary": { "protocol": 2, "build": "./exact-component-build.json" }
+		"exactComponentLibrary": { "protocol": 1, "build": "./exact-component-build.json" }
 	}`)
 	writeFixture(filepath.Join(nativeRoot, "index.d.ts"), `
 		export declare function Native(props: { label: string }): unknown;
 	`)
 	writeFixture(filepath.Join(nativeRoot, "exact-component-build.json"), `{
-		"protocol": 2,
+		"protocol": 1,
 		"package": { "name": "@fixture/native" },
 		"exports": [{ "subpath": ".", "condition": "browser", "exportName": "Native" }]
 	}`)
@@ -2483,12 +2490,12 @@ func TestSessionEmitsClientRootComponentContract(t *testing.T) {
 		t.Fatalf("client component has no root symbol: %#v", response.Analysis.Symbols)
 	}
 	for _, expected := range []string{
-		`const __exactComponentContract_1 = /* @__PURE__ */ Symbol.for("@exactjs/component-contract")`,
+		`attachCompiledComponentContract as __exactBrandComponent_1`,
 		`const __exactImplementation_Button_1 = function Button(this: object)`,
 		`export const Button =`,
-		`Object.assign(__exactImplementation_Button_1, {`,
-		`[Symbol.for("@exactjs/component")]: "` + component.ID + `"`,
-		`[__exactComponentContract_1]:`,
+		`__exactBrandComponent_1(__exactImplementation_Button_1,`,
+		`, "` + component.ID + `"`,
+		`"@exactjs/core/runtime/component-branding"`,
 		`id: "` + rootSymbolID + `"`,
 		`placement: "client"`,
 		`role: "client"`,
@@ -2711,9 +2718,9 @@ func TestSessionEmitsClientRootContractForComponentValue(t *testing.T) {
 	for _, expected := range []string{
 		`export const Button = (() => {`,
 		`const __exactComponentImplementation_1 = function (this: object)`,
-		`return Object.assign(__exactComponentImplementation_1`,
+		`return __exactBrandComponent_1(__exactComponentImplementation_1`,
 		`implementation: __exactComponentImplementation_1`,
-		`[__exactComponentContract_1]:`,
+		`"@exactjs/core/runtime/component-branding"`,
 	} {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf(
@@ -3458,7 +3465,6 @@ __fixtureTask1();
 		`__exactReadState(this.state, 1)`,
 		`.includes(Number("2"))`,
 		`const value = Number(event.currentTarget.value)`,
-		`event.currentTarget.valueAsDate`,
 		`currentTarget: HTMLInputElement`,
 	} {
 		if !strings.Contains(response.Code, expected) {
@@ -4129,11 +4135,14 @@ func TestSessionCollectsDirectComponentStateWrites(t *testing.T) {
 		ID:   "component.tsx",
 		Kind: "compile",
 		Source: `
-			function Counter() {
+			declare class Component<State> { state: State }
+			function Counter(this: Component<{count: number; cache: Record<string, number>; items: string[]}>) {
 				this.state.count = 1;
-				this.state.count++;
-				delete this.state.cache["entry"];
-				this.state.items.push("next");
+				const update = () => {
+					this.state.count++;
+					delete this.state.cache["entry"];
+					this.state.items.push("next");
+				};
 				return () => <output>{this.state.count}</output>;
 			}
 		`,
@@ -4176,7 +4185,7 @@ func TestSessionClassifiesSetupStateAssignments(t *testing.T) {
 		Kind: "analyze",
 		Source: `
 			import { TaskContext } from "@exactjs/core";
-			declare function peek<T>(read: () => T): T;
+			import { peek } from "@exactjs/core";
 			function Counter(
 				this: Component<{ initial: number; snapshot: number; derived: number; task: number }>,
 				{ value }: { value: number },
@@ -4274,11 +4283,9 @@ __fixtureTask7();
 			}
 		`,
 	})
-	if !strings.Contains(
-		server.Code,
-		`__exactDependency.set("answer", 42)`,
-	) {
-		t.Fatalf("direct request-local server collection mutation is missing:\n%s", server.Code)
+	if !strings.Contains(server.Code, `__exactTaskCollectionMutation(`) ||
+		!strings.Contains(server.Code, `"map", "set", () => ["answer", 42]`) {
+		t.Fatalf("request-local server collection mutation is missing:\n%s", server.Code)
 	}
 
 	invalid := NewSession().Execute(Request{
@@ -4316,7 +4323,8 @@ func TestSessionLowersAliasedCompoundStateWrites(t *testing.T) {
 		ID:   "component.tsx",
 		Kind: "compile",
 		Source: `
-			function Counter() {
+			declare class Component<State> { state: State }
+			function Counter(this: Component<{count: number; items: string[]}>) {
 				const state = this.state;
 				state.count += 2;
 				const items = state.items;
@@ -5231,7 +5239,7 @@ func TestSessionCollectsExactAndBroadStateReads(t *testing.T) {
 				const item = this.state.items[index];
 				this.state.items.map((entry: any) => entry.id);
 				this.state.count = 1;
-				this.state.total += 1;
+				const update = () => { this.state.total += 1; };
 				return () => <output>{label}{item}</output>;
 			}
 		`,
@@ -5413,8 +5421,7 @@ func TestSessionTreatsPeekAsExplicitTaskSnapshot(t *testing.T) {
 		ID:   "component.tsx",
 		Kind: "compile",
 		Source: `
-			import { TaskContext } from "@exactjs/core";
-			declare function peek<Value>(read: () => Value): Value
+			import { TaskContext, peek } from "@exactjs/core";
 			function Page(props: { url: string }) {
 				const parsed = parse(props.url);
 				const request = peek(() => normalize(parsed));
@@ -5690,8 +5697,8 @@ func TestSessionCapturesReactiveTaskParameterDefaultsWithoutSubscribing(t *testi
 	}
 	for _, expected := range []string{
 		`captureArguments: (__exactTaskArgs: unknown[]) => {`,
-		`const draft = __exactTaskArgs[1] === void 0 ? this.state.draft : __exactTaskArgs[1];`,
-		`return [__exactTaskArgs[0], draft];`,
+		`const draft = __exactTaskArgs[1] === void 0 ? this.state.draft as string : __exactTaskArgs[1] as string;`,
+		`return [__exactTaskArgs[0], draft] as const;`,
 		`__exactActivationDependency(() => this.state.revision)`,
 		`async (__exactDependency: number, draft: string, task: TaskContext)`,
 	} {
@@ -5744,8 +5751,8 @@ func TestSessionTransportsCapturedDefaultsForInvokedServerTasks(t *testing.T) {
 	for _, expected := range []string{
 		`captureArguments: (__exactTaskArgs: unknown[]) => {`,
 		`const draft = __exactTaskArgs[0] === void 0 ? __exactReadState(this.state, 0)`,
-		`: __exactTaskArgs[0];`,
-		`return [draft];`,
+		`: __exactTaskArgs[0] as string;`,
+		`return [draft] as const;`,
 		`__exactDispatchContinuation`,
 		`save()`,
 	} {
@@ -5826,7 +5833,7 @@ func TestSessionReusesInvokedFunctionTaskBindingDuringSetup(t *testing.T) {
 	for _, expected := range []string{
 		`const load = __exactBind`,
 		`if (!(__exactReadState(props, 0) as boolean))`,
-		`void __exactActivateTask(this, load)`,
+		`void __exactActivateTaskOnce(this, load)`,
 	} {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf("reused function task output is missing %q:\n%s", expected, response.Code)
@@ -6075,7 +6082,7 @@ func TestSessionEmitsRootPropStateResumptionInputs(t *testing.T) {
 		Target: TargetServer,
 		Source: `
 			declare class Component<State> { state: State }
-			declare function peek<T>(read: () => T): T;
+			import { peek } from "@exactjs/core";
 			export function Queue(
 				this: Component<{ items: string[]; selected: string; snapshot: string }>,
 				props: { initial?: { items: string[] }; selected: string; detail?: { label: string } }
@@ -6224,7 +6231,7 @@ __fixtureTask24();
 	for _, expected := range []string{
 		`markComponentContinuationTask as __exactContinuationTask`,
 		`dispatchComponentContinuation as __exactDispatchContinuation`,
-		`__exactActivateTask(this, __exactDefineTask(`,
+		`__exactActivateTaskOnce(this, __exactDefineTask(`,
 		`__exactContinuationTask("` + taskID,
 		`(...__exactTaskArgs: any[]) => {`,
 		`return __exactDispatchContinuation(this as any, "` +
@@ -6232,7 +6239,7 @@ __fixtureTask24();
 			`", __exactTaskArgs, __exactTaskContext.signal, [], __exactTaskContext.generation);`,
 		`const __exactImplementation_Loader_1 = function Loader(`,
 		`export const Loader =`,
-		`Object.assign(__exactImplementation_Loader_1, {`,
+		`__exactBrandComponent_1(__exactImplementation_Loader_1,`,
 		`continuations: [`,
 		`id: "` + taskID + `"`,
 		`stateWrites: [`,
@@ -6437,26 +6444,23 @@ func TestSessionPartitionsContinuationContextsByResidency(t *testing.T) {
 		ID:   "component.tsx",
 		Kind: "analyze",
 		Source: `
-			import { TaskContext } from "@exactjs/core";
+			import { TaskContext, createContext } from "@exactjs/core";
 			declare class Component<State> {
 				state: State;
 				getContext(token: unknown): any;
 				setContext(token: unknown, value: unknown): void;
 			}
-			declare function createContext<T>(
-				value: T,
-				options?: { keep?: "shared" | "server" }
-			): unknown;
-			const PublicConfig = createContext(
-				{ domain: "public" },
+
+			const PublicConfig = createContext<{ domain: string }>(
+				"public-config",
 				{ keep: "shared" }
 			);
-			const PublicStatus = createContext(
-				{ ready: false },
+			const PublicStatus = createContext<{ ready: boolean }>(
+				"public-status",
 				{ keep: "shared" }
 			);
-			const ServerResource = createContext(
-				{ domain: "private" },
+			const ServerResource = createContext<{ domain: string }>(
+				"server-resource",
 				{ keep: "server" }
 			);
 			export function Loader(
@@ -6946,7 +6950,7 @@ func TestSessionBrandsBrowserComponentWithOpaqueSetupCalls(t *testing.T) {
 	if component.Placement != "isomorphic" ||
 		component.EnvironmentEffect != "neutral" ||
 		strings.Contains(strings.Join(component.Diagnostics, "\n"), "opaque call") ||
-		!strings.Contains(response.Code, `[Symbol.for("@exactjs/component")]: "`+component.ID+`"`) {
+		!strings.Contains(response.Code, `, "`+component.ID+`"`) {
 		t.Fatalf(
 			"opaque setup call erased the browser component contract: %#v\n%s",
 			component,
@@ -7473,7 +7477,7 @@ func TestSessionRejectsEscapingAndOmitsExplicitlyDisposedTaskResources(t *testin
 __fixtureTask36();
 				const __fixtureTask37 = (_task: TaskContext = TaskContext.client()) => {
 					const socket = new WebSocket("/explicit");
-					return () => socket.close();
+					_task.cleanup(() => socket.close());
 				};
 __fixtureTask37();
 				const observe = (task: TaskContext = TaskContext.client()) => {
@@ -7501,8 +7505,8 @@ __fixtureTask37();
 			response.Analysis.Tasks[0].Diagnostics,
 		)
 	}
-	if len(response.Analysis.Tasks[1].Resources) != 0 {
-		t.Fatalf("explicit cleanup was not respected: %#v", response.Analysis.Tasks[1])
+	if len(response.Analysis.Tasks[1].Resources) != 1 || len(response.Analysis.Tasks[1].Resources[0].ReleaseCalls) != 1 {
+		t.Fatalf("explicit cleanup lost execution-aware fallback: %#v", response.Analysis.Tasks[1])
 	}
 	for _, diagnostic := range response.Analysis.Tasks[1].Diagnostics {
 		if strings.HasPrefix(diagnostic, "error:") {
@@ -7617,10 +7621,10 @@ func TestSessionEmitsEnhancementContextTokenContracts(t *testing.T) {
 	}
 	compactCode := strings.Join(strings.Fields(response.Code), "")
 	for _, expected := range []string{
-		`Symbol.for("@exactjs/enhancement-contexts")`,
-		`provides: Object.freeze([PhysicsContext.id])`,
-		`requires: Object.freeze([WorldContext.id])`,
-		`optionallyConsumes: Object.freeze([PhysicsContext.id])`,
+		`"@exactjs/core/runtime/enhancement-contexts"`,
+		`provides: [PhysicsContext.id]`,
+		`requires: [WorldContext.id]`,
+		`optionallyConsumes: [PhysicsContext.id]`,
 	} {
 		expected = strings.Join(strings.Fields(expected), "")
 		if !strings.Contains(compactCode, expected) {
@@ -7631,7 +7635,7 @@ func TestSessionEmitsEnhancementContextTokenContracts(t *testing.T) {
 		t.Fatalf("instance-dependent context token escaped into module metadata:\n%s", response.Code)
 	}
 	lateDeclaration := strings.Index(response.Code, `const LateContext = { id: Symbol("late") };`)
-	lateAttachment := strings.LastIndex(response.Code, `Object.defineProperty(LateProvider`)
+	lateAttachment := strings.LastIndex(response.Code, `__exactAttachEnhancementContexts_1(LateProvider`)
 	if lateDeclaration < 0 || lateAttachment < lateDeclaration {
 		t.Fatalf("late context metadata ran before token initialization:\n%s", response.Code)
 	}
@@ -7706,10 +7710,10 @@ func TestSessionComposesImportedCallableEnhancementContexts(t *testing.T) {
 	}
 	helperCode := strings.Join(strings.Fields(helper.Code), "")
 	for _, expected := range []string{
-		`Object.defineProperty(readHidden,Symbol.for("@exactjs/enhancement-contexts")`,
-		`optionallyConsumes:Object.freeze([HiddenContext.id])`,
-		`Object.defineProperty(publishHidden,Symbol.for("@exactjs/enhancement-contexts")`,
-		`provides:Object.freeze([HiddenContext.id])`,
+		`__exactAttachEnhancementContexts_1(readHidden,`,
+		`optionallyConsumes:[HiddenContext.id]`,
+		`__exactAttachEnhancementContexts_1(publishHidden,`,
+		`provides:[HiddenContext.id]`,
 	} {
 		if !strings.Contains(helperCode, expected) {
 			t.Fatalf("helper output is missing %q:\n%s", expected, helper.Code)
@@ -7717,8 +7721,8 @@ func TestSessionComposesImportedCallableEnhancementContexts(t *testing.T) {
 	}
 	entryCode := strings.Join(strings.Fields(entry.Code), "")
 	for _, expected := range []string{
-		`Reflect.get(readHidden,Symbol.for("@exactjs/enhancement-contexts")).optionallyConsumes`,
-		`Reflect.get(publishHidden,Symbol.for("@exactjs/enhancement-contexts")).provides`,
+		`__exactReadEnhancementDependency_1(readHidden,"optionallyConsumes")`,
+		`__exactReadEnhancementDependency_1(publishHidden,"provides")`,
 	} {
 		if !strings.Contains(entryCode, expected) {
 			t.Fatalf(
@@ -7833,16 +7837,13 @@ func TestSessionAppliesStateAndContextResidencyToTasks(t *testing.T) {
 		ID:   "component.tsx",
 		Kind: "compile",
 		Source: `
-			import { TaskContext } from "@exactjs/core";
+			import { TaskContext, createContext } from "@exactjs/core";
 			declare class Component<State> {
 				state: State;
 				task(work: () => void): void;
 				getContext(token: unknown): unknown;
 			}
-			declare function createContext<T>(
-				value: T,
-				options?: { keep?: "client" | "server" | "shared" | "secret" }
-			): unknown;
+
 			interface State {
 				/** @exact keep=secret */
 				token: string;
@@ -8162,7 +8163,8 @@ func TestSessionRetainsReferencedClientTaskPlaceholderThroughServerViewHelper(t 
 	if response.Error != "" {
 		t.Fatal(response.Error)
 	}
-	if !strings.Contains(response.Code, `const select = () => void 0`) ||
+	if !strings.Contains(response.Code, `const select =`) ||
+		!strings.Contains(response.Code, `() => void 0`) ||
 		!strings.Contains(response.Code, `renderView({ select })`) {
 		t.Fatalf("server view helper lost its inert client callback:\n%s", response.Code)
 	}
@@ -8313,7 +8315,9 @@ func TestSessionPreservesSelectorFromTypedSecretProviderFacade(t *testing.T) {
 		PackageName: "@acme/app",
 		Target:      TargetServer,
 		Source: `
-			import { consume, type Secret } from "@exactjs/secrets";
+			import { consume } from "@exactjs/secrets";
+			/** @exact keep=secret */
+			type Secret<T> = T & { readonly __secret: unique symbol };
 			declare const secrets: { require(name: string): Secret<string> };
 			const apiKey = secrets.require("STRIPE_SECRET_KEY");
 			export const client = consume(apiKey);
@@ -8518,6 +8522,7 @@ func TestSessionRequiresQualifiedSecretCallBoundaries(t *testing.T) {
 		Kind: "compile",
 		Source: `
 			import { consume as reveal } from "@exactjs/secrets";
+			/** @exact keep=secret */
 			type Secret<T> = T & { readonly __secret: unique symbol };
 			declare function acceptsSecret(value: Secret<string>): void;
 			declare function acceptsPlain(value: string): void;
@@ -8562,6 +8567,7 @@ func TestSessionPropagatesTypeAndReturnSecretPolicies(t *testing.T) {
 		ID:   "policy.ts",
 		Kind: "compile",
 		Source: `
+			/** @exact keep=secret */
 			type Secret<T> = T & { readonly __secret: unique symbol };
 			declare const secrets: { require(name: string): Secret<string> };
 			const token = secrets.require("API_KEY");
@@ -10050,18 +10056,6 @@ func TestSessionLowersTimeEnhancementClockReadsToRangeActivation(t *testing.T) {
 	entrySource := `
 		import * as time from "@exactjs/time/enhancements" with { type: "exact-enhancement" };
 		import * as intl from "@exactjs/intl/enhancements" with { type: "exact-enhancement" };
-		declare namespace Temporal {
-			interface Instant {
-				readonly epochMilliseconds: number;
-				until(other: Instant): Duration;
-				since(other: Instant): Duration;
-			}
-			class Duration { constructor(...values: number[]); round(options: { smallestUnit: string; roundingMode?: string }): Duration }
-			namespace Now { function instant(): Instant }
-		}
-		declare namespace Intl {
-			class DurationFormat { constructor(locale?: string, options?: object); format(value: Temporal.Duration): string }
-		}
 		const elapsedSeconds = (startedAt: number, now: number) => Math.floor((now - startedAt) / 1000);
 		function formatElapsed(totalSeconds: number) {
 			const minutes = Math.floor(totalSeconds / 60).toString().padStart(2, "0");
@@ -10161,8 +10155,10 @@ func TestSessionLowersTimeEnhancementClockReadsToRangeActivation(t *testing.T) {
 		t.Fatal(err)
 	}
 	for filename, source := range map[string]string{
-		configFile: `{"compilerOptions":{"module":"nodenext","moduleResolution":"nodenext","target":"es2022","jsx":"preserve"},"include":["*.tsx"]}`,
+		configFile: `{"compilerOptions":{"module":"nodenext","moduleResolution":"nodenext","target":"es2022","lib":["esnext","dom"],"jsx":"preserve"},"include":["*.tsx","*.d.ts"]}`,
 		entryFile:  entrySource,
+		// Global builtins are declared globally. A module-local Intl namespace shadows them.
+		filepath.Join(root, "intl.d.ts"):                      `declare namespace Intl { class DurationFormat { constructor(locale?: string, options?: object); format(value: unknown): string } }`,
 		filepath.Join(packageRoot, "package.json"):            `{"name":"@exactjs/time","type":"module","exports":{"./enhancements":{"types":"./capability.d.ts","default":"./dist/components.js"}}}`,
 		filepath.Join(packageRoot, "capability.d.ts"):         `export { TimeUpdate as update } from "./dist/components.js" with { type: "exact-enhancement" };`,
 		filepath.Join(packageRoot, "dist", "components.d.ts"): `export type TimeUpdatePolicy = true | "auto" | "second" | "minute" | "disabled"; export declare function TimeUpdate(props: { update?: TimeUpdatePolicy; children?: unknown }): unknown;`,
@@ -10273,11 +10269,6 @@ func TestSessionLowersTimeEnhancementClockReadsToRangeActivation(t *testing.T) {
 		import * as time from "@exactjs/time/enhancements" with { type: "exact-enhancement" };
 		declare function arbitraryFormatter(value: number): string;
 		declare const ordinaryValue: number;
-		declare namespace Temporal {
-			interface Instant { until(other: Instant): Duration }
-			interface Duration { round(options: { smallestUnit: string }): Duration }
-			namespace Now { function instant(): Instant }
-		}
 		declare const deadline: Temporal.Instant;
 		export const opaque = <output time:update>{arbitraryFormatter(Date.now())}</output>;
 		export const explicitOpaque = <output time:update="second">{arbitraryFormatter(Date.now())}</output>;

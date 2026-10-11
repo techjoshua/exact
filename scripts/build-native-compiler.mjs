@@ -1,4 +1,4 @@
-import { chmod, cp, mkdir, readFile, rm } from 'node:fs/promises';
+import { chmod, cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
 import path from 'node:path';
 import process from 'node:process';
@@ -11,6 +11,7 @@ import {
 } from './native-compiler-build-cache.mjs';
 import { prepareNativeCompilerSource } from './native-compiler-source.mjs';
 import { stageNativeCompilerPackage } from './package-native-compiler.mjs';
+import { summarizeNativeCoverage } from './compiler-confidence/coverage.mjs';
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const nativeRoot = path.join(repositoryRoot, 'native', 'typescript-go');
@@ -22,10 +23,13 @@ const source = await prepareNativeCompilerSource({
 });
 const targetPlatform = argument('platform') ?? process.platform;
 const targetArch = argument('arch') ?? process.arch;
-const goTargetPlatform = targetPlatform === 'win32' ? 'windows' : targetPlatform;
-const goTargetArch = targetArch === 'x64' ? 'amd64' : targetArch;
 const packageOutput = process.argv.includes('--package');
-const forceBuild = process.argv.includes('--force');
+const collectCoverage = process.argv.includes('--coverage');
+const allTargets = process.argv.includes('--all-targets');
+if (allTargets && (!packageOutput || collectCoverage || argument('platform') || argument('arch'))) {
+	throw new Error('--all-targets requires --package and cannot select coverage or one target');
+}
+const forceBuild = process.argv.includes('--force') || collectCoverage;
 const supportedTargets = new Set([
 	'darwin-arm64',
 	'darwin-x64',
@@ -56,11 +60,30 @@ const current = await isNativeCompilerBuildCurrent({
 	executable,
 	stampFile,
 	buildKey,
-	bypassCache: forceBuild || packageOutput
+	bypassCache: forceBuild || packageOutput || allTargets
 });
 if (current) {
 	console.log(`Native compiler is current: ${executable}`);
 } else {
+	// Semantic source witnesses resolve published runtime and enhancement declarations.
+	// Build them before native tests so a clean checkout has the same inputs as a warm one.
+	await run(
+		process.execPath,
+		[
+			path.join(repositoryRoot, 'node_modules/typescript/bin/tsc6'),
+			'-b',
+			'packages/core',
+			'packages/jsx-runtime',
+			'packages/dom',
+			'packages/ssr',
+			'packages/hydrate',
+			'packages/intl',
+			'packages/time',
+			'plugins/secrets'
+		],
+		repositoryRoot,
+		true
+	);
 	const stageRoot = path.join(repositoryRoot, '.tmp', 'native-typescript-go');
 	await rm(stageRoot, { recursive: true, force: true });
 	await mkdir(path.dirname(stageRoot), { recursive: true });
@@ -77,46 +100,109 @@ if (current) {
 	const compilerRoot = path.join(stageRoot, 'tsc');
 
 	const overlayRoot = path.join(nativeRoot, 'overlay');
-	for (const relative of ['internal/exactcompiler', 'internal/compiler', 'cmd/exactc']) {
+	for (const relative of [
+		'internal/exactcompiler',
+		'internal/compiler',
+		'internal/checker',
+		'cmd/exactc'
+	]) {
 		await cp(path.join(overlayRoot, relative), path.join(compilerRoot, relative), {
 			recursive: true,
 			force: true
 		});
 	}
 
-	await run(
-		'git',
-		['apply', '--ignore-space-change', path.join(overlayRoot, 'internal/compiler/program.patch')],
-		stageRoot,
-		true
-	);
+	for (const patch of [
+		'internal/compiler/program.patch',
+		'internal/printer/optional_chain.patch'
+	]) {
+		await run(
+			'git',
+			['apply', '--ignore-space-change', path.join(overlayRoot, patch)],
+			stageRoot,
+			true
+		);
+	}
 
 	const go = process.env.EXACT_GO || 'go';
-	await run(go, ['test', './internal/exactcompiler', './cmd/exactc'], compilerRoot, true);
+	const coverageDirectory = path.join(repositoryRoot, '.tmp/compiler-confidence/native');
+	const coverageFile = path.join(coverageDirectory, 'statements.out');
+	if (collectCoverage) {
+		await rm(coverageDirectory, { recursive: true, force: true });
+		await mkdir(coverageDirectory, { recursive: true });
+	}
 	await run(
 		go,
-		['build', '-buildvcs=false', '-trimpath', '-o', executable, './cmd/exactc'],
+		[
+			'test',
+			// The semantic fixture suite exceeds Go's default ten minutes on small CI runners.
+			'-timeout=30m',
+			...(collectCoverage ? ['-count=1', '-covermode=count', `-coverprofile=${coverageFile}`] : []),
+			'./internal/exactcompiler',
+			'./cmd/exactc'
+		],
 		compilerRoot,
-		true,
-		{
-			...process.env,
-			CGO_ENABLED: '0',
-			GOOS: goTargetPlatform,
-			GOARCH: goTargetArch
-		}
+		true
 	);
-	if (targetPlatform !== 'win32') await chmod(executable, 0o755);
-	await writeNativeCompilerBuildStamp(stampFile, buildKey, executable);
-	if (packageOutput) {
-		console.log(
-			await stageNativeCompilerPackage({
-				executable,
-				license: path.join(stageRoot, 'LICENSE.txt'),
-				notice: path.join(stageRoot, 'NOTICE.txt'),
-				platform: targetPlatform,
-				arch: targetArch
-			})
+	if (collectCoverage) {
+		const summary = summarizeNativeCoverage(await readFile(coverageFile, 'utf8'));
+		await writeFile(
+			path.join(coverageDirectory, 'statements.json'),
+			JSON.stringify(summary, null, 2) + '\n'
 		);
+		await writeFile(
+			path.join(coverageDirectory, 'functions.txt'),
+			await run(go, ['tool', 'cover', `-func=${coverageFile}`], compilerRoot)
+		);
+		console.log(
+			`Native statement coverage: ${summary.covered}/${summary.statements} (${summary.percent.toFixed(1)}%)`
+		);
+		await run(
+			go,
+			[
+				'tool',
+				'cover',
+				`-html=${coverageFile}`,
+				'-o',
+				path.join(coverageDirectory, 'statements.html')
+			],
+			compilerRoot,
+			true
+		);
+	}
+	// One immutable staged source and one host validation serve every release target.
+	for (const buildTarget of allTargets ? supportedTargets : [target]) {
+		const [platform, arch] = buildTarget.split('-');
+		const executable = path.join(outputDirectory, platform === 'win32' ? 'exactc.exe' : 'exactc');
+		await run(
+			go,
+			['build', '-buildvcs=false', '-trimpath', '-o', executable, './cmd/exactc'],
+			compilerRoot,
+			true,
+			{
+				...process.env,
+				CGO_ENABLED: '0',
+				GOOS: platform === 'win32' ? 'windows' : platform,
+				GOARCH: arch === 'x64' ? 'amd64' : arch
+			}
+		);
+		if (platform !== 'win32') await chmod(executable, 0o755);
+		await writeNativeCompilerBuildStamp(
+			path.join(outputDirectory, `${buildTarget}.build.json`),
+			await createNativeCompilerBuildKey({ repositoryRoot, revision, target: buildTarget }),
+			executable
+		);
+		if (packageOutput) {
+			console.log(
+				await stageNativeCompilerPackage({
+					executable,
+					license: path.join(stageRoot, 'LICENSE.txt'),
+					notice: path.join(stageRoot, 'NOTICE.txt'),
+					platform,
+					arch
+				})
+			);
+		}
 	}
 }
 console.log(executable);

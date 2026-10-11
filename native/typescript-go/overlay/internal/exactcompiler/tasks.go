@@ -7,7 +7,6 @@ import (
 
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
 	"github.com/microsoft/TypeScript/tsc/internal/checker"
-	"github.com/microsoft/TypeScript/tsc/internal/scanner"
 )
 
 var browserGlobals = map[string]struct{}{
@@ -95,9 +94,19 @@ func collectTasks(
 	stateWrites []StateWrite,
 	reactiveBindings []ReactiveBinding,
 	callables callableAnalysis,
+	sharedFacts ...*sourceAnalysisFacts,
 ) []Task {
+	var facts *sourceAnalysisFacts
+	if len(sharedFacts) != 0 {
+		facts = sharedFacts[0]
+	}
 	var tasks []Task
-	taskPolicyBindings := collectExternalImportBindings(sourceFile, typeChecker)
+	var taskPolicyBindings externalImportBindings
+	if facts == nil {
+		taskPolicyBindings = collectExternalImportBindings(sourceFile, typeChecker)
+	} else {
+		taskPolicyBindings = facts.imports
+	}
 	for _, candidate := range componentCandidates(sourceFile) {
 		if len(componentSignals(candidate, sourceFile)) == 0 {
 			continue
@@ -132,12 +141,15 @@ func collectTasks(
 				task.Diagnostics = append(task.Diagnostics,
 					"error: function-defined tasks must be declared inside their owning component. Call shared helpers from a component-owned task")
 			}
-			task.CompilerComputation = ast.IsFunctionDeclaration(work) && work.Name() != nil &&
-				strings.HasPrefix(work.Name().Text(), "__exactComponentComputation_")
 			task.Invoked = call == nil || taskRegistrationInsideNestedFunction(node, candidate.node)
 			task.ArgumentCount = len(work.Parameters())
 			if _, explicit := functionTaskPolicy(work, sourceFile, taskPolicyBindings); explicit {
 				task.ArgumentCount--
+			}
+			for _, parameter := range work.Parameters()[:task.ArgumentCount] {
+				if parameter.AsParameterDeclaration().DotDotDotToken != nil {
+					task.Diagnostics = append(task.Diagnostics, "error: compiler-managed task parameters require fixed argument positions. Pass rest values as one array input and spread them inside the task when calling an ordinary helper")
+				}
 			}
 			if call != nil && call.Arguments != nil {
 				task.ActivationArgumentCount = min(len(call.Arguments.Nodes), task.ArgumentCount)
@@ -165,8 +177,8 @@ func collectTasks(
 				label := "progress"
 				if work.Name() != nil {
 					label = work.Name().Text()
-				} else if work.Parent != nil && ast.IsVariableDeclaration(work.Parent) {
-					label = work.Parent.Name().Text()
+				} else if binding := sourceCallableBinding(work); binding != nil {
+					label = binding.Name().Text()
 				}
 				task.ProgressLabel = candidate.name + "." + label
 				task.Diagnostics = append(task.Diagnostics, progressResultDiagnostics(work, candidate.node, typeChecker, callables)...)
@@ -197,6 +209,7 @@ func collectTasks(
 					candidate,
 					sourceFile,
 					typeChecker,
+					facts,
 				)...,
 			))
 			if call != nil && !task.Invoked {
@@ -217,6 +230,7 @@ func collectTasks(
 					},
 				))
 			}
+			task.helperCaptures = taskHelperCaptures(work, candidate.node, sourceFile, typeChecker, reactiveBindings, facts)
 			task.Contexts = []ContextEffect{}
 			task.EffectSources = []EnvironmentEffectSource{}
 			resources, signalCalls, resourceDiagnostics :=
@@ -224,14 +238,19 @@ func collectTasks(
 			task.Resources = resources
 			task.SignalCalls = signalCalls
 			task.Diagnostics = append(task.Diagnostics, resourceDiagnostics...)
+			snapshotReads := taskSnapshotReadRanges(work, sourceFile, typeChecker)
 			task.ReactiveDependencies, task.Diagnostics = taskReactiveDependencies(
 				work,
 				candidate.name,
 				reactiveBindings,
 				typeChecker,
 				task.Diagnostics,
-				captureRanges,
+				append(append([]taskCaptureRange{}, captureRanges...), snapshotReads...),
 			)
+			task.localReads = taskLocalReadRanges(work, candidate.name, stateReads, stateWrites)
+			task.localReads = append(task.localReads, snapshotReads...)
+			task.potentialLocalReads = taskPotentialLocalReadRanges(work, candidate.name, stateReads, stateWrites)
+			dependencyExclusions := append(append([]taskCaptureRange{}, captureRanges...), task.localReads...)
 			task.Dependencies = taskDependencyRecords(
 				work,
 				candidate.name,
@@ -240,7 +259,7 @@ func collectTasks(
 				task.ReactiveDependencies,
 				reactiveBindings,
 				typeChecker,
-				captureRanges,
+				dependencyExclusions,
 			)
 			if !task.Invoked && call.Arguments != nil && len(call.Arguments.Nodes) != 0 {
 				task.Dependencies = functionTaskActivationDependencies(
@@ -267,7 +286,7 @@ func collectTasks(
 				task.Writes = uniqueStateEffects(
 					append(task.Writes, componentStateEffects(callable.StateWrites)...),
 				)
-				task.Contexts = append([]ContextEffect(nil), callable.Contexts...)
+				task.Contexts = taskBodyContextEffects(work, sourceFile, typeChecker, callables)
 				task.EffectSources = append(
 					[]EnvironmentEffectSource(nil),
 					callable.EffectSources...,
@@ -290,6 +309,8 @@ func collectTasks(
 				)
 				task.EnvironmentEffect = environmentEffectFor(task.EffectSources)
 			}
+
+			task.potentialLocalReads = taskEffectLocalReadRanges(work, candidate.name, stateReads, task.Writes, task.potentialLocalReads)
 			switch {
 			case task.EnvironmentEffect != "neutral" && task.EnvironmentEffect != "":
 				// The completed callable graph owns transitive placement.
@@ -518,11 +539,23 @@ func functionTaskActivation(
 		callTargetSymbol(call.Expression, typeChecker),
 		typeChecker,
 	)
-	if symbol == nil {
-		return nil, nil, false
+	var summary CallableSummary
+	var exists bool
+	if symbol != nil {
+		summary, exists = callables.bySymbol[ast.GetSymbolId(symbol)]
 	}
-	summary, exists := callables.bySymbol[ast.GetSymbolId(symbol)]
 	if !exists {
+		direct := unwrapRenderExpression(call.Expression)
+		if isCallableNode(direct) {
+			// An immediately invoked definition has no binding symbol, but owns
+			// the same analyzed work and declarative policy as a named task.
+			summary, exists = callables.byNode[direct]
+		}
+	}
+	if !exists {
+		summary, exists = ownedTaskLocalCallSummary(call.Expression, component.node, sourceFile, taskPolicyBindings, callables)
+	}
+	if !exists && symbol != nil {
 		for _, declaration := range symbol.Declarations {
 			if !ast.IsVariableDeclaration(declaration) {
 				continue
@@ -572,7 +605,7 @@ func functionTaskActivation(
 	if !classified {
 		return nil, nil, false
 	}
-	if nested && !explicit {
+	if nested && !explicit && !looksLikeTaskPolicy(work, sourceFile) {
 		return nil, nil, false
 	}
 	return work, facets, true
@@ -705,7 +738,8 @@ func looksLikeTaskPolicy(work *ast.Node, sourceFile *ast.SourceFile) bool {
 	}
 	final := parameters[len(parameters)-1].AsParameterDeclaration()
 	return final.Initializer != nil &&
-		strings.Contains(sourceText(sourceFile, parameters[len(parameters)-1]), "TaskContext")
+		(strings.Contains(sourceText(sourceFile, parameters[len(parameters)-1]), "TaskContext") ||
+			frameworkTaskPolicyRoot(final.Initializer, collectExternalImportBindings(sourceFile, nil)))
 }
 
 func functionTaskPolicy(
@@ -718,10 +752,8 @@ func functionTaskPolicy(
 		return nil, false
 	}
 	final := parameters[len(parameters)-1]
-	text := sourceText(sourceFile, final)
 	parameter := final.AsParameterDeclaration()
-	if !strings.Contains(text, "TaskContext") ||
-		parameter.Initializer == nil ||
+	if parameter.Initializer == nil ||
 		!frameworkTaskPolicyRoot(parameter.Initializer, bindings) {
 		return nil, false
 	}
@@ -744,19 +776,43 @@ func frameworkTaskPolicyRoot(
 	node *ast.Node,
 	bindings externalImportBindings,
 ) bool {
-	for ast.IsCallExpression(node) {
+	for node != nil {
+		node = unwrapRenderExpression(node)
+		if !ast.IsCallExpression(node) {
+			break
+		}
 		node = node.AsCallExpression().Expression
 		if ast.IsPropertyAccessExpression(node) {
 			node = node.AsPropertyAccessExpression().Expression
 		}
 	}
+	if node == nil {
+		return false
+	}
+	namespace := false
+	if ast.IsPropertyAccessExpression(node) {
+		member := node.AsPropertyAccessExpression()
+		if member.Name().Text() != "TaskContext" {
+			return false
+		}
+		node = member.Expression
+		namespace = true
+	}
 	if !ast.IsIdentifier(node) {
 		return false
 	}
 	reference, exists := bindings.byName[node.Text()]
-	return exists &&
-		reference.moduleSpecifier == "@exactjs/core" &&
-		reference.exportName == "TaskContext"
+	// Checked programs use lexical symbol identity so a local object cannot impersonate
+	// an imported policy provider. Syntax-only candidate discovery retains name facts.
+	if bindings.checker != nil {
+		symbol := bindings.checker.GetSymbolAtLocation(node)
+		if symbol == nil {
+			return false
+		}
+		reference, exists = bindings.bySymbol[ast.GetSymbolId(symbol)]
+	}
+	return exists && reference.moduleSpecifier == "@exactjs/core" &&
+		(namespace && reference.namespace || !namespace && reference.exportName == "TaskContext")
 }
 
 func taskRegistrationInsideNestedFunction(
@@ -771,7 +827,7 @@ func taskRegistrationInsideNestedFunction(
 	return false
 }
 
-// taskResultWritePath recognizes a setup assignment from an awaited task activation.
+// taskResultWritePath recognizes the state destination of a setup task activation.
 // Setup state belongs to the distributed transition. An event or another invoked task
 // instead owns its ordinary assignment after awaiting the returned value.
 func taskResultWritePath(
@@ -862,10 +918,6 @@ func containsEnvironment(values []EnvironmentEffectSource, expected string) bool
 	return false
 }
 
-func taskReadEffects(reads []StateRead, component string, work *ast.Node) []StateEffect {
-	return taskReadEffectsExcluding(reads, component, work, nil)
-}
-
 func taskReadEffectsExcluding(
 	reads []StateRead,
 	component string,
@@ -888,6 +940,13 @@ func taskReadEffectsExcluding(
 			Kind:         "read",
 			Confidence:   read.Confidence,
 		})
+		receiver := taskOptionalReceiverRead(read, work)
+		if receiver.Start != read.Start || receiver.Length != read.Length {
+			effects = append(effects, StateEffect{
+				pathSegments: append([]string{}, receiver.Path...),
+				Path:         strings.Join(receiver.Path, "."), Kind: "read", Confidence: receiver.Confidence,
+			})
+		}
 	}
 	return uniqueStateEffects(effects)
 }
@@ -897,8 +956,9 @@ func taskObjectAssignEffects(
 	component componentCandidate,
 	sourceFile *ast.SourceFile,
 	typeChecker *checker.Checker,
+	facts *sourceAnalysisFacts,
 ) []StateEffect {
-	aliases := collectComponentStateAliases(component, typeChecker)
+	aliases := sourceStateAliases(component, typeChecker, facts)
 	effects := []StateEffect{}
 	walkNode(work, func(node *ast.Node) bool {
 		if !ast.IsCallExpression(node) {
@@ -952,7 +1012,7 @@ func taskWriteEffects(writes []StateWrite, component string, work *ast.Node) []S
 			continue
 		}
 		confidence := "exact"
-		if containsString(write.Path, "*") || write.Operation == "array-mutation" {
+		if containsString(write.Path, "*") || write.Operation == "array-mutation" || write.Operation == "opaque-mutation" {
 			confidence = "broad"
 		}
 		effects = append(effects, StateEffect{
@@ -1010,7 +1070,7 @@ func uniqueStateEffects(effects []StateEffect) []StateEffect {
 	for _, effect := range effects {
 		key := effect.Kind + ":" + stateEffectPathKey(effect) + ":" + effect.Operation + ":" +
 			stateReceiverSignature(effect.Receiver)
-		if _, exists := seen[key]; exists || effect.Path == "" {
+		if _, exists := seen[key]; exists || (effect.Path == "" && effect.pathSegments == nil) {
 			continue
 		}
 		seen[key] = struct{}{}
@@ -1037,121 +1097,4 @@ func joinTaskFacets(facets []string) string {
 		result += facet
 	}
 	return result
-}
-
-func taskDiagnostics(
-	sourceFile *ast.SourceFile,
-	typeChecker *checker.Checker,
-	tasks []Task,
-	stateWrites []StateWrite,
-	target Target,
-) []Diagnostic {
-	var diagnostics []Diagnostic
-	for _, task := range tasks {
-		if task.Placement == "server" || task.Placement == "isomorphic" {
-			workStart, workLength := task.Start, task.Length
-			if task.FunctionDefined {
-				workStart, workLength = task.WorkStart, task.WorkLength
-			}
-			for _, write := range task.Writes {
-				// A server-local setup task never serializes a patch. Invokable work and
-				// client projections still need representable continuation paths.
-				if target == TargetServer && !task.Invoked {
-					continue
-				}
-				for _, segment := range write.pathSegments {
-					if strings.Contains(segment, ".") || segment == "" {
-						diagnostics = append(diagnostics, Diagnostic{Severity: "error", Code: "EXACT2001", Message: "error: a server continuation cannot publish a literal state key containing a dot or an empty key. Assign its enclosing statically named state value", Start: task.Start, Length: task.Length})
-						break
-					}
-				}
-				if write.Receiver != nil && (write.Operation == "map" || write.Operation == "set") {
-					diagnostics = append(diagnostics, Diagnostic{Severity: "error", Code: "EXACT2001", Message: "error: a server continuation cannot publish Map or Set mutations through a parameter helper. Mutate the component collection directly in the task", Start: task.Start, Length: task.Length})
-				}
-				if !strings.Contains(write.Path, "*") {
-					continue
-				}
-				diagnostics = append(diagnostics, Diagnostic{
-					Severity: "error",
-					Code:     "EXACT2001",
-					Message: "error: a server continuation cannot publish a state write through a dynamic computed path or opaque helper (" +
-						write.Path + "); write an enclosing statically named state value or keep the mutation client-side",
-					Start:  task.Start,
-					Length: task.Length,
-				})
-			}
-			for _, write := range stateWrites {
-				if write.Operation != "map-mutation" ||
-					write.Start < workStart ||
-					write.Start+write.Length > workStart+workLength {
-					continue
-				}
-				if key := collectionMutationKeyAt(
-					sourceFile,
-					write,
-				); key != nil && definitelyNonTransportableMapKey(
-					typeChecker.TypeToString(typeChecker.GetTypeAtLocation(key)),
-				) {
-					diagnostics = append(diagnostics, Diagnostic{
-						Severity: "error",
-						Code:     "EXACT2001",
-						Message: "error: a server continuation Map key must be null, boolean, a finite number, or a string. Received " +
-							typeChecker.TypeToString(typeChecker.GetTypeAtLocation(key)),
-						Start:  key.Pos(),
-						Length: key.End() - key.Pos(),
-					})
-				}
-			}
-		}
-		for _, message := range task.Diagnostics {
-			if !strings.HasPrefix(message, "error:") {
-				continue
-			}
-			start := task.Start
-			if sourceFile != nil {
-				start = scanner.SkipTrivia(sourceFile.Text(), start)
-			}
-
-			diagnostics = append(diagnostics, Diagnostic{
-				Severity: "error",
-				Code:     "EXACT2001",
-				Message:  message,
-				Start:    start,
-				Length:   task.Length,
-			})
-		}
-	}
-	return diagnostics
-}
-
-func collectionMutationKeyAt(
-	sourceFile *ast.SourceFile,
-	write StateWrite,
-) *ast.Node {
-	var key *ast.Node
-	walkNode(sourceFile.AsNode(), func(node *ast.Node) bool {
-		if node.Pos() != write.Start || node.End()-node.Pos() != write.Length ||
-			!ast.IsCallExpression(node) {
-			return key == nil
-		}
-		call := node.AsCallExpression()
-		if call.Arguments != nil && len(call.Arguments.Nodes) > 0 {
-			key = call.Arguments.Nodes[0]
-		}
-		return false
-	})
-	return key
-}
-
-func definitelyNonTransportableMapKey(display string) bool {
-	trimmed := strings.TrimSpace(display)
-	return strings.HasPrefix(trimmed, "{") ||
-		strings.HasPrefix(trimmed, "[") ||
-		strings.HasPrefix(trimmed, "Map<") ||
-		strings.HasPrefix(trimmed, "Set<") ||
-		strings.HasPrefix(trimmed, "Array<") ||
-		strings.Contains(trimmed, "=>") ||
-		trimmed == "symbol" ||
-		trimmed == "bigint" ||
-		trimmed == "undefined"
 }

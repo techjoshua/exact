@@ -321,9 +321,9 @@ describe('hydration-only root capability', () => {
 		root.dispose();
 	});
 
-	it('activates bindings and structural children from a markerless compiled SSR program root', async () => {
+	it('activates bindings and structural children with retained SSR ownership markers', async () => {
 		const container = document.createElement('main');
-		const rendered = await renderToHydratableString(serverMarkerlessListRoot, { markers: false });
+		const rendered = await renderToHydratableString(serverMarkerlessListRoot);
 		container.innerHTML = rendered.html;
 		const serverItems = [...container.querySelectorAll('[data-testid="row"]')];
 
@@ -333,11 +333,29 @@ describe('hydration-only root capability', () => {
 			resumptions: rendered.resumptions
 		});
 
-		expect([...container.querySelectorAll('[data-testid="row"]')]).toEqual(serverItems);
+		const adoptedItems = [...container.querySelectorAll('[data-testid="row"]')];
+		expect(adoptedItems).toHaveLength(serverItems.length);
+		adoptedItems.forEach((item, index) => expect(item).toBe(serverItems[index]));
 		mountedMarkerlessListRoot().state.kind = 'primary';
 		await Promise.resolve();
 		expect(container.querySelectorAll('[data-testid="row"]')).toHaveLength(1);
 		root.dispose();
+	});
+
+	it('rejects marker-stripped structural output instead of silently remounting', async () => {
+		const container = document.createElement('main');
+		const rendered = await renderToHydratableString(serverMarkerlessListRoot, { markers: false });
+		container.innerHTML = rendered.html;
+		const section = container.querySelector('section');
+		expect(() =>
+			hydrate(markerlessListRoot, container, {
+				allowMarkerless: true,
+				onMismatch: 'throw',
+				resumptions: rendered.resumptions,
+				logger: { log() {} }
+			})
+		).toThrow(/match/);
+		expect(container.querySelector('section')).toBe(section);
 	});
 
 	it('keeps root hydration metadata outside markerless component output', async () => {

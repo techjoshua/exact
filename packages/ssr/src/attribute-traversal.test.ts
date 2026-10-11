@@ -1,3 +1,4 @@
+import { runInNewContext } from 'node:vm';
 import { describe, expect, it, vi } from 'vitest';
 import {
 	renderAttrs,
@@ -10,6 +11,44 @@ import { renderSsrRootAttributes } from './render/render-program-attributes.js';
 import type { SsrContext } from './types.js';
 
 describe('SSR attribute traversal', () => {
+	it('projects numeric calendar values using the effective type regardless of property order', () => {
+		for (const [type, value, text] of [
+			['date', Date.UTC(2026, 0, 2), '2026-01-02'],
+			['datetime-local', Date.UTC(2026, 0, 2, 3, 4), '2026-01-02T03:04'],
+			['time', 11_040_000, '03:04'],
+			['month', 672, '2026-01'],
+			['week', Date.UTC(2025, 11, 29), '2026-W01']
+		] as const) {
+			expect(renderAttrs({ value, type }, false, 'input')).toBe(` value="${text}" type="${type}"`);
+			expect(renderAttrs({ type, value }, false, 'input')).toBe(` type="${type}" value="${text}"`);
+			expect(renderAttrs({ type, value: text }, false, 'input')).toBe(
+				` type="${type}" value="${text}"`
+			);
+		}
+		expect(renderAttrs({ type: 'date', value: null }, false, 'input')).toBe(' type="date"');
+		expect(renderAttrs({ type: 'date', value: NaN }, false, 'input')).toBe(' type="date" value=""');
+		expect(renderAttrs({ type: 'text', value: 7 }, false, 'input')).toBe(' type="text" value="7"');
+	});
+
+	it('serializes native Date values with HTML years across generic and classified markup', () => {
+		for (const year of [2026, 10000]) {
+			const value = new Date(0);
+			value.setUTCFullYear(year, 0, 2);
+			expect(renderAttrs({ type: 'DATE', value }, false, 'input')).toBe(
+				` type="DATE" value="${year}-01-02"`
+			);
+			expect(renderCompiledNativeAttribute(value, 5, 'value', 'value', 'input')).toBe(
+				` value="${year}-01-02"`
+			);
+		}
+		expect(renderAttrs({ type: 'date', value: new Date(NaN) }, false, 'input')).toBe(
+			' type="date" value=""'
+		);
+		expect(renderCompiledNativeAttribute(new Date(NaN), 5, 'value', 'value', 'input')).toBe(
+			' value=""'
+		);
+	});
+
 	it('reconstructs scalar root properties only for active target layers', () => {
 		const compose = vi.fn((value: unknown) => ({ id: 'row', className: value }));
 		const plan = [' id="row"', ['id'], [[1, 'className', 'class']], compose] as const;
@@ -73,6 +112,20 @@ describe('SSR attribute traversal', () => {
 		expect(renderAttrs(props, 19, 'input')).toBe(
 			' type="radio" name="service" id="shipping" checked="" value="parcel"'
 		);
+	});
+
+	it('preserves ARIA boolean states in generic and compiled native attributes', () => {
+		for (const name of ['aria-pressed', 'aria-expanded', 'aria-hidden', 'ARIA-CHECKED']) {
+			for (const value of [false, true, 'mixed', null, undefined]) {
+				const expected = value == null ? '' : ` ${name}="${String(value)}"`;
+				expect(renderNativeAttribute(value, name, 'button')).toBe(expected);
+				expect(renderCompiledNativeAttribute(value, 0, name, name, 'button')).toBe(expected);
+				expect(renderAttrs({ [name]: value }, false, 'button')).toBe(expected);
+			}
+		}
+		expect(renderNativeAttribute(true, 'data-selected', 'button')).toBe(' data-selected="true"');
+		expect(renderNativeAttribute(false, 'data-selected', 'button')).toBe('');
+		expect(renderNativeAttribute(false, 'disabled', 'button')).toBe('');
 	});
 
 	it('serializes compiler-known native values without materializing a prop bag', () => {
@@ -173,4 +226,13 @@ describe('SSR attribute traversal', () => {
 			' data-exact-id="row-1" class="incident a&quot;b" aria-label="incident"'
 		);
 	});
+});
+
+it('projects a foreign native Date through both grouped and classified input attributes', () => {
+	const value = runInNewContext("new Date('2026-01-02T00:00:00.000Z')") as Date;
+	expect(value instanceof Date).toBe(false);
+	expect(renderCompiledNativeAttribute(value, 5, 'value', 'value', 'input')).toBe(
+		' value="2026-01-02"'
+	);
+	expect(renderAttrs({ type: 'DATE', value }, false, 'input')).toContain('value="2026-01-02"');
 });

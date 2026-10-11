@@ -24,10 +24,13 @@ func (lowering *jsxLowering) appendRenderProgramAttributes(
 		// after a concrete client or server target is known.
 		return build.decline("untargeted-enhancement-inspection")
 	}
-	if lowering.target == TargetServer && jsxAttributesContainSpread(attributes) {
+	if lowering.target == TargetServer && (jsxAttributesContainSpread(attributes) || lowering.serverInputAttributesRequireType(attributes, tag)) {
 		return lowering.appendServerSpreadAttributes(build, attributes, tag, path, node)
 	}
 	conditionalClasses := jsxHasConditionalClassName(attributes)
+	// Spreads can override earlier literals and lose keys on retained updates.
+	// Keep all properties in the ordered writer whenever a spread is present.
+	hasSpread := jsxAttributesContainSpread(attributes)
 	classNameEmitted := false
 	for _, property := range attributes.AsJsxAttributes().Properties.Nodes {
 		if conditionalClasses && jsxClassNameContribution(property) {
@@ -110,7 +113,7 @@ func (lowering *jsxLowering) appendRenderProgramAttributes(
 		if ast.IsJsxNamespacedName(attribute.Name()) {
 			return build.decline("namespaced-attribute")
 		}
-		if _, serialized, static := lowering.plannedStaticRenderProgramAttribute(tag, name, attribute.Initializer); static {
+		if _, serialized, static := lowering.plannedStaticRenderProgramAttribute(tag, name, attribute.Initializer); static && !hasSpread {
 			build.write(serialized)
 			continue
 		}
@@ -139,6 +142,21 @@ func (lowering *jsxLowering) appendRenderProgramAttributes(
 		}
 	}
 	return true
+}
+
+// serverInputAttributesRequireType keeps calendar values beside the effective input type.
+// This also covers explicit values, whose scalar SSR writer cannot see a sibling type attribute.
+func (lowering *jsxLowering) serverInputAttributesRequireType(attributes *ast.Node, tag string) bool {
+	if attributes == nil || tag != "input" {
+		return false
+	}
+	if jsxHasAttribute(attributes, "value") {
+		kind, constant := jsxStaticAttribute(attributes, "type", lowering.checker)
+		if nativeTemporalInputType(kind) || (!constant && jsxHasAttribute(attributes, "type")) {
+			return true
+		}
+	}
+	return lowering.serverFormBindingsRequireType(attributes)
 }
 
 // staticRenderProgramAttribute recognizes source literals whose DOM property and SSR attribute

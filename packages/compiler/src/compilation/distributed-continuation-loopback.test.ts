@@ -21,7 +21,7 @@ import {
 } from '@exactjs/server';
 import { renderToHydratableString } from '@exactjs/ssr';
 import { createTestOperation, markTestComponent } from '@exactjs/testing/internal/fixtures';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { describe, expect, it, vi, onTestFinished } from 'vitest';
 import { compileFileArtifacts } from '../index.js';
@@ -29,6 +29,219 @@ import { importArtifact } from '../test-support/import-artifact.js';
 import { createTestWorkspace } from '../test-support/workspace.js';
 
 describe('@exactjs/compiler distributed continuation loopback', () => {
+	it.each([
+		{ invocation: 'optimistic()', clientEffect: false },
+		{ invocation: 'helper.optimistic()', clientEffect: false },
+		{ invocation: "helper['optimistic']()", clientEffect: false },
+		{ invocation: 'impostor.optimistic()', clientEffect: false },
+		{ invocation: 'importedOptimistic(effects)', clientEffect: false },
+		{ invocation: "task.optimistic(()=>effects.push('client'))", clientEffect: true },
+		{ invocation: "(task.optimistic(()=>effects.push('client')))", clientEffect: true },
+		{
+			invocation: "task.optimistic(()=>{const label='client'; effects.push(label)})",
+			clientEffect: true
+		},
+		{ invocation: "task['optimistic'](()=>effects.push('client'))", clientEffect: true },
+		{
+			invocation: "const alias=task; alias.optimistic(()=>effects.push('client'))",
+			clientEffect: true
+		},
+		{
+			invocation: "const {optimistic: apply}=task; apply(()=>effects.push('client'))",
+			clientEffect: true
+		}
+	])('preserves capability ownership for $invocation', async ({ invocation, clientEffect }) => {
+		const root = await createTestWorkspace('.exact-optimistic-name-', process.cwd());
+		const source = path.join(root, 'page.tsx');
+		await writeFile(
+			path.join(root, 'helper.ts'),
+			"export function importedOptimistic(effects:string[]){effects.push('server');}"
+		);
+		await writeFile(
+			source,
+			`import {TaskContext as FrameworkTaskContext, type Component} from '@exactjs/core';
+import {importedOptimistic} from './helper.js';
+interface TaskContext {optimistic():void}
+export const effects:string[]=[];
+let runs=0;
+function optimistic(){effects.push('server');}
+const helper={optimistic};
+const impostor:TaskContext={optimistic};
+export function Page(this:Component<{value:string}>){
+ this.state.value='initial';
+ async function load(task:FrameworkTaskContext=FrameworkTaskContext.server().latest()){
+  ${invocation}
+  await Promise.resolve();
+  this.state.value='complete'+(++runs);
+ }
+ return()=> <main><button onClick={()=>load()}>Load</button><output>{this.state.value}</output></main>;
+}`
+		);
+		const compiled = await compileFileArtifacts(source, { rootDir: root, outDir: root });
+		const clientModule = await importArtifact(compiled.clientFile, path.join(root, 'client.mjs'));
+		const serverModule = await importArtifact(compiled.serverFile, path.join(root, 'server.mjs'));
+		const ClientPage = componentExport(clientModule, 'Page');
+		const ServerPage = componentExport(serverModule, 'Page');
+		const server: ExactServerContext = {
+			contract: composeExactExecutorContract([ServerPage], { endpoint: '/__exact' }),
+			invocations: {},
+			logger: { log() {} }
+		};
+		const rendered = await renderToHydratableString(createCompiledComponentReceipt(ServerPage, {}));
+		const container = document.createElement('div');
+		container.innerHTML = rendered.html;
+		const reports: unknown[] = [];
+		const client = hydrate(createCompiledComponentReceipt(ClientPage, {}), container, {
+			...composeExactComponentContracts([ClientPage], 'client'),
+			resumptions: rendered.resumptions,
+			onMismatch: 'throw',
+			onErrorReport: (report) => reports.push(report.error),
+			endpoint: '/__exact',
+			fetch: async (url, init) =>
+				exactResponseToFetchResponse(
+					await handleExactRequest(
+						{
+							method: init.method,
+							url,
+							headers: init.headers,
+							body: JSON.parse(init.body),
+							signal: init.signal
+						},
+						server
+					)
+				)
+		});
+		onTestFinished(() => client.dispose());
+		for (let i = 0; i < 2; i++) {
+			click(container, 'button');
+			await expect
+				.poll(() => container.querySelector('output')?.textContent)
+				.toBe('complete' + (i + 1));
+			expect(serverModule.effects).toEqual(clientEffect ? [] : Array(i + 1).fill('server'));
+			expect(clientModule.effects).toEqual(clientEffect ? Array(i + 1).fill('client') : []);
+		}
+		expect(reports).toEqual([]);
+	});
+
+	it.each([
+		"const local='public'; task.optimistic(()=>this.state.value=local)",
+		"const {value:local}={value:'public'}; const alias=task; alias.optimistic(()=>this.state.value=local)",
+		"const callback=()=>{this.state.value='public';}; task.optimistic(callback)"
+	])('diagnoses server-task locals unavailable to the optimistic prelude: %s', async (body) => {
+		const root = await createTestWorkspace('.exact-optimistic-capture-', process.cwd());
+		const source = path.join(root, 'page.tsx');
+		await writeFile(
+			source,
+			`import {TaskContext,type Component} from '@exactjs/core';
+export function Page(this:Component<{value:string}>){this.state.value='initial';
+async function load(task:TaskContext=TaskContext.server().latest()){${body};await Promise.resolve();}
+return()=> <button onClick={()=>load()}>{this.state.value}</button>;}`
+		);
+		await expect(compileFileArtifacts(source, { rootDir: root, outDir: root })).rejects.toThrow(
+			/EXACT2001:.*optimistic callback cannot capture a server-task local/u
+		);
+	});
+
+	it('diagnoses optimistic extraction hidden inside server control flow', async () => {
+		const root = await createTestWorkspace('.exact-optimistic-control-flow-', process.cwd());
+		const source = path.join(root, 'page.tsx');
+		await writeFile(
+			source,
+			`import {TaskContext,type Component} from '@exactjs/core';
+export function Page(this:Component<{value:number}>){this.state.value=0;
+async function load(task:TaskContext=TaskContext.server().latest()){if(this.state.value===0)task.optimistic(()=>this.state.value=1);await Promise.resolve();}
+return()=> <button onClick={()=>load()}>{this.state.value}</button>;}`
+		);
+		await expect(compileFileArtifacts(source, { rootDir: root, outDir: root })).rejects.toThrow(
+			/EXACT2001:.*must be a direct statement/u
+		);
+	});
+
+	it.each([false, true])(
+		'keeps credentials out of generated task request and response bytes (batch: %s)',
+		async (batch) => {
+			const credential = 'PRIVATE-generated-credential-café-🙂';
+			const readCredential = vi.fn(() => credential);
+			vi.stubGlobal('__exactReadTestCredential', readCredential);
+			onTestFinished(() => {
+				vi.unstubAllGlobals();
+			});
+			const root = await createTestWorkspace('.exact-secret-loopback-', process.cwd());
+			const source = path.join(root, 'page.tsx');
+			await writeFile(
+				source,
+				`import {TaskContext,type Component} from '@exactjs/core';
+		import {consume,type Secret} from '@exactjs/secrets';
+		declare function __exactReadTestCredential():Secret<string>;
+		async function publicResult(credential:string){if(!credential)throw new Error('Missing credential');await Promise.resolve();return 'Public result';}
+		export function Page(this:Component<{label:string}>){
+		 this.state.label='Waiting';
+		 const load=async(_task:TaskContext=TaskContext.server())=>{
+		  const credential=__exactReadTestCredential();
+		  this.state.label=await publicResult(consume(credential));
+		 };
+		 return()=> <main><button onClick={()=>load()}>Load</button><output>{this.state.label}</output></main>;
+		}`
+			);
+			const compiled = await compileFileArtifacts(source, { rootDir: root, outDir: root });
+			expect(await readFile(compiled.clientFile, 'utf8')).not.toContain(credential);
+			const clientModule = await importArtifact(compiled.clientFile, path.join(root, 'client.mjs'));
+			const serverModule = await importArtifact(compiled.serverFile, path.join(root, 'server.mjs'));
+			const ClientPage = componentExport(clientModule, 'Page');
+			const ServerPage = componentExport(serverModule, 'Page');
+			const registration = composeExactComponentContracts([ClientPage], 'client');
+			const contract = composeExactExecutorContract([ServerPage], { endpoint: '/__exact' });
+			const server: ExactServerContext = { contract, invocations: {}, logger: { log() {} } };
+			const rendered = await renderToHydratableString(
+				createCompiledComponentReceipt(ServerPage, {})
+			);
+			expect(JSON.stringify(rendered)).not.toContain(credential);
+			const container = document.createElement('main');
+			container.innerHTML = rendered.html;
+			const requestBytes: string[] = [];
+			const responseBytes: string[] = [];
+			const client = hydrate(createCompiledComponentReceipt(ClientPage, {}), container, {
+				...registration,
+				resumptions: rendered.resumptions,
+				endpoint: '/__exact',
+				batch,
+				logger: { log() {} },
+				fetch: async (url, init) => {
+					requestBytes.push(init.body);
+					expect(init.body).not.toContain(credential);
+					const response = exactResponseToFetchResponse(
+						await handleExactRequest(
+							{
+								method: init.method,
+								url,
+								headers: init.headers,
+								body: JSON.parse(init.body),
+								signal: init.signal
+							},
+							server
+						)
+					);
+					const bytes = await response.clone().text();
+					responseBytes.push(bytes);
+					expect(bytes).not.toContain(credential);
+					return response;
+				}
+			});
+			onTestFinished(() => client.dispose());
+			for (let index = 0; index < 2; index++) {
+				click(container, 'button');
+				await expect.poll(() => readCredential.mock.calls.length).toBe(index + 1);
+				await expect.poll(() => responseBytes.length).toBe(index + 1);
+				await expect
+					.poll(() => container.querySelector('output')?.textContent)
+					.toBe('Public result');
+			}
+			expect(requestBytes).toHaveLength(2);
+			expect(responseBytes.join('')).toContain('Public result');
+			expect(readCredential).toHaveBeenCalledTimes(2);
+		}
+	);
+
 	it.each([false, true])(
 		'propagates generated server rejection and permits recovery (batch: %s)',
 		async (batch) => {
@@ -105,7 +318,7 @@ describe('@exactjs/compiler distributed continuation loopback', () => {
 		await mkdir(sourceRoot, { recursive: true });
 		await writeFile(
 			source,
-			'import { TaskContext } from "@exactjs/core";\n\n\t\t\t\timport { createContext, type Component } from "@exactjs/core";\n\n\t\t\t\tconst StatusContext = createContext<{ message: string }>("status", {\n\t\t\t\t\tkeep: "shared"\n\t\t\t\t});\n\n\t\t\t\tfunction Status(this: Component<{}>) {\n\t\t\t\t\tconst status = this.getContext(StatusContext);\n\t\t\t\t\treturn () => <output data-status>{status.message}</output>;\n\t\t\t\t}\n\n\t\t\t\texport function Search(this: Component<{ query: string; result: string }>) {\n\t\t\t\t\tthis.state.query = "first";\n\t\t\t\t\tthis.state.result = "waiting";\n\n\t\t\t\t\tconst runFixtureTask = async (_task: TaskContext = TaskContext.server()) => {\n\t\t\t\t\t\tconst query = this.state.query;\n\t\t\t\t\t\tawait Promise.resolve();\n\t\t\t\t\t\tconst result = query.toUpperCase();\n\t\t\t\t\t\tthis.state.result = result;\n\t\t\t\t\t\tthis.setContext(StatusContext, { message: result });\n\t\t\t\t\t};\nrunFixtureTask();\n\n\t\t\t\t\treturn () => (\n\t\t\t\t\t\t<label>\n\t\t\t\t\t\t\tQuery\n\t\t\t\t\t\t\t<button\n\t\t\t\t\t\t\t\ttype="button"\n\t\t\t\t\t\t\t\tonClick={() => {\n\t\t\t\t\t\t\t\t\tthis.state.query = "second";\n\t\t\t\t\t\t\t\t}}\n\t\t\t\t\t\t\t>\n\t\t\t\t\t\t\t\tChange\n\t\t\t\t\t\t\t</button>\n\t\t\t\t\t\t\t<output>{this.state.result}</output>\n\t\t\t\t\t\t\t<Status />\n\t\t\t\t\t\t</label>\n\t\t\t\t\t);\n\t\t\t\t}\n\t\t\t'
+			'import { TaskContext } from "@exactjs/core";\n\n\t\t\t\timport { createContext, type Component } from "@exactjs/core";\n\n\t\t\t\tconst StatusContext = createContext<{ message: string }>("status", {\n\t\t\t\t\tkeep: "shared"\n\t\t\t\t});\n\n\t\t\t\tfunction Status(this: Component<{}>) {\n\t\t\t\t\tconst status = this.getContext(StatusContext);\n\t\t\t\t\treturn () => <output data-status>{status.message}</output>;\n\t\t\t\t}\n\n\t\t\t\texport function Search(this: Component<{ query: string; result: string }>) {\n\t\t\t\t\tthis.state.query = "first";\n\t\t\t\t\tthis.state.result = "waiting";\n\n\t\t\t\t\tconst runFixtureTask = async (query: string, _task: TaskContext = TaskContext.server()) => {\n\t\t\t\t\t\t\n\t\t\t\t\t\tawait Promise.resolve();\n\t\t\t\t\t\tconst result = query.toUpperCase();\n\t\t\t\t\t\tthis.state.result = result;\n\t\t\t\t\t\tthis.setContext(StatusContext, { message: result });\n\t\t\t\t\t};\nrunFixtureTask(this.state.query);\n\n\t\t\t\t\treturn () => (\n\t\t\t\t\t\t<label>\n\t\t\t\t\t\t\tQuery\n\t\t\t\t\t\t\t<button\n\t\t\t\t\t\t\t\ttype="button"\n\t\t\t\t\t\t\t\tonClick={() => {\n\t\t\t\t\t\t\t\t\tthis.state.query = "second";\n\t\t\t\t\t\t\t\t}}\n\t\t\t\t\t\t\t>\n\t\t\t\t\t\t\t\tChange\n\t\t\t\t\t\t\t</button>\n\t\t\t\t\t\t\t<output>{this.state.result}</output>\n\t\t\t\t\t\t\t<Status />\n\t\t\t\t\t\t</label>\n\t\t\t\t\t);\n\t\t\t\t}\n\t\t\t'
 		);
 		const compiled = await compileFileArtifacts(source, {
 			outDir: generatedRoot,
@@ -178,8 +391,7 @@ describe('@exactjs/compiler distributed continuation loopback', () => {
 		expect(requests[0]).toMatchObject({
 			type: 'invoke',
 			root: 'page',
-			payload: { dependencies: ['second'] },
-			state: { query: 'second' }
+			payload: { dependencies: ['second'] }
 		});
 		client.dispose();
 	});
@@ -341,7 +553,7 @@ async function compileRemoteTask(root: string, name: string) {
 	await mkdir(sourceRoot, { recursive: true });
 	await writeFile(
 		source,
-		'import { TaskContext } from "@exactjs/core";\n\n\t\t\timport type { Component } from "@exactjs/core";\n\t\t\texport function RemoteTask(\n\t\t\t\tthis: Component<{ query: string; result: string }>,\n\t\t\t\tprops: { name: string }\n\t\t\t) {\n\t\t\t\tthis.state.query = props.name + "-ready";\n\t\t\t\tthis.state.result = "waiting";\n\t\t\t\tconst runFixtureTask = async (_task: TaskContext = TaskContext.server()) => {\n\t\t\t\t\tconst query = this.state.query;\n\t\t\t\t\tawait Promise.resolve();\n\t\t\t\t\tthis.state.result = query.toUpperCase();\n\t\t\t\t};\nrunFixtureTask();\n\t\t\t\treturn () => (\n\t\t\t\t\t<section>\n\t\t\t\t\t\t<button\n\t\t\t\t\t\t\tdata-task={props.name}\n\t\t\t\t\t\t\tonClick={() => this.state.query = props.name + "-next"}\n\t\t\t\t\t\t>\n\t\t\t\t\t\t\tRun\n\t\t\t\t\t\t</button>\n\t\t\t\t\t\t<output data-result={props.name}>{this.state.result}</output>\n\t\t\t\t\t</section>\n\t\t\t\t);\n\t\t\t}\n\t\t'
+		'import { TaskContext } from "@exactjs/core";\n\n\t\t\timport type { Component } from "@exactjs/core";\n\t\t\texport function RemoteTask(\n\t\t\t\tthis: Component<{ query: string; result: string }>,\n\t\t\t\tprops: { name: string }\n\t\t\t) {\n\t\t\t\tthis.state.query = props.name + "-ready";\n\t\t\t\tthis.state.result = "waiting";\n\t\t\t\tconst runFixtureTask = async (query: string, _task: TaskContext = TaskContext.server()) => {\n\t\t\t\t\t\n\t\t\t\t\tawait Promise.resolve();\n\t\t\t\t\tthis.state.result = query.toUpperCase();\n\t\t\t\t};\nrunFixtureTask(this.state.query);\n\t\t\t\treturn () => (\n\t\t\t\t\t<section>\n\t\t\t\t\t\t<button\n\t\t\t\t\t\t\tdata-task={props.name}\n\t\t\t\t\t\t\tonClick={() => this.state.query = props.name + "-next"}\n\t\t\t\t\t\t>\n\t\t\t\t\t\t\tRun\n\t\t\t\t\t\t</button>\n\t\t\t\t\t\t<output data-result={props.name}>{this.state.result}</output>\n\t\t\t\t\t</section>\n\t\t\t\t);\n\t\t\t}\n\t\t'
 	);
 	const compiled = await compileFileArtifacts(source, {
 		outDir: generatedRoot,

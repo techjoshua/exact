@@ -467,7 +467,7 @@ func (lowering *jsxLowering) reactiveClosureLocals(
 		if node != expression && ast.IsJsxExpression(node) {
 			return false
 		}
-		if !ast.IsIdentifier(node) || ast.IsDeclarationName(node) ||
+		if !ast.IsIdentifier(node) || node.Parent == nil || ast.IsDeclarationName(node) ||
 			isStaticPropertyName(node) {
 			return true
 		}
@@ -479,7 +479,12 @@ func (lowering *jsxLowering) reactiveClosureLocals(
 		if _, exists := bySymbol[id]; exists {
 			return true
 		}
-		if local, exists := lowering.elidedDerivedLocal(symbol); exists {
+		if local, exists := lowering.elidedDerivedLocal(symbol, node); exists {
+			// A nested callback's declaration executes only after its parameters bind.
+			// Materialize it in that callback's consumer, never in this outer closure.
+			if nodeInside(local.declaration, expression) {
+				return true
+			}
 			bySymbol[id] = local
 			return true
 		}
@@ -523,7 +528,7 @@ func (lowering *jsxLowering) reactiveClosureLocals(
 		}
 		initializer := local.declaration.AsVariableDeclaration().Initializer
 		walkNode(initializer, func(node *ast.Node) bool {
-			if !ast.IsIdentifier(node) || ast.IsDeclarationName(node) ||
+			if !ast.IsIdentifier(node) || node.Parent == nil || ast.IsDeclarationName(node) ||
 				isStaticPropertyName(node) {
 				return true
 			}
@@ -535,7 +540,7 @@ func (lowering *jsxLowering) reactiveClosureLocals(
 			if _, exists := bySymbol[id]; exists {
 				return true
 			}
-			if dependency, exists := lowering.elidedDerivedLocal(symbol); exists {
+			if dependency, exists := lowering.elidedDerivedLocal(symbol, node); exists {
 				bySymbol[id] = dependency
 				queue = append(queue, dependency)
 			}
@@ -563,7 +568,7 @@ func renderLocalOwnedByExpression(
 		if !owned {
 			return false
 		}
-		if !ast.IsIdentifier(node) || ast.IsDeclarationName(node) || isStaticPropertyName(node) {
+		if !ast.IsIdentifier(node) || node.Parent == nil || ast.IsDeclarationName(node) || isStaticPropertyName(node) {
 			return true
 		}
 		resolved := typeChecker.GetSymbolAtLocation(node)
@@ -591,7 +596,7 @@ func (lowering *jsxLowering) cachedDerivedLocals(
 		if node != expression && isCallableNode(node) {
 			return false
 		}
-		if !ast.IsIdentifier(node) || ast.IsDeclarationName(node) ||
+		if !ast.IsIdentifier(node) || node.Parent == nil || ast.IsDeclarationName(node) ||
 			isStaticPropertyName(node) {
 			return true
 		}
@@ -727,11 +732,11 @@ func typeHasNullishMember(value *checker.Type) bool {
 }
 
 func (lowering *jsxLowering) elidedDerivedLocal(
-	symbol *ast.Symbol,
+	symbol *ast.Symbol, reference *ast.Node,
 ) (materializedRenderLocal, bool) {
 	id := ast.GetSymbolId(symbol)
 	for _, declaration := range symbol.Declarations {
-		if !ast.IsVariableDeclaration(declaration) {
+		if !ast.IsVariableDeclaration(declaration) || !sameAuthoredSource(declaration, reference) {
 			continue
 		}
 		variable := declaration.AsVariableDeclaration()
@@ -846,6 +851,9 @@ func (lowering *jsxLowering) replaceMaterializedReferences(
 }
 
 func (lowering *jsxLowering) lowerReactiveCapture(node *ast.Node) *ast.Node {
+	if !lowering.insideComponent(node) {
+		return nil
+	}
 	var callee *ast.Node
 	var value *ast.Node
 	var typeArguments *ast.NodeList
@@ -853,13 +861,13 @@ func (lowering *jsxLowering) lowerReactiveCapture(node *ast.Node) *ast.Node {
 	switch {
 	case ast.IsCallExpression(node):
 		call := node.AsCallExpression()
-		if !componentReactiveMember(call.Expression) ||
+		if !componentReactiveMember(call.Expression, lowering.checker) ||
 			call.Arguments == nil ||
 			len(call.Arguments.Nodes) != 1 {
 			return nil
 		}
 		value = call.Arguments.Nodes[0]
-		if ast.IsArrowFunction(value) || ast.IsFunctionExpression(value) {
+		if ast.IsArrowFunction(value) || ast.IsFunctionExpression(value) || reactiveComputationInput(value, lowering.checker) {
 			return nil
 		}
 		callee = call.Expression
@@ -867,7 +875,7 @@ func (lowering *jsxLowering) lowerReactiveCapture(node *ast.Node) *ast.Node {
 		flags = call.Flags
 	case ast.IsTaggedTemplateExpression(node):
 		tagged := node.AsTaggedTemplateExpression()
-		if !componentReactiveMember(tagged.Tag) {
+		if !componentReactiveMember(tagged.Tag, lowering.checker) {
 			return nil
 		}
 		callee = tagged.Tag
@@ -888,12 +896,8 @@ func (lowering *jsxLowering) lowerReactiveCapture(node *ast.Node) *ast.Node {
 	)
 }
 
-func componentReactiveMember(expression *ast.Node) bool {
-	if !ast.IsPropertyAccessExpression(expression) {
-		return false
-	}
-	member := expression.AsPropertyAccessExpression()
-	return member.Expression.Kind == ast.KindThisKeyword &&
-		member.Name() != nil &&
-		member.Name().Text() == "reactive"
+func componentReactiveMember(expression *ast.Node, typeChecker *checker.Checker) bool {
+	operation := componentProtocolCallMember(expression, typeChecker)
+	name, member, dynamic := checkedComponentProtocolMember(operation, typeChecker)
+	return member && !dynamic && name == "reactive" && componentProtocolReceiverOwned(operation, typeChecker)
 }

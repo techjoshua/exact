@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/core",
-	"version": "0.7.0",
+	"version": "0.7.1",
 	"type": "module",
 	"files": [
 		"AGENTS.md",
@@ -185,6 +185,11 @@
 			"browser": "./dist/client/runtime/component-abi.js",
 			"default": "./dist/server/runtime/component-abi.js"
 		},
+		"./runtime/component-branding": {
+			"types": "./dist/runtime/component-branding.d.ts",
+			"browser": "./dist/client/runtime/component-branding.js",
+			"default": "./dist/server/runtime/component-branding.js"
+		},
 		"./runtime/component-operations": {
 			"types": "./dist/runtime/component-operations.d.ts",
 			"browser": "./dist/client/runtime/component-operations.js",
@@ -234,6 +239,11 @@
 			"types": "./dist/runtime/registry.d.ts",
 			"browser": "./dist/client/runtime/registry.js",
 			"default": "./dist/server/runtime/registry.js"
+		},
+		"./runtime/enhancement-contexts": {
+			"types": "./dist/runtime/enhancement-contexts.d.ts",
+			"browser": "./dist/client/runtime/enhancement-contexts.js",
+			"default": "./dist/server/runtime/enhancement-contexts.js"
 		},
 		"./runtime/enhancements": {
 			"types": "./dist/runtime/enhancements.d.ts",
@@ -309,7 +319,7 @@
 	],
 	"dependencies": {
 		"@exactjs/devtools-protocol": "^0.7.0",
-		"@exactjs/reactive": "^0.7.0"
+		"@exactjs/reactive": "^0.7.1"
 	},
 	"scripts": {
 		"build": "tsc -b",

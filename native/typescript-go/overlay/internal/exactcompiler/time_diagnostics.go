@@ -33,32 +33,26 @@ func timeDiagnostics(sourceFile *ast.SourceFile, typeChecker *checker.Checker, e
 		if identity == "" {
 			return true
 		}
-		var update *ast.Node
-		for _, property := range attributes.AsJsxAttributes().Properties.Nodes {
-			if ast.IsJsxAttribute(property) && timeUpdateMembers(application.attributes[property.Pos()], identity) {
-				update = property
-				break
-			}
-		}
+		update, source := timeUpdateSource(attributes, application, enhancements)
 		if update == nil {
 			return true
 		}
-		if timeRangeRequestsUnavailablePrecision(rangeNode) {
+		if analysis.timeRangeRequestsUnavailablePrecision(rangeNode) {
 			diagnostics = append(diagnostics, enhancementDiagnostic(sourceFile, update, "EXACT_TIME_PRECISION", "the selected clock provides millisecond precision. Choose millisecond or coarser update accuracy instead of microseconds or nanoseconds"))
 			return true
 		}
 		_, _, _, bounded := analysis.findTimeQuantization(rangeNode, make(map[ast.SymbolId]struct{}))
 		if !bounded {
-			bounded = timeRangeHasStandardFormatterPlan(rangeNode, typeChecker, sourceFile)
+			bounded = analysis.timeRangeHasStandardFormatterPlan(rangeNode)
 		}
-		if !analysis.timeRangeHasOwnedClock(rangeNode) && !bounded && !timeRangeHasPreparedIntlValue(rangeNode) {
+		if !analysis.timeRangeHasOwnedClock(rangeNode) && !bounded {
 			diagnostics = append(diagnostics, enhancementDiagnostic(sourceFile, update, "EXACT_TIME_NO_CLOCK", "time:update requires a reachable Date.now(), zero-argument new Date(), or Temporal.Now clock source"))
 			return true
 		}
 		if analysis.timeRangeHasUnsafeClockExpression(rangeNode) {
 			diagnostics = append(diagnostics, enhancementDiagnostic(sourceFile, update, "EXACT_TIME_UNSAFE", "time:update cannot repeatedly evaluate an effectful or opaque clock-derived expression. Keep side effects outside the updated range. The clock expression must be safe to reevaluate"))
 		}
-		if timeAttributeMayUseAuto(update.AsJsxAttribute()) {
+		if timeUpdateSourceMayUseAuto(update, source, typeChecker) {
 			if !bounded {
 				diagnostics = append(diagnostics, enhancementDiagnostic(sourceFile, update, "EXACT_TIME_AUTO", "automatic update accuracy cannot be inferred. Set an explicit accuracy such as time:update=\"second\", or round the clock value to the precision the view needs"))
 			}
@@ -68,32 +62,24 @@ func timeDiagnostics(sourceFile *ast.SourceFile, typeChecker *checker.Checker, e
 	return diagnostics
 }
 
-func timeRangeRequestsUnavailablePrecision(node *ast.Node) bool {
+func (lowering *jsxLowering) timeRangeRequestsUnavailablePrecision(node *ast.Node) bool {
+	typeChecker := lowering.checker
 	found := false
 	walkNode(node, func(candidate *ast.Node) bool {
+		if candidate != node && lowering.nodeHasDirectTimeUpdate(candidate) {
+			return false
+		}
 		candidate = unwrapRenderExpression(candidate)
-		if !ast.IsCallExpression(candidate) || !ast.IsPropertyAccessExpression(candidate.AsCallExpression().Expression) {
+		if !ast.IsCallExpression(candidate) {
 			return true
 		}
 		call := candidate.AsCallExpression()
-		member := call.Expression.AsPropertyAccessExpression()
-		if member.Name().Text() != "round" || call.Arguments == nil || len(call.Arguments.Nodes) != 1 {
+		receiver, method := timeMemberIdentity(call.Expression, typeChecker)
+		if method != "round" || intlTemporalTypeKind(typeChecker.GetTypeAtLocation(receiver)) == "" || call.Arguments == nil || len(call.Arguments.Nodes) != 1 {
 			return true
 		}
 		unit, _, _, supported := temporalRoundOptions(call.Arguments.Nodes[0])
 		if supported && (strings.TrimSuffix(unit, "s") == "microsecond" || strings.TrimSuffix(unit, "s") == "nanosecond") {
-			found = true
-			return false
-		}
-		return true
-	})
-	return found
-}
-
-func timeRangeHasPreparedIntlValue(node *ast.Node) bool {
-	found := false
-	walkNode(node, func(candidate *ast.Node) bool {
-		if ast.IsIdentifier(candidate) && strings.HasPrefix(candidate.Text(), "__intl") {
 			found = true
 			return false
 		}
@@ -108,7 +94,7 @@ func (lowering *jsxLowering) timeRangeHasOwnedClock(node *ast.Node) bool {
 		if candidate != node && lowering.nodeHasDirectTimeUpdate(candidate) {
 			return false
 		}
-		if timeDateNowCall(candidate) || timeTemporalNowCall(candidate) || timeZeroArgumentDate(candidate) {
+		if timeDateNowCall(candidate, lowering.checker) || timeTemporalNowCall(candidate, lowering.checker) || timeZeroArgumentDate(candidate, lowering.checker) {
 			found = true
 			return false
 		}
@@ -128,11 +114,16 @@ func (lowering *jsxLowering) timeRangeHasUnsafeClockExpression(node *ast.Node) b
 		if candidate != node && lowering.nodeHasDirectTimeUpdate(candidate) {
 			return false
 		}
-		if !ast.IsJsxExpression(candidate) || candidate.AsJsxExpression().Expression == nil {
+		var expression *ast.Node
+		if ast.IsJsxExpression(candidate) {
+			expression = candidate.AsJsxExpression().Expression
+		} else if ast.IsJsxSpreadAttribute(candidate) {
+			expression = candidate.AsJsxSpreadAttribute().Expression
+		}
+		if expression == nil {
 			return true
 		}
-		expression := candidate.AsJsxExpression().Expression
-		if lowering.timeExpressionHasUnsafeClockCall(expression) {
+		if lowering.timeExpressionHasClockWrite(expression) || lowering.timeExpressionHasUnsafeClockCall(expression) {
 			unsafe = true
 			return false
 		}
@@ -142,39 +133,45 @@ func (lowering *jsxLowering) timeRangeHasUnsafeClockExpression(node *ast.Node) b
 }
 
 func (lowering *jsxLowering) timeExpressionHasUnsafeClockCall(node *ast.Node) bool {
+	if !timeExpressionHasClockDependency(node, lowering.checker, lowering.sourceFile, make(map[ast.SymbolId]struct{})) {
+		return false
+	}
 	unsafe := false
 	walkNode(node, func(candidate *ast.Node) bool {
-		if !ast.IsCallExpression(candidate) ||
-			!timeExpressionHasClockDependency(candidate, lowering.checker, lowering.sourceFile, make(map[ast.SymbolId]struct{})) {
-			return true
-		}
-		if timeDateNowCall(candidate) || timeTemporalNowCall(candidate) || timeMillisecondsClockRead(candidate) {
-			return true
-		}
-		if _, _, _, supported := analyzeIntlRelativeTime(candidate); supported {
+		if ast.IsFunctionLike(candidate) && deferredReactiveCallable(candidate, node) {
 			return false
+		}
+		if !ast.IsCallExpression(candidate) {
+			return true
+		}
+		if timeDateNowCall(candidate, lowering.checker) || timeTemporalNowCall(candidate, lowering.checker) || timeMillisecondsClockRead(candidate, lowering.checker) {
+			if !lowering.timeClockInputsSafe(candidate) {
+				unsafe = true
+				return false
+			}
+			return true
+		}
+		if _, _, _, supported := analyzeIntlRelativeTime(candidate, lowering.checker); supported {
+			return true
 		}
 		if _, _, _, supported := analyzeNativeIntlFormatter(candidate, lowering.checker); supported {
-			return false
+			return true
 		}
-		if _, _, _, supported := temporalRoundedDurationSensitivity(candidate); supported {
-			return false
+		if _, _, _, supported := temporalRoundedDurationSensitivity(candidate, lowering.checker); supported {
+			return true
 		}
 		if _, _, _, supported := lowering.timeQuantizationForExpression(candidate, make(map[ast.SymbolId]struct{})); supported {
-			return false
+			return true
 		}
 		// A locally defined formatter is no more opaque than the arithmetic around it when
 		// the compiler can prove its complete call graph safe for reactive reevaluation.
 		// This keeps ordinary TypeScript helpers usable for clocks and counters while
 		// imported, ambient, stateful, or otherwise effectful calls remain diagnostic.
+		if timeNativeTemporalCall(candidate, lowering.checker) {
+			return true
+		}
 		if safeReactiveInitializer(candidate, lowering.sourceFile, lowering.checker) {
 			return false
-		}
-		if ast.IsPropertyAccessExpression(candidate.AsCallExpression().Expression) {
-			member := candidate.AsCallExpression().Expression.AsPropertyAccessExpression()
-			if ast.IsIdentifier(member.Expression) && member.Expression.Text() == "Math" {
-				return true
-			}
 		}
 		unsafe = true
 		return false
@@ -182,11 +179,19 @@ func (lowering *jsxLowering) timeExpressionHasUnsafeClockCall(node *ast.Node) bo
 	return unsafe
 }
 
-func timeRangeHasStandardFormatterPlan(node *ast.Node, typeChecker *checker.Checker, sourceFile *ast.SourceFile) bool {
+func (lowering *jsxLowering) timeRangeHasStandardFormatterPlan(node *ast.Node) bool {
+	typeChecker, sourceFile := lowering.checker, lowering.sourceFile
 	found := false
-	analysis := &jsxLowering{sourceFile: sourceFile, checker: typeChecker}
+	analysis := lowering
 	walkNode(node, func(candidate *ast.Node) bool {
-		if value, _, _, supported := analyzeIntlRelativeTime(candidate); supported {
+		if candidate != node && lowering.nodeHasDirectTimeUpdate(candidate) {
+			return false
+		}
+		if _, _, _, supported := temporalRoundedDurationSensitivity(candidate, typeChecker); supported {
+			found = true
+			return false
+		}
+		if value, _, _, supported := analyzeIntlRelativeTime(candidate, typeChecker); supported {
 			_, _, _, found = analysis.findTimeQuantization(value, make(map[ast.SymbolId]struct{}))
 			return !found
 		}
@@ -200,7 +205,7 @@ func timeRangeHasStandardFormatterPlan(node *ast.Node, typeChecker *checker.Chec
 					found = true
 					return false
 				}
-				if _, _, _, supported := temporalRoundedDurationSensitivity(value); supported {
+				if _, _, _, supported := temporalRoundedDurationSensitivity(value, typeChecker); supported {
 					found = true
 					return false
 				}
@@ -215,5 +220,60 @@ func timeRangeHasStandardFormatterPlan(node *ast.Node, typeChecker *checker.Chec
 		}
 		return true
 	})
+	return found
+}
+
+// Named and finite spread policies use the same possible-value proof for auto planning.
+func timeUpdateSourceMayUseAuto(update *ast.Node, source string, typeChecker *checker.Checker) bool {
+	value := enhancementAnalysisFieldValue(update, source, typeChecker)
+	if value.stringValue != nil {
+		return *value.stringValue == "auto"
+	}
+	if value.valueType == nil {
+		return true
+	}
+	for _, candidate := range value.valueType.Distributed() {
+		if !candidate.IsStringLiteral() {
+			return true
+		}
+		if text, ok := candidate.AsLiteralType().Value().(string); !ok || text == "auto" {
+			return true
+		}
+	}
+	return false
+}
+
+// Clock reevaluation must not repeat authored writes. Deferred callbacks retain their
+// ordinary invocation semantics and are not executed by constructing a property group.
+func (lowering *jsxLowering) timeExpressionHasClockWrite(expression *ast.Node) bool {
+	if !timeExpressionHasClockDependency(expression, lowering.checker, lowering.sourceFile, map[ast.SymbolId]struct{}{}) {
+		return false
+	}
+	found := false
+	visited := map[ast.SymbolId]struct{}{}
+	var inspect func(*ast.Node) bool
+	inspect = func(candidate *ast.Node) bool {
+		if ast.IsFunctionLike(candidate) {
+			return false
+		}
+		if ast.IsBinaryExpression(candidate) && ast.IsAssignmentOperator(candidate.AsBinaryExpression().OperatorToken.Kind) ||
+			ast.IsPostfixUnaryExpression(candidate) || candidate.Kind == ast.KindDeleteExpression {
+			found = true
+			return false
+		}
+		if ast.IsPrefixUnaryExpression(candidate) {
+			operator := candidate.AsPrefixUnaryExpression().Operator
+			if operator == ast.KindPlusPlusToken || operator == ast.KindMinusMinusToken {
+				found = true
+				return false
+			}
+		}
+		if initializer := lowering.timeIdentifierInitializer(candidate, visited); initializer != nil &&
+			timeExpressionHasClockDependency(initializer, lowering.checker, lowering.sourceFile, map[ast.SymbolId]struct{}{}) {
+			walkNode(initializer, inspect)
+		}
+		return !found
+	}
+	walkNode(expression, inspect)
 	return found
 }

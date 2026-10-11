@@ -46,20 +46,21 @@ export function serverSlotPayload(
 			};
 }
 
-/** Validates one opaque compiler-owned retained server-range operation. */
+/** Accepts legacy ID-only ranges and validates complete compiler-planned authority. */
 export function serverSlotReceiptReference(
 	receipt: ExactServerSlotReceiptData
 ): ExactServerSlotReference {
-	const candidate = {
-		__exactServerSlot: receipt.id,
-		planVersion: receipt.planVersion,
-		buildKey: receipt.buildKey,
-		planEdgeId: receipt.planEdgeId,
-		ownerComponentId: receipt.ownerComponentId,
-		discriminator: receipt.discriminator,
-		generation: receipt.generation
-	};
-	if (!serverSlotReference(candidate))
+	if (
+		receipt.id &&
+		receipt.planVersion === undefined &&
+		receipt.buildKey === undefined &&
+		receipt.planEdgeId === undefined &&
+		receipt.ownerComponentId === undefined &&
+		receipt.discriminator === undefined &&
+		receipt.generation === undefined
+	)
+		return { id: receipt.id };
+	if (!validServerSlotAuthority(receipt, receipt.id))
 		throw new Error('Compiler-planned server range has malformed runtime authority');
 	return {
 		id: receipt.id,
@@ -77,16 +78,31 @@ export function serverSlotReference(value: unknown): value is ExactServerSlotRef
 	if (typeof value === 'string') return value.length > 0;
 	if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
 	const slot = value as Record<string, unknown>;
+	return validServerSlotAuthority(slot, slot.__exactServerSlot);
+}
+
+/** Validates authority in place, sharing the receipt and serialized-record contract without projection allocations. */
+function validServerSlotAuthority(
+	slot: {
+		readonly planVersion?: unknown;
+		readonly buildKey?: unknown;
+		readonly planEdgeId?: unknown;
+		readonly ownerComponentId?: unknown;
+		readonly discriminator?: unknown;
+		readonly generation?: unknown;
+	},
+	id: unknown
+): boolean {
 	return (
-		typeof slot.__exactServerSlot === 'string' &&
-		slot.__exactServerSlot.length > 0 &&
+		typeof id === 'string' &&
+		id.length > 0 &&
 		slot.planVersion === 1 &&
 		typeof slot.buildKey === 'string' &&
 		slot.buildKey.length > 0 &&
-		(slot.planEdgeId === slot.__exactServerSlot ||
+		(slot.planEdgeId === id ||
 			(isServerSlotDiscriminator(slot.discriminator) &&
 				(slot.discriminator as Record<string, unknown>).kind === 'keyed' &&
-				slot.__exactServerSlot.startsWith(`${slot.planEdgeId}:key:`))) &&
+				id.startsWith(`${slot.planEdgeId}:key:`))) &&
 		typeof slot.ownerComponentId === 'string' &&
 		slot.ownerComponentId.length > 0 &&
 		isServerSlotDiscriminator(slot.discriminator) &&

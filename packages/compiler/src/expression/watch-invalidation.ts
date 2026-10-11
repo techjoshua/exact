@@ -1,3 +1,5 @@
+import { exactGeneratedArtifactTarget } from '../compilation/artifact-target.js';
+
 /** Action the compiler session takes for one build-tool filesystem notification. */
 export type ExactWatchInvalidationKind = 'source' | 'project' | 'ignore';
 
@@ -15,6 +17,9 @@ const projectConfiguration = /(?:^|[\\/])(?:(?:ts|js)config(?:\.[^\\/]+)?\.json|
  */
 export function classifyExactWatchInvalidation(filename: string): ExactWatchInvalidationKind {
 	const pathWithoutQuery = filename.split(/[?#]/, 1)[0]!;
+	// Lowered TypeScript is validated by its producer. A publication changes the
+	// consumer program, but must not diagnose runtime cells as authored source.
+	if (exactGeneratedArtifactTarget(pathWithoutQuery)) return 'project';
 	if (projectConfiguration.test(pathWithoutQuery) || /\.json$/i.test(pathWithoutQuery))
 		return 'project';
 	if (sourceExtension.test(pathWithoutQuery)) return 'source';

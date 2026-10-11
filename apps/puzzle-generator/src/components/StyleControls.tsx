@@ -350,7 +350,7 @@ export function StyleControls(props: StyleControlsProps) {
 							/>
 						</label>
 						<label>
-							<span>Unused background</span>
+							<span>Outer unused cells</span>
 							<input
 								theme:field="default"
 								type="color"
@@ -358,9 +358,19 @@ export function StyleControls(props: StyleControlsProps) {
 								onInput={(event) => change('crosswordBlocks', event.currentTarget.value)}
 							/>
 						</label>
+						<label>
+							<span>Enclosed unused cells</span>
+							<input
+								theme:field="default"
+								type="color"
+								value={props.style.crosswordEnclosedBlocks ?? '#000000'}
+								onInput={(event) => change('crosswordEnclosedBlocks', event.currentTarget.value)}
+							/>
+						</label>
 					</div>
 					<small className="option-note">
-						The puzzle background applies only to letter cells; the page remains white.
+						Enclosed unused cells default to black. The puzzle background colors letter cells; the
+						page remains white.
 					</small>
 				</div>
 			) : null}

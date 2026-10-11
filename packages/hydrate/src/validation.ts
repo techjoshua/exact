@@ -1,3 +1,8 @@
+import {
+	jsonDataKeys,
+	jsonDataProperty,
+	isNativeJsonCollection
+} from '@exactjs/core/framework/protocol-records';
 /** Returns whether an object contains only the explicitly allowed own enumerable keys. */
 export function hasOnlyKeys(record: Record<string, unknown>, allowed: readonly string[]): boolean {
 	return Object.keys(record).every((key) => allowed.includes(key));
@@ -32,6 +37,7 @@ export function isJsonSafe(
 			if (typeof item !== 'object' || seen.has(item)) return false;
 			seen.add(item);
 			if (item instanceof Map) {
+				if (!isNativeJsonCollection(item)) return false;
 				for (const [key, entryValue] of item) {
 					if (!isTransportableReactiveMapKey(key)) return false;
 					if (nodes + pending.length + 1 > maxNodes) return false;
@@ -42,6 +48,7 @@ export function isJsonSafe(
 				continue;
 			}
 			if (item instanceof Set) {
+				if (!isNativeJsonCollection(item)) return false;
 				for (const entryValue of item) {
 					if (nodes + pending.length + 1 > maxNodes) return false;
 					pending.push({ value: entryValue, depth: depth + 1 });
@@ -49,10 +56,11 @@ export function isJsonSafe(
 				continue;
 			}
 			if (!Array.isArray(item) && Object.getPrototypeOf(item) !== Object.prototype) return false;
-			const keys = Object.keys(item);
+			const keys = jsonDataKeys(item, maxNodes - nodes - pending.length);
+			if (!keys) return false;
 			if (nodes + pending.length + keys.length > maxNodes) return false;
 			for (const key of keys) {
-				const descriptor = Object.getOwnPropertyDescriptor(item, key);
+				const descriptor = jsonDataProperty(item, key);
 				if (!descriptor || !('value' in descriptor)) return false;
 				bytes += utf8ByteLength(key);
 				if (bytes > maxBytes) return false;

@@ -1,5 +1,6 @@
 /** @vitest-environment node */
 import { transformSource } from '@exactjs/compiler';
+import { transformSync } from 'esbuild';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
@@ -70,7 +71,8 @@ describe('normative compiled structure', () => {
 		const { code } = await compileFixture('tasks.fixtures.tsx', 'client');
 
 		expect(code.match(/label: "load"/g)).toHaveLength(1);
-		expect(code.match(/this\.state, \d+, 'ready'/g)).toHaveLength(1);
+		// The definition owns one authored work body regardless of how its write is lowered.
+		expect(code.match(/'ready'/g)).toHaveLength(1);
 	});
 
 	it('uses indexed task sources only for exact slot reads', async () => {
@@ -97,7 +99,9 @@ describe('normative compiled structure', () => {
 		const client = await compileFixture('fundamentals.fixtures.tsx', 'client', 'hydrate');
 		const server = await compileFixture('fundamentals.fixtures.tsx', 'server');
 
-		expect(client.code).toMatch(/\[6, \d+, \d+, "span"\], \[4, \d+, \d+, true, \d+\]/);
+		expect(client.code).toMatch(
+			/\[6, \d+, \d+, "span", "contextual"\], \[4, \d+, \d+, true, \d+\]/
+		);
 		expect(client.code).not.toMatch(/<!--x:\d+--><!--\/x:\d+--><span data-role=\\"after-label\\"/);
 		expect(client.code).toMatch(
 			/<!--x:\d+--><!--\/x:\d+--><span data-role=\\"nested-after-label\\"/
@@ -166,14 +170,14 @@ describe('normative compiled structure', () => {
 		expect(code).toMatch(/__exactWriteState\(__exactInstance\.state, \d+, !__exactDependency\)/);
 	});
 
-	it('routes exact nested prop projections from their indexed root prop', async () => {
+	it('observes nested prop values beyond indexed root replacement', async () => {
 		const { code } = await compileFixture('state.fixtures.tsx', 'client', 'hydrate');
-
-		expect(code).toMatch(/const __exactDependency\w* = \(__exactReadState\(props, \d+\)/);
-		expect(code).toContain(')?.label;');
-		expect(code).toMatch(
-			/__exactWriteState\(__exactInstance\.state, \d+, __exactDependency\w* \?\? 'missing'\)/
+		const executable = transformSync(code, { loader: 'ts' }).code;
+		expect(executable).toContain('__exactActivateComputation(this');
+		expect(executable).toMatch(
+			/__exactWriteState\(this\.state, \d+, __exactDependency\w* \?\? "missing"\)/
 		);
+		expect(executable).toMatch(/__exactReadState\(props, \d+\)\?\.label/);
 	});
 
 	it('omits resumption metadata for fully reconstructible prop snapshots', async () => {
@@ -215,9 +219,10 @@ describe('normative compiled structure', () => {
 
 	it('closes compiler-known server conditional classes without request-local collections', async () => {
 		const { code } = await compileFixture('state.fixtures.tsx', 'server');
+		const executable = transformSync(code, { loader: 'ts' }).code;
 
-		expect(code).toMatch(/"state-root"\s*\+\s*\(this\.state\.enabled\s*===\s*true\s*\?/);
-		expect(code).not.toMatch(/className:\s*\[\s*["']state-root/);
+		expect(executable).toMatch(/"state-root"\s*\+\s*\(this\.state\.enabled\s*===\s*true\s*\?/);
+		expect(executable).not.toMatch(/className:\s*\[\s*["']state-root/);
 	});
 
 	it('selects capability-specific client constructors without generated wrappers', async () => {

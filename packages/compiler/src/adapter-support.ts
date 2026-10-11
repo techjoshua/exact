@@ -1,3 +1,5 @@
+import { exactGeneratedArtifactTarget } from './artifacts.js';
+export { exactGeneratedArtifactTarget } from './artifacts.js';
 export {
 	createExactBuildConfiguration,
 	type ExactBuildConfiguration
@@ -7,6 +9,15 @@ export {
 	isExactOptionalEnhancementPackageAbsent
 } from './compilation/optional-enhancement-resolution.js';
 export { transformExactAdapterModule } from './compilation/adapter-transformation.js';
+export { exactTestHelperTarget } from './compilation/test-helper-target.js';
+export {
+	applicationExactComponentLibraryRoots,
+	applicationExactComponentLibraryNames
+} from './compilation/component-library-roots.js';
+export {
+	applicationOwnsExactFrameworkPackage,
+	applicationExactFrameworkPackages
+} from './compilation/framework-package-ownership.js';
 export {
 	exactEnhancementFacadeImports,
 	prependExactEnhancementRegistrations
@@ -45,23 +56,11 @@ export type ExactBuildModuleSelectionOptions = Readonly<{
 	compileTestModules?: boolean;
 }>;
 
-/** Rendering mode understood consistently by every build-tool adapter. */
-export type ExactBuildRenderMode = 'universal' | 'client' | 'hydrate' | 'server-render';
-
-/** Selects and validates the component-contract facet for one physical build target. */
-export function exactComponentContractProjection(
-	target: 'client' | 'server',
-	mode: ExactBuildRenderMode | undefined
-): import('./contracts/transform.js').ComponentContractProjection {
-	if (target === 'server') {
-		if (mode === undefined || mode === 'universal') return 'complete';
-		if (mode === 'server-render') return 'server-render';
-		throw new TypeError(`Client render mode ${mode} cannot compile a server target`);
-	}
-	if (mode === 'server-render')
-		throw new TypeError('Server render mode cannot compile a client target');
-	return mode === undefined || mode === 'universal' ? 'complete' : mode;
-}
+export {
+	exactComponentContractProjection,
+	planExactAdapterProjection,
+	type ExactBuildRenderMode
+} from './compilation/adapter-component-projection.js';
 
 /**
  * Creates a stateful reporter that emits only newly introduced diagnostics.
@@ -124,7 +123,7 @@ export function isExactBuildSourceModule(id: string): boolean {
 
 /** Reports whether a module is an already lowered target artifact rather than authored source. */
 export function isExactGeneratedArtifactModule(id: string): boolean {
-	return /\.exact\.(?:client|server)\.[cm]?[jt]sx?(?:$|\?)/i.test(id);
+	return exactGeneratedArtifactTarget(id) !== undefined;
 }
 
 /** Reports whether a JSX-bearing module contains syntax requiring ownership analysis. */
@@ -136,7 +135,7 @@ export function containsExactBuildJsx(id: string, source: string): boolean {
 export function containsExactComponentSyntax(source: string): boolean {
 	return (
 		/\bthis\s*:\s*[^,)]*\bComponent\s*</.test(source) ||
-		/\bthis\s*(?:\.\s*(?:state|onMount|onActivate|onDeactivate|onUnmount|onRender|own|map|reactive|getContext|hasContext|setContext)|\[)/.test(
+		/\bthis\s*(?:\.\s*(?:state|onMount|onActivate|onDeactivate|onUnmount|onRender|own|map|reactive|getContext|hasContext|setContext))/.test(
 			source
 		) ||
 		(/\bfunction\s+[A-Z][$\w]*\s*\(/.test(source) &&
@@ -152,7 +151,7 @@ export function shouldTransformExactBuildModulePath(
 	// Target artifacts contain compiler runtime calls and component contracts by design. Feeding
 	// them through an adapter a second time can duplicate lowering and reinterpret generated cells
 	// as authored source. The host bundler still performs its ordinary TypeScript transpilation.
-	if (isExactGeneratedArtifactModule(id)) return false;
+	if (id.includes('\0') || isExactGeneratedArtifactModule(id)) return false;
 	if (
 		options.compileTestModules !== true &&
 		/(?:^|[\\/])[^\\/]+\.(?:test|spec|jest)\.[cm]?[jt]sx?$/i.test(id)
@@ -178,7 +177,7 @@ export function shouldCompileExactBuildModule(
 	return (
 		containsExactBuildJsx(id, source) ||
 		containsExactComponentSyntax(source) ||
-		/@exact\s+[A-Za-z_$][\w$-]*\.[A-Za-z_$][\w$-]*/.test(source)
+		/@exact\s+[A-Za-z_$][\w$-]*/.test(source)
 	);
 }
 

@@ -200,6 +200,12 @@ export function RuntimesPage(this: Component<{}>) {
 				</p>
 				<IntegrationTable caption="Build integrations" integrations={buildIntegrations} />
 				<p>
+					For a nested workspace application, configuration discovery follows Vite's{' '}
+					<code>root</code>, Webpack's <code>context</code>, or Bun's build <code>root</code>. Bun
+					uses the process directory when no root is supplied. Set the plugin's{' '}
+					<code>applicationRoot</code> to override this location.
+				</p>
+				<p>
 					Bun remote builds publish their actual entry URLs through <code>onRemoteEntries</code>.
 					Use those URLs instead of predicting filenames. <code>exactBuild()</code> normalizes an
 					asset prefix such as <code>/assets</code> to <code>/assets/</code> for linked chunks.

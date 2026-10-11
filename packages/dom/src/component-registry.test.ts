@@ -25,6 +25,7 @@ import {
 	resetConcurrentRegistryFixture,
 	resetStaleRegistryFixture,
 	staleRegistryLoadCount,
+	staleRegistryStartCount,
 	staleRegistrySetupCount
 } from './test-support/components/component-registry-lazy-control.js';
 
@@ -82,6 +83,8 @@ describe('@exactjs/dom component registries', () => {
 		render(createOperation(StaleRegistryApp, null), container);
 		const app = staleRegistryAppInstance();
 		expect(container.textContent).toBe('loading');
+		// The stale-completion assertion requires an actual in-flight loader.
+		await vi.waitFor(() => expect(staleRegistryStartCount()).toBe(1));
 
 		app.state.selected = 'ready';
 		flushSync();

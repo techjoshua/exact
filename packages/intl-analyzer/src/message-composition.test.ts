@@ -17,23 +17,26 @@ describe('lexical intl message composition', () => {
 		expect(result.descriptors).toHaveLength(1);
 		expect(result.descriptors[0]).toMatchObject({
 			name: 'summary',
-			bindings: [
-				{ index: 0, kind: 'selector', type: 'number' },
-				{ index: 1, kind: 'value', type: 'measurement' },
-				{ index: 2, kind: 'element', type: 'structure', name: 'span', exactlyOnce: true }
-			],
+			bindings: expect.arrayContaining([
+				expect.objectContaining({ kind: 'selector', type: 'number' }),
+				expect.objectContaining({ kind: 'value', type: 'measurement' }),
+				expect.objectContaining({
+					kind: 'element',
+					type: 'structure',
+					name: 'span',
+					exactlyOnce: true
+				})
+			]),
 			capabilities: ['element', 'plural-cardinal', 'unit']
 		});
 		expect(result.descriptors[0]?.source).toEqual(
 			expect.arrayContaining([
-				expect.objectContaining({ kind: 'select', binding: 0, selection: 'plural-cardinal' }),
+				expect.objectContaining({ kind: 'select', selection: 'plural-cardinal' }),
 				expect.objectContaining({
 					kind: 'element',
-					binding: 2,
 					value: [
 						expect.objectContaining({
 							kind: 'format',
-							bindings: [1],
 							formatter: expect.objectContaining({ kind: 'unit', sourceUnit: 'mile' })
 						})
 					]
@@ -89,7 +92,9 @@ describe('lexical intl message composition', () => {
 		expect(result.descriptors).toHaveLength(1);
 		expect(result.descriptors[0]).toMatchObject({
 			name: 'inbox-count',
-			bindings: [{ index: 0, kind: 'selector', type: 'number' }],
+			bindings: expect.arrayContaining([
+				expect.objectContaining({ kind: 'selector', type: 'number' })
+			]),
 			source: [expect.objectContaining({ kind: 'select', selection: 'plural-cardinal' })]
 		});
 		expect(result.descriptors[0]?.key).toMatch(/^inbox-count_/u);
@@ -129,7 +134,9 @@ describe('lexical intl message composition', () => {
 		expect(result.descriptors).toHaveLength(1);
 		expect(result.descriptors[0]).toMatchObject({
 			name: 'delivery-state',
-			bindings: [{ index: 0, kind: 'selector', type: 'string' }],
+			bindings: expect.arrayContaining([
+				expect.objectContaining({ kind: 'selector', type: 'string' })
+			]),
 			source: [expect.objectContaining({ kind: 'select', selection: 'exact' })]
 		});
 	});

@@ -6,7 +6,7 @@ import { peek, withEffectScope } from '@exactjs/reactive/framework/runtime';
 import type { Mounted, RenderProgramChildAnchor } from '../types.js';
 import { patchChildren } from './patching/children.js';
 import { readCompiledDynamicChildren } from './dynamic-children.js';
-import { findProgramChildEnd } from './render-program-markers.js';
+import { findProgramChildEnd, releaseProgramChildStart } from './render-program-markers.js';
 import { prepareForeignProgramChildren } from './foreign-child-capability.js';
 
 /** Installs one structural slot reaction through the ordinary mounted-child operations. */
@@ -108,12 +108,13 @@ function prepareProgramChildBinding(
 			? undefined
 			: findProgramChildEnd(marker, identity);
 	const parent = childState?.parent ?? anchor?.[0] ?? marker?.parentNode;
-	const before = childState ? childState.before : anchor ? null : end;
+	const before = childState ? childState.before : anchor ? (anchor[2] ?? null) : end;
 	if (!parent || (!anchor && (!(marker instanceof Comment) || !end))) return undefined;
 	if (!childState) {
 		childState = { parent, before: before ?? null, children: [] };
 		(state.childSlots ??= [])[index] = childState;
 	}
+	releaseProgramChildStart(anchor);
 	let skipAdoptedInitialPatch = initialBinding && childState.children.length !== 0;
 	return () => {
 		const next = withEffectScope(mounted.scope, () =>
@@ -166,7 +167,7 @@ export function structuralProgramSlotIdentity(
 	return marker.data.slice('x:'.length);
 }
 
-/** Narrows the renderer's tuple anchor used by compiler-keyed child slots. */
+/** Narrows a claimed structural range, including marked SSR and marker-free child slots. */
 export function isKeyedChildAnchor(
 	value: Node | RenderProgramChildAnchor | undefined
 ): value is RenderProgramChildAnchor {

@@ -39,6 +39,13 @@ func newNormalizedSource(source string) normalizedSource {
 
 func (source *normalizedSource) apply(edits []sourceEdit) {
 	sortSourceEdits(edits)
+	if len(edits) == 0 {
+		return
+	}
+	if text, offsets, ok := batchSourceEdits(source.text, source.authoredOffsets, edits); ok {
+		source.text, source.authoredOffsets = text, offsets
+		return
+	}
 	for _, edit := range edits {
 		if edit.start < 0 || edit.end < edit.start || edit.end > len(source.text) {
 			continue
@@ -86,6 +93,12 @@ func parseNormalizationSource(fileName string, source string) *ast.SourceFile {
 
 func applySourceEdits(source string, edits []sourceEdit) string {
 	sortSourceEdits(edits)
+	if len(edits) == 0 {
+		return source
+	}
+	if text, _, ok := batchSourceEdits(source, nil, edits); ok {
+		return text
+	}
 	for _, edit := range edits {
 		if edit.start < 0 || edit.end < edit.start || edit.end > len(source) {
 			continue
@@ -136,8 +149,9 @@ func sourceLineAndColumn(source string, position int) (int, int) {
 	}
 	line, column := 1, 1
 	for index := 0; index < position; {
-		r, size := utf8.DecodeRuneInString(source[index:])
-		if r == '\n' {
+		_, size := utf8.DecodeRuneInString(source[index:])
+		if lineBreak := sourceLineBreakSize(source, index); lineBreak != 0 {
+			size = lineBreak
 			line, column = line+1, 1
 		} else {
 			column++
@@ -145,4 +159,23 @@ func sourceLineAndColumn(source string, position int) (int, int) {
 		index += size
 	}
 	return line, column
+}
+
+// sourceLineBreakSize follows JavaScript line boundaries in UTF-8 source. CRLF
+// is one boundary, and Unicode line and paragraph separators occupy three bytes.
+func sourceLineBreakSize(source string, offset int) int {
+	switch source[offset] {
+	case '\n':
+		return 1
+	case '\r':
+		if offset+1 < len(source) && source[offset+1] == '\n' {
+			return 2
+		}
+		return 1
+	case 0xe2:
+		if offset+2 < len(source) && source[offset+1] == 0x80 && (source[offset+2] == 0xa8 || source[offset+2] == 0xa9) {
+			return 3
+		}
+	}
+	return 0
 }

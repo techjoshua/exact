@@ -1,12 +1,21 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { pathToFileURL } from 'node:url';
+import type { LibraryInspectionResolution } from './inspection-resolution.js';
 
-// A fresh process prevents repeated API builds from inspecting cached transitive exports.
+// A fresh process per target prevents repeated builds from inspecting cached transitive exports.
 // Inspection intentionally executes author-owned modules, never untrusted consumer packages.
 const inspection = `
-const [entry, names, target] = JSON.parse(process.argv[1]);
-const namespace = await import(entry);
+import {register} from 'node:module';
+let input = '';
+for await (const chunk of process.stdin) input += chunk;
+const [entries, target, scope] = JSON.parse(input);
+if (scope) register(scope.resolver, {parentURL: import.meta.url, data: scope});
+const results = [];
+const namespaces = [];
+for (const {entry} of entries) namespaces.push(await import(entry));
+for (const [index, {entry, names}] of entries.entries()) {
+const namespace = namespaces[index];
 const identities = Object.create(null);
 for (const name of names) {
  const component = namespace[name];
@@ -19,27 +28,51 @@ for (const name of names) {
   throw new Error('Client export ' + name + ' contains a server boundary instead of an executable client artifact');
  identities[name] = identity;
 }
-process.stdout.write('\\nEXACT_LIBRARY_EXPORTS=' + JSON.stringify(identities) + '\\n', () => process.exit(0));
+results.push(identities);
+}
+process.stdout.write('\\nEXACT_LIBRARY_EXPORTS=' + JSON.stringify(results) + '\\n', () => process.exit(0));
 `;
 
-/** Inspects compiled identities in a bounded, disposable Node process, free of ESM cache state. */
+/**
+ * Inspects one target's entries in a bounded, disposable Node process.
+ * Imports share a generation's ESM graph. Later builds and other targets get fresh processes.
+ * Input travels over stdin so large export sets do not exceed platform argument limits.
+ */
 export async function inspectLibraryExports(
-	entry: string,
-	names: string[],
-	target: string
-): Promise<Record<string, string>> {
-	const { stdout } = await promisify(execFile)(
-		process.execPath,
+	entries: readonly Readonly<{ entry: string; names: readonly string[] }>[],
+	target: string,
+	scope?: LibraryInspectionResolution
+): Promise<readonly Record<string, string>[]> {
+	if (!entries.length) return [];
+	const payload = JSON.stringify([
+		entries.map(({ entry, names }) => ({ entry: pathToFileURL(entry).href, names })),
+		target,
+		scope
+	]);
+	// Inspection uses Node's loader contract even when the builder is called from Bun.
+	const nodeExecutable = process.versions.bun ? 'node' : process.execPath;
+	const execution = promisify(execFile)(
+		nodeExecutable,
 		[
+			...(target === 'client' ? ['--conditions=browser'] : []),
 			'--input-type=module',
 			'--eval',
-			inspection,
-			JSON.stringify([pathToFileURL(entry).href, names, target])
+			inspection
 		],
 		{ timeout: 30_000, maxBuffer: 4 * 1024 * 1024 }
 	);
+	const input = new Promise<void>((resolve, reject) => {
+		const stdin = execution.child.stdin;
+		if (!stdin) return reject(new Error('Library export inspection has no input pipe'));
+		stdin.once('error', reject);
+		stdin.end(payload, resolve);
+	});
+	const [{ stdout }] = await Promise.all([execution, input]);
 	const marker = '\nEXACT_LIBRARY_EXPORTS=';
 	const offset = stdout.lastIndexOf(marker);
-	if (offset < 0) throw new Error(`Library export inspection returned no result: ${entry}`);
-	return JSON.parse(stdout.slice(offset + marker.length)) as Record<string, string>;
+	if (offset < 0) throw new Error(`Library export inspection returned no result for ${target}`);
+	const results: unknown = JSON.parse(stdout.slice(offset + marker.length));
+	if (!Array.isArray(results) || results.length !== entries.length)
+		throw new Error(`Library export inspection returned invalid results for ${target}`);
+	return results as Record<string, string>[];
 }

@@ -4,13 +4,25 @@ import webpack from 'webpack';
 import { expect, it, onTestFinished } from 'vitest';
 import { createInstalledThemeFixture } from '../../test-support/installed-theme.js';
 
-it.each(['authored', 'paired', 'published', 'library'] as const)(
+it.each(['authored', 'paired', 'published', 'library', 'duplicate'] as const)(
 	'renders installed enhancements with Webpack (%s)',
 	async (mode) => {
 		const { ExactWebpackPlugin } = await import('../dist/index.js');
-		for (const availability of ['enabled', 'excluded', 'absent'] as const) {
+		for (const availability of [
+			'enabled',
+			'excluded',
+			'absent',
+			'library-only',
+			'delegated'
+		] as const) {
 			if (availability === 'absent' && mode === 'authored') continue;
-			const fixture = await createInstalledThemeFixture(mode, availability);
+			if ((availability === 'library-only' || availability === 'delegated') && mode !== 'duplicate')
+				continue;
+			const fixture = await createInstalledThemeFixture(
+				mode === 'duplicate' ? 'library' : mode,
+				availability,
+				mode === 'duplicate'
+			);
 			onTestFinished(fixture.dispose);
 			const compiler = webpack({
 				mode: 'development',
@@ -49,8 +61,14 @@ it.each(['authored', 'paired', 'published', 'library'] as const)(
 				});
 				expect(result.status, result.stderr).toBe(0);
 				expect(JSON.parse(result.stdout)).toEqual({
-					scope: availability === 'enabled',
-					field: availability === 'enabled',
+					scope:
+						availability === 'enabled' ||
+						availability === 'library-only' ||
+						availability === 'delegated',
+					field:
+						availability === 'enabled' ||
+						availability === 'library-only' ||
+						availability === 'delegated',
 					input: true
 				});
 			} finally {
@@ -60,5 +78,6 @@ it.each(['authored', 'paired', 'published', 'library'] as const)(
 			}
 		}
 	},
-	30_000
+	// Duplicate installations exercise five independent build and authorization configurations.
+	60_000
 );

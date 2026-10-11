@@ -3,7 +3,7 @@ import type {
 	ExactInspectionRedactionCatalog
 } from '@exactjs/devtools-protocol';
 import type { ExactCompilerSession } from '../expression/project.js';
-import type { ExactArtifactTarget } from './artifacts.js';
+import type { ExactArtifactTarget, ExactArtifactBuildProducts } from './artifacts.js';
 import type { ExactCompilerExplanation } from './explanation.js';
 import type { ExactSourceInspection } from '../language-tools/contracts.js';
 import type { ExactSourceEntityKind } from '../language-tools/contracts.js';
@@ -46,6 +46,13 @@ export type TransformOptions = {
 	 * narrow it from their render mode.
 	 */
 	componentContractProjection?: ComponentContractProjection;
+	/**
+	 * Allows opaque bootstrap effects in nonvisual modules and test-runner registration to stay host-owned.
+	 * Test, spec, and jest filenames may contain compiled native component definitions alongside registration.
+	 * Build adapters enable this while preserving ordinary helper modules. Known target restrictions, policy checks,
+	 * native component placement and projection checks still apply. Direct artifact compilation retains strict placement by default.
+	 */
+	preserveOrdinaryModules?: boolean;
 	serverComponents?: boolean;
 	/**
 	 * Preserves function-declaration hoisting while attaching component descriptors.
@@ -242,6 +249,8 @@ export type ExactPublishedComponentBuildFacts = Readonly<{
 	modules: readonly Readonly<{
 		path: string;
 		facts: Omit<ExactComponentBuildFacts, 'filename' | 'packageName'>;
+		/** Compiler-owned paired registration products for independent consumer composition. */
+		artifacts?: ExactPublishedModuleArtifacts;
 	}>[];
 	exports: readonly Readonly<{
 		subpath: string;
@@ -253,6 +262,16 @@ export type ExactPublishedComponentBuildFacts = Readonly<{
 		exportName: string;
 		componentId: string;
 	}>[];
+}>;
+
+/** Relative paired module locations and descriptive registration products, without executable code. */
+export type ExactPublishedModuleArtifacts = Readonly<{
+	clientModule: string;
+	serverModule: string;
+	build: Pick<
+		ExactArtifactBuildProducts,
+		'clientRegistrations' | 'serverRegistrations' | 'operations' | 'boundaries' | 'exposureRoots'
+	>;
 }>;
 
 /** Describes the result produced by transform. */

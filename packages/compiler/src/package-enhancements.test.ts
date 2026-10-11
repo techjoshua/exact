@@ -1,4 +1,4 @@
-import { writeFile } from 'node:fs/promises';
+import { mkdir, writeFile } from 'node:fs/promises';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { transform } from 'esbuild';
 import { createTestWorkspace } from './test-support/workspace.js';
@@ -15,6 +15,36 @@ const intlRegistration: ExactPackageEnhancementImport = Object.freeze({
 });
 
 describe('package-scoped enhancements', () => {
+	it.each(['client', 'server'] as const)(
+		'reads a linked library namespace from its owning config in %s',
+		async (target) => {
+			const root = await createTestWorkspace('.exact-library-config-', process.cwd());
+			const kit = path.join(root, 'kit');
+			await mkdir(kit);
+			await writeFile(
+				path.join(kit, 'package.json'),
+				JSON.stringify({
+					name: '@fixture/kit',
+					dependencies: { '@exactjs/component-library': '^0.7.0' }
+				})
+			);
+			await writeFile(
+				path.join(kit, 'exact.config.ts'),
+				"export * as theme from '@exactjs/theme/enhancements' with {type:'exact-enhancement',scope:'package'}; throw new Error('consumer must not execute library config');"
+			);
+			const result = transformSource(
+				'export function Card(){return()=> <p theme:text="body">Card</p>;}',
+				{ filename: path.join(kit, 'Card.tsx'), target, packageEnhancements: [] }
+			);
+			expect(result.rendererEnhancements).toEqual(
+				expect.arrayContaining([
+					expect.objectContaining({ moduleSpecifier: '@exactjs/theme/enhancements' })
+				])
+			);
+			expect(result.code).not.toContain('theme:text');
+		}
+	);
+
 	it.each(['client', 'server'] as const)(
 		'retains a standalone enhanced helper export in the %s artifact',
 		async (target) => {
@@ -42,6 +72,36 @@ describe('package-scoped enhancements', () => {
 		}
 	);
 
+	it.each(['client', 'server'] as const)(
+		'retains finite spread ownership in the %s package catalog',
+		(target) => {
+			for (const setup of [
+				"const settings={'intl:message':'title'};",
+				"const outer={settings:{'intl:message':'title'}};const settings=outer.settings;",
+				"const settings=Math.random()>0.5?{'intl:message':'first'}:{'intl:message':'second'};"
+			]) {
+				const used = transformSource(
+					`export function Greeting(){${setup}return()=> <p {...settings}>Hello</p>}`,
+					{
+						filename: path.resolve('SpreadGreeting.tsx'),
+						target,
+						packageEnhancements: [intlRegistration]
+					}
+				);
+				expect(used.rendererEnhancements).toHaveLength(1);
+				expect(used.rendererEnhancements?.[0]?.exportName).toBe('default');
+			}
+			const unused = transformSource(
+				`export function Greeting(){const settings={'data-label':'ordinary'};return()=> <p {...settings}>Hello</p>}`,
+				{
+					filename: path.resolve('SpreadPlain.tsx'),
+					target,
+					packageEnhancements: [intlRegistration]
+				}
+			);
+			expect(unused.rendererEnhancements).toBeUndefined();
+		}
+	);
 	it('keeps distinct activators from a package-scoped namespace associated with their components', () => {
 		const transformed = transformSource(
 			`export function Greeting() {

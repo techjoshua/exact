@@ -92,6 +92,14 @@ export function createTrackedContinuationDependency<T>(
 	return dependency;
 }
 
+/** Brands an internally projected dependency so activation preserves its availability protocol. */
+export function compilerContinuationDependency<T>(
+	dependency: ContinuationDependencySource<T>
+): ContinuationDependencySource<T> {
+	compilerContinuationDependencies.add(dependency);
+	return dependency;
+}
+
 /** Creates a compiler-owned dependency source for one exact indexed state or prop slot. */
 export function createIndexedContinuationDependency<T = never>(
 	input: object,

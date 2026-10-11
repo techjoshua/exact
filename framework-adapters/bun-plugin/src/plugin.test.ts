@@ -39,6 +39,84 @@ describe('@exactjs/bun-plugin', () => {
 		).toThrow('disposed eXact Bun plugin');
 	});
 
+	it('keeps localization package discovery outside compiler ownership', async () => {
+		const root = mkdtempSync(path.join(tmpdir(), 'exact-bun-intl-observation-'));
+		const onProfile = vi.fn();
+		const plugin = exact({
+			applicationRoot: root,
+			internationalization: { owner: 'fixture', sourceLocale: 'en-US' },
+			onProfile
+		});
+		let load!: (
+			args: BunLoadArgs
+		) => BunLoadResult | undefined | Promise<BunLoadResult | undefined>;
+		try {
+			mkdirSync(path.join(root, 'dist'));
+			const generated = path.join(root, 'dist/runtime.js');
+			writeFileSync(generated, 'export const value=1;');
+			const helper = path.join(root, 'helper.ts');
+			writeFileSync(helper, 'export const value=1;');
+			plugin.setup({
+				config: {},
+				onResolve() {},
+				onLoad(_options, handler) {
+					load = handler;
+				}
+			});
+			await load({ path: generated, text: async () => readFileSync(generated, 'utf8') });
+			expect(onProfile.mock.calls.filter(([event]) => event.phase === 'invalidate')).toHaveLength(
+				0
+			);
+			await load({ path: helper, text: async () => readFileSync(helper, 'utf8') });
+			expect(onProfile.mock.calls.filter(([event]) => event.phase === 'invalidate')).toHaveLength(
+				1
+			);
+			writeFileSync(helper, 'export const value=2;');
+			await load({ path: helper, text: async () => readFileSync(helper, 'utf8') });
+			expect(onProfile.mock.calls.filter(([event]) => event.phase === 'invalidate')).toHaveLength(
+				2
+			);
+		} finally {
+			await plugin.dispose();
+			rmSync(root, { recursive: true, force: true });
+		}
+	});
+
+	it('returns unchanged sources to runtime loaders while bundlers can fall through', async () => {
+		for (const bundler of [false, true]) {
+			const plugin = exact({ compileTestModules: true });
+			let load!: (
+				args: BunLoadArgs
+			) => BunLoadResult | undefined | Promise<BunLoadResult | undefined>;
+			try {
+				plugin.setup({
+					config: {},
+					onResolve() {},
+					onLoad(_options, handler) {
+						load = handler;
+					},
+					...(bundler ? { onStart() {} } : {})
+				});
+				for (const filename of [
+					'/app/dist/helper.js',
+					'/app/src/model.ts',
+					'/app/src/types.d.ts'
+				]) {
+					const source = 'export const unchanged = 1;';
+					const result = await load({ path: filename, text: async () => source });
+					if (bundler) expect(result).toBeUndefined();
+					else
+						expect(result).toEqual({
+							contents: source,
+							loader: filename.endsWith('.js') ? 'js' : 'ts'
+						});
+				}
+			} finally {
+				await plugin.dispose();
+			}
+		}
+	});
+
 	it('reports opt-in transform timings', () => {
 		const onProfile = vi.fn();
 
@@ -105,10 +183,10 @@ describe('@exactjs/bun-plugin', () => {
 		});
 
 		expect(client?.code).toContain('window.addEventListener');
-		expect(client?.code).toContain('__exactComponentContract');
+		expect(client?.code).toContain('placement: "isomorphic"');
 		expect(server?.code).not.toContain('window.addEventListener');
 		expect(server?.code).not.toContain('__exactRegisterLifecycle(this, "mount"');
-		expect(server?.code).toContain('__exactComponentContract');
+		expect(server?.code).toContain('placement: "isomorphic"');
 	});
 
 	it('links attributed capabilities into the shared application-bundle catalog', () => {

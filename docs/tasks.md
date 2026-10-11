@@ -29,7 +29,11 @@ persistDraft(JSON.stringify(this.state.draft));
 Function syntax does not determine task semantics. A task may be a function
 declaration, function expression, or arrow; it may be synchronous or `async`
 and may use ordinary TypeScript parameters, including destructuring, optional,
-rest, and defaulted parameters:
+and defaulted parameters. Task bodies retain ordinary local destructuring and callable definitions.
+Statements inside a task or helper belong to that callable, including named function declarations.
+Compiler-managed tasks have a fixed number of input positions.
+For variable-length inputs, pass one array parameter and use native rest or spread syntax
+inside an ordinary helper:
 
 ```ts
 const refresh = async (force = false, task: TaskContext = TaskContext.server().latest()) => {
@@ -39,30 +43,102 @@ const refresh = async (force = false, task: TaskContext = TaskContext.server().l
 refresh();
 ```
 
+Optional reads keep JavaScript short-circuit behavior through task input capture and execution.
+For example, `this.state.item?.name!.toUpperCase()` skips the whole chain when `item` is absent.
+A TypeScript non-null assertion does not add a runtime check. Explicit parentheses such as
+`(this.state.item?.name)!.toUpperCase()` end the chain and can throw when the value is absent.
+
+Task overloads preserve their authored argument and result types. A setup activation can
+spread a compatible tuple into those fixed positions. Reactive spread arguments share one
+argument reader, preserving native iteration order without evaluating an iterator separately
+for each position. A task rest parameter produces a compiler error explaining the array-input
+correction. Ordinary helpers retain native rest parameters.
+
 The compiler sees the client storage effect and classifies `persistDraft` as a
 task. Its setup call declares initial and reactive activation, with
 `this.state.draft` as an input dependency. A new draft creates a superseding
 generation. The compiler supplies the task definition, component ownership,
-dependency subscription, scheduling, and cleanup machinery.
+dependency subscription, scheduling, and cleanup machinery. Selected props and derived inputs
+remain available throughout that generation, including inside cleanup callbacks. Repeated reads
+of a static captured path use the same activation value.
+
+Captured inputs retain their TypeScript constraints. Narrow nullable or union values before
+using them, respect readonly properties, and pass arguments accepted by captured callbacks.
+Computed state reads keep key evaluation inside task work, including keys declared locally
+and selectors with side effects. Preparation captures the receiver before a dynamic selector.
+The activation contract and generated work use that same receiver and dependency ordering.
+Calls on captured objects retain their method receivers.
+Component-local helper closures can read setup values. The activation carries those values without
+rerunning their initializers. Parentheses and type-only annotations preserve callable identity and
+state, context, and placement effects. State aliases retain their selected instance state path, and called
+helpers contribute their context lookup authority, including through recursive call graphs.
+Server helper inputs obey the same transport
+policy as authored task parameters. Server invocations carry a proven
+receiver for a computed state read, while dynamic state writes still need an exact authorized
+destination. Opaque helper effects cannot establish that transport input.
 
 Every generation has an `AbortSignal`. The compiler supplies it automatically
 to calls whose visible TypeScript signature accepts an optional direct
 `AbortSignal` or an options value with `signal?: AbortSignal`. It recognizes
 platform calls such as `fetch()` and `addEventListener()` directly and combines
 the generation signal with an authored signal or event options rather than
-discarding either.
+discarding either. Boolean capture flags are preserved for typed DOM event targets as well as
+global listeners. Signal injection follows the selected call overload, so an unrelated overload
+or a same-named method cannot authorize changing a call. Resource signals close when their
+generation settles, while a successfully completed task retains its successful outcome.
+Fetch cancellation remains connected while a response body is being read,
+even after headers have arrived. A signal carried by a Request is retained unless an explicit
+RequestInit signal replaces it, following native fetch precedence.
 
 The compiler also gives discoverable resources generation ownership. Known
 timers, animation and idle callbacks, observers, sockets, workers,
 subscription results with callable or named disposal, and local `Disposable`
 or `AsyncDisposable` values are released on settlement or cancellation. A
 resource must remain local and expose a known, typed, or annotated disposal
-contract. An escape is a diagnostic rather than an inferred longer lifetime.
+contract. An escape is a diagnostic rather than an inferred longer lifetime. For an async factory annotated with `@exact own` or `@exact cleanup`, awaiting the call
+assigns ownership to the resolved resource. The factory must expose a recognized disposal contract.
+An ordinary async factory without that annotation does not infer resource ownership. Simple local aliases retain
+this ownership. Local helper results, including immediately invoked helpers, retain ownership
+when their results stay within the task. A direct resource member read retains generation cleanup.
+An unconditional direct disposal call consumes the resource once. Optional disposal keeps fallback
+cleanup when the call does not run. Strict identity comparisons of local resources return Booleans without
+transferring ownership. Native timer clear and callback cancellation calls are allowed without
+removing generation cleanup or callback fencing. Keep a discovered resource in a direct local
+binding. Compound object or array initializers have unproven ownership and produce a diagnostic.
+A helper can create and register a disposable with the task context instead. Passing the resource through an opaque helper or returning a closure that captures
+it does not transfer ownership. Register cleanup with `task.cleanup()` rather than returning a
+cleanup function as task result data.
+Symbolic disposal is recognized from the typed `Symbol.dispose` or
+`Symbol.asyncDispose` member, including typed aliases of those symbols. The type
+name alone does not establish ownership. Cleanup members must be callable.
 When both disposal methods are available, default resource ownership selects
 `Symbol.asyncDispose` and awaits its result. A synchronous completion does not also invoke
-`Symbol.dispose`. An explicitly selected cleanup method retains that selection.
+`Symbol.dispose`. An absent or noncallable async member falls back to callable synchronous
+disposal. `task.own()` preserves the original object identity and uses the same standard-method
+selection. An explicitly selected cleanup method retains that selection.
+Automatic ownership keeps fallback cleanup until an authored disposal or ownership registration
+actually executes successfully. A conditional, uninvoked, or short-circuited optional cleanup
+path cannot abandon its resource.
+Authored disposal preserves the original receiver and result. Unrelated methods such as
+`cancel()` do not count as disposal unless that method is the selected cleanup policy.
+
+Cleanup registrations close when the task producer returns or throws. Registering cleanup or
+ownership afterward throws. A retained signal preserves the settled generation outcome and
+does not adopt a later request cancellation. Resources created inside a cleanup callback have
+native lifetime. The compiler warns at that boundary and leaves those creations native. Dispose
+or cancel them in that callback or an ordinary helper. Cleanup adapts explicitly supplied
+cancellation signals to the same lifetime seen by producer-side helpers. It leaves absent signals
+and native capture flags unchanged, and warns when cleanup cannot supply the implicit cancellation
+that producer work would receive. Create resources during the producer
+when generation ownership is required.
+
 Use explicit `task.signal`, `task.cleanup()`, or `task.own()` when a wrapper or
 third-party boundary hides those contracts.
+
+For a subscription that lasts while the component is mounted, open it from an ordinary
+`onMount` callback and pass the mount signal to its helper. A helper without a
+`TaskContext` policy parameter can retain that component lifetime. A task-owned
+subscription instead lasts until its pending producer settles.
 
 Add `TaskContext` only when policy must be explicit or the body needs a
 generation capability:
@@ -112,16 +188,40 @@ call them from each component's owned task instead.
 
 In the component body, a call to a classified function declares initialization
 and reactive activation. Its argument expressions are observed inputs. A call
-from an event or other active host creates an invoked generation. A call under
+to a function with an explicit task policy and no arguments declares one startup run.
+Body reads do not add activation inputs to that function. Startup work still waits for its
+compiler-planned producers. Hydration preserves reactive server activations and skips the initial
+generation when the server completed it. A component with interactive reactive server setup
+retains its activation owner across extracted island boundaries.
+An invocation from an event or other active host creates an invoked generation. A call under
 an active task attaches a child frame; after an `await`, compiler output uses
 the retained context and the public task ABI to restore the same relationship.
 Synchronous initialization activations through normal priority settle before the first
 render so their state output is available to the component and its children.
 
+Reads inside an imported core `peek` callback are snapshots rather than activation inputs.
+Independent live inputs can still start the next generation, which reads a fresh snapshot.
+This boundary also applies to snapshot reads inside local helpers and named callbacks. Snapshot
+reads retain execution and transport read authority. A value read normally
+elsewhere in the task remains an activation input.
+
 An event or invoked task can await another task's result and assign it to local state.
 That assignment belongs to the caller. It neither registers another setup activation nor
 adds the caller's destination to the callee's server write contract. Setup-time awaited
-assignments remain part of the component's initialization transition.
+assignments remain part of the component's initialization transition. A direct state-field
+assignment from an explicitly policy-defined setup task publishes its settled returned value
+through that activation. This assignment declares a result output in the component state machine.
+Asynchronous results publish after settlement, and proven synchronous scalar results can publish
+before the first client render. Reactive arguments rerun the activation and publish the new value.
+The destination belongs to the setup caller, including when events also invoke the same task.
+Replacement or disposal prevents an older client generation from publishing its returned value.
+The compiler checks the call arguments and the destination against the settled result type,
+including TypeScript readonly restrictions on the destination. Local aliases and statically selected
+members of literal task tables retain the same task identity, including ordinary object or array
+destructuring. Automatic setup activation needs a proven task owner. Opaque selections, unknown
+overrides, and default or rest bindings cannot establish that owner through this analysis. Such
+lookups can be consumed inside an explicit task or event, with an awaited result assigned by that
+caller.
 
 For compiled components, initialization activation is backed by an availability-aware dependency watcher.
 It distinguishes an available `undefined` from an unresolved predecessor slot, snapshots all
@@ -155,6 +255,103 @@ Disposed observers do not run. This does not authorize cancelled task continuati
 staged writes from stale generations; explicit task results still reject on cancellation and
 actual observer failures still propagate.
 
+Blocking tasks can consume the results of direct assignments, compound assignments, logical
+assignments, and prefix or postfix updates. Later reads within that invocation observe its pending
+scalar values, including reads through a closure declared before the write. Other consumers observe
+committed state until the generation succeeds. These queued expression writes capture their
+selected reference and value, so repeated loop iterations publish in their authored order.
+
+Server continuation collection mutations require a statically known Array, Map or Set receiver.
+An `any` or `unknown` receiver cannot establish the collection publication contract. Preserve the
+collection type or assign its enclosing statically named state value. Server Map keys must be
+`null`, booleans, finite numbers, or strings. Object, Array, function, symbol, bigint and
+undefined keys cannot cross that publication boundary. Guarded nullable containers
+keep their guard inside the task body, including in named function tasks. Optional reads transport
+the short-circuit receiver. Server state inputs use the JSON contract, so a required state path
+must have a JSON value. Use `null` for an absent container that crosses this boundary. An
+`undefined` value is omitted and cannot satisfy a required continuation state input.
+
+Queued Array, Map and Set calls capture their arguments during execution, including spread inputs.
+Reads within the invocation observe pending edits, consumed native results, sparse Array changes,
+and collection iteration. Other consumers continue to observe committed state until publication.
+Assignment values evaluate during execution in their authored order.
+
+### Pending transaction ownership
+
+`@exactjs/reactive` owns the explicit pending transaction engine. Its internal
+`framework/transactions` entry point supplies pending property cells, native collection deltas,
+helper views, readonly enforcement, reconciliation, and publication. Core supplies task generation
+checks, suspension and Activity parking, component ownership, and ordered publication or discard.
+The compiler transforms component-owned state access and task bodies. Ordinary helper functions,
+class methods and lambdas keep their original implementations, whether they live in the project or
+an external package. A blocking client task supplies invocation-owned views when passing enrolled
+state into an ordinary helper. Reads and supported writes through that view use the pending journal.
+The compiler does not duplicate helpers, reconstruct classes, or make their unrelated captures
+transactional. External effects remain outside publication and rollback.
+
+Helpers can read and assign plain object fields, use native arrays and supported Map/Set operations,
+and use ordinary destructuring against their supplied views. A helper's captured original reference
+is not the view passed by its caller. Native equality and identity-keyed lookups remain native.
+For an explicit storage identity comparison, import `sameStateTarget()` from `@exactjs/reactive`.
+It compares the storage behind views without exposing raw storage for mutation.
+
+A helper that prefers an explicit property-access contract can accept `StateAccess<T>`. Create it
+with `stateAccess(state)` using the supplied state view. Its `read()`, `write()` and `remove()`
+operations retain that view's tracking, readonly policy and transaction lifetime. Creating access
+for an ordinary object does not enroll it in a transaction. For example, an ordinary class with
+private configuration can accept this capability as an argument while retaining its original
+branded receiver. Private storage belonging to that class remains outside the component journal.
+The bridge functions are side-effect-free named exports and can be eliminated from unused bundles.
+
+Classes created inside task work also retain ordinary private method receivers, including calls
+from field initializers and optional calls. Receiver and accessor selection happen once before
+arguments, and an absent optional callable skips argument evaluation.
+
+The compiler rejects identifiable class member calls through pending state with `EXACT2230`.
+`EXACT2231` warns about identifiable helper comparisons and returned closures capturing view inputs.
+A preceding `@exact state-view` annotation on the helper declaration or owning call statement
+acknowledges identity and lifetime limits only. It does not disable class restrictions, readonly
+policy, cancellation, security or transport validation. Opaque behavior retains runtime guards.
+
+Retained views and access capabilities belong to their creating invocation. Do not store them for
+another task. A callback requiring a later state view should receive that view from the later caller.
+Component-local callbacks that capture component state retain their component-owned transformation.
+Pending state is not a general rollback mechanism for arbitrary globals, private storage or I/O.
+
+Core's task publication module owns ordered publication callbacks and server collection response
+deltas. Resource cleanup and suspension retain their own lifetime machinery. The reactive package
+shares native method and accessor identity classification between committed and pending execution,
+while each execution policy owns its dependency tracking, pending storage, and publication.
+
+Pending transactions are separate from `batch()` and optimistic journals. `batch()` groups immediate
+synchronous writes and rolls them back on synchronous failure. Optimistic journals publish immediate
+writes and retain ownership-aware inverse operations. Pending transactions retain unpublished edits
+across suspension with explicit ownership. No ambient asynchronous transaction is shared between tasks.
+Untouched properties are read from current committed storage, so a pending view is not snapshot isolation.
+
+Standalone framework-owned pending transactions commit through a synchronous reactive batch or
+explicitly discard. Task transactions transfer publication callbacks into core's journal so scalar
+writes and helper writes retain one authored ordering. Cancellation and rejection release pending
+cells as well as callbacks. Native Map and Set key edits allocate per-key deltas rather than copying
+collections. Reflection and iteration perform work proportional to the keys they visit.
+Publication closes retained mutation capabilities. Pending Map and Set cursors belong to the
+invocation and reject advancement after publication or discard. Consume them within the task or
+return materialized data for later use. Ordinary committed collection iterators retain native behavior.
+Native Date readers preserve their receiver brand through helper views. To change an owned Date
+inside pending work, assign a new Date value. Native timestamp setters reject before mutation
+because timestamp storage is outside the property and collection journal.
+
+An unchanged helper's proxy view preserves aliases inside the invocation but has a different identity
+from the original object. Comparisons with references captured outside that view cannot be made
+transparent. Authored reflective mutations, frozen properties that require an incompatible proxy
+value, and class members that may depend on private brands fail explicitly. Reflection
+through a helper view also rejects substitution of a different accessor receiver or write receiver
+before executing its effects. Native methods
+borrowed directly from a collection prototype require their original receiver brand and cannot accept
+an arbitrary proxy view. For helpers that require those boundaries, pass supported state fields or an explicit state-access
+capability as parameters, or return data for assignment inside the task. Side effects on external mutable objects remain outside
+component-state publication and rollback.
+
 Compiler-managed task writes retain their cancellation signal at the mutation itself.
 This includes assignments, updates, deletes, and collection mutations inside authored `catch` and
 `finally` blocks. Catching a cancellation does not authorize publication from the cancelled run.
@@ -173,6 +370,9 @@ its frame in the promise-resolution job; overlapping resumptions remain serializ
 An async component that awaits a
 value into `this.state` is the shorthand case the compiler infers as blocking
 setup work.
+An intermediate declared inside that managed setup region cannot escape into the returned view
+before the continuation settles. Assign values the view needs to `this.state`. Callback parameters
+and callback-local declarations with the same name are independent bindings and remain valid.
 
 An ordinary helper or factory used in a reactive expression can run again when its observed inputs
 change. Calling it through an opaque helper does not promise one-time execution. For expensive work
@@ -291,6 +491,21 @@ secret-flow checks. Compiler inspection reports captured inputs separately
 from dependencies. Use `task.peek()` for conditional or mid-body snapshots
 that are not naturally function inputs.
 
+A server task can read server-owned contexts inside its body while taking ordinary public
+parameters. Those body reads belong to server execution. A default that reads a server-owned
+context, directly or through a local alias, is rejected because default capture happens before
+dispatch. A shared context used only by a default travels as the captured parameter. It does
+not require a second executor lookup unless the body also reads that context. Local callable helpers used by server work retain their lexical definitions in the
+executor. Shared context writes use the task owner's context bindings in direct SSR and later
+invocations. Establish the shared provider during component setup so descendants observe its
+updates throughout the owner's lifetime.
+
+Checking and executable targets preserve the callable's defaulted and required parameters,
+including object and tuple binding patterns. Direct SSR resolves omitted defaults through the
+same capture plan. Within one task, a read after its own assignment consumes that local value
+without waiting for the task's final publication. Blocking client tasks retain consumed assignment
+values in invocation-local variables until their generation commits.
+
 ## Context capabilities
 
 Each generation receives a fresh `TaskContext`:
@@ -303,6 +518,14 @@ Each generation receives a fresh `TaskContext`:
 - `optimistic(work)` records synchronous state mutation for commit or rollback;
 - `cleanup(callback)` registers awaited LIFO cleanup; and
 - `own(resource)` registers `Disposable` or `AsyncDisposable` ownership.
+
+Only the generation context’s `optimistic()` capability declares an optimistic transition.
+Ordinary functions or object methods with the same name keep their usual execution placement.
+For an invoked server task, the optimistic callback runs in the client prelude before dispatch.
+It can use task inputs and outer public values or compute values within its own callback. Capturing
+a local declared in the server task body is a compile error because that local does not exist
+in the client prelude. The capability call must be a direct statement in the server task body.
+Put client-side conditions inside its callback, where they run before dispatch.
 
 Task functions return data normally. Returning a function is data, not cleanup.
 
@@ -379,6 +602,10 @@ async function loadForecast(city: string, task: TaskContext = TaskContext.client
 	}
 }
 ```
+
+Framework continuation dispatch, task waiting, and staged publication retain the generation
+signal as their ownership identity. Compiler-inferred cancellation for external resources uses
+a separate cleanup signal, so successful resource cleanup cannot discard a staged response.
 
 The delay helper cooperates with the same task signal:
 

@@ -1,4 +1,5 @@
 import { transformSource } from '@exactjs/compiler';
+import { exactTestHelperTarget } from '@exactjs/compiler/adapter-support';
 import { createReactCompatibilityBuildEngine } from '@exactjs/react-compat/build';
 import {
 	jsxSourceOwnership,
@@ -16,10 +17,19 @@ import {
 
 type JestTransformOptions = {
 	supportsStaticESM?: boolean;
+	configString?: string;
+	instrument?: boolean;
 	transformerConfig?: {
 		reactCompatibility?: boolean | ReactCompatibilityOptions;
+		compileTestModules?: boolean;
 	};
 };
+
+// Jest trusts a custom cache key completely. Include the implementation so an integration
+// upgrade cannot reuse output produced before its placement or compilation repair.
+const transformerImplementation = createHash('sha256')
+	.update(readFileSync(new URL(import.meta.url)))
+	.digest('base64url');
 
 /** Creates the Jest transformer used for eXact TypeScript and TSX modules. */
 export function createTransformer() {
@@ -65,9 +75,11 @@ export function createTransformer() {
 							target: compatibility.target,
 							sourceMap: false
 						}).code
-					: !isTestModule(sourcePath)
+					: !isTestModule(sourcePath) || options?.transformerConfig?.compileTestModules
 						? transformSource(sourceText, {
 								filename: sourcePath,
+								target: exactTestHelperTarget(sourceText, { filename: sourcePath }, 'client'),
+								preserveOrdinaryModules: true,
 								jsxInterop: engine?.jsxInterop,
 								moduleTransform: engine
 									? ({ id, source, target }) =>
@@ -99,7 +111,7 @@ export function createTransformer() {
 			};
 		},
 		getCacheKey(sourceText: string, sourcePath: string, options?: JestTransformOptions) {
-			return `${ts.version}\0${compatibilityFingerprint(options)}\0${sourcePath}\0${sourceText}`;
+			return `${transformerImplementation}\0${ts.version}\0${Boolean(options?.supportsStaticESM)}\0${Boolean(options?.instrument)}\0${options?.configString ?? ''}\0${compatibilityFingerprint(options)}\0${sourcePath}\0${sourceText}`;
 		}
 	};
 }

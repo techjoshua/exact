@@ -19,7 +19,12 @@ describe('Webpack physical enhancement facades', () => {
 		writeFileSync(importer, 'export {};');
 		writeFileSync(
 			path.join(providerRoot, 'package.json'),
-			JSON.stringify({ name: '@acme/motion', type: 'module', exports: './index.js' })
+			JSON.stringify({
+				name: '@acme/motion',
+				version: '1.0.0',
+				type: 'module',
+				exports: './index.js'
+			})
 		);
 		writeFileSync(path.join(providerRoot, 'index.js'), 'export default "motion";\n');
 		const available = {

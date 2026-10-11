@@ -2,7 +2,6 @@ package exactcompiler
 
 import (
 	"fmt"
-	"path/filepath"
 	"sort"
 	"strings"
 
@@ -16,12 +15,14 @@ func collectDirectCallableEffects(
 	facts []callableFacts,
 	symbolTargets map[ast.SymbolId]int,
 	syntacticTargets map[string]int,
+	nodeTargets map[*ast.Node]int,
 	sourceFile *ast.SourceFile,
 	typeChecker *checker.Checker,
 	stateReads []StateRead,
 	stateWrites []StateWrite,
 	importBindings externalImportBindings,
-	contextBindings map[string]ContextEffect,
+	contextBindings map[ast.SymbolId]ContextEffect,
+	assets assetAnalysis,
 ) {
 	if ast.IsFunctionLike(fact.node) {
 		if _, valid := functionTaskPolicy(fact.node, sourceFile, importBindings); valid {
@@ -29,27 +30,7 @@ func collectDirectCallableEffects(
 		}
 	}
 	if isSideEffectImport(fact.node) {
-		declaration := fact.node.AsImportDeclaration()
-		moduleSpecifier := declaration.ModuleSpecifier.AsStringLiteral().Text
-		edge := CallEdge{
-			ID:              fmt.Sprintf("%s:import:%d", fact.summary.ID, fact.node.Pos()),
-			Name:            `import "` + moduleSpecifier + `"`,
-			ModuleSpecifier: moduleSpecifier,
-			ExportName:      "*module*",
-			Resolved:        false,
-		}
-		fact.summary.Calls = append(fact.summary.Calls, edge)
-		source := environmentSource(
-			"unknown",
-			"unresolved call "+edge.Name,
-			fact.summary.Name,
-		)
-		source.Opaque = !strings.HasPrefix(moduleSpecifier, ".") &&
-			!filepath.IsAbs(moduleSpecifier)
-		fact.summary.DirectEffectSources = append(
-			fact.summary.DirectEffectSources,
-			source,
-		)
+		collectSideEffectImportFacts(fact, assets)
 	}
 	parameterReads, parameterWrites := collectParameterStateEffects(
 		fact.node,
@@ -59,6 +40,7 @@ func collectDirectCallableEffects(
 	fact.directWrites = append(fact.directWrites, parameterWrites...)
 	for _, read := range stateReads {
 		if directlyOwnedSpan(read.Start, read.Start+read.Length, factIndex, facts) {
+			read = taskOptionalReceiverRead(read, fact.node)
 			fact.directReads = append(fact.directReads, StateEffect{
 				pathSegments: append([]string{}, read.Path...),
 				Path:         strings.Join(read.Path, "."), Kind: "read", Confidence: read.Confidence,
@@ -85,10 +67,16 @@ func collectDirectCallableEffects(
 	}
 
 	walkCallable(fact.node, func(node *ast.Node) bool {
+		if node.Parent != nil && ast.IsPartOfTypeNode(node) {
+			return false
+		}
 		if ast.IsIdentifier(node) && !ast.IsDeclarationName(node) &&
 			!isStaticPropertyName(node) {
 			name := node.Text()
 			symbol := typeChecker.GetSymbolAtLocation(node)
+			if effect, ok := contextBindingReferenceEffect(symbol, sourceFile, typeChecker); ok {
+				fact.directContext = append(fact.directContext, effect)
+			}
 			if _, candidate := browserGlobals[name]; candidate &&
 				symbolIsOutsideSource(symbol, sourceFile) &&
 				!browserGlobalReferenceIsGuarded(node, name, fact.node) {
@@ -120,6 +108,7 @@ func collectDirectCallableEffects(
 		} else if effect, ok := contextBindingCallEffect(
 			call.Expression,
 			contextBindings,
+			typeChecker,
 		); ok {
 			fact.directContext = append(fact.directContext, effect)
 		}
@@ -139,12 +128,18 @@ func collectDirectCallableEffects(
 				targetIndex, resolved = symbolTarget, true
 			}
 		}
+		// An immediate callable has no declaration symbol. Its own AST identity
+		// still establishes a precise edge, including context and state effects.
+		if immediate, exists := nodeTargets[unwrapRenderExpression(call.Expression)]; exists {
+			targetIndex, resolved = immediate, true
+		}
 		edge := CallEdge{
 			ID:       fmt.Sprintf("%s:call:%d", fact.summary.ID, node.Pos()),
 			Name:     strings.TrimSpace(sourceText(sourceFile, call.Expression)),
 			Resolved: resolved,
 		}
 		fact.callExpressions[edge.ID] = call.Expression
+		fact.contextReferences[edge.ID] = stableSourceCallableReference(enhancementCallableReference(call.Expression), typeChecker)
 		if reference, exists := externalImportForExpression(
 			call.Expression,
 			importBindings,
@@ -165,7 +160,7 @@ func collectDirectCallableEffects(
 			sourceFile,
 			typeChecker,
 			contextBindings,
-		); environment != "" {
+		); environment != "" && !(environment == "browser" && guardedBrowserCallReference(call.Expression, fact.node, sourceFile, typeChecker)) {
 			description := edge.Name
 			if environment == "unknown" {
 				description = "unresolved call " + edge.Name
@@ -179,33 +174,12 @@ func collectDirectCallableEffects(
 			)
 		}
 		fact.summary.Calls = append(fact.summary.Calls, edge)
-		if eagerCallbackCall(call.Expression) && call.Arguments != nil {
+		if (eagerCallbackCall(call.Expression, typeChecker) || reactiveComputationOperation(call.Expression, typeChecker) || reactivePeekOperation(call.Expression, sourceFile, typeChecker) || isTaskContextCapabilityCall(node, typeChecker, "peek")) && call.Arguments != nil {
 			for argumentIndex, argument := range call.Arguments.Nodes {
-				if !ast.IsArrowFunction(argument) &&
-					!ast.IsFunctionExpression(argument) {
+				if !invokedCallbackArgument(node, argumentIndex, typeChecker) {
 					continue
 				}
-				for callbackIndex := range facts {
-					if facts[callbackIndex].node != argument {
-						continue
-					}
-					fact.summary.Calls = append(
-						fact.summary.Calls,
-						CallEdge{
-							ID: fmt.Sprintf(
-								"%s:callback:%d:%d",
-								fact.summary.ID,
-								node.Pos(),
-								argumentIndex,
-							),
-							Name:     facts[callbackIndex].summary.Name,
-							TargetID: facts[callbackIndex].summary.ID,
-							Resolved: true,
-						},
-					)
-					fact.targets = append(fact.targets, callbackIndex)
-					break
-				}
+				appendInvokedCallbackEffects(fact, facts, node, argument, argumentIndex, sourceFile, typeChecker, nodeTargets, symbolTargets, importBindings)
 			}
 		}
 		return true
@@ -232,7 +206,11 @@ func collectDirectCallableEffects(
 // treating either reference as an unconditional browser effect would incorrectly project the
 // complete callable out of an otherwise valid server artifact.
 func browserGlobalReferenceIsGuarded(node *ast.Node, name string, callable *ast.Node) bool {
-	if node.Parent != nil && ast.IsTypeOfExpression(node.Parent) {
+	operand := node
+	for operand.Parent != nil && unwrapSourceCallableReference(operand.Parent) == node {
+		operand = operand.Parent
+	}
+	if operand.Parent != nil && ast.IsTypeOfExpression(operand.Parent) {
 		return true
 	}
 	for current := node; current != nil && current != callable; current = current.Parent {
@@ -308,7 +286,7 @@ func browserTypeofUndefinedComparison(typeOf *ast.Node, undefined *ast.Node, nam
 		!ast.IsStringLiteral(undefined) || undefined.Text() != "undefined" {
 		return false
 	}
-	expression := typeOf.AsTypeOfExpression().Expression
+	expression := unwrapSourceCallableReference(typeOf.AsTypeOfExpression().Expression)
 	return expression != nil && ast.IsIdentifier(expression) && expression.Text() == name
 }
 
@@ -359,17 +337,16 @@ func appendComponentBindingCallableFacts(
 			},
 			directReads: []StateEffect{}, directWrites: []StateEffect{write},
 			directContext: []ContextEffect{}, callSymbols: make(map[string]ast.SymbolId),
-			callExpressions: make(map[string]*ast.Node),
+			callExpressions:   make(map[string]*ast.Node),
+			contextReferences: make(map[string]*ast.Node),
 		})
 	}
 	return facts
 }
 
-func eagerCallbackCall(expression *ast.Node) bool {
-	if !ast.IsPropertyAccessExpression(expression) {
-		return false
-	}
-	switch expression.AsPropertyAccessExpression().Name().Text() {
+func eagerCallbackCall(expression *ast.Node, typeChecker *checker.Checker) bool {
+	_, name := restrictedInvocationMember(unwrapSourceCallableReference(expression), typeChecker)
+	switch name {
 	case "map", "flatMap", "filter", "forEach", "some", "every",
 		"find", "findIndex", "reduce", "reduceRight", "sort",
 		"then", "catch", "finally":
@@ -445,6 +422,9 @@ func parameterStateEffect(
 	if node == nil {
 		return StateEffect{}, false
 	}
+	if kind == "read" {
+		node = optionalStateReadReceiver(node)
+	}
 	segments := []string{}
 	current := node
 	for {
@@ -485,16 +465,13 @@ resolved:
 	for left, right := 0, len(segments)-1; left < right; left, right = left+1, right-1 {
 		segments[left], segments[right] = segments[right], segments[left]
 	}
-	if len(segments) == 0 {
-		return StateEffect{}, false
-	}
 	root := "value"
-	if segments[0] == "state" {
+	if len(segments) != 0 && segments[0] == "state" {
 		root = ""
 		segments = segments[1:]
 	}
 	confidence := "exact"
-	if len(segments) == 0 {
+	if len(segments) == 0 && root == "" {
 		segments = []string{"*"}
 		confidence = "broad"
 	} else if containsString(segments, "*") {
@@ -532,7 +509,7 @@ func receiverBindingsForCall(
 	result := make([]ReceiverBinding, 0, len(call.Arguments.Nodes))
 	for index := range call.Arguments.Nodes {
 		binding := ReceiverBinding{ParameterIndex: index, Source: "unknown"}
-		argument, path := effectArgumentRoot(call.Arguments.Nodes[index])
+		argument, path := immutableEffectArgumentRoot(call.Arguments.Nodes[index], typeChecker, map[ast.SymbolId]bool{})
 		source := "unknown"
 		sourceIndex := 0
 		if argument.Kind == ast.KindThisKeyword {
@@ -602,4 +579,53 @@ func directlyOwnedSpan(start int, end int, owner int, facts []callableFacts) boo
 		}
 	}
 	return true
+}
+
+// immutableEffectArgumentRoot follows const aliases when carrying receiver ownership into a
+// helper summary. Symbol identity retains lexical shadowing and cycle detection bounds aliases.
+func immutableEffectArgumentRoot(node *ast.Node, typeChecker *checker.Checker, seen map[ast.SymbolId]bool) (*ast.Node, []string) {
+	root, path := effectArgumentRoot(node)
+	if !ast.IsIdentifier(root) {
+		return root, path
+	}
+	symbol := typeChecker.GetSymbolAtLocation(root)
+	if symbol == nil || seen[ast.GetSymbolId(symbol)] {
+		return root, path
+	}
+	seen[ast.GetSymbolId(symbol)] = true
+	for _, declaration := range symbol.Declarations {
+		if !ast.IsVariableDeclaration(declaration) || declaration.Parent == nil || !ast.IsVariableDeclarationList(declaration.Parent) || declaration.Parent.Flags&ast.NodeFlagsConst == 0 {
+			continue
+		}
+		value := declaration.AsVariableDeclaration().Initializer
+		if value == nil {
+			continue
+		}
+		owner, prefix := immutableEffectArgumentRoot(value, typeChecker, seen)
+		return owner, append(prefix, path...)
+	}
+	return root, path
+}
+
+// guardedBrowserCallReference carries a global availability proof to its member call.
+// Browser parameters and unrelated argument effects retain their independent placement.
+func guardedBrowserCallReference(expression, callable *ast.Node, source *ast.SourceFile, typeChecker *checker.Checker) bool {
+	current := unwrapSourceCallableReference(expression)
+	for current != nil {
+		if ast.IsPropertyAccessExpression(current) {
+			current = unwrapSourceCallableReference(current.AsPropertyAccessExpression().Expression)
+			continue
+		}
+		if ast.IsElementAccessExpression(current) {
+			current = unwrapSourceCallableReference(current.AsElementAccessExpression().Expression)
+			continue
+		}
+		if !ast.IsIdentifier(current) {
+			return false
+		}
+		name := current.Text()
+		_, browser := browserGlobals[name]
+		return browser && symbolIsOutsideSource(typeChecker.GetSymbolAtLocation(current), source) && browserGlobalReferenceIsGuarded(current, name, callable)
+	}
+	return false
 }

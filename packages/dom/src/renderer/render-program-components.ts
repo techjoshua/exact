@@ -9,7 +9,7 @@ import {
 } from './mounting/native-component-artifact.js';
 import { takeParkedOperation } from './mounting/operation-parking.js';
 import { refreshProgramMountedChildren } from './render-program-children.js';
-import { findProgramChildEnd } from './render-program-markers.js';
+import { findProgramChildEnd, releaseProgramChildStart } from './render-program-markers.js';
 import { releaseMountedRange } from './retained-release.js';
 import { disposeMounted } from './teardown.js';
 
@@ -65,6 +65,7 @@ function prepareProgramComponentBinding(
 		childState = { parent, before: before ?? null, children: [] };
 		(state.childSlots ??= [])[index] = childState;
 	}
+	releaseProgramChildStart(anchor);
 	let skipAdoptedInitialReceipt = initialBinding && childState.children.length !== 0;
 	return () => {
 		const value = withEffectScope(mounted.scope, () =>
@@ -166,7 +167,7 @@ function componentSlotIncludes(
 		: slots?.has(index) === true;
 }
 
-/** Narrows the alternate marker-free anchor representation. */
+/** Narrows the renderer's claimed structural range representation. */
 function isKeyedChildAnchor(
 	value: Node | RenderProgramChildAnchor | undefined
 ): value is RenderProgramChildAnchor {

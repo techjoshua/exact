@@ -142,7 +142,8 @@ describe('analyzeIntlSource', () => {
 
 	it('infers native display-name, unit, and list formatting intent', () => {
 		const result = analyzeIntlSource(
-			`const View = () => <p intl:message>
+			`declare const distance:number;declare const language:string;declare const names:string[];
+			const View = () => <p intl:message>
 				{Intl.DisplayNames('en-US', { type: 'language' }).of(language)};
 				{Intl.NumberFormat('en-US', { style: 'unit', unit: 'kilometer', unitDisplay: 'long' }).format(distance)};
 				{Intl.ListFormat('en-US', { type: 'conjunction' }).format(names)}
@@ -161,7 +162,7 @@ describe('analyzeIntlSource', () => {
 					kind: 'format',
 					formatter: expect.objectContaining({
 						kind: 'unit',
-						quantity: 'length',
+						quantity: 'unit',
 						sourceUnit: 'kilometer'
 					})
 				}),
@@ -354,7 +355,7 @@ describe('analyzeIntlSource', () => {
 
 	it('lowers a cardinal fallback ternary onto one shared selector binding', () => {
 		const result = analyzeIntlSource(
-			`const View = ({ count }) => <p intl:message>You have {count} new {count === 1 ? 'message' : 'messages'}.</p>;`,
+			`const View = ({ count }: {count:number}) => <p intl:message>You have {count} new {count === 1 ? 'message' : 'messages'}.</p>;`,
 			{ filename: '/src/View.tsx', owner: 'example', sourceLocale: 'en-US' }
 		);
 		const descriptor = result.descriptors[0]!;
@@ -378,7 +379,7 @@ describe('analyzeIntlSource', () => {
 
 	it('lowers finite boolean and exact selection without evaluating branch code', () => {
 		const result = analyzeIntlSource(
-			`const View = ({ ready, role }) => <p intl:message>{ready ? 'Ready' : 'Waiting'}: {role === 'owner' ? 'Owner' : 'Member'}</p>;`,
+			`const View = ({ ready, role }: {ready:boolean;role:string}) => <p intl:message>{ready ? 'Ready' : 'Waiting'}: {role === 'owner' ? 'Owner' : 'Member'}</p>;`,
 			{ filename: '/src/View.tsx', owner: 'example', sourceLocale: 'en-US' }
 		);
 		expect(result.diagnostics).toEqual([]);
@@ -391,7 +392,7 @@ describe('analyzeIntlSource', () => {
 
 	it('analyzes independent allowlisted intrinsic property messages', () => {
 		const result = analyzeIntlSource(
-			`export function Search({ count }) { return () => <>
+			`export function Search({ count }: {count:number}) { return () => <>
 				<input placeholder="Search messages" intl:placeholder />
 				<button aria-label={count === 1 ? \`Delete \${count} message\` : \`Delete \${count} messages\`} intl:aria-label={{ name: 'delete-control' }} />
 			</>; }`,
@@ -426,7 +427,7 @@ describe('analyzeIntlSource', () => {
 
 	it('infers baseline and semantic-sup ordinal suffix projections', () => {
 		const result = analyzeIntlSource(
-			`export function Placement({ position }) { return () => <>
+			`export function Placement({ position }: {position:number}) { return () => <>
 				<p intl:message>You placed {position}{position === 1 ? 'st' : position === 2 ? 'nd' : position === 3 ? 'rd' : 'th'}.</p>
 				<p intl:message>You placed {position}<sup>{position === 1 ? 'ˢᵗ' : position === 2 ? 'ⁿᵈ' : position === 3 ? 'ʳᵈ' : 'ᵗʰ'}</sup>.</p>
 			</>; }`,
@@ -496,7 +497,7 @@ describe('analyzeIntlSource', () => {
 		expect(result.code.match(/\[duration\]/g)).toHaveLength(1);
 	});
 
-	it('summarizes the equivalent local array/find relative-time helper', () => {
+	it('retains local relative-time helpers as ordinary scalar calls', () => {
 		const result = analyzeIntlSource(
 			`function relativeAge(duration: Temporal.Duration) {
 				const units = [
@@ -516,18 +517,8 @@ describe('analyzeIntlSource', () => {
 		);
 
 		expect(result.diagnostics).toEqual([]);
-		expect(result.descriptors[0]?.source).toContainEqual(
-			expect.objectContaining({
-				kind: 'format',
-				bindings: [0],
-				formatter: expect.objectContaining({
-					kind: 'relative-duration',
-					fields: ['years', 'months', 'days', 'hours', 'minutes', 'seconds'],
-					zero: 'just now'
-				})
-			})
-		);
-		expect(result.code.match(/\[duration\]/g)).toHaveLength(1);
+		expect(result.descriptors[0]?.source).toContainEqual({ kind: 'value', binding: 0 });
+		expect(result.code).toContain('[relativeAge(duration)]');
 		expect(result.clientRequirements).toEqual(['temporal']);
 	});
 
@@ -540,7 +531,8 @@ describe('analyzeIntlSource', () => {
 		});
 		expect(result.code).toBe(source);
 		expect(result.descriptors).toHaveLength(0);
-		expect(result.diagnostics[0]?.message).toContain('not yet supported');
+		expect(result.diagnostics[0]?.message).toContain('compiler cannot extract');
+		expect(result.diagnostics[0]?.message).toContain('Keep message text and placeholders explicit');
 	});
 
 	it('moves an explicitly named opaque component range without analyzing its descendants', () => {
@@ -578,6 +570,8 @@ describe('analyzeIntlSource', () => {
 			{ kind: 'text', value: 'Read ' },
 			{ kind: 'element', binding: 0, value: [{ kind: 'text', value: 'terms' }] }
 		]);
-		expect(result.code).toContain('__intlChildren => <a href={url}>{__intlChildren}</a>');
+		expect(result.code).toContain(
+			'(__intlChildren: Parameters<import("@exactjs/intl").IntlElementFactory>[0]) => <a href={url}>{__intlChildren}</a>'
+		);
 	});
 });

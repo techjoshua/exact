@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/intl-analyzer",
-	"version": "0.7.0",
+	"version": "0.7.1",
 	"description": "Build-only source analyzer for eXact internationalization",
 	"type": "module",
 	"files": [
@@ -25,7 +25,7 @@
 	"dependencies": {
 		"@exactjs/compiler": "^0.7.0",
 		"@exactjs/core": "^0.7.0",
-		"@exactjs/intl": "^0.7.0",
+		"@exactjs/intl": "^0.7.1",
 		"saxes": "^6.0.0"
 	},
 	"devDependencies": {

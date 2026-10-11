@@ -195,7 +195,7 @@ describe('@exactjs/compiler: artifact bundling', () => {
 		});
 		const code = bundled.outputFiles[0]!.text;
 
-		expect(code).toContain('@exactjs/component-contract');
+		expect(code).toContain('@exactjs/core/runtime/component-branding');
 		expect(code).toContain(usedId);
 		expect(code).not.toContain(unusedId);
 		expect(code).not.toContain('innerHeight');
@@ -216,7 +216,8 @@ describe('@exactjs/compiler: artifact bundling', () => {
 			plugins: [descriptorPlugin]
 		});
 		const lazyDescriptorChunk = lazy.outputFiles.find(
-			(file) => file.text.includes('@exactjs/component-contract') && file.text.includes(usedId)
+			(file) =>
+				file.text.includes('@exactjs/core/runtime/component-branding') && file.text.includes(usedId)
 		);
 
 		expect(lazyDescriptorChunk).toBeDefined();
@@ -333,8 +334,8 @@ describe('@exactjs/compiler: artifact bundling', () => {
 
 		expect(client).toContain('export default DefaultWidget;');
 		expect(client).toContain('export { AliasedWidget as RenamedWidget };');
-		expect(client.match(/@exactjs\/component-contract/g)).toHaveLength(1);
-		expect(client.match(/Object\.assign/g)).toHaveLength(2);
+		expect(client.match(/@exactjs\/core\/runtime\/component-branding/g)).toHaveLength(1);
+		expect(client.match(/__exactBrandComponent_\d+\(/g)).toHaveLength(2);
 		expect(artifactAnalysis(result).exports).toContainEqual(
 			expect.objectContaining({
 				name: 'default',

@@ -117,6 +117,35 @@ For a behavioral fix, record the violated contract and its owning layer. Demonst
 regression fails before the fix and passes afterward, or state why reproducing the earlier state
 is impractical. A passing test added only after the implementation is weaker evidence.
 
+Each confirmed compiler or runtime defect must also start a related-defect investigation. Identify
+the violated contract and the mechanism that broke it, then inspect other transformations, helpers,
+consumers and execution paths that share either. Search by the mechanism, not only by similar source
+syntax. Use paired success and failure controls where applicable so lost validation and rejection
+of valid code are both visible.
+
+Group reproductions that share a cause, but treat each newly discovered mechanism or violated
+contract as another investigation entry. For example, a lost assignment constraint may expose
+lost callback context or expression result types. Those discoveries require examining the other
+places that depend on callback context or result types, even when they do not perform assignments.
+Keep a deduplicated list of confirmed causes, checked boundaries and unexplored candidates while
+working. Record executed evidence separately from hypotheses and declared scenario modes.
+
+Continue until representative adjacent contracts and affected paths have been checked and the
+latest expansion reveals no new mechanism. Scale the breadth to consequence and uncertainty rather
+than exhausting every syntax combination. If the investigation stops earlier, identify its remaining
+frontier and the reason. Do not describe an unexplored candidate as safe or an entire cluster as
+fixed because one reproducer passes. Promote confirmed failure classes into owned regression
+coverage when fixing them, and consolidate durable conclusions into the owning contract reference
+or issue. Keep raw exploration and temporary investigation lists out of Git.
+
+For each compiler fix, acceptance includes a fresh native branch and condition counter audit of
+the affected analysis and lowering paths. Add source-based native witnesses for
+the repaired outcome and meaningful adjacent outcomes, paired with emitted semantic checks.
+An analysis-only test does not establish lowering execution, and an emitted runtime test does not
+establish native unit branch coverage. Record remaining outcomes individually as unchecked source
+candidates or defensive paths without valid source witnesses. Complete this audit with the fix,
+before reporting the investigation batch complete.
+
 Review equivalent execution paths, not only the path that reported the bug. Use the
 [composition corpus](component-composition-corpus.md) to share observable expectations across
 relevant specialized and general paths. For stateful behavior, test initial behavior, a retained

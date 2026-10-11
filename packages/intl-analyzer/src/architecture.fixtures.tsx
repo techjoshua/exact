@@ -7,7 +7,7 @@ import {
 	IntlLocale as CompiledIntlLocale,
 	IntlMessage as CompiledIntlMessage,
 	IntlProvider as CompiledIntlProvider
-} from '../../intl/src/components.js?exact-target=client';
+} from '../../intl/src/components.js';
 import type { IntlEnvironment } from '@exactjs/intl';
 
 type FixtureIntlEnvironment = IntlEnvironment;

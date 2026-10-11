@@ -6,7 +6,11 @@ import {
 	type ExactRenderProgramInvocation,
 	type ExactRenderProgramPropertyOperand
 } from '@exactjs/core/runtime/render-operations';
-import { readIndexedReactiveSlot, unwrap } from '@exactjs/reactive/framework/runtime';
+import {
+	isReactiveValue,
+	readIndexedReactiveSlot,
+	unwrap
+} from '@exactjs/reactive/framework/runtime';
 import type { PreparedTextResolver } from '@exactjs/core/framework/render-structure';
 import { materializeProgramTemplate } from './render-program-template.js';
 import { claimCompiledRenderProgram, type ClaimedRenderProgram } from './render-program-claims.js';
@@ -96,7 +100,7 @@ function readSnapshot(snapshot: Snapshot, invocation: ExactRenderProgramInvocati
 				const element = snapshot.claims.slotNodes[operation[2] as number] as Element;
 				const props = properties.get(element) ?? {};
 				const apply = (name: string, value: unknown) => {
-					if (name === '') Object.assign(props, unwrap(value));
+					if (name === '') Object.assign(props, isReactiveValue(value) ? value.get() : value);
 					else props[name] = unwrap(value);
 				};
 				if (operation[0] === 12)

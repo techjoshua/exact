@@ -17,7 +17,7 @@ import {
 	rewriteExportDeclaration,
 	rewriteImportDeclaration
 } from './module/declarations.js';
-import { injectedAdapterImport } from './module/emission.js';
+import { injectedAdapterImport, moduleExportName } from './module/emission.js';
 import { isModuleCall, isRequireCall } from './module/inspection.js';
 import { bindSourceFile } from './module/program.js';
 
@@ -54,7 +54,7 @@ export function rewriteModuleReferences(
 			}
 			const visitor: ts.Visitor = (node) => {
 				if (ts.isVariableStatement(node)) {
-					const rewritten = rewriteCommonJsDestructuring(factory, node, replacements);
+					const rewritten = rewriteCommonJsDestructuring(factory, node, checker, replacements);
 					if (rewritten !== node) {
 						changed = true;
 						return rewritten;
@@ -109,7 +109,7 @@ export function rewriteModuleReferences(
 					if (rewritten !== node) changed = true;
 					return rewritten;
 				}
-				if (isModuleCall(node)) {
+				if (isModuleCall(node, checker)) {
 					const request = node.arguments[0];
 					const aliased = aliases[request.text];
 					if (aliased) {
@@ -120,20 +120,23 @@ export function rewriteModuleReferences(
 						]);
 					}
 				}
-				if (ts.isPropertyAccessExpression(node) && isRequireCall(node.expression)) {
+				if (ts.isPropertyAccessExpression(node) && isRequireCall(node.expression, checker)) {
 					const request = node.expression.arguments[0];
 					const replacement = replacements.get(request.text)?.get(node.name.text);
 					if (replacement) {
 						changed = true;
-						return factory.createPropertyAccessExpression(
-							factory.updateCallExpression(
-								node.expression,
-								node.expression.expression,
-								node.expression.typeArguments,
-								[factory.createStringLiteral(replacement.targetModule)]
-							),
-							replacement.targetExport
+						const call = factory.updateCallExpression(
+							node.expression,
+							node.expression.expression,
+							node.expression.typeArguments,
+							[factory.createStringLiteral(replacement.targetModule)]
 						);
+						const name = moduleExportName(factory, replacement.targetExport);
+						if (ts.isIdentifier(name))
+							return factory.updatePropertyAccessExpression(node, call, name);
+						return node.flags & ts.NodeFlags.OptionalChain
+							? factory.createElementAccessChain(call, node.questionDotToken, name)
+							: factory.createElementAccessExpression(call, name);
 					}
 				}
 				if (ts.isPropertyAccessExpression(node) && ts.isIdentifier(node.expression)) {
@@ -147,7 +150,7 @@ export function rewriteModuleReferences(
 				}
 				if (
 					ts.isElementAccessExpression(node) &&
-					isRequireCall(node.expression) &&
+					isRequireCall(node.expression, checker) &&
 					node.argumentExpression &&
 					ts.isStringLiteral(node.argumentExpression)
 				) {
@@ -155,7 +158,8 @@ export function rewriteModuleReferences(
 					const replacement = replacements.get(request.text)?.get(node.argumentExpression.text);
 					if (replacement) {
 						changed = true;
-						return factory.createElementAccessExpression(
+						return factory.updateElementAccessExpression(
+							node,
 							factory.updateCallExpression(
 								node.expression,
 								node.expression.expression,
@@ -194,7 +198,7 @@ export function rewriteModuleReferences(
 							factory.createNamedImports([
 								factory.createImportSpecifier(
 									false,
-									factory.createIdentifier(value.targetExport),
+									moduleExportName(factory, value.targetExport),
 									value.local
 								)
 							])

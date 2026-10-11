@@ -15,6 +15,7 @@ import {
 	intlPropertiesSource,
 	intlStructureSource,
 	intlUnitsSource,
+	intlDifferencesSource,
 	intlXliffSource
 } from './internationalization-sources.js';
 
@@ -121,7 +122,8 @@ export function InternationalizationPage(this: Component<{}>) {
 					HTML elements. A separately defined component manages its own messages. If a translator
 					needs to move that component within the sentence, wrap it in a named
 					<code>intl:fragment</code>. The translation can place that fragment exactly once without
-					changing the component or its behavior.
+					changing the component or its behavior. Message elements retain ordinary TypeScript
+					checking when the compiler prepares them for translation.
 				</p>
 				<CodeBlock source={intlStructureSource} language="tsx" title="Transfer.tsx" />
 				<p>
@@ -132,8 +134,38 @@ export function InternationalizationPage(this: Component<{}>) {
 				</p>
 				<CodeBlock source={intlCompositionSource} language="tsx" title="Delivery.tsx" />
 				<p>
+					Activation objects use the final definition of each option. Literal computed keys such as{' '}
+					<code>['value']</code> are supported. Put an explicit selector after a spread or dynamic
+					key that could otherwise replace it. Unproven selector ownership receives a source
+					diagnostic.
+				</p>
+				<p>
 					If analysis is disabled or a region cannot be analyzed, its original content remains the
-					fallback. Editor and build diagnostics help identify unsupported message shapes.
+					fallback. Editor diagnostics and build warnings help identify unsupported message shapes
+					in Vite, Bun, and Webpack.
+				</p>
+				<p>
+					Comparisons with mixed or nullable types retain their JavaScript Boolean result. Numeric
+					plural and ordinal inference requires a proven numeric input. A formatter with a dynamic
+					locale remains an evaluated scalar placeholder, so its authored locale choice is
+					preserved. Application types named Date or Duration do not acquire native formatting
+					behavior. Optional formatter calls remain scalar placeholders, so an absent receiver skips
+					the call and its arguments.
+				</p>
+				<p>
+					Date formatting keeps JavaScript's default fields for the selected date or time method,
+					including when you supply only a time zone. Native unit formatting preserves large
+					integers and nonfinite values. Calls with locale extensions keep their authored calendar
+					and numbering settings. List formatting can translate a string array or fixed string
+					tuple. Other iterables keep their native formatted result as a placeholder. Currency and
+					unit options need static strings. Put additional markup around a formatter inside the
+					surrounding message so that every child remains part of the translated content.
+				</p>
+				<p>
+					To show an interval, use <code>Intl.NumberFormat.formatRange(start, end)</code> inside the
+					message. Number and currency ranges retain both endpoints and use native formatting in the
+					active locale. Equal endpoints retain the native approximation marker. The execution
+					platform needs <code>formatRange()</code> support or an installed polyfill.
 				</p>
 				<details>
 					<summary>Plural and ordinal rules beyond one or many</summary>
@@ -143,6 +175,10 @@ export function InternationalizationPage(this: Component<{}>) {
 						ordinal describes a position, such as first or second. Specify
 						<code>type: 'ordinal'</code> for those rules. The translated message uses the target
 						locale’s rules.
+					</p>
+					<p>
+						Keep the category map and rules object unchanged and locally owned. A member write or
+						unproven mutation through another helper keeps the lookup as an evaluated placeholder.
 					</p>
 					<CodeBlock source={intlCardinalSource} language="tsx" title="Polish source: Inbox.tsx" />
 					<CodeBlock
@@ -171,11 +207,16 @@ export function InternationalizationPage(this: Component<{}>) {
 				<details>
 					<summary>Reuse formatters inside and outside components</summary>
 					<p>
-						Native <code>Intl</code> formatters are cached automatically. They can live at module
-						scope or in imported helpers and support both client and server execution. Components
-						use their active locale. Ordinary helpers can use the public <code>intl</code> facade
-						with an explicit locale. A server task also uses its component’s locale. Each call
-						captures the current locale settings, so changing the provider affects subsequent calls.
+						Native <code>Intl</code> formatters are cached automatically. Native
+						<code>Intl.DurationFormat</code> construction preserves its immediate
+						<code>TypeError</code> when unavailable. The optional <code>intl.DurationFormat()</code>
+						facade returns <code>undefined</code> so you can choose a fallback. They can live at
+						module scope or in imported helpers and support both client and server execution.
+						Components use their active locale. Formatter calls through the framework facade can run
+						on either client or server, including when imported through an alias. Ordinary helpers
+						can use the public <code>intl</code> facade with an explicit locale. A server task also
+						uses its component’s locale. Each call captures the current locale settings, so changing
+						the provider affects subsequent calls.
 					</p>
 					<CodeBlock source={intlCacheSource} language="tsx" title="Formatting.tsx" />
 				</details>
@@ -183,8 +224,9 @@ export function InternationalizationPage(this: Component<{}>) {
 					<summary>Display a relative age from a duration</summary>
 					<p>
 						A timestamp may read “just now,” then “two minutes ago.” The following helper chooses a
-						unit from a <code>Temporal.Duration</code>. The surrounding message localizes the
-						result. For a display that also updates as time passes, see{' '}
+						unit from a <code>Temporal.Duration</code> and formats it for the supplied locale. The
+						surrounding message translates its text and includes the helper’s returned string. For a
+						display that also updates as time passes, see{' '}
 						<a href="#/components/date-time">date and time updates</a>.
 					</p>
 					<CodeBlock source={intlDurationSource} language="tsx" title="Published.tsx" />
@@ -210,6 +252,28 @@ export function InternationalizationPage(this: Component<{}>) {
 					content. A <code>_</code> fragment lets you format a smaller inline range or several
 					separate regions within one element.
 				</p>
+				<h3>Show a change in a measurement</h3>
+				<p>
+					A temperature reading and a temperature change convert differently. An 80°F reading is
+					about 27°C, but a 30°F drop is about 17°C. Mark a change with <code>difference</code>,
+					which is equivalent to <code>difference={'{true}'}</code>. Ordinary readings retain their
+					absolute conversion. The same unit preferences apply to both.
+				</p>
+				<CodeBlock source={intlDifferencesSource} language="tsx" title="Measurement changes" />
+				<p>
+					When the view contains a subtraction, eXact captures both numeric endpoints and converts
+					them before subtracting. This also handles fuel economy, where the converted change
+					depends on the starting value. For an already-calculated temperature change, it applies
+					the scale without a temperature offset. If a nonlinear calculation is hidden in a helper
+					or variable, supply <code>from</code> and <code>to</code> explicitly. Keep the authored
+					fallback equal to <code>to - from</code>.
+				</p>
+				<p>
+					Changes remain signed. Endpoint expressions retain their source evaluation order. The
+					compiler requires numeric endpoints and does not infer change intent from arithmetic
+					alone. Use separate regions for independent changes. The namespaced
+					<code>intl:difference</code> form is also supported.
+				</p>
 				<details>
 					<summary>Unit selection, overrides, and precision</summary>
 					<p>
@@ -221,9 +285,10 @@ export function InternationalizationPage(this: Component<{}>) {
 					</p>
 					<p>
 						Supported quantities include area, mass, volume, speed, pressure, energy, power, fuel
-						economy, digital storage, and temperature. Conversion checks compatible dimensions and
-						supports offset and reciprocal formulas. Small nonzero results retain enough fraction
-						digits to avoid displaying zero. Labels are case-sensitive: <code>Mb</code> and
+						economy, digital storage, and temperature. Source and destination units must have
+						compatible dimensions. Invalid units produce a compiler diagnostic. Conversion supports
+						offset and reciprocal formulas. Small nonzero results retain enough fraction digits to
+						avoid displaying zero. Labels are case-sensitive: <code>Mb</code> and
 						<code>MB</code> mean different things.
 					</p>
 					<p>

@@ -13,6 +13,28 @@ import {
 import { createEvent, setNativeValue, windowFor } from './queries/events.js';
 
 describe('testing query semantics', () => {
+	it('names labelled sections, images and wrapping select labels without option text', () => {
+		const container = document.createElement('div');
+		container.innerHTML = `<span id="region-name">Examples</span>
+			<section aria-labelledby="region-name"></section><section></section>
+			<img alt="security: A"><img alt="ignored" aria-label="Override">
+			<label><span>Appearance</span><select><option>System</option><option>Dark</option></select></label>`;
+		document.body.append(container);
+		try {
+			expect(roleOf(container.querySelector('section')!)).toBe('region');
+			expect(roleOf(container.querySelectorAll('section')[1]!)).toBeUndefined();
+			expect(accessibleName(container.querySelector('img')!)).toBe('security: A');
+			expect(accessibleName(container.querySelectorAll('img')[1]!)).toBe('Override');
+			expect(labelText(container.querySelector('select')!)).toBe('Appearance');
+			expect(accessibleName(container.querySelector('select')!)).toBe('Appearance');
+			expect(Array.from(container.querySelectorAll('option')).map(roleOf)).toEqual([
+				'option',
+				'option'
+			]);
+		} finally {
+			container.remove();
+		}
+	});
 	it('maps native controls and landmarks to their implicit roles', () => {
 		const container = document.createElement('div');
 		container.innerHTML = `
@@ -58,6 +80,48 @@ describe('testing query semantics', () => {
 			undefined,
 			'switch'
 		]);
+	});
+	it('distinguishes select presentations and requires a resolved name for form landmarks', () => {
+		const container = document.createElement('div');
+		container.innerHTML =
+			'<select></select><select size="1"></select><select size="3"></select><select multiple></select><form aria-labelledby="missing">Ordinary content</form><span id="form-name">Search</span><form aria-labelledby="form-name"></form>';
+		document.body.append(container);
+		try {
+			expect(Array.from(container.querySelectorAll('select')).map(roleOf)).toEqual([
+				'combobox',
+				'combobox',
+				'listbox',
+				'listbox'
+			]);
+			expect(Array.from(container.querySelectorAll('form')).map(roleOf)).toEqual([
+				undefined,
+				'form'
+			]);
+		} finally {
+			container.remove();
+		}
+	});
+	it('keeps named landmarks and control labels independent of ordinary content', () => {
+		const container = document.createElement('div');
+		container.innerHTML = `<section>Ordinary content</section>
+			<section aria-labelledby="missing">Ordinary content</section>
+			<section aria-label="Settings"></section>
+			<label for="choice">External</label><label for="choice">label</label>
+			<select id="choice"><option>Not the label</option></select>
+			<span id="control-name">ARIA name</span>
+			<label>Ignored <select aria-labelledby="control-name" aria-label="Ignored"><option>Option</option></select></label>`;
+		document.body.append(container);
+		try {
+			expect(Array.from(container.querySelectorAll('section')).map(roleOf)).toEqual([
+				undefined,
+				undefined,
+				'region'
+			]);
+			expect(labelText(container.querySelector('#choice')!)).toBe('External label');
+			expect(labelText(container.querySelectorAll('select')[1]!)).toBe('ARIA name');
+		} finally {
+			container.remove();
+		}
 	});
 
 	it('resolves accessible names in ARIA, label, value, and content precedence order', () => {

@@ -1,3 +1,4 @@
+import { settleTaskResourceLifetime } from './resource-lifetime.js';
 import type { TaskFrameRecord } from './frame-runtime.js';
 
 const frameSettlements = new WeakMap<TaskFrameRecord, Promise<void>>();
@@ -43,5 +44,7 @@ export async function runTaskFrameCleanups(frame: TaskFrameRecord): Promise<void
 			primary ??= error;
 		}
 	}
+	const resources = settleTaskResourceLifetime(frame.controller.signal);
+	if (resources) await resources;
 	if (primary !== undefined) throw primary;
 }

@@ -1,3 +1,4 @@
+import { partitionIslandSource, partitionIslandInstances } from './partition-island-contracts.js';
 import { transpileModule, ModuleKind, ScriptTarget } from 'typescript';
 import { componentPropValuesSource, componentPropValuesProbe } from './component-prop-values.js';
 import { islandSemanticSource, islandSemanticInstances } from './island-semantic-variations.js';
@@ -80,9 +81,30 @@ export async function createMotionHydrationFixture(mode: (typeof motionHydration
 			);
 		}
 
+		await writeFile(
+			path.join(root, 'target-attribute-ownership.tsx'),
+			await readFile(
+				new URL(
+					'../../packages/component-composition-corpus/src/test-support/target-attribute-ownership.fixtures.tsx',
+					import.meta.url
+				)
+			)
+		);
+
+		await writeFile(
+			path.join(root, 'mutation-contract.tsx'),
+			await readFile(
+				new URL(
+					'../../packages/component-composition-corpus/src/test-support/mutation-contract.fixtures.tsx',
+					import.meta.url
+				)
+			)
+		);
 		if (continuation) {
 			for (const name of [
 				'keyed-prop-replacement',
+				'render-namespace',
+				'time-plan',
 				'cancelled-task-catch',
 				'collection-projection',
 				'derived-pattern'
@@ -119,7 +141,7 @@ export async function createMotionHydrationFixture(mode: (typeof motionHydration
 			path.join(root, 'page.tsx'),
 			`
 import { readKey } from './semantic-probe.js';
-${continuation ? "import { DerivedStateIsland, KeyedSpreadWorkbench } from './keyed-spread.js'; import {HoverProbe, MapProjectionProbe} from './keyed-prop-replacement.js'; import {ClipboardProbe, ClipboardPromiseProbe} from './cancelled-task-catch.js'; import {CollectionProjectionProbe} from './collection-projection.js'; import {DerivedPatternProbe} from './derived-pattern.js';" : ''}
+${continuation ? "import { DerivedStateIsland, KeyedSpreadWorkbench } from './keyed-spread.js'; import {HoverProbe, MapProjectionProbe} from './keyed-prop-replacement.js'; import {ClipboardProbe, ClipboardPromiseProbe} from './cancelled-task-catch.js'; import {CollectionProjectionProbe} from './collection-projection.js'; import {DerivedPatternProbe} from './derived-pattern.js'; import {NamespaceProbe} from './render-namespace.js'; import {TimeWindowProbe} from './time-plan.js';" : ''}
 import { createComponentRegistry, Suspense, TaskContext, taskStatus, type Child, type Component } from '@exactjs/core';
 ${wrapper ? `import { _ } from '@exactjs/jsx'; import * as theme from '@exactjs/theme/enhancements' with {type:'exact-enhancement'};` : ''}
 import motion from '${mode === 'absent' ? '@fixture/motion' : '@exactjs/motion'}' with { type: 'exact-enhancement' };
@@ -128,9 +150,10 @@ ${mode === 'paired' ? componentPropValuesSource : ''}
 export function Counter(this: Component<{ value: number; rows: Map<string, number>; selected: Set<string> }>${wrapper ? ', props: { [key: string]: Child; "button-label": string }' : ''}) {
  this.state.value = 7;
  this.state.rows = new Map([['value', 7]]); this.state.selected = new Set(['initial']);
+ const mappedValues=()=>[this.state.value]['map'](value=>value,()=>document.title)[0];const mapped=this.reactive(mappedValues);const readonly:Readonly<typeof mapped>=mapped;
  function increment(_task: TaskContext = TaskContext.${continuation ? 'server' : 'client'}()) { this.state.value += 1; this.state.rows.set('value', this.state.value); this.state.selected.add('updated'); }
  ${continuation ? '' : 'const status = taskStatus(increment);'}
- return () => ${wrapper ? wrapperStart : '<article>'}<button onClick={() => increment()}>${wrapper ? '{props["button-label"]}' : 'Add'} {this.state.value}</button><strong motion:change={fade.enter}>{this.state.value}</strong><output data-map>{this.state.rows.get("value")}</output><output data-set>{this.state.selected.size}</output>${continuation ? '' : '<small data-task-status>{status.pendingCount}:{status.pending ? "pending" : "idle"}</small>'}<p motion:apply={fade}>panel</p><ul motion:change={fade.enter}><li>finding</li></ul>${wrapper ? (fragment ? '' : '<_ theme:scope theme:appearance="inverse" theme:typography={{display:"monospace"}}><span data-inverse>Inverse</span></_>') + '<span data-dynamic>{props[String("dynamic-label")]}</span><ServerNote />' + forwardedChildren + wrapperEnd : '</article>'};
+ return () => ${wrapper ? wrapperStart : '<article>'}<button onClick={() => increment()}>${wrapper ? '{props["button-label"]}' : 'Add'} {this.state.value}</button><strong motion:change={fade.enter}>{this.state.value}</strong><output data-map>{this.state.rows.get("value")}</output><output data-callback-map>{readonly["get"]()}</output><output data-set>{this.state.selected.size}</output>${continuation ? '' : '<small data-task-status>{status.pendingCount}:{status.pending ? "pending" : "idle"}</small>'}<p motion:apply={fade}>panel</p><ul motion:change={fade.enter}><li>finding</li></ul>${wrapper ? (fragment ? '' : '<_ theme:scope theme:appearance="inverse" theme:typography={{display:"monospace"}}><span data-inverse>Inverse</span></_>') + '<span data-dynamic>{props[String("dynamic-label")]}</span><ServerNote />' + forwardedChildren + wrapperEnd : '</article>'};
 }
 ${
 	wrapper
@@ -154,7 +177,9 @@ export function EmptyWrapper(this: Component<{value:number}>, props: {children?:
 ${
 	wrapper
 		? islandSemanticSource() +
+			partitionIslandSource +
 			`
+import {MutationContractProbe} from './mutation-contract.js';
 export function EagerAppearance(this: Component<{value:string; changes:number}>) {
  this.state.value='system'; this.state.changes=0;
  return () => <section data-eager-appearance onKeyDown={() => {}}>
@@ -169,7 +194,7 @@ ${
 	mode.includes('server-shell') || continuation || wrapper
 		? mode.startsWith('declared-') || continuation || wrapper
 			? `/** @exact server */
-export function Page() { return () => <section><Counter ${wrapper ? 'button-label="Add" dynamic-label="Dynamic"' : ''}>${wrapper ? '<aside data-server-content="retained"><input value="Server content" /><NestedCounter /></aside>' : ''}</Counter>${continuation ? '<KeyedSpreadWorkbench path="spread" /><KeyedSpreadWorkbench path="conditional-empty" /><KeyedSpreadWorkbench path="short-circuit" /><DerivedStateIsland /><HoverProbe /><MapProjectionProbe /><ClipboardProbe /><ClipboardPromiseProbe /><CollectionProjectionProbe /><DerivedPatternProbe />' : ''}${wrapper ? islandSemanticInstances() + '<EagerAppearance /><LocalWrapper /><EmptyWrapper kind="undefined" /><EmptyWrapper kind="null-child" children={null} /><EmptyWrapper kind="false" children={false} /><EmptyWrapper kind="zero" children={0} /><EmptyWrapper kind="text" children="Text" />' : ''}</section>; }`
+export function Page() { return () => <section><Counter ${wrapper ? 'button-label="Add" dynamic-label="Dynamic"' : ''}>${wrapper ? '<aside data-server-content="retained"><input value="Server content" /><NestedCounter /></aside>' : ''}</Counter>${continuation ? '<KeyedSpreadWorkbench path="spread" /><KeyedSpreadWorkbench path="spread-key" /><KeyedSpreadWorkbench path="overwritten-key" /><KeyedSpreadWorkbench path="hidden-key" /><KeyedSpreadWorkbench path="conditional-empty" /><KeyedSpreadWorkbench path="short-circuit" /><DerivedStateIsland /><HoverProbe /><MapProjectionProbe /><ClipboardProbe /><ClipboardPromiseProbe /><CollectionProjectionProbe /><DerivedPatternProbe /><NamespaceProbe /><TimeWindowProbe />' : ''}${wrapper ? islandSemanticInstances() + partitionIslandInstances + '<MutationContractProbe/><EagerAppearance /><LocalWrapper /><EmptyWrapper kind="undefined" /><EmptyWrapper kind="null-child" children={null} /><EmptyWrapper kind="false" children={false} /><EmptyWrapper kind="zero" children={0} /><EmptyWrapper kind="text" children="Text" />' : ''}</section>; }`
 			: `export function Page(this: Component<{ ready: boolean }>) {
  const prepare = (_task: TaskContext = TaskContext.server().blocking()) => { this.state.ready = true; };
  prepare();
@@ -240,7 +265,7 @@ export function Page() { return () => <section><Counter ${wrapper ? 'button-labe
 		await writeFile(
 			path.join(root, 'server.tsx'),
 			mode.endsWith('stream')
-				? `${serverTransport} import {Page} from '${page('server')}'; import {Document} from '@exactjs/core/document'; import {renderToHydratableProgressiveHtmlStream} from '@exactjs/ssr'; export const renderPage = async () => { let htmlWithHydration = ''; for await (const chunk of renderToHydratableProgressiveHtmlStream(<Page/>${shellOptions})) htmlWithHydration += chunk; return {htmlWithHydration}; };`
+				? `${serverTransport} import {Page} from '${page('server')}'; import {Document} from '@exactjs/core/document'; import {renderToHydratableProgressiveHtmlStream} from '@exactjs/ssr'; export const renderPage = async () => ({htmlWithHydration: await new Response(renderToHydratableProgressiveHtmlStream(<Page/>${shellOptions})).text()});`
 				: `${serverTransport} import {Page} from '${page('server')}'; import {Document} from '@exactjs/core/document'; import {renderToHydratableString} from '@exactjs/ssr'; export const renderPage = () => renderToHydratableString(<Page/>${shellOptions});`
 		);
 		if (mode === 'paired') {

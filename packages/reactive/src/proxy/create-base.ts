@@ -1,45 +1,47 @@
-import { normalizeDescriptor, samePropertyDescriptor } from './property-descriptors.js';
+import { notifyMutation } from '../internal/mutation-observation.js';
+import { nativeArrayMember } from '../internal/native-operations.js';
+import {
+	normalizeDescriptor,
+	samePropertyDescriptor,
+	propertyDescriptor,
+	requiresExactProxyValue
+} from './property-descriptors.js';
 import { hasActiveTransaction, recordTransactionUndo, track, trigger } from '../internal/deps.js';
 
 import { markReactiveHashDirty } from '../internal/keyed-collections.js';
 
-import { arrayLengthWriteKey, iterateKey, proxyMarker, rawTarget } from '../internal/symbols.js';
+import {
+	arrayLengthWriteKey,
+	iterateKey,
+	proxyMarker,
+	rawTarget,
+	reactiveProxyPolicy
+} from '../internal/symbols.js';
 
 import { isArrayStructureKey } from '../internal/objects.js';
 import { isReactive, isReactiveValue, unwrap } from '../internal/values.js';
 
 import type { ReactiveOptions, ReactiveRef } from '../internal/types.js';
 
-import { createPropertyUndo, mutateArray, recordPropertyUndo } from '../arrays/mutation.js';
+import {
+	createPropertyUndo,
+	mutateArray,
+	recordPropertyUndo,
+	truncatedArrayIndexes
+} from '../arrays/mutation.js';
 import { hasChanged, isReactiveContainer } from '../change-detection.js';
+import { getCachedProxy, cacheProxy, reactiveOptionsKey, registerProxySource } from './cache.js';
+import { customArrayMember, writeProxyAccessor } from './subclass-members.js';
 
 import {
-	defaultReactiveOptions,
 	mutatingArrayMethods,
 	parentSourceCache,
 	proxyRefs,
 	reactiveRawObjects,
-	readonlyReactiveOptionsKey,
-	rootProxyCache,
-	sourcedProxyCache,
 	type CachedParentSource
 } from './state.js';
 
-/** Collection-member implementation injected only by the general reactive entry. */
-export type ReactiveCollectionMember = (
-	target: Map<unknown, unknown> | Set<unknown>,
-	key: PropertyKey,
-	receiver: object,
-	options: ReactiveOptions,
-	wrap: (value: unknown, dependency?: PropertyKey) => unknown
-) => unknown;
-
-type ReactiveProxyRecord = {
-	readonly options: ReactiveOptions;
-	readonly collectionMember?: ReactiveCollectionMember;
-	forwardingSet: boolean;
-	proxy?: object;
-};
+import type { ReactiveCollectionMember, ReactiveProxyRecord } from './capabilities.js';
 
 type ReactiveProxyHandler = ProxyHandler<object> & {
 	record: ReactiveProxyRecord;
@@ -53,39 +55,35 @@ const reactiveProxyHandler: ProxyHandler<object> = {
 	get(this: ReactiveProxyHandler, target: object, key: PropertyKey, receiver: object): unknown {
 		if (key === proxyMarker) return true;
 		if (key === rawTarget) return target;
+		if (key === reactiveProxyPolicy) return this.record;
 
 		const { collectionMember, options, proxy } = this.record;
 		trackProxySources(proxy!);
 		if (target instanceof Map || target instanceof Set) {
 			if (!collectionMember)
 				throw new TypeError('Compiled object/array state received a Map or Set value');
-			return collectionMember(target, key, proxy!, options, (current, dependency) => {
-				if (!current || typeof current !== 'object' || !isReactiveContainer(unwrap(current)))
-					return current;
-				return sourcedReactive(
-					unwrap(current) as object,
-					options,
-					dependency === undefined
-						? undefined
-						: createParentSource(target, dependency, options, collectionMember),
-					collectionMember
-				);
-			});
+			return readCollectionMember(target, key, this.record);
 		}
-		const current = Reflect.get(target, key, receiver);
+		const current = Reflect.get(target, key, Array.isArray(target) ? target : receiver);
 		// Native iterators read object slots without consuming fields on their proxies.
 		// Track sequence changes so a shared snapshot observes reordering and replacement.
 		if (
 			Array.isArray(target) &&
 			(key === Symbol.iterator || key === 'values' || key === 'entries' || key === 'keys') &&
-			current === Reflect.get(Array.prototype, key)
+			current === nativeArrayMember(key)
 		)
 			track(target, iterateKey);
 		if (current && typeof current === 'object' && requiresExactProxyValue(target, key))
 			return current;
+		if (
+			Array.isArray(target) &&
+			key !== 'constructor' &&
+			typeof current === 'function' &&
+			current !== nativeArrayMember(key)
+		)
+			return readArrayMember(target, receiver, current, key, this.record, true);
 		if (Array.isArray(target) && mutatingArrayMethods.has(key) && typeof current === 'function') {
-			return (...args: unknown[]) =>
-				mutateArray(target, String(key), current, args, receiver, options);
+			return readArrayMember(target, receiver, current, key, this.record, false);
 		}
 		if (options.passthroughKeys?.includes(key)) {
 			track(target, key);
@@ -136,18 +134,27 @@ const reactiveProxyHandler: ProxyHandler<object> = {
 		const previousLength = Array.isArray(target) ? target.length : undefined;
 		const removedIndexes =
 			Array.isArray(target) && key === 'length' && typeof next === 'number' && next < target.length
-				? Array.from({ length: target.length - next }, (_, offset) => next + offset).filter(
-						(index) => Reflect.has(target, index)
-					)
-				: [];
+				? truncatedArrayIndexes(target, next)
+				: undefined;
+		const descriptor = propertyDescriptor(target, key);
+		if (descriptor && !('value' in descriptor)) {
+			const ok = writeProxyAccessor(target, key, next, receiver, this.record);
+			if (ok) {
+				markReactiveHashDirty(target);
+				trigger(target, key);
+			}
+			return ok;
+		}
 		const previous = Reflect.get(target, key, receiver);
 		const unwrapped = unwrap(next);
 		const hadKey = Object.prototype.hasOwnProperty.call(target, key);
 		const changed = hasChanged(previous, unwrapped);
-		const ownDescriptor = Reflect.getOwnPropertyDescriptor(target, key);
-		if (!changed && ownDescriptor && 'value' in ownDescriptor) {
-			if (Array.isArray(target) && key === 'length') trigger(target, arrayLengthWriteKey);
-			return true;
+		if (!changed) {
+			const ownDescriptor = Reflect.getOwnPropertyDescriptor(target, key);
+			if (ownDescriptor && 'value' in ownDescriptor) {
+				if (Array.isArray(target) && key === 'length') trigger(target, arrayLengthWriteKey);
+				return true;
+			}
 		}
 		const undo = hasActiveTransaction() ? createPropertyUndo(target, key) : undefined;
 		this.record.forwardingSet = true;
@@ -163,11 +170,12 @@ const reactiveProxyHandler: ProxyHandler<object> = {
 				Array.isArray(target) && key === 'length' ? undefined : target,
 				key
 			);
-		if (ok && changed) {
+		// Creating an own key changes structure even when its inherited or missing value is unchanged.
+		if (ok && (changed || !hadKey)) {
 			if (Array.isArray(target) && key === 'length') trigger(target, arrayLengthWriteKey);
 			markReactiveHashDirty(target);
 			trigger(target, key);
-			for (const index of removedIndexes) trigger(target, String(index));
+			if (removedIndexes) for (const index of removedIndexes) trigger(target, String(index));
 			if (
 				previousLength !== undefined &&
 				Array.isArray(target) &&
@@ -265,6 +273,47 @@ const reactiveProxyHandler: ProxyHandler<object> = {
 	}
 };
 
+/** Creates collection wrapping callbacks only when the receiver needs collection interception. */
+function readCollectionMember(
+	target: Map<unknown, unknown> | Set<unknown>,
+	key: PropertyKey,
+	record: ReactiveProxyRecord
+): unknown {
+	const { options, collectionMember, proxy } = record;
+	return collectionMember!(target, key, proxy!, options, (current, dependency) => {
+		if (!current || typeof current !== 'object' || !isReactiveContainer(unwrap(current)))
+			return current;
+		return sourcedReactive(
+			unwrap(current) as object,
+			options,
+			dependency === undefined
+				? undefined
+				: createParentSource(target, dependency, options, collectionMember),
+			collectionMember
+		);
+	});
+}
+
+/** Keeps method-specific closure contexts out of ordinary array and object property reads. */
+function readArrayMember(
+	target: unknown[],
+	receiver: object,
+	method: (...args: unknown[]) => unknown,
+	key: PropertyKey,
+	{ options, collectionMember }: ReactiveProxyRecord,
+	custom: boolean
+): unknown {
+	if (custom)
+		return customArrayMember(target, receiver, method, key, options, (result) => {
+			const raw = unwrap(result);
+			if (raw === target) return receiver;
+			return raw && typeof raw === 'object' && isReactiveContainer(raw)
+				? sourcedReactive(raw, options, undefined, collectionMember)
+				: result;
+		});
+	return (...args: unknown[]) => mutateArray(target, String(key), method, args, receiver, options);
+}
+
 /** Creates a reactive with an explicitly selected collection capability. */
 export function createReactiveBase(
 	value: object,
@@ -279,9 +328,14 @@ export function createReactiveBase(
 		return cached;
 	}
 
-	const record: ReactiveProxyRecord = { options, collectionMember, forwardingSet: false };
-	const handler = Object.create(reactiveProxyHandler) as ReactiveProxyHandler;
-	handler.record = record;
+	// Keep ownership slots inline and give the handler only the record field it needs.
+	const record: ReactiveProxyRecord = {
+		options,
+		collectionMember,
+		forwardingSet: false,
+		proxy: undefined
+	};
+	const handler = { __proto__: reactiveProxyHandler, record } as ReactiveProxyHandler;
 	const proxy = new Proxy(reactiveTarget, handler);
 	record.proxy = proxy;
 
@@ -293,10 +347,29 @@ export function createReactiveBase(
 	return proxy;
 }
 
-/** Preserves ECMAScript invariants for frozen object-valued data properties. */
-function requiresExactProxyValue(target: object, key: PropertyKey): boolean {
-	const descriptor = Reflect.getOwnPropertyDescriptor(target, key);
-	return !!descriptor && 'value' in descriptor && !descriptor.configurable && !descriptor.writable;
+/** Retains the receiving collection's reactive policy and parent path for an iterated value. */
+export function wrapReactiveCollectionValue(
+	receiver: object,
+	current: unknown,
+	dependency?: PropertyKey
+): unknown {
+	if (
+		!isReactive(receiver) ||
+		!current ||
+		typeof current !== 'object' ||
+		!isReactiveContainer(unwrap(current))
+	)
+		return current;
+	const record = (receiver as { [reactiveProxyPolicy]: ReactiveProxyRecord })[reactiveProxyPolicy];
+	const target = unwrap(receiver);
+	return sourcedReactive(
+		unwrap(current) as object,
+		record.options,
+		dependency === undefined
+			? undefined
+			: createParentSource(target, dependency, record.options, record.collectionMember),
+		record.collectionMember
+	);
 }
 
 function createParentSource(
@@ -315,6 +388,8 @@ function createParentSource(
 	const source: CachedParentSource = {
 		target,
 		key,
+		cachedRaw: undefined,
+		cachedProxy: undefined,
 		get() {
 			track(target, key);
 			const next = Reflect.get(target, key);
@@ -361,90 +436,8 @@ function sourcedReactive(
 	return proxy;
 }
 
-function getCachedProxy(
-	raw: object,
-	options: ReactiveOptions,
-	source?: ReactiveRef
-): object | undefined {
-	const optionKey = reactiveOptionsKey(options);
-	if (!source) return rootProxyCache.get(raw)?.get(optionKey);
-	const bySource = sourcedProxyCache.get(raw)?.get(optionKey);
-	const exact = bySource?.get(source);
-	if (exact) return exact;
-	// Preserve item identity across keyed moves. A proxy may change paths only
-	// after its old path no longer contains this raw value; simultaneous aliases
-	// retain distinct path-specific proxies and therefore precise dependencies.
-	if (bySource) {
-		for (const [oldSource, proxy] of bySource) {
-			if (unwrap(Reflect.get(oldSource.target, oldSource.key)) === raw) continue;
-			bySource.delete(oldSource);
-			bySource.set(source, proxy);
-			proxyRefs.set(proxy, source);
-			return proxy;
-		}
-	}
-	return undefined;
-}
-
-function cacheProxy(
-	raw: object,
-	options: ReactiveOptions,
-	source: ReactiveRef | undefined,
-	proxy: object
-): void {
-	const optionKey = reactiveOptionsKey(options);
-	if (source) {
-		let byOptions = sourcedProxyCache.get(raw);
-		if (!byOptions) sourcedProxyCache.set(raw, (byOptions = new WeakMap()));
-		let bySource = byOptions.get(optionKey);
-		if (!bySource) byOptions.set(optionKey, (bySource = new Map()));
-		bySource.set(source, proxy);
-		return;
-	}
-	let byOptions = rootProxyCache.get(raw);
-	if (!byOptions) rootProxyCache.set(raw, (byOptions = new WeakMap()));
-	byOptions.set(optionKey, proxy);
-}
-
-function registerProxySource(proxy: object, source: ReactiveRef): void {
-	// Aliases have distinct path-specific proxies. The retained ref is also the
-	// single parent dependency observed by reads through this proxy.
-	proxyRefs.set(proxy, source);
-}
-
 /** Observes the parent path owned by this proxy, including a migrated collection item. */
 function trackProxySources(proxy: object): void {
 	const source = proxyRefs.get(proxy);
 	if (source) track(source.target, source.key);
-}
-
-function reactiveOptionsKey(options: ReactiveOptions): object {
-	if ('__exactCollectionCacheMode' in options) return options as object;
-	if (
-		!options.readonly &&
-		!options.onReadonlyWrite &&
-		!options.onMutation &&
-		!options.passthroughKeys?.length
-	)
-		return defaultReactiveOptions;
-	if (
-		options.readonly &&
-		!options.onReadonlyWrite &&
-		!options.onMutation &&
-		!options.passthroughKeys?.length
-	)
-		return readonlyReactiveOptionsKey;
-	return options as object;
-}
-
-function notifyMutation(
-	options: ReactiveOptions,
-	key: PropertyKey | undefined,
-	operation: string
-): void {
-	try {
-		options.onMutation?.(key, operation);
-	} catch {
-		// Observation is deliberately outside application error propagation.
-	}
 }

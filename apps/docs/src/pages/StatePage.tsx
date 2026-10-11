@@ -125,6 +125,11 @@ export function StatePage(this: Component<{}>) {
 					changing an input updates its dependents. Nested object fields are reactive too.
 				</p>
 				<p>
+					For dynamic records, expressions such as <code>Object.keys(this.state.record)</code>
+					follow added and deleted keys. A property whose value is <code>undefined</code> still
+					counts as present.
+				</p>
+				<p>
 					You can calculate one value from another with an ordinary expression. In the price
 					example, changing quantity updates the subtotal and total. The component keeps the same
 					instance throughout these changes.
@@ -161,7 +166,10 @@ export function StatePage(this: Component<{}>) {
 					to the original objects, so this does not create a deep snapshot of their fields. When a
 					calculation returns several values, a destructuring declaration can name them separately.
 					Those derived names also follow their inputs. A <code>peek()</code>
-					initializer keeps an intentional setup snapshot.
+					initializer keeps an intentional setup snapshot. Import <code>peek</code> from{' '}
+					<code>@exactjs/core</code>. Renaming that import or using a namespace member preserves the
+					boundary. Only reads inside its callback are untracked. Other inputs in the surrounding
+					calculation remain reactive.
 				</p>
 				<p>
 					When several parts of a view need the same Map or Set contents, a declaration such as
@@ -174,11 +182,33 @@ export function StatePage(this: Component<{}>) {
 					separate safety assessment.
 				</p>
 				<p>
+					Literal member access such as <code>rows['push'](value)</code> preserves the same state
+					mutation behavior as dot access. Fresh iterator calls such as
+					<code>map['values']()</code> also keep their collection inputs observable in derived
+					calculations.
+				</p>
+				<p>
+					Destructuring with rest creates a new container. Mutating that container's own entries
+					does not mutate the original state. A destructuring default can select a state reference
+					or a fallback value, and client code mutates whichever value was selected. When a server
+					task needs to change state, use a direct state path or a binding without a default so the
+					compiler can prove which state the operation owns.
+				</p>
+				<p>
+					A setup-derived value captured by a native timer, Promise continuation, or observer
+					callback can become a stale snapshot. Read the current state or props inside the callback,
+					or use <code>peek()</code> when you intend to keep the setup value. Renaming a native
+					scheduling function or selecting a Promise method with a literal key preserves this check.
+				</p>
+				<p>
 					Some calculations only build local data, but use operations the compiler cannot yet prove
 					safe. After verifying that a helper has no externally visible side effects and keeps
 					reactive inputs observable, you can add <code>/** @exact pure */</code> to its
 					declaration. This is an assertion the compiler trusts. It is not appropriate for work that
 					changes shared data or sends a request. That work can run in an interaction or task.
+					Published helpers can retain that annotation in their TypeScript declarations. Named
+					imports and static namespace members use the same declared contract. Purity does not
+					override server or client placement requirements.
 				</p>
 				<p>
 					A calculation in the component body can share its result with several parts of the view or
@@ -278,7 +308,9 @@ export function StatePage(this: Component<{}>) {
 					need a snapshot of a reactive value during initialization, you can use <code>peek()</code>
 					to read its current value without registering a dependency on that read. Reading the same
 					state target on the right would create a feedback cycle, so the compiler asks you to
-					choose a <code>peek()</code> snapshot or a local task function instead.
+					choose a <code>peek()</code> snapshot or a local task function instead. Other live inputs
+					can still repeat the calculation and read a fresh snapshot. This also applies when the
+					snapshot read occurs inside a local helper or a named callback.
 				</p>
 				<p>
 					The initial synchronous calculation settles before the component&apos;s first render, so
@@ -294,6 +326,11 @@ export function StatePage(this: Component<{}>) {
 					boundary. Selecting a collection dynamically, such as{' '}
 					<code>rows[index].set(key, value)</code>, has the same restriction in both named function
 					tasks and arrow tasks.
+				</p>
+				<p>
+					Array methods preserve native getter and setter behavior. When an indexed accessor could
+					have changed, eXact updates its consumers without calling extra getters to compare values.
+					Ordinary data slots update consumers when their values change.
 				</p>
 				<p>
 					Ordinary DOM event callbacks publish their synchronous writes as one transaction. The

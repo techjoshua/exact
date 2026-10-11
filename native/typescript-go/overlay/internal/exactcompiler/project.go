@@ -18,9 +18,12 @@ type projectState struct {
 	currentDirectory    string
 	configFile          string
 	sources             map[string]string
+	normalizations      map[string]normalizedSource
 	fs                  *sourceOverlay
 	config              *tsoptions.ParsedCommandLine
 	program             *compiler.Program
+	moduleImports       map[*ast.SourceFile]projectModuleImports
+	policyTypes         *projectPolicyTypes
 	callableCache       *projectCallableCache
 	componentCache      map[*ast.SourceFile][]Component
 	componentFacts      map[*ast.SourceFile][]projectComponent
@@ -40,6 +43,12 @@ type projectGeneration struct {
 }
 
 func newProjectState(request Request, fileName string) (*projectState, []*ast.Diagnostic, error) {
+	return newProjectStateWithSources(request, fileName, nil)
+}
+
+// newProjectStateWithSources isolates validation from the retained program while
+// preserving prepared dependencies which need not exist on disk.
+func newProjectStateWithSources(request Request, fileName string, sources map[string]string, observations ...*validationDependencies) (*projectState, []*ast.Diagnostic, error) {
 	currentDirectory := request.Root
 	if currentDirectory == "" {
 		currentDirectory = tspath.GetDirectoryPath(fileName)
@@ -47,7 +56,14 @@ func newProjectState(request Request, fileName string) (*projectState, []*ast.Di
 	currentDirectory = tspath.GetNormalizedAbsolutePath(currentDirectory, tspath.GetDirectoryPath(fileName))
 
 	base := bundled.WrapFS(osvfs.FS())
+	if len(observations) != 0 {
+		observations[0].FS = base
+		base = observations[0]
+	}
 	overlay := newSourceOverlay(base)
+	for path, source := range sources {
+		overlay.set(path, source)
+	}
 	overlay.set(fileName, request.Source)
 	// eXact owns source lowering through its overlay, without an upstream content-mapper project.
 	host := compiler.NewCompilerHost(currentDirectory, overlay, bundled.LibPath(), nil, nil, nil)
@@ -102,6 +118,11 @@ func newProjectState(request Request, fileName string) (*projectState, []*ast.Di
 			SkipLibCheck:     core.TSTrue,
 			Target:           core.ScriptTargetES2022,
 		}
+		if standaloneIntlAnalysisRequest(request) {
+			// The standalone analyzer has no authored tsconfig. Resolve supported native Intl and
+			// Temporal declarations instead of inferring identity from unresolved type display text.
+			options.Lib = []string{"esnext", "dom", "dom.iterable"}
+		}
 		config = tsoptions.NewParsedCommandLine(
 			options,
 			[]string{fileName},
@@ -128,15 +149,41 @@ func newProjectState(request Request, fileName string) (*projectState, []*ast.Di
 	return state, diagnostics, nil
 }
 
+func standaloneIntlAnalysisRequest(request Request) bool {
+	return request.ConfigFile == "" && request.Kind == "extension" && request.Extension != nil && request.Extension.Namespace == intlAnalyzeNamespace
+}
+
 func (state *projectState) advance(
 	ctx context.Context,
 	fileName string,
 	source string,
 ) (*projectGeneration, error) {
-	sourceKey := state.fs.canonical(fileName)
 	existingSource := state.program.GetSourceFile(fileName)
-	unchanged := existingSource != nil && existingSource.Text() == source
-	reused := state.initialized && unchanged
+	reused := state.initialized && existingSource != nil && existingSource.Text() == source
+	state.refreshSource(fileName, source)
+	state.initialized = true
+	state.program.BindSourceFiles()
+	sourceFile := state.program.GetSourceFile(fileName)
+	if sourceFile == nil {
+		return nil, fmt.Errorf("native TypeScript program did not contain %s", fileName)
+	}
+	// Session requests are serialized and inspect dependencies as well as the requested file.
+	// Acquire the pool's primary checker exclusively to reuse one coherent type graph.
+	typeChecker, release := state.program.GetCheckerPool().GetChecker(ctx, nil)
+	return &projectGeneration{
+		sourceFile: sourceFile,
+		program:    state.program,
+		checker:    typeChecker,
+		release:    release,
+		reused:     reused,
+	}, nil
+}
+
+// refreshSource updates a program generation without acquiring a checker.
+// Watch notifications refresh every retaining project before its next compilation.
+func (state *projectState) refreshSource(fileName, source string) {
+	existing := state.program.GetSourceFile(fileName)
+	unchanged := existing != nil && existing.Text() == source
 	if !unchanged {
 		state.counters.ProgramRebuilds++
 		state.fs.set(fileName, source)
@@ -165,28 +212,16 @@ func (state *projectState) advance(
 			next, _, _ := state.program.UpdateProgram(changedPath, host, nil)
 			state.program = next
 		}
-		state.sources[sourceKey] = source
+		state.sources[state.fs.canonical(fileName)] = source
 		state.invalidateChangedProjectSources(fileName)
 	}
-	state.initialized = true
-	state.program.BindSourceFiles()
-	sourceFile := state.program.GetSourceFile(fileName)
-	if sourceFile == nil {
-		return nil, fmt.Errorf("native TypeScript program did not contain %s", fileName)
-	}
-	typeChecker, release := state.program.GetTypeCheckerForFileExclusive(ctx, sourceFile)
-	return &projectGeneration{
-		sourceFile: sourceFile,
-		program:    state.program,
-		checker:    typeChecker,
-		release:    release,
-		reused:     reused,
-	}, nil
 }
 
 // invalidateAnalysisCaches releases every checker and AST identity owned by
 // the superseded TypeScript program generation.
 func (state *projectState) invalidateAnalysisCaches() {
+	state.moduleImports = nil
+	state.policyTypes = nil
 	state.callableCache = nil
 	state.componentCache = nil
 	state.componentFacts = nil

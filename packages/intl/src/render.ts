@@ -151,17 +151,36 @@ function formatValue(
 	const first = values[0];
 	switch (formatter.kind) {
 		case 'number':
-			return numberFormatter(environment, nativeOptions(formatter.options)).format(first as number);
+			return formatNumericValues(
+				numberFormatter(environment, nativeOptions(formatter.options)),
+				values
+			);
 		case 'currency':
-			return numberFormatter(environment, {
-				...nativeOptions(formatter.options),
-				style: 'currency',
-				currency: formatter.currency,
-				currencyDisplay: formatter.display
-			}).format(first as number);
+			return formatNumericValues(
+				numberFormatter(environment, {
+					...nativeOptions(formatter.options),
+					style: 'currency',
+					currency: formatter.currency,
+					currencyDisplay: formatter.display
+				}),
+				values
+			);
 		case 'unit':
+			// Generic units preserve native numeric coercion, precision and nonfinite values.
+			if (formatter.quantity === 'unit')
+				return formatNumericValues(
+					numberFormatter(environment, {
+						...nativeOptions(formatter.options),
+						style: 'unit',
+						unit: formatter.sourceUnit
+					}),
+					values
+				);
 			return formatPreparedIntlMeasurement(environment, formatter, values);
 		case 'date-time':
+			// Date prototype methods return this sentinel before reading formatting options.
+			if (formatter.temporalKind === 'temporal-instant' && invalidNativeDate(first))
+				return 'Invalid Date';
 			if (formatter.range) {
 				return dateTimeFormatter(environment, nativeOptions(formatter.options)).formatRange(
 					first as Date,
@@ -195,12 +214,36 @@ function formatValue(
 			}).of(String(first));
 		case 'list':
 			return listFormatter(environment, nativeOptions(formatter.options)).format(
-				(Array.isArray(first) ? first : values).map(String)
+				Array.isArray(first) ? first : values.map(String)
 			);
 		case 'duration': {
 			const duration = durationFormatter(environment, nativeOptions(formatter.options));
 			return duration?.format(first) ?? String(first);
 		}
+	}
+}
+
+/**
+ * Formats one scalar or two ordered range endpoints through the shared native formatter.
+ * Native range execution preserves approximation, rounding and invalid-input behavior.
+ */
+function formatNumericValues(formatter: Intl.NumberFormat, values: readonly unknown[]): string {
+	if (values.length !== 2) return formatter.format(values[0] as number);
+	const formatRange = (
+		formatter as Intl.NumberFormat & {
+			formatRange?: (start: number, end: number) => string;
+		}
+	).formatRange;
+	if (!formatRange) throw new TypeError('Intl.NumberFormat.formatRange() is unavailable');
+	return formatRange.call(formatter, values[0] as number, values[1] as number);
+}
+
+/** Native Date branding uses its internal value and works across realms and subclasses. */
+function invalidNativeDate(value: unknown): boolean {
+	try {
+		return Number.isNaN(Date.prototype.getTime.call(value));
+	} catch {
+		return false;
 	}
 }
 

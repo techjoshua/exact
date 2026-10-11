@@ -56,6 +56,102 @@ descriptors remain supported, and existing artifact layouts and helper signature
 This is additive provider capability within the coordinated release, with ABI epoch 2 unchanged.
 Rebuild paired artifacts and their hydration registration together to enable loading-time replay.
 
+## Native localization typing and constructor compatibility
+
+Compiled native Intl owner references use the qualified `ComponentLocalizationOwner` type from
+core ^0.7.1 so application utility aliases cannot change generated typing. Native
+`Intl.DurationFormat` construction also requires core ^0.7.1 for the additive
+`requireIntlDurationFormatter` localization helper. It preserves the immediate native `TypeError`
+when the constructor is absent, while the optional facade retains its `undefined` fallback.
+Duration bindings retain their construction point rather than moving construction to method use.
+Existing helper signatures, ABI epoch 2, and released fixtures remain unchanged. Rebuild paired
+artifacts to receive the compiler correction.
+
+## Ordinary helper boundary compatibility
+
+Component compilation preserves ordinary helper bodies and supplies supported invocation-owned
+state views. `stateAccess()` and `sameStateTarget()` are additive reactive exports. They do not
+change component contract or transport schemas. Rebuild components to receive the narrowed
+helper boundary and its identity, lifetime and class-receiver diagnostics.
+
+The removed helper-companion registry and alternate class/factory emitters were introduced during
+local compiler investigation. Inspection of the published core and reactive 0.7.0 package contents
+confirms that their helper-registration entry points were never published. They therefore do not
+require a compatibility registry or ABI epoch change. Released artifacts remain acceptance inputs
+and must not be regenerated. New publication must use new versions of affected packages because
+0.7.0 already exists in the registry. Runtime provider requirements must cover the additive pending
+transaction capabilities used by newly compiled components.
+
+## Compiler 0.7.1 provider requirements
+
+The source-normalization repairs select core and compiler 0.7.1, with all six native compiler
+packages matching compiler 0.7.1. Newly compiled zero-argument policy tasks use the additive
+`activateTaskOnceForHost` helper and require core ^0.7.1. The helper waits for producer availability
+and retains transport captures, then releases input subscriptions without cancelling the issued
+generation. Existing helper signatures, artifact schemas, ABI epoch 2, and released fixtures
+remain unchanged. Rebuild components to receive compiler normalization and capture repairs.
+Applications and component libraries emitting the new helper must declare the minimum core provider.
+Enhancement validation and activation repairs also ship in compiler 0.7.1. Webpack plugin 0.7.1
+requires compiler ^0.7.1 for host resolution of Node-missing enhancement sources and portable
+relative provider facades. Registry ownership and literal-key repairs also ship in compiler
+0.7.1. Vite plugin 0.7.1 requires compiler ^0.7.1 and preserves literal deferred imports in queried
+client/server test graphs. Bun plugin 0.7.1 includes its transform repairs and requires compiler
+^0.7.1. Existing runtime helpers, artifact schemas, ABI epoch 2 and released fixtures remain
+unchanged. Rebuild enhancement bundles to receive the corrected activation facts and facade edges.
+
+## JSON publication validation 0.7.1
+
+SSR, server and hydrate 0.7.1 require core ^0.7.1 for shared JSON property inspection.
+The validators reject hidden serialization hooks, inspect non-enumerable array indices and
+count sparse null cells against graph limits. Keyed arrays cannot override iteration, mapping
+or construction during encoding. Native Map and Set values retain their native prototypes and
+cannot override iteration or JSON hooks. Ordinary payload representations and existing helper signatures
+remain unchanged, so ABI epoch 2 and frozen artifacts remain valid. The shared core helpers join
+its already selected, unpublished 0.7.1 release. Publication must select that provider with these
+runtime packages or confirm it is already available.
+
+Core 0.7.1 also retains checked URL conversions for object and function values across SSR,
+DOM updates and text projection. This corrects publication of a different second conversion
+without changing URL policy, helper signatures or the ABI epoch.
+
+## Additional branch packages at 0.7.1
+
+The remaining changed public packages select unpublished 0.7.1 versions: reactive, DOM,
+component-library-policy, module-rewrite, Intl, Intl analyzer, Time, Bun plugin, gestures,
+gravity, physics, testing, Vitest, Jest, Bun test, configuration, the component-library marker,
+Motion, microfrontends, Theme, Jotai, and the agent skill. The component libraries adopt setup-owned resources.
+The remote component retains its documented client-only placement in microfrontends 0.7.1.
+The agent skill publishes its revised application-authoring guidance. Charts has test-only
+changes and remains at 0.7.0. Private applications, comparison tooling, and fixtures do not
+receive release versions.
+
+Core requires reactive ^0.7.1 for its transaction entry point and pending-state implementation.
+DOM requires core and reactive ^0.7.1, and hydrate requires DOM ^0.7.1 for the repaired adoption
+paths. SSR requires reactive ^0.7.1. Time requires core ^0.7.1 for compiler-generated localization
+typing. Component-library policy requires compiler ^0.7.1 for component selection facts.
+All three build plugins require component-library-policy ^0.7.1. Vite also requires Intl and
+Intl analyzer ^0.7.1, and the analyzer requires Intl ^0.7.1 for the corresponding formatting
+and projection fixes. Existing compatible ranges in other consumers remain unchanged.
+Vitest requires testing ^0.7.1 for the generated server factory typing and class matcher surface,
+and compiler ^0.7.1 for participating-library discovery in paired test graphs.
+Jest and Bun test require testing ^0.7.1 and their corrected compiler or build adapter ^0.7.1.
+The marker and Motion patch releases include corrected installed usage and declaration guidance.
+Compiler and adapter repairs preserve package-owned enhancement configuration, ordinary JSX helper
+authorization facts, and a shared application runtime across physically duplicated framework packages.
+Library protocol 1 gains optional descriptive paired registration products. Existing facts remain
+valid, and consumer planning does not evaluate candidate code. Consumers and libraries must use
+compiler 0.7.1 to generate and discover these products. The runtime helper signatures and execution
+contract schema remain unchanged.
+Stateful context providers retain a complete activation owner and import the SSR publication
+capability with that owner. SSR preserves their rendered children using the existing retained-range
+representation. Rebuild paired library and consumer artifacts to receive the compiler correction.
+Legacy ID-only retained ranges remain valid, while partially supplied planned authority is rejected.
+These repairs preserve helper signatures, artifact schemas, and the ABI epoch.
+
+These are compatible implementation, manifest, typing, and additive provider updates.
+ABI epoch 2, released helper signatures, and frozen release fixtures remain unchanged.
+Publication must select required unpublished providers together with their consumers.
+
 ## Earlier release compatibility decisions
 
 The provider versions and ABI decisions below describe earlier releases. They do not
@@ -432,6 +528,34 @@ exists locally. Unmapped or unavailable revisions fail rather than silently sele
 The release-artifact job also runs `check:security-audit`; an unreviewed finding prevents the
 publication job from starting.
 
+The October 2026 dependency review updates compatible patched dependencies. Nuxt DevTools
+retains `simple-git` 3 because version 4 removes the default export DevTools imports.
+The comparison application disables DevTools and does not accept remote Git configuration,
+repositories or editor environment variables. The
+[simple-git advisories](https://github.com/advisories/GHSA-x6jw-m9v5-85vh) and its
+[argument-parser advisory](https://github.com/advisories/GHSA-v5rq-49vh-5v5c) remain recorded
+until the upstream caller supports the patched API.
+
+`security-audit-policy.json` records exceptions expiring November 10, 2026 for three
+unpatched causes, the disabled DevTools Git dependency and their npm-reported dependents:
+
+- [braces recursion](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm) affects authored
+  glob patterns in build and lint tooling. Do not feed those tools untrusted patterns.
+- [node-forge signature verification](https://github.com/advisories/GHSA-86w9-cpqp-85rv)
+  arrives through listhen certificate tooling. Comparison servers use HTTP. This path does
+  not verify untrusted RSA signatures in repository applications.
+- [sprintf-js precision](https://github.com/advisories/GHSA-hp3w-g68c-fv3c) arrives through
+  argparse and Jest. Format strings belong to the tooling rather than remote requests.
+
+These exceptions acknowledge retained vulnerable dependencies. They do not establish safety
+for other callers or input paths. Recheck upstream fixes before expiry and remove both the
+cause and its propagated exceptions when the audit no longer reports them. Any higher severity,
+unlisted package, expired exception or stale exception still fails the gate. Every exception
+must also list exactly the reviewed GitHub advisory URLs reported for that package, including
+causes inherited through dependencies. New advisory identities and stale identities fail even
+when their severity is within the exception's limit. Malformed or unresolved cause graphs fail
+rather than counting as reviewed evidence.
+
 Package-content and compiler-distribution checks accept both npm 11's array and npm 12's
 package-name-keyed object from `npm pack --dry-run --json`. Each workspace check requires
 exactly one matching package with a valid file inventory; malformed output fails the check.
@@ -511,6 +635,10 @@ README validation excludes Nuxt's generated `.output-bun` server packages, as it
 the ordinary `.output` tree; generated package manifests are not maintained source packages.
 
 ## ABI compatibility
+
+The [compiled ABI evolution proposal](proposals/compiled-abi-evolution.md) describes forward
+compatibility from epoch 2, optional retention of older implementations in bundles, and dependency
+attribution. It does not change the current single-epoch release gate or add epoch-1 support.
 
 The native compiler upstream has moved from the closed `microsoft/typescript-go` repository to
 `microsoft/TypeScript`, pinned at `1f70213d4922b434345f639b441681e470c7cfc1`. Its Go module is
@@ -615,3 +743,14 @@ The same gate runs `npm run test:packed-shipping` for installed production serve
 coverage using Parcel Lab and its deterministic DOOP provider. See
 [installed shipping continuations](component-composition-corpus.md#installed-shipping-continuations)
 for the scenarios, environment isolation, and limits of its cancellation evidence.
+
+## Intl measurement differences at 0.7.1
+
+Compiler and Intl analyzer 0.7.1 prepare explicit measurement differences for Intl 0.7.1.
+The unit formatter adds an optional data-only `difference` mode and retains existing binding
+vectors and helper signatures. Previously emitted descriptors omit the field and retain absolute
+conversion. ABI epoch 2 and released fixtures remain unchanged. Newly compiled difference
+activations require Intl ^0.7.1. Extraction also preserves call and property-read occurrences, fences scalar reuse after
+potential effects, and removes
+unit-option metadata from reconstructed intrinsic hosts. These providers join their already selected unpublished 0.7.1
+releases and must be selected together for publication.

@@ -39,7 +39,9 @@ export async function ProductPage(
   );
 }`;
 
-const requestContextSource = `import { composeExactExecutorContract } from '@exactjs/server';
+const requestContextSource = `import {
+  composeExactExecutorContract, createExactHydrationConfig
+} from '@exactjs/server';
 import { createExactServerRuntime } from '@exactjs/ssr';
 import {
   ProductPage, ProductRepositoryContext
@@ -47,6 +49,8 @@ import {
 
 // Compose the operations emitted for this server component.
 const contract = composeExactExecutorContract([ProductPage], { endpoint: '/__exact' });
+// Spread these options into a custom hydratable SSR renderer.
+const hydration = createExactHydrationConfig(contract, { includeContinuations: false });
 
 const runtime = createExactServerRuntime({
   contract,
@@ -132,6 +136,14 @@ export function ServerExecutionPage(this: Component<{}>) {
 					title="Excerpt: configure a custom server runtime"
 				/>
 				<p>
+					A custom hydratable renderer also needs the browser-visible endpoint configuration from
+					that contract. Spread <code>createExactHydrationConfig(contract)</code> into its render
+					options. Set <code>includeContinuations: false</code> when the browser imports the
+					generated hydration registration, which already supplies those contracts. This wiring
+					belongs to the consuming application. Plain SSR without browser activation does not need
+					it.
+				</p>
+				<p>
 					Each render or task invocation gets its own request context. The browser supplies the
 					product ID, while your server determines the caller’s identity and access. Configure these
 					providers before creating the runtime. Adding providers later does not reconfigure it.
@@ -168,7 +180,9 @@ export function ServerExecutionPage(this: Component<{}>) {
 				<p>
 					Dependencies used only by server work, such as a database SDK, GraphQL parser, or schema
 					asset, stay in the server build. If you choose to call an existing API or GraphQL service,
-					that call can be part of the task too.
+					that call can be part of the task too. Imported values retain their data policy through
+					renaming and re-exports. Type-only references do not access those values, while an actual
+					client task read of server-kept or secret data produces a compiler error.
 				</p>
 				<Callout title="Sharing a result does not grant access to it">
 					<p>
@@ -221,7 +235,9 @@ export function ServerExecutionPage(this: Component<{}>) {
 						<a href="https://github.com/techjoshua/exact/blob/main/docs/ssr-hydration.md">
 							SSR reference
 						</a>{' '}
-						covers publication, URL handling, and output limits.
+						covers publication, URL handling, and output limits. Native URL attributes block
+						javascript protocols in server output and DOM updates. When a value needs string
+						conversion, eXact publishes the same text it checked.
 					</p>
 				</details>
 			</section>
@@ -234,6 +250,13 @@ export function ServerExecutionPage(this: Component<{}>) {
 					its state. Separate islands can load in either order.
 				</p>
 				<p>
+					A component can give descendant controls access to its state through context. eXact keeps
+					that stateful provider as one hydrated component instance, including when the controls
+					come from a library. The provider can respond to those controls without owning an event
+					handler itself. Its server-rendered children remain in place as nested islands activate
+					within its context.
+				</p>
+				<p>
 					A visible control can be used while its island code is still loading. Once the hydration
 					bootstrap has installed its listeners, eXact captures compiler-supported interactions for
 					both eager and interaction-triggered islands and delivers them after adoption. Repeated
@@ -242,12 +265,22 @@ export function ServerExecutionPage(this: Component<{}>) {
 					becomes available. Unsupported events and events before capture starts are not replayed.
 				</p>
 				<p>
+					Replay preserves supported event and control data, such as an input’s value. A handler
+					that reads custom event fields, captures the event in another callable, or reads it after
+					an await requires eager activation. Defining an uncalled asynchronous helper does not
+					suspend its enclosing handler. Locally derived callback objects stay executable in the
+					client island while their serializable inputs cross from the server.
+				</p>
+				<p>
 					Components inside one client root share its hydration. Their local callbacks stay in that
-					root. When an island contains other components, eXact restores their server-rendered state
-					together as that island activates. Data passed to an independent island must be
-					serializable. Wrappers can also accept <code>props.children</code> rendered on the server.
-					eXact retains that content and any nested islands, so you do not need to recreate it in
-					browser code.
+					root. An explicitly client-only child mounts in its server placeholder while retaining the
+					parent’s DOM and edited inputs. When an island contains other components, eXact restores
+					their server-rendered state together as that island activates. Data passed to an
+					independent island must be serializable. Wrappers can also accept{' '}
+					<code>props.children</code> rendered on the server. eXact retains that content and any
+					nested islands, so you do not need to recreate it in browser code. An enhancement attached
+					to an element activates with the client component or island that owns that element. Its
+					lifecycle work keeps that ownership.
 				</p>
 				<p>
 					When a page component should run only on the server, you can mark it with

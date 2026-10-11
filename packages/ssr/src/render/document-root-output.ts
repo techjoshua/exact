@@ -16,10 +16,10 @@ import { captureSsrProgramOutput } from './program-capture.js';
 import { consumeScalarPropsProof } from './scalar-props-proof.js';
 import {
 	readServerComponentReference,
-	ownsClientResumption,
 	receiptExecutionContract,
 	serverComponentProps
 } from './server-component-reference.js';
+import { ownsClientResumption } from './component-publication-policy.js';
 
 /**
  * Issues a progressive root or explicit server shell before choosing document output or local capture.
@@ -34,7 +34,7 @@ export function renderDocumentRootOutput(
 	const reference = readServerComponentReference(operation);
 	if (!reference) return renderChildren(context, [operation], undefined, options);
 	const contract = receiptExecutionContract(reference);
-	if (options.resumptionCapture && options.clientResumptionOwner === undefined)
+	if (options.clientResumptionOwner === undefined)
 		options = {
 			...options,
 			clientResumptionOwner: ownsClientResumption(contract)
@@ -54,11 +54,11 @@ export function renderDocumentRootOutput(
 			const props = serverComponentProps(reference);
 			const publication: ComponentPublication = {
 				capturesResumptions: options.resumptionCapture !== undefined,
+				canPublishResumption: false,
 				componentName: contract.artifact.id,
 				componentKey: reference.key,
 				componentOrdinal: context.nextId++,
-				documentProbe: true,
-				hasComponentAncestor: false
+				documentProbe: true
 			};
 			const output = executeDirectSsrComponent(
 				context,

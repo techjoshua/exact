@@ -122,11 +122,20 @@ function executeProgramWriter<T, Invocation>(
 		return failProgramWriter(output, error);
 	}
 	return completed instanceof Promise
-		? completed.then(
-				(value) => completeProgramWriter(output, value, local),
-				(error) => failProgramWriter(output, error)
-			)
+		? completePendingProgramWriter(output, completed, local)
 		: completeProgramWriter(output, completed, local);
+}
+
+/** Captures output and local storage only while a generated writer is actually pending. */
+function completePendingProgramWriter<T>(
+	output: SsrProgramWriterOutput<T>,
+	completed: Promise<unknown>,
+	local: CapturedProgramSink | undefined
+): Promise<string> {
+	return completed.then(
+		(value) => completeProgramWriter(output, value, local),
+		(error) => failProgramWriter(output, error)
+	);
 }
 
 /** Validates ownership before releasing unused prepared siblings, preserving primary errors. */
@@ -142,12 +151,18 @@ function completeProgramWriter<T>(
 		);
 	const html = local?.value ?? '';
 	const preparation = output.preparation;
-	return preparation
-		? withRenderCleanup(
-				() => html,
-				() => Promise.resolve(preparation[Symbol.asyncDispose]())
-			)
-		: html;
+	return preparation ? disposeCompletedProgramWriter(preparation, html) : html;
+}
+
+/** Retains completed text through asynchronous release of unused prepared siblings. */
+function disposeCompletedProgramWriter(
+	preparation: AsyncDisposable,
+	html: string
+): RenderValue<string> {
+	return withRenderCleanup(
+		() => html,
+		() => Promise.resolve(preparation[Symbol.asyncDispose]())
+	);
 }
 
 /** Keeps cleanup failures secondary when a generated writer rejects or throws. */

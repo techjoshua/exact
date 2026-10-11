@@ -2,6 +2,11 @@
 export type WebpackResolveRequest = {
 	request?: string;
 	path?: string;
+	/** Cached package context must be cleared when changing the resolution directory. */
+	descriptionFilePath?: string;
+	descriptionFileData?: unknown;
+	descriptionFileRoot?: string;
+	relativePath?: string;
 };
 
 /** Resolved NormalModuleFactory record available before the module build begins. */
@@ -26,7 +31,7 @@ export type WebpackResolverLike = {
 	hooks?: {
 		resolve?: {
 			tapAsync?(
-				name: string,
+				name: string | Readonly<{ name: string; stage?: number }>,
 				handler: (
 					request: WebpackResolveRequest,
 					context: unknown,
@@ -38,7 +43,7 @@ export type WebpackResolverLike = {
 	ensureHook?(name: string): unknown;
 	getHook?(name: string): {
 		tapAsync?(
-			name: string,
+			name: string | Readonly<{ name: string; stage?: number }>,
 			handler: (
 				request: WebpackResolveRequest,
 				context: unknown,

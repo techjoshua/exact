@@ -220,9 +220,16 @@ func (lowering *jsxLowering) serverIslandFallback(
 	// Enhanced hosts use receipt children on the client. Preserve that topology and
 	// resolve namespace props through the enhancement planner on the server as well.
 	enhanced := intrinsic && lowering.renderProgramIntrinsicHasEnhancements(opening.Attributes())
+	var projected *ast.Node
+	var deferredSpreadMetadata *ast.Node
 	if enhanced {
-		projected := lowering.propsWithProjection(opening.Attributes(), lowering.elementID(identityNode), true, tagText, false, true)
-		properties = projected.AsObjectLiteralExpression().Properties.Nodes
+		if lowering.timeActivation != "" && lowering.timeAttributesHaveClockSpread(opening.Attributes()) {
+			metadata := []*ast.Node{}
+			projected = lowering.propsWithDeferredProjection(opening.Attributes(), lowering.elementID(identityNode), true, tagText, false, true, &metadata)
+			deferredSpreadMetadata = lowering.factory.NewObjectLiteralExpression(lowering.factory.NewNodeList(metadata), false)
+		} else {
+			projected = lowering.propsWithProjection(opening.Attributes(), lowering.elementID(identityNode), true, tagText, false, true)
+		}
 	}
 	if intrinsic && !lowering.renderProgramFallback && !enhanced {
 		rootAttributes := lowering.factory.NewObjectLiteralExpression(
@@ -260,6 +267,9 @@ func (lowering *jsxLowering) serverIslandFallback(
 	var props *ast.Node = lowering.factory.NewObjectLiteralExpression(
 		lowering.factory.NewNodeList(properties), false,
 	)
+	if projected != nil {
+		props = projected
+	}
 	if !intrinsic && interopType == nil {
 		// Native component inputs remain local under a hydrated owner. Preserve callback
 		// props so the child can render normally; only independent captures serialize.
@@ -277,6 +287,12 @@ func (lowering *jsxLowering) serverIslandFallback(
 	helper := lowering.names.componentReceipt
 	if intrinsic {
 		helper = lowering.names.intrinsicElement
+		if deferredSpreadMetadata != nil {
+			helper = lowering.names.timeSpreadElement
+			arguments = append([]*ast.Node{arguments[0], deferredSpreadMetadata, lowering.arrow(props)}, arguments[2:]...)
+		} else if lowering.timeActivation != "" && containsIdentifier(props, lowering.names.timePropertyReaders) {
+			helper = lowering.names.timeIntrinsicElement
+		}
 	} else {
 		helper = lowering.names.componentReceipt
 	}
@@ -284,7 +300,7 @@ func (lowering *jsxLowering) serverIslandFallback(
 	if !intrinsic {
 		return lowering.componentSpreadReceipt(identityNode, opening.Attributes(), element)
 	}
-	return element
+	return lowering.timeSpreadReceipt(identityNode, opening.Attributes(), element)
 }
 
 func (lowering *jsxLowering) serverIslandAttributeProperties(
@@ -328,7 +344,7 @@ func (lowering *jsxLowering) serverIslandAttributeProperties(
 		if ast.IsJsxSpreadAttribute(property) {
 			if members, finite := finiteSpreads[property.Pos()]; finite {
 				for _, member := range members {
-					if interactiveJSXAttribute(member.name) {
+					if interactiveJSXAttribute(member.name) || member.name == "ref" && !includeElementID {
 						continue
 					}
 					properties = append(properties, lowering.property(
@@ -336,6 +352,9 @@ func (lowering *jsxLowering) serverIslandAttributeProperties(
 						lowering.finiteSpreadPropertyValue(&member),
 					))
 				}
+				continue
+			}
+			if lowering.serverCaptureIsland != nil && lowering.serverCaptureIsland.reconstructedSpreads[property.Pos()] {
 				continue
 			}
 			properties = append(
@@ -358,7 +377,7 @@ func (lowering *jsxLowering) serverIslandAttributeProperties(
 			continue
 		}
 		if name == "ref" {
-			if lowering.serverObservableRefAttribute(attribute) &&
+			if includeElementID && lowering.serverObservableRefAttribute(attribute) &&
 				ast.IsJsxExpression(attribute.Initializer) {
 				expression := attribute.Initializer.AsJsxExpression().Expression
 				if expression != nil {

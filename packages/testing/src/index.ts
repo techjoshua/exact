@@ -13,7 +13,7 @@ export {
 	renderServerTest,
 	testServerComponent
 } from './server/render.js';
-export type { ServerTestRenderOptions } from './server/render.js';
+export type { ServerTestComponentType, ServerTestRenderOptions } from './server/render.js';
 export { ExactProtocolRecorder } from './protocol.js';
 export type { ExactProtocolExchange } from './protocol.js';
 export { ClientServerTestView, mountClientServerTest } from './client-server.js';

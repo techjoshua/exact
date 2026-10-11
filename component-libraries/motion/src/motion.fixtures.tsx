@@ -7,6 +7,27 @@ let dynamicReleaseScene: Component<{ shown: boolean }> | undefined;
 let lateMotionScene: Component<{ shown: boolean }> | undefined;
 let changeMotionScene: Component<{ offset: number }> | undefined;
 let activityMotionScene: Component<{ mode: 'active' | 'parked' }> | undefined;
+let contentMotionScene: Component<{ label: string; enabled: boolean }> | undefined;
+
+const contentChange = { keyframes: [{ opacity: 0.5 }, { opacity: 1 }] };
+
+/** Separates content updates from an explicitly reactive change phase. */
+export function ContentMotionScene(this: Component<{ label: string; enabled: boolean }>) {
+	contentMotionScene = this;
+	this.state.label = 'Before';
+	this.state.enabled = false;
+	return () => (
+		<MotionElement change={this.state.enabled ? contentChange : undefined}>
+			<span>{this.state.label}</span>
+		</MotionElement>
+	);
+}
+
+/** Returns the mounted content/change configuration fixture owner. */
+export function contentMotionSceneInstance() {
+	if (!contentMotionScene) throw new Error('Content motion fixture has not been mounted');
+	return contentMotionScene;
+}
 
 /** Compiler-backed dynamic enhancement range used by release tests. */
 export function DynamicReleaseScene(this: Component<{ shown: boolean }>) {

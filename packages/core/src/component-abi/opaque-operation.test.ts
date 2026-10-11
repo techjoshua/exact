@@ -1,6 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
 	createCompiledIntrinsicReceipt,
+	createDeferredServerIntrinsicReceipt,
+	createDeferredServerIntrinsicSpreadReceipt,
+	withoutCompiledIntrinsicReceiptEnhancement,
+	withIntrinsicReceiptChildren,
+	readCompiledIntrinsicReceipt,
 	exactIntrinsicOperation,
 	type ExactIntrinsicOperationTarget
 } from './intrinsic-receipt.js';
@@ -172,4 +177,63 @@ describe('opaque target operations', () => {
 		});
 		expect(readPreparedServerKeyedChild(child)?.value).toBe(value);
 	});
+});
+
+// Enhancement setup must precede clock reads, while ordinary intrinsic inputs stay eager.
+it.each([false, true])(
+	'preserves intrinsic property evaluation ordering with deferred=%s',
+	(deferred) => {
+		let value = 'wall';
+		let reads = 0;
+		const props = {
+			key: 'clock',
+			get 'data-clock'() {
+				reads++;
+				return value;
+			}
+		};
+		const operation = (
+			deferred ? createDeferredServerIntrinsicReceipt : createCompiledIntrinsicReceipt
+		)('time', props);
+		expect(reads).toBe(deferred ? 0 : 1);
+		value = 'provider';
+		const data = readCompiledIntrinsicReceipt(operation)!;
+		expect(data.props['data-clock']).toBe(deferred ? 'provider' : 'wall');
+		expect(reads).toBe(1);
+		expect(data.key).toBe('clock');
+		expect(Object.hasOwn(data.props, 'key')).toBe(false);
+	}
+);
+
+// Removing enhancement metadata or deriving children must not evaluate the host before setup.
+it('preserves lazy spread evaluation and actual keys through intrinsic derivation', () => {
+	let sample = 0;
+	const readProps = vi.fn(() => ({
+		...(sample > 1 ? { 'data-late': 'active' } : { 'data-early': 'active' }),
+		key: 'ignored',
+		__exactEnhancements: 'ignored',
+		title: String(sample)
+	}));
+	const enhancement = {};
+	const operation = createDeferredServerIntrinsicSpreadReceipt(
+		'time',
+		{ key: 'retained', __exactEnhancements: enhancement },
+		readProps,
+		'original'
+	);
+	const plain = withoutCompiledIntrinsicReceiptEnhancement(operation)!;
+	const derived = withIntrinsicReceiptChildren(plain, ['replacement']);
+	expect(readProps).not.toHaveBeenCalled();
+	sample = 2;
+	const data = readCompiledIntrinsicReceipt(derived)!;
+	expect(data.props).toMatchObject({ 'data-late': 'active', title: '2' });
+	expect(Object.hasOwn(data.props, 'data-early')).toBe(false);
+	expect(Object.hasOwn(data.props, 'key')).toBe(false);
+	expect(Object.hasOwn(data.props, '__exactEnhancements')).toBe(false);
+	expect(data.key).toBe('retained');
+	expect(data.enhancement).toBeUndefined();
+	expect(data.children).toEqual(['replacement']);
+	sample = 3;
+	expect(readCompiledIntrinsicReceipt(operation)!.props).toBe(data.props);
+	expect(readProps).toHaveBeenCalledTimes(1);
 });

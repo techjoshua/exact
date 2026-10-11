@@ -105,6 +105,53 @@ browser preference during SSR. The requested preference remains in `preferences.
 and `data-exact-theme-appearance`. Attributes are output selectors, not mutable source inputs.
 Scope CSS also selects native `color-scheme` from the same resolved branch.
 
+### Change appearance from a descendant control
+
+Keep the chosen appearance in the component that owns the scope. A deeply nested control can
+reach that state through an application context containing the current preference and a callback.
+The resolved `ThemeContext` remains a read-only description of the theme.
+
+```tsx
+import { createContext, type Component } from '@exactjs/core';
+import type { ThemeAppearancePreference } from '@exactjs/theme';
+import * as theme from '@exactjs/theme/enhancements'
+  with { type: 'exact-enhancement' };
+
+type AppearanceControl = {
+  readonly appearance: ThemeAppearancePreference;
+  choose(value: ThemeAppearancePreference): void;
+};
+const AppearanceContext = createContext<AppearanceControl>('app.appearance');
+
+export function AppTheme(this: Component<{ appearance: ThemeAppearancePreference }>) {
+  this.state.appearance = 'system';
+  const owner = this;
+  this.setContext(AppearanceContext, {
+    get appearance() { return owner.state.appearance; },
+    choose: value => { owner.state.appearance = value; }
+  });
+  return () => (
+    <main theme:scope theme:appearance={this.state.appearance}>
+      <AppearanceButtons />
+    </main>
+  );
+}
+
+function AppearanceButtons(this: Component<{}>) {
+  const preference = this.getContext(AppearanceContext);
+  return () => <>
+    <button type="button" aria-pressed={preference.appearance === 'light'}
+      onClick={() => preference.choose('light')}>Light</button>
+    <button type="button" aria-pressed={preference.appearance === 'dark'}
+      onClick={() => preference.choose('dark')}>Dark</button>
+  </>;
+}
+```
+
+Clicking Dark updates `AppTheme.state.appearance`, the scope output, and both pressed states.
+The context belongs to the application. Use a callback prop instead when the control is a direct
+child and no deeper descendants need the preference.
+
 ### Complete public data model
 
 The package exports the following value types. All resolved objects and arrays are recursively
@@ -507,7 +554,8 @@ Derivers do not inspect computed style or register global callbacks.
 
 `deriveDataColors()` provides categorical sets of 1–12 colors, sequential sets of 2–12, and odd
 diverging sets of 3–11. It returns opaque colors, readable foregrounds, strokes, repeating
-non-color patterns, and distance warnings. Inputs and output ordering are deterministic.
+non-color patterns, and distance warnings. Inputs and output ordering are deterministic. Its published declaration carries the purity
+contract, so components can call it from compiler-tracked derived expressions.
 Categorical palettes reserve the semantic accent and its immediate OKLab neighborhood rather than
 using interaction emphasis as data identity. Charts must retain labels, symbols, patterns, or a
 table whenever color carries meaning.

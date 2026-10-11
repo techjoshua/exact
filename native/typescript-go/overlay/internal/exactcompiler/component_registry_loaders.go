@@ -8,15 +8,21 @@ import (
 // registryLazySelection proves the import and selected export together. Diagnostics and
 // build facts must describe the same returned value, regardless of authored formatting.
 func registryLazySelection(loader *ast.Node, typeChecker *checker.Checker) (string, string, bool) {
+	module, exported, _, valid := registryLazySelectionExpression(loader, typeChecker)
+	return module, exported, valid
+}
+
+// registryLazySelectionExpression also retains the checked selector value for canonical provenance.
+func registryLazySelectionExpression(loader *ast.Node, typeChecker *checker.Checker) (string, string, *ast.Node, bool) {
 	seen := make(map[*ast.Symbol]bool)
 	loader = unwrapRegistryDefinitionBody(loader)
 	for loader != nil && ast.IsIdentifier(loader) {
 		symbol := typeChecker.GetSymbolAtLocation(loader)
 		if symbol == nil || seen[symbol] {
-			return "", "", false
+			return "", "", nil, false
 		}
 		if source := ast.GetSourceFileOfNode(loader); source != nil && componentValueSymbolIsWrittenAfter(symbol, 0, source, typeChecker) {
-			return "", "", false
+			return "", "", nil, false
 		}
 		seen[symbol] = true
 		var resolved *ast.Node
@@ -31,38 +37,38 @@ func registryLazySelection(loader *ast.Node, typeChecker *checker.Checker) (stri
 		loader = unwrapRegistryDefinitionBody(resolved)
 	}
 	if !registryLoaderFunction(loader) || len(loader.Parameters()) != 0 {
-		return "", "", false
+		return "", "", nil, false
 	}
-	body := registryLoaderResult(loader.Body())
+	body := registryCallbackResult(loader.Body())
 	if body != nil && ast.IsAwaitExpression(body) {
 		body = unwrapRegistryDefinitionBody(body.AsAwaitExpression().Expression)
 	}
 	if body == nil || !ast.IsCallExpression(body) {
-		return "", "", false
+		return "", "", nil, false
 	}
 	then := body.AsCallExpression()
 	if then.Arguments == nil || len(then.Arguments.Nodes) != 1 || !ast.IsPropertyAccessExpression(then.Expression) {
-		return "", "", false
+		return "", "", nil, false
 	}
 	member := then.Expression.AsPropertyAccessExpression()
 	if member.Name().Text() != "then" || !ast.IsCallExpression(member.Expression) {
-		return "", "", false
+		return "", "", nil, false
 	}
 	imported := member.Expression.AsCallExpression()
-	if imported.Expression.Kind != ast.KindImportKeyword || imported.Arguments == nil || len(imported.Arguments.Nodes) != 1 || !ast.IsStringLiteral(imported.Arguments.Nodes[0]) {
-		return "", "", false
+	if imported.Expression.Kind != ast.KindImportKeyword || imported.Arguments == nil || len(imported.Arguments.Nodes) != 1 || (!ast.IsStringLiteral(imported.Arguments.Nodes[0]) && !ast.IsNoSubstitutionTemplateLiteral(imported.Arguments.Nodes[0])) {
+		return "", "", nil, false
 	}
 	selector := unwrapRegistryDefinitionBody(then.Arguments.Nodes[0])
 	if !registryLoaderFunction(selector) || len(selector.Parameters()) != 1 {
-		return "", "", false
+		return "", "", nil, false
 	}
 	parameter := selector.Parameters()[0].AsParameterDeclaration()
 	if parameter.Initializer != nil || parameter.DotDotDotToken != nil {
-		return "", "", false
+		return "", "", nil, false
 	}
-	result := registryLoaderResult(selector.Body())
+	result := registryCallbackResult(selector.Body())
 	if result == nil {
-		return "", "", false
+		return "", "", nil, false
 	}
 	name := parameter.Name()
 	exportName := ""
@@ -73,42 +79,43 @@ func registryLazySelection(loader *ast.Node, typeChecker *checker.Checker) (stri
 			exportName = result.AsPropertyAccessExpression().Name().Text()
 		} else if ast.IsElementAccessExpression(result) {
 			access := result.AsElementAccessExpression()
-			if access.ArgumentExpression != nil && ast.IsStringLiteral(access.ArgumentExpression) {
+			if access.ArgumentExpression != nil && (ast.IsStringLiteral(access.ArgumentExpression) || ast.IsNoSubstitutionTemplateLiteral(access.ArgumentExpression)) {
 				receiver = access.Expression
 				exportName = access.ArgumentExpression.Text()
 			}
 		}
 		receiver = unwrapRegistryDefinitionBody(receiver)
 		if receiver == nil || !ast.IsIdentifier(receiver) || receiver.Text() != name.Text() {
-			return "", "", false
+			return "", "", nil, false
 		}
 	} else if ast.IsObjectBindingPattern(name) && ast.IsIdentifier(result) {
 		elements := name.AsBindingPattern().Elements.Nodes
 		if len(elements) != 1 {
-			return "", "", false
+			return "", "", nil, false
 		}
 		binding := elements[0].AsBindingElement()
 		if binding.Initializer != nil || binding.DotDotDotToken != nil || !ast.IsIdentifier(binding.Name()) || binding.Name().Text() != result.Text() {
-			return "", "", false
+			return "", "", nil, false
 		}
 		property := binding.PropertyName
 		if property == nil {
 			property = binding.Name()
 		}
 		if !ast.IsIdentifier(property) && !ast.IsStringLiteral(property) {
-			return "", "", false
+			return "", "", nil, false
 		}
 		exportName = property.Text()
 	}
-	return imported.Arguments.Nodes[0].Text(), exportName, exportName != ""
+	return imported.Arguments.Nodes[0].Text(), exportName, result, exportName != ""
 }
 
 func registryLoaderFunction(node *ast.Node) bool {
 	return node != nil && (ast.IsArrowFunction(node) || ast.IsFunctionExpression(node) || ast.IsFunctionDeclaration(node))
 }
 
-// A block-bodied loader or selector may return directly, but cannot hide extra work.
-func registryLoaderResult(body *ast.Node) *ast.Node {
+// Registry definitions, loaders and selectors share a single returned value proof.
+// A block may return directly, but cannot hide statements before or after that return.
+func registryCallbackResult(body *ast.Node) *ast.Node {
 	body = unwrapRegistryDefinitionBody(body)
 	if body != nil && ast.IsBlock(body) {
 		statements := body.AsBlock().Statements.Nodes

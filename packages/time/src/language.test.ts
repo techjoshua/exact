@@ -25,7 +25,7 @@ describe('@exactjs/time language analyzer', () => {
 		expect(hover?.markdown).toContain('Reactive clock view');
 	});
 
-	it('reports missing clocks and unbounded automatic formatting', async () => {
+	it('leaves clock reachability and automatic-plan proof to native diagnostics', async () => {
 		const analyzer = await createExactLanguageAnalyzer({} as never);
 		const signal = new AbortController().signal;
 		const missing = '<time time:update="second">Static</time>';
@@ -38,11 +38,11 @@ describe('@exactjs/time language analyzer', () => {
 			{ projection: timeProjection(opaque, 'auto'), scope: 'document' },
 			signal
 		);
-		expect(missingDiagnostics.map(({ code }) => code)).toContain('time-update-without-clock');
-		expect(opaqueDiagnostics.map(({ code }) => code)).toContain('time-auto-inference-unbounded');
+		expect(missingDiagnostics).toEqual([]);
+		expect(opaqueDiagnostics).toEqual([]);
 	});
 
-	it('reports Temporal precision unavailable from the millisecond clock', async () => {
+	it('leaves semantic Temporal precision proof to native diagnostics', async () => {
 		const analyzer = await createExactLanguageAnalyzer({} as never);
 		const signal = new AbortController().signal;
 		const source = `<time time:update>{Temporal.Now.instant().until(deadline).round({ smallestUnit: 'microsecond' })}</time>`;
@@ -50,7 +50,18 @@ describe('@exactjs/time language analyzer', () => {
 			{ projection: timeProjection(source, 'auto'), scope: 'document' },
 			signal
 		);
-		expect(diagnostics.map(({ code }) => code)).toContain('time-clock-precision-unavailable');
+		expect(diagnostics).toEqual([]);
+	});
+
+	it('does not reject destructured clock reads using incomplete text matching', async () => {
+		const source = `const reading={now:Date.now()};const {now}=reading;`;
+		const element = `<time time:update="auto">{Math.floor((now-0)/1000)}</time>`;
+		const analyzer = await createExactLanguageAnalyzer({} as never);
+		const diagnostics = await analyzer.diagnostics(
+			{ projection: timeProjection(source + element, 'auto', source.length), scope: 'document' },
+			new AbortController().signal
+		);
+		expect(diagnostics).toEqual([]);
 	});
 
 	it('follows clock dependencies through local TypeScript formatters', async () => {

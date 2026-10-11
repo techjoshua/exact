@@ -41,7 +41,7 @@ type publishedComponentBuild struct {
 	} `json:"exports"`
 }
 
-// publishedExactComponent admits an imported JSX tag only when the dependency's inert protocol-2
+// publishedExactComponent admits an imported JSX tag only when the dependency's inert protocol-1
 // build facts publish that exact package subpath and export. It never evaluates dependency source
 // or asks the runtime value whether it happens to look like a native component.
 func (lowering *jsxLowering) publishedExactComponent(
@@ -95,7 +95,7 @@ func publishedComponentBuildExports(
 	manifest publishedComponentManifest,
 	reference externalImportReference,
 ) bool {
-	if manifest.ExactComponentLibrary.Protocol != 2 || manifest.ExactComponentLibrary.Build == "" {
+	if manifest.ExactComponentLibrary.Protocol != componentLibraryProtocolVersion || manifest.ExactComponentLibrary.Build == "" {
 		return false
 	}
 	contents, error := os.ReadFile(filepath.Join(packageRoot, filepath.FromSlash(manifest.ExactComponentLibrary.Build)))
@@ -103,7 +103,7 @@ func publishedComponentBuildExports(
 		return false
 	}
 	var build publishedComponentBuild
-	if json.Unmarshal(contents, &build) != nil || build.Protocol != 2 || build.Package.Name != manifest.Name {
+	if json.Unmarshal(contents, &build) != nil || build.Protocol != componentLibraryProtocolVersion || build.Package.Name != manifest.Name {
 		return false
 	}
 	subpath := packageSubpath(manifest.Name, reference.moduleSpecifier)

@@ -322,6 +322,7 @@ describe('installed eXact component package artifacts', () => {
 						'./framework/server-render-structure': './index.js',
 						'./framework/server-task-helpers': './index.js',
 						'./runtime/component-abi': './index.js',
+						'./runtime/component-branding': './index.js',
 						'./runtime/component-operations': './index.js',
 						'./runtime/render': './index.js',
 						'./runtime/render-operations': './index.js',
@@ -340,6 +341,7 @@ describe('installed eXact component package artifacts', () => {
 			await writeFile(
 				path.join(exactCore, 'index.js'),
 				`
+      export function attachCompiledComponentContract(implementation, id, contract) { return Object.assign(implementation, { [Symbol.for("@exactjs/component")]: id, [Symbol.for("@exactjs/component-contract")]: contract }); }
       export function createServerBoundary() { return null; }
 			export function createCompiledComponentReceipt(type, props, ...children) { return { type, props: props ?? {}, children }; }
 			export function createCompiledIntrinsicReceipt(type, props, ...children) { return { type, props: props ?? {}, children }; }

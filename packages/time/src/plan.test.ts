@@ -1,3 +1,4 @@
+import './test-support/temporal-runtime.js';
 import { describe, expect, it } from 'vitest';
 import { nextTimeChange, validateTimeChangePlan } from './plan.js';
 
@@ -245,3 +246,47 @@ describe('time change plans', () => {
 		expect(formatter.format(islamicDeadline - 1)).not.toBe(formatter.format(islamicDeadline));
 	});
 });
+
+it.each(['half-even-increasing', 'half-even-decreasing'] as const)(
+	'matches native Temporal ties and exact next change: %s',
+	(boundary) => {
+		const temporal = Reflect.get(globalThis, 'Temporal') as {
+			Instant: {
+				fromEpochMilliseconds(value: number): {
+					since(other: unknown): { round(options: unknown): { milliseconds: number } };
+				};
+			};
+		};
+		const anchor = 1250,
+			quantum = 250;
+		const fixed = temporal.Instant.fromEpochMilliseconds(anchor);
+		const value = (now: number) => {
+			const moving = temporal.Instant.fromEpochMilliseconds(now);
+			return (
+				boundary === 'half-even-increasing' ? moving.since(fixed) : fixed.since(moving)
+			).round({ smallestUnit: 'millisecond', roundingIncrement: quantum, roundingMode: 'halfEven' })
+				.milliseconds;
+		};
+		for (const sample of [
+			-2251, -2250, -2249, -751, -750, -749, 1249, 1250, 1251, 1374, 1375, 1376, 1624, 1625, 1626,
+			1749, 1750, 1751, 2374, 2375, 2376
+		]) {
+			let next = sample + 1;
+			while (value(next) === value(sample)) next++;
+			expect(
+				nextTimeChange(
+					validateTimeChangePlan({
+						protocol: 1,
+						kind: 'quantized',
+						anchorMilliseconds: anchor,
+						quantumMilliseconds: quantum,
+						boundary
+					}),
+					'auto',
+					sample
+				),
+				`sample=${sample}`
+			).toBe(next);
+		}
+	}
+);

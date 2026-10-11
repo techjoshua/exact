@@ -1,8 +1,35 @@
 import { describe, expect, it } from 'vitest';
+import { transformSync } from 'esbuild';
 import { transform } from '../../index.js';
 import { analyzeSource } from '../../compilation/source-analysis.js';
 
 describe('@exactjs/compiler: islands', () => {
+	it.each([
+		['onMouseEnter', 'eager'],
+		['onMouseLeave', 'eager'],
+		['onFocus', 'interaction']
+	] as const)('publishes the bounded activation mode for %s', (event, mode) => {
+		const source = `export function Hover(this:{state:{count:number}}){this.state.count=0;return()=> <button ${event}={()=>this.state.count++}>{this.state.count}</button>;}`;
+		const options = { filename: 'hover-policy.tsx', serverComponents: true };
+		const analysis = analyzeSource(source, options);
+		const island = analysis.boundaries.find((boundary) => boundary.kind === 'client-island')!;
+		expect(island.activation?.mode).toBe(mode);
+		if (mode === 'eager')
+			expect(island.activation?.reasons).toContainEqual(
+				expect.objectContaining({ code: 'unsupported-event', detail: event })
+			);
+		else expect(island.activation?.reasons).toEqual([]);
+		const server = transform(source, { ...options, target: 'server' });
+		expect(server).toContain(`__exactHydration: "${mode}"`);
+		expect(server).toContain('__exactHydrationFallback:');
+		const client = transform(source, {
+			...options,
+			target: 'client',
+			componentContractProjection: 'hydrate'
+		});
+		expect(client).toContain(event);
+	});
+
 	it('generates child-bearing client island components with state bridge props', () => {
 		const source =
 			'import { TaskContext } from "@exactjs/core";\n\n      import { readFile } from "node:fs/promises";\n\n      export function Panel(this: Component<{ count: number; label: string }>) {\n        const runFixtureTask = async (_task: TaskContext = TaskContext.server()) => {\n          await readFile("panel.txt", "utf8");\n        };\nrunFixtureTask();\n        return () => <button title={this.state.label} onClick={() => this.state.count++}>\n          Save {this.state.count}\n        </button>;\n      }\n    ';
@@ -266,7 +293,8 @@ describe('@exactjs/compiler: islands', () => {
 			'interaction'
 		);
 		expect(client).toContain('__exactReadState(this.state, 0) ? () =>');
-		expect(server).toContain("this.state.alternate ? 'First' : 'Second'");
+		const executable = transformSync(server, { loader: 'ts' }).code;
+		expect(executable).toContain('this.state.alternate ? "First" : "Second"');
 		expect(
 			analyzeSource(mismatched, { filename: 'Panel.tsx' }).boundaries[0]?.activation?.reasons[0]
 				?.code
@@ -459,7 +487,8 @@ describe('@exactjs/compiler: islands', () => {
 		expect(server).toContain('Panel_ExactClient_1');
 		expect(server).toContain('{ className: "summary" }');
 		expect(server).toContain('__exactSsr.rootOpening(');
-		expect(server).toContain('__exactSsr.component(');
+		// Issued server slots use the structural writer, preserving server ownership.
+		expect(server).toContain('__exactIssueServerComponent(__exactComponentReceipt(ServerSummary');
 		expect(server).toContain('__exactComponentReceipt(ServerSummary');
 		expect(server).toContain('readFile');
 		expect(

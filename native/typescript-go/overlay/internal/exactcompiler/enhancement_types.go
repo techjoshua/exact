@@ -2,8 +2,6 @@ package exactcompiler
 
 import (
 	"fmt"
-	"strconv"
-	"strings"
 
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
 	"github.com/microsoft/TypeScript/tsc/internal/checker"
@@ -246,7 +244,15 @@ func enhancementAttributeValue(
 	}
 	if ast.IsStringLiteral(attribute.Initializer) {
 		value := attribute.Initializer.AsStringLiteral().Text
-		return enhancementProvidedValue{valueType: typeChecker.GetStringType(), stringValue: &value}
+		// JSX attribute literals lack an expression type before intrinsic resolution.
+		// Ask TypeScript to check an anchored literal type rather than duplicating
+		// its template, numeric, bigint and string-mapping assignability rules.
+		factory := ast.NewNodeFactory(ast.NodeFactoryHooks{})
+		text := factory.NewStringLiteral(value, ast.TokenFlagsNone)
+		literal := factory.NewLiteralTypeNode(text)
+		text.Parent = literal
+		literal.Parent = attribute.AsNode()
+		return enhancementProvidedValue{valueType: typeChecker.GetTypeFromTypeNode(literal), stringValue: &value}
 	}
 	return enhancementProvidedValue{valueType: typeChecker.GetTypeAtLocation(attribute.Initializer)}
 }
@@ -264,100 +270,5 @@ func enhancementValueAssignable(
 		}
 		return false
 	}
-	if value.stringValue == nil {
-		return typeChecker.IsTypeAssignableTo(value.valueType, target)
-	}
-	return enhancementStringAssignable(*value.stringValue, target)
-}
-
-func enhancementStringAssignable(value string, target *checker.Type) bool {
-	for _, candidate := range target.Distributed() {
-		switch {
-		case candidate.IsString():
-			return true
-		case candidate.IsStringLiteral():
-			if text, ok := candidate.AsLiteralType().Value().(string); ok && text == value {
-				return true
-			}
-		case candidate.Flags()&checker.TypeFlagsTemplateLiteral != 0:
-			if enhancementTemplateMatches(value, candidate.AsTemplateLiteralType(), 0, 0) {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-func enhancementTemplateMatches(
-	value string,
-	template *checker.TemplateLiteralType,
-	index int,
-	position int,
-) bool {
-	texts := template.Texts()
-	types := template.Types()
-	if index >= len(texts) || !strings.HasPrefix(value[position:], texts[index]) {
-		return false
-	}
-	position += len(texts[index])
-	if index == len(types) {
-		return position == len(value)
-	}
-	next := texts[index+1]
-	if next == "" {
-		for end := position; end <= len(value); end++ {
-			if enhancementTemplatePlaceholderMatches(value[position:end], types[index]) &&
-				enhancementTemplateMatches(value, template, index+1, end) {
-				return true
-			}
-		}
-		return false
-	}
-	for offset := position; offset <= len(value); {
-		relative := strings.Index(value[offset:], next)
-		if relative < 0 {
-			return false
-		}
-		end := offset + relative
-		if enhancementTemplatePlaceholderMatches(value[position:end], types[index]) &&
-			enhancementTemplateMatches(value, template, index+1, end) {
-			return true
-		}
-		offset = end + 1
-	}
-	return false
-}
-
-func enhancementTemplatePlaceholderMatches(value string, target *checker.Type) bool {
-	for _, candidate := range target.Distributed() {
-		switch {
-		case candidate.IsString(), candidate.IsStringLiteral() && enhancementStringAssignable(value, candidate):
-			return true
-		case candidate.Flags()&checker.TypeFlagsNumberLike != 0:
-			if _, err := strconv.ParseFloat(value, 64); err == nil {
-				return true
-			}
-		case candidate.Flags()&checker.TypeFlagsBigIntLike != 0:
-			if _, err := strconv.ParseInt(strings.TrimSuffix(value, "n"), 10, 64); err == nil {
-				return true
-			}
-		case candidate.Flags()&checker.TypeFlagsBooleanLike != 0:
-			if value == "true" || value == "false" {
-				return true
-			}
-		case candidate.Flags()&checker.TypeFlagsNull != 0:
-			if value == "null" {
-				return true
-			}
-		case candidate.Flags()&checker.TypeFlagsUndefined != 0:
-			if value == "undefined" {
-				return true
-			}
-		case candidate.Flags()&checker.TypeFlagsTemplateLiteral != 0:
-			if enhancementTemplateMatches(value, candidate.AsTemplateLiteralType(), 0, 0) {
-				return true
-			}
-		}
-	}
-	return false
+	return typeChecker.IsTypeAssignableTo(value.valueType, target)
 }

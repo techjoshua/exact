@@ -79,11 +79,7 @@ func taskCallableReadsWithoutCapturedDefaults(
 				retained[read.Path] = struct{}{}
 			}
 		}
-		for _, target := range fact.externalTargets {
-			for _, read := range target.StateReads {
-				retained[read.Path] = struct{}{}
-			}
-		}
+
 		break
 	}
 	result := make([]StateEffect, 0, len(summary))
@@ -161,6 +157,14 @@ func collectTaskCapturedInputs(
 			continue
 		}
 		walkNode(initializer, func(node *ast.Node) bool {
+			if token := continuationContextLookup(node); token != nil {
+				appendInput(TaskCapturedInput{
+					Parameter:    capture.parameter,
+					Source:       "context",
+					Path:         strings.TrimSpace(sourceText(sourceFile, node)),
+					ContextToken: stableContextToken(token),
+				})
+			}
 			if !ast.IsIdentifier(node) || ast.IsDeclarationName(node) ||
 				isStaticPropertyName(node) {
 				return true
@@ -251,7 +255,12 @@ func (lowering *jsxLowering) taskCaptureArgumentResolver(
 	for index, node := range parameters[:min(argumentCount, len(parameters))] {
 		parameter := node.AsParameterDeclaration()
 		argument := lowering.taskCaptureArgument(args, argumentOffset+index)
-		value := argument
+		typeNode := parameter.Type
+		if typeNode == nil {
+			typeNode = lowering.taskDependencyType(node)
+		}
+		typedArgument := lowering.factory.NewAsExpression(argument, typeNode)
+		value := typedArgument
 		if parameter.Initializer != nil {
 			value = lowering.conditional(
 				lowering.binary(
@@ -261,8 +270,8 @@ func (lowering *jsxLowering) taskCaptureArgumentResolver(
 						lowering.factory.NewNumericLiteral("0", ast.TokenFlagsNone),
 					),
 				),
-				lowering.visitor.VisitNode(parameter.Initializer),
-				argument,
+				lowering.factory.NewAsExpression(lowering.mutationArgument(parameter.Initializer), typeNode),
+				typedArgument,
 			)
 		}
 		name := parameter.Name()
@@ -283,10 +292,10 @@ func (lowering *jsxLowering) taskCaptureArgumentResolver(
 	statements = append(
 		statements,
 		lowering.factory.NewReturnStatement(
-			lowering.factory.NewArrayLiteralExpression(
+			lowering.factory.NewAsExpression(lowering.factory.NewArrayLiteralExpression(
 				lowering.factory.NewNodeList(values),
 				false,
-			),
+			), lowering.factory.NewTypeReferenceNode(lowering.factory.NewIdentifier("const"), nil)),
 		),
 	)
 	return lowering.factory.NewArrowFunction(
@@ -336,14 +345,22 @@ func (lowering *jsxLowering) eraseTaskCapturedParameterDefaults(
 		if parameter.Initializer == nil {
 			continue
 		}
+		typeNode := parameter.Type
+		if typeNode == nil {
+			typeNode = lowering.taskDependencyType(node)
+		}
+		initializer := parameter.Initializer
+		if !lowering.checking {
+			initializer = nil
+		}
 		parameters[index] = lowering.factory.UpdateParameterDeclaration(
 			parameter,
 			parameter.Modifiers(),
 			parameter.DotDotDotToken,
 			parameter.Name(),
 			parameter.QuestionToken,
-			parameter.Type,
-			nil,
+			typeNode,
+			initializer,
 		)
 		changed = true
 	}

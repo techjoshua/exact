@@ -12,10 +12,13 @@ import (
 // the changed module. Path-mapped, root-dir, dynamic, and global-module cases
 // deliberately fall back to full invalidation.
 func (state *projectState) invalidateChangedProjectSources(changedFileName string) {
+	// Type IDs and qualification facts belong to a checker in one unchanged program.
+	state.policyTypes = nil
 	if !state.hasAnalysisCaches() {
 		return
 	}
-	if projectRequiresConservativeInvalidation(state) {
+	changedSource := state.program.GetSourceFile(changedFileName)
+	if (changedSource != nil && changedSource.IsDeclarationFile) || projectRequiresConservativeInvalidation(state) {
 		state.counters.FullInvalidations++
 		state.invalidateAnalysisCaches()
 		return
@@ -29,12 +32,18 @@ func (state *projectState) invalidateChangedProjectSources(changedFileName strin
 			state.counters.ReusedSourceCount++
 		}
 	}
+	for sourceFile := range state.moduleImports {
+		if !current[sourceFile] {
+			delete(state.moduleImports, sourceFile)
+		}
+	}
 	state.pruneComponentCaches(current, affected)
 	state.pruneCallableCache(current, affected)
 }
 
 func (state *projectState) hasAnalysisCaches() bool {
-	return state.callableCache != nil ||
+	return state.moduleImports != nil ||
+		state.callableCache != nil ||
 		state.componentCache != nil ||
 		state.componentFacts != nil ||
 		state.componentLinks != nil
@@ -51,7 +60,7 @@ func projectRequiresConservativeInvalidation(state *projectState) bool {
 			continue
 		}
 		text := sourceFile.Text()
-		_, openDynamicImport := projectModuleSpecifiers(sourceFile)
+		_, openDynamicImport := state.sourceModuleSpecifiers(sourceFile)
 		if strings.Contains(text, "declare global") ||
 			strings.Contains(text, "declare module") ||
 			openDynamicImport {
@@ -62,6 +71,10 @@ func projectRequiresConservativeInvalidation(state *projectState) bool {
 }
 
 func projectModuleSpecifiers(sourceFile *ast.SourceFile) ([]string, bool) {
+	// JSON syntax cannot contain executable import expressions or module declarations.
+	if ast.IsJsonSourceFile(sourceFile) {
+		return []string{}, false
+	}
 	specifiers := make([]string, 0)
 	for _, imported := range collectImports(sourceFile) {
 		if !imported.Dynamic {
@@ -106,7 +119,7 @@ func affectedProjectSourcePaths(
 			if affectedPaths[path] || sourceFile.IsDeclarationFile {
 				continue
 			}
-			specifiers, _ := projectModuleSpecifiers(sourceFile)
+			specifiers, _ := state.sourceModuleSpecifiers(sourceFile)
 			for _, specifier := range specifiers {
 				if !strings.HasPrefix(specifier, "./") &&
 					!strings.HasPrefix(specifier, "../") {

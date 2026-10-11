@@ -269,7 +269,7 @@ The direct server frame's list helper retains already-issued keyed children in a
 list carrier instead of constructing and immediately redeeming a generic fragment receipt.
 The ordinary fragment renderer still owns its markers, ordered traversal, pressure, and child
 lifetimes. Iterable input is fully materialized before callbacks; each item's render callback
-precedes its key callback. Generic authored fragments retain their enhancement-capable receipts.
+precedes its key callback. Generic authored fragments retain their enhancement-capable receipts. Enhancement ownership wrappers retain the authored sibling key on intrinsic and fragment targets. Hydration and reactive updates preserve a same-key target, while a changed key replaces its owned range.
 
 `writeProgramChild` supplies the writer's direct child/component publication: it checks the
 program's delimiter budget before starting child work and preserves marked or marker-free output.
@@ -443,6 +443,17 @@ accumulates without exposing partial results. Exact UTF-8 limits are checked bef
 transport and limit failures cancel pending descendants before unwinding their parents. Completion,
 failure, and cancellation release retained sink output.
 
+Component publication policy is resolved once before rendering descendants. Its request-owned
+decision is shared by markup emission and streaming capture. Selected registry artifacts still
+supply their own publication metadata when output is emitted. A synchronous
+child already adopted by its enclosing client owner writes to that owner's sink when no marker
+wrapper is needed. Independent islands and speculative output still capture before publication.
+Renderer-selected enhancement providers activate through their enhanced target rather than
+publishing an independent island for lifecycle work. SSR tracks that provider use by request-local
+receipt identity, so an ordinary invocation of the same component still obeys island serialization
+rules. Retained server-slot authority is validated in place. Scalar children are snapshotted
+before publication so accessor values remain consistent with rendered output.
+
 Progressive destinations complete emission directly when reader demand or the environment writer
 is ready. They return a promise only for actual pressure. The head destination preserves that
 completion mode through the shared renderer, so committing a ready head does not suspend every
@@ -547,10 +558,16 @@ Server artifacts fold native literal `href`, `src`, `action`, and `formAction` v
 unambiguous relative, fragment, HTTP, or HTTPS prefixes into escaped static markup. Literal
 stylesheet links can therefore join their surrounding static head contents. Expressions, other
 URL forms, custom elements, and client artifacts retain their existing property operations and
-URL policy. Dynamic target contributions still use the checked runtime attribute path.
+URL policy. Stringable URL values are converted once and the checked text is retained for
+publication, so coercion cannot change the URL between validation and output. DOM updates and
+text projection use the same rule. Dynamic target contributions still use the checked runtime attribute path.
 Server attributes containing spreads are merged in authored order before serialization, so the
 last supplied value wins and URL policy applies to that final value rather than duplicate HTML
 attributes.
+Client property groups preserve that same order, including literal strings, boolean properties,
+and numeric properties. When a spread key disappears, an earlier explicit property supplies the
+value again. Copying a reactive spread observes its fields and key set, so an in-place mutation
+or reconciled task assignment updates the retained element without replacing it.
 
 Internally, resumption capture follows the options passed through component execution, including
 task preparation, suspension, publication, and rollback. The shared SSR output context owns the
@@ -711,7 +728,10 @@ Compiler-closed hydration publication reads each compiler-declared positional fi
 constructs the final getter-free tuple arrays. That pass enforces the schema, cycle, depth, and node
 limits without allocating property descriptors; a getter on a declared authored field therefore
 uses ordinary JavaScript semantics and runs once. Structurally open values and output-extension
-results retain descriptor-safe prototype and accessor validation. Serialization encodes validated
+results retain descriptor-safe prototype and accessor validation. That validation includes hidden
+array indices and non-enumerable `toJSON` hooks. Authored serialization hooks and custom array
+iteration, mapping, or constructor overrides are rejected before encoding. Ordinary sparse-array
+holes publish as JSON null cells and count against the graph node limit. Serialization encodes validated
 reactive collections through the JSON replacer instead of first constructing a second encoded
 object graph. The byte limit is computed over the exact escaped UTF-8 payload without allocating an
 intermediate byte array. String and progressive rendering select native byte counting when the
@@ -722,8 +742,11 @@ accounting, and serialized values are identical on both paths.
 
 All native rendering uses direct resumption capture. Only compiler-owned root state and prop
 storage use direct reads; published input
-comparisons and nested values retain accessor-safe reads. Hydration JSON escapes script-breaking
-characters without changing its wire representation. Static literal `charSet`, `charset`, and
+comparisons and nested values retain accessor-safe reads. Hydration JSON escapes `<` as `\u003C`
+in values and property names so payload text cannot close the script element or enter HTML script
+comment states. Serialization returns the original JSON string when `<` is absent. U+2028 and
+U+2029 remain ordinary JSON characters, and `JSON.parse` restores the same values. Attribute
+publication additionally applies HTML attribute escaping. Static literal `charSet`, `charset`, and
 `content` attributes on `meta` elements are compiled into markup on both targets, while server root
 attribute bags remain available for enhancement overrides.
 
@@ -768,6 +791,10 @@ selects the template-sentinel representation for client-created regions, marker-
 text, or the identity-sentinel fallback for ambiguous SSR text. Programs retain the SSR DOM without
 rebuilding an equivalent generic host tree. Initial adopted prop binding is covered by the
 root-level focus/form snapshot, so it does not repeat focus inspection for every intrinsic.
+Marked structural SSR claims retain their resolved closing boundary for adoption, avoiding a
+second search through the child content. Client-created templates keep their existing marker
+representation. Once adoption or binding establishes durable child-slot ownership, claim anchors
+release their temporary first-node reference so replaced children are not retained by the plan.
 Completed component mounts cache their first target and host candidates; parent publication reuses
 those structural results instead of recursively rediscovering roots through nested components.
 
@@ -788,8 +815,26 @@ When scalar expressions and static text fill an intrinsic, SSR emits a continuou
 without scalar comments. Initial bindings collect each value once under normal dependency
 tracking. Adoption validates all such runs before splitting text at UTF-16 offsets with
 `Text.splitText()`, retaining independent nodes even for empty values. A mismatch uses normal
-owning-root recovery. Temporary run plans are released after attachment or disposal; mixed
+owning-root recovery. Generic child arrays also validate browser-coalesced scalar text before splitting it into independent bindings. Opaque children and structural markers bound each run. Temporary run plans are released after attachment or disposal; mixed
 structural content retains its existing boundary strategy.
+
+Failed root adoption reports a structured diagnostic. `onMismatch: 'throw'` rejects hydration
+instead of replacing the element root. The default `replace` policy mounts a fresh root and restores
+captured form state. A mismatched `Document` root always rejects because replacing it is unsafe.
+`allowMarkerless` permits adoption without the outer component marker. It does not reconstruct
+missing structural ownership boundaries. Keep SSR markers enabled for dynamic lists and ranges.
+Content-owning enhancements may project a replacement operation during rendering. Hydration
+associates that projected output through the normal semantic target contract while retaining its
+server DOM and subsequent reactive bindings. Target selection and initial adoption reuse the same
+opaque slot values for that attachment. Later updates evaluate the original live readers, and adopted
+roots retain their authored enhancement ownership for subsequent target changes. Semantic target
+composition recovers authored render-program root props from the compiler template and live
+property groups. Server-contributed attributes remain separate, allowing later title, class, style,
+token-list and native property updates to replace their previous contributions.
+
+Dynamic child ranges retain a snapshot of child membership for comparison. In-place reactive array
+updates therefore reconcile against the previous sequence without losing observable member reads.
+This copies only the membership of a flat sequence, leaving child values and DOM identity intact.
 
 Compiler-closed hydratable component roots likewise omit the outer component boundary. Their
 direct hydration envelope carries a markerless-root presence bit, which is a compiler proof for
@@ -821,6 +866,12 @@ An SSR-only server entry can use `target: 'server'` with `renderMode: 'server-re
 retains compiled setup, dependency-ready tasks, rendering, and resumption publication while omitting
 the executors used only by later continuation requests. A server that also composes an executor
 contract must keep the default complete server mode or build a separate executor entry.
+Custom hydratable SSR renderers derive their browser-visible endpoint configuration from the same
+executor contract used by the server. Spread `createExactHydrationConfig(contract)` from
+`@exactjs/server` into the renderer's options. The helper can also include public state and context
+values, which must be safe to disclose. A library does not establish this application wiring.
+Plain SSR without client activation does not need it.
+
 Applications whose client entry imports a generated hydration registration should set
 `includeContinuations: false` in `createExactHydrationConfig()` so the HTML does not duplicate the
 same continuation contracts.
@@ -918,7 +969,10 @@ empty initial boundary. Opaque spread props cannot safely use this fallback proj
 The compiler classifies safe interaction-only islands. Their SSR fallback
 contains the real intrinsic markup and binding values but no active handlers.
 The generated hydration registration uses dynamic imports, so the island code
-loads on first supported interaction. Eager islands start loading immediately. Once the hydration
+loads on first supported interaction. Eager islands start loading immediately. An eager descendant also activates any dormant ancestor
+needed to adopt its server-owned slot, even when that ancestor waits for another event. Sibling
+descendants share the pending ancestor load. The client's `whenSettled()` waits for the complete
+adoption chain. Once the hydration
 bootstrap has installed capture listeners, both modes retain compiler-authorized interactions while
 their modules load and replay them after adoption:
 
@@ -986,9 +1040,21 @@ A replacement must match the captured compiler-generated ID or authored DOM ID a
 Form names and positions alone never authorize a replacement. Removed targets without a matching
 stable ID are discarded. A queued submit with an explicit submitter is discarded if that control no longer belongs to the form or can
 no longer submit it. Refs, unsupported events or
-event data, observable initial work, and non-finite spreads produce source-located eager reasons.
+event data, observable initial work, and non-finite spreads produce source-located eager reasons. Replayable handler reads use the event's
+`type`, `target`, or `currentTarget`, plus `submitter` for submit events. Input and change
+handlers can read the supported control fields `value`, `checked`, `name`, `id`, `form`,
+`selectedIndex`, and `selectedOptions`. An unrelated event field or an arbitrary intermediate
+property cannot acquire replay authority from a permitted final field name. Event references
+captured by nested callables and reads after the handler's own suspension require eager activation.
+An await in an uncalled nested helper does not suspend the handler.
 Finite immutable object spreads are expanded in source overwrite order, leaving handlers in the
-client artifact and sending only fallback values through SSR. Independently planned server ranges
+client artifact and sending only fallback values through SSR. Safe derived spread objects are reconstructed
+with their ordinary inputs and owned callback dependencies in the client island. Their callback
+members do not cross the JSON prop envelope. An opaque spread keeps eager activation and its
+client placeholder when a finite server fallback cannot be established. Creating a stored callback
+does not execute its body, while invoked callbacks and computed property keys still participate
+in reevaluation validation. Island snapshots preserve literal property boundaries, so a state key
+`"a.b"` and the nested path `a.b` retain independent values. Independently planned server ranges
 remain inert inside a dormant client island and retain their own refresh generation.
 The generated policy belongs to the lazy registry entry. An eager component entry cannot inherit
 interaction authority from boundary markup, and hydration does not install a general event family
@@ -1047,6 +1113,12 @@ validation paths. Map and Set traversal checks the remaining node budget before 
 so an oversized collection is rejected without first expanding the entire collection into work.
 
 ### Compiler-owned SSR preparation
+
+Server preparation separates activation inputs from reads of values produced earlier within the
+same task. A slice never waits on its own unpublished output, and dormant interaction task
+records do not become setup predecessors. Direct SSR resolves omitted task defaults once, in
+parameter order, before execution. Required inputs from other setup tasks retain their dependency
+ordering.
 
 Generated root attribute bags are read directly from their invocation slots because the compiler
 constructs those objects. Dynamic attribute values still use the normal escaping, URL policy,

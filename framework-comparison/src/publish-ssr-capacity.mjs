@@ -4,6 +4,7 @@ import { pathToFileURL } from 'node:url';
 import assert from 'node:assert/strict';
 import { summarizeSsrCapacityCapture } from './ssr-capacity-report.mjs';
 import { assertSsrArrivalIsolation } from './ssr-arrival-plan.mjs';
+import { loadDriverIdentity, describeLoadDriver } from './load-driver-identity.mjs';
 
 /** Builds the public report only when preloaded and normal captures use identical target artifacts. */
 export function createSsrCapacityReport(preloaded, normal) {
@@ -12,8 +13,14 @@ export function createSsrCapacityReport(preloaded, normal) {
 	const runtimeId = normal.runtimeId ?? 'node';
 	assert.ok(['node', 'bun'].includes(runtimeId), 'Unknown target runtime');
 	const runtimeName = `${runtimeId === 'bun' ? 'Bun' : 'Node'} ${normal.environment.runtimes[runtimeId]}`;
+	const loadDriver = loadDriverIdentity(normal);
 	assert.equal(normal.plan.preloaded, false, 'Normal-loading evidence must be explicit');
 	for (const capture of [preloaded.multi, preloaded.arrivals, normal]) {
+		assert.deepEqual(
+			loadDriverIdentity(capture),
+			loadDriver,
+			'Capture groups must share their load driver'
+		);
 		assert.equal(capture.renderMode, normal.renderMode, 'Captures must share their rendering API');
 		assert.equal(
 			capture.runtimeId ?? 'node',
@@ -88,7 +95,8 @@ export function createSsrCapacityReport(preloaded, normal) {
 					}
 				: null,
 		warmupRequestErrors,
-		method: `Preloaded sweep: ${describeStages(preloaded.multi)}. Normal loading: ${describeStages(normal)}. Arrivals: ${describeStages(preloaded.arrivals)}. Each capture uses two reversed process populations on ${normal.environment.platform}, target ${runtimeName}, Node ${normal.environment.runtimes.node} load drivers, ${normal.environment.cpu.model.trim()}`,
+		loadDriver,
+		method: `Preloaded sweep: ${describeStages(preloaded.multi)}. Normal loading: ${describeStages(normal)}. Arrivals: ${describeStages(preloaded.arrivals)}. Each capture uses two reversed process populations on ${normal.environment.platform}, target ${runtimeName}, ${describeLoadDriver(loadDriver)}, ${normal.environment.cpu.model.trim()}`,
 		validation: requestErrors
 			? `${requestErrors} request errors in scheduled arrivals, including ${warmupRequestErrors} during warmup; zero in concurrency captures. Response identities and accounting validated; RPS counts valid responses only`
 			: 'Zero request errors in these captures; response identities and accounting validated',

@@ -643,6 +643,7 @@ func TestPartitionPlanKeepsCoTargetedEnhancementsAsOrderedComponentOwners(t *tes
 	})
 	plan := createPartitionPlan(
 		parsed,
+		nil,
 		"enhancement-build",
 		response.Analysis.Components,
 		nil,

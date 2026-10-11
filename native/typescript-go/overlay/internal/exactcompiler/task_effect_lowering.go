@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
+	"github.com/microsoft/TypeScript/tsc/internal/checker"
 )
 
 func (lowering *jsxLowering) taskOptimisticPrelude(
@@ -18,7 +19,15 @@ func (lowering *jsxLowering) taskOptimisticPrelude(
 	}
 	statements := []*ast.Node{}
 	for _, statement := range body.AsBlock().Statements.Nodes {
-		if taskOptimisticStatement(statement) {
+		if lowering.taskOptimisticStatement(statement) {
+			// The alias declaration remains server work. Invoke the proven capability
+			// through the supplied context rather than capturing that server local.
+			call := unwrapRenderExpression(statement.AsExpressionStatement().Expression).AsCallExpression()
+			parameters := work.Parameters()
+			if len(parameters) != 0 && ast.IsIdentifier(parameters[len(parameters)-1].Name()) {
+				callee := lowering.factory.NewPropertyAccessExpression(parameters[len(parameters)-1].Name(), nil, lowering.factory.NewIdentifier("optimistic"), ast.NodeFlagsNone)
+				statement = lowering.factory.NewExpressionStatement(lowering.factory.UpdateCallExpression(call, callee, call.QuestionDotToken, call.TypeArguments, call.Arguments, call.Flags))
+			}
 			statements = append(statements, statement)
 		}
 	}
@@ -32,15 +41,19 @@ func (lowering *jsxLowering) taskOptimisticPrelude(
 			true,
 		),
 	)
+	arguments := []*ast.Node{}
+	// Expand the fixed argument vector by index. Spreading an untyped vector into
+	// a fixed signature loses TypeScript tuple checking, including zero-argument tasks.
+	for index := 0; index < len(work.Parameters())-1; index++ {
+		arguments = append(arguments, lowering.taskCaptureArgument(args, index))
+	}
+	arguments = append(arguments, context)
 	return lowering.factory.NewExpressionStatement(
 		lowering.factory.NewCallExpression(
 			lowering.factory.NewParenthesizedExpression(prelude),
 			nil,
 			nil,
-			lowering.factory.NewNodeList([]*ast.Node{
-				lowering.factory.NewSpreadElement(args),
-				context,
-			}),
+			lowering.factory.NewNodeList(arguments),
 			ast.NodeFlagsNone,
 		),
 	)
@@ -55,7 +68,7 @@ func (lowering *jsxLowering) withoutTaskOptimisticStatements(
 	}
 	statements := []*ast.Node{}
 	for _, statement := range body.AsBlock().Statements.Nodes {
-		if !taskOptimisticStatement(statement) {
+		if !lowering.taskOptimisticStatement(statement) {
 			statements = append(statements, statement)
 		}
 	}
@@ -68,53 +81,79 @@ func (lowering *jsxLowering) withoutTaskOptimisticStatements(
 	)
 }
 
-func taskOptimisticStatement(statement *ast.Node) bool {
+// taskOptimisticStatement moves only the framework capability's selected method.
+// Helpers with the same name retain their authored placement and execution order.
+func (lowering *jsxLowering) taskOptimisticStatement(statement *ast.Node) bool {
 	if !ast.IsExpressionStatement(statement) {
 		return false
 	}
-	expression := statement.AsExpressionStatement().Expression
-	if !ast.IsCallExpression(expression) {
+	expression := unwrapRenderExpression(statement.AsExpressionStatement().Expression)
+	if !ast.IsCallExpression(expression) || lowering.checker == nil {
 		return false
 	}
-	callee := expression.AsCallExpression().Expression
-	if ast.IsIdentifier(callee) {
-		return callee.Text() == "optimistic"
+	// Rewritten task bodies contain synthesized wrappers. Signature identity must
+	// be checked against the authored call, before mutation lowering replaces it.
+	authored := nodeAtSpan(lowering.sourceFile.AsNode(), expression.Pos(), expression.End()-expression.Pos())
+	if authored != nil && ast.IsExpressionStatement(authored) {
+		authored = authored.AsExpressionStatement().Expression
 	}
-	return ast.IsPropertyAccessExpression(callee) &&
-		callee.AsPropertyAccessExpression().Name().Text() == "optimistic"
+	if authored != nil {
+		authored = unwrapRenderExpression(authored)
+	}
+	return isTaskOptimisticCapabilityCall(authored, lowering.checker)
 }
 
-func taskWorkHasContextParameter(
-	work *ast.Node,
-	sourceFile *ast.SourceFile,
-) bool {
-	parameters := work.Parameters()
-	if len(parameters) == 0 {
+// isTaskOptimisticCapabilityCall selects the framework declaration, including callable aliases.
+func isTaskOptimisticCapabilityCall(authored *ast.Node, typeChecker *checker.Checker) bool {
+	return isTaskContextCapabilityCall(authored, typeChecker, "optimistic")
+}
+
+// Task capabilities are selected by their framework method declaration, never receiver spelling.
+func isTaskContextCapabilityCall(authored *ast.Node, typeChecker *checker.Checker, method string) bool {
+	if authored == nil || !ast.IsCallExpression(authored) || typeChecker == nil {
 		return false
 	}
-	last := parameters[len(parameters)-1]
-	contextSource := sourceText(sourceFile, last)
-	if strings.Contains(contextSource, "TaskContext") {
-		return true
+	// Inspect callable types without checking call arguments or solving generic
+	// overloads. Flow-narrowed aliases must retain their selected method signatures.
+	callable := typeChecker.GetTypeAtLocation(authored.AsCallExpression().Expression)
+	signatures := typeChecker.GetSignaturesOfType(callable, checker.SignatureKindCall)
+	if len(signatures) != 0 {
+		possibleCapability := false
+		for _, candidate := range signatures {
+			declaration := candidate.Declaration()
+			// Composite and synthetic signatures stay conservative.
+			if declaration == nil || taskContextCapabilityDeclaration(declaration, method) {
+				possibleCapability = true
+				break
+			}
+		}
+		if !possibleCapability {
+			return false
+		}
 	}
-	name := last.Name()
-	if !ast.IsObjectBindingPattern(name) {
+	signature := typeChecker.GetResolvedSignature(authored)
+	return signature != nil && taskContextCapabilityDeclaration(signature.Declaration(), method)
+}
+
+// Only the framework's TaskContext method declaration owns the capability.
+// Source identity is checked after structural rejection to keep ordinary calls cheap.
+func taskContextCapabilityDeclaration(declaration *ast.Node, method string) bool {
+	if declaration == nil {
 		return false
 	}
-	for _, element := range name.AsBindingPattern().Elements.Nodes {
-		binding := element.AsBindingElement()
-		property := binding.PropertyName
-		if property == nil {
-			property = binding.Name()
-		}
-		if ast.IsIdentifier(property) &&
-			(property.Text() == "signal" ||
-				property.Text() == "optimistic" ||
-				property.Text() == "generation") {
-			return true
-		}
+	if declaration.Kind != ast.KindMethodSignature || declaration.Name() == nil || (!ast.IsIdentifier(declaration.Name()) && !ast.IsStringLiteral(declaration.Name())) || declaration.Name().Text() != method {
+		return false
 	}
-	return false
+	parent := declaration.Parent
+	if parent == nil || !ast.IsInterfaceDeclaration(parent) || parent.Name().Text() != "TaskContext" {
+		return false
+	}
+	source := ast.GetSourceFileOfNode(declaration)
+	if source == nil {
+		return false
+	}
+	name := strings.ReplaceAll(source.FileName(), `\`, "/")
+	return strings.Contains(name, "/packages/core/") || strings.Contains(name, "/@exactjs/core/")
 }
 
 func (lowering *jsxLowering) manageTaskWork(
@@ -124,14 +163,16 @@ func (lowering *jsxLowering) manageTaskWork(
 	callsTaskDefinition bool,
 	directServer bool,
 ) *ast.Node {
+	nativeCleanup := taskContainsNativeCleanup(work)
 	if len(task.Resources) == 0 && len(task.SignalCalls) == 0 &&
 		len(task.Writes) == 0 && !taskContainsAwait(work) &&
-		!callsTaskDefinition {
+		!callsTaskDefinition && !nativeCleanup {
 		return work
 	}
 	var signal *ast.Node
 	var context *ast.Node
-	if callsTaskDefinition {
+	resourcePlan := newTaskResourceLoweringPlan(task.Resources, task.SignalCalls)
+	if callsTaskDefinition || len(resourcePlan.releases) != 0 {
 		context, work = lowering.ensureTaskContextParameter(work, dependencyCount)
 	}
 	if context != nil {
@@ -145,14 +186,18 @@ func (lowering *jsxLowering) manageTaskWork(
 		signal, work = lowering.taskSignalExpression(work, dependencyCount)
 		context = taskContextExpression(work, dependencyCount)
 	}
-	resources := make(map[string]TaskResource, len(task.Resources))
-	for _, resource := range task.Resources {
-		resources[fmt.Sprintf("%d:%d", resource.Start, resource.Length)] = resource
+	var pendingState *ast.Node
+	if lowering.taskNeedsPendingState(task) {
+		pendingState = lowering.factory.NewIdentifier(lowering.uniqueMutationName(fmt.Sprintf("__exactTaskState_%d", task.WorkStart)))
 	}
-	signals := make(map[string]TaskSignalCall, len(task.SignalCalls))
-	for _, call := range task.SignalCalls {
-		signals[fmt.Sprintf("%d:%d", call.Start, call.Length)] = call
+	lowering.pendingStates = append(lowering.pendingStates, pendingState)
+	defer func() { lowering.pendingStates = lowering.pendingStates[:len(lowering.pendingStates)-1] }()
+	locals := &blockingTaskLocals{writes: map[string]*blockingTaskLocal{}, reads: map[string]*blockingTaskLocal{}}
+	if pendingState == nil {
+		locals = lowering.planBlockingTaskLocals(task)
 	}
+	lowering.blockingLocals = append(lowering.blockingLocals, locals)
+	defer func() { lowering.blockingLocals = lowering.blockingLocals[:len(lowering.blockingLocals)-1] }()
 	var visitor *ast.NodeVisitor
 	mutationSignal := signal
 	// Proven synchronous value propagation has no authored cancellation boundary.
@@ -162,9 +207,49 @@ func (lowering *jsxLowering) manageTaskWork(
 	}
 	visitor = ast.NewNodeVisitor(
 		func(node *ast.Node) *ast.Node {
-			if ast.IsExpressionStatement(node) {
+			if ast.IsMethodDeclaration(node) || ast.IsGetAccessorDeclaration(node) || ast.IsSetAccessorDeclaration(node) || ast.IsConstructorDeclaration(node) {
+				// Method definitions are not executions of the surrounding task. Computed names
+				// still evaluate here, while parameter defaults and bodies belong to their call.
+				definition := ast.NewNodeVisitor(visitor.Visit, &lowering.factory.NodeFactory, ast.NodeVisitorHooks{
+					VisitParameters:   func(nodes *ast.ParameterList, _ *ast.NodeVisitor) *ast.ParameterList { return nodes },
+					VisitFunctionBody: func(body *ast.BlockOrExpression, _ *ast.NodeVisitor) *ast.BlockOrExpression { return body },
+				})
+				return definition.VisitEachChild(node)
+			}
+			if released := lowering.lowerTaskResourceRelease(node, signal, pendingState, visitor, resourcePlan); released != nil {
+				return released
+			}
+
+			if pendingState != nil {
+				if ast.IsExpressionStatement(node) {
+					expression := node.AsExpressionStatement().Expression
+					if _, exists := lowering.writes[nodeSpanKey(expression)]; exists {
+						return lowering.factory.NewExpressionStatement(visitor.VisitNode(expression))
+					}
+				}
+				if operation := lowering.pendingStateOperation(node, pendingState, visitor); operation != nil {
+					return operation
+				}
+			}
+			if local := locals.reads[nodeSpanKey(node)]; local != nil && !identifierIsWriteTarget(node) && !isDeleteOperand(node) {
+				return lowering.blockingLocalRead(local, visitor.VisitEachChild(node))
+			}
+
+			if !lowering.checking && mutationSignal != nil && !directServer && task.Readiness == "blocking" && lowering.target != TargetServer {
+				if write, exists := lowering.writes[nodeSpanKey(node)]; exists && (ast.IsBinaryExpression(node) || ast.IsPrefixUnaryExpression(node) || ast.IsPostfixUnaryExpression(node)) {
+					if expression := lowering.lowerSuspendedStateWrite(node, write, mutationSignal, true, visitor); expression != nil {
+						return expression
+					}
+				}
+			}
+			if !lowering.checking && ast.IsExpressionStatement(node) {
 				expression := node.AsExpressionStatement().Expression
 				if write, exists := lowering.writes[nodeSpanKey(expression)]; exists {
+					if containsEagerAwait(expression) {
+						if suspended := lowering.lowerSuspendedStateWrite(expression, write, mutationSignal, !directServer && task.Readiness == "blocking" && lowering.target != TargetServer, visitor); suspended != nil {
+							return lowering.factory.NewExpressionStatement(suspended)
+						}
+					}
 					if write.Operation == "assignment" &&
 						ast.IsBinaryExpression(expression) &&
 						expression.AsBinaryExpression().OperatorToken.Kind ==
@@ -190,8 +275,25 @@ func (lowering *jsxLowering) manageTaskWork(
 							expression.Pos(),
 						)
 					}
+					if !directServer && lowering.target != TargetServer && task.Readiness == "blocking" {
+						if update := lowering.lowerBlockingConsumedUpdate(expression, write, signal, visitor); update != nil {
+							return update
+						}
+					}
 					if directServer {
-						return lowering.factory.NewExpressionStatement(lowering.fenceTaskMutation(visitor.VisitEachChild(expression), mutationSignal))
+						if write.Operation == "map-mutation" || write.Operation == "set-mutation" {
+							return lowering.factory.NewExpressionStatement(lowering.lowerServerTaskCollectionWrite(expression, write, signal))
+						}
+						mutation := visitor.VisitEachChild(expression)
+						if write.Operation == "array-mutation" {
+							mutation = lowering.lowerStateWrite(mutation, write)
+						}
+						return lowering.factory.NewExpressionStatement(lowering.fenceTaskMutation(mutation, mutationSignal))
+					}
+					if lowering.target != TargetServer && (task.Readiness == "blocking" || task.Progress) && (write.Operation == "array-mutation" || write.Operation == "map-mutation" || write.Operation == "set-mutation") {
+						if captured := lowering.stagedTaskCollectionArguments(expression, write, signal, visitor); captured != nil {
+							return captured
+						}
 					}
 					var mutation *ast.Node
 					if lowering.target == TargetServer &&
@@ -222,7 +324,12 @@ func (lowering *jsxLowering) manageTaskWork(
 					}
 				}
 			}
-			if mutationSignal != nil {
+			if !lowering.checking && mutationSignal != nil {
+				if write, exists := lowering.writes[nodeSpanKey(node)]; exists && containsEagerAwait(node) {
+					if suspended := lowering.lowerSuspendedStateWrite(node, write, mutationSignal, false, visitor); suspended != nil {
+						return suspended
+					}
+				}
 				if write, exists := lowering.writes[nodeSpanKey(node)]; exists && !containsEagerAwait(node) {
 					mutation := visitor.VisitEachChild(node)
 					if !directServer {
@@ -252,24 +359,10 @@ func (lowering *jsxLowering) manageTaskWork(
 					)
 				}
 			}
-			if resource, exists := resources[nodeSpanKey(node)]; exists {
-				return lowering.lowerTaskResource(
-					node,
-					resource,
-					signal,
-					visitor,
-					directServer,
-				)
+			if resource := lowering.lowerPlannedTaskResource(node, signal, context, visitor, directServer, resourcePlan); resource != nil {
+				return resource
 			}
-			if signalCall, exists := signals[nodeSpanKey(node)]; exists {
-				return lowering.lowerTaskSignalCall(
-					node,
-					signalCall,
-					signal,
-					visitor,
-					directServer,
-				)
-			}
+
 			if ast.IsAwaitExpression(node) {
 				argument := visitor.VisitNode(node.AsAwaitExpression().Expression)
 				if directServer {
@@ -291,6 +384,22 @@ func (lowering *jsxLowering) manageTaskWork(
 		ast.NodeVisitorHooks{},
 	)
 	body := visitor.VisitNode(work.Body())
+	if pendingState != nil {
+		root := lowering.factory.NewPropertyAccessExpression(lowering.factory.NewThisExpression(), nil, lowering.factory.NewIdentifier("state"), ast.NodeFlagsNone)
+		initializer := lowering.taskHelperCall("createTaskState", lowering.names.createTaskState, []*ast.Node{signal, root})
+		declaration := lowering.factory.NewVariableStatement(nil, lowering.factory.NewVariableDeclarationList(lowering.factory.NewNodeList([]*ast.Node{lowering.factory.NewVariableDeclaration(pendingState, nil, nil, initializer)}), ast.NodeFlagsConst))
+		statements := []*ast.Node{declaration}
+		if ast.IsBlock(body) {
+			statements = append(statements, body.AsBlock().Statements.Nodes...)
+		} else {
+			statements = append(statements, lowering.factory.NewReturnStatement(body))
+		}
+		body = lowering.factory.NewBlock(lowering.factory.NewNodeList(statements), true)
+	}
+
+	if nativeCleanup && !lowering.checking {
+		body = lowering.taskNativeCleanupBody(body, signal)
+	}
 	return lowering.updateTaskWorkBody(work, body)
 }
 
@@ -318,7 +427,7 @@ func (lowering *jsxLowering) taskWorkCallsDefinition(work *ast.Node) bool {
 
 func (lowering *jsxLowering) taskDefinitionCall(expression *ast.Node) bool {
 	task, found := lowering.taskDefinitionAtCall(expression)
-	return found && !task.Progress
+	return found && !task.Progress && !(lowering.target == TargetServer && task.Placement == "client")
 }
 
 func (lowering *jsxLowering) taskDefinitionAtCall(expression *ast.Node) (task Task, found bool) {
@@ -358,7 +467,7 @@ func (lowering *jsxLowering) ensureTaskContextParameter(
 		if ast.IsIdentifier(name) {
 			return name, work
 		}
-		context := lowering.factory.NewIdentifier("__exactTaskContext")
+		context := lowering.factory.NewIdentifier(lowering.uniqueMutationName("__exactTaskContext"))
 		parameters[len(parameters)-1] = lowering.factory.UpdateParameterDeclaration(
 			final,
 			final.Modifiers(),
@@ -399,7 +508,7 @@ func (lowering *jsxLowering) ensureTaskContextParameter(
 		)
 		return context, work
 	}
-	context := lowering.factory.NewIdentifier("__exactTaskContext")
+	context := lowering.factory.NewIdentifier(lowering.uniqueMutationName("__exactTaskContext"))
 	parameters = append(
 		parameters,
 		lowering.factory.NewParameterDeclaration(
@@ -431,12 +540,11 @@ func (lowering *jsxLowering) lowerServerTaskCollectionWrite(
 	write StateWrite,
 	signal *ast.Node,
 ) *ast.Node {
-	if !ast.IsCallExpression(node) ||
-		!ast.IsPropertyAccessExpression(node.AsCallExpression().Expression) {
+	if !ast.IsCallExpression(node) {
 		return nil
 	}
 	call := node.AsCallExpression()
-	method := call.Expression.AsPropertyAccessExpression().Name().Text()
+	method := lowering.stateMutationMethod(call.Expression)
 	arguments := []*ast.Node{}
 	if call.Arguments != nil {
 		for _, argument := range call.Arguments.Nodes {
@@ -447,7 +555,7 @@ func (lowering *jsxLowering) lowerServerTaskCollectionWrite(
 	if write.Operation == "set-mutation" {
 		kind = "set"
 	}
-	return lowering.taskHelperCall(
+	result := lowering.taskHelperCall(
 		"mutateTaskCollection",
 		lowering.names.taskCollectionMutation,
 		[]*ast.Node{
@@ -455,7 +563,7 @@ func (lowering *jsxLowering) lowerServerTaskCollectionWrite(
 			lowering.stateWriteRoot(write),
 			lowering.stateWritePathNode(write),
 			lowering.factory.NewStringLiteral(kind, ast.TokenFlagsNone),
-			lowering.factory.NewStringLiteral(method, ast.TokenFlagsNone),
+			method,
 			lowering.arrow(
 				lowering.factory.NewArrayLiteralExpression(
 					lowering.factory.NewNodeList(arguments),
@@ -464,6 +572,7 @@ func (lowering *jsxLowering) lowerServerTaskCollectionWrite(
 			),
 		},
 	)
+	return lowering.typedMutationResult(node, result)
 }
 
 func (lowering *jsxLowering) directTaskAssignment(
@@ -474,11 +583,12 @@ func (lowering *jsxLowering) directTaskAssignment(
 	directServer bool,
 	signal *ast.Node,
 ) *ast.Node {
+	value = lowering.contextualAssignmentValue(value, writeEffect)
 	writeValue := value
 	statements := []*ast.Node{}
 	if containsEagerAwait(value) {
 		local := lowering.factory.NewIdentifier(
-			fmt.Sprintf("__exactTaskMutation_%d", position),
+			lowering.uniqueMutationName(fmt.Sprintf("__exactTaskMutation_%d", position)),
 		)
 		statements = append(
 			statements,
@@ -546,11 +656,18 @@ func (lowering *jsxLowering) stagedTaskAssignment(
 	signal *ast.Node,
 	position int,
 ) *ast.Node {
+	value = lowering.contextualAssignmentValue(value, writeEffect)
 	writeValue := value
 	statements := []*ast.Node{}
-	if containsEagerAwait(value) {
+	var local *blockingTaskLocal
+	if len(lowering.blockingLocals) > 0 {
+		local = lowering.blockingLocals[len(lowering.blockingLocals)-1].writes[fmt.Sprintf("%d:%d", writeEffect.Start, writeEffect.Length)]
+	}
+	// Publication owns the write, never evaluation of its authored RHS. Capture even
+	// when no later state read requires a compiler-local pending cell.
+	{
 		local := lowering.factory.NewIdentifier(
-			fmt.Sprintf("__exactTaskMutation_%d", position),
+			lowering.uniqueMutationName(fmt.Sprintf("__exactTaskMutation_%d", position)),
 		)
 		statements = append(
 			statements,
@@ -561,7 +678,7 @@ func (lowering *jsxLowering) stagedTaskAssignment(
 						lowering.factory.NewVariableDeclaration(
 							local,
 							nil,
-							nil,
+							lowering.mutationFacts.at(SourceSpan{Start: writeEffect.Start, Length: writeEffect.Length}).destination,
 							value,
 						),
 					}),
@@ -570,6 +687,9 @@ func (lowering *jsxLowering) stagedTaskAssignment(
 			),
 		)
 		writeValue = local
+	}
+	if local != nil {
+		statements = append(statements, lowering.factory.NewExpressionStatement(lowering.rememberBlockingLocal(local, writeValue)))
 	}
 	name, reference := lowering.stateWriteReferenceForWrite(
 		writeEffect,
@@ -623,21 +743,29 @@ func (lowering *jsxLowering) lowerTaskSignalCall(
 		arguments = append(arguments, lowering.factory.NewIdentifier("undefined"))
 	}
 	existing := arguments[signalCall.Parameter]
+	abortHelper, abortName := "withAbortSignal", lowering.names.abortOptions
+	optionsHelper, optionsName := "withTaskSignal", lowering.names.taskOptions
+	combinedHelper, combinedName := "combineTaskSignal", lowering.names.taskCombined
+	if signalCall.ExistingOnly {
+		abortHelper, abortName = "withExistingAbortSignal", lowering.names.cleanupAbortOptions
+		optionsHelper, optionsName = "withExistingTaskSignal", lowering.names.cleanupTaskOptions
+		combinedHelper, combinedName = "combineExistingTaskSignal", lowering.names.cleanupTaskCombined
+	}
 	switch {
 	case signalCall.EventOptions:
 		arguments[signalCall.Parameter] = lowering.taskHelperCall(
-			"withAbortSignal",
-			lowering.names.abortOptions,
+			abortHelper,
+			abortName,
 			[]*ast.Node{existing, signal},
 		)
 	case signalCall.Mode == "options":
 		arguments[signalCall.Parameter] = lowering.taskHelperCall(
-			"withTaskSignal",
-			lowering.names.taskOptions,
+			optionsHelper,
+			optionsName,
 			[]*ast.Node{existing, signal},
 		)
 	default:
-		if directServer && (isUndefinedIdentifier(existing) || sameSimpleExpression(existing, signal)) {
+		if directServer && !signalCall.ExistingOnly && (isUndefinedIdentifier(existing) || sameSimpleExpression(existing, signal)) {
 			arguments[signalCall.Parameter] = signal
 		} else {
 			combined := []*ast.Node{signal}
@@ -645,8 +773,8 @@ func (lowering *jsxLowering) lowerTaskSignalCall(
 				combined = append(combined, existing)
 			}
 			arguments[signalCall.Parameter] = lowering.taskHelperCall(
-				"combineTaskSignal",
-				lowering.names.taskCombined,
+				combinedHelper,
+				combinedName,
 				combined,
 			)
 		}
@@ -691,7 +819,7 @@ func (lowering *jsxLowering) importedTaskRuntimeHelper(
 	}
 	reference, exists := externalImportForExpression(
 		expression,
-		collectExternalImportBindings(lowering.sourceFile, lowering.checker),
+		lowering.externalImports,
 		lowering.checker,
 	)
 	if !exists || reference.exportName != exportName {
@@ -797,6 +925,7 @@ func (lowering *jsxLowering) lowerTaskResource(
 	node *ast.Node,
 	resource TaskResource,
 	signal *ast.Node,
+	context *ast.Node,
 	visitor *ast.NodeVisitor,
 	directServer bool,
 ) *ast.Node {
@@ -860,6 +989,10 @@ func (lowering *jsxLowering) lowerTaskResource(
 					ast.TokenFlagsNone,
 				),
 			)
+		}
+		if len(resource.ReleaseCalls) != 0 {
+			arguments[0] = context
+			return lowering.taskHelperCall("ownReleasableTaskResource", lowering.names.taskReleasableResource, arguments)
 		}
 		return lowering.taskHelperCall(
 			"ownTaskResource",

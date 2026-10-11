@@ -36,6 +36,7 @@ export {
 } from '../component/reactive-expressions.js';
 export {
 	assertNativePropAllowed,
+	normalizeNativeAttributeValue,
 	assertNativeEventHandler,
 	isNativeEventProp,
 	isNativeSrcdocProp
@@ -69,3 +70,5 @@ export {
 } from './enhancement-fallback.js';
 
 export { assertSingleSuppliedPlacement } from './supplied-placement.js';
+
+export { formatNativeInputValue, isNativeInputDate } from '../native-input-values.js';

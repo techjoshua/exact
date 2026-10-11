@@ -6,8 +6,8 @@ const Local = createContext('native.request', { scope: 'request', reactive: fals
 
 /** Shared dispatch/security/context fixture, executed inside each actual runtime. */
 export function operationFixture(control) {
-	const state = { initialized: 0, executed: 0, created: [], disposed: [] };
-	const names = ['echo', 'context', 'failure', 'unsafe'];
+	const state = { initialized: 0, executed: 0, hookCalls: 0, created: [], disposed: [] };
+	const names = ['echo', 'context', 'failure', 'unsafe', 'serialization'];
 	const context = {
 		contract: {
 			version: 1,
@@ -92,6 +92,29 @@ export function operationFixture(control) {
 				}
 				scope.requestContext.setHeader('x-native-request', local.id);
 				return { value: { id: local.id, prefix: app.prefix, aborted: local.signal.aborted } };
+			},
+			serialization(input) {
+				state.executed++;
+				const hook = () => {
+					state.hookCalls++;
+					return Infinity;
+				};
+				const kind = input.payload.kind;
+				const value =
+					kind === 'object-json'
+						? Object.defineProperty({}, 'toJSON', { value: hook })
+						: kind === 'array-json'
+							? Object.defineProperty([], 'toJSON', { get: hook })
+							: kind === 'hidden-index'
+								? Object.defineProperty([0], '0', { get: hook, enumerable: false })
+								: kind === 'map-iterator'
+									? Object.defineProperty(new Map([['safe', 1]]), Symbol.iterator, { get: hook })
+									: kind === 'set-iterator'
+										? Object.defineProperty(new Set([1]), Symbol.iterator, { get: hook })
+										: kind === 'hidden-data'
+											? Object.defineProperty([0], '0', { value: 'safe', enumerable: false })
+											: new Array(3);
+				return { value };
 			},
 			failure() {
 				state.executed++;

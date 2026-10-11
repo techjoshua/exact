@@ -40,9 +40,15 @@ performance gate measures the native architecture rather than per-file
 JavaScript orchestration.
 
 Run `node scripts/build-native-compiler.mjs --source <TypeScript checkout>`
-to stage the overlay into a temporary worktree, run its Go tests, and build the
-host. Add `--package` to stage the current platform npm package, or pass
+to build the declaration prerequisites, stage the overlay into a temporary worktree,
+run its Go tests, and build the host. Semantic tests resolve runtime and enhancement
+packages through their public exports, so their declarations must exist before testing.
+The build prepares them automatically, including for coverage and cross-compilation.
+Host tests have a 30-minute suite timeout to accommodate small CI runners.
+Add `--package` to stage the current platform npm package, or pass
 `--platform` and `--arch` for one of the supported cross-compilation targets.
+Use `--all-targets --package` to stage and validate the source once, then build all six
+release packages. Every target still receives its own binary, build stamp, and package staging.
 Set `EXACT_GO` when `go` is not on `PATH`.
 Without an override, the checkout is stored at `.tmp/typescript-source`. The
 existing `EXACT_TYPESCRIPT_GO_SOURCE` override still accepts a repository root,
@@ -73,3 +79,11 @@ fallback rules. New project configurations are built through the normal project 
 The build applies the patch to the verified pinned checkout and hashes it with the overlay. A failed
 patch application fails the build. Regression tests check unaffected source identity, synthetic-node
 ownership, changed imports, and incremental output against a fresh compilation.
+
+## Optional-chain printer correction
+
+`overlay/internal/printer/optional_chain.patch` preserves optional-chain precedence through a
+TypeScript non-null assertion. Parentheses inserted by the pinned printer can otherwise change
+`owner()?.nested!.count` into a throwing access when the owner is absent. The patch keeps explicit
+authored parentheses and ordinary non-null expressions intact. Task regressions verify absent
+receivers, present receivers, absent intermediate values and unchanged helper bodies.

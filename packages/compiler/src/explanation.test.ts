@@ -65,7 +65,8 @@ describe('@exactjs/compiler explanation', () => {
 
 	it('explains component registry entry provenance and artifact targets', () => {
 		const result = transformSource(
-			`
+			`import {createComponentRegistry,KeyOf,hasComponent} from "@exactjs/core";
+
 				function Grid() { return () => <p>grid</p>; }
 				const Widget = createComponentRegistry(({ lazy }) => ({
 					grid: Grid,

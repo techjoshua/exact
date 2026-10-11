@@ -8,6 +8,9 @@ func TestDerivedCollectionSnapshotsRequireFreshNativeIterators(t *testing.T) {
 		safe                    bool
 	}{
 		{`rows: Map<string, string>`, `Array.from(props.rows.values())`, true},
+		{`rows: Map<string, string>`, `Array.from(props.rows["values"]())`, true},
+		{`rows: ReadonlySet<string>`, `Array.from(props.rows["values"]())`, true},
+		{`rows: {values(): IterableIterator<string>}`, `Array.from(props.rows["values"]())`, false},
 		{`rows: ReadonlyMap<string, string>`, `Array.from(props.rows.entries()).map(([key, value]) => key + value)`, true},
 		{`rows: Set<string>`, `Array.from(props.rows.keys(), value => value.trim())`, true},
 		{`rows: ReadonlySet<string>`, `Array.from(props.rows.values())`, true},

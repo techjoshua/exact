@@ -13,6 +13,8 @@ func pruneArtifactStatements(
 	target Target,
 	callables callableAnalysis,
 	exports []ExportRecord,
+	omittedModuleValues moduleValuePruning,
+	assets assetAnalysis,
 ) *ast.SourceFile {
 	if target == TargetDefault {
 		return sourceFile
@@ -28,6 +30,11 @@ func pruneArtifactStatements(
 			artifactTargetsInclude(fact.summary.ArtifactTargets, target) {
 			continue
 		}
+		// Declared asset imports belong to import pruning, which also preserves
+		// client delivery edges requested by a server bundler.
+		if isSideEffectImport(fact.node) && assets.sideEffectEvaluation[fact.node.Pos()] != "" {
+			continue
+		}
 		if len(fact.summary.ArtifactTargets) != 0 {
 			omittedStarts[fact.node.Pos()] = struct{}{}
 		}
@@ -41,10 +48,17 @@ func pruneArtifactStatements(
 		}
 		omittedNames[exported.Name] = struct{}{}
 	}
-	if len(omittedStarts) == 0 && len(omittedNames) == 0 {
+	if len(omittedStarts) == 0 && len(omittedNames) == 0 && len(omittedModuleValues.bindings) == 0 && len(omittedModuleValues.statements) == 0 {
 		return sourceFile
 	}
 
+	omittedBindings := oppositeExportBindings(sourceFile, omittedNames)
+	for name := range omittedModuleValues.bindings {
+		omittedBindings[name] = struct{}{}
+	}
+	for start := range omittedModuleValues.statements {
+		omittedStarts[start] = struct{}{}
+	}
 	statements := make([]*ast.Node, 0, len(sourceFile.Statements.Nodes))
 	changed := false
 	for _, statement := range sourceFile.Statements.Nodes {
@@ -60,7 +74,7 @@ func pruneArtifactStatements(
 				continue
 			}
 		}
-		updated, keep := pruneOppositeExportedValues(statement, factory, omittedNames)
+		updated, keep := pruneOppositeExportedValues(statement, factory, omittedNames, omittedBindings)
 		if !keep {
 			changed = true
 			continue
@@ -95,17 +109,37 @@ func pruneOppositeExportedValues(
 	statement *ast.Node,
 	factory *printer.NodeFactory,
 	omittedNames map[string]struct{},
+	omittedBindings map[string]struct{},
 ) (*ast.Node, bool) {
+	if ast.IsFunctionDeclaration(statement) || ast.IsClassDeclaration(statement) {
+		if statement.Name() != nil {
+			if _, omit := omittedBindings[statement.Name().Text()]; omit {
+				return nil, false
+			}
+		}
+		name := "default"
+		if !ast.HasSyntacticModifier(statement, ast.ModifierFlagsDefault) && statement.Name() != nil {
+			name = statement.Name().Text()
+		}
+		if _, omit := omittedNames[name]; omit && ast.HasSyntacticModifier(statement, ast.ModifierFlagsExport) {
+			return nil, false
+		}
+	}
 	if ast.IsVariableStatement(statement) {
 		variable := statement.AsVariableStatement()
 		list := variable.DeclarationList.AsVariableDeclarationList()
 		declarations := make([]*ast.Node, 0, len(list.Declarations.Nodes))
 		for _, declaration := range list.Declarations.Nodes {
-			name := declaration.Name()
-			if name != nil && ast.IsIdentifier(name) {
-				if _, omit := omittedNames[name.Text()]; omit {
-					continue
+			names := componentBindingNames(declaration.Name())
+			omit := len(names) != 0
+			for _, name := range names {
+				if _, opposite := omittedBindings[name]; !opposite {
+					omit = false
+					break
 				}
+			}
+			if omit {
+				continue
 			}
 			declarations = append(declarations, declaration)
 		}
@@ -125,6 +159,11 @@ func pruneOppositeExportedValues(
 			), true
 		}
 	}
+	if ast.IsExportAssignment(statement) {
+		if _, omit := omittedNames["default"]; omit && !statement.AsExportAssignment().IsExportEquals {
+			return nil, false
+		}
+	}
 	if ast.IsExportDeclaration(statement) {
 		declaration := statement.AsExportDeclaration()
 		if declaration.ExportClause == nil ||
@@ -135,13 +174,7 @@ func pruneOppositeExportedValues(
 		elements := make([]*ast.Node, 0, len(named.Elements.Nodes))
 		for _, element := range named.Elements.Nodes {
 			specifier := element.AsExportSpecifier()
-			localName := specifier.Name().Text()
-			if specifier.PropertyName != nil {
-				localName = specifier.PropertyName.Text()
-			}
-			if _, omit := omittedNames[localName]; omit {
-				continue
-			}
+
 			if _, omit := omittedNames[specifier.Name().Text()]; omit {
 				continue
 			}

@@ -342,6 +342,8 @@ export type KeyedListRefreshOptions<T> = RenderToStringOptions & {
 export type SsrContext = {
 	/** Namespace bindings owned by the active component render attempt. */
 	boundEnhancementTargets?: WeakMap<object, readonly import('@exactjs/core').EnhancementEntry[]>;
+	/** Request-local renderer providers activate through their enhanced target, not independent islands. */
+	enhancementProviderReferences?: WeakSet<object>;
 	/** Request-local projections for component output prepared before fragment host publication. */
 	preparedComponentOutputs?: WeakMap<
 		object,

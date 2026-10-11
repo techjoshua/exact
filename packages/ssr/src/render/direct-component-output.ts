@@ -7,11 +7,12 @@ import { renderPreparedResumableComponentBoundary } from './resumption-boundary-
 export type ComponentPublication = Readonly<{
 	/** Capture availability belongs to this execution scope, not the shared output context. */
 	capturesResumptions: boolean;
+	/** Request-local publication decision, resolved before rendering descendants. */
+	canPublishResumption: boolean;
 	componentName: string;
 	componentKey?: string;
 	componentOrdinal: number;
 	documentProbe: boolean;
-	hasComponentAncestor: boolean;
 	omitCompilerOwnedBoundary?: boolean;
 	omitRootBoundary?: boolean;
 }>;
@@ -33,7 +34,7 @@ export function directComponentHtml(
 	)
 		return html;
 	const needsResumption =
-		boundary.hasComponentAncestor && resumable && !boundary.capturesResumptions;
+		!boundary.capturesResumptions && resumable && boundary.canPublishResumption;
 	if (!needsResumption && !context.markers) return html;
 	const componentId = formatMarkerId(
 		'component',

@@ -1,3 +1,5 @@
+import { taskResourceSignal } from './resource-lifetime.js';
+
 /** Event-listener options augmented with framework-owned cancellation. */
 export type ManagedEventListenerOptions = EventListenerOptions & {
 	once?: boolean;
@@ -42,42 +44,14 @@ export function combineAbortSignals(left: AbortSignal, right: AbortSignal): Abor
 }
 
 /**
- * Combines two signals and returns explicit listener ownership for finite operations.
- * Callers must dispose the handle when their operation settles before either input aborts.
+ * Combines author cancellation with a generation's resource lifetime. Enrolled
+ * resources abort on settlement without cancelling a successful task outcome.
+ * Outside a framework generation, the supplied owner retains its own lifetime.
  */
-export function createDisposableAbortSignal(
-	left: AbortSignal,
-	right: AbortSignal
-): Readonly<{ signal: AbortSignal; dispose(): void }> {
-	const controller = new AbortController();
-	let disposed = false;
-	const dispose = () => {
-		if (disposed) return;
-		disposed = true;
-		left.removeEventListener('abort', abortLeft);
-		right.removeEventListener('abort', abortRight);
-	};
-	const abortLeft = () => {
-		dispose();
-		controller.abort(left.reason);
-	};
-	const abortRight = () => {
-		dispose();
-		controller.abort(right.reason);
-	};
-	if (left.aborted) controller.abort(left.reason);
-	else if (right.aborted) controller.abort(right.reason);
-	else {
-		left.addEventListener('abort', abortLeft, { once: true });
-		right.addEventListener('abort', abortRight, { once: true });
-	}
-	return Object.freeze({ signal: controller.signal, dispose });
-}
-
-/** Combines an author signal with the signal that owns a task generation. */
 export function combineTaskSignal(owner: AbortSignal, existing?: AbortSignal): AbortSignal {
-	if (!existing || existing === owner) return owner;
-	return combineAbortSignals(existing, owner);
+	const lifetime = taskResourceSignal(owner);
+	if (!existing || existing === owner || existing === lifetime) return lifetime;
+	return combineAbortSignals(existing, lifetime);
 }
 
 /** Attaches framework ownership without discarding author event options. */
@@ -87,9 +61,7 @@ export function withAbortSignal(
 ): ManagedEventListenerOptions {
 	const normalized: ManagedEventListenerOptions =
 		typeof options === 'boolean' ? { capture: options } : options ? { ...options } : {};
-	const existing = normalized.signal;
-	if (!existing || existing === owner) return { ...normalized, signal: owner };
-	return { ...normalized, signal: combineAbortSignals(existing, owner) };
+	return { ...normalized, signal: combineTaskSignal(owner, normalized.signal) };
 }
 
 /** Adds task cancellation to an arbitrary API options object. */

@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any -- This test intentionally models external, private, or invalid values that production contracts reject. */
 import { exactResponseToFetchResponse } from './adapters.js';
 import type { ExactBuildInspectionCatalog } from '@exactjs/devtools-protocol';
 import { afterEach, describe, expect, it, vi } from 'vitest';

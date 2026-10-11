@@ -1,9 +1,14 @@
 import { componentLibraryProtocolVersion } from './native/contract-versions.js';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { lstat, mkdir, realpath, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import {
+	validatePublishedModuleArtifacts,
+	validatePublishedArtifactModuleOwners
+} from './compilation/published-artifact-validation.js';
 import type {
 	ExactComponentBuildFacts,
-	ExactPublishedComponentBuildFacts
+	ExactPublishedComponentBuildFacts,
+	ExactPublishedModuleArtifacts
 } from './contracts/transform.js';
 
 /** Declarative package inputs used to produce inert component-library build facts. */
@@ -12,6 +17,7 @@ export type ExactComponentLibraryBuildInput = Readonly<{
 	modules: readonly Readonly<{
 		path: string;
 		facts: ExactComponentBuildFacts | Omit<ExactComponentBuildFacts, 'filename' | 'packageName'>;
+		artifacts?: ExactPublishedModuleArtifacts;
 	}>[];
 	exports: ExactPublishedComponentBuildFacts['exports'];
 }>;
@@ -32,6 +38,15 @@ export function createExactPublishedComponentBuildFacts(
 				);
 			return Object.freeze({
 				path: modulePath,
+				...(module.artifacts
+					? {
+							artifacts: Object.freeze({
+								...module.artifacts,
+								clientModule: normalizePackagePath(module.artifacts.clientModule),
+								serverModule: normalizePackagePath(module.artifacts.serverModule)
+							})
+						}
+					: {}),
 				facts: Object.freeze({
 					protocol: 1 as const,
 					components: Object.freeze([...facts.components]),
@@ -43,6 +58,13 @@ export function createExactPublishedComponentBuildFacts(
 		.sort((left, right) => compareCanonicalStrings(left.path, right.path));
 	if (new Set(modules.map((module) => module.path)).size !== modules.length)
 		throw new Error('Published component build facts contain duplicate module paths');
+	for (const module of modules)
+		if (module.artifacts)
+			validatePublishedModuleArtifacts(
+				module.artifacts,
+				module.facts.components.map((component) => component.id)
+			);
+	validatePublishedArtifactModuleOwners(modules);
 	const exports = input.exports
 		.map((record) =>
 			Object.freeze({
@@ -94,7 +116,8 @@ export function createExactPublishedComponentBuildFacts(
  * and replacing an existing file at `outputPath`. Returns the metadata written.
  * This records facts supplied by an earlier compilation. It does not compile source, emit
  * JavaScript or declarations, configure package exports, or grant consumer authorization.
- * Throws for invalid facts or an output path outside the package root.
+ * Throws for invalid facts, an output path outside the package root, or a symbolic link in
+ * the destination path. A linked package root is resolved to its physical directory.
  */
 export async function writeExactPublishedComponentBuildFacts(
 	packageRoot: string,
@@ -104,9 +127,17 @@ export async function writeExactPublishedComponentBuildFacts(
 	const root = path.resolve(packageRoot);
 	const output = path.resolve(root, outputPath);
 	const relative = path.relative(root, output);
-	if (!relative || relative.startsWith('..') || path.isAbsolute(relative))
+	if (
+		!relative ||
+		relative === '..' ||
+		relative.startsWith('..' + path.sep) ||
+		path.isAbsolute(relative)
+	)
 		throw new Error('Component build-facts output must remain inside the package root');
 	const facts = createExactPublishedComponentBuildFacts(input);
+	await mkdir(root, { recursive: true });
+	const physicalRoot = await realpath(root);
+	await rejectOutputLinks(physicalRoot, relative);
 	await mkdir(path.dirname(output), { recursive: true });
 	await writeFile(output, `${JSON.stringify(facts, null, 2)}\n`);
 	return facts;
@@ -117,6 +148,7 @@ function normalizePackagePath(value: string): string {
 	if (
 		!normalized ||
 		normalized.startsWith('/') ||
+		/^[a-z]:/i.test(normalized) ||
 		normalized.split('/').every(Boolean) === false ||
 		normalized.split('/').some((segment) => segment === '.' || segment === '..')
 	)
@@ -126,4 +158,18 @@ function normalizePackagePath(value: string): string {
 
 function compareCanonicalStrings(left: string, right: string): number {
 	return left < right ? -1 : left > right ? 1 : 0;
+}
+
+/** Rejects linked destinations before creating directories or replacing metadata owned by this write. */
+async function rejectOutputLinks(root: string, relative: string): Promise<void> {
+	let current = root;
+	for (const segment of relative.split(path.sep)) {
+		current = path.join(current, segment);
+		const info = await lstat(current).catch((error: NodeJS.ErrnoException) => {
+			if (error.code === 'ENOENT') return undefined;
+			throw error;
+		});
+		if (info?.isSymbolicLink())
+			throw new Error(`Component build-facts output must not contain symbolic links: ${current}`);
+	}
 }

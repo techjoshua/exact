@@ -28,6 +28,7 @@ func analyzeComponents(
 	callables callableAnalysis,
 	tasks []Task,
 	typeChecker *checker.Checker,
+	nodeIDs map[*ast.Node]string,
 ) []Component {
 	candidates := activeComponentCandidates(sourceFile)
 	if len(candidates) != len(components) {
@@ -39,7 +40,7 @@ func analyzeComponents(
 	for index := range components {
 		component := &components[index]
 		candidate := candidates[index]
-		clientLifecycleSpans := componentClientLifecycleCallbackSpans(candidate.node)
+		clientLifecycleSpans := componentClientLifecycleCallbackSpans(candidate.node, typeChecker)
 		dormantCallableSpans := componentDormantCallableSpans(candidate.node, callables, typeChecker)
 		clientEffects, serverEffects := false, false
 		clientTaskEffects := false
@@ -125,6 +126,10 @@ func analyzeComponents(
 		component.ClientIslandCount = outerClientIslandCount(ownedElements)
 
 		walkNode(candidate.node, func(node *ast.Node) bool {
+			// Types can describe browser/server values without executing or importing them.
+			if node.Parent != nil && ast.IsPartOfTypeNode(node) {
+				return false
+			}
 			owner := componentOwnerIndex(node, candidates)
 			if owner != index {
 				return owner < 0
@@ -355,7 +360,6 @@ func analyzeComponents(
 		}
 	}
 	localComponents := uniqueComponentNames(components)
-	nodeIDs := expressionNodeIDs(sourceFile)
 	for index := range components {
 		component := &components[index]
 		edges := []RenderEdge{}
@@ -389,15 +393,17 @@ func analyzeComponents(
 	return components
 }
 
-func componentClientLifecycleCallbackSpans(component *ast.Node) []SourceSpan {
+func componentClientLifecycleCallbackSpans(component *ast.Node, typeChecker *checker.Checker) []SourceSpan {
 	spans := []SourceSpan{}
+	owners := componentStateReceiverScopes(component, typeChecker)
 	walkNode(component, func(node *ast.Node) bool {
 		if !ast.IsCallExpression(node) {
 			return true
 		}
 		call := node.AsCallExpression()
-		name, componentMember, dynamic := componentProtocolMember(call.Expression)
-		if !componentMember || dynamic || call.Arguments == nil || len(call.Arguments.Nodes) == 0 {
+		member := componentProtocolCallMember(call.Expression, typeChecker)
+		name, componentMember, dynamic := checkedComponentProtocolMember(member, typeChecker)
+		if !componentMember || dynamic || !componentOwnsReceiver(member, owners) || call.Arguments == nil || len(call.Arguments.Nodes) == 0 {
 			return true
 		}
 		switch name {
@@ -566,11 +572,7 @@ func callableEffectForCall(
 					return target.summary, true
 				}
 			}
-			for _, target := range fact.externalTargets {
-				if target.ID == edge.TargetID {
-					return target, true
-				}
-			}
+
 		}
 	}
 	return CallableSummary{}, false
@@ -754,28 +756,6 @@ func resolveComponentSubgraphs(
 			}
 		}
 	}
-}
-
-func nativeComponentID(sourceFile *ast.SourceFile, start int) string {
-	for _, candidate := range activeComponentCandidates(sourceFile) {
-		if candidate.node.Pos() == start {
-			return nativeComponentIDForNode(sourceFile, candidate.node)
-		}
-	}
-	return exactStableID(
-		sourceFile.FileName(),
-		fmt.Sprintf("component:%s:%d", sourceFile.FileName(), start),
-	)
-}
-
-func nativeComponentIDForNode(
-	sourceFile *ast.SourceFile,
-	node *ast.Node,
-) string {
-	return exactStableID(
-		sourceFile.FileName(),
-		expressionNodeIDs(sourceFile)[node],
-	)
 }
 
 func combinePlacements(placements []string) string {

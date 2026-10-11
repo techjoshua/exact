@@ -1,13 +1,10 @@
+import { disposeSymbolicTaskResource } from './resource-disposal.js';
+import { taskResourceSignal, trackTaskResourceCleanup } from './resource-lifetime.js';
 import { componentForTaskSignal } from './component-owners.js';
 export { trackTaskOwner } from './component-owners.js';
-import {
-	batch,
-	mutateReactiveCollection,
-	unwrap,
-	scheduleEffectScopeResume
-} from '@exactjs/reactive/framework/runtime';
+import { scheduleEffectScopeResume } from '@exactjs/reactive/framework/runtime';
 
-import { createDisposableAbortSignal, isAbortSignal } from './signals.js';
+import { combineTaskSignal, withTaskSignal } from './signals.js';
 import { isPromiseLike } from '../component/async-value.js';
 
 import type {
@@ -16,7 +13,6 @@ import type {
 	TaskIdleOptions,
 	TaskResourceDisposal
 } from '../component/contracts.js';
-import type { ExactCollectionMutation } from '../component-contracts.js';
 
 import { createErrorReport, handleComponentError } from '../component/errors.js';
 import { TaskCancellation } from './cancellation.js';
@@ -25,129 +21,22 @@ import { resumeTaskFrame } from './frame-runtime.js';
 import { logFrameworkEvent } from '../component/log.js';
 
 const taskCleanupPromises = new WeakMap<AbortSignal, Set<Promise<void>>>();
-const taskMutations = new WeakMap<AbortSignal, Array<() => void>>();
-const taskCollectionMutations = new WeakMap<AbortSignal, ExactCollectionMutation[]>();
-
-/** Stages a compiler-generated mutation until its blocking task generation commits. */
-export function stageTaskMutation(signal: AbortSignal, mutation: () => void): void {
-	if (signal.aborted) return;
-	let staged = taskMutations.get(signal);
-	if (!staged) {
-		staged = [];
-		taskMutations.set(signal, staged);
-		signal.addEventListener('abort', () => discardTaskMutations(signal), { once: true });
-	}
-	staged.push(mutation);
-}
-
-/** Publishes staged mutations for a successful task generation as one reactive batch. */
-export function publishTaskMutations(signal: AbortSignal): void {
-	const staged = taskMutations.get(signal);
-	if (!staged) return;
-	taskMutations.delete(signal);
-	batch(() => {
-		for (const mutation of staged) mutation();
-	});
-}
-
-/** Discards every unpublished mutation owned by a task generation. */
-export function discardTaskMutations(signal: AbortSignal): void {
-	taskMutations.delete(signal);
-	taskCollectionMutations.delete(signal);
-}
-
-/**
- * Applies a server-task collection mutation and records the smallest ordered
- * response delta that can reproduce the successful change in the browser.
- */
-export function mutateTaskCollection(
-	signal: AbortSignal,
-	target: object,
-	path: readonly PropertyKey[],
-	kind: 'map' | 'set',
-	method: 'set' | 'add' | 'delete' | 'clear',
-	args: unknown[] | (() => unknown[])
-): unknown {
-	if (signal.aborted) return undefined;
-	const input = typeof args === 'function' ? args() : args;
-	const collection = readTaskCollection(target, path);
-	const raw = unwrap(collection);
-	const changed = collectionMutationChanges(raw, kind, method, input);
-	const result = mutateReactiveCollection(target, path, kind, method, input);
-	if (changed) {
-		let mutations = taskCollectionMutations.get(signal);
-		if (!mutations) {
-			mutations = [];
-			taskCollectionMutations.set(signal, mutations);
-			signal.addEventListener('abort', () => discardTaskMutations(signal), { once: true });
-		}
-		mutations.push(collectionMutation(path, kind, method, input));
-	}
-	return result;
-}
-
-/** Takes the ordered collection deltas produced by one successful task generation. */
-export function takeTaskCollectionMutations(
-	signal: AbortSignal
-): readonly ExactCollectionMutation[] | undefined {
-	const mutations = taskCollectionMutations.get(signal);
-	taskCollectionMutations.delete(signal);
-	return mutations?.length ? mutations : undefined;
-}
-
-function readTaskCollection(target: object, path: readonly PropertyKey[]): unknown {
-	let value: unknown = target;
-	for (const segment of path) value = Reflect.get(value as object, segment);
-	return value;
-}
-
-function collectionMutationChanges(
-	value: unknown,
-	kind: 'map' | 'set',
-	method: string,
-	args: readonly unknown[]
-): boolean {
-	if (kind === 'map' && value instanceof Map) {
-		if (method === 'clear') return value.size > 0;
-		if (method === 'delete') return value.has(unwrap(args[0]));
-		const key = unwrap(args[0]);
-		return !value.has(key) || !Object.is(value.get(key), unwrap(args[1]));
-	}
-	if (kind === 'set' && value instanceof Set) {
-		if (method === 'clear') return value.size > 0;
-		if (method === 'delete') return value.has(unwrap(args[0]));
-		return !value.has(unwrap(args[0]));
-	}
-	return true;
-}
-
-function collectionMutation(
-	path: readonly PropertyKey[],
-	kind: 'map' | 'set',
-	method: string,
-	args: readonly unknown[]
-): ExactCollectionMutation {
-	const location = path.map(String).join('.');
-	if (kind === 'map') {
-		if (method === 'set')
-			return { path: location, operation: 'map-set', key: unwrap(args[0]), value: unwrap(args[1]) };
-		if (method === 'delete')
-			return { path: location, operation: 'map-delete', key: unwrap(args[0]) };
-		return { path: location, operation: 'map-clear' };
-	}
-	if (method === 'add') return { path: location, operation: 'set-add', value: unwrap(args[0]) };
-	if (method === 'delete')
-		return { path: location, operation: 'set-delete', value: unwrap(args[0]) };
-	return { path: location, operation: 'set-clear' };
-}
+export {
+	stageTaskMutation,
+	publishTaskMutations,
+	discardTaskMutations,
+	mutateTaskCollection,
+	takeTaskCollectionMutations
+} from './task-publication.js';
 
 /** Registers once-only task cleanup and reports asynchronous disposal failures. */
 export function registerTaskCleanup(signal: AbortSignal, cleanup: TaskCleanup): void {
+	const lifetime = taskResourceSignal(signal);
 	let active = true;
 	const run = (): void => {
 		if (!active) return;
 		active = false;
-		signal.removeEventListener('abort', run);
+		lifetime.removeEventListener('abort', run);
 		try {
 			const result = cleanup(signal.reason);
 			if (isPromiseLike(result)) {
@@ -162,8 +51,8 @@ export function registerTaskCleanup(signal: AbortSignal, cleanup: TaskCleanup): 
 			reportTaskResourceError(signal, error);
 		}
 	};
-	if (signal.aborted) run();
-	else signal.addEventListener('abort', run, { once: true });
+	if (lifetime.aborted) run();
+	else lifetime.addEventListener('abort', run, { once: true });
 }
 
 function trackTaskCleanupPromise(signal: AbortSignal, promise: Promise<void>): void {
@@ -173,6 +62,7 @@ function trackTaskCleanupPromise(signal: AbortSignal, promise: Promise<void>): v
 		taskCleanupPromises.set(signal, pending);
 	}
 	pending.add(promise);
+	trackTaskResourceCleanup(signal, promise);
 	void promise.finally(() => {
 		pending!.delete(promise);
 		if (!pending!.size) taskCleanupPromises.delete(signal);
@@ -209,6 +99,7 @@ export function taskIdleCallback(
 	callback: (deadline: TaskIdleDeadline) => void,
 	options?: TaskIdleOptions
 ): number {
+	const lifetime = taskResourceSignal(signal);
 	const platform = globalThis as typeof globalThis & {
 		requestIdleCallback(
 			callback: (deadline: TaskIdleDeadline) => void,
@@ -219,15 +110,16 @@ export function taskIdleCallback(
 	let handle = 0;
 	const cancel = () => platform.cancelIdleCallback(handle);
 	handle = platform.requestIdleCallback((deadline) => {
-		signal.removeEventListener('abort', cancel);
-		if (!signal.aborted) runTaskCallback(signal, 'idle-callback', () => callback(deadline));
+		lifetime.removeEventListener('abort', cancel);
+		if (!lifetime.aborted) runTaskCallback(signal, 'idle-callback', () => callback(deadline));
 	}, options);
-	if (signal.aborted) cancel();
-	else signal.addEventListener('abort', cancel, { once: true });
+	if (lifetime.aborted) cancel();
+	else lifetime.addEventListener('abort', cancel, { once: true });
 	return handle;
 }
 
-function disposeTaskResource<T>(
+/** Applies the selected disposal policy without replacing the resource or its method receiver. */
+export function disposeTaskResource<T>(
 	resource: T,
 	disposal:
 		| TaskResourceDisposal
@@ -243,12 +135,7 @@ function disposeTaskResource<T>(
 	if (!resource || (typeof resource !== 'object' && typeof resource !== 'function')) return;
 	if (disposal === 'cancel') return invokeResourceMethod(resource, 'cancel', reason);
 	if (disposal) return invokeResourceMethod(resource, disposal);
-	const symbols = Symbol as SymbolConstructor & { asyncDispose?: symbol; dispose?: symbol };
-	if (symbols.asyncDispose) {
-		const method: unknown = Reflect.get(resource, symbols.asyncDispose);
-		if (typeof method === 'function') return method.call(resource) as void | Promise<void>;
-	}
-	if (symbols.dispose) return invokeResourceMethod(resource, symbols.dispose);
+	return disposeSymbolicTaskResource(resource);
 }
 
 function invokeResourceMethod(
@@ -276,17 +163,18 @@ export function taskTimeout<Args extends unknown[]>(
 	delay?: number,
 	...args: Args
 ): ReturnType<typeof setTimeout> {
+	const lifetime = taskResourceSignal(signal);
 	const abort = () => clearTimeout(timeout);
 	const timeout = setTimeout(
 		(...values: Args) => {
-			signal.removeEventListener('abort', abort);
-			if (!signal.aborted) runTaskCallback(signal, 'timeout', () => handler(...values));
+			lifetime.removeEventListener('abort', abort);
+			if (!lifetime.aborted) runTaskCallback(signal, 'timeout', () => handler(...values));
 		},
 		delay,
 		...args
 	);
-	if (signal.aborted) abort();
-	else signal.addEventListener('abort', abort, { once: true });
+	if (lifetime.aborted) abort();
+	else lifetime.addEventListener('abort', abort, { once: true });
 	return timeout;
 }
 
@@ -297,20 +185,22 @@ export function taskInterval<Args extends unknown[]>(
 	delay?: number,
 	...args: Args
 ): ReturnType<typeof setInterval> {
+	const lifetime = taskResourceSignal(signal);
 	const interval = setInterval(
 		(...values: Args) => {
-			if (!signal.aborted) runTaskCallback(signal, 'interval', () => handler(...values));
+			if (!lifetime.aborted) runTaskCallback(signal, 'interval', () => handler(...values));
 		},
 		delay,
 		...args
 	);
-	if (signal.aborted) clearInterval(interval);
-	else signal.addEventListener('abort', () => clearInterval(interval), { once: true });
+	if (lifetime.aborted) clearInterval(interval);
+	else lifetime.addEventListener('abort', () => clearInterval(interval), { once: true });
 	return interval;
 }
 
 /** Requests an animation frame that is cancelled automatically with the owning task. */
 export function taskAnimationFrame(signal: AbortSignal, handler: (time: number) => void): number {
+	const lifetime = taskResourceSignal(signal);
 	const platform = globalThis as typeof globalThis & {
 		requestAnimationFrame(callback: (time: number) => void): number;
 		cancelAnimationFrame(id: number): void;
@@ -318,11 +208,11 @@ export function taskAnimationFrame(signal: AbortSignal, handler: (time: number) 
 	let frame = 0;
 	const cancel = () => platform.cancelAnimationFrame(frame);
 	frame = platform.requestAnimationFrame((time) => {
-		signal.removeEventListener('abort', cancel);
-		if (!signal.aborted) runTaskCallback(signal, 'animation-frame', () => handler(time));
+		lifetime.removeEventListener('abort', cancel);
+		if (!lifetime.aborted) runTaskCallback(signal, 'animation-frame', () => handler(time));
 	});
-	if (signal.aborted) cancel();
-	else signal.addEventListener('abort', cancel, { once: true });
+	if (lifetime.aborted) cancel();
+	else lifetime.addEventListener('abort', cancel, { once: true });
 	return frame;
 }
 
@@ -345,29 +235,28 @@ function runTaskCallback(signal: AbortSignal, phase: string, callback: () => voi
 	}
 }
 
-/** Runs fetch with the task signal combined with any caller-provided cancellation signal. */
-export function taskFetch<T>(
+/**
+ * Runs fetch with task and caller cancellation through response-body consumption.
+ * Preserves the fetcher's input, options and result types, promise identity and Response identity.
+ * Fetch settlement supplies headers, so it must not detach cancellation from a still-active body.
+ */
+export function taskFetch<Input, Init extends object, Result>(
 	signal: AbortSignal,
-	fetcher: (input: unknown, init?: Record<string, unknown>) => T,
-	input: unknown,
-	init?: Record<string, unknown>
-): T {
-	const options = init ? { ...init } : {};
-	const existing = options.signal;
-	const combined = isAbortSignal(existing)
-		? createDisposableAbortSignal(existing, signal)
-		: undefined;
-	options.signal = combined?.signal ?? signal;
-	try {
-		const result = fetcher(input, options);
-		if (combined && isPromiseLike(result)) {
-			void Promise.resolve(result).finally(combined.dispose).catch(ignoreSettlement);
-		} else combined?.dispose();
-		return result;
-	} catch (error) {
-		combined?.dispose();
-		throw error;
-	}
+	fetcher: (input: Input, init?: Init) => Result,
+	input: Input,
+	init?: Init
+): Result {
+	// An explicit init signal replaces Request.signal according to native fetch semantics.
+	// Otherwise adding task ownership must retain cancellation carried by the input Request.
+	const provided = init && 'signal' in init ? init.signal : undefined;
+	const requestSignal =
+		provided === undefined && typeof Request !== 'undefined' && input instanceof Request
+			? input.signal
+			: undefined;
+	return fetcher(
+		input,
+		withTaskSignal(init, combineTaskSignal(taskResourceSignal(signal), requestSignal))
+	);
 }
 
 function ignoreSettlement(): void {}

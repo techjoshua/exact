@@ -24,6 +24,23 @@ export function createPreparedServerChildRange(
 	return range;
 }
 
+/** Defers a context-dependent server range until its owning enhancement prepares the environment. */
+export function createDeferredServerChildRange(
+	compute: () => RenderResult,
+	markerId?: string,
+	mayReplaceSubtree = true
+): ExactPreparedServerChildRange {
+	const range = {
+		[PreparedServerChildRange]: true,
+		get value() {
+			return compute();
+		},
+		markerId,
+		mayReplaceSubtree
+	};
+	return range;
+}
+
 /** Reads only direct child ranges issued by compiler-closed server artifacts. */
 export function readPreparedServerChildRange(
 	value: unknown

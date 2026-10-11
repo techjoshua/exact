@@ -93,7 +93,7 @@ func setupExpressionTask(
 			}
 		}
 		resource, ok := taskResourceCandidate(node, sourceFile, typeChecker)
-		if !ok || componentOwnsResource(node, candidate.node) {
+		if !ok || componentOwnsResource(node, candidate.node, typeChecker) {
 			return
 		}
 		ownership := taskResourceOwnership(candidate.node, node, resource, typeChecker)
@@ -130,7 +130,7 @@ func setupValueResourceDiagnostic(
 			return
 		}
 		resource, ok := taskResourceCandidate(node, sourceFile, typeChecker)
-		if !ok || componentOwnsResource(node, candidate.node) {
+		if !ok || componentOwnsResource(node, candidate.node, typeChecker) {
 			return
 		}
 		message = setupResourceEscapeMessage(resource)
@@ -143,18 +143,16 @@ func setupValueResourceDiagnostic(
 // componentOwnsResource recognizes the durable component ownership boundary.
 // The call returns its input, so declarations retain their authored value while
 // teardown remains tied to the component instance rather than a task frame.
-func componentOwnsResource(node *ast.Node, component *ast.Node) bool {
+func componentOwnsResource(node *ast.Node, component *ast.Node, typeChecker *checker.Checker) bool {
 	for current := node; current != nil && current != component; current = current.Parent {
 		parent := current.Parent
 		if parent == nil || !ast.IsCallExpression(parent) {
 			continue
 		}
 		call := parent.AsCallExpression()
-		if !ast.IsPropertyAccessExpression(call.Expression) {
-			continue
-		}
-		member := call.Expression.AsPropertyAccessExpression()
-		if member.Name().Text() == "own" && member.Expression.Kind == ast.KindThisKeyword {
+		operation := componentProtocolCallMember(call.Expression, typeChecker)
+		name, member, dynamic := checkedComponentProtocolMember(operation, typeChecker)
+		if member && !dynamic && name == "own" && componentOwnsReceiver(operation, componentStateReceiverScopes(component, typeChecker)) {
 			return true
 		}
 	}

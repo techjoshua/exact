@@ -118,21 +118,7 @@ func staticRenderOptionName(node *ast.Node) (string, bool) {
 }
 
 func (lowering *jsxLowering) compilerClosedSsrCallee(expression *ast.Node) (string, bool) {
-	var reference externalImportReference
-	var exists bool
-	switch {
-	case ast.IsIdentifier(expression):
-		reference, exists = lowering.externalImports.byName[expression.Text()]
-	case ast.IsPropertyAccessExpression(expression):
-		member := expression.AsPropertyAccessExpression()
-		if ast.IsIdentifier(member.Expression) {
-			reference, exists = lowering.externalImports.byName[member.Expression.Text()]
-			if exists && reference.namespace {
-				reference.exportName = member.Name().Text()
-				reference.namespace = false
-			}
-		}
-	}
+	reference, exists := externalImportForExpression(expression, lowering.externalImports, lowering.checker)
 	if !exists || reference.namespace || reference.moduleSpecifier != "@exactjs/ssr" {
 		return "", false
 	}

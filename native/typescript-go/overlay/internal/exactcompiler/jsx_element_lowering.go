@@ -169,12 +169,16 @@ func (lowering *jsxLowering) lowerOpeningLikeWithoutTime(
 			emittedTag = lowering.factory.NewIdentifier(lowering.names.interop)
 		}
 	}
-	props := lowering.props(
-		opening.Attributes(),
-		lowering.elementID(identityNode),
-		intrinsic,
-		tagText,
-	)
+	var props *ast.Node
+	var deferredSpreadMetadata *ast.Node
+	if intrinsic && lowering.target == TargetServer && lowering.timeActivation != "" &&
+		lowering.timeAttributesHaveClockSpread(opening.Attributes()) {
+		metadata := []*ast.Node{}
+		props = lowering.propsWithDeferredProjection(opening.Attributes(), lowering.elementID(identityNode), true, tagText, false, false, &metadata)
+		deferredSpreadMetadata = lowering.factory.NewObjectLiteralExpression(lowering.factory.NewNodeList(metadata), false)
+	} else {
+		props = lowering.props(opening.Attributes(), lowering.elementID(identityNode), intrinsic, tagText)
+	}
 	if interopType != nil {
 		props = lowering.factory.NewObjectLiteralExpression(
 			lowering.factory.NewNodeList([]*ast.Node{
@@ -188,6 +192,9 @@ func (lowering *jsxLowering) lowerOpeningLikeWithoutTime(
 		emittedTag,
 		props,
 	}
+	if !intrinsic && lowering.checking {
+		arguments[1] = lowering.checkComponentProps(opening, props, children)
+	}
 	if interopType != nil {
 		arguments = append(arguments, lowering.compatibilityContributionChildren(children)...)
 	} else if !intrinsic {
@@ -199,7 +206,7 @@ func (lowering *jsxLowering) lowerOpeningLikeWithoutTime(
 		}
 	} else if tagText == "title" || tagText == "textarea" || tagText == "script" || tagText == "style" {
 		// Text-only hosts cannot contain structural comment boundaries.
-		arguments = append(arguments, lowering.componentChildren(children)...)
+		arguments = append(arguments, lowering.componentChildrenMode(children, lowering.target == TargetClient)...)
 	} else {
 		arguments = append(arguments, lowering.children(children)...)
 	}
@@ -207,6 +214,12 @@ func (lowering *jsxLowering) lowerOpeningLikeWithoutTime(
 	exactCoreTag, exactCore := lowering.exactCoreStructuralExport(tag)
 	if intrinsic {
 		elementHelper = lowering.names.intrinsicElement
+		if deferredSpreadMetadata != nil {
+			elementHelper = lowering.names.timeSpreadElement
+			arguments = append([]*ast.Node{arguments[0], deferredSpreadMetadata, lowering.arrow(props)}, arguments[2:]...)
+		} else if lowering.target == TargetServer && lowering.timeActivation != "" && len(arguments) > 1 && containsIdentifier(arguments[1], lowering.names.timePropertyReaders) {
+			elementHelper = lowering.names.timeIntrinsicElement
+		}
 		if lowering.target == TargetClient && (tagText == "title" || tagText == "textarea") {
 			elementHelper = lowering.names.textHostElement
 		}
@@ -277,7 +290,15 @@ func (lowering *jsxLowering) lowerOpeningLikeWithoutTime(
 		return lowering.call(lowering.names.dynamic, []*ast.Node{lowering.arrow(element)})
 	}
 	if elementHelper == lowering.names.componentReceipt {
+		if lowering.target == TargetClient && lowering.compiledNativeComponentTag(tag) {
+			if edge, exists := lowering.renderEdges[fmt.Sprintf("%d:%s", identityNode.Pos(), tagText)]; exists && edge.Placement == "client" && edge.ComponentID != "" {
+				element = lowering.call(lowering.names.clientBoundaryIdentity, []*ast.Node{element, lowering.factory.NewStringLiteral(lowering.clientComponentBoundaryID(edge), ast.TokenFlagsNone)})
+			}
+		}
 		return lowering.componentSpreadReceipt(identityNode, opening.Attributes(), element)
+	}
+	if intrinsic {
+		return lowering.timeSpreadReceipt(identityNode, opening.Attributes(), element)
 	}
 	return element
 }
@@ -605,6 +626,10 @@ func (lowering *jsxLowering) registryComponentTag(
 	expression *ast.Node,
 	visited map[ast.SymbolId]struct{},
 ) bool {
+	expression = unwrapRegistryDefinitionBody(expression)
+	if expression == nil {
+		return false
+	}
 	if dynamicComponentRegistrySelection(expression, lowering.sourceFile, lowering.checker) {
 		return true
 	}
@@ -657,12 +682,8 @@ func (lowering *jsxLowering) exactCoreStructuralTag(tag *ast.Node) bool {
 }
 
 func (lowering *jsxLowering) exactCoreStructuralExport(tag *ast.Node) (string, bool) {
-	if !ast.IsIdentifier(tag) || lowering.checker == nil {
-		return "", false
-	}
-	bindings := collectExternalImportBindings(lowering.sourceFile, lowering.checker)
-	reference, exists := bindings.byName[tag.Text()]
-	if !exists || !exactCoreStructuralReference(reference.moduleSpecifier, reference.exportName) {
+	reference, exists := resolvedCoreImportReference(tag, lowering.sourceFile, lowering.checker)
+	if !exists || reference.namespace || !exactCoreStructuralReference(reference.moduleSpecifier, reference.exportName) {
 		return "", false
 	}
 	return reference.exportName, true
@@ -703,7 +724,7 @@ func openingTag(opening *ast.Node) *ast.Node {
 
 // Document declarations and output slots are immutable renderer operations, not live child ranges.
 func (lowering *jsxLowering) documentOperation(expression *ast.Node) bool {
-	bindings := collectExternalImportBindings(lowering.sourceFile, lowering.checker)
+	bindings := lowering.externalImports
 	if ast.IsCallExpression(expression) {
 		reference, ok := externalImportForExpression(expression.AsCallExpression().Expression, bindings, lowering.checker)
 		return ok && reference.moduleSpecifier == "@exactjs/core/document" && reference.exportName == "doctype"
@@ -783,9 +804,15 @@ func (lowering *jsxLowering) children(children *ast.NodeList) []*ast.Node {
 					lowering.factory.NewKeywordExpression(ast.KindFalseKeyword),
 				)
 			}
+			dynamic := lowering.names.dynamic
+			// Clock values must be read after the server enhancement selects its provider.
+			// Ordinary server ranges retain their eager direct representation.
+			if lowering.target == TargetServer && lowering.timeActivation != "" {
+				dynamic = lowering.names.timeDynamic
+			}
 			result = append(
 				result,
-				lowering.call(lowering.names.dynamic, arguments),
+				lowering.call(dynamic, arguments),
 			)
 		default:
 			emitted := lowering.visitor.VisitNode(child)
@@ -812,6 +839,10 @@ func (lowering *jsxLowering) children(children *ast.NodeList) []*ast.Node {
 // receipt. Keeping a parent-owned live range here would hide keyed identity from transparent
 // components and allow a retained outgoing generation to observe values from its replacement.
 func (lowering *jsxLowering) componentChildren(children *ast.NodeList) []*ast.Node {
+	return lowering.componentChildrenMode(children, false)
+}
+
+func (lowering *jsxLowering) componentChildrenMode(children *ast.NodeList, observeTextSpreads bool) []*ast.Node {
 	if children == nil {
 		return nil
 	}
@@ -850,7 +881,13 @@ func (lowering *jsxLowering) componentChildren(children *ast.NodeList) []*ast.No
 					continue
 				}
 			}
-			result = append(result, lowering.visitor.VisitNode(child))
+			emitted := lowering.visitor.VisitNode(child)
+			if observeTextSpreads && textHostChildHasIntrinsicSpread(child) {
+				// Text presentation owns this observation. Rebuild copied property bags under
+				// that observation so reconciled keys remain visible in serialized markup.
+				emitted = lowering.reactiveExpression(child, emitted)
+			}
+			result = append(result, emitted)
 		}
 	}
 	return result
@@ -935,4 +972,20 @@ func normalizeJSXChildText(value string, index int, count int) string {
 		}
 	}
 	return text
+}
+
+// timeAttributesHaveClockSpread requires group deferral because keys and overwrite order
+// belong to the evaluated spread value, not to a fixed set of independent property readers.
+func (lowering *jsxLowering) timeAttributesHaveClockSpread(attributes *ast.Node) bool {
+	if attributes == nil {
+		return false
+	}
+	for _, property := range attributes.AsJsxAttributes().Properties.Nodes {
+		if ast.IsJsxSpreadAttribute(property) && timeExpressionHasClockDependency(
+			property.AsJsxSpreadAttribute().Expression, lowering.checker, lowering.sourceFile, map[ast.SymbolId]struct{}{},
+		) {
+			return true
+		}
+	}
+	return false
 }

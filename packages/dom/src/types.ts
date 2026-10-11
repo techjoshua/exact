@@ -33,9 +33,10 @@ import type {
 	ExactUnsafeHtmlReceiptData
 } from '@exactjs/core/runtime/component-operations';
 
-/** Parent and first node of a marker-free final-child range proven by a generated program. */
+/** Claimed range parent and boundary, with an initial node released after slot preparation. */
 export type RenderProgramChildAnchor = readonly [
 	parent: Node,
+	/** Temporary adoption cursor, cleared once durable child-slot ownership is established. */
 	start: Node | null,
 	end?: Node | null
 ];

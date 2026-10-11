@@ -45,6 +45,12 @@ export interface ResponseCompositionChart {
 export interface PerformanceReport {
 	readonly metadata: {
 		readonly commit: string;
+		readonly browserCommit: string;
+		readonly releaseVersionCorrection: {
+			readonly revision: string;
+			readonly packages: Readonly<Record<string, string>>;
+			readonly note: string;
+		};
 		readonly ssrCommit: string;
 		readonly ssrSourceSha256: string;
 		readonly createdAt: string;

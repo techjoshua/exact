@@ -30,6 +30,7 @@ function reportParticipants(raw) {
  * Refreshes public SSR charts for the selected runtime from complete v2 evidence while
  * preserving independently captured browser evidence and its date. Aggregate throughput never replaces a window mean.
  * Recomputes throughput from raw windows and rejects inconsistent recorded summaries.
+ * Removes legacy throughput provenance because these measurements are replaced.
  */
 export function refreshDocsSsrReport(previous, raw, runtimeId = 'node') {
 	const participants = reportParticipants(raw);
@@ -132,11 +133,13 @@ export function refreshDocsSsrReport(previous, raw, runtimeId = 'node') {
 			};
 		})
 	};
+	// This path replaces throughput measurements, so a retained legacy identity no longer applies.
+	const { legacyThroughputSource, ...metadata } = previous.metadata;
 	return {
 		...previous,
 		schemaVersion: 2,
 		metadata: {
-			...previous.metadata,
+			...metadata,
 			browserCreatedAt: previous.metadata.browserCreatedAt ?? previous.metadata.createdAt,
 			capture: 'sustained-throughput-v2',
 			createdAt: raw.createdAt,
@@ -160,11 +163,22 @@ export function refreshDocsSsrReport(previous, raw, runtimeId = 'node') {
 /**
  * Refreshes latency, memory, and payload evidence without replacing independent capacity metrics.
  * Defaults to Node and includes Bun when present, with independent capture provenance for each.
+ * Freezes retained Node throughput identity before advancing the diagnostics date.
  */
 export function refreshDocsSsrDiagnostics(previous, raw, runtimeId = 'node') {
 	const participants = reportParticipants(raw);
 	const refreshed = refreshDocsSsrReport(previous, raw, runtimeId);
 	const { burst, sequential, retention, bars, responseComposition } = refreshed.server;
+	// Freeze retained throughput provenance before advancing the independent diagnostics date.
+	const legacyThroughputSource =
+		previous.metadata.legacyThroughputSource ??
+		(previous.server.sustained || previous.server.saturationCharts
+			? {
+					commit: previous.metadata.commit,
+					createdAt: previous.metadata.ssrCreatedAt ?? previous.metadata.createdAt,
+					note: 'Unused legacy sustained and saturation fields retain historical data. Current throughput charts use the separate fresh capacity reports.'
+				}
+			: undefined);
 	for (const [id, entry] of Object.entries(raw.runtimes[runtimeId])) {
 		if (
 			entry.sequential.samples?.length !== raw.harness.sampleCount ||
@@ -183,6 +197,7 @@ export function refreshDocsSsrDiagnostics(previous, raw, runtimeId = 'node') {
 		...previous,
 		metadata: {
 			...previous.metadata,
+			...(runtimeId === 'node' && legacyThroughputSource ? { legacyThroughputSource } : {}),
 			ssrCreatedAt: raw.createdAt,
 			ssrSequentialSamples: raw.harness.sampleCount,
 			ssrBurstSamples: raw.harness.concurrencyWaves,

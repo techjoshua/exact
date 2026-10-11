@@ -56,6 +56,24 @@ export function activateTaskForHost<Args extends unknown[], Result>(
 }
 
 /**
+ * Runs compiler-generated startup work once after all planned inputs are available.
+ * Body inputs retain producer ordering without triggering reactive task generations.
+ * The durable host owns the watcher and the issued generation independently.
+ */
+export function activateTaskOnceForHost<Args extends unknown[], Result>(
+	host: object,
+	task: TaskFunction<Args, Result>,
+	...inputs: { [Index in keyof Args]: ActivationInput<Args[Index]> }
+): Disposable {
+	const owner = taskOwnerForHost(host);
+	if (!owner) throw new Error('activateTaskOnceForHost() requires a registered durable task host');
+	const dependencies = inputs.map(activationInputDependency) as {
+		[Index in keyof Args]: ContinuationDependencySource<Args[Index]>;
+	};
+	return activateOwnedTaskFromDependencies(owner, task, dependencies, true);
+}
+
+/**
  * Activates compiler-generated continuation work from availability-aware dependency sources.
  *
  * This is a framework ABI: application code should use {@link activateTask}. The returned watcher
@@ -88,7 +106,8 @@ function activateOwnedTask<Args extends unknown[], Result>(
 function activateOwnedTaskFromDependencies<Args extends unknown[], Result>(
 	owner: TaskOwnerRecord,
 	task: TaskFunction<Args, Result>,
-	dependencies: { [Index in keyof Args]: ContinuationDependencySource<Args[Index]> }
+	dependencies: { [Index in keyof Args]: ContinuationDependencySource<Args[Index]> },
+	initializationOnly = false
 ): Disposable {
 	if (!componentExecutionSliceAllows(owner, task)) return inertActivation;
 	const bound = bindTask(task, { owner });
@@ -115,14 +134,17 @@ function activateOwnedTaskFromDependencies<Args extends unknown[], Result>(
 			};
 			watcher = watchContinuationDependencies(dependencies, {
 				onReady(vector) {
+					if (initializationOnly && !initial) return;
 					settleDependencyWait();
 					if (skipInitial && initial) {
 						initial = false;
 						registration.settled = true;
+						if (initializationOnly) watcher?.[Symbol.dispose]();
 						return;
 					}
 					const activation = initial ? 'initialization' : 'reactive';
 					initial = false;
+					if (initializationOnly) watcher?.[Symbol.dispose]();
 					const args = vector.values as Args;
 					registration.settled = false;
 					const outputs = componentExecutionOutputs(owner, task);
@@ -141,6 +163,7 @@ function activateOwnedTaskFromDependencies<Args extends unknown[], Result>(
 					);
 				},
 				onUnavailable(state) {
+					if (initializationOnly && !initial) return;
 					registration.settled = false;
 					bound.cancel('task-activation-dependency-unavailable');
 					if (state === 'pending') retainDependencyWait();
@@ -148,6 +171,8 @@ function activateOwnedTaskFromDependencies<Args extends unknown[], Result>(
 				}
 			});
 			watcher.evaluate();
+			// Synchronous availability can publish before watcher assignment completes.
+			if (initializationOnly && !initial) watcher[Symbol.dispose]();
 		}
 	};
 	owner.activationRegistrations.add(registration);

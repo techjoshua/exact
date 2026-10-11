@@ -8,6 +8,7 @@ import {
 	withoutEnhancements
 } from '../enhancement-chain.js';
 import { findMountedOperation } from '../direct-enhancement.js';
+import { resolveEnhancementTarget } from '../enhancement-targets.js';
 import { installEnhancementRouteWatch } from '../enhancement-route-watch.js';
 import { createMarker } from '../root-support.js';
 import { adoptStaticChildrenRange } from './boundaries.js';
@@ -52,7 +53,11 @@ export function adoptStructuralEnhancement(
 			return undefined;
 		}
 		const chain = adopted.mounts[0]!;
-		const target = findMountedOperation(chain, leaf);
+		// Content-owning enhancements may project a new operation instead of returning the leaf.
+		// Resolve that output through the same semantic target contract used during mounting.
+		const target =
+			findMountedOperation(chain, leaf) ??
+			resolveEnhancementTarget(chain, entries[entries.length - 1]!.identity, parent)?.mounted;
 		if (!target) throw new Error('Hydrated enhancement did not retain its authored target');
 		restoreMountedAuthoredOperation(target, operation);
 		const physicalParent = chain.dom.parentNode!;

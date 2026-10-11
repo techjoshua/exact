@@ -284,11 +284,13 @@ export {
 export {
 	discardTaskMutations,
 	mutateTaskCollection,
-	ownTaskResource,
 	publishTaskMutations,
-	registerTaskCleanup,
 	stageTaskMutation,
-	takeTaskCollectionMutations,
+	takeTaskCollectionMutations
+} from './tasks/task-publication.js';
+export {
+	ownTaskResource,
+	registerTaskCleanup,
 	taskAnimationFrame,
 	taskAwait,
 	taskFetch,

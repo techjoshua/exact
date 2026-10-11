@@ -1,5 +1,7 @@
 import {
+	formatNativeInputValue,
 	assertNativePropAllowed,
+	normalizeNativeAttributeValue,
 	assertNativeEventHandler,
 	isNativeEventProp,
 	isNativeSrcdocProp
@@ -203,12 +205,18 @@ function renderAttribute(
 	const normalized =
 		!reactMarkup && (name === 'className' || name === 'class')
 			? normalizeClassValue(unwrapped)
-			: name === 'value' && tag === 'input' && inputType === 'date' && unwrapped instanceof Date
-				? Number.isNaN(unwrapped.getTime())
-					? ''
-					: unwrapped.toISOString().slice(0, 10)
-				: unwrapped;
-	const value = sanitizeUrlAttribute(name, normalized);
+			: name === 'value' && tag === 'input' && !reactMarkup
+				? formatNativeInputValue(unwrapped, unwrap(inputType))
+				: reactMarkup &&
+					  name === 'value' &&
+					  tag === 'input' &&
+					  inputType === 'date' &&
+					  unwrapped instanceof Date
+					? Number.isNaN(unwrapped.getTime())
+						? ''
+						: unwrapped.toISOString().slice(0, 10)
+					: unwrapped;
+	const value = sanitizeUrlAttribute(name, normalizeNativeAttributeValue(normalized, name));
 	const attrName = reactMarkup
 		? reactAttributeName(name, reactMarkup, customElement)
 		: nativeAttributeName(name, tag);
@@ -269,11 +277,9 @@ export function renderCompiledNativeAttribute(
 	const normalized =
 		kind === 1
 			? normalizeClassValue(unwrapped)
-			: kind === 5 && unwrapped instanceof Date
-				? Number.isNaN(unwrapped.getTime())
-					? ''
-					: unwrapped.toISOString().slice(0, 10)
-				: unwrapped;
+			: kind === 5
+				? formatNativeInputValue(unwrapped, 'date')
+				: normalizeNativeAttributeValue(unwrapped, name);
 	const sanitized = kind === 3 ? sanitizeUrlAttribute(name, normalized) : normalized;
 	if (sanitized === null || sanitized === undefined || sanitized === false) return '';
 	if (kind === 2) {

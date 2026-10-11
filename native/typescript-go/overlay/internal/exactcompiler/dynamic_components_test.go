@@ -7,7 +7,7 @@ import (
 
 func TestDynamicComponentHelperLowersOnlyClientCapability(t *testing.T) {
 	source := `
-		declare function createDynamicComponent<T>(resolve: (signal: AbortSignal) => T): T;
+		import {createDynamicComponent} from '@exactjs/core';
 		function Panel() { return () => <p>ready</p>; }
 		export function Page() {
 			const Selected = createDynamicComponent(() => Panel);
@@ -157,4 +157,26 @@ func hasDiagnosticCode(diagnostics []Diagnostic, code string) bool {
 		}
 	}
 	return false
+}
+
+// Dynamic facade recognition follows the imported value, including ordinary controls.
+func TestDynamicComponentFactoryImportIdentity(t *testing.T) {
+	cases := []struct {
+		name, prefix, factory string
+		warning               bool
+	}{
+		{"direct", `import {createDynamicComponent} from '@exactjs/core';`, "createDynamicComponent", false},
+		{"renamed", `import {createDynamicComponent as dynamic} from '@exactjs/core';`, "dynamic", false},
+		{"namespace", `import * as Core from '@exactjs/core';`, "Core.createDynamicComponent", false},
+		{"immutable alias", `import {createDynamicComponent} from '@exactjs/core';const dynamic=createDynamicComponent;`, "dynamic", false},
+		{"ordinary same name", `function createDynamicComponent(resolve:()=>()=>unknown){return resolve();}`, "createDynamicComponent", true},
+	}
+	for _, item := range cases {
+		t.Run(item.name, func(t *testing.T) {
+			response := NewSession().Execute(Request{Kind: "compile", ID: "dynamic-import-identity.tsx", Target: TargetClient, Source: item.prefix + `function Panel(){return()=> <p>ready</p>;}export function Page(){const Selected=` + item.factory + `(()=>Panel);return()=> <Selected/>;}`})
+			if response.Error != "" || hasDiagnosticCode(response.Diagnostics, "EXACT2213") != item.warning {
+				t.Fatalf("dynamic factory identity mismatch: %#v", response.Diagnostics)
+			}
+		})
+	}
 }

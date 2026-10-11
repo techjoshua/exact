@@ -149,7 +149,8 @@ export function FormsPage(this: Component<{}>) {
 					The same syntax can connect a child component’s value prop and change callback. Both names
 					must be declared props. The callback’s first argument becomes the new value in the
 					parent’s state. Run <code>exactc --check</code> to check this compiler-supported TSX
-					syntax.
+					syntax. Generic children infer their value type from the bound state and other authored
+					props. Explicit JSX type arguments also apply to both binding endpoints.
 				</p>
 				<p>
 					If an edit needs more than assignment, explicit value and callback props let you validate,
@@ -236,6 +237,41 @@ export function FormsPage(this: Component<{}>) {
 			</section>
 			<section>
 				<h2>Fix invalid bindings</h2>
+				<p>
+					Parentheses and type-only wrappers preserve a binding target. A computed target such as
+					<code>this.state.rows[this.state.selected].value</code> selects the current member when
+					the control event or child notification arrives.
+				</p>
+				<p>
+					A binding writes its target, so TypeScript’s ordinary readonly property and array-index
+					checks apply. Parent-owned props are read-only framework inputs. Bind local state, or pass
+					an explicit value and notify the parent through a callback when an edit belongs to it.
+				</p>
+				<p>
+					Control types may use constant expressions such as <code>{'type={"checkbox"}'}</code>. A
+					select binding needs a known selection mode: <code>{'multiple={false}'}</code> edits a
+					scalar, while <code>multiple</code> edits an array. Use an explicit value and change
+					handler when that mode changes dynamically.
+				</p>
+				<p>
+					Radio and checkbox-group options follow native string values. Numeric state converts an
+					option to a number, while string state keeps its text. String literal unions such as
+					<code>{'"ground" | "air"'}</code> also work for radio selections and checkbox arrays. A
+					radio with no explicit value uses
+					<code>"on"</code>. Numeric text controls convert their text with <code>Number</code>,
+					while number and range inputs use the browser’s numeric API. Numeric calendar controls
+					retain their displayed values after edits and hydration. Month values count months since
+					January 1970. Date and week values use UTC milliseconds, time uses milliseconds since
+					midnight, and datetime-local uses milliseconds for its timezone-free calendar fields.
+				</p>
+				<p>
+					Date bindings publish native <code>Date</code> objects that ordinary helpers can read
+					inside a task. Type aliases for native
+					<code>Date</code> are supported. Use an explicit value and event handler for custom date
+					classes or subclasses whose instance data must be preserved. Date values can remain local
+					state after mounting or hydration. For initial state sent from the server, use timestamps
+					or calendar strings because hydration state cannot contain Date objects.
+				</p>
 				<CodeBlock source={invalidInputBindingsSource} language="tsx" title="InvalidBindings.tsx" />
 				<p>
 					A binding must identify exactly one writable property or element access. The compiler

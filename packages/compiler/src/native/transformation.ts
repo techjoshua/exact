@@ -42,7 +42,8 @@ export function transformSourceWithNativeCompiler(
 	const prepared = preparePackageEnhancementSource(
 		normalized,
 		filename,
-		options.packageEnhancements
+		options.packageEnhancements,
+		options.root
 	);
 	const response = sanitizePackageEnhancementResponse(
 		session.compileNative({
@@ -57,6 +58,7 @@ export function transformSourceWithNativeCompiler(
 			buildKey: options.buildKey,
 			target,
 			componentContractProjection: options.componentContractProjection,
+			preserveOrdinaryModules: options.preserveOrdinaryModules,
 			serverComponents: options.serverComponents,
 			preserveComponentHoisting: options.preserveComponentHoisting,
 			diagnostics: options.generatedValidation === 'semantic' ? 'semantic' : 'syntax',
@@ -167,7 +169,8 @@ export function checkSourceWithNativeCompiler(
 	const prepared = preparePackageEnhancementSource(
 		normalized,
 		filename,
-		options.packageEnhancements
+		options.packageEnhancements,
+		options.root
 	);
 	const response = sanitizePackageEnhancementResponse(
 		session.compileNative({
@@ -238,7 +241,8 @@ export function analyzeSourceWithNativeCompiler(
 	const prepared = preparePackageEnhancementSource(
 		normalized,
 		filename,
-		options.packageEnhancements
+		options.packageEnhancements,
+		options.root
 	);
 	const response = sanitizePackageEnhancementResponse(
 		session.compileNative({

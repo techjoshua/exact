@@ -7,11 +7,12 @@ import {
 	formatAiWordListResponse
 } from './ai-word-list-format.js';
 import { defaultLocalAiModel, localAiModels } from './ai-models.js';
+import { crosswordExteriorCells } from './crossword-background.js';
 import { generateCrossword } from './crossword.js';
 import { createPuzzleDocuments, exportBaseName } from './documents.js';
 import { renderCrosswordSvg, renderSudokuSvg, renderWordSearchSvg } from './svg.js';
 import { generateSudoku, countSudokuSolutions } from './sudoku.js';
-import type { PuzzleStyle } from './types.js';
+import type { CrosswordPuzzle, PuzzleStyle } from './types.js';
 import { generateWordSearch, gridContainsBlockedSequence } from './word-search.js';
 import { parseCrosswordClues, parseWords, validateWords } from './words.js';
 
@@ -328,4 +329,53 @@ describe('document and input contracts', () => {
 		expect(sudokuSvg).toContain('font-family="&apos;Segoe Print&apos;');
 		expect(sudokuSvg).toContain('font-weight="800"');
 	});
+});
+
+describe('crossword unused-cell presentation', () => {
+	const layout = (rows: string[]): CrosswordPuzzle => ({
+		rows: rows.length,
+		columns: rows[0]!.length,
+		cells: rows
+			.join('')
+			.split('')
+			.map((letter) => (letter === '.' ? undefined : { letter })),
+		words: [],
+		entries: [],
+		unplaced: []
+	});
+
+	it('distinguishes enclosed holes from orthogonal routes to the edge', () => {
+		const enclosed = layout(['.AA', 'A.A', 'AAA']);
+		expect([...crosswordExteriorCells(enclosed)]).toEqual([1, 0, 0, 0, 0, 0, 0, 0, 0]);
+		const open = layout(['A.A', 'A.A', 'AAA']);
+		expect([...crosswordExteriorCells(open)]).toEqual([0, 1, 0, 0, 1, 0, 0, 0, 0]);
+		expect([...crosswordExteriorCells(layout(['...']))]).toEqual([1, 1, 1]);
+		expect([...crosswordExteriorCells(layout(['AAA']))]).toEqual([0, 0, 0]);
+	});
+
+	it.each([false, true])(
+		'colors puzzle and solution holes separately (solution=%s)',
+		(solution) => {
+			const puzzle = layout(['.AA', 'A.A', 'AAA']);
+			const colors = { ...style, paper: '#eeeeee', crosswordBlocks: '#ffffff' };
+			const fills = (svg: string) =>
+				[...svg.matchAll(/<rect x="[^>]+fill="([^"]+)"/g)].map((match) => match[1]);
+			expect(fills(renderCrosswordSvg(puzzle, colors, solution))).toEqual([
+				'#ffffff',
+				'#eeeeee',
+				'#eeeeee',
+				'#eeeeee',
+				'#000000',
+				'#eeeeee',
+				'#eeeeee',
+				'#eeeeee',
+				'#eeeeee'
+			]);
+			expect(
+				fills(
+					renderCrosswordSvg(puzzle, { ...colors, crosswordEnclosedBlocks: '#123456' }, solution)
+				)[4]
+			).toBe('#123456');
+		}
+	);
 });

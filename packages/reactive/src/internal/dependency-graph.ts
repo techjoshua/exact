@@ -1,6 +1,9 @@
 import type { Dep, Reaction } from './types.js';
+import { sameDependencyKey } from './property-key.js';
 
-const deps = new WeakMap<object, Map<PropertyKey, Dep>>();
+type TargetDependencies = Dep | Map<PropertyKey, Dep>;
+
+const deps = new WeakMap<object, TargetDependencies>();
 const depObservationHooks = new WeakMap<object, Map<PropertyKey, DependencyObservationHooks>>();
 const reactionStack: Reaction[] = [];
 
@@ -10,13 +13,16 @@ type TrackingPass = { reaction: Reaction; previous: Dep[]; seen: Dep | Set<Dep> 
 /** Contains only synchronous reruns; popped passes cannot retain disposed reactions. */
 const trackingPasses: TrackingPass[] = [];
 const trackingPauseFloors: number[] = [];
-const pendingObservationTransitions: Array<() => void> = [];
+const pendingObservationTransitions: Array<{
+	hooks: DependencyObservationHooks;
+	observed: boolean;
+}> = [];
 let publishingObservationTransitions = false;
 
 /** Identifies one target/key dependency without exposing its mutable subscriber set. */
 export type ReactiveDependency = Readonly<{ target: object; key: PropertyKey }>;
 
-/** Receives the first-observer and last-observer transitions for a dependency source. */
+/** Receives synchronous observer transitions with the registered owner as the method receiver. */
 export type DependencyObservationHooks = Readonly<{
 	onObserved(): void;
 	onUnobserved(): void;
@@ -37,16 +43,22 @@ export function registerDependencyObservationHooks(
 	target: object,
 	key: PropertyKey,
 	hooks: DependencyObservationHooks
-): () => void {
+): void {
 	let targetHooks = depObservationHooks.get(target);
 	if (!targetHooks) depObservationHooks.set(target, (targetHooks = new Map()));
 	targetHooks.set(key, hooks);
-	return () => {
-		const current = depObservationHooks.get(target);
-		if (current?.get(key) !== hooks) return;
-		current.delete(key);
-		if (!current.size) depObservationHooks.delete(target);
-	};
+}
+
+/** Releases hooks only when they still belong to this owner, preserving replacement registrations. */
+export function releaseDependencyObservationHooks(
+	target: object,
+	key: PropertyKey,
+	hooks: DependencyObservationHooks
+): void {
+	const current = depObservationHooks.get(target);
+	if (current?.get(key) !== hooks) return;
+	current.delete(key);
+	if (!current.size) depObservationHooks.delete(target);
 }
 
 /** Adds a reaction to one dependency while preserving observer-count transitions. */
@@ -76,7 +88,7 @@ export function linkReactionToDependency(reaction: Reaction, dep: Dep): void {
 				: new Set([subscribers, reaction]);
 	reaction.deps.push(dep);
 	if (wasEmpty)
-		publishObservationTransition(depObservationHooks.get(dep.target)?.get(dep.key)?.onObserved);
+		publishObservationTransition(depObservationHooks.get(dep.target)?.get(dep.key), true);
 }
 
 /** Keeps the common single-dependency pass free of membership-set allocation. */
@@ -95,14 +107,26 @@ export function reactionDependencies(reaction: Reaction): ReactiveDependency[] {
 	return reaction.deps;
 }
 
+/** Visits active observer keys without scanning receiver storage. Detached computations use version keys. */
+export function reactiveDependencyKeys(target: object): Iterable<PropertyKey> {
+	const entry = deps.get(target);
+	return entry instanceof Map ? entry.keys() : entry ? [entry.key] : [];
+}
+
 /** Returns the dependency set for a target/key pair, creating it on first use. */
 export function getDep(target: object, key: PropertyKey): Dep {
-	let targetDeps = deps.get(target);
-	if (!targetDeps) deps.set(target, (targetDeps = new Map()));
-	let dep = targetDeps.get(key);
-	if (!dep) {
-		dep = { target, key };
-		targetDeps.set(key, dep);
+	const entry = deps.get(target);
+	const previous = targetDependency(entry, key);
+	if (previous) return previous;
+	// Every observed dependency needs this mutable slot. Keep it inline on first attachment.
+	const dep: Dep = { target, key, subscribers: undefined };
+	if (!entry) deps.set(target, dep);
+	else if (entry instanceof Map) entry.set(key, dep);
+	else {
+		const multiple = new Map<PropertyKey, Dep>();
+		multiple.set(entry.key, entry);
+		multiple.set(key, dep);
+		deps.set(target, multiple);
 	}
 	return dep;
 }
@@ -131,7 +155,7 @@ function detachDependency(reaction: Reaction, dep: Dep): void {
 
 /** Schedules one stable snapshot of the reactions subscribed to a dependency. */
 export function scheduleDependencyReactions(target: object, key: PropertyKey): void {
-	const dep = deps.get(target)?.get(key);
+	const dep = targetDependency(deps.get(target), key);
 	const subscribers = dep?.subscribers;
 	if (subscribers instanceof Set) {
 		for (const reaction of [...subscribers])
@@ -142,24 +166,36 @@ export function scheduleDependencyReactions(target: object, key: PropertyKey): v
 /** Schedules subscribers for an atomic trigger collection through the coalescing scheduler. */
 export function scheduleTriggeredReactions(triggers: Map<object, Set<PropertyKey>>): void {
 	if (!triggers.size) return;
-	const reactions = new Set<Reaction>();
+	let reactions: Reaction | Set<Reaction> | undefined;
 	for (const [target, keys] of triggers) {
 		const targetDeps = deps.get(target);
 		if (!targetDeps) continue;
 		for (const key of keys) {
-			const dep = targetDeps.get(key);
+			const dep = targetDependency(targetDeps, key);
 			const subscribers = dep?.subscribers;
 			if (subscribers instanceof Set) {
 				for (const reaction of subscribers)
-					if (observesDuringTracking(reaction, dep!)) reactions.add(reaction);
+					if (observesDuringTracking(reaction, dep!))
+						reactions = addScheduledReaction(reactions, reaction);
 			} else if (subscribers && observesDuringTracking(subscribers, dep!))
-				reactions.add(subscribers);
+				reactions = addScheduledReaction(reactions, subscribers);
 		}
 	}
 	// A custom scheduler may run synchronously and replace its own watcher. Snapshotting every
 	// affected reaction before scheduling prevents the replacement from joining this publication;
 	// deduplication also preserves one atomic notification when several changed keys share it.
-	for (const reaction of reactions) reaction.schedule();
+	if (reactions instanceof Set) for (const reaction of reactions) reaction.schedule();
+	else reactions?.schedule();
+}
+
+/** Keeps empty and single-reaction publications allocation-free while deduplicating larger snapshots. */
+function addScheduledReaction(
+	previous: Reaction | Set<Reaction> | undefined,
+	reaction: Reaction
+): Reaction | Set<Reaction> {
+	if (!previous || previous === reaction) return reaction;
+	if (previous instanceof Set) return previous.add(reaction);
+	return new Set<Reaction>().add(previous).add(reaction);
 }
 
 /** Old memberships remain retained until exit but cannot invalidate an unread branch during execution. */
@@ -205,20 +241,44 @@ export function peek<T>(fn: () => T): T {
 }
 
 function releaseEmptyDependency(dep: Dep): void {
-	publishObservationTransition(depObservationHooks.get(dep.target)?.get(dep.key)?.onUnobserved);
-	const targetDeps = deps.get(dep.target);
-	if (targetDeps?.get(dep.key) === dep) targetDeps.delete(dep.key);
-	if (targetDeps && !targetDeps.size) deps.delete(dep.target);
+	publishObservationTransition(depObservationHooks.get(dep.target)?.get(dep.key), false);
+	// The transition can synchronously attach a replacement observer to this same identity.
+	if (dep.subscribers !== undefined) return;
+	const entry = deps.get(dep.target);
+	if (entry === dep) deps.delete(dep.target);
+	else if (entry instanceof Map && entry.get(dep.key) === dep) {
+		entry.delete(dep.key);
+		if (!entry.size) deps.delete(dep.target);
+	}
 }
 
-function publishObservationTransition(transition: (() => void) | undefined): void {
-	if (!transition) return;
-	pendingObservationTransitions.push(transition);
+function publishObservationTransition(
+	hooks: DependencyObservationHooks | undefined,
+	observed: boolean
+): void {
+	if (!hooks) return;
+	pendingObservationTransitions.push({ hooks, observed });
 	if (publishingObservationTransitions) return;
 	publishingObservationTransitions = true;
 	try {
-		while (pendingObservationTransitions.length) pendingObservationTransitions.pop()!();
+		while (pendingObservationTransitions.length) {
+			const transition = pendingObservationTransitions.pop()!;
+			if (transition.observed) transition.hooks.onObserved();
+			else transition.hooks.onUnobserved();
+		}
 	} finally {
 		publishingObservationTransitions = false;
 	}
+}
+
+/** Reads the compact single-key target or its promoted dependency index without allocating. */
+function targetDependency(
+	entry: TargetDependencies | undefined,
+	key: PropertyKey
+): Dep | undefined {
+	return entry instanceof Map
+		? entry.get(key)
+		: entry && sameDependencyKey(entry.key, key)
+			? entry
+			: undefined;
 }

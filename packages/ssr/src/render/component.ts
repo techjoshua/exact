@@ -11,13 +11,17 @@ import { renderServerComponentArtifactOutput } from './server-component-abi-exec
 import { captureSsrProgramOutput } from './program-capture.js';
 import type { ServerArtifactExecution } from './server-artifact-context.js';
 import {
-	ownsClientResumption,
 	receiptExecutionContract,
 	type ServerComponentReference
 } from './server-component-reference.js';
 import { createSsrResumptionCapture } from '../resumption.js';
 import { renderPreparedResumableComponentBoundary } from './resumption-boundary-capability.js';
 import { formatMarkerId } from '../markers.js';
+import { prepareResumptionChildren } from './resumption-children.js';
+import {
+	canPublishIndependentResumption,
+	ownsClientResumption
+} from './component-publication-policy.js';
 
 const publishComponent: DirectSsrComponentPublisher<ComponentPublication> = (
 	context,
@@ -46,6 +50,9 @@ export function renderComponentReference(
 	omitCompilerOwnedBoundary = false,
 	omitRootBoundary = false
 ): RenderValue<string> {
+	const rendererEnhancement =
+		context.enhancementProviderReferences?.has(component) === true ||
+		component.fragmentTarget !== undefined;
 	if (options.documentShellScope?.claim(component)) {
 		// A client-capable application adopts its whole subtree within the shell.
 		// A server-only page cannot adopt children and must still publish its islands.
@@ -58,12 +65,11 @@ export function renderComponentReference(
 		omitRootBoundary = true;
 		omitCompilerOwnedBoundary = true;
 	}
-	if (
-		!hasComponentAncestor &&
-		options.resumptionCapture &&
-		options.clientResumptionOwner === undefined
-	) {
-		// Server roots serialize state but cannot adopt a client subtree themselves.
+	if (options.clientResumptionOwner === undefined && !rendererEnhancement) {
+		// A JSX helper or prepared target can reach the first component through a
+		// structural ancestor. Establish ownership from that component's contract,
+		// then retain the decision throughout its descendants, including plain SSR.
+		// Server roots publish islands because they cannot adopt a client subtree.
 		options = {
 			...options,
 			clientResumptionOwner: ownsClientResumption(receiptExecutionContract(component))
@@ -73,38 +79,15 @@ export function renderComponentReference(
 		component.contract.artifact.target === 'server'
 			? component.contract.artifact.execution.publication
 			: undefined;
-	if (
-		hasComponentAncestor &&
-		publication?.kind === 'resumption' &&
-		!options.clientResumptionOwner
-	) {
-		const id = formatMarkerId(
-			'component',
-			context.nextId++,
-			component.contract.artifact.id,
-			component.key
-		);
-		const capture = createSsrResumptionCapture({ ...options, clientResumptionOwner: true });
-		// The island owns its complete activation sequence. Keep it out of the page's ordered
-		// capture so lazy siblings may settle in either order without sharing a cursor.
-		return captureSsrProgramOutput(context, () =>
-			mapRenderValue(
-				renderComponentReference(context, component, parent, capture.options, true, true),
-				(html) =>
-					mapRenderValue(
-						prepareComponentProps(component.props, undefined, capture.options),
-						(props) =>
-							renderPreparedResumableComponentBoundary(
-								context,
-								id,
-								publication.name,
-								html,
-								props,
-								capture.serializedRecords()
-							)
-					)
-			)
-		);
+	const canPublishResumption = canPublishIndependentResumption(
+		hasComponentAncestor,
+		options.clientResumptionOwner,
+		rendererEnhancement
+	);
+	const independentResumption =
+		canPublishResumption && publication?.kind === 'resumption' ? publication : undefined;
+	if (!component.enhancement && independentResumption) {
+		return renderResumableIsland(context, component, parent, options, independentResumption.name);
 	}
 	if (
 		context.writerSink &&
@@ -117,20 +100,16 @@ export function renderComponentReference(
 		) &&
 		(component.contract.artifact.execution.classification !== 'synchronous' ||
 			(context.markers && !omitRootBoundary && !omitCompilerOwnedBoundary) ||
-			(!options.resumptionCapture &&
-				hasComponentAncestor &&
-				component.contract.artifact.execution.publication?.kind === 'resumption'))
+			(!options.resumptionCapture && independentResumption !== undefined))
 	)
-		return captureSsrProgramOutput(context, () =>
-			renderComponentReference(
-				context,
-				component,
-				parent,
-				options,
-				hasComponentAncestor,
-				omitCompilerOwnedBoundary,
-				omitRootBoundary
-			)
+		return renderCapturedComponentReference(
+			context,
+			component,
+			parent,
+			options,
+			hasComponentAncestor,
+			omitCompilerOwnedBoundary,
+			omitRootBoundary
 		);
 	const output = renderServerComponentArtifactOutput(
 		context,
@@ -144,20 +123,84 @@ export function renderComponentReference(
 			// Preserve the original registry identity before selection and reserve its
 			// position before descendants, even when no marker will be published.
 			capturesResumptions: options.resumptionCapture !== undefined,
+			canPublishResumption,
 			componentName: component.contract.artifact.id,
 			componentKey: component.key,
 			componentOrdinal: context.nextId++,
 			documentProbe: context.documentProbe && context.hostStack.length === 0,
-			hasComponentAncestor,
 			omitCompilerOwnedBoundary,
 			omitRootBoundary
 		}
 	);
-	return mapRenderValue(output, (value) => {
-		if (value === undefined)
-			throw new TypeError('Native component operation selected a non-direct server artifact');
-		return value;
-	});
+	return output instanceof Promise
+		? output.then(requireNativeComponentOutput)
+		: requireNativeComponentOutput(output);
+}
+
+/** Captures an island's activation sequence separately from its server-only parent. */
+function renderResumableIsland(
+	context: SsrContext,
+	component: ExactComponentReceiptData,
+	parent: AnyComponentInstance | undefined,
+	options: SsrRenderOptions,
+	name: string
+): RenderValue<string> {
+	const id = formatMarkerId(
+		'component',
+		context.nextId++,
+		component.contract.artifact.id,
+		component.key
+	);
+	const capture = createSsrResumptionCapture({ ...options, clientResumptionOwner: true });
+	const prepared = prepareResumptionChildren(component, id, context);
+	// The island owns its complete activation sequence. Keep it out of the page's ordered
+	// capture so lazy siblings may settle in either order without sharing a cursor.
+	return captureSsrProgramOutput(context, () =>
+		mapRenderValue(
+			renderComponentReference(context, prepared.component, parent, capture.options, true, true),
+			(html) =>
+				mapRenderValue(prepareComponentProps(prepared.props, undefined, capture.options), (props) =>
+					renderPreparedResumableComponentBoundary(
+						context,
+						id,
+						name,
+						html,
+						props,
+						capture.serializedRecords()
+					)
+				)
+		)
+	);
+}
+
+/** Keeps capture callbacks off component traversal that writes directly to its request sink. */
+function renderCapturedComponentReference(
+	context: SsrContext,
+	component: ExactComponentReceiptData,
+	parent: AnyComponentInstance | undefined,
+	options: SsrRenderOptions,
+	hasComponentAncestor: boolean,
+	omitCompilerOwnedBoundary: boolean,
+	omitRootBoundary: boolean
+): RenderValue<string> {
+	return captureSsrProgramOutput(context, () =>
+		renderComponentReference(
+			context,
+			component,
+			parent,
+			options,
+			hasComponentAncestor,
+			omitCompilerOwnedBoundary,
+			omitRootBoundary
+		)
+	);
+}
+
+/** Rejects missing direct output without a per-component completion closure. */
+function requireNativeComponentOutput(value: string | undefined): string {
+	if (value === undefined)
+		throw new TypeError('Native component operation selected a non-direct server artifact');
+	return value;
 }
 
 /** Shared forwarding reads the request from its execution instead of capturing it per component. */

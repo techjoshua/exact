@@ -1,6 +1,6 @@
 import type { AccessibleName } from '../contracts.js';
 
-/** Performs the role of domain operation. */
+/** Returns the explicit or supported implicit accessibility role for an element. */
 export function roleOf(element: Element): string | undefined {
 	const explicit = element.getAttribute('role');
 	if (explicit) return explicit.split(/\s+/)[0];
@@ -18,9 +18,19 @@ export function roleOf(element: Element): string | undefined {
 	if (tag === 'th') return 'columnheader';
 	if (tag === 'td') return 'cell';
 	if (tag === 'textarea') return 'textbox';
-	if (tag === 'select') return (element as HTMLSelectElement).multiple ? 'listbox' : 'combobox';
+	if (tag === 'select') {
+		const select = element as HTMLSelectElement;
+		return select.multiple || select.size > 1 ? 'listbox' : 'combobox';
+	}
+	if (tag === 'option') return 'option';
+	if (tag === 'section')
+		return (element.hasAttribute('aria-label') || element.hasAttribute('aria-labelledby')) &&
+			accessibleName(element)
+			? 'region'
+			: undefined;
 	if (tag === 'form')
-		return element.getAttribute('aria-label') || element.getAttribute('aria-labelledby')
+		return (element.hasAttribute('aria-label') || element.hasAttribute('aria-labelledby')) &&
+			accessibleName(element)
 			? 'form'
 			: undefined;
 	if (tag === 'input') {
@@ -34,7 +44,7 @@ export function roleOf(element: Element): string | undefined {
 	}
 	return undefined;
 }
-/** Performs the accessible name domain operation. */
+/** Resolves names from ARIA, associated labels, image alternatives and supported native content. */
 export function accessibleName(element: Element): string {
 	const labelledBy = element.getAttribute('aria-labelledby');
 	if (labelledBy)
@@ -46,17 +56,34 @@ export function accessibleName(element: Element): string {
 	return (
 		element.getAttribute('aria-label') ??
 		labelText(element) ??
+		(element.matches('img') ? element.getAttribute('alt') : undefined) ??
 		(element.matches('input')
 			? (element as HTMLInputElement).value
 			: (element.textContent?.trim() ?? ''))
 	);
 }
-/** Performs the label text domain operation. */
+/** Reads a control's ARIA or associated label text, excluding text inside embedded controls. */
 export function labelText(element: Element): string | undefined {
 	if (!element.matches('input, textarea, select')) return undefined;
+	const labelledBy = element.getAttribute('aria-labelledby');
+	if (labelledBy)
+		return (
+			labelledBy
+				.split(/\s+/)
+				.map((id) => element.ownerDocument.getElementById(id)?.textContent ?? '')
+				.join(' ')
+				.trim() || undefined
+		);
+	const explicit = element.getAttribute('aria-label');
+	if (explicit !== null) return explicit;
 	return (
 		Array.from((element as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement).labels ?? [])
-			.map((label) => label.textContent?.trim() ?? '')
+			.map((label) => {
+				const content = label.cloneNode(true) as Element;
+				for (const control of content.querySelectorAll('input, textarea, select, button'))
+					control.remove();
+				return content.textContent?.trim() ?? '';
+			})
 			.join(' ')
 			.trim() || undefined
 	);

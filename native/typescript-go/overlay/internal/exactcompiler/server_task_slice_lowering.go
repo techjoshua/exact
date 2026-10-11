@@ -48,6 +48,9 @@ func (lowering *jsxLowering) serverTaskSlice(
 	lowering.serverTaskSlices[task.ID] = name
 	produced := make(map[int]struct{})
 	for _, candidate := range component.TargetPlan.ServerExecution.Transitions {
+		if candidate.TaskID == task.ID || candidate.Activation != "setup" || candidate.DirectServerSetup {
+			continue
+		}
 		for _, port := range candidate.Outputs {
 			produced[port] = struct{}{}
 		}

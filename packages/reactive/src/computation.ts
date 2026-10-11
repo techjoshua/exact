@@ -1,12 +1,16 @@
 import { hasComputedResultChanged } from './change-detection.js';
+import { createComputedValue } from './computed-value.js';
 import {
 	cleanupReaction,
 	hasActiveReactiveTransaction,
 	linkReaction,
+	peek,
 	reactionDependencies,
 	readMutationVersion,
+	retainMutationVersion,
 	readReactiveRestorationVersion,
 	registerDependencyObservationHooks,
+	releaseDependencyObservationHooks,
 	runTracked,
 	track,
 	trigger,
@@ -24,7 +28,6 @@ import {
 	queueComputation,
 	removeQueuedComputation
 } from './internal/scheduler.js';
-import { reactiveValueMarker, reactiveValueRef } from './internal/symbols.js';
 import type {
 	ComputedInspection,
 	Dep,
@@ -53,28 +56,16 @@ const cycleMessage = 'eXact reactive computation cycle detected';
 let nextSettlementGeneration = 0;
 let activeSettlementGeneration = 0;
 
-/** Creates a lazy, cached derived value with depth-independent synchronous freshness. */
+/**
+ * Creates a lazy, cached derived value with depth-independent synchronous freshness.
+ * Disposal freezes a previously read value. An unread disposed value computes once on its
+ * first explicit read without subscriptions, so cleanup can still consume its declared value.
+ */
 export function computed<T>(compute: () => T): ReactiveValue<T> {
 	const node = new ComputedNode(compute, currentEffectScope());
-	const value = {
-		[reactiveValueMarker]: true,
-		[reactiveValueRef]: node,
-		get: () => node.get(),
-		toJSON: readComputedValue,
-		toString: computedValueToString,
-		valueOf: readComputedValue,
-		[Symbol.toPrimitive]: readComputedValue
-	} as ReactiveValue<T> & object;
+	const value = createComputedValue(node);
 	computedValues.set(value, node as ComputedNode<unknown>);
 	return value;
-}
-
-function readComputedValue<T>(this: ReactiveValue<T>): T {
-	return this.get();
-}
-
-function computedValueToString(this: ReactiveValue): string {
-	return String(this.get());
 }
 
 /** Returns bounded graph state for tooling without exposing computed values or source text. */
@@ -101,18 +92,13 @@ class ComputedNode<T> implements Reaction, ReactiveRef<T> {
 	private dependencies: ComputedDependency[] = [];
 	private computedSources?: Set<ComputedNode<unknown>>;
 	private computedSinks?: Set<ComputedNode<unknown>>;
-	private readonly releaseObservationHooks: () => void;
-	private readonly settleScheduled = (): void => this.settle();
 
 	constructor(
 		private readonly compute: () => T,
 		readonly scope: EffectScopeImpl | undefined
 	) {
 		computedTargets.set(this.target, this as ComputedNode<unknown>);
-		this.releaseObservationHooks = registerDependencyObservationHooks(this.target, this.key, {
-			onObserved: () => this.becomeObserved(),
-			onUnobserved: () => this.becomeUnobserved()
-		});
+		registerDependencyObservationHooks(this.target, this.key, this);
 		if (scope) registerEffectScopeReaction(scope, this);
 	}
 
@@ -128,8 +114,23 @@ class ComputedNode<T> implements Reaction, ReactiveRef<T> {
 			(activeSettlementGeneration === 0 || this.validatedGeneration !== activeSettlementGeneration)
 		)
 			this.settle();
+		else if (!this.initialized && this.state === 'stopped') this.readStoppedValue();
 		track(this.target, this.key);
 		return this.current;
+	}
+
+	/** Resolves an unread cleanup value without reviving its stopped reactive graph. */
+	private readStoppedValue(): void {
+		this.state = 'computing';
+		try {
+			this.current = peek(() => {
+				const value = this.compute();
+				return isReactiveValue(value) ? (value.get() as T) : value;
+			});
+			this.initialized = true;
+		} finally {
+			this.state = 'stopped';
+		}
 	}
 
 	run(): void {
@@ -168,10 +169,10 @@ class ComputedNode<T> implements Reaction, ReactiveRef<T> {
 		this.state = 'stopped';
 		this.scheduled = false;
 		this.pendingPriority = undefined;
-		removeQueuedComputation(this.settleScheduled);
+		removeQueuedComputation(this);
 		cleanupReaction(this);
 		this.detachComputedSources();
-		this.releaseObservationHooks();
+		releaseDependencyObservationHooks(this.target, this.key, this);
 		if (this.scope) releaseEffectScopeReaction(this.scope, this);
 	}
 
@@ -216,7 +217,7 @@ class ComputedNode<T> implements Reaction, ReactiveRef<T> {
 			);
 			if (!changed) {
 				this.state = 'clean';
-				removeQueuedComputation(this.settleScheduled);
+				removeQueuedComputation(this);
 				this.scheduled = false;
 				this.pendingPriority = undefined;
 				this.validatedGeneration = activeSettlementGeneration;
@@ -237,7 +238,7 @@ class ComputedNode<T> implements Reaction, ReactiveRef<T> {
 		this.state = 'computing';
 		this.failed = false;
 		this.invalidatedWhileComputing = false;
-		removeQueuedComputation(this.settleScheduled);
+		removeQueuedComputation(this);
 		cleanupReaction(this);
 		this.detachComputedSources();
 
@@ -287,7 +288,7 @@ class ComputedNode<T> implements Reaction, ReactiveRef<T> {
 		this.state = 'clean';
 		this.validatedGeneration = activeSettlementGeneration;
 		this.restorationVersion = readReactiveRestorationVersion();
-		removeQueuedComputation(this.settleScheduled);
+		removeQueuedComputation(this);
 		this.scheduled = false;
 		this.pendingPriority = undefined;
 		const onError = this.scope?.onError;
@@ -305,7 +306,7 @@ class ComputedNode<T> implements Reaction, ReactiveRef<T> {
 		)
 			this.pendingPriority = priority;
 		this.scheduled = true;
-		queueComputation(this.settleScheduled, undefined, priority, this.scope);
+		queueComputation(this, undefined, priority, this.scope);
 	}
 
 	private markSinksChecked(): void {
@@ -321,20 +322,22 @@ class ComputedNode<T> implements Reaction, ReactiveRef<T> {
 		}
 	}
 
-	private becomeObserved(): void {
+	/** Attaches source ownership when the first consumer starts observing this value. */
+	onObserved(): void {
 		if (this.observed || !this.active) return;
 		this.observed = true;
 		this.attachDependencies();
 		if (this.state !== 'clean') this.queue();
 	}
 
-	private becomeUnobserved(): void {
+	/** Releases unscoped source ownership after the last consumer detaches. */
+	onUnobserved(): void {
 		if (!this.observed) return;
 		this.observed = false;
 		if (this.scope) return;
 		cleanupReaction(this);
 		this.detachComputedSources();
-		removeQueuedComputation(this.settleScheduled);
+		removeQueuedComputation(this);
 		this.scheduled = false;
 		this.pendingPriority = undefined;
 	}
@@ -404,7 +407,7 @@ function snapshotDependencies(reaction: Reaction): ComputedDependency[] {
 	return reactionDependencies(reaction).map(({ target, key }) => ({
 		target,
 		key,
-		version: readMutationVersion(target, key),
+		version: retainMutationVersion(target, key),
 		computed: computedTargets.get(target)
 	}));
 }
@@ -423,7 +426,7 @@ function mergeDependencies(
 			continue;
 		merged.push({
 			...dependency,
-			version: readMutationVersion(dependency.target, dependency.key)
+			version: retainMutationVersion(dependency.target, dependency.key)
 		});
 	}
 	return merged;

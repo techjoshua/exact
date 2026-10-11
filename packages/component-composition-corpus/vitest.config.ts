@@ -6,6 +6,7 @@ const source = (relativePath: string) =>
 	fileURLToPath(new URL(relativePath, import.meta.url)).replaceAll('\\', '/');
 
 export default defineConfig({
+	root: source('./'),
 	plugins: [
 		exactVitest({
 			compiler: {
@@ -18,6 +19,7 @@ export default defineConfig({
 	],
 	resolve: {
 		alias: [
+			{ find: '@exactjs/secrets', replacement: source('../../plugins/secrets/src/index.ts') },
 			{ find: /^@exactjs\/core\/(.+)$/, replacement: `${source('../core/src/')}$1.ts` },
 			{ find: '@exactjs/core', replacement: source('../core/src/index.ts') },
 			{ find: /^@exactjs\/dom\/(.+)$/, replacement: `${source('../dom/src/')}$1.ts` },

@@ -12,8 +12,9 @@ import (
 )
 
 type synchronizedProjectSource struct {
-	fileName string
-	source   string
+	fileName      string
+	source        string
+	normalization normalizedSource
 }
 
 // synchronizeProject installs a complete set of prepared overlays before any
@@ -35,7 +36,7 @@ func (s *Session) synchronizeProject(
 			response.Error = err.Error()
 			return response
 		}
-		prepared = append(prepared, synchronizedProjectSource{fileName: fileName, source: normalized})
+		prepared = append(prepared, synchronizedProjectSource{fileName: fileName, source: normalized.text, normalization: normalized})
 	}
 	if request.ConfigFile == "" {
 		request.ConfigFile = nearestTypeScriptConfig(prepared[0].fileName)
@@ -71,17 +72,17 @@ func (s *Session) synchronizeProject(
 	return response
 }
 
-func normalizeSynchronizedSource(source ProjectSource, root string) (string, string, error) {
+func normalizeSynchronizedSource(source ProjectSource, root string) (string, normalizedSource, error) {
 	fileName, err := normalizeFileName(source.ID, root)
 	if err != nil {
-		return "", "", err
+		return "", normalizedSource{}, err
 	}
 	authored := source.Source
 	suffix := ""
 	if source.PackageEnhancementBoundary > 0 {
 		boundary, valid := utf16OffsetToByteOffset(source.Source, source.PackageEnhancementBoundary)
 		if !valid {
-			return "", "", fmt.Errorf(
+			return "", normalizedSource{}, fmt.Errorf(
 				"package enhancement boundary for %s is not a valid UTF-16 source offset",
 				fileName,
 			)
@@ -91,15 +92,19 @@ func normalizeSynchronizedSource(source ProjectSource, root string) (string, str
 	}
 	normalization, err := normalizeAuthoredSource(fileName, authored)
 	if err != nil {
-		return "", "", err
+		return "", normalizedSource{}, err
 	}
-	return fileName, normalization.text + suffix, nil
+	normalization.text += suffix
+	return fileName, normalization, nil
 }
 
 func nativeProjectKey(request Request, fileName string) string {
 	identity := request.ConfigFile
 	if identity == "" {
 		identity = fileName
+	}
+	if standaloneIntlAnalysisRequest(request) {
+		identity += "\x00intl-native-libraries"
 	}
 	return strings.Join([]string{request.Root, identity}, "\x00")
 }
@@ -112,7 +117,8 @@ func (state *projectState) synchronize(sources []synchronizedProjectSource) bool
 	rootFiles := append([]string(nil), state.config.FileNames()...)
 	for _, source := range sources {
 		key := state.fs.canonical(source.fileName)
-		if state.sources[key] == source.source {
+		state.retainNormalization(source.fileName, source.normalization)
+		if previous, exists := state.sources[key]; exists && previous == source.source {
 			continue
 		}
 		changed = true
@@ -123,6 +129,8 @@ func (state *projectState) synchronize(sources []synchronizedProjectSource) bool
 		}
 	}
 	if !changed {
+		state.program.BindSourceFiles()
+		state.initialized = true
 		return false
 	}
 	state.counters.ProgramRebuilds++

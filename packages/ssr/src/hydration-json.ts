@@ -1,5 +1,10 @@
 import type { ExactValueSerializationSchema } from '@exactjs/core/framework/component-contracts';
-import { normalizeProtocolLimit as positiveLimit } from '@exactjs/core/framework/protocol-records';
+import {
+	isNativeJsonCollection,
+	jsonDataKeys,
+	jsonDataProperty,
+	normalizeProtocolLimit as positiveLimit
+} from '@exactjs/core/framework/protocol-records';
 import type { PositionalRootPublication } from './render/root-props.js';
 import type { SsrSerializedResumption } from './resumption.js';
 import {
@@ -59,10 +64,11 @@ class HydrationAncestors {
 }
 
 /**
- * Validates a hydration graph without invoking accessors.
+ * Validates a hydration graph against its JSON publication policy and size limits.
  *
- * The caller may synchronously read the graph after this succeeds because every enumerable value
- * property and container prototype has already crossed the serialization trust boundary.
+ * Ordinary data rejects accessors and serialization overrides without invoking them. Compiler-owned
+ * envelopes and positional projections use their explicit publication contracts, which may read
+ * approved fields to capture their values. Returns the first unsafe path, or undefined on success.
  */
 export function validateJsonSafeHydrationValue(
 	value: unknown,
@@ -182,7 +188,11 @@ function validateContainer(
 		if (shape === 0) state.onValidatedArray?.(source);
 		return true;
 	}
-	for (const key of Object.keys(source)) {
+	const keys = structurallyKnown
+		? Object.keys(source)
+		: jsonDataKeys(source, state.maxNodes - state.nodes);
+	if (!keys) return false;
+	for (const key of keys) {
 		if (path) pushValidationPath(path, key, array);
 		if (structurallyKnown) {
 			const item = (source as Record<string, unknown>)[key];
@@ -212,7 +222,7 @@ function validateContainer(
 			if (path) popValidationPath(path);
 			continue;
 		}
-		const descriptor = Object.getOwnPropertyDescriptor(source, key);
+		const descriptor = jsonDataProperty(source, key);
 		if (!descriptor || !('value' in descriptor)) return false;
 		if (!validateValue(descriptor.value, depth + 1, state)) return false;
 		if (path) popValidationPath(path);
@@ -417,12 +427,7 @@ export function* hydrationCollectionValues(
 ): Generator<unknown> {
 	// Serialization must not execute authored iteration or JSON hooks. Reactive collection
 	// proxies retain the native prototype and expose no own hook descriptors.
-	const prototype = value instanceof Map ? Map.prototype : Set.prototype;
-	if (
-		Object.getPrototypeOf(value) !== prototype ||
-		Object.getOwnPropertyDescriptor(value, Symbol.iterator) ||
-		Object.getOwnPropertyDescriptor(value, 'toJSON')
-	)
+	if (!isNativeJsonCollection(value))
 		throw new TypeError('Custom hydration collection serialization is unsupported');
 	if (value instanceof Map) {
 		for (const [key, item] of value) {

@@ -11,12 +11,12 @@ const exact = (...args: Parameters<typeof createExact>) =>
 	};
 
 describe('@exactjs/vite-plugin: React compatibility', () => {
-	it('automatically aliases installed React and compiles React-owned JSX to the compatibility runtime', () => {
+	it('automatically aliases installed React and compiles React-owned JSX to the compatibility runtime', async () => {
 		const compatibilityRoot = path.resolve(import.meta.dirname, '../test-fixtures/adapter-app');
 		const plugin = exact({
 			reactCompatibility: { target: 18, source: '/react/', cwd: compatibilityRoot }
 		});
-		const config = plugin.config?.();
+		const config = await plugin.config?.();
 		expect(config?.resolve.alias).toEqual(
 			expect.arrayContaining([
 				expect.objectContaining({ replacement: '@exactjs/react-compat/react18' }),
@@ -33,7 +33,8 @@ describe('@exactjs/vite-plugin: React compatibility', () => {
 			'@exactjs/react-compat/jsx-runtime18'
 		);
 		expect(
-			exact({ reactCompatibility: { target: 18, cwd: compatibilityRoot } }).config?.().resolve.alias
+			(await exact({ reactCompatibility: { target: 18, cwd: compatibilityRoot } }).config?.())
+				?.resolve.alias
 		).toEqual(
 			expect.arrayContaining([
 				expect.objectContaining({ replacement: '@exactjs/react-compat/react18' })

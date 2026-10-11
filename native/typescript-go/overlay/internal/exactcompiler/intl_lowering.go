@@ -45,6 +45,7 @@ type intlOperationPlan struct {
 	prototypes            map[string]intlPrototypeLowering
 	removed               map[int]struct{}
 	globalAlias           string
+	durationAlias         string
 	componentLocalization bool
 }
 
@@ -61,6 +62,16 @@ func lowerIntlOperations(
 		return transformed
 	}
 	usedGlobal := false
+	usedDuration := false
+	cachedConstructor := func(facade *ast.Node, constructor string, arguments *ast.NodeList) *ast.Node {
+		call := intlCachedConstructor(factory, facade, constructor, arguments)
+		if constructor != "DurationFormat" {
+			return call
+		}
+		usedDuration = true
+		strict := factory.NewCallExpression(factory.NewIdentifier(plan.durationAlias), nil, nil, factory.NewNodeList([]*ast.Node{call}), ast.NodeFlagsNone)
+		return factory.NewAsExpression(strict, factory.NewTypeReferenceNode(factory.NewQualifiedName(factory.NewIdentifier("Intl"), factory.NewIdentifier("DurationFormat")), nil))
+	}
 	var visitor *ast.NodeVisitor
 	visitor = ast.NewNodeVisitor(
 		func(node *ast.Node) *ast.Node {
@@ -99,7 +110,7 @@ func lowerIntlOperations(
 					usedGlobal = usedGlobal || !component
 					return factory.NewCallExpression(
 						factory.NewPropertyAccessExpression(
-							intlCachedConstructor(factory, facade, binding.constructor, binding.arguments),
+							cachedConstructor(facade, binding.constructor, binding.arguments),
 							operation.QuestionDotToken,
 							operation.Name(),
 							ast.NodeFlagsNone,
@@ -112,7 +123,11 @@ func lowerIntlOperations(
 				}
 				if prototype, exists := plan.prototypes[nodeSpanKey(node)]; exists {
 					call := visited.AsCallExpression()
-					member := call.Expression.AsPropertyAccessExpression()
+					selected := unwrapRenderExpression(call.Expression)
+					if !ast.IsPropertyAccessExpression(selected) {
+						return visited
+					}
+					member := selected.AsPropertyAccessExpression()
 					facade := plannedIntlFacade(factory, prototype.component, plan.globalAlias, componentAlias)
 					usedGlobal = usedGlobal || !prototype.component
 					arguments := []*ast.Node{member.Expression}
@@ -145,7 +160,7 @@ func lowerIntlOperations(
 				}
 				facade := plannedIntlFacade(factory, constructor.component, plan.globalAlias, componentAlias)
 				usedGlobal = usedGlobal || !constructor.component
-				return intlCachedConstructor(factory, facade, constructor.constructor, arguments)
+				return cachedConstructor(facade, constructor.constructor, arguments)
 			}
 			return visited
 		},
@@ -154,7 +169,10 @@ func lowerIntlOperations(
 	)
 	result := visitor.VisitEachChild(transformed.AsNode()).AsSourceFile()
 	if usedGlobal {
-		result = addIntlFacadeImport(result, factory, plan.globalAlias)
+		result = addIntlCapabilityImport(result, factory, "@exactjs/core", "intl", plan.globalAlias)
+	}
+	if usedDuration {
+		result = addIntlCapabilityImport(result, factory, "@exactjs/core/runtime/localization", "requireIntlDurationFormatter", plan.durationAlias)
 	}
 	ast.SetParentInChildren(result.AsNode())
 	return result
@@ -177,11 +195,12 @@ func planIntlOperations(sourceFile *ast.SourceFile, typeChecker *checker.Checker
 	}
 	bindings := collectIntlBindingLowerings(sourceFile, typeChecker, componentNodes)
 	plan := intlOperationPlan{
-		constructors: make(map[string]intlConstructorLowering),
-		bindings:     make(map[string]*intlBindingLowering),
-		prototypes:   make(map[string]intlPrototypeLowering),
-		removed:      make(map[int]struct{}),
-		globalAlias:  intlGlobalAlias(sourceFile),
+		constructors:  make(map[string]intlConstructorLowering),
+		bindings:      make(map[string]*intlBindingLowering),
+		prototypes:    make(map[string]intlPrototypeLowering),
+		removed:       make(map[int]struct{}),
+		globalAlias:   intlCapabilityAlias(sourceFile, "__exactIntl"),
+		durationAlias: intlCapabilityAlias(sourceFile, "__exactRequireDuration"),
 	}
 	for _, binding := range bindings {
 		plan.removed[binding.declaration.Pos()] = struct{}{}
@@ -235,7 +254,8 @@ func collectIntlBindingLowerings(
 			}
 		}
 		constructor, arguments, supported := nativeIntlConstructor(declaration.Initializer, typeChecker)
-		if !supported || !finiteIntlArguments(arguments) {
+		// Duration availability is observable at construction, including before any method use.
+		if !supported || constructor == "DurationFormat" || !finiteIntlArguments(arguments) {
 			return true
 		}
 		symbol := typeChecker.GetSymbolAtLocation(declaration.Name())
@@ -314,21 +334,11 @@ func finiteIntlArguments(arguments *ast.NodeList) bool {
 }
 
 func nativeIntlConstructor(expression *ast.Node, typeChecker *checker.Checker) (string, *ast.NodeList, bool) {
-	constructor, arguments, supported := intlConstructor(expression)
+	constructor, arguments, supported := intlConstructor(expression, typeChecker)
 	if !supported {
 		return "", nil, false
 	}
 	if _, known := cachedIntlConstructors[constructor]; !known {
-		return "", nil, false
-	}
-	var target *ast.Node
-	if ast.IsCallExpression(expression) {
-		target = expression.AsCallExpression().Expression
-	} else {
-		target = expression.AsNewExpression().Expression
-	}
-	member := target.AsPropertyAccessExpression()
-	if !nativeDeclarationSymbol(typeChecker.GetSymbolAtLocation(member.Expression)) {
 		return "", nil, false
 	}
 	return constructor, arguments, true
@@ -351,6 +361,11 @@ func planPrototypeLocaleCall(
 	expression *ast.Node,
 	typeChecker *checker.Checker,
 ) (intlPrototypeLowering, bool) {
+	// The facade evaluates its receiver and arguments unconditionally. Keep optional chains
+	// authored so absent receivers skip both the native call and its argument evaluations.
+	if ast.IsOptionalChain(expression) {
+		return intlPrototypeLowering{}, false
+	}
 	call := expression.AsCallExpression()
 	if !ast.IsPropertyAccessExpression(call.Expression) || call.Arguments == nil || len(call.Arguments.Nodes) > 2 {
 		return intlPrototypeLowering{}, false
@@ -360,7 +375,8 @@ func planPrototypeLocaleCall(
 	if method != "toLocaleString" && method != "toLocaleDateString" && method != "toLocaleTimeString" {
 		return intlPrototypeLowering{}, false
 	}
-	if !nativeDeclarationSymbol(typeChecker.GetSymbolAtLocation(member.Name())) {
+	owner := standardLibraryCallOwner(call, typeChecker)
+	if owner != "Date" && owner != "Number" && owner != "BigInt" {
 		return intlPrototypeLowering{}, false
 	}
 	if len(call.Arguments.Nodes) == 2 {
@@ -368,8 +384,7 @@ func planPrototypeLocaleCall(
 			return intlPrototypeLowering{}, false
 		}
 	}
-	typeName := typeChecker.TypeToString(typeChecker.GetTypeAtLocation(member.Expression))
-	if typeName == "Date" {
+	if owner == "Date" {
 		projection := "date-time"
 		if method == "toLocaleDateString" {
 			projection = "date"
@@ -378,7 +393,7 @@ func planPrototypeLocaleCall(
 		}
 		return intlPrototypeLowering{operation: "formatDate", projection: projection}, true
 	}
-	if method == "toLocaleString" && (typeName == "number" || typeName == "bigint") {
+	if method == "toLocaleString" && (owner == "Number" || owner == "BigInt") {
 		return intlPrototypeLowering{operation: "formatNumber"}, true
 	}
 	return intlPrototypeLowering{}, false
@@ -398,7 +413,7 @@ func plannedIntlFacade(factory *printer.NodeFactory, component bool, globalAlias
 	if component {
 		return factory.NewCallExpression(
 			factory.NewIdentifier(componentAlias), nil, nil,
-			factory.NewNodeList([]*ast.Node{factory.NewThisExpression()}), ast.NodeFlagsNone,
+			factory.NewNodeList([]*ast.Node{factory.NewAsExpression(factory.NewThisExpression(), factory.NewImportTypeNode(false, factory.NewLiteralTypeNode(factory.NewStringLiteral("@exactjs/core/runtime/localization", ast.TokenFlagsNone)), nil, factory.NewIdentifier("ComponentLocalizationOwner"), nil))}), ast.NodeFlagsNone,
 		)
 	}
 	return factory.NewIdentifier(globalAlias)
@@ -416,30 +431,30 @@ func insideIntlComponentScope(node *ast.Node, componentNodes map[*ast.Node]struc
 	return false
 }
 
-func intlGlobalAlias(sourceFile *ast.SourceFile) string {
+func intlCapabilityAlias(sourceFile *ast.SourceFile, prefix string) string {
 	used := sourceIdentifiers(sourceFile)
-	if _, exists := used["__exactIntl"]; !exists {
-		return "__exactIntl"
+	if _, exists := used[prefix]; !exists {
+		return prefix
 	}
 	for suffix := 2; ; suffix++ {
-		candidate := "__exactIntl" + fmt.Sprintf("%d", suffix)
+		candidate := prefix + fmt.Sprintf("%d", suffix)
 		if _, exists := used[candidate]; !exists {
 			return candidate
 		}
 	}
 }
 
-func addIntlFacadeImport(sourceFile *ast.SourceFile, factory *printer.NodeFactory, alias string) *ast.SourceFile {
+func addIntlCapabilityImport(sourceFile *ast.SourceFile, factory *printer.NodeFactory, module, exported, alias string) *ast.SourceFile {
 	declaration := factory.NewImportDeclaration(
 		nil,
 		factory.NewImportClause(
 			ast.KindUnknown,
 			nil,
 			factory.NewNamedImports(factory.NewNodeList([]*ast.Node{
-				factory.NewImportSpecifier(false, factory.NewIdentifier("intl"), factory.NewIdentifier(alias)),
+				factory.NewImportSpecifier(false, factory.NewIdentifier(exported), factory.NewIdentifier(alias)),
 			})),
 		),
-		factory.NewStringLiteral("@exactjs/core", ast.TokenFlagsNone),
+		factory.NewStringLiteral(module, ast.TokenFlagsNone),
 		nil,
 	)
 	statements := append([]*ast.Node(nil), sourceFile.Statements.Nodes...)

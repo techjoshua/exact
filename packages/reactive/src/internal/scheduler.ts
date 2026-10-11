@@ -1,11 +1,22 @@
-import { constrainedPriority, isHigherWorkPriority, priorityOrder } from './scheduler-priority.js';
-export { isHigherWorkPriority } from './scheduler-priority.js';
+import {
+	constrainedPriority,
+	currentWorkPriority,
+	isHigherWorkPriority,
+	priorityOrder,
+	runScheduledComputation
+} from './scheduler-priority.js';
+export {
+	currentWorkPriority,
+	isHigherWorkPriority,
+	runWithPriority
+} from './scheduler-priority.js';
 import { publishExactProfile, type ExactProfileSink } from '@exactjs/instrumentation';
 import { profileTimestamp } from '@exactjs/instrumentation';
 import type {
 	EffectScope,
 	EffectScopeImpl,
 	Reaction,
+	ScheduledComputation,
 	ReactiveProfileEvent,
 	WorkPriority
 } from './types.js';
@@ -28,8 +39,7 @@ type QueuedReaction = {
 };
 
 const queuedReactions = new Map<Reaction, QueuedReaction>();
-const queuedComputations = new Map<() => void, QueuedComputation>();
-const priorityStack: WorkPriority[] = [];
+const queuedComputations = new Map<ScheduledComputation, QueuedComputation>();
 let foregroundFlushScheduled = false;
 let deferredFlushScheduled = false;
 let consecutiveForegroundFlushes = 0;
@@ -78,9 +88,9 @@ export function queueReaction(
 	scheduleFlush(priority);
 }
 
-/** Queues an arbitrary computation to run before reactions during the next flush. */
+/** Queues a callback or durable owner to run before reactions, retaining identity without a wrapper. */
 export function queueComputation(
-	computation: () => void,
+	computation: ScheduledComputation,
 	onError?: (error: unknown) => void,
 	priority: WorkPriority = currentWorkPriority(),
 	scope?: EffectScope
@@ -98,7 +108,7 @@ export function queueComputation(
 }
 
 /** Removes a computation that was queued but has already been run synchronously. */
-export function removeQueuedComputation(computation: () => void): void {
+export function removeQueuedComputation(computation: ScheduledComputation): void {
 	queuedComputations.delete(computation);
 }
 
@@ -129,11 +139,6 @@ export function createScheduledScopePurge(): Set<EffectScopeImpl> | undefined {
 	return queuedReactions.size || queuedComputations.size ? new Set() : undefined;
 }
 
-/** Returns the priority inherited by work scheduled in the current synchronous execution scope. */
-export function currentWorkPriority(): WorkPriority {
-	return priorityStack[priorityStack.length - 1] ?? 'normal';
-}
-
 /** Returns a read-only snapshot of queued scheduler work for framework tests and tooling. */
 export function inspectScheduledWork(): Readonly<{
 	currentPriority: WorkPriority;
@@ -149,16 +154,6 @@ export function inspectScheduledWork(): Readonly<{
 		computations: Object.freeze(computations),
 		reactions: Object.freeze(reactions)
 	});
-}
-
-/** Runs synchronous work so its reactive invalidations inherit the requested priority. */
-export function runWithPriority<T>(priority: WorkPriority, work: () => T): T {
-	priorityStack.push(priority);
-	try {
-		return work();
-	} finally {
-		priorityStack.pop();
-	}
 }
 
 /** Schedules framework-owned computation work at an explicit priority. */
@@ -214,7 +209,7 @@ export function flushSync(through: WorkPriority = 'deferred'): void {
 						continue;
 					}
 					try {
-						runWithPriority(queued.priority, computation);
+						runScheduledComputation(queued.priority, computation);
 					} catch (error) {
 						if (queued.onError) {
 							try {
@@ -258,8 +253,8 @@ export function flushSync(through: WorkPriority = 'deferred'): void {
 				}
 				try {
 					if (queued.context)
-						queued.context.run(() => runReactionWithPriority(queued.priority, reaction));
-					else runReactionWithPriority(queued.priority, reaction);
+						queued.context.run(() => runScheduledComputation(queued.priority, reaction));
+					else runScheduledComputation(queued.priority, reaction);
 				} catch (error) {
 					if (!hasError) firstError = error;
 					hasError = true;
@@ -293,15 +288,6 @@ export function flushSync(through: WorkPriority = 'deferred'): void {
 		}
 	}
 	if (hasError) throw firstError;
-}
-
-function runReactionWithPriority(priority: WorkPriority, reaction: Reaction): void {
-	priorityStack.push(priority);
-	try {
-		reaction.run();
-	} finally {
-		priorityStack.pop();
-	}
 }
 
 /** Publishes one stable settlement generation without admitting recursive reconciliation. */
@@ -420,8 +406,10 @@ function hasQueuedPriority(priority: WorkPriority): boolean {
 	return false;
 }
 
-function takeEligibleComputations(through: WorkPriority): Array<[() => void, QueuedComputation]> {
-	const selected: Array<[() => void, QueuedComputation]> = [];
+function takeEligibleComputations(
+	through: WorkPriority
+): Array<[ScheduledComputation, QueuedComputation]> {
+	const selected: Array<[ScheduledComputation, QueuedComputation]> = [];
 	for (const [computation, queued] of queuedComputations) {
 		if (queued.scope?.paused) continue;
 		if (!isEligible(queued.priority, through)) continue;

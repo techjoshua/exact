@@ -145,10 +145,10 @@ describe('@exactjs/webpack-plugin', () => {
 		});
 
 		expect(client?.code).toContain('window.addEventListener');
-		expect(client?.code).toContain('__exactComponentContract');
+		expect(client?.code).toContain('placement: "isomorphic"');
 		expect(server?.code).not.toContain('window.addEventListener');
 		expect(server?.code).not.toContain('__exactRegisterLifecycle(this, "mount"');
-		expect(server?.code).toContain('__exactComponentContract');
+		expect(server?.code).toContain('placement: "isomorphic"');
 	});
 
 	it('derives compact runtime instrumentation independently from hardened output', () => {

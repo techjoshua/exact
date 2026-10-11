@@ -11,6 +11,7 @@ import (
 
 type assetAnalysis struct {
 	dependencies           []AssetDependency
+	sideEffectEvaluation   map[int]string
 	placementBySpecifier   map[string]string
 	clientSideEffectStarts map[int]struct{}
 	omitStatementStarts    map[string]map[int]struct{}
@@ -30,6 +31,7 @@ func analyzeAssets(
 ) assetAnalysis {
 	result := assetAnalysis{
 		dependencies:           []AssetDependency{},
+		sideEffectEvaluation:   make(map[int]string),
 		placementBySpecifier:   make(map[string]string),
 		clientSideEffectStarts: make(map[int]struct{}),
 		omitStatementStarts: map[string]map[int]struct{}{
@@ -123,6 +125,9 @@ func analyzeAssets(
 		if _, exists := seenAssets[key]; !exists {
 			seenAssets[key] = struct{}{}
 			result.dependencies = append(result.dependencies, dependency)
+		}
+		if sideEffect {
+			result.sideEffectEvaluation[statement.Pos()] = evaluationTarget
 		}
 		if sideEffect && evaluationTarget == "client" {
 			result.clientSideEffectStarts[statement.Pos()] = struct{}{}

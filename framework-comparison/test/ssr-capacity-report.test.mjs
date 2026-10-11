@@ -85,6 +85,22 @@ function publicationFixture(runtimeId) {
 	return { preloaded: { multi, arrivals }, normal };
 }
 
+test('capacity publication accepts legacy and explicit Node driver identities', () => {
+	const { preloaded, normal } = publicationFixture('node');
+	normal.blocks[0].results[0].driver.implementation = 'node';
+	const report = createSsrCapacityReport(preloaded, normal);
+	assert.deepEqual(report.loadDriver, { implementation: 'node', version: 'v26.8.1' });
+	assert.match(report.method, /Node v26\.8\.1 load drivers/u);
+	preloaded.multi.blocks[0].results[0].driver.node = 'v26.9.0';
+	assert.throws(() => createSsrCapacityReport(preloaded, normal), /same load driver/u);
+});
+
+test('capacity publication rejects unsupported load drivers', () => {
+	const { preloaded, normal } = publicationFixture('node');
+	normal.blocks[0].results[0].driver.implementation = 'unsupported';
+	assert.throws(() => createSsrCapacityReport(preloaded, normal), /require the Node driver/u);
+});
+
 test('target-rate warmup errors remain visible without entering measured arrival rows', () => {
 	const { preloaded, normal } = publicationFixture('node');
 	for (const block of preloaded.arrivals.blocks)

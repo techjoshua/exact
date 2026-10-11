@@ -14,16 +14,18 @@ var exactDirectivePattern = regexp.MustCompile(
 )
 
 var exactCoreDirectives = map[string]struct{}{
-	"key":     {},
-	"cleanup": {},
-	"own":     {},
-	"track":   {},
-	"client":  {},
-	"server":  {},
-	"shared":  {},
-	"keep":    {},
-	"pure":    {},
-	"dynamic": {},
+	"key":           {},
+	"cleanup":       {},
+	"own":           {},
+	"track":         {},
+	"client":        {},
+	"server":        {},
+	"shared":        {},
+	"keep":          {},
+	"pure":          {},
+	"dynamic":       {},
+	"state-view":    {},
+	"analyzer-only": {},
 }
 
 func collectDirectives(source string) []Directive {
@@ -77,7 +79,7 @@ func validateCoreDirectives(directives []Directive) []Diagnostic {
 			diagnostics = append(diagnostics, directiveDiagnostic(
 				directive,
 				fmt.Sprintf(
-					"unknown @exact directive '%s'. Supported directives are key, cleanup, own, track, client, server, shared, keep, pure, and dynamic",
+					"unknown @exact directive '%s'. Supported directives are key, cleanup, own, track, client, server, shared, keep, pure, dynamic, state-view, and analyzer-only",
 					directive.Name,
 				),
 			))
@@ -102,7 +104,7 @@ func validateCoreDirectives(directives []Directive) []Diagnostic {
 				}
 				diagnostics = append(diagnostics, directiveDiagnostic(directive, message))
 			}
-		case "own", "track", "client", "server", "shared", "pure", "dynamic":
+		case "own", "track", "client", "server", "shared", "pure", "dynamic", "state-view", "analyzer-only":
 			if directive.HasArgument {
 				diagnostics = append(diagnostics, directiveDiagnostic(
 					directive,

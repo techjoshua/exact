@@ -12,6 +12,10 @@ func effectArgumentRoot(node *ast.Node) (*ast.Node, []string) {
 	path := []string{}
 	for {
 		node = unwrapRenderExpression(node)
+		if reference := stateReferenceExpression(node); reference != node {
+			node = reference
+			continue
+		}
 		switch {
 		case ast.IsPropertyAccessExpression(node):
 			member := node.AsPropertyAccessExpression()

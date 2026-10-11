@@ -1,4 +1,8 @@
-import { normalizeProtocolLimit as positiveLimit } from '@exactjs/core/framework/protocol-records';
+import {
+	jsonDataKeys,
+	jsonDataProperty,
+	normalizeProtocolLimit as positiveLimit
+} from '@exactjs/core/framework/protocol-records';
 import {
 	encodeReactiveProtocolValue,
 	encodeValidatedReactiveCollection
@@ -6,6 +10,7 @@ import {
 import { escapeAttr } from './html.js';
 import { encodeHydrationProtocolValue } from './hydration-encoding-capability.js';
 import { hydrationCollectionValues, validateJsonSafeHydrationValue } from './hydration-json.js';
+import { serializeHydrationJson as serializeJson } from './hydration/json-escaping.js';
 import {
 	createDirectHydrationMetadata,
 	createExtensibleHydrationMetadata
@@ -99,7 +104,7 @@ function renderHydrationScriptValue(
 	return `${prefix}${payload}${suffix}`;
 }
 
-/** Serializes hydration JSON while escaping script-breaking characters. */
+/** Serializes hydration JSON, escaping `<` to keep values and property names inside their HTML boundary. */
 export function serializeHydrationPayload(payload: Record<string, unknown>): string {
 	return serializeEncodedHydrationPayload(encodeHydrationProtocolValue(payload));
 }
@@ -120,16 +125,6 @@ function serializeValidatedHydrationPayload(
 		if (encoded === undefined) return value;
 		return encoded;
 	});
-}
-
-function serializeJson(
-	payload: unknown,
-	replacer?: (this: unknown, key: string, value: unknown) => unknown
-): string {
-	return JSON.stringify(payload, replacer)
-		.replace(/</g, '\\u003C')
-		.replace(/\u2028/g, '\\u2028')
-		.replace(/\u2029/g, '\\u2029');
 }
 
 /** Returns the first non-JSON-safe path in a value, or undefined when it is safe. */
@@ -196,11 +191,12 @@ function findJsonUnsafePath(
 				}
 				continue;
 			}
-			const keys = Object.keys(item);
+			const keys = jsonDataKeys(item, maxNodes - nodes);
+			if (!keys) return current.path;
 			pending.push({ exit: item, path: current.path, depth: current.depth });
 			for (let index = keys.length - 1; index >= 0; index--) {
 				const key = keys[index]!;
-				const descriptor = Object.getOwnPropertyDescriptor(item, key);
+				const descriptor = jsonDataProperty(item, key);
 				if (!descriptor || !('value' in descriptor))
 					return `${current.path}${Array.isArray(item) ? `[${key}]` : `.${key}`}`;
 				pending.push({

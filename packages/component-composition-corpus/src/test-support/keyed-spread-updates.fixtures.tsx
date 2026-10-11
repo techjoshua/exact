@@ -10,7 +10,19 @@ export type SpreadPath =
 	| 'explicit'
 	| 'snapshot'
 	| 'conditional-empty'
-	| 'short-circuit';
+	| 'short-circuit'
+	| 'spread-key'
+	| 'overwritten-key'
+	| 'hidden-key';
+/** @exact pure */
+function keyedProps(row: SpreadRow): SpreadRow & { key?: string } {
+	return { ...row, key: row.id };
+}
+/** @exact pure */
+function hiddenKeyProps(row: SpreadRow): SpreadRow {
+	const copied = { ...row, key: row.id };
+	return copied;
+}
 const removed: string[] = [];
 function Row(this: Component<{}>, props: SpreadRow) {
 	this.onUnmount(() => removed.push(props.id));
@@ -23,9 +35,10 @@ function Row(this: Component<{}>, props: SpreadRow) {
 }
 /** Exercises live state-owned rows and deliberately copied snapshots. */
 export function KeyedSpreadWorkbench(
-	this: Component<{ rows: SpreadRow[] }>,
+	this: Component<{ rows: SpreadRow[]; phase: number }>,
 	props: { path: SpreadPath }
 ) {
+	this.state.phase = 0;
 	this.state.rows = [
 		{ id: 'a', status: 'pending', title: 'Initial' },
 		{ id: 'b', status: 'pending' }
@@ -33,6 +46,14 @@ export function KeyedSpreadWorkbench(
 	const snapshot = peek(() => this.state.rows.map((row) => ({ ...row })));
 	return () => (
 		<section data-keyed-spreads>
+			<button onClick={() => this.state.phase++}>Change ignored key</button>
+			<button
+				onClick={() => {
+					this.state.rows[0].id += '-new';
+				}}
+			>
+				Change key
+			</button>
 			<button
 				onClick={() => {
 					this.state.rows[0] = { id: 'a', status: 'running' };
@@ -63,37 +84,48 @@ export function KeyedSpreadWorkbench(
 			</button>
 			<button
 				onClick={() => {
+					this.state.phase = 0;
 					this.state.rows = [];
 				}}
 			>
 				Clear
 			</button>
 			<ol>
-				{props.path === 'conditional-empty'
-					? this.state.rows.length
-						? this.state.rows.map((row) => <Row key={row.id} {...row} />)
-						: null
-					: props.path === 'short-circuit'
-						? this.state.rows.length > 0 &&
-							this.state.rows.map((row) => <Row key={row.id} {...row} />)
-						: props.path === 'snapshot'
-							? snapshot.map((row) => <Row key={row.id} {...row} />)
-							: props.path === 'explicit'
-								? this.state.rows.map((row) => (
-										<Row key={row.id} id={row.id} status={row.status} title={row.title} />
-									))
-								: props.path === 'copy'
-									? this.state.rows.map((row) => <Row key={row.id} {...{ ...row }} />)
-									: props.path === 'ordered'
-										? this.state.rows.map((row) => (
-												<Row
-													key={row.id}
-													{...row}
-													{...{ status: row.status + '!' }}
-													title="Override"
-												/>
-											))
-										: this.state.rows.map((row) => <Row key={row.id} {...row} />)}
+				{props.path === 'spread-key'
+					? this.state.rows.map((row) => <Row {...keyedProps(row)} />)
+					: props.path === 'overwritten-key'
+						? this.state.rows.map((row) => (
+								<Row key={this.state.phase + row.id} {...keyedProps(row)} />
+							))
+						: props.path === 'hidden-key'
+							? this.state.rows.map((row) => (
+									<Row key={this.state.phase + row.id} {...hiddenKeyProps(row)} />
+								))
+							: props.path === 'conditional-empty'
+								? this.state.rows.length
+									? this.state.rows.map((row) => <Row key={row.id} {...row} />)
+									: null
+								: props.path === 'short-circuit'
+									? this.state.rows.length > 0 &&
+										this.state.rows.map((row) => <Row key={row.id} {...row} />)
+									: props.path === 'snapshot'
+										? snapshot.map((row) => <Row key={row.id} {...row} />)
+										: props.path === 'explicit'
+											? this.state.rows.map((row) => (
+													<Row key={row.id} id={row.id} status={row.status} title={row.title} />
+												))
+											: props.path === 'copy'
+												? this.state.rows.map((row) => <Row key={row.id} {...{ ...row }} />)
+												: props.path === 'ordered'
+													? this.state.rows.map((row) => (
+															<Row
+																key={row.id}
+																{...row}
+																{...{ status: row.status + '!' }}
+																title="Override"
+															/>
+														))
+													: this.state.rows.map((row) => <Row key={row.id} {...row} />)}
 			</ol>
 		</section>
 	);

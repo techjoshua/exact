@@ -222,7 +222,10 @@ const generatedSsrOperations: ExactRenderProgramSsrOperations = Object.freeze({
 	},
 	compiledAttribute(opaqueContext, output, value, kind, name, attributeName, tag, characters) {
 		const context = opaqueContext as SsrContext;
-		const html = renderCompiledNativeAttribute(value, kind, name, attributeName, tag, context);
+		const html =
+			name === 'data-exact-id' && context.textProjectionDepth !== undefined
+				? ''
+				: renderCompiledNativeAttribute(value, kind, name, attributeName, tag, context);
 		const nextCharacters = characters + html.length;
 		if (nextCharacters > context.maxOutputBytes)
 			throw new SsrOutputLimitError(context.maxOutputBytes);

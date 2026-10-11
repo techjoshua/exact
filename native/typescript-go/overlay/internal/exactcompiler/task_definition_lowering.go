@@ -1,45 +1,64 @@
 package exactcompiler
 
 import (
-	"strings"
-
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
 )
 
 type nativeTaskDependency struct {
-	parameter    string
-	expression   *ast.Node
-	typeNode     *ast.Node
-	readSpans    map[string]struct{}
-	bindingStart int
-	bindingName  string
-	captureStart int
-	captureEnd   int
+	snapshot       bool
+	liveExpression *ast.Node
+	parameter      string
+	expression     *ast.Node
+	typeNode       *ast.Node
+	readSpans      map[string]struct{}
+	bindingStart   int
+	bindingName    string
+	captureStart   int
+	captureEnd     int
 }
 
 func (lowering *jsxLowering) lowerTask(node *ast.Node, task Task) *ast.Node {
 	if lowering.target == TargetClient &&
 		lowering.contractProjection == ComponentContractProjectionHydrate &&
-		task.Placement == "server" && !task.Invoked {
+		task.Placement == "server" && !task.Invoked &&
+		(len(task.Dependencies) == 0 || lowering.setupTaskActivation(task) == "activateTaskOnceForHost") {
 		// Same-build hydration resumes the state published by server setup. A setup-only
-		// server task has no client invocation path, so retaining a dispatch stub would
-		// rerun work already completed for this response and pull transport machinery in.
+		// startup-only server task has no subsequent activation, so retaining a dispatch stub would
+		// retain transport machinery for settled work. Reactive setup tasks retain their
+		// dispatch stub and use the resumption record to suppress only their initial generation.
 		return lowering.factory.NewVoidExpression(
 			lowering.factory.NewNumericLiteral("0", ast.TokenFlagsNone),
 		)
 	}
 	if task.ReusesInvokedDefinition && lowering.target != TargetServer {
 		call := node.AsCallExpression()
+		callee := lowering.visitor.VisitNode(call.Expression)
+		callee = lowering.taskActivationCallable(node, callee, task)
+		if len(task.ResultWritePath) != 0 {
+			work := lowering.stageBoundTaskResult(callee, task.ResultWritePath, task, true)
+			callee = lowering.setupTaskDefinition(lowering.functionTaskLabel(task), work,
+				lowering.functionTaskWork(task), task, task.ArgumentCount, nil)
+		}
 		arguments := []*ast.Node{
 			lowering.factory.NewThisExpression(),
-			lowering.visitor.VisitNode(call.Expression),
+			callee,
 		}
 		if call.Arguments != nil {
+			hasSpread := false
+			for _, argument := range call.Arguments.Nodes {
+				if ast.IsSpreadElement(argument) {
+					hasSpread = true
+				}
+			}
+			if hasSpread {
+				arguments = append(arguments, lowering.taskArgumentVector(call.Arguments.Nodes, task.ArgumentCount))
+				return lowering.taskHelperCall(lowering.setupTaskActivation(task), lowering.setupTaskActivationName(task), arguments)
+			}
 			for _, argument := range call.Arguments.Nodes {
 				arguments = append(arguments, lowering.componentReactive(argument, lowering.visitor.VisitNode(argument)))
 			}
 		}
-		return lowering.taskHelperCall("activateTaskForHost", lowering.names.activateTask, arguments)
+		return lowering.taskHelperCall(lowering.setupTaskActivation(task), lowering.setupTaskActivationName(task), arguments)
 	}
 	if lowering.target == TargetServer && task.Placement == "client" {
 		return lowering.factory.NewVoidExpression(
@@ -54,46 +73,28 @@ func (lowering *jsxLowering) lowerTask(node *ast.Node, task Task) *ast.Node {
 			)
 		}
 	}
+	// Setup resources use lowerSetupResourceTask. collectTasks only supplies function-defined
+	// activations here, with invoked declarations routed separately by visit().
 	call := node.AsCallExpression()
-	callee := call.Expression
-	rebuiltTaskCallee := false
 	arguments := []*ast.Node{}
-	var work *ast.Node
-	var captureArguments *ast.Node
-	if task.FunctionDefined {
-		if call.Arguments != nil {
-			arguments = call.Arguments.Nodes
-		}
-		work = lowering.functionTaskWork(task)
-		if work == nil {
-			return lowering.visitor.VisitEachChild(node)
-		}
-		callee = lowering.factory.NewPropertyAccessExpression(
-			lowering.factory.NewThisExpression(),
-			nil,
-			lowering.factory.NewIdentifier("task"),
-			ast.NodeFlagsNone,
-		)
-		rebuiltTaskCallee = true
-	} else {
-		if call.Arguments == nil || len(call.Arguments.Nodes) == 0 {
-			return lowering.visitor.VisitEachChild(node)
-		}
+	if call.Arguments != nil {
 		arguments = call.Arguments.Nodes
-		work = arguments[len(arguments)-1]
-		if !ast.IsArrowFunction(work) && !ast.IsFunctionExpression(work) {
-			return lowering.visitor.VisitEachChild(node)
-		}
 	}
+	work := lowering.functionTaskWork(task)
+	if work == nil {
+		return lowering.visitor.VisitEachChild(node)
+	}
+	var captureArguments *ast.Node
 	explicit := arguments
-	if !task.FunctionDefined {
-		explicit = arguments[:len(arguments)-1]
+	hasSpread := false
+	for _, argument := range explicit {
+		hasSpread = hasSpread || ast.IsSpreadElement(argument)
 	}
-	contextBindings := lowering.taskContextWriteBindings(work, task.ID)
+	contextBindings := lowering.continuationContextWriteBindings(task.ID)
 	synchronousComputation := !task.Invoked &&
 		(lowering.contractProjection == ComponentContractProjectionHydrate ||
 			(lowering.target == TargetClient && directServerSetupComputation(task))) &&
-		strings.HasPrefix(lowering.functionTaskLabel(task), "__exactComponentComputation_") &&
+		task.CompilerComputation &&
 		!task.Async && len(contextBindings) == 0 && len(task.ResultWritePath) == 0
 	directServerComputation := lowering.target == TargetServer &&
 		directServerSetupComputation(task) && len(contextBindings) == 0
@@ -102,7 +103,18 @@ func (lowering *jsxLowering) lowerTask(node *ast.Node, task Task) *ast.Node {
 	dependencies := []nativeTaskDependency{}
 	nextArguments := []*ast.Node{}
 	argumentOffset := 0
-	if len(explicit) != 0 {
+	if hasSpread && !directServerComputation && !directServerSlice {
+		nextArguments = []*ast.Node{lowering.taskArgumentVector(explicit, task.ArgumentCount)}
+	} else if len(explicit) != 0 {
+		dependencies = lowering.taskHelperDependencies(task, 0)
+		argumentOffset = len(dependencies)
+		for _, dependency := range dependencies {
+			value := lowering.visitor.VisitNode(dependency.expression)
+			if dependency.snapshot && !directServerComputation && !directServerSlice {
+				value = lowering.factory.NewVoidExpression(lowering.factory.NewNumericLiteral("0", ast.TokenFlagsNone))
+			}
+			nextArguments = append(nextArguments, value)
+		}
 		for _, dependency := range explicit {
 			if ast.IsIdentifier(dependency) {
 				if _, derived := lowering.derivedBindingAtReference(dependency); derived {
@@ -135,7 +147,9 @@ func (lowering *jsxLowering) lowerTask(node *ast.Node, task Task) *ast.Node {
 			// Lower the authored capture once. Wrapping a derived reference before visiting it
 			// would read its value as another cell, and member captures must read the cell first.
 			value := lowering.visitor.VisitNode(dependency.expression)
-			if directServerComputation || directServerSlice {
+			if dependency.snapshot && !directServerComputation && !directServerSlice {
+				nextArguments = append(nextArguments, lowering.factory.NewVoidExpression(lowering.factory.NewNumericLiteral("0", ast.TokenFlagsNone)))
+			} else if directServerComputation || directServerSlice {
 				nextArguments = append(
 					nextArguments,
 					value,
@@ -148,31 +162,31 @@ func (lowering *jsxLowering) lowerTask(node *ast.Node, task Task) *ast.Node {
 			}
 		}
 	}
-	runtimeArgumentCount := len(nextArguments)
-	if task.FunctionDefined {
-		captureArguments = lowering.taskCaptureArgumentResolver(
+	captureArguments = lowering.taskCaptureArgumentResolver(
+		work,
+		argumentOffset,
+		task.ArgumentCount,
+	)
+	if captureArguments != nil {
+		work = lowering.eraseTaskCapturedParameterDefaults(
 			work,
-			argumentOffset,
 			task.ArgumentCount,
 		)
-		if captureArguments != nil {
-			work = lowering.eraseTaskCapturedParameterDefaults(
-				work,
-				task.ArgumentCount,
-			)
-		}
-		runtimeArgumentCount = argumentOffset + task.ArgumentCount
-		for captureArguments != nil && len(nextArguments) < runtimeArgumentCount {
-			nextArguments = append(
-				nextArguments,
-				lowering.factory.NewAsExpression(
-					lowering.factory.NewVoidExpression(
-						lowering.factory.NewNumericLiteral("0", ast.TokenFlagsNone),
-					),
-					lowering.factory.NewKeywordTypeNode(ast.KindAnyKeyword),
+	}
+	runtimeArgumentCount := argumentOffset + task.ArgumentCount
+	if !directServerComputation && !directServerSlice {
+		captureArguments = lowering.taskSnapshotArgumentResolver(captureArguments, dependencies, runtimeArgumentCount)
+	}
+	for captureArguments != nil && !hasSpread && len(nextArguments) < runtimeArgumentCount {
+		nextArguments = append(
+			nextArguments,
+			lowering.factory.NewAsExpression(
+				lowering.factory.NewVoidExpression(
+					lowering.factory.NewNumericLiteral("0", ast.TokenFlagsNone),
 				),
-			)
-		}
+				lowering.factory.NewKeywordTypeNode(ast.KindAnyKeyword),
+			),
+		)
 	}
 	rewrittenWork := lowering.rewriteTaskWork(
 		work,
@@ -183,6 +197,14 @@ func (lowering *jsxLowering) lowerTask(node *ast.Node, task Task) *ast.Node {
 		runtimeArgumentCount,
 		directServerComputation || directServerSlice,
 	)
+	// Policy key parameters belong to the activation callable before inspection or
+	// continuation wrappers decorate its value. Those wrappers need not be callable AST nodes.
+	keyWork := rewrittenWork
+	// Every setup execution route owns publication of its assigned result. The client
+	// server-continuation stub receives its write from transport instead of invoking this body.
+	if len(task.ResultWritePath) != 0 && !(lowering.target == TargetClient && task.Placement == "server") {
+		rewrittenWork = lowering.stageTaskResult(rewrittenWork, task.ResultWritePath, lowering.target != TargetServer, !lowering.synchronousPrimitiveTaskResult(task))
+	}
 	if initialization, registered := lowering.registerComponentInputUpdate(
 		task,
 		work,
@@ -220,6 +242,11 @@ func (lowering *jsxLowering) lowerTask(node *ast.Node, task Task) *ast.Node {
 		)
 	}
 	if directServerSlice {
+		if captureArguments != nil {
+			resolved := lowering.factory.NewCallExpression(lowering.factory.NewParenthesizedExpression(captureArguments), nil, nil,
+				lowering.factory.NewNodeList([]*ast.Node{lowering.factory.NewArrayLiteralExpression(lowering.factory.NewNodeList(nextArguments), false)}), ast.NodeFlagsNone)
+			nextArguments = []*ast.Node{lowering.factory.NewSpreadElement(resolved)}
+		}
 		slice := lowering.serverTaskSlice(
 			task,
 			directComponent,
@@ -280,13 +307,6 @@ func (lowering *jsxLowering) lowerTask(node *ast.Node, task Task) *ast.Node {
 					rewrittenWork,
 				},
 			)
-			callee = lowering.factory.NewPropertyAccessExpression(
-				lowering.factory.NewThisExpression(),
-				nil,
-				lowering.factory.NewIdentifier("task"),
-				ast.NodeFlagsNone,
-			)
-			rebuiltTaskCallee = true
 		}
 	} else if lowering.target == TargetClient && task.Placement == "isomorphic" && !synchronousComputation {
 		// Hydration uses the compiler-owned continuation identity to suppress the
@@ -303,13 +323,6 @@ func (lowering *jsxLowering) lowerTask(node *ast.Node, task Task) *ast.Node {
 		)
 	} else if lowering.target == TargetServer &&
 		(task.Placement == "server" || task.Placement == "isomorphic") {
-		if len(task.ResultWritePath) != 0 {
-			rewrittenWork = lowering.stageTaskResult(
-				rewrittenWork,
-				task.ResultWritePath,
-				false,
-			)
-		}
 		rewrittenWork = lowering.taskHelperCall(
 			"markComponentContinuationTask",
 			lowering.names.taskContinuation,
@@ -320,13 +333,6 @@ func (lowering *jsxLowering) lowerTask(node *ast.Node, task Task) *ast.Node {
 		)
 	} else if lowering.target == TargetDefault &&
 		(task.Placement == "server" || task.Placement == "isomorphic") {
-		if len(task.ResultWritePath) != 0 {
-			rewrittenWork = lowering.stageTaskResult(
-				rewrittenWork,
-				task.ResultWritePath,
-				true,
-			)
-		}
 		rewrittenWork = lowering.taskHelperCall(
 			"markComponentContinuationTask",
 			lowering.names.taskContinuation,
@@ -339,98 +345,54 @@ func (lowering *jsxLowering) lowerTask(node *ast.Node, task Task) *ast.Node {
 	if lowering.instrumentInspection {
 		rewrittenWork = lowering.inspectionSource(task.ID, rewrittenWork)
 	}
-	if !task.Invoked {
-		// Pure synchronous client computations initialize state before SSR restoration in every
-		// projection. Scheduling them as tasks would overwrite restored state after construction.
-		// Computations have no cross-boundary task generation to brand. Passing the unbranded
-		// callable also preserves the synchronous helper's contextual signal-parameter type.
-		if synchronousComputation {
-			return lowering.taskHelperCall(
-				"activateComputationForHost",
-				lowering.names.activateComputation,
-				append(
-					[]*ast.Node{lowering.factory.NewThisExpression(), rewrittenWork},
-					nextArguments...,
-				),
-			)
-		}
-		if lowering.usesCompiledClientLatestLane(task, work, captureArguments) {
-			return lowering.taskHelperCall(
-				"activateCompiledClientLatestTaskForHost",
-				lowering.names.activateCompiledLatest,
-				append(
-					[]*ast.Node{
-						lowering.factory.NewThisExpression(),
-						lowering.factory.NewStringLiteral(
-							lowering.functionTaskLabel(task),
-							ast.TokenFlagsNone,
-						),
-						rewrittenWork,
-					},
-					nextArguments...,
-				),
-			)
-		}
-		defined := lowering.setupTaskDefinition(
-			lowering.functionTaskLabel(task),
-			rewrittenWork,
-			task,
-			runtimeArgumentCount,
-			captureArguments,
-		)
-		taskCall := lowering.taskHelperCall(
-			"activateTaskForHost",
-			lowering.names.activateTask,
+	// Every caller excludes invoked definitions. Those use lowerInvokedTaskDeclaration
+	// and lowerInvokedTaskVariable, so setup activation is the only route here.
+	// Pure synchronous client computations initialize state before SSR restoration in every
+	// projection. Scheduling them as tasks would overwrite restored state after construction.
+	// Computations have no cross-boundary task generation to brand. Passing the unbranded
+	// callable also preserves the synchronous helper's contextual signal-parameter type.
+	if synchronousComputation {
+		return lowering.taskHelperCall(
+			"activateComputationForHost",
+			lowering.names.activateComputation,
 			append(
-				[]*ast.Node{lowering.factory.NewThisExpression(), defined},
+				[]*ast.Node{lowering.factory.NewThisExpression(), rewrittenWork},
 				nextArguments...,
 			),
 		)
-		if len(contextBindings) == 0 {
-			return taskCall
-		}
-		registration := lowering.taskHelperCall(
-			"registerComponentContinuationContexts",
-			lowering.names.registerContexts,
-			[]*ast.Node{
-				lowering.factory.NewThisExpression(),
-				lowering.contextBindingArray(contextBindings),
-			},
-		)
-		return lowering.factory.NewParenthesizedExpression(
-			lowering.factory.NewBinaryExpression(
-				nil,
-				registration,
-				nil,
-				lowering.factory.NewToken(ast.KindCommaToken),
-				taskCall,
+	}
+	if lowering.setupTaskActivation(task) != "activateTaskOnceForHost" && lowering.usesCompiledClientLatestLane(task, work, captureArguments) {
+		return lowering.taskHelperCall(
+			"activateCompiledClientLatestTaskForHost",
+			lowering.names.activateCompiledLatest,
+			append(
+				[]*ast.Node{
+					lowering.factory.NewThisExpression(),
+					lowering.factory.NewStringLiteral(
+						lowering.functionTaskLabel(task),
+						ast.TokenFlagsNone,
+					),
+					rewrittenWork,
+				},
+				nextArguments...,
 			),
 		)
 	}
-	nextArguments = append(nextArguments, rewrittenWork)
-	if rebuiltTaskCallee && task.Priority == "deferred" {
-		callee = lowering.factory.NewPropertyAccessExpression(
-			callee,
-			nil,
-			lowering.factory.NewIdentifier("deferred"),
-			ast.NodeFlagsNone,
-		)
-	}
-	if task.Readiness == "blocking" &&
-		(rebuiltTaskCallee || !containsString(task.Facets, "blocking")) {
-		callee = lowering.factory.NewPropertyAccessExpression(
-			callee,
-			nil,
-			lowering.factory.NewIdentifier("blocking"),
-			ast.NodeFlagsNone,
-		)
-	}
-	taskCall := lowering.factory.NewCallExpression(
-		lowering.visitor.VisitNode(callee),
-		call.QuestionDotToken,
-		call.TypeArguments,
-		lowering.factory.NewNodeList(nextArguments),
-		call.Flags,
+	defined := lowering.setupTaskDefinition(
+		lowering.functionTaskLabel(task),
+		rewrittenWork,
+		keyWork,
+		task,
+		runtimeArgumentCount,
+		captureArguments,
+	)
+	taskCall := lowering.taskHelperCall(
+		lowering.setupTaskActivation(task),
+		lowering.setupTaskActivationName(task),
+		append(
+			[]*ast.Node{lowering.factory.NewThisExpression(), defined},
+			nextArguments...,
+		),
 	)
 	if len(contextBindings) == 0 {
 		return taskCall
@@ -439,10 +401,7 @@ func (lowering *jsxLowering) lowerTask(node *ast.Node, task Task) *ast.Node {
 		"registerComponentContinuationContexts",
 		lowering.names.registerContexts,
 		[]*ast.Node{
-			lowering.factory.NewAsExpression(
-				lowering.factory.NewThisExpression(),
-				lowering.factory.NewKeywordTypeNode(ast.KindAnyKeyword),
-			),
+			lowering.factory.NewThisExpression(),
 			lowering.contextBindingArray(contextBindings),
 		},
 	)
@@ -465,8 +424,8 @@ func (lowering *jsxLowering) functionTaskLabel(task Task) string {
 		}
 		if ast.IsFunctionDeclaration(node) && node.Name() != nil {
 			label = node.Name().Text()
-		} else if node.Parent != nil && ast.IsVariableDeclaration(node.Parent) {
-			name := node.Parent.AsVariableDeclaration().Name()
+		} else if binding := sourceCallableBinding(node); binding != nil {
+			name := binding.Name()
 			if ast.IsIdentifier(name) {
 				label = name.Text()
 			}
@@ -479,6 +438,7 @@ func (lowering *jsxLowering) functionTaskLabel(task Task) string {
 func (lowering *jsxLowering) setupTaskDefinition(
 	name string,
 	work *ast.Node,
+	keyWork *ast.Node,
 	task Task,
 	dependencyCount int,
 	captureArguments *ast.Node,
@@ -539,7 +499,7 @@ func (lowering *jsxLowering) setupTaskDefinition(
 			),
 		)
 	}
-	if key := lowering.taskConcurrencyKey(task, work, dependencyCount); key != nil {
+	if key := lowering.taskConcurrencyKey(task, keyWork, dependencyCount); key != nil {
 		properties = append(
 			properties,
 			lowering.property(
@@ -578,7 +538,7 @@ func (lowering *jsxLowering) functionTaskWork(task Task) *ast.Node {
 	parameters := append([]*ast.Node(nil), declaration.Parameters()...)
 	if len(parameters) != 0 {
 		final := parameters[len(parameters)-1]
-		if strings.Contains(sourceText(lowering.sourceFile, final), "TaskContext") {
+		if len(parameters) > task.ArgumentCount {
 			parameter := final.AsParameterDeclaration()
 			parameters[len(parameters)-1] = lowering.factory.UpdateParameterDeclaration(
 				parameter,
@@ -591,7 +551,7 @@ func (lowering *jsxLowering) functionTaskWork(task Task) *ast.Node {
 			)
 		}
 	}
-	return lowering.factory.NewArrowFunction(
+	work := lowering.factory.NewArrowFunction(
 		lowering.taskWorkModifiers(declaration),
 		nil,
 		lowering.factory.NewNodeList(parameters),
@@ -600,6 +560,10 @@ func (lowering *jsxLowering) functionTaskWork(task Task) *ast.Node {
 		lowering.factory.NewToken(ast.KindEqualsGreaterThanToken),
 		declaration.Body(),
 	)
+	// Mutation capture compares the callable's authored extent, even though task
+	// work is reconstructed as an arrow. Preserve that identity for scalar work.
+	work.Loc = declaration.Loc
+	return work
 }
 
 func (lowering *jsxLowering) taskWorkModifiers(
@@ -611,41 +575,6 @@ func (lowering *jsxLowering) taskWorkModifiers(
 	return lowering.factory.NewModifierList([]*ast.Node{
 		lowering.factory.NewToken(ast.KindAsyncKeyword),
 	})
-}
-
-func (lowering *jsxLowering) eraseFunctionTaskPolicy(
-	declaration *ast.FunctionDeclaration,
-) *ast.Node {
-	visited := lowering.visitor.VisitEachChild(declaration.AsNode()).AsFunctionDeclaration()
-	parameters := append([]*ast.Node(nil), visited.Parameters.Nodes...)
-	if len(parameters) == 0 {
-		return visited.AsNode()
-	}
-	final := parameters[len(parameters)-1]
-	if !strings.Contains(sourceText(lowering.sourceFile, final), "TaskContext") {
-		return visited.AsNode()
-	}
-	parameter := final.AsParameterDeclaration()
-	parameters[len(parameters)-1] = lowering.factory.UpdateParameterDeclaration(
-		parameter,
-		parameter.Modifiers(),
-		parameter.DotDotDotToken,
-		parameter.Name(),
-		parameter.QuestionToken,
-		parameter.Type,
-		nil,
-	)
-	return lowering.factory.UpdateFunctionDeclaration(
-		visited,
-		visited.Modifiers(),
-		visited.AsteriskToken,
-		visited.Name(),
-		visited.TypeParameters,
-		lowering.factory.NewNodeList(parameters),
-		visited.Type,
-		visited.FullSignature,
-		visited.Body,
-	)
 }
 
 func (lowering *jsxLowering) lowerInvokedTaskDeclaration(
@@ -882,7 +811,7 @@ func (lowering *jsxLowering) boundTaskDefinition(
 		lowering.names.bindTask,
 		[]*ast.Node{lowering.factory.NewThisExpression(), defined},
 	)
-	return bound
+	return lowering.taskCallableSignature(task, bound)
 }
 
 // taskDefinitionOptions preserves the authored policy for both durable and request-local tasks.
@@ -999,8 +928,8 @@ func (lowering *jsxLowering) functionTaskHasCallOnlyReferences(task Task) bool {
 		}
 		if ast.IsFunctionDeclaration(node) {
 			declarationName = node.Name()
-		} else if node.Parent != nil && ast.IsVariableDeclaration(node.Parent) {
-			declarationName = node.Parent.AsVariableDeclaration().Name()
+		} else if binding := sourceCallableBinding(node); binding != nil {
+			declarationName = binding.Name()
 		}
 		return false
 	})
@@ -1020,10 +949,11 @@ func (lowering *jsxLowering) functionTaskHasCallOnlyReferences(task Task) bool {
 		if !callOnly || node == declarationName || !ast.IsIdentifier(node) {
 			return callOnly
 		}
-		candidate := resolvedCallableSymbol(
-			lowering.checker.GetSymbolAtLocation(node),
-			lowering.checker,
-		)
+		reference := lowering.checker.GetSymbolAtLocation(node)
+		if node.Parent != nil && ast.IsShorthandPropertyAssignment(node.Parent) && node.Parent.Name() == node {
+			reference = lowering.checker.GetShorthandAssignmentValueSymbol(node.Parent)
+		}
+		candidate := resolvedCallableSymbol(reference, lowering.checker)
 		if candidate == nil || ast.GetSymbolId(candidate) != symbolID {
 			return true
 		}
@@ -1082,41 +1012,6 @@ func (lowering *jsxLowering) taskConcurrencyKey(
 		nil,
 		lowering.factory.NewToken(ast.KindEqualsGreaterThanToken),
 		lowering.visitor.VisitNode(expression),
-	)
-}
-
-func (lowering *jsxLowering) eraseFunctionTaskValuePolicy(
-	declaration *ast.VariableDeclaration,
-) *ast.Node {
-	visited := lowering.visitor.VisitEachChild(declaration.AsNode()).AsVariableDeclaration()
-	work := visited.Initializer
-	if work == nil || (!ast.IsArrowFunction(work) && !ast.IsFunctionExpression(work)) {
-		return visited.AsNode()
-	}
-	parameters := append([]*ast.Node(nil), work.Parameters()...)
-	if len(parameters) == 0 ||
-		!strings.Contains(
-			sourceText(lowering.sourceFile, parameters[len(parameters)-1]),
-			"TaskContext",
-		) {
-		return visited.AsNode()
-	}
-	parameter := parameters[len(parameters)-1].AsParameterDeclaration()
-	parameters[len(parameters)-1] = lowering.factory.UpdateParameterDeclaration(
-		parameter,
-		parameter.Modifiers(),
-		parameter.DotDotDotToken,
-		parameter.Name(),
-		parameter.QuestionToken,
-		parameter.Type,
-		nil,
-	)
-	return lowering.factory.UpdateVariableDeclaration(
-		visited,
-		visited.Name(),
-		visited.ExclamationToken,
-		visited.Type,
-		lowering.updateTaskWorkParameters(work, parameters),
 	)
 }
 
@@ -1189,5 +1084,31 @@ func (lowering *jsxLowering) serverClientTaskCallable(task Task) *ast.Node {
 			lowering.factory.NewStringLiteral(task.ID, ast.TokenFlagsNone),
 		})
 	}
-	return lowering.inertClientTaskCallable()
+	// Server omission removes execution, not the authored argument contract.
+	// The placeholder is never a runtime task, so assert through unknown rather
+	// than pretending its void result implements the client task-run interface.
+	return lowering.typedInertClientTaskCallable(task)
+}
+
+// typedInertClientTaskCallable preserves caller obligations when server projection
+// omits browser execution, including nested task calls retained in server work.
+func (lowering *jsxLowering) typedInertClientTaskCallable(task Task) *ast.Node {
+	return lowering.taskCallableSignature(task, lowering.factory.NewAsExpression(
+		lowering.inertClientTaskCallable(), lowering.factory.NewKeywordTypeNode(ast.KindUnknownKeyword)))
+}
+
+// setupTaskActivation separates startup availability from argument-driven reactivation.
+// Body captures remain in the execution plan and transport vector for zero-argument policy tasks.
+func (lowering *jsxLowering) setupTaskActivation(task Task) string {
+	if setupTaskInitializationOnly(lowering.sourceFile, task) {
+		return "activateTaskOnceForHost"
+	}
+	return "activateTaskForHost"
+}
+
+func (lowering *jsxLowering) setupTaskActivationName(task Task) string {
+	if lowering.setupTaskActivation(task) == "activateTaskOnceForHost" {
+		return lowering.names.activateTaskOnce
+	}
+	return lowering.names.activateTask
 }

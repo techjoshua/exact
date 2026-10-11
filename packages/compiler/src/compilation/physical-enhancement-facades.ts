@@ -17,14 +17,19 @@ export type ExactPhysicalEnhancementFacade = Readonly<{
 	request: string;
 }>;
 
-/** Emits ordinary ESM facades usable by native Node and build hosts without virtual modules. */
+/**
+ * Emits ordinary ESM facades while retaining provider requests relative to their authored importer.
+ * A host resolver may prove availability after Node reports an optional missing root, including
+ * source extensions and aliases. Returning undefined preserves absence, and other failures propagate.
+ */
 export function materializeExactPhysicalEnhancementFacades(
 	code: string,
 	enhancements: readonly ExactRendererEnhancementIR[] | undefined,
 	importer: string,
 	outputRoot: string,
 	activationModule?: string,
-	outputFile?: string
+	outputFile?: string,
+	resolveMissingProvider?: (moduleSpecifier: string, importer: string) => string | undefined
 ): Readonly<{ code: string; facades: readonly ExactPhysicalEnhancementFacade[] }> {
 	if (!enhancements?.length) return Object.freeze({ code, facades: Object.freeze([]) });
 	const root = path.resolve(outputRoot, '.exact', 'enhancements');
@@ -38,26 +43,51 @@ export function materializeExactPhysicalEnhancementFacades(
 			resolved = createRequire(importer).resolve(entry.moduleSpecifier);
 		} catch (error) {
 			if (!isMissingExactOptionalEnhancement(error, entry.moduleSpecifier)) throw error;
+			// Build hosts may resolve source extensions or aliases that Node does not own.
+			resolved = resolveMissingProvider?.(entry.moduleSpecifier, importer);
 		}
 		const key = createHash('sha256')
-			.update(`${importer}\0${request}\0${resolved ?? 'absent'}`)
+			.update(`${importer}\0${request}\0${resolved ?? 'absent'}\0${activationModule ?? ''}`)
 			.digest('base64url');
 		const filename = path.join(root, `${key}.mjs`);
+		let providerSpecifier = entry.moduleSpecifier;
+		if (
+			resolved &&
+			!outputFile &&
+			!path.isAbsolute(providerSpecifier) &&
+			!providerSpecifier.startsWith('.')
+		) {
+			try {
+				createRequire(filename).resolve(providerSpecifier);
+			} catch (error) {
+				if (!isMissingExactOptionalEnhancement(error, providerSpecifier)) throw error;
+				// Consumer facades can live outside a library's private dependency tree.
+				providerSpecifier = relativeModuleSpecifier(path.dirname(filename), resolved);
+			}
+		}
+		const provider = {
+			version: 1 as const,
+			identity: entry.identity,
+			moduleSpecifier:
+				providerSpecifier.startsWith('.') && providerSpecifier === entry.moduleSpecifier
+					? relativeModuleSpecifier(
+							path.dirname(filename),
+							path.resolve(path.dirname(importer), entry.moduleSpecifier)
+						)
+					: providerSpecifier,
+			exportName: entry.exportName
+		};
+		// A later consumer reads this marker relative to the physical facade itself.
+		// Keep the original identity while relocating both the executable edge and its descriptor.
+		const portableRequest = exactEnhancementFacadeRequest(provider);
 		writeFacadeIfChanged(
 			filename,
-			`// ${request}\n` +
+			`// ${portableRequest}\n` +
 				(resolved
-					? exactAvailableEnhancementFacadeSource(
-							{
-								version: 1,
-								identity: entry.identity,
-								moduleSpecifier: entry.moduleSpecifier,
-								exportName: entry.exportName
-							},
-							activationModule
-						)
+					? exactAvailableEnhancementFacadeSource(provider, activationModule)
 					: exactUnavailableEnhancementFacadeSource(activationModule))
 		);
+
 		facades.push(
 			Object.freeze({ filename, importer: path.resolve(importer), request: entry.moduleSpecifier })
 		);

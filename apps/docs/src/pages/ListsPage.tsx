@@ -81,9 +81,17 @@ export function ListsPage(this: Component<{}>) {
 				</p>
 				<p>
 					The framework owns list identity. Duplicate keys fail deterministically rather than
-					falling back to position and risking state corruption. String arrays use the string value
-					as their key. The annotated item type may be declared in this file or imported from a
-					shared model module.
+					falling back to position and risking state corruption. String and number arrays use each
+					value as its key. Other primitive arrays need an explicit string-or-number selector when
+					you want keyed identity. The annotated item type may be declared in this file or imported
+					from a shared model module.
+				</p>
+				<p>
+					Annotated identity also works when a map callback destructures its item or the key field
+					has a quoted name. Parentheses, type assertions, and literal access such as
+					<code>{"todos['map'](...)"}</code> preserve the same array behavior. Application-defined
+					methods named <code>map</code> retain their own behavior. A JSX <code>key</code> overrides
+					inferred identity and can refer to a destructured binding or a callback-local value.
 				</p>
 			</section>
 			<section>

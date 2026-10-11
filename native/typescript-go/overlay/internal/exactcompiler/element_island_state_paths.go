@@ -3,7 +3,6 @@ package exactcompiler
 import (
 	"slices"
 	"sort"
-	"strings"
 
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
 )
@@ -28,7 +27,7 @@ func islandStatePaths(
 		if len(path) == 0 {
 			return
 		}
-		key := strings.Join(path, ".")
+		key := statePathIdentity(path)
 		if _, exists := seen[key]; exists {
 			return
 		}
@@ -111,7 +110,7 @@ func islandStatePaths(
 		addBindingReads(capture.name)
 	}
 	sort.Slice(result, func(left int, right int) bool {
-		return strings.Join(result[left], ".") < strings.Join(result[right], ".")
+		return slices.Compare(result[left], result[right]) < 0
 	})
 	return result
 }

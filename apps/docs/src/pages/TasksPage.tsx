@@ -1,7 +1,9 @@
 import type { Component } from '@exactjs/core';
 import { CodeBlock } from '../CodeBlock.jsx';
 import { Article } from './Article.jsx';
+import { TaskHelperUpdates } from './TaskHelperUpdates.jsx';
 import { TaskProgress } from './TaskProgress.jsx';
+import { TaskResourceGuidance } from './TaskResourceGuidance.jsx';
 import { TaskBasics } from './TaskBasics.jsx';
 import { TaskIntroduction } from './TaskIntroduction.jsx';
 import { taskSources } from './task-sources.js';
@@ -57,6 +59,23 @@ export function TasksPage(this: Component<{}>) {
 					without passing that final argument. eXact supplies it.
 				</p>
 				<p>
+					Reactive setup assignments keep independent ownership when statements are adjacent. Task
+					bodies support ordinary destructuring and function or arrow helpers. The compiler follows
+					helper calls, including recursion, to determine context access. Parentheses and type-only
+					annotations preserve helper state reads and placement requirements. Tasks support
+					optional, defaulted, and destructured inputs, and authored overloads. A compatible tuple
+					can be spread into a setup call. For variable-length inputs, pass one array to the task
+					and use native rest or spread syntax inside an ordinary helper. Task inputs have fixed
+					positions, so a task rest parameter produces a compiler error.
+				</p>
+				<p>
+					When a task reads an optional value, ordinary JavaScript short-circuiting still applies.
+					An expression such as <code>this.state.item?.name!.toUpperCase()</code> skips the chain
+					when <code>item</code> is absent. TypeScript's non-null assertion adds no runtime check.
+					Parentheses around the optional read end that chain, so
+					<code>(this.state.item?.name)!.toUpperCase()</code> can throw for an absent value.
+				</p>
+				<p>
 					Passing <code>task.signal</code> lets the request stop when the query changes or the
 					component is removed. Even if an old request finishes, its cancelled task cannot replace
 					component state.
@@ -76,7 +95,8 @@ export function TasksPage(this: Component<{}>) {
 					the task is cancelled, state writes in <code>catch</code> and <code>finally</code>
 					are also blocked. This keeps an older run from clearing a newer run's result. Resource
 					cleanup can use the task's cleanup registration so it runs even when cancellation
-					interrupts the task body.
+					interrupts the task body. Cleanup callbacks retain the props values captured for their
+					generation.
 				</p>
 				<p>
 					Resources can follow the same lifetime. A feed listener, for example, should close its
@@ -92,25 +112,10 @@ export function TasksPage(this: Component<{}>) {
 					This task stays pending until the socket closes. If the feed URL changes or the component
 					is removed first, eXact releases the old socket and listeners. A resource stays alive only
 					for the task's lifetime, so a task that immediately returns also immediately runs its
-					cleanup.
+					cleanup. Completing that cleanup preserves the successful task result and any state
+					updates waiting for publication.
 				</p>
-				<details>
-					<summary>Custom data clients and cleanup methods</summary>
-					<p>
-						For custom wrappers, you can pass <code>task.signal</code>, register a callback with
-						<code>task.cleanup()</code>, or give a disposable resource to <code>task.own()</code>.
-						The compiler can supply the signal when a call's type exposes an optional
-						<code>AbortSignal</code> or an options parameter with <code>signal?: AbortSignal</code>.
-						Existing signals and event options are combined or extended.
-					</p>
-					<p>
-						Automatic resource cleanup requires a local resource with a recognized cleanup method.
-						The compiler reports resources whose lifetime it cannot determine. Cleanup runs
-						child-first and in reverse registration order within each task. When a resource offers
-						both standard disposal methods, eXact selects <code>Symbol.asyncDispose</code> and
-						awaits its result. It calls only that method, even if cleanup finishes synchronously.
-					</p>
-				</details>
+				<TaskResourceGuidance />
 			</section>
 			<section>
 				<h2>Choose what happens when calls overlap</h2>
@@ -212,7 +217,12 @@ export function TasksPage(this: Component<{}>) {
 				<p>
 					A profile editor can show the submitted value while a save is still running.
 					<code>task.optimistic()</code> applies synchronous state changes that eXact can roll back
-					if the save fails or is replaced.
+					if the save fails or is replaced. This capability belongs to the supplied task context.
+					Ordinary helpers with the same name keep their usual execution placement. In a server
+					task, call this capability directly in the task body. Its callback runs before dispatch
+					and can use task inputs, outer public values, and its own local calculations. Locals
+					declared in the server task body are unavailable to that callback and produce a compiler
+					error. Put client-side conditions inside the callback.
 				</p>
 				<CodeBlock
 					source={taskSources.optimisticTaskSource}
@@ -251,14 +261,21 @@ export function TasksPage(this: Component<{}>) {
 					</li>
 					<li>
 						For a task function with an authored <code>TaskContext</code> parameter, call arguments
-						define which changes start a new run. Reads inside the task body do not add activation
-						inputs.
+						choose the inputs that start new runs. An empty argument list declares one startup run.
+						Body reads do not add activation inputs.
 					</li>
 				</ul>
 				<p>
 					A reactive default on a non-context task parameter is sampled once for every generation
 					without subscribing the task to that read. The resolved parameter is an ordinary stable
 					value throughout the body and after <code>await</code>.
+				</p>
+				<p>
+					Captured values keep their TypeScript constraints. Narrow nullable or union values before
+					using them, respect readonly properties, and pass arguments accepted by captured
+					callbacks. Computed state reads evaluate their keys inside the task, preserving local
+					variables and ordinary evaluation order. Local class instances retain their private method
+					receivers and ordinary optional-call behavior inside task work.
 				</p>
 				<CodeBlock
 					source={taskSources.capturedInputSource}
@@ -272,6 +289,19 @@ export function TasksPage(this: Component<{}>) {
 					capture before dispatch and apply the usual serialization and data-policy checks. For a
 					snapshot taken conditionally or later in the function, you can use{' '}
 					<code>task.peek()</code>.
+				</p>
+				<p>
+					Server work can use server-owned contexts inside its body and ordinary local helpers. A
+					parameter default that reads a server-owned context is rejected because it is captured
+					before dispatch. A shared context used only by a default is passed as the captured value.
+					To publish shared context updates to descendants, establish the provider during component
+					setup and update it inside the task.
+				</p>
+				<p>
+					Server collection mutations require a known Array, Map, or Set type. An
+					<code>any</code> or <code>unknown</code> receiver cannot describe a safe published edit.
+					Preserve the collection type or assign its enclosing state value. Nullable containers can
+					use an ordinary guard inside the task body.
 				</p>
 			</details>
 			<details>
@@ -298,7 +328,10 @@ export function TasksPage(this: Component<{}>) {
 					Here checkout data holds the loading boundary, while recommendations can finish later. An
 					async component that awaits a value into <code>this.state</code> also creates blocking
 					work. The <a href="#/learn/async-interfaces">loading interfaces guide</a> explains
-					Suspense and paused views.
+					Suspense and paused views. Store awaited values the view needs in <code>this.state</code>.
+					An intermediate local inside managed setup work cannot escape into the view before that
+					work settles. A view callback can still declare its own parameter or local with the same
+					name.
 				</p>
 				<p>
 					<code>server().deferred()</code> gives server work deferred priority. The task still
@@ -319,6 +352,14 @@ export function TasksPage(this: Component<{}>) {
 					an event handler assigns that result to state, the assignment belongs to the handler.
 					Different callers can use the same task result in different ways, including when the task
 					runs on the server.
+				</p>
+				<p>
+					During component setup, a direct state-field assignment from a task with an explicit
+					policy declares an output that receives the task's settled returned value. Reactive call
+					arguments rerun the activation and update the field. The assignment belongs to this setup
+					caller, even when an event also calls the same task. Replaced or disposed client runs
+					cannot publish a late result. Local aliases and statically selected task-table members,
+					including destructured members, retain the same task identity.
 				</p>
 				<CodeBlock
 					source={taskSources.effectsAndResultsSource}
@@ -345,20 +386,7 @@ export function TasksPage(this: Component<{}>) {
 					external result. eXact then protects its state writes from cancelled runs.
 				</p>
 			</details>
-			<details>
-				<summary>State updates through helpers</summary>
-				<p>
-					Imported helpers can mutate passed state when eXact can follow the named argument paths.
-					For opaque helpers or recursive traversal, returning data and assigning a named state
-					field inside the task makes the update visible to the compiler. Server-side Map and Set
-					mutations must occur directly in the task so their ordered changes can be recorded.
-				</p>
-				<p>
-					The{' '}
-					<a href="https://github.com/techjoshua/exact/blob/main/docs/tasks.md">task reference</a>
-					describes supported mutation paths, scheduling, ownership, and cancellation in detail.
-				</p>
-			</details>
+			<TaskHelperUpdates />
 			<details>
 				<summary>Tasks in a paused component</summary>
 				<p>

@@ -32,6 +32,11 @@ type componentCandidate struct {
 // lifecycle and state. Signals are retained so differential tests can protect
 // each supported declaration form independently of TypeScript node identity.
 func collectComponents(sourceFile *ast.SourceFile) []Component {
+	return collectComponentsWithIDs(sourceFile, nil)
+}
+
+// collectComponentsWithIDs shares one immutable identity traversal across all declarations.
+func collectComponentsWithIDs(sourceFile *ast.SourceFile, ids map[*ast.Node]string) []Component {
 	if usesForeignJSXRuntime(sourceFile) {
 		return nil
 	}
@@ -41,6 +46,9 @@ func collectComponents(sourceFile *ast.SourceFile) []Component {
 		if len(signals) == 0 {
 			continue
 		}
+		if ids == nil {
+			ids = expressionNodeIDs(sourceFile)
+		}
 		surface := componentSurfacePlan(candidate.node)
 		targetArtifact := componentCandidateAcceptsProps(candidate.node)
 		artifactTargets := []string{}
@@ -48,7 +56,7 @@ func collectComponents(sourceFile *ast.SourceFile) []Component {
 			artifactTargets = []string{"client", "server"}
 		}
 		components = append(components, Component{
-			ID:                nativeComponentIDForNode(sourceFile, candidate.node),
+			ID:                exactStableID(sourceFile.FileName(), ids[candidate.node]),
 			Name:              candidate.name,
 			Start:             candidate.node.Pos(),
 			Length:            candidate.node.End() - candidate.node.Pos(),
@@ -181,88 +189,6 @@ func componentUsesProtocolMember(node *ast.Node, names ...string) bool {
 	return found
 }
 
-// propagateComponentSurfacePlans carries instance requirements through statically resolved
-// helpers only when the caller forwards its component receiver. A helper invoked with another
-// receiver must not widen the component ABI merely because it happens to use similarly named
-// methods on its own `this` value.
-func propagateComponentSurfacePlans(
-	sourceFile *ast.SourceFile,
-	components []Component,
-	callables callableAnalysis,
-) {
-	factsByID := make(map[string]int, len(callables.facts))
-	for index := range callables.facts {
-		factsByID[callables.facts[index].summary.ID] = index
-	}
-	renderRoots := make(map[int][]int)
-	for _, render := range resolveComponentRenders(sourceFile) {
-		for factIndex := range callables.facts {
-			if callables.facts[factIndex].node == render.callable {
-				renderRoots[render.component.node.Pos()] = append(
-					renderRoots[render.component.node.Pos()],
-					factIndex,
-				)
-				break
-			}
-		}
-	}
-	for componentIndex := range components {
-		root := -1
-		for factIndex := range callables.facts {
-			fact := &callables.facts[factIndex]
-			if fact.sourceFile == sourceFile && fact.node.Pos() == components[componentIndex].Start {
-				root = factIndex
-				break
-			}
-		}
-		if root < 0 {
-			continue
-		}
-		pending := append([]int{root}, renderRoots[components[componentIndex].Start]...)
-		visited := make(map[int]struct{})
-		for len(pending) != 0 {
-			factIndex := pending[len(pending)-1]
-			pending = pending[:len(pending)-1]
-			if _, exists := visited[factIndex]; exists {
-				continue
-			}
-			visited[factIndex] = struct{}{}
-			mergeComponentSurfaceFromCallable(&components[componentIndex], callables.facts[factIndex].node)
-			for _, edge := range callables.facts[factIndex].summary.Calls {
-				if !edge.Resolved || !edgeForwardsComponentReceiver(edge) {
-					continue
-				}
-				if target, exists := factsByID[edge.TargetID]; exists {
-					pending = append(pending, target)
-				}
-			}
-		}
-	}
-}
-
-func edgeForwardsComponentReceiver(edge CallEdge) bool {
-	for _, binding := range edge.ReceiverBindings {
-		if binding.Source == "component" && len(binding.Path) == 0 {
-			return true
-		}
-	}
-	return false
-}
-
-func mergeComponentSurfaceFromCallable(component *Component, node *ast.Node) {
-	surface := componentSurfacePlan(node)
-	mergeComponentSurface(&component.Surface, surface)
-	if node.Pos() < component.Start || node.End() > component.Start+component.Length {
-		mergeComponentSurface(&component.ForwardedSurface, surface)
-	}
-	component.Lifecycle = component.Lifecycle || componentUsesProtocolMember(
-		node,
-		"onMount", "onActivate", "onDeactivate", "onUnmount", "onRender", "own",
-	)
-	component.Lists = component.Lists || componentUsesProtocolMember(node, "map") ||
-		componentUsesAuthoredJSXKey(node)
-}
-
 // componentUsesAuthoredJSXKey selects durable keyed-list ownership during component analysis.
 // Lowering later removes JSX key attributes, so constructor ABI planning cannot defer this fact to
 // the transformed tree or rely only on an authored this.map() call.
@@ -276,12 +202,10 @@ func componentUsesAuthoredJSXKey(node *ast.Node) bool {
 			return true
 		}
 		call := candidate.AsCallExpression()
-		if !ast.IsPropertyAccessExpression(call.Expression) ||
-			call.Expression.AsPropertyAccessExpression().Name().Text() != "map" ||
-			call.Arguments == nil || len(call.Arguments.Nodes) != 1 {
+		if collectionMapReceiver(call.Expression) == nil {
 			return true
 		}
-		usesKey = collectionMapExplicitJSXKey(call.Arguments.Nodes[0]) != nil
+		usesKey = collectionMapExplicitJSXKey(collectionMapRender(call), true) != nil
 		return !usesKey
 	})
 	return usesKey
@@ -338,9 +262,9 @@ func assignComponentIDs(
 	sourceFile *ast.SourceFile,
 	components []Component,
 	identityFilename string,
+	ids map[*ast.Node]string,
 ) {
 	identityFilename = normalizedIdentityFilename(identityFilename)
-	ids := expressionNodeIDs(sourceFile)
 	candidates := activeComponentCandidates(sourceFile)
 	for index := range components {
 		if index >= len(candidates) {
@@ -399,6 +323,10 @@ func markExportedComponents(
 }
 
 func componentCandidates(sourceFile *ast.SourceFile) []componentCandidate {
+	// JSON literals cannot declare functions or JSX component owners.
+	if ast.IsJsonSourceFile(sourceFile) {
+		return nil
+	}
 	return durableComponentCandidates(sourceFile)
 }
 
@@ -411,9 +339,7 @@ func durableComponentCandidates(sourceFile *ast.SourceFile) []componentCandidate
 	filtered := make([]componentCandidate, 0, len(candidates))
 	for _, candidate := range candidates {
 		_, isMicro := microTargets[candidate.node]
-		isTask := looksLikeTaskPolicy(candidate.node, sourceFile) ||
-			strings.HasPrefix(candidate.name, "__exactComponentComputation_") ||
-			strings.HasPrefix(candidate.name, "__exactComponentSetupTask_")
+		isTask := looksLikeTaskPolicy(candidate.node, sourceFile)
 		if !isMicro && !isTask {
 			filtered = append(filtered, candidate)
 		}
@@ -638,7 +564,9 @@ func componentSignals(candidate componentCandidate, sourceFile *ast.SourceFile) 
 	if hasComponentReceiver(candidate.node, sourceFile) {
 		signals["typed-receiver"] = struct{}{}
 	}
-	if containsComponentProtocolCall(candidate.node) {
+	// Setup-local ordinary helpers use the enclosing instance. Protocol access
+	// alone must not grant them a second durable component or render identity.
+	if componentCandidateIsModuleLevel(candidate) && containsComponentProtocolCall(candidate.node) {
 		signals["component-protocol"] = struct{}{}
 	}
 	result := make([]string, 0, len(signals))

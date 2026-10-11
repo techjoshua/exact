@@ -81,13 +81,19 @@ export function ComponentRegistriesPage(this: Component<{}>) {
 				<p>
 					<code>createComponentRegistry()</code> accepts a finite object in a named module-level
 					<code>const</code>. Entries may be eager components or scoped lazy imports. The registry
-					is immutable so the compiler can prove every key, import, placement, and output target.
-					Entry names are ordinary object keys, including <code>lazy</code>. The scoped
-					<code>lazy()</code> function is available inside this definition callback.
+					is immutable so the compiler can prove every key, import, placement, and output target. A
+					definition callback can return its object from an expression body or a block containing
+					only that return. Entry names are ordinary object keys, including <code>lazy</code>. The
+					scoped
+					<code>lazy()</code> function is available inside this definition callback. When that name
+					conflicts with another local value, destructure it as
+					<code>{'({ lazy: load })'}</code> and call <code>load()</code> in the definition.
 				</p>
 				<p>
-					The declaration is eXact source syntax and must pass through the compiler. Its client and
-					server builds receive different executable registry artifacts.
+					You may rename the factory import, access it through a module namespace, or keep it in an
+					immutable local alias. The compiler follows the imported value. The declaration is eXact
+					source syntax and must pass through the compiler. Its client and server builds receive
+					different executable registry artifacts.
 				</p>
 				<CodeBlock source={registrySource} language="tsx" title="widgets.tsx" />
 				<p>
@@ -102,7 +108,9 @@ export function ComponentRegistriesPage(this: Component<{}>) {
 				<p>
 					<code>KeyOf&lt;typeof Widget&gt;</code> derives the exact key union. Use
 					<code>hasComponent()</code> to narrow an untrusted string before indexing instead of
-					casting or maintaining a second allowlist.
+					casting or maintaining a second allowlist. Each indexed value must carry that narrowed
+					type. String keys retain their exact values, including quotation marks and escaped
+					characters.
 				</p>
 				<p>
 					Export the derived key type when navigation or other metadata needs the same finite

@@ -33,6 +33,7 @@ export type HydrateOptions = {
 	/** @internal Server proof that only the redundant compiled-root delimiter was omitted. */
 	markerlessRoot?: true;
 	logger?: Logger;
+	/** Reports failed root adoption, then replaces the element root by default or throws. Document roots cannot be replaced. */
 	onMismatch?: 'replace' | 'throw';
 	fetch?: FetchLike;
 	headers?: Record<string, string>;

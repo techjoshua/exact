@@ -108,17 +108,6 @@ export function restoreMountedAuthoredOperation(mounted: Mounted, operation: Chi
 	if (program) mounted.renderProgramReceipt = program;
 }
 
-/** Reads authored sibling identity from a mounted enhancement target. */
-export function mountedEnhancementKey(mounted: Mounted): string | undefined {
-	return (
-		mounted.operationKey ??
-		mounted.componentReceipt?.key ??
-		mounted.intrinsicReceipt?.key ??
-		mounted.fragmentReceipt?.key ??
-		mounted.targetReceipt?.key
-	);
-}
-
 /** Reads declarations retained by a mounted operation without requiring one to exist. */
 export function mountedEnhancementEntries(mounted: Mounted): readonly EnhancementEntry[] {
 	const operation =

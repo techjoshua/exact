@@ -3,156 +3,19 @@ import { Link } from '@exactjs/router';
 import { CodeBlock } from '../CodeBlock.jsx';
 import { Article } from './Article.jsx';
 
-const componentSource = `import type { Child, Component } from '@exactjs/core';
-
-type CardState = { open: boolean };
-type CardProps = { name: string; children?: Child };
-
-function ProfileCard(this: Component<CardState>, props: CardProps) {
-  // Per-instance declarations: a state default and mounted work.
-  this.state.open = false;
-  this.onMount(() => this.log.info('Profile mounted'));
-
-  // View: the returned function keeps reactive expressions connected.
-  return () => (
-    <article className="profile-card" className:is-open={this.state.open}>
-      <button onClick={() => this.state.open = !this.state.open}>
-        {props.name}
-      </button>
-      {this.state.open ? props.children : null}
-    </article>
-  );
-}`;
-
-const partitionSource = `import type { Child } from '@exactjs/core';
-import { partitionChildren } from '@exactjs/core/children';
-
-function DialogTitle(props: { children?: Child }) {
-  return () => <h2>{props.children}</h2>;
-}
-
-function DialogActions(props: { children?: Child }) {
-  return () => props.children;
-}
-
-function Dialog(props: { children?: Child }) {
-  const parts = partitionChildren(props.children, {
-    title: DialogTitle,
-    actions: DialogActions
-  });
-  return () => (
-    <section role="dialog">
-      {parts.title.length > 0 && <header>{parts.title}</header>}
-      <main>{parts.remaining}</main>
-      {parts.actions.length > 0 && <footer>{parts.actions}</footer>}
-    </section>
-  );
-}`;
-
-const dialogUsageSource = `<Dialog>
-  <DialogTitle>Delete this draft?</DialogTitle>
-  <p>You can create another draft later.</p>
-  <DialogActions>
-    <button onClick={cancel}>Keep draft</button>
-    <button onClick={confirm}>Delete draft</button>
-  </DialogActions>
-</Dialog>`;
-
-const microComponentSource = `function Article(this: Component<ArticleState>) {
-  const Footer = (props: { prefix?: string } = {}) => (
-    <footer>{props.prefix}{this.state.copyrightText}</footer>
-  );
-  const Page = () => <article><ArticleBody /><Footer /></article>;
-
-  return () => <Page />;
-}`;
-
-const contextSource = `const ThemeContext = createContext<Theme>('theme');
-
-function ThemeProvider(this: Component<{}>, props: { children?: Child }) {
-  // Publish a value for descendants of this component.
-  this.setContext(ThemeContext, { accent: 'teal', density: 'comfortable' });
-  return () => props.children;
-}
-
-function Toolbar(this: Component<{}>) {
-  // Lookup walks parent components, then framework defaults.
-  const theme = this.getContext(ThemeContext);
-  return () => <nav style={{ color: theme.accent }}>...</nav>;
-}`;
-
-const componentTaskSource = `function Presence(this: Component<{ userId: string; status: string }>, props: { userId: string }) {
-  this.state.status = 'connecting';
-
-  async function observePresence(userId: string) {
-    // The compiler infers props.userId and captures it for this generation.
-    const response = await fetch('/api/presence/' + userId);
-    this.state.status = (await response.json()).status;
-  }
-  observePresence(props.userId);
-
-  return () => <span>{this.state.status}</span>;
-}`;
-
-const componentValueSource = `function Results(this: Component<{ layout: 'grid' | 'list' }>) {
-  // Immutable aliases and finite choices remain ordinary component values.
-  const View = this.state.layout === 'grid' ? ResultGrid : ResultList;
-  return () => <View />;
-}`;
-
-const jsxExtraSource = `// Classic JSX strings and expressions work as expected.
-<article className="card featured" />
-<article className={\`card featured theme-\${props.theme}\`} />
-
-// eXact also composes strings, arrays, truthy maps, and named tokens.
-<article
-  className={[
-    \`card featured theme-\${props.theme}\`,
-    { selected: this.state.selected, disabled: props.disabled }
-  ]}
-  className:compact={props.compact}
-/>
-
-// A matching prop name can be punned.
-<Avatar {user} />`;
-
-const keyedFragmentSource = `import { _ } from '@exactjs/jsx';
-
-return () => (
-  <dl>
-    {this.state.people.map((person) => (
-      <_ key={person.id}>
-        <dt>{person.name}</dt>
-        <dd>{person.role}</dd>
-      </_>
-    ))}
-  </dl>
-);`;
-
-const compactBindingSource = `// Component prop + notification callback.
-<SettingsPanel expanded:onExpandedChanged={this.state.settingsExpanded} />
-
-// Equivalent component props:
-<SettingsPanel
-  expanded={this.state.settingsExpanded}
-  onExpandedChanged={(expanded) => this.state.settingsExpanded = expanded}
-/>
-
-// Native property + browser event bindings.
-<input value:onInput={this.state.name} />
-
-// Equivalent native property and event handler:
-<input
-  value={this.state.name}
-  onInput={(event) => this.state.name = event.currentTarget.value}
-/>
-
-<input type="number" value:onChange={this.state.quantity} />
-<input type="checkbox" checked:onChange={this.state.subscribed} />
-<input type="radio" value="ground" checked:onChange={this.state.delivery} />
-<select multiple value:onChange={this.state.tags}>...</select>
-<details open:onToggle={this.state.advanced}>Advanced settings</details>
-<dialog modal:isOpen={this.state.settingsOpen}>Settings</dialog>`;
+import {
+	componentSource,
+	partitionSource,
+	dialogUsageSource,
+	microComponentSource,
+	contextSource,
+	componentTaskSource,
+	componentValueSource,
+	jsxExtraSource,
+	keyedFragmentSource,
+	compactBindingSource,
+	spreadOrderSource
+} from './component-sources.js';
 
 /** Explains compiled component state machines, component values, context, and owned tasks. */
 export function ComponentsPage(this: Component<{}>) {
@@ -186,6 +49,12 @@ export function ComponentsPage(this: Component<{}>) {
 					tasks. eXact detects the changes, updates the affected DOM, and reruns any calculations or
 					reactive tasks that depend on those values.
 				</p>
+				<p>
+					A calculation assigned to state cannot depend on its own output, including a parent or
+					child field of that output. Compound assignments and increments also read their
+					destination. Keep deliberate feedback, such as incrementing a counter, in an event handler
+					or a task.
+				</p>
 			</section>
 			<section>
 				<h2>Keep inputs with the parent and local state with the child</h2>
@@ -194,8 +63,9 @@ export function ComponentsPage(this: Component<{}>) {
 					<code>children</code>. The card owns whether it is open. The card can read props directly
 					as the parent changes them and mutate
 					<code>this.state</code> for its own data. Props are readonly, including arrays nested in
-					ordinary objects. If a child needs to change a parent-owned value, give it a callback or
-					use a value binding, shown below.
+					ordinary objects. Calculations that read nested props follow the parent’s changes,
+					including optional access such as <code>props.user?.name</code>. If a child needs to
+					change a parent-owned value, give it a callback or use a value binding, shown below.
 				</p>
 				<p>
 					When a child needs a boolean option, <code>{'unavailable={false}'}</code> passes the
@@ -273,6 +143,12 @@ export function ComponentsPage(this: Component<{}>) {
 					component to inspect what it will render. This example shows layout. A complete dialog
 					also needs <a href="#/components/accessibility">accessible naming and interaction</a>.
 				</p>
+				<p>
+					A supplied rendered child retains its original owner and cleanup. Place that value once in
+					the active tree. To repeat content, author separate JSX children or call a JSX helper
+					separately for each placement. Server content passed into a client island can contain
+					elements, ranges or scalar values. The compiler preserves it through server slots.
+				</p>
 				<details>
 					<summary>Selectors and child transformation helpers</summary>
 					<p>
@@ -304,7 +180,8 @@ export function ComponentsPage(this: Component<{}>) {
 					Reactive context values stay reactive. For an opaque service or class instance, configure
 					the token with <code>reactive: false</code> to preserve its identity. If a provider is
 					optional, check <code>this.hasContext(token)</code> before reading it. A broad catch
-					around context lookup could hide an unrelated failure.
+					around context lookup could hide an unrelated failure. You can keep an optional context as
+					<code>undefined</code> and use optional chaining when calling its methods.
 				</p>
 			</section>
 			<section>
@@ -335,7 +212,11 @@ export function ComponentsPage(this: Component<{}>) {
 					infer where work belongs: browser globals imply client execution, and server-only imports
 					imply server execution. Work valid in either environment may run in either. A
 					<code>TaskContext.client()</code> or <code>TaskContext.server()</code> parameter makes the
-					choice explicit when needed. Contradictory placement is a compiler error.
+					choice explicit when needed. Renaming a framework import preserves its execution
+					requirements. These requirements also follow a component when another module imports it.
+					Standard collection methods retain their placement through type aliases and interface
+					augmentations. An application-added method needs its own proven implementation or
+					execution contract. Contradictory placement is a compiler error.
 				</p>
 				<Link theme:action="secondary" className="secondary-link" to="/learn/tasks">
 					Learn about task status, cancellation, and cleanup
@@ -369,10 +250,22 @@ export function ComponentsPage(this: Component<{}>) {
 			<section>
 				<h2>Compose classes and pass matching props</h2>
 				<p>
+					When several sources supply an element’s properties, their order determines which value
+					wins. In this example, the first input lets <code>fieldOptions.required</code> override
+					its default. The second input always requires a value.
+				</p>
+				<CodeBlock source={spreadOrderSource} language="tsx" title="Property order" />
+				<p>
+					Changing the spread object updates the existing input. Removing a property from the object
+					restores any earlier explicit value. Spreads inside a text host also update that host’s
+					serialized text when their fields change.
+				</p>
+				<p>
 					Conditional classes can make a small element hard to scan. eXact accepts strings, arrays,
 					and objects in <code>className</code>, plus named classes such as
 					<code>className:compact</code>. Object keys and named classes are included when their
-					values are truthy. A named class without a value is always included.
+					values are truthy. A named class without a value is always included. Named tokens,
+					including <code>className:__proto__</code>, retain their literal names.
 				</p>
 				<CodeBlock source={jsxExtraSource} language="tsx" title="Classes and matching props" />
 				<p>
@@ -380,21 +273,36 @@ export function ComponentsPage(this: Component<{}>) {
 					means <code>{'<Avatar user={user} />'}</code>. Multiline JSX prose uses HTML-like
 					whitespace collapsing, so ordinary spaces around elements and expressions are sufficient.
 				</p>
+				<p>
+					For accessibility states, <code>{'aria-pressed={selected}'}</code> writes
+					<code>"true"</code> or <code>"false"</code>. HTML boolean attributes such as
+					<code>disabled</code> are present for true and absent for false. A<code>data-*</code>{' '}
+					boolean writes <code>"true"</code> for true and omits the attribute for false. Use{' '}
+					<code>{'data-selected={String(selected)}'}</code> to retain both textual values. Null and
+					undefined omit these attributes. These rules also apply during SSR and hydration.
+				</p>
 				<details>
 					<summary>Class merging, prop spreads, and HTML-specific behavior</summary>
 					<p>
 						Class contributions combine in authored prop order. Falsy contributions add nothing.
-						Dynamic duplicate tokens remain. The compiler diagnoses duplicates it can prove. Named
-						classes cannot be mixed with a prop spread. Use <code>className</code> for HTML
-						elements. Native event props take functions, and recognized HTML prop casing is
-						corrected. Component and custom-element props retain their authored casing.
+						Truthy-key maps use native own-key order, including ascending integer keys. Inherited
+						properties add no tokens. Dynamic duplicate tokens remain. The compiler diagnoses
+						duplicates it can prove. Named classes cannot be mixed with a prop spread. HTML elements
+						accept <code>className</code>. Native event props take functions, and recognized HTML
+						prop casing is corrected. Component and custom-element props retain their authored
+						casing. A named event handler reassigned before attachment receives the event required
+						by its replacement callable.
 					</p>
 					<p>
 						A JSX prop spread stays reactive. In
 						<code>{'rows.map(row => <Row key={row.id} {...row} />)'}</code>, replacing the row or
-						changing its fields updates the existing child. Later props win. For an intentional
-						one-time shallow copy during setup, you can use{' '}
-						<code>{'peek(() => ({ ...value }))'}</code>
+						changing its fields updates the existing child. A spread can also supply its key. Later
+						props, including keys, win in source order. Components inherit HTML, SVG, or MathML
+						namespaces from their insertion point. MathML attributes such as <code>display</code>,
+						<code>mathcolor</code>, and <code>linethickness</code> work directly and in spreads.
+						MathML text and HTML annotation integration points create HTML children. New child
+						ranges use the current annotation encoding. For an intentional one-time shallow copy
+						during setup, you can use <code>{'peek(() => ({ ...value }))'}</code>
 						with <code>peek</code> imported from <code>@exactjs/core</code>.
 					</p>
 					<p>
@@ -432,11 +340,26 @@ export function ComponentsPage(this: Component<{}>) {
 					work can respond when the element appears or disappears without polling.
 				</p>
 				<p>
+					Ref type arguments such as <code>HTMLElement</code> or <code>SVGElement</code> describe
+					the element and are erased at runtime. They can appear in components rendered on the
+					server. Reading those constructor values is browser work.
+				</p>
+				<p>
 					<code>this.onMount()</code> runs after the browser places the component’s DOM, when refs
 					and layout are available. It receives an abort signal for cleanup and is not evaluated on
 					the server. When a disposable setup resource should live as long as the component,
 					<code>this.own()</code> can register it for automatic disposal. For other final cleanup or
-					bookkeeping, you can register a <code>this.onUnmount()</code> callback.
+					bookkeeping, you can register a <code>this.onUnmount()</code> callback. That callback can
+					read derived props, including a destructured callback prop that was unused while the
+					component was mounted.
+				</p>
+				<p>
+					A helper can select an operation with a statically known key, such as
+					<code>this['own'](resource)</code>, with the same lifetime and cleanup rules. Ordinary
+					objects and classes declared inside a component keep their own JavaScript receiver and
+					method behavior. Refs and reactive values stay attached to their owner. When a view runs
+					as a client island, eXact recreates those values for the client owner and transfers the
+					ordinary inputs they need.
 				</p>
 				<details>
 					<summary>Watchers and asynchronous lifecycle work</summary>

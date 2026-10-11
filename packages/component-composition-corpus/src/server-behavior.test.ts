@@ -15,6 +15,7 @@ import {
 } from './scenarios/enhancement-implementation.fixtures.js?exact-target=server';
 import { fundamentalsRoot } from './scenarios/fundamentals.fixtures.js?exact-target=server';
 import {
+	escapedRegistryRoot,
 	lazyRegistryRoot,
 	registryRoot
 } from './scenarios/registry.fixtures.js?exact-target=server';
@@ -99,6 +100,14 @@ describe('composition corpus server behavior', () => {
 		const rendered = await renderToString(lazyRegistryRoot, { markers: false });
 		expect(rendered.html).toContain('lazy second');
 	});
+
+	it.each(['quote"key', 'slash\\key'] as const)(
+		'renders the exact registry key %s',
+		async (key) => {
+			const rendered = await renderToString(escapedRegistryRoot(key), { markers: false });
+			expect(rendered.html).toContain(key === 'quote"key' ? 'first' : 'lazy second');
+		}
+	);
 
 	it('streams the same semantic result as sync rendering', async () => {
 		const streamed = await streamText(

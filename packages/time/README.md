@@ -24,12 +24,19 @@ sample while ordinary reactive dependencies continue to work. Automatic plans ad
 conditional seconds/minutes/hours/calendar branches and reject expressions whose next visible
 change cannot be proven instead of silently polling. Analysis follows safe aliases, static
 record/array projections, destructuring, and prop-bearing lexical micro-views. Fixed-unit Temporal
-rounding preserves authored anchors and half-expand boundaries; calendar-relative Temporal
+rounding preserves authored anchors, increments, and all nine literal rounding modes. Changing
+an enabled range’s anchor restarts from current time after settlement. Calendar-relative Temporal
 duration rounding requires an explicit calendar policy rather than a fixed-millisecond guess.
 Local pure TypeScript formatters are followed through their call graph, including ordinary numeric
-and string formatting; opaque, imported, or effectful helpers remain diagnostic.
+and string formatting; opaque, imported, or effectful helpers remain diagnostic. Automatic helper
+quantization requires unchanged millisecond clock arguments. Shifted or scaled clock arguments
+require an explicit accuracy.
 `TimeProvider` accepts separate clock, time-zone, calendar, and week-start fields. The package also
 contributes policy completions, activation inspection, and targeted diagnostics. See the
 [date/time reference](https://github.com/techjoshua/exact/blob/main/docs/date-time.md).
 
 [Documentation](https://techjoshua.github.io/exact/#/components/date-time) | [Source on GitHub](https://github.com/techjoshua/exact/tree/main/packages/time)
+
+Custom providers retain their initial server observation in ordinary component state for hydration.
+The live clock object stays application-local. `TimeClock.now()` returns a finite epoch-millisecond
+observation without changing the clock or scheduling work.

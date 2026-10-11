@@ -36,7 +36,7 @@ func referencedFunctionTask(
 	for _, declaration := range symbol.Declarations {
 		work := declaration
 		if ast.IsVariableDeclaration(work) {
-			work = work.AsVariableDeclaration().Initializer
+			work = unwrapSourceCallableReference(work.AsVariableDeclaration().Initializer)
 		}
 		if work == nil || !isCallableNode(work) || work.Body() == nil || work == component.node {
 			continue
@@ -48,7 +48,7 @@ func referencedFunctionTask(
 		if owner != component.node {
 			continue
 		}
-		if facets, explicit := functionTaskPolicy(work, sourceFile, bindings); explicit {
+		if facets, explicit := functionTaskPolicy(work, sourceFile, bindings); explicit || looksLikeTaskPolicy(work, sourceFile) {
 			return work, facets, true
 		}
 	}

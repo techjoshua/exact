@@ -1,7 +1,18 @@
 import type { ExactDomRenderProgram } from '@exactjs/core/runtime/render-operations';
 import { HTML_NAMESPACE, MATHML_NAMESPACE, SVG_NAMESPACE, namespaceForTag } from '../namespace.js';
 
-type TemplateState = { uses: number; template?: HTMLTemplateElement };
+import {
+	createForeignProgramFragment,
+	caseSensitiveTemplateAttributes,
+	hasCompatibleForeignChildren,
+	hasForeignTemplateBreakout
+} from './render-program-foreign-template.js';
+
+type TemplateState = {
+	uses: number;
+	template?: HTMLTemplateElement;
+	rootProps?: Readonly<Record<string, unknown>>;
+};
 type ConcreteNamespace = 'html' | 'svg' | 'mathml';
 
 const templateCaches = new WeakMap<
@@ -15,13 +26,7 @@ export function materializeProgramTemplate(
 	ownerDocument: Document,
 	parentNode?: Node
 ): DocumentFragment {
-	let cache = templateCaches.get(ownerDocument);
-	if (!cache) templateCaches.set(ownerDocument, (cache = new WeakMap()));
-	let namespaces = cache.get(program);
-	if (!namespaces) cache.set(program, (namespaces = new Map()));
-	const namespace = materializedNamespace(program, parentNode);
-	let state = namespaces.get(namespace);
-	if (!state) namespaces.set(namespace, (state = { uses: 0 }));
+	const { state, namespace } = programTemplateState(program, ownerDocument, parentNode);
 	state.uses++;
 	if (state.template) return state.template.content.cloneNode(true) as DocumentFragment;
 	const template = createProgramTemplate(program, ownerDocument, namespace);
@@ -30,6 +35,46 @@ export function materializeProgramTemplate(
 		return template.content.cloneNode(true) as DocumentFragment;
 	}
 	return template.content;
+}
+
+/** Reads immutable authored root props from the cached compiler template in its attachment namespace. */
+export function readProgramTemplateRootProps(
+	program: ExactDomRenderProgram,
+	ownerDocument: Document,
+	parentNode?: Node
+): Readonly<Record<string, unknown>> {
+	const { state, namespace } = programTemplateState(program, ownerDocument, parentNode);
+	if (state.rootProps) return state.rootProps;
+	state.template ??= createProgramTemplate(program, ownerDocument, namespace);
+	const root = state.template.content.firstElementChild;
+	if (!root) throw new TypeError('A semantic intrinsic must retain its compiler template');
+	const props: Record<string, unknown> = {};
+	for (const attribute of root.attributes) {
+		const name =
+			attribute.name === 'class'
+				? 'className'
+				: attribute.name === 'for'
+					? 'htmlFor'
+					: attribute.name;
+		props[name] = attribute.value;
+	}
+	return (state.rootProps = Object.freeze(props));
+}
+
+/** Owns document and namespace separation for cached static DOM and authored props. */
+function programTemplateState(
+	program: ExactDomRenderProgram,
+	ownerDocument: Document,
+	parentNode?: Node
+): { state: TemplateState; namespace: ConcreteNamespace } {
+	let cache = templateCaches.get(ownerDocument);
+	if (!cache) templateCaches.set(ownerDocument, (cache = new WeakMap()));
+	let namespaces = cache.get(program);
+	if (!namespaces) cache.set(program, (namespaces = new Map()));
+	const namespace = materializedNamespace(program, parentNode);
+	let state = namespaces.get(namespace);
+	if (!state) namespaces.set(namespace, (state = { uses: 0 }));
+	return { state, namespace };
 }
 
 function createProgramTemplate(
@@ -46,7 +91,17 @@ function createProgramTemplate(
 			namespace === 'svg' ? 'svg' : 'math'
 		);
 		wrapper.innerHTML = program.template;
-		while (wrapper.firstChild) template.content.append(wrapper.firstChild);
+		const attributeNames = caseSensitiveTemplateAttributes(program.template);
+		if (
+			(attributeNames || hasForeignTemplateBreakout(program.template)) &&
+			!hasCompatibleForeignChildren(wrapper, attributeNames)
+		) {
+			template.content.append(
+				createForeignProgramFragment(program.template, ownerDocument, namespaceUri)
+			);
+		} else {
+			while (wrapper.firstChild) template.content.append(wrapper.firstChild);
+		}
 	}
 	return template;
 }

@@ -108,7 +108,10 @@ The outer function is not an ordinary linearly executed setup callback. It descr
 task definitions, reactive task relationships, and preparation of the returned render function.
 The compiler preserves ordinary TypeScript evaluation semantics while turning those facts into a
 reactive state machine. Each mounted component owns one durable instance of that machine. Props are
-parent-owned reactive inputs. State, tasks, contexts, refs, lifecycle registrations, and logging
+parent-owned reactive inputs. A calculation that reads a nested input field follows parent
+mutations to that field, including optional and indexed access. Replacing or removing the input
+updates the relationship and releases observation of the earlier object.
+State, tasks, contexts, refs, lifecycle registrations, and logging
 belong to that durable instance.
 The runtime keeps that ownership inspectable without allocating a separate
 method closure or empty collection for every capability on every instance.
@@ -344,6 +347,16 @@ Reads connect the current compiler-owned expression, task, list, or derived
 value to the path it consumes. Writes transition the existing component state machine rather than
 calling the component again to redescribe its interface.
 
+State mutations retain ordinary destination types, readonly restrictions, method arguments,
+callback context and expression results. Custom collection-like methods keep their authored calls.
+Accessor assignments invoke setters even when the value is equal, without first reading a getter.
+Array methods invalidate indexed accessor reads conservatively because setters can change backing
+values without replacing their descriptors. Mutation tracking adds no getter evaluations.
+Reactive collection subclasses retain the native receiver needed by private members. Their public
+properties and native storage remain observable, while private fields and external effects are
+opaque to automatic rollback. The [compiler reference](native-compiler.md#related-defect-families-and-repair-boundaries)
+explains the checking and lowering boundaries.
+
 The compiler assigns stable storage slots to known top-level fields, including fields reached
 through a state alias. This is transparent to application code and inspection: nested mutable
 values remain deeply reactive, dynamically indexed fields remain supported, and snapshots,
@@ -393,11 +406,21 @@ profile.name = 'Ada';
 settings.compact = true;
 ```
 
+Fixed state aliases retain their receiver when used by a server task, including through an ordinary
+local helper. Array holes create no binding and preserve the indices of later aliases. A defaulted
+binding may select independently owned storage, so it cannot authorize a server state write.
+Keep mutable fallback data in a named state field when it must participate in task publication.
+
 State may not be the assignment target of a `for-in` or `for-of` header. Assign
 the iteration value explicitly inside the body. Reflective mutation through
 `Reflect.set()`, `Reflect.deleteProperty()`, `Reflect.defineProperty()`,
 `Object.defineProperty()`, or `Object.defineProperties()` is rejected because
-it cannot preserve the precise write contract.
+it cannot preserve the precise write contract. The diagnostic follows native `call`, `apply`, and
+`bind` invocations, including pre-bound arguments and literal computed invocation names. Helper
+receiver ownership follows ordinary functions and their arrows without crossing an unrelated
+function or class receiver. The diagnostic also follows immutable operation aliases,
+computed method names, and helpers that receive component state. Helpers called with ordinary
+application objects remain available.
 
 `Map` and `Set` participate in deep reactivity while preserving their native
 JavaScript APIs:
@@ -419,11 +442,16 @@ return () => (
 Helpers may accept standard-library `ReadonlyMap`, `ReadonlySet`, or `ReadonlyArray` views.
 Aliases of these views and their mutable `Map`, `Set`, and `Array` counterparts preserve method placement.
 They constrain authored mutation, not client/server availability, and do not copy the collection.
+The selected standard method retains its execution placement when another declaration augments the
+interface. An application-added method needs its own proven execution contract. A familiar receiver
+name, or its printed array shape, does not provide that authority. Standard-library declarations
+are identified by the compiler-owned library location, so naming an application file `lib.es.*.d.ts`
+does not make its methods portable or safe to reevaluate.
 
 `Map.get()` and `Map.has()` track the requested key; `Set.has()` tracks the
 requested value. Iteration, `forEach()`, and collection-derived views track
 structural changes, while `size` changes only when membership changes.
-`Map.set()` and `Set.add()` return the reactive collection, `delete()` returns
+For native collection methods, `Map.set()` and `Set.add()` return the reactive collection, `delete()` returns
 whether an entry existed, and `clear()` returns `undefined`, matching native
 JavaScript. Adding an existing Set value or setting a Map key to the same value
 does not notify consumers.
@@ -539,7 +567,10 @@ this.state.subtotal = this.state.quantity * this.state.price;
 
 Every target in initialization-time reactive destructuring must be a writable state
 location so the results can publish as one derived-state transaction. A read
-of the same output path would form a feedback cycle and is rejected.
+of the same output path, or an overlapping parent or child path, would form a feedback cycle
+and is rejected. Compound assignments, logical assignments, and increments consume their
+destination's current value and follow the same rule. Put deliberate feedback in an event
+handler or an explicitly defined task.
 
 The initial synchronous calculation settles before the component's first render
 and before required props are passed to child components. Later dependency
@@ -551,6 +582,23 @@ Use `peek()` to request a deliberate one-time snapshot:
 this.state.initialCurrency = peek(() => props.currency);
 const initialQuery = peek(() => this.state.query);
 ```
+
+Import `peek` from `@exactjs/core`. Renamed imports, namespace members, and immutable local
+aliases preserve its snapshot boundary. An unrelated helper named `peek` has ordinary helper
+semantics. The boundary covers reads in inline or named callbacks. A callback used separately outside
+`peek` retains that invocation's live reads. In an expression such as
+`peek(() => this.state.query) + props.suffix`, the suffix remains a live input.
+Catch bindings, loop bindings, callback parameters, and function-local variables can shadow
+that import. Calls through those bindings retain the selected function's ordinary semantics.
+
+Locals used only inside a collection callback retain that callback's lexical scope. A calculation
+that uses the item parameter executes with that item, including when the callback returns a
+scalar rather than JSX. Captured state and derived values continue to update that result.
+Expression arrows, block arrows, and ordinary function callbacks preserve this behavior
+through server rendering and hydration. Generated normalization declarations avoid authored
+bindings. Compiler ownership follows inserted source origins, so an authored helper name does
+not change its task policy or activation lifetime. Prepared imports retain that source identity
+across project synchronization and incremental updates, including when setup requires browser data.
 
 Use a function-defined task instead when the relationship is effectful,
 asynchronous, or intentionally feeds back into its own dependencies.
@@ -638,6 +686,13 @@ String, expression, boolean, and spread props have their normal TSX spelling:
 <input name="query" disabled={this.state.busy} required />
 <Panel title={this.state.title} {...sharedProps} />
 ```
+
+HTML boolean attributes such as `disabled` use presence for true and omission for false.
+`aria-*` attributes serialize booleans as the strings `"true"` and `"false"`, since false can be
+an explicit accessibility state. `data-*={true}` writes `"true"`, while `data-*={false}` omits
+the attribute. Use `data-selected={String(selected)}` when both textual values are required.
+`null` and `undefined` omit these attributes. Server output, hydration, and later DOM updates
+use the same rules.
 
 Component props preserve their JavaScript values. For example, `<Panel unavailable={false} />`
 passes the boolean `false`, whether it is written literally or supplied through a variable. The same
@@ -759,6 +814,13 @@ construct within the resulting outer provider chain. Target discovery for a comp
 remains bounded by that component's materialized output because the semantic target cannot be known
 before the component constructs.
 
+Namespaced enhancement props follow the provider's TypeScript prop types. Quoted attributes remain
+string literals and use the same assignability rules as string expressions, including template
+literal types and string mappings. A `${bigint}` string can contain a large integer or hexadecimal
+digits without a trailing `n`. A `${number}` string can contain hexadecimal digits or exponent
+notation, while `NaN` and `Infinity` do not satisfy that template. These constraints validate the
+authored string without converting it into a number or bigint at runtime.
+
 The contract is open to third-party packages. Any package can publish ordinary components through
 finite `exact-enhancement` exports without a plugin, central registry, special base class, or private
 compiler API. Enhancement packages may also contribute bounded language-service completions,
@@ -799,7 +861,9 @@ The compiler treats `intl` as a virtual import in each package component, but em
 only for modules that actually activate `intl:*`. A top-level declaration or explicit import using
 the same local name is a duplicate identifier; rename it or remove the redundant declaration.
 `scope: 'package'` is rejected outside `exact.config.*`, and package bindings do not leak into
-dependencies or consuming packages.
+dependencies or consuming packages. A consumer compiling linked package source reads that
+package's own static namespace declarations without executing its configuration. The consumer
+still owns application plugins, provider selection, and execution authorization.
 
 Package enhancement declarations are build inputs even when component source is unchanged.
 Vite reloads affected application output when these declarations change in an existing configuration
@@ -976,6 +1040,9 @@ boundary. Callback props remain live: replacing a parent-supplied callback updat
 retained child's listener, and setting it to `undefined` removes that handler. This also applies
 to enhanced elements and capture listeners.
 
+Handlers receive the DOM event when their callable accepts or observes it. Reassigning a named
+handler before it is attached preserves the replacement callable's event argument.
+
 State writes made by a native event handler are published as one reactive update group. If a later
 statement throws, writes already made remain observable, matching ordinary JavaScript event
 semantics. Wrap a region in `batch()` when that region specifically requires synchronous rollback
@@ -1000,6 +1067,11 @@ or reactive values:
 />
 ```
 
+Truthy-key maps use native own-key enumeration, including ascending integer keys.
+Inherited properties do not contribute tokens. A noncomputed `__proto__` entry
+sets the prototype rather than contributing a class. SSR and client updates
+apply the same rules.
+
 Use `className:name` when the token is static and its condition is dynamic:
 
 ```tsx
@@ -1015,6 +1087,8 @@ Each truthy namespaced value contributes its suffix. Contributions are
 combined in authored prop order, and the namespaced props do not reach the
 DOM. Dynamic duplicate tokens are retained. The compiler reports a duplicate
 only when it can prove the same token is already present.
+Named tokens such as `className:__proto__` are ordinary class names. They do not perform the
+prototype-setting operation of a noncomputed key in an authored object literal.
 
 `className:name` is supported on intrinsic and custom elements, not component
 props. It cannot currently be combined with a prop spread. When it is present,
@@ -1054,10 +1128,17 @@ colon are ordinary names from the child component's finite prop type. The parent
 of the writable state location; the child receives an immutable value and a callback. The callback
 must return only `void` or `undefined`. Additional callback arguments are allowed and ignored.
 
+Parentheses, type assertions, `satisfies`, and non-null assertions retain the selected state
+location. Computed targets such as `this.state.rows[this.state.selected].value` select the
+current member when a notification arrives.
+
 The parent remains the state owner and the child still receives immutable props. Write the two
 props explicitly when the callback must validate, refuse, transform, log, await, or return a
 meaningful result. Supplying either generated prop explicitly is a duplicate-prop error; the
 compiler never composes component callbacks.
+
+The value and callback types follow the resolved JSX props, including explicit generic type
+arguments and inference from the bound value and other authored props.
 
 The compiler resolves component bindings alongside attributed enhancement namespaces. If both
 interpretations are valid, compilation fails and the source must expand the component props or
@@ -1085,6 +1166,11 @@ reactive location:
 <dialog modal:isOpen={this.state.settingsOpen}>Settings</dialog>
 ```
 
+A target may use parentheses or a type-only wrapper without changing its receiver ownership.
+Computed locations are evaluated for the current control event. TypeScript checks the generated
+assignment, including ordinary readonly constraints. Wrapping a prop does not permit writing
+a parent-owned input.
+
 The supported combinations are:
 
 | Syntax             | Controls                                         | State value                                                         |
@@ -1103,6 +1189,42 @@ compiler-planned static regions, so the declared value is selected on the initia
 SSR also serializes that selection onto the matching options. Hydration can therefore distinguish
 a pristine server-rendered select from a selection the user changed before activation and preserves
 only the latter as browser-owned state.
+
+Control type attributes may be literals or checker-proven constant expressions, such as
+`type={"checkbox"}`. A select binding requires a statically known `multiple` mode. `multiple={false}`
+uses a scalar binding, while `multiple` and `multiple={true}` use an array binding. Use an explicit
+value prop and change handler when the control changes between single and multiple selection.
+
+Radio and checkbox-group options pass through the native control's string-valued surface.
+Numeric state converts those options to numbers, while string state preserves their text.
+String literal unions are supported for radio values and checkbox arrays. An option such as
+`carrier: "ground" | "air"` retains its declared type in generated comparisons and membership checks.
+A radio without an explicit `value` uses the native `"on"` value. Binding listeners read the
+current control value rather than reevaluating the authored option expression.
+Numeric text inputs and textareas convert their text with `Number`. Number and range inputs
+retain the platform's `valueAsNumber` conversion. Numeric date, datetime-local, time, month and
+week controls retain their formatted calendar values during rendering, hydration and subsequent
+edits. Month values count months since January 1970. The other temporal controls use milliseconds,
+with UTC calendar fields for date and week and timezone-free fields for datetime-local. Time values
+use milliseconds since midnight. A dynamic input type reprojects the current numeric value. Nullable empty values retain their declared
+`null` or `undefined` representation.
+
+Date bindings require the native `Date` declaration or a type alias resolving to it. A custom
+class named `Date`, or a subclass with its own instance contract, requires an explicit value prop
+and event handler. A date control publishes native `Date` objects and cannot construct an
+application-specific instance safely. Native input receipt creates a Date in the component's execution
+realm so ordinary helpers can read it inside an owned task. Date values can remain local state after
+mounting or hydration.
+Hydration state must be serializable, so use timestamps or calendar strings for initial state that
+crosses from the server, and construct Dates locally when needed. Date-valued markup alone does
+not transport a Date in component state.
+
+Bindings write their target. TypeScript's ordinary readonly rules apply to that assignment,
+including readonly properties and array indices. A readonly container can still hold a mutable
+nested property when TypeScript permits that write. Parent-owned component props are framework
+inputs and cannot be binding targets, including through a known immutable alias. Bind local
+state, or provide an explicit value and a callback that asks the parent to update its state.
+Ordinary helpers can still receive and edit a writable state object.
 
 The binding generates the corresponding `value`, `checked`, or `open` prop, so that prop
 cannot also be written explicitly. An authored handler for the same event is
@@ -1183,6 +1305,10 @@ element ownership through updates, hydration, and `Activity` parking. Calling
 `fulfill()` directly remains ordinary imperative ref assignment; it does not
 claim DOM ownership or structural lifecycle behavior.
 
+Browser types in annotations and generic arguments, including `HTMLElement` and `SVGElement`,
+are erased and do not select a component’s runtime placement. Reading their constructor values
+is a runtime operation and retains the browser availability requirements.
+
 `this.refs.root()` returns a stable reactive view of the component's first
 intrinsic root. Its `current`, `generation`, `introduction`, and `presented`
 fields follow root replacement and retained `Activity` ranges. `introduction`
@@ -1230,6 +1356,16 @@ return () => (
 );
 ```
 
+The same inferred identity is available with a destructured callback parameter or a quoted
+identity field such as `"item-id"`. Parenthesized callees and callbacks, type-only wrappers,
+and literal member access such as `items['map'](...)` preserve collection ownership. This
+lowering applies to the standard array method. An application-defined method named `map`
+retains its own invocation and ordering semantics.
+
+String and number items, including literal unions of those types, use their values as inferred
+keys. Boolean, bigint, symbol, and unknown items retain ordinary array mapping. Choose an
+explicit string-or-number selector when those items need stable keyed identity.
+
 Use `@exact key=fieldName` when the identity field has a different declaration
 site, or put `key` on the rendered vnode:
 
@@ -1242,6 +1378,10 @@ return () => (
 	</ul>
 );
 ```
+
+An authored JSX `key` takes precedence over inferred identity. It may be a literal, a
+destructured item binding, or a value declared inside the callback. Callback-local keys stay
+with that callback so their evaluation retains the original lexical scope.
 
 Use `this.map()` when an explicit selector is clearer or the item type cannot
 carry the annotation:
@@ -1309,7 +1449,9 @@ Recognized intrinsic property names are canonicalized before compilation, so `on
 uses the same event binding as `onClick={handler}`. The compiler also canonicalizes provably static
 literal spreads and rejects unknown platform property names and malformed attribute names.
 Component and custom-element props retain their authored casing; data, ARIA, namespaced bindings,
-and SVG presentation attributes keep their respective extension rules. Runtime guards focus on
+and SVG presentation attributes keep their respective extension rules. MathML attributes such as
+`display`, `mathcolor`, and `linethickness` work directly and through prop spreads, including
+attributes without a reflected DOM property. The compiler checks them against their MathML element. Runtime guards focus on
 unsafe writes rather than repeating the compiler's complete platform-name lookup.
 Compiled calls select the DOM unsafe-HTML renderer in the module that uses the
 capability, so an application without such a call omits the range parser and
@@ -1686,7 +1828,9 @@ const RepositoryContext = createContext<Repository>('repository', {
 
 Use `this.hasContext(token)` before lookup when a provider is optional.
 `this.getContext()` intentionally throws when no value or framework default is
-available.
+available. A nullable selection such as `this.hasContext(Token) ? this.getContext(Token) : undefined`
+retains the token's context contract when you call a method with optional chaining. An unrelated
+conditional alternative or a reassigned binding needs its own execution proof.
 
 Context token options are:
 
@@ -1752,12 +1896,27 @@ not extend across an `await`; asynchronous resources should use the lifecycle si
 Canonical mount, activate, and deactivate handlers belong to client activation and are not
 evaluated by the server artifact. `onRender`, `onUnmount`, and `own` retain server semantics where
 SSR rendering or request cleanup can exercise them.
+Final cleanup can read derived props, including callback props used only by an unmount handler.
+Disposal freezes values that have already been evaluated. A derived value that was never read
+remains lazy and resolves once on its first cleanup read without restoring reactive subscriptions.
 Task cleanup remains the preferred owner for resources acquired by a task.
 Use `this.own(resource)` for a disposable value created during component setup
 that must live until the durable component instance is unmounted. It returns
 the same value and accepts `dispose()`, `Symbol.dispose`, or
 `Symbol.asyncDispose`; the compiler records component ownership instead of
 forcing the resource into a shorter task lifetime.
+
+Finite computed member access keeps the same component contract. String literals, constant keys,
+and keys narrowed to one operation preserve ownership and lifecycle placement. A computed member
+key is evaluated once before the call arguments, including its side effects and binding errors.
+Mount, activation, and deactivation registrations remain client work through computed access.
+Server callback removal retains key evaluation. Immutable local method aliases preserve the same
+operation identity. Mutable aliases remain opaque to placement and ownership analysis.
+Ref and reactive operations retain their request-local server behavior and durable client identity.
+When the compiler extracts a client island, it recreates these executable values under that owner
+and transports their ordinary inputs. Ref bindings and reactive cells do not enter JSON captures.
+An ordinary object method or class nested in a component keeps its own JavaScript receiver.
+Its methods do not become component operations merely because their names match framework methods.
 
 `this.log` is the component-scoped logger. It follows the nearest logger
 context and adds component identity to structured log records. Write ordinary
@@ -1809,7 +1968,7 @@ const credential = loadCredential();
 function formatLabels(values: readonly string[]) {
 	const labels = [...values];
 	labels.sort();
-	return labels.join(", ");
+	return labels.join(', ');
 }
 ```
 
@@ -1825,19 +1984,30 @@ Core annotations are:
 | `@exact keep=server`                      | retains the annotated value on the server                                    |
 | `@exact keep=secret`                      | marks the value and its derivations secret and server-only                   |
 | `@exact pure`                             | declares an otherwise opaque callable deterministic and effect-free          |
+| `@exact state-view`                       | acknowledges pending input identity and invocation lifetime limits           |
 | `@exact cleanup` or `@exact cleanup=name` | identifies an opaque cleanup/disposal method, optionally by name             |
 | `@exact own`                              | declares that the receiving scope owns an opaque returned resource           |
 | `@exact track`                            | identifies a callback parameter whose reactive reads must be tracked         |
 
 Placement and data-policy annotations are checked against known effects. A client declaration
 cannot make a server-only import browser-safe, `@exact shared` cannot release a
-secret, and serializable data is not automatically public.
+secret, and serializable data is not automatically public. These policies follow imported values
+through named imports, namespace selection, re-exports and object shorthand. A type-only reference,
+such as `typeof` in a type alias, does not execute a read or move work between environments.
+An actual client task read of a server-kept or secret value is rejected even when its result is discarded.
 
 When a derived calculation calls a helper, the compiler examines available helper bodies
-and recognizes supported built-in operations. These include string operations such as `trim()`,
+through immutable local callable aliases and locally owned function tables, and recognizes
+supported built-in operations. A selected table member must remain unchanged and its receiver
+must not escape to unproven mutation. Otherwise, the call needs an explicit purity contract.
+These operations include string operations such as `trim()`,
 `Map.get()` and `has()` through mutable or read-only views, and `new Date(timestamp)` with a
 numeric timestamp. Built-in recognition follows the selected declaration. A custom method
-with the same name does not acquire that guarantee.
+with the same name does not acquire that guarantee. Standard collection methods retain their
+execution contract through type aliases and global type augmentations. Methods added by an
+application still require their own proof.
+Framework method declarations retain their placement contract through interface
+aliases and read-only views. A similarly named application method does not inherit that contract.
 
 `EXACT2202` means that a rendered derived value cannot be established as safe to calculate
 again. Its explanation identifies the operation that blocked analysis, with a related source
@@ -1849,9 +2019,25 @@ For a helper whose behavior you have verified, a JSDoc `@exact pure` annotation 
 repeated calls have no externally visible side effects and that reactive inputs remain
 observable. This is a trusted assertion, not a request to suppress known side effects. The
 annotation belongs on the helper declaration, not inside its body or a string literal.
+Published helpers can retain these contracts in their TypeScript declaration files. Named
+imports and static namespace member selection use the same declared purity and placement
+rules. Dynamic member selection and opaque instance methods still require independent proof.
 Changing shared objects, writing component state, and sending requests belong in tasks or
 interaction handlers. Moving such work into `this.reactive()` does not make it effect-free.
 Purity also does not authorize an operation to run in the browser or to transport private data.
+
+Ordinary helpers are executed unchanged. Pending client task inputs may be state views with a
+different identity from their original storage. `EXACT2231` warns when analysis identifies a helper
+comparing or returning a closure that captures such an input. Prefer `sameStateTarget()` for explicit
+storage identity and pass new inputs when a later task invokes a callback. A preceding
+`/** @exact state-view */` on the helper declaration or owning call statement acknowledges those
+identity and lifetime limits. It does not change execution, extend a view's lifetime, authorize class
+receivers, or suppress readonly, secret, placement or remote-write errors. Opaque helper behavior
+cannot be exhaustively diagnosed from declarations alone.
+
+`EXACT2230` rejects identifiable class member calls through pending component state. Keep the ordinary
+class receiver outside transactional state and supply supported fields or `stateAccess()` as arguments.
+The compiler does not create alternate class implementations to emulate private brands.
 
 The directive set is compiler-owned and finite. Namespaced forms such as
 `@exact namespace.directive` are diagnostics; plugins do not register compiler

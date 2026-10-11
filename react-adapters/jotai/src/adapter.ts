@@ -4,6 +4,10 @@ import { atom, createStore, getDefaultStore, type Atom } from 'jotai/vanilla';
 
 export { atom, createStore, getDefaultStore };
 export type { Atom };
+
+// Jotai owns this singleton. Resolve it at module evaluation so component setup only reads
+// an established resource, rather than requiring a placement proof for an opaque external call.
+const defaultStore = getDefaultStore();
 /** Defines the store type contract. */
 export type Store = ReturnType<typeof createStore>;
 
@@ -21,7 +25,7 @@ export function ExactJotaiProvider(
 	this: Component<Record<string, unknown>>,
 	props: ExactJotaiProviderProps
 ) {
-	this.setContext(JotaiStoreContext, props.store ?? getDefaultStore());
+	this.setContext(JotaiStoreContext, props.store ?? defaultStore);
 	return () => props.children ?? null;
 }
 
@@ -47,7 +51,7 @@ export function createComponentAtom<Value>(
 		try {
 			resolved = component.getContext(JotaiStoreContext);
 		} catch {
-			resolved = getDefaultStore();
+			resolved = defaultStore;
 		}
 	}
 	const source = createAtomSource(resolved, valueAtom);

@@ -16,6 +16,7 @@ import { reconcileTargetEvents } from './target-events.js';
 import { isCompilerFormBindingProp, isEventHandlerProp, updateProps } from '../props.js';
 import type { Mounted, Root } from '../types.js';
 import { resolveTargetBoundary } from './target-routing.js';
+import { authoredRenderProgramProps } from './render-program-authored-props.js';
 
 const tokenListProps = new Set([
 	'aria-describedby',
@@ -224,23 +225,7 @@ function authoredIntrinsicProps(mounted: Mounted): Readonly<Record<string, unkno
 	const program = mounted.renderProgram;
 	if (!program?.programRoot)
 		throw new TypeError('A semantic intrinsic must retain its authored props');
-	if (!(program.programRoot instanceof Element))
-		throw new TypeError('A semantic intrinsic render-program root must be an element');
-	const programRoot = program.programRoot;
-	const rootProps: Record<string, unknown> = {};
-	for (const attribute of programRoot.attributes) {
-		const name =
-			attribute.name === 'class'
-				? 'className'
-				: attribute.name === 'for'
-					? 'htmlFor'
-					: attribute.name;
-		rootProps[name] = attribute.value;
-	}
-	Object.assign(rootProps, program.props?.get(programRoot));
-	for (const group of program.compiledProps ?? []) {
-		if (group?.element === programRoot) Object.assign(rootProps, group.values);
-	}
+	const rootProps = authoredRenderProgramProps(program);
 	mounted.targetAuthoredProps = rootProps;
 	return rootProps;
 }

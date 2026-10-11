@@ -89,6 +89,13 @@ An attributed `motion:change` remains subscribed on a persistent target even whe
 no enter phase, so an ordinary reactive style binding can own the destination while motion supplies
 the visual path between committed values.
 
+The change trigger is a reactive change to the motion phase or definition. Editing an element's
+text, descendants, or ordinary attributes does not itself replay a constant phase. For example,
+`motion:change={provisional ? undefined : pop.enter}` plays when the value settles, rather than
+on every later text update. For movement feedback, derive the change keyframes from the same
+reactive position that supplies the destination style. Keep unrelated content updates outside
+that expression when they should remain still.
+
 The main runtime uses a browser-safe Web Animations driver by default. Creating that driver does not
 read browser globals, and playback completes immediately when an element has no `animate()` capability,
 so importing the main package, definitions, or presets remains server-safe. The package has no

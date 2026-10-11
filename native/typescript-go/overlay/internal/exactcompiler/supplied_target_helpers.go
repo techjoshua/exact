@@ -6,6 +6,19 @@ import "github.com/microsoft/TypeScript/tsc/internal/ast"
 // Every return must preserve the same props child; recursive helpers and output substitution remain
 // opaque. This permits ordinary property-contribution helpers without a user-authored target trait.
 func transparentSuppliedHelperOutput(output *ast.Node, props string, source *ast.SourceFile, callables callableAnalysis, visiting map[string]bool) bool {
+	return transparentSuppliedHelperOutputWithProofs(output, props, source, callables, visiting, make(map[suppliedHelperProofKey]bool))
+}
+
+// suppliedHelperProofKey retains the formal receiver whose child ownership is proven.
+// A result for one parameter cannot authorize another parameter of the same helper.
+type suppliedHelperProofKey struct {
+	callable string
+	receiver string
+}
+
+// transparentSuppliedHelperOutputWithProofs bounds shared helper graphs while keeping
+// active recursion opaque. Every return must establish the same receiver-owned child.
+func transparentSuppliedHelperOutputWithProofs(output *ast.Node, props string, source *ast.SourceFile, callables callableAnalysis, visiting map[string]bool, proofs map[suppliedHelperProofKey]bool) (valid bool) {
 	output = unwrapRenderExpression(output)
 	if props == "" || output == nil {
 		return false
@@ -70,6 +83,11 @@ func transparentSuppliedHelperOutput(output *ast.Node, props string, source *ast
 		if receiver == "" {
 			return false
 		}
+		key := suppliedHelperProofKey{callable: edge.TargetID, receiver: receiver}
+		if result, known := proofs[key]; known {
+			return result
+		}
+		defer func() { proofs[key] = valid }()
 		returns := directCallableReturns(callee.node)
 		if len(returns) == 0 {
 			return false
@@ -77,7 +95,7 @@ func transparentSuppliedHelperOutput(output *ast.Node, props string, source *ast
 		visiting[edge.TargetID] = true
 		defer delete(visiting, edge.TargetID)
 		for _, returned := range returns {
-			if !transparentSuppliedHelperOutput(returned, receiver, callee.sourceFile, callables, visiting) {
+			if !transparentSuppliedHelperOutputWithProofs(returned, receiver, callee.sourceFile, callables, visiting, proofs) {
 				return false
 			}
 		}

@@ -8,6 +8,7 @@ exported declarations before editing motion code.
 - Keep application state and final intrinsic styles authoritative. Motion owns a finite visual path,
   not a shadow state store.
 - Use `MotionConfig` for inherited enabled, transition, appear, and reduced-motion policy.
+- `motion:change` follows reactive phase or definition changes. Text updates alone do not replay a constant phase.
 - Use the explicit `Motion` component when compiler-owned namespaced activation is unavailable in
   the installed build host.
 - Use `Presence` for conditional focus-safe leave, `MotionList` for application-owned keyed

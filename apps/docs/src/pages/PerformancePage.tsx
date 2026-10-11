@@ -246,7 +246,12 @@ export function PerformancePage(this: Component<{}>) {
 			<details>
 				<summary>Capture details</summary>
 				<p className="performance-evidence-note">
-					Browser evidence commit <code>{report.metadata.commit}</code>. SSR capture hash
+					Each benchmark group records its source revision and measurement date. eXact packages keep
+					independent versions, and the retained capture metadata records their resolved versions.
+					Timings compare complete workloads and include variation from the host.
+				</p>
+				<p className="performance-evidence-note">
+					Browser evidence commit <code>{report.metadata.browserCommit}</code>. SSR capture hash
 					<code>{report.metadata.ssrSourceSha256.slice(0, 12)}</code>, based on commit
 					<code>{report.metadata.ssrCommit.slice(0, 8)}</code>. Browser evidence captured
 					<time dateTime={report.metadata.browserCreatedAt}>

@@ -1,22 +1,31 @@
+import { urlCoercionJourney } from './url-coercion.mjs';
+import { serializationSafety } from './serialization-safety.mjs';
+import { exactEnhancementCatalog } from '@exactjs/core/framework/enhancement-catalog';
 import { bootstrapLoadingResponse } from './bootstrap-loading.mjs';
 import { createExpression } from '@exactjs/core/runtime/render-operations';
 // Construct the compiler boundary receipt explicitly to verify its descendant-state payload.
 import '@exactjs/ssr/runtime/structural-boundaries';
-import { createContext } from '@exactjs/core';
+import { createContext, createEnhancementNode } from '@exactjs/core';
 import {
 	composeExactExecutorContract,
+	createExactHydrationConfig,
 	createExactContextRuntime,
 	exactResponseToFetchResponse,
 	runWithExactRequestScope
 } from '@exactjs/server';
 import {
 	createServerBoundaryReceipt as boundary,
-	createCompiledComponentReceipt as receipt
+	createCompiledComponentReceipt as receipt,
+	readCompiledComponentReceipt,
+	createCompiledIntrinsicReceipt
 } from '@exactjs/core/runtime/component-operations';
 import {
+	renderHydrationScript,
 	renderExactRequestToHtmlResponse,
 	renderExactRequestToProgressiveHtmlResponse,
-	renderToHydratableProgressiveHtmlResponse
+	renderToHydratableProgressiveHtmlResponse,
+	renderToString,
+	renderToStream
 } from '@exactjs/ssr';
 import { taskStatusJourney, taskCancellationJourney } from './task-status.mjs';
 import { optimisticStateJourney } from './optimistic-state.mjs';
@@ -28,21 +37,30 @@ const PageScope = createContext('runtime.page', { scope: 'request', reactive: fa
 
 /** One application contract across native hosts; only the adapter factory varies. */
 export function createApplication({
+	normalizationComponents,
+	taskCaptureResponse,
+	taskCaptureContext,
 	RuntimePage,
 	RuntimeShell,
 	eagerReplayResponse,
+	pendingOwnerResponse,
 	RuntimeIsland,
 	RuntimeViews,
 	RuntimeScope,
+	RuntimeDeadline,
+	deadlineState,
 	NativeProgress,
 	runCount,
 	createHandler,
 	clientCode,
 	control
 }) {
-	const contract = composeExactExecutorContract([NativeProgress, RuntimePage], {
-		endpoint: '/__exact'
-	});
+	const contract = composeExactExecutorContract(
+		[NativeProgress, RuntimePage, ...normalizationComponents],
+		{
+			endpoint: '/__exact'
+		}
+	);
 	const progress = Object.values(contract.invocations).find((value) => value.progress?.length);
 	if (!progress) throw new Error('Missing compiled progress receiver');
 	const warnings = [];
@@ -55,6 +73,7 @@ export function createApplication({
 	};
 	const operations = operationFixture(control);
 	const contexts = {
+		'/task-captures/invoke': taskCaptureContext,
 		'/__exact': { contract, logger },
 		'/buffered': {
 			contract: { ...contract, endpoint: '/buffered' },
@@ -91,11 +110,91 @@ export function createApplication({
 		contexts,
 		async fetch(request, env, ctx) {
 			const pathname = new URL(request.url).pathname;
+			if (pathname.startsWith('/task-captures/'))
+				return taskCaptureResponse(request, createHandler, env, ctx);
+			if (pathname.startsWith('/pending-owner')) return pendingOwnerResponse(request);
 			if (pathname === '/task-cancellation') return Response.json(await taskCancellationJourney());
 			if (pathname === '/resource-disposal') return Response.json(await resourceDisposalJourney());
 			if (pathname === '/optimistic-state') return Response.json(await optimisticStateJourney());
 			if (pathname === '/theme-resolution') return Response.json(await themeResolutionJourney());
+			if (pathname === '/enhancement-publication') {
+				const props = { value: 'provider', probe: () => undefined };
+				const target = createCompiledIntrinsicReceipt(
+					'button',
+					{
+						__exactEnhancements: createEnhancementNode([{ identity: 'runtime-scope', props }])
+					},
+					'Ready'
+				);
+				const options = {
+					markers: false,
+					enhancementCatalog: new Map([['runtime-scope', RuntimeScope]])
+				};
+				const buffered = (await renderToString(target, options)).html;
+				const streamed = await new Response(renderToStream(target, options)).text();
+				let ordinaryRejected = false;
+				try {
+					await renderToString(
+						receipt(RuntimeShell, {
+							unavailable: false,
+							children: receipt(RuntimeScope, props, target)
+						}),
+						{
+							...options,
+							clientResumptionOwner: false
+						}
+					);
+				} catch (error) {
+					if (!error.message.includes('props must be JSON-serializable')) throw error;
+					ordinaryRejected = true;
+				}
+				return Response.json({
+					buffered,
+					streamed,
+					ordinaryRejected,
+					publication: readCompiledComponentReceipt(receipt(RuntimeScope, props)).contract.artifact
+						.execution.publication
+				});
+			}
+			if (pathname === '/url-coercion') return Response.json(await urlCoercionJourney());
+			if (pathname === '/serialization-safety') return Response.json(serializationSafety());
+			if (pathname === '/hydration-escaping') {
+				const values = [
+					'',
+					'plain',
+					'</script>',
+					'<!--<script>',
+					'plain\u2028\u2029',
+					'\u2029<\u2028',
+					'caf\u00e9 \ud83d\ude80 \ud800',
+					'x<\u2028\u2029'.repeat(1000)
+				];
+				return Response.json(
+					[...values, ...values.toReversed()].map((value) => ({
+						value,
+						script: renderHydrationScript({ state: { [value]: value } })
+					}))
+				);
+			}
 			if (pathname === '/task-status') return Response.json(await taskStatusJourney());
+			if (pathname === '/deadline-state') return Response.json(deadlineState());
+			if (pathname === '/limited-page') {
+				const id = new URL(request.url).searchParams.get('gate');
+				try {
+					return exactResponseToFetchResponse(
+						await renderExactRequestToHtmlResponse(
+							request,
+							pageContext,
+							() => receipt(RuntimeDeadline, { id }),
+							{ hydration: false, maxTaskDurationMs: 150 }
+						)
+					);
+				} catch (error) {
+					if (error.name !== 'SsrTaskDeadlineError')
+						return Response.json({ error: error.name, message: error.message }, { status: 500 });
+					return Response.json({ error: error.name }, { status: 504 });
+				}
+			}
 			if (pathname === '/page-state') return Response.json(pageState);
 			if (pathname === '/contract')
 				return Response.json({
@@ -161,9 +260,11 @@ export function createApplication({
 												: undefined
 										}),
 							enhancementCatalog: new Map([
+								...exactEnhancementCatalog,
 								['runtime-scope', RuntimeScope],
 								['runtime-scope-peer', RuntimeScope]
 							]),
+							...createExactHydrationConfig(contract),
 							hydration: true,
 							endpoint: '/__exact',
 							bufferSize: 64

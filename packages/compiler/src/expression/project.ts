@@ -45,6 +45,19 @@ export class ExactCompilerSession {
 		return response;
 	}
 
+	/**
+	 * Returns retained inputs for build-tool watching, including type-only imports and ambient types.
+	 * A filename selects its dependencies and excludes that file. Omission returns all retained inputs.
+	 * Queries the current generation and throws if the native host cannot supply its watch inputs.
+	 */
+	watchFiles(filename?: string): readonly string[] {
+		this.assertActive();
+		const response = this.nativeCompiler.request({ kind: 'watch-files', id: filename });
+		if (response.error)
+			throw new Error(`Unable to collect compiler watch inputs: ${response.error}`);
+		return response.projectFiles ?? [];
+	}
+
 	/** Invalidates retained project state after a watched file changes. */
 	invalidate(filename: string, removed = false): ExactCompilerInvalidation {
 		this.assertActive();

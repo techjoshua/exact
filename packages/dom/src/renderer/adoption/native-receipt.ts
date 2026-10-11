@@ -1,3 +1,4 @@
+import { retainNamespaceProps, clearNamespaceEncoding } from '../../namespace.js';
 import { encodeExactMarkerPart } from '@exactjs/core';
 import { mountTextHost as mountTextHostPresentation } from '../text-host-capability.js';
 import type { AnyComponentInstance, Child } from '@exactjs/core';
@@ -25,7 +26,8 @@ export type AdoptReceiptChildren = (
 	parentInstance: AnyComponentInstance | undefined,
 	parentScope: EffectScope,
 	start?: number,
-	end?: number
+	end?: number,
+	physicalParent?: Node
 ) => Mounted[] | undefined;
 
 /** Adopts one direct intrinsic operation against its compiler-known host. */
@@ -44,6 +46,7 @@ export function adoptIntrinsicReceipt(
 		scope.stop();
 		return undefined;
 	}
+	retainNamespaceProps(node, receipt.props);
 	const textHost = receipt.tag === 'title' || receipt.tag === 'textarea';
 	const textChildren = textHost
 		? receipt.children
@@ -76,8 +79,18 @@ export function adoptIntrinsicReceipt(
 					existingText as Text | undefined
 				)
 			]
-		: adoptChildren(root, [...textChildren], authoredNodes, parentInstance, scope);
+		: adoptChildren(
+				root,
+				[...textChildren],
+				authoredNodes,
+				parentInstance,
+				scope,
+				undefined,
+				undefined,
+				node
+			);
 	if (!children) {
+		clearNamespaceEncoding(node);
 		scope.stop();
 		return undefined;
 	}

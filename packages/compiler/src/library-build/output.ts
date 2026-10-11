@@ -1,5 +1,6 @@
 import { cp, lstat, mkdir, mkdtemp, readdir, rename, rm } from 'node:fs/promises';
 import path from 'node:path';
+import { retainUnchangedLibraryFiles } from './unchanged-files.js';
 
 /** Rejects directory links before builds can overwrite files outside their owned output. */
 async function rejectLinks(directory: string): Promise<void> {
@@ -16,14 +17,28 @@ async function rejectLinks(directory: string): Promise<void> {
 		for (const entry of await readdir(directory)) await rejectLinks(path.join(directory, entry));
 }
 
-/** Owns dist exclusively for one build, restoring its previous contents on any build failure. */
+/**
+ * Publishes a verified replacement tree and restores the previous generation on publication failure.
+ * Identical files retain identity where supported. Named publication markers always use new files.
+ */
 export async function withLibraryOutput(
 	root: string,
 	preserve: boolean,
-	build: () => Promise<void>
+	build: (stagedOutput: string) => Promise<void>,
+	publicationMarkers: readonly string[] = []
 ): Promise<void> {
 	const output = path.join(root, 'dist');
-	const lock = path.join(root, '.exact-library-build.lock');
+	const cache = path.join(root, '.exact');
+	// Only the cache directory is build-owned here. Unrelated cached links are never
+	// traversed or removed. A linked cache itself would redirect our staging writes.
+	const cacheInfo = await lstat(cache).catch((error) => {
+		if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined;
+		throw error;
+	});
+	if (cacheInfo?.isSymbolicLink())
+		throw new Error(`Library cache must not be a symbolic link: ${cache}`);
+	await mkdir(cache, { recursive: true });
+	const lock = path.join(cache, 'library-build.lock');
 	await mkdir(lock).catch((error) => {
 		if ((error as NodeJS.ErrnoException).code === 'EEXIST')
 			throw new Error(
@@ -36,7 +51,25 @@ export async function withLibraryOutput(
 	let owned = false;
 	try {
 		await rejectLinks(output);
-		stage = await mkdtemp(path.join(root, '.exact-library-build-'));
+		stage = await mkdtemp(path.join(cache, 'library-build-'));
+		const next = path.join(stage, 'next');
+		if (preserve) {
+			try {
+				await cp(output, next, { recursive: true });
+			} catch (error) {
+				if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+			}
+		}
+		await mkdir(next, { recursive: true });
+		await build(next);
+		await rejectLinks(next);
+		await retainUnchangedLibraryFiles(
+			output,
+			next,
+			path.join(stage, 'unchanged'),
+			publicationMarkers
+		);
+		// Only verified output reaches dist. The prior generation remains readable during compilation.
 		try {
 			await rename(output, path.join(stage, 'previous'));
 			saved = true;
@@ -44,9 +77,7 @@ export async function withLibraryOutput(
 			if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
 		}
 		owned = true;
-		if (preserve && saved) await cp(path.join(stage, 'previous'), output, { recursive: true });
-		else await mkdir(output);
-		await build();
+		await rename(next, output);
 	} catch (error) {
 		if (owned) {
 			const previous = saved ? path.join(stage!, 'previous') : undefined;

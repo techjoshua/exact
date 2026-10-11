@@ -1,3 +1,32 @@
+import { OwnedProtocolValues, OwnedProtocolSpreadValues } from './owned-protocol-islands.js';
+import { TimeWindowProbe } from './time-plan.js';
+import { AttributeOrder } from './render-attribute-order.js';
+import { InputRelationships } from './nested-input-relationships.fixtures.js';
+import { AppliedComponentSurface } from './applied-component-surface.fixtures.js';
+import {
+	ComputedComponentMembers,
+	ComputedRefMembers,
+	ComputedReactiveMembers,
+	OrdinaryReceiverMembers
+} from './computed-component-members.js';
+import { FormBindingProbe } from './form-binding.js';
+import { IntlProjectionProbe } from './intl-projection.js';
+import {
+	NormalizationProbe,
+	AsyncNormalizationProbe,
+	NormalizationSnapshotProbe,
+	NormalizationHelperSnapshotProbe,
+	NormalizationExplicitSetupProbe
+} from './source-normalization.js';
+import {
+	NormalizationServerSnapshotProbe,
+	NormalizationAsyncInputProbe
+} from './source-normalization-server.fixtures.js';
+import { IntlNumericRangeProbe } from './intl-numeric-range.js';
+import { NamespaceProbe } from './render-namespace.js';
+import { KeyedSpreadWorkbench } from './keyed-spread-updates.js';
+import { TargetAttributeOwnershipProbe } from './target-attribute-ownership.js';
+import { MutationContractProbe, ServerMutationContractProbe } from './mutation-contract.js';
 import { DerivedPatternProbe } from './derived-pattern.js';
 import { CollectionProjectionProbe } from './collection-projection.js';
 import { HoverProbe, MapProjectionProbe } from './keyed-prop-replacement.js';
@@ -15,7 +44,8 @@ import {
 
 import {
 	createCompiledFragmentReceipt,
-	createCompiledComponentReceipt
+	createCompiledComponentReceipt,
+	createDeferredServerIntrinsicSpreadReceipt
 } from '@exactjs/core/runtime/component-operations';
 
 const FragmentScope = createContext<string>('runtime.fragment-scope', { reactive: false });
@@ -28,6 +58,8 @@ export function RuntimePage(
 		localized: string;
 		profile: { label: string };
 		count: number;
+		fragments: string[];
+		fragmentStep: number;
 		rows: Map<string, { total: number }>;
 		selected: Set<string>;
 	}>,
@@ -37,6 +69,8 @@ export function RuntimePage(
 	this.state.localized = '';
 	this.state.profile = { label: 'pending' };
 	this.state.count = 0;
+	this.state.fragments = ['first', ' / ', 'second 😀'];
+	this.state.fragmentStep = 0;
 	this.state.slow = 0;
 	this.state.returned = 0;
 	async function slow(id: string, _task: TaskContext = TaskContext.server()) {
@@ -48,7 +82,9 @@ export function RuntimePage(
 	this.state.selected = new Set(['first']);
 	function increment(_task: TaskContext = TaskContext.server()) {
 		void _task;
-		this.state.profile.label = props.label ?? 'native';
+		const field = 'label' as const;
+		const previous = this.state.profile[field];
+		this.state.profile.label = props.label ?? (previous === 'pending' ? 'native' : previous);
 		this.state.count++;
 		this.state.localized = new Intl.NumberFormat('en-US').format(1234.5 + this.state.count);
 		this.state.rows.set('first', { total: this.state.count });
@@ -62,15 +98,75 @@ export function RuntimePage(
 	const localStatus = taskStatus(local);
 	return () => (
 		<section>
-			{scopedFragment(
-				scopedFragment(createCompiledComponentReceipt(RuntimeScopeValue, { id: 'fragment-scope' })),
-				'outer'
-			)}
+			<AttributeOrder />
+			<InputRelationships />
+			<AppliedComponentSurface />
+			<div id="computed-owned-members">
+				<ComputedComponentMembers />
+			</div>
+			<div id="computed-ref-members">
+				<ComputedRefMembers />
+			</div>
+			<div id="computed-reactive-members">
+				<ComputedReactiveMembers />
+				<OwnedProtocolValues offset={2} />
+				<OwnedProtocolSpreadValues />
+			</div>
+			<div id="ordinary-receiver-members">
+				<OrdinaryReceiverMembers />
+			</div>
+			<IntlNumericRangeProbe />
+			<IntlProjectionProbe />
+			<NormalizationProbe />
+			<AsyncNormalizationProbe />
+			<NormalizationSnapshotProbe />
+			<NormalizationHelperSnapshotProbe />
+			<NormalizationExplicitSetupProbe />
+			<NormalizationServerSnapshotProbe />
+			<NormalizationAsyncInputProbe />
+			<FormBindingProbe modal />
+			{this.state.count >= 0 &&
+				scopedFragment(
+					scopedFragment(
+						createCompiledComponentReceipt(RuntimeScopeValue, { id: 'fragment-scope' })
+					),
+					'outer'
+				)}
 			<RuntimeScopeValue id="fragment-sibling" />
+			{this.state.count >= 0 &&
+				createDeferredServerIntrinsicSpreadReceipt(
+					'span',
+					{
+						key: 'deferred',
+						__exactEnhancements: createEnhancementNode([
+							{ identity: 'runtime-scope', props: { value: 'deferred' } }
+						])
+					},
+					() => ({
+						id: 'deferred-spread',
+						'data-spread': this.state.count === 0 ? 'ready' : 'updated'
+					}),
+					'ready'
+				)}
 			<span id="client-status">
 				{localStatus.pendingCount}:{localStatus.pending ? 'pending' : 'idle'}
 			</span>
 			<p id="escaped">{'<script>unsafe</script> café 😀'}</p>
+			<p id="scalar-run">{this.state.fragments}</p>
+			<button
+				id="scalar-change"
+				onClick={() => {
+					this.state.fragmentStep++;
+					this.state.fragments =
+						this.state.fragmentStep === 1
+							? ['next', ' / ', 'last 😀']
+							: this.state.fragmentStep === 2
+								? []
+								: ['again', '!'];
+				}}
+			>
+				Change scalar run
+			</button>
 			<input id="draft" value="initial" />
 			<button
 				id="increment"
@@ -91,12 +187,19 @@ export function RuntimePage(
 			<output id="returned">{this.state.returned}</output>
 			<output id="map-total">{this.state.rows.get('first')?.total}</output>
 			<output id="set-size">{this.state.selected.size}</output>
+			<KeyedSpreadWorkbench path="spread-key" />
+			<KeyedSpreadWorkbench path="overwritten-key" />
+			<KeyedSpreadWorkbench path="hidden-key" />
+			<NamespaceProbe />
+			<TimeWindowProbe />
 			<HoverProbe />
 			<MapProjectionProbe />
 			<ClipboardProbe />
 			<ClipboardPromiseProbe />
 			<CollectionProjectionProbe />
 			<DerivedPatternProbe />
+			<MutationContractProbe />
+			<TargetAttributeOwnershipProbe />
 		</section>
 	);
 }
@@ -115,6 +218,7 @@ export function RuntimeShell(
 				<title>Runtime acceptance</title>
 			</head>
 			<body>
+				<ServerMutationContractProbe />
 				<output id="server-availability">{props.unavailable ? 'unavailable' : 'available'}</output>
 				<main id="root">{props.children}</main>
 				<SettledTarget>
@@ -160,21 +264,39 @@ export function RuntimeIsland(this: Component<{}>) {
 }
 
 /** Transparent contributors retain their contexts even when they share a presentation host. */
-export function RuntimeScope(this: Component<{}>, props: { value?: string; children?: Child }) {
-	const value = props.value ?? this.getContext(FragmentScope);
+export function RuntimeScope(
+	this: Component<{ mounted: boolean }>,
+	props: { value?: string; children?: Child }
+) {
+	this.state.mounted = false;
+	this.onMount(() => {
+		this.state.mounted = true;
+	});
+	const value = props.value ?? readFragmentScope(this);
 	this.setContext(FragmentScope, value);
-	return () => <_target data-scope={value} />;
+	return () => <_target data-scope={value} data-runtime-enhancement-mounted={this.state.mounted} />;
 }
 
 /** Reads the nearest logical provider independently of presentation wrappers. */
 function RuntimeScopeValue(this: Component<{}>, props: { id: string }) {
-	const value = this.getContext(FragmentScope);
+	return () => createCompiledComponentReceipt(RuntimeScopeBridge, props);
+}
+
+/** A second closed forwarding level keeps receipt ownership separate from child markers. */
+function RuntimeScopeBridge(this: Component<{}>, props: { id: string }) {
+	return () => createCompiledComponentReceipt(RuntimeScopeLeaf, props);
+}
+
+/** A marked context consumer beneath an omitted compiled parent retains its server host. */
+function RuntimeScopeLeaf(this: Component<{}>, props: { id: string }) {
+	const value = readFragmentScope(this);
 	return () => <output id={props.id}>{value}</output>;
 }
 
 function scopedFragment(child: Child, value?: string): Child {
 	return createCompiledFragmentReceipt(
 		{
+			key: value ?? 'inherited',
 			__exactEnhancements: createEnhancementNode([
 				{ identity: 'runtime-scope', props: { value } },
 				{ identity: 'runtime-scope-peer', props: {} }
@@ -182,4 +304,35 @@ function scopedFragment(child: Child, value?: string): Child {
 		},
 		child
 	);
+}
+
+const deadlineCleanups: { id: string; aborted: boolean }[] = [];
+/** Reports owned timeout cleanup independently of the HTTP response. */
+export function deadlineState() {
+	return deadlineCleanups;
+}
+
+/** Gated blocking work proves request limits cancel owned tasks without poisoning the next render. */
+export function RuntimeDeadline(this: Component<{ text: string }>, props: { id: string }) {
+	this.state.text = 'pending';
+	async function prepare(task: TaskContext = TaskContext.server().blocking()) {
+		task.cleanup(() => {
+			deadlineCleanups.push({ id: props.id, aborted: task.signal.aborted });
+		});
+		const response = await fetch('__EXACT_CONTROL__/gate?id=' + props.id, { signal: task.signal });
+		this.state.text = await response.text();
+	}
+	prepare();
+	return () => <output id="deadline-result">{this.state.text}</output>;
+}
+
+/** Reads the inherited scope through ordinary helpers without giving the helper a component this. */
+function readFragmentScope(owner: Component<{}>): string {
+	const receiver = owner;
+	return resolveFragmentScope(receiver);
+}
+
+/** Keeps the shared native-host context check on the parameter-forwarding boundary. */
+function resolveFragmentScope(owner: Component<{}>): string {
+	return owner.getContext(FragmentScope);
 }

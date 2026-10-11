@@ -5,12 +5,14 @@ import (
 	"strings"
 
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
-	"github.com/microsoft/TypeScript/tsc/internal/checker"
 )
 
 type jsxRuntimeNames struct {
 	componentReceipt          string
 	componentReceiptUpdate    string
+	clientBoundaryIdentity    string
+	timeIntrinsicElement      string
+	timeSpreadElement         string
 	intrinsicElement          string
 	textHostElement           string
 	intrinsicComposition      string
@@ -62,7 +64,10 @@ type jsxRuntimeNames struct {
 	componentOutput           string
 	serverComponentOutput     string
 	issueServerComponent      string
+	timePropertyReaders       string
+	timeDynamic               string
 	dynamic                   string
+	componentSpread           string
 	dynamicComponent          string
 	serverDynamicComponent    string
 	dynamicComponentValue     string
@@ -93,11 +98,20 @@ type jsxRuntimeNames struct {
 	taskObserver              string
 	taskFetch                 string
 	taskResource              string
+	taskReleasableResource    string
+	taskResourceRelease       string
+	taskArgumentDependencies  string
+	taskNativeCleanup         string
+	taskResourceReleaseMethod string
+	cleanupAbortOptions       string
+	cleanupTaskOptions        string
+	cleanupTaskCombined       string
 	taskAwait                 string
 	serverTaskAwait           string
 	serverTaskTimeout         string
 	taskMutation              string
 	stageTaskMutation         string
+	createTaskState           string
 	taskCollectionMutation    string
 	taskContinuation          string
 	dispatchContinuation      string
@@ -107,6 +121,7 @@ type jsxRuntimeNames struct {
 	bindTask                  string
 	invokeTask                string
 	activateTask              string
+	activateTaskOnce          string
 	activateComputation       string
 	progressReporter          string
 	progressReceiver          string
@@ -148,6 +163,7 @@ type jsxRuntimeNames struct {
 	constructRenderComponent  string
 	constructTaskComponent    string
 	constructDurableComponent string
+	brandComponent            string
 	clientAttachComponent     string
 	clientReceiveProps        string
 	clientDisposeComponent    string
@@ -201,6 +217,7 @@ const (
 	runtimeRenderConstruction         runtimeImportGroupID = "render-construction"
 	runtimeTaskConstruction           runtimeImportGroupID = "task-construction"
 	runtimeDurableConstruction        runtimeImportGroupID = "durable-construction"
+	runtimeComponentBranding          runtimeImportGroupID = "component-branding"
 	runtimeComponentABI               runtimeImportGroupID = "component-abi"
 	runtimeCompatibilityContributions runtimeImportGroupID = "compatibility-contributions"
 	runtimeCompiledDOMRoot            runtimeImportGroupID = "compiled-dom-root"
@@ -261,6 +278,7 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		{id: runtimeRenderConstruction, module: "@exactjs/core/runtime/component-construction/render"},
 		{id: runtimeTaskConstruction, module: "@exactjs/core/runtime/component-construction/task"},
 		{id: runtimeDurableConstruction, module: "@exactjs/core/runtime/component-construction/durable"},
+		{id: runtimeComponentBranding, module: "@exactjs/core/runtime/component-branding"},
 		{id: runtimeComponentABI, module: "@exactjs/core/runtime/component-operations"},
 		{id: runtimeCompatibilityContributions, module: "@exactjs/core/framework/compatibility-contributions"},
 		{id: runtimeCompiledDOMRoot, module: "@exactjs/dom/framework/component-root"},
@@ -309,7 +327,10 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 	helpers := []runtimeImportHelper{
 		{componentReceiptImport, lowering.names.componentReceipt, componentReceiptGroup},
 		{"withCompiledComponentReceiptUpdate", lowering.names.componentReceiptUpdate, runtimeComponentABI},
+		{"withCompiledClientBoundaryIdentity", lowering.names.clientBoundaryIdentity, runtimeComponentABI},
 		{"createCompiledIntrinsicReceipt", lowering.names.intrinsicElement, runtimeComponentABI},
+		{"createDeferredServerIntrinsicReceipt", lowering.names.timeIntrinsicElement, runtimeComponentABI},
+		{"createDeferredServerIntrinsicSpreadReceipt", lowering.names.timeSpreadElement, runtimeComponentABI},
 		{"createCompiledTextHostReceipt", lowering.names.textHostElement, runtimeTextHost},
 		{"withIntrinsicComposition", lowering.names.intrinsicComposition, runtimeComponentABI},
 		{"createCompiledSuspenseReceipt", lowering.names.suspenseReceipt, runtimeComponentABI},
@@ -335,6 +356,8 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		{"serverComponentExecutionValueForHost", lowering.names.serverComponentOutput, runtimeServerComponentExecution},
 		{"issueServerComponentReceipt", lowering.names.issueServerComponent, runtimeServerComponentExecution},
 		{"createCompiledChildRangeReceipt", lowering.names.dynamic, runtimeRender},
+		{"createCompiledComponentSpreadRange", lowering.names.componentSpread, runtimeRender},
+		{"createDeferredServerChildRange", lowering.names.timeDynamic, preparedServerProgramGroup},
 		{"createCompiledDynamicComponent", lowering.names.dynamicComponent, runtimeDynamicComponents},
 		{"createServerDynamicComponent", lowering.names.serverDynamicComponent, runtimeDynamicComponents},
 		{"dynamicComponentValue", lowering.names.dynamicComponentValue, runtimeDynamicComponents},
@@ -388,6 +411,7 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		{"constructRenderComponentInstance", lowering.names.constructRenderComponent, runtimeRenderConstruction},
 		{"constructTaskComponentInstance", lowering.names.constructTaskComponent, runtimeTaskConstruction},
 		{"constructDurableComponentInstance", lowering.names.constructDurableComponent, runtimeDurableConstruction},
+		{"attachCompiledComponentContract", lowering.names.brandComponent, runtimeComponentBranding},
 		{"attachExactCompiledClientComponent", lowering.names.clientAttachComponent, runtimeComponentABI},
 		{"receiveExactClientComponentProps", lowering.names.clientReceiveProps, runtimeComponentABI},
 		{"disposeExactClientComponent", lowering.names.clientDisposeComponent, runtimeComponentABI},
@@ -451,6 +475,11 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		"registerTaskProgressReceiver",
 		"withAbortSignal",
 		"ownTaskResource",
+		"ownReleasableTaskResource",
+		"releaseTaskResource",
+		"createTaskArgumentDependencies",
+		"taskNativeCleanupScope",
+		"taskResourceReleaseMethod",
 		"taskAnimationFrame",
 		"taskFetch",
 		"taskIdleCallback",
@@ -459,9 +488,13 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		"taskTimeout",
 		"withTaskSignal",
 		"combineTaskSignal",
+		"combineExistingTaskSignal",
+		"withExistingTaskSignal",
+		"withExistingAbortSignal",
 		"taskAwait",
 		"taskMutation",
 		"stageTaskMutation",
+		"createTaskState",
 		"mutateTaskCollection",
 		"markComponentContinuationTask",
 		"dispatchComponentContinuation",
@@ -471,6 +504,7 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		"bindTaskForHost",
 		"invokeTask",
 		"activateTaskForHost",
+		"activateTaskOnceForHost",
 		"activateComputationForHost",
 		"bindCompiledClientLatestTaskForHost",
 		"activateCompiledClientLatestTaskForHost",
@@ -521,7 +555,7 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 	) || containsCoreContextComponentImport(
 		root,
 		lowering.sourceFile,
-		lowering.checker,
+		lowering.externalImports,
 	)
 	lifecycleUsed := containsComponentSurfaceUse(
 		root,
@@ -567,20 +601,20 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 	}
 	unsafeHTMLUsed := lowering.target != TargetServer && containsUnsafeHTMLCall(
 		lowering.sourceFile,
-		lowering.checker,
+		lowering.externalImports,
 	)
 	// Client-island publication and retained server ranges are opaque component-ABI
 	// operations. They do not select the DOM Activity/Suspense implementation.
 	structuralBoundariesUsed := lowering.target != TargetServer &&
-		containsCoreStructuralBoundaryImport(root, lowering.sourceFile, lowering.checker)
+		containsCoreStructuralBoundaryImport(root, lowering.sourceFile, lowering.externalImports)
 	serverStructuralBoundariesUsed := lowering.target == TargetServer &&
-		(containsCoreStructuralBoundaryImport(root, lowering.sourceFile, lowering.checker) ||
+		(containsCoreStructuralBoundaryImport(root, lowering.sourceFile, lowering.externalImports) ||
 			containsIdentifier(root, lowering.names.boundary))
 	serverResumptionBoundariesUsed := false
 	if lowering.target == TargetServer {
 		for _, component := range lowering.components {
 			if component.Placement == "isomorphic" &&
-				lowering.componentRetainsContinuation(component.ID) {
+				(lowering.componentRetainsContinuation(component.ID) || component.StandaloneClientActivation) {
 				serverResumptionBoundariesUsed = true
 				break
 			}
@@ -596,7 +630,7 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 	}
 	targetUsed := lowering.target != TargetServer &&
 		(containsIdentifier(root, lowering.names.target) || containsIdentifier(root, lowering.names.suppliedTarget) ||
-			containsCompiledTargetCall(lowering.sourceFile, lowering.checker))
+			containsCompiledTargetCall(lowering.sourceFile, lowering.externalImports))
 	collectionsUsed := false
 	for _, component := range lowering.components {
 		if component.Collections && !(lowering.target == TargetServer && component.TargetPlan.DirectServer) {
@@ -700,22 +734,11 @@ func containsComponentSurfaceUse(root *ast.Node, names ...string) bool {
 	return found
 }
 
-func partitionUsesStructuralBoundaries(plan PartitionPlan) bool {
-	for _, node := range plan.Nodes {
-		if node.Kind == "readiness-boundary" ||
-			(node.Kind == "region" && node.Reason == "Activity retention boundary") {
-			return true
-		}
-	}
-	return false
-}
-
 func containsCoreStructuralBoundaryImport(
 	root *ast.Node,
 	sourceFile *ast.SourceFile,
-	typeChecker *checker.Checker,
+	bindings externalImportBindings,
 ) bool {
-	bindings := collectExternalImportBindings(sourceFile, typeChecker)
 	for local, reference := range bindings.byName {
 		if reference.moduleSpecifier == "@exactjs/core" &&
 			(reference.exportName == "Activity" || reference.exportName == "Suspense") &&
@@ -728,7 +751,7 @@ func containsCoreStructuralBoundaryImport(
 		if !ast.IsPropertyAccessExpression(node) {
 			return true
 		}
-		reference, exists := externalImportForExpression(node, bindings, typeChecker)
+		reference, exists := externalImportForExpression(node, bindings, bindings.checker)
 		found = exists && reference.moduleSpecifier == "@exactjs/core" &&
 			(reference.exportName == "Activity" || reference.exportName == "Suspense")
 		return !found
@@ -739,9 +762,8 @@ func containsCoreStructuralBoundaryImport(
 func containsCoreContextComponentImport(
 	root *ast.Node,
 	sourceFile *ast.SourceFile,
-	typeChecker *checker.Checker,
+	bindings externalImportBindings,
 ) bool {
-	bindings := collectExternalImportBindings(sourceFile, typeChecker)
 	for local, reference := range bindings.byName {
 		if reference.moduleSpecifier == "@exactjs/core" &&
 			reference.exportName == "ErrorBoundary" &&
@@ -754,7 +776,7 @@ func containsCoreContextComponentImport(
 		if !ast.IsPropertyAccessExpression(node) {
 			return true
 		}
-		reference, exists := externalImportForExpression(node, bindings, typeChecker)
+		reference, exists := externalImportForExpression(node, bindings, bindings.checker)
 		found = exists && reference.moduleSpecifier == "@exactjs/core" &&
 			reference.exportName == "ErrorBoundary"
 		return !found
@@ -762,8 +784,7 @@ func containsCoreContextComponentImport(
 	return found
 }
 
-func containsCompiledTargetCall(sourceFile *ast.SourceFile, typeChecker *checker.Checker) bool {
-	bindings := collectExternalImportBindings(sourceFile, typeChecker)
+func containsCompiledTargetCall(sourceFile *ast.SourceFile, bindings externalImportBindings) bool {
 	for _, reference := range bindings.byName {
 		if isCompiledTargetIssuer(reference) {
 			return true
@@ -777,7 +798,7 @@ func containsCompiledTargetCall(sourceFile *ast.SourceFile, typeChecker *checker
 		reference, exists := externalImportForExpression(
 			node.AsCallExpression().Expression,
 			bindings,
-			typeChecker,
+			bindings.checker,
 		)
 		found = exists && isCompiledTargetIssuer(reference)
 		return !found
@@ -796,9 +817,8 @@ func isCompiledTargetIssuer(reference externalImportReference) bool {
 			reference.exportName == "createCompiledTarget")
 }
 
-func containsUnsafeHTMLCall(sourceFile *ast.SourceFile, typeChecker *checker.Checker) bool {
+func containsUnsafeHTMLCall(sourceFile *ast.SourceFile, bindings externalImportBindings) bool {
 	found := false
-	bindings := collectExternalImportBindings(sourceFile, typeChecker)
 	walkNode(sourceFile.AsNode(), func(node *ast.Node) bool {
 		if !ast.IsCallExpression(node) {
 			return true
@@ -806,7 +826,7 @@ func containsUnsafeHTMLCall(sourceFile *ast.SourceFile, typeChecker *checker.Che
 		reference, exists := externalImportForExpression(
 			node.AsCallExpression().Expression,
 			bindings,
-			typeChecker,
+			bindings.checker,
 		)
 		found = exists && reference.moduleSpecifier == "@exactjs/core" &&
 			reference.exportName == "unsafeHtml"
@@ -926,6 +946,9 @@ func allocateJSXRuntimeNames(sourceFile *ast.SourceFile) jsxRuntimeNames {
 	return jsxRuntimeNames{
 		componentReceipt:          allocate("__exactComponentReceipt"),
 		componentReceiptUpdate:    allocate("__exactComponentReceiptUpdate"),
+		clientBoundaryIdentity:    allocate("__exactClientBoundaryIdentity"),
+		timeIntrinsicElement:      allocate("__exactTimeIntrinsicReceipt"),
+		timeSpreadElement:         allocate("__exactTimeSpreadIntrinsicReceipt"),
 		intrinsicElement:          allocate("__exactIntrinsicReceipt"),
 		textHostElement:           allocate("__exactTextHostReceipt"),
 		intrinsicComposition:      allocate("__exactComposableIntrinsic"),
@@ -977,7 +1000,10 @@ func allocateJSXRuntimeNames(sourceFile *ast.SourceFile) jsxRuntimeNames {
 		componentOutput:           allocate("__exactComponentOutput"),
 		serverComponentOutput:     allocate("__exactServerComponentOutput"),
 		issueServerComponent:      allocate("__exactIssueServerComponent"),
+		timePropertyReaders:       allocate("__exactTimePropertyReaders"),
+		timeDynamic:               allocate("__exactTimeDynamic"),
 		dynamic:                   allocate("__exactDynamic"),
+		componentSpread:           allocate("__exactComponentSpread"),
 		dynamicComponent:          allocate("__exactDynamicComponent"),
 		serverDynamicComponent:    allocate("__exactServerDynamicComponent"),
 		dynamicComponentValue:     allocate("__exactDynamicComponentValue"),
@@ -1008,6 +1034,14 @@ func allocateJSXRuntimeNames(sourceFile *ast.SourceFile) jsxRuntimeNames {
 		taskObserver:              allocate("__exactTaskObserver"),
 		taskFetch:                 allocate("__exactTaskFetch"),
 		taskResource:              allocate("__exactTaskResource"),
+		taskReleasableResource:    allocate("__exactTaskReleasableResource"),
+		taskResourceRelease:       allocate("__exactTaskResourceRelease"),
+		taskArgumentDependencies:  allocate("__exactTaskArgumentDependencies"),
+		taskNativeCleanup:         allocate("__exactTaskNativeCleanup"),
+		taskResourceReleaseMethod: allocate("__exactTaskResourceReleaseMethod"),
+		cleanupAbortOptions:       allocate("__exactCleanupAbortOptions"),
+		cleanupTaskOptions:        allocate("__exactCleanupTaskOptions"),
+		cleanupTaskCombined:       allocate("__exactCleanupTaskCombined"),
 		taskOptions:               allocate("__exactTaskOptionsSignal"),
 		taskCombined:              allocate("__exactTaskCombinedSignal"),
 		taskAwait:                 allocate("__exactTaskAwait"),
@@ -1015,6 +1049,7 @@ func allocateJSXRuntimeNames(sourceFile *ast.SourceFile) jsxRuntimeNames {
 		serverTaskTimeout:         allocate("__exactServerTaskTimeout"),
 		taskMutation:              allocate("__exactTaskMutation"),
 		stageTaskMutation:         allocate("__exactStageTaskMutation"),
+		createTaskState:           allocate("__exactCreateTaskState"),
 		taskCollectionMutation:    allocate("__exactTaskCollectionMutation"),
 		taskContinuation:          allocate("__exactContinuationTask"),
 		dispatchContinuation:      allocate("__exactDispatchContinuation"),
@@ -1024,6 +1059,7 @@ func allocateJSXRuntimeNames(sourceFile *ast.SourceFile) jsxRuntimeNames {
 		bindTask:                  allocate("__exactBindTask"),
 		invokeTask:                allocate("__exactInvokeTask"),
 		activateTask:              allocate("__exactActivateTask"),
+		activateTaskOnce:          allocate("__exactActivateTaskOnce"),
 		activateComputation:       allocate("__exactActivateComputation"),
 		progressReporter:          allocate("__exactProgressReporter"),
 		progressReceiver:          allocate("__exactProgressReceiver"),
@@ -1063,6 +1099,7 @@ func allocateJSXRuntimeNames(sourceFile *ast.SourceFile) jsxRuntimeNames {
 		constructRenderComponent:  allocate("__exactConstructRenderComponent"),
 		constructTaskComponent:    allocate("__exactConstructTaskComponent"),
 		constructDurableComponent: allocate("__exactConstructDurableComponent"),
+		brandComponent:            allocate("__exactBrandIsland"),
 		clientAttachComponent:     allocate("__exactAttachClientComponent"),
 		clientReceiveProps:        allocate("__exactReceiveClientProps"),
 		clientDisposeComponent:    allocate("__exactDisposeClientComponent"),

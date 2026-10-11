@@ -31,11 +31,11 @@ import { requireStructuralBoundaryCapability } from '../structural-capability.js
 import { requireUnsafeHtmlDomCapability } from '../unsafe-html-capability.js';
 import { adoptServerSlotReceipt } from '../../server-slots.js';
 import { scalarText } from '../scalar-child.js';
-import { bindText } from '../patching/text-binding.js';
 import { adoptCompiledRenderProgram } from '../render-program.js';
 import { countDomWork, withTreeDepth } from '../limits.js';
 import { domEnhancementCapability } from '../enhancement-capability.js';
 import { snapshotChildNodes } from './child-nodes.js';
+import { adoptScalarTextChildren } from './scalar-text-run.js';
 
 /** Finds the first direct-child exact marker and its matching closing comment, without mutating DOM. */
 export function boundaryMarkers(container: Element): { start: Comment; end: Comment } | undefined {
@@ -48,20 +48,7 @@ export function boundaryMarkers(container: Element): { start: Comment; end: Comm
 	return end ? { start, end } : undefined;
 }
 
-/** Collects following siblings up to the closing anchor, excluding both anchors. */
-export function contentNodesBetween(start: Node, end: Node): Node[] {
-	const nodes: Node[] = [];
-	for (let current = start.nextSibling; current && current !== end; current = current.nextSibling)
-		nodes.push(current);
-	return nodes;
-}
-
-/** Creates an empty anchor; document parents require a comment because text children are invalid. */
-export function createRangeAnchor(parent: Node): Node {
-	return parent.nodeType === Node.DOCUMENT_NODE
-		? document.createComment('exact:component-range')
-		: document.createTextNode('');
-}
+export { contentNodesBetween, createRangeAnchor } from './child-nodes.js';
 
 export { collectAuthoredChildren, type FrameworkChildRange } from './framework-ranges.js';
 
@@ -73,7 +60,8 @@ export function adoptStaticChildren(
 	parentInstance: AnyComponentInstance | undefined,
 	parentScope: EffectScope,
 	start = 0,
-	end = nodes.length
+	end = nodes.length,
+	physicalParent?: Node
 ): Mounted[] | undefined {
 	return adoptStaticChildrenRange(
 		root,
@@ -83,7 +71,8 @@ export function adoptStaticChildren(
 		parentScope,
 		true,
 		start,
-		end
+		end,
+		physicalParent
 	)?.mounts;
 }
 
@@ -148,11 +137,13 @@ export function adoptStaticChildrenRange(
 	parentScope: EffectScope,
 	requireAll: boolean,
 	start = 0,
-	end = nodes.length
+	end = nodes.length,
+	physicalParent?: Node
 ): { mounts: Mounted[]; next: number } | undefined {
 	const mounts: Mounted[] = [];
 	let cursor = start;
-	for (const child of children) {
+	for (let childIndex = 0; childIndex < children.length; childIndex++) {
+		const child = children[childIndex]!;
 		if (isDocumentOutput(child) || readDoctype(child)) continue;
 		if (child === null || child === undefined || child === false || child === true) continue;
 		// Parsed HTML has no node for a literal empty string. A surrounding dynamic range
@@ -262,22 +253,22 @@ export function adoptStaticChildrenRange(
 		const renderProgramReceipt = readRenderProgramReceipt(child);
 		const scalar = scalarText(child);
 		if (scalar !== undefined) {
-			const node = nodes[cursor];
-			if (node?.nodeType !== Node.TEXT_NODE || node.textContent !== scalar) {
+			const adopted = adoptScalarTextChildren(
+				children,
+				childIndex,
+				nodes,
+				cursor,
+				parentScope,
+				scalar,
+				physicalParent
+			);
+			if (!adopted) {
 				unmountMany(mounts);
 				return undefined;
 			}
-			const scope = createEffectScope(parentScope);
-			const mounted: Mounted = {
-				scalar: true,
-				scalarValue: scalar,
-				dom: node,
-				scope,
-				children: []
-			};
-			bindText(mounted, child);
-			mounts.push(mounted);
-			cursor++;
+			mounts.push(...adopted.mounts);
+			childIndex = adopted.nextChild - 1;
+			cursor = adopted.next;
 			continue;
 		}
 		const result = serverSlotReceipt
@@ -368,7 +359,16 @@ export function adoptStaticChildrenRange(
 														parentInstance,
 														createEffectScope(parentScope),
 														end,
-														(values, childNodes, owner, scope, childCursor, childEnd) =>
+														(
+															values,
+															childNodes,
+															owner,
+															scope,
+															childCursor,
+															childEnd,
+															_compilerOwned,
+															host
+														) =>
 															adoptStaticChildren(
 																root,
 																[...values],
@@ -376,7 +376,8 @@ export function adoptStaticChildrenRange(
 																owner,
 																scope,
 																childCursor,
-																childEnd
+																childEnd,
+																host
 															)
 													);
 												})

@@ -1,4 +1,8 @@
-import { createKeyedServerSlot, createServerBoundary } from '@exactjs/core/runtime/render';
+import {
+	createKeyedServerSlot,
+	createServerBoundary,
+	createServerSlot
+} from '@exactjs/core/runtime/render';
 import {
 	exactResponseToFetchResponse,
 	defineExactBoundaryContract,
@@ -18,6 +22,29 @@ import {
 import { createOperation } from './test-support/native-operations.js';
 
 describe('@exactjs/ssr boundaries', () => {
+	it('retains a compiler-issued legacy server range without partition authority', async () => {
+		const slot = createServerSlot('retained:children', {}, createOperation('div', {}, 'Retained'));
+		const result = await renderToString(slot);
+		expect(result.html).toContain('data-exact-server-slot="retained:children"');
+		expect(result.html).toContain('<div>Retained</div>');
+	});
+
+	it.each([
+		{ planVersion: 1 },
+		{ planVersion: null },
+		{ buildKey: 'incomplete' },
+		{ planEdgeId: 'incomplete' },
+		{ ownerComponentId: 'incomplete' },
+		{ discriminator: { kind: 'single' } },
+		{ generation: 0 }
+	])('rejects partial authority on a retained range: %j', async (authority) => {
+		await expect(
+			renderToString(
+				createServerSlot('retained:children', authority, createOperation('div', {}, 'Invalid'))
+			)
+		).rejects.toThrow('malformed runtime authority');
+	});
+
 	it('keeps callback captures local when a client owner adopts the fallback', async () => {
 		const boundary = createServerBoundary('local-control', 'ReportControl', {
 			__exactCapture: { props: { inputs: { edit: () => undefined } } },

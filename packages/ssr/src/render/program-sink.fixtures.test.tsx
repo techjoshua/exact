@@ -69,7 +69,8 @@ export function SinkFragments() {
 	);
 }
 
-function SynchronousBody(this: Component<{ value: string }>) {
+/** A local lifecycle publication whose output can be adopted by an existing client owner. */
+export function SynchronousBody(this: Component<{ value: string }>) {
 	starts++;
 	this.state.value = 'Ready';
 	this.onUnmount(() => {

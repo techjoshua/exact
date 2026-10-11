@@ -119,7 +119,22 @@ func (lowering *jsxLowering) identifierMatchesBinding(
 	return false
 }
 
-func (lowering *jsxLowering) lowerStateWrite(
+// lowerStateWrite retains authored result typing at every task and ordinary mutation entry.
+func (lowering *jsxLowering) lowerStateWrite(node *ast.Node, write StateWrite) *ast.Node {
+	if containsEagerAwait(node) {
+		if suspended := lowering.lowerSuspendedStateWrite(node, write, nil, false, nil); suspended != nil {
+			return suspended
+		}
+	}
+	source := lowering.mutationSource(write.Start, write.Length)
+	result := lowering.lowerStateWriteOperation(node, write)
+	if result != nil && source != nil {
+		return lowering.typedMutationResult(source, result)
+	}
+	return result
+}
+
+func (lowering *jsxLowering) lowerStateWriteOperation(
 	node *ast.Node,
 	write StateWrite,
 ) *ast.Node {
@@ -137,8 +152,9 @@ func (lowering *jsxLowering) lowerStateWrite(
 				return lowering.lowerTask(taskNode, task)
 			}
 		}
-		value := lowering.visitor.VisitNode(expression.Right)
+		value := lowering.mutationArgument(expression.Right)
 		if expression.OperatorToken.Kind == ast.KindEqualsToken {
+			value = lowering.contextualAssignmentValue(value, write)
 			name, reference := lowering.stateWriteReference(node, write, lowering.names.write, lowering.names.writeState)
 			argument := lowering.arrow(value)
 			if name == lowering.names.writeState {
@@ -184,24 +200,24 @@ func (lowering *jsxLowering) lowerStateWrite(
 			},
 		)
 	case "array-mutation":
-		if !ast.IsCallExpression(node) ||
-			!ast.IsPropertyAccessExpression(node.AsCallExpression().Expression) {
+		if !ast.IsCallExpression(node) {
 			return nil
 		}
 		call := node.AsCallExpression()
-		method := call.Expression.AsPropertyAccessExpression().Name().Text()
+		method := lowering.stateMutationMethod(call.Expression)
+		root, path := lowering.stateCollectionWriteReference(write)
 		arguments := []*ast.Node{}
 		if call.Arguments != nil {
 			for _, argument := range call.Arguments.Nodes {
-				arguments = append(arguments, lowering.visitor.VisitNode(argument))
+				arguments = append(arguments, lowering.mutationArgument(argument))
 			}
 		}
 		return lowering.call(
 			lowering.names.arrayMutation,
 			[]*ast.Node{
-				lowering.stateWriteRoot(write),
-				lowering.stateWritePathNode(write),
-				lowering.factory.NewStringLiteral(method, ast.TokenFlagsNone),
+				root,
+				path,
+				method,
 				lowering.arrow(
 					lowering.factory.NewArrayLiteralExpression(
 						lowering.factory.NewNodeList(arguments),
@@ -211,16 +227,16 @@ func (lowering *jsxLowering) lowerStateWrite(
 			},
 		)
 	case "map-mutation", "set-mutation":
-		if !ast.IsCallExpression(node) ||
-			!ast.IsPropertyAccessExpression(node.AsCallExpression().Expression) {
+		if !ast.IsCallExpression(node) {
 			return nil
 		}
 		call := node.AsCallExpression()
-		method := call.Expression.AsPropertyAccessExpression().Name().Text()
+		method := lowering.stateMutationMethod(call.Expression)
+		root, path := lowering.stateCollectionWriteReference(write)
 		arguments := []*ast.Node{}
 		if call.Arguments != nil {
 			for _, argument := range call.Arguments.Nodes {
-				arguments = append(arguments, lowering.visitor.VisitNode(argument))
+				arguments = append(arguments, lowering.mutationArgument(argument))
 			}
 		}
 		kind := "map"
@@ -230,10 +246,10 @@ func (lowering *jsxLowering) lowerStateWrite(
 		return lowering.call(
 			lowering.names.collectionMutation,
 			[]*ast.Node{
-				lowering.stateWriteRoot(write),
-				lowering.stateWritePathNode(write),
+				root,
+				path,
 				lowering.factory.NewStringLiteral(kind, ast.TokenFlagsNone),
-				lowering.factory.NewStringLiteral(method, ast.TokenFlagsNone),
+				method,
 				lowering.arrow(
 					lowering.factory.NewArrayLiteralExpression(
 						lowering.factory.NewNodeList(arguments),
@@ -405,26 +421,59 @@ func (lowering *jsxLowering) stateWriteRoot(write StateWrite) *ast.Node {
 	if write.RootAlias == "" {
 		return lowering.stateRoot()
 	}
-	alias := lowering.factory.NewIdentifier(write.RootAlias)
+	var alias *ast.Node = lowering.factory.NewIdentifier(write.RootAlias)
+	// A captured component receiver owns the facade, rather than being the facade.
+	if write.RootComponent {
+		alias = lowering.factory.NewPropertyAccessExpression(alias, nil, lowering.factory.NewIdentifier("state"), ast.NodeFlagsNone)
+	}
 	for _, binding := range lowering.derived {
 		if binding.Component == write.Component && binding.Name == write.RootAlias {
-			return lowering.derivedGet(alias)
+			value := lowering.derivedGet(alias)
+			// Executor capture substitutes the authored receiver after mutation lowering.
+			// Retain its span on the generated cell read so state aliases cross that boundary.
+			if source := lowering.firstMutationSource(write.Start, write.Length); source != nil {
+				found := false
+				walkNode(source, func(node *ast.Node) bool {
+					if ast.IsIdentifier(node) && node.Text() == write.RootAlias && !isStaticPropertyName(node) {
+						value.Loc = node.Loc
+						found = true
+						return false
+					}
+					return !found
+				})
+			}
+			return value
 		}
 	}
 	return alias
 }
 
 func (lowering *jsxLowering) stateWritePath(write StateWrite) []string {
-	if write.RootAlias == "" || write.RootDepth >= len(write.Path) {
+	if write.RootAlias == "" || write.RootDepth > len(write.Path) {
 		return write.Path
 	}
 	return write.Path[write.RootDepth:]
 }
 
+// stateCollectionWriteReference preserves an alias that is itself the collection.
+// Existing mutation helpers resolve a member path, so the temporary holder keeps
+// that contract without fabricating a component-state path or copying the receiver.
+func (lowering *jsxLowering) stateCollectionWriteReference(write StateWrite) (*ast.Node, *ast.Node) {
+	root := lowering.stateWriteRoot(write)
+	if write.RootAlias == "" || len(lowering.stateWritePath(write)) != 0 {
+		return root, lowering.stateWritePathNode(write)
+	}
+	return lowering.factory.NewObjectLiteralExpression(lowering.factory.NewNodeList([]*ast.Node{
+			lowering.factory.NewPropertyAssignment(nil, lowering.factory.NewIdentifier("value"), nil, nil, root),
+		}), false), lowering.factory.NewArrayLiteralExpression(lowering.factory.NewNodeList([]*ast.Node{
+			lowering.factory.NewStringLiteral("value", ast.TokenFlagsNone),
+		}), false)
+}
+
 func (lowering *jsxLowering) stateWritePathNode(write StateWrite) *ast.Node {
 	path := lowering.stateWritePath(write)
 	offset := 0
-	if write.RootAlias != "" && write.RootDepth < len(write.Path) {
+	if write.RootAlias != "" && write.RootDepth <= len(write.Path) {
 		offset = write.RootDepth
 	}
 	segments := make([]*ast.Node, 0, len(path))
@@ -486,4 +535,17 @@ func indexStateWrites(writes []StateWrite) map[string]StateWrite {
 		result[fmt.Sprintf("%d:%d", write.Start, write.Length)] = write
 	}
 	return result
+}
+
+// stateMutationMethod preserves authored computed-key evaluation before mutation arguments.
+// Classification has already established one native member identity from its literal type.
+func (lowering *jsxLowering) stateMutationMethod(expression *ast.Node) *ast.Node {
+	expression = unwrapSourceCallableReference(expression)
+	if ast.IsPropertyAccessExpression(expression) {
+		return lowering.factory.NewStringLiteral(expression.AsPropertyAccessExpression().Name().Text(), ast.TokenFlagsNone)
+	}
+	if ast.IsElementAccessExpression(expression) {
+		return lowering.visitor.VisitNode(expression.AsElementAccessExpression().ArgumentExpression)
+	}
+	return nil
 }

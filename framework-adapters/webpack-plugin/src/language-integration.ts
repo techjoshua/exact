@@ -17,7 +17,7 @@ export type ExactWebpackConfigurationDependency = Readonly<{ filename: string; m
 export type ExactWebpackLanguageIntegration = Readonly<{
 	validation(): Promise<ExactLanguageValidationSession>;
 	packageEnhancements(): Promise<readonly ExactPackageEnhancementImport[]>;
-	watchFiles(): Promise<readonly ExactWebpackConfigurationDependency[]>;
+	watchFiles(filename?: string): Promise<readonly ExactWebpackConfigurationDependency[]>;
 	invalidate(filename: string): void;
 	dispose(): Promise<void>;
 }>;
@@ -51,8 +51,9 @@ export function createExactWebpackLanguageIntegration(
 				});
 			})),
 		packageEnhancements: async () => (await config()).packageEnhancements,
-		watchFiles: () =>
-			(dependencies ??= Promise.all([config(), configuration.watchFiles()]).then(
+		watchFiles: (filename?: string) => {
+			if (filename && configuration.observeSource(filename).length) dependencies = undefined;
+			return (dependencies ??= Promise.all([config(), configuration.watchFiles()]).then(
 				([loaded, files]) => {
 					// A file consumed by this generation remains an existing dependency even
 					// if it disappears during compilation. Webpack must observe that removal.
@@ -61,7 +62,8 @@ export function createExactWebpackLanguageIntegration(
 						missing: !loaded.watchFiles.includes(filename) && !existsSync(filename)
 					}));
 				}
-			)),
+			));
+		},
 		invalidate(filename) {
 			if (configuration.invalidate(filename)) {
 				dependencies = undefined;

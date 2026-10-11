@@ -37,6 +37,8 @@ export type PuzzleStyle = {
 	monochromeSolution: boolean;
 	crosswordGrid: string;
 	crosswordBlocks: string;
+	/** Enclosed unused cells default to black when no separate color is supplied. */
+	crosswordEnclosedBlocks?: string;
 	sudokuSolutionFont: PuzzleFont | 'inherit';
 	sudokuSolutionBold: boolean;
 };

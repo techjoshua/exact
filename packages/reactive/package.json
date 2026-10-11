@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/reactive",
-	"version": "0.7.0",
+	"version": "0.7.1",
 	"type": "module",
 	"sideEffects": false,
 	"files": [
@@ -50,6 +50,10 @@
 		"./framework/settlement": {
 			"types": "./dist/framework/settlement.d.ts",
 			"default": "./dist/framework/settlement.js"
+		},
+		"./framework/transactions": {
+			"types": "./dist/framework/transactions.d.ts",
+			"default": "./dist/framework/transactions.js"
 		}
 	},
 	"main": "./dist/index.js",

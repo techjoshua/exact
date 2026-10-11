@@ -1,3 +1,283 @@
 {
-	"exceptions": []
+	"exceptions": [
+		{
+			"package": "@istanbuljs/load-nyc-config",
+			"maximumSeverity": "moderate",
+			"expires": "2026-11-10",
+			"reason": "No published sprintf-js fix. The dependency is argparse and Jest tooling, whose format strings are tooling-owned rather than remote inputs.",
+			"advisories": ["https://github.com/advisories/GHSA-hp3w-g68c-fv3c"]
+		},
+		{
+			"package": "@jest/core",
+			"maximumSeverity": "moderate",
+			"expires": "2026-11-10",
+			"reason": "No published sprintf-js fix. The dependency is argparse and Jest tooling, whose format strings are tooling-owned rather than remote inputs.",
+			"advisories": ["https://github.com/advisories/GHSA-hp3w-g68c-fv3c"]
+		},
+		{
+			"package": "@jest/expect",
+			"maximumSeverity": "moderate",
+			"expires": "2026-11-10",
+			"reason": "No published sprintf-js fix. The dependency is argparse and Jest tooling, whose format strings are tooling-owned rather than remote inputs.",
+			"advisories": ["https://github.com/advisories/GHSA-hp3w-g68c-fv3c"]
+		},
+		{
+			"package": "@jest/globals",
+			"maximumSeverity": "moderate",
+			"expires": "2026-11-10",
+			"reason": "No published sprintf-js fix. The dependency is argparse and Jest tooling, whose format strings are tooling-owned rather than remote inputs.",
+			"advisories": ["https://github.com/advisories/GHSA-hp3w-g68c-fv3c"]
+		},
+		{
+			"package": "@jest/reporters",
+			"maximumSeverity": "moderate",
+			"expires": "2026-11-10",
+			"reason": "No published sprintf-js fix. The dependency is argparse and Jest tooling, whose format strings are tooling-owned rather than remote inputs.",
+			"advisories": ["https://github.com/advisories/GHSA-hp3w-g68c-fv3c"]
+		},
+		{
+			"package": "@jest/transform",
+			"maximumSeverity": "moderate",
+			"expires": "2026-11-10",
+			"reason": "No published sprintf-js fix. The dependency is argparse and Jest tooling, whose format strings are tooling-owned rather than remote inputs.",
+			"advisories": ["https://github.com/advisories/GHSA-hp3w-g68c-fv3c"]
+		},
+		{
+			"package": "@nuxt/cli",
+			"maximumSeverity": "high",
+			"expires": "2026-11-10",
+			"reason": "No published node-forge fix. The dependency is listhen certificate tooling. Repository comparison servers use HTTP and do not verify untrusted RSA signatures through this path.",
+			"advisories": ["https://github.com/advisories/GHSA-86w9-cpqp-85rv"]
+		},
+		{
+			"package": "@nuxt/devtools",
+			"maximumSeverity": "critical",
+			"expires": "2026-11-10",
+			"reason": "Inherited from the incompatible simple-git upgrade required by disabled Nuxt DevTools. This comparison application does not invoke Git with untrusted editor environment variables. Nuxt DevTools is disabled in the comparison application. Patched simple-git 4 removes the default export consumed by DevTools 3.4.1. Upgrade when upstream supports the patched API. No remote Git configuration or repositories are accepted by this application.",
+			"advisories": [
+				"https://github.com/advisories/GHSA-858h-whjf-mvg5",
+				"https://github.com/advisories/GHSA-g4wm-2vf7-vfgr",
+				"https://github.com/advisories/GHSA-v5rq-49vh-5v5c",
+				"https://github.com/advisories/GHSA-x6jw-m9v5-85vh"
+			]
+		},
+		{
+			"package": "@nuxt/nitro-server",
+			"maximumSeverity": "critical",
+			"expires": "2026-11-10",
+			"reason": "Inherited from the incompatible simple-git upgrade required by disabled Nuxt DevTools. This comparison application does not invoke Git with untrusted editor environment variables. No published braces fix. Glob patterns belong to trusted build and lint configuration. Do not process untrusted patterns. No published node-forge fix. The dependency is listhen certificate tooling. Repository comparison servers use HTTP and do not verify untrusted RSA signatures through this path. Nuxt DevTools is disabled in the comparison application. Patched simple-git 4 removes the default export consumed by DevTools 3.4.1. Upgrade when upstream supports the patched API. No remote Git configuration or repositories are accepted by this application.",
+			"advisories": [
+				"https://github.com/advisories/GHSA-858h-whjf-mvg5",
+				"https://github.com/advisories/GHSA-86w9-cpqp-85rv",
+				"https://github.com/advisories/GHSA-g4wm-2vf7-vfgr",
+				"https://github.com/advisories/GHSA-v5rq-49vh-5v5c",
+				"https://github.com/advisories/GHSA-vfj7-8cjw-p6xm",
+				"https://github.com/advisories/GHSA-x6jw-m9v5-85vh"
+			]
+		},
+		{
+			"package": "@nuxt/vite-builder",
+			"maximumSeverity": "critical",
+			"expires": "2026-11-10",
+			"reason": "Inherited from the incompatible simple-git upgrade required by disabled Nuxt DevTools. This comparison application does not invoke Git with untrusted editor environment variables. No published braces fix. Glob patterns belong to trusted build and lint configuration. Do not process untrusted patterns. No published node-forge fix. The dependency is listhen certificate tooling. Repository comparison servers use HTTP and do not verify untrusted RSA signatures through this path. Nuxt DevTools is disabled in the comparison application. Patched simple-git 4 removes the default export consumed by DevTools 3.4.1. Upgrade when upstream supports the patched API. No remote Git configuration or repositories are accepted by this application.",
+			"advisories": [
+				"https://github.com/advisories/GHSA-858h-whjf-mvg5",
+				"https://github.com/advisories/GHSA-86w9-cpqp-85rv",
+				"https://github.com/advisories/GHSA-g4wm-2vf7-vfgr",
+				"https://github.com/advisories/GHSA-v5rq-49vh-5v5c",
+				"https://github.com/advisories/GHSA-vfj7-8cjw-p6xm",
+				"https://github.com/advisories/GHSA-x6jw-m9v5-85vh"
+			]
+		},
+		{
+			"package": "@simple-git/argv-parser",
+			"maximumSeverity": "critical",
+			"expires": "2026-11-10",
+			"reason": "Inherited from the incompatible simple-git upgrade required by disabled Nuxt DevTools. This comparison application does not invoke Git with untrusted editor environment variables.",
+			"advisories": ["https://github.com/advisories/GHSA-v5rq-49vh-5v5c"]
+		},
+		{
+			"package": "@vscode/vsce",
+			"maximumSeverity": "high",
+			"expires": "2026-11-10",
+			"reason": "No published braces fix. Glob patterns belong to trusted build and lint configuration. Do not process untrusted patterns.",
+			"advisories": ["https://github.com/advisories/GHSA-vfj7-8cjw-p6xm"]
+		},
+		{
+			"package": "argparse",
+			"maximumSeverity": "moderate",
+			"expires": "2026-11-10",
+			"reason": "No published sprintf-js fix. The dependency is argparse and Jest tooling, whose format strings are tooling-owned rather than remote inputs.",
+			"advisories": ["https://github.com/advisories/GHSA-hp3w-g68c-fv3c"]
+		},
+		{
+			"package": "babel-jest",
+			"maximumSeverity": "moderate",
+			"expires": "2026-11-10",
+			"reason": "No published sprintf-js fix. The dependency is argparse and Jest tooling, whose format strings are tooling-owned rather than remote inputs.",
+			"advisories": ["https://github.com/advisories/GHSA-hp3w-g68c-fv3c"]
+		},
+		{
+			"package": "babel-plugin-istanbul",
+			"maximumSeverity": "moderate",
+			"expires": "2026-11-10",
+			"reason": "No published sprintf-js fix. The dependency is argparse and Jest tooling, whose format strings are tooling-owned rather than remote inputs.",
+			"advisories": ["https://github.com/advisories/GHSA-hp3w-g68c-fv3c"]
+		},
+		{
+			"package": "braces",
+			"maximumSeverity": "high",
+			"expires": "2026-11-10",
+			"reason": "No published braces fix. Glob patterns belong to trusted build and lint configuration. Do not process untrusted patterns.",
+			"advisories": ["https://github.com/advisories/GHSA-vfj7-8cjw-p6xm"]
+		},
+		{
+			"package": "fast-glob",
+			"maximumSeverity": "high",
+			"expires": "2026-11-10",
+			"reason": "No published braces fix. Glob patterns belong to trusted build and lint configuration. Do not process untrusted patterns.",
+			"advisories": ["https://github.com/advisories/GHSA-vfj7-8cjw-p6xm"]
+		},
+		{
+			"package": "globby",
+			"maximumSeverity": "high",
+			"expires": "2026-11-10",
+			"reason": "No published braces fix. Glob patterns belong to trusted build and lint configuration. Do not process untrusted patterns.",
+			"advisories": ["https://github.com/advisories/GHSA-vfj7-8cjw-p6xm"]
+		},
+		{
+			"package": "jest",
+			"maximumSeverity": "moderate",
+			"expires": "2026-11-10",
+			"reason": "No published sprintf-js fix. The dependency is argparse and Jest tooling, whose format strings are tooling-owned rather than remote inputs.",
+			"advisories": ["https://github.com/advisories/GHSA-hp3w-g68c-fv3c"]
+		},
+		{
+			"package": "jest-circus",
+			"maximumSeverity": "moderate",
+			"expires": "2026-11-10",
+			"reason": "No published sprintf-js fix. The dependency is argparse and Jest tooling, whose format strings are tooling-owned rather than remote inputs.",
+			"advisories": ["https://github.com/advisories/GHSA-hp3w-g68c-fv3c"]
+		},
+		{
+			"package": "jest-cli",
+			"maximumSeverity": "moderate",
+			"expires": "2026-11-10",
+			"reason": "No published sprintf-js fix. The dependency is argparse and Jest tooling, whose format strings are tooling-owned rather than remote inputs.",
+			"advisories": ["https://github.com/advisories/GHSA-hp3w-g68c-fv3c"]
+		},
+		{
+			"package": "jest-config",
+			"maximumSeverity": "moderate",
+			"expires": "2026-11-10",
+			"reason": "No published sprintf-js fix. The dependency is argparse and Jest tooling, whose format strings are tooling-owned rather than remote inputs.",
+			"advisories": ["https://github.com/advisories/GHSA-hp3w-g68c-fv3c"]
+		},
+		{
+			"package": "jest-resolve-dependencies",
+			"maximumSeverity": "moderate",
+			"expires": "2026-11-10",
+			"reason": "No published sprintf-js fix. The dependency is argparse and Jest tooling, whose format strings are tooling-owned rather than remote inputs.",
+			"advisories": ["https://github.com/advisories/GHSA-hp3w-g68c-fv3c"]
+		},
+		{
+			"package": "jest-runner",
+			"maximumSeverity": "moderate",
+			"expires": "2026-11-10",
+			"reason": "No published sprintf-js fix. The dependency is argparse and Jest tooling, whose format strings are tooling-owned rather than remote inputs.",
+			"advisories": ["https://github.com/advisories/GHSA-hp3w-g68c-fv3c"]
+		},
+		{
+			"package": "jest-runtime",
+			"maximumSeverity": "moderate",
+			"expires": "2026-11-10",
+			"reason": "No published sprintf-js fix. The dependency is argparse and Jest tooling, whose format strings are tooling-owned rather than remote inputs.",
+			"advisories": ["https://github.com/advisories/GHSA-hp3w-g68c-fv3c"]
+		},
+		{
+			"package": "jest-snapshot",
+			"maximumSeverity": "moderate",
+			"expires": "2026-11-10",
+			"reason": "No published sprintf-js fix. The dependency is argparse and Jest tooling, whose format strings are tooling-owned rather than remote inputs.",
+			"advisories": ["https://github.com/advisories/GHSA-hp3w-g68c-fv3c"]
+		},
+		{
+			"package": "js-yaml",
+			"maximumSeverity": "moderate",
+			"expires": "2026-11-10",
+			"reason": "No published sprintf-js fix. The dependency is argparse and Jest tooling, whose format strings are tooling-owned rather than remote inputs.",
+			"advisories": ["https://github.com/advisories/GHSA-hp3w-g68c-fv3c"]
+		},
+		{
+			"package": "listhen",
+			"maximumSeverity": "high",
+			"expires": "2026-11-10",
+			"reason": "No published node-forge fix. The dependency is listhen certificate tooling. Repository comparison servers use HTTP and do not verify untrusted RSA signatures through this path.",
+			"advisories": ["https://github.com/advisories/GHSA-86w9-cpqp-85rv"]
+		},
+		{
+			"package": "micromatch",
+			"maximumSeverity": "high",
+			"expires": "2026-11-10",
+			"reason": "No published braces fix. Glob patterns belong to trusted build and lint configuration. Do not process untrusted patterns.",
+			"advisories": ["https://github.com/advisories/GHSA-vfj7-8cjw-p6xm"]
+		},
+		{
+			"package": "nitropack",
+			"maximumSeverity": "high",
+			"expires": "2026-11-10",
+			"reason": "No published braces fix. Glob patterns belong to trusted build and lint configuration. Do not process untrusted patterns. No published node-forge fix. The dependency is listhen certificate tooling. Repository comparison servers use HTTP and do not verify untrusted RSA signatures through this path.",
+			"advisories": [
+				"https://github.com/advisories/GHSA-86w9-cpqp-85rv",
+				"https://github.com/advisories/GHSA-vfj7-8cjw-p6xm"
+			]
+		},
+		{
+			"package": "node-forge",
+			"maximumSeverity": "high",
+			"expires": "2026-11-10",
+			"reason": "No published node-forge fix. The dependency is listhen certificate tooling. Repository comparison servers use HTTP and do not verify untrusted RSA signatures through this path.",
+			"advisories": ["https://github.com/advisories/GHSA-86w9-cpqp-85rv"]
+		},
+		{
+			"package": "nuxt",
+			"maximumSeverity": "critical",
+			"expires": "2026-11-10",
+			"reason": "Inherited from the incompatible simple-git upgrade required by disabled Nuxt DevTools. This comparison application does not invoke Git with untrusted editor environment variables. No published braces fix. Glob patterns belong to trusted build and lint configuration. Do not process untrusted patterns. No published node-forge fix. The dependency is listhen certificate tooling. Repository comparison servers use HTTP and do not verify untrusted RSA signatures through this path. Nuxt DevTools is disabled in the comparison application. Patched simple-git 4 removes the default export consumed by DevTools 3.4.1. Upgrade when upstream supports the patched API. No remote Git configuration or repositories are accepted by this application.",
+			"advisories": [
+				"https://github.com/advisories/GHSA-858h-whjf-mvg5",
+				"https://github.com/advisories/GHSA-86w9-cpqp-85rv",
+				"https://github.com/advisories/GHSA-g4wm-2vf7-vfgr",
+				"https://github.com/advisories/GHSA-v5rq-49vh-5v5c",
+				"https://github.com/advisories/GHSA-vfj7-8cjw-p6xm",
+				"https://github.com/advisories/GHSA-x6jw-m9v5-85vh"
+			]
+		},
+		{
+			"package": "secretlint",
+			"maximumSeverity": "high",
+			"expires": "2026-11-10",
+			"reason": "No published braces fix. Glob patterns belong to trusted build and lint configuration. Do not process untrusted patterns.",
+			"advisories": ["https://github.com/advisories/GHSA-vfj7-8cjw-p6xm"]
+		},
+		{
+			"package": "simple-git",
+			"maximumSeverity": "critical",
+			"expires": "2026-11-10",
+			"reason": "Inherited from the incompatible simple-git upgrade required by disabled Nuxt DevTools. This comparison application does not invoke Git with untrusted editor environment variables. Nuxt DevTools is disabled in the comparison application. Patched simple-git 4 removes the default export consumed by DevTools 3.4.1. Upgrade when upstream supports the patched API. No remote Git configuration or repositories are accepted by this application.",
+			"advisories": [
+				"https://github.com/advisories/GHSA-858h-whjf-mvg5",
+				"https://github.com/advisories/GHSA-g4wm-2vf7-vfgr",
+				"https://github.com/advisories/GHSA-v5rq-49vh-5v5c",
+				"https://github.com/advisories/GHSA-x6jw-m9v5-85vh"
+			]
+		},
+		{
+			"package": "sprintf-js",
+			"maximumSeverity": "moderate",
+			"expires": "2026-11-10",
+			"reason": "No published sprintf-js fix. The dependency is argparse and Jest tooling, whose format strings are tooling-owned rather than remote inputs.",
+			"advisories": ["https://github.com/advisories/GHSA-hp3w-g68c-fv3c"]
+		}
+	]
 }

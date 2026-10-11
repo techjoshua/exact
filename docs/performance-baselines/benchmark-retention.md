@@ -19,6 +19,10 @@ source identity and measurement dates when updating only part of a result. Faile
 diagnostics must not silently replace an accepted baseline. Keep failures and unfavorable metrics
 visible in an accepted comparison rather than selecting only favorable observations.
 
+SSR diagnostic refreshes retain the original `legacyThroughputSource` for unchanged `sustained`
+and `saturationCharts` fields. A newer diagnostics date or report revision does not date those
+measurements. Remove the legacy identity only when replacing the throughput measurements themselves.
+
 The initial maintained results file is the unchanged September 22 full-run summary for clean
 implementation `dd3d7e69b31d7fd638c1af015cce3e49e422573b`. Its historical input names and hashes
 are provenance metadata, not downloadable raw captures or publisher inputs. Obsolete dated captures

@@ -11,6 +11,13 @@ publish compiler-generated static build facts through `exactComponentLibrary.bui
 package manifest. Those facts map each public package export to the target-specific compiled module
 that owns the component. Applications do not import this package.
 
+Declare shared framework runtimes as compatible `peerDependencies`, with development dependencies
+for the library's own build and tests. Keep this participation marker in `dependencies`.
+`exactc build-library` reports any undeclared runtime packages needed by its generated artifacts.
+The Vite, Bun, and Webpack adapters share the application's installed framework instances with
+linked libraries. Peer installation checks compatible ranges, and the consumer's server policy
+still determines which component and enhancement providers may execute.
+
 The marker contains no JavaScript entry point, lifecycle, registration, configuration, or trust
 grant. Server execution remains subject to the consuming application's component-library policy.
 

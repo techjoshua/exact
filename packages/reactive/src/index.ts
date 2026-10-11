@@ -48,6 +48,7 @@ export { collectionRef, ref, subscribe, watch } from './observation.js';
 export { reactive } from './reactive.js';
 export { indexedReactive, readReactiveOwnProperty } from './indexed.js';
 export { snapshot } from './snapshot.js';
+export { stateAccess, sameStateTarget, type StateAccess } from './state-access.js';
 export { decodeReactiveProtocolValue, encodeReactiveProtocolValue } from './protocol.js';
 export { isTransportableReactiveMapKey } from './internal/keyed/protocol.js';
 export { updateReactive } from './reconciliation.js';

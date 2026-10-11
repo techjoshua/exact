@@ -66,7 +66,9 @@ XLIFF catalogs have not drifted from their TSX.
 
 The important boundary is executable in Vite, Bun, and Webpack: each adapter analyzes original TSX before ordinary
 compilation, emits a package-private prepared activation, and then passes that source through the
-standard compiler. The compiler has no message, locale, catalog, plural, currency, Temporal, or
+standard compiler. Extraction warnings reach the build adapter’s warning channel and leave unsupported
+source expressions available as the authored fallback. Catalog discovery in published packages does not
+expand compiler ownership to their generated JavaScript. The compiler has no message, locale, catalog, plural, currency, Temporal, or
 CLDR output fields.
 
 The runtime package is also an ordinary compiled eXact component library. Its published component
@@ -163,19 +165,43 @@ content:
 <dd intl:unit="distance-road">{distance} miles</dd>
 ```
 
+Activation objects use the final definition of each option. Literal computed keys
+such as `['value']` are supported. A later spread or dynamic key that could
+replace a selector prevents static extraction and receives a source diagnostic.
+Put the explicit selector after those entries when its ownership is intentional.
+Literal message names follow the same final-definition rule.
+
 An explicit message and one specialized role may share the same host when both apply to the complete
 content. More than one selector or formatter role on the same range is ambiguous and receives a
 source diagnostic. Nested explicit message boundaries are not merged: keep the message on the
 outer lexical range, or expose an independently translated component through a named
 `intl:fragment` when it must move within the enclosing translation.
 
-The native native TypeScript analyzer recognizes normalized text, shared scalar identifier/property bindings,
+The native TypeScript analyzer recognizes normalized text, shared scalar identifier/property bindings,
 finite boolean/exact branches, cardinal and English ordinal fallback ternaries, movable direct intrinsic
 children, native `Intl.NumberFormat`, `Intl.DateTimeFormat`, `Intl.RelativeTimeFormat`,
 `Intl.DisplayNames`, and `Intl.ListFormat` calls, and typed Temporal values. Date ranges and
-Temporal `toLocaleString()` keep their finite options. It does not descend into ordinary component
+Temporal `toLocaleString()` keep their finite options. Numeric and currency `formatRange(start, end)`
+calls retain both ordered endpoints and native range formatting, including the approximation marker
+for equal endpoints. It does not descend into ordinary component
 invocations. Unsupported regions remain authored fallback output and produce a source-linked build
 warning.
+
+Numeric ranges require `Intl.NumberFormat.formatRange()` in the execution platform or an installed
+polyfill. An unavailable range operation raises an error instead of dropping an endpoint.
+
+Optional formatter calls remain evaluated scalar placeholders. An absent receiver skips the
+call and its arguments, preserving the authored optional-chain behavior.
+
+Date prototype formatting retains the method's default date or time fields even when options
+only specify a time zone, era, or fields from the other projection. Invalid dates retain
+`Invalid Date`, including Date subclasses and values from another realm. Incompatible date/time
+styles retain the native error. Extracted list
+formatters require proven string arrays or fixed string tuples and preserve array iteration.
+Other iterables retain their evaluated native call. Native unit-formatting projections preserve
+NumberFormat coercion, BigInt precision, nonfinite values, and native unit validation. They do not
+apply semantic measurement conversion. Calls with authored locale extensions retain their native
+result, including calendar and numbering settings that are absent from the extracted descriptor.
 
 Core message structure and explicit standard-`Intl` projections are source-language independent.
 For unit fallbacks, the JavaScript build host derives a bounded vocabulary for the configured source
@@ -225,15 +251,49 @@ range-local clock sample to preparation of the enclosing lexical message, so tra
 owns sampling and scheduling; this package continues to own translation and cached locale-sensitive
 formatting. See [Clock-derived views](date-time.md).
 
-Finite relative-duration projections are summarized onto one reactive duration binding. Both the
-nested plain-language fallback and the equivalent source-local array/`find`/
-`Intl.RelativeTimeFormat` helper are supported. Direct `Temporal.Duration` values select duration
-formatting. Ordinal suffix branches, including suffixes inside a direct `<sup>` intrinsic and
+Canonical English past-tense relative-duration templates are summarized onto one reactive duration
+binding. Each branch must use the unchanged absolute field value, its matching singular unit,
+the `=== 1` empty/`s` suffix, and ` ago`. Other shapes use ordinary scalar or selector extraction when supported. Unsupported inline
+shapes receive an extraction diagnostic and retain their source. Ordinary helper calls retain their execution and contribute their returned
+string as a scalar message value, whether their implementation is local or imported. Pass the
+desired locale into a helper and use the public `intl.RelativeTimeFormat` cache when its output
+needs locale-sensitive formatting. Helper bodies are not summarized from textual patterns. Direct
+`Temporal.Duration` values select duration formatting. Ordinal suffix branches, including suffixes inside a direct `<sup>` intrinsic and
 literal Unicode superscripts, use target-locale ordinal plural rules while preserving the authored
 fallback when the enhancement is unavailable. A lookup such as
 `suffixes[ordinalRules.select(position)]` is also recognized when the rules locale, options, and
 category-to-literal map are static; this is the preferred unrestricted form and correctly handles
 English values such as 21st, 22nd, and 23rd.
+
+A `const` binding alone does not make the map or rules object immutable. Member writes,
+alias escape, and calls that can mutate either object keep the original lookup as a scalar
+placeholder. Static extraction requires proven read-only use.
+
+Scalar helper calls in messages, currencies, and units retain each authored invocation and
+contribute their evaluated values when TypeScript proves a primitive return type. This includes a rounded measurement such as
+`Math.round(value)`. Object-valued or unresolved calls receive an extraction diagnostic. Repeated property reads
+retain getter evaluations, and potentially effectful expressions fence reuse of earlier scalar
+reads.
+
+Equality becomes an exact or plural selector only when the operand is proven to have the
+matching primitive type. Mixed, nullable, and unknown types retain the authored Boolean
+comparison, including JavaScript's coercion for `==`. Ordinal suffix inference also requires
+a numeric selector and distinct literal cases.
+
+Native date and Temporal formatting follows declaration identity, including type aliases.
+An application type with the same name remains an ordinary value. Formatter calls with dynamic
+or evaluated locale arguments retain their evaluated string as a scalar placeholder. Their
+locale choice and helper evaluation remain authored behavior, so translation does not replace
+that formatter's locale.
+
+Source units and conversion targets must belong to the measurement’s quantity. Invalid or unknown
+units produce an extraction diagnostic and leave the authored fallback unchanged.
+
+Currency codes, semantic units, source units, and conversion targets must be static strings.
+The unit `difference` option accepts a static boolean or explicit numeric endpoints. An omitted option may use the source-locale
+default, while a dynamic option or a spread that can replace it prevents extraction. Scalar
+formatter ranges accept text and value expressions. Nested JSX structure requires a surrounding
+message with a separate nested formatter region, so extracting a formatter never discards a child.
 
 Static locales on recognized native `Intl` expressions must agree with the package
 `sourceLocale`. A language-only locale is compatible with a more specific source locale (`en` with
@@ -326,6 +386,57 @@ Semantic eXact usages map to their CLDR counterparts where the vocabulary differ
 both endpoints retain one destination unit. Unsupported CLDR destinations are skipped safely; a
 quantity without CLDR preference data, such as digital storage, retains the authored source unit
 unless application policy or `convert-to` selects another.
+
+### Measurements and differences
+
+A reading and a change can share a unit without sharing a conversion rule. An absolute 80°F
+reading is about 26.67°C, while a 30°F temperature change is about 16.67°C. Mark changes explicitly
+with `difference` or `difference={true}`. Without it, measurements keep their absolute conversion.
+The namespaced `intl:difference` form and `difference` in the `intl:unit` option object are also
+supported. `difference={false}` keeps ordinary measurement behavior.
+
+```tsx
+<span intl:unit="temperature-weather">{daytime} °F</span>
+<span intl:unit="temperature-weather" difference>{daytime - nighttime} °F</span>
+<span intl:unit="temperature-weather" difference>{drop} °F</span>
+```
+
+The compiler extracts both numeric operands from a direct subtraction in the view, including
+parenthesized operands. It preserves left-to-right evaluation and computes the converted left
+endpoint minus the converted right endpoint with one destination-unit decision. Affine conversions
+use the difference and scale without reference offsets, avoiding cancellation from temperature
+zero points. Values remain signed, so reversing the subtraction reverses the change.
+
+For nonlinear conversions, an already-calculated change does not contain enough information.
+For example, a gain of 10 MPG has a different L/100 km change at different starting fuel economies.
+Keep the subtraction in the view so both endpoints remain available:
+
+```tsx
+<span intl:unit="fuel-economy-road" difference>
+	{current - previous} MPG
+</span>
+```
+
+When the arithmetic is hidden in a helper or derived value, supply endpoints explicitly:
+
+```tsx
+<span intl:unit="fuel-economy-road" difference={{ from: previous, to: current }}>
+	{change} MPG
+</span>
+```
+
+The authored child remains the source-unit fallback when the enhancement is unavailable. Keep it
+consistent with `to - from`. Endpoint expressions are evaluated in their authored property order.
+The compiler does not reconstruct arbitrary helper arithmetic or infer difference intent from
+subtraction alone. It diagnoses missing nonlinear endpoints and nonnumeric endpoints. A difference
+formats one change, rather than a range. Put independent changes in separate formatter regions.
+Nonfinite endpoints or converted results fail runtime validation.
+
+`difference` is eXact measurement semantics, not a CLDR usage. Unit preferences remain those of the
+selected quantity and usage. Public scalar consumers can set `difference: true` in
+`resolveIntlMeasurementPresentation()` requests to share scale-only conversion, inverse conversion,
+and formatting of affine differences. Nonlinear conversion across units requires endpoint-based
+formatting through the enhancement.
 
 The package generates and drift-checks a compact projection of the supported CLDR tables. The full
 `cldr-core` data set remains a development dependency and is not included in application bundles;
@@ -482,7 +593,11 @@ explicit locales retain their authored meaning, while independent roots reuse id
 locale/options combinations without sharing locale state. The compiler lowers proven constructor
 chains, finite local formatter bindings, and native
 number, bigint, and `Date` locale-string methods through the same component-owned facade as
-`this.intl`. It removes a finite formatter declaration when all uses become cache operations. Escaping objects retain their binding but obtain
+`this.intl`. It removes a finite formatter declaration when all uses become cache operations. Native
+`Intl.DurationFormat` bindings retain their construction point because constructor availability
+is observable. Compiled native construction throws `TypeError` immediately when the constructor
+is unavailable. The optional `intl.DurationFormat()` facade still returns `undefined` so an
+application can choose a fallback. Escaping objects retain their binding but obtain
 the formatter through the cache. That component reference also makes the compiler import core's
 localization capability registration into the component's own bundle. Components without component-local formatting omit the formatter pool. Lazy modules and
 microfrontend bundles carry the capability when their own compiled components require it.
@@ -498,8 +613,10 @@ localization provider retains native locale defaults. Ordinary nested functions 
 JavaScript receiver continue to use the global facade, unless they are compiler-owned tasks.
 
 Standard-library `Intl` formatter instances are environment-neutral for placement, including
-module-level formatters used by imported helpers. They do not force a component onto the client
-or server. Same-named application types do not acquire this classification. Helpers
+module-level formatters used by imported helpers. The framework `intl` facade has the same
+portable placement through named imports, namespace imports and local aliases. These formatters
+do not force a component onto the client or server. Same-named application types do not acquire
+this classification. Helpers
 outside components can import the same global facade:
 
 ```ts

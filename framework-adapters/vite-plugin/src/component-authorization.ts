@@ -1,3 +1,4 @@
+import { runExactViteAuthorizationGeneration } from './authorization-generation.js';
 import { isMissingExactOptionalEnhancement as isMissingOptionalEnhancement } from '@exactjs/compiler/adapter-support';
 import { materializeExactComponentExecutionGuard } from '@exactjs/component-library-policy';
 import type { ExactComponentBuildFacts } from '@exactjs/compiler';
@@ -50,7 +51,10 @@ export class ExactViteComponentAuthorization {
 	readonly #pendingCandidates = new Map<string, ExactViteAuthorizedCandidate>();
 	readonly #acceptedCandidates = new Map<string, ExactViteAuthorizedCandidate>();
 	readonly #authorizationInputs = new Set<string>();
+	readonly #publishedModules = new Set<string>();
 	#session?: ExactComponentAuthorizationSession;
+	#needsReplay = false;
+	#replaying?: Promise<void>;
 
 	/** Reports whether a server authorization generation is currently open. */
 	get active(): boolean {
@@ -63,6 +67,18 @@ export class ExactViteComponentAuthorization {
 		buildKey?: string;
 		config?: ExactComponentLibraryTrustConfig;
 	}): void {
+		// Initial dev module loads are validated before the first HMR commit.
+		for (const [key, candidate] of this.#pendingCandidates)
+			this.#acceptedCandidates.set(key, candidate);
+		for (const [key, candidate] of this.#acceptedCandidates)
+			if (this.#facts.get(exactModuleFilename(candidate.importerModuleId))?.source === 'published')
+				this.#acceptedCandidates.delete(key);
+		// Publication metadata belongs to a generation. Retain authored roots only,
+		// then read the current published closure through the participation validator.
+		for (const [moduleId, record] of this.#facts)
+			if (record.source === 'published') this.#facts.delete(moduleId);
+		this.#needsReplay = this.#acceptedCandidates.size > 0;
+		this.#replaying = undefined;
 		this.#session?.dispose();
 		this.#preflighted.clear();
 		this.#pendingCandidates.clear();
@@ -76,7 +92,8 @@ export class ExactViteComponentAuthorization {
 
 	/** Records one compiler projection and its content identity in the active generation. */
 	record(moduleId: string, facts: ExactComponentBuildFacts, source: string): void {
-		if (this.#facts.get(moduleId)?.source === 'published') return;
+		// Published ownership survives invalidation, while its metadata is reread per generation.
+		if (this.#publishedModules.has(exactModuleFilename(moduleId))) return;
 		const record = Object.freeze({
 			facts,
 			version: sourceVersion(source),
@@ -123,10 +140,44 @@ export class ExactViteComponentAuthorization {
 			watch(file: string): void;
 			warn?: (message: string) => void;
 		},
-		visited = new Set<string>()
+		visited?: Set<string>
 	): Promise<ExactViteResolution> {
 		if (!resolved || !importer || !this.#session) return resolved;
-		const session = this.#session;
+		return runExactViteAuthorizationGeneration(
+			() => this.#session,
+			(session, assertCurrent) =>
+				this.authorizeGeneration(
+					resolved,
+					source,
+					importer,
+					options,
+					session,
+					assertCurrent,
+					visited
+				)
+		);
+	}
+
+	private async authorizeGeneration(
+		resolved: NonNullable<ExactViteResolution>,
+		source: string,
+		importer: string,
+		options: Parameters<ExactViteComponentAuthorization['authorize']>[3],
+		session: ExactComponentAuthorizationSession,
+		assertCurrent: () => void,
+		visited?: Set<string>
+	): Promise<ExactViteResolution> {
+		if (!visited) {
+			// A cached consumer need not resolve again when a descendant reloads. Seed
+			// the new generation from current root evidence before admitting that edge.
+			if (this.#needsReplay) {
+				this.#needsReplay = false;
+				this.#replaying = this.revalidate(options);
+			}
+			await this.#replaying;
+			assertCurrent();
+		}
+		visited ??= new Set<string>();
 		const importerModuleId = exactModuleFilename(importer);
 		const importerRecord = this.#facts.get(importerModuleId);
 		if (!importerRecord) return resolved;
@@ -164,9 +215,12 @@ export class ExactViteComponentAuthorization {
 					moduleSpecifier: source,
 					resolvedModuleId
 				});
+				assertCurrent();
 				for (const file of provenance.watchFiles) options.watch(file);
+				assertCurrent();
 				for (const file of provenance.watchFiles) this.#authorizationInputs.add(path.resolve(file));
 				if (provenance.applicationOwned) {
+					this.#publishedModules.delete(exactModuleFilename(resolvedModuleId));
 					return { resolution: resolved };
 				}
 				const authorization = await session.authorizeResolvedComponent(
@@ -182,18 +236,21 @@ export class ExactViteComponentAuthorization {
 						...(enhancementEdge ? { optionalEnhancementIdentity: enhancementEdge.identity } : {})
 					})
 				);
+				assertCurrent();
 				let facts: ExactComponentBuildFacts | undefined;
 				if (authorization.outcome === 'authorized') {
 					for (const file of authorization.watchFiles) {
 						options.watch(file);
 						this.#authorizationInputs.add(path.resolve(file));
 					}
+					assertCurrent();
 					facts = authorization.componentBuild;
 					const record = Object.freeze({
 						facts,
 						version: sourceVersion(JSON.stringify(facts)),
 						source: 'published' as const
 					});
+					this.#publishedModules.add(exactModuleFilename(facts.filename));
 					this.#facts.set(exactModuleFilename(facts.filename), record);
 				}
 				const result =
@@ -212,10 +269,12 @@ export class ExactViteComponentAuthorization {
 		}
 		try {
 			const { resolution, facts } = await pending;
+			assertCurrent();
 			if (visited.has(preflightKey)) return resolution;
 			visited.add(preflightKey);
 			if (facts)
 				await this.preflightPublishedEdges(facts, { ...options, warn: undefined }, visited);
+			assertCurrent();
 			this.#pendingCandidates.set(
 				preflightKey,
 				Object.freeze({
@@ -227,6 +286,7 @@ export class ExactViteComponentAuthorization {
 			);
 			return resolution;
 		} catch (error) {
+			assertCurrent();
 			if (options.warn) {
 				const guarded = materializeExactComponentExecutionGuard(
 					error,
@@ -243,37 +303,54 @@ export class ExactViteComponentAuthorization {
 		}
 	}
 
-	/** Commits the current generation and returns its immutable authorization artifacts. */
-	async commit(): Promise<
+	/** Commits authorization artifacts and optionally opens the next development generation atomically. */
+	async commit(
+		reopen?: Parameters<ExactViteComponentAuthorization['open']>[0]
+	): Promise<
 		Awaited<ReturnType<ExactComponentAuthorizationSession['commitGeneration']>> | undefined
 	> {
 		if (!this.#session) return undefined;
-		const committed = await this.#session.commitGeneration();
+		const committed = this.#session.commitGeneration();
 		this.#acceptedCandidates.clear();
 		for (const [key, candidate] of this.#pendingCandidates)
 			this.#acceptedCandidates.set(key, candidate);
 		this.#pendingCandidates.clear();
+		if (reopen) this.open(reopen);
 		return committed;
 	}
 
-	/** Reauthorizes the last committed graph before one development generation can replace it. */
+	/** Reauthorizes compiler-owned graph roots and their current published closure before replacement. */
 	async revalidate(
 		options: Parameters<ExactViteComponentAuthorization['authorize']>[3],
 		excludedImporter?: string
 	): Promise<void> {
-		const excluded = excludedImporter ? exactModuleFilename(excludedImporter) : undefined;
-		for (const candidate of this.#acceptedCandidates.values()) {
-			if (excluded && exactModuleFilename(candidate.importerModuleId) === excluded) continue;
-			await this.authorize(
-				candidate.resolvedModuleId,
-				candidate.source,
-				candidate.importerModuleId,
-				{
-					...options,
-					...(candidate.executionReason ? { executionReason: candidate.executionReason } : {})
+		await runExactViteAuthorizationGeneration(
+			() => this.#session,
+			async (_session, assertCurrent) => {
+				this.#needsReplay = false;
+				const excluded = excludedImporter ? exactModuleFilename(excludedImporter) : undefined;
+				for (const candidate of [...this.#acceptedCandidates.values()]) {
+					assertCurrent();
+					// Published descendants are traversed from their consumer roots. Replaying them
+					// independently can precede the root dependency evidence or retain orphaned edges.
+					if (
+						this.#facts.get(exactModuleFilename(candidate.importerModuleId))?.source === 'published'
+					)
+						continue;
+					if (excluded && exactModuleFilename(candidate.importerModuleId) === excluded) continue;
+					await this.authorize(
+						candidate.resolvedModuleId,
+						candidate.source,
+						candidate.importerModuleId,
+						{
+							...options,
+							...(candidate.executionReason ? { executionReason: candidate.executionReason } : {})
+						},
+						new Set<string>()
+					);
 				}
-			);
-		}
+			}
+		);
 	}
 
 	/** Reports whether a changed file is part of the committed package-policy input set. */
@@ -292,7 +369,10 @@ export class ExactViteComponentAuthorization {
 	dispose(): void {
 		this.#session?.dispose();
 		this.#session = undefined;
+		this.#needsReplay = false;
+		this.#replaying = undefined;
 		this.#facts.clear();
+		this.#publishedModules.clear();
 		this.#preflighted.clear();
 		this.#pendingCandidates.clear();
 		this.#acceptedCandidates.clear();

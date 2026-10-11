@@ -41,6 +41,7 @@ export {
 	type ExactPreparedServerComponentReference
 } from '../component-abi/receipt.js';
 export {
+	createDeferredServerChildRange,
 	readPreparedServerChildRange,
 	type ExactPreparedServerChildRange
 } from '../component-abi/server-child-range.js';
@@ -84,3 +85,4 @@ export function createCompiledChildRangeReceipt(
 }
 
 export { createServerFragmentTargetProjection } from './server-fragment-target-projection.js';
+export { createCompiledComponentSpreadRange } from '../component-abi/server-component-spread-range.js';

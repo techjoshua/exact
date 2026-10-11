@@ -8,6 +8,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
+	"github.com/microsoft/TypeScript/tsc/internal/checker"
 	"golang.org/x/text/currency"
 	"golang.org/x/text/language"
 	"golang.org/x/text/unicode/norm"
@@ -15,6 +16,7 @@ import (
 
 func buildIntlCurrencyInto(
 	sourceFile *ast.SourceFile,
+	typeChecker *checker.Checker,
 	children []*ast.Node,
 	attributes *ast.Node,
 	activation *ast.Node,
@@ -23,8 +25,11 @@ func buildIntlCurrencyInto(
 	defaultCurrencyLabels []string,
 	build *intlPatternBuild,
 ) ([]intlPatternNode, bool) {
+	if !intlSpecializedOptionsProven(attributes, activation, []string{"currency", "display"}, []string{"display"}) {
+		return nil, false
+	}
 	expressions, text := intlDirectChildren(sourceFile, children)
-	if len(expressions) != 1 || !intlScalarExpression(expressions[0]) {
+	if len(expressions) != 1 || !intlScalarValue(expressions[0], typeChecker) {
 		return nil, false
 	}
 	authoredCurrency := intlStaticAttributeString(activation)
@@ -75,6 +80,7 @@ func buildIntlCurrencyInto(
 
 func buildIntlUnitInto(
 	sourceFile *ast.SourceFile,
+	typeChecker *checker.Checker,
 	children []*ast.Node,
 	attributes *ast.Node,
 	activation *ast.Node,
@@ -82,6 +88,9 @@ func buildIntlUnitInto(
 	unitLabels map[string]string,
 	build *intlPatternBuild,
 ) ([]intlPatternNode, bool) {
+	if !intlSpecializedOptionsProven(attributes, activation, []string{"unit", "sourceUnit", "convertTo"}, []string{"source-unit", "sourceUnit", "convert-to", "convertTo"}) {
+		return nil, false
+	}
 	semantic := intlStaticAttributeString(activation)
 	if semantic == "" {
 		semantic = intlStaticObjectString(activation, "unit")
@@ -93,11 +102,6 @@ func buildIntlUnitInto(
 	expressions, text := intlDirectChildren(sourceFile, children)
 	if len(expressions) < 1 || len(expressions) > 2 {
 		return nil, false
-	}
-	for _, expression := range expressions {
-		if !intlScalarExpression(expression) {
-			return nil, false
-		}
 	}
 	if len(expressions) == 2 && !strings.ContainsAny(text, "-–—") {
 		return nil, false
@@ -117,7 +121,7 @@ func buildIntlUnitInto(
 	if sourceUnit == "" {
 		sourceUnit = intlDefaultSemanticUnit(quantity, usage, sourceLocale)
 	}
-	if sourceUnit == "" {
+	if sourceUnit == "" || !intlCompatibleUnit(quantity, sourceUnit) {
 		return nil, false
 	}
 	if explicitSourceUnit == "" && inferredSourceUnit != "" && label != "" {
@@ -130,9 +134,19 @@ func buildIntlUnitInto(
 	if convertTo != "" && !intlCompatibleUnit(quantity, convertTo) {
 		return nil, false
 	}
-	bindings := make([]int, 0, len(expressions))
-	for _, expression := range expressions {
+	difference, valid := planIntlUnitDifference(attributes, activation, expressions, quantity, sourceUnit, convertTo, typeChecker, build)
+	if !valid {
+		return nil, false
+	}
+	bindings := make([]int, 0, len(difference.values))
+	for _, expression := range difference.values {
+		if difference.mode == "" && !intlScalarValue(expression, typeChecker) && !intlDifferenceNumber(expression, typeChecker) {
+			return nil, false
+		}
 		bindings = append(bindings, registerIntlTypedScalar(sourceFile, expression, "measurement", build))
+	}
+	if difference.reverse {
+		bindings[0], bindings[1] = bindings[1], bindings[0]
 	}
 	options := map[string]any{"unitDisplay": "long"}
 	if utf8.RuneCountInString(label) <= 2 {
@@ -144,6 +158,9 @@ func buildIntlUnitInto(
 	}
 	if convertTo != "" {
 		formatter["convertTo"] = convertTo
+	}
+	if difference.mode != "" {
+		formatter["difference"] = difference.mode
 	}
 	return []intlPatternNode{{Kind: "format", Bindings: bindings, Formatter: formatter}}, true
 }
@@ -157,12 +174,22 @@ func intlDirectChildren(sourceFile *ast.SourceFile, children []*ast.Node) ([]*as
 			expressions = append(expressions, unwrapRenderExpression(child.AsJsxExpression().Expression))
 		} else if ast.IsJsxText(child) {
 			text = append(text, child.AsJsxText().Text)
+		} else {
+			// A scalar formatter cannot reconstruct nested structure. Reject the
+			// whole range so instrumentation retains its authored children.
+			return nil, ""
 		}
 	}
 	return expressions, strings.TrimSpace(normalizeIntlJSXText(strings.Join(text, " ")))
 }
 
 func intlStaticNamedAttribute(attributes *ast.Node, name string) string {
+	return intlStaticAttributeString(intlUnitOptionAttribute(attributes, name))
+}
+
+// Unit options have namespaced authoring forms and camel-case component aliases.
+// The same lookup owns extraction and removal from reconstructed intrinsic hosts.
+func intlUnitOptionAttribute(attributes *ast.Node, name string) *ast.Node {
 	attribute := intlJSXAttribute(attributes, name)
 	if attribute == nil {
 		explicitName := name
@@ -173,14 +200,11 @@ func intlStaticNamedAttribute(attributes *ast.Node, name string) string {
 		}
 		attribute = jsxAttribute(attributes, "", explicitName)
 	}
-	if attribute == nil {
-		return ""
-	}
-	return intlStaticAttributeString(attribute)
+	return attribute
 }
 
 func intlLocaleRegion(locale string) string {
-	tag, err := language.Parse(locale)
+	tag, err := intlParseLocale(locale)
 	if err != nil {
 		return ""
 	}
@@ -192,7 +216,7 @@ func intlLocaleRegion(locale string) string {
 }
 
 func intlDefaultCurrency(locale string) string {
-	tag, err := language.Parse(locale)
+	tag, err := intlParseLocale(locale)
 	if err != nil {
 		return ""
 	}

@@ -11,10 +11,7 @@ import {
 	type CompiledEnhancementNode
 } from '@exactjs/core';
 import { readPreparedExactServerExecutableComponentContract } from '@exactjs/core/framework/component-contracts';
-import {
-	createCompiledComponentReceipt,
-	readCompiledFragmentReceipt
-} from '@exactjs/core/runtime/component-operations';
+import { readCompiledFragmentReceipt } from '@exactjs/core/runtime/component-operations';
 import { renderPreparedFragmentEnhancements } from './prepared-fragment-enhancements.js';
 import type { RenderToStringOptions, SsrContext } from '../types.js';
 import type { RenderValue } from './execution.js';
@@ -29,6 +26,7 @@ import {
 	createDeferredSerializedSsrHtmlOperation,
 	createSerializedSsrHtmlOperation
 } from './serialized-html-operation.js';
+import { createSsrEnhancementOperation } from './enhancement-provider-operation.js';
 
 type RenderChildren = (
 	context: SsrContext,
@@ -218,7 +216,7 @@ async function renderEnhancementOperation(
 	const child =
 		!component || isExactEnhancementPassThrough(component)
 			? operation
-			: createCompiledComponentReceipt(component, { ...props }, operation);
+			: createSsrEnhancementOperation(context, component, { ...props }, operation);
 	return renderChildren(context, [child], parent, options, true);
 }
 
@@ -235,7 +233,7 @@ function renderEnhancementOperationChain(
 		if (entry.root !== undefined) continue;
 		const component = enhancementComponent(context, entry.identity);
 		if (!component || isExactEnhancementPassThrough(component)) continue;
-		chain = createCompiledComponentReceipt(component, { ...entry.props }, chain);
+		chain = createSsrEnhancementOperation(context, component, { ...entry.props }, chain);
 	}
 	return renderChildren(context, [chain], parent, options, true);
 }
@@ -254,7 +252,8 @@ async function renderEnhancementComponent(
 	return renderChildren(
 		context,
 		[
-			createCompiledComponentReceipt(
+			createSsrEnhancementOperation(
+				context,
 				component,
 				{ ...props },
 				createSerializedSsrHtmlOperation(html)

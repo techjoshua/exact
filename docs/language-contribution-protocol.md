@@ -695,7 +695,9 @@ the provider as failed; late responses are discarded by request ID. Diagnostics 
 deadlines are hard failures. At most one diagnostic request and four interactive requests are active
 per provider process. New document diagnostics cancel the previous document generation.
 
-The host launches the JavaScript runner with a 256 MiB V8 old-space limit. It cannot promise a
+The host launches the JavaScript runner with a 256 MiB V8 old-space limit. A provider's compiler
+worker inherits this process-wide V8 constraint through Node's module bootstrap, rather than an
+explicit worker flag override. It cannot promise a
 portable hard resident-memory sandbox for native grandchildren, so byte limits, deadlines, process
 tree termination, and trust remain authoritative. Three crashes, protocol violations, or hard
 timeouts within 60 seconds quarantine that provider generation after restart delays of 250 ms, 1

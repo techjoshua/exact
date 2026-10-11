@@ -70,11 +70,15 @@ export function DateTimePage(this: Component<{}>) {
 					enhancement is disabled, the initial value is still rendered.
 				</p>
 				<p>
-					Clock math may live directly in JSX, in safe component-body aliases, or in local pure
-					TypeScript formatter functions. The compiler follows the formatter's call graph rather
-					than requiring display strings to be assembled in JSX. Opaque, imported, or effectful
-					helpers produce an error. Ordinary durable children remain independent owners and opt in
-					themselves.
+					Clock math and its anchors may live directly in JSX, in safe component-body aliases, or in
+					local pure TypeScript formatter functions. The compiler follows the formatter's call graph
+					rather than requiring display strings to be assembled in JSX. Opaque, imported, or
+					effectful helpers produce an error. Ordinary durable children remain independent owners
+					and opt in themselves. When passing a clock value to a formatter, automatic scheduling
+					uses an unchanged millisecond read such as <code>Date.now()</code> or its safe alias.
+					Choose an explicit accuracy if the caller shifts or scales that argument. The compiler
+					reports an error when safe reevaluation or automatic scheduling cannot be proven. Epoch
+					rounding such as <code>Math.floor(Date.now() / 1000)</code> also works in automatic mode.
 				</p>
 			</section>
 			<section>
@@ -91,18 +95,29 @@ export function DateTimePage(this: Component<{}>) {
 				</p>
 				<CodeBlock source={controlSource} language="tsx" title="Reactive suspension" />
 				<p>
-					A reactive <code>disabled</code> policy withdraws scheduling and retains the last sample
-					while ordinary state and props continue to update. Reenabling samples current time once.
-					Activity deactivation and range disposal release the same owned registration. Policy and
-					anchor changes update those precise readers without rerendering the enclosing component or
-					requiring a keyed remount.
+					A reactive policy whose possible values are explicit accuracies or <code>disabled</code>
+					does not require an inferred automatic plan. Named attributes and finite spreads follow
+					the same rule. A reactive <code>disabled</code> policy withdraws scheduling and retains
+					the last sample while ordinary state and props continue to update. Reenabling samples
+					current time once. Activity deactivation and range disposal release the same owned
+					registration. Policy and anchor changes update those precise readers without rerendering
+					the enclosing component or requiring a keyed remount. An enabled range samples current
+					time after an anchor change, even when its previous finite schedule had completed.
 				</p>
 				<p>
 					Automatic analysis also follows statically selected record and array members,
-					destructuring, and prop-bearing lexical micro-views. Fixed-unit Temporal rounding from
-					milliseconds through hours preserves its anchor, increment, and half-expand transitions on
-					both sides of zero. Sub-millisecond precision and calendar-relative Temporal duration
-					rounding require a narrower supported policy instead of receiving a silent approximation.
+					destructuring with literal computed keys, and prop-bearing lexical micro-views. Automatic
+					selection needs a proven final property or array index. Unknown overriding keys, spreads
+					that shift an index, and default or rest bindings are outside that proof. Fixed-unit
+					Temporal rounding from milliseconds through hours preserves its anchor, increment, and all
+					nine literal rounding modes on both sides of zero. Automatic accuracy requires statically
+					known rounding options and also follows the fields of rounded durations. A largest unit
+					must be a literal fixed unit or <code>auto</code>. Unchecked options and calendar-relative{' '}
+					<code>relativeTo</code>
+					require a narrower supported policy. Sub-millisecond precision and calendar-relative
+					Temporal duration rounding require a narrower supported policy instead of receiving a
+					silent approximation. Formatter option keys may use computed string literals. Dynamic keys
+					and values require independent proof that repeating the calculation is safe.
 				</p>
 			</section>
 			<section>
@@ -123,9 +138,17 @@ export function DateTimePage(this: Component<{}>) {
 					zone, calendar, and week start are separate provider props. The testing entry exports a
 					manual clock whose advancement, due-work publication, next deadline, and pending timer
 					count are deterministic. Tests do not need real sleeps or global <code>Date</code>{' '}
-					patches. Server rendering never schedules a timer, and hydration adopts server output
-					before its first live sample. The server snapshot is added to hydration data only for
-					artifacts that consume the time capability.
+					patches. Enabled ranges use the provider clock for their initial server sample. Server
+					rendering never schedules a timer, and hydration adopts server output before its first
+					live sample. Clock-dependent text, attributes, classes, and finite JSX spreads share that
+					observation. Component props copied inside an enhanced lexical range use its provider
+					clock as well, including copies that supply a sibling key. Conditional spreads can change
+					which named attributes are present while retaining the element. A stable component-local
+					spread can also supply
+					<code>time:update</code>, with the same validation as a named attribute. Each custom
+					provider preserves its own initial observation in component state. Clock objects stay
+					local to the application. The request wall-clock snapshot is added to hydration data only
+					for artifacts that consume the time capability.
 				</p>
 			</section>
 			<section>
@@ -135,7 +158,11 @@ export function DateTimePage(this: Component<{}>) {
 					inlay hints. It reports invalid policies, missing clocks, and unbounded automatic updates.
 					Automatic mode never hides a millisecond or second polling fallback. Pass the current
 					clock value into a pure helper so dependency analysis can safely repeat only the affected
-					view. An explicit cadence does not make hidden clock reads safe.
+					view. An explicit cadence does not make hidden clock reads safe. Finite computed members
+					such as <code>Date['now']()</code> follow the same rules as dot access. Application-owned
+					values named <code>Date</code>, <code>Math</code>, or <code>Temporal</code> keep their
+					ordinary behavior. Nested time ranges need their own clock expressions. Independent helper
+					calls in a repeated clock expression must also be safe to reevaluate.
 				</p>
 			</section>
 		</Article>

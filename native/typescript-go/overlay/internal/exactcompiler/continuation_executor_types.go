@@ -5,6 +5,20 @@ import (
 	"github.com/microsoft/TypeScript/tsc/internal/printer"
 )
 
+// continuationExecutorTypeParameters retains the scope of receiver and callback types copied
+// out of a generic component. Constraints and defaults remain part of that authored scope.
+func continuationExecutorTypeParameters(factory *printer.NodeFactory, componentFunction *ast.Node) *ast.NodeList {
+	parameters := componentFunction.TypeParameters()
+	if len(parameters) == 0 {
+		return nil
+	}
+	cloned := make([]*ast.Node, 0, len(parameters))
+	for _, parameter := range parameters {
+		cloned = append(cloned, parameter.Clone(factory))
+	}
+	return factory.NewNodeList(cloned)
+}
+
 // continuationExecutorStateType preserves the authored Component<State>
 // receiver type when a task body is copied into a module-level executor.
 func continuationExecutorStateType(

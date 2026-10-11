@@ -1,7 +1,14 @@
+import { verifyMutationContract } from '../../packages/component-composition-corpus/test-support/mutation-contract-journey.mjs';
+import {
+	capturePartitionIslands,
+	verifyPartitionIslands,
+	verifyPartitionIslandsDisposed
+} from './verify-partition-islands.mjs';
 import {
 	verifyCollectionProjection,
 	verifyDerivedPattern
 } from '../../packages/component-composition-corpus/test-support/collection-projection-journey.mjs';
+import { verifyTimePlanOwnership } from '../../packages/component-composition-corpus/test-support/time-plan-journey.mjs';
 import { verifyReplacementOwnership } from '../../packages/component-composition-corpus/test-support/replacement-journey.mjs';
 import { captureKeyedSpreads, verifyKeyedSpreads } from './verify-keyed-spreads.mjs';
 import {
@@ -111,8 +118,11 @@ try {
 	if (server.wrapperKind) verifySemanticReads(server.semanticReads, 'server');
 	const keyedSpreads = server.hasKeyedSpreads ? captureKeyedSpreads(container) : undefined;
 	const semanticCases = server.wrapperKind ? captureIslandSemantics(container) : [];
+	const partitionTargets = server.wrapperKind ? capturePartitionIslands(container) : null;
 	assert.equal(container.querySelector('strong')?.textContent, '7');
 	assert.equal(container.querySelector('[data-map]')?.textContent, '7');
+	const callbackMap = container.querySelector('[data-callback-map]');
+	assert.equal(callbackMap.textContent, '7');
 	assert.equal(container.querySelector('[data-set]')?.textContent, '1');
 	assert.equal(container.querySelector('p')?.textContent, 'panel');
 	assert.equal(container.querySelector('li')?.textContent, 'finding');
@@ -166,6 +176,8 @@ try {
 		assert.equal(inverse.style.getPropertyValue('--exact-theme-font-body'), 'serif');
 		assert.equal(inverse.style.getPropertyValue('--exact-theme-font-display'), 'monospace');
 	}
+	const mutationOutput = container.querySelector('[data-mutation-key-order]');
+	const mutationButton = container.querySelector('[data-mutation-contract] button');
 	let invocations = 0;
 	mounted = client.mountPage(container, {
 		onMismatch: 'throw',
@@ -199,12 +211,22 @@ try {
 	assert.equal(container.querySelector('strong'), strong, 'initial adoption');
 	if (keyedSpreads) {
 		await verifyKeyedSpreads(container, keyedSpreads);
+		await verifyTimePlanOwnership(container);
 		await verifyReplacementOwnership(container);
 		await verifyCollectionProjection(container);
 		await verifyDerivedPattern(container);
 	}
 	client.semanticReads.length = 0;
 	await verifyIslandSemantics(container, semanticCases);
+	if (partitionTargets) await verifyPartitionIslands(container, partitionTargets);
+	if (mutationOutput) {
+		await verifyMutationContract(container);
+		assert.equal(
+			container.querySelector('[data-mutation-key-order]'),
+			mutationOutput,
+			'mutation adoption'
+		);
+	}
 	if (server.wrapperKind) verifySemanticReads(client.semanticReads, 'updates');
 	assert.equal(container.querySelector('strong'), strong);
 	if (localWrapper) {
@@ -237,6 +259,8 @@ try {
 	if (!server.hasKeyedSpreads)
 		await waitForText(container.querySelector('[data-task-status]'), '0:idle');
 	assert.equal(container.querySelector('[data-map]')?.textContent, '8');
+	assert.equal(callbackMap.textContent, '8');
+	assert.equal(container.querySelector('[data-callback-map]'), callbackMap);
 	assert.equal(container.querySelector('[data-set]')?.textContent, '2');
 	if (nested) {
 		nested.click();
@@ -253,6 +277,8 @@ try {
 	}
 	assert.equal(strong.textContent, '9');
 	assert.equal(container.querySelector('[data-map]')?.textContent, '9');
+	assert.equal(callbackMap.textContent, '9');
+	assert.equal(container.querySelector('[data-callback-map]'), callbackMap);
 	assert.equal(container.querySelector('[data-set]')?.textContent, '2');
 	if (scope) {
 		assert.equal(container.querySelector('[data-exact-theme-appearance]'), scope);
@@ -281,6 +307,11 @@ try {
 	mounted.dispose();
 	mounted = undefined;
 	await verifyIslandSemanticsDisposed(semanticCases);
+	if (partitionTargets) await verifyPartitionIslandsDisposed(partitionTargets);
+	mutationButton?.click();
+	await new Promise((resolve) => setTimeout(resolve, 10));
+	if (mutationOutput)
+		assert.equal(mutationOutput.textContent, 'keyargsafterdone', 'mutation disposal');
 	button.click();
 	nested?.click();
 	localWrapper?.querySelector('button').click();

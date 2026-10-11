@@ -2,7 +2,6 @@ package exactcompiler
 
 import (
 	"strconv"
-	"strings"
 )
 
 // stateEffectPathKey preserves property boundaries for compiler-owned dependency identity.
@@ -11,13 +10,7 @@ func stateEffectPathKey(effect StateEffect) string {
 	if effect.pathSegments == nil {
 		return "label:" + strconv.Quote(effect.Path)
 	}
-	var key strings.Builder
-	key.WriteString("path:")
-	for _, segment := range effect.pathSegments {
-		key.WriteString(strconv.Quote(segment))
-		key.WriteByte(',')
-	}
-	return key.String()
+	return "path:" + statePathIdentity(effect.pathSegments)
 }
 
 // stateEffectPathContains reports strict ancestry only when both effects retain path provenance.

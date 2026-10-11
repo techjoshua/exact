@@ -6,7 +6,8 @@ import {
 } from '@exactjs/core';
 import { formatError } from '@exactjs/core/framework/error-format';
 import { createCompiledIntrinsicReceipt } from '@exactjs/core/runtime/component-operations';
-import { namespaceForTag } from '../namespace.js';
+import { unwrap } from '@exactjs/reactive/framework/values';
+import { namespaceForTag, retainNamespaceProps } from '../namespace.js';
 import type { RenderOptions, Root } from '../types.js';
 
 /** Creates a dom error context. */
@@ -83,11 +84,10 @@ export function createElement(
 		: document.createElement(tag);
 	// annotation-xml's encoding determines the namespace of its children, so it
 	// must exist before child elements are constructed.
-	if (
-		namespace === 'http://www.w3.org/1998/Math/MathML' &&
-		tag === 'annotation-xml' &&
-		typeof props?.encoding === 'string'
-	)
-		element.setAttribute('encoding', props.encoding);
+	if (namespace === 'http://www.w3.org/1998/Math/MathML' && tag === 'annotation-xml') {
+		retainNamespaceProps(element, props ?? {});
+		const encoding = unwrap(props?.encoding);
+		if (typeof encoding === 'string') element.setAttribute('encoding', encoding);
+	}
 	return element;
 }

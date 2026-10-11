@@ -1,6 +1,7 @@
 import type { ExactPackageEnhancementImport } from '@exactjs/config';
 import path from 'node:path';
 import type { NativeCompilerResponse } from '../native/process-contracts.js';
+import { sourcePackageEnhancements } from './package-enhancement-ownership.js';
 
 /** Source prepared with package-wide enhancement bindings after every authored offset. */
 export type ExactPreparedPackageEnhancements = Readonly<{
@@ -16,8 +17,10 @@ export type ExactPreparedPackageEnhancements = Readonly<{
 export function preparePackageEnhancementSource(
 	source: string,
 	filename: string,
-	registrations: readonly ExactPackageEnhancementImport[] | undefined
+	registrations: readonly ExactPackageEnhancementImport[] | undefined,
+	applicationRoot?: string
 ): ExactPreparedPackageEnhancements {
+	registrations = sourcePackageEnhancements(filename, registrations, applicationRoot);
 	if (!registrations?.length)
 		return Object.freeze({
 			source,

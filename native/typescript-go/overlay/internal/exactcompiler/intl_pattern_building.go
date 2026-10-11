@@ -77,6 +77,13 @@ func appendNativeIntlDescriptor(
 		if contentAttributes := intlContentAttributeSpans(opening.Attributes()); len(contentAttributes) > 0 {
 			attributes = offsetIntlSpans(contentAttributes, positionDelta)
 		}
+		if activationName == "unit" || activationName == "cldr" {
+			for _, name := range []string{"source-unit", "convert-to", "difference"} {
+				if option := intlUnitOptionAttribute(opening.Attributes(), name); option != nil && !ast.IsJsxNamespacedName(option.AsJsxAttribute().Name()) {
+					attributes = append(attributes, offsetIntlSpans([]intlSpan{intlNodeSpan(option)}, positionDelta)...)
+				}
+			}
+		}
 		attributes = append(attributes, offsetIntlSpans(build.attributes, positionDelta)...)
 		if !explicit {
 			transferred = offsetIntlSpans(intlTransferredAttributeSpans(opening.Attributes()), positionDelta)
@@ -118,7 +125,7 @@ func intlTransferredAttributeSpans(attributes *ast.Node) []intlSpan {
 func intlContentAttributeSpans(attributes *ast.Node) []intlSpan {
 	result := []intlSpan{}
 	for _, name := range []string{
-		"message", "plural", "select", "currency", "unit", "cldr", "display", "source-unit", "convert-to",
+		"message", "plural", "select", "currency", "unit", "cldr", "display", "source-unit", "convert-to", "difference",
 	} {
 		if attribute := intlJSXAttribute(attributes, name); attribute != nil {
 			result = append(result, intlNodeSpan(attribute))
@@ -212,7 +219,6 @@ func recordIntlTextInference(
 	detail string,
 	build *intlPatternBuild,
 ) {
-	needle := strings.ToLower(label)
 	semantic := ast.GetSemanticJsxChildren(children)
 	for index := len(semantic) - 1; index >= 0; index-- {
 		child := semantic[index]
@@ -220,9 +226,9 @@ func recordIntlTextInference(
 			continue
 		}
 		text := sourceText(sourceFile, child)
-		offset := strings.LastIndex(strings.ToLower(text), needle)
-		if offset >= 0 {
-			recordIntlInference(child.Pos()+offset, len(label), kind, detail, build)
+		offset, length, found := intlTextEvidenceSpan(text, label)
+		if found {
+			recordIntlInference(child.Pos()+offset, length, kind, detail, build)
 			return
 		}
 	}
@@ -384,7 +390,7 @@ func newIntlPatternBuild(
 	return &intlPatternBuild{
 		bindings: []intlBinding{}, values: []intlSpan{},
 		structures: []intlStructureRegion{}, evidence: []intlInferenceEvidence{}, identities: map[string]int{},
-		ordinalMarkers: markers, ordinalWrappers: append([]intlOrdinalWrapper(nil), ordinalWrappers...),
+		ordinalMarkers: markers, ordinalWrappers: append([]intlOrdinalWrapper(nil), ordinalWrappers...), ordinalValues: map[int]bool{},
 	}
 }
 
@@ -407,6 +413,12 @@ func intlStaticAttributeString(attribute *ast.Node) string {
 	if initializer != nil && ast.IsStringLiteral(initializer) {
 		return initializer.AsStringLiteral().Text
 	}
+	if initializer != nil && ast.IsJsxExpression(initializer) {
+		value := unwrapRenderExpression(initializer.AsJsxExpression().Expression)
+		if value != nil && (ast.IsStringLiteral(value) || ast.IsNoSubstitutionTemplateLiteral(value)) {
+			return value.Text()
+		}
+	}
 	return ""
 }
 
@@ -426,14 +438,9 @@ func intlStaticObjectString(attribute *ast.Node, name string) string {
 	if expression == nil || !ast.IsObjectLiteralExpression(expression) {
 		return ""
 	}
-	for _, property := range expression.AsObjectLiteralExpression().Properties.Nodes {
-		if !ast.IsPropertyAssignment(property) || property.AsPropertyAssignment().Name().Text() != name {
-			continue
-		}
-		value := unwrapRenderExpression(property.AsPropertyAssignment().Initializer)
-		if ast.IsStringLiteral(value) || ast.IsNoSubstitutionTemplateLiteral(value) {
-			return value.Text()
-		}
+	value := intlActivationObjectMember(expression, name)
+	if value != nil && (ast.IsStringLiteral(value) || ast.IsNoSubstitutionTemplateLiteral(value)) {
+		return value.Text()
 	}
 	return ""
 }
@@ -562,7 +569,7 @@ func applyIntlOrdinalWrappers(
 	result := make([]intlPatternNode, 0, len(nodes))
 	for index := 0; index < len(nodes); index++ {
 		node := nodes[index]
-		if node.Kind != "value" {
+		if node.Kind != "value" || !build.ordinalValues[node.Binding] {
 			result = append(result, node)
 			continue
 		}
@@ -712,12 +719,12 @@ func buildIntlContribution(
 	switch activationName {
 	case "currency":
 		return buildIntlCurrencyInto(
-			sourceFile, children, attributes, activation, build.sourceLocale,
+			sourceFile, typeChecker, children, attributes, activation, build.sourceLocale,
 			build.currencyLabels, build.defaultCurrency, build,
 		)
 	case "unit", "cldr":
 		return buildIntlUnitInto(
-			sourceFile, children, attributes, activation, build.sourceLocale, build.unitLabels, build,
+			sourceFile, typeChecker, children, attributes, activation, build.sourceLocale, build.unitLabels, build,
 		)
 	case "plural", "select":
 		selector := intlActivationValueExpression(activation)
@@ -732,15 +739,15 @@ func buildIntlContribution(
 		if activationName == "plural" {
 			bindingType, selection = "number", "plural-cardinal"
 		}
-		binding := registerIntlSelector(sourceFile, selector, bindingType, build)
 		// An explicit role often surrounds the source-language conditional for
 		// the same selector. Retain that decision once instead of exposing a
 		// redundant selector nested inside an empty outer fallback.
 		if len(fallback) == 1 && fallback[0].Kind == "select" &&
-			fallback[0].Binding == binding && fallback[0].Selection == selection &&
+			build.selectorExpressions[fallback[0].Binding] == strings.TrimSpace(sourceText(sourceFile, selector)) && fallback[0].Selection == selection &&
 			fallback[0].RangeBinding == nil {
 			return fallback, true
 		}
+		binding := registerIntlSelector(sourceFile, selector, bindingType, build)
 		return []intlPatternNode{{
 			Kind: "select", Binding: binding, Selection: selection,
 			Cases: []intlPatternCase{}, Fallback: fallback,
@@ -778,12 +785,7 @@ func intlActivationValueExpression(attribute *ast.Node) *ast.Node {
 	if expression == nil || !ast.IsObjectLiteralExpression(expression) {
 		return expression
 	}
-	for _, property := range expression.AsObjectLiteralExpression().Properties.Nodes {
-		if ast.IsPropertyAssignment(property) && property.AsPropertyAssignment().Name().Text() == "value" {
-			return unwrapRenderExpression(property.AsPropertyAssignment().Initializer)
-		}
-	}
-	return nil
+	return intlActivationObjectMember(expression, "value")
 }
 
 func intlNodeSpan(node *ast.Node) intlSpan {
@@ -797,13 +799,17 @@ func intlActivationAttributeSpans(attributes *ast.Node, activationName string) [
 	case "currency":
 		names = []string{"currency", "display"}
 	case "unit", "cldr":
-		names = []string{"unit", "cldr", "source-unit", "convert-to"}
+		names = []string{"unit", "cldr", "source-unit", "convert-to", "difference"}
 	case "plural", "select":
 		names = []string{activationName}
 	}
 	result := []intlSpan{}
 	for _, name := range names {
-		if attribute := intlJSXAttribute(attributes, name); attribute != nil {
+		attribute := intlJSXAttribute(attributes, name)
+		if (activationName == "unit" || activationName == "cldr") && (name == "source-unit" || name == "convert-to" || name == "difference") {
+			attribute = intlUnitOptionAttribute(attributes, name)
+		}
+		if attribute != nil {
 			start := attribute.Pos()
 			result = append(result, intlSpan{Start: start, Length: attribute.End() - start})
 		}
@@ -848,19 +854,8 @@ func buildIntlExpression(
 		}
 		return result, true
 	}
-	if relative, supported := analyzeIntlRelativeDuration(sourceFile, expression); supported {
+	if relative, supported := analyzeIntlRelativeDuration(sourceFile, expression, typeChecker); supported {
 		recordIntlExpressionInference(sourceFile, expression, "relative-duration", "Relative duration projection inferred from authored branches", build)
-		binding := registerIntlTypedScalar(sourceFile, relative.value, "temporal-duration", build)
-		return []intlPatternNode{{
-			Kind: "format", Bindings: []int{binding},
-			Formatter: map[string]any{
-				"kind": "relative-duration", "fields": relative.fields, "zero": relative.zero,
-				"options": map[string]any{"numeric": "always"},
-			},
-		}}, true
-	}
-	if relative, supported := analyzeIntlLocalRelativeDuration(sourceFile, expression); supported {
-		recordIntlExpressionInference(sourceFile, expression, "relative-duration", "Relative duration projection inferred from helper implementation", build)
 		binding := registerIntlTypedScalar(sourceFile, relative.value, "temporal-duration", build)
 		return []intlPatternNode{{
 			Kind: "format", Bindings: []int{binding},
@@ -883,7 +878,7 @@ func buildIntlExpression(
 		}
 		return []intlPatternNode{node}, true
 	}
-	if ordinal, supported := analyzeIntlOrdinalMarker(sourceFile, expression, build.ordinalMarkers); supported {
+	if ordinal, supported := analyzeIntlOrdinalMarker(sourceFile, expression, build.ordinalMarkers, typeChecker); supported {
 		recordIntlExpressionInference(sourceFile, expression, "plural-ordinal", "Ordinal selection inferred from authored suffix branches", build)
 		binding := registerIntlSelector(sourceFile, ordinal.selector, "number", build)
 		return []intlPatternNode{{
@@ -909,7 +904,7 @@ func buildIntlExpression(
 			Cases: []intlPatternCase{{Key: selection.trueKey, Value: whenTrue}}, Fallback: whenFalse,
 		}}, true
 	}
-	if value, unit, options, supported := analyzeIntlRelativeTime(expression); supported {
+	if value, unit, options, supported := analyzeIntlRelativeTime(expression, typeChecker); supported {
 		recordIntlExpressionInference(sourceFile, expression, "relative-time", "Relative-time formatting inferred from Intl.RelativeTimeFormat", build)
 		binding := registerIntlTypedScalar(sourceFile, value, "number", build)
 		unitBinding := registerIntlTypedScalar(sourceFile, unit, "string", build)
@@ -937,9 +932,12 @@ func buildIntlExpression(
 			Formatter: map[string]any{"kind": "duration", "options": map[string]any{}},
 		}}, true
 	}
-	if !intlScalarExpression(expression) {
+	// Ordinary helpers remain opaque. A proven scalar return can be prepared without
+	// rewriting the helper body or guessing its formatting semantics.
+	if !intlScalarValue(expression, typeChecker) {
 		return nil, false
 	}
 	binding := registerIntlScalar(sourceFile, expression, build)
+	build.ordinalValues[binding] = typeChecker != nil && intlHomogeneousPrimitive(typeChecker.GetTypeAtLocation(expression), "number")
 	return []intlPatternNode{{Kind: "value", Binding: binding}}, true
 }

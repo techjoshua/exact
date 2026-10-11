@@ -1,7 +1,7 @@
 import { exactJest } from '@exactjs/jest';
 
 export default {
-	...exactJest(),
+	...exactJest({ compiler: { compileTestModules: true } }),
 	rootDir: '..',
 	testMatch: ['<rootDir>/test-fixtures/**/*.jest.tsx']
 };

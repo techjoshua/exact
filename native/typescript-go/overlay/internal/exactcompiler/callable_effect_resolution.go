@@ -69,51 +69,88 @@ func componentContextReceiver(
 	return display == "Component" || strings.HasPrefix(display, "Component<")
 }
 
-func collectContextBindings(
-	sourceFile *ast.SourceFile,
-	typeChecker *checker.Checker,
-) map[string]ContextEffect {
-	result := make(map[string]ContextEffect)
+// collectContextBindings keys context authority by checker identity so a shadowed
+// variable cannot inherit another binding's execution contract.
+func collectContextBindings(sourceFile *ast.SourceFile, typeChecker *checker.Checker) map[ast.SymbolId]ContextEffect {
+	result := make(map[ast.SymbolId]ContextEffect)
+	writes := policyAliasWrites(sourceFile, typeChecker)
 	walkNode(sourceFile.AsNode(), func(node *ast.Node) bool {
 		if !ast.IsVariableDeclaration(node) {
 			return true
 		}
 		declaration := node.AsVariableDeclaration()
-		if declaration.Name() == nil ||
-			!ast.IsIdentifier(declaration.Name()) ||
-			declaration.Initializer == nil ||
-			!ast.IsCallExpression(declaration.Initializer) {
+		if declaration.Name() == nil || !ast.IsIdentifier(declaration.Name()) {
 			return true
 		}
-		if effect, ok := contextEffect(
-			declaration.Initializer.AsCallExpression(),
-			sourceFile,
-			typeChecker,
-		); ok && effect.Kind == "read" {
-			result[declaration.Name().Text()] = effect
+		symbol := typeChecker.GetSymbolAtLocation(declaration.Name())
+		if effect, ok := contextBindingInitializerEffect(declaration.Initializer, sourceFile, typeChecker); ok && symbol != nil && len(writes[ast.GetSymbolId(symbol)]) == 0 {
+			result[ast.GetSymbolId(symbol)] = effect
 		}
 		return true
 	})
 	return result
 }
 
-func contextBindingCallEffect(
-	expression *ast.Node,
-	bindings map[string]ContextEffect,
-) (ContextEffect, bool) {
-	text := ""
-	if ast.IsPropertyAccessExpression(expression) {
-		receiver := expression.AsPropertyAccessExpression().Expression
-		for ast.IsPropertyAccessExpression(receiver) {
-			receiver = receiver.AsPropertyAccessExpression().Expression
-		}
-		if ast.IsIdentifier(receiver) {
-			text = receiver.Text()
-		}
-	} else if ast.IsIdentifier(expression) {
-		text = expression.Text()
+// contextBindingReferenceEffect preserves lookup authority through nullable
+// selection without granting authority to an unrelated conditional alternative.
+func contextBindingReferenceEffect(symbol *ast.Symbol, source *ast.SourceFile, typeChecker *checker.Checker) (ContextEffect, bool) {
+	if symbol == nil || symbol.ValueDeclaration == nil || !ast.IsVariableDeclaration(symbol.ValueDeclaration) {
+		return ContextEffect{}, false
 	}
-	effect, exists := bindings[text]
+	return contextBindingInitializerEffect(symbol.ValueDeclaration.AsVariableDeclaration().Initializer, source, typeChecker)
+}
+
+func contextBindingInitializerEffect(node *ast.Node, source *ast.SourceFile, typeChecker *checker.Checker) (ContextEffect, bool) {
+	if node == nil {
+		return ContextEffect{}, false
+	}
+	node = unwrapSourceCallableReference(node)
+	if ast.IsCallExpression(node) {
+		effect, ok := contextEffect(node.AsCallExpression(), source, typeChecker)
+		return effect, ok && effect.Kind == "read"
+	}
+	if ast.IsConditionalExpression(node) {
+		conditional := node.AsConditionalExpression()
+		if absentContextAlternative(conditional.WhenFalse, typeChecker) {
+			return contextBindingInitializerEffect(conditional.WhenTrue, source, typeChecker)
+		}
+		if absentContextAlternative(conditional.WhenTrue, typeChecker) {
+			return contextBindingInitializerEffect(conditional.WhenFalse, source, typeChecker)
+		}
+	}
+	return ContextEffect{}, false
+}
+
+func absentContextAlternative(node *ast.Node, typeChecker *checker.Checker) bool {
+	node = unwrapSourceCallableReference(node)
+	if node.Kind == ast.KindNullKeyword {
+		return true
+	}
+	return ast.IsIdentifier(node) && node.Text() == "undefined" && typeChecker.GetTypeAtLocation(node).Flags()&checker.TypeFlagsUndefined != 0
+}
+
+func contextBindingCallEffect(expression *ast.Node, bindings map[ast.SymbolId]ContextEffect, typeChecker *checker.Checker) (ContextEffect, bool) {
+	receiver := expression
+	for receiver != nil {
+		receiver = unwrapSourceCallableReference(receiver)
+		if ast.IsPropertyAccessExpression(receiver) {
+			receiver = receiver.AsPropertyAccessExpression().Expression
+			continue
+		}
+		if ast.IsElementAccessExpression(receiver) {
+			receiver = receiver.AsElementAccessExpression().Expression
+			continue
+		}
+		break
+	}
+	if receiver == nil || !ast.IsIdentifier(receiver) {
+		return ContextEffect{}, false
+	}
+	symbol := typeChecker.GetSymbolAtLocation(receiver)
+	if symbol == nil {
+		return ContextEffect{}, false
+	}
+	effect, exists := bindings[ast.GetSymbolId(symbol)]
 	return effect, exists
 }
 
@@ -121,6 +158,12 @@ func callTargetSymbol(
 	expression *ast.Node,
 	typeChecker *checker.Checker,
 ) *ast.Symbol {
+	expression = unwrapSourceCallableReference(expression)
+	// Lowered readers can contain detached authored expressions. TS-Go's symbol
+	// query requires a bound parent chain, so such values remain conservative calls.
+	if expression == nil || expression.Parent == nil {
+		return nil
+	}
 	if ast.IsPropertyAccessExpression(expression) {
 		member := expression.AsPropertyAccessExpression()
 		if member.Name() != nil &&
@@ -130,12 +173,52 @@ func callTargetSymbol(
 		// Resolving an arbitrary property-call name forces contextual checking of
 		// its receiver. TS-Go can currently panic there for otherwise valid
 		// generic callbacks. Opaque instance methods remain conservative edges.
+		return namespaceCallableSymbol(member.Expression, member.Name().Text(), typeChecker)
+	}
+	if ast.IsElementAccessExpression(expression) {
+		member := expression.AsElementAccessExpression()
+		if member.ArgumentExpression != nil && ast.IsStringLiteral(member.ArgumentExpression) {
+			return namespaceCallableSymbol(member.Expression, member.ArgumentExpression.Text(), typeChecker)
+		}
 		return nil
 	}
 	if ast.IsIdentifier(expression) {
+		reference := stableSourceCallableReference(expression, typeChecker)
+		if reference == nil {
+			return nil
+		}
+		if reference != expression {
+			return callTargetSymbol(reference, typeChecker)
+		}
 		return typeChecker.GetResolvedSymbol(expression)
 	}
 	return typeChecker.GetSymbolAtLocation(expression)
+}
+
+// Static module exports can be resolved without contextually checking arbitrary receiver methods.
+// A local object with the same spelling never supplies a published callable's contract.
+func namespaceCallableSymbol(receiver *ast.Node, name string, typeChecker *checker.Checker) *ast.Symbol {
+	if receiver == nil || !ast.IsIdentifier(receiver) || ast.NodeIsSynthesized(receiver) || receiver.Parent == nil {
+		return nil
+	}
+	symbol := typeChecker.GetSymbolAtLocation(receiver)
+	if symbol == nil {
+		return nil
+	}
+	for _, declaration := range symbol.Declarations {
+		if ast.IsNamespaceImport(declaration) {
+			module := typeChecker.GetAliasedSymbol(symbol)
+			if module == nil {
+				return nil
+			}
+			for _, exported := range typeChecker.GetExportsOfModule(module) {
+				if ast.SymbolName(exported) == name {
+					return exported
+				}
+			}
+		}
+	}
+	return nil
 }
 
 func resolvedCallableSymbol(
@@ -157,21 +240,25 @@ func unresolvedCallEnvironment(
 	expression *ast.Node,
 	sourceFile *ast.SourceFile,
 	typeChecker *checker.Checker,
-	contextBindings map[string]ContextEffect,
+	contextBindings map[ast.SymbolId]ContextEffect,
 ) string {
 	text := normalizationNodeText(sourceFile, expression)
-	if exactComponentOperation(text) ||
+	operation := componentProtocolCallMember(expression, typeChecker)
+	if name, member, dynamic := checkedComponentProtocolMember(operation, typeChecker); member && !dynamic {
+		// Computed spelling retains the same operation contract. Effects of the key expression
+		// are visited separately and must not be erased by this classification.
+		if exactComponentOperation("this."+name) && componentProtocolReceiverOwned(expression, typeChecker) {
+			return ""
+		}
+	}
+	if exactComponentOperation(text) && (!strings.HasPrefix(text, "this.") || componentProtocolReceiverOwned(expression, typeChecker)) ||
 		componentContextOperation(expression, typeChecker) {
 		return ""
 	}
-	root := text
-	if separator := strings.IndexAny(root, ".("); separator >= 0 {
-		root = root[:separator]
-	}
-	if _, universal := universalCallRoots[root]; universal {
+	if standardLibraryCallRoot(expression, typeChecker) {
 		return ""
 	}
-	if _, contextBinding := contextBindings[root]; contextBinding {
+	if _, contextBinding := contextBindingCallEffect(expression, contextBindings, typeChecker); contextBinding {
 		return ""
 	}
 	if environment := receiverTypeEnvironment(expression, typeChecker); environment == "neutral" {
@@ -185,9 +272,12 @@ func unresolvedCallEnvironment(
 	}
 	if environment, classified := declarationCallEnvironment(
 		resolvedCallableSymbol(symbol, typeChecker),
-		expression,
 	); classified {
 		return environment
+	}
+	root := text
+	if separator := strings.IndexAny(root, ".("); separator >= 0 {
+		root = root[:separator]
 	}
 	if _, server := serverGlobals[root]; server &&
 		symbolIsOutsideSource(symbol, sourceFile) {
@@ -221,26 +311,17 @@ func componentContextOperation(
 
 func declarationCallEnvironment(
 	symbol *ast.Symbol,
-	expression *ast.Node,
 ) (string, bool) {
 	if symbol == nil {
 		return "", false
 	}
-	name := ""
-	switch {
-	case ast.IsIdentifier(expression):
-		name = expression.Text()
-	case ast.IsPropertyAccessExpression(expression):
-		member := expression.AsPropertyAccessExpression().Name()
-		if member != nil {
-			name = member.Text()
-		}
-	}
+	annotations := exactAnnotations{}
 	for _, declaration := range symbol.Declarations {
 		sourceFile := ast.GetSourceFileOfNode(declaration)
 		if sourceFile == nil {
 			continue
 		}
+		annotations = mergeAnnotations(annotations, callableNodeAnnotations(declaration, sourceFile))
 		filename := strings.ToLower(
 			strings.ReplaceAll(sourceFile.FileName(), `\`, "/"),
 		)
@@ -252,8 +333,9 @@ func declarationCallEnvironment(
 			return "browser", true
 		case strings.Contains(filename, "/packages/dom/") ||
 			strings.Contains(filename, "/@exactjs/dom/"):
-			switch name {
-			case "render", "unmount", "dispose", "adoptStatic",
+			// Resolved declarations own platform effects even when the import is renamed.
+			switch symbol.Name {
+			case "render", "renderCompiledComponentRoot", "unmount", "dispose", "adoptStatic",
 				"adoptComponentRoot", "adoptMarkerlessComponentRoot",
 				"findComponentDomNode", "disposeOwnedSubtree":
 				return "browser", true
@@ -268,6 +350,20 @@ func declarationCallEnvironment(
 			strings.Contains(filename, "/@exactjs/request/"):
 			return "", true
 		}
+	}
+	// An unresolved published callable may expose its contract only in a declaration file.
+	// Concrete platform dependencies above still win, and placement tags cannot be erased by pure.
+	if annotations.client && annotations.server {
+		return "unknown", true
+	}
+	if annotations.server {
+		return "server", true
+	}
+	if annotations.client {
+		return "browser", true
+	}
+	if annotations.pure {
+		return "", true
 	}
 	return "", false
 }
@@ -304,7 +400,7 @@ func exactComponentOperation(text string) bool {
 	}
 	member := strings.TrimPrefix(text, "this.")
 	switch member {
-	case "hasContext", "map", "getContext", "setContext", "prop", "ref", "reactive",
+	case "hasContext", "map", "getContext", "setContext", "prop", "ref", "readRef", "reactive", "own",
 		"onMount", "onActivate", "onDeactivate", "onUnmount", "onRender":
 		return true
 	}
@@ -334,7 +430,22 @@ func receiverTypeEnvironment(
 	if value == nil {
 		return ""
 	}
-	if nativeNeutralReceiver(value) {
+	if owner := nativeReceiverMemberEnvironment(expression, typeChecker); owner != "" {
+		return owner
+	}
+	// Interface aliases retain portable framework declaration authority. Platform
+	// declarations still follow receiver ownership, including Node's DOM augmentations.
+	if environment, classified := declarationCallEnvironment(nativeReceiverMemberSymbol(expression, typeChecker)); classified && environment == "" {
+		return "neutral"
+	}
+	if exactIntlReceiver(value) {
+		return "neutral"
+	}
+	// A familiar receiver spelling cannot authorize an application-added method.
+	if !nativeReceiverMemberDeclarations(expression, typeChecker) {
+		return ""
+	}
+	if nativeNeutralReceiver(value) || nativePortableEventReceiver(value) {
 		return "neutral"
 	}
 	display := typeChecker.TypeToString(value)
@@ -349,18 +460,24 @@ func receiverTypeEnvironment(
 
 func resolveCallableEffects(facts []callableFacts) {
 	cycles := callableCycleGroups(facts)
+	work := newCallableEffectWork(facts)
 	changed := true
 	for changed {
 		changed = false
 		for index := range facts {
+			if !work.dirty[index] {
+				continue
+			}
+			work.dirty[index] = false
 			fact := &facts[index]
+			factChanged := false
 			sources := append(
 				[]EnvironmentEffectSource(nil),
 				fact.summary.DirectEffectSources...,
 			)
 			reads := append([]StateEffect(nil), fact.directReads...)
 			writes := append([]StateEffect(nil), fact.directWrites...)
-			writes = append(writes, opaqueCallStateEffects(fact)...)
+			writes = append(writes, work.opaque[index]...)
 			contexts := append([]ContextEffect(nil), fact.directContext...)
 			for _, targetIndex := range fact.targets {
 				// A progress call emits an observation. Its receiver's state and environment
@@ -401,39 +518,7 @@ func resolveCallableEffects(facts []callableFacts) {
 				)
 				contexts = append(contexts, target.Contexts...)
 			}
-			for _, target := range fact.externalTargets {
-				for _, source := range target.EffectSources {
-					path := source.Path
-					if len(path) == 0 || path[0] != fact.summary.Name {
-						path = append([]string{fact.summary.Name}, path...)
-					}
-					sources = append(sources, EnvironmentEffectSource{
-						Environment: source.Environment,
-						Description: source.Description,
-						Path:        path,
-						Opaque:      source.Opaque,
-					})
-				}
-				reads = append(
-					reads,
-					mapStateEffects(
-						target.StateReads,
-						fact.summary.Calls,
-						target.ID,
-						false,
-					)...,
-				)
-				writes = append(
-					writes,
-					mapStateEffects(
-						target.StateWrites,
-						fact.summary.Calls,
-						target.ID,
-						false,
-					)...,
-				)
-				contexts = append(contexts, target.Contexts...)
-			}
+
 			sources = uniqueEnvironmentSources(sources)
 			if fact.summary.ReevaluationSafe {
 				// A checked pure annotation resolves otherwise opaque calls but cannot erase a
@@ -449,22 +534,31 @@ func resolveCallableEffects(facts []callableFacts) {
 			reads = minimalStateEffects(reads)
 			writes = uniqueStateEffects(writes)
 			contexts = uniqueContextEffects(contexts)
-			if environmentSourcesSignature(sources) !=
-				environmentSourcesSignature(fact.summary.EffectSources) {
+			if signature := environmentSourcesSignature(sources); signature != work.signatures[index].environment {
+				work.signatures[index].environment = signature
 				fact.summary.EffectSources = sources
-				changed = true
+				factChanged = true
 			}
-			if stateEffectsSignature(reads) != stateEffectsSignature(fact.summary.StateReads) {
+			if signature := stateEffectsSignature(reads); signature != work.signatures[index].reads {
+				work.signatures[index].reads = signature
 				fact.summary.StateReads = reads
-				changed = true
+				factChanged = true
 			}
-			if stateEffectsSignature(writes) != stateEffectsSignature(fact.summary.StateWrites) {
+			if signature := stateEffectsSignature(writes); signature != work.signatures[index].writes {
+				work.signatures[index].writes = signature
 				fact.summary.StateWrites = writes
-				changed = true
+				factChanged = true
 			}
-			if contextEffectsSignature(contexts) != contextEffectsSignature(fact.summary.Contexts) {
+			if signature := contextEffectSetSignature(contexts); signature != work.signatures[index].contexts {
+				work.signatures[index].contexts = signature
 				fact.summary.Contexts = contexts
-				changed = true
+				factChanged = true
+			}
+			if factChanged {
+				for _, caller := range work.callers[index] {
+					work.dirty[caller] = true
+					changed = changed || caller <= index
+				}
 			}
 		}
 	}
@@ -626,6 +720,7 @@ func moduleInitializerDiagnostics(
 	target Target,
 	sourceFile *ast.SourceFile,
 	policy PolicyAnalysis,
+	preserveOpaqueInitializers bool,
 ) []Diagnostic {
 	diagnostics := []Diagnostic{}
 	if target == TargetDefault {
@@ -644,7 +739,7 @@ func moduleInitializerDiagnostics(
 		case "mixed":
 			message = "executable module initializer has indivisible browser and server effects"
 		case "unknown":
-			if containsOpaqueEnvironment(callable.EffectSources) &&
+			if !preserveOpaqueInitializers && containsOpaqueEnvironment(callable.EffectSources) &&
 				!artifactTargetsInclude(callable.ArtifactTargets, target) &&
 				!(target == TargetServer &&
 					policyConstrainsModuleInitializer(

@@ -5,7 +5,7 @@ import "github.com/microsoft/TypeScript/tsc/internal/ast"
 // keyedCollectionRender keeps a native map's array shape while giving each returned JSX
 // item its authored identity. Nested functions retain their own return and ownership boundaries.
 func (lowering *jsxLowering) keyedCollectionRender(render *ast.Node, key *ast.Node) *ast.Node {
-	emitted := lowering.visitor.VisitNode(render)
+	emitted := lowering.lowerCollectionRender(render)
 	if ast.IsArrowFunction(emitted) && !ast.IsBlock(emitted.Body()) {
 		arrow := emitted.AsArrowFunction()
 		return lowering.factory.UpdateArrowFunction(arrow, arrow.Modifiers(), arrow.TypeParameters,
@@ -31,11 +31,19 @@ func (lowering *jsxLowering) keyedCollectionRender(render *ast.Node, key *ast.No
 // keyedCollectionResult avoids an extra SSR item wrapper when the native program owns the root.
 func (lowering *jsxLowering) keyedCollectionResult(value *ast.Node, key *ast.Node) *ast.Node {
 	arguments := []*ast.Node{value, key}
-	if program := unwrapRenderExpression(value); lowering.target == TargetServer && ast.IsCallExpression(program) {
+	if program := unwrapSourceCallableReference(value); lowering.target == TargetServer && ast.IsCallExpression(program) {
 		expression := program.AsCallExpression().Expression
 		if ast.IsIdentifier(expression) && expression.Text() == lowering.names.preparedServerProgram {
+			arguments[0] = program
 			arguments = append(arguments, lowering.factory.NewTrueExpression())
 		}
 	}
 	return lowering.call(lowering.names.keyedChild, arguments)
+}
+
+// Keep source evaluation and lexical key bindings in native callbacks when a
+// controller selector would move them outside their declaring scope.
+func (lowering *jsxLowering) lowerNativeKeyedMap(call *ast.CallExpression, render, key *ast.Node) *ast.Node {
+	emittedRender := lowering.keyedCollectionRender(render, key)
+	return lowering.factory.NewCallExpression(lowering.visitor.VisitNode(call.Expression), call.QuestionDotToken, call.TypeArguments, lowering.factory.NewNodeList([]*ast.Node{emittedRender}), call.Flags)
 }

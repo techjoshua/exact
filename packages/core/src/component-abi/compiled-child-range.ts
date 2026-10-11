@@ -8,9 +8,17 @@ export function createCompiledChildRangeReceipt(
 	markerId?: string,
 	mayReplaceSubtree = true
 ): ExactChildRangeReceipt {
-	// Later structural reads must issue children in the same domain as their initial render.
-	// Otherwise matching intrinsic/component receipts appear to change ownership on update.
+	return createChildRangeReceipt(
+		createOwnedChildRangeValue(compute, mayReplaceSubtree),
+		markerId,
+		mayReplaceSubtree
+	);
+}
+
+/** Keeps deferred structural reads in their initial component domain and caches one computed copy. */
+export function createOwnedChildRangeValue(compute: () => unknown, mayReplaceSubtree = true) {
+	// Matching children retain ownership when later reads execute outside the initial render.
 	const domain = mayReplaceSubtree ? currentComponentDomain() : undefined;
 	const read = domain ? () => withComponentDomain(domain, compute) : compute;
-	return createChildRangeReceipt(computed(read), markerId, mayReplaceSubtree);
+	return computed(read);
 }

@@ -70,6 +70,11 @@ its second population. Use `COMPARISON_SSR_RENDER_MODE=stream` for progressive r
 Scheduled demand continues to use `measure:ssr:arrivals` with its independent-rate warmup and
 measurement requirements.
 
+The collectors use independent Node load-driver processes. Captures record the Node runtime,
+and capacity report groups require the same driver version throughout. Driver CPU, scheduling
+lag, missed demand, and response validation help distinguish generator limits from server capacity.
+See [SSR load testing](../docs/ssr-load-testing.md) for plans and interpretation.
+
 ### Local benchmark networking
 
 Linux measurements verify and record the route to `127.0.0.1` before starting timed work.

@@ -86,6 +86,30 @@ server task operations, refreshable server boundaries, or generated client islan
 5. Expose the eXact endpoint through the deployment runtime's adapter.
 6. Configure the hydration client with the same endpoint and register generated client islands.
 
+A page that should remain server-owned can declare `/** @exact server */` above its component,
+even when it has no server task. Its interactive children activate as independent islands. A
+client-capable application root instead uses whole-root hydration with `hydrate(<App />, root)`.
+The island registry alone does not mount that application root.
+
+Build component libraries before generating the consumer's artifact graph and hydration
+registration. Compiler 0.7.1 library output publishes registration products that the consuming
+compiler follows through nested component and enhancement-provider imports. Its generated registry includes the library's
+interactive roots and continuation plans without an application-local wrapper or manual island
+table. Rebuild older libraries and regenerate the consumer's artifacts to add this metadata.
+
+A stateful context provider retains one client owner even when its controls are library children.
+It does not need an otherwise unused event handler to activate. Its server-authored children stay
+in a retained range under that provider. For development library watch, wait for the first successful
+publication before starting consumer SSR. Regenerate separately generated consumer artifacts after
+publication and before reloading its SSR graph. Published target artifacts are checked by their
+producing build. Watch diagnostics for authored files follow the owning project's TypeScript
+checking options.
+
+Derive the SSR hydration options with `createExactHydrationConfig()` from `@exactjs/server` using
+the same executor contract as the server runtime. Spread the result into the hydratable renderer's
+options. Use `includeContinuations: false` when the generated client hydration registration supplies
+those contracts. Library consumers own this application wiring.
+
 Inspect compiler contracts and nearby source applications before modifying this flow. Generated
 `.exact` directories and `.exact.*` files are disposable build output: inspect them only while
 diagnosing emission, and never edit or commit them. Keep endpoint routes, private component
@@ -111,3 +135,6 @@ task work remains in a split build. They do not create browser/server
 entrypoints, choose a renderer, enable hydration, produce build artifacts, or expose
 an endpoint. Let environment usage infer placement when possible and make the
 application rendering decision separately.
+
+Library watch rebuilds source, configuration and imported JSON. Keep CSS publication in the
+library asset pipeline. Asset edits do not require rebuilding component artifacts.

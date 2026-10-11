@@ -155,7 +155,7 @@ describe('@exactjs/compiler component value/callback bindings', () => {
 				}`,
 				{ filename: '/app/Modal.tsx' }
 			)
-		).toThrow(/writable component state location/);
+		).toThrow(/modal:isOpen cannot write parent-owned props/);
 	});
 
 	it('requires a writable state target and notification-only callback contract', () => {

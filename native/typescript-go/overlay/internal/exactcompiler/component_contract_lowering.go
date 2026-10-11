@@ -39,7 +39,7 @@ func lowerComponentContracts(
 	}
 
 	used := sourceIdentifiers(sourceFile)
-	descriptorName := allocateGeneratedName(used, "__exactComponentContract")
+	brandingName := allocateGeneratedName(used, "__exactBrandComponent")
 	constructors := componentConstructorImports{
 		localizationContextName: allocateGeneratedName(used, "__exactContinuationLocalizationContext"),
 		renderName:              allocateGeneratedName(used, "__exactConstructRenderComponent"),
@@ -73,7 +73,7 @@ func lowerComponentContracts(
 						emitContext,
 						statement.AsFunctionDeclaration(),
 						component,
-						descriptorName,
+						brandingName,
 						identityFilename,
 						continuations,
 						resumptions,
@@ -106,7 +106,7 @@ func lowerComponentContracts(
 				emitContext,
 				statement,
 				rootContracts,
-				descriptorName,
+				brandingName,
 				identityFilename,
 				continuations,
 				resumptions,
@@ -179,9 +179,9 @@ func lowerComponentContracts(
 			}
 			break
 		}
-		descriptor := componentDescriptorDeclaration(
+		descriptor := componentBrandingImport(
 			emitContext,
-			descriptorName,
+			brandingName,
 		)
 		constructorImports := constructors.declarations(factory)
 		capacity := len(statements) + len(updateDefinitions) + len(hoistedAttachments) + 1
@@ -479,7 +479,7 @@ func wrapRootComponentFunction(
 	emitContext *printer.EmitContext,
 	declaration *ast.FunctionDeclaration,
 	component Component,
-	descriptorName string,
+	brandingName string,
 	identityFilename string,
 	continuations []Continuation,
 	resumptions []ComponentResumption,
@@ -512,7 +512,7 @@ func wrapRootComponentFunction(
 			emitContext,
 			declaration,
 			component,
-			descriptorName,
+			brandingName,
 			identityFilename,
 			continuations,
 			resumptions,
@@ -532,7 +532,7 @@ func wrapRootComponentFunction(
 		emitContext,
 		implementationIdentifier,
 		component,
-		descriptorName,
+		brandingName,
 		identityFilename,
 		continuations,
 		resumptions,
@@ -555,7 +555,7 @@ func wrapRootComponentFunctionValue(
 	emitContext *printer.EmitContext,
 	declaration *ast.FunctionDeclaration,
 	component Component,
-	descriptorName string,
+	brandingName string,
 	identityFilename string,
 	continuations []Continuation,
 	resumptions []ComponentResumption,
@@ -605,7 +605,7 @@ func wrapRootComponentFunctionValue(
 		emitContext,
 		implementationIdentifier,
 		component,
-		descriptorName,
+		brandingName,
 		identityFilename,
 		continuations,
 		resumptions,
@@ -678,7 +678,7 @@ func rootComponentContractAttachment(
 	emitContext *printer.EmitContext,
 	implementation *ast.Node,
 	component Component,
-	descriptorName string,
+	brandingName string,
 	identityFilename string,
 	continuations []Continuation,
 	resumptions []ComponentResumption,
@@ -794,7 +794,10 @@ func rootComponentContractAttachment(
 		inputs = factory.NewIdentifier(name)
 	}
 	serverPublicationName := ""
-	if target == TargetServer && hasResumption && len(componentContinuations) != 0 {
+	if target == TargetServer && component.Placement == "isomorphic" &&
+		((hasResumption && len(componentContinuations) != 0) || component.StandaloneClientActivation) {
+		// Publication is independent of state capture. A library's local event or lifecycle
+		// owner still needs activation when a server-only consumer cannot adopt its subtree.
 		serverPublicationName = component.Name
 	}
 	var serverFrame *ast.Node
@@ -930,53 +933,9 @@ func rootComponentContractAttachment(
 		))
 	}
 	contract := contractObject(factory, true, contractProperties...)
-	brandSymbol := factory.NewComputedPropertyName(
-		factory.NewCallExpression(
-			factory.NewPropertyAccessExpression(
-				factory.NewIdentifier("Symbol"),
-				nil,
-				factory.NewIdentifier("for"),
-				ast.NodeFlagsNone,
-			),
-			nil,
-			nil,
-			factory.NewNodeList([]*ast.Node{
-				contractString(factory, "@exactjs/component"),
-			}),
-			ast.NodeFlagsNone,
-		),
-	)
-	properties := factory.NewObjectLiteralExpression(
-		factory.NewNodeList([]*ast.Node{
-			factory.NewPropertyAssignment(
-				nil,
-				brandSymbol,
-				nil,
-				nil,
-				contractString(factory, component.ID),
-			),
-			factory.NewPropertyAssignment(
-				nil,
-				factory.NewComputedPropertyName(
-					factory.NewIdentifier(descriptorName),
-				),
-				nil,
-				nil,
-				contract,
-			),
-		}),
-		true,
-	)
 	assigned := factory.NewCallExpression(
-		factory.NewPropertyAccessExpression(
-			factory.NewIdentifier("Object"),
-			nil,
-			factory.NewIdentifier("assign"),
-			ast.NodeFlagsNone,
-		),
-		nil,
-		nil,
-		factory.NewNodeList([]*ast.Node{implementation, properties}),
+		factory.NewIdentifier(brandingName), nil, nil,
+		factory.NewNodeList([]*ast.Node{implementation, contractString(factory, component.ID), contract}),
 		ast.NodeFlagsNone,
 	)
 	// Compiler metadata is a runtime protocol, not part of an authored component's
@@ -1040,7 +999,7 @@ func wrapRootComponentVariables(
 	emitContext *printer.EmitContext,
 	statement *ast.Node,
 	components map[string]Component,
-	descriptorName string,
+	brandingName string,
 	identityFilename string,
 	continuations []Continuation,
 	resumptions []ComponentResumption,
@@ -1094,7 +1053,7 @@ func wrapRootComponentVariables(
 			emitContext,
 			implementation,
 			component,
-			descriptorName,
+			brandingName,
 			identityFilename,
 			continuations,
 			resumptions,

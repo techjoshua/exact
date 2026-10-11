@@ -14,6 +14,8 @@ export type NativeCompilerComponent = Readonly<{
 	artifactTargets: readonly ('client' | 'server')[];
 	renderEdges: readonly NativeCompilerRenderEdge[];
 	clientIslandCount: number;
+	/** Local activation requires an owner instead of already partitioned element islands. */
+	standaloneClientActivation?: boolean;
 	contexts: readonly NativeCompilerContextEffect[];
 	splitBoundaries: readonly string[];
 	diagnostics: readonly string[];

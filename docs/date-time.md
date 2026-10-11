@@ -29,20 +29,38 @@ capability leaves the ordinary initial JavaScript result as the fallback. `Date.
 `plainDateISO()`, and `plainTimeISO()` are recognized clock sources. A clock sample retains the
 native number, `Date`, or Temporal category expected by the authored expression.
 
+Clock operations use the standard `Date`, `Math`, and `Temporal` declarations. Finite computed
+members such as `Date['now']()` and `Math['floor']()` follow the same rules as dot access.
+An application-owned value named `Date`, `Math`, or `Temporal` retains its ordinary behavior.
+Each range needs its own clock expression. A nested time range owns its clock and formatter plan
+independently. Repeated clock expressions must also keep independent helper calls and computed
+keys safe to reevaluate. Deferred event callbacks run only when invoked.
+
 Put the enhancement on an existing semantic intrinsic when it owns the element's complete content.
 Use `_` only for a narrower range, independently governed sibling regions, or content without an
 appropriate intrinsic host.
 
 ## Accuracy and automatic plans
 
-`auto` derives the next visible boundary from safe arithmetic. Quantized countdown and elapsed-time
+`auto` derives the next visible boundary from safe arithmetic. Epoch rounding with
+`Math.floor(Date.now() / 1000)`, `Math.round`, or `Math.trunc` uses a zero anchor. Quantized countdown and elapsed-time
 expressions using `Math.ceil`, `Math.floor`, `Math.round`, or `Math.trunc` retain their authored
 anchor, so a deadline at `12:00:00.250` does not drift onto a wall-clock second boundary. Pure
 component-body aliases and lexical micro-components are materialized into the consuming reactive
-binding. The same analysis follows statically selected record and array members, including
-destructuring, and reusable lexical micro-components may accept different props at each call. Each
+binding. Captured plan inputs use the same materialization, so a prop-derived anchor remains
+available when its component-local alias is omitted from setup. The same analysis follows
+statically selected record and array members, including
+destructuring with literal computed keys. Automatic selection preserves the final property definition.
+An unknown later key or spread cannot prove which property supplies the clock. Array spreads that
+can shift the selected index and default or rest bindings also require a separate finite proof.
+Reusable lexical micro-components may accept different props at each call. Each
 call receives its own range sample and registration without becoming a durable child component.
 Ordinary durable children remain opaque and declare their own enhancement.
+
+Automatic quantization through a formatter parameter requires an unchanged millisecond clock
+argument, such as `Date.now()` or its safe alias. If a caller shifts or scales that clock argument,
+choose an explicit accuracy. Otherwise the helper’s units and phase are unproven and compilation
+reports the automatic-plan diagnostic.
 
 Local formatter functions may contain ordinary pure TypeScript statements and calls. The compiler
 follows their local call graph, so formatting does not have to be flattened into JSX:
@@ -85,11 +103,16 @@ This range schedules second boundaries initially, switches to minute boundaries 
 then to hour boundaries at one hour. It does not choose one refresh interval for its lifetime.
 Standard `Intl.RelativeTimeFormat` inherits the numeric argument's plan. `Intl.DateTimeFormat` and
 native date/time locale formatting derive their smallest visible fixed or calendar field, including
-literal formatter time-zone and calendar options.
+literal formatter time-zone and calendar options. Formatter option keys may also be computed
+string literals. Dynamic keys and option values require independent reevaluation proof.
 
 Fixed-unit Temporal `until()` and `since()` durations rounded to milliseconds through hours are
-also planned from their authored anchor. `round()` keeps half-expand behavior on both sides of zero,
-including `roundingIncrement`; sub-millisecond requests are rejected because the clock contract is
+also planned from their authored anchor. `round()` preserves all nine literal Temporal rounding modes on both sides of zero,
+including `roundingIncrement`. The compiler also follows a rounded duration's fields and composes
+multiple duration fields by their earliest visible change. Rounding options must be statically
+known for automatic accuracy. Supported options are `smallestUnit`, `roundingMode`,
+`roundingIncrement`, and a literal fixed-unit or `auto` `largestUnit`. Unchecked options and
+calendar-relative `relativeTo` require a narrower supported policy. Sub-millisecond requests are rejected because the clock contract is
 millisecond based. Calendar-relative Temporal duration rounding is not approximated as fixed
 milliseconds: use an explicit calendar policy or keep the calendar result outside automatic mode
 until its `relativeTo` context can be represented by a finite plan.
@@ -107,11 +130,15 @@ zone rather than fixed 24-hour or 30-day approximations. Supply those axes indep
 not an interval promise. Slow work and suspended pages coalesce missed boundaries into one fresh
 sample.
 
-The policy may be reactive. `disabled` withdraws scheduling but retains the range's last sample;
-ordinary props and state remain reactive. Reenabling queues one current sample after the policy
+The policy may be reactive. If its possible values contain only explicit accuracies or `disabled`,
+the expression does not need an inferred automatic plan. Named attributes and finite spreads follow
+the same rule. `disabled` withdraws scheduling but retains the range's last sample.
+Ordinary props and state remain reactive. Reenabling queues one current sample after the policy
 cycle settles rather than replaying missed ticks. Policy and clock-plan preparation do not subscribe
 the enclosing component render; the enhancement policy and clock-derived expression retain their
-own precise reactive boundaries, so changing an anchor or policy does not require a keyed remount.
+own precise reactive boundaries, so changing an anchor or policy does not require a keyed remount. Changing a plan anchor on an
+enabled mounted range samples current time after the update settles, including when the previous
+finite plan had no future changes. Disabled ranges retain their frozen sample.
 
 ```tsx
 <time time:update={this.state.live ? 'auto' : 'disabled'}>
@@ -139,6 +166,22 @@ so applications without `time:update` do not acquire hydration payload or runtim
 ## Authoritative and manual clocks
 
 `TimeProvider` supplies one clock identity to a subtree. Matching identities share a scheduler.
+Enabled ranges use that clock for their initial server sample without scheduling timers.
+Clock-dependent text, attributes, classes and finite JSX spreads use the same observation.
+Component props copied inside an enhanced lexical range also use that range’s provider sample,
+including when the copy supplies a sibling key.
+Conditional spreads can change which named attributes are present while retaining the host.
+Spreads in enhancement-enabled modules must have a statically finite key space. A stable
+component-local spread may also supply `time:update`. Its policy receives the same clock,
+precision, automatic-plan and safe-reevaluation checks as a named attribute. Immediate writes
+inside a repeated clock expression are rejected, including through clock-bearing aliases.
+Ordinary event callbacks retain their invocation behavior.
+Each provider captures a finite initial observation in its serialized component state. Hydration
+retains that provider observation until adoption settles, including when the client clock has
+already advanced. Nested providers retain independent observations. An initially disabled range
+uses its provider observation and holds it until updates are enabled. The live clock object stays
+in the application and does not enter hydration data. A custom clock's `now()` must return a
+finite epoch-millisecond observation without changing the clock or scheduling work.
 This supports authoritative application time, simulations, and deterministic tests without
 patching global `Date`:
 
@@ -187,8 +230,9 @@ projections share the matching authored activation rather than allocating clocks
 ## Language assistance and diagnostics
 
 The package contributes completions for every update policy, hover and inlay summaries with inferred
-plan evidence, and errors for invalid policies, clock-free ranges, and automatic expressions whose
-next visible change cannot be proven. `auto` never silently falls back to millisecond or second
+plan evidence, and errors for invalid policy values. The native compiler proves clock reachability,
+precision, safe reevaluation and automatic scheduling. It rejects clock-free ranges and automatic
+expressions whose next visible change cannot be proven. `auto` never silently falls back to millisecond or second
 polling. An explicit cadence controls accuracy but does not make an opaque helper with hidden clock
 reads safe to repeat. Expose the clock as an argument to a compiler-proven local pure helper:
 

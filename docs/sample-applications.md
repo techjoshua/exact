@@ -18,7 +18,9 @@ application. The Enhancement Playground and Theme Lab, Kanban, Project Workbench
 are published under `enhancements/`, `kanban/`, `workbench/`, and `intl/`. The Pages assembly also
 deploys Puzzle Foundry as an intentionally unadvertised `puzzle-foundry.html` artifact; neither the
 documentation application nor Puzzle Foundry links to it or from it. Its themed authoring shell
-keeps printable artwork and publication colors as explicit document data. Advertised hosted
+keeps printable artwork and publication colors as explicit document data. Printable backgrounds
+default to pure white. Crosswords distinguish enclosed unused cells, which default to black, from
+outer unused cells and letter cells, with separate color controls for each. Advertised hosted
 applications link back with a GitHub Pages-relative URL to the documentation page for the framework
 behavior they demonstrate.
 

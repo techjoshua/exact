@@ -11,7 +11,12 @@ export interface ManualTimeClock extends TimeClock {
 	readonly pendingTimerCount: number;
 }
 
-/** Creates a manual clock whose advancement and due-work publication are deliberately separate. */
+/**
+ * Creates a manual clock whose advancement and due-work publication are deliberately separate.
+ * Allocation changes no external clock or scheduler. Scheduling begins only when a consumer
+ * registers work, so each component may safely own an independent manual clock.
+ * @exact pure
+ */
 export function createManualTimeClock(initialEpochMilliseconds = 0): ManualTimeClock {
 	let current = initialEpochMilliseconds;
 	let nextId = 1;

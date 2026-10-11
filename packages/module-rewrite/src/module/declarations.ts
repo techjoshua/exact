@@ -1,4 +1,5 @@
 import ts from 'typescript';
+import { moduleExportName } from './emission.js';
 import type { ModuleExportReplacement } from './contracts.js';
 
 /** Transforms import declaration into its required representation. */
@@ -23,7 +24,7 @@ export function rewriteImportDeclaration(
 			group.specifiers.push(
 				factory.createImportSpecifier(
 					false,
-					factory.createIdentifier(defaultReplacement.targetExport),
+					moduleExportName(factory, defaultReplacement.targetExport),
 					clause.name
 				)
 			);
@@ -55,7 +56,7 @@ export function rewriteImportDeclaration(
 			group.specifiers.push(
 				factory.createImportSpecifier(
 					false,
-					factory.createIdentifier(replacement.targetExport),
+					moduleExportName(factory, replacement.targetExport),
 					specifier.name
 				)
 			);
@@ -121,7 +122,7 @@ export function rewriteExportDeclaration(
 		values.push(
 			factory.createExportSpecifier(
 				false,
-				factory.createIdentifier(replacement.targetExport),
+				moduleExportName(factory, replacement.targetExport),
 				specifier.name
 			)
 		);

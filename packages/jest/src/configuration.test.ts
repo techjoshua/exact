@@ -23,6 +23,12 @@ describe('@exactjs/jest', () => {
 	it('allows applications to retain their own test environment', () => {
 		expect(exactJest({ testEnvironment: false })).not.toHaveProperty('testEnvironment');
 	});
+	it('forwards opt-in compilation of components defined inside tests', () => {
+		expect(exactJest({ compiler: { compileTestModules: true } }).transform['^.+\\.tsx?$']).toEqual([
+			expect.stringMatching(/transformer\.js$/),
+			{ compileTestModules: true }
+		]);
+	});
 
 	it('maps the selected React runtime and forwards compiler ownership options', () => {
 		const config = exactJest({ compiler: { reactCompatibility: { target: 19 } } });

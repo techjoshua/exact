@@ -35,9 +35,22 @@ function Dashboard(this: Component<{ selected: WidgetKey }>, props: { selected: 
 The registry must be a named, module-level `const` initialized from a finite
 object definition. Entries cannot be added, removed, or replaced after
 creation. Unsafe object keys, branching definitions, side effects, and
-unprovable computed keys are compiler diagnostics. Entry names are ordinary object keys,
-so an entry named `lazy` is valid. The scoped `lazy()` function remains available only
+computed declaration keys are compiler diagnostics. Entry names are ordinary literal object keys,
+so an entry named `lazy` is valid. The callback can use an expression body or a block containing only `return { ... }`.
+The scoped `lazy()` function remains available only
 inside the definition callback.
+
+When `lazy` conflicts with another local name, destructure it as `({ lazy: load })` and call
+`load()` in the definition. A named builder parameter can also call `builder.lazy()`.
+The compiler follows the callback's capability binding, including through parentheses and
+type-only wrappers. An unrelated function named `lazy` does not establish a lazy entry.
+
+The compiler follows the imported factory value through renamed imports, namespace imports,
+reexports, and immutable local aliases. A local function with the same name remains an ordinary
+function. The registry itself must still satisfy the finite, module-level declaration requirements.
+Parentheses, type assertions, `satisfies`, and non-null assertions retain the declaration's identity.
+Immutable aliases retain finite selection proof. Type assertions and aliases do not permit entry
+assignment or deletion.
 
 `createComponentRegistry()` is compiler source syntax, just like an eXact component definition.
 Do not execute a registry module outside an eXact compilation pipeline; the compiler replaces the
@@ -46,7 +59,10 @@ declaration with its target-specific client or server artifact.
 ## Keys and untrusted input
 
 `KeyOf<typeof Registry>` derives the exact key union. Use `hasComponent()` to
-narrow an untrusted string before indexing:
+narrow an untrusted string before indexing. Each indexed expression needs its own finite key
+proof. An unrelated key type declaration does not validate a different string value:
+
+String keys retain their exact values, including quotation marks, Unicode, and escaped characters.
 
 The key type may be exported from its registry module, including when entries are lazy. Navigation
 or other metadata modules can import that type without importing component implementations at runtime.
@@ -84,6 +100,8 @@ supported, including literal member access and destructuring aliases. The loader
 immutable local named function. Build metadata records the exported name, including `default`, rather
 than the selector's local alias. Branching, computed export names, and extra statements cannot
 establish a single static selection and receive a compiler diagnostic.
+String literals and template literals without substitutions supply the same static import and
+literal export selection.
 
 The compiler assigns the registry and every entry opaque identities, records
 eager or lazy provenance, placement, module/export ownership, and target

@@ -40,3 +40,23 @@ func (lowering *jsxLowering) directServerRenderProgramComponent(node *ast.Node) 
 	}
 	return call.Arguments.Nodes[0], props
 }
+
+// appendRenderProgramComponentSlot preserves the actual lowered operation contract. A native
+// tag can lower to an island, issued server output or a copied-prop range instead of a component
+// reference. Those values use structural preparation rather than component-reference validation.
+func (lowering *jsxLowering) appendRenderProgramComponentSlot(
+	build *renderProgramBuild, child *ast.Node, path []int, markerlessTail bool, boundedMarkerless bool,
+) bool {
+	reader := lowering.visitRenderProgramComponent(child)
+	if !ast.IsCallExpression(reader) || !ast.IsIdentifier(reader.AsCallExpression().Expression) ||
+		reader.AsCallExpression().Expression.Text() != lowering.names.componentReceipt {
+		build.childSlot(lowering.dynamicID(child), path, reader, false, false, markerlessTail)
+		return false
+	}
+	serverComponent, serverProps := lowering.directServerRenderProgramComponent(reader)
+	if serverComponent != nil {
+		reader = serverProps
+	}
+	build.componentSlot(lowering.dynamicID(child), path, reader, markerlessTail, boundedMarkerless, serverComponent)
+	return boundedMarkerless
+}

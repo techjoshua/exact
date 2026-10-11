@@ -90,7 +90,14 @@ Server Vite, Webpack, Bun, Vitest, and Jest integrations authorize compiler-reac
 package instances before evaluation. Treat authorization as permission for in-process server code,
 not sandboxing. Do not bypass missing markers or build facts. Published libraries declare
 `@exactjs/component-library` in production dependencies and generate the static file named by
-`exactComponentLibrary.build`. Bun server `--hot` is unsupported; use watch builds so rejected
+`exactComponentLibrary.build`. Declare shared framework runtimes as compatible peers and install
+them as development dependencies for the library's own build and tests. The marker remains a
+production dependency. Peers require the consumer's own authorization and do not inherit delegated
+trust. The adapters share application-installed `@exactjs/` instances with linked libraries while
+preserving provider export conditions, aliases, and server authorization. Library-only optional
+providers remain available. Set `includeDefaultTrustedScopes: false` to remove the default
+`@exactjs/` scope. A deny rule still wins, and optional exclusion must not disable a required component.
+Bun server `--hot` is unsupported. Use watch builds so rejected
 generations cannot replace the last authorized graph.
 
 ### Optional full-stack DevTools

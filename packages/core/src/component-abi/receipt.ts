@@ -28,6 +28,8 @@ export type ExactComponentReceiptData = Readonly<{
 	props: Readonly<Record<string, unknown>>;
 	children: readonly Child[];
 	key?: string;
+	/** Compiler-issued placeholder identity for a client-only child owned by this hydrated parent. */
+	clientBoundaryId?: string;
 	domain?: ComponentDomain;
 	enhancement?: CompiledEnhancementNode;
 	update?: ExactComponentReceiptUpdate;
@@ -93,6 +95,18 @@ export function createCompiledComponentReceipt(
 		...(domain ? { domain } : {}),
 		...(enhancement ? { enhancement: enhancement as CompiledEnhancementNode } : {})
 	});
+	return receipt;
+}
+
+/** Attaches an opaque client-only placeholder identity without changing props or sibling keys. */
+export function withCompiledClientBoundaryIdentity(
+	value: ExactComponentReceipt,
+	boundaryId: string
+): ExactComponentReceipt {
+	const data = receipts.get(value);
+	if (!data) throw new TypeError('Client boundary identity requires a compiled component receipt');
+	const receipt = createOpaqueOperation<ExactComponentReceipt>(executeComponentOperation, data);
+	receipts.set(receipt, { ...data, clientBoundaryId: boundaryId });
 	return receipt;
 }
 

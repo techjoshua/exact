@@ -15,3 +15,15 @@ export function createOwnedNativeCompilationSession(
 		nativeCompiler: { executable: resolveNativeCompilerExecutable() }
 	});
 }
+
+/** Shares one native type graph across a compilation generation and disposes it on success or failure. */
+export async function withOwnedNativeCompilationSession<T>(
+	run: (session: ExactCompilerSession) => Promise<T>
+): Promise<T> {
+	const session = createOwnedNativeCompilationSession(undefined)!;
+	try {
+		return await run(session);
+	} finally {
+		session.dispose();
+	}
+}

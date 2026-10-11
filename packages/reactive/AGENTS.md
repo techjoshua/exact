@@ -9,3 +9,7 @@ See the [README](./README.md) for primitives and examples. Most components shoul
   global scheduler flush. Unwatched standalone computeds remain pull-only, while effect scopes own
   durable framework computations.
 - Prefer component-owned transactions and optimistic actions over application-managed shadow stores.
+
+Helpers may accept `StateAccess<T>` created with `stateAccess()` from caller-supplied state.
+Use `sameStateTarget()` for explicit storage identity comparisons. Keep task views within their
+creating task and do not unwrap them to mutate raw storage.

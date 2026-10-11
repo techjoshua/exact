@@ -109,6 +109,12 @@ export function AdvancedPage(this: Component<{}>) {
 						rebuild the HTML.
 					</p>
 					<p>
+						State strings can contain markup and Unicode normally. eXact protects the hydration
+						JSON's HTML script boundary automatically, and the client restores the original values.
+						Use ordinary data objects and arrays. Custom serialization hooks such as
+						<code>toJSON</code> are unsupported. Sparse array holes become JSON null values.
+					</p>
+					<p>
 						Pass the request's <code>AbortSignal</code> through the SSR <code>signal</code> option
 						to cancel pending waits when the request ends. An already-aborted signal rejects the
 						wait immediately. Failures from work settling during cleanup remain handled.
@@ -181,6 +187,12 @@ export function AdvancedPage(this: Component<{}>) {
 					document boundaries.
 				</p>
 				<p>
+					When server HTML does not match the client root, hydration reports the mismatch and
+					replaces the element root by default. Set <code>onMismatch: 'throw'</code> to reject it
+					instead. Document roots cannot be replaced safely. Keep server ownership markers enabled
+					for dynamic lists and ranges, even when the outer root is markerless.
+				</p>
+				<p>
 					For roots without server operations or client islands, <code>hydrateAfterNavigation</code>
 					from <code>@exactjs/hydrate/root</code> accepts an element or the current{' '}
 					<code>document</code>. It gives visible server HTML a rendering opportunity before
@@ -201,12 +213,13 @@ export function AdvancedPage(this: Component<{}>) {
 				</p>
 				<p>
 					Eligible controls can load their client code on first interaction. The compiler explains
-					why a component must hydrate eagerly when it cannot be deferred safely. While that code
-					loads, eXact queues clicks and submissions and retains the latest input values per
-					control, including controls with the same form name. File selections stay with the browser
-					when the existing input is adopted. Select controls keep selected values when their
-					options move. If a selected value disappears, a single select remains unselected until
-					another value is chosen.
+					why a component must hydrate eagerly when it cannot be deferred safely. An eager island
+					inside a dormant parent also activates the parent so its server slot can be adopted.
+					Sibling islands share that parent load. While that code loads, eXact queues clicks and
+					submissions and retains the latest input values per control, including controls with the
+					same form name. File selections stay with the browser when the existing input is adopted.
+					Select controls keep selected values when their options move. If a selected value
+					disappears, a single select remains unselected until another value is chosen.
 				</p>
 				<p>
 					Queued actions belong to the island and control where they started. If an earlier handler

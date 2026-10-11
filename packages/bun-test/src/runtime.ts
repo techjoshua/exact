@@ -25,7 +25,7 @@ export function configureExactBunTest(configuration: ExactBunTestConfiguration =
 		domInstalled = true;
 	}
 	if (configuration.compiler !== false && !compilerInstalled) {
-		plugin(exact(configuration.compiler ?? {}));
+		plugin(exact({ ...configuration.compiler, __exactTestHost: true }));
 		compilerInstalled = true;
 	}
 	if (configuration.matchers !== false && !matchersInstalled) {

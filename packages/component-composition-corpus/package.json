@@ -18,6 +18,8 @@
 	},
 	"devDependencies": {
 		"@exactjs/compiler": "^0.7.0",
-		"@exactjs/vitest": "^0.7.0"
+		"@exactjs/secrets": "^0.7.0",
+		"@exactjs/vitest": "^0.7.0",
+		"@exactjs/server": "^0.7.0"
 	}
 }

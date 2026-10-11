@@ -99,35 +99,55 @@ describe('independent namespace roots', () => {
 			unmount(container);
 		}
 	});
-	it('retargets after hydration while retaining unrelated peer output', async () => {
-		const result = await renderToHydratableString(serverRetarget, {
-			enhancementCatalog: new Map([
-				[left, ServerLeft],
-				[right, ServerRight]
-			])
-		});
-		const container = document.createElement('div');
-		container.innerHTML = result.html;
-		try {
-			hydrate(retargetRoot, container, {
+	it.each(['marked', 'markerless'])(
+		'retargets after %s hydration while retaining unrelated peer output',
+		async (mode) => {
+			const result = await renderToHydratableString(serverRetarget, {
 				enhancementCatalog: new Map([
-					[left, LeftShell],
-					[right, RightShell]
-				]),
-				resumptions: result.resumptions,
-				onMismatch: 'throw'
+					[left, ServerLeft],
+					[right, ServerRight]
+				])
 			});
-			const peer = container.querySelector('div[data-enhancement="right"]');
-			const first = container.querySelector('#first');
-			retargetOwner.state.first = false;
-			flushSync();
-			expect(container.querySelector('aside > #second')).not.toBeNull();
-			expect(container.querySelector('#first')).toBe(first);
-			expect(container.querySelector('div[data-enhancement="right"]')).toBe(peer);
-		} finally {
-			unmount(container);
+			const container = document.createElement('div');
+			container.innerHTML = result.html;
+			if (mode === 'markerless') {
+				container.firstChild?.remove();
+				container.lastChild?.remove();
+			}
+			const serverFirst = container.querySelector('#first');
+			const serverSecond = container.querySelector('#second');
+			const serverPeer = container.querySelector('div[data-enhancement="right"]');
+			try {
+				hydrate(retargetRoot, container, {
+					enhancementCatalog: new Map([
+						[left, LeftShell],
+						[right, RightShell]
+					]),
+					resumptions: result.resumptions,
+					onMismatch: 'throw',
+					markerlessRoot: mode === 'markerless' ? true : undefined,
+					allowMarkerless: mode === 'markerless'
+				});
+				const peer = container.querySelector('div[data-enhancement="right"]');
+				expect(peer).toBe(serverPeer);
+				expect(container.querySelector('#first')).toBe(serverFirst);
+				expect(container.querySelector('#second')).toBe(serverSecond);
+				const first = container.querySelector('#first');
+				retargetOwner.state.first = false;
+				flushSync();
+				expect(container.querySelector('aside > #second')).not.toBeNull();
+				expect(container.querySelector('#first')).toBe(first);
+				expect(container.querySelector('div[data-enhancement="right"]')).toBe(peer);
+				retargetOwner.state.first = true;
+				flushSync();
+				expect(container.querySelector('aside #first')).toBe(serverFirst);
+				expect(container.querySelector('#second')).toBe(serverSecond);
+				expect(container.querySelector('div[data-enhancement="right"]')).toBe(peer);
+			} finally {
+				unmount(container);
+			}
 		}
-	});
+	);
 
 	it('selects scalar component output as a Text target', () => {
 		const container = document.createElement('div');

@@ -62,6 +62,14 @@ export function cachedDurationFormatter(
 	);
 }
 
+/** Preserves the native construction-time TypeError when DurationFormat is unavailable. */
+export function requireIntlDurationFormatter(
+	formatter: IntlDurationFormatter | undefined
+): IntlDurationFormatter {
+	if (formatter === undefined) throw new TypeError('Intl.DurationFormat is not available');
+	return formatter;
+}
+
 /** Clears realm cache state for isolated tests; not part of the public package surface. */
 export function clearIntlFormatterCache(): void {
 	formatters.clear();

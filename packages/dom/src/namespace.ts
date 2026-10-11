@@ -1,3 +1,7 @@
+import { peek, unwrap } from '@exactjs/reactive/framework/runtime';
+
+const annotationEncodings = new WeakMap<Element, unknown>();
+
 /** Provides the canonical html namespace value. */
 export const HTML_NAMESPACE = 'http://www.w3.org/1999/xhtml';
 /** Provides the canonical svg namespace value. */
@@ -21,8 +25,32 @@ export function namespaceForTag(tag: string, parent?: Element): string | undefin
 	)
 		return undefined;
 	if (parent.localName === 'annotation-xml') {
-		const encoding = parent.getAttribute('encoding')?.toLowerCase();
+		const current = annotationEncodings.has(parent)
+			? peek(() => unwrap(annotationEncodings.get(parent)))
+			: parent.getAttribute('encoding');
+		const encoding = typeof current === 'string' ? current.toLowerCase() : undefined;
 		if (encoding === 'text/html' || encoding === 'application/xhtml+xml') return undefined;
 	}
 	return MATHML_NAMESPACE;
+}
+
+/** Retains only the namespace-defining input for an owned MathML annotation element. */
+export function retainNamespaceEncoding(element: Element, value: unknown): void {
+	if (element.namespaceURI === MATHML_NAMESPACE && element.localName === 'annotation-xml')
+		annotationEncodings.set(element, value);
+}
+
+/** Updates namespace construction inputs before mounting, adopting or replacing child ranges. */
+export function retainNamespaceProps(
+	element: Element,
+	props: Readonly<Record<string, unknown>>
+): void {
+	if (element.namespaceURI !== MATHML_NAMESPACE || element.localName !== 'annotation-xml') return;
+	if ('encoding' in props || annotationEncodings.has(element))
+		annotationEncodings.set(element, props.encoding);
+}
+
+/** Releases namespace inputs alongside the owning element's property bindings. */
+export function clearNamespaceEncoding(element: Element): void {
+	if (element.localName === 'annotation-xml') annotationEncodings.delete(element);
 }

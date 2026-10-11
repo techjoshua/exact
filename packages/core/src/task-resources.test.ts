@@ -101,25 +101,81 @@ describe('@exactjs/core task-resources', () => {
 		expect(options.signal.aborted).toBe(true);
 	});
 
-	it('releases combined fetch cancellation listeners when the request settles', async () => {
+	it.each(['owner', 'caller', 'same-owner'] as const)(
+		'keeps fetch cancellation active after response headers: %s',
+		async (from) => {
+			const owner = new AbortController();
+			const caller = from === 'same-owner' ? owner : new AbortController();
+			let selected!: AbortSignal;
+			const response = Promise.resolve(new Response('body'));
+			const fetcher = (_input: unknown, options?: Record<string, unknown>) => {
+				selected = options!.signal as AbortSignal;
+				return response;
+			};
+			expect(taskFetch(owner.signal, fetcher, '/records', { signal: caller.signal })).toBe(
+				response
+			);
+			await response;
+			await Promise.resolve();
+			expect(selected.aborted).toBe(false);
+			(from === 'caller' ? caller : owner).abort('after headers');
+			expect(selected.aborted).toBe(true);
+			expect(selected.reason).toBe('after headers');
+		}
+	);
+
+	it.each(['owner', 'caller'] as const)(
+		'keeps fallback fetch cancellation active and releases listeners on abort: %s',
+		async (from) => {
+			const owner = new AbortController();
+			const caller = new AbortController();
+			const removedOwner = vi.spyOn(owner.signal, 'removeEventListener');
+			const removedCaller = vi.spyOn(caller.signal, 'removeEventListener');
+			let selected!: AbortSignal;
+			vi.stubGlobal('AbortSignal', { any: undefined });
+			try {
+				const response = taskFetch(
+					owner.signal,
+					(_input: string, options?: { signal?: AbortSignal }) => {
+						selected = options!.signal!;
+						return Promise.resolve(new Response('body'));
+					},
+					'/records',
+					{ signal: caller.signal }
+				);
+				await response;
+				(from === 'caller' ? caller : owner).abort('fallback cancelled');
+				expect(selected.aborted).toBe(true);
+				expect(selected.reason).toBe('fallback cancelled');
+				expect(removedOwner).toHaveBeenCalledWith('abort', expect.any(Function));
+				expect(removedCaller).toHaveBeenCalledWith('abort', expect.any(Function));
+			} finally {
+				vi.unstubAllGlobals();
+			}
+		}
+	);
+
+	it('retains Request-carried cancellation unless an explicit init signal replaces it', async () => {
 		const owner = new AbortController();
-		const external = new AbortController();
-		const removeOwner = vi.spyOn(owner.signal, 'removeEventListener');
-		const removeExternal = vi.spyOn(external.signal, 'removeEventListener');
-		let settle!: () => void;
-		const response = new Promise<void>((resolve) => (settle = resolve));
-		const fetcher = vi.fn(() => response);
-
-		expect(taskFetch(owner.signal, fetcher, '/records', { signal: external.signal })).toBe(
-			response
-		);
-		settle();
-		await response;
-		await Promise.resolve();
-
-		expect(removeOwner).toHaveBeenCalledWith('abort', expect.any(Function));
-		expect(removeExternal).toHaveBeenCalledWith('abort', expect.any(Function));
+		const caller = new AbortController();
+		const replacement = new AbortController();
+		const input = new Request('https://example.invalid', { signal: caller.signal });
+		const selected: AbortSignal[] = [];
+		const fetcher = (_input: Request, options?: RequestInit) => {
+			selected.push(options!.signal!);
+			return Promise.resolve(new Response('body'));
+		};
+		await taskFetch(owner.signal, fetcher, input);
+		await taskFetch(owner.signal, fetcher, input, { signal: replacement.signal });
+		caller.abort('request cancelled');
+		expect(selected[0].aborted).toBe(true);
+		expect(selected[0].reason).toBe('request cancelled');
+		expect(selected[1].aborted).toBe(false);
+		replacement.abort('replacement cancelled');
+		expect(selected[1].aborted).toBe(true);
+		expect(selected[1].reason).toBe('replacement cancelled');
 	});
+
 	it('cancels compiler-owned idle callbacks', () => {
 		const request = vi.fn(() => 42);
 		const cancel = vi.fn();

@@ -77,10 +77,17 @@ function validateNode(
 					return declared.index;
 				})
 			);
+			const formatter = validateFormatter(node.formatter, bindings, path);
+			if (
+				formatter.kind === 'unit' &&
+				formatter.difference !== undefined &&
+				indexes.length !== (formatter.difference === 'endpoints' ? 2 : 1)
+			)
+				throw new TypeError(`${path} has an invalid number of difference bindings`);
 			return Object.freeze({
 				kind: 'format',
 				bindings: indexes,
-				formatter: validateFormatter(node.formatter, bindings, path)
+				formatter
 			});
 		}
 		case 'select': {

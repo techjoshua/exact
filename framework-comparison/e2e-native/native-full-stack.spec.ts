@@ -55,9 +55,11 @@ for (const participant of participants) {
 
 		test('follows asynchronous analysis over the native event stream', async ({ page }) => {
 			await page.goto(`${participant.url}/incidents/inc-102`);
+			await expect(page.locator('.connection')).toHaveText('Live service');
 			await page.getByRole('button', { name: 'Start analysis' }).click();
 			await expect(page.getByText('Analysis completed', { exact: true })).toBeVisible();
 			await expect(page.getByText('Correlated upstream failures')).toBeVisible();
+			await expect(page.locator('.connection')).toHaveText('Live service');
 		});
 
 		test('preserves a focused draft across a second-session mutation', async ({ browser }) => {

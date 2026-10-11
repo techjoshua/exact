@@ -2,13 +2,10 @@ package exactcompiler
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
 	"github.com/microsoft/TypeScript/tsc/internal/checker"
 )
-
-const enhancementAnalyzerOnlyAnnotation = "@exact analyzer-only"
 
 // enhancementAnalyzerOnlyProperty recognizes package-declared metadata that is available to
 // trusted analyzers but must never become renderer enhancement input.
@@ -19,8 +16,10 @@ func enhancementAnalyzerOnlyProperty(property *ast.Symbol) bool {
 			continue
 		}
 		for _, jsdoc := range declaration.JSDoc(sourceFile) {
-			if strings.Contains(sourceText(sourceFile, jsdoc), enhancementAnalyzerOnlyAnnotation) {
-				return true
+			for _, directive := range collectDirectives(sourceText(sourceFile, jsdoc)) {
+				if directive.Namespace == "exact" && directive.Name == "analyzer-only" && !directive.HasArgument {
+					return true
+				}
 			}
 		}
 	}
@@ -62,6 +61,7 @@ func collectEnhancementAnalysisFieldDiagnostics(
 	}
 }
 
+// Every possible spread value must satisfy analyzer metadata, including later union members.
 func enhancementAnalysisFieldValue(
 	node *ast.Node,
 	source string,
@@ -74,12 +74,16 @@ func enhancementAnalysisFieldValue(
 		return enhancementProvidedValue{}
 	}
 	expression := node.AsJsxSpreadAttribute().Expression
+	var values []*checker.Type
 	for _, memberType := range typeChecker.GetTypeAtLocation(expression).Distributed() {
 		for _, property := range typeChecker.GetPropertiesOfType(memberType) {
 			if ast.SymbolName(property) == source {
-				return enhancementProvidedValue{valueType: typeChecker.GetTypeOfSymbolAtLocation(property, expression)}
+				values = append(values, typeChecker.GetTypeOfSymbolAtLocation(property, expression))
 			}
 		}
+	}
+	if len(values) != 0 {
+		return enhancementProvidedValue{valueType: typeChecker.GetUnionType(values)}
 	}
 	return enhancementProvidedValue{}
 }

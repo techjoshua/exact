@@ -7,7 +7,7 @@ import {
 import { type ExactComponentContinuationContract } from '@exactjs/core/framework/component-contracts';
 import { describe, expect, it } from 'vitest';
 import { createExactContinuationHandler } from './continuation-execution.js';
-import { dispatchExactOperation } from './operations.js';
+import { dispatchExactOperation, limitedJsonResponse } from './operations.js';
 import { context } from './test-support/server.js';
 
 const DatabaseContext = createContext<{
@@ -66,6 +66,7 @@ describe('@exactjs/server generated continuation execution', () => {
 	});
 
 	it('resolves server context locally and returns only declared state writes', async () => {
+		const credential = 'PRIVATE-CREDENTIAL-task-response-8f729d';
 		const contextAccesses: unknown[] = [];
 		const handler = createExactContinuationHandler(contract, {
 			id: contract.id,
@@ -93,17 +94,20 @@ describe('@exactjs/server generated continuation execution', () => {
 					componentValues: new Map(),
 					get: async (token) => {
 						if (token !== DatabaseContext) throw new Error('unexpected context');
-						return { find: async () => ({ title: 'Visible', secret: 'hidden' }) } as never;
+						return { find: async () => ({ title: 'Visible', secret: credential }) } as never;
 					},
 					getSync: (token) => {
 						if (token !== DatabaseContext) throw new Error('unexpected context');
-						return { find: async () => ({ title: 'Visible', secret: 'hidden' }) } as never;
+						return { find: async () => ({ title: 'Visible', secret: credential }) } as never;
 					}
 				}
 			})
 		);
 
 		expect(result).toEqual({ state: { title: 'Visible' } });
+		const response = limitedJsonResponse(context(), 200, result);
+		expect(JSON.parse(response.body)).toEqual({ state: { title: 'Visible' } });
+		expect(response.body).not.toContain(credential);
 		expect(contextAccesses).toEqual([
 			{
 				operationId: contract.id,
@@ -113,6 +117,7 @@ describe('@exactjs/server generated continuation execution', () => {
 			}
 		]);
 		expect(JSON.stringify(contextAccesses)).not.toContain('Visible');
+		expect(JSON.stringify(contextAccesses)).not.toContain(credential);
 	});
 
 	it('returns an explicit action result through the existing continuation envelope', async () => {

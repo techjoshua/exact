@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/component-library-policy",
-	"version": "0.7.0",
+	"version": "0.7.1",
 	"description": "Shared build-time authorization policy for eXact component libraries",
 	"type": "module",
 	"files": [
@@ -22,7 +22,7 @@
 	"types": "./dist/index.d.ts",
 	"sideEffects": false,
 	"dependencies": {
-		"@exactjs/compiler": "^0.7.0",
+		"@exactjs/compiler": "^0.7.1",
 		"@exactjs/config": "^0.7.0",
 		"semver": "^7.8.5"
 	},

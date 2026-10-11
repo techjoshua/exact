@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
+import { transformSync } from 'esbuild';
+import { isExactSourceMap } from './source-maps.js';
 import {
 	createExactDiagnosticReporter,
 	exactComponentContractProjection,
+	planExactAdapterProjection,
 	exactEnhancementFacadeImports,
 	exactEnhancementFacadeRequest,
 	exactAvailableEnhancementFacadeSource,
@@ -109,6 +112,12 @@ describe('build adapter support', () => {
 		expect(isExactGeneratedArtifactModule('/src/view.exact.server.js?direct')).toBe(true);
 		expect(isExactGeneratedArtifactModule('/src/view.tsx')).toBe(false);
 		expect(shouldTransformExactBuildModulePath('/src/view.exact.client.ts', {})).toBe(false);
+		expect(shouldCompileExactBuildModule('\0rolldown/runtime.js', 'function keep() {}', {})).toBe(
+			false
+		);
+		expect(
+			shouldTransformExactBuildModulePath('\0virtual-helper.ts', { include: 'virtual-helper' })
+		).toBe(false);
 		expect(shouldTransformExactBuildModulePath('/src/view.test.tsx', {})).toBe(false);
 		expect(
 			shouldTransformExactBuildModulePath('/src/view.test.tsx', { compileTestModules: true })
@@ -166,6 +175,113 @@ describe('build adapter support', () => {
 				{ include: '/src/' }
 			)
 		).toBe(false);
+	});
+
+	it('analyzes annotated ordinary modules for component policy without selecting arbitrary callables', () => {
+		expect(
+			shouldCompileExactBuildModule(
+				'/src/secret.ts',
+				'/** @exact keep=secret */ export const token="secret";',
+				{}
+			)
+		).toBe(true);
+		expect(
+			shouldCompileExactBuildModule(
+				'/src/server.ts',
+				'/** @exact server */ export function read(){return "server";}',
+				{}
+			)
+		).toBe(true);
+		expect(
+			shouldCompileExactBuildModule('/src/math.ts', 'export function add(a,b){return a+b;}', {})
+		).toBe(false);
+	});
+
+	it('leaves ordinary callable modules with the host while retaining component filters', () => {
+		for (const source of [
+			'export class Counter extends Array<number>{increment(){return this[0]++;}}',
+			'export function make(owner){return function(){return owner.increment();};}',
+			'export const make=owner=>()=>owner.increment();'
+		]) {
+			for (const extension of ['ts', 'mts', 'js', 'mjs']) {
+				expect(shouldCompileExactBuildModule(`/src/helper.${extension}`, source, {})).toBe(false);
+				expect(
+					shouldCompileExactBuildModule(`/src/helper.${extension}`, source, { exclude: '/src/' })
+				).toBe(false);
+				expect(
+					shouldCompileExactBuildModule(`/src/helper.exact.client.${extension}`, source, {})
+				).toBe(false);
+				expect(shouldCompileExactBuildModule(`/src/helper.test.${extension}`, source, {})).toBe(
+					false
+				);
+			}
+		}
+		expect(
+			shouldCompileExactBuildModule(
+				'/src/data.ts',
+				'export const value:{count:number}={count:1};',
+				{}
+			)
+		).toBe(false);
+	});
+
+	it.each(['react', 'unknown'] as const)(
+		'retains %s ownership for callable modules without JSX',
+		(jsxOwnership) => {
+			const options = {
+				source: 'export function keep(value:number){return value+1;}',
+				filename: '/src/keep.ts',
+				jsxOwnership,
+				usesReactRuntimeImports: jsxOwnership === 'unknown',
+				transformReact: false,
+				shouldCompile: true,
+				compiler: { options: {} }
+			};
+			expect(transformExactAdapterModule(options)).toBeNull();
+			expect(
+				transformExactAdapterModule({
+					...options,
+					compatibility: () => ({ changed: true, code: 'compatibility output' })
+				})
+			).toEqual({ code: 'compatibility output' });
+		}
+	);
+
+	it.each([
+		['server', 'client'],
+		['client', 'server-render']
+	] as const)('validates %s components after native analysis for %s mode', (target, mode) => {
+		const projection = planExactAdapterProjection(target, mode);
+		const options = {
+			filename: '/src/placement.tsx',
+			jsxOwnership: 'exact' as const,
+			usesReactRuntimeImports: false,
+			transformReact: false,
+			shouldCompile: true,
+			compiler: { componentProjection: projection, options: { target } }
+		};
+		expect(
+			transformExactAdapterModule({
+				...options,
+				source: 'export function keep(value:number){return value+1;}'
+			})
+		).not.toBeNull();
+		let published = false;
+		expect(() =>
+			transformExactAdapterModule({
+				...options,
+				source:
+					'import type {Component} from "@exactjs/core";export function Probe(this:Component<{}>){return()=> <output>value</output>;}',
+				compiler: {
+					...options.compiler,
+					finish(result) {
+						published = true;
+						return result;
+					}
+				}
+			})
+		).toThrow(/render mode/);
+		expect(published).toBe(false);
 	});
 
 	it('formats and keys diagnostics consistently', () => {
@@ -240,6 +356,31 @@ describe('build adapter support', () => {
 		expect(result?.code).not.toMatch(/\bslots:\s*\[/);
 		expect(result?.code).not.toMatch(/\bbindings:\s*\[/);
 	});
+
+	it.each(['js', 'mjs', 'jsx'])(
+		'preserves ordinary %s helpers with authored source maps',
+		(extension) => {
+			const source =
+				'export class Counter extends Array{#count=1;increment(){return ++this.#count;}make(){return()=>this.increment();}}';
+			const filename = `/src/counter.${extension}`;
+			const result = transformExactAdapterModule({
+				source,
+				filename,
+				jsxOwnership: 'unknown',
+				usesReactRuntimeImports: false,
+				transformReact: false,
+				shouldCompile: true,
+				compiler: { options: { sourceMap: true } }
+			});
+			expect(result).not.toBeNull();
+			expect(() => transformSync(result!.code, { loader: 'js' })).not.toThrow();
+			expect(isExactSourceMap(result!.map)).toBe(true);
+			if (isExactSourceMap(result!.map)) {
+				expect(result!.map.sources).toContain(filename);
+				expect(result!.map.sourcesContent).toContain(source);
+			}
+		}
+	);
 
 	it('selects React work before native compilation and skips it without compatibility', () => {
 		const transformed = transformExactAdapterModule({

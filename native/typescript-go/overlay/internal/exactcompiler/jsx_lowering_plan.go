@@ -9,6 +9,9 @@ import (
 // jsxLoweringPlan is the immutable analysis handoff consumed by JSX emission. It keeps session
 // orchestration independent from the mutable traversal state created for one source artifact.
 type jsxLoweringPlan struct {
+	analysisFacts        *sourceAnalysisFacts
+	nodeIDs              map[*ast.Node]string
+	checking             bool
 	stateWrites          []StateWrite
 	stateReads           []StateRead
 	reactiveBindings     []ReactiveBinding
@@ -18,6 +21,7 @@ type jsxLoweringPlan struct {
 	tasks                []Task
 	operations           []InvokedTaskOperation
 	continuations        []Continuation
+	contextWrites        map[string][]string
 	clientIslands        map[*ast.Node]clientElementIsland
 	target               Target
 	contractProjection   ComponentContractProjection
@@ -41,8 +45,23 @@ func (plan jsxLoweringPlan) prepare(
 		sourceFile,
 		plan.reactiveBindings,
 		plan.typeChecker,
+		plan.enhancementImports.spreads,
 	)
-	if plan.target == TargetServer {
+	// Reconstructed island spreads consume their own derived cells. Other spread consumers,
+	// including clock enhancements, retain their existing precise materialization plan.
+	if plan.target == TargetClient && plan.contractProjection == ComponentContractProjectionHydrate {
+		for _, island := range plan.clientIslands {
+			for start := range island.reconstructedDerived {
+				if binding, exists := elidedDerived[start]; exists {
+					derived[start] = binding
+				}
+				delete(elidedDerived, start)
+			}
+		}
+	}
+	if plan.target == TargetServer || plan.checking {
+		// The checking projection must retain authored locals used by prop
+		// obligations. Client consumer materialization does not apply to it.
 		// Render-consumer materialization is a client update optimization. Server
 		// rendering executes the authored setup and render frame once, so keeping
 		// these values as ordinary locals avoids both a reactive cell and a second
@@ -53,13 +72,21 @@ func (plan jsxLoweringPlan) prepare(
 		len(derived) == 0 && len(plan.components) == 0 {
 		return nil, false
 	}
+	if plan.nodeIDs == nil {
+		plan.nodeIDs = expressionNodeIDs(sourceFile)
+	}
 	propsReads := indexPropsReadSlots(plan.components, sourceFile, plan.typeChecker)
+	if plan.analysisFacts == nil {
+		plan.analysisFacts = newSourceAnalysisFacts(sourceFile, plan.typeChecker)
+	}
 	lowering := &jsxLowering{
+		analysisFacts:               plan.analysisFacts,
+		checking:                    plan.checking,
 		sourceFile:                  sourceFile,
 		factory:                     emitContext.Factory,
 		emitContext:                 emitContext,
 		names:                       allocateJSXRuntimeNames(sourceFile),
-		nodeIDs:                     expressionNodeIDs(sourceFile),
+		nodeIDs:                     plan.nodeIDs,
 		writes:                      indexStateWrites(plan.stateWrites),
 		stateReadSlots:              indexStateReadSlots(plan.components, plan.stateReads),
 		propsReadSlots:              propsReads,
@@ -101,7 +128,7 @@ func (plan jsxLoweringPlan) prepare(
 		publishedComponentImports:   make(map[string]bool),
 		microComponents:             lexicalMicroComponentSymbols(sourceFile, plan.typeChecker),
 		renderEdges:                 indexRenderEdges(plan.components),
-		contextWrites:               indexContinuationContextWrites(plan.continuations),
+		contextWrites:               plan.contextWrites,
 		continuationComponents:      indexContinuationComponents(plan.continuations),
 		collectionMaps:              make(map[string]collectionMapPlan),
 		enhancementImports:          plan.enhancementImports,
@@ -111,7 +138,7 @@ func (plan jsxLoweringPlan) prepare(
 		islandReplayTargets:         indexIslandReplayTargets(plan.clientIslands),
 		recordedClientIslands:       make(map[string]struct{}),
 		serverTaskSlices:            make(map[string]string),
-		externalImports:             collectExternalImportBindings(sourceFile, plan.typeChecker),
+		externalImports:             plan.analysisFacts.imports,
 		scalarRenderExpressions:     indexScalarRenderExpressions(sourceFile, plan.typeChecker),
 		closedServerWriters:         make(map[string]struct{}),
 		redirectedRootImports:       make(map[string]struct{}),
@@ -131,6 +158,13 @@ func (plan jsxLoweringPlan) prepare(
 			}
 		}
 	}
+	lowering.mutationFacts.initialize()
+	lowering.externalImports.captureImportReferences(sourceFile, plan.typeChecker)
+	lowering.externalImports.originalNode = lowering.emitContext.MostOriginal
+	lowering.captureMutationResultTypes()
+	lowering.captureComponentPropTypes()
+	lowering.capturePendingStateFacts(plan.tasks)
+	lowering.mutationFacts.seal()
 	lowering.indexComponentRangeOutputs()
 	lowering.indexCollectionMaps()
 	return lowering, true

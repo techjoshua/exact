@@ -30,23 +30,25 @@ type islandDerivedCapture struct {
 }
 
 type clientElementIsland struct {
-	captureReferences map[string]string
-	renderedChildren  map[string]bool
-	component         Component
-	node              *ast.Node
-	index             int
-	id                string
-	name              string
-	statePaths        [][]string
-	propsSlots        []string
-	interaction       bool
-	activation        ActivationDecision
-	serverSlot        bool
-	valueCaptures     []islandValueCapture
-	functionCaptures  []islandFunctionCapture
-	derivedCaptures   []islandDerivedCapture
-	hasSpread         bool
-	finiteSpreads     map[int][]finiteSpreadProperty
+	captureReferences    map[string]string
+	renderedChildren     map[string]bool
+	component            Component
+	node                 *ast.Node
+	index                int
+	id                   string
+	name                 string
+	statePaths           [][]string
+	propsSlots           []string
+	interaction          bool
+	activation           ActivationDecision
+	serverSlot           bool
+	valueCaptures        []islandValueCapture
+	functionCaptures     []islandFunctionCapture
+	derivedCaptures      []islandDerivedCapture
+	hasSpread            bool
+	finiteSpreads        map[int][]finiteSpreadProperty
+	reconstructedSpreads map[int]bool
+	reconstructedDerived map[int]bool
 }
 
 func (lowering *jsxLowering) recordClientIslandDefinitions(
@@ -196,23 +198,8 @@ func (lowering *jsxLowering) clientIslandArtifactAttachment(
 		)),
 	)
 	assigned := factory.NewCallExpression(
-		factory.NewPropertyAccessExpression(factory.NewIdentifier("Object"), nil, factory.NewIdentifier("assign"), ast.NodeFlagsNone),
-		nil,
-		nil,
-		factory.NewNodeList([]*ast.Node{implementation, contractObject(factory, false,
-			factory.NewPropertyAssignment(nil, factory.NewComputedPropertyName(
-				factory.NewCallExpression(
-					factory.NewPropertyAccessExpression(factory.NewIdentifier("Symbol"), nil, factory.NewIdentifier("for"), ast.NodeFlagsNone),
-					nil, nil, factory.NewNodeList([]*ast.Node{contractString(factory, "@exactjs/component")}), ast.NodeFlagsNone,
-				),
-			), nil, nil, contractString(factory, island.id)),
-			factory.NewPropertyAssignment(nil, factory.NewComputedPropertyName(
-				factory.NewCallExpression(
-					factory.NewPropertyAccessExpression(factory.NewIdentifier("Symbol"), nil, factory.NewIdentifier("for"), ast.NodeFlagsNone),
-					nil, nil, factory.NewNodeList([]*ast.Node{contractString(factory, "@exactjs/component-contract")}), ast.NodeFlagsNone,
-				),
-			), nil, nil, contract),
-		)}),
+		factory.NewIdentifier(lowering.names.brandComponent), nil, nil,
+		factory.NewNodeList([]*ast.Node{implementation, contractString(factory, island.id), contract}),
 		ast.NodeFlagsNone,
 	)
 	// Generated island exports likewise expose only their callable signature;
@@ -584,17 +571,17 @@ func (lowering *jsxLowering) clientIslandCaptureReference(
 	return lowering.clientIslandCapturedValue(name)
 }
 
-// clientIslandCapturedValue reads the serialized capture envelope using the island layout.
+// clientIslandCapturedValue reads the validated capture envelope using the island layout.
+// The generated props parameter owns its private envelope type. An indexed runtime read returns
+// unknown, so restore that parameter's type before selecting a captured authored value.
 func (lowering *jsxLowering) clientIslandCapturedValue(name string) *ast.Node {
-	return lowering.factory.NewPropertyAccessExpression(
-		lowering.clientIslandPropsRead(
-			lowering.factory.NewIdentifier("props"),
-			"__exactCapture",
-		),
-		nil,
-		lowering.factory.NewIdentifier(name),
-		ast.NodeFlagsNone,
-	)
+	props := lowering.factory.NewIdentifier("props")
+	envelope := lowering.factory.NewParenthesizedExpression(lowering.factory.NewAsExpression(
+		lowering.clientIslandPropsRead(props, "__exactCapture"),
+		lowering.factory.NewTypeQueryNode(props, nil),
+	))
+	return lowering.factory.NewPropertyAccessExpression(envelope, nil,
+		lowering.factory.NewIdentifier(name), ast.NodeFlagsNone)
 }
 
 func (lowering *jsxLowering) clientIslandAttributeProperties(
@@ -623,7 +610,7 @@ func (lowering *jsxLowering) clientIslandAttributeProperties(
 			if members, finite := island.finiteSpreads[property.Pos()]; finite {
 				for _, member := range members {
 					var value *ast.Node
-					if interactiveJSXAttribute(member.name) {
+					if member.name == "ref" || interactiveJSXAttribute(member.name) {
 						value = lowering.finiteSpreadPropertyValue(&member)
 					} else {
 						value = lowering.clientIslandPropsRead(props, member.name)
@@ -632,6 +619,11 @@ func (lowering *jsxLowering) clientIslandAttributeProperties(
 						jsxPropertyName(lowering.factory, member.name), value,
 					))
 				}
+				continue
+			}
+			expression := property.AsJsxSpreadAttribute().Expression
+			if island.reconstructedSpreads[property.Pos()] {
+				properties = append(properties, lowering.factory.NewSpreadAssignment(lowering.visitor.VisitNode(expression)))
 				continue
 			}
 			properties = append(

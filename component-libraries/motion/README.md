@@ -34,6 +34,10 @@ completes visual work immediately.
 Server rendering preserves enhanced markup. Browser observers attach on mount or hydration,
 which retains the server elements.
 
+`motion:change` follows reactive changes to its phase or motion definition. A constant phase
+does not replay when text or other element content changes. Derive the phase from the reactive
+value that should trigger feedback, such as the position used by the element's destination style.
+
 Later reactive insertions run their enter phase automatically. Initial client rendering and
 hydration adoption require `appear`. Exact release reversal runs enter from the interrupted
 computed frame while retaining the same component and DOM generation.

@@ -1,7 +1,10 @@
+import { notifyMutation } from '../internal/mutation-observation.js';
+import { nativeMember } from '../internal/native-operations.js';
 import { hasActiveTransaction, recordTransactionUndo, track, trigger } from '../internal/deps.js';
 import { hasChanged } from '../change-detection.js';
 import { unwrap } from '../internal/values.js';
 import type { ReactiveOptions } from '../internal/types.js';
+import { customCollectionMethod } from './custom-collections.js';
 
 type ReactiveCollection = Map<unknown, unknown> | Set<unknown>;
 type WrapCollectionValue = (value: unknown, dependency?: PropertyKey) => unknown;
@@ -23,14 +26,42 @@ export function reactiveCollectionMember(
 	key: PropertyKey,
 	receiver: object,
 	options: ReactiveOptions,
-	wrap: WrapCollectionValue
+	wrap: WrapCollectionValue,
+	invoke?: () => unknown,
+	selected?: unknown
 ): unknown {
+	if (invoke)
+		return customCollectionMethod(
+			target,
+			receiver,
+			invoke,
+			options,
+			(entry) => collectionKeyDependency(target, entry),
+			iterateDependency,
+			sizeDependency,
+			wrap
+		)();
 	if (key === 'size') {
 		track(target, sizeDependency);
 		return target.size;
 	}
-	if (target instanceof Map) return reactiveMapMember(target, key, receiver, options, wrap);
-	return reactiveSetMember(target, key, receiver, options, wrap);
+	track(target, key);
+	const member = selected ?? Reflect.get(target, key, target);
+	const native = nativeMember(target instanceof Map ? 'map' : 'set', key);
+	if (key !== 'constructor' && typeof member === 'function' && member !== native) {
+		return customCollectionMethod(
+			target,
+			receiver,
+			member,
+			options,
+			(entry) => collectionKeyDependency(target, entry),
+			iterateDependency,
+			sizeDependency,
+			wrap
+		);
+	}
+	if (target instanceof Map) return reactiveMapMember(target, key, receiver, options, wrap, member);
+	return reactiveSetMember(target, key, receiver, options, wrap, member);
 }
 
 function reactiveMapMember(
@@ -38,7 +69,8 @@ function reactiveMapMember(
 	key: PropertyKey,
 	receiver: object,
 	options: ReactiveOptions,
-	wrap: WrapCollectionValue
+	wrap: WrapCollectionValue,
+	member: unknown
 ): unknown {
 	switch (key) {
 		case 'get':
@@ -46,24 +78,24 @@ function reactiveMapMember(
 				const rawKey = unwrap(input);
 				const dependency = collectionKeyDependency(target, rawKey);
 				track(target, dependency);
-				return wrap(target.get(rawKey), dependency);
+				return wrap(Map.prototype.get.call(target, rawKey), dependency);
 			};
 		case 'has':
 			return (input: unknown) => {
 				const rawKey = unwrap(input);
 				track(target, collectionKeyDependency(target, rawKey));
-				return target.has(rawKey);
+				return Map.prototype.has.call(target, rawKey);
 			};
 		case 'set':
 			return (input: unknown, value: unknown) => {
 				assertWritable(options, 'set');
 				const rawKey = unwrap(input);
 				const rawValue = unwrap(value);
-				const had = target.has(rawKey);
-				const previous = target.get(rawKey);
+				const had = Map.prototype.has.call(target, rawKey);
+				const previous = Map.prototype.get.call(target, rawKey);
 				if (had && !hasChanged(previous, rawValue)) return receiver;
 				recordMapUndo(target, rawKey, had, previous);
-				target.set(rawKey, rawValue);
+				Map.prototype.set.call(target, rawKey, rawValue);
 				trigger(target, collectionKeyDependency(target, rawKey));
 				trigger(target, iterateDependency);
 				if (!had) trigger(target, sizeDependency);
@@ -74,17 +106,17 @@ function reactiveMapMember(
 			return (input: unknown) => {
 				assertWritable(options, 'delete');
 				const rawKey = unwrap(input);
-				if (!target.has(rawKey)) return false;
-				const previous = target.get(rawKey);
+				if (!Map.prototype.has.call(target, rawKey)) return false;
+				const previous = Map.prototype.get.call(target, rawKey);
 				if (hasActiveTransaction()) {
-					const following = followingCollectionKeys(target.keys(), rawKey);
+					const following = followingCollectionKeys(Map.prototype.keys.call(target), rawKey);
 					recordTransactionUndo(
 						() => {
 							if (!following.size) {
-								target.set(rawKey, previous);
+								Map.prototype.set.call(target, rawKey, previous);
 								return;
 							}
-							const entries = [...target.entries()];
+							const entries = [...Map.prototype.entries.call(target)];
 							const before = entries.findIndex(([key]) => following.has(key));
 							entries.splice(before < 0 ? entries.length : before, 0, [rawKey, previous]);
 							restoreMap(target, entries);
@@ -93,7 +125,7 @@ function reactiveMapMember(
 						collectionKeyDependency(target, rawKey)
 					);
 				}
-				const deleted = target.delete(rawKey);
+				const deleted = Map.prototype.delete.call(target, rawKey);
 				if (deleted) {
 					triggerCollectionRemoval(target, rawKey);
 					notifyMutation(options, rawKey, 'map.delete');
@@ -103,11 +135,11 @@ function reactiveMapMember(
 		case 'clear':
 			return () => {
 				assertWritable(options, 'clear');
-				if (!target.size) return undefined;
-				const previous = [...target.entries()];
+				if (!Reflect.get(Map.prototype, 'size', target)) return undefined;
+				const previous = [...Map.prototype.entries.call(target)];
 				if (hasActiveTransaction())
 					recordTransactionUndo(() => restoreMap(target, previous), target, iterateDependency);
-				target.clear();
+				Map.prototype.clear.call(target);
 				for (const [entryKey] of previous)
 					trigger(target, collectionKeyDependency(target, entryKey));
 				trigger(target, iterateDependency);
@@ -125,13 +157,14 @@ function reactiveMapMember(
 		case 'forEach':
 			return (callback: (value: unknown, key: unknown, map: object) => void, thisArg?: unknown) => {
 				track(target, iterateDependency);
-				target.forEach((value, entryKey) => {
+				Map.prototype.forEach.call(target, (value, entryKey) => {
 					const dependency = collectionKeyDependency(target, entryKey);
 					callback.call(thisArg, wrap(value, dependency), wrap(entryKey), receiver);
 				});
 			};
 		default:
-			return Reflect.get(target, key, target);
+			track(target, iterateDependency);
+			return wrap(member, key);
 	}
 }
 
@@ -140,27 +173,28 @@ function reactiveSetMember(
 	key: PropertyKey,
 	receiver: object,
 	options: ReactiveOptions,
-	wrap: WrapCollectionValue
+	wrap: WrapCollectionValue,
+	member: unknown
 ): unknown {
 	switch (key) {
 		case 'has':
 			return (input: unknown) => {
 				const rawValue = unwrap(input);
 				track(target, collectionKeyDependency(target, rawValue));
-				return target.has(rawValue);
+				return Set.prototype.has.call(target, rawValue);
 			};
 		case 'add':
 			return (input: unknown) => {
 				assertWritable(options, 'add');
 				const rawValue = unwrap(input);
-				if (target.has(rawValue)) return receiver;
+				if (Set.prototype.has.call(target, rawValue)) return receiver;
 				if (hasActiveTransaction())
 					recordTransactionUndo(
-						() => target.delete(rawValue),
+						() => Set.prototype.delete.call(target, rawValue),
 						target,
 						collectionKeyDependency(target, rawValue)
 					);
-				target.add(rawValue);
+				Set.prototype.add.call(target, rawValue);
 				trigger(target, collectionKeyDependency(target, rawValue));
 				trigger(target, iterateDependency);
 				trigger(target, sizeDependency);
@@ -171,16 +205,16 @@ function reactiveSetMember(
 			return (input: unknown) => {
 				assertWritable(options, 'delete');
 				const rawValue = unwrap(input);
-				if (!target.has(rawValue)) return false;
+				if (!Set.prototype.has.call(target, rawValue)) return false;
 				if (hasActiveTransaction()) {
-					const following = followingCollectionKeys(target.values(), rawValue);
+					const following = followingCollectionKeys(Set.prototype.values.call(target), rawValue);
 					recordTransactionUndo(
 						() => {
 							if (!following.size) {
-								target.add(rawValue);
+								Set.prototype.add.call(target, rawValue);
 								return;
 							}
-							const values = [...target.values()];
+							const values = [...Set.prototype.values.call(target)];
 							const before = values.findIndex((value) => following.has(value));
 							values.splice(before < 0 ? values.length : before, 0, rawValue);
 							restoreSet(target, values);
@@ -189,7 +223,7 @@ function reactiveSetMember(
 						collectionKeyDependency(target, rawValue)
 					);
 				}
-				const deleted = target.delete(rawValue);
+				const deleted = Set.prototype.delete.call(target, rawValue);
 				if (deleted) {
 					triggerCollectionRemoval(target, rawValue);
 					notifyMutation(options, undefined, 'set.delete');
@@ -199,11 +233,11 @@ function reactiveSetMember(
 		case 'clear':
 			return () => {
 				assertWritable(options, 'clear');
-				if (!target.size) return undefined;
-				const previous = [...target.values()];
+				if (!Reflect.get(Set.prototype, 'size', target)) return undefined;
+				const previous = [...Set.prototype.values.call(target)];
 				if (hasActiveTransaction())
 					recordTransactionUndo(() => restoreSet(target, previous), target, iterateDependency);
-				target.clear();
+				Set.prototype.clear.call(target);
 				for (const value of previous) trigger(target, collectionKeyDependency(target, value));
 				trigger(target, iterateDependency);
 				trigger(target, sizeDependency);
@@ -222,13 +256,14 @@ function reactiveSetMember(
 				thisArg?: unknown
 			) => {
 				track(target, iterateDependency);
-				target.forEach((value) => {
+				Set.prototype.forEach.call(target, (value) => {
 					const wrapped = wrap(value);
 					callback.call(thisArg, wrapped, wrapped, receiver);
 				});
 			};
 		default:
-			return Reflect.get(target, key, target);
+			track(target, iterateDependency);
+			return wrap(member, key);
 	}
 }
 
@@ -238,7 +273,7 @@ function mapIterator(
 	wrap: WrapCollectionValue
 ): IterableIterator<unknown> {
 	track(target, iterateDependency);
-	const iterator = target[kind]();
+	const iterator = Map.prototype[kind].call(target);
 	return wrapIterator(iterator, (value) => {
 		if (kind === 'keys') return wrap(value);
 		if (kind === 'values') return wrap(value);
@@ -249,7 +284,7 @@ function mapIterator(
 
 function setIterator(target: Set<unknown>, wrap: WrapCollectionValue): IterableIterator<unknown> {
 	track(target, iterateDependency);
-	return wrapIterator(target.values(), (value) => wrap(value));
+	return wrapIterator(Set.prototype.values.call(target), (value) => wrap(value));
 }
 
 function setEntryIterator(
@@ -257,7 +292,7 @@ function setEntryIterator(
 	wrap: WrapCollectionValue
 ): IterableIterator<[unknown, unknown]> {
 	track(target, iterateDependency);
-	return wrapIterator(target.values(), (value) => {
+	return wrapIterator(Set.prototype.values.call(target), (value) => {
 		const wrapped = wrap(value);
 		return [wrapped, wrapped];
 	});
@@ -306,8 +341,8 @@ function recordMapUndo(
 	if (!hasActiveTransaction()) return;
 	recordTransactionUndo(
 		() => {
-			if (had) target.set(key, previous);
-			else target.delete(key);
+			if (had) Map.prototype.set.call(target, key, previous);
+			else Map.prototype.delete.call(target, key);
 		},
 		target,
 		collectionKeyDependency(target, key)
@@ -318,29 +353,19 @@ function restoreMap(
 	target: Map<unknown, unknown>,
 	entries: readonly (readonly [unknown, unknown])[]
 ): void {
-	target.clear();
-	for (const [key, value] of entries) target.set(key, value);
+	Map.prototype.clear.call(target);
+	for (const [key, value] of entries) Map.prototype.set.call(target, key, value);
 }
 
 function restoreSet(target: Set<unknown>, values: readonly unknown[]): void {
-	target.clear();
-	for (const value of values) target.add(value);
+	Set.prototype.clear.call(target);
+	for (const value of values) Set.prototype.add.call(target, value);
 }
 
 function assertWritable(options: ReactiveOptions, operation: string): void {
 	if (!options.readonly) return;
 	options.onReadonlyWrite?.(operation);
 	throw new TypeError(`Cannot call ${operation} on a readonly reactive collection`);
-}
-
-function notifyMutation(options: ReactiveOptions, key: unknown, operation: string): void {
-	const propertyKey =
-		typeof key === 'string' || typeof key === 'number' || typeof key === 'symbol' ? key : undefined;
-	try {
-		options.onMutation?.(propertyKey, operation);
-	} catch {
-		// Diagnostic observation must not change collection mutation behavior.
-	}
 }
 
 /** Retains insertion-order anchors only for the lifetime of a rollback journal. */

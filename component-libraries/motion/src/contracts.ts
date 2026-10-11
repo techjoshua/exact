@@ -24,6 +24,7 @@ export type MotionPhase =
 /** Author input accepted by {@link defineMotion}. */
 export type MotionDefinitionInput = Readonly<{
 	enter?: MotionPhase;
+	/** Replays when the reactive phase or definition changes. Content edits alone do not trigger it. */
 	change?: MotionPhase;
 	leave?: MotionPhase;
 	reduced?: MotionPhase | 'skip';

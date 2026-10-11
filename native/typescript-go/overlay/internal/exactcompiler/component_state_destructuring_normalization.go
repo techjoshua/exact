@@ -14,23 +14,13 @@ type destructuredStateBinding struct {
 	temporary string
 }
 
-func preprocessComponentStateDestructuring(
-	fileName string,
-	source string,
-) (string, error) {
-	edits, err := planComponentStateDestructuring(fileName, source)
-	if err != nil {
-		return "", err
-	}
-	return applySourceEdits(source, edits), nil
-}
-
 func planComponentStateDestructuring(
 	fileName string,
 	source string,
 ) ([]sourceEdit, error) {
 	sourceFile := parseNormalizationSource(fileName, source)
 	edits := []sourceEdit{}
+	suspensions := destructuringSuspension{}
 	rewritten := map[string]struct{}{}
 	renderCallables := normalizationRenderCallables(sourceFile)
 	if err := validateRenderDestructuring(
@@ -156,16 +146,22 @@ func planComponentStateDestructuring(
 			if len(bindings) == 0 {
 				return true
 			}
+			right := normalizationNodeText(sourceFile, binary.Right)
+			captured := ""
+			if containsEagerAwait(binary.Right) {
+				captured = suspensions.capture(sourceFile, candidate, prefix)
+			}
+			if captured != "" {
+				right = captured
+			}
+			text := lowerNestedDestructuredStateAssignment(sourceFile, binary, pattern, prefix, bindings, right)
+			if captured != "" {
+				text = fmt.Sprintf("(%s = %s, %s)", captured, normalizationNodeText(sourceFile, binary.Right), text)
+			}
 			edits = append(edits, sourceEdit{
 				start: nodeTokenStart(sourceFile, candidate),
 				end:   candidate.End(),
-				text: lowerNestedDestructuredStateAssignment(
-					sourceFile,
-					binary,
-					pattern,
-					prefix,
-					bindings,
-				),
+				text:  text,
 			})
 			return false
 		})
@@ -174,7 +170,7 @@ func planComponentStateDestructuring(
 	if normalizationError != nil {
 		return nil, normalizationError
 	}
-	return edits, nil
+	return suspensions.edits(sourceFile, edits), nil
 }
 
 func normalizationRenderCallables(sourceFile *ast.SourceFile) map[*ast.Node]struct{} {
@@ -381,6 +377,7 @@ func lowerNestedDestructuredStateAssignment(
 	pattern string,
 	prefix string,
 	bindings []destructuredStateBinding,
+	right string,
 ) string {
 	targetObject := prefix + "_targets"
 	var declarations strings.Builder
@@ -388,13 +385,22 @@ func lowerNestedDestructuredStateAssignment(
 	for index, binding := range bindings {
 		value := fmt.Sprintf("%s_value_%d", prefix, index)
 		writer := fmt.Sprintf("%s_write_%d", prefix, index)
+		reader := fmt.Sprintf("%s_read_%d", prefix, index)
+		valueType := fmt.Sprintf("%s_type_%d", prefix, index)
 		member := fmt.Sprintf("%s.value_%d", targetObject, index)
 		pattern = strings.ReplaceAll(pattern, binding.temporary, member)
 		fmt.Fprintf(
 			&declarations,
-			"const %s = (%s) => { %s = %s; }; ",
+			// Binding has not happened yet, so a never-invoked lexical reader carries the
+			// target type into both writer parameters without evaluating the assignment target.
+			"const %s = () => %s; type %s = typeof %s extends () => infer Value ? Value : never; const %s = (%s: %s) => { %s = %s; }; ",
+			reader,
+			normalizationNodeText(sourceFile, binding.target),
+			valueType,
+			reader,
 			writer,
 			value,
+			valueType,
 			normalizationNodeText(sourceFile, binding.target),
 			value,
 		)
@@ -403,9 +409,10 @@ func lowerNestedDestructuredStateAssignment(
 		}
 		fmt.Fprintf(
 			&setters,
-			"set value_%d(%s) { %s(%s); }",
+			"set value_%d(%s: %s) { %s(%s); }",
 			index,
 			value,
+			valueType,
 			writer,
 			value,
 		)
@@ -416,7 +423,7 @@ func lowerNestedDestructuredStateAssignment(
 		targetObject,
 		setters.String(),
 		pattern,
-		normalizationNodeText(sourceFile, binary.Right),
+		right,
 	)
 }
 

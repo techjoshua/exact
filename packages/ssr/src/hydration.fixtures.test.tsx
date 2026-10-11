@@ -1,5 +1,26 @@
-import type { Component } from '@exactjs/core';
+import { createContext, type Child, type Component } from '@exactjs/core';
 import { renderToHydratableString } from './index.js';
+
+const RetainedContext = createContext<{ count: number }>('ssr-retained-provider');
+
+/** Publishes provider state without depending on a sibling's activation capability. */
+function RetainedProvider(
+	this: Component<{ count: number }>,
+	props: { children?: Child | Child[] }
+) {
+	this.state.count = 3;
+	this.setContext(RetainedContext, this.state);
+	return () => <section data-retained-provider>{props.children}</section>;
+}
+
+/** @exact server */
+export function RetainedProviderPage(props: { children?: Child | Child[] }) {
+	return () => (
+		<main>
+			<RetainedProvider>{props.children}</RetainedProvider>
+		</main>
+	);
+}
 
 /** Compiler-backed conditional child used to verify emitted hydration range identity. */
 export function HydrationPanel(this: Component<{ show: boolean }>) {

@@ -1,3 +1,4 @@
+import { checkUrlPublication } from './url-scenarios.mjs';
 import assert from 'node:assert/strict';
 import { invokeExactBatch } from '../../packages/hydrate/dist/invocations.js';
 
@@ -7,6 +8,26 @@ const fetch = (url, options = {}) =>
 
 /** Exercises real HTTP progress, final failure, cancellation, fallback, and the next invocation. */
 export async function checkNativeProgress(origin, control) {
+	const provider = await (await fetch(new URL('/enhancement-publication', origin))).json();
+	assert.equal(provider.buffered, provider.streamed);
+	assert.match(provider.buffered, /data-scope="provider"/);
+	assert.match(provider.buffered, /Ready/);
+	assert.doesNotMatch(provider.buffered, /data-exact-client-boundary/);
+	assert.equal(provider.ordinaryRejected, true, JSON.stringify(provider));
+	checkUrlPublication(await (await fetch(new URL('/url-coercion', origin))).json());
+	const safety = await (await fetch(new URL('/serialization-safety', origin))).json();
+	assert.deepEqual(safety.rejected, [true, true, true, true, true, true, true]);
+	assert.equal(safety.calls, 0);
+	for (const { value, script } of safety.scripts)
+		assert.deepEqual(JSON.parse(script.match(/>(.*)<\/script>/s)[1]).state.value, value);
+	const escaped = await (await fetch(new URL('/hydration-escaping', origin))).json();
+	assert.equal(escaped.length, 16);
+	for (const { value, script } of escaped) {
+		const match = script.match(/^<script[^>]*>(.*)<\/script>$/s);
+		assert.ok(match, 'Hydration must remain inside one inert script');
+		assert.doesNotMatch(match[1], /</);
+		assert.deepEqual(JSON.parse(match[1]).state, { [value]: value });
+	}
 	const themes = await (await fetch(new URL('/theme-resolution', origin))).json();
 	assert.equal(themes.first, themes.restored);
 	assert.match(themes.first, /prefers-color-scheme/);

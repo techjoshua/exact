@@ -2,6 +2,8 @@
 export interface IntlUnitDefinition<Dimension extends string = string> {
 	readonly dimension: Dimension;
 	readonly symbol: string;
+	/** Base-unit scale for affine conversions. Omitted for nonlinear conversions. */
+	readonly scale?: number;
 	readonly toBase: (value: number) => number;
 	readonly fromBase: (value: number) => number;
 }
@@ -14,6 +16,7 @@ const scaled = <const Dimension extends string>(
 	Object.freeze({
 		dimension,
 		symbol,
+		scale,
 		toBase: (value: number) => value * scale,
 		fromBase: (value: number) => value / scale
 	});
@@ -121,12 +124,14 @@ const finiteIntlUnitDefinitions = Object.freeze({
 	celsius: Object.freeze({
 		dimension: 'temperature',
 		symbol: '°C',
+		scale: 1,
 		toBase: (value: number) => value + 273.15,
 		fromBase: (value: number) => value - 273.15
 	}),
 	fahrenheit: Object.freeze({
 		dimension: 'temperature',
 		symbol: '°F',
+		scale: 5 / 9,
 		toBase: (value: number) => ((value + 459.67) * 5) / 9,
 		fromBase: (value: number) => (value * 9) / 5 - 459.67
 	}),
@@ -158,4 +163,36 @@ export function convertIntlUnit(value: number, source: string, destination: stri
 	if (!from || !to || from.dimension !== to.dimension)
 		throw new TypeError(`Unsupported intl unit conversion from ${source} to ${destination}`);
 	return to.fromBase(from.toBase(value));
+}
+
+/** Converts a signed difference without reference offsets. Nonlinear conversions need endpoints. */
+export function convertIntlUnitDifference(
+	value: number,
+	source: string,
+	destination: string
+): number {
+	const from = intlUnitDefinitions[source];
+	const to = intlUnitDefinitions[destination];
+	if (!from || !to || from.dimension !== to.dimension)
+		throw new TypeError(`Unsupported intl unit conversion from ${source} to ${destination}`);
+	if (source === destination) return value;
+	if (from.scale === undefined || to.scale === undefined)
+		throw new TypeError('Nonlinear intl differences require both endpoints');
+	return value * (from.scale / to.scale);
+}
+
+/** Converts left minus right with one destination. Affine scales avoid offset cancellation. */
+export function convertIntlUnitEndpointDifference(
+	left: number,
+	right: number,
+	source: string,
+	destination: string
+): number {
+	const from = intlUnitDefinitions[source];
+	const to = intlUnitDefinitions[destination];
+	if (!from || !to || from.dimension !== to.dimension)
+		throw new TypeError(`Unsupported intl unit conversion from ${source} to ${destination}`);
+	if (from?.scale !== undefined && to?.scale !== undefined)
+		return convertIntlUnitDifference(left - right, source, destination);
+	return convertIntlUnit(left, source, destination) - convertIntlUnit(right, source, destination);
 }

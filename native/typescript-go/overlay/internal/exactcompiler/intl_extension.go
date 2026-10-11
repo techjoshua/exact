@@ -11,7 +11,6 @@ import (
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
 	"github.com/microsoft/TypeScript/tsc/internal/checker"
 	"github.com/microsoft/TypeScript/tsc/internal/scanner"
-	"golang.org/x/text/language"
 )
 
 const intlAnalyzeNamespace = "@exactjs/intl/analyze-v1"
@@ -183,18 +182,21 @@ type intlDiagnostic struct {
 }
 
 type intlPatternBuild struct {
-	bindings        []intlBinding
-	values          []intlSpan
-	structures      []intlStructureRegion
-	attributes      []intlSpan
-	evidence        []intlInferenceEvidence
-	identities      map[string]int
-	ordinalMarkers  map[string]struct{}
-	ordinalWrappers []intlOrdinalWrapper
-	sourceLocale    string
-	unitLabels      map[string]string
-	currencyLabels  map[string]intlCurrencyLabel
-	defaultCurrency []string
+	failure             string
+	bindings            []intlBinding
+	values              []intlSpan
+	structures          []intlStructureRegion
+	attributes          []intlSpan
+	evidence            []intlInferenceEvidence
+	identities          map[string]int
+	selectorExpressions map[int]string
+	ordinalValues       map[int]bool
+	ordinalMarkers      map[string]struct{}
+	ordinalWrappers     []intlOrdinalWrapper
+	sourceLocale        string
+	unitLabels          map[string]string
+	currencyLabels      map[string]intlCurrencyLabel
+	defaultCurrency     []string
 }
 
 func executeNativeExtension(
@@ -266,8 +268,9 @@ func analyzeIntlSourceNative(
 			return intlAnalysis{}, fmt.Errorf("intl analyzer source-language ordinal-wrapper profile requires a nonempty prefix or suffix, each at most 64 bytes")
 		}
 	}
-	components := collectComponents(sourceFile)
-	assignComponentIDs(sourceFile, components, request.ID)
+	nodeIDs := expressionNodeIDs(sourceFile)
+	components := collectComponentsWithIDs(sourceFile, nodeIDs)
+	assignComponentIDs(sourceFile, components, request.ID, nodeIDs)
 	result := intlAnalysis{
 		Protocol:                1,
 		Descriptors:             []intlDescriptor{},
@@ -374,6 +377,9 @@ func analyzeIntlSourceNative(
 				failure = "intl:unit requires a supported semantic unit, one numeric value or range, and a recognizable source unit"
 			} else if activationName == "plural" || activationName == "select" {
 				failure = fmt.Sprintf("intl:%s requires a finite selector and supported lexical fallback", activationName)
+			}
+			if build.failure != "" {
+				failure = build.failure
 			}
 			result.Diagnostics = append(result.Diagnostics, intlDiagnostic{
 				File: request.ID, Start: scanner.SkipTrivia(sourceFile.Text(), node.Pos()),
@@ -578,7 +584,7 @@ func intlAppendLocaleActivationDiagnostic(
 	if initializer == nil || (!ast.IsStringLiteral(initializer) && !ast.IsNoSubstitutionTemplateLiteral(initializer)) {
 		return
 	}
-	if _, err := language.Parse(initializer.Text()); err == nil {
+	if _, err := intlParseLocale(initializer.Text()); err == nil {
 		return
 	}
 	start := scanner.SkipTrivia(sourceFile.Text(), initializer.Pos())
@@ -618,17 +624,21 @@ func intlAppendLocaleDiagnostics(
 	walkNode(root, func(node *ast.Node) bool {
 		var constructor string
 		var arguments *ast.NodeList
-		if name, values, valid := intlConstructor(node); valid && intlLocaleConstructor(name) {
+		if name, values, valid := intlConstructor(node, typeChecker); valid && intlLocaleConstructor(name) {
 			constructor, arguments = "Intl."+name, values
 		} else if ast.IsCallExpression(node) {
 			call := node.AsCallExpression()
 			if ast.IsPropertyAccessExpression(call.Expression) {
 				member := call.Expression.AsPropertyAccessExpression()
-				if member.Name().Text() == "toLocaleString" {
-					constructor, arguments = "toLocaleString", call.Arguments
+				if member.Name().Text() == "toLocaleString" || member.Name().Text() == "toLocaleDateString" || member.Name().Text() == "toLocaleTimeString" {
+					_, native := planPrototypeLocaleCall(node, typeChecker)
+					_, _, _, temporal := analyzeNativeIntlFormatter(node, typeChecker)
+					if native || temporal {
+						constructor, arguments = member.Name().Text(), call.Arguments
+					}
 				} else if member.Name().Text() == "select" || member.Name().Text() == "selectRange" {
 					rules := intlConstInitializer(typeChecker, member.Expression)
-					if name, values, valid := intlConstructor(rules); valid && name == "PluralRules" {
+					if name, values, valid := intlConstructor(rules, typeChecker); valid && name == "PluralRules" {
 						constructor, arguments = "Intl.PluralRules", values
 					}
 				}
@@ -671,8 +681,8 @@ func intlLocaleConstructor(name string) bool {
 }
 
 func intlLocalesAgree(sourceLocale string, authoredLocale string) bool {
-	source, sourceErr := language.Parse(sourceLocale)
-	authored, authoredErr := language.Parse(authoredLocale)
+	source, sourceErr := intlParseLocale(sourceLocale)
+	authored, authoredErr := intlParseLocale(authoredLocale)
 	if sourceErr != nil || authoredErr != nil {
 		return false
 	}

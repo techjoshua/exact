@@ -1,21 +1,47 @@
+import { ownedProtocolIslandSource } from '../../framework-adapters/test-support/owned-protocol-island-source.mjs';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { build } from 'esbuild';
 import { chromium, firefox, webkit } from 'playwright';
 import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
+import { execFileSync } from 'node:child_process';
 import { Miniflare, convertV4MiniflareOptions } from 'miniflare';
-import { compileFileArtifacts, compileProjectArtifacts } from '@exactjs/compiler';
+import {
+	compileFileArtifacts,
+	compileProjectArtifacts,
+	createExactArtifactGraph,
+	createExactHydrationRegistrationModule
+} from '@exactjs/compiler';
+import { materializeExactPhysicalEnhancementFacades } from '@exactjs/compiler/adapter-support';
 import { createControl } from './control.mjs';
 import { withNativeHost } from './host.mjs';
 import { progressSource } from '../../packages/component-composition-corpus/test-support/runtime-acceptance/progress-source.mjs';
 import { checkNativeProgress } from './native-scenarios.mjs';
+import { prepareTaskCaptures, checkTaskCaptures } from './task-captures.mjs';
 import { checkDispatch } from './dispatch-scenarios.mjs';
 import { checkHydration } from './hydration-scenarios.mjs';
 import { prepareEagerReplay } from './eager-replay.mjs';
 import { hostSource } from './runtime-hosts.mjs';
+import { checkInstalledIslands } from './installed-islands.mjs';
+import { preparePendingOwnerBrowser, checkPendingOwners } from './pending-owner-browser.mjs';
 
 const root = path.resolve(import.meta.dirname, '../..');
+const evidenceFile =
+	process.env.EXACT_ACCEPTANCE_REPORT ?? path.join(root, '.tmp/runtime-acceptance/evidence.json');
+const evidence = {
+	version: 1,
+	runToken: process.env.EXACT_ACCEPTANCE_RUN_TOKEN ?? randomUUID(),
+	started: new Date().toISOString(),
+	revision: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(),
+	dirty:
+		execFileSync('git', ['status', '--porcelain'], { cwd: root, encoding: 'utf8' }).trim() !== '',
+	node: process.version,
+	browser: process.env.EXACT_ACCEPTANCE_BROWSER ?? 'chromium',
+	executions: []
+};
+await rm(evidenceFile, { force: true });
 const fixture = path.join(
 	root,
 	'packages/component-composition-corpus/test-support/runtime-acceptance'
@@ -42,10 +68,21 @@ try {
 		outDir: path.join(temporary, 'progress')
 	});
 	for (const name of [
+		'render-attribute-order',
 		'keyed-prop-replacement',
+		'keyed-spread-updates',
+		'render-namespace',
+		'time-plan',
 		'cancelled-task-catch',
 		'collection-projection',
-		'derived-pattern'
+		'intl-numeric-range',
+		'intl-projection',
+		'source-normalization',
+		'computed-component-members',
+		'form-binding',
+		'derived-pattern',
+		'mutation-contract',
+		'target-attribute-ownership'
 	])
 		await writeFile(
 			path.join(temporary, name + '.tsx'),
@@ -57,10 +94,66 @@ try {
 				)
 			)
 		);
+	for (const name of [
+		'conditional-class-keys',
+		'event-argument-ownership',
+		'native-mathml-properties',
+		'nested-input-relationships',
+		'applied-component-surface',
+		'source-normalization-server'
+	])
+		await writeFile(
+			path.join(temporary, name + '.fixtures.tsx'),
+			await readFile(
+				path.join(
+					root,
+					'packages/component-composition-corpus/src/test-support',
+					name + '.fixtures.tsx'
+				)
+			)
+		);
+	await writeFile(
+		path.join(temporary, 'event-function-declaration.js'),
+		await readFile(
+			path.join(
+				root,
+				'packages/component-composition-corpus/src/test-support/event-function-declaration.js'
+			),
+			'utf8'
+		)
+	);
+	await writeFile(
+		path.join(temporary, 'event-function-declaration.d.ts'),
+		await readFile(
+			path.join(
+				root,
+				'packages/component-composition-corpus/src/test-support/event-function-declaration.d.ts'
+			)
+		)
+	);
+	await writeFile(
+		path.join(temporary, 'intl-numeric-range-values.ts'),
+		await readFile(
+			path.join(
+				root,
+				'packages/component-composition-corpus/src/test-support/intl-numeric-range-values.ts'
+			)
+		)
+	);
+	await writeFile(
+		path.join(temporary, 'intl-projection-values.ts'),
+		await readFile(
+			path.join(
+				root,
+				'packages/component-composition-corpus/src/test-support/intl-projection-values.ts'
+			)
+		)
+	);
+	await writeFile(path.join(temporary, 'owned-protocol-islands.tsx'), ownedProtocolIslandSource);
 	const pageFile = path.join(temporary, 'Page.tsx');
 	await writeFile(
 		pageFile,
-		(await readFile(path.join(fixture, 'Page.tsx'), 'utf8')).replace(
+		(await readFile(path.join(fixture, 'Page.tsx'), 'utf8')).replaceAll(
 			'__EXACT_CONTROL__',
 			control.origin
 		)
@@ -71,17 +164,105 @@ try {
 	});
 	const page = pages.find((artifact) => artifact.inputFile === pageFile);
 	assert.ok(page, 'Missing runtime page artifact');
+	const normalization = pages.find((artifact) =>
+		artifact.inputFile.endsWith('source-normalization-server.fixtures.tsx')
+	);
+	assert.ok(normalization, 'Missing normalization task contract artifact');
+	// Exercise same-build server setup through the extracted hydration projection as well as
+	// the full component loopback used by the composition corpus.
+	Object.assign(
+		normalization,
+		await compileFileArtifacts(normalization.inputFile, {
+			rootDir: temporary,
+			outDir: path.join(temporary, 'page'),
+			serverComponents: true
+		})
+	);
+	const ownedProtocol = pages.find((artifact) =>
+		artifact.inputFile.endsWith('owned-protocol-islands.tsx')
+	);
+	assert.ok(ownedProtocol, 'Missing owned protocol island artifact');
+	Object.assign(
+		ownedProtocol,
+		await compileFileArtifacts(ownedProtocol.inputFile, {
+			rootDir: temporary,
+			outDir: path.join(temporary, 'page'),
+			serverComponents: true
+		})
+	);
+	const ownedProtocolRegistration = path.join(temporary, 'page', 'owned-protocol-registration.ts');
+	await writeFile(
+		ownedProtocolRegistration,
+		createExactHydrationRegistrationModule(
+			createExactArtifactGraph([ownedProtocol], {
+				packageRoot: temporary,
+				sourceRoot: temporary,
+				rootDir: path.join(temporary, 'page')
+			})
+		)
+	);
+	// This harness consumes portable artifacts without a bundler adapter's virtual-module hooks.
+	// Select installed providers through the shared physical-facade implementation instead.
+	for (const artifact of pages) {
+		for (const target of ['client', 'server']) {
+			const outputFile = artifact[target + 'File'];
+			const physical = materializeExactPhysicalEnhancementFacades(
+				await readFile(outputFile, 'utf8'),
+				artifact[target].rendererEnhancements,
+				artifact.inputFile,
+				temporary,
+				target === 'client' ? '@exactjs/dom/framework/enhancements' : undefined,
+				outputFile
+			);
+			await writeFile(outputFile, physical.code);
+		}
+	}
+	const taskCaptureHandler = await prepareTaskCaptures(root, temporary);
 	const eagerHandler = await prepareEagerReplay(temporary, fixture);
+	const pendingOwnerHandler = await preparePendingOwnerBrowser(root, temporary);
+	const inputArtifact = pages.find((artifact) =>
+		artifact.inputFile.endsWith('nested-input-relationships.fixtures.tsx')
+	);
+	assert.ok(inputArtifact, 'Missing input relationship client artifact');
+	const computedMembers = pages.find((artifact) =>
+		artifact.inputFile.endsWith('computed-component-members.tsx')
+	);
+	assert.ok(computedMembers, 'Missing computed component member artifact');
 	const client = path.join(temporary, 'client.ts');
+	const dormant = await compileFileArtifacts(
+		path.join(
+			root,
+			'packages/component-composition-corpus/src/test-support/dormant-islands.fixtures.tsx'
+		),
+		{
+			rootDir: path.join(root, 'packages/component-composition-corpus/src/test-support'),
+			outDir: path.join(temporary, 'dormant')
+		}
+	);
 	await writeFile(
 		client,
 		`import {RuntimePage,RuntimeIsland,RuntimeScope} from ${JSON.stringify(page.clientFile)};
+import {NormalizationServerSnapshotProbe,NormalizationAsyncInputProbe} from ${JSON.stringify(normalization.clientFile)};
+import {inputRelationshipOwner} from ${JSON.stringify(inputArtifact.clientFile)};
+import {computedMemberTrace} from ${JSON.stringify(computedMembers.clientFile)};
+import {exactHydrationRegistration as ownedProtocolRegistration} from ${JSON.stringify(ownedProtocolRegistration)};
+window.computedMemberTrace=computedMemberTrace;
+import {DormantIslandShell,EagerHoverIsland,resetDormantIslandNotifications,readDormantIslandNotifications} from ${JSON.stringify(dormant.clientFile)};
+import {verifyDormantIslandActivation} from ${JSON.stringify(path.join(root, 'packages/component-composition-corpus/test-support/dormant-island-journey.mjs'))};
+window.verifyDormantIslandActivation=()=>verifyDormantIslandActivation({createExactClient,lazyClientIsland,Shell:DormantIslandShell,Hover:EagerHoverIsland,reset:resetDormantIslandNotifications,read:readDormantIslandNotifications});
+import {isJsonSafe as validateRuntimeJsonData} from ${JSON.stringify(path.join(root, 'packages/hydrate/dist/validation.js'))};
+window.validateRuntimeJsonData=validateRuntimeJsonData;
+import {applyDomProp} from ${JSON.stringify(path.join(root, 'packages/dom/dist/props.js'))};
+window.applyRuntimeDomProp=applyDomProp;
+import {flushSync} from '@exactjs/reactive';
+window.propsProbeOwner=()=>inputRelationshipOwner;window.flushPropsProbe=flushSync;
 import {createCompiledComponentReceipt} from '@exactjs/core/runtime/component-operations';
-import {composeExactComponentContracts} from '@exactjs/core/framework/component-contracts';
-import {createExactClient,hydrate,readExactHydrationConfig} from '@exactjs/hydrate/enhanced';
+import {composePreparedExactComponentContracts} from '@exactjs/core/framework/component-contracts';
+import {exactEnhancementCatalog} from '@exactjs/core/framework/enhancement-catalog';
+import {createExactClient,lazyClientIsland,hydrate,readExactHydrationConfig} from '@exactjs/hydrate/enhanced';
 const options={
- enhancementCatalog:new Map([['runtime-scope',RuntimeScope],['runtime-scope-peer',RuntimeScope]]),
- ...readExactHydrationConfig(document),continuations:composeExactComponentContracts([RuntimePage],'client').continuations,endpoint:'/__exact',islands:{RuntimeIsland},onErrorReport:report=>console.error(report.error),onDiagnostic:diagnostic=>console.error(diagnostic.message)
+ enhancementCatalog:new Map([...exactEnhancementCatalog,['runtime-scope',RuntimeScope],['runtime-scope-peer',RuntimeScope]]),
+ ...readExactHydrationConfig(document),continuations:composePreparedExactComponentContracts([RuntimePage,NormalizationServerSnapshotProbe,NormalizationAsyncInputProbe],'client').continuations,endpoint:'/__exact',islands:{...ownedProtocolRegistration.islands,RuntimeIsland},onErrorReport:report=>console.error(report.error),onDiagnostic:diagnostic=>console.error(diagnostic.message)
 };
 window.runtimeClient=location.pathname.includes('island-page')?createExactClient(document.getElementById('root'),options):hydrate(createCompiledComponentReceipt(RuntimeIsland,{}),document.getElementById('root'),options);
 await window.runtimeClient.whenSettled();window.runtimeReady=true;`
@@ -106,12 +287,15 @@ await window.runtimeClient.whenSettled();window.runtimeReady=true;`
 		}[adapter];
 		await writeFile(
 			entry,
-			`import {eagerReplayResponse} from ${JSON.stringify(eagerHandler)};
+			`import {taskCaptureResponse,taskCaptureContext} from ${JSON.stringify(taskCaptureHandler)};
+import {pendingOwnerResponse} from ${JSON.stringify(pendingOwnerHandler)};
+import {eagerReplayResponse} from ${JSON.stringify(eagerHandler)};
 import {NativeProgress,runCount} from ${JSON.stringify(progress.serverFile)};
-import {RuntimePage,RuntimeShell,RuntimeIsland,RuntimeViews,RuntimeScope} from ${JSON.stringify(page.serverFile)};
+import {RuntimePage,RuntimeShell,RuntimeIsland,RuntimeViews,RuntimeScope,RuntimeDeadline,deadlineState} from ${JSON.stringify(page.serverFile)};
+import {NormalizationServerSnapshotProbe,NormalizationAsyncInputProbe} from ${JSON.stringify(normalization.serverFile)};
 import {createApplication} from ${JSON.stringify(path.join(fixture, 'application.mjs'))};
 import {${exported} as createHandler} from '@exactjs/${adapter}-adapter';
-const app=createApplication({eagerReplayResponse,RuntimePage,RuntimeShell,RuntimeIsland,RuntimeViews,RuntimeScope,NativeProgress,runCount,createHandler,clientCode:${JSON.stringify(clientCode)},control:${JSON.stringify(control.origin)}});
+const app=createApplication({normalizationComponents:[NormalizationServerSnapshotProbe,NormalizationAsyncInputProbe],taskCaptureResponse,taskCaptureContext,pendingOwnerResponse,eagerReplayResponse,RuntimePage,RuntimeShell,RuntimeIsland,RuntimeViews,RuntimeScope,RuntimeDeadline,deadlineState,NativeProgress,runCount,createHandler,clientCode:${JSON.stringify(clientCode)},control:${JSON.stringify(control.origin)}});
 ${hostSource(runtime)}`
 		);
 		const output = path.join(temporary, runtime + '-bundle.mjs');
@@ -130,7 +314,24 @@ ${hostSource(runtime)}`
 			control.reset();
 			await checkNativeProgress(origin, control.origin);
 			await checkDispatch(origin, control.origin);
+			await checkTaskCaptures(origin);
 			await checkHydration(origin, browser, control.origin);
+			await checkPendingOwners(origin, browser);
+			evidence.executions.push({
+				id: 'native-runtime-' + label,
+				tests: [
+					'native-progress',
+					'url-coercion',
+					'dispatch-policy',
+					'task-activation-captures',
+					'host-import-identity',
+					'browser-hydration',
+					'computed-component-members',
+					'pending-owner-overlap',
+					'pending-owner-sequences'
+				],
+				status: 'verified'
+			});
 			console.log(
 				`${label}: progress, dispatch/security/serialization, contexts, theme reuse, buffered/streamed SSR and browser hydration passed`
 			);
@@ -195,3 +396,20 @@ ${hostSource(runtime)}`
 }
 
 if (primaryFailure) throw primaryFailure.error;
+await mkdir(path.dirname(evidenceFile), { recursive: true });
+evidence.executions.push(...(await checkInstalledIslands(root, evidenceFile + '.installed.json')));
+await writeFile(
+	evidenceFile,
+	JSON.stringify(
+		{
+			...evidence,
+			finished: new Date().toISOString(),
+			success: true,
+			provenanceLimit: evidence.dirty
+				? 'Uncommitted sources were executed. This SHA does not reproduce the tested variant.'
+				: undefined
+		},
+		null,
+		2
+	) + '\n'
+);

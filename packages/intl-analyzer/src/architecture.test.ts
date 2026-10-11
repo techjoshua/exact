@@ -23,15 +23,15 @@ import {
 	paragraphTarget
 } from './architecture.fixtures.js';
 import {
-	serverAttributesRoot,
-	ServerIntlAttributes,
-	ServerIntlLocale,
-	ServerIntlMessage,
-	serverInboxStructure,
-	serverLocaleRoot,
-	serverMessageRoot,
-	serverParagraphTarget
-} from './architecture.server.fixtures.js?exact-target=server';
+	attributesRoot as serverAttributesRoot,
+	CompiledIntlAttributes as ServerIntlAttributes,
+	CompiledIntlLocale as ServerIntlLocale,
+	CompiledIntlMessage as ServerIntlMessage,
+	inboxStructure as serverInboxStructure,
+	localeRoot as serverLocaleRoot,
+	messageRoot as serverMessageRoot,
+	paragraphTarget as serverParagraphTarget
+} from './architecture.fixtures.js?exact-target=server';
 import { analyzeIntlSource } from './index.js';
 
 describe('intl architecture fixture', () => {
@@ -60,7 +60,7 @@ describe('intl architecture fixture', () => {
 
 	it('shares plural, structure, fallback, SSR, hydration, updates, and locale semantics', async () => {
 		const analysis = analyzeIntlSource(
-			`const View = ({ count }) => <p intl:message>You have {count} new {count === 1 ? 'message' : 'messages'}. Read <a href="/messages">your inbox</a>.</p>;`,
+			`const View = ({ count }: {count:number}) => <p intl:message>You have {count} new {count === 1 ? 'message' : 'messages'}. Read <a href="/messages">your inbox</a>.</p>;`,
 			{ filename: '/src/View.tsx', owner: 'example', sourceLocale: 'en-US' }
 		);
 		const analyzed = analysis.descriptors[0]!;

@@ -262,27 +262,23 @@ func resolveReturnedRenderCallables(
 	return result
 }
 
+// Eager collection callbacks remain render work through literal member and callable wrappers.
 func eagerRenderCallback(node *ast.Node) bool {
 	parent := node.Parent
-	if parent == nil {
+	for parent != nil && unwrapSourceCallableReference(parent) == node {
+		parent = parent.Parent
+	}
+	if parent == nil || !ast.IsCallExpression(parent) {
 		return false
 	}
-	if ast.IsCallExpression(parent) {
-		call := parent.AsCallExpression()
-		if ast.IsPropertyAccessExpression(call.Expression) {
-			name := call.Expression.AsPropertyAccessExpression().Name()
-			return name != nil && (name.Text() == "map" ||
-				name.Text() == "flatMap" ||
-				name.Text() == "filter" ||
-				name.Text() == "reduce" ||
-				name.Text() == "reduceRight" ||
-				name.Text() == "some" ||
-				name.Text() == "every" ||
-				name.Text() == "find" ||
-				name.Text() == "findIndex")
-		}
+	call := parent.AsCallExpression()
+	_, name := sourceLiteralMemberReference(call.Expression)
+	switch name {
+	case "map", "filter", "reduce", "reduceRight", "find", "findIndex", "every", "some", "flatMap", "forEach", "sort", "toSorted":
+	default:
+		return false
 	}
-	return false
+	return call.Arguments != nil && len(call.Arguments.Nodes) > 0 && unwrapSourceCallableReference(call.Arguments.Nodes[0]) == node
 }
 
 func knownRenderEffect(

@@ -2,9 +2,12 @@ import path from 'node:path';
 import typescript from 'typescript';
 import type ts from 'typescript';
 import { isProductionSourceDirectory, isProductionSourceFile } from './sources.js';
+import { checkProject } from '../compilation/file-compilation.js';
+import type { ExactCompilerSession } from '../expression/project.js';
 
 /**
- * Emits declarations without rebuilding references or writing outside dist or into replaceable targets.
+ * Checks authored sources with eXact and emits their TypeScript declarations without rebuilding references.
+ * Writes only inside dist, outside replaceable target trees.
  * Selective compilation can retain TypeScript JavaScript for modules not lowered by eXact.
  */
 export async function emitLibraryDeclarations(
@@ -12,7 +15,9 @@ export async function emitLibraryDeclarations(
 	project = 'tsconfig.json',
 	excludeFixtures = false,
 	targetDirectories: readonly string[] = ['client', 'server'],
-	preserveSupportJavaScript = false
+	preserveSupportJavaScript = false,
+	stagedOutput?: string,
+	session?: ExactCompilerSession
 ): Promise<void> {
 	const configFile = path.resolve(root, project);
 	const config = typescript.readConfigFile(configFile, typescript.sys.readFile);
@@ -53,7 +58,8 @@ export async function emitLibraryDeclarations(
 	)) {
 		const relative = path.relative(output, directory);
 		if (
-			relative.startsWith('..') ||
+			relative === '..' ||
+			relative.startsWith('..' + path.sep) ||
 			path.isAbsolute(relative) ||
 			targetDirectories.includes(relative.split(path.sep)[0]!)
 		)
@@ -61,16 +67,27 @@ export async function emitLibraryDeclarations(
 				'Library TypeScript output must stay inside dist, outside the client and server target directories'
 			);
 	}
+	const rootNames = parsed.fileNames.filter((filename) => {
+		const segments = path.relative(root, filename).split(path.sep);
+		const basename = segments.pop()!;
+		return (
+			segments.every(isProductionSourceDirectory) &&
+			(/\.d\.[cm]?ts$/i.test(basename) || isProductionSourceFile(basename, excludeFixtures))
+		);
+	});
+	// Native checking owns framework-aware receiver and expression semantics. TypeScript
+	// still owns declaration inference and emit diagnostics against the authored signatures.
+	const sourceNames = rootNames.filter((filename) => !/\.d\.[cm]?ts$/i.test(filename));
+	if (sourceNames.length)
+		await checkProject(sourceNames, {
+			session,
+			root,
+			configFile,
+			packageType: 'library'
+		});
 	const program = typescript.createProgram({
-		rootNames: parsed.fileNames.filter((filename) => {
-			const segments = path.relative(root, filename).split(path.sep);
-			const basename = segments.pop()!;
-			return (
-				segments.every(isProductionSourceDirectory) &&
-				(/\.d\.[cm]?ts$/i.test(basename) || isProductionSourceFile(basename, excludeFixtures))
-			);
-		}),
-		options,
+		rootNames,
+		options: { ...options, noCheck: true },
 		projectReferences: parsed.projectReferences
 	});
 	const diagnostics = typescript.getPreEmitDiagnostics(program);
@@ -78,13 +95,22 @@ export async function emitLibraryDeclarations(
 		throw new Error(format(diagnostics));
 	const result = program.emit(undefined, (filename, text, bom) => {
 		const relative = path.relative(output, path.resolve(filename));
-		if (!relative || relative.startsWith('..') || path.isAbsolute(relative))
+		if (
+			!relative ||
+			relative === '..' ||
+			relative.startsWith('..' + path.sep) ||
+			path.isAbsolute(relative)
+		)
 			throw new Error(`Library TypeScript output must stay inside dist: ${filename}`);
 		if (targetDirectories.includes(relative.split(path.sep)[0]!))
 			throw new Error(
 				`Library TypeScript output ${filename} overlaps a target directory; rename it with exactTargetDirectories`
 			);
-		typescript.sys.writeFile(filename, text, bom);
+		typescript.sys.writeFile(
+			stagedOutput ? path.join(stagedOutput, relative) : filename,
+			text,
+			bom
+		);
 	});
 	if (
 		result.emitSkipped ||

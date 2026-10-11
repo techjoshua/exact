@@ -185,15 +185,130 @@ describe('shared time scheduler', () => {
 		const activation = createTimeActivation('second', { protocol: 1, kind: 'continuous' }, clock);
 		clock.advance(900);
 		activation.mount(clock, { deferInitialPublish: true });
+		flushSync();
+		expect(activation.readEpochMilliseconds()).toBe(100);
 		expect(inspectTimeClock(clock).activeRegistrations).toBe(0);
 		expect(clock.pendingTimerCount).toBe(0);
 		await Promise.resolve();
+		flushSync();
 		expect(activation.readEpochMilliseconds()).toBe(1_000);
 		expect(inspectTimeClock(clock).activeRegistrations).toBe(1);
 		await Promise.resolve();
 		expect(clock.pendingTimerCount).toBe(1);
 		activation.dispose();
 	});
+
+	it('fences provider changes and cancellation before the hydration publication turn', async () => {
+		const first = createManualTimeClock(100);
+		const second = createManualTimeClock(9000);
+		const activation = createTimeActivation('second', { protocol: 1, kind: 'continuous' }, first);
+		activation.mount(first, { deferInitialPublish: true });
+		activation.configureEnvironment({ clock: second });
+		activation.configure('disabled');
+		activation.configure('second');
+		flushSync();
+		expect(activation.readEpochMilliseconds()).toBe(100);
+		expect(first.pendingTimerCount).toBe(0);
+		expect(second.pendingTimerCount).toBe(0);
+		activation.dispose();
+		await Promise.resolve();
+		flushSync();
+		expect(activation.readEpochMilliseconds()).toBe(100);
+		expect(first.pendingTimerCount).toBe(0);
+		expect(second.pendingTimerCount).toBe(0);
+		expect(inspectTimeClock(first).activeRegistrations).toBe(0);
+		expect(inspectTimeClock(second).activeRegistrations).toBe(0);
+	});
+
+	it.each(['auto', 'disabled'] as const)(
+		'selects an unmounted provider clock with %s policy',
+		(policy) => {
+			const first = createManualTimeClock(100);
+			const second = createManualTimeClock(2750);
+			const activation = createTimeActivation(policy, { protocol: 1, kind: 'continuous' }, first);
+			activation.configureEnvironment({ clock: second });
+			expect(activation.readEpochMilliseconds()).toBe(policy === 'disabled' ? 100 : 2750);
+			second.advance(500);
+			activation.configureEnvironment({ clock: second, timeZone: 'UTC' });
+			expect(activation.readEpochMilliseconds()).toBe(policy === 'disabled' ? 100 : 2750);
+			activation.configureEnvironment({ clock: first });
+			expect(activation.readEpochMilliseconds()).toBe(100);
+			expect(first.pendingTimerCount).toBe(0);
+			expect(second.pendingTimerCount).toBe(0);
+			expect(inspectTimeClock(first).activeRegistrations).toBe(0);
+			expect(inspectTimeClock(second).activeRegistrations).toBe(0);
+			activation.dispose();
+		}
+	);
+
+	it('retains the server sample when configuring a hydration provider before mount', async () => {
+		const domain = createFrameworkComponentDomain({
+			executionRoot: 'hydration-test',
+			inspectionActivation: 'hydration',
+			wallClockSnapshot: 1000
+		});
+		const clock = createManualTimeClock(2750);
+		const activation = withComponentDomain(domain, () =>
+			createTimeActivation('second', { protocol: 1, kind: 'continuous' })
+		);
+		activation.configureEnvironment({ clock });
+		expect(activation.readEpochMilliseconds()).toBe(1000);
+		expect(clock.pendingTimerCount).toBe(0);
+		activation.mount(clock, { deferInitialPublish: true });
+		expect(activation.readEpochMilliseconds()).toBe(1000);
+		await Promise.resolve();
+		flushSync();
+		expect(activation.readEpochMilliseconds()).toBe(2750);
+		activation.dispose();
+	});
+
+	it.each(['second', 'disabled'] as const)(
+		'adopts a custom provider sample once with %s policy',
+		async (policy) => {
+			const domain = createFrameworkComponentDomain({
+				executionRoot: 'provider-hydration',
+				inspectionActivation: 'hydration',
+				wallClockSnapshot: 1000
+			});
+			const clock = createManualTimeClock(9000);
+			const activation = withComponentDomain(domain, () =>
+				createTimeActivation(policy, { protocol: 1, kind: 'continuous' })
+			);
+			activation.configureEnvironment({ clock }, 2750);
+			expect(activation.readEpochMilliseconds()).toBe(2750);
+			activation.configureEnvironment({ clock, timeZone: 'UTC' }, 4000);
+			expect(activation.readEpochMilliseconds()).toBe(2750);
+			activation.mount(clock, { deferInitialPublish: true });
+			flushSync();
+			expect(activation.readEpochMilliseconds()).toBe(2750);
+			expect(clock.pendingTimerCount).toBe(0);
+			await Promise.resolve();
+			flushSync();
+			expect(activation.readEpochMilliseconds()).toBe(policy === 'disabled' ? 2750 : 9000);
+			activation.configureEnvironment({ clock }, 10);
+			expect(activation.readEpochMilliseconds()).toBe(policy === 'disabled' ? 2750 : 9000);
+			activation.dispose();
+			await Promise.resolve();
+			flushSync();
+			expect(clock.pendingTimerCount).toBe(0);
+		}
+	);
+
+	it.each([NaN, Infinity, -Infinity])(
+		'rejects invalid provider sample %s before changing ownership',
+		(sample) => {
+			const first = createManualTimeClock(100);
+			const next = createManualTimeClock(2750);
+			const activation = createTimeActivation('second', { protocol: 1, kind: 'continuous' }, first);
+			expect(() => activation.configureEnvironment({ clock: next }, sample)).toThrow(/finite/);
+			expect(activation.readEpochMilliseconds()).toBe(100);
+			activation.configureEnvironment({ clock: first }, 250);
+			expect(activation.readEpochMilliseconds()).toBe(250);
+			activation.dispose();
+			expect(first.pendingTimerCount).toBe(0);
+			expect(next.pendingTimerCount).toBe(0);
+		}
+	);
 
 	it('moves a mounted range when its reactive clock environment changes', async () => {
 		const first = createManualTimeClock(0);
@@ -273,3 +388,38 @@ describe('shared time scheduler', () => {
 		expect(inspectTimeClock(clock).activeRegistrations).toBe(0);
 	});
 });
+
+it.each(['auto', 'disabled'] as const)(
+	'restarts completed plans on changed anchors while respecting %s policy',
+	async (policy) => {
+		const clock = createManualTimeClock(5000);
+		const activation = createTimeActivation(
+			policy,
+			{
+				protocol: 1,
+				kind: 'threshold',
+				thresholdMilliseconds: { binding: 0 },
+				before: { protocol: 1, kind: 'complete' },
+				after: { protocol: 1, kind: 'complete' }
+			},
+			clock,
+			[1000]
+		);
+		try {
+			activation.mount(clock);
+			await Promise.resolve();
+			expect(clock.pendingTimerCount).toBe(0);
+			clock.advance(5000);
+			activation.readEpochMilliseconds([11000]);
+			await Promise.resolve();
+			flushSync();
+			await Promise.resolve();
+			expect(activation.readEpochMilliseconds()).toBe(policy === 'disabled' ? 5000 : 10000);
+			expect(clock.nextDeadline?.epochMilliseconds).toBe(policy === 'disabled' ? undefined : 11000);
+		} finally {
+			activation.dispose();
+		}
+		await Promise.resolve();
+		expect(clock.pendingTimerCount).toBe(0);
+	}
+);

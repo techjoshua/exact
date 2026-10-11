@@ -17,10 +17,21 @@ and modern cancellation behavior. The separate lockfile pins Deno and Miniflare 
 SDKs to framework packages. Miniflare's pinned 5.x alpha uses its official 4.x options converter.
 
 Shared scenarios cover single and batched progress delivery through the client transport, cancellation, ordinary compiled continuations,
-manual dispatch and security rejection, serialization, retained application contexts, overlapping
+captured task arguments with local context-reading and publishing helpers, direct SSR and repeated
+request execution, manual dispatch and security rejection, serialization, retained application contexts, overlapping
 request contexts, cleanup after success and failure, buffered and streamed SSR, DOM adoption,
-pre-hydration edits, repeated remote updates, and client disposal. Fixtures belong to the owned
+pre-hydration edits, retained input focus and selection, repeated remote updates, and client disposal. Fixtures belong to the owned
 component composition corpus. Native entry points vary only where the host transport requires it.
+
+The installed-component journey separately builds a source-removed paired library and Vite consumer
+bundles, then serves them through Bun.serve, Deno.serve and workerd. Shared jsdom assertions check
+UTF-8 output, hydration, retained input edits, repeated continuation updates, eager/lazy replacement
+and disposal. Buffered and assembled progressive output both run. The same installed-owner assertions
+also run in Chromium against an owned Node HTTP server with Vite consumer bundles. This does not
+measure progressive document delivery. The separate pending-owner fixture crosses mount/hydration,
+plain/enhanced hosts, captured/defaulted props and controlled task suspension in Chromium on all native
+hosts. Two fixed seeds each replay 48 ownership transitions against committed-state expectations. The fresh Vitest report is
+validated before these host groups enter the runtime evidence.
 Node uses the Node adapter for dispatch, with a Web Stream bridge for page responses.
 
 The progress source continues producing updates until released: workerd may detect disconnection

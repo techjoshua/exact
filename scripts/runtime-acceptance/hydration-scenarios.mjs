@@ -1,7 +1,21 @@
+import { checkBrowserUrlCoercion } from './url-scenarios.mjs';
+import { checkSerializationScripts, checkBrowserJsonData } from './serialization-scenarios.mjs';
+import { verifySourceNormalization } from '../../packages/component-composition-corpus/test-support/source-normalization-journey.mjs';
+import {
+	verifyComputedComponentMembers,
+	verifyComputedMemberDisposal
+} from '../../packages/component-composition-corpus/test-support/computed-component-members-journey.mjs';
+import { intlProjectionExpected } from '../../packages/component-composition-corpus/test-support/intl-projection-journey.mjs';
+import { verifyFormBindingControls } from '../../packages/component-composition-corpus/test-support/form-binding-journey.mjs';
+import { verifyInputRelationships } from '../../packages/component-composition-corpus/test-support/input-relationship-journey.mjs';
+import { verifyRenderAttributeOrder } from '../../packages/component-composition-corpus/test-support/render-attribute-journey.mjs';
+import { verifyTargetAttributeOwnership } from '../../packages/component-composition-corpus/test-support/target-attribute-journey.mjs';
+import { verifyMutationContract } from '../../packages/component-composition-corpus/test-support/mutation-contract-journey.mjs';
 import {
 	verifyCollectionProjection,
 	verifyDerivedPattern
 } from '../../packages/component-composition-corpus/test-support/collection-projection-journey.mjs';
+import { verifyTimePlanOwnership } from '../../packages/component-composition-corpus/test-support/time-plan-journey.mjs';
 import { verifyReplacementOwnership } from '../../packages/component-composition-corpus/test-support/replacement-journey.mjs';
 import { checkEagerReplay } from './eager-replay.mjs';
 import { checkBootstrapLoading } from './bootstrap-scenarios.mjs';
@@ -10,6 +24,43 @@ import { request, json } from './test-support.mjs';
 
 /** Verifies native SSR output, DOM adoption, repeated remote updates and client disposal. */
 export async function checkHydration(origin, browser, control) {
+	const escaped = await json(await request(new URL('/hydration-escaping', origin)));
+	const safety = await json(await request(new URL('/serialization-safety', origin)));
+
+	const escapingPage = await browser.newPage();
+	try {
+		await checkSerializationScripts(escapingPage, safety.scripts);
+		for (const { value, script } of escaped) {
+			await escapingPage.setContent(script + '<p id="after-hydration">after</p>');
+			const observed = await escapingPage.evaluate(() => ({
+				scripts: document.querySelectorAll('script').length,
+				state: JSON.parse(document.querySelector('script').textContent).state,
+				after: document.getElementById('after-hydration')?.textContent
+			}));
+			assert.deepEqual(observed, { scripts: 1, state: { [value]: value }, after: 'after' });
+		}
+	} finally {
+		await escapingPage.close();
+	}
+	// A local render deadline must end owned upstream work and allow another request to succeed.
+	const limited = await request(new URL('/limited-page?gate=deadline', origin));
+	assert.deepEqual(await json(limited, 504), { error: 'SsrTaskDeadlineError' });
+	const end = Date.now() + 5000;
+	while ((await json(await request(new URL('/status', control)))).pending.includes('deadline')) {
+		assert.ok(Date.now() < end, 'Timed-out SSR must cancel its upstream request');
+		await new Promise((resolve) => setTimeout(resolve, 20));
+	}
+	assert.deepEqual(await json(await request(new URL('/deadline-state', origin))), [
+		{ id: 'deadline', aborted: true }
+	]);
+	await (await request(new URL('/release?id=deadline-next', control))).text();
+	const next = await request(new URL('/limited-page?gate=deadline-next', origin));
+	assert.equal(next.status, 200);
+	assert.match(await next.text(), /id="deadline-result"[^>]*>released/);
+	assert.deepEqual(await json(await request(new URL('/deadline-state', origin))), [
+		{ id: 'deadline', aborted: true },
+		{ id: 'deadline-next', aborted: false }
+	]);
 	await checkBootstrapLoading(origin, browser);
 	await checkEagerReplay(origin, browser);
 	// The gate opens only after bytes arrive, so buffered rendering cannot pass this witness.
@@ -59,6 +110,7 @@ export async function checkHydration(origin, browser, control) {
 		assert.doesNotMatch(html, /<script>unsafe<\/script>/);
 		assert.match(html, /<output id="server-availability"[^>]*>available<\/output>/);
 		assert.match(html, /title="settled"/);
+		assert.match(html, /id="deferred-spread"[^>]*data-spread="ready"/);
 		assert.doesNotMatch(html, /title="\[object Object\]"/);
 		const page = await browser.newPage();
 		const errors = [];
@@ -77,18 +129,147 @@ export async function checkHydration(origin, browser, control) {
 			assert.equal(await page.locator('#client-status').textContent(), '0:idle');
 			assert.equal(await page.locator('#fragment-scope').textContent(), 'outer');
 			assert.equal(await page.locator('#fragment-sibling').textContent(), 'root');
+			assert.equal(await page.locator('#deferred-spread').getAttribute('data-spread'), 'ready');
+			assert.equal(await page.locator('#deferred-spread').getAttribute('data-scope'), 'deferred');
 			assert.equal(await page.locator('#intl-initial').textContent(), '1.234,5');
 			await page.evaluate(() => {
 				window.originalCounter = document.querySelector('#count');
+				window.originalFormInput = document.querySelector('#form-number-text');
+				window.originalNumericRange = document.querySelector('#numeric-range-result');
+				window.originalIntlProjection = document.querySelector('#intl-projection-result');
+				window.originalNormalization = document.querySelector('#normalization-result');
+				window.originalSnapshot = document.querySelector('#normalization-snapshot-result');
+				window.originalHelperSnapshot = document.querySelector('#normalization-helper-result');
+				window.originalStartup = document.querySelector('#normalization-startup-result');
+				window.originalScalarRun = document.querySelector('#scalar-run');
+				window.originalScalarText = [...window.originalScalarRun.childNodes].find(
+					(node) => node.nodeType === Node.TEXT_NODE
+				);
 				window.originalScope = document.querySelector('#fragment-scope');
+				window.originalDeferredSpread = document.querySelector('#deferred-spread');
 				window.originalInput = document.querySelector('#draft');
 				window.originalInput.value = 'edited before hydration';
+				window.originalInput.focus();
+				window.originalInput.setSelectionRange(2, 7);
 			});
 			await page.addScriptTag({ url: new URL('/client.js', origin).href, type: 'module' });
 			await page.waitForFunction(() => window.runtimeReady);
+			if (route === '/page') {
+				await checkBrowserJsonData(page);
+				await checkBrowserUrlCoercion(page);
+			}
+			await page.evaluate(async (journey) => {
+				await (0, eval)('(' + journey + ')')(document);
+			}, verifyRenderAttributeOrder.toString());
+			await page.evaluate(async (source) => {
+				const verify = new Function('return (' + source + ')')();
+				window.propsProbeNodes = await verify(
+					document,
+					window.propsProbeOwner(),
+					window.flushPropsProbe
+				);
+				if (
+					document.querySelectorAll('[data-applied-variant]').length !== 3 ||
+					[...document.querySelectorAll('[data-applied-variant]')].some(
+						(node) => node.textContent !== 'absent'
+					)
+				)
+					throw new Error('Lost applied context capability');
+			}, verifyInputRelationships.toString());
+			assert.deepEqual(
+				await page.evaluate(() => ({
+					focused: document.activeElement === window.originalInput,
+					start: window.originalInput.selectionStart,
+					end: window.originalInput.selectionEnd
+				})),
+				{ focused: true, start: 2, end: 7 },
+				'Hydration must preserve focus and selection on the retained authored input'
+			);
+			assert.equal(
+				await page.evaluate(
+					() => window.originalFormInput === document.querySelector('#form-number-text')
+				),
+				true
+			);
+			await page.evaluate(async (journey) => {
+				const verify = (0, eval)('(' + journey + ')');
+				await verify(
+					document,
+					() =>
+						new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+				);
+			}, verifyFormBindingControls.toString());
+			for (const step of [0, 1, 2]) {
+				assert.equal(
+					await page.locator('#intl-projection-result').textContent(),
+					intlProjectionExpected(step, 'de-DE')
+				);
+				assert.equal(
+					await page.evaluate(
+						() =>
+							window.originalIntlProjection === document.querySelector('#intl-projection-result')
+					),
+					true
+				);
+				if (step < 2) await page.click('#intl-projection-next');
+			}
+			await verifySourceNormalization(page);
+			await verifyComputedComponentMembers(page);
+			for (const end of [1, 2, 3]) {
+				const expected = await page.evaluate((end) => {
+					const number = new Intl.NumberFormat('en-US').formatRange(1, end);
+					const currency = new Intl.NumberFormat('en-US', {
+						style: 'currency',
+						currency: 'USD',
+						currencyDisplay: 'code'
+					}).formatRange(1, end);
+					return number + ' / ' + currency;
+				}, end);
+				assert.equal(await page.locator('#numeric-range-result').textContent(), expected);
+				assert.equal(
+					await page.evaluate(
+						() => window.originalNumericRange === document.querySelector('#numeric-range-result')
+					),
+					true
+				);
+				if (end < 3) await page.click('#numeric-range-next');
+			}
+			assert.equal(
+				await page.evaluate(
+					() => window.originalScalarRun === document.querySelector('#scalar-run')
+				),
+				true,
+				'Scalar adoption must retain the server host'
+			);
+			assert.equal(
+				await page.evaluate(() =>
+					[...window.originalScalarRun.childNodes].includes(window.originalScalarText)
+				),
+				true,
+				'Scalar adoption must retain the first server Text'
+			);
+			assert.equal(await page.locator('#scalar-run').textContent(), 'first / second 😀');
+			for (const expected of ['next / last 😀', '', 'again!']) {
+				await page.click('#scalar-change');
+				await page.waitForFunction(
+					(value) => document.querySelector('#scalar-run').textContent === value,
+					expected
+				);
+				assert.equal(
+					await page.evaluate(
+						() => window.originalScalarRun === document.querySelector('#scalar-run')
+					),
+					true
+				);
+			}
+			await page.evaluate(() => window.verifyDormantIslandActivation());
+			await page.evaluate(verifyTimePlanOwnership);
 			await page.evaluate(verifyReplacementOwnership);
 			await page.evaluate(verifyCollectionProjection);
 			await page.evaluate(verifyDerivedPattern);
+			await page.evaluate(verifyMutationContract);
+			await page.evaluate(verifyTargetAttributeOwnership);
+			assert.equal(await page.locator('[data-server-mutation-contract]').textContent(), '5:1');
 			assert.equal(
 				await page.evaluate(
 					() => window.originalScope === document.querySelector('#fragment-scope')
@@ -101,6 +282,12 @@ export async function checkHydration(origin, browser, control) {
 			assert.equal(await page.locator('#server-availability').textContent(), 'available');
 			assert.equal(await page.locator('#client-status').textContent(), '0:idle');
 			assert.equal(await page.locator('#fragment-scope').textContent(), 'outer');
+			assert.equal(
+				await page.evaluate(
+					() => window.originalDeferredSpread === document.querySelector('#deferred-spread')
+				),
+				true
+			);
 			assert.equal(await page.locator('#fragment-sibling').textContent(), 'root');
 			assert.equal(await page.locator('#intl-initial').textContent(), '1.234,5');
 			assert.equal(await page.locator('#set-size').textContent(), '1');
@@ -137,6 +324,21 @@ export async function checkHydration(origin, browser, control) {
 					(expected) => document.querySelector('#returned').textContent === String(expected),
 					count
 				);
+				assert.equal(
+					await page.evaluate(
+						() => window.originalScope === document.querySelector('#fragment-scope')
+					),
+					true,
+					'A keyed enhanced fragment must retain its descendants after reactive updates'
+				);
+				assert.equal(await page.locator('#deferred-spread').getAttribute('data-spread'), 'updated');
+				assert.equal(
+					await page.evaluate(
+						() => window.originalDeferredSpread === document.querySelector('#deferred-spread')
+					),
+					true,
+					'A keyed enhanced host must survive hydration and reactive updates'
+				);
 				assert.equal(await page.locator('#profile-label').textContent(), 'native');
 				assert.equal(await page.locator('#map-total').textContent(), String(count));
 				assert.equal(await page.locator('#set-size').textContent(), '2');
@@ -160,15 +362,22 @@ export async function checkHydration(origin, browser, control) {
 			await page.evaluate(() => {
 				const retiredButton = document.querySelector('#increment');
 				window.runtimeClient.dispose();
+				if (window.propsProbeNodes) {
+					window.propsProbeOwner().state.record.value = 30;
+					window.flushPropsProbe();
+					if (window.propsProbeNodes.some((node) => node.textContent !== '20'))
+						throw new Error('Disposed input relationship remained active');
+				}
 				retiredButton.click();
 			});
 			await page.waitForTimeout(50);
+			await verifyComputedMemberDisposal(page);
 			assert.equal(
 				await page.locator('#count').count(),
 				route.includes('island-page') ? 1 : 0,
 				'Full-root disposal removes its mount, island disposal retains inert server markup'
 			);
-			assert.equal(requests, 3, 'Disposal must remove interaction ownership');
+			assert.equal(requests, 7, 'Disposal must remove interaction ownership');
 			assert.deepEqual(errors, []);
 		} catch (error) {
 			throw new Error(route + ': ' + errors.join('; '), { cause: error });

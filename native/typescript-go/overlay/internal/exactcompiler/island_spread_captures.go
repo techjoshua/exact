@@ -107,3 +107,37 @@ func positionInIslandInputs(position int, root *ast.Node, inputs []*ast.Node) bo
 	}
 	return false
 }
+
+// islandReconstructedSpreads records binder proofs before JSX lowering rewrites identifiers.
+// Derived callback objects remain executable client code instead of entering a JSON envelope.
+func islandReconstructedSpreads(opening *ast.Node, captures []islandDerivedCapture, typeChecker *checker.Checker) (map[int]bool, map[int]bool) {
+	result := make(map[int]bool)
+	declarations := make(map[int]bool)
+	if typeChecker == nil || ast.IsJsxFragment(opening) || opening.Attributes() == nil {
+		return result, declarations
+	}
+	symbols := make(map[ast.SymbolId]int)
+	for _, capture := range captures {
+		for _, name := range bindingIdentifiers(capture.declaration.Name()) {
+			if symbol := typeChecker.GetSymbolAtLocation(name); symbol != nil {
+				symbols[ast.GetSymbolId(symbol)] = name.Pos()
+			}
+		}
+	}
+	for _, property := range opening.Attributes().AsJsxAttributes().Properties.Nodes {
+		if !ast.IsJsxSpreadAttribute(property) {
+			continue
+		}
+		expression := unwrapIslandSpreadExpression(property.AsJsxSpreadAttribute().Expression)
+		if !ast.IsIdentifier(expression) {
+			continue
+		}
+		if symbol := typeChecker.GetSymbolAtLocation(expression); symbol != nil {
+			if start, exists := symbols[ast.GetSymbolId(symbol)]; exists {
+				result[property.Pos()] = true
+				declarations[start] = true
+			}
+		}
+	}
+	return result, declarations
+}

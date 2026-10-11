@@ -192,17 +192,6 @@ func callableReturnsCallable(
 	return len(directCallableReturns(callable)) != 0
 }
 
-func preprocessComponentComputations(
-	fileName string,
-	source string,
-) (string, error) {
-	edits, err := planComponentComputations(fileName, source, nil)
-	if err != nil {
-		return "", err
-	}
-	return applySourceEdits(source, edits), nil
-}
-
 func planComponentComputations(
 	fileName string,
 	source string,
@@ -367,6 +356,7 @@ func planComponentComputationEdits(
 	}
 
 	locals := analyzeComponentComputationLocals(component, statements, environment)
+	taskResults := setupTaskResultAssignments(sourceFile, component, statements)
 	computations := []componentComputation{}
 	for _, statement := range statements {
 		if isComponentStateInitialization(statement) {
@@ -384,21 +374,26 @@ func planComponentComputationEdits(
 		return err
 	}
 	for _, computation := range computations {
+		if taskResults[computation.statement] {
+			continue
+		}
 		start := nodeTokenStart(sourceFile, computation.statement)
-		name := fmt.Sprintf("__exactComponentComputation_%d", start)
+		name := normalizationGeneratedName(sourceFile, fmt.Sprintf("__exactComponentComputation_%d", start))
+		// At a shared boundary, apply the next opening first so the prior
+		// closing is prepended before it instead of nesting adjacent work.
 		*edits = append(
 			*edits,
 			sourceEdit{
 				start: start,
 				end:   start,
 				text:  "function " + name + "() { ",
-				order: 0,
+				order: 1,
 			},
 			sourceEdit{
 				start: computation.statement.End(),
 				end:   computation.statement.End(),
 				text:  " } " + name + "();",
-				order: 1,
+				order: 0,
 			},
 		)
 	}
@@ -605,6 +600,11 @@ func inspectComponentComputationStatement(
 					})
 				}
 				visit(binary.Left, true)
+				// Compound and logical assignments consume the previous destination value.
+				// Omitting that read would let an inferred computation subscribe to itself.
+				if binary.OperatorToken.Kind != ast.KindEqualsToken {
+					visit(binary.Left, false)
+				}
 				visit(binary.Right, false)
 				return
 			}
@@ -630,7 +630,7 @@ func inspectComponentComputationStatement(
 					path: path,
 				})
 			}
-			visit(operand, true)
+			visit(operand, false)
 			return
 		}
 		if path, ok := componentComputationStatePath(node); ok && !assignmentTarget {
@@ -757,9 +757,7 @@ func isComponentGetContextCall(node *ast.Node) bool {
 }
 
 func isComponentPeekCall(node *ast.Node) bool {
-	return ast.IsCallExpression(node) &&
-		ast.IsIdentifier(node.AsCallExpression().Expression) &&
-		node.AsCallExpression().Expression.Text() == "peek"
+	return normalizationPeekCall(node)
 }
 
 func isNonReferenceComponentIdentifier(node *ast.Node) bool {
@@ -891,7 +889,9 @@ func isComponentComputationFunction(
 func visitDirectComponentSyntax(root *ast.Node, visit func(*ast.Node)) {
 	var walk func(*ast.Node)
 	walk = func(node *ast.Node) {
-		if node == nil || (node != root && ast.IsFunctionLike(node)) {
+		// A callable declaration or expression is setup data even when it is
+		// the statement root. Its body belongs to its own execution boundary.
+		if node == nil || ast.IsFunctionLike(node) {
 			return
 		}
 		visit(node)
@@ -935,12 +935,14 @@ func planAsyncComponentComputation(
 	}
 	first := statements[0]
 	last := statements[len(statements)-1]
-	name := fmt.Sprintf("__exactComponentSetupTask_%d", nodeTokenStart(sourceFile, first))
+	name := normalizationGeneratedName(sourceFile, fmt.Sprintf("__exactComponentSetupTask_%d", nodeTokenStart(sourceFile, first)))
+	policyName := normalizationGeneratedName(sourceFile, "__exactTaskContext")
+	contextName := normalizationGeneratedName(sourceFile, "__exactComponentTaskContext")
 	// All inferred async components in this module share one policy import.
 	policyImport := sourceEdit{
 		start: 0,
 		end:   0,
-		text:  "import { TaskContext as __exactTaskContext } from \"@exactjs/core\"; ",
+		text:  "import { TaskContext as " + policyName + " } from \"@exactjs/core\"; ",
 		order: -1,
 	}
 	importPlanned := false
@@ -958,7 +960,7 @@ func planAsyncComponentComputation(
 			start: nodeTokenStart(sourceFile, first),
 			end:   nodeTokenStart(sourceFile, first),
 			text: "async function " + name +
-				"(__exactComponentTaskContext: __exactTaskContext = __exactTaskContext.server().blocking()) { ",
+				"(" + contextName + ": " + policyName + " = " + policyName + ".server().blocking()) { ",
 			order: 0,
 		},
 		sourceEdit{
@@ -986,8 +988,8 @@ func planAsyncComponentComputation(
 			*edits = append(*edits, sourceEdit{
 				start: start,
 				end:   start,
-				text: " if (__exactComponentTaskContext.signal.aborted) " +
-					"throw __exactComponentTaskContext.signal.reason;",
+				text: " if (" + contextName + ".signal.aborted) " +
+					"throw " + contextName + ".signal.reason;",
 				order: 0,
 			})
 		})
@@ -1077,19 +1079,21 @@ func validateAsyncComponentRegion(
 		writes = append(writes, effects.writes...)
 	}
 	for _, write := range writes {
-		if _, exists := reads[write.path]; write.path != "" && exists {
-			return componentComputationError(
-				sourceFile,
-				write.node,
-				fmt.Sprintf(
-					"error: async derived state assignment to %s reads its own target and would create a reactive cycle. Use a local intermediate, peek(() => ...) for a snapshot, or a local task function with a final TaskContext policy parameter",
-					write.path,
-				),
-			)
+		for read := range reads {
+			if write.path != "" && componentComputationPathsOverlap(read, write.path) {
+				return componentComputationError(
+					sourceFile,
+					write.node,
+					fmt.Sprintf(
+						"error: async derived state assignment to %s reads its own target and would create a reactive cycle. Use a local intermediate, peek(() => ...) for a snapshot, or a local task function with a final TaskContext policy parameter",
+						write.path,
+					),
+				)
+			}
 		}
 	}
 
-	setupBindings := map[string]*ast.Node{}
+	setupBindings := map[*ast.Node]struct{}{}
 	for _, statement := range statements {
 		var regionError error
 		visitDirectComponentSyntax(statement, func(node *ast.Node) {
@@ -1097,9 +1101,7 @@ func validateAsyncComponentRegion(
 				return
 			}
 			if ast.IsVariableDeclaration(node) {
-				for _, name := range componentBindingNames(node.Name()) {
-					setupBindings[name] = node
-				}
+				setupBindings[node] = struct{}{}
 			}
 			if node != statement && ast.IsReturnStatement(node) {
 				expression := node.AsReturnStatement().Expression
@@ -1123,14 +1125,17 @@ func validateAsyncComponentRegion(
 		return nil
 	}
 	var escaped string
+	var escapedDeclaration *ast.Node
 	walkNode(renderReturn.AsReturnStatement().Expression, func(node *ast.Node) bool {
 		if escaped != "" {
 			return false
 		}
 		if ast.IsIdentifier(node) &&
 			!isNonReferenceComponentIdentifier(node) {
-			if _, exists := setupBindings[node.Text()]; exists {
+			declaration := normalizationLexicalDeclaration(node, node.Text())
+			if _, exists := setupBindings[declaration]; exists {
 				escaped = node.Text()
+				escapedDeclaration = declaration
 				return false
 			}
 		}
@@ -1139,7 +1144,7 @@ func validateAsyncComponentRegion(
 	if escaped != "" {
 		return componentComputationError(
 			sourceFile,
-			setupBindings[escaped],
+			escapedDeclaration,
 			fmt.Sprintf(
 				"error: async component local %s escapes into the render function before its continuation settles. Assign the value to this.state instead",
 				escaped,

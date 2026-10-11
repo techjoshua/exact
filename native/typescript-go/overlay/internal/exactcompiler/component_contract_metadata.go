@@ -8,45 +8,13 @@ import (
 	"github.com/microsoft/TypeScript/tsc/internal/printer"
 )
 
-func componentDescriptorDeclaration(
-	emitContext *printer.EmitContext,
-	name string,
-) *ast.Node {
+func componentBrandingImport(emitContext *printer.EmitContext, name string) *ast.Node {
 	factory := emitContext.Factory
-	value := factory.NewCallExpression(
-		factory.NewPropertyAccessExpression(
-			factory.NewIdentifier("Symbol"),
-			nil,
-			factory.NewIdentifier("for"),
-			ast.NodeFlagsNone,
-		),
-		nil,
-		nil,
-		factory.NewNodeList([]*ast.Node{
-			contractString(factory, "@exactjs/component-contract"),
-		}),
-		ast.NodeFlagsNone,
-	)
-	value = emitContext.AddSyntheticLeadingComment(
-		value,
-		ast.KindMultiLineCommentTrivia,
-		" @__PURE__ ",
-		false,
-	)
-	return factory.NewVariableStatement(
-		nil,
-		factory.NewVariableDeclarationList(
-			factory.NewNodeList([]*ast.Node{
-				factory.NewVariableDeclaration(
-					factory.NewIdentifier(name),
-					nil,
-					nil,
-					value,
-				),
-			}),
-			ast.NodeFlagsConst,
-		),
-	)
+	return factory.NewImportDeclaration(nil,
+		factory.NewImportClause(ast.KindUnknown, nil, factory.NewNamedImports(factory.NewNodeList([]*ast.Node{
+			factory.NewImportSpecifier(false, factory.NewIdentifier("attachCompiledComponentContract"), factory.NewIdentifier(name)),
+		}))),
+		factory.NewStringLiteral("@exactjs/core/runtime/component-branding", ast.TokenFlagsNone), nil)
 }
 
 func continuationsForComponent(
@@ -70,9 +38,10 @@ func continuationExecutorMetadata(
 	used map[string]struct{},
 ) *ast.Node {
 	workByID := continuationWorkByID(componentFunction, continuations)
-	taskDefinitions := continuationTaskDefinitions(componentFunction, continuations)
+	taskDefinitions := continuationTaskDefinitions(factory, componentFunction, continuations)
 	aliases := componentContextAliases(componentFunction)
 	stateType := continuationExecutorStateType(factory, componentFunction)
+	typeParameters := continuationExecutorTypeParameters(factory, componentFunction)
 	values := make([]*ast.Node, 0, len(continuations))
 	for _, continuation := range continuations {
 		work := workByID[continuation.ID]
@@ -86,6 +55,7 @@ func continuationExecutorMetadata(
 			continuation,
 			aliases,
 			stateType,
+			typeParameters,
 			localizationContextName,
 			used,
 		)
@@ -164,6 +134,7 @@ func continuationExecutor(
 	continuation Continuation,
 	aliases []continuationContextAlias,
 	stateType *ast.Node,
+	typeParameters *ast.NodeList,
 	localizationContextName string,
 	used map[string]struct{},
 ) *ast.Node {
@@ -175,14 +146,26 @@ func continuationExecutor(
 	execution := factory.NewIdentifier(executionName)
 	component := factory.NewIdentifier(componentName)
 	contextWrites := factory.NewIdentifier(contextWritesName)
+	helperReferences := make(map[string]string)
+	for _, capture := range append(append([]invokedTaskCapture(nil), continuation.helperCaptures...), continuation.captures...) {
+		for _, reference := range capture.references {
+			helperReferences[fmt.Sprintf("%d:%d", reference.Start, reference.Length)] = capture.bindingName
+		}
+	}
 	authoredWork := work
 	work = projectInvokedTaskCaptures(factory, work, continuation, activation)
 
 	var visitor *ast.NodeVisitor
 	visitor = ast.NewNodeVisitor(
 		func(node *ast.Node) *ast.Node {
-			if node != work && ast.IsFunctionExpression(node) {
-				return node
+			// Reconstructed helpers consume raw activation values and state paths.
+			// Preserve reference identity even when prior lowering wrapped a read in get().
+			if name, exists := helperReferences[nodeSpanKey(node)]; exists {
+				return factory.NewIdentifier(name)
+			}
+
+			if owned := continuationOwnedReceiverNode(factory, node, work, visitor); owned != nil {
+				return owned
 			}
 			if ast.IsCallExpression(node) {
 				arguments := callArguments(node)
@@ -219,6 +202,9 @@ func continuationExecutor(
 							); value != nil {
 								return value
 							}
+							// Uninvoked helpers still require a typed receiver. This lookup retains
+							// the execution allowlist, so reconstruction cannot grant new authority.
+							return factory.NewCallExpression(factory.NewPropertyAccessExpression(execution, nil, factory.NewIdentifier("getContext"), ast.NodeFlagsNone), nil, nil, factory.NewNodeList([]*ast.Node{arguments[0], contractString(factory, stableContextToken(arguments[0]))}), ast.NodeFlagsNone)
 						}
 					case "setContext":
 						if len(arguments) >= 2 {
@@ -310,6 +296,12 @@ func continuationExecutor(
 			),
 		)
 	}
+	for index, argument := range arguments {
+		parameters := rewrittenWork.Parameters()
+		if index < len(parameters) && parameters[index].Type() != nil {
+			arguments[index] = factory.NewAsExpression(argument, parameters[index].Type())
+		}
+	}
 	contextArgument := factory.NewPropertyAccessExpression(
 		execution,
 		nil,
@@ -363,13 +355,48 @@ func continuationExecutor(
 		constStatement(
 			factory,
 			contextWrites,
-			contractObject(factory, false),
+			factory.NewAsExpression(contractObject(factory, false), factory.NewTypeReferenceNode(
+				factory.NewIdentifier("Record"), factory.NewNodeList([]*ast.Node{
+					factory.NewKeywordTypeNode(ast.KindStringKeyword),
+					factory.NewKeywordTypeNode(ast.KindUnknownKeyword),
+				}))),
 		),
 	}
 	statements = append(statements, aliasStatements...)
+	appendCapture := func(capture invokedTaskCapture, index int) {
+		if capture.bindingName == "" {
+			return
+		}
+		value := factory.NewElementAccessExpression(factory.NewPropertyAccessExpression(activation, nil, factory.NewIdentifier("dependencies"), ast.NodeFlagsNone), nil, contractNumber(factory, index), ast.NodeFlagsNone)
+		if capture.typeNode != nil {
+			value = factory.NewAsExpression(value, capture.typeNode)
+		}
+		statements = append(statements, constStatement(factory, factory.NewIdentifier(capture.bindingName), value))
+	}
+	index := continuation.helperCaptureOffset
+	for _, capture := range continuation.helperCaptures {
+		if capture.source == "state" {
+			value := factory.NewPropertyAccessExpression(component, nil, factory.NewIdentifier("state"), ast.NodeFlagsNone)
+			for _, key := range capture.statePath {
+				value = factory.NewElementAccessExpression(value, nil, factory.NewStringLiteral(key, ast.TokenFlagsNone), ast.NodeFlagsNone)
+			}
+			if capture.typeNode != nil {
+				value = factory.NewAsExpression(value, capture.typeNode)
+			}
+			statements = append(statements, constStatement(factory, factory.NewIdentifier(capture.bindingName), value))
+		} else {
+			appendCapture(capture, index)
+			index++
+		}
+	}
+	if continuation.Invocation != nil {
+		for index, capture := range continuation.captures {
+			appendCapture(capture, len(continuation.Invocation.Arguments)+index)
+		}
+	}
 	for _, dependency := range taskDependencies {
 		statements = append(statements, constStatement(factory, dependency.Name(),
-			visitor.VisitNode(dependency.AsVariableDeclaration().Initializer)))
+			visitor.VisitNode(projectContinuationCaptureReferences(factory, dependency.AsVariableDeclaration().Initializer, helperReferences))))
 	}
 	resultProperties := []*ast.Node{
 		contractProperty(
@@ -422,7 +449,7 @@ func continuationExecutor(
 		factory.NewModifierList([]*ast.Node{
 			factory.NewModifier(ast.KindAsyncKeyword),
 		}),
-		nil,
+		typeParameters,
 		factory.NewNodeList([]*ast.Node{
 			factory.NewParameterDeclaration(
 				nil,

@@ -54,7 +54,8 @@ export async function readLibraryManifest(root: string): Promise<LibraryManifest
 		const relative = path.relative(path.join(root, 'dist'), path.resolve(root, declaration.build));
 		if (
 			!relative ||
-			relative.startsWith('..') ||
+			relative === '..' ||
+			relative.startsWith('..' + path.sep) ||
 			path.isAbsolute(relative) ||
 			targets.includes(relative.split(path.sep)[0]!)
 		)

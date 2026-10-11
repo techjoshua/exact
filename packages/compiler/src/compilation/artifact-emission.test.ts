@@ -219,20 +219,24 @@ describe('@exactjs/compiler: artifacts', () => {
 			(symbol) => symbol.role === 'server-part'
 		)!;
 
-		expect(client).toContain('Symbol.for("@exactjs/component-contract")');
+		expect(client).toContain('@exactjs/core/runtime/component-branding');
 		expect(client).toMatch(
 			new RegExp(
 				`id: "${rootSymbol.id}"[\\s\\S]*name: "${rootSymbol.generatedName}"[\\s\\S]*role: "root"[\\s\\S]*implementation: __exactImplementation_Panel_`
 			)
 		);
-		expect(client).toMatch(/export const Panel = \/\* @__PURE__ \*\/ \(\(\) => Object\.assign/);
-		expect(server).toContain('Symbol.for("@exactjs/component-contract")');
+		expect(client).toMatch(
+			/export const Panel = \/\* @__PURE__ \*\/ \(\(\) => __exactBrandComponent_\d+/
+		);
+		expect(server).toContain('@exactjs/core/runtime/component-branding');
 		expect(server).toMatch(
 			new RegExp(
 				`id: "${serverPartSymbol.id}"[\\s\\S]*name: "${serverPartSymbol.generatedName}"[\\s\\S]*role: "server-part"[\\s\\S]*implementation: __exactImplementation_Panel_`
 			)
 		);
-		expect(server).toMatch(/export const Panel = \/\* @__PURE__ \*\/ \(\(\) => Object\.assign/);
+		expect(server).toMatch(
+			/export const Panel = \/\* @__PURE__ \*\/ \(\(\) => __exactBrandComponent_\d+/
+		);
 		expect(client).toContain('executors: []');
 		expect(server).toContain('executors: [');
 		expect(server).toContain('classification: "scheduled"');
@@ -292,7 +296,8 @@ describe('@exactjs/compiler: artifacts', () => {
 		expect(server).toContain('getOptions(');
 		expect(server).toContain('__exactExecution_');
 		expect(server).not.toContain('__exactStageTaskMutation');
-		expect(server).toMatch(/__exactComponent_\d+\.state\.options = __exactTaskMutation_/);
+		expect(server).toContain('["options"] = ');
+		expect(server).toContain('__exactServerTaskAwait');
 		expect(server).not.toContain('__exactUpdateResult');
 	});
 
@@ -338,7 +343,8 @@ describe('@exactjs/compiler: artifacts', () => {
 		expect(server).toContain('getOptions(');
 		expect(server).toContain('if (__exactComponentTaskContext.signal.aborted)');
 		expect(server).not.toContain('__exactStageTaskMutation');
-		expect(server).toMatch(/__exactComponent_\d+\.state\.options = __exactTaskMutation_/);
+		expect(server).toContain('["options"] = ');
+		expect(server).toContain('__exactServerTaskAwait');
 		expect(server).toMatch(/__exactComponent_\d+\.state\.settled = true/);
 		expect(server).not.toContain('__exactWriteState');
 	});
@@ -361,7 +367,7 @@ describe('@exactjs/compiler: artifacts', () => {
 		const server = await readFile(result.serverFile, 'utf8');
 
 		expect(client).not.toContain('this.reactive(() => this.getContext(DatabaseContext))');
-		expect(client).toContain('__exactActivateTask(this, __exactDefineTask({');
+		expect(client).toContain('__exactActivateTaskOnce(this, __exactDefineTask({');
 		expect(client).toContain('(...__exactTaskArgs: any[]) => {');
 		expect(client).toContain(
 			'__exactTaskArgs, __exactTaskContext.signal, [], __exactTaskContext.generation'
@@ -370,7 +376,7 @@ describe('@exactjs/compiler: artifacts', () => {
 		expect(server).toMatch(
 			/__exactExecution_\d+\.getContext\(DatabaseContext, "DatabaseContext"\)\.find\(__exactDependency\)/
 		);
-		expect(server).toContain('serverContexts: [\n                    "DatabaseContext"');
+		expect(server).toMatch(/serverContexts:\s*\[\s*"DatabaseContext"/);
 	});
 
 	it('does not retain continuation machinery for components without a client machine', async () => {
@@ -426,7 +432,7 @@ describe('@exactjs/compiler: artifacts', () => {
 		const server = await readFile(a.serverFile, 'utf8');
 
 		expect(client).toContain('export function A(');
-		expect(client).toContain('Object.assign(A, {');
+		expect(client).toMatch(/__exactBrandComponent_\d+\(A,/);
 		expect(server).toContain('export function A(');
 		expect(client).not.toContain('const __exactImplementation_A');
 	});

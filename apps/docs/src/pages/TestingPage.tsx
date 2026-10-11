@@ -43,6 +43,34 @@ export function TestingPage(this: Component<{}>) {
 					visible text, selectors, and test IDs. A query for one element fails if none or several
 					match.
 				</p>
+				<p>
+					Find selects by their wrapping or external label, and use the <code>option</code> role to
+					inspect their choices. Labelled sections have the <code>region</code> role, and image
+					alternative text supplies their accessible name. ARIA names take precedence.
+				</p>
+				<p>
+					When a class is part of the component&apos;s visible state, use
+					<code>expect(control).toHaveClass('selected')</code>. The matcher accepts a queried
+					control or a DOM element and requires every requested class while allowing additional
+					classes. Pass several names or a string containing space-separated names.
+				</p>
+			</section>
+			<section>
+				<h2>Define a component beside its test</h2>
+				<p>
+					A small test fixture can live in the test file. Enable
+					<code>{'compiler: { compileTestModules: true }'}</code> in <code>exactVitest()</code> or
+					<code>createExactJestConfig()</code> so the compiler transforms its component definitions.
+					Test registration remains owned by the runner. The default leaves test files to the runner
+					and compiles components imported from ordinary source files.
+				</p>
+				<p>
+					For Bun, configure a project preload with
+					<code>{'configureExactBunTest({ compiler: { compileTestModules: true } })'}</code> and
+					pass that file to <code>bun test --preload</code>. Supported test filenames end in
+					<code>.test</code>, <code>.spec</code>, or <code>.jest</code> before their source
+					extension.
+				</p>
 			</section>
 			<section>
 				<h2>Wait for work to finish</h2>
@@ -56,9 +84,25 @@ export function TestingPage(this: Component<{}>) {
 			<section>
 				<h2>Test client and server together</h2>
 				<p>
-					The <code>exactVitest()</code> integration also configures installed eXact packages to
-					share the compiled test&apos;s runtime and export conditions. This remains active when
-					automatic matchers are disabled.
+					Keep SSR render helpers in a fixture module that imports the generated
+					<code>.exact.server.js</code> artifact. Vitest, Jest, and Bun select the server projection
+					for a helper module with server-owned exports and no component definitions or client-owned
+					exports. Client component fixtures in the same suite retain their client projection. A
+					module combining component definitions with SSR helpers still needs an explicit target, or
+					separate fixture modules.
+				</p>
+				<p>
+					The <code>exactVitest()</code> integration also configures installed eXact packages and
+					declared component libraries to share the compiled test&apos;s runtime and export
+					conditions. This remains active when automatic matchers are disabled.
+				</p>
+				<p>
+					Generated server artifacts and their library dependencies use server exports in Node and
+					jsdom. Choosing a Node test environment alone does not change the default client
+					compilation target. To render an authored source component on the server, use a separate
+					suite with <code>{"compiler: { target: 'server' }"}</code>, or import its generated server
+					artifact. <code>@exact server</code> declares placement and does not select the test
+					target.
 				</p>
 				<p>
 					Use <code>mountClientServerTest()</code> to render on the server, hydrate in a test DOM,
@@ -121,6 +165,11 @@ await view.settle();`}
 					before the result is captured. State, props, ancestry, and context remain inspectable
 					after server cleanup. Stateless parents remain in the tree, and repeated uses of a
 					component have distinct identities.
+				</p>
+				<p>
+					The generated factory retains its prop type, so the builder checks required props and
+					value types. Generated factory declarations do not expose the authored state type.
+					Captured state remains inspectable as a record of unknown values.
 				</p>
 				<p>
 					Supply application and request context with their matching setup methods. Use

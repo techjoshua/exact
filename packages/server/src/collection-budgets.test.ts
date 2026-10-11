@@ -16,7 +16,7 @@ describe('decoded collection validation budgets', () => {
 	});
 
 	it.each([serverSafe, clientSafe])(
-		'bounds Map iterators independently of reported size',
+		'rejects Map iterator overrides without executing them',
 		(validate) => {
 			let visited = 0;
 			class CountedMap extends Map<number, number> {
@@ -42,7 +42,7 @@ describe('decoded collection validation budgets', () => {
 					{ maxNodes: 3 }
 				)
 			).toBe(false);
-			expect(visited).toBe(3);
+			expect(visited).toBe(0);
 		}
 	);
 	it.each([serverSafe, clientSafe])(
@@ -52,7 +52,7 @@ describe('decoded collection validation budgets', () => {
 		}
 	);
 	it.each([serverSafe, clientSafe])(
-		'stops a collection traversal at its node budget',
+		'rejects Set iterator overrides without executing them',
 		(validate) => {
 			let visited = 0;
 			class CountedSet extends Set<number> {
@@ -67,7 +67,7 @@ describe('decoded collection validation budgets', () => {
 			expect(
 				validate(new CountedSet(Array.from({ length: 100 }, (_, i) => i)), { maxNodes: 4 })
 			).toBe(false);
-			expect(visited).toBeLessThanOrEqual(4);
+			expect(visited).toBe(0);
 		}
 	);
 });

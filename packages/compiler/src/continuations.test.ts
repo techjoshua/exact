@@ -57,7 +57,7 @@ describe('distributed component continuation IR', () => {
 			placement: 'server',
 			activation: {
 				stateReads: expect.arrayContaining([expect.objectContaining({ path: 'query' })]),
-				dependencies: [{ index: 1, source: 'state', path: 'this.state.query' }],
+				dependencies: [{ index: 0, source: 'state', path: 'this.state.query' }],
 				serverContexts: [{ token: 'RepositoryContext', kind: 'read', confidence: 'exact' }],
 				publicContexts: []
 			},

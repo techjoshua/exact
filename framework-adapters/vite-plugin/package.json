@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/vite-plugin",
-	"version": "0.7.0",
+	"version": "0.7.1",
 	"type": "module",
 	"files": [
 		"AGENTS.md",
@@ -22,14 +22,14 @@
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
 	"dependencies": {
-		"@exactjs/component-library-policy": "^0.7.0",
+		"@exactjs/component-library-policy": "^0.7.1",
 		"@exactjs/config": "^0.7.0",
-		"@exactjs/compiler": "^0.7.0",
+		"@exactjs/compiler": "^0.7.1",
 		"@exactjs/devtools-protocol": "^0.7.0",
 		"@exactjs/devtools-runtime": "^0.7.0",
 		"@exactjs/instrumentation": "^0.7.0",
-		"@exactjs/intl": "^0.7.0",
-		"@exactjs/intl-analyzer": "^0.7.0",
+		"@exactjs/intl": "^0.7.1",
+		"@exactjs/intl-analyzer": "^0.7.1",
 		"@exactjs/intl-build": "^0.7.0",
 		"@exactjs/language-extension-host": "^0.7.0",
 		"@exactjs/language-extension-api": "^0.7.0",
@@ -37,7 +37,8 @@
 		"@exactjs/plugin-host": "^0.7.0",
 		"@exactjs/react-compat": "^0.7.0",
 		"@exactjs/react-dom-compat": "^0.7.0",
-		"parse5": "^7.3.0"
+		"parse5": "^7.3.0",
+		"es-module-lexer": "^2.3.1"
 	},
 	"devDependencies": {
 		"@exactjs/microfrontends": "^0.7.0",

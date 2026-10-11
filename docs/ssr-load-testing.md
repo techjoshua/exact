@@ -154,6 +154,38 @@ remote server or its private control endpoints. Collect remote server/service te
 
 Local process separation still shares physical CPU, memory, and networking on the workstation.
 
+### Interpret load-generator limits
+
+The collectors use independent Node driver processes. Captures record their runtime version,
+and capacity publication rejects unsupported generators or mixed Node versions within a report
+group. Driver CPU, scheduling lag, missed demand, and validation cost help identify when the
+generator limits offered demand.
+
+A previous alternative-generator investigation found that lower driver CPU and higher static-server
+capacity did not consistently increase measured SSR throughput. Equal concurrency did not ensure
+equivalent request timing. Matched scheduled demand is a useful control before attributing a
+changed framework ratio to framework execution. Historical measurements retain their recorded
+generator provenance in `loadDriverCalibration` in
+[results.json](performance-baselines/results.json).
+
+Measure response completion to the next dispatch in the same request slot when investigating
+refill timing. Event-loop delay percentiles from a sampled timer do not measure that handoff.
+Short pacing experiments established timing sensitivity without identifying a causal mechanism
+or justifying a default delay.
+
+The matched Node-driver WSL recheck is summarized in `nodeDriverWslComparison` in the same results
+file. It repeats server capacity and latency with the previous plans and records the artifact
+comparison limits. Public server capacity and diagnostic charts use this recheck. The subsequent
+`wslClientAndArrivalRefresh` updates browser replay, startup CPU, retained browser heap, and
+independent scheduled-demand results. Each measurement group keeps its capture date, source
+identity, and dirty-worktree limitations. Native full-stack and internal benchmarks retain their
+earlier measurements.
+
+`releaseVersionCorrection` maps the measured DOM and reactive implementation changes to their
+selected 0.7.1 releases. Those packages still declared 0.7.0 when the captures ran. Their recorded
+capture versions remain historical metadata, while public capture details show the corrected
+release identity. Independent packages whose manifests remain at 0.7.0 are not relabeled.
+
 Phase names are not necessarily equivalent across transport paths. In the current Node worker,
 eXact's controlled progressive `renderMs` measures response creation rather than all deferred
 production; React's `renderMs` also ends before complete response writing. Do not compare those values as isolated renderer

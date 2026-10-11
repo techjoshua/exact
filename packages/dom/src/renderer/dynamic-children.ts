@@ -3,10 +3,10 @@ import {
 	handleComponentError,
 	handleComponentSuspension,
 	normalizeRenderResult,
-	unwrap,
 	type AnyComponentInstance,
 	type Child
 } from '@exactjs/core';
+import { isReactiveValue } from '@exactjs/reactive/framework/values';
 import {
 	readRenderProgramSlot,
 	type ExactRenderProgramInvocation
@@ -20,9 +20,7 @@ export function readCompiledDynamicChildren(
 	label: string
 ): Child[] {
 	try {
-		return normalizeRenderResult(
-			unwrap(readRenderProgramSlot(invocation, index)) as Child | Child[]
-		);
+		return snapshotChildSequence(readRenderProgramSlot(invocation, index));
 	} catch (error) {
 		if (isPromiseLike(error)) {
 			handleComponentSuspension(parentInstance, error);
@@ -51,4 +49,12 @@ function isPromiseLike(value: unknown): value is PromiseLike<unknown> {
 		value !== null &&
 		typeof (value as PromiseLike<unknown>).then === 'function'
 	);
+}
+
+/** Resolves value wrappers while preserving observable containers and prior child membership. */
+export function snapshotChildSequence(value: unknown): Child[] {
+	const resolved = isReactiveValue(value) ? value.get() : value;
+	const children = normalizeRenderResult(resolved as Child | Child[]);
+	// A flat mutable array must not become both sides of the next identity comparison.
+	return children === resolved ? children.slice() : children;
 }

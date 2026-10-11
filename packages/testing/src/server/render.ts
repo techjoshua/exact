@@ -6,7 +6,10 @@ import {
 	type ContextToken,
 	type Child
 } from '@exactjs/core';
-import { createCompiledComponentReceipt } from '@exactjs/core/runtime/component-operations';
+import {
+	createCompiledComponentReceipt,
+	type ExactPreparedServerComponentReference
+} from '@exactjs/core/runtime/component-operations';
 import { unwrap } from '@exactjs/reactive';
 import {
 	createExactContextRuntime,
@@ -23,6 +26,11 @@ import {
 import type { PropsOf, StateOf } from '../contracts.js';
 
 import { createServerComponentCapture, type CapturedComponent } from './component-capture.js';
+
+/** A normalized component implementation or the compiler's prepared server export factory. */
+export type ServerTestComponentType =
+	| AnyComponentFunction
+	| ((...args: never[]) => ExactPreparedServerComponentReference);
 
 /** Represents one settled component from a server render. */
 export class ServerTestComponent<
@@ -77,7 +85,7 @@ export class ServerTestComponent<
 		return this.captured.parentId ? this.view.componentById(this.captured.parentId) : undefined;
 	}
 	/** Returns direct captured children, optionally restricted to a component type. */
-	children<C extends AnyComponentFunction>(
+	children<C extends ServerTestComponentType>(
 		type?: C
 	): ServerTestComponent<StateOf<C>, PropsOf<C>>[] {
 		return this.view
@@ -87,15 +95,17 @@ export class ServerTestComponent<
 			) as ServerTestComponent<StateOf<C>, PropsOf<C>>[];
 	}
 	/** Returns the sole direct child of a type or throws when the match is not unique. */
-	child<C extends AnyComponentFunction>(type: C): ServerTestComponent<StateOf<C>, PropsOf<C>> {
+	child<C extends ServerTestComponentType>(type: C): ServerTestComponent<StateOf<C>, PropsOf<C>> {
 		return requireOne(this.children(type), `direct child ${type.name || 'anonymous'}`);
 	}
 	/** Returns the sole descendant of a type or throws when the match is not unique. */
-	find<C extends AnyComponentFunction>(type: C): ServerTestComponent<StateOf<C>, PropsOf<C>> {
+	find<C extends ServerTestComponentType>(type: C): ServerTestComponent<StateOf<C>, PropsOf<C>> {
 		return requireOne(this.findAll(type), `descendant ${type.name || 'anonymous'}`);
 	}
 	/** Returns every captured descendant whose component type matches the requested type. */
-	findAll<C extends AnyComponentFunction>(type: C): ServerTestComponent<StateOf<C>, PropsOf<C>>[] {
+	findAll<C extends ServerTestComponentType>(
+		type: C
+	): ServerTestComponent<StateOf<C>, PropsOf<C>>[] {
 		const output: ServerTestComponent<StateOf<C>, PropsOf<C>>[] = [];
 		const visit = (component: ServerTestComponent) => {
 			for (const child of component.children()) {
@@ -135,13 +145,15 @@ export class ServerTestView<
 	}
 
 	/** Returns the sole captured component of a type, including the root when it matches. */
-	component<C extends AnyComponentFunction>(type: C): ServerTestComponent<StateOf<C>, PropsOf<C>> {
+	component<C extends ServerTestComponentType>(
+		type: C
+	): ServerTestComponent<StateOf<C>, PropsOf<C>> {
 		if (this.root.type === type)
 			return this.root as unknown as ServerTestComponent<StateOf<C>, PropsOf<C>>;
 		return this.root.find(type);
 	}
 	/** Returns every captured component whose runtime type matches the requested component. */
-	components<C extends AnyComponentFunction>(
+	components<C extends ServerTestComponentType>(
 		type: C
 	): ServerTestComponent<StateOf<C>, PropsOf<C>>[] {
 		const roots =
@@ -179,7 +191,7 @@ export type ServerTestRenderOptions = Omit<
 };
 
 /** Builds manifest-independent tests around a compiled server component artifact. */
-export class ServerTestComponentBuilder<C extends AnyComponentFunction> {
+export class ServerTestComponentBuilder<C extends ServerTestComponentType> {
 	private componentProps = {} as PropsOf<C>;
 	private readonly componentContexts = new Map<symbol, unknown>();
 	private readonly applicationOverrides: Array<readonly [AnyContextToken, unknown]> = [];
@@ -249,7 +261,7 @@ export class ServerTestComponentBuilder<C extends AnyComponentFunction> {
 }
 
 /** Creates a server test builder for a compiled `.exact.server` component export. */
-export function testServerComponent<C extends AnyComponentFunction>(
+export function testServerComponent<C extends ServerTestComponentType>(
 	component: C
 ): ServerTestComponentBuilder<C> {
 	return new ServerTestComponentBuilder(component);

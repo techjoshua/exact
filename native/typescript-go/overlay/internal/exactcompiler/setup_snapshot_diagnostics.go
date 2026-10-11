@@ -3,6 +3,8 @@ package exactcompiler
 import (
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
 	"github.com/microsoft/TypeScript/tsc/internal/checker"
+	"path/filepath"
+	"strings"
 )
 
 var scheduledCallbackCalls = map[string]struct{}{
@@ -49,7 +51,7 @@ func setupSnapshotCaptureDiagnostics(
 			if !setupOwnedNode(node, candidate.node) {
 				return false
 			}
-			for _, callback := range scheduledCallbacks(node) {
+			for _, callback := range scheduledCallbacks(node, typeChecker) {
 				reported := make(map[ast.SymbolId]struct{})
 				walkNode(callback, func(reference *ast.Node) bool {
 					if !ast.IsIdentifier(reference) ||
@@ -132,51 +134,66 @@ func setupOwnedNode(node *ast.Node, component *ast.Node) bool {
 		node.End() <= component.End()
 }
 
-func scheduledCallbacks(node *ast.Node) []*ast.Node {
+// scheduledCallbacks requires native declaration ownership before treating a callback as deferred.
+// Promise member identity and immutable aliases retain the same scheduling boundary.
+func scheduledCallbacks(node *ast.Node, typeChecker *checker.Checker) []*ast.Node {
 	if ast.IsCallExpression(node) {
 		call := node.AsCallExpression()
 		if call.Arguments == nil {
 			return nil
 		}
-		name := ""
-		if ast.IsIdentifier(call.Expression) {
-			name = call.Expression.Text()
-			if _, scheduled := scheduledCallbackCalls[name]; !scheduled {
-				return nil
-			}
-		} else if ast.IsPropertyAccessExpression(call.Expression) {
-			member := call.Expression.AsPropertyAccessExpression().Name()
-			if member == nil {
-				return nil
-			}
-			name = member.Text()
-			if _, scheduled := scheduledCallbackMethods[name]; !scheduled {
-				return nil
-			}
-		} else {
-			return nil
+		selected := sourceCallableSymbol(sourceCallableReferenceSymbol(call.Expression, typeChecker), typeChecker)
+		scheduled := nativeScheduledSymbol(selected, scheduledCallbackCalls)
+		if !scheduled {
+			_, name := restrictedInvocationMember(unwrapSourceCallableReference(call.Expression), typeChecker)
+			_, method := scheduledCallbackMethods[name]
+			scheduled = method && standardLibraryCallOwner(call, typeChecker) == "Promise"
 		}
-		return callbackArguments(call.Arguments.Nodes)
+		if scheduled {
+			return callbackArguments(call.Arguments.Nodes, typeChecker)
+		}
 	}
 	if ast.IsNewExpression(node) {
 		expression := node.AsNewExpression()
-		if !ast.IsIdentifier(expression.Expression) {
-			return nil
+		selected := sourceCallableSymbol(sourceCallableReferenceSymbol(expression.Expression, typeChecker), typeChecker)
+		if expression.Arguments != nil && nativeScheduledSymbol(selected, scheduledCallbackConstructors) {
+			return callbackArguments(expression.Arguments.Nodes, typeChecker)
 		}
-		if _, scheduled := scheduledCallbackConstructors[expression.Expression.Text()]; !scheduled ||
-			expression.Arguments == nil {
-			return nil
-		}
-		return callbackArguments(expression.Arguments.Nodes)
 	}
 	return nil
 }
 
-func callbackArguments(arguments []*ast.Node) []*ast.Node {
+// nativeScheduledSymbol accepts web platform declarations and Node's owned timer declarations.
+// User declarations with a matching name cannot authorize asynchronous capture diagnostics.
+func nativeScheduledSymbol(symbol *ast.Symbol, names map[string]struct{}) bool {
+	if symbol == nil {
+		return false
+	}
+	if _, known := names[symbol.Name]; !known {
+		return false
+	}
+	for _, declaration := range symbol.Declarations {
+		source := ast.GetSourceFileOfNode(declaration)
+		if source == nil || !source.IsDeclarationFile {
+			continue
+		}
+		name := filepath.Base(source.FileName())
+		if name == "lib.dom.d.ts" || name == "lib.webworker.d.ts" || strings.Contains(filepath.ToSlash(source.FileName()), "/@types/node/") {
+			return true
+		}
+	}
+	return false
+}
+
+// callbackArguments follows only source-owned bodies, keeping borrowed callbacks opaque.
+func callbackArguments(arguments []*ast.Node, typeChecker *checker.Checker) []*ast.Node {
 	callbacks := make([]*ast.Node, 0, len(arguments))
 	for _, argument := range arguments {
+		argument = unwrapSourceCallableReference(argument)
 		if ast.IsArrowFunction(argument) || ast.IsFunctionExpression(argument) {
 			callbacks = append(callbacks, argument)
+		} else if body := localCallableBody(sourceCallableReferenceSymbol(argument, typeChecker), typeChecker); body != nil {
+			callbacks = append(callbacks, body)
 		}
 	}
 	return callbacks

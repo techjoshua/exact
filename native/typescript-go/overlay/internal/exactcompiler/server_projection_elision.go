@@ -15,7 +15,7 @@ type serverLocalCandidate struct {
 func (lowering *jsxLowering) serverProjectionClientCallable(node *ast.Node) bool {
 	work := node
 	if ast.IsVariableDeclaration(node) {
-		work = node.AsVariableDeclaration().Initializer
+		work = unwrapSourceCallableReference(node.AsVariableDeclaration().Initializer)
 	}
 	if work == nil || (!ast.IsFunctionDeclaration(work) && !ast.IsArrowFunction(work) &&
 		!ast.IsFunctionExpression(work)) {
@@ -101,7 +101,7 @@ func (lowering *jsxLowering) directServerFrameComponent(node *ast.Node) bool {
 func componentSourceNode(sourceFile *ast.SourceFile, component Component) *ast.Node {
 	var result *ast.Node
 	walkNode(sourceFile.AsNode(), func(candidate *ast.Node) bool {
-		if candidate.Pos() == component.Start &&
+		if ast.IsFunctionLike(candidate) && candidate.Pos() == component.Start &&
 			candidate.End() == component.Start+component.Length {
 			result = candidate
 			return false
@@ -139,7 +139,7 @@ func (lowering *jsxLowering) omitUnreachableServerComponentLocals(root *ast.Node
 				!serverProjectionElidableInitializer(declaration.Initializer) {
 				return true
 			}
-			if task, exists := lowering.functionTasks[declaration.Initializer.Pos()]; exists && task.Placement != "client" {
+			if task, exists := lowering.functionTasks[unwrapSourceCallableReference(declaration.Initializer).Pos()]; exists && task.Placement != "client" {
 				return true
 			}
 			name = declaration.Name()
@@ -270,6 +270,19 @@ func (lowering *jsxLowering) omitUnreachableServerComponentLocals(root *ast.Node
 	var visitor *ast.NodeVisitor
 	visitor = ast.NewNodeVisitor(func(node *ast.Node) *ast.Node {
 		if ast.IsFunctionDeclaration(node) {
+			// Overload signatures share the implementation's reachability. Leaving
+			// signatures after removing its body creates an invalid typed artifact.
+			if node.Body() == nil && node.Name() != nil {
+				if symbol := lowering.checker.GetSymbolAtLocation(node.Name()); symbol != nil {
+					if candidate, exists := candidates[ast.GetSymbolId(symbol)]; exists {
+						_, remove := removable[candidate.start]
+						_, inert := inertClientCallables[candidate.start]
+						if remove || inert {
+							return nil
+						}
+					}
+				}
+			}
 			if _, remove := removable[node.Pos()]; remove {
 				return lowering.factory.NewEmptyStatement()
 			}
@@ -280,7 +293,7 @@ func (lowering *jsxLowering) omitUnreachableServerComponentLocals(root *ast.Node
 					lowering.factory.NewVariableDeclarationList(
 						lowering.factory.NewNodeList([]*ast.Node{
 							lowering.factory.NewVariableDeclaration(
-								declaration.Name(), nil, nil, lowering.inertClientTaskCallable(),
+								declaration.Name(), nil, nil, lowering.serverProjectionInertCallable(node),
 							),
 						}),
 						ast.NodeFlagsConst,
@@ -302,7 +315,7 @@ func (lowering *jsxLowering) omitUnreachableServerComponentLocals(root *ast.Node
 							value.Name(),
 							value.ExclamationToken,
 							value.Type,
-							lowering.inertClientTaskCallable(),
+							lowering.serverProjectionInertCallable(declaration),
 						))
 						changed = true
 					} else {
@@ -371,4 +384,13 @@ func serverProjectionElidableInitializer(node *ast.Node) bool {
 	default:
 		return false
 	}
+}
+
+// serverProjectionInertCallable retains the analyzed caller signature rather
+// than letting omission replace a parameterized task with a zero-argument type.
+func (lowering *jsxLowering) serverProjectionInertCallable(node *ast.Node) *ast.Node {
+	if task, exists := lowering.taskDefinitionAtCall(node.Name()); exists {
+		return lowering.typedInertClientTaskCallable(task)
+	}
+	return lowering.inertClientTaskCallable()
 }

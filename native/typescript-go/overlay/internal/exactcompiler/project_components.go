@@ -31,7 +31,13 @@ func linkProjectComponents(
 	typeChecker *checker.Checker,
 	current []Component,
 	callables callableAnalysis,
+	completedPolicyTypes map[checker.TypeId]bool,
 ) []Component {
+	// Only owned components publish placement edges or linked diagnostics. Ordinary
+	// modules defer the dependency fixed point until a component actually requests it.
+	if len(current) == 0 {
+		return current
+	}
 	ensureProjectComponentCaches(project)
 	if project.componentCache != nil {
 		if cached, exists := project.componentCache[requested]; exists {
@@ -45,6 +51,7 @@ func linkProjectComponents(
 		typeChecker,
 		current,
 		callables,
+		completedPolicyTypes,
 	)
 	componentBySymbol := make(map[ast.SymbolId]int, len(records))
 	componentByIdentity := make(map[string]int, len(records))
@@ -338,33 +345,6 @@ func jsxTagResolvesToLocalValue(
 	return false
 }
 
-func jsxTagResolvesToCallableValue(
-	tag *ast.Node,
-	typeChecker *checker.Checker,
-) bool {
-	symbol := resolvedCallableSymbol(
-		typeChecker.GetSymbolAtLocation(jsxTagSymbolNode(tag)),
-		typeChecker,
-	)
-	if symbol == nil {
-		return false
-	}
-	for _, declaration := range symbol.Declarations {
-		if ast.IsFunctionDeclaration(declaration) {
-			return true
-		}
-		if ast.IsVariableDeclaration(declaration) {
-			initializer := declaration.AsVariableDeclaration().Initializer
-			if initializer != nil &&
-				(ast.IsArrowFunction(initializer) ||
-					ast.IsFunctionExpression(initializer)) {
-				return true
-			}
-		}
-	}
-	return false
-}
-
 type jsxComponentValueTarget struct {
 	symbol *ast.Symbol
 	tag    string
@@ -400,7 +380,7 @@ func resolveJSXRegistryComponentValue(
 			) {
 				return nil, false
 			}
-			root = declaration.AsVariableDeclaration().Initializer
+			root = unwrapRegistryDefinitionBody(declaration.AsVariableDeclaration().Initializer)
 			break
 		}
 	}
@@ -441,11 +421,7 @@ func resolveJSXRegistryComponentValue(
 		if !valid || (selectedKey != "" && key != selectedKey) {
 			continue
 		}
-		if ast.IsCallExpression(value) &&
-			strings.TrimSpace(sourceText(
-				sourceFile,
-				value.AsCallExpression().Expression,
-			)) == "lazy" {
+		if registryLazyCall(value, typeChecker) {
 			targets = append(targets, jsxComponentValueTarget{tag: key})
 			continue
 		}
@@ -474,12 +450,16 @@ func componentRegistryDefinition(
 	sourceFile *ast.SourceFile,
 	typeChecker *checker.Checker,
 ) *ast.Node {
+	expression = stableSourceCallableReference(expression, typeChecker)
 	if expression == nil {
 		return nil
 	}
 	symbol := typeChecker.GetSymbolAtLocation(expression)
 	if symbol == nil {
 		return nil
+	}
+	if symbol.Flags&ast.SymbolFlagsAlias != 0 {
+		symbol = typeChecker.GetAliasedSymbol(symbol)
 	}
 	for _, declaration := range symbol.Declarations {
 		if !ast.IsVariableDeclaration(declaration) ||
@@ -488,22 +468,21 @@ func componentRegistryDefinition(
 			declaration.Parent.Flags&ast.NodeFlagsConst == 0 {
 			continue
 		}
-		call := declaration.AsVariableDeclaration().Initializer
+		call := unwrapRegistryDefinitionBody(declaration.AsVariableDeclaration().Initializer)
 		if call == nil || !ast.IsCallExpression(call) {
 			continue
 		}
 		invocation := call.AsCallExpression()
-		if strings.TrimSpace(sourceText(sourceFile, invocation.Expression)) !=
-			"createComponentRegistry" ||
+		if !componentRegistryFactoryCall(invocation.Expression, sourceFile, typeChecker) ||
 			invocation.Arguments == nil ||
 			len(invocation.Arguments.Nodes) != 1 {
 			continue
 		}
-		define := invocation.Arguments.Nodes[0]
+		define := unwrapRegistryDefinitionBody(invocation.Arguments.Nodes[0])
 		if !ast.IsArrowFunction(define) && !ast.IsFunctionExpression(define) {
 			continue
 		}
-		body := unwrapRegistryDefinitionBody(define.Body())
+		body := registryCallbackResult(define.Body())
 		if body != nil && ast.IsObjectLiteralExpression(body) {
 			return body
 		}
@@ -698,10 +677,13 @@ func componentValueSymbolIsWrittenAfter(
 	written := false
 	walkNode(sourceFile.AsNode(), func(node *ast.Node) bool {
 		if written || node.Pos() <= declarationEnd ||
-			!ast.IsIdentifier(node) || !identifierIsWriteTarget(node) {
+			!ast.IsIdentifier(node) || (!identifierIsWriteTarget(node) && !nativeAssignmentPatternTarget(node)) {
 			return !written
 		}
 		reference := typeChecker.GetSymbolAtLocation(node)
+		if node.Parent != nil && ast.IsShorthandPropertyAssignment(node.Parent) {
+			reference = typeChecker.GetShorthandAssignmentValueSymbol(node.Parent)
+		}
 		if reference != nil && ast.GetSymbolId(reference) == ast.GetSymbolId(symbol) {
 			written = true
 		}
@@ -837,16 +819,11 @@ func cacheRequestedComponents(
 ) {
 	if project.componentCache == nil {
 		project.componentCache = make(map[*ast.SourceFile][]Component)
-		for _, sourceFile := range project.program.GetSourceFiles() {
-			if sourceFile.IsDeclarationFile ||
-				strings.Contains(
-					strings.ReplaceAll(sourceFile.FileName(), `\`, `/`),
-					"/node_modules/",
-				) {
-				continue
-			}
-			if len(collectComponents(sourceFile)) == 0 {
-				project.componentCache[sourceFile] = []Component{}
+		// Empty discovery facts are tied to the same source identity and invalidation
+		// lifecycle as component records. Reuse them instead of rescanning the program.
+		for sourceFile, facts := range project.componentFacts {
+			if len(facts) == 0 {
+				project.componentCache[sourceFile] = nil
 			}
 		}
 	}
@@ -859,6 +836,7 @@ func projectComponentRecords(
 	typeChecker *checker.Checker,
 	current []Component,
 	callables callableAnalysis,
+	completedPolicyTypes map[checker.TypeId]bool,
 ) []projectComponent {
 	records := []projectComponent{}
 	currentCandidates := projectComponentCandidates(project, requested)
@@ -882,25 +860,24 @@ func projectComponentRecords(
 			}
 			continue
 		}
-		components := collectComponents(dependency)
+		candidates := projectComponentCandidates(project, dependency)
+		if len(candidates) == 0 || usesForeignJSXRuntime(dependency) {
+			project.componentFacts[dependency] = nil
+			continue
+		}
+		nodeIDs := projectComponentNodeIDs(project, dependency)
+		components := collectComponentsWithIDs(dependency, nodeIDs)
 		if len(components) == 0 {
 			continue
 		}
 		project.counters.ComponentSourceAnalyses++
-		assignComponentIDs(dependency, components, dependency.FileName())
+		assignComponentIDs(dependency, components, dependency.FileName(), nodeIDs)
 		aliases, reads, writes := collectStateAnalysis(dependency, typeChecker)
 		reactive := collectReactiveBindings(
 			dependency,
 			typeChecker,
 			aliases,
 			reads,
-		)
-		policy := collectPolicyAnalysis(
-			dependency,
-			typeChecker,
-			components,
-			reads,
-			Request{Target: TargetDefault},
 		)
 		tasks := collectTasks(
 			dependency,
@@ -910,15 +887,27 @@ func projectComponentRecords(
 			reactive,
 			callables,
 		)
+		if normalization, exists := project.normalizations[project.fs.canonical(dependency.FileName())]; exists && normalization.text == dependency.Text() {
+			attachNormalizedTaskOrigins(tasks, dependency, normalization)
+		}
+		policy := collectPolicyAnalysis(
+			dependency,
+			typeChecker,
+			components,
+			reads,
+			tasks,
+			completedPolicyTypes,
+		)
 		tasks = applyTaskPolicies(tasks, policy)
+		collectSecretConsumptions(dependency, typeChecker, Request{Target: TargetDefault}, tasks, &policy)
 		components = analyzeComponents(
 			dependency,
 			components,
 			callables,
 			tasks,
 			typeChecker,
+			nodeIDs,
 		)
-		candidates := activeComponentCandidates(dependency)
 		facts := make([]projectComponent, 0, len(components))
 		for index := range components {
 			record := projectComponent{

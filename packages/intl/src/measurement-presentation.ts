@@ -1,7 +1,13 @@
 import type { IntlFiniteOptionsV1 } from './contracts.js';
 import type { IntlEnvironment } from './environment.js';
 import { listFormatter, numberFormatter } from './formatter-cache.js';
-import { convertIntlUnit, intlUnitDefinitions, type IntlUnitName } from './unit-definitions.js';
+import {
+	convertIntlUnit,
+	convertIntlUnitDifference,
+	convertIntlUnitEndpointDifference,
+	intlUnitDefinitions,
+	type IntlUnitName
+} from './unit-definitions.js';
 import { resolveCldrUnitPreference } from './unit-preferences.js';
 
 /** Number-format options that cannot replace the semantic unit selected by intl. */
@@ -17,6 +23,8 @@ export interface IntlMeasurementPresentationRequest {
 	/** Axis-like consumers can require one numeric destination for geometry. */
 	readonly unitComposition?: 'mixed' | 'single';
 	readonly precision?: 'source';
+	/** Convert signed changes without reference offsets. Nonlinear differences need endpoints. */
+	readonly difference?: boolean;
 	readonly options?: IntlMeasurementNumberOptions;
 	/** Representative values used for CLDR magnitude thresholds and source precision. */
 	readonly values: readonly number[];
@@ -31,6 +39,7 @@ export interface IntlMeasurementPresentation {
 	readonly destinationUnits: readonly IntlUnitName[];
 	readonly unitComposition: 'mixed' | 'single';
 	readonly precision?: 'source';
+	readonly difference?: true;
 	readonly options: IntlMeasurementNumberOptions;
 }
 
@@ -78,6 +87,7 @@ export function resolveIntlMeasurementPresentation(
 		destinationUnits: destinations,
 		unitComposition: composition,
 		...(request.precision ? { precision: request.precision } : {}),
+		...(request.difference ? { difference: true as const } : {}),
 		options: Object.freeze({ ...(request.options ?? {}) })
 	});
 	presentationEnvironments.set(presentation, {
@@ -94,7 +104,12 @@ export function convertIntlMeasurementValue(
 ): number {
 	if (presentation.destinationUnits.length !== 1)
 		throw new TypeError('A mixed-unit intl presentation does not have one numeric value');
-	return convertIntlUnit(value, presentation.sourceUnit, presentation.destinationUnits[0]!);
+	return convertMeasurement(
+		presentation,
+		value,
+		presentation.sourceUnit,
+		presentation.destinationUnits[0]!
+	);
 }
 
 /** Converts one scalar destination value back to its declared source unit. @exact pure */
@@ -104,7 +119,12 @@ export function restoreIntlMeasurementValue(
 ): number {
 	if (presentation.destinationUnits.length !== 1)
 		throw new TypeError('A mixed-unit intl presentation does not have one numeric value');
-	return convertIntlUnit(value, presentation.destinationUnits[0]!, presentation.sourceUnit);
+	return convertMeasurement(
+		presentation,
+		value,
+		presentation.destinationUnits[0]!,
+		presentation.sourceUnit
+	);
 }
 
 /** Formats one source value with the destination and locale fixed by the presentation. */
@@ -133,6 +153,7 @@ export function formatPreparedIntlMeasurement(
 		sourceUnit: string;
 		convertTo?: string;
 		precision?: 'source';
+		difference?: 'value' | 'endpoints';
 		options: IntlFiniteOptionsV1;
 	}>,
 	values: readonly unknown[]
@@ -146,15 +167,42 @@ export function formatPreparedIntlMeasurement(
 		sourceUnit,
 		...(convertTo ? { convertTo } : {}),
 		...(formatter.precision ? { precision: formatter.precision } : {}),
+		...(formatter.difference ? { difference: true } : {}),
 		options: formatter.options as IntlMeasurementNumberOptions,
 		values: numeric
 	});
+	if (formatter.difference === 'endpoints') {
+		if (numeric.length !== 2 || !numeric.every(Number.isFinite))
+			throw new TypeError('Intl endpoint differences require two finite values');
+		if (presentation.destinationUnits.length > 1)
+			return formatIntlMeasurementValues(presentation, [numeric[0]! - numeric[1]!]);
+		const converted = convertIntlUnitEndpointDifference(
+			numeric[0]!,
+			numeric[1]!,
+			sourceUnit,
+			presentation.destinationUnits[0]!
+		);
+		return formatIntlMeasurementValues(presentation, [numeric[0]! - numeric[1]!], [converted]);
+	}
 	return formatIntlMeasurementValues(presentation, numeric);
+}
+
+/** Uses the presentation's declared interpretation for forward and inverse scalar conversions. */
+function convertMeasurement(
+	presentation: IntlMeasurementPresentation,
+	value: number,
+	source: string,
+	destination: string
+): number {
+	return presentation.difference
+		? convertIntlUnitDifference(value, source, destination)
+		: convertIntlUnit(value, source, destination);
 }
 
 function formatIntlMeasurementValues(
 	presentation: IntlMeasurementPresentation,
-	values: readonly number[]
+	values: readonly number[],
+	convertedValues?: readonly number[]
 ): string {
 	if (values.length < 1 || values.length > 2)
 		throw new TypeError('Intl measurement formatting requires one value or one range');
@@ -162,16 +210,27 @@ function formatIntlMeasurementValues(
 		if (!Number.isFinite(value)) throw new TypeError('Intl measurement values must be finite');
 	const environment = requirePresentationEnvironment(presentation);
 	const destinations = presentation.destinationUnits;
-	const options = sourcePrecisionOptions(presentation, values);
+	const options = sourcePrecisionOptions(presentation, values, convertedValues);
 	if (destinations.length > 1) {
 		if (values.length !== 1)
 			throw new TypeError('Mixed-unit intl formatting requires one source value');
-		return formatMixedUnit(values[0]!, presentation.sourceUnit, destinations, environment, options);
+		return formatMixedUnit(
+			values[0]!,
+			presentation.sourceUnit,
+			destinations,
+			environment,
+			options,
+			presentation.difference
+		);
 	}
 	const destination = destinations[0] ?? presentation.sourceUnit;
-	const converted = values.map((value) =>
-		convertIntlUnit(value, presentation.sourceUnit, destination)
-	);
+	const converted =
+		convertedValues ??
+		values.map((value) =>
+			convertMeasurement(presentation, value, presentation.sourceUnit, destination)
+		);
+	if (presentation.difference && !converted.every(Number.isFinite))
+		throw new TypeError('Intl converted differences must be finite');
 	const unit = nativeUnitFormatter(environment, destination, options);
 	if (converted.length < 2)
 		return (
@@ -190,7 +249,8 @@ function formatIntlMeasurementValues(
 
 function sourcePrecisionOptions(
 	presentation: IntlMeasurementPresentation,
-	values: readonly number[]
+	values: readonly number[],
+	convertedValues?: readonly number[]
 ): Intl.NumberFormatOptions {
 	const options = presentation.options;
 	if (
@@ -204,9 +264,15 @@ function sourcePrecisionOptions(
 		presentation.destinationUnits.length === 1
 			? Math.max(
 					0,
-					...values.map((value) =>
+					...values.map((value, index) =>
 						minimumNonzeroFractionDigits(
-							convertIntlUnit(value, presentation.sourceUnit, presentation.destinationUnits[0]!),
+							convertedValues?.[index] ??
+								convertMeasurement(
+									presentation,
+									value,
+									presentation.sourceUnit,
+									presentation.destinationUnits[0]!
+								),
 							sourceFractionDigits
 						)
 					)
@@ -239,14 +305,16 @@ function formatMixedUnit(
 	source: string,
 	destinations: readonly string[],
 	environment: IntlEnvironment,
-	options: Intl.NumberFormatOptions
+	options: Intl.NumberFormatOptions,
+	difference?: boolean
 ): string {
 	if (destinations.length !== 2)
 		throw new TypeError('Protocol-1 mixed-unit formatting supports exactly two destination units');
-	const first = convertIntlUnit(value, source, destinations[0]!);
+	const convert = difference ? convertIntlUnitDifference : convertIntlUnit;
+	const first = convert(value, source, destinations[0]!);
 	const firstPart = first < 0 ? Math.ceil(first) : Math.floor(first);
-	const firstInSecond = convertIntlUnit(firstPart, destinations[0]!, destinations[1]!);
-	const secondPart = convertIntlUnit(value, source, destinations[1]!) - firstInSecond;
+	const firstInSecond = convert(firstPart, destinations[0]!, destinations[1]!);
+	const secondPart = convert(value, source, destinations[1]!) - firstInSecond;
 	const unitDisplay = options.unitDisplay ?? 'short';
 	const parts = [destinations[0]!, destinations[1]!].map((unit, index) => {
 		const part = index === 0 ? firstPart : secondPart;
@@ -316,6 +384,8 @@ function assertCompatibleUnit(source: IntlUnitName, destination: IntlUnitName): 
 }
 
 function validateMeasurementRequest(request: IntlMeasurementPresentationRequest): void {
+	if (request.difference !== undefined && typeof request.difference !== 'boolean')
+		throw new TypeError('Intl measurement difference must be boolean');
 	if (!request.quantity.trim()) throw new TypeError('Intl measurement quantity is required');
 	if (!request.usage.trim()) throw new TypeError('Intl measurement usage is required');
 	const source = intlUnitDefinitions[request.sourceUnit];

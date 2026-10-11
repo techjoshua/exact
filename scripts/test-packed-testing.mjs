@@ -129,16 +129,33 @@ try {
 				);
 			}
 			for (const helper of ['import-artifact', 'workspace']) {
-				await cp(
+				const source = await readFile(
 					path.join(workspace, 'packages/compiler/src/test-support', helper + '.ts'),
-					path.join(root, helper + '.ts')
+					'utf8'
+				);
+				// Installed journeys resolve compiler support through the published API,
+				// never through implementation files absent from the isolated project.
+				await writeFile(
+					path.join(root, helper + '.ts'),
+					source.replaceAll("'../artifacts.js'", "'@exactjs/compiler/adapter-support'")
 				);
 			}
 
-			// The paired journey imports precompiled bundles. Only authored fixture source needs the plugin.
+			// Paired bundle queries need explicit test projections. Exclude their source roots
+			// because the journeys already compile those artifacts themselves. Limit source
+			// compilation to Counter so test helpers that generate TSX remain ordinary code.
 			await writeFile(
 				path.join(root, 'vitest.config.ts'),
-				`import {defineConfig} from 'vitest/config'; import {exactVitest} from '@exactjs/vitest'; export default defineConfig({plugins:[exactVitest({compiler:{exclude:/[.]exact-(?:progress-testing|ownership|root-registry|island-registry|registry)-/}})],test:{environment:'jsdom'}});`
+				`import { defineConfig } from 'vitest/config';
+import { exactVitest } from '@exactjs/vitest';
+export default defineConfig({
+  plugins: [exactVitest({ compiler: {
+    compileTestModules: true,
+    include: /Counter(?:[.]test)?[.]tsx$/,
+    exclude: /[.]exact-(?:progress-testing|ownership|root-registry|island-registry|registry)-/
+  } })],
+  test: { environment: 'jsdom' }
+});`
 			);
 			console.log(
 				(await runAcceptanceCommand(['node_modules/vitest/vitest.mjs', 'run'], root)).stdout

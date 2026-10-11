@@ -1,6 +1,6 @@
 export { registerComponentContinuationContexts } from '../component/context-resumption.js';
 export { dispatchComponentContinuation } from '../component/domain.js';
-export { activateTaskForHost } from '../tasks/activation.js';
+export { activateTaskForHost, activateTaskOnceForHost } from '../tasks/activation.js';
 export { activateComputationForHost } from '../tasks/computation-activation.js';
 export {
 	createIndexedContinuationDependency,
@@ -12,12 +12,18 @@ export {
 } from '../tasks/compiled-latest.js';
 export { markComponentContinuationTask } from '../tasks/component-continuation.js';
 export { taskMutation } from '../tasks/frame-runtime.js';
+export {
+	ownReleasableTaskResource,
+	releaseTaskResource,
+	taskResourceReleaseMethod
+} from '../tasks/resource-release.js';
+export { createTaskArgumentDependencies } from '../tasks/argument-dependencies.js';
+export { taskNativeCleanupScope } from '../tasks/native-cleanup-scope.js';
 export { bindTaskForHost, defineTask, invokeTask } from '../tasks/runtime.js';
 export { activateServerComponentTaskTreeForHost } from '../tasks/server-component-task-tree.js';
+export { mutateTaskCollection, stageTaskMutation } from '../tasks/task-publication.js';
 export {
-	mutateTaskCollection,
 	ownTaskResource,
-	stageTaskMutation,
 	taskAnimationFrame,
 	taskAwait,
 	taskFetch,
@@ -32,3 +38,9 @@ export {
 	createTaskProgressReporter,
 	registerTaskProgressReceiver
 } from '../tasks/progress-bindings.js';
+
+export {
+	combineExistingTaskSignal,
+	withExistingTaskSignal,
+	withExistingAbortSignal
+} from '../tasks/cleanup-signals.js';

@@ -65,16 +65,17 @@ func createContinuationContracts(
 		dependencies := []TaskDependency{}
 		dependencyServerContexts := []ContextEffect{}
 		dependencyPublicContexts := []ContextEffect{}
-		hasContextDependency := false
 		for _, dependency := range task.Dependencies {
 			if dependency.Source != "context" {
+				// Context inputs use their own records and never occupy positional
+				// task arguments. Keep the filtered vector aligned with lowering.
+				dependency.Index = len(dependencies)
 				dependencies = append(dependencies, dependency)
 				continue
 			}
 			if dependency.ContextToken == "" {
 				continue
 			}
-			hasContextDependency = true
 			effect := ContextEffect{
 				Token:      dependency.ContextToken,
 				Kind:       "read",
@@ -86,9 +87,26 @@ func createContinuationContracts(
 				dependencyServerContexts = append(dependencyServerContexts, effect)
 			}
 		}
+		helperOffset := len(dependencies)
+		helperDependencies := []TaskDependency{}
+		for _, capture := range task.helperCaptures {
+			if capture.source == "state" {
+				continue
+			}
+			helperDependencies = append(helperDependencies, TaskDependency{Source: capture.source, Path: capture.path})
+		}
+		if task.ActivationArgumentCount != 0 {
+			helperOffset = 0
+			dependencies = append(helperDependencies, dependencies...)
+		} else {
+			dependencies = append(dependencies, helperDependencies...)
+		}
+		for index := range dependencies {
+			dependencies[index].Index = index
+		}
 		if len(task.CapturedParameters) != 0 &&
 			task.ActivationArgumentCount < task.ArgumentCount {
-			offset := 0
+			offset := len(helperDependencies)
 			if task.ActivationArgumentCount == 0 {
 				offset = len(dependencies)
 			}
@@ -101,17 +119,6 @@ func createContinuationContracts(
 		}
 		serverContexts = append(dependencyServerContexts, serverContexts...)
 		publicContexts = append(dependencyPublicContexts, publicContexts...)
-		if !hasContextDependency {
-			contextSlots := len(uniqueContextEffects(append(
-				append([]ContextEffect(nil), serverContexts...),
-				publicContexts...,
-			)))
-			if contextSlots != 0 {
-				for index := range dependencies {
-					dependencies[index].Index += contextSlots
-				}
-			}
-		}
 		ownedBoundaries := boundaryIDsForComponent(
 			boundaries,
 			component.ID,
@@ -121,16 +128,18 @@ func createContinuationContracts(
 			concurrency = "parallel"
 		}
 		continuations = append(continuations, Continuation{
-			ID:          task.ID,
-			Kind:        "task",
-			ComponentID: component.ID,
-			TaskID:      task.ID,
-			Placement:   task.Placement,
-			Readiness:   task.Readiness,
-			Concurrency: concurrency,
-			Async:       task.Async,
+			helperCaptures:      task.helperCaptures,
+			helperCaptureOffset: helperOffset,
+			ID:                  task.ID,
+			Kind:                "task",
+			ComponentID:         component.ID,
+			TaskID:              task.ID,
+			Placement:           task.Placement,
+			Readiness:           task.Readiness,
+			Concurrency:         concurrency,
+			Async:               task.Async,
 			Activation: ContinuationActivation{
-				StateReads:     append([]StateEffect(nil), task.Reads...),
+				StateReads:     continuationStateReadContracts(task.Reads),
 				Dependencies:   dependencies,
 				ServerContexts: uniqueContextEffects(serverContexts),
 				PublicContexts: uniqueContextEffects(publicContexts),
@@ -182,17 +191,18 @@ func createContinuationContracts(
 			dependencies = append(dependencies, TaskDependency{Index: len(dependencies), Source: capture.source, Path: capture.path})
 		}
 		continuations = append(continuations, Continuation{
-			captures:    operation.captures,
-			ID:          operation.ID,
-			Kind:        "task",
-			ComponentID: component.ID,
-			TaskID:      operation.ID,
-			Placement:   operation.Placement,
-			Readiness:   operation.Readiness,
-			Concurrency: operation.Concurrency,
-			Async:       true,
+			captures:       operation.captures,
+			helperCaptures: stateHelperCaptures(tasks, operation.ID),
+			ID:             operation.ID,
+			Kind:           "task",
+			ComponentID:    component.ID,
+			TaskID:         operation.ID,
+			Placement:      operation.Placement,
+			Readiness:      operation.Readiness,
+			Concurrency:    operation.Concurrency,
+			Async:          true,
 			Activation: ContinuationActivation{
-				StateReads:     append([]StateEffect(nil), operation.Reads...),
+				StateReads:     continuationStateReadContracts(operation.Reads),
 				Dependencies:   dependencies,
 				ServerContexts: uniqueContextEffects(serverContexts),
 				PublicContexts: uniqueContextEffects(publicContexts),
@@ -423,15 +433,27 @@ func validStateInputs(values []StateInput) []StateInput {
 	return result
 }
 
-// retainInvokedContinuations removes setup-only transport catalogs after partition planning has
-// consumed their data-flow facts. Invoked operations remain remotely dispatchable.
+// retainInvokedContinuations removes startup-only transport catalogs after partition planning.
+// Reactive setup keeps its durable browser owner and remotely dispatchable transition.
 func retainInvokedContinuations(
+	sourceFile *ast.SourceFile,
+	components []Component,
+	tasks []Task,
 	continuations []Continuation,
 	operations []InvokedTaskOperation,
 ) []Continuation {
 	invoked := make(map[string]struct{}, len(operations))
 	for _, operation := range operations {
 		invoked[operation.ID] = struct{}{}
+	}
+	clientOwners := make(map[string]bool, len(components))
+	for _, component := range components {
+		clientOwners[component.Name] = component.Placement == "isomorphic"
+	}
+	for _, task := range tasks {
+		if clientOwners[task.Component] && task.Placement == "server" && !task.Invoked && len(task.Dependencies) != 0 && !setupTaskInitializationOnly(sourceFile, task) {
+			invoked[task.ID] = struct{}{}
+		}
 	}
 	result := make([]Continuation, 0, len(invoked))
 	for _, continuation := range continuations {

@@ -8,7 +8,7 @@ import { reactiveObjects } from '@exactjs/reactive/framework/objects';
 import { TaskCancellation } from './cancellation.js';
 import { inheritComponentContinuationIdentity } from './component-continuation.js';
 import { taskDefinitionBrand, type TaskDefinition } from './definition-record.js';
-import { discardTaskMutations, publishTaskMutations } from './resources.js';
+import { discardTaskMutations, publishTaskMutations } from './task-publication.js';
 import { readExactInspectionSource } from '../component/inspection-source.js';
 import type {
 	BoundTaskFunction,

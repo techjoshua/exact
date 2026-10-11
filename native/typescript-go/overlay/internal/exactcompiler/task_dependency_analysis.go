@@ -25,7 +25,7 @@ func taskDependencyRecords(
 			required[read.Path] = struct{}{}
 		}
 	}
-	updateTargets := stateUpdateTargetSpans(work)
+	updateTargets := stateUpdateTargetSpans(work, typeChecker)
 	type positionedDependency struct {
 		position   int
 		dependency TaskDependency
@@ -49,6 +49,11 @@ func taskDependencyRecords(
 		if _, updated := updateTargets[[2]int{read.Start, read.Start + read.Length}]; updated {
 			continue
 		}
+		// Share receiver selection with lowering so protocol slots and callable
+		// parameters describe the same optional-chain capture.
+		read = taskOptionalReceiverRead(read, work)
+		read = taskComputedReceiverRead(read, work)
+		path = strings.Join(read.Path, ".")
 		key := path
 		if read.Confidence != "exact" {
 			key = fmt.Sprintf("%s@%d", path, read.Start)
@@ -65,7 +70,7 @@ func taskDependencyRecords(
 			position: read.Start,
 			dependency: TaskDependency{
 				Source: "state",
-				Path:   "this.state." + path,
+				Path:   strings.Join(append([]string{"this", "state"}, read.Path...), "."),
 			},
 		})
 	}
@@ -86,29 +91,34 @@ func taskDependencyRecords(
 		default:
 			source = "derived"
 		}
-		position := reactiveDependencyReferenceStart(
-			work,
-			binding,
-			typeChecker,
-		)
-		contained := false
-		for _, span := range stateCaptureSpans {
-			if position >= span[0] && position < span[1] {
-				contained = true
-				break
-			}
-		}
-		if contained {
+		captures := taskBindingCaptures(work, binding, typeChecker, excluded)
+		if len(captures) == 0 {
+			positioned = append(positioned, positionedDependency{
+				position:   reactiveDependencyReferenceStart(work, binding, typeChecker),
+				dependency: TaskDependency{Source: source, Path: binding.Name, ContextToken: binding.ContextToken},
+			})
 			continue
 		}
-		positioned = append(positioned, positionedDependency{
-			position: position,
-			dependency: TaskDependency{
-				Source:       source,
-				Path:         binding.Name,
-				ContextToken: binding.ContextToken,
-			},
-		})
+		for _, capture := range captures {
+			position := capture.expression.Pos()
+			contained := false
+			for _, span := range stateCaptureSpans {
+				if position >= span[0] && position < span[1] {
+					contained = true
+					break
+				}
+			}
+			if contained {
+				continue
+			}
+			positioned = append(positioned, positionedDependency{
+				position: position,
+				dependency: TaskDependency{
+					Source: source, Path: sourceText(ast.GetSourceFileOfNode(work), capture.expression),
+					ContextToken: binding.ContextToken,
+				},
+			})
+		}
 	}
 	sort.SliceStable(positioned, func(left int, right int) bool {
 		return positioned[left].position < positioned[right].position
@@ -123,13 +133,15 @@ func taskDependencyRecords(
 
 // stateUpdateTargetSpans separates mutation input from scheduling input.
 // Increment and decrement still read their previous value for effect and
-// continuation contracts, but subscribing a task to the value it increments
+// continuation contracts. Collection receivers are also execution inputs. Subscribing a task to the value it increments
 // would make the task immediately invalidate itself.
-func stateUpdateTargetSpans(work *ast.Node) map[[2]int]struct{} {
+func stateUpdateTargetSpans(work *ast.Node, typeChecker *checker.Checker) map[[2]int]struct{} {
 	result := make(map[[2]int]struct{})
 	walkNode(work, func(node *ast.Node) bool {
 		var operand *ast.Node
 		switch {
+		case ast.IsCallExpression(node):
+			operand, _ = stateWriteTarget(node, typeChecker)
 		case ast.IsPrefixUnaryExpression(node):
 			expression := node.AsPrefixUnaryExpression()
 			if expression.Operator == ast.KindPlusPlusToken ||

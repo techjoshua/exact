@@ -23,14 +23,84 @@ export function CompilerTourPage(this: Component<{}>) {
 				component analysis and client/server lowering over TypeScript's parser and type checker. The
 				native compiler packages retain the upstream Apache-2.0 license and third-party notices.
 			</p>
+			<p>
+				Before rewriting an expression, the compiler captures its authored type constraints and
+				evaluation requirements. Checking and executable lowering retain those constraints while
+				preserving receiver selection, short-circuiting, suspension, and expression results.
+				Generated helpers also complete JSX lowering before the compiler emits executable code.
+			</p>
+			<p>
+				Import identity follows the declaration that a reference resolves to. A local callback that
+				shares a renderer's name keeps its ordinary behavior, and type-only exports stay outside the
+				runtime artifact. Module replacements retain optional call and member short-circuiting. JSX
+				member tags resolve their values regardless of namespace capitalization. Diagnostics and
+				source maps preserve authored locations across JavaScript line endings and Unicode text.
+			</p>
 			<section>
 				<h2>Check ordinary TypeScript views</h2>
 				<p>
 					The compiler checks keyed lists inside JSX helpers, explicitly typed derived values,
 					guarded optional values, and discriminated unions without requiring source casts or
-					removing keys. Tasks can assign objects containing awaited values. Invalid arguments and
-					unsafe reads remain errors, with source-mapped diagnostics pointing to authored code.
+					removing keys. Tasks can assign objects containing awaited values. Event callbacks can
+					also assign state through object or array destructuring while retaining destination types,
+					property evaluation order, and iterator cleanup. State writes preserve destination types,
+					readonly restrictions, collection arguments, callback context, and expression results.
+					Declared readonly types retain TypeScript’s shallow checks and ordinary assignability
+					rules. Guarded reads retain the type established by their authored condition. Generic
+					components keep their type parameters when task work moves into a generated server
+					executor.
 				</p>
+				<p>
+					During development, diagnostics for watched source files follow the owning TypeScript
+					project’s checking options, including <code>skipLibCheck</code> and <code>checkJs</code>,
+					and respect TypeScript diagnostic directives. Changing an imported source or declaration
+					also refreshes retained consumers, including consumers of linked libraries. Vite and
+					Webpack watch imported type declarations, and Bun starts a fresh TypeScript program for
+					each build. Published client and server artifacts reload when their producing build
+					changes them. Their semantic checks belong to that build.
+				</p>
+				<p>
+					Ordinary helpers keep their JavaScript implementation and receive supported state views
+					when called by blocking client tasks. Plain fields, arrays and supported Map and Set
+					operations can participate in pending publication. External captures, private storage and
+					I/O remain outside rollback. A class can keep private configuration on its original
+					receiver and accept state fields or explicit state access as an argument. Views preserve
+					readonly policy and belong to their creating invocation. Native equality still compares
+					object identity, so a view can differ from a captured original reference.
+				</p>
+				<p>
+					Awaited mutations keep suspension in the original function. Tasks resolve omitted defaults
+					once, including destructured parameters and defaults that reference earlier parameters.
+					Server preparation distinguishes task inputs from values written earlier within that task,
+					so a task can consume its own work without waiting on its unfinished output. Blocking
+					tasks retain assignment and update results for later scalar reads within the same
+					invocation. Queued collection calls capture their arguments before subsequent statements
+					change local values, including spread inputs and loop iteration values. Task policies also
+					work with renamed and namespace imports from <code>@exactjs/core</code>. Ordinary
+					functions and methods retain their own receivers, while arrows inherit the enclosing
+					receiver. An ordinary object or class may have its own property named
+					<code>state</code> without making it component state.
+				</p>
+				<p>
+					For state iteration, assign the iteration value inside the loop body. State targets in
+					<code>for-in</code> and <code>for-of</code> headers and reflective writes through
+					<code>Reflect</code> or property-definition methods produce compiler errors. These checks
+					follow proven helper arguments and receivers through native <code>call</code>,
+					<code>apply</code>, and <code>bind</code> invocations. Ordinary object methods remain
+					available.
+				</p>
+				<details>
+					<summary>Current publication limits</summary>
+					<p>
+						Blocking client tasks let helpers read pending edits and publish owned writes when the
+						invocation succeeds. JSX helpers can return JSX and use JSX parameter defaults. An
+						unchanged external helper receives a proxy view of owned state, so equality with
+						references captured outside that view can differ. An ordinary class helper keeps its
+						original receiver and accepts supported state fields or explicit state access as
+						arguments.
+						<a href="#/learn/tasks">The task guide</a> explains ownership and helper boundaries.
+					</p>
+				</details>
 			</section>
 			<section>
 				<h2>What you write</h2>

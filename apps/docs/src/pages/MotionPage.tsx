@@ -99,6 +99,13 @@ export function MotionPage(this: Component<{}>) {
 					that target has no enter phase. Ordinary reactive styles therefore remain authoritative
 					while the enhancement supplies the visual path between committed values.
 				</p>
+				<p>
+					Change playback follows reactive updates to the motion phase or definition. Text,
+					descendant, and ordinary attribute updates do not replay a constant phase. An expression
+					like <code>{'motion:change={provisional ? undefined : pop.enter}'}</code> plays when a
+					value settles. Derive movement keyframes from the reactive position that also supplies the
+					destination style when the animation should follow position changes.
+				</p>
 			</section>
 			<section>
 				<h2>Animate an existing element</h2>

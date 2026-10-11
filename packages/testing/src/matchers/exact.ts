@@ -16,6 +16,8 @@ export interface ExactMatcherDeclarations<R = void> {
 	toContainComponent(type: AnyComponentFunction): R;
 	toHaveText(expected: AccessibleName): R;
 	toHaveAttribute(name: string, expected?: string): R;
+	/** Requires every whitespace-separated class token, permitting additional classes. */
+	toHaveClass(...expected: string[]): R;
 	toHaveValue(expected: unknown): R;
 	toBeChecked(): R;
 	toBeDisabled(): R;
@@ -123,6 +125,17 @@ export const exactMatchers = {
 			pass,
 			`Expected value ${String(expected)}`,
 			`Expected value not to be ${String(expected)}`
+		);
+	},
+	toHaveClass(received: unknown, ...expected: string[]) {
+		const classes = expected.flatMap((value) => value.trim().split(/\s+/)).filter(Boolean);
+		const element = elementValue(received);
+		const pass =
+			!!element && classes.length > 0 && classes.every((name) => element.classList.contains(name));
+		return result(
+			pass,
+			`Expected element to have classes ${classes.join(' ')}`,
+			`Expected element not to have all classes ${classes.join(' ')}`
 		);
 	},
 	toBeChecked(received: unknown) {

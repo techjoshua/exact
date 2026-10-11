@@ -57,7 +57,12 @@ export class NativeCompilerProcess {
 		this.header = new Int32Array(this.memory, 0, headerLength);
 		this.payload = new Uint8Array(this.memory, headerLength * Int32Array.BYTES_PER_ELEMENT);
 		Atomics.store(this.header, 0, stateStarting);
-		const worker = nativeWorkerModule();
+		// A module bootstrap accepts inherited input-mode flags. Leaving execArgv to Node also
+		// preserves process-wide V8 limits without passing them as forbidden worker overrides.
+		const worker = new URL(
+			'data:text/javascript,' +
+				encodeURIComponent(`import ${JSON.stringify(nativeWorkerModule().href)};`)
+		);
 		this.worker = new Worker(worker, {
 			workerData: { executable: options.executable, memory: this.memory }
 		});

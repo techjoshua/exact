@@ -2,8 +2,6 @@
 
 Transport-neutral server runtime for eXact operations, refreshes, patches, and server components.
 
-## Overview
-
 `handleExactRequest()` validates the endpoint, request envelope, operation allowlist,
 authorization, CSRF policy, payload limits, batching, cancellation, and response shape. Platform
 adapters translate their native request objects into this shared runtime.
@@ -18,9 +16,28 @@ specialized Blob-backed response conversion while sharing the request translatio
 Most applications compose a runtime through `@exactjs/ssr` and connect it with the adapter for
 Fetch, Node, Express, Fastify, Hapi, Koa, Bun, Deno, Cloudflare, or a serverless host.
 
-SSR may return an eXact-owned ordered-chunk response body. Platform adapters should consume it through
-their native integration when available; its `ReadableStream` compatibility view is constructed
-only when a Web-stream host requests it. Response bodies are single-consumer values.
+## Hydration configuration
+
+When server-rendered controls invoke server operations, derive their browser configuration from
+the same executor contract used by the server:
+
+```ts
+import { composeExactExecutorContract, createExactHydrationConfig } from '@exactjs/server';
+import { Page } from './Page.exact.server.js';
+
+const contract = composeExactExecutorContract([Page], { endpoint: '/__exact' });
+const hydration = createExactHydrationConfig(contract, { includeContinuations: false });
+```
+
+Spread `hydration` into the options for `renderExactRequestToProgressiveHtmlResponse()` or the
+corresponding hydratable SSR renderer. Set `includeContinuations: false` when the client imports
+the generated hydration registration, which supplies those contracts. Otherwise the helper
+includes browser-visible continuation contracts. Its optional `state` and `publicContexts` values
+must be safe to disclose. A component library does not create the consumer's executor contract or
+hydration configuration. Plain SSR without client activation needs neither.
+
+SSR may return an ordered-chunk body. Prefer the native adapter integration, which creates its
+`ReadableStream` view only when requested. Response bodies are single-consumer values.
 
 Custom synchronous producers that already know their complete UTF-8 body size can call
 `environment?.setBodyByteLength?.(bytes)` after their final write. Include every output span;
@@ -51,8 +68,7 @@ SSR response factories expose an explicit buffered or produced `body`. Pass the 
 to the platform adapter. Only buffered bodies support synchronous text/blob collection; progressive
 bodies require asynchronous consumption. Direct stream responses omit the text `body` field.
 
-See [server components](https://github.com/techjoshua/exact/blob/main/docs/server-components.md) and
-[eXact DevTools](https://github.com/techjoshua/exact/blob/main/docs/devtools.md).
+See [server components](https://github.com/techjoshua/exact/blob/main/docs/server-components.md) and [eXact DevTools](https://github.com/techjoshua/exact/blob/main/docs/devtools.md).
 
 [Documentation](https://techjoshua.github.io/exact/#/learn/server-execution) | [Source on GitHub](https://github.com/techjoshua/exact/tree/main/packages/server)
 

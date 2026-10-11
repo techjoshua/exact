@@ -4,6 +4,8 @@ Vite integration for compiling and serving eXact applications.
 
 ## Configuration
 
+Configuration discovery and authorization follow Vite's `root`. Override with `applicationRoot`.
+
 ```ts
 import { exact } from '@exactjs/vite-plugin';
 import { defineConfig } from 'vite';
@@ -31,7 +33,7 @@ later continuation-dispatch executors. Keep the default for a server bundle that
 
 ## What the plugin handles
 
-The plugin compiles eXact TSX, configures the automatic JSX runtime, resolves generated `.exact` facades, preserves Vite's platform conditions, supports HMR, and keeps server-only code out of the final browser graph. Middleware development SSR uses the same plugin for `ssrLoadModule()`. Installed `@exactjs/*` packages stay in its SSR graph so target exports and enhancement catalogs remain coordinated without manual registration or an eXact-specific `ssr.noExternal` rule.
+The plugin compiles eXact TSX, configures the automatic JSX runtime, resolves generated `.exact` facades, preserves Vite's platform conditions, supports HMR, and keeps server-only code out of the final browser graph. Middleware development SSR uses the same plugin for `ssrLoadModule()`. Installed `@exactjs/*` packages and declared participating component libraries stay in its SSR graph so target exports and enhancement catalogs remain coordinated without manual registration or an eXact-specific `ssr.noExternal` rule. Published component libraries and their framework runtimes also stay outside Vite dependency optimization so renderer enhancement imports remain active and hydration shares one runtime instance.
 
 For `target: 'server'`, compiler-recorded component package requests are resolved and authorized
 before Vite loads their implementations. Configure trust once through `componentLibraries` in
@@ -52,8 +54,6 @@ for catalog ownership, locale selection, invalidation, and polyfill configuratio
 
 `include` and `exclude` select transformed modules. Tests stay runner-owned unless
 `compileTestModules` is true; `typescriptConfig` can select their test project.
-
-## DevTools
 
 Optional `debug` settings control private server inspection catalogs and compact browser
 instrumentation. Production client and server builds should share a stable build identity.

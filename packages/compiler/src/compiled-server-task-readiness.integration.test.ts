@@ -1,3 +1,4 @@
+import * as exactComponentBrandingRuntime from '@exactjs/core/runtime/component-branding';
 import * as exactCore from '@exactjs/core';
 import * as exactRenderStructure from '@exactjs/core/framework/render-structure';
 import * as exactServerRenderStructure from '@exactjs/core/framework/server-render-structure';
@@ -59,6 +60,7 @@ it.each([false, true])(
 			}
 		};
 		const modules: Record<string, unknown> = {
+			'@exactjs/core/runtime/component-branding': exactComponentBrandingRuntime,
 			'@exactjs/core': exactCore,
 			'@exactjs/core/runtime/component-construction/direct-server':
 				exactDirectServerConstructionRuntime,

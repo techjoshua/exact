@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/bun-test",
-	"version": "0.7.0",
+	"version": "0.7.1",
 	"description": "Bun test runner integration, DOM setup, compiler preload, and matchers for eXact",
 	"type": "module",
 	"files": [
@@ -27,8 +27,8 @@
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
 	"dependencies": {
-		"@exactjs/bun-plugin": "^0.7.0",
-		"@exactjs/testing": "^0.7.0",
+		"@exactjs/bun-plugin": "^0.7.1",
+		"@exactjs/testing": "^0.7.1",
 		"@happy-dom/global-registrator": "^20.11.1"
 	},
 	"peerDependencies": {
@@ -42,8 +42,8 @@
 	},
 	"scripts": {
 		"build": "tsc6 -b",
-		"test": "npm run typecheck:test && bun --conditions=browser test --preload ./dist/preload.js ./test-fixtures/component.bun.test.tsx",
-		"test:bun": "npm run typecheck:test && bun --conditions=browser test --preload ./dist/preload.js ./test-fixtures/component.bun.test.tsx",
+		"test": "npm run typecheck:test && bun --conditions=browser test --preload ./test-fixtures/compiler-preload.ts ./test-fixtures/component.bun.test.tsx ./test-fixtures/inline-components.bun.test.tsx",
+		"test:bun": "npm run typecheck:test && bun --conditions=browser test --preload ./test-fixtures/compiler-preload.ts ./test-fixtures/component.bun.test.tsx ./test-fixtures/inline-components.bun.test.tsx",
 		"typecheck:test": "tsc6 -p tsconfig.test.json"
 	},
 	"publishConfig": {

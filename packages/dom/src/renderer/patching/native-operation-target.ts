@@ -1,3 +1,4 @@
+import { retainNamespaceProps } from '../../namespace.js';
 import type { AnyComponentInstance, Child } from '@exactjs/core';
 import {
 	exactActivityOperation,
@@ -150,6 +151,7 @@ class NativePatchOperationTarget
 			return undefined;
 		if (!this.root || !this.parent) return this.mounted;
 		this.mounted.intrinsicReceipt = data;
+		if (this.mounted.dom instanceof Element) retainNamespaceProps(this.mounted.dom, data.props);
 		const textPresentation = this.mounted.children[0]?.textHostPresentation;
 		if (textPresentation) textPresentation.receive(data.children);
 		else
