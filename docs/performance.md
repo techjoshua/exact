@@ -126,6 +126,9 @@ Ordinary field access therefore does not require a closure context for callbacks
 Primitive change detection uses identity comparison before structural traversal, and changed-value
 writes avoid an own-descriptor lookup needed only by the unchanged-value shortcut. Wrapper reads,
 authored accessors, inherited writes, and structural object comparison retain their contracts.
+Explicit layouts keep proxy and parent-path cache fields inline, give handlers only their record
+slot, and reserve the subscriber field on dependency nodes. This reduces property spill and unused
+slot capacity.
 
 These allocation optimizations can add compiled code. A small application may retain more total
 heap even when its bookkeeping shrinks. Evaluate allocation volume and retained objects alongside

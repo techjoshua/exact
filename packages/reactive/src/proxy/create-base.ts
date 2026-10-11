@@ -3,7 +3,8 @@ import { nativeArrayMember } from '../internal/native-operations.js';
 import {
 	normalizeDescriptor,
 	samePropertyDescriptor,
-	propertyDescriptor
+	propertyDescriptor,
+	requiresExactProxyValue
 } from './property-descriptors.js';
 import { hasActiveTransaction, recordTransactionUndo, track, trigger } from '../internal/deps.js';
 
@@ -29,7 +30,7 @@ import {
 	truncatedArrayIndexes
 } from '../arrays/mutation.js';
 import { hasChanged, isReactiveContainer } from '../change-detection.js';
-import { getCachedProxy, cacheProxy, reactiveOptionsKey } from './cache.js';
+import { getCachedProxy, cacheProxy, reactiveOptionsKey, registerProxySource } from './cache.js';
 import { customArrayMember, writeProxyAccessor } from './subclass-members.js';
 
 import {
@@ -327,9 +328,14 @@ export function createReactiveBase(
 		return cached;
 	}
 
-	const record: ReactiveProxyRecord = { options, collectionMember, forwardingSet: false };
-	const handler = Object.create(reactiveProxyHandler) as ReactiveProxyHandler;
-	handler.record = record;
+	// Keep ownership slots inline and give the handler only the record field it needs.
+	const record: ReactiveProxyRecord = {
+		options,
+		collectionMember,
+		forwardingSet: false,
+		proxy: undefined
+	};
+	const handler = { __proto__: reactiveProxyHandler, record } as ReactiveProxyHandler;
 	const proxy = new Proxy(reactiveTarget, handler);
 	record.proxy = proxy;
 
@@ -366,12 +372,6 @@ export function wrapReactiveCollectionValue(
 	);
 }
 
-/** Preserves ECMAScript invariants for frozen object-valued data properties. */
-function requiresExactProxyValue(target: object, key: PropertyKey): boolean {
-	const descriptor = Reflect.getOwnPropertyDescriptor(target, key);
-	return !!descriptor && 'value' in descriptor && !descriptor.configurable && !descriptor.writable;
-}
-
 function createParentSource(
 	target: object,
 	key: PropertyKey,
@@ -388,6 +388,8 @@ function createParentSource(
 	const source: CachedParentSource = {
 		target,
 		key,
+		cachedRaw: undefined,
+		cachedProxy: undefined,
 		get() {
 			track(target, key);
 			const next = Reflect.get(target, key);
@@ -432,12 +434,6 @@ function sourcedReactive(
 	source.cachedRaw = raw;
 	source.cachedProxy = proxy;
 	return proxy;
-}
-
-function registerProxySource(proxy: object, source: ReactiveRef): void {
-	// Aliases have distinct path-specific proxies. The retained ref is also the
-	// single parent dependency observed by reads through this proxy.
-	proxyRefs.set(proxy, source);
 }
 
 /** Observes the parent path owned by this proxy, including a migrated collection item. */

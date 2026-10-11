@@ -31,3 +31,9 @@ export function propertyDescriptor(
 	}
 	return undefined;
 }
+
+/** Preserves ECMAScript invariants for frozen object-valued data properties. */
+export function requiresExactProxyValue(target: object, key: PropertyKey): boolean {
+	const descriptor = Reflect.getOwnPropertyDescriptor(target, key);
+	return !!descriptor && 'value' in descriptor && !descriptor.configurable && !descriptor.writable;
+}

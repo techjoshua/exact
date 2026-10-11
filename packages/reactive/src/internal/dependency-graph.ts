@@ -109,7 +109,8 @@ export function getDep(target: object, key: PropertyKey): Dep {
 	const entry = deps.get(target);
 	const previous = targetDependency(entry, key);
 	if (previous) return previous;
-	const dep: Dep = { target, key };
+	// Every observed dependency needs this mutable slot. Keep it inline on first attachment.
+	const dep: Dep = { target, key, subscribers: undefined };
 	if (!entry) deps.set(target, dep);
 	else if (entry instanceof Map) entry.set(key, dep);
 	else {

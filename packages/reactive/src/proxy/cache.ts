@@ -74,3 +74,10 @@ export function reactiveOptionsKey(options: ReactiveOptions): object {
 		return readonlyReactiveOptionsKey;
 	return options as object;
 }
+
+/** Records the one parent path retained by this alias-specific proxy. */
+export function registerProxySource(proxy: object, source: ReactiveRef): void {
+	// Aliases have distinct path-specific proxies. The retained ref is also the
+	// single parent dependency observed by reads through this proxy.
+	proxyRefs.set(proxy, source);
+}
