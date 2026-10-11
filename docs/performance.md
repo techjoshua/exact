@@ -111,6 +111,20 @@ Function classifications are cached on demand, including negative results for au
 These choices reduce startup and retained allocations while preserving original native identities
 and avoiding repeated classification scans. The published measurements above precede this optimization.
 
+Dependency versions and rollback ownership use a compact record for single-key targets and promote
+to a Map when another key appears. Subscription indexes likewise retain a single dependency directly.
+Promoted indexes remain allocated until the target has no subscriptions, avoiding promotion churn
+when observers temporarily detach. Atomic publications build a reaction Set only when multiple
+distinct reactions need notification. Accessor invalidation merges known keys directly into its Set,
+and mutation publication reuses the ownership location it already resolved. These storage changes
+preserve dependency freshness, deduplication, key identity, and rollback generations. Transaction
+cleanup lists and array-tracking sets are allocated only when rollback needs them. Nested batches
+transfer cleanup ownership, and retained inverse journals release it when retired.
+
+These allocation optimizations can add compiled code. A small application may retain more total
+heap even when its bookkeeping shrinks. Evaluate allocation volume and retained objects alongside
+the code and metadata footprint before claiming an overall client-memory improvement.
+
 A separate repeated-update diagnostic used the unchanged production artifacts for eXact and
 React. It alternated the status filter 10,000 times, forcing collection and capturing heap
 categories at bounded checkpoints. Between 1,000 and 10,000 updates, eXact's objects/arrays/

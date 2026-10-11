@@ -6,3 +6,7 @@ export function nativePropertyKey(value: unknown): PropertyKey {
 	// Native computed names handle objects that return a Symbol from their coercion.
 	return Reflect.ownKeys({ [value as unknown as PropertyKey]: undefined })[0]!;
 }
+/** Matches Map dependency-key identity, including NaN and signed zero. */
+export function sameDependencyKey(left: PropertyKey, right: PropertyKey): boolean {
+	return left === right || (left !== left && right !== right);
+}

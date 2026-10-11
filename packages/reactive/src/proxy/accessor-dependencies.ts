@@ -26,5 +26,7 @@ export function restoreReactiveAccessorWrite(
 
 /** Combines live subscriptions and detached pull versions only when branded storage publishes. */
 function accessorDependencyKeys(target: object): Set<PropertyKey> {
-	return new Set([...reactiveDependencyKeys(target), ...reactiveMutationKeys(target)]);
+	const keys = new Set(reactiveDependencyKeys(target));
+	for (const key of reactiveMutationKeys(target)) keys.add(key);
+	return keys;
 }
