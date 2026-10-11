@@ -190,7 +190,7 @@ const reactiveProxyHandler: ProxyHandler<object> = {
 				Array.isArray(target) && key === 'length' ? undefined : target,
 				key
 			);
-		if (ok && changed) {
+		if (ok && (changed || !hadKey)) {
 			if (Array.isArray(target) && key === 'length') trigger(target, arrayLengthWriteKey);
 			markReactiveHashDirty(target);
 			trigger(target, key);

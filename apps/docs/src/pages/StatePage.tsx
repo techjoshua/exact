@@ -125,6 +125,11 @@ export function StatePage(this: Component<{}>) {
 					changing an input updates its dependents. Nested object fields are reactive too.
 				</p>
 				<p>
+					For dynamic records, expressions such as <code>Object.keys(this.state.record)</code>
+					follow added and deleted keys. A property whose value is <code>undefined</code> still
+					counts as present.
+				</p>
+				<p>
 					You can calculate one value from another with an ordinary expression. In the price
 					example, changing quantity updates the subtotal and total. The component keeps the same
 					instance throughout these changes.

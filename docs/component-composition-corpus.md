@@ -2,13 +2,20 @@
 
 The component composition corpus is the normative acceptance suite for native eXact compilation.
 
-Reactive ownership tests also protect synchronous observer handoff. A last-observer callback may
-attach a replacement observer to the same dependency before cleanup returns. That replacement
-must retain its subscription, including when other keys on the target remain observed.
 It lives in `packages/component-composition-corpus` and protects semantics that otherwise tend to
 surface as isolated application regressions after compiler changes.
 The ordinary package declaration build excludes native TSX fixtures and their test-support
 harnesses. The compiler and Vitest configuration own checking and executing those authored sources.
+
+Reactive ownership tests also protect synchronous observer handoff. A last-observer callback may
+attach a replacement observer to the same dependency before cleanup returns. That replacement
+must retain its subscription, including when other keys on the target remain observed.
+
+Reactive property-creation tests protect key enumeration, membership, array length, and rollback
+when a new own property has an unchanged read value. Missing `undefined` properties, array holes,
+array extension, and inherited-value shadowing still publish structural changes. General and
+compiler-selected object/array proxies share this contract. General proxies also cover custom
+Map and Set fields.
 
 The acceptance matrix crosses supported value families with publication boundaries, rather than
 using only the data shape from the latest application report. Collection checks include Maps,
