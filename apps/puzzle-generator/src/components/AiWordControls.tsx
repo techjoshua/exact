@@ -30,12 +30,14 @@ type AiWordControlsProps = {
 /** Renders the explicit opt-in controls for browser-local word and clue generation. */
 export function AiWordControls(props: AiWordControlsProps) {
 	return () => (
-		<div
+		<details
 			theme:surface="sunken"
 			className="option-box ai-option"
 			aria-busy={props.busy ? 'true' : 'false'}
 		>
-			<strong>Local AI helper</strong>
+			<summary>
+				Local AI helper <span>Optional</span>
+			</summary>
 			<p>
 				Generate {props.kind === 'crossword' ? 'answers and clues' : 'a word list'} from a topic.
 				Your topic stays on this device.
@@ -177,7 +179,7 @@ export function AiWordControls(props: AiWordControlsProps) {
 					? `First use downloads about ${getLocalAiModel(props.model).downloadMb} MB from Hugging Face and needs roughly ${formatMemory(getLocalAiModel(props.model).gpuMemoryMb)} of GPU memory. Each model is cached separately by this browser.`
 					: 'Local AI is unavailable because this browser or device does not expose WebGPU.'}
 			</small>
-		</div>
+		</details>
 	);
 }
 

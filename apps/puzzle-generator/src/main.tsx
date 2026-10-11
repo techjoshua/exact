@@ -11,8 +11,8 @@ function ThemedPuzzleFoundry(this: Component<Record<string, never>>) {
 			className="app-theme"
 			theme:scope
 			theme:appearance={preference.appearance}
-			theme:tonic="amber"
-			theme:temperament="soft"
+			theme:tonic={preference.appearance === 'light' ? 'blue' : 'amber'}
+			theme:temperament={preference.appearance === 'light' ? 'balanced' : 'soft'}
 			theme:depth="elevated"
 			theme:typography="humanist"
 		>

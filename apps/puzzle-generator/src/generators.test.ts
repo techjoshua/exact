@@ -7,7 +7,7 @@ import {
 	formatAiWordListResponse
 } from './ai-word-list-format.js';
 import { defaultLocalAiModel, localAiModels } from './ai-models.js';
-import { crosswordExteriorCells } from './crossword-background.js';
+import { crosswordEnclosedCells } from './crossword-background.js';
 import { generateCrossword } from './crossword.js';
 import { createPuzzleDocuments, exportBaseName } from './documents.js';
 import { renderCrosswordSvg, renderSudokuSvg, renderWordSearchSvg } from './svg.js';
@@ -225,6 +225,93 @@ describe('document and input contracts', () => {
 		expect(svg).toContain('font-size="15"');
 	});
 
+	it.each(
+		['-', '–', '\u2014'].flatMap((dash) =>
+			['', ' ', 'left', 'right'].map((spacing) => ({ dash, spacing }))
+		)
+	)('accepts pasted crossword separators ($dash, $spacing)', ({ dash, spacing }) => {
+		const before = spacing === ' ' || spacing === 'left' ? ' ' : '';
+		const after = spacing === ' ' || spacing === 'right' ? ' ' : '';
+		const clue = 'Path around a planet, described in enough detail to exceed the answer limit';
+		const wordText = `ORBIT${before}${dash}${after}${clue}\nCOMET - Icy visitor\nMOON - Natural satellite`;
+		expect(parseCrosswordClues(wordText)[0]).toEqual({ word: 'ORBIT', clue });
+		const request = {
+			kind: 'crossword' as const,
+			difficulty: 'medium' as const,
+			seed: 21,
+			boxSize: 3 as const,
+			rows: 14,
+			columns: 14,
+			style
+		};
+		expect(createPuzzleDocuments({ ...request, wordText })).toEqual(
+			createPuzzleDocuments({
+				...request,
+				wordText: wordText.replace(`${before}${dash}${after}`, ' - ')
+			})
+		);
+	});
+
+	it('preserves hyphenated answers when an explicit spaced separator is present', () => {
+		expect(parseCrosswordClues('X-RAY - Imaging technique with a dash-bearing clue')).toEqual([
+			{ word: 'XRAY', clue: 'Imaging technique with a dash-bearing clue' }
+		]);
+	});
+
+	it.each([
+		{ line: '  ORBIT: Path around a planet, through outer space!  ', reason: /24-letter limit/ },
+		{ line: 'A - A single letter.', reason: /at least two letters/ },
+		{ line: 'S.H.I.T - Punctuation remains visible!', reason: /blocked sequence/ }
+	])('identifies the original crossword line in validation errors: $line', ({ line, reason }) => {
+		const request = {
+			kind: 'crossword' as const,
+			difficulty: 'medium' as const,
+			seed: 21,
+			boxSize: 3 as const,
+			rows: 14,
+			columns: 14,
+			style,
+			wordText: `ORBIT - Path around a planet\r\n\r\n${line}\r\nCOMET - Icy visitor`
+		};
+		expect(() => createPuzzleDocuments(request)).toThrow(reason);
+		expect(() => createPuzzleDocuments(request)).toThrow(`Line 3:`);
+		expect(() => createPuzzleDocuments(request)).toThrow(`Original line: ${line}`);
+	});
+
+	it.each([false, true])(
+		'adds optional inline answer spaces to numbered clues (solution=%s)',
+		(solution) => {
+			const clues = parseCrosswordClues(
+				'ORBIT - Path around a planet\nCOMET - Icy visitor with a tail\nMOON - Natural satellite'
+			);
+			const puzzle = generateCrossword(
+				clues.map((entry) => entry.word),
+				21,
+				clues
+			);
+			const plain = renderCrosswordSvg(puzzle, style, solution);
+			expect(plain).not.toMatch(/_+:/);
+			const withSpaces = renderCrosswordSvg(
+				puzzle,
+				{ ...style, crosswordClueAnswerSpaces: true },
+				solution
+			);
+			const lines = [...withSpaces.matchAll(/<text[^>]*>([^<]*)<\/text>/g)].map(
+				(match) => match[1]!
+			);
+			for (const entry of puzzle.entries) {
+				const firstWord = entry.clue.split(' ')[0];
+				expect(
+					lines.some((line) =>
+						line.startsWith(`${entry.number}. ${'_'.repeat(entry.word.length)}: ${firstWord}`)
+					)
+				).toBe(true);
+			}
+			expect(lines.filter((line) => /_+:/.test(line))).toHaveLength(puzzle.entries.length);
+			expect(lines.join(' ')).toContain('Icy visitor with a tail');
+		}
+	);
+
 	it('renders custom page dimensions and margins and rejects unusable print regions', () => {
 		const puzzle = generateSudoku(2, 'easy', 7);
 		const customStyle: PuzzleStyle = {
@@ -344,13 +431,20 @@ describe('crossword unused-cell presentation', () => {
 		unplaced: []
 	});
 
-	it('distinguishes enclosed holes from orthogonal routes to the edge', () => {
-		const enclosed = layout(['.AA', 'A.A', 'AAA']);
-		expect([...crosswordExteriorCells(enclosed)]).toEqual([1, 0, 0, 0, 0, 0, 0, 0, 0]);
-		const open = layout(['A.A', 'A.A', 'AAA']);
-		expect([...crosswordExteriorCells(open)]).toEqual([0, 1, 0, 0, 1, 0, 0, 0, 0]);
-		expect([...crosswordExteriorCells(layout(['...']))]).toEqual([1, 1, 1]);
-		expect([...crosswordExteriorCells(layout(['AAA']))]).toEqual([0, 0, 0]);
+	it.each([
+		{ rows: ['.AA', 'A.A', 'AAA'], expected: [4] },
+		{ rows: ['AAA', 'A.A', 'AA.'], expected: [4] },
+		{ rows: ['AAAA', 'A..A', 'AAAA'], expected: [] },
+		{ rows: ['AAAA', 'A..A', 'A..A', 'AAAA'], expected: [] },
+		{ rows: ['A.A', 'A.A', 'AAA'], expected: [] },
+		{ rows: ['...'], expected: [] },
+		{ rows: ['A', '.', 'A'], expected: [] },
+		{ rows: ['AAA'], expected: [] }
+	])('marks only individual empty cells surrounded by letters: $rows', ({ rows, expected }) => {
+		const marked = [...crosswordEnclosedCells(layout(rows))].flatMap((value, index) =>
+			value ? [index] : []
+		);
+		expect(marked).toEqual(expected);
 	});
 
 	it.each([false, true])(
@@ -360,6 +454,9 @@ describe('crossword unused-cell presentation', () => {
 			const colors = { ...style, paper: '#eeeeee', crosswordBlocks: '#ffffff' };
 			const fills = (svg: string) =>
 				[...svg.matchAll(/<rect x="[^>]+fill="([^"]+)"/g)].map((match) => match[1]);
+			expect(
+				fills(renderCrosswordSvg(layout(['AAAA', 'A..A', 'AAAA']), colors, solution)).slice(5, 7)
+			).toEqual(['#ffffff', '#ffffff']);
 			expect(fills(renderCrosswordSvg(puzzle, colors, solution))).toEqual([
 				'#ffffff',
 				'#eeeeee',

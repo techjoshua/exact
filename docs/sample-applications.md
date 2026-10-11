@@ -19,8 +19,15 @@ are published under `enhancements/`, `kanban/`, `workbench/`, and `intl/`. The P
 deploys Puzzle Foundry as an intentionally unadvertised `puzzle-foundry.html` artifact; neither the
 documentation application nor Puzzle Foundry links to it or from it. Its themed authoring shell
 keeps printable artwork and publication colors as explicit document data. Printable backgrounds
-default to pure white. Crosswords distinguish enclosed unused cells, which default to black, from
-outer unused cells and letter cells, with separate color controls for each. Advertised hosted
+default to pure white. Crosswords color an individual empty cell black by default only when its four immediate
+neighbors contain letters. Adjacent empty groups use the other unused-cell color. Separate
+color-control rows cover letter cells, enclosed cells, and other unused cells. The optional local AI
+helper starts collapsed. Crossword answer/clue dash separators accept optional surrounding
+spaces. A spaced separator preserves hyphenated answers, otherwise the first dash separates the
+clue. Invalid crossword answers report their original input line and line number, preserving spaces
+and punctuation. Manual clues have no character limit. An optional clue setting adds an
+underlined answer space with one underscore per answer letter before each clue, retaining grid
+numbers in both puzzle and solution exports. Light mode uses pale neutral surfaces with blue accents. Advertised hosted
 applications link back with a GitHub Pages-relative URL to the documentation page for the framework
 behavior they demonstrate.
 

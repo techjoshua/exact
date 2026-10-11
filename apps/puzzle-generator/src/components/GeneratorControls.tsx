@@ -146,7 +146,7 @@ export function GeneratorControls(props: GeneratorControlsProps) {
 						/>
 						<small>
 							{props.kind === 'crossword'
-								? 'Enter one answer per line as “word - clue”. Lines without a clue remain usable and are labeled.'
+								? 'Enter one answer per line as “word - clue” or “word-clue”. Use spaces around the separator for hyphenated answers. Lines without a clue remain usable and are labeled.'
 								: 'Separate words with spaces, commas, or new lines. Letters A–Z; duplicates are removed.'}
 						</small>
 					</label>
