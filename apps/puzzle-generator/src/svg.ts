@@ -6,7 +6,7 @@ import type {
 	WordSearchPuzzle
 } from './types.js';
 import { resolvePageDimensions, resolvePageMargin } from './page-layout.js';
-import { crosswordExteriorCells } from './crossword-background.js';
+import { crosswordEnclosedCells } from './crossword-background.js';
 
 const fontStacks: Readonly<Record<PuzzleFont, string>> = {
 	sans: 'Inter, ui-sans-serif, system-ui, sans-serif',
@@ -140,7 +140,7 @@ export function renderCrosswordSvg(
 	const gridLeft = (width - gridWidth) / 2;
 	const clues = clueTable(puzzle, width - margin * 2, style);
 	const height = heading + gridHeight + clues.height + margin;
-	const exterior = crosswordExteriorCells(puzzle);
+	const enclosed = crosswordEnclosedCells(puzzle);
 	const backgrounds = puzzle.cells
 		.map((entry, index) => {
 			const row = Math.floor(index / puzzle.columns);
@@ -149,9 +149,9 @@ export function renderCrosswordSvg(
 			const y = heading + row * cell;
 			const background = entry
 				? style.paper
-				: exterior[index]
-					? style.crosswordBlocks
-					: (style.crosswordEnclosedBlocks ?? '#000000');
+				: enclosed[index]
+					? (style.crosswordEnclosedBlocks ?? '#000000')
+					: style.crosswordBlocks;
 			return `<rect x="${x}" y="${y}" width="${cell}" height="${cell}" fill="${xml(background)}"/>`;
 		})
 		.join('');
@@ -264,11 +264,19 @@ function clueTable(
 			`<text x="${x}" y="{Y}" font-family="${fontFamily}" font-size="${fontSize + 2}" font-weight="700" fill="${xml(style.ink)}">${orientation === 'across' ? 'Across' : 'Down'}</text>`
 		];
 		for (const entry of entries) {
-			const limit = Math.max(12, Math.floor(columnWidth / (fontSize * 0.56)));
-			const lines = wrapClue(`${entry.number}. ${entry.clue}`, limit);
+			const limit = Math.max(1, Math.floor((columnWidth - 14) / (fontSize * 0.62)));
+			const prefix = style.crosswordClueAnswerSpaces
+				? `${entry.number}. ${'_'.repeat(entry.word.length)}: `
+				: `${entry.number}. `;
+			const lines = wrapClue(entry.clue, limit, prefix);
 			for (const [index, text] of lines.entries()) {
+				const availableWidth = columnWidth - (index ? 14 : 0);
+				const fit =
+					text.length > limit
+						? ` textLength="${availableWidth}" lengthAdjust="spacingAndGlyphs"`
+						: '';
 				markup.push(
-					`<text x="${x + (index ? 14 : 0)}" y="{Y}" dy="${line * lineHeight}" font-family="${fontFamily}" font-size="${fontSize}" fill="${xml(style.ink)}">${xml(text)}</text>`
+					`<text x="${x + (index ? 14 : 0)}" y="{Y}" dy="${line * lineHeight}"${fit} font-family="${fontFamily}" font-size="${fontSize}" fill="${xml(style.ink)}">${xml(text)}</text>`
 				);
 				line++;
 			}
@@ -282,12 +290,12 @@ function clueTable(
 	};
 }
 
-function wrapClue(clue: string, limit: number): string[] {
+/** Wraps clue words after an intact number and optional answer-space prefix. */
+function wrapClue(clue: string, limit: number, prefix: string): string[] {
 	const lines: string[] = [];
-	let current = '';
+	let current = prefix.trimEnd();
 	for (const word of clue.split(/\s+/)) {
-		if (!current || `${current} ${word}`.length <= limit)
-			current = current ? `${current} ${word}` : word;
+		if (`${current} ${word}`.length <= limit) current = current ? `${current} ${word}` : word;
 		else {
 			lines.push(current);
 			current = word;

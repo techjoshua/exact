@@ -4,7 +4,7 @@ import { pageFitWarning, renderCrosswordSvg, renderSudokuSvg, renderWordSearchSv
 import { generateSudoku } from './sudoku.js';
 import type { Difficulty, PuzzleDocuments, PuzzleKind, PuzzleStyle } from './types.js';
 import { generateWordSearch } from './word-search.js';
-import { parseCrosswordClues, parseWords, validateWords } from './words.js';
+import { parseValidatedCrosswordClues, parseWords, validateWords } from './words.js';
 
 /** Input required to generate either document for the currently selected puzzle. */
 export type DocumentRequest = {
@@ -35,12 +35,13 @@ export function createPuzzleDocuments(request: DocumentRequest): PuzzleDocuments
 		};
 	}
 
-	const crosswordClues = request.kind === 'crossword' ? parseCrosswordClues(request.wordText) : [];
+	const crosswordClues =
+		request.kind === 'crossword' ? parseValidatedCrosswordClues(request.wordText) : [];
 	const words =
 		request.kind === 'crossword'
 			? crosswordClues.map((entry) => entry.word)
 			: parseWords(request.wordText);
-	const issue = validateWords(words, request.kind === 'crossword' ? 3 : 2);
+	const issue = request.kind === 'word-search' ? validateWords(words) : undefined;
 	if (issue) throw new Error(issue);
 	if (request.kind === 'word-search') {
 		const puzzle = generateWordSearch(

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, onTestFinished } from 'vitest';
 import { analyzeIntlSource } from '@exactjs/intl-analyzer';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -105,6 +105,25 @@ describe('@exactjs/vite-plugin: transform', () => {
 		);
 	});
 
+	it.each(['raw', 'url', 'raw&exact-target=server'])(
+		'leaves host-owned %s modules outside executable transformation',
+		(query) => {
+			const events: unknown[] = [];
+			const plugin = exact({
+				target: 'server',
+				include: 'Probe',
+				onProfile: (event) => events.push(event)
+			});
+			onTestFinished(() => plugin.closeBundle?.());
+			expect(
+				plugin.transform(
+					'export default "export function Probe(){return()=> <p/>;}";',
+					`/src/Probe.tsx?${query}`
+				)
+			).toBeNull();
+			expect(events).toEqual([]);
+		}
+	);
 	it('transforms matching tsx files', () => {
 		const plugin = exact({ reactCompatibility: false });
 		const result = plugin.transform('const view = <span />;', '/src/view.tsx');

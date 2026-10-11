@@ -116,9 +116,20 @@ export function matchesExactBuildFilter(id: string, filter: ExactBuildFilter): b
 	});
 }
 
+/**
+ * Identifies host-owned raw-text or URL representations from query keys, including combined queries.
+ * These requests must bypass executable analysis and authorization facts. Other queries retain source ownership.
+ */
+export function isExactBuildAssetRequest(id: string): boolean {
+	const separator = id.indexOf('?');
+	if (separator < 0) return false;
+	const query = id.slice(separator + 1).split('#', 1)[0]!;
+	return /(?:^|&)(?:raw|url)(?:=|&|$)/.test(query);
+}
+
 /** Reports whether a build identifier names JavaScript or TypeScript source. */
 export function isExactBuildSourceModule(id: string): boolean {
-	return /\.[cm]?[jt]sx?(?:$|\?)/i.test(id);
+	return !isExactBuildAssetRequest(id) && /\.[cm]?[jt]sx?(?:$|\?)/i.test(id);
 }
 
 /** Reports whether a module is an already lowered target artifact rather than authored source. */
@@ -151,7 +162,8 @@ export function shouldTransformExactBuildModulePath(
 	// Target artifacts contain compiler runtime calls and component contracts by design. Feeding
 	// them through an adapter a second time can duplicate lowering and reinterpret generated cells
 	// as authored source. The host bundler still performs its ordinary TypeScript transpilation.
-	if (id.includes('\0') || isExactGeneratedArtifactModule(id)) return false;
+	if (id.includes('\0') || isExactBuildAssetRequest(id) || isExactGeneratedArtifactModule(id))
+		return false;
 	if (
 		options.compileTestModules !== true &&
 		/(?:^|[\\/])[^\\/]+\.(?:test|spec|jest)\.[cm]?[jt]sx?$/i.test(id)

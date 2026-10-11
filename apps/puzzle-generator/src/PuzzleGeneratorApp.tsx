@@ -55,6 +55,7 @@ const initialStyle: PuzzleStyle = {
 	paper: '#ffffff',
 	lineWidth: 1.5,
 	monochromeSolution: false,
+	crosswordClueAnswerSpaces: false,
 	crosswordGrid: '#17251e',
 	crosswordBlocks: '#ffffff',
 	crosswordEnclosedBlocks: '#000000',

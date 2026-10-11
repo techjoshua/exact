@@ -929,3 +929,17 @@ localized client and server artifacts through Vite, Webpack and native Bun under
 checking. It combines element and opaque message structures with a reactive time value. Analyzer
 tests also compile both generated targets directly, protecting callback input types independently
 of bundler execution.
+
+## Source representations at build-adapter boundaries
+
+The shared `framework-adapters/test-support/source-representation-contract.ts` fixture imports
+one authored component as executable TSX, raw source text, and a URL. Vite and Webpack build
+client and server outputs. Native Bun runs the same contract with a host asset plugin that owns
+a separate namespace, since Bun does not implement Vite’s query conventions. Each runner
+asserts exact source bytes, combined-query equivalence, executable component identity, and server
+rendering. `packages/vitest/src/source-representation.integration.test.ts` separately executes
+component-only controls and mixed executable/raw/URL imports in client and server test graphs
+through built packages. `npm run test:build-adapters` executes these adapter and Vitest checks in CI.
+Explicit Webpack loader checks preserve asset bytes without creating compiler owners.
+Authorization tests retain stale executable generation rejection and
+denied-library pre-evaluation controls. No runtime protocol or native lowering change is involved.

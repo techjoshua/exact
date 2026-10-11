@@ -22,3 +22,11 @@ export function createExactViteRootOwners(options: ExactPluginOptions) {
 		microfrontends: createExactViteMicrofrontendIntegration(options)
 	};
 }
+
+/** Selects the shared application root for source transforms and authorization. */
+export function exactViteApplicationRoot(
+	configuration: ExactViteConfiguration,
+	options: ExactPluginOptions
+): string {
+	return configuration.registry?.applicationRoot ?? options.applicationRoot ?? process.cwd();
+}

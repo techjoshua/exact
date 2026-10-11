@@ -27,7 +27,9 @@ then use normal eXact compilation while the runner retains its test registration
 
 Server-targeted tests use the same pre-evaluation component-library policy as Vite production
 builds and report the `server-test` authorization reason. Client-only jsdom tests remain outside
-that server execution gate.
+that server execution gate. A suite can import the same TSX file as a component through
+`./Probe.js` and as unchanged source text through `./Probe.tsx?raw`. Vite owns the text and
+URL representations while executable imports retain component-library authorization.
 
 For a paired SSR test, keep JSX render helpers in a fixture module that imports a generated
 `.exact.server.js` artifact. Helper modules with server-owned exports and no component definitions

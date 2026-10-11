@@ -13,6 +13,8 @@ import {
 	exactDiagnosticKey,
 	formatExactDiagnostic,
 	isExactGeneratedArtifactModule,
+	isExactBuildAssetRequest,
+	isExactBuildSourceModule,
 	shouldCompileExactBuildModule,
 	shouldTransformExactBuildModulePath,
 	matchesExactBuildFilter,
@@ -21,6 +23,36 @@ import {
 } from './adapter-support.js';
 
 describe('build adapter support', () => {
+	it.each(['?raw', '?url', '?example=1&raw', '?raw&exact-target=server', '?url&inline', '?raw='])(
+		'excludes host asset representations before source filters: %s',
+		(query) => {
+			const id = `/src/Probe.tsx${query}`;
+			expect(isExactBuildAssetRequest(id)).toBe(true);
+			expect(isExactBuildSourceModule(id)).toBe(false);
+			expect(shouldTransformExactBuildModulePath(id, { include: 'Probe' })).toBe(false);
+			expect(
+				shouldCompileExactBuildModule(id, 'export function Probe(){return()=> <p/>;}', {
+					include: 'Probe'
+				})
+			).toBe(false);
+		}
+	);
+	it.each([
+		'',
+		'?exact-target=server',
+		'?t=1',
+		'?example=raw',
+		'?rawish=1',
+		'?%72aw',
+		'?worker_file&type=module'
+	])('retains executable ownership for ordinary source queries: %s', (query) => {
+		const id = `/src/Probe.tsx${query}`;
+		expect(isExactBuildAssetRequest(id)).toBe(false);
+		expect(isExactBuildSourceModule(id)).toBe(true);
+		expect(shouldCompileExactBuildModule(id, 'export function Probe(){return()=> <p/>;}', {})).toBe(
+			true
+		);
+	});
 	it('selects target-specific component contract facets', () => {
 		expect(exactComponentContractProjection('client', undefined)).toBe('complete');
 		expect(exactComponentContractProjection('client', 'hydrate')).toBe('hydrate');

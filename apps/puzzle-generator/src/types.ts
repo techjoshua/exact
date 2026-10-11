@@ -35,6 +35,8 @@ export type PuzzleStyle = {
 	paper: string;
 	lineWidth: number;
 	monochromeSolution: boolean;
+	/** Adds one underscore per answer letter as an answer space before each numbered clue in both exports. Defaults to false. */
+	crosswordClueAnswerSpaces?: boolean;
 	crosswordGrid: string;
 	crosswordBlocks: string;
 	/** Enclosed unused cells default to black when no separate color is supplied. */

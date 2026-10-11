@@ -105,6 +105,14 @@ export function TestingPage(this: Component<{}>) {
 					target.
 				</p>
 				<p>
+					When a test also needs a component’s authored source text, import it with Vite’s
+					<code>?raw</code> query alongside the executable import. For example, import
+					<code>{'./Probe.js'}</code> for the component and <code>{'./Probe.tsx?raw'}</code> for its
+					original source string. This works in client and server test suites. The text import keeps
+					its spaces and JSX syntax, while the component import follows normal compilation and
+					authorization.
+				</p>
+				<p>
 					Use <code>mountClientServerTest()</code> to render on the server, hydrate in a test DOM,
 					and send task requests to the application&apos;s server handler. Trigger controls through
 					accessible queries and assert the resulting page state. By default, mount waits for eager

@@ -176,6 +176,19 @@ export function StyleControls(props: StyleControlsProps) {
 							/>
 						</label>
 					</div>
+					{props.kind === 'crossword' ? (
+						<label className="check-field">
+							<input
+								theme:field="default"
+								type="checkbox"
+								checked={props.style.crosswordClueAnswerSpaces ?? false}
+								onChange={(event) =>
+									change('crosswordClueAnswerSpaces', event.currentTarget.checked)
+								}
+							/>
+							<span>Answer spaces before clues</span>
+						</label>
+					) : null}
 				</div>
 			) : null}
 			<div theme:surface="sunken" className="option-box">
@@ -350,7 +363,7 @@ export function StyleControls(props: StyleControlsProps) {
 							/>
 						</label>
 						<label>
-							<span>Outer unused cells</span>
+							<span>Other unused cells</span>
 							<input
 								theme:field="default"
 								type="color"
@@ -369,8 +382,9 @@ export function StyleControls(props: StyleControlsProps) {
 						</label>
 					</div>
 					<small className="option-note">
-						Enclosed unused cells default to black. The puzzle background colors letter cells; the
-						page remains white.
+						Only an empty cell with letters immediately above, below, left, and right uses the
+						enclosed color, initially black. The puzzle background colors letter cells. The page
+						remains white.
 					</small>
 				</div>
 			) : null}
