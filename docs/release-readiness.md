@@ -528,6 +528,30 @@ exists locally. Unmapped or unavailable revisions fail rather than silently sele
 The release-artifact job also runs `check:security-audit`; an unreviewed finding prevents the
 publication job from starting.
 
+The October 2026 dependency review updates compatible patched dependencies. Nuxt DevTools
+retains `simple-git` 3 because version 4 removes the default export DevTools imports.
+The comparison application disables DevTools and does not accept remote Git configuration,
+repositories or editor environment variables. The
+[simple-git advisories](https://github.com/advisories/GHSA-x6jw-m9v5-85vh) and its
+[argument-parser advisory](https://github.com/advisories/GHSA-v5rq-49vh-5v5c) remain recorded
+until the upstream caller supports the patched API.
+
+`security-audit-policy.json` records exceptions expiring November 10, 2026 for three
+unpatched causes, the disabled DevTools Git dependency and their npm-reported dependents:
+
+- [braces recursion](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm) affects authored
+  glob patterns in build and lint tooling. Do not feed those tools untrusted patterns.
+- [node-forge signature verification](https://github.com/advisories/GHSA-86w9-cpqp-85rv)
+  arrives through listhen certificate tooling. Comparison servers use HTTP. This path does
+  not verify untrusted RSA signatures in repository applications.
+- [sprintf-js precision](https://github.com/advisories/GHSA-hp3w-g68c-fv3c) arrives through
+  argparse and Jest. Format strings belong to the tooling rather than remote requests.
+
+These exceptions acknowledge retained vulnerable dependencies. They do not establish safety
+for other callers or input paths. Recheck upstream fixes before expiry and remove both the
+cause and its propagated exceptions when the audit no longer reports them. Any higher severity,
+unlisted package, expired exception or stale exception still fails the gate.
+
 Package-content and compiler-distribution checks accept both npm 11's array and npm 12's
 package-name-keyed object from `npm pack --dry-run --json`. Each workspace check requires
 exactly one matching package with a valid file inventory; malformed output fails the check.
