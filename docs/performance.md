@@ -69,7 +69,8 @@ builds, browser correctness, client measurements, Node and Bun buffered and stre
 measurements, scheduled demand, native full-stack measurements, and internal performance and
 memory guards. The [maintained results](performance-baselines/results.json) and public chart
 inputs retain each benchmark group's revision and measurement date. Earlier focused diagnostics
-retain their own identities.
+retain their own identities. Unused legacy `sustained` and `saturationCharts` fields retain their
+September 29 capture at `d0f281ae7`. Current throughput charts use the separate capacity reports.
 
 The run used Node 26.11.1, Bun 1.4.3, Chromium 149, and WSL kernel
 6.18.40.1-microsoft-standard-WSL2 with `mitigations=off audit=0`. All timed phases ran sequentially

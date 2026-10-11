@@ -1707,8 +1707,8 @@
 			],
 			"ssrSourceSha256": "ce5dc8bc3ddde987fb4777aac4c0ec1a93dff4c782dafe002a8dbce9b3090781",
 			"legacyThroughputSource": {
-				"commit": "0a48f6de6ef9e744813e8fd223983e79fc047806",
-				"createdAt": "2026-10-10T06:23:02.738Z",
+				"commit": "d0f281ae7f0c3430783a892da4f4abfe4e2bad28",
+				"createdAt": "2026-09-29T22:54:08.253Z",
 				"note": "Unused legacy sustained and saturation fields retain historical data. Current throughput charts use the separate fresh capacity reports."
 			}
 		},
@@ -3837,8 +3837,8 @@
 			},
 			"commit": "ccc89a4e634169599747bbfd0cc1e3b9c469aa95",
 			"legacyThroughputSource": {
-				"commit": "0a48f6de6ef9e744813e8fd223983e79fc047806",
-				"createdAt": "2026-10-10T06:24:50.343Z",
+				"commit": "d0f281ae7f0c3430783a892da4f4abfe4e2bad28",
+				"createdAt": "2026-09-29T22:56:04.803Z",
 				"note": "Unused legacy sustained and saturation fields retain historical data. Current throughput charts use the separate fresh capacity reports."
 			},
 			"sources": {

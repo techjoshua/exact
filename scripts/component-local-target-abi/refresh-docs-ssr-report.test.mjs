@@ -147,6 +147,42 @@ test('diagnostic refresh preserves capacity and browser evidence and recomputes 
 	assert.throws(() => refreshDocsSsrDiagnostics(previous, raw), /incomplete latency/);
 });
 
+test('repeated diagnostics retain throughput identity until throughput itself is refreshed', () => {
+	for (const mode of ['string', 'stream']) {
+		const { previous, raw } = fixture();
+		raw.harness.renderMode = mode;
+		if (mode === 'stream') {
+			delete raw.runtimes.node.nuxt;
+			delete raw.runtimes.node.sveltekit;
+		}
+		raw.harness.sampleCount = 2;
+		raw.harness.concurrencyWaves = 2;
+		for (const entry of Object.values(raw.runtimes.node))
+			entry.sequential.samples = [{ totalMs: 2 }, { totalMs: 4 }];
+		previous.metadata.commit = 'original-throughput-revision';
+		previous.metadata.ssrCreatedAt = 'original-throughput-date';
+		previous.server.sustained = { original: true };
+		previous.server.saturationCharts = [{ original: true }];
+		const first = refreshDocsSsrDiagnostics(previous, raw);
+		assert.equal(first.metadata.legacyThroughputSource.commit, 'original-throughput-revision');
+		assert.equal(first.metadata.legacyThroughputSource.createdAt, 'original-throughput-date');
+		first.metadata.commit = 'new-diagnostics-revision';
+		raw.createdAt = 'later-diagnostics-date';
+		const repeated = refreshDocsSsrDiagnostics(first, raw);
+		assert.deepEqual(
+			repeated.metadata.legacyThroughputSource,
+			first.metadata.legacyThroughputSource
+		);
+		assert.equal(repeated.metadata.ssrCreatedAt, 'later-diagnostics-date');
+		assert.deepEqual(repeated.server.sustained, previous.server.sustained);
+		assert.deepEqual(repeated.server.saturationCharts, previous.server.saturationCharts);
+		const replaced = refreshDocsSsrReport(repeated, raw);
+		assert.equal('legacyThroughputSource' in replaced.metadata, false);
+		assert.equal(replaced.metadata.ssrCreatedAt, 'later-diagnostics-date');
+		assert.equal(replaced.server.sustained.series[0].aggregate, 50);
+	}
+});
+
 test('publishes distinct Bun populations and rejects incomplete Bun evidence', () => {
 	const { previous, raw } = fixture();
 	raw.harness.sampleCount = 2;
