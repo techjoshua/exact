@@ -63,9 +63,10 @@ as design choices and evaluate their combined results under the recorded workloa
 
 ## Current results and interpretation
 
-The current full comparison measured clean revision `ccc89a4e6` on October 11, 2026
-(UTC), after PR review fixes. All 39 phases completed, including workspace and participant
-builds, browser correctness, client measurements, Node and Bun buffered and streaming server
+The current full comparison measured clean revision `6fcef4c23` on October 11, 2026
+(UTC), including the reactive allocation and computed lifecycle reductions. All 39 phases completed,
+including workspace and participant builds, browser correctness, client measurements, Node and Bun
+buffered and streaming server
 measurements, scheduled demand, native full-stack measurements, and internal performance and
 memory guards. The [maintained results](performance-baselines/results.json) and public chart
 inputs retain each benchmark group's revision and measurement date. Earlier focused diagnostics
@@ -79,37 +80,42 @@ measurements used 200 balanced samples per framework. Startup profiling used ten
 1x, 4x, and 6x CPU throttling, and heap composition used five rounds. Capacity used two reversed
 fresh-process populations. Each scheduled rate owned fresh processes, 30 seconds of target-rate
 warmup, and 60 seconds of measurement. Response identities and accounting validated.
-The preceding run used Node 26.9.0 and Bun 1.4.2. Runtime updates, dependency patches, and host
-variation prevent attributing historical changes solely to framework source changes.
+The preceding full run at `ccc89a4e6` used the same Node and Bun versions. Separate host sessions
+and uncontrolled user activity limit attribution of timing changes to framework source.
 
 ### Browser experience
 
-Compared with the preceding full capture at `0a48f6de6`, eXact's load-event median changed
-from 18.7 to 19.1 ms. FCP and pre-click LCP medians remained 48 ms. Optimistic feedback
-remained 1.7 ms, and authoritative settlement remained 13.2 ms. React's load-event median
-changed from 31.6 to 32.0 ms, while its settlement remained 12.7 ms.
+Compared with the preceding full capture at `ccc89a4e6`, eXact's load-event median changed
+from 19.1 to 19.0 ms. FCP and pre-click LCP medians remained 48 ms. Optimistic feedback
+remained 1.7 ms, and authoritative settlement changed from 13.2 to 13.1 ms. React's load-event
+and settlement medians remained 32.0 and 12.7 ms. eXact's service readiness median fell from
+54.4 to 52.5 ms. Paint tails increased for both frameworks despite stable medians.
 
-Retained browser JS heap remained 2.64646 MB. In the separate heap-composition captures,
-code/metadata, shapes, objects/arrays/closures, and strings were unchanged. Mean native-node
-self-bytes increased by 106 bytes, and total snapshot self-bytes changed from 2.4389002 to
-2.4390062 MB. These snapshot totals do not partition the separate JS heap metric. Client
-script payload increased by 53 bytes, from 245.231 to 245.284 kB. This workload shows no
-material retained-heap increase from the review fixes. Whole-page observations do not
-establish equivalent behavior on every device or prove the absence of all leaks.
+In the separate ten-sample startup profiles, eXact's 6x-throttled readiness median fell from
+373 to 338 ms, script CPU from 124.3 to 115.3 ms, and blocking time from 65 to 58 ms. At 4x,
+readiness fell from 231.6 to 225.2 ms, while FCP rose from 96 to 108 ms. Small populations and
+host variation limit attribution. These profiles use a different checkpoint from the browser replay.
 
-The historical baseline carried on `main`, captured at `d0f281ae7`, has lower retained
-browser JS heap: 2.56956 MB. Its separate snapshot total is 2.3310898 MB. Against that
-capture, the current snapshot has about 42 kB more code/metadata, 6 kB more shapes,
-24 kB more objects/arrays/closures, 6 kB more strings, and 31 kB more native nodes. The
-loaded eXact entry grew from 230,811 to 244,984 bytes. This establishes a larger loaded
-footprint, but the historical comparison does not attribute each retained object to a
-particular source change.
+Retained browser JS heap fell from 2.64646 to 2.614324 MB, a reduction of 32,136 bytes
+(1.21%). React remained at about 2.317 MB. In the separate heap-composition captures,
+eXact's objects/arrays/closures fell by 15,848 bytes, code/metadata by 8,484 bytes, shapes by
+3,348 bytes, and strings by 3,792 bytes. Total snapshot self-bytes fell from 2.4390062 to
+2.4062734 MB. These snapshot totals do not partition the separate JS heap metric. Client
+script payload grew by 1,172 bytes, from 245.284 to 246.456 kB. This workload shows a smaller
+retained footprint despite a larger script payload. It remains above the 2.5 MB target.
+Whole-page observations do not establish equivalent behavior on every device or prove the
+absence of all leaks.
+
+The historical baseline carried on `main`, captured at `d0f281ae7`, still has lower retained
+browser JS heap: 2.56956 MB. Its separate snapshot total is 2.3310898 MB. The loaded eXact
+entry grew from 230,811 to 246,156 bytes. This establishes a larger loaded footprint against
+that historical capture, but does not attribute each retained object to a particular source change.
 
 Native-method catalogs retain function and getter identities without retaining descriptor flags.
 The Array lookup has an independent entry so bundlers can omit unused receiver catalogs.
 Function classifications are cached on demand, including negative results for authored methods.
 These choices reduce startup and retained allocations while preserving original native identities
-and avoiding repeated classification scans. The published measurements above precede this optimization.
+and avoiding repeated classification scans. The current full capture includes these optimizations.
 
 Dependency versions and rollback ownership use a compact record for single-key targets and promote
 to a Map when another key appears. Subscription indexes likewise retain a single dependency directly.
@@ -138,8 +144,8 @@ These allocation optimizations can add compiled code. A small application may re
 heap even when its bookkeeping shrinks. Evaluate allocation volume and retained objects alongside
 the code and metadata footprint before claiming an overall client-memory improvement.
 
-A separate repeated-update diagnostic used the unchanged production artifacts for eXact and
-React. It alternated the status filter 10,000 times, forcing collection and capturing heap
+A separate repeated-update diagnostic at `ccc89a4e6` used unchanged production artifacts for
+eXact and React. It alternated the status filter 10,000 times, forcing collection and capturing heap
 categories at bounded checkpoints. Between 1,000 and 10,000 updates, eXact's objects/arrays/
 closures increased by 2,048 bytes and shapes were unchanged. Code/metadata increased by
 91,644 bytes. React also showed code warmup. This scenario does not show steady per-update
@@ -149,28 +155,29 @@ measured production artifact changed.
 
 ### Server capacity and tails
 
-Preloaded peak eXact throughput was 18,537 RPS for Node buffered, 18,170 for Node streaming,
-14,655 for Bun buffered, and 12,151 for Bun streaming. Against the preceding full capture,
-these changed -0.2%, -0.4%, -4.0%, and -6.4%. They were 1.27x, 3.49x, 1.21x, and 1.52x
+Preloaded peak eXact throughput was 19,705 RPS for Node buffered, 17,492 for Node streaming,
+14,305 for Bun buffered, and 12,161 for Bun streaming. Against the preceding full capture,
+these changed +6.3%, -3.7%, -2.4%, and +0.1%. They were 1.31x, 3.32x, 1.17x, and 1.56x
 React's current peaks. Each peak is the highest mean across the tested concurrencies,
 which can differ between frameworks. The charts retain all concurrency steps and both populations.
 
-Ordinary fetching at total concurrency 32 delivered 4,312, 3,731, 4,976, and 4,824 RPS in
-those same modes. Changes against the preceding capture were +3.8%, -8.7%, +3.3%, and
-+4.8%. eXact exceeded React in both Node modes. React delivered 4,994 RPS in Bun buffered
-and 4,908 RPS in Bun streaming, slightly above eXact. Preloaded capacity does not describe
+Ordinary fetching at total concurrency 32 delivered 4,364, 4,187, 5,006, and 4,763 RPS in
+those same modes. Changes against the preceding capture were +1.2%, +12.2%, +0.6%, and
+-1.3%. eXact exceeded React in both Node modes and narrowly in Bun buffered. React delivered
+4,829 RPS in Bun streaming, slightly above eXact. Preloaded capacity does not describe
 every workload.
 
 At 8,000 offered RPS, all four eXact modes delivered approximately the target rate with no
-capacity misses or response errors. At 10,000, both Node modes and Bun buffered delivered
-approximately the target rate without capacity misses. Bun streaming delivered about 9,479
-RPS with 5.14% capacity misses, compared with 9,424 RPS and 5.70% in the preceding capture.
-Buffered Node's P99 at 10,000 ranged from 13.23 to 19.52 ms, compared with 13.86 to 18.61 ms.
-Streaming Node's range changed from 22.38–24.64 to 20.74–25.57 ms. Both favorable and
-unfavorable movements remain visible.
+capacity misses or response errors. Bun buffered's P99 range widened from 12.55–14.54 to
+13.71–24.38 ms. At 10,000, both Node modes and Bun buffered delivered approximately the
+target rate without capacity misses. Bun streaming delivered about 9,421 RPS with 5.73%
+capacity misses, compared with 9,479 RPS and 5.14% previously. Its P99 range widened from
+89.41–90.56 to 88.70–96.64 ms. Buffered Node's P99 at 10,000 fell from 13.23–19.52 to
+11.38–13.86 ms. Streaming Node's range changed from 20.74–25.57 to 21.02–22.48 ms.
+Both favorable and unfavorable movements remain visible.
 
 Every eXact capacity and scheduled-demand measurement recorded zero response errors. The
-results retain React's overload errors, all warmup errors, deadline misses, and missed demand.
+results include React's overload errors, warmup misses, and small end-of-window deadline misses.
 Requests that never ran have no response latency, so percentiles alone do not describe overload.
 
 Earlier matched renderer controls in `fieldNoteComparison` identified a repeated buffered Node
@@ -459,12 +466,12 @@ or slower-network performance.
 The standard release performance profile passed its reactive/DOM, framework client/server,
 compiler workflow, theme, DevTools, and React compatibility checks. Collection transactions,
 Node/Bun server diagnostics, transport/build-host diagnostics, and React adapter measurements
-also completed. The full shipping heap and allocation guards passed at `ccc89a4e6` with their
+also completed. The full shipping heap and allocation guards passed at `6fcef4c23` with their
 unchanged limits.
 
 The isolated compiler corpus passed correctness, structural, and timing checks. Its highest
-timing guard ratio was 1.39x against the unchanged 1.50x warning limit, and aggregate cold
-worker time was 0.82x the historical baseline. The compiler timing baseline remains unchanged.
+timing guard ratio was 1.41x against the unchanged 1.50x warning limit, and aggregate cold
+worker time was 0.84x the historical baseline. The compiler timing baseline remains unchanged.
 Individual project timings still vary. These checks do not isolate the cause of timing changes.
 
 A compiler-only matched comparison at clean corpus revision `4e5e33870` used seven cold and
