@@ -103,3 +103,6 @@ import type { ExactProfileEvent, ExactProfileSink } from '@exactjs/instrumentati
 
 /** Reports an observable reactive profile event. */
 export type ReactiveProfileEvent = ExactProfileEvent<'reactive', 'flush'>;
+
+/** Coalesces callbacks or durable computation owners by their own identity. */
+export type ScheduledComputation = (() => void) | { run(): void };

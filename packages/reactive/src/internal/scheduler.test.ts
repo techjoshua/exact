@@ -6,6 +6,7 @@ import {
 	flushSync,
 	inspectScheduledWork,
 	queueComputation,
+	removeQueuedComputation,
 	runWithPriority
 } from './scheduler.js';
 
@@ -121,5 +122,48 @@ describe('reactive scheduler priorities', () => {
 		expect(deferred).not.toHaveBeenCalled();
 
 		flushSync();
+	});
+});
+
+describe('owned computation scheduling', () => {
+	it('keeps owners distinct, promotes by identity, and cancels only the selected owner', () => {
+		const runs: string[] = [];
+		class Owner {
+			constructor(readonly name: string) {}
+			run() {
+				runs.push(`${this.name}:${currentWorkPriority()}`);
+			}
+		}
+		const first = new Owner('first');
+		const second = new Owner('second');
+		queueComputation(first, undefined, 'deferred');
+		queueComputation(second);
+		queueComputation(first, undefined, 'interactive');
+		removeQueuedComputation(second);
+		flushSync();
+		expect(runs).toEqual(['first:interactive']);
+		queueComputation(second);
+		flushSync();
+		expect(runs).toEqual(['first:interactive', 'second:normal']);
+	});
+
+	it('restores priority after an owner throws and continues draining callbacks', () => {
+		const failure = new Error('owned failure');
+		const handler = vi.fn();
+		const priorities: string[] = [];
+		queueComputation(
+			{
+				run() {
+					throw failure;
+				}
+			},
+			handler,
+			'interactive'
+		);
+		queueComputation(() => priorities.push(currentWorkPriority()));
+		flushSync();
+		expect(handler).toHaveBeenCalledWith(failure);
+		expect(priorities).toEqual(['normal']);
+		expect(currentWorkPriority()).toBe('normal');
 	});
 });

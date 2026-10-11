@@ -13,13 +13,16 @@ type TrackingPass = { reaction: Reaction; previous: Dep[]; seen: Dep | Set<Dep> 
 /** Contains only synchronous reruns; popped passes cannot retain disposed reactions. */
 const trackingPasses: TrackingPass[] = [];
 const trackingPauseFloors: number[] = [];
-const pendingObservationTransitions: Array<() => void> = [];
+const pendingObservationTransitions: Array<{
+	hooks: DependencyObservationHooks;
+	observed: boolean;
+}> = [];
 let publishingObservationTransitions = false;
 
 /** Identifies one target/key dependency without exposing its mutable subscriber set. */
 export type ReactiveDependency = Readonly<{ target: object; key: PropertyKey }>;
 
-/** Receives the first-observer and last-observer transitions for a dependency source. */
+/** Receives synchronous observer transitions with the registered owner as the method receiver. */
 export type DependencyObservationHooks = Readonly<{
 	onObserved(): void;
 	onUnobserved(): void;
@@ -40,16 +43,22 @@ export function registerDependencyObservationHooks(
 	target: object,
 	key: PropertyKey,
 	hooks: DependencyObservationHooks
-): () => void {
+): void {
 	let targetHooks = depObservationHooks.get(target);
 	if (!targetHooks) depObservationHooks.set(target, (targetHooks = new Map()));
 	targetHooks.set(key, hooks);
-	return () => {
-		const current = depObservationHooks.get(target);
-		if (current?.get(key) !== hooks) return;
-		current.delete(key);
-		if (!current.size) depObservationHooks.delete(target);
-	};
+}
+
+/** Releases hooks only when they still belong to this owner, preserving replacement registrations. */
+export function releaseDependencyObservationHooks(
+	target: object,
+	key: PropertyKey,
+	hooks: DependencyObservationHooks
+): void {
+	const current = depObservationHooks.get(target);
+	if (current?.get(key) !== hooks) return;
+	current.delete(key);
+	if (!current.size) depObservationHooks.delete(target);
 }
 
 /** Adds a reaction to one dependency while preserving observer-count transitions. */
@@ -79,7 +88,7 @@ export function linkReactionToDependency(reaction: Reaction, dep: Dep): void {
 				: new Set([subscribers, reaction]);
 	reaction.deps.push(dep);
 	if (wasEmpty)
-		publishObservationTransition(depObservationHooks.get(dep.target)?.get(dep.key)?.onObserved);
+		publishObservationTransition(depObservationHooks.get(dep.target)?.get(dep.key), true);
 }
 
 /** Keeps the common single-dependency pass free of membership-set allocation. */
@@ -232,7 +241,7 @@ export function peek<T>(fn: () => T): T {
 }
 
 function releaseEmptyDependency(dep: Dep): void {
-	publishObservationTransition(depObservationHooks.get(dep.target)?.get(dep.key)?.onUnobserved);
+	publishObservationTransition(depObservationHooks.get(dep.target)?.get(dep.key), false);
 	// The transition can synchronously attach a replacement observer to this same identity.
 	if (dep.subscribers !== undefined) return;
 	const entry = deps.get(dep.target);
@@ -243,13 +252,20 @@ function releaseEmptyDependency(dep: Dep): void {
 	}
 }
 
-function publishObservationTransition(transition: (() => void) | undefined): void {
-	if (!transition) return;
-	pendingObservationTransitions.push(transition);
+function publishObservationTransition(
+	hooks: DependencyObservationHooks | undefined,
+	observed: boolean
+): void {
+	if (!hooks) return;
+	pendingObservationTransitions.push({ hooks, observed });
 	if (publishingObservationTransitions) return;
 	publishingObservationTransitions = true;
 	try {
-		while (pendingObservationTransitions.length) pendingObservationTransitions.pop()!();
+		while (pendingObservationTransitions.length) {
+			const transition = pendingObservationTransitions.pop()!;
+			if (transition.observed) transition.hooks.onObserved();
+			else transition.hooks.onUnobserved();
+		}
 	} finally {
 		publishingObservationTransitions = false;
 	}

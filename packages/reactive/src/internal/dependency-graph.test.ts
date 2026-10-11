@@ -3,7 +3,8 @@ import { reactive, watch, flushSync } from '../index.js';
 import {
 	getDep,
 	reactiveDependencyKeys,
-	registerDependencyObservationHooks
+	registerDependencyObservationHooks,
+	releaseDependencyObservationHooks
 } from './dependency-graph.js';
 
 it('retains dependency identity across promotion and observer cleanup', () => {
@@ -28,14 +29,15 @@ it.each([false, true])(
 		const state = reactive(target);
 		const values: number[] = [];
 		let replacement: (() => void) | undefined;
-		const unregister = registerDependencyObservationHooks(target, 'value', {
+		const hooks = {
 			onObserved() {},
 			onUnobserved() {
 				replacement ??= watch(() => {
 					values.push(state.value);
 				});
 			}
-		});
+		};
+		registerDependencyObservationHooks(target, 'value', hooks);
 		const stopOther = multiple ? watch(() => state.other) : undefined;
 		const stop = watch(() => state.value);
 		try {
@@ -44,10 +46,47 @@ it.each([false, true])(
 			flushSync();
 			expect(values).toEqual([1, 2]);
 		} finally {
-			unregister();
+			releaseDependencyObservationHooks(target, 'value', hooks);
 			replacement?.();
 			stopOther?.();
 			stop();
 		}
 	}
 );
+
+it('invokes shared observer methods on their owner and preserves replacement hooks', () => {
+	const target = { value: 1 };
+	const state = reactive(target);
+	class Owner {
+		observed = 0;
+		unobserved = 0;
+		onObserved() {
+			this.observed++;
+		}
+		onUnobserved() {
+			this.unobserved++;
+		}
+	}
+	const original = new Owner();
+	const replacement = new Owner();
+	registerDependencyObservationHooks(target, 'value', original);
+	const stop = watch(() => state.value);
+	try {
+		expect(original.observed).toBe(1);
+		registerDependencyObservationHooks(target, 'value', replacement);
+		releaseDependencyObservationHooks(target, 'value', original);
+		stop();
+		expect(replacement.unobserved).toBe(1);
+		const next = watch(() => state.value);
+		try {
+			expect(replacement.observed).toBe(1);
+			releaseDependencyObservationHooks(target, 'value', replacement);
+		} finally {
+			next();
+		}
+		expect(replacement.unobserved).toBe(1);
+	} finally {
+		releaseDependencyObservationHooks(target, 'value', replacement);
+		stop();
+	}
+});

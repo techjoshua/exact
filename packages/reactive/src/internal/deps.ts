@@ -22,6 +22,7 @@ export {
 	peek,
 	reactionDependencies,
 	registerDependencyObservationHooks,
+	releaseDependencyObservationHooks,
 	runTracked,
 	track,
 	type DependencyObservationHooks,

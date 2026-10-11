@@ -130,6 +130,10 @@ Explicit layouts keep proxy and parent-path cache fields inline, give handlers o
 slot, and reserve the subscriber field on dependency nodes. This reduces property spill and unused
 slot capacity.
 
+Computed nodes own their observation hooks and queued execution directly. Shared methods replace
+per-value lifecycle and scheduler closures, and release checks preserve replacement hook ownership.
+Public computed reads remain bound callbacks so detached reads retain their behavior.
+
 These allocation optimizations can add compiled code. A small application may retain more total
 heap even when its bookkeeping shrinks. Evaluate allocation volume and retained objects alongside
 the code and metadata footprint before claiming an overall client-memory improvement.
