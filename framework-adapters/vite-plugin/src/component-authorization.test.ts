@@ -9,6 +9,24 @@ import { ExactViteComponentAuthorization } from './component-authorization.js';
 import { inspectExactComponentBuildFacts } from '@exactjs/compiler';
 
 describe('@exactjs/vite-plugin: component authorization', () => {
+	it('ignores raw source while retaining stale executable generation rejection', async () => {
+		const fixture = createViteFixture();
+		const plugin = exact({
+			target: 'server',
+			applicationRoot: fixture.root,
+			reactCompatibility: false
+		});
+		onTestFinished(() => plugin.closeBundle?.());
+		await plugin.buildStart?.call({ addWatchFile() {} });
+		const source = 'export function Probe(){return()=> <p>source example</p>;}';
+		expect((await plugin.transform(source, fixture.pageFile))?.code).toBeTruthy();
+		expect(
+			plugin.transform(`export default ${JSON.stringify(source)};`, `${fixture.pageFile}?raw`)
+		).toBeNull();
+		expect(() =>
+			plugin.transform(source.replace('source example', 'changed source'), fixture.pageFile)
+		).toThrow(/changed during authorization generation/);
+	});
 	it.each(['error', 'exclude'] as const)(
 		'authorizes portable optional requests before provider loading (%s)',
 		async (policy) => {

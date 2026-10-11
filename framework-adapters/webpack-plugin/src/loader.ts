@@ -1,3 +1,4 @@
+import { isExactBuildAssetRequest } from '@exactjs/compiler/adapter-support';
 import {
 	compilerSessionForWebpackLoader,
 	transformExactWebpackSourceAsync,
@@ -10,6 +11,7 @@ type ExactWebpackLoaderOptions = ExactWebpackPluginOptions & { __exactSessionId?
 
 type LoaderContext = {
 	resourcePath?: string;
+	resourceQuery?: string;
 	addDependency?(filename: string): void;
 	addMissingDependency?(filename: string): void;
 	query?: unknown;
@@ -20,9 +22,13 @@ type LoaderContext = {
 	callback(error: Error | null, code?: string, map?: unknown): void;
 };
 
-/** Runs the asynchronous transform through Webpack's one-shot loader callback contract. */
+/** Transforms executable source through one-shot callbacks and preserves host asset bytes unchanged. */
 export default function exactWebpackLoader(this: LoaderContext, source: string): void {
 	const callback = this.async?.() ?? this.callback.bind(this);
+	if (isExactBuildAssetRequest(this.resourceQuery ?? '')) {
+		callback(null, source);
+		return;
+	}
 	const options = this.getOptions?.() ?? {};
 	const bridge = exactWebpackLoaderBridge(this._compiler);
 	const session = bridge?.session ?? compilerSessionForWebpackLoader(options.__exactSessionId);

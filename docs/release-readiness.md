@@ -99,6 +99,18 @@ client/server test graphs. Bun plugin 0.7.1 includes its transform repairs and r
 ^0.7.1. Existing runtime helpers, artifact schemas, ABI epoch 2 and released fixtures remain
 unchanged. Rebuild enhancement bundles to receive the corrected activation facts and facade edges.
 
+## Source representation repair at 0.7.2
+
+Compiler, Vite plugin, Webpack plugin, and Vitest select 0.7.2 for separating host-owned raw-text
+and URL imports from executable component processing. All six native compiler manifests follow
+compiler 0.7.2, although native lowering is unchanged. Vite and Webpack require compiler ^0.7.2
+for the shared asset-query classifier. Vitest requires Vite plugin ^0.7.2 and compiler ^0.7.2 so
+server tests receive the repaired selection. Bun’s separate host asset namespace already retains
+source bytes and does not require a release for this repair. Runtime helper signatures, generated
+artifact schemas, ABI epoch 2, and released fixtures remain unchanged. No component rebuild is
+required for the adapter selection fix. Publish the selected providers together or verify they
+are already available before publishing their consumers.
+
 ## JSON publication validation 0.7.1
 
 SSR, server and hydrate 0.7.1 require core ^0.7.1 for shared JSON property inspection.

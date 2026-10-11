@@ -17,7 +17,10 @@ export default {
 ```
 
 Use `target: 'server'` and `serverComponents: true` for server builds. The `./loader` export is
-available when an existing rule needs explicit loader composition.
+available when an existing rule needs explicit loader composition. Both the installed pre-loader
+and the explicit loader leave `?raw` and `?url` requests to your Webpack asset rules. For source text, use an
+`asset/source` rule with `resourceQuery: /(?:^|[?&])raw(?:[=&]|$)/`. The same TSX file can
+also be imported as an executable component.
 For browser builds, set `renderMode: 'hydrate'` when the entry adopts SSR HTML or
 `renderMode: 'client'` when it only performs fresh mounts. The default `universal` contract remains
 available when one output must support either mode.

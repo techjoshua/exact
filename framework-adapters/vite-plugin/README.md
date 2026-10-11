@@ -53,7 +53,10 @@ callbacks and compiler-proven client capability providers. See
 for catalog ownership, locale selection, invalidation, and polyfill configuration.
 
 `include` and `exclude` select transformed modules. Tests stay runner-owned unless
-`compileTestModules` is true; `typescriptConfig` can select their test project.
+`compileTestModules` is true. `typescriptConfig` can select their test project.
+Vite `?raw` and `?url` imports retain the host asset representation, including when the same
+TSX file is also imported as an executable component. They do not enter executable compilation
+or replace the component’s authorization facts.
 
 Optional `debug` settings control private server inspection catalogs and compact browser
 instrumentation. Production client and server builds should share a stable build identity.

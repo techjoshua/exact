@@ -2,10 +2,11 @@ import { loadExactViteVirtualModule } from './virtual-modules.js';
 import { ExactViteDevelopmentEnhancementCatalog } from './development-enhancement-catalog.js';
 import { refreshExactViteCatalogModules } from './intl-hot-update.js';
 import { ExactViteDevelopmentUpdates } from './development-updates.js';
-import { createExactViteRootOwners } from './root-owners.js';
+import { createExactViteRootOwners, exactViteApplicationRoot } from './root-owners.js';
 import { existsSync } from 'node:fs';
 import { preflightExactViteChangedSource } from './changed-source-preflight.js';
 import {
+	isExactBuildAssetRequest,
 	shouldCompileExactBuildModule,
 	shouldTransformExactBuildModulePath
 } from '@exactjs/compiler/adapter-support';
@@ -71,7 +72,7 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 	) =>
 		createExactViteAuthorizationOptions(
 			options,
-			configuration.registry?.applicationRoot ?? options.applicationRoot ?? process.cwd(),
+			exactViteApplicationRoot(configuration, options),
 			host,
 			command
 		);
@@ -196,6 +197,7 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 			});
 		},
 		async resolveId(source, importer, hookOptions) {
+			if (isExactBuildAssetRequest(source)) return null;
 			const requestTarget = testModuleTargets.request(importer, hookOptions?.ssr, source);
 			const catalogId = developmentCatalog.resolve(source, requestTarget, viteCommand);
 			if (catalogId) return catalogId;
@@ -371,9 +373,8 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 		},
 		closeBundle: async () => disposeBuildProcesses(),
 		transform(code, id, hookOptions) {
-			if (isExactViteCacheModule(id, viteCacheDir)) return null;
-			const applicationRoot =
-				configuration.registry?.applicationRoot ?? options.applicationRoot ?? process.cwd();
+			if (isExactBuildAssetRequest(id) || isExactViteCacheModule(id, viteCacheDir)) return null;
+			const applicationRoot = exactViteApplicationRoot(configuration, options);
 			const requestTarget = testModuleTargets.transform(code, id, hookOptions?.ssr, {
 				root: applicationRoot,
 				session: compiler.current,

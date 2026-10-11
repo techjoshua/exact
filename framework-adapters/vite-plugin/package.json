@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/vite-plugin",
-	"version": "0.7.1",
+	"version": "0.7.2",
 	"type": "module",
 	"files": [
 		"AGENTS.md",
@@ -24,7 +24,7 @@
 	"dependencies": {
 		"@exactjs/component-library-policy": "^0.7.1",
 		"@exactjs/config": "^0.7.0",
-		"@exactjs/compiler": "^0.7.1",
+		"@exactjs/compiler": "^0.7.2",
 		"@exactjs/devtools-protocol": "^0.7.0",
 		"@exactjs/devtools-runtime": "^0.7.0",
 		"@exactjs/instrumentation": "^0.7.0",

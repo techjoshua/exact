@@ -379,7 +379,16 @@ register resolved type-only imports and ambient declarations with their build wa
 watch queries select the requesting source’s dependency graph, excluding its own file and unrelated
 modules. Bun starts a fresh program at each build boundary because it supplies no changed-file set.
 Resolution, HMR,
-asset emission, and build-tool lifecycle behavior remain adapter-owned.
+asset emission, and build-tool lifecycle behavior remain adapter-owned. Shared adapter selection
+classifies `?raw` and `?url` query keys as asset representations before executable analysis.
+Vite leaves their text or URL wrappers to its asset loader and does not assign test projections,
+compiler observations, internationalization analysis, or authorization facts to those wrappers.
+Webpack excludes the same queries from its installed compiler pre-loader and explicit loader, preserving the host’s
+`asset/source` and `asset/resource` rules. Combined asset queries remain assets. Ordinary cache
+queries and `exact-target` test projections remain executable. Bun has no built-in query convention
+for these imports. A host asset plugin can resolve them into a separate namespace and return text
+without entering the eXact source loader. Executable importer fingerprints and stale-generation
+rejection remain unchanged. Client artifact isolation still rejects server artifact disclosure.
 Watch diagnostics apply the owning TypeScript project's file-checking policy, including
 `skipLibCheck`, `skipDefaultLibCheck`, `checkJs`, and `noCheck`, along with TypeScript diagnostic
 directives and the limited diagnostics allowed in unchecked JavaScript. Published `.exact.client` and
