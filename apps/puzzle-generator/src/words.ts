@@ -31,8 +31,9 @@ export function parseWords(source: string): string[] {
 
 /**
  * Parses one crossword entry per line using the human-readable `answer - clue` format.
- * Dash separators accept optional surrounding whitespace. A spaced separator takes precedence
- * so hyphenated answers remain usable. Without one, the first dash separates the clue.
+ * Dash separators accept optional surrounding whitespace. A later spaced separator preserves
+ * a hyphenated answer only when the preceding text is one compact token. Otherwise the first
+ * dash separates the clue, retaining any later dashes within its text.
  * A line without a separator remains usable and receives an explicit missing-clue label.
  */
 export function parseCrosswordClues(source: string): CrosswordClue[] {
@@ -64,7 +65,12 @@ function parseCrosswordInput(
 	for (const [index, rawLine] of source.split(/\r?\n/).entries()) {
 		const line = rawLine.trim();
 		if (!line) continue;
-		const separator = line.match(/\s+(?:-|–|\u2014)\s+/) ?? line.match(/[-–\u2014]/);
+		const firstSeparator = line.match(/[-–\u2014]/);
+		const spacedSeparator = line.match(/\s+(?:-|–|\u2014)\s+/);
+		const separator =
+			spacedSeparator && !/\s/.test(line.slice(0, spacedSeparator.index).trim())
+				? spacedSeparator
+				: firstSeparator;
 		const answerSource = separator ? line.slice(0, separator.index) : line;
 		const word = normalizeWord(answerSource);
 		if (!word || entries.has(word)) continue;

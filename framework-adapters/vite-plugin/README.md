@@ -25,8 +25,8 @@ Use `target: 'server'` for server artifacts, `serverComponents: true` for split 
 builds, and `reactCompatibility` only when the application consumes React-owned packages.
 The plugin rejects mismatched Vite and eXact build targets.
 Set `renderMode: 'hydrate'` for a browser bundle that adopts SSR HTML, or `renderMode: 'client'`
-for a fresh-mount-only browser bundle. These modes prune unused emitted contract fields; the
-default `universal` behavior preserves the complete contract.
+for fresh browser mounts. These modes prune unused contract fields. The default `universal`
+behavior preserves the complete contract.
 For an SSR-only server entry, combine `target: 'server'` with `renderMode: 'server-render'` to omit
 later continuation-dispatch executors. Keep the default for a server bundle that also calls
 `composeExactExecutorContract()` or handles continuation requests.
@@ -36,15 +36,14 @@ later continuation-dispatch executors. Keep the default for a server bundle that
 The plugin compiles eXact TSX, configures the automatic JSX runtime, resolves generated `.exact` facades, preserves Vite's platform conditions, supports HMR, and keeps server-only code out of the final browser graph. Middleware development SSR uses the same plugin for `ssrLoadModule()`. Installed `@exactjs/*` packages and declared participating component libraries stay in its SSR graph so target exports and enhancement catalogs remain coordinated without manual registration or an eXact-specific `ssr.noExternal` rule. Published component libraries and their framework runtimes also stay outside Vite dependency optimization so renderer enhancement imports remain active and hydration shares one runtime instance.
 
 For `target: 'server'`, compiler-recorded component package requests are resolved and authorized
-before Vite loads their implementations. Configure trust once through `componentLibraries` in
-`exact.config.*`; successful builds emit server-private authorization and audit manifests under
-`.exact/`. Client-only package components do not pass through this server authorization gate.
-Server dependency discovery waits for authorization; allowed packages use ordinary Rollup chunking.
+before Vite loads their implementations. Configure trust through `componentLibraries` in
+`exact.config.*`. Builds emit server-private authorization and audit manifests under `.exact/`.
+Client-only package components do not pass through this server authorization gate.
+Server dependency discovery waits for authorization. Allowed packages use ordinary Rollup chunking.
 
-Attributed enhancement imports populate the shared bundle-local enhancement catalog. The adapter
-routes renderers through facades that supply it; the compiler maintains no plugin registry. An
-attributed `scope: 'package'` namespace supplies a virtual namespace to every package component,
-with registration emitted only from modules that activate it.
+Attributed enhancement imports populate the shared bundle-local catalog, supplied through renderer
+facades. A `scope: 'package'` namespace supplies a virtual namespace to every package component.
+Only modules that activate it emit registration. The compiler maintains no plugin registry.
 
 The optional `internationalization` integration analyzes source messages, watches XLIFF or
 protocol-JSON catalogs, and emits component-owned translation companions. It supports descriptor
@@ -54,15 +53,13 @@ for catalog ownership, locale selection, invalidation, and polyfill configuratio
 
 `include` and `exclude` select transformed modules. Tests stay runner-owned unless
 `compileTestModules` is true. `typescriptConfig` can select their test project.
-Vite `?raw` and `?url` imports retain the host asset representation, including when the same
-TSX file is also imported as an executable component. They do not enter executable compilation
-or replace the component’s authorization facts.
+Vite `?raw` and `?url` imports preserve host assets alongside executable TSX imports,
+without entering compilation or replacing component authorization facts.
 
-Optional `debug` settings control private server inspection catalogs and compact browser
-instrumentation. Production client and server builds should share a stable build identity.
+Optional `debug` settings control private inspection catalogs and browser instrumentation. Share a stable build identity across production targets.
 
-See [eXact DevTools](https://github.com/techjoshua/exact/blob/main/docs/devtools.md) and [component registries](https://github.com/techjoshua/exact/blob/main/docs/component-registries.md). Component authorization permits
-in-process server execution and is not a JavaScript sandbox.
+See [eXact DevTools](https://github.com/techjoshua/exact/blob/main/docs/devtools.md) and [component registries](https://github.com/techjoshua/exact/blob/main/docs/component-registries.md).
+Component authorization permits in-process server execution and is not a JavaScript sandbox.
 
 [Documentation](https://techjoshua.github.io/exact/#/runtimes) | [Source on GitHub](https://github.com/techjoshua/exact/tree/main/framework-adapters/vite-plugin)
 
@@ -76,7 +73,7 @@ export default defineConfig({ plugins: [exactSingleFile()] });
 
 This builds one HTML entry with embedded scripts, styles, imported images, and fonts. Dynamic
 imports are folded into the script. Use hash navigation for offline `file:` URLs. Import assets
-through Vite; external CSS/modules, unresolved URLs, `srcset`, separate worker files, and server
+through Vite. External CSS/modules, unresolved URLs, `srcset`, separate worker files, and server
 operations are rejected. Optional application fetches still require connectivity.
 
 `buildExactViteApplication()` accepts an optional `afterBuild(configFile)` callback to publish

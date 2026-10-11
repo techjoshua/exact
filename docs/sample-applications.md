@@ -23,11 +23,12 @@ default to pure white. Crosswords color an individual empty cell black by defaul
 neighbors contain letters. Adjacent empty groups use the other unused-cell color. Separate
 color-control rows cover letter cells, enclosed cells, and other unused cells. The optional local AI
 helper starts collapsed. Crossword answer/clue dash separators accept optional surrounding
-spaces. A spaced separator preserves hyphenated answers, otherwise the first dash separates the
-clue. Invalid crossword answers report their original input line and line number, preserving spaces
+spaces. A later spaced separator preserves a compact hyphenated answer. Otherwise the first dash
+separates the answer, keeping later dashes within the clue. Invalid crossword answers report their original input line and line number, preserving spaces
 and punctuation. Manual clues have no character limit. An optional clue setting adds an
 underlined answer space with one underscore per answer letter before each clue, retaining grid
-numbers in both puzzle and solution exports. Light mode uses pale neutral surfaces with blue accents. Advertised hosted
+numbers in both puzzle and solution exports. Clues wrap within each column. Oversized answer
+blanks and unbroken words fit the column width without losing characters. Light mode uses pale neutral surfaces with blue accents. Advertised hosted
 applications link back with a GitHub Pages-relative URL to the documentation page for the framework
 behavior they demonstrate.
 

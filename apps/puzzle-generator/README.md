@@ -25,14 +25,15 @@ Every input change regenerates the current puzzle. **Shuffle** changes its seed.
 is normalized and checked before placement. Hard searches add near-match decoys, and generated
 rows, columns, and diagonals are regenerated when they contain a conservative list of blocked
 sequences. Crossword entries use one human-readable `answer - clue` line apiece. Dash separators accept
-spaces on either side or neither side, including en dashes and em dashes. A spaced separator
-takes precedence so hyphenated answers such as `X-RAY - Imaging technique` remain usable.
-Otherwise, the first dash separates the answer from its clue. Manual clues have no character limit.
+spaces on either side or neither side, including en dashes and em dashes. A spaced separator preserves
+hyphenated answers such as `X-RAY - Imaging technique` when the preceding text is one compact
+token. Otherwise, the first dash separates the answer and keeps later dashes within the clue. Manual clues have no character limit.
 Generation creates numbered Across and Down clue tables and reports words that cannot be joined. Enable **Answer
 spaces before clues** in the Crossword clues settings to print prompts such as
 `1. _____: Icy visitor with a tail` for COMET. Each space uses one underscore per letter in the
 answer, and the clue number still identifies its grid position. This setting starts off and applies to
-both puzzle and solution exports. Crossword grid lines,
+both puzzle and solution exports. Clues wrap within each column. Oversized answer blanks and
+unbroken words fit the column width without losing characters. Crossword grid lines,
 unused cells, and letter-cell backgrounds have independent colors. Invalid inputs remain visible as
 errors. Crossword answer-validation errors identify the original input line and its line number,
 preserving spaces and punctuation. Page-fit scaling and disconnected crossword entries are reported

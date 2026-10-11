@@ -264,14 +264,19 @@ function clueTable(
 			`<text x="${x}" y="{Y}" font-family="${fontFamily}" font-size="${fontSize + 2}" font-weight="700" fill="${xml(style.ink)}">${orientation === 'across' ? 'Across' : 'Down'}</text>`
 		];
 		for (const entry of entries) {
-			const limit = Math.max(12, Math.floor(columnWidth / (fontSize * 0.56)));
+			const limit = Math.max(1, Math.floor((columnWidth - 14) / (fontSize * 0.62)));
 			const prefix = style.crosswordClueAnswerSpaces
 				? `${entry.number}. ${'_'.repeat(entry.word.length)}: `
 				: `${entry.number}. `;
 			const lines = wrapClue(entry.clue, limit, prefix);
 			for (const [index, text] of lines.entries()) {
+				const availableWidth = columnWidth - (index ? 14 : 0);
+				const fit =
+					text.length > limit
+						? ` textLength="${availableWidth}" lengthAdjust="spacingAndGlyphs"`
+						: '';
 				markup.push(
-					`<text x="${x + (index ? 14 : 0)}" y="{Y}" dy="${line * lineHeight}" font-family="${fontFamily}" font-size="${fontSize}" fill="${xml(style.ink)}">${xml(text)}</text>`
+					`<text x="${x + (index ? 14 : 0)}" y="{Y}" dy="${line * lineHeight}"${fit} font-family="${fontFamily}" font-size="${fontSize}" fill="${xml(style.ink)}">${xml(text)}</text>`
 				);
 				line++;
 			}
@@ -285,12 +290,11 @@ function clueTable(
 	};
 }
 
-/** Keeps each clue's number and optional answer space on the same line as its first word. */
+/** Wraps clue words after an intact number and optional answer-space prefix. */
 function wrapClue(clue: string, limit: number, prefix: string): string[] {
 	const lines: string[] = [];
-	const [first = '', ...words] = clue.split(/\s+/);
-	let current = `${prefix}${first}`;
-	for (const word of words) {
+	let current = prefix.trimEnd();
+	for (const word of clue.split(/\s+/)) {
 		if (`${current} ${word}`.length <= limit) current = current ? `${current} ${word}` : word;
 		else {
 			lines.push(current);

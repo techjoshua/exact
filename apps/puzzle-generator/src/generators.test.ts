@@ -252,6 +252,15 @@ describe('document and input contracts', () => {
 		);
 	});
 
+	it.each(['-', '–', '\u2014'])(
+		'keeps later spaced dashes in a clue after an unspaced %s separator',
+		(dash) => {
+			expect(parseCrosswordClues(`ORBIT${dash}Path around a planet — with details`)).toEqual([
+				{ word: 'ORBIT', clue: 'Path around a planet — with details' }
+			]);
+		}
+	);
+
 	it('preserves hyphenated answers when an explicit spaced separator is present', () => {
 		expect(parseCrosswordClues('X-RAY - Imaging technique with a dash-bearing clue')).toEqual([
 			{ word: 'XRAY', clue: 'Imaging technique with a dash-bearing clue' }
@@ -311,6 +320,40 @@ describe('document and input contracts', () => {
 			expect(lines.join(' ')).toContain('Icy visitor with a tail');
 		}
 	);
+
+	it('fits answer blanks and wraps clues within compact columns at large mono sizes', () => {
+		const puzzle: CrosswordPuzzle = {
+			rows: 24,
+			columns: 5,
+			cells: Array(120).fill(undefined),
+			words: ['COMET', 'CDEFGHIJKLMNOPQRSTUVWXYZ'],
+			entries: [
+				{ word: 'COMET', clue: 'Icy visitor with a tail', number: 1, orientation: 'across' },
+				{
+					word: 'CDEFGHIJKLMNOPQRSTUVWXYZ',
+					clue: 'Supercalifragilisticexpialidocious visitor',
+					number: 2,
+					orientation: 'down'
+				}
+			],
+			unplaced: []
+		};
+		const svg = renderCrosswordSvg(
+			puzzle,
+			{ ...style, supplementaryFontSize: 48, crosswordClueAnswerSpaces: true },
+			false
+		);
+		const lines = [...svg.matchAll(/<text([^>]*)>([^<]*)<\/text>/g)];
+		expect(lines.some((line) => line[2] === '1. _____:')).toBe(true);
+		expect(lines.some((line) => line[2] === 'Icy')).toBe(true);
+		expect(lines.some((line) => line[2] === `2. ${'_'.repeat(24)}:`)).toBe(true);
+		for (const line of lines.filter((line) => /_+:|Supercalifragilistic/.test(line[2]!))) {
+			const width = Number(line[1]!.match(/textLength="([^"]+)"/)?.[1]);
+			expect(width).toBeGreaterThan(0);
+			expect(width).toBeLessThanOrEqual(264);
+			expect(line[1]).toContain('lengthAdjust="spacingAndGlyphs"');
+		}
+	});
 
 	it('renders custom page dimensions and margins and rejects unusable print regions', () => {
 		const puzzle = generateSudoku(2, 'easy', 7);
