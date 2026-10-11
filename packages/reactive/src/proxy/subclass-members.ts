@@ -1,5 +1,5 @@
 import { mutateArray } from '../arrays/mutation.js';
-import { track, trigger } from '../internal/deps.js';
+import { track } from '../internal/deps.js';
 import { iterateKey } from '../internal/symbols.js';
 import type { ReactiveOptions } from '../internal/types.js';
 import { captureCustomProperties } from './custom-member-properties.js';
@@ -28,7 +28,7 @@ export function customArrayMember(
 		try {
 			return wrap(mutateArray(target, String(key), method, args, receiver, options));
 		} finally {
-			if (publish()) trigger(target, iterateKey);
+			publish();
 		}
 	};
 	cache.set(method, bound);

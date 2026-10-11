@@ -15,7 +15,8 @@ Reactive property-creation tests protect key enumeration, membership, array leng
 when a new own property has an unchanged read value. Missing `undefined` properties, array holes,
 array extension, and inherited-value shadowing still publish structural changes. General and
 compiler-selected object/array proxies share this contract. General proxies also cover custom
-Map and Set fields.
+Map and Set fields. Raw-receiver method/accessor fixtures distinguish own-property enumeration
+from native collection entry iteration and preserve rollback, readonly, and unchanged-write controls.
 
 The acceptance matrix crosses supported value families with publication boundaries, rather than
 using only the data shape from the latest application report. Collection checks include Maps,

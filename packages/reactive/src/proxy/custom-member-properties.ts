@@ -1,8 +1,9 @@
 import { hasActiveTransaction, recordTransactionUndo, trigger } from '../internal/deps.js';
 import { createPropertyUndo, arrayIndex } from '../arrays/property-undo.js';
 import { samePropertyDescriptor } from './property-descriptors.js';
+import { iterateKey } from '../internal/symbols.js';
 
-/** Captures public subclass properties before a raw receiver call and publishes their changes. */
+/** Captures public fields before a raw receiver call and publishes field and own-key changes. */
 export function captureCustomProperties(target: object): (readonly?: boolean) => boolean {
 	const previous = new Map<PropertyKey, PropertyDescriptor>();
 	const undo = new Map<PropertyKey, ReturnType<typeof createPropertyUndo>>();
@@ -36,6 +37,8 @@ export function captureCustomProperties(target: object): (readonly?: boolean) =>
 			trigger(target, key);
 		}
 		if (readonly && changed) throw new TypeError('Cannot mutate readonly reactive properties');
+		// Own-property enumeration has a separate dependency from native Map/Set entry iteration.
+		if (changed) trigger(target, iterateKey);
 		return changed;
 	};
 }
