@@ -117,6 +117,24 @@ func (query *sourceValueQuery) branchDecision(node *ast.Node, bindings sourceVal
 	if known, truthy, nullish = query.literalDecision(node, bindings); known || node == nil {
 		return
 	}
+	// A logical predicate needs only the selected operand's predicate. Asking
+	// acquisition for the whole expression would ask for its left predicate
+	// again and then traverse that left subtree again, duplicating nested work.
+	// An unresolved left operand remains unknown, without proving either route.
+	if ast.IsBinaryExpression(node) {
+		binary := node.AsBinaryExpression()
+		op := binary.OperatorToken.Kind
+		if op == ast.KindBarBarToken || op == ast.KindAmpersandAmpersandToken || op == ast.KindQuestionQuestionToken {
+			known, truthy, nullish = query.branchDecision(binary.Left, bindings)
+			if !known {
+				return
+			}
+			if sourceLogicalTakesRight(op, truthy, nullish) {
+				return query.branchDecision(binary.Right, bindings)
+			}
+			return
+		}
+	}
 	previous := query.initializing
 	query.initializing = node
 	defer func() { query.initializing = previous }()

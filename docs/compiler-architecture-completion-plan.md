@@ -204,6 +204,8 @@ The following is a consumer contract, not a requirement to allocate a new record
 | Mutation and joins         | Keep acquired scalar snapshots distinct from live captured bindings. Track object identity only as precisely as the requested dependency needs. Strong replacement requires definite target/key/order and covered interference, otherwise union old/new and unknown alternatives.                                                           |
 | Validity and termination   | A summary is valid only for its Program/source/configuration/selected-source dependencies and the mutation facts used at its observation boundary. Initially it may be request-local and uncached. Recursion and repeated contexts must converge through finite joins/widening or produce a conservative result with known donors retained. |
 
+Predicate observation follows the shared logical short-circuit rule directly, without reacquiring an entire left subtree to ask for its predicate again. Forwarding obligations retain each source reference once in first-seen order. Their consumers check reference membership, so repeated joins must not duplicate the retained path. Interference scans contribute a monotone opacity verdict and can stop after that verdict is known, while still computing the member boundary proof and leaving known values, indexed writes and getter effects with their owning analyses. These local bounds do not establish request-wide acquisition termination or package-compilation acceptance.
+
 The first summary slice must distinguish these controls:
 
 - `let x=a; const f=()=>x.value; x=b; f()` reads the later live binding `x`.

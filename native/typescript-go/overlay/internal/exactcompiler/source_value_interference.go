@@ -63,11 +63,19 @@ func (query *sourceValueQuery) interferenceInSources(origin *ast.Node, projectio
 	if mode == accessorAcquire && ast.IsObjectLiteralExpression(origin) && len(projection) == 1 && name == "" && !query.provingFunctionOperation {
 		boundary = query.sourceMemberOperation(origin, projection, name, mode, bindings, result)
 	}
+	// Interference contributes only the monotone opacity verdict. Boundary proof
+	// above remains required by the member-write owner even when already opaque.
+	if result.opaque {
+		return boundary
+	}
 	// One scan retains the same origin, demand, bindings and restored creator context.
 	// Cache complete predicates only, never a query failure or an acquired mutable cell.
 	seen := make(map[*ast.Node]bool)
 	visit := func(calls []*ast.Node) {
 		for _, node := range calls {
+			if result.opaque {
+				return
+			}
 			completed := false
 			for _, receipt := range nativeInputs {
 				if !query.charge(result, node) {
@@ -318,6 +326,11 @@ func (query *sourceValueQuery) receiverInterference(body, call *ast.Node, demand
 // installation reuses its receiver, captures and formal/default decisions. It
 // never rebinds that input domain or suppresses possible writes/foreign routes.
 func (query *sourceValueQuery) receiverInterferenceAtInputs(body, call *ast.Node, demanded sourceValue, bindings sourceValueBindings, result *accessorCandidates, active map[*ast.Node]bool, installed *sourceValueInputs) {
+	// Values and getter effects belong to acquisition, not this may-write scan.
+	// Once opacity is retained, more writer routes cannot change its verdict.
+	if result.opaque {
+		return
+	}
 	priorInspection := query.receiverInspection
 	query.receiverInspection = nil
 	defer func() { query.receiverInspection = priorInspection }()
@@ -338,6 +351,9 @@ func (query *sourceValueQuery) receiverInterferenceAtInputs(body, call *ast.Node
 	}
 	query.withActiveInvocation(call, func() {
 		for _, demand := range query.owner.summary(body).nodes {
+			if result.opaque {
+				return
+			}
 			if installed != nil {
 			}
 			query.owner.interferenceWork++

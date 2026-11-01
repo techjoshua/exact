@@ -249,16 +249,22 @@ func (query *sourceValueQuery) privateNativeForwardingAt(value sourceValue, owne
 	return true
 }
 
-// forwardingTrace charges every retained reference before copying it. A refused
-// trace is not a partial lifetime proof, and the ordinary query remains opaque.
+// forwardingTrace retains each source reference once, in first-seen order.
+// Consumers check reference membership, not visit multiplicity. Repeated joins
+// therefore stay bounded by source identities rather than duplicating paths.
+// Every input is charged, and refusal never publishes a partial lifetime proof.
 func (query *sourceValueQuery) forwardingTrace(result *accessorCandidates, groups ...[]*ast.Node) []*ast.Node {
 	var nodes []*ast.Node
+	seen := make(map[*ast.Node]bool)
 	for _, group := range groups {
 		for _, node := range group {
 			if !query.charge(result, node) {
 				return nil
 			}
-			nodes = append(nodes, node)
+			if !seen[node] {
+				seen[node] = true
+				nodes = append(nodes, node)
+			}
 		}
 	}
 	return nodes
