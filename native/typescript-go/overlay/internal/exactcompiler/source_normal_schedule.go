@@ -431,9 +431,6 @@ func (query *sourceValueQuery) consumeNormalPhase(phase sourceNormalPhase, bindi
 }
 
 func (query *sourceValueQuery) normalArgumentObservation(node *ast.Node, bindings sourceValueBindings, result *accessorCandidates) sourceResultObservation {
-	if query.holdClosedPrefix(node, result) {
-		return sourceResultObservation{incomplete: true, effects: sourceEffectsRefused}
-	}
 	value, _ := query.normalResultValueOperand(node, result)
 	// Budgeted projection can refuse a nonnil operand. Its obligations already
 	// retain that refusal, while the missing value stays incomplete.

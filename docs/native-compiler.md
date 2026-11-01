@@ -1846,8 +1846,11 @@ request precision execution for every unused initializer. Session collection no 
 attaches or index-qualifies the unreachable module-prefix execution adapter. Normal phase
 admission no longer dispatches its first entry. No production requester supplied its required
 original-statement precision frame. Production-requested default, Get, async and own-getter
-refinement retain their separate normal input and lifetime checks. Prefix-only candidate,
-qualification and continuation declarations remain for a separate consumer audit and retirement.
+refinement retain their separate normal input and lifetime checks. The historical prefix hold
+guards and Call-retargeting lookup are removed from ordinary source consumers, along with the
+uncalled candidate authentication and entry methods. Generic provenance and normal phase consumers
+keep their existing fallback semantics. Prefix-only reservation, qualification, history and
+continuation declarations remain for a separate consumer audit and retirement.
 Their remaining internal tests do not establish production reachability.
 
 Effect contributions remain additive. A missing precise Return value can leave the value

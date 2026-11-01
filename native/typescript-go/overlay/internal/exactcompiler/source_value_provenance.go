@@ -231,9 +231,6 @@ func (owner *sourceValueOwner) summary(node *ast.Node) sourceValueSummary {
 // origins keeps initializer-time values separate from later writes to each binding.
 // Source ordering is relative to the binding's owner, independent of declaration spelling.
 func (query *sourceValueQuery) origins(node *ast.Node, bindings sourceValueBindings, result *accessorCandidates) (terms []sourceValue) {
-	if query.holdClosedPrefix(node, result) {
-		return nil
-	}
 	defer func() {
 		if query.returnObservation == nil || node == nil {
 			return
@@ -392,9 +389,6 @@ func (query *sourceValueQuery) origins(node *ast.Node, bindings sourceValueBindi
 // originsAt evaluates binding provenance at its authored initialization or argument site.
 // This is a finite source-order filter, not a runtime cell or an object snapshot.
 func (query *sourceValueQuery) originsAt(node, at *ast.Node, bindings sourceValueBindings, result *accessorCandidates) []sourceValue {
-	if query.holdClosedPrefix(node, result) || query.holdClosedPrefix(at, result) {
-		return nil
-	}
 	previous := query.initializing
 	query.initializing = at
 	values := query.origins(node, bindings, result)

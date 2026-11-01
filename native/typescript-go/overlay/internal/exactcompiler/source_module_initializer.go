@@ -17,12 +17,6 @@ func preflightModuleInitializer(owner *executableBodyOwner, statement *ast.Node)
 		return nil, nil, false
 	}
 
-	if h := owner.values.prefixHistory(statement); h != nil && h.recipe.binding != nil && h.statement == statement && h.state == prefixQualified {
-		return h.recipe.binding.declaration, nil, true
-	}
-	if owner.values.prefixHistory(statement) != nil {
-		return nil, nil, false
-	}
 	source := ast.GetSourceFileOfNode(statement)
 	if source == nil || statement.Parent != source.AsNode() || source.IsDeclarationFile {
 		return nil, nil, false

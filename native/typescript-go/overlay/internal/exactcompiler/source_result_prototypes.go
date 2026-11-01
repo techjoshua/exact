@@ -33,11 +33,6 @@ func (query *sourceValueQuery) consumePropertyModules(view *sourcePropertyRefere
 		if source == nil || visited[source] {
 			return
 		}
-		if h := query.owner.closedPrefixes[source]; h != nil && h.state != prefixRefused {
-			visited[source] = true
-			incomplete = true
-			return
-		}
 		if !query.charge(result, source.AsNode()) {
 			incomplete = true
 			return

@@ -26,10 +26,6 @@ type sourceInvocationConsumer struct {
 }
 
 func (query *sourceValueQuery) invocation(node *ast.Node, bindings sourceValueBindings) (result accessorCandidates) {
-	if query.holdClosedPrefix(node, &result) {
-		result.invocationOwned = true
-		return
-	}
 	defer query.normalWork(&result, node)()
 	slot := query.normalOperation(node, false)
 	if slot != nil {
@@ -97,12 +93,8 @@ func (query *sourceValueQuery) invocation(node *ast.Node, bindings sourceValueBi
 // consumeInvocation is the single existing ordinary selection/adapter boundary.
 // Its consumer receives each installed alternative under its acquired captures.
 func (query *sourceValueQuery) consumeInvocation(node *ast.Node, bindings sourceValueBindings, consumer sourceInvocationConsumer) (result accessorCandidates) {
-	if query.holdClosedPrefix(node, &result) {
-		result.invocationOwned = true
-		return
-	}
-	// A binding may have a real normal phase without an admitted prefix. That
-	// does not turn its declaration into an authored Call or constructor.
+	// A binding may have a real normal phase. Its declaration is still not
+	// an authored Call or constructor.
 	if node == nil || !ast.IsCallExpression(node) && !ast.IsNewExpression(node) {
 		result.opaque, result.valueIncomplete, result.cause = true, true, node
 		return
@@ -735,13 +727,9 @@ func sourceNumericPrimitive(node *ast.Node) bool {
 // prepareInvocation is the existing selection owner, split before input/default
 // dispatch. Retained alternatives cannot be retargeted by argument writes.
 func (query *sourceValueQuery) prepareInvocation(node *ast.Node, bindings sourceValueBindings) (sourcePreparedInvocation, accessorCandidates) {
-	prefixResult := accessorCandidates{}
-	if query.holdClosedPrefix(node, &prefixResult) {
-		return sourcePreparedInvocation{}, prefixResult
-	}
 	result := accessorCandidates{}
-	// Prefix refusal is allowed before entry. Its declaration remains an
-	// unsupported binding operation, never a Call selected by this fallback.
+	// A binding declaration remains an unsupported invocation operation,
+	// never a Call selected by this fallback.
 	if node == nil || !ast.IsCallExpression(node) {
 		result.opaque, result.valueIncomplete, result.cause = true, true, node
 		return sourcePreparedInvocation{base: selectionProjection(result), remaining: query.remaining}, result

@@ -86,9 +86,6 @@ func normalGetBinding(node, owner *ast.Node, inputs *sourceValueInputs, typeChec
 // consumeNormalOperand owns a binding's Get or reads an already-produced receipt. It never invokes the
 // RHS or treats successful await alternatives as guaranteed normal completion.
 func (query *sourceValueQuery) consumeNormalOperand(demand sourceNormalOperand, owner *ast.Node, bindings sourceValueBindings, result *accessorCandidates, inputs *sourceValueInputs) {
-	if query.holdClosedPrefix(demand.node, result) {
-		return
-	}
 	defer query.normalWork(result, demand.node)()
 	if ast.IsVariableDeclaration(demand.node) {
 		query.produceLexicalCell(demand.node, owner, bindings, inputs, result)

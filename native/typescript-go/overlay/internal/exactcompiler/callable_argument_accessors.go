@@ -62,7 +62,7 @@ func (domain *sourceDefinitionMAYCall) registered(caller *callableFacts, call *a
 // module execution stay ordinary. Primitive type information decides
 // whether return/coercion opacity is needed, never certifying a result or purity.
 func prepareDefinitionMAYCall(caller, callee *callableFacts, node *ast.Node, symbol *ast.Symbol, c *checker.Checker, owner *executableBodyOwner, parent *callableFacts) *sourceDefinitionMAYCall {
-	if caller == nil || callee == nil || owner == nil || owner.values == nil || owner.values.checker != c || !ast.IsFunctionDeclaration(callee.node) || caller.node.Parent == nil || callee.node.Parent == nil || !ast.IsSourceFile(callee.node.Parent) || ast.GetSourceFileOfNode(caller.node) != ast.GetSourceFileOfNode(callee.node) || enclosingCallableNode(node) != caller.node || caller.normalInputs == nil || caller.normalInputs.invocation != nil || owner.values.prefixHistory(node) != nil || symbol == nil || symbol.ValueDeclaration != callee.node {
+	if caller == nil || callee == nil || owner == nil || owner.values == nil || owner.values.checker != c || !ast.IsFunctionDeclaration(callee.node) || caller.node.Parent == nil || callee.node.Parent == nil || !ast.IsSourceFile(callee.node.Parent) || ast.GetSourceFileOfNode(caller.node) != ast.GetSourceFileOfNode(callee.node) || enclosingCallableNode(node) != caller.node || caller.normalInputs == nil || caller.normalInputs.invocation != nil || symbol == nil || symbol.ValueDeclaration != callee.node {
 		return nil
 	}
 	if caller.normalInputs.declaration != caller.node || caller.normalInputs.ownedFact != caller {

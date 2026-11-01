@@ -96,9 +96,7 @@ func collectDirectCallableEffects(
 		selection := sourceValueQuery{owner: owner.values, executable: owner, effectOwner: fact.node, remaining: 4096, active: make(map[*ast.Node]bool), inputs: fact.normalInputs}
 		selected := accessorCandidates{}
 		selection.installPriorPropertyFacts(facts, &selected)
-		if ast.IsFunctionLike(fact.node) || owner.values.prefixHistory(fact.node) == nil {
-			selection.prepareNormalStatementSelection(&selected)
-		}
+		selection.prepareNormalStatementSelection(&selected)
 		appendOpaqueAccessorEffect(fact, selected)
 	}
 	var moduleFlow *sourceValueQuery
@@ -142,10 +140,8 @@ func collectDirectCallableEffects(
 			}()
 		}
 		appendDirectReferenceEffects(fact, node, sourceFile, typeChecker)
-		if !precisionRequested || owner.values.prefixHistory(node) == nil {
-			appendAccessorEffects(fact, node, nodeTargets, sourceFile, typeChecker, owner)
-		}
-		if demand, dependent := describeNormalOperand(node); (!precisionRequested || owner.values.prefixHistory(node) == nil) && (!dependent || !demand.pattern) {
+		appendAccessorEffects(fact, node, nodeTargets, sourceFile, typeChecker, owner)
+		if demand, dependent := describeNormalOperand(node); !dependent || !demand.pattern {
 			appendImplicitAccessorEffects(fact, node, nodeTargets, sourceFile, typeChecker, nil, owner)
 		}
 		if !ast.IsCallExpression(node) {
@@ -184,15 +180,6 @@ func collectDirectCallableEffects(
 			// still establishes a precise edge, including context and state effects.
 			if immediate, exists := nodeTargets[unwrapRenderExpression(call.Expression)]; exists {
 				targetIndex, resolved = immediate, true
-			}
-			if h := owner.values.prefixHistory(node); h != nil && h.receipt != nil && len(h.receipt.alternatives) == 1 {
-				inputs := h.receipt.alternatives[0].callInputs
-				if inputs != nil && inputs.calleeReady && inputs.callee.callable != nil {
-					if target, exists := nodeTargets[inputs.callee.callable.proof.arrow]; exists {
-						targetIndex, resolved = target, true
-						targetSymbol = nil
-					}
-				}
 			}
 		}
 		registerEdge := func(invocation accessorCandidates) {
@@ -292,9 +279,6 @@ func collectDirectCallableEffects(
 		return true
 	}
 	consumeOperand := func(demand sourceNormalOperand) {
-		if !ast.IsFunctionLike(fact.node) && owner.values.prefixHistory(demand.node) != nil {
-			return
-		}
 		values := newSourceValueOwner(typeChecker)
 		if owner != nil && owner.values != nil {
 			values = owner.values
@@ -333,7 +317,7 @@ func collectDirectCallableEffects(
 
 		if !supportedBindingDeclaration(phase.node) {
 			appendOwnedGetFact(fact, phase.node, result, nodeTargets, sourceFile, typeChecker)
-		} else if phase.role == sourceNormalSelect && result.opaque && result.valueIncomplete && owner.values.prefixHistory(phase.node) == nil {
+		} else if phase.role == sourceNormalSelect && result.opaque && result.valueIncomplete {
 			// Refused normal binding selection retains ordinary opacity without
 			// interpreting the declaration as a Call or Get.
 			appendOpaqueAccessorEffect(fact, result)
@@ -342,9 +326,6 @@ func collectDirectCallableEffects(
 		fact.normalCalls = append(fact.normalCalls, result.normalCalls...)
 	}
 	consumeFold := func(fold sourceNormalFold) {
-		if !ast.IsFunctionLike(fact.node) && owner.values.prefixHistory(fold.node) != nil {
-			return
-		}
 		query := sourceValueQuery{owner: owner.values, executable: owner, effectOwner: fact.node, remaining: 4096, active: make(map[*ast.Node]bool), inputs: fact.normalInputs, reading: fold.node, operation: &sourceOperationContext{node: fold.node, owner: fact.node, inputs: fact.normalInputs}}
 		result := accessorCandidates{}
 		query.consumeNormalFold(fold, &result)

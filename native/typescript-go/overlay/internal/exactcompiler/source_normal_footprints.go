@@ -39,9 +39,6 @@ type sourceInstalledFormal struct {
 // consumeNormalFold composes only events supplied by the actual normal driver.
 // It does not evaluate syntax, resolve values or enter deferred callable work.
 func (query *sourceValueQuery) consumeNormalFold(fold sourceNormalFold, result *accessorCandidates) {
-	if query.holdClosedPrefix(fold.node, result) {
-		return
-	}
 	defer query.normalWork(result, fold.node)()
 	inputs := query.inputs
 	if inputs == nil || !query.charge(result, fold.node) {
