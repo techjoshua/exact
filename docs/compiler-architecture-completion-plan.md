@@ -572,7 +572,9 @@ These are proportional acceptance rules for coherent behavior changes, not a ful
 
 ### First integrated delivery boundary
 
-Steps 1–7 produce one vertical delivery, not seven independently declared feature completions. It includes:
+Steps 1–7 produce one vertical delivery, not seven independently declared feature completions. New operation-family expansion waits until this boundary passes. Necessary foundation repairs and safety corrections continue within the boundary. A passing representative example does not advance a stage whose exit conditions remain unmet. When a prerequisite fails, the next assignment repairs that prerequisite or validates an independent requirement of this delivery. It does not add another optional capability.
+
+The delivery includes:
 
 - The unchanged projected-call anchor and safe/current-write/capture controls through shared analysis facts.
 - One actual mounted component using a nested helper/returned closure through a container to read observed state, with update, instance identity and cleanup assertions.
