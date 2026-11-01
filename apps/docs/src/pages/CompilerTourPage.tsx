@@ -24,6 +24,14 @@ export function CompilerTourPage(this: Component<{}>) {
 				native compiler packages retain the upstream Apache-2.0 license and third-party notices.
 			</p>
 			<p>
+				The compiler uses TypeScript's syntax tree to preserve ordinary expressions, including
+				nested calls and closures. It separately analyzes which values and operations depend on
+				component state or require a particular environment. A runtime value does not have to be
+				known during compilation. When eXact moves work into a task or continuation, its generated
+				code preserves the expression's receiver, evaluation order and error behavior. Unresolved
+				environment requirements can still prevent a client or server artifact from being emitted.
+			</p>
+			<p>
 				Before rewriting an expression, the compiler captures its authored type constraints and
 				evaluation requirements. Checking and executable lowering retain those constraints while
 				preserving receiver selection, short-circuiting, suspension, and expression results.

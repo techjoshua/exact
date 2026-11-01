@@ -1724,6 +1724,19 @@ outputs. These checks add execution evidence to the existing compiler and adapte
 
 ## Compositional source analysis
 
+Source analysis and executable transformation have separate responsibilities. Analysis follows
+bindings, calls, captures and writes to determine dependencies, effects and placement. The
+`source_language_*` owners provide selected precision refinements using compiler-owned values,
+Cells and completion records. Those records are analysis artifacts, not application runtime
+objects or emitted activation identities.
+
+Executable transformation uses the TypeScript AST visitor, factory and printer. Ordinary nested
+expressions retain JavaScript evaluation order through their AST structure. Framework transforms
+that split work across suspension or placement boundaries must preserve that order in generated
+code. Generating that code does not require a known compile-time argument value or a successful
+precision receipt for every ordinary Call. Placement diagnostics can still prevent emission when
+unresolved effects make the requested artifact unsafe.
+
 Maintainer validation uses `node scripts/build-native-compiler.mjs --source <pinned checkout>`.
 The build prepares workspace declarations with the installed official TypeScript 7 CLI,
 then stages the maintained overlay and runs its native tests before producing the host.
