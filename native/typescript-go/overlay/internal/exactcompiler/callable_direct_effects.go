@@ -234,9 +234,7 @@ func collectDirectCallableEffects(
 			definition.edge = len(fact.summary.Calls) - 1
 		}
 		invocation := accessorCandidates{}
-		if owner.values.prefixHistory(node) == nil {
-			invocation = appendArgumentAccessorEffects(fact, node, nodeTargets, sourceFile, typeChecker, owner, definition)
-		}
+		invocation = appendArgumentAccessorEffects(fact, node, nodeTargets, sourceFile, typeChecker, owner, definition)
 		fact.nativeCalls = append(fact.nativeCalls, invocation.nativeCalls...)
 		fact.normalCalls = append(fact.normalCalls, invocation.normalCalls...)
 		if definition == nil {
@@ -267,6 +265,11 @@ func collectDirectCallableEffects(
 		result := accessorCandidates{nativeCalls: fact.nativeCalls, normalCalls: fact.normalCalls}
 		bindings := fact.normalInputs.bindings
 		query.consumeNormalOperand(demand, fact.node, bindings, &result, fact.normalInputs)
+		if demand.get {
+			result = refineSourceDependencies(result, func() accessorCandidates {
+				return sourceMemberDependencies(demand.node, typeChecker, owner, fact.node, bindings)
+			})
+		}
 		if demand.pattern || demand.await || demand.get || demand.cellOnly {
 			appendOpaqueAccessorEffect(fact, result)
 			appendSourceValueWrites(fact, result, typeChecker)
@@ -279,6 +282,15 @@ func collectDirectCallableEffects(
 		result := accessorCandidates{}
 		query.returnObservation = &sourceReturnObservation{owner: fact.node, reader: phase.node, frame: fact.normalInputs, receipts: fact.nativeCalls, normalCalls: fact.normalCalls}
 		query.consumeNormalPhase(phase, fact.normalInputs.bindings, &result)
+		if ast.IsCallExpression(phase.node) {
+			result = refineSourceDependencies(result, func() accessorCandidates {
+				return sourceInvocationDependencies(phase.node, typeChecker, owner, fact.node)
+			})
+		} else if ast.IsPropertyAccessExpression(phase.node) || ast.IsElementAccessExpression(phase.node) {
+			result = refineSourceDependencies(result, func() accessorCandidates {
+				return sourceMemberDependencies(phase.node, typeChecker, owner, fact.node, fact.normalInputs.bindings)
+			})
+		}
 
 		if !supportedBindingDeclaration(phase.node) {
 			appendOwnedGetFact(fact, phase.node, result, nodeTargets, sourceFile, typeChecker)
@@ -300,6 +312,11 @@ func collectDirectCallableEffects(
 		query := sourceValueQuery{owner: owner.values, executable: owner, effectOwner: fact.node, remaining: 4096, active: make(map[*ast.Node]bool), inputs: fact.normalInputs, reading: fold.node, operation: &sourceOperationContext{node: fold.node, owner: fact.node, inputs: fact.normalInputs}}
 		result := accessorCandidates{}
 		query.consumeNormalFold(fold, &result)
+		if ast.IsCallExpression(fold.node) {
+			result = refineSourceDependencies(result, func() accessorCandidates {
+				return sourceInvocationDependencies(fold.node, typeChecker, owner, fact.node)
+			})
+		}
 		appendOpaqueAccessorEffect(fact, result)
 	}
 	for _, event := range owner.values.summary(fact.node).normal {

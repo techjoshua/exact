@@ -931,9 +931,15 @@ func (query *sourceValueQuery) appendFieldReadOutcome(node, receiver *ast.Node, 
 	if demand, _ := query.fieldDemand(node, receiver, key); demand.declaration != nil {
 		covered := query.fieldAlternativesCovered(node, key, candidates)
 		if ast.IsParameterDeclaration(demand.slot) {
-			covered = query.parameterFieldReadCovered(demand, candidates)
+			if query.dependenciesOnly {
+				// Effect coverage comes from the instantiated source receiver,
+				// independently of a concrete Get result or normal receipt.
+				covered = candidates.sourceOwned && !candidates.opaque && !candidates.receiverIncomplete
+			} else {
+				covered = query.parameterFieldReadCovered(demand, candidates)
+			}
 		}
-		fulfilled := covered && !candidates.fieldReceiverIncomplete && !candidates.opaque && !candidates.receiverIncomplete && (!candidates.valueIncomplete || query.normalGetEffectsAccounted(node, candidates))
+		fulfilled := covered && !candidates.fieldReceiverIncomplete && !candidates.opaque && !candidates.receiverIncomplete && (query.dependenciesOnly || !candidates.valueIncomplete || query.normalGetEffectsAccounted(node, candidates))
 		candidates.fieldOutcomes = append(candidates.fieldOutcomes, sourceFieldOutcome{demand: demand, fulfilled: fulfilled})
 	}
 }

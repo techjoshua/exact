@@ -47,6 +47,15 @@ func appendBoundAccessorEffects(fact *callableFacts, node *ast.Node, targets map
 	} else {
 		candidates = evaluatedSourceAccessors(node, typeChecker, bindings, owner, fact.node, nil)
 	}
+	if read || write {
+		var inputs sourceValueBindings
+		if fact.normalInputs != nil {
+			inputs = fact.normalInputs.bindings
+		}
+		candidates = refineSourceDependencies(candidates, func() accessorCandidates {
+			return sourceMemberDependencies(node, typeChecker, owner, fact.node, inputs)
+		})
+	}
 	appendOwnedGetFact(fact, node, candidates, targets, source, typeChecker)
 }
 
@@ -61,6 +70,13 @@ func (candidates *accessorCandidates) retainCallableEffect(operation, declaratio
 // return observer's selected declaration cannot become a body execution edge.
 // Nested calls keep their own operation, not the enclosing consumer's location.
 func appendAccessorTargets(fact *callableFacts, node *ast.Node, candidates accessorCandidates, targets map[*ast.Node]int, source *ast.SourceFile) {
+	for _, producer := range candidates.producers {
+		if index, exists := targets[producer]; exists {
+			fact.targets = append(fact.targets, index)
+			source := ast.GetSourceFileOfNode(producer)
+			fact.summary.Calls = append(fact.summary.Calls, CallEdge{ID: fmt.Sprintf("%s:dependency:%d", fact.summary.ID, producer.Pos()), TargetID: fmt.Sprintf("callable:%s:%d", source.FileName(), producer.Pos()), Resolved: true})
+		}
+	}
 	seen := make(map[sourceCallableEffect]bool)
 	for _, contribution := range candidates.effects {
 		if seen[contribution] {
@@ -85,6 +101,13 @@ func appendAccessorTargets(fact *callableFacts, node *ast.Node, candidates acces
 		}
 		targetID := fmt.Sprintf("callable:%s:%d", owner.FileName(), declaration.Pos())
 		edge := CallEdge{ID: fmt.Sprintf("%s:accessor:%s:%d:%s", fact.summary.ID, operationSource.FileName(), operation.Pos(), targetID), Name: strings.TrimSpace(sourceText(operationSource, operation)), Resolved: true, TargetID: targetID}
+		duplicate := false
+		for _, existing := range fact.summary.Calls {
+			duplicate = duplicate || existing.ID == edge.ID
+		}
+		if duplicate {
+			continue
+		}
 		fact.summary.Calls = append(fact.summary.Calls, edge)
 		if contribution.operation != nil {
 			if fact.fieldEdgeOperations == nil {

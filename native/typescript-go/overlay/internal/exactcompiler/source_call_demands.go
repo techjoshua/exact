@@ -48,8 +48,19 @@ func callFallbackFulfilled(caller, target *callableFacts, edge CallEdge, source 
 	if unique != 1 || operation == nil {
 		return false
 	}
+	sourceSummary := false
+	for _, call := range caller.fieldCalls {
+		if call.dependencies && call.operation == operation && call.target == target.node {
+			for _, outcome := range call.calls {
+				sourceSummary = sourceSummary || outcome.declaration == origin.declaration && outcome.operation == origin.operation
+			}
+		}
+	}
 	matched := false
 	for _, call := range caller.fieldCalls {
+		if sourceSummary && !call.dependencies {
+			continue
+		}
 		if call.operation != operation {
 			continue
 		}

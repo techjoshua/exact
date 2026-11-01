@@ -28,6 +28,9 @@ type sourceFieldOutcome struct {
 // sourceFieldCall is a construction result, with no input frame or query retained.
 // The invocation consumer sets coverage only after the complete selection closes.
 type sourceFieldCall struct {
+	// dependencies identifies effect coverage from per-use source substitution.
+	// It supplies no normal output, descriptor or execution authority.
+	dependencies         bool
 	operation, target    *ast.Node
 	calls                []sourceCallOutcome
 	outcomes             []sourceFieldOutcome

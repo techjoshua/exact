@@ -71,6 +71,9 @@ func (query *sourceValueQuery) boundProjection(values []sourceValue, path []stri
 // proves bypass. Active entries retain the earlier bindings used by that initializer.
 // This is neither a runtime environment nor a selected-callee or production certificate.
 type sourceValueInputs struct {
+	// dependencyScope belongs only to a request-local source summary instantiation.
+	dependencyScope acquiredCallableScope
+
 	priorPropertyFacts *sourcePriorPropertyFacts // live collector borrow, never cached
 	initializerCursor  *moduleInitializerCursor
 	ownedFact          *callableFacts

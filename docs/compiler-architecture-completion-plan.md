@@ -204,6 +204,14 @@ The following is a consumer contract, not a requirement to allocate a new record
 | Mutation and joins | Keep acquired scalar snapshots distinct from live captured bindings. Track object identity only as precisely as the requested dependency needs. Strong replacement requires definite target/key/order and covered interference, otherwise union old/new and unknown alternatives. |
 | Validity and termination | A summary is valid only for its Program/source/configuration/selected-source dependencies and the mutation facts used at its observation boundary. Initially it may be request-local and uncached. Recursion and repeated contexts must converge through finite joins/widening or produce a conservative result with known donors retained. |
 
+The source dependency consumer uses `sourceValueSummary` demands, `sourceValueBindings`
+and per-use creator contexts through `source_value_dependencies.go`. Its lazy indexes are
+request-local. Normal storage recipes and acquired-value receipts remain separate refinements.
+A source member or Call outcome can account for its matching operation and demand in effect
+resolution without supplying a normal output. Independent unresolved operations retain their
+own obligations. Binding-write and member-write relations remain owned by
+`source_value_bindings.go` and `source_value_members.go`.
+
 The first summary slice must distinguish these controls:
 
 - `let x=a; const f=()=>x.value; x=b; f()` reads the later live binding `x`.
