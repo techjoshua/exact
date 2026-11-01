@@ -1985,3 +1985,47 @@ its real generated server artifact on each native host. The host journey records
 before assertions. These cross-host checks require native runtime execution. The
 compiler's component-child-input runtime test separately protects a live late callback through a
 component-only public root, subsequent updates, fixed sibling identity and cleanup.
+
+## Shared capture composition acceptance
+
+`native/typescript-go/overlay/internal/exactcompiler/source_shared_composition_contract_test.go`
+owns dependency flow through object, argument, return and conditional destinations. It
+contrasts live bindings with acquired arguments, independent factory captures, prior reads,
+unrelated fields and deferred getter bodies. The unchanged array/current-write anchor
+remains in `TestModuleWriteProducerDependencies`. Unknown runtime values do not by
+themselves establish unknown placement or permission to emit an artifact.
+
+`packages/compiler/src/compilation/shared-composition-runtime.test.ts` owns paired
+client/server execution of that anchor and its safe RHS control. Its authored
+`shared-composition.fixtures.tsx` component carries a state-reading returned closure
+through a nested container. The public testing harness checks two retained updates,
+state and instance identity, affected output, absence of unrelated consumer replay,
+mount ownership and exactly-once disposal. Paired SSR is checked separately.
+
+Baseline execution on 2026-11-01 used production checkpoint `b30c50e45` with these
+new tests, pinned TypeScript source `1f70213d4922b434345f639b441681e470c7cfc1`
+and official TypeScript 7.0.2. Native destination/capture tests expose nine failing
+placement observations. Live-binding and deferred-getter controls pass, as does the
+opaque eager Call denial on both targets. The emitted mounted component and paired
+SSR pass through Node/jsdom with workspace source aliases. The original module and
+safe RHS control both fail compilation with EXACT2101 before runtime execution.
+This is baseline regression evidence, not integrated repair acceptance.
+
+The affected-environment matrix below records the remaining acceptance obligations.
+Chromium, hydration, adapter, other native hosts, installed packages and the native
+branch/condition audit have not executed for this new fixture.
+
+| Boundary                                    | Required evidence                                                                                | Scope                                                                                    |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------- |
+| Native analysis and both executable targets | Session source witnesses and fresh branch/condition audit                                        | Capture relationships, current writes, placement and target projection                   |
+| Emitted Node client and server              | Paired module values and server projection, mounted updates and SSR                              | Compiler SDK test above, with actual generated artifacts                                 |
+| Browser mount and hydration                 | Retained update, unrelated consumer isolation and cleanup                                        | Required integration follow-up for changed reactive dependency plans                     |
+| Vite, Bun and Webpack                       | Both target configurations using the same authored source                                        | Required because adapters select executable sources and artifact targets before bundling |
+| Node, Bun, Deno and workerd                 | Existing runtime corpus plus new shared contract when runtime or emitted server boundary changes | Node execution alone does not establish cross-host acceptance                            |
+| Installed packages                          | Clean built consumer using published export resolution                                           | Workspace source aliases do not establish installed-package acceptance                   |
+
+An analysis-only repair that preserves emitted helper signatures and runtime contracts
+has no independent runtime implementation change. That classification must be verified
+against the integrated patch. Changes to shared server/runtime boundaries require
+`npm run test:runtimes` and actual results on all four supported hosts. The matrix
+must be rebound to the integrated source before acceptance.
