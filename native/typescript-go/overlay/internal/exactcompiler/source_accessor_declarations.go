@@ -1,6 +1,10 @@
 package exactcompiler
 
-import "github.com/microsoft/TypeScript/tsc/internal/ast"
+import (
+	"slices"
+
+	"github.com/microsoft/TypeScript/tsc/internal/ast"
+)
 
 func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []string, name string, mode accessorTraversal, arguments sourceValueBindings, invoke func(*ast.Node, sourceValueBindings, *accessorCandidates), get *sourceGetInputs, producer *sourceNormalOperation, alternatives ...sourceValue) (result accessorCandidates) {
 	restoreDeferredRead := query.beginDeferredRead(get)
@@ -34,7 +38,11 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 		query.sealInitializerCandidates(&result)
 	}()
 	var acquiredParent *sourceObservedValue
-	seen := make(map[*ast.Node]bool)
+	type memberVisit struct {
+		projection []string
+		instance   bool
+	}
+	seen := make(map[*ast.Node][]memberVisit)
 	depth := 0
 	// Class heritage changes the declaration being selected, not the Get's
 	// receiver. A NewExpression remains an origin, never a repeated construction.
@@ -333,10 +341,13 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 		if value == nil {
 			return
 		}
-		if seen[value] {
-			result.opaque = true
-			query.owner.widenings++
-			return
+		priorVisits := seen[value]
+		for _, prior := range priorVisits {
+			if prior.instance == instance && slices.Equal(prior.projection, projection) {
+				result.opaque = true
+				query.owner.widenings++
+				return
+			}
 		}
 		if depth == 128 {
 			result.opaque = true
@@ -347,8 +358,17 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 		query.owner.work++
 		depth++
 		defer func() { depth-- }()
-		seen[value] = true
-		defer delete(seen, value)
+		// A getter can select another member of its original receiver. Only a
+		// repeated receiver/projection lookup is a local cycle. Outer visits
+		// remain active until their own selected output has been consumed.
+		seen[value] = append(priorVisits, memberVisit{slices.Clone(projection), instance})
+		defer func() {
+			if len(priorVisits) == 0 {
+				delete(seen, value)
+			} else {
+				seen[value] = priorVisits
+			}
+		}()
 		if ast.IsSpreadElement(value) {
 			result.opaque = true
 			visit(value.AsSpreadElement().Expression, append([]string{"*"}, projection...), false)

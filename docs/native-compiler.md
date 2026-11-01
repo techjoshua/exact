@@ -1197,6 +1197,13 @@ retain independent acquisition. This does not choose a computed array index or r
 from the worklist. Candidate visits contribute to the advisory estimate. The memo
 retains at most one boolean per eligible binder for that scan and is discarded on return.
 
+Source getter returns can select another method of the same receiver. The local member
+traversal distinguishes residual member paths and static versus instance lookup, so revisiting
+an object declaration is not by itself a cycle. Repeating the same active lookup retains
+uncertainty, and the traversal depth bound still applies. Selecting a method retains its source
+receiver and effects without issuing a normal Get or Call receipt. Unresolved construction
+or receiver alternatives remain independent residuals beside known method effects.
+
 A dormant writer is distinct from a performed producer. Direct source calls, finite callback
 candidates and the existing call index retain possible routes. Unproved routes stay incomplete,
 and possible writes do not authorize certain replacement or private entry. At a module read,

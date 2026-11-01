@@ -122,3 +122,55 @@ func TestOrdinaryGetComposition(t *testing.T) {
 		})
 	}
 }
+
+// The same receiver can be revisited at a different residual member. A repeated
+// lookup still widens, and deferred siblings do not become selected methods.
+func TestGetterMemberProjectionRecursion(t *testing.T) {
+	for _, row := range []struct {
+		name, source, effect string
+		browser              bool
+	}{
+		{"chain", `const helper={run(){window.name;return 1},get next(){return this.run},get selected(){return this.next}};export function read(){return helper.selected()}`, "browser", true},
+		{"safe sibling", `const helper={run(){window.name;return 1},safe(){return 1},get selected(){return this.safe}};export function read(){return helper.selected()}`, "neutral", false},
+		{"self cycle", `const helper={get selected():()=>number{return this.selected}};export function read(){return helper.selected()}`, "unknown", false},
+		{"mutual cycle", `const helper={get selected():()=>number{return this.next},get next():()=>number{return this.selected}};export function read(){return helper.selected()}`, "unknown", false},
+		{"cycle donor", `const helper={get selected():()=>number{window.name;return this.next},get next():()=>number{return this.selected}};export function read(){return helper.selected()}`, "unknown", true},
+		{"static", `class Helper{static run(){window.name;return 1}static get selected(){return this.run}}export function read(){return Helper.selected()}`, "browser", true},
+		{"instance", `class Helper{static run(){return 1}run(){window.name;return 1}get selected(){return this.run}}const helper=new Helper();export function read(){return helper.selected()}`, "browser", true},
+		// The nested New selection retains its own residual. Its known method
+		// donor must survive the static-to-instance lookup independently.
+		{"static to instance", `class Helper{run(){window.name;return 1}get selected():()=>number{return this.run}static get selected():()=>number{return new Helper().selected}}export function read(){return Helper.selected()}`, "unknown", true},
+	} {
+		t.Run(row.name, func(t *testing.T) {
+			r := NewSession().Execute(Request{Kind: "analyze", ID: "getter-member-projection.ts", Source: row.source, Diagnostics: "semantic"})
+			if r.Error != "" || hasErrorDiagnostic(r.Diagnostics) {
+				t.Fatalf("invalid fixture: %s %#v", r.Error, r.Diagnostics)
+			}
+			read := findCallable(t, r.Analysis.Callables, "read")
+			if read.Effect != row.effect || settlementBrowser(read) != row.browser {
+				t.Fatalf("member projection changed effects: %#v", read)
+			}
+		})
+	}
+}
+
+// The getter result remains an ordinary method reference. Its receiver, once-only
+// Get and abrupt prefix must survive emission without a normal analysis receipt.
+func TestGetterReturnedMethodEmission(t *testing.T) {
+	source := `let gets=0,calls=0,fail=false;const helper={label:'safe',run():string{calls++;window.name;return this.label},get selected():()=>string{gets++;if(fail)throw 'stop';return this.run}};export function read(throwing:boolean){fail=throwing;return helper.selected()}export function counts(){return {gets,calls}}`
+	r := NewSession().Execute(Request{Kind: "compile", ID: "getter-returned-method.ts", Source: source, Diagnostics: "semantic", Target: TargetClient, PreserveOrdinaryModules: true})
+	if r.Error != "" || hasErrorDiagnostic(r.Diagnostics) || r.Code == "" {
+		t.Fatalf("getter emission: %s %#v", r.Error, r.Diagnostics)
+	}
+	if !settlementBrowser(findCallable(t, r.Analysis.Callables, "read")) {
+		t.Fatal("selected method lost browser dependency")
+	}
+	sourceNodeScript(t, r.Code, `const fs=require('node:fs'),vm=require('node:vm');let reads=0;
+const sandbox={exports:{},window:{get name(){reads++;return 'browser'}}};
+vm.runInNewContext('(function(exports){'+fs.readFileSync(process.argv[1],'utf8')+'\n})(exports)',sandbox);
+let state=sandbox.exports.counts();if(state.gets||state.calls||reads)throw Error('creation invoked getter or method');
+if(sandbox.exports.read(false)!=='safe')throw Error('method receiver lost');
+state=sandbox.exports.counts();if(state.gets!==1||state.calls!==1||reads!==1)throw Error('method/Get count');
+try{sandbox.exports.read(true);throw Error('missing Throw')}catch(error){if(error!=='stop')throw error}
+state=sandbox.exports.counts();if(state.gets!==2||state.calls!==1||reads!==1)throw Error('getter Throw invoked method');`)
+}

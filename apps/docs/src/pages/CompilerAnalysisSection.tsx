@@ -32,11 +32,13 @@ export function CompilerAnalysisSection(this: Component<{}>) {
 				<code>typeof window</code> check followed by an early return preserves that fallback.
 				Creating an object with a getter or setter keeps its body deferred. Placement follows the
 				reads and writes that invoke it, while computed property names execute during object
-				creation. Portable built-in methods keep their declaration ownership through optional calls,
-				and their callbacks retain their own environment requirements. Reading an object from a
-				finite local container keeps that object's identity when the container slot is later
-				replaced. Reads of the saved object still observe supported writes to its members.
-				Unresolved calls and computed alternatives can remain unknown.
+				creation. If a getter returns a method, calling that result also carries the method's own
+				environment requirements. Reading the getter alone does not invoke the returned method.
+				Portable built-in methods keep their declaration ownership through optional calls, and their
+				callbacks retain their own environment requirements. Reading an object from a finite local
+				container keeps that object's identity when the container slot is later replaced. Reads of
+				the saved object still observe supported writes to its members. Unresolved calls and
+				computed alternatives can remain unknown.
 			</p>
 			<p>
 				Placement includes work performed when a module loads, such as class static fields, static
