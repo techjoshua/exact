@@ -2082,11 +2082,15 @@ from the root workspace. Its existing Deno `runInstall()` resolves the platform 
 from that installation. Miniflare v5 uses the runner's existing
 `convertV4MiniflareOptions()` conversion. No alternate host harness is needed.
 
-The normal paired core package build timed out during native compilation, matching
-the earlier Intl package build's phase. Neither timeout identified its current input
-file, so dependency failure, analysis recurrence and resource limits must be separated
-before classifying the cause. Preserve the normal package builder and retry against
-the integrated candidate after that blocker is resolved.
+The normal paired core build's source-identifying timeout names
+`packages/core/src/component/error-boundary.tsx`, the 81st of 300 sorted client
+inputs. Earlier requests returned, but the batch had not published. A bounded
+fresh-project probe synchronized the same sources in 175 ms, then sampled repeated
+accessor and writer-interference traversal during that input's callable-effect
+analysis, before lowering. It did not complete. This identifies active native analysis,
+while distinguishing infinite recurrence from expensive expansion remains open.
+The earlier Intl timeout's current input is still unidentified. Preserve the normal
+package builder and verify the integrated repair against both package builds.
 
 Installed acceptance uses `createPackedAppInstaller` to install candidate tarballs
 without workspace links. The coordinator stages the coherent native candidate through
