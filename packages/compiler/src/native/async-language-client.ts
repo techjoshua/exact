@@ -184,7 +184,9 @@ export class NativeCompilerLanguageClient implements ExactNativeLanguageClient {
 		const child = this.child;
 		if (!child) throw this.failed ?? new Error('Native compiler process is unavailable');
 		child.stdin.write(`${JSON.stringify(request)}\n`);
-		const raw = await this.nextLine(request.kind);
+		const raw = await this.nextLine(
+			request.id ? `${request.kind} for ${request.id}` : request.kind
+		);
 		const response = JSON.parse(raw) as NativeCompilerResponse;
 		validateResponse(response);
 		if (response.error) throw new Error(response.error);

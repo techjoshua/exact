@@ -56,9 +56,9 @@ describe('asynchronous native language client', () => {
 			timeoutMs: 1_000
 		});
 		try {
-			await expect(client.request({ kind: 'analyze', source: 'hang' })).rejects.toThrow(
-				'timed out during analyze'
-			);
+			await expect(
+				client.request({ kind: 'analyze', id: '/project/a file.ts', source: 'hang' })
+			).rejects.toThrow('timed out during analyze for /project/a file.ts');
 			await expect(client.request({ kind: 'synchronize', sources: [] })).resolves.toMatchObject({
 				protocolVersion: nativeCompilerProtocolVersion
 			});
