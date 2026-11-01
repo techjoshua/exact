@@ -453,6 +453,10 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 				}
 			}
 			term := sourceValue{node: value}
+			if query.dependenciesOnly && (ast.IsObjectLiteralExpression(value) || ast.IsArrayLiteralExpression(value) || ast.IsFunctionLike(value)) {
+				scope := query.acquireCallableScope(arguments, &result)
+				term.capture = &scope
+			}
 			if query.returnObservation != nil {
 				term.forwarded = query.forwardingTrace(&result, query.returnObservation.path)
 				if result.callableScopes == nil {
@@ -474,62 +478,10 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 			return
 		}
 		if ast.IsNewExpression(value) {
-			if (len(projection) > 0 || name != "") && query.possibleProxyGetEffects(value, projection, name, mode, arguments, &result) {
-				return
-			}
 			previousReceiver := inheritedReceiver
 			inheritedReceiver = &sourceValue{node: value}
 			defer func() { inheritedReceiver = previousReceiver }()
-			// A structural array type can revoke completeness, never prove native identity.
-			if len(projection) > 0 && typeChecker.IsArrayLikeType(typeChecker.GetTypeAtLocation(value)) {
-				result.opaque = true
-			}
-			sourceInstance := false
-			if definition, selected := owner.definition(value.AsNewExpression().Expression); selected {
-				result.selected = true
-				if definition == nil {
-					result.opaque = true
-				} else {
-					sourceInstance = (ast.IsClassDeclaration(definition) || ast.IsClassExpression(definition)) && !ast.GetSourceFileOfNode(definition).IsDeclarationFile
-					visit(definition, projection, true)
-				}
-				if !sourceInstance && (len(projection) > 0 || name != "") {
-					result.receiverIncomplete = true
-				}
-				return
-			}
-			symbol := sourceCallableReferenceSymbol(value.AsNewExpression().Expression, typeChecker)
-			if symbol != nil && symbol.Flags&ast.SymbolFlagsAlias != 0 {
-				symbol = query.sourceAlias(symbol, &result)
-			}
-			if symbol != nil {
-				if argument, exists := arguments[ast.GetSymbolId(symbol)]; exists {
-					visitOrigins(argument, projection, true)
-				}
-				for _, declaration := range symbol.Declarations {
-					if ast.IsClassDeclaration(declaration) {
-						sourceInstance = !ast.GetSourceFileOfNode(declaration).IsDeclarationFile
-						visit(declaration, projection, true)
-					}
-					if ast.IsVariableDeclaration(declaration) {
-						initializer := unwrapSourceCallableReference(declaration.Initializer())
-						sourceInstance = sourceInstance || initializer != nil && ast.IsClassExpression(initializer) && !ast.GetSourceFileOfNode(initializer).IsDeclarationFile
-						visit(declaration.AsVariableDeclaration().Initializer, projection, true)
-					}
-				}
-			}
-			// An unmodeled constructor result may be a Proxy or foreign object.
-			// Structural callable/member types do not account for its Get/Set effects.
-			if !sourceInstance && (len(projection) > 0 || name != "") {
-				result.receiverIncomplete = true
-				// An unmodeled callable constructor result may be a Proxy. Its
-				// compatible Function methods cannot discharge real Get/trap
-				// effects. This withholds authority, never asserts native identity.
-				if nativeFunctionInvocation(value, "call", typeChecker) {
-					result.opaque = true
-					result.cause = value
-				}
-			}
+			query.visitConstructedAccessor(sourceConstructedMemberDemand{value, projection, name, mode}, arguments, &result, visit, visitOrigins)
 			return
 		}
 		if len(projection) > 1 && projection[0] == "prototype" && sourceFunctionPrototype(sourceValue{node: value, path: projection[:1]}, typeChecker) {
@@ -964,6 +916,18 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 				return
 			}
 			if symbol.ValueDeclaration != nil && (ast.IsParameterDeclaration(symbol.ValueDeclaration) || ast.IsBindingElement(symbol.ValueDeclaration)) {
+				if query.dependenciesOnly && mode == accessorRead && (name != "" || len(projection) > 0) {
+					key := name
+					if key == "" && len(projection) == 1 {
+						key = projection[0]
+					}
+					if demand, _ := query.fieldDemand(query.protectedMember, value, key); demand.declaration != nil {
+						result.fieldFallbacks = append(result.fieldFallbacks, demand)
+					} else {
+						result.opaque = true
+					}
+					return
+				}
 				if mode == accessorAcquire && len(projection) == 0 {
 					result.values = append(result.values, sourceValue{node: value})
 				} else if mode == accessorAcquire {
@@ -1004,6 +968,10 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 							// Retain uncertainty beside existing external execution classification.
 							// A mixed source-callable receiver consumes it without adopting identity.
 							result.receiverIncomplete = true
+							if query.dependenciesOnly && mode == accessorRead && !query.declaredFrameworkMemberRead(value, projection, name, &result) {
+								result.opaque = true
+								result.cause = value
+							}
 							if mode == accessorAcquire {
 								result.opaque = true
 								if result.cause == nil {
@@ -1141,7 +1109,7 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 					finiteReturn = symbol != nil && !query.owner.bindingWritten(symbol)
 				}
 				// Precise output refusal remains independent of source dependency transfer.
-				if !query.dependenciesOnly || !concrete {
+				if !concrete {
 					result.opaque = true
 				}
 				for _, declaration := range declarations {
@@ -1149,6 +1117,15 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 						declaration = unwrapSourceCallableReference(declaration.AsVariableDeclaration().Initializer)
 					}
 					if declaration != nil && ast.IsFunctionLike(declaration) {
+						if _, ordinary := ordinaryResultCategory(declaration); declaration.Body() != nil && !ordinary {
+							result.valueIncomplete = true
+							if len(projection) > 0 || name != "" || mode == accessorInvoke {
+								result.opaque = true
+							} else {
+								result.values = append(result.values, sourceValue{node: value})
+							}
+							continue
+						}
 						if query.creators == nil {
 							query.creators = make(map[*ast.Node]sourceValueCreation)
 						}
@@ -1184,6 +1161,11 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 					}
 				}
 			})
+			if query.dependenciesOnly {
+				result.callOutcomes = append(result.callOutcomes, query.returnOutcome(value, !result.opaque && !result.receiverIncomplete))
+			} else {
+				query.refuseExactOutput(value, &result)
+			}
 		}
 	}
 	if len(alternatives) == 1 {
@@ -1191,7 +1173,9 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 	} else {
 		visit(receiver, path, false)
 	}
-	result.opaque = result.opaque || result.sourceCallable && result.receiverIncomplete
+	if result.sourceCallable && result.receiverIncomplete {
+		result.opaque = true
+	}
 	if result.opaque && result.cause == nil {
 		result.cause = receiver
 	}

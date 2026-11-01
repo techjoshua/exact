@@ -565,7 +565,7 @@ func (query *sourceValueQuery) actualArgumentValues(call, argument *ast.Node, re
 		return nil, false
 	}
 	if slot.selected == nil {
-		result.opaque = true
+		query.refuseExactArgument(argument, result)
 		return []sourceValue{{}}, true
 	}
 	for _, actual := range slot.actuals {
@@ -579,7 +579,7 @@ func (query *sourceValueQuery) actualArgumentValues(call, argument *ast.Node, re
 	if slot.selected.receiver == argument {
 		return slot.selected.receiverValues, true
 	}
-	result.opaque = true
+	query.refuseExactArgument(argument, result)
 	return []sourceValue{{}}, true
 }
 

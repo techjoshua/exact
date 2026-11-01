@@ -69,44 +69,48 @@ func collectDirectCallableEffects(
 		}
 	}
 
-	fact.normalInputs = &sourceValueInputs{declaration: fact.node, bindings: make(sourceValueBindings)}
-	fact.normalInputs.population = owner.values.normalPopulation(fact.node)
-	frame := fact.normalInputs
-	if fact.initializerDeclaration != nil {
-		frame.initializerCursor = &moduleInitializerCursor{frame: frame, owner: owner.values, plan: fact.initializerPlan, declaration: fact.initializerDeclaration}
-	}
-	frame.ownedFact = fact
-	beginNormalOperations(frame)
-	fact.normalInputs.properties = &sourcePropertyReferenceView{frame: fact.normalInputs, state: sourcePropertyUnpublished}
-	defer func() {
-		for _, slot := range frame.operations {
-			if r := slot.ownedRequest; r != nil {
-				r.released = true
-				r.caller = nil
-			}
+	precisionRequested := sourceValueRefinementRequired(fact, owner.values)
+	var frame *sourceValueInputs
+	if precisionRequested {
+		fact.normalInputs = &sourceValueInputs{declaration: fact.node, bindings: make(sourceValueBindings)}
+		fact.normalInputs.population = owner.values.normalPopulation(fact.node)
+		frame = fact.normalInputs
+		if fact.initializerDeclaration != nil {
+			frame.initializerCursor = &moduleInitializerCursor{frame: frame, owner: owner.values, plan: fact.initializerPlan, declaration: fact.initializerDeclaration}
 		}
-		drainOwnedGetFact(fact, false, nodeTargets, sourceFile, typeChecker)
-		releaseNormalOperations(frame)
-		disposePropertyReferences(frame)
-		frame.initializerCursor = nil
-		fact.normalInputs = nil
-	}()
-	selection := sourceValueQuery{owner: owner.values, executable: owner, effectOwner: fact.node, remaining: 4096, active: make(map[*ast.Node]bool), inputs: fact.normalInputs}
-	selected := accessorCandidates{}
-	selection.installPriorPropertyFacts(facts, &selected)
-	if ast.IsFunctionLike(fact.node) || owner.values.prefixHistory(fact.node) == nil {
-		selection.prepareNormalStatementSelection(&selected)
+		frame.ownedFact = fact
+		beginNormalOperations(frame)
+		fact.normalInputs.properties = &sourcePropertyReferenceView{frame: fact.normalInputs, state: sourcePropertyUnpublished}
+		defer func() {
+			for _, slot := range frame.operations {
+				if r := slot.ownedRequest; r != nil {
+					r.released = true
+					r.caller = nil
+				}
+			}
+			drainOwnedGetFact(fact, false, nodeTargets, sourceFile, typeChecker)
+			releaseNormalOperations(frame)
+			disposePropertyReferences(frame)
+			frame.initializerCursor = nil
+			fact.normalInputs = nil
+		}()
+		selection := sourceValueQuery{owner: owner.values, executable: owner, effectOwner: fact.node, remaining: 4096, active: make(map[*ast.Node]bool), inputs: fact.normalInputs}
+		selected := accessorCandidates{}
+		selection.installPriorPropertyFacts(facts, &selected)
+		if ast.IsFunctionLike(fact.node) || owner.values.prefixHistory(fact.node) == nil {
+			selection.prepareNormalStatementSelection(&selected)
+		}
+		appendOpaqueAccessorEffect(fact, selected)
 	}
-	appendOpaqueAccessorEffect(fact, selected)
 	consumeNode := func(node *ast.Node) bool {
 		if node.Parent != nil && ast.IsPartOfTypeNode(node) {
 			return false
 		}
 		appendDirectReferenceEffects(fact, node, sourceFile, typeChecker)
-		if owner.values.prefixHistory(node) == nil {
+		if !precisionRequested || owner.values.prefixHistory(node) == nil {
 			appendAccessorEffects(fact, node, nodeTargets, sourceFile, typeChecker, owner)
 		}
-		if demand, dependent := describeNormalOperand(node); owner.values.prefixHistory(node) == nil && (!dependent || !demand.pattern) {
+		if demand, dependent := describeNormalOperand(node); (!precisionRequested || owner.values.prefixHistory(node) == nil) && (!dependent || !demand.pattern) {
 			appendImplicitAccessorEffects(fact, node, nodeTargets, sourceFile, typeChecker, nil, owner)
 		}
 		if !ast.IsCallExpression(node) {
@@ -319,28 +323,34 @@ func collectDirectCallableEffects(
 		}
 		appendOpaqueAccessorEffect(fact, result)
 	}
-	for _, event := range owner.values.summary(fact.node).normal {
-		if frame.initializerCursor != nil {
-			switch frame.initializerCursor.disposition(event) {
-			case initializerAtomicDependency, initializerStructuralUnwind, initializerSkip:
-				continue
+	if precisionRequested {
+		for _, event := range owner.values.summary(fact.node).normal {
+			if frame.initializerCursor != nil {
+				switch frame.initializerCursor.disposition(event) {
+				case initializerAtomicDependency, initializerStructuralUnwind, initializerSkip:
+					continue
+				}
+			}
+			switch {
+			case event.fold != nil:
+				consumeFold(*event.fold)
+			case event.phase != nil:
+				consumePhase(*event.phase)
+			case event.operand != nil:
+				consumeOperand(*event.operand)
+			default:
+				consumeNode(event.node)
 			}
 		}
-		switch {
-		case event.fold != nil:
-			consumeFold(*event.fold)
-		case event.phase != nil:
-			consumePhase(*event.phase)
-		case event.operand != nil:
-			consumeOperand(*event.operand)
-		default:
-			consumeNode(event.node)
+		if frame.initializerCursor != nil {
+			frame.initializerCursor.finish(fact, frame)
 		}
+		detachModuleCallOrigins(fact, owner)
+	} else {
+		// Ordinary effect demands use the recursive source walk. Exact output
+		// schedules are invoked only by their named refinement consumers.
+		walkCallableNormal(fact.node, consumeNode, nil)
 	}
-	if frame.initializerCursor != nil {
-		frame.initializerCursor.finish(fact, frame)
-	}
-	detachModuleCallOrigins(fact, owner)
 	appendReturnSettlementEffects(fact, nodeTargets, sourceFile, typeChecker, owner)
 	applyCallableAnnotations(fact, sourceFile)
 	fact.summary.DirectEffectSources = uniqueEnvironmentSources(

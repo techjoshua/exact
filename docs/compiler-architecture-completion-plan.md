@@ -205,12 +205,22 @@ The following is a consumer contract, not a requirement to allocate a new record
 | Validity and termination | A summary is valid only for its Program/source/configuration/selected-source dependencies and the mutation facts used at its observation boundary. Initially it may be request-local and uncached. Recursion and repeated contexts must converge through finite joins/widening or produce a conservative result with known donors retained. |
 
 The source dependency consumer uses `sourceValueSummary` demands, `sourceValueBindings`
-and per-use creator contexts through `source_value_dependencies.go`. Its lazy indexes are
-request-local. Normal storage recipes and acquired-value receipts remain separate refinements.
-A source member or Call outcome can account for its matching operation and demand in effect
-resolution without supplying a normal output. Independent unresolved operations retain their
-own obligations. Binding-write and member-write relations remain owned by
-`source_value_bindings.go` and `source_value_members.go`.
+and per-use creator contexts through `source_value_dependencies.go`. Instantiated contexts
+and current-write results are request-local. Only checker-owned AST templates and static
+write indexes are shared. Ordinary synchronous effect demands enter this consumer directly.
+Normal storage recipes and acquired-value receipts remain separate refinements for consumers
+that request getter-chain elision, await operands or async settlement.
+
+Effect resolution associates a relative field or Call obligation with its original source
+operation, declaration, phase and instantiated use/consumer. Coverage requires every matching
+source alternative to be complete. Calls and getter bodies publish the same immutable coverage
+records. A missing exact output can be discharged only by that matching relationship.
+Known dependencies, unmatched unknown effects, normal outputs and execution receipts remain
+separate contributions. Generator calls evaluate arguments and activated defaults while their
+bodies remain deferred. This source contract does not model generator resume state.
+Query-local advisory work is accumulated into the checker owner's existing cost counters
+without retaining a query or its binding maps. Binding-write and member-write relations remain
+owned by `source_value_bindings.go` and `source_value_members.go`.
 
 The first summary slice must distinguish these controls:
 

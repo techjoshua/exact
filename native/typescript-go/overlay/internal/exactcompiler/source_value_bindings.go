@@ -219,7 +219,7 @@ func (query *sourceValueQuery) liveValues(symbol *ast.Symbol, entry []sourceValu
 				if method {
 					receiver, _ := accessorReceiver(expression)
 					for _, origin := range query.originsAt(receiver, node, bindings, result) {
-						same = same || origin.node == creator && len(origin.path) == 0
+						same = same || query.sourceCreatorValue(origin, enclosingCallableNode(declaration), creator)
 					}
 					if same {
 						candidates := query.receiverCandidates(node, bindings)

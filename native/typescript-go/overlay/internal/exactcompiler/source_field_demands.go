@@ -10,6 +10,7 @@ import (
 type sourceFieldDemand struct {
 	declaration, operation, slot *ast.Node
 	key                          string
+	use, consumer                *ast.Node
 }
 
 func (d sourceFieldDemand) identity() string {
@@ -17,7 +18,7 @@ func (d sourceFieldDemand) identity() string {
 		return ""
 	}
 	source := ast.GetSourceFileOfNode(d.declaration)
-	return fmt.Sprintf("%s:%d:field:%d:slot:%d:%s", source.FileName(), d.declaration.Pos(), d.operation.Pos(), d.slot.Pos(), d.key)
+	return fmt.Sprintf("%s:%d:field:%d:slot:%d:%s", source.FileName(), d.declaration.Pos(), d.operation.Pos(), d.slot.Pos(), d.key) + fmt.Sprintf(":%p:%p", d.use, d.consumer)
 }
 
 type sourceFieldOutcome struct {
@@ -54,12 +55,12 @@ func (query *sourceValueQuery) fieldDemand(operation, receiver *ast.Node, key st
 		return sourceFieldDemand{}, nil
 	}
 	if ast.IsParameterDeclaration(symbol.ValueDeclaration) {
-		// Name the original direct one-hop read in its own callable, or the
-		// exact returned-arrow capture. Naming grants no field coverage.
-		// Patterns and receiver aliases stay separate.
-		if declaration != slotOwner && (len(symbol.Declarations) != 1 || !activationCapturedDemand(declaration, operation, symbol.ValueDeclaration, key)) || symbol.ValueDeclaration.AsParameterDeclaration().DotDotDotToken != nil || symbol.ValueDeclaration.Initializer() != nil || !ast.IsIdentifier(symbol.ValueDeclaration.Name()) || !ast.IsPropertyAccessExpression(operation) && !ast.IsElementAccessExpression(operation) {
+		// Naming a bound lexical read is not an activation/descriptor proof.
+		// Exact coverage remains the responsibility of its separate consumer.
+		if !ast.IsIdentifier(symbol.ValueDeclaration.Name()) || !ast.IsPropertyAccessExpression(operation) && !ast.IsElementAccessExpression(operation) {
 			return sourceFieldDemand{}, nil
 		}
+
 		actual, selected := accessorReceiver(operation)
 		if actual != receiver || selected != key {
 			return sourceFieldDemand{}, nil
@@ -67,7 +68,7 @@ func (query *sourceValueQuery) fieldDemand(operation, receiver *ast.Node, key st
 	} else if !ast.IsVariableDeclaration(symbol.ValueDeclaration) || declaration == slotOwner {
 		return sourceFieldDemand{}, nil
 	}
-	return sourceFieldDemand{declaration: declaration, operation: operation, slot: symbol.ValueDeclaration, key: key}, symbol
+	return sourceFieldDemand{declaration: declaration, operation: operation, slot: symbol.ValueDeclaration, key: key, use: query.effectUse(), consumer: query.effectOwner}, symbol
 }
 
 // missingNormalInput identifies an uninstalled normal-operand slot from the
@@ -118,7 +119,7 @@ func (query *sourceValueQuery) missingFieldGet(value sourceValue, key string, op
 	if declaration == nil || key == "" || len(value.path) != 0 || declaration == enclosingCallableNode(value.entrySlot) {
 		result.opaque = true
 	} else {
-		demand := sourceFieldDemand{declaration: declaration, operation: operation, slot: value.entrySlot, key: key}
+		demand := sourceFieldDemand{declaration: declaration, operation: operation, slot: value.entrySlot, key: key, use: query.effectUse(), consumer: query.effectOwner}
 		if ast.IsPropertyAccessExpression(operation) || ast.IsElementAccessExpression(operation) {
 			receiver, selectedKey := accessorReceiver(operation)
 			if selectedKey == key {

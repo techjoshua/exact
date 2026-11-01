@@ -145,13 +145,16 @@ func (query *sourceValueQuery) consumeInvocation(node *ast.Node, bindings source
 		}
 		query.finishDescriptorEffectCalls(node, &result)
 		if (query.operation != nil || query.dependenciesOnly) && query.inputs != nil && ast.IsCallExpression(node) && query.inputs.declaration == enclosingCallableNode(node) {
-			result.callOutcomes = append(result.callOutcomes, sourceCallOutcome{declaration: query.inputs.declaration, operation: node, complete: complete})
+			result.callOutcomes = append(result.callOutcomes, sourceCallOutcome{declaration: query.inputs.declaration, operation: node, complete: complete, use: query.effectUse(), consumer: query.effectOwner, dependencies: query.dependenciesOnly})
 		}
 		if consumer.selection != nil {
 			consumer.selection(complete)
 		}
 	}()
 	if ast.IsNewExpression(node) {
+		if query.dependenciesOnly {
+			return query.constructDependencyEffects(node, bindings)
+		}
 		if slot := query.normalOperation(node, false); slot != nil {
 			query.retainSourceConstructorEffects(node, slot.selected, &result)
 		}
@@ -868,24 +871,20 @@ func (query *sourceValueQuery) prepareInvocation(node *ast.Node, bindings source
 // consumeOrdinaryBody is shared by actual normal and eager-module Call consumers.
 // Retained raw output is observed before the installed operation interval ends.
 func (query *sourceValueQuery) consumeOrdinaryBody(node, body *ast.Node, captures sourceValueBindings, inputs *sourceValueInputs, invocation *ast.Node, result *accessorCandidates) {
-	result.retainCallableEffect(node, body)
+	_, ordinary := ordinaryResultCategory(body)
+	generator := body != nil && ast.IsFunctionLike(body) && body.Body() != nil && !ordinary
+	if generator {
+		if inputs == nil {
+			inputs = query.bindInputs(body, node, captures, result)
+		}
+		inputs.deferredBody = true
+		result.invocationOwned, result.replacedInvocation = true, true
+		result.valueIncomplete = true
+	} else {
+		result.retainCallableEffect(node, body)
+	}
 	if query.dependenciesOnly {
-		first := len(result.fieldOutcomes)
-		firstCall := len(result.callOutcomes)
-		query.executeInputs(body, captures, result, invocation, inputs)
-		var outcomes []sourceFieldOutcome
-		for _, outcome := range result.fieldOutcomes[first:] {
-			if outcome.demand.declaration == body {
-				outcomes = append(outcomes, outcome)
-			}
-		}
-		var calls []sourceCallOutcome
-		for _, outcome := range result.callOutcomes[firstCall:] {
-			if outcome.declaration == body {
-				calls = append(calls, outcome)
-			}
-		}
-		result.fieldCalls = append(result.fieldCalls, sourceFieldCall{operation: node, target: body, outcomes: outcomes, calls: calls, complete: true, dependencies: true})
+		query.consumeSourceBodyEffects(node, body, captures, inputs, invocation, result)
 		return
 	}
 	if inputs != nil {

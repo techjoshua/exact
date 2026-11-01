@@ -112,6 +112,10 @@ func newSourceValueOwner(c *checker.Checker) *sourceValueOwner {
 // sourceValueQuery bounds all nested invocation and projection demands together. An active
 // declaration is widened instead of constructing a recursively nested capture context.
 type sourceValueQuery struct {
+	// dependencyStatsOwner receives advisory work only, never query capabilities.
+	dependencyStatsOwner *sourceValueOwner
+	dependencyUse        *ast.Node
+
 	// dependenciesOnly instantiates source relationships without consuming normal storage.
 	dependenciesOnly bool
 
@@ -183,6 +187,9 @@ func (owner *sourceValueOwner) summary(node *ast.Node) sourceValueSummary {
 			summary.returnSites = append(summary.returnSites, child)
 		}
 		executable := false
+		if ast.IsIdentifier(child) && !ast.IsDeclarationName(child) && !isStaticPropertyName(child) {
+			summary.nodes = append(summary.nodes, child)
+		}
 		if ast.IsPropertyAccessExpression(child) || ast.IsElementAccessExpression(child) || ast.IsCallExpression(child) || ast.IsNewExpression(child) || ast.IsTaggedTemplateExpression(child) || ast.IsSpreadAssignment(child) || ast.IsVariableDeclaration(child) || ast.IsAssignmentExpression(child, false) || ast.IsDeleteExpression(child) || ast.IsPrefixUnaryExpression(child) || ast.IsPostfixUnaryExpression(child) {
 			summary.nodes = append(summary.nodes, child)
 			demand, dependent := describeNormalOperand(child)
@@ -192,6 +199,9 @@ func (owner *sourceValueOwner) summary(node *ast.Node) sourceValueSummary {
 		return true
 	}, func(demand sourceNormalOperand) {
 		appendDemand(sourceNormalDemand{node: demand.node, operand: &demand})
+		if demand.pattern {
+			summary.nodes = append(summary.nodes, demand.node)
+		}
 		if !demand.cellOnly && demand.binding != nil && !ast.IsIdentifier(unwrapSourceCallableReference(demand.value)) {
 			if symbol := owner.checker.GetSymbolAtLocation(demand.binding); symbol != nil && symbol.ValueDeclaration != nil {
 				summary.normalSlots[symbol.ValueDeclaration] = struct{}{}
@@ -199,6 +209,9 @@ func (owner *sourceValueOwner) summary(node *ast.Node) sourceValueSummary {
 		}
 	}, func(phase sourceNormalPhase) {
 		appendDemand(sourceNormalDemand{node: phase.node, phase: &phase})
+		if phase.role == sourceNormalSelect && ast.IsVariableDeclaration(phase.node) {
+			summary.nodes = append(summary.nodes, phase.node)
+		}
 	}, func(fold sourceNormalFold) {
 		owner.summaryWork += 1 + len(fold.children)
 		appendDemand(sourceNormalDemand{node: fold.node, fold: &fold})
@@ -310,20 +323,24 @@ func (query *sourceValueQuery) origins(node *ast.Node, bindings sourceValueBindi
 		return []sourceValue{{node: callable, path: rest}}
 	}
 	id := ast.GetSymbolId(symbol)
-	if values, exists := query.normalLocalInput(symbol, root, result); exists {
-		values = query.liveValues(symbol, values, root, bindings, result)
-		return query.boundProjection(values, path, result)
+	if !query.dependenciesOnly {
+		if values, exists := query.normalLocalInput(symbol, root, result); exists {
+			values = query.liveValues(symbol, values, root, bindings, result)
+			return query.boundProjection(values, path, result)
+		}
 	}
 	if values, ok := bindings[id]; ok {
 		values = query.liveValues(symbol, values, root, bindings, result)
 		return query.boundProjection(values, path, result)
 	}
-	if query.missingNormalInput(symbol, root, bindings, result) {
+	if !query.dependenciesOnly && query.missingNormalInput(symbol, root, bindings, result) {
 		return []sourceValue{{node: root, path: path, entrySlot: symbol.ValueDeclaration}}
 	}
-	if values, admitted := query.moduleInitializerValues(symbol, root, result); admitted {
-		values = query.liveValues(symbol, values, root, bindings, result)
-		return query.boundProjection(values, path, result)
+	if !query.dependenciesOnly {
+		if values, admitted := query.moduleInitializerValues(symbol, root, result); admitted {
+			values = query.liveValues(symbol, values, root, bindings, result)
+			return query.boundProjection(values, path, result)
+		}
 	}
 	for _, declaration := range symbol.Declarations {
 		if ast.IsFunctionLike(declaration) && declaration.Body() != nil && !ast.GetSourceFileOfNode(declaration).IsDeclarationFile {
@@ -338,9 +355,11 @@ func (query *sourceValueQuery) origins(node *ast.Node, bindings sourceValueBindi
 			return values
 		}
 		if ast.IsVariableDeclaration(declaration) && declaration.Initializer() != nil {
-			if values, selected := query.pendingInitializerValues(symbol, root, declaration, bindings, result); selected {
-				values = query.liveValues(symbol, values, root, bindings, result)
-				return query.boundProjection(values, path, result)
+			if !query.dependenciesOnly {
+				if values, selected := query.pendingInitializerValues(symbol, root, declaration, bindings, result); selected {
+					values = query.liveValues(symbol, values, root, bindings, result)
+					return query.boundProjection(values, path, result)
+				}
 			}
 			values := query.originsAt(declaration.Initializer(), declaration, bindings, result)
 			if query.owner.bindingWritten(symbol) {
@@ -432,6 +451,8 @@ func (query *sourceValueQuery) originsAt(node, at *ast.Node, bindings sourceValu
 
 func mergeAccessorCandidates(result *accessorCandidates, other accessorCandidates) {
 	mergeCandidateComponents(result, other)
+	result.environmentEffects = append(result.environmentEffects, other.environmentEffects...)
+	result.contextEffects = append(result.contextEffects, other.contextEffects...)
 	mergeOwnedGets(&result.ownedGets, other.ownedGets)
 	result.ownedClaims = append(result.ownedClaims, other.ownedClaims...)
 	result.ownedLocalCauses = append(result.ownedLocalCauses, other.ownedLocalCauses...)
@@ -586,10 +607,46 @@ func (query *sourceValueQuery) executeInputs(declaration *ast.Node, bindings sou
 
 	if query.dependenciesOnly {
 		inputs.dependencyScope = query.acquireCallableScope(bindings, result)
+		inputs.dependencyUse = query.effectUse()
 		// Source demands describe possible work. They neither execute a storage
 		// recipe nor acquire normal outputs from a previous analysis interval.
+		visited := make(map[*ast.Node]bool)
+		consume := func(node *ast.Node, demandBindings sourceValueBindings) {
+			if visited[node] {
+				return
+			}
+			visited[node] = true
+			query.executeDemand(node, declaration, demandBindings, result, invocation, inputs)
+		}
 		for _, node := range query.owner.summary(declaration).nodes {
-			query.executeDemand(node, declaration, bindings, result, invocation, inputs)
+			defaults, isDefault := query.defaultInput(inputs, node, result)
+			if inputs.deferredBody && !isDefault {
+				continue
+			}
+			demandBindings := bindings
+			if isDefault {
+				if defaults.bindings == nil {
+					query.accountBypassedSourceDemand(node, bindings, result)
+					continue
+				}
+				demandBindings = defaults.bindings
+			}
+			consume(node, demandBindings)
+		}
+		for _, initializer := range inputs.order {
+			defaults := inputs.defaults[initializer]
+			outcome := query.returnOutcome(initializer, defaults.bindings == nil)
+			outcome.phase = sourceDefaultEvaluation
+			result.callOutcomes = append(result.callOutcomes, outcome)
+			if defaults.bindings == nil {
+				for _, node := range query.owner.summary(initializer).nodes {
+					query.accountBypassedSourceDemand(node, bindings, result)
+				}
+				continue
+			}
+			for _, node := range query.owner.summary(initializer).nodes {
+				consume(node, defaults.bindings)
+			}
 		}
 		result.inputs = append(result.inputs, inputs)
 		return true
@@ -599,6 +656,11 @@ func (query *sourceValueQuery) executeInputs(declaration *ast.Node, bindings sou
 	}
 
 	for _, demand := range query.owner.summary(declaration).normal {
+		if inputs.deferredBody {
+			if _, isDefault := query.normalDemandDefault(demand, inputs, result); !isDefault {
+				continue
+			}
+		}
 		if demand.visitOnly {
 			continue
 		}
@@ -713,6 +775,20 @@ func (query *sourceValueQuery) executeDemand(node, declaration *ast.Node, bindin
 	possible, _ := query.reachable(node, bindings)
 	if !possible {
 		return
+	}
+	if query.dependenciesOnly && ast.IsIdentifier(node) {
+		name := "<anonymous>"
+		if declaration.Name() != nil {
+			name = callableNameText(declaration.Name())
+		}
+		sources, contexts := sourceReferenceEffects(node, declaration, ast.GetSourceFileOfNode(node), query.owner.checker, name)
+		for i := range sources {
+			if origin := sources[i].callOrigin; origin != nil && origin.phase == sourceDefaultEvaluation {
+				sources[i].callOrigin = nil
+			}
+		}
+		result.environmentEffects = append(result.environmentEffects, sources...)
+		result.contextEffects = append(result.contextEffects, contexts...)
 	}
 	if ast.IsCallExpression(node) {
 		if slot := query.normalOperation(node, false); slot != nil && (slot.state == sourceOperationConsumed || slot.state == sourceOperationRefused || slot.state == sourceOperationBypassed) {

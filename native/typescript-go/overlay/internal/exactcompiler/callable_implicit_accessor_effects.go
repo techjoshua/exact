@@ -22,15 +22,21 @@ func visitImplicitAccessors(node *ast.Node, typeChecker *checker.Checker, bindin
 	if owner != nil && owner.values != nil {
 		values = owner.values
 	}
-	query := &sourceValueQuery{owner: values, executable: owner, effectOwner: consumer, remaining: 4096, active: make(map[*ast.Node]bool), reading: node, operation: &sourceOperationContext{node: node, owner: consumer}}
-	if len(normal) == 1 {
-		query.inputs = normal[0]
-		query.operation.inputs = normal[0]
+	query := newSourceDependencyQuery(node, typeChecker, owner, consumer)
+	defer query.publishDependencyStatistics()
+	if len(normal) == 1 && normal[0] != nil {
+		query = &sourceValueQuery{owner: values, executable: owner, effectOwner: consumer, remaining: 4096, active: make(map[*ast.Node]bool), reading: node, operation: &sourceOperationContext{node: node, owner: consumer}}
+		if len(normal) == 1 {
+			query.inputs = normal[0]
+			query.operation.inputs = normal[0]
+		}
 	}
 	result := accessorCandidates{}
 	finish := query.normalWork(&result, node)
 	defer func() { finish(); visit(result) }()
-	query.returnObservation = &sourceReturnObservation{owner: consumer, reader: node, frame: query.inputs, receipts: receipts}
+	if !query.dependenciesOnly {
+		query.returnObservation = &sourceReturnObservation{owner: consumer, reader: node, frame: query.inputs, receipts: receipts}
+	}
 	if ast.IsNewExpression(node) {
 		query.retainThenOperation(node, nil, &result)
 		mergeAccessorCandidates(&result, query.invocation(node, nil))

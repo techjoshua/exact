@@ -381,7 +381,13 @@ func (query *sourceValueQuery) consumeGetInputs(body *ast.Node, get *sourceGetIn
 }
 
 func (query *sourceValueQuery) executeGetEffects(body *ast.Node, get *sourceGetInputs, scope acquiredCallableScope, result *accessorCandidates) {
-	query.consumeGetInputs(body, get, scope, result, func(inputs *sourceValueInputs) { query.executeInputs(body, inputs.bindings, result, nil, inputs) })
+	query.consumeGetInputs(body, get, scope, result, func(inputs *sourceValueInputs) {
+		if query.dependenciesOnly {
+			query.consumeSourceBodyEffects(get.operation, body, inputs.bindings, inputs, nil, result)
+		} else {
+			query.executeInputs(body, inputs.bindings, result, nil, inputs)
+		}
+	})
 }
 
 // acquireGetResult consumes the normal Get once and observes only its raw return.

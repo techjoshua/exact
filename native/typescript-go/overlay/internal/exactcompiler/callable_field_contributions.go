@@ -25,13 +25,13 @@ func fieldFallbackFulfilled(caller, target *callableFacts, edge CallEdge, source
 	for _, call := range caller.fieldCalls {
 		if call.dependencies && call.operation == operation && call.target == target.node {
 			for _, outcome := range call.outcomes {
-				sourceSummary = sourceSummary || outcome.demand == *origin
+				sourceSummary = sourceSummary || sameFieldObligation(outcome.demand, *origin)
 			}
 		}
 	}
 	matched := false
 	for _, call := range caller.fieldCalls {
-		if sourceSummary && !call.dependencies {
+		if sourceSummary && (!call.dependencies || call.target != target.node) {
 			continue
 		}
 		if call.operation != operation {
@@ -42,7 +42,7 @@ func fieldFallbackFulfilled(caller, target *callableFacts, edge CallEdge, source
 		}
 		covered := false
 		for _, outcome := range call.outcomes {
-			if outcome.demand == *origin {
+			if sameFieldObligation(outcome.demand, *origin) {
 				if !outcome.fulfilled {
 					return false
 				}

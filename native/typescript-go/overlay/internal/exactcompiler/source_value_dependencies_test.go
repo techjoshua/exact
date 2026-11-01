@@ -105,3 +105,42 @@ func TestSymbolicDependenciesEmitted(t *testing.T) {
 		})
 	}
 }
+
+// Existing binding/default operations must appear in the shared demand stream.
+func TestSymbolicBindingAndNestedUseContexts(t *testing.T) {
+	for _, test := range []struct{ name, source, want string }{
+		{"array default", `function read(input:string[]){const [value=document.title]=input;return value}export const value=read([]);`, "client"},
+		{"array default bypass", `function read(input:string[]){const [value=document.title]=input;return value}export const value=read(['safe']);`, "isomorphic"},
+		{"earlier formal", `function read(input:{value:string},value=input.value){return value}export const value=read({get value(){return document.title}});`, "client"},
+		{"explicit bypass", `function read(input:{value:string},value=input.value){return value}export const value=read({get value(){return document.title}},'safe');`, "isomorphic"},
+		{"nested contexts", `function invoke(f:()=>string){return f()}function make(input:{value:string}){return ()=>invoke(()=>input.value)}const a=make({value:'safe'}),b=make({get value(){return document.title}});export const safeValue=a();export const value=b();`, "client"},
+	} {
+		t.Run(test.name, func(t *testing.T) { assertClosurePlacement(t, test.source, test.want) })
+	}
+}
+
+// Generator defaults belong to Call. Its body belongs to resume, even when the
+// iterator result itself has no exact value model.
+func TestSymbolicGeneratorEffectPhases(t *testing.T) {
+	for _, test := range []struct{ name, source, marker, want string }{
+		{"dormant body", `function* create(){return document.title}const iterator=create();export const value='safe';`, "const iterator=", "neutral"},
+		{"default before resume", `function* create(value=document.title){return value}const iterator=create();export const value='safe';`, "const iterator=", "browser"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			response := NewSession().Execute(Request{Kind: "analyze", ID: "/virtual/generator-effect-phase.ts", Source: test.source, Diagnostics: "semantic"})
+			if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) {
+				t.Fatal(response.Error, response.Diagnostics)
+			}
+			name := fmt.Sprint("module@", strings.Index(test.source, test.marker))
+			for _, fact := range response.Analysis.Callables {
+				if fact.Name == name {
+					if fact.Effect != test.want {
+						t.Fatalf("%s want %s, got %s: %#v", test.name, test.want, fact.Effect, fact.EffectSources)
+					}
+					return
+				}
+			}
+			t.Fatal("missing generator creation observation")
+		})
+	}
+}

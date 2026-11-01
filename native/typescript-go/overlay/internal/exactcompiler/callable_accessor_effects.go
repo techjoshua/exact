@@ -20,6 +20,11 @@ func appendBoundAccessorEffects(fact *callableFacts, node *ast.Node, targets map
 		return
 	}
 	var candidates accessorCandidates
+	if fact.normalInputs == nil {
+		candidates = sourceMemberDependencies(node, typeChecker, owner, fact.node, nil)
+		appendOwnedGetFact(fact, node, candidates, targets, source, typeChecker)
+		return
+	}
 	read, write := false, false
 	if ast.IsPropertyAccessExpression(node) || ast.IsElementAccessExpression(node) {
 		read, write = accessorEvaluationMode(node)
@@ -157,6 +162,9 @@ func accessorEvaluationMode(node *ast.Node) (bool, bool) {
 
 // appendOpaqueAccessorEffect prevents a bounded search from proving unavailable execution portable.
 func appendOpaqueAccessorEffect(fact *callableFacts, candidates accessorCandidates) {
+	fact.callOutcomes = append(fact.callOutcomes, candidates.callOutcomes...)
+	fact.summary.DirectEffectSources = append(fact.summary.DirectEffectSources, candidates.environmentEffects...)
+	fact.directContext = append(fact.directContext, candidates.contextEffects...)
 	appendCoverageOpacity := true
 	if candidates.prefixCoverage != nil {
 		settled, fresh := settlePrefixRefusalCoverage(fact, candidates)
@@ -185,7 +193,14 @@ func appendOpaqueAccessorEffect(fact *callableFacts, candidates accessorCandidat
 	}
 	for _, fallback := range candidates.callFallbacks {
 		fallback := fallback
-		effect := environmentSource("unknown", "unresolved callee selection", fact.summary.Name)
+		description := "unresolved callee selection"
+		if fallback.phase == sourceReturnRelationship {
+			description = "exact return output unavailable"
+		}
+		if fallback.phase == sourceArgumentRelationship {
+			description = "exact argument output unavailable"
+		}
+		effect := environmentSource("unknown", description, fact.summary.Name)
 		effect.Opaque, effect.provenanceIncomplete, effect.callOrigin = true, true, &fallback
 		fact.summary.DirectEffectSources = append(fact.summary.DirectEffectSources, effect)
 	}

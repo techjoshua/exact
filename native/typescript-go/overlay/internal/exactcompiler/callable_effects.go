@@ -34,6 +34,8 @@ var universalCallRoots = map[string]struct{}{
 }
 
 type callableFacts struct {
+	callOutcomes []sourceCallOutcome
+
 	componentInputDemands []sourceComponentInputDemand
 	// Source coverage is immutable analysis metadata, never a runtime receipt.
 	pendingPrefixCoverage  *sourcePrefixRefusalCoverage
@@ -738,6 +740,7 @@ func callableModuleKey(filename string) string {
 // cloneProjectCallableFact copies mutable graph inputs. Propagated summaries and targets
 // are replaced by the merge before resolution, so copying them would be discarded work.
 func cloneProjectCallableFact(value callableFacts) callableFacts {
+	value.callOutcomes = append([]sourceCallOutcome(nil), value.callOutcomes...)
 	value.componentInputDemands = append([]sourceComponentInputDemand(nil), value.componentInputDemands...)
 	value.initializerDraft = cloneModuleInitializerDraft(value.initializerDraft)
 	// Publication rights remain on original source facts. Cached copies retain
