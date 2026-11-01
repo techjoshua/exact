@@ -266,7 +266,9 @@ func TestInitializerCallSourceRefusals(t *testing.T) {
 	}
 }
 
-func TestInitializerCallMatchedRuntimeAndObserverParity(t *testing.T) {
+// Keep precision publication checks separate from the runtime semantics so one
+// failure cannot prevent the other contract from being exercised.
+func TestInitializerCallPublisherResponseParity(t *testing.T) {
 	for _, target := range []Target{TargetClient, TargetServer} {
 		t.Run(string(target), func(t *testing.T) {
 			request := Request{Kind: "compile", ID: "/virtual/initializer-runtime.ts", Source: initializerCallSource, Target: target, Diagnostics: "semantic"}
@@ -300,8 +302,19 @@ func TestInitializerCallMatchedRuntimeAndObserverParity(t *testing.T) {
 			if !reflect.DeepEqual(clean(normal), clean(observed)) {
 				t.Fatal("full Response observer parity differs excluding only top-level timings")
 			}
+		})
+	}
+}
+
+func TestInitializerCallRuntime(t *testing.T) {
+	for _, target := range []Target{TargetClient, TargetServer} {
+		t.Run(string(target), func(t *testing.T) {
+			r := NewSession().Execute(Request{Kind: "compile", ID: "/virtual/initializer-runtime.ts", Source: initializerCallSource, Target: target, Diagnostics: "semantic"})
+			if r.Error != "" || hasErrorDiagnostic(r.Diagnostics) || r.Code == "" {
+				t.Fatal(r.Error, r.Diagnostics)
+			}
 			file := filepath.Join(t.TempDir(), "initializer.mjs")
-			if e := os.WriteFile(file, []byte(normal.Code+`;if(selected!==7||box.current!==1)throw Error('initializer value/order');console.log('PASS');`), 0600); e != nil {
+			if e := os.WriteFile(file, []byte(r.Code+`;if(selected!==7||box.current!==1)throw Error('initializer value/order');console.log('PASS');`), 0600); e != nil {
 				t.Fatal(e)
 			}
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)

@@ -239,7 +239,9 @@ func TestArrayInitializerSourceLimits(t *testing.T) {
 	}
 }
 
-func TestArrayInitializerCreationNodeParity(t *testing.T) {
+// Publisher validation is independent of emitted JavaScript behavior. A missing
+// precision receipt must not prevent the separate runtime contract from running.
+func TestArrayInitializerPublisherResponseParity(t *testing.T) {
 	old := conditionalFieldObserve
 	defer func() { conditionalFieldObserve = old }()
 	for _, target := range []Target{TargetClient, TargetServer} {
@@ -275,8 +277,21 @@ func TestArrayInitializerCreationNodeParity(t *testing.T) {
 			if !reflect.DeepEqual(clean(normal), clean(observed)) {
 				t.Fatal("full Response differs excluding top-level timings only")
 			}
+		})
+	}
+}
+
+// Ordinary source composition preserves the actual array and deferred callable
+// without requiring a compile-time construction receipt.
+func TestArrayInitializerCreationRuntime(t *testing.T) {
+	for _, target := range []Target{TargetClient, TargetServer} {
+		t.Run(string(target), func(t *testing.T) {
+			r := NewSession().Execute(Request{Kind: "compile", ID: "/virtual/array-creation-runtime.ts", Source: arrayInitializerCallSource, Target: target, Diagnostics: "semantic"})
+			if r.Error != "" || hasErrorDiagnostic(r.Diagnostics) || r.Code == "" {
+				t.Fatal("original emitted creation unavailable", r.Error, r.Diagnostics)
+			}
 			script := `const vm=require('node:vm'),fs=require('node:fs');const c=vm.createContext({exports:{}});vm.runInContext(fs.readFileSync(process.argv[1],'utf8'),c);if(!vm.runInContext("Array.isArray(xs)&&xs.length===1&&Object.hasOwn(xs,'0')&&typeof xs[0]==='function'&&input.value==='safe'",c))throw Error('actual creation only');const d=vm.runInContext("Object.getOwnPropertyDescriptor(xs,'0')",c);if(!d.writable||!d.enumerable||!d.configurable)throw Error('slot descriptor');`
-			sourceNodeScript(t, normal.Code, script)
+			sourceNodeScript(t, r.Code, script)
 		})
 	}
 }
