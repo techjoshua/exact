@@ -48,19 +48,20 @@ func secretArtifactOwnDataWithin(value *checker.Type, c *checker.Checker, seen m
 			return true
 		}
 	}
-	if secretArtifactNativeCarrier(value, c) && value.ObjectFlags()&checker.ObjectFlagsReference != 0 {
+	nativeCarrier := secretArtifactNativeCarrier(value, c)
+	if nativeCarrier && value.ObjectFlags()&checker.ObjectFlagsReference != 0 {
 		for _, argument := range c.GetTypeArguments(value) {
 			if secretArtifactOwnDataWithin(argument, c, seen, active) {
 				return true
 			}
 		}
 	}
-	// Native member APIs are not payload fields. Their argument contracts
-	// were handled above without expanding unrelated library object graphs.
-	if secretArtifactNativeCarrier(value, c) {
-		return false
-	}
+	// Native API members are not payloads. Application augmentations remain
+	// independent stored-data obligations beside the native payload contract.
 	for _, property := range c.GetPropertiesOfType(value) {
+		if nativeCarrier && secretArtifactLibraryProperty(property, c) {
+			continue
+		}
 		if !secretArtifactStoredProperty(property) {
 			continue
 		}
@@ -69,6 +70,20 @@ func secretArtifactOwnDataWithin(value *checker.Type, c *checker.Checker, seen m
 		}
 	}
 	return false
+}
+
+// secretArtifactLibraryProperty excludes only wholly native declarations.
+// A merged application declaration keeps its stored-data obligation visible.
+func secretArtifactLibraryProperty(property *ast.Symbol, c *checker.Checker) bool {
+	if len(property.Declarations) == 0 {
+		return false
+	}
+	for _, declaration := range property.Declarations {
+		if !c.IsLibSymbolForHoverVerbosity(&ast.Symbol{Declarations: []*ast.Node{declaration}}) {
+			return false
+		}
+	}
+	return true
 }
 
 // secretArtifactStoredProperty distinguishes declared storage from deferred
