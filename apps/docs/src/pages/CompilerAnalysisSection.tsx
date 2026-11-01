@@ -57,26 +57,29 @@ read(false, { value: 9 });`}
 				conservative analysis. It does not make an unresolved helper portable.
 			</p>
 			<p>
-				A module-local helper can return an arrow that reads its object parameter. Creating the
-				arrow leaves the property read deferred. The immediately following call reads the same
-				object through the captured parameter.
+				A helper can return a function that reads an object supplied by its caller. Creating and
+				storing the function leaves that read deferred. When the function is called, its environment
+				requirement follows the captured object and the writes that can reach the property read.
 			</p>
 			<CodeBlock
-				source={`export {};
-function make(input: { value: string }) {
+				source={`function make(input: { value: string }) {
   return () => input.value;
 }
 const input = { value: 'safe' };
-const selected = make(input);
-selected();`}
+const readers = [make(input)];
+input.value = document.title;
+export const value = readers[0]!();`}
 				language="ts"
-				title="An immediate captured read"
+				title="A captured read through a container"
 			/>
 			<p>
-				This precise inference covers the immediate call and ordinary own data field shown. Array
-				projection, intervening mutation, getters, Proxy receivers and unknown inputs retain
-				conservative analysis. Retaining a Proxy handler&apos;s known effects does not make an
-				unresolved Proxy construction portable, and that construction can still prevent emission.
+				Here the exported value depends on the browser because the captured read observes the
+				assignment from <code>document.title</code>. The compiler does not need to know the title
+				string. Replacing that assignment with an ordinary string removes this browser dependency. A
+				later write to an unrelated property does not affect the read. Unknown overlapping writes,
+				getters and Proxy behavior retain their own effects and uncertainty. Retaining a Proxy
+				handler&apos;s known effects does not make an unresolved Proxy construction portable, and
+				that construction can still prevent emission.
 			</p>
 			<p>
 				A small helper can also use a numeric literal as its only parameter default. For
