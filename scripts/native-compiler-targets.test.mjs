@@ -20,6 +20,7 @@ test('native release targets share preparation and host validation', async (cont
 		'checkout-native-typescript-go.mjs',
 		'native-compiler-build-cache.mjs',
 		'native-compiler-source.mjs',
+		'native-compiler-test-selection.mjs',
 		'package-native-compiler.mjs',
 		'release-output-path.mjs'
 	])
@@ -61,7 +62,7 @@ test('native release targets share preparation and host validation', async (cont
 	await put('upstream/NOTICE.txt', 'upstream notice');
 	const log = path.join(root, 'commands.jsonl');
 	const record = `const fs=require('node:fs');fs.appendFileSync(${JSON.stringify(log)},JSON.stringify({kind:KIND,args:process.argv.slice(2),os:process.env.GOOS,arch:process.env.GOARCH})+'\\n');`;
-	await put('node_modules/typescript/bin/tsc6', record.replace('KIND', "'prepare'"));
+	await put('node_modules/@typescript/native/bin/tsc', record.replace('KIND', "'prepare'"));
 	await put('upstream/tsc/test', record.replace('KIND', "'test'"));
 	await put(
 		'upstream/tsc/build',

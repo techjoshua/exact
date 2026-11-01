@@ -1725,7 +1725,8 @@ outputs. These checks add execution evidence to the existing compiler and adapte
 ## Compositional source analysis
 
 Maintainer validation uses `node scripts/build-native-compiler.mjs --source <pinned checkout>`.
-The build stages the maintained overlay and runs its native tests before producing the host.
+The build prepares workspace declarations with the installed official TypeScript 7 CLI,
+then stages the maintained overlay and runs its native tests before producing the host.
 Use `--test-pattern '<Go test expression>'` for a bounded regression gate. That mode forces
 a fresh build, cannot produce release packages or coverage, and leaves no full-suite cache stamp.
 The ordinary build remains the complete native validation path.

@@ -28,7 +28,12 @@ const packageOutput = process.argv.includes('--package');
 const collectCoverage = process.argv.includes('--coverage');
 const allTargets = process.argv.includes('--all-targets');
 const testPattern = argument('test-pattern');
-const testSelection = nativeCompilerTestSelection({ testPattern, packageOutput, collectCoverage, allTargets });
+const testSelection = nativeCompilerTestSelection({
+	testPattern,
+	packageOutput,
+	collectCoverage,
+	allTargets
+});
 if (allTargets && (!packageOutput || collectCoverage || argument('platform') || argument('arch'))) {
 	throw new Error('--all-targets requires --package and cannot select coverage or one target');
 }
@@ -73,7 +78,7 @@ if (current) {
 	await run(
 		process.execPath,
 		[
-			path.join(repositoryRoot, 'node_modules/typescript/bin/tsc6'),
+			path.join(repositoryRoot, 'node_modules/@typescript/native/bin/tsc'),
 			'-b',
 			'packages/core',
 			'packages/jsx-runtime',
