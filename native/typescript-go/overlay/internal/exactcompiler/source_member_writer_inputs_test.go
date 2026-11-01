@@ -328,3 +328,38 @@ func TestMemberWriterOpaqueResultRecursion(t *testing.T) {
 	const source = `declare function make():any;const box=make();function put(box:any){box.field={get value():string{document.title;return box.field.value}}}put(box);export const value=box.field.value;`
 	assertSymbolicInitializerDonors(t, source)
 }
+
+// Opaque invocation keeps a callback's captured RHS while withholding performed
+// Call authority. Replacing that captured value invalidates earlier donor facts.
+func TestMemberWriterRefusedCapturedValues(t *testing.T) {
+	for _, rhs := range []string{"v", "{get value(){return v.value}}"} {
+		t.Run(rhs, func(t *testing.T) {
+			session := NewSession()
+			for _, browser := range []bool{true, false, true} {
+				value := "{value:'safe'}"
+				if browser {
+					value = "{get value(){return document.title}}"
+				}
+				source := `declare function invoke(fn:()=>void):void;const box={field:{value:'safe'}};function make(v:{value:string}){return ()=>{box.field=` + rhs + `}}const write=make(` + value + `);invoke(write);export const value=box.field.value;`
+				response := session.Execute(Request{Kind: "analyze", ID: "/virtual/refused-captured-value.ts", Source: source, Diagnostics: "semantic"})
+				if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) {
+					t.Fatal(response.Error, response.Diagnostics)
+				}
+				found, gotBrowser, unknown := false, false, false
+				for _, fact := range response.Analysis.Callables {
+					if fact.Name != fmt.Sprint("module@", strings.Index(source, "export const value")) {
+						continue
+					}
+					found = true
+					for _, effect := range fact.EffectSources {
+						gotBrowser = gotBrowser || effect.Environment == "browser"
+						unknown = unknown || effect.Environment == "unknown"
+					}
+				}
+				if !found || gotBrowser != browser || !unknown {
+					t.Fatal("refused callback lost captured RHS or independent residual", response.Analysis)
+				}
+			}
+		})
+	}
+}

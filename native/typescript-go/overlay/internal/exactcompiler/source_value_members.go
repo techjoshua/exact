@@ -299,7 +299,14 @@ func (query *sourceValueQuery) memberValuesAtGet(origin *ast.Node, projection []
 										}
 									}
 								} else {
-									next = append(next, sourceValue{node: assignment.right, path: demand[len(written) : len(demand)-1]})
+									value := sourceValue{node: assignment.right, path: demand[len(written) : len(demand)-1]}
+									if query.dependenciesOnly && input.incomplete {
+										// A refused invocation has captures, but no performed
+										// Call. Keep that scope on its possible RHS value.
+										scope := input.scope
+										value.capture = &scope
+									}
+									next = append(next, value)
 								}
 							}
 							occurrence := operation
