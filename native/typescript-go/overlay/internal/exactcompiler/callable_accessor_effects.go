@@ -264,14 +264,105 @@ func sourceMemberKey(node *ast.Node) sourceKeySelection {
 	return sourceKeySelection{}
 }
 
-// reflectiveMemberValue retains a literal descriptor's actual callable value as
-// a possible source method. Reflective execution still remains opaque. This is
-// not an Object.defineProperty identity or mutation-completion certificate.
-func (query *sourceValueQuery) reflectiveMemberValue(origin *ast.Node, projection []string, name string, node *ast.Node, mode accessorTraversal, bindings sourceValueBindings, result *accessorCandidates) (*ast.Node, bool) {
-	return query.reflectiveMemberValueAtGet(origin, projection, name, node, mode, bindings, result, nil)
+// reflectiveMemberValuesAtGet keeps each source writer Call's target, key and
+// descriptor contributions in the same symbolic scope. Normal descriptor reads
+// retain their original owner. Projecting inputs does not replay the writer.
+func (query *sourceValueQuery) reflectiveMemberValuesAtGet(origin *ast.Node, projection []string, name string, node *ast.Node, mode accessorTraversal, bindings sourceValueBindings, result *accessorCandidates, actualGet *sourceGetInputs, cut *sourceMemberWriterReadCut) ([]sourceValue, bool) {
+	if !query.dependenciesOnly || query.operation != nil || query.returnObservation != nil || query.installedReceiverCall != nil || query.callerInputs != nil || query.inputs != nil && query.inputs.operationLifetime != nil {
+		value, possible := query.reflectiveMemberValueInScope(origin, projection, name, node, mode, bindings, result, actualGet, nil, nil)
+		if value != nil {
+			return []sourceValue{{node: value}}, possible
+		}
+		return nil, possible
+	}
+	// Allocation association is the reader's already-acquired receiver scope,
+	// distinct from the original consumer cut used only for ordering.
+	receiverScope := query.acquireCallableScope(bindings, result)
+	if actualGet != nil && actualGet.receiver.capture != nil {
+		receiverScope = query.copyCallableScope(*actualGet.receiver.capture, result)
+	}
+	var values []sourceValue
+	possible := false
+	for _, row := range query.memberWriterInputs(node, bindings, result, cut) {
+		query.memberWriterScope(row, func() {
+			part := accessorCandidates{}
+			value, may := query.reflectiveMemberValueInScope(origin, projection, name, node, mode, row.scope.bindings, &part, actualGet, &row, &receiverScope)
+			possible = possible || may
+			if may && row.incomplete {
+				part.opaque = true
+				part.valueIncomplete = true
+			}
+			projected := part.values
+			part.values = nil
+			for i := range projected {
+				if scope, ok := part.callableScopes[i]; ok {
+					projected[i].capture = &scope
+				}
+			}
+			part.callableScopes = nil
+			if value != nil {
+				projected = append(projected, query.originsAt(value, node, row.scope.bindings, &part)...)
+			}
+			mergeAccessorCandidates(result, part)
+			for _, term := range projected {
+				if len(projection) > 1 {
+					term.path = append(term.path, projection[1:]...)
+				}
+				if term.capture == nil {
+					scope := row.scope
+					term.capture = &scope
+				}
+				values = append(values, term)
+			}
+		})
+	}
+	return values, possible
 }
 
-func (query *sourceValueQuery) reflectiveMemberValueAtGet(origin *ast.Node, projection []string, name string, node *ast.Node, mode accessorTraversal, bindings sourceValueBindings, result *accessorCandidates, actualGet *sourceGetInputs) (*ast.Node, bool) {
+// reflectiveTargetValues demands only a source return relationship. The target
+// Call's input/default/callee effects remain owned by that earlier operation.
+// Partial or unsupported outputs keep the raw target beside returned captures.
+func (query *sourceValueQuery) reflectiveTargetValues(values []sourceValue, bindings sourceValueBindings, result *accessorCandidates) []sourceValue {
+	var projected []sourceValue
+	for _, target := range values {
+		if target.node == nil || !ast.IsCallExpression(target.node) || len(target.path) != 0 {
+			projected = append(projected, target)
+			continue
+		}
+		func() {
+			reading, initializing, returning, creators := query.reading, query.initializing, query.returning, query.creators
+			defer func() {
+				query.reading, query.initializing, query.returning, query.creators = reading, initializing, returning, creators
+			}()
+			query.reading, query.initializing, query.returning = target.node, target.node, nil
+			targetBindings := bindings
+			if target.capture != nil {
+				targetBindings = target.capture.bindings
+				query.creators = target.capture.creators
+			}
+			start := len(projected)
+			part := query.projectSourceCallReturns(target.node, targetBindings, func(term sourceValue, bound sourceValueBindings) {
+				if term.capture == nil {
+					scope := query.acquireCallableScope(bound, result)
+					term.capture = &scope
+				}
+				projected = append(projected, term)
+			}, func() { result.valueIncomplete = true })
+			unresolved := part.opaque || part.valueIncomplete || part.receiverIncomplete || part.fieldReceiverIncomplete || part.thenIncomplete || len(projected) == start
+			result.opaque = result.opaque || part.opaque
+			result.valueIncomplete = result.valueIncomplete || unresolved
+			result.receiverIncomplete = result.receiverIncomplete || part.receiverIncomplete
+			result.fieldReceiverIncomplete = result.fieldReceiverIncomplete || part.fieldReceiverIncomplete
+			result.thenIncomplete = result.thenIncomplete || part.thenIncomplete
+			if unresolved {
+				projected = append(projected, target)
+			}
+		}()
+	}
+	return projected
+}
+
+func (query *sourceValueQuery) reflectiveMemberValueInScope(origin *ast.Node, projection []string, name string, node *ast.Node, mode accessorTraversal, bindings sourceValueBindings, result *accessorCandidates, actualGet *sourceGetInputs, input *sourceMemberWriterInput, receiverScope *acquiredCallableScope) (*ast.Node, bool) {
 	native := actualGet != nil && actualGet.receiver.native != nil
 	if !query.charge(result, node) || query.active[node] || !native && query.afterRead(node) {
 		return nil, false
@@ -283,7 +374,9 @@ func (query *sourceValueQuery) reflectiveMemberValueAtGet(origin *ast.Node, proj
 		return nil, false
 	}
 	key := name
-	if len(projection) == 1 && name == "" {
+	if input != nil && len(projection) > 0 {
+		key = projection[0]
+	} else if len(projection) == 1 && name == "" {
 		key = projection[0]
 	} else if len(projection) != 0 {
 		return nil, false
@@ -298,6 +391,19 @@ func (query *sourceValueQuery) reflectiveMemberValueAtGet(origin *ast.Node, proj
 	}
 	selected := unwrapSourceCallableReference(args[1])
 	selectedKey := sourceLiteralMemberName(selected)
+	if input != nil && selectedKey == "" {
+		keyPart := accessorCandidates{}
+		keys := query.originsAt(args[1], node, bindings, &keyPart)
+		mergeAccessorCandidates(result, keyPart)
+		for i, keyValue := range keys {
+			key := sourceLiteralMemberName(unwrapSourceCallableReference(keyValue.node))
+			if key == "" || len(keyValue.path) != 0 || i > 0 && key != selectedKey {
+				selectedKey = ""
+				break
+			}
+			selectedKey = key
+		}
+	}
 	if actualGet != nil && actualGet.symbol != nil && selectedKey != "" {
 		return nil, false
 	}
@@ -310,7 +416,12 @@ func (query *sourceValueQuery) reflectiveMemberValueAtGet(origin *ast.Node, proj
 	if query.deferredCandidateExcluded(node, result) {
 		return nil, false
 	}
-	_, possible := query.moduleWriteProducer(node, bindings)
+	possible := true
+	// A projected row is only a MAY alternative. This descriptor fallback never
+	// publishes strong replacement. Other paths retain their existing producer law.
+	if input == nil || input.call == nil {
+		_, possible = query.moduleWriteProducer(node, bindings)
+	}
 	if !possible {
 		return nil, false
 	}
@@ -318,10 +429,38 @@ func (query *sourceValueQuery) reflectiveMemberValueAtGet(origin *ast.Node, proj
 	temporary := accessorCandidates{}
 	prototype := false
 	values := query.occurrenceOrigins(args[0], node, origin, bindings, &temporary)
+	if input != nil {
+		values = query.reflectiveTargetValues(values, bindings, &temporary)
+		result.opaque = result.opaque || temporary.opaque
+		result.valueIncomplete = result.valueIncomplete || temporary.valueIncomplete
+		result.receiverIncomplete = result.receiverIncomplete || temporary.receiverIncomplete
+		result.fieldReceiverIncomplete = result.fieldReceiverIncomplete || temporary.fieldReceiverIncomplete
+		result.thenIncomplete = result.thenIncomplete || temporary.thenIncomplete
+	}
+
 	disjoint := len(values) > 0 && !temporary.opaque && !temporary.valueIncomplete && !temporary.receiverIncomplete
 	prototypeOnly := disjoint
 	for _, value := range values {
 		same := value.node == origin && len(value.path) == 0
+		qualifiedDifferent := false
+		if input != nil && receiverScope != nil && !native {
+			allocation := origin
+			if actualGet != nil && actualGet.receiver.node != nil && ast.IsNewExpression(actualGet.receiver.node) {
+				allocation = actualGet.receiver.node
+			}
+			factory := enclosingCallableNode(allocation)
+			readerCall := receiverScope.creators[factory].invocation
+			if factory != nil && readerCall != nil {
+				owned := ast.IsObjectLiteralExpression(allocation) || ast.IsArrayLiteralExpression(allocation) || query.sourceConstructedDataSlot(allocation, key, receiverScope.bindings)
+				if owned {
+					same = same || query.sourceCreatorValue(value, factory, readerCall)
+					if value.node == allocation && len(value.path) == 0 && value.capture != nil && value.capture.creators[factory].invocation != nil {
+						same = query.sourceCreatorValue(value, factory, readerCall)
+						qualifiedDifferent = !same
+					}
+				}
+			}
+		}
 		if native {
 			same = query.nativeReceiverMatches(value, actualGet.descriptorReceiver())
 		}
@@ -334,6 +473,7 @@ func (query *sourceValueQuery) reflectiveMemberValueAtGet(origin *ast.Node, proj
 		if native && value.native != nil {
 			different = value.native.kind != actualGet.receiver.native.kind
 		}
+		different = different || qualifiedDifferent
 		disjoint = disjoint && different
 	}
 	if actualGet != nil && actualGet.ownConditional && prototypeOnly {
@@ -381,6 +521,29 @@ func (query *sourceValueQuery) reflectiveMemberValueAtGet(origin *ast.Node, proj
 				if actualGet != nil {
 					operation = actualGet.operation
 				}
+				if input != nil && query.dependenciesOnly && get {
+					// Uncorrelated source Get projects free captures, never an actual receiver
+					// or an output receipt. Arrow this remains lexical in bindGetInputs.
+					var sourceOperation *ast.Node
+					sourceReceiver := sourceValue{}
+					if actualGet != nil && actualGet.operation != nil && (ast.IsPropertyAccessExpression(actualGet.operation) || ast.IsElementAccessExpression(actualGet.operation)) {
+						_, observedKey := accessorReceiver(actualGet.operation)
+						if observedKey != "" && observedKey == key {
+							sourceOperation = actualGet.operation
+							sourceReceiver = actualGet.receiver
+						}
+					}
+					inputs := query.bindGetInputs(body, sourceOperation, sourceReceiver, bindings, result)
+					result.opaque = true
+					result.retainCallableEffect(sourceOperation, body)
+					query.consumeSourceBodyEffects(sourceOperation, body, inputs.bindings, inputs, nil, result)
+					query.projectSelectedSourceReturns(body, sourceOperation, inputs.bindings, inputs, result, func(term sourceValue, bound sourceValueBindings) {
+						scope := query.acquireCallableScope(bound, result)
+						term.capture = &scope
+						result.values = append(result.values, term)
+					}, func() { result.valueIncomplete = true })
+					continue
+				}
 				result.retainCallableEffect(operation, body)
 				// A selected setter keeps its generic effect owner. The actual Get
 				// carrier supplies no assigned RHS or zero-argument Set authority.
@@ -395,7 +558,12 @@ func (query *sourceValueQuery) reflectiveMemberValueAtGet(origin *ast.Node, proj
 							}
 							result.callableScopes[len(result.values)] = returned.scope
 							value := returned.value
-							value.acquired = &returned
+							if input != nil && query.dependenciesOnly {
+								scope := returned.scope
+								value.capture = &scope
+							} else {
+								value.acquired = &returned
+							}
 							result.values = append(result.values, value)
 						}
 					} else {
@@ -413,6 +581,10 @@ func (query *sourceValueQuery) reflectiveMemberValueAtGet(origin *ast.Node, proj
 		// A descriptor method is its data-slot callable, not a getter to execute here.
 		if field == "value" && ast.IsMethodDeclaration(member) {
 			value = member
+			continue
+		}
+		if input != nil && query.dependenciesOnly && field == "value" && ast.IsShorthandPropertyAssignment(member) {
+			value = member.Name()
 			continue
 		}
 		if !ast.IsPropertyAssignment(member) {

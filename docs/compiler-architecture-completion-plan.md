@@ -4,7 +4,7 @@ Status: execution authorized by the user on 2026-11-01 after the adversarial pla
 
 Prepared 2026-11-01 against the inspected working tree. The preserved pre-migration compositional-analysis checkpoint is v30. This is an internal cache revision, not a compiler release, a count of attempts at one problem, or a whole-language completion claim. The previously uncommitted framework work was preserved in local checkpoint `b30c50e45` before worker branches were created. That commit establishes reproducible source, not a validated release baseline. Subsequent implementation and acceptance changes use local commits and isolated worktrees.
 
-The current local integration is a work in progress using parameterized source dependencies for ordinary Calls, returns, captures, Gets and construction. Normal output refinement remains separate. Integration does not establish acceptance: Core compilation still exceeds its deadline, additional eager evaluation and protocol coverage remains open, and the affected framework environments have not completed validation.
+The current local integration is a work in progress using parameterized source dependencies for ordinary Calls, returns, captures, Gets and construction. Normal output refinement remains separate. Integration does not establish acceptance. The last measured integrated Core host stack-overflows during analysis. Required protocol checks and the affected framework environment matrix remain incomplete.
 
 Field aggregation and retained client-artifact containment are integrated, including application fields added to native containers. Combined validation still exposes readonly collection helper placement, frozen-accessor placement and deferred-construction phase failures. The opaque component callback retains both its browser donor and its structural-input residual. Its regression now checks those independent contributions, with emitted getter/Throw order controls, rather than requiring an exclusively browser effect. Historical initializer tests that demand the removed receipt side channel also require reconciliation. These rows remain acceptance work for the first integrated delivery and do not authorize another operation-family expansion.
 
@@ -223,6 +223,23 @@ and current-write results are request-local. Only checker-owned AST templates an
 write indexes are shared. Ordinary synchronous effect demands enter this consumer directly.
 Normal storage recipes and acquired-value receipts remain separate refinements for consumers
 that request getter-chain elision, await operands or async settlement.
+
+The reflective source-input work remains unaccepted. Its allocation association
+uses the receiver scope acquired before writer rows are lent, separately from the
+original consumer input cut used for ordering. Different factory contexts exclude
+a target only for the same represented allocation endpoint with known creating
+Calls and an existing literal or qualified default-class field relationship.
+A reflective comparison can demand an original target Call's canonical source
+return relationship at that Call's acquisition cut. Returned alternatives retain
+their captures, while argument, callee and default effect publication stays with
+the original operations. Missing or partial output retains the raw Call target and
+independent uncertainty. This does not dereference all symbolic Calls globally.
+Unprojected Call targets and missing captures remain possible alternatives.
+Uncorrelated descriptor getter projection binds an unknown receiver and nil
+operation with the existing source body and return owners. Lexical arrow captures
+stay lexical. The contribution retains opacity and cannot discharge an actual Get,
+start a normal lifetime or publish an observed output. Object.create targets
+receive no freshness or descriptor premise from this source relationship.
 
 Effect resolution associates a relative field or Call obligation with its original source
 operation, declaration, phase and instantiated use/consumer. Coverage requires every matching

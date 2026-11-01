@@ -339,7 +339,7 @@ func (query *sourceValueQuery) memberValuesAtGet(origin *ast.Node, projection []
 				// effect fallback without replaying that Get or installing Get inputs.
 				fallbackMode |= accessorNoGet
 			}
-			value, possible := query.reflectiveMemberValueAtGet(origin, projection, name, call, fallbackMode, bindings, result, get)
+			values, possible := query.reflectiveMemberValuesAtGet(origin, projection, name, call, fallbackMode, bindings, result, get, cut)
 			if !possible {
 				continue
 			}
@@ -348,10 +348,9 @@ func (query *sourceValueQuery) memberValuesAtGet(origin *ast.Node, projection []
 			result.opaque = true
 			result.ownOperation = true
 			result.cause = call
-			if value != nil {
-				next := []sourceValue{{node: value}}
-				alternatives = append(alternatives, next...)
-				replacements = append(replacements, sourceValueReplacement{at: call, operation: call, values: next, bindings: bindings})
+			if len(values) > 0 {
+				alternatives = append(alternatives, values...)
+				replacements = append(replacements, sourceValueReplacement{at: call, operation: call, values: values, bindings: bindings})
 			}
 		}
 	}

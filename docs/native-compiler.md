@@ -1876,6 +1876,18 @@ writer Calls use the canonical selected-body and argument binding relation befor
 Member alternatives keep their acquired source bindings and creator context through subsequent
 container and getter projection. Returning only their AST node would lose a writer-created
 closure's formal captures.
+
+Reflective source writes keep the original Call's target, key and descriptor
+inputs together through alias matching. A descriptor value or getter return keeps
+its creating source bindings through later member projection. A target comparison
+may demand the existing source return relationship of an earlier Call without
+republishing that Call's arguments, defaults or callee effects. Unsupported output
+remains an opaque original Call origin for indexed MAY writes. This supplies no
+Object.create freshness, native descriptor completion or normal Get output.
+An uncorrelated possible getter uses an unknown receiver and nil operation, keeps
+lexical arrow captures and retains uncertainty. It cannot discharge an actual Get
+or borrow the descriptor target as its receiver. Existing normal descriptor
+consumers retain their separate operation and lifetime checks.
 Each alternative keeps its original Call and captured source scope. Known wrappers transfer those bindings through reached body Call demands, including forwarded callback invocation. Creating or storing a callback does not invoke it. Recursive source contexts use the existing finite dependency-entry join, and unresolved invocation alternatives retain uncertainty. Argument values are observed
 at that Call, while later field reads retain the original reader boundary rather than borrowing a
 factory return boundary. Unproved Call timing retains alternatives and uncertainty. These source

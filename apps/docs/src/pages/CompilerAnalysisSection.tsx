@@ -38,7 +38,10 @@ export function CompilerAnalysisSection(this: Component<{}>) {
 				callbacks retain their own environment requirements. Reading an object from a finite local
 				container keeps that object's identity when the container slot is later replaced. Reads of
 				the saved object still observe supported writes to its members. Unresolved calls and
-				computed alternatives can remain unknown.
+				computed alternatives can remain unknown. A helper that installs a property keeps the object
+				and value inputs from each call together, including getters that capture those inputs. Known
+				environment dependencies remain visible when an unresolved target or key also leaves
+				uncertainty.
 			</p>
 			<p>
 				Placement includes work performed when a module loads, such as class static fields, static
