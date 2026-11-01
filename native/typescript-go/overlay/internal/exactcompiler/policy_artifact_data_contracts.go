@@ -6,8 +6,8 @@ import (
 )
 
 // secretArtifactOwnDataQualified follows owned qualification through native
-// payload containers, indexed storage and declared stored properties. Callable result contracts belong to
-// whole-value disclosure. They do not by themselves label a function definition
+// payload containers, indexed storage and declared stored properties. Callable
+// result contracts belong to whole-value disclosure. They do not by themselves label a function definition
 // as embedded private data. User generic arguments do not imply runtime fields.
 func secretArtifactOwnDataQualified(value *checker.Type, c *checker.Checker, seen map[checker.TypeId]bool) bool {
 	return secretArtifactOwnDataWithin(value, c, seen, nil)
@@ -134,7 +134,7 @@ func secretArtifactOpenExpansion(value *checker.Type, active []*checker.Type, c 
 				continue
 			}
 			changed = true
-			if argument.Flags()&checker.TypeFlagsInstantiable == 0 || !secretArtifactTemplateDependent(argument, c, make(map[checker.TypeId]bool)) {
+			if argument.Flags()&checker.TypeFlagsInstantiable == 0 || !secretArtifactArgumentTemplate(argument, c) {
 				return false
 			}
 		}
@@ -143,14 +143,30 @@ func secretArtifactOpenExpansion(value *checker.Type, active []*checker.Type, c 
 	return false
 }
 
+// secretArtifactArgumentTemplate requires complete dependency inspection before
+// an argument can defer containment. No partial recursive result is public proof.
+func secretArtifactArgumentTemplate(value *checker.Type, c *checker.Checker) bool {
+	obligation := newPolicyQualificationObligation()
+	dependent := secretArtifactTemplateDependent(value, c, obligation)
+	return dependent && !obligation.incomplete
+}
+
 // secretArtifactTemplateDependent inspects actual type dependencies, not unused
 // generic parameters or all properties of a type. It distinguishes an open
 // template obligation from a closed expanding payload at the recursion boundary.
-func secretArtifactTemplateDependent(value *checker.Type, c *checker.Checker, seen map[checker.TypeId]bool) bool {
-	if value == nil || seen[value.Id()] {
+func secretArtifactTemplateDependent(value *checker.Type, c *checker.Checker, obligation *policyQualificationObligation) bool {
+	if value == nil || obligation.seen[value.Id()] {
 		return false
 	}
-	seen[value.Id()] = true
+	// Dependency inspection has its own finite obligation. An expanding
+	// dependency cannot justify deferring the outer containment requirement.
+	if c.IsExactPolicyTypeExpanding(value, obligation.active) {
+		obligation.incomplete = true
+		return false
+	}
+	obligation.seen[value.Id()] = true
+	obligation.active = append(obligation.active, value)
+	defer func() { obligation.active = obligation.active[:len(obligation.active)-1] }()
 	if value.Flags()&checker.TypeFlagsTypeParameter != 0 {
 		return true
 	}
@@ -172,10 +188,9 @@ func secretArtifactTemplateDependent(value *checker.Type, c *checker.Checker, se
 		conditional := value.AsConditionalType()
 		dependencies = append(dependencies, conditional.CheckType(), conditional.ExtendsType())
 	}
+	dependent := false
 	for _, dependency := range dependencies {
-		if secretArtifactTemplateDependent(dependency, c, seen) {
-			return true
-		}
+		dependent = secretArtifactTemplateDependent(dependency, c, obligation) || dependent
 	}
-	return false
+	return dependent
 }

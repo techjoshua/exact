@@ -110,6 +110,7 @@ func artifactEvalNode(t *testing.T, code, assertion string) {
 func TestPolicyArtifactTemplateObligations(t *testing.T) {
 	for _, contract := range []string{
 		`interface Chain<T>{next:Chain<Promise<T>>;private:Tagged}function make<T>(input:T):Chain<T>{return {} as Chain<T>} `,
+		`type Closed<U extends unknown[]>=Array<Closed<[...U,0]>>;type Deferred<A,B>=B extends string?A:Promise<B>;interface Chain<T>{next:Chain<Deferred<Closed<[]>,T>>;value:T}function make<T>(input:T):Chain<T>{return {} as Chain<T>} `,
 		`interface Growing<T,U extends unknown[]>{next:Growing<T,[...U,0]>;value:U['length'] extends 12?Tagged:string}function make<T>(input:T):Growing<T,[]>{return {} as Growing<T,[]>} `,
 		`interface Growing<U extends unknown[]>{next:Growing<[...U,0]>;value:U['length'] extends 12?Tagged:string}function make<T>(input:T):Growing<[T]>{return {} as Growing<[T]>} `,
 		`interface Growing<T extends unknown[]>{next:Growing<[...T,0]>;value:T['length'] extends 12?Tagged:string}interface Mixed<T>{open:T;closed:Growing<[]>}function make<T>(input:T):Mixed<T>{return {} as Mixed<T>} `,

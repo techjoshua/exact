@@ -374,7 +374,8 @@ the same containment obligation. Owned qualification also follows native array, 
 and set payloads, plus declaration-backed stored record properties. Synthetic constructor
 prototypes describe deferred instances and do not count as stored payload fields. Changing instantiable template arguments defer to selected-use policy without discarding
 independent secret fields. Unchanged free arguments do not excuse closed structural growth.
-Closed expanding stored payloads retain their incomplete containment obligation. These contracts require a native library declaration and do not turn arbitrary
+Closed expanding stored payloads retain their incomplete containment obligation. Template
+dependency inspection also retains a finite obligation and cannot defer containment when incomplete. These contracts require a native library declaration and do not turn arbitrary
 user generic arguments, callable result signatures, or `ThisType<T>` into runtime fields.
 Contextual checker types retain explicit nested return and
 storage contracts even when an expression is asserted as `any`. Assignment patterns and loop
