@@ -1850,8 +1850,10 @@ refinement retain their separate normal input and lifetime checks. The historica
 guards and Call-retargeting lookup are removed from ordinary source consumers, along with the
 uncalled candidate authentication and entry methods. Generic provenance and normal phase consumers
 keep their existing fallback semantics. Prefix-only reservation, qualification, history and
-continuation declarations remain for a separate consumer audit and retirement.
-Their remaining internal tests do not establish production reachability.
+continuation declarations remain for a separate consumer audit and retirement. The uncalled
+source-call finishing adapter and native-symbol prefix preparation, including its exclusive
+shape/proof helpers, are removed. Shared binding-symbol shape facts and well-known KEY validators
+retain their separate consumers. Remaining internal tests do not establish production reachability.
 
 Effect contributions remain additive. A missing precise Return value can leave the value
 incomplete while source analysis accounts for that operation's effects. Only a matching

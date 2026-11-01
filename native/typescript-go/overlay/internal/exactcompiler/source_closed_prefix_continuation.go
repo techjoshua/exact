@@ -123,40 +123,6 @@ func (p *closedPrefixCandidate) successorCallee(a languageAlternative) bool {
 	return a.callInputs.callee.callable == p.successorCallable() && len(a.callInputs.arguments) == 0
 }
 
-// finishSourceCall seals one original publication and expires its frame before
-// another installed operation can resume the actual output. Abrupt/residual
-// completion never grants a successor, and release abandons this live cursor.
-func (p *closedPrefixCandidate) finishSourceCall() {
-	h := p.history
-	receipt := h.receipt
-	if p.activationCallLayout() && p.continuation == nil {
-		if receipt != nil && len(receipt.alternatives) == 1 && h.initializerBindingResult(receipt.alternatives[0]) && activationCapturedReturn(h.callReceipts[0].alternatives[0], &languageCopyWork{}) {
-			p.continuation = &closedPrefixContinuation{next: 1, prior: receipt}
-			site := h.recipe.callSites[1]
-			p.call, p.statement, p.entry = site.call, site.statement, site.entry
-			p.authenticated, p.bodyClaimed = false, false
-		} else {
-			p.continuation = nil
-			h.published = true
-			h.state = prefixTerminal
-		}
-		p.frame, p.slot, p.entryInputs = nil, nil, nil
-		return
-	}
-	h.callReceipts = append(append([]*languageReceipt(nil), h.callReceipts...), receipt)
-	if len(h.callReceipts) == 1 && receipt != nil && len(receipt.alternatives) == 1 && receipt.alternatives[0].callHistory != nil && receipt.alternatives[0].callHistory.validResult(receipt.alternatives[0]) {
-		p.continuation = &closedPrefixContinuation{next: 1, prior: receipt}
-		site := h.recipe.callSites[1]
-		p.call, p.statement, p.entry = site.call, site.statement, site.entry
-		p.authenticated, p.bodyClaimed = false, false
-	} else {
-		p.continuation = nil
-		h.published = true
-		h.state = prefixTerminal
-	}
-	p.frame, p.slot, p.entryInputs = nil, nil, nil
-}
-
 // refuseSourceContinuation cannot fall back to prefix replay after actual entry.
 // The first immutable receipt remains available for inspection, not resumption.
 func (p *closedPrefixCandidate) refuseSourceContinuation() {
