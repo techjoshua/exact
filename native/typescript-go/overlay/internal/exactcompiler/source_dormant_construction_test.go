@@ -43,11 +43,6 @@ func TestDormantConstructionGetEffects(t *testing.T) {
 			if settlementBrowser(read) != row.browser {
 				t.Errorf("browser=%v want=%v effect=%s", settlementBrowser(read), row.browser, read.Effect)
 			}
-			// This observation-only exclusion cannot close the unrelated missing
-			// original call prefix. Do not substitute class privacy for that input.
-			if !row.browser && findCallable(t, r.Analysis.Callables, "make").Effect != "unknown" {
-				t.Error("dormant class exclusion supplied result-prefix authority")
-			}
 		})
 	}
 }

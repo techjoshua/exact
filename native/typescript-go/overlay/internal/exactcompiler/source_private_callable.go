@@ -265,7 +265,7 @@ func (query *sourceValueQuery) beginDeferredRead(get *sourceGetInputs) func() {
 // deferredCandidateExcluded removes one deferred obligation, not contributions,
 // previous opacity, value uncertainty, prototype state or runtime completion.
 func (query *sourceValueQuery) deferredCandidateExcluded(node *ast.Node, result *accessorCandidates) (excluded bool) {
-	if query.privateConstructionCandidateExcluded(node, result) {
+	if query.privateDeferredDefinitionExcluded(node, result) {
 		return true
 	}
 	d := query.deferredRead
@@ -321,14 +321,14 @@ func (query *sourceValueQuery) deferredCandidateExcluded(node *ast.Node, result 
 	return true
 }
 
-// privateConstructionCandidateExcluded removes an indexed constructor/field MAY
-// obligation only when the existing checker-bound source-use population proves
-// its class cannot be entered or exposed. This is source phase eligibility, not
+// privateDeferredDefinitionExcluded removes an indexed function, constructor or
+// instance-field MAY obligation when the complete checker-bound source uses
+// cannot enter or expose its definition. This is source phase eligibility, not
 // an absent normal frame, a property absence proof or an executed operation.
 // The shared deferred-candidate consumer also applies it to descriptor inventory.
 // It grants no Normal/NoWrites authority and clears no independent uncertainty.
-func (query *sourceValueQuery) privateConstructionCandidateExcluded(node *ast.Node, result *accessorCandidates) bool {
-	if node == nil || !query.charge(result, node) {
+func (query *sourceValueQuery) privateDeferredDefinitionExcluded(node *ast.Node, result *accessorCandidates) bool {
+	if node == nil || query.owner.program == nil || !query.charge(result, node) {
 		return false
 	}
 	source := ast.GetSourceFileOfNode(node)
@@ -341,12 +341,15 @@ func (query *sourceValueQuery) privateConstructionCandidateExcluded(node *ast.No
 		return false
 	}
 	region := entry.region
+	if query.creators[region].invocation != nil || query.inputs != nil && query.inputs.declaration == region {
+		return false
+	}
+	if ast.IsFunctionDeclaration(region) {
+		return query.privateDefinitionObserved(region, result)
+	}
 	if !ast.IsConstructorDeclaration(region) && (!ast.IsPropertyDeclaration(region) || ast.HasSyntacticModifier(region, ast.ModifierFlagsStatic)) {
 		return false
 	}
 	definition := region.Parent
-	if definition == nil || !ast.IsClassDeclaration(definition) || query.creators[region].invocation != nil || query.inputs != nil && query.inputs.declaration == region {
-		return false
-	}
-	return query.privateDefinitionObserved(definition, result)
+	return definition != nil && ast.IsClassDeclaration(definition) && query.privateDefinitionObserved(definition, result)
 }
