@@ -369,7 +369,9 @@ inference own their assignment contracts. Inferred local aggregates also inspect
 field declaration policy, including inherited and mapped members. Public sibling selection retains
 its own selected type. Imported values, members and instantiated call results retain their checks.
 Client artifact containment separately plans qualified initializers and assertions against authored
-AST identities before lowering. Writes to qualified fields and annotated deferred bodies retain
+AST identities before lowering. Qualified parameter defaults, including constructor parameter
+properties, retain the same obligation even when their body is deferred. Public defaults keep
+their ordinary behavior. Writes to qualified fields and annotated deferred bodies retain
 the same containment obligation. Owned qualification also follows native array, promise, map,
 and set payloads, plus declaration-backed stored record properties. Application-declared stored
 fields added to native containers retain independent obligations. Native API members are excluded

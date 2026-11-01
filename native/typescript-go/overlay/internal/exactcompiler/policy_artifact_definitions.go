@@ -109,7 +109,9 @@ func planSecretArtifactDefinitions(source *ast.SourceFile, c *checker.Checker) s
 				p.values[loop.Expression] = struct{}{}
 			}
 		}
-		if ast.IsVariableDeclaration(node) || ast.IsPropertyDeclaration(node) {
+		// A deferred parameter default still embeds executable payload in a
+		// retained definition, including constructor parameter properties.
+		if ast.IsVariableDeclaration(node) || ast.IsPropertyDeclaration(node) || ast.IsParameterDeclaration(node) {
 			if initializer := node.Initializer(); initializer != nil {
 				annotations := policyNodeAnnotations(node, source)
 				if annotations.policy != nil && annotations.policy.Secret {
