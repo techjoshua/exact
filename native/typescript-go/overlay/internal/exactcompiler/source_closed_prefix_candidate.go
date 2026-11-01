@@ -502,7 +502,7 @@ func (o *sourceValueOwner) prefixHistory(n *ast.Node) *closedPrefixHistory {
 	return h
 }
 func (q *sourceValueQuery) holdClosedPrefix(n *ast.Node, r *accessorCandidates) bool {
-	if q == nil || q.owner == nil {
+	if q == nil || q.owner == nil || q.dependenciesOnly {
 		return false
 	}
 	if n == q.effectOwner && ast.IsFunctionLike(n) {

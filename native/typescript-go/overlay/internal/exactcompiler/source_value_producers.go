@@ -656,7 +656,11 @@ func (proof *sourceNumericPrefix) globalPut(left *ast.Node) bool {
 // replacesSourceValue requires both own-data authority and a completed source write.
 // A performed Set alone does not prove a receiver retained the assigned value.
 func (query *sourceValueQuery) replacesSourceValue(origin *ast.Node, written []string, left *ast.Node, mode accessorTraversal, producer *ast.Node, bindings sourceValueBindings) bool {
-	return directSourceDataSlot(origin, written, left, query.owner.checker) && query.sourceWritePrecedes(left, producer, bindings)
+	data := directSourceDataSlot(origin, written, left, query.owner.checker)
+	if len(written) == 1 && query.dependenciesOnly && ast.IsNewExpression(origin) {
+		data = query.sourceConstructedDataSlot(origin, written[0], bindings)
+	}
+	return data && query.sourceWritePrecedes(left, producer, bindings)
 }
 
 // sourceWritePrecedes shares performed-write ordering without granting data-slot

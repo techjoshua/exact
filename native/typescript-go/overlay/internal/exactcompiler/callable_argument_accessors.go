@@ -20,7 +20,15 @@ func appendArgumentAccessorEffects(fact *callableFacts, node *ast.Node, targets 
 		}
 		return accessorCandidates{}
 	}
-	candidates := sourceInvocationWithResults(node, c, owner, fact.node, fact.nativeCalls, fact.normalCalls, fact.normalInputs)
+	if fact.normalInputs == nil {
+		candidates := sourceInvocationDependencies(node, c, owner, fact.node)
+		appendOpaqueAccessorEffect(fact, candidates)
+		appendSourceValueWrites(fact, candidates, c)
+		appendAccessorTargets(fact, node, candidates, targets, source)
+		return candidates
+	}
+	precise := sourceInvocationWithResults(node, c, owner, fact.node, fact.nativeCalls, fact.normalCalls, fact.normalInputs)
+	candidates := refineSourceDependencies(precise, func() accessorCandidates { return sourceInvocationDependencies(node, c, owner, fact.node) })
 	if publishOriginalDescriptorCall(fact, node, candidates, targets, source, c) {
 		return candidates
 	}

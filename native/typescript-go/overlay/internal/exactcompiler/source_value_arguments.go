@@ -71,6 +71,13 @@ func (query *sourceValueQuery) boundProjection(values []sourceValue, path []stri
 // proves bypass. Active entries retain the earlier bindings used by that initializer.
 // This is neither a runtime environment nor a selected-callee or production certificate.
 type sourceValueInputs struct {
+	// deferredBody separates generator parameter initialization from first resume.
+	deferredBody  bool
+	dependencyUse *ast.Node
+
+	// dependencyScope belongs only to a request-local source summary instantiation.
+	dependencyScope acquiredCallableScope
+
 	priorPropertyFacts *sourcePriorPropertyFacts // live collector borrow, never cached
 	initializerCursor  *moduleInitializerCursor
 	ownedFact          *callableFacts
@@ -186,6 +193,11 @@ func (query *sourceValueQuery) bindInvocationInputsFromObservation(declaration, 
 		// pending actual again, including an earlier unavailable result.
 		defer func() {
 			values = query.sealInitializerValues(values, result)
+			if query.dependenciesOnly {
+				outcome := query.returnOutcome(value, !result.opaque && !result.receiverIncomplete)
+				outcome.phase = sourceArgumentRelationship
+				result.callOutcomes = append(result.callOutcomes, outcome)
+			}
 			actualCache[value] = values
 		}()
 		previous := query.creators
@@ -227,7 +239,11 @@ func (query *sourceValueQuery) bindInvocationInputsFromObservation(declaration, 
 		defer func() { query.creators = callerCreators }()
 	}
 	inputs := &sourceValueInputs{declaration: declaration, invocation: node, bindings: make(sourceValueBindings, len(captures)+len(declaration.Parameters())), defaults: make(map[*ast.Node]sourceDefaultInput)}
-	beginNormalOperations(inputs)
+	// Binding a generic source relationship is not normal body entry. Existing
+	// actual/capture observations below retain their original owners.
+	if !query.dependenciesOnly {
+		beginNormalOperations(inputs)
+	}
 	bound := inputs.bindings
 	for id, values := range captures {
 		if !query.charge(result, declaration) {

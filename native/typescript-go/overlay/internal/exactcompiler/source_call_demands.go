@@ -10,7 +10,17 @@ import (
 type sourceCallOutcome struct {
 	declaration, operation *ast.Node
 	complete               bool
+	use, consumer          *ast.Node
+	phase                  sourceCallPhase
+	dependencies           bool
 }
+type sourceCallPhase uint8
+
+const (
+	sourceReturnRelationship   sourceCallPhase = 1
+	sourceArgumentRelationship sourceCallPhase = 2
+	sourceDefaultEvaluation    sourceCallPhase = 3
+)
 
 // retainCallSelectionFallback records only unavailable callee implementation.
 // Independent acquisition effects stay on their existing origins and opacity.
@@ -28,7 +38,7 @@ func (query *sourceValueQuery) retainCallSelectionFallback(operation *ast.Node, 
 		result.opaque = true
 		return
 	}
-	result.callFallbacks = append(result.callFallbacks, sourceCallOutcome{declaration: declaration, operation: operation})
+	result.callFallbacks = append(result.callFallbacks, sourceCallOutcome{declaration: declaration, operation: operation, use: query.effectUse(), consumer: query.effectOwner})
 }
 
 // callFallbackFulfilled projects only this edge's actual complete call outcome.
@@ -48,8 +58,19 @@ func callFallbackFulfilled(caller, target *callableFacts, edge CallEdge, source 
 	if unique != 1 || operation == nil {
 		return false
 	}
+	sourceSummary := false
+	for _, call := range caller.fieldCalls {
+		if call.dependencies && call.operation == operation && call.target == target.node {
+			for _, outcome := range call.calls {
+				sourceSummary = sourceSummary || sameCallObligation(outcome, *origin)
+			}
+		}
+	}
 	matched := false
 	for _, call := range caller.fieldCalls {
+		if sourceSummary && (!call.dependencies || call.target != target.node) {
+			continue
+		}
 		if call.operation != operation {
 			continue
 		}
@@ -58,7 +79,7 @@ func callFallbackFulfilled(caller, target *callableFacts, edge CallEdge, source 
 		}
 		covered := false
 		for _, outcome := range call.calls {
-			if outcome.declaration == origin.declaration && outcome.operation == origin.operation {
+			if sameCallObligation(outcome, *origin) {
 				if !outcome.complete {
 					return false
 				}
@@ -79,7 +100,7 @@ func callSourceIdentity(source EnvironmentEffectSource) string {
 		return ""
 	}
 	origin := source.callOrigin
-	key := fmt.Sprintf(":call:%s:%d:%d", ast.GetSourceFileOfNode(origin.declaration).FileName(), origin.declaration.Pos(), origin.operation.Pos())
+	key := fmt.Sprintf(":call:%s:%d:%d:%p:%p:%d", ast.GetSourceFileOfNode(origin.operation).FileName(), sourceObligationDeclarationPos(origin.declaration), origin.operation.Pos(), origin.use, origin.consumer, origin.phase)
 	if source.callForwarded {
 		key += ":forwarded"
 	}

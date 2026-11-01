@@ -20,6 +20,11 @@ func appendBoundAccessorEffects(fact *callableFacts, node *ast.Node, targets map
 		return
 	}
 	var candidates accessorCandidates
+	if fact.normalInputs == nil {
+		candidates = sourceMemberDependencies(node, typeChecker, owner, fact.node, nil)
+		appendOwnedGetFact(fact, node, candidates, targets, source, typeChecker)
+		return
+	}
 	read, write := false, false
 	if ast.IsPropertyAccessExpression(node) || ast.IsElementAccessExpression(node) {
 		read, write = accessorEvaluationMode(node)
@@ -47,6 +52,15 @@ func appendBoundAccessorEffects(fact *callableFacts, node *ast.Node, targets map
 	} else {
 		candidates = evaluatedSourceAccessors(node, typeChecker, bindings, owner, fact.node, nil)
 	}
+	if read || write {
+		var inputs sourceValueBindings
+		if fact.normalInputs != nil {
+			inputs = fact.normalInputs.bindings
+		}
+		candidates = refineSourceDependencies(candidates, func() accessorCandidates {
+			return sourceMemberDependencies(node, typeChecker, owner, fact.node, inputs)
+		})
+	}
 	appendOwnedGetFact(fact, node, candidates, targets, source, typeChecker)
 }
 
@@ -61,18 +75,28 @@ func (candidates *accessorCandidates) retainCallableEffect(operation, declaratio
 // return observer's selected declaration cannot become a body execution edge.
 // Nested calls keep their own operation, not the enclosing consumer's location.
 func appendAccessorTargets(fact *callableFacts, node *ast.Node, candidates accessorCandidates, targets map[*ast.Node]int, source *ast.SourceFile) {
-	seen := make(map[sourceCallableEffect]bool)
-	for _, contribution := range candidates.effects {
-		if seen[contribution] {
-			continue
+	for _, producer := range candidates.producers {
+		if index, exists := targets[producer]; exists {
+			fact.targets = append(fact.targets, index)
+			source := ast.GetSourceFileOfNode(producer)
+			fact.summary.Calls = append(fact.summary.Calls, CallEdge{ID: fmt.Sprintf("%s:dependency:%d", fact.summary.ID, producer.Pos()), TargetID: fmt.Sprintf("callable:%s:%d", source.FileName(), producer.Pos()), Resolved: true})
 		}
-		seen[contribution] = true
+	}
+	seen := make(map[sourceCallableEffect]int)
+	for _, contribution := range candidates.effects {
 		declaration := contribution.declaration
 		if declaration == nil || !ast.IsFunctionLike(declaration) {
 			continue
 		}
 		owner := ast.GetSourceFileOfNode(declaration)
 		if owner == nil || owner.IsDeclarationFile {
+			continue
+		}
+		key := contribution
+		key.receivers = nil
+		bindings := contribution.receiverBindings(fact.node)
+		if index, exists := seen[key]; exists {
+			fact.summary.Calls[index].ReceiverBindings = joinSourceReceiverBindings(fact.summary.Calls[index].ReceiverBindings, bindings)
 			continue
 		}
 		operation := contribution.operation
@@ -85,6 +109,15 @@ func appendAccessorTargets(fact *callableFacts, node *ast.Node, candidates acces
 		}
 		targetID := fmt.Sprintf("callable:%s:%d", owner.FileName(), declaration.Pos())
 		edge := CallEdge{ID: fmt.Sprintf("%s:accessor:%s:%d:%s", fact.summary.ID, operationSource.FileName(), operation.Pos(), targetID), Name: strings.TrimSpace(sourceText(operationSource, operation)), Resolved: true, TargetID: targetID}
+		edge.ReceiverBindings = joinSourceReceiverBindings(nil, bindings)
+		seen[key] = len(fact.summary.Calls)
+		duplicate := false
+		for _, existing := range fact.summary.Calls {
+			duplicate = duplicate || existing.ID == edge.ID
+		}
+		if duplicate {
+			continue
+		}
 		fact.summary.Calls = append(fact.summary.Calls, edge)
 		if contribution.operation != nil {
 			if fact.fieldEdgeOperations == nil {
@@ -134,6 +167,9 @@ func accessorEvaluationMode(node *ast.Node) (bool, bool) {
 
 // appendOpaqueAccessorEffect prevents a bounded search from proving unavailable execution portable.
 func appendOpaqueAccessorEffect(fact *callableFacts, candidates accessorCandidates) {
+	fact.callOutcomes = append(fact.callOutcomes, candidates.callOutcomes...)
+	fact.summary.DirectEffectSources = append(fact.summary.DirectEffectSources, candidates.environmentEffects...)
+	fact.directContext = append(fact.directContext, candidates.contextEffects...)
 	appendCoverageOpacity := true
 	if candidates.prefixCoverage != nil {
 		settled, fresh := settlePrefixRefusalCoverage(fact, candidates)
@@ -162,7 +198,14 @@ func appendOpaqueAccessorEffect(fact *callableFacts, candidates accessorCandidat
 	}
 	for _, fallback := range candidates.callFallbacks {
 		fallback := fallback
-		effect := environmentSource("unknown", "unresolved callee selection", fact.summary.Name)
+		description := "unresolved callee selection"
+		if fallback.phase == sourceReturnRelationship {
+			description = "exact return output unavailable"
+		}
+		if fallback.phase == sourceArgumentRelationship {
+			description = "exact argument output unavailable"
+		}
+		effect := environmentSource("unknown", description, fact.summary.Name)
 		effect.Opaque, effect.provenanceIncomplete, effect.callOrigin = true, true, &fallback
 		fact.summary.DirectEffectSources = append(fact.summary.DirectEffectSources, effect)
 	}

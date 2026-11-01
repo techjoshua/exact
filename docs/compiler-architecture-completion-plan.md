@@ -2,7 +2,9 @@
 
 Status: execution authorized by the user on 2026-11-01 after the adversarial plan audit. The objective is to fully implement this plan. Work proceeds through local commits and isolated worktrees, with the coordinator integrating on the current branch. Push and publication are not authorized.
 
-Prepared 2026-11-01 against the inspected working tree. The maintained compositional-analysis checkpoint is v30. This is an internal cache revision, not a compiler release, a count of attempts at one problem, or a whole-language completion claim. The previously uncommitted framework work was preserved in local checkpoint `b30c50e45` before worker branches were created. That commit establishes reproducible source, not a validated release baseline. Subsequent implementation and acceptance changes use local commits and isolated worktrees.
+Prepared 2026-11-01 against the inspected working tree. The preserved pre-migration compositional-analysis checkpoint is v30. This is an internal cache revision, not a compiler release, a count of attempts at one problem, or a whole-language completion claim. The previously uncommitted framework work was preserved in local checkpoint `b30c50e45` before worker branches were created. That commit establishes reproducible source, not a validated release baseline. Subsequent implementation and acceptance changes use local commits and isolated worktrees.
+
+The current local integration is a work in progress using parameterized source dependencies for ordinary Calls, returns, captures, Gets and construction. Normal output refinement remains separate. Integration does not establish acceptance: Core compilation still exceeds its deadline, additional eager evaluation and protocol coverage remains open, and the affected framework environments have not completed validation.
 
 ## 1. Objective and correction
 
@@ -208,6 +210,53 @@ The following is a consumer contract, not a requirement to allocate a new record
 Relative state effects must retain argument-to-parameter mappings through forwarding and reordered arguments. A derived effect edge must carry its use's mapping, or consume the already mapped callable graph. Deduplicating writes by path cannot repair a lost receiver relationship. `TestForwardedStateEffectBindings` protects direct, forwarded, reordered and separate-call mappings, with an ordinary-object control that must not acquire parameter authority. Conditional alternatives must retain known and unknown receiver relationships independently. Paired emitted checks preserve the original argument order and actual mutation target.
 
 Predicate observation follows the shared logical short-circuit rule directly, without reacquiring an entire left subtree to ask for its predicate again. Forwarding obligations retain each source reference once in first-seen order. Their consumers check reference membership, so repeated joins must not duplicate the retained path. Interference scans contribute a monotone opacity verdict and can stop after that verdict is known, while still computing the member boundary proof and leaving known values, indexed writes and getter effects with their owning analyses. These local bounds do not establish request-wide acquisition termination or package-compilation acceptance.
+
+The source dependency consumer uses `sourceValueSummary` demands, `sourceValueBindings`
+and per-use creator contexts through `source_value_dependencies.go`. Instantiated contexts
+and current-write results are request-local. Only checker-owned AST templates and static
+write indexes are shared. Ordinary synchronous effect demands enter this consumer directly.
+Normal storage recipes and acquired-value receipts remain separate refinements for consumers
+that request getter-chain elision, await operands or async settlement.
+
+Effect resolution associates a relative field or Call obligation with its original source
+operation, declaration, phase and instantiated use/consumer. Coverage requires every matching
+source alternative to be complete. Calls and getter bodies publish the same immutable coverage
+records. Receiptless return projection uses `consumeInvocation` and its selected-body/input
+consumer in `source_return_projection.go`. Each alternative's creating bindings and creator
+context stay installed through successful-return projection, including Call-valued callees
+and stored intermediate functions. This relation creates no normal output or execution receipt.
+A missing exact output can be discharged only by its matching operation relationship.
+Known dependencies, unmatched unknown effects, normal outputs and execution receipts remain
+separate contributions. Generator calls evaluate arguments and activated defaults while their
+bodies remain deferred. This source contract does not model generator resume state.
+Dependency-only body entry joins finite source input relationships for an active declaration.
+Distinct acquired callbacks and capture roots can instantiate that same summary before its
+outer invocation finishes. The relation uses source nodes, formal symbols, creator/use sites
+and adjacent member edges. Distinct relation sets retain reordered and recombined inputs.
+It contains no live input maps or runtime activation identities.
+Repeated edges and cyclic capture, rest or copied relationships saturate with residual
+uncertainty on reentry. New source alternatives still contribute their demands and known
+donors after a join. Normal entry and unrelated active-occurrence fences keep their existing
+guards. These query-local entries are released when the outer body consumer exits.
+Query-local advisory work is accumulated into the checker owner's existing cost counters
+without retaining a query or its binding maps. Binding-write and member-write relations remain
+owned by `source_value_bindings.go` and `source_value_members.go`.
+
+Constructor dependencies share the selected executable target owner with normal construction.
+Selected constructor bodies and instance-field demands retain known effects beside unresolved
+construction, without supplying an instance or completion receipt. Default derived constructors
+retain base dependencies. Class-definition keys, static initializers and deferred field closures
+keep their own evaluation phases. Effects-only New origins carry selected source fields and
+prototype members into ordinary member and serialization demands. Field initializers acquire
+scalars at construction while referenced objects retain applicable later member writes. The
+existing ordered write owner qualifies replacement of a known own data field. Unknown escape
+or constructor-return replacement keeps independent lookup uncertainty. Missing exact instance
+output alone does not add an effect. Shared selected-return projection also supplies getter
+return relationships without issuing a Get receipt. Definite abrupt construction prevents later
+field or serialization consumers, and nonconstructible functions do not perform their bodies.
+Completion projection here establishes no successful Normal result. Literal-computed class
+member selection and the serialization `toJSON` protocol still require separate donor audits.
+Array-binding summaries retain default donors beside unresolved iterator/value selection. Such a summary does not prove iterator execution or default bypass.
 
 The first summary slice must distinguish these controls:
 

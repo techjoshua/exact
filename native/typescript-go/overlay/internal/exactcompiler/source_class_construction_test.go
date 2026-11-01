@@ -336,16 +336,17 @@ func TestDefaultClassConstructionInputs(t *testing.T) {
 		{"unknown-instance-mutation-retains-alternative", `class Holder{first={get value(){return window.location.href}};middle=mutate(this);later=this.first.value}return JSON.stringify(new Holder());`, "unknown", true},
 		{"unknown-retains-captured-call-effect", `const value={get title(){return document.title}};const readCaptured=()=>value.title;class Holder{first=foreign();later=readCaptured()}return JSON.stringify(new Holder());`, "unknown", true},
 		{"unknown-retains-nested-construction-effect", `class Inner{value=document.title}class Holder{first=foreign();later=new Inner()}return JSON.stringify(new Holder());`, "unknown", true},
-		{"nested-abrupt-first-skips-effect", `function stop():never{throw 9}class Inner{value=document.title}class Holder{first=stop();later=new Inner()}return JSON.stringify(new Holder());`, "unknown", false},
+		{"nested-abrupt-first-skips-effect", `function stop():never{throw 9}class Inner{value=document.title}class Holder{first=stop();later=new Inner()}return JSON.stringify(new Holder());`, "neutral", false},
 		{"nested-ignored-argument-effect", `class Inner{value=1}const C:new(...args:unknown[])=>Inner=Inner;class Holder{first=foreign();later=new C(document.title)}return JSON.stringify(new Holder());`, "unknown", true},
 		{"nested-creating-capture-effect", `const captured={get value(){return document.title}};class Inner{value=captured.value}class Holder{first=foreign();later=new Inner()}return JSON.stringify(new Holder());`, "unknown", true},
-		{"nested-this-is-not-outer", `class Inner{value:unknown=(this as unknown as {prefix:{value:string}}).prefix.value}class Holder{prefix={get value(){return document.title}};first=foreign();later=new Inner()}return JSON.stringify(new Holder());`, "unknown", false},
+		{"nested-this-is-not-outer", `class Inner{value:unknown=(this as unknown as {prefix:{value:string}}).prefix.value}class Holder{prefix={get value(){return document.title}};first=foreign();later=new Inner()}return JSON.stringify(new Holder());`, "unknown", true},
+		{"nested-this-later-projection", `class Inner{value:unknown=(this as unknown as {prefix:{value:string}}).prefix.value}class Holder{prefix={get value(){return document.title}};first=foreign();later=new Inner()}return JSON.stringify(new Holder().later);`, "unknown", false},
 		{"nested-unavailable-this-retains-independent-effect", `class Inner{first:unknown=(this as unknown as {missing:string}).missing;later=document.title}class Holder{first=foreign();later=new Inner()}return JSON.stringify(new Holder());`, "unknown", true},
 		{"nested-changed-target", `class Inner{value=document.title}let C:new()=>{value:string}=Inner;C=class{value='safe'};class Holder{first=foreign();later=new C()}return JSON.stringify(new Holder());`, "unknown", false},
 		{"nested-unknown-target", `const C=foreign() as new()=>unknown;class Holder{first=foreign();later=new C()}return JSON.stringify(new Holder());`, "unknown", false},
-		{"abrupt-first-skips-later-effect", `function stop():never{throw 9}class Holder{first=stop();later=document.title}return JSON.stringify(new Holder());`, "unknown", false},
-		{"unavailable-field-retains-browser", `class Holder{value=window.name}return JSON.stringify(new Holder());`, "unknown", true},
-		{"unsupported-constructor", `class Holder{constructor(){document.title='kept'}}return JSON.stringify(new Holder());`, "unknown", true},
+		{"abrupt-first-skips-later-effect", `function stop():never{throw 9}class Holder{first=stop();later=document.title}return JSON.stringify(new Holder());`, "neutral", false},
+		{"unavailable-field-retains-browser", `class Holder{value=window.name}return JSON.stringify(new Holder());`, "browser", true},
+		{"source-constructor", `class Holder{constructor(){document.title='kept'}}return JSON.stringify(new Holder());`, "browser", true},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			response := NewSession().Execute(Request{Kind: "analyze", ID: "/virtual/class-inputs.ts", Source: `declare function foreign():unknown;declare function mutate(value:unknown):unknown;export function read(){` + test.body + `}`, Diagnostics: "semantic"})

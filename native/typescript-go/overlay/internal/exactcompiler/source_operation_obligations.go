@@ -10,9 +10,9 @@ import (
 // payload and introduces no second propagation graph or activation authority.
 type sourceOwnedObligations struct{ owner, operation *ast.Node }
 
-// moduleCallInitializer identifies one indexed eager Call initializer whose
-// statement needs its own normal effect fact. It supplies no value, completion
-// or purity proof. The ordinary walker still consumes its callee, inputs and body.
+// moduleCallInitializer identifies the direct indexed Call used by optional
+// precise output and obligation consumers. Generic effect ownership is separate.
+// This association supplies no value, completion or purity proof.
 func moduleCallInitializer(owner *sourceValueOwner, statement *ast.Node) *ast.Node {
 	declaration := moduleInitializerDeclaration(owner, statement)
 	if declaration == nil {
@@ -53,28 +53,6 @@ func moduleInitializerDeclaration(owner *sourceValueOwner, statement *ast.Node) 
 		return nil
 	}
 	return declaration
-}
-
-// moduleNestedCallEffects requires an original effect fact for an indexed eager
-// Call inside an initializer. Its existing normal statement walker retains the
-// callee/argument/body components. The nested Call is not the initializer value,
-// so direct-Call publication and original-call obligation matching stay separate.
-func moduleNestedCallEffects(owner *sourceValueOwner, statement *ast.Node) bool {
-	if moduleInitializerDeclaration(owner, statement) == nil {
-		return false
-	}
-	index := owner.indexes[ast.GetSourceFileOfNode(statement)]
-	for _, event := range owner.summary(statement).normal {
-		owner.indexWork++
-		if event.fold != nil || event.phase != nil || event.operand != nil || !ast.IsCallExpression(event.node) {
-			continue
-		}
-		entry := index.normalOccurrences[event.node]
-		if entry != nil && entry.node == event.node && entry.statement == statement && entry.region == nil && entry.once && entry.callOwner == nil {
-			return true
-		}
-	}
-	return false
 }
 
 func retainSourceOwnedObligations(owner, operation *ast.Node, candidates accessorCandidates, result *accessorCandidates) {

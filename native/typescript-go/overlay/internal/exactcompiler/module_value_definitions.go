@@ -244,7 +244,7 @@ func (analysis *moduleDefinitionAnalysis) expression(work *ast.Node, execute boo
 		if !deferred {
 			analysis.evaluatedAccessors(node, nil)
 			if ast.IsCallExpression(node) {
-				candidates := sourceInvocationCandidates(node, analysis.checker, analysis.owner, nil)
+				candidates := sourceInvocationDependenciesAt(node, analysis.reading, analysis.checker, analysis.owner, nil, analysis.inputs)
 				boundInvocation = candidates.invocationOwned
 				for _, inputs := range candidates.inputs {
 					boundInvocation = boundInvocation || inputs.invocation == node
@@ -311,7 +311,19 @@ func (analysis *moduleDefinitionAnalysis) evaluatedAccessors(node *ast.Node, bin
 	if analysis.interceptInitializer(node, true) {
 		return
 	}
-	analysis.accessors(evaluatedSourceAccessors(node, analysis.checker, bindings, analysis.owner, nil, analysis.reading))
+	query := newSourceDependencyQuery(analysis.reading, analysis.checker, analysis.owner, nil)
+	defer query.publishDependencyStatistics()
+	bound := make(sourceValueBindings)
+	for id, value := range bindings {
+		bound[id] = []sourceValue{{node: value}}
+	}
+	if analysis.inputs != nil {
+		bound = analysis.inputs.bindings
+		query.creators = analysis.inputs.dependencyScope.creators
+		query.invoking = analysis.inputs.invocation
+		query.dependencyUse = analysis.inputs.dependencyUse
+	}
+	analysis.accessors(query.evaluatedSourceAccessors(node, bound))
 	analysis.accessors(moduleBindingProducers(node, analysis.reading, analysis.checker, analysis.owner))
 	visitImplicitAccessors(node, analysis.checker, bindings, analysis.owner, nil, nil, analysis.accessors)
 }
@@ -321,11 +333,21 @@ func (analysis *moduleDefinitionAnalysis) accessors(candidates accessorCandidate
 	mergeOwnedGets(&analysis.ownedGetEvidence, candidates.ownedGets)
 	appendContributionRefs(&analysis.ownedComponentEvidence, candidateContributionReferences(candidates))
 	analysis.opaque = analysis.opaque || ownedCurrentScalarUncertain(candidates.ownedGets)
-	analysis.opaque = analysis.opaque || candidates.opaque
+	analysis.opaque = analysis.opaque || sourceResidualOpaque(candidates)
+	for _, effect := range candidates.environmentEffects {
+		analysis.browser = analysis.browser || effect.Environment == "browser"
+		analysis.server = analysis.server || effect.Environment == "server"
+		analysis.opaque = analysis.opaque || effect.Environment == "unknown" || effect.Opaque
+	}
 	for _, producer := range candidates.producers {
 		analysis.expression(producer, false)
 	}
 	for _, inputs := range candidates.inputs {
+		if inputs.dependencyScope.bindings != nil {
+			continue
+		}
+		previous := analysis.inputs
+		analysis.inputs = inputs
 		// Each candidate contributes its activated defaults even if its body was already
 		// visited. A safe first invocation must not hide a later default execution.
 		// Preserve binding order rather than allowing map iteration to choose which
@@ -334,13 +356,17 @@ func (analysis *moduleDefinitionAnalysis) accessors(candidates accessorCandidate
 			defaults := inputs.defaults[initializer]
 			if defaults.bindings != nil {
 				browser, server := analysis.browser, analysis.server
+				defaultInputs := *inputs
+				defaultInputs.bindings = defaults.bindings
+				analysis.inputs = &defaultInputs
 				analysis.expression(initializer, false)
+				analysis.inputs = inputs
 				analysis.opaque = analysis.opaque || defaults.conditional && (analysis.browser != browser || analysis.server != server)
 			}
 		}
-		previous := analysis.inputs
-		analysis.inputs = inputs
-		analysis.expression(inputs.declaration.Body(), false)
+		if !inputs.deferredBody {
+			analysis.expression(inputs.declaration.Body(), false)
+		}
 		analysis.inputs = previous
 	}
 	for _, contribution := range candidates.effects {
@@ -456,13 +482,15 @@ func (a *moduleDefinitionAnalysis) interceptInitializer(node *ast.Node, occurren
 	if d.Program != nil && d.Program != v.program || d.Checker != nil && d.Checker != a.checker || d.Source != ast.GetSourceFileOfNode(node) || d.Stamp != initializerSourceStamp(d.Source) {
 		return false
 	}
+	// Only this consumer's exact refinement may intercept ordinary analysis.
+	// A pending Call/result plan is not an opaque source dependency.
+	if d.Mode != "AtomicStaticGetChain" {
+		return false
+	}
 	if !p.Sealed {
 		a.opaque = true
 		a.initializerTransient++
 		return true
-	}
-	if d.Mode != "AtomicStaticGetChain" {
-		return false
 	}
 	if occurrence {
 		paid, prefixPaid := false, false

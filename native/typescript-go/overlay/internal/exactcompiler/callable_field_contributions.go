@@ -18,8 +18,22 @@ func fieldFallbackFulfilled(caller, target *callableFacts, edge CallEdge, source
 	if unique != 1 || operation == nil {
 		return false
 	}
+	// A normal-output refusal cannot erase independently accounted source
+	// effects for this exact operation and demand. Other unknown sources keep
+	// their own obligations and are never released by this association.
+	sourceSummary := false
+	for _, call := range caller.fieldCalls {
+		if call.dependencies && call.operation == operation && call.target == target.node {
+			for _, outcome := range call.outcomes {
+				sourceSummary = sourceSummary || sameFieldObligation(outcome.demand, *origin)
+			}
+		}
+	}
 	matched := false
 	for _, call := range caller.fieldCalls {
+		if sourceSummary && (!call.dependencies || call.target != target.node) {
+			continue
+		}
 		if call.operation != operation {
 			continue
 		}
@@ -28,7 +42,7 @@ func fieldFallbackFulfilled(caller, target *callableFacts, edge CallEdge, source
 		}
 		covered := false
 		for _, outcome := range call.outcomes {
-			if outcome.demand == *origin {
+			if sameFieldObligation(outcome.demand, *origin) {
 				if !outcome.fulfilled {
 					return false
 				}

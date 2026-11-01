@@ -510,6 +510,14 @@ func resolveCallableEffects(facts []callableFacts, owners ...*executableBodyOwne
 				[]EnvironmentEffectSource(nil),
 				fact.summary.DirectEffectSources...,
 			)
+			unresolved := sources[:0]
+			for _, source := range sources {
+				if sourceObligationCoveredLocally(fact, source) {
+					continue
+				}
+				unresolved = append(unresolved, source)
+			}
+			sources = unresolved
 			reads := append([]StateEffect(nil), fact.directReads...)
 			writes := append([]StateEffect(nil), fact.directWrites...)
 			writes = append(writes, work.opaque[index]...)
@@ -534,7 +542,7 @@ func resolveCallableEffects(facts []callableFacts, owners ...*executableBodyOwne
 						continue
 					}
 					for _, source := range target.EffectSources {
-						if mapInputFallbackFulfilled(fact, &facts[targetIndex], edge, source, mapOwner) || fieldFallbackFulfilled(fact, &facts[targetIndex], edge, source) || callFallbackFulfilled(fact, &facts[targetIndex], edge, source) || descriptorFallbackFulfilled(fact, &facts[targetIndex], edge, source) {
+						if sourceObligationCoveredOnEdge(fact, &facts[targetIndex], edge, source) || mapInputFallbackFulfilled(fact, &facts[targetIndex], edge, source, mapOwner) || fieldFallbackFulfilled(fact, &facts[targetIndex], edge, source) || callFallbackFulfilled(fact, &facts[targetIndex], edge, source) || descriptorFallbackFulfilled(fact, &facts[targetIndex], edge, source) {
 							continue
 						}
 						transferred := source
@@ -658,23 +666,39 @@ func applyCallableArtifactConstraints(facts []callableFacts) {
 // browser access stay shared by callable and actual field-initializer drivers.
 // This function neither executes a reference nor grants field/body admission.
 func appendDirectReferenceEffects(fact *callableFacts, node *ast.Node, sourceFile *ast.SourceFile, typeChecker *checker.Checker) {
+	sources, contexts := sourceReferenceEffects(node, fact.node, sourceFile, typeChecker, fact.summary.Name)
+	fact.summary.DirectEffectSources = append(fact.summary.DirectEffectSources, sources...)
+	fact.directContext = append(fact.directContext, contexts...)
+}
+
+// sourceReferenceEffects shares bound global/context classification with source
+// dependency demands. It grants neither purity nor a value/descriptor proof.
+func sourceReferenceEffects(node, boundary *ast.Node, sourceFile *ast.SourceFile, typeChecker *checker.Checker, nameOfOwner string) (sources []EnvironmentEffectSource, contexts []ContextEffect) {
+
 	if node == nil || !ast.IsIdentifier(node) || ast.IsDeclarationName(node) || isStaticPropertyName(node) {
-		return
+		return nil, nil
 	}
 	name := node.Text()
 	symbol := typeChecker.GetSymbolAtLocation(node)
 	if effect, ok := contextBindingReferenceEffect(symbol, sourceFile, typeChecker); ok {
-		fact.directContext = append(fact.directContext, effect)
+		contexts = append(contexts, effect)
 	}
-	if _, candidate := browserGlobals[name]; candidate && symbolIsOutsideSource(symbol, sourceFile) && !browserGlobalReferenceIsGuarded(node, name, fact.node) {
-		fact.summary.DirectEffectSources = append(fact.summary.DirectEffectSources, environmentSource("browser", name, fact.summary.Name))
+	if _, candidate := browserGlobals[name]; candidate && symbolIsOutsideSource(symbol, sourceFile) && !browserGlobalReferenceIsGuarded(node, name, boundary) {
+		sources = append(sources, environmentSource("browser", name, nameOfOwner))
 	}
 	if _, candidate := serverGlobals[name]; candidate && symbolIsOutsideSource(symbol, sourceFile) {
-		fact.summary.DirectEffectSources = append(fact.summary.DirectEffectSources, environmentSource("server", name, fact.summary.Name))
+		sources = append(sources, environmentSource("server", name, nameOfOwner))
 	}
 	if serverOnlyImportSymbol(symbol) {
-		fact.summary.DirectEffectSources = append(fact.summary.DirectEffectSources, environmentSource("server", "server-only import "+name, fact.summary.Name))
+		sources = append(sources, environmentSource("server", "server-only import "+name, nameOfOwner))
 	}
+
+	if initializer := sourceParameterDefault(node, boundary); initializer != nil {
+		for i := range sources {
+			sources[i].callOrigin = &sourceCallOutcome{declaration: enclosingCallableNode(initializer), operation: initializer, consumer: boundary, phase: sourceDefaultEvaluation}
+		}
+	}
+	return sources, contexts
 }
 
 func environmentSource(

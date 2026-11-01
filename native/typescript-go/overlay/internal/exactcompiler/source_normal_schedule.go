@@ -565,7 +565,7 @@ func (query *sourceValueQuery) actualArgumentValues(call, argument *ast.Node, re
 		return nil, false
 	}
 	if slot.selected == nil {
-		result.opaque = true
+		query.refuseExactArgument(argument, result)
 		return []sourceValue{{}}, true
 	}
 	for _, actual := range slot.actuals {
@@ -579,7 +579,7 @@ func (query *sourceValueQuery) actualArgumentValues(call, argument *ast.Node, re
 	if slot.selected.receiver == argument {
 		return slot.selected.receiverValues, true
 	}
-	result.opaque = true
+	query.refuseExactArgument(argument, result)
 	return []sourceValue{{}}, true
 }
 
@@ -925,15 +925,23 @@ func (query *sourceValueQuery) prepareComponentProtocolGet(call *ast.Node) (sour
 	return prepared, acquired, true
 }
 
-// appendFieldReadOutcome preserves the original checked coverage law. A matched
-// parameter demand does not itself prove that its supplied receiver was covered.
+// appendFieldReadOutcome keeps source effect coverage separate from exact Get
+// refinement. Naming a demand never proves coverage of its supplied receiver.
 func (query *sourceValueQuery) appendFieldReadOutcome(node, receiver *ast.Node, key string, candidates *accessorCandidates) {
 	if demand, _ := query.fieldDemand(node, receiver, key); demand.declaration != nil {
-		covered := query.fieldAlternativesCovered(node, key, candidates)
-		if ast.IsParameterDeclaration(demand.slot) {
-			covered = query.parameterFieldReadCovered(demand, candidates)
+		covered := false
+		if query.dependenciesOnly {
+			// Effect coverage belongs to the instantiated receiver for parameters,
+			// captured aliases and destructured bindings alike. It grants no
+			// descriptor, output or mutation-completion proof.
+			covered = candidates.sourceOwned && !candidates.opaque && !candidates.receiverIncomplete
+		} else {
+			covered = query.fieldAlternativesCovered(node, key, candidates)
+			if ast.IsParameterDeclaration(demand.slot) {
+				covered = query.parameterFieldReadCovered(demand, candidates)
+			}
 		}
-		fulfilled := covered && !candidates.fieldReceiverIncomplete && !candidates.opaque && !candidates.receiverIncomplete && (!candidates.valueIncomplete || query.normalGetEffectsAccounted(node, candidates))
+		fulfilled := covered && !candidates.fieldReceiverIncomplete && !candidates.opaque && !candidates.receiverIncomplete && (query.dependenciesOnly || !candidates.valueIncomplete || query.normalGetEffectsAccounted(node, candidates))
 		candidates.fieldOutcomes = append(candidates.fieldOutcomes, sourceFieldOutcome{demand: demand, fulfilled: fulfilled})
 	}
 }

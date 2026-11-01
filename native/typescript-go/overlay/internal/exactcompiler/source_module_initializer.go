@@ -10,8 +10,8 @@ import (
 	"sort"
 )
 
-// preflightModuleInitializer refuses the whole statement before allocating a fact
-// or frame. Creation qualification supplies no module binding or execution value.
+// preflightModuleInitializer qualifies only optional getter-chain refinement.
+// Refusal withholds its value/frame proof, not the generic initializer effect owner.
 func preflightModuleInitializer(owner *executableBodyOwner, statement *ast.Node) (*ast.Node, *closedOwnGetterPlan, bool) {
 	if owner == nil || owner.values == nil || !ast.IsVariableStatement(statement) || ast.HasSyntacticModifier(statement, ast.ModifierFlagsAmbient) {
 		return nil, nil, false

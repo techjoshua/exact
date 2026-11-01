@@ -28,6 +28,9 @@ type sourceLegacyPublication struct {
 // builders, invocation caches and scope maps except original live then scopes.
 func candidatePublisherPayload(c accessorCandidates) accessorCandidates {
 	p := accessorCandidates{opaque: c.opaque, thenIncomplete: c.thenIncomplete, receiverIncomplete: c.receiverIncomplete, valueIncomplete: c.valueIncomplete, fieldReceiverIncomplete: c.fieldReceiverIncomplete, cause: c.cause}
+	p.callOutcomes = append([]sourceCallOutcome(nil), c.callOutcomes...)
+	p.environmentEffects = append([]EnvironmentEffectSource(nil), c.environmentEffects...)
+	p.contextEffects = append([]ContextEffect(nil), c.contextEffects...)
 	p.effects = append([]sourceCallableEffect(nil), c.effects...)
 	p.declarations = append([]*ast.Node(nil), c.declarations...)
 	p.accessorMutations = append([]sourceAccessorMutation(nil), c.accessorMutations...)
@@ -47,7 +50,7 @@ func candidatePublisherPayload(c accessorCandidates) accessorCandidates {
 	return p
 }
 func hasCandidatePublisherPayload(p accessorCandidates) bool {
-	return p.opaque || p.thenIncomplete || p.receiverIncomplete || p.valueIncomplete || p.fieldReceiverIncomplete || len(p.effects)+len(p.declarations)+len(p.accessorMutations)+len(p.nativeDescriptorEffects)+len(p.fieldFallbacks)+len(p.callFallbacks)+len(p.descriptorFallbacks)+len(p.owned)+len(p.thenReferences)+len(p.fieldCalls)+len(p.writes)+len(p.ownedLocalCauses) > 0
+	return p.opaque || p.thenIncomplete || p.receiverIncomplete || p.valueIncomplete || p.fieldReceiverIncomplete || len(p.environmentEffects)+len(p.contextEffects)+len(p.callOutcomes)+len(p.effects)+len(p.declarations)+len(p.accessorMutations)+len(p.nativeDescriptorEffects)+len(p.fieldFallbacks)+len(p.callFallbacks)+len(p.descriptorFallbacks)+len(p.owned)+len(p.thenReferences)+len(p.fieldCalls)+len(p.writes)+len(p.ownedLocalCauses) > 0
 }
 
 // candidateEvidence is nonexecuting detached evidence. In particular then scopes

@@ -144,14 +144,17 @@ func (query *sourceValueQuery) consumeInvocation(node *ast.Node, bindings source
 			}
 		}
 		query.finishDescriptorEffectCalls(node, &result)
-		if query.operation != nil && query.inputs != nil && ast.IsCallExpression(node) && query.inputs.declaration == enclosingCallableNode(node) {
-			result.callOutcomes = append(result.callOutcomes, sourceCallOutcome{declaration: query.inputs.declaration, operation: node, complete: complete})
+		if (query.operation != nil || query.dependenciesOnly) && query.inputs != nil && ast.IsCallExpression(node) && query.inputs.declaration == enclosingCallableNode(node) {
+			result.callOutcomes = append(result.callOutcomes, sourceCallOutcome{declaration: query.inputs.declaration, operation: node, complete: complete, use: query.effectUse(), consumer: query.effectOwner, dependencies: query.dependenciesOnly})
 		}
 		if consumer.selection != nil {
 			consumer.selection(complete)
 		}
 	}()
 	if ast.IsNewExpression(node) {
+		if query.dependenciesOnly {
+			return query.constructDependencyEffects(node, bindings)
+		}
 		if slot := query.normalOperation(node, false); slot != nil {
 			query.retainSourceConstructorEffects(node, slot.selected, &result)
 		}
@@ -299,6 +302,10 @@ func (query *sourceValueQuery) consumeInvocation(node *ast.Node, bindings source
 	// Missing element symbols and data slots still have finite source values. Library
 	// declarations stay on their existing call path, including native call/apply.
 	if len(declarations) == 0 {
+		if query.dependenciesOnly && len(prepared.bodies) > 0 {
+			complete = !result.opaque && !prepared.acquired.receiverIncomplete
+			result.invocationOwned = true
+		}
 		if nativeReceiverMemberDeclarations(call.Expression, query.owner.checker) {
 			return result
 		}
@@ -741,6 +748,24 @@ func (query *sourceValueQuery) prepareInvocation(node *ast.Node, bindings source
 	}
 	call := node.AsCallExpression()
 	declarations := query.callDeclarations(call.Expression, &result)
+	if query.dependenciesOnly {
+		// A value binding's initializer may itself be a return, branch or
+		// container projection. Its declaration is not the callable target.
+		for _, declaration := range declarations {
+			if ast.IsVariableDeclaration(declaration) && declaration.Initializer() != nil {
+				initializer := unwrapSourceCallableReference(declaration.Initializer())
+				if !ast.IsFunctionLike(initializer) {
+					declarations = nil
+					break
+				}
+			}
+		}
+		if symbol := query.owner.checker.GetSymbolAtLocation(unwrapSourceCallableReference(call.Expression)); symbol != nil {
+			if _, installed := bindings[ast.GetSymbolId(symbol)]; installed {
+				declarations = nil
+			}
+		}
+	}
 	if result.selected && result.opaque {
 		return sourcePreparedInvocation{declarations: declarations, base: selectionProjection(result), remaining: query.remaining}, result
 	}
@@ -846,7 +871,27 @@ func (query *sourceValueQuery) prepareInvocation(node *ast.Node, bindings source
 // consumeOrdinaryBody is shared by actual normal and eager-module Call consumers.
 // Retained raw output is observed before the installed operation interval ends.
 func (query *sourceValueQuery) consumeOrdinaryBody(node, body *ast.Node, captures sourceValueBindings, inputs *sourceValueInputs, invocation *ast.Node, result *accessorCandidates) {
-	result.retainCallableEffect(node, body)
+	_, ordinary := ordinaryResultCategory(body)
+	generator := body != nil && ast.IsFunctionLike(body) && body.Body() != nil && !ordinary
+	if generator {
+		if inputs == nil {
+			inputs = query.bindInputs(body, node, captures, result)
+		}
+		inputs.deferredBody = true
+		result.invocationOwned, result.replacedInvocation = true, true
+		result.valueIncomplete = true
+	} else {
+		result.retainCallableEffect(node, body)
+		if query.dependenciesOnly {
+			index := len(result.effects) - 1
+			receivers := query.sourceEffectReceiverBindings(result.effects[index], inputs, result)
+			result.effects[index].receivers = receivers
+		}
+	}
+	if query.dependenciesOnly {
+		query.consumeSourceBodyEffects(node, body, captures, inputs, invocation, result)
+		return
+	}
 	if inputs != nil {
 		inputs.writeAlternative = query.selectedWriteAlternative(query.normalOperation(node, false), body, result)
 	}
@@ -905,4 +950,37 @@ func (query *sourceValueQuery) consumeOrdinaryBody(node, body *ast.Node, capture
 	}
 	occurrence, descriptorEffects := query.descriptorBodyEffects(node, body, inputs, entered, result.reflective[firstReflective:], result)
 	result.fieldCalls = append(result.fieldCalls, sourceFieldCall{operation: node, target: body, outcomes: outcomes, calls: calls, complete: entered, descriptorOccurrence: occurrence, descriptorEffects: descriptorEffects})
+}
+
+// visitSourceCallableInvocation keeps deferred source selection separate from
+// creating its closure. Captured inputs use the existing invocation consumer.
+func (query *sourceValueQuery) visitSourceCallableInvocation(value *ast.Node, projection []string, mode accessorTraversal, arguments sourceValueBindings, result *accessorCandidates, invoke func(*ast.Node, sourceValueBindings, *accessorCandidates)) bool {
+	if !ast.IsFunctionLike(value) || mode != accessorInvoke || len(projection) != 0 {
+		return false
+	}
+
+	if value.Body() == nil || ast.GetSourceFileOfNode(value).IsDeclarationFile {
+		return true
+	}
+	// Existing ordinary method effects stay on their call graph. A creating
+	// edge or an executing parameter pattern needs this input substitution.
+	binding := false
+	for _, parameter := range value.Parameters() {
+		if !query.charge(result, parameter) {
+			return true
+		}
+		binding = binding || parameter.Initializer() != nil || ast.IsObjectBindingPattern(parameter.Name()) || ast.IsArrayBindingPattern(parameter.Name())
+	}
+	for _, creator := range query.creators {
+		binding = binding || creator.invocation != nil
+	}
+	if !binding {
+		return true
+	}
+	result.declarations = append(result.declarations, value)
+	previousReturn := query.returning
+	query.returning = nil
+	invoke(value, arguments, result)
+	query.returning = previousReturn
+	return true
 }

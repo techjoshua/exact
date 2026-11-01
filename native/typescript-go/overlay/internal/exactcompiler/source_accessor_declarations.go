@@ -1,218 +1,7 @@
 package exactcompiler
 
-import (
-	"github.com/microsoft/TypeScript/tsc/internal/ast"
-	"github.com/microsoft/TypeScript/tsc/internal/checker"
-)
+import "github.com/microsoft/TypeScript/tsc/internal/ast"
 
-// acquiredCallableScope preserves the traversal-local creating inputs and return occurrence
-// for one acquired alternative. It is not authority for other alternatives or later lookups.
-type acquiredCallableScope struct {
-	bindings sourceValueBindings
-	creators map[*ast.Node]sourceValueCreation
-}
-
-// accessorCandidates carries a bounded provenance proof. Exhaustion retains unknown effects.
-// sourceCallableEffect preserves the producer operation before candidate joins.
-// Declaration selection alone is not an execution contribution. A nil operation
-// retains a conservative effect edge but can never fulfill an input disposition.
-type sourceCallableEffect struct {
-	operation, declaration *ast.Node
-}
-
-// sourceAccessorMutation is a detached mutation fact of one completed Get.
-// It grants no execution, returned-value or family authority.
-type sourceAccessorMutation struct {
-	operation, body *ast.Node
-	verdict         sourceWriteVerdict
-}
-
-type accessorCandidates struct {
-	// Late source refusal transport only. It grants no Get/Call authority.
-	prefixCoverage                  *sourcePrefixRefusalCoverage
-	closedPrefixReason              string
-	ownedComponents                 *sourceCandidateComponents
-	ownedGets                       []*ownedGetPopulation
-	ownedClaims                     []*ownedGetFactObligation
-	ownedSealed, ownedReferenceOnly bool
-	ownedLocalCauses                []string
-
-	accessorMutations []sourceAccessorMutation
-
-	nativeDescriptorEffects []sourceNativeDescriptorEffect
-	descriptorFallbacks     []sourceDescriptorEffectOrigin
-
-	writeBodies   []sourceWriteBody
-	writeOutcomes []sourceCompletedWriteOutcome
-
-	effects []sourceCallableEffect
-	// Missing input demands are separate from residual operation opacity.
-	fieldFallbacks []sourceFieldDemand
-	// callFallbacks retain callee-selection refusal separately from residual Get/effect opacity.
-	callFallbacks           []sourceCallOutcome
-	fieldOutcomes           []sourceFieldOutcome
-	callOutcomes            []sourceCallOutcome
-	fieldCalls              []sourceFieldCall
-	ownSlots                []*sourceOwnSlot
-	fieldAlternatives       []sourceFieldAlternative
-	fieldReceiverIncomplete bool
-
-	reflective     []*sourceReflectiveOperation
-	nativeCalls    []*sourceNativeInvocation
-	normalCalls    []*sourceInvocationResult
-	owned          []sourceOwnedObligations
-	thenReferences []sourceThenReference
-	thenIncomplete bool
-	// receiverIncomplete retains an unaccounted receiver alternative independently
-	// from acquired callable values. A source-callable member demand consumes it.
-	// Ordinary native execution classification remains on its existing owner.
-	receiverIncomplete bool
-	// valueIncomplete describes returned-value uncertainty separately from operation effects.
-	valueIncomplete bool
-	// sourceCallable records a source member or writable source-callable binding route.
-	// It is a may-demand marker, never an identity or completeness certificate.
-	sourceCallable bool
-	// invocationOwned means this call consumed acquired values and must not borrow a signature body.
-	invocationOwned bool
-	// replacedInvocation prevents a signature/base-body edge from overriding acquired methods.
-	replacedInvocation bool
-	ordinaryBodies     []sourceInvocationBody
-	// ownOperation retains a modeled method/descriptor change independently of its value.
-	ownOperation bool
-	inputs       []*sourceValueInputs
-	// sourceOwned prevents structural getter declarations from restoring a superseded value.
-	sourceOwned bool
-	producers   []*ast.Node
-	values      []sourceValue
-	// callableScopes is indexed by values occurrence, never just by declaration.
-	callableScopes map[int]acquiredCallableScope
-	declarations   []*ast.Node
-	opaque         bool
-	selected       bool
-	writes         []sourceValueWrite
-	cause          *ast.Node
-}
-
-// accessorTraversal distinguishes property reads, reachable argument values and own-value serialization.
-type accessorTraversal uint8
-
-const (
-	accessorRead      accessorTraversal = 0
-	accessorReachable accessorTraversal = 1
-	accessorEnumerate accessorTraversal = 2
-	accessorSerialize accessorTraversal = 3
-	accessorInvoke    accessorTraversal = 4
-	accessorAcquire   accessorTraversal = 8
-	accessorSet       accessorTraversal = 16
-	accessorNoGet     accessorTraversal = 32
-	// accessorSetAcquire selects an authored setter without executing its body.
-	accessorSetAcquire accessorTraversal = accessorSet | accessorNoGet | 64
-)
-
-// sourceAccessorBoundCandidates substitutes source-owned arguments without granting authority to structural types.
-func sourceAccessorBoundCandidates(receiver *ast.Node, path []string, name string, mode accessorTraversal, typeChecker *checker.Checker, bindings map[ast.SymbolId]*ast.Node, owner *executableBodyOwner, consumer *ast.Node) accessorCandidates {
-	return sourceAccessorOperationCandidates(receiver, path, name, mode, typeChecker, bindings, owner, consumer, nil)
-}
-
-// sourceAccessorOperationCandidates retains mutation references at the existing
-// evaluated member owner. A syntax reference is not execution or value authority.
-func sourceAccessorOperationCandidates(receiver *ast.Node, path []string, name string, mode accessorTraversal, typeChecker *checker.Checker, bindings map[ast.SymbolId]*ast.Node, owner *executableBodyOwner, consumer, operation *ast.Node) accessorCandidates {
-	values := newSourceValueOwner(typeChecker)
-	if owner != nil && owner.values != nil {
-		values = owner.values
-	}
-	query := &sourceValueQuery{owner: values, executable: owner, effectOwner: consumer, remaining: 4096, active: make(map[*ast.Node]bool)}
-	query.operation = &sourceOperationContext{node: receiver, owner: consumer}
-
-	arguments := make(sourceValueBindings)
-	for id, value := range bindings {
-		arguments[id] = []sourceValue{{node: value}}
-	}
-	return query.sourceAccessorOperationCandidates(receiver, path, name, mode, arguments, operation)
-}
-
-// sourceAccessorOperationCandidates owns the member's key identity and mutation
-// retention for direct, eager, and installed-input consumers on the same query.
-func (query *sourceValueQuery) sourceAccessorOperationCandidates(receiver *ast.Node, path []string, name string, mode accessorTraversal, arguments sourceValueBindings, operation *ast.Node) accessorCandidates {
-	previous := query.protectedMember
-	query.protectedMember = operation
-	defer func() { query.protectedMember = previous }()
-	result := query.accessors(receiver, path, name, mode, arguments, nil)
-	if operation != nil && operation.Parent != nil {
-		mutation := planMutationOperation(operation.Parent)
-		if mutation.target == operation {
-			query.retainThenOperation(operation.Parent, arguments, &result)
-		}
-	}
-	return result
-}
-
-// evaluatedSourceAccessors shares member evaluation provenance with eager module
-// placement. Installed consumers use the same operation and declaration fallback.
-// reading retains the eager consumer across captured body and receiver lookups.
-// A nil boundary keeps definition-only queries in their conservative MAY domain.
-func evaluatedSourceAccessors(node *ast.Node, typeChecker *checker.Checker, bindings map[ast.SymbolId]*ast.Node, owner *executableBodyOwner, consumer, reading *ast.Node) accessorCandidates {
-	values := newSourceValueOwner(typeChecker)
-	if owner != nil && owner.values != nil {
-		values = owner.values
-	}
-	query := sourceValueQuery{owner: values, executable: owner, effectOwner: consumer, remaining: 4096, active: make(map[*ast.Node]bool), reading: reading}
-	receiver := node
-	if ast.IsPropertyAccessExpression(node) || ast.IsElementAccessExpression(node) {
-		receiver, _ = accessorReceiver(node)
-	}
-	query.operation = &sourceOperationContext{node: receiver, owner: consumer}
-	arguments := make(sourceValueBindings)
-	for id, value := range bindings {
-		arguments[id] = []sourceValue{{node: value}}
-	}
-	return query.evaluatedSourceAccessors(node, arguments)
-}
-
-// evaluatedSourceAccessors retains checker-known MAY effects when receiver
-// selection is incomplete. Unknown provenance never erases a known accessor.
-func (query *sourceValueQuery) evaluatedSourceAccessors(node *ast.Node, bindings sourceValueBindings) accessorCandidates {
-	if !ast.IsPropertyAccessExpression(node) && !ast.IsElementAccessExpression(node) {
-		return accessorCandidates{}
-	}
-	read, write := accessorEvaluationMode(node)
-	if !read && !write {
-		return accessorCandidates{}
-	}
-	receiver, name := accessorReceiver(node)
-	mode := accessorRead
-	if write {
-		mode |= accessorSet
-	}
-	if !read {
-		mode |= accessorNoGet
-	}
-	candidates := query.sourceAccessorOperationCandidates(receiver, nil, name, mode, bindings, node)
-	if !candidates.selected && (!candidates.sourceOwned || candidates.opaque) {
-		if symbol := sourceCallableReferenceSymbol(node, query.owner.checker); symbol != nil {
-			for _, declaration := range symbol.Declarations {
-				if (read && ast.IsGetAccessorDeclaration(declaration)) || (write && ast.IsSetAccessorDeclaration(declaration)) {
-					candidates.retainCallableEffect(node, declaration)
-				}
-			}
-		}
-	}
-	return candidates
-}
-
-// accessors instantiates finite relative roots. Recursive demands share this query's budget.
-func (query *sourceValueQuery) accessors(receiver *ast.Node, path []string, name string, mode accessorTraversal, arguments sourceValueBindings, invoke func(*ast.Node, sourceValueBindings, *accessorCandidates)) accessorCandidates {
-	return query.accessorsAtGet(receiver, path, name, mode, arguments, invoke, nil)
-}
-
-// accessorsAtGet supplies an explicit implicit-Get input at the selected receiver.
-// Ordinary recursive property/callee queries do not inherit this operation input.
-func (query *sourceValueQuery) accessorsAtGet(receiver *ast.Node, path []string, name string, mode accessorTraversal, arguments sourceValueBindings, invoke func(*ast.Node, sourceValueBindings, *accessorCandidates), get *sourceGetInputs, alternatives ...sourceValue) accessorCandidates {
-	return query.accessorsAtGetOutput(receiver, path, name, mode, arguments, invoke, get, nil, alternatives...)
-}
-
-// accessorsAtGetOutput admits a producer's initial acquisition exactly once.
-// All later raw/acquired entries read that operation's output without effects.
 func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []string, name string, mode accessorTraversal, arguments sourceValueBindings, invoke func(*ast.Node, sourceValueBindings, *accessorCandidates), get *sourceGetInputs, producer *sourceNormalOperation, alternatives ...sourceValue) (result accessorCandidates) {
 	restoreDeferredRead := query.beginDeferredRead(get)
 	defer restoreDeferredRead()
@@ -259,7 +48,7 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 	visitProduced := func(node *ast.Node, projection []string, instance bool) bool {
 		if node != nil && ast.IsNewExpression(node) {
 			if observed, found := query.constructedOutput(node); found {
-				retainResultUncertainty(observed, &result, sourceExecutionOutput)
+				retainResultUncertainty(observed, &result, query.getProjectionDemand())
 				for _, value := range observed.values {
 					visitOrigins([]sourceValue{value.value}, projection, instance)
 				}
@@ -281,7 +70,7 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 		importCandidateReferences(&result, observed.componentRefs)
 		importCandidateReferences(&result, ownedPopulationContributions(observed.ownedGets))
 		mergeOwnedGets(&result.ownedGets, observed.ownedGets)
-		retainResultUncertainty(observed, &result, sourceExecutionOutput)
+		retainResultUncertainty(observed, &result, query.getProjectionDemand())
 		for _, original := range observed.values {
 			if !query.charge(&result, node) {
 				return true
@@ -350,6 +139,15 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 					term.path = nil
 					query.missingFieldGet(term, key, query.protectedMember, &result)
 				}
+				continue
+			}
+			if term.capture != nil {
+				scope := term.capture
+				term.capture = nil
+				previousArguments, previousCreators := arguments, query.creators
+				arguments, query.creators = scope.bindings, scope.creators
+				visitOrigins([]sourceValue{term}, projection, instance)
+				arguments, query.creators = previousArguments, previousCreators
 				continue
 			}
 			if term.normal != nil {
@@ -464,7 +262,7 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 				result.values = append(result.values, term)
 				continue
 			}
-			if query.protectedMember != nil && (name != "" && len(projection) == 0 || name == "" && len(projection) == 1) && !query.ownsDataSlot(get, term.node, projection, name, mode) {
+			if !query.dependenciesOnly && query.protectedMember != nil && (name != "" && len(projection) == 0 || name == "" && len(projection) == 1) && !query.ownsDataSlot(get, term.node, projection, name, mode) {
 				result.fieldReceiverIncomplete = true
 			}
 			if term.native != nil {
@@ -634,7 +432,7 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 			visit(member.Expression, append([]string{selected.name}, projection...), false)
 			return
 		}
-		if mode == accessorAcquire && len(projection) == 0 && !ast.IsIdentifier(value) && (query.returnObservation == nil || !ast.IsCallExpression(value)) {
+		if mode == accessorAcquire && len(projection) == 0 && !ast.IsIdentifier(value) && (!query.dependenciesOnly || !ast.IsCallExpression(value)) && (query.returnObservation == nil || !ast.IsCallExpression(value)) {
 			if ast.IsFunctionLike(value) && value.Body() != nil {
 				returned := false
 				for owner, creator := range query.creators {
@@ -655,6 +453,10 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 				}
 			}
 			term := sourceValue{node: value}
+			if query.dependenciesOnly && (ast.IsObjectLiteralExpression(value) || ast.IsArrayLiteralExpression(value) || ast.IsFunctionLike(value) || ast.IsNewExpression(value)) {
+				scope := query.acquireCallableScope(arguments, &result)
+				term.capture = &scope
+			}
 			if query.returnObservation != nil {
 				term.forwarded = query.forwardingTrace(&result, query.returnObservation.path)
 				if result.callableScopes == nil {
@@ -676,62 +478,10 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 			return
 		}
 		if ast.IsNewExpression(value) {
-			if (len(projection) > 0 || name != "") && query.possibleProxyGetEffects(value, projection, name, mode, arguments, &result) {
-				return
-			}
 			previousReceiver := inheritedReceiver
 			inheritedReceiver = &sourceValue{node: value}
 			defer func() { inheritedReceiver = previousReceiver }()
-			// A structural array type can revoke completeness, never prove native identity.
-			if len(projection) > 0 && typeChecker.IsArrayLikeType(typeChecker.GetTypeAtLocation(value)) {
-				result.opaque = true
-			}
-			sourceInstance := false
-			if definition, selected := owner.definition(value.AsNewExpression().Expression); selected {
-				result.selected = true
-				if definition == nil {
-					result.opaque = true
-				} else {
-					sourceInstance = (ast.IsClassDeclaration(definition) || ast.IsClassExpression(definition)) && !ast.GetSourceFileOfNode(definition).IsDeclarationFile
-					visit(definition, projection, true)
-				}
-				if !sourceInstance && (len(projection) > 0 || name != "") {
-					result.receiverIncomplete = true
-				}
-				return
-			}
-			symbol := sourceCallableReferenceSymbol(value.AsNewExpression().Expression, typeChecker)
-			if symbol != nil && symbol.Flags&ast.SymbolFlagsAlias != 0 {
-				symbol = query.sourceAlias(symbol, &result)
-			}
-			if symbol != nil {
-				if argument, exists := arguments[ast.GetSymbolId(symbol)]; exists {
-					visitOrigins(argument, projection, true)
-				}
-				for _, declaration := range symbol.Declarations {
-					if ast.IsClassDeclaration(declaration) {
-						sourceInstance = !ast.GetSourceFileOfNode(declaration).IsDeclarationFile
-						visit(declaration, projection, true)
-					}
-					if ast.IsVariableDeclaration(declaration) {
-						initializer := unwrapSourceCallableReference(declaration.Initializer())
-						sourceInstance = sourceInstance || initializer != nil && ast.IsClassExpression(initializer) && !ast.GetSourceFileOfNode(initializer).IsDeclarationFile
-						visit(declaration.AsVariableDeclaration().Initializer, projection, true)
-					}
-				}
-			}
-			// An unmodeled constructor result may be a Proxy or foreign object.
-			// Structural callable/member types do not account for its Get/Set effects.
-			if !sourceInstance && (len(projection) > 0 || name != "") {
-				result.receiverIncomplete = true
-				// An unmodeled callable constructor result may be a Proxy. Its
-				// compatible Function methods cannot discharge real Get/trap
-				// effects. This withholds authority, never asserts native identity.
-				if nativeFunctionInvocation(value, "call", typeChecker) {
-					result.opaque = true
-					result.cause = value
-				}
-			}
+			query.visitConstructedAccessor(sourceConstructedMemberDemand{value, projection, name, mode}, arguments, &result, visit, visitOrigins)
 			return
 		}
 		if len(projection) > 1 && projection[0] == "prototype" && sourceFunctionPrototype(sourceValue{node: value, path: projection[:1]}, typeChecker) {
@@ -816,30 +566,7 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 			result.valueIncomplete = result.valueIncomplete || !replaced && len(result.values) == acquired
 			return
 		}
-		if ast.IsFunctionLike(value) && mode == accessorInvoke && len(projection) == 0 {
-			if value.Body() == nil || ast.GetSourceFileOfNode(value).IsDeclarationFile {
-				return
-			}
-			// Existing ordinary method effects stay on their call graph. A creating
-			// edge or an executing parameter pattern needs this input substitution.
-			binding := false
-			for _, parameter := range value.Parameters() {
-				if !query.charge(&result, parameter) {
-					return
-				}
-				binding = binding || parameter.Initializer() != nil || ast.IsObjectBindingPattern(parameter.Name()) || ast.IsArrayBindingPattern(parameter.Name())
-			}
-			for _, creator := range query.creators {
-				binding = binding || creator.invocation != nil
-			}
-			if !binding {
-				return
-			}
-			result.declarations = append(result.declarations, value)
-			previousReturn := query.returning
-			query.returning = nil
-			invoke(value, arguments, &result)
-			query.returning = previousReturn
+		if query.visitSourceCallableInvocation(value, projection, mode, arguments, &result, invoke) {
 			return
 		}
 		if ast.IsArrayLiteralExpression(value) {
@@ -961,6 +688,14 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 					visit(member.AsSpreadAssignment().Expression, projection, false)
 					continue
 				}
+				if deep && instance && query.dependenciesOnly && ast.IsPropertyDeclaration(member) {
+					query.visitSourceConstructedField(member, actualReceiver, arguments, &result, func(values []sourceValue) {
+						previousGet := get
+						get = nil
+						visitOrigins(values, projection, false)
+						get = previousGet
+					})
+				}
 				if deep && ast.IsPropertyAssignment(member) {
 					visit(member.AsPropertyAssignment().Initializer, projection, false)
 				}
@@ -995,7 +730,7 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 								result.valueIncomplete = true
 							} else if mode&accessorNoGet == 0 {
 								observed := query.acquireGetResult(member, selectedGet, query.acquireCallableScope(arguments, &result), &result)
-								retainResultUncertainty(observed, &result, sourceExecutionOutput)
+								retainResultUncertainty(observed, &result, query.getProjectionDemand())
 								// Import once before filtering. Only unchanged terminal outputs
 								// can transfer publication to this settlement request.
 								var population paidMayPopulation
@@ -1007,7 +742,11 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 								complete := associate
 								for _, returned := range observed.values {
 									value := returned.value
-									value.acquired = &returned
+									if query.dependenciesOnly {
+										value.capture = &returned.scope
+									} else {
+										value.acquired = &returned
+									}
 									previousGet := get
 									get = nil // This read was consumed. Its output is not another receiver.
 									start := len(result.values)
@@ -1028,9 +767,16 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 						}
 						if ast.IsPropertyDeclaration(member) && mode&accessorNoGet == 0 {
 							if instance {
-								// An admitted normal output was consumed at entry. Without
-								// that producer, an instance field has no retained value.
-								result.valueIncomplete = true
+								if query.dependenciesOnly {
+									query.visitSourceConstructedField(member, actualReceiver, arguments, &result, func(values []sourceValue) {
+										previousGet := get
+										get = nil
+										visitOrigins(values, projection[1:], false)
+										get = previousGet
+									})
+								} else {
+									result.valueIncomplete = true
+								}
 							} else {
 								visit(member.AsPropertyDeclaration().Initializer, projection[1:], false)
 							}
@@ -1067,7 +813,7 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 							// zero supplied arguments and defaults remain installed.
 							observed := query.acquireGetResult(member, selectedGet, query.acquireCallableScope(arguments, &result), &result)
 							if deep {
-								retainResultUncertainty(observed, &result, sourceExecutionOutput)
+								retainResultUncertainty(observed, &result, query.getProjectionDemand())
 								for _, returned := range observed.values {
 									previousArguments, previousCreators := arguments, query.creators
 									arguments, query.creators = returned.scope.bindings, returned.scope.creators
@@ -1189,14 +935,26 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 				return
 			}
 			if symbol.ValueDeclaration != nil && (ast.IsParameterDeclaration(symbol.ValueDeclaration) || ast.IsBindingElement(symbol.ValueDeclaration)) {
+				if query.dependenciesOnly && mode == accessorRead && (name != "" || len(projection) > 0) {
+					key := name
+					if key == "" && len(projection) == 1 {
+						key = projection[0]
+					}
+					if demand := query.operationFieldDemand(query.protectedMember, key); demand.declaration != nil {
+						result.fieldFallbacks = append(result.fieldFallbacks, demand)
+					} else {
+						result.opaque = true
+					}
+					return
+				}
 				if mode == accessorAcquire && len(projection) == 0 {
 					result.values = append(result.values, sourceValue{node: value})
 				} else if mode == accessorAcquire {
 					demand := sourceFieldDemand{}
 					if name == "" && len(projection) == 1 {
-						demand, _ = query.fieldDemand(query.protectedMember, value, projection[0])
+						demand = query.operationFieldDemand(query.protectedMember, projection[0])
 					}
-					if demand.slot == symbol.ValueDeclaration && ast.IsParameterDeclaration(demand.slot) {
+					if demand.declaration != nil {
 						result.fieldFallbacks = append(result.fieldFallbacks, demand)
 						result.values = append(result.values, sourceValue{node: value, path: append([]string(nil), projection...)})
 					} else {
@@ -1225,14 +983,23 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 			if len(projection) > 0 || name != "" {
 				for _, declaration := range symbol.Declarations {
 					if !standardLibrarySource(ast.GetSourceFileOfNode(declaration)) && ((ast.IsVariableDeclaration(declaration) && declaration.Initializer() == nil) || (ast.IsFunctionLike(declaration) && declaration.Body() == nil)) {
-						if ast.GetSourceFileOfNode(declaration).IsDeclarationFile || mode == accessorRead && query.declaredFrameworkMemberRead(value, projection, name, &result) {
+						if ast.GetSourceFileOfNode(declaration).IsDeclarationFile || (mode == accessorRead || mode == accessorAcquire) && query.declaredFrameworkMemberRead(value, projection, name, &result) {
 							// Retain uncertainty beside existing external execution classification.
 							// A mixed source-callable receiver consumes it without adopting identity.
 							result.receiverIncomplete = true
-							if mode == accessorAcquire {
+							if query.dependenciesOnly && mode == accessorRead && !query.declaredFrameworkMemberRead(value, projection, name, &result) {
 								result.opaque = true
-								if result.cause == nil {
-									result.cause = value
+								result.cause = value
+							}
+							if mode == accessorAcquire {
+								// The package Get contract supplies effects, never a normal value
+								// or callable identity for this acquired member.
+								result.valueIncomplete = true
+								if !query.declaredFrameworkMemberRead(value, projection, name, &result) {
+									result.opaque = true
+									if result.cause == nil {
+										result.cause = value
+									}
 								}
 							}
 						} else {
@@ -1281,7 +1048,6 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 			return
 		}
 		if ast.IsCallExpression(value) {
-			call := value.AsCallExpression()
 			for parent := value.Parent; parent != nil && !ast.IsFunctionLike(parent); parent = parent.Parent {
 				if ast.IsForStatement(parent) || ast.IsForOfStatement(parent) || ast.IsWhileStatement(parent) || ast.IsDoStatement(parent) {
 					result.opaque = true
@@ -1289,8 +1055,11 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 					break
 				}
 			}
-			expression := unwrapSourceCallableReference(call.Expression)
-			produced, hasProduced := query.acquireNormalCallResult(value, &result)
+			var produced sourceResultObservation
+			hasProduced := false
+			if !query.dependenciesOnly {
+				produced, hasProduced = query.acquireNormalCallResult(value, &result)
+			}
 			if !hasProduced && (mode&accessorNoGet != 0 || get != nil && instance) {
 				// Presence and instance lookup cannot reconstruct initializer or
 				// heritage values by binding a receiptless Call's defaults.
@@ -1324,105 +1093,34 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 				}
 				return
 			}
-			if mode == accessorRead && query.moduleRead() != nil && query.effectOwner == nil && query.inputs == nil {
-				if families := query.moduleCallEffectOrigins(value); len(families) != 0 {
-					previousArguments, previousCreators, previousOperation := arguments, query.creators, query.operation
-					// Detached origin metadata is a MAY effect demand, never an
-					// installed normal operation or a source of Get/Call output.
-					query.operation = nil
-					for _, family := range families {
-						arguments = make(sourceValueBindings, len(family.Captures))
-						for _, capture := range family.Captures {
-							symbol := typeChecker.GetSymbolAtLocation(capture.Formal.Name())
-							arguments[ast.GetSymbolId(symbol)] = []sourceValue{{node: capture.Origin}}
-						}
-						query.creators = map[*ast.Node]sourceValueCreation{family.Body: {invocation: family.Call, returning: family.Returned}}
-						visit(family.Origin, projection, false)
-					}
-					arguments, query.creators, query.operation = previousArguments, previousCreators, previousOperation
-					return
-				}
-			}
-			// Declaration-only return syntax has no acquired output receipt. Keep
-			// its known routes, but withhold outer construction/return authority.
+			// Source return relationships use the same selected-body/input owner
+			// as invocation effects. Per-alternative captures stay installed while
+			// the projected value is consumed, without a normal output receipt.
 			query.withAcquiredOutput(&acquiredParent, nil, func() {
-				priorCreators := query.creators
-				defer func() { query.creators = priorCreators }()
-				declarations := query.callDeclarations(call.Expression, &result)
-				concrete := false
-				for _, declaration := range declarations {
-					if ast.IsVariableDeclaration(declaration) {
-						declaration = unwrapSourceCallableReference(declaration.Initializer())
+				part := query.projectSourceCallReturns(value, arguments, func(returned sourceValue, captures sourceValueBindings) {
+					previous := arguments
+					arguments = captures
+					defer func() { arguments = previous }()
+					if returned.undefined {
+						result.values = append(result.values, returned)
+					} else {
+						visitOrigins([]sourceValue{returned}, projection, false)
 					}
-					if declaration != nil && ast.IsFunctionLike(declaration) && declaration.Body() != nil {
-						concrete = true
+				}, func() {
+					result.valueIncomplete = true
+					if len(projection) > 0 || name != "" || mode == accessorInvoke {
+						result.opaque = true
+					} else {
+						result.values = append(result.values, sourceValue{node: value})
 					}
-				}
-				if !concrete && (ast.IsPropertyAccessExpression(expression) || ast.IsElementAccessExpression(expression)) {
-					candidates := query.receiverCandidates(value, arguments)
-					for _, candidate := range candidates.values {
-						if candidate.node != nil && ast.IsFunctionLike(candidate.node) && candidate.node.Body() != nil {
-							declarations = append(declarations, candidate.node)
-							concrete = true
-						}
-					}
-					if concrete {
-						mergeAccessorCandidates(&result, candidates)
-					}
-				}
-				if !concrete && ((len(projection) > 0 && typeChecker.IsArrayLikeType(typeChecker.GetTypeAtLocation(value))) || unresolvedCallEnvironment(call.Expression, ast.GetSourceFileOfNode(value), typeChecker, nil) == "unknown") {
-					result.opaque = true
-				}
-				// This is eligibility from the existing ordinary selection, not a second
-				// resolver. Return projection alone does not authorize body execution.
-				finiteReturn := len(declarations) == 1 && !result.opaque && ast.IsIdentifier(expression) && ast.IsFunctionDeclaration(declarations[0])
-				if finiteReturn {
-					symbol := resolvedCallableSymbol(callTargetSymbol(expression, typeChecker), typeChecker)
-					finiteReturn = symbol != nil && !query.owner.bindingWritten(symbol)
-				}
-				// Keep existing finite-route eligibility, independently of the
-				// uncertainty of this receiptless output.
-				result.opaque = true
-				for _, declaration := range declarations {
-					if ast.IsVariableDeclaration(declaration) {
-						declaration = unwrapSourceCallableReference(declaration.AsVariableDeclaration().Initializer)
-					}
-					if declaration != nil && ast.IsFunctionLike(declaration) {
-						if query.creators == nil {
-							query.creators = make(map[*ast.Node]sourceValueCreation)
-						}
-						previousCreator, hadCreator := query.creators[declaration]
-						query.creators[declaration] = sourceValueCreation{invocation: value}
-						previous := arguments
-
-						arguments = query.bindArguments(declaration, value, arguments, &result)
-						for _, returned := range query.owner.summary(declaration).returns {
-							query.creators[declaration] = sourceValueCreation{invocation: value}
-							possible, _ := query.reachable(returned, arguments)
-							if !possible || !query.returnCompletes(returned, arguments) {
-								continue
-							}
-							previousReturn := query.returning
-							query.returning = returned
-							query.creators[declaration] = sourceValueCreation{invocation: value, returning: returned}
-							previousFresh := query.freshReturnCall
-							query.freshReturnCall = nil
-							if finiteReturn {
-								query.freshReturnCall = value
-							}
-							visit(returned, projection, false)
-							query.freshReturnCall = previousFresh
-							query.returning = previousReturn
-						}
-						if hadCreator {
-							query.creators[declaration] = previousCreator
-						} else {
-							delete(query.creators, declaration)
-						}
-						arguments = previous
-					}
-				}
+				})
+				mergeAccessorCandidates(&result, part)
 			})
+			if query.dependenciesOnly {
+				result.callOutcomes = append(result.callOutcomes, query.returnOutcome(value, !result.opaque && !result.receiverIncomplete))
+			} else {
+				query.refuseExactOutput(value, &result)
+			}
 		}
 	}
 	if len(alternatives) == 1 {
@@ -1430,75 +1128,11 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 	} else {
 		visit(receiver, path, false)
 	}
-	result.opaque = result.opaque || result.sourceCallable && result.receiverIncomplete
+	if result.sourceCallable && result.receiverIncomplete {
+		result.opaque = true
+	}
 	if result.opaque && result.cause == nil {
 		result.cause = receiver
 	}
 	return result
-}
-
-// acquireCallableScope retains one reached body's creating inputs. Copies are
-// query-local and fuel bounded, with no identity inferred from declaration spans.
-func (query *sourceValueQuery) acquireCallableScope(arguments sourceValueBindings, result *accessorCandidates) acquiredCallableScope {
-	scope := acquiredCallableScope{bindings: make(sourceValueBindings), creators: make(map[*ast.Node]sourceValueCreation)}
-	for id, terms := range arguments {
-		if !query.charge(result, nil) {
-			break
-		}
-		scope.bindings[id] = query.sealInitializerValues(terms, result)
-	}
-	for owner, creator := range query.creators {
-		if !query.charge(result, owner) {
-			break
-		}
-		scope.creators[owner] = creator
-	}
-	return scope
-}
-
-// declaredFrameworkMemberRead preserves the actual selected package method's Get
-// contract without manufacturing a value origin or clearing other acquisition effects.
-func (query *sourceValueQuery) declaredFrameworkMemberRead(receiver *ast.Node, projection []string, name string, result *accessorCandidates) bool {
-	if receiver == nil || len(projection) != 0 || name == "" || receiver.Parent == nil {
-		return false
-	}
-	member := receiver.Parent
-	if !ast.IsPropertyAccessExpression(member) && !ast.IsElementAccessExpression(member) {
-		return false
-	}
-	actual, key := accessorReceiver(member)
-	if actual != receiver || key != name || !portableDeclaredMethod(nativeReceiverMemberSymbol(member, query.owner.checker)) {
-		return false
-	}
-	symbol := query.owner.checker.GetSymbolAtLocation(receiver)
-	if symbol == nil || query.owner.bindingWritten(symbol) {
-		return false
-	}
-	// Inspect only actual references to this binding in its existing source index.
-	// Local escapes and writes keep the generic refusal. Published consumers and
-	// dependency implementations are not enumerated or required to be private.
-	index := query.owner.index(ast.GetSourceFileOfNode(receiver))
-	for _, region := range index.operationRegions {
-		for _, reference := range region.references {
-			if !query.charge(result, reference) {
-				return false
-			}
-			selected := query.owner.checker.GetSymbolAtLocation(reference)
-			if reference.Parent != nil && ast.IsShorthandPropertyAssignment(reference.Parent) {
-				selected = query.owner.checker.GetShorthandAssignmentValueSymbol(reference.Parent)
-			}
-			if selected != symbol || query.afterRead(reference) {
-				continue
-			}
-			member := reference.Parent
-			if member == nil || !ast.IsPropertyAccessExpression(member) && !ast.IsElementAccessExpression(member) {
-				return false
-			}
-			read, write := accessorEvaluationMode(member)
-			if member.Expression() != reference || !read || write || nativeAssignmentPatternTarget(member) || !portableDeclaredMethod(nativeReceiverMemberSymbol(member, query.owner.checker)) {
-				return false
-			}
-		}
-	}
-	return true
 }

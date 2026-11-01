@@ -381,13 +381,30 @@ func (query *sourceValueQuery) consumeGetInputs(body *ast.Node, get *sourceGetIn
 }
 
 func (query *sourceValueQuery) executeGetEffects(body *ast.Node, get *sourceGetInputs, scope acquiredCallableScope, result *accessorCandidates) {
-	query.consumeGetInputs(body, get, scope, result, func(inputs *sourceValueInputs) { query.executeInputs(body, inputs.bindings, result, nil, inputs) })
+	query.consumeGetInputs(body, get, scope, result, func(inputs *sourceValueInputs) {
+		if query.dependenciesOnly {
+			query.consumeSourceBodyEffects(get.operation, body, inputs.bindings, inputs, nil, result)
+		} else {
+			query.executeInputs(body, inputs.bindings, result, nil, inputs)
+		}
+	})
 }
 
 // acquireGetResult consumes the normal Get once and observes only its raw return.
 // Direct-return member outputs are acquired by that same body demand. A callable
 // then remains a value, never its fulfillment or a promise-job interpretation.
 func (query *sourceValueQuery) acquireGetResult(body *ast.Node, get *sourceGetInputs, scope acquiredCallableScope, result *accessorCandidates) sourceResultObservation {
+	if query.dependenciesOnly {
+		observed := sourceResultObservation{}
+		query.consumeGetInputs(body, get, scope, result, func(inputs *sourceValueInputs) {
+			query.consumeSourceBodyEffects(get.operation, body, inputs.bindings, inputs, nil, result)
+			query.projectSelectedSourceReturns(body, get.operation, inputs.bindings, inputs, result, func(value sourceValue, bindings sourceValueBindings) {
+				observed.values = append(observed.values, sourceObservedValue{value: value, scope: query.acquireCallableScope(bindings, result)})
+			}, func() { observed.incomplete = true })
+		})
+		return observed
+	}
+
 	// A wrapper that refuses before its consumer has no selected output.
 	observed := sourceResultObservation{incomplete: true}
 	// Body demands retain execution obligations in the same owned record, but

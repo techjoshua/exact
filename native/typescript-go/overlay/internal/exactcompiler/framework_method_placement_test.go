@@ -16,7 +16,7 @@ func TestFrameworkMethodPlacement(t *testing.T) {
 	}
 	for file, source := range map[string]string{
 		"package.json": `{"name":"@exactjs/request","types":"index.d.ts"}`,
-		"index.d.ts":   `export interface Storage{getStore():string | undefined}`,
+		"index.d.ts":   `export interface Storage{getStore():string | undefined} export interface PropertyStorage{getStore:()=>string} export interface NestedStorage{nested:Storage}`,
 	} {
 		if err := os.WriteFile(filepath.Join(pkg, file), []byte(source), 0600); err != nil {
 			t.Fatal(err)
@@ -40,6 +40,8 @@ func TestFrameworkMethodPlacement(t *testing.T) {
 		{"literal-member", `import type {Storage} from '@exactjs/request';declare const storage:Storage;`, `storage['getStore']()`, "isomorphic"},
 		{"unproven-platform-interface", `import type {Storage} from 'node';declare const storage:Storage;`, `storage.getStore()`, "unknown"},
 		{"lookalike", `interface Storage{getStore():string | undefined}declare const storage:Storage;`, `storage.getStore()`, "unknown"},
+		{"property-signature", `import type {PropertyStorage} from '@exactjs/request';declare const storage:PropertyStorage;`, `storage.getStore()`, "unknown"},
+		{"nested-receiver", `import type {NestedStorage} from '@exactjs/request';declare const storage:NestedStorage;`, `storage.nested.getStore()`, "unknown"},
 		{"added-member", `import type {Storage} from '@exactjs/request';interface Extra extends Storage{other():string}declare const storage:Extra;`, `storage.other()`, "unknown"},
 		{"owned-getter", `import type {Storage} from '@exactjs/request';const storage={get getStore(){void document.title;return ()=> 'value'}};`, `storage.getStore()`, "client"},
 		{"ambient-pattern-replacement", `import type {Storage} from '@exactjs/request';declare const storage:Storage;({getStore:storage.getStore}={getStore:()=>document.title});`, "storage.getStore()", "unknown"},
@@ -59,6 +61,37 @@ func TestFrameworkMethodPlacement(t *testing.T) {
 			if fixture.placement == "isomorphic" && !strings.Contains(result.Code, `placement: "isomorphic"`) {
 				t.Fatalf("portable method lost emitted placement: %s", result.Code)
 			}
+		})
+	}
+}
+
+// A declaration effect contract does not eliminate the runtime Get or receiver.
+// Compiler-known outputs are unnecessary for preserving this ordinary method call.
+func TestFrameworkMethodAcquisitionPreservesRuntimeGet(t *testing.T) {
+	root := t.TempDir()
+	pkg := filepath.Join(root, "node_modules", "@exactjs", "request")
+	if err := os.MkdirAll(pkg, 0700); err != nil {
+		t.Fatal(err)
+	}
+	for name, source := range map[string]string{
+		"package.json": `{"name":"@exactjs/request","types":"index.d.ts"}`,
+		"index.d.ts":   `export interface Storage{getStore():string | undefined}`,
+	} {
+		if err := os.WriteFile(filepath.Join(pkg, name), []byte(source), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	source := `import type{Storage}from'@exactjs/request';declare const storage:Storage;export function read(){return storage.getStore()}`
+	for _, target := range []Target{TargetClient, TargetServer} {
+		t.Run(string(target), func(t *testing.T) {
+			r := NewSession().Execute(Request{Kind: "compile", ID: filepath.Join(root, "read.ts"), Root: root, Source: source, Target: target, Diagnostics: "semantic"})
+			if r.Error != "" || hasErrorDiagnostic(r.Diagnostics) || r.Code == "" {
+				t.Fatalf("compile: %s %#v", r.Error, r.Diagnostics)
+			}
+			if summary := executableSummary(t, r, "read"); summary.Effect != "neutral" {
+				t.Fatalf("lost declared method effect contract: %#v", summary.EffectSources)
+			}
+			sourceNodeScript(t, r.Code, `const fs=require('node:fs'),vm=require('node:vm');let gets=0,calls=0;const storage={get getStore(){gets++;return function(){calls++;if(this!==storage)throw Error('receiver');return 'public'}}};const exports={};vm.runInNewContext(fs.readFileSync(process.argv[1],'utf8'),{exports,storage});const value=exports.read();if(value!=='public'||gets!==1||calls!==1)throw Error(JSON.stringify({value,gets,calls}));`)
 		})
 	}
 }

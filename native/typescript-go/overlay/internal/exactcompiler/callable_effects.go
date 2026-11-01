@@ -34,6 +34,8 @@ var universalCallRoots = map[string]struct{}{
 }
 
 type callableFacts struct {
+	callOutcomes []sourceCallOutcome
+
 	componentInputDemands []sourceComponentInputDemand
 	// Source coverage is immutable analysis metadata, never a runtime receipt.
 	pendingPrefixCoverage  *sourcePrefixRefusalCoverage
@@ -130,20 +132,15 @@ func collectCallableEffects(
 	plans := map[*ast.Node]*closedOwnGetterPlan{}
 	declarations := map[*ast.Node]*ast.Node{}
 	for _, statement := range sourceFile.Statements.Nodes {
+		if !runtimeVariableInitializer(statement) {
+			continue
+		}
+		// Every runtime initializer has an effect owner. Optional getter
+		// refinement plans do not decide whether its operations are analyzed.
+		nodes = append(nodes, statement)
 		if declaration, plan, ok := preflightModuleInitializer(owner, statement); ok {
-			nodes = append(nodes, statement)
 			plans[statement] = plan
 			declarations[statement] = declaration
-		} else if possibleProxyInitializer(owner.values, statement) != nil {
-			nodes = append(nodes, statement)
-		} else if moduleCallInitializer(owner.values, statement) != nil {
-			// Ordinary Call initializers need an original effect owner. They do
-			// not use the specialized literal/getter publication cursor.
-			nodes = append(nodes, statement)
-		} else if moduleNestedCallEffects(owner.values, statement) {
-			// A trailing member Get does not erase the real nested Call's effects.
-			// This statement fact supplies no direct-Call result publication.
-			nodes = append(nodes, statement)
 		}
 	}
 	sort.Slice(nodes, func(i, j int) bool { return nodes[i].Pos() < nodes[j].Pos() })
@@ -738,6 +735,7 @@ func callableModuleKey(filename string) string {
 // cloneProjectCallableFact copies mutable graph inputs. Propagated summaries and targets
 // are replaced by the merge before resolution, so copying them would be discarded work.
 func cloneProjectCallableFact(value callableFacts) callableFacts {
+	value.callOutcomes = append([]sourceCallOutcome(nil), value.callOutcomes...)
 	value.componentInputDemands = append([]sourceComponentInputDemand(nil), value.componentInputDemands...)
 	value.initializerDraft = cloneModuleInitializerDraft(value.initializerDraft)
 	// Publication rights remain on original source facts. Cached copies retain
