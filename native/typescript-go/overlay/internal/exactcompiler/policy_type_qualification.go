@@ -9,6 +9,7 @@ import (
 // inspection retains protection but is never cached as a completed secret/public fact.
 type policyQualificationObligation struct {
 	seen       map[checker.TypeId]bool
+	active     []*checker.Type
 	incomplete bool
 }
 
@@ -25,7 +26,7 @@ func policyFromCheckerType(
 	if value == nil {
 		return DataPolicy{}, false
 	}
-	if checkerTypeContainsSecret(value, typeChecker, newPolicyQualificationObligation(), nil) {
+	if checkerTypeContainsSecret(value, typeChecker, newPolicyQualificationObligation()) {
 		return dataPolicy("secret"), true
 	}
 	return DataPolicy{}, false
@@ -34,6 +35,8 @@ func policyFromCheckerType(
 // Completed qualification facts belong to one checker in an unchanged program.
 // A successful recursive search publishes only its root. A complete negative search
 // proves every visited type negative, without preserving partial cycle observations.
+// Cache reads occur only at query roots. Reusing a completed subtree would change
+// which active recursive family dependencies a cold query must discharge.
 func cachedPolicyFromCheckerType(value *checker.Type, c *checker.Checker, completed map[checker.TypeId]bool) (DataPolicy, bool) {
 	if value == nil {
 		return DataPolicy{}, false
@@ -45,7 +48,7 @@ func cachedPolicyFromCheckerType(value *checker.Type, c *checker.Checker, comple
 		return DataPolicy{}, false
 	}
 	obligation := newPolicyQualificationObligation()
-	if checkerTypeContainsSecret(value, c, obligation, completed) {
+	if checkerTypeContainsSecret(value, c, obligation) {
 		if !obligation.incomplete {
 			completed[value.Id()] = true
 		}
@@ -59,37 +62,35 @@ func cachedPolicyFromCheckerType(value *checker.Type, c *checker.Checker, comple
 
 // checkerTypeContainsSecret protects disclosure of complete records and indexed collections.
 // Deferred members carry disclosure obligations too. Cycles are visited once per type query.
-func checkerTypeContainsSecret(value *checker.Type, typeChecker *checker.Checker, obligation *policyQualificationObligation, completed map[checker.TypeId]bool) bool {
+func checkerTypeContainsSecret(value *checker.Type, typeChecker *checker.Checker, obligation *policyQualificationObligation) bool {
 	if value == nil {
 		return false
-	}
-	if secret, exists := completed[value.Id()]; exists {
-		return secret
 	}
 	if obligation.seen[value.Id()] {
 		return false
 	}
-	// Expanding generic recursion can produce fresh checker identities indefinitely.
-	// Exhausting this qualification obligation must retain protection, never publish
-	// a completed public fact. Selected public leaves use their own bounded query.
-	if len(obligation.seen) >= 128 {
+	// Reuse the pinned checker's origin-sensitive recursion signal. It does not
+	// count finite record width or grant publicness on a recursive edge.
+	if typeChecker.IsExactPolicyTypeExpanding(value, obligation.active) {
 		obligation.incomplete = true
 		return true
 	}
+	obligation.active = append(obligation.active, value)
+	defer func() { obligation.active = obligation.active[:len(obligation.active)-1] }()
 	obligation.seen[value.Id()] = true
 	if checkerTypeHasSecretDeclaration(value) {
 		return true
 	}
 	if value.Flags()&checker.TypeFlagsUnionOrIntersection != 0 {
 		for _, member := range value.Types() {
-			if checkerTypeContainsSecret(member, typeChecker, obligation, completed) {
+			if checkerTypeContainsSecret(member, typeChecker, obligation) {
 				return true
 			}
 		}
 		return false
 	}
 	if value.Flags()&checker.TypeFlagsTypeParameter != 0 {
-		return checkerTypeContainsSecret(typeChecker.GetBaseConstraintOfType(value), typeChecker, obligation, completed)
+		return checkerTypeContainsSecret(typeChecker.GetBaseConstraintOfType(value), typeChecker, obligation)
 	}
 	if checkerTypeIsSecret(value, typeChecker, make(map[checker.TypeId]bool)) {
 		return true
@@ -97,20 +98,22 @@ func checkerTypeContainsSecret(value *checker.Type, typeChecker *checker.Checker
 	if value.Flags()&checker.TypeFlagsObject == 0 {
 		return false
 	}
-	for _, signature := range typeChecker.GetSignaturesOfType(value, checker.SignatureKindCall) {
-		if checkerTypeContainsSecret(typeChecker.GetReturnTypeOfSignature(signature), typeChecker, obligation, completed) {
-			return true
+	for _, kind := range []checker.SignatureKind{checker.SignatureKindCall, checker.SignatureKindConstruct} {
+		for _, signature := range typeChecker.GetSignaturesOfType(value, kind) {
+			if checkerTypeContainsSecret(typeChecker.GetReturnTypeOfSignature(signature), typeChecker, obligation) {
+				return true
+			}
 		}
 	}
 	for _, index := range typeChecker.GetIndexInfosOfType(value) {
-		if checkerTypeContainsSecret(index.ValueType(), typeChecker, obligation, completed) {
+		if checkerTypeContainsSecret(index.ValueType(), typeChecker, obligation) {
 			return true
 		}
 	}
 	if value.ObjectFlags()&checker.ObjectFlagsMapped == 0 && policyStandardLibraryType(value, typeChecker) {
 		if value.ObjectFlags()&checker.ObjectFlagsReference != 0 {
 			for _, argument := range typeChecker.GetTypeArguments(value) {
-				if checkerTypeContainsSecret(argument, typeChecker, obligation, completed) {
+				if checkerTypeContainsSecret(argument, typeChecker, obligation) {
 					return true
 				}
 			}
@@ -121,7 +124,7 @@ func checkerTypeContainsSecret(value *checker.Type, typeChecker *checker.Checker
 	}
 
 	for _, property := range typeChecker.GetPropertiesOfType(value) {
-		if checkerTypeContainsSecret(typeChecker.GetTypeOfSymbol(property), typeChecker, obligation, completed) {
+		if checkerTypeContainsSecret(typeChecker.GetTypeOfSymbol(property), typeChecker, obligation) {
 			return true
 		}
 	}
