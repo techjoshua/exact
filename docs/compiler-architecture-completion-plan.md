@@ -222,6 +222,15 @@ A missing exact output can be discharged only by its matching operation relation
 Known dependencies, unmatched unknown effects, normal outputs and execution receipts remain
 separate contributions. Generator calls evaluate arguments and activated defaults while their
 bodies remain deferred. This source contract does not model generator resume state.
+Dependency-only body entry joins finite source input relationships for an active declaration.
+Distinct acquired callbacks and capture roots can instantiate that same summary before its
+outer invocation finishes. The relation uses source nodes, formal symbols, creator/use sites
+and adjacent member edges. Distinct relation sets retain reordered and recombined inputs.
+It contains no live input maps or runtime activation identities.
+Repeated edges and cyclic capture, rest or copied relationships saturate with residual
+uncertainty on reentry. New source alternatives still contribute their demands and known
+donors after a join. Normal entry and unrelated active-occurrence fences keep their existing
+guards. These query-local entries are released when the outer body consumer exits.
 Query-local advisory work is accumulated into the checker owner's existing cost counters
 without retaining a query or its binding maps. Binding-write and member-write relations remain
 owned by `source_value_bindings.go` and `source_value_members.go`.

@@ -110,11 +110,13 @@ func newSourceValueOwner(c *checker.Checker) *sourceValueOwner {
 }
 
 // sourceValueQuery bounds all nested invocation and projection demands together. An active
-// declaration is widened instead of constructing a recursively nested capture context.
+// declaration widens after its finite source input relation stops growing. Normal
+// execution retains its declaration guard instead of growing capture contexts.
 type sourceValueQuery struct {
 	// dependencyStatsOwner receives advisory work only, never query capabilities.
 	dependencyStatsOwner *sourceValueOwner
 	dependencyUse        *ast.Node
+	dependencyEntries    map[*ast.Node]*sourceDependencyEntry
 
 	// dependenciesOnly instantiates source relationships without consuming normal storage.
 	dependenciesOnly bool
@@ -504,7 +506,13 @@ func (query *sourceValueQuery) execute(declaration *ast.Node, bindings sourceVal
 // executeInputs keeps direct parameter-effect ownership separate from projected invocation
 // while both consumers use the same binding/default execution plan.
 func (query *sourceValueQuery) executeInputs(declaration *ast.Node, bindings sourceValueBindings, result *accessorCandidates, invocation *ast.Node, inputs *sourceValueInputs) bool {
-	if query.active[declaration] {
+	freshSourceInputs := false
+	if query.dependenciesOnly {
+		releaseEntry, fresh := query.enterDependencyBody(declaration, bindings, inputs, invocation, result)
+		freshSourceInputs = fresh
+		defer releaseEntry()
+	}
+	if query.active[declaration] && !freshSourceInputs {
 		// An omitted normal body supplies no complete reference inventory, even
 		// when its primitive effect backedge is already owned by the call graph.
 		result.thenIncomplete = true
