@@ -1236,7 +1236,10 @@ read observes the acquired objects, including current handler member writes, wit
 argument evaluation. A reached caller read retains current handler and possible target-Get
 effects through the MAY graph, together with unknown alternatives. Original constructor selection preserves
 authored constructor effects beside native alternatives, even when allocation or origin
-publication refuses. Dormant construction does not select a handler body.
+publication refuses. Dormant construction does not select a handler body. Updates and
+compound assignments retain their Get-trap effects before the possible Put. A plain
+assignment does not select the Get trap. Target-Get effects remain a conservative
+union even when a selected callable handler may intercept the read.
 
 Possible trap calls bind the handler receiver and protocol arguments through the shared source input plan. The defined target
 and property key bypass top-level defaults. An explicit original source Member reference

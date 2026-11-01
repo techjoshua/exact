@@ -66,7 +66,9 @@ func (q *sourceValueQuery) withProxySourceScope(value sourceValue, bindings sour
 // sourceProxyGetDependencies observes current handler/target Gets against the
 // acquired argument objects. Unknown constructor/trap behavior stays additive.
 func (q *sourceValueQuery) sourceProxyGetDependencies(site *ast.Node, path []string, name string, mode accessorTraversal, bindings sourceValueBindings, result *accessorCandidates, reference *sourceGetReference) {
-	if mode&accessorSet != 0 || mode&accessorNoGet != 0 {
+	// Updates and compound assignments include a Get before the unresolved Put.
+	// Only a traversal that explicitly suppresses Get can omit trap effects.
+	if mode&accessorNoGet != 0 {
 		return
 	}
 	arguments, possible := q.sourceProxyInputs(site, bindings)

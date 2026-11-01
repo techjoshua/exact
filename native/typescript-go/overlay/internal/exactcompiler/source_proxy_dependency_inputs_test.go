@@ -46,3 +46,32 @@ func TestPossibleProxySourceTrapInputs(t *testing.T) {
 		})
 	}
 }
+
+// A read-modify-write performs Get before Put. Its unresolved Put cannot erase
+// the known Get-trap donor, while a plain assignment does not call that trap.
+func TestPossibleProxyReadModifyWriteEffects(t *testing.T) {
+	for _, c := range []struct {
+		name, operation string
+		browser         bool
+	}{
+		{"post-increment", "input.value++", true},
+		{"pre-increment", "++input.value", true},
+		{"post-decrement", "input.value--", true},
+		{"compound-add", "input.value += 1", true},
+		{"logical-assignment", "input.value ||= 1", true},
+		{"plain-assignment", "input.value = 1", false},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			source := `export{};function change(input:{value:number}){` + c.operation + `}const input=new Proxy({value:0},{get(){document.title;return 0}});change(input);`
+			_, _, caller := currentProxyCaller(t, source, "change(input);")
+			browser, unknown := false, false
+			for _, effect := range caller.EffectSources {
+				browser = browser || effect.Environment == "browser"
+				unknown = unknown || effect.Environment == "unknown"
+			}
+			if browser != c.browser || !unknown {
+				t.Fatal("read/Put phase effects", caller.EffectSources)
+			}
+		})
+	}
+}
