@@ -53,6 +53,56 @@ func (q *sourceValueQuery) memberWriterInputs(left *ast.Node, bindings sourceVal
 		return []sourceMemberWriterInput{{scope: acquiredCallableScope{bindings: bindings, creators: q.creators}}}
 	}
 	var alternatives []sourceMemberWriterInput
+	var collect func(*ast.Node, sourceValueBindings)
+	collect = func(call *ast.Node, bindings sourceValueBindings) {
+		start := len(alternatives)
+		complete, bodySeen := false, false
+		previousInitializing := q.initializing
+		q.initializing = call
+		invocation := accessorCandidates{}
+		q.withActiveInvocation(call, func() {
+			invocation = q.consumeInvocation(call, bindings, sourceInvocationConsumer{
+				selection: func(value bool) { complete = value },
+				body: func(body *ast.Node, bound sourceValueBindings, inputs *sourceValueInputs, _ *ast.Node, part *accessorCandidates) {
+					if body != writer {
+						q.memberWriterBodyCalls(body, call, bound, inputs, part, collect)
+						return
+					}
+					bodySeen = true
+					if _, ordinary := ordinaryResultCategory(body); !ordinary {
+						return
+					}
+					defaults, isDefault := q.defaultInput(inputs, left, part)
+					if isDefault {
+						if defaults.bindings == nil {
+							return
+						}
+						bound = defaults.bindings
+					}
+					if possible, _ := q.reachable(left, bound); !possible {
+						return
+					}
+					bound = q.memberWriterActualValues(body, call, bound, part)
+					scope := q.acquireCallableScope(bound, part)
+					scope.creators[writer] = sourceValueCreation{invocation: call}
+					alternatives = append(alternatives, sourceMemberWriterInput{call: call, scope: scope, incomplete: part.opaque || part.receiverIncomplete || part.valueIncomplete})
+				},
+				resolver: func(*ast.Node, []*ast.Node, bool, sourceValueBindings, *accessorCandidates) {},
+			})
+		})
+		q.initializing = previousInitializing
+		if !complete && !bodySeen && (invocation.opaque || invocation.valueIncomplete || invocation.receiverIncomplete) {
+			// A refused input domain can still expose this actual source
+			// callable. Keep its captures and MAY write, never invent arguments.
+			for _, scope := range q.refusedMemberWriterScopes(writer, call, bindings, result) {
+				alternatives = append(alternatives, sourceMemberWriterInput{scope: scope, incomplete: true})
+				result.opaque = true
+			}
+		}
+		for i := start; i < len(alternatives); i++ {
+			alternatives[i].incomplete = alternatives[i].incomplete || !complete
+		}
+	}
 	seen := make(map[*ast.Node]bool)
 	for _, index := range q.occurrenceSourceView(left, result) {
 		for _, call := range index.calls {
@@ -70,52 +120,7 @@ func (q *sourceValueQuery) memberWriterInputs(left *ast.Node, bindings sourceVal
 			if caller != nil && caller != enclosingCallableNode(q.reading) && q.creators[caller].invocation == nil {
 				continue
 			}
-			start := len(alternatives)
-			complete, bodySeen := false, false
-			previousInitializing := q.initializing
-			q.initializing = call
-			invocation := accessorCandidates{}
-			q.withActiveInvocation(call, func() {
-				invocation = q.consumeInvocation(call, bindings, sourceInvocationConsumer{
-					selection: func(value bool) { complete = value },
-					body: func(body *ast.Node, bound sourceValueBindings, inputs *sourceValueInputs, _ *ast.Node, part *accessorCandidates) {
-						if body != writer {
-							return
-						}
-						bodySeen = true
-						if _, ordinary := ordinaryResultCategory(body); !ordinary {
-							return
-						}
-						defaults, isDefault := q.defaultInput(inputs, left, part)
-						if isDefault {
-							if defaults.bindings == nil {
-								return
-							}
-							bound = defaults.bindings
-						}
-						if possible, _ := q.reachable(left, bound); !possible {
-							return
-						}
-						bound = q.memberWriterActualValues(body, call, bound, part)
-						scope := q.acquireCallableScope(bound, part)
-						scope.creators[writer] = sourceValueCreation{invocation: call}
-						alternatives = append(alternatives, sourceMemberWriterInput{call: call, scope: scope, incomplete: part.opaque || part.receiverIncomplete || part.valueIncomplete})
-					},
-					resolver: func(*ast.Node, []*ast.Node, bool, sourceValueBindings, *accessorCandidates) {},
-				})
-			})
-			q.initializing = previousInitializing
-			if !complete && !bodySeen && (invocation.opaque || invocation.valueIncomplete || invocation.receiverIncomplete) {
-				// A refused input domain can still expose this actual source
-				// callable. Keep its captures and MAY write, never invent arguments.
-				for _, scope := range q.refusedMemberWriterScopes(writer, call, bindings, result) {
-					alternatives = append(alternatives, sourceMemberWriterInput{scope: scope, incomplete: true})
-					result.opaque = true
-				}
-			}
-			for i := start; i < len(alternatives); i++ {
-				alternatives[i].incomplete = alternatives[i].incomplete || !complete
-			}
+			collect(call, bindings)
 		}
 	}
 	return alternatives
@@ -226,4 +231,52 @@ func (q *sourceValueQuery) refusedMemberWriterScopes(writer, call *ast.Node, bin
 		}
 	})
 	return scopes
+}
+
+// memberWriterBodyCalls follows only reached Call demands under the selected
+// wrapper's original inputs. It does not execute its body or publish effects.
+// The shared finite dependency entry relation joins recursive source contexts.
+func (q *sourceValueQuery) memberWriterBodyCalls(body, call *ast.Node, bindings sourceValueBindings, inputs *sourceValueInputs, result *accessorCandidates, visit func(*ast.Node, sourceValueBindings)) {
+	if _, ordinary := ordinaryResultCategory(body); !ordinary {
+		return
+	}
+	release, fresh := q.enterDependencyBody(body, bindings, inputs, call, result)
+	defer release()
+	if !fresh {
+		result.opaque = true
+		return
+	}
+	scope := q.acquireCallableScope(q.memberWriterActualValues(body, call, bindings, result), result)
+	scope.creators[body] = sourceValueCreation{invocation: call}
+	previous, had := q.active[body]
+	q.active[body] = true
+	defer func() {
+		if had {
+			q.active[body] = previous
+		} else {
+			delete(q.active, body)
+		}
+	}()
+	q.memberWriterScope(sourceMemberWriterInput{scope: scope}, func() {
+		for _, node := range q.owner.summary(body).nodes {
+			if !ast.IsCallExpression(node) {
+				continue
+			}
+			if !q.charge(result, node) {
+				return
+			}
+			bound := scope.bindings
+			defaults, isDefault := q.defaultInput(inputs, node, result)
+			if isDefault {
+				if defaults.bindings == nil {
+					continue
+				}
+				bound = defaults.bindings
+			}
+			if possible, _ := q.reachable(node, bound); !possible {
+				continue
+			}
+			visit(node, bound)
+		}
+	})
 }

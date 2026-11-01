@@ -2,9 +2,11 @@ package exactcompiler
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -218,6 +220,12 @@ func TestMemberWriterRefusedInputs(t *testing.T) {
 		{"opaque-callback", `declare function invoke(fn:()=>void):void;invoke(()=>{box.field={get value(){return document.title}}});`, true, true},
 		{"opaque-callback-after-write", `declare function invoke(fn:()=>void):void;invoke(()=>{box.field={get value(){return document.title}}});box.field={value:'safe'};await 0;`, true, true},
 		{"known-callback", `function invoke(fn:()=>void){fn()}invoke(()=>{box.field={get value(){return document.title}}});`, true, false},
+		{"nested-known-callback", `function invoke(fn:()=>void){fn()}function forward(fn:()=>void){invoke(fn)}forward(()=>{box.field={get value(){return document.title}}});`, true, false},
+		{"stored-callback", `let saved:(()=>void)|undefined;function store(fn:()=>void){saved=fn}store(()=>{box.field={get value(){return document.title}}});`, false, false},
+		{"deferred-generator", `function* invoke(fn:()=>void){fn()}invoke(()=>{box.field={get value(){return document.title}}});`, false, false},
+		{"activated-default-callback", `function invoke(fn=()=>{box.field={get value(){return document.title}}}){fn()}invoke();`, true, false},
+		{"bypassed-default-callback", `function invoke(fn=()=>{box.field={get value(){return document.title}}}){fn()}invoke(()=>{});`, false, false},
+		{"recursive-callback", `function invoke(fn:()=>void,n:number){if(n===0){fn();return}invoke(fn,n-1)}invoke(()=>{box.field={get value(){return document.title}}},1);`, true, false},
 		{"ignored-callback", `function ignore(fn:()=>void){}ignore(()=>{box.field={get value(){return document.title}}});`, false, false},
 		{"throw-before-callback", `function invoke(fn:()=>void){throw 9}try{invoke(()=>{box.field={get value(){return document.title}}})}catch{}`, false, false},
 		{"dormant-writer", `function write(){box.field={get value(){return document.title}}}declare function opaque():void;opaque();`, false, false},
@@ -232,6 +240,56 @@ func TestMemberWriterRefusedInputs(t *testing.T) {
 			}
 			if browser != row.browser || row.unknown && !unknown {
 				t.Fatal("refused writer lost MAY coverage or entered a dormant body", summary.EffectSources)
+			}
+		})
+	}
+}
+
+// Source replacement must not reuse an earlier wrapper's invocation relation.
+func TestMemberWriterCallbackSourceReplacement(t *testing.T) {
+	session := NewSession()
+	for _, called := range []bool{true, false, true} {
+		body := ""
+		if called {
+			body = "fn()"
+		}
+		source := `const box={field:{value:'safe'}};function invoke(fn:()=>void){` + body + `}invoke(()=>{box.field={get value(){return document.title}}});export const value=box.field.value;`
+		response := session.Execute(Request{Kind: "analyze", ID: "/virtual/writer-callback-replace.ts", Source: source, Diagnostics: "semantic"})
+		if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) {
+			t.Fatal(response.Error, response.Diagnostics)
+		}
+		found, browser := false, false
+		for _, fact := range response.Analysis.Callables {
+			if fact.Name == fmt.Sprint("module@", strings.Index(source, "export const value")) {
+				found = true
+				for _, effect := range fact.EffectSources {
+					browser = browser || effect.Environment == "browser"
+				}
+			}
+		}
+		if !found || browser != called {
+			t.Fatal("stale callback source input", response.Analysis)
+		}
+	}
+}
+
+func TestMemberWriterCallbackEmitted(t *testing.T) {
+	const source = `export function read(){const events:string[]=[];const box={field:{value:'safe'}};function invoke(fn:()=>void){fn()}function forward(fn:()=>void){invoke(fn)}forward(()=>{events.push('callback');box.field={get value(){events.push('get');return 'browser'}}});return {value:box.field.value,events}}`
+	for _, target := range []Target{TargetClient, TargetServer} {
+		t.Run(string(target), func(t *testing.T) {
+			response := NewSession().Execute(Request{Kind: "compile", ID: "/virtual/writer-callback.ts", Source: source, Target: target, Diagnostics: "semantic"})
+			if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) || response.Code == "" {
+				t.Fatal(response.Error, response.Diagnostics)
+			}
+			file := filepath.Join(t.TempDir(), "callback.mts")
+			if err := os.WriteFile(file, []byte(response.Code), 0600); err != nil {
+				t.Fatal(err)
+			}
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			const runner = `import assert from 'node:assert/strict';import{pathToFileURL}from'node:url';const{read}=await import(pathToFileURL(process.argv[1]).href);assert.deepEqual(read(),{value:'browser',events:['callback','get']});`
+			if output, err := exec.CommandContext(ctx, "node", "--experimental-strip-types", "--input-type=module", "-e", runner, file).CombinedOutput(); err != nil {
+				t.Fatalf("callback emitted phase %v %s", err, output)
 			}
 		})
 	}

@@ -1876,7 +1876,7 @@ writer Calls use the canonical selected-body and argument binding relation befor
 Member alternatives keep their acquired source bindings and creator context through subsequent
 container and getter projection. Returning only their AST node would lose a writer-created
 closure's formal captures.
-Each alternative keeps its original Call and captured source scope. Argument values are observed
+Each alternative keeps its original Call and captured source scope. Known wrappers transfer those bindings through reached body Call demands, including forwarded callback invocation. Creating or storing a callback does not invoke it. Recursive source contexts use the existing finite dependency-entry join, and unresolved invocation alternatives retain uncertainty. Argument values are observed
 at that Call, while later field reads retain the original reader boundary rather than borrowing a
 factory return boundary. Unproved Call timing retains alternatives and uncertainty. These source
 relationships neither replay argument effects at the read nor supply normal invocation receipts. Refused Call selection retains a source callable
