@@ -1,6 +1,9 @@
 package exactcompiler
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 // An application augmentation remains a stored-data contract when its native
 // container is retained in a deferred class field. Placement is a separate gate.
@@ -25,7 +28,7 @@ func TestPolicyArtifactNativeAugmentationPublication(t *testing.T) {
 				t.Fatalf("artifact contract not reached: %s %#v", response.Error, response.Diagnostics)
 			}
 			if hasDiagnosticCode(response.Diagnostics, "EXACT3022") != test.denied {
-				t.Fatalf("artifact containment mismatch: %#v", response.Diagnostics)
+				t.Fatalf("artifact containment mismatch: %#v code=%v payload=%v map=%v", response.Diagnostics, response.Code != "", strings.Contains(response.Code, "PRIVATE_AUGMENT_PAYLOAD"), response.SourceMap != nil)
 			}
 			if test.denied {
 				if response.Code != "" || response.SourceMap != nil {
