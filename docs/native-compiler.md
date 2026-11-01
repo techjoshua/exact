@@ -512,7 +512,9 @@ test hosts, a test-only polyfill supplies both the emitted-artifact API and the 
 
 Process startup is provisional until the worker starts and the native protocol/version handshake
 completes. Any startup, timeout, or negotiation failure closes the worker and its child process
-before the error escapes. Native JSX lowering receives one immutable analysis plan, prepares its
+before the error escapes. A synchronous request timeout identifies the request kind and source
+ID when supplied, so a stalled package build can be traced to its current input without logging
+source contents or extending the response deadline. Native JSX lowering receives one immutable analysis plan, prepares its
 derived binding indexes once, and retains a single source traversal; lowering stages should extend
 that plan instead of restoring a broad positional-argument boundary or adding extra tree walks.
 

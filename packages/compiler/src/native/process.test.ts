@@ -109,6 +109,23 @@ describe('native compiler process construction', () => {
 		});
 	});
 
+	it('identifies the timed-out source request and closes its worker', () => {
+		workerState.response = validWorkerResponse();
+		const compiler = new NativeCompilerProcess({
+			executable: 'synthetic-native-compiler',
+			timeoutMs: 1
+		});
+		workerState.response = undefined;
+		workerState.mode = 'timeout';
+		expect(() =>
+			compiler.request({ kind: 'compile', id: '/project/a file.ts', source: 'export {}' })
+		).toThrow('timed out during compile for /project/a file.ts');
+		expect(workerState.instances[0]!.messages).toEqual(['request', 'request', 'close']);
+		expect(() => compiler.request({ kind: 'version' })).toThrow('disposed');
+		compiler.dispose();
+		expect(workerState.instances[0]!.messages).toEqual(['request', 'request', 'close']);
+	});
+
 	it.each([
 		['protocol-mismatch', 'protocol 999'],
 		['startup-error', 'synthetic startup failure'],

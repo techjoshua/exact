@@ -291,9 +291,10 @@ export function CompilerTourPage(this: Component<{}>) {
 					verify that its package manifest declares every runtime dependency.
 				</p>
 				<p>
-					Editor compiler sessions bound native response time and settle cancellation immediately.
-					If a native phase wedges, the next request starts a clean process and replays the last
-					complete project synchronization.
+					Editor compiler sessions bound native response time and settle cancellation immediately. A
+					request timeout identifies the operation and its source file when available. If a native
+					phase wedges, the next request starts a clean process and replays the last complete
+					project synchronization.
 				</p>
 				<p>
 					Client programs carry compact component-local claim and binding data instead of one

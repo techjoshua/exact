@@ -106,7 +106,10 @@ export class NativeCompilerProcess {
 		Atomics.store(this.header, 1, encoded.byteLength);
 		Atomics.store(this.header, 0, stateRequest);
 		this.worker.postMessage('request');
-		this.waitForState(stateRequest, request.kind);
+		this.waitForState(
+			stateRequest,
+			request.id ? `${request.kind} for ${request.id}` : request.kind
+		);
 		const state = Atomics.load(this.header, 0);
 		if (state === stateError) {
 			const error = this.readError();
