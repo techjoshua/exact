@@ -118,3 +118,25 @@ func TestReflectiveTargetProjectionDoesNotReplayInputs(t *testing.T) {
 		})
 	}
 }
+
+// An unavailable selected target return has no allocation certificate. Its raw
+// Call origin still receives indexed MAY writes and keeps an independent donor.
+func TestReflectiveUnknownTargetReturnKeepsDonor(t *testing.T) {
+	const source = `declare function unknownBox():{field:{value:string}};function install(box:{field:{value:string}},value:{value:string}){Object.defineProperty(box,"field",{value})}const box=unknownBox();const donor={get value(){return document.title}};install(box,donor);export const value=box.field.value;`
+	response := NewSession().Execute(Request{Kind: "analyze", ID: "/virtual/reflective-unknown-target-return.ts", Source: source, Diagnostics: "semantic"})
+	browser, unknown := reentrantInitializerEffects(t, response, source, true)
+	if !browser || !unknown {
+		t.Fatalf("unknown target lost donor or residual: browser=%v unknown=%v", browser, unknown)
+	}
+}
+
+// Different factory Calls do not prove distinct New results when one selected
+// constructor can return the other receiver. Both creating contexts need the law.
+func TestReflectiveCreatorContextCannotExcludeReturningConstructor(t *testing.T) {
+	const source = `class Plain{field={value:"safe"}}function make(Ctor:new()=>{field:{value:string}}){return new Ctor()}const b=make(Plain);class Reuse{field={value:"safe"};constructor(){return b}}const a=make(Reuse);function install(box:{field:{value:string}},value:{value:string}){Object.defineProperty(box,"field",{value})}const donor={get value(){return document.title}};install(a,donor);export const value=b.field.value;`
+	response := NewSession().Execute(Request{Kind: "analyze", ID: "/virtual/reflective-returning-constructor.ts", Source: source, Diagnostics: "semantic"})
+	browser, unknown := reentrantInitializerEffects(t, response, source, true)
+	if !browser || !unknown {
+		t.Fatalf("unqualified constructor excluded possible donor: browser=%v unknown=%v", browser, unknown)
+	}
+}
