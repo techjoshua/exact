@@ -89,22 +89,10 @@ func (query *sourceValueQuery) occurrenceSourceViewIn(origin *ast.Node, result *
 	return indexes
 }
 
-// memberValues joins relevant ordered writes through the same finite source relation
-// used for acquisition and live reads. A direct source replacement can supersede the
-// initializer at a proved acquisition or factory return, without selected-callee authority.
-func (query *sourceValueQuery) memberValues(origin *ast.Node, projection []string, name string, mode accessorTraversal, bindings sourceValueBindings, result *accessorCandidates, visit func(*ast.Node, []string, bool)) bool {
-	return query.memberValuesAtOperation(origin, projection, name, mode, bindings, result, visit, sourceMemberOperationProof{})
-}
-
-// memberValuesAtOperation keeps candidate effects within an independently admitted
-// operation prefix. Incomplete proofs retain may alternatives and actual body effects.
-func (query *sourceValueQuery) memberValuesAtOperation(origin *ast.Node, projection []string, name string, mode accessorTraversal, bindings sourceValueBindings, result *accessorCandidates, visit func(*ast.Node, []string, bool), operation sourceMemberOperationProof) bool {
-	return query.memberValuesAtGet(origin, projection, name, mode, bindings, result, visit, operation, nil)
-}
-
 // memberValuesAtGet supplies the selected operation's actual receiver to the
 // existing descriptor owner. Inherited lookup origin and receiver are distinct.
-func (query *sourceValueQuery) memberValuesAtGet(origin *ast.Node, projection []string, name string, mode accessorTraversal, bindings sourceValueBindings, result *accessorCandidates, visit func(*ast.Node, []string, bool), operation sourceMemberOperationProof, get *sourceGetInputs, cuts ...*sourceMemberWriterReadCut) bool {
+// Alternatives include their source capture, which must survive the next visitor.
+func (query *sourceValueQuery) memberValuesAtGet(origin *ast.Node, projection []string, name string, mode accessorTraversal, bindings sourceValueBindings, result *accessorCandidates, visit func(sourceValue), operation sourceMemberOperationProof, get *sourceGetInputs, cuts ...*sourceMemberWriterReadCut) bool {
 	var cut *sourceMemberWriterReadCut
 	if len(cuts) > 0 {
 		cut = cuts[0]
@@ -253,7 +241,7 @@ func (query *sourceValueQuery) memberValuesAtGet(origin *ast.Node, projection []
 						}
 						if len(written) >= len(demand) {
 							if mode&accessorReachable != 0 && len(projection) == 0 {
-								visit(assignment.right, nil, false)
+								visit(sourceValue{node: assignment.right, capture: &input.scope})
 							}
 							continue
 						}
@@ -360,7 +348,7 @@ func (query *sourceValueQuery) memberValuesAtGet(origin *ast.Node, projection []
 	}
 	alternatives, replaced := query.mergeReplacements(alternatives, replacements, result)
 	for _, value := range alternatives {
-		visit(value.node, value.path, false)
+		visit(value)
 	}
 	return replaced
 }
@@ -374,8 +362,12 @@ func sourceArrayIndex(key string) (uint64, bool) {
 // arrayValues applies the same finite member demand to native array syntax. Holes retain
 // their positions. A spread's iterator and length are unproved, so suffix positions widen.
 // Receiver calls are not append facts: even a method named push can be replaced.
-func (query *sourceValueQuery) arrayValues(origin *ast.Node, projection []string, name string, mode accessorTraversal, bindings sourceValueBindings, result *accessorCandidates, visit func(*ast.Node, []string, bool)) {
-	if query.memberValues(origin, projection, name, mode, bindings, result, visit) {
+func (query *sourceValueQuery) arrayValues(origin *ast.Node, projection []string, name string, mode accessorTraversal, bindings sourceValueBindings, result *accessorCandidates, visit func(*ast.Node, []string, bool), sourceVisit func(sourceValue)) {
+	visitMember := func(value sourceValue) { visit(value.node, value.path, false) }
+	if query.dependenciesOnly {
+		visitMember = sourceVisit
+	}
+	if query.memberValuesAtGet(origin, projection, name, mode, bindings, result, visitMember, sourceMemberOperationProof{}, nil) {
 		return
 	}
 	selection, rest := name, []string(nil)

@@ -15,6 +15,11 @@ func TestMemberWriterOriginalCallInputs(t *testing.T) {
 		name, writer, setup, suffix string
 		browser                     bool
 	}{
+		{"writer-owned-getter", `box.field={get value(){return next.value}};`, `put(box,{get value(){return document.title}});`, "", true},
+		{"writer-owned-safe-last", `box.field={get value(){return next.value}};`, `put(box,{get value(){return document.title}});put(box,{value:'safe'});`, "", false},
+		{"writer-owned-browser-last", `box.field={get value(){return next.value}};`, `put(box,{value:'safe'});put(box,{get value(){return document.title}});`, "", true},
+		{"writer-owned-current-member", `box.field={get value(){return next.value}};`, `const input={value:'safe'};put(box,input);input.value=document.title;`, "", true},
+		{"writer-owned-acquired-object", `box.field={get value(){return next.value}};`, `let input={get value(){return document.title}};put(box,input);input={value:'safe'};`, "", true},
 		{"browser-last", "", `put(box,{value:'safe'});put(box,{get value(){return document.title}});`, "", true},
 		{"safe-last", "", `put(box,{get value(){return document.title}});put(box,{value:'safe'});`, "", false},
 		{"read-between-browser", "", `put(box,{get value(){return document.title}});`, `put(box,{value:'safe'});`, true},
@@ -136,6 +141,68 @@ func TestMemberWriterEmittedPhase(t *testing.T) {
 			const runner = `import assert from 'node:assert/strict';import{pathToFileURL}from'node:url';const{read}=await import(pathToFileURL(process.argv[1]).href);assert.deepEqual(read(),{events:['argument','value'],first:'browser',second:'safe'});assert.deepEqual(read(true),{events:['argument'],error:9,value:'safe'});`
 			if output, err := exec.CommandContext(ctx, "node", "--experimental-strip-types", "--input-type=module", "-e", runner, file).CombinedOutput(); err != nil {
 				t.Fatalf("writer phase %v %s", err, output)
+			}
+		})
+	}
+}
+
+// Member alternatives retain their originating writer across ordinary container
+// paths as well as constructed fields. A source capture is not just an AST node.
+func TestMemberWriterCapturedDestinations(t *testing.T) {
+	for _, row := range []struct{ name, setup, read string }{
+		{"literal", `const box={field:{value:'safe'}};function put(box:{field:{value:string}},next:{value:string}){box.field={get value(){return next.value}}}`, `box.field.value`},
+		{"array", `const box=[{value:'safe'}];function put(box:{value:string}[],next:{value:string}){box[0]={get value(){return next.value}}}`, `box[0].value`},
+	} {
+		for _, browser := range []bool{false, true} {
+			name := row.name + "-safe"
+			if browser {
+				name = row.name + "-browser"
+			}
+			t.Run(name, func(t *testing.T) {
+				input := `{value:'safe'}`
+				if browser {
+					input = `{get value(){return document.title}}`
+				}
+				source := row.setup + `;put(box,` + input + `);export const value=` + row.read + `;`
+				placement := "isomorphic"
+				if browser {
+					placement = "client"
+				}
+				t.Run("donor", func(t *testing.T) {
+					_, _, summary := currentProxyCaller(t, source, "export const value")
+					got := false
+					for _, effect := range summary.EffectSources {
+						got = got || effect.Environment == "browser"
+					}
+					if got != browser {
+						t.Fatal("writer capture lost at container delivery", summary.EffectSources)
+					}
+				})
+				t.Run("placement", func(t *testing.T) { assertClosurePlacement(t, source, placement) })
+			})
+		}
+	}
+}
+
+// Strict target artifacts consume the captured getter only at the original
+// exported read. Server pruning must not perform its browser Get.
+func TestMemberWriterCapturedEmission(t *testing.T) {
+	const source = `class Box{field={value:'safe'}}function put(box:Box,next:{value:string}){box.field={get value(){return next.value}}}const box=new Box();put(box,{get value(){return document.title}});export const value=box.field.value;export const stable='stable';`
+	for _, target := range []Target{TargetClient, TargetServer} {
+		t.Run(string(target), func(t *testing.T) {
+			response := NewSession().Execute(Request{Kind: "compile", ID: "/virtual/writer-captured-emission.ts", Source: source, Target: target, Diagnostics: "semantic"})
+			if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) || response.Code == "" {
+				t.Fatal(response.Error, response.Diagnostics)
+			}
+			file := filepath.Join(t.TempDir(), "captured.mts")
+			if err := os.WriteFile(file, []byte(response.Code), 0600); err != nil {
+				t.Fatal(err)
+			}
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			const runner = `import assert from 'node:assert/strict';import{pathToFileURL}from'node:url';let reads=0;const before=Object.getOwnPropertyDescriptor(globalThis,'document');Object.defineProperty(globalThis,'document',{configurable:true,value:{get title(){reads++;return 'browser'}}});try{const m=await import(pathToFileURL(process.argv[1]).href);assert.equal(m.stable,'stable');const client=process.argv[2]==='client';assert.equal(reads,client?1:0);assert.equal(Object.hasOwn(m,'value'),client);if(client)assert.equal(m.value,'browser')}finally{if(before)Object.defineProperty(globalThis,'document',before);else delete globalThis.document}`
+			if output, err := exec.CommandContext(ctx, "node", "--experimental-strip-types", "--input-type=module", "-e", runner, file, string(target)).CombinedOutput(); err != nil {
+				t.Fatalf("captured writer emission %v %s", err, output)
 			}
 		})
 	}

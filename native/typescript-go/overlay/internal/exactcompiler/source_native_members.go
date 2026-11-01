@@ -191,11 +191,13 @@ func (query *sourceValueQuery) nativeReceiverMatches(value, selected sourceValue
 // nativeMember adds the standard data slot beside the same member/write and
 // descriptor alternatives used for source objects. Alias origins are already
 // acquired before this operation. No opaque/reflected alternative is discarded.
-func (query *sourceValueQuery) nativeMember(value sourceValue, projection []string, name string, mode accessorTraversal, bindings sourceValueBindings, result *accessorCandidates, visit func(*ast.Node, []string, bool)) {
-	query.nativeMemberKey(value, projection, name, nil, mode, bindings, result, visit)
+// A source visitor preserves captured alternatives. Normal callers keep their
+// existing raw-node visitor and cannot borrow source capture as operation proof.
+func (query *sourceValueQuery) nativeMember(value sourceValue, projection []string, name string, mode accessorTraversal, bindings sourceValueBindings, result *accessorCandidates, visit func(*ast.Node, []string, bool), sourceVisits ...func(sourceValue)) {
+	query.nativeMemberKey(value, projection, name, nil, mode, bindings, result, visit, sourceVisits...)
 }
 
-func (query *sourceValueQuery) nativeMemberKey(value sourceValue, projection []string, name string, symbol *ast.Symbol, mode accessorTraversal, bindings sourceValueBindings, result *accessorCandidates, visit func(*ast.Node, []string, bool)) {
+func (query *sourceValueQuery) nativeMemberKey(value sourceValue, projection []string, name string, symbol *ast.Symbol, mode accessorTraversal, bindings sourceValueBindings, result *accessorCandidates, visit func(*ast.Node, []string, bool), sourceVisits ...func(sourceValue)) {
 	path := append(append([]string{}, value.path...), projection...)
 	if len(path) == 0 && name == "" {
 		if mode == accessorAcquire {
@@ -239,7 +241,11 @@ func (query *sourceValueQuery) nativeMemberKey(value sourceValue, projection []s
 			result.opaque = true
 		}
 	}
-	replaced := query.memberValuesAtGet(origin, []string{key}, "", mode, bindings, result, visit, sourceMemberOperationProof{sources: sources}, get)
+	visitMember := func(value sourceValue) { visit(value.node, value.path, false) }
+	if query.dependenciesOnly && len(sourceVisits) == 1 {
+		visitMember = sourceVisits[0]
+	}
+	replaced := query.memberValuesAtGet(origin, []string{key}, "", mode, bindings, result, visitMember, sourceMemberOperationProof{sources: sources}, get)
 	// Delete/computed writes have no assignment RHS. Retain them explicitly at
 	// this same owned source view rather than treating an empty RHS list as safe.
 	for _, index := range query.occurrenceSourceViewIn(origin, result, sources) {

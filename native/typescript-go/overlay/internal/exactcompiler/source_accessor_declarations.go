@@ -51,6 +51,15 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 	var visit func(*ast.Node, []string, bool)
 	// Unknown origins constrain a consumer. Acquiring an unused input has no effects.
 	var visitOrigins func([]sourceValue, []string, bool)
+	// Source member alternatives keep the writer's acquired bindings through
+	// the next projection. Normal consumers retain their original raw route.
+	visitMember := func(value sourceValue) {
+		if query.dependenciesOnly {
+			visitOrigins([]sourceValue{value}, nil, false)
+		} else {
+			visit(value.node, value.path, false)
+		}
+	}
 	// The initial producer entry alone may acquire. A nested read of the same
 	// in-progress slot refuses, while an independent sibling keeps its output.
 	producerEntry := producer != nil
@@ -275,7 +284,7 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 				result.fieldReceiverIncomplete = true
 			}
 			if term.native != nil {
-				query.nativeMember(term, projection, name, mode, arguments, &result, visit)
+				query.nativeMember(term, projection, name, mode, arguments, &result, visit, visitMember)
 				continue
 			}
 			if term.undefined {
@@ -508,7 +517,7 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 		if len(projection) > 1 && projection[0] == "prototype" && sourceFunctionPrototype(sourceValue{node: value, path: projection[:1]}, typeChecker) {
 			// Native prototype identity is only a possible source write route.
 			// Keep its original/unaccounted member beside acquired source bodies.
-			query.memberValues(value, projection, name, mode, arguments, &result, visit)
+			query.memberValuesAtGet(value, projection, name, mode, arguments, &result, visitMember, sourceMemberOperationProof{}, nil, readCut)
 			result.opaque = true
 			result.valueIncomplete = true
 			for _, term := range result.values[acquired:] {
@@ -533,7 +542,7 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 			if query.moduleRead() != nil {
 				operation = query.sourceMemberOperation(value, projection, name, mode, arguments, &result)
 			}
-			replaced := query.memberValuesAtGet(value, projection, name, mode, arguments, &members, visit, operation, actualGet, readCut)
+			replaced := query.memberValuesAtGet(value, projection, name, mode, arguments, &members, visitMember, operation, actualGet, readCut)
 			ordinary, occurrence := query.ordinaryFunctionMember(value, projection, name, mode)
 			// A possible authored replacement does not remove the original adapter.
 			// Keep both bodies until a completed replacement owns the property.
@@ -592,7 +601,7 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 		}
 		if ast.IsArrayLiteralExpression(value) {
 			result.sourceOwned = true
-			query.arrayValues(value, projection, name, mode, arguments, &result, visit)
+			query.arrayValues(value, projection, name, mode, arguments, &result, visit, visitMember)
 			return
 		}
 		if ast.IsClassDeclaration(value) || ast.IsClassExpression(value) || ast.IsObjectLiteralExpression(value) {
@@ -645,7 +654,7 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 						proofGet = &copy
 					}
 				}
-				if query.memberValuesAtGet(value, projection, name, mode, arguments, &result, visit, sourceMemberOperationProof{}, proofGet, readCut) {
+				if query.memberValuesAtGet(value, projection, name, mode, arguments, &result, visitMember, sourceMemberOperationProof{}, proofGet, readCut) {
 					return
 				}
 			}

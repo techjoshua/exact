@@ -42,8 +42,8 @@ func (query *sourceValueQuery) visitSourceConstructedField(field *ast.Node, rece
 	if field.Name() != nil && !ast.IsComputedPropertyName(field.Name()) {
 		writes := accessorCandidates{}
 		var current []sourceValue
-		replaced := query.memberValuesAtGet(receiver.node, []string{callableNameText(field.Name())}, "", accessorAcquire, bindings, &writes, func(node *ast.Node, path []string, instance bool) {
-			part := query.accessors(node, path, "", accessorAcquire, bindings, nil)
+		replaced := query.memberValuesAtGet(receiver.node, []string{callableNameText(field.Name())}, "", accessorAcquire, bindings, &writes, func(value sourceValue) {
+			part := query.accessorsAtGetOutput(nil, nil, "", accessorAcquire, bindings, nil, nil, nil, nil, value)
 			mergeAccessorCandidates(&writes, part)
 			current = append(current, part.values...)
 		}, sourceMemberOperationProof{}, nil, cut)

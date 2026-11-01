@@ -1873,6 +1873,9 @@ Get authority. Existing normal and native receiver proofs retain their separate 
 The class-field computed-name receiver controls cover this boundary alongside distinct creators,
 captured inputs, current writes, recursive uncertainty and known effect donors. Ordinary
 writer Calls use the canonical selected-body and argument binding relation before alias matching.
+Member alternatives keep their acquired source bindings and creator context through subsequent
+container and getter projection. Returning only their AST node would lose a writer-created
+closure's formal captures.
 Each alternative keeps its original Call and captured source scope. Argument values are observed
 at that Call, while later field reads retain the original reader boundary rather than borrowing a
 factory return boundary. Unproved Call timing retains alternatives and uncertainty. These source

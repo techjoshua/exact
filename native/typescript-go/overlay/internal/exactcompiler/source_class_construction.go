@@ -567,7 +567,7 @@ func (q *sourceValueQuery) constructedRead(value sourceValue, path []string, nam
 	}
 	if instance.state == sourceOperationConsumed || mayPrefix {
 		writes := accessorCandidates{}
-		q.memberValuesAtGet(instance.site, nil, selected, mode, bindings, &writes, func(*ast.Node, []string, bool) {}, sourceMemberOperationProof{}, nil)
+		q.memberValuesAtGet(instance.site, nil, selected, mode, bindings, &writes, func(sourceValue) {}, sourceMemberOperationProof{}, nil)
 		mergeAccessorCandidates(result, writes)
 		if writes.opaque || writes.ownOperation || len(writes.values) != 0 {
 			result.opaque, result.valueIncomplete = true, true
