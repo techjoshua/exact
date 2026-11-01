@@ -267,7 +267,6 @@ func (p *closedPrefixCandidate) refuse() {
 	if p == nil || p.history == nil || p.history.state >= prefixEntered && p.history.state <= prefixTerminal {
 		return
 	}
-	p.detachPrefixRefusalCoverage()
 	if sourceSymbolFirstLoss != nil {
 		sourceSymbolFirstLoss(fmt.Sprintf("refuse state=%d reason=%s authenticated=%t", p.history.state, p.history.reason, p.authenticated))
 	}

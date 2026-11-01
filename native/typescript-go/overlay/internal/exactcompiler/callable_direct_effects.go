@@ -24,7 +24,6 @@ func collectDirectCallableEffects(
 	contextBindings map[ast.SymbolId]ContextEffect,
 	assets assetAnalysis,
 	owner *executableBodyOwner,
-	prefixMode [32]byte,
 ) {
 	if ast.IsFunctionLike(fact.node) {
 		if _, valid := functionTaskPolicy(fact.node, sourceFile, importBindings); valid {
@@ -335,11 +334,8 @@ func collectDirectCallableEffects(
 		if !supportedBindingDeclaration(phase.node) {
 			appendOwnedGetFact(fact, phase.node, result, nodeTargets, sourceFile, typeChecker)
 		} else if phase.role == sourceNormalSelect && result.opaque && result.valueIncomplete && owner.values.prefixHistory(phase.node) == nil {
-			// An entered binding has its one prefix publisher. A refused real
-			// binding has no such publisher. Retain its actual refusal once at
-			// the final source phase, after any pre-entry refusal at admission,
-			// without interpreting its declaration as a Call/Get.
-			result.prefixCoverage = livePrefixRefusalCoverage(fact, &query, phase, frame, result, prefixMode)
+			// Refused normal binding selection retains ordinary opacity without
+			// interpreting the declaration as a Call or Get.
 			appendOpaqueAccessorEffect(fact, result)
 		}
 		fact.nativeCalls = append(fact.nativeCalls, result.nativeCalls...)

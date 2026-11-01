@@ -87,7 +87,7 @@ func pendingActivationCalls(t *testing.T) (*projectGeneration, *closedPrefixCand
 		nodeTargets[site.statement] = i
 	}
 	collect := func(i int) {
-		collectDirectCallableEffects(&facts[i], i, facts, map[ast.SymbolId]int{}, map[string]int{}, nodeTargets, file, generation.checker, nil, nil, collectExternalImportBindings(file, generation.checker), collectContextBindings(file, generation.checker), analyzeAssets(file, generation.checker, request), owner, candidate.history.mode)
+		collectDirectCallableEffects(&facts[i], i, facts, map[ast.SymbolId]int{}, map[string]int{}, nodeTargets, file, generation.checker, nil, nil, collectExternalImportBindings(file, generation.checker), collectContextBindings(file, generation.checker), analyzeAssets(file, generation.checker, request), owner)
 	}
 	collect(0)
 	if candidate.continuation == nil || !candidate.priorContinuationValid() || candidate.frame != nil || candidate.slot != nil || facts[0].normalInputs != nil || len(candidate.history.callReceipts) != 1 {

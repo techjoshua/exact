@@ -1902,9 +1902,10 @@ The ordinary build remains the complete native validation path.
 
 Optional precision consumers share acquired values, storage and completion history. A child Call
 uses the callee, receiver and arguments acquired by its caller. Completed work retains its effects
-when a later operation refuses precision. Historical coverage records which unentered source
-region belongs to a final refusal, without retaining a live execution owner or making an unrelated
-effect neutral. Retained project facts do not replay completed work on another request.
+when a later operation refuses precision. A refused normal binding selection contributes ordinary
+opacity directly. Independent known effects remain additive. The unreachable prefix-refusal source
+coverage transport and its historical identity fields are removed. Descriptor request-mode fences
+retain their separate ownership. Retained project facts do not replay completed work on another request.
 
 Writer-candidate input matching uses a synchronous negative fence for its exact query, Call and input frame. It prevents the pending Call from being selected again as an input writer across raw, projected and container-origin lookup. Projection and declaration recursion retain their separate existing markers. The fence expires before receiver-body and write inspection, supplies no completion or effect authority, and cannot be inherited by a copied query or another input frame.
 

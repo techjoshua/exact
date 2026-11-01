@@ -177,16 +177,6 @@ func appendOpaqueAccessorEffect(fact *callableFacts, candidates accessorCandidat
 	fact.callOutcomes = append(fact.callOutcomes, candidates.callOutcomes...)
 	fact.summary.DirectEffectSources = append(fact.summary.DirectEffectSources, candidates.environmentEffects...)
 	fact.directContext = append(fact.directContext, candidates.contextEffects...)
-	appendCoverageOpacity := true
-	if candidates.prefixCoverage != nil {
-		settled, fresh := settlePrefixRefusalCoverage(fact, candidates)
-		if settled {
-			appendCoverageOpacity = fresh
-		} else {
-			candidates.opaque, candidates.valueIncomplete = true, true
-			candidates.closedPrefixReason = "source prefix coverage unavailable"
-		}
-	}
 	mergeOwnedGets(&fact.ownedGetResults, candidates.ownedGets)
 	for _, call := range candidates.fieldCalls {
 		fact.fieldCalls = append(fact.fieldCalls, cloneSourceFieldCall(call))
@@ -225,7 +215,7 @@ func appendOpaqueAccessorEffect(fact *callableFacts, candidates accessorCandidat
 	fact.ownedObligations = append(fact.ownedObligations, candidates.owned...)
 	fact.thenReferences = append(fact.thenReferences, candidates.thenReferences...)
 	fact.thenIncomplete = fact.thenIncomplete || candidates.thenIncomplete
-	if candidates.opaque && appendCoverageOpacity {
+	if candidates.opaque {
 		description := "accessor provenance incomplete"
 		if candidates.closedPrefixReason != "" {
 			description = candidates.closedPrefixReason

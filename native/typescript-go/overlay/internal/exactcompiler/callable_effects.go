@@ -36,10 +36,7 @@ var universalCallRoots = map[string]struct{}{
 type callableFacts struct {
 	callOutcomes []sourceCallOutcome
 
-	componentInputDemands []sourceComponentInputDemand
-	// Source coverage is immutable analysis metadata, never a runtime receipt.
-	pendingPrefixCoverage  *sourcePrefixRefusalCoverage
-	prefixCoverage         *sourcePrefixRefusalCoverage
+	componentInputDemands  []sourceComponentInputDemand
 	initializerDraft       *moduleInitializerDraft
 	initializerPlan        *closedOwnGetterPlan
 	initializerDeclaration *ast.Node
@@ -120,8 +117,8 @@ func collectCallableEffects(
 	assets assetAnalysis,
 	owner *executableBodyOwner,
 ) callableAnalysis {
-	// Snapshot the actual producing mode before refusal removes routing.
-	// This scalar is not recovered from historical coverage or a later query.
+	// Capture the descriptor request-mode fence independently of source
+	// contributions. It is not a live lease or execution receipt.
 	prefixMode := [32]byte{}
 	if owner != nil && owner.values != nil {
 		if p := owner.values.closedPrefixCandidate; p != nil && p.source == sourceFile && p.history != nil {
@@ -237,11 +234,9 @@ func collectCallableEffects(
 			contextBindings,
 			assets,
 			owner,
-			prefixMode,
 		)
 	}
 	sealMapInputs(facts, nodeTargets)
-	applyPrefixSourceCoverage(facts, nodeTargets, owner, prefixMode)
 	for index := range facts {
 		facts[index].directOwnedScalarBlocked = facts[index].directOwnedScalarBlocked || !directScalarHelper(&facts[index], typeChecker)
 	}

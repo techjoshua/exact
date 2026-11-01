@@ -32,8 +32,6 @@ type accessorCandidates struct {
 	environmentEffects []EnvironmentEffectSource
 	contextEffects     []ContextEffect
 
-	// Late source refusal transport only. It grants no Get/Call authority.
-	prefixCoverage                  *sourcePrefixRefusalCoverage
 	closedPrefixReason              string
 	ownedComponents                 *sourceCandidateComponents
 	ownedGets                       []*ownedGetPopulation
