@@ -1840,6 +1840,11 @@ its original owner. Returned dependency relationships no longer use the detached
 module-initializer origin-family side channel. Effects-only Proxy construction metadata retains
 its separate source, generation and request-mode fences.
 
+Normal operation slots retain the original prefix association without creating a separate
+callee, argument or result view from that history. Live Call, binding and continuation validators
+consume their own original receipts. Ordinary source-effect analysis uses parameterized source
+relationships and does not request precision execution for every unused initializer.
+
 Effect contributions remain additive. A missing precise Return value can leave the value
 incomplete while source analysis accounts for that operation's effects. Only a matching
 operation, selected target, source use, consumer and phase can discharge its classified

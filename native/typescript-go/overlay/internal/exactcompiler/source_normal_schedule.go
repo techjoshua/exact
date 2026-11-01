@@ -51,7 +51,6 @@ type sourcePreparedInvocation struct {
 }
 type sourceNormalOperation struct {
 	closedPrefix *closedPrefixHistory
-	closedView   *closedPrefixSlotView
 	ownedRequest *ownedGetRequest
 
 	prefixView   *sourcePropertyReferenceView
@@ -208,8 +207,6 @@ func releaseNormalOperations(inputs *sourceValueInputs) {
 		return
 	}
 	for _, slot := range inputs.operations {
-		// closed prefix view release observation
-		slot.closedView = nil
 		slot.closedPrefix = nil
 	}
 	dropInitializerActuals(inputs.operations)
@@ -343,7 +340,8 @@ func (query *sourceValueQuery) consumeNormalPhase(phase sourceNormalPhase, bindi
 				p.retryLegacy = true
 				return // the outer source owner restarts whole legacy before any execution
 			} else {
-				query.projectClosedPrefixPhase(phase, slot, h)
+				// The authenticated prefix owns these phases. Its history is not
+				// a new request to acquire inputs or replay the normal operation.
 				return
 			}
 		}
