@@ -90,13 +90,14 @@ func (owner *sourceValueOwner) indexPrivateReference(pop *sourcePrivateUses, nod
 }
 
 // Coverage understands only this finite syntax core. It does not discharge any
-// ordinary effects. Class/decorator/with/dynamic-code and unknown forms refuse.
+// ordinary effects. Decorator/heritage/with/dynamic-code and unknown forms refuse.
 func privateUseCovered(node *ast.Node) bool {
 	if node.Kind <= ast.KindLastToken {
 		return node.Kind != ast.KindUnknown && node.Kind != ast.KindWithKeyword
 	}
 	switch node.Kind {
 	case ast.KindSourceFile, ast.KindBlock, ast.KindEmptyStatement, ast.KindExpressionStatement,
+		ast.KindClassDeclaration, ast.KindClassExpression, ast.KindConstructor, ast.KindPropertyDeclaration, ast.KindNewExpression,
 		ast.KindVariableStatement, ast.KindVariableDeclarationList, ast.KindVariableDeclaration,
 		ast.KindFunctionDeclaration, ast.KindFunctionExpression, ast.KindArrowFunction,
 		ast.KindParameter, ast.KindReturnStatement, ast.KindThrowStatement, ast.KindIfStatement,
@@ -115,7 +116,14 @@ func privateUseCovered(node *ast.Node) bool {
 // privateCallableObserved proves only the private declaration's complete
 // observation-only use population. All aliases and cross-callable uses refuse.
 func (query *sourceValueQuery) privateCallableObserved(body *ast.Node, result *accessorCandidates) bool {
-	if !query.charge(result, body) || body == nil || !ast.IsFunctionDeclaration(body) || body.Body() == nil || body.Name() == nil {
+	return body != nil && ast.IsFunctionDeclaration(body) && query.privateDefinitionObserved(body, result)
+}
+
+// privateDefinitionObserved shares complete source-use coverage between ordinary
+// functions and classes. Observing a definition cannot call or construct it.
+// Aliases, exports, captures, heritage and unknown syntax withhold this proof.
+func (query *sourceValueQuery) privateDefinitionObserved(body *ast.Node, result *accessorCandidates) bool {
+	if !query.charge(result, body) || body == nil || body.Name() == nil || !ast.IsClassDeclaration(body) && (!ast.IsFunctionDeclaration(body) || body.Body() == nil) {
 		return false
 	}
 	source := ast.GetSourceFileOfNode(body)
@@ -141,6 +149,10 @@ func (query *sourceValueQuery) privateCallableObserved(body *ast.Node, result *a
 	if symbol == nil || symbol.Flags&ast.SymbolFlagsAlias != 0 || len(symbol.Declarations) != 1 || symbol.Declarations[0] != body || symbol.ValueDeclaration != body || len(index.bindings[ast.GetSymbolId(symbol)]) != 0 {
 		return false
 	}
+	if ast.IsClassDeclaration(body) && !query.privateClassReceiverUnexposed(body, result) {
+		pop.proofs[body] = false
+		return false
+	}
 	// Coverage work was recorded once by its generation index owner. Query
 	// fuel owns only this candidate's proof and later demand-local scans.
 	for _, use := range pop.uses[ast.GetSymbolId(symbol)] {
@@ -152,6 +164,30 @@ func (query *sourceValueQuery) privateCallableObserved(body *ast.Node, result *a
 		}
 	}
 	pop.proofs[body] = true
+	return true
+}
+
+// privateClassReceiverUnexposed accounts for the class's lexical receiver in
+// static initialization, including captured arrows. Such code can construct or
+// expose the class without a reference to its binding. Reuse indexed receivers
+// and the shared receiver-scope rule, without entering any initializer/body.
+func (query *sourceValueQuery) privateClassReceiverUnexposed(definition *ast.Node, result *accessorCandidates) bool {
+	index := query.owner.index(ast.GetSourceFileOfNode(definition))
+	for _, member := range definition.AsClassDeclaration().Members.Nodes {
+		if !query.charge(result, member) {
+			return false
+		}
+		if !ast.IsPropertyDeclaration(member) || !ast.HasSyntacticModifier(member, ast.ModifierFlagsStatic) || member.Initializer() == nil {
+			continue
+		}
+		for _, region := range index.operationRegions {
+			for _, receiver := range region.receivers {
+				if !query.charge(result, receiver) || helperOwnsReceiver(receiver, member) {
+					return false
+				}
+			}
+		}
+	}
 	return true
 }
 
@@ -229,6 +265,9 @@ func (query *sourceValueQuery) beginDeferredRead(get *sourceGetInputs) func() {
 // deferredCandidateExcluded removes one deferred obligation, not contributions,
 // previous opacity, value uncertainty, prototype state or runtime completion.
 func (query *sourceValueQuery) deferredCandidateExcluded(node *ast.Node, result *accessorCandidates) (excluded bool) {
+	if query.privateConstructionCandidateExcluded(node, result) {
+		return true
+	}
 	d := query.deferredRead
 	if d == nil || node == nil || !query.charge(result, node) {
 		return false
@@ -280,4 +319,34 @@ func (query *sourceValueQuery) deferredCandidateExcluded(node *ast.Node, result 
 		}
 	}
 	return true
+}
+
+// privateConstructionCandidateExcluded removes an indexed constructor/field MAY
+// obligation only when the existing checker-bound source-use population proves
+// its class cannot be entered or exposed. This is source phase eligibility, not
+// an absent normal frame, a property absence proof or an executed operation.
+// The shared deferred-candidate consumer also applies it to descriptor inventory.
+// It grants no Normal/NoWrites authority and clears no independent uncertainty.
+func (query *sourceValueQuery) privateConstructionCandidateExcluded(node *ast.Node, result *accessorCandidates) bool {
+	if node == nil || !query.charge(result, node) {
+		return false
+	}
+	source := ast.GetSourceFileOfNode(node)
+	if source == nil || query.owner.program.GetSourceFile(source.FileName()) != source {
+		return false
+	}
+	index := query.owner.index(source)
+	entry := index.normalOccurrences[node]
+	if index.incomplete || entry == nil || entry.node != node || entry.region == nil {
+		return false
+	}
+	region := entry.region
+	if !ast.IsConstructorDeclaration(region) && (!ast.IsPropertyDeclaration(region) || ast.HasSyntacticModifier(region, ast.ModifierFlagsStatic)) {
+		return false
+	}
+	definition := region.Parent
+	if definition == nil || !ast.IsClassDeclaration(definition) || query.creators[region].invocation != nil || query.inputs != nil && query.inputs.declaration == region {
+		return false
+	}
+	return query.privateDefinitionObserved(definition, result)
 }
