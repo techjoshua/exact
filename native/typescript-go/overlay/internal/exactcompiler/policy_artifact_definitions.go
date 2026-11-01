@@ -91,12 +91,20 @@ func planSecretArtifactDefinitions(source *ast.SourceFile, c *checker.Checker, s
 		}
 		if ast.IsBinaryExpression(node) && ast.IsAssignmentOperator(node.AsBinaryExpression().OperatorToken.Kind) {
 			assignment := node.AsBinaryExpression()
+			defaultValue := assignment.OperatorToken.Kind == ast.KindEqualsToken && nativeAssignmentPatternTarget(node)
 			qualified := false
 			policyAssignmentTargets(assignment.Left, func(target *ast.Node) {
-				qualified = qualified || secretArtifactAssignmentQualified(target, c, qualifiedTypes)
+				qualified = qualified || secretArtifactAssignmentQualified(target, c, qualifiedTypes) || defaultValue && secretArtifactOwnedBinding(target, c, subjects)
 			})
 			if qualified {
 				p.values[assignment.Right] = struct{}{}
+			}
+		}
+		if ast.IsShorthandPropertyAssignment(node) {
+			// Assignment shorthand has its own default-expression slot. Its
+			// receiving binding keeps the same policy as an explicit target.
+			if initializer := node.AsShorthandPropertyAssignment().ObjectAssignmentInitializer; initializer != nil && nativeAssignmentPatternTarget(node.Name()) && (secretArtifactAssignmentQualified(node.Name(), c, qualifiedTypes) || secretArtifactOwnedBinding(node.Name(), c, subjects)) {
+				p.values[initializer] = struct{}{}
 			}
 		}
 		if ast.IsForInOrOfStatement(node) {
@@ -125,11 +133,9 @@ func planSecretArtifactDefinitions(source *ast.SourceFile, c *checker.Checker, s
 					// A pattern default supplies its bound leaves together. Reuse
 					// the policy owner names, including nested and renamed leaves.
 					for _, binding := range policyBindingNames(node.Name()) {
-						if symbol := c.GetSymbolAtLocation(binding); symbol != nil {
-							if subject, found := subjects.symbols[ast.GetSymbolId(symbol)]; found && subject.Policy.Secret {
-								p.values[initializer] = struct{}{}
-								break
-							}
+						if secretArtifactOwnedBinding(binding, c, subjects) {
+							p.values[initializer] = struct{}{}
+							break
 						}
 					}
 				}
@@ -183,6 +189,24 @@ func planSecretArtifactDefinitions(source *ast.SourceFile, c *checker.Checker, s
 	}
 	p.privateSource = p.privateSource || len(p.values) != 0
 	return p
+}
+
+// secretArtifactOwnedBinding consumes the existing lexical policy snapshot for
+// a default destination. It does not qualify a generic read, an unrelated field,
+// or the value assigned by an ordinary non-default assignment.
+func secretArtifactOwnedBinding(binding *ast.Node, c *checker.Checker, subjects policySubjects) bool {
+	if !ast.IsIdentifier(binding) {
+		return false
+	}
+	symbol := c.GetSymbolAtLocation(binding)
+	if binding.Parent != nil && ast.IsShorthandPropertyAssignment(binding.Parent) {
+		symbol = c.GetShorthandAssignmentValueSymbol(binding.Parent)
+	}
+	if symbol == nil {
+		return false
+	}
+	subject, found := subjects.symbols[ast.GetSymbolId(symbol)]
+	return found && subject.Policy.Secret
 }
 
 // secretArtifactPureValue proves only creation without reads, calls, coercion,

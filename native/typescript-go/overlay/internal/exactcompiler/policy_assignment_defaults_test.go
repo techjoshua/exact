@@ -79,3 +79,21 @@ func TestPolicyAssignmentDefaultContainment(t *testing.T) {
 		})
 	}
 }
+
+// A qualified input reference is not an embedded default payload. Do not extend
+// the default obligation to an ordinary destructuring assignment without one.
+func TestPolicyAssignmentWithoutDefaultPayload(t *testing.T) {
+	source := `export {};const record={factory:class{static{console.log('created')}constructor(/** @exact keep=secret */ input:{value?:string}){let {value}=input;({value}=input);}}};export function work(){return 'public'}`
+	r := NewSession().Execute(Request{Kind: "compile", ID: "assignment-no-default.ts", Source: source, Target: TargetClient, SourceMap: true})
+	owned := false
+	for _, subject := range r.Analysis.Policy.Subjects {
+		owned = owned || subject.Kind == "declaration" && subject.Name == "value" && subject.Policy.Secret
+	}
+	if r.Error != "" || hasErrorDiagnostic(r.Diagnostics) || !owned || r.Code == "" {
+		t.Fatalf("reference became a default payload: %s owned=%v %#v", r.Error, owned, r.Diagnostics)
+	}
+	sourceNodeScript(t, r.Code, `const fs=require('node:fs'),vm=require('node:vm');const logs=[];
+const sandbox={exports:{},console:{log:v=>logs.push(v)}};
+vm.runInNewContext('(function(exports){'+fs.readFileSync(process.argv[1],'utf8')+'\n})(exports)',sandbox);
+if(sandbox.exports.work()!=='public'||logs.join()!=='created')throw Error('public creation/projection');`)
+}
