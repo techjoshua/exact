@@ -214,7 +214,11 @@ that request getter-chain elision, await operands or async settlement.
 Effect resolution associates a relative field or Call obligation with its original source
 operation, declaration, phase and instantiated use/consumer. Coverage requires every matching
 source alternative to be complete. Calls and getter bodies publish the same immutable coverage
-records. A missing exact output can be discharged only by that matching relationship.
+records. Receiptless return projection uses `consumeInvocation` and its selected-body/input
+consumer in `source_return_projection.go`. Each alternative's creating bindings and creator
+context stay installed through successful-return projection, including Call-valued callees
+and stored intermediate functions. This relation creates no normal output or execution receipt.
+A missing exact output can be discharged only by its matching operation relationship.
 Known dependencies, unmatched unknown effects, normal outputs and execution receipts remain
 separate contributions. Generator calls evaluate arguments and activated defaults while their
 bodies remain deferred. This source contract does not model generator resume state.

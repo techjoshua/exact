@@ -85,22 +85,29 @@ func TestSymbolicDependenciesRecursiveJoin(t *testing.T) {
 // The dependency analysis must preserve ordinary emitted closure semantics and
 // paired target pruning without knowing the browser string at compile time.
 func TestSymbolicDependenciesEmitted(t *testing.T) {
-	const source = `function make(input:{value:string}){return ()=>input.value}const input={value:'safe'};const xs=[make(input)];input.value=document.title;export const value=xs[0]!();export const stable='stable';`
-	for _, target := range []Target{TargetClient, TargetServer} {
-		t.Run(string(target), func(t *testing.T) {
-			response := NewSession().Execute(Request{Kind: "compile", ID: "/virtual/symbolic-emitted.ts", Source: source, Target: target, Diagnostics: "semantic"})
-			if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) || response.Code == "" {
-				t.Fatal(response.Error, response.Diagnostics)
-			}
-			file := filepath.Join(t.TempDir(), "emitted.mts")
-			if err := os.WriteFile(file, []byte(response.Code), 0600); err != nil {
-				t.Fatal(err)
-			}
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-			defer cancel()
-			const runner = `import assert from 'node:assert/strict';import{pathToFileURL}from'node:url';let reads=0;globalThis.document=Object.defineProperty({},'title',{get(){reads++;return 'observed'}});const value=await import(pathToFileURL(process.argv[1]).href);assert.equal(value.stable,'stable');if(process.argv[2]==='client'){assert.equal(value.value,'observed');assert.equal(reads,1)}else{assert.equal('value' in value,false);assert.equal(reads,0)}`
-			if out, err := exec.CommandContext(ctx, "node", "--experimental-strip-types", "--input-type=module", "-e", runner, file, string(target)).CombinedOutput(); err != nil {
-				t.Fatalf("emitted namespace: %v %s", err, out)
+	for _, fixture := range []struct{ name, source string }{
+		{"original", `function make(input:{value:string}){return ()=>input.value}const input={value:'safe'};const xs=[make(input)];input.value=document.title;export const value=xs[0]!();export const stable='stable';`},
+		{"nested return", `function make(input:{value:string}){return ()=>()=>input.value}const input={value:'safe'};const xs=[make(input)];const second=xs[0]!();input.value=document.title;export const value=second();export const stable='stable';`},
+	} {
+		t.Run(fixture.name, func(t *testing.T) {
+			source := fixture.source
+			for _, target := range []Target{TargetClient, TargetServer} {
+				t.Run(string(target), func(t *testing.T) {
+					response := NewSession().Execute(Request{Kind: "compile", ID: "/virtual/symbolic-emitted.ts", Source: source, Target: target, Diagnostics: "semantic"})
+					if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) || response.Code == "" {
+						t.Fatal(response.Error, response.Diagnostics)
+					}
+					file := filepath.Join(t.TempDir(), "emitted.mts")
+					if err := os.WriteFile(file, []byte(response.Code), 0600); err != nil {
+						t.Fatal(err)
+					}
+					ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+					defer cancel()
+					const runner = `import assert from 'node:assert/strict';import{pathToFileURL}from'node:url';let reads=0;globalThis.document=Object.defineProperty({},'title',{get(){reads++;return 'observed'}});const value=await import(pathToFileURL(process.argv[1]).href);assert.equal(value.stable,'stable');if(process.argv[2]==='client'){assert.equal(value.value,'observed');assert.equal(reads,1)}else{assert.equal('value' in value,false);assert.equal(reads,0)}`
+					if out, err := exec.CommandContext(ctx, "node", "--experimental-strip-types", "--input-type=module", "-e", runner, file, string(target)).CombinedOutput(); err != nil {
+						t.Fatalf("emitted namespace: %v %s", err, out)
+					}
+				})
 			}
 		})
 	}
@@ -229,4 +236,79 @@ func TestSymbolicDependencyAdvisoryAccounting(t *testing.T) {
 	if owner.values.work != published {
 		t.Fatal("dependency work counted twice")
 	}
+}
+
+// Return projection preserves canonical selected callees and their creating
+// contexts across successive calls and stored intermediate functions.
+func TestSymbolicNestedReturnProjection(t *testing.T) {
+	for _, test := range []struct{ name, source, want string }{
+		{"single", `function make(){return ()=>3}export const value=make()();`, "isomorphic"},
+		{"double", `function make(){return ()=>()=>3}export const value=make()()();`, "isomorphic"},
+		{"stored double", `function make(){return ()=>()=>3}const first=make();const second=first();export const value=second();`, "isomorphic"},
+		{"separate contexts", `function make(input:{value:string}){return ()=>()=>input.value}const a=make({value:'safe'}),b=make({get value(){return document.title}});export const safeValue=a()();export const value=b()();`, "client"},
+		{"acquired object", `function make(input:{value:string}){return ()=>()=>input.value}let input={value:'safe'};const second=make(input)();input={get value(){return document.title}};export const value=second();`, "isomorphic"},
+		{"acquired scalar", `function make(input:{value:string}){const value=input.value;return ()=>()=>value}const input={value:'safe'};const second=make(input)();input.value=document.title;export const value=second();`, "isomorphic"},
+		{"current object", `function make(input:{value:string}){return ()=>()=>input.value}const input={value:'safe'};const first=make(input);const second=first();input.value=document.title;export const value=second();`, "client"},
+	} {
+		t.Run(test.name, func(t *testing.T) { assertClosurePlacement(t, test.source, test.want) })
+	}
+}
+
+// Return relationships retain uncertain alternatives alongside a known acquired
+// capture. Reversing the branch order cannot release the independent residual.
+func TestSymbolicNestedReturnAlternatives(t *testing.T) {
+	for _, branch := range []string{`choose?()=>input.value:other`, `choose?other:()=>input.value`} {
+		assertSymbolicInitializerDonors(t, `declare const choose:boolean;declare const other:()=>string;function make(input:{value:string}){return ()=>`+branch+`}export const value=make({get value(){return document.title}})()();`)
+	}
+	assertSymbolicInitializerDonors(t, `declare const choose:boolean;declare function other():()=>string;function make(input:{value:string}){return ()=>()=>input.value}const reader=choose?make({get value(){return document.title}})():other();export const value=reader();`)
+}
+
+func TestSymbolicNestedReturnSourceReplacement(t *testing.T) {
+	session := NewSession()
+	for _, rhs := range []string{`document.title`, `'safe'`, `document.title`} {
+		source := `function make(input:{value:string}){return ()=>()=>input.value}const input={value:'safe'};const second=make(input)();input.value=` + rhs + `;export const value=second();`
+		response := session.Execute(Request{Kind: "analyze", ID: "/virtual/nested-replacement.ts", Source: source, Diagnostics: "semantic"})
+		if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) {
+			t.Fatal(response.Error, response.Diagnostics)
+		}
+		want := "client"
+		if rhs == `'safe'` {
+			want = "isomorphic"
+		}
+		found := false
+		for _, export := range response.Analysis.Exports {
+			if export.Name == "value" {
+				found = true
+				if export.Placement != want {
+					t.Fatalf("replacement %s: want %s got %s", rhs, want, export.Placement)
+				}
+			}
+		}
+		if !found {
+			t.Fatal("missing nested replacement observation")
+		}
+	}
+}
+
+// Selecting a generator method is a Get, not execution of its deferred body.
+// An unmodeled iterator may retain uncertainty without inventing performed reads.
+func TestSymbolicGeneratorMethodSelectionPhase(t *testing.T) {
+	source := `function* create(){document.title;return 3}export const value=create().next;`
+	response := NewSession().Execute(Request{Kind: "analyze", ID: "/virtual/generator-method-phase.ts", Source: source, Diagnostics: "semantic"})
+	if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) {
+		t.Fatal(response.Error, response.Diagnostics)
+	}
+	name := fmt.Sprint("module@", strings.LastIndex(source, "export const value="))
+	for _, fact := range response.Analysis.Callables {
+		if fact.Name != name {
+			continue
+		}
+		for _, effect := range fact.EffectSources {
+			if effect.Environment == "browser" {
+				t.Fatal("method selection executed generator body", fact.EffectSources)
+			}
+		}
+		return
+	}
+	t.Fatal("missing generator method observation")
 }

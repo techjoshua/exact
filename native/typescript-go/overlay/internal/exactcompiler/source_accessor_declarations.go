@@ -1024,7 +1024,6 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 			return
 		}
 		if ast.IsCallExpression(value) {
-			call := value.AsCallExpression()
 			for parent := value.Parent; parent != nil && !ast.IsFunctionLike(parent); parent = parent.Parent {
 				if ast.IsForStatement(parent) || ast.IsForOfStatement(parent) || ast.IsWhileStatement(parent) || ast.IsDoStatement(parent) {
 					result.opaque = true
@@ -1032,7 +1031,6 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 					break
 				}
 			}
-			expression := unwrapSourceCallableReference(call.Expression)
 			var produced sourceResultObservation
 			hasProduced := false
 			if !query.dependenciesOnly {
@@ -1071,95 +1069,28 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 				}
 				return
 			}
-			// Declaration-only return syntax has no acquired output receipt. Keep
-			// its known routes, but withhold outer construction/return authority.
+			// Source return relationships use the same selected-body/input owner
+			// as invocation effects. Per-alternative captures stay installed while
+			// the projected value is consumed, without a normal output receipt.
 			query.withAcquiredOutput(&acquiredParent, nil, func() {
-				priorCreators := query.creators
-				defer func() { query.creators = priorCreators }()
-				declarations := query.callDeclarations(call.Expression, &result)
-				concrete := false
-				for _, declaration := range declarations {
-					if ast.IsVariableDeclaration(declaration) {
-						declaration = unwrapSourceCallableReference(declaration.Initializer())
+				part := query.projectSourceCallReturns(value, arguments, func(returned sourceValue, captures sourceValueBindings) {
+					previous := arguments
+					arguments = captures
+					defer func() { arguments = previous }()
+					if returned.undefined {
+						result.values = append(result.values, returned)
+					} else {
+						visitOrigins([]sourceValue{returned}, projection, false)
 					}
-					if declaration != nil && ast.IsFunctionLike(declaration) && declaration.Body() != nil {
-						concrete = true
+				}, func() {
+					result.valueIncomplete = true
+					if len(projection) > 0 || name != "" || mode == accessorInvoke {
+						result.opaque = true
+					} else {
+						result.values = append(result.values, sourceValue{node: value})
 					}
-				}
-				if !concrete && (ast.IsPropertyAccessExpression(expression) || ast.IsElementAccessExpression(expression)) {
-					candidates := query.receiverCandidates(value, arguments)
-					for _, candidate := range candidates.values {
-						if candidate.node != nil && ast.IsFunctionLike(candidate.node) && candidate.node.Body() != nil {
-							declarations = append(declarations, candidate.node)
-							concrete = true
-						}
-					}
-					if concrete {
-						mergeAccessorCandidates(&result, candidates)
-					}
-				}
-				if !concrete && ((len(projection) > 0 && typeChecker.IsArrayLikeType(typeChecker.GetTypeAtLocation(value))) || unresolvedCallEnvironment(call.Expression, ast.GetSourceFileOfNode(value), typeChecker, nil) == "unknown") {
-					result.opaque = true
-				}
-				// This is eligibility from the existing ordinary selection, not a second
-				// resolver. Return projection alone does not authorize body execution.
-				finiteReturn := len(declarations) == 1 && !result.opaque && ast.IsIdentifier(expression) && ast.IsFunctionDeclaration(declarations[0])
-				if finiteReturn {
-					symbol := resolvedCallableSymbol(callTargetSymbol(expression, typeChecker), typeChecker)
-					finiteReturn = symbol != nil && !query.owner.bindingWritten(symbol)
-				}
-				// Precise output refusal remains independent of source dependency transfer.
-				if !concrete {
-					result.opaque = true
-				}
-				for _, declaration := range declarations {
-					if ast.IsVariableDeclaration(declaration) {
-						declaration = unwrapSourceCallableReference(declaration.AsVariableDeclaration().Initializer)
-					}
-					if declaration != nil && ast.IsFunctionLike(declaration) {
-						if _, ordinary := ordinaryResultCategory(declaration); declaration.Body() != nil && !ordinary {
-							result.valueIncomplete = true
-							if len(projection) > 0 || name != "" || mode == accessorInvoke {
-								result.opaque = true
-							} else {
-								result.values = append(result.values, sourceValue{node: value})
-							}
-							continue
-						}
-						if query.creators == nil {
-							query.creators = make(map[*ast.Node]sourceValueCreation)
-						}
-						previousCreator, hadCreator := query.creators[declaration]
-						query.creators[declaration] = sourceValueCreation{invocation: value}
-						previous := arguments
-
-						arguments = query.bindArguments(declaration, value, arguments, &result)
-						for _, returned := range query.owner.summary(declaration).returns {
-							query.creators[declaration] = sourceValueCreation{invocation: value}
-							possible, _ := query.reachable(returned, arguments)
-							if !possible || !query.returnCompletes(returned, arguments) {
-								continue
-							}
-							previousReturn := query.returning
-							query.returning = returned
-							query.creators[declaration] = sourceValueCreation{invocation: value, returning: returned}
-							previousFresh := query.freshReturnCall
-							query.freshReturnCall = nil
-							if finiteReturn {
-								query.freshReturnCall = value
-							}
-							visit(returned, projection, false)
-							query.freshReturnCall = previousFresh
-							query.returning = previousReturn
-						}
-						if hadCreator {
-							query.creators[declaration] = previousCreator
-						} else {
-							delete(query.creators, declaration)
-						}
-						arguments = previous
-					}
-				}
+				})
+				mergeAccessorCandidates(&result, part)
 			})
 			if query.dependenciesOnly {
 				result.callOutcomes = append(result.callOutcomes, query.returnOutcome(value, !result.opaque && !result.receiverIncomplete))
