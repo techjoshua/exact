@@ -1476,6 +1476,10 @@ while a selected public sibling is checked through its resolved invocation type.
 and execution effects remain independent. Expanding generic queries reuse the pinned checker's
 recursion-identity detection and retain incomplete protection without caching success. Finite
 record width is not an expansion limit, and subtree cache warmth cannot change the decision.
+The retained-artifact consumer described above separately follows stored native payloads and
+application augmentations. Standard library APIs alone do not label deferred definitions as
+private data. Combined policy validation does not establish adapter bundle or source-map
+publication acceptance.
 Context residency resolves the core factory and native option syntax, including
 factory aliases and immutable option objects, rather
 than matching function names or substrings in authored text. Console sink analysis similarly uses
