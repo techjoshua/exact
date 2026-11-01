@@ -130,7 +130,7 @@ func TestModuleOriginKnownGetterEffectSurvivesUnknown(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer g.release()
-	collectProjectCallableEffects(project, g.sourceFile, g.checker, nil, nil, nil, nil, analyzeAssets(g.sourceFile, g.checker, req), nil, nil)
+	collectProjectCallableEffects(project, g.sourceFile, g.checker, nil, nil, nil, nil, analyzeAssets(g.sourceFile, g.checker, req), nil)
 	last := g.sourceFile.Statements.Nodes[len(g.sourceFile.Statements.Nodes)-1].AsVariableStatement().DeclarationList.AsVariableDeclarationList().Declarations.Nodes[0]
 	a := newModuleDefinitionAnalysis(g.checker, project.callableCache.owner)
 	a.symbol(g.checker.GetSymbolAtLocation(last.Name()), false)
@@ -162,7 +162,7 @@ func TestModuleOriginReturnAlternatives(t *testing.T) {
 				t.Fatal(err)
 			}
 			defer generation.release()
-			collectProjectCallableEffects(project, generation.sourceFile, generation.checker, nil, nil, nil, nil, analyzeAssets(generation.sourceFile, generation.checker, request), nil, nil)
+			collectProjectCallableEffects(project, generation.sourceFile, generation.checker, nil, nil, nil, nil, analyzeAssets(generation.sourceFile, generation.checker, request), nil)
 			last := generation.sourceFile.Statements.Nodes[len(generation.sourceFile.Statements.Nodes)-1].AsVariableStatement().DeclarationList.AsVariableDeclarationList().Declarations.Nodes[0]
 			analysis := newModuleDefinitionAnalysis(generation.checker, project.callableCache.owner)
 			analysis.symbol(generation.checker.GetSymbolAtLocation(last.Name()), false)

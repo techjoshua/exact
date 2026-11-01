@@ -159,7 +159,7 @@ func TestModuleCellCaptureLiveBoundaries(t *testing.T) {
 		t.Fatal("no source reservation")
 	}
 	t.Cleanup(candidate.release)
-	collectProjectCallableEffects(project, source, generation.checker, nil, nil, nil, nil, analyzeAssets(source, generation.checker, request), nil, candidate)
+	collectProjectCallableEffects(project, source, generation.checker, nil, nil, nil, nil, analyzeAssets(source, generation.checker, request), nil)
 	row := callMigrationRow(t, candidate.history, 0)
 	entry := row.callHistory.entry
 	owner := row.branch.owner

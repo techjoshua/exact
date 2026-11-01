@@ -1842,11 +1842,13 @@ its separate source, generation and request-mode fences.
 
 Normal operation slots have no separate callee, argument or result view derived from prefix
 history. Ordinary source-effect analysis uses parameterized source relationships and does not
-request precision execution for every unused initializer. The reserved prefix candidate currently
-has no production requester capable of first entry. Its statement frame requires normal precision,
-but held prefix statements receive neither an own-getter refinement plan nor an async or await
-request. Prefix-specific adapters therefore remain pending retirement review. Production-requested
-default, Get, async and own-getter refinement retain their separate normal input and lifetime checks.
+request precision execution for every unused initializer. Session collection no longer reserves,
+attaches or index-qualifies the unreachable module-prefix execution adapter. Normal phase
+admission no longer dispatches its first entry. No production requester supplied its required
+original-statement precision frame. Production-requested default, Get, async and own-getter
+refinement retain their separate normal input and lifetime checks. Prefix-only candidate,
+qualification and continuation declarations remain for a separate consumer audit and retirement.
+Their remaining internal tests do not establish production reachability.
 
 Effect contributions remain additive. A missing precise Return value can leave the value
 incomplete while source analysis accounts for that operation's effects. Only a matching

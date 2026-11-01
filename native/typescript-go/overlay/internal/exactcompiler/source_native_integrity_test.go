@@ -93,7 +93,7 @@ func TestNativeFreezeOriginalOutputAuthority(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(generation.release)
-	collectProjectCallableEffects(project, generation.sourceFile, generation.checker, nil, nil, nil, nil, analyzeAssets(generation.sourceFile, generation.checker, request), nil, nil)
+	collectProjectCallableEffects(project, generation.sourceFile, generation.checker, nil, nil, nil, nil, analyzeAssets(generation.sourceFile, generation.checker, request), nil)
 	owner := project.callableCache.owner
 	var body, site *ast.Node
 	walkNode(generation.sourceFile.AsNode(), func(n *ast.Node) bool {

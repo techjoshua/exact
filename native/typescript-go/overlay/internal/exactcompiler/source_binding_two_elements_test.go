@@ -189,7 +189,7 @@ func TestBindingTwoElementsRetainedNext(t *testing.T) {
 		t.Fatal("missing actual source reservation")
 	}
 	t.Cleanup(candidate.release)
-	collectProjectCallableEffects(project, generation.sourceFile, generation.checker, nil, nil, nil, nil, analyzeAssets(generation.sourceFile, generation.checker, request), nil, candidate)
+	collectProjectCallableEffects(project, generation.sourceFile, generation.checker, nil, nil, nil, nil, analyzeAssets(generation.sourceFile, generation.checker, request), nil)
 	row := twoElementTerminal(t, candidate.history, false)
 	step := row.binding.completed.step
 	entry := step.entry

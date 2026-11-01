@@ -151,7 +151,7 @@ func callMigrationLive(t *testing.T) (*projectGeneration, *closedPrefixHistory, 
 		t.Fatal("actual source reservation")
 	}
 	t.Cleanup(candidate.release)
-	collectProjectCallableEffects(project, source, generation.checker, nil, nil, nil, nil, analyzeAssets(source, generation.checker, request), nil, candidate)
+	collectProjectCallableEffects(project, source, generation.checker, nil, nil, nil, nil, analyzeAssets(source, generation.checker, request), nil)
 	history := candidate.history
 	row := callMigrationRow(t, history, 3)
 	if history.state != prefixTerminal || row.branch.owner == nil || !row.branch.owner.live(row.branch) || !row.callHistory.validResult(row) || candidate.owner == nil || candidate.owner.closedPrefixes[source] != history {

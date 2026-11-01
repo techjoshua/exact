@@ -264,9 +264,6 @@ func (query *sourceValueQuery) normalOperation(node *ast.Node, create bool) *sou
 			}
 		}
 		inputs.operations[node] = slot
-		if query.owner != nil {
-			query.owner.closedPrefixCandidate.observeSlot(query, node, slot)
-		}
 		if ast.IsCallExpression(node) && inputs.dispatcher != nil {
 			inputs.dispatcher.pending = append(inputs.dispatcher.pending, slot)
 		}
@@ -320,35 +317,8 @@ func (query *sourceValueQuery) consumeNormalPhase(phase sourceNormalPhase, bindi
 		return
 	}
 
-	if query.owner != nil {
-		if h := query.owner.prefixHistory(phase.node); h != nil {
-			p := query.owner.closedPrefixCandidate
-			if phase.role == sourceNormalAdmit && p != nil && !p.authenticated && phase.node == p.call && (h.state == prefixQualified || h.state == prefixEntered && p.continuation != nil) {
-				if p.retryLegacy {
-					return
-				}
-				if p.authenticate(query, phase.node, slot) {
-					p.enter(query, slot)
-					return
-				}
-				if h.state == prefixEntered {
-					p.refuseSourceContinuation()
-					slot.state = sourceOperationRefused
-					result.opaque, result.valueIncomplete, result.cause = true, true, phase.node
-					return
-				}
-				p.retryLegacy = true
-				return // the outer source owner restarts whole legacy before any execution
-			} else {
-				// The authenticated prefix owns these phases. Its history is not
-				// a new request to acquire inputs or replay the normal operation.
-				return
-			}
-		}
-	}
-	// Only an authenticated prefix may consume an implicit binding phase.
-	// Before-entry refusal must stop here, before Call-only preparation and
-	// write-alternative helpers can interpret the declaration as Call syntax.
+	// Non-Call syntax cannot enter Call-only preparation or write-alternative
+	// helpers. Binding and Get consumers retain their separate normal owners.
 	if !ast.IsCallExpression(phase.node) {
 		slot.state = sourceOperationRefused
 		result.opaque, result.valueIncomplete, result.cause = true, true, phase.node

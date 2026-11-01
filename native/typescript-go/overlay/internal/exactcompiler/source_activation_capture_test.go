@@ -104,7 +104,7 @@ func TestActivationCaptureLiveProvenanceGuards(t *testing.T) {
 		t.Fatal("source discovery")
 	}
 	defer candidate.release()
-	collectProjectCallableEffects(project, source, generation.checker, nil, nil, nil, nil, analyzeAssets(source, generation.checker, request), nil, candidate)
+	collectProjectCallableEffects(project, source, generation.checker, nil, nil, nil, nil, analyzeAssets(source, generation.checker, request), nil)
 	h := candidate.history
 	if len(h.callReceipts) != 1 || h.receipt == nil {
 		t.Fatal("actual creator completion", h.reason)

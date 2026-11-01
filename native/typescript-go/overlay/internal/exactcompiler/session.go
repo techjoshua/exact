@@ -328,8 +328,6 @@ func (s *Session) executeProjection(request Request, authored *authoredCheckProg
 		response.Timings.TotalMicroseconds = time.Since(requestStarted).Microseconds()
 		return response
 	}
-	prefixCandidate := reserveClosedPrefixCandidate(sourceFile, project.program, generation.checker, generation, request)
-	defer prefixCandidate.release()
 	analysisStarted := time.Now()
 	directives := collectDirectives(sourceFile.Text())
 	imports := collectImports(sourceFile)
@@ -451,7 +449,6 @@ func (s *Session) executeProjection(request Request, authored *authoredCheckProg
 		componentBindings,
 		assets,
 		request.AssetRules,
-		prefixCandidate,
 	)
 	helperMutations := planHelperMutations(sourceFile, callables, generation.checker)
 	response.Timings.CallableMicroseconds = time.Since(callableStarted).Microseconds()

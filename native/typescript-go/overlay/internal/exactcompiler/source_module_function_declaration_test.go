@@ -244,7 +244,7 @@ func TestHoistedModuleLiveCapture(t *testing.T) {
 		t.Fatal("discovery")
 	}
 	t.Cleanup(p.release)
-	collectProjectCallableEffects(project, g.sourceFile, g.checker, nil, nil, nil, nil, analyzeAssets(g.sourceFile, g.checker, req), nil, p)
+	collectProjectCallableEffects(project, g.sourceFile, g.checker, nil, nil, nil, nil, analyzeAssets(g.sourceFile, g.checker, req), nil)
 	h := p.history
 	if h == nil || len(h.callReceipts) != 2 || h.reason != "" {
 		t.Fatal("real source instantiation")

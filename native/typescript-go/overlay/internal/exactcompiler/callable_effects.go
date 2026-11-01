@@ -363,7 +363,6 @@ func collectProjectCallableEffects(
 	componentBindings map[int]componentBinding,
 	assets assetAnalysis,
 	assetRules []AssetRule,
-	prefixCandidates ...*closedPrefixCandidate,
 ) callableAnalysis {
 	// Asset rules are request-owned. Reuse requires the same declaration contract,
 	// including for dependencies seeded before they become a requested source.
@@ -371,38 +370,16 @@ func collectProjectCallableEffects(
 	if !project.callableCache.ownsGeneration(project.program, typeChecker) || !sameCallableAssetRules(project.callableCache.assetRules, assetRules) || cacheNeedsPublication || stalePossibleProxyOriginCache(project.callableCache, project.activeGeneration) {
 		project.callableCache = &projectCallableCache{semantics: advisoryAnalysisSemantics, program: project.program, owner: newExecutableBodyOwner(project, typeChecker), assetRules: snapshotCallableAssetRules(assetRules), bySource: make(map[*ast.SourceFile]callableAnalysis), fingerprints: make(map[*ast.SourceFile]string), owned: make(map[*ast.SourceFile]bool)}
 	}
-	for _, candidate := range prefixCandidates {
-		if candidate != nil && project.callableCache.owned[sourceFile] {
-			old := project.callableCache.owner.values.closedPrefixes[sourceFile]
-			if old == nil || !old.cacheCompatible(project.callableCache.owner.values, project.callableCache.owner, candidate.source, candidate.history.mode) {
-				project.callableCache = &projectCallableCache{semantics: advisoryAnalysisSemantics, program: project.program, owner: newExecutableBodyOwner(project, typeChecker), assetRules: snapshotCallableAssetRules(assetRules), bySource: make(map[*ast.SourceFile]callableAnalysis), fingerprints: make(map[*ast.SourceFile]string), owned: make(map[*ast.SourceFile]bool)}
-			}
-		}
-	}
 	cache := project.callableCache
 	// Reused facts never retain the first request's checker lease capability.
 	cache.owner.values.generation = project.activeGeneration
-	for _, candidate := range prefixCandidates {
-		candidate.attach(cache.owner.values, cache.owner)
-	}
 	cache.owner.values.index(sourceFile)
-	for _, candidate := range prefixCandidates {
-		candidate.qualifyIndex()
-	}
 	changed := false
 	// Seed the requested source from session-owned facts before discovering dependencies.
 	// This avoids analyzing it once provisionally and again with authoritative binding writes.
 	if !cache.owned[sourceFile] {
 		project.counters.CallableSourceAnalyses++
 		refreshed := collectCallableEffects(sourceFile, typeChecker, components, stateReads, stateWrites, componentBindings, assets, cache.owner)
-		for _, candidate := range prefixCandidates {
-			if candidate != nil && candidate.retryLegacy {
-				candidate.refuse()
-				// No semantic entry occurred. Discard speculative definition facts, then
-				// rebuild the complete legacy analysis, including held initializer facts.
-				refreshed = collectCallableEffects(sourceFile, typeChecker, components, stateReads, stateWrites, componentBindings, assets, cache.owner)
-			}
-		}
 		fingerprint := callableAnalysisFingerprint(refreshed)
 		if fingerprint != cache.fingerprints[sourceFile] {
 			cache.bySource[sourceFile] = refreshed
