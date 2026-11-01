@@ -154,6 +154,8 @@ Type-only syntax is erased according to TypeScript. Runtime-emitting TypeScript 
 
 Establish one vocabulary for source semantics: binding read, member Reference, Get, Put, Call, Construct, allocation, initialization, branch, merge, Return, Throw and suspension boundaries. Reuse current operations where their contracts fit.
 
+Eager module evaluation gets an effect owner from its source schedule, independently of optional Call or getter refinement. Declaration-only syntax and deferred bodies do not acquire performed effects merely because they have AST descendants.
+
 Each operation names its source site, symbolic operands and result, control predecessors and successors. It does not require a known runtime result merely to exist. A source reference must remain distinct from its acquired value so receiver and evaluation-order semantics are preserved.
 
 Do not invent a universal runtime IR if existing AST and framework plans can express the transform. The shared requirement is semantic composition and consistent relationships between consumers. The representation decision must explain what concrete duplication it removes.
