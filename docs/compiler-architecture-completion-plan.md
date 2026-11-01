@@ -6,6 +6,8 @@ Prepared 2026-11-01 against the inspected working tree. The preserved pre-migrat
 
 The current local integration is a work in progress using parameterized source dependencies for ordinary Calls, returns, captures, Gets and construction. Normal output refinement remains separate. Integration does not establish acceptance: Core compilation still exceeds its deadline, additional eager evaluation and protocol coverage remains open, and the affected framework environments have not completed validation.
 
+Field aggregation and retained client-artifact containment are integrated, including application fields added to native containers. Combined validation still exposes readonly collection helper placement, opaque browser callback provenance, and ordinary getter/deferred-construction placement failures. Historical initializer tests that demand the removed receipt side channel also require reconciliation. These rows remain acceptance work for the first integrated delivery and do not authorize another operation-family expansion.
+
 ## 1. Objective and correction
 
 Complete the agreed compiler architecture: ordinary TypeScript and TSX must compose recursively, with eXact analyzing dependencies, effects, placement and ownership, then transforming the relevant component and task operations into durable state machines and continuations.
