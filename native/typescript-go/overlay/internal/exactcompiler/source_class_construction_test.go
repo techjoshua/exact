@@ -190,7 +190,8 @@ func TestDefaultClassConstructionRuntimeInputs(t *testing.T) {
 }
 
 // An abrupt initializer retains its real earlier write, stops later fields and
-// does not manufacture a complete instance from the missing normal result.
+// produces no instance. Completion is checked at runtime, independently of the
+// known browser effect rather than treating that effect as unknown.
 func TestDefaultClassConstructionAbruptField(t *testing.T) {
 	const source = `function stop():never{document.title='stopped';throw 9}export function read(){class Holder{first=stop();later=window.name;}return new Holder();}`
 	for _, target := range []Target{TargetClient, TargetServer} {
@@ -199,18 +200,17 @@ func TestDefaultClassConstructionAbruptField(t *testing.T) {
 			if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) || response.Code == "" {
 				t.Fatalf("compile: %s %#v", response.Error, response.Diagnostics)
 			}
-			browser, incomplete := false, false
-			for _, callable := range response.Analysis.Callables {
-				if callable.Name != "read" {
-					continue
-				}
-				incomplete = callable.Effect == "unknown"
-				for _, effect := range callable.EffectSources {
-					browser = browser || effect.Environment == "browser"
-				}
+			read := executableSummary(t, response, "read")
+			stop := executableSummary(t, response, "stop")
+			browser, donor := false, false
+			for _, effect := range read.EffectSources {
+				browser = browser || effect.Environment == "browser"
 			}
-			if !browser || !incomplete {
-				t.Fatal("abrupt construction lost write or became complete")
+			for _, edge := range read.Calls {
+				donor = donor || edge.Resolved && edge.TargetID == stop.ID
+			}
+			if !browser || !donor {
+				t.Fatal("abrupt construction lost its performed browser write or selected donor")
 			}
 			module := filepath.Join(t.TempDir(), "abrupt.mts")
 			if err := os.WriteFile(module, []byte(response.Code), 0600); err != nil {
