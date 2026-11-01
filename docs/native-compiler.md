@@ -1755,6 +1755,28 @@ code. Generating that code does not require a known compile-time argument value 
 precision receipt for every ordinary Call. Placement diagnostics can still prevent emission when
 unresolved effects make the requested artifact unsafe.
 
+Ordinary synchronous analysis instantiates declaration-relative AST summaries with each use's
+arguments, receiver and captured binding relationships. Returned functions retain their creating
+source context through bindings and container fields. A later member demand observes applicable
+writes at its current read boundary. This does not require knowing the runtime field value or
+constructing an analysis-engine activation for every Call. Source-only Call entry keeps its
+binding plan separate from normal operation lifetimes. A supplied precise observation retains
+its original owner.
+
+Effect contributions remain additive. A missing precise Return value can leave the value
+incomplete while source analysis accounts for that operation's effects. Only a matching
+operation, selected target, source use, consumer and phase can discharge its classified
+obligation, across all relevant alternatives. Independent opacity and known browser or server
+donors remain. Ordinary Call contributions also retain relative receiver bindings through
+forwarded and reordered arguments, without turning an ordinary object into component state.
+
+Active source-body reentry compares finite relationships between source endpoints, formal
+positions, captures, creating sites and member edges. New relationships may reach the existing
+summary consumer. Repeated or saturated contexts retain uncertainty and previously discovered
+donors. These active facts are released with the outer source entry. They are neither runtime
+activation identities nor a completed-result cache. This local bound does not establish
+request-wide termination or successful package compilation.
+
 Maintainer validation uses `node scripts/build-native-compiler.mjs --source <pinned checkout>`.
 The build prepares workspace declarations with the installed official TypeScript 7 CLI,
 then stages the maintained overlay and runs its native tests before producing the host.
@@ -1762,7 +1784,7 @@ Use `--test-pattern '<Go test expression>'` for a bounded regression gate. That 
 a fresh build, cannot produce release packages or coverage, and leaves no full-suite cache stamp.
 The ordinary build remains the complete native validation path.
 
-Selected source operations share acquired values, storage and completion history. A child Call
+Optional precision consumers share acquired values, storage and completion history. A child Call
 uses the callee, receiver and arguments acquired by its caller. Completed work retains its effects
 when a later operation refuses precision. Historical coverage records which unentered source
 region belongs to a final refusal, without retaining a live execution owner or making an unrelated
@@ -1776,11 +1798,12 @@ Property-reference preparation for a top-level expression or variable statement 
 module prefix and imported initializers. A later once-only statement cannot make an earlier
 descriptor conversion incomplete. Earlier work, deferred bodies, cyclic dependencies and work
 inside the current statement retain their independent requirements. A directly indexed constant
-Call initializer has its own normal effect fact. Property preparation references that exact
+Call initializer can retain its own precise output association. Property preparation references that exact
 statement and recorded Call rather than moving its callee, argument or body effects to a later
 requesting statement. An indexed eager Call nested inside a constant initializer also retains
-that statement's effect fact when a member Get follows its result. This effect ownership does
-not promote the nested Call to the initializer's value or completion proof.
+that statement's effect fact when a member Get follows its result. Runtime variable initializers
+receive generic effect owners independently of those precise associations. Effect ownership does
+not promote a nested Call to the initializer's value or completion proof.
 
 A reflective operation inside an actual default-class field also retains its allocating New as the caller boundary. Property preparation authenticates the live field inputs, unfinished original New publisher and canonical source occurrence before preparing predecessor modules. It stops before that New rather than entering the same allocation to establish its own field conversion. Missing, foreign, cyclic or unavailable construction relations remain incomplete. The boundary supplies neither descriptor completion nor prototype absence.
 
