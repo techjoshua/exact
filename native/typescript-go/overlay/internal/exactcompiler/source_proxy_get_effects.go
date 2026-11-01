@@ -13,6 +13,16 @@ type sourcePossibleProxyGetOrigin struct {
 	Entry                                               *sourceNormalOccurrence
 }
 
+// possibleProxyLiteralOrigin limits the detached source inventory. The original
+// New producer owns argument acquisition, and later Gets retain their own effects.
+func possibleProxyLiteralOrigin(node *ast.Node) bool {
+	if node == nil || !ast.IsObjectLiteralExpression(node) {
+		return false
+	}
+	audit := ownGetterAudit{remaining: 4096}
+	return audit.eagerLiteral(node)
+}
+
 // possibleProxyReference is discovery eligibility, not selected native identity.
 // Actual acquisition still uses nativeEntryValues and all current writes.
 func possibleProxyReference(v *sourceValueOwner, n *ast.Node) bool {
@@ -79,7 +89,7 @@ func (q *sourceValueQuery) constructPossibleProxyGet(site *ast.Node, result *acc
 		}
 		observed := a.observed.values[0]
 		value := observed.value
-		if observed.inputs != q.inputs || observed.returned != nil || value.node == nil || ast.GetSourceFileOfNode(value.node) != fact.sourceFile || !detachedModuleLiteral(value.node) || len(value.path) != 0 || value.acquired != nil || value.normal != nil || value.instance != nil || value.native != nil || len(observed.scope.bindings) != 0 || len(observed.scope.creators) != 0 {
+		if observed.inputs != q.inputs || observed.returned != nil || value.node == nil || ast.GetSourceFileOfNode(value.node) != fact.sourceFile || !possibleProxyLiteralOrigin(value.node) || len(value.path) != 0 || value.acquired != nil || value.normal != nil || value.instance != nil || value.native != nil || len(observed.scope.bindings) != 0 || len(observed.scope.creators) != 0 {
 			return true
 		}
 		origins[i] = value.node
@@ -106,12 +116,12 @@ func (q *sourceValueQuery) possibleProxyGetEffects(site *ast.Node, path []string
 		return false
 	}
 	d := p.Draft
-	if d.Mode != "PossibleProxyGetOrigin:"+descriptorEffectMode || len(d.PossibleProxyGets) != 1 || d.Program != q.owner.program || d.Checker != q.owner.checker || d.Source != ast.GetSourceFileOfNode(site) || d.OriginGeneration != q.owner.generation || d.OriginMode != moduleOriginMode(q.owner, d.Source) || d.Stamp != initializerSourceStamp(d.Source) || d.Declaration != site.Parent || possibleProxyInitializer(q.owner, d.Statement) != d.Declaration {
+	if d.Mode != "PossibleProxyGetOrigin:"+descriptorEffectMode || len(d.PossibleProxyGets) != 1 || d.Program != q.owner.program || d.Checker != q.owner.checker || d.Source != ast.GetSourceFileOfNode(site) || d.OriginGeneration != q.owner.generation || d.OriginMode != possibleProxyOriginMode(q.owner, d.Source) || d.Stamp != initializerSourceStamp(d.Source) || d.Declaration != site.Parent || possibleProxyInitializer(q.owner, d.Statement) != d.Declaration {
 		return false
 	}
 	row := d.PossibleProxyGets[0]
 	index := q.owner.indexes[d.Source]
-	if row.Site != site || row.Entry != index.normalOccurrences[site] || row.Entry == nil || !row.Entry.once || row.Entry.region != nil || row.ConstructorRead != site.Expression() || row.Handler == nil || ast.GetSourceFileOfNode(row.Handler) != d.Source || !detachedModuleLiteral(row.Handler) || row.Target == nil || ast.GetSourceFileOfNode(row.Target) != d.Source || !detachedModuleLiteral(row.Target) {
+	if row.Site != site || row.Entry != index.normalOccurrences[site] || row.Entry == nil || !row.Entry.once || row.Entry.region != nil || row.ConstructorRead != site.Expression() || row.Handler == nil || ast.GetSourceFileOfNode(row.Handler) != d.Source || !possibleProxyLiteralOrigin(row.Handler) || row.Target == nil || ast.GetSourceFileOfNode(row.Target) != d.Source || !possibleProxyLiteralOrigin(row.Target) {
 		return false
 	}
 	result.opaque, result.valueIncomplete = true, true

@@ -2,8 +2,6 @@ package exactcompiler
 
 import (
 	"context"
-	"encoding/json"
-	"github.com/microsoft/TypeScript/tsc/internal/ast"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -60,102 +58,9 @@ func TestModuleOriginCurrentDependencies(t *testing.T) {
 	}
 }
 
-// These are copied historical tuples. No disposed operation is revalidated or
-// adopted as live. A genuine active project owns the effect-only lookup domain.
-func TestModuleOriginProjectionIdentity(t *testing.T) {
-	req := Request{Kind: "analyze", ID: "/virtual/module-origin.ts", Source: moduleOriginFactory + `const safe=make({value:'safe'});const box=make({get value(){return document.title}});export const safeValue=safe.value;export const value=box.value;`}
-	project, diagnostics, err := newProjectState(req, req.ID)
-	if err != nil || len(diagnostics) != 0 {
-		t.Fatal(err, diagnostics)
-	}
-	generation, err := project.advance(context.Background(), req.ID, req.Source)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer generation.release()
-	collectProjectCallableEffects(project, generation.sourceFile, generation.checker, nil, nil, nil, nil, analyzeAssets(generation.sourceFile, generation.checker, req), nil, nil)
-	owner := project.callableCache.owner
-	v := owner.values
-	var projections []*moduleInitializerProjection
-	var read *ast.Node
-	for _, statement := range generation.sourceFile.Statements.Nodes {
-		if ast.IsVariableStatement(statement) {
-			for _, d := range statement.AsVariableStatement().DeclarationList.AsVariableDeclarationList().Declarations.Nodes {
-				if ast.IsIdentifier(d.Name()) && d.Name().Text() == "value" {
-					read = d
-				}
-			}
-		}
-	}
-	for _, p := range v.initializerDeclarations {
-		if p.Draft.Mode == "CallEffectOrigin" {
-			projections = append(projections, p)
-		}
-	}
-	if len(projections) != 2 || read == nil {
-		t.Fatalf("missing actual origins: %d", len(projections))
-	}
-	q := sourceValueQuery{owner: v, executable: owner, reading: read}
-	for _, p := range projections {
-		encoded, err := json.Marshal(p.Draft)
-		if err != nil || strings.Contains(string(encoded), `"OriginMode"`) || strings.Contains(string(encoded), `"Origins"`) || strings.Contains(string(encoded), `"OriginGeneration"`) {
-			t.Fatalf("private projection leaked into serialized metadata: %s %v", encoded, err)
-		}
-		call := p.Draft.Origins[0].Call
-		if len(q.moduleCallEffectOrigins(call)) != 1 {
-			t.Fatal("actual original projection refused")
-		}
-		for _, kind := range []string{"unsealed", "generation", "mode", "capture", "call", "before", "normal-domain"} {
-			t.Run(kind, func(t *testing.T) {
-				copy := *p
-				copy.Draft = cloneModuleInitializerDraft(p.Draft)
-				query := q
-				switch kind {
-				case "unsealed":
-					copy.Sealed = false
-				case "generation":
-					copy.Draft.OriginGeneration = nil
-				case "mode":
-					copy.Draft.OriginMode[0] ^= 1
-				case "capture":
-					copy.Draft.Origins[0].Captures[0].Origin = copy.Draft.Origins[0].Origin
-				case "call":
-					copy.Draft.Origins[0].Call = projections[0].Draft.Origins[0].Call
-					if copy.Draft.Origins[0].Call == call {
-						copy.Draft.Origins[0].Call = projections[1].Draft.Origins[0].Call
-					}
-				case "before":
-					query.reading = copy.Draft.Declaration
-				case "normal-domain":
-					query.inputs = &sourceValueInputs{}
-				}
-				v.initializerDeclarations[p.Draft.Declaration] = &copy
-				defer func() { v.initializerDeclarations[p.Draft.Declaration] = p }()
-				if len(query.moduleCallEffectOrigins(call)) != 0 {
-					t.Fatal("mismatched projection accepted")
-				}
-			})
-		}
-	}
-	a, b := projections[0].Draft.Origins[0], projections[1].Draft.Origins[0]
-	if a.Origin != b.Origin || a.Call == b.Call || a.Captures[0].Origin == b.Captures[0].Origin {
-		t.Fatal("creating families coalesced")
-	}
-	clone := cloneModuleInitializerDraft(projections[0].Draft)
-	clone.Origins[0].Captures[0].Origin = b.Captures[0].Origin
-	if projections[0].Draft.Origins[0].Captures[0].Origin != a.Captures[0].Origin {
-		t.Fatal("clone aliases published capture")
-	}
-	generation.release()
-	if len(q.moduleCallEffectOrigins(a.Call)) != 0 {
-		t.Fatal("disposed generation used as current effect domain")
-	}
-}
-
 func TestModuleOriginRequestInvalidation(t *testing.T) {
 	session := NewSession()
 	source := moduleOriginFactory + `const safe=make({value:'safe'});const box=make({get value(){return document.title}});export const safeValue=safe.value;export const value=box.value;`
-	var old *moduleInitializerDraft
 	for i, current := range []string{source, source, strings.ReplaceAll(source, "document.title", "'safe'"), source} {
 		if i == 3 {
 			if r := session.Execute(Request{Kind: "reset"}); r.Error != "" {
@@ -170,57 +75,24 @@ func TestModuleOriginRequestInvalidation(t *testing.T) {
 		if i == 2 {
 			want = "isomorphic"
 		}
+		found := map[string]bool{}
 		for _, e := range r.Analysis.Exports {
+			found[e.Name] = true
 			if e.Name == "safeValue" && e.Placement != "isomorphic" || e.Name == "value" && e.Placement != want {
 				t.Fatalf("request%d stale placement: %s %s", i, e.Name, e.Placement)
 			}
 		}
-		found := false
-		for _, project := range session.projects {
-			if project.callableCache == nil {
-				continue
-			}
-			v := project.callableCache.owner.values
-			for _, p := range v.initializerDeclarations {
-				if p.Draft.Mode != "CallEffectOrigin" {
-					continue
-				}
-				found = true
-				if p.Draft.OriginGeneration != v.generation {
-					t.Fatal("stale origin published")
-				}
-				if old != nil && p.Draft.OriginGeneration == old.OriginGeneration {
-					t.Fatal("old construction restamped/reused")
-				}
-				if old == nil || i != 0 {
-					old = p.Draft
-				}
-				break
-			}
-		}
-		if !found {
-			t.Fatal("lost actual producer projection")
+		if !found["safeValue"] || !found["value"] {
+			t.Fatal("source replacement lost an export")
 		}
 	}
 }
 
-func TestModuleOriginWritableFormalRefuses(t *testing.T) {
+// A returned getter follows the creator's reassigned formal rather than the
+// caller's original object. This checks source behavior, not detached metadata.
+func TestModuleOriginWritableFormalDependencies(t *testing.T) {
 	source := `function make(input:{value:string}){input={value:'new'};return {get value(){return input.value}}}const box=make({value:'safe'});export const value=box.value;`
-	session := NewSession()
-	r := session.Execute(Request{Kind: "analyze", ID: "/virtual/module-origin-writable.ts", Source: source, Diagnostics: "semantic"})
-	if r.Error != "" || hasErrorDiagnostic(r.Diagnostics) {
-		t.Fatal(r.Error, r.Diagnostics)
-	}
-	for _, project := range session.projects {
-		if project.callableCache == nil {
-			continue
-		}
-		for _, p := range project.callableCache.owner.values.initializerDeclarations {
-			if len(p.Draft.Origins) != 0 {
-				t.Fatal("writable capture detached")
-			}
-		}
-	}
+	assertClosurePlacement(t, source, "isomorphic")
 }
 
 // Execute each actual emitted namespace. Server pruning must remove the browser
@@ -267,8 +139,8 @@ func TestModuleOriginKnownGetterEffectSurvivesUnknown(t *testing.T) {
 	}
 }
 
-// A supported return beside an unresolved alternative must not publish a
-// partial origin family. An independent browser demand survives that refusal.
+// An unresolved return alternative retains its own uncertainty beside the
+// supported source result and an independent browser demand.
 func TestModuleOriginReturnAlternatives(t *testing.T) {
 	for _, test := range []struct {
 		name, alternative string
@@ -313,16 +185,6 @@ func TestModuleOriginReturnAlternatives(t *testing.T) {
 					}
 					if !unknown {
 						t.Fatalf("mixed return lost unknown availability: %#v", r.Analysis.Exports)
-					}
-					for _, project := range session.projects {
-						if project.callableCache == nil {
-							continue
-						}
-						for _, p := range project.callableCache.owner.values.initializerDeclarations {
-							if p.Draft != nil && p.Draft.Declaration != nil && p.Draft.Declaration.Name().Text() == "box" && len(p.Draft.Origins) != 0 {
-								t.Fatal("compile published partial origin family")
-							}
-						}
 					}
 				}
 				if !test.opaque {

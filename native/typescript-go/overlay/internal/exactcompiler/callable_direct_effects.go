@@ -345,7 +345,6 @@ func collectDirectCallableEffects(
 		if frame.initializerCursor != nil {
 			frame.initializerCursor.finish(fact, frame)
 		}
-		detachModuleCallOrigins(fact, owner)
 	} else {
 		// Ordinary effect demands use the recursive source walk. Exact output
 		// schedules are invoked only by their named refinement consumers.

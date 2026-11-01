@@ -371,7 +371,7 @@ func collectProjectCallableEffects(
 	// Asset rules are request-owned. Reuse requires the same declaration contract,
 	// including for dependencies seeded before they become a requested source.
 	cacheNeedsPublication := project.callableCache != nil && !project.callableCache.owned[sourceFile] && project.callableCache.owner != nil && project.callableCache.owner.values != nil && (project.callableCache.owner.values.language == nil || project.callableCache.owner.values.language.disposed)
-	if !project.callableCache.ownsGeneration(project.program, typeChecker) || !sameCallableAssetRules(project.callableCache.assetRules, assetRules) || cacheNeedsPublication || staleModuleOriginCache(project.callableCache, project.activeGeneration) {
+	if !project.callableCache.ownsGeneration(project.program, typeChecker) || !sameCallableAssetRules(project.callableCache.assetRules, assetRules) || cacheNeedsPublication || stalePossibleProxyOriginCache(project.callableCache, project.activeGeneration) {
 		project.callableCache = &projectCallableCache{semantics: advisoryAnalysisSemantics, program: project.program, owner: newExecutableBodyOwner(project, typeChecker), assetRules: snapshotCallableAssetRules(assetRules), bySource: make(map[*ast.SourceFile]callableAnalysis), fingerprints: make(map[*ast.SourceFile]string), owned: make(map[*ast.SourceFile]bool)}
 	}
 	for _, candidate := range prefixCandidates {

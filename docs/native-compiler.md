@@ -1761,7 +1761,9 @@ source context through bindings and container fields. A later member demand obse
 writes at its current read boundary. This does not require knowing the runtime field value or
 constructing an analysis-engine activation for every Call. Source-only Call entry keeps its
 binding plan separate from normal operation lifetimes. A supplied precise observation retains
-its original owner.
+its original owner. Returned dependency relationships no longer use the detached
+module-initializer origin-family side channel. Effects-only Proxy construction metadata retains
+its separate source, generation and request-mode fences.
 
 Effect contributions remain additive. A missing precise Return value can leave the value
 incomplete while source analysis accounts for that operation's effects. Only a matching

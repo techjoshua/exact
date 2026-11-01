@@ -251,14 +251,13 @@ type moduleInitializerClass struct {
 	Opaque, Incomplete       bool
 }
 type moduleInitializerDraft struct {
-	PossibleProxyGets           []sourcePossibleProxyGetOrigin  `json:"-"`
-	Origins                     []moduleInitializerOriginFamily `json:"-"`
-	OriginGeneration            *projectGeneration              `json:"-"`
-	OriginMode                  [32]byte                        `json:"-"`
-	Source                      *ast.SourceFile                 `json:"-"`
-	Statement, Declaration      *ast.Node                       `json:"-"`
-	Program                     *compiler.Program               `json:"-"`
-	Checker                     *checker.Checker                `json:"-"`
+	PossibleProxyGets           []sourcePossibleProxyGetOrigin `json:"-"`
+	OriginGeneration            *projectGeneration             `json:"-"`
+	OriginMode                  [32]byte                       `json:"-"`
+	Source                      *ast.SourceFile                `json:"-"`
+	Statement, Declaration      *ast.Node                      `json:"-"`
+	Program                     *compiler.Program              `json:"-"`
+	Checker                     *checker.Checker               `json:"-"`
 	FactID, Stamp, Mode, Status string
 	Rows                        []moduleInitializerCompletion
 	Coverage                    []moduleInitializerCoverage
@@ -290,10 +289,6 @@ func cloneModuleInitializerDraft(d *moduleInitializerDraft) *moduleInitializerDr
 	}
 	v := *d
 	v.PossibleProxyGets = append([]sourcePossibleProxyGetOrigin(nil), d.PossibleProxyGets...)
-	v.Origins = append([]moduleInitializerOriginFamily(nil), d.Origins...)
-	for i := range v.Origins {
-		v.Origins[i].Captures = append([]moduleInitializerCapture(nil), d.Origins[i].Captures...)
-	}
 	v.Rows = append([]moduleInitializerCompletion(nil), d.Rows...)
 	v.Coverage = append([]moduleInitializerCoverage(nil), d.Coverage...)
 	v.Dependencies = append([]moduleInitializerDependency(nil), d.Dependencies...)
