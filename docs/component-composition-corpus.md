@@ -2037,3 +2037,61 @@ has no independent runtime implementation change. That classification must be ve
 against the integrated patch. Changes to shared server/runtime boundaries require
 `npm run test:runtimes` and actual results on all four supported hosts. The matrix
 must be rebound to the integrated source before acceptance.
+
+### Existing environment runners and prerequisites
+
+Use a source-matched native executable through `EXACT_COMPILER_EXECUTABLE`. Build
+workspace declarations and JavaScript with official TypeScript 7 before running the
+normal `scripts/compile-exact-package.mjs` steps for paired packages. A plain TypeScript
+build does not populate their client/server export directories. Keep those providers
+in one physical workspace graph. Source aliases used by SDK tests do not qualify a
+built adapter or installed package.
+
+The existing compiler diagnostic suites own shared state-alias and assignment-identity
+fixtures. The latter includes client mount and paired SSR/hydration with retained
+ownership. Run their focused selectors through the actual host:
+
+```sh
+node node_modules/vitest/vitest.mjs run framework-adapters/vite-plugin/src/compiler-diagnostics.integration.test.ts framework-adapters/webpack-plugin/src/compiler-diagnostics.integration.test.ts -t 'preserves setup state aliases and DOM declaration placement|preserves authored assignment through mount and paired hydration' --maxWorkers=1
+bun test framework-adapters/bun-plugin/src/compiler-diagnostics.integration.test.ts -t 'preserves setup state aliases and DOM declaration placement|preserves authored assignment through mount and paired hydration'
+```
+
+The Bun suite skips under Vitest, so the native Bun command is necessary. For the
+broader suite use `npm run test:build-adapters` and the native Bun package's
+`test:bun` command. The `component child inputs` diagnostic selector additionally
+owns Chromium mount and strict hydration across all three adapters.
+
+| Boundary                    | Existing command or setup                    | Qualified baseline outcome                                                                                         |
+| --------------------------- | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| Browser mount and hydration | `npm run test:runtimes:assignment-list`      | Paired fixture compilation completed, then bundling failed on missing paired core/DOM runtime exports              |
+| Vite and Webpack            | Focused diagnostic command above             | Both suites stopped before test collection on missing `@exactjs/intl/internal`                                     |
+| Native Bun                  | Native diagnostic command above              | Stopped before test execution on the same missing Intl paired export                                               |
+| Runtime tools               | `npm ci --prefix scripts/runtime-acceptance` | Installed successfully, Deno 2.9.6 and workerd 2026-09-23 execute, Miniflare v5 dispatch and disposal smoke passed |
+| Four native runtime hosts   | `npm run test:runtimes`                      | After dependency and TypeScript prerequisite setup, stopped on missing paired core `framework/error-format` export |
+| Installed testing package   | `npm run test:packed-testing`                | Stopped before installation because the candidate native compiler tarball directory was absent                     |
+
+These setup observations were executed on clean `f5f2e8c39` on 2026-11-01, using
+the same baseline native inputs described above. Chromium launch and close passed,
+and native Bun was 1.4.3. Adapter startup probes used workspace source aliases for
+the test runner, with ordinary package resolution inside adapter builds. They never
+reached those builds and do not establish adapter behavior. No new capture fixture
+has executed in Chromium or on the four native runtime hosts yet.
+
+The runtime package owns its locked Deno and Miniflare/workerd provisioning separately
+from the root workspace. Its existing Deno `runInstall()` resolves the platform binary
+from that installation. Miniflare v5 uses the runner's existing
+`convertV4MiniflareOptions()` conversion. No alternate host harness is needed.
+
+The normal paired core package build timed out during native compilation, matching
+the earlier Intl package build's phase. Neither timeout identified its current input
+file, so dependency failure, analysis recurrence and resource limits must be separated
+before classifying the cause. Preserve the normal package builder and retry against
+the integrated candidate after that blocker is resolved.
+
+Installed acceptance uses `createPackedAppInstaller` to install candidate tarballs
+without workspace links. The coordinator stages the coherent native candidate through
+`stageNativeCompilerPackage` and `npm pack`. Set `EXACT_NATIVE_PACKAGE_DIRECTORY` to
+that tarball directory when it differs from
+`.tmp/native-artifact/native-package-artifacts`. The packed testing runner deliberately
+removes `EXACT_COMPILER_EXECUTABLE` from installed consumers. A workspace binary or
+historical paired output cannot substitute for the packaged candidate.
