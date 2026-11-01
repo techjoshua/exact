@@ -2,6 +2,28 @@ package exactcompiler
 
 import "github.com/microsoft/TypeScript/tsc/internal/ast"
 
+// sourceFieldOwnsDemand identifies the existing instance-field consumer. Class
+// lookup must not publish those receiver writes before the New-field owner can
+// join their original Call occurrences. This supplies no descriptor or identity.
+func sourceFieldOwnsDemand(owner *ast.Node, projection []string, name string) bool {
+	if owner == nil || !ast.IsClassDeclaration(owner) && !ast.IsClassExpression(owner) {
+		return false
+	}
+	key := name
+	if len(projection) > 0 {
+		key = projection[0]
+	}
+	if key == "" || key == "*" {
+		return false
+	}
+	for _, member := range owner.Members() {
+		if ast.IsPropertyDeclaration(member) && !ast.HasSyntacticModifier(member, ast.ModifierFlagsStatic) && member.Name() != nil && !ast.IsComputedPropertyName(member.Name()) && callableNameText(member.Name()) == key {
+			return true
+		}
+	}
+	return false
+}
+
 // getProjectionDemand keeps dependency observations separate from retained
 // normal Get output. Missing exact output alone supplies no effect opacity.
 func (query *sourceValueQuery) getProjectionDemand() sourceProjectionDemand {
@@ -14,17 +36,17 @@ func (query *sourceValueQuery) getProjectionDemand() sourceProjectionDemand {
 // visitSourceConstructedField acquires a symbolic field relationship at its New
 // boundary, then consumes it at the current member/serialization observation.
 // It allocates no instance and publishes no descriptor or normal Get receipt.
-func (query *sourceValueQuery) visitSourceConstructedField(field *ast.Node, receiver sourceValue, bindings sourceValueBindings, result *accessorCandidates, consume func([]sourceValue)) {
+func (query *sourceValueQuery) visitSourceConstructedField(field *ast.Node, receiver sourceValue, bindings sourceValueBindings, result *accessorCandidates, cut *sourceMemberWriterReadCut, consume func([]sourceValue)) {
 	// Receiver writes belong to the acquired New occurrence, not the class
 	// declaration used for prototype lookup. Reuse the ordered write owner.
 	if field.Name() != nil && !ast.IsComputedPropertyName(field.Name()) {
 		writes := accessorCandidates{}
 		var current []sourceValue
-		replaced := query.memberValues(receiver.node, []string{callableNameText(field.Name())}, "", accessorAcquire, bindings, &writes, func(node *ast.Node, path []string, instance bool) {
+		replaced := query.memberValuesAtGet(receiver.node, []string{callableNameText(field.Name())}, "", accessorAcquire, bindings, &writes, func(node *ast.Node, path []string, instance bool) {
 			part := query.accessors(node, path, "", accessorAcquire, bindings, nil)
 			mergeAccessorCandidates(&writes, part)
 			current = append(current, part.values...)
-		})
+		}, sourceMemberOperationProof{}, nil, cut)
 		mergeAccessorCandidates(result, candidatePublisherPayload(writes))
 		if len(current) > 0 {
 			consume(current)

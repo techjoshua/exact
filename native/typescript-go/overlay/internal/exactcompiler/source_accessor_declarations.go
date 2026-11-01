@@ -17,6 +17,7 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 	if arguments == nil {
 		arguments = make(sourceValueBindings)
 	}
+	readCut := query.memberWriterReadCut(reference, arguments, &result)
 	typeChecker, owner := query.owner.checker, query.executable
 	deep := mode&accessorReachable != 0
 	enumerable := mode&accessorEnumerate != 0
@@ -532,7 +533,7 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 			if query.moduleRead() != nil {
 				operation = query.sourceMemberOperation(value, projection, name, mode, arguments, &result)
 			}
-			replaced := query.memberValuesAtGet(value, projection, name, mode, arguments, &members, visit, operation, actualGet)
+			replaced := query.memberValuesAtGet(value, projection, name, mode, arguments, &members, visit, operation, actualGet, readCut)
 			ordinary, occurrence := query.ordinaryFunctionMember(value, projection, name, mode)
 			// A possible authored replacement does not remove the original adapter.
 			// Keep both bodies until a completed replacement owns the property.
@@ -644,7 +645,7 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 						proofGet = &copy
 					}
 				}
-				if query.memberValuesAtGet(value, projection, name, mode, arguments, &result, visit, sourceMemberOperationProof{}, proofGet) {
+				if query.memberValuesAtGet(value, projection, name, mode, arguments, &result, visit, sourceMemberOperationProof{}, proofGet, readCut) {
 					return
 				}
 			}
@@ -709,7 +710,7 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 					continue
 				}
 				if deep && instance && query.dependenciesOnly && ast.IsPropertyDeclaration(member) {
-					query.visitSourceConstructedField(member, actualReceiver, arguments, &result, func(values []sourceValue) {
+					query.visitSourceConstructedField(member, actualReceiver, arguments, &result, readCut, func(values []sourceValue) {
 						previousGet, previousReference := get, reference
 						get, reference = nil, reference.after(projection, name)
 						visitOrigins(values, projection, false)
@@ -788,7 +789,7 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 						if ast.IsPropertyDeclaration(member) && mode&accessorNoGet == 0 {
 							if instance {
 								if query.dependenciesOnly {
-									query.visitSourceConstructedField(member, actualReceiver, arguments, &result, func(values []sourceValue) {
+									query.visitSourceConstructedField(member, actualReceiver, arguments, &result, readCut, func(values []sourceValue) {
 										previousGet, previousReference := get, reference
 										get, reference = nil, reference.after(projection, name)
 										visitOrigins(values, projection[1:], false)

@@ -347,7 +347,16 @@ func (query *sourceValueQuery) receiverInterferenceAtInputs(body, call *ast.Node
 	if installed != nil {
 		bound = installed.bindings
 	} else {
-		bound = query.bindArguments(body, call, bindings, result)
+		if query.dependenciesOnly {
+			// This scan asks only whether the original input may reach a write.
+			// Argument/Get effects were owned by that Call, not this later Get.
+			inputs := accessorCandidates{}
+			bound = query.bindArguments(body, call, bindings, &inputs)
+			bound = query.memberWriterActualValues(body, call, bound, &inputs)
+			result.opaque = result.opaque || inputs.opaque || inputs.receiverIncomplete || inputs.valueIncomplete
+		} else {
+			bound = query.bindArguments(body, call, bindings, result)
+		}
 	}
 	query.withActiveInvocation(call, func() {
 		for _, demand := range query.owner.summary(body).nodes {

@@ -123,7 +123,7 @@ func (query *sourceValueQuery) moduleWriteProducer(left *ast.Node, bindings sour
 			continue
 		}
 		possible = true
-		if ast.IsIdentifier(expression) && ast.IsFunctionDeclaration(writer) && !query.owner.bindingWritten(query.owner.checker.GetSymbolAtLocation(expression)) && enclosingCallableNode(call) == nil && query.precedes(call, at, bindings) && query.callableProducer(left, writer, bindings) {
+		if query.moduleCallWriteProducer(left, writer, call, bindings) {
 			return call, true
 		}
 	}
@@ -681,4 +681,19 @@ func (query *sourceValueQuery) sourceWritePrecedes(left, producer *ast.Node, bin
 		return query.precedes(producer, at, bindings) && query.callableProducer(left.Parent, enclosingCallableNode(left), bindings)
 	}
 	return query.precedes(left.Parent, at, bindings)
+}
+
+// moduleCallWriteProducer preserves the existing performed-write law for one
+// original Call. Another invocation of the same declaration cannot borrow it.
+func (query *sourceValueQuery) moduleCallWriteProducer(left, writer, call *ast.Node, bindings sourceValueBindings) bool {
+	at := query.moduleRead()
+	if at == nil || call == nil || writer == nil {
+		return false
+	}
+	if query.initializing != nil && enclosingCallableNode(query.initializing) == nil {
+		at = query.initializing
+	}
+	expression := call.AsCallExpression().Expression
+	known, taken := query.logicalModuleWrite(left, bindings)
+	return known && taken && ast.IsIdentifier(expression) && ast.IsFunctionDeclaration(writer) && !query.owner.bindingWritten(query.owner.checker.GetSymbolAtLocation(expression)) && enclosingCallableNode(call) == nil && query.precedes(call, at, bindings) && query.callableProducer(left, writer, bindings)
 }

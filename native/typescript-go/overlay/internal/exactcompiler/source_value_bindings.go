@@ -28,6 +28,7 @@ type sourceValueReplacement struct {
 	values        []sourceValue
 	bindings      sourceValueBindings
 	certain       bool
+	unordered     bool // Source Call selected, but its write timing is not proved.
 }
 
 // mergeReplacements discards a value only after a definitely performed replacement
@@ -37,6 +38,9 @@ func (query *sourceValueQuery) mergeReplacements(values []sourceValue, replaceme
 	// Find a last certain write across every writer, not within each declaration.
 	// Incomparable certain occurrences retain the conservative alternatives.
 	before := func(first, second sourceValueReplacement) bool {
+		if first.unordered || second.unordered {
+			return false
+		}
 		if first.at == second.at {
 			// Certainty supplies execution, not mutation order. Compare complete
 			// operations, including their RHS. A completed RHS assignment precedes
@@ -133,7 +137,7 @@ func (query *sourceValueQuery) liveValues(symbol *ast.Symbol, entry []sourceValu
 			}
 		}
 		values = append(values, next...)
-		replacements = append(replacements, sourceValueReplacement{at, operation, next, bound, certain})
+		replacements = append(replacements, sourceValueReplacement{at: at, operation: operation, values: next, bindings: bound, certain: certain})
 	}
 	for _, declaration := range symbol.Declarations {
 		source := ast.GetSourceFileOfNode(declaration)

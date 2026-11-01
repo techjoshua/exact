@@ -1865,9 +1865,22 @@ summary consumer. Repeated or saturated contexts retain uncertainty and previous
 donors. These active facts are released with the outer source entry. They are neither runtime
 activation identities nor a completed-result cache. This local bound does not establish
 request-wide termination or successful package compilation.
-`TestSelectedStateWriteEvaluationEnvironments` also exposes a stack overflow while analyzing
-an ordinary helper's class-field computed object name with its own receiver. That termination
-failure aborts the test process, leaving subsequent selected controls unexecuted.
+Constructed-member alias matching retains the selected receiver's New endpoint separately from
+the class used for lookup. Its projected path and captured creating/formal context remain intact
+instead of reacquiring that receiver during write matching. The extra endpoint supplies only a
+MAY association. It cannot establish receiver identity, completed replacement, DATA or normal
+Get authority. Existing normal and native receiver proofs retain their separate contracts.
+The class-field computed-name receiver controls cover this boundary alongside distinct creators,
+captured inputs, current writes, recursive uncertainty and known effect donors. Ordinary
+writer Calls use the canonical selected-body and argument binding relation before alias matching.
+Each alternative keeps its original Call and captured source scope. Argument values are observed
+at that Call, while later field reads retain the original reader boundary rather than borrowing a
+factory return boundary. Unproved Call timing retains alternatives and uncertainty. These source
+relationships neither replay argument effects at the read nor supply normal invocation receipts.
+
+Source SDK state-write execution remains blocked before test collection by a native stack
+overflow while transforming `packages/core/src/component/error-boundary.tsx`. Passing the
+class-receiver native cohort does not establish that SDK path or request-wide termination.
 
 Maintainer validation uses `node scripts/build-native-compiler.mjs --source <pinned checkout>`.
 The build prepares workspace declarations with the installed official TypeScript 7 CLI,
