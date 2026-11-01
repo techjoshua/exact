@@ -381,7 +381,11 @@ func (query *sourceValueQuery) receiverInterferenceAtInputs(body, call *ast.Node
 				result.opaque = result.opaque || len(origins) == 0
 				for _, value := range origins {
 					if value.node == demanded.node && len(value.path) < len(demanded.path) && sourceProjectionOverlap(value.path, demanded.path) {
-						result.opaque = result.opaque || len(origins) != 1 || !query.replacesSourceValue(value.node, value.path, target, accessorRead, nil, bound)
+						var producer *ast.Node
+						if query.dependenciesOnly && query.moduleCallWriteProducer(target, body, call, bound) {
+							producer = call
+						}
+						result.opaque = result.opaque || len(origins) != 1 || !query.replacesSourceValue(value.node, value.path, target, accessorRead, producer, bound)
 					} else if sourceReceiverOriginUnresolved(value) {
 						result.opaque = true
 					}

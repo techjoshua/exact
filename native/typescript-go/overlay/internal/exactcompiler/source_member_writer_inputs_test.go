@@ -207,3 +207,32 @@ func TestMemberWriterCapturedEmission(t *testing.T) {
 		})
 	}
 }
+
+// Refusing a Call's complete input relation cannot erase a separately indexed
+// possible write. Known non-invoking bodies and dormant definitions stay deferred.
+func TestMemberWriterRefusedInputs(t *testing.T) {
+	for _, row := range []struct {
+		name, setup      string
+		browser, unknown bool
+	}{
+		{"opaque-callback", `declare function invoke(fn:()=>void):void;invoke(()=>{box.field={get value(){return document.title}}});`, true, true},
+		{"opaque-callback-after-write", `declare function invoke(fn:()=>void):void;invoke(()=>{box.field={get value(){return document.title}}});box.field={value:'safe'};await 0;`, true, true},
+		{"known-callback", `function invoke(fn:()=>void){fn()}invoke(()=>{box.field={get value(){return document.title}}});`, true, false},
+		{"ignored-callback", `function ignore(fn:()=>void){}ignore(()=>{box.field={get value(){return document.title}}});`, false, false},
+		{"throw-before-callback", `function invoke(fn:()=>void){throw 9}try{invoke(()=>{box.field={get value(){return document.title}}})}catch{}`, false, false},
+		{"dormant-writer", `function write(){box.field={get value(){return document.title}}}declare function opaque():void;opaque();`, false, false},
+		{"mixed-selection", `function write(){box.field={get value(){return document.title}}}declare function opaque():void;declare const choose:boolean;const selected=choose?write:opaque;selected();`, true, true},
+	} {
+		t.Run(row.name, func(t *testing.T) {
+			_, _, summary := currentProxyCaller(t, `const box={field:{value:'safe'}};`+row.setup+`export const value=box.field.value;`, "export const value")
+			browser, unknown := false, false
+			for _, effect := range summary.EffectSources {
+				browser = browser || effect.Environment == "browser"
+				unknown = unknown || effect.Environment == "unknown"
+			}
+			if browser != row.browser || row.unknown && !unknown {
+				t.Fatal("refused writer lost MAY coverage or entered a dormant body", summary.EffectSources)
+			}
+		})
+	}
+}

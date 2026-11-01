@@ -1879,7 +1879,11 @@ closure's formal captures.
 Each alternative keeps its original Call and captured source scope. Argument values are observed
 at that Call, while later field reads retain the original reader boundary rather than borrowing a
 factory return boundary. Unproved Call timing retains alternatives and uncertainty. These source
-relationships neither replay argument effects at the read nor supply normal invocation receipts.
+relationships neither replay argument effects at the read nor supply normal invocation receipts. Refused Call selection retains a source callable
+that was actually exposed as callee or argument, with its captured inputs and unknown foreign
+invocation inputs. Its possible indexed writes cannot become performed replacements or supply
+write ordering. Known non-invoking bodies remain deferred. Source interference uses the same
+original Call's existing performed-write proof rather than losing it at the input boundary.
 
 Source SDK state-write execution remains blocked before test collection by a native stack
 overflow while transforming `packages/core/src/component/error-boundary.tsx`. Passing the

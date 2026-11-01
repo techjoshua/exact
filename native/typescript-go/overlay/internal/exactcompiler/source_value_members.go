@@ -156,7 +156,7 @@ func (query *sourceValueQuery) memberValuesAtGet(origin *ast.Node, projection []
 					if key == "" {
 						key = "*"
 					}
-					temporary := accessorCandidates{}
+					temporary := accessorCandidates{opaque: input.incomplete}
 					var receivers []sourceValue
 					if query.dependenciesOnly && get != nil && get.receiver.native == nil && get.receiver.node != nil && ast.IsNewExpression(get.receiver.node) && get.lookupOwner != nil && get.lookupOwner.node == origin && len(get.lookupOwner.path) == 0 {
 						receivers = []sourceValue{get.receiver}
@@ -219,7 +219,9 @@ func (query *sourceValueQuery) memberValuesAtGet(origin *ast.Node, projection []
 							// cannot establish performed execution. Keep all RHS alternatives below.
 							possible = true
 							if producer == nil && (!result.opaque || enclosingCallableNode(assignment.left) == nil || query.creators[enclosingCallableNode(assignment.left)].invocation != nil) {
-								if input.call != nil {
+								if input.incomplete {
+									producer, possible = nil, true
+								} else if input.call != nil {
 									producer, possible = nil, true
 									if !input.incomplete && query.moduleCallWriteProducer(assignment.left, enclosingCallableNode(assignment.left), input.call, assignmentBindings) {
 										producer = input.call
@@ -308,7 +310,7 @@ func (query *sourceValueQuery) memberValuesAtGet(origin *ast.Node, projection []
 								occurrence = producer
 							}
 							alternatives = append(alternatives, next...)
-							replacements = append(replacements, sourceValueReplacement{at: occurrence, operation: operation, values: next, bindings: assignmentBindings, certain: replacement, unordered: input.call != nil && producer == nil})
+							replacements = append(replacements, sourceValueReplacement{at: occurrence, operation: operation, values: next, bindings: assignmentBindings, certain: replacement, unordered: input.incomplete || input.call != nil && producer == nil})
 						}
 					}
 				})

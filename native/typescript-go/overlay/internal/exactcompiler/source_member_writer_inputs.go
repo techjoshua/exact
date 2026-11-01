@@ -71,16 +71,18 @@ func (q *sourceValueQuery) memberWriterInputs(left *ast.Node, bindings sourceVal
 				continue
 			}
 			start := len(alternatives)
-			complete := false
+			complete, bodySeen := false, false
 			previousInitializing := q.initializing
 			q.initializing = call
+			invocation := accessorCandidates{}
 			q.withActiveInvocation(call, func() {
-				q.consumeInvocation(call, bindings, sourceInvocationConsumer{
+				invocation = q.consumeInvocation(call, bindings, sourceInvocationConsumer{
 					selection: func(value bool) { complete = value },
 					body: func(body *ast.Node, bound sourceValueBindings, inputs *sourceValueInputs, _ *ast.Node, part *accessorCandidates) {
 						if body != writer {
 							return
 						}
+						bodySeen = true
 						if _, ordinary := ordinaryResultCategory(body); !ordinary {
 							return
 						}
@@ -103,6 +105,14 @@ func (q *sourceValueQuery) memberWriterInputs(left *ast.Node, bindings sourceVal
 				})
 			})
 			q.initializing = previousInitializing
+			if !complete && !bodySeen && (invocation.opaque || invocation.valueIncomplete || invocation.receiverIncomplete) {
+				// A refused input domain can still expose this actual source
+				// callable. Keep its captures and MAY write, never invent arguments.
+				for _, scope := range q.refusedMemberWriterScopes(writer, call, bindings, result) {
+					alternatives = append(alternatives, sourceMemberWriterInput{scope: scope, incomplete: true})
+					result.opaque = true
+				}
+			}
 			for i := start; i < len(alternatives); i++ {
 				alternatives[i].incomplete = alternatives[i].incomplete || !complete
 			}
@@ -163,4 +173,57 @@ func (q *sourceValueQuery) memberWriterActualValues(body, call *ast.Node, bindin
 		}
 	}
 	return bound
+}
+
+// refusedMemberWriterScopes retains only represented source callables exposed
+// at this original Call. A bodyless signature or an unrelated indexed function
+// cannot supply a writer. Foreign invocation arguments and receiver stay unknown.
+func (q *sourceValueQuery) refusedMemberWriterScopes(writer, call *ast.Node, bindings sourceValueBindings, result *accessorCandidates) []acquiredCallableScope {
+	if writer == nil || !ast.IsFunctionLike(writer) || writer.Body() == nil {
+		return nil
+	}
+	reading, initializing, returning := q.reading, q.initializing, q.returning
+	q.reading, q.initializing, q.returning = call, call, nil
+	defer func() { q.reading, q.initializing, q.returning = reading, initializing, returning }()
+	var scopes []acquiredCallableScope
+	retain := func(part accessorCandidates) {
+		for i, value := range part.values {
+			if value.node != writer || len(value.path) != 0 {
+				continue
+			}
+			scope := q.acquireCallableScope(bindings, result)
+			if value.capture != nil {
+				scope = q.copyCallableScope(*value.capture, result)
+			} else if captured, ok := part.callableScopes[i]; ok {
+				scope = q.copyCallableScope(captured, result)
+			}
+			for _, parameter := range writer.Parameters() {
+				for _, name := range bindingIdentifiers(parameter.Name()) {
+					if !q.charge(result, name) {
+						return
+					}
+					if symbol := q.owner.checker.GetSymbolAtLocation(name); symbol != nil {
+						delete(scope.bindings, ast.GetSymbolId(symbol))
+					}
+				}
+			}
+			if !ast.IsArrowFunction(writer) {
+				delete(scope.bindings, 0)
+			}
+			delete(scope.creators, writer)
+			scopes = append(scopes, scope)
+		}
+	}
+	q.withActiveInvocation(call, func() {
+		retain(q.receiverCandidates(call, bindings))
+		if args := call.AsCallExpression().Arguments; args != nil {
+			for _, argument := range args.Nodes {
+				if !q.charge(result, argument) {
+					return
+				}
+				retain(q.accessors(argument, nil, "", accessorAcquire, bindings, nil))
+			}
+		}
+	})
+	return scopes
 }
