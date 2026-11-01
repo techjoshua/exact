@@ -785,6 +785,11 @@ func publicPolicySelection(node *ast.Node, typeChecker *checker.Checker) bool {
 			selected = parent
 		} else if ast.IsElementAccessExpression(parent) && parent.AsElementAccessExpression().Expression == selected {
 			selected = parent
+		} else if ast.IsCallExpression(parent) && parent.AsCallExpression().Expression == selected && typeChecker.GetResolvedSignature(parent) != nil {
+			// A generic member's declaration result is not the selected invocation.
+			// Narrow through the actual checker-bound call, retaining argument policy
+			// and effects at their independent consumers.
+			selected = parent
 		} else {
 			break
 		}

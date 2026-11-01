@@ -5,6 +5,17 @@ import (
 	"github.com/microsoft/TypeScript/tsc/internal/checker"
 )
 
+// policyQualificationObligation tracks a single selected type query. Incomplete
+// inspection retains protection but is never cached as a completed secret/public fact.
+type policyQualificationObligation struct {
+	seen       map[checker.TypeId]bool
+	incomplete bool
+}
+
+func newPolicyQualificationObligation() *policyQualificationObligation {
+	return &policyQualificationObligation{seen: make(map[checker.TypeId]bool)}
+}
+
 // policyFromCheckerType recognizes resolved secret qualification and protected data containers.
 // Formatting, authored alias names and callable result display text never confer qualification.
 func policyFromCheckerType(
@@ -14,7 +25,7 @@ func policyFromCheckerType(
 	if value == nil {
 		return DataPolicy{}, false
 	}
-	if checkerTypeContainsSecret(value, typeChecker, make(map[checker.TypeId]bool), nil) {
+	if checkerTypeContainsSecret(value, typeChecker, newPolicyQualificationObligation(), nil) {
 		return dataPolicy("secret"), true
 	}
 	return DataPolicy{}, false
@@ -33,59 +44,73 @@ func cachedPolicyFromCheckerType(value *checker.Type, c *checker.Checker, comple
 		}
 		return DataPolicy{}, false
 	}
-	seen := make(map[checker.TypeId]bool)
-	if checkerTypeContainsSecret(value, c, seen, completed) {
-		completed[value.Id()] = true
+	obligation := newPolicyQualificationObligation()
+	if checkerTypeContainsSecret(value, c, obligation, completed) {
+		if !obligation.incomplete {
+			completed[value.Id()] = true
+		}
 		return dataPolicy("secret"), true
 	}
-	for id := range seen {
+	for id := range obligation.seen {
 		completed[id] = false
 	}
 	return DataPolicy{}, false
 }
 
 // checkerTypeContainsSecret protects disclosure of complete records and indexed collections.
-// Callable results are separate contracts. Cycles are visited once per type query.
-func checkerTypeContainsSecret(value *checker.Type, typeChecker *checker.Checker, seen map[checker.TypeId]bool, completed map[checker.TypeId]bool) bool {
+// Deferred members carry disclosure obligations too. Cycles are visited once per type query.
+func checkerTypeContainsSecret(value *checker.Type, typeChecker *checker.Checker, obligation *policyQualificationObligation, completed map[checker.TypeId]bool) bool {
 	if value == nil {
 		return false
 	}
 	if secret, exists := completed[value.Id()]; exists {
 		return secret
 	}
-	if seen[value.Id()] {
+	if obligation.seen[value.Id()] {
 		return false
 	}
-	seen[value.Id()] = true
+	// Expanding generic recursion can produce fresh checker identities indefinitely.
+	// Exhausting this qualification obligation must retain protection, never publish
+	// a completed public fact. Selected public leaves use their own bounded query.
+	if len(obligation.seen) >= 128 {
+		obligation.incomplete = true
+		return true
+	}
+	obligation.seen[value.Id()] = true
 	if checkerTypeHasSecretDeclaration(value) {
 		return true
 	}
 	if value.Flags()&checker.TypeFlagsUnionOrIntersection != 0 {
 		for _, member := range value.Types() {
-			if checkerTypeContainsSecret(member, typeChecker, seen, completed) {
+			if checkerTypeContainsSecret(member, typeChecker, obligation, completed) {
 				return true
 			}
 		}
 		return false
 	}
 	if value.Flags()&checker.TypeFlagsTypeParameter != 0 {
-		return checkerTypeContainsSecret(typeChecker.GetBaseConstraintOfType(value), typeChecker, seen, completed)
+		return checkerTypeContainsSecret(typeChecker.GetBaseConstraintOfType(value), typeChecker, obligation, completed)
 	}
 	if checkerTypeIsSecret(value, typeChecker, make(map[checker.TypeId]bool)) {
 		return true
 	}
-	if value.Flags()&checker.TypeFlagsObject == 0 || len(typeChecker.GetSignaturesOfType(value, checker.SignatureKindCall)) != 0 {
+	if value.Flags()&checker.TypeFlagsObject == 0 {
 		return false
 	}
+	for _, signature := range typeChecker.GetSignaturesOfType(value, checker.SignatureKindCall) {
+		if checkerTypeContainsSecret(typeChecker.GetReturnTypeOfSignature(signature), typeChecker, obligation, completed) {
+			return true
+		}
+	}
 	for _, index := range typeChecker.GetIndexInfosOfType(value) {
-		if checkerTypeContainsSecret(index.ValueType(), typeChecker, seen, completed) {
+		if checkerTypeContainsSecret(index.ValueType(), typeChecker, obligation, completed) {
 			return true
 		}
 	}
 	if value.ObjectFlags()&checker.ObjectFlagsMapped == 0 && policyStandardLibraryType(value, typeChecker) {
 		if value.ObjectFlags()&checker.ObjectFlagsReference != 0 {
 			for _, argument := range typeChecker.GetTypeArguments(value) {
-				if checkerTypeContainsSecret(argument, typeChecker, seen, completed) {
+				if checkerTypeContainsSecret(argument, typeChecker, obligation, completed) {
 					return true
 				}
 			}
@@ -96,7 +121,7 @@ func checkerTypeContainsSecret(value *checker.Type, typeChecker *checker.Checker
 	}
 
 	for _, property := range typeChecker.GetPropertiesOfType(value) {
-		if checkerTypeContainsSecret(typeChecker.GetTypeOfSymbol(property), typeChecker, seen, completed) {
+		if checkerTypeContainsSecret(typeChecker.GetTypeOfSymbol(property), typeChecker, obligation, completed) {
 			return true
 		}
 	}

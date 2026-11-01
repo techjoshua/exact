@@ -232,7 +232,9 @@ Runtime continuation state is generated-program state. It may retain temporaries
 
 Abstract analysis supplies guarded dependencies and effects to placement and policy. Those consumers make their decisions under explicit framework rules. Retaining the ordinary AST is not a reason to emit an unsafe cross-target artifact.
 
-EXACT2101 must continue to reject genuinely unresolved executable placement. The repair is to recover supported dependency/effect relationships, not to disable the diagnostic. Deferred secret inspection must not establish public aggregate disclosure.
+EXACT2101 must continue to reject genuinely unresolved executable placement. The repair is to recover supported dependency/effect relationships, not to disable the diagnostic. Deferred secret inspection must not establish public aggregate disclosure. Whole-value qualification includes callable member result contracts as well as record fields and indexed payloads. A public sibling projection is checked using its selected checker type, including a resolved generic invocation, while argument policies and execution effects remain independently enforced.
+
+Qualification queries visit each checker type identity once and retain protection if expanding generic recursion exceeds the finite query budget (128 distinct types). An incomplete obligation is neither a public proof nor a completed cache entry. This can conservatively deny a large or indefinitely expanding whole value even when a separately selected public leaf is permitted. Completed facts belong only to the current unchanged checker generation.
 
 #### Uncertainty and requested-artifact decision table
 
