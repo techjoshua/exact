@@ -2035,6 +2035,20 @@ SSR pass through Node-hosted Vitest/jsdom with workspace source aliases. The ori
 safe RHS control both fail compilation with EXACT2101 before runtime execution.
 This is baseline regression evidence, not integrated repair acceptance.
 
+Rebound verification on 2026-11-01 used coordinated checkpoint `09925238a`,
+merged locally as `8a6772c9` with an identical source tree. The standalone native host
+was rebuilt from that overlay and the same pinned upstream with an isolated Go cache.
+The selected native corpus passed: original module-write producers, shared capture
+composition, current unknown overlap, returned deferred bodies, opaque denial and
+existing ordinary-module authorization controls. The existing SDK test passed all
+three cases with unchanged oracles. The original client initializer reads the title
+getter once, the server reads it zero times, and the safe RHS reads it zero times.
+Mounted nested capture updates, instance/state/DOM identity, unrelated consumer
+isolation, once-only lifecycle and paired SSR pass in Node-hosted Vitest/jsdom using
+workspace source aliases. This does not establish installed-package, build-adapter,
+Chromium, cross-runtime, performance or native branch/condition-audit acceptance.
+The coordinated checkpoint remains unaccepted work in progress.
+
 The affected-environment matrix below records the remaining acceptance obligations.
 Chromium, hydration, adapter, other native hosts, installed packages and the native
 branch/condition audit have not executed for this new fixture.
