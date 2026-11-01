@@ -6,6 +6,11 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/microsoft/TypeScript/tsc/internal/ast"
+	"github.com/microsoft/TypeScript/tsc/internal/core"
+	"github.com/microsoft/TypeScript/tsc/internal/parser"
+	"github.com/microsoft/TypeScript/tsc/internal/tspath"
 )
 
 // The fixture keeps authored typing roots separate from explicitly prepared execution roots.
@@ -45,9 +50,13 @@ func (f *executableFixture) request(kind, file string) Request {
 }
 
 func (f *executableFixture) synchronize(edges []ExecutableEdge) Response {
+	return f.synchronizeTarget(edges, TargetDefault)
+}
+
+func (f *executableFixture) synchronizeTarget(edges []ExecutableEdge, target Target) Response {
 	f.generation++
 	request := f.request("synchronize", "entry.ts")
-	snapshot := &ExecutableSelection{Generation: f.generation, Revision: "fixture", Target: TargetDefault, Edges: edges}
+	snapshot := &ExecutableSelection{Generation: f.generation, Revision: "fixture", Target: target, Edges: edges}
 	for name, source := range f.files {
 		id := filepath.Join(f.root, name)
 		request.Sources = append(request.Sources, ProjectSource{ID: id, Source: source})
@@ -451,19 +460,19 @@ func TestExecutableSelectionConfigRevision(t *testing.T) {
 	}
 }
 
-// Private imports and entries share the source that supplied parameter effects.
-// Ordinary callable exports remain unchanged in their selected source module.
+// Only task-owned invocation introduces a private import. It must share the
+// selected executable source while ordinary imports retain their host specifier.
 func TestExecutableSelectionPrivateHelperBody(t *testing.T) {
 	for _, selected := range []string{"helper.js", "helper.ts"} {
 		t.Run(selected, func(t *testing.T) {
 			f := newExecutableFixture(t, map[string]string{
-				"entry.ts":  `import {apply} from './helper.js';export function invoke(state:{a:number,b:number}){apply(state);}`,
+				"entry.ts":  `import {TaskContext,type Component} from '@exactjs/core';import {apply} from './helper.js';export function invoke(state:{a:number,b:number}){apply(state);}export function Page(this:Component<{a:number,b:number}>){this.state.a=0;this.state.b=0;function save(task:TaskContext=TaskContext.server().blocking()){apply(this.state);}save();return()=>this.state.b;}`,
 				"helper.ts": `export function apply(state:{a:number,b:number}){state.a=2;}`,
 				"helper.js": `/** @param {{a:number,b:number}} state */ export function apply(state){state.b=99;}`,
 			})
 			request := f.request("synchronize", "entry.ts")
 			snapshot := &ExecutableSelection{Generation: 1, Revision: "private-helper", Target: TargetServer,
-				Edges: []ExecutableEdge{{Importer: "entry.ts", Slot: 0, Specifier: "./helper.js", Kind: "import", Selected: selected}}}
+				Edges: []ExecutableEdge{{Importer: "entry.ts", Slot: 1, Specifier: "./helper.js", Kind: "import", Selected: selected}}}
 			for name, source := range f.files {
 				id := filepath.Join(f.root, name)
 				request.Sources = append(request.Sources, ProjectSource{ID: id, Source: source})
@@ -483,14 +492,23 @@ func TestExecutableSelectionPrivateHelperBody(t *testing.T) {
 			if len(entry.Analysis.HelperSources) != 1 || entry.Analysis.HelperSources[0].SourceFile != filepath.Join(f.root, selected) {
 				t.Fatalf("source %#v", entry.Analysis.HelperSources)
 			}
-			if !strings.Contains(entry.Code, `from "./`+selected+`"`) {
-				t.Fatal("private import changed actual executable suffix")
+			if !containsString(executableImportBindings(entry.Code, "./helper.js"), "apply") {
+				t.Fatal("ordinary import lost its authored host specifier")
+			}
+			private := ""
+			for _, name := range executableImportBindings(entry.Code, "./"+selected) {
+				if strings.HasPrefix(name, "__exact_owned_") {
+					private = name
+				}
+			}
+			if private == "" || !strings.Contains(entry.Code, private+"(task.signal,") {
+				t.Fatal("task invocation lost the selected private entry")
 			}
 			request = f.request("compile", selected)
 			request.Target = TargetServer
 			request.Diagnostics = "syntax"
 			helper := f.session.Execute(request)
-			if helper.Error != "" || len(helper.Diagnostics) != 0 || !strings.Contains(helper.Code, "export function __exact_owned_") {
+			if helper.Error != "" || len(helper.Diagnostics) != 0 || !strings.Contains(helper.Code, "export function "+private+"(") {
 				t.Fatalf("helper: %s %#v", helper.Error, helper.Diagnostics)
 			}
 			expected := "99"
@@ -502,6 +520,54 @@ func TestExecutableSelectionPrivateHelperBody(t *testing.T) {
 			}
 		})
 	}
+}
+
+// Preparing executable helper facts does not rewrite an ordinary caller into a
+// task-owned entry or replace the import specifier resolved by the host.
+func TestExecutableSelectionOrdinaryHelperImport(t *testing.T) {
+	for _, selected := range []string{"helper.js", "helper.ts"} {
+		f := newExecutableFixture(t, map[string]string{
+			"entry.ts":  `import {apply} from './helper.js';export function invoke(state:{a:number,b:number}){apply(state);}`,
+			"helper.ts": `export function apply(state:{a:number,b:number}){state.a=2;}`,
+			"helper.js": `/** @param {{a:number,b:number}} state */ export function apply(state){state.b=99;}`,
+		})
+		if r := f.synchronizeTarget([]ExecutableEdge{{"entry.ts", 0, "./helper.js", "import", selected}}, TargetServer); r.Error != "" {
+			t.Fatal(r.Error)
+		}
+		request := f.request("compile", "entry.ts")
+		request.Target = TargetServer
+		r := f.session.Execute(request)
+		if r.Error != "" || hasErrorDiagnostic(r.Diagnostics) || !containsString(executableImportBindings(r.Code, "./helper.js"), "apply") || strings.Contains(r.Code, "__exact_owned_") {
+			t.Fatalf("ordinary helper acquired private ownership: %s %#v\n%s", r.Error, r.Diagnostics, r.Code)
+		}
+	}
+}
+
+// Parse import bindings so quote style and printer spacing are not contracts.
+func executableImportBindings(code, module string) []string {
+	source := parser.ParseSourceFile(ast.SourceFileParseOptions{FileName: "/generated.ts", Path: tspath.Path("/generated.ts")}, code, core.ScriptKindTS)
+	var result []string
+	walkNode(source.AsNode(), func(node *ast.Node) bool {
+		if !ast.IsImportDeclaration(node) {
+			return true
+		}
+		declaration := node.AsImportDeclaration()
+		if declaration.ModuleSpecifier.Text() != module || declaration.ImportClause == nil {
+			return false
+		}
+		bindings := declaration.ImportClause.AsImportClause().NamedBindings
+		if bindings != nil && ast.IsNamedImports(bindings) {
+			for _, item := range bindings.AsNamedImports().Elements.Nodes {
+				name := item.AsImportSpecifier().PropertyName
+				if name == nil {
+					name = item.Name()
+				}
+				result = append(result, name.Text())
+			}
+		}
+		return false
+	})
+	return result
 }
 
 // A host snapshot owns executable source, while published declaration-only operations
