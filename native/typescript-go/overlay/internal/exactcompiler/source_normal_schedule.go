@@ -925,17 +925,19 @@ func (query *sourceValueQuery) prepareComponentProtocolGet(call *ast.Node) (sour
 	return prepared, acquired, true
 }
 
-// appendFieldReadOutcome preserves the original checked coverage law. A matched
-// parameter demand does not itself prove that its supplied receiver was covered.
+// appendFieldReadOutcome keeps source effect coverage separate from exact Get
+// refinement. Naming a demand never proves coverage of its supplied receiver.
 func (query *sourceValueQuery) appendFieldReadOutcome(node, receiver *ast.Node, key string, candidates *accessorCandidates) {
 	if demand, _ := query.fieldDemand(node, receiver, key); demand.declaration != nil {
-		covered := query.fieldAlternativesCovered(node, key, candidates)
-		if ast.IsParameterDeclaration(demand.slot) {
-			if query.dependenciesOnly {
-				// Effect coverage comes from the instantiated source receiver,
-				// independently of a concrete Get result or normal receipt.
-				covered = candidates.sourceOwned && !candidates.opaque && !candidates.receiverIncomplete
-			} else {
+		covered := false
+		if query.dependenciesOnly {
+			// Effect coverage belongs to the instantiated receiver for parameters,
+			// captured aliases and destructured bindings alike. It grants no
+			// descriptor, output or mutation-completion proof.
+			covered = candidates.sourceOwned && !candidates.opaque && !candidates.receiverIncomplete
+		} else {
+			covered = query.fieldAlternativesCovered(node, key, candidates)
+			if ast.IsParameterDeclaration(demand.slot) {
 				covered = query.parameterFieldReadCovered(demand, candidates)
 			}
 		}

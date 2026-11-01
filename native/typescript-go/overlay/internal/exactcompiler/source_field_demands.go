@@ -65,10 +65,24 @@ func (query *sourceValueQuery) fieldDemand(operation, receiver *ast.Node, key st
 		if actual != receiver || selected != key {
 			return sourceFieldDemand{}, nil
 		}
-	} else if !ast.IsVariableDeclaration(symbol.ValueDeclaration) || declaration == slotOwner {
+	} else if (!ast.IsVariableDeclaration(symbol.ValueDeclaration) && !ast.IsBindingElement(symbol.ValueDeclaration)) || declaration == slotOwner {
 		return sourceFieldDemand{}, nil
 	}
 	return sourceFieldDemand{declaration: declaration, operation: operation, slot: symbol.ValueDeclaration, key: key, use: query.effectUse(), consumer: query.effectOwner}, symbol
+}
+
+// operationFieldDemand names the authored receiver before alias projection.
+// A traversal through an alias initializer must not change the obligation's slot.
+func (query *sourceValueQuery) operationFieldDemand(operation *ast.Node, key string) sourceFieldDemand {
+	if operation == nil || (!ast.IsPropertyAccessExpression(operation) && !ast.IsElementAccessExpression(operation)) {
+		return sourceFieldDemand{}
+	}
+	receiver, selected := accessorReceiver(operation)
+	if selected != key {
+		return sourceFieldDemand{}
+	}
+	demand, _ := query.fieldDemand(operation, receiver, key)
+	return demand
 }
 
 // missingNormalInput identifies an uninstalled normal-operand slot from the

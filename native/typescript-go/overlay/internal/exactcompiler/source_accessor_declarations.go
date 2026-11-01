@@ -921,7 +921,7 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 					if key == "" && len(projection) == 1 {
 						key = projection[0]
 					}
-					if demand, _ := query.fieldDemand(query.protectedMember, value, key); demand.declaration != nil {
+					if demand := query.operationFieldDemand(query.protectedMember, key); demand.declaration != nil {
 						result.fieldFallbacks = append(result.fieldFallbacks, demand)
 					} else {
 						result.opaque = true
@@ -933,9 +933,9 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 				} else if mode == accessorAcquire {
 					demand := sourceFieldDemand{}
 					if name == "" && len(projection) == 1 {
-						demand, _ = query.fieldDemand(query.protectedMember, value, projection[0])
+						demand = query.operationFieldDemand(query.protectedMember, projection[0])
 					}
-					if demand.slot == symbol.ValueDeclaration && ast.IsParameterDeclaration(demand.slot) {
+					if demand.declaration != nil {
 						result.fieldFallbacks = append(result.fieldFallbacks, demand)
 						result.values = append(result.values, sourceValue{node: value, path: append([]string(nil), projection...)})
 					} else {
