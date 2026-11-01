@@ -1840,10 +1840,13 @@ its original owner. Returned dependency relationships no longer use the detached
 module-initializer origin-family side channel. Effects-only Proxy construction metadata retains
 its separate source, generation and request-mode fences.
 
-Normal operation slots retain the original prefix association without creating a separate
-callee, argument or result view from that history. Live Call, binding and continuation validators
-consume their own original receipts. Ordinary source-effect analysis uses parameterized source
-relationships and does not request precision execution for every unused initializer.
+Normal operation slots have no separate callee, argument or result view derived from prefix
+history. Ordinary source-effect analysis uses parameterized source relationships and does not
+request precision execution for every unused initializer. The reserved prefix candidate currently
+has no production requester capable of first entry. Its statement frame requires normal precision,
+but held prefix statements receive neither an own-getter refinement plan nor an async or await
+request. Prefix-specific adapters therefore remain pending retirement review. Production-requested
+default, Get, async and own-getter refinement retain their separate normal input and lifetime checks.
 
 Effect contributions remain additive. A missing precise Return value can leave the value
 incomplete while source analysis accounts for that operation's effects. Only a matching

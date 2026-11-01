@@ -2112,14 +2112,25 @@ from the root workspace. Its existing Deno `runInstall()` resolves the platform 
 from that installation. Miniflare v5 uses the runner's existing
 `convertV4MiniflareOptions()` conversion. No alternate host harness is needed.
 
-The normal paired core build's source-identifying timeout names
+The baseline normal paired core build's source-identifying timeout names
 `packages/core/src/component/error-boundary.tsx`, the 81st of 300 sorted client
-inputs. Earlier requests returned, but the batch had not published. A bounded
-fresh-project probe synchronized the same sources in 175 ms, then sampled repeated
-accessor and writer-interference traversal during that input's callable-effect
-analysis, before lowering. It did not complete. This identifies active native analysis,
-while distinguishing infinite recurrence from expensive expansion remains open.
-The earlier Intl timeout's current input is still unidentified. Preserve the normal
+inputs. Earlier requests returned, but the batch had not published. Its bounded
+fresh-project probe sampled repeated accessor and writer-interference traversal
+during callable-effect analysis, before lowering.
+
+A separate integrated-host replay on 2026-11-01 binds to `41bf418768ae02dbdf97cf1e47e087fa5fb6516b`.
+The host was rebuilt from that committed overlay and the pinned upstream above.
+It synchronized the preserved 300 source overlays without diagnostics, then the
+same client compile request stack-overflowed in 1.82 seconds without a response.
+The request used semantic diagnostics and `traceAnalysisCost`, with the original
+30-second deadline. It retained the saved acceptance workspace's project root and
+configuration files, so this is a bound replay of that request, not a clean installed
+package build. The process was reaped. Earlier 30-second misses on private query-graph
+variants do not describe this integrated-host result.
+
+Core compilation remains a product blocker before lowering. The mounted SDK and
+transformed-continuation rows require fresh execution after it is repaired. The
+earlier Intl timeout's current input is still unidentified. Preserve the normal
 package builder and verify the integrated repair against both package builds.
 
 Installed acceptance uses `createPackedAppInstaller` to install candidate tarballs
