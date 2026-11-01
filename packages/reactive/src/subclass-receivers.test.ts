@@ -161,7 +161,7 @@ it('invokes Set overrides on equal additions, absent deletions and empty clears'
 	expect(calls).toEqual(['add', 'add', 'delete', 'clear', 'clear']);
 });
 
-it('retains authored Array method identity and permits readonly inspection', () => {
+it('retains authored Array method identity and preserves native private brands', () => {
 	class Values extends Array<number> {
 		#brand = 1;
 		inspect() {
@@ -173,10 +173,10 @@ it('retains authored Array method identity and permits readonly inspection', () 
 	}
 	const values = reactive(new Values());
 	expect(values.inspect).toBe(values.inspect);
-	const readonly = reactive(new Values(), { readonly: true });
-	expect(readonly.inspect()).toBe(1);
-	expect(() => readonly.append()).toThrow('readonly');
-	expect(readonly.length).toBe(0);
+	const other = reactive(new Values(), {});
+	expect(other.inspect()).toBe(1);
+	other.append();
+	expect(other.length).toBe(1);
 });
 
 it('keeps objects returned by overridden Map readers observable', () => {

@@ -22,8 +22,76 @@ import {
 	setScheduledWorkContextCapture
 } from './internal/scheduler.js';
 import { registerEffectScopeCleanup } from './internal/scopes.js';
+import {
+	createDetachedEffectScope,
+	currentEffectScope,
+	effectScopeParent
+} from './framework/runtime.js';
 
 describe('@exactjs/reactive scopes', () => {
+	it.each([false, true])(
+		'framework root detaches beneath an ambient scope (stopped %s)',
+		(stopped) => {
+			const ambient = createEffectScope();
+			const before = currentEffectScope();
+			let detached: ReturnType<typeof createDetachedEffectScope> | undefined;
+			try {
+				withEffectScope(ambient, () => {
+					if (stopped) ambient.stop();
+					expect(currentEffectScope()).toBe(ambient);
+					detached = createDetachedEffectScope();
+					expect(effectScopeParent(detached)).toBeUndefined();
+					expect(detached.active).toBe(true);
+					expect(currentEffectScope()).toBe(ambient);
+					if (stopped) {
+						expect(() => createEffectScope()).toThrow(
+							'Cannot create an effect scope beneath an inactive parent scope'
+						);
+						expect(() => createEffectScope(undefined)).toThrow(
+							'Cannot create an effect scope beneath an inactive parent scope'
+						);
+					} else {
+						const inherited = createEffectScope();
+						const explicitUndefined = createEffectScope(undefined);
+						expect(effectScopeParent(inherited)).toBe(ambient);
+						expect(effectScopeParent(explicitUndefined)).toBe(ambient);
+					}
+				});
+				expect(currentEffectScope()).toBe(before);
+				ambient.stop();
+				expect(detached?.active).toBe(true);
+			} finally {
+				ambient.stop();
+				detached?.stop();
+			}
+		}
+	);
+
+	it('framework root preserves explicit live parent ownership and rejects inactive parents', () => {
+		const parent = createEffectScope();
+		const ambient = createEffectScope();
+		const before = currentEffectScope();
+		let child: ReturnType<typeof createEffectScope> | undefined;
+		try {
+			withEffectScope(ambient, () => {
+				ambient.stop();
+				child = createEffectScope(parent);
+				expect(effectScopeParent(child)).toBe(parent);
+				expect(child.active).toBe(true);
+				expect(currentEffectScope()).toBe(ambient);
+			});
+			expect(currentEffectScope()).toBe(before);
+			parent.stop();
+			expect(child?.active).toBe(false);
+			expect(() => createEffectScope(parent)).toThrow(
+				'Cannot create an effect scope beneath an inactive parent scope'
+			);
+		} finally {
+			parent.stop();
+			ambient.stop();
+		}
+	});
+
 	it('profiles scheduler work owned by an explicit effect scope', () => {
 		const events: Array<{ subsystem: string; phase: string }> = [];
 		const scope = createProfiledEffectScope((event) => events.push(event), undefined);

@@ -24,12 +24,11 @@ export function ownPendingExactOperation(
 		closeProgress();
 		publish();
 	};
-	const abort = () =>
-		pending.reject(
-			options.signal?.reason ?? new DOMException('eXact request aborted', 'AbortError')
-		);
+	const abort = () => pending.reject(options.signal?.reason);
 	const pending: PendingExactOperation = {
 		operation: options.operation,
+		arrayParser: options.arrayParser,
+		preparedState: options.preparedState,
 		signal: options.signal,
 		progress: options.progress && {
 			// Preserve the allowlist after cancellation so malformed wire events still fail validation.

@@ -35,8 +35,8 @@ export async function verifyRuntimeMutations(root) {
 		[
 			'lost cleanup error',
 			'packages/core/src/tasks/frame-settlement.ts',
-			'if (primary !== undefined) throw primary;',
-			'void primary;',
+			'throwCleanupFailure(failure);',
+			'void failure;',
 			'packages/core/src/tasks/mutation-witness.test.ts',
 			'reports a cleanup failure',
 			/expected undefined to be Error: cleanup failed/

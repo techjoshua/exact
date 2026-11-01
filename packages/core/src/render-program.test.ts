@@ -10,7 +10,7 @@ import {
 import { RenderProgram } from './symbols.js';
 
 const program = (id: string) => ({
-	version: 2 as const,
+	version: 4 as const,
 	id,
 	namespace: 'html' as const,
 	template: '<p></p>',
@@ -79,10 +79,10 @@ describe('compiled render programs', () => {
 		expect(invocation.eagerValues[1]).toBe('second');
 	});
 
-	it('rejects precompiled render programs from an incompatible ABI', () => {
+	it.each([1, 2])('rejects precompiled render programs from incompatible ABI %s', (version) => {
 		expect(() =>
-			prepareCompiledRenderProgram({ ...program('obsolete'), version: 1 } as never)
-		).toThrow('expected version 2');
+			prepareCompiledRenderProgram({ ...program('obsolete'), version } as never)
+		).toThrow('expected version 4');
 	});
 
 	it('carries a compiler-emitted property-group writer without evaluating slot readers', () => {

@@ -9,17 +9,19 @@ import {
 	Suspense,
 	activateTaskForHost,
 	createRef,
+	componentReadinessContext,
 	defineTask,
 	stageTaskMutation,
 	taskAwait,
 	type ActivityMode,
+	type AnyComponentInstance,
 	type Component,
 	type RootLifecycle
 } from '@exactjs/core';
 import { createExpression } from '@exactjs/core/runtime/render';
 import { createCompiledOperation, jsx } from './test-support/native-operations.js';
 import { flushSync, runWithPriority } from '@exactjs/reactive';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { unmount } from './index.js';
 import { renderTestTree as render } from './testing.js';
 import { inspectDomRoot, type DomInspectionNode } from './testing.js';
@@ -34,6 +36,65 @@ function findActivity(node: DomInspectionNode): DomInspectionNode | undefined {
 }
 
 describe('@exactjs/dom native Activity', () => {
+	it.each([false, true])(
+		'reports readiness publication failure without activating a failed parked candidate (parent Suspense: %s)',
+		async (parentSuspense) => {
+			let settle!: () => void;
+			const pending = new Promise<void>((resolve) => {
+				settle = resolve;
+			});
+			let boundary!: Component<{ mode: ActivityMode }>;
+			const failure = new Error('activity publication failed');
+			const report = vi.fn();
+			const disposed = vi.fn();
+			function Panel(this: Component<{}>) {
+				this.onUnmount(disposed);
+				const owner = this as unknown as AnyComponentInstance;
+				componentReadinessContext(owner)!.register({
+					owner,
+					taskGeneration: 1,
+					settlement: pending,
+					commit() {
+						throw failure;
+					}
+				});
+				return () => createCompiledOperation('p', null, 'candidate');
+			}
+			function Boundary(this: Component<{ mode: ActivityMode }>) {
+				boundary = this;
+				this.state.mode = 'parked';
+				return () => {
+					const activity = createCompiledOperation(
+						Activity,
+						{ mode: createExpression(() => this.state.mode) },
+						createCompiledOperation(Panel, {})
+					);
+					return parentSuspense
+						? createCompiledOperation(Suspense, { fallback: 'loading' }, activity)
+						: activity;
+				};
+			}
+			const container = document.createElement('div');
+			render(jsx(Boundary, {}), container, { onErrorReport: report });
+			try {
+				boundary.state.mode = 'active';
+				flushSync();
+				settle();
+				for (let turn = 0; turn < 5; turn++) await Promise.resolve();
+				expect(report).toHaveBeenCalledOnce();
+				expect(report.mock.calls[0]?.[0].error).toBe(failure);
+				expect(container.textContent).not.toContain('candidate');
+				expect(unmount(container)).toBe(true);
+				render(createCompiledOperation('p', null, 'recovered'), container);
+				expect(container.textContent).toBe('recovered');
+				expect(disposed).toHaveBeenCalledOnce();
+				await Promise.resolve();
+				expect(report).toHaveBeenCalledOnce();
+			} finally {
+				unmount(container);
+			}
+		}
+	);
 	it('parks a subtree without disposing it and publishes accumulated work before activation', () => {
 		const buttonRef = createRef<HTMLButtonElement>('counter');
 		let boundary!: Component<{ mode: ActivityMode }>;

@@ -107,7 +107,14 @@ export class CompositeNavigationSession {
 	}
 
 	private handleKeyDown(event: KeyboardEvent): void {
-		if (!this.target || event.defaultPrevented || event.altKey || event.metaKey) return;
+		if (
+			!this.target ||
+			event.defaultPrevented ||
+			event.altKey ||
+			event.metaKey ||
+			!ownsCompositeEvent(this.target, event)
+		)
+			return;
 		this.scan();
 		if (!this.active || !this.items.length) return;
 		if (this.handleGridEditing(event)) return;
@@ -307,8 +314,10 @@ export class CompositeNavigationSession {
 	private setOwnedTabIndex(element: HTMLElement, value: number): void {
 		const written = String(value);
 		const ownership = this.ownedTabIndex.get(element);
+		const current = element.getAttribute('tabindex');
+		// A new publication must retain an intervening author's value for later restoration.
 		this.ownedTabIndex.set(element, {
-			authored: ownership ? ownership.authored : element.getAttribute('tabindex'),
+			authored: ownership && current === ownership.written ? ownership.authored : current,
 			written
 		});
 		element.setAttribute('tabindex', written);
@@ -387,4 +396,13 @@ function ownsArrowKeys(target: EventTarget | null): boolean {
 			'textarea,select,[contenteditable="true"],[role="slider"],[role="spinbutton"],[role="combobox"],input:not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="checkbox"])'
 		)
 	);
+}
+
+/** Matches native event ownership to the same finite composite boundary used by item selection. */
+function ownsCompositeEvent(target: HTMLElement, event: KeyboardEvent): boolean {
+	for (const candidate of event.composedPath()) {
+		const node = candidate as Node;
+		if (node.nodeType === 1 && (node as Element).matches(compositeSelector)) return node === target;
+	}
+	return false;
 }

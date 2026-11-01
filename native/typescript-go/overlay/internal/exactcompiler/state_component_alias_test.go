@@ -26,8 +26,19 @@ func TestStateComponentAliasMethodReceivers(t *testing.T) {
 					if receiver.access == "owner.state" && strings.Contains(response.Code, "(owner,") {
 						t.Fatalf("component instance used as state facade:\n%s", response.Code)
 					}
-					if target == TargetClient && !strings.Contains(response.Code, "("+receiver.access+",") {
-						t.Fatalf("authored alias receiver was not retained:\n%s", response.Code)
+					// Selected-reference temporaries may separate the alias from the helper
+					// call. Require the resolved storage fact rather than one emitted spelling.
+					found := false
+					for _, write := range response.Analysis.StateWrites {
+						if write.RootAlias == "owner" {
+							found = true
+							if write.RootComponent != (receiver.access == "owner.state") {
+								t.Fatalf("alias facade identity changed: %#v", write)
+							}
+						}
+					}
+					if !found {
+						t.Fatalf("authored alias storage was not retained: %#v", response.Analysis.StateWrites)
 					}
 				})
 			}

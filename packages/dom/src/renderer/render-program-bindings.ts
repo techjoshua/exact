@@ -1,3 +1,4 @@
+import { attachSuppressedCleanupFailure } from '@exactjs/core';
 import type {
 	ExactRenderProgramBindingOperation,
 	ExactRenderProgramBindingTarget,
@@ -24,7 +25,7 @@ import {
 } from './render-program-children.js';
 import { applyProgramComponent, bindProgramComponent } from './render-program-components.js';
 import {
-	createCompiledComponentDependencies,
+	prepareCompiledComponentDependencies,
 	type CompiledComponentDependencies,
 	visitChangedCompiledComponentDependencies
 } from './component-update-dependencies.js';
@@ -255,9 +256,23 @@ export function bindCompiledProgramComponent(
 			scheduleWork(applyReceipt, currentWorkPriority(), undefined, context.mounted.scope);
 		};
 		const dependencies: CompiledComponentDependencies | undefined =
-			createCompiledComponentDependencies(owner, bindings, props, publish, context.mounted.scope);
+			prepareCompiledComponentDependencies(owner, bindings, props, publish, context.mounted.scope);
 		if (!dependencies) context.valid = false;
-		else context.stopBindings.push(dependencies);
+		else {
+			try {
+				dependencies.activate();
+				context.stopBindings.push(dependencies);
+			} catch (error) {
+				try {
+					dependencies.stop();
+				} catch (cleanup) {
+					attachSuppressedCleanupFailure(error, cleanup);
+				}
+				throw error;
+			}
+			if (visitChangedCompiledComponentDependencies(dependencies, () => undefined))
+				scheduleWork(applyReceipt, currentWorkPriority(), undefined, context.mounted.scope);
+		}
 	}
 }
 

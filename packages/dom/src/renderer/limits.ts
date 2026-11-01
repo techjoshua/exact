@@ -1,3 +1,6 @@
+import { flushControlledSelects, discardControlledSelects } from '../controlled-select.js';
+import { attachSuppressedCleanupFailure } from '@exactjs/core';
+import { finishSuppliedPlacementPlan } from './supplied-placement-capability.js';
 import type { Root } from '../types.js';
 import { consumeDomWork } from '../work.js';
 import { flushPlacementRetentions } from '../placement.js';
@@ -42,12 +45,39 @@ export function normalizeTreeNodes(value: number | undefined): number {
  */
 export function withDomWork<T>(root: Root, run: () => T): T {
 	const outermost = root.workDepth++ === 0;
+	const inputAttempt = root.componentInputAttempt;
+	const previousPlan = root.suppliedPlacementPlan;
 	if (outermost) root.traversedNodes = 0;
 	try {
-		return run();
+		const result = run();
+		if (
+			root.suppliedPlacementPlan?.attempt === inputAttempt &&
+			(outermost || root.suppliedPlacementPlan !== previousPlan)
+		)
+			finishSuppliedPlacementPlan(root);
+		if (outermost) flushControlledSelects(root);
+		return result;
+	} catch (error) {
+		discardControlledSelects(root, inputAttempt);
+		if (
+			root.suppliedPlacementPlan?.attempt === inputAttempt &&
+			(outermost || root.suppliedPlacementPlan !== previousPlan)
+		) {
+			const failed = root.suppliedPlacementPlan;
+			try {
+				failed?.abort();
+			} catch (cleanup) {
+				attachSuppressedCleanupFailure(error, cleanup);
+			}
+			if (root.suppliedPlacementPlan === failed)
+				root.suppliedPlacementPlan = failed?.previousFrame?.isCurrent()
+					? failed.previousFrame
+					: undefined;
+		}
+		throw error;
 	} finally {
 		root.workDepth--;
-		if (outermost) flushPlacementRetentions(root);
+		if (outermost && !root.suppliedPlacementPlan?.pending) flushPlacementRetentions(root);
 	}
 }
 

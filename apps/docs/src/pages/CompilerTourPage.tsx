@@ -36,6 +36,134 @@ export function CompilerTourPage(this: Component<{}>) {
 				member tags resolve their values regardless of namespace capitalization. Diagnostics and
 				source maps preserve authored locations across JavaScript line endings and Unicode text.
 			</p>
+			<p>
+				A helper can return a server fallback when a browser global is unavailable. A
+				<code>typeof window</code> check followed by an early return preserves that fallback.
+				Creating an object with a getter or setter keeps its body deferred. Placement follows the
+				reads and writes that invoke it, while computed property names execute during object
+				creation. Portable built-in methods keep their declaration ownership through optional calls,
+				and their callbacks retain their own environment requirements. Reading an object from a
+				finite local container keeps that object's identity when the container slot is later
+				replaced. Reads of the saved object still observe supported writes to its members.
+				Unresolved calls and computed alternatives can remain unknown.
+			</p>
+			<p>
+				For a small helper with no captured values, the compiler can connect a conditional field
+				read to the arguments of that particular call. In this example the false branch returns zero
+				without reading <code>input.value</code>.
+			</p>
+			<CodeBlock
+				source={`export {};
+const read = (take: boolean, input: { value: number }) =>
+  take ? input.value : 0;
+read(false, { value: 9 });`}
+				language="ts"
+				title="A selected field read"
+			/>
+			<p>
+				This inference covers a boolean argument and an ordinary own data field in a qualified
+				module prefix. Getters, Proxy receivers and unknown predicates keep their existing
+				conservative analysis. It does not make an unresolved helper portable.
+			</p>
+			<p>
+				A module-local helper can return an arrow that reads its object parameter. Creating the
+				arrow leaves the property read deferred. The immediately following call reads the same
+				object through the captured parameter.
+			</p>
+			<CodeBlock
+				source={`export {};
+function make(input: { value: string }) {
+  return () => input.value;
+}
+const input = { value: 'safe' };
+const selected = make(input);
+selected();`}
+				language="ts"
+				title="An immediate captured read"
+			/>
+			<p>
+				This precise inference covers the immediate call and ordinary own data field shown. Array
+				projection, intervening mutation, getters, Proxy receivers and unknown inputs retain
+				conservative analysis. Retaining a Proxy handler&apos;s known effects does not make an
+				unresolved Proxy construction portable, and that construction can still prevent emission.
+			</p>
+			<p>
+				A small helper can also use a numeric literal as its only parameter default. For
+				<code>{'const read = (x: number = 7) => x'}</code>, a known numeric argument bypasses the
+				initializer, while an omitted argument or <code>undefined</code> selects seven. This precise
+				inference covers a helper with no captured values that directly returns that parameter. The
+				same inference supports <code>{'(x: number = 7, y: number = x) => y'}</code>. With no
+				arguments it initializes x to seven, then reads that x for y. A supplied y bypasses its
+				default. General parameter-default expressions, effectful or throwing defaults and unknown
+				arguments keep conservative analysis.
+			</p>
+			<p>
+				The compiler also tracks a default that reads an earlier required object parameter:
+				<code>{'(input: { value: number }, x: number = input.value) => x'}</code>. Passing{' '}
+				<code>{'{ value: 7 }'}</code> alone, or with <code>undefined</code>, selects seven.
+				Supplying five as the second argument bypasses that property read. The compiler uses the
+				current own data property, including a write made before the call. This precise inference
+				does not extend to getters, inherited properties, Proxy receivers or unknown values.
+			</p>
+			<p>
+				For an own data field that can be null or undefined, the helper can select a numeric
+				fallback with{' '}
+				<code>
+					{'(input: { value: number | null | undefined }, x: number = input.value ?? 7) => x'}
+				</code>
+				. The property is read once. An explicit null or undefined field selects seven, while
+				numeric zero stays zero. A supplied numeric second argument bypasses the complete
+				initializer. This inference covers a present own field and the literal fallback shown.
+				Missing or inherited fields, getters, Proxy receivers and more general initializers retain
+				conservative analysis.
+			</p>
+			<p>
+				The compiler also tracks the failure in the deliberately unsafe default
+				<code>{'(x: number = (null as any).value) => x'}</code>. Omitting the argument or passing
+				<code>undefined</code> selects a TypeError before the parameter is initialized or the body
+				runs. A supplied known number bypasses that access. The assertion permits the example to
+				type-check and supplies no runtime safety evidence. Analysis of exception-object properties
+				and more general throwing defaults remains outside this bounded inference.
+			</p>
+			<p>
+				A small helper can report an acquired argument&apos;s JavaScript type with
+				<code>{'(value: unknown) => typeof value'}</code>. The compiler tracks the usual result for
+				the supported number, boolean, string, undefined, null, object and callable arguments
+				described here. Evaluating the operand preserves its writes and errors. Inspecting an object
+				or function value this way reads no properties and invokes no callback. BigInt, Symbol and
+				unresolved native-library values keep their existing conservative analysis. This bounded
+				inference adds no handling for unbound identifiers or temporal-dead-zone reads.
+			</p>
+			<p>
+				Functions can also carry ordinary properties. Reading a function property or assigning a
+				callback keeps that callback deferred. Calling it contributes its browser or server
+				requirements, including its receiver and default arguments. A saved callback keeps the value
+				selected before later argument evaluation replaces the property.
+			</p>
+			<p>
+				When a helper is defined in the compiled source, ordinary direct calls,
+				<code>call</code> and <code>apply</code> retain its known environment requirements, receiver
+				and arguments. The caller also contributes any actual getter, replacement method or other
+				unresolved work. A published component is analyzed within its source and supported package
+				contracts, without inspecting arbitrary future applications. A public framework operation
+				such as DOM <code>render</code> retains its browser requirement when a build adapter
+				resolves its package boundary, even when the implementation stays external. A compatible
+				function type alone does not make an external callable portable.
+			</p>
+			<p>
+				Applications can install conforming polyfills for the built-ins described by the target's
+				standard libraries. The compiler trusts those contracts without inspecting each polyfill
+				implementation. Published libraries keep the same contract when their consumers select a
+				different implementation. A shadow constructor with the same name keeps its authored
+				behavior. Browser globals such as <code>document</code> still require a browser.
+			</p>
+			<p>
+				When an asynchronous helper stores a standard Promise's resolver for later use, the compiler
+				retains that callable's contract through ordinary aliases and assignments. The executor and
+				call arguments keep their own effects. Resolving an object can invoke its <code>then</code>
+				getter and body, so those requirements also contribute to placement. Rejecting an object
+				does not inspect its <code>then</code> property. Neither operation is treated as pure.
+			</p>
 			<section>
 				<h2>Check ordinary TypeScript views</h2>
 				<p>
@@ -57,16 +185,20 @@ export function CompilerTourPage(this: Component<{}>) {
 					also refreshes retained consumers, including consumers of linked libraries. Vite and
 					Webpack watch imported type declarations, and Bun starts a fresh TypeScript program for
 					each build. Published client and server artifacts reload when their producing build
-					changes them. Their semantic checks belong to that build.
+					changes them. Their semantic checks belong to that build. Type checks preserve the
+					identity of imported classes and unique symbols when build output moves to another
+					directory. Paired client and server output is published after both targets pass their
+					checks.
 				</p>
 				<p>
 					Ordinary helpers keep their JavaScript implementation and receive supported state views
 					when called by blocking client tasks. Plain fields, arrays and supported Map and Set
 					operations can participate in pending publication. External captures, private storage and
 					I/O remain outside rollback. A class can keep private configuration on its original
-					receiver and accept state fields or explicit state access as an argument. Views preserve
-					readonly policy and belong to their creating invocation. Native equality still compares
-					object identity, so a view can differ from a captured original reference.
+					receiver and accept state fields or explicit state access as an argument. Views belong to
+					their creating invocation. Readonly checks follow TypeScript's compile-time rules. Native
+					equality still compares object identity, so a view can differ from a captured original
+					reference.
 				</p>
 				<p>
 					Awaited mutations keep suspension in the original function. Tasks resolve omitted defaults
@@ -116,7 +248,10 @@ export function CompilerTourPage(this: Component<{}>) {
 				<CodeBlock source={compilerTourContextSource} language="ts" title="catalog-context.ts" />
 				<p>
 					The server context and browser <code>document</code> access tell the compiler where each
-					task runs.
+					task runs. Standard JavaScript byte arrays, <code>ArrayBuffer</code> and
+					<code>DataView</code> operations can execute in either environment. Custom methods retain
+					the requirements of the code they call. A mapper passed to <code>Array.from()</code> or a
+					typed-array factory contributes those requirements too.
 				</p>
 			</section>
 			<section>
@@ -211,6 +346,35 @@ export function CompilerTourPage(this: Component<{}>) {
 					interior bindings or ranges become dirty.
 				</p>
 				<p>
+					A small helper can decide whether a module produces a value for one environment. When the
+					acquired source helper immediately returns a primitive literal, the compiler can follow
+					that decision while preserving evaluation of its arguments and defaults. An assignment to
+					a callable variable follows the implementation that the call acquires. A local constant
+					alias keeps the value acquired at its declaration. The compiler can reuse completed checks
+					for that alias while analyzing repeated uses in the same scan. A possible effect alone
+					does not prove that an export belongs only in the browser. When a source-owned setter
+					performs an assignment to another slot, the compiler can follow that replacement while
+					preserving the receiver, input, and body evaluation order. When placement remains unknown,
+					the compiler preserves the authored branch and export names. That preserves the program,
+					but does not guarantee that its initializer can run in every environment.
+				</p>
+				<p>
+					When a helper is called directly or through ordinary call, apply, or bind, the compiler
+					carries its known environment requirements with the actual receiver and arguments. Import
+					aliases and finite returned functions keep those facts too. A getter or an authored
+					replacement method can add different requirements. Browser and server work in one
+					indivisible invocation remains a conflict. Unknown lookup or callable alternatives remain
+					visible, so a known helper body alone does not certify every invocation portable. Creating
+					a bound function captures its receiver and prefix without running the function. A
+					type-only declaration supplies no implementation, and reevaluation safety does not prove
+					that an unavailable implementation can run in every environment.
+				</p>
+				<p>
+					When upgrading a breaking prerelease, use matching compiler, core, and SSR packages and
+					rebuild precompiled component libraries. Incompatible render programs or SSR providers are
+					rejected before generated output is written.
+				</p>
+				<p>
 					Client-island activation follows that same compiled path. Hydration resolves the
 					island&apos;s browser artifact and passes its opaque component operation directly to mount
 					or markerless adoption. It does not wrap the component in a virtual node or rediscover how
@@ -247,14 +411,15 @@ export function CompilerTourPage(this: Component<{}>) {
 					collection, or nothing.
 				</p>
 				<p>
-					Paired artifacts carry their own optional enhancement requests. The consuming eXact Vite
-					adapter selects available providers and checks server authorization. Absent providers
-					retain the ordinary markup through a no-op. Enhanced paired output requires that build
-					step. Unbundled Node pipelines use single-target compilation with physical provider
-					facades. Newly compiled libraries retain their optional-provider requests in those
-					facades, so Vite can also select a no-op when a provider installed by the library author
-					is absent from the consuming application. Rebuild older library artifacts to obtain that
-					behavior.
+					Paired output includes the local helper modules needed by generated work. Keep those
+					modules with the entry artifacts in your build pipeline. Paired artifacts carry their own
+					optional enhancement requests. The consuming eXact Vite adapter selects available
+					providers and checks server authorization. Absent providers retain the ordinary markup
+					through a no-op. Enhanced paired output requires that build step. Unbundled Node pipelines
+					use single-target compilation with physical provider facades. Newly compiled libraries
+					retain their optional-provider requests in those facades, so Vite can also select a no-op
+					when a provider installed by the library author is absent from the consuming application.
+					Rebuild older library artifacts to obtain that behavior.
 				</p>
 				<p>
 					Direct precompiled pipelines also use <code>rootDir</code> as an output-containment
@@ -273,6 +438,27 @@ export function CompilerTourPage(this: Component<{}>) {
 					Client programs carry compact component-local claim and binding data instead of one
 					generated binder function per TSX region. The artifact graph can also generate the client
 					bootstrap for the server operations and lazy islands reachable from the entry.
+				</p>
+				<h2>Understanding analysis warnings</h2>
+				<p>
+					When investigating a slow build, an analysis warning can help identify source that needs
+					substantial compiler work. You can adjust when the warning appears in your project
+					configuration:
+				</p>
+				<CodeBlock
+					language="ts"
+					title="exact.config.ts"
+					source={`import { defineConfig } from '@exactjs/config';
+
+export default defineConfig({
+    analysis: { estimatedCostWarningThreshold: 8192 }
+});`}
+				/>
+				<p>
+					The default is 4096 estimate units. Use a positive safe integer to adjust the threshold,
+					or <code>false</code> to disable the warning. These units describe compiler work and do
+					not measure elapsed time or memory. The warning does not stop compilation or change its
+					result.
 				</p>
 				<div className="card-grid">
 					<div theme:surface="raised" className="topic-card">

@@ -1,5 +1,21 @@
+import {
+	createErrorReport,
+	ErrorContext,
+	handleComponentError,
+	trackComponentAsync,
+	isTaskCancellation,
+	runDirectCompiledComponentInteraction,
+	type AnyComponentInstance,
+	type ErrorContextValue
+} from '@exactjs/core';
+import { isPromiseLike } from '@exactjs/core/framework/async-values';
+import type { ReactRenderContext } from './types.js';
 import { assignReactRef, reactEventHandler } from '@exactjs/react-compat/exact';
 import { reactAttributeName } from './server-markup.js';
+
+const eventGenerations = new WeakMap<AnyComponentInstance, number>();
+
+const refReleases = new WeakMap<Element, () => void>();
 
 const listeners = new WeakMap<Element, Map<string, EventListener>>();
 const propertyNames = new Set([
@@ -17,32 +33,47 @@ const propertyNames = new Set([
 export function applyReactHostProps(
 	element: Element,
 	previous: Record<string, unknown>,
-	next: Record<string, unknown>
+	next: Record<string, unknown>,
+	context: ReactRenderContext
 ): void {
 	for (const name of Object.keys(previous)) {
 		if (name in next || ignoredProp(name)) continue;
-		applyHostProp(element, name, previous[name], undefined, next);
+		applyHostProp(element, name, previous[name], undefined, next, context);
 	}
 	for (const name of Object.keys(next)) {
 		if (ignoredProp(name) || Object.is(previous[name], next[name])) continue;
-		applyHostProp(element, name, previous[name], next[name], next);
+		applyHostProp(element, name, previous[name], next[name], next, context);
 	}
 	if (!Object.is(previous.ref, next.ref)) {
-		assignReactRef(previous.ref as never, null);
-		assignReactRef(next.ref as never, element);
+		releaseHostRef(element);
+		// Own the failed-attachment release before entering the authored callback.
+		const ref = next.ref;
+		if (ref)
+			refReleases.set(element, () => {
+				assignReactRef(ref as never, null);
+			});
+		const release = assignReactRef(next.ref as never, element);
+		if (release) refReleases.set(element, release);
 	}
 }
 
 /** Releases host resources that are not represented by DOM node removal alone. */
-export function releaseReactHostProps(element: Element, props: Record<string, unknown>): void {
-	assignReactRef(props.ref as never, null);
+export function releaseReactHostProps(element: Element): void {
 	const current = listeners.get(element);
-	if (!current) return;
-	for (const [identity, listener] of current) {
-		const { type, capture } = parseListenerIdentity(identity);
-		element.removeEventListener(type, listener, capture);
-	}
 	listeners.delete(element);
+	if (current)
+		for (const [identity, listener] of current) {
+			const { type, capture } = parseListenerIdentity(identity);
+			element.removeEventListener(type, listener, capture);
+		}
+	releaseHostRef(element);
+}
+
+/** Drops ownership before invoking user cleanup so reentry cannot release the same assignment twice. */
+function releaseHostRef(element: Element): void {
+	const release = refReleases.get(element);
+	refReleases.delete(element);
+	release?.();
 }
 
 /** Applies controlled values again after child option placement has completed. */
@@ -57,11 +88,12 @@ function applyHostProp(
 	name: string,
 	previous: unknown,
 	value: unknown,
-	nextProps: Record<string, unknown>
+	nextProps: Record<string, unknown>,
+	context: ReactRenderContext
 ): void {
 	const event = reactEvent(element, name);
 	if (event) {
-		applyEvent(element, event.type, event.capture, value, nextProps);
+		applyEvent(element, event.type, event.capture, value, nextProps, context);
 		return;
 	}
 	if (name === 'style') {
@@ -93,7 +125,8 @@ function applyEvent(
 	type: string,
 	capture: boolean,
 	value: unknown,
-	props: Record<string, unknown>
+	props: Record<string, unknown>,
+	context: ReactRenderContext
 ): void {
 	let current = listeners.get(element);
 	if (!current) listeners.set(element, (current = new Map()));
@@ -105,9 +138,48 @@ function applyEvent(
 		return;
 	}
 	const handler = reactEventHandler(value as (event: Event) => unknown, props);
-	const listener: EventListener = (event) => handler.call(element, event);
+	const listener: EventListener = (event) => {
+		if (!context.root.active) return;
+		try {
+			const owner = context.owner;
+			const invoke = () => handler.call(element, event);
+			const result = owner
+				? runDirectCompiledComponentInteraction(
+						owner,
+						'event',
+						nextEventGeneration,
+						'interactive',
+						invoke
+					)
+				: invoke();
+			if (isPromiseLike(result)) {
+				const observed = Promise.resolve(result).catch((error) => {
+					if (!owner || owner.mounted) reportEventError(context, error, type);
+				});
+				if (owner) trackComponentAsync(owner, observed);
+				else void observed;
+			}
+		} catch (error) {
+			reportEventError(context, error, type);
+		}
+	};
 	current.set(identity, listener);
 	element.addEventListener(type, listener, capture);
+}
+
+/** Allocates interaction generations only when an owned callback materializes a task frame. */
+function nextEventGeneration(owner: AnyComponentInstance): number {
+	const generation = (eventGenerations.get(owner) ?? 0) + 1;
+	eventGenerations.set(owner, generation);
+	return generation;
+}
+
+/** Routes intrinsic-root errors locally and ignores work whose root has already been released. */
+function reportEventError(context: ReactRenderContext, error: unknown, phase: string): void {
+	if (!context.root.active || isTaskCancellation(error)) return;
+	const report = createErrorReport(error, 'event', context.owner, phase);
+	if (context.owner) handleComponentError(context.owner, report);
+	else (context.root.contexts.get(ErrorContext.id) as ErrorContextValue).report(report);
 }
 
 function applyStyle(element: HTMLElement | SVGElement, previous: unknown, value: unknown): void {

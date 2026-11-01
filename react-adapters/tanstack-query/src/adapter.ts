@@ -135,7 +135,7 @@ function createObserverSource<
 		getSnapshot: () => observer.getCurrentResult(),
 		subscribe: (notify) => observer.subscribe(() => notify())
 	});
-	return Object.freeze({
+	return {
 		observer,
 		result: external.value,
 		external,
@@ -144,7 +144,7 @@ function createObserverSource<
 			external.refresh();
 		},
 		dispose: () => external.dispose()
-	});
+	};
 }
 
 /** Creates and lifecycle-owns a query source from the nearest provider. */

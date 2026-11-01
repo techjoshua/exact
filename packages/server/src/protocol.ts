@@ -1,3 +1,6 @@
+import { ResponseResourceLimitError } from '@exactjs/core/framework/protocol-records';
+import { reportDefaultRequestSize } from './request-body-size.js';
+import type { Logger } from '@exactjs/core';
 import { decodeReactiveProtocolValue, encodeReactiveProtocolValue } from '@exactjs/core';
 import {
 	isNativeJsonCollection,
@@ -21,7 +24,7 @@ export async function readBody(
 	maxRequestBytes?: number
 ): Promise<unknown> {
 	if (request.body !== undefined) return request.body;
-	const limit = positiveLimit(maxRequestBytes, 4 * 1024 * 1024);
+	const limit = positiveLimit(maxRequestBytes, Number.MAX_SAFE_INTEGER);
 	const declaredLength = requestHeader(request, 'content-length');
 	if (declaredLength !== undefined) {
 		const parsed = Number(declaredLength);
@@ -47,9 +50,9 @@ async function readBoundedRequestStream(
 	else signal?.addEventListener('abort', abort, { once: true });
 	try {
 		while (true) {
-			if (signal?.aborted) throw signal.reason ?? new DOMException('Request aborted', 'AbortError');
+			signal?.throwIfAborted();
 			const next = await reader.read();
-			if (signal?.aborted) throw signal.reason ?? new DOMException('Request aborted', 'AbortError');
+			signal?.throwIfAborted();
 			if (next.done) break;
 			bytes += next.value.byteLength;
 			if (bytes > maxBytes) throw new Error('request byte limit exceeded');
@@ -63,12 +66,13 @@ async function readBoundedRequestStream(
 		}
 		return new TextDecoder('utf-8', { fatal: true }).decode(body);
 	} catch (error) {
+		const failure = signal?.aborted ? signal.reason : error;
 		try {
-			await reader.cancel(error);
+			await reader.cancel(failure);
 		} catch {
 			/* preserve the validation failure */
 		}
-		throw error;
+		throw failure;
 	} finally {
 		signal?.removeEventListener('abort', abort);
 		reader.releaseLock();
@@ -97,21 +101,21 @@ export function parseExactRequestBody(
 		maxJsonDepth?: number;
 		maxJsonNodes?: number;
 		maxRequestBytes?: number;
-	} = {}
+	} = {},
+	logger?: Logger
 ): ExactProtocolRequest {
+	const requestLimit = positiveLimit(options.maxRequestBytes, Number.MAX_SAFE_INTEGER);
+	let bodyBytes: number | undefined;
 	if (body instanceof Uint8Array) {
-		if (body.byteLength > positiveLimit(options.maxRequestBytes, 4 * 1024 * 1024))
-			throw new Error('request byte limit exceeded');
+		bodyBytes = body.byteLength;
+		if (bodyBytes > requestLimit) throw new Error('request byte limit exceeded');
 		body = new TextDecoder('utf-8', { fatal: true }).decode(body);
 	}
-	if (
-		typeof body === 'string' &&
-		utf8Length(body) > positiveLimit(options.maxRequestBytes, 4 * 1024 * 1024)
-	) {
-		throw new Error('request byte limit exceeded');
+	if (typeof body === 'string') {
+		bodyBytes ??= utf8Length(body);
+		if (bodyBytes > requestLimit) throw new Error('request byte limit exceeded');
 	}
 	const encodedValue = typeof body === 'string' ? JSON.parse(body) : body;
-	const requestLimit = positiveLimit(options.maxRequestBytes, 4 * 1024 * 1024);
 	if (
 		!isEncodedRequestSafe(encodedValue, {
 			maxDepth: positiveLimit(options.maxJsonDepth, 100),
@@ -122,9 +126,11 @@ export function parseExactRequestBody(
 		throw new Error('request graph limit exceeded');
 	if (typeof body !== 'string') {
 		const encoded = JSON.stringify(encodedValue);
-		if (encoded === undefined || utf8Length(encoded) > requestLimit)
-			throw new Error('request byte limit exceeded');
+		if (encoded === undefined) throw new Error('request byte limit exceeded');
+		bodyBytes = utf8Length(encoded);
+		if (bodyBytes > requestLimit) throw new Error('request byte limit exceeded');
 	}
+	reportDefaultRequestSize(bodyBytes!, options.maxRequestBytes, logger);
 	const value = decodeReactiveProtocolValue(encodedValue);
 	if (!value || typeof value !== 'object') throw new Error('invalid invocation');
 	const record = value as Record<string, unknown>;
@@ -142,20 +148,28 @@ export function jsonResponse(status: number, body: unknown): ExactTextResponse {
 			'content-type': 'application/json; charset=utf-8',
 			'cache-control': 'no-store'
 		},
-		body: JSON.stringify(encodeReactiveProtocolValue(body))
+		body: JSON.stringify(encodeReactiveProtocolValue(body, { maxDepth: Number.MAX_SAFE_INTEGER }))
 	};
 }
 
 /** Returns whether an object contains only the explicitly allowed own enumerable keys. */
 export function hasOnlyKeys(record: Record<string, unknown>, allowed: readonly string[]): boolean {
-	const allowedSet = new Set(allowed);
-	return Object.keys(record).every((key) => allowedSet.has(key));
+	return Object.keys(record).every((key) => allowed.includes(key));
 }
 
-/** Returns whether a value can be safely encoded as JSON without prototypes or cycles. */
+/**
+ * Checks JSON publication safety without invoking authored getters or serialization hooks.
+ * Shared siblings are checked once per serialized occurrence. Active ancestor cycles and
+ * unsupported prototypes are rejected, and each occurrence consumes the configured budgets.
+ */
 export function isJsonSafe(
 	value: unknown,
-	limits: { maxDepth?: number; maxNodes?: number; maxBytes?: number } = {}
+	limits: {
+		maxDepth?: number;
+		maxNodes?: number;
+		maxBytes?: number;
+		onResource?: (kind: 'depth' | 'nodes' | 'bytes', actual: number) => void;
+	} = {}
 ): boolean {
 	return jsonGraphSafe(value, limits, true);
 }
@@ -163,7 +177,12 @@ export function isJsonSafe(
 /** Validates the JSON-shaped request representation before protocol envelopes are decoded. */
 function isEncodedRequestSafe(
 	value: unknown,
-	limits: { maxDepth?: number; maxNodes?: number; maxBytes?: number }
+	limits: {
+		maxDepth?: number;
+		maxNodes?: number;
+		maxBytes?: number;
+		onResource?: (kind: 'depth' | 'nodes' | 'bytes', actual: number) => void;
+	}
 ): boolean {
 	return jsonGraphSafe(value, limits, false);
 }
@@ -171,40 +190,61 @@ function isEncodedRequestSafe(
 /** Traverses one bounded graph without invoking accessors or accepting unknown prototypes. */
 function jsonGraphSafe(
 	value: unknown,
-	limits: { maxDepth?: number; maxNodes?: number; maxBytes?: number },
+	limits: {
+		maxDepth?: number;
+		maxNodes?: number;
+		maxBytes?: number;
+		onResource?: (kind: 'depth' | 'nodes' | 'bytes', actual: number) => void;
+	},
 	allowDecodedCollections: boolean
 ): boolean {
-	const maxDepth = positiveLimit(limits.maxDepth, 100);
-	const maxNodes = positiveLimit(limits.maxNodes, 100_000);
-	const maxBytes = positiveLimit(limits.maxBytes, 16 * 1024 * 1024);
+	const maxDepth = limits.onResource
+		? Number.MAX_SAFE_INTEGER
+		: positiveLimit(limits.maxDepth, 100);
+	const maxNodes = limits.onResource
+		? Number.MAX_SAFE_INTEGER
+		: positiveLimit(limits.maxNodes, 100_000);
+	const maxBytes = limits.onResource
+		? Number.MAX_SAFE_INTEGER
+		: positiveLimit(limits.maxBytes, 16 * 1024 * 1024);
 	try {
-		const seen = new Set<object>();
+		const active = new Set<object>();
+		const ancestors: object[] = [];
 		const pending: Array<{ value: unknown; depth: number }> = [{ value, depth: 0 }];
 		let nodes = 0;
 		let bytes = 0;
 		while (pending.length) {
 			const current = pending.pop()!;
-			if (++nodes > maxNodes || current.depth > maxDepth) return false;
+			// Depth-first work retires the previous sibling's ancestry before checking this value.
+			while (ancestors.length > current.depth) active.delete(ancestors.pop()!);
+			nodes++;
+			limits.onResource?.('nodes', nodes);
+			limits.onResource?.('depth', current.depth);
+			if (nodes > maxNodes || current.depth > maxDepth) return false;
 			const item = current.value;
 			if (item === undefined || item === null) continue;
 			if (typeof item === 'string') {
 				bytes += utf8Length(item);
+				limits.onResource?.('bytes', bytes);
 				if (bytes > maxBytes) return false;
 				continue;
 			}
 			if (typeof item === 'boolean') continue;
 			if (typeof item === 'number') {
-				if (!Number.isFinite(item)) return false;
+				if (!allowDecodedCollections && !Number.isFinite(item)) return false;
 				continue;
 			}
-			if (typeof item !== 'object' || seen.has(item)) return false;
-			seen.add(item);
+			if (typeof item !== 'object' || active.has(item)) return false;
+			active.add(item);
+			ancestors.push(item);
 			if (allowDecodedCollections && item instanceof Map) {
 				if (!isNativeJsonCollection(item)) return false;
 				for (const [key, entryValue] of item) {
 					if (!isTransportableMapKey(key)) return false;
+					limits.onResource?.('nodes', nodes + pending.length + 1);
 					if (nodes + pending.length + 1 > maxNodes) return false;
 					if (typeof key === 'string') bytes += utf8Length(key);
+					limits.onResource?.('bytes', bytes);
 					if (bytes > maxBytes) return false;
 					pending.push({ value: entryValue, depth: current.depth + 1 });
 				}
@@ -213,25 +253,30 @@ function jsonGraphSafe(
 			if (allowDecodedCollections && item instanceof Set) {
 				if (!isNativeJsonCollection(item)) return false;
 				for (const entryValue of item) {
+					limits.onResource?.('nodes', nodes + pending.length + 1);
 					if (nodes + pending.length + 1 > maxNodes) return false;
 					pending.push({ value: entryValue, depth: current.depth + 1 });
 				}
 				continue;
 			}
 			if (!Array.isArray(item) && Object.getPrototypeOf(item) !== Object.prototype) return false;
+			if (Array.isArray(item)) limits.onResource?.('nodes', nodes + pending.length + item.length);
 			const keys = jsonDataKeys(item, maxNodes - nodes - pending.length);
 			if (!keys) return false;
+			limits.onResource?.('nodes', nodes + pending.length + keys.length);
 			if (nodes + pending.length + keys.length > maxNodes) return false;
 			for (const key of keys) {
 				const descriptor = jsonDataProperty(item, key);
 				if (!descriptor || !('value' in descriptor)) return false;
 				bytes += utf8Length(key);
+				limits.onResource?.('bytes', bytes);
 				if (bytes > maxBytes) return false;
 				pending.push({ value: descriptor.value, depth: current.depth + 1 });
 			}
 		}
 		return true;
-	} catch {
+	} catch (error) {
+		if (error instanceof ResponseResourceLimitError) throw error;
 		return false;
 	}
 }
@@ -274,6 +319,7 @@ function parseInvocationRecord(record: Record<string, unknown>): ExactInvocation
 	if (
 		!hasOnlyKeys(record, [
 			'type',
+			'arrayCompletion',
 			'root',
 			'id',
 			'partition',
@@ -294,6 +340,8 @@ function parseInvocationRecord(record: Record<string, unknown>): ExactInvocation
 	if (typeof record.id !== 'string' || !record.id) throw new Error('invalid invocation id');
 	if (record.partition !== undefined && !isPartitionAuthority(record.partition))
 		throw new Error('invalid partition authority');
+	if (record.arrayCompletion !== undefined && record.arrayCompletion !== 4)
+		throw new Error('invalid Array completion contract');
 	if (record.opId !== undefined && (typeof record.opId !== 'string' || !record.opId))
 		throw new Error('invalid operation id');
 	if (record.dependsOn !== undefined && !isStringList(record.dependsOn))
@@ -306,6 +354,7 @@ function parseInvocationRecord(record: Record<string, unknown>): ExactInvocation
 		throw new Error('invalid boundary htmls');
 	return {
 		type: record.type,
+		...(record.arrayCompletion === 4 ? { arrayCompletion: 4 as const } : {}),
 		...(typeof record.root === 'string' ? { root: record.root } : {}),
 		id: record.id,
 		...(record.partition === undefined ? {} : { partition: record.partition }),

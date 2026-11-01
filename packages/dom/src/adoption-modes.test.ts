@@ -15,10 +15,7 @@ import {
 	unsafeHtml
 } from '@exactjs/core';
 import { exactComponentIdentity } from '@exactjs/core/framework/component-contracts';
-import {
-	readCompiledComponentReceipt,
-	createChildRangeReceipt
-} from '@exactjs/core/runtime/component-abi';
+import { createChildRangeReceipt } from '@exactjs/core/runtime/component-abi';
 import { createDynamicChild, createServerSlot } from '@exactjs/core/runtime/render';
 import './unsafe-html.js';
 import './structural-boundaries.js';
@@ -28,7 +25,6 @@ import { describe, expect, it, vi } from 'vitest';
 import {
 	adoptComponentRoot,
 	adoptDocumentRoot,
-	adoptMarkerlessComponentReceiptRoot,
 	adoptMarkerlessComponentRoot,
 	adoptStatic
 } from './test-support/adoption.js';
@@ -44,7 +40,6 @@ import {
 	hydratedGreetingLifecycle,
 	keyedAdoptionListInstance
 } from './adoption-modes.fixtures.js';
-
 describe('DOM adoption modes', () => {
 	it('adopts element-bounded keyed rows and retains identity, focus, and cleanup across edits', () => {
 		const container = document.createElement('div');
@@ -82,7 +77,6 @@ describe('DOM adoption modes', () => {
 		const marker = `exact:component:0:${encodeExactMarkerPart(exactComponentIdentity(HydratedGreeting))}`;
 		container.innerHTML = `<!--${marker}--><span>server</span><!--/${marker}-->`;
 		const serverSpan = container.querySelector('span');
-
 		expect(adoptComponentRoot(vnode, container)).toBe(true);
 		expect(container.querySelector('span')).toBe(serverSpan);
 		expect(hydratedGreetingLifecycle().introduction).toBe('hydration');
@@ -91,11 +85,9 @@ describe('DOM adoption modes', () => {
 		expect(container.textContent).toBe('server');
 		expect(unmount(container)).toBe(true);
 	});
-
 	it('adopts markerless component output and removes temporary anchors on failure', () => {
 		const container = document.createElement('div');
 		container.innerHTML = '<span>server</span>';
-
 		expect(
 			adoptMarkerlessComponentRoot(
 				createTestComponentReceipt(MarkerlessGreeting, { text: 'server' }),
@@ -104,7 +96,6 @@ describe('DOM adoption modes', () => {
 		).toBe(true);
 		expect(container.querySelector('span')?.textContent).toBe('server');
 		expect(unmount(container)).toBe(true);
-
 		const mismatch = document.createElement('div');
 		mismatch.innerHTML = '<b>wrong</b>';
 		expect(
@@ -116,23 +107,18 @@ describe('DOM adoption modes', () => {
 		expect(mismatch.childNodes).toHaveLength(1);
 		expect(mismatch.firstChild).toBeInstanceOf(HTMLElement);
 	});
-
 	it('adopts an opaque markerless component operation without a component VNode', () => {
 		const operation = createTestComponentReceipt(MarkerlessGreeting, { text: 'server' });
-		const receipt = readCompiledComponentReceipt(operation)!;
 		const container = document.createElement('div');
 		container.innerHTML = '<span>server</span>';
-
-		expect(adoptMarkerlessComponentReceiptRoot(operation, receipt, container)).toBe(true);
+		expect(adoptMarkerlessComponentRoot(operation, container)).toBe(true);
 		expect(container.querySelector('span')?.textContent).toBe('server');
 		expect(unmount(container)).toBe(true);
 	});
-
 	it('adopts an empty component range bounded by its following intrinsic', () => {
 		const container = document.createElement('div');
 		container.innerHTML = '<main><span>After</span></main>';
 		const following = container.querySelector('span');
-
 		expect(
 			adoptMarkerlessComponentRoot(createTestComponentReceipt(BoundedEmptyGreeting, {}), container)
 		).toBe(true);
@@ -140,19 +126,16 @@ describe('DOM adoption modes', () => {
 		expect(container.textContent).toBe('After');
 		expect(unmount(container)).toBe(true);
 	});
-
 	it('adopts a compiler-owned fragment range inside a markerless component root', () => {
 		const container = document.createElement('div');
 		container.innerHTML =
 			'<!--exact:fragment:0--><i>first</i><b>second</b><!--/exact:fragment:0-->';
 		const first = container.querySelector('i');
 		const vnode = createTestComponentReceipt(FragmentAdoptionRoot, {});
-
 		expect(adoptMarkerlessComponentRoot(vnode, container)).toBe(true);
 		expect(container.querySelector('i')).toBe(first);
 		expect(unmount(container)).toBe(true);
 	});
-
 	it('adopts active and parked Activity ranges without recreating server nodes', () => {
 		const active = document.createElement('div');
 		active.innerHTML =
@@ -166,7 +149,6 @@ describe('DOM adoption modes', () => {
 		).toBe(true);
 		expect(active.querySelector('p')).toBe(paragraph);
 		unmount(active);
-
 		const parked = document.createElement('div');
 		parked.innerHTML =
 			'<!--exact:dynamic:test-root--><!--exact:activity:0--><!--/exact:activity:0--><!--/exact:dynamic:test-root-->';
@@ -184,7 +166,6 @@ describe('DOM adoption modes', () => {
 		expect(parked.querySelector('p')?.textContent).toBe('prepared');
 		unmount(parked);
 	});
-
 	it('adopts explicit Suspense content and fallback protocol states', async () => {
 		const content = document.createElement('div');
 		content.innerHTML =
@@ -198,7 +179,6 @@ describe('DOM adoption modes', () => {
 		).toBe(true);
 		expect(content.querySelector('p')).toBe(paragraph);
 		unmount(content);
-
 		let resolve!: () => void;
 		const pending = new Promise<void>((settle) => {
 			resolve = settle;
@@ -237,13 +217,11 @@ describe('DOM adoption modes', () => {
 		expect(fallback.textContent).toBe('ready');
 		unmount(fallback);
 	});
-
 	it('adopts keyed SSR ranges and preserves their DOM identity during reorder', () => {
 		const container = document.createElement('div');
 		const vnode = createTestComponentReceipt(KeyedAdoptionList, {});
 		container.innerHTML = `<!--exact:dynamic:list--><!--exact:dynamic:tasks--><!--i:a--><li>A</li><!--/i:a--><!--i:b--><li>B</li><!--/i:b--><!--/exact:dynamic:tasks--><!--/exact:dynamic:list-->`;
 		const originalB = container.querySelectorAll('li')[1];
-
 		expect(adoptMarkerlessComponentRoot(vnode, container)).toBe(true);
 		const list = keyedAdoptionListInstance();
 		list.state.items.reverse();
@@ -252,22 +230,18 @@ describe('DOM adoption modes', () => {
 		expect(container.textContent).toBe('BA');
 		expect(unmount(container)).toBe(true);
 	});
-
 	it('reuses server-rendered slot content instead of replacing it during client render', () => {
 		const container = document.createElement('div');
 		container.innerHTML =
 			'<aside><span data-exact-server-slot="shell:children"><strong>Server child</strong></span></aside>';
 		const slot = container.querySelector('[data-exact-server-slot="shell:children"]');
 		const child = container.querySelector('strong');
-
 		render(createOperation('main', null, createServerSlot('shell:children')), container);
-
 		expect(container.querySelector('[data-exact-server-slot="shell:children"]')).toBe(slot);
 		expect(container.querySelector('strong')).toBe(child);
 		expect(container.textContent).toBe('Server child');
 		expect(unmount(container)).toBe(true);
 	});
-
 	it('adopts dynamic and unsafe HTML ranges with their ownership policies', () => {
 		const dynamicContainer = document.createElement('div');
 		dynamicContainer.innerHTML =
@@ -280,7 +254,6 @@ describe('DOM adoption modes', () => {
 		).toBe(true);
 		expect(dynamicContainer.textContent).toBe('current');
 		unmount(dynamicContainer);
-
 		const unsafeContainer = document.createElement('div');
 		unsafeContainer.innerHTML =
 			'<!--exact:dynamic:test-root--><!--exact:unsafe-html:value--><strong>trusted</strong><!--/exact:unsafe-html:value--><!--/exact:dynamic:test-root-->';
@@ -300,37 +273,31 @@ describe('DOM adoption modes', () => {
 		expect(observed).toHaveBeenCalled();
 		unmount(unsafeContainer);
 	});
-
 	it('rejects missing, incomplete, and mismatched compiled component boundaries', () => {
 		const operation = createTestComponentReceipt(HydratedGreeting, {});
 		const marker = `exact:component:0:${encodeExactMarkerPart(exactComponentIdentity(HydratedGreeting))}`;
 		const missing = document.createElement('div');
 		missing.innerHTML = '<span>server</span>';
 		expect(adoptComponentRoot(operation, missing)).toBe(false);
-
 		const incomplete = document.createElement('div');
 		incomplete.innerHTML = `<!--${marker}--><span>server</span>`;
 		expect(adoptComponentRoot(operation, incomplete)).toBe(false);
-
 		const mismatch = document.createElement('div');
 		mismatch.innerHTML =
 			'<!--exact:component:0:wrong--><span>server</span><!--/exact:component:0:wrong-->';
 		expect(adoptComponentRoot(operation, mismatch)).toBe(false);
 	});
-
 	it('adopts a complete HTML document without replacing its host nodes', () => {
 		const documentNode = document.implementation.createHTMLDocument('Fixture');
 		documentNode.body.innerHTML = '<main>server</main>';
 		const html = documentNode.documentElement;
 		const vnode = createTestComponentReceipt(DocumentAdoptionRoot, {});
-
 		expect(adoptDocumentRoot(vnode, documentNode)).toBe(true);
 		expect(documentNode.documentElement).toBe(html);
 		expect(adoptDocumentRoot(vnode, documentNode)).toBe(false);
 		expect(unmount(html)).toBe(true);
 	});
 });
-
 it.each(['safe-list-id', 'generated--list-id', 'unicode:列表'])(
 	'adopts encoded native list identity %s and retains its nodes',
 	(identity) => {
@@ -347,7 +314,6 @@ it.each(['safe-list-id', 'generated--list-id', 'unicode:列表'])(
 		}
 	}
 );
-
 it('rejects a native list boundary belonging to a different identity', () => {
 	const container = document.createElement('div');
 	container.innerHTML =

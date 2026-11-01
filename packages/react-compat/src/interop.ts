@@ -24,7 +24,7 @@ export function defineInteropContext<T>(
 	options: Readonly<{ global?: boolean; reactive?: boolean }> = {}
 ): ExactReactInteropContext<T> {
 	const exact = createContext<T>(description, options);
-	return Object.freeze({ exact, react: bridgeReactContext(exact, defaultValue) });
+	return { exact, react: bridgeReactContext(exact, defaultValue) };
 }
 
 /** Reads a native eXact context from a component rendered by the React layer. */

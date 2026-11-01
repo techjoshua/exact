@@ -1,6 +1,6 @@
+import type { ExactBunResolver } from './component-authorization.js';
 import path from 'node:path';
 import { existsSync, readFileSync, statSync } from 'node:fs';
-import { createRequire } from 'node:module';
 import type { ExactPreparedBunRemoteBuild } from './build.js';
 import type { BunBuildLike } from './plugin.js';
 
@@ -18,7 +18,7 @@ export class ExactBunMicrofrontendIntegration {
 	}
 
 	/** Installs remote resolution, loading, and provided-package bridge hooks on one Bun build. */
-	install(build: BunBuildLike): void {
+	install(build: BunBuildLike, resolveProvider?: ExactBunResolver): void {
 		build.onResolve({ filter: /exact-remote-scope=/ }, (args) => {
 			const scope = remoteScope(args.path);
 			const filename = args.path.split('?', 1)[0]!;
@@ -44,16 +44,24 @@ export class ExactBunMicrofrontendIntegration {
 			const importer = args.importer ?? '';
 			const scope = this.scope(importer);
 			if (!this.#remote.ownsRemoteModule(importer) && !scope) return undefined;
-			try {
+			if (this.#remote.isProvidedRequest(args.path)) {
 				const source = this.importerSource(importer);
-				return this.#remote.registerProvidedBridge(args.path, bunImportUsages(source, args.path));
-			} catch {
-				if (!scope) return undefined;
-				const resolved = resolveRemoteImport(args.path, normalizeRemotePath(importer));
-				if (!resolved) return undefined;
-				this.#paths.set(normalizeRemotePath(resolved), scope);
-				return { path: resolved };
+				const usages = this.#remote.analyzeProvidedImports(source, importer).get(args.path);
+				if (!usages)
+					throw new Error(`Provided-package import was not analyzed: ${args.path} in ${importer}`);
+				return this.#remote.registerProvidedBridge(args.path, usages);
 			}
+			if (!scope) return undefined;
+			if (!resolveProvider) return undefined;
+			const resolved = (
+				await resolveProvider(args.path, {
+					kind: 'import-statement',
+					resolveDir: path.dirname(normalizeRemotePath(importer))
+				})
+			).path;
+			if (!path.isAbsolute(resolved)) return undefined;
+			this.#paths.set(normalizeRemotePath(resolved), scope);
+			return { path: resolved };
 		});
 	}
 
@@ -129,8 +137,16 @@ function bunRemoteOutputs(
 	path: string;
 	kind: 'entry' | 'chunk' | 'css' | 'asset';
 }>[] {
+	// Bun's metafile keys are relative to outdir, including a leading './'. Resolve once
+	// so hashed entry filenames retain their actual source identity without suffix guesses.
+	const metadataByPath = new Map(
+		Object.entries(result?.metafile?.outputs ?? {}).map(([filename, metadata]) => [
+			path.resolve(outputRoot ?? '.', filename),
+			metadata
+		])
+	);
 	return (result?.outputs ?? []).map((output) => {
-		const metadata = bunOutputMetadata(result?.metafile?.outputs, output.path);
+		const metadata = metadataByPath.get(path.resolve(output.path));
 		const extension = path.extname(output.path).toLowerCase();
 		const isEntry =
 			/\.[cm]?js$/.test(extension) &&
@@ -152,23 +168,10 @@ function bunRemoteOutputs(
 	});
 }
 
-function bunOutputMetadata(
-	outputs: Readonly<Record<string, { entryPoint?: string }>> | undefined,
-	filename: string
-): { entryPoint?: string } | undefined {
-	if (!outputs) return undefined;
-	const normalized = filename.replaceAll('\\', '/');
-	return (
-		outputs[filename] ??
-		outputs[normalized] ??
-		Object.entries(outputs).find(([key]) => normalized.endsWith(key.replaceAll('\\', '/')))?.[1]
-	);
-}
-
 function relativeBunOutput(filename: string, outputRoot: string | undefined): string {
 	if (!outputRoot) return path.basename(filename);
 	const relative = path.relative(path.resolve(outputRoot), path.resolve(filename));
-	return relative.startsWith('..') || path.isAbsolute(relative)
+	return relative === '..' || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)
 		? path.basename(filename)
 		: relative.replaceAll('\\', '/');
 }
@@ -194,13 +197,7 @@ export function readBunImporterSource(filename: string): string | undefined {
 
 function resolveRemoteImport(request: string, importer: string): string | undefined {
 	if (!importer) return undefined;
-	if (!request.startsWith('.')) {
-		try {
-			return createRequire(importer).resolve(request);
-		} catch {
-			return undefined;
-		}
-	}
+
 	const base = path.resolve(path.dirname(importer), request);
 	for (const candidate of remoteCandidates(base)) {
 		try {
@@ -220,31 +217,4 @@ function remoteCandidates(base: string): string[] {
 		...extensions.map((extension) => `${base}${extension}`),
 		...extensions.map((extension) => path.join(base, `index${extension}`))
 	];
-}
-
-function bunImportUsages(
-	source: string | undefined,
-	request: string
-): import('@exactjs/microfrontends/artifacts').ExactProvidedPackageImportUsage[] {
-	if (!source) return [{ kind: 'namespace', exportNames: [] }];
-	const escaped = request.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-	const match = source.match(new RegExp(`import\\s+([^;]+?)\\s+from\\s+["']${escaped}["']`));
-	if (!match) return [{ kind: 'side-effect' }];
-	const clause = match[1]!.trim();
-	if (clause.startsWith('*')) {
-		const local = clause.match(/^\*\s+as\s+(\w+)/)?.[1];
-		const exports = local
-			? [...source.matchAll(new RegExp(`\\b${local}\\.([A-Za-z_$][\\w$]*)`, 'g'))].map(
-					(value) => value[1]!
-				)
-			: [];
-		return [{ kind: 'namespace', exportNames: [...new Set(exports)] }];
-	}
-	const usages: import('@exactjs/microfrontends/artifacts').ExactProvidedPackageImportUsage[] = [];
-	const named = clause.match(/\{([^}]+)\}/)?.[1];
-	if (named)
-		for (const name of named.split(','))
-			usages.push({ kind: 'named', imported: name.trim().split(/\s+as\s+/)[0]! });
-	if (!clause.startsWith('{')) usages.push({ kind: 'default' });
-	return usages;
 }

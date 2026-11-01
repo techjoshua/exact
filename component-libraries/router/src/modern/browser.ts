@@ -45,10 +45,12 @@ export function isExternalHref(href: string | undefined): boolean {
 		return true;
 	}
 }
-/** Performs the form data search params domain operation. */
+/** Encodes ordered GET fields, using filenames for file values without mutating the input. */
 export function formDataSearchParams(formData: FormData): URLSearchParams {
 	const params = new URLSearchParams();
-	formData.forEach((value, name) => params.append(name, String(value)));
+	formData.forEach((value, name) =>
+		params.append(name, typeof value === 'string' ? value : value.name)
+	);
 	return params;
 }
 /** Creates a static location source. */

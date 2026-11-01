@@ -361,7 +361,7 @@ describe('@exactjs/server security-validation', () => {
 		expect(await exactResponseToFetchResponse(result).json()).toEqual({ error: 'internal_error' });
 	});
 
-	it('rejects undefined invocation result fields that would disappear during JSON serialization', async () => {
+	it('rejects invalid root state and patches missing their required value', async () => {
 		const undefinedState = await handleExactRequest(
 			{
 				method: 'POST',
@@ -379,7 +379,7 @@ describe('@exactjs/server security-validation', () => {
 			error: 'internal_error'
 		});
 
-		const undefinedPropPatch = await handleExactRequest(
+		const missingPropPatch = await handleExactRequest(
 			{
 				method: 'POST',
 				body: { type: 'invoke', id: 'allowed-action' }
@@ -387,18 +387,18 @@ describe('@exactjs/server security-validation', () => {
 			context({
 				invocations: {
 					'allowed-action': () => ({
-						patches: [{ type: 'prop', id: 'panel', name: 'title', value: undefined } as any]
+						patches: [{ type: 'prop', id: 'panel', name: 'title' } as any]
 					})
 				}
 			})
 		);
 
-		expect(undefinedPropPatch.status).toBe(500);
-		expect(await exactResponseToFetchResponse(undefinedPropPatch).json()).toEqual({
+		expect(missingPropPatch.status).toBe(500);
+		expect(await exactResponseToFetchResponse(missingPropPatch).json()).toEqual({
 			error: 'internal_error'
 		});
 
-		const undefinedStatePatch = await handleExactRequest(
+		const missingStatePatch = await handleExactRequest(
 			{
 				method: 'POST',
 				body: { type: 'invoke', id: 'allowed-action' }
@@ -406,14 +406,14 @@ describe('@exactjs/server security-validation', () => {
 			context({
 				invocations: {
 					'allowed-action': () => ({
-						patches: [{ type: 'state', id: 'panel', value: undefined } as any]
+						patches: [{ type: 'state', id: 'panel' } as any]
 					})
 				}
 			})
 		);
 
-		expect(undefinedStatePatch.status).toBe(500);
-		expect(await exactResponseToFetchResponse(undefinedStatePatch).json()).toEqual({
+		expect(missingStatePatch.status).toBe(500);
+		expect(await exactResponseToFetchResponse(missingStatePatch).json()).toEqual({
 			error: 'internal_error'
 		});
 	});

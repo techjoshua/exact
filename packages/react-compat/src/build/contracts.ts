@@ -79,7 +79,9 @@ export interface ReactCompatibilitySelection {
 }
 
 export interface ReactCompatibilityBuildEngine {
+	/** Fresh observation of the captured configuration. Editing it does not reconfigure this engine. */
 	readonly resolved: ResolvedReactCompatibility;
+	/** Fresh alias and replacement records for a host's own rewrite configuration. */
 	readonly rewriteOptions: ModuleRewriteOptions;
 	readonly watchFiles: readonly string[];
 	readonly registryHash: string;

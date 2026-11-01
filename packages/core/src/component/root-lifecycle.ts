@@ -1,3 +1,4 @@
+import { componentRefBindingOwner } from './ref-ownership.js';
 import { reactiveObjects } from '@exactjs/reactive/framework/objects';
 import type {
 	AnyComponentInstance,
@@ -15,6 +16,8 @@ type RootState = {
 	introduction: RootIntroduction | undefined;
 	presented: boolean;
 	release: RootRelease<object> | undefined;
+	// Private authority participates in the same transaction as its public observation.
+	releaseAuthority: RootRelease<object> | undefined;
 };
 
 type ComponentRootRecord = {
@@ -39,7 +42,7 @@ export function bindComponentRoot<T extends object>(
 	instance: AnyComponentInstance,
 	binding: RefBinding<T>
 ): RootBinding<T> {
-	if (binding.owner !== instance)
+	if (componentRefBindingOwner(binding) !== instance)
 		throw new Error('A component root binding must be owned by the component selecting it');
 	const record = rootRecord(instance);
 	const lifecycle = observeRoot(record);
@@ -72,6 +75,7 @@ export function publishComponentRoot(
 		record.state.generation++;
 		record.state.introduction = selected ? introduction : undefined;
 		record.state.release = undefined;
+		record.state.releaseAuthority = undefined;
 	}
 	record.state.presented = selected !== undefined && presented;
 }
@@ -90,7 +94,7 @@ export function componentRootReleaseObserved(instance: AnyComponentInstance): bo
 	return componentRoots.get(instance)?.lifecycle !== undefined;
 }
 
-/** Publishes structural loss of the current root generation without discarding its target. */
+/** Publishes a copied release observation and returns the private renderer generation record. */
 export function publishComponentRootRelease(
 	instance: AnyComponentInstance,
 	reason: StructuralReleaseReason
@@ -104,7 +108,8 @@ export function publishComponentRootRelease(
 		reason,
 		presented: record.state.presented
 	}) satisfies RootRelease<object>;
-	record.state.release = release;
+	record.state.releaseAuthority = release;
+	record.state.release = { ...release };
 	record.state.current = undefined;
 	record.state.presented = false;
 	return release;
@@ -116,11 +121,12 @@ export function reverseComponentRootRelease(
 	generation: number
 ): boolean {
 	const record = componentRoots.get(instance);
-	const release = record?.state.release;
+	const release = record?.state.releaseAuthority;
 	if (!record || !release || release.generation !== generation) return false;
 	record.state.current = release.target;
 	record.state.presented = release.presented;
 	record.state.release = undefined;
+	record.state.releaseAuthority = undefined;
 	return true;
 }
 
@@ -130,7 +136,10 @@ export function settleComponentRootRelease(
 	generation: number
 ): void {
 	const record = componentRoots.get(instance);
-	if (record?.state.release?.generation === generation) record.state.release = undefined;
+	if (record?.state.releaseAuthority?.generation === generation) {
+		record.state.release = undefined;
+		record.state.releaseAuthority = undefined;
+	}
 }
 
 /** Discards root lifecycle state after final component disposal. */
@@ -141,6 +150,7 @@ export function disposeComponentRoot(instance: AnyComponentInstance): void {
 		record.state.introduction = undefined;
 		record.state.presented = false;
 		record.state.release = undefined;
+		record.state.releaseAuthority = undefined;
 	}
 	componentRoots.delete(instance);
 }
@@ -156,7 +166,8 @@ function rootRecord(instance: AnyComponentInstance): ComponentRootRecord {
 			generation: 0,
 			introduction: undefined,
 			presented: false,
-			release: undefined
+			release: undefined,
+			releaseAuthority: undefined
 		}
 	};
 	componentRoots.set(instance, record);
@@ -168,9 +179,9 @@ function observeRoot(record: ComponentRootRecord): RootLifecycle<object> {
 	if (record.lifecycle) return record.lifecycle;
 	// Preserve earlier renderer publications so a late observer sees the current generation.
 	const state = (record.state = reactiveObjects(record.state, {
-		passthroughKeys: ['current', 'release']
+		passthroughKeys: ['current', 'release', 'releaseAuthority']
 	}));
-	return (record.lifecycle = Object.freeze({
+	return (record.lifecycle = {
 		get current() {
 			return state.current;
 		},
@@ -186,5 +197,5 @@ function observeRoot(record: ComponentRootRecord): RootLifecycle<object> {
 		get release() {
 			return state.release;
 		}
-	}));
+	});
 }

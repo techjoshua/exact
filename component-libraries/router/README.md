@@ -6,18 +6,28 @@ versions.
 ## Usage
 
 ```tsx
-<Router>
-	<Route component={Layout}>
-		<Route index component={Home} />
-		<Route path="projects/:id" component={Project} />
-	</Route>
-</Router>
+import { Router, type RouteDefinition } from '@exactjs/router';
+
+const routes = [
+	{
+		render: (outlet) => <Layout>{outlet}</Layout>,
+		children: [
+			{ index: true, render: () => <Home /> },
+			{ path: 'projects/:id', render: () => <Project /> }
+		]
+	}
+] satisfies readonly RouteDefinition[];
+
+<Router routes={routes} />;
 ```
+
+Each route's `render` callback receives its composed child output. Pass it through your layout's
+children. A path-owning parent renders at its own URL without requiring an index child.
 
 ## What it provides
 
 The native router includes browser, hash, memory, and request-backed locations; nested routes;
-links and outlets; params; loaders and actions; fetchers; redirects; blockers; revalidation;
+links and nested route composition; params; loaders and actions; fetchers; redirects; blockers; revalidation;
 hydration data; and static rendering.
 
 Navigation and form work started inside an eXact interaction participates in that interaction's
@@ -37,6 +47,13 @@ receives accepted navigation metadata after loaders and blockers settle and owns
 the single authoritative state publication. The router does not depend on any visual-transition
 package.
 
+Request-backed integrations can pass `request: { method, headers }` to `createExactRouter()` so
+loaders receive the incoming headers and GET or HEAD semantics. Static handlers set this automatically.
+Direct `submit()` and `fetch()` calls accept a caller `signal` in their request options. Cancellation
+rejects with its reason and prevents late results from publishing, including delegated redirects
+and revalidation. For server data queries, `query()` prepares a page context and `queryRoute()`
+invokes one selected handler, retaining its raw response or thrown value.
+
 See [routing compatibility](https://github.com/techjoshua/exact/blob/main/docs/react-router-compatibility.md).
 The package publishes inert component build facts for the consuming server bundler's
 [component-library policy](https://github.com/techjoshua/exact/blob/main/docs/component-library-trust.md).
@@ -44,5 +61,7 @@ The package publishes inert component build facts for the consuming server bundl
 Fetcher state is owned by the component using `useFetcher()`: unmounting cancels its active work
 and removes its snapshot. Framework-neutral integrations that call `router.fetch()` directly must
 call `router.releaseFetcher(key)` when that owner is disposed.
+For URL-selected data loading, call `router.fetch(key, undefined, target)`. Pass a matching route ID
+when the integration needs explicit handler selection. See the compatibility reference for index routes.
 
 [Documentation](https://techjoshua.github.io/exact/#/guides/routing) | [Source on GitHub](https://github.com/techjoshua/exact/tree/main/component-libraries/router)

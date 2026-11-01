@@ -3,16 +3,15 @@ import { expect, it, onTestFinished } from 'vitest';
 import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { compileProjectArtifacts } from '../index.js';
-import { createTestWorkspace } from '../test-support/workspace.js';
+import { createCompilerTestWorkspace } from '../test-support/workspace.js';
 import { importArtifact } from '../test-support/import-artifact.js';
-import { createCompiledComponentReceipt as receipt } from '@exactjs/core/runtime/component-operations';
+import { createCompiledComponentInputReceipt as receipt } from '@exactjs/core/runtime/component-operations';
 import { render, unmount } from '@exactjs/dom';
 import { hydrate } from '@exactjs/hydrate';
 import { composeExactComponentContracts } from '@exactjs/core/framework/component-contracts';
 import type { AnyComponentFunction } from '@exactjs/core';
 import { renderToHydratableString } from '@exactjs/ssr';
 import { flushSync } from '@exactjs/reactive';
-
 const button =
 	'<button data-counter="" onClick={()=>this.state.count++}>{this.state.count}</button>';
 const surround = (content: string, depth: number) =>
@@ -117,11 +116,10 @@ function Badge(this:Component<{}>){this.onUnmount(()=>removed++);return()=> <em 
 			'</foreignObject></g></g></g></g></g></svg>'
 	}
 ];
-
 it.each(cases)(
 	'retains identity and updates across DOM claim fallback: $name',
 	async ({ content, svg, mathml, declarations }) => {
-		const root = await createTestWorkspace('.exact-claim-boundaries-', process.cwd());
+		const root = await createCompilerTestWorkspace('.exact-claim-boundaries-', process.cwd());
 		const entry = path.join(root, 'page.tsx');
 		await writeFile(
 			entry,
@@ -176,7 +174,12 @@ export function Page(this:Component<{count:number;visible:boolean}>){owner=this;
 					? counter.getAttribute('data-count')
 					: counter.textContent
 			).toBe('1');
-			const owner = client.owner as { state: { count: number; visible: boolean } };
+			const owner = client.owner as {
+				state: {
+					count: number;
+					visible: boolean;
+				};
+			};
 			const removedBefore = client.removed as number;
 			if (content.includes('Badge key'))
 				expect(container.querySelector('[data-badge]')).not.toBeNull();

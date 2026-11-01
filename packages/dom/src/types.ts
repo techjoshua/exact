@@ -1,3 +1,4 @@
+import { type AdmittedClientComponentInput } from './renderer/component-input-admission.js';
 import type {
 	AnyEnhancementComponentFunction,
 	AnyComponentInstance,
@@ -23,7 +24,6 @@ import type {
 	ExactClientComponentArtifact,
 	ExactChildRangeReceiptData,
 	ExactActivityReceiptData,
-	ExactComponentReceiptData,
 	ExactFragmentReceiptData,
 	ExactIntrinsicReceiptData,
 	ExactPortalReceiptData,
@@ -48,7 +48,7 @@ import type { RetainedMountedRanges } from './renderer/retained-range.js';
 import type { PendingProgramTextRuns } from './renderer/render-program-text-run.js';
 import type { TaskFrameExecution } from '@exactjs/core/framework/task-frames';
 import type { ComponentDomainLogging } from '@exactjs/core/framework/component-domains';
-import type { PreparedComponentAttachment } from './renderer/prepared-component-attachment.js';
+import type { PreparedComponentOccurrences } from './renderer/prepared-component-occurrences.js';
 
 /** Defines the mounted type contract. */
 
@@ -58,7 +58,9 @@ export type Mounted = {
 	/** Authored sibling identity joined by a focused compiler-owned keyed operation. */
 	operationKey?: string;
 	/** Opaque native component receipt redeemed directly through its selected target artifact. */
-	componentReceipt?: ExactComponentReceiptData;
+	componentReceipt?: AdmittedClientComponentInput;
+	/** Receipt-specific publication authority, independent of the semantic context parent. */
+	componentReceiptBinding?: import('./renderer/component-receipt-binding.js').ComponentReceiptBinding;
 	/** Focused compiler-owned dynamic range operation. */
 	childRangeReceipt?: ExactChildRangeReceiptData;
 	/** Direct compiler-owned intrinsic operation. */
@@ -130,7 +132,7 @@ export type Mounted = {
 					children: Mounted[];
 					value?: readonly Child[];
 					/** Last opaque receipt for a compiler-proven fixed-cardinality component slot. */
-					componentValue?: ExactComponentReceiptData;
+					componentValue?: AdmittedClientComponentInput;
 			  }
 			| undefined
 		>;
@@ -152,9 +154,11 @@ export type Mounted = {
 	instance?: AnyComponentInstance;
 	/** Target-local executable selected once when this native component range is constructed. */
 	clientArtifact?: ExactClientComponentArtifact;
-	/** Cached component-root candidates published after this component's structure is complete. */
-	/** Retained renderer-neutral identity for an empty or multi-node root presentation. */
-	componentRootRange?: { readonly kind: 'range'; readonly nodes: readonly object[] };
+	/** Last accepted range vector and stable public observation, committed with its placement. */
+	componentRootRange?: {
+		nodes: readonly object[];
+		view: { readonly kind: 'range'; readonly nodes: readonly object[] };
+	};
 	componentRootCache?: {
 		target?: object;
 		host?: Element;
@@ -211,6 +215,8 @@ export type Mounted = {
 	dormantEnhancementWatches?: Map<string, () => void>;
 	/** Active enhancement-component chain whose public identity remains the authored target. */
 	receivePreparedEnhancements?: (entries: readonly EnhancementEntry[], target: Child) => boolean;
+	/** Adopted provider chain awaiting validated Target population in its current placement plan. */
+	pendingEnhancementAdoption?: boolean;
 	/** Active enhancement-component chain whose public identity remains the authored target. */
 	enhancement?: {
 		/** Opaque authored operation retained as the public enhancement identity. */
@@ -230,6 +236,7 @@ export type Mounted = {
 		readonly parentReadiness?: ReadinessContextValue;
 		readinessRegistration?: ReadinessRegistration;
 		activationGeneration: number;
+		readinessFailureGeneration?: number;
 		retained?: RetainedMountedRanges;
 	};
 	/** Generation-owned candidate state for a native Suspense boundary. */
@@ -248,18 +255,22 @@ export type Mounted = {
 
 /** Defines the root type contract. */
 export type Root = {
+	/** Current explicit component root handoff, including before initial construction. */
+	componentInputAttempt?: {
+		readonly operation: Child;
+		/** Only explicit render may update accepted scalar values during document acquisition. */
+		readonly acquisitionIntent?: 'render-update';
+		deliveryStarted: boolean;
+		readonly disposed?: true;
+	};
 	/** Synchronous renderer-owned attachments prepared before their native output is committed. */
-	preparedComponents?: Map<
-		ExactComponentReceiptData,
-		{
-			attachment: PreparedComponentAttachment;
-			project?: (children: readonly Child[]) => Child[];
-		}
-	>;
+	preparedComponents?: PreparedComponentOccurrences;
 	container: Element;
 	mounted?: Mounted;
 	delegated: Map<Node, Map<string, EventListener>>;
 	portalTargets: Set<Node>;
+	/** Active portal leases for each foreign delegated-event container. */
+	portalTargetOwners?: Map<Node, Set<StopHandle>>;
 	eventContainer?: Node;
 	errors: ErrorContextValue;
 	current: Child;
@@ -281,6 +292,11 @@ export type Root = {
 	focusTransactionDepth: number;
 	/** Retention work committed after the outer DOM transaction finishes placing ordinary ranges. */
 	placementRetentions?: Map<Mounted, () => void>;
+	/** Controlled values awaiting physical option placement, scoped to the current handoff. */
+	controlledSelectUpdates?: Map<
+		HTMLSelectElement,
+		import('./controlled-select.js').ControlledSelectUpdate
+	>;
 	/** Focus state captured by the outermost active DOM transaction. */
 	focusSnapshot?: DomFocusSnapshot;
 	/** Interaction-local reconciliation work collected only while an event is active. */
@@ -307,6 +323,8 @@ export type Root = {
 	patchRecoveryRequired?: boolean;
 	/** Component ranges are inferred when the public server format omits eXact markers. */
 	markerlessHydration?: boolean;
+	/** Concrete supplied placements awaiting all affected actual receiver outputs. */
+	suppliedPlacementPlan?: import('./renderer/patching/supplied-placement-plan.js').SuppliedPlacementPlan;
 	/** Renderer-internal mounts parked during one cross-domain replacement transaction. */
 	replacementParking?: {
 		mounts: Map<Child, Array<{ mounted: Mounted; parent: Node }>>;

@@ -99,3 +99,54 @@ it('publishes unknown system appearance and correct CSS branches without guessin
 	expect(child.css).toBe('');
 	expect(child.style).toContain('color-scheme:light');
 });
+
+it('rejects cyclic scope ancestry through direct and indirect writable aliases', () => {
+	const environment = { appearance: 'light', contrast: 'standard', motion: 'full' } as const;
+	for (const indirect of [false, true]) {
+		const first = createThemeScopeDefinition({});
+		const parent = indirect ? createThemeScopeDefinition({}, first) : first;
+		const alias: { parent?: typeof first } = first;
+		alias.parent = parent;
+		expect(() => resolveThemeScope(first, environment)).toThrow(/cyclic theme scope ancestry/i);
+		expect(() => createThemeScopePresentation(first)).toThrow(/cyclic theme scope ancestry/i);
+	}
+});
+
+it('resolves deep scope ancestry without consuming the call stack', () => {
+	let definition = createThemeScopeDefinition({
+		appearance: 'dark',
+		contrast: 'more',
+		motion: 'reduced'
+	});
+	for (let depth = 0; depth < 20000; depth++)
+		definition = createThemeScopeDefinition({}, definition);
+	const theme = resolveThemeScope(definition, {
+		appearance: 'light',
+		contrast: 'standard',
+		motion: 'full'
+	});
+	expect(theme.source.appearance).toBe('dark');
+	expect(theme.source.contrast).toBe('more');
+	expect(theme.source.motion).toBe('reduced');
+});
+
+it('captures each parent link once across CSS branches and requested preferences', () => {
+	const parent = createThemeScopeDefinition({ appearance: 'dark', contrast: 'more' });
+	const child = createThemeScopeDefinition({});
+	let reads = 0;
+	Object.defineProperty(child, 'parent', {
+		get() {
+			reads++;
+			return parent;
+		}
+	});
+	const presentation = createThemeScopePresentation(child);
+	expect(reads).toBe(1);
+	expect(presentation.preferences).toMatchObject({ appearance: 'dark', contrast: 'more' });
+});
+
+it('rejects missing definitions before palette publication', () => {
+	const environment = { appearance: 'light', contrast: 'standard', motion: 'full' } as const;
+	expect(() => resolveThemeScope(undefined as never, environment)).toThrow(/scope definition/);
+	expect(() => createThemeScopePresentation(undefined as never)).toThrow(/scope definition/);
+});

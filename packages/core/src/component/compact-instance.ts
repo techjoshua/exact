@@ -1,3 +1,4 @@
+import { attemptCleanup, createCleanupFailure, throwCleanupFailure } from '../cleanup.js';
 import {
 	batch,
 	createEffectScope,
@@ -195,20 +196,11 @@ export abstract class CompactComponentInstance<
 		this.deactivate(reason);
 		this.disposedValue = true;
 		this.mountedValue = false;
-		let primary: unknown;
-		try {
-			this.renderStop?.();
-		} catch (error) {
-			primary = error;
-		}
-		try {
-			this.scope.stop();
-		} catch (error) {
-			if (primary === undefined) primary = error;
-		}
-		if (primary !== undefined) throw primary;
+		const failure = createCleanupFailure();
+		attemptCleanup(failure, () => this.renderStop?.());
+		attemptCleanup(failure, () => this.scope.stop());
+		throwCleanupFailure(failure);
 	}
-
 	/** Runs one compiler-selected setup lane around shared construction and resumption semantics. */
 	protected initializeComponent(invoke: () => RenderFunction): void {
 		const resumption = this.componentResumption;

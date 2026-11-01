@@ -4,10 +4,9 @@ import { render, dispose } from '@exactjs/dom';
 import { hydrate } from '@exactjs/hydrate';
 import { renderToHydratableString } from '@exactjs/ssr';
 import { flushSync } from '@exactjs/reactive';
-import { createCompiledComponentReceipt as receipt } from '@exactjs/core/runtime/component-operations';
+import { createCompiledComponentInputReceipt as receipt } from '@exactjs/core/runtime/component-operations';
 import { FormBindingProbe } from './test-support/form-binding.fixtures.js';
 import { FormBindingProbe as ServerProbe } from './test-support/form-binding.fixtures.js?exact-target=server';
-
 for (const mode of ['mount', 'hydrate'])
 	it(`round-trips typed form controls through ${mode}`, async () => {
 		const host = document.createElement('div');

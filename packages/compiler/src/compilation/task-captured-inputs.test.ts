@@ -3,7 +3,7 @@ import path from 'node:path';
 import { readFile, writeFile } from 'node:fs/promises';
 import { expect, it, onTestFinished } from 'vitest';
 import type { AnyComponentFunction } from '@exactjs/core';
-import { createCompiledComponentReceipt as receipt } from '@exactjs/core/runtime/component-operations';
+import { createCompiledComponentInputReceipt as receipt } from '@exactjs/core/runtime/component-operations';
 import { render, unmount } from '@exactjs/dom';
 import { renderToHydratableString } from '@exactjs/ssr';
 import { composeExactExecutorContract, handleExactRequest } from '@exactjs/server';
@@ -13,9 +13,8 @@ import {
 	createExactArtifactGraph,
 	createExactHydrationRegistrationModule
 } from '../index.js';
-import { createTestWorkspace } from '../test-support/workspace.js';
+import { createCompilerTestWorkspace, repositoryPath } from '../test-support/workspace.js';
 import { importArtifact } from '../test-support/import-artifact.js';
-
 it.each([
 	{ placement: 'client', mode: 'mount' },
 	{ placement: 'client', mode: 'hydrate' },
@@ -23,10 +22,10 @@ it.each([
 ])(
 	'preserves captured types and selector execution across retained updates ($placement/$mode)',
 	async ({ placement, mode }) => {
-		const root = await createTestWorkspace('.exact-task-captured-inputs-', process.cwd());
+		const root = await createCompilerTestWorkspace('.exact-task-captured-inputs-', process.cwd());
 		const entry = path.join(root, 'page.tsx');
 		const source = await readFile(
-			path.resolve(
+			repositoryPath(
 				'packages/component-composition-corpus/src/test-support/task-captured-inputs.fixtures.tsx'
 			),
 			'utf8'
@@ -82,7 +81,6 @@ it.each([
 				},
 				handle: (request) => {
 					requests++;
-
 					return handleExactRequest(request, {
 						contract,
 						logger: {
@@ -98,7 +96,6 @@ it.each([
 		} else
 			render(receipt(Client, {}), host, { onErrorReport: (report) => reports.push(report.error) });
 		const output = host.querySelector('output');
-
 		await expect.poll(() => output?.textContent).toBe('7:7:18:1:1,2');
 		const run = host.querySelector<HTMLButtonElement>('[data-run]')!;
 		for (const expected of ['11:11:18:1:1,2', '7:7:18:1:1,2']) {

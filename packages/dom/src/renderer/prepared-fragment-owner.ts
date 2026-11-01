@@ -1,3 +1,4 @@
+import { type AdmittedClientComponentInput } from './component-input-admission.js';
 import {
 	withComponentDomain,
 	type AnyComponentInstance,
@@ -7,8 +8,7 @@ import {
 import { readPreparedTargetOutput } from '@exactjs/core/framework/render-structure';
 import {
 	createChildRangeReceipt,
-	createCompiledTargetReceipt,
-	type ExactComponentReceiptData
+	withCompiledTargetPresentation
 } from '@exactjs/core/runtime/component-operations';
 import { computed, type EffectScope } from '@exactjs/reactive/framework/runtime';
 import type { Mounted, Root } from '../types.js';
@@ -32,7 +32,7 @@ export interface PreparedOwner {
 export function prepareFragmentOwner(
 	root: Root,
 	operation: Child,
-	receipt: ExactComponentReceiptData,
+	receipt: AdmittedClientComponentInput,
 	child: Child,
 	entry: EnhancementEntry,
 	parent: AnyComponentInstance | undefined,
@@ -56,7 +56,9 @@ export function prepareFragmentOwner(
 			tag
 		};
 		readPreparedTargetOutput(owner.output, child);
-		pending.set(receipt, {
+		pending.append({
+			operation: receipt.admitted.operation,
+			parent,
 			attachment,
 			project: (output) => [
 				createChildRangeReceipt(
@@ -64,7 +66,7 @@ export function prepareFragmentOwner(
 						withComponentDomain(owner.instance.domain, () => {
 							const contribution = readPreparedTargetOutput(output, owner.child);
 							return contribution
-								? createCompiledTargetReceipt(null, ...contribution.children)
+								? withCompiledTargetPresentation(contribution.operation, ...contribution.children)
 								: [...output];
 						})
 					)

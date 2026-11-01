@@ -1,11 +1,9 @@
+import { retainSourceHelperOwnership } from '../compilation/source-helper-ownership.js';
 import { capabilityCompilationOptions } from '../compilation/capability-options.js';
 import { createExactCompilerExplanation } from '../explanation.js';
 import { composeExactSourceMaps, isExactSourceMap } from '../source-maps.js';
 import { createExactSourceInspection } from '../language-tools/source-inspection.js';
-import {
-	appendExactRuntimeInspectionRegistration,
-	createExactRuntimeInspectionCorrelation
-} from '../language-tools/runtime-correlation.js';
+import { createExactRuntimeInspectionCorrelation } from '../language-tools/runtime-correlation.js';
 import { createExactInspectionRedactions } from '../language-tools/build-catalog.js';
 import { createExactComponentBuildFacts } from '../compilation/component-build-facts.js';
 import type { TransformOptions, TransformResult } from '../types.js';
@@ -55,6 +53,8 @@ export function transformSourceWithNativeCompiler(
 				: {}),
 			root: options.root,
 			configFile: options.configFile,
+			analysis: options.analysis,
+			traceAnalysisCost: options.explain === true ? true : undefined,
 			buildKey: options.buildKey,
 			target,
 			componentContractProjection: options.componentContractProjection,
@@ -104,6 +104,8 @@ export function transformSourceWithNativeCompiler(
 	if (response.code === undefined)
 		throw new Error(`Native compiler returned no generated code for ${filename}`);
 	const analysis = nativeModuleAnalysis(filename, response);
+	if (options.session && target === 'server')
+		retainSourceHelperOwnership(options.session, filename, response.analysis.helperSources ?? []);
 	if (options.packageName) analysis.packageName = options.packageName;
 	const needsInspection =
 		shouldEnableInspection(options.emitInspection) ||
@@ -114,19 +116,15 @@ export function transformSourceWithNativeCompiler(
 	const inspectionRedactions = inspection ? createExactInspectionRedactions([analysis]) : undefined;
 	const correlation =
 		inspection && shouldEnableInspection(options.instrumentInspection)
-			? createExactRuntimeInspectionCorrelation(inspection, inspectionRedactions)
+			? createExactRuntimeInspectionCorrelation(inspection)
 			: undefined;
-	const instrumented =
-		correlation && target !== 'server'
-			? appendExactRuntimeInspectionRegistration(response.code, correlation)
-			: response.code;
-	const transformed = options.moduleTransform?.({ id: filename, source: instrumented, target });
-	const output = transformed?.code ?? instrumented;
+	const transformed = options.moduleTransform?.({ id: filename, source: response.code, target });
+	const output = transformed?.code ?? response.code;
 	const transformedMap = isExactSourceMap(transformed?.map) ? transformed.map : null;
 	const nativeMap = options.sourceMap
 		? nativeSourceMap(response.sourceMap, filename, normalized)
 		: null;
-	if (options.sourceMap && transformed && output !== instrumented && !transformedMap) {
+	if (options.sourceMap && transformed && output !== response.code && !transformedMap) {
 		throw new Error(
 			`moduleTransform changed ${filename} without returning a valid version 3 source map`
 		);
@@ -139,7 +137,11 @@ export function transformSourceWithNativeCompiler(
 				: nativeMap
 			: null,
 		filename,
-		runtimeDependencies: Object.freeze([...(response.runtimeDependencies ?? [])]),
+		runtimeDependencies: [...(response.runtimeDependencies ?? [])],
+		diagnostics: response.diagnostics.map((diagnostic) => ({
+			...diagnostic,
+			filename: diagnostic.filename ?? filename
+		})),
 		componentBuild: createExactComponentBuildFacts(analysis),
 		...(analysis.rendererEnhancements.length
 			? { rendererEnhancements: analysis.rendererEnhancements.map((entry) => ({ ...entry })) }
@@ -161,7 +163,7 @@ export function checkSourceWithNativeCompiler(
 	normalized: string,
 	filename: string,
 	options: TransformOptions
-): void {
+): readonly NativeCompilerDiagnostic[] {
 	const session = options.session;
 	if (!session?.hasNativeCompiler())
 		throw new Error('Native checking requires a session with a configured Go compiler host');
@@ -182,6 +184,8 @@ export function checkSourceWithNativeCompiler(
 				: {}),
 			root: options.root,
 			configFile: options.configFile,
+			analysis: options.analysis,
+			traceAnalysisCost: options.explain === true ? true : undefined,
 			target: 'default',
 			serverComponents: options.serverComponents,
 			preserveComponentHoisting: options.preserveComponentHoisting,
@@ -215,6 +219,10 @@ export function checkSourceWithNativeCompiler(
 		prepared
 	);
 	throwNativeCompilerErrors(filename, normalized, response.diagnostics);
+	return response.diagnostics.map((diagnostic) => ({
+		...diagnostic,
+		filename: diagnostic.filename ?? filename
+	}));
 }
 
 /** Selects one executable artifact target while keeping neutral projection private to analysis. */
@@ -254,6 +262,8 @@ export function analyzeSourceWithNativeCompiler(
 				: {}),
 			root: options.root,
 			configFile: options.configFile,
+			analysis: options.analysis,
+			traceAnalysisCost: options.explain === true ? true : undefined,
 			buildKey: options.buildKey,
 			target: options.target ?? 'default',
 			serverComponents: options.serverComponents,

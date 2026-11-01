@@ -17,7 +17,6 @@ import {
 } from './palette-resolution.js';
 import {
 	builtInTemperaments,
-	freezeThemeValue,
 	isResolvedColor,
 	resolveSourceColor,
 	resolveTemperament,
@@ -25,18 +24,23 @@ import {
 	selectThemeAppearance,
 	validateThemeEnvironment
 } from './source-resolution.js';
-import { reuseResolvedTheme } from './resolution-cache.js';
+import { observeResolvedTheme, reuseResolvedTheme } from './resolution-cache.js';
 import { resolveTypography } from './typography-resolution.js';
 import { fingerprintThemeSource } from './theme-fingerprint.js';
-import { exactThemeContract, themeTones } from './token-contract.js';
+import { exactThemeTokenDescriptors, themeTones } from './token-contract.js';
 
 export { builtInTemperaments };
 
 /**
- * Resolves a compact source into the complete immutable exact-theme/1 contract.
+ * Resolves a compact source into the complete TypeScript readonly exact-theme/1 contract.
  * @exact pure
  */
 export function resolveTheme(input: ThemeResolutionInput): ResolvedTheme {
+	return observeResolvedTheme(resolveThemeData(input));
+}
+
+/** Resolves private palette data for package-owned CSS and observation publication. */
+export function resolveThemeData(input: ThemeResolutionInput): ResolvedTheme {
 	if (!input || !input.environment)
 		throw new ThemeResolutionError(
 			'invalid-source',
@@ -112,7 +116,7 @@ export function resolveTheme(input: ThemeResolutionInput): ResolvedTheme {
 				? canvasInput
 				: resolveSourceColor(canvasInput, 'source.canvasColor', undefined, warnings);
 
-	const sourceResolved: ResolvedThemeSource = freezeThemeValue({
+	const sourceResolved: ResolvedThemeSource = {
 		keyColor: key,
 		neutralColor: neutralResolved,
 		canvasColor: canvasResolved,
@@ -124,7 +128,7 @@ export function resolveTheme(input: ThemeResolutionInput): ResolvedTheme {
 		typography,
 		contrast,
 		motion
-	});
+	};
 	return reuseResolvedTheme(sourceResolved, warnings, () => {
 		const accentChroma = Math.min(
 			key.oklch.c * temperament.accentChromaMultiplier,
@@ -164,22 +168,22 @@ export function resolveTheme(input: ThemeResolutionInput): ResolvedTheme {
 			);
 		const tokens = createThemeTokens(canvas, surfaces, tonesResolved, sourceResolved, warnings);
 		const fingerprint = fingerprintThemeSource(sourceResolved);
-		return freezeThemeValue({
+		return {
 			contract: 'exact-theme/1',
 			fingerprint,
 			source: sourceResolved,
 			key,
 			neutral,
-			surfaces: Object.freeze(surfaces),
-			tones: Object.freeze(tonesResolved),
-			tokens: Object.freeze(tokens),
-			warnings: Object.freeze(warnings)
-		});
+			surfaces: surfaces,
+			tones: tonesResolved,
+			tokens: tokens,
+			warnings: warnings
+		};
 	});
 }
 
 /**
- * Converts all generated tokens into a sorted, frozen null-prototype custom-property map.
+ * Converts all generated tokens into a sorted null-prototype custom-property map.
  * @exact pure
  */
 export function serializeThemeVariables(
@@ -188,7 +192,7 @@ export function serializeThemeVariables(
 	if (theme?.contract !== 'exact-theme/1')
 		throw new TypeError('serializeThemeVariables requires exact-theme/1');
 	const output = Object.create(null) as Record<string, string>;
-	for (const name of Object.keys(exactThemeContract.tokens).sort())
+	for (const name of Object.keys(exactThemeTokenDescriptors).sort())
 		output[`--exact-theme-${name}`] = theme.tokens[name as ThemeTokenName];
-	return Object.freeze(output) as import('./contracts.js').ThemeVariableMap;
+	return output as import('./contracts.js').ThemeVariableMap;
 }

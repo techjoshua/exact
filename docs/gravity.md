@@ -22,10 +22,17 @@ const scene = combineGravity('Scene gravity', [earth, planet]);
 const acceleration = scene.accelerationAt({ position: probe, time: 0, mass: 1 });
 ```
 
-Uniform, directional, softened point, radial, bounded, and composite fields are immutable and can
+Uniform, directional, softened point, radial, bounded, and composite fields can
 be sampled without a world, component, DOM, or browser. Preparation rejects non-finite values and
 unsafe singularity policy. Point and inverse-square fields require positive softening and can cap
 acceleration explicitly.
+
+Field metadata, attractor definitions, sample vectors, and inspection records use TypeScript's
+shallow readonly checks. Their runtime values remain ordinary JavaScript objects. Writable aliases
+and nested values retain normal mutation semantics. Field sampling copies its result, so changing
+a returned vector does not change later samples. Composite fields copy the input field list.
+Moving attractors revalidate strength, softening, and caps when sampled, and physics registration
+rejects non-finite forces even when a caller replaces the field's sampling method.
 
 ## Physics registration
 

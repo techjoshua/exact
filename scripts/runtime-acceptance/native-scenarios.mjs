@@ -1,5 +1,7 @@
+import { checkNativeInspection } from './inspection-scenarios.mjs';
 import { checkUrlPublication } from './url-scenarios.mjs';
 import assert from 'node:assert/strict';
+import { request, json } from './test-support.mjs';
 import { invokeExactBatch } from '../../packages/hydrate/dist/invocations.js';
 
 /** Bounds fixture metadata and control requests as well as the streamed invocations. */
@@ -8,6 +10,33 @@ const fetch = (url, options = {}) =>
 
 /** Exercises real HTTP progress, final failure, cancellation, fallback, and the next invocation. */
 export async function checkNativeProgress(origin, control) {
+	assert.equal(
+		(await (await fetch(new URL('/nested-marker-keys', origin))).json()).text,
+		'row:arow:innerrow:new'
+	);
+	assert.equal(
+		(await (await fetch(new URL('/marker-keys', origin))).json()).text,
+		'row:🔥row:row:~2d2drow:newrow:~row:--'
+	);
+	assert.deepEqual(await (await fetch(new URL('/reactive-protocol', origin))).json(), { ok: true });
+	assert.deepEqual(await (await fetch(new URL('/router-navigation', origin))).json(), { ok: true });
+	assert.deepEqual(await (await fetch(new URL('/static-router-queries', origin))).json(), {
+		ok: true
+	});
+	assert.deepEqual(
+		await (await fetch(new URL('/plugin-output', origin))).json(),
+		Array(9).fill(true)
+	);
+	assert.deepEqual(await (await fetch(new URL('/readiness-cleanup', origin))).json(), [
+		true,
+		true,
+		true,
+		true,
+		true,
+		true,
+		true
+	]);
+	await checkNativeInspection(origin);
 	const provider = await (await fetch(new URL('/enhancement-publication', origin))).json();
 	assert.equal(provider.buffered, provider.streamed);
 	assert.match(provider.buffered, /data-scope="provider"/);
@@ -45,6 +74,31 @@ export async function checkNativeProgress(origin, control) {
 		'sync-only'
 	]);
 	assert.equal(await (await fetch(new URL('/task-cancellation', origin))).json(), 42);
+	assert.deepEqual(await (await fetch(new URL('/secret-resolver', origin))).json(), {
+		calls: 2,
+		cancelled: true,
+		staleRejected: true,
+		oldAbsent: true,
+		current: 'ready',
+		empty: ''
+	});
+	assert.deepEqual(await (await fetch(new URL('/request-origin', origin))).json(), [
+		{ origin: 'http://exact.invalid', pathname: '//attacker.example/orders', search: '?open=1' },
+		{
+			origin: 'https://shop.example.test',
+			pathname: '//attacker.example/orders',
+			search: '?open=1'
+		}
+	]);
+	assert.deepEqual(
+		await (await fetch(new URL('/task-callbacks', origin))).json(),
+		Array.from({ length: 4 }, () => ({ premature: false, finished: true }))
+	);
+	assert.deepEqual(await (await fetch(new URL('/stream-cancellation', origin))).json(), [
+		{ premature: false, finished: true },
+		{ premature: false, finished: true },
+		{ premature: false, finished: true }
+	]);
 	assert.deepEqual(await (await fetch(new URL('/optimistic-state', origin))).json(), {
 		restored: { value: 'base', items: ['base'] },
 		current: { value: 'saved', items: ['base', 'saved'] },
@@ -254,4 +308,57 @@ export async function checkNativeProgress(origin, control) {
 	assert.equal(warnings.length, 1);
 	assert.match(warnings[0], /NativeProgress.report/);
 	assert.match(warnings[0], /buffers/);
+}
+
+/** Checks application cancellation releases upstream work and streaming publishes a shell before delayed work. */
+export async function checkSsrReadiness(origin, control) {
+	// An application-owned signal must end owned upstream work and allow another request to succeed.
+	const limited = await request(new URL('/limited-page?gate=deadline', origin));
+	assert.deepEqual(await json(limited, 504), { error: 'TimeoutError' });
+	const end = Date.now() + 5000;
+	while ((await json(await request(new URL('/status', control)))).pending.includes('deadline')) {
+		assert.ok(Date.now() < end, 'Timed-out SSR must cancel its upstream request');
+		await new Promise((resolve) => setTimeout(resolve, 20));
+	}
+	assert.deepEqual(await json(await request(new URL('/deadline-state', origin))), [
+		{ id: 'deadline', aborted: true }
+	]);
+	await (await request(new URL('/release?id=deadline-next', control))).text();
+	const next = await request(new URL('/limited-page?gate=deadline-next', origin));
+	assert.equal(next.status, 200);
+	assert.match(await next.text(), /id="deadline-result"[^>]*>released/);
+	assert.deepEqual(await json(await request(new URL('/deadline-state', origin))), [
+		{ id: 'deadline', aborted: true },
+		{ id: 'deadline-next', aborted: false }
+	]);
+	// The gate opens only after bytes arrive, so buffered rendering cannot pass this witness.
+	const streamed = await request(new URL('/stream-page?gate=ssr', origin));
+	assert.equal(streamed.status, 200);
+	const reader = streamed.body.getReader();
+	try {
+		const first = await reader.read();
+		assert.equal(first.done, false, 'SSR shell must precede delayed server work');
+		assert.ok(first.value.byteLength > 0);
+		const pending = await json(await request(new URL('/page-state', origin)));
+		assert.ok(pending.created.includes('ssr'));
+		assert.equal(
+			pending.disposed.some((value) => value.id === 'ssr'),
+			false,
+			'Pending SSR must retain its request scope'
+		);
+		await (await request(new URL('/release?id=ssr', control))).text();
+		let html = new TextDecoder().decode(first.value);
+		const decoder = new TextDecoder();
+		while (true) {
+			const next = await reader.read();
+			if (next.done) break;
+			html += decoder.decode(next.value, { stream: true });
+		}
+		html += decoder.decode();
+		assert.match(html, /id="server-delayed"/);
+		assert.match(html, /__exact_hydration/);
+	} finally {
+		await reader.cancel();
+		reader.releaseLock();
+	}
 }

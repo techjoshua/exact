@@ -1,3 +1,4 @@
+import { taskClosureRegressionCases } from './task-closure-regression-cases.js';
 import { taskInputRegressionCases } from './task-input-regression-cases.js';
 import { taskEvaluationRegressionCases } from './task-evaluation-regression-cases.js';
 import { taskPendingRegressionCases } from './task-pending-regression-cases.js';
@@ -7,6 +8,7 @@ import type { TaskStateRegressionCase } from './task-state-regression-contract.j
 /** Authored state programs shared by client publication and direct SSR regression checks. */
 export const taskStateRegressionCases: TaskStateRegressionCase[] = [
 	...taskInputRegressionCases,
+	...taskClosureRegressionCases,
 	...[
 		['compact', ''],
 		['spaced', ' '],

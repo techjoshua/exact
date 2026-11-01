@@ -9,7 +9,10 @@ import {
 	verifyDerivedPattern
 } from '../../packages/component-composition-corpus/test-support/collection-projection-journey.mjs';
 import { verifyTimePlanOwnership } from '../../packages/component-composition-corpus/test-support/time-plan-journey.mjs';
-import { verifyReplacementOwnership } from '../../packages/component-composition-corpus/test-support/replacement-journey.mjs';
+import {
+	verifyReplacementOwnership,
+	verifyArrayRollbackOwnership
+} from '../../packages/component-composition-corpus/test-support/replacement-journey.mjs';
 import { captureKeyedSpreads, verifyKeyedSpreads } from './verify-keyed-spreads.mjs';
 import {
 	captureIslandSemantics,
@@ -38,6 +41,8 @@ for (const name of [
 	'HTMLInputElement',
 	'HTMLTextAreaElement',
 	'HTMLSelectElement',
+	'HTMLOptionElement',
+	'HTMLOptGroupElement',
 	'HTMLFormElement',
 	'DocumentFragment',
 	'Text',
@@ -77,6 +82,7 @@ try {
 		]);
 	}
 	const client = await import(pathToFileURL(path.join(root, 'out/client.mjs')).href);
+	if (client.probeGestureOwnership) assert.equal(await client.probeGestureOwnership(), true);
 	for (const runtime of [server, client]) {
 		assert.deepEqual(runtime.probePausedWork(), {
 			parkedValues: [0],
@@ -213,6 +219,7 @@ try {
 		await verifyKeyedSpreads(container, keyedSpreads);
 		await verifyTimePlanOwnership(container);
 		await verifyReplacementOwnership(container);
+		await verifyArrayRollbackOwnership(container);
 		await verifyCollectionProjection(container);
 		await verifyDerivedPattern(container);
 	}
@@ -303,6 +310,10 @@ try {
 	}
 	if (server.handleExact) assert.equal(invocations, 2);
 	assert.equal(container.querySelector('strong'), strong);
+	const arrayHost = container.querySelector('[data-array-rollback]');
+	const arrayOutput = arrayHost?.querySelector('output');
+	const arrayText = arrayOutput?.textContent;
+	const arrayButtons = arrayHost ? [...arrayHost.querySelectorAll('button')] : [];
 	const button = container.querySelector('button');
 	mounted.dispose();
 	mounted = undefined;
@@ -319,6 +330,50 @@ try {
 	assert.equal(strong.textContent, '9');
 	if (nested) assert.equal(nested.textContent, 'Nested 2');
 	if (localWrapper) assert.equal(localWrapper.querySelector('button').textContent, 'Local 2');
+	if (arrayHost) {
+		const originalClipboard = Object.getOwnPropertyDescriptor(navigator, 'clipboard');
+		let acquisitions = 0;
+		const reportCount = errors.length;
+		try {
+			Object.defineProperty(navigator, 'clipboard', {
+				configurable: true,
+				value: {
+					writeText: () => {
+						acquisitions++;
+						return Promise.resolve();
+					}
+				}
+			});
+			for (const arrayButton of arrayButtons) arrayButton.click();
+			await new Promise((resolve) => setTimeout(resolve, 0));
+			assert.equal(arrayHost.querySelector('output'), arrayOutput);
+			assert.equal(arrayOutput.textContent, arrayText, 'disposed array output changed');
+			assert.equal(acquisitions, 0, 'disposed array task acquired clipboard work');
+			assert.equal(errors.length, reportCount, 'disposed array task reported work');
+		} finally {
+			if (originalClipboard) Object.defineProperty(navigator, 'clipboard', originalClipboard);
+			else delete navigator.clipboard;
+		}
+		const fresh = await server.renderPage();
+		document.documentElement.innerHTML = new DOMParser().parseFromString(
+			fresh.htmlWithHydration,
+			'text/html'
+		).documentElement.innerHTML;
+		const freshContainer = document.getElementById('app');
+		assert.ok(freshContainer);
+		assert.notEqual(freshContainer.querySelector('[data-array-rollback]'), arrayHost);
+		const freshOwner = client.mountPage(freshContainer, {
+			onMismatch: 'throw',
+			onErrorReport: (report) => errors.push(String(report.error))
+		});
+		try {
+			await freshOwner.whenSettled();
+			await verifyArrayRollbackOwnership(freshContainer);
+		} finally {
+			freshOwner.dispose();
+		}
+		assert.deepEqual(errors, []);
+	}
 } finally {
 	mounted?.dispose();
 	dom.window.close();

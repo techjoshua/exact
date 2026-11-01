@@ -1,6 +1,5 @@
 import type { Child, Component } from '@exactjs/core';
-import { createCompiledComponentReceipt } from '@exactjs/core/runtime/component-operations';
-
+import { createCompiledComponentInputReceipt } from '@exactjs/core/runtime/component-operations';
 /** Contributes changing props while retaining the caller-owned semantic child. */
 function AttributeContribution(props: { step: number; children?: Child }) {
 	return () => (
@@ -13,9 +12,12 @@ function AttributeContribution(props: { step: number; children?: Child }) {
 		/>
 	);
 }
-
 /** Retains authored root props separately from changing SSR and client target contributions. */
-export function TargetAttributeOwnershipProbe(this: Component<{ step: number }>) {
+export function TargetAttributeOwnershipProbe(
+	this: Component<{
+		step: number;
+	}>
+) {
 	this.state.step = 0;
 	return () => (
 		<section data-target-attribute-ownership>
@@ -40,8 +42,7 @@ export function TargetAttributeOwnershipProbe(this: Component<{ step: number }>)
 		</section>
 	);
 }
-
 /** Compiler-owned root shared by mount and hydration corpus journeys. */
 export function targetAttributeOwnership() {
-	return createCompiledComponentReceipt(TargetAttributeOwnershipProbe, {});
+	return createCompiledComponentInputReceipt(TargetAttributeOwnershipProbe, {});
 }

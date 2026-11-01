@@ -1,20 +1,19 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import type { AnyComponentFunction } from '@exactjs/core';
-import { createCompiledComponentReceipt } from '@exactjs/core/runtime/component-operations';
+import { createCompiledComponentInputReceipt } from '@exactjs/core/runtime/component-operations';
 import { renderToString } from '@exactjs/ssr';
 import { expect, it, onTestFinished } from 'vitest';
 import { NativeCompilerProcess } from '../native/process.js';
 import { resolveNativeCompilerExecutable } from '../native/executable.js';
 import { importArtifact } from '../test-support/import-artifact.js';
-import { createTestWorkspace } from '../test-support/workspace.js';
-
+import { createBrowserTestWorkspace } from '../test-support/workspace.js';
 it.each(['direct', 'renamed', 'const-alias', 'namespace', 'literal-member'])(
 	'keeps %s DOM teardown in the browser when rendering a server artifact',
 	async (shape) => {
 		const parent = path.resolve('.tmp/dom-declaration-placement');
 		await mkdir(parent, { recursive: true });
-		const directory = await createTestWorkspace('case-', parent);
+		const directory = await createBrowserTestWorkspace('case-', parent);
 		const compiler = new NativeCompilerProcess({ executable: resolveNativeCompilerExecutable() });
 		onTestFinished(() => compiler.dispose());
 		const imports =
@@ -55,7 +54,7 @@ export function Page(){return()=> <main><Browser/></main>}`;
 		await writeFile(entry, result.code!);
 		const module = await importArtifact(entry, path.join(directory, 'Page.mjs'));
 		const rendered = await renderToString(
-			createCompiledComponentReceipt(module.Page as AnyComponentFunction, {})
+			createCompiledComponentInputReceipt(module.Page as AnyComponentFunction, {})
 		);
 		expect(rendered.html).toContain('<main');
 		expect(module.executions).toBe(0);

@@ -6,9 +6,12 @@ import { type Component } from '@exactjs/core';
 import { createDynamicChild, createExpression } from '@exactjs/core/runtime/render';
 import { createCompiledOperation, jsx } from './test-support/native-operations.js';
 import { flushSync } from '@exactjs/reactive';
+import { unmount } from './root.js';
 import { describe, expect, it, vi } from 'vitest';
 import { renderTestTree as render } from './testing.js';
 import {
+	HelperMemberParent,
+	helperMemberParentInstance,
 	ControlFlowParent,
 	FilteredPropParent,
 	PrimitiveChildrenParent,
@@ -312,4 +315,25 @@ describe('@exactjs/dom component-props', () => {
 
 		expect(container.textContent).toBe('empty');
 	});
+});
+
+it('delivers helper member replacements to the same mounted child', () => {
+	const host = document.createElement('div');
+	render(createCompiledOperation(HelperMemberParent, {}), host);
+	const parent = helperMemberParentInstance();
+	try {
+		const child = host.querySelector('strong');
+		expect(child?.textContent).toBe('first');
+		parent.state.item.value = 'member';
+		flushSync();
+		expect(host.querySelector('strong')).toBe(child);
+		expect(child?.textContent).toBe('member');
+		parent.state.item = { value: 'replacement' };
+		flushSync();
+		expect(host.querySelector('strong')).toBe(child);
+		expect(child?.textContent).toBe('replacement');
+	} finally {
+		unmount(host);
+	}
+	expect(host.childNodes).toHaveLength(0);
 });

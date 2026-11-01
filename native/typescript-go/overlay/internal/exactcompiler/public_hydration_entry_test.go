@@ -14,7 +14,7 @@ func TestPublicHydrationRetainsRequestRuntime(t *testing.T) {
 		if response.Error != "" {
 			t.Fatal(response.Error)
 		}
-		physical := strings.Contains(response.Code, "hydrateCompiledComponentRoot as")
+		physical := strings.Contains(response.Code, "hydrateCompiledComponentInputRoot as")
 		if physical != (module == "@exactjs/hydrate/root") {
 			t.Fatalf("hydration changed the selected runtime surface for %s: %s", module, response.Code)
 		}

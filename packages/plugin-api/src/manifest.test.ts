@@ -7,7 +7,7 @@ import {
 } from './index.js';
 
 describe('plugin package manifests', () => {
-	it('parses and freezes plugin participation declarations', () => {
+	it('parses independent plugin participation declarations', () => {
 		const participation = readExactPackageParticipation({
 			name: '@example/plugin',
 			exact: {
@@ -28,7 +28,6 @@ describe('plugin package manifests', () => {
 
 		expect(participation.plugin?.entries.render).toBe('./render');
 		expect(participation.configuration['@example/dependency']?.export).toBe('configure');
-		expect(Object.isFrozen(participation)).toBe(true);
 	});
 
 	it('rejects private or escaping plugin subpaths', () => {

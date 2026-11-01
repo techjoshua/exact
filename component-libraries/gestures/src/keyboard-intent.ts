@@ -1,9 +1,8 @@
 import { unwrap } from '@exactjs/core';
 import type { AnyGestureCallback, GestureSample } from './contracts.js';
-import { freezeGestureSample } from './gesture-samples.js';
 import { resolveGestureRecognizers, type SessionConfiguration } from './session-policy.js';
 
-/** Resolved semantic callback and immutable sample for one supported keyboard gesture. */
+/** Resolved semantic callback and sample for one supported keyboard gesture. */
 export type KeyboardGestureIntent = Readonly<{
 	kind: 'keyboard' | 'keyboard-press';
 	callback: AnyGestureCallback;
@@ -42,16 +41,15 @@ export function resolveKeyboardGestureIntent(
 }
 
 function createKeyboardSample(event: KeyboardEvent, delta: { x: number; y: number }) {
-	const point = { x: 0, y: 0 };
-	return freezeGestureSample({
+	return {
 		phase: delta.x || delta.y ? 'move' : 'end',
 		pointerType: 'keyboard',
-		point,
-		localPoint: point,
+		point: { x: 0, y: 0 },
+		localPoint: { x: 0, y: 0 },
 		delta,
-		velocity: point,
+		velocity: { x: 0, y: 0 },
 		elapsed: 0,
 		signal: new AbortController().signal,
 		originalEvent: event
-	});
+	} satisfies GestureSample;
 }

@@ -4,7 +4,7 @@ import {
 	type Child,
 	type ComponentDomain
 } from '@exactjs/core';
-import { createCompiledComponentReceipt } from '@exactjs/core/runtime/component-abi';
+import { createCompiledComponentInputReceipt } from '@exactjs/core/runtime/component-abi';
 import type { ExactClient } from '../types.js';
 import { bindRequestClientDomain } from './client.js';
 
@@ -22,7 +22,7 @@ export function createExactRoot(
 ): Child {
 	bindRequestClientDomain(domain, client);
 	return withComponentDomain(domain, () =>
-		createCompiledComponentReceipt(component, {
+		createCompiledComponentInputReceipt(component, {
 			...(componentProps ?? {}),
 			...(children === undefined ? {} : { children })
 		})

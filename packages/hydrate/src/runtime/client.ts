@@ -1,3 +1,5 @@
+import { deriveRuntimeConfiguration } from '@exactjs/core/framework/configuration';
+import { attachSuppressedCleanupFailure } from '@exactjs/core';
 import { createFrameworkComponentDomain } from '@exactjs/core/framework/component-domains';
 import {
 	consumeDomWork,
@@ -14,13 +16,14 @@ import {
 import { cloneEndpointRoutes } from '../endpoint-routes.js';
 import { hydrateClientIslands } from '../islands.js';
 import { HydrationSettlement } from './settlement.js';
+import { createHydrationLifetime } from './root-lifetime.js';
 import { disposeInteractionHydration } from '../islands/interaction.js';
 import { applyPatches } from '../patches.js';
 import type { CoreHydrationRoot, ExactClient, HydrateOptions } from '../types.js';
 import { assertCurrentDocumentContainer } from './current-document.js';
 import { createComponentResumptionResolver } from './resumption.js';
 import { invokeAndApply } from './operations.js';
-import { requestVersions, roots } from './state.js';
+import { requestVersions, roots, hydrationOwnsDomRoot } from './state.js';
 
 const requestClients = new WeakMap<import('@exactjs/core').ComponentDomain, ExactClient>();
 const requestDomains = new WeakMap<ExactClient, Set<import('@exactjs/core').ComponentDomain>>();
@@ -59,6 +62,8 @@ export function requestClientForComponentDomain(
  * Attaches the client runtime to server-rendered content and hydrates registered client islands.
  * Discovers serialized configuration automatically, including scripts beside the container,
  * and merges it with explicit options. A separate `readExactHydrationConfig` call is unnecessary.
+ * Automatic island discovery runs when an `islands` registry is supplied, including an empty one.
+ * Omit that registry when attaching transport before later explicit hydration or registration.
  * For hydration of a supplied component tree, use `hydrate` instead.
  *
  * The container must belong to the current document and must not already have a client root.
@@ -76,20 +81,20 @@ export function createExactClientFromResolvedOptions(
 	container: Element,
 	resolvedOptions: HydrateOptions
 ): ExactClient {
-	const lifetime = new AbortController();
-	const abortLifetime = () => lifetime.abort(resolvedOptions.signal?.reason);
-	if (resolvedOptions.signal?.aborted) abortLifetime();
-	else resolvedOptions.signal?.addEventListener('abort', abortLifetime, { once: true });
-	const runtimeOptions: HydrateOptions = {
-		...resolvedOptions,
+	if (roots.has(container))
+		throw new Error('An eXact client root is already registered for this container');
+	const lifetime = createHydrationLifetime(resolvedOptions.signal);
+	const runtimeOptions = deriveRuntimeConfiguration(resolvedOptions, () => ({
 		endpoints: cloneEndpointRoutes(resolvedOptions.endpoints),
 		continuations: { ...(resolvedOptions.continuations ?? {}) },
+		continuationArrays: { ...(resolvedOptions.continuationArrays ?? {}) },
 		resumptions: [...(resolvedOptions.resumptions ?? [])],
 		publicContexts: { ...(resolvedOptions.publicContexts ?? {}) },
-		islands: { ...(resolvedOptions.islands ?? {}) },
+		// Omission leaves island activation to a later explicit registration or hydration call.
+		islands: resolvedOptions.islands === undefined ? undefined : { ...resolvedOptions.islands },
 		transports: { ...(resolvedOptions.transports ?? {}) },
 		signal: lifetime.signal
-	};
+	}));
 	let disposed = false;
 	let retired = false;
 	let pendingRequests = 0;
@@ -172,18 +177,19 @@ export function createExactClientFromResolvedOptions(
 			if (disposed) return;
 			disposed = true;
 			retired = true;
-			resolvedOptions.signal?.removeEventListener('abort', abortLifetime);
-			lifetime.abort(new DOMException('eXact hydration root disposed', 'AbortError'));
-			disposeInteractionHydration(container);
-			roots.delete(container);
-			container.removeAttribute('data-exact-hydrated');
-			requestVersions.get(container)?.clear();
+			lifetime.dispose();
+			if (hydrationOwnsDomRoot(client)) disposeInteractionHydration(container);
+			if (roots.get(container) === client) roots.delete(container);
+			if (hydrationOwnsDomRoot(client)) container.removeAttribute('data-exact-hydrated');
+			if (hydrationOwnsDomRoot(client)) requestVersions.get(container)?.clear();
 			activeRequestClients.delete(client);
 			for (const ownedDomain of requestDomains.get(client) ?? [])
 				requestClients.delete(ownedDomain);
 			requestDomains.delete(client);
-			disposeOwnedSubtree(container, false);
-			unmount(container);
+			if (hydrationOwnsDomRoot(client)) {
+				disposeOwnedSubtree(container, false);
+				if (hydrationOwnsDomRoot(client)) unmount(container);
+			}
 		}
 	};
 	const resumptionResolver = createComponentResumptionResolver(() => runtimeOptions.resumptions);
@@ -216,15 +222,22 @@ export function createExactClientFromResolvedOptions(
 	});
 	const hydration = new HydrationSettlement(domain, lifetime.signal);
 	runtimeOptions.componentDomain = domain;
-	const existing = roots.get(container);
-	if (existing && existing !== client)
-		throw new Error('An eXact client root is already registered for this container');
 	activeRequestClients.add(client);
 	bindRequestClientDomain(domain, client);
 	roots.set(container, client);
-	if (runtimeOptions.islands)
-		hydrateClientIslands(container, runtimeOptions.islands, runtimeOptions);
-	return client;
+	try {
+		if (runtimeOptions.islands)
+			hydrateClientIslands(container, runtimeOptions.islands, runtimeOptions);
+		return client;
+	} catch (error) {
+		// A failed bootstrap must release its claim even when component cleanup also fails.
+		try {
+			client.dispose();
+		} catch (cleanup) {
+			attachSuppressedCleanupFailure(error, cleanup);
+		}
+		throw error;
+	}
 }
 
 /** Performs the remaining dom work domain operation. */

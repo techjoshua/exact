@@ -66,6 +66,20 @@ export function DevtoolsPage(this: Component<{}>) {
 					production authorization.
 				</p>
 				<p>
+					Catalog registration validates source identities and complete records before making them
+					available for inspection. Event history captures independent observations, so changing an
+					observed value cannot change application state or another timeline reader. Inspection
+					observations use TypeScript readonly fields and ordinary JavaScript data. Compiler
+					inspection snapshots and build reports follow the same rule and remain separate from
+					retained compiler analysis. Deep source trees remain inspectable within the catalog's
+					entity budget. Missing entries, duplicate identities, and cyclic source trees are
+					rejected. An inspection response that exceeds transport limits reports{' '}
+					<code>limit-exceeded</code>. Smaller descendants can still be selected independently.
+					Large or deeply nested snapshots remain subject to renderer node and transport limits.
+					Snapshot byte limits apply to the encoded response delivered to the client. Optional audit
+					records count those same UTF-8 bytes.
+				</p>
+				<p>
 					Client-only pages open a local inspection session and do not probe a conventional server
 					URL. Server cooperation begins only when the runtime receives an explicit endpoint or
 					discovers one in compiler-owned hydration metadata.
@@ -85,19 +99,40 @@ export function DevtoolsPage(this: Component<{}>) {
 					deliberately and still authorize each session. The Vite, Webpack, and Bun integrations
 					keep catalog assets in their server output and outside public client graphs. Session
 					limits also apply to concurrent requests. Revocation and expiry take effect even while an
-					asynchronous authorization check is pending.
+					asynchronous authorization check or inspection query is pending. A result that arrives
+					after its session expires or closes, its request is canceled, or the debug runtime stops
+					is unavailable. Optional audit callbacks receive metadata before publication. Synchronous
+					retirement inside a callback also makes the result unavailable. Callback failures are
+					isolated, and asynchronous audit work does not delay the response.
 				</p>
 				<p>
 					While DevTools is attached, each server response carries only the observations produced by
 					that request. Browser DevTools combines those responses into its bounded timeline. The
-					server does not retain cross-request history.
+					server does not retain cross-request history. Closing or expiring the session stops
+					collection for pending requests and discards unpublished observations while ordinary
+					application work can finish. Collection has its own bounded retention. An explicit
+					response size cap keeps the newest complete events that fit the remaining response budget.
+					Without an explicit cap, crossing the default response threshold warns and preserves
+					collected events.
 				</p>
 				<p>
 					Production inspection is optional. Enable it only where you intend to offer debugging
 					access, and configure authorization for each session. Inspection keeps limited previews
-					and history rather than retaining application objects indefinitely.
+					and history rather than retaining application objects indefinitely. Enabling inspection
+					preserves configured render and hydration work limits and callbacks.
 				</p>
 				<CodeBlock source={authorization} language="ts" title="server.ts" />
+				<p>
+					Client inspection shows bounded previews of values already present in the page, including
+					state, props, contexts, and task values. It does not hide them by secret name. Keep
+					private values on the server. Server inspection applies redaction before sending previews
+					to the browser.
+				</p>
+				<p>
+					Server catalog registration captures build identity and redaction metadata. Editing a
+					supplied catalog leaves the registration intact. Retire a build with its registration
+					handle and register its replacement explicitly.
+				</p>
 			</section>
 			<section>
 				<h2>Find state and task history</h2>
@@ -107,15 +142,20 @@ export function DevtoolsPage(this: Component<{}>) {
 					placement, readiness, priority, generation, cancellation, concurrency, and optimistic
 					status. Activity, Suspense, hydration, requests, continuations, patches, and errors share
 					the same timeline vocabulary. Compiler-marked task IDs travel with each function
-					definition, so the inspector never guesses identity from array order.
+					definition, so the inspector never guesses identity from array order. Selections from a
+					previous session or build do not resolve current DOM or component details. Task rows
+					retain their distinct operation identities and generations.
 				</p>
 				<p>
 					Completed, failed, and cancelled tasks remain visible as a bounded execution history for
-					the attached inspection session. Each row starts collapsed and exposes redacted previews
-					of its invocation arguments and result or error on demand. The scheduler still releases
-					its live frame and the runtime never retains the original application values. By default,
-					the 200 most recently started executions are shared across a runtime owner. Integrations
-					can tune the cap with <code>maxTaskExecutions</code>.
+					the attached inspection session. Each row starts collapsed and exposes bounded previews of
+					its invocation arguments and result or error on demand. The scheduler still releases its
+					live frame and the runtime never retains the original application values. By default, the
+					200 most recently started executions are shared across a runtime owner. Integrations can
+					tune the cap with <code>maxTaskExecutions</code>. Inspection preserves task failure and
+					cancellation behavior. Editing an inspection response does not update application state.
+					Session descriptions and DOM snapshots are ordinary observations with TypeScript readonly
+					declarations. Editing a session description does not change its routing or cleanup.
 				</p>
 			</section>
 			<section>
@@ -123,9 +163,12 @@ export function DevtoolsPage(this: Component<{}>) {
 				<p>
 					The page host authenticates and forwards remote requests through its binding gateway.
 					Cookies and authorization headers pass through. Applications can add service credentials.
-					Each service authenticates independently and applies its own <code>allowDebug</code>
-					policy. The session ID correlates results and grants no authority. eXact does not open
-					child sessions or coordinate authentication between hosts.
+					Each binding keeps its own component lookups and subscriptions. Each service authenticates
+					independently and applies its own <code>allowDebug</code>
+					policy. A configured callback must return or resolve to <code>true</code> to approve
+					access. Other results and errors leave inspection unavailable. The session ID correlates
+					results and grants no authority. eXact does not open child sessions or coordinate
+					authentication between hosts.
 				</p>
 				<p>
 					Remote observations return with the operation response after independent authorization.
@@ -135,6 +178,10 @@ export function DevtoolsPage(this: Component<{}>) {
 				<p>
 					The development default accepts only matching browser origins. Origin-less tooling must
 					configure an explicit <code>allowDebug</code> policy or authenticated session identity.
+					Browser origins are checked against the configured <code>publicOrigin</code> or an
+					absolute adapter request URL. Configure <code>publicOrigin</code> when your adapter
+					supplies relative URLs, or when an internal service address differs from the browser
+					address.
 				</p>
 			</section>
 			<section>
@@ -150,23 +197,40 @@ export function DevtoolsPage(this: Component<{}>) {
 					interaction, or request frames. Here, unlike the instance tree, it aggregates reactive
 					changes and task work into waterfall lanes per authored component type so repeated costs
 					are visible. Stopping the recording finalizes it from retained history after the starting
-					cursor, so delayed subscription delivery cannot leave a silent gap. The Microfrontends
-					view summarizes independently deployed roots. The CDP agent sends the same validated
-					requests through fixed functions. Neither surface can evaluate caller JavaScript, mutate
-					state, invoke tasks, or receive raw component instances. CDP discovery, messages, pending
-					requests, and connection lifetimes are bounded, and automation can supply a cancellation
-					signal.
+					cursor, so delayed subscription delivery cannot leave a silent gap. Timeline and error
+					queries can still report recorded events when component inspection is unavailable. The
+					Microfrontends view summarizes independently deployed roots. The CDP agent sends the same
+					validated requests through fixed functions. Debug messages require supported request names
+					and capabilities and reject unknown envelope fields. Debug envelopes are validated before
+					authorization, and query envelopes are validated before query dispatch. Neither surface
+					can evaluate caller JavaScript, mutate state, invoke tasks, or receive raw component
+					instances. CDP discovery, messages, pending requests, and connection lifetimes are
+					bounded. Automation can supply a cancellation signal, whose exact reason is preserved,
+					including null. Supply a target ID when discovering a specific page. An unavailable ID
+					fails the connection. Requests made after the transport closes reject immediately. Failed
+					connection setup releases partial resources. Disconnect attempts every owned cleanup even
+					when one fails.
 				</p>
 				<p>
 					For an automated investigation, <code>@exactjs/devtools-agent</code> can connect to an
 					existing Chromium page. Start with <code>session.describe</code> and a bounded
 					<code>roots.list</code> query, then select a component and inspect its state, tasks, or
-					errors. Keep the returned runtime identity with subsequent requests. A denied or
-					unavailable query means inspection could not complete. The
+					errors. Filter component trees by their side, binding, build, execution root, component
+					type, or instance to narrow the results before paging. Root and microfrontend lists can be
+					narrowed by their root ownership coordinates. Combined browser and server lists resume
+					each source independently, continuing until the requested page fills or the sources
+					finish. Use each returned cursor with the same collection and filters. Custom integrations
+					can choose a positive whole-number result limit to control the size of each page. Query
+					parsers reject invalid configured limits even when optional fields are absent. A query
+					that exceeds its inspection budget is unavailable. Keep the returned runtime identity with
+					subsequent requests. A denied or unavailable query means inspection could not complete.
+					The
 					<a href="https://github.com/techjoshua/exact/tree/main/packages/devtools-agent">
 						agent connection example
 					</a>
-					shows a query and connection cleanup.
+					shows a query and connection cleanup. Connection and subscription cleanup methods can be
+					decorated using ordinary assignment. Readonly fields remain TypeScript restrictions, and a
+					live subscription reports its cleanup state through its <code>closed</code> getter.
 				</p>
 				<p>
 					Build <code>@exactjs/chromium-devtools</code> from the repository and load
@@ -180,6 +244,21 @@ export function DevtoolsPage(this: Component<{}>) {
 					for the build command and requirements.
 				</p>
 				<p>
+					Custom integrations should dispose their runtime installation when its application root
+					closes. Disposal prevents a pending connection from attaching later. Disconnect can be
+					followed by a fresh connection, while disposal permanently closes that installation.
+					Server cooperation validates the returned session and matches each response to its query
+					and active session. Malformed responses cannot attach a session or become inspection
+					records. Inspection metadata accepts plain data records and dense arrays. Accessor fields
+					and custom array iteration are rejected. Untrusted query data is copied before validation.
+					Accessor fields and unsupported values are rejected without running getters or custom
+					iterators, and later changes to the supplied object cannot alter the validated request.
+					Highlight cleanup also restores styles on detached elements and preserves later changed
+					outline values. Highlights require the active installation session. Older
+					inspection-factory cleanup preserves a newer installation, including when both use the
+					same callback.
+				</p>
+				<p>
 					Source navigation opens only exact SHA-256 matches, checking source-mapped resources, then
 					workspace files, then an independently authorized server excerpt.
 				</p>
@@ -188,7 +267,12 @@ export function DevtoolsPage(this: Component<{}>) {
 				<p>
 					Compiler-qualified secrets and server resources become selectors, never values. Preview
 					construction applies those selectors before inspecting an object and never invokes
-					getters, serialization hooks, callbacks, or a failed Proxy again.
+					getters, serialization hooks, callbacks, or a failed Proxy again. Collection previews
+					bypass custom Map and Set iterators, and type labels use stored names without calling
+					accessors. Undefined, non-finite numbers, and negative zero retain distinct constant
+					previews across JSON transport. The panel quotes strings and displays constants without
+					quotes. Empty property names remain visible. Over-budget property names stop traversal and
+					mark the object preview truncated.
 				</p>
 			</Callout>
 		</Article>

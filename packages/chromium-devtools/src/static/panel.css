@@ -297,7 +297,8 @@ main {
 	min-width: 0;
 }
 
-.preview-scalar {
+.preview-scalar,
+.preview-constant {
 	color: light-dark(#0550ae, #79c0ff);
 }
 

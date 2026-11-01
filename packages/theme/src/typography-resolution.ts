@@ -1,6 +1,5 @@
 import type { ResolvedThemeTypography, ThemeTypography, TypographyPreset } from './contracts.js';
 import { ThemeResolutionError } from './errors.js';
-import { freezeThemeValue } from './source-resolution.js';
 
 const SYSTEM_CODE = 'ui-monospace, "SFMono-Regular", Consolas, "Liberation Mono", monospace';
 const SYSTEM_BODY =
@@ -40,7 +39,7 @@ export function resolveTypography(
 				'source.typography',
 				`Unknown typography preset ${value}`
 			);
-		return freezeThemeValue({
+		return {
 			id: value,
 			body: stacks[0],
 			display: stacks[1],
@@ -49,7 +48,7 @@ export function resolveTypography(
 			scaleRatio: 1.2,
 			bodyLineHeight: 1.5,
 			headingLineHeight: 1.2
-		});
+		};
 	}
 	if (!value || typeof value !== 'object' || Array.isArray(value))
 		throw new ThemeResolutionError(
@@ -58,15 +57,23 @@ export function resolveTypography(
 			'Typography must be a preset or a partial object'
 		);
 	const base = inherited ?? resolveTypography('system');
+	const {
+		body = base.body,
+		display = base.display,
+		code = base.code,
+		baseSizeRem = base.baseSizeRem,
+		scaleRatio = base.scaleRatio,
+		bodyLineHeight = base.bodyLineHeight,
+		headingLineHeight = base.headingLineHeight
+	} = value;
 	const custom = {
-		body: value.body === undefined ? base.body : value.body,
-		display: value.display === undefined ? base.display : value.display,
-		code: value.code === undefined ? base.code : value.code,
-		baseSizeRem: value.baseSizeRem === undefined ? base.baseSizeRem : value.baseSizeRem,
-		scaleRatio: value.scaleRatio === undefined ? base.scaleRatio : value.scaleRatio,
-		bodyLineHeight: value.bodyLineHeight === undefined ? base.bodyLineHeight : value.bodyLineHeight,
-		headingLineHeight:
-			value.headingLineHeight === undefined ? base.headingLineHeight : value.headingLineHeight
+		body,
+		display,
+		code,
+		baseSizeRem,
+		scaleRatio,
+		bodyLineHeight,
+		headingLineHeight
 	};
 	for (const name of ['body', 'display', 'code'] as const)
 		validateFont(custom[name], `source.typography.${name}`);
@@ -84,7 +91,7 @@ export function resolveTypography(
 				`${name} is outside ${low}..${high}`
 			);
 	}
-	return freezeThemeValue({ id: 'custom', ...custom });
+	return { id: 'custom', ...custom };
 }
 
 function validateFont(value: string, path: string): void {

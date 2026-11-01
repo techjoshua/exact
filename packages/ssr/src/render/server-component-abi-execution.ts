@@ -23,8 +23,7 @@ import type {
 } from './direct-component-contracts.js';
 import {
 	createDirectScheduledSsrComponent,
-	prepareDirectScheduledSsrComponentReferences,
-	takePreparedDirectScheduledSsrComponent
+	prepareDirectScheduledSsrComponentReferences
 } from './direct-component-scheduling.js';
 import type { SsrRenderOptions } from './entrypoints.js';
 import type { RenderValue } from './execution.js';
@@ -38,6 +37,8 @@ import {
 import type { SsrComponentExecutionBlueprint } from './root-execution-cache.js';
 import {
 	receiptExecutionBlueprint,
+	readServerComponentReference,
+	prepareServerComponentOccurrence,
 	receiptExecutionContract,
 	serverComponentProps,
 	type ServerComponentReference
@@ -95,7 +96,8 @@ export function renderServerComponentArtifactOutput<Publication>(
 	if (artifact.execution.lane !== 'direct') return undefined;
 	const execution = {
 		context,
-		prepareOutput: context.preparedComponentOutputs?.get(reference),
+		inputs: reference.inputs!,
+		prepareOutput: context.preparedComponentOutputs?.get(reference.source),
 		options,
 		publication,
 		publish,
@@ -127,23 +129,30 @@ export function renderServerComponentArtifactOutput<Publication>(
 /** Shared program forwarding retains the selected owner on this component's execution. */
 function renderExecutionProgramSegment<Publication>(
 	this: ServerArtifactExecution<Publication>,
-	value: unknown
+	value: unknown,
+	occurrence?: ServerComponentReference
 ): RenderValue<string> {
+	if (occurrence) return this.renderOwnedComponent(occurrence, this.renderOwner);
 	return Array.isArray(value)
 		? this.renderChildren(value, this.renderOwner)
-		: this.renderOwnedComponent(value as ServerComponentReference, this.renderOwner);
+		: mapRenderValue(
+				prepareServerComponentOccurrence(this.context, readServerComponentReference(value)!, false),
+				(reference) => this.renderOwnedComponent(reference, this.renderOwner)
+			);
 }
 
 /** Prepares siblings under the same component owner without a per-content forwarding closure. */
 function prepareExecutionProgramReferences<Publication>(
 	this: ServerArtifactExecution<Publication>,
-	values: readonly unknown[]
+	values: readonly unknown[],
+	owner: import('./direct-component-contracts.js').DirectScheduledPreparationOwner
 ): AsyncDisposable | undefined {
 	return prepareDirectScheduledSsrComponentReferences(
 		this.context,
 		values as readonly ServerComponentReference[],
 		this.renderOwner,
-		this.options
+		this.options,
+		owner
 	);
 }
 
@@ -197,10 +206,7 @@ function createRequestExecution<Publication>(
 		async [exactServerIssue](artifact, parent, props) {
 			assertArtifact(artifact, blueprint.contract.artifact);
 			const owner = parent as AnyComponentInstance | undefined;
-			const scheduled = await (takePreparedDirectScheduledSsrComponent(
-				execution.context,
-				reference
-			) ??
+			const scheduled = await (reference.preparedScheduled ??
 				createDirectScheduledSsrComponent(
 					execution.context,
 					blueprint,
@@ -292,7 +298,7 @@ async function writeScheduledFrame<Publication>(
 		const targetCheckpoint = checkpointTargetReceiptLayers(execution.context);
 		const restoreEnhancementTarget = checkpointBoundEnhancementTarget(
 			execution.context,
-			frame.reference
+			frame.reference.source
 		);
 		const documentCheckpoint = checkpointDocumentHost(execution.context);
 		const candidate = scheduled.render();

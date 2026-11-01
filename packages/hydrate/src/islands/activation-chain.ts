@@ -1,12 +1,26 @@
+/** A boundary generation owns its adoption wait while its module load remains shared. */
+type PendingIslandAdoption = { generation: string | null; promise: Promise<boolean> };
+
+/** Returns only work owned by the boundary's current generation. */
+function currentAdoption(
+	pending: ReadonlyMap<Element, PendingIslandAdoption>,
+	boundary: Element
+): PendingIslandAdoption | undefined {
+	const entry = pending.get(boundary);
+	return entry?.generation === boundary.getAttribute('data-exact-client-generation')
+		? entry
+		: undefined;
+}
+
 /** Activates ancestor islands before their descendant, reusing eager work already in flight. */
 export function hydrateIslandChain(
 	boundary: Element,
 	activate: (boundary: Element, event?: Event) => boolean | Promise<boolean>,
-	pending: ReadonlyMap<Element, Promise<boolean>>,
+	pending: ReadonlyMap<Element, PendingIslandAdoption>,
 	event?: Event
 ): boolean | Promise<boolean> {
-	const existing = pending.get(boundary);
-	if (existing) return existing;
+	const existing = currentAdoption(pending, boundary);
+	if (existing) return existing.promise;
 	const parent = boundary.parentElement?.closest('[data-exact-client-boundary], [data-xh]');
 	if (parent && parent.getAttribute('data-exact-client-hydrated') !== 'true') {
 		const parentResult = hydrateIslandChain(parent, activate, pending);
@@ -25,14 +39,15 @@ export function hydrateIslandChain(
 export function createIslandAdoptionTracker<Work>(
 	activate: (boundary: Element, event?: Event, work?: Work) => boolean | Promise<boolean>
 ) {
-	const pending = new Map<Element, Promise<boolean>>();
+	const pending = new Map<Element, PendingIslandAdoption>();
 	let synchronous = 0;
 	return {
-		pending: pending as ReadonlyMap<Element, Promise<boolean>>,
+		pending: pending as ReadonlyMap<Element, PendingIslandAdoption>,
 		synchronousAdoptions: () => synchronous,
 		adopt(boundary: Element, event?: Event, work?: Work): boolean | Promise<boolean> {
-			const existing = pending.get(boundary);
-			if (existing) return existing;
+			const existing = currentAdoption(pending, boundary);
+			if (existing) return existing.promise;
+			const generation = boundary.getAttribute('data-exact-client-generation');
 			const result = activate(boundary, event, work);
 			if (!(result instanceof Promise)) {
 				if (result) synchronous++;
@@ -40,15 +55,16 @@ export function createIslandAdoptionTracker<Work>(
 			}
 			const owned = result.then(
 				(mounted) => {
-					pending.delete(boundary);
+					if (pending.get(boundary) === entry) pending.delete(boundary);
 					return mounted;
 				},
 				(error) => {
-					pending.delete(boundary);
+					if (pending.get(boundary) === entry) pending.delete(boundary);
 					throw error;
 				}
 			);
-			pending.set(boundary, owned);
+			const entry = { generation, promise: owned };
+			pending.set(boundary, entry);
 			return owned;
 		}
 	};

@@ -1,5 +1,5 @@
 import { type ResponseLimits } from './json.js';
-import { positiveLimit } from '../limits.js';
+import { responseResourceBudget } from '../response-resources.js';
 
 export { positiveLimit } from '../limits.js';
 
@@ -13,8 +13,7 @@ export async function readNdjsonEvents(
 	const reader = stream.getReader();
 	const decoder = new TextDecoder('utf-8', { fatal: true });
 	const signal = options.signal;
-	const maxBytes = positiveLimit(options.maxBytes, 16 * 1024 * 1024);
-	const maxEvents = positiveLimit(options.maxEvents, 100_000);
+	const resources = options.resources ?? responseResourceBudget(options.logger);
 	let buffer = '';
 	let bytes = 0;
 	let events = 0;
@@ -27,36 +26,39 @@ export async function readNdjsonEvents(
 	else signal?.addEventListener('abort', abort, { once: true });
 	try {
 		while (true) {
-			if (signal?.aborted)
-				throw signal.reason ?? new DOMException('eXact request aborted', 'AbortError');
+			if (signal?.aborted) throw signal.reason;
 			const next = await reader.read();
-			if (signal?.aborted)
-				throw signal.reason ?? new DOMException('eXact request aborted', 'AbortError');
+			if (signal?.aborted) throw signal.reason;
 			if (next.done) break;
 			bytes += next.value.byteLength;
-			if (bytes > maxBytes) throw new Error('eXact stream response exceeded maxBytes');
-			buffer += decoder.decode(next.value, { stream: true });
+			resources(
+				'maxBytes',
+				options.maxBytes,
+				16 * 1024 * 1024,
+				bytes,
+				'NDJSON response',
+				'encoded UTF-8 bytes'
+			);
+			buffer += decodeNdjsonText(decoder, next.value, message, true);
 			let newline: number;
 			while ((newline = buffer.indexOf('\n')) >= 0) {
 				// A delivered event can cancel its owner before the next buffered event.
-				if (signal?.aborted)
-					throw signal.reason ?? new DOMException('eXact request aborted', 'AbortError');
+				if (signal?.aborted) throw signal.reason;
 				const line = buffer.slice(0, newline).replace(/\r$/, '');
 				buffer = buffer.slice(newline + 1);
 				if (!line.trim()) continue;
-				if (++events > maxEvents) throw new Error('eXact stream response exceeded maxEvents');
+				resources('maxEvents', options.maxEvents, 100_000, ++events, 'NDJSON response', 'events');
 				receive(parseNdjsonLine(line, message));
 			}
 		}
-		buffer += decoder.decode();
+		buffer += decodeNdjsonText(decoder, undefined, message, false);
 		if (buffer.trim()) {
-			if (++events > maxEvents) throw new Error('eXact stream response exceeded maxEvents');
+			resources('maxEvents', options.maxEvents, 100_000, ++events, 'NDJSON response', 'events');
 			receive(parseNdjsonLine(buffer.replace(/\r$/, ''), message));
 		}
-		if (signal?.aborted)
-			throw signal.reason ?? new DOMException('eXact request aborted', 'AbortError');
+		if (signal?.aborted) throw signal.reason;
 	} catch (error) {
-		const failure = error instanceof TypeError ? new Error(message) : error;
+		const failure = signal?.aborted ? signal.reason : error;
 		try {
 			await reader.cancel(failure);
 		} catch {
@@ -66,6 +68,20 @@ export async function readNdjsonEvents(
 	} finally {
 		signal?.removeEventListener('abort', abort);
 		reader.releaseLock();
+	}
+}
+
+/** Only decoding failures represent invalid UTF-8, receiver and transport failures keep their identity. */
+function decodeNdjsonText(
+	decoder: TextDecoder,
+	bytes: Uint8Array | undefined,
+	message: string,
+	stream: boolean
+): string {
+	try {
+		return decoder.decode(bytes, { stream });
+	} catch {
+		throw new Error(message);
 	}
 }
 

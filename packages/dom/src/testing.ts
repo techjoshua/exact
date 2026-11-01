@@ -1,6 +1,6 @@
 import './runtime/text-host.js';
 import { type AnyComponentInstance, type Child, unwrap } from '@exactjs/core';
-import { createCompiledComponentReceipt } from '@exactjs/core/runtime/component-operations';
+import { createCompiledComponentInputReceipt } from '@exactjs/core/runtime/component-operations';
 import { elementOwners, roots } from './state.js';
 import type { Mounted } from './types.js';
 import type { ExactRenderProgram } from '@exactjs/core/runtime/render';
@@ -13,9 +13,8 @@ import { indexProgramHydration, programElement } from './renderer/render-program
 import type { ExactTableRenderProgram } from '@exactjs/core/runtime/render';
 import type { ExactRenderProgramBindingTarget } from '@exactjs/core/runtime/render';
 import type { RenderOptions } from './types.js';
-import { renderCompiledComponentRoot } from './framework/component-root.js';
+import { renderCompiledComponentInputRoot } from './framework/component-root.js';
 import { TestOperationRoot } from './testing-component.js';
-
 /** Obsolete executable program shape accepted only by focused low-level test fixtures. */
 export type LegacyTestDirectRenderProgram = Readonly<{
 	version: ExactRenderProgram['version'];
@@ -26,14 +25,12 @@ export type LegacyTestDirectRenderProgram = Readonly<{
 	bind(target: ExactRenderProgramBindingTarget): void;
 	keyedChildren?: number | readonly number[];
 }>;
-
 /** Isolates hand-wired legacy fixtures without reopening the production native program ABI. */
 export function legacyTestRenderProgram(
 	program: LegacyTestDirectRenderProgram
 ): ExactRenderProgram {
 	return program as unknown as ExactRenderProgram;
 }
-
 let testRootKey = 0;
 const testRootKeys = new WeakMap<Element, string>();
 /** Mounts an opaque operation through a test-only compiled root component. */
@@ -47,8 +44,8 @@ export function renderTestTree(
 		key = `test-root:${++testRootKey}`;
 		testRootKeys.set(container, key);
 	}
-	renderCompiledComponentRoot(
-		createCompiledComponentReceipt(TestOperationRoot, {
+	renderCompiledComponentInputRoot(
+		createCompiledComponentInputReceipt(TestOperationRoot, {
 			operation,
 			key
 		}),
@@ -56,7 +53,6 @@ export function renderTestTree(
 		options
 	);
 }
-
 /** Converts a manually constructed table fixture into the direct client ABI used in production. */
 export function withGenericRenderProgramBindings(program: ExactRenderProgram): ExactRenderProgram {
 	if (program.directClaims || !program.template) return program;
@@ -89,7 +85,6 @@ export function withGenericRenderProgramBindings(program: ExactRenderProgram): E
 		...(bindings.some((binding) => binding[0] === 'lists') ? { listBindings: true } : {})
 	} as unknown as ExactRenderProgram;
 }
-
 type TestClaimTarget = ExactRenderProgramBindingTarget & {
 	readonly claiming: true;
 	readonly root: Element;
@@ -101,11 +96,15 @@ type TestClaimTarget = ExactRenderProgramBindingTarget & {
 	valid: boolean;
 	began: boolean;
 };
-
 function isTestClaimTarget(target: ExactRenderProgramBindingTarget): target is TestClaimTarget {
-	return (target as { claiming?: boolean }).claiming === true;
+	return (
+		(
+			target as {
+				claiming?: boolean;
+			}
+		).claiming === true
+	);
 }
-
 function claimTableFixture(target: TestClaimTarget, program: ExactTableRenderProgram): void {
 	const index = indexProgramHydration(target.root);
 	target.elements.splice(
@@ -131,7 +130,6 @@ function claimTableFixture(target: TestClaimTarget, program: ExactTableRenderPro
 			matchesFixtureElement(target.elements[index], node, program.namespace)
 		) && target.slotNodes.every((node) => node instanceof Node || Array.isArray(node));
 }
-
 function matchesFixtureElement(
 	element: Element | undefined,
 	plan: ExactTableRenderProgram['nodes'][number],
@@ -147,10 +145,12 @@ function matchesFixtureElement(
 				: 'http://www.w3.org/1999/xhtml';
 	return element.namespaceURI === uri;
 }
-
 /** Defines the dom inspection node type contract. */
 export type DomInspectionNode = {
-	readonly operation: Readonly<{ type: string; key?: string }>;
+	readonly operation: Readonly<{
+		type: string;
+		key?: string;
+	}>;
 	readonly instance?: AnyComponentInstance;
 	readonly parent?: DomInspectionNode;
 	readonly children: readonly DomInspectionNode[];
@@ -177,31 +177,26 @@ export type DomInspectionNode = {
 	elements(): readonly Element[];
 	ownedElements(): readonly Element[];
 };
-
-/** Returns a read-only snapshot of the renderer-owned tree for tooling and tests. */
+/** Returns an ordinary tree snapshot with readonly TypeScript fields and independent list membership. */
 export function inspectDomRoot(container: Element): DomInspectionNode | undefined {
 	const mounted = roots.get(container)?.mounted;
 	return mounted ? inspectMounted(mounted, undefined) : undefined;
 }
-
 /** Resolves an element owner. */
 export function findElementOwner(element: Element): AnyComponentInstance | undefined {
 	return elementOwners.get(element);
 }
-
 function inspectMounted(
 	mounted: Mounted,
 	parent: DomInspectionNode | undefined
 ): DomInspectionNode {
 	let children: readonly DomInspectionNode[] = [];
-	const elements = Object.freeze(rootElements(mounted));
-	const owned = Object.freeze(
-		mounted.instance
-			? allElements(mounted).filter((element) => elementOwners.get(element) === mounted.instance)
-			: []
-	);
+	const elements = rootElements(mounted);
+	const owned = mounted.instance
+		? allElements(mounted).filter((element) => elementOwners.get(element) === mounted.instance)
+		: [];
 	const node: DomInspectionNode = {
-		operation: Object.freeze({
+		operation: {
 			type: mountedOperationType(mounted),
 			key:
 				mounted.operationKey ??
@@ -209,44 +204,42 @@ function inspectMounted(
 				mounted.intrinsicReceipt?.key ??
 				mounted.fragmentReceipt?.key ??
 				mounted.targetReceipt?.key
-		}),
+		},
 		instance: mounted.instance,
 		parent,
 		activity: mounted.activity
-			? Object.freeze({
+			? {
 					mode: mounted.activity.mode,
 					detached: mounted.activity.retained?.detached ?? false,
 					pending: mounted.activity.readiness.pending,
 					generation: mounted.activity.readiness.generation
-				})
+				}
 			: undefined,
 		suspense: mounted.suspense
-			? Object.freeze({
+			? {
 					pending: mounted.suspense.coordinator.pending,
 					generation: mounted.suspense.coordinator.generation,
 					revealed: mounted.suspense.revealed,
 					hasCandidate: mounted.suspense.candidate !== undefined
-				})
+				}
 			: undefined,
 		target:
 			mounted.targetBoundary || mounted.targetContributions?.size
-				? Object.freeze({
+				? {
 						selected:
 							mounted.targetBoundary?.selected?.dom instanceof Element
 								? mounted.targetBoundary.selected.dom
 								: undefined,
-						contributions: Object.freeze(
-							[...(mounted.targetContributions?.values() ?? [])].map((contribution) =>
-								Object.freeze({
-									owner: contribution.owner,
-									props: snapshotProps(contribution.props)
-								})
-							)
+						contributions: [...(mounted.targetContributions?.values() ?? [])].map(
+							(contribution) => ({
+								owner: contribution.owner,
+								props: snapshotProps(contribution.props)
+							})
 						),
 						effectiveProps: mounted.targetEffectiveProps
 							? snapshotProps(mounted.targetEffectiveProps)
 							: undefined
-					})
+					}
 				: undefined,
 		get children() {
 			return children;
@@ -254,10 +247,9 @@ function inspectMounted(
 		elements: () => elements,
 		ownedElements: () => owned
 	};
-	children = Object.freeze(mounted.children.map((child) => inspectMounted(child, node)));
-	return Object.freeze(node);
+	children = mounted.children.map((child) => inspectMounted(child, node));
+	return node;
 }
-
 function mountedOperationType(mounted: Mounted): string {
 	if (mounted.componentReceipt) return mounted.clientArtifact?.id ?? 'component';
 	if (mounted.intrinsicReceipt) return mounted.intrinsicReceipt.tag;
@@ -273,30 +265,25 @@ function mountedOperationType(mounted: Mounted): string {
 	if (mounted.scalar) return 'text';
 	return mounted.range ?? 'range';
 }
-
 function snapshotProps(
 	props: Readonly<Record<string, unknown>>
 ): Readonly<Record<string, unknown>> {
-	return Object.freeze(
-		Object.fromEntries(
-			Object.entries(props)
-				.filter(([key]) => key !== 'children')
-				.map(([key, value]) => [key, unwrap(value)])
-		)
+	return Object.fromEntries(
+		Object.entries(props)
+			.filter(([key]) => key !== 'children')
+			.map(([key, value]) => [key, unwrap(value)])
 	);
 }
-
 function rootElements(mounted: Mounted): Element[] {
 	if (isElementNode(mounted.dom)) return [mounted.dom];
 	return mounted.children.flatMap(rootElements);
 }
-
 function allElements(mounted: Mounted): Element[] {
 	const output = isElementNode(mounted.dom) ? [mounted.dom] : [];
-	for (const child of mounted.children) output.push(...allElements(child));
+	for (const child of mounted.children)
+		for (const element of allElements(child)) output.push(element);
 	return output;
 }
-
 function isElementNode(node: Node): node is Element {
 	return node.nodeType === 1;
 }

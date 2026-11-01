@@ -1,3 +1,4 @@
+import { requiresExactServerComponentSelection } from '@exactjs/component-library-policy';
 import { inspectExactComponentBuildFacts, type TransformOptions } from '@exactjs/compiler';
 import type {
 	ExactViteComponentAuthorization,
@@ -21,7 +22,7 @@ export async function preflightExactViteChangedSource(
 	authorization.record(options.filename, facts, source);
 	const requests = new Set([
 		...facts.componentImports
-			.filter((edge) => edge.artifactTargets.includes('server'))
+			.filter((edge) => requiresExactServerComponentSelection(edge))
 			.map((edge) => edge.moduleSpecifier),
 		...facts.rendererEnhancements.map((edge) => edge.moduleSpecifier)
 	]);

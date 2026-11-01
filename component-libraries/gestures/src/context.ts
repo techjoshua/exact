@@ -2,11 +2,11 @@ import { createContext, type Child, type Component } from '@exactjs/core';
 import type { GestureConfigProps, GestureSettings } from './contracts.js';
 
 /** Defaults used outside an authored GestureConfig boundary. */
-export const defaultGestureSettings: GestureSettings = Object.freeze({
+export const defaultGestureSettings: GestureSettings = {
 	enabled: true,
 	dragThreshold: 4,
 	pressThreshold: 6
-});
+};
 
 /** Reactive gesture policy inherited through logical component ownership. */
 export const GestureContext = createContext<GestureSettings>('gesture.settings', {

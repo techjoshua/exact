@@ -3,14 +3,20 @@ import { readExactClientExecutableComponentContract } from '@exactjs/core/framew
 import type { ExactRemoteModule } from './artifacts.js';
 import { importIntegrityPinnedRemoteModule } from './client-integrity.js';
 
-const moduleLoads = new Map<
-	string,
-	Readonly<{ promise: Promise<ExactRemoteModule>; abort: AbortController }>
->();
-const maxModuleLoads = 64;
-const remoteLoadTimeoutMilliseconds = 30_000;
+/** An unsettled remote import remains owned by its active caller waits. */
+type PendingModuleLoad = {
+	readonly promise: Promise<ExactRemoteModule>;
+	readonly abort: AbortController;
+	consumers: number;
+};
 
-/** Loads and validates the public shape of one canonical remote entry. */
+const moduleLoads = new Map<string, PendingModuleLoad>();
+
+/**
+ * Shares validation and loading while callers remain interested in one canonical remote entry.
+ * Each caller owns its optional cancellation signal. The last cancellation releases loader work,
+ * and settled entries leave this pending-work table. No deadline or concurrency cap is imposed.
+ */
 export function loadExactRemoteModule(
 	url: string,
 	integrity?: string,
@@ -19,45 +25,35 @@ export function loadExactRemoteModule(
 	if (!url) return Promise.reject(new Error('Remote client entry must be a non-empty URL'));
 	if (integrity !== undefined && !isValidIntegrity(integrity))
 		return Promise.reject(new Error('Remote client entry has invalid integrity metadata'));
+	if (signal?.aborted) return Promise.reject(signal.reason);
 	const cacheKey = JSON.stringify([url, integrity ?? '']);
 	let entry = moduleLoads.get(cacheKey);
 	if (!entry) {
 		const abort = new AbortController();
-		const timeout = setTimeout(
-			() => abort.abort(new Error('Remote client entry loading timed out')),
-			remoteLoadTimeoutMilliseconds
-		);
 		const promise = (
 			integrity
 				? importIntegrityPinnedRemoteModule(url, integrity, abort.signal)
 				: abortableImport(url, abort.signal)
-		)
-			.then((module) => {
-				const validated = validateRemoteModule(
-					integrity ? module : (module as { default: unknown }).default
-				);
-				// Keep successful deployments bounded. Recovery URLs deliberately
-				// change across generations, so an unbounded process cache would
-				// otherwise retain every deployed entry for the shell's lifetime.
-				moduleLoads.delete(cacheKey);
-				return validated;
-			})
-			.catch((error) => {
-				moduleLoads.delete(cacheKey);
-				throw error;
-			})
-			.finally(() => clearTimeout(timeout));
-		entry = { promise, abort };
+		).then((module) =>
+			validateRemoteModule(integrity ? module : (module as { default: unknown }).default)
+		);
+		entry = { promise, abort, consumers: 0 };
 		moduleLoads.set(cacheKey, entry);
-		while (moduleLoads.size > maxModuleLoads) {
-			const oldest = moduleLoads.keys().next().value;
-			if (oldest === undefined || oldest === cacheKey) break;
-			const evicted = moduleLoads.get(oldest);
-			moduleLoads.delete(oldest);
-			evicted?.abort.abort(new Error('Remote client entry was evicted from the load cache'));
-		}
+		const pending = entry;
+		// An older cancelled generation must never remove its replacement's pending entry.
+		const retire = () => {
+			if (moduleLoads.get(cacheKey) === pending) moduleLoads.delete(cacheKey);
+		};
+		void promise.then(retire, retire);
 	}
-	return signal ? waitForRemoteModule(entry.promise, signal) : entry.promise;
+	const pending = entry;
+	pending.consumers++;
+	return (signal ? waitForRemoteModule(pending.promise, signal) : pending.promise).finally(() => {
+		if (--pending.consumers === 0 && moduleLoads.get(cacheKey) === pending) {
+			moduleLoads.delete(cacheKey);
+			pending.abort.abort(signal?.reason);
+		}
+	});
 }
 
 async function importExactRemoteModule(url: string): Promise<{ default: unknown }> {
@@ -69,10 +65,9 @@ function abortableImport(url: string, signal: AbortSignal): Promise<{ default: u
 }
 
 function waitForRemoteModule<T>(load: Promise<T>, signal: AbortSignal): Promise<T> {
-	if (signal.aborted)
-		return Promise.reject(signal.reason ?? new Error('Remote module load aborted'));
+	if (signal.aborted) return Promise.reject(signal.reason);
 	return new Promise<T>((resolve, reject) => {
-		const abort = () => reject(signal.reason ?? new Error('Remote module load aborted'));
+		const abort = () => reject(signal.reason);
 		signal.addEventListener('abort', abort, { once: true });
 		load.then(
 			(value) => {

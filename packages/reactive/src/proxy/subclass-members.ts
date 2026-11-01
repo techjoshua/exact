@@ -5,7 +5,6 @@ import { track } from '../internal/deps.js';
 import { iterateKey } from '../internal/symbols.js';
 import type { ReactiveOptions } from '../internal/types.js';
 import { captureCustomProperties } from './custom-member-properties.js';
-import { samePropertyDescriptor } from './property-descriptors.js';
 
 type Member = (...args: unknown[]) => unknown;
 const members = new WeakMap<object, WeakMap<Member, Member>>();
@@ -25,7 +24,6 @@ export function customArrayMember(
 	let bound = cache.get(method);
 	if (bound) return bound;
 	bound = (...args) => {
-		if (options.readonly) return wrap(readonlyArrayCall(target, method, args, receiver));
 		const publish = captureCustomProperties(target);
 		try {
 			return wrap(mutateArray(target, String(key), method, args, receiver, options));
@@ -83,32 +81,4 @@ export function writeAccessor(
 	} finally {
 		publish();
 	}
-}
-
-// Authored readonly methods may inspect private fields. Restore observable slots if they mutate.
-function readonlyArrayCall(
-	target: unknown[],
-	method: Member,
-	args: unknown[],
-	receiver: object
-): unknown {
-	const previous = new Map(
-		Reflect.ownKeys(target).map((key) => [key, Reflect.getOwnPropertyDescriptor(target, key)!])
-	);
-	let result: unknown;
-	try {
-		result = Reflect.apply(method, target, args);
-	} finally {
-		let changed = false;
-		for (const key of new Set([...previous.keys(), ...Reflect.ownKeys(target)])) {
-			const next = Reflect.getOwnPropertyDescriptor(target, key);
-			if (next ? samePropertyDescriptor(previous.get(key), next) : !previous.has(key)) continue;
-			changed = true;
-			const descriptor = previous.get(key);
-			if (descriptor) Reflect.defineProperty(target, key, descriptor);
-			else Reflect.deleteProperty(target, key);
-		}
-		if (changed) throw new TypeError('Cannot mutate a readonly reactive array');
-	}
-	return result === target ? receiver : result;
 }

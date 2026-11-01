@@ -75,7 +75,12 @@ Form controls remain package-owned:
 - native form fallback, external errors, and focus behavior remain ordinary
   form concerns.
 
-The HTML `action` attribute keeps its platform meaning; task unification does
+When a `Form` is unmounted, it stops advancing to later validation or submission
+stages after an outstanding callback or validation settles. A user callback that
+has already started may still finish. Field validation keeps its own abort signal
+and ignores obsolete results.
+
+The HTML `action` attribute keeps its platform meaning. Task unification does
 not rename web-platform vocabulary.
 
 ## Router work

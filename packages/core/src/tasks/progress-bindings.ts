@@ -1,3 +1,4 @@
+import { sharedTaskRuntimeState } from './runtime-state.js';
 import type { RuntimeTaskOptions, TaskContext } from './contracts.js';
 import type { AnyComponentInstance } from '../component/contracts.js';
 import { componentLogMethod } from '../component/log.js';
@@ -13,11 +14,15 @@ type ProgressReceiverOptions = Pick<
 	RuntimeTaskOptions<[unknown]>,
 	'label' | 'priority' | 'readiness'
 >;
-const receivers = new WeakMap<
-	object,
-	Map<string, { work: TaskProgressWork; options: ProgressReceiverOptions }>
->();
-const reporters = new WeakMap<TaskFrameRecord, (id: string, snapshot: unknown) => void>();
+const receivers = sharedTaskRuntimeState(
+	'progress-receivers',
+	() =>
+		new WeakMap<object, Map<string, { work: TaskProgressWork; options: ProgressReceiverOptions }>>()
+);
+const reporters = sharedTaskRuntimeState(
+	'progress-reporters',
+	() => new WeakMap<TaskFrameRecord, (id: string, snapshot: unknown) => void>()
+);
 
 /** Registers one compiled receiver against its durable component, without activating it. */
 export function registerTaskProgressReceiver<Snapshot>(

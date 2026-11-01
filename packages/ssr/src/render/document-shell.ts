@@ -41,7 +41,7 @@ export class DocumentShellScope {
 
 	/** Claims one application position; a shell cannot duplicate its hydration root. */
 	claim(reference: ServerComponentReference): boolean {
-		if (reference !== this.reference) return false;
+		if (reference.source !== this.reference.source) return false;
 		if (this.visits++) throw new Error('A document shell must render its application exactly once');
 		return true;
 	}

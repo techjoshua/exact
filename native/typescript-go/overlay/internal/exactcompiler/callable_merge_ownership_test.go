@@ -1,27 +1,47 @@
 package exactcompiler
 
 import (
+	"context"
 	"encoding/json"
+	"path/filepath"
 	"reflect"
 	"testing"
-
-	"github.com/microsoft/TypeScript/tsc/internal/ast"
-	"github.com/microsoft/TypeScript/tsc/internal/core"
-	"github.com/microsoft/TypeScript/tsc/internal/parser"
-	"github.com/microsoft/TypeScript/tsc/internal/tspath"
 )
 
 // Resolution must not rewrite retained source-local facts used by subsequent project merges.
 func TestProjectCallableMergeOwnsMutableSummaries(t *testing.T) {
-	parse := func(name, source string) *ast.SourceFile {
-		return parser.ParseSourceFile(ast.SourceFileParseOptions{FileName: name, Path: tspath.Path(name)}, source, core.ScriptKindTS)
+	fixture := newExecutableFixture(t, map[string]string{
+		"entry.ts":  `import {read} from './callee.js';export function run(){read();}`,
+		"callee.ts": `export function read(){return window.name;}`,
+	})
+	if response := fixture.synchronize([]ExecutableEdge{{Importer: "entry.ts", Slot: 0, Specifier: "./callee.js", Kind: "import", Selected: "callee.ts"}}); response.Error != "" {
+		t.Fatal(response.Error)
 	}
-	caller := parse("/caller.ts", `export function run(){read();}`)
-	callee := parse("/callee.ts", `export function read(){return window.name;}`)
-	analyses := []callableAnalysis{
-		{facts: []callableFacts{{sourceFile: caller, node: caller.Statements.Nodes[0], summary: CallableSummary{ID: "caller", Name: "run", ExportNames: []string{"run"}, DirectEffectSources: []EnvironmentEffectSource{{Environment: "unknown", Description: "unresolved call read"}}, Calls: []CallEdge{{ID: "edge", Name: "read", ModuleSpecifier: "./callee.js", ExportName: "read"}}}}}},
-		{facts: []callableFacts{{sourceFile: callee, node: callee.Statements.Nodes[0], summary: CallableSummary{ID: "callee", Name: "read", ExportNames: []string{"read"}, DirectEffectSources: []EnvironmentEffectSource{{Environment: "browser", Description: "window"}}}}}},
+	for _, file := range []string{"callee.ts", "entry.ts"} {
+		response := fixture.session.Execute(fixture.request("analyze", file))
+		if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) {
+			t.Fatal("invalid selected source fixture", response.Error, response.Diagnostics)
+		}
 	}
+	var project *projectState
+	for _, candidate := range fixture.session.projects {
+		project = candidate
+	}
+	if project == nil || project.callableCache == nil || project.callableCache.owner == nil {
+		t.Fatal("missing actual callable owner")
+	}
+	cache := project.callableCache
+	currentChecker, release := project.program.GetCheckerPool().GetChecker(context.Background(), nil)
+	defer release()
+	if !cache.ownsGeneration(project.program, currentChecker) {
+		t.Fatal("merge fixture does not own its current checker")
+	}
+	caller := project.program.GetSourceFile(filepath.Join(fixture.root, "entry.ts"))
+	callee := project.program.GetSourceFile(filepath.Join(fixture.root, "callee.ts"))
+	if caller == nil || callee == nil {
+		t.Fatal("missing checker-owned fixture sources")
+	}
+	analyses := cache.analyses
 	snapshot := func() string {
 		summaries := []CallableSummary{}
 		for _, analysis := range analyses {
@@ -36,21 +56,35 @@ func TestProjectCallableMergeOwnsMutableSummaries(t *testing.T) {
 		return string(data)
 	}
 	before := snapshot()
-	first := mergeProjectCallableEffects(caller, analyses)
-	if len(first.summaries) != 1 || first.summaries[0].Effect != "browser" || !first.summaries[0].Calls[0].Resolved {
+	first := mergeProjectCallableEffects(caller, analyses, cache.owner)
+	if len(first.summaries) != 1 || first.summaries[0].Effect != "browser" || len(first.summaries[0].Calls) == 0 {
 		t.Fatalf("cross-source effects lost: %#v", first.summaries)
 	}
 	projected := projectCallableAnalysisForSource(callee, first)
-	if len(projected.summaries) != 1 || projected.summaries[0].ID != "callee" {
+	if len(projected.summaries) != 1 || projected.summaries[0].Name != "read" {
 		t.Fatal("requested source projection lost its callable")
+	}
+	for _, edge := range first.summaries[0].Calls {
+		if !edge.Resolved || edge.TargetID != projected.summaries[0].ID {
+			t.Fatal("actual call route lost its source target", edge)
+		}
+	}
+	callerProjection := projectCallableAnalysisForSource(caller, first)
+	mergedBefore, err := json.Marshal(first.summaries)
+	if err != nil {
+		t.Fatal(err)
 	}
 	projected.summaries[0].Name = "request-local"
 	if projectCallableAnalysisForSource(callee, first).summaries[0].Name != "read" ||
-		!reflect.DeepEqual(projectCallableAnalysisForSource(caller, first).summaries, first.summaries) {
+		!reflect.DeepEqual(projectCallableAnalysisForSource(caller, first).summaries, callerProjection.summaries) {
 		t.Fatal("source projection rewrote the retained graph or another request")
 	}
-	mergeProjectCallableEffects(callee, analyses)
-	repeated := mergeProjectCallableEffects(caller, analyses)
+	mergedAfter, err := json.Marshal(first.summaries)
+	if err != nil || string(mergedAfter) != string(mergedBefore) {
+		t.Fatal("source projection rewrote the published merge", err)
+	}
+	mergeProjectCallableEffects(callee, analyses, cache.owner)
+	repeated := mergeProjectCallableEffects(caller, analyses, cache.owner)
 	if snapshot() != before {
 		t.Fatal("merge mutated source-owned summary")
 	}

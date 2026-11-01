@@ -2,10 +2,13 @@ import path from 'node:path';
 import { expect, it } from 'vitest';
 import { transform } from './index.js';
 import { analyzeSource } from './compilation/source-analysis.js';
-import { createTestWorkspace, writeTestFiles } from './test-support/workspace.js';
+import { createCompilerTestWorkspace, writeTestFiles } from './test-support/workspace.js';
 
 it('protects imported and callable-variable secret results at every component output target', async () => {
-	const root = await createTestWorkspace('.exact-policy-call-results-', path.resolve('.tmp'));
+	const root = await createCompilerTestWorkspace(
+		'.exact-policy-call-results-',
+		path.resolve('.tmp')
+	);
 	await writeTestFiles(root, {
 		'provider.d.ts': `import type {Secret} from '@exactjs/secrets';
 		 export type Credential = Secret<string>;
@@ -71,7 +74,10 @@ it('keeps identically named callable returns separate across receivers', () => {
 });
 
 it('retains explicit imported secret annotations even when the native return type is ordinary', async () => {
-	const root = await createTestWorkspace('.exact-policy-call-annotations-', path.resolve('.tmp'));
+	const root = await createCompilerTestWorkspace(
+		'.exact-policy-call-annotations-',
+		path.resolve('.tmp')
+	);
 	await writeTestFiles(root, {
 		'provider.d.ts': `/** @exact keep=secret */
 		 export declare function read(): string;`
@@ -127,7 +133,7 @@ it('preserves public projections of recursive secret-bearing callable results', 
 });
 
 it('keeps secret type contracts authoritative over declaration placement annotations', async () => {
-	const root = await createTestWorkspace(
+	const root = await createCompilerTestWorkspace(
 		'.exact-policy-qualification-annotations-',
 		path.resolve('.tmp')
 	);
@@ -191,7 +197,7 @@ export function Panel(){return()=> <p>{read()}</p>;}`,
 });
 
 it('protects imported accessor values and literal member names without qualifying public siblings', async () => {
-	const root = await createTestWorkspace('.exact-policy-accessors-', path.resolve('.tmp'));
+	const root = await createCompilerTestWorkspace('.exact-policy-accessors-', path.resolve('.tmp'));
 	await writeTestFiles(root, {
 		'provider.d.ts': `import type {Secret} from '@exactjs/secrets';
 export declare class Service{
@@ -234,7 +240,10 @@ export const service={get token(){return credential},get label(){return 'Public'
 });
 
 it('preserves selected generic result and member qualification across public and private instances', async () => {
-	const root = await createTestWorkspace('.exact-policy-generic-selection-', path.resolve('.tmp'));
+	const root = await createCompilerTestWorkspace(
+		'.exact-policy-generic-selection-',
+		path.resolve('.tmp')
+	);
 	await writeTestFiles(root, {
 		'provider.d.ts': `import type {Secret} from '@exactjs/secrets';
 export declare function read<T>():T;
@@ -377,7 +386,10 @@ export function Panel(this:Component<{label:string}>){const run=(_task:TaskConte
 });
 
 it('checks source-owned results after an earlier reference without eagerly consuming function values', async () => {
-	const root = await createTestWorkspace('.exact-policy-deferred-results-', path.resolve('.tmp'));
+	const root = await createCompilerTestWorkspace(
+		'.exact-policy-deferred-results-',
+		path.resolve('.tmp')
+	);
 	await writeTestFiles(root, {
 		'provider.ts': `/** @exact keep=secret */ declare const credential:string;
 export function read(){if(credential)return 'private';return 'other';}

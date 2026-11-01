@@ -59,7 +59,7 @@ it('discards stale edits and preserves a separate successful invocation', () => 
 	expect(root.map.get('x')).toBe(2);
 });
 
-it('resolves pending collection edits into the reconciled published receiver', () => {
+it('resolves pending collection edits into the replacement published receiver', () => {
 	const root = reactive({ map: new Map<string, number>([['old', 1]]) });
 	const receiver = root.map;
 	const controller = new AbortController(),
@@ -100,7 +100,7 @@ it('publishes the originally selected native operation without invoking a later 
 	expect(root.map.get('x')).toBe(9);
 });
 
-it('maps writes on a pending object to its reconciled published owner', () => {
+it('publishes writes on pending replacement storage', () => {
 	const root = reactive({ nested: { count: 0 } });
 	const receiver = root.nested;
 	const controller = new AbortController(),
@@ -110,7 +110,8 @@ it('maps writes on a pending object to its reconciled published owner', () => {
 	pending.write(next, 'count', 9);
 	expect(root.nested.count).toBe(0);
 	publishTaskMutations(controller.signal);
-	expect(root.nested).toBe(receiver);
+	expect(unwrap(root.nested)).toBe(next);
+	expect(receiver.count).toBe(0);
 	expect(root.nested.count).toBe(9);
 });
 
@@ -243,7 +244,7 @@ it('retains Array truncation, growth and live iterators across pending writes', 
 	expect(values).toEqual([1, , 9]);
 });
 
-it('publishes a shared pending replacement into each reconciled owner', () => {
+it('publishes one shared pending replacement into both destinations', () => {
 	const root = reactive({ first: { count: 0 }, second: { count: 0 } });
 	const first = root.first,
 		second = root.second;
@@ -254,8 +255,10 @@ it('publishes a shared pending replacement into each reconciled owner', () => {
 	pending.write(root, 'second', replacement);
 	pending.write(replacement, 'count', 9);
 	publishTaskMutations(controller.signal);
-	expect(root.first).toBe(first);
-	expect(root.second).toBe(second);
+	expect(unwrap(root.first)).toBe(replacement);
+	expect(unwrap(root.second)).toBe(replacement);
+	expect(first.count).toBe(0);
+	expect(second.count).toBe(0);
 	expect(root.first.count).toBe(9);
 	expect(root.second.count).toBe(9);
 });

@@ -84,19 +84,19 @@ export function TasksPage(this: Component<{}>) {
 			<section>
 				<h2>Cancel work and release resources</h2>
 				<p>
-					Input changes and component removal already cancel the work they replace or retire. If
-					your interface also needs a Cancel button, its handler can call{' '}
-					<code>search.cancel()</code>. Cancellation stops further task-owned state updates.
-					External work that has already happened, such as a database write, cannot be undone by
-					cancelling the browser task.
+					Input changes and component removal cancel the work they replace or retire. For a Cancel
+					button, call <code>search.cancel()</code> in its handler. Cancellation blocks further
+					task-owned state updates. External work already performed, such as a database write,
+					cannot be undone by cancelling the browser task.
 				</p>
 				<p>
-					A failed request can recover in <code>catch</code> while its task is still current. Once
-					the task is cancelled, state writes in <code>catch</code> and <code>finally</code>
-					are also blocked. This keeps an older run from clearing a newer run's result. Resource
-					cleanup can use the task's cleanup registration so it runs even when cancellation
-					interrupts the task body. Cleanup callbacks retain the props values captured for their
-					generation.
+					A current task can recover in <code>catch</code>. Cancellation blocks state writes in
+					<code>catch</code> and <code>finally</code>. Cleanup retains props, attempts every
+					callback, and releases resources while preserving an existing failure, including frozen
+					errors and primitive values. A finished child stays settled after parent cancellation.
+					Cancellation retains its reason. <code>isTaskCancellation()</code> from{' '}
+					<code>@exactjs/core</code>
+					distinguishes it from other errors named <code>AbortError</code>.
 				</p>
 				<p>
 					Resources can follow the same lifetime. A feed listener, for example, should close its
@@ -139,8 +139,8 @@ export function TasksPage(this: Component<{}>) {
 					The example calls an application-provided server repository. The
 					<a href="#/learn/server-execution">server execution guide</a> explains how to supply it.
 					<code>saveDocument.pendingCount</code> counts all pending saves owned by this component.
-					Each task must be declared inside its owning component. Shared module helpers can contain
-					the reusable business logic.
+					Define tasks in component setup. Share logic in helpers. Task values keep status in
+					<code>{'{ child }'}</code> properties.
 				</p>
 				<details>
 					<summary>Status for one document</summary>
@@ -230,24 +230,23 @@ export function TasksPage(this: Component<{}>) {
 					title="Excerpt: optimistic profile save"
 				/>
 				<p>
-					Here <code>draft</code> holds the edited profile and <code>profile</code> is the value
-					displayed elsewhere in the component. The optimistic callback displays the edit
-					immediately. Rollback restores only changes still owned by that task. Later confirmed
-					writes survive, including changes to individual array entries. When rolling back an
-					insertion shifts other entries, their pending edits still roll back at the correct
-					positions. Sorting or reversing the array also preserves those pending edits and
-					insertions' rollback ownership. If overlapping saves both fail, rollback also removes the
-					earlier failed edit. Your application still decides how to explain a failed save to the
-					user.
+					Here <code>draft</code> holds the edit and <code>profile</code> is displayed elsewhere.
+					Rollback restores changes still owned by the task and preserves later confirmed writes.
+					Pending array edits follow their entries through insertions, sorting, and reversal.
+					Appending with <code>items[items.length] = value</code> and <code>items.push(value)</code>
+					follows the same ownership rules. A later explicit length assignment remains
+					authoritative. If overlapping saves both fail, rollback also removes the earlier failed
+					edit. Clearing a Map or Set restores still-owned members while preserving later
+					independent insertions. Your application decides how to explain a failed save.
 				</p>
 			</section>
 			<details>
 				<summary>Track selected inputs and capture other values</summary>
 				<p>
-					Calling a task in the component body tells eXact to run it when its input expressions
-					change. Each change cancels the previous run and starts another. Calling it from an event
-					handler, lifecycle callback, router callback, or another task runs it once with the
-					supplied arguments.
+					Calling a task in the component body observes its argument values, including props derived
+					from nested parent state. When a value changes, eXact cancels the previous run and starts
+					another. Calls from event handlers, lifecycle callbacks, router callbacks, or other tasks
+					run once with their supplied arguments.
 				</p>
 				<ul>
 					<li>
@@ -277,6 +276,7 @@ export function TasksPage(this: Component<{}>) {
 					variables and ordinary evaluation order. Local class instances retain their private method
 					receivers and ordinary optional-call behavior inside task work.
 				</p>
+
 				<CodeBlock
 					source={taskSources.capturedInputSource}
 					language="tsx"
@@ -312,6 +312,12 @@ export function TasksPage(this: Component<{}>) {
 					task uses.
 					<code>immediate()</code>, <code>normal()</code>, and <code>deferred()</code> choose when
 					eligible work runs. Normal priority is the default for invoked tasks.
+				</p>
+				<p>
+					Returning an object from async work can invoke its <code>then</code> getter during
+					JavaScript promise settlement. That getter's resource requirements also count toward task
+					placement. A <code>PromiseLike</code> type describes the result contract without making
+					the getter free of effects.
 				</p>
 				<p>
 					A <code>Suspense</code> boundary displays fallback content while blocking work beneath it
@@ -367,23 +373,24 @@ export function TasksPage(this: Component<{}>) {
 					title="Excerpt: update state and return a count"
 				/>
 				<p>
-					A task called by another task belongs to that parent run. The parent waits for its child
-					tasks and their cleanup even when it does not await their results. An unhandled child
-					failure fails the parent. Adding <code>.catch()</code> can handle that failure without
-					changing ownership. Cancellation travels from parent to children.
+					Parents await children and cleanup, including timers owned while the parent body is
+					pending. Callbacks preserve child placement. Callers evaluate arguments. Cancellation
+					reaches children and fences late writes. Unhandled child failure fails the parent.
+					<code>.catch()</code> handles it in the same owner. Caller cancellation and inherited
+					native option accessors apply. Children may await external results before state writes.
 				</p>
 				<p>
-					For work that must not delay its caller, <code>detached()</code> removes that parent
-					attachment. The task still has a component owner. Removing the component still cancels it.
-				</p>
-				<p>
-					These rules also apply to server tasks. Detected disconnection cancels request-owned work.
-					Expected cancellation does not produce an invocation-error log. Application failures still
-					do. SSR waits for attached work and cleanup before publishing its output.
-				</p>
-				<p>
-					When concurrent branches write state, each branch can be a child task that awaits its own
-					external result. eXact then protects its state writes from cancelled runs.
+					<code>detached()</code> lets work settle independently of its parent. Component removal
+					still cancels it, including on the server. Detected disconnection cancels request-owned
+					work. Expected cancellation produces no invocation-error log. Application failures do. SSR
+					waits for attached work and cleanup. It does not automatically wait for detached work.
+					Explicit <code>await</code> still delays the caller, without guaranteeing execution after
+					the response. Writes performed by same-owner invoked tasks while the request remains open
+					can enter its state response. Later writes do not. Warning <code>EXACT2004</code>{' '}
+					identifies detached server task definitions. Acknowledge it with{' '}
+					<code>{'/** @exact ignore=EXACT2004 */'}</code> immediately before the function or its
+					owning variable declaration. This changes no execution or ownership and cannot hide
+					errors.
 				</p>
 			</details>
 			<TaskHelperUpdates />

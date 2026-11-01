@@ -1,16 +1,24 @@
 import { KeyedVersionStore } from './keyed-version-store.js';
 import {
+	restoreTransaction,
+	releaseTransaction,
+	type TransactionUndo,
+	type MutationRestoration
+} from './transaction-restoration.js';
+export type { MutationRestoration } from './transaction-restoration.js';
+import {
 	arrayIndex,
 	arrayPosition,
 	arrayPositionKey,
-	isArrayPosition,
 	retainArrayTracking
 } from '../arrays/positions.js';
 import {
 	retainJournalOwnership,
 	restoreJournalPredecessors,
 	commitJournalOwnership,
-	rollbackJournalOwnership
+	rollbackJournalOwnership,
+	retireFailedJournalRestoration,
+	type JournalRestorationOutcome
 } from './journal-ownership.js';
 import { scheduleDependencyReactions, scheduleTriggeredReactions } from './dependency-graph.js';
 
@@ -40,22 +48,6 @@ type Transaction = {
 type MutationVersionRange = {
 	start: number;
 	end: number;
-};
-
-/** Ownership checks and invalidation accounting shared by composite inverse operations. */
-export type MutationRestoration = {
-	/** Allows restoration only when intervening writes belong to the rollback group. */
-	allows(target: object, key: PropertyKey, baseline?: number): boolean;
-	/** Records an actually restored dependency without publishing intermediate array shapes. */
-	mark(target: object, key: PropertyKey): void;
-	/** Invalidates moved numeric dependencies without changing surviving slot ownership. */
-	notify(target: object, key: PropertyKey): void;
-};
-
-type TransactionUndo = {
-	readonly apply: (restoration: MutationRestoration) => void;
-	readonly target?: object;
-	readonly key?: PropertyKey;
 };
 
 const transactions: Transaction[] = [];
@@ -116,9 +108,7 @@ export function batch<T>(fn: () => T): T {
 		result = fn();
 	} catch (error) {
 		transactions.pop();
-		rollbackTransaction(transaction);
-		releaseTransaction(transaction);
-		throw error;
+		rollbackFailedCallback(transaction, error);
 	}
 	transactions.pop();
 	publishTransaction(parent, transaction);
@@ -165,30 +155,48 @@ export function captureReactiveMutations(fn: () => void): ReactiveMutationJourna
 		fn();
 	} catch (error) {
 		transactions.pop();
-		rollbackTransaction(transaction);
-		releaseTransaction(transaction);
-		throw error;
+		rollbackFailedCallback(transaction, error);
 	}
 	transactions.pop();
-	const parent = transactions[transactions.length - 1];
-	if (parent) mergeTriggers(parent.triggers, transaction.triggers);
-	else flushTriggers(transaction.triggers);
+	publishTransactionTriggers(transaction);
 	const protectedVersions = transactionMutationVersions(transaction.versionRanges!);
 
 	const ownership = retainJournalOwnership(
 		protectedVersions,
 		transaction.versionRanges!,
-		() => {
-			const restored = rollbackTransaction(transaction, protectedVersions);
-			restoreJournalPredecessors(ownership, restored, readOwnershipVersion);
-			const parent = transactions[transactions.length - 1];
-			if (parent) mergeTriggers(parent.triggers, transaction.triggers);
-			else flushTriggers(transaction.triggers);
+		(): JournalRestorationOutcome => {
+			const outcome = rollbackTransaction(transaction, protectedVersions);
+			restoreJournalPredecessors(ownership, outcome.restored, readOwnershipVersion);
+			let release: (() => void) | undefined;
+			if (outcome.restorationFailed) {
+				transaction.undos!.length = 0;
+				release = retireFailedJournalRestoration(ownership);
+			}
+			let secondaryFailed = false;
+			let secondaryError: unknown;
+			try {
+				publishTransactionTriggers(transaction);
+			} catch (error) {
+				secondaryFailed = true;
+				secondaryError = error;
+			}
+			try {
+				release?.();
+			} catch (error) {
+				if (!secondaryFailed) {
+					secondaryFailed = true;
+					secondaryError = error;
+				}
+			}
+			return { ...outcome, secondaryFailed, secondaryError };
 		},
 		() => {
 			transaction.undos!.length = 0;
-			releaseTransaction(transaction);
-			transaction.triggers.clear();
+			try {
+				releaseTransaction(transaction);
+			} finally {
+				transaction.triggers.clear();
+			}
 		}
 	);
 	let active = true;
@@ -227,9 +235,16 @@ export function rollbackReactiveMutationJournals(
  *
  * Supplying the mutated target and dependency key lets a retained optimistic
  * journal preserve a newer authoritative write to that path during rollback.
+ * The inverse receives that stored address, so array descriptors need no separate slot binding.
  */
 export function recordTransactionUndo(
-	undo: (restoration: MutationRestoration) => void,
+	undo: (restoration: MutationRestoration, location?: object) => boolean,
+	target: object | undefined,
+	key: PropertyKey
+): void;
+export function recordTransactionUndo(undo: (restoration: MutationRestoration) => void): void;
+export function recordTransactionUndo(
+	undo: TransactionUndo['apply'],
 	target?: object,
 	key?: PropertyKey
 ): void {
@@ -249,8 +264,12 @@ export function hasActiveReactiveTransaction(): boolean {
 
 function mergeTransaction(parent: Transaction, child: Transaction): void {
 	if (parent.undos && child.undos) {
-		parent.undos.push(...child.undos);
-		if (child.cleanups?.length) (parent.cleanups ??= []).push(...child.cleanups);
+		// Append in order without routing journal data through the host function-argument limit.
+		for (const undo of child.undos) parent.undos.push(undo);
+		if (child.cleanups?.length) {
+			const cleanups = (parent.cleanups ??= []);
+			for (const cleanup of child.cleanups) cleanups.push(cleanup);
+		}
 	} else releaseTransaction(child);
 	mergeTriggers(parent.triggers, child.triggers);
 	if (parent.versionRanges && child.versionRanges)
@@ -263,6 +282,13 @@ function publishTransaction(parent: Transaction | undefined, transaction: Transa
 		flushTriggers(transaction.triggers);
 		releaseTransaction(transaction);
 	}
+}
+
+/** Publishes captured notifications to the current transaction or its observers. */
+function publishTransactionTriggers(transaction: Transaction): void {
+	const parent = transactions[transactions.length - 1];
+	if (parent) mergeTriggers(parent.triggers, transaction.triggers);
+	else flushTriggers(transaction.triggers);
 }
 
 function mergeTriggers(
@@ -282,46 +308,34 @@ function mergeTriggers(
 function rollbackTransaction(
 	transaction: Transaction,
 	protectedVersions?: Map<object, Map<PropertyKey, number>>
-): Map<object, Set<PropertyKey>> {
-	const restored = new Map<object, Set<PropertyKey>>();
-	const undos = transaction.undos;
-	if (!undos) return restored;
-	const restoration: MutationRestoration = {
-		allows: (target, key, baseline = 0) => {
-			const location = mutationLocation(target, key);
-			return (
-				!protectedVersions ||
-				readOwnershipVersion(location.target, location.key) ===
-					(protectedVersions.get(location.target)?.get(location.key) ?? baseline)
-			);
-		},
-		mark: (target, key) => {
-			const location = mutationLocation(target, key);
-			recordRestoredDependency(restored, location.target, location.key);
-			if (isArrayPosition(target)) {
-				if (target.index >= 0) {
-					recordRestoredDependency(transaction.triggers, target.array, String(target.index));
-					incrementMutationVersion(target.array, String(target.index));
-				}
-			} else {
-				recordRestoredDependency(transaction.triggers, target, key);
-				incrementMutationVersion(target, key);
-			}
-		},
+) {
+	return restoreTransaction(transaction.undos, transaction.triggers, protectedVersions, {
+		locate: mutationLocation,
+		read: readOwnershipVersion,
 		notify: (target, key) => {
 			recordRestoredDependency(transaction.triggers, target, key);
 			incrementMutationVersion(target, key);
+		},
+		finish: (restored) => restoreMutationOwnership(restored, transaction)
+	});
+}
+
+/** Completes failed callback accounting while its exact original error remains primary. */
+function rollbackFailedCallback(transaction: Transaction, primary: unknown): never {
+	try {
+		const outcome = rollbackTransaction(transaction);
+		transaction.undos!.length = 0;
+		try {
+			if (outcome.restorationFailed) {
+				publishTransactionTriggers(transaction);
+			}
+		} finally {
+			releaseTransaction(transaction);
 		}
-	};
-	for (let index = undos.length - 1; index >= 0; index--) {
-		const undo = undos[index]!;
-		if (undo.target && undo.key !== undefined && !restoration.allows(undo.target, undo.key))
-			continue;
-		undo.apply(restoration);
-		if (undo.target && undo.key !== undefined) restoration.mark(undo.target, undo.key);
+	} catch {
+		/* The callback owns the exact primary, including undefined. */
 	}
-	restoreMutationOwnership(restored, transaction);
-	return restored;
+	throw primary;
 }
 
 function transactionMutationVersions(
@@ -466,12 +480,6 @@ export function notifyReactiveDependency(target: object, key: PropertyKey): void
 	const transaction = transactions[transactions.length - 1];
 	if (transaction) recordRestoredDependency(transaction.triggers, target, key);
 	else triggerNow(target, key);
-}
-
-function releaseTransaction(transaction: Transaction): void {
-	for (let index = (transaction.cleanups?.length ?? 0) - 1; index >= 0; index--)
-		transaction.cleanups![index]!();
-	if (transaction.cleanups) transaction.cleanups.length = 0;
 }
 
 /** Retains sequence addresses until every inverse captured by this transaction is retired. */

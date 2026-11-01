@@ -45,6 +45,10 @@ run its Go tests, and build the host. Semantic tests resolve runtime and enhance
 packages through their public exports, so their declarations must exist before testing.
 The build prepares them automatically, including for coverage and cross-compilation.
 Host tests have a 30-minute suite timeout to accommodate small CI runners.
+For a bounded regression check, add `--test-pattern '<Go test expression>'`. This
+runs the selected tests before building the host and leaves no full-suite build
+stamp. Focused checks cannot select coverage or package output. Run the ordinary
+build before relying on complete native validation or packaging.
 Add `--package` to stage the current platform npm package, or pass
 `--platform` and `--arch` for one of the supported cross-compilation targets.
 Use `--all-targets --package` to stage and validate the source once, then build all six

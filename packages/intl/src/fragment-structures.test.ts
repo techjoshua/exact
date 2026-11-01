@@ -2,7 +2,7 @@
 import '@exactjs/dom/runtime/target';
 import { createEnhancementNode, type Child } from '@exactjs/core';
 import {
-	createCompiledComponentReceipt as component,
+	createCompiledComponentInputReceipt as component,
 	createCompiledFragmentReceipt as fragment,
 	createCompiledIntrinsicReceipt as intrinsic
 } from '@exactjs/core/runtime/component-operations';
@@ -22,7 +22,6 @@ import { registerDomEnhancementIntegration } from '../../dom/src/renderer/enhanc
 import { createIntlEnvironment } from './environment.js';
 import { prepareIntlActivation } from './prepared.js';
 import type { IntlRuntimeDescriptorV1 } from './contracts.js';
-
 const descriptor: IntlRuntimeDescriptorV1 = {
 	protocol: 1,
 	owner: 'fragment-structures',
@@ -41,7 +40,6 @@ const descriptor: IntlRuntimeDescriptorV1 = {
 	],
 	capabilities: ['element', 'opaque']
 };
-
 it('retains rich and opaque slots while locale and translated attributes share a fragment host', async () => {
 	registerDomEnhancementIntegration();
 	const title: IntlRuntimeDescriptorV1 = {
@@ -83,19 +81,24 @@ it('retains rich and opaque slots while locale and translated attributes share a
 		component(
 			provider,
 			{ environment },
-			intrinsic(
-				'div',
-				null,
-				fragment(
-					{
-						__exactEnhancements: createEnhancementNode([
-							{ identity: 'locale', props: { locale: true } },
-							{ identity: 'attributes', props: { title: property } }
-						])
-					},
-					component(formatter, { message })
-				)
-			)
+			{
+				kind: 'eager',
+				values: [
+					intrinsic(
+						'div',
+						null,
+						fragment(
+							{
+								__exactEnhancements: createEnhancementNode([
+									{ identity: 'locale', props: { locale: true } },
+									{ identity: 'attributes', props: { title: property } }
+								])
+							},
+							component(formatter, { message })
+						)
+					)
+				]
+			}
 		);
 	const rendered = await renderToHydratableString(tree(ServerProvider, ServerMessage), {
 		enhancementCatalog: new Map([
@@ -133,7 +136,6 @@ it('retains rich and opaque slots while locale and translated attributes share a
 		unmount(container);
 	}
 });
-
 it.each(['div', 'title', 'textarea'])(
 	'keeps a nested explicit locale independent inside %s',
 	async (tag) => {
@@ -167,27 +169,32 @@ it.each(['div', 'title', 'textarea'])(
 			component(
 				provider,
 				{ environment },
-				intrinsic(
-					tag,
-					null,
-					fragment(
-						{
-							__exactEnhancements: createEnhancementNode([
-								{ identity: 'locale', props: { locale: 'fr-FR' } }
-							])
-						},
-						fragment(
-							{
-								__exactEnhancements: createEnhancementNode([
-									{ identity: 'locale', props: { locale: true } }
-								])
-							},
+				{
+					kind: 'eager',
+					values: [
+						intrinsic(
+							tag,
+							null,
+							fragment(
+								{
+									__exactEnhancements: createEnhancementNode([
+										{ identity: 'locale', props: { locale: 'fr-FR' } }
+									])
+								},
+								fragment(
+									{
+										__exactEnhancements: createEnhancementNode([
+											{ identity: 'locale', props: { locale: true } }
+										])
+									},
+									component(formatter, { message })
+								)
+							),
+							' / ',
 							component(formatter, { message })
 						)
-					),
-					' / ',
-					component(formatter, { message })
-				)
+					]
+				}
 			);
 		const rendered = await renderToHydratableString(tree(ServerProvider, ServerMessage), {
 			enhancementCatalog: new Map([['locale', ServerLocale]])

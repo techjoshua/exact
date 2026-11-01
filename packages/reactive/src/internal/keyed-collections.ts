@@ -1,4 +1,5 @@
 import { hashCanonicalJson, hashStringSequence } from './hash.js';
+import { unwrap } from './values.js';
 import {
 	createKeyedCollectionEnvelope,
 	decodeKeyedProtocolValue,
@@ -64,7 +65,7 @@ export function keyedCollectionMetadata(
 	}
 }
 
-/** Performs the mark reactive hash dirty domain operation. */
+/** Invalidates cached item hashes owned by mutated raw storage, including inverse restoration. */
 export function markReactiveHashDirty(target: object): void {
 	const own = metadataByCollection.get(target);
 	if (own) own.structureDirty = true;
@@ -135,9 +136,11 @@ export function adoptKeyedCollectionMetadata(
 /** Produces a reactive protocol value internal in its external representation. */
 export function encodeReactiveProtocolValueInternal(
 	value: unknown,
-	extractorFor: (collection: unknown[]) => KeyExtractor | undefined
+	extractorFor: (collection: unknown[]) => KeyExtractor | undefined,
+	maxDepth?: number,
+	sample?: (source: unknown, encoded: unknown, path: readonly string[], depth: number) => void
 ): unknown {
-	return encodeKeyedProtocolValue(value, extractorFor, keyedCollectionMetadata);
+	return encodeKeyedProtocolValue(value, extractorFor, keyedCollectionMetadata, maxDepth, sample);
 }
 
 /** Adds keyed-list metadata to array items serialized by a validated outer protocol traversal. */
@@ -151,9 +154,11 @@ export function encodeValidatedReactiveCollectionInternal(
 }
 
 /** Reads a reactive protocol value internal from its source representation. */
-export function decodeReactiveProtocolValueInternal(value: unknown): unknown {
-	return decodeKeyedProtocolValue(value, (items, envelope) =>
-		installKeyedCollectionMetadata(items, envelope, false)
+export function decodeReactiveProtocolValueInternal(value: unknown, maxDepth?: number): unknown {
+	return decodeKeyedProtocolValue(
+		value,
+		(items, envelope) => installKeyedCollectionMetadata(items, envelope, false),
+		maxDepth
 	);
 }
 
@@ -199,7 +204,7 @@ function keysChanged(collection: unknown[], keys: readonly string[], key: KeyExt
 }
 
 function hashItem(key: string, value: unknown): string {
-	return hashCanonicalJson([key, value], 'exact:keyed-item:v1');
+	return hashCanonicalJson([key, value], 'exact:keyed-item:v1', true);
 }
 
 function bindOwners(metadata: KeyedCollectionMetadata, collection: unknown[]): void {
@@ -242,6 +247,7 @@ function collectJsonObjects(
 	seen: WeakSet<object>,
 	depth: number
 ): void {
+	value = unwrap(value);
 	if (!value || typeof value !== 'object' || seen.has(value) || depth > 100) return;
 	seen.add(value);
 	output.push(value);

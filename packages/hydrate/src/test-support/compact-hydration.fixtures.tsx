@@ -7,7 +7,7 @@ export function CompactCounter(this: Component<{}>, props: { label: string }) {
 
 /** Compiler-owned interaction island with a stable replay target. */
 export function CompactDialog(this: Component<{}>, props: { label: string }) {
-	return () => <button data-exact-id="dialog-button">{props.label}</button>;
+	return () => <button data-testid="dialog-button">{props.label}</button>;
 }
 
 /** Compiler-owned compact island used to isolate malformed sibling rows. */

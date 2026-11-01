@@ -1,3 +1,6 @@
+import { projectedAttributes } from './text-projection-markup.js';
+import { FragmentPresentationHosts } from '../framework/fragment-hosts.js';
+import { compiledElementIdentity } from './element-identity.js';
 import { describe, expect, it } from 'vitest';
 import { computed, flushSync, reactive, watch } from '@exactjs/reactive';
 import { isOpaqueOperation } from './opaque-operation.js';
@@ -51,4 +54,28 @@ describe('focused structural receipts', () => {
 		expect(props.operation).toBe(operation);
 		expect(readCompiledTargetReceipt(props.operation)?.props.label).toBe('child');
 	});
+});
+
+it('keeps reserved-only opaque contributions from allocating physical hosts', () => {
+	const hosts = new FragmentPresentationHosts();
+	const owner = Symbol('contribution');
+	const props = { 'DATA-EXACT-ID': 'forged', [compiledElementIdentity]: 'copied' };
+	expect(hosts.reconcile([{ owner, props }])).toEqual([]);
+	expect(hosts.reconcile([{ owner, props, declaredHostProps: true }])).toHaveLength(1);
+	hosts.dispose();
+});
+
+it('keeps compiler addresses and reserved string aliases out of inert text markup', () => {
+	expect(
+		projectedAttributes(
+			{
+				'DATA-EXACT-ID': 'upper',
+				'data-exact-id': 'lower',
+				[compiledElementIdentity]: 'physical',
+				title: 'retained'
+			},
+			'button',
+			{}
+		)
+	).toBe(' title="retained"');
 });

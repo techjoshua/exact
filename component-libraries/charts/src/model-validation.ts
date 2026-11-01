@@ -1,9 +1,9 @@
 import { deriveDataColors, type ResolvedTheme, type ThemeSurfaceBundle } from '@exactjs/theme';
 import type { DataProps } from './contracts.js';
-import type { ChartCoordinator } from './contexts.js';
+import type { ChartPresentationInput } from './model.js';
 import type { ChartSeriesRegistration } from './model.js';
 
-const fallbackColors = Object.freeze(['#2563eb', '#dc2626', '#059669', '#7c3aed']);
+const fallbackColors = ['#2563eb', '#dc2626', '#059669', '#7c3aed'];
 
 /** Stable non-color and color identity assigned to one authored series. */
 export interface ChartSeriesStyle {
@@ -13,7 +13,7 @@ export interface ChartSeriesStyle {
 
 /** Validates the complete registered model before geometry is derived. */
 export function validateChartModel(
-	chart: ChartCoordinator,
+	chart: ChartPresentationInput,
 	series: readonly ChartSeriesRegistration[]
 ): void {
 	for (const axis of chart.model.axes.values()) {

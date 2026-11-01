@@ -1,6 +1,4 @@
-import { batch, hasActiveReactiveTransaction } from './internal/deps.js';
-import { propertyDescriptor } from './proxy/property-descriptors.js';
-
+import { nativePropertyKey } from './internal/property-key.js';
 import { releaseKeyedCollectionMetadata } from './internal/keyed-collections.js';
 
 import { unwrap } from './internal/values.js';
@@ -12,11 +10,7 @@ import {
 
 import { conflictingListKeyError, listKeyExtractors } from './proxy/state.js';
 
-import {
-	createReconcilePairs,
-	reconcileReactiveValue,
-	resolveReactivePath
-} from './reconciliation.js';
+import { resolveReactivePath } from './reconciliation.js';
 
 import type { StopHandle } from './internal/types.js';
 
@@ -24,11 +18,38 @@ import type { StopHandle } from './internal/types.js';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Contextual any preserves ordinary arithmetic and property access in generated compound-assignment callbacks.
 type ReactiveUpdateOperation<Result> = (previous: any) => Result;
 
+/** Reports a successful compiler-selected property write, including an equal-value assignment. */
+export type ReactivePropertyMutationObserver = (
+	receiver: object,
+	key: PropertyKey,
+	operation: 'set' | 'delete'
+) => void;
+
+const mutationObserverKey = Symbol.for('@exactjs/reactive.property-mutation-observer/abi-2');
+const observerHost = globalThis as typeof globalThis & {
+	[mutationObserverKey]?: { observer?: ReactivePropertyMutationObserver };
+};
+const propertyMutationState = (observerHost[mutationObserverKey] ??= {});
+
+/** Scopes synchronous compiler write evidence to an explicit owner. Nested scopes restore their predecessor even on failure. The scope does not cross promises. */
+export function withReactivePropertyMutationObserver<Value>(
+	observer: ReactivePropertyMutationObserver | undefined,
+	work: () => Value
+): Value {
+	if (propertyMutationState.observer === observer) return work();
+	const previous = propertyMutationState.observer;
+	propertyMutationState.observer = observer;
+	try {
+		return work();
+	} finally {
+		propertyMutationState.observer = previous;
+	}
+}
+
 /**
- * Compiler runtime hook for a statically-known state assignment.  Unlike a
- * normal proxy write, plain JSON-shaped replacements are reconciled in place:
- * unchanged branches retain their identity and do not notify dependents.
- * This is deliberately exported for compiler output only.
+ * Stores an authored state assignment with JavaScript replacement identity after reactive
+ * normalization. Nested mutation and explicit transaction rollback belong to their own owners.
+ * Exported for compiler output only. Returns the authored RHS unchanged.
  */
 export function writeReactive(
 	target: object,
@@ -54,19 +75,21 @@ export function writeReactiveLazy(
 	return next;
 }
 
-/** Applies a reactive write to the owned runtime state. */
+/** Commits one native assignment. The receiver owns normalization and an enclosing transaction owns rollback. */
 export function commitReactiveWrite(parent: object, key: PropertyKey, next: unknown): void {
-	batch(() => {
-		const descriptor = propertyDescriptor(unwrap(parent) as object, key);
-		if (descriptor && !('value' in descriptor)) {
-			// Assignment invokes the setter even for an equal value and never reads its getter.
-			Reflect.set(parent, key, next);
-			return;
-		}
-		const previous = Reflect.get(parent, key);
-		if (reconcileReactiveValue(previous, next, createReconcilePairs())) return;
-		if (!Object.is(unwrap(previous), unwrap(next))) Reflect.set(parent, key, next);
-	});
+	if (parent === null || parent === undefined)
+		throw new TypeError('Cannot assign a nullish receiver');
+	// Convert at PutValue, after RHS evaluation, and reuse the actual key for evidence.
+	key = nativePropertyKey(key);
+	assignReactiveProperty(parent, key, next);
+	if (typeof parent === 'object' || typeof parent === 'function')
+		propertyMutationState.observer?.(parent, key, 'set');
+}
+
+/** Boxes primitive lookup targets while preserving the authored receiver and strict assignment failure. */
+function assignReactiveProperty(parent: object, key: PropertyKey, next: unknown): void {
+	if (!Reflect.set(Object(parent), key, next, parent))
+		throw new TypeError(`Cannot assign reactive state property ${String(key)}`);
 }
 
 /** Compiler runtime hook for compound assignments and update expressions. */
@@ -77,7 +100,7 @@ export function updateReactiveValue(
 	returnPrevious = false
 ): unknown {
 	const { parent, key } = resolveReactivePath(target, path);
-	const previous = Reflect.get(parent, key);
+	const previous = (parent as Record<PropertyKey, unknown>)[key];
 	const next = operation(previous);
 	commitReactiveWrite(parent, key, next);
 	return returnPrevious ? previous : next;
@@ -90,24 +113,32 @@ export function updateReactiveValueWithResult(
 	operation: ReactiveUpdateOperation<readonly [next: unknown, result: unknown]>
 ): unknown {
 	const { parent, key } = resolveReactivePath(target, path);
-	const previous = Reflect.get(parent, key);
+	const previous = (parent as Record<PropertyKey, unknown>)[key];
 	const [next, result] = operation(previous);
 	commitReactiveWrite(parent, key, next);
 	return result;
 }
 
-/** Compiler runtime hook for statically-known deletes. */
+/** Deletes a selected property and reports compiler write evidence after native success, including absent keys. */
 export function deleteReactiveValue(target: object, path: readonly PropertyKey[]): boolean {
 	if (!path.length) return false;
 	const { parent, key } = resolveReactivePath(target, path);
-	return Reflect.deleteProperty(parent, key);
+	if (parent === null || parent === undefined)
+		throw new TypeError('Cannot delete a nullish receiver');
+	const actualKey = nativePropertyKey(key);
+	const removed = Reflect.deleteProperty(Object(parent), actualKey);
+	if (!removed) throw new TypeError(`Cannot delete reactive state property ${String(actualKey)}`);
+	// Primitive receivers have native delete results but no storage identity to publish.
+	if (typeof parent === 'object' || typeof parent === 'function')
+		propertyMutationState.observer?.(parent, actualKey, 'delete');
+	return removed;
 }
 
 /** Compiler hook that assigns a value to one proven top-level state slot. */
 export function writeIndexedReactiveValue(target: object, index: number, next: unknown): unknown {
 	// The target expression is evaluated before `next` at the generated call site. The numeric slot
-	// is compiler-proven, and the commit owns previous-value comparison and validation.
-	commitIndexedReactiveWrite(target, index, next);
+	// is compiler-proven, and the slot owner compares storage identity and validates the write.
+	setIndexedReactiveSlot(target, index, next);
 	return next;
 }
 
@@ -119,7 +150,7 @@ export function updateIndexedReactiveValue(
 ): unknown {
 	const previous = peekIndexedReactiveSlot(target, index);
 	const next = operation(previous);
-	commitIndexedReactiveWrite(target, index, next);
+	setIndexedReactiveSlot(target, index, next);
 	return next;
 }
 
@@ -131,40 +162,15 @@ export function updateIndexedReactiveValueWithResult(
 ): unknown {
 	const previous = peekIndexedReactiveSlot(target, index);
 	const [next, result] = operation(previous);
-	commitIndexedReactiveWrite(target, index, next);
+	setIndexedReactiveSlot(target, index, next);
 	return result;
 }
 
 /** Compiler hook for deleting one proven top-level state slot. */
 export function deleteIndexedReactiveValue(target: object, index: number): boolean {
-	return deleteIndexedReactiveSlot(target, index);
-}
-
-function commitIndexedReactiveWrite(target: object, index: number, next: unknown): void {
-	const previous = peekIndexedReactiveSlot(target, index);
-	const rawPrevious = unwrap(previous);
-	const rawNext = unwrap(next);
-	if (Object.is(rawPrevious, rawNext)) return;
-
-	// Primitive and first-value writes cannot perform a multi-key reconciliation. Commit them
-	// directly so component initialization and compiler-local event writes allocate no transaction
-	// callback. An enclosing event or optimistic transaction still receives the normal trigger.
-	if (
-		rawPrevious === null ||
-		rawNext === null ||
-		typeof rawPrevious !== 'object' ||
-		typeof rawNext !== 'object'
-	) {
-		setIndexedReactiveSlot(target, index, next);
-		return;
-	}
-
-	const reconcile = () => {
-		if (!reconcileReactiveValue(previous, next, createReconcilePairs()))
-			setIndexedReactiveSlot(target, index, next);
-	};
-	if (hasActiveReactiveTransaction()) reconcile();
-	else batch(reconcile);
+	const removed = deleteIndexedReactiveSlot(target, index);
+	if (!removed) throw new TypeError('Cannot delete indexed state property');
+	return removed;
 }
 
 /** Compiler runtime hook for standard array mutators. */
@@ -189,7 +195,8 @@ export function mutateReactiveArray(
 		throw new TypeError(`Cannot call ${method} on a non-array reactive value`);
 	const mutation = value[method] as (...input: unknown[]) => unknown;
 	const input = typeof args === 'function' ? args() : args;
-	return mutation.apply(value, input);
+	const result = mutation.apply(value, input);
+	return result;
 }
 
 /** Compiler runtime hook for standard Map and Set mutators. */

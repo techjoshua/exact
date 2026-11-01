@@ -58,7 +58,7 @@ func TestScheduledComponentRequestCapabilities(t *testing.T) {
 	for _, c := range []struct{ name, setup, helper string }{
 		{"ref", `const binding=this.ref(field);void binding;`, "directSsrRef"},
 		{"extracted-ref", `const create=this.ref;void create(field);`, "directSsrRefMethod"},
-		{"refs-get", `void this.refs.get(field);`, "directSsrReadRef"},
+		{"refs-get", `void this.refs.get(field);`, "directSsrRefs"},
 		{"extracted-refs", `const refs=this.refs;void refs.get(field);`, "directSsrRefs"},
 		{"extracted-lifecycle", `const register=this.onUnmount;register(()=>undefined);`, "directSsrLifecycleMethod"},
 	} {

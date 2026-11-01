@@ -140,9 +140,16 @@ jobs:
           path: .tmp/native-artifact
       - run: chmod +x .tmp/native-artifact/exactc
       - run: npm ci
+      - run: npx playwright install --with-deps chromium
       - run: npm run build:prerequisites
       - run: npm run build:workspaces
       - run: npm run check:typescript-compatibility
+      - name: Verify TypeScript readonly, task provider, and accessibility contracts
+        if: matrix.node == 26
+        run: |
+          npm run typecheck:tests
+          npx vitest run packages/core/src/component/readonly-props.test.ts packages/core/src/context-reactive.test.ts packages/core/src/tasks/provider-copies.integration.test.ts packages/reactive/src/pending/pending-transaction.test.ts packages/accessibility/src packages/language-server/src/document-analysis-state.test.ts packages/language-server/src/document-snapshots.test.ts packages/language-server/src/workspace-manager.test.ts packages/language-server/src/workspace-migration.test.ts packages/language-server/src/workspace-folder-failures.test.ts packages/language-server/src/workspace-query-lifetime.test.ts packages/language-server/src/workspace-folders.test.ts packages/language-server/src/inlay-presentation.test.ts packages/language-server/src/provider-relevance.test.ts packages/language-server/src/lsp-projections.test.ts component-libraries/router/src/location-source-boundaries.test.ts packages/devtools-agent/src/agent.test.ts packages/core/src/tasks/request-property-mutations.test.ts packages/server/src/continuation-execution.test.ts packages/reactive/src/arrays/rollback-overlap.test.ts packages/reactive/src/arrays/native-property-journals.test.ts packages/reactive/src/internal/transaction-cleanup.test.ts
+          npx vitest run --config react-adapters/tanstack-query/vitest.config.ts react-adapters/tanstack-query/src/adapter.test.ts --exclude '**/.tmp/**'
       - run: npm run test:compiler
       - name: Verify compiler language and contract execution evidence
         if: matrix.node == 26

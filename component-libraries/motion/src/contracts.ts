@@ -30,7 +30,7 @@ export type MotionDefinitionInput = Readonly<{
 	reduced?: MotionPhase | 'skip';
 }>;
 
-/** Validated immutable reusable motion definition. */
+/** Prepared reusable motion definition with TypeScript readonly properties. */
 export type MotionDefinition = MotionDefinitionInput &
 	Readonly<{ [preparedMotionDefinition]: true }>;
 

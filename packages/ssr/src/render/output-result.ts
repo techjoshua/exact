@@ -68,7 +68,7 @@ export function createChunkedStringResult(
 	};
 	if (wallClockSnapshot !== undefined) result.wallClockSnapshot = wallClockSnapshot;
 	if (hydrationTable) result.hydrationTable = hydrationTable;
-	if (preloadLinks?.length) result.preloadLinks = Object.freeze([...preloadLinks]);
+	if (preloadLinks?.length) result.preloadLinks = [...preloadLinks];
 	Object.defineProperty(result, ssrHtmlChunks, { value: chunks });
 	// The renderer already knows whether it emitted a slot. Avoid flattening the complete
 	// plain-HTML rope merely to search for a marker before assembling hydrated output.

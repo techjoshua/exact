@@ -2,17 +2,16 @@
 import path from 'node:path';
 import { expect, it, onTestFinished } from 'vitest';
 import { type Component } from '@exactjs/core';
-import { createCompiledComponentReceipt as receipt } from '@exactjs/core/runtime/component-operations';
+import { createCompiledComponentInputReceipt as receipt } from '@exactjs/core/runtime/component-operations';
 import { render, dispose } from '@exactjs/dom';
 import { hydrate } from '@exactjs/hydrate';
 import { renderToHydratableString } from '@exactjs/ssr';
 import { flushSync } from '@exactjs/reactive';
 import { compileFileArtifacts } from '../index.js';
-import { createTestWorkspace, writeTestFiles } from '../test-support/workspace.js';
+import { createCompilerTestWorkspace, writeTestFiles } from '../test-support/workspace.js';
 import { importArtifact } from '../test-support/import-artifact.js';
-
 it('preserves absent receivers and skipped formatter arguments through paired updates', async () => {
-	const root = await createTestWorkspace('.exact-intl-optional-', process.cwd());
+	const root = await createCompilerTestWorkspace('.exact-intl-optional-', process.cwd());
 	const files = await writeTestFiles(root, {
 		'page.tsx': `import {type Component} from '@exactjs/core';
 export let reads=0;/** @exact pure */ function locale(){reads++;return 'en-US'}
@@ -47,7 +46,12 @@ return()=> <output>{this.state.date?.toLocaleString('en-US')}|{this.state.date?.
 		expect(output).not.toBeNull();
 		expect(output.textContent).toBe('||||');
 		expect(client.reads).toBe(before);
-		const owner = client.owner as Component<{ date: Date | null; nested: { date: Date } | null }>;
+		const owner = client.owner as Component<{
+			date: Date | null;
+			nested: {
+				date: Date;
+			} | null;
+		}>;
 		for (const date of [new Date(0), null, new Date(86400000), null]) {
 			const reads = client.reads;
 			owner.state.date = date;

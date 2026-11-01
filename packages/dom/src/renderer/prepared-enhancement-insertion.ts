@@ -1,8 +1,8 @@
+import { readClientComponentInput } from './component-input-admission.js';
 import type { AnyComponentInstance, Child } from '@exactjs/core';
 import { placeMountedBefore, lastMountedNode } from '../placement.js';
 import type { Mounted, Root } from '../types.js';
 import { mountComponentReceipt } from './mounting/native-component-artifact.js';
-import { readCompiledComponentReceipt } from '@exactjs/core/runtime/component-operations';
 import { retainMountedOperation } from './mounting/native-operation-target.js';
 
 /** Locates the retained logical placement without examining physical DOM descendants. */
@@ -48,7 +48,7 @@ export function insertPreparedEnhancement(
 	try {
 		const inserted = mountComponentReceipt(
 			root,
-			readCompiledComponentReceipt(operation)!,
+			readClientComponentInput(operation)!,
 			parent,
 			location.owner.scope,
 			parentNode

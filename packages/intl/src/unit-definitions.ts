@@ -34,7 +34,7 @@ const reciprocal = <const Dimension extends string>(
 	});
 
 /** Shared unit vocabulary and conversion contract used by validation and rendering. */
-const finiteIntlUnitDefinitions = Object.freeze({
+const finiteIntlUnitDefinitions = closedUnitTable({
 	meter: scaled('length', 'm', 1),
 	kilometer: scaled('length', 'km', 1_000),
 	centimeter: scaled('length', 'cm', 0.01),
@@ -148,6 +148,12 @@ export type IntlUnitForDimension<Dimension extends string> = {
 		: never;
 }[IntlUnitName];
 
+/** Keeps inherited object names outside the finite compiler/runtime unit authority. */
+function closedUnitTable<T extends object>(definitions: T): Readonly<T> {
+	Object.setPrototypeOf(definitions, null);
+	return Object.freeze(definitions);
+}
+
 /** Runtime lookup view retaining finite public names while accepting validated protocol strings. */
 export const intlUnitDefinitions: typeof finiteIntlUnitDefinitions &
 	Readonly<Record<string, IntlUnitDefinition>> = finiteIntlUnitDefinitions;
@@ -157,11 +163,11 @@ export const intlUnitIdentifiers = Object.freeze(Object.keys(intlUnitDefinitions
 
 /** Converts between units only when both belong to the same physical dimension. @exact pure */
 export function convertIntlUnit(value: number, source: string, destination: string): number {
-	if (source === destination) return value;
 	const from = intlUnitDefinitions[source];
 	const to = intlUnitDefinitions[destination];
 	if (!from || !to || from.dimension !== to.dimension)
 		throw new TypeError(`Unsupported intl unit conversion from ${source} to ${destination}`);
+	if (source === destination) return value;
 	return to.fromBase(from.toBase(value));
 }
 

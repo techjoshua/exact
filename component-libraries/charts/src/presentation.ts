@@ -13,6 +13,7 @@ import {
 import type { ResolvedTheme, ThemeSurfaceBundle } from '@exactjs/theme';
 import type { ChartType } from './contracts.js';
 import type { ChartCoordinator } from './contexts.js';
+import { projectChartInputs } from './model.js';
 import {
 	linePath,
 	positionSeries,
@@ -48,7 +49,7 @@ import { scaleLinear } from './scales.js';
 
 /** Resolves all dynamic chart values inside one explicit component-owned computation. @exact pure */
 export function createChartPresentation(
-	chart: ChartCoordinator,
+	owner: ChartCoordinator,
 	environment: IntlEnvironment | undefined,
 	theme: ResolvedTheme | undefined,
 	surface: ThemeSurfaceBundle | undefined,
@@ -57,6 +58,7 @@ export function createChartPresentation(
 	_intlGeneration: number | undefined,
 	_hiddenSeries = ''
 ): ChartPresentation {
+	const chart = projectChartInputs(owner);
 	const allSeries = [...chart.model.series.values()];
 	validateChartModel(chart, allSeries);
 	const hidden = new Set(_hiddenSeries ? _hiddenSeries.split('\u0000') : []);
@@ -128,30 +130,29 @@ export function createChartPresentation(
 			? []
 			: [{ id: axis.props.id, position: axis.props.position, value } as const];
 	});
-	return Object.freeze({
+	return {
 		orientation,
 		layout,
 		domain,
 		...(measurement === undefined ? {} : { measurement }),
-		ticks: Object.freeze(ticks),
-		categories: Object.freeze(categories),
-		lines: Object.freeze(lines),
-		bars: Object.freeze(bars),
-		ranges: Object.freeze(ranges),
-		marks: Object.freeze(marks),
-		rows: Object.freeze(
+		ticks: ticks,
+		categories: categories,
+		lines: lines,
+		bars: bars,
+		ranges: ranges,
+		marks: marks,
+		rows:
 			chart.props.table || chart.props.dataView != null
 				? []
-				: presentRows(chart.props.type, series, measurement, environment)
-		),
+				: presentRows(chart.props.type, series, measurement, environment),
 		...(chart.props.table && chart.props.dataView == null
 			? {
 					table: presentChartTable(chart.props.table, allSeries, measurement, environment)
 				}
 			: {}),
-		legend: Object.freeze(legend),
-		axisLabels: Object.freeze(axisLabels)
-	});
+		legend: legend,
+		axisLabels: axisLabels
+	};
 }
 
 function presentLines(
@@ -303,14 +304,12 @@ function presentRanges(
 		const scale = { domain: domain.y, range: [layout.left, layout.right] } as const;
 		const style = styles.get(entry.props.id)!;
 		const scaleValue = (value: number) => scaleLinear(scale, projectValue(measurement, value));
-		const marks = Object.freeze(
-			Object.entries(datum.props.marks ?? {}).map(([name, value]) => ({
-				id: `${entry.props.id}:${datum.props.id}:${name}`,
-				x: scaleValue(value),
-				name,
-				value: formatChartValue(value, measurement, environment)
-			}))
-		);
+		const marks = Object.entries(datum.props.marks ?? {}).map(([name, value]) => ({
+			id: `${entry.props.id}:${datum.props.id}:${name}`,
+			x: scaleValue(value),
+			name,
+			value: formatChartValue(value, measurement, environment)
+		}));
 		const summary = rangeSummary(datum.props, marks, measurement, environment);
 		return {
 			id: `${entry.props.id}:${datum.props.id}`,

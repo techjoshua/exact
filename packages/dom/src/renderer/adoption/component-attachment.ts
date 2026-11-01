@@ -1,3 +1,4 @@
+import { captureAdoptionCurrent } from './receiving-lifetime.js';
 import { retainSuppliedPlacement } from '../supplied-placement-capability.js';
 import { domEnhancementCapability } from '../enhancement-capability.js';
 import { type AnyComponentInstance, type Child } from '@exactjs/core';
@@ -58,7 +59,7 @@ class DomClientHydrationTarget {
 		mode: 'mount' | 'hydrate'
 	): Mounted {
 		const attached = this.assertAttachment(artifact, instance, mode);
-		retainSuppliedPlacement(this.mounted, children);
+		retainSuppliedPlacement(this.mounted, children, this.root);
 		return this.attachChildren(attached, children);
 	}
 
@@ -97,17 +98,26 @@ class DomClientHydrationTarget {
 	}
 
 	private attachChildren(instance: AnyComponentInstance, children: Child[]): Mounted {
+		const assertCurrent = captureAdoptionCurrent(this.root, this.mounted.scope);
 		const capability = domEnhancementCapability();
 		if (this.mounted.componentReceipt?.fragmentTarget)
 			children = capability!.projectComponent!(this.mounted, children);
 		const adopted = capability?.adoptComponent
 			? capability.adoptComponent(this.root, this.mounted, children, this.adopt)
 			: this.adopt(children);
+		assertCurrent();
 		if (!adopted) throw new Error('Compiler-owned component output did not match the hydrated DOM');
 		this.mounted.children = adopted;
 		capability?.invalidate?.(this.mounted);
-		refreshComponentRoot(instance, true, rootIntroduction(this.root));
-		instance.markMounted();
+		const plan = this.root.suppliedPlacementPlan;
+		if (plan?.pending && plan.isCurrent()) {
+			plan.present(instance, true, rootIntroduction(this.root));
+			plan.mounted(instance);
+		} else {
+			refreshComponentRoot(this.root, instance, true, rootIntroduction(this.root));
+			instance.markMounted();
+		}
+		assertCurrent();
 		this.attached = true;
 		return this.mounted;
 	}

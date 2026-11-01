@@ -1,3 +1,6 @@
+import { inspectionQueryData } from './query-data.js';
+export { readExactInspectionRequestId } from './query-data.js';
+import { boundedString, inspectionLimit, record } from './protocol-value-shapes.js';
 import {
 	isExactInspectionRuntimeId,
 	type ExactBuildInspectionCatalog,
@@ -5,8 +8,8 @@ import {
 } from './identity.js';
 import type { ExactInspectedMicrofrontend, ExactRuntimeInspectionEvent } from './runtime.js';
 
-/** Read-only methods understood by both Chromium and agent consumers. */
-export const EXACT_INSPECTION_METHODS = Object.freeze([
+/** Private dispatch allowlist, independent of writable public metadata observations. */
+const inspectionMethods = [
 	'session.describe',
 	'roots.list',
 	'microfrontends.list',
@@ -25,7 +28,10 @@ export const EXACT_INSPECTION_METHODS = Object.freeze([
 	'errors.list',
 	'catalog.entity',
 	'source.excerpt'
-] as const);
+] as const;
+
+/** Read-only operations understood by both Chromium and agent consumers. */
+export const EXACT_INSPECTION_METHODS = [...inspectionMethods] as const;
 
 /** One supported, side-effect-free inspection method. */
 export type ExactInspectionMethod = (typeof EXACT_INSPECTION_METHODS)[number];
@@ -130,7 +136,7 @@ export type ExactInspectionQueryData = Readonly<{
 	microfrontends?: readonly ExactInspectedMicrofrontend[];
 }>;
 
-/** Parses and bounds an untrusted inspection query. */
+/** Parses an untrusted query using positive safe-integer result limits and nonnegative filter-kind limits. Invalid configured limits throw RangeError, including when optional fields are absent. */
 export function parseExactInspectionRequest(
 	value: unknown,
 	options: Readonly<{
@@ -140,24 +146,29 @@ export function parseExactInspectionRequest(
 		maxNodes?: number;
 	}> = {}
 ): ExactInspectionRequest {
-	validateStructure(value, options.maxDepth ?? 20, options.maxNodes ?? 10_000);
+	const maxResults = inspectionLimit(options.maxResults ?? 500, 1, 'result limit');
+	const maxFilterKinds = inspectionLimit(options.maxFilterKinds ?? 32, 0, 'filter limit');
+	value = inspectionQueryData(value, options.maxDepth ?? 20, options.maxNodes ?? 10_000);
 	if (!record(value) || value.protocol !== 1 || !boundedString(value.id, 256))
 		throw new TypeError('Invalid eXact inspection request envelope');
+	if (!onlyKeys(value, ['protocol', 'id', 'method', 'params']))
+		throw new TypeError('Unknown eXact inspection request field');
 	if (
 		typeof value.method !== 'string' ||
-		!EXACT_INSPECTION_METHODS.includes(value.method as ExactInspectionMethod)
+		!inspectionMethods.includes(value.method as ExactInspectionMethod)
 	)
 		throw new TypeError('Unknown eXact inspection method');
-	if (value.params !== undefined) validateParams(value.params, options);
+	if (value.params !== undefined) validateParams(value.params, maxResults, maxFilterKinds);
 	return value as ExactInspectionRequest;
 }
 
-/** Parses an untrusted subscription without accepting query methods or executable fields. */
+/** Parses an untrusted subscription with a nonnegative safe-integer filter-kind limit. Invalid limits throw RangeError. Query methods and executable fields are rejected. */
 export function parseExactInspectionSubscription(
 	value: unknown,
 	options: Readonly<{ maxFilterKinds?: number; maxDepth?: number; maxNodes?: number }> = {}
 ): ExactInspectionSubscription {
-	validateStructure(value, options.maxDepth ?? 10, options.maxNodes ?? 1_000);
+	const maxFilterKinds = inspectionLimit(options.maxFilterKinds ?? 32, 0, 'filter limit');
+	value = inspectionQueryData(value, options.maxDepth ?? 10, options.maxNodes ?? 1_000);
 	if (
 		!record(value) ||
 		value.protocol !== 1 ||
@@ -167,7 +178,7 @@ export function parseExactInspectionSubscription(
 		throw new TypeError('Invalid eXact inspection subscription');
 	if (value.cursor !== undefined && !boundedString(value.cursor, 2_048))
 		throw new TypeError('Invalid eXact inspection subscription cursor');
-	if (value.filter !== undefined) validateFilter(value.filter, options.maxFilterKinds ?? 32);
+	if (value.filter !== undefined) validateFilter(value.filter, maxFilterKinds);
 	return value as ExactInspectionSubscription;
 }
 
@@ -176,7 +187,7 @@ export function parseExactInspectionResponse(
 	value: unknown,
 	options: Readonly<{ maxDepth?: number; maxNodes?: number }> = {}
 ): ExactInspectionResponse {
-	validateStructure(value, options.maxDepth ?? 30, options.maxNodes ?? 100_000);
+	value = inspectionQueryData(value, options.maxDepth ?? 30, options.maxNodes ?? 100_000);
 	if (
 		!record(value) ||
 		value.protocol !== 1 ||
@@ -213,6 +224,7 @@ export function parseExactInspectionResponse(
 	if (!onlyKeys(value, ['protocol', 'id', 'ok', 'error', 'reason']))
 		throw new TypeError('Unknown eXact inspection failure field');
 	if (
+		typeof value.error !== 'string' ||
 		![
 			'bad-request',
 			'unknown-method',
@@ -221,14 +233,19 @@ export function parseExactInspectionResponse(
 			'unavailable',
 			'session-expired',
 			'limit-exceeded'
-		].includes(String(value.error)) ||
+		].includes(value.error) ||
 		(value.reason !== undefined && !boundedString(value.reason, 2_048))
 	)
 		throw new TypeError('Invalid eXact inspection failure');
 	return value as ExactInspectionFailure;
 }
 
-/** Applies deterministic cursor pagination without retaining a caller-owned collection. */
+/**
+ * Copies one cursor-selected page into an independent ordinary array, defaulting to 100 results capped by
+ * maximum (500 by default). maximum must be a positive safe integer or a RangeError is thrown.
+ * Cursors outside the collection are rejected. A nonterminal page always advances its cursor.
+ * Values are shallowly retained, while the caller's collection is never retained or mutated.
+ */
 export function paginateExactInspection<T>(
 	values: readonly T[],
 	page: ExactInspectionPagination | undefined,
@@ -237,12 +254,12 @@ export function paginateExactInspection<T>(
 	const limit = positive(page?.limit, Math.min(100, maximum), maximum);
 	const offset = decodeCursor(page?.cursor);
 	if (offset > values.length) throw new RangeError('Inspection cursor is outside the collection');
-	const selected = Object.freeze(values.slice(offset, offset + limit));
+	const selected = values.slice(offset, offset + limit);
 	const next = offset + selected.length;
-	return Object.freeze({
+	return {
 		values: selected,
 		...(next < values.length ? { nextCursor: encodeCursor(next) } : {})
-	});
+	};
 }
 
 /** Filters one event without reordering records from an owning host. */
@@ -269,10 +286,7 @@ export function exactInspectionEventMatches(
 	return !filter.kinds?.length || filter.kinds.includes(event.kind);
 }
 
-function validateParams(
-	value: unknown,
-	options: Readonly<{ maxResults?: number; maxFilterKinds?: number }>
-): void {
+function validateParams(value: unknown, maxResults: number, maxFilterKinds: number): void {
 	if (!record(value)) throw new TypeError('Invalid eXact inspection parameters');
 	if (
 		!onlyKeys(value, [
@@ -298,13 +312,13 @@ function validateParams(
 			value.page.limit !== undefined &&
 			(!Number.isSafeInteger(value.page.limit) ||
 				(value.page.limit as number) < 1 ||
-				(value.page.limit as number) > (options.maxResults ?? 500))
+				(value.page.limit as number) > maxResults)
 		)
 			throw new RangeError('eXact inspection page limit exceeded');
 		if (value.page.cursor !== undefined && !boundedString(value.page.cursor, 2_048))
 			throw new TypeError('Invalid eXact inspection cursor');
 	}
-	if (value.filter !== undefined) validateFilter(value.filter, options.maxFilterKinds ?? 32);
+	if (value.filter !== undefined) validateFilter(value.filter, maxFilterKinds);
 }
 
 function validateFilter(value: unknown, maxFilterKinds: number): void {
@@ -349,24 +363,8 @@ function validateFilter(value: unknown, maxFilterKinds: number): void {
 		throw new RangeError('eXact inspection filter is too large');
 }
 
-function validateStructure(value: unknown, maxDepth: number, maxNodes: number): void {
-	let nodes = 0;
-	const visit = (current: unknown, depth: number): void => {
-		if (++nodes > maxNodes) throw new RangeError('eXact inspection query is too large');
-		if (depth > maxDepth) throw new RangeError('eXact inspection query is too deep');
-		if (Array.isArray(current)) {
-			for (const item of current) visit(item, depth + 1);
-			return;
-		}
-		if (!record(current)) return;
-		for (const item of Object.values(current)) visit(item, depth + 1);
-	};
-	visit(value, 0);
-}
-
 function onlyKeys(value: Record<string, unknown>, allowed: readonly string[]): boolean {
-	const keys = new Set(allowed);
-	return Object.keys(value).every((key) => keys.has(key));
+	return Object.keys(value).every((key) => allowed.includes(key));
 }
 
 function encodeCursor(offset: number): string {
@@ -383,15 +381,8 @@ function decodeCursor(cursor: string | undefined): number {
 }
 
 function positive(value: number | undefined, fallback: number, maximum: number): number {
+	inspectionLimit(maximum, 1, 'pagination maximum');
 	return typeof value === 'number' && Number.isSafeInteger(value) && value > 0
 		? Math.min(value, maximum)
 		: fallback;
-}
-
-function boundedString(value: unknown, maximum: number): value is string {
-	return typeof value === 'string' && value.length > 0 && value.length <= maximum;
-}
-
-function record(value: unknown): value is Record<string, unknown> {
-	return typeof value === 'object' && value !== null && !Array.isArray(value);
 }

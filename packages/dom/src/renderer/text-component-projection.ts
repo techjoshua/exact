@@ -1,13 +1,15 @@
+import {
+	readClientComponentInput,
+	type AdmittedClientComponentInput
+} from './component-input-admission.js';
 import type { AnyComponentInstance, Child } from '@exactjs/core';
 import {
 	projectPreparedText,
 	type PreparedTextResolver
 } from '@exactjs/core/framework/render-structure';
 import {
-	readCompiledComponentReceipt,
 	exactCompiledClientAttachment,
-	exactCompatibilityClientAttachment,
-	type ExactComponentReceiptData
+	exactCompatibilityClientAttachment
 } from '@exactjs/core/runtime/component-operations';
 import { peek } from '@exactjs/reactive/framework/runtime';
 import type { Mounted, Root } from '../types.js';
@@ -24,7 +26,7 @@ type Frame = {
 	cursor: number;
 	records: RecordOwner[];
 };
-type RecordOwner = Frame & { receipt: ExactComponentReceiptData; output: readonly Child[] };
+type RecordOwner = Frame & { receipt: AdmittedClientComponentInput; output: readonly Child[] };
 
 /**
  * Retains native component lifetimes inside one coalesced Text presentation. Preparation captures
@@ -71,7 +73,7 @@ export class TextComponentProjection {
 		if (enhanced !== undefined) return enhanced;
 		const program = this.programProjection(value, project);
 		if (program !== undefined) return program;
-		const receipt = readCompiledComponentReceipt(value);
+		const receipt = readClientComponentInput(value);
 		return receipt ? this.component(receipt, (output) => project(output)) : undefined;
 	};
 
@@ -115,7 +117,7 @@ export class TextComponentProjection {
 		}
 	};
 
-	private prepare(receipt: ExactComponentReceiptData, parent: Frame): RecordOwner {
+	private prepare(receipt: AdmittedClientComponentInput, parent: Frame): RecordOwner {
 		const attachment = prepareComponentReceipt(
 			this.root,
 			receipt,
@@ -143,7 +145,12 @@ export class TextComponentProjection {
 					mounted.dom = this.text;
 					mounted.end = undefined;
 					mounted.textPresentation = this.text;
-					refreshComponentRoot(instance as AnyComponentInstance, true, rootIntroduction(this.root));
+					refreshComponentRoot(
+						this.root,
+						instance as AnyComponentInstance,
+						true,
+						rootIntroduction(this.root)
+					);
 					mounted.afterPlacement = () => (instance as AnyComponentInstance).markMounted();
 					mounted.afterPlacementPhase = 'mount';
 					return mounted;

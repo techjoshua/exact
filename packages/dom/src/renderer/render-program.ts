@@ -1,3 +1,4 @@
+import { releaseUnpublishedAdoption } from './teardown.js';
 import { type AnyComponentInstance, type Child } from '@exactjs/core';
 import {
 	readRenderProgram,
@@ -65,20 +66,25 @@ export function adoptRenderProgram(
 			parentInstance
 		}
 	};
-	const childrenStarted = beginDomProfile(root);
-	const adoptedChildren = adoptProgramChildSlots(mounted, parentInstance, adoptChildren);
-	finishDomProfile(root, 'program-children', childrenStarted);
-	if (!adoptedChildren) return undefined;
-	ownDirectProgramNodes(direct.elements, bindingOwner);
-	const bindingStarted = beginDomProfile(root);
-	const bound = !renderProgramHasBindings(program) || bindRenderProgram(mounted);
-	finishDomProfile(root, 'program-bind', bindingStarted);
-	if (!bound) {
-		releaseDirectProgramNodeOwners(direct.elements);
-		return undefined;
+	try {
+		const childrenStarted = beginDomProfile(root);
+		const adoptedChildren = adoptProgramChildSlots(mounted, parentInstance, adoptChildren);
+		finishDomProfile(root, 'program-children', childrenStarted);
+		if (!adoptedChildren) return undefined;
+		ownDirectProgramNodes(direct.elements, bindingOwner);
+		const bindingStarted = beginDomProfile(root);
+		const bound = !renderProgramHasBindings(program) || bindRenderProgram(mounted);
+		finishDomProfile(root, 'program-bind', bindingStarted);
+		if (!bound) {
+			releaseDirectProgramNodeOwners(direct.elements);
+			return undefined;
+		}
+		countProgramWork(root, direct.work, true);
+		return mounted;
+	} catch (error) {
+		releaseUnpublishedAdoption(root, [mounted], error);
+		throw error;
 	}
-	countProgramWork(root, direct.work, true);
-	return mounted;
 }
 
 /** Adopts a compiler-specialized program or asks the hydration root to recover. */
@@ -181,20 +187,25 @@ function adoptMarkedRenderProgram(
 			parentInstance
 		}
 	};
-	const childrenStarted = beginDomProfile(root);
-	const adoptedChildren = adoptProgramChildSlots(mounted, parentInstance, adoptChildren);
-	finishDomProfile(root, 'program-children', childrenStarted);
-	if (!adoptedChildren) return undefined;
-	// Compiler-generated claims deliberately omit inert static intrinsics. They remain owned by
-	// the enclosing DOM range and need no per-element bookkeeping of their own.
-	ownDirectProgramNodes(direct.elements, bindingOwner);
-	countProgramWork(root, direct.work, true);
-	const bindingStarted = beginDomProfile(root);
-	const bound = !renderProgramHasBindings(program) || bindRenderProgram(mounted);
-	finishDomProfile(root, 'program-bind', bindingStarted);
-	if (!bound) {
-		releaseDirectProgramNodeOwners(direct.elements);
-		return undefined;
+	try {
+		const childrenStarted = beginDomProfile(root);
+		const adoptedChildren = adoptProgramChildSlots(mounted, parentInstance, adoptChildren);
+		finishDomProfile(root, 'program-children', childrenStarted);
+		if (!adoptedChildren) return undefined;
+		// Compiler-generated claims deliberately omit inert static intrinsics. They remain owned by
+		// the enclosing DOM range and need no per-element bookkeeping of their own.
+		ownDirectProgramNodes(direct.elements, bindingOwner);
+		countProgramWork(root, direct.work, true);
+		const bindingStarted = beginDomProfile(root);
+		const bound = !renderProgramHasBindings(program) || bindRenderProgram(mounted);
+		finishDomProfile(root, 'program-bind', bindingStarted);
+		if (!bound) {
+			releaseDirectProgramNodeOwners(direct.elements);
+			return undefined;
+		}
+		return { mounted, next: range.start ? range.endIndex + 1 : range.endIndex };
+	} catch (error) {
+		releaseUnpublishedAdoption(root, [mounted], error);
+		throw error;
 	}
-	return { mounted, next: range.start ? range.endIndex + 1 : range.endIndex };
 }

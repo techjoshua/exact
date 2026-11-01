@@ -16,9 +16,10 @@ export default defineConfig({
 ```
 
 `defineConfig()` validates the shared schema while preserving plugin-specific types added through
-TypeScript declaration merging. It rejects unknown or invalid built-in options and freezes the
-validated graph so consumers cannot observe different policy through later mutation. The Node
-loader applies the same normalization to plain JavaScript and TypeScript configs, including configs
+TypeScript declaration merging. It rejects unknown or invalid built-in options while preserving
+authored values and callback identities. Readonly declarations are TypeScript restrictions, and
+callbacks retain their own mutable state or metadata. The Node loader validates JavaScript and
+TypeScript configs through the same boundary, including configs
 that do not call `defineConfig()`. One configuration can supply compiler, server, renderer, client,
 testing, and plugin settings.
 
@@ -36,7 +37,22 @@ error or is omitted. See the [policy reference](https://techjoshua.github.io/exa
 for the available modes and optional-enhancement behavior.
 
 Build-tool integrations can load the same discovered configuration through `@exactjs/config/node`;
-application code should continue to use the browser-safe main entry.
+application code should continue to use the browser-safe main entry. Configuration preparation uses
+the packaged official TypeScript 7.0.2 native tool, so keep its platform optional dependencies
+installed. The configuration still executes in your build tool and retains ordinary callbacks.
+Use `.ts` or `.mts` for portable TypeScript ESM configuration. Explicit `.cts` loads retain
+runtime-dependent CommonJS behavior and are not portable between Node and Bun.
+
+Ordinary JavaScript ESM
+configuration loads evaluate the file afresh on Node and Bun, including in read-only directories.
+Relative imports and `import.meta` paths keep the authored file as their base. TypeScript configs
+and attributed enhancement declarations need a writable directory for preprocessing temporary
+modules. Imported dependencies retain the runtime's normal module cache. Explicit `.cjs`
+configurations retain the runtime's existing cache behavior.
+
+`analysis.estimatedCostWarningThreshold` controls the compiler's advisory analysis warning.
+Use a positive safe integer, or `false` to disable the warning. The default is 4096 estimated
+work units. Changing this threshold changes reporting without restricting source analysis.
 
 An enhancement can be made available to every compiled component in the package by declaring its
 namespace directly in `exact.config.*`:

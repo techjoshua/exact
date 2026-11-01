@@ -1,7 +1,14 @@
 import { notifyMutation } from '../internal/mutation-observation.js';
 import { samePropertyDescriptor, propertyDescriptor } from '../proxy/property-descriptors.js';
 import { captureArrayOrder, recordArrayReorder } from './reordering.js';
-import { hasArrayPositions, arrayPosition, arrayPositionKey } from './positions.js';
+import {
+	hasArrayPositions,
+	arrayPosition,
+	arrayPositionKey,
+	arrayPropertyAddress,
+	isArrayPosition,
+	isUsableArrayPosition
+} from './positions.js';
 import { mutateArraySequence, supportsSequenceTracking } from './sequence-mutation.js';
 import { arrayIndex, createPropertyUndo } from './property-undo.js';
 export { createPropertyUndo } from './property-undo.js';
@@ -37,12 +44,8 @@ export function mutateArray(
 	receiver: unknown,
 	options: ReactiveOptions
 ): unknown {
-	// Array methods run against the raw target, so reject readonly access before invoking the
-	// method, including user callbacks such as sort comparators or overridden methods.
-	if (options.readonly) {
-		options.onReadonlyWrite?.(methodName);
-		throw new TypeError(`Cannot call ${methodName} on a readonly array`);
-	}
+	// Normalize authored reactive values before deciding whether native descriptors permit a fast path.
+	args = args.map((arg) => unwrap(arg));
 	if (
 		(hasActiveTransaction() || hasArrayPositions(target)) &&
 		['push', 'pop', 'shift', 'unshift', 'splice'].includes(methodName) &&
@@ -55,7 +58,8 @@ export function mutateArray(
 		!hasActiveTransaction() &&
 		!hasArrayPositions(target) &&
 		(methodName === 'push' || methodName === 'pop') &&
-		method === Array.prototype[methodName]
+		method === Array.prototype[methodName] &&
+		supportsSequenceTracking(target, methodName, args)
 	) {
 		return mutateArrayEnd(target, methodName, method, args, receiver, options);
 	}
@@ -69,10 +73,7 @@ export function mutateArray(
 			: undefined;
 	let result: unknown;
 	try {
-		result = method.apply(
-			target,
-			args.map((arg) => unwrap(arg))
-		);
+		result = method.apply(target, args);
 	} finally {
 		const reordered = order && recordArrayReorder(target, previous, order, methodName);
 		if (!reordered) recordArrayMutationUndo(target, previous);
@@ -118,9 +119,10 @@ function recordArrayMutationUndo(target: unknown[], previous: unknown[]): void {
 			readOwnershipVersion(target, String(index));
 			recordTransactionUndo(
 				() => {
-					if (position.index < 0) return;
-					if (descriptor) Reflect.defineProperty(target, String(position.index), descriptor);
-					else Reflect.deleteProperty(target, String(position.index));
+					if (position.index < 0) return false;
+					return descriptor
+						? Reflect.defineProperty(target, String(position.index), descriptor)
+						: Reflect.deleteProperty(target, String(position.index));
 				},
 				position,
 				arrayPositionKey
@@ -134,6 +136,7 @@ function recordArrayMutationUndo(target: unknown[], previous: unknown[]): void {
 		{ length: Math.max(previous.length, optimistic.length) },
 		(_, index) => readOwnershipVersion(target, String(index))
 	);
+	const addresses = versions.map((_, index) => arrayPropertyAddress(target, String(index)));
 	let prefix = 0;
 	while (
 		prefix < previous.length &&
@@ -160,11 +163,18 @@ function recordArrayMutationUndo(target: unknown[], previous: unknown[]): void {
 	const removed = previous.slice(prefix, previousEnd);
 	const inserted = optimistic.slice(prefix, optimisticEnd);
 	recordTransactionUndo((restoration) => {
-		const ownsLength = restoration.allows(target, arrayLengthWriteKey, lengthVersion);
+		const ownsLength =
+			addresses.every(
+				(address) => !isArrayPosition(address.target) || isUsableArrayPosition(address.target)
+			) && restoration.allows(target, arrayLengthWriteKey, lengthVersion);
 		let segmentUnchanged = ownsLength;
 		for (let offset = 0; offset < inserted.length; offset++) {
 			if (
-				!restoration.allows(target, String(prefix + offset), versions[prefix + offset]) ||
+				!restoration.allows(
+					addresses[prefix + offset]!.target,
+					addresses[prefix + offset]!.key,
+					versions[prefix + offset]
+				) ||
 				!sameArraySlot(optimistic, target, prefix + offset, prefix + offset)
 			) {
 				segmentUnchanged = false;
@@ -173,22 +183,35 @@ function recordArrayMutationUndo(target: unknown[], previous: unknown[]): void {
 		}
 		if (segmentUnchanged) {
 			const beforeLength = target.length;
-			Array.prototype.splice.call(
+			const receipts = Array.from(
+				{ length: Math.max(beforeLength, previousEnd) - prefix },
+				(_, offset) => {
+					const address = addresses[prefix + offset];
+					return address
+						? restoration.capture(address.target, address.key)
+						: restoration.capture(target, String(prefix + offset));
+				}
+			);
+			const lengthReceipt = restoration.capture(target, 'length');
+			restoreArraySegment(
 				target,
 				prefix,
 				inserted.length,
-				...removed.map((value) => unwrap(value))
+				removed.map((value) => unwrap(value))
 			);
 			for (let offset = 0; offset < removed.length; offset++) {
 				const previousIndex = prefix + offset;
 				const targetIndex = prefix + offset;
 				const descriptor = Reflect.getOwnPropertyDescriptor(previous, String(previousIndex));
-				if (descriptor) Reflect.defineProperty(target, String(targetIndex), descriptor);
-				else Reflect.deleteProperty(target, String(targetIndex));
+				const completed = descriptor
+					? Reflect.defineProperty(target, String(targetIndex), descriptor)
+					: Reflect.deleteProperty(target, String(targetIndex));
+				if (completed) restoration.mark(receipts[offset]!);
+				else restoration.notify(target, String(targetIndex));
 			}
-			for (let index = prefix; index < Math.max(beforeLength, target.length); index++)
-				restoration.mark(target, String(index));
-			if (beforeLength !== target.length) restoration.mark(target, 'length');
+			for (let offset = removed.length; offset < receipts.length; offset++)
+				restoration.mark(receipts[offset]!);
+			if (beforeLength !== target.length) restoration.mark(lengthReceipt);
 			return;
 		}
 
@@ -196,15 +219,45 @@ function recordArrayMutationUndo(target: unknown[], previous: unknown[]): void {
 		for (let index = prefix; index < changedLength; index++) {
 			if (
 				(!ownsLength && index >= target.length) ||
-				!restoration.allows(target, String(index), versions[index]) ||
+				!restoration.allows(addresses[index]!.target, addresses[index]!.key, versions[index]) ||
 				!sameArraySlot(optimistic, target, index, index)
 			)
 				continue;
-			if (Reflect.has(previous, index)) target[index] = previous[index];
-			else Reflect.deleteProperty(target, index);
-			restoration.mark(target, String(index));
+			const receipt = restoration.capture(addresses[index]!.target, addresses[index]!.key);
+			if (Reflect.has(previous, index)) {
+				target[index] = previous[index];
+				restoration.mark(receipt);
+			} else if (Reflect.deleteProperty(target, index)) restoration.mark(receipt);
 		}
 	});
+}
+
+/** Restores a segment in linear time without routing its values through function arguments.
+ * Moves the suffix in native splice order, preserving holes and native property constraints.
+ */
+function restoreArraySegment(
+	target: unknown[],
+	start: number,
+	count: number,
+	values: unknown[]
+): void {
+	const length = target.length;
+	const delta = values.length - count;
+	const step = delta > 0 ? -1 : 1;
+	for (
+		let source = delta > 0 ? length - 1 : start + count;
+		delta && (delta > 0 ? source >= start + count : source < length);
+		source += step
+	) {
+		const destination = source + delta;
+		if (Reflect.has(target, source)) target[destination] = target[source];
+		else if (!Reflect.deleteProperty(target, destination))
+			throw new TypeError('Cannot restore array slot');
+	}
+	for (let index = length - 1; index >= length + delta; index--)
+		if (!Reflect.deleteProperty(target, index)) throw new TypeError('Cannot restore array slot');
+	for (let index = 0; index < values.length; index++) target[start + index] = values[index];
+	target.length = length + delta;
 }
 
 function sameArraySlot(
@@ -238,10 +291,7 @@ function mutateArrayEnd(
 	options: ReactiveOptions
 ): unknown {
 	const oldLength = target.length;
-	const result = method.apply(
-		target,
-		args.map((arg) => unwrap(arg))
-	);
+	const result = method.apply(target, args);
 	const newLength = target.length;
 	if (newLength !== oldLength) {
 		batch(() => {
@@ -278,32 +328,45 @@ export function createArrayUndo(
 ): (restoration: MutationRestoration) => void {
 	const descriptors = new Map<PropertyKey, PropertyDescriptor>();
 	const versions = new Map<PropertyKey, number>();
+	const addresses = new Map<PropertyKey, { target: object; key: PropertyKey }>();
 	const oldLength = snapshot.length;
 	const lengthVersion = readOwnershipVersion(target, arrayLengthWriteKey);
+	if (oldLength) {
+		readOwnershipVersion(target, '0');
+		addresses.set('0', arrayPropertyAddress(target, '0'));
+	}
 	for (const key of Reflect.ownKeys(snapshot)) {
 		const descriptor = Reflect.getOwnPropertyDescriptor(snapshot, key);
 		if (descriptor) descriptors.set(key, descriptor);
 		versions.set(key, readOwnershipVersion(target, key));
+		addresses.set(key, arrayPropertyAddress(target, key));
 	}
 	return (restoration) => {
-		const ownsLength = restoration.allows(target, arrayLengthWriteKey, lengthVersion);
+		const positionsUsable = [...addresses.values()].every(
+			(address) => !isArrayPosition(address.target) || isUsableArrayPosition(address.target)
+		);
+		const ownsLength =
+			positionsUsable && restoration.allows(target, arrayLengthWriteKey, lengthVersion);
 		for (const key of Reflect.ownKeys(target)) {
 			if (
 				key === 'length' ||
+				(!positionsUsable && arrayIndex(key) !== undefined) ||
 				(snapshot !== target && arrayIndex(key) === undefined) ||
 				descriptors.has(key) ||
 				!restoration.allows(target, key)
 			)
 				continue;
-			Reflect.deleteProperty(target, key);
-			restoration.mark(target, key);
+			const receipt = restoration.capture(target, key);
+			if (Reflect.deleteProperty(target, key)) restoration.mark(receipt);
 		}
 		for (const [key, descriptor] of descriptors) {
-			if (key === 'length' || !restoration.allows(target, key, versions.get(key))) continue;
+			const address = addresses.get(key)!;
+			if (key === 'length' || !restoration.allows(address.target, address.key, versions.get(key)))
+				continue;
 			const index = arrayIndex(key);
 			if (!ownsLength && index !== undefined && index >= target.length) continue;
-			Reflect.defineProperty(target, key, descriptor);
-			restoration.mark(target, key);
+			const receipt = restoration.capture(address.target, address.key);
+			if (Reflect.defineProperty(target, key, descriptor)) restoration.mark(receipt);
 		}
 		if (ownsLength) {
 			let length = oldLength;
@@ -312,8 +375,9 @@ export function createArrayUndo(
 				if (index !== undefined) length = Math.max(length, index + 1);
 			}
 			if (target.length !== length) {
+				const receipt = restoration.capture(target, 'length');
 				target.length = length;
-				restoration.mark(target, 'length');
+				restoration.mark(receipt);
 			}
 		}
 	};

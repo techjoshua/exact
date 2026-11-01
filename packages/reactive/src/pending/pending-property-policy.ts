@@ -1,4 +1,3 @@
-import { reactiveProxyOptions } from '../proxy/collection-publication.js';
 import { unwrap } from '../internal/values.js';
 /** Rejects assignments that native descriptors or receiver extensibility would prohibit before staging. */
 export function assertPendingPropertyAssignable(target: object, key: PropertyKey): void {
@@ -31,15 +30,6 @@ export { nativePropertyKey as pendingPropertyKey } from '../internal/property-ke
 export function pendingInheritedRead(target: object, key: PropertyKey): unknown {
 	const prototype = Reflect.getPrototypeOf(unwrap(target));
 	return prototype ? Reflect.get(prototype, key, target) : undefined;
-}
-
-/** Rejects readonly aliases before callbacks can produce side effects. */
-export function assertPendingWritable(target: object, key: PropertyKey): void {
-	const policy = reactiveProxyOptions(target);
-	if (policy?.readonly) {
-		policy.onReadonlyWrite?.(key);
-		throw new TypeError('Cannot write through readonly pending state');
-	}
 }
 
 /** Rejects class receivers before execution because a state view cannot preserve private brands. */

@@ -1,5 +1,5 @@
 import { exactVitest } from '@exactjs/vitest';
-import { defineConfig } from 'vitest/config';
+import { configDefaults, defineConfig } from 'vitest/config';
 
 export default defineConfig({
 	root: import.meta.dirname,
@@ -9,6 +9,11 @@ export default defineConfig({
 		})
 	],
 	test: {
-		exclude: ['src/components.server.test.tsx']
+		exclude: [
+			...configDefaults.exclude,
+			'src/components.server.test.tsx',
+			'**/.tmp/**',
+			'**/dist/**'
+		]
 	}
 });

@@ -18,14 +18,27 @@ describe('hydration JSON validation', () => {
 			});
 			return { payload, failure };
 		};
-		for (const value of [null, '', '<&\u2028', true, false, 0, -0, 1.5]) {
+		for (const value of [
+			null,
+			'',
+			'<&\u2028',
+			true,
+			false,
+			0,
+			-0,
+			1.5,
+			undefined,
+			NaN,
+			Infinity,
+			-Infinity
+		]) {
 			const result = validate(value);
 			expect(result.failure).toBeUndefined();
 			expect(result.payload.state).toEqual(['test:primitive', [value]]);
 			expect(validate(value, 4).failure).toBeDefined();
 			expect(validate(value, 5, 2).failure).toBe('$.state.value');
 		}
-		for (const value of [undefined, NaN, Infinity, -Infinity, 1n, Symbol('unsafe'), () => 1])
+		for (const value of [1n, Symbol('unsafe'), () => 1])
 			expect(validate(value).failure).toBe('$.state.value');
 	});
 
@@ -127,7 +140,7 @@ describe('hydration JSON validation', () => {
 	});
 
 	it('preserves object, array, cycle, and limit failure paths', () => {
-		expect(validateJsonSafeHydrationValue({ rows: [{ value: Number.NaN }] }, {})).toBe(
+		expect(validateJsonSafeHydrationValue({ rows: [{ value: Symbol('unsupported') }] }, {})).toBe(
 			'$.rows[0].value'
 		);
 		const cycle: Record<string, unknown> = {};
@@ -159,7 +172,7 @@ describe('hydration JSON validation', () => {
 		expect(observed).toEqual([safe[0], safe]);
 
 		const safeBeforeFailure: unknown[] = [];
-		const lateFailure = [safeBeforeFailure, { value: Number.NaN }];
+		const lateFailure = [safeBeforeFailure, { value: Symbol('unsupported') }];
 		expect(
 			validateJsonSafeHydrationValue(lateFailure, {
 				onValidatedArray: (value) => observed.push(value)

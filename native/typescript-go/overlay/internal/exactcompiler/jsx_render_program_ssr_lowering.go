@@ -54,6 +54,11 @@ func (lowering *jsxLowering) directRenderProgramSsrPlan(build *renderProgramBuil
 	numberLiteral := func(value int) *ast.Node {
 		return lowering.factory.NewNumericLiteral(strconv.Itoa(value), ast.TokenFlagsNone)
 	}
+	// This required operation rejects an old SSR provider even when it is paired with new core.
+	// It runs before any value preparation, identity reservation or output.
+	statements = append(statements, lowering.factory.NewExpressionStatement(
+		callExpression("assertVersion", numberLiteral(renderProgramVersion)),
+	))
 	values := make([]*ast.Node, len(build.slots))
 	scalarPropsProofs := make(map[string]*ast.Node)
 	for index, slot := range build.slots {
@@ -77,7 +82,13 @@ func (lowering *jsxLowering) directRenderProgramSsrPlan(build *renderProgramBuil
 		// Root bags are object literals constructed by this compiler, not authored reactive
 		// values. Their individual attributes still pass through ordinary serialization.
 		preparedRoot := slot.kind == "root-attributes" && ast.IsObjectLiteralExpression(slot.reader)
-		initializer := callExpression(method, invocation, numberLiteral(index))
+		arguments := []*ast.Node{invocation, numberLiteral(index)}
+		// Only this compiler-known nonroot bag can prepare identity. Scalar objects and
+		// root bags retain their existing owners and serialization contracts.
+		if slot.kind == "spread" {
+			arguments = append(arguments, lowering.factory.NewTrueExpression())
+		}
+		initializer := callExpression(method, arguments...)
 		if preparedRoot {
 			initializer = lowering.factory.NewElementAccessExpression(
 				lowering.factory.NewPropertyAccessExpression(invocation, nil, lowering.factory.NewIdentifier("eagerValues"), ast.NodeFlagsNone),

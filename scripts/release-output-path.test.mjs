@@ -29,3 +29,20 @@ test('release output rejects escapes, junction ancestors and files before deleti
 	await assertReleaseOutput(root, path.join(temporary, 'new', 'release'));
 	assert.equal(await readFile(path.join(outside, 'sentinel'), 'utf8'), 'preserve');
 });
+
+test('release output preserves native inputs beneath dot-prefixed children and external aliases', async (t) => {
+	const root = await mkdtemp(path.join(os.tmpdir(), 'exact-native-release-path-'));
+	t.after(() => rm(root, { recursive: true, force: true }));
+	const output = path.join(root, '.tmp', 'release');
+	const nested = path.join(output, '..archives');
+	await mkdir(nested, { recursive: true });
+	await writeFile(path.join(nested, 'native.tgz'), 'preserve');
+	const alias = path.join(root, 'native-alias');
+	await symlink(nested, alias, process.platform === 'win32' ? 'junction' : 'dir');
+	for (const input of [nested, output, alias])
+		await assert.rejects(assertReleaseOutput(root, output, [input]), /Native input archives/);
+	const sibling = path.join(root, '.tmp', 'release-archives');
+	await mkdir(sibling);
+	await assertReleaseOutput(root, output, [sibling]);
+	assert.equal(await readFile(path.join(nested, 'native.tgz'), 'utf8'), 'preserve');
+});

@@ -1,3 +1,4 @@
+import { deriveRuntimeConfiguration } from '@exactjs/core/framework/configuration';
 import { attachSuppressedCleanupFailure, logFrameworkEvent } from '@exactjs/core';
 import { encodeSsrUtf8 } from '../render/utf8-encoding.js';
 import type { ExactDocumentStreamEvent, RenderToProgressiveHtmlStreamOptions } from '../types.js';
@@ -24,21 +25,24 @@ export type ProgressiveDocumentStreamRender = (
 	abort: (reason: unknown) => void
 ) => void | Promise<void> | void;
 
-/** Creates a html stream. */
+/**
+ * Encodes HTML spans on reader demand and closes the iterator on completion or cancellation.
+ * Byte and chunk ceilings apply only when supplied by the caller.
+ */
 export function createHtmlStream(
 	chunks: Iterable<string>,
 	options: { signal?: AbortSignal; maxBytes?: number; maxChunks?: number; close?(): void } = {}
 ): ReadableStream<Uint8Array> {
 	const iterator = chunks[Symbol.iterator]();
-	const maxBytes = positiveLimit(options.maxBytes, 16 * 1024 * 1024);
-	const maxChunks = positiveLimit(options.maxChunks, 100_000);
+	const maxBytes = positiveLimit(options.maxBytes, Infinity);
+	const maxChunks = positiveLimit(options.maxChunks, Infinity);
 	let bytes = 0;
 	let chunkCount = 0;
 	let closed = false;
 	let controller: ReadableStreamDefaultController<Uint8Array> | undefined;
 	const abort = () => {
 		if (closed) return;
-		const reason = options.signal?.reason ?? new DOMException('SSR stream aborted', 'AbortError');
+		const reason = options.signal?.reason;
 		try {
 			close();
 		} catch (cleanup) {
@@ -66,8 +70,7 @@ export function createHtmlStream(
 			},
 			pull(streamController) {
 				if (options.signal?.aborted) {
-					const reason =
-						options.signal.reason ?? new DOMException('SSR stream aborted', 'AbortError');
+					const reason = options.signal.reason;
 					try {
 						close();
 					} catch (cleanup) {
@@ -107,7 +110,12 @@ export function createHtmlStream(
 	);
 }
 
-/** Creates a document event stream. */
+/**
+ * Encodes document events with reader-driven demand and request cancellation.
+ * Total byte and event ceilings apply only when supplied by the caller.
+ * Producer failures publish a sanitized terminal event. Reader cancellation waits for
+ * the producer to unwind its owned resources before settling.
+ */
 export function createDocumentEventStream(
 	render: DocumentStreamRender,
 	options: {
@@ -123,8 +131,9 @@ export function createDocumentEventStream(
 	let streamController: ReadableStreamDefaultController<Uint8Array> | undefined;
 	let resume: (() => void) | undefined;
 	let demand = 0;
-	const maxEvents = positiveLimit(options.maxEvents, 100_000);
-	const maxBytes = positiveLimit(options.maxBytes, 16 * 1024 * 1024);
+	let production: Promise<void> | undefined;
+	const maxEvents = positiveLimit(options.maxEvents, Infinity);
+	const maxBytes = positiveLimit(options.maxBytes, Infinity);
 	let events = 0;
 	let bytes = 0;
 	const wake = () => {
@@ -136,8 +145,7 @@ export function createDocumentEventStream(
 		wake();
 		if (closed) return;
 		closed = true;
-		const reason =
-			ownerController.signal.reason ?? new DOMException('SSR stream aborted', 'AbortError');
+		const reason = ownerController.signal.reason;
 		try {
 			cleanup();
 		} catch (cleanupError) {
@@ -168,14 +176,12 @@ export function createDocumentEventStream(
 							resume = resolve;
 						});
 					}
-					if (closed || ownerController.signal.aborted)
-						throw (
-							ownerController.signal.reason ?? new DOMException('SSR stream aborted', 'AbortError')
-						);
+					if (closed || ownerController.signal.aborted) throw ownerController.signal.reason;
 					demand--;
 					controller.enqueue(chunk);
 				};
-				Promise.resolve(render(ownerController.signal, emit))
+				production = Promise.resolve()
+					.then(() => render(ownerController.signal, emit))
 					.then(() => {
 						if (closed) return;
 						closed = true;
@@ -190,9 +196,7 @@ export function createDocumentEventStream(
 						if (closed) return;
 						if (ownerController.signal.aborted) {
 							closed = true;
-							const reason =
-								ownerController.signal.reason ??
-								new DOMException('SSR stream aborted', 'AbortError');
+							const reason = ownerController.signal.reason;
 							try {
 								cleanup();
 							} catch (cleanupError) {
@@ -240,6 +244,8 @@ export function createDocumentEventStream(
 				resume = undefined;
 				ownerController.abort(reason);
 				cleanup();
+				// Cancellation must retain the producer until its asynchronous cleanup has finished.
+				return production;
 			}
 		},
 		{ highWaterMark: 0 }
@@ -254,17 +260,17 @@ export function createProgressiveHtmlStream(
 	const bufferSize = options.streamBufferSize ?? 8192;
 	if (!Number.isSafeInteger(bufferSize) || bufferSize < 1)
 		throw new RangeError('streamBufferSize must be a positive safe integer');
-	const streamOptions: RenderToProgressiveHtmlStreamOptions = {
-		...options,
-		rootId: progressiveRootId(options)
-	};
+	const streamOptions: RenderToProgressiveHtmlStreamOptions = deriveRuntimeConfiguration(
+		options,
+		() => ({ rootId: progressiveRootId(options) })
+	);
 	const abortController = new AbortController();
 	const unlink = forwardAbort(options.signal, abortController);
 	streamOptions.signal = abortController.signal;
 	let closed = false;
 	let resume: (() => void) | undefined;
-	const maxEvents = positiveLimit(options.maxStreamEvents, 100_000);
-	const maxBytes = positiveLimit(options.maxStreamBytes, 16 * 1024 * 1024);
+	const maxEvents = positiveLimit(options.maxStreamEvents, Infinity);
+	const maxBytes = positiveLimit(options.maxStreamBytes, Infinity);
 	let events = 0;
 	let bytes = 0;
 	const documentState: ProgressiveDocumentState = {};
@@ -282,10 +288,7 @@ export function createProgressiveHtmlStream(
 			start(controller) {
 				// Available demand completes directly; only actual pressure owns a continuation.
 				const waitForDemand = (): void | Promise<void> => {
-					if (closed || abortController.signal.aborted)
-						throw (
-							abortController.signal.reason ?? new DOMException('SSR stream aborted', 'AbortError')
-						);
+					if (closed || abortController.signal.aborted) throw abortController.signal.reason;
 					if ((controller.desiredSize ?? 0) > 0) return;
 					return new Promise<void>((resolve) => {
 						resume = resolve;
@@ -328,9 +331,7 @@ export function createProgressiveHtmlStream(
 						if (closed) return;
 						if (abortController.signal.aborted) {
 							closed = true;
-							const reason =
-								abortController.signal.reason ??
-								new DOMException('SSR stream aborted', 'AbortError');
+							const reason = abortController.signal.reason;
 							try {
 								cleanup();
 							} catch (cleanupError) {

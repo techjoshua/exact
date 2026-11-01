@@ -1,3 +1,4 @@
+import { prepareExactViteSource } from './source-preparation.js';
 import { projectTestTargetComponentImports } from './test-host/target-imports.js';
 export { projectTestTargetComponentImports } from './test-host/target-imports.js';
 import {
@@ -9,7 +10,7 @@ import {
 import type { ExactInspectionRedactionCatalog } from '@exactjs/devtools-protocol';
 import type { IntlBuildCoordinator } from '@exactjs/intl-build';
 import type { ReactCompatibilityBuildEngine } from '@exactjs/react-compat/build';
-import { jsxSourceOwnership, type ResolvedReactCompatibility } from '@exactjs/react-compat/plugin';
+import { type ResolvedReactCompatibility } from '@exactjs/react-compat/plugin';
 import { transformReactJsx, usesReactRuntimeImports } from '@exactjs/react-compat/transform';
 import {
 	containsExactBuildJsx,
@@ -18,6 +19,7 @@ import {
 	planExactAdapterProjection,
 	isExactBuildSourceModule,
 	shouldCompileExactBuildModule,
+	isExactOwnedHelperSource,
 	shouldTransformExactBuildModulePath,
 	transformExactAdapterModule
 } from '@exactjs/compiler/adapter-support';
@@ -49,6 +51,8 @@ export type ExactViteInspectionRecord = Readonly<{
 /** Inputs retained by the Vite plugin while transforming one source module. */
 export type TransformExactViteModuleOptions = Readonly<{
 	code: string;
+	/** Build-owned final preparation reused from executable selection. */
+	preparedSource?: ReturnType<typeof prepareExactViteSource>;
 	id: string;
 	options: ExactPluginOptions;
 	requestTarget?: 'client' | 'server';
@@ -78,7 +82,6 @@ export function transformExactViteModule(input: TransformExactViteModuleOptions)
 	const target = exactTransformTargetForModule(id, options, input.requestTarget);
 	const renderMode =
 		target === 'server' && options.renderMode === 'hydrate' ? 'server-render' : options.renderMode;
-	const internationalization = options.internationalization || undefined;
 	if (!isExactBuildSourceModule(id)) return null;
 	const filename = exactModuleFilename(id);
 	const rebound = rebindExactPhysicalEnhancementFacade(code, filename);
@@ -109,9 +112,8 @@ export function transformExactViteModule(input: TransformExactViteModuleOptions)
 		);
 	}
 
-	const reachedPublication = internationalization
-		? input.intl.activateReachedSource(code, filename)
-		: undefined;
+	const { reachedPublication, intlAnalysis, analyzedCode, ownership } =
+		input.preparedSource ?? prepareExactViteSource({ ...input, id: filename });
 	if (!shouldTransformExactBuildModulePath(filename, options))
 		return reachedPublication
 			? {
@@ -123,18 +125,9 @@ export function transformExactViteModule(input: TransformExactViteModuleOptions)
 					moduleType: 'js'
 				}
 			: null;
-	const authoredOwnership = jsxSourceOwnership(filename, code, input.reactCompatibility);
-	const intlAnalysis =
-		internationalization && authoredOwnership !== 'react'
-			? input.intl.analyzeConfiguredSource(code, filename)
-			: undefined;
-	for (const diagnostic of intlAnalysis?.diagnostics ?? [])
-		input.warn(`${diagnostic.file}:${diagnostic.start}: ${diagnostic.message}`);
-	const analyzedCode = intlAnalysis?.code ?? code;
-	const ownership = intlAnalysis
-		? jsxSourceOwnership(filename, analyzedCode, input.reactCompatibility)
-		: authoredOwnership;
-	const shouldCompile = shouldCompileExactBuildModule(filename, analyzedCode, options);
+	const shouldCompile =
+		shouldCompileExactBuildModule(filename, analyzedCode, options) ||
+		(target === 'server' && isExactOwnedHelperSource(filename, input.compilerSession));
 	const output = transformExactAdapterModule({
 		source: analyzedCode,
 		filename,

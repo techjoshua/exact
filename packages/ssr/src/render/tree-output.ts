@@ -1,3 +1,8 @@
+import {
+	prepareRootComponentInputExecution,
+	type RootComponentInputExecution
+} from './root-props.js';
+import { deriveRuntimeConfiguration } from '@exactjs/core/framework/configuration';
 import type { Child } from '@exactjs/core';
 import { componentDomainUsesWallClock } from '@exactjs/core/framework/component-domains';
 import { processExactOutput } from '@exactjs/plugin-host/runtime';
@@ -5,7 +10,7 @@ import type { RenderToStringOptions, RenderToStringResult, SsrContext } from '..
 import { renderChildren } from './children.js';
 import { createSsrContext } from './context.js';
 import { mapRenderValue, withRenderCleanup, type RenderValue } from './execution.js';
-import { assertOutputWithinLimit, countSsrNode, withTaskDeadline } from './limits.js';
+import { assertOutputWithinLimit, countSsrNode } from './limits.js';
 import { SsrOperationTarget } from './operation-target.js';
 import { DocumentStringSink } from './document-string-sink.js';
 import { DocumentShellScope } from './document-shell.js';
@@ -29,21 +34,33 @@ export function renderTreeOutput(
 	omitRootBoundary: boolean,
 	outputKind: 'html' | 'stream' = 'html',
 	destination?: DocumentStreamDestination,
-	streamBufferSize?: number
+	streamBufferSize?: number,
+	inputExecution?: RootComponentInputExecution
 ): RenderValue<RenderToStringResult> {
 	if (options.outputExtensions?.length)
 		return processExactOutput(
 			operation,
 			{ kind: 'operation', signal: options.signal },
 			options.outputExtensions
-		).then((value) => renderSelectedTree(value as Child, options, omitRootBoundary, outputKind));
+		).then((value) =>
+			renderSelectedTree(
+				value as Child,
+				options,
+				omitRootBoundary,
+				outputKind,
+				undefined,
+				undefined,
+				inputExecution
+			)
+		);
 	return renderSelectedTree(
 		operation,
 		options,
 		omitRootBoundary,
 		outputKind,
 		destination,
-		streamBufferSize
+		streamBufferSize,
+		inputExecution
 	);
 }
 
@@ -53,21 +70,27 @@ function renderSelectedTree(
 	omitRootBoundary: boolean,
 	outputKind: 'html' | 'stream',
 	destination?: DocumentStreamDestination,
-	streamBufferSize?: number
+	streamBufferSize?: number,
+	inputExecution?: RootComponentInputExecution
 ): RenderValue<RenderToStringResult> {
-	let renderOptions = withTaskDeadline(options);
+	let renderOptions = options;
 	if (options.documentShell) {
-		const scope = new DocumentShellScope(operation, { ...renderOptions, documentShell: undefined });
+		const scope = new DocumentShellScope(
+			operation,
+			deriveRuntimeConfiguration(renderOptions, () => ({ documentShell: undefined }))
+		);
 		operation = options.documentShell(operation);
-		renderOptions = {
-			...renderOptions,
+		renderOptions = deriveRuntimeConfiguration(renderOptions, () => ({
 			documentShell: undefined,
 			documentShellScope: scope,
 			resumptionCapture: scope.capture
-		};
+		}));
 		omitRootBoundary = false;
 	}
 	const context = createSsrContext(renderOptions);
+	const rootInputs = inputExecution ?? prepareRootComponentInputExecution(operation);
+	context.componentInputPass = rootInputs?.inputs.pass ?? {};
+	context.rootComponentInputs = rootInputs;
 	const sink = destination
 		? new HostDocumentStreamSink(context.maxOutputBytes, destination, streamBufferSize)
 		: new DocumentStringSink(context.maxOutputBytes);

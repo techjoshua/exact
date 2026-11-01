@@ -1,3 +1,4 @@
+import { reconcileSelectText } from '../controlled-select.js';
 import { readRenderProgramSlot } from '@exactjs/core/runtime/render-operations';
 import { readIndexedReactiveSlot } from '@exactjs/reactive/framework/runtime';
 import { unwrap } from '@exactjs/reactive/framework/values';
@@ -38,6 +39,9 @@ export function applyProgramText(
 	}
 	const node = state.slotNodes[index];
 	if (!(node instanceof Text)) return false;
-	if (node.data !== projected) node.data = projected;
+	if (node.data !== projected) {
+		node.data = projected;
+		if (node.parentNode) reconcileSelectText(state.root, node.parentNode);
+	}
 	return true;
 }

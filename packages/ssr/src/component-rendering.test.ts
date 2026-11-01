@@ -1,3 +1,6 @@
+import { createCompiledFragmentReceipt } from '@exactjs/core/runtime/component-abi';
+import { createPreparedServerComponentInputReference as inputReceipt } from '@exactjs/core/framework/server-render-structure';
+import { streamDocumentRender } from './render/render-output.js';
 import { defineExactBoundaryContract, defineExactOperationContract } from '@exactjs/server';
 import { describe, expect, it } from 'vitest';
 import { renderCompilerClosedToHydratableString } from './compiler-closed.js';
@@ -308,4 +311,55 @@ describe('@exactjs/ssr component and server contracts', () => {
 			}
 		]);
 	});
+});
+
+it('owns separate children acquisitions and teardown for repeated scheduled occurrences', async () => {
+	resetComponentRenderingFixtureState();
+	let reads = 0;
+	const operation = inputReceipt(ObservedServerComponent, null, {
+		kind: 'reader',
+		read() {
+			reads++;
+			return ['input-' + reads];
+		}
+	});
+	const output = await renderToString(createCompiledFragmentReceipt(null, operation, operation), {
+		markers: false
+	});
+	expect(reads).toBe(2);
+	expect(output.html).toBe('<p>2</p><p>2</p>');
+	expect(readComponentRenderingFixtureState().observedDisposals).toBe(2);
+});
+it('pairs final streaming publication with its fresh execution children', async () => {
+	let reads = 0;
+	const events: unknown[] = [],
+		published: Array<{ children: unknown; name: unknown }> = [];
+	const operation = inputReceipt(ProfileComponent, null, {
+		kind: 'reader',
+		read() {
+			reads++;
+			return ['pass-' + reads];
+		}
+	});
+	await streamDocumentRender(
+		operation,
+		{
+			markers: false,
+			onDirectComponentRendered: (snapshot) => {
+				published.push({ children: snapshot.props.children, name: snapshot.state.name });
+			}
+		},
+		(event) => {
+			events.push(event);
+		}
+	);
+	expect(reads).toBe(2);
+	expect(events).toEqual(
+		expect.arrayContaining([
+			expect.objectContaining({ event: 'shell' }),
+			expect.objectContaining({ event: 'complete' })
+		])
+	);
+	expect(JSON.stringify(events)).toContain('Ada');
+	expect(published.at(-1)).toEqual({ children: 'pass-2', name: 'Ada' });
 });

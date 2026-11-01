@@ -3,7 +3,7 @@ import { expect, it, onTestFinished } from 'vitest';
 import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import type { AnyComponentFunction } from '@exactjs/core';
-import { createCompiledComponentReceipt as receipt } from '@exactjs/core/runtime/component-operations';
+import { createCompiledComponentInputReceipt as receipt } from '@exactjs/core/runtime/component-operations';
 import { composeExactComponentContracts } from '@exactjs/core/framework/component-contracts';
 import { render, unmount } from '@exactjs/dom';
 import { registerDomEnhancementIntegration } from '../../../dom/src/renderer/enhancement-integration.js';
@@ -12,12 +12,11 @@ import { renderToHydratableString } from '@exactjs/ssr';
 import { flushSync } from '@exactjs/reactive';
 import { analyzeIntlSource } from '@exactjs/intl-analyzer';
 import { compileProjectArtifacts } from '../index.js';
-import { createTestWorkspace } from '../test-support/workspace.js';
+import { createCompilerTestWorkspace, repositoryPath } from '../test-support/workspace.js';
 import { importArtifact } from '../test-support/import-artifact.js';
-
 it('preserves localized helper predicates, direction and amounts through updates and hydration', async () => {
 	registerDomEnhancementIntegration();
-	const root = await createTestWorkspace('.exact-intl-helper-semantics-', process.cwd());
+	const root = await createCompilerTestWorkspace('.exact-intl-helper-semantics-', process.cwd());
 	const entry = path.join(root, 'page.tsx');
 	const source = `import {type Component} from '@exactjs/core';
  export {registerDomEnhancementIntegration} from '@exactjs/dom/framework/enhancements';
@@ -43,14 +42,14 @@ it('preserves localized helper predicates, direction and amounts through updates
 		outDir: path.join(root, 'generated')
 	});
 	const server = await importArtifact(artifact!.serverFile, path.join(root, 'server.mjs'), {
-		'@exactjs/intl/internal': path.resolve('packages/intl/dist/server/internal.js'),
-		'@exactjs/intl/enhancements': path.resolve('packages/intl/dist/server/enhancements.js'),
-		'@exactjs/intl': path.resolve('packages/intl/dist/server/index.js')
+		'@exactjs/intl/internal': repositoryPath('packages/intl/dist/server/internal.js'),
+		'@exactjs/intl/enhancements': repositoryPath('packages/intl/dist/server/enhancements.js'),
+		'@exactjs/intl': repositoryPath('packages/intl/dist/server/index.js')
 	});
 	const client = await importArtifact(artifact!.clientFile, path.join(root, 'client.mjs'), {
-		'@exactjs/intl/internal': path.resolve('packages/intl/dist/client/internal.js'),
-		'@exactjs/intl/enhancements': path.resolve('packages/intl/dist/client/enhancements.js'),
-		'@exactjs/intl': path.resolve('packages/intl/dist/client/index.js')
+		'@exactjs/intl/internal': repositoryPath('packages/intl/dist/client/internal.js'),
+		'@exactjs/intl/enhancements': repositoryPath('packages/intl/dist/client/enhancements.js'),
+		'@exactjs/intl': repositoryPath('packages/intl/dist/client/index.js')
 	});
 	(client.registerDomEnhancementIntegration as () => void)();
 	for (const mode of ['mount', 'hydrate'] as const) {
@@ -102,7 +101,14 @@ it('preserves localized helper predicates, direction and amounts through updates
 		expect(paragraph?.textContent, mode).toBe('in 7 hours / in 42 hours');
 		const selector = host.querySelector('output')!;
 		expect(selector.textContent).toBe('many days / many hours / +2.00');
-		const owner = client.owner as { state: { duration: { days: number; hours: number } } };
+		const owner = client.owner as {
+			state: {
+				duration: {
+					days: number;
+					hours: number;
+				};
+			};
+		};
 		owner.state.duration = { days: 9, hours: 0 };
 		flushSync();
 		expect(paragraph?.textContent).toBe('in 9 days / in 42 days');

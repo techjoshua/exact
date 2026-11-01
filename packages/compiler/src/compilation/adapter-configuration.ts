@@ -14,7 +14,7 @@ export interface ExactBuildConfiguration {
 	observeSource(filename: string): readonly string[];
 	/** Shares one load until invalidation. A superseded load cannot publish old configuration. */
 	read(): Promise<ExactLoadedConfig>;
-	/** Includes absent discovery candidates and prior paths so creation, removal, and recreation remain observable. */
+	/** Returns a fresh list including absent discovery candidates and prior paths so creation, removal, and recreation remain observable. */
 	watchFiles(): Promise<readonly string[]>;
 	/** Invalidates all configuration, or only when a changed path participates in discovery. */
 	invalidate(filename?: string): boolean;
@@ -45,7 +45,7 @@ export function createExactBuildConfiguration(
 		pending = next;
 		return next;
 	};
-	return Object.freeze({
+	return {
 		observeSource(filename: string) {
 			const files = sourcePackageEnhancementWatchFiles(filename);
 			watchFiles = [...new Set([...watchFiles, ...files])];
@@ -54,7 +54,7 @@ export function createExactBuildConfiguration(
 		read,
 		async watchFiles() {
 			await read();
-			return watchFiles;
+			return [...watchFiles];
 		},
 		invalidate(filename?: string) {
 			if (filename) {
@@ -67,5 +67,5 @@ export function createExactBuildConfiguration(
 			pending = undefined;
 			return true;
 		}
-	});
+	};
 }

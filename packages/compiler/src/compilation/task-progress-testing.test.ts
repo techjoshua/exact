@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 import { type AnyComponentFunction } from '@exactjs/core';
-import { createCompiledComponentReceipt } from '@exactjs/core/runtime/component-operations';
+import { createCompiledComponentInputReceipt } from '@exactjs/core/runtime/component-operations';
 import { composeExactExecutorContract, handleExactRequest } from '@exactjs/server';
 import { renderToHydratableString } from '@exactjs/ssr';
 import { mountClientServerTest, type ClientServerTestView } from '@exactjs/testing';
@@ -13,8 +13,7 @@ import {
 	createExactHydrationRegistrationModule
 } from '../index.js';
 import { importArtifact } from '../test-support/import-artifact.js';
-import { createTestWorkspace } from '../test-support/workspace.js';
-
+import { createCompilerTestWorkspace } from '../test-support/workspace.js';
 const source = `import { TaskContext, type Component } from '@exactjs/core';
 export function ProgressExample(this: Component<{progress: number; result: number; independent: number}>) {
  this.state.progress = 0;
@@ -38,7 +37,6 @@ export function Shell(this: Component<{ready: boolean}>) {
  prepare();
  return () => <ProgressExample/>;
 }`;
-
 /** Holds producer work until the test explicitly permits progress or terminal publication. */
 function gate() {
 	let resolve!: (value: number) => void;
@@ -47,7 +45,6 @@ function gate() {
 	});
 	return { promise, resolve };
 }
-
 // PRs exercise each axis in both states. Scheduled acceptance runs the full bounded product.
 const combinations = [false, true].flatMap((batch) =>
 	[false, true].flatMap((startup) =>
@@ -76,7 +73,9 @@ it.each([...cases, { batch: true, startup: false, asyncReceiver: false, overlap:
 				return { progress: progress.promise, result: result.promise };
 			}
 		});
-		const mounted: { view?: ClientServerTestView } = {};
+		const mounted: {
+			view?: ClientServerTestView;
+		} = {};
 		onTestFinished(() => {
 			mounted.view?.unmount();
 			for (const run of runs) {
@@ -85,7 +84,7 @@ it.each([...cases, { batch: true, startup: false, asyncReceiver: false, overlap:
 			}
 			vi.unstubAllGlobals();
 		});
-		const root = await createTestWorkspace('.exact-progress-testing-', process.cwd());
+		const root = await createCompilerTestWorkspace('.exact-progress-testing-', process.cwd());
 		const entry = path.join(root, 'page.tsx');
 		await writeFile(
 			entry,
@@ -135,7 +134,7 @@ it.each([...cases, { batch: true, startup: false, asyncReceiver: false, overlap:
 			[Server, serverModule.ProgressExample as AnyComponentFunction],
 			{ endpoint: '/__exact' }
 		);
-		const server = await renderToHydratableString(createCompiledComponentReceipt(Server, {}));
+		const server = await renderToHydratableString(createCompiledComponentInputReceipt(Server, {}));
 		const errors: unknown[] = [];
 		const view = await mountClientServerTest({
 			server,

@@ -40,10 +40,10 @@ export function inspectExactClientArtifactIsolation(
 			inspectValue(value, 'dynamic-import', output.fileName);
 		for (const value of output.sources ?? []) inspectValue(value, 'source', output.fileName);
 	}
-	return Object.freeze({
+	return {
 		ok: violations.length === 0,
-		violations: Object.freeze(violations)
-	});
+		violations: violations
+	};
 
 	function inspectValue(
 		value: string,
@@ -52,7 +52,7 @@ export function inspectExactClientArtifactIsolation(
 	): void {
 		const normalized = normalizeArtifactPath(value);
 		if (!isServerArtifactPath(normalized) && !forbidden.has(normalized)) return;
-		violations.push(Object.freeze({ output, kind, value }));
+		violations.push({ output, kind, value });
 	}
 }
 

@@ -14,15 +14,16 @@ export type TimeUpdatePolicy =
 	| 'year'
 	| 'disabled';
 
-/** Immutable instant representation used by clocks without requiring a Temporal polyfill. */
+/** Finite instant representation with TypeScript readonly properties used by clocks without requiring a Temporal polyfill. */
 export interface TimeInstant {
 	readonly epochMilliseconds: number;
 }
 
-/** One-shot host scheduling contract; clock object identity determines scheduler sharing. */
+/** One-shot host scheduling contract. Clock object identity determines scheduler sharing. */
 export interface TimeClock {
 	/** Returns a finite epoch-millisecond observation without changing the clock or scheduling work. */
 	now(): TimeInstant;
+	/** Schedules one notification and returns cancellation. Retired notifications are fenced even if cancellation fails. */
 	schedule(deadline: TimeInstant, notify: () => void): () => void;
 	/** Subscribes to host resume signals that may cross a deadline while timers are suspended. */
 	subscribeWake?(notify: () => void): () => void;

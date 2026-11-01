@@ -14,12 +14,13 @@ export class AsyncSsrScheduler {
 
 	/** Starts ready work immediately when a slot is free; queued work waits for its FIFO permit. */
 	async run<T>(work: () => Promise<T>, signal?: AbortSignal): Promise<T> {
-		if (signal?.aborted)
-			throw signal.reason ?? new DOMException('SSR render aborted', 'AbortError');
+		if (signal?.aborted) throw signal.reason;
 		const pending = this.acquire(signal);
 		// A free permit requires no promise or microtask before starting the task's I/O.
 		if (pending) await pending;
 		try {
+			// A granted permit may resume after its request was canceled in the same turn.
+			signal?.throwIfAborted();
 			return await work();
 		} finally {
 			this.release();
@@ -57,7 +58,7 @@ export class AsyncSsrScheduler {
 				settled = true;
 				const index = this.queued.indexOf(start);
 				if (index >= 0) this.queued.splice(index, 1);
-				reject(signal?.reason ?? new DOMException('SSR render aborted', 'AbortError'));
+				reject(signal?.reason);
 			};
 			this.queued.push(start);
 			signal?.addEventListener('abort', abort, { once: true });

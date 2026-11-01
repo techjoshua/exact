@@ -1,12 +1,11 @@
 /** @vitest-environment jsdom */
 import { expect, it } from 'vitest';
-import { createCompiledComponentReceipt } from '@exactjs/core/runtime/component-operations';
+import { createCompiledComponentInputReceipt } from '@exactjs/core/runtime/component-operations';
 import type { AnyComponentFunction } from '@exactjs/core';
 import { render, dispose } from '@exactjs/dom';
 import { renderToHydratableString } from '@exactjs/ssr';
 import { flushSync } from '@exactjs/reactive';
 import { privateHelperArtifact } from '../test-support/private-helper-artifact.js';
-
 // Compiler-owned branding and receipts must remain independent of application built-in bindings.
 it.each(['client', 'server'] as const)(
 	'preserves %s component contracts with module built-in bindings',
@@ -24,13 +23,18 @@ it.each(['client', 'server'] as const)(
 			const Page = compiled.Page as AnyComponentFunction;
 			expect(Page.name).toBe('Page');
 			if (target === 'server') {
-				const rendered = await renderToHydratableString(createCompiledComponentReceipt(Page, {}));
+				const rendered = await renderToHydratableString(
+					createCompiledComponentInputReceipt(Page, {})
+				);
 				expect(rendered.html).toContain('0');
 				continue;
 			}
 			const root = document.createElement('main');
 			try {
-				render(createCompiledComponentReceipt(compiled.Page as AnyComponentFunction, {}), root);
+				render(
+					createCompiledComponentInputReceipt(compiled.Page as AnyComponentFunction, {}),
+					root
+				);
 				expect(root.textContent).toBe('0');
 			} finally {
 				dispose(root, true);

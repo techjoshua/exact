@@ -10,6 +10,8 @@ import (
 // Returning this record by value prevents emitters from mutating the captured analysis.
 type mutationNodeFacts struct {
 	result, destination, argument, pending, boundCallable *ast.Node
+	nativeParent, nativeKey, temporary                    *ast.Node
+	temporaryLexical                                      *mutationTemporaryLexicalFact
 }
 
 type mutationTypeSlot uint8
@@ -20,6 +22,9 @@ const (
 	mutationTypeArgument
 	mutationTypePending
 	mutationTypeBoundCallable
+	mutationTypeNativeParent
+	mutationTypeNativeKey
+	mutationTypeTemporary
 )
 
 // mutationSemanticFacts is built against authored parents and sealed before executable lowering.
@@ -57,6 +62,12 @@ func (facts *mutationSemanticFacts) capture(span SourceSpan, slot mutationTypeSl
 		record.pending = value
 	case mutationTypeBoundCallable:
 		record.boundCallable = value
+	case mutationTypeNativeParent:
+		record.nativeParent = value
+	case mutationTypeNativeKey:
+		record.nativeKey = value
+	case mutationTypeTemporary:
+		record.temporary = value
 	default:
 		panic("unknown mutation type slot")
 	}
@@ -112,4 +123,15 @@ func (lowering *jsxLowering) namedUniqueMutationType(source *ast.Node, value *ch
 		return nil
 	}
 	return lowering.factory.NewTypeQueryNode(lowering.factory.NewIdentifier(name), nil)
+}
+
+// captureTemporaryLexical keeps the annotation and its authored value identities
+// in the same sealed record. It never replaces another annotation demand.
+func (facts *mutationSemanticFacts) captureTemporaryLexical(span SourceSpan, lexical *mutationTemporaryLexicalFact) {
+	if facts.sealed {
+		panic("temporary lexical fact captured after executable lowering began")
+	}
+	record := facts.records[span]
+	record.temporaryLexical = lexical
+	facts.records[span] = record
 }

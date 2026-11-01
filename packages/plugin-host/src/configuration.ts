@@ -14,6 +14,7 @@ import type {
 } from './discovery.js';
 import { packageName, packageVersion, type ExactPackageNode } from './graph.js';
 import { importPublicPackageEntry } from './modules.js';
+import { planConfigurationContributors } from './configuration-ordering.js';
 
 /** Defines the exact config transform report interface contract. */
 export interface ExactConfigTransformReport {
@@ -52,7 +53,7 @@ export interface ExactConfigurationOptions {
 	readonly signal: AbortSignal;
 }
 
-/** Resolves an exact plugin configurations. */
+/** Runs defaults, dependency-ordered contributors and application transforms before projecting plugin configuration. */
 export async function resolveExactPluginConfigurations(
 	discovery: ExactPluginDiscoveryResult,
 	options: ExactConfigurationOptions
@@ -62,6 +63,7 @@ export async function resolveExactPluginConfigurations(
 	for (const selected of [...discovery.plugins.values()].sort((left, right) =>
 		left.packageName.localeCompare(right.packageName)
 	)) {
+		throwIfAborted(options.signal);
 		const entry = selected.declaration.entries.config;
 		const controller = entry
 			? controllerFromModule(
@@ -69,6 +71,7 @@ export async function resolveExactPluginConfigurations(
 					selected.packageName
 				)
 			: noConfigController();
+		throwIfAborted(options.signal);
 		const contributors = discovery.contributors.filter(
 			(value) => value.plugin === selected.packageName
 		);
@@ -80,9 +83,10 @@ export async function resolveExactPluginConfigurations(
 			options,
 			reports
 		);
+		throwIfAborted(options.signal);
 		plugins.set(selected.packageName, resolved);
 	}
-	return Object.freeze({ plugins, reports: Object.freeze(reports) });
+	return { plugins, reports };
 }
 
 function noConfigController<T>(): ExactPluginConfigController<T> {
@@ -102,119 +106,107 @@ async function resolveOnePlugin<T>(
 ): Promise<ExactResolvedPluginConfiguration> {
 	let executionIndex = 0;
 	const pluginParticipant = discovery.participants.get(selected.node.id);
-	const baseContext = (): ExactPluginConfigContext =>
-		Object.freeze({
-			plugin: Object.freeze({ packageName: selected.packageName, version: selected.version }),
-			contributor: Object.freeze({ packageName: selected.packageName, version: selected.version }),
-			applicationRoot: options.applicationRoot,
-			environment: options.environment,
-			hostMode: options.hostMode,
-			signal: options.signal,
-			executionIndex,
-			provenance: Object.freeze({
-				activationPaths:
-					pluginParticipant?.activationPaths ?? selected.requirements.map((value) => value.path),
-				orderingAfter: Object.freeze([])
-			})
-		});
-	let current = (await controller.defaults(baseContext())) as T;
+	const pluginPaths =
+		pluginParticipant?.activationPaths ?? selected.requirements.map((value) => value.path);
+	const contextFor = (
+		contributor: ExactPluginConfigContext['contributor'] = {
+			packageName: selected.packageName,
+			version: selected.version
+		},
+		activationPaths = pluginPaths,
+		orderingAfter?: readonly string[]
+	): ExactPluginConfigContext => ({
+		plugin: { packageName: selected.packageName, version: selected.version },
+		contributor,
+		applicationRoot: options.applicationRoot,
+		environment: options.environment,
+		hostMode: options.hostMode,
+		signal: options.signal,
+		executionIndex,
+		provenance: {
+			activationPaths: activationPaths.map((path) => [...path]),
+			orderingAfter: orderingAfter ? [...orderingAfter] : []
+		}
+	});
+	throwIfAborted(options.signal);
+	let current = (await controller.defaults(contextFor())) as T;
+	throwIfAborted(options.signal);
 	if (current === undefined)
 		throw new Error(`Plugin ${selected.packageName} defaults returned undefined`);
-	const ordered = orderContributors(discovery, contributors);
-	for (const contributor of ordered) {
-		throwIfAborted(options.signal);
-		const transform = await loadTransform<T>(contributor);
-		const contributorParticipant = discovery.participants.get(contributor.node.id)!;
-		const context: ExactPluginConfigContext = Object.freeze({
-			...baseContext(),
-			contributor: Object.freeze({
-				packageName: packageName(contributor.node),
-				version: packageVersion(contributor.node)
-			}),
-			executionIndex,
-			provenance: Object.freeze({
-				activationPaths: contributorParticipant.activationPaths,
-				orderingAfter: Object.freeze(
-					contributingDescendants(discovery, contributor.node.id, contributors)
-						.map((node) => packageName(node))
-						.sort()
-				)
-			})
-		});
+	const plan = planConfigurationContributors(discovery, contributors);
+	/** Applies a transform while retaining private report identity and cancellation ownership. */
+	const applyTransform = async (
+		transform: ExactPluginConfigTransform<T>,
+		context: ExactPluginConfigContext,
+		identity: Pick<ExactConfigTransformReport, 'contributor' | 'version' | 'export'>,
+		failure: string
+	): Promise<void> => {
 		const start = performance.now();
 		let result: T | undefined;
 		try {
 			result = await transform(current, context);
 		} catch (error) {
-			throw new Error(
-				`Plugin configuration failed for ${selected.packageName} at ${packageName(contributor.node)} ${contributor.declaration.subpath}#${contributor.declaration.export}`,
-				{ cause: error }
-			);
+			throwIfAborted(options.signal);
+			throw new Error(failure, { cause: error });
 		}
+		throwIfAborted(options.signal);
 		if (result !== undefined) {
-			current = result as T;
+			current = result;
 			controller.structuralValidate?.(current, context);
 		}
-		reports.push(
-			Object.freeze({
-				plugin: selected.packageName,
-				contributor: packageName(contributor.node),
-				version: packageVersion(contributor.node),
-				export: `${contributor.declaration.subpath}#${contributor.declaration.export}`,
-				index: executionIndex++,
-				durationMs: performance.now() - start,
-				outcome: result === undefined ? 'mutated' : 'replaced'
-			})
+		reports.push({
+			plugin: selected.packageName,
+			...identity,
+			index: executionIndex++,
+			durationMs: performance.now() - start,
+			outcome: result === undefined ? 'mutated' : 'replaced'
+		});
+	};
+	for (const contributor of plan.ordered) {
+		throwIfAborted(options.signal);
+		const transform = await loadTransform<T>(contributor);
+		throwIfAborted(options.signal);
+		const name = packageName(contributor.node);
+		const version = packageVersion(contributor.node);
+		const exported = `${contributor.declaration.subpath}#${contributor.declaration.export}`;
+		await applyTransform(
+			transform,
+			contextFor(
+				{ packageName: name, version },
+				discovery.participants.get(contributor.node.id)!.activationPaths,
+				plan.orderingAfter.get(contributor.node.id)
+			),
+			{ contributor: name, version, export: exported },
+			`Plugin configuration failed for ${selected.packageName} at ${name} ${exported}`
 		);
 	}
+	throwIfAborted(options.signal);
 	const configKey = selected.declaration.configKey;
 	const rootTransform =
 		options.applicationConfig?.plugins?.[configKey as keyof NonNullable<ExactConfig['plugins']>];
 	if (rootTransform === false) {
 		throw new Error(
-			`Root configuration disables active plugin ${selected.packageName}; ignore its package instead`
+			`Root configuration disables active plugin ${selected.packageName}. Ignore its package instead`
 		);
 	}
 	if (typeof rootTransform === 'function') {
-		const context: ExactPluginConfigContext = Object.freeze({
-			...baseContext(),
-			contributor: Object.freeze({
-				packageName: packageName(discovery.root),
-				version: applicationVersion(discovery.root)
-			}),
-			executionIndex,
-			provenance: Object.freeze({
-				activationPaths: Object.freeze([[packageName(discovery.root)]]),
-				orderingAfter: Object.freeze(ordered.map((value) => packageName(value.node)))
-			})
-		});
-		const start = performance.now();
-		let result: T | undefined;
-		try {
-			result = await (rootTransform as unknown as ExactPluginConfigTransform<T>)(current, context);
-		} catch (error) {
-			throw new Error(`Root configuration failed for plugin ${selected.packageName}`, {
-				cause: error
-			});
-		}
-		if (result !== undefined) {
-			current = result as T;
-			controller.structuralValidate?.(current, context);
-		}
-		reports.push(
-			Object.freeze({
-				plugin: selected.packageName,
-				contributor: packageName(discovery.root),
-				version: applicationVersion(discovery.root),
-				export: 'exact.config.ts',
-				index: executionIndex++,
-				durationMs: performance.now() - start,
-				outcome: result === undefined ? 'mutated' : 'replaced'
-			})
+		const name = packageName(discovery.root);
+		const version = applicationVersion(discovery.root);
+		await applyTransform(
+			rootTransform as unknown as ExactPluginConfigTransform<T>,
+			contextFor(
+				{ packageName: name, version },
+				[[name]],
+				plan.ordered.map((value) => packageName(value.node))
+			),
+			{ contributor: name, version, export: 'exact.config.ts' },
+			`Root configuration failed for plugin ${selected.packageName}`
 		);
 	}
-	const finalContext = baseContext();
+	throwIfAborted(options.signal);
+	const finalContext = contextFor();
 	const validation = await controller.validate(current, finalContext);
+	throwIfAborted(options.signal);
 	if (validation !== undefined)
 		throw new Error(`Plugin ${selected.packageName} validate() must return undefined`);
 	const [build, server, render, client, testing, language] = await Promise.all([
@@ -227,10 +219,11 @@ async function resolveOnePlugin<T>(
 		options.hostMode === 'testing' ? controller.testingConfig?.(current, finalContext) : undefined,
 		controller.languageConfig?.(current, finalContext)
 	]);
+	throwIfAborted(options.signal);
 	if (build !== undefined) assertJsonSafe(build, `${selected.packageName} build configuration`);
 	if (language !== undefined)
 		assertJsonSafe(language, `${selected.packageName} language configuration`);
-	return Object.freeze({
+	return {
 		plugin: selected,
 		build,
 		server,
@@ -238,66 +231,7 @@ async function resolveOnePlugin<T>(
 		client,
 		testing,
 		language
-	});
-}
-
-function orderContributors(
-	discovery: ExactPluginDiscoveryResult,
-	contributors: readonly ExactConfigurationContributor[]
-): ExactConfigurationContributor[] {
-	const byId = new Map(contributors.map((value) => [value.node.id, value]));
-	const remaining = new Set(byId.keys());
-	const completed = new Set<string>();
-	const result: ExactConfigurationContributor[] = [];
-	while (remaining.size) {
-		const ready = [...remaining]
-			.filter((id) =>
-				contributingDescendantIds(discovery, id, byId).every((descendant) =>
-					completed.has(descendant)
-				)
-			)
-			.sort((left, right) =>
-				packageName(byId.get(left)!.node).localeCompare(packageName(byId.get(right)!.node))
-			);
-		if (!ready.length) {
-			throw new Error(
-				`Plugin configuration contributor graph contains a cycle: ${[...remaining].map((id) => packageName(byId.get(id)!.node)).join(', ')}`
-			);
-		}
-		for (const id of ready) {
-			remaining.delete(id);
-			completed.add(id);
-			result.push(byId.get(id)!);
-		}
-	}
-	return result;
-}
-
-function contributingDescendants(
-	discovery: ExactPluginDiscoveryResult,
-	id: string,
-	contributors: readonly ExactConfigurationContributor[]
-): ExactPackageNode[] {
-	const byId = new Map(contributors.map((value) => [value.node.id, value.node]));
-	return contributingDescendantIds(discovery, id, byId).map((value) => byId.get(value)!);
-}
-
-function contributingDescendantIds<T>(
-	discovery: ExactPluginDiscoveryResult,
-	id: string,
-	contributors: ReadonlyMap<string, T>
-): string[] {
-	const result = new Set<string>();
-	const seen = new Set<string>();
-	const pending = [...(discovery.participantEdges.get(id) ?? [])];
-	while (pending.length) {
-		const child = pending.shift()!;
-		if (seen.has(child)) continue;
-		seen.add(child);
-		if (contributors.has(child)) result.add(child);
-		pending.push(...(discovery.participantEdges.get(child) ?? []));
-	}
-	return [...result];
+	};
 }
 
 async function loadTransform<T>(
@@ -347,15 +281,14 @@ function assertJsonSafe(value: unknown, label: string): void {
 		if (!Array.isArray(item) && Object.getPrototypeOf(item) !== Object.prototype)
 			throw new Error(`${label} must be JSON-safe`);
 		for (const child of Object.values(item as Record<string, unknown>)) visit(child);
+		// JSON duplicates sibling references. Only a reference to an active ancestor is a cycle.
+		seen.delete(item);
 	};
 	visit(value);
 }
 
 function throwIfAborted(signal: AbortSignal): void {
-	if (signal.aborted)
-		throw signal.reason instanceof Error
-			? signal.reason
-			: new Error('Plugin registry preparation aborted');
+	if (signal.aborted) throw signal.reason;
 }
 
 function applicationVersion(node: ExactPackageNode): string {

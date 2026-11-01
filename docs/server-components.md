@@ -31,7 +31,14 @@ For production runtime and adapter concerns, see
 A component published as a continuation owner retains its complete executable client projection,
 even when its view also contains extractable client elements. Moving ordinary view markup into a
 helper does not change this ownership. Generated island definitions are roots for render-program
-reachability, so every program they reference must survive target projection.
+reachability, so every program they reference must survive target projection. Their artifact also
+retains the exact indexed update contract used by their lexical supplier. Supplier identity and
+liveness checks apply equally to extracted islands and ordinary components.
+
+A paired artifact retains proven resumption state even when its environment inference is incomplete.
+This restores the server sample before DOM adoption without treating unknown placement as portable
+or granting an additional execution target. Reconstructible synchronous defaults still omit
+unnecessary state payloads.
 See [hydration ownership](ssr-hydration.md#choose-the-hydration-owner) for complete-root and
 independent-island bootstrap examples.
 
@@ -180,6 +187,10 @@ const runtime = createExactServerRuntime({ contract: executor });
 export const hydration = createExactHydrationConfig(executor);
 export const handle = (request: ExactRequestLike) => handleExactRequest(request, runtime);
 ```
+
+Contract helpers return ordinary records. Readonly fields follow TypeScript's shallow compile-time
+rules. Returned records and nested mutable aliases are not frozen. Prepared continuations reuse
+work only for the same authority contract and executable implementation.
 
 Pass `{ state, publicContexts }` as the second argument when the document carries browser-visible
 state or context. When the client entry imports the compiler-generated hydration registration, use
@@ -360,6 +371,13 @@ as a review boundary: never pass unvalidated user content to it.
 `@exactjs/testing` supports both halves without requiring tests to know
 generated operation names:
 
+Server tests attempt request and application disposal even after render or initialization failure.
+The primary thrown value remains unchanged. For extensible error objects, additional cleanup
+failures are available as `cleanupError`, grouped when multiple scopes fail. A successful render
+whose cleanup fails rejects with the cleanup error. Failed paired mounts likewise preserve the
+settlement error while releasing their client. Harness-owned containers are removed, and
+caller-owned containers remain available.
+
 - `testServerComponent()` imports a generated server artifact, configures
   application/request/component context, and exposes settled state, HTML,
   provided context, and emitted `view.resumptions`. The builder preserves the artifact factory's
@@ -369,13 +387,20 @@ generated operation names:
   in-memory handler and records ordered protocol exchanges. Recorded response headers use
   lowercase names, including plain-record headers supplied by custom transports. Stream recording
   follows client consumption and preserves transport errors, backpressure, and cancellation.
+  The client/server harness keeps client disposition and server-context observations with their
+  request across overlapping, batched, and streamed operations. Clearing the recorder discards
+  later observations from the cleared requests. Low-level manually supplied observations without
+  transport ownership retain latest-operation matching, so use the harness for concurrent recording.
   Recorder settlement waits for started reads and cancellations, but neither drains nor waits
   for unread bodies. Finish consuming or cancel a started body before awaiting settlement;
 - `view.hydration` reports whether roots or islands adopted, mounted, or
   updated DOM; and
 - `ExactProtocolRecorder.serverContextAccesses()` reports authored context
   token use without recording server-owned values when wired to the runtime's
-  `onContextAccess` callback.
+  `onContextAccess` callback. Each callback receives an ordinary readonly-typed observation record.
+  Editing an observation alias does not change context resolution or the identity recorded by inspection.
+  Recorded request headers and context-access observations are ordinary metadata copies with
+  readonly TypeScript fields.
 
 Vitest, Jest, and Bun recognize SSR helper fixture modules that import explicit generated server
 artifacts. A module with server-owned exports and no component definitions or client-owned exports
@@ -427,3 +452,7 @@ projection, authorization, and client/server tests.
 Request-level `authorize(request, context)` and `validateCsrf(request, context)` inspect credentials
 and headers before body parsing. `authorizeOperation(request, input, context)` runs only at the
 executing service after decoding a local operation. A forwarding host does not inspect operations.
+A configured hook must return or resolve to `true` to approve access. Other results and thrown
+errors deny access. An omitted hook leaves that optional check disabled. Request-scoped context
+views retain inherited and nonenumerable configuration policies, including class methods that
+use private state.

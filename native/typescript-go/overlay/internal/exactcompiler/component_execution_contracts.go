@@ -3,10 +3,13 @@ package exactcompiler
 // ComponentExecution is the target-neutral local subgraph shared by server
 // and client lowering for one semantic component.
 type ComponentExecution struct {
-	Version     int                   `json:"version"`
-	Ports       []ComponentPort       `json:"ports"`
-	Transitions []ComponentTransition `json:"transitions"`
-	Reactive    []ReactiveAllocation  `json:"reactive"`
+	// LocalComputation requires an observation owner in the client artifact without
+	// granting a placement or distributed transition to opaque synchronous setup.
+	LocalComputation bool                  `json:"-"`
+	Version          int                   `json:"version"`
+	Ports            []ComponentPort       `json:"ports"`
+	Transitions      []ComponentTransition `json:"transitions"`
+	Reactive         []ReactiveAllocation  `json:"reactive"`
 }
 
 // ComponentPort identifies one compact value source or publication target.

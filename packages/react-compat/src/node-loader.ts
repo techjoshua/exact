@@ -56,7 +56,7 @@ export function createExactReactNodeLoader(
 		for (const diagnostic of result.diagnostics) options.onDiagnostic?.(diagnostic);
 		return result.changed ? { code: result.code, map: result.map } : null;
 	};
-	return Object.freeze({
+	return {
 		target: engine.resolved.target,
 		adapters: engine.report().activeAdapters,
 		transform,
@@ -72,7 +72,7 @@ export function createExactReactNodeLoader(
 			const transformed = transform(source, url);
 			return transformed ? { ...loaded, source: transformed.code } : loaded;
 		}
-	});
+	};
 }
 
 let defaultLoader: ExactReactNodeLoader | undefined;

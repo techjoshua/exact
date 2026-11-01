@@ -45,6 +45,7 @@ func analyzeComponents(
 		clientEffects, serverEffects := false, false
 		clientTaskEffects := false
 		summaryClientEffect := false
+		opaqueComputation := false
 		indivisible := ""
 		opaquePath := ""
 		splitBoundaries := make(map[string]struct{})
@@ -169,7 +170,7 @@ func analyzeComponents(
 							typeChecker,
 						)
 						if symbol != nil {
-							target, exists = callables.bySymbol[ast.GetSymbolId(symbol)]
+							target, exists = callables.expressionSummary(call.Expression, typeChecker)
 						}
 					}
 					if exists {
@@ -215,7 +216,7 @@ func analyzeComponents(
 						typeChecker,
 					)
 					if symbol != nil {
-						target, exists = callables.bySymbol[ast.GetSymbolId(symbol)]
+						target, exists = callables.expressionSummary(call.Expression, typeChecker)
 					}
 				}
 				if exists {
@@ -293,10 +294,17 @@ func analyzeComponents(
 			if task.Placement == "server" || task.Placement == "isomorphic" {
 				serverEffects = true
 			}
+			if targetLocalOpaqueComputation(task) {
+				opaqueComputation = true
+				opaquePath = effectSourcePath(task.EffectSources)
+			}
 			contexts = append(contexts, task.Contexts...)
 			diagnostics = append(diagnostics, task.Diagnostics...)
 		}
 
+		if opaqueComputation && indivisible != "mixed" {
+			indivisible = "unknown"
+		}
 		// Opaque ordinary calls cannot erase a placement requirement proven by
 		// browser globals, server imports, interactive JSX, or authored task policy.
 		if indivisible == "unknown" && (clientEffects || serverEffects) {
@@ -557,6 +565,11 @@ func callableEffectForCall(
 	sourceFile *ast.SourceFile,
 	position int,
 ) (CallableSummary, bool) {
+	// Owned protocol operations publish effects without manufacturing an
+	// authored callable target for their runtime callback invocations.
+	if effects, found := mapInputEffectsForCall(callables, sourceFile, position); found {
+		return effects, true
+	}
 	suffix := fmt.Sprintf(":call:%d", position)
 	for _, fact := range callables.facts {
 		// A project-wide call graph can contain identical offsets in unrelated modules.

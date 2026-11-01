@@ -42,6 +42,11 @@ export function PhysicsPage(this: Component<{}>) {
 			next={{ path: '/components/gravity', label: 'Gravity' }}
 		>
 			<section>
+				<p>
+					Readonly properties use TypeScript checking. Shapes, projection policies, collision
+					events, and inspection snapshots remain ordinary JavaScript values. Inspection copies body
+					coordinates so changing a snapshot does not change the simulation.
+				</p>
 				<h2>Create and step a simulation</h2>
 				<p>
 					A world holds the simulated bodies. Create a world, add a body with its physical
@@ -53,6 +58,18 @@ export function PhysicsPage(this: Component<{}>) {
 					A simulation advances in fixed time steps. Body commands take effect at the next step, so
 					the same inputs and steps produce repeatable results. You can step it manually in a test
 					or use a component to advance it while the view is active.
+				</p>
+				<p>
+					A failed force contribution or overflowing force, impulse, collision, or constraint
+					correction restores the simulation and its queued commands. Elapsed time remains pending.
+					After repairing the contribution, call <code>world.step(0)</code> to retry without adding
+					time. A zero-time call advances only time that is already pending. Vector coordinates are
+					captured once before they are used.
+				</p>
+				<p>
+					Disposing a force registration, body, or world stops its remaining work. A force
+					registered during dispatch starts on the next fixed tick. Collision subscriptions are
+					independent, including repeated registrations of the same callback.
 				</p>
 			</section>
 			<section>

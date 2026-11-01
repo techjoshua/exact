@@ -1,3 +1,4 @@
+import { nextFiniteInstant } from './instant-arithmetic.js';
 import type {
 	TimeChangePlan,
 	TimeEnvironment,
@@ -6,17 +7,17 @@ import type {
 } from './contracts.js';
 import { intl } from '@exactjs/core';
 
-const fixedPolicyMilliseconds = Object.freeze({
+const fixedPolicyMilliseconds = {
 	millisecond: 1,
 	second: 1_000,
 	minute: 60_000,
 	hour: 3_600_000
-} as const);
+} as const;
 
 const maximumPlanDepth = 32;
 const maximumPlanNodes = 256;
 
-/** Validates and freezes compiler-emitted time plan data before it reaches scheduling state. */
+/** Copies and validates compiler-emitted time plan data before it reaches scheduling state. */
 export function validateTimeChangePlan(value: unknown): TimeChangePlan {
 	const budget = { nodes: 0 };
 	return validatePlan(value, 0, budget);
@@ -28,13 +29,13 @@ function validatePlan(value: unknown, depth: number, budget: { nodes: number }):
 	if (depth > maximumPlanDepth) throw new TypeError('A time change plan exceeds its maximum depth');
 	if (++budget.nodes > maximumPlanNodes)
 		throw new TypeError('A time change plan exceeds its maximum node count');
-	const plan = value as Partial<TimeChangePlan> & Record<string, unknown>;
+	const plan = { ...value } as Partial<TimeChangePlan> & Record<string, unknown>;
 	if (plan.protocol !== 1) throw new TypeError('Unsupported time change plan protocol');
 	switch (plan.kind) {
 		case 'continuous':
 		case 'complete':
 			assertOnlyKeys(plan, ['protocol', 'kind']);
-			return Object.freeze({ protocol: 1, kind: plan.kind });
+			return { protocol: 1, kind: plan.kind };
 		case 'quantized': {
 			assertOnlyKeys(plan, [
 				'protocol',
@@ -60,13 +61,13 @@ function validatePlan(value: unknown, depth: number, budget: { nodes: number }):
 				plan.boundary !== 'trunc-decreasing'
 			)
 				throw new TypeError('A quantized time plan has an unsupported boundary');
-			return Object.freeze({
+			return {
 				protocol: 1,
 				kind: 'quantized',
 				quantumMilliseconds: quantum,
 				anchorMilliseconds: anchor,
 				boundary: plan.boundary
-			});
+			};
 		}
 		case 'calendar':
 			assertOnlyKeys(plan, ['protocol', 'kind', 'unit', 'timeZone', 'calendar', 'weekStartsOn']);
@@ -86,27 +87,27 @@ function validatePlan(value: unknown, depth: number, budget: { nodes: number }):
 					plan.weekStartsOn > 6)
 			)
 				throw new TypeError('A calendar time plan requires a week start from 0 through 6');
-			return Object.freeze({ ...plan }) as TimeChangePlan;
+			return { ...plan } as TimeChangePlan;
 		case 'earliest': {
 			assertOnlyKeys(plan, ['protocol', 'kind', 'plans']);
 			if (!Array.isArray(plan.plans) || plan.plans.length < 2)
 				throw new TypeError('An earliest time plan requires at least two child plans');
-			return Object.freeze({
+			return {
 				protocol: 1,
 				kind: 'earliest',
-				plans: Object.freeze(plan.plans.map((child) => validatePlan(child, depth + 1, budget)))
-			});
+				plans: plan.plans.map((child) => validatePlan(child, depth + 1, budget))
+			};
 		}
 		case 'threshold': {
 			assertOnlyKeys(plan, ['protocol', 'kind', 'thresholdMilliseconds', 'before', 'after']);
 			const thresholdMilliseconds = validatePlanNumber(plan.thresholdMilliseconds, 'threshold');
-			return Object.freeze({
+			return {
 				protocol: 1,
 				kind: 'threshold',
 				thresholdMilliseconds,
 				before: validatePlan(plan.before, depth + 1, budget),
 				after: validatePlan(plan.after, depth + 1, budget)
-			});
+			};
 		}
 		default:
 			throw new TypeError('Unsupported time change plan kind');
@@ -126,9 +127,15 @@ export function nextTimeChange(
 			? undefined
 			: inferredDeadline(plan, sample, environment, inputs);
 	const explicit = explicitDeadline(policy, sample, environment);
-	if (inferred === undefined) return explicit;
-	if (explicit === undefined) return inferred;
-	return Math.min(inferred, explicit);
+	const candidate =
+		inferred === undefined
+			? explicit
+			: explicit === undefined
+				? inferred
+				: Math.min(inferred, explicit);
+	if (candidate === undefined) return undefined;
+	if (Number.isFinite(candidate) && candidate > sample) return candidate;
+	return nextFiniteInstant(sample);
 }
 
 function inferredDeadline(
@@ -225,15 +232,11 @@ function inferredDeadline(
 
 function validatePlanNumber(value: unknown, role: string): TimePlanNumber {
 	if (typeof value === 'number' && Number.isFinite(value)) return value;
-	if (
-		value &&
-		typeof value === 'object' &&
-		Object.keys(value).length === 1 &&
-		Number.isInteger((value as { binding?: unknown }).binding) &&
-		((value as { binding: number }).binding ?? -1) >= 0 &&
-		(value as { binding: number }).binding < 256
-	)
-		return Object.freeze({ binding: (value as { binding: number }).binding });
+	if (value && typeof value === 'object' && Object.keys(value).length === 1) {
+		const binding = (value as { binding?: unknown }).binding;
+		if (typeof binding === 'number' && Number.isInteger(binding) && binding >= 0 && binding < 256)
+			return { binding };
+	}
 	throw new TypeError(`A time change plan requires a finite ${role} or bounded binding`);
 }
 
@@ -332,4 +335,48 @@ function assertOnlyKeys(value: Record<string, unknown>, keys: readonly string[])
 	const allowed = new Set(keys);
 	if (Object.keys(value).some((key) => !allowed.has(key)))
 		throw new TypeError('A time change plan contains unsupported data');
+}
+
+/** Compares normalized plan semantics without coupling scheduling to object identity. */
+export function sameTimePlan(left: TimeChangePlan, right: TimeChangePlan): boolean {
+	if (left.kind !== right.kind) return false;
+	switch (left.kind) {
+		case 'continuous':
+		case 'complete':
+			return true;
+		case 'quantized':
+			return (
+				right.kind === 'quantized' &&
+				left.quantumMilliseconds === right.quantumMilliseconds &&
+				sameTimePlanNumber(left.anchorMilliseconds, right.anchorMilliseconds) &&
+				left.boundary === right.boundary
+			);
+		case 'calendar':
+			return (
+				right.kind === 'calendar' &&
+				left.unit === right.unit &&
+				left.timeZone === right.timeZone &&
+				left.calendar === right.calendar &&
+				left.weekStartsOn === right.weekStartsOn
+			);
+		case 'earliest':
+			return (
+				right.kind === 'earliest' &&
+				left.plans.length === right.plans.length &&
+				left.plans.every((plan, index) => sameTimePlan(plan, right.plans[index]!))
+			);
+		case 'threshold':
+			return (
+				right.kind === 'threshold' &&
+				sameTimePlanNumber(left.thresholdMilliseconds, right.thresholdMilliseconds) &&
+				sameTimePlan(left.before, right.before) &&
+				sameTimePlan(left.after, right.after)
+			);
+	}
+}
+
+function sameTimePlanNumber(left: TimePlanNumber, right: TimePlanNumber): boolean {
+	return typeof left === 'number'
+		? left === right
+		: typeof right !== 'number' && left.binding === right.binding;
 }

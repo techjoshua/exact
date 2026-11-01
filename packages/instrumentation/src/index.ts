@@ -15,7 +15,7 @@ export type ExactProfileEvent<
 	counts?: Readonly<Record<string, number>>;
 }>;
 
-/** Synchronous destination for immutable profiling observations. */
+/** Synchronous destination for profiling observations with TypeScript readonly fields. */
 export type ExactProfileSink<Event extends ExactProfileEvent = ExactProfileEvent> = (
 	event: Event
 ) => void;
@@ -66,15 +66,15 @@ export function createProfileCollector<
 	Event extends ExactProfileEvent = ExactProfileEvent
 >(): ExactProfileCollector<Event> {
 	const events: Event[] = [];
-	return Object.freeze({
+	return {
 		sink: (event: Event) => {
 			events.push(event);
 		},
-		snapshot: () => Object.freeze([...events]),
+		snapshot: () => [...events],
 		clear: () => {
 			events.length = 0;
 		}
-	});
+	};
 }
 
 /** Summarizes ordered observations without discarding the original event stream. */
@@ -102,9 +102,5 @@ export function summarizeProfile(
 		summary.events++;
 		summaries.set(key, summary);
 	}
-	return Object.freeze(
-		[...summaries.values()]
-			.sort((left, right) => right.elapsedMs - left.elapsedMs)
-			.map((summary) => Object.freeze(summary))
-	);
+	return [...summaries.values()].sort((left, right) => right.elapsedMs - left.elapsedMs);
 }

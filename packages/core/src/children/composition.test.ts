@@ -1,3 +1,4 @@
+import type { Child } from '../component/contracts.js';
 import { describe, expect, it, vi } from 'vitest';
 import { computed, reactive } from '@exactjs/reactive';
 import { childKinds, childrenOf, partitionChildren, withChildren } from './composition.js';
@@ -14,6 +15,21 @@ import {
 import { createFrameworkComponentDomain, withComponentDomain } from '../component/domain.js';
 
 describe('immediate child composition', () => {
+	it('returns ordinary child snapshots without changing the source children', () => {
+		const source = ['first', 'second'];
+		const original = element('div', null, source);
+		const parts = partitionChildren(source, { text: childKinds.text });
+		const text: { length: number } = parts.text;
+		text.length = 0;
+		const alias: { text: readonly Child[]; remaining: readonly Child[] } = parts;
+		alias.text = ['replacement'];
+		const contents: { length: number } = childrenOf(original);
+		contents.length = 0;
+		expect(source).toEqual(['first', 'second']);
+		expect(partitionChildren(source, { text: childKinds.text }).text).toEqual(source);
+		expect(childrenOf(original)).toEqual(source);
+	});
+
 	it('redeems an optimized operation only on inspection without changing rendering identity', () => {
 		const describe = vi.fn(() => element('span', { title: 'retained' }, 'original'));
 		const operation = withIntrinsicComposition(

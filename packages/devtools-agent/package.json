@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/devtools-agent",
-	"version": "0.7.0",
+	"version": "0.8.0",
 	"type": "module",
 	"files": [
 		"AGENTS.md",
@@ -19,7 +19,7 @@
 	"types": "./dist/index.d.ts",
 	"sideEffects": false,
 	"dependencies": {
-		"@exactjs/devtools-protocol": "^0.7.0"
+		"@exactjs/devtools-protocol": "^0.8.0"
 	},
 	"scripts": {
 		"build": "tsc -b",
@@ -46,5 +46,9 @@
 		"devtools",
 		"debugging",
 		"chrome-devtools-protocol"
-	]
+	],
+	"devDependencies": {
+		"@types/ws": "^8.18.2",
+		"ws": "^8.22.0"
+	}
 }

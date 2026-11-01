@@ -1,11 +1,12 @@
 import { transform as transpile } from 'esbuild';
 import { execFile } from 'node:child_process';
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, symlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { promisify } from 'node:util';
-import { describe, expect, it, onTestFinished } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { parseNpmPackOutput } from '../../../scripts/npm-pack-output.mjs';
 import { compileFileArtifacts } from './index.js';
+import { createCompilerTestWorkspace } from './test-support/workspace.js';
 
 const execFileAsync = promisify(execFile);
 // Subprocess packing and installation are substantially slower while V8
@@ -16,8 +17,7 @@ describe('installed eXact component package artifacts', () => {
 	it(
 		'uses one packed package in client, SSR, and server-component builds',
 		async () => {
-			const root = await mkdtemp(path.join(process.cwd(), '.exact-package-fixture-'));
-			onTestFinished(() => rm(root, { recursive: true, force: true }));
+			const root = await createCompilerTestWorkspace('.exact-package-fixture-', process.cwd());
 			const packageRoot = path.join(root, 'package');
 			const leafRoot = path.join(packageRoot, 'node_modules', '@fixture', 'exact-leaf');
 			const leafSourceRoot = path.join(root, 'leaf-source');
@@ -309,61 +309,13 @@ describe('installed eXact component package artifacts', () => {
 				}
 			);
 			const exactCore = path.join(consumer, 'node_modules', '@exactjs', 'core');
-			await mkdir(exactCore, { recursive: true });
-			await writeFile(
-				path.join(exactCore, 'package.json'),
-				`${JSON.stringify({
-					name: '@exactjs/core',
-					version: '0.0.0-fixture',
-					type: 'module',
-					exports: {
-						'.': './index.js',
-						'./framework/render-structure': './index.js',
-						'./framework/server-render-structure': './index.js',
-						'./framework/server-task-helpers': './index.js',
-						'./runtime/component-abi': './index.js',
-						'./runtime/component-branding': './index.js',
-						'./runtime/component-operations': './index.js',
-						'./runtime/render': './index.js',
-						'./runtime/render-operations': './index.js',
-						'./runtime/component-construction/render': './index.js',
-						'./runtime/component-construction/task': './index.js',
-						'./runtime/component-construction/durable': './index.js',
-						'./runtime/component-construction/direct-server': './index.js',
-						'./runtime/reactivity': './index.js',
-						'./runtime/tasks': './index.js',
-						'./runtime/inspection': './index.js',
-						'./runtime/registry': './index.js',
-						'./runtime/enhancements': './index.js'
-					}
-				})}\n`
-			);
-			await writeFile(
-				path.join(exactCore, 'index.js'),
-				`
-      export function attachCompiledComponentContract(implementation, id, contract) { return Object.assign(implementation, { [Symbol.for("@exactjs/component")]: id, [Symbol.for("@exactjs/component-contract")]: contract }); }
-      export function createServerBoundary() { return null; }
-			export function createCompiledComponentReceipt(type, props, ...children) { return { type, props: props ?? {}, children }; }
-			export function createCompiledIntrinsicReceipt(type, props, ...children) { return { type, props: props ?? {}, children }; }
-			export function createServerBoundaryReceipt(id, name, props, ...children) { return { id, name, props, children }; }
-			export function createServerSlotReceipt(id, authority, ...children) { return { id, authority, children }; }
-			export function createPreparedRenderProgram() { return {}; }
-			export function prepareCompiledRenderProgram() { return {}; }
-			export function constructRenderComponentInstance() { return null; }
-			export class RenderComponentInstance {}
-			export function constructTaskComponentInstance() { return null; }
-			export class TaskComponentInstance {}
-			export function constructDurableComponentInstance() { return null; }
-			export class ComponentInstanceImpl {}
-			export function rejectDirectServerComponentConstruction() { return null; }
-			export function attachExactClientComponent() { return {}; }
-			export function attachExactCompiledClientComponent() { return {}; }
-			export function receiveExactClientComponentProps() {}
-			export function disposeExactClientComponent() {}
-			export function issueExactServerComponent() { return {}; }
-			export function writeExactServerComponent() {}
-			export function disposeExactServerComponent() {}
-    `
+			// The emitted module must link to the matching real provider before its exports are read.
+			// An inert core mock cannot qualify generated helper or artifact admission.
+			await mkdir(path.dirname(exactCore), { recursive: true });
+			await symlink(
+				path.resolve(import.meta.dirname, '../../core'),
+				exactCore,
+				process.platform === 'win32' ? 'junction' : 'dir'
 			);
 			await writeFile(
 				path.join(consumer, 'package-lock.json'),

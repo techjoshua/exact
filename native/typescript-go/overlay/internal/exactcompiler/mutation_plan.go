@@ -55,7 +55,7 @@ func planMutationOperation(node *ast.Node) mutationOperationPlan {
 }
 
 // reference returns unvisited receiver/key syntax. A named key is a literal, while a computed
-// key requires ToPropertyKey at reference selection. Private and super policy stays in its emitter.
+// key retains its raw value for native get/put/delete conversion. Private and super policy stays in its emitter.
 func (plan mutationOperationPlan) reference() (receiver, key *ast.Node, computed bool) {
 	target := unwrapSourceCallableReference(plan.target)
 	if ast.IsPropertyAccessExpression(target) {
@@ -72,4 +72,29 @@ func (plan mutationOperationPlan) reference() (receiver, key *ast.Node, computed
 func (plan mutationOperationPlan) compoundOperator() (ast.Kind, bool, bool) {
 	operator, valid := compoundStateOperator(plan.operator)
 	return operator, valid, valid && (operator == ast.KindAmpersandAmpersandToken || operator == ast.KindBarBarToken || operator == ast.KindQuestionQuestionToken)
+}
+
+// mutationInvocationMember identifies invocation environments without changing callable analysis.
+func mutationInvocationMember(node *ast.Node) bool {
+	return ast.IsMethodDeclaration(node) || ast.IsGetAccessorDeclaration(node) ||
+		ast.IsSetAccessorDeclaration(node) || ast.IsConstructorDeclaration(node)
+}
+
+// Defaults and class field initializers execute before body-local declarations exist.
+// A nested callable owns its own environment. Computed member names instead belong
+// to the enclosing definition environment, even when the member has an initializer.
+func mutationNeedsExpressionScope(node *ast.Node) bool {
+	for current := node; current != nil; current = current.Parent {
+		if ast.IsParameterDeclaration(current) {
+			return true
+		}
+		if ast.IsPropertyDeclaration(current) && current.AsPropertyDeclaration().Initializer == node {
+			return true
+		}
+		if (isCallableNode(current) || ast.IsConstructorDeclaration(current)) && current.Body() == node {
+			return false
+		}
+		node = current
+	}
+	return false
 }

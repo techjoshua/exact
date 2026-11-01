@@ -1,3 +1,4 @@
+import { copyThemeData } from './observations.js';
 import type {
 	BuiltInTemperament,
 	ResolvedColor,
@@ -151,19 +152,17 @@ function temperament(
 	};
 }
 
-/** Frozen built-in temperament definitions keyed by their public IDs. */
+/** Built-in temperament observations keyed by their public IDs. */
 export const builtInTemperaments: Readonly<Record<BuiltInTemperament, ThemeTemperament>> =
-	Object.freeze(
-		Object.fromEntries(
-			Object.entries(temperamentData).map(([id, values]) => [
+	Object.fromEntries(
+		Object.entries(temperamentData).map(([id, values]) => [
+			id,
+			{
 				id,
-				freezeThemeValue({
-					id,
-					...values
-				})
-			])
-		) as Record<BuiltInTemperament, ThemeTemperament>
-	);
+				...copyThemeData(values)
+			}
+		])
+	) as Record<BuiltInTemperament, ThemeTemperament>;
 
 /** Validates the explicit environment boundary supplied to pure resolution. */
 export function validateThemeEnvironment(environment: ThemeResolutionInput['environment']): void {
@@ -215,14 +214,14 @@ export function selectThemeAppearance(
 /** Resolves and validates a named or custom data-only temperament. */
 export function resolveTemperament(value: BuiltInTemperament | ThemeTemperament): ThemeTemperament {
 	if (typeof value === 'string') {
-		const found = builtInTemperaments[value];
+		const found = Object.hasOwn(temperamentData, value) ? temperamentData[value] : undefined;
 		if (!found)
 			throw new ThemeResolutionError(
 				'invalid-temperament',
 				'source.temperament',
 				`Unknown temperament ${value}`
 			);
-		return found;
+		return { id: value, ...copyThemeData(found) };
 	}
 	const ranges = {
 		accentChromaMultiplier: [0, 1.5],
@@ -239,8 +238,28 @@ export function resolveTemperament(value: BuiltInTemperament | ThemeTemperament)
 		motionScaleRatio: [1.1, 2.5],
 		easingTension: [0, 0.6]
 	} as const;
+	if (value && (typeof value === 'object' || typeof value === 'function')) {
+		const captured = { ...value };
+		for (const field of [
+			'id',
+			'version',
+			...Object.keys(ranges),
+			'surfaceIntervals',
+			'stateIntervals',
+			'weightIntervals'
+		])
+			if (!Object.hasOwn(captured, field))
+				Object.defineProperty(captured, field, {
+					value: Reflect.get(value, field),
+					writable: true,
+					configurable: true,
+					enumerable: true
+				});
+		value = copyThemeData(captured);
+	}
 	if (
 		!value ||
+		typeof value.id !== 'string' ||
 		!value.id ||
 		value.id.length > 256 ||
 		/[\x00-\x1f\x7f]/.test(value.id) ||
@@ -270,7 +289,7 @@ export function resolveTemperament(value: BuiltInTemperament | ThemeTemperament)
 			'source.temperament.stateIntervals',
 			'Temperament active-state interval must exceed its hover interval'
 		);
-	return freezeThemeValue({ ...value });
+	return value;
 }
 
 /** Validates one fixed-length interval family before it participates in token arithmetic. */
@@ -281,16 +300,17 @@ function validateIntervalTuple(
 	high: number,
 	name: string
 ): void {
-	if (
-		!Array.isArray(value) ||
-		value.length !== length ||
-		value.some((number) => !Number.isFinite(number) || number < low || number > high)
-	)
-		throw new ThemeResolutionError(
+	const invalid = () =>
+		new ThemeResolutionError(
 			'invalid-temperament',
 			`source.temperament.${name}`,
 			`Temperament ${name} must contain ${length} values within ${low}..${high}`
 		);
+	if (!Array.isArray(value) || value.length !== length) throw invalid();
+	for (let index = 0; index < length; index++) {
+		const number = value[index]!;
+		if (!Number.isFinite(number) || number < low || number > high) throw invalid();
+	}
 }
 
 /** Parses, composites, gamut-maps, and diagnoses one authored source color. */
@@ -310,26 +330,15 @@ export function resolveSourceColor(
 	const composited = parsed.alpha < 1 ? compositeColor(parsed, background!) : parsed;
 	const mapped = gamutMap(composited);
 	if (composited.c - mapped.c >= 0.000005)
-		warnings.push(
-			Object.freeze({
-				code: 'source-gamut-mapped',
-				path,
-				message: `${path} chroma was reduced to fit sRGB`
-			})
-		);
+		warnings.push({
+			code: 'source-gamut-mapped',
+			path,
+			message: `${path} chroma was reduced to fit sRGB`
+		});
 	return resolveColor(mapped);
 }
 
 /** Recognizes an already canonical color inherited from a resolved parent source. */
 export function isResolvedColor(value: unknown): value is ResolvedColor {
 	return !!value && typeof value === 'object' && 'oklch' in value && 'css' in value;
-}
-
-/** Recursively freezes a resolved theme value at its construction boundary. */
-export function freezeThemeValue<T>(value: T): T {
-	if (value && typeof value === 'object' && !Object.isFrozen(value)) {
-		for (const child of Object.values(value as object)) freezeThemeValue(child);
-		Object.freeze(value);
-	}
-	return value;
 }

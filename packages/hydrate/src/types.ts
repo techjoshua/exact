@@ -1,3 +1,6 @@
+import type { ArrayClientBinding } from '@exactjs/reactive/framework/array-patch';
+import type { PreparedExactState } from './invocations.js';
+import type { ArrayResponseContext } from './response/json.js';
 import type { ExactProgressObserver } from './response/progress.js';
 import type {
 	AnyEnhancementComponentFunction,
@@ -52,6 +55,8 @@ export type HydrateOptions = {
 	transports?: Record<string, ExactEndpointTransport>;
 	/** Contracts composed from the imported client component artifacts. */
 	continuations?: Record<string, ExactComponentContinuationContract>;
+	/** Generated target-local Array bindings returned by composeExactComponentContracts. Required for proof-bearing explicit root-state invocations. */
+	continuationArrays?: Record<string, ArrayClientBinding>;
 	/** Ordered compiler-selected component activations emitted by SSR. */
 	resumptions?: readonly ComponentResumptionSource[];
 	/** Shared context projections available for compiler-selected operations. */
@@ -60,20 +65,22 @@ export type HydrateOptions = {
 	wallClockSnapshot?: number;
 	/** Validated response-local compiler-finite boundary table. */
 	hydrationTable?: ExactHydrationTable;
+	/** Starts automatic island discovery when supplied. Omit to attach transport before later hydration or registration. */
 	islands?: ClientIslandRegistry;
 	batch?: boolean;
 	stream?: boolean;
 	streamLimits?: ExactStreamLimits;
+	/** Cancels owned requests and pending root or island adoption, preserving the exact reason. */
 	signal?: AbortSignal;
 	onDiagnostic?: (diagnostic: HydrationDiagnostic) => void;
 	/**
-	 * Observes response compatibility metadata before body consumption for a live invocation.
+	 * Observes a detached copy of response compatibility metadata before body consumption.
 	 * A thrown error rejects that invocation without rejecting another root sharing its batch.
 	 */
 	onResponse?: (response: ExactResponseMetadata) => void;
 	/** Observes the final client-side disposition of an operation and its patches. */
 	onOperation?: (observation: ExactClientOperationObservation) => void;
-	/** Observes whether a hydration target adopted existing DOM or mounted new DOM. */
+	/** Reports adoption, mounting, or a retained update through a fresh observation object. */
 	onHydration?: (observation: ExactHydrationObservation) => void;
 	/** Receives the live partition-instance tree after an island adopts or mounts. */
 	onPartitionInstances?: (instances: readonly ExactPartitionInstance[]) => void;
@@ -233,6 +240,8 @@ export type ExactHydrationConfigInput = Omit<
 
 /** Defines the exact hydration registration type contract. */
 export type ExactHydrationRegistration = ExactHydrationConfig & {
+	/** Target-local generated callbacks, never serialized in document configuration. */
+	continuationArrays?: Record<string, ArrayClientBinding>;
 	islands?: ClientIslandRegistry;
 	continuations?: Record<string, ExactComponentContinuationContract>;
 	resumptions?: readonly ComponentResumptionActivation[];
@@ -242,6 +251,8 @@ export type ExactHydrationRegistration = ExactHydrationConfig & {
 
 /** Compiler-generated hydration registration before compact defaults are restored. */
 export type ExactHydrationRegistrationInput = ExactHydrationConfigInput & {
+	/** Admitted client callbacks preserved when normalizing generated registrations. */
+	continuationArrays?: Record<string, ArrayClientBinding>;
 	islands?: ClientIslandRegistry;
 	transports?: Record<string, ExactEndpointTransport>;
 };
@@ -355,6 +366,7 @@ export type ExactClient = CoreHydrationRoot & {
 	state?: unknown;
 	readonly continuations?: Record<string, ExactComponentContinuationContract>;
 	applyPatches(patches: readonly ExactPatch[]): boolean;
+	/** Invokes a registered low-level operation against explicit root state. For Array continuations, register the continuations and continuationArrays returned by composeExactComponentContracts in client options. Calls without that binding reject before transport. */
 	invokeTask(id: string, payload?: unknown): Promise<ExactInvocationResult>;
 	refreshBoundary(id: string, payload?: unknown): Promise<ExactInvocationResult>;
 	refreshIsland(
@@ -370,6 +382,9 @@ export type HydrationRoot = ExactClient;
 
 /** Configures invoke exact. */
 export type InvokeExactOptions = {
+	arrayCompletion?: 4;
+	/** @internal Parser admitted for this operation only. */
+	arrayParser?: ArrayResponseContext;
 	/** Framework-owned observation channel for compiler-declared progress receivers. */
 	progress?: ExactProgressObserver;
 	endpoint: string;
@@ -394,6 +409,8 @@ export type InvokeExactOptions = {
 
 /** Configures invoke exact batch. */
 export type InvokeExactBatchOptions = {
+	/** @internal Aligned with the actual active operation vector. */
+	arrayParsers?: readonly (ArrayResponseContext | undefined)[];
 	/** Framework-owned observation channel for compiler-declared progress receivers. */
 	progress?: readonly (ExactProgressObserver | undefined)[];
 	endpoint: string;
@@ -409,6 +426,8 @@ export type InvokeExactBatchOptions = {
 
 /** Independently settled invocation whose callbacks may share a batch transport. */
 export type PendingExactOperation = {
+	preparedState?: PreparedExactState;
+	arrayParser?: ArrayResponseContext;
 	/** Framework-owned observation channel for compiler-declared progress receivers. */
 	progress?: ExactProgressObserver;
 	operation: ExactInvocationRequest;
@@ -432,19 +451,19 @@ export type ExactBatchQueue = {
 	active?: number;
 };
 
-/** Defines the exact stream limits type contract. */
+/** Client response budgets. Positive safe integers enforce caps. Omitted settings warn once per response/setting and retain valid results. */
 export type ExactStreamLimits = {
-	/** Maximum encoded response bytes. Defaults to 16 MiB. */
+	/** Exact encoded response bytes and UTF-8 string/key graph content. Omission warns above 16 MiB, or 64 KiB for snapshots. Logs identify the representation. */
 	maxBytes?: number;
-	/** Maximum non-empty NDJSON events. Defaults to 100,000. */
+	/** Non-empty NDJSON events. Omission warns above 100,000. Explicit positive caps reject. */
 	maxEvents?: number;
-	/** Maximum request envelope bytes. Defaults to 4 MiB. */
+	/** Hard request-envelope byte cap. When omitted, envelopes over 4 MiB warn without rejection. */
 	maxRequestBytes?: number;
-	/** Maximum JSON graph depth. Defaults to 100. */
+	/** Encoded and decoded graph depth. Omission warns above 100, or 32 for snapshots. Explicit positive caps reject. */
 	maxJsonDepth?: number;
-	/** Maximum JSON values/properties traversed. Defaults to 100,000. */
+	/** Values/properties per graph. Omission warns above 100,000, or 10,000 for snapshots. Explicit positive caps reject. */
 	maxJsonNodes?: number;
-	/** Maximum patches accepted in one result. Defaults to 10,000. */
+	/** Combined streamed and terminal patches per operation. Omission warns above 10,000. Explicit positive caps reject. */
 	maxPatches?: number;
 };
 

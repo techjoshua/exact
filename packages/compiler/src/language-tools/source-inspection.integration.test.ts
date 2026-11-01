@@ -2,6 +2,33 @@ import { describe, expect, it } from 'vitest';
 import { createExactLanguageService, type ExactSourceEntity } from '../index.js';
 
 describe('compiler source inspection', () => {
+	it('checks reserved native identity with an actionable authored range', async () => {
+		const service = createExactLanguageService({ root: process.cwd(), noEmit: true });
+		const source =
+			'export function Page(){return()=> <select {...({"data-exact-id":"authored"} as {})}/>}';
+		try {
+			const update = await service.synchronize([
+				{ kind: 'upsert', filename: 'ReservedIdentity.tsx', version: 1, source }
+			]);
+			const diagnostic = update.diagnostics.find((d) => d.code === 'EXACT_NATIVE_PROP');
+			expect(diagnostic?.severity).toBe('error');
+			expect(diagnostic?.summary).toContain('data-testid');
+			expect(source.slice(diagnostic!.range.start, diagnostic!.range.end)).toContain(
+				'data-exact-id'
+			);
+			await service.synchronize([
+				{
+					kind: 'upsert',
+					filename: 'ReservedIdentity.tsx',
+					version: 2,
+					source: source.replace('data-exact-id', 'data-testid')
+				}
+			]);
+			expect((await service.inspect('ReservedIdentity.tsx')).diagnostics).toEqual([]);
+		} finally {
+			await service.dispose();
+		}
+	});
 	it('projects source-located lazy-island fallback decisions', async () => {
 		const service = createExactLanguageService({ root: process.cwd(), noEmit: true });
 		try {

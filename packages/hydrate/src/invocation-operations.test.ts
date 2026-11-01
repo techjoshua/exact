@@ -1,3 +1,4 @@
+import { verifyContinuationStateResponses } from '../../component-composition-corpus/test-support/continuation-state-journey.js';
 /* eslint-disable @typescript-eslint/no-explicit-any -- This test intentionally models external, private, or invalid values that production contracts reject. */
 /**
  * @vitest-environment jsdom
@@ -510,4 +511,8 @@ describe('@exactjs/hydrate invocation operations', () => {
 		]);
 		expect(({} as any).polluted).toBeUndefined();
 	});
+});
+
+it('fences failed state response stages and permits subsequent progress', async () => {
+	await verifyContinuationStateResponses({ createExactClient }, document);
 });

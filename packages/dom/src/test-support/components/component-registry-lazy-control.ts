@@ -5,6 +5,8 @@ let staleGate: Promise<void> = Promise.resolve();
 let releaseStaleGate: () => void = () => undefined;
 let staleLoads = 0;
 let staleStarts = 0;
+let staleStarted: Promise<void> = Promise.resolve();
+let notifyStaleStarted: () => void = () => undefined;
 let staleSetups = 0;
 
 /** Starts one independently controlled concurrent lazy module evaluation. */
@@ -40,6 +42,9 @@ export function resetStaleRegistryFixture() {
 	staleLoads = 0;
 	staleStarts = 0;
 	staleSetups = 0;
+	staleStarted = new Promise<void>((resolve) => {
+		notifyStaleStarted = resolve;
+	});
 	staleGate = new Promise<void>((resolve) => {
 		releaseStaleGate = resolve;
 	});
@@ -48,6 +53,7 @@ export function resetStaleRegistryFixture() {
 /** Waits for the stale lazy module test gate. */
 export function waitStaleRegistryGate() {
 	staleStarts++;
+	notifyStaleStarted();
 	return staleGate;
 }
 
@@ -79,4 +85,9 @@ export function staleRegistrySetupCount() {
 /** Reports loader entries that have reached the controlled pending gate. */
 export function staleRegistryStartCount() {
 	return staleStarts;
+}
+
+/** Waits for loader entry so cancellation tests cross execution before releasing the pending module. */
+export function waitForStaleRegistryStart(): Promise<void> {
+	return staleStarted;
 }

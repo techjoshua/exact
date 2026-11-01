@@ -2,7 +2,7 @@
 import '@exactjs/dom/runtime/target';
 import { createEnhancementNode } from '@exactjs/core';
 import {
-	createCompiledComponentReceipt,
+	createCompiledComponentInputReceipt,
 	createCompiledFragmentReceipt,
 	createCompiledIntrinsicReceipt
 } from '@exactjs/core/runtime/component-operations';
@@ -35,7 +35,6 @@ import { prepareIntlActivation } from './prepared.js';
 import { renderIntlActivation } from './render.js';
 import type { IntlRuntimeDescriptorV1 } from './contracts.js';
 import { measurementDescriptor } from './test-support/measurement-descriptor.js';
-
 const base: IntlRuntimeDescriptorV1 = {
 	protocol: 1,
 	owner: 'fragment-formatters',
@@ -48,7 +47,6 @@ const base: IntlRuntimeDescriptorV1 = {
 	source: [{ kind: 'value', binding: 0 }],
 	capabilities: []
 };
-
 const cases = [
 	{ kind: 'message', client: IntlMessage, server: ServerMessage, descriptor: base },
 	{
@@ -93,7 +91,6 @@ const cases = [
 		} as IntlRuntimeDescriptorV1
 	}))
 ];
-
 describe('intl fragment formatter presentation', () => {
 	it.each(cases)(
 		'preserves $kind updates under a contributed host across DOM and text hosts',
@@ -107,21 +104,26 @@ describe('intl fragment formatter presentation', () => {
 					provider: typeof IntlProvider,
 					formatter: (typeof cases)[number]['client']
 				) =>
-					createCompiledComponentReceipt(
+					createCompiledComponentInputReceipt(
 						provider,
 						{ environment },
-						createCompiledIntrinsicReceipt(
-							tag,
-							null,
-							createCompiledFragmentReceipt(
-								{
-									__exactEnhancements: createEnhancementNode([
-										{ identity: 'locale', props: { locale: true } }
-									])
-								},
-								createCompiledComponentReceipt(formatter, { [kind]: activation })
-							)
-						)
+						{
+							kind: 'eager',
+							values: [
+								createCompiledIntrinsicReceipt(
+									tag,
+									null,
+									createCompiledFragmentReceipt(
+										{
+											__exactEnhancements: createEnhancementNode([
+												{ identity: 'locale', props: { locale: true } }
+											])
+										},
+										createCompiledComponentInputReceipt(formatter, { [kind]: activation })
+									)
+								)
+							]
+						}
 					);
 				const options = { enhancementCatalog: new Map([['locale', ServerLocale]]) };
 				const rendered = await renderToHydratableString(operation(ServerProvider, server), options);

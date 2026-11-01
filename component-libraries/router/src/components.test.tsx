@@ -3,7 +3,7 @@
  */
 import { createErrorContext, type Child } from '@exactjs/core';
 import { isExactComponent } from '@exactjs/core/framework/component-contracts';
-import { render } from '@exactjs/dom';
+import { render, unmount } from '@exactjs/dom';
 import { createTestComponentReceipt } from '@exactjs/testing/internal/fixtures';
 import { describe, expect, it, vi } from 'vitest';
 import {
@@ -55,6 +55,53 @@ describe('router', () => {
 		expect(container.textContent).toBe('User 42');
 		source.push(new URL('https://example.test/users/99'));
 		await vi.waitFor(() => expect(container.textContent).toBe('User 99'));
+	});
+
+	it('retains a native parent host when its child appears and disappears', async () => {
+		const memory = createMemoryLocationSource('https://example.test/home');
+		let subscriptions = 0;
+		let releases = 0;
+		const source = {
+			...memory,
+			subscribe(listener: Parameters<NonNullable<typeof memory.subscribe>>[0]) {
+				subscriptions++;
+				const release = memory.subscribe!(listener);
+				return () => {
+					releases++;
+					release();
+				};
+			}
+		};
+		const container = document.createElement('div');
+		try {
+			render(
+				component(Router, {
+					source,
+					routes: [
+						{
+							path: 'home',
+							render: (outlet: Child) => component(NestedLayout, null, outlet),
+							children: [{ path: 'child', render: () => component(GeneratedPage, null) }]
+						}
+					]
+				}),
+				container
+			);
+			const parent = container.querySelector('main');
+			expect(parent).not.toBeNull();
+			expect(container.textContent).toBe('');
+			expect(subscriptions).toBe(1);
+			source.push(new URL('https://example.test/home/child'));
+			await vi.waitFor(() => expect(container.textContent).toBe('Generated route'));
+			expect(container.querySelector('main')).toBe(parent);
+			source.push(new URL('https://example.test/home'));
+			await vi.waitFor(() => expect(container.textContent).toBe(''));
+			expect(subscriptions).toBe(1);
+			expect(container.querySelector('main')).toBe(parent);
+		} finally {
+			unmount(container);
+		}
+		expect(releases).toBe(1);
 	});
 
 	it('normalizes basenames and generates hash links', () => {

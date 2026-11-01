@@ -1,5 +1,5 @@
 import { normalizeSerializedComponentResumptions } from '../config-validation.js';
-import { revivePartitionServerSlots } from './partition-slots.js';
+import { revivePartitionServerSlots, type RevivedPartitionProps } from './partition-slots.js';
 import { positiveLimit, utf8ByteLength } from '../limits.js';
 import { decodeBoundedReactiveProtocolValue } from '../protocol-decoding.js';
 import type { HydrateOptions } from '../types.js';
@@ -8,9 +8,7 @@ import type { HydrateOptions } from '../types.js';
 export function compactBoundaryProps(
 	boundary: Element,
 	options: HydrateOptions
-):
-	| { readonly id: string; readonly name: string; readonly props: Record<string, unknown> }
-	| undefined {
+): ({ readonly id: string; readonly name: string } & RevivedPartitionProps) | undefined {
 	const coordinate = boundary.getAttribute('data-xh');
 	const match = coordinate?.match(/^([0-9a-z]+)\.([0-9a-z]+)$/);
 	const table = options.hydrationTable;
@@ -35,7 +33,7 @@ export function compactBoundaryProps(
 	return {
 		id: row[0],
 		name: group[0],
-		props: revivePartitionServerSlots(props, options, boundary) as Record<string, unknown>
+		...revivePartitionServerSlots(props, options, boundary)
 	};
 }
 
@@ -45,7 +43,7 @@ export function parseIslandPayload(
 	options: HydrateOptions,
 	boundary?: Element
 ) {
-	if (!raw) return { props: {}, resumptions: undefined };
+	if (!raw) return { props: {}, serverSlots: [], resumptions: undefined };
 	const maxBytes = positiveLimit(options.configLimits?.maxBytes, 16 * 1024 * 1024);
 	if (utf8ByteLength(raw) > maxBytes)
 		throw new TypeError('eXact island payload exceeds byte limit');
@@ -66,9 +64,8 @@ export function parseIslandPayload(
 		resumptions: normalizeSerializedComponentResumptions(
 			(parsed as Record<string, unknown>).resumptions
 		),
-		props:
-			props && typeof props === 'object' && !Array.isArray(props)
-				? (revivePartitionServerSlots(props, options, boundary) as Record<string, unknown>)
-				: {}
+		...(props && typeof props === 'object' && !Array.isArray(props)
+			? revivePartitionServerSlots(props as Record<string, unknown>, options, boundary)
+			: { props: {}, serverSlots: [] })
 	};
 }

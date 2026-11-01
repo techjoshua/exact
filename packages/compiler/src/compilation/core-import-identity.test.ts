@@ -4,13 +4,13 @@ import path from 'node:path';
 import { expect, it, onTestFinished } from 'vitest';
 import { NativeCompilerProcess } from '../native/process.js';
 import { resolveNativeCompilerExecutable } from '../native/executable.js';
-import { createTestWorkspace } from '../test-support/workspace.js';
+import { createCompilerTestWorkspace } from '../test-support/workspace.js';
 import { importArtifact } from '../test-support/import-artifact.js';
 
 async function artifact(source: string, target: 'client' | 'server') {
 	const parent = path.resolve('.tmp/core-import-identity');
 	await mkdir(parent, { recursive: true });
-	const root = await createTestWorkspace('probe-', parent);
+	const root = await createCompilerTestWorkspace('probe-', parent);
 	const compiler = new NativeCompilerProcess({ executable: resolveNativeCompilerExecutable() });
 	onTestFinished(() => compiler.dispose());
 	const file = path.join(root, 'probe.tsx');

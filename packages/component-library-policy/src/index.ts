@@ -34,3 +34,5 @@ export {
 	type ExactComponentAuthorizationRuntimeIdentity
 } from './runtime-identity.js';
 export { materializeExactComponentExecutionGuard } from './execution-guard.js';
+
+export { requiresExactServerComponentSelection } from './selection-evidence.js';

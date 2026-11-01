@@ -2,7 +2,7 @@ import '@exactjs/dom/runtime/target';
 import '@exactjs/core/runtime/refs';
 import { describe, expect, it } from 'vitest';
 import { flushSync } from '@exactjs/reactive';
-import { renderCompiledComponentRoot } from '../../dom/src/framework/component-root.js';
+import { renderCompiledComponentInputRoot } from '../../dom/src/framework/component-root.js';
 import { unmount } from '@exactjs/dom';
 import {
 	localRoots,
@@ -17,7 +17,7 @@ describe('local component root presentation', () => {
 		localRoots.length = 0;
 		const container = document.createElement('div');
 		try {
-			renderCompiledComponentRoot(localParentRoot, container);
+			renderCompiledComponentInputRoot(localParentRoot, container);
 			expect(localRoots[0]!.current).toBe(container.querySelector('main'));
 			expect(localRoots[1]!.current).toBe(container.querySelector('button'));
 		} finally {
@@ -28,7 +28,7 @@ describe('local component root presentation', () => {
 		localRoots.length = 0;
 		const container = document.createElement('div');
 		try {
-			renderCompiledComponentRoot(localTextRoot, container);
+			renderCompiledComponentInputRoot(localTextRoot, container);
 			const root = localRoots[0]!;
 			const text = root.current;
 			expect(text).toBeInstanceOf(Text);
@@ -46,7 +46,7 @@ describe('local component root presentation', () => {
 		localRoots.length = 0;
 		const container = document.createElement('div');
 		try {
-			renderCompiledComponentRoot(localRangeRoot, container);
+			renderCompiledComponentInputRoot(localRangeRoot, container);
 			const root = localRoots[0]!.current as { kind: string; nodes: readonly Node[] };
 			expect(root.kind).toBe('range');
 			expect(root.nodes.every((node) => node instanceof Text)).toBe(true);

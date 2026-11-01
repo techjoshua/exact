@@ -3,7 +3,7 @@ import {
 	useContext,
 	useEffect,
 	useId,
-	useState,
+	useMemo,
 	type ReactComponentType,
 	type ReactNode
 } from '@exactjs/react-compat';
@@ -11,14 +11,10 @@ import {
 	createExactRouter,
 	createMemoryLocationSource,
 	hydrationEnvelopeFromSnapshot,
+	stripBasename,
 	type ExactRouter
 } from '../core.js';
-import {
-	createStaticLocationSource,
-	formDataSearchParams,
-	hydrationElementId,
-	requestInit
-} from './browser.js';
+import { formDataSearchParams, hydrationElementId } from './browser.js';
 import {
 	RouteIdContext,
 	useRouter,
@@ -26,38 +22,30 @@ import {
 	type RouteObject,
 	type StaticHandlerContext
 } from './context.js';
-import { useLocation } from './hooks.js';
-import { locationToString } from './paths.js';
+import { useFormAction } from './hooks.js';
+import { createPath, locationToString, parsePath, resolveRouteRelativeTo } from './paths.js';
+import { resolveFormAction } from './form-actions.js';
 import { RouterProvider } from './routers.js';
 
 export { createPath, createSearchParams, parsePath, resolvePath } from './paths.js';
-/** Performs the use submit domain operation. */
+export { createStaticHandler } from './static-handler.js';
+/** Resolves from the owning route at invocation time, replacing GET query data or invoking its target action. */
 export function useSubmit(): (
 	target: HTMLFormElement | FormData | URLSearchParams | Record<string, string>,
-	options?: { action?: string; method?: string; encType?: string; replace?: boolean }
+	options?: {
+		action?: string;
+		method?: string;
+		encType?: string;
+		replace?: boolean;
+		relative?: 'route' | 'path';
+	}
 ) => Promise<void> {
 	const router = useRouter();
-	const location = useLocation();
+	const routeId = useContext(RouteIdContext);
 	return async (target, options = {}) => {
-		const formData =
-			target instanceof HTMLFormElement
-				? new FormData(target)
-				: target instanceof FormData
-					? target
-					: target instanceof URLSearchParams
-						? target
-						: new URLSearchParams(target);
-		const method = (
-			options.method ?? (target instanceof HTMLFormElement ? target.method : 'get')
-		).toUpperCase();
-		const action =
-			options.action ?? (target instanceof HTMLFormElement ? target.action : location.pathname);
-		if (method === 'GET') {
-			const search = formData instanceof FormData ? formDataSearchParams(formData) : formData;
-			await router.navigate(`${action}?${search}`, { replace: options.replace });
-		} else {
-			await router.submit(action, { method, body: formData });
-		}
+		const { action, init } = formSubmission(target, options, router, routeId);
+		if (init.method === 'GET') await router.navigate(action, { replace: options.replace });
+		else await router.submit(action, init);
 	};
 }
 
@@ -68,30 +56,124 @@ export function Form(
 		method?: string;
 		encType?: string;
 		replace?: boolean;
+		relative?: 'route' | 'path';
 		reloadDocument?: boolean;
 		onSubmit?: (event: SubmitEvent) => unknown;
 		children?: ReactNode;
 	}
 ): ReactNode {
-	const submit = useSubmit();
-	const { replace, reloadDocument, onSubmit, ...rest } = props;
+	return renderSubmissionForm(props, useSubmit());
+}
+
+/** Shares native form interception while retaining each interaction's submission owner. */
+function renderSubmissionForm(
+	props: Parameters<typeof Form>[0],
+	submit: ReturnType<typeof useSubmit>
+): ReactNode {
+	const { replace, relative, reloadDocument, onSubmit, ...rest } = props;
+	const action = useFormAction(props.action, { relative });
 	return createElement('form', {
 		...rest,
+		action,
 		onSubmit: (event: SubmitEvent) => {
 			onSubmit?.(event);
 			if (reloadDocument || event.defaultPrevented) return;
 			event.preventDefault();
-			void submit(event.currentTarget as HTMLFormElement, {
+			return submit(event.currentTarget as HTMLFormElement, {
 				action: props.action,
 				method: props.method,
 				encType: props.encType,
-				replace
+				replace,
+				relative
 			});
 		}
 	});
 }
 
-/** Creates an independent loader/action interaction that does not navigate. */
+/**
+ * Prepares GET fields or a mutation body from the current owning route. Form attributes already
+ * include the basename. Only fetcher GETs retain naked index selection while replacing query fields.
+ * Input FormData and URLSearchParams values are never mutated.
+ */
+function formSubmission(
+	target: Parameters<ReturnType<typeof useSubmit>>[0],
+	options: NonNullable<Parameters<ReturnType<typeof useSubmit>>[1]>,
+	router: ExactRouter<RouteObject>,
+	routeId: string | undefined,
+	preserveIndex = false
+): { action: string; init: RequestInit } {
+	const form = target instanceof HTMLFormElement ? target : undefined;
+	const body = form
+		? new FormData(form)
+		: target instanceof FormData || target instanceof URLSearchParams
+			? target
+			: new URLSearchParams(target as Record<string, string>);
+	const method = (options.method ?? form?.method ?? 'get').toUpperCase();
+	let authored = options.action;
+	if (authored === undefined && form) {
+		authored = form.getAttribute('action') || undefined;
+		if (authored?.startsWith('/') && !authored.startsWith('//')) {
+			const path = parsePath(authored);
+			authored = createPath({
+				...path,
+				pathname: stripBasename(path.pathname ?? '/', router.basename)
+			});
+		}
+	}
+	const action = resolveFormAction(authored, router.getSnapshot(), routeId, options.relative);
+	if (method !== 'GET')
+		return {
+			action,
+			init: mutationRequest(
+				method,
+				body,
+				options.encType ?? form?.enctype ?? 'application/x-www-form-urlencoded'
+			)
+		};
+	const search = body instanceof FormData ? formDataSearchParams(body) : body;
+	const fragment = action.indexOf('#');
+	const path = fragment < 0 ? action : action.slice(0, fragment);
+	const hash = fragment < 0 ? '' : action.slice(fragment);
+	const query = search.toString();
+	const index =
+		preserveIndex &&
+		new URLSearchParams(parsePath(action).search).getAll('index').includes('') &&
+		!search.getAll('index').includes('');
+	return {
+		action: `${path.split('?', 1)[0]}?${query}${index ? (query ? '&index' : 'index') : ''}${hash}`,
+		init: { method }
+	};
+}
+
+/** Encodes mutation fields using the requested MIME type, leaving multipart boundary selection to Request. */
+function mutationRequest(
+	method: string,
+	body: FormData | URLSearchParams,
+	encoding: string
+): RequestInit {
+	if (encoding === 'multipart/form-data') {
+		if (body instanceof FormData) return { method, body };
+		const fields = new FormData();
+		body.forEach((value, name) => fields.append(name, value));
+		return { method, body: fields };
+	}
+	const fields = body instanceof FormData ? formDataSearchParams(body) : body;
+	if (encoding === 'application/x-www-form-urlencoded') return { method, body: fields };
+	if (encoding === 'application/json')
+		return {
+			method,
+			body: JSON.stringify(Object.fromEntries(fields)),
+			headers: { 'Content-Type': 'application/json' }
+		};
+	if (encoding === 'text/plain')
+		return { method, body: Array.from(fields, ([name, value]) => `${name}=${value}\r\n`).join('') };
+	throw new TypeError(`Unsupported form encoding ${encoding}`);
+}
+
+/**
+ * Loads or submits data independently of page navigation. Its Form retains input identity across
+ * fetcher updates. Unmounting releases owned work, and an explicit handler redirect may navigate.
+ */
 export function useFetcher<T = unknown>(): {
 	state: 'idle' | 'loading' | 'submitting';
 	data?: T;
@@ -99,33 +181,42 @@ export function useFetcher<T = unknown>(): {
 	load(href: string): Promise<void>;
 	submit(
 		target: FormData | URLSearchParams | Record<string, string>,
-		options?: { action?: string; method?: string }
+		options?: { action?: string; method?: string; encType?: string; relative?: 'route' | 'path' }
 	): Promise<void>;
 	Form: ReactComponentType<Parameters<typeof Form>[0]>;
 } {
 	const router = useRouter();
 	const snapshot = useSnapshot(router);
 	const routeId = useContext(RouteIdContext);
-	const generated = useId();
-	const [key] = useState(() => `fetcher-${generated}`);
+	const key = `fetcher-${useId()}`;
 	useEffect(() => () => router.releaseFetcher(key), [router, key]);
+	const interaction = useMemo(() => {
+		const fetch = (href: string, init?: RequestInit) =>
+			router.fetch(
+				key,
+				undefined,
+				resolveRouteRelativeTo(href, router.getSnapshot(), routeId, undefined),
+				init
+			);
+		const submit: ReturnType<typeof useSubmit> = async (target, options = {}) => {
+			const { action, init } = formSubmission(target, options, router, routeId, true);
+			await fetch(action, init);
+		};
+		return {
+			load: fetch,
+			submit,
+			Form: (props: Parameters<typeof Form>[0]) => renderSubmissionForm(props, submit)
+		};
+	}, [router, key, routeId]);
 	const state = snapshot.fetchers.get(key) ?? { state: 'idle' as const };
 	if (!routeId) throw new Error('useFetcher must be used within a matched route');
 	return {
 		...state,
 		data: state.data as T | undefined,
-		load: (href) => router.fetch(key, routeId, href),
-		submit: async (target, options = {}) => {
-			const body =
-				target instanceof FormData || target instanceof URLSearchParams
-					? target
-					: new URLSearchParams(target);
-			await router.fetch(key, routeId, options.action ?? snapshot.location.pathname, {
-				method: options.method ?? 'POST',
-				body
-			});
-		},
-		Form: (props) => createElement(Form, props)
+		load: interaction.load,
+		submit: (target, options = {}) =>
+			interaction.submit(target, { ...options, method: options.method ?? 'POST' }),
+		Form: interaction.Form
 	};
 }
 
@@ -137,87 +228,6 @@ export function useFetchers(): readonly Readonly<{
 	error?: unknown;
 }>[] {
 	return [...useSnapshot().fetchers].map(([key, fetcher]) => ({ key, ...fetcher }));
-}
-
-/** Creates a request handler that resolves data-router state for server rendering. */
-export function createStaticHandler(
-	routes: readonly RouteObject[],
-	options: { basename?: string } = {}
-): {
-	dataRoutes: readonly RouteObject[];
-	query(
-		request: Request,
-		init?: { requestContext?: unknown }
-	): Promise<Response | StaticHandlerContext>;
-	queryRoute(
-		request: Request,
-		options?: { routeId?: string; requestContext?: unknown }
-	): Promise<unknown>;
-} {
-	return {
-		dataRoutes: routes,
-		async query(request, init = {}) {
-			const statics = createStaticLocationSource(request.url);
-			const router = createExactRouter({
-				source: statics.source,
-				routes,
-				basename: options.basename,
-				context: init.requestContext
-			});
-			if (!/^(?:GET|HEAD)$/i.test(request.method)) {
-				await router.submit(request.url, await requestInit(request));
-			} else {
-				await router.initialize();
-			}
-			const redirected = statics.redirect();
-			if (redirected) {
-				router.dispose();
-				return new Response(null, {
-					status: redirected.status,
-					headers: { Location: redirected.location.href }
-				});
-			}
-			const snapshot = router.getSnapshot();
-			const context: StaticHandlerContext = {
-				location: snapshot.location,
-				matches: snapshot.matches,
-				loaderData: snapshot.loaderData,
-				actionData: snapshot.actionData,
-				errors: snapshot.errors,
-				statusCode: snapshot.statusCode,
-				loaderHeaders: snapshot.loaderHeaders,
-				actionHeaders: snapshot.actionHeaders
-			};
-			router.dispose();
-			return context;
-		},
-		async queryRoute(request, queryOptions = {}) {
-			const statics = createStaticLocationSource(request.url);
-			const router = createExactRouter({
-				source: statics.source,
-				routes,
-				basename: options.basename,
-				context: queryOptions.requestContext
-			});
-			if (/^(?:GET|HEAD)$/i.test(request.method)) await router.initialize();
-			else await router.submit(request.url, await requestInit(request));
-			const redirected = statics.redirect();
-			if (redirected) {
-				router.dispose();
-				return new Response(null, {
-					status: redirected.status,
-					headers: { Location: redirected.location.href }
-				});
-			}
-			const snapshot = router.getSnapshot();
-			const routeId = queryOptions.routeId ?? snapshot.matches.at(-1)?.id ?? '';
-			const value = /^(?:GET|HEAD)$/i.test(request.method)
-				? snapshot.loaderData[routeId]
-				: snapshot.actionData[routeId];
-			router.dispose();
-			return value;
-		}
-	};
 }
 
 /** Creates a non-navigating router from a previously queried static context. */

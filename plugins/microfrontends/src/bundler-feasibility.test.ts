@@ -6,6 +6,30 @@ import { createExactRemoteWebpackAdapter } from './webpack-feasibility.js';
 const buildKey = '0123456789abcdef0123456789abcdef01234567';
 
 describe('Webpack and Bun remote artifact adapters', () => {
+	it('shares compiler construction and reactive provider entry points through both bridges', () => {
+		const plan = fixturePlan();
+		const options = {
+			plan,
+			applicationRoot: '/workspace/remote',
+			registrationModules: registration()
+		};
+		const webpack = createExactRemoteWebpackAdapter(options);
+		const bun = createExactRemoteBunAdapter(options);
+		for (const [key, imported] of [
+			['@exactjs/reactive/framework/objects', 'reactiveObjects'],
+			['@exactjs/reactive/framework/runtime', 'watch'],
+			['@exactjs/core/runtime/component-construction/task', 'constructTaskComponentInstance'],
+			['@exactjs/core/runtime/component-branding', 'attachCompiledComponentContract'],
+			['@exactjs/core/tasks/v1', 'defineTask']
+		] as const) {
+			const usages = [{ kind: 'named' as const, imported }];
+			expect(bun.providedBridge(key, usages).contents).toBe(webpack.providedBridge(key, usages));
+			expect(webpack.providedBridge(key, usages)).toContain(JSON.stringify(key));
+		}
+		expect(() => webpack.providedBridge('@unconfigured/library', [])).toThrow('not configured');
+		expect(() => bun.providedBridge('@unconfigured/library', [])).toThrow('not configured');
+	});
+
 	it('maps the common artifact plan to Webpack entries, ESM chunks, and provider modules', () => {
 		const plan = fixturePlan();
 		const mapping = createExactRemoteWebpackAdapter({

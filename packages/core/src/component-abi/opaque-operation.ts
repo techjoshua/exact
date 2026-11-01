@@ -1,6 +1,8 @@
+import { componentContractVersion } from '../component/contract-versions.js';
 /** Realm-stable identity marker for compiler-issued operations with WeakMap-private contents. */
 export const exactOpaqueOperationIdentity = Symbol.for('@exactjs/opaque-target-operation');
 const exactOpaqueOperationExecution = Symbol.for('@exactjs/opaque-target-operation-execution');
+const exactOpaqueInputGeneration = Symbol.for('@exactjs/opaque-component-input-generation');
 const exactOpaqueOperationMetadata = Symbol.for('@exactjs/opaque-target-operation-metadata');
 
 import type { ComponentDomain } from '../component/contracts.js';
@@ -8,7 +10,13 @@ import type { ComponentDomain } from '../component/contracts.js';
 type ExactOpaqueOperationExecutor = (this: object, target: object) => unknown;
 
 const emptyOperationPrototype = Object.freeze(
-	Object.defineProperty({}, exactOpaqueOperationIdentity, { value: true })
+	Object.defineProperties(
+		{},
+		{
+			[exactOpaqueOperationIdentity]: { value: true },
+			[exactOpaqueInputGeneration]: { value: componentContractVersion }
+		}
+	)
 );
 const operationPrototypes = new WeakMap<ExactOpaqueOperationExecutor, object>();
 const domainOperationPrototypes = new WeakMap<object, WeakMap<ComponentDomain, object>>();
@@ -23,6 +31,7 @@ function operationPrototype(execute: ExactOpaqueOperationExecutor | undefined): 
 				{},
 				{
 					[exactOpaqueOperationIdentity]: { value: true },
+					[exactOpaqueInputGeneration]: { value: componentContractVersion },
 					[exactOpaqueOperationExecution]: { value: execute }
 				}
 			)
@@ -94,7 +103,7 @@ export function isOpaqueOperation(value: unknown): value is object {
 	return (
 		typeof value === 'object' &&
 		value !== null &&
-		(value as { [exactOpaqueOperationIdentity]?: unknown })[exactOpaqueOperationIdentity] === true
+		opaqueDescriptorValue(value, exactOpaqueOperationIdentity) === true
 	);
 }
 
@@ -128,4 +137,21 @@ export function executeOpaqueOperation<Result>(
 	return typeof execute === 'function'
 		? { value: Reflect.apply(execute, value, [target]) as Result }
 		: undefined;
+}
+
+/** Reads only the static generation descriptor before an opaque callback can execute. */
+export function opaqueOperationInputGeneration(value: object): unknown {
+	return opaqueDescriptorValue(value, exactOpaqueInputGeneration);
+}
+/** Reads the issued operation's own/domain/base descriptor chain without invoking accessors. */
+function opaqueDescriptorValue(value: object, key: symbol): unknown {
+	let current: object | null = value;
+	// Issued operations have at most two private prototype levels. Arbitrary inherited
+	// accessors and longer authored chains do not establish a compiler descriptor.
+	for (let depth = 0; current && depth < 3; depth++) {
+		const descriptor = Object.getOwnPropertyDescriptor(current, key);
+		if (descriptor) return 'value' in descriptor ? descriptor.value : undefined;
+		current = Object.getPrototypeOf(current) as object | null;
+	}
+	return undefined;
 }

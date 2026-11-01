@@ -21,7 +21,7 @@ export interface FrameworkPublicationCoordinator<Metadata = unknown> {
 
 /** Creates a receipt that flushes reactive consequences in the next microtask. */
 export function createFrameworkPublicationCommit(): FrameworkPublicationCommit {
-	return Object.freeze({
+	return {
 		rendered: Promise.resolve().then(() => flushSync())
-	});
+	};
 }

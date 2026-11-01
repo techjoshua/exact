@@ -1,4 +1,11 @@
+import {
+	attachExactObservationOwner,
+	readExactObservationOwner
+} from '@exactjs/core/framework/inspection-transport';
+import { deriveRuntimeConfiguration as deriveServerContext } from '@exactjs/core/framework/configuration';
+import { operationIdentity } from './operation-identity.js';
 import { createProgressStream, type ExactProgressStreamWriter } from './progress/stream.js';
+import { responseResourceBudget } from './response-resources.js';
 import { captureProgressSnapshot } from './progress/snapshot.js';
 import { normalizeProtocolLimit as positiveLimit } from '@exactjs/core/framework/protocol-records';
 import type {
@@ -29,33 +36,40 @@ export function streamExactResponse(
 	const operations = input.type === 'batch' ? input.operations : [input];
 	const operationAbort = new AbortController();
 	const linked = linkAbortSignals(request.signal, operationAbort.signal);
-	const streamRequest = { ...request, signal: linked.signal };
+	const streamRequest = attachExactObservationOwner(
+		{ ...request, signal: linked.signal },
+		readExactObservationOwner(request)
+	);
 	const run = async (
 		emit: (event: ExactStreamEvent) => Promise<void>,
 		progress?: ExactProgressStreamWriter
 	) => {
 		const runOperation: ExactOperationDispatcher = async (request, operation, operationContext) => {
 			const index = operations.indexOf(operation);
+			const resources = responseResourceBudget(operationContext.logger);
 			try {
-				return await dispatch(request, operation, {
-					...operationContext,
-					reportTaskProgress:
-						progress && context.progress?.supported !== false
-							? (receiver: string, snapshot: unknown) => {
-									const captured = captureProgressSnapshot(snapshot);
-									progress.report({
-										event: 'progress',
-										version: 1,
-										index,
-										type: operation.type,
-										id: operation.id,
-										...(operation.opId ? { opId: operation.opId } : {}),
-										receiver,
-										snapshot: captured
-									});
-								}
-							: undefined
-				});
+				return await dispatch(
+					request,
+					operation,
+					deriveServerContext(operationContext, () => ({
+						reportTaskProgress:
+							progress && context.progress?.supported !== false
+								? (receiver: string, snapshot: unknown) => {
+										const captured = captureProgressSnapshot(snapshot, operationContext, resources);
+										progress.report({
+											event: 'progress',
+											version: 1,
+											index,
+											type: operation.type,
+											id: operation.id,
+											...(operation.opId ? { opId: operation.opId } : {}),
+											receiver,
+											snapshot: captured
+										});
+									}
+								: undefined
+					}))
+				);
 			} finally {
 				progress?.finishProgress(index);
 			}
@@ -92,6 +106,7 @@ export function streamExactResponse(
 			cancel: (reason) => operationAbort.abort(reason),
 			dispose: linked.dispose,
 			maxEvents: context.limits?.maxStreamEvents,
+			logger: context.logger,
 			maxBytes: context.limits?.maxStreamBytes
 		}
 	);
@@ -159,7 +174,10 @@ async function dispatchReadyOperations(
 	const concurrency = positiveLimit(context.limits?.maxBatchConcurrency, 8);
 	const batchAbort = new AbortController();
 	const linked = linkAbortSignals(request.signal, batchAbort.signal);
-	const ownedRequest = { ...request, signal: linked.signal };
+	const ownedRequest = attachExactObservationOwner(
+		{ ...request, signal: linked.signal },
+		readExactObservationOwner(request)
+	);
 
 	try {
 		while (pending.size) {
@@ -180,8 +198,7 @@ async function dispatchReadyOperations(
 			}
 
 			if (!running.size) {
-				if (linked.signal.aborted)
-					throw linked.signal.reason ?? new DOMException('eXact batch aborted', 'AbortError');
+				if (linked.signal.aborted) throw linked.signal.reason;
 				// Remaining operations are dependency-blocked. Fail them explicitly instead
 				// of leaving the client waiting for results that can no longer run.
 				for (const index of pending) {
@@ -229,9 +246,7 @@ async function emitOperationStreamEvents(
 			event: 'patch',
 			version: 1,
 			index,
-			type: result.type,
-			id: result.id,
-			...(result.opId === undefined ? {} : { opId: result.opId }),
+			...operationIdentity(result),
 			patch
 		});
 	}
@@ -240,10 +255,9 @@ async function emitOperationStreamEvents(
 			event: 'state',
 			version: 1,
 			index,
-			type: result.type,
-			id: result.id,
-			...(result.opId === undefined ? {} : { opId: result.opId }),
-			value: result.state
+			...operationIdentity(result),
+			value: result.state,
+			...(result.statePaths === undefined ? {} : { statePaths: result.statePaths })
 		});
 	}
 	if (result.mutations?.length) {
@@ -251,9 +265,7 @@ async function emitOperationStreamEvents(
 			event: 'mutations',
 			version: 1,
 			index,
-			type: result.type,
-			id: result.id,
-			...(result.opId === undefined ? {} : { opId: result.opId }),
+			...operationIdentity(result),
 			mutations: result.mutations
 		});
 	}
@@ -262,9 +274,7 @@ async function emitOperationStreamEvents(
 			event: 'html',
 			version: 1,
 			index,
-			type: result.type,
-			id: result.id,
-			...(result.opId === undefined ? {} : { opId: result.opId }),
+			...operationIdentity(result),
 			html: result.html
 		});
 	}
@@ -274,10 +284,11 @@ async function emitOperationStreamEvents(
 		index,
 		result: {
 			ok: true,
-			type: result.type,
-			id: result.id,
-			...(result.opId === undefined ? {} : { opId: result.opId }),
-			...('value' in result ? { value: result.value } : {})
+			...operationIdentity(result),
+			...(result.arrayCompletion === undefined ? {} : { arrayCompletion: result.arrayCompletion }),
+			...(result.deletions === undefined ? {} : { deletions: result.deletions }),
+			...('value' in result ? { value: result.value } : {}),
+			...(result.contexts === undefined ? {} : { contexts: result.contexts })
 		}
 	});
 }
@@ -285,9 +296,7 @@ async function emitOperationStreamEvents(
 function dependencyFailed(operation: ExactInvocationRequest): ExactOperationError {
 	return {
 		ok: false,
-		type: operation.type,
-		id: operation.id,
-		opId: operation.opId,
+		...operationIdentity(operation),
 		status: 424,
 		error: 'dependency_failed'
 	};

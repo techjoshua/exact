@@ -29,9 +29,12 @@ export const dialogMotion = defineMotion({
 });
 ```
 
-Definitions and their static effects are validated and frozen. Non-finite timing is rejected when
+Definitions copy static effects before validating them, reading authored fields once. Their
+readonly properties follow TypeScript, so
+writable aliases and nested values retain ordinary JavaScript behavior. Finite negative start delays
+are supported. Non-finite timing is rejected when
 a definition is prepared, except that component-owned enter/change phases may deliberately use
-`iterations: Infinity`; dynamic phases are validated again when resolved. Leave phases always
+`iterations: Infinity`. Dynamic phases are validated again when resolved. Leave phases always
 remain finite. The initial preset entry exports `fade`, `scale`, `pop`, `slideUp`, `slideDown`,
 `slideLeft`, and `slideRight`.
 
@@ -73,7 +76,9 @@ target.
 `MotionConfig` publishes inherited `enabled`, `reducedMotion`, `transition`, and `appear` policy
 through one reactive context. `animate(element, effect)` is the low-level imperative seam; it
 returns cancelable playback structurally attached to an immediate, nonblocking framework task
-frame. Infinite effects are rejected by this finite helper. When reduced motion is active, an
+frame. Cancellation releases pending placement frames even when the browser is not painting.
+Timing options are captured when `animate()` is called, before placement waits. Later writes to
+the supplied options affect future calls. Infinite effects are rejected by this finite helper. When reduced motion is active, an
 explicit `reduced` phase runs; without one, the visual work completes immediately while the same
 logical state transition and structural settlement continue.
 
@@ -100,9 +105,9 @@ The main runtime uses a browser-safe Web Animations driver by default. Creating 
 read browser globals, and playback completes immediately when an element has no `animate()` capability,
 so importing the main package, definitions, or presets remains server-safe. The package has no
 framework-plugin lifecycle. `@exactjs/motion/testing` provides a deterministic driver and an
-ordinary `installMotionDriver()` lease; tests own and release that lease explicitly. Nested or
+ordinary `installMotionDriver()` lease. Tests own and release that lease explicitly. Nested or
 overlapping installations restore the latest still-active driver even when they dispose out of
-order.
+order. Completed, failed, and cancelled test playbacks release their abort subscriptions.
 
 ## Presence and keyed collections
 

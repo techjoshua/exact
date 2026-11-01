@@ -43,11 +43,11 @@ function finiteBoundarySchema(
 	const variant = Object.hasOwn(props, 'children') ? 'withChildren' : 'withoutChildren';
 	const cached = variants[variant];
 	if (cached) return cached;
-	const propNames = Object.freeze(Object.keys(props).sort());
+	const propNames = Object.keys(props).sort();
 	const signature = `${name}\0${propNames.join('\0')}`;
 	let schema = schemasBySignature.get(signature);
 	if (!schema) {
-		schema = Object.freeze({ name, propNames });
+		schema = { name, propNames };
 		schemasBySignature.set(signature, schema);
 	}
 	variants[variant] = schema;
@@ -66,11 +66,12 @@ export class SsrHydrationTable {
 		if (groupIndex === undefined) {
 			groupIndex = this.groups.length;
 			this.indices.set(schema, groupIndex);
-			this.groups.push([schema.name, schema.propNames, []]);
+			// Response metadata may be observed through writable aliases. Keep cache keys private.
+			this.groups.push([schema.name, [...schema.propNames], []]);
 		}
 		const group = this.groups[groupIndex]!;
 		const rowIndex = group[2].length;
-		group[2].push([id, ...group[1].map((prop) => props[prop])]);
+		group[2].push([id, ...schema.propNames.map((prop) => props[prop])]);
 		return `${groupIndex.toString(36)}.${rowIndex.toString(36)}`;
 	}
 

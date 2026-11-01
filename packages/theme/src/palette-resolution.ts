@@ -18,7 +18,6 @@ import {
 	resolveColor
 } from './color.js';
 import { themeSurfaceBundles, themeToneRoles, themeTones } from './token-contract.js';
-import { freezeThemeValue } from './source-resolution.js';
 import { structuralTokens } from './structural-tokens.js';
 
 /** Derives the ordered semantic surface bundles for one resolved theme source. */
@@ -103,7 +102,7 @@ export function createSurfaces(
 			warnings,
 			`surfaces.${bundle}.borderStrong`
 		);
-		result[bundle] = freezeThemeValue({
+		result[bundle] = {
 			background,
 			foreground,
 			foregroundMuted,
@@ -115,7 +114,7 @@ export function createSurfaces(
 				source.appearance,
 				source.temperament.depthScaleRatio
 			)
-		});
+		};
 	}
 	return result;
 }
@@ -246,7 +245,7 @@ export function createTone(
 		warnings,
 		`${path}.focus`
 	);
-	return freezeThemeValue({
+	return {
 		subtle,
 		subtleHover,
 		subtleActive,
@@ -258,7 +257,7 @@ export function createTone(
 		solidActive,
 		onSolid: solidPair.onSolid,
 		focus
-	});
+	};
 }
 function resolveSolid(
 	requested: { l: number; c: number; h: number },
@@ -299,13 +298,11 @@ function contrasted(
 ): ResolvedColor {
 	const result = ensureColorContrast(requested, backgrounds, ratio, source.appearance);
 	if (result.maximized)
-		warnings.push(
-			Object.freeze({
-				code: 'contrast-maximized',
-				path,
-				message: `${path} used maximum attainable contrast`
-			})
-		);
+		warnings.push({
+			code: 'contrast-maximized',
+			path,
+			message: `${path} used maximum attainable contrast`
+		});
 	return result.color;
 }
 

@@ -1,4 +1,5 @@
 import { createFrameworkFixtureComponentInstance } from '../testing.js';
+import { componentContractVersion } from './contract-versions.js';
 import { describe, expect, it } from 'vitest';
 import '../runtime/lifecycle.js';
 import '../runtime/collections.js';
@@ -49,7 +50,7 @@ describe('compiled component capability construction', () => {
 		const StaticPanel = Object.assign(implementation, {
 			[exactComponentType]: 'component:StaticPanel',
 			[exactComponentContract]: {
-				version: 2 as const,
+				version: componentContractVersion as typeof componentContractVersion,
 				placement: 'isomorphic' as const,
 				role: 'client' as const,
 				implementations: [
@@ -65,7 +66,7 @@ describe('compiled component capability construction', () => {
 				boundaries: [],
 				execution: { version: 1 as const, ports: [], transitions: [], reactive: [] },
 				artifact: {
-					version: 2 as const,
+					version: componentContractVersion as typeof componentContractVersion,
 					target: 'client' as const,
 					id: 'component:StaticPanel',
 					attach: attachExactCompiledClientComponent,
@@ -114,7 +115,7 @@ describe('compiled component capability construction', () => {
 			}
 		};
 		const artifact = {
-			version: 2 as const,
+			version: componentContractVersion as typeof componentContractVersion,
 			target: 'client' as const,
 			id: 'component:InputPanel',
 			attach: attachExactCompiledClientComponent,
@@ -131,7 +132,7 @@ describe('compiled component capability construction', () => {
 		const InputPanel = Object.assign(implementation, {
 			[exactComponentType]: 'component:InputPanel',
 			[exactComponentContract]: {
-				version: 2 as const,
+				version: componentContractVersion as typeof componentContractVersion,
 				placement: 'isomorphic' as const,
 				role: 'client' as const,
 				implementations: [],
@@ -207,7 +208,7 @@ describe('compiled component capability construction', () => {
 			const TaskPanel = Object.assign(implementation, {
 				[exactComponentType]: 'component:TaskPanel',
 				[exactComponentContract]: {
-					version: 2 as const,
+					version: componentContractVersion as typeof componentContractVersion,
 					placement: 'isomorphic' as const,
 					role: 'client' as const,
 					implementations: [],
@@ -216,7 +217,7 @@ describe('compiled component capability construction', () => {
 					boundaries: [],
 					execution: { version: 1 as const, ports: [], transitions: [], reactive: [] },
 					artifact: {
-						version: 2 as const,
+						version: componentContractVersion as typeof componentContractVersion,
 						target: 'client' as const,
 						id: 'component:TaskPanel',
 						attach: attachExactCompiledClientComponent,
@@ -252,7 +253,7 @@ describe('compiled component capability construction', () => {
 		const FailingTaskPanel = Object.assign(implementation, {
 			[exactComponentType]: 'component:FailingTaskPanel',
 			[exactComponentContract]: {
-				version: 2 as const,
+				version: componentContractVersion as typeof componentContractVersion,
 				placement: 'isomorphic' as const,
 				role: 'client' as const,
 				implementations: [],
@@ -261,7 +262,7 @@ describe('compiled component capability construction', () => {
 				boundaries: [],
 				execution: { version: 1 as const, ports: [], transitions: [], reactive: [] },
 				artifact: {
-					version: 2 as const,
+					version: componentContractVersion as typeof componentContractVersion,
 					target: 'client' as const,
 					id: 'component:FailingTaskPanel',
 					attach: attachExactCompiledClientComponent,

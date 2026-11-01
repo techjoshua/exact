@@ -1,9 +1,17 @@
-import type { AnyComponentInstance } from '@exactjs/core';
+import {
+	attemptCleanup,
+	createCleanupFailure,
+	throwCleanupFailure,
+	attachSuppressedCleanupFailure,
+	type AnyComponentInstance
+} from '@exactjs/core';
 import type { ExactPortalReceiptData } from '@exactjs/core/runtime/component-operations';
 import { placeMountedBefore } from '../../placement.js';
 import type { Mounted, Root } from '../../types.js';
 import { mountDetachedChildren } from '../mounting/children.js';
 import { portalEventContainer, portalTarget, withEventContainer } from '../portal-routing.js';
+import { retainPortalEventContainer } from '../portal-target-lifetime.js';
+import { rollbackMountedChildren } from '../teardown.js';
 import { patchChildren } from './children.js';
 
 /** Updates a focused portal while preserving its logical owner and physical target range. */
@@ -17,24 +25,53 @@ export function patchPortalReceipt(
 	const nextTarget = portalTarget(receipt);
 	mounted.portalReceipt = receipt;
 	if (previousTarget !== nextTarget) {
-		mounted.children = patchChildren(
-			root,
-			previousTarget,
-			mounted.children,
-			[],
-			parentInstance,
-			mounted.scope
-		);
+		const releasePrevious = mounted.stop;
+		mounted.stop = undefined;
+		const failure = createCleanupFailure();
+		attemptCleanup(failure, () => {
+			mounted.children = patchChildren(
+				root,
+				previousTarget,
+				mounted.children,
+				[],
+				parentInstance,
+				mounted.scope
+			);
+		});
+		attemptCleanup(failure, () => releasePrevious?.());
+		throwCleanupFailure(failure);
 		mounted.portalTarget = nextTarget;
 		const eventContainer = portalEventContainer(root, nextTarget);
-		if (eventContainer === nextTarget) root.portalTargets.add(nextTarget);
-		mounted.children = withEventContainer(root, eventContainer, () =>
-			mountDetachedChildren(root, [...receipt.children], parentInstance, mounted.scope, nextTarget)
-		);
-		for (const child of mounted.children) placeMountedBefore(root, nextTarget, child, null);
+		mounted.stop = retainPortalEventContainer(root, eventContainer);
+		try {
+			mounted.children = withEventContainer(root, eventContainer, () =>
+				mountDetachedChildren(
+					root,
+					[...receipt.children],
+					parentInstance,
+					mounted.scope,
+					nextTarget
+				)
+			);
+			for (const child of mounted.children) placeMountedBefore(root, nextTarget, child, null);
+		} catch (error) {
+			const children = mounted.children;
+			mounted.children = [];
+			const release = mounted.stop;
+			mounted.stop = undefined;
+			rollbackMountedChildren(children, nextTarget, error);
+			try {
+				release?.();
+			} catch (cleanup) {
+				attachSuppressedCleanupFailure(error, cleanup);
+			}
+			throw error;
+		}
 		return;
 	}
-	mounted.children = withEventContainer(root, portalEventContainer(root, nextTarget), () =>
+	const eventContainer = portalEventContainer(root, nextTarget);
+	mounted.stop ??= retainPortalEventContainer(root, eventContainer);
+	mounted.children = withEventContainer(root, eventContainer, () =>
 		patchChildren(
 			root,
 			nextTarget,

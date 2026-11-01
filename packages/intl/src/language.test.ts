@@ -52,6 +52,7 @@ describe('intl language contribution', () => {
 				new AbortController().signal
 			);
 			expect(completions?.map((completion) => completion.label)).toContain('distance-road');
+			(completions as unknown[]).length = 0;
 		} finally {
 			await analyzer.dispose?.();
 		}
@@ -227,3 +228,39 @@ function sourceProjection(root: string, filename: string, text: string): ExactLa
 		types: []
 	};
 }
+
+it('filters half-open hint ranges, preserves cursor hover, and returns ordinary editor data', async () => {
+	const root = fileURLToPath(new URL('../../../apps/intl-testbed/', import.meta.url));
+	const source = '/* 🧭 */ export function Page() { return () => <p intl:message>Hello</p>; }';
+	const analyzer = await createExactLanguageAnalyzer(analyzerContext(root));
+	try {
+		const projection = sourceProjection(root, path.join(root, 'src', 'range-controls.tsx'), source);
+		const signal = new AbortController().signal;
+		const start = source.indexOf('intl:message');
+		const end = start + 'intl:message'.length;
+		for (const range of [
+			{ start: 0, end: start },
+			{ start: end, end: source.length },
+			{ start: start + 1, end: start + 1 }
+		])
+			expect(await analyzer.inlayHints?.({ projection, range }, signal)).toEqual([]);
+		const hints = await analyzer.inlayHints?.(
+			{ projection, range: { start, end: start + 1 } },
+			signal
+		);
+		expect(hints).toHaveLength(1);
+		(hints as unknown[]).length = 0;
+		const position = source.indexOf('</p>') + '</p>'.length;
+		expect(await analyzer.hover?.({ projection, position }, signal)).toBeUndefined();
+		const hover = await analyzer.hover?.({ projection, position: position - 1 }, signal);
+		expect(hover?.markdown).toContain('Internationalized');
+		const writable: { markdown: string } = hover!;
+		writable.markdown = 'observation';
+		const range: { start: number } = hover!.range!;
+		range.start = 0;
+		const diagnostics = await analyzer.diagnostics({ projection, scope: 'document' }, signal);
+		(diagnostics as unknown[]).push({ observation: true });
+	} finally {
+		await analyzer.dispose?.();
+	}
+});

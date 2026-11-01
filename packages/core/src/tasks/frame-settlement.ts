@@ -1,7 +1,12 @@
+import { sharedTaskRuntimeState } from './runtime-state.js';
+import { createCleanupFailure, recordCleanupFailure, throwCleanupFailure } from '../cleanup.js';
 import { settleTaskResourceLifetime } from './resource-lifetime.js';
 import type { TaskFrameRecord } from './frame-runtime.js';
 
-const frameSettlements = new WeakMap<TaskFrameRecord, Promise<void>>();
+const frameSettlements = sharedTaskRuntimeState(
+	'frame-settlements',
+	() => new WeakMap<TaskFrameRecord, Promise<void>>()
+);
 
 /** Associates a task frame with the promise representing its structural settlement. */
 export function registerTaskFrameSettlement(
@@ -36,15 +41,19 @@ export async function settleTaskFrameChildren(frame: TaskFrameRecord): Promise<v
 
 /** Runs frame-owned cleanup in last-in-first-out order and reports its first failure. */
 export async function runTaskFrameCleanups(frame: TaskFrameRecord): Promise<void> {
-	let primary: unknown;
+	const failure = createCleanupFailure();
 	for (const cleanup of frame.cleanups?.reverse() ?? []) {
 		try {
 			await cleanup();
 		} catch (error) {
-			primary ??= error;
+			recordCleanupFailure(failure, error);
 		}
 	}
-	const resources = settleTaskResourceLifetime(frame.controller.signal);
-	if (resources) await resources;
-	if (primary !== undefined) throw primary;
+	try {
+		const resources = settleTaskResourceLifetime(frame.controller.signal);
+		if (resources) await resources;
+	} catch (error) {
+		recordCleanupFailure(failure, error);
+	}
+	throwCleanupFailure(failure);
 }

@@ -7,7 +7,7 @@ import {
 	type IntlEnvironment,
 	type IntlMeasurementPresentation
 } from '@exactjs/intl';
-import type { ChartCoordinator } from './contexts.js';
+import type { ChartPresentationInput } from './model.js';
 import { resolveGeometryDomain, type ChartGeometryDomain } from './geometry.js';
 import type { ChartLayout } from './layout.js';
 import type { ChartSeriesRegistration } from './model.js';
@@ -15,7 +15,7 @@ import { linearTicks, scaleLinear } from './scales.js';
 
 /** Resolves one intl-owned measurement plan for the visible vertical values. */
 export function resolveChartMeasurement(
-	chart: ChartCoordinator,
+	chart: ChartPresentationInput,
 	series: readonly ChartSeriesRegistration[],
 	environment: IntlEnvironment | undefined
 ): IntlMeasurementPresentation | undefined {
@@ -42,21 +42,21 @@ export function resolveChartMeasurement(
 
 /** Combines inferred domains with explicit axis constraints. */
 export function resolveChartDomains(
-	chart: ChartCoordinator,
+	chart: ChartPresentationInput,
 	series: readonly ChartSeriesRegistration[],
 	measurement: IntlMeasurementPresentation | undefined
 ): ChartGeometryDomain {
 	const inferred = resolveGeometryDomain(chart.props.type, series, measurement);
-	return Object.freeze({
+	return {
 		...inferred,
 		x: primaryHorizontalAxis(chart)?.props.domain ?? inferred.x,
 		y: primaryVerticalAxis(chart)?.props.domain ?? inferred.y
-	});
+	};
 }
 
 /** Presents localized ticks for the primary vertical axis. */
 export function presentVerticalTicks(
-	chart: ChartCoordinator,
+	chart: ChartPresentationInput,
 	domain: ChartGeometryDomain,
 	layout: ChartLayout,
 	measurement: IntlMeasurementPresentation | undefined,
@@ -76,7 +76,7 @@ export function presentVerticalTicks(
 
 /** Presents the numeric value domain along the bottom of a horizontal chart. */
 export function presentHorizontalValueTicks(
-	chart: ChartCoordinator,
+	chart: ChartPresentationInput,
 	domain: ChartGeometryDomain,
 	layout: ChartLayout,
 	measurement: IntlMeasurementPresentation | undefined,
@@ -96,7 +96,7 @@ export function presentHorizontalValueTicks(
 
 /** Presents category, numeric, or temporal ticks for the primary horizontal axis. */
 export function presentHorizontalTicks(
-	chart: ChartCoordinator,
+	chart: ChartPresentationInput,
 	domain: ChartGeometryDomain,
 	layout: ChartLayout,
 	environment: IntlEnvironment | undefined
@@ -192,13 +192,13 @@ export function formatChartCoordinate(
 	return String(value);
 }
 
-function primaryVerticalAxis(chart: ChartCoordinator) {
+function primaryVerticalAxis(chart: ChartPresentationInput) {
 	return [...chart.model.axes.values()].find(
 		(axis) => axis.props.position === 'left' || axis.props.position === 'right'
 	);
 }
 
-function primaryHorizontalAxis(chart: ChartCoordinator) {
+function primaryHorizontalAxis(chart: ChartPresentationInput) {
 	return [...chart.model.axes.values()].find(
 		(axis) => axis.props.position === 'top' || axis.props.position === 'bottom'
 	);

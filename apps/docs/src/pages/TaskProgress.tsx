@@ -56,8 +56,8 @@ const run = async (task: TaskContext = TaskContext.server()) => {
 				The server continues without waiting for the browser to receive or handle an update. When
 				the server task finishes, is cancelled, or is replaced, eXact stops the receiver and
 				discards pending updates, including updates already buffered in the browser. Removing the
-				component does the same. Code that must finish should therefore run as part of the main
-				operation.
+				component does the same. An active receiver task retains the originating cancellation reason
+				in its signal. Code that must finish should therefore run as part of the main operation.
 			</p>
 			<Callout title="Check streaming support on your host">
 				<p>
@@ -79,10 +79,13 @@ const run = async (task: TaskContext = TaskContext.server()) => {
 					Cancellation cannot undo external effects already performed.
 				</p>
 				<p>
-					Each update uses operation serialization, with limits of 64 KiB, nesting depth 32, and
-					10,000 nodes. Receivers default to nonblocking readiness and accept priority and readiness
-					policies. Their concurrency, keys, and attachment to the invoking task are managed by the
-					progress mechanism.
+					Each update uses operation serialization. With no explicit response caps, snapshots above
+					64 KiB, nesting depth 32, or 10,000 nodes warn and continue. Positive response caps fail
+					with an error. The existing <code>maxJsonDepth</code>, <code>maxJsonNodes</code>, and
+					server <code>maxResponseBytes</code> or client <code>maxBytes</code> settings apply per
+					snapshot. Stream byte and event settings also count cumulative output. Receivers default
+					to nonblocking readiness and accept priority and readiness policies. Their concurrency,
+					keys, and attachment to the invoking task are managed by the progress mechanism.
 				</p>
 				<p>
 					Server rendering ignores progress reports and does not replay them during hydration.

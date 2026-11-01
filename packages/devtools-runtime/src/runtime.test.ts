@@ -5,11 +5,9 @@ import { exactComponentIdentity } from '@exactjs/core/framework/component-contra
 import { render, unmount } from '@exactjs/dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Card, accountRoot, cardRoot, counterRoot, lateRoot } from './runtime.fixtures.js';
-import {
-	exactDevtoolsHookSymbol,
-	exactDevtoolsRuntimeSymbol,
-	installExactDevtoolsRuntime
-} from './runtime.js';
+import { exactDevtoolsHookSymbol, installExactDevtoolsRuntime } from './runtime.js';
+
+const legacyRuntimeSymbol = Symbol.for('@exactjs/devtools-runtime');
 
 let installation: ReturnType<typeof installExactDevtoolsRuntime> | undefined;
 let container: Element | undefined;
@@ -18,7 +16,7 @@ afterEach(async () => {
 	if (container) unmount(container);
 	await installation?.dispose();
 	delete (globalThis as any)[exactDevtoolsHookSymbol];
-	delete (globalThis as any)[exactDevtoolsRuntimeSymbol];
+	delete (globalThis as any)[legacyRuntimeSymbol];
 	container = undefined;
 	installation = undefined;
 	vi.restoreAllMocks();
@@ -115,30 +113,8 @@ describe('page-world eXact DevTools runtime', () => {
 		});
 	});
 
-	it('redacts compiler-qualified state paths before snapshot traversal', async () => {
-		installation = installExactDevtoolsRuntime({
-			redactions: { statePaths: ['state.profile.token', 'props.token'] },
-			fetch: vi.fn(async () => {
-				throw new Error('server unavailable');
-			}) as typeof fetch
-		});
-		container = document.createElement('main');
-		document.body.append(container);
-		render(accountRoot('Ada', 'must-never-appear'), container);
-		await installation.hook.connect();
-
-		const tree = await installation.hook.request({
-			protocol: 1,
-			id: 'tree',
-			method: 'components.tree'
-		});
-		expect(JSON.stringify(tree)).not.toContain('must-never-appear');
-		expect(JSON.stringify(tree)).toContain('"reason":"secret"');
-		expect(JSON.stringify(tree)).toContain('Ada');
-	});
-
-	it('automatically applies compiler-emitted redaction selectors', async () => {
-		(globalThis as any)[exactDevtoolsRuntimeSymbol] = {
+	it('ignores obsolete redaction metadata in older client artifacts', async () => {
+		(globalThis as any)[legacyRuntimeSymbol] = {
 			sources: [
 				{
 					protocol: 1,
@@ -169,8 +145,8 @@ describe('page-world eXact DevTools runtime', () => {
 			id: 'tree-compiler-redaction',
 			method: 'components.tree'
 		});
-		expect(JSON.stringify(tree)).not.toContain('compiler-secret-value');
-		expect(JSON.stringify(tree)).toContain('"reason":"secret"');
+		expect(JSON.stringify(tree)).toContain('compiler-secret-value');
+		expect(JSON.stringify(tree)).not.toContain('"reason":"secret"');
 		expect(JSON.stringify(tree)).toContain('Grace');
 	});
 
@@ -183,7 +159,7 @@ describe('page-world eXact DevTools runtime', () => {
 		document.body.append(container);
 		render(counterRoot(), container, { inspection: owner });
 
-		(globalThis as any)[exactDevtoolsRuntimeSymbol] = {
+		(globalThis as any)[legacyRuntimeSymbol] = {
 			sources: [
 				{
 					protocol: 1,

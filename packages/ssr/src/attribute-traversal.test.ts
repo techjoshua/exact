@@ -1,3 +1,4 @@
+import { compiledElementIdentity } from '@exactjs/core/runtime/component-operations';
 import { runInNewContext } from 'node:vm';
 import { describe, expect, it, vi } from 'vitest';
 import {
@@ -207,7 +208,7 @@ describe('SSR attribute traversal', () => {
 	});
 
 	it('uses static compiler identity only until a semantic target changes the prop bag', () => {
-		const props = { 'data-exact-id': 'row-1', className: 'incident' };
+		const props = { [compiledElementIdentity]: 'row-1', className: 'incident' };
 		const staticRoot = [
 			' data-exact-id="row-1"',
 			['data-exact-id'],
@@ -223,7 +224,7 @@ describe('SSR attribute traversal', () => {
 			]
 		} as unknown as SsrContext;
 		expect(renderSsrRootAttributes(context, props, 'button', staticRoot)).toBe(
-			' data-exact-id="row-1" class="incident a&quot;b" aria-label="incident"'
+			' class="incident a&quot;b" aria-label="incident" data-exact-id="row-1"'
 		);
 	});
 });

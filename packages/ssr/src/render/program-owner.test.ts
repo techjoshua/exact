@@ -1,4 +1,4 @@
-import { createPreparedServerComponentReference } from '@exactjs/core/framework/server-render-structure';
+import { createPreparedServerComponentInputReference } from '@exactjs/core/framework/server-render-structure';
 import { expect, it } from 'vitest';
 import { renderChildren } from './children.js';
 import { createSsrContext } from './context.js';
@@ -7,7 +7,6 @@ import {
 	readProgramOwners,
 	resetProgramOwners
 } from './program-owner.fixtures.test.js';
-
 it.each([false, true])(
 	'isolates component owners across suspended requests and sink rejection=%s',
 	async (rejectSink) => {
@@ -34,7 +33,7 @@ it.each([false, true])(
 			const rendered = Promise.resolve().then(() =>
 				renderChildren(
 					context,
-					[createPreparedServerComponentReference(ProgramOwnerTree, { name })],
+					[createPreparedServerComponentInputReference(ProgramOwnerTree, { name })],
 					undefined,
 					options
 				)

@@ -82,6 +82,7 @@ func (lowering *jsxLowering) captureMutationResultTypes() {
 		if source == nil || ast.NodeIsSynthesized(source) || source.Parent == nil {
 			continue
 		}
+		lowering.captureMutationTemporaryTypes(source)
 		var target *ast.Node
 		if ast.IsBinaryExpression(source) {
 			target = source.AsBinaryExpression().Left
@@ -127,4 +128,46 @@ func (lowering *jsxLowering) contextualAssignmentValue(value *ast.Node, write St
 		return value
 	}
 	return lowering.factory.NewSatisfiesExpression(lowering.factory.NewParenthesizedExpression(value), typeNode)
+}
+
+// captureNativeMutationReferenceTypes retains the destination's assignability type, not its default.
+// All receiver/key facts are sealed with the existing mutation handoff before parent links change.
+func (lowering *jsxLowering) captureNativeMutationReferenceTypes(target *ast.Node) {
+	plan := mutationOperationPlan{target: target}
+	receiver, key, computed := plan.reference()
+	span := nodeSourceSpan(target)
+	lowering.mutationFacts.capture(span, mutationTypeDestination, lowering.authoredMutationType(target))
+	lowering.mutationFacts.capture(span, mutationTypeNativeParent, lowering.authoredMutationType(receiver))
+	var keyType *ast.Node
+	if computed {
+		keyType = lowering.authoredMutationType(key)
+	} else {
+		keyType = lowering.factory.NewLiteralTypeNode(lowering.factory.NewStringLiteral(key.Text(), ast.TokenFlagsNone))
+	}
+	lowering.mutationFacts.capture(span, mutationTypeNativeKey, keyType)
+}
+
+// captureMutationTemporaryTypes retains only selected-write storage demands while
+// the checker still owns their lexical parents. Pending reads keep a separate slot
+// because their full annotations and executable temporary portability differ.
+func (lowering *jsxLowering) captureMutationTemporaryTypes(source *ast.Node) {
+	plan := planMutationOperation(source)
+	receiver, key, computed := plan.reference()
+	if receiver == nil || plan.kind == mutationRead {
+		return
+	}
+	nodes := []*ast.Node{source, plan.target, receiver}
+	if computed {
+		nodes = append(nodes, key)
+	}
+	for _, node := range nodes {
+		span := nodeSourceSpan(node)
+		if lowering.mutationFacts.at(span).temporary != nil {
+			continue
+		}
+		if typeNode := authoredTaskCaptureType(node, lowering.checker); typeNode != nil {
+			lowering.mutationFacts.capture(span, mutationTypeTemporary, typeNode)
+			lowering.mutationFacts.captureTemporaryLexical(span, lowering.captureTemporaryLexicalFact(node, typeNode))
+		}
+	}
 }

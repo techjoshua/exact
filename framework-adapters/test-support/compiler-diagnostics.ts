@@ -1,3 +1,15 @@
+import {
+	verifyNumberModuleProjection,
+	verifyForeignNumberModuleProjection
+} from './number-module-projection-contract.js';
+import { verifyComponentChildInputContract } from './component-child-input-contract.js';
+import { verifyNestedForwardingContract } from './nested-forwarding-contract.js';
+import { verifySymbolStateContract } from './symbol-state-contract.js';
+import { verifyArrayCompletionContract } from './array-completion-contract.js';
+import { verifyHostSelectedHelperContract } from './host-selected-helper-contract.js';
+import { verifyLibrarySelectionEvidenceContract } from './library-selection-evidence-contract.js';
+import { verifyCallablePropertyContract } from './callable-property-contract.js';
+import { verifyDetachedServerAdvisory } from './task-advisory-contract.js';
 import { verifyRecursiveContextContract } from './recursive-context-contract.js';
 import { verifyFormSourceContract } from './form-source-contracts.js';
 import { verifyCollectionSourceContract } from './collection-source-contracts.js';
@@ -14,7 +26,18 @@ const workspace = fileURLToPath(new URL('../../', import.meta.url));
 
 /** Independent diagnostic boundaries keep adapter failures and execution deadlines local. */
 export const compilerDiagnosticContracts = [
+	'Number module target projection',
+	'Number foreign coercion target projection',
 	'imported helpers',
+	'reserved element identity',
+	'host-selected helper publication',
+	'Array completion publication',
+	'nested prop forwarding',
+	'component child inputs',
+	'symbol state snapshot',
+	'callable property effects',
+	'library selection evidence',
+	'detached server advisory',
 	'state patterns',
 	'secret aliases',
 	'secret receipts',
@@ -37,7 +60,7 @@ export const compilerDiagnosticContracts = [
 	'recursive helper contexts'
 ] as const;
 
-/** Builds one diagnostic boundary through both targets, including its valid correction. */
+/** Builds one diagnostic or behavior boundary using its owned target and correction. */
 export async function verifyCompilerDiagnostics(
 	adapter: 'vite' | 'webpack' | 'bun',
 	contract: (typeof compilerDiagnosticContracts)[number]
@@ -71,6 +94,17 @@ export async function verifyCompilerDiagnostics(
 		]);
 		if (contract !== 'imported helpers') {
 			const checks = {
+				'Number module target projection': verifyNumberModuleProjection,
+				'reserved element identity': verifyReservedElementIdentityBuild,
+				'Number foreign coercion target projection': verifyForeignNumberModuleProjection,
+				'host-selected helper publication': verifyHostSelectedHelperContract,
+				'Array completion publication': verifyArrayCompletionContract,
+				'nested prop forwarding': verifyNestedForwardingContract,
+				'component child inputs': verifyComponentChildInputContract,
+				'symbol state snapshot': verifySymbolStateContract,
+				'callable property effects': verifyCallablePropertyContract,
+				'library selection evidence': verifyLibrarySelectionEvidenceContract,
+				'detached server advisory': verifyDetachedServerAdvisory,
 				'state patterns': verifyDestructuredStateBuild,
 				'secret aliases': verifySecretAliasBuild,
 				'secret receipts': verifyDeclaredSecretReceipt,
@@ -630,4 +664,30 @@ async function verifyComponentOwnerHelper(adapter: 'vite' | 'webpack' | 'bun', r
 		`import type {Component} from '@exactjs/core';import {Scope,read} from './helper.js';export function Page(this:Component<{}>){this.setContext(Scope,'helper');return()=> <p>{read(this)}</p>;}`
 	);
 	for (const target of ['client', 'server'] as const) await build(adapter, root, target);
+}
+
+/** Keeps the native reserved identity contract consistent through all adapter build hooks. */
+async function verifyReservedElementIdentityBuild(
+	adapter: 'vite' | 'webpack' | 'bun',
+	root: string
+) {
+	for (const target of ['client', 'server'] as const) {
+		await writeFile(
+			path.join(root, 'entry.tsx'),
+			'export function Page(){return()=> <select {...({"DATA-EXACT-ID":"authored"} as {})}><option>Go</option></select>}'
+		);
+		let failure: unknown;
+		try {
+			await build(adapter, root, target);
+		} catch (error) {
+			failure = error;
+		}
+		assert.ok(failure, `${adapter}/${target} accepted authored physical identity`);
+		assert.ok(String(failure).includes('data-exact-id is compiler-owned'), String(failure));
+		await writeFile(
+			path.join(root, 'entry.tsx'),
+			'export function Page(props:{bag:Record<string,unknown>}){return()=> <button {...(props.bag as {})} data-testid="action" onClick={()=>{}}>Go</button>}'
+		);
+		await build(adapter, root, target);
+	}
 }

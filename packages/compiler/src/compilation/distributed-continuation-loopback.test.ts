@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  */
 import { type AnyComponentFunction } from '@exactjs/core';
-import { createCompiledComponentReceipt } from '@exactjs/core/runtime/component-operations';
+import { createCompiledComponentInputReceipt } from '@exactjs/core/runtime/component-operations';
 import '@exactjs/core/runtime/refs';
 import { composeExactComponentContracts } from '@exactjs/core/framework/component-contracts';
 import { render, unmount } from '@exactjs/dom';
@@ -26,8 +26,7 @@ import path from 'node:path';
 import { describe, expect, it, vi, onTestFinished } from 'vitest';
 import { compileFileArtifacts } from '../index.js';
 import { importArtifact } from '../test-support/import-artifact.js';
-import { createTestWorkspace } from '../test-support/workspace.js';
-
+import { createCompilerTestWorkspace } from '../test-support/workspace.js';
 describe('@exactjs/compiler distributed continuation loopback', () => {
 	it.each([
 		{ invocation: 'optimistic()', clientEffect: false },
@@ -51,7 +50,7 @@ describe('@exactjs/compiler distributed continuation loopback', () => {
 			clientEffect: true
 		}
 	])('preserves capability ownership for $invocation', async ({ invocation, clientEffect }) => {
-		const root = await createTestWorkspace('.exact-optimistic-name-', process.cwd());
+		const root = await createCompilerTestWorkspace('.exact-optimistic-name-', process.cwd());
 		const source = path.join(root, 'page.tsx');
 		await writeFile(
 			path.join(root, 'helper.ts'),
@@ -87,11 +86,13 @@ export function Page(this:Component<{value:string}>){
 			invocations: {},
 			logger: { log() {} }
 		};
-		const rendered = await renderToHydratableString(createCompiledComponentReceipt(ServerPage, {}));
+		const rendered = await renderToHydratableString(
+			createCompiledComponentInputReceipt(ServerPage, {})
+		);
 		const container = document.createElement('div');
 		container.innerHTML = rendered.html;
 		const reports: unknown[] = [];
-		const client = hydrate(createCompiledComponentReceipt(ClientPage, {}), container, {
+		const client = hydrate(createCompiledComponentInputReceipt(ClientPage, {}), container, {
 			...composeExactComponentContracts([ClientPage], 'client'),
 			resumptions: rendered.resumptions,
 			onMismatch: 'throw',
@@ -122,13 +123,12 @@ export function Page(this:Component<{value:string}>){
 		}
 		expect(reports).toEqual([]);
 	});
-
 	it.each([
 		"const local='public'; task.optimistic(()=>this.state.value=local)",
 		"const {value:local}={value:'public'}; const alias=task; alias.optimistic(()=>this.state.value=local)",
 		"const callback=()=>{this.state.value='public';}; task.optimistic(callback)"
 	])('diagnoses server-task locals unavailable to the optimistic prelude: %s', async (body) => {
-		const root = await createTestWorkspace('.exact-optimistic-capture-', process.cwd());
+		const root = await createCompilerTestWorkspace('.exact-optimistic-capture-', process.cwd());
 		const source = path.join(root, 'page.tsx');
 		await writeFile(
 			source,
@@ -141,9 +141,11 @@ return()=> <button onClick={()=>load()}>{this.state.value}</button>;}`
 			/EXACT2001:.*optimistic callback cannot capture a server-task local/u
 		);
 	});
-
 	it('diagnoses optimistic extraction hidden inside server control flow', async () => {
-		const root = await createTestWorkspace('.exact-optimistic-control-flow-', process.cwd());
+		const root = await createCompilerTestWorkspace(
+			'.exact-optimistic-control-flow-',
+			process.cwd()
+		);
 		const source = path.join(root, 'page.tsx');
 		await writeFile(
 			source,
@@ -156,7 +158,6 @@ return()=> <button onClick={()=>load()}>{this.state.value}</button>;}`
 			/EXACT2001:.*must be a direct statement/u
 		);
 	});
-
 	it.each([false, true])(
 		'keeps credentials out of generated task request and response bytes (batch: %s)',
 		async (batch) => {
@@ -166,7 +167,7 @@ return()=> <button onClick={()=>load()}>{this.state.value}</button>;}`
 			onTestFinished(() => {
 				vi.unstubAllGlobals();
 			});
-			const root = await createTestWorkspace('.exact-secret-loopback-', process.cwd());
+			const root = await createCompilerTestWorkspace('.exact-secret-loopback-', process.cwd());
 			const source = path.join(root, 'page.tsx');
 			await writeFile(
 				source,
@@ -193,14 +194,14 @@ return()=> <button onClick={()=>load()}>{this.state.value}</button>;}`
 			const contract = composeExactExecutorContract([ServerPage], { endpoint: '/__exact' });
 			const server: ExactServerContext = { contract, invocations: {}, logger: { log() {} } };
 			const rendered = await renderToHydratableString(
-				createCompiledComponentReceipt(ServerPage, {})
+				createCompiledComponentInputReceipt(ServerPage, {})
 			);
 			expect(JSON.stringify(rendered)).not.toContain(credential);
 			const container = document.createElement('main');
 			container.innerHTML = rendered.html;
 			const requestBytes: string[] = [];
 			const responseBytes: string[] = [];
-			const client = hydrate(createCompiledComponentReceipt(ClientPage, {}), container, {
+			const client = hydrate(createCompiledComponentInputReceipt(ClientPage, {}), container, {
 				...registration,
 				resumptions: rendered.resumptions,
 				endpoint: '/__exact',
@@ -241,11 +242,10 @@ return()=> <button onClick={()=>load()}>{this.state.value}</button>;}`
 			expect(readCredential).toHaveBeenCalledTimes(2);
 		}
 	);
-
 	it.each([false, true])(
 		'propagates generated server rejection and permits recovery (batch: %s)',
 		async (batch) => {
-			const root = await createTestWorkspace('.exact-rejection-loopback-', process.cwd());
+			const root = await createCompilerTestWorkspace('.exact-rejection-loopback-', process.cwd());
 			const source = path.join(root, 'page.tsx');
 			await writeFile(
 				source,
@@ -274,11 +274,11 @@ return()=> <button onClick={()=>load()}>{this.state.value}</button>;}`
 			const logger = { log() {} };
 			const server: ExactServerContext = { contract, invocations: {}, logger };
 			const rendered = await renderToHydratableString(
-				createCompiledComponentReceipt(ServerPage, {})
+				createCompiledComponentInputReceipt(ServerPage, {})
 			);
 			const container = document.createElement('main');
 			container.innerHTML = rendered.html;
-			const client = hydrate(createCompiledComponentReceipt(ClientPage, {}), container, {
+			const client = hydrate(createCompiledComponentInputReceipt(ClientPage, {}), container, {
 				...registration,
 				resumptions: rendered.resumptions,
 				endpoint: '/__exact',
@@ -309,9 +309,8 @@ return()=> <button onClick={()=>load()}>{this.state.value}</button>;}`
 			}
 		}
 	);
-
 	it('resumes compiled SSR work and advances the server task after a client change', async () => {
-		const root = await createTestWorkspace('.exact-continuation-loopback-', process.cwd());
+		const root = await createCompilerTestWorkspace('.exact-continuation-loopback-', process.cwd());
 		const sourceRoot = path.join(root, 'src');
 		const generatedRoot = path.join(root, 'generated');
 		const source = path.join(sourceRoot, 'search.tsx');
@@ -338,7 +337,7 @@ return()=> <button onClick={()=>load()}>{this.state.value}</button>;}`
 			invocations: {}
 		};
 		const rendered = await renderToHydratableString(
-			createCompiledComponentReceipt(ServerSearch, {}),
+			createCompiledComponentInputReceipt(ServerSearch, {}),
 			{
 				endpoint: '/__exact',
 				continuations: clientContracts.continuations,
@@ -358,7 +357,7 @@ return()=> <button onClick={()=>load()}>{this.state.value}</button>;}`
 		container.innerHTML = rendered.htmlWithHydration;
 		const serverOutput = container.querySelector('output');
 		const serverStatus = container.querySelector('[data-status]');
-		const client = hydrate(createCompiledComponentReceipt(ClientSearch, {}), container, {
+		const client = hydrate(createCompiledComponentInputReceipt(ClientSearch, {}), container, {
 			endpoint: '/__exact',
 			buildKey: 'loopback-build',
 			batch: false,
@@ -374,18 +373,15 @@ return()=> <button onClick={()=>load()}>{this.state.value}</button>;}`
 			}
 		});
 		await client.whenSettled();
-
 		expect(container.innerHTML).toContain('FIRST');
 		expect(container.querySelector('output')?.textContent).toBe('FIRST');
 		expect(container.querySelector('output')).toBe(serverOutput);
 		expect(container.querySelector('[data-status]')).toBe(serverStatus);
 		expect(serverStatus?.textContent).toBe('FIRST');
 		expect(requests).toHaveLength(0);
-
 		container.querySelector('button')!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 		await vi.waitFor(() => expect(requests).toHaveLength(1));
 		await client.whenSettled();
-
 		expect(container.querySelector('output')?.textContent).toBe('SECOND');
 		expect(container.querySelector('[data-status]')?.textContent).toBe('SECOND');
 		expect(requests[0]).toMatchObject({
@@ -395,9 +391,8 @@ return()=> <button onClick={()=>load()}>{this.state.value}</button>;}`
 		});
 		client.dispose();
 	});
-
 	it('routes compiled server tasks through the client owned by each hidden root', async () => {
-		const root = await createTestWorkspace('.exact-hidden-root-loopback-', process.cwd());
+		const root = await createCompilerTestWorkspace('.exact-hidden-root-loopback-', process.cwd());
 		const billing = await compileRemoteTask(root, 'billing');
 		const branding = await compileRemoteTask(root, 'branding');
 		const buildKey = '0123456789abcdef0123456789abcdef01234567';
@@ -501,7 +496,6 @@ return()=> <button onClick={()=>load()}>{this.state.value}</button>;}`
 				);
 			});
 			exchanges.length = 0;
-
 			click(container, '[data-task="billing"]');
 			click(container, '[data-task="branding"]');
 			await vi.waitFor(() => {
@@ -543,9 +537,7 @@ return()=> <button onClick={()=>load()}>{this.state.value}</button>;}`
 		}
 	});
 });
-
 const RemoteComponent = markTestComponent(RemoteComponentDefinition);
-
 async function compileRemoteTask(root: string, name: string) {
 	const sourceRoot = path.join(root, name, 'src');
 	const generatedRoot = path.join(root, name, 'generated');
@@ -579,7 +571,6 @@ async function compileRemoteTask(root: string, name: string) {
 		serverContract
 	};
 }
-
 function remoteServer(
 	fixture: Awaited<ReturnType<typeof compileRemoteTask>>,
 	buildKey: string
@@ -600,7 +591,6 @@ function remoteServer(
 		authorize: () => true
 	};
 }
-
 /** Bundles one generated target while retaining the workspace runtime as shared package imports. */
 /** Reads one expected generated component export without coupling to its private descriptor. */
 function componentExport(module: Record<string, unknown>, name: string): AnyComponentFunction {
@@ -609,7 +599,6 @@ function componentExport(module: Record<string, unknown>, name: string): AnyComp
 		throw new Error(`Missing generated component export ${name}`);
 	return component as AnyComponentFunction;
 }
-
 /** Adapts the browser transport directly to the runtime-neutral server request handler. */
 function loopbackFetch(server: ExactServerContext, requests: ExactInvocationRequest[]): FetchLike {
 	return async (input, init) => {
@@ -628,7 +617,6 @@ function loopbackFetch(server: ExactServerContext, requests: ExactInvocationRequ
 		return responseLike(response);
 	};
 }
-
 function responseLike(response: ExactResponseLike): Awaited<ReturnType<FetchLike>> {
 	return {
 		ok: response.status >= 200 && response.status < 300,
@@ -647,7 +635,6 @@ function responseLike(response: ExactResponseLike): Awaited<ReturnType<FetchLike
 		}
 	};
 }
-
 function click(container: Element, selector: string): void {
 	const element = container.querySelector(selector);
 	if (!(element instanceof HTMLElement)) throw new Error(`Missing ${selector}`);

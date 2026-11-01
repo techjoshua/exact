@@ -1,10 +1,17 @@
 import type { RouteLocation } from '../core.js';
+import { isAbsoluteDestination } from '../core/url-destinations.js';
 
 /** A navigation destination represented as a URL string or location fields. */
 export type To = string | Partial<Pick<RouteLocation, 'pathname' | 'search' | 'hash'>>;
 
 type RouteRelativeSnapshot = Readonly<{
-	matches: readonly Readonly<{ id: string; pathnameBase: string }>[];
+	location: Readonly<{ pathname: string }>;
+	matches: readonly Readonly<{
+		id: string;
+		pathname: string;
+		pathnameBase: string;
+		route: Readonly<{ path?: string }>;
+	}>[];
 }>;
 
 /** Creates URL search parameters while preserving repeated record values. */
@@ -31,18 +38,8 @@ export function createPath(
 	value: Partial<Pick<RouteLocation, 'pathname' | 'search' | 'hash'>>
 ): string {
 	const pathname = value.pathname || '/';
-	const search =
-		value.search && value.search !== '?'
-			? value.search.startsWith('?')
-				? value.search
-				: `?${value.search}`
-			: '';
-	const hash =
-		value.hash && value.hash !== '#'
-			? value.hash.startsWith('#')
-				? value.hash
-				: `#${value.hash}`
-			: '';
+	const search = pathSuffix(value.search, '?');
+	const hash = pathSuffix(value.hash, '#');
 	return `${pathname}${search}${hash}`;
 }
 
@@ -71,15 +68,19 @@ export function resolvePath(
 	fromPathname = '/'
 ): Pick<RouteLocation, 'pathname' | 'search' | 'hash'> {
 	const value = typeof to === 'string' ? parsePath(to) : to;
-	const pathname = value.pathname
-		? value.pathname.startsWith('/')
-			? value.pathname
-			: new URL(
-					value.pathname,
-					`http://exact.local${fromPathname.endsWith('/') ? fromPathname : `${fromPathname}/`}`
-				).pathname
-		: fromPathname;
-	return { pathname, search: value.search ?? '', hash: value.hash ?? '' };
+	let pathname = fromPathname;
+	if (value.pathname) {
+		const parts = value.pathname.startsWith('/')
+			? ['']
+			: fromPathname.replace(/\/+$/, '').split('/');
+		for (const segment of value.pathname.replace(/\/{2,}/g, '/').split('/')) {
+			if (segment === '..') {
+				if (parts.length > 1) parts.pop();
+			} else if (segment !== '.' && !(segment === '' && parts.length === 1)) parts.push(segment);
+		}
+		pathname = parts.join('/') || '/';
+	}
+	return { pathname, search: pathSuffix(value.search, '?'), hash: pathSuffix(value.hash, '#') };
 }
 
 /** Serializes a partial location, using `/` for an entirely empty location. */
@@ -95,7 +96,9 @@ export function toNavigationValue(to: To): string {
 }
 
 /**
- * Resolves route-relative `.` and `..` segments against matched route bases.
+ * Resolves destinations against the owning route. Route-relative parents skip pathless and index
+ * matches, while path-relative parents remove URL segments. Query-only and fragment-only
+ * destinations retain the current pathname. Object destinations are never mutated.
  */
 export function resolveRouteRelativeTo(
 	to: To,
@@ -103,28 +106,41 @@ export function resolveRouteRelativeTo(
 	routeId: string | undefined,
 	relative: 'route' | 'path' | undefined
 ): string {
-	const value = toNavigationValue(to);
+	if (typeof to === 'string' && isAbsoluteDestination(to)) return to;
+	const value = typeof to === 'string' ? parsePath(to) : { ...to };
+	const empty = to === '' || value.pathname === '';
+	let base = snapshot.location.pathname;
+	if (value.pathname !== undefined || empty) {
+		let index =
+			routeId === undefined
+				? snapshot.matches.length - 1
+				: snapshot.matches.findIndex((match) => match.id === routeId);
+		while (index > 0 && !snapshot.matches[index]!.route.path) index--;
+		const owner = index;
+		const segments = (value.pathname ?? '').split('/');
+		let parents = 0;
+		if (relative !== 'path')
+			while (segments[parents] === '..') {
+				do {
+					index--;
+				} while (index > 0 && !snapshot.matches[index]!.route.path);
+				parents++;
+			}
+		value.pathname = segments.slice(parents).join('/');
+		const match = snapshot.matches[index];
+		base = match ? (index === owner ? match.pathname : match.pathnameBase) : '/';
+	}
+	const resolved = resolvePath(value, base);
 	if (
-		relative === 'path' ||
-		value.startsWith('/') ||
-		/^[a-z][a-z\d+.-]*:/i.test(value) ||
-		!routeId
-	) {
-		return value;
-	}
+		!resolved.pathname.endsWith('/') &&
+		((value.pathname?.endsWith('/') && value.pathname !== '/') ||
+			((empty || value.pathname === '.') && snapshot.location.pathname.endsWith('/')))
+	)
+		resolved.pathname += '/';
+	return createPath(resolved);
+}
 
-	const parts = value.split('/');
-	let parents = 0;
-	while (parts[0] === '..') {
-		parents++;
-		parts.shift();
-	}
-	if (!parents && parts[0] !== '.') return value;
-	if (parts[0] === '.') parts.shift();
-
-	const currentIndex = snapshot.matches.findIndex((match) => match.id === routeId);
-	const targetIndex = Math.max(0, currentIndex - parents);
-	const base = snapshot.matches[targetIndex]?.pathnameBase ?? '/';
-	if (!parts.length) return base || '/';
-	return `${base.replace(/\/$/, '')}/${parts.join('/')}`.replace(/\/{2,}/g, '/') || '/';
+/** Normalizes one optional URL suffix without changing its contents. */
+function pathSuffix(value: string | undefined, prefix: '?' | '#'): string {
+	return !value || value === prefix ? '' : value.startsWith(prefix) ? value : prefix + value;
 }

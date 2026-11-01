@@ -135,6 +135,7 @@ export class ExactViteTestHelperTargets {
 		// Vitest's SSR transport runs browser tests too. It does not choose the
 		// component artifact target. Explicit server helpers are planned below.
 		let target =
+			exactTestModuleTarget(id, this.options) ??
 			inheritedTarget ??
 			(this.options.serverExecutionReason === 'server-test'
 				? exactTransformTarget(this.options)

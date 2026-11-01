@@ -2,6 +2,66 @@
 
 Status: implemented foundation with the explicit limits listed below.
 
+Rendering has no automatic wall-clock deadline. Pass a request-owned `signal` to cancel
+rendering and its owned tasks. Applications choose expiration policy, such as
+`AbortSignal.timeout(durationMs)` for a particular page or an `AbortController` aborted
+under load. Composed server handlers combine this signal with request disconnection and
+runtime shutdown, so a render-specific policy cannot extend request ownership. Forward
+task signals to data clients to cancel their underlying I/O too.
+
+Rendered markup has no default byte, chunk, or stream-event quota. A long response can
+continue as its consumer reads it. Streaming still applies backpressure and releases
+request-owned work on cancellation. When a page needs an output ceiling, set
+`maxOutputBytes` for its rendered markup. Use `maxStreamBytes`, `maxStreamChunks` (plain
+HTML), or `maxStreamEvents` (document events and progressive HTML) to cap the corresponding
+transport output. These explicit caps reject output that exceeds them.
+
+Tree width has no default render-value quota. Set `maxTreeNodes` when the application
+needs a ceiling on the number of visited operations and scalar children. The nesting-depth
+guard remains in place because the renderer still uses recursive traversal.
+
+DOM mounting uses a separate update-scoped work counter. A newly mounted intrinsic or
+compiler-closed render program charges its root before allocation. A render program also
+charges its remaining compiler-proven work without walking the static DOM. Retaining an
+unchanged static program does not require that walk again. DOM limits and a hydration-shared
+work budget still apply to work performed during mounting and adoption.
+
+Native HTML `template` descendants use the element’s `content` fragment during mounting,
+adoption, and updates. The template element retains root and ref identity. Ordinary elements
+and foreign-namespace elements named `template` keep their usual child container. Disposal
+releases descendant scopes and refs without requiring an extra scan of inert template content.
+
+Output size is separate from retained hydration configuration, incoming boundary snapshots,
+nesting depth, and task stabilization. Those paths retain their documented limits.
+
+Result arrays, including preload links and hydration field names, follow TypeScript's
+compile-time readonly rules. A writable alias can edit its response metadata. Such edits
+do not change the private schemas used by later responses.
+
+Controlled selects serialize their current value as selected option state, including literal
+values, context-derived values, and multiple selections. The compiler retains the select and
+option intrinsic relationship on both targets. The containing subtree uses the same intrinsic
+projection so a client program cannot expect indexed child ranges from ordinary server output.
+Even a literal select value reaches the property writer because HTML has no equivalent select
+value attribute. Physical option changes
+reconcile the already evaluated value after their owning placement commits. Hydration distinguishes
+browser default selection from an actual user edit and preserves only the latter.
+
+## Intrinsic ref identity
+
+For a compiler-owned inner attribute bag with an observable ref, SSR prepares its effective
+ref and ID before serializing lazy relationship children. A valid authored ID, including one
+selected by ordinary spread precedence, is adopted. When the ID is undefined, the existing
+ref capability reserves an ID. Ref and ID values are read once on this path, while other
+attributes retain their ordinary serialization timing. Root attribute composition keeps its
+existing owner. A scalar relationship ID already evaluated during authored value issuance
+is an ordinary scalar and is not retroactively updated by later preparation.
+
+This preparation extends the emitted render-program operation contract. Render-program version 4 requires matching
+compiler, core, and SSR providers. Generated writers assert the SSR provider version before
+preparation and output. Older render-program contracts are rejected, including a new-core
+and old-SSR combination.
+
 ## Composable document shells
 
 Use `Document` from `@exactjs/core/document` to fill missing document structure while retaining
@@ -39,7 +99,9 @@ configuration forwards the hook to its rendering configuration.
 The Node adapter's `createNodeRenderScheduler({ maxBatchSize: 32 })` returns a gate suitable
 for sharing across a host's requests. It prefers `node:timers/promises`'s `scheduler.yield()`
 and falls back to `setImmediate` when yield is unavailable. Each batch releases at most the
-configured number of starts. Queued cancellation rejects with the original signal reason and
+configured number of starts. Queued cancellation rejects with the original signal reason, including null. Component
+work checks cancellation again after its concurrency permit is granted, before starting.
+Canceled work releases that permit for the next request. Queued cancellation also
 removes its continuation. Fully canceled batches release their request references immediately;
 the immediate fallback also cancels its callback. A pending yield cannot itself be canceled,
 but its eventual settlement has no canceled requests to release. Yield failures reject waiting
@@ -178,9 +240,17 @@ child range publishes its items into that range on both targets; it must not add
 boundary. This also applies to head content that uses intrinsic receipts rather than render programs.
 Native list adoption compares compiler
 identities using the same HTML-comment encoding as SSR, including identities containing consecutive
-hyphens. The encoded marker is transport syntax, not a different list identity; mismatched identities
-still reject adoption. Progressive HTML publishes the rendered
-document through its body content before constructing the hydration payload, then emits hydration
+hyphens. Empty data uses the `~` token and decodes to an empty string. Literal escape-looking
+keys have their own encoded tokens, preserving their identities. The encoded marker is transport
+syntax, not a different list identity. Mismatched identities still reject adoption.
+List patch readers accept current compact item markers and retained legacy markers. They compare
+raw patch keys against canonical encoded marker keys, including empty insertion and ordering keys.
+The complete key transition sequence and each inserted item fragment are validated before mutation.
+Nested keyed receipts retain their own item scope and do not become members of the outer list.
+Removing a list item retires its complete marker range, allowing the same key to be inserted again
+and used by the next interaction.
+
+Progressive HTML publishes the rendered document through its body content before constructing the hydration payload, then emits hydration
 inside the reserved framework region and closes the body and HTML elements. Both readable streams
 and produced responses honor backpressure between these publications. This permits resource discovery
 before hydration delivery. A completed head can commit before pending descendant body work.
@@ -212,8 +282,19 @@ length metadata without inspecting accumulated characters. Completion includes l
 times the UTF-16 length fits the byte limit, the UTF-8 upper bound proves acceptance without encoding;
 otherwise completion checks the exact UTF-8 size, including cross-write surrogate pairs. Head and await
 flush signals are no-ops for this sink because its result is a complete string. Completion, failure,
-and cancellation release retained references. Suspense attempts capture their local output before
-committing a result. Progressive documents select a streaming destination. Its body flush threshold
+and cancellation release retained references. An aborted signal preserves its exact reason,
+including `null`, in native HTML and document stream read failures. Suspense attempts capture their local output before
+committing a result. Readiness cancellation and generation cleanup attempt every registration even
+when one callback fails. Asynchronous publication failures reject readiness consumers and remain
+bound to that generation. A new generation can proceed independently. Structural logical owners
+release their unmount registrations exactly once. Failed SSR candidates preserve their render
+error while releasing readiness and logical ownership.
+DOM Activity and Suspense publication errors reach the owning component error context. A failed
+Activity candidate remains detached, and replacing its boundary releases the candidate.
+Generation replacement advances identity before invoking discard callbacks, so newly registered
+work can settle in the new generation. Readiness notifications recheck pending work after their
+callbacks, and pending counts update directly on registration, settlement, and cancellation.
+Progressive documents select a streaming destination. Its body flush threshold
 is `streamBufferSize` UTF-8 bytes (default 8192, a positive safe integer). A complete accepted span
 can exceed the threshold; the sink flushes the buffer plus that span instead of splitting ordinary
 writes into many transport calls. The destination retains a small closing-tag lookbehind and never
@@ -292,13 +373,52 @@ before hydrated output is consumed. Output extensions can replace markup, so the
 foreign string results still use content-based slot detection. Explicit slots retain their original
 placement, and public plain HTML never exposes the hydration marker.
 
+Ordinary JSON records retain their fields even when `$exact` contains `map`, `set`, or
+`keyed-collection`. Reactive protocol encoding escapes those records inside the existing map
+namespace using a `record` list of string-keyed pairs. Other tag values and invisible marker
+properties keep their ordinary JSON representation. Single, batch and streamed invocation responses
+decode each wire value once, then validate the decoded result without reconstructing its collections
+or reinterpreting literal collection tags. Native collection envelopes remain version
+one with their existing fields. Record decoding requires exact fields, dense own rows and unique
+string keys, then defines properties as data so `__proto__` cannot change the target prototype.
+
+The shared codec preserves own `undefined` values, `NaN`, `Infinity`, `-Infinity`, and `-0`
+in document state, positional fields, island props, and invocation values. These constants use
+validated capsules in the existing map namespace. Constant-shaped application records are escaped
+as literal records, so an authored string such as `"undefined"` never becomes a constant. Map keys
+retain their existing null, boolean, finite-number, and string restrictions. Sparse array holes
+retain their JSON null representation. State patches re-encode decoded values before storing
+`data-exact-state`, preserving constants and collections for subsequent protocol readers. Property
+and state patches require an own `value` field. An owned `undefined` is supported, while a missing
+field is malformed.
+
+Continuation responses carry performed property deletes separately from partial state values.
+Only exact compiler-authorized state paths can be deleted. Missing fields in a partial state
+response are not deletion instructions. The server recorder follows owned task-frame ancestry
+and closes before projection, including on failure or cancellation. Detached work and independent
+invocation roots cannot borrow another capture. Client validation rejects malformed or unauthorized
+deletions before state, contexts, collection deltas, or DOM changes publish. Snapshot planning copies
+ancestors, while live commits retain reactive receiver identity and array length. Value-only
+inputs capture absent leaves as undefined without creating those properties in client state.
+Complete enclosing reads supersede leaf reads so their snapshot preserves property presence.
+
+The validated serializer records only original values that need transport encoding. It normalizes
+reactive proxy identity for both cache insertion and lookup, preserving tagged values nested in
+keyed arrays. Synthetic envelopes are not quoted again. When replacements exist, the existing
+JSON replacer also counts emitted values and tracks container depth. Graph limits therefore reject
+expanded output before publication. The common path without replacements uses direct JSON
+serialization. Byte limits continue to measure the finalized encoded string. Generic island and prepared
+resumption payloads also validate the encoded graph before returning their JSON, so keyed
+metadata cannot turn an accepted source graph into an unreadable browser payload.
+
 Hydration validation keeps shallow active ancestry in a request-local stack, promoting it to a
 native `Set` at 16 active containers. Only the active path participates in cycle detection; shared
 sibling references remain valid. Promotion preserves every active ancestor. Initial version-one
 generated projectors use only the tracker's `has`, `add`, and `delete` operations, so shallow
 graphs do not require promotion just to invoke generated code. Deep graphs still promote at
 16 active containers. Error-path validation starts with independent ancestry.
-Serialization checks, depth/node limits, and the hydration wire format are unchanged. Unknown
+Descriptor-safe validation applies to authored values. Depth and node limits also bound the
+encoded graph, including protocol wrappers. Unknown
 projector versions use the schema interpreter.
 
 ## Package ownership
@@ -372,6 +492,11 @@ satisfy the normal serialization contract.
 Call `client.dispose()` when retiring either owner. An islands-only bootstrap cannot activate a
 complete root that published no independent boundaries. Choose the bootstrap matching the server
 artifact's ownership; adding a dummy server task does not establish the missing root owner.
+
+Continuation responses validate scalar writes, collection deltas, DOM patches, and context
+writes before publishing any of them. A failed state-validation stage cannot be replaced by a
+later successful collection-validation stage. Immutable array copies preserve unrelated missing
+slots, while JSON serialization retains its normal sparse-array null representation.
 
 ## Server rendering
 
@@ -514,7 +639,7 @@ The request-local shell scope suppresses shell resumption publication while pres
 checkpoints across the application boundary. Traversal switches to the application's capture and
 markerless-root metadata at that reference. Duplicate or missing application positions and shells
 without a root HTML document are rejected. The shell and application use the same rendering engine.
-Awaiting progressive HTML reader cancellation also waits for the rendering owner to finish
+Awaiting document-event or progressive HTML reader cancellation waits for the rendering owner to finish
 descendant cleanup after signalling abort.
 Progressive Web Streams allow four `streamBufferSize` thresholds of queued read-ahead before
 applying pressure, plus the complete span that crosses that budget. This avoids repeatedly
@@ -567,7 +692,7 @@ attributes.
 Client property groups preserve that same order, including literal strings, boolean properties,
 and numeric properties. When a spread key disappears, an earlier explicit property supplies the
 value again. Copying a reactive spread observes its fields and key set, so an in-place mutation
-or reconciled task assignment updates the retained element without replacing it.
+or task assignment updates the retained element without replacing it.
 
 Internally, resumption capture follows the options passed through component execution, including
 task preparation, suspension, publication, and rollback. The shared SSR output context owns the
@@ -585,7 +710,8 @@ Use `hydrate(operation, document)` to adopt an authored document root. Native li
 retain their compiler-owned fragment identities during adoption. Nested resumable components
 captured by the root use ordinary component boundaries or compiler-owned slots, rather than
 duplicating props in independent island wrappers.
-Rendering applies output-size, task-pass, and task-duration limits.
+Rendering applies output-size and task-pass limits. Applications own response expiration through
+the render signal, with no automatic wall-clock deadline.
 
 The native compiler emits branded render programs for compiler-finite intrinsic regions. HTML,
 SVG, MathML, scalar text, finite host properties and attributes, classes, styles, URLs, ordinary
@@ -619,6 +745,17 @@ opaque operation and private payload entry for each item. Compiler-closed child 
 request-local server ABI carriers and consumed directly; they are not VNodes or public opaque
 operations and are never retained or serialized. A prepared server render program retains a small
 nominal wrapper so ordinary child normalization cannot flatten its compiler-created values array.
+The generated writer validates its slots before preparing their complete ordered child and
+component sequence. Each accepted execution owns one acquisition pass. Ordinary child positions
+remain in that sequence when compiler-selected components are prepared alongside them. Enhancement
+target slots do not create a second input-acquisition pass, and consumption still checks retained
+position and source identity. On the client, an ordinary member read supplied by a helper
+keeps its focused reactive binding unless the compiler has a complete indexed dependency set.
+An empty set of indexed dependencies alone does not prove that a helper-selected input is constant.
+A client component input receipt retains the parent source of a forwarded reactive proxy without
+reading that source again. Ordinary facade reads remain lazy until consumed, and source retention
+does not invoke authored getters or arbitrary proxy hooks.
+
 All server invocations share one immutable empty client-reader table. The compiler may hoist a
 server invocation whose values are entirely literal and remain inside HTML serialization.
 Those private inputs are reusable; document output, identities, target contributions, and
@@ -773,6 +910,12 @@ Hydration adopts matching server nodes rather than recreating them. It
 preserves element identity, form state, refs, handlers, retained Activity
 ranges, and component ownership.
 
+`onHydration` reports each root or island adoption, mount, or retained update. `onResponse` receives
+an independent compatibility-metadata observation before an operation body is consumed. These
+observations and `inspectExactPartitionInstances()` results are ordinary objects with TypeScript
+readonly types. Each partition inspection builds a fresh tree from validated live markers, so
+changes to a retained observation leave subsequent inspection and DOM ownership intact.
+
 Compiler-cell roots adopt their existing cell range directly; they do not pass through static-tree
 repair or clear the root container. Compiler-proven native component calls use the component's own
 identity marker without an additional cell marker pair. Intrinsic cells and structural expression
@@ -820,7 +963,21 @@ structural content retains its existing boundary strategy.
 
 Failed root adoption reports a structured diagnostic. `onMismatch: 'throw'` rejects hydration
 instead of replacing the element root. The default `replace` policy mounts a fresh root and restores
-captured form state. A mismatched `Document` root always rejects because replacing it is unsafe.
+captured form state. A captured control identity must match a unique replacement with the same
+control kind. Radio and checkbox option values must also match, and editable drafts require an
+editable replacement. Missing or ambiguous identities do not authorize positional recovery. Controls
+without a captured identity can use compatible positional recovery. Capture records sibling
+positions during the bounded DOM walk, so wide forms do not repeatedly scan preceding siblings.
+Select restoration follows option values and duplicate-value occurrences
+rather than old positions. Native `details` and `dialog` output records its server open default,
+including unbound controls. Hydration preserves a user opening or closing those controls before
+activation. That default comes from the same property evaluation as the serialized `open`
+attribute. Framework-owned baseline attributes cannot be overridden by authored props, including
+compiler-folded literals and uppercase attribute names. Dialog recovery preserves open and modal state, and explicitly editable
+text accepts empty, `true`, and `plaintext-only` attributes. Unchanged retained editable text
+keeps its existing descendants and native selection. Replacement recovery restores plain text. Retained file inputs keep their native
+selection without assigning a path. Replaced file inputs require the user to select files again.
+A mismatched `Document` root always rejects because replacing it is unsafe.
 `allowMarkerless` permits adoption without the outer component marker. It does not reconstruct
 missing structural ownership boundaries. Keep SSR markers enabled for dynamic lists and ranges.
 Content-owning enhancements may project a replacement operation during rendering. Hydration
@@ -840,6 +997,17 @@ Compiler-closed hydratable component roots likewise omit the outer component bou
 direct hydration envelope carries a markerless-root presence bit, which is a compiler proof for
 markerless root attachment rather than a request to ignore marker validation. Nested range comments
 keep their ordinary ownership.
+
+Component-input revision 6 captures children once per accepted execution occurrence. For an empty
+recipe that delegates to a `props.children` getter, construction, validation and publication use the
+same exact returned value. Captured `undefined` does not trigger another getter read. Explicit
+recipe children take precedence. Non-children accessors remain live on their original prepared-props
+receiver. An authored `this.children` read inside one of those accessors is an ordinary read outside
+the framework acquisition. Callable data values remain unbound. Same-execution
+selection copies share the accepted input view. A fresh final streaming execution acquires its
+own children view and pairs final HTML, state and hydration publication with that execution.
+Shell records are not reused after disposal. See [child composition](child-composition.md) for
+source ordering, forwarding and supplied-placement limits.
 When the hydration JSON script is emitted beside the root markup, attachment keeps the script in the
 DOM but excludes it from the component's adopted output range.
 
@@ -981,6 +1149,11 @@ their modules load and replay them after adoption:
 - replay stops if the owner is disposed or the boundary is removed or replaced, including when an earlier replayed handler causes that change; and
 - load failure restores the native browser fallback where possible.
 
+A replacement boundary generation owns a fresh interaction queue even when its predecessor
+shares the same pending module import. Retired completions cannot clear the replacement queue,
+replay old actions, or report activation failures against the current owner. An already-aborted
+owner does not install capture listeners, and replacing an owner releases its queued interactions.
+
 Refs, initial client work, opaque prop spreads, unsupported events, and
 server-only child graphs remain eager. Eager classification does not discard independently supported
 replay targets. Unsupported events are not queued. Interactions before the hydration bootstrap
@@ -1003,6 +1176,11 @@ application. Available patches include:
 - compiler-stable dynamic range replacement;
 - independent nested element replacement; and
 - authoritative boundary replacement.
+
+Style updates that exceed the fine-grained patch threshold fall back to an attribute or boundary
+replacement. Accumulating those updates does not impose a function-argument count limit.
+Continuation request ordering likewise scans its affected boundary keys without expanding them
+into function arguments, retaining the same per-boundary stale-response checks.
 
 Property patches are limited to non-executable, non-structural DOM properties. Inline event
 handlers, `srcdoc`, prototype controls, and setters such as `innerHTML`, `outerHTML`, and
@@ -1088,6 +1266,105 @@ Compiler-approved `Map` and `Set` state uses tagged entries and is restored as
 real collections; continuation changes travel as ordered entry or membership
 deltas. Functions, DOM nodes, unsupported class instances, `Date`, cycles,
 server contexts, and secret-qualified values are rejected.
+Several fields may refer to the same supported object or collection. Validation counts each
+serialized occurrence against the resource policy and rejects references to active ancestors as
+cycles. Continuation output warns above omitted resource thresholds and rejects explicit
+positive caps. Incoming requests and bootstrap retain their existing hard decoding defaults.
+See [production limits](native-ssr-production-guide.md#limits) for scope and units. Transport reconstructs independent values rather than preserving shared object identity.
+
+Symbol-keyed component state can be used locally in the browser. A server-rendered client island
+cannot capture such a key in its hydration snapshot. The compiler reports `EXACT2232` at the
+computed key use that requires this snapshot. A client-only component whose server artifact is
+a placeholder keeps its symbol-keyed state local and does not require such a snapshot. Use a named string or number property for state
+that must be reconstructed after SSR, or keep the symbol-keyed value in client-local state that
+is not part of that snapshot. A `string | symbol` key must be narrowed to string or number at
+the captured use. Static server output and unused symbol-keyed members do not by themselves
+require a hydration snapshot.
+
+### State transfer ownership
+
+State transfer has three independent contracts: supported values, performed changes, and
+publication authority. The shared reactive codec represents supported values, including the
+constant vocabulary described above. It does not encode task ownership or decide which state
+paths an operation may change. An omitted partial-result field means no update, an own
+`undefined` is a value, and a performed deletion removes a property. A complete subtree snapshot
+replaces that subtree, while collection deltas retain their authored order. A generated result
+includes performed output selections when a partial tree alone would imply an unexecuted parent
+replacement. Single responses, batches, and streamed state chunks carry the same selection
+contract. Selections are validated against compiler authority before state publication. Only
+indexed path entries confer authority. Ignored array metadata cannot change wildcard, exact-path,
+or ancestor matching. Tree validation indexes exact selections and their ancestors once, and
+retains depth-first reads without inspecting an already authorized subtree. Output and deletion
+authorization indexes compiler write facts lazily, so an early match does not scan the remaining
+contract and subsequent selections reuse previously inspected facts.
+
+The compiler supplies read and write authority. Hydration captures the declared inputs, and the
+server validates them before constructing a request-local activation. Reactive helpers perform
+mutations, core task frames supply generation ownership, and the server projects the successful
+activation back to authorized outputs. Property write evidence belongs to that execution generation
+and is released when it is taken or discarded. A captured input or a prepared write container
+is not itself an output. Successful scalar assignments, including equal-value assignments, retain performed-write publication.
+For a compiler-proven in-place Array root, the server captures an independent baseline before write
+container preparation and one finite after-image following successful task publication. It compares
+completed state rather than tracking native Array operations. Caught valid partial native writes
+participate in that comparison. Uncaught failure produces no successful state publication. The
+cutoff does not wait forever for detached work or roll back already performed canceled-child writes.
+A reverted in-place Array produces no patch. Explicit root or ancestor replacement remains scalar
+publication, including an equal performed assignment.
+
+Array completion uses one changed span with retained baseline runs, sparse inserted slots and
+changed member fields. Baseline occurrences are consumed at most once. An extra occurrence is a
+new per-occurrence encoded value. Object.is distinguishes signed zero, while existing constants,
+Map key restrictions, incoming hole-to-null normalization and per-occurrence duplication remain
+unchanged. Supported nested values continue through the codec. Changed nonrecord member values
+are inserted as encoded values, with unchanged members retaining identity. There are no new Map
+or Set comparison engines. Their existing journals, local reactive notifications and pending and
+optimistic transactions remain in place. Capturing the baseline costs O(V) in transported values.
+The compact frame still has O(n) worst-case wire size.
+
+The browser captures its submitted encoded state and occurrence correspondence in the same codec
+traversal after the optimistic prelude. Invocation ownership retains correspondence through queued
+transport and actual staged apply, then releases it on apply, discard, stale response or failure.
+A structural frame reconstructs final membership using current canonical retained objects, never
+splicing submitted indices into a changed browser sequence. Member-only output preserves browser
+order. Changed duplicate occurrences apply in ascending baseline order, with the later changed
+occurrence winning. An unchanged duplicate does not reset an earlier change. No global alias or
+entity registry is introduced.
+
+Explicit root-state integrations can also invoke these continuations with
+`client.invokeTask(operationId, { dependencies: [] })`. Select `continuations` and
+`continuationArrays` from `composeExactComponentContracts([ClientPage], 'client')` and pass both
+into `createExactClient` with the explicit root `state`. Composition validates the generated C4
+artifact and rejects conflicting continuation metadata or executable callbacks. The binding map is
+owned by that client root and copied during initialization or late `client.registerComponents()`
+registration. The late route accepts the same two fields and rejects conflicting callback identities. It is not serialized bootstrap data or
+live component discovery. An absent binding rejects before transport. Root invocations apply their
+prepared plan to the supplied state under the existing root request ordering. Authored component
+tasks continue to obtain the same binding from their own admitted executable automatically.
+
+The existing owner-scoped state ordering history records prepared raw receiver fields and Array
+structure at actual staged apply. Reordering is separate from retained payload fields. Scalar
+indexed Array sets, equal sets, deletes and intermediate slot creation share the same structural
+history, including aliases. Traversing an existing entity does not write structure. Root and
+ancestor replacement and same-field overlap retain existing ordering authority. Validation prepares
+the whole state unit before mutation or history. Invalid late entries leave that state unit intact,
+without promising rollback for authored live setters, proxy traps, contexts or DOM side effects.
+
+Execution evidence is separate from value serialization. Collection deltas from owned child
+frames follow the same invocation owner. A selected final subtree snapshot includes its completed
+collection mutations, so the generated result omits covered deltas rather than replaying
+operations superseded by replacement. Deltas outside those snapshots retain their order. Compatible runtime copies in one JavaScript
+realm share identity-bound task registries, so bundled component helpers and an external handler
+observe the same execution and resource ownership. Generation entries remain keyed by their own
+signal. Continuation restoration and progress lookup use that same task identity boundary.
+
+On the client, the state module plans scalar writes, deletions, and collection deltas against one
+snapshot before live publication. The operation coordinator also checks context and DOM authority
+and applies request ordering and task generation fences. Snapshot validation prevents an invalid
+state result from partially publishing its valid siblings. It does not make arbitrary authored
+side effects or failures from live setters rollback transactions. Initial SSR snapshots, progress
+messages, and terminal continuation results share value encoding, while their publication and
+lifetime rules remain distinct.
 
 ## Remaining work
 
@@ -1110,7 +1387,9 @@ operation.
 
 Decoded Map string keys count toward the configured byte budget on both server and hydration
 validation paths. Map and Set traversal checks the remaining node budget before queueing entries,
-so an oversized collection is rejected without first expanding the entire collection into work.
+so an explicitly capped collection is rejected without first expanding the entire collection into
+work. Response paths warn and continue when their resource setting is omitted. Their validity
+checks remain mandatory.
 
 ### Compiler-owned SSR preparation
 
@@ -1203,6 +1482,15 @@ does not defer static module evaluation or guarantee that first contentful paint
 
 ### Client settlement and lazy islands
 
+`createExactClient` starts automatic island discovery when its `islands` option is supplied.
+An explicit empty registry still reports boundaries whose entries are missing. Omit the option
+when attaching transport before later explicit hydration or `client.registerComponents({ islands })`.
+
+For roots without pending lazy selections, nested supplied targets finish their placement and ref
+attachment in the initial adoption commit before `hydrate()` returns.
+A superseded initial adoption releases its unpublished component instances. Nodes and resources
+claimed by the current successor remain owned by that successor.
+
 When server output contains lazy registry selections, both public hydration and compiler-selected
 root hydration wait for those selected modules before adopting their DOM. The returned root is
 available immediately. Its `whenSettled()` promise includes that preparation and adoption, and
@@ -1219,7 +1507,27 @@ including deferred activation, adoption, and fallback mounting.
 that has started, including eager lazy islands discovered during bootstrap and their descendants.
 It does not activate dormant interaction islands. Island load/adoption failures reject settlement;
 aborting or disposing the root releases adoption waiters and prevents late loads from mounting.
+All root hydration entries honor an explicit `signal`, including the hydration-only and
+compiler-selected entries. An initially canceled owner starts no selected-registry load.
+Cancellation preserves its exact reason and leaves a sibling root sharing the module usable.
 `pendingRequests` remains a count of transport operations, not island imports.
+A hydration handle releases the committed renderer mount it accepted, including after ordinary
+retained updates. A replacement mount has independent ownership. Receiving-attempt checks still
+fence acquisition, reporting and form restoration, so a superseded initial handle cannot dispose a
+newer accepted root. Compiler-selected enhanced render entries forward that same receiving token
+through recovery mounting and retained updates. Island adoption distinguishes mismatch from supersession: mismatch follows
+fallback mounting, while a superseded attempt stops without clearing or marking the newer output.
+Before an island remount replaces its shell, it retains only server ranges reached through its
+authority-checked decoded props. All references are validated before rejection effects finish
+and surviving ranges receive recovery ownership. An ID-only reference cannot restore a descendant
+removed by rejection of its enclosing partition. The existing slot mount reclaims those ranges into the new
+output. Unclaimed ranges leave with the old shell, and stale versioned references remain rejected.
+A replacement shell may have new nodes even though valid server-owned child content survives.
+
+Structural enhancement adoption shares the supplied-placement prepare, validate and commit
+sequence. Its semantic target lookup waits for queued Target adoption to populate the validated
+child range, before the provider publishes its mounted lifecycle. It does not execute the
+supplied component again or commit an unvalidated placement to discover that target.
 The client/server test harness awaits this settlement before returning its mounted view.
 
 Public `hydrate()` from `@exactjs/hydrate` retains continuation dispatch and island registration,
@@ -1251,12 +1559,30 @@ known buffering deployment. A warning names affected components and receivers; t
 once and return their ordinary results. The generic serverless adapter selects this fallback
 automatically. SSR itself has no browser receiver and does not warn or retain progress for replay.
 
+Preparing compiler-forwarded component props preserves an explicit cancellation reason,
+including null, whether the source is already canceled or settles while SSR waits. If
+another prop fails, preparation releases its pending waits and observes their rejections.
+Shared dependency sources remain available to other consumers and later generations.
+
+Client task and response-stream cancellation preserve the signal's exact reason, including
+null and TypeError values. Cancellation does not turn the reason into a malformed-response
+error. Invalid UTF-8 still rejects malformed response data. Receiver failures retain their original
+identity while releasing the response reader. A custom fetcher that cancels its client
+before returning a promise still has that promise observed for later rejection. A custom fetch
+response may expose only `json()`. Its parsed data is checked before serialized byte accounting,
+so rejected accessors and `toJSON` hooks are not called. Valid JSON-only responses retain the same
+encoded byte caps as text and byte-stream responses.
+
+Awaiting cancellation of a document-event, progressive HTML, or operation-progress reader waits
+for the active producer to finish its owned cleanup. Cancellation signals the producer immediately.
+Handlers and schedulers should observe their abort signal so that cleanup can begin promptly.
+
 Task scheduling and response delivery are separate. `TaskContext.server().deferred()` changes
 server scheduling priority; `blocking()` and `nonblocking()` control readiness. None of these
 policies guarantees live delivery or durable background execution. If progressive SSR runs through
 a buffering intermediary, the initial shell and later content may arrive together even though the
 server performed the work progressively. Buffering does not extend the request lifetime or bypass
-cancellation, render deadlines, or platform limits.
+application-owned cancellation or platform limits.
 
 Node HTTP, Express, Fastify, Koa, Hapi, and Bun adapters have response-streaming paths. Fastify
 response work is cancelled by an aborted upload or a closed response, not by normal completion of

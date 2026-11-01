@@ -11,15 +11,15 @@ Register it package-wide when every owned component should receive the namespace
 export * as a11y from '@exactjs/accessibility/enhancements' with { type: 'exact-enhancement', scope: 'package' };
 ```
 
-Use `this.ref(createRef(...))` bindings for `a11y:labelledBy`, `describedBy`, `controls`, `details`,
-`errorMessage`, `flowTo`, `owns`, and `activeDescendant`. Do not hand-generate IDs; valid authored
+Use `this.ref(createRef(...))` bindings for `a11y:labelled-by`, `described-by`, `controls`, `details`,
+`error-message`, `flow-to`, `owns`, and `active-descendant`. Do not hand-generate IDs; valid authored
 IDs are reused and eXact supplies stable platform UUIDs otherwise.
 
 Use native modal dialog behavior:
 
 ```tsx
 <button commandFor="settings" command="show-modal">Settings</button>
-<dialog id="settings" modal:isOpen={this.state.settingsOpen} a11y:focusScope>...</dialog>
+<dialog id="settings" modal:isOpen={this.state.settingsOpen} a11y:focus-scope>...</dialog>
 ```
 
 Do not combine `modal:isOpen` with `open`, reproduce focus trapping/inertness, or schedule framework

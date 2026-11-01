@@ -1,3 +1,5 @@
+import { inspectionQueryData } from './query-data.js';
+import { boundedString, record } from './protocol-value-shapes.js';
 import type { ExactDebugCapability } from './runtime.js';
 import type { ExactInspectionFilter, ExactInspectionRequest } from './query.js';
 
@@ -33,17 +35,34 @@ export type ExactDebugRequest =
 
 /** Parses an untrusted debug envelope without accepting invocation-shaped fields. */
 export function parseExactDebugRequest(value: unknown): ExactDebugRequest {
+	value = inspectionQueryData(value, 22, 10_004);
 	if (!record(value) || value.type !== 'debug' || value.version !== 1)
 		throw new TypeError('Invalid eXact debug envelope');
-	if (!['open', 'query', 'subscribe', 'close'].includes(String(value.request)))
+	if (
+		typeof value.request !== 'string' ||
+		!['open', 'query', 'subscribe', 'close'].includes(value.request)
+	)
 		throw new TypeError('Unknown eXact debug request');
+	const fields =
+		value.request === 'open'
+			? ['capabilities']
+			: value.request === 'query'
+				? ['sessionId', 'query']
+				: value.request === 'subscribe'
+					? ['sessionId', 'cursor', 'filter']
+					: ['sessionId'];
+	const allowed = new Set(['type', 'version', 'request', ...fields]);
+	if (Object.keys(value).some((key) => !allowed.has(key)))
+		throw new TypeError('Unknown eXact debug envelope field');
 	if (value.request === 'open') {
 		if (
 			value.capabilities !== undefined &&
 			(!Array.isArray(value.capabilities) ||
 				value.capabilities.length > 4 ||
-				!value.capabilities.every((capability: unknown) =>
-					['catalog', 'snapshot', 'events', 'source'].includes(String(capability))
+				!value.capabilities.every(
+					(capability: unknown) =>
+						typeof capability === 'string' &&
+						['catalog', 'snapshot', 'events', 'source'].includes(capability)
 				))
 		)
 			throw new TypeError('Invalid eXact debug capabilities');
@@ -75,12 +94,4 @@ export function exactDebugCapabilityForRequest(request: ExactDebugRequest): Exac
 		return 'snapshot';
 	}
 	return 'snapshot';
-}
-
-function boundedString(value: unknown, maximum: number): value is string {
-	return typeof value === 'string' && value.length > 0 && value.length <= maximum;
-}
-
-function record(value: unknown): value is Record<string, unknown> {
-	return typeof value === 'object' && value !== null && !Array.isArray(value);
 }

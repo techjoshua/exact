@@ -60,17 +60,14 @@ export function createNpmReactCompatPackageGraph(cwd = process.cwd()): ReactComp
 			for (const workspaceId of rawNodes.keys())
 				if (workspaceId && !workspaceId.startsWith('node_modules/')) dependencies.push(workspaceId);
 		}
-		nodes.set(
+		nodes.set(id, {
 			id,
-			Object.freeze({
-				id,
-				location: node.location,
-				manifest: node.manifest,
-				dependencies: Object.freeze([...new Set(dependencies)].sort())
-			})
-		);
+			location: node.location,
+			manifest: node.manifest,
+			dependencies: [...new Set(dependencies)].sort()
+		});
 	}
-	return Object.freeze({ rootId, nodes });
+	return { rootId, nodes };
 }
 
 /** Uses npm metadata when present and falls back to the installed package tree. */
@@ -114,17 +111,14 @@ export function createInstalledReactCompatPackageGraph(
 			dependencyFiles.push(resolved);
 			if (!nodes.has(normalizeId(resolved))) pending.push(resolved);
 		}
-		nodes.set(
+		nodes.set(id, {
 			id,
-			Object.freeze({
-				id,
-				location,
-				manifest,
-				dependencies: Object.freeze(dependencyFiles.map(normalizeId).sort())
-			})
-		);
+			location,
+			manifest,
+			dependencies: dependencyFiles.map(normalizeId).sort()
+		});
 	}
-	return Object.freeze({ rootId, nodes });
+	return { rootId, nodes };
 }
 
 function resolveDependencyId(

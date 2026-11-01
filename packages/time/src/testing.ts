@@ -22,7 +22,7 @@ export function createManualTimeClock(initialEpochMilliseconds = 0): ManualTimeC
 	let nextId = 1;
 	const timers = new Map<number, { deadline: number; notify: () => void }>();
 	const wakeSubscribers = new Set<() => void>();
-	return Object.freeze({
+	return {
 		now: () => timeInstant(current),
 		schedule(deadline: TimeInstant, notify: () => void) {
 			const id = nextId++;
@@ -59,7 +59,7 @@ export function createManualTimeClock(initialEpochMilliseconds = 0): ManualTimeC
 		get pendingTimerCount() {
 			return timers.size;
 		}
-	});
+	};
 }
 
 /** Returns a bounded scheduler summary without exposing registrations or component instances. */

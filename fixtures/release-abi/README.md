@@ -10,7 +10,7 @@ The obsolete development ZIP is not a compatibility fixture and is no longer ret
 compiler implementations remain in source history. This prepublication redesign is not evidence
 of backward compatibility with development builds; the released fixture bytes below remain frozen.
 
-The 0.6.0 directory is the unpublished epoch-2 candidate baseline. The same authored workload is
+The 0.6.0 directory preserves the epoch-2 release baseline. The same authored workload is
 compiled with component and render-program version 2. It exercises tasks, precise reactive updates,
 keyed DOM identity, SSR, hydration, and disposal. The current check also verifies that epoch-1 artifacts
 are rejected before construction. It never recompiles either baseline during validation.

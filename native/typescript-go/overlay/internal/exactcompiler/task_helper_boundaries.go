@@ -11,7 +11,7 @@ import (
 
 // taskHelperBoundaryDiagnostics reports proven view incompatibility and limited, identifiable
 // identity/lifetime uncertainty. It analyzes helpers without rewriting their implementations.
-func taskHelperBoundaryDiagnostics(source *ast.SourceFile, typeChecker *checker.Checker, tasks []Task, target Target, facts *sourceAnalysisFacts) []Diagnostic {
+func taskHelperBoundaryDiagnostics(source *ast.SourceFile, typeChecker *checker.Checker, tasks []Task, target Target, facts *sourceAnalysisFacts, owner *executableBodyOwner) []Diagnostic {
 	if target == TargetServer || typeChecker == nil {
 		return nil
 	}
@@ -49,7 +49,14 @@ func taskHelperBoundaryDiagnostics(source *ast.SourceFile, typeChecker *checker.
 			if symbol == nil {
 				return true
 			}
-			for _, work := range symbol.Declarations {
+			declarations := symbol.Declarations
+			if body, selected := owner.body(call.Expression); selected {
+				declarations = nil
+				if body != nil {
+					declarations = []*ast.Node{body}
+				}
+			}
+			for _, work := range declarations {
 				declaration := work
 				if ast.IsVariableDeclaration(work) {
 					work = work.AsVariableDeclaration().Initializer

@@ -3,7 +3,7 @@ import type { IntlPackageMetadataV1 } from './contracts.js';
 
 const metadataFields = new Set(['protocol', 'sourceLocale', 'sourceUnits', 'messages', 'catalogs']);
 
-/** Validates and freezes a package's inert protocol-1 internationalization declaration. */
+/** Captures a validated, independent package declaration with ordinary TypeScript readonly fields. */
 export function validateIntlPackageMetadata(input: unknown): IntlPackageMetadataV1 {
 	if (typeof input !== 'object' || input === null || Array.isArray(input))
 		throw new TypeError('exact.internationalization must be an object');
@@ -17,13 +17,13 @@ export function validateIntlPackageMetadata(input: unknown): IntlPackageMetadata
 	const messages = exportSubpath(record.messages, 'messages');
 	const sourceUnits = optionalStringRecord(record.sourceUnits, 'sourceUnits', false, false);
 	const catalogs = optionalStringRecord(record.catalogs, 'catalogs', true, true);
-	return Object.freeze({
+	return {
 		protocol: 1,
 		sourceLocale,
 		...(sourceUnits ? { sourceUnits } : {}),
 		messages,
 		...(catalogs ? { catalogs } : {})
-	});
+	};
 }
 
 function optionalStringRecord(
@@ -42,7 +42,7 @@ function optionalStringRecord(
 			? exportSubpath(rawValue, `${path}.${rawKey}`)
 			: boundedIdentifier(rawValue, `${path}.${rawKey}`);
 	}
-	return Object.freeze(output);
+	return output;
 }
 
 function boundedIdentifier(input: unknown, path: string): string {

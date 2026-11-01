@@ -1,0 +1,31 @@
+import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import test from 'node:test';
+import { captureFrameworkSources } from './source-snapshot.mjs';
+
+test('source fingerprint detects content edits, additions and removal with unchanged dirty filenames', async (t) => {
+	const root = await mkdtemp(path.join(os.tmpdir(), 'exact-coverage-source-'));
+	t.after(() => rm(root, { recursive: true, force: true }));
+	execFileSync('git', ['init', '--quiet'], { cwd: root });
+	await writeFile(path.join(root, 'owner.ts'), 'export const value = 1;');
+	execFileSync('git', ['add', 'owner.ts'], { cwd: root });
+	const first = await captureFrameworkSources(root);
+	assert.deepEqual(await captureFrameworkSources(root), first);
+	await writeFile(path.join(root, 'owner.ts'), 'export const value = 2;');
+	const edited = await captureFrameworkSources(root);
+	assert.notEqual(edited.digest, first.digest);
+	await writeFile(path.join(root, 'contract.test.ts'), 'test boundary');
+	const added = await captureFrameworkSources(root);
+	assert.notEqual(added.digest, edited.digest);
+	await rm(path.join(root, 'contract.test.ts'));
+	assert.deepEqual(await captureFrameworkSources(root), edited);
+	await writeFile(path.join(root, 'notes.md'), 'prose does not alter execution');
+	assert.deepEqual(await captureFrameworkSources(root), edited);
+	await rm(path.join(root, 'owner.ts'));
+	const removed = await captureFrameworkSources(root);
+	assert.equal(removed.files, 0);
+	assert.notEqual(removed.digest, edited.digest);
+});

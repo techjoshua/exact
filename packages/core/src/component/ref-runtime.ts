@@ -1,6 +1,7 @@
 import type { Reactive } from '@exactjs/reactive/framework/runtime';
 import { reactiveObjects } from '@exactjs/reactive/framework/objects';
 import type { AnyComponentInstance, RefBinding, RefKey, RefRegistry } from './contracts.js';
+import { registerComponentRefBindingOwner } from './ref-ownership.js';
 import { bindComponentRoot, componentRootLifecycle } from './root-lifecycle.js';
 
 type RefOwner = AnyComponentInstance & {
@@ -14,6 +15,7 @@ class ComponentRefBinding<T> implements RefBinding<T> {
 
 	constructor(owner: AnyComponentInstance, key: RefKey<T>) {
 		this.owner = owner;
+		registerComponentRefBindingOwner(this, owner);
 		this.key = key;
 		this.slot = reactiveObjects(
 			{ current: undefined as T | undefined },

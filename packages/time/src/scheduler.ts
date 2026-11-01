@@ -1,3 +1,5 @@
+import { validateTimeEpoch } from './clocks.js';
+import { attemptCleanup, createCleanupFailure, throwCleanupFailure } from '@exactjs/core';
 import { batch } from '@exactjs/reactive';
 import { afterReactiveSettlement } from '@exactjs/reactive/framework/settlement';
 import type { TimeClock, TimeInstant, TimeUpdatePolicy } from './contracts.js';
@@ -8,7 +10,7 @@ export interface TimeRegistration {
 	readonly policy: Exclude<TimeUpdatePolicy, true>;
 	readonly generation: number;
 	readonly deadline: number | undefined;
-	publish(sample: TimeInstant, generation: number): void;
+	publish(epochMilliseconds: number, generation: number): void;
 	reconcile(): void;
 }
 
@@ -35,6 +37,7 @@ export class ClockScheduler {
 	}> = [];
 	private cancelTimer?: () => void;
 	private cancelWake?: () => void;
+	private wakeOwner?: object;
 	private armGeneration = 0;
 	private reconciling = false;
 	private cycleStartedAt?: number;
@@ -50,9 +53,20 @@ export class ClockScheduler {
 
 	/** Adds a mounted range and schedules reconciliation after its mounting transaction. */
 	add(registration: TimeRegistration): void {
-		if (!this.registrations.size && this.clock.subscribeWake)
-			this.cancelWake = this.clock.subscribeWake(this.wake);
 		this.registrations.add(registration);
+		if (!this.wakeOwner && this.clock.subscribeWake) {
+			const owner = (this.wakeOwner = {});
+			try {
+				const cancel = this.clock.subscribeWake(() => {
+					if (this.wakeOwner === owner) this.wake();
+				});
+				if (this.wakeOwner === owner) this.cancelWake = cancel;
+				else cancel();
+			} catch (error) {
+				this.delete(registration);
+				throw error;
+			}
+		}
 		this.requestReconcile(registration);
 	}
 
@@ -61,9 +75,18 @@ export class ClockScheduler {
 		this.registrations.delete(registration);
 		this.dirty.delete(registration);
 		if (!this.registrations.size) {
-			this.cancelWake?.();
-			this.cancelWake = undefined;
+			this.wakeOwner = undefined;
+			this.armGeneration++;
+			const cancelWake = this.cancelWake;
+			const cancelTimer = this.cancelTimer;
+			this.cancelWake = this.cancelTimer = undefined;
 			this.deadlines.length = 0;
+			const failure = createCleanupFailure();
+			attemptCleanup(failure, () => cancelWake?.());
+			attemptCleanup(failure, () => cancelTimer?.());
+			this.requestReconcile();
+			throwCleanupFailure(failure);
+			return;
 		}
 		this.requestReconcile();
 	}
@@ -84,7 +107,7 @@ export class ClockScheduler {
 	/** Currently armed absolute deadline, if any. */
 	get nextDeadline(): TimeInstant | undefined {
 		const deadline = this.earliestDeadline();
-		return deadline === undefined ? undefined : Object.freeze({ epochMilliseconds: deadline });
+		return deadline === undefined ? undefined : { epochMilliseconds: deadline };
 	}
 
 	/** Bounded scheduler state for tests and DevTools without exposing registrations or owners. */
@@ -102,14 +125,14 @@ export class ClockScheduler {
 			if (!registration.active) disabledRegistrations++;
 			else policies[registration.policy] = (policies[registration.policy] ?? 0) + 1;
 		}
-		return Object.freeze({
+		return {
 			activeRegistrations: this.activeCount,
 			disabledRegistrations,
 			nextDeadline: this.nextDeadline,
 			coalescedBoundaries: this.coalescedBoundaries,
 			lastCycleMilliseconds: this.lastCycleMilliseconds,
-			policies: Object.freeze(policies)
-		});
+			policies: policies
+		};
 	}
 
 	private readonly reconcile = (): void => {
@@ -120,54 +143,79 @@ export class ClockScheduler {
 				this.lastCycleMilliseconds = monotonicNow() - this.cycleStartedAt;
 				this.cycleStartedAt = undefined;
 			}
-			this.cancelTimer?.();
+			const failure = createCleanupFailure();
+			const cancel = this.cancelTimer;
 			this.cancelTimer = undefined;
+			this.armGeneration++;
+			attemptCleanup(failure, () => cancel?.());
 			for (const registration of this.dirty) {
-				registration.reconcile();
-				if (registration.active && registration.deadline !== undefined)
-					this.pushDeadline({
-						deadline: registration.deadline,
-						generation: registration.generation,
-						registration
-					});
+				attemptCleanup(failure, () => {
+					registration.reconcile();
+					if (registration.active && registration.deadline !== undefined)
+						this.pushDeadline({
+							deadline: registration.deadline,
+							generation: registration.generation,
+							registration
+						});
+				});
 			}
 			this.dirty.clear();
 			if (this.deadlines.length > this.registrations.size * 2 + 32) this.compactDeadlines();
 			const deadline = this.earliestDeadline();
-			if (deadline === undefined) return;
-			const generation = ++this.armGeneration;
-			this.cancelTimer = this.clock.schedule(Object.freeze({ epochMilliseconds: deadline }), () =>
-				this.fire(generation)
-			);
+			if (deadline !== undefined)
+				attemptCleanup(failure, () => {
+					const generation = ++this.armGeneration;
+					const cancel = this.clock.schedule({ epochMilliseconds: deadline }, () =>
+						this.fire(generation)
+					);
+					if (generation === this.armGeneration && this.registrations.size)
+						this.cancelTimer = cancel;
+					else cancel();
+				});
+			throwCleanupFailure(failure);
 		} finally {
 			this.reconciling = false;
 		}
 	};
 
 	private fire(generation: number): void {
-		if (generation !== this.armGeneration) return;
+		if (generation !== this.armGeneration || !this.registrations.size) return;
 		this.cancelTimer = undefined;
-		const sample = this.clock.now();
+		const sample = this.clock.now().epochMilliseconds;
+		if (generation !== this.armGeneration || !this.registrations.size) return;
+		validateTimeEpoch(sample);
 		this.cycleStartedAt = monotonicNow();
-		const due: TimeRegistration[] = [];
+		const due: typeof this.deadlines = [];
 		for (;;) {
 			const entry = this.peekValidDeadline();
-			if (!entry || entry.deadline > sample.epochMilliseconds) break;
+			if (!entry || entry.deadline > sample) break;
 			this.popDeadline();
-			if (entry.deadline < sample.epochMilliseconds) this.coalescedBoundaries++;
-			due.push(entry.registration);
+			if (entry.deadline < sample) this.coalescedBoundaries++;
+			due.push(entry);
 			this.dirty.add(entry.registration);
 		}
 		batch(() => {
-			for (const registration of due) registration.publish(sample, registration.generation);
+			for (const entry of due) {
+				const registration = entry.registration;
+				if (
+					this.registrations.has(registration) &&
+					registration.active &&
+					registration.generation === entry.generation
+				)
+					registration.publish(sample, entry.generation);
+			}
 		});
 		this.requestReconcile();
 	}
 
 	private readonly wake = (): void => {
-		this.cancelTimer?.();
+		const cancel = this.cancelTimer;
 		this.cancelTimer = undefined;
-		this.fire(++this.armGeneration);
+		const generation = ++this.armGeneration;
+		const failure = createCleanupFailure();
+		attemptCleanup(failure, () => cancel?.());
+		attemptCleanup(failure, () => this.fire(generation));
+		throwCleanupFailure(failure);
 	};
 
 	private earliestDeadline(): number | undefined {

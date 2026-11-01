@@ -120,10 +120,10 @@ async function mountOperation(
 	if (inspectDomRoot(container))
 		throw new Error('The test container already has a mounted eXact root');
 	const attached = !options.container && options.attachToDocument !== false;
-	if (attached) document.body.appendChild(container);
 	const entries = normalizeContexts(options.contexts);
 	const rendered = createTestComponentReceipt(TestMountHost, { entries }, operation);
 	const tracker = new TaskTracker();
+	if (attached) document.body.appendChild(container);
 	try {
 		if (options.enhancementCatalog) await import('@exactjs/dom/framework/enhancements');
 		withTaskObserver(tracker, () =>

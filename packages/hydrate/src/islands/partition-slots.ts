@@ -1,21 +1,30 @@
+import { consumeDomWork, type DomWorkBudget } from '@exactjs/dom/framework/component-root';
 import { isServerSlotDiscriminator } from '@exactjs/core/framework/protocol-records';
 import { createServerSlot } from '@exactjs/core/runtime/render-operations';
 import { isSafeObjectKey } from '../safety.js';
 import type { HydrateOptions } from '../types.js';
 
+/** One receiving payload owns only ranges reached through its validated opaque references. */
+export type RevivedPartitionProps = {
+	readonly props: Record<string, unknown>;
+	readonly serverSlots: readonly Element[];
+};
+
 type RevivedContainer = unknown[] | Record<string, unknown> | Map<unknown, unknown> | Set<unknown>;
 
 /** Revives serialized server ranges and invalidates only markers with mismatched authority. */
 export function revivePartitionServerSlots(
-	value: unknown,
+	value: Record<string, unknown>,
 	options: HydrateOptions,
 	boundary?: Element
-): unknown {
-	if (!value || typeof value !== 'object') return value;
+): RevivedPartitionProps {
 	const pending: Array<{ source: object; target: RevivedContainer }> = [];
+	const elements: Element[] = [];
+	const markers = partitionMarkers(boundary);
+	const rejected = new Set<Element>();
 	const revive = (source: unknown): unknown => {
 		if (!source || typeof source !== 'object') return source;
-		const slot = serverSlot(source, options, boundary);
+		const slot = serverSlot(source, options, elements, markers, rejected, boundary);
 		if (slot) return slot;
 		const target: RevivedContainer =
 			source instanceof Map
@@ -42,18 +51,31 @@ export function revivePartitionServerSlots(
 			}
 		}
 	}
-	return root;
+	// Authority is checked against the same unchanged DOM for the entire prop graph.
+	// Rejection completes before any original marker can acquire recovery ownership.
+	for (const marker of rejected) clearMismatchedPartitionMarker(marker);
+	const surviving = partitionMarkers(boundary);
+	return {
+		props: root as Record<string, unknown>,
+		serverSlots: elements.filter((element) => {
+			const current = surviving.get(element.getAttribute('data-exact-server-slot')!);
+			return current?.length === 1 && current[0] === element;
+		})
+	};
 }
 
 function serverSlot(
 	value: object,
 	options: HydrateOptions,
+	elements: Element[],
+	markers: ReadonlyMap<string, readonly Element[]>,
+	rejected: Set<Element>,
 	boundary?: Element
 ): ReturnType<typeof createServerSlot> | undefined {
 	const record = value as Record<string, unknown>;
 	if (typeof record.__exactServerSlot !== 'string') return undefined;
 	const id = record.__exactServerSlot;
-	if (record.planVersion === undefined) return createServerSlot(id);
+	if (record.planVersion === undefined) return retainedSlot(id, markers, elements);
 	const discriminator = record.discriminator;
 	if (
 		record.planVersion !== 1 ||
@@ -69,18 +91,55 @@ function serverSlot(
 		(record.generation as number) < 1 ||
 		!partitionMarkerMatches(boundary, record)
 	) {
-		clearMismatchedPartitionMarker(boundary, id);
+		const marker = markers.get(id)?.[0];
+		if (marker) rejected.add(marker);
 		return createServerSlot(id);
 	}
-	return createServerSlot(id);
+	return retainedSlot(id, markers, elements);
 }
 
-function clearMismatchedPartitionMarker(boundary: Element | undefined, id: string): void {
-	if (!boundary) return;
-	const marker = [...boundary.querySelectorAll('[data-exact-server-slot]')].find(
-		(candidate) => candidate.getAttribute('data-exact-server-slot') === id
-	);
-	if (!marker) return;
+/** Retains authority-checked DOM with the decoded opaque reference, never with its authored ID alone. */
+function retainedSlot(
+	id: string,
+	markers: ReadonlyMap<string, readonly Element[]>,
+	elements: Element[]
+): ReturnType<typeof createServerSlot> {
+	const receipt = createServerSlot(id);
+	const marker = markers.get(id);
+	if (marker?.length === 1) elements.push(marker[0]!);
+	return receipt;
+}
+
+/** Selects each outermost validated range once without duplicating its server-owned descendants. */
+export function retainedServerSlotElements(
+	slots: readonly Element[],
+	budget: DomWorkBudget
+): Element[] {
+	const elements = new Set(slots);
+	// An outer retained range already carries every nested range in its server-owned content.
+	return [...elements].filter((element) => {
+		for (let parent = element.parentElement; parent; parent = parent.parentElement) {
+			consumeDomWork(budget);
+			if (elements.has(parent)) return false;
+		}
+		return true;
+	});
+}
+
+/** Indexes scoped marker identity without granting duplicated IDs recovery ownership. */
+function partitionMarkers(boundary: Element | undefined): Map<string, Element[]> {
+	const markers = new Map<string, Element[]>();
+	for (const marker of boundary?.querySelectorAll('[data-exact-server-slot]') ?? []) {
+		const id = marker.getAttribute('data-exact-server-slot')!;
+		const matches = markers.get(id);
+		if (matches) matches.push(marker);
+		else markers.set(id, [marker]);
+	}
+	return markers;
+}
+
+/** Applies an already classified rejection, including to nested targets detached by another rejection. */
+function clearMismatchedPartitionMarker(marker: Element): void {
 	marker.replaceChildren();
 	for (const attribute of [...marker.attributes]) {
 		if (attribute.name.startsWith('data-exact-partition-')) marker.removeAttribute(attribute.name);

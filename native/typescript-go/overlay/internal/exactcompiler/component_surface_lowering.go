@@ -163,8 +163,8 @@ func (lowering *jsxLowering) lowerComponentIntlAccess(node *ast.Node) *ast.Node 
 }
 
 // lowerDirectServerRefCall links canonical ref operations to the non-reactive request-local SSR
-// lane. The server never publishes a DOM target, but bindings retain stable identity and authored
-// fulfillment remains observable. Unsupported extraction or dynamic dispatch stays generic.
+// lane. Facade methods retain ordinary dispatch through lowerDirectServerSurfaceAccess, since
+// readonly declarations do not guarantee stable method identity.
 func (lowering *jsxLowering) lowerDirectServerRefCall(node *ast.Node) *ast.Node {
 	if lowering.target != TargetServer || !ast.IsCallExpression(node) ||
 		!lowering.directServerArtifactComponent(node) || !lowering.insideComponent(node) {
@@ -183,22 +183,8 @@ func (lowering *jsxLowering) lowerDirectServerRefCall(node *ast.Node) *ast.Node 
 		case "readRef":
 			helper = lowering.names.directSsrReadRef
 		}
-	} else if ast.IsPropertyAccessExpression(call.Expression) {
-		method := call.Expression.AsPropertyAccessExpression()
-		if method.QuestionDotToken != nil || !ast.IsPropertyAccessExpression(method.Expression) {
-			return nil
-		}
-		refs := method.Expression.AsPropertyAccessExpression()
-		if refs.QuestionDotToken == nil && refs.Expression.Kind == ast.KindThisKeyword &&
-			refs.Name().Text() == "refs" {
-			switch method.Name().Text() {
-			case "get":
-				helper = lowering.names.directSsrReadRef
-			case "root":
-				helper = lowering.names.directSsrRoot
-			}
-		}
 	}
+
 	if helper == "" {
 		return nil
 	}

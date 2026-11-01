@@ -3,6 +3,8 @@ import {
 	ReadinessContext,
 	SuspensionContext,
 	createReadinessCoordinator,
+	createErrorReport,
+	handleComponentError,
 	normalizeRenderResult,
 	trackComponentAsync,
 	unwrap,
@@ -67,15 +69,25 @@ export function prepareSuspense(
 		queueMicrotask(() => {
 			if (queuedGeneration !== generation) return;
 			queuedGeneration = undefined;
-			if (retry) retrySuspenseCandidate(root, mounted, generation);
-			else if (mounted.suspense?.candidate) commitSuspenseCandidate(root, mounted, generation);
-			else {
-				// A blocking task can restart inside already committed content without
-				// reconstructing the boundary. Publish its staged response only after every
-				// registration in this readiness generation has settled.
-				mounted.suspense?.coordinator.commitGeneration();
-				flushSync();
+			if (!mounted.scope.active) return;
+			try {
+				if (retry) retrySuspenseCandidate(root, mounted, generation);
+				else if (mounted.suspense?.candidate) commitSuspenseCandidate(root, mounted, generation);
+				else {
+					// A blocking task can restart inside already committed content without
+					// reconstructing the boundary. Publish its staged response only after every
+					// registration in this readiness generation has settled.
+					mounted.suspense?.coordinator.commitGeneration();
+					flushSync();
+					releaseSuspenseTransition(mounted);
+				}
+			} catch (error) {
 				releaseSuspenseTransition(mounted);
+				if (mounted.suspense)
+					handleComponentError(
+						mounted.suspense.owner,
+						createErrorReport(error, 'render', mounted.suspense.owner, 'suspense-readiness')
+					);
 			}
 		});
 	});

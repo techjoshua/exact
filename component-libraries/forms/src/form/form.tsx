@@ -3,10 +3,15 @@ import { ErrorContext, type Component } from '@exactjs/core';
 import { FormContext } from './context.js';
 import type { FieldContextValue, FormContextValue, FormProps, FormState } from './contracts.js';
 
-/** Performs the form domain operation. */
+/** Coordinates native submission while its durable Form owner remains mounted. */
 export function Form(this: Component<FormState>, props: FormProps) {
 	this.state.submitting = false;
 	const fields = new Set<FieldContextValue>();
+	// Final disposal retires later submit stages without cancelling an already-started callback.
+	let disposed = false;
+	this.onUnmount(() => {
+		disposed = true;
+	});
 	const errors = this.getContext(ErrorContext);
 	const context: FormContextValue = {
 		get submitting() {
@@ -50,11 +55,12 @@ export function Form(this: Component<FormState>, props: FormProps) {
 		const cancelled = event.defaultPrevented;
 		event.preventDefault();
 		await userResult;
-		if (cancelled) return;
+		if (disposed || cancelled) return;
 		if (this.state.submitting) return;
 		this.state.submitting = true;
 		try {
 			const valid = await context.validate();
+			if (disposed) return;
 			if (!valid) {
 				[...fields].find((field) => !!field.error)?.control?.focus();
 				await props.onInvalidSubmit?.(event);
@@ -63,7 +69,7 @@ export function Form(this: Component<FormState>, props: FormProps) {
 			const form = event.target as HTMLFormElement;
 			await props.onValidSubmit?.(event, new form.ownerDocument.defaultView!.FormData(form));
 		} finally {
-			this.state.submitting = false;
+			if (!disposed) this.state.submitting = false;
 		}
 	};
 	const {

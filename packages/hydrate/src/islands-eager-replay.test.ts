@@ -1,3 +1,4 @@
+import { compiledTargetIdentity } from './test-support/compiled-target-identity.js';
 /** @vitest-environment jsdom */
 import { expect, it, onTestFinished } from 'vitest';
 import { createExactClient, lazyClientIsland } from './index.js';
@@ -19,7 +20,7 @@ it.each([
 ] as const)('replays a selection once while %s adoption loads', async (mode) => {
 	resetInteractionFixture();
 	const root = document.createElement('main');
-	root.innerHTML = `<div data-exact-client-boundary="appearance" data-exact-client-name="Appearance" data-exact-client-hydration="${mode === 'interaction' || mode === 'override' ? 'interaction' : 'eager'}"><select data-exact-id="appearance"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></div>`;
+	root.innerHTML = `<div data-exact-client-boundary="appearance" data-exact-client-name="Appearance" data-exact-client-hydration="${mode === 'interaction' || mode === 'override' ? 'interaction' : 'eager'}"><select data-exact-id="${compiledTargetIdentity(LazyAppearance)}"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></div>`;
 	let resolve!: (value: typeof LazyAppearance) => void;
 	const loaded = new Promise<typeof LazyAppearance>((done) => {
 		resolve = done;
@@ -30,7 +31,12 @@ it.each([
 			Appearance: lazyClientIsland(() => loaded, {
 				mode: mode === 'interaction' || mode === 'override' ? 'interaction' : 'eager',
 				reasons: mode === 'eager' ? [{ code: 'ref', start: 0, length: 1 }] : [],
-				targets: [{ id: 'appearance', events: [{ type: 'change', replay: 'latest-value' }] }]
+				targets: [
+					{
+						id: compiledTargetIdentity(LazyAppearance),
+						events: [{ type: 'change', replay: 'latest-value' }]
+					}
+				]
 			})
 		}
 	});

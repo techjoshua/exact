@@ -1,5 +1,6 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { expect, it } from 'vitest';
 import { buildLibrary } from '../library-build.js';
 import { createLibraryBuildFixture } from '../test-support/library-build.fixture.js';
@@ -30,4 +31,40 @@ export function Example(props:{theme:ResolvedTheme}){const colors=deriveDataColo
 			'deriveDataColors'
 		);
 	}
+}, 30_000);
+
+it('publishes imported finite helper companions with semantic validation intact', async () => {
+	const { root } = await createLibraryBuildFixture();
+	await writeFile(
+		path.join(root, 'src/finite.ts'),
+		`export function translate(state:{value:number},delta:number){if(!Number.isFinite(delta))throw delta;state.value+=delta;return state;}`
+	);
+	await writeFile(
+		path.join(root, 'src/move.ts'),
+		`import {translate} from './finite.js';export function move(state:{value:number},delta:number){return translate(state,delta);}`
+	);
+	await buildLibrary({ root });
+	for (const target of ['client', 'server']) {
+		const module = await import(
+			/* @vite-ignore */ pathToFileURL(path.join(root, 'dist', target, 'move.js')).href
+		);
+		const state = { value: 1 };
+		expect(module.move(state, 2)).toBe(state);
+		expect(state.value).toBe(3);
+		try {
+			module.move(state, NaN);
+			throw new Error('missing authored failure');
+		} catch (error) {
+			expect(error).toBeNaN();
+		}
+		expect(state.value).toBe(3);
+	}
+	const consumer = await readFile(path.join(root, 'dist/server/move.js'), 'utf8');
+	const producer = await import(
+		/* @vite-ignore */ pathToFileURL(path.join(root, 'dist/server/finite.js')).href
+	);
+	// The private import is an emitted linkage contract, not an authored helper name.
+	const companion = consumer.match(/import \{\s*(__exact_owned_[a-z0-9_]+)/)?.[1];
+	expect(companion).toBeDefined();
+	expect(producer[companion!]).toBeTypeOf('function');
 }, 30_000);

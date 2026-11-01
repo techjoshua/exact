@@ -2,10 +2,10 @@ import path from 'node:path';
 import { expect, it } from 'vitest';
 import { analyzeSource } from './compilation/source-analysis.js';
 import { transform } from './index.js';
-import { createTestWorkspace, writeTestFiles } from './test-support/workspace.js';
+import { createCompilerTestWorkspace, writeTestFiles } from './test-support/workspace.js';
 
 it('preserves direct, aliased and readonly finite registry keys while rejecting unproven keys', async () => {
-	const root = await createTestWorkspace('.exact-policy-key-types-', path.resolve('.tmp'));
+	const root = await createCompilerTestWorkspace('.exact-policy-key-types-', path.resolve('.tmp'));
 	await writeTestFiles(root, {
 		'widgets.tsx': `import {createComponentRegistry} from '@exactjs/core';
 		 function Grid(){return()=> <p>grid</p>;}
@@ -45,7 +45,10 @@ it('preserves direct, aliased and readonly finite registry keys while rejecting 
 });
 
 it('preserves imported residency annotations through aliases and readonly views', async () => {
-	const root = await createTestWorkspace('.exact-policy-residency-types-', path.resolve('.tmp'));
+	const root = await createCompilerTestWorkspace(
+		'.exact-policy-residency-types-',
+		path.resolve('.tmp')
+	);
 	await writeTestFiles(root, {
 		'contracts.d.ts': `export interface InternalState{
 		 /** @exact keep=server */ internal:string;

@@ -25,11 +25,13 @@ of reactive application collections. In-out sequencing waits for descendant ente
 releasing the previous range, while skipped reduced motion advances immediately. Wrap layout participants in
 `LayoutGroup` and opt them into additive FLIP motion with `layout` and a stable `layoutId`. The
 main runtime uses a browser-safe Web Animations driver by default. Importing definitions or presets on a server
-does not access browser globals. Prepared and dynamically resolved effects reject
+does not access browser globals. Definitions copy static effects, and readonly follows TypeScript.
+Finite negative start delays are supported. Prepared and dynamically resolved effects reject
 non-finite timing. Component-owned enter/change phases may opt into `iterations: Infinity`; those
 loops are detached from structural settlement but cancel with their owner. Leave and `animate()`
 remain finite. Reduced-motion policy uses an explicit reduced phase when supplied and otherwise
-completes visual work immediately.
+completes visual work immediately. Cancellation also releases pending placement frames while browser
+painting is paused.
 
 Server rendering preserves enhanced markup. Browser observers attach on mount or hydration,
 which retains the server elements.

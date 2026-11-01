@@ -3,18 +3,17 @@ import { expect, it, onTestFinished } from 'vitest';
 import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import type { AnyComponentFunction } from '@exactjs/core';
-import { createCompiledComponentReceipt as receipt } from '@exactjs/core/runtime/component-operations';
+import { createCompiledComponentInputReceipt as receipt } from '@exactjs/core/runtime/component-operations';
 import { composeExactComponentContracts } from '@exactjs/core/framework/component-contracts';
 import { render, unmount } from '@exactjs/dom';
 import { hydrate } from '@exactjs/hydrate';
 import { renderToHydratableString } from '@exactjs/ssr';
 import { flushSync } from '@exactjs/reactive';
 import { compileProjectArtifacts } from '../index.js';
-import { createTestWorkspace } from '../test-support/workspace.js';
+import { createCompilerTestWorkspace } from '../test-support/workspace.js';
 import { importArtifact } from '../test-support/import-artifact.js';
-
 it('preserves typed form conversion and DOM identity on mount and hydration', async () => {
-	const root = await createTestWorkspace('.exact-form-boundaries-', process.cwd());
+	const root = await createCompilerTestWorkspace('.exact-form-boundaries-', process.cwd());
 	const entry = path.join(root, 'form.tsx');
 	await writeFile(
 		entry,

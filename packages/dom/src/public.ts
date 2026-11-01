@@ -14,7 +14,7 @@ export {
 } from './state.js';
 export { dispose, disposeOwnedSubtree, unmount } from './renderer/root-disposal.js';
 export { findComponentDomNode } from './renderer/component-node.js';
-export { renderCompiledComponentRoot as render } from './framework/component-root.js';
+export { renderComponentRoot as render } from './framework/component-root.js';
 export {
 	deg,
 	em,

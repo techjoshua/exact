@@ -1,8 +1,9 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { expect, it } from 'vitest';
+import { withLibraryInspectionResolution } from './inspection-resolution.js';
 import { buildLibrary } from './build.js';
-import { inspectLibraryExports } from './export-inspection.js';
+import { inspectLibraryExports, inspectLibrarySelections } from './export-inspection.js';
 import { createLibraryBuildFixture } from '../test-support/library-build.fixture.js';
 
 it('shares entry imports within a target and reloads transitive exports next generation', async () => {
@@ -81,6 +82,17 @@ it('rejects missing and wrong-target exports, then accepts another independent i
 			'client'
 		)
 	).rejects.toThrow(/not a compiled component artifact/);
+	await withLibraryInspectionResolution(root, path.join(root, 'dist'), async (scope) => {
+		await expect(
+			inspectLibrarySelections([{ entry: first, names: ['Alias'] }], 'client', scope, [
+				{
+					parent: first.startsWith('file:') ? first : new URL(`file://${first}`).href,
+					specifier: './late-second.mjs',
+					name: 'Example'
+				}
+			])
+		).rejects.toThrow(/not a compiled component artifact/);
+	});
 	const recovered = await inspectLibraryExports([{ entry: first, names: ['Alias'] }], 'client');
 	expect(typeof recovered[0]!.Alias).toBe('string');
 }, 30_000);

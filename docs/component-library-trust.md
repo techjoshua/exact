@@ -57,7 +57,7 @@ static compiler facts:
 ```json
 {
 	"dependencies": {
-		"@exactjs/component-library": "^0.7.0"
+		"@exactjs/component-library": "^0.8.0"
 	},
 	"exactComponentLibrary": {
 		"protocol": 1,
@@ -111,7 +111,7 @@ enhancement-provider imports,
 then includes their client islands, server parts, continuation plans, and boundaries. Public export
 aliases retain the owning component identity. Private compiled modules remain compiler-selected
 implementation details. Planning reads static metadata without evaluating the library.
-Rebuild libraries with compiler 0.7.1 and regenerate the consumer's hydration registration to use
+Rebuild libraries with the matching 0.8.0 compiler and providers and regenerate the consumer's hydration registration to use
 this automatic composition. Older protocol-1 facts remain accepted but contain no registration
 products. Applications still choose whole-root hydration or an island client for their root's
 placement, and still compose their server executor contract for transported work.
@@ -138,13 +138,13 @@ A library manifest can select browser and server outputs independently:
 		"build": "./dist/exact-component-build.json"
 	},
 	"dependencies": {
-		"@exactjs/component-library": "^0.7.0",
-		"@exactjs/core": "^0.7.0",
-		"@exactjs/dom": "^0.7.0"
+		"@exactjs/component-library": "^0.8.0",
+		"@exactjs/core": "^0.8.0",
+		"@exactjs/dom": "^0.8.0"
 	},
 	"devDependencies": {
-		"@exactjs/compiler": "^0.7.0",
-		"@exactjs/jsx": "^0.7.0"
+		"@exactjs/compiler": "^0.8.0",
+		"@exactjs/jsx": "^0.8.0"
 	}
 }
 ```
@@ -201,9 +201,28 @@ Imported production sources are compiled too. TypeScript's `exclude` removes pro
 so an excluded module imported by a selected source still belongs to the build. Test, spec, Jest
 and test-support modules remain unpublished. A production import of one fails before output
 is replaced. Move a shared production helper into a published source module.
-Each compiled component also needs a proven placement. An opaque helper that leaves placement
-unresolved fails the build before replacement. Verify the helper and supply its execution contract
-instead of publishing component facts that a consumer cannot authorize.
+Placement inference remains descriptive. An opaque helper can leave a component's placement
+unknown and its inferred target list empty without preventing a normal library build.
+The same uncertainty follows a compiler-extracted synchronous component computation without
+explicit task placement, context, resource, signal, or result-publication requirements. That work
+executes locally in the selected target and retains ordinary accessor and exception behavior.
+Client dependency observation belongs to the component lifetime, while server setup runs directly.
+A separately proven browser or server requirement still constrains component residency.
+An authored task still requires inferable or explicit placement. Neither a readonly structural
+property nor a purity annotation proves that an unknown returned accessor is portable.
+After both target generations succeed, the builder inspects declared exports and required direct
+package-relative component selections. The selected binding must be an actual compiled callable
+with the expected component identity and artifact target. Missing artifacts, wrong identities and
+known server-only boundaries offered as client implementations still fail before replacement.
+
+Published selection evidence records those inspected targets and relative destinations separately
+from inference. It does not certify helper purity, future invocation success or universal portability,
+and it does not create client-island or server-operation registrations. Consumers authorize the
+resolver-selected package and canonical owner before evaluating library code. Unknown selections
+need matching inspected evidence, while legacy known-placement facts retain their existing path.
+The low-level metadata writer validates supplied records but does not independently inspect them.
+New unknown-placement library output requires selection-evidence-aware consumer tooling.
+The enforceable release dependency or feature gate for that capability remains a publication prerequisite.
 NodeNext `.mts` and `.mjs` modules retain `.mjs` output extensions,
 including package entry points. Point their paired exports at the emitted `.mjs` files.
 CommonJS `.cts` and `.cjs` compilation is unsupported and rejected before output is replaced.

@@ -8,7 +8,7 @@ export function observeReplay(callbackForTest: () => void): void {
 /** Keeps a stable server target while a replayed handler changes its owner's lifetime. */
 export function ReplayCounter() {
 	return () => (
-		<button data-exact-id="action" onClick={() => callback()}>
+		<button data-testid="action" onClick={() => callback()}>
 			Count
 		</button>
 	);

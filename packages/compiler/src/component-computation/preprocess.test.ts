@@ -1,3 +1,4 @@
+import { stateWriteFacts } from '../test-support/generated-contracts.js';
 import { describe, expect, it } from 'vitest';
 import { transform, transformSource } from '../index.js';
 import { analyzeSource } from '../compilation/source-analysis.js';
@@ -118,7 +119,14 @@ describe('@exactjs/compiler component computations', () => {
 			}`
 		);
 
-		expect(output).toContain('__exactUpdateState(this.state, 0');
+		expect(stateWriteFacts(output)).toContainEqual(
+			expect.objectContaining({
+				receiver: 'this.state',
+				path: 0,
+				gate: '??',
+				gateRead: 'this.state["name"]'
+			})
+		);
 	});
 
 	it('lowers synchronous derived state assignments into owned reactive computations', () => {
@@ -330,8 +338,12 @@ describe('@exactjs/compiler component computations', () => {
 		expect(output).toContain('catch (error)');
 		expect(output).toContain('finally');
 		expect(output).toContain('__exactServerTaskAwait');
-		expect(output).toContain('this.state.value =');
-		expect(output).toContain('this.state.orders =');
+		expect(stateWriteFacts(output)).toContainEqual(
+			expect.objectContaining({ receiver: 'this.state', path: ['value'] })
+		);
+		expect(stateWriteFacts(output)).toContainEqual(
+			expect.objectContaining({ receiver: 'this.state', path: ['orders'] })
+		);
 		expect(output.match(/__exactServerTaskAwait/g)?.length).toBeGreaterThanOrEqual(3);
 	});
 

@@ -1,41 +1,34 @@
 import { logFrameworkEvent } from '@exactjs/core';
 import type { ExactRequestLike, ExactServerContext } from './types.js';
-/** Describes the result produced by exact security. */
+/** Describes the result of request-level authorization and CSRF checks. */
 export type ExactSecurityResult = 'allowed' | 'unauthorized' | 'csrf';
 
-/** Runs authorization and CSRF hooks, converting hook failures into closed security results. */
+/** Request policies share approval, receiver, error-reporting and before-body ownership rules. */
+const requestPolicies = [
+	['authorize', 'unauthorized', 'authorization'],
+	['validateCsrf', 'csrf', 'csrf']
+] as const;
+
+/** Requires boolean true from each configured hook, denying malformed decisions and failures before body parsing. */
 export async function checkSecurityHooks(
 	request: ExactRequestLike,
 	context: ExactServerContext
 ): Promise<ExactSecurityResult> {
-	if (context.authorize) {
+	for (const [key, denied, label] of requestPolicies) {
 		try {
-			if (!(await context.authorize(request, context))) return 'unauthorized';
+			const hook = context[key];
+			if (hook === undefined) continue;
+			if ((await Reflect.apply(hook, context, [request, context])) !== true) return denied;
 		} catch (error) {
 			logFrameworkEvent(
 				'error',
 				'server',
 				'security',
-				'exact authorization hook failed',
+				`exact ${label} hook failed`,
 				error,
 				context.logger
 			);
-			return 'unauthorized';
-		}
-	}
-	if (context.validateCsrf) {
-		try {
-			if (!(await context.validateCsrf(request, context))) return 'csrf';
-		} catch (error) {
-			logFrameworkEvent(
-				'error',
-				'server',
-				'security',
-				'exact csrf hook failed',
-				error,
-				context.logger
-			);
-			return 'csrf';
+			return denied;
 		}
 	}
 	return 'allowed';

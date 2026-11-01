@@ -14,6 +14,7 @@ type jsxRuntimeNames struct {
 	timeIntrinsicElement      string
 	timeSpreadElement         string
 	intrinsicElement          string
+	elementIdentity           string
 	textHostElement           string
 	intrinsicComposition      string
 	suspenseReceipt           string
@@ -58,6 +59,8 @@ type jsxRuntimeNames struct {
 	suppliedTarget            string
 	suppliedProps             string
 	expression                string
+	componentPropExpression   string
+	forwardedPropExpression   string
 	forwardedExpression       string
 	indexedExpression         string
 	propertyOperand           string
@@ -119,6 +122,7 @@ type jsxRuntimeNames struct {
 	inspectionSource          string
 	defineTask                string
 	bindTask                  string
+	bindRequestTask           string
 	invokeTask                string
 	activateTask              string
 	activateTaskOnce          string
@@ -314,12 +318,12 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 			lowering.importSpecifier(imported, local),
 		)
 	}
-	componentReceiptImport := "createCompiledComponentReceipt"
+	componentReceiptImport := "createCompiledComponentInputReceipt"
 	componentReceiptGroup := runtimeComponentABI
 	keyedChildImport := "createCompiledKeyedChildReceipt"
 	keyedChildGroup := runtimeComponentABI
 	if lowering.target == TargetServer {
-		componentReceiptImport = "createPreparedServerComponentReference"
+		componentReceiptImport = "createPreparedServerComponentInputReference"
 		componentReceiptGroup = runtimeRender
 		keyedChildImport = "createPreparedServerKeyedChild"
 		keyedChildGroup = runtimeRender
@@ -329,6 +333,7 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		{"withCompiledComponentReceiptUpdate", lowering.names.componentReceiptUpdate, runtimeComponentABI},
 		{"withCompiledClientBoundaryIdentity", lowering.names.clientBoundaryIdentity, runtimeComponentABI},
 		{"createCompiledIntrinsicReceipt", lowering.names.intrinsicElement, runtimeComponentABI},
+		{"compiledElementIdentity", lowering.names.elementIdentity, runtimeComponentABI},
 		{"createDeferredServerIntrinsicReceipt", lowering.names.timeIntrinsicElement, runtimeComponentABI},
 		{"createDeferredServerIntrinsicSpreadReceipt", lowering.names.timeSpreadElement, runtimeComponentABI},
 		{"createCompiledTextHostReceipt", lowering.names.textHostElement, runtimeTextHost},
@@ -349,6 +354,8 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		{"createCompiledTargetReceipt", lowering.names.target, runtimeComponentABI},
 		{"createCompiledSuppliedTargetReceipt", lowering.names.suppliedTarget, runtimeComponentABI},
 		{"createExpression", lowering.names.expression, runtimeRender},
+		{"createComponentPropExpression", lowering.names.componentPropExpression, runtimeRender},
+		{"createForwardedComponentPropExpression", lowering.names.forwardedPropExpression, runtimeRender},
 		{"createForwardedExpression", lowering.names.forwardedExpression, runtimeRender},
 		{"createIndexedReactiveValue", lowering.names.indexedExpression, runtimeReactivity},
 		{"compiledReactivePropertyOperand", lowering.names.propertyOperand, runtimeReactivity},
@@ -443,11 +450,11 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		{"renderCompilerClosedToString", lowering.names.renderClosedSsr, runtimeCompilerClosedSSR},
 		{"renderCompilerClosedToHydratableString", lowering.names.renderClosedHydratableSsr, runtimeCompilerClosedSSR},
 		{"renderCompilerClosedUnmarkedToString", lowering.names.renderClosedUnmarkedSsr, runtimeCompilerClosedSSR},
-		{"renderCompiledComponentRoot", lowering.names.renderCompiledRoot, runtimeCompiledDOMRoot},
+		{"renderCompiledComponentInputRoot", lowering.names.renderCompiledRoot, runtimeCompiledDOMRoot},
 		{"renderCompiledIntrinsicRoot", lowering.names.renderCompiledIntrinsicRoot, runtimeCompiledDOMIntrinsicRoot},
 		{"renderCompiledProgramRoot", lowering.names.renderCompiledProgramRoot, runtimeCompiledDOMProgramRoot},
-		{"hydrateCompiledComponentRoot", lowering.names.hydrateCompiledRoot, runtimeCompiledHydrationRoot},
-		{"hydrateCompiledComponentRootAfterNavigation", lowering.names.hydrateCompiledDeferred, runtimeCompiledHydrationRoot},
+		{"hydrateCompiledComponentInputRoot", lowering.names.hydrateCompiledRoot, runtimeCompiledHydrationRoot},
+		{"hydrateCompiledComponentInputRootAfterNavigation", lowering.names.hydrateCompiledDeferred, runtimeCompiledHydrationRoot},
 		{"readPublishedRootProps", lowering.names.readCompiledRootProps, runtimeCompiledHydrationRoot},
 	}
 	for _, helper := range helpers {
@@ -502,6 +509,7 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		"markExactInspectionSource",
 		"defineTask",
 		"bindTaskForHost",
+		"bindTask",
 		"invokeTask",
 		"activateTaskForHost",
 		"activateTaskOnceForHost",
@@ -950,6 +958,7 @@ func allocateJSXRuntimeNames(sourceFile *ast.SourceFile) jsxRuntimeNames {
 		timeIntrinsicElement:      allocate("__exactTimeIntrinsicReceipt"),
 		timeSpreadElement:         allocate("__exactTimeSpreadIntrinsicReceipt"),
 		intrinsicElement:          allocate("__exactIntrinsicReceipt"),
+		elementIdentity:           allocate("__exactElementIdentity"),
 		textHostElement:           allocate("__exactTextHostReceipt"),
 		intrinsicComposition:      allocate("__exactComposableIntrinsic"),
 		suspenseReceipt:           allocate("__exactSuspenseReceipt"),
@@ -994,6 +1003,8 @@ func allocateJSXRuntimeNames(sourceFile *ast.SourceFile) jsxRuntimeNames {
 		suppliedTarget:            allocate("__exactSuppliedTarget"),
 		suppliedProps:             allocate("__exactSuppliedProps"),
 		expression:                allocate("__exactExpression"),
+		componentPropExpression:   allocate("__exactComponentPropExpression"),
+		forwardedPropExpression:   allocate("__exactForwardedComponentPropExpression"),
 		forwardedExpression:       allocate("__exactForwardedExpression"),
 		indexedExpression:         allocate("__exactIndexedExpression"),
 		propertyOperand:           allocate("__exactPropertyOperand"),
@@ -1057,6 +1068,7 @@ func allocateJSXRuntimeNames(sourceFile *ast.SourceFile) jsxRuntimeNames {
 		inspectionSource:          allocate("__exactInspectionSource"),
 		defineTask:                allocate("__exactDefineTask"),
 		bindTask:                  allocate("__exactBindTask"),
+		bindRequestTask:           allocate("__exactBindRequestTask"),
 		invokeTask:                allocate("__exactInvokeTask"),
 		activateTask:              allocate("__exactActivateTask"),
 		activateTaskOnce:          allocate("__exactActivateTaskOnce"),

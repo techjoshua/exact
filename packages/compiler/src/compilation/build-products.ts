@@ -1,3 +1,4 @@
+import { captureActivationDecision, capturePartitionPlan } from './analysis-projections.js';
 import type { ExactModuleAnalysis } from '../contracts/module-analysis.js';
 import type {
 	ExactArtifactBuildProducts,
@@ -18,100 +19,58 @@ export function createArtifactBuildProducts(
 			.filter((component) => component.standaloneClientActivation)
 			.map((component) => component.id)
 	]);
-	return Object.freeze({
+	return {
 		componentBuild: createExactComponentBuildFacts(analysis),
-		dependencies: Object.freeze([...analysis.dependencies]),
-		componentIds: Object.freeze(analysis.components.map((component) => component.id)),
-		exposureRoots: Object.freeze(
-			analysis.symbols.flatMap((symbol) =>
-				symbol.role === 'root' &&
-				symbol.kind === 'component' &&
-				symbol.componentId &&
-				symbol.exportName
-					? [Object.freeze({ componentId: symbol.componentId, exportName: symbol.exportName })]
-					: []
-			)
+		dependencies: [...analysis.dependencies],
+		componentIds: analysis.components.map((component) => component.id),
+		exposureRoots: analysis.symbols.flatMap((symbol) =>
+			symbol.role === 'root' &&
+			symbol.kind === 'component' &&
+			symbol.componentId &&
+			symbol.exportName
+				? [{ componentId: symbol.componentId, exportName: symbol.exportName }]
+				: []
 		),
-		componentEdges: Object.freeze(
-			analysis.components.flatMap((component) =>
-				component.renderEdges.map((edge) =>
-					Object.freeze({
-						id: edge.id,
-						sourceFile: inputFile,
-						sourceComponentId: component.id,
-						sourceName: component.name,
-						targetComponentId: edge.componentId,
-						targetName: edge.name,
-						tag: edge.tag,
-						placement: edge.placement,
-						boundary: edge.boundary,
-						index: edge.index,
-						path: edge.path
-					})
-				)
-			)
+		componentEdges: analysis.components.flatMap((component) =>
+			component.renderEdges.map((edge) => ({
+				id: edge.id,
+				sourceFile: inputFile,
+				sourceComponentId: component.id,
+				sourceName: component.name,
+				targetComponentId: edge.componentId,
+				targetName: edge.name,
+				tag: edge.tag,
+				placement: edge.placement,
+				boundary: edge.boundary,
+				index: edge.index,
+				path: edge.path
+			}))
 		),
-		clientRegistrations: Object.freeze(
-			analysis.symbols.flatMap((symbol) =>
-				clientRegistrySymbol(symbol, registrationOwners)
-					? [registryPlan(symbol, analysis.boundaries)]
-					: []
-			)
+		clientRegistrations: analysis.symbols.flatMap((symbol) =>
+			clientRegistrySymbol(symbol, registrationOwners)
+				? [registryPlan(symbol, analysis.boundaries)]
+				: []
 		),
-		serverRegistrations: Object.freeze(
-			analysis.symbols.flatMap((symbol) => {
-				if (symbol.role !== 'server-part' || symbol.target !== 'server' || !symbol.exportName)
-					return [];
-				return [
-					registryPlan(symbol as typeof symbol & { exportName: string }, analysis.boundaries)
-				];
+		serverRegistrations: analysis.symbols.flatMap((symbol) => {
+			if (symbol.role !== 'server-part' || symbol.target !== 'server' || !symbol.exportName)
+				return [];
+			return [registryPlan(symbol as typeof symbol & { exportName: string }, analysis.boundaries)];
+		}),
+		operations: analysis.continuations.map(taskOperationPlan),
+		boundaries: analysis.boundaries.map(
+			(boundary): ExactArtifactBoundaryPlan => ({
+				...boundary,
+				...(boundary.patchTargets ? { patchTargets: [...boundary.patchTargets] } : {}),
+				...(boundary.discriminatorValues
+					? { discriminatorValues: [...boundary.discriminatorValues] }
+					: {}),
+				...(boundary.activation
+					? { activation: captureActivationDecision(boundary.activation) }
+					: {})
 			})
 		),
-		operations: Object.freeze(analysis.continuations.map(taskOperationPlan)),
-		boundaries: Object.freeze(
-			analysis.boundaries.map(
-				(boundary): ExactArtifactBoundaryPlan =>
-					Object.freeze({
-						...boundary,
-						...(boundary.patchTargets
-							? { patchTargets: Object.freeze([...boundary.patchTargets]) }
-							: {}),
-						...(boundary.discriminatorValues
-							? { discriminatorValues: Object.freeze([...boundary.discriminatorValues]) }
-							: {}),
-						...(boundary.activation
-							? { activation: freezeActivationDecision(boundary.activation) }
-							: {})
-					})
-			)
-		),
-		partitionPlan: Object.freeze({
-			...analysis.partitionPlan,
-			roots: Object.freeze([...analysis.partitionPlan.roots]),
-			nodes: Object.freeze(
-				analysis.partitionPlan.nodes.map((node) =>
-					Object.freeze({
-						...node,
-						...(node.activationDecision
-							? { activationDecision: freezeActivationDecision(node.activationDecision) }
-							: {}),
-						artifactTargets: Object.freeze([...node.artifactTargets]),
-						renderPath: Object.freeze([...node.renderPath]),
-						childEdges: Object.freeze([...node.childEdges])
-					})
-				)
-			),
-			edges: Object.freeze(
-				analysis.partitionPlan.edges.map((edge) =>
-					Object.freeze({
-						...edge,
-						data: Object.freeze(edge.data.map((slot) => Object.freeze({ ...slot }))),
-						renderPath: Object.freeze([...edge.renderPath])
-					})
-				)
-			)
-		}) as ExactModuleAnalysis['partitionPlan']
-	});
+		partitionPlan: capturePartitionPlan(analysis.partitionPlan)
+	};
 }
 
 function registryPlan(
@@ -123,30 +82,13 @@ function registryPlan(
 			boundary.kind === 'client-island' &&
 			(boundary.id === symbol.id || boundary.name === symbol.generatedName)
 	)?.activation;
-	return Object.freeze({
+	return {
 		id: symbol.id,
 		name: symbol.generatedName,
 		exportName: symbol.exportName,
 		...(symbol.componentId ? { componentId: symbol.componentId } : {}),
-		...(activation ? { activation: freezeActivationDecision(activation) } : {})
-	});
-}
-
-function freezeActivationDecision(
-	activation: NonNullable<ExactModuleAnalysis['boundaries'][number]['activation']>
-) {
-	return Object.freeze({
-		...activation,
-		reasons: Object.freeze(activation.reasons.map((reason) => Object.freeze({ ...reason }))),
-		targets: Object.freeze(
-			activation.targets.map((target) =>
-				Object.freeze({
-					...target,
-					events: Object.freeze(target.events.map((event) => Object.freeze({ ...event })))
-				})
-			)
-		)
-	});
+		...(activation ? { activation: captureActivationDecision(activation) } : {})
+	};
 }
 
 function clientRegistrySymbol(
@@ -171,7 +113,7 @@ function clientRegistrySymbol(
 function taskOperationPlan(
 	continuation: ExactModuleAnalysis['continuations'][number]
 ): ExactTaskOperationPlan {
-	return Object.freeze({
+	return {
 		kind: 'task',
 		id: continuation.id,
 		componentId: continuation.componentId,
@@ -179,50 +121,42 @@ function taskOperationPlan(
 		concurrency: continuation.concurrency,
 		...(continuation.progress?.length
 			? {
-					progress: Object.freeze(
-						continuation.progress.map((receiver) => Object.freeze({ ...receiver }))
-					)
+					progress: continuation.progress.map((receiver) => ({ ...receiver }))
 				}
 			: {}),
-		dependencies: Object.freeze(
-			continuation.activation.dependencies.map(({ index, source, path }) =>
-				Object.freeze({ index, source, ...(path ? { path } : {}) })
-			)
-		),
-		stateReads: Object.freeze(
-			continuation.activation.stateReads.map(({ path, kind, confidence, operation }) =>
-				Object.freeze({ path, kind, confidence, ...(operation ? { operation } : {}) })
-			)
-		),
-		stateWrites: Object.freeze(
-			continuation.effects.stateWrites.map(({ path, kind, confidence, operation }) =>
-				Object.freeze({ path, kind, confidence, ...(operation ? { operation } : {}) })
-			)
-		),
-		publicContexts: Object.freeze(
-			continuation.activation.publicContexts.map((context) => context.token)
-		),
-		serverContexts: Object.freeze(
-			continuation.activation.serverContexts.map((context) => context.token)
-		),
-		contextWrites: Object.freeze(
-			continuation.effects.contextWrites.map((context) => context.token)
-		),
-		serverContextWrites: Object.freeze(
-			continuation.effects.serverContextWrites.map((context) => context.token)
-		),
-		boundaries: Object.freeze([...continuation.effects.boundaries]),
+		dependencies: continuation.activation.dependencies.map(({ index, source, path }) => ({
+			index,
+			source,
+			...(path ? { path } : {})
+		})),
+		stateReads: continuation.activation.stateReads.map(({ path, kind, confidence, operation }) => ({
+			path,
+			kind,
+			confidence,
+			...(operation ? { operation } : {})
+		})),
+		stateWrites: continuation.effects.stateWrites.map(({ path, kind, confidence, operation }) => ({
+			path,
+			kind,
+			confidence,
+			...(operation ? { operation } : {})
+		})),
+		publicContexts: continuation.activation.publicContexts.map((context) => context.token),
+		serverContexts: continuation.activation.serverContexts.map((context) => context.token),
+		contextWrites: continuation.effects.contextWrites.map((context) => context.token),
+		serverContextWrites: continuation.effects.serverContextWrites.map((context) => context.token),
+		boundaries: [...continuation.effects.boundaries],
 		...(continuation.invocation
 			? {
-					invocation: Object.freeze({
-						arguments: Object.freeze(
-							continuation.invocation.arguments.map(({ index, source, path }) =>
-								Object.freeze({ index, source, ...(path ? { path } : {}) })
-							)
-						),
+					invocation: {
+						arguments: continuation.invocation.arguments.map(({ index, source, path }) => ({
+							index,
+							source,
+							...(path ? { path } : {})
+						})),
 						concurrency: continuation.invocation.concurrency
-					})
+					}
 				}
 			: {})
-	});
+	};
 }

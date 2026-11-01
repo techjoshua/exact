@@ -172,68 +172,74 @@ describe('@exactjs/webpack-plugin', () => {
 		expect(hardened?.code).not.toContain('@exactjs/devtools');
 	});
 
-	it('emits one server-only catalog asset from loader-owned compiler results', () => {
-		let compile!: (compilation: any) => void;
-		let assets!: () => void;
-		let shutdown!: () => void;
-		const emitted = new Map<string, string>();
-		const compiler: WebpackCompilerLike = {
-			options: {},
-			hooks: {
-				thisCompilation: {
-					tap(_name, handler) {
-						compile = handler;
+	it.each([true, false, undefined] as const)(
+		'selects server-only catalog publication independently of language inspection (%s)',
+		async (catalog) => {
+			let compile!: (compilation: any) => void;
+			let assets!: () => Promise<void>;
+			let shutdown!: () => void;
+			const emitted = new Map<string, string>();
+			onTestFinished(() => shutdown?.());
+			const compiler: WebpackCompilerLike = {
+				options: {},
+				hooks: {
+					thisCompilation: {
+						tap(_name, handler) {
+							compile = handler;
+						}
+					},
+					shutdown: {
+						tap(_name, handler) {
+							shutdown = handler;
+						}
+					}
+				}
+			};
+			new ExactWebpackPlugin({
+				target: 'server',
+				applicationRoot: process.cwd(),
+				debug: {
+					catalog,
+					runtime: false,
+					buildKey: 'webpack-build',
+					executionRoot: 'page'
+				}
+			}).apply(compiler);
+			const loaderOptions = (
+				compiler.options.module!.rules![0] as {
+					use: Array<{ options: ExactWebpackPluginOptions }>;
+				}
+			).use[0]!.options;
+			transformExactWebpackSource(
+				`export function Page() { return () => <main />; }`,
+				`${process.cwd()}/src/Page.tsx`,
+				{ ...loaderOptions, __exactLanguageValidation: true },
+				compilerSessionForWebpackLoader(loaderOptions.__exactSessionId)
+			);
+			compile({
+				hooks: {
+					processAssets: {
+						tapPromise(_options: unknown, handler: () => Promise<void>) {
+							assets = handler;
+						}
 					}
 				},
-				shutdown: {
-					tap(_name, handler) {
-						shutdown = handler;
-					}
+				emitAsset(filename: string, source: { source(): string }) {
+					emitted.set(filename, source.source());
 				}
-			}
-		};
-		new ExactWebpackPlugin({
-			target: 'server',
-			applicationRoot: process.cwd(),
-			debug: {
-				catalog: true,
-				runtime: true,
-				buildKey: 'webpack-build',
-				executionRoot: 'page'
-			}
-		}).apply(compiler);
-		const loaderOptions = (
-			compiler.options.module!.rules![0] as {
-				use: Array<{ options: ExactWebpackPluginOptions }>;
-			}
-		).use[0]!.options;
-		transformExactWebpackSource(
-			`export function Page() { return () => <main />; }`,
-			`${process.cwd()}/src/Page.tsx`,
-			loaderOptions,
-			compilerSessionForWebpackLoader(loaderOptions.__exactSessionId)
-		);
-		compile({
-			hooks: {
-				processAssets: {
-					tap(_options: unknown, handler: () => void) {
-						assets = handler;
-					}
-				}
-			},
-			emitAsset(filename: string, source: { source(): string }) {
-				emitted.set(filename, source.source());
-			}
-		});
-		assets();
+			});
+			await assets();
 
-		expect(emitted.has('.exact-inspection/webpack-build.json')).toBe(true);
-		expect(JSON.parse(emitted.values().next().value!)).toMatchObject({
-			buildKey: 'webpack-build',
-			roots: { page: { executionRoot: 'page' } }
-		});
-		shutdown();
-	});
+			expect(emitted.has('.exact-inspection/webpack-build.json')).toBe(catalog === true);
+			expect(emitted.has('.exact/component-library-authorization.json')).toBe(true);
+			expect(emitted.has('.exact/component-library-audit.json')).toBe(true);
+			if (catalog)
+				expect(JSON.parse(emitted.get('.exact-inspection/webpack-build.json')!)).toMatchObject({
+					buildKey: 'webpack-build',
+					roots: { page: { executionRoot: 'page' } }
+				});
+		}
+	);
 
 	it('requires one immutable build identity for explicit production debug output', () => {
 		expect(() =>
@@ -439,6 +445,16 @@ describe('@exactjs/webpack-plugin', () => {
 		} finally {
 			if (webpackCompilerSessionCount() > before) shutdown?.();
 		}
+	});
+
+	it('validates JSX ownership only for selected modules', () => {
+		const source =
+			'/** @jsxImportSource react */\n/** @jsxImportSource @exactjs/jsx */\nconst view = <span />;';
+		expect(transformExactWebpackSource(source, '/test/mixed.tsx', { include: '/src/' })).toBeNull();
+		expect(transformExactWebpackSource(source, '/src/mixed.tsx', { exclude: /mixed/ })).toBeNull();
+		expect(() =>
+			transformExactWebpackSource(source, '/src/mixed.tsx', { include: '/src/' })
+		).toThrow(/Mixed React and eXact/);
 	});
 
 	it('installs React aliases and compiles inferred React JSX to the compatibility runtime', () => {

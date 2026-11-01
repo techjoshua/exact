@@ -9,18 +9,29 @@ import (
 	"github.com/microsoft/TypeScript/tsc/internal/checker"
 )
 
+// reactiveExpressionInput keeps component acquisition operands out of structural values.
+// Structural inputs retain live-value forwarding while using the ordinary reactive-value contract.
+type reactiveExpressionInput uint8
+
+const (
+	ordinaryExpressionInput reactiveExpressionInput = iota
+	componentExpressionInput
+	structuralExpressionInput
+)
+
 func (lowering *jsxLowering) reactiveExpression(
 	source *ast.Node,
 	expression *ast.Node,
 ) *ast.Node {
-	return lowering.reactiveExpressionMode(source, expression, false)
+	return lowering.reactiveExpressionMode(source, expression, ordinaryExpressionInput)
 }
 
 func (lowering *jsxLowering) reactiveExpressionMode(
 	source *ast.Node,
 	expression *ast.Node,
-	forwardLiveSlot bool,
+	input reactiveExpressionInput,
 ) *ast.Node {
+	forwardLiveSlot := input != ordinaryExpressionInput
 	// Parameters of an ordinary operation factory are finalized invocation values, not a durable
 	// component props facade. Wrapping them as forwarded live slots leaks reactive operands into a
 	// root component receipt whose updates are driven by the renderer's next operation instead.
@@ -32,7 +43,7 @@ func (lowering *jsxLowering) reactiveExpressionMode(
 	if forwardLiveSlot && lowering.directServerFrameComponent(source) {
 		return expression
 	}
-	if forwardLiveSlot {
+	if input == componentExpressionInput {
 		if value := lowering.directPropertyOperand(source, expression); value != nil {
 			return value
 		}
@@ -54,8 +65,20 @@ func (lowering *jsxLowering) reactiveExpressionMode(
 		closure = lowering.arrow(expression)
 	}
 	helper := lowering.names.expression
+	if input == componentExpressionInput {
+		helper = lowering.names.componentPropExpression
+	}
 	if forwardLiveSlot && lowering.liveSlotForwarding(source) {
-		helper = lowering.names.forwardedExpression
+		// Only a complete input slot can forward an authored reactive value directly. A nested
+		// selection must keep its compiler layer and selection dependencies even when its result
+		// is itself reactive; probing and forwarding that result would lose the reader's owner.
+		_, indexedProp := lowering.propsReadSlots[nodeSpanKey(source)]
+		if indexedProp || ast.IsIdentifier(source) {
+			helper = lowering.names.forwardedExpression
+			if input == componentExpressionInput {
+				helper = lowering.names.forwardedPropExpression
+			}
+		}
 	}
 	value := lowering.call(
 		helper,
@@ -91,7 +114,7 @@ func (lowering *jsxLowering) reactiveExpressionMode(
 }
 
 // directPropertyOperand encodes one exact member read whose receiver identity is
-// already owned by a declarative callback or indexed component prop. The child dependency router
+// already owned by a declarative callback. The child dependency router
 // subscribes to that receiver/key pair and rebinds it when a replacement prop receipt supplies a
 // different receiver, avoiding a new computation owner for every repeated component operation.
 // Other captures retain their executable expression owner.
@@ -157,10 +180,10 @@ func (lowering *jsxLowering) declarativePropertyOperandReceiver(
 		}
 		return false
 	}
-	if _, indexedProp := lowering.propsReadSlots[nodeSpanKey(receiver)]; !indexedProp {
-		return false
-	}
-	return true
+	// An indexed prop selects a replaceable object. Capturing its current receiver loses both
+	// selection changes and the member dependency when an atomic receipt finalizes the operand.
+	// Keep the complete expression reader so its existing owner can rebind after replacement.
+	return false
 }
 
 // indexedReactiveExpression replaces a one-use read closure and general computed node with the
@@ -667,6 +690,10 @@ func (lowering *jsxLowering) materializedClosure(
 	statements := make([]*ast.Node, 0, len(locals)+1)
 	for _, local := range locals {
 		variable := local.declaration.AsVariableDeclaration()
+		annotation := variable.Type
+		if annotation != nil && lowering.clientCaptureIsland != nil {
+			annotation = lowering.clientCaptureIsland.types.annotations[annotation]
+		}
 		var initializer *ast.Node
 		if local.cached {
 			initializer = lowering.factory.NewIdentifier(variable.Name().Text())
@@ -691,7 +718,7 @@ func (lowering *jsxLowering) materializedClosure(
 						lowering.factory.NewVariableDeclaration(
 							lowering.factory.NewIdentifier(local.name),
 							nil,
-							variable.Type,
+							annotation,
 							initializer,
 						),
 					}),

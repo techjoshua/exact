@@ -24,7 +24,7 @@ func (lowering *jsxLowering) appendRenderProgramAttributes(
 		// after a concrete client or server target is known.
 		return build.decline("untargeted-enhancement-inspection")
 	}
-	if lowering.target == TargetServer && (jsxAttributesContainSpread(attributes) || lowering.serverInputAttributesRequireType(attributes, tag)) {
+	if lowering.target == TargetServer && (jsxAttributesContainSpread(attributes) || lowering.serverInputAttributesRequireType(attributes, tag) || lowering.serverRenderProgramHasObservableRef(attributes)) {
 		return lowering.appendServerSpreadAttributes(build, attributes, tag, path, node)
 	}
 	conditionalClasses := jsxHasConditionalClassName(attributes)
@@ -59,6 +59,13 @@ func (lowering *jsxLowering) appendRenderProgramAttributes(
 					lowering.factory.NewArrayLiteralExpression(lowering.factory.NewNodeList(keys), false),
 				})
 			}
+
+			// This is an authored spread contribution, not the physical host. Copy once at
+			// the existing reader boundary and discard copied physical metadata by construction.
+			reader = lowering.factory.NewObjectLiteralExpression(lowering.factory.NewNodeList([]*ast.Node{
+				lowering.factory.NewSpreadAssignment(reader), lowering.elementIdentityProperty(""),
+			}), false)
+
 			build.spreadSlot(lowering.dynamicID(property), path, node, reader)
 			continue
 		}
@@ -144,6 +151,21 @@ func (lowering *jsxLowering) appendRenderProgramAttributes(
 	return true
 }
 
+// serverRenderProgramHasObservableRef keeps ref identity beside the effective sibling props.
+// The grouped SSR writer reserves IDs through renderAttrs, while scalar property slots cannot.
+// Use the existing source-owned capability so client callbacks remain unevaluated on the server.
+func (lowering *jsxLowering) serverRenderProgramHasObservableRef(attributes *ast.Node) bool {
+	for _, property := range attributes.AsJsxAttributes().Properties.Nodes {
+		if ast.IsJsxAttribute(property) {
+			attribute := property.AsJsxAttribute()
+			if jsxAttributeText(attribute.Name()) == "ref" && lowering.serverObservableRefAttribute(attribute) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // serverInputAttributesRequireType keeps calendar values beside the effective input type.
 // This also covers explicit values, whose scalar SSR writer cannot see a sibling type attribute.
 func (lowering *jsxLowering) serverInputAttributesRequireType(attributes *ast.Node, tag string) bool {
@@ -163,6 +185,11 @@ func (lowering *jsxLowering) serverInputAttributesRequireType(attributes *ast.No
 // semantics are identical. Values that need URL policy, event installation, form binding, object
 // normalization, or custom-element property assignment deliberately remain runtime operations.
 func staticRenderProgramAttribute(tag string, name string, initializer *ast.Node) (string, string, bool) {
+	// A select has no value content attribute. Even a literal must reach its property writer
+	// so later option placement and retained option values preserve the authored selection.
+	if tag == "select" && name == "value" {
+		return "", "", false
+	}
 	if !strings.Contains(tag, "-") && initializer == nil && name == "required" {
 		return name, ` required`, true
 	}

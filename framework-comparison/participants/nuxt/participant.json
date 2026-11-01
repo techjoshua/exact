@@ -2,7 +2,7 @@
 	"schemaVersion": 1,
 	"id": "nuxt-controlled",
 	"framework": "Nuxt",
-	"frameworkVersion": "4.5.2",
+	"frameworkVersion": "4.6.2",
 	"tracks": ["controlled-service"],
 	"runtime": "node-24",
 	"ssrTransports": {

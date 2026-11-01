@@ -13,11 +13,24 @@ describe('execution-root patch confinement', () => {
 		const page = createComponentDomain({ executionRoot: 'page' });
 		const remote = createComponentDomain({ executionRoot: '@company/billing#./Area' });
 		render(confinedLabelsRoot(page, remote), container);
+		// Explicit protocol input creates the deliberate cross-root collision.
+		for (const span of container.querySelectorAll('span'))
+			span.setAttribute('data-exact-id', 'title');
 
 		expect(
-			applyPatches(container, [{ type: 'text', id: 'title', value: 'Updated' }], {
-				executionRoot: '@company/billing#./Area'
-			})
+			applyPatches(
+				container,
+				[
+					{
+						type: 'text',
+						id: container.querySelector('span')!.getAttribute('data-exact-id')!,
+						value: 'Updated'
+					}
+				],
+				{
+					executionRoot: '@company/billing#./Area'
+				}
+			)
 		).toBe(true);
 		expect(Array.from(container.querySelectorAll('span'), (span) => span.textContent)).toEqual([
 			'Page',
@@ -31,12 +44,20 @@ describe('execution-root patch confinement', () => {
 		const page = createComponentDomain({ executionRoot: 'page' });
 		const remote = createComponentDomain({ executionRoot: '@company/brand#./Shell' });
 		render(foreignShellRoot(page, remote), container);
+		// This test owns a manual patch protocol address, not an authored JSX attribute.
+		container.querySelector('section')!.setAttribute('data-exact-id', 'shell');
 		const onCrossRootReplacement = vi.fn();
 
 		expect(
 			applyPatches(
 				container,
-				[{ type: 'replace', id: 'shell', html: '<section data-exact-id="shell"></section>' }],
+				[
+					{
+						type: 'replace',
+						id: container.querySelector('section')!.getAttribute('data-exact-id')!,
+						html: `<section data-exact-id="${container.querySelector('section')!.getAttribute('data-exact-id')}"></section>`
+					}
+				],
 				{ executionRoot: '@company/brand#./Shell', onCrossRootReplacement }
 			)
 		).toBe(true);

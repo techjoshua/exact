@@ -75,13 +75,17 @@ export async function disposeOwnedValue(owned: OwnedValue, reason: unknown): Pro
 
 /** Awaits response work while rejecting promptly when its request lifetime is aborted. */
 export function awaitWithAbort<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
-	if (signal.aborted) return Promise.reject(abortReason(signal));
+	if (signal.aborted) {
+		// Factory work may have aborted its own scope before returning this promise.
+		void promise.catch(() => {});
+		return Promise.reject(signal.reason);
+	}
 	return new Promise<T>((resolve, reject) => {
 		let settled = false;
 		const abort = () => {
 			if (settled) return;
 			settled = true;
-			reject(abortReason(signal));
+			reject(signal.reason);
 		};
 		signal.addEventListener('abort', abort, { once: true });
 		promise.then(
@@ -103,11 +107,6 @@ export function awaitWithAbort<T>(promise: Promise<T>, signal: AbortSignal): Pro
 			}
 		);
 	});
-}
-
-/** Releases reason and its owned resources. */
-export function abortReason(signal: AbortSignal): unknown {
-	return signal.reason ?? new DOMException('eXact request aborted', 'AbortError');
 }
 
 /** Performs the header value domain operation. */
@@ -159,8 +158,7 @@ export function retainScopeForStream(
 		{
 			start(controller) {
 				abort = () => {
-					const reason =
-						signal?.reason ?? new DOMException('eXact response stream aborted', 'AbortError');
+					const reason = signal?.reason;
 					controller.error(reason);
 					void reader
 						.cancel(reason)
@@ -185,15 +183,15 @@ export function retainScopeForStream(
 				}
 			},
 			async cancel(reason) {
-				let primary: unknown;
+				let primary: { error: unknown } | undefined;
 				try {
 					await reader.cancel(reason);
 				} catch (error) {
-					primary = error;
+					primary = { error };
 				}
 				if (primary !== undefined) {
-					await disposePreservingPrimary(finish, primary);
-					throw primary;
+					await disposePreservingPrimary(finish, primary.error);
+					throw primary.error;
 				}
 				await finish(reason);
 			}

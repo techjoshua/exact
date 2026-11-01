@@ -30,7 +30,7 @@ async function main() {
 				JSON.stringify({
 					name: 'packed-generator',
 					private: true,
-					dependencies: { '@exactjs/create-exact-app': '^0.7.0' }
+					dependencies: { '@exactjs/create-exact-app': '^0.8.0' }
 				})
 			);
 			await install(generator);

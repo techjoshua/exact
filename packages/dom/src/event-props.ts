@@ -1,9 +1,5 @@
-import {
-	batch,
-	createErrorReport,
-	handleComponentError,
-	observeComponentAsync
-} from '@exactjs/core';
+import { createErrorReport, handleComponentError, observeComponentAsync } from '@exactjs/core';
+import { publishBatch } from '@exactjs/reactive/framework/runtime';
 import { assertNativeEventHandler } from '@exactjs/core/framework/render-structure';
 import {
 	authoredEventKey,
@@ -13,7 +9,6 @@ import {
 	runEventInteraction,
 	runInteractiveEvent
 } from './events.js';
-import { preserveFocus } from './focus.js';
 import { findOwnerInstance } from './ownership.js';
 import { directEventHandlers, eventHandlers } from './state.js';
 import type { Root } from './types.js';
@@ -47,10 +42,17 @@ export function applyEventProp(root: Root, element: Element, key: string, value:
 	if (typeof value === 'function') {
 		const handler = value as EventListener;
 		const flags = (directInteraction ? 1 : 0) | (closedInteraction ? 2 : 0);
+		const container = eventContainerFor(root, element);
 		const current = handlers.get(type);
-		if (!current || current[0] !== handler || current[1] !== flags)
-			handlers.set(type, [handler, flags]);
-		ensureDelegated(root, type, eventContainerFor(root, element));
+		if (
+			!current ||
+			current[0] !== handler ||
+			current[1] !== flags ||
+			current[2] !== root ||
+			current[3] !== container
+		)
+			handlers.set(type, [handler, flags, root, container]);
+		ensureDelegated(root, type, container);
 	} else {
 		handlers.delete(type);
 	}
@@ -76,23 +78,24 @@ export function setDirectEventHandler(
 	}
 	if (typeof value !== 'function') return;
 	const handler = value as EventListener;
-	const listener: EventListener = (event) =>
-		preserveFocus(root, () => {
-			try {
-				const owner = findOwnerInstance(element);
-				const invoke = () =>
-					closedInteraction
-						? (handler as (this: Element) => unknown).call(element)
-						: (handler as (this: Element, event: Event) => unknown).call(element, event);
-				const result = closedInteraction
-					? runInteractiveEvent(root, owner, invoke, true)
-					: batch(() => runEventInteraction(root, owner, invoke, undefined, directInteraction));
-				observeComponentAsync(owner, result, 'event', type);
-			} catch (error) {
-				const owner = findOwnerInstance(element);
-				handleComponentError(owner, createErrorReport(error, 'event', owner, type));
-			}
-		});
+	const listener: EventListener = (event) => {
+		try {
+			const owner = findOwnerInstance(element);
+			const invoke = () =>
+				closedInteraction
+					? (handler as (this: Element) => unknown).call(element)
+					: (handler as (this: Element, event: Event) => unknown).call(element, event);
+			const result = closedInteraction
+				? runInteractiveEvent(root, owner, invoke, true)
+				: publishBatch(() =>
+						runEventInteraction(root, owner, invoke, undefined, directInteraction)
+					);
+			observeComponentAsync(owner, result, 'event', type);
+		} catch (error) {
+			const owner = findOwnerInstance(element);
+			handleComponentError(owner, createErrorReport(error, 'event', owner, type));
+		}
+	};
 	const entry = { type, listener, capture };
 	let direct = directEventHandlers.get(element);
 	if (!direct) {
@@ -103,9 +106,12 @@ export function setDirectEventHandler(
 	element.addEventListener(type, listener, capture);
 }
 
+/** Reactive replacements retain the nearest physical portal container chosen during mounting. */
 function eventContainerFor(root: Root, element: Element): Node {
 	if (root.eventContainer) return root.eventContainer;
 	if (root.container.contains(element)) return root.container;
-	for (const target of root.portalTargets) if (target.contains(element)) return target;
-	return root.container;
+	let container: Node | undefined;
+	for (const target of root.portalTargets)
+		if (target.contains(element) && (!container || container.contains(target))) container = target;
+	return container ?? root.container;
 }

@@ -27,6 +27,13 @@ func attachNormalizedTaskOrigins(tasks []Task, sourceFile *ast.SourceFile, norma
 		}
 		task.CompilerSetup = strings.HasPrefix(name.Text(), "__exactComponentSetupTask_")
 		task.CompilerComputation = strings.HasPrefix(name.Text(), "__exactComponentComputation_")
+		if targetLocalOpaqueComputation(*task) {
+			// The containing component retains this uncertainty under its ordinary placement policy.
+			// Other diagnostics, including authored task placement, are not reclassified.
+			task.Diagnostics = slices.DeleteFunc(task.Diagnostics, func(message string) bool {
+				return strings.HasPrefix(message, "error: task placement depends on an opaque call")
+			})
+		}
 	}
 }
 

@@ -3,12 +3,15 @@ import {
 	rollbackReactiveMutationJournals,
 	scheduleWork
 } from '@exactjs/reactive/framework/runtime';
-import { reactiveObjects } from '@exactjs/reactive/framework/objects';
 
-import { TaskCancellation } from './cancellation.js';
+import { isTaskCancellation } from './cancellation.js';
 import { inheritComponentContinuationIdentity } from './component-continuation.js';
 import { taskDefinitionBrand, type TaskDefinition } from './definition-record.js';
 import { discardTaskMutations, publishTaskMutations } from './task-publication.js';
+import {
+	associateTaskPropertyMutationCapture,
+	releaseTaskPropertyMutationCaptureAlias
+} from './property-mutations.js';
 import { readExactInspectionSource } from '../component/inspection-source.js';
 import type {
 	BoundTaskFunction,
@@ -35,6 +38,7 @@ import { TaskInvocationValue } from './invocation.js';
 import { validateTaskOptions } from './options.js';
 import { donateTaskPriority, taskWorkPriority } from './priority.js';
 import { executeScheduledTaskGeneration } from './generation-execution.js';
+import { ownerState, taskLane } from './generation-state.js';
 import { markTaskPerformanceTrace, startTaskPerformanceTrace } from './performance-trace.js';
 import { createTaskStatus, defineTaskStatusProperties } from './status.js';
 import type {
@@ -43,7 +47,8 @@ import type {
 	InternalTaskOwnerState
 } from './runtime-types.js';
 
-const defaultLaneKey = Symbol('exact.default-task-lane');
+// Bound facades from another compatible provider must select the definition's same default lane.
+const defaultLaneKey = Symbol.for('@exactjs/default-task-lane/abi-2');
 
 /**
  * Defines one stable runtime task using the same owner, lane, generation,
@@ -188,6 +193,8 @@ function invokeDefinition<Args extends unknown[], Result>(
 	if (concurrency === 'latest') cancelLane(lane, 'superseded');
 	const generation = ++state.nextGeneration;
 	const controller = new AbortController();
+	if (activation === 'invoked' && ambient?.owner === owner)
+		associateTaskPropertyMutationCapture(controller.signal, ambient.controller.signal);
 	const priority = definition.options.priority ?? ambient?.priority ?? 'normal';
 	const readiness =
 		definition.options.readiness ??
@@ -233,7 +240,13 @@ function invokeDefinition<Args extends unknown[], Result>(
 		record.readinessRegistration = owner.registerReadiness(
 			generation,
 			promise,
-			() => publishTaskMutations(controller.signal),
+			() => {
+				try {
+					publishTaskMutations(controller.signal);
+				} finally {
+					releaseTaskPropertyMutationCaptureAlias(controller.signal);
+				}
+			},
 			() => discardTaskMutations(controller.signal)
 		);
 		controller.signal.addEventListener('abort', () => record.readinessRegistration?.cancel(), {
@@ -284,44 +297,54 @@ function startGeneration<Args extends unknown[], Result>(
 		record.scheduledWork = scheduledWork;
 		scheduleWork(scheduledWork, taskWorkPriority(record.priority), rejectExecution);
 	});
-	void execution.then(
-		(value) => {
-			for (const journal of record.journals) journal.discard();
-			if (!record.readinessRegistration) publishTaskMutations(record.controller.signal);
-			if (record.generation >= state.generation) {
-				state.generation = record.generation;
-				state.result = value;
-				state.error = undefined;
-			}
-			if (record.generation >= lane.generation) {
-				lane.result = value;
-				lane.error = undefined;
-				lane.generation = record.generation;
-			}
-			if (record.trace) markTaskPerformanceTrace(record, 'settled', { outcome: 'success' });
-			finishGeneration(definition, owner, state, lane, record);
-			record.resolve(value);
-		},
-		(error) => {
-			rollbackReactiveMutationJournals(record.journals);
-			discardTaskMutations(record.controller.signal);
-			record.readinessRegistration?.cancel();
-			if (record.generation >= state.generation) {
-				state.generation = record.generation;
-				if (!(error instanceof TaskCancellation)) state.error = error;
-			}
-			if (record.generation >= lane.generation) {
-				lane.generation = record.generation;
-				if (!(error instanceof TaskCancellation)) lane.error = error;
-			}
-			if (record.trace)
-				markTaskPerformanceTrace(record, 'settled', {
-					outcome: error instanceof TaskCancellation ? 'cancelled' : 'error'
-				});
-			finishGeneration(definition, owner, state, lane, record);
-			record.reject(error);
+	/** Settles execution or direct-publication failure through the same generation cleanup. */
+	const fail = (error: unknown) => {
+		const cancelled = isTaskCancellation(error);
+		rollbackReactiveMutationJournals(record.journals);
+		discardTaskMutations(record.controller.signal);
+		record.readinessRegistration?.cancel();
+		if (record.generation >= state.generation) {
+			state.generation = record.generation;
+			if (!cancelled) state.error = error;
 		}
-	);
+		if (record.generation >= lane.generation) {
+			lane.generation = record.generation;
+			if (!cancelled) lane.error = error;
+		}
+		if (record.trace)
+			markTaskPerformanceTrace(record, 'settled', {
+				outcome: cancelled ? 'cancelled' : 'error'
+			});
+		finishGeneration(definition, owner, state, lane, record);
+		record.reject(error);
+	};
+
+	void execution.then((value) => {
+		for (const journal of record.journals) journal.discard();
+		if (!record.readinessRegistration) {
+			try {
+				publishTaskMutations(record.controller.signal);
+			} catch (error) {
+				fail(error);
+				return;
+			} finally {
+				releaseTaskPropertyMutationCaptureAlias(record.controller.signal);
+			}
+		}
+		if (record.generation >= state.generation) {
+			state.generation = record.generation;
+			state.result = value;
+			state.error = undefined;
+		}
+		if (record.generation >= lane.generation) {
+			lane.result = value;
+			lane.error = undefined;
+			lane.generation = record.generation;
+		}
+		if (record.trace) markTaskPerformanceTrace(record, 'settled', { outcome: 'success' });
+		finishGeneration(definition, owner, state, lane, record);
+		record.resolve(value);
+	}, fail);
 }
 
 function finishGeneration<Args extends unknown[], Result>(
@@ -332,6 +355,8 @@ function finishGeneration<Args extends unknown[], Result>(
 	record: InternalTaskGeneration<Result>
 ): void {
 	lane.active.delete(record);
+	if (!record.readinessRegistration)
+		releaseTaskPropertyMutationCaptureAlias(record.controller.signal);
 	state.pendingCount = Math.max(0, state.pendingCount - 1);
 	lane.pendingCount = Math.max(0, lane.pendingCount - 1);
 	if (record.concurrency === 'queue') {
@@ -351,53 +376,6 @@ function pumpLane<Args extends unknown[], Result>(
 	if ([...lane.active].some((record) => record.started)) return;
 	const next = lane.queue.shift();
 	if (next) startGeneration(definition, owner, state, lane, next);
-}
-
-function ownerState<Args extends unknown[], Result>(
-	definition: TaskDefinition<Args, Result>,
-	owner: TaskOwnerRecord
-): InternalTaskOwnerState<Result> {
-	let state = definition.owners.get(owner);
-	if (!state) {
-		state = reactiveObjects<InternalTaskOwnerState<Result>>(
-			{
-				nextGeneration: 0,
-				generation: 0,
-				pendingCount: 0,
-				result: undefined,
-				error: undefined,
-				lanes: new Map(),
-				lanesVersion: 0
-			},
-			{ passthroughKeys: ['lanes'] }
-		);
-		definition.owners.set(owner, state);
-	}
-	return state;
-}
-
-function taskLane<Result>(
-	state: InternalTaskOwnerState<Result>,
-	key: unknown
-): InternalTaskLane<Result> {
-	let lane = state.lanes.get(key);
-	if (!lane) {
-		lane = reactiveObjects<InternalTaskLane<Result>>(
-			{
-				key,
-				active: new Set<InternalTaskGeneration<Result>>(),
-				queue: [] as InternalTaskGeneration<Result>[],
-				pendingCount: 0,
-				generation: 0,
-				result: undefined,
-				error: undefined
-			},
-			{ passthroughKeys: ['active', 'queue'] }
-		);
-		state.lanes.set(key, lane);
-		state.lanesVersion++;
-	}
-	return lane;
 }
 
 function cancelLane<Result>(lane: InternalTaskLane<Result>, reason: unknown): void {

@@ -13,7 +13,7 @@ function Password(this: Component<{}>) {
   return () => (
     <label>
       Password
-      <input a11y:describedBy={help} />
+      <input a11y:described-by={help} />
       <span ref={help}>Use at least twelve characters.</span>
     </label>
   );
@@ -33,7 +33,7 @@ export const accessibilityModalSource = `function Settings(this: Component<{ ope
       <dialog
         id="settings"
         modal:isOpen={this.state.open}
-        a11y:focusScope
+        a11y:focus-scope
         aria-labelledby="settings-title"
       >
         <h2 id="settings-title">Settings</h2>
@@ -46,9 +46,9 @@ export const accessibilityModalSource = `function Settings(this: Component<{ ope
 
 /** Explicit focus entry and return targets for a bounded region. */
 export const accessibilityFocusSource = `<section
-  a11y:focusScope
-  a11y:initialFocus={firstField}
-  a11y:returnFocus={opener}
+  a11y:focus-scope
+  a11y:initial-focus={firstField}
+  a11y:return-focus={opener}
 >
   <input ref={firstField} />
 </section>`;
@@ -73,7 +73,7 @@ export const accessibilityIntlSource = `const label = this.ref(labelKey);
 <button
   aria-label={\`Delete \${this.state.count} messages\`}
   intl:aria-label="plural:cardinal"
-  a11y:labelledBy={label}
+  a11y:labelled-by={label}
 >
   <TrashIcon aria-hidden="true" />
 </button>`;

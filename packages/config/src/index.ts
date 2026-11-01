@@ -3,6 +3,7 @@ import type { ExactConfig } from './contracts.js';
 import { normalizeExactConfig } from './normalization.js';
 
 export type {
+	ExactAnalysisOptions,
 	ExactComponentLibraryRule,
 	ExactComponentLibraryTrustConfig,
 	ExactConfig,
@@ -17,7 +18,7 @@ export type {
 	ExactPluginDiscoveryConfig
 } from './contracts.js';
 
-/** Performs the define config domain operation. */
+/** Validates built-in options while retaining authored values, callback identity, and plugin types. */
 export function defineConfig<const T extends ExactConfig>(config: T): T {
 	return normalizeExactConfig(config);
 }

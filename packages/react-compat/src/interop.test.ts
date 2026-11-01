@@ -1,3 +1,5 @@
+import { readClientComponentInput } from '../../dom/src/renderer/component-input-admission.js';
+import { verifyReactContextObservations } from '../../component-composition-corpus/test-support/react-context-observation-journey.mjs';
 import { createContext, type Component } from '@exactjs/core';
 import { createComponentInstance, renderInstance } from '@exactjs/core/runtime/render';
 import {
@@ -12,8 +14,7 @@ import {
 } from '@exactjs/core/framework/compatibility-contributions';
 import {
 	createCompiledIntrinsicReceipt,
-	isOpaqueOperation,
-	readCompiledComponentReceipt
+	isOpaqueOperation
 } from '@exactjs/core/runtime/component-operations';
 import '@exactjs/core/runtime/contexts';
 import { describe, expect, it } from 'vitest';
@@ -36,11 +37,9 @@ import {
 	exposeExactComponent,
 	useExactContext
 } from './interop.js';
-
 let nextFixture = 0;
 const fixture = <T extends AnyExactComponentCallable>(component: T): T =>
 	createExactFrameworkFixtureArtifact(component, `@exactjs/react-compat:test:${++nextFixture}`);
-
 describe('eXact and React context interop', () => {
 	it('publishes fixed target-local island artifacts without adapting React types', () => {
 		expect(ReactServerIsland).not.toBe(ReactClientIsland);
@@ -58,16 +57,17 @@ describe('eXact and React context interop', () => {
 			}
 		});
 	});
-
 	it('profiles render and commit work through an explicit compatibility scope', () => {
-		const events: Array<{ subsystem: string; phase: string }> = [];
+		const events: Array<{
+			subsystem: string;
+			phase: string;
+		}> = [];
 		const component = createComponentInstance(
 			fixture(function Profiled(this: Component<{}>) {
 				return () => null;
 			}),
 			{}
 		);
-
 		withReactProfile(
 			(event) => events.push(event),
 			() => {
@@ -77,7 +77,6 @@ describe('eXact and React context interop', () => {
 				host.dispose();
 			}
 		);
-
 		expect(events).toEqual(
 			expect.arrayContaining([
 				expect.objectContaining({ subsystem: 'react-compat', phase: 'render' }),
@@ -85,7 +84,6 @@ describe('eXact and React context interop', () => {
 			])
 		);
 	});
-
 	it('lets React compatibility hooks consume a native ancestor context', () => {
 		const Service = createContext<string>('fixture.service');
 		let observed: string | undefined;
@@ -104,7 +102,6 @@ describe('eXact and React context interop', () => {
 		renderInstance(child, () => undefined);
 		expect(observed).toBe('native-value');
 	});
-
 	it('makes a bridged React provider visible to native eXact descendants', () => {
 		const Service = createContext<string>('fixture.provider');
 		const ReactService = bridgeReactContext(Service, 'default');
@@ -128,7 +125,6 @@ describe('eXact and React context interop', () => {
 		expect(child.getContext(Service)).toBe('react-value');
 		expect(exactContextToken(ReactService)).toBe(Service);
 	});
-
 	it('defines paired identities and rejects extracting private React tokens', () => {
 		const paired = defineInteropContext('fixture.paired', 0, { global: true });
 		expect(exactContextToken(paired.react)).toBe(paired.exact);
@@ -136,7 +132,6 @@ describe('eXact and React context interop', () => {
 			/not created with bridgeReactContext/
 		);
 	});
-
 	it('mounts explicitly exposed native components instead of invoking them as React functions', () => {
 		function Native(this: Component<{}>) {
 			return () => 'native';
@@ -149,7 +144,6 @@ describe('eXact and React context interop', () => {
 		});
 		expect(isOpaqueOperation(operation)).toBe(true);
 	});
-
 	it('normalizes compiler-authored refs at a direct React adapter boundary', () => {
 		const ref = { current: null };
 		let observed: unknown;
@@ -161,13 +155,10 @@ describe('eXact and React context interop', () => {
 			component: Forwarded,
 			ref
 		});
-
 		renderInstance(instance, () => undefined);
-
 		expect(observed).toBe(ref);
 		instance.unmount();
 	});
-
 	it('projects native children as inspectable React elements', () => {
 		let child: unknown;
 		function Wrapper(props: { children?: unknown }) {
@@ -185,28 +176,35 @@ describe('eXact and React context interop', () => {
 				'native'
 			)
 		});
-
 		renderInstance(instance, () => undefined);
-
-		expect((child as { key?: string }).key).toBe('native');
+		expect(
+			(
+				child as {
+					key?: string;
+				}
+			).key
+		).toBe('native');
 		instance.unmount();
 	});
-
 	it('recognizes compiler-attached native components inside React-owned JSX', () => {
 		function Native(this: Component<{}>) {
 			return () => 'native';
 		}
 		fixture(Native);
-
 		const reactOwnedType: import('react').JSXElementConstructor<{}> = Native;
 		const contribution = reactElementCompatibilityContribution(createElement(Native, {}));
 		expect(reactOwnedType).toBe(Native);
 		expect(contribution).toBeDefined();
 	});
-
 	it('preserves keys, children, and explicitly forwarded refs at native boundaries', () => {
 		const ref = { current: null };
-		function Native(this: Component<{}>, _props: { nativeRef?: unknown; children?: unknown }) {
+		function Native(
+			this: Component<{}>,
+			_props: {
+				nativeRef?: unknown;
+				children?: unknown;
+			}
+		) {
 			return () => null;
 		}
 		const Boundary = exposeExactComponent(fixture(Native), 'Native', { refProp: 'nativeRef' });
@@ -217,15 +215,20 @@ describe('eXact and React context interop', () => {
 		placeCompatibilityContribution(contribution, {
 			place: (value) => (operation = value) as object
 		});
-		const receipt = readCompiledComponentReceipt(operation);
+		const receipt = readClientComponentInput(operation);
 		expect(compatibilityContributionKey(contribution)).toBe('stable');
 		expect(receipt?.props.nativeRef).toBe(ref);
-		expect(receipt?.children).toHaveLength(1);
+		expect(receipt?.children.kind).toBe('eager');
+		expect(receipt?.children.kind === 'eager' && receipt.children.values).toHaveLength(1);
 	});
-
 	it('preserves a custom native ref prop through the explicit native boundary', () => {
 		const ref = { current: null };
-		function Native(this: Component<{}>, _props: { nativeRef?: unknown }) {
+		function Native(
+			this: Component<{}>,
+			_props: {
+				nativeRef?: unknown;
+			}
+		) {
 			return () => null;
 		}
 		const Boundary = exposeExactComponent(fixture(Native), 'Native', { refProp: 'nativeRef' });
@@ -234,9 +237,8 @@ describe('eXact and React context interop', () => {
 		placeCompatibilityContribution(contribution, {
 			place: (value) => (operation = value) as object
 		});
-		expect(readCompiledComponentReceipt(operation)?.props.nativeRef).toBe(ref);
+		expect(readClientComponentInput(operation)?.props.nativeRef).toBe(ref);
 	});
-
 	it('keeps nearest-provider semantics through alternating ownership layers', () => {
 		const paired = defineInteropContext('fixture.alternating', 'default');
 		const root = createComponentInstance(
@@ -275,7 +277,6 @@ describe('eXact and React context interop', () => {
 			'react-override'
 		);
 	});
-
 	it('does not leak service values between roots', () => {
 		const token = createContext<object>('fixture.root-local', { reactive: false });
 		const leftValue = {};
@@ -305,4 +306,14 @@ describe('eXact and React context interop', () => {
 		expect(left.getContext(token)).toBe(leftValue);
 		expect(right.getContext(token)).toBe(rightValue);
 	});
+});
+it('keeps paired context observations ordinary while retaining their original token identities', () => {
+	expect(
+		verifyReactContextObservations({
+			defineInteropContext,
+			createContext,
+			bridgeReactContext,
+			exactContextToken
+		})
+	).toBe(true);
 });

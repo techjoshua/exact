@@ -102,7 +102,8 @@ export function Router(this: Component<RouterState>, props: RouterProps) {
 			'Router requires a location source outside a browser or ambient request context'
 		);
 	const routes = peek(() => normalizeRouteDefinitions(props.routes));
-	const controller = createExactRouter({ source, routes, basename, mode });
+	// The controller subscribes and owns cancellation, so retain one setup resource per instance.
+	const controller = peek(() => createExactRouter({ source, routes, basename, mode, request }));
 	const routeContext = peek(() => reactive(routeContextValue(controller, basename)));
 	this.setContext(RouteContext, routeContext);
 	this.setContext(RouterControllerContext, controller);

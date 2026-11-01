@@ -1,5 +1,5 @@
+import { readClientComponentInput } from './component-input-admission.js';
 import type { AnyComponentInstance, Child } from '@exactjs/core';
-import { readCompiledComponentReceipt } from '@exactjs/core/runtime/component-operations';
 import { readRenderProgramSlot } from '@exactjs/core/runtime/render-operations';
 import { withEffectScope, type EffectScope } from '@exactjs/reactive/framework/runtime';
 import { preparedProgramInvocation } from './prepared-program-slots.js';
@@ -59,7 +59,7 @@ export function adoptProgramChildSlots(
 			const cursor = 0;
 			const endIndex = nodes.length - (anchor ? (anchorEnd ? 1 : 0) : 1);
 			const componentReceipt = componentSlot
-				? readCompiledComponentReceipt(
+				? readClientComponentInput(
 						withEffectScope(mounted.scope, () => readRenderProgramSlot(invocation, index))
 					)
 				: undefined;
@@ -107,8 +107,11 @@ export function adoptProgramChildSlots(
 			releaseProgramChildStart(anchor);
 		}
 	} finally {
-		if (ownsLists) parentInstance?.endRender();
+		try {
+			if (ownsLists) parentInstance?.endRender();
+		} finally {
+			refreshProgramMountedChildren(mounted);
+		}
 	}
-	refreshProgramMountedChildren(mounted);
 	return true;
 }

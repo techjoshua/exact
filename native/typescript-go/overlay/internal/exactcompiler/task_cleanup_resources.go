@@ -7,12 +7,12 @@ import (
 
 // Cleanup retains native resource ownership after producer closure. Explicit
 // signals still observe the resource lifetime used by producer-side helpers.
-func collectTaskCleanupResources(callback *ast.Node, sourceFile *ast.SourceFile, typeChecker *checker.Checker) ([]TaskSignalCall, []string) {
+func collectTaskCleanupResources(callback *ast.Node, sourceFile *ast.SourceFile, typeChecker *checker.Checker, owner *executableBodyOwner) ([]TaskSignalCall, []string) {
 	var signals []TaskSignalCall
 	var diagnostics []string
 	walkNode(callback.Body(), func(node *ast.Node) bool {
 		missingSignal := false
-		if signal, ok := taskSignalCall(node, sourceFile, typeChecker); ok {
+		if signal, ok := taskSignalCall(node, sourceFile, typeChecker, owner); ok {
 			call := node.AsCallExpression()
 			missingSignal = true
 			if call.Arguments != nil && len(call.Arguments.Nodes) > signal.Parameter {

@@ -4,7 +4,7 @@ import type { IntlLanguageSpan } from './analysis-contracts.js';
 export function intlLanguageRange(
 	span: IntlLanguageSpan
 ): Readonly<{ start: number; end: number }> {
-	return Object.freeze({ start: span.start, end: span.start + span.length });
+	return { start: span.start, end: span.start + span.length };
 }
 
 /** Reports whether two half-open language-service ranges intersect. */
@@ -12,5 +12,5 @@ export function intlLanguageRangesOverlap(
 	left: Readonly<{ start: number; end: number }>,
 	right: Readonly<{ start: number; end: number }>
 ): boolean {
-	return left.start <= right.end && right.start <= left.end;
+	return Math.max(left.start, right.start) < Math.min(left.end, right.end);
 }

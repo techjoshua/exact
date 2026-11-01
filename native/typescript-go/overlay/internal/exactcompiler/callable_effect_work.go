@@ -1,6 +1,7 @@
 package exactcompiler
 
 import (
+	"fmt"
 	"sort"
 	"strings"
 )
@@ -30,8 +31,8 @@ func newCallableEffectWork(facts []callableFacts) callableEffectWork {
 		work.opaque[index] = opaqueCallStateEffects(fact)
 		work.signatures[index] = callableEffectSignatures{
 			environment: environmentSourcesSignature(fact.summary.EffectSources),
-			reads:       stateEffectsSignature(fact.summary.StateReads),
-			writes:      stateEffectsSignature(fact.summary.StateWrites),
+			reads:       stateEffectSetSignature(fact.summary.StateReads),
+			writes:      stateEffectSetSignature(fact.summary.StateWrites),
 			contexts:    contextEffectSetSignature(fact.summary.Contexts),
 		}
 		for _, target := range fact.targets {
@@ -61,4 +62,22 @@ func contextEffectSetSignature(values []ContextEffect) string {
 		return strings.Compare(a.Confidence, b.Confidence) < 0
 	})
 	return contextEffectsSignature(ordered)
+}
+
+// State effects are unordered obligations. Compare full member identities without mutating
+// their retained order or removing duplicates. Paths keep structured property boundaries,
+// and unknown confidence and receiver ownership remain distinct during convergence.
+func stateEffectSetSignature(values []StateEffect) string {
+	keys := make([]string, 0, len(values))
+	for _, effect := range values {
+		receiverKind, receiverRoot, receiverIndex := "", "", 0
+		if effect.Receiver != nil {
+			receiverKind, receiverRoot, receiverIndex = effect.Receiver.Kind, effect.Receiver.Root, effect.Receiver.Index
+		}
+		keys = append(keys, arrayRootProofSignature(effect.ArrayRoots)+fmt.Sprintf("%q:%q:%q:%q:%q:%t:%q:%d:%q",
+			effect.Kind, effect.Path, stateEffectPathKey(effect), effect.Confidence, effect.Operation,
+			effect.Receiver != nil, receiverKind, receiverIndex, receiverRoot))
+	}
+	sort.Strings(keys)
+	return strings.Join(keys, "\n")
 }

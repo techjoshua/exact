@@ -10,7 +10,7 @@ it('observes generic spread field changes, key removal, restoration and disposal
 	const program = createTestCompiledRenderProgram(
 		'generic-spread-observation',
 		() => ({
-			version: 2,
+			version: 4,
 			id: 'generic-spread-observation',
 			namespace: 'html',
 			template: '<div></div>',

@@ -1,3 +1,4 @@
+import { requiresExactServerComponentSelection } from '@exactjs/component-library-policy';
 import { isMissingWebpackOptionalEnhancement } from './published-component-resolver.js';
 import {
 	initializeWebpackInspectionModules,
@@ -149,7 +150,7 @@ export async function authorizeWebpackResolvedComponent(
 	const importer = componentFacts.get(id)?.get(importerPath);
 	if (!importer) return;
 	const componentEdge = importer.facts.componentImports.find(
-		(edge) => edge.moduleSpecifier === request && edge.artifactTargets.includes('server')
+		(edge) => edge.moduleSpecifier === request && requiresExactServerComponentSelection(edge)
 	);
 	const enhancement = importer.facts.rendererEnhancements.find(
 		(edge) => edge.moduleSpecifier === request
@@ -228,7 +229,7 @@ export async function authorizeWebpackResolvedComponent(
 	try {
 		if (facts) {
 			for (const edge of facts.componentImports) {
-				if (!edge.artifactTargets.includes('server')) continue;
+				if (!requiresExactServerComponentSelection(edge)) continue;
 				const child = await resolveWebpackPublishedComponent(
 					edge.moduleSpecifier,
 					facts.filename,

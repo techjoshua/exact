@@ -1,3 +1,4 @@
+import type { NativeExecutableSelection } from './process-executable-selection.js';
 import type { NativeCompilerModuleRewrite } from './process-module-contracts.js';
 import type {
 	NativeCompilerComponent,
@@ -53,9 +54,14 @@ export { nativeCompilerProtocolVersion } from './contract-versions.js';
 
 /** Request accepted by the persistent native eXact compiler process. */
 export type NativeCompilerRequest = Readonly<{
+	/** Advisory reporting policy. Source authority is independent of its threshold. */
+	analysis?: import('@exactjs/config').ExactAnalysisOptions;
+	/** Existing explanation requests may include advisory cost statistics. */
+	traceAnalysisCost?: boolean;
 	id?: string;
 	kind:
 		| 'version'
+		| 'executable-slots'
 		| 'project-files'
 		| 'watch-files'
 		| 'reset'
@@ -92,6 +98,8 @@ export type NativeCompilerRequest = Readonly<{
 	extension?: Readonly<{ namespace: string; payload?: unknown }>;
 	/** Complete prepared overlays installed atomically before a project batch. */
 	sources?: readonly NativeCompilerProjectSource[];
+	/** Internal executable snapshot. Accepted only as part of synchronization. */
+	executableSelection?: NativeExecutableSelection;
 }>;
 
 /** One prepared source overlay owned by a project synchronization request. */
@@ -156,6 +164,8 @@ export type NativeCompilerCapabilityRequirements = Readonly<{
 /** Describes a static declaration, re-export, or literal dynamic import edge. */
 export type NativeCompilerImport = Readonly<{
 	moduleSpecifier: string;
+	/** Checker-resolved source identity for project artifact planning. */
+	resolvedFile?: string;
 	typeOnly: boolean;
 	sideEffectOnly: boolean;
 	runtimeBinding: boolean;
@@ -183,6 +193,8 @@ export type NativeCompilerTimings = Readonly<{
 
 /** Machine-independent counts explaining native project cache behavior. */
 export type NativeCompilerWorkCounters = Readonly<{
+	/** Advisory maximum recorded root-query estimate, present only for explanation requests. */
+	estimatedAnalysisCost?: number;
 	programRebuilds: number;
 	callableSourceAnalyses: number;
 	componentSourceAnalyses: number;
@@ -385,6 +397,8 @@ export type NativeCompilerReactiveBinding = Readonly<{
 /** Contains eXact-owned analysis facts which are safe to cross the process boundary. */
 export type NativeCompilerAnalysis = Readonly<{
 	imports: readonly NativeCompilerImport[];
+	/** Exact-paired source-only executable edges. Never published as library metadata. */
+	helperSources?: readonly Readonly<{ moduleSpecifier: string; sourceFile: string }>[];
 	components: readonly NativeCompilerComponent[];
 	jsx: readonly NativeCompilerJSXElement[];
 	stateAliases: readonly NativeCompilerStateAlias[];
@@ -432,8 +446,23 @@ export type NativeCompilerComponentRegistry = Readonly<{
 
 /** Response returned for one native compiler request. */
 export type NativeCompilerResponse = Readonly<{
+	/** Optional syntax-only acquisition capability, independent of emitted artifact ABI. */
+	executableSlotsVersion?: number;
+	/** Exact-source negative for helper search only, never an effect/selection result. */
+	helperSourceDiscovery?: Readonly<{ sourceRevision: string; completeNegative: boolean }>;
+	/** Exact native syntax slots for build-owned executable resolution. */
+	executableSlots?:
+		| readonly Readonly<{
+				slot: number;
+				specifier: string;
+				kind: 'import' | 'require';
+				typeOnly: boolean;
+		  }>[]
+		| null;
 	/** TypeScript configuration roots, without explicitly added input paths. */
 	projectFiles?: readonly string[];
+	/** Successful installation of the requested internal analysis snapshot. */
+	executableSelection?: Pick<NativeExecutableSelection, 'generation' | 'revision' | 'target'>;
 	id?: string;
 	protocolVersion: string;
 	typescriptVersion: string;

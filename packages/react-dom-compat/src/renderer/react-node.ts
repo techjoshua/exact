@@ -1,6 +1,8 @@
 import type { ReactElement, ReactNode, ReactPortal } from '@exactjs/react-compat';
 import {
 	isReactElement,
+	iterateReactChildEntries,
+	reactChildEntryKey,
 	isReactPortal,
 	reactElementCompatibilityContribution,
 	REACT_ACTIVITY_TYPE,
@@ -13,34 +15,28 @@ import type { ReactMounted } from './types.js';
 export type NormalizedReactNode = ReactElement | ReactPortal | string;
 
 /** Flattens React children while preserving elements, portals, and scalar text. */
-export function normalizeReactChildren(value: ReactNode): NormalizedReactNode[] {
-	const result: NormalizedReactNode[] = [];
-	const visit = (node: ReactNode): void => {
-		if (Array.isArray(node)) {
-			for (const child of node) visit(child);
-			return;
-		}
-		if (node === null || node === undefined || typeof node === 'boolean') return;
+export function normalizeReactChildren(
+	value: ReactNode
+): Array<{ node: NormalizedReactNode; key: string }> {
+	const result: Array<{ node: NormalizedReactNode; key: string }> = [];
+	for (const entry of iterateReactChildEntries(value)) {
+		const { node } = entry;
+		if (node === null || node === undefined || typeof node === 'boolean') continue;
 		if (typeof node === 'string' || typeof node === 'number' || typeof node === 'bigint') {
-			result.push(String(node));
-			return;
+			if (node !== '')
+				result.push({ node: String(node), key: reactChildEntryKey(entry, undefined) });
+			continue;
 		}
 		if (isReactElement(node) || isReactPortal(node)) {
-			result.push(node);
-			return;
+			result.push({ node, key: reactChildEntryKey(entry, node.key) });
+			continue;
 		}
 		if (node instanceof Promise) throw node;
 		throw new TypeError(
 			`Objects are not valid as a React child (${Object.prototype.toString.call(node)})`
 		);
-	};
-	visit(value);
+	}
 	return result;
-}
-
-/** Reads React sibling identity without interpreting the element's renderer ownership. */
-export function reactNodeKey(node: NormalizedReactNode): string | undefined {
-	return typeof node === 'string' || node.key === null ? undefined : String(node.key);
 }
 
 /** Reports whether an existing React-owned range can receive the next child in place. */

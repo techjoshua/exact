@@ -41,15 +41,17 @@ export function registerInlayPresentation(
 		if (analysisActive(params.textDocument.uri)) return [];
 		const document = documents.get(params.textDocument.uri);
 		if (!document) return [];
+		const manager = workspace();
 		const snapshot = captureDocumentSnapshot(document);
-		const inspection = await workspace()?.inspect(snapshot.uri);
-		if (!inspection || !isCurrentDocumentSnapshot(snapshot, documents.get(snapshot.uri))) return [];
-		const core = projectInlayHints(inspection, snapshot.source);
-		const contributions = await workspace()?.inlayHints(snapshot.uri, {
+		const data = await manager?.inspectWithInlayHints(snapshot.uri, {
 			start: sourceOffset(snapshot.source, params.range.start),
 			end: sourceOffset(snapshot.source, params.range.end)
 		});
-		return [...core, ...projectProviderInlays(document, contributions ?? [])];
+		if (!data || !isCurrentDocumentSnapshot(snapshot, documents.get(snapshot.uri))) return [];
+		return [
+			...projectInlayHints(data.inspection, snapshot.source),
+			...projectProviderInlays(document, data.contributions)
+		];
 	});
 	connection.onRequest(
 		'exact/inferenceDecorations',

@@ -34,15 +34,20 @@ export interface GestureClock {
 
 const browserClock: GestureClock = { now: () => performance.now() };
 let activeClock = browserClock;
+const clockInstallations: Array<{ clock: GestureClock; active: boolean }> = [];
 const sessionsByOwner = new WeakMap<AnyComponentInstance, GestureSession>();
 const routedPointerDown = new WeakSet<Event>();
 
-/** Installs a gesture clock and returns a restoration function. */
+/** Installs a gesture clock until its idempotent lease is released, including out-of-order disposal. */
 export function installGestureClock(clock: GestureClock): () => void {
-	const previous = activeClock;
+	const installation = { clock, active: true };
+	clockInstallations.push(installation);
 	activeClock = clock;
 	return () => {
-		if (activeClock === clock) activeClock = previous;
+		if (!installation.active) return;
+		installation.active = false;
+		while (clockInstallations.at(-1)?.active === false) clockInstallations.pop();
+		activeClock = clockInstallations.at(-1)?.clock ?? browserClock;
 	};
 }
 
@@ -73,6 +78,16 @@ export class GestureSession implements Disposable {
 
 	/** Reconciles the stable session with its current target and prepared policy. */
 	configure(configuration: SessionConfiguration): void {
+		// Inherited context settings are live getters. Retain values for the next policy comparison.
+		const settings = configuration.settings;
+		configuration = {
+			...configuration,
+			settings: {
+				enabled: settings.enabled,
+				dragThreshold: settings.dragThreshold,
+				pressThreshold: settings.pressThreshold
+			}
+		};
 		const previous = this.#configuration;
 		const element =
 			configuration.presented && !configuration.disabled && configuration.settings.enabled
@@ -356,7 +371,7 @@ export class GestureSession implements Disposable {
 		this.#invoke('pinch', this.#pinch.recognizer.onMove, sample, true);
 	}
 
-	/** Creates one immutable scale-and-rotation sample from current pointer geometry. */
+	/** Creates one scale-and-rotation sample from current pointer geometry. */
 	#pinchSample(phase: GestureSample['phase'], event: Event): PinchGestureSample {
 		const [first, second] = [...this.#pointers.values()];
 		const pinch = this.#pinch!;
@@ -364,7 +379,7 @@ export class GestureSession implements Disposable {
 		const currentDistance =
 			first && second ? pointDistance(first.last, second.last) : pinch.distance;
 		const currentAngle = first && second ? pointAngle(first.last, second.last) : pinch.angle;
-		return Object.freeze({
+		return {
 			...this.#sample(
 				phase,
 				center,
@@ -373,7 +388,7 @@ export class GestureSession implements Disposable {
 			),
 			scale: pinch.distance ? currentDistance / pinch.distance : 1,
 			rotation: currentAngle - pinch.angle
-		});
+		};
 	}
 
 	/** Normalizes one pointer event into viewport, local, delta, velocity, and timing data. */

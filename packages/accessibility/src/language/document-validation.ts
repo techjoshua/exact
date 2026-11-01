@@ -3,7 +3,14 @@ import type {
 	ExactJsxLanguageFactV1,
 	ExactLanguageDiagnosticV1
 } from '@exactjs/language-extension-api';
-import { attributeMap, error, information, staticString, warning } from './facts.js';
+import {
+	attributeMap,
+	effectiveIdAttribute,
+	error,
+	information,
+	staticString,
+	warning
+} from './facts.js';
 
 type Intrinsic = ExactJsxLanguageFactV1 & { tag: string };
 
@@ -54,7 +61,7 @@ function validateLandmarks(
 
 /** Tests whether a finite native label points to or wraps a form control. */
 export function hasFiniteLabel(element: Intrinsic, elements: readonly Intrinsic[]): boolean {
-	const id = staticString(attributeMap(element).get('id'));
+	const id = staticString(effectiveIdAttribute(element));
 	return elements.some((candidate) => {
 		if (candidate.tag !== 'label') return false;
 		const attributes = attributeMap(candidate);
@@ -101,7 +108,7 @@ function validateRelationshipGraph(
 		const owners = new Map<string, ExactJsxAttributeV1>();
 		for (const element of elements) {
 			const attributes = attributeMap(element);
-			const sourceId = staticString(attributes.get('id'));
+			const sourceId = staticString(effectiveIdAttribute(element));
 			const attribute = attributes.get(property);
 			const targets = staticString(attribute)?.trim().split(/\s+/u).filter(Boolean) ?? [];
 			if (sourceId && targets.length) edges.set(sourceId, targets);

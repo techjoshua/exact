@@ -207,6 +207,11 @@ func attachComponentExecutionPlans(
 			Transitions: []ComponentTransition{},
 			Reactive:    componentReactiveAllocations(component.Name, bindings),
 		}
+		for _, task := range tasks {
+			if task.Component == component.Name && targetLocalOpaqueComputation(task) {
+				plan.LocalComputation = true
+			}
+		}
 		portIndexes := make(map[string]int)
 		for _, continuation := range continuations {
 			if continuation.ComponentID != component.ID {
@@ -232,6 +237,16 @@ func attachComponentExecutionPlans(
 		}
 		component.Execution = plan
 	}
+}
+
+// targetLocalOpaqueComputation retains unknown availability for compiler-extracted synchronous
+// setup work. It executes in its containing target, never as a distributed or authored task.
+func targetLocalOpaqueComputation(task Task) bool {
+	return task.CompilerComputation && !task.Async && !task.Invoked && !task.Detached &&
+		task.RequestedPlacement == "" && task.Placement == "unknown" &&
+		task.EnvironmentEffect == "unknown" && !task.BrowserEffects && !task.ServerEffects &&
+		containsOpaqueEnvironment(task.EffectSources) && len(task.Contexts) == 0 &&
+		len(task.Resources) == 0 && len(task.SignalCalls) == 0 && len(task.ResultWritePath) == 0
 }
 
 // directServerSetupComputation recognizes compiler-created synchronous value propagation. An

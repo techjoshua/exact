@@ -9,10 +9,16 @@ import type { Mounted, Root } from '../types.js';
 
 /** Publishes the first intrinsic element in the component's current logical output. */
 export function refreshComponentRoot(
+	root: Root,
 	instance: AnyComponentInstance,
 	presented = true,
 	introduction: RootIntroduction = 'update'
 ): void {
+	const plan = root.suppliedPlacementPlan;
+	if (plan?.pending && plan.isCurrent()) {
+		plan.present(instance, presented, introduction);
+		return;
+	}
 	const mounted = componentMounts.get(instance);
 	const target = mounted ? firstTargetPresentation(mounted) : undefined;
 	const host = mounted ? firstHostElement(mounted) : undefined;
@@ -51,7 +57,7 @@ function presentationNodes(mounted: Mounted, nodes: Node[]): void {
 		nodes.push(mounted.renderProgram?.programRoot ?? mounted.dom);
 		return;
 	}
-	if (mounted.rawNodes) nodes.push(...mounted.rawNodes);
+	for (const node of mounted.rawNodes ?? []) nodes.push(node);
 	for (const child of mounted.children) presentationNodes(child, nodes);
 }
 
@@ -61,14 +67,22 @@ function textOrRangePresentation(mounted: Mounted): object | undefined {
 	presentationNodes(mounted, nodes);
 	if (nodes.length === 1 && nodes[0] instanceof Text) return nodes[0];
 	if (!nodes.length && !hasFragmentPresentation(mounted)) return undefined;
-	return (mounted.componentRootRange ??= Object.freeze({
-		kind: 'range' as const,
-		get nodes(): readonly Node[] {
-			const current: Node[] = [];
-			presentationNodes(mounted, current);
-			return current;
-		}
-	}));
+	// Reuse the nodes already sampled for classification. A root handle must keep its
+	// accepted range while an actual reconciliation frame still holds candidate placement.
+	if (mounted.componentRootRange) mounted.componentRootRange.nodes = nodes;
+	else {
+		const range: NonNullable<Mounted['componentRootRange']> = {
+			nodes,
+			view: {
+				kind: 'range',
+				get nodes() {
+					return range.nodes.slice();
+				}
+			}
+		};
+		mounted.componentRootRange = range;
+	}
+	return mounted.componentRootRange.view;
 }
 
 /** Classifies a newly mounted component root without exposing renderer internals to components. */

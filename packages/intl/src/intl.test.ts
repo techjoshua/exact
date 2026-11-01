@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { unwrap } from '@exactjs/core';
-import { readCompiledComponentReceipt } from '@exactjs/core/runtime/component-operations';
-import { readPreparedServerComponentReference } from '@exactjs/core/framework/server-render-structure';
+import { readClientComponentInput } from '../../dom/src/renderer/component-input-admission.js';
+import { componentReceiptInputs } from '../../dom/src/renderer/component-receipt-inputs.js';
 import type { IntlRuntimeDescriptorV1 } from './contracts.js';
 import { canonicalizeIntlValue } from './canonical.js';
 import { createIntlEnvironment } from './environment.js';
@@ -207,10 +207,9 @@ describe('intl protocol', () => {
 		});
 		const activation = prepareIntlActivation(descriptor, ['Ada', 1], [strongStructure]);
 		const output = renderIntlActivation(activation, environment);
-		const receipt =
-			readCompiledComponentReceipt(output[0]) ?? readPreparedServerComponentReference(output[0]);
+		const receipt = readClientComponentInput(output[0]);
 		expect(receipt).toBeDefined();
-		const structuralChildren = unwrap(receipt!.children[0]);
+		const structuralChildren = unwrap(componentReceiptInputs(receipt!).children[0]);
 		expect(Array.isArray(structuralChildren) ? structuralChildren : [structuralChildren]).toEqual([
 			'boîte'
 		]);

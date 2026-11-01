@@ -37,7 +37,10 @@ describe('hydration serialization hooks', () => {
 	it('validates every JSON array index, including hidden cells and bounded holes', () => {
 		const hook = vi.fn(() => Infinity);
 		const accessor = Object.defineProperty(['safe'], '0', { get: hook, enumerable: false });
-		const number = Object.defineProperty(['safe'], '0', { value: Infinity, enumerable: false });
+		const number = Object.defineProperty(['safe'], '0', {
+			value: Symbol('unsupported'),
+			enumerable: false
+		});
 		const cycle: unknown[] = ['safe'];
 		Object.defineProperty(cycle, '0', { value: cycle, enumerable: false });
 		for (const value of [accessor, number, cycle]) {

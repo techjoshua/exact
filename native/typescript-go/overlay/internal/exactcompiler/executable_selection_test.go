@@ -1,0 +1,548 @@
+package exactcompiler
+
+import (
+	"context"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+)
+
+// The fixture keeps authored typing roots separate from explicitly prepared execution roots.
+type executableFixture struct {
+	root       string
+	session    *Session
+	files      map[string]string
+	generation uint64
+}
+
+func newExecutableFixture(t *testing.T, files map[string]string) *executableFixture {
+	t.Helper()
+	root, err := os.MkdirTemp(".", ".executable-selection-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(root) })
+	root, err = filepath.Abs(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f := &executableFixture{root: root, session: NewSession(), files: files}
+	for name, source := range files {
+		if err := os.WriteFile(filepath.Join(f.root, name), []byte(source), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	config := `{"compilerOptions":{"module":"ESNext","moduleResolution":"Bundler","target":"ES2022","strict":true,"skipLibCheck":true,"allowJs":true},"files":["entry.ts"]}`
+	if err := os.WriteFile(filepath.Join(f.root, "tsconfig.json"), []byte(config), 0600); err != nil {
+		t.Fatal(err)
+	}
+	return f
+}
+
+func (f *executableFixture) request(kind, file string) Request {
+	return Request{Kind: kind, ID: filepath.Join(f.root, file), Source: f.files[file], Root: f.root, ConfigFile: filepath.Join(f.root, "tsconfig.json"), Diagnostics: "semantic"}
+}
+
+func (f *executableFixture) synchronize(edges []ExecutableEdge) Response {
+	f.generation++
+	request := f.request("synchronize", "entry.ts")
+	snapshot := &ExecutableSelection{Generation: f.generation, Revision: "fixture", Target: TargetDefault, Edges: edges}
+	for name, source := range f.files {
+		id := filepath.Join(f.root, name)
+		request.Sources = append(request.Sources, ProjectSource{ID: id, Source: source})
+		snapshot.Modules = append(snapshot.Modules, ExecutableModule{ID: name, SourceID: id, ContentRevision: preparedContentRevision(source)})
+	}
+	request.ExecutableSelection = snapshot
+	return f.session.Execute(request)
+}
+
+func executableSummary(t *testing.T, response Response, name string) CallableSummary {
+	t.Helper()
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	for _, summary := range response.Analysis.Callables {
+		if summary.Name == name {
+			return summary
+		}
+	}
+	t.Fatalf("missing %s: %#v", name, response.Analysis.Callables)
+	return CallableSummary{}
+}
+
+func assertExecutablePaths(t *testing.T, response Response, name, path string) {
+	t.Helper()
+	summary := executableSummary(t, response, name)
+	if len(summary.StateWrites) != 1 || summary.StateWrites[0].Path != path {
+		t.Fatalf("%s writes %#v, want %s", name, summary.StateWrites, path)
+	}
+}
+
+// A host-selected body supplies effects while the authored signature still owns assignability.
+func TestExecutableSelectionEffectsAndTyping(t *testing.T) {
+	f := newExecutableFixture(t, map[string]string{
+		"entry.ts":  `import {apply,answer} from './helper.js';export const n:number=answer();export function run(state:{a:number,b:number}){apply(state);}`,
+		"helper.ts": `export function apply(state:{a:number,b:number}){state.a=2;}export function answer():number{return 2;}`,
+		"helper.js": `/** @param {{a:number,b:number}} state */ export let apply=(state)=>{state.b=99;};export function answer(){return "host";}`,
+	})
+	assertExecutablePaths(t, f.session.Execute(f.request("analyze", "entry.ts")), "run", "a")
+	if r := f.synchronize([]ExecutableEdge{{Importer: "entry.ts", Slot: 0, Specifier: "./helper.js", Kind: "import", Selected: "helper.js"}}); r.Error != "" {
+		t.Fatal(r.Error)
+	}
+	response := f.session.Execute(f.request("analyze", "entry.ts"))
+	assertExecutablePaths(t, response, "run", "b")
+	if len(response.Diagnostics) != 0 {
+		t.Fatalf("authored number signature changed: %#v", response.Diagnostics)
+	}
+	if len(response.Analysis.HelperSources) != 0 {
+		t.Fatal("analysis selection granted private emission")
+	}
+	// A real type error remains visible in the same augmented program.
+	f.files["entry.ts"] = strings.Replace(f.files["entry.ts"], "n:number", "n:string", 1)
+	response = f.session.Execute(f.request("analyze", "entry.ts"))
+	found := false
+	for _, d := range response.Diagnostics {
+		found = found || d.Code == "TS2322"
+	}
+	if !found {
+		t.Fatalf("lost authored error: %#v", response.Diagnostics)
+	}
+}
+
+// Import slots sharing one typed declaration can select different physical bodies.
+func TestExecutableSelectionSlotsTransitiveAndBarrels(t *testing.T) {
+	f := newExecutableFixture(t, map[string]string{
+		"entry.ts":  `import {apply as left} from './helper.js';import {apply as right} from './helper.js';import {run as barrel} from './barrel.js';import * as ns from './helper.js';const alias=right;const nsAlias=ns;export function e(s:{a:number,b:number}){nsAlias.apply(s);}export function a(s:{a:number,b:number}){left(s);}export function b(s:{a:number,b:number}){alias(s);}export function c(s:{a:number,b:number}){barrel(s);}export function d(s:{a:number,b:number}){ns.apply(s);}`,
+		"helper.ts": `export function apply(s:{a:number,b:number}){s.a=1;}`,
+		"helper.js": `import {leaf} from './leaf.js';export function apply(s){leaf(s);}`,
+		"other.js":  `export function apply(s){s.a=7;}`,
+		"leaf.ts":   `export function leaf(s:{a:number,b:number}){s.a=3;}`,
+		"leaf.js":   `export function leaf(s){s.b=9;}`,
+		"barrel.ts": `export {apply as run} from './helper.js';`,
+		"barrel.js": `export {apply as run} from './helper.js';`,
+	})
+	edges := []ExecutableEdge{
+		{"entry.ts", 0, "./helper.js", "import", "other.js"},
+		{"entry.ts", 1, "./helper.js", "import", "helper.js"},
+		{"entry.ts", 2, "./barrel.js", "import", "barrel.js"},
+		{"entry.ts", 3, "./helper.js", "import", "helper.js"},
+		{"helper.js", 0, "./leaf.js", "import", "leaf.js"},
+		{"barrel.js", 0, "./helper.js", "import", "helper.js"},
+	}
+	if r := f.synchronize(edges); r.Error != "" {
+		t.Fatal(r.Error)
+	}
+	response := f.session.Execute(f.request("analyze", "entry.ts"))
+	assertExecutablePaths(t, response, "a", "a")
+	for _, name := range []string{"b", "c", "d", "e"} {
+		assertExecutablePaths(t, response, name, "b")
+	}
+	if len(response.Diagnostics) != 0 {
+		t.Fatalf("unexpected diagnostics: %#v", response.Diagnostics)
+	}
+}
+
+func TestExecutableSelectionEnvironmentAndTransitions(t *testing.T) {
+	f := newExecutableFixture(t, map[string]string{
+		"entry.ts":  `import {read} from './helper.js';export function run(){return read();}`,
+		"helper.ts": `export function read(){return "typed";}`,
+		"helper.js": `export function read(){return document.title;}`,
+	})
+	edge := ExecutableEdge{"entry.ts", 0, "./helper.js", "import", "helper.js"}
+	for _, selection := range []string{"helper.js", "helper.ts", "helper.js", ""} {
+		edge.Selected = selection
+		if r := f.synchronize([]ExecutableEdge{edge}); r.Error != "" {
+			t.Fatal(r.Error)
+		}
+		summary := executableSummary(t, f.session.Execute(f.request("analyze", "entry.ts")), "run")
+		want := "browser"
+		if selection == "helper.ts" {
+			want = "neutral"
+		}
+		if selection == "" {
+			want = "unknown"
+		}
+		if summary.Effect != want {
+			t.Fatalf("%s effect %s, want %s", selection, summary.Effect, want)
+		}
+	}
+	// A changed selected source cannot reuse the prior browser summary or authority.
+	f.files["helper.js"] = `export function read(){return "updated";}`
+	edge.Selected = "helper.js"
+	if r := f.synchronize([]ExecutableEdge{edge}); r.Error != "" {
+		t.Fatal(r.Error)
+	}
+	summary := executableSummary(t, f.session.Execute(f.request("analyze", "entry.ts")), "run")
+	if summary.Effect != "neutral" {
+		t.Fatalf("stale effect %s", summary.Effect)
+	}
+	compile := f.session.Execute(f.request("compile", "entry.ts"))
+	if compile.Error != "" || len(compile.Diagnostics) != 0 {
+		t.Fatalf("selected lowering failed: %s %#v", compile.Error, compile.Diagnostics)
+	}
+	f.session.Execute(Request{Kind: "reset"})
+	summary = executableSummary(t, f.session.Execute(f.request("analyze", "entry.ts")), "run")
+	if summary.Effect != "neutral" {
+		t.Fatalf("reset retained selection %s", summary.Effect)
+	}
+}
+
+// Execution-only globals cannot erase authored errors, and readonly stays shallow.
+func TestExecutableSelectionDiagnosticIsolation(t *testing.T) {
+	f := newExecutableFixture(t, map[string]string{
+		"entry.ts":   `import {read} from './helper.js';export const n:number=read();export const x=selectedRuntimeGlobal;export function valid(v:Readonly<{nested:{value:number}}>) { v.nested.value++;const alias:{nested:{value:number}}=v;alias.nested={value:2}; }export function invalid(v:Readonly<{value:number}>) { v.value=2; }export function Page(props:{readonly value:number,nested:{value:number}}){props.nested.value=3;const alias:{value:number,nested:{value:number}}=props;alias.value=4;return()=>props.value;}`,
+		"helper.ts":  `export function read():number{return 2;}`,
+		"helper.js":  `import './augment.js';export function read(){return "host";}`,
+		"augment.ts": `export {};declare global {var selectedRuntimeGlobal:number;}`,
+	})
+	before := f.session.Execute(f.request("analyze", "entry.ts"))
+	if r := f.synchronize([]ExecutableEdge{{"entry.ts", 0, "./helper.js", "import", "helper.js"}, {"helper.js", 0, "./augment.js", "import", "augment.ts"}}); r.Error != "" {
+		t.Fatal(r.Error)
+	}
+	after := f.session.Execute(f.request("analyze", "entry.ts"))
+	for _, response := range []Response{before, after} {
+		codes := map[string]int{}
+		for _, d := range response.Diagnostics {
+			codes[d.Code]++
+		}
+		if codes["TS2304"] != 1 || codes["TS2540"] != 1 || len(response.Diagnostics) != 2 {
+			t.Fatalf("diagnostic universe changed: %#v", response.Diagnostics)
+		}
+	}
+}
+
+func TestExecutableSelectionValidation(t *testing.T) {
+	f := newExecutableFixture(t, map[string]string{"entry.ts": `import {run} from './helper.js';export function call(){return run();}`, "helper.ts": `export function run(){return 1;}`, "helper.js": `export function run(){return 2;}`})
+	edge := ExecutableEdge{"entry.ts", 0, "./helper.js", "import", "helper.js"}
+	if r := f.synchronize([]ExecutableEdge{edge}); r.Error != "" {
+		t.Fatal(r.Error)
+	}
+	project := f.session.projects[nativeProjectKey(f.request("analyze", "entry.ts"), filepath.Join(f.root, "entry.ts"))]
+	snapshot := project.executableSelection.snapshot
+	for _, mutate := range []func(*ExecutableSelection){
+		func(s *ExecutableSelection) { s.Generation = 0 },
+		func(s *ExecutableSelection) { s.Revision = "" },
+		func(s *ExecutableSelection) { s.Target = "bad" },
+		func(s *ExecutableSelection) { s.Revision = "older" },
+		func(s *ExecutableSelection) { s.Generation++; s.Modules = append(s.Modules, s.Modules[0]) },
+		func(s *ExecutableSelection) { s.Generation++; s.Edges = append(s.Edges, s.Edges[0]) },
+		func(s *ExecutableSelection) { s.Generation++; s.Modules[0].ContentRevision = "stale" },
+		func(s *ExecutableSelection) { s.Generation++; s.Edges[0].Selected = "missing" },
+	} {
+		candidate := snapshot
+		candidate.Modules = append([]ExecutableModule(nil), snapshot.Modules...)
+		candidate.Edges = append([]ExecutableEdge(nil), snapshot.Edges...)
+		mutate(&candidate)
+		request := f.request("synchronize", "entry.ts")
+		request.ExecutableSelection = &candidate
+		for name, source := range f.files {
+			request.Sources = append(request.Sources, ProjectSource{ID: filepath.Join(f.root, name), Source: source})
+		}
+		if r := f.session.Execute(request); r.Error == "" {
+			t.Fatalf("invalid selection accepted: %#v", candidate)
+		}
+	}
+	// A delayed unselected batch cannot erase newer selection. Replacements drop stale edges.
+	request := f.request("synchronize", "entry.ts")
+	for name, source := range f.files {
+		request.Sources = append(request.Sources, ProjectSource{ID: filepath.Join(f.root, name), Source: source})
+	}
+	if r := f.session.Execute(request); r.Error == "" {
+		t.Fatal("unselected batch erased selection")
+	}
+	replacement := snapshot
+	replacement.Generation++
+	replacement.Edges = nil
+	request.ExecutableSelection = &replacement
+	if r := f.session.Execute(request); r.Error != "" {
+		t.Fatal(r.Error)
+	}
+	request.ExecutableSelection = &snapshot
+	if r := f.session.Execute(request); r.Error == "" {
+		t.Fatal("stale selection resurrected after replacement")
+	}
+}
+
+// Task authority and continuation contracts consume selected facts before construction.
+func TestExecutableSelectionTaskAuthority(t *testing.T) {
+	f := newExecutableFixture(t, map[string]string{
+		"entry.ts":  `import {TaskContext,type Component} from '@exactjs/core';import {apply} from './helper.js';export function Page(this:Component<{a:number,b:number}>){this.state.a=0;this.state.b=0;function save(task:TaskContext=TaskContext.server().blocking()){apply(this.state,this);}save();return()=>this.state.b;}`,
+		"helper.ts": `import type {Component} from '@exactjs/core';const TypedToken={};export function apply(state:{a:number,b:number},owner:Component<{}>){state.a=2;owner.getContext(TypedToken);}`,
+		"helper.js": `const RuntimeToken={};/** @param {{a:number,b:number}} state @param {import('@exactjs/core').Component<{}>} owner */ export function apply(state,owner){state.b=99;owner.getContext(RuntimeToken);}`,
+	})
+	if r := f.synchronize([]ExecutableEdge{{"entry.ts", 1, "./helper.js", "import", "helper.js"}}); r.Error != "" {
+		t.Fatal(r.Error)
+	}
+	response := f.session.Execute(f.request("analyze", "entry.ts"))
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	for _, task := range response.Analysis.Tasks {
+		for _, effect := range task.EffectSources {
+			if strings.Contains(effect.Description, "TaskContext") {
+				t.Fatalf("policy syntax acquired runtime effects: %#v", effect)
+			}
+		}
+	}
+	if len(response.Analysis.Continuations) == 0 {
+		t.Fatalf("missing contracts: %#v", response.Analysis.Tasks)
+	}
+	for _, continuation := range response.Analysis.Continuations {
+		if len(continuation.Effects.StateWrites) != 1 || continuation.Effects.StateWrites[0].Path != "b" || continuation.Effects.StateWrites[0].Receiver == nil || continuation.Effects.StateWrites[0].Receiver.Kind != "component" {
+			t.Fatalf("wrong write authority: %#v, tasks %#v, callables %#v", continuation.Effects, response.Analysis.Tasks, response.Analysis.Callables)
+		}
+	}
+	found := false
+	for _, task := range response.Analysis.Tasks {
+		for _, context := range task.Contexts {
+			if context.Token == "TypedToken" {
+				t.Fatal("typed context retained")
+			}
+			found = found || context.Token == "RuntimeToken"
+		}
+	}
+	// Native JS body typing does not prove this JSDoc receiver's context here.
+	// Check selected context ownership with a typed executable body independently.
+	_ = found
+	f.files["other.ts"] = `import type {Component} from '@exactjs/core';const RuntimeToken={};export function apply(state:{a:number,b:number},owner:Component<{}>){state.b=99;owner.getContext(RuntimeToken);}`
+	if r := f.synchronize([]ExecutableEdge{{"entry.ts", 1, "./helper.js", "import", "other.ts"}}); r.Error != "" {
+		t.Fatal(r.Error)
+	}
+	response = f.session.Execute(f.request("analyze", "entry.ts"))
+	found = false
+	for _, task := range response.Analysis.Tasks {
+		for _, context := range task.Contexts {
+			if context.Token == "TypedToken" {
+				t.Fatal("typed context retained")
+			}
+			found = found || context.Token == "RuntimeToken"
+		}
+	}
+	if !found {
+		t.Fatalf("selected context missing: %#v", response.Analysis.Tasks)
+	}
+}
+
+// Body-inferred secrecy is per call slot, including transitive return calls.
+func TestExecutableSelectionResultPolicies(t *testing.T) {
+	f := newExecutableFixture(t, map[string]string{
+		"entry.ts":  `import {read as typed} from './helper.js';import {read as selected} from './helper.js';export const a=typed();export const b=selected();`,
+		"helper.ts": `export function read(){return "typed";}`,
+		"helper.js": `import {leaf} from './leaf.js';export function read(){return leaf();}`,
+		"leaf.ts":   `export function leaf(){return "typed";}`,
+		"leaf.js":   `/** @exact keep=secret */ const hidden="host";export function leaf(){return hidden;}`,
+	})
+	edges := []ExecutableEdge{{"entry.ts", 0, "./helper.js", "import", "helper.ts"}, {"entry.ts", 1, "./helper.js", "import", "helper.js"}, {"helper.js", 0, "./leaf.js", "import", "leaf.js"}}
+	if r := f.synchronize(edges); r.Error != "" {
+		t.Fatal(r.Error)
+	}
+	response := f.session.Execute(f.request("analyze", "entry.ts"))
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	seen := map[string]bool{}
+	for _, subject := range response.Analysis.Policy.Subjects {
+		if subject.Kind == "return" {
+			seen[subject.Name] = subject.Policy.Secret
+		}
+	}
+	if seen["typed"] || !seen["selected"] {
+		t.Fatalf("selected policy lost/collapsed: %#v", response.Analysis.Policy.Subjects)
+	}
+}
+
+// Added execution roots may have identical offsets. Dormant ranges remain source-local.
+func TestExecutableSelectionDormantSpans(t *testing.T) {
+	source := `export function Page(){function browser(){return window.innerWidth;}return()=>"ok";}`
+	f := newExecutableFixture(t, map[string]string{"entry.ts": source, "other.ts": source})
+	if r := f.synchronize(nil); r.Error != "" {
+		t.Fatal(r.Error)
+	}
+	response := f.session.Execute(f.request("analyze", "entry.ts"))
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	project := f.session.projects[nativeProjectKey(f.request("analyze", "entry.ts"), filepath.Join(f.root, "entry.ts"))]
+	generation, err := project.advance(context.Background(), filepath.Join(f.root, "entry.ts"), source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer generation.release()
+	component := generation.sourceFile.Statements.Nodes[0]
+	spans := componentDormantCallableSpans(component, project.callableCache.merged, generation.checker)
+	if len(spans) != 1 || spans[0].Start != strings.Index(source, "function browser") {
+		t.Fatalf("foreign roots changed local dormant spans: %#v", spans)
+	}
+}
+
+func TestExecutableSelectionSiblingSuffixes(t *testing.T) {
+	for _, pair := range []struct{ typed, selected, source string }{
+		{"helper.mts", "helper.mjs", `export function apply(s){s.b=9;}`},
+		{"helper.cts", "helper.cjs", `function apply(s){s.b=9;}module.exports={apply};`},
+	} {
+		t.Run(pair.selected, func(t *testing.T) {
+			f := newExecutableFixture(t, map[string]string{
+				"entry.ts":    `import {apply} from './` + pair.selected + `';export function run(s:{a:number,b:number}){apply(s);}`,
+				pair.typed:    `export function apply(s:{a:number,b:number}){s.a=2;}`,
+				pair.selected: pair.source,
+			})
+			if r := f.synchronize([]ExecutableEdge{{"entry.ts", 0, "./" + pair.selected, "import", pair.selected}}); r.Error != "" {
+				t.Fatal(r.Error)
+			}
+			assertExecutablePaths(t, f.session.Execute(f.request("analyze", "entry.ts")), "run", "b")
+		})
+	}
+}
+
+func TestExecutableSelectionMissingAndStaleBodies(t *testing.T) {
+	f := newExecutableFixture(t, map[string]string{
+		"entry.ts":    `import {apply} from './helper.js';export function run(s:{a:number,b:number}){apply(s);}`,
+		"helper.ts":   `export function apply(s:{a:number,b:number}){s.a=2;}`,
+		"helper.js":   `export function apply(s){s.b=9;}`,
+		"opaque.d.ts": `export declare function apply(s:{a:number,b:number}):void;`,
+		"mutable.js":  `export let apply=(s)=>{s.a=2;};apply=(s)=>{s.b=3;};`,
+	})
+	for _, edges := range [][]ExecutableEdge{
+		{{"entry.ts", 0, "./helper.js", "import", ""}},
+		{{"entry.ts", 0, "./helper.js", "import", "opaque.d.ts"}},
+		{{"entry.ts", 0, "./helper.js", "import", "mutable.js"}},
+		nil,
+		{{"entry.ts", 1, "./helper.js", "import", "helper.js"}},
+	} {
+		if r := f.synchronize(edges); r.Error != "" {
+			t.Fatal(r.Error)
+		}
+		summary := executableSummary(t, f.session.Execute(f.request("analyze", "entry.ts")), "run")
+		if len(summary.StateWrites) != 0 || summary.Effect != "unknown" {
+			t.Fatalf("opaque edge gained authority: %#v", summary)
+		}
+	}
+	if r := f.synchronize([]ExecutableEdge{{"entry.ts", 0, "./helper.js", "import", "helper.js"}}); r.Error != "" {
+		t.Fatal(r.Error)
+	}
+	f.files["helper.js"] = `export function apply(s){s.a=77;}`
+	f.session.Execute(f.request("analyze", "helper.js"))
+	summary := executableSummary(t, f.session.Execute(f.request("analyze", "entry.ts")), "run")
+	if len(summary.StateWrites) != 0 || summary.Effect != "unknown" {
+		t.Fatalf("changed source retained stale authority: %#v", summary)
+	}
+}
+
+func TestExecutableSelectionConfigRevision(t *testing.T) {
+	f := newExecutableFixture(t, map[string]string{"entry.ts": `export const n:number=null;`, "helper.js": `export function read(){return 1;}`})
+	if r := f.synchronize(nil); r.Error != "" {
+		t.Fatal(r.Error)
+	}
+	before := f.session.Execute(f.request("analyze", "entry.ts"))
+	if !hasDiagnosticCode(before.Diagnostics, "TS2322") {
+		t.Fatalf("missing strict control: %#v", before.Diagnostics)
+	}
+	config := `{"compilerOptions":{"module":"ESNext","moduleResolution":"Bundler","target":"ES2022","strict":false,"skipLibCheck":true},"files":["entry.ts"]}`
+	if err := os.WriteFile(filepath.Join(f.root, "tsconfig.json"), []byte(config), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if r := f.synchronize(nil); r.Error != "" {
+		t.Fatal(r.Error)
+	}
+	after := f.session.Execute(f.request("analyze", "entry.ts"))
+	if len(after.Diagnostics) != 0 {
+		t.Fatalf("stale configuration proof: %#v", after.Diagnostics)
+	}
+}
+
+// Private imports and entries share the source that supplied parameter effects.
+// Ordinary callable exports remain unchanged in their selected source module.
+func TestExecutableSelectionPrivateHelperBody(t *testing.T) {
+	for _, selected := range []string{"helper.js", "helper.ts"} {
+		t.Run(selected, func(t *testing.T) {
+			f := newExecutableFixture(t, map[string]string{
+				"entry.ts":  `import {apply} from './helper.js';export function invoke(state:{a:number,b:number}){apply(state);}`,
+				"helper.ts": `export function apply(state:{a:number,b:number}){state.a=2;}`,
+				"helper.js": `/** @param {{a:number,b:number}} state */ export function apply(state){state.b=99;}`,
+			})
+			request := f.request("synchronize", "entry.ts")
+			snapshot := &ExecutableSelection{Generation: 1, Revision: "private-helper", Target: TargetServer,
+				Edges: []ExecutableEdge{{Importer: "entry.ts", Slot: 0, Specifier: "./helper.js", Kind: "import", Selected: selected}}}
+			for name, source := range f.files {
+				id := filepath.Join(f.root, name)
+				request.Sources = append(request.Sources, ProjectSource{ID: id, Source: source})
+				snapshot.Modules = append(snapshot.Modules, ExecutableModule{ID: name, SourceID: id, ContentRevision: preparedContentRevision(source)})
+			}
+			request.ExecutableSelection = snapshot
+			if response := f.session.Execute(request); response.Error != "" {
+				t.Fatal(response.Error)
+			}
+			request = f.request("compile", "entry.ts")
+			request.Target = TargetServer
+			request.Diagnostics = "syntax"
+			entry := f.session.Execute(request)
+			if entry.Error != "" || len(entry.Diagnostics) != 0 {
+				t.Fatalf("entry: %s %#v", entry.Error, entry.Diagnostics)
+			}
+			if len(entry.Analysis.HelperSources) != 1 || entry.Analysis.HelperSources[0].SourceFile != filepath.Join(f.root, selected) {
+				t.Fatalf("source %#v", entry.Analysis.HelperSources)
+			}
+			if !strings.Contains(entry.Code, `from "./`+selected+`"`) {
+				t.Fatal("private import changed actual executable suffix")
+			}
+			request = f.request("compile", selected)
+			request.Target = TargetServer
+			request.Diagnostics = "syntax"
+			helper := f.session.Execute(request)
+			if helper.Error != "" || len(helper.Diagnostics) != 0 || !strings.Contains(helper.Code, "export function __exact_owned_") {
+				t.Fatalf("helper: %s %#v", helper.Error, helper.Diagnostics)
+			}
+			expected := "99"
+			if selected == "helper.ts" {
+				expected = "2"
+			}
+			if !strings.Contains(helper.Code, expected) {
+				t.Fatal("lost selected implementation")
+			}
+		})
+	}
+}
+
+// A host snapshot owns executable source, while published declaration-only operations
+// retain their environment contract. It never authorizes a private implementation.
+func TestExecutableSelectionPublishedDeclarationOperations(t *testing.T) {
+	for _, example := range []struct{ name, source, effect, selected string }{
+		{"browser", `import {render} from '@exactjs/dom'; export function run(input:Parameters<typeof render>[0],root:Element){render(input,root)}`, "browser", ""},
+		{"browser-namespace", `import * as DOM from '@exactjs/dom'; export function run(input:Parameters<typeof DOM.render>[0],root:Element){DOM['render'](input,root)}`, "browser", ""},
+		{"policy-value", `import {TaskContext} from '@exactjs/core'; export function run(){return TaskContext.latest()}`, "neutral", ""},
+		{"neutral", `import {reactive} from '@exactjs/reactive'; export function run(){return reactive({value:1})}`, "neutral", ""},
+		{"server", `import {platform} from 'node:os'; export function run(){return platform()}`, "server", ""},
+		{"unowned-local", `import {read} from './unowned.js'; export function run(){return read()}`, "unknown", ""},
+		{"selected-replacement", `import {render} from '@exactjs/dom'; export function run(input:Parameters<typeof render>[0],root:Element){render(input,root)}`, "server", "replacement.js"},
+	} {
+		t.Run(example.name, func(t *testing.T) {
+			f := newExecutableFixture(t, map[string]string{"entry.ts": example.source, "unowned.d.ts": `export declare function read():number;`, "replacement.js": `export function render(){void process.version;}`})
+			if example.name == "server" {
+				config := `{"compilerOptions":{"module":"ESNext","moduleResolution":"Bundler","target":"ES2022","strict":true,"skipLibCheck":true,"types":["node"]},"files":["entry.ts"]}`
+				if err := os.WriteFile(filepath.Join(f.root, "tsconfig.json"), []byte(config), 0600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			before := f.session.Execute(f.request("analyze", "entry.ts"))
+			if len(before.Analysis.Imports) == 0 {
+				t.Fatalf("missing actual import: %#v", before)
+			}
+			edge := ExecutableEdge{Importer: "entry.ts", Slot: 0, Specifier: before.Analysis.Imports[0].ModuleSpecifier, Kind: "import", Selected: example.selected}
+			if response := f.synchronize([]ExecutableEdge{edge}); response.Error != "" {
+				t.Fatal(response.Error)
+			}
+			response := f.session.Execute(f.request("analyze", "entry.ts"))
+			if len(response.Diagnostics) != 0 {
+				t.Fatalf("invalid authored control: %#v", response.Diagnostics)
+			}
+			summary := executableSummary(t, response, "run")
+			if summary.Effect != example.effect {
+				t.Fatalf("%s lost operation contract: %#v", example.name, summary)
+			}
+			if len(response.Analysis.HelperSources) != 0 {
+				t.Fatal("declaration operation granted a private helper")
+			}
+		})
+	}
+}

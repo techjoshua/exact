@@ -11,6 +11,30 @@ afterEach(async () => {
 });
 
 describe('@exactjs/hapi-adapter', () => {
+	it.each(['https://app.test', 'https://evil.test'])(
+		'checks debug origin %s before authorization',
+		async (origin) => {
+			const publicOrigin = vi.fn(() => 'https://app.test');
+			const allowDebug = vi.fn(() => true);
+			const configuration = {
+				contract: { version: 1 as const, endpoint: '/__exact', invocations: {}, boundaries: {} },
+				publicOrigin,
+				allowDebug
+			};
+			const expected = origin === 'https://app.test' ? 200 : 404;
+			const server = trackedServer();
+			await registerExact(server, configuration);
+			const response = await server.inject({
+				method: 'POST',
+				url: '/__exact',
+				headers: { origin },
+				payload: { type: 'debug', version: 1, request: 'open' }
+			});
+			expect(response.statusCode).toBe(expected);
+			expect(publicOrigin).toHaveBeenCalledTimes(1);
+			expect(allowDebug.mock.calls.length > 0).toBe(origin === 'https://app.test');
+		}
+	);
 	it('registers the contract endpoint and handles a real Hapi request', async () => {
 		const server = trackedServer();
 		await registerExact(server, runtime());

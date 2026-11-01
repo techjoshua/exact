@@ -15,7 +15,7 @@ func staticServerInvocationSlots(build *renderProgramBuild) bool {
 
 // literalServerInvocationValue admits only compiler-owned trees with no authored references,
 // evaluation effects, custom prototypes, or deferred work. They remain private to generated code.
-func literalServerInvocationValue(value *ast.Node) bool {
+func (lowering *jsxLowering) literalServerInvocationValue(value *ast.Node) bool {
 	if value == nil {
 		return false
 	}
@@ -24,17 +24,20 @@ func literalServerInvocationValue(value *ast.Node) bool {
 		return true
 	case ast.KindArrayLiteralExpression:
 		for _, item := range value.AsArrayLiteralExpression().Elements.Nodes {
-			if !literalServerInvocationValue(item) {
+			if !lowering.literalServerInvocationValue(item) {
 				return false
 			}
 		}
 		return true
 	case ast.KindObjectLiteralExpression:
 		for _, property := range value.AsObjectLiteralExpression().Properties.Nodes {
+			if lowering.isElementIdentityProperty(property) {
+				continue
+			}
 			if !ast.IsPropertyAssignment(property) ||
 				(!ast.IsIdentifier(property.Name()) && !ast.IsStringLiteral(property.Name())) ||
 				property.Name().Text() == "__proto__" ||
-				!literalServerInvocationValue(property.AsPropertyAssignment().Initializer) {
+				!lowering.literalServerInvocationValue(property.AsPropertyAssignment().Initializer) {
 				return false
 			}
 		}

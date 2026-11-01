@@ -1,6 +1,7 @@
+import { componentContractVersion } from '../component-contract-version.js';
+import { type AdmittedClientComponentInput } from './component-input-admission.js';
 import type { AnyComponentInstance, Child } from '@exactjs/core';
 import type { PreparedTextResolver } from '@exactjs/core/framework/render-structure';
-import type { ExactComponentReceiptData } from '@exactjs/core/runtime/component-operations';
 import type { EffectScope } from '@exactjs/reactive/framework/runtime';
 import type { Mounted, Root } from '../types.js';
 
@@ -22,7 +23,7 @@ export type EnhancementPatchOperation = (
 
 /** Prepares an owned native text component before projecting its captured output. */
 export type TextComponentVisitor = (
-	receipt: ExactComponentReceiptData,
+	receipt: AdmittedClientComponentInput,
 	visit: (output: readonly Child[], mounted: Mounted) => string
 ) => string;
 
@@ -86,7 +87,9 @@ type DomEnhancementCapabilityRegistry = {
 	capability?: DomEnhancementCapability;
 };
 
-const registryKey = Symbol.for('@exactjs/dom.enhancement-capability.v2');
+const registryKey = Symbol.for(
+	`@exactjs/dom.enhancement-capability.v2/component/${componentContractVersion}`
+);
 
 /** Returns the realm-wide registry shared by independently bundled compatible eXact clients. */
 function capabilityRegistry(): DomEnhancementCapabilityRegistry {

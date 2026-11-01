@@ -1,15 +1,31 @@
 import { decodeReactiveProtocolValue, encodeReactiveProtocolValue } from '@exactjs/core';
+import type { ResponseResourceBudget } from '@exactjs/core/framework/protocol-records';
+import type { ExactServerContext } from '../types.js';
 import { isJsonSafe } from '../protocol.js';
+import { responseResourceBudget, responseGraphLimits } from '../response-resources.js';
 
-/** Captures a standalone transport snapshot at report time, before authored data can mutate. */
-export function captureProgressSnapshot(snapshot: unknown): unknown {
-	const limits = { maxDepth: 32, maxNodes: 10_000, maxBytes: 64 * 1024 };
-	if (!isJsonSafe(snapshot, limits))
-		throw new TypeError('Invalid or oversized task progress snapshot');
-	const encoded = encodeReactiveProtocolValue(snapshot);
+/** Captures valid transport data, applying response caps and warning-only snapshot thresholds. */
+export function captureProgressSnapshot(
+	snapshot: unknown,
+	context: Pick<ExactServerContext, 'limits' | 'logger'> = {},
+	resources: ResponseResourceBudget = responseResourceBudget(context.logger)
+): unknown {
+	const limits = responseGraphLimits(context.limits ?? {}, resources, 'progress snapshot', {
+		depth: 32,
+		nodes: 10_000,
+		bytes: 64 * 1024
+	});
+	if (!isJsonSafe(snapshot, limits)) throw new TypeError('Invalid task progress snapshot');
+	const encoded = encodeReactiveProtocolValue(snapshot, { maxDepth: Number.MAX_SAFE_INTEGER });
 	if (!isJsonSafe(encoded, limits)) throw new TypeError('Invalid encoded task progress snapshot');
 	const json = JSON.stringify(encoded);
-	if (new TextEncoder().encode(json).byteLength > limits.maxBytes)
-		throw new TypeError('Task progress snapshot exceeds 64 KiB');
-	return decodeReactiveProtocolValue(JSON.parse(json));
+	resources(
+		'maxResponseBytes',
+		context.limits?.maxResponseBytes,
+		64 * 1024,
+		new TextEncoder().encode(json).byteLength,
+		'progress snapshot',
+		'encoded UTF-8 bytes'
+	);
+	return decodeReactiveProtocolValue(JSON.parse(json), { maxDepth: Number.MAX_SAFE_INTEGER });
 }

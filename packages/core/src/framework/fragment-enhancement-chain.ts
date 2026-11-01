@@ -1,7 +1,7 @@
 import type { AnyComponentFunction, Child, EnhancementEntry } from '../component/contracts.js';
 import { createEnhancementNode, readExactEnhancementContexts } from '../enhancements.js';
 import {
-	createCompiledComponentReceipt,
+	createCompiledComponentInputReceipt,
 	withFragmentEnhancementTarget,
 	withTransparentComponentUpdateOwner
 } from '../component-abi/receipt.js';
@@ -32,7 +32,11 @@ export function createFragmentEnhancementChain(
 			index = start - 1;
 		} else {
 			let receipt = withFragmentEnhancementTarget(
-				createCompiledComponentReceipt(component, { ...entry.props }, chain),
+				createCompiledComponentInputReceipt(
+					component,
+					{ ...entry.props },
+					{ kind: 'eager', values: [chain] }
+				),
 				chain,
 				entry.intrinsicFragment
 			);

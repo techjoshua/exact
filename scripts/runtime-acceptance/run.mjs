@@ -1,3 +1,11 @@
+import { checkHydrationHandoff } from './hydration-handoff.mjs';
+import { verifyNativeRuntimeHost } from './host-journey.mjs';
+import { prepareChildInputs } from './child-inputs.mjs';
+import { copyAccessibilityFixture, accessibilityClientSource } from './accessibility.mjs';
+import { copyMountWorkFixture, mountWorkArtifact, mountWorkClientSource } from './mount-work.mjs';
+import { prepareReactEvent18Source, reactEventClientSource } from './react-events.mjs';
+import { serializationClientSource } from './serialization-client.mjs';
+import { checkNativePreflight } from './runtime-preflight.mjs';
 import { ownedProtocolIslandSource } from '../../framework-adapters/test-support/owned-protocol-island-source.mjs';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
@@ -5,7 +13,6 @@ import path from 'node:path';
 import { build } from 'esbuild';
 import { chromium, firefox, webkit } from 'playwright';
 import assert from 'node:assert/strict';
-import { randomUUID } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { Miniflare, convertV4MiniflareOptions } from 'miniflare';
 import {
@@ -18,30 +25,21 @@ import { materializeExactPhysicalEnhancementFacades } from '@exactjs/compiler/ad
 import { createControl } from './control.mjs';
 import { withNativeHost } from './host.mjs';
 import { progressSource } from '../../packages/component-composition-corpus/test-support/runtime-acceptance/progress-source.mjs';
-import { checkNativeProgress } from './native-scenarios.mjs';
-import { prepareTaskCaptures, checkTaskCaptures } from './task-captures.mjs';
-import { checkDispatch } from './dispatch-scenarios.mjs';
-import { checkHydration } from './hydration-scenarios.mjs';
+import { prepareTaskCaptures } from './task-captures.mjs';
+import { prepareValueContracts } from './value-contracts.mjs';
+import * as acceptanceEvidence from './evidence.mjs';
+import { preparePortalEvents } from './portal-events.mjs';
 import { prepareEagerReplay } from './eager-replay.mjs';
 import { hostSource } from './runtime-hosts.mjs';
 import { checkInstalledIslands } from './installed-islands.mjs';
-import { preparePendingOwnerBrowser, checkPendingOwners } from './pending-owner-browser.mjs';
+import { preparePendingOwnerBrowser } from './pending-owner-browser.mjs';
+import { checkAssignmentListBrowser } from './assignment-list.mjs';
 
 const root = path.resolve(import.meta.dirname, '../..');
 const evidenceFile =
 	process.env.EXACT_ACCEPTANCE_REPORT ?? path.join(root, '.tmp/runtime-acceptance/evidence.json');
-const evidence = {
-	version: 1,
-	runToken: process.env.EXACT_ACCEPTANCE_RUN_TOKEN ?? randomUUID(),
-	started: new Date().toISOString(),
-	revision: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(),
-	dirty:
-		execFileSync('git', ['status', '--porcelain'], { cwd: root, encoding: 'utf8' }).trim() !== '',
-	node: process.version,
-	browser: process.env.EXACT_ACCEPTANCE_BROWSER ?? 'chromium',
-	executions: []
-};
 await rm(evidenceFile, { force: true });
+const evidence = await acceptanceEvidence.createRuntimeAcceptanceEvidence(root);
 const fixture = path.join(
 	root,
 	'packages/component-composition-corpus/test-support/runtime-acceptance'
@@ -53,6 +51,7 @@ let browser;
 let worker;
 let primaryFailure;
 try {
+	evidence.executions.push(...(await checkNativePreflight(root, temporary)));
 	control = await createControl();
 	const engine = process.env.EXACT_ACCEPTANCE_BROWSER ?? 'chromium';
 	assert.ok(
@@ -60,7 +59,9 @@ try {
 		'Unknown acceptance browser: ' + engine
 	);
 	browser = await { chromium, firefox, webkit }[engine].launch();
-	console.log('Browser engine: ' + engine);
+	await checkHydrationHandoff(root, temporary, browser, evidence);
+	if (engine === 'chromium')
+		evidence.authoredAssignmentListBrowser = await checkAssignmentListBrowser(root, browser);
 	const progressFile = path.join(temporary, 'Progress.tsx');
 	await writeFile(progressFile, progressSource(control.origin));
 	const progress = await compileFileArtifacts(progressFile, {
@@ -150,20 +151,15 @@ try {
 		)
 	);
 	await writeFile(path.join(temporary, 'owned-protocol-islands.tsx'), ownedProtocolIslandSource);
-	const pageFile = path.join(temporary, 'Page.tsx');
-	await writeFile(
-		pageFile,
-		(await readFile(path.join(fixture, 'Page.tsx'), 'utf8')).replaceAll(
-			'__EXACT_CONTROL__',
-			control.origin
-		)
-	);
+	const pageFile = await copyMountWorkFixture(root, temporary, fixture, control.origin);
+	await copyAccessibilityFixture(root, temporary);
 	const pages = await compileProjectArtifacts([pageFile], {
 		rootDir: temporary,
 		outDir: path.join(temporary, 'page')
 	});
 	const page = pages.find((artifact) => artifact.inputFile === pageFile);
 	assert.ok(page, 'Missing runtime page artifact');
+	const mountWork = mountWorkArtifact(pages);
 	const normalization = pages.find((artifact) =>
 		artifact.inputFile.endsWith('source-normalization-server.fixtures.tsx')
 	);
@@ -217,8 +213,10 @@ try {
 			await writeFile(outputFile, physical.code);
 		}
 	}
-	const taskCaptureHandler = await prepareTaskCaptures(root, temporary);
+	const { handler: taskCaptureHandler, clearClient } = await prepareTaskCaptures(root, temporary);
+	const valueContractsHandler = await prepareValueContracts(root, temporary);
 	const eagerHandler = await prepareEagerReplay(temporary, fixture);
+	const childInputHandler = await prepareChildInputs(root, temporary);
 	const pendingOwnerHandler = await preparePendingOwnerBrowser(root, temporary);
 	const inputArtifact = pages.find((artifact) =>
 		artifact.inputFile.endsWith('nested-input-relationships.fixtures.tsx')
@@ -229,6 +227,7 @@ try {
 	);
 	assert.ok(computedMembers, 'Missing computed component member artifact');
 	const client = path.join(temporary, 'client.ts');
+	const portalEvents = await preparePortalEvents(root, fixture, temporary);
 	const dormant = await compileFileArtifacts(
 		path.join(
 			root,
@@ -239,9 +238,13 @@ try {
 			outDir: path.join(temporary, 'dormant')
 		}
 	);
+	const react18Code = await prepareReactEvent18Source(root);
 	await writeFile(
 		client,
-		`import {RuntimePage,RuntimeIsland,RuntimeScope} from ${JSON.stringify(page.clientFile)};
+		`import {RuntimePage,RuntimeIsland,RuntimeScope,InspectionPanel} from ${JSON.stringify(page.clientFile)};
+${mountWorkClientSource(mountWork)}
+${accessibilityClientSource(pages)}
+${portalEvents}
 import {NormalizationServerSnapshotProbe,NormalizationAsyncInputProbe} from ${JSON.stringify(normalization.clientFile)};
 import {inputRelationshipOwner} from ${JSON.stringify(inputArtifact.clientFile)};
 import {computedMemberTrace} from ${JSON.stringify(computedMembers.clientFile)};
@@ -250,21 +253,49 @@ window.computedMemberTrace=computedMemberTrace;
 import {DormantIslandShell,EagerHoverIsland,resetDormantIslandNotifications,readDormantIslandNotifications} from ${JSON.stringify(dormant.clientFile)};
 import {verifyDormantIslandActivation} from ${JSON.stringify(path.join(root, 'packages/component-composition-corpus/test-support/dormant-island-journey.mjs'))};
 window.verifyDormantIslandActivation=()=>verifyDormantIslandActivation({createExactClient,lazyClientIsland,Shell:DormantIslandShell,Hover:EagerHoverIsland,reset:resetDormantIslandNotifications,read:readDormantIslandNotifications});
-import {isJsonSafe as validateRuntimeJsonData} from ${JSON.stringify(path.join(root, 'packages/hydrate/dist/validation.js'))};
-window.validateRuntimeJsonData=validateRuntimeJsonData;
+${serializationClientSource(root)}
+${reactEventClientSource(root, react18Code)}
+import {captureHydrationDom,restoreFormState} from ${JSON.stringify(path.join(root, 'packages/hydrate/dist/adoption/form-state.js'))};
+import {createDomWorkBudget} from '@exactjs/dom/framework/component-root';
+import {verifyHydrationFormRecovery} from ${JSON.stringify(path.join(root, 'packages/component-composition-corpus/test-support/hydration-form-recovery-journey.mjs'))};
+window.verifyHydrationFormRecovery=()=>verifyHydrationFormRecovery({captureHydrationDom,restoreFormState,createDomWorkBudget});
+import {render,unmount,createExactDomInspectionHost,setExactDomInspectionOwnerFactory} from '@exactjs/dom';
+import {createExactRuntimeInspectionOwner} from '@exactjs/core';
+import {verifyDomInspectionIdentity} from ${JSON.stringify(path.join(root, 'packages/component-composition-corpus/test-support/dom-inspection-identity-journey.mjs'))};
+import {verifyDomRootOptions} from ${JSON.stringify(path.join(root, 'packages/component-composition-corpus/test-support/dom-root-options-journey.mjs'))};
+import {verifyHydrationOptions} from ${JSON.stringify(path.join(root, 'packages/component-composition-corpus/test-support/hydration-options-journey.mjs'))};
+import {createCompiledIntrinsicReceipt} from '@exactjs/core/runtime/component-operations';
+import {renderCompiledIntrinsicRoot} from '@exactjs/dom/framework/intrinsic-root';
+import {installExactDevtoolsRuntime} from ${JSON.stringify(path.join(root, 'packages/devtools-runtime/dist/runtime.js'))};
+import {verifyDevtoolsConnectionLifecycle} from ${JSON.stringify(path.join(root, 'packages/component-composition-corpus/test-support/devtools-connection-lifecycle-journey.mjs'))};
+import {createExactClientInspectionQueryService as createQueryService} from ${JSON.stringify(path.join(root, 'packages/devtools-runtime/dist/query-service.js'))};
+import {createExactClientEventStore as createEventStore} from ${JSON.stringify(path.join(root, 'packages/devtools-runtime/dist/client-events.js'))};
+window.verifyDomInspectionIdentity=async()=>{
+ for(const hydrateRoot of [hydrate,hydrateFull,hydrateOnly])await verifyHydrationOptions({Panel:InspectionPanel,operation:createCompiledComponentInputReceipt,hydrate:hydrateRoot});
+ verifyPartitionObservations({inspect:inspectExactPartitionInstances});
+ verifyDomRootOptions({Panel:InspectionPanel,operation:createCompiledComponentInputReceipt,intrinsic:createCompiledIntrinsicReceipt,renderIntrinsic:renderCompiledIntrinsicRoot,render,unmount,createExactRuntimeInspectionOwner,setExactDomInspectionOwnerFactory});
+ await verifyDomInspectionIdentity({Panel:InspectionPanel,operation:createCompiledComponentInputReceipt,render,unmount,createExactDomInspectionHost,setExactDomInspectionOwnerFactory,createExactRuntimeInspectionOwner,createQueryService,createEventStore});
+ await verifyDevtoolsConnectionLifecycle({Panel:InspectionPanel,operation:createCompiledComponentInputReceipt,render,unmount,installExactDevtoolsRuntime});
+};
+import {inspectExactPartitionInstances,hydrate as hydrateFull} from '@exactjs/hydrate';
+import {hydrate as hydrateOnly} from '@exactjs/hydrate/root';
+import {verifyPartitionObservations} from ${JSON.stringify(path.join(root, 'packages/component-composition-corpus/test-support/partition-observation-journey.mjs'))};
 import {applyDomProp} from ${JSON.stringify(path.join(root, 'packages/dom/dist/props.js'))};
 window.applyRuntimeDomProp=applyDomProp;
 import {flushSync} from '@exactjs/reactive';
 window.propsProbeOwner=()=>inputRelationshipOwner;window.flushPropsProbe=flushSync;
-import {createCompiledComponentReceipt} from '@exactjs/core/runtime/component-operations';
+import {createCompiledComponentInputReceipt} from '@exactjs/core/runtime/component-operations';
 import {composePreparedExactComponentContracts} from '@exactjs/core/framework/component-contracts';
 import {exactEnhancementCatalog} from '@exactjs/core/framework/enhancement-catalog';
 import {createExactClient,lazyClientIsland,hydrate,readExactHydrationConfig} from '@exactjs/hydrate/enhanced';
+window.hydrationObservations=[];window.responseObservations=0;
 const options={
+ onHydration(observation){observation.outcome=observation.outcome;window.hydrationObservations.push(observation);},
+ onResponse(observation){observation.status=observation.status;window.responseObservations++;},
  enhancementCatalog:new Map([...exactEnhancementCatalog,['runtime-scope',RuntimeScope],['runtime-scope-peer',RuntimeScope]]),
  ...readExactHydrationConfig(document),continuations:composePreparedExactComponentContracts([RuntimePage,NormalizationServerSnapshotProbe,NormalizationAsyncInputProbe],'client').continuations,endpoint:'/__exact',islands:{...ownedProtocolRegistration.islands,RuntimeIsland},onErrorReport:report=>console.error(report.error),onDiagnostic:diagnostic=>console.error(diagnostic.message)
 };
-window.runtimeClient=location.pathname.includes('island-page')?createExactClient(document.getElementById('root'),options):hydrate(createCompiledComponentReceipt(RuntimeIsland,{}),document.getElementById('root'),options);
+window.runtimeClient=location.pathname.includes('island-page')?createExactClient(document.getElementById('root'),options):hydrate(createCompiledComponentInputReceipt(RuntimeIsland,{}),document.getElementById('root'),options);
 await window.runtimeClient.whenSettled();window.runtimeReady=true;`
 	);
 	const clientFile = path.join(temporary, 'client.js');
@@ -287,16 +318,18 @@ await window.runtimeClient.whenSettled();window.runtimeReady=true;`
 		}[adapter];
 		await writeFile(
 			entry,
-			`import {taskCaptureResponse,taskCaptureContext} from ${JSON.stringify(taskCaptureHandler)};
+			`import {taskCaptureResponse,taskCaptureContexts} from ${JSON.stringify(taskCaptureHandler)};
+import {valueContractsResponse} from ${JSON.stringify(valueContractsHandler)};
 import {pendingOwnerResponse} from ${JSON.stringify(pendingOwnerHandler)};
 import {eagerReplayResponse} from ${JSON.stringify(eagerHandler)};
+import {childInputResponse} from ${JSON.stringify(childInputHandler)};
 import {NativeProgress,runCount} from ${JSON.stringify(progress.serverFile)};
 import {RuntimePage,RuntimeShell,RuntimeIsland,RuntimeViews,RuntimeScope,RuntimeDeadline,deadlineState} from ${JSON.stringify(page.serverFile)};
 import {NormalizationServerSnapshotProbe,NormalizationAsyncInputProbe} from ${JSON.stringify(normalization.serverFile)};
 import {createApplication} from ${JSON.stringify(path.join(fixture, 'application.mjs'))};
 import {${exported} as createHandler} from '@exactjs/${adapter}-adapter';
-const app=createApplication({normalizationComponents:[NormalizationServerSnapshotProbe,NormalizationAsyncInputProbe],taskCaptureResponse,taskCaptureContext,pendingOwnerResponse,eagerReplayResponse,RuntimePage,RuntimeShell,RuntimeIsland,RuntimeViews,RuntimeScope,RuntimeDeadline,deadlineState,NativeProgress,runCount,createHandler,clientCode:${JSON.stringify(clientCode)},control:${JSON.stringify(control.origin)}});
-${hostSource(runtime)}`
+const app=createApplication({AsyncSsrScheduler,ssrPropAcceptanceApi:{prepareComponentProps,prepareDirectComponentProps,markContinuationDependencyValue,createContinuationDependencySlot,produceProgressiveHtml},serverCancellationApi:{readBody,createProgressStream,dispatchExactBatch,createTaskOwner,taskAwait,createTaskProgressReceiver,createTaskOwnerRecord,executeTaskFrame},normalizationComponents:[NormalizationServerSnapshotProbe,NormalizationAsyncInputProbe],valueContractsResponse,taskCaptureResponse,taskCaptureContexts,pendingOwnerResponse,eagerReplayResponse,childInputResponse,RuntimePage,RuntimeShell,RuntimeIsland,RuntimeViews,RuntimeScope,RuntimeDeadline,deadlineState,NativeProgress,runCount,createHandler,clientCode:${JSON.stringify(clientCode)},control:${JSON.stringify(control.origin)}});
+${hostSource(runtime, { reactPipeableAcceptance: true, ssrSchedulerAcceptance: true, serverCancellationAcceptance: true })}`
 		);
 		const output = path.join(temporary, runtime + '-bundle.mjs');
 		await build({
@@ -310,32 +343,8 @@ ${hostSource(runtime)}`
 			external: ['node:*'],
 			target: 'es2022'
 		});
-		const verify = async (origin, label = runtime) => {
-			control.reset();
-			await checkNativeProgress(origin, control.origin);
-			await checkDispatch(origin, control.origin);
-			await checkTaskCaptures(origin);
-			await checkHydration(origin, browser, control.origin);
-			await checkPendingOwners(origin, browser);
-			evidence.executions.push({
-				id: 'native-runtime-' + label,
-				tests: [
-					'native-progress',
-					'url-coercion',
-					'dispatch-policy',
-					'task-activation-captures',
-					'host-import-identity',
-					'browser-hydration',
-					'computed-component-members',
-					'pending-owner-overlap',
-					'pending-owner-sequences'
-				],
-				status: 'verified'
-			});
-			console.log(
-				`${label}: progress, dispatch/security/serialization, contexts, theme reuse, buffered/streamed SSR and browser hydration passed`
-			);
-		};
+		const verify = (origin, label = runtime) =>
+			verifyNativeRuntimeHost({ origin, label, runtime, control, browser, clearClient, evidence });
 		if (runtime === 'cloudflare') {
 			worker = new Miniflare(
 				convertV4MiniflareOptions({
@@ -398,6 +407,7 @@ ${hostSource(runtime)}`
 if (primaryFailure) throw primaryFailure.error;
 await mkdir(path.dirname(evidenceFile), { recursive: true });
 evidence.executions.push(...(await checkInstalledIslands(root, evidenceFile + '.installed.json')));
+await acceptanceEvidence.verifyRuntimeAcceptanceSources(root, evidence);
 await writeFile(
 	evidenceFile,
 	JSON.stringify(

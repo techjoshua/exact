@@ -1,5 +1,6 @@
 import {
 	isReactiveValue,
+	isCompiledPropOperand,
 	peek,
 	readIndexedReactiveSlot,
 	readIndexedReactiveSource,
@@ -21,7 +22,8 @@ export function observeRetainedComponentInput(
 	scope: EffectScope
 ): boolean {
 	const source = readIndexedReactiveSource(instance.props, binding[0]);
-	if (!source.present || !isReactiveValue(source.value)) return false;
+	if (!source.present || !(isReactiveValue(source.value) || isCompiledPropOperand(source.value)))
+		return false;
 	let initialized = false;
 	let previous: unknown;
 	withEffectScope(scope, () =>

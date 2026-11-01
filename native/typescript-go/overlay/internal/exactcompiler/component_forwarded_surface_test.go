@@ -7,6 +7,13 @@ import (
 	"testing"
 )
 
+import (
+	"github.com/microsoft/TypeScript/tsc/internal/ast"
+	"github.com/microsoft/TypeScript/tsc/internal/core"
+	"github.com/microsoft/TypeScript/tsc/internal/parser"
+	"github.com/microsoft/TypeScript/tsc/internal/tspath"
+)
+
 func TestExportedComponentReceiverForwardingRetainsContextSurface(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID: "forwarded-context.tsx", Kind: "compile", Target: TargetServer,
@@ -25,11 +32,31 @@ func TestExportedComponentReceiverForwardingRetainsContextSurface(t *testing.T) 
 		t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
 	}
 	unit := findCallable(t, response.Analysis.Callables, "Unit")
-	if len(unit.Calls) != 1 || !unit.Calls[0].Resolved || !edgeForwardsComponentReceiver(unit.Calls[0]) {
+	message := findCallable(t, response.Analysis.Callables, "Message")
+	forwarded := false
+	for _, edge := range unit.Calls {
+		if !edge.Resolved || edge.TargetID != message.ID {
+			continue
+		}
+		componentReceiver, propsReceiver := false, false
+		for _, binding := range edge.ReceiverBindings {
+			if len(binding.Path) != 0 {
+				continue
+			}
+			componentReceiver = componentReceiver || binding.ParameterIndex == 0 && binding.Source == "component"
+			propsReceiver = propsReceiver || binding.ParameterIndex == 1 && binding.Source == "parameter" && binding.SourceParameterIndex == 1
+		}
+		if componentReceiver && propsReceiver {
+			forwarded = true
+			break
+		}
+	}
+	if !forwarded {
 		t.Fatalf("exported receiver forwarding was not resolved: %#v", unit)
 	}
 	for _, component := range response.Analysis.Components {
 		if component.Name == "Unit" {
+			t.Logf("Unit server contexts surface: %t", component.TargetPlan.ServerSurface.Contexts)
 			if !component.TargetPlan.ServerSurface.Contexts {
 				t.Fatalf("forwarded context capability was omitted: %#v", component.TargetPlan)
 			}
@@ -148,4 +175,37 @@ func TestForwardedDynamicCapabilityKey(t *testing.T) {
 		}
 	}
 	t.Fatal("missing Page")
+}
+
+func TestComponentPropReceiptRequiresRegisteredLexicalReceiver(t *testing.T) {
+	text := `import type {Component} from '@exactjs/core';
+function Leaf(props:{value:number}){return()=> <b>{props.value}</b>}
+export function Owner(this:Component<{count:number}>,props:{value:number}){
+ this.state.count=0;
+ function ordinary(this:Component<{count:number}>){return <Leaf data-case="ordinary" value={props.value+this.state.count}/>}
+ return()=> <Leaf data-case="owned" value={props.value+this.state.count}/>;
+}`
+	source := parser.ParseSourceFile(ast.SourceFileParseOptions{FileName: "/receiver.tsx", Path: tspath.Path("/receiver.tsx")}, text, core.ScriptKindTSX)
+	lowering := jsxLowering{components: componentIndexByName(collectComponents(source)), target: TargetClient}
+	seen := 0
+	walkNode(source.AsNode(), func(node *ast.Node) bool {
+		if node.Kind != ast.KindJsxSelfClosingElement {
+			return true
+		}
+		part := text[node.Pos():node.End()]
+		if !strings.Contains(part, "data-case=") {
+			return true
+		}
+		seen++
+		actual := lowering.hasRegisteredComponentReceiver(node)
+		expected := strings.Contains(part, `data-case="owned"`)
+		t.Logf("%s: receiver=%v expected=%v", part, actual, expected)
+		if actual != expected {
+			t.Errorf("ordinary explicit this must not redeem enclosing durable supplier")
+		}
+		return true
+	})
+	if seen != 2 {
+		t.Fatalf("expected two actual authored JSX sites, got %d", seen)
+	}
 }

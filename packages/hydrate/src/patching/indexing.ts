@@ -1,3 +1,4 @@
+import { itemMarkerKey } from './item-markers.js';
 import {
 	consumeDomWork,
 	createDomWorkBudget,
@@ -34,6 +35,7 @@ export function createProtocolIndex(
 		nearestBoundaryId?: string;
 		listId?: string;
 		itemKey?: string;
+		nestedItem: boolean;
 	}> = [];
 	let valid = true;
 	walkDomSubtree(
@@ -56,14 +58,14 @@ export function createProtocolIndex(
 			if (!(node instanceof Comment)) return;
 			const comment = node;
 			const data = comment.data;
-			if (data.startsWith('/exact:')) {
+			if (data.startsWith('/exact:') || data.startsWith('/i:')) {
 				const open = stack.pop();
 				if (!open || data !== `/${open.data}`) {
 					valid = false;
 					return;
 				}
 				const range = { start: open.start, end: comment };
-				if (!ownedByExecutionRoot(open.start, executionRoot)) return;
+				if (!ownedByExecutionRoot(open.start, executionRoot) || open.nestedItem) return;
 				if (open.itemKey !== undefined && open.listId) {
 					let items = index.listItems.get(open.listId);
 					if (!items) index.listItems.set(open.listId, (items = new Map()));
@@ -81,13 +83,19 @@ export function createProtocolIndex(
 				}
 				return;
 			}
-			if (!data.startsWith('exact:')) return;
-			const id = data.slice('exact:'.length);
-			const itemKey = id.startsWith('item:') ? id.slice(id.lastIndexOf(':') + 1) : undefined;
-			const parentBoundary = stack.at(-1)?.nearestBoundaryId;
-			const listId = itemKey === undefined ? undefined : parentBoundary;
+			if (!data.startsWith('exact:') && !data.startsWith('i:')) return;
+			const id = data.startsWith('i:') ? `item:${data.slice(2)}` : data.slice('exact:'.length);
+			const itemKey = itemMarkerKey(data);
+			if (itemKey === '') {
+				valid = false;
+				return;
+			}
+			const parent = stack.at(-1);
+			const parentBoundary = parent?.nearestBoundaryId;
+			const nestedItem = itemKey !== undefined && parent?.itemKey !== undefined;
+			const listId = itemKey === undefined || nestedItem ? undefined : parentBoundary;
 			const nearestBoundaryId = itemKey === undefined ? id : parentBoundary;
-			stack.push({ data, id, start: comment, nearestBoundaryId, listId, itemKey });
+			stack.push({ data, id, start: comment, nearestBoundaryId, listId, itemKey, nestedItem });
 		},
 		{ budget }
 	);
@@ -100,21 +108,25 @@ function ownedByExecutionRoot(node: Node, executionRoot: string | undefined): bo
 	return !owner || owner.domain.executionRoot === executionRoot;
 }
 
-/** Performs the reindex list domain operation. */
+/** Rebuilds direct list membership while keeping nested item and explicit boundary scopes separate. */
 export function reindexList(index: ProtocolIndex, listId: string): void {
 	const list = index.ranges.get(listId);
 	if (!list) return;
 	const items = new Map<string, ExactRange>();
 	let cursor: Node | null = list.start.nextSibling;
-	const starts = new Map<string, Comment>();
+	const stack: Array<{ data: string; start: Comment; key?: string }> = [];
 	while (cursor && cursor !== list.end) {
 		consumeDomWork(index.budget);
-		if (cursor instanceof Comment && cursor.data.startsWith('exact:item:')) {
-			starts.set(cursor.data, cursor);
-		} else if (cursor instanceof Comment && cursor.data.startsWith('/exact:item:')) {
-			const data = cursor.data.slice(1);
-			const start = starts.get(data);
-			if (start) items.set(data.slice(data.lastIndexOf(':') + 1), { start, end: cursor });
+		if (cursor instanceof Comment) {
+			const data = cursor.data;
+			if (data.startsWith('i:') || data.startsWith('exact:')) {
+				const key = stack.length ? undefined : itemMarkerKey(data);
+				stack.push({ data, start: cursor, key });
+			} else if (data.startsWith('/i:') || data.startsWith('/exact:')) {
+				const open = stack.pop();
+				if (open?.key !== undefined && data === `/${open.data}`)
+					items.set(open.key, { start: open.start, end: cursor });
+			}
 		}
 		cursor = cursor.nextSibling;
 	}

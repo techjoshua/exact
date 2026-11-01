@@ -67,11 +67,4 @@ for (const target of ['client', 'server'] as const)
 			expect(owner.value).toBe(2);
 			expect(work(owner)).toBe(owner);
 			expect(owner.value).toBe(3);
-			const readonly = runtime.reactive(owner, { readonly: true });
-			const deniedRoot = { owner: readonly };
-			const denied = runtime.createPendingReactiveTransaction(deniedRoot);
-			denied.read(deniedRoot, 'owner');
-			expect(() => denied.helper(work)(readonly)).toThrow('readonly');
-			denied.discard();
-			expect(owner.value).toBe(3);
 		});

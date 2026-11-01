@@ -3,16 +3,15 @@ import { it, expect, onTestFinished } from 'vitest';
 import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { compileProjectArtifacts } from '../index.js';
-import { createTestWorkspace } from '../test-support/workspace.js';
+import { createCompilerTestWorkspace } from '../test-support/workspace.js';
 import { importArtifact } from '../test-support/import-artifact.js';
-import { createCompiledComponentReceipt as receipt } from '@exactjs/core/runtime/component-operations';
+import { createCompiledComponentInputReceipt as receipt } from '@exactjs/core/runtime/component-operations';
 import { renderToHydratableString } from '@exactjs/ssr';
 import { hydrate, createExactClient } from '@exactjs/hydrate';
 import { createServerBoundaryReceipt } from '@exactjs/core/runtime/component-operations';
 import { createCompiledComponentRegistry } from '@exactjs/core/runtime/registry';
 import { hydrate as hydrateOnly } from '@exactjs/hydrate/root';
-import { hydrateCompiledComponentRoot } from '@exactjs/hydrate/framework/component-root';
-
+import { hydrateCompiledComponentInputRoot } from '@exactjs/hydrate/framework/component-root';
 it.each([
 	{ only: false, nested: false },
 	{ only: true, nested: false },
@@ -21,7 +20,7 @@ it.each([
 	{ only: 'compiled', nested: false },
 	{ only: 'compiled', nested: true }
 ])('adopts a lazy registry root ($only, nested=$nested)', async ({ only, nested }) => {
-	const root = await createTestWorkspace('.exact-root-registry-', process.cwd());
+	const root = await createCompilerTestWorkspace('.exact-root-registry-', process.cwd());
 	const entry = path.join(root, 'page.tsx');
 	await writeFile(
 		path.join(root, 'panel.tsx'),
@@ -51,13 +50,11 @@ it.each([
 	const input = container.querySelector('input')!;
 	input.value = 'edited before hydration';
 	const errors: unknown[] = [];
-	const view = (only === 'compiled' ? hydrateCompiledComponentRoot : only ? hydrateOnly : hydrate)(
-		receipt(client.Page as never, {}),
-		container,
-		{
-			onErrorReport: (r) => errors.push(r.error)
-		}
-	);
+	const view = (
+		only === 'compiled' ? hydrateCompiledComponentInputRoot : only ? hydrateOnly : hydrate
+	)(receipt(client.Page as never, {}), container, {
+		onErrorReport: (r) => errors.push(r.error)
+	});
 	onTestFinished(() => view.dispose());
 	input.value = 'edited';
 	await view.whenSettled();
@@ -68,10 +65,9 @@ it.each([
 	expect(container.querySelector('button')!.textContent).toBe('Count 1');
 	expect(errors).toEqual([]);
 });
-
 it.each([
 	['public', hydrateOnly],
-	['compiled', hydrateCompiledComponentRoot]
+	['compiled', hydrateCompiledComponentInputRoot]
 ] as const)(
 	'isolates shared lazy hydration from disposal and replacement (%s)',
 	async (_name, hydrateEntry) => {
@@ -143,10 +139,9 @@ it.each([
 		expect(original!.textContent).toBe('Count 2');
 	}
 );
-
 /** Builds a minimal independent component for controlled loader lifecycle checks. */
 async function compileCounter() {
-	const root = await createTestWorkspace('.exact-registry-owners-', process.cwd());
+	const root = await createCompilerTestWorkspace('.exact-registry-owners-', process.cwd());
 	const entry = path.join(root, 'panel.tsx');
 	await writeFile(
 		entry,
@@ -158,10 +153,8 @@ async function compileCounter() {
 	});
 	const server = await importArtifact(artifact!.serverFile, path.join(root, 'server.mjs'));
 	const client = await importArtifact(artifact!.clientFile, path.join(root, 'client.mjs'));
-
 	return { server, client };
 }
-
 it('fences an island generation replaced during selected-module loading', async () => {
 	const { server, client } = await compileCounter();
 	let release!: (component: never) => void;
@@ -201,7 +194,6 @@ it('fences an island generation replaced during selected-module loading', async 
 	await Promise.resolve();
 	expect(original!.textContent).toBe('Count 0');
 });
-
 it.each([false, true])(
 	'reports selected-module failure through root readiness (hydrationOnly=%s)',
 	async (only) => {
@@ -229,3 +221,38 @@ it.each([false, true])(
 		expect(container.hasAttribute('data-exact-hydrated')).toBe(false);
 	}
 );
+
+// The compiler-selected deferred entry and the independently linked hydration provider migrate together.
+it('links deferred compiled roots to the admitted children-input provider', async () => {
+	const root = await createCompilerTestWorkspace('.exact-deferred-input-', process.cwd());
+	const entry = path.join(root, 'page.tsx');
+	await writeFile(
+		entry,
+		`import {type Component} from '@exactjs/core';
+import {hydrateAfterNavigation} from '@exactjs/hydrate/root';
+export function App(this:Component<{}>){return()=> <button>Ready</button>;}
+/** @exact client */
+export function connect(container:Element){return hydrateAfterNavigation(()=> <App/>,container);}`
+	);
+	const artifacts = await compileProjectArtifacts([entry], {
+		rootDir: root,
+		outDir: path.join(root, 'generated'),
+		serverComponents: true
+	});
+	const artifact = artifacts.find((value) => value.inputFile === entry)!;
+	const server = await importArtifact(artifact.serverFile, path.join(root, 'server.mjs'));
+	const client = await importArtifact(artifact.clientFile, path.join(root, 'client.mjs'));
+	const output = await renderToHydratableString(receipt(server.App as never, {}));
+	const container = document.createElement('div');
+	container.innerHTML = output.htmlWithHydration;
+	const button = container.querySelector('button')!;
+	const view = await (
+		client.connect as (
+			container: Element
+		) => Promise<{ whenSettled(): Promise<void>; dispose(): void }>
+	)(container);
+	onTestFinished(() => view.dispose());
+	await view.whenSettled();
+	expect(container.querySelector('button')).toBe(button);
+	expect(button.textContent).toBe('Ready');
+});

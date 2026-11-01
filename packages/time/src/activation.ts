@@ -1,6 +1,12 @@
 import { reactive, unwrap, watch } from '@exactjs/reactive';
 import { afterReactiveSettlement } from '@exactjs/reactive/framework/settlement';
-import { intl } from '@exactjs/core';
+import {
+	attachSuppressedCleanupFailure,
+	attemptCleanup,
+	createCleanupFailure,
+	throwCleanupFailure,
+	intl
+} from '@exactjs/core';
 import {
 	componentDomainWallClockSnapshot,
 	currentComponentDomain,
@@ -12,11 +18,10 @@ import type {
 	TimeChangePlan,
 	TimeClock,
 	TimeEnvironment,
-	TimePlanNumber,
 	TimeUpdatePolicy
 } from './contracts.js';
-import { wallTimeClock } from './clocks.js';
-import { nextTimeChange, validateTimeChangePlan } from './plan.js';
+import { wallTimeClock, validateTimeEpoch } from './clocks.js';
+import { nextTimeChange, validateTimeChangePlan, sameTimePlan } from './plan.js';
 import {
 	normalizeTimePolicy,
 	schedulerForClock,
@@ -60,10 +65,11 @@ export function createTimeActivation(
 	const clock = Array.isArray(clockOrInputs) ? wallTimeClock : (clockOrInputs as TimeClock);
 	const domain = currentComponentDomain();
 	if (clock === wallTimeClock && domain) markComponentDomainWallClockUsed(domain);
-	const initialSample =
+	const initialSample = validateTimeEpoch(
 		clock === wallTimeClock && domain
 			? (componentDomainWallClockSnapshot(domain) ?? clock.now().epochMilliseconds)
-			: clock.now().epochMilliseconds;
+			: clock.now().epochMilliseconds
+	);
 	let validated = validateTimeChangePlan(plan);
 	let currentInputs = validateTimeInputs(
 		Array.isArray(clockOrInputs) ? clockOrInputs : initialInputs
@@ -89,7 +95,7 @@ export function createTimeActivation(
 			// coalesced latest configuration merely because its generation advanced.
 			if (!mounted || disposed || !pendingInitialPublish || currentPolicy === 'disabled') return;
 			pendingInitialPublish = false;
-			state.sample = currentClock.now().epochMilliseconds;
+			state.sample = validateTimeEpoch(currentClock.now().epochMilliseconds);
 			state.revision++;
 			scheduler?.requestReconcile(registration);
 		});
@@ -108,9 +114,9 @@ export function createTimeActivation(
 		get deadline() {
 			return deadline;
 		},
-		publish(sample, capturedGeneration) {
+		publish(epochMilliseconds, capturedGeneration) {
 			if (capturedGeneration !== generation || !this.active) return;
-			state.sample = sample.epochMilliseconds;
+			state.sample = epochMilliseconds;
 			state.revision++;
 			deadline = undefined;
 		},
@@ -132,15 +138,47 @@ export function createTimeActivation(
 			);
 		}
 	};
-	const activation: TimeActivation = Object.freeze({
+
+	/** Releases the actual registration independently of public method aliases. */
+	const suspend = () => {
+		if (!mounted) return;
+		mounted = false;
+		pendingInitialPublish = false;
+		generation++;
+		deadline = undefined;
+		const selected = scheduler;
+		scheduler = undefined;
+		selected?.delete(registration);
+	};
+	/** Owns connection and publication across synchronous provider hooks and generation changes. */
+	const connectScheduler = (afterConnection?: (isCurrent: () => boolean) => void) => {
+		const selected = scheduler!;
+		const selectedGeneration = generation;
+		const isCurrent = () =>
+			mounted && !disposed && scheduler === selected && generation === selectedGeneration;
+		try {
+			selected.add(registration);
+			if (isCurrent()) afterConnection?.(isCurrent);
+		} catch (error) {
+			if (isCurrent()) {
+				try {
+					suspend();
+				} catch (cleanup) {
+					attachSuppressedCleanupFailure(error, cleanup);
+				}
+			}
+			throw error;
+		}
+	};
+	const activation: TimeActivation = {
 		__exactTime: true as const,
 		[activationBrand]: true as const,
 		policy,
 		get plan() {
-			return validated;
+			return validateTimeChangePlan(validated);
 		},
 		get inputs() {
-			return currentInputs;
+			return [...currentInputs];
 		},
 		readEpochMilliseconds(inputs?: readonly number[]) {
 			if (inputs) {
@@ -229,13 +267,13 @@ export function createTimeActivation(
 				currentPolicy !== 'disabled' &&
 				!(domain && isHydrationComponentDomain(domain))
 			) {
-				state.sample = currentClock.now().epochMilliseconds;
+				state.sample = validateTimeEpoch(currentClock.now().epochMilliseconds);
 				state.revision++;
 			}
 			if (mounted && scheduler?.clockIdentity !== currentClock) {
 				scheduler = schedulerForClock(currentClock);
 				publishCurrentAfterSettlement();
-				scheduler.add(registration);
+				connectScheduler();
 			} else {
 				scheduler?.requestReconcile(registration);
 			}
@@ -261,31 +299,26 @@ export function createTimeActivation(
 					if (mounted && !disposed && pendingInitialPublish) publishCurrentAfterSettlement();
 				});
 			}
-			scheduler.add(registration);
-			if (pendingInitialPublish) {
-				publishCurrentAfterSettlement();
-			} else if (currentPolicy !== 'disabled') {
-				const sample = currentClock.now();
-				state.sample = sample.epochMilliseconds;
-				state.revision++;
-			}
+			connectScheduler((isCurrent) => {
+				if (pendingInitialPublish) publishCurrentAfterSettlement();
+				else if (currentPolicy !== 'disabled') {
+					const sample = currentClock.now().epochMilliseconds;
+					if (!isCurrent()) return;
+					state.sample = validateTimeEpoch(sample);
+					state.revision++;
+				}
+			});
 		},
-		suspend() {
-			if (disposed || !mounted) return;
-			mounted = false;
-			pendingInitialPublish = false;
-			generation++;
-			deadline = undefined;
-			scheduler?.delete(registration);
-			scheduler = undefined;
-		},
+		suspend,
 		dispose() {
 			if (disposed) return;
-			activation.suspend();
-			stopPolicyObservation();
 			disposed = true;
+			const failure = createCleanupFailure();
+			attemptCleanup(failure, suspend);
+			attemptCleanup(failure, stopPolicyObservation);
+			throwCleanupFailure(failure);
 		}
-	});
+	};
 	let observedInitialPolicy = false;
 	stopPolicyObservation = watch(() => {
 		const nextPolicy = normalizeTimePolicy(unwrap(policy));
@@ -301,33 +334,35 @@ export function createTimeActivation(
 function normalizeTimeEnvironmentAxes(
 	environment: TimeEnvironment
 ): Omit<TimeEnvironment, 'clock'> {
+	const axes = {
+		timeZone: environment.timeZone,
+		calendar: environment.calendar,
+		weekStartsOn: environment.weekStartsOn
+	};
 	if (
-		environment.weekStartsOn !== undefined &&
-		(!Number.isInteger(environment.weekStartsOn) ||
-			environment.weekStartsOn < 0 ||
-			environment.weekStartsOn > 6)
+		axes.weekStartsOn !== undefined &&
+		(!Number.isInteger(axes.weekStartsOn) || axes.weekStartsOn < 0 || axes.weekStartsOn > 6)
 	)
 		throw new TypeError('A time environment week start must be an integer from 0 through 6');
-	if (environment.timeZone || environment.calendar)
+	if (axes.timeZone || axes.calendar)
 		intl.DateTimeFormat('en', {
-			...(environment.timeZone ? { timeZone: environment.timeZone } : {}),
-			...(environment.calendar ? { calendar: environment.calendar } : {})
+			...(axes.timeZone ? { timeZone: axes.timeZone } : {}),
+			...(axes.calendar ? { calendar: axes.calendar } : {})
 		});
 	return {
-		...(environment.timeZone ? { timeZone: environment.timeZone } : {}),
-		...(environment.calendar ? { calendar: environment.calendar } : {}),
-		...(environment.weekStartsOn !== undefined ? { weekStartsOn: environment.weekStartsOn } : {})
+		...(axes.timeZone ? { timeZone: axes.timeZone } : {}),
+		...(axes.calendar ? { calendar: axes.calendar } : {}),
+		...(axes.weekStartsOn !== undefined ? { weekStartsOn: axes.weekStartsOn } : {})
 	};
 }
 
 function validateTimeInputs(values: readonly number[]): readonly number[] {
-	if (
-		!Array.isArray(values) ||
-		values.length > 256 ||
-		values.some((value) => !Number.isFinite(value))
-	)
+	if (!Array.isArray(values) || values.length > 256)
 		throw new TypeError('Time plan inputs must be a bounded array of finite numbers');
-	return Object.freeze([...values]);
+	const snapshot = [...values];
+	if (snapshot.some((value) => !Number.isFinite(value)))
+		throw new TypeError('Time plan inputs must be a bounded array of finite numbers');
+	return snapshot;
 }
 
 function sameTimeInputs(left: readonly number[], right: readonly number[]): boolean {
@@ -343,49 +378,6 @@ function sameTimeEnvironment(
 		left.calendar === right.calendar &&
 		left.weekStartsOn === right.weekStartsOn
 	);
-}
-
-function sameTimePlan(left: TimeChangePlan, right: TimeChangePlan): boolean {
-	if (left.kind !== right.kind) return false;
-	switch (left.kind) {
-		case 'continuous':
-		case 'complete':
-			return true;
-		case 'quantized':
-			return (
-				right.kind === 'quantized' &&
-				left.quantumMilliseconds === right.quantumMilliseconds &&
-				sameTimePlanNumber(left.anchorMilliseconds, right.anchorMilliseconds) &&
-				left.boundary === right.boundary
-			);
-		case 'calendar':
-			return (
-				right.kind === 'calendar' &&
-				left.unit === right.unit &&
-				left.timeZone === right.timeZone &&
-				left.calendar === right.calendar &&
-				left.weekStartsOn === right.weekStartsOn
-			);
-		case 'earliest':
-			return (
-				right.kind === 'earliest' &&
-				left.plans.length === right.plans.length &&
-				left.plans.every((plan, index) => sameTimePlan(plan, right.plans[index]!))
-			);
-		case 'threshold':
-			return (
-				right.kind === 'threshold' &&
-				sameTimePlanNumber(left.thresholdMilliseconds, right.thresholdMilliseconds) &&
-				sameTimePlan(left.before, right.before) &&
-				sameTimePlan(left.after, right.after)
-			);
-	}
-}
-
-function sameTimePlanNumber(left: TimePlanNumber, right: TimePlanNumber): boolean {
-	return typeof left === 'number'
-		? left === right
-		: typeof right !== 'number' && left.binding === right.binding;
 }
 
 /** Reports whether a generated enhancement value is a live time activation. */

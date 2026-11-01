@@ -89,12 +89,6 @@ for (const [name, create, wrap] of [
 				state.remove();
 				flushSync();
 				expect(snapshots.at(-1)).not.toContain('note');
-				const readonly = wrap(create(), { readonly: true });
-				expect(() => {
-					if (mode === 'accessor') readonly.label = 1;
-					else readonly.mutate(1);
-				}).toThrow();
-				expect(Object.hasOwn(readonly, 'note')).toBe(false);
 			} finally {
 				stop();
 			}

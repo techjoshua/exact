@@ -1,3 +1,4 @@
+import { parseExactInspectionResponse } from '@exactjs/devtools-protocol';
 import type {
 	ExactDebugCapability,
 	ExactInspectionRequest,
@@ -26,9 +27,12 @@ export function createExactBrowserServerInspectionClient(
 		async open(capabilities) {
 			try {
 				const response = await send({ type: 'debug', version: 1, request: 'open', capabilities });
-				if (!response.ok) return undefined;
-				const body = (await readJson(response)) as { session?: ExactInspectionSessionDescription };
-				return body.session;
+				if (!response.ok) {
+					await response.body?.cancel();
+					return undefined;
+				}
+				const body = (await readJson(response)) as { session?: unknown };
+				return validatedSessionDescription(body.session);
 			} catch {
 				return undefined;
 			}
@@ -44,13 +48,18 @@ export function createExactBrowserServerInspectionClient(
 				},
 				{ ...routeHeaders(request.params?.identity), 'x-exact-debug-session': sessionId }
 			);
-			return (await readJson(response)) as ExactInspectionResponse;
+			const parsed = parseExactInspectionResponse(await readJson(response));
+			if (parsed.id !== request.id || (parsed.ok && parsed.identity.sessionId !== sessionId))
+				throw new TypeError('DevTools server response does not match its query session');
+			return parsed;
 		},
 		async close(sessionId) {
-			await send({ type: 'debug', version: 1, request: 'close', sessionId }).catch(() => undefined);
+			await send({ type: 'debug', version: 1, request: 'close', sessionId })
+				.then((response) => response.body?.cancel())
+				.catch(() => undefined);
 		}
 	};
-	return Object.freeze(client);
+	return client;
 
 	function send(body: unknown, routedHeaders: Record<string, string> = {}): Promise<Response> {
 		const signal = AbortSignal.timeout(responseTimeoutMilliseconds);
@@ -77,6 +86,35 @@ export function createExactBrowserServerInspectionClient(
 				}
 			: {};
 	}
+}
+
+/** Accepts only a bounded session that can own the browser's attached inspection resources. */
+function validatedSessionDescription(
+	value: unknown
+): ExactInspectionSessionDescription | undefined {
+	if (typeof value !== 'object' || value === null || Array.isArray(value)) return undefined;
+	const session = value as Record<string, unknown>;
+	if (
+		session.protocol !== 1 ||
+		typeof session.id !== 'string' ||
+		session.id.length === 0 ||
+		session.id.length > 256 ||
+		typeof session.openedAt !== 'number' ||
+		!Number.isFinite(session.openedAt) ||
+		session.openedAt < 0 ||
+		typeof session.expiresAt !== 'number' ||
+		!Number.isFinite(session.expiresAt) ||
+		session.expiresAt <= session.openedAt ||
+		!Array.isArray(session.capabilities) ||
+		session.capabilities.length > 4 ||
+		!session.capabilities.every(
+			(capability) =>
+				typeof capability === 'string' &&
+				['catalog', 'snapshot', 'events', 'source'].includes(capability)
+		)
+	)
+		return undefined;
+	return value as ExactInspectionSessionDescription;
 }
 
 async function readJson(response: Response): Promise<unknown> {

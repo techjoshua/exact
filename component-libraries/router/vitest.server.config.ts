@@ -7,6 +7,7 @@ export default defineConfig({
 		exactVitest({
 			compiler: {
 				target: 'server',
+				compileTestModules: true,
 				include: /(?:components|components\.server\.test)\.tsx$/,
 				reactCompatibility: false
 			}

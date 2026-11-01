@@ -1,21 +1,18 @@
 import { createContext, type Child, type Component } from '@exactjs/core';
-import { createCompiledComponentReceipt } from '@exactjs/core/runtime/component-abi';
+import { createCompiledComponentInputReceipt } from '@exactjs/core/runtime/component-abi';
 import type { MotionConfigProps, MotionSettings } from './contracts.js';
-
 /** Package defaults used outside a `MotionConfig` boundary. */
-export const defaultMotionSettings: MotionSettings = Object.freeze({
+export const defaultMotionSettings: MotionSettings = {
 	enabled: true,
 	reducedMotion: 'system',
-	transition: Object.freeze({ duration: 180, easing: 'ease-out' }),
+	transition: { duration: 180, easing: 'ease-out' },
 	appear: false
-});
-
+};
 /** Reactive motion policy inherited through logical component ownership. */
 export const MotionContext = createContext<MotionSettings>('motion.settings', {
 	global: true,
 	keep: 'shared'
 });
-
 /** Publishes inherited motion policy for one component subtree. */
 export function MotionConfig(this: Component<{}>, props: MotionConfigProps) {
 	const parent = this.hasContext(MotionContext)
@@ -38,12 +35,10 @@ export function MotionConfig(this: Component<{}>, props: MotionConfigProps) {
 	this.setContext(MotionContext, settings);
 	return () => props.children as Child;
 }
-
 /** Issues a compiled `MotionConfig` operation for programmatic callers. */
 export function createMotionConfig(props: MotionConfigProps) {
-	return createCompiledComponentReceipt(
-		MotionConfig,
-		props as Record<string, unknown>,
-		props.children
-	);
+	return createCompiledComponentInputReceipt(MotionConfig, props as Record<string, unknown>, {
+		kind: 'eager',
+		values: [props.children]
+	});
 }

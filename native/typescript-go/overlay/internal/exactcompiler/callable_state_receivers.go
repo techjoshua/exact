@@ -65,6 +65,7 @@ func mapStateEffects(effects []StateEffect, edges []CallEdge, targetID string, r
 					bound.pathSegments = []string{"*"}
 					bound.Path = "*"
 					bound.Confidence = "unknown"
+					bound.ArrayRoots = nil
 				}
 				result = append(result, bindStateEffect(bound, binding))
 			}
@@ -80,6 +81,7 @@ func bindStateEffect(effect StateEffect, binding ReceiverBinding) StateEffect {
 	if binding.Source != "component" && binding.Source != "parameter" || effect.pathSegments == nil {
 		effect.Receiver = &StateReceiver{Kind: "unknown"}
 		effect.Confidence = "unknown"
+		effect.ArrayRoots = nil
 		return effect
 	}
 	path := append([]string{}, binding.Path...)
@@ -95,6 +97,7 @@ func bindStateEffect(effect StateEffect, binding ReceiverBinding) StateEffect {
 	if binding.Source == "component" && root != "" {
 		effect.Receiver = &StateReceiver{Kind: "unknown"}
 		effect.Confidence = "unknown"
+		effect.ArrayRoots = nil
 		return effect
 	}
 	// Recursive helper calls can keep descending through a data tree. Widen at a finite depth
@@ -109,6 +112,24 @@ func bindStateEffect(effect StateEffect, binding ReceiverBinding) StateEffect {
 			break
 		}
 	}
+	var roots []ArrayRootProof
+	if effect.Confidence == "exact" {
+		for _, rootProof := range effect.ArrayRoots {
+			prefix := append([]string{}, binding.Path...)
+			if effect.Receiver.Root != "value" {
+				prefix = append(prefix, "state")
+			}
+			prefix = append(prefix, rootProof.Path...)
+			if len(prefix) > 0 && prefix[0] == "state" {
+				prefix = prefix[1:]
+			}
+			if len(prefix) <= 32 && !containsString(prefix, "*") {
+				rootProof.Path = prefix
+				roots = append(roots, rootProof)
+			}
+		}
+	}
+	effect.ArrayRoots = joinArrayRootProofs(nil, roots)
 	effect.pathSegments = path
 	effect.Path = strings.Join(path, ".")
 	effect.Receiver = &StateReceiver{Kind: binding.Source, Index: binding.SourceParameterIndex, Root: root}

@@ -8,6 +8,11 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+
+	"github.com/microsoft/TypeScript/tsc/internal/ast"
+	"github.com/microsoft/TypeScript/tsc/internal/core"
+	"github.com/microsoft/TypeScript/tsc/internal/parser"
+	"github.com/microsoft/TypeScript/tsc/internal/tspath"
 )
 
 func TestSynchronizedProjectMatchesFreshCrossFileCompilation(t *testing.T) {
@@ -647,7 +652,7 @@ func TestSessionEmitsFiniteHostPropertiesInRenderPrograms(t *testing.T) {
 		`__exactValue_0 = __exactInvocation.eagerValues[0]`,
 		`__exactSsr.rootOpening(__exactContext, __exactOutput, __exactValue_0, "button", "<button", ">", __exactCharacters, __exactInvocation.program.ssrRootStatic)`,
 		`__exactSsr.text(__exactContext, __exactOutput, __exactValue_1,`,
-		`"data-exact-id":`,
+		`[__exactElementIdentity]:`,
 		`className: "action", disabled: __exactRootValue`,
 		`[props.disabled, props.label]`,
 		`__exactPreparedServerRenderProgram(__exact_render_program_1, [`,
@@ -890,11 +895,16 @@ func TestSessionRetainsPreparedServerReferencesForComponentInvocationMetadata(t 
 	}
 	if !strings.Contains(response.Code, `__exactSsr.prepareComponent(`) ||
 		!strings.Contains(response.Code, `__exactSsr.component(`) ||
-		!strings.Contains(response.Code, `__exactComponentReceipt(Wrapper, {}, __exactComponentReceipt(Child`) ||
+		!strings.Contains(response.Code, `__exactComponentReceipt(Wrapper, {}, { kind: "eager", values: [__exactComponentReceipt(Child, {})] })`) ||
 		!strings.Contains(response.Code, `__exactComponentReceipt(Child, { key: "stable" })`) ||
-		!strings.Contains(response.Code, `__exactComponentReceipt(Child, { "data-exact-id":`) ||
-		!strings.Contains(response.Code, `...props })`) {
+		strings.Contains(response.Code, `__exactComponentReceipt(Child, { "data-exact-id":`) ||
+		strings.Contains(response.Code, `__exactComponentReceipt(Child, { [__exactElementIdentity]:`) ||
+		!strings.Contains(response.Code, `...props })`) ||
+		strings.Count(response.Code, `...props`) != 1 {
 		t.Fatalf("component invocation metadata lost its prepared-reference fallback:\n%s", response.Code)
+	}
+	if strings.Count(response.Code, `__exactComponentReceipt(Child, {})`) != 1 {
+		t.Fatalf("prepared wrapper child was acquired more than once:\n%s", response.Code)
 	}
 }
 
@@ -915,13 +925,43 @@ func TestSessionFinalizesComponentChildrenInsidePropReceipts(t *testing.T) {
 	if response.Error != "" {
 		t.Fatal(response.Error)
 	}
-	for _, expected := range []string{
-		`__exactComponentReceipt(Wrapper, {}, __exactComponentReceiptUpdate(__exactComponentReceipt(Child, { key: __exactReadState(this.state, 0) as string }, __exactIndexedExpression(this.state, 0))`,
-		`__exactApplyComponentReceipt(__exactTarget0)`,
-	} {
-		if !strings.Contains(response.Code, expected) {
-			t.Fatalf("component child receipt omitted finalized input %q:\n%s", expected, response.Code)
-		}
+	// The reader returns the already acquired child operand, not a reconstructed receipt.
+	reader := regexp.MustCompile(`\(\(([[:alpha:]_$][[:alnum:]_$]*): unknown\[\]\): .*ExactComponentChildrenInput => \(\{ kind: "reader", read: \(\) => \[([[:alpha:]_$][[:alnum:]_$]*)\[0\] as .*\.Child\] \}\)\)\(\[`).FindStringSubmatch(response.Code)
+	if len(reader) != 3 || reader[1] != reader[2] {
+		t.Fatalf("component child reader lost its captured operand:\n%s", response.Code)
+	}
+	child := `__exactComponentReceiptUpdate(__exactComponentReceipt(Child, { key: __exactReadState(this.state, 0) as string }, { kind: "eager", values: [__exactComponentPropExpression(() => __exactReadState(this.state, 0) as string)] })`
+	update := regexp.MustCompile(`\), 0, ([[:alpha:]_$][[:alnum:]_$]*), this\)\]\)\);`).FindStringSubmatch(response.Code)
+	// Inspect the apply body of the update owner referenced by this child operand.
+	updateBody := ""
+	if len(update) == 2 {
+		source := parser.ParseSourceFile(ast.SourceFileParseOptions{FileName: "/emitted-child.ts", Path: tspath.Path("/emitted-child.ts")}, response.Code, core.ScriptKindTS)
+		walkNode(source.AsNode(), func(node *ast.Node) bool {
+			if !ast.IsVariableDeclaration(node) || node.Name() == nil || node.Name().Text() != update[1] {
+				return true
+			}
+			object := node.Initializer()
+			if object != nil && ast.IsObjectLiteralExpression(object) {
+				for _, property := range object.AsObjectLiteralExpression().Properties.Nodes {
+					if ast.IsPropertyAssignment(property) && property.Name().Text() == "apply" {
+						apply := property.Initializer()
+						if ast.IsArrowFunction(apply) && apply.Body() != nil {
+							updateBody = response.Code[apply.Pos():apply.End()]
+						}
+					}
+				}
+			}
+			return false
+		})
+	}
+	target := regexp.MustCompile(`\(([[:alpha:]_$][[:alnum:]_$]*): object\[\].*const ([[:alpha:]_$][[:alnum:]_$]*) = ([[:alpha:]_$][[:alnum:]_$]*)\[0\];`).FindStringSubmatch(strings.ReplaceAll(updateBody, "\n", " "))
+	if !strings.Contains(response.Code, `__exactComponentReceipt(Wrapper, {}, `+reader[0]+child) ||
+		strings.Count(response.Code, `__exactComponentReceipt(Child,`) != 1 ||
+		strings.Count(response.Code, `__exactComponentReceiptUpdate(`) != 1 ||
+		len(update) != 2 || !strings.Contains(response.Code, `const `+update[1]+` = { bindings:`) ||
+		len(target) != 4 || target[1] != target[3] ||
+		!strings.Contains(updateBody, `__exactApplyComponentReceipt(`+target[2]+`)`) {
+		t.Fatalf("component child lost its single acquisition, eager value or update application:\n%s", response.Code)
 	}
 	if strings.Contains(response.Code, `__exactDynamic(() => __exactComponentReceipt(Child`) {
 		t.Fatalf("component child retained a live structural wrapper across the prop ABI:\n%s", response.Code)
@@ -1108,7 +1148,9 @@ func TestSessionUsesMarkerFreeIntrinsicOperationsInsideStructuralPrograms(t *tes
 		t.Fatal(response.Error)
 	}
 	if !strings.Contains(response.Code, `template: "<div>Ready</div>"`) ||
-		!strings.Contains(response.Code, `__exactApply("", attributes)`) ||
+		!strings.Contains(response.Code, `__exactApply("",`) ||
+		strings.Count(response.Code, `...attributes`) != 1 ||
+		!strings.Contains(response.Code, `[__exactElementIdentity]: void 0`) ||
 		strings.Contains(response.Code, `__exactComponentVNode("div"`) {
 		t.Fatalf("late intrinsic branch did not preserve its compiler-owned program identity:\n%s", response.Code)
 	}
@@ -1127,9 +1169,14 @@ func TestSessionOrdersOptionBindingsBeforeControlledSelectValue(t *testing.T) {
 	if response.Error != "" {
 		t.Fatal(response.Error)
 	}
-	if !strings.Contains(response.Code, `[12, 0, 1, [["value", 1, 0]], true]`) ||
-		!strings.Contains(response.Code, `[12, 1, 0, [["value", 1, 1]], true]`) {
-		t.Fatalf("controlled select bindings were not emitted in browser-safe order:\n%s", response.Code)
+	// Both targets preserve intrinsic selection scope. The DOM owner reapplies
+	// the evaluated select value after physical option placement commits.
+	if !strings.Contains(response.Code, `__exactIntrinsicReceipt("select",`) ||
+		!strings.Contains(response.Code, `__exactIntrinsicReceipt("option",`) ||
+		!strings.Contains(response.Code, `value: __exactExpression(() => __exactReadState(props, 0) as string)`) ||
+		!strings.Contains(response.Code, `value: __exactExpression(() => __exactReadState(props, 1) as string)`) ||
+		strings.Contains(response.Code, `template: "<select`) {
+		t.Fatalf("controlled select lost its live values or intrinsic selection scope:\n%s", response.Code)
 	}
 	if strings.Contains(response.Code, `(__exactGroup, __exactApply) =>`) ||
 		strings.Contains(response.Code, `__exactApply("value",`) {
@@ -2093,11 +2140,15 @@ func TestSessionWrapsUnprovenComponentsWithJSXInteropAdapter(t *testing.T) {
 		`import "@exactjs/react-dom-compat/client19"`,
 		`import { createCompatibilityContribution as __exactCompatibilityContribution } from "@exactjs/core/framework/compatibility-contributions"`,
 		`__exactComponentReceipt(Local,`,
-		`__exactComponentReceipt(__exactInteropComponent, { component: Foreign, ...{} }, __exactCompatibilityContribution(__exactContributionTarget => __exactContributionTarget.place(`,
+		`__exactComponentReceipt(__exactInteropComponent, { component: Foreign, ...{} }, { kind: "eager", values: [__exactCompatibilityContribution(__exactContributionTarget => __exactContributionTarget.place(`,
 	} {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf("native JSX interop output is missing %q:\n%s", expected, response.Code)
 		}
+	}
+	if strings.Count(response.Code, `__exactCompatibilityContribution(`) != 1 ||
+		!regexp.MustCompile(`__exactContributionTarget\.place\(.*\)\)\] \}\)`).MatchString(response.Code) {
+		t.Fatalf("foreign child lost its single eager contribution:\n%s", response.Code)
 	}
 	if strings.Contains(response.Code, `contribution: __exactVNode`) ||
 		strings.Contains(response.Code, `materialize`) {
@@ -2982,7 +3033,6 @@ func TestSessionRetainsJSXClientBoundaryChildrenAsServerSlot(t *testing.T) {
 		`discriminator: { kind: "single" }`,
 		`generation: 1`,
 		`namespace: "contextual", attachmentTag: "p"`,
-		`__exactPreparedServerRenderProgram(__exact_render_program_1, [{}])`,
 		`__exactSsr.rootOpening(__exactContext, __exactOutput, __exactValue_0, "p", "<p", ">Server child</p>"`,
 	} {
 		if !strings.Contains(response.Code, expected) {
@@ -2992,6 +3042,9 @@ func TestSessionRetainsJSXClientBoundaryChildrenAsServerSlot(t *testing.T) {
 				response.Code,
 			)
 		}
+	}
+	if strings.Count(response.Code, "__exactPreparedServerRenderProgram(") != 1 {
+		t.Fatalf("server child input must be acquired once: %s", response.Code)
 	}
 	if strings.Contains(response.Code, "children:") {
 		t.Fatalf(
@@ -3327,7 +3380,8 @@ func TestSessionIndexesNamespacedClientIslandProps(t *testing.T) {
 	if response.Error != "" {
 		t.Fatal(response.Error)
 	}
-	if !strings.Contains(response.Code, `"className:active": __exactReadState(props, 1)`) ||
+	props, body := emittedIslandPropBody(t, response.Code, "Row_ExactClient_1")
+	if !strings.Contains(body, `"className:active": __exactReadState(`+props+`, 1)`) ||
 		!strings.Contains(response.Code, `"className:active"`) {
 		t.Fatalf("namespaced island prop did not use its compiler-owned numeric slot:\n%s", response.Code)
 	}
@@ -3528,19 +3582,21 @@ func TestSessionPlansFormBindingWithStaticOptions(t *testing.T) {
 		t.Fatal(response.Error)
 	}
 	for _, expected := range []string{
-		`template: "<select`,
-		`<option value=\"all\"`,
-		`value=\"all\"`,
-		`value=\"high\"`,
-		`[[7, 0, 0]]`,
-		`[[6, 0, 0]]`,
+		`__exactIntrinsicReceipt("select",`,
+		`__exactIntrinsicReceipt("option",`,
+		`value: "all"`,
+		`value: "high"`,
+		`__exactReadState(this.state, 0) as string`,
+		`__exactBindChange:`,
+		`readonly currentTarget: HTMLSelectElement`,
+		`__exactWriteState(this.state, 0, event.currentTarget.value`,
 	} {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf("planned form binding omitted %q:\n%s", expected, response.Code)
 		}
 	}
-	if strings.Contains(response.Code, `createCompiledVNode("select"`) {
-		t.Fatalf("planned form binding retained a generic select host:\n%s", response.Code)
+	if strings.Contains(response.Code, `template: "<select`) {
+		t.Fatalf("form binding lost the paired intrinsic selection projection:\n%s", response.Code)
 	}
 }
 
@@ -3851,7 +3907,12 @@ __fixtureTask6();
 			client.Code,
 		)
 	}
-	for _, forbidden := range []string{"const prefix =", "function save", "const cancel", "console.log"} {
+	// A generated transport capture is a live consumer even after the client functions disappear.
+	// Direct literal capture may elide the declaration, but a retained read must remain bound.
+	if strings.Contains(server.Code, "prefix: prefix") && !strings.Contains(server.Code, "const prefix =") {
+		t.Fatalf("server transport capture lost its local value:\n%s", server.Code)
+	}
+	for _, forbidden := range []string{"function save", "const cancel", "console.log"} {
 		if strings.Contains(server.Code, forbidden) {
 			t.Fatalf(
 				"dormant interaction helper %q escaped into the server projection:\n%s",
@@ -4165,17 +4226,27 @@ func TestSessionCollectsDirectComponentStateWrites(t *testing.T) {
 	}
 	for _, expected := range []string{
 		`writeReactiveLazy as __exactWrite`,
-		`updateReactiveValueWithResult as __exactUpdateResult`,
 		`deleteReactiveValue as __exactDelete`,
 		`mutateReactiveArray as __exactArrayMutation`,
-		`__exactWrite(this.state, ["count"], () => 1)`,
-		`__exactUpdateResult(this.state, ["count"], previous =>`,
-		`__exactDelete(this.state, ["cache", "entry"])`,
 		`__exactArrayMutation(this.state, ["items"], "push", () => ["next"])`,
 	} {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf("native state-write output is missing %q:\n%s", expected, response.Code)
 		}
+	}
+	identifier := `([[:alpha:]_$][[:alnum:]_$]*)`
+	assignment := regexp.MustCompile(`\(` + identifier + ` = this\.state, ` + identifier + ` = 1, __exactWrite\(` + identifier + `, \["count"\], \(\) => ` + identifier + `\), ` + identifier + `\)`).FindStringSubmatch(response.Code)
+	if len(assignment) != 6 || assignment[1] != assignment[3] || assignment[2] != assignment[4] || assignment[2] != assignment[5] {
+		t.Fatalf("assignment lost its selected receiver, RHS or returned value:\n%s", response.Code)
+	}
+	postfix := regexp.MustCompile(`\(` + identifier + ` = this\.state, ` + identifier + ` = ` + identifier + `\["count"\], ` + identifier + ` = ` + identifier + `\+\+, __exactWrite\(` + identifier + `, \["count"\], \(\) => ` + identifier + `\), ` + identifier + `\)`).FindStringSubmatch(response.Code)
+	if len(postfix) != 9 || postfix[1] != postfix[3] || postfix[1] != postfix[6] || postfix[2] != postfix[5] || postfix[2] != postfix[7] || postfix[4] != postfix[8] || postfix[4] == postfix[2] ||
+		postfix[1] == postfix[2] || postfix[1] == postfix[4] {
+		t.Fatalf("postfix lost its selected receiver, old result or committed next value:\n%s", response.Code)
+	}
+	deleted := regexp.MustCompile(`\(` + identifier + ` = this\.state\.cache, ` + identifier + ` = "entry", __exactDelete\(` + identifier + `, \[` + identifier + `\]\)\)`).FindStringSubmatch(response.Code)
+	if len(deleted) != 5 || deleted[1] != deleted[3] || deleted[2] != deleted[4] {
+		t.Fatalf("delete lost its selected receiver or key:\n%s", response.Code)
 	}
 }
 
@@ -4337,7 +4408,8 @@ func TestSessionLowersAliasedCompoundStateWrites(t *testing.T) {
 		t.Fatal(response.Error)
 	}
 	for _, expected := range []string{
-		`__exactUpdate(this.state, ["count"], previous => previous + 2)`,
+		`writeReactiveLazy as __exactWrite`,
+		`["count"]`,
 		`__exactArrayMutation(this.state, ["items"], "unshift", () => ["first"])`,
 	} {
 		if !strings.Contains(response.Code, expected) {
@@ -4377,8 +4449,9 @@ func TestSessionLowersComputedStateWriteKeysAsExecutablePaths(t *testing.T) {
 		t.Fatalf("unexpected computed write path: %#v", write)
 	}
 	for _, expected := range []string{
-		`__exactUpdate(this.state, ["rows", props.index, "value"]`,
-		`previous => previous + calculate()`,
+		`rows.get()[props.index]`,
+		`writeReactiveLazy as __exactWrite`,
+		`+ calculate()`,
 	} {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf("computed write output is missing %q:\n%s", expected, response.Code)
@@ -4616,13 +4689,37 @@ func TestSessionPreservesChainedAndMixedAssignmentResults(t *testing.T) {
 	if len(response.Diagnostics) != 0 {
 		t.Fatalf("unexpected diagnostics: %#v", response.Diagnostics)
 	}
-	for _, expected := range []string{
-		`__exactWrite(this.state, ["a"], () => __exactWrite(this.state, ["b"], () => local = calculate()))`,
-		`consume(__exactWrite`,
-	} {
-		if !strings.Contains(response.Code, expected) {
-			t.Fatalf("chained assignment output is missing %q:\n%s", expected, response.Code)
+	// Reference capture may separate commits from their values. The runtime witness
+	// checks actual b-before-a commits and local/state/consumed result equality.
+	emitted := parser.ParseSourceFile(ast.SourceFileParseOptions{FileName: "/assignment-results.ts", Path: tspath.Path("/assignment-results.ts")}, response.Code, core.ScriptKindTS)
+	var consume *ast.Node
+	consumeCalls := 0
+	walkNode(emitted.AsNode(), func(node *ast.Node) bool {
+		if ast.IsCallExpression(node) && ast.IsIdentifier(node.AsCallExpression().Expression) && node.AsCallExpression().Expression.Text() == "consume" {
+			consume, consumeCalls = node, consumeCalls+1
 		}
+		return true
+	})
+	if consumeCalls != 1 || consume.AsCallExpression().Arguments == nil || len(consume.AsCallExpression().Arguments.Nodes) != 1 {
+		t.Fatalf("lost consumed assignment result:\n%s", response.Code)
+	}
+	calculateCalls, localAssignments, writes := 0, 0, 0
+	walkNode(consume, func(node *ast.Node) bool {
+		if ast.IsCallExpression(node) && ast.IsIdentifier(node.AsCallExpression().Expression) {
+			switch node.AsCallExpression().Expression.Text() {
+			case "calculate":
+				calculateCalls++
+			case "__exactWrite":
+				writes++
+			}
+		}
+		if ast.IsBinaryExpression(node) && node.AsBinaryExpression().OperatorToken.Kind == ast.KindEqualsToken && ast.IsIdentifier(node.AsBinaryExpression().Left) && node.AsBinaryExpression().Left.Text() == "local" {
+			localAssignments++
+		}
+		return true
+	})
+	if calculateCalls != 1 || localAssignments != 1 || writes != 2 {
+		t.Fatalf("chain lost owned RHS/local/write operations: calculate=%d local=%d writes=%d\n%s", calculateCalls, localAssignments, writes, response.Code)
 	}
 }
 
@@ -5056,9 +5153,12 @@ func TestSessionOmitsMaterializedDerivedCellsFromHydrationArtifacts(t *testing.T
 			t.Fatalf("hydration artifact retained redundant derived cell %q:\n%s", omitted, response.Code)
 		}
 	}
+	props, body := emittedIslandPropBody(t, response.Code, "View_ExactClient_1")
+	if !strings.Contains(body, `title: __exactReadState(`+props+`, 1)`) {
+		t.Fatalf("hydration artifact lost its formal-owned slot1 input:\n%s", response.Code)
+	}
 	for _, expected := range []string{
 		"View_ExactClient_1",
-		"title: __exactReadState(props, 1)",
 		`state: [`,
 		`"items"`,
 		`"selectedId"`,
@@ -5108,7 +5208,7 @@ func TestSessionCachesRepeatedDerivedReadsForControlFlowNarrowing(t *testing.T) 
 }
 
 func TestSessionReadsDerivedValuesForInferredTaskDependencies(t *testing.T) {
-	response := NewSession().Execute(Request{
+	request := Request{
 		ID:   "derived-task.ts",
 		Kind: "compile",
 		Source: `
@@ -5120,8 +5220,18 @@ func TestSessionReadsDerivedValuesForInferredTaskDependencies(t *testing.T) {
 __fixtureTask10();
 			}
 		`,
-	})
-	if response.Error != "" {
+	}
+	session := NewSession()
+	unresolved := session.Execute(request)
+	if !containsDiagnosticCode(unresolved.Diagnostics, "EXACT2001") || unresolved.Code != "" {
+		t.Fatal("unresolved consumer was accepted", unresolved.Diagnostics)
+	}
+	// Complete the fixture's consumer without changing its authored task or
+	// derived expression. The original missing consumer remains a refusal above.
+	request.Source = "function consume(value:string){return value}\n" + request.Source
+	request.Diagnostics = "semantic"
+	response := session.Execute(request)
+	if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) {
 		t.Fatal(response.Error)
 	}
 	for _, expected := range []string{
@@ -5404,15 +5514,26 @@ __fixtureTask15();
 	if !equalStrings(task.ReactiveDependencies, []string{"unsafe", "label"}) {
 		t.Fatalf("unexpected reactive dependencies: %#v", task.ReactiveDependencies)
 	}
+	// Independent errors or advisories must not hide this specific denial.
+	unsafeDenied := false
+	for _, diagnostic := range response.Diagnostics {
+		if diagnostic.Severity == "error" && diagnostic.Code == "EXACT2001" &&
+			strings.Contains(diagnostic.Message, "task reads derived local unsafe") &&
+			strings.Contains(diagnostic.Message, "compute(count)") {
+			unsafeDenied = true
+		}
+	}
 	if !strings.Contains(strings.Join(task.Diagnostics, "\n"), "task reads derived local unsafe") ||
 		!strings.Contains(strings.Join(task.Diagnostics, "\n"), "compute(count)") ||
-		len(response.Diagnostics) != 1 ||
-		response.Diagnostics[0].Code != "EXACT2001" {
+		!hasErrorDiagnostic(response.Diagnostics) || !unsafeDenied {
 		t.Fatalf(
 			"unsafe derived dependency was not rejected: task=%#v response=%#v",
 			task.Diagnostics,
 			response.Diagnostics,
 		)
+	}
+	if response.Code != "" || response.SourceMap != nil {
+		t.Fatal("rejected unsafe dependency emitted an executable artifact")
 	}
 }
 
@@ -6913,8 +7034,12 @@ __fixtureTask33();
 		t.Fatal(response.Error)
 	}
 	panel := findComponent(t, response.Analysis.Components, "Panel")
-	if panel.Placement != "isomorphic" || panel.EnvironmentEffect != "neutral" {
-		t.Fatalf("client task incorrectly prevented server rendering: %#v", panel)
+	if panel.Placement != "unknown" || panel.EnvironmentEffect != "unknown" || len(panel.ArtifactTargets) != 0 {
+		t.Fatalf("bodyless render dependency gained portable availability: %#v", panel)
+	}
+	setup := findCallable(t, response.Analysis.Callables, "Panel")
+	if setup.Effect != "neutral" || len(response.Analysis.Tasks) != 1 || response.Analysis.Tasks[0].Placement != "client" || response.Analysis.Tasks[0].EnvironmentEffect != "neutral" {
+		t.Fatalf("render uncertainty leaked into the independent client task: %#v %#v", setup, response.Analysis.Tasks)
 	}
 }
 
@@ -6947,15 +7072,11 @@ func TestSessionBrandsBrowserComponentWithOpaqueSetupCalls(t *testing.T) {
 		t.Fatalf("unexpected diagnostics: %#v", response.Diagnostics)
 	}
 	component := findComponent(t, response.Analysis.Components, "CodeBlock")
-	if component.Placement != "isomorphic" ||
-		component.EnvironmentEffect != "neutral" ||
-		strings.Contains(strings.Join(component.Diagnostics, "\n"), "opaque call") ||
-		!strings.Contains(response.Code, `, "`+component.ID+`"`) {
-		t.Fatalf(
-			"opaque setup call erased the browser component contract: %#v\n%s",
-			component,
-			response.Code,
-		)
+	copy := findCallable(t, response.Analysis.Callables, "copy")
+	if component.Placement != "unknown" || component.EnvironmentEffect != "unknown" || len(component.ArtifactTargets) != 0 ||
+		!strings.Contains(strings.Join(component.Diagnostics, "\n"), "opaque call") ||
+		!strings.Contains(response.Code, `, "`+component.ID+`"`) || !strings.Contains(response.Code, `placement: "unknown"`) || copy.Effect != "browser" {
+		t.Fatalf("local artifact lost opaque availability or its known browser callback: %#v %#v\n%s", component, copy, response.Code)
 	}
 }
 
@@ -7063,8 +7184,16 @@ func TestSessionRetainsResolvedRecursiveCallsWhenMergingProjectEffects(t *testin
 		t.Fatal(response.Error)
 	}
 	host := findComponent(t, response.Analysis.Components, "Host")
-	if len(host.Diagnostics) != 0 {
-		t.Fatalf("resolved recursive helper produced diagnostics: %#v", host.Diagnostics)
+	if host.Placement != "unknown" || len(host.ArtifactTargets) != 0 || !strings.Contains(strings.Join(host.Diagnostics, "\n"), "opaque call") {
+		t.Fatalf("String(unknown) gained portable implementation authority: %#v", host)
+	}
+	caller := findCallable(t, response.Analysis.Callables, "Host")
+	resolved := false
+	for _, edge := range caller.Calls {
+		resolved = resolved || edge.Resolved && edge.Name == "describe" && edge.ModuleSpecifier == "./helper.js"
+	}
+	if !resolved {
+		t.Fatalf("coercion uncertainty erased the resolved imported call: %#v", caller)
 	}
 }
 
@@ -7437,7 +7566,7 @@ func TestSessionSpecializesDirectServerAwaitAndTimeout(t *testing.T) {
 		`await __exactServerTaskAwait(task.signal`,
 		`__exactServerTaskTimeout(`,
 		`this.state.value = 0`,
-		`this.state.value = 1`,
+		`writeReactiveLazy as __exactWrite`,
 	} {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf("direct server task output is missing %q:\n%s", expected, response.Code)
@@ -7448,8 +7577,6 @@ func TestSessionSpecializesDirectServerAwaitAndTimeout(t *testing.T) {
 		`import { taskTimeout`,
 		`taskAwait as __exactTaskAwait`,
 		`taskTimeout as __exactTaskTimeout`,
-		`@exactjs/core/runtime/reactivity`,
-		`writeReactiveLazy`,
 		`combineTaskSignal`,
 	} {
 		if strings.Contains(response.Code, excluded) {
@@ -8001,8 +8128,8 @@ func TestSessionAppliesCallablePlacementAndResidencyAnnotations(t *testing.T) {
 		secret.ArtifactTargets[0] != "server" {
 		t.Fatalf("secret policy did not restrict callable: %#v", secret)
 	}
-	if !safe.ReevaluationSafe || safe.Effect != "neutral" {
-		t.Fatalf("pure annotation did not mark callable safe: %#v", safe)
+	if !safe.ReevaluationSafe || safe.Effect != "unknown" {
+		t.Fatalf("reevaluation safety changed missing implementation authority: %#v", safe)
 	}
 	if portable.Effect != "neutral" {
 		t.Fatalf("portable base64 global was not classified as neutral: %#v", portable)
@@ -10666,5 +10793,132 @@ func TestSessionBindsTaskValuesWithoutLocalInvocations(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+// Inspect the selected island declaration so slot assertions follow its actual props binding.
+func emittedIslandPropBody(t *testing.T, code, name string) (string, string) {
+	t.Helper()
+	source := parser.ParseSourceFile(ast.SourceFileParseOptions{FileName: "/emitted-island.ts", Path: tspath.Path("/emitted-island.ts")}, code, core.ScriptKindTS)
+	var selected *ast.Node
+	count := 0
+	walkNode(source.AsNode(), func(node *ast.Node) bool {
+		if ast.IsFunctionDeclaration(node) && node.Name() != nil && node.Name().Text() == name {
+			selected = node
+			count++
+		}
+		return true
+	})
+	if count != 1 || selected.Body() == nil {
+		t.Fatalf("expected one generated island declaration %s, got %d", name, count)
+	}
+	parameters := selected.Parameters()
+	if len(parameters) != 2 || parameters[0].Name() == nil || parameters[0].Name().Text() != "this" || !ast.IsIdentifier(parameters[1].Name()) {
+		t.Fatalf("generated island %s lost its receiver/props parameters", name)
+	}
+	return parameters[1].Name().Text(), code[selected.Body().Pos():selected.Body().End()]
+}
+
+// A primitive backedge reuses the callable graph. Object/unknown substitutions
+// still cannot certify the effects of recursive acquisition or coercion.
+func TestSessionRecursiveAcquisitionCompleteness(t *testing.T) {
+	for _, test := range []struct {
+		name, source string
+		primitive    bool
+	}{
+		{"primitive", `function read(n:number):number{if(n===0)return document.title.length;return read(n-1)}export const value=read(1);`, true},
+		{"object", `function read(node:{value:string;next?:any},n:number):string{if(n>0)return read(node.next,n-1);return node.value}export const value=read({value:"safe",next:{get value(){return document.title}}},1);`, false},
+		{"coercion", `function read(value:unknown):string{if(typeof value==="object"&&value)return read(String(value));return String(value)}export function run(value:unknown){return read(value)}`, false},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			for _, target := range []Target{TargetClient, TargetServer} {
+				r := NewSession().Execute(Request{Kind: "compile", ID: "recursive-input.ts", Source: test.source, Target: target, Diagnostics: "semantic"})
+				if r.Error != "" || hasErrorDiagnostic(r.Diagnostics) {
+					t.Fatalf("compile: %s %#v", r.Error, r.Diagnostics)
+				}
+				read := findCallable(t, r.Analysis.Callables, "read")
+				if test.primitive {
+					if read.Effect != "browser" {
+						t.Fatalf("primitive backedge lost concrete requirement: %#v", read)
+					}
+				} else if read.Effect != "unknown" {
+					t.Fatalf("recursive value acquisition gained completeness: %#v", read)
+				}
+			}
+		})
+	}
+}
+
+// Binding constructs a callable without executing it. Its receiver and prefix
+// retain acquisition time, while modeled own methods cannot borrow the base body.
+func TestSessionBoundCallableAcquisition(t *testing.T) {
+	for _, test := range []struct{ name, source, placement string }{
+		{"construct-only", `function read(){return document.title}const bound=read.bind(null);export const value="safe";`, "isomorphic"},
+		{"receiver-before", `function read(this:{value:string}){return this.value}let input={get value(){return document.title}};const bound=read.bind(input);input={value:"safe"};export const value=bound();`, "client"},
+		{"receiver-after", `function read(this:{value:string}){return this.value}let input={value:"safe"};const bound=read.bind(input);input={get value(){return document.title}};export const value=bound();`, "isomorphic"},
+		{"prefix-before", `function read(input:{value:string}){return input.value}let input={get value(){return document.title}};const bound=read.bind(null,input);input={value:"safe"};export const value=bound();`, "client"},
+		{"prefix-after", `function read(input:{value:string}){return input.value}let input={value:"safe"};const bound=read.bind(null,input);input={get value(){return document.title}};export const value=bound();`, "isomorphic"},
+		{"own-bind", `function read(){return document.title}Object.defineProperty(read,"bind",{value:()=>()=>"safe"});const bound=read.bind(null);export const value=bound();`, "unknown"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			source := test.source + `export const stable="stable";`
+			for _, target := range []Target{TargetClient, TargetServer} {
+				r := NewSession().Execute(Request{Kind: "compile", ID: "bound-input.ts", Source: source, Target: target, Diagnostics: "semantic"})
+				if r.Error != "" || hasErrorDiagnostic(r.Diagnostics) {
+					t.Fatalf("compile: %s %#v", r.Error, r.Diagnostics)
+				}
+				found := false
+				for _, export := range r.Analysis.Exports {
+					if export.Name != "value" {
+						continue
+					}
+					found = true
+					// Finite capture completion may remain unknown. It cannot claim
+					// portable unsafe input, or a browser requirement from a later value.
+					if export.Placement != test.placement && (export.Placement != "unknown" || test.name == "construct-only") {
+						t.Fatalf("bound value has wrong requirement: %#v", export)
+					}
+				}
+				if !found {
+					t.Fatal("lost bound value")
+				}
+			}
+		})
+	}
+}
+
+// Ordinary construction alternatives cannot hide reached authored methods or lookup effects.
+func TestSessionBoundCallableAlternatives(t *testing.T) {
+	for _, test := range []struct {
+		name, source      string
+		browser, authored bool
+	}{
+		{"mixed", `function ordinary(){return "safe"}function custom(){return "safe"}Object.defineProperty(custom,"bind",{value:()=>document.title});export function run(choice:boolean){const f=choice?ordinary:custom;return f.bind(null)}`, true, true},
+		{"own-only", `function custom(){return "safe"}Object.defineProperty(custom,"bind",{value:()=>document.title});export function run(){return custom.bind(null)}`, true, true},
+		{"ordinary-only", `function read(){return document.title}export function run(){return read.bind(null)}`, false, false},
+		{"mixed-arguments", `function ordinary(input:string){return input}function custom(input:string){return input}Object.defineProperty(custom,"bind",{value:()=>"safe"});export function run(choice:boolean){const f=choice?ordinary:custom;return f.bind(null,document.title)}`, true, true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			for _, target := range []Target{TargetClient, TargetServer} {
+				r := NewSession().Execute(Request{Kind: "compile", ID: "review.ts", Source: test.source, Target: target, Diagnostics: "semantic"})
+				if r.Error != "" || hasErrorDiagnostic(r.Diagnostics) {
+					t.Fatalf("compile: %s %#v", r.Error, r.Diagnostics)
+				}
+				run := findCallable(t, r.Analysis.Callables, "run")
+				browser, authored := false, false
+				for _, effect := range run.EffectSources {
+					browser = browser || effect.Environment == "browser"
+				}
+				for _, edge := range run.Calls {
+					authored = authored || edge.Resolved
+				}
+				if browser != test.browser || authored != test.authored {
+					t.Fatalf("%s lost invocation alternative: %#v", target, run)
+				}
+				if test.browser && (len(run.ArtifactTargets) != 1 || run.ArtifactTargets[0] != string(TargetClient)) {
+					t.Fatalf("lost browser target restriction: %#v", run)
+				}
+			}
+		})
 	}
 }

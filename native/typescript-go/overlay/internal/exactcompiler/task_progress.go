@@ -21,7 +21,7 @@ func progressResultDiagnostics(work, component *ast.Node, typeChecker *checker.C
 		if symbol == nil {
 			return true
 		}
-		target, found := callables.bySymbol[ast.GetSymbolId(symbol)]
+		target, found := callables.expressionSummary(node.AsCallExpression().Expression, typeChecker)
 		if !found || target.ID != receiver.ID {
 			return true
 		}

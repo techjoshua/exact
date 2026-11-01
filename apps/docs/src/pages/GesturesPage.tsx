@@ -87,10 +87,12 @@ export function GesturesPage(this: Component<{}>) {
 			<section>
 				<h2>Handle rapid input and cancellation</h2>
 				<p>
-					Priority and thresholds arbitrate competing recognizers. Slow move callbacks retain only
-					the latest pending sample. Synchronous return values are ignored, while returned thenables
-					are awaited before that pending sample runs. Capture loss, blur, deactivation, disabling,
-					and disposal cancel the named session and restore browser policy.
+					Definitions and samples follow TypeScript readonly guarantees. Sample coordinates are
+					detached from private pointer state. Priority and thresholds arbitrate competing
+					recognizers. Slow move callbacks retain only the latest pending sample. Synchronous return
+					values are ignored, while returned thenables are awaited before that pending sample runs.
+					Capture loss, blur, deactivation, disabling, and disposal cancel the named session and
+					restore browser policy.
 				</p>
 			</section>
 			<section>

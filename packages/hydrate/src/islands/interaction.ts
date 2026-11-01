@@ -37,6 +37,10 @@ export function ensureInteractionHydration(
 	options: HydrateOptions
 ): void {
 	const previous = controllers.get(container);
+	if (options.signal?.aborted) {
+		previous?.dispose();
+		return;
+	}
 	if (previous?.refresh({ activate, eventTypes, resolvePolicy, options })) return;
 	previous?.dispose();
 	const pending = new WeakMap<Element, QueuedActivation>();
@@ -65,7 +69,15 @@ export function ensureInteractionHydration(
 		if (failedGenerations.get(boundary) === generation) return;
 		const queued = captureQueuedInteraction(target, event, policy);
 		const existing = pending.get(boundary);
-		if (existing) {
+		// The same physical boundary can now own another refresh generation. Retire
+		// its old replay queue without canceling the shared module import.
+		if (existing && existing.generation !== generation) {
+			existing.released = true;
+			existing.events.length = 0;
+			activations.delete(existing);
+			pending.delete(boundary);
+		}
+		if (existing && !existing.released) {
 			interceptOriginalInteraction(event, policy);
 			queueInteraction(existing.events, queued, options);
 			return;
@@ -78,40 +90,31 @@ export function ensureInteractionHydration(
 		}
 		if (activated instanceof Promise) {
 			interceptOriginalInteraction(event, policy);
-			const activation: QueuedActivation = { boundary, events: [queued], released: false };
+			const activation: QueuedActivation = {
+				boundary,
+				generation,
+				events: [queued],
+				released: false
+			};
 			pending.set(boundary, activation);
 			activations.add(activation);
-			void activated.then(
-				(result) => {
-					pending.delete(boundary);
-					activations.delete(activation);
-					if (activation.released || !isCurrent()) return;
-					if (!result) failedGenerations.set(boundary, generation);
-					replaying = true;
-					try {
-						if (result) replayQueued(boundary, activation.events, false, isCurrent);
-						else replayQueued(boundary, activation.events, true, isCurrent);
-					} finally {
-						replaying = false;
-					}
-					if (result && !hasDormantIsland(container)) dispose();
-					activation.events.length = 0;
-				},
-				(error) => {
-					pending.delete(boundary);
-					activations.delete(activation);
-					logActivationFailure(error, options);
-					if (activation.released || !isCurrent()) return;
-					failedGenerations.set(boundary, generation);
-					replaying = true;
-					try {
-						replayQueued(boundary, activation.events, true, isCurrent);
-					} finally {
-						replaying = false;
-					}
-					activation.events.length = 0;
+			// Success and failure release the same generation before replay or reporting.
+			const finish = (result: boolean, failure?: { error: unknown }) => {
+				if (pending.get(boundary) === activation) pending.delete(boundary);
+				activations.delete(activation);
+				if (activation.released || !isCurrent()) return;
+				if (failure) logActivationFailure(failure.error, options);
+				if (!result) failedGenerations.set(boundary, generation);
+				replaying = true;
+				try {
+					replayQueued(boundary, activation.events, !result, isCurrent);
+				} finally {
+					replaying = false;
 				}
-			);
+				if (result && !hasDormantIsland(container)) dispose();
+				activation.events.length = 0;
+			};
+			void activated.then(finish, (error) => finish(false, { error }));
 			return;
 		}
 		if (!activated) return;
@@ -189,6 +192,7 @@ type QueuedInteraction = Readonly<{
 
 type QueuedActivation = {
 	boundary: Element;
+	generation: string | null;
 	events: QueuedInteraction[];
 	released: boolean;
 };

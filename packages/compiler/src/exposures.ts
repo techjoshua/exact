@@ -175,16 +175,16 @@ export function selectExactExposureInspectionCatalog(
 		const components = inspection.components.filter((component) => reachable.has(component.id));
 		return components.length
 			? [
-					Object.freeze({
+					{
 						...inspection,
-						components: Object.freeze(components)
-					})
+						components: components
+					}
 				]
 			: [];
 	});
-	return Object.freeze({
+	return {
 		version: 1,
 		rootComponentId,
-		files: Object.freeze(files)
-	});
+		files: files
+	};
 }

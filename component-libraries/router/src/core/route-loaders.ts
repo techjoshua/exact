@@ -1,5 +1,6 @@
 import type { ExactDataFunctionArgs, ExactRouteDefinition, RouteMatch } from './contracts.js';
 import { redirectResult, unwrapDataResult } from './data-operations.js';
+import { setRouteRecordValue } from './route-records.js';
 
 /** Describes the result produced by route loader. */
 export type RouteLoaderResult = Readonly<{
@@ -18,7 +19,8 @@ export type RouteLoaderResult = Readonly<{
  * sharing route materialization state when they happen to reuse definitions.
  */
 export function createRouteLoader<Route extends ExactRouteDefinition>(
-	context: ExactDataFunctionArgs['context']
+	context: ExactDataFunctionArgs['context'],
+	request?: Pick<Request, 'method' | 'headers'>
 ): Readonly<{
 	run(
 		url: URL,
@@ -39,7 +41,12 @@ export function createRouteLoader<Route extends ExactRouteDefinition>(
 			});
 			lazyPromises.set(route, pending);
 		}
-		await pending;
+		try {
+			await pending;
+		} catch (error) {
+			if (lazyPromises.get(route) === pending) lazyPromises.delete(route);
+			throw error;
+		}
 	};
 
 	const run = async (
@@ -54,10 +61,16 @@ export function createRouteLoader<Route extends ExactRouteDefinition>(
 		const results = await Promise.all(
 			matches.map(async (match) => {
 				try {
+					signal.throwIfAborted();
 					await materializeLazy(match.route);
+					signal.throwIfAborted();
 					if (!match.route.loader) return { match };
 					const value = await match.route.loader({
-						request: new Request(url),
+						request: new Request(url, {
+							signal,
+							headers: request?.headers,
+							method: request?.method === 'HEAD' ? 'HEAD' : 'GET'
+						}),
 						params: match.params,
 						context,
 						signal
@@ -80,9 +93,9 @@ export function createRouteLoader<Route extends ExactRouteDefinition>(
 				continue;
 			}
 			if ('error' in result) {
-				errors[result.match.id] = result.error;
+				setRouteRecordValue(errors, result.match.id, result.error);
 				if (result.error instanceof Response) {
-					headers[result.match.id] = new Headers(result.error.headers);
+					setRouteRecordValue(headers, result.match.id, new Headers(result.error.headers));
 					statusCode = result.error.status;
 				} else {
 					statusCode = 500;
@@ -90,9 +103,9 @@ export function createRouteLoader<Route extends ExactRouteDefinition>(
 				continue;
 			}
 			if (!('value' in result)) continue;
-			data[result.match.id] = result.data;
+			setRouteRecordValue(data, result.match.id, result.data);
 			if (result.value instanceof Response) {
-				headers[result.match.id] = new Headers(result.value.headers);
+				setRouteRecordValue(headers, result.match.id, new Headers(result.value.headers));
 				statusCode = result.value.status;
 			}
 		}

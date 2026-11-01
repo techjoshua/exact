@@ -75,3 +75,34 @@ func continuationTaskDependencies(work *ast.Node, definitions []*ast.Node) []*as
 	}
 	return result
 }
+
+// continuationTaskBindings binds only reconstructed compiler task definitions.
+// Direct SSR construction can precede any active frame and must remain unbound.
+// Executor dependency construction runs synchronously inside the request frame.
+type continuationTaskBindings struct {
+	imports externalImportBindings
+	name    string
+	used    bool
+}
+
+func newContinuationTaskBindings(sourceFile *ast.SourceFile, used map[string]struct{}) *continuationTaskBindings {
+	return &continuationTaskBindings{
+		imports: collectExternalImportBindings(sourceFile, nil),
+		name:    allocateGeneratedName(used, "__exactBindContinuationTask"),
+	}
+}
+
+// bind retains the request owner for status while explicit invokeTask keeps the
+// same definition and retained parent across subsequent await boundaries.
+func (bindings *continuationTaskBindings) bind(factory *printer.NodeFactory, initializer *ast.Node) *ast.Node {
+	value := unwrapSourceCallableReference(initializer)
+	if value == nil || !ast.IsCallExpression(value) {
+		return initializer
+	}
+	reference, found := externalImportForExpression(value.AsCallExpression().Expression, bindings.imports, nil)
+	if !found || reference.moduleSpecifier != "@exactjs/core/framework/server-task-helpers" || reference.exportName != "defineTask" {
+		return initializer
+	}
+	bindings.used = true
+	return factory.NewCallExpression(factory.NewIdentifier(bindings.name), nil, nil, factory.NewNodeList([]*ast.Node{initializer}), ast.NodeFlagsNone)
+}

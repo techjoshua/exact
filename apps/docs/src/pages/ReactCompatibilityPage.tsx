@@ -17,6 +17,25 @@ export default {
   ]
 };`;
 
+const asyncEventSource = `/** @jsxImportSource react */
+
+export function SaveButton(props: { save(): Promise<void> }) {
+  return <button onClick={() => props.save()}>Save</button>;
+}`;
+
+const refCleanupSource = `/** @jsxImportSource react */
+
+export function MeasuredPanel() {
+  return <section ref={(element) => {
+    if (!element) return;
+    const observer = new ResizeObserver((entries) => {
+      console.log(entries[0]?.contentRect.width);
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }}>Panel</section>;
+}`;
+
 const directComponentSource = `import type { Component } from '@exactjs/core';
 import { DatePicker } from 'react-date-picker';
 
@@ -83,6 +102,48 @@ export function ReactCompatibilityPage(this: Component<{}>) {
 			<ReactCompatibilityDemo />
 
 			<section>
+				<h2>Keep asynchronous event work with its component</h2>
+				<p>
+					When a React control saves data or starts navigation, return the promise from its
+					callback. The compatibility renderer observes the work and sends failures to the owning
+					error context. Effects also report their failures through the owning context. A released
+					component does not receive late event failures or run queued effects.
+				</p>
+				<CodeBlock source={asyncEventSource} language="tsx" title="SaveButton.tsx" />
+				<p>
+					Unmounting releases sibling and descendant resources even if a ref callback throws. The
+					first cleanup failure is preserved. A replacement remains owned and can be updated or
+					unmounted afterward. Suspense also retains ownership of accepted transition content when
+					earlier ref cleanup fails. Promise retries report through the owning error context and
+					stop when their boundary is disposed. Effects and external-store subscriptions release
+					every owned lease, including when another cleanup fails. Activity ranges retain their
+					component state and DOM while hidden, then reconnect those resources when shown. Nested
+					child arrays keep their groups and empty slots, so repeated local keys in separate groups
+					do not merge component instances. Server rendering and hydration preserve adjoining text
+					nodes across empty children and release their owned markup on unmount. Matching raw HTML
+					is adopted in place, and portal updates retain their target content while respecting other
+					owners in that target.
+				</p>
+			</section>
+
+			<section>
+				<h2>Release resources attached through refs</h2>
+				<p>
+					When a ref creates an observer or another element-owned resource, return its cleanup from
+					the callback. The renderer retains one cleanup per attachment and calls it once when that
+					attachment is released.
+				</p>
+				<CodeBlock source={refCleanupSource} language="tsx" title="MeasuredPanel.tsx" />
+				<p>
+					This also works for class refs and imperative handles. A callback shared by several
+					attachments keeps independent cleanups. Callbacks that return no cleanup receive
+					<code>null</code> on release, and object refs have their <code>current</code> cleared.
+					When a ref throws during a new range attachment, the renderer releases resources acquired
+					for that failed range.
+				</p>
+			</section>
+
+			<section>
 				<h2>Choose the React target once</h2>
 				<CodeBlock source={reactCompatibilitySource} language="ts" title="vite.config.ts" />
 				<p>
@@ -109,8 +170,9 @@ export function ReactCompatibilityPage(this: Component<{}>) {
 				<p>
 					Use the <code>source</code> option only for React-owned source that your application
 					authors or compiles itself. An explicit <code>@jsxImportSource react</code> directive can
-					mark an individual source module. <code>@jsxImportSource @exactjs/jsx</code> keeps native
-					eXact ownership explicit.
+					mark an individual source module with a leading block comment such as
+					<code>/** @jsxImportSource react */</code>. To keep native eXact ownership explicit, use
+					<code>/** @jsxImportSource @exactjs/jsx */</code>.
 				</p>
 			</section>
 
@@ -120,7 +182,9 @@ export function ReactCompatibilityPage(this: Component<{}>) {
 					Statically known React descendants stay React-owned. Statically known eXact children are
 					bridged when they cross a React boundary, preserving their long-lived eXact instances,
 					context, DOM ownership, and cleanup. Shared values can use
-					<code>defineInteropContext()</code> when both models need one logical context.
+					<code>defineInteropContext()</code> when both models need one logical context. The
+					returned pair follows TypeScript's compile-time readonly rules. Existing consumers keep
+					their token identities if a writable alias replaces a field in that pair.
 				</p>
 				<p>
 					The matching <code>types18</code> or <code>types19</code> facade also lets React-owned
@@ -132,6 +196,18 @@ export function ReactCompatibilityPage(this: Component<{}>) {
 					ref-property bridges.
 				</p>
 				<p>
+					When a React-owned component needs no inputs, its render function can omit the props
+					parameter. <code>memo()</code> and <code>forwardRef()</code> support that usage and retain
+					declared prop types, keeping required inputs checked.
+				</p>
+				<p>
+					For an existing TanStack Query client, <code>@exactjs/tanstack-query</code> exposes
+					observer results as reactive source handles. Their readonly fields follow TypeScript's
+					shallow, compile-time rules, while writable methods and mutable aliases keep ordinary
+					JavaScript behavior. Disposing a source releases its observation. The application still
+					owns the <code>QueryClient</code> and cache.
+				</p>
+				<p>
 					For Jotai stores shared with native components, <code>ExactJotaiProvider</code> uses the
 					supplied store or Jotai's default singleton, resolved when the adapter loads. Supply a
 					request-owned store when server data must remain isolated between requests.
@@ -140,7 +216,9 @@ export function ReactCompatibilityPage(this: Component<{}>) {
 					SSR and hydration use the same ownership decision as the client build. Native eXact ranges
 					retain eXact's selective hydration behavior. Compatible React trees use the supported
 					React hydration contract. Browser-only React packages should remain inside an explicit
-					client placement.
+					client placement. Compatible server streams wait for asynchronous children before
+					returning their completed output. Pass an AbortSignal in the server options to cancel
+					pending work. The render rejects with the signal's exact reason, including null.
 				</p>
 				<p>
 					Imported native components remain eXact-owned even when emitted JavaScript specifiers

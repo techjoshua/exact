@@ -1,4 +1,8 @@
 import {
+	physicalElementIdentity,
+	isReservedElementIdentityName
+} from '@exactjs/core/runtime/component-abi';
+import {
 	formatNativeInputValue,
 	assertNativePropAllowed,
 	normalizeNativeAttributeValue,
@@ -7,12 +11,7 @@ import {
 	isNativeSrcdocProp
 } from '@exactjs/core/framework/render-structure';
 import type { RefBinding } from '@exactjs/core';
-import {
-	adoptElementId,
-	normalizeClassValue,
-	reserveElementId,
-	sanitizeUrlAttribute
-} from '@exactjs/core';
+import { normalizeClassValue, sanitizeUrlAttribute } from '@exactjs/core';
 import type { ExactRenderProgramSsrAttribute } from '@exactjs/core/framework/render-structure';
 import { readUnsafeHtmlReceipt } from '@exactjs/core/runtime/component-abi';
 import { unwrap } from '@exactjs/reactive/framework/values';
@@ -29,6 +28,7 @@ import { escapeAttr, escapeAttrName } from './html.js';
 import { reactAttributeName, reactBooleanAttributes } from './react-attributes.js';
 import { renderAccountedAttribute } from './render/output-attribute.js';
 import { renderStyle } from './style.js';
+import { PreparedIntrinsicRefAttributes, prepareRefIdentity } from './intrinsic-ref-identity.js';
 import type { SsrContext } from './types.js';
 
 export * from './markers.js';
@@ -41,15 +41,23 @@ export function renderAttrs(
 	context?: Pick<SsrContext, 'allowUnsafeHtml' | 'onUnsafeHtml'>,
 	excludedNativeProps?: readonly string[]
 ): string {
+	const prepared = PreparedIntrinsicRefAttributes.read(props);
+	if (prepared) props = prepared.props;
 	const boundDetails = !reactMarkup && tag === 'details' && '__exactBindToggle' in props;
-	let attrs = boundDetails
-		? ` data-exact-ssr-open="${unwrap(props.open) === true ? 'true' : 'false'}"`
-		: '';
-	if (!reactMarkup && props.ref) {
-		const binding = unwrap(props.ref) as RefBinding<{ id: string }>;
-		const authoredId = unwrap(props.id);
-		if (authoredId !== undefined) adoptElementId(binding, authoredId);
-		else attrs += ` id="${escapeAttr(reserveElementId(binding))}"`;
+	let attrs =
+		boundDetails && !hasOwn(props, 'open') && !excludedNativeProps?.includes('open')
+			? ' data-exact-ssr-open="false"'
+			: '';
+	if (!reactMarkup) {
+		if (prepared) {
+			if (prepared.generatedId !== undefined) attrs += ` id="${escapeAttr(prepared.generatedId)}"`;
+		} else if (props.ref) {
+			// Keep legacy reads and root behavior unchanged. Only prepared bags cache identity.
+			const binding = unwrap(props.ref) as RefBinding<{ id: string }>;
+			const authoredId = unwrap(props.id);
+			const generatedId = prepareRefIdentity(binding, authoredId);
+			if (generatedId !== undefined) attrs += ` id="${escapeAttr(generatedId)}"`;
+		}
 	}
 	const customElement = !!reactMarkup && !!tag?.includes('-');
 	if (reactMarkup) {
@@ -145,7 +153,11 @@ export function renderAttrs(
 		for (const name in props)
 			if (hasOwn(props, name) && !excludedNativeProps?.includes(name))
 				attrs += renderAttribute(
-					props[name],
+					prepared && name === 'ref'
+						? prepared.ref
+						: prepared?.capturedId && name === 'id'
+							? prepared.id
+							: props[name],
 					name,
 					reactMarkup,
 					tag,
@@ -154,6 +166,10 @@ export function renderAttrs(
 					customElement,
 					props.type
 				);
+	}
+	if (!reactMarkup && !excludedNativeProps?.includes('data-exact-id')) {
+		const identity = physicalElementIdentity(props);
+		if (identity !== undefined) attrs += ` data-exact-id="${escapeAttr(identity)}"`;
 	}
 	return attrs;
 }
@@ -169,6 +185,7 @@ function renderAttribute(
 	inputType?: unknown
 ): string {
 	if (!reactMarkup) {
+		if (isReservedElementIdentityName(name)) return '';
 		assertNativePropAllowed(name);
 		if (isNativeEventProp(name)) {
 			assertNativeEventHandler(unwrap(rawValue));
@@ -177,7 +194,8 @@ function renderAttribute(
 		if (isNativeSrcdocProp(name)) name = 'srcdoc';
 	}
 	if (
-		(boundDetails && name === 'data-exact-ssr-open') ||
+		((boundDetails || (!reactMarkup && isNativeOpenTag(tag))) &&
+			name.toLowerCase() === 'data-exact-ssr-open') ||
 		name === 'children' ||
 		name === 'key' ||
 		name === 'ref' ||
@@ -220,20 +238,28 @@ function renderAttribute(
 	const attrName = reactMarkup
 		? reactAttributeName(name, reactMarkup, customElement)
 		: nativeAttributeName(name, tag);
-	if (value === null || value === undefined) return '';
+	const openDefault =
+		!reactMarkup && isNativeOpenTag(tag) && name.toLowerCase() === 'open'
+			? ` data-exact-ssr-open="${value !== null && value !== undefined && value !== false}"`
+			: '';
+	if (value === null || value === undefined) return openDefault;
 	if (value === false && (!reactMarkup || reactBooleanAttributes.has(attrName.toLowerCase())))
-		return '';
+		return openDefault;
 	if (attrName === 'style') {
 		const style = renderStyle(value, !!reactMarkup);
 		return style ? ` style="${escapeAttr(style)}"` : '';
 	}
 	if (value === true)
-		return reactMarkup
-			? reactBooleanAttributes.has(attrName.toLowerCase()) || (reactMarkup === 19 && customElement)
-				? ` ${escapeAttrName(attrName)}=""`
-				: ` ${escapeAttrName(attrName)}="true"`
-			: ` ${escapeAttrName(attrName)}`;
-	return ` ${escapeAttrName(attrName)}="${escapeAttr(String(value))}"`;
+		return (
+			openDefault +
+			(reactMarkup
+				? reactBooleanAttributes.has(attrName.toLowerCase()) ||
+					(reactMarkup === 19 && customElement)
+					? ` ${escapeAttrName(attrName)}=""`
+					: ` ${escapeAttrName(attrName)}="true"`
+				: ` ${escapeAttrName(attrName)}`)
+		);
+	return openDefault + ` ${escapeAttrName(attrName)}="${escapeAttr(String(value))}"`;
 }
 
 /** Serializes one compiler-known native host value without allocating or scanning a prop bag. */
@@ -256,6 +282,15 @@ export function renderCompiledNativeAttribute(
 	context?: Pick<SsrContext, 'allowUnsafeHtml' | 'onUnsafeHtml' | 'outputSink'>,
 	accounted = false
 ): string {
+	if (isNativeOpenTag(tag)) {
+		const nativeName = name.toLowerCase();
+		if (nativeName === 'data-exact-ssr-open') return '';
+		if (nativeName === 'open') {
+			const rendered = renderNativeAttribute(value, name, tag, context);
+			if (accounted) context?.outputSink?.account(rendered);
+			return rendered;
+		}
+	}
 	// Kind 7 is emitted only for a compiler-created root class whose complete expression
 	// contains safe ASCII literals. Target-composed bags use the ordinary attribute path.
 	if (kind === 7 && typeof value === 'string') {
@@ -364,4 +399,8 @@ function nativeAttributeName(name: string, tag: string | undefined): string {
 		default:
 			return name;
 	}
+}
+
+function isNativeOpenTag(tag: string | undefined): boolean {
+	return tag === 'details' || tag === 'dialog';
 }

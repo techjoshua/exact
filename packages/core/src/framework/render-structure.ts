@@ -63,6 +63,7 @@ export { projectedAttributes } from '../component-abi/text-projection-markup.js'
 
 export {
 	fallbackEnhancementEntries,
+	enhancementFallbackTargets,
 	claimEnhancementFallback,
 	enhancementFallbackAvailable,
 	forwardEnhancementFallback,

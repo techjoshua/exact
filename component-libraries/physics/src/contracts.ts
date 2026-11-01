@@ -128,7 +128,7 @@ export interface PhysicsProjectionInput {
 	apply(context: PhysicsProjectionContext): void;
 }
 
-/** Validated, immutable DOM projection policy. */
+/** Validated DOM projection policy with TypeScript readonly properties. */
 export type PhysicsProjection = Readonly<PhysicsProjectionInput> &
 	Readonly<{ [preparedPhysicsProjection]: true }>;
 

@@ -1,3 +1,5 @@
+import { componentInputRecipe, redeemComponentInput } from '../component-abi/receipt.js';
+const testInputProvider = { version: 6, target: 'client' } as const;
 import { describe, expect, it } from 'vitest';
 import { createEffectScope, flushSync, reactive, unwrap, withEffectScope } from '@exactjs/reactive';
 import { createExactFrameworkFixtureArtifact } from '../testing/runtime-artifacts.js';
@@ -10,13 +12,10 @@ import {
 	dynamicComponentValue
 } from './runtime.js';
 import { readChildRangeReceipt } from '../component-abi/child-range-receipt.js';
-import { readCompiledComponentReceipt } from '../component-abi/receipt.js';
-
 function Panel(this: Component<{}>) {
 	return () => 'panel';
 }
 createExactFrameworkFixtureArtifact(Panel, 'fixture:panel');
-
 describe('dynamic component boundaries', () => {
 	it('requires an owning component setup domain', () => {
 		expect(() => createDynamicComponent(() => Panel)).toThrow('component setup');
@@ -25,7 +24,6 @@ describe('dynamic component boundaries', () => {
 		);
 		expect(dynamicComponentResolverFor(facade)).toBeTypeOf('function');
 	});
-
 	it('publishes synchronous candidates through the canonical dynamic value', () => {
 		const scope = createEffectScope();
 		const receipt = withEffectScope(scope, () =>
@@ -36,13 +34,15 @@ describe('dynamic component boundaries', () => {
 			})
 		);
 		const data = readChildRangeReceipt(receipt)!;
-		const rendered = readCompiledComponentReceipt(unwrap(data.value));
+		const rendered = componentInputRecipe(
+			redeemComponentInput(unwrap(data.value), testInputProvider),
+			testInputProvider
+		);
 		expect(rendered?.contract.artifact.id).toBe('fixture:panel');
 		expect(rendered?.props.label).toBe('ready');
 		expect(data.dynamicComponent?.inspection.status).toBe('available');
 		scope.stop();
 	});
-
 	it('fences stale asynchronous candidates and aborts replaced generations', async () => {
 		const selection = reactive({ value: 'first' });
 		const settlements = new Map<string, (value: typeof Panel) => void>();
@@ -69,13 +69,15 @@ describe('dynamic component boundaries', () => {
 		expect(data.dynamicComponent?.inspection.status).toBe('pending');
 		settlements.get('second')?.(Panel);
 		await Promise.resolve();
-		expect(readCompiledComponentReceipt(unwrap(data.value))?.contract.artifact.id).toBe(
-			'fixture:panel'
-		);
+		expect(
+			componentInputRecipe(
+				redeemComponentInput(unwrap(data.value), testInputProvider),
+				testInputProvider
+			)?.contract.artifact.id
+		).toBe('fixture:panel');
 		scope.stop();
 		expect(signals[1]?.aborted).toBe(true);
 	});
-
 	it('releases every superseded resolver generation during sustained replacement', () => {
 		const selection = reactive({ value: 0 });
 		const signals: AbortSignal[] = [];
@@ -101,7 +103,6 @@ describe('dynamic component boundaries', () => {
 		scope.stop();
 		expect(signals.at(-1)?.aborted).toBe(true);
 	});
-
 	it('keeps server projections inert', () => {
 		const receipt = createServerDynamicComponent('fixture:server');
 		const data = readChildRangeReceipt(receipt)!;
@@ -111,7 +112,6 @@ describe('dynamic component boundaries', () => {
 		});
 		expect(data.value).toBeUndefined();
 	});
-
 	it('rejects candidates that carry any server execution authority', () => {
 		const ServerPanel = createExactFrameworkFixtureArtifact(
 			function ServerPanel() {
@@ -134,7 +134,6 @@ describe('dynamic component boundaries', () => {
 		});
 		scope.stop();
 	});
-
 	it('rejects isomorphic server-render artifacts from client dynamic selection', () => {
 		const ServerRenderPanel = createExactFrameworkFixtureArtifact(
 			function ServerRenderPanel() {
@@ -157,7 +156,6 @@ describe('dynamic component boundaries', () => {
 		});
 		scope.stop();
 	});
-
 	it('unwraps compiler-observed annotated values', () => {
 		const resolver = dynamicComponentValue(() => Panel);
 		expect(resolver(new AbortController().signal)).toBe(Panel);

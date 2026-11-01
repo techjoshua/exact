@@ -1,3 +1,5 @@
+import { deriveRuntimeConfiguration } from '../framework/configuration.js';
+import { linkTaskResourceOwnerSignal } from './resource-owner-signals.js';
 import { taskResourceSignal } from './resource-lifetime.js';
 
 /** Event-listener options augmented with framework-owned cancellation. */
@@ -51,7 +53,7 @@ export function combineAbortSignals(left: AbortSignal, right: AbortSignal): Abor
 export function combineTaskSignal(owner: AbortSignal, existing?: AbortSignal): AbortSignal {
 	const lifetime = taskResourceSignal(owner);
 	if (!existing || existing === owner || existing === lifetime) return lifetime;
-	return combineAbortSignals(existing, lifetime);
+	return linkTaskResourceOwnerSignal(combineAbortSignals(existing, lifetime), owner);
 }
 
 /** Attaches framework ownership without discarding author event options. */
@@ -59,9 +61,14 @@ export function withAbortSignal(
 	options: boolean | ManagedEventListenerOptions | undefined,
 	owner: AbortSignal
 ): ManagedEventListenerOptions {
-	const normalized: ManagedEventListenerOptions =
-		typeof options === 'boolean' ? { capture: options } : options ? { ...options } : {};
-	return { ...normalized, signal: combineTaskSignal(owner, normalized.signal) };
+	if (typeof options === 'boolean') return { capture: options, signal: combineTaskSignal(owner) };
+	if (!options) return { signal: combineTaskSignal(owner) };
+	return {
+		capture: options.capture,
+		once: options.once,
+		passive: options.passive,
+		signal: combineTaskSignal(owner, options.signal)
+	};
 }
 
 /** Adds task cancellation to an arbitrary API options object. */
@@ -69,11 +76,9 @@ export function withTaskSignal<T extends object | undefined>(
 	options: T,
 	owner: AbortSignal
 ): T & { signal: AbortSignal } {
-	const normalized = options ? { ...options } : {};
-	const existing =
-		'signal' in normalized && isAbortSignal(normalized.signal) ? normalized.signal : undefined;
-	return {
-		...normalized,
-		signal: combineTaskSignal(owner, existing)
-	} as T & { signal: AbortSignal };
+	if (!options) return { signal: combineTaskSignal(owner) } as T & { signal: AbortSignal };
+	return deriveRuntimeConfiguration<object>(options, (captured) => {
+		const existing: unknown = Reflect.get(captured, 'signal');
+		return { signal: combineTaskSignal(owner, isAbortSignal(existing) ? existing : undefined) };
+	}) as T & { signal: AbortSignal };
 }

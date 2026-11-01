@@ -1,3 +1,16 @@
+import { updateReactive, updateReactiveShallow } from './reconciliation.js';
+import { indexedReactiveObjects } from './framework/indexed-objects.js';
+import { indexedReactive, readReactiveOwnProperty } from './indexed.js';
+import { writeIndexedReactiveValue, deleteIndexedReactiveValue } from './writes.js';
+import { readIndexedReactiveSource } from './indexed-base.js';
+import {
+	verifyCustomArrayReferenceReplacement,
+	verifyReactiveReflection,
+	verifyReconciliationNativeAcceptance,
+	verifyIndexedDescriptorAcceptance,
+	verifyNativeDescriptorAcceptance
+} from '../../component-composition-corpus/test-support/reactive-native-descriptor-journey.mjs';
+import { writeReactiveLazy } from './writes.js';
 import { expect, it } from 'vitest';
 import { batch, flushSync, reactive, watch } from './index.js';
 import { reactiveObjects } from './framework/objects.js';
@@ -111,7 +124,7 @@ it('publishes equal-value shadowing while retaining the inherited value and roll
 	}
 });
 
-it('leaves enumeration unchanged for unchanged own writes and rejects readonly creation', () => {
+it('leaves enumeration unchanged for unchanged own writes ', () => {
 	const state = reactive({ value: undefined });
 	let runs = 0;
 	const stop = watch(() => {
@@ -125,9 +138,43 @@ it('leaves enumeration unchanged for unchanged own writes and rejects readonly c
 	} finally {
 		stop();
 	}
-	const readonly = reactive({} as { missing?: unknown }, { readonly: true });
-	expect(() => {
-		readonly.missing = undefined;
-	}).toThrow(TypeError);
-	expect(Object.hasOwn(readonly, 'missing')).toBe(false);
 });
+
+it('retains native descriptor acceptance for equal and changed writes', () =>
+	verifyNativeDescriptorAcceptance({ reactive, reactiveObjects, writeReactiveLazy }));
+
+it('publishes indexed fields only after native mutation succeeds', () =>
+	verifyIndexedDescriptorAcceptance({
+		indexedReactive,
+		readReactiveOwnProperty,
+		writeIndexedReactiveValue,
+		deleteIndexedReactiveValue,
+		readIndexedReactiveSource,
+		watch,
+		flushSync,
+		batch
+	}));
+
+it('preserves synchronization matches and reports failed native mutations', () =>
+	verifyReconciliationNativeAcceptance({
+		reactive,
+		reactiveObjects,
+		indexedReactive,
+		indexedReactiveObjects,
+		updateReactive,
+		updateReactiveShallow
+	}));
+
+it('notifies retained reflection readers and releases disposed observers', () =>
+	verifyReactiveReflection({
+		reactive,
+		reactiveObjects,
+		indexedReactive,
+		indexedReactiveObjects,
+		watch,
+		flushSync,
+		batch
+	}));
+
+it('observes custom array properties after equal-shaped reference replacements', () =>
+	verifyCustomArrayReferenceReplacement({ reactive, reactiveObjects, watch, flushSync }));

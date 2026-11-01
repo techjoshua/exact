@@ -1,12 +1,6 @@
 import type { ReactiveOptions, ReactiveRef } from '../internal/types.js';
 import { unwrap } from '../internal/values.js';
-import {
-	defaultReactiveOptions,
-	readonlyReactiveOptionsKey,
-	rootProxyCache,
-	sourcedProxyCache,
-	proxyRefs
-} from './state.js';
+import { defaultReactiveOptions, rootProxyCache, sourcedProxyCache, proxyRefs } from './state.js';
 
 /** Reuses a proxy only when its parent ownership and option policy agree. */
 export function getCachedProxy(
@@ -58,20 +52,7 @@ export function cacheProxy(
 /** Shares ordinary option policies while keeping custom capability records isolated. */
 export function reactiveOptionsKey(options: ReactiveOptions): object {
 	if ('__exactCollectionCacheMode' in options) return options as object;
-	if (
-		!options.readonly &&
-		!options.onReadonlyWrite &&
-		!options.onMutation &&
-		!options.passthroughKeys?.length
-	)
-		return defaultReactiveOptions;
-	if (
-		options.readonly &&
-		!options.onReadonlyWrite &&
-		!options.onMutation &&
-		!options.passthroughKeys?.length
-	)
-		return readonlyReactiveOptionsKey;
+	if (!options.onMutation && !options.passthroughKeys?.length) return defaultReactiveOptions;
 	return options as object;
 }
 

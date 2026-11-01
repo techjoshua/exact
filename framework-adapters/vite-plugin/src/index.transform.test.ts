@@ -234,7 +234,7 @@ describe('@exactjs/vite-plugin: transform', () => {
 		});
 		const resolved = typeof resolution === 'string' ? resolution : resolution!.id;
 		expect(plugin.load!(resolved)).toMatchObject({
-			code: expect.stringContaining('export const descriptors = Object.freeze')
+			code: expect.stringContaining('export const descriptors =')
 		});
 		expect(plugin.load!(resolved)).toMatchObject({
 			code: expect.stringContaining('"locale":"fr-FR"')
@@ -243,7 +243,7 @@ describe('@exactjs/vite-plugin: transform', () => {
 			code: expect.stringContaining('__exactRegisterIntlArtifacts')
 		});
 		expect(plugin.load!(resolved)).toMatchObject({
-			code: expect.stringContaining('export const clientRequirements = Object.freeze([])')
+			code: expect.stringContaining('export const clientRequirements = []')
 		});
 		await plugin.buildEnd?.call({}, undefined);
 		plugin.watchChange?.(`${process.cwd()}/src/Greeting.tsx`, { event: 'delete' });
@@ -476,7 +476,7 @@ describe('@exactjs/vite-plugin: transform', () => {
 			{ ssr: true }
 		);
 
-		expect(result?.code).toContain('createPreparedServerComponentReference');
+		expect(result?.code).toContain('createPreparedServerComponentInputReference');
 		expect(result?.code).not.toContain('adaptReactComponent');
 	});
 

@@ -2,9 +2,11 @@ package exactcompiler
 
 import (
 	"fmt"
+	"sort"
 
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
 	"github.com/microsoft/TypeScript/tsc/internal/checker"
+	"github.com/microsoft/TypeScript/tsc/internal/printer"
 )
 
 // islandPlacementDiagnostics protects the server artifact boundary before
@@ -17,27 +19,14 @@ func islandPlacementDiagnostics(
 	callables callableAnalysis,
 	components []Component,
 	tasks []Task,
-	stateAliases []StateAlias,
-	stateReads []StateRead,
-	stateWrites []StateWrite,
-	reactiveBindings []ReactiveBinding,
 	target Target,
-	nodeIDs map[*ast.Node]string,
+	islands map[*ast.Node]clientElementIsland,
 ) []Diagnostic {
 	if target != TargetServer {
 		return nil
 	}
-	islands := indexClientElementIslands(
-		sourceFile,
-		components,
-		stateAliases,
-		stateReads,
-		stateWrites,
-		reactiveBindings,
-		typeChecker,
-		nodeIDs,
-	)
 	islandNodes := make([]*ast.Node, 0, len(islands))
+	prepareIslandStateKeyDiagnostics(sourceFile, typeChecker, islands)
 	diagnostics := []Diagnostic{}
 	seen := make(map[string]struct{})
 	add := func(code string, message string, node *ast.Node) {
@@ -126,6 +115,7 @@ func componentDormantCallableSpans(
 	callables callableAnalysis,
 	typeChecker *checker.Checker,
 ) []SourceSpan {
+	source := ast.GetSourceFileOfNode(component)
 	indexesByNode := make(map[*ast.Node]int, len(callables.facts))
 	indexesBySpan := make(map[string]int, len(callables.facts))
 	indexesByID := make(map[string]int, len(callables.facts))
@@ -133,7 +123,9 @@ func componentDormantCallableSpans(
 	for index := range callables.facts {
 		fact := &callables.facts[index]
 		indexesByNode[fact.node] = index
-		indexesBySpan[fmt.Sprintf("%d:%d", fact.node.Pos(), fact.node.End())] = index
+		if fact.sourceFile == source {
+			indexesBySpan[fmt.Sprintf("%d:%d", fact.node.Pos(), fact.node.End())] = index
+		}
 		indexesByID[fact.summary.ID] = index
 		if symbol := callableDeclarationSymbol(fact.node, typeChecker); symbol != nil {
 			indexesBySymbol[ast.GetSymbolId(symbol)] = index
@@ -162,7 +154,7 @@ func componentDormantCallableSpans(
 	outerIndex, outerWidth := -1, -1
 	for index := range callables.facts {
 		callable := callables.facts[index].node
-		if !ast.IsFunctionLike(callable) || callable.Pos() < component.Pos() ||
+		if callables.facts[index].sourceFile != source || !ast.IsFunctionLike(callable) || callable.Pos() < component.Pos() ||
 			callable.End() > component.End() {
 			continue
 		}
@@ -178,7 +170,7 @@ func componentDormantCallableSpans(
 		renderIndex, renderWidth := -1, -1
 		for index := range callables.facts {
 			callable := callables.facts[index].node
-			if callable == component || callable.Pos() < component.Body().Pos() ||
+			if callables.facts[index].sourceFile != source || callable == component || callable.Pos() < component.Body().Pos() ||
 				callable.End() > component.Body().End() {
 				continue
 			}
@@ -206,7 +198,7 @@ func componentDormantCallableSpans(
 			width := int(^uint(0) >> 1)
 			for candidate := range callables.facts {
 				fact := callables.facts[candidate].node
-				if fact.Pos() <= expression.Pos() && fact.End() >= expression.End() &&
+				if callables.facts[candidate].sourceFile == source && fact.Pos() <= expression.Pos() && fact.End() >= expression.End() &&
 					fact.End()-fact.Pos() < width {
 					index, exists, width = candidate, true, fact.End()-fact.Pos()
 				}
@@ -219,22 +211,23 @@ func componentDormantCallableSpans(
 			if !ast.IsCallExpression(renderNode) {
 				return true
 			}
-			symbol := resolvedCallableSymbol(
-				callTargetSymbol(renderNode.AsCallExpression().Expression, typeChecker),
-				typeChecker,
-			)
-			if symbol == nil {
-				return true
-			}
-			if called, found := indexesBySymbol[ast.GetSymbolId(symbol)]; found {
-				add(called)
-				return true
-			}
-			if summary, found := callables.bySymbol[ast.GetSymbolId(symbol)]; found {
+			target := renderNode.AsCallExpression().Expression
+			if summary, found := callables.expressionSummary(target, typeChecker); found {
 				if called, indexed := indexesByID[summary.ID]; indexed {
 					add(called)
 				}
+				return true
 			}
+			if _, owned := callables.owner.body(target); owned {
+				return true
+			}
+			symbol := resolvedCallableSymbol(callTargetSymbol(target, typeChecker), typeChecker)
+			if symbol != nil {
+				if called, found := indexesBySymbol[ast.GetSymbolId(symbol)]; found {
+					add(called)
+				}
+			}
+
 			return true
 		})
 		if exists {
@@ -245,7 +238,7 @@ func componentDormantCallableSpans(
 			if symbol == nil {
 				return true
 			}
-			if summary, exists := callables.bySymbol[ast.GetSymbolId(symbol)]; exists {
+			if summary, exists := callables.expressionSummary(expression, typeChecker); exists {
 				if index, found := indexesByID[summary.ID]; found {
 					add(index)
 				}
@@ -263,7 +256,7 @@ func componentDormantCallableSpans(
 	spans := []SourceSpan{}
 	for index := range callables.facts {
 		fact := &callables.facts[index]
-		if fact.node == component || fact.node.Pos() < component.Pos() || fact.node.End() > component.End() {
+		if fact.sourceFile != source || fact.node == component || fact.node.Pos() < component.Pos() || fact.node.End() > component.End() {
 			continue
 		}
 		if _, executes := reachable[index]; executes {
@@ -278,6 +271,109 @@ func nodeInsideAnyIsland(node *ast.Node, islands []*ast.Node) bool {
 	for _, island := range islands {
 		if node.Pos() >= island.Pos() && node.End() <= island.End() {
 			return true
+		}
+	}
+	return false
+}
+
+// prepareIslandStateKeyDiagnostics classifies authored keys before transformation can reparent them.
+// Potential plans remain private until the existing server snapshot constructor consumes them.
+func prepareIslandStateKeyDiagnostics(sourceFile *ast.SourceFile, typeChecker *checker.Checker, islands map[*ast.Node]clientElementIsland) {
+	for node, island := range islands {
+		if len(island.statePaths) == 0 {
+			continue
+		}
+		seen := make(map[*ast.Node]struct{})
+		demand := &islandSnapshotDemand{}
+		for _, key := range island.stateKeys {
+			if _, exists := seen[key]; exists {
+				continue
+			}
+			seen[key] = struct{}{}
+			if !islandStateKeyCanBeSymbol(typeChecker, typeChecker.GetTypeAtLocation(key)) {
+				continue
+			}
+			demand.diagnostics = append(demand.diagnostics, islandSnapshotDiagnostic{key: key, diagnostic: Diagnostic{
+				Severity: "error", Code: "EXACT2232", Start: key.Pos(), Length: key.End() - key.Pos(),
+				Message: "error: this captured component state key can be a Symbol, which cannot be included in an SSR hydration snapshot. Use or narrow to a string or number key for the captured value, or keep the symbol-keyed value in client-local state that is not reconstructed from SSR",
+				Related: []DiagnosticLocation{{FileName: sourceFile.FileName(), Start: node.Pos(), Length: node.End() - node.Pos(), Message: "this client island requires the state snapshot for SSR hydration"}},
+			}})
+		}
+		if len(demand.diagnostics) != 0 {
+			island.stateSnapshotDemand = demand
+			islands[node] = island
+		}
+	}
+}
+
+// islandSnapshotPrintObserver witnesses exact snapshot expressions in the normal printer pass.
+// Original-node identity preserves that evidence through native factory updates. Plans removed by
+// projection contribute no printed expression and therefore no diagnostic. No extra tree walk runs.
+func islandSnapshotPrintObserver(islands map[*ast.Node]clientElementIsland, emitContext *printer.EmitContext) func(*ast.Node) {
+	demands := make(map[*ast.Node]*islandSnapshotDemand)
+	for _, island := range islands {
+		demand := island.stateSnapshotDemand
+		if demand == nil {
+			continue
+		}
+		for _, expression := range demand.expressions {
+			demands[emitContext.MostOriginal(expression)] = demand
+		}
+	}
+	if len(demands) == 0 {
+		return nil
+	}
+	return func(node *ast.Node) {
+		if demand := demands[emitContext.MostOriginal(node)]; demand != nil {
+			demand.emitted = true
+		}
+	}
+}
+
+// islandStateKeyDiagnostics reports only snapshots surviving final server artifact printing.
+// Authored-node identity deduplicates shared keys after elided islands have been excluded.
+func islandStateKeyDiagnostics(islands map[*ast.Node]clientElementIsland) []Diagnostic {
+	diagnostics := []Diagnostic{}
+	seen := make(map[*ast.Node]struct{})
+	nodes := make([]*ast.Node, 0, len(islands))
+	for node := range islands {
+		nodes = append(nodes, node)
+	}
+	sort.Slice(nodes, func(i, j int) bool { return nodes[i].Pos() < nodes[j].Pos() })
+	for _, node := range nodes {
+		demand := islands[node].stateSnapshotDemand
+		if demand == nil || !demand.emitted {
+			continue
+		}
+		for _, entry := range demand.diagnostics {
+			if _, exists := seen[entry.key]; exists {
+				continue
+			}
+			seen[entry.key] = struct{}{}
+			diagnostics = append(diagnostics, entry.diagnostic)
+		}
+	}
+	sort.Slice(diagnostics, func(i, j int) bool { return diagnostics[i].Start < diagnostics[j].Start })
+	return diagnostics
+}
+
+// islandStateKeyCanBeSymbol follows the narrowed use type, without inspecting names or runtime values.
+func islandStateKeyCanBeSymbol(typeChecker *checker.Checker, value *checker.Type) bool {
+	if constraint := typeChecker.GetBaseConstraintOfType(value); constraint != nil {
+		value = constraint
+	}
+	// Any, unknown and unreachable never uses do not prove a symbol transport obligation.
+	if value.Flags()&(checker.TypeFlagsAny|checker.TypeFlagsUnknown|checker.TypeFlagsNever) != 0 {
+		return false
+	}
+	if typeChecker.IsTypeAssignableTo(value, typeChecker.GetESSymbolType()) {
+		return true
+	}
+	if value.Flags()&checker.TypeFlagsUnion != 0 {
+		for _, member := range value.Distributed() {
+			if islandStateKeyCanBeSymbol(typeChecker, member) {
+				return true
+			}
 		}
 	}
 	return false

@@ -29,6 +29,7 @@ export type ExactEndpointRoutes = {
 
 /** Describes one invocation or refresh request on the framework wire protocol. */
 export type ExactInvocationRequest = {
+	arrayCompletion?: 4;
 	type: ExactInvocationKind;
 	root?: string;
 	id: string;
@@ -51,9 +52,14 @@ export type ExactBatchRequest = {
 
 /** Describes the transport-safe result of one invocation. */
 export type ExactInvocationResult = {
+	arrayCompletion?: 4;
 	patches?: ExactPatch[];
 	state?: unknown;
 	mutations?: ExactCollectionMutation[];
+	/** Performed state output selections. Parent selections replace a subtree, while descendant selections retain its other fields. */
+	statePaths?: string[];
+	/** Executed property deletes projected to compiler-authorized state paths. */
+	deletions?: string[];
 	contexts?: Record<string, unknown>;
 	value?: unknown;
 	html?: string;
@@ -117,6 +123,7 @@ export type ExactStreamEvent =
 			id: string;
 			opId?: string;
 			value: unknown;
+			statePaths?: string[];
 	  }
 	| {
 			event: 'mutations';
@@ -182,3 +189,11 @@ export function isSafeDomPatchProperty(name: string): boolean {
 }
 
 export type { ExactCollectionMutation } from '../component-contracts.js';
+
+const arrayCompletionVersion: NonNullable<ExactInvocationRequest['arrayCompletion']> = 4;
+
+/** Rejects standalone generated helper/provider skew before native work. */
+export function assertArrayCompletionVersion(version: number): void {
+	if (version !== arrayCompletionVersion)
+		throw new TypeError('Unsupported Array completion ABI. Rebuild matching eXact providers.');
+}

@@ -27,13 +27,12 @@ export {
 	type ExactServerFrame
 } from '../component-abi/server.js';
 export {
-	createCompiledComponentReceipt,
-	readCompiledComponentReceipt,
+	createCompiledComponentInputReceipt,
 	withCompiledComponentReceiptUpdate,
 	withTransparentComponentUpdateOwner,
 	withoutCompiledComponentReceiptEnhancement,
 	type ExactComponentReceipt,
-	type ExactComponentReceiptData,
+	type ExactComponentInputRecipe,
 	type ExactComponentReceiptUpdate
 } from '../component-abi/receipt.js';
 export {
@@ -74,6 +73,7 @@ export {
 	createCompiledTargetReceipt,
 	createCompiledSuppliedTargetReceipt,
 	createCompiledTargetContributions,
+	withCompiledTargetPresentation,
 	type ExactTargetContribution,
 	readCompiledTargetReceipt,
 	type ExactTargetReceipt,
@@ -112,3 +112,24 @@ export {
 	type ExactServerSlotReceipt,
 	type ExactServerSlotReceiptData
 } from '../component-abi/server-structure-receipts.js';
+
+export {
+	inspectComponentInput,
+	redeemComponentInput,
+	redeemDirectServerComponentInput,
+	componentInputRecipe,
+	exactComponentInputsOperationV6,
+	assertComponentOperationProvider,
+	isComponentInputIncompatibility,
+	rethrowComponentInputFailure,
+	type ExactAdmittedComponentInput,
+	type ExactComponentChildrenInput,
+	type ExactComponentInputProvider,
+	type ExactComponentInputsOperationTarget
+} from '../component-abi/receipt.js';
+
+export {
+	compiledElementIdentity,
+	physicalElementIdentity,
+	isReservedElementIdentityName
+} from '../component-abi/element-identity.js';

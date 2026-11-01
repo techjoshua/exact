@@ -18,6 +18,11 @@ func functionTaskCollectionReceiver(node, component *ast.Node, source *ast.Sourc
 	if !ok || len(path) == 0 {
 		return nil
 	}
+	return functionTaskStatePrefixType(node, component, source, typeChecker, bindings, path)
+}
+
+// functionTaskStatePrefixType reuses the policy-owned component receiver for exact prefix facts.
+func functionTaskStatePrefixType(node, component *ast.Node, source *ast.SourceFile, typeChecker *checker.Checker, bindings externalImportBindings, path []string) *checker.Type {
 	owned := false
 	for current := node.Parent; current != nil && current != component; current = current.Parent {
 		if ast.IsFunctionDeclaration(current) || ast.IsFunctionExpression(current) || ast.IsMethodDeclaration(current) {
@@ -49,7 +54,13 @@ func functionTaskCollectionReceiver(node, component *ast.Node, source *ast.Sourc
 				}
 				value = indexed
 			} else {
-				value = typeChecker.GetTypeOfPropertyOfType(value, segment)
+				property := typeChecker.GetTypeOfPropertyOfType(value, segment)
+				if property == nil {
+					if _, numeric := sourceArrayIndex(segment); numeric {
+						property = typeChecker.GetNumberIndexType(value)
+					}
+				}
+				value = property
 			}
 		}
 		if value != nil {

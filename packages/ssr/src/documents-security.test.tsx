@@ -225,14 +225,14 @@ describe('@exactjs/ssr documents-security', () => {
 	it('encodes unsafe keyed marker values without collisions', async () => {
 		const first = await renderKeyedListSnapshot({
 			listId: 'list',
-			items: ['ab', 'a--b'],
+			items: ['', '~', 'ab', 'a--b', '~612d2d62'],
 			key: (value) => value,
 			render: (value) => createOperation('p', null, value)
 		});
 		expect(first.items[0]!.html).not.toBe(first.items[1]!.html);
 		expect(
 			parseKeyedListSnapshotHtml('list', first.innerHtml)?.items.map((item) => item.key)
-		).toEqual(['ab', 'a--b']);
+		).toEqual(['', '~', 'ab', 'a--b', '~612d2d62']);
 	});
 
 	it('streams document render events', async () => {

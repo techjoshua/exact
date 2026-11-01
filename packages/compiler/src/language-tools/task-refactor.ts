@@ -1,3 +1,5 @@
+import { selectsRange } from './source-ranges.js';
+import { sourceEntities } from './source-entity-traversal.js';
 import type {
 	ExactRefactorPlan,
 	ExactRefactorRequest,
@@ -37,23 +39,23 @@ export function planExactTaskRefactor(
 				? { start: contextToken + 'TaskContext'.length, text: `.${placement}()` }
 				: undefined;
 		if (!token) return undefined;
-		return Object.freeze({
+		return {
 			title: `Make ${placement} placement explicit`,
 			semanticChange: 'none',
 			explanation: `Adds the compiler-validated ${placement} facet without changing normalized placement.`,
-			edits: Object.freeze([
-				Object.freeze({
+			edits: [
+				{
 					filename: request.filename,
-					range: Object.freeze({ start: token.start, end: token.start }),
+					range: { start: token.start, end: token.start },
 					newText: token.text
-				})
-			]),
-			expected: Object.freeze({
+				}
+			],
+			expected: {
 				before: taskSummary(entity.classification),
 				after: `${taskSummary(entity.classification)} (explicit placement)`,
-				preserved: Object.freeze(preservedSemantics)
-			})
-		});
+				preserved: [...preservedSemantics]
+			}
+		};
 	}
 	return undefined;
 }
@@ -92,24 +94,22 @@ function inferredToExplicit(
 		`${indentation}\t${callbackBody}\n${indentation}};\n` +
 		`${indentation}${functionName}(${dependencies.join(', ')});`;
 	const edits = [
-		Object.freeze({
+		{
 			filename: request.filename,
 			range,
 			newText: replacement
-		})
+		}
 	];
 	if (
 		!/\bimport\s+(?:type\s+)?\{[^}]*\bTaskContext\b[^}]*\}\s+from\s+['"]@exactjs\/core['"]/.test(
 			source
 		)
 	)
-		edits.push(
-			Object.freeze({
-				filename: request.filename,
-				range: Object.freeze({ start: 0, end: 0 }),
-				newText: "import { TaskContext } from '@exactjs/core';\n"
-			})
-		);
+		edits.push({
+			filename: request.filename,
+			range: { start: 0, end: 0 },
+			newText: "import { TaskContext } from '@exactjs/core';\n"
+		});
 	const componentRange = componentFunctionRange(source, range);
 	if (
 		componentRange &&
@@ -117,26 +117,24 @@ function inferredToExplicit(
 	) {
 		const asyncRange = asyncModifierRange(source, componentRange);
 		if (asyncRange)
-			edits.push(
-				Object.freeze({
-					filename: request.filename,
-					range: asyncRange,
-					newText: ''
-				})
-			);
+			edits.push({
+				filename: request.filename,
+				range: asyncRange,
+				newText: ''
+			});
 	}
-	return Object.freeze({
+	return {
 		title: 'Author inferred task policy',
 		semanticChange: 'none',
 		explanation:
 			'Expresses the compiler-normalized task policy and dependency snapshots explicitly. The service reanalyzes the proposed source before returning this plan.',
-		edits: Object.freeze(edits),
-		expected: Object.freeze({
+		edits: edits,
+		expected: {
 			before: taskSummary(classification),
 			after: taskSummary({ ...classification, origin: 'explicit' }),
-			preserved: Object.freeze(preservedSemantics)
-		})
-	});
+			preserved: [...preservedSemantics]
+		}
+	};
 }
 
 function explicitToInferred(
@@ -173,36 +171,34 @@ function explicitToInferred(
 	const indentation = parsed.indentation;
 	const replacement = `${indentation}${body}`;
 	const edits = [
-		Object.freeze({
+		{
 			filename: request.filename,
 			range: parsed.range,
 			newText: replacement
-		})
+		}
 	];
 	const componentRange = componentFunctionRange(source, parsed.range);
 	if (componentRange && !asyncModifierRange(source, componentRange)) {
 		const functionIndex = source.indexOf('function', componentRange.start);
 		if (functionIndex >= 0 && functionIndex < range.start)
-			edits.push(
-				Object.freeze({
-					filename: request.filename,
-					range: Object.freeze({ start: functionIndex, end: functionIndex }),
-					newText: 'async '
-				})
-			);
+			edits.push({
+				filename: request.filename,
+				range: { start: functionIndex, end: functionIndex },
+				newText: 'async '
+			});
 	}
-	return Object.freeze({
+	return {
 		title: 'Use inferred task policy',
 		semanticChange: 'none',
 		explanation:
 			'Restores concise awaited component source only for a blocking, resource-free task whose dependencies and signal use are reversible.',
-		edits: Object.freeze(edits),
-		expected: Object.freeze({
+		edits: edits,
+		expected: {
 			before: taskSummary(classification),
 			after: taskSummary({ ...classification, origin: 'inferred' }),
-			preserved: Object.freeze(preservedSemantics)
-		})
-	});
+			preserved: [...preservedSemantics]
+		}
+	};
 }
 
 function inspectedTaskAt(
@@ -211,15 +207,13 @@ function inspectedTaskAt(
 	requestKind: ExactRefactorRequest['kind']
 ): ExactSourceEntity | undefined {
 	const candidates: ExactSourceEntity[] = [];
-	const visit = (entity: ExactSourceEntity): void => {
+	for (const entity of sourceEntities(inspection.components)) {
 		if (
 			(entity.kind === 'inferred-task' || entity.kind === 'explicit-task') &&
-			overlaps(entity.range, range)
+			selectsRange(entity.range, range)
 		)
 			candidates.push(entity);
-		for (const child of entity.children) visit(child);
-	};
-	for (const component of inspection.components) visit(component);
+	}
 	const preferredKind =
 		requestKind === 'convert-to-inferred-task'
 			? 'explicit-task'
@@ -320,7 +314,7 @@ function componentFunctionRange(
 	const bodyStart = source.indexOf('{', parametersEnd);
 	const bodyEnd = findMatching(source, bodyStart, '{', '}');
 	if (bodyStart < 0 || bodyEnd === undefined || bodyEnd < taskRange.end) return undefined;
-	return Object.freeze({ start: functionStart, end: bodyEnd + 1 });
+	return { start: functionStart, end: bodyEnd + 1 };
 }
 
 function asyncModifierRange(
@@ -330,10 +324,10 @@ function asyncModifierRange(
 	const prefix = source.slice(componentRange.start, componentRange.start + 40);
 	const match = /\basync\s+(?=function\b)/.exec(prefix);
 	return match
-		? Object.freeze({
+		? {
 				start: componentRange.start + match.index,
 				end: componentRange.start + match.index + match[0].length
-			})
+			}
 		: undefined;
 }
 
@@ -343,10 +337,6 @@ function countInferredAwaits(source: string): number {
 
 function taskSummary(classification: ExactTaskClassification): string {
 	return `${classification.origin} ${classification.readiness} ${classification.placement} task`;
-}
-
-function overlaps(left: ExactSourceRange, right: ExactSourceRange): boolean {
-	return left.start <= right.end && right.start <= left.end;
 }
 
 const preservedSemantics = [

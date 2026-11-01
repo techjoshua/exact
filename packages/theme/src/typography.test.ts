@@ -20,12 +20,12 @@ describe('partial typography sources', () => {
 		});
 		expect(
 			resolveTheme({ source: { typography: 'inherit' }, parent, environment }).source.typography
-		).toBe(parent.source.typography);
+		).toEqual(parent.source.typography);
 		expect(
 			resolveTheme({ source: { typography: 'system' }, parent, environment }).source.typography
 				.baseSizeRem
 		).toBe(1);
-		expect(Object.isFrozen(child.source.typography)).toBe(true);
+		expect(Object.isFrozen(child.source.typography)).toBe(false);
 	});
 
 	it('validates authored fields after inheritance and does not trust an authored id', () => {
@@ -59,4 +59,21 @@ it('inherits every omitted source setting from its parent', () => {
 	const child = resolveTheme({ source: {}, parent, environment });
 	expect(child.source).toEqual(parent.source);
 	expect(child.fingerprint).toBe(parent.fingerprint);
+});
+
+it('captures custom typography leaves once before inheritance and validation', () => {
+	let reads = 0;
+	const theme = resolveTheme({
+		source: {
+			typography: {
+				get body() {
+					reads++;
+					return reads === 1 ? 'serif' : 'serif; color:red';
+				}
+			}
+		},
+		environment
+	});
+	expect(reads).toBe(1);
+	expect(theme.source.typography.body).toBe('serif');
 });

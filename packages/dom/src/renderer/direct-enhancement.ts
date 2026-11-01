@@ -1,3 +1,4 @@
+import { readClientComponentInput } from './component-input-admission.js';
 import {
 	type AnyComponentInstance,
 	type Child,
@@ -6,7 +7,6 @@ import {
 } from '@exactjs/core';
 import { readRenderProgramReceipt } from '@exactjs/core/runtime/render-operations';
 import {
-	readCompiledComponentReceipt,
 	readCompiledFragmentReceipt,
 	readCompiledIntrinsicReceipt
 } from '@exactjs/core/runtime/component-operations';
@@ -115,7 +115,7 @@ function isDirectTarget(operation: Child): boolean {
 /** Finds a retained authored operation without interpreting its rendered DOM shape. */
 export function findMountedOperation(mounted: Mounted, operation: Child): Mounted | undefined {
 	if (mounted.operation === operation) return mounted;
-	const component = readCompiledComponentReceipt(operation);
+	const component = readClientComponentInput(operation);
 	const intrinsic = readCompiledIntrinsicReceipt(operation);
 	const fragment = readCompiledFragmentReceipt(operation);
 	const program = readRenderProgramReceipt(operation);

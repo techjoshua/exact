@@ -3,7 +3,7 @@ import path from 'node:path';
 import { writeFile, readFile } from 'node:fs/promises';
 import { expect, it, onTestFinished, vi } from 'vitest';
 import type { AnyComponentFunction } from '@exactjs/core';
-import { createCompiledComponentReceipt as receipt } from '@exactjs/core/runtime/component-operations';
+import { createCompiledComponentInputReceipt as receipt } from '@exactjs/core/runtime/component-operations';
 import { renderToHydratableString } from '@exactjs/ssr';
 import { createExactClient, readExactHydrationConfig } from '@exactjs/hydrate';
 import type { ClientIslandRegistry, ClientIslandLoader } from '@exactjs/hydrate';
@@ -12,7 +12,7 @@ import {
 	createExactArtifactGraph,
 	createExactHydrationRegistrationModule
 } from '../index.js';
-import { createTestWorkspace } from '../test-support/workspace.js';
+import { createCompilerTestWorkspace, repositoryPath } from '../test-support/workspace.js';
 import { importArtifact } from '../test-support/import-artifact.js';
 import {
 	partitionIslandSource,
@@ -23,15 +23,14 @@ import {
 	verifyPartitionIslands,
 	verifyPartitionIslandsDisposed
 } from '../../../../framework-adapters/test-support/verify-partition-islands.mjs';
-
 it('preserves activation, event ownership and distinct snapshot paths through emitted islands', async () => {
-	const root = await createTestWorkspace('.exact-partition-contracts-', process.cwd());
+	const root = await createCompilerTestWorkspace('.exact-partition-contracts-', process.cwd());
 	const entry = path.join(root, 'page.tsx');
 	const outDir = path.join(root, 'generated');
 	await writeFile(
 		path.join(root, 'target-attribute-ownership.tsx'),
 		await readFile(
-			path.resolve(
+			repositoryPath(
 				'packages/component-composition-corpus/src/test-support/target-attribute-ownership.fixtures.tsx'
 			)
 		)
@@ -59,7 +58,9 @@ export function Page(){return()=> <main>${partitionIslandInstances}</main>;}`
 		path.join(root, 'server.mjs')
 	);
 	const registration = (await importArtifact(registryFile, path.join(root, 'registration.mjs')))
-		.exactHydrationRegistration as { islands: ClientIslandRegistry };
+		.exactHydrationRegistration as {
+		islands: ClientIslandRegistry;
+	};
 	const loaders = Object.fromEntries(
 		Object.entries(registration.islands).map(([name, entry]) => {
 			const loader = entry as ClientIslandLoader;

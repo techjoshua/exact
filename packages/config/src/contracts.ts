@@ -101,8 +101,16 @@ export type ExactComponentLibraryTrustConfig = Readonly<{
 	unauthorizedOptionalEnhancements?: 'error' | 'exclude';
 }>;
 
+/** Advisory compiler analysis reporting. Thresholds never limit analysis. */
+export interface ExactAnalysisOptions {
+	/** Dimensionless estimated cost per root query. False disables the warning. Default 4096. */
+	readonly estimatedCostWarningThreshold?: number | false;
+}
+
 /** Configures exact. */
 export interface ExactConfig {
+	/** Advisory analysis policy, shared by build and language tooling. */
+	analysis?: ExactAnalysisOptions;
 	pluginDiscovery?: ExactPluginDiscoveryConfig;
 	/** Authoritative build-time policy for component code that can execute on the server. */
 	componentLibraries?: ExactComponentLibraryTrustConfig;

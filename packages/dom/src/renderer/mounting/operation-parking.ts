@@ -1,10 +1,10 @@
+import { readClientComponentInput } from '../component-input-admission.js';
 import type { AnyComponentInstance, Child } from '@exactjs/core';
 import {
 	readRenderProgramReceipt,
 	reparentComponentInstance
 } from '@exactjs/core/runtime/render-operations';
 import {
-	readCompiledComponentReceipt,
 	readCompiledFragmentReceipt,
 	readCompiledIntrinsicReceipt
 } from '@exactjs/core/runtime/component-operations';
@@ -23,12 +23,11 @@ export function takeParkedOperation(
 	let parkedKey: Child | undefined = value;
 	let candidates = mounts?.get(value);
 	if (!candidates?.length) {
-		const receipt = readCompiledComponentReceipt(value);
+		const receipt = readClientComponentInput(value);
 		if (receipt && mounts) {
 			for (const [candidateKey, candidateMounts] of mounts) {
 				const candidate =
-					readCompiledComponentReceipt(candidateKey) ??
-					candidateMounts[0]?.mounted.componentReceipt;
+					readClientComponentInput(candidateKey) ?? candidateMounts[0]?.mounted.componentReceipt;
 				if (
 					candidate &&
 					candidate.contract.artifact === receipt.contract.artifact &&
@@ -48,7 +47,7 @@ export function takeParkedOperation(
 	root.replacementParking?.commits.push(() => {
 		transferEffectScope(parked.mounted.scope, parentScope);
 		parked.mounted.operation = value;
-		const component = readCompiledComponentReceipt(value);
+		const component = readClientComponentInput(value);
 		if (component) {
 			if (parked.mounted.instance) {
 				reparentComponentInstance(parked.mounted.instance, parentInstance);

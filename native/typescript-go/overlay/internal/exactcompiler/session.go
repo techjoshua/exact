@@ -37,46 +37,13 @@ func NewSession() *Session {
 func (s *Session) Execute(request Request) Response {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if request.Kind == "executable-slots" {
+		return executableSyntaxSlots(request, newSessionResponse(request.ID), time.Now())
+	}
 	defer s.pruneAuthoredValidations()
 	started := time.Now()
 	response := s.executeLocked(request)
-	// Task captures also transform authored type context without mutating state.
-	needsAuthoredProof := len(response.Analysis.StateWrites) != 0 || len(response.Analysis.Tasks) != 0 || len(response.Analysis.ValueBindings) != 0
-	for _, element := range response.Analysis.JSX {
-		if !jsxIntrinsic(element.Tag) {
-			needsAuthoredProof = true
-			break
-		}
-	}
-	if response.Error == "" && request.Kind == "compile" && request.Target != TargetDefault && request.Diagnostics == "semantic" && needsAuthoredProof {
-		checking := request
-		checking.Kind = "check"
-		checking.Target = TargetDefault
-		checking.ModuleRewrite = nil
-		checking.SourceMap = false
-		checked := s.validateAuthored(checking)
-		if checked.Error != "" {
-			response.Error = checked.Error
-		}
-		for _, diagnostic := range checked.Diagnostics {
-			// Neutral validation supplies authored TypeScript proof. Framework
-			// contracts are already checked for the requested executable target.
-			if strings.HasPrefix(diagnostic.Code, "EXACT") {
-				continue
-			}
-
-			duplicate := false
-			for _, existing := range response.Diagnostics {
-				if existing.Code == diagnostic.Code && existing.Start == diagnostic.Start && existing.Message == diagnostic.Message {
-					duplicate = true
-					break
-				}
-			}
-			if !duplicate {
-				response.Diagnostics = append(response.Diagnostics, diagnostic)
-			}
-		}
-		response.Timings.CheckMicroseconds += checked.Timings.TotalMicroseconds
+	if s.checkExecutableAuthoredTypes(request, &response) {
 		response.Timings.TotalMicroseconds = time.Since(started).Microseconds()
 	}
 	return response
@@ -85,22 +52,21 @@ func (s *Session) Execute(request Request) Response {
 // executeLocked also serves the framework-aware checking projection of executable mutations.
 // It shares the retained authored program and never recursively acquires the session mutex.
 func (s *Session) executeLocked(request Request) Response {
+	return s.executeProjection(request, nil)
+}
+
+// executeProjection separates private authored checking from public requests. The
+// requested executable has already passed framework admission before a private
+// check enters here. Its neutral task view must not impose transport admission.
+func (s *Session) executeProjection(request Request, authored *authoredCheckProgress) (response Response) {
 	s.validationProgram = nil
 	requestStarted := time.Now()
 
-	response := Response{
-		ID:          request.ID,
-		Diagnostics: []Diagnostic{},
-		Analysis: NewAnalysis(
-			nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
-			nil, nil, nil, nil, PartitionPlan{}, nil,
-			newPolicyAnalysis(),
-			CapabilityRequirements{},
-			nil,
-			SemanticGraph{},
-		),
+	response = newSessionResponse(request.ID)
+	if _, _, err := request.Analysis.warningThreshold(); err != nil {
+		response.Error = err.Error()
+		return response
 	}
-	NewResponseVersionFields(&response)
 	if request.Kind == "version" {
 		return response
 	}
@@ -114,6 +80,7 @@ func (s *Session) executeLocked(request Request) Response {
 	if request.Kind == "reset" {
 		s.projects = make(map[string]*projectState)
 		s.authoredValidations = nil
+		s.generatedValidations = nil
 		return response
 	}
 	if request.Kind == "synchronize" {
@@ -236,6 +203,7 @@ func (s *Session) executeLocked(request Request) Response {
 		}
 		s.projects[projectKey] = project
 	}
+	defer func() { s.appendAnalysisCost(request, project, &response) }()
 	countersBefore := project.counters
 	generation, err := project.advance(context.Background(), fileName, request.Source)
 	response.Timings.ProgramMicroseconds = time.Since(programStarted).Microseconds()
@@ -244,6 +212,10 @@ func (s *Session) executeLocked(request Request) Response {
 		return response
 	}
 	defer generation.release()
+	if project.executableSelection != nil && request.Target != TargetDefault && request.Target != project.executableSelection.snapshot.Target {
+		response.Error = "executable selection target does not match request"
+		return response
+	}
 	if request.Kind != "extension" && request.Kind != "diagnose" {
 		if edits := planNativePropCasing(generation.sourceFile, generation.checker); len(edits) != 0 {
 			normalization.apply(edits)
@@ -272,6 +244,7 @@ func (s *Session) executeLocked(request Request) Response {
 	s.pruneAuthoredValidations()
 	response.CacheHit = generation.reused
 	sourceFile := generation.sourceFile
+	response.ExecutableSlots = executableSlotFacts(sourceFile)
 	if request.Kind == "extension" {
 		extensionStarted := time.Now()
 		extensionRequest := request
@@ -290,6 +263,27 @@ func (s *Session) executeLocked(request Request) Response {
 	}
 	if request.Kind == "diagnose" {
 		checkStarted := time.Now()
+		if project.executionRoots {
+			// Reuse the existing isolated validation universe. Watch diagnostics still
+			// cover authored project roots, without promoting synchronized execution roots.
+			isolated, diagnostics, err := newProjectStateWithSources(request, fileName, project.fs.files)
+			for _, diagnostic := range diagnostics {
+				response.Diagnostics = append(response.Diagnostics, projectDiagnostic(diagnostic))
+			}
+			if err != nil {
+				response.Error = err.Error()
+				return response
+			}
+			if isolated == nil {
+				return response
+			}
+			generation, err = isolated.advance(context.Background(), fileName, request.Source)
+			if err != nil {
+				response.Error = err.Error()
+				return response
+			}
+			defer generation.release()
+		}
 		for _, projectSource := range generation.program.GetSourceFiles() {
 			// Match the program-level TypeScript policy before using the retained checker.
 			if isLoweredWatchTarget(projectSource.FileName()) || generation.program.SkipTypeChecking(projectSource, false) {
@@ -313,7 +307,7 @@ func (s *Session) executeLocked(request Request) Response {
 			response.Code = authoredSource
 			if request.Diagnostics == "semantic" {
 				validationStarted := time.Now()
-				validated, validationErr := s.validateGeneratedCode(request, fileName, response.Code, project.fs)
+				validated, validationErr := s.validateGeneratedCode(request, fileName, response.Code, project.fs, generatedValidationHelpers{})
 				response.Timings.CheckMicroseconds += time.Since(validationStarted).Microseconds()
 				if validationErr != nil {
 					response.Error = fmt.Sprintf(
@@ -321,6 +315,9 @@ func (s *Session) executeLocked(request Request) Response {
 						validationErr,
 					)
 					return response
+				}
+				if authored != nil {
+					authored.validated = true
 				}
 				response.Diagnostics = append(response.Diagnostics, validated...)
 			}
@@ -331,9 +328,26 @@ func (s *Session) executeLocked(request Request) Response {
 		response.Timings.TotalMicroseconds = time.Since(requestStarted).Microseconds()
 		return response
 	}
+	prefixCandidate := reserveClosedPrefixCandidate(sourceFile, project.program, generation.checker, generation, request)
+	defer prefixCandidate.release()
 	analysisStarted := time.Now()
 	directives := collectDirectives(sourceFile.Text())
 	imports := collectImports(sourceFile)
+	for index := range imports {
+		statement := nodeAtSpan(sourceFile.AsNode(), imports[index].Start, imports[index].Length)
+		var specifier *ast.Node
+		if statement != nil && ast.IsImportDeclaration(statement) {
+			specifier = statement.AsImportDeclaration().ModuleSpecifier
+		}
+		if statement != nil && ast.IsExportDeclaration(statement) {
+			specifier = statement.AsExportDeclaration().ModuleSpecifier
+		}
+		if specifier != nil && ast.IsStringLiteralLike(specifier) {
+			if resolved := project.program.GetResolvedModuleFromModuleSpecifier(sourceFile, specifier); resolved != nil && resolved.IsResolved() {
+				imports[index].ResolvedFile = resolved.ResolvedFileName
+			}
+		}
+	}
 	assets := analyzeAssets(sourceFile, generation.checker, request)
 	ensureProjectComponentCaches(project)
 	nodeIDs := projectComponentNodeIDs(project, sourceFile)
@@ -437,7 +451,9 @@ func (s *Session) executeLocked(request Request) Response {
 		componentBindings,
 		assets,
 		request.AssetRules,
+		prefixCandidate,
 	)
+	helperMutations := planHelperMutations(sourceFile, callables, generation.checker)
 	response.Timings.CallableMicroseconds = time.Since(callableStarted).Microseconds()
 	policyTaskStarted := time.Now()
 	capabilities, capabilityDiagnostics := collectCapabilityRequirements(
@@ -460,6 +476,7 @@ func (s *Session) executeLocked(request Request) Response {
 			sourceFile,
 			generation.checker,
 			tasks,
+			callables.owner,
 		)...,
 	)
 	attachNormalizedTaskOrigins(tasks, sourceFile, normalization)
@@ -470,6 +487,7 @@ func (s *Session) executeLocked(request Request) Response {
 		stateReads,
 		tasks,
 		project.completedPolicyTypes(generation.checker),
+		callables.owner,
 	)
 	assignTaskIDs(tasks, components, request.ID)
 	tasks = applyTaskPolicies(tasks, policy)
@@ -517,8 +535,8 @@ func (s *Session) executeLocked(request Request) Response {
 		sourceFile,
 		generation.checker,
 		components,
-		callables.summaries,
 		policy.graph,
+		callables.owner,
 	)
 	semanticGraph := collectSemanticGraph(
 		sourceFile,
@@ -624,6 +642,7 @@ func (s *Session) executeLocked(request Request) Response {
 		semanticGraph,
 	)
 	response.Diagnostics = append(response.Diagnostics, validateCoreDirectives(directives)...)
+	response.Diagnostics = append(response.Diagnostics, detachedServerTaskDiagnostics(sourceFile, components, callables, analysisFacts.imports, directives)...)
 	response.Diagnostics = append(
 		response.Diagnostics,
 		moduleInitializerDiagnostics(
@@ -634,10 +653,12 @@ func (s *Session) executeLocked(request Request) Response {
 			hostOwnedModule,
 		)...,
 	)
-	response.Diagnostics = append(
-		response.Diagnostics,
-		taskDiagnostics(sourceFile, generation.checker, tasks, stateWrites, request.Target)...,
-	)
+	if authored == nil {
+		response.Diagnostics = append(
+			response.Diagnostics,
+			taskDiagnostics(sourceFile, generation.checker, tasks, stateWrites, request.Target)...,
+		)
+	}
 	response.Diagnostics = append(
 		response.Diagnostics,
 		setupSnapshotCaptureDiagnostics(
@@ -663,12 +684,8 @@ func (s *Session) executeLocked(request Request) Response {
 			callables,
 			components,
 			tasks,
-			stateAliases,
-			stateReads,
-			stateWrites,
-			reactiveBindings,
 			request.Target,
-			nodeIDs,
+			clientIslands,
 		)...,
 	)
 	response.Diagnostics = append(response.Diagnostics, formBindingDiagnostics...)
@@ -683,7 +700,7 @@ func (s *Session) executeLocked(request Request) Response {
 	response.Diagnostics = append(response.Diagnostics, enhancementImports.diagnostics...)
 	response.Diagnostics = append(response.Diagnostics, timeDiagnostics(sourceFile, generation.checker, enhancementImports)...)
 	response.Diagnostics = append(response.Diagnostics, stateWriteDiagnostics...)
-	response.Diagnostics = append(response.Diagnostics, taskHelperBoundaryDiagnostics(sourceFile, generation.checker, tasks, request.Target, analysisFacts)...)
+	response.Diagnostics = append(response.Diagnostics, taskHelperBoundaryDiagnostics(sourceFile, generation.checker, tasks, request.Target, analysisFacts, callables.owner)...)
 	response.Diagnostics = append(response.Diagnostics, policy.diagnostics...)
 	response.Diagnostics = append(response.Diagnostics, capabilityDiagnostics...)
 	response.Diagnostics = append(response.Diagnostics, assets.diagnostics...)
@@ -706,7 +723,7 @@ func (s *Session) executeLocked(request Request) Response {
 	// checking the authored tree here would reject expressions whose compiler-
 	// derived types (for example Secret<T> qualifications) are made explicit by
 	// native lowering.
-	if request.Diagnostics == "semantic" && request.Kind == "analyze" {
+	if request.Diagnostics == "semantic" && request.Kind == "analyze" && !project.executionRoots {
 		checkStarted := time.Now()
 		for _, diagnostic := range sourceFile.BindDiagnostics() {
 			response.Diagnostics = append(response.Diagnostics, projectDiagnostic(diagnostic))
@@ -719,6 +736,7 @@ func (s *Session) executeLocked(request Request) Response {
 		}
 		response.Timings.CheckMicroseconds = time.Since(checkStarted).Microseconds()
 	}
+	response.Analysis.HelperSources = helperMutations.sources
 	if request.Kind == "analyze" {
 		remapAuthoredLocations(&response, fileName, normalization, len(response.Diagnostics))
 		applySetupAssignmentExecutions(
@@ -736,10 +754,22 @@ func (s *Session) executeLocked(request Request) Response {
 	// temporarily reassigned by native transformation helpers. Restore the
 	// checker-owned tree before returning so the retained program and its
 	// project analyses remain valid for the next request.
-	defer ast.SetParentInChildren(sourceFile.AsNode())
+	defer func() {
+		restored := false
+		defer func() {
+			if !restored {
+				generation.abandon()
+			}
+		}()
+		ast.SetParentInChildren(sourceFile.AsNode())
+		restored = true
+	}()
 	emitContext := printer.NewEmitContext()
 	// Capture lexical module ownership before lowering can reparent shared source nodes.
-	omittedModuleValues := planModuleValuePruning(sourceFile, generation.checker, request.Target)
+	omittedModuleValues := planModuleValuePruning(sourceFile, generation.checker, request.Target, callables.owner)
+	// Lowering may reparent originals. Cached receipts remain readable, but
+	// newly demanded sources get no elision proof for the rest of this request.
+	generation.prepareImports = false
 	loweringStarted := time.Now()
 	secretQualifications := planSecretQualifications(policy.qualifications, generation.checker)
 	transformed, componentUpdates, componentInputUpdates, componentInputTaskIDs, componentRangeOutputs, artifactStructure, componentListOwners := lowerExactJSX(
@@ -747,6 +777,7 @@ func (s *Session) executeLocked(request Request) Response {
 		emitContext,
 		jsxLoweringPlan{
 			analysisFacts:        analysisFacts,
+			helperMutations:      helperMutations,
 			nodeIDs:              nodeIDs,
 			checking:             request.Kind == "check",
 			stateWrites:          stateWrites,
@@ -776,6 +807,7 @@ func (s *Session) executeLocked(request Request) Response {
 		components, continuations = omitComponentInputTaskTransitions(
 			components,
 			continuations,
+			tasks,
 			componentInputTaskIDs,
 		)
 	}
@@ -790,6 +822,7 @@ func (s *Session) executeLocked(request Request) Response {
 	// cannot make an authored render-helper reference invisible to import
 	// pruning.
 	targetImportUses := artifactRuntimeIdentifierUses(transformed)
+
 	transformed = lowerComponentContracts(
 		transformed,
 		emitContext,
@@ -867,7 +900,7 @@ func (s *Session) executeLocked(request Request) Response {
 			NewLine: core.NewLineKindLF,
 			Target:  core.ScriptTargetES2022,
 		},
-		printer.PrintHandlers{},
+		printer.PrintHandlers{OnBeforeEmitNode: islandSnapshotPrintObserver(clientIslands, emitContext)},
 		emitContext,
 	)
 	if request.SourceMap || request.Diagnostics == "semantic" {
@@ -901,12 +934,22 @@ func (s *Session) executeLocked(request Request) Response {
 	) + strings.Count(response.Code, "createExactFrameworkFixtureArtifact(")
 	response.Structure.RecordEmittedGenericNativeExecution(response.Code)
 	response.Timings.PrintMicroseconds = time.Since(printStarted).Microseconds()
+	if request.Target == TargetServer {
+		response.Diagnostics = append(response.Diagnostics, islandStateKeyDiagnostics(clientIslands)...)
+		if hasErrorDiagnostic(response.Diagnostics) {
+			response.Code = ""
+			response.SourceMap = nil
+			remapAuthoredLocations(&response, fileName, normalization, len(response.Diagnostics))
+			return response
+		}
+	}
 	validationStarted := time.Now()
 	generatedDiagnostics, validationErr := s.validateGeneratedCode(
 		request,
 		fileName,
 		response.Code,
 		project.fs,
+		generatedValidationHelpers{plan: helperMutations, callables: callables, checker: generation.checker, imports: imports},
 	)
 	response.Timings.CheckMicroseconds += time.Since(
 		validationStarted,
@@ -917,6 +960,9 @@ func (s *Session) executeLocked(request Request) Response {
 			validationErr,
 		)
 		return response
+	}
+	if authored != nil {
+		authored.validated = true
 	}
 	mapGeneratedDiagnostics(generatedDiagnostics, response.Code, fileName, response.SourceMap, normalization)
 	sourceDiagnosticCount := len(response.Diagnostics)

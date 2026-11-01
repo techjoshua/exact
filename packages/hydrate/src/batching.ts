@@ -1,8 +1,13 @@
+import type { ArrayResponseContext } from './response/json.js';
 import { ownPendingExactOperation } from './pending-operation.js';
 import type { ExactProgressObserver } from './response/progress.js';
 import { logFrameworkEvent, type Logger } from '@exactjs/core';
 import { headersCacheKey } from './config.js';
-import { invokeExact, invokeExactBatch } from './invocations.js';
+import {
+	invokePreparedExact,
+	invokePreparedExactBatch,
+	type PreparedExactState
+} from './invocations.js';
 import type {
 	ExactBatchQueue,
 	ExactInvocationRequest,
@@ -19,6 +24,8 @@ export function enqueueExactOperation(
 	_container: Element,
 	options: {
 		progress?: ExactProgressObserver;
+		arrayParser?: ArrayResponseContext;
+		preparedState?: PreparedExactState;
 		endpoint: string;
 		operation: ExactInvocationRequest;
 		fetch?: FetchLike;
@@ -61,6 +68,8 @@ export function enqueueExactOperation(
 			ownPendingExactOperation(
 				{
 					operation: options.operation,
+					arrayParser: options.arrayParser,
+					preparedState: options.preparedState,
 					progress: options.progress,
 					signal: options.signal,
 					onResponse: options.onResponse
@@ -89,7 +98,7 @@ async function flushExactBatchQueue(queue: ExactBatchQueue): Promise<void> {
 	if (!pending.length) return;
 	const active = pending.filter((item) => {
 		if (!item.signal?.aborted) return true;
-		item.reject(abortReason(item.signal));
+		item.reject(item.signal.reason);
 		return false;
 	});
 	if (!active.length) return;
@@ -98,19 +107,23 @@ async function flushExactBatchQueue(queue: ExactBatchQueue): Promise<void> {
 	try {
 		if (active.length === 1) {
 			try {
-				const result = await invokeExact({
-					endpoint: queue.endpoint,
-					...active[0]!.operation,
-					fetch: queue.fetch,
-					headers: queue.headers,
-					logger: queue.logger,
-					stream: queue.stream,
-					streamLimits: queue.streamLimits,
-					signal: active[0]!.signal,
-					progress: active[0]!.progress,
-					onResponse: active[0]!.onResponse
-				});
-				if (active[0]!.signal?.aborted) active[0]!.reject(abortReason(active[0]!.signal));
+				const result = await invokePreparedExact(
+					{
+						endpoint: queue.endpoint,
+						...active[0]!.operation,
+						arrayParser: active[0]!.arrayParser,
+						fetch: queue.fetch,
+						headers: queue.headers,
+						logger: queue.logger,
+						stream: queue.stream,
+						streamLimits: queue.streamLimits,
+						signal: active[0]!.signal,
+						progress: active[0]!.progress,
+						onResponse: active[0]!.onResponse
+					},
+					active[0]!.preparedState
+				);
+				if (active[0]!.signal?.aborted) active[0]!.reject(active[0]!.signal.reason);
 				else active[0]!.resolve(result);
 			} catch (error) {
 				active[0]!.reject(error);
@@ -120,25 +133,29 @@ async function flushExactBatchQueue(queue: ExactBatchQueue): Promise<void> {
 
 		const combined = abortWhenAllAbort(active.map((item) => item.signal));
 		try {
-			const results = await invokeExactBatch({
-				endpoint: queue.endpoint,
-				operations: active.map((item) => item.operation),
-				progress: active.some((item) => item.progress)
-					? active.map((item) => item.progress)
-					: undefined,
-				fetch: queue.fetch,
-				headers: queue.headers,
-				logger: queue.logger,
-				stream: queue.stream,
-				streamLimits: queue.streamLimits,
-				signal: combined.signal,
-				onResponse: (response) => {
-					for (const item of active) item.onResponse?.(response);
-				}
-			});
+			const results = await invokePreparedExactBatch(
+				{
+					endpoint: queue.endpoint,
+					operations: active.map((item) => item.operation),
+					arrayParsers: active.map((item) => item.arrayParser),
+					progress: active.some((item) => item.progress)
+						? active.map((item) => item.progress)
+						: undefined,
+					fetch: queue.fetch,
+					headers: queue.headers,
+					logger: queue.logger,
+					stream: queue.stream,
+					streamLimits: queue.streamLimits,
+					signal: combined.signal,
+					onResponse: (response) => {
+						for (const item of active) item.onResponse?.(response);
+					}
+				},
+				active.map((item) => item.preparedState)
+			);
 			active.forEach((item, index) => {
 				if (item.signal?.aborted) {
-					item.reject(abortReason(item.signal));
+					item.reject(item.signal.reason);
 					return;
 				}
 				const result = results[index];
@@ -198,8 +215,4 @@ function abortWhenAllAbort(signals: readonly (AbortSignal | undefined)[]): {
 			for (const signal of defined) signal.removeEventListener('abort', abort);
 		}
 	};
-}
-
-function abortReason(signal: AbortSignal): unknown {
-	return signal.reason ?? new DOMException('eXact request aborted', 'AbortError');
 }

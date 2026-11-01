@@ -1,3 +1,4 @@
+import { islandInputFormal } from '../../test-support/generated-contracts.js';
 import { describe, expect, it } from 'vitest';
 import { transformSync } from 'esbuild';
 import { transform } from '../../index.js';
@@ -45,7 +46,7 @@ describe('@exactjs/compiler: islands', () => {
 			serverComponents: true
 		});
 
-		expect(client).toContain('function Panel_ExactClient_1(this: any, props: any = {})');
+		islandInputFormal(client, 'Panel_ExactClient_1');
 		expect(client).toContain('export const Panel_ExactClient_1 = /* @__PURE__ */ (() =>');
 		expect(client).toContain('title: __exactIndexedExpression(this.state, 1)');
 		expect(client).toContain('__exactUpdateStateResult(this.state, 0');
@@ -292,7 +293,9 @@ describe('@exactjs/compiler: islands', () => {
 		expect(analyzeSource(finite, { filename: 'Panel.tsx' }).boundaries[0]?.activation?.mode).toBe(
 			'interaction'
 		);
-		expect(client).toContain('__exactReadState(this.state, 0) ? () =>');
+		expect(transformSync(client, { loader: 'ts' }).code).toContain(
+			'__exactReadState(this.state, 0) ? () =>'
+		);
 		const executable = transformSync(server, { loader: 'ts' }).code;
 		expect(executable).toContain('this.state.alternate ? "First" : "Second"');
 		expect(
@@ -316,7 +319,7 @@ describe('@exactjs/compiler: islands', () => {
 			serverComponents: true
 		});
 
-		expect(client).toContain(
+		expect(transformSync(client, { loader: 'ts' }).code).toContain(
 			'value: __exactExpression(() => __exactReadState(this.state, 0) ?? "")'
 		);
 		expect(client).toContain('__exactBindInput:');
@@ -430,7 +433,7 @@ describe('@exactjs/compiler: islands', () => {
 		});
 
 		expect(analysis.components[0]!.clientIslandCount).toBe(1);
-		expect(client).toContain('function Panel_ExactClient_1(this: any, props: any = {})');
+		islandInputFormal(client, 'Panel_ExactClient_1');
 		expect(client).toContain('export const Panel_ExactClient_1 = /* @__PURE__ */ (() =>');
 		expect(client).not.toContain('export function Panel_ExactClient_2');
 		expect(server).toContain('Panel_ExactClient_1');
@@ -476,7 +479,7 @@ describe('@exactjs/compiler: islands', () => {
 				kind: 'server-slot'
 			})
 		);
-		expect(client).toContain('function Panel_ExactClient_1(this: any, props: any = {})');
+		islandInputFormal(client, 'Panel_ExactClient_1');
 		expect(client).toContain('export const Panel_ExactClient_1 = /* @__PURE__ */ (() =>');
 		// Keep the authored client layout and lower only the server descendant to its own slot.
 		expect(client).toContain('__exactServerSlot(');

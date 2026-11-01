@@ -2,6 +2,7 @@ package exactcompiler
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 	"time"
 
@@ -12,9 +13,10 @@ import (
 )
 
 type synchronizedProjectSource struct {
-	fileName      string
-	source        string
-	normalization normalizedSource
+	fileName        string
+	source          string
+	normalization   normalizedSource
+	contentRevision string
 }
 
 // synchronizeProject installs a complete set of prepared overlays before any
@@ -36,7 +38,7 @@ func (s *Session) synchronizeProject(
 			response.Error = err.Error()
 			return response
 		}
-		prepared = append(prepared, synchronizedProjectSource{fileName: fileName, source: normalized.text, normalization: normalized})
+		prepared = append(prepared, synchronizedProjectSource{fileName: fileName, source: normalized.text, normalization: normalized, contentRevision: preparedContentRevision(source.Source)})
 	}
 	if request.ConfigFile == "" {
 		request.ConfigFile = nearestTypeScriptConfig(prepared[0].fileName)
@@ -60,13 +62,48 @@ func (s *Session) synchronizeProject(
 		if project == nil {
 			return response
 		}
-		s.projects[projectKey] = project
 	}
+	selection, err := prepareExecutableSelection(request, prepared, project)
+	if err != nil {
+		response.Error = err.Error()
+		return response
+	}
+	selectionChanged := !reflect.DeepEqual(project.executableSelection, selection)
+	if selectionChanged && project.initialized {
+		// Reparse configuration and drop obsolete execution roots as one selection generation.
+		// Resolver/config changes have no narrower proven invalidation boundary yet.
+		replacement, diagnostics, err := newProjectState(request, prepared[0].fileName)
+		for _, diagnostic := range diagnostics {
+			response.Diagnostics = append(response.Diagnostics, projectDiagnostic(diagnostic))
+		}
+		if err != nil {
+			response.Error = err.Error()
+			return response
+		}
+		if replacement == nil {
+			return response
+		}
+		replacement.counters = project.counters
+		replacement.selectionGeneration = project.selectionGeneration
+		project = replacement
+		s.authoredValidations = nil
+		s.generatedValidations = nil
+	}
+	project.executableSelection = selection
+	if selection != nil {
+		project.selectionGeneration = selection.snapshot.Generation
+	}
+	project.executionRoots = true
+
 	countersBefore := project.counters
 	programStarted := time.Now()
 	changed := project.synchronize(prepared)
+	s.projects[projectKey] = project
 	response.Counters = project.counters.since(countersBefore)
-	response.CacheHit = !changed
+	response.CacheHit = !changed && !selectionChanged
+	if selection != nil {
+		response.ExecutableSelection = &executableSelectionAcknowledgement{selection.snapshot.Generation, selection.snapshot.Revision, selection.snapshot.Target}
+	}
 	response.Timings.ProgramMicroseconds = time.Since(programStarted).Microseconds()
 	response.Timings.TotalMicroseconds = time.Since(requestStarted).Microseconds()
 	return response

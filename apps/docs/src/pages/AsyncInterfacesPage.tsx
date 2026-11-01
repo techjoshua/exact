@@ -220,7 +220,11 @@ export function AsyncInterfacesPage(this: Component<{}>) {
 					Parking is not unmounting. Use <code>this.onDeactivate()</code> and
 					<code>this.onActivate()</code> for reconnect behavior. Final ownership cleanup remains in
 					<code>this.onUnmount()</code>. Nested Activity boundaries retain their own authored mode,
-					and portal output parks with its logical owner.
+					and portal output parks with its logical owner. Removing a boundary releases its pending
+					readiness registrations and owned resources. Cleanup continues when one callback fails,
+					and failed server rendering preserves the original render error while releasing the
+					boundary. A publication failure reaches the owning error context and keeps the failed
+					Activity candidate detached. Replacing the failed boundary releases that candidate.
 				</p>
 			</section>
 			<section>

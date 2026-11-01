@@ -1,3 +1,5 @@
+import { captureAdoptionCurrent } from './receiving-lifetime.js';
+import { readClientComponentInput } from '../component-input-admission.js';
 import { type AnyComponentInstance, type Child } from '@exactjs/core';
 import {
 	createEffectScope,
@@ -10,7 +12,6 @@ import {
 	readDoctype,
 	readChildRangeReceipt,
 	readCompiledActivityReceipt,
-	readCompiledComponentReceipt,
 	readCompiledFragmentReceipt,
 	readCompiledIntrinsicReceipt,
 	readCompiledKeyedChildReceipt,
@@ -20,7 +21,7 @@ import {
 	readUnsafeHtmlReceipt
 } from '@exactjs/core/runtime/component-operations';
 import type { Mounted, Root } from '../../types.js';
-import { unmountMany } from '../teardown.js';
+import { unmountMany, releaseUnpublishedAdoption } from '../teardown.js';
 import { adoptComponentReceipt } from './component-receipt.js';
 import {
 	adoptChildRangeReceipt,
@@ -35,7 +36,7 @@ import { adoptCompiledRenderProgram } from '../render-program.js';
 import { countDomWork, withTreeDepth } from '../limits.js';
 import { domEnhancementCapability } from '../enhancement-capability.js';
 import { snapshotChildNodes } from './child-nodes.js';
-import { adoptScalarTextChildren } from './scalar-text-run.js';
+import { adoptScalarTextChildren, scalarTextAcquisition } from './scalar-text-run.js';
 
 /** Finds the first direct-child exact marker and its matching closing comment, without mutating DOM. */
 export function boundaryMarkers(container: Element): { start: Comment; end: Comment } | undefined {
@@ -141,40 +142,84 @@ export function adoptStaticChildrenRange(
 	physicalParent?: Node
 ): { mounts: Mounted[]; next: number } | undefined {
 	const mounts: Mounted[] = [];
+	const assertCurrent = captureAdoptionCurrent(root, parentScope);
 	let cursor = start;
-	for (let childIndex = 0; childIndex < children.length; childIndex++) {
-		const child = children[childIndex]!;
-		if (isDocumentOutput(child) || readDoctype(child)) continue;
-		if (child === null || child === undefined || child === false || child === true) continue;
-		// Parsed HTML has no node for a literal empty string. A surrounding dynamic range
-		// owns future insertions; only reactive scalar objects need their own text binding.
-		if (
-			child === '' &&
-			(cursor === end ||
-				nodes[cursor]?.nodeType !== Node.TEXT_NODE ||
-				nodes[cursor]?.textContent !== '')
-		)
-			continue;
-		const enhanced = domEnhancementCapability()?.adopt?.(
-			root,
-			child,
-			nodes,
-			cursor,
-			parentInstance,
-			parentScope,
-			end
-		);
-		if (enhanced) {
-			mounts.push(enhanced.mounted);
-			cursor = enhanced.next;
-			continue;
-		}
-		const keyedReceipt = readCompiledKeyedChildReceipt(child);
-		if (keyedReceipt) {
-			const opening = nodes[cursor];
-			// A prepared program owns exactly one intrinsic root. Its element bounds the item,
-			// while the keyed receipt retains the authored key and the item's effect scope.
-			if (opening instanceof Element && readRenderProgramReceipt(keyedReceipt.value)) {
+	let acquiring: Mounted | undefined;
+	try {
+		for (let childIndex = 0; childIndex < children.length; childIndex++) {
+			const child = children[childIndex]!;
+			if (isDocumentOutput(child) || readDoctype(child)) continue;
+			if (child === null || child === undefined || child === false || child === true) continue;
+			// Parsed HTML has no node for a literal empty string. A surrounding dynamic range
+			// owns future insertions; only reactive scalar objects need their own text binding.
+			if (
+				child === '' &&
+				root.componentInputAttempt?.acquisitionIntent !== 'render-update' &&
+				(cursor === end ||
+					nodes[cursor]?.nodeType !== Node.TEXT_NODE ||
+					nodes[cursor]?.textContent !== '')
+			)
+				continue;
+			const enhanced = domEnhancementCapability()?.adopt?.(
+				root,
+				child,
+				nodes,
+				cursor,
+				parentInstance,
+				parentScope,
+				end
+			);
+			acquiring = enhanced?.mounted;
+			assertCurrent();
+			if (enhanced) {
+				mounts.push(enhanced.mounted);
+				acquiring = undefined;
+				cursor = enhanced.next;
+				continue;
+			}
+			const keyedReceipt = readCompiledKeyedChildReceipt(child);
+			if (keyedReceipt) {
+				const opening = nodes[cursor];
+				// A prepared program owns exactly one intrinsic root. Its element bounds the item,
+				// while the keyed receipt retains the authored key and the item's effect scope.
+				if (opening instanceof Element && readRenderProgramReceipt(keyedReceipt.value)) {
+					const itemScope = keyedReceipt.ownerScope ?? createEffectScope(parentScope);
+					if (keyedReceipt.ownerScope) transferEffectScope(itemScope, parentScope);
+					const adopted = adoptStaticChildrenRange(
+						root,
+						[keyedReceipt.value as Child],
+						nodes,
+						parentInstance,
+						itemScope,
+						true,
+						cursor,
+						cursor + 1
+					);
+					if (!adopted || adopted.mounts.length !== 1) {
+						itemScope.stop();
+						unmountMany(mounts.splice(0));
+						return undefined;
+					}
+					mounts.push({
+						operation: child,
+						operationKey: keyedReceipt.key,
+						range: 'item',
+						dom: opening,
+						scope: itemScope,
+						children: adopted.mounts
+					});
+					cursor++;
+					continue;
+				}
+				if (!(opening instanceof Comment) || !opening.data.startsWith('i:')) {
+					unmountMany(mounts.splice(0));
+					return undefined;
+				}
+				const closing = closingMarkerIndex(nodes, cursor, opening.data, end);
+				if (closing < 0) {
+					unmountMany(mounts.splice(0));
+					return undefined;
+				}
 				const itemScope = keyedReceipt.ownerScope ?? createEffectScope(parentScope);
 				if (keyedReceipt.ownerScope) transferEffectScope(itemScope, parentScope);
 				const adopted = adoptStaticChildrenRange(
@@ -184,12 +229,12 @@ export function adoptStaticChildrenRange(
 					parentInstance,
 					itemScope,
 					true,
-					cursor,
-					cursor + 1
+					cursor + 1,
+					closing
 				);
 				if (!adopted || adopted.mounts.length !== 1) {
 					itemScope.stop();
-					unmountMany(mounts);
+					unmountMany(mounts.splice(0));
 					return undefined;
 				}
 				mounts.push({
@@ -197,119 +242,71 @@ export function adoptStaticChildrenRange(
 					operationKey: keyedReceipt.key,
 					range: 'item',
 					dom: opening,
+					end: nodes[closing]!,
 					scope: itemScope,
 					children: adopted.mounts
 				});
-				cursor++;
+				cursor = closing + 1;
 				continue;
 			}
-			if (!(opening instanceof Comment) || !opening.data.startsWith('i:')) {
-				unmountMany(mounts);
-				return undefined;
+			const componentReceipt = readClientComponentInput(child);
+			const intrinsicReceipt = readCompiledIntrinsicReceipt(child);
+			const fragmentReceipt = readCompiledFragmentReceipt(child);
+			const targetReceipt = readCompiledTargetReceipt(child);
+			const rangeReceipt = readChildRangeReceipt(child);
+			const activityReceipt = readCompiledActivityReceipt(child);
+			const suspenseReceipt = readCompiledSuspenseReceipt(child);
+			const unsafeHtmlReceipt = readUnsafeHtmlReceipt(child);
+			const serverSlotReceipt = readServerSlotReceipt(child);
+			const renderProgramReceipt = readRenderProgramReceipt(child);
+			const scalar = scalarText(child);
+			if (scalar !== undefined) {
+				const adopted = adoptScalarTextChildren(
+					children,
+					childIndex,
+					nodes,
+					cursor,
+					parentScope,
+					scalar,
+					scalarTextAcquisition(root, physicalParent)
+				);
+				if (!adopted) {
+					unmountMany(mounts.splice(0));
+					return undefined;
+				}
+				mounts.push(...adopted.mounts);
+				childIndex = adopted.nextChild - 1;
+				cursor = adopted.next;
+				continue;
 			}
-			const closing = closingMarkerIndex(nodes, cursor, opening.data, end);
-			if (closing < 0) {
-				unmountMany(mounts);
-				return undefined;
-			}
-			const itemScope = keyedReceipt.ownerScope ?? createEffectScope(parentScope);
-			if (keyedReceipt.ownerScope) transferEffectScope(itemScope, parentScope);
-			const adopted = adoptStaticChildrenRange(
-				root,
-				[keyedReceipt.value as Child],
-				nodes,
-				parentInstance,
-				itemScope,
-				true,
-				cursor + 1,
-				closing
-			);
-			if (!adopted || adopted.mounts.length !== 1) {
-				itemScope.stop();
-				unmountMany(mounts);
-				return undefined;
-			}
-			mounts.push({
-				operation: child,
-				operationKey: keyedReceipt.key,
-				range: 'item',
-				dom: opening,
-				end: nodes[closing]!,
-				scope: itemScope,
-				children: adopted.mounts
-			});
-			cursor = closing + 1;
-			continue;
-		}
-		const componentReceipt = readCompiledComponentReceipt(child);
-		const intrinsicReceipt = readCompiledIntrinsicReceipt(child);
-		const fragmentReceipt = readCompiledFragmentReceipt(child);
-		const targetReceipt = readCompiledTargetReceipt(child);
-		const rangeReceipt = readChildRangeReceipt(child);
-		const activityReceipt = readCompiledActivityReceipt(child);
-		const suspenseReceipt = readCompiledSuspenseReceipt(child);
-		const unsafeHtmlReceipt = readUnsafeHtmlReceipt(child);
-		const serverSlotReceipt = readServerSlotReceipt(child);
-		const renderProgramReceipt = readRenderProgramReceipt(child);
-		const scalar = scalarText(child);
-		if (scalar !== undefined) {
-			const adopted = adoptScalarTextChildren(
-				children,
-				childIndex,
-				nodes,
-				cursor,
-				parentScope,
-				scalar,
-				physicalParent
-			);
-			if (!adopted) {
-				unmountMany(mounts);
-				return undefined;
-			}
-			mounts.push(...adopted.mounts);
-			childIndex = adopted.nextChild - 1;
-			cursor = adopted.next;
-			continue;
-		}
-		const result = serverSlotReceipt
-			? adoptServerSlotReceipt(serverSlotReceipt, nodes, cursor, createEffectScope(parentScope))
-			: componentReceipt
-				? adoptComponentReceipt(
-						root,
-						componentReceipt,
-						nodes,
-						cursor,
-						parentInstance,
-						parentScope,
-						end,
-						false
-					)
-				: intrinsicReceipt
-					? adoptIntrinsicReceipt(
+			const result = serverSlotReceipt
+				? adoptServerSlotReceipt(serverSlotReceipt, nodes, cursor, createEffectScope(parentScope))
+				: componentReceipt
+					? adoptComponentReceipt(
 							root,
-							intrinsicReceipt,
+							componentReceipt,
 							nodes,
 							cursor,
 							parentInstance,
 							parentScope,
-							adoptStaticChildren
+							end,
+							false
 						)
-					: fragmentReceipt || targetReceipt
-						? adoptStructuralRangeReceipt(
+					: intrinsicReceipt
+						? adoptIntrinsicReceipt(
 								root,
-								(fragmentReceipt ?? targetReceipt)!,
-								fragmentReceipt ? 'fragment' : 'target',
+								intrinsicReceipt,
 								nodes,
 								cursor,
 								parentInstance,
 								parentScope,
-								end,
 								adoptStaticChildren
 							)
-						: rangeReceipt
-							? adoptChildRangeReceipt(
+						: fragmentReceipt || targetReceipt
+							? adoptStructuralRangeReceipt(
 									root,
-									rangeReceipt,
+									(fragmentReceipt ?? targetReceipt)!,
+									fragmentReceipt ? 'fragment' : 'target',
 									nodes,
 									cursor,
 									parentInstance,
@@ -317,10 +314,10 @@ export function adoptStaticChildrenRange(
 									end,
 									adoptStaticChildren
 								)
-							: activityReceipt
-								? requireStructuralBoundaryCapability().adoptActivityReceipt(
+							: rangeReceipt
+								? adoptChildRangeReceipt(
 										root,
-										activityReceipt,
+										rangeReceipt,
 										nodes,
 										cursor,
 										parentInstance,
@@ -328,76 +325,95 @@ export function adoptStaticChildrenRange(
 										end,
 										adoptStaticChildren
 									)
-								: unsafeHtmlReceipt
-									? requireUnsafeHtmlDomCapability().adopt(
+								: activityReceipt
+									? requireStructuralBoundaryCapability().adoptActivityReceipt(
 											root,
-											unsafeHtmlReceipt,
+											activityReceipt,
 											nodes,
 											cursor,
+											parentInstance,
 											parentScope,
-											end
+											end,
+											adoptStaticChildren
 										)
-									: suspenseReceipt
-										? requireStructuralBoundaryCapability().adoptSuspenseReceipt(
+									: unsafeHtmlReceipt
+										? requireUnsafeHtmlDomCapability().adopt(
 												root,
-												suspenseReceipt,
+												unsafeHtmlReceipt,
 												nodes,
 												cursor,
-												parentInstance,
 												parentScope,
-												end,
-												adoptStaticChildren
+												end
 											)
-										: renderProgramReceipt
-											? withTreeDepth(root, () => {
-													countDomWork(root);
-													return adoptCompiledRenderProgram(
-														root,
-														child,
-														nodes,
-														cursor,
-														parentInstance,
-														createEffectScope(parentScope),
-														end,
-														(
-															values,
-															childNodes,
-															owner,
-															scope,
-															childCursor,
-															childEnd,
-															_compilerOwned,
-															host
-														) =>
-															adoptStaticChildren(
-																root,
-																[...values],
+										: suspenseReceipt
+											? requireStructuralBoundaryCapability().adoptSuspenseReceipt(
+													root,
+													suspenseReceipt,
+													nodes,
+													cursor,
+													parentInstance,
+													parentScope,
+													end,
+													adoptStaticChildren
+												)
+											: renderProgramReceipt
+												? withTreeDepth(root, () => {
+														countDomWork(root);
+														return adoptCompiledRenderProgram(
+															root,
+															child,
+															nodes,
+															cursor,
+															parentInstance,
+															createEffectScope(parentScope),
+															end,
+															(
+																values,
 																childNodes,
 																owner,
 																scope,
 																childCursor,
 																childEnd,
+																_compilerOwned,
 																host
-															)
-													);
-												})
-											: undefined;
-		if (!result) {
-			unmountMany(mounts);
+															) =>
+																adoptStaticChildren(
+																	root,
+																	[...values],
+																	childNodes,
+																	owner,
+																	scope,
+																	childCursor,
+																	childEnd,
+																	host
+																)
+														);
+													})
+												: undefined;
+			acquiring = result?.mounted;
+			assertCurrent();
+			if (!result) {
+				unmountMany(mounts.splice(0));
+				return undefined;
+			}
+			// Keep the opaque compiler-issued operation as the authored identity. Receipt data is
+			// renderer-private and intentionally cannot be reinterpreted to recover enhancements,
+			// keys, or later patch identity.
+			result.mounted.operation = child;
+			mounts.push(result.mounted);
+			acquiring = undefined;
+			cursor = result.next;
+		}
+		if (requireAll && cursor !== end) {
+			unmountMany(mounts.splice(0));
 			return undefined;
 		}
-		// Keep the opaque compiler-issued operation as the authored identity. Receipt data is
-		// renderer-private and intentionally cannot be reinterpreted to recover enhancements,
-		// keys, or later patch identity.
-		result.mounted.operation = child;
-		mounts.push(result.mounted);
-		cursor = result.next;
+		return { mounts, next: cursor };
+	} catch (error) {
+		if (acquiring) mounts.push(acquiring);
+		releaseUnpublishedAdoption(root, mounts, error);
+		throw error;
 	}
-	if (requireAll && cursor !== end) {
-		unmountMany(mounts);
-		return undefined;
-	}
-	return { mounts, next: cursor };
 }
 
 /** Finds the closing comment for an authored marker range after its opening cursor. */

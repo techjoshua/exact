@@ -11,7 +11,10 @@ prepares the projection needed by a build adapter, server, renderer, client, or 
 compiler does not consume this registry or execute plugin callbacks.
 
 Prepare one registry per application root and dispose or invalidate it with the owning build or
-runtime session. Configuration and server projections must not be copied into browser output.
+runtime session. Preparation has no automatic deadline. Hosts can pass `signal` or an explicit
+positive `timeoutMs` in milliseconds. Contexts, discovery records, and reports retain TypeScript
+readonly views without runtime freezing. Configuration and server projections must not be copied
+into browser output.
 
 See [framework plugins](https://github.com/techjoshua/exact/blob/main/docs/framework-plugins.md).
 

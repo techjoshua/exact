@@ -11,7 +11,7 @@ export interface GravitySamplePoint {
 	readonly mass: number;
 }
 
-/** Immutable pure acceleration field. */
+/** Prepared acceleration field whose metadata follows TypeScript's shallow readonly rules. */
 export interface GravityField {
 	readonly name: string;
 	readonly kind: string;

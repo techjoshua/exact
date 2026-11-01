@@ -5,7 +5,8 @@ export default defineConfig({
 	plugins: [
 		exactVitest({
 			compiler: {
-				include: /(?:form-behavior\.fixtures|form[\\/](?:controls|feedback|field|form))\.tsx?$/,
+				include:
+					/(?:submit-lifetime\.fixtures|form-behavior\.fixtures|form[\\/](?:controls|feedback|field|form))\.tsx?$/,
 				reactCompatibility: false
 			}
 		})

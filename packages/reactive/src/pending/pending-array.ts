@@ -58,19 +58,6 @@ const callbackMethods = new Set<PropertyKey>([
 	'reduceRight'
 ]);
 
-/** Identifies native Array operations that must reject readonly policy before callbacks run. */
-export const pendingArrayMutators = new Set<PropertyKey>([
-	'copyWithin',
-	'fill',
-	'pop',
-	'push',
-	'reverse',
-	'shift',
-	'sort',
-	'splice',
-	'unshift'
-]);
-
 /**
  * Runs native Array algorithms over invocation cells. The private algorithm receiver never
  * crosses an authored callback boundary. Callbacks and identity-returning methods retain the

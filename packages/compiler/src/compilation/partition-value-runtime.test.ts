@@ -2,7 +2,7 @@ import path from 'node:path';
 import { writeFile } from 'node:fs/promises';
 import { expect, it } from 'vitest';
 import { compileProjectArtifacts } from '../index.js';
-import { createTestWorkspace } from '../test-support/workspace.js';
+import { createCompilerTestWorkspace } from '../test-support/workspace.js';
 import { importArtifact } from '../test-support/import-artifact.js';
 
 it.each([
@@ -18,7 +18,7 @@ it.each([
 ])(
 	'evaluates a partitioned server value module without browser initialization (%s)',
 	async (source) => {
-		const root = await createTestWorkspace('.exact-partition-values-', process.cwd());
+		const root = await createCompilerTestWorkspace('.exact-partition-values-', process.cwd());
 		const entry = path.join(root, 'values.ts');
 		await writeFile(entry, source);
 		const artifacts = await compileProjectArtifacts([entry], {
@@ -38,7 +38,7 @@ it.each([
 ])(
 	'retains deferred browser helpers without executing them during module evaluation (%s)',
 	async (source) => {
-		const root = await createTestWorkspace('.exact-deferred-values-', process.cwd());
+		const root = await createCompilerTestWorkspace('.exact-deferred-values-', process.cwd());
 		const entry = path.join(root, 'values.ts');
 		await writeFile(entry, source);
 		const [artifact] = await compileProjectArtifacts([entry], {
@@ -53,7 +53,7 @@ it.each([
 );
 
 it('keeps foreign re-export ownership distinct from an opposite-runtime local alias', async () => {
-	const root = await createTestWorkspace('.exact-partition-reexport-', process.cwd());
+	const root = await createCompilerTestWorkspace('.exact-partition-reexport-', process.cwd());
 	const entry = path.join(root, 'values.ts');
 	const foreign = path.join(root, 'foreign.ts');
 	await writeFile(foreign, `export const browser='foreign-shared';`);
@@ -71,7 +71,7 @@ it('keeps foreign re-export ownership distinct from an opposite-runtime local al
 });
 
 it('links loaded re-exports while preserving portable event dispatch', async () => {
-	const root = await createTestWorkspace('.exact-partition-barrel-', process.cwd());
+	const root = await createCompilerTestWorkspace('.exact-partition-barrel-', process.cwd());
 	const entry = path.join(root, 'index.tsx');
 	await writeFile(
 		path.join(root, 'values.ts'),
@@ -112,7 +112,7 @@ export const stable=1;`
 });
 
 it('preserves portable readonly event methods and deferred DOM method definitions', async () => {
-	const root = await createTestWorkspace('.exact-partition-receiver-views-', process.cwd());
+	const root = await createCompilerTestWorkspace('.exact-partition-receiver-views-', process.cwd());
 	const entry = path.join(root, 'views.ts');
 	await writeFile(
 		entry,

@@ -6,6 +6,7 @@ import type { ExactCompilerSession } from '../expression/project.js';
  * Local dependency facts discovered in one compiler-owned source pass.
  */
 export interface PlacementDependencyAnalysis {
+	readonly helperSources: ReadonlySet<string>;
 	readonly graph: ReadonlyMap<string, readonly string[]>;
 	readonly localDependencies: ReadonlyMap<string, readonly { specifier: string; file: string }[]>;
 }
@@ -22,6 +23,7 @@ export async function collectPlacementAnalysisDependencies(
 	sources: Map<string, string>,
 	session?: ExactCompilerSession
 ): Promise<PlacementDependencyAnalysis> {
+	const helperSources = new Set<string>();
 	const graph = new Map<string, string[]>();
 	const localDependencies = new Map<string, readonly { specifier: string; file: string }[]>();
 	if (!session) throw new Error('Dependency discovery requires a native compiler session');
@@ -36,12 +38,45 @@ export async function collectPlacementAnalysisDependencies(
 			source,
 			diagnostics: 'syntax'
 		});
-		const local = await localModuleDependencyEntries(
+		const fallback = await localModuleDependencyEntries(
 			filename,
 			source,
-			native.analysis.imports.map((entry) => entry.moduleSpecifier)
+			native.analysis.imports
+				.filter(
+					(entry) =>
+						!entry.resolvedFile ||
+						// Declaration resolution supplies types, not the executable local edge.
+						(entry.moduleSpecifier.startsWith('.') &&
+							!entry.typeOnly &&
+							(entry.runtimeBinding || entry.sideEffectOnly) &&
+							/\.d\.[cm]?ts$/i.test(entry.resolvedFile))
+				)
+				.map((entry) => entry.moduleSpecifier)
 		);
-		localDependencies.set(filename, local);
+		const resolved = new Map(
+			native.analysis.imports
+				.filter(
+					(edge) =>
+						edge.resolvedFile &&
+						!/\.d\.[cm]?ts$/i.test(edge.resolvedFile) &&
+						!/(?:^|[\\/])node_modules(?:[\\/]|$)/.test(edge.resolvedFile) &&
+						/\.[cm]?[jt]sx?$/i.test(edge.resolvedFile)
+				)
+				.map((edge) => [edge.moduleSpecifier, edge.resolvedFile!])
+		);
+		const local = fallback.map((edge) => ({
+			...edge,
+			file: resolved.get(edge.specifier) ?? edge.file
+		}));
+		for (const edge of native.analysis.helperSources ?? []) {
+			helperSources.add(path.resolve(edge.sourceFile));
+			local.push({ specifier: edge.moduleSpecifier, file: path.resolve(edge.sourceFile) });
+		}
+		for (const [specifier, file] of resolved)
+			if (!local.some((edge) => edge.specifier === specifier)) local.push({ specifier, file });
+		localDependencies.set(filename, [
+			...new Map(local.map((edge) => [edge.specifier, edge])).values()
+		]);
 		const syntacticDependencies = local.map((entry) => entry.file);
 		for (const dependency of syntacticDependencies) {
 			const resolved = path.resolve(dependency);
@@ -65,7 +100,7 @@ export async function collectPlacementAnalysisDependencies(
 		}
 		graph.set(filename, [...new Set(resolvedDependencies)].sort());
 	}
-	return { graph, localDependencies };
+	return { graph, localDependencies, helperSources };
 }
 
 /** Resolves authored relative module specifiers to local source files. */

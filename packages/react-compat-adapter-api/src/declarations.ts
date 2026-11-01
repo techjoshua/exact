@@ -75,35 +75,45 @@ export function readReactCompatAdapterDeclaration(
 			const exports = requiredRecord(variant.exports, `${variantLabel}.exports`);
 			if (!Object.keys(exports).length)
 				throw new Error(`${variantLabel} must declare at least one export`);
-			const parsedExports: Record<string, ReactCompatReplacementDeclaration> = {};
-			for (const [sourceExport, rawReplacement] of Object.entries(exports)) {
-				assertExportName(sourceExport, `${label} source export`);
-				const replacement = requiredRecord(
-					rawReplacement,
-					`${variantLabel} replacement for ${sourceModule}.${sourceExport}`
-				);
-				assertOnlyKeys(
-					replacement,
-					['subpath', 'export'],
-					`${variantLabel} replacement for ${sourceModule}.${sourceExport}`
-				);
-				const subpath = requiredString(replacement.subpath, `${variantLabel} replacement subpath`);
-				assertPublicSubpath(subpath, label);
-				const exportName = requiredString(replacement.export, `${variantLabel} replacement export`);
-				assertExportName(exportName, `${variantLabel} replacement export`);
-				parsedExports[sourceExport] = Object.freeze({
-					subpath: subpath as ReactCompatReplacementDeclaration['subpath'],
-					export: exportName
-				});
-			}
-			return Object.freeze({ version, exports: Object.freeze(parsedExports) });
+			const parsedExports = Object.fromEntries<ReactCompatReplacementDeclaration>(
+				Object.entries(exports).map(([sourceExport, rawReplacement]) => {
+					assertExportName(sourceExport, `${label} source export`);
+					const replacement = requiredRecord(
+						rawReplacement,
+						`${variantLabel} replacement for ${sourceModule}.${sourceExport}`
+					);
+					assertOnlyKeys(
+						replacement,
+						['subpath', 'export'],
+						`${variantLabel} replacement for ${sourceModule}.${sourceExport}`
+					);
+					const subpath = requiredString(
+						replacement.subpath,
+						`${variantLabel} replacement subpath`
+					);
+					assertPublicSubpath(subpath, label);
+					const exportName = requiredString(
+						replacement.export,
+						`${variantLabel} replacement export`
+					);
+					assertExportName(exportName, `${variantLabel} replacement export`);
+					return [
+						sourceExport,
+						{
+							subpath: subpath as ReactCompatReplacementDeclaration['subpath'],
+							export: exportName
+						}
+					] as const;
+				})
+			);
+			return { version, exports: parsedExports };
 		});
-		parsed[sourceModule] = Object.freeze({ fallback, variants: Object.freeze(variants) });
+		parsed[sourceModule] = { fallback, variants };
 	}
-	return Object.freeze({
+	return {
 		schemaVersion: reactCompatAdapterSchemaVersion,
-		substitutions: Object.freeze(parsed)
-	});
+		substitutions: parsed
+	};
 }
 
 /** Reads root-only adapter suppression policy from the application package.json. */
@@ -112,14 +122,14 @@ export function readReactCompatApplicationPolicy(
 	label = packageLabel(manifest)
 ): ReactCompatApplicationPolicy {
 	const exact = optionalRecord(manifest.exact, `${label}.exact`);
-	if (!exact) return Object.freeze({});
+	if (!exact) return {};
 	const compatibility = optionalRecord(
 		exact.reactCompatibility,
 		`${label}.exact.reactCompatibility`
 	);
-	if (!compatibility) return Object.freeze({});
+	if (!compatibility) return {};
 	const raw = compatibility.ignoreAdapters;
-	if (raw === undefined) return Object.freeze({});
+	if (raw === undefined) return {};
 	if (!Array.isArray(raw))
 		throw new Error(
 			`${label}.exact.reactCompatibility.ignoreAdapters must be an array of package names`
@@ -135,7 +145,7 @@ export function readReactCompatApplicationPolicy(
 		seen.add(name);
 		return name;
 	});
-	return Object.freeze({ ignoreAdapters: Object.freeze(ignoreAdapters) });
+	return { ignoreAdapters };
 }
 
 /** Performs the package directly depends on adapter marker domain operation. */

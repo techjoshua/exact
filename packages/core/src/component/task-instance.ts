@@ -1,3 +1,4 @@
+import { attemptCleanup, createCleanupFailure, throwCleanupFailure } from '../cleanup.js';
 import type { ExactExecutableComponentContract } from '../component-contracts.js';
 import type { PreparedComponentExecution } from '../tasks/component-execution-plan.js';
 import { cleanupFailedComponentConstruction } from './construction.js';
@@ -78,20 +79,12 @@ export class TaskComponentInstance<
 
 	/** Releases task ownership in addition to the compact render scope exactly once. */
 	override unmount(reason = 'unmount'): void {
-		let primary: unknown;
-		try {
-			super.unmount(reason);
-		} catch (error) {
-			primary = error;
-		}
+		const failure = createCleanupFailure();
+		attemptCleanup(failure, () => super.unmount(reason));
 		if (!this.taskReleased) {
 			this.taskReleased = true;
-			try {
-				this.taskCapability?.release(this.taskState, this);
-			} catch (error) {
-				if (primary === undefined) primary = error;
-			}
+			attemptCleanup(failure, () => this.taskCapability?.release(this.taskState, this));
 		}
-		if (primary !== undefined) throw primary;
+		throwCleanupFailure(failure);
 	}
 }

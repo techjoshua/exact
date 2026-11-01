@@ -1,5 +1,6 @@
 import { encodeReactiveProtocolValue, attachSuppressedCleanupFailure } from '@exactjs/core';
-import { normalizeProtocolLimit } from '@exactjs/core/framework/protocol-records';
+import { responseResourceBudget } from '../response-resources.js';
+import type { Logger } from '@exactjs/core';
 import type { ExactStreamEvent } from '../types.js';
 
 /** Operation-scoped snapshot event emitted only to a client which requested progress support. */
@@ -13,8 +14,10 @@ export interface ExactProgressStreamWriter {
 }
 
 /**
- * Creates a demand-driven response. Progress stays replaceable until a reader requests bytes;
- * ordinary events take precedence. Cancellation releases a blocked producer and aborts its work.
+ * Creates a demand-driven response. Progress stays replaceable until a reader requests bytes.
+ * Ordinary events take precedence. Cancellation prevents queued production from starting,
+ * releases a blocked producer, aborts its work,
+ * and waits for its cleanup before settling.
  */
 export function createProgressStream(
 	run: (writer: ExactProgressStreamWriter) => Promise<void>,
@@ -24,16 +27,17 @@ export function createProgressStream(
 		dispose(): void;
 		maxEvents?: number;
 		maxBytes?: number;
+		logger?: Logger;
 	}
 ): ReadableStream<Uint8Array> {
 	const encoder = new TextEncoder();
 	const progress = new Map<number, Map<string, ExactProgressEvent>>();
-	const maxEvents = normalizeProtocolLimit(options.maxEvents, 100_000);
-	const maxBytes = normalizeProtocolLimit(options.maxBytes, 16 * 1024 * 1024);
+	const resources = responseResourceBudget(options.logger);
 	let events = 0;
 	let bytes = 0;
 	let active = true;
 	let demand = false;
+	let production: Promise<void> | undefined;
 	let pending:
 		| { event: ExactStreamEvent; resolve(): void; reject(error: unknown): void }
 		| undefined;
@@ -60,8 +64,7 @@ export function createProgressStream(
 		}
 		if (!cancelled) controller.error(reason);
 	};
-	const abort = () =>
-		fail(options.signal.reason ?? new DOMException('Stream aborted', 'AbortError'));
+	const abort = () => fail(options.signal.reason);
 	const pump = () => {
 		if (!active || !demand) return;
 		const next = pending;
@@ -76,28 +79,25 @@ export function createProgressStream(
 			if (!snapshots.size) progress.delete(index);
 		}
 		try {
-			const chunk = encoder.encode(`${JSON.stringify(encodeReactiveProtocolValue(event))}\n`);
-			if (
-				event.event === 'progress' &&
-				(events + 1 > maxEvents / 2 || bytes + chunk.byteLength > maxBytes / 2)
-			) {
-				progress.clear();
-				return;
-			}
-			if (events + 1 > maxEvents || bytes + chunk.byteLength > maxBytes) {
-				if (event.event === 'observations' || event.event === 'progress') {
-					if (next) {
-						pending = undefined;
-						next.resolve();
-					}
-					return;
-				}
-				throw new Error(
-					events + 1 > maxEvents
-						? 'eXact stream event limit exceeded'
-						: 'eXact stream byte limit exceeded'
-				);
-			}
+			const chunk = encoder.encode(
+				`${JSON.stringify(encodeReactiveProtocolValue(event, { maxDepth: Number.MAX_SAFE_INTEGER }))}\n`
+			);
+			resources(
+				'maxStreamEvents',
+				options.maxEvents,
+				100_000,
+				events + 1,
+				'continuation stream producer',
+				'events'
+			);
+			resources(
+				'maxStreamBytes',
+				options.maxBytes,
+				16 * 1024 * 1024,
+				bytes + chunk.byteLength,
+				'continuation stream producer',
+				'encoded UTF-8 bytes'
+			);
 			events++;
 			bytes += chunk.byteLength;
 			demand = false;
@@ -123,7 +123,9 @@ export function createProgressStream(
 					emit(event) {
 						if (!active)
 							return Promise.reject(
-								options.signal.reason ?? new DOMException('Stream closed', 'AbortError')
+								options.signal.aborted
+									? options.signal.reason
+									: new DOMException('Stream closed', 'AbortError')
 							);
 						if (pending)
 							return Promise.reject(new Error('Concurrent ordinary stream writes are unsupported'));
@@ -143,8 +145,10 @@ export function createProgressStream(
 						progress.delete(index);
 					}
 				};
-				void Promise.resolve()
-					.then(() => run(writer))
+				production = Promise.resolve()
+					.then(() => {
+						if (active) return run(writer);
+					})
 					.then(
 						() => {
 							if (!active) return;
@@ -165,6 +169,7 @@ export function createProgressStream(
 			},
 			cancel(reason) {
 				fail(reason, true);
+				return production;
 			}
 		},
 		{ highWaterMark: 0 }

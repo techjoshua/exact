@@ -6,7 +6,7 @@ import { hydrate } from '@exactjs/hydrate';
 import { renderToHydratableString } from '@exactjs/ssr';
 import { flushSync } from '@exactjs/reactive';
 import { compileProjectArtifacts } from '../index.js';
-import { createTestWorkspace, writeTestFiles } from '../test-support/workspace.js';
+import { createCompilerTestWorkspace, writeTestFiles } from '../test-support/workspace.js';
 import { importArtifact } from '../test-support/import-artifact.js';
 
 // Bindings retain writable state, node identity and cleanup across equivalent source wrappers.
@@ -19,7 +19,7 @@ it.each(
 		'this.state.value!'
 	].flatMap((expression) => ['mount', 'hydrate'].map((mode) => ({ expression, mode })))
 )('updates wrapped bindings $expression in $mode', async ({ expression, mode }) => {
-	const root = await createTestWorkspace('.exact-binding-location-', process.cwd());
+	const root = await createCompilerTestWorkspace('.exact-binding-location-', process.cwd());
 	const files = await writeTestFiles(root, {
 		'form.tsx': `import type {Component} from '@exactjs/core';export let owner:Component<{value:string}>;function Control(props:{value:string;changed:(value:string,reason:number)=>void}){return()=> <input data-notify value={props.value} onInput={event=>props.changed(event.currentTarget.value,1)}/>}export function Form(this:Component<{value:string}>){owner=this;this.state.value='initial';return()=> <section><input data-native value:onInput={${expression}}/><Control value:changed={${expression}}/><p>{this.state.value}</p></section>}export const formRoot=()=> <Form/>`
 	});
@@ -83,7 +83,7 @@ it.each(
 it.each(['mount', 'hydrate'])(
 	'writes a derived copy without changing props in %s',
 	async (mode) => {
-		const root = await createTestWorkspace('.exact-binding-copy-', process.cwd());
+		const root = await createCompilerTestWorkspace('.exact-binding-copy-', process.cwd());
 		const files = await writeTestFiles(root, {
 			'form.tsx': `import type {Component} from '@exactjs/core';export let owner:Component<{observed:string}>;export function Form(this:Component<{observed:string}>,props:{nested:{value:string}}){owner=this;this.state.observed='';const copy={...props.nested};return()=> <section><input value:onInput={copy.value}/><button onClick={()=>this.state.observed=copy.value}>Read</button><p>{this.state.observed}</p></section>}export const formRoot=(nested:{value:string})=> <Form nested={nested}/>`
 		});
@@ -143,7 +143,7 @@ it.each(['mount', 'hydrate'])(
 
 // Computed locations select the current state member on each receipt and preserve sibling state.
 it.each(['mount', 'hydrate'])('writes asserted computed locations in %s', async (mode) => {
-	const root = await createTestWorkspace('.exact-binding-computed-', process.cwd());
+	const root = await createCompilerTestWorkspace('.exact-binding-computed-', process.cwd());
 	const files = await writeTestFiles(root, {
 		'form.tsx': `import type {Component} from '@exactjs/core';type State={fields:{value:string}[];index:number};export let owner:Component<State>;function Control(props:{value:string;changed:(value:string)=>void}){return()=> <input data-notify value={props.value} onInput={event=>props.changed(event.currentTarget.value)}/>}export function Form(this:Component<State>){owner=this;this.state.fields=[{value:'A'},{value:'B'}];this.state.index=0;return()=> <section><input data-native value:onInput={(this.state.fields[this.state.index].value as string)}/><Control value:changed={(this.state.fields[this.state.index].value as string)}/><button onClick={()=>{(this.state.fields[this.state.index].value as string)='cast'}}>Cast</button></section>}export const formRoot=()=> <Form/>`
 	});

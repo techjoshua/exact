@@ -2,7 +2,7 @@ import path from 'node:path';
 import { writeFile } from 'node:fs/promises';
 import { expect, it } from 'vitest';
 import { compileProjectArtifacts } from '../index.js';
-import { createTestWorkspace } from '../test-support/workspace.js';
+import { createCompilerTestWorkspace } from '../test-support/workspace.js';
 import { importArtifact } from '../test-support/import-artifact.js';
 
 it.each([
@@ -12,7 +12,7 @@ it.each([
 	'(typeof (window))!==("undefined") && window.alert("x");',
 	'typeof window==="undefined" || window.alert("x");'
 ])('keeps guarded browser calls callable in both artifacts: %s', async (guard) => {
-	const root = await createTestWorkspace('.exact-reactive-guard-', process.cwd());
+	const root = await createCompilerTestWorkspace('.exact-reactive-guard-', process.cwd());
 	const entry = path.join(root, 'helper.ts');
 	await writeFile(entry, `export function run(){${guard}return 'portable';}`);
 	const [artifact] = await compileProjectArtifacts([entry], {

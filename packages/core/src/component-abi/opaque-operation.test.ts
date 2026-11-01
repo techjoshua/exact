@@ -1,3 +1,4 @@
+import { compiledElementIdentity, physicalElementIdentity } from './element-identity.js';
 import { describe, expect, it, vi } from 'vitest';
 import {
 	createCompiledIntrinsicReceipt,
@@ -17,9 +18,11 @@ import {
 } from './opaque-operation.js';
 import { isOpaqueOperation } from './opaque-operation.js';
 import {
-	createPreparedServerComponentReference,
-	createPreparedServerComponentReferenceFromPlainProps,
-	readPreparedServerComponentReference
+	createPreparedServerComponentInputReference,
+	createPreparedServerComponentInputReferenceFromPlainProps,
+	componentInputRecipe,
+	redeemComponentInput,
+	inspectComponentInput
 } from './receipt.js';
 import {
 	createPreparedServerChildRange,
@@ -31,7 +34,7 @@ import {
 } from './server-keyed-child.js';
 import { createExactCompiledDynamicBoundaryArtifact } from '../testing/runtime-artifacts.js';
 import { createFrameworkComponentDomain, withComponentDomain } from '../component/domain.js';
-
+const serverProvider = { version: 6, target: 'server' } as const;
 describe('opaque target operations', () => {
 	it('retains independent domains and snapshots authored keys without sharing mutable metadata', () => {
 		const firstDomain = createFrameworkComponentDomain({ target: 'server', executionRoot: 'page' });
@@ -52,7 +55,6 @@ describe('opaque target operations', () => {
 		expect(opaqueOperationKey(second)).toBeUndefined();
 		expect(opaqueOperationKey(keyed)).toBe('first');
 	});
-
 	it('keeps dispatch and payload identity immutable and absent from ordinary copies', () => {
 		const first = createCompiledIntrinsicReceipt('p', { title: 'first' });
 		const second = createCompiledIntrinsicReceipt('p', { title: 'second' });
@@ -69,7 +71,6 @@ describe('opaque target operations', () => {
 		expect(executeOpaqueOperation({ ...first }, target)).toBeUndefined();
 		expect(() => Object.setPrototypeOf(first, {})).toThrow(TypeError);
 	});
-
 	it('retains the active domain and private props in a proven plain reference', () => {
 		const Component = createExactCompiledDynamicBoundaryArtifact(
 			function ServerComponent() {},
@@ -79,14 +80,24 @@ describe('opaque target operations', () => {
 		const domain = createFrameworkComponentDomain({ target: 'server', executionRoot: 'page' });
 		const props = { message: 'ready' };
 		const reference = withComponentDomain(domain, () =>
-			createPreparedServerComponentReferenceFromPlainProps(Component, props)
+			createPreparedServerComponentInputReferenceFromPlainProps(Component, props)
 		);
-		expect(readPreparedServerComponentReference(reference)).toBe(reference);
-		expect(reference.domain).toBe(domain);
-		expect(reference.props).toBe(props);
-		expect(reference.children).toEqual([]);
+		expect(inspectComponentInput(reference)).toMatchObject({
+			kind: 'component',
+			target: 'server',
+			generation: 6,
+			domain
+		});
+		expect(reference).not.toHaveProperty('props');
+		expect(reference).not.toHaveProperty('children');
+		const input = componentInputRecipe(
+			redeemComponentInput(reference, serverProvider),
+			serverProvider
+		);
+		expect(input.domain).toBe(domain);
+		expect(input.props).toBe(props);
+		expect(input.children).toEqual({ kind: 'eager', values: [] });
 	});
-
 	it('selects its target method without exposing a kind or topology to the caller', () => {
 		const invoke = vi.fn((..._arguments: unknown[]) => 'mounted');
 		const target: ExactIntrinsicOperationTarget<string> = {
@@ -95,7 +106,6 @@ describe('opaque target operations', () => {
 			}
 		};
 		const operation = createCompiledIntrinsicReceipt('p', { title: 'status' }, 'Ready');
-
 		expect(executeOpaqueOperation<string>(operation, target)).toEqual({ value: 'mounted' });
 		expect(invoke).toHaveBeenCalledWith(
 			operation,
@@ -103,7 +113,6 @@ describe('opaque target operations', () => {
 		);
 		expect(executeOpaqueOperation({}, target)).toBeUndefined();
 	});
-
 	it('keeps compiler-closed server references off the opaque client operation path', () => {
 		const Component = createExactCompiledDynamicBoundaryArtifact(
 			function ServerComponent() {},
@@ -111,16 +120,18 @@ describe('opaque target operations', () => {
 			'server'
 		);
 		const props = { message: 'ready' };
-		const reference = createPreparedServerComponentReference(Component, props);
-
+		const reference = createPreparedServerComponentInputReference(Component, props);
 		expect(isOpaqueOperation(reference)).toBe(false);
-		expect(readPreparedServerComponentReference(reference)).toMatchObject({
+		expect(
+			componentInputRecipe(redeemComponentInput(reference, serverProvider), serverProvider)
+		).toMatchObject({
 			props,
-			children: []
+			children: { kind: 'eager', values: [] }
 		});
-		expect(readPreparedServerComponentReference(reference)?.props).toBe(props);
+		expect(
+			componentInputRecipe(redeemComponentInput(reference, serverProvider), serverProvider)?.props
+		).toBe(props);
 	});
-
 	it('preserves direct server reference metadata while removing reserved props', () => {
 		const Component = createExactCompiledDynamicBoundaryArtifact(
 			function ServerComponent() {},
@@ -129,24 +140,27 @@ describe('opaque target operations', () => {
 		);
 		const enhancement = { type: 'fixture' };
 		const source = { key: 42, __exactEnhancements: enhancement, message: 'ready' };
-		const reference = createPreparedServerComponentReference(Component, source, 'child');
-		const data = readPreparedServerComponentReference(reference);
-
+		const reference = createPreparedServerComponentInputReference(Component, source, {
+			kind: 'eager',
+			values: ['child']
+		});
+		const data = componentInputRecipe(
+			redeemComponentInput(reference, serverProvider),
+			serverProvider
+		);
 		expect(data).toMatchObject({
 			key: '42',
 			enhancement,
 			props: { message: 'ready' },
-			children: ['child']
+			children: { kind: 'eager', values: ['child'] }
 		});
 		expect(data?.props).not.toBe(source);
 		expect(data?.props).not.toHaveProperty('key');
 		expect(data?.props).not.toHaveProperty('__exactEnhancements');
 	});
-
 	it('keeps compiler-closed server child ranges off the opaque client operation path', () => {
 		const value = ['ready'];
 		const range = createPreparedServerChildRange(value, 'fixture:range');
-
 		expect(isOpaqueOperation(range)).toBe(false);
 		expect(readPreparedServerChildRange(range)).toMatchObject({
 			value,
@@ -154,7 +168,6 @@ describe('opaque target operations', () => {
 			mayReplaceSubtree: true
 		});
 		expect(readPreparedServerChildRange(range)?.value).toBe(value);
-
 		const unmarked = createPreparedServerChildRange(value, undefined, false);
 		expect(isOpaqueOperation(unmarked)).toBe(false);
 		expect(readPreparedServerChildRange(unmarked)).toMatchObject({
@@ -164,11 +177,9 @@ describe('opaque target operations', () => {
 		expect(readPreparedServerChildRange(unmarked)?.markerId).toBeUndefined();
 		expect(readPreparedServerChildRange(unmarked)?.value).toBe(value);
 	});
-
 	it('keeps compiler-closed keyed children off the opaque client operation path', () => {
 		const value = { label: 'ready' };
 		const child = createPreparedServerKeyedChild(value, 42);
-
 		expect(isOpaqueOperation(child)).toBe(false);
 		expect(readPreparedServerKeyedChild(child)).toEqual({
 			[Symbol.for('@exactjs/server/prepared-keyed-child')]: true,
@@ -178,7 +189,6 @@ describe('opaque target operations', () => {
 		expect(readPreparedServerKeyedChild(child)?.value).toBe(value);
 	});
 });
-
 // Enhancement setup must precede clock reads, while ordinary intrinsic inputs stay eager.
 it.each([false, true])(
 	'preserves intrinsic property evaluation ordering with deferred=%s',
@@ -204,7 +214,6 @@ it.each([false, true])(
 		expect(Object.hasOwn(data.props, 'key')).toBe(false);
 	}
 );
-
 // Removing enhancement metadata or deriving children must not evaluate the host before setup.
 it('preserves lazy spread evaluation and actual keys through intrinsic derivation', () => {
 	let sample = 0;
@@ -236,4 +245,32 @@ it('preserves lazy spread evaluation and actual keys through intrinsic derivatio
 	sample = 3;
 	expect(readCompiledIntrinsicReceipt(operation)!.props).toBe(data.props);
 	expect(readProps).toHaveBeenCalledTimes(1);
+});
+
+it('retains physical metadata and unrelated enumerable symbols across intrinsic copies', () => {
+	const other = Symbol('other');
+	const calls: string[] = [];
+	const source = {
+		get title() {
+			calls.push('title');
+			return 'ready';
+		},
+		get [other]() {
+			calls.push('symbol');
+			return 'kept';
+		}
+	};
+	const props = { ...source, [compiledElementIdentity]: 'physical' };
+	const receipt = createCompiledIntrinsicReceipt('button', props);
+	const copied = withIntrinsicReceiptChildren(receipt, ['next']);
+	for (const value of [receipt, copied]) {
+		const data = readCompiledIntrinsicReceipt(value)!;
+		expect(physicalElementIdentity(data.props)).toBe('physical');
+		expect(Reflect.get(data.props, other)).toBe('kept');
+	}
+	expect(calls).toEqual(['title', 'symbol']);
+	const deferred = createDeferredServerIntrinsicReceipt('button', props);
+	expect(physicalElementIdentity(readCompiledIntrinsicReceipt(deferred)!.props)).toBe('physical');
+	const lazy = createDeferredServerIntrinsicSpreadReceipt('button', {}, () => props);
+	expect(physicalElementIdentity(readCompiledIntrinsicReceipt(lazy)!.props)).toBe('physical');
 });

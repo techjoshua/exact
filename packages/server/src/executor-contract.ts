@@ -12,7 +12,7 @@ import type {
 import type { CreateExactHydrationConfigOptions, ExactHydrationConfig } from './hydration-types.js';
 
 /**
- * Composes the immutable executor allowlist from explicitly imported artifacts.
+ * Composes the finite executor allowlist from explicitly imported artifacts.
  *
  * Merely installing a package grants no server authority. Only contracts
  * reachable from the supplied executor component roots and explicit
@@ -29,14 +29,14 @@ export function composeExactExecutorContract(
 		'invocation'
 	);
 	const boundaries = mergeContractEntries(composed.boundaries, options.boundaries, 'boundary');
-	return Object.freeze({
+	return {
 		version: 1,
 		endpoint: options.endpoint,
 		endpoints: normalizeEndpointRoutes(options.endpoints),
 		invocations,
 		executors: composed.executors,
 		boundaries
-	});
+	};
 }
 
 /** Creates browser-visible hydration configuration from the executor allowlist. */
@@ -124,7 +124,7 @@ export function defineExactOperationContract(
 	} = {}
 ): ExactComponentContinuationContract {
 	if (!id) throw new Error('eXact operation id must be non-empty');
-	return Object.freeze({
+	return {
 		id,
 		kind: 'task',
 		componentId: options.componentId ?? `application:${id}`,
@@ -136,7 +136,7 @@ export function defineExactOperationContract(
 		serverContexts: options.serverContexts ?? [],
 		contextWrites: options.contextWrites ?? [],
 		boundaries: options.boundaries ?? []
-	});
+	};
 }
 
 /** Builds an application-owned boundary contract with explicit ownership. */
@@ -165,7 +165,7 @@ export function defineExactBoundaryContract(
 		options.discriminatorValues ??
 		(partition ? (discriminatorKind === 'branch' ? [id] : []) : undefined);
 	const generation = options.generation ?? (partition ? 1 : undefined);
-	return Object.freeze({
+	return {
 		id,
 		componentId,
 		ownerComponentId: options.ownerComponentId ?? componentId,
@@ -179,5 +179,5 @@ export function defineExactBoundaryContract(
 		...(discriminatorKind === undefined ? {} : { discriminatorKind }),
 		...(discriminatorValues === undefined ? {} : { discriminatorValues }),
 		...(generation === undefined ? {} : { generation })
-	});
+	};
 }

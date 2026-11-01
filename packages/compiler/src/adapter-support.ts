@@ -1,3 +1,9 @@
+import path from 'node:path';
+export {
+	withExactHostExecutableSelection,
+	type ExactHostExecutableSelection
+} from './compilation/host-executable-selection.js';
+export { isExactOwnedHelperSource } from './compilation/source-helper-ownership.js';
 import { exactGeneratedArtifactTarget } from './artifacts.js';
 export { exactGeneratedArtifactTarget } from './artifacts.js';
 export {
@@ -38,13 +44,16 @@ export {
 export { composeExactSourceMaps, isExactSourceMap } from './source-maps.js';
 export type { ExactSourceMap } from './types.js';
 
-/** A compiler diagnostic shape that build-tool integrations can report. */
-export type ExactBuildDiagnostic = Readonly<{
-	code: string;
-	message: string;
-	filename?: string;
-	span?: Readonly<{ line: number; column: number }>;
-}>;
+import {
+	exactDiagnosticKey,
+	formatExactDiagnostic,
+	type ExactBuildDiagnostic
+} from './compilation/build-diagnostics.js';
+export {
+	exactDiagnosticKey,
+	formatExactDiagnostic,
+	type ExactBuildDiagnostic
+} from './compilation/build-diagnostics.js';
 
 /** A string, regular expression, or list used to filter build input paths. */
 export type ExactBuildFilter = string | RegExp | readonly (string | RegExp)[];
@@ -91,19 +100,6 @@ export function createExactDiagnosticReporter(): (
 		for (const file of update.affectedFiles) previous.delete(file.replaceAll('\\', '/'));
 		for (const [file, keys] of next) previous.set(file, keys);
 	};
-}
-
-/** Returns the stable identity used to deduplicate one build diagnostic. */
-export function exactDiagnosticKey(diagnostic: ExactBuildDiagnostic): string {
-	return `${diagnostic.code}:${diagnostic.span?.line}:${diagnostic.span?.column}:${diagnostic.message}`;
-}
-
-/** Formats a compiler diagnostic consistently across build-tool integrations. */
-export function formatExactDiagnostic(diagnostic: ExactBuildDiagnostic): string {
-	const location = diagnostic.filename
-		? `${diagnostic.filename}${diagnostic.span ? `:${diagnostic.span.line}:${diagnostic.span.column}` : ''}`
-		: 'TypeScript';
-	return `${location} - ${diagnostic.code}: ${diagnostic.message}`;
 }
 
 /** Tests a build path against a string/regular-expression filter collection. */
@@ -194,3 +190,20 @@ export function shouldCompileExactBuildModule(
 }
 
 export { readExactArtifactComponentFacts } from './compilation/artifact-component-facts.js';
+
+/**
+ * Retains individually named absolute source files from the host's explicit include declaration.
+ * Pattern and substring filters do not expand executable graph containment or package trust.
+ */
+export function exactExplicitBuildSourceFiles(
+	options: ExactBuildModuleSelectionOptions
+): readonly string[] {
+	const includes = Array.isArray(options.include) ? options.include : [options.include];
+	return includes.filter(
+		(value): value is string =>
+			typeof value === 'string' &&
+			path.isAbsolute(value) &&
+			isExactBuildSourceModule(value) &&
+			shouldTransformExactBuildModulePath(value, options)
+	);
+}

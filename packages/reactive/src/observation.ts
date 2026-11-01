@@ -245,6 +245,13 @@ function resolveObservationScope(options: WatchOptions): EffectScopeImpl | undef
 	) as EffectScopeImpl | undefined;
 }
 
+/** Retains a forwarded proxy's parent dependency without reading its source again. */
+export function trackReactiveSource(value: unknown): void {
+	if (!value || typeof value !== 'object') return;
+	const source = proxyRefs.get(value);
+	if (source) track(source.target, source.key);
+}
+
 /** Returns the reactive reference that drives a reactive value or proxied object, when available. */
 export function ref<T>(value: ReactiveValue<T>): ReactiveRef<T>;
 export function ref<T>(value: T): ReactiveRef<T> | undefined;

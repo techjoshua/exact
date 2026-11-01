@@ -41,6 +41,12 @@ func TestFrameworkMethodPlacement(t *testing.T) {
 		{"unproven-platform-interface", `import type {Storage} from 'node';declare const storage:Storage;`, `storage.getStore()`, "unknown"},
 		{"lookalike", `interface Storage{getStore():string | undefined}declare const storage:Storage;`, `storage.getStore()`, "unknown"},
 		{"added-member", `import type {Storage} from '@exactjs/request';interface Extra extends Storage{other():string}declare const storage:Extra;`, `storage.other()`, "unknown"},
+		{"owned-getter", `import type {Storage} from '@exactjs/request';const storage={get getStore(){void document.title;return ()=> 'value'}};`, `storage.getStore()`, "client"},
+		{"ambient-pattern-replacement", `import type {Storage} from '@exactjs/request';declare const storage:Storage;({getStore:storage.getStore}={getStore:()=>document.title});`, "storage.getStore()", "unknown"},
+		{"ambient-loop-replacement", `import type {Storage} from '@exactjs/request';declare const storage:Storage;for(storage.getStore of [()=>document.title]){}`, "storage.getStore()", "unknown"},
+		{"ambient-replacement", `import type {Storage} from '@exactjs/request';declare const storage:Storage;storage.getStore=()=>document.title;`, `storage.getStore()`, "unknown"},
+		{"ambient-reflective-getter", `import type {Storage} from '@exactjs/request';declare const storage:Storage;Object.defineProperty(storage,'getStore',{get(){return ()=>document.title}});`, `storage.getStore()`, "unknown"},
+		{"boxed-reflective-getter", `import type {Storage} from '@exactjs/request';declare const storage:Storage;const box={storage};Object.defineProperty(box.storage,'getStore',{get(){return ()=>document.title}});`, `storage.getStore()`, "unknown"},
 	} {
 		t.Run(fixture.name, func(t *testing.T) {
 			result := NewSession().Execute(Request{Kind: "compile", Target: TargetServer, Root: root, ID: filepath.Join(root, "page.tsx"), Source: fixture.prefix + `export function Page(){const value=` + fixture.call + `;return()=> <p>{value}</p>;}`})

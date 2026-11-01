@@ -1,8 +1,9 @@
 #!/usr/bin/env node
+import { reportExactCompilerWarnings } from './compilation/build-diagnostics.js';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { compileProjectArtifacts } from './compilation/compiler.js';
-import { checkProject, compileProject } from './compilation/file-compilation.js';
+import { collectProjectCheckDiagnostics, compileProject } from './compilation/file-compilation.js';
 import { createCompilerSession } from './expression/session.js';
 import { resolveNativeCompilerExecutable } from './native/executable.js';
 import type { TransformTarget } from './types.js';
@@ -38,7 +39,7 @@ async function main(argv: string[]): Promise<void> {
 	try {
 		if (options.check) {
 			const configFile = checkConfigFile(options.project);
-			await checkProject(options.inputs, {
+			const diagnostics = await collectProjectCheckDiagnostics(options.inputs, {
 				rootDir: options.rootDir,
 				root: configFile ? path.dirname(configFile) : process.cwd(),
 				configFile,
@@ -46,6 +47,7 @@ async function main(argv: string[]): Promise<void> {
 				serverComponents: options.serverComponents,
 				session
 			});
+			reportExactCompilerWarnings(diagnostics, console.warn);
 			return;
 		}
 		if (options.artifacts) {
@@ -57,6 +59,13 @@ async function main(argv: string[]): Promise<void> {
 				sourceMap: options.sourceMap,
 				session
 			});
+			reportExactCompilerWarnings(
+				results.flatMap((result) => [
+					...(result.client.diagnostics ?? []),
+					...(result.server.diagnostics ?? [])
+				]),
+				console.warn
+			);
 			for (const result of results) {
 				console.log(`${result.inputFile} -> ${result.clientFile}`);
 				if (result.clientMapFile) console.log(`${result.inputFile} -> ${result.clientMapFile}`);
@@ -79,6 +88,10 @@ async function main(argv: string[]): Promise<void> {
 			throw new Error('exactc requires --outDir when compiling more than one file');
 		}
 
+		reportExactCompilerWarnings(
+			results.flatMap((result) => result.diagnostics ?? []),
+			console.warn
+		);
 		for (const result of results) {
 			if (result.outputFile) {
 				console.log(`${result.inputFile} -> ${result.outputFile}`);

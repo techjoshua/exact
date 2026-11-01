@@ -1,3 +1,4 @@
+import { readClientComponentInput } from './component-input-admission.js';
 import {
 	assertEnhancementSourceOrder,
 	createFragmentEnhancementChain
@@ -9,8 +10,7 @@ import {
 	type EnhancementEntry
 } from '@exactjs/core';
 import {
-	createCompiledComponentReceipt,
-	readCompiledComponentReceipt,
+	createCompiledComponentInputReceipt,
 	readCompiledFragmentReceipt,
 	readCompiledIntrinsicReceipt,
 	withoutCompiledComponentReceiptEnhancement,
@@ -38,7 +38,11 @@ export function createEnhancementChain(
 		const entry = ordered[index]!;
 		const component = root.enhancementCatalog!.get(entry.identity)!;
 		chain = withTransparentComponentUpdateOwner(
-			createCompiledComponentReceipt(component, { ...entry.props }, chain)
+			createCompiledComponentInputReceipt(
+				component,
+				{ ...entry.props },
+				{ kind: 'eager', values: [chain] }
+			)
 		);
 	}
 	return chain;
@@ -57,7 +61,7 @@ export function orderEnhancementEntries(
 /** Reads compiler-owned declarations without interpreting the operation's output topology. */
 export function childEnhancementEntries(value: Child): readonly EnhancementEntry[] {
 	return enhancementEntries(
-		readCompiledComponentReceipt(value)?.enhancement ??
+		readClientComponentInput(value)?.enhancement ??
 			readCompiledIntrinsicReceipt(value)?.enhancement ??
 			readCompiledFragmentReceipt(value)?.enhancement ??
 			readRenderProgramReceipt(value)?.enhancement
@@ -98,7 +102,7 @@ export function mountedAuthoredOperation(mounted: Mounted): Child {
 /** Restores the compiler-issued authored operation after removing its enhancement wrapper. */
 export function restoreMountedAuthoredOperation(mounted: Mounted, operation: Child): void {
 	mounted.operation = operation;
-	const component = readCompiledComponentReceipt(operation);
+	const component = readClientComponentInput(operation);
 	if (component) mounted.componentReceipt = component;
 	const intrinsic = readCompiledIntrinsicReceipt(operation);
 	if (intrinsic) mounted.intrinsicReceipt = intrinsic;

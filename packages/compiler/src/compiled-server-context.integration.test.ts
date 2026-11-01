@@ -5,12 +5,11 @@ import * as exactDirectServerConstructionRuntime from '@exactjs/core/runtime/com
 import * as exactComponentAbiRuntime from '@exactjs/core/runtime/component-abi';
 import * as exactComponentOperationsRuntime from '@exactjs/core/runtime/component-operations';
 import type { AnyComponentFunction } from '@exactjs/core';
-import { createCompiledComponentReceipt } from '@exactjs/core/runtime/component-operations';
+import { createCompiledComponentInputReceipt } from '@exactjs/core/runtime/component-operations';
 import { renderToString } from '@exactjs/ssr';
 import ts from 'typescript';
 import { expect, it } from 'vitest';
 import { transform } from './index.js';
-
 it('renders compiled context providers and consumers through direct server frames', async () => {
 	const compiled = transform(
 		`
@@ -41,11 +40,14 @@ it('renders compiled context providers and consumers through direct server frame
 	expect(compiled).not.toContain('@exactjs/ssr/runtime/direct-context-frame');
 	expect(compiled.match(/lane: "direct"/g)).toHaveLength(4);
 	expect(compiled.match(/capabilities: \[\s*"contexts"/g)).toHaveLength(2);
-
 	const javascript = ts.transpileModule(compiled, {
 		compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 }
 	}).outputText;
-	const module = { exports: {} as { Page?: AnyComponentFunction } };
+	const module = {
+		exports: {} as {
+			Page?: AnyComponentFunction;
+		}
+	};
 	const modules: Record<string, unknown> = {
 		'@exactjs/core/runtime/component-branding': exactComponentBrandingRuntime,
 		'@exactjs/core': exactCore,
@@ -64,9 +66,11 @@ it('renders compiled context providers and consumers through direct server frame
 		module
 	);
 	if (!module.exports.Page) throw new Error('Compiled server context fixture omitted Page');
-
-	const result = await renderToString(createCompiledComponentReceipt(module.exports.Page, {}), {
-		markers: false
-	});
+	const result = await renderToString(
+		createCompiledComponentInputReceipt(module.exports.Page, {}),
+		{
+			markers: false
+		}
+	);
 	expect(result.html).toContain('<section><div><strong>direct</strong></div></section>');
 });

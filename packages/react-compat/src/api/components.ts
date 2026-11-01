@@ -6,15 +6,15 @@ import {
 } from '../runtime/shared.js';
 import type { MutableRefObject, ReactComponentType, ReactContext, ReactNode } from '../types.js';
 
-/** Creates a component that receives its ref as a second render argument. */
-export function forwardRef<P>(
+/** Creates a ref-aware component, inferring declared props or accepting a render function without props. */
+export function forwardRef<P = object>(
 	render: (props: P, ref: unknown) => ReactNode
 ): ReactComponentType<P> {
 	return { $$typeof: REACT_FORWARD_REF_TYPE, render };
 }
 
-/** Creates a component wrapper that can skip renders when props compare equal. */
-export function memo<P>(
+/** Creates a wrapper that can skip equal-prop renders, retaining prop inference and no-props functions. */
+export function memo<P = object>(
 	type: ReactComponentType<P>,
 	compare?: (previous: P, next: P) => boolean
 ): ReactComponentType<P> {

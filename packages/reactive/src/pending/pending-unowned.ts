@@ -1,7 +1,6 @@
 import { nativeCallable, nativeReceiverKind } from '../internal/native-operations.js';
 import { unwrap } from '../internal/values.js';
 import { applyNativeReactiveCollection } from '../proxy/collection-publication.js';
-import { assertPendingWritable } from './pending-property-policy.js';
 import type { PendingReactiveState } from './pending-state-contract.js';
 
 /** Keeps external reads ordinary without enrolling captured state or replacing getters. */
@@ -39,13 +38,11 @@ export function writeUnownedPendingProperty<Value>(
 	value: Value,
 	_context?: PendingReactiveState
 ): Value {
-	assertPendingWritable(receiver, key);
 	if (!Reflect.set(receiver, key, value)) throw new TypeError('Cannot assign property');
 	return value;
 }
 
-/** Deletes external storage immediately, preserving readonly policy and native reflection results. */
+/** Deletes external storage immediately, preserving native reflection results. */
 export function removeUnownedPendingProperty(receiver: object, key: PropertyKey): boolean {
-	assertPendingWritable(receiver, key);
 	return Reflect.deleteProperty(receiver, key);
 }

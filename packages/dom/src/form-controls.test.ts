@@ -9,7 +9,13 @@ import { applyDomProp, clearElementProps } from './props.js';
 import { flushSync } from '@exactjs/reactive';
 import { describe, expect, it, vi } from 'vitest';
 import { renderTestTree as render } from './testing.js';
-import { CompiledStatusSelect, compiledStatusSelectInstance } from './form-controls.fixtures.js';
+import {
+	CompiledStatusSelect,
+	compiledStatusSelectInstance,
+	CompiledImplicitSelect,
+	compiledImplicitSelectInstance
+} from './form-controls.fixtures.js';
+import { unmount } from './index.js';
 
 describe('@exactjs/dom form-controls', () => {
 	it('gives the native date setter a foreign Date without a redundant copy', () => {
@@ -457,4 +463,27 @@ describe('@exactjs/dom form-controls', () => {
 		expect(insertBefore).not.toHaveBeenCalled();
 		insertBefore.mockRestore();
 	});
+});
+
+it('reconciles controlled selection when compiled text changes an implicit option value', () => {
+	const container = document.createElement('div');
+	render(jsx(CompiledImplicitSelect, {}), container);
+	const select = container.querySelector('select')!,
+		option = select.options[0]!;
+	const owner = compiledImplicitSelectInstance();
+	try {
+		expect(select.value).toBe('dark');
+		owner.state.option = 'light';
+		flushSync();
+		expect(select.selectedIndex).toBe(-1);
+		owner.state.option = 'dark';
+		flushSync();
+		expect(select.value).toBe('dark');
+		expect(select.options[0]).toBe(option);
+	} finally {
+		unmount(container);
+	}
+	owner.state.option = 'disposed';
+	flushSync();
+	expect(option.textContent).toBe('dark');
 });

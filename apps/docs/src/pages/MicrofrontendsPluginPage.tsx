@@ -66,6 +66,11 @@ export function MicrofrontendsPluginPage(this: Component<{}>) {
 			next={{ path: '/learn/language-tools', label: 'Language tools' }}
 		>
 			<section>
+				<p>
+					Browser imports from <code>@exactjs/microfrontends</code> select the client runtime. Build
+					and gateway APIs remain available to Node tools. Hosts load shared runtime providers when
+					remote bindings are configured.
+				</p>
 				<h2>Load a separately deployed component</h2>
 				<p>
 					A billing team may need to release its account panel independently of the product
@@ -83,8 +88,16 @@ export function MicrofrontendsPluginPage(this: Component<{}>) {
 					entry, and records a build key. <code>providedPackages</code> describes packages whose
 					identity must be bridged between page and remote rather than duplicated casually. The
 					bundler also bridges the compiler-selected eXact runtime capability subpaths used by the
-					generated artifact, so a focused client bootstrap does not pull a second framework runtime
-					into the remote.
+					generated artifact, including specialized reactive and component construction helpers.
+					Remote state and page observers share one dependency graph. You do not need to list these
+					framework imports yourself. The page includes the provider bootstrap when it has
+					configured remote bindings. When a new remote requires additional providers, deploy the
+					updated host bootstrap first.
+				</p>
+				<p>
+					Use named or default imports for provided packages. A namespace import may access
+					statically named exports. Dynamic imports of provided packages, dynamic namespace
+					indexing, and passing the entire namespace to another function are unsupported.
 				</p>
 			</section>
 			<section>
@@ -126,11 +139,24 @@ export function MicrofrontendsPluginPage(this: Component<{}>) {
 			<section>
 				<h2>Handle updates and unavailable remotes</h2>
 				<p>
+					A mounted wrapper owns its remote entry wait. Removing it cancels that wait while other
+					wrappers sharing the load can continue. The loader imposes no deadline or concurrency
+					ceiling. Direct callers of <code>loadExactRemoteModule()</code> can supply an
+					<code>AbortSignal</code> to choose their own cancellation policy.
+				</p>
+				<p>
 					Remote entries carry a content-derived build key. When a server reports that a browser's
 					build is no longer supported, the client can resolve a current entry, replace the remote
 					module, and preserve the page-owned root around it. Cross-root structural patches rotate
 					the remote component descriptor instead of pretending two independently built trees are
 					one local bundle.
+				</p>
+				<p>
+					The application's <code>resolveClientEntry(preferredBuild)</code> callback discovers a
+					replacement entry. It receives no <code>AbortSignal</code>, so removing the remote does
+					not cancel that discovery work. Arrange any discovery cancellation or deadline through
+					your own application policy. After the callback returns an entry, the framework owns the
+					module wait and prevents a retired boundary from installing a late result.
 				</p>
 				<p>
 					A server-executing remote also carries its compact component-library authorization
@@ -142,16 +168,18 @@ export function MicrofrontendsPluginPage(this: Component<{}>) {
 			<section>
 				<h2>Build with Vite, Webpack, or Bun</h2>
 				<p>
-					Vite/Rollup, Webpack 5, and Bun 1.3 or newer emit and consume the same exposure,
-					registration, provided-package, build, and recovery records. Webpack prepares entries from
+					Vite/Rollup, Webpack 5, and Bun emit and consume the same exposure, registration,
+					provided-package, build, and recovery records. Webpack prepares entries from
 					<code>ExactWebpackPlugin</code>. Bun producers use <code>exactBuild()</code> because its
 					asynchronous plan must add entrypoints before <code>Bun.build</code> starts.
 				</p>
 				<CodeBlock source={bunProducerSource} language="ts" title="build.ts" />
 				<p>
 					Both adapters publish only complete successful entry maps and preserve reachable CSS,
-					assets, and lazy chunks. Bun server <code>--hot</code> remains unsupported. Use watch or a
-					coordinated rebuild so the last authorized generation remains unambiguous.
+					assets, and lazy chunks. Bun builds use native metadata to support custom hashed output
+					names. The coordinator requests the metadata needed to publish those URLs automatically.
+					Bun server <code>--hot</code> remains unsupported. Use watch or a coordinated rebuild so
+					the last authorized generation remains unambiguous.
 				</p>
 				<p>
 					<code>exactBuild()</code> releases its compiler resources after success or failure. A

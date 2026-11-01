@@ -1,3 +1,5 @@
+import { requireRecord, captureArray } from './protocol-data.js';
+
 /** JSON-compatible values accepted by canonical protocol serialization. */
 export type IntlCanonicalValue =
 	| null
@@ -20,17 +22,20 @@ function serializeCanonical(value: IntlCanonicalValue, ancestors: Set<object>): 
 		return JSON.stringify(Object.is(value, -0) ? 0 : value);
 	}
 	if (typeof value === 'string') return JSON.stringify(value.normalize('NFC'));
+	if (typeof value !== 'object') throw new TypeError('Intl canonical values must be data');
 	if (ancestors.has(value)) throw new TypeError('Intl canonical values cannot contain cycles');
 	ancestors.add(value);
 	try {
 		if (Array.isArray(value))
-			return `[${value.map((entry) => serializeCanonical(entry, ancestors)).join(',')}]`;
+			return `[${captureArray(value, 'Intl canonical array')
+				.map((entry) => serializeCanonical(entry as IntlCanonicalValue, ancestors))
+				.join(',')}]`;
 		const normalized = new Map<string, IntlCanonicalValue>();
-		for (const [rawKey, entry] of Object.entries(value)) {
+		for (const [rawKey, entry] of Object.entries(requireRecord(value, 'Intl canonical object'))) {
 			const key = rawKey.normalize('NFC');
 			if (normalized.has(key))
 				throw new TypeError(`Intl canonical object contains duplicate normalized key "${key}"`);
-			normalized.set(key, entry);
+			normalized.set(key, entry as IntlCanonicalValue);
 		}
 		return `{${[...normalized.entries()]
 			.sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))

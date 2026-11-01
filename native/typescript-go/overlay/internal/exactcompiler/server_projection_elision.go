@@ -3,6 +3,7 @@ package exactcompiler
 import "github.com/microsoft/TypeScript/tsc/internal/ast"
 
 type serverLocalCandidate struct {
+	declaration         *ast.Node
 	symbol              ast.SymbolId
 	name                string
 	start               int
@@ -111,6 +112,20 @@ func componentSourceNode(sourceFile *ast.SourceFile, component Component) *ast.N
 	return result
 }
 
+// serverProjectionSourceSymbol queries only the authored checker tree behind a projected node.
+// Private import bindings and other synthesized nodes have no checked symbol. Returning nil keeps
+// the existing source-position and conservative local-name reachability fallbacks in charge.
+func (lowering *jsxLowering) serverProjectionSourceSymbol(node *ast.Node) *ast.Symbol {
+	original := lowering.emitContext.MostOriginal(node)
+	if ast.NodeIsSynthesized(original) || ast.GetSourceFileOfNode(original) != lowering.sourceFile {
+		return nil
+	}
+	if original.Parent != nil && ast.IsShorthandPropertyAssignment(original.Parent) {
+		return lowering.checker.GetShorthandAssignmentValueSymbol(original.Parent)
+	}
+	return lowering.checker.GetSymbolAtLocation(original)
+}
+
 // omitUnreachableServerComponentLocals removes effect-free setup declarations whose complete
 // consumer graph disappeared when the server projection erased dormant interaction callbacks.
 // It deliberately operates after JSX projection and keeps any declaration with an effectful
@@ -152,6 +167,7 @@ func (lowering *jsxLowering) omitUnreachableServerComponentLocals(root *ast.Node
 		if symbol := lowering.checker.GetSymbolAtLocation(name); symbol != nil {
 			symbolID := ast.GetSymbolId(symbol)
 			candidates[symbolID] = serverLocalCandidate{
+				declaration:         node,
 				symbol:              symbolID,
 				name:                name.Text(),
 				start:               node.Pos(),
@@ -182,26 +198,17 @@ func (lowering *jsxLowering) omitUnreachableServerComponentLocals(root *ast.Node
 	dependencies := make(map[ast.SymbolId]map[ast.SymbolId]struct{})
 	roots := make(map[ast.SymbolId]struct{})
 	rootNames := make(map[string]struct{})
-	walkNode(root, func(node *ast.Node) bool {
+	inspectReference := func(node *ast.Node, owner ast.SymbolId) {
 		shorthandValue := node.Parent != nil && ast.IsShorthandPropertyAssignment(node.Parent)
 		if !ast.IsIdentifier(node) || node.Parent == nil ||
 			(ast.IsDeclarationName(node) && !shorthandValue) || isStaticPropertyName(node) {
-			return true
-		}
-		owner := ast.SymbolId(0)
-		ownerWidth := int(^uint(0) >> 1)
-		for id, candidate := range candidates {
-			if width := candidate.end - candidate.start; node.Pos() >= candidate.start &&
-				node.Pos() < candidate.end && width < ownerWidth {
-				owner = id
-				ownerWidth = width
-			}
+			return
 		}
 		if owner == 0 {
 			rootNames[node.Text()] = struct{}{}
 		}
 		usedSymbols := make([]ast.SymbolId, 0, 1)
-		if symbol := lowering.checker.GetSymbolAtLocation(node); symbol != nil {
+		if symbol := lowering.serverProjectionSourceSymbol(node); symbol != nil {
 			usedSymbols = append(usedSymbols, ast.GetSymbolId(symbol))
 		} else if used := sourceSymbols[node.Pos()]; used != 0 {
 			usedSymbols = append(usedSymbols, used)
@@ -217,7 +224,7 @@ func (lowering *jsxLowering) omitUnreachableServerComponentLocals(root *ast.Node
 			}
 		}
 		if len(usedSymbols) == 0 {
-			return true
+			return
 		}
 		for _, used := range usedSymbols {
 			if _, candidate := candidates[used]; !candidate {
@@ -234,8 +241,39 @@ func (lowering *jsxLowering) omitUnreachableServerComponentLocals(root *ast.Node
 				dependencies[owner][used] = struct{}{}
 			}
 		}
-		return true
-	})
+		return
+	}
+
+	// A transformed reference can keep an authored position after moving out of its old closure.
+	// Carry the actual projected declaration owner instead of attributing references by spans.
+	declarations := make(map[*ast.Node]ast.SymbolId, len(candidates))
+	for symbol, candidate := range candidates {
+		declarations[candidate.declaration] = symbol
+	}
+	var visit func(*ast.Node, *ast.Node, ast.SymbolId)
+	visit = func(node, parent *ast.Node, owner ast.SymbolId) {
+		if node == nil {
+			return
+		}
+		// Private factory nodes acquire permanent parents only during final assembly. Supply
+		// this projected parent for classification without changing any authored parent chain.
+		if node.Parent == nil && parent != nil {
+			node.Parent = parent
+			defer func() { node.Parent = nil }()
+		}
+		original := lowering.emitContext.MostOriginal(node)
+		if symbol, found := declarations[original]; found && node.Kind == original.Kind {
+			sameBody := ast.IsFunctionDeclaration(node) && lowering.emitContext.MostOriginal(node.Body()) == original.Body()
+			sameInitializer := ast.IsVariableDeclaration(node) && lowering.emitContext.MostOriginal(node.AsVariableDeclaration().Initializer) == original.AsVariableDeclaration().Initializer
+			if sameBody || sameInitializer {
+				owner = symbol
+			}
+		}
+		inspectReference(node, owner)
+		node.ForEachChild(func(child *ast.Node) bool { visit(child, node, owner); return false })
+	}
+	visit(root, nil, 0)
+
 	queue := make([]ast.SymbolId, 0, len(roots))
 	reachable := make(map[ast.SymbolId]struct{}, len(roots))
 	for root := range roots {
@@ -273,7 +311,7 @@ func (lowering *jsxLowering) omitUnreachableServerComponentLocals(root *ast.Node
 			// Overload signatures share the implementation's reachability. Leaving
 			// signatures after removing its body creates an invalid typed artifact.
 			if node.Body() == nil && node.Name() != nil {
-				if symbol := lowering.checker.GetSymbolAtLocation(node.Name()); symbol != nil {
+				if symbol := lowering.serverProjectionSourceSymbol(node.Name()); symbol != nil {
 					if candidate, exists := candidates[ast.GetSymbolId(symbol)]; exists {
 						_, remove := removable[candidate.start]
 						_, inert := inertClientCallables[candidate.start]

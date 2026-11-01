@@ -1,4 +1,9 @@
 export {
+	iterateReactChildEntries,
+	reactChildEntryKey,
+	type ReactChildEntry
+} from './runtime/child-arrays.js';
+export {
 	exactComponentForReactInstance,
 	isUnmountedReactClassInstance
 } from './runtime/adapters.js';

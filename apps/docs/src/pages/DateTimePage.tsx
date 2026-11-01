@@ -124,11 +124,13 @@ export function DateTimePage(this: Component<{}>) {
 				<h2>Format dates and durations</h2>
 				<CodeBlock source={intlSource} language="tsx" title="LocalizedRelease.tsx" />
 				<p>
-					A nested clock range and its enclosing lexical message share one sample.
-					Internationalization still owns translation and the cached native formatter. The time
-					package owns clock sampling and progression and has no runtime dependency on Intl. Several
-					nested ranges remain independent, while Intl's generated formatter projections alias the
-					matching authored activation instead of creating another scheduler registration.
+					A nested clock range and its enclosing lexical message share one timestamp. Readonly clock
+					observations use TypeScript checking and remain ordinary copies. Clock ranges release
+					timer and wake subscriptions on disposal. A stale callback cannot update a replacement
+					range. Internationalization still owns translation and the cached native formatter. The
+					time package owns clock sampling and progression and has no runtime dependency on Intl.
+					Several nested ranges remain independent, while Intl's generated formatter projections
+					alias the matching authored activation instead of creating another scheduler registration.
 				</p>
 			</section>
 			<section>
@@ -149,6 +151,11 @@ export function DateTimePage(this: Component<{}>) {
 					provider preserves its own initial observation in component state. Clock objects stay
 					local to the application. The request wall-clock snapshot is added to hydration data only
 					for artifacts that consume the time capability.
+				</p>
+				<p>
+					Failures while canceling a custom timer remain observable. eXact still attempts
+					independent clock work and replacement scheduling, and ignores callbacks from the retired
+					timer.
 				</p>
 			</section>
 			<section>

@@ -5,6 +5,7 @@ import {
 	type ArrayPosition
 } from './positions.js';
 import {
+	readMutationVersion,
 	recordTransactionUndo,
 	retainTransactionArray,
 	trigger,
@@ -81,20 +82,30 @@ function restoreOrder(
 	target: unknown[],
 	before: readonly ArrayPosition[],
 	restoration: MutationRestoration
-): void {
+): boolean {
+	const receipt = restoration.capture(target, orderKey);
 	const entries = before.filter((entry) => entry.index >= 0);
+	if (!entries.length) return false;
 	const destinations = entries.map((entry) => entry.index).sort((left, right) => left - right);
 	const descriptors = entries.map((entry) =>
 		Reflect.getOwnPropertyDescriptor(target, String(entry.index))
 	);
-	entries.forEach((_, offset) => {
+	for (let offset = 0; offset < entries.length; offset++) {
 		const index = destinations[offset]!;
 		const descriptor = descriptors[offset];
-		if (descriptor) Reflect.defineProperty(target, String(index), descriptor);
-		else Reflect.deleteProperty(target, String(index));
+		const completed = descriptor
+			? Reflect.defineProperty(target, String(index), descriptor)
+			: Reflect.deleteProperty(target, String(index));
+		if (!completed) return false;
 		restoration.notify(target, String(index));
-	});
+	}
 	moveArrayPositions(entries, destinations);
-	restoration.mark(target, orderKey);
+	restoration.mark(receipt);
 	restoration.notify(target, iterateKey);
+	return true;
+}
+
+/** Reads existing monotonic order evidence, including permutations with identical descriptors. */
+export function readArrayOrderVersion(target: unknown[]): number {
+	return readMutationVersion(target, orderKey);
 }

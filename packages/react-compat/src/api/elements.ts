@@ -1,3 +1,4 @@
+import { mapReactChildren, visitReactChildren } from './child-mapping.js';
 import { currentReactOwnerFrame } from '../internals.js';
 import { isReactElement, reactCompatibilityTarget, reactElementSymbol } from '../runtime/shared.js';
 import type { Key, ReactCompatibleComponentType, ReactElement, ReactNode } from '../types.js';
@@ -62,26 +63,39 @@ export function isValidElement(value: unknown): value is ReactElement {
 }
 
 /** React-compatible utilities for traversing opaque children values. */
-export const Children = Object.freeze({
-	map<T>(children: ReactNode, callback: (child: ReactNode, index: number) => T): T[] | null {
-		if (children === null || children === undefined) return null;
-		return flattenChildren(children).map(callback);
+export const Children = {
+	/** Transforms each input slot, normalizing empty slots to null, flattening returned arrays and preserving keyed scopes. Binds the callback to context when supplied. */
+	map<T>(
+		children: ReactNode,
+		callback: (child: ReactNode, index: number) => T,
+		context?: unknown
+	): Array<T extends readonly unknown[] ? ReactNode : NonNullable<T>> | null {
+		return mapReactChildren(children, callback, context) as Array<
+			T extends readonly unknown[] ? ReactNode : NonNullable<T>
+		> | null;
 	},
-	forEach(children: ReactNode, callback: (child: ReactNode, index: number) => void): void {
-		flattenChildren(children).forEach(callback);
+	/** Visits each supplied slot in order without collecting results. Empty slots reach the callback as null, and context supplies its receiver. */
+	forEach(
+		children: ReactNode,
+		callback: (child: ReactNode, index: number) => void,
+		context?: unknown
+	): void {
+		visitReactChildren(children, callback, context);
 	},
+	/** Counts supplied slots, including empty array slots. An absent root has no slots. */
 	count(children: ReactNode): number {
-		return flattenChildren(children, false).length;
+		return visitReactChildren(children);
 	},
 	only(children: ReactNode): ReactElement {
 		if (!isValidElement(children))
 			throw new Error('React.Children.only expected to receive a single React element child.');
 		return children;
 	},
+	/** Flattens nonempty children and copies element records with scoped keys, retaining their props and leaving inputs unchanged. */
 	toArray(children: ReactNode): ReactNode[] {
-		return flattenChildren(children);
+		return (mapReactChildren(children, (value) => value) ?? []) as ReactNode[];
 	}
-});
+} as const;
 
 function applyDefaultProps(type: unknown, props: Record<string, unknown>): void {
 	if ((typeof type !== 'function' && typeof type !== 'object') || type === null) return;
@@ -93,18 +107,4 @@ function applyDefaultProps(type: unknown, props: Record<string, unknown>): void 
 
 function childrenFrom(children: ReactNode | undefined): ReactNode[] {
 	return children === undefined ? [] : Array.isArray(children) ? children : [children];
-}
-
-function flattenChildren(children: ReactNode, omitEmpty = true): ReactNode[] {
-	const output: ReactNode[] = [];
-	const visit = (value: ReactNode): void => {
-		if (Array.isArray(value)) {
-			for (const child of value) visit(child);
-			return;
-		}
-		if (omitEmpty && (value === null || value === undefined || typeof value === 'boolean')) return;
-		output.push(value);
-	};
-	visit(children);
-	return output;
 }

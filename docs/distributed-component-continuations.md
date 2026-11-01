@@ -133,7 +133,10 @@ or conditional mounts remain fresh client construction.
 Invoked continuation return values use the same validated result envelope for
 single, batched, and NDJSON-streamed requests. A streaming transport may split
 state, mutations, patches, and HTML into incremental events, but the terminal
-operation event retains the authored return value.
+operation event retains the authored return value and authorized public-context writes.
+The client preserves patches in wire order across incremental and terminal payloads and bounds
+their combined count. State, HTML, and collection-mutation payloads have one representation per
+operation. Conflicting incremental and terminal copies are rejected.
 
 The resumption record contains plain public data and continuation identity. It
 does not contain functions, task objects, database clients, request objects,

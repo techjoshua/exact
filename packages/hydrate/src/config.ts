@@ -1,4 +1,6 @@
-import { sameExactComponentAuthorization, sameJsonData } from '@exactjs/core';
+import { resolveHydrationConfiguration } from './configuration-options.js';
+import { sameJsonData } from '@exactjs/core';
+import { addUniqueArrayClientBinding } from '@exactjs/core/framework/component-contracts';
 import { createDomWorkBudget, walkDomSubtree, type DomWorkBudget } from '@exactjs/dom/root';
 import type {
 	ClientIslandRegistry,
@@ -26,15 +28,18 @@ export function defineExactHydrationRegistration(
 ): ExactHydrationRegistration {
 	const continuations = normalizeContinuationMap(registration.continuations);
 	const resumptions = normalizeComponentResumptionRegistrations(registration.resumptions);
+	const continuationArrays = mergeArrayClientBindings(undefined, registration.continuationArrays);
 	const {
 		continuations: _serializedContinuations,
 		resumptions: _serializedResumptions,
+		continuationArrays: _executableArrays,
 		...fields
 	} = registration;
 	return {
 		...fields,
 		...(continuations === undefined ? {} : { continuations }),
-		...(resumptions === undefined ? {} : { resumptions })
+		...(resumptions === undefined ? {} : { resumptions }),
+		...(continuationArrays === undefined ? {} : { continuationArrays })
 	};
 }
 
@@ -73,54 +78,17 @@ export function readExactHydrationConfig(
 /** Combines explicit hydration options with the nearest serialized document config. */
 export function resolveHydrateOptions(container: Element, options: HydrateOptions): HydrateOptions {
 	const config = readNearestHydrationConfig(container, options.configLimits, options.maxTreeNodes);
-	if (
-		config.pluginRegistryFingerprint &&
-		options.clientPluginRegistryFingerprint &&
-		config.pluginRegistryFingerprint !== options.clientPluginRegistryFingerprint
-	) {
-		throw new Error('Client and server eXact plugin registry fingerprints do not match');
-	}
-	if (config.buildKey && options.buildKey && config.buildKey !== options.buildKey) {
-		throw new Error('Client and server eXact build identities do not match');
-	}
-	if (
-		config.componentAuthorization &&
-		options.componentAuthorization &&
-		!sameExactComponentAuthorization(config.componentAuthorization, options.componentAuthorization)
-	)
-		throw new Error('Client and server component authorization fingerprints do not match');
-	const componentAuthorization = options.componentAuthorization ?? config.componentAuthorization;
-	const buildKey = options.buildKey ?? config.buildKey;
-	if (componentAuthorization && buildKey && componentAuthorization.buildKey !== buildKey)
-		throw new Error('Component authorization identity does not match the hydration build key');
-	return {
-		...options,
+	return resolveHydrationConfiguration(options, config, () => ({
 		endpoint: options.endpoint ?? config.endpoint,
+		continuationArrays: mergeArrayClientBindings(undefined, options.continuationArrays),
 		endpoints: mergeEndpointRoutes(config.endpoints, options.endpoints),
-		state: options.state === undefined ? config.state : options.state,
-		markerlessRoot: options.markerlessRoot ?? config.markerlessRoot,
-		allowMarkerless: options.allowMarkerless ?? config.markerlessRoot,
 		continuations: mergeUniqueRecord(
 			config.continuations,
 			normalizeContinuationMap(options.continuations),
 			'continuation',
 			sameJsonData
-		),
-		resumptions: options.resumptions ?? config.resumptions,
-		publicContexts: options.publicContexts ?? config.publicContexts,
-		wallClockSnapshot: options.wallClockSnapshot ?? config.wallClockSnapshot,
-		hydrationTable: options.hydrationTable ?? config.hydrationTable,
-		executionRoot: options.executionRoot ?? config.executionRoot,
-		binding: options.binding ?? config.binding,
-		buildKey,
-		componentAuthorization,
-		headers: componentAuthorization
-			? {
-					...options.headers,
-					'X-Exact-Component-Authorization': componentAuthorization.fingerprint
-				}
-			: options.headers
-	};
+		)
+	}));
 }
 
 /** Merges a late-loaded hydration registration into an existing client runtime configuration. */
@@ -128,6 +96,10 @@ export function mergeHydrationRegistration(
 	options: HydrateOptions,
 	registration: ExactHydrationRegistration
 ): void {
+	const continuationArrays = mergeArrayClientBindings(
+		options.continuationArrays,
+		registration.continuationArrays
+	);
 	if (registration.endpoint !== undefined) {
 		if (options.endpoint !== undefined && options.endpoint !== registration.endpoint) {
 			throw new Error('Conflicting eXact hydration endpoint registration');
@@ -144,6 +116,7 @@ export function mergeHydrationRegistration(
 			sameJsonData
 		);
 	}
+	options.continuationArrays = continuationArrays;
 	if (registration.resumptions) {
 		options.resumptions = [...(options.resumptions ?? []), ...registration.resumptions];
 	}
@@ -164,6 +137,18 @@ export function mergeHydrationRegistration(
 			sameEndpointTransport
 		);
 	}
+}
+
+/** Copies executable bindings into root ownership using composition's closed identity checks. */
+function mergeArrayClientBindings(
+	base: HydrateOptions['continuationArrays'],
+	next: HydrateOptions['continuationArrays']
+): HydrateOptions['continuationArrays'] {
+	if (!base && !next) return undefined;
+	const output = { ...base };
+	for (const [id, binding] of Object.entries(next ?? {}))
+		addUniqueArrayClientBinding(output, id, binding);
+	return output;
 }
 
 /**

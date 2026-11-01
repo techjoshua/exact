@@ -10,7 +10,7 @@ import type {
 } from './contracts.js';
 import { decimal, parseThemeColor, resolveColor } from './color.js';
 import { ThemeResolutionError } from './errors.js';
-import { exactThemeContract } from './token-contract.js';
+import { exactThemeTokenDescriptors } from './token-contract.js';
 
 /** Validates and serializes a sparse override as an atomic custom-property map. */
 export function serializeThemeOverrides(tokens: ThemeOverrideTokens): Partial<ThemeVariableMap> {
@@ -18,7 +18,7 @@ export function serializeThemeOverrides(tokens: ThemeOverrideTokens): Partial<Th
 		throw invalid('tokens', 'Theme override tokens must be an object');
 	const output = Object.create(null) as Record<ThemeCustomProperty, string>;
 	for (const name of Object.keys(tokens).sort()) {
-		const descriptor = exactThemeContract.tokens[name as ThemeTokenName];
+		const descriptor = exactThemeTokenDescriptors[name as ThemeTokenName];
 		if (!descriptor) throw invalid(`tokens.${name}`, `Unknown exact-theme/1 token ${name}`);
 		output[descriptor.cssName] = serializeValue(
 			name as ThemeTokenName,
@@ -26,7 +26,7 @@ export function serializeThemeOverrides(tokens: ThemeOverrideTokens): Partial<Th
 			(tokens as Record<string, unknown>)[name]
 		);
 	}
-	return Object.freeze(output);
+	return output;
 }
 
 /**

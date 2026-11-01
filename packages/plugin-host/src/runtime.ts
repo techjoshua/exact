@@ -41,8 +41,11 @@ export function processExactOutputSync<T>(
 	for (const extension of extensions) {
 		if (!extension.transform) continue;
 		const result = extension.transform(current, context);
-		if (isPromiseLike(result))
+		if (isPromiseLike(result)) {
+			// The hook already started. Reject its use while owning its eventual failure.
+			void Promise.resolve(result).catch(() => {});
 			throw new Error(`Async output transform cannot run in synchronous ${context.kind} output`);
+		}
 		current = result;
 	}
 	const failures: unknown[] = [];
@@ -50,8 +53,10 @@ export function processExactOutputSync<T>(
 		if (!extension.validate) continue;
 		try {
 			const result = extension.validate(current, context);
-			if (isPromiseLike(result))
+			if (isPromiseLike(result)) {
+				void Promise.resolve(result).catch(() => {});
 				throw new Error(`Async output validator cannot run in synchronous ${context.kind} output`);
+			}
 			if (result !== undefined) failures.push(new Error('Output validators must return undefined'));
 		} catch (error) {
 			failures.push(error);
@@ -62,7 +67,7 @@ export function processExactOutputSync<T>(
 	return current;
 }
 
-/** Performs the initialize exact plugin resources domain operation. */
+/** Acquires scope-owned resources, rolling back partial acquisition without losing its failure. */
 export async function initializeExactPluginResources(
 	extensions: readonly ExactRuntimePluginExtension[],
 	scope: 'application' | 'request',
@@ -78,7 +83,15 @@ export async function initializeExactPluginResources(
 		}
 		return resources;
 	} catch (error) {
-		await disposeExactPluginResources(resources);
+		try {
+			await disposeExactPluginResources(resources);
+		} catch (cleanup) {
+			throw new AggregateError(
+				[error, cleanup],
+				'eXact plugin resource initialization and rollback failed',
+				{ cause: error }
+			);
+		}
 		throw error;
 	}
 }

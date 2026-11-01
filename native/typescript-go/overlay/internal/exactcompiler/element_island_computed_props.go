@@ -52,7 +52,7 @@ func (lowering *jsxLowering) lowerIslandComputedPropsRead(node *ast.Node) *ast.N
 		}), true)
 	} else {
 		body = lowering.conditional(isChildren,
-			lowering.clientIslandPropsRead(lowering.factory.NewIdentifier("props"), "children"),
+			lowering.clientIslandPropsRead(lowering.clientIslandProps, "children"),
 			lowering.factory.NewElementAccessExpression(lowering.clientIslandCapturedValue(capture.name), nil, key, ast.NodeFlagsNone),
 		)
 	}

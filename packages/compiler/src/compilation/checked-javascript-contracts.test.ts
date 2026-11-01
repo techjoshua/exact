@@ -6,9 +6,8 @@ import { resolveNativeCompilerExecutable } from '../native/executable.js';
 import { importArtifact } from '../test-support/import-artifact.js';
 import { composeExactExecutorContract } from '@exactjs/server';
 import { createExactServerHandlerRegistry, renderToString } from '@exactjs/ssr';
-import { createCompiledComponentReceipt } from '@exactjs/core/runtime/component-operations';
+import { createCompiledComponentInputReceipt } from '@exactjs/core/runtime/component-operations';
 import type { AnyComponentFunction, LogEvent } from '@exactjs/core';
-
 /** Owns a checked-JavaScript project and releases its compiler and temporary files. */
 async function checkedJavaScriptProject() {
 	const parent = path.resolve('.tmp/checked-javascript-contracts');
@@ -47,7 +46,6 @@ async function checkedJavaScriptProject() {
 			})
 	};
 }
-
 const cases = {
 	assignment: {
 		valid: 'this.state.value=Number(props.value);',
@@ -80,7 +78,6 @@ const cases = {
 		code: 'TS18047'
 	}
 };
-
 for (const extension of ['js', 'jsx'])
 	for (const target of ['default', 'client', 'server'] as const)
 		for (const [name, contract] of Object.entries(cases))
@@ -105,7 +102,6 @@ export function Work(props){this.state.value=0;
 					true
 				);
 			});
-
 it('executes checked JavaScript SSR and a subsequent task with owned cleanup', async () => {
 	const { root, compile } = await checkedJavaScriptProject();
 	const result = compile(
@@ -129,7 +125,7 @@ export function Work(props){this.state.value=0;
 	const Work = compiled.Work as AnyComponentFunction;
 	const reports: LogEvent[] = [];
 	const logger = { log: (event: LogEvent) => reports.push(event) };
-	const rendered = await renderToString(createCompiledComponentReceipt(Work, { value: '7' }), {
+	const rendered = await renderToString(createCompiledComponentInputReceipt(Work, { value: '7' }), {
 		logger
 	});
 	expect(rendered.html).toContain('7');

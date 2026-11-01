@@ -2,7 +2,7 @@
 import path from 'node:path';
 import { expect, it, onTestFinished } from 'vitest';
 import type { AnyComponentFunction } from '@exactjs/core';
-import { createCompiledComponentReceipt as receipt } from '@exactjs/core/runtime/component-operations';
+import { createCompiledComponentInputReceipt as receipt } from '@exactjs/core/runtime/component-operations';
 import { render, unmount } from '@exactjs/dom';
 import { renderToHydratableString } from '@exactjs/ssr';
 import { composeExactComponentContracts } from '@exactjs/core/framework/component-contracts';
@@ -12,11 +12,9 @@ import { registerDomEnhancementIntegration } from '../../../dom/src/renderer/enh
 import { flushSync } from '@exactjs/reactive';
 import type { ManualTimeClock } from '@exactjs/time/testing';
 import { compileProjectArtifacts } from '../index.js';
-import { createTestWorkspace, writeTestFiles } from '../test-support/workspace.js';
+import { createTestWorkspace, writeTestFiles, repositoryPath } from '../test-support/workspace.js';
 import { importArtifact } from '../test-support/import-artifact.js';
-
 import { timePlanCases as cases } from '../test-support/time-plan-cases.js';
-
 it.each(cases.flatMap((entry) => ['mount', 'hydrate'].map((mode) => ({ ...entry, mode }))))(
 	'preserves compiled time plan semantics: $name ($mode)',
 	async ({
@@ -63,16 +61,16 @@ export function Page(${omitReceiver ? '' : 'this:Component<{offset:number}>,'}pr
 			outDir: path.join(root, 'generated')
 		});
 		const client = await importArtifact(artifact!.clientFile, path.join(root, 'client.mjs'), {
-			'@exactjs/time': path.resolve('packages/time/dist/client/index.js'),
-			'@exactjs/time/internal': path.resolve('packages/time/dist/client/internal.js'),
-			'@exactjs/time/enhancements': path.resolve('packages/time/dist/client/enhancements.js'),
-			'@exactjs/time/testing': path.resolve('packages/time/dist/client/testing.js')
+			'@exactjs/time': repositoryPath('packages/time/dist/client/index.js'),
+			'@exactjs/time/internal': repositoryPath('packages/time/dist/client/internal.js'),
+			'@exactjs/time/enhancements': repositoryPath('packages/time/dist/client/enhancements.js'),
+			'@exactjs/time/testing': repositoryPath('packages/time/dist/client/testing.js')
 		});
 		const server = await importArtifact(artifact!.serverFile, path.join(root, 'server.mjs'), {
-			'@exactjs/time': path.resolve('packages/time/dist/server/index.js'),
-			'@exactjs/time/internal': path.resolve('packages/time/dist/server/internal.js'),
-			'@exactjs/time/enhancements': path.resolve('packages/time/dist/server/enhancements.js'),
-			'@exactjs/time/testing': path.resolve('packages/time/dist/server/testing.js')
+			'@exactjs/time': repositoryPath('packages/time/dist/server/index.js'),
+			'@exactjs/time/internal': repositoryPath('packages/time/dist/server/internal.js'),
+			'@exactjs/time/enhancements': repositoryPath('packages/time/dist/server/enhancements.js'),
+			'@exactjs/time/testing': repositoryPath('packages/time/dist/server/testing.js')
 		});
 		const rendered = await renderToHydratableString(receipt(server.App as never, {}), {
 			documentShell: (child) => receipt(server.Shell as never, { children: child }),

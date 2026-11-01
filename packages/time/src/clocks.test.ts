@@ -7,14 +7,13 @@ describe('wallTimeClock', () => {
 		vi.unstubAllGlobals();
 	});
 
-	it('shares one immutable sample during a synchronous cycle', async () => {
+	it('samples one timestamp during a synchronous cycle', async () => {
 		const now = vi.spyOn(Date, 'now').mockReturnValueOnce(10).mockReturnValueOnce(20);
 
 		const first = wallTimeClock.now();
 		const second = wallTimeClock.now();
 
-		expect(second).toBe(first);
-		expect(Object.isFrozen(first)).toBe(true);
+		expect(second).toEqual(first);
 		expect(now).toHaveBeenCalledTimes(1);
 
 		await Promise.resolve();

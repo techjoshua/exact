@@ -69,7 +69,9 @@ export function InternationalizationPage(this: Component<{}>) {
 				<p>
 					Extract a source XLIFF file, send it to a translator or translation service, then add the
 					returned files to your catalogs. XLIFF is the editable exchange format. Its placeholders
-					identify values and inline content the translation needs to retain.
+					identify values and inline content the translation needs to retain. The build validates
+					each translation node before emitting runtime catalog data. Text limits apply to both
+					authored and Unicode-normalized forms.
 				</p>
 				<CodeBlock source={intlXliffSource} language="xml" title="Example XLIFF 2.1 source entry" />
 				<p>
@@ -300,10 +302,20 @@ export function InternationalizationPage(this: Component<{}>) {
 				<details>
 					<summary>Use localized values in a component library</summary>
 					<p>
-						Library authors can use the public measurement presentation operations and cached
-						formatters. <code>IntlScalarPresentationContext</code> exposes a prepared scalar
-						message’s translated text, source fallback, locale, and direction. Messages containing
-						elements remain rendered content. See the
+						When a component library needs localized numbers for charts or editable measurements,
+						the public presentation operations share eXact's unit decisions and cached formatters.
+						Presentations have TypeScript readonly fields and copied number options. Resolve them
+						again after locale or unit-policy updates before formatting. For a provider policy
+						change, call <code>setUnitPreferences()</code>. Existing locale scopes also receive
+						generated catalogs as they load. Public message lookup and translation projection
+						results are independent data with TypeScript readonly fields. Package metadata
+						validation, source analysis, generated descriptor and catalog data, and editor results
+						also use ordinary JavaScript values with TypeScript readonly fields. Generated
+						integrations may supply protocol JSON catalogs individually or in arrays, with file
+						order preserved.
+						<code>IntlScalarPresentationContext</code> exposes a prepared scalar message’s
+						translated text, source fallback, locale, and direction. Messages containing elements
+						remain rendered content. See the
 						<a href="https://github.com/techjoshua/exact/blob/main/docs/internationalization.md">
 							internationalization reference
 						</a>{' '}

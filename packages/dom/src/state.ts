@@ -10,7 +10,10 @@ type ExactDomInspectionOwnerFactory = (
 export type DelegatedEventBinding = readonly [
 	handler: EventListener,
 	/** Bit 0 selects direct interaction; bit 1 selects the closed argument-free call. */
-	flags: number
+	flags: number,
+	/** Root and physical delegation container that own this callback delivery. */
+	root: Root,
+	container: Node
 ];
 
 type ExactDomRuntimeState = {
@@ -27,6 +30,7 @@ type ExactDomRuntimeState = {
 	inspectableRoots: Set<WeakRef<Root>>;
 	rootInspectionReferences: WeakMap<Root, WeakRef<Root>>;
 	inspectionOwnerFactory?: ExactDomInspectionOwnerFactory;
+	inspectionOwnerRegistration?: object;
 };
 
 const exactDomRuntimeStateKey = Symbol.for('@exactjs/dom.runtime-state');
@@ -70,14 +74,25 @@ export function setExactDomInspectionOwner(
 	return setExactDomInspectionOwnerFactory(owner ? () => owner : undefined);
 }
 
-/** Installs an instrumented-build owner factory and returns generation-safe cleanup. */
+/**
+ * Selects the inspection owner for newly created roots. Each call replaces the current factory.
+ * Cleanup removes only its installation, even when a later call reuses the same function.
+ * Existing roots retain their selected owner.
+ */
 export function setExactDomInspectionOwnerFactory(
 	factory: ExactDomInspectionOwnerFactory | undefined
 ): () => void {
+	const registration = {};
+	runtimeState.inspectionOwnerRegistration = registration;
 	runtimeState.inspectionOwnerFactory = factory;
 	return () => {
-		if (runtimeState.inspectionOwnerFactory === factory)
-			runtimeState.inspectionOwnerFactory = undefined;
+		if (
+			runtimeState.inspectionOwnerRegistration !== registration ||
+			runtimeState.inspectionOwnerFactory !== factory
+		)
+			return;
+		runtimeState.inspectionOwnerRegistration = undefined;
+		runtimeState.inspectionOwnerFactory = undefined;
 	};
 }
 
@@ -115,5 +130,5 @@ export function activeInspectableRoots(): readonly Root[] {
 		}
 		if (root.domain && componentDomainInspection(root.domain)) active.push(root);
 	}
-	return Object.freeze(active);
+	return active;
 }

@@ -1,3 +1,4 @@
+import { attemptCleanup, createCleanupFailure, throwCleanupFailure } from '../cleanup.js';
 import {
 	createEffectScope,
 	withEffectScope,
@@ -12,10 +13,8 @@ import type {
 	ComponentInstance
 } from './contracts.js';
 import { createErrorReport, handleComponentError } from './errors.js';
-import {
-	clearComponentLifecycleHandlers,
-	componentLifecycleHandlers
-} from './lifecycle-handlers.js';
+import { componentLifecycleHandlers } from './lifecycle-handlers.js';
+import { releaseComponentUnmountHandlers } from './unmount-handlers.js';
 import { optionalComponentListCapability } from './list-capability.js';
 import type { PreparedComponentExecution } from '../tasks/component-execution-plan.js';
 import type { ExactExecutableComponentContract } from '../component-contracts.js';
@@ -64,45 +63,19 @@ export class ComponentInstanceImpl<
 
 	/** Releases list and lifecycle ownership after common reactive and task disposal. */
 	override unmount(reason = 'unmount'): void {
-		let primary: unknown;
-		try {
-			super.unmount(reason);
-		} catch (error) {
-			primary = error;
-		}
+		const failure = createCleanupFailure();
+		attemptCleanup(failure, () => super.unmount(reason));
 		if (!this.durableReleased) {
 			this.durableReleased = true;
-			const teardown = (run: () => void) => {
-				try {
-					run();
-				} catch (error) {
-					if (primary === undefined) primary = error;
-				}
-			};
-			teardown(() => this.releaseActivation(reason));
+			attemptCleanup(failure, () => this.releaseActivation(reason));
 			if (this.runtimeABI & compiledComponentListsABI)
-				teardown(() => optionalComponentListCapability()?.dispose(this));
-			if (this.mountController) teardown(() => this.mountController!.abort(reason));
-			const unmountHandlers =
-				this.runtimeABI & compiledComponentLifecycleABI
-					? componentLifecycleHandlers(this, 'unmount')
-					: [];
-			for (const handler of unmountHandlers) {
-				try {
-					const result = handler({ signal: AbortSignal.abort(reason), reason });
-					if (isPromiseLike(result))
-						observeLifecyclePromise(this, Promise.resolve(result), 'unmount');
-				} catch (error) {
-					teardown(() =>
-						handleComponentError(this, createErrorReport(error, 'lifecycle', this, 'unmount'))
-					);
-				}
-			}
-			if (this.runtimeABI & compiledComponentLifecycleABI) clearComponentLifecycleHandlers(this);
+				attemptCleanup(failure, () => optionalComponentListCapability()?.dispose(this));
+			if (this.mountController) attemptCleanup(failure, () => this.mountController!.abort(reason));
+			if (this.runtimeABI & compiledComponentLifecycleABI)
+				attemptCleanup(failure, () => releaseComponentUnmountHandlers(this, reason));
 		}
-		if (primary !== undefined) throw primary;
+		throwCleanupFailure(failure);
 	}
-
 	/** Runs mount handlers before the compact record makes its initial activation decision. */
 	protected override handleMounted(): void {
 		const handlers =

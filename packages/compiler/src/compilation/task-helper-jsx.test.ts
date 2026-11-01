@@ -5,11 +5,10 @@ import { expect, it, onTestFinished } from 'vitest';
 import { renderToString } from '@exactjs/ssr';
 import { render, dispose } from '@exactjs/dom';
 import type { AnyComponentFunction } from '@exactjs/core';
-import { createCompiledComponentReceipt } from '@exactjs/core/runtime/component-operations';
+import { createCompiledComponentInputReceipt } from '@exactjs/core/runtime/component-operations';
 import { NativeCompilerProcess } from '../native/process.js';
 import { resolveNativeCompilerExecutable } from '../native/executable.js';
 import { importArtifact } from '../test-support/import-artifact.js';
-
 for (const form of ['method', 'getter', 'parameter'] as const)
 	for (const target of ['client', 'server'] as const)
 		it(`renders ${form} JSX through ordinary component-support helpers (${target})`, async () => {
@@ -51,7 +50,7 @@ for (const form of ['method', 'getter', 'parameter'] as const)
 						host.innerHTML = (await renderToString(view, { markers: false })).html;
 					else
 						render(
-							createCompiledComponentReceipt(module.Probe as AnyComponentFunction, { view }),
+							createCompiledComponentInputReceipt(module.Probe as AnyComponentFunction, { view }),
 							host
 						);
 					expect(host.querySelectorAll('span')).toHaveLength(1);

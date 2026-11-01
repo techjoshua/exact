@@ -149,3 +149,46 @@ export async function verifyReplacementOwnership(container = document) {
 		else delete navigator.clipboard;
 	}
 }
+
+/** Keeps the same mounted array output through cancellation and the next successful task. */
+export async function verifyArrayRollbackOwnership(container = document) {
+	const host = container.querySelector('[data-array-rollback]');
+	if (!host) throw new Error('Missing array rollback task');
+	const output = host.querySelector('output');
+	const original = Object.getOwnPropertyDescriptor(navigator, 'clipboard');
+	const pending = [Promise.withResolvers(), Promise.withResolvers()];
+	let calls = 0;
+	const check = (condition, message) => {
+		if (!condition) throw new Error(message);
+	};
+	const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
+	try {
+		Object.defineProperty(navigator, 'clipboard', {
+			configurable: true,
+			value: { writeText: () => pending[calls++]?.promise ?? Promise.resolve() }
+		});
+		check(output.textContent === 'A|B|C', 'Fresh array task state');
+		host.querySelector('button').click();
+		await tick();
+		check(output.textContent === '', 'Optimistic full clear missing');
+		host.querySelectorAll('button')[1].click();
+		await tick();
+		check(
+			output.textContent === 'A|B|C|saved',
+			'Pending cancellation did not restore original cells before clipboard settlement'
+		);
+		pending[1].resolve();
+		pending[0].resolve();
+		await tick();
+		check(output.textContent === 'A|B|C|saved', 'Cancelled clear did not restore original cells');
+		check(host.querySelector('output') === output, 'Array observer host replaced');
+		host.querySelectorAll('button')[1].click();
+		await tick();
+		check(output.textContent === 'A|B|C|saved|saved', 'Following array task blocked');
+		check(calls === 3, 'Array task acquisition count');
+	} finally {
+		for (const operation of pending) operation.resolve();
+		if (original) Object.defineProperty(navigator, 'clipboard', original);
+		else delete navigator.clipboard;
+	}
+}

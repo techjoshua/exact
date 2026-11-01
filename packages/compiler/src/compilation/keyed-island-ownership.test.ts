@@ -1,22 +1,23 @@
+import { islandLexicalSources } from '../test-support/island-lexical-sources.js';
 /** @vitest-environment jsdom */
+import { render, unmount } from '@exactjs/dom';
 import type { AnyComponentFunction } from '@exactjs/core';
-import { createCompiledComponentReceipt } from '@exactjs/core/runtime/component-operations';
+import { createCompiledComponentInputReceipt } from '@exactjs/core/runtime/component-operations';
 import { composeExactExecutorContract, handleExactRequest } from '@exactjs/server';
 import { renderToHydratableString } from '@exactjs/ssr';
 import { mountClientServerTest, type ClientServerTestView } from '@exactjs/testing';
 import type { ClientIslandRegistry } from '@exactjs/hydrate';
-import { writeFile } from 'node:fs/promises';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { expect, it, onTestFinished, vi } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, onTestFinished, vi } from 'vitest';
 import {
 	compileProjectArtifacts,
 	createExactArtifactGraph,
 	createExactHydrationRegistrationModule
 } from '../index.js';
 import { importArtifact } from '../test-support/import-artifact.js';
-import { createTestWorkspace } from '../test-support/workspace.js';
+import { createCompilerTestWorkspace, repositoryPath } from '../test-support/workspace.js';
 import { ownershipPanelSource } from '../test-support/ownership-journey-source.js';
-
 function gate<T>() {
 	let resolve!: (value: T) => void;
 	const promise = new Promise<T>((complete) => {
@@ -24,7 +25,6 @@ function gate<T>() {
 	});
 	return { promise, resolve };
 }
-
 it.each(
 	['direct', 'eager', 'lazy', 'lazy-suspense'].flatMap((mode) =>
 		[false, true].map((batch) => ({ mode, batch }))
@@ -65,7 +65,7 @@ it.each(
 			await Promise.all(views.map((view) => view.protocol.settle()));
 			vi.unstubAllGlobals();
 		});
-		const root = await createTestWorkspace('.exact-ownership-', process.cwd());
+		const root = await createCompilerTestWorkspace('.exact-ownership-', process.cwd());
 		const entry = path.join(root, 'page.tsx');
 		await writeFile(path.join(root, 'panel.tsx'), ownershipPanelSource);
 		const registrySource = `
@@ -133,9 +133,8 @@ export function Board(this:Component<{rows:{id:string; variant:"first"|"second"}
 		);
 		const mount = async (owner: string) => {
 			const server = await renderToHydratableString(
-				createCompiledComponentReceipt(Server, { owner })
+				createCompiledComponentInputReceipt(Server, { owner })
 			);
-
 			const view = await mountClientServerTest({
 				server,
 				islands: registration.islands,
@@ -161,7 +160,6 @@ export function Board(this:Component<{rows:{id:string; variant:"first"|"second"}
 			await view.settle();
 			return { view };
 		};
-
 		for (let cycle = 0; cycle < 2; cycle++) {
 			const name = 'list' + cycle;
 			const { view } = await mount(name);
@@ -226,4 +224,208 @@ export function Board(this:Component<{rows:{id:string; variant:"first"|"second"}
 		}
 	},
 	60000
+);
+
+describe.each(islandLexicalSources)(
+	'retains list callback captures through paired islands (%s)',
+	(_name, source) => {
+		let root: string | undefined;
+		let prepared:
+			| {
+					client: Record<string, unknown>;
+					server: Record<string, unknown>;
+					registration: Record<string, unknown>;
+			  }
+			| undefined;
+		afterAll(async () => {
+			if (root) await rm(root, { recursive: true, force: true });
+		});
+		beforeAll(async () => {
+			root = await mkdtemp(path.join(repositoryPath(), '.exact-callback-capture-'));
+			const entry = path.join(root, 'List.tsx');
+			await writeFile(entry, source);
+			await writeFile(
+				path.join(root, 'tsconfig.json'),
+				'{\n  "compilerOptions": {\n    "target": "ES2022",\n    "module": "NodeNext",\n    "moduleResolution": "NodeNext",\n    "jsx": "react-jsx",\n    "jsxImportSource": "@exactjs/jsx",\n    "strict": true,\n    "skipLibCheck": true,\n    "types": []\n  },\n  "include": [\n    "*.tsx"\n  ]\n}'
+			);
+			await writeFile(
+				path.join(root, 'Leaf.tsx'),
+				'export function Leaf(props: { text: string; active: boolean; onEnter: () => void }) { return () => <li onMouseEnter={props.onEnter}>{props.text}{props.active ? " active" : ""}</li>; }\n'
+			);
+			const outDir = path.join(root, 'generated');
+			const artifacts = await compileProjectArtifacts([entry], {
+				rootDir: root,
+				outDir,
+				serverComponents: true,
+				generatedValidation: 'semantic'
+			});
+			const artifact = artifacts.find((value) => value.inputFile === entry)!;
+			const client = await importArtifact(artifact.clientFile, path.join(root, 'client.mjs'));
+			const server = await importArtifact(artifact.serverFile, path.join(root, 'server.mjs'));
+			const graph = createExactArtifactGraph(artifacts, {
+				packageRoot: root,
+				sourceRoot: root,
+				rootDir: outDir
+			});
+			const registry = path.join(outDir, 'registration.ts');
+			await writeFile(registry, createExactHydrationRegistrationModule(graph));
+			const registration = await importArtifact(registry, path.join(root, 'registration.mjs'));
+			prepared = { client, server, registration };
+		});
+		it('keeps one shared state owner and the row binding during mount and hydration', async () => {
+			if (!prepared) throw new Error('List fixture preparation did not complete');
+			const { client, server, registration } = prepared;
+
+			const numeric = [
+				'GenericRequiredMeaning',
+				'GenericDefaultDeeper',
+				'GenericShadowMeaning',
+				'InferredGeneric'
+			].includes(_name);
+			const captions = numeric ? ['3', '4'] : ['Alpha', 'Beta'];
+			const items = [
+				{ id: 'a', label: 'Alpha' },
+				{ id: 'b', label: 'Beta' }
+			].map((item, index) =>
+				numeric || _name === 'InferredCallbackCapture'
+					? { ...item, box: { value: 0, next: { value: index + 2, next: { value: index + 3 } } } }
+					: _name === 'InferredQueryCapture'
+						? { ...item, example: { items: [item] } }
+						: item
+			);
+			const input =
+				_name === 'Nested'
+					? {
+							groups: [
+								{ id: 'first', items: [items[0]] },
+								{ id: 'second', items: [items[1]] }
+							]
+						}
+					: _name === 'LocalScalar'
+						? { item: { label: 'Count' } }
+						: _name === 'FindingShape'
+							? {
+									findings: items.map((item) => ({
+										id: item.id,
+										message: item.label,
+										tone: 'notice',
+										tag: 'source',
+										detail: 'Detail',
+										pointsAt: item.label + ' location'
+									}))
+								}
+							: _name === 'GuardedUnionChildren'
+								? { items, kind: 'b' }
+								: { items };
+			const errors: unknown[] = [];
+			const host = document.createElement('div');
+			onTestFinished(() => {
+				unmount(host);
+			});
+			render(
+				createCompiledComponentInputReceipt(client.List as AnyComponentFunction, input),
+				host,
+				{
+					onErrorReport: (report) => errors.push(report.error)
+				}
+			);
+			const output = await renderToHydratableString(
+				createCompiledComponentInputReceipt(server.List as AnyComponentFunction, input)
+			);
+			const view = await mountClientServerTest({
+				server: output,
+				handle() {
+					throw new Error('Unexpected server request for a local list interaction');
+				},
+				islands: (registration.exactHydrationRegistration as { islands: ClientIslandRegistry })
+					.islands,
+				hydrate: { onErrorReport: (report) => errors.push(report.error) }
+			});
+			onTestFinished(() => {
+				view.unmount();
+			});
+			for (const container of [host, view.container]) {
+				if (_name === 'LocalScalar') {
+					const button = container.querySelector('button')!;
+					expect(button.textContent).toBe('Count0');
+					button.click();
+					await expect.poll(() => button.textContent).toBe('Count1');
+					button.click();
+					await expect.poll(() => button.textContent).toBe('Count2');
+					expect(container.querySelector('button')).toBe(button);
+					continue;
+				}
+				if (_name === 'InferredCallbackCapture' || _name === 'InferredQueryCapture') {
+					const buttons = [...container.querySelectorAll('button')];
+					expect(buttons.map((button) => button.textContent)).toEqual(['Alpha', 'Beta']);
+					expect(buttons.map((button) => button.title)).toEqual(
+						_name === 'InferredCallbackCapture' ? ['2', '3'] : ['Alpha', 'Beta']
+					);
+					buttons[0]!.click();
+					expect([...container.querySelectorAll('button')]).toEqual(buttons);
+					continue;
+				}
+				if (_name === 'GuardedUnionChildren')
+					expect(container.querySelector('ul')?.getAttribute('data-children')).toBe(
+						container === host ? 'absent' : 'present'
+					);
+				const rows = [...container.querySelectorAll('li')];
+				expect(rows.map((row) => row.textContent)).toEqual(captions);
+				if (_name === 'FindingShape')
+					expect(container.querySelector('p')?.textContent).toBe('Point at a finding.');
+				rows[1]!.dispatchEvent(new MouseEvent('mouseenter'));
+				await expect
+					.poll(() => rows.map((row) => row.textContent))
+					.toEqual([captions[0], captions[1] + ' active']);
+				if (_name === 'FindingShape')
+					expect(container.querySelector('p')?.textContent).toBe('Beta location');
+				rows[0]!.dispatchEvent(new MouseEvent('mouseenter'));
+				await expect
+					.poll(() => rows.map((row) => row.textContent))
+					.toEqual([captions[0] + ' active', captions[1]]);
+				expect([...container.querySelectorAll('li')]).toEqual(rows);
+				if (_name === 'FindingShape') {
+					expect(container.querySelector('p')?.textContent).toBe('Alpha location');
+					rows[0]!.dispatchEvent(new MouseEvent('mouseleave'));
+					await expect
+						.poll(() => container.querySelector('p')?.textContent)
+						.toBe('Point at a finding.');
+					expect(rows.map((row) => row.textContent)).toEqual(captions);
+				}
+			}
+			if (_name === 'GuardedUnionChildren') {
+				const output = await renderToHydratableString(
+					createCompiledComponentInputReceipt(server.List as AnyComponentFunction, {
+						items,
+						kind: 'a',
+						children: createCompiledComponentInputReceipt(
+							server.ServerChild as AnyComponentFunction,
+							{}
+						)
+					})
+				);
+				const childView = await mountClientServerTest({
+					server: output,
+					handle() {
+						throw new Error('Unexpected request for retained server child');
+					},
+					islands: (registration.exactHydrationRegistration as { islands: ClientIslandRegistry })
+						.islands,
+					hydrate: { onErrorReport: (report) => errors.push(report.error) }
+				});
+				onTestFinished(() => childView.unmount());
+				const child = childView.container.querySelector('em');
+				expect(child?.textContent).toBe('Owned');
+				expect(childView.container.querySelector('ul')?.getAttribute('data-children')).toBe(
+					'present'
+				);
+				childView.container.querySelector('li')!.dispatchEvent(new MouseEvent('mouseenter'));
+				await expect
+					.poll(() => childView.container.querySelector('li')?.textContent)
+					.toBe('Alpha active');
+				expect(childView.container.querySelector('em')).toBe(child);
+			}
+			expect(errors).toEqual([]);
+		});
+	}
 );

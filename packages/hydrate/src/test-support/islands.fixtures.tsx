@@ -104,3 +104,52 @@ export function OtherRemoteIsland() {
 
 /** Compiler-issued root used by disposal coverage. */
 export const clickCounterRoot = <ClickCounter />;
+
+let inputObserver = () => {};
+
+/** Installs the authored input read used by island receiving-attempt lifecycle coverage. */
+export function observeIslandInput(observer: () => void): void {
+	inputObserver = observer;
+}
+
+function readIslandLabel(): string {
+	inputObserver();
+	return 'Count';
+}
+
+/** Exposes a real compiled child input while keeping one inspectable clickable instance. */
+export function IslandInputProbe(this: Component<{ count: number }>) {
+	this.state.count = 0;
+	return () => (
+		<button onClick={() => this.state.count++}>
+			{readIslandLabel()}
+			{this.state.count}
+		</button>
+	);
+}
+
+/** Owns an ordinary public hydration root around a separately activated island boundary. */
+export function IslandInputPage() {
+	return () => (
+		<main>
+			<div
+				data-exact-client-boundary="probe"
+				data-exact-client-name="Probe"
+				data-exact-client-hydration="eager"
+			>
+				<button>Count0</button>
+			</div>
+		</main>
+	);
+}
+
+/**
+ * Server-owned caller partitions its existing interactive child as an independent island.
+ * @exact server
+ */
+function BootstrapServerPage() {
+	return () => <ClickCounter />;
+}
+
+/** Paired server root used without manually authored island markup. */
+export const bootstrapCounterRoot = <BootstrapServerPage />;

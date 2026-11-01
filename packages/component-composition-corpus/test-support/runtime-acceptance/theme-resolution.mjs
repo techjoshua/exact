@@ -1,13 +1,12 @@
-import { createCompiledComponentReceipt } from '@exactjs/core/runtime/component-operations';
+import { createCompiledComponentInputReceipt } from '@exactjs/core/runtime/component-operations';
 import { renderToString } from '@exactjs/ssr';
 import { scope } from '@exactjs/theme/enhancements';
-
 /** Renders independent owners around repeated and changed theme sources in a native host. */
 export async function themeResolutionJourney() {
 	const render = async (appearance, body, children) =>
 		(
 			await renderToString(
-				createCompiledComponentReceipt(scope, {
+				createCompiledComponentInputReceipt(scope, {
 					appearance,
 					contrast: appearance === 'system' ? 'system' : 'standard',
 					motion: appearance === 'system' ? 'system' : 'full',

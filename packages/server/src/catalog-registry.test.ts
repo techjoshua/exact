@@ -1,6 +1,13 @@
-import type { ExactBuildInspectionCatalog } from '@exactjs/devtools-protocol';
+// @ts-expect-error Catalog storage is internal to the server debug runtime.
+import type { createExactInspectionCatalogRegistry as _RegistryFactory } from './index.js';
+// @ts-expect-error Registry implementation types are not application APIs.
+import type { ExactInspectionCatalogRegistry as _Registry } from './index.js';
+// @ts-expect-error Registration handles are obtained through the server debug runtime.
+import type { ExactInspectionCatalogRegistration as _Registration } from './index.js';
+
+import { createInspectionCatalogFixture } from '../../component-composition-corpus/test-support/inspection-catalog-fixture.js';
 import { describe, expect, it } from 'vitest';
-import { createExactInspectionCatalogRegistry } from './index.js';
+import { createExactInspectionCatalogRegistry } from './debug/catalog-registry.js';
 
 describe('retained inspection catalog ownership', () => {
 	it('retires only the exact registered build when its lifecycle handle is disposed', () => {
@@ -9,46 +16,14 @@ describe('retained inspection catalog ownership', () => {
 		const registry = createExactInspectionCatalogRegistry([first]);
 		const retained = registry.register(second);
 
-		expect(registry.find(first.buildKey, 'page')).toBe(first.roots.page);
-		expect(registry.find(second.buildKey, 'page')).toBe(second.roots.page);
+		expect(registry.find(first.buildKey, 'page')).toEqual(first.roots.page);
+		expect(registry.find(second.buildKey, 'page')).toEqual(second.roots.page);
 		retained.dispose();
 		expect(registry.find(second.buildKey, 'page')).toBeUndefined();
-		expect(registry.find(first.buildKey, 'page')).toBe(first.roots.page);
+		expect(registry.find(first.buildKey, 'page')).toEqual(first.roots.page);
 	});
 });
 
-function catalog(buildKey: string): ExactBuildInspectionCatalog {
-	const sourceHash = buildKey.padEnd(64, 'a');
-	return {
-		protocol: 1,
-		buildKey,
-		producer: {},
-		roots: {
-			page: {
-				executionRoot: 'page',
-				rootComponentId: 'component:Page',
-				files: [
-					{
-						path: 'src/Page.tsx',
-						sourceHash,
-						components: [
-							{
-								id: 'component:Page',
-								kind: 'component',
-								location: {
-									path: 'src/Page.tsx',
-									sourceHash,
-									start: { offset: 0, line: 1, column: 1 },
-									end: { offset: 1, line: 1, column: 2 }
-								},
-								reasons: [],
-								children: []
-							}
-						]
-					}
-				],
-				redactions: { statePaths: [], contextTokens: [], secretNames: [] }
-			}
-		}
-	};
+function catalog(buildKey: string) {
+	return { ...createInspectionCatalogFixture('component:Page'), buildKey };
 }

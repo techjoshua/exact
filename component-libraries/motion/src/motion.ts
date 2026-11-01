@@ -1,19 +1,16 @@
 import { peek, type Component } from '@exactjs/core';
 import {
-	createCompiledComponentReceipt,
+	createCompiledComponentInputReceipt,
 	createCompiledIntrinsicReceipt
 } from '@exactjs/core/runtime/component-abi';
 import type { MotionElementProps, MotionProps } from './contracts.js';
 import { MotionElement } from './motion-element.js';
-
 const motionKeys = new Set(['motion', 'enter', 'change', 'leave', 'appear', 'layout', 'layoutId']);
-
 /** Component that owns one real intrinsic motion target. */
 export function Motion(this: Component<{}>, props: MotionProps) {
 	const intrinsicType = peek(() => props.as);
 	return () => renderMotion(props, intrinsicType);
 }
-
 /** @exact pure */
 function renderMotion(props: MotionProps, intrinsicType: MotionProps['as']) {
 	const intrinsic: Record<string, unknown> = {};
@@ -30,9 +27,9 @@ function renderMotion(props: MotionProps, intrinsicType: MotionProps['as']) {
 		layoutId: props.layoutId,
 		children: createCompiledIntrinsicReceipt(intrinsicType, intrinsic, props.children)
 	};
-	return createCompiledComponentReceipt(
+	return createCompiledComponentInputReceipt(
 		MotionElement,
 		motion as unknown as Record<string, unknown>,
-		motion.children
+		{ kind: 'eager', values: [motion.children] }
 	);
 }

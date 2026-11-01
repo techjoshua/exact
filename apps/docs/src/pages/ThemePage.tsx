@@ -85,8 +85,10 @@ export function ThemePage(this: Component<{}>) {
 				</p>
 				<p>
 					The built-in tonic names are convenient presets, not a closed palette. A scope may instead
-					provide any opaque CSS Color 4 or Design Tokens color. The Theme Lab exposes native color
-					pickers for reactive root and nested custom tonics.
+					provide any opaque CSS Color 4 or Design Tokens color. Structured colors support sRGB,
+					Display P3, OKLab, and OKLCH with three numeric components or Design Tokens none values.
+					Omit opacity for an opaque color, or supply a number from zero through one. The Theme Lab
+					exposes native color pickers for reactive root and nested custom tonics.
 				</p>
 				<CodeBlock source={themeSource} language="tsx" title="Application theme scope" />
 				<h3>Change appearance from a nested control</h3>
@@ -238,10 +240,11 @@ export function ThemePage(this: Component<{}>) {
 			<section>
 				<h2>Choose colors for charts and custom graphics</h2>
 				<p>
-					Charts, editors, maps, diagrams, and other domain components receive a pure immutable
+					Charts, editors, maps, diagrams, and other domain components receive a TypeScript readonly
 					derivation context containing the key color, tone families, surfaces, gamut conversion,
 					harmonization, and contrast operations. Derivers are synchronous, versioned,
-					deterministic, SSR-safe, and imported normally rather than globally registered.
+					deterministic, SSR-safe, and imported normally. Derivation outputs retain ordinary
+					JavaScript alias and nested-mutation behavior.
 				</p>
 				<CodeBlock source={chartSource} language="tsx" title="Reactive chart colors" />
 				<p>

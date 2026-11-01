@@ -30,8 +30,7 @@ export function Chart(this: Component<{}>, props: ChartProps) {
 	const root = this.ref(chartRoot);
 	const id = peek(() => props.id ?? reserveElementId(root));
 	const model = new ChartModel();
-	seedChartModel(model, id, props);
-	const coordinator: ChartCoordinator = Object.freeze({
+	const coordinator: ChartCoordinator = {
 		id,
 		props,
 		model,
@@ -39,7 +38,7 @@ export function Chart(this: Component<{}>, props: ChartProps) {
 		get revision() {
 			return model.revision;
 		}
-	});
+	};
 	this.setContext(ChartContext, coordinator);
 	return () => (
 		<figure
@@ -220,11 +219,6 @@ function safeId(value: string): string {
 
 function joinClasses(...values: readonly (string | undefined)[]): string {
 	return values.filter(Boolean).join(' ');
-}
-
-/** Populates one freshly created request or instance-owned model. @exact pure */
-function seedChartModel(model: ChartModel, id: string, props: ChartProps): void {
-	model.seed(id, props.axes, props.series);
 }
 
 /**

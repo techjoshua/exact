@@ -1,3 +1,4 @@
+import { routeRecordValue } from '../core/route-records.js';
 import {
 	createElement,
 	useContext,
@@ -23,7 +24,8 @@ import {
 	type NavigateOptions,
 	type RouteObject
 } from './context.js';
-import { locationToString, resolveRouteRelativeTo, type To } from './paths.js';
+import { locationToString, parsePath, resolveRouteRelativeTo, type To } from './paths.js';
+import { resolveFormAction } from './form-actions.js';
 
 export { createPath, createSearchParams, parsePath, resolvePath } from './paths.js';
 /** Performs the outlet domain operation. */
@@ -72,19 +74,27 @@ export function useNavigate(): (
 			options
 		);
 }
-/** Resolves a destination to an href appropriate for the active router mode. */
+/** Resolves a browser href for the active mode and observes route changes in retained consumers. */
 export function useHref(to: To, options?: { relative?: 'route' | 'path' }): string {
 	const router = useRouter();
 	const routeId = useContext(RouteIdContext);
 	return router.createHref(
-		resolveRouteRelativeTo(to, router.getSnapshot(), routeId, options?.relative)
+		resolveRouteRelativeTo(to, useSnapshot(router), routeId, options?.relative)
 	);
 }
-/** Resolves a destination without initiating navigation. */
-export function useResolvedPath(to: To): Pick<RouteLocation, 'pathname' | 'search' | 'hash'> {
-	const href = useHref(to);
-	const url = new URL(href, 'http://exact.local');
-	return { pathname: url.pathname, search: url.search, hash: url.hash };
+/** Resolves a route destination without href encoding, basename prefixes, or hash-mode formatting. */
+export function useResolvedPath(
+	to: To,
+	options?: { relative?: 'route' | 'path' }
+): Pick<RouteLocation, 'pathname' | 'search' | 'hash'> {
+	const router = useRouter();
+	const routeId = useContext(RouteIdContext);
+	const {
+		pathname = '/',
+		search = '',
+		hash = ''
+	} = parsePath(resolveRouteRelativeTo(to, useSnapshot(router), routeId, options?.relative));
+	return { pathname, search, hash };
 }
 /** Matches a path pattern against the current pathname. */
 export function useMatch(pattern: Parameters<typeof matchPath>[0]): ReturnType<typeof matchPath> {
@@ -130,7 +140,7 @@ export function useMatches(): readonly Readonly<{
 		id: match.id,
 		pathname: match.pathname,
 		params: match.params,
-		data: snapshot.loaderData[match.id],
+		data: routeRecordValue(snapshot.loaderData, match.id),
 		handle: match.route.handle
 	}));
 }
@@ -159,14 +169,15 @@ export function Link(
 		to: To;
 		replace?: boolean;
 		state?: unknown;
+		relative?: 'route' | 'path';
 		reloadDocument?: boolean;
 		children?: ReactNode;
 		onClick?: (event: MouseEvent) => unknown;
 	}
 ): ReactNode {
 	const navigate = useNavigate();
-	const href = useHref(props.to);
-	const { to, replace, state, reloadDocument, onClick, ...rest } = props;
+	const href = useHref(props.to, { relative: props.relative });
+	const { to, replace, state, relative, reloadDocument, onClick, ...rest } = props;
 	return createElement('a', {
 		...rest,
 		href,
@@ -174,7 +185,7 @@ export function Link(
 			onClick?.(event);
 			if (reloadDocument || !shouldHandleClick(event, href)) return;
 			event.preventDefault();
-			void navigate(to, { replace, state });
+			void navigate(to, { replace, state, relative });
 		}
 	});
 }
@@ -201,7 +212,7 @@ export function NavLink(
 ): ReactNode {
 	const location = useLocation();
 	const navigation = useNavigation();
-	const resolved = useResolvedPath(props.to);
+	const resolved = useResolvedPath(props.to, { relative: props.relative });
 	const isActive = props.end
 		? location.pathname === resolved.pathname
 		: location.pathname === resolved.pathname ||
@@ -223,23 +234,23 @@ export function useNavigation(): ExactRouterSnapshot<RouteObject>['navigation'] 
 /** Returns loader data for the deepest active route match. */
 export function useLoaderData<T = unknown>(): T {
 	const id = useContext(RouteIdContext);
-	return useSnapshot().loaderData[id ?? ''] as T;
+	return routeRecordValue(useSnapshot().loaderData, id ?? '') as T;
 }
 /** Returns action data for the deepest active route match. */
 export function useActionData<T = unknown>(): T | undefined {
 	const id = useContext(RouteIdContext);
-	return useSnapshot().actionData[id ?? ''] as T | undefined;
+	return routeRecordValue(useSnapshot().actionData, id ?? '') as T | undefined;
 }
 /** Returns the error associated with the nearest failed route match. */
 export function useRouteError(): unknown {
 	const routeError = useContext(RouteErrorContext);
 	if (routeError.active) return routeError.error;
 	const id = useContext(RouteIdContext);
-	return useSnapshot().errors[id ?? ''];
+	return routeRecordValue(useSnapshot().errors, id ?? '');
 }
 /** Returns loader data for a specific active route id. */
 export function useRouteLoaderData<T = unknown>(routeId: string): T | undefined {
-	return useSnapshot().loaderData[routeId] as T | undefined;
+	return routeRecordValue(useSnapshot().loaderData, routeId) as T | undefined;
 }
 /** Returns the current revalidation state and an explicit revalidation trigger. */
 export function useRevalidator(): { revalidate(): Promise<void>; state: 'idle' | 'loading' } {
@@ -324,9 +335,17 @@ export function useBeforeUnload(
 	}, [callback, options]);
 }
 
-/** Resolves a form action relative to the active route. */
-export function useFormAction(action = '.', _options?: { relative?: 'route' | 'path' }): string {
-	return useHref(action);
+/** Resolves a form path with default queries, index selection and basename, without hash-router href formatting. */
+export function useFormAction(action?: string, options?: { relative?: 'route' | 'path' }): string {
+	const router = useRouter();
+	const routeId = useContext(RouteIdContext);
+	return resolveFormAction(
+		action,
+		useSnapshot(router),
+		routeId,
+		options?.relative,
+		router.basename
+	);
 }
 
 /** Returns a click handler that performs accessible client-side link navigation. */

@@ -21,8 +21,11 @@ session.dispose();
 
 Every event contains a `subsystem`, `phase`, and `elapsedMs`. Packages may add
 strongly typed fields, serializable attributes, or numeric counts. Sinks run
-synchronously and must return quickly; applications that export traces should
-enqueue events and perform I/O outside the measured operation.
+synchronously and must return quickly. Applications that export traces should
+enqueue events and perform I/O outside the measured operation. Readonly fields follow
+TypeScript and are not frozen at runtime. Collector snapshots copy the event array,
+so changing one array does not change the collector's retained sequence. Events retain
+their original identity, and summaries are newly allocated observations.
 
 ## Instrumented boundaries
 

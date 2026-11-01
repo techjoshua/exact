@@ -1,4 +1,11 @@
-import { type AnyComponentInstance, type Component } from '@exactjs/core';
+import { runReactOwnedWork } from './runtime/owned-work.js';
+import {
+	attemptCleanup,
+	createCleanupFailure,
+	throwCleanupFailure,
+	type AnyComponentInstance,
+	type Component
+} from '@exactjs/core';
 import { publishExactProfile } from '@exactjs/instrumentation';
 import {
 	cloneHookSlot,
@@ -161,39 +168,30 @@ export class HookHost extends HookState {
 			this.working = undefined;
 			this.rendering = false;
 			if (profileStarted !== undefined) {
-				publishExactProfile(
-					this.onProfile,
-					Object.freeze({
-						subsystem: 'react-compat',
-						phase: 'render',
-						elapsedMs: performance.now() - profileStarted,
-						counts: Object.freeze({ hooks: this.cursor })
-					})
-				);
+				publishExactProfile(this.onProfile, {
+					subsystem: 'react-compat',
+					phase: 'render',
+					elapsedMs: performance.now() - profileStarted,
+					counts: { hooks: this.cursor }
+				});
 			}
 		}
 	}
 
-	/** Releases resources owned by this hook host instance. */
+	/** Retires this host before attempting every resource release, preserving the first failure. */
 	dispose(): void {
-		this.finishTransitionRender();
+		if (this.disposed) return;
 		this.disposed = true;
 		this.mounted = false;
 		this.commitScheduled = false;
 		this.passiveScheduled = false;
-		let firstError: unknown;
-		for (const slot of this.committed) {
-			try {
-				if (slot.kind === 'effect') runEffectCleanup(slot);
-				else if (slot.kind === 'external-store') slot.unsubscribe?.();
-			} catch (error) {
-				firstError ??= error;
-			}
-		}
+		const failure = createCleanupFailure();
+		attemptCleanup(failure, () => this.finishTransitionRender());
+		attemptCleanup(failure, () => this.releaseResources());
 		this.committed = [];
 		this.working = undefined;
 		this.providedContexts.clear();
-		if (firstError !== undefined) throw firstError;
+		throwCleanupFailure(failure);
 	}
 
 	/** Performs the mount domain operation for this hook host instance. */
@@ -209,22 +207,26 @@ export class HookHost extends HookState {
 		this.mounted = false;
 		this.commitScheduled = false;
 		this.passiveScheduled = false;
-		let firstError: unknown;
+		this.releaseResources();
+	}
+
+	/** Detaches every effect and store lease before user cleanup, leaving retained slots ready to reconnect. */
+	private releaseResources(): void {
+		const failure = createCleanupFailure();
 		for (const slot of this.committed) {
-			try {
+			attemptCleanup(failure, () => {
 				if (slot.kind === 'effect') {
-					runEffectCleanup(slot);
 					slot.pending = true;
+					runEffectCleanup(slot);
 				} else if (slot.kind === 'external-store') {
-					slot.unsubscribe?.();
+					const release = slot.unsubscribe;
 					slot.unsubscribe = undefined;
 					slot.pendingSubscription = true;
+					release?.();
 				}
-			} catch (error) {
-				firstError ??= error;
-			}
+			});
 		}
-		if (firstError !== undefined) throw firstError;
+		throwCleanupFailure(failure);
 	}
 
 	/** Performs the schedule commit domain operation for this hook host instance. */
@@ -233,7 +235,7 @@ export class HookHost extends HookState {
 		this.commitScheduled = true;
 		queueMicrotask(() => {
 			this.commitScheduled = false;
-			if (!this.disposed && this.mounted) this.commit();
+			if (!this.disposed && this.mounted) this.commitScheduledWork('all');
 		});
 	}
 
@@ -251,15 +253,12 @@ export class HookHost extends HookState {
 				this.schedulePassiveEffects();
 		} finally {
 			if (profileStarted !== undefined) {
-				publishExactProfile(
-					this.onProfile,
-					Object.freeze({
-						subsystem: 'react-compat',
-						phase: 'commit',
-						elapsedMs: performance.now() - profileStarted,
-						counts: Object.freeze({ hooks: this.committed.length })
-					})
-				);
+				publishExactProfile(this.onProfile, {
+					subsystem: 'react-compat',
+					phase: 'commit',
+					elapsedMs: performance.now() - profileStarted,
+					counts: { hooks: this.committed.length }
+				});
 			}
 		}
 	}
@@ -281,7 +280,15 @@ export class HookHost extends HookState {
 		this.passiveScheduled = true;
 		queueMicrotask(() => {
 			this.passiveScheduled = false;
-			if (!this.disposed && this.mounted) this.commitEffects('passive');
+			if (!this.disposed && this.mounted) this.commitScheduledWork('passive');
+		});
+	}
+
+	/** Routes microtask commit failures through the durable component's error context. */
+	private commitScheduledWork(kind: 'all' | 'passive'): void {
+		runReactOwnedWork(this.component as AnyComponentInstance, () => {
+			if (kind === 'passive') this.commitEffects('passive');
+			else this.commit();
 		});
 	}
 

@@ -11,7 +11,7 @@ import * as exactRenderConstructionRuntime from '@exactjs/core/runtime/component
 import * as exactTaskConstructionRuntime from '@exactjs/core/runtime/component-construction/task';
 import * as exactComponentAbiRuntime from '@exactjs/core/runtime/component-abi';
 import * as exactComponentOperationsRuntime from '@exactjs/core/runtime/component-operations';
-import { createCompiledComponentReceipt } from '@exactjs/core/runtime/component-operations';
+import { createCompiledComponentInputReceipt } from '@exactjs/core/runtime/component-operations';
 import * as exactCompatibilityContributions from '@exactjs/core/framework/compatibility-contributions';
 import * as exactReactivityRuntime from '@exactjs/core/runtime/reactivity';
 import * as exactServerRenderStructure from '@exactjs/core/framework/server-render-structure';
@@ -32,7 +32,6 @@ import { renderToString } from '@exactjs/ssr';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 import { transform } from './index.js';
-
 describe('compiled direct React boundary', () => {
 	it('keeps host-classified native imports on the native ABI outside component render functions', () => {
 		const compiled = transform(
@@ -54,25 +53,21 @@ describe('compiled direct React boundary', () => {
 				}
 			}
 		);
-
 		expect(compiled).toContain('__exactComponentReceipt(Native,');
 		expect(compiled).not.toContain('createCompiledVNode');
 		expect(compiled).toContain('component: Foreign');
 		expect(compiled).not.toContain('component: Native');
 	});
-
 	it('compiles, mounts, updates, hydrates, and unmounts one mixed component', async () => {
 		const client = compileMixedApp('client');
 		const serverApp = compileMixedApp('server');
 		const mounted = document.createElement('div');
-		render(createCompiledComponentReceipt(client.App, null), mounted);
-
+		render(createCompiledComponentInputReceipt(client.App, null), mounted);
 		click(mounted, '#react-control');
 		flushSync();
 		expect(mounted.querySelector('#react-control')?.textContent).toBe('1 / local 1');
 		expect(mounted.querySelector('#native-derived')?.textContent).toBe('double 2');
 		expect(mounted.querySelector('#native-through-react')?.textContent).toBe('through 1');
-
 		click(mounted, '#native-control');
 		flushSync();
 		expect(mounted.querySelector('#react-control')?.textContent).toBe('2 / local 1');
@@ -80,8 +75,7 @@ describe('compiled direct React boundary', () => {
 		expect(mounted.querySelector('#native-through-react')?.textContent).toBe('through 2');
 		unmount(mounted);
 		expect(mounted.childNodes).toHaveLength(0);
-
-		const server = await renderToString(createCompiledComponentReceipt(serverApp.App, null));
+		const server = await renderToString(createCompiledComponentInputReceipt(serverApp.App, null));
 		expect(server.html).not.toContain('Application error');
 		const hydrated = document.createElement('div');
 		hydrated.innerHTML = server.html;
@@ -93,7 +87,6 @@ describe('compiled direct React boundary', () => {
 			}
 		});
 		expect(hydrated.querySelector('#react-control')).toBeInstanceOf(HTMLElement);
-
 		click(hydrated, '#react-control');
 		flushSync();
 		expect(hydrated.querySelector('#react-control')?.textContent).toBe('1 / local 1');
@@ -101,12 +94,10 @@ describe('compiled direct React boundary', () => {
 		root.dispose();
 	});
 });
-
 type CompiledMixedApp = Readonly<{
 	App: exactCore.AnyComponentFunction;
 	islands: Record<string, exactCore.AnyComponentFunction>;
 }>;
-
 function compileMixedApp(target: 'client' | 'server'): CompiledMixedApp {
 	const source = `
 		import { Widget } from 'react-widget';
@@ -200,7 +191,6 @@ function compileMixedApp(target: 'client' | 'server'): CompiledMixedApp {
 		)
 	};
 }
-
 function click(container: Element, selector: string): void {
 	const element = container.querySelector(selector);
 	if (!(element instanceof HTMLElement)) throw new Error(`Missing ${selector}`);

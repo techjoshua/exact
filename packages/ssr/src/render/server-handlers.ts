@@ -1,3 +1,4 @@
+import { deriveRuntimeConfiguration } from '@exactjs/core/framework/configuration';
 import { withTaskObserver } from '@exactjs/core';
 import {
 	createExactContextRuntime,
@@ -12,13 +13,7 @@ import {
 import { boundaryPatch, diffBoundaryHtml, diffKeyedListItems } from '../diff.js';
 import { decodeMarkerKey, exactMarkerId, keyedItemMarkerId, markerPair } from '../markup.js';
 import { finalizedMarkerPair } from '../markers.js';
-import {
-	assertOutputWithinLimit,
-	boundedJoin,
-	defaultMaxSsrOutputBytes,
-	defaultMaxSsrTreeNodes,
-	normalizePositiveLimit
-} from '../render/limits.js';
+import { assertOutputWithinLimit, boundedJoin, normalizePositiveLimit } from '../render/limits.js';
 import type {
 	BoundaryRefreshOptions,
 	BoundaryRenderFunction,
@@ -52,11 +47,13 @@ export function createBoundaryRefreshHandler(
 ): (input: ExactInvocationRequest, context: ExactServerContext) => Promise<ExactInvocationResult> {
 	return markExactFrameworkInvocationHandler(async (input, context) => {
 		const operation = await render(input, context);
-		const result = await renderToString(operation, {
-			...options,
-			contexts: context.contexts?.componentValues ?? options.contexts,
-			signal: renderSignal(context.signal, options.signal)
-		});
+		const result = await renderToString(
+			operation,
+			deriveRuntimeConfiguration(options, () => ({
+				contexts: context.contexts?.componentValues ?? options.contexts,
+				signal: renderSignal(context.signal, options.signal)
+			}))
+		);
 		const previousHtml = (await options.previousHtml?.(input, context)) ?? input.boundaryHtml;
 		return {
 			patches:
@@ -260,10 +257,9 @@ export function createKeyedListRefreshHandler<T>(
 ): (input: ExactInvocationRequest, context: ExactServerContext) => Promise<ExactInvocationResult> {
 	return markExactFrameworkInvocationHandler(async (input, context) => {
 		const nextItems = await options.items(input, context);
-		const next = await renderKeyedListSnapshot({
-			...options,
-			items: nextItems
-		});
+		const next = await renderKeyedListSnapshot(
+			deriveRuntimeConfiguration(options, () => ({ items: nextItems }))
+		);
 		const previous =
 			(await options.previousItems?.(input, context)) ??
 			parseKeyedListSnapshotHtml(options.listId, input.boundaryHtml, {
@@ -285,9 +281,9 @@ export function parseKeyedListSnapshotHtml(
 	options: KeyedListSnapshotParseOptions = {}
 ): KeyedListSnapshot | undefined {
 	if (html === undefined) return undefined;
-	const maxBytes = normalizePositiveLimit(options.maxBytes, defaultMaxSsrOutputBytes);
-	const maxItems = normalizePositiveLimit(options.maxItems, defaultMaxSsrTreeNodes);
-	const maxMarkers = normalizePositiveLimit(options.maxMarkers, defaultMaxSsrTreeNodes * 2);
+	const maxBytes = normalizePositiveLimit(options.maxBytes, 16 * 1024 * 1024);
+	const maxItems = normalizePositiveLimit(options.maxItems, 100_000);
+	const maxMarkers = normalizePositiveLimit(options.maxMarkers, 200_000);
 	if (html.length > maxBytes || new TextEncoder().encode(html).byteLength > maxBytes)
 		return undefined;
 	const items: KeyedListSnapshotItem[] = [];

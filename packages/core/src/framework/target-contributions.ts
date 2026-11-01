@@ -1,3 +1,4 @@
+import { isReservedElementIdentityName } from '../component-abi/element-identity.js';
 import { unwrap } from '@exactjs/reactive/framework/runtime';
 import { TargetOverrides } from '../symbols.js';
 import { normalizeClassValue } from '../class-values.js';
@@ -57,6 +58,7 @@ export function composeTargetProps(
 	const overrides =
 		Array.isArray(overrideValue) && overrideValue.length ? new Set(overrideValue) : undefined;
 	for (const key of new Set([...Object.keys(base), ...Object.keys(layer)])) {
+		if (isReservedElementIdentityName(key)) continue;
 		if (key === 'children' || key === 'key' || key === 'ref' || /^on[A-Z]/.test(key)) continue;
 		const authored = unwrap(base[key]);
 		const contributed = unwrap(layer[key]);

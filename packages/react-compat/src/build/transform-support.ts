@@ -20,7 +20,7 @@ export function recordSelection(
 		selection.targetExport ?? '',
 		selection.reason ?? ''
 	].join('\0');
-	selections.set(key, Object.freeze(selection));
+	selections.set(key, selection);
 }
 
 export function runtimeSourceExports(
@@ -159,7 +159,7 @@ export function discoverWatchFiles(
 	try {
 		files.add(findUp(buildRoot, 'package-lock.json'));
 	} catch {}
-	return Object.freeze([...files].sort());
+	return [...files].sort();
 }
 
 export function fileSignature(files: readonly string[]): string {

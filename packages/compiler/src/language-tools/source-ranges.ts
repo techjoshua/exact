@@ -27,21 +27,21 @@ export function findTaskRegions(
 			const workRange = clampRange(source, task.workStart!, task.workLength!);
 			const authored = source.slice(workRange.start, workRange.end);
 			const selectionRange = functionSelectionRange(source, workRange);
-			const range = Object.freeze({
+			const range = {
 				start: Math.min(workRange.start, selectionRange.start),
 				end: Math.max(workRange.end, selectionRange.end)
-			});
-			return Object.freeze({
+			};
+			return {
 				origin: /\bTaskContext\b\s*=/.test(authored)
 					? ('explicit' as const)
 					: ('inferred' as const),
 				range,
 				selectionRange,
 				awaited: task.readiness === 'blocking',
-				dependencyPaths: Object.freeze(
-					task.dependencies.flatMap((dependency) => (dependency.path ? [dependency.path] : []))
+				dependencyPaths: task.dependencies.flatMap((dependency) =>
+					dependency.path ? [dependency.path] : []
 				)
-			});
+			};
 		});
 	const inferred = [...source.matchAll(/\bawait\s+/g)]
 		.filter(
@@ -53,16 +53,16 @@ export function findTaskRegions(
 		.map((match) => {
 			const start = statementStart(source, match.index);
 			const end = statementEnd(source, match.index + match[0].length);
-			return Object.freeze({
+			return {
 				origin: 'inferred' as const,
-				range: Object.freeze({ start, end }),
-				selectionRange: Object.freeze({
+				range: { start, end },
+				selectionRange: {
 					start: match.index,
 					end: match.index + 'await'.length
-				}),
+				},
 				awaited: true,
-				dependencyPaths: Object.freeze([])
-			});
+				dependencyPaths: []
+			};
 		});
 	const seen = new Set<string>();
 	return [...inferred, ...functions]
@@ -82,7 +82,7 @@ function functionSelectionRange(source: string, range: ExactSourceRange): ExactS
 		/^\s*(?:(?:const|let|var)\s+)?([A-Za-z_$][\w$]*)\s*=\s*(?:async\b\s*)?/.exec(authored);
 	if (match?.[1]) {
 		const start = range.start + match.index + match[0].lastIndexOf(match[1]);
-		return Object.freeze({ start, end: start + match[1].length });
+		return { start, end: start + match[1].length };
 	}
 	const precedingOffset = Math.max(0, range.start - 1);
 	const prefixStart =
@@ -95,7 +95,7 @@ function functionSelectionRange(source: string, range: ExactSourceRange): ExactS
 	const assigned = /\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*$/.exec(prefix);
 	if (!assigned?.[1]) return range;
 	const start = prefixStart + assigned.index + assigned[0].lastIndexOf(assigned[1]);
-	return Object.freeze({ start, end: start + assigned[1].length });
+	return { start, end: start + assigned[1].length };
 }
 
 /** Finds the returned render callback that owns a component's reactive view. */
@@ -121,10 +121,10 @@ export function findReturnedRender(
 		source,
 		expressionEnd === undefined ? expressionStart : expressionEnd + 1
 	);
-	return Object.freeze({
-		range: Object.freeze({ start, end }),
-		selectionRange: Object.freeze({ start, end: start + 'return'.length })
-	});
+	return {
+		range: { start, end },
+		selectionRange: { start, end: start + 'return'.length }
+	};
 }
 
 function skipWhitespace(source: string, offset: number): number {
@@ -162,10 +162,10 @@ export function clampRange(source: string, start: number, length: number): Exact
 		safeStart,
 		Math.min(offsets.length - 1, safeStart + Math.max(0, length))
 	);
-	return Object.freeze({
+	return {
 		start: offsets[safeStart]!,
 		end: offsets[safeEnd]!
-	});
+	};
 }
 
 let cachedOffsetSource: string | undefined;
@@ -205,7 +205,7 @@ export function findTextRange(
 	const normalized = text.replace(/\.\*$/, '');
 	const index = source.indexOf(normalized, within.start);
 	if (index < within.start || index + normalized.length > within.end) return undefined;
-	return Object.freeze({ start: index, end: index + normalized.length });
+	return { start: index, end: index + normalized.length };
 }
 
 /** Reports whether a complete source range is nested inside another. */
@@ -215,7 +215,7 @@ export function contains(outer: ExactSourceRange, inner: ExactSourceRange): bool
 
 /** Reports whether two half-open source ranges intersect. */
 export function overlaps(left: ExactSourceRange, right: ExactSourceRange): boolean {
-	return left.start <= right.end && right.start <= left.end;
+	return Math.max(left.start, right.start) < Math.min(left.end, right.end);
 }
 
 /** Finds the closing parenthesis of an authored call while respecting strings. */
@@ -291,4 +291,11 @@ function statementEnd(source: string, offset: number): number {
 	const line = source.indexOf('\n', offset);
 	if (semicolon >= 0 && (line < 0 || semicolon < line)) return semicolon + 1;
 	return line >= 0 ? line : source.length;
+}
+
+/** Selects a source span with a half-open range or a cursor point inside its boundaries. */
+export function selectsRange(source: ExactSourceRange, selection: ExactSourceRange): boolean {
+	return selection.start === selection.end
+		? source.start <= selection.start && selection.start < source.end
+		: overlaps(source, selection);
 }

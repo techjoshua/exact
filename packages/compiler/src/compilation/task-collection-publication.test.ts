@@ -3,19 +3,17 @@ import path from 'node:path';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { expect, it, onTestFinished } from 'vitest';
 import type { AnyComponentFunction } from '@exactjs/core';
-import { createCompiledComponentReceipt } from '@exactjs/core/runtime/component-operations';
+import { createCompiledComponentInputReceipt } from '@exactjs/core/runtime/component-operations';
 import { render, dispose } from '@exactjs/dom';
 import { flushSync } from '@exactjs/reactive';
 import { NativeCompilerProcess } from '../native/process.js';
 import { resolveNativeCompilerExecutable } from '../native/executable.js';
 import { importArtifact } from '../test-support/import-artifact.js';
-
 const cases = (['latest', 'parallel'] as const).flatMap((policy) =>
 	(['map', 'set'] as const).flatMap((collection) =>
 		[false, true].map((removal) => ({ policy, collection, removal }))
 	)
 );
-
 it.each(cases)(
 	'isolates $collection publication for $policy tasks with disposal=$removal',
 	async ({ policy, collection, removal }) => {
@@ -64,10 +62,15 @@ const run=async(value:number,task:TaskContext=TaskContext.client().${policy}().b
 			for (const release of gates.values()) release();
 		});
 		const reports: unknown[] = [];
-		render(createCompiledComponentReceipt(module.Probe as AnyComponentFunction, {}), host, {
+		render(createCompiledComponentInputReceipt(module.Probe as AnyComponentFunction, {}), host, {
 			onErrorReport: (report) => reports.push(report)
 		});
-		const retained = module.retained as { state: { map: Map<string, number>; set: Set<number> } };
+		const retained = module.retained as {
+			state: {
+				map: Map<string, number>;
+				set: Set<number>;
+			};
+		};
 		const map = retained.state.map,
 			set = retained.state.set;
 		const button = host.querySelector('button')!,

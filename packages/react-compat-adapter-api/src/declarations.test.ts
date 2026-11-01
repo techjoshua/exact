@@ -69,3 +69,28 @@ describe('React compatibility adapter protocol', () => {
 		).toThrow(/bare package name/);
 	});
 });
+
+it.each(['__proto__', 'constructor', 'toString', 'Normal'])(
+	'preserves the ordinary JavaScript export name %s as owned metadata',
+	(name) => {
+		const manifest = structuredClone(validManifest);
+		const variant =
+			manifest.exact.reactCompatibility.substitutions['@tanstack/react-query'].variants[0]!;
+		variant.exports = Object.fromEntries([
+			[name, { subpath: './provider', export: 'QueryClientProvider' }]
+		]) as typeof variant.exports;
+		const exports =
+			readReactCompatAdapterDeclaration(manifest)!.substitutions['@tanstack/react-query']!
+				.variants[0]!.exports;
+		expect(Object.hasOwn(exports, name)).toBe(true);
+		expect(Object.getPrototypeOf(exports)).toBe(Object.prototype);
+		expect(exports[name]).toEqual({ subpath: './provider', export: 'QueryClientProvider' });
+		const alias = exports[name] as { subpath: string; export: string };
+		alias.export = 'Local';
+		expect(exports[name]?.export).toBe('Local');
+		expect(
+			validManifest.exact.reactCompatibility.substitutions['@tanstack/react-query'].variants[0]!
+				.exports.QueryClientProvider.export
+		).toBe('QueryClientProvider');
+	}
+);

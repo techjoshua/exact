@@ -1,8 +1,6 @@
 import { createFrameworkComponentDomain } from '@exactjs/core/framework/component-domains';
 import {
-	SsrTaskDeadlineError,
 	defaultMaxSsrOutputBytes,
-	defaultMaxSsrTreeNodes,
 	normalizePositiveLimit,
 	normalizeSsrTreeDepth
 } from '../render/limits.js';
@@ -12,13 +10,11 @@ import type { RenderToStringOptions, SsrContext } from '../types.js';
 export async function drainTasks(
 	pending: Set<Promise<unknown>>,
 	maxPasses: number,
-	signal?: AbortSignal,
-	deadline?: number
+	signal?: AbortSignal
 ): Promise<void> {
 	for (let pass = 0; pending.size && pass < maxPasses; pass++) {
-		if (signal?.aborted)
-			throw signal.reason ?? new DOMException('SSR render aborted', 'AbortError');
-		await awaitWithAbort(Promise.all(pending), signal, deadline);
+		if (signal?.aborted) throw signal.reason;
+		await awaitWithAbort(Promise.all(pending), signal);
 	}
 	if (pending.size) {
 		throw new Error(`SSR task drain exceeded ${maxPasses} passes`);
@@ -26,37 +22,22 @@ export async function drainTasks(
 }
 
 /** Performs the await with abort domain operation. */
-export async function awaitWithAbort<T>(
-	promise: Promise<T>,
-	signal?: AbortSignal,
-	deadline?: number
-): Promise<T> {
+export async function awaitWithAbort<T>(promise: Promise<T>, signal?: AbortSignal): Promise<T> {
 	if (signal?.aborted) {
 		// The supplied work already exists and may reject after cancellation disposes its owner.
 		void promise.catch(() => {});
-		throw signal.reason ?? new DOMException('SSR render aborted', 'AbortError');
+		throw signal.reason;
 	}
-	if (!signal && deadline === undefined) return promise;
-	const remaining = deadline === undefined ? undefined : deadline - Date.now();
-	if (remaining !== undefined && remaining <= 0) {
-		void promise.catch(() => {});
-		throw new SsrTaskDeadlineError();
-	}
+	if (!signal) return promise;
 	let abort!: () => void;
-	let timer: ReturnType<typeof setTimeout> | undefined;
 	const interrupted = new Promise<never>((_, reject) => {
-		if (signal) {
-			abort = () => reject(signal.reason ?? new DOMException('SSR render aborted', 'AbortError'));
-			signal.addEventListener('abort', abort, { once: true });
-		}
-		if (remaining !== undefined)
-			timer = setTimeout(() => reject(new SsrTaskDeadlineError()), remaining);
+		abort = () => reject(signal.reason);
+		signal.addEventListener('abort', abort, { once: true });
 	});
 	try {
 		return await Promise.race([promise, interrupted]);
 	} finally {
-		if (signal && abort) signal.removeEventListener('abort', abort);
-		if (timer) clearTimeout(timer);
+		signal.removeEventListener('abort', abort);
 	}
 }
 
@@ -74,7 +55,7 @@ export function createSsrContext(options: RenderToStringOptions): SsrContext {
 		maxTaskPasses: normalizePositiveLimit(options.maxTaskPasses, 10),
 		maxTreeDepth: normalizeSsrTreeDepth(options.maxTreeDepth),
 		traversalDepth: 0,
-		maxTreeNodes: normalizePositiveLimit(options.maxTreeNodes, defaultMaxSsrTreeNodes),
+		maxTreeNodes: normalizePositiveLimit(options.maxTreeNodes, Infinity),
 		traversedNodes: 0,
 		maxOutputBytes: normalizePositiveLimit(options.maxOutputBytes, defaultMaxSsrOutputBytes),
 		dynamicComponentArtifacts: options.dynamicComponentArtifacts,

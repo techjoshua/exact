@@ -1,3 +1,7 @@
+import { consumeSuppliedPlacement } from './supplied-placement.js';
+import { readServerComponentReference } from './server-component-reference.js';
+import { componentContractVersion } from '../component-contract-version.js';
+import { assertComponentInputVersion } from '@exactjs/core/runtime/component-operations';
 import { renderBoundChildRange } from './bound-child-range.js';
 import { renderDocumentDoctype } from './document-doctype.js';
 import { boundOperationEnhancement } from './bound-enhancement-targets.js';
@@ -14,7 +18,7 @@ import {
 	type DoctypeOptions,
 	type DocumentOutputKind,
 	exactChildRangeOperation,
-	exactComponentOperation,
+	exactComponentInputsOperationV6,
 	exactFragmentOperation,
 	exactIntrinsicOperation,
 	exactKeyedChildOperation,
@@ -29,7 +33,6 @@ import {
 	withoutCompiledSuspenseReceiptEnhancement,
 	type ExactActivityReceiptData,
 	type ExactChildRangeReceiptData,
-	type ExactComponentReceiptData,
 	type ExactFragmentReceiptData,
 	type ExactIntrinsicReceiptData,
 	type ExactKeyedChildReceiptData,
@@ -47,7 +50,7 @@ import {
 } from '@exactjs/core/runtime/render-operations';
 import { markerId, markerPair } from '../markup.js';
 import type { Child, RenderToStringOptions, SsrContext } from '../types.js';
-import { renderComponentReference } from './component.js';
+import { renderComponentReference, renderProgramComponentSegment } from './component.js';
 import { prepareDirectScheduledSsrComponentReferences } from './direct-component-scheduling.js';
 import type { RenderValue } from './execution.js';
 import { mapRenderValue, withRenderCleanup } from './execution.js';
@@ -92,6 +95,20 @@ export class SsrOperationTarget {
 		private readonly renderChildren: RenderChildren
 	) {}
 
+	/** Selects a subtree-local check view after one actual operation is consumed. */
+	forActualChild(value: unknown): SsrOperationTarget {
+		const options = consumeSuppliedPlacement(this.options, value);
+		return options === this.options
+			? this
+			: new SsrOperationTarget(
+					this.context,
+					this.parent,
+					options,
+					this.hasComponentAncestor,
+					this.renderChildren
+				);
+	}
+
 	/** Publishes a request-owned document slot at its authored location. */
 	[exactDocumentOutputOperation](kind: DocumentOutputKind): string {
 		return renderDocumentOutput(this.context, this.options, kind);
@@ -103,10 +120,8 @@ export class SsrOperationTarget {
 	}
 
 	/** Serializes a component operation with asynchronous descendant support. */
-	[exactComponentOperation](
-		_operation: object,
-		data: ExactComponentReceiptData
-	): RenderValue<string> {
+	[exactComponentInputsOperationV6](operation: object): RenderValue<string> {
+		const data = readServerComponentReference(operation)!;
 		return this.renderDirectServerComponent(data);
 	}
 
@@ -369,12 +384,16 @@ export class SsrOperationTarget {
 	}
 
 	/** Prepares program siblings through this traversal target's existing owner and options. */
-	prepareProgramReferences(values: readonly unknown[]): AsyncDisposable | undefined {
+	prepareProgramReferences(
+		values: readonly unknown[],
+		owner: import('./direct-component-contracts.js').DirectScheduledPreparationOwner
+	): AsyncDisposable | undefined {
 		return prepareDirectScheduledSsrComponentReferences(
 			this.context,
 			values as readonly ServerComponentReference[],
 			this.parent,
-			this.options
+			this.options,
+			owner
 		);
 	}
 
@@ -388,7 +407,7 @@ export class SsrOperationTarget {
 					this.context,
 					component,
 					this.parent,
-					this.options,
+					consumeSuppliedPlacement(this.options, component.source),
 					this.hasComponentAncestor
 				),
 			() => {
@@ -403,7 +422,7 @@ export class SsrOperationTarget {
 			this.context,
 			component,
 			undefined,
-			this.options,
+			consumeSuppliedPlacement(this.options, component.source),
 			false,
 			false,
 			true
@@ -416,22 +435,20 @@ export class SsrOperationTarget {
 	}
 
 	/** Renders a prepared program segment without allocating a forwarding callback. */
-	renderProgramSegment(segment: unknown): RenderValue<string> {
-		if (Array.isArray(segment))
-			return this.renderChildren(
-				this.context,
-				segment,
-				this.parent,
-				this.options,
-				this.hasComponentAncestor
-			);
-		return renderComponentReference(
+	renderProgramSegment(
+		segment: unknown,
+		occurrence?: ServerComponentReference
+	): RenderValue<string> {
+		return renderProgramComponentSegment(
 			this.context,
-			segment as ServerComponentReference,
+			segment,
 			this.parent,
 			this.options,
 			this.hasComponentAncestor,
-			true
+			occurrence
 		);
 	}
 }
+
+// The private operation capability is required even by direct receipt-adoption lanes.
+assertComponentInputVersion(componentContractVersion);

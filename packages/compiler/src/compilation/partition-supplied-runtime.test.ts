@@ -3,19 +3,18 @@ import path from 'node:path';
 import { writeFile } from 'node:fs/promises';
 import { expect, it, onTestFinished } from 'vitest';
 import type { AnyComponentFunction, Component } from '@exactjs/core';
-import { createCompiledComponentReceipt as receipt } from '@exactjs/core/runtime/component-operations';
+import { createCompiledComponentInputReceipt as receipt } from '@exactjs/core/runtime/component-operations';
 import { composeExactComponentContracts } from '@exactjs/core/framework/component-contracts';
 import { render, unmount } from '@exactjs/dom';
 import { hydrate } from '@exactjs/hydrate';
 import { renderToHydratableString } from '@exactjs/ssr';
 import { compileProjectArtifacts } from '../index.js';
-import { createTestWorkspace } from '../test-support/workspace.js';
+import { createCompilerTestWorkspace } from '../test-support/workspace.js';
 import { importArtifact } from '../test-support/import-artifact.js';
-
 it.each(['mount', 'hydrate'] as const)(
 	'preserves supplied target ownership through a shared helper graph during %s',
 	async (mode) => {
-		const root = await createTestWorkspace('.exact-partition-supplied-', process.cwd());
+		const root = await createCompilerTestWorkspace('.exact-partition-supplied-', process.cwd());
 		const entry = path.join(root, 'page.tsx');
 		const helpers = Array.from(
 			{ length: 28 },
@@ -69,7 +68,9 @@ export function Page(this:Component<{count:number}>){owner=this;this.state.count
 			await expect.poll(() => owned?.getAttribute('title')).toBe('value ' + count);
 			expect(host.querySelector('#owned')).toBe(owned);
 		}
-		const owner = client.owner as Component<{ count: number }>;
+		const owner = client.owner as Component<{
+			count: number;
+		}>;
 		unmount(host);
 		advance.click();
 		expect(owner.state.count).toBe(2);

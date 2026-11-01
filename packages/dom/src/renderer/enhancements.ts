@@ -273,6 +273,7 @@ function unwrapEnhancementSubtree(
 	return mounted;
 }
 
+/** Builds wrapper markers while the receiving transaction owns actual target placement. */
 function wrapTarget(
 	root: Root,
 	target: EnhancementTarget,
@@ -304,12 +305,19 @@ function wrapTarget(
 	const authored = mountedAuthoredOperation(target.mounted);
 	const leaf = withoutEnhancements(authored);
 
-	const physicalParent = target.mounted.dom.parentNode ?? document.createDocumentFragment();
-	if (!target.mounted.dom.parentNode)
-		placeMountedBefore(root, physicalParent, target.mounted, null);
-	const afterTarget = lastMountedNode(target.mounted).nextSibling;
-	physicalParent.insertBefore(start, target.mounted.dom);
-	physicalParent.insertBefore(end, afterTarget);
+	const attachedParent = target.mounted.dom.parentNode;
+	const physicalParent = attachedParent ?? document.createDocumentFragment();
+	if (attachedParent) {
+		const afterTarget = lastMountedNode(target.mounted).nextSibling;
+		physicalParent.insertBefore(start, target.mounted.dom);
+		physicalParent.insertBefore(end, afterTarget);
+	} else {
+		// A pending supplied placement can defer the target move. Only these fresh markers
+		// are placed now, so wrapping never pulls retained supplied DOM out before validation.
+		physicalParent.appendChild(start);
+		physicalParent.appendChild(end);
+		placeMountedBefore(root, physicalParent, target.mounted, end);
+	}
 	const previousParking = root.replacementParking;
 	const parking = {
 		mounts: new Map<Child, Array<{ mounted: Mounted; parent: Node }>>([

@@ -172,7 +172,7 @@ describe('@exactjs/server streaming', () => {
 		);
 		const reader = oversized.stream!.getReader();
 		expect(JSON.parse(await readNextStreamLine(reader))).toMatchObject({ event: 'start' });
-		await expect(reader.read()).rejects.toThrow('byte limit');
+		await expect(reader.read()).rejects.toThrow(/maxStreamBytes: actual .*configured cap 80/);
 
 		let reads = 0;
 		const payload = Object.create(Object.prototype);

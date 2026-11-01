@@ -1,14 +1,11 @@
+import { loadAdapterTestApi } from '../../test-support/adapter-test-api.js';
 import {
 	verifyInstalledIslands,
 	verifyInvalidInstalledIslands
 } from '../../test-support/installed-islands-journey.js';
 
-type SharedTestApi = Pick<typeof import('vitest'), 'describe' | 'it'>;
 const runningInBun = Boolean((globalThis as { Bun?: unknown }).Bun);
-const bunTestModule: string = 'bun:test';
-const testApi = (
-	runningInBun ? await import(bunTestModule) : await import('vitest')
-) as SharedTestApi;
+const testApi = await loadAdapterTestApi();
 const describeBun = runningInBun ? testApi.describe : testApi.describe.skip;
 
 describeBun('independently installed Bun split islands', () => {

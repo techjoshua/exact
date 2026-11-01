@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/config",
-	"version": "0.7.1",
+	"version": "0.8.0",
 	"type": "module",
 	"files": [
 		"AGENTS.md",
@@ -24,14 +24,15 @@
 	"types": "./dist/index.d.ts",
 	"sideEffects": false,
 	"dependencies": {
-		"@exactjs/language-extension-api": "^0.7.0",
-		"@exactjs/devtools-protocol": "^0.7.0",
-		"@exactjs/plugin-api": "^0.7.0",
-		"typescript": "npm:@typescript/typescript6@^6.0.2"
+		"@exactjs/language-extension-api": "^0.8.0",
+		"@exactjs/devtools-protocol": "^0.7.0 || ^0.8.0",
+		"@exactjs/plugin-api": "^0.8.0",
+		"@typescript/native": "npm:typescript@7.0.2"
 	},
 	"scripts": {
 		"build": "tsc -b",
 		"test": "vitest run",
+		"test:bun": "bun test-support/reload.bun.ts",
 		"test:coverage": "node ../../scripts/run-package-coverage.mjs"
 	},
 	"publishConfig": {

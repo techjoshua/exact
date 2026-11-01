@@ -93,6 +93,7 @@ export type ExactStatePath = {
 	kind: 'read' | 'write';
 	confidence: 'exact' | 'broad' | 'unknown';
 	operation?: 'value' | 'map' | 'set';
+	arrayRoots?: readonly import('@exactjs/core/framework/component-contracts').ExactArrayRootProof[];
 };
 
 /** Configures executor composition from imported component contracts. */
@@ -213,7 +214,9 @@ export type ExactServerContextConfiguration = {
 			}>
 		>
 	>;
-	/** Receives metadata-only debug audit records; state and preview values are never included. */
+	/** Receives metadata-only audit records without state or preview values. Notification failures
+	 * are isolated, including returned asynchronous work, which does not delay query publication.
+	 */
 	onDebugAudit?: (event: ExactDebugAuditEvent) => void;
 };
 
@@ -376,11 +379,11 @@ export type ExactServerContext = ExactServerContextConfiguration & {
 	preferredBuildKey?: string;
 	/** Optional page-host alternate dispatch configured for trusted remote bindings. */
 	gateway?: ExactBindingGateway;
-	/** Authenticates the HTTP request before reading or parsing its body, including forwarded requests. */
+	/** Authenticates before body access, including forwarded requests. Only true approves. Omission skips this check. */
 	authorize?(request: ExactRequestLike, context: ExactServerContext): Promise<boolean> | boolean;
-	/** Validates request credentials or headers before body parsing. */
+	/** Validates credentials or headers before body parsing. Only true approves. Omission skips this check. */
 	validateCsrf?(request: ExactRequestLike, context: ExactServerContext): Promise<boolean> | boolean;
-	/** Authorizes a decoded local operation at the service that executes it. Never runs in a forwarding host. */
+	/** Authorizes a decoded local operation at its executing service. Only true approves. Omission skips this check. */
 	authorizeOperation?(
 		request: ExactRequestLike,
 		input: ExactInvocationRequest,
@@ -388,25 +391,25 @@ export type ExactServerContext = ExactServerContextConfiguration & {
 	): Promise<boolean> | boolean;
 	logger?: Logger;
 	outputExtensions?: readonly ExactOutputExtension[];
-	/** Resource ceilings applied before and during batch dispatch. */
+	/** Incoming limits and configurable response caps. Positive safe integers enforce caps. Omitted response settings warn once per owner at their documented thresholds. */
 	limits?: {
 		/** Maximum operations accepted in one batch. Defaults to 100. */
 		maxBatchOperations?: number;
 		/** Maximum operations dispatched concurrently. Defaults to 8. */
 		maxBatchConcurrency?: number;
-		/** Maximum JSON graph depth accepted or emitted. Defaults to 100. */
+		/** Incoming graph depth cap, default 100. Responses warn above 100 when omitted, or fail above an explicit cap. Progress snapshots warn above 32. */
 		maxJsonDepth?: number;
-		/** Maximum values and object properties traversed per JSON graph. Defaults to 100,000. */
+		/** Incoming node cap, default 100,000. Responses warn above 100,000 when omitted, or fail above an explicit cap. Progress snapshots warn above 10,000. */
 		maxJsonNodes?: number;
-		/** Maximum approximate UTF-8 bytes in one request envelope. Defaults to 4 MiB. */
+		/** Hard UTF-8 byte cap for one request envelope. When omitted, bodies over 4 MiB warn without rejection. */
 		maxRequestBytes?: number;
-		/** Maximum UTF-8 bytes in one non-stream response. Defaults to 16 MiB. */
+		/** UTF-8 graph-content cap per result/snapshot and exact encoded-byte cap for buffered responses and non-NDJSON relays. Omission warns above 16 MiB, or 64 KiB for snapshots. Logs identify units and stage. */
 		maxResponseBytes?: number;
-		/** Maximum patches returned by one operation. Defaults to 10,000. */
+		/** Patches per operation. Omission warns above 10,000. An explicit positive cap rejects. */
 		maxPatches?: number;
-		/** Maximum events emitted by one stream. Defaults to 100,000. */
+		/** Events per stream. Omission warns above 100,000. An explicit positive cap stops production. */
 		maxStreamEvents?: number;
-		/** Maximum encoded bytes emitted by one stream. Defaults to 16 MiB. */
+		/** Cumulative encoded UTF-8 bytes per stream or NDJSON relay. Omission warns above 16 MiB. An explicit positive cap stops production. */
 		maxStreamBytes?: number;
 	};
 	/** Aborts when the current request or response stream is cancelled. */

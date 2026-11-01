@@ -1,25 +1,26 @@
 import {
+	assertComponentOperationProvider,
+	isOpaqueOperation
+} from '@exactjs/core/runtime/component-operations';
+import { clientComponentInputProvider } from '../component-input-admission.js';
+import {
 	takeSuppliedPlacement,
 	validateSuppliedPlacement
 } from '../supplied-placement-capability.js';
-import {
-	type AnyComponentInstance,
-	attachSuppressedCleanupFailure,
-	type Child
-} from '@exactjs/core';
+import { type AnyComponentInstance, type Child } from '@exactjs/core';
 import { executeOpaqueOperation } from '@exactjs/core/runtime/component-operations';
-import { type EffectScope } from '@exactjs/reactive/framework/runtime';
+import { createEffectScope, type EffectScope } from '@exactjs/reactive/framework/runtime';
 import { placeMountedBefore } from '../../placement.js';
 import { adoptServerSlot } from '../../server-slots.js';
 import type { Mounted, Root } from '../../types.js';
 import { countDomWork } from '../limits.js';
-import { disposeMounted } from '../teardown.js';
+import { rollbackMountedChildren } from '../teardown.js';
 import { takeParkedOperation } from './operation-parking.js';
-import { createEffectScope } from '@exactjs/reactive/framework/runtime';
 import { domEnhancementCapability } from '../enhancement-capability.js';
 import { assertUniqueChildKeys } from '../child-keys.js';
 import { scalarText } from '../scalar-child.js';
 import { bindText } from '../patching/text-binding.js';
+import { retainPortalEventContainer } from '../portal-target-lifetime.js';
 import { portalEventContainer, portalTarget, withEventContainer } from '../portal-routing.js';
 import { NativeMountOperationTarget, retainMountedOperation } from './native-operation-target.js';
 
@@ -31,6 +32,8 @@ export function mountDetachedOperation(
 	parentScope?: EffectScope,
 	parentNode?: Node
 ): Mounted {
+	if (isOpaqueOperation(value))
+		assertComponentOperationProvider(value, clientComponentInputProvider);
 	const parked =
 		takeSuppliedPlacement(root, value, parentInstance, parentScope, parentNode) ??
 		takeParkedOperation(root, value, parentInstance, parentScope);
@@ -49,7 +52,10 @@ export function mountDetachedChildren(
 	parentScope?: EffectScope,
 	parentNode?: Node
 ): Mounted[] {
-	validateSuppliedPlacement(parentInstance);
+	for (const child of children)
+		if (isOpaqueOperation(child))
+			assertComponentOperationProvider(child, clientComponentInputProvider);
+	validateSuppliedPlacement(parentInstance, root);
 	assertUniqueChildKeys(children);
 	const mounted: Mounted[] = [];
 	const operationTarget = new NativeMountOperationTarget(
@@ -60,6 +66,7 @@ export function mountDetachedChildren(
 	);
 	try {
 		for (const child of children) {
+			if (root.componentInputAttempt?.disposed) break;
 			const parked =
 				takeSuppliedPlacement(root, child, parentInstance, parentScope, parentNode) ??
 				takeParkedOperation(root, child, parentInstance, parentScope);
@@ -80,7 +87,10 @@ export function mountDetachedChildren(
 			}
 			const executed = executeOpaqueOperation<Mounted>(child, operationTarget);
 			if (executed) {
-				mounted.push(retainMountedOperation(executed.value, child));
+				const current = retainMountedOperation(executed.value, child);
+				if (root.suppliedPlacementPlan?.pending && root.suppliedPlacementPlan.isCurrent())
+					root.suppliedPlacementPlan.own(current);
+				mounted.push(current);
 				continue;
 			}
 			const scalar = scalarText(child);
@@ -95,6 +105,8 @@ export function mountDetachedChildren(
 					children: []
 				};
 				bindText(textMounted, child);
+				if (root.suppliedPlacementPlan?.pending && root.suppliedPlacementPlan.isCurrent())
+					root.suppliedPlacementPlan.own(textMounted);
 				mounted.push(textMounted);
 				continue;
 			}
@@ -131,11 +143,16 @@ export function mountPortalReceipt(
 		portalTarget: target
 	};
 	const eventContainer = portalEventContainer(root, target);
-	if (eventContainer === target) root.portalTargets.add(target);
-	mounted.children = withEventContainer(root, eventContainer, () =>
-		mountChildren(root, target, [...receipt.children], parentInstance, scope)
-	);
-	return mounted;
+	mounted.stop = retainPortalEventContainer(root, eventContainer);
+	try {
+		mounted.children = withEventContainer(root, eventContainer, () =>
+			mountChildren(root, target, [...receipt.children], parentInstance, scope)
+		);
+		return mounted;
+	} catch (error) {
+		rollbackMountedChildren([mounted], undefined, error);
+		throw error;
+	}
 }
 
 /** Performs the mount children domain operation. */
@@ -194,27 +211,5 @@ function mountEnhancedCompilerOperation(
 		);
 	} finally {
 		root.enhancementNesting = 0;
-	}
-}
-
-/**
- * Rolls back provisional children in reverse ownership order.
- *
- * Detached roots use a temporary parent only as the traversal origin; portal
- * descendants still remove themselves from their actual portal targets.
- */
-function rollbackMountedChildren(
-	mounted: readonly Mounted[],
-	parent: Node | undefined,
-	primary: unknown
-): void {
-	for (let index = mounted.length - 1; index >= 0; index--) {
-		const child = mounted[index]!;
-		const removalParent = parent ?? child.dom.parentNode ?? document.createDocumentFragment();
-		try {
-			disposeMounted(removalParent, child);
-		} catch (cleanup) {
-			attachSuppressedCleanupFailure(primary, cleanup);
-		}
 	}
 }

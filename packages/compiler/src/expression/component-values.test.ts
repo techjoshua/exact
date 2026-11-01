@@ -1,3 +1,4 @@
+import { componentContractVersion } from '../../../core/src/component/contract-versions.js';
 import { describe, expect, it } from 'vitest';
 import { transform } from '../index.js';
 import { analyzeSource } from '../compilation/source-analysis.js';
@@ -84,7 +85,7 @@ describe('@exactjs/compiler: component values', () => {
 
 		expect(output).toContain('@exactjs/core/runtime/component-branding');
 		expect(output).toMatch(/__exactBrandComponent_\d+\(__exactComponentImplementation/);
-		expect(output).toMatch(/version: 2,\s*placement:/);
+		expect(output).toMatch(new RegExp(`version: ${componentContractVersion},\\s*placement:`));
 	});
 
 	it('brands an isomorphic component even when it has no generated artifact entries', () => {

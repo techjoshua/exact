@@ -1,14 +1,13 @@
 import type { PhysicsShape } from './contracts.js';
 
-/** Validates positive shape dimensions and returns an immutable canonical shape. */
+/** Validates positive shape dimensions and returns an copied canonical shape. */
 export function validateShape(shape: PhysicsShape): PhysicsShape {
-	if (shape.kind === 'circle')
-		return Object.freeze({ kind: 'circle', radius: positive(shape.radius, 'radius') });
-	return Object.freeze({
+	if (shape.kind === 'circle') return { kind: 'circle', radius: positive(shape.radius, 'radius') };
+	return {
 		kind: 'box',
 		width: positive(shape.width, 'width'),
 		height: positive(shape.height, 'height')
-	});
+	};
 }
 
 /** Computes planar rotational inertia for a centered circle or axis-aligned box. */

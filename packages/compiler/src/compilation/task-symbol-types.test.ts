@@ -2,7 +2,7 @@ import path from 'node:path';
 import { expect, it, onTestFinished } from 'vitest';
 import { NativeCompilerProcess } from '../native/process.js';
 import { resolveNativeCompilerExecutable } from '../native/executable.js';
-import { createTestWorkspace, writeTestFiles } from '../test-support/workspace.js';
+import { createCompilerTestWorkspace, writeTestFiles } from '../test-support/workspace.js';
 
 const cases = [
 	[
@@ -30,7 +30,7 @@ const cases = [
 for (const target of ['default', 'client', 'server'] as const)
 	for (const [name, imports, declaration] of cases)
 		it(`preserves ${name} identity in component task types (${target})`, async () => {
-			const root = await createTestWorkspace('.exact-symbol-types-', path.resolve('.tmp'));
+			const root = await createCompilerTestWorkspace('.exact-symbol-types-', path.resolve('.tmp'));
 			await writeTestFiles(root, {
 				'keys.ts':
 					'const hidden=Symbol("hidden");export const visible=Symbol("visible");export function privateToken():typeof hidden{return hidden;}'

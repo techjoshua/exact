@@ -20,7 +20,11 @@ export async function createCompilerClosedSsrFixture() {
 		await writeFile(
 			path.join(root, 'Page.tsx'),
 			`
-import {TaskContext as Policy,type Component} from '@exactjs/core';
+import {TaskContext as Policy,createRef,type Component} from '@exactjs/core';
+const key=createRef<{value:string}>('value');
+function replaceRefGet(refs:Component<{}>['refs']) {refs.get=()=>undefined;return '';}
+type PrimitiveView={readonly value:'temporal-date'|'temporal-time'}['value'];
+function classifyPrimitive(value:PrimitiveView){return value.startsWith('temporal-');}
 import {renderToString} from '@exactjs/ssr';
 function Leaf(this:Component<{value:number;trace:number}>,props:{value:number}) {
  this.state.value=0;this.state.trace=0;
@@ -36,7 +40,8 @@ function Leaf(this:Component<{value:number;trace:number}>,props:{value:number}) 
  prepare();
  return ()=><span>{this.state.trace}</span>;
 }
-function Page() {return ()=><main><Leaf value={41}/><Leaf value={42}/></main>;}
+function RefDispatch(this:Component<{}>){const ordinary=classifyPrimitive('temporal-date');const refs=this.refs;const binding=this.ref(key);binding.fulfill({value:'ready'});const read=refs.get.bind(refs);const typed=read(key)?.value;return()=> <i>{replaceRefGet(refs)}{this.refs.get(key)===undefined&&ordinary&&typed==='ready'?'':'incorrect-ref-dispatch'}</i>;}
+function Page() {return ()=><main><Leaf value={41}/><Leaf value={42}/><RefDispatch/></main>;}
 export async function run() {
  let direct=0; let generic=0;
  const result=await renderToString(<Page/>, {markers:false,
@@ -73,6 +78,6 @@ export async function verifyCompilerClosedSsr(filename: string, executable = pro
 /** Stable rendering and ownership expectations shared by all build adapters. */
 export const compilerClosedSsrResult = {
 	text: '4243',
-	direct: 3,
+	direct: 4,
 	generic: 0
 };

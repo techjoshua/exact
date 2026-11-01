@@ -1,27 +1,15 @@
-import type { RenderToStringOptions, SsrContext } from '../types.js';
+import type { SsrContext } from '../types.js';
 import { utf8ByteLength } from './utf8.js';
+import { normalizeProtocolLimit as normalizePositiveLimit } from '@exactjs/core/framework/protocol-records';
 
 const DEFAULT_MAX_TREE_DEPTH = 512;
 const HARD_MAX_TREE_DEPTH = 1_024;
-const DEFAULT_MAX_TREE_NODES = 100_000;
-const DEFAULT_MAX_OUTPUT_BYTES = 16 * 1024 * 1024;
-const DEFAULT_MAX_TASK_DURATION_MS = 30_000;
-
-type SsrRenderOptions = RenderToStringOptions & { taskDeadline?: number };
 
 /** Signals that SSR traversal exceeded its configured nesting limit. */
 export class SsrTreeDepthError extends Error {
 	constructor(limit: number) {
 		super(`eXact SSR tree exceeds the configured maximum depth of ${limit}`);
 		this.name = 'SsrTreeDepthError';
-	}
-}
-
-/** Signals that observed component tasks exceeded the request deadline. */
-export class SsrTaskDeadlineError extends Error {
-	constructor() {
-		super('SSR task duration limit exceeded');
-		this.name = 'SsrTaskDeadlineError';
 	}
 }
 
@@ -41,14 +29,11 @@ export class SsrOutputLimitError extends Error {
 	}
 }
 
-/** Default maximum number of render values processed by one SSR operation. */
-export const defaultMaxSsrTreeNodes = DEFAULT_MAX_TREE_NODES;
-
-/** Default maximum encoded bytes produced by one SSR operation. */
-export const defaultMaxSsrOutputBytes = DEFAULT_MAX_OUTPUT_BYTES;
+/** An omitted output cap leaves response size to application policy and host capacity. */
+export const defaultMaxSsrOutputBytes = Infinity;
 
 /** Normalizes a positive integer limit or returns its domain default. */
-export { normalizeProtocolLimit as normalizePositiveLimit } from '@exactjs/core/framework/protocol-records';
+export { normalizePositiveLimit };
 
 /** Normalizes a caller-provided depth limit and applies the hard safety cap. */
 export function normalizeSsrTreeDepth(value: number | undefined): number {
@@ -110,6 +95,7 @@ export function assertOutputCharacterBound(context: SsrContext, html: string): v
 
 /** Verifies the exact UTF-8 byte length when non-ASCII output requires it. */
 export function assertOutputWithinLimit(context: SsrContext, html: string): void {
+	if (context.maxOutputBytes === Infinity) return;
 	assertOutputCharacterBound(context, html);
 	if (utf8ByteLength(html) > context.maxOutputBytes) {
 		throw new SsrOutputLimitError(context.maxOutputBytes);
@@ -129,28 +115,14 @@ export function leaveSsrTreeDepth(context: SsrContext): void {
 	context.traversalDepth--;
 }
 
-/** Adds one stable task deadline without extending an existing render deadline. */
-export function withTaskDeadline<T extends RenderToStringOptions>(
-	options: T
-): T & { taskDeadline: number } {
-	const existing = (options as SsrRenderOptions).taskDeadline;
-	if (typeof existing === 'number') return options as T & { taskDeadline: number };
-	const duration =
-		Number.isSafeInteger(options.maxTaskDurationMs) && options.maxTaskDurationMs! > 0
-			? options.maxTaskDurationMs!
-			: DEFAULT_MAX_TASK_DURATION_MS;
-	return { ...options, taskDeadline: Date.now() + duration };
-}
-
 /** Returns whether an error is one of the intentional SSR safety limits. */
 export function isSsrRenderLimitError(
 	error: unknown
-): error is SsrTreeDepthError | SsrTreeNodeError | SsrOutputLimitError | SsrTaskDeadlineError {
+): error is SsrTreeDepthError | SsrTreeNodeError | SsrOutputLimitError {
 	return (
 		error instanceof SsrTreeDepthError ||
 		error instanceof SsrTreeNodeError ||
-		error instanceof SsrOutputLimitError ||
-		error instanceof SsrTaskDeadlineError
+		error instanceof SsrOutputLimitError
 	);
 }
 

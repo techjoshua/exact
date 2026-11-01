@@ -1,3 +1,4 @@
+import { verifyRetiredInteractionBroker } from '../../component-composition-corpus/test-support/island-generation-journey.js';
 /** @vitest-environment jsdom */
 import { expect, it, onTestFinished } from 'vitest';
 import { ensureInteractionHydration, disposeInteractionHydration } from './islands/interaction.js';
@@ -235,5 +236,128 @@ it.each(['name', 'position'] as const)(
 		second!.value = 'next';
 		second!.dispatchEvent(new Event('input', { bubbles: true }));
 		expect(seen).toEqual(['next']);
+	}
+);
+
+it.each(['resolve', 'reject'] as const)(
+	'does not let an old %s retire a newer generation queue',
+	async (completion) => {
+		const root = document.createElement('main');
+		root.innerHTML =
+			'<div data-exact-client-boundary="one" data-exact-client-hydration="interaction" data-exact-client-generation="1"><button data-exact-id="action">Go</button></div>';
+		onTestFinished(() => disposeInteractionHydration(root));
+		const boundary = root.firstElementChild!;
+		const button = root.querySelector('button')!;
+		let oldResolve!: (value: boolean) => void;
+		let oldReject!: (reason: unknown) => void;
+		const old = new Promise<boolean>((resolve, reject) => {
+			oldResolve = resolve;
+			oldReject = reject;
+		});
+		let nextResolve!: (value: boolean) => void;
+		const next = new Promise<boolean>((resolve) => {
+			nextResolve = resolve;
+		});
+		let activations = 0;
+		const reports: unknown[] = [];
+		ensureInteractionHydration(
+			root,
+			() => (++activations === 1 ? old : next),
+			['click'],
+			() => ({ type: 'click', replay: 'native-click' }),
+			{
+				logger: {
+					log: (entry) => {
+						reports.push(entry);
+					}
+				}
+			}
+		);
+		button.click();
+		boundary.setAttribute('data-exact-client-generation', '2');
+		button.click();
+		if (completion === 'resolve') oldResolve(true);
+		else oldReject(new Error('retired generation'));
+		await tick();
+		button.click();
+		expect(activations).toBe(2);
+		let calls = 0;
+		button.onclick = () => {
+			calls++;
+		};
+		boundary.setAttribute('data-exact-client-hydrated', 'true');
+		nextResolve(true);
+		await tick();
+		expect(calls).toBe(2);
+		expect(reports).toEqual([]);
+		button.click();
+		expect(calls).toBe(3);
+	}
+);
+
+it('rejects capture registration under already-aborted ownership and permits the next owner', () => {
+	verifyRetiredInteractionBroker(
+		{ ensureInteractionHydration, disposeInteractionHydration },
+		document
+	);
+});
+
+it.each(['false-result', 'null-rejection', 'undefined-rejection'] as const)(
+	'settles %s with one fallback and a usable next owner',
+	async (outcome) => {
+		const root = document.createElement('main');
+		root.innerHTML =
+			'<div data-exact-client-boundary="one" data-exact-client-hydration="interaction"><button>Go</button></div>';
+		onTestFinished(() => disposeInteractionHydration(root));
+		const button = root.querySelector('button')!;
+		let calls = 0;
+		let loads = 0;
+		button.onclick = () => {
+			calls++;
+		};
+		const reports: unknown[] = [];
+		const policy = () => ({ type: 'click' as const, replay: 'native-click' as const });
+		ensureInteractionHydration(
+			root,
+			() => {
+				loads++;
+				return outcome === 'false-result'
+					? Promise.resolve(false)
+					: Promise.reject(outcome === 'null-rejection' ? null : undefined);
+			},
+			['click'],
+			policy,
+			{
+				logger: {
+					log: (entry) => {
+						reports.push(entry);
+					}
+				}
+			}
+		);
+		button.click();
+		expect(calls).toBe(0);
+		await tick();
+		expect(calls).toBe(1);
+		expect(reports).toHaveLength(outcome === 'false-result' ? 0 : 1);
+		button.click();
+		expect(calls).toBe(2);
+		expect(loads).toBe(1);
+		ensureInteractionHydration(
+			root,
+			(boundary) => {
+				loads++;
+				boundary.setAttribute('data-exact-client-hydrated', 'true');
+				return true;
+			},
+			['click'],
+			policy,
+			{}
+		);
+		button.click();
+		expect(calls).toBe(3);
+		button.click();
+		expect(calls).toBe(4);
+		expect(loads).toBe(2);
 	}
 );

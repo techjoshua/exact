@@ -44,3 +44,24 @@ it.each([true, false])(
 		expect(stream.locked).toBe(false);
 	}
 );
+
+it('preserves a TypeError thrown by an event receiver', async () => {
+	const failure = new TypeError('receiver failed');
+	const stream = new ReadableStream<Uint8Array>({
+		start(controller) {
+			controller.enqueue(new TextEncoder().encode('{"value":1}\n'));
+			controller.close();
+		}
+	});
+	await expect(
+		readNdjsonEvents(
+			stream,
+			'invalid stream',
+			() => {
+				throw failure;
+			},
+			{}
+		)
+	).rejects.toBe(failure);
+	expect(stream.locked).toBe(false);
+});

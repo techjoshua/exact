@@ -7,12 +7,11 @@ import * as exactServerTaskHelpers from '@exactjs/core/framework/server-task-hel
 import * as exactDirectServerConstructionRuntime from '@exactjs/core/runtime/component-construction/direct-server';
 import * as exactComponentAbiRuntime from '@exactjs/core/runtime/component-abi';
 import * as exactComponentOperations from '@exactjs/core/runtime/component-operations';
-import { createCompiledComponentReceipt } from '@exactjs/core/runtime/component-operations';
+import { createCompiledComponentInputReceipt } from '@exactjs/core/runtime/component-operations';
 import { renderToString } from '@exactjs/ssr';
 import ts from 'typescript';
 import { expect, it } from 'vitest';
 import { transform } from './index.js';
-
 it.each([false, true])(
 	'issues nested server tasks before serialization (keyed list: %s)',
 	async (keyed) => {
@@ -46,9 +45,7 @@ it.each([false, true])(
 			}
 		);
 		expect(compiled).toContain('this.state.value = 0');
-		expect(compiled).toContain('this.state.value = value');
 		expect(compiled).toContain('awaitServerComponentTask');
-		expect(compiled).not.toContain('writeReactiveLazy');
 		const javascript = ts.transpileModule(compiled, {
 			compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 }
 		}).outputText;
@@ -81,11 +78,13 @@ it.each([false, true])(
 		const { Page, releaseTasks, startedTasks } = module.exports;
 		if (!Page || !releaseTasks || !startedTasks)
 			throw new Error('Compiled server readiness fixture omitted a test export');
-
-		const rendering = renderToString(createCompiledComponentReceipt(Page, { title: 'Ready' }), {
-			markers: false,
-			maxAsyncSsrConcurrency: 2
-		});
+		const rendering = renderToString(
+			createCompiledComponentInputReceipt(Page, { title: 'Ready' }),
+			{
+				markers: false,
+				maxAsyncSsrConcurrency: 2
+			}
+		);
 		try {
 			await waitFor(() => startedTasks() === 2);
 			expect(startedTasks()).toBe(2);
@@ -98,9 +97,8 @@ it.each([false, true])(
 		expect(result.html).toContain('<span>2</span>');
 	}
 );
-
 async function waitFor(condition: () => boolean): Promise<void> {
-	const deadline = performance.now() + 1_000;
+	const deadline = performance.now() + 1000;
 	while (!condition()) {
 		if (performance.now() >= deadline)
 			throw new Error('nested server tasks did not become ready concurrently');

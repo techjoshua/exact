@@ -1,3 +1,8 @@
+import {
+	Chart as CurrentInputChart,
+	Series as CurrentInputSeries,
+	Data as CurrentInputData
+} from '../components.js';
 import type { Component } from '@exactjs/core';
 import {
 	Axis,
@@ -144,5 +149,80 @@ export function CustomDataViewFixture(this: Component<{ value: number }>) {
 				<Data id="sample" x="Sample" value={this.state.value} />
 			</Series>
 		</Chart>
+	);
+}
+
+/** Current compact input transitions retain one figure and keyed rows. */
+export function CurrentCompactChartFixture(
+	this: Component<{ series: { id: string; data: { id: string; x: string; value: number }[] }[] }>
+) {
+	this.state.series = [{ id: 's', data: [{ id: 'a', x: 'A', value: 1 }] }];
+	return () => (
+		<div>
+			<button
+				id="compact-replace"
+				onClick={() =>
+					(this.state.series = [
+						{
+							id: 's',
+							data: [
+								{ id: 'a', x: 'A', value: 7 },
+								{ id: 'b', x: 'B', value: 9 }
+							]
+						}
+					])
+				}
+			>
+				Replace
+			</button>
+			<button id="compact-nested" onClick={() => this.state.series[0]!.data[0]!.value++}>
+				Nested
+			</button>
+			<button id="compact-empty" onClick={() => (this.state.series = [])}>
+				Empty
+			</button>
+			<button
+				id="compact-restore"
+				onClick={() => (this.state.series = [{ id: 's', data: [{ id: 'a', x: 'A', value: 12 }] }])}
+			>
+				Restore
+			</button>
+			<CurrentInputChart
+				id="current-compact"
+				type="bar"
+				title="Current values"
+				series={this.state.series}
+			/>
+		</div>
+	);
+}
+
+/** Compact membership and declaration ownership remain independent during removal. */
+export function MixedCompactChartFixture(this: Component<{ compact: boolean; declared: boolean }>) {
+	this.state.compact = true;
+	this.state.declared = true;
+	return () => (
+		<div>
+			<button id="compact-toggle" onClick={() => (this.state.compact = !this.state.compact)}>
+				Compact
+			</button>
+			<button id="declared-toggle" onClick={() => (this.state.declared = !this.state.declared)}>
+				Declared
+			</button>
+			<CurrentInputChart
+				id="mixed-compact"
+				type="bar"
+				title="Mixed values"
+				series={
+					this.state.compact ? [{ id: 'compact', data: [{ id: 'c', x: 'C', value: 3 }] }] : []
+				}
+			>
+				{this.state.declared && (
+					<CurrentInputSeries id="declared">
+						<CurrentInputData id="d" x="D" value={5} />
+					</CurrentInputSeries>
+				)}
+			</CurrentInputChart>
+		</div>
 	);
 }

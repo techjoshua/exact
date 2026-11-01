@@ -5,14 +5,14 @@ import { render } from '@exactjs/dom';
 import { hydrate } from '@exactjs/hydrate';
 import { renderToHydratableString } from '@exactjs/ssr';
 import { compileProjectArtifacts } from '../index.js';
-import { createTestWorkspace } from '../test-support/workspace.js';
+import { createCompilerTestWorkspace, repositoryPath } from '../test-support/workspace.js';
 import { importArtifact } from '../test-support/import-artifact.js';
 
 it.each(['quote"key', 'slash\\key'] as const)(
 	'preserves registry ownership outside the source directory for %s',
 	async (key) => {
-		const root = await createTestWorkspace('.exact-registry-ownership-', process.cwd());
-		const source = path.resolve(
+		const root = await createCompilerTestWorkspace('.exact-registry-ownership-', process.cwd());
+		const source = repositoryPath(
 			'packages/component-composition-corpus/src/scenarios/registry.fixtures.tsx'
 		);
 		const results = await compileProjectArtifacts([source], {

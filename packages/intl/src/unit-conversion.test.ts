@@ -3,7 +3,11 @@ import type { IntlRuntimeDescriptorV1 } from './contracts.js';
 import { createIntlEnvironment } from './environment.js';
 import { prepareIntlActivation } from './prepared.js';
 import { renderIntlActivation } from './render.js';
-import { convertIntlUnit } from './unit-definitions.js';
+import {
+	convertIntlUnit,
+	convertIntlUnitDifference,
+	convertIntlUnitEndpointDifference
+} from './unit-definitions.js';
 import { validateIntlRuntimeDescriptor } from './validation.js';
 
 const messageKey = '47DEQpj8HBSa-_TImW-5JCeuQeRkm5NMpJWZG3hSuFU';
@@ -110,3 +114,15 @@ function contractFixture(value: string): string {
 		.padEnd(43, 'x')
 		.slice(0, 43);
 }
+
+it('rejects unknown and inherited names before identity conversion', () => {
+	for (const name of ['not-a-unit', 'constructor', 'toString', '__proto__']) {
+		expect(() => convertIntlUnit(10, name, name)).toThrow(/Unsupported intl unit conversion/);
+		expect(() => convertIntlUnitDifference(10, name, name)).toThrow(
+			/Unsupported intl unit conversion/
+		);
+		expect(() => convertIntlUnitEndpointDifference(12, 2, name, name)).toThrow(
+			/Unsupported intl unit conversion/
+		);
+	}
+});

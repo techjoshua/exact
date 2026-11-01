@@ -29,12 +29,12 @@ export function validateEnhancements(
 		const target = byId.get(targetId);
 		if (!target) continue;
 		const names = new Set(group.map((activation) => activation.activator));
-		if ((names.has('initialFocus') || names.has('returnFocus')) && !names.has('focusScope'))
+		if ((names.has('initial-focus') || names.has('return-focus')) && !names.has('focus-scope'))
 			diagnostics.push(
 				error(
 					group[0]!,
 					'focus-companion',
-					'a11y:initialFocus and a11y:returnFocus require a11y:focusScope.'
+					'a11y:initial-focus and a11y:return-focus require a11y:focus-scope.'
 				)
 			);
 		validateNavigation(group, target, names, byId, diagnostics);
@@ -84,13 +84,13 @@ function validateNavigation(
 				)
 			);
 	}
-	if (names.has('activeDescendant') && names.has('navigate')) {
-		const activation = group.find((candidate) => candidate.activator === 'activeDescendant')!;
+	if (names.has('active-descendant') && names.has('navigate')) {
+		const activation = group.find((candidate) => candidate.activator === 'active-descendant')!;
 		diagnostics.push(
 			warning(
 				activation,
 				'active-descendant-ownership',
-				'a11y:activeDescendant conflicts when a11y:navigate uses active-descendant mode.'
+				'a11y:active-descendant conflicts when a11y:navigate uses active-descendant mode.'
 			)
 		);
 	}

@@ -212,10 +212,10 @@ export function FormsPage(this: Component<{}>) {
 					dates use the date value, nullable fields return their declared empty value, radio buttons
 					compare their declared
 					<code>value</code>, and grouped checkboxes add or remove that value from the array.
-					Controlled selects apply their value after option values are mounted, including inside
-					compiler-planned static regions, so their initial selection is never lost. Server output
-					marks the matching options too, allowing hydration to preserve a selection only when the
-					user changed it before activation.
+					Controlled selects apply their current value after physical option placement, including
+					enhancement-forwarded children and retained option changes. You do not need to reassign
+					the value after inserting options. Server output marks the matching options too, allowing
+					hydration to preserve a selection only when the user changed it before activation.
 				</p>
 			</section>
 			<section>
@@ -317,6 +317,10 @@ export function FormsPage(this: Component<{}>) {
 					<code>aria-busy</code> state and the <code>{'<Submit>'}</code> pending label and disabled
 					state remain active until validation, the submission callback, placed server work, and
 					router operations started by that callback settle.
+				</p>
+				<p>
+					Unmounting a <code>Form</code> prevents later validation or submission stages from
+					starting when outstanding work settles. Callbacks that have already started may finish.
 				</p>
 				<p>
 					The <code>errors</code> prop projects application-owned server validation messages into

@@ -1,3 +1,4 @@
+import { jsonDataKeys, jsonDataProperty } from '@exactjs/core/framework/protocol-records';
 import type {
 	ExactHydrationData,
 	ExactHydrationEnvelope,
@@ -39,13 +40,13 @@ export function redirectResult(value: unknown): { location: string; status: numb
 
 /** Performs the location for url domain operation. */
 export function locationForUrl(url: URL, init: RequestInit): RouteLocation {
-	return Object.freeze({
+	return {
 		pathname: normalizePath(url.pathname),
 		search: url.search,
 		hash: url.hash,
 		state: undefined,
 		key: `${String(init.method ?? 'GET').toLowerCase()}-${createKey()}`
-	});
+	};
 }
 
 /** Creates a redirect response for loaders and actions. */
@@ -96,9 +97,12 @@ function assertJsonTransferSafe(
 		{ value, path: '$', depth: 0 }
 	];
 	const seen = new Set<object>();
+	const ancestors: object[] = [];
 	let nodes = 0;
 	while (pending.length) {
 		const current = pending.pop()!;
+		// Retire completed siblings while retaining the ancestors of this occurrence.
+		while (ancestors.length > current.depth) seen.delete(ancestors.pop()!);
 		if (++nodes > maxNodes || current.depth > maxDepth)
 			throw new Error(`Route hydration data exceeded graph limits at ${current.path}`);
 		const item = current.value;
@@ -110,11 +114,26 @@ function assertJsonTransferSafe(
 		if (typeof item !== 'object' || seen.has(item))
 			throw new Error(`Route hydration data is not JSON-safe at ${current.path}`);
 		seen.add(item);
+		ancestors.push(item);
 		if (!Array.isArray(item) && Object.getPrototypeOf(item) !== Object.prototype) {
 			throw new Error(`Route hydration data is not JSON-safe at ${current.path}`);
 		}
-		for (const [key, child] of Object.entries(item)) {
-			pending.push({ value: child, path: `${current.path}.${key}`, depth: current.depth + 1 });
+		const remaining = maxNodes - nodes - pending.length;
+		if (Array.isArray(item) && item.length > remaining)
+			throw new Error(`Route hydration data exceeded graph limits at ${current.path}`);
+		const keys = jsonDataKeys(item, remaining);
+		if (!keys) throw new Error(`Route hydration data is not JSON-safe at ${current.path}`);
+		if (keys.length > remaining)
+			throw new Error(`Route hydration data exceeded graph limits at ${current.path}`);
+		for (const key of keys) {
+			const descriptor = jsonDataProperty(item, key);
+			if (!descriptor)
+				throw new Error(`Route hydration data is not JSON-safe at ${current.path}.${key}`);
+			pending.push({
+				value: descriptor.value,
+				path: `${current.path}.${key}`,
+				depth: current.depth + 1
+			});
 		}
 	}
 	const serialized = JSON.stringify(value);

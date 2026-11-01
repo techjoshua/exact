@@ -1,14 +1,17 @@
 import {
 	paginateExactInspection,
 	parseExactInspectionRequest,
+	readExactInspectionRequestId as requestId,
 	type ExactInspectionRequest,
 	type ExactInspectionResponse,
 	type ExactInspectionSuccess,
 	type ExactRuntimeSourceEntity
 } from '@exactjs/devtools-protocol';
-import type { ExactServerContext } from '../types.js';
+import type { ExactServerContext, ExactTextResponse } from '../types.js';
 import type { ExactInspectionCatalogRegistry } from './catalog-registry.js';
 import type { ExactDebugSession, ExactDebugSessionManager } from './sessions.js';
+import { protocolUtf8ByteLength as utf8Length } from '@exactjs/core/framework/protocol-records';
+import { jsonResponse } from '../protocol.js';
 
 /** Dependencies needed by the server-owned read-only query projection. */
 export type ExactServerInspectionQueryContext = Readonly<{
@@ -21,12 +24,12 @@ export type ExactServerInspectionQueryContext = Readonly<{
 	maxSourceExcerptBytes: number;
 }>;
 
-/** Dispatches one validated query without entering executable operation lookup. */
+/** Dispatches and encodes one validated query, bounding the exact body returned to its caller. */
 export async function dispatchExactInspectionQuery(
 	session: ExactDebugSession,
 	untrusted: unknown,
 	queryContext: ExactServerInspectionQueryContext
-): Promise<ExactInspectionResponse> {
+): Promise<ExactTextResponse> {
 	let request: ExactInspectionRequest;
 	try {
 		request = parseExactInspectionRequest(untrusted, {
@@ -34,7 +37,10 @@ export async function dispatchExactInspectionQuery(
 			maxDepth: queryContext.maxQueryDepth
 		});
 	} catch {
-		return failure(requestId(untrusted), 'bad-request', 'invalid inspection request');
+		return jsonResponse(
+			400,
+			failure(requestId(untrusted), 'bad-request', 'invalid inspection request')
+		);
 	}
 
 	let response: ExactInspectionResponse;
@@ -80,17 +86,22 @@ function rootsResponse(
 	queryContext: ExactServerInspectionQueryContext
 ): ExactInspectionResponse {
 	const roots = queryContext.catalogs.builds().flatMap((catalog) =>
-		Object.values(catalog.roots).map((root) =>
-			Object.freeze({
-				side: 'server' as const,
-				buildKey: catalog.buildKey,
-				executionRoot: root.executionRoot,
-				rootComponentId: root.rootComponentId,
-				status: 'available' as const
-			})
-		)
+		Object.values(catalog.roots).map((root) => ({
+			side: 'server' as const,
+			buildKey: catalog.buildKey,
+			executionRoot: root.executionRoot,
+			rootComponentId: root.rootComponentId,
+			status: 'available' as const
+		}))
 	);
-	const page = paginateExactInspection(roots, request.params?.page, queryContext.maxResults);
+	const filter = request.params?.filter;
+	const selected = roots.filter(
+		(root) =>
+			(filter?.side === undefined || filter.side === root.side) &&
+			(filter?.buildKey === undefined || filter.buildKey === root.buildKey) &&
+			(filter?.executionRoot === undefined || filter.executionRoot === root.executionRoot)
+	);
+	const page = paginateExactInspection(selected, request.params?.page, queryContext.maxResults);
 	return success(request, sessionId, page.values, page.nextCursor);
 }
 
@@ -112,13 +123,13 @@ function catalogEntityResponse(
 	if (!entity) return failure(request.id, 'not-found', 'source entity is not in selected root');
 	const result =
 		request.method === 'dependencies.explain'
-			? Object.freeze({
+			? {
 					id: entity.id,
 					kind: entity.kind,
 					classification: entity.classification,
 					reasons: entity.reasons,
 					source: entity.location
-				})
+				}
 			: entity;
 	return success(request, sessionId, result);
 }
@@ -156,11 +167,12 @@ function sourceResponse(
 		redactKnownSecrets(source.content, root.redactions.secretNames),
 		queryContext.maxSourceExcerptBytes
 	);
-	return success(
-		request,
-		sessionId,
-		Object.freeze({ path, sourceHash, excerpt, truncated: excerpt.length < source.content.length })
-	);
+	return success(request, sessionId, {
+		path,
+		sourceHash,
+		excerpt,
+		truncated: excerpt.length < source.content.length
+	});
 }
 
 function success(
@@ -170,26 +182,26 @@ function success(
 	nextCursor?: string
 ): ExactInspectionSuccess {
 	const identity = request.params?.identity;
-	return Object.freeze({
+	return {
 		protocol: 1,
 		id: request.id,
 		ok: true,
-		identity: Object.freeze({
+		identity: {
 			sessionId,
 			...(identity?.buildKey ? { buildKey: identity.buildKey } : {}),
 			...(identity?.executionRoot ? { executionRoot: identity.executionRoot } : {}),
 			...(identity?.binding ? { binding: identity.binding } : {})
-		}),
+		},
 		result,
 		...(nextCursor
 			? {
-					page: Object.freeze({
+					page: {
 						nextCursor,
 						count: Array.isArray(result) ? result.length : 1
-					})
+					}
 				}
 			: {})
-	});
+	};
 }
 
 function failure(
@@ -197,31 +209,45 @@ function failure(
 	error: 'bad-request' | 'not-found' | 'unavailable' | 'limit-exceeded',
 	reason: string
 ): ExactInspectionResponse {
-	return Object.freeze({
+	return {
 		protocol: 1,
 		id,
 		ok: false,
 		error,
 		reason
-	});
+	};
 }
 
-function boundedResponse(
-	response: ExactInspectionResponse,
-	maximum: number
-): ExactInspectionResponse {
-	if (new TextEncoder().encode(JSON.stringify(response)).byteLength <= maximum) return response;
-	return failure(response.id, 'limit-exceeded', 'inspection response byte limit exceeded');
+/** Encodes once so validation, auditing and delivery share the same settled response body. */
+function boundedResponse(response: ExactInspectionResponse, maximum: number): ExactTextResponse {
+	try {
+		const encoded = jsonResponse(
+			response.ok ? 200 : response.error === 'bad-request' ? 400 : 404,
+			response
+		);
+		if (utf8Length(encoded.body) <= maximum) return encoded;
+		response = failure(response.id, 'limit-exceeded', 'inspection response byte limit exceeded');
+	} catch {
+		response = failure(response.id, 'limit-exceeded', 'inspection response cannot be encoded');
+	}
+	return jsonResponse(404, response);
 }
 
+/** Searches validated source trees depth-first without consuming the native call stack. */
 function findEntity(
 	entities: readonly ExactRuntimeSourceEntity[],
 	id: string
 ): ExactRuntimeSourceEntity | undefined {
-	for (const entity of entities) {
+	const frames = [{ entities, index: 0 }];
+	while (frames.length) {
+		const frame = frames[frames.length - 1]!;
+		if (frame.index >= frame.entities.length) {
+			frames.pop();
+			continue;
+		}
+		const entity = frame.entities[frame.index++]!;
 		if (entity.id === id) return entity;
-		const child = findEntity(entity.children, id);
-		if (child) return child;
+		if (entity.children.length) frames.push({ entities: entity.children, index: 0 });
 	}
 	return undefined;
 }
@@ -246,13 +272,4 @@ function redactKnownSecrets(source: string, secretNames: readonly string[]): str
 
 function sourceKey(buildKey: string, executionRoot: string, path: string): string {
 	return `${buildKey}\0${executionRoot}\0${path}`;
-}
-
-function requestId(value: unknown): string {
-	return typeof value === 'object' &&
-		value !== null &&
-		'id' in value &&
-		typeof (value as { id?: unknown }).id === 'string'
-		? (value as { id: string }).id
-		: 'invalid-request';
 }

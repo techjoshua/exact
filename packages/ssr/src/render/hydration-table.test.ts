@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { verifySsrHydrationObservations } from '../../../component-composition-corpus/test-support/ssr-result-observation-journey.mjs';
+import { describe, expect, expectTypeOf, it } from 'vitest';
 import { SsrHydrationTable } from './hydration-table.js';
 
 describe('finite hydration table schemas', () => {
@@ -20,7 +21,7 @@ describe('finite hydration table schemas', () => {
 			1,
 			[['Panel', ['count', 'title'], [['panel-cache-test', 2, 'second']]]]
 		]);
-		expect(Object.isFrozen(second.value()?.[1][0]?.[1])).toBe(true);
+		expectTypeOf(second.value()![1][0]![1]).toEqualTypeOf<readonly string[]>();
 	});
 
 	it('groups separate boundary IDs with the same component schema', () => {
@@ -63,4 +64,8 @@ describe('finite hydration table schemas', () => {
 			'A finite client boundary ID cannot identify multiple components'
 		);
 	});
+});
+
+it('keeps readonly hydration metadata ordinary without exposing cached schema arrays', () => {
+	expect(verifySsrHydrationObservations({ SsrHydrationTable })).toBe(true);
 });

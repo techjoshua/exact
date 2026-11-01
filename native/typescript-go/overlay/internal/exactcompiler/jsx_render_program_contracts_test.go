@@ -155,3 +155,39 @@ func TestRenderProgramEnhancementSourceBoundaries(t *testing.T) {
 		}
 	}
 }
+
+// Both targets retain the intrinsic projection, including the literal value property.
+// Paired hydration must not claim indexed program ranges over generic SSR child output.
+func TestControlledSelectRetainsPropertyAndSelectionScope(t *testing.T) {
+	for _, view := range []string{
+		`<select value="dark"><option>system</option><option>dark</option></select>`,
+		`<section><select value={props.label}><optgroup label="choices"><option value="system">System</option><option value={props.label}>Dark</option></optgroup></select></section>`,
+		`<select multiple value={[props.label,"light"]}><option value="light"/><option value={props.label}/></select>`,
+	} {
+		for _, target := range []Target{TargetClient, TargetServer} {
+			response := NewSession().Execute(Request{ID: "select-contract.tsx", Kind: "compile", Target: target, Source: `export function Page(props:{label:string}){return()=> ` + view + `;}`})
+			if response.Error != "" || len(response.Diagnostics) != 0 || response.Code == "" {
+				t.Fatalf("%s: %s %+v", target, response.Error, response.Diagnostics)
+			}
+			if target == TargetClient && strings.Contains(view, `value="dark"`) && !strings.Contains(response.Code, `value: "dark"`) {
+				t.Fatalf("literal select lost its property writer:\n%s", response.Code)
+			}
+			if target == TargetServer && (!strings.Contains(response.Code, `"select"`) || !strings.Contains(response.Code, `"option"`)) {
+				t.Fatalf("server selection lost intrinsic projection:\n%s", response.Code)
+			}
+		}
+	}
+}
+
+func TestSelectFallbackPreservesPairedSiblingTopology(t *testing.T) {
+	source := `export function Child(){return()=> <span>child</span>;}export function Page(props:{value:string}){return()=> <section><Child/><select value={props.value}><option value="dark">Dark</option></select>{['a','b'].map(value=><label>{value}</label>)}<button>after</button></section>;}`
+	for _, target := range []Target{TargetClient, TargetServer} {
+		response := NewSession().Execute(Request{ID: "select-sibling-topology.tsx", Kind: "compile", Target: target, Source: source})
+		if response.Error != "" || len(response.Diagnostics) != 0 {
+			t.Fatalf("%s: %s %+v", target, response.Error, response.Diagnostics)
+		}
+		if !strings.Contains(response.Code, `__exactIntrinsicReceipt("section"`) || !strings.Contains(response.Code, `__exactIntrinsicReceipt("select"`) {
+			t.Fatalf("%s lost shared intrinsic topology: %s", target, response.Code)
+		}
+	}
+}

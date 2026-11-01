@@ -1,3 +1,4 @@
+import { reportExactCompilerWarnings } from './build-diagnostics.js';
 import {
 	profileTimestamp,
 	publishExactProfile,
@@ -72,6 +73,7 @@ export function transformExactAdapterModule<Inspection = never>(
 				filename: options.filename
 			});
 			options.compiler.componentProjection?.validate(compiled.componentBuild.components.length);
+			if (options.warn) reportExactCompilerWarnings(compiled.diagnostics ?? [], options.warn);
 			const output = eraseAdapterJavaScriptHelperTypes(
 				options.compiler.finish?.(compiled) ?? compiled,
 				options.filename
@@ -91,14 +93,11 @@ export function transformExactAdapterModule<Inspection = never>(
 		);
 	} finally {
 		if (startedAt !== undefined && options.profile)
-			publishExactProfile(
-				options.profile.sink,
-				Object.freeze({
-					subsystem: options.profile.subsystem,
-					phase: 'transform',
-					elapsedMs: profileTimestamp() - startedAt,
-					attributes: Object.freeze({ filename: options.filename })
-				})
-			);
+			publishExactProfile(options.profile.sink, {
+				subsystem: options.profile.subsystem,
+				phase: 'transform',
+				elapsedMs: profileTimestamp() - startedAt,
+				attributes: { filename: options.filename }
+			});
 	}
 }

@@ -7,7 +7,7 @@ import {
 	type Child
 } from '@exactjs/core';
 import {
-	createCompiledComponentReceipt,
+	createCompiledComponentInputReceipt,
 	type ExactPreparedServerComponentReference
 } from '@exactjs/core/runtime/component-operations';
 import { unwrap } from '@exactjs/reactive';
@@ -24,6 +24,7 @@ import {
 } from '@exactjs/ssr';
 
 import type { PropsOf, StateOf } from '../contracts.js';
+import { attachCleanupError } from '../control/settling.js';
 
 import { createServerComponentCapture, type CapturedComponent } from './component-capture.js';
 
@@ -244,7 +245,7 @@ export class ServerTestComponentBuilder<C extends ServerTestComponentType> {
 		options: ServerTestRenderOptions = {}
 	): Promise<ServerTestView<StateOf<C>, PropsOf<C>>> {
 		return renderServerTest(
-			createCompiledComponentReceipt(
+			createCompiledComponentInputReceipt(
 				this.component,
 				this.componentProps as Record<string, unknown>
 			),
@@ -289,29 +290,31 @@ export async function renderServerTest(
 			request: setup.requestOverrides
 		}
 	});
-	const request =
-		options.request ?? ({ method: 'GET', url: 'http://exact.test/' } satisfies ExactRequestLike);
-	const opened = await runtime.open(request, options.platformRequest);
-	const applicationValues = new Map<symbol, unknown>();
-	const requestValues = new Map<symbol, unknown>();
-	for (const [token] of setup.applicationRegistrations ?? [])
-		applicationValues.set(token.id, await opened.context.get(token));
-	for (const [token] of setup.applicationOverrides ?? [])
-		applicationValues.set(token.id, await opened.context.get(token));
-	for (const [token] of setup.requestRegistrations ?? [])
-		requestValues.set(token.id, await opened.context.get(token));
-	for (const [token] of setup.requestOverrides ?? [])
-		requestValues.set(token.id, await opened.context.get(token));
-	const contexts = new Map(opened.context.componentValues);
-	for (const [id, value] of setup.componentContexts ?? []) contexts.set(id, value);
-	const capture = createServerComponentCapture();
-	const {
-		hydration,
-		request: _request,
-		platformRequest: _platformRequest,
-		...renderOptions
-	} = options;
+	let opened: Awaited<ReturnType<typeof runtime.open>> | undefined;
+	let primary: { error: unknown } | undefined;
 	try {
+		const request =
+			options.request ?? ({ method: 'GET', url: 'http://exact.test/' } satisfies ExactRequestLike);
+		opened = await runtime.open(request, options.platformRequest);
+		const applicationValues = new Map<symbol, unknown>();
+		const requestValues = new Map<symbol, unknown>();
+		for (const [token] of setup.applicationRegistrations ?? [])
+			applicationValues.set(token.id, await opened.context.get(token));
+		for (const [token] of setup.applicationOverrides ?? [])
+			applicationValues.set(token.id, await opened.context.get(token));
+		for (const [token] of setup.requestRegistrations ?? [])
+			requestValues.set(token.id, await opened.context.get(token));
+		for (const [token] of setup.requestOverrides ?? [])
+			requestValues.set(token.id, await opened.context.get(token));
+		const contexts = new Map(opened.context.componentValues);
+		for (const [id, value] of setup.componentContexts ?? []) contexts.set(id, value);
+		const capture = createServerComponentCapture();
+		const {
+			hydration,
+			request: _request,
+			platformRequest: _platformRequest,
+			...renderOptions
+		} = options;
 		const result = hydration
 			? await renderToHydratableString(operation, {
 					...renderOptions,
@@ -337,9 +340,29 @@ export async function renderServerTest(
 			applicationValues,
 			requestValues
 		);
+	} catch (error) {
+		primary = { error };
+		throw error;
 	} finally {
-		await opened.dispose('eXact server test render complete');
-		await runtime.dispose('eXact server test complete');
+		const failures: unknown[] = [];
+		try {
+			await opened?.dispose('eXact server test render complete');
+		} catch (error) {
+			failures.push(error);
+		}
+		try {
+			await runtime.dispose('eXact server test complete');
+		} catch (error) {
+			failures.push(error);
+		}
+		if (failures.length) {
+			const cleanup =
+				failures.length === 1
+					? failures[0]
+					: new AggregateError(failures, 'eXact server test cleanup failed');
+			if (primary) attachCleanupError(primary.error, cleanup);
+			else throw cleanup;
+		}
 	}
 }
 

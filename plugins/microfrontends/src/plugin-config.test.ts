@@ -1,5 +1,6 @@
 import type { ExactPluginConfigContext } from '@exactjs/plugin-api';
 import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
 import {
 	allProvidedPackageKeys,
 	mandatoryExactProvidedPackages,
@@ -19,6 +20,15 @@ const context: ExactPluginConfigContext = {
 };
 
 describe('microfrontends build configuration', () => {
+	it('shares every published reactive entry point with the page provider', () => {
+		const manifest = JSON.parse(
+			readFileSync(new URL('../../../packages/reactive/package.json', import.meta.url), 'utf8')
+		) as { exports: Record<string, unknown> };
+		const keys = allProvidedPackageKeys([]);
+		for (const subpath of Object.keys(manifest.exports))
+			expect(keys).toContain(`@exactjs/reactive${subpath === '.' ? '' : subpath.slice(1)}`);
+	});
+
 	it('round-trips the bounded JSON build projection', () => {
 		const config = readExactMicrofrontendBuildConfig({
 			exposes: [['./Area', { component: './src/Area.tsx' }]],

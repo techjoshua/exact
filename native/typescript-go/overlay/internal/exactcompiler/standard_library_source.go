@@ -33,7 +33,7 @@ func standardLibraryCallRoot(expression *ast.Node, typeChecker *checker.Checker)
 	if !ast.IsIdentifier(root) {
 		return false
 	}
-	if _, known := universalCallRoots[root.Text()]; !known {
+	if _, known := universalCallRoots[root.Text()]; !known && !portableNativeContainerName(root.Text()) {
 		return false
 	}
 	symbol := typeChecker.GetSymbolAtLocation(root)

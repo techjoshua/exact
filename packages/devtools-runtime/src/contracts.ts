@@ -5,33 +5,17 @@ import type {
 	ExactInspectionRuntimeId,
 	ExactInspectionSessionDescription,
 	ExactInspectionSubscription,
-	ExactInspectionSubscriptionHandle,
-	ExactInspectionRedactionCatalog
+	ExactInspectionSubscriptionHandle
 } from '@exactjs/devtools-protocol';
 import type { ExactRuntimeInspectionOwner } from '@exactjs/core';
-
-/** Compact compiler registration present only in instrumented client output. */
-export type ExactClientSourceCorrelation = Readonly<{
-	protocol: 1;
-	/** Value-free selectors derived by the compiler for client-side preview redaction. */
-	redactions?: ExactInspectionRedactionCatalog;
-	components: readonly Readonly<{
-		componentTypeId: string;
-		slots: readonly Readonly<{ id: string; kind: string }>[];
-	}>[];
-}>;
-
-/** Runtime queue populated by compiler-emitted source registrations. */
-export interface ExactClientCorrelationRuntime {
-	readonly sources: ExactClientSourceCorrelation[];
-	registerSource(source: ExactClientSourceCorrelation): void;
-}
 
 /** Versioned page-world hook consumed by Chromium UI and the CDP adapter. */
 export interface ExactDevtoolsPageHook extends ExactInspectionQueryService {
 	readonly protocol: 1;
 	readonly connected: boolean;
+	/** Shares a pending opening result. Connected calls return independent session descriptions. Rejects with AbortError if retired while opening. */
 	connect(): Promise<ExactInspectionSessionDescription>;
+	/** Detaches local resources immediately, fences pending opens, and closes the remote session. A later connect may start a fresh session. */
 	disconnect(): Promise<void>;
 	ownerOfElement(element: Element): ExactInspectionRuntimeId | undefined;
 	highlight(identity: ExactInspectionRuntimeId): void;
@@ -54,7 +38,6 @@ export type ExactDevtoolsRuntimeOptions = Readonly<{
 	buildKey?: string;
 	executionRoot?: string;
 	binding?: string;
-	redactions?: Partial<ExactInspectionRedactionCatalog>;
 	maxEvents?: number;
 	maxEventBytes?: number;
 	highlightDurationMs?: number;
@@ -64,5 +47,6 @@ export type ExactDevtoolsRuntimeOptions = Readonly<{
 export interface ExactDevtoolsRuntimeInstallation {
 	readonly hook: ExactDevtoolsPageHook;
 	readonly inspection: ExactRuntimeInspectionOwner;
+	/** Permanently closes this installation. Repeated disposal shares the same cleanup and later connection attempts reject. */
 	dispose(): Promise<void>;
 }

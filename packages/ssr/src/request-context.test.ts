@@ -24,6 +24,116 @@ import {
 import { createOperation } from './test-support/native-operations.js';
 
 describe('@exactjs/ssr request-context', () => {
+	it.each([false, true])(
+		'preserves fragment and document assembly with hydration %s',
+		async (hydration) => {
+			const runtime = createExactServerRuntime({
+				contract: { version: 1, invocations: {}, boundaries: {} }
+			});
+			try {
+				for (const progressive of [false, true]) {
+					for (const document of [false, true]) {
+						const render = progressive
+							? renderExactRequestToProgressiveHtmlResponse
+							: renderExactRequestToHtmlResponse;
+						const content = createOperation('main', null, 'Ready');
+						const response = await render(
+							{ method: 'GET', url: 'https://example.test/' },
+							runtime,
+							() =>
+								document
+									? createOperation(
+											'html',
+											null,
+											createOperation('head', null),
+											createOperation('body', null, content)
+										)
+									: content,
+							{
+								hydration,
+								markers: false,
+								rootId: 'a"b',
+								status: 202,
+								headers: { 'x-custom': 'kept' }
+							}
+						);
+						const html = await exactResponseToFetchResponse(response).text();
+						expect(response.status).toBe(202);
+						expect(response.headers['x-custom']).toBe('kept');
+						expect(html).toContain('<main>Ready</main>');
+						if (document) {
+							expect(html.startsWith('<!doctype html><html>')).toBe(true);
+							expect(html).not.toContain('<div id=');
+						} else if (progressive) {
+							expect(html.startsWith('<div id="a&quot;b"><main>Ready</main></div>')).toBe(true);
+						} else {
+							expect(html.startsWith('<main>Ready</main>')).toBe(true);
+						}
+						expect(html.includes('<script')).toBe(hydration);
+					}
+				}
+			} finally {
+				await runtime.dispose?.();
+			}
+		}
+	);
+
+	it.each([
+		['ordinary', renderExactRequestToHtmlResponse],
+		['progressive', renderExactRequestToProgressiveHtmlResponse]
+	] as const)(
+		'releases %s request resources after render failures and permits the next request',
+		async (_name, render) => {
+			const disposed: string[] = [];
+			const runtime = createExactServerRuntime({
+				contract: { version: 1, invocations: {}, boundaries: {} },
+				requestContexts: [
+					[
+						RequestName,
+						{
+							create: (scope) => scope.request!.url.pathname,
+							dispose: (value) => {
+								disposed.push(value);
+							}
+						}
+					]
+				]
+			});
+			try {
+				await expect(
+					render(
+						{ method: 'GET', url: 'https://example.test/callback' },
+						runtime,
+						() => {
+							throw null;
+						},
+						{ hydration: false }
+					)
+				).rejects.toBe(null);
+				expect(disposed).toEqual(['/callback']);
+				await expect(
+					render(
+						{ method: 'GET', url: 'https://example.test/output' },
+						runtime,
+						() => createOperation('main', null, 'Too large'),
+						{ hydration: false, maxOutputBytes: 1 }
+					)
+				).rejects.toThrow(/maximum.*bytes/);
+				expect(disposed).toEqual(['/callback', '/output']);
+				const response = await render(
+					{ method: 'GET', url: 'https://example.test/next' },
+					runtime,
+					(context) => createOperation('main', null, context.contexts!.getSync(RequestName)),
+					{ hydration: false }
+				);
+				expect(disposed).toEqual(['/callback', '/output', '/next']);
+				expect(await exactResponseToFetchResponse(response).text()).toContain('<main>/next</main>');
+			} finally {
+				await runtime.dispose?.();
+			}
+		}
+	);
+
 	it('constructs the root only after contexts initialize and stabilizes task-written output', async () => {
 		const runtime = createExactServerRuntime({
 			contract: { version: 1, invocations: {}, boundaries: {} },

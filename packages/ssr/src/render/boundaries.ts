@@ -1,3 +1,4 @@
+import { deriveRuntimeConfiguration } from '@exactjs/core/framework/configuration';
 import type { Child } from '@exactjs/core';
 import type { ExactServerBoundaryReceiptData } from '@exactjs/core/runtime/component-abi';
 import { unwrap } from '@exactjs/reactive/framework/values';
@@ -48,7 +49,9 @@ export async function renderServerBoundary(
 	// to this island, rather than independent nested islands or the page's shared cursor.
 	const capture =
 		fallback !== undefined
-			? createSsrResumptionCapture({ ...options, clientResumptionOwner: true })
+			? createSsrResumptionCapture(
+					deriveRuntimeConfiguration(options, () => ({ clientResumptionOwner: true }))
+				)
 			: undefined;
 	const children = fallback
 		? await renderChildren(context, [fallback], parent, capture!.options, true)

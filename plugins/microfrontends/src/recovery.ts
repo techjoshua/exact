@@ -38,7 +38,7 @@ export function registerExactRemoteRecovery(
 		unsupported: () => coordinator!.unsupported(),
 		unregister: () => {
 			coordinator!.remove(member);
-			if (!coordinator!.size) coordinators.delete(key);
+			if (!coordinator!.size && coordinators.get(key) === coordinator) coordinators.delete(key);
 		}
 	};
 }
@@ -47,6 +47,7 @@ class RecoveryCoordinator {
 	readonly #members = new Set<RecoveryMember>();
 	#preferredBuild: string | undefined;
 	#preparation: Promise<ExactRemoteModule> | undefined;
+	#preparationAbort: AbortController | undefined;
 	#replacement: Promise<void> | undefined;
 	#attempted = false;
 	#entryAttempted = false;
@@ -70,6 +71,7 @@ class RecoveryCoordinator {
 
 	remove(member: RecoveryMember): void {
 		this.#members.delete(member);
+		if (!this.#members.size) this.#preparationAbort?.abort();
 	}
 
 	response(metadata: ExactResponseMetadata): void {
@@ -119,9 +121,10 @@ class RecoveryCoordinator {
 	#prepare(preferred: string | undefined): Promise<ExactRemoteModule> {
 		if (this.#preparation) return this.#preparation;
 		this.#entryAttempted = true;
+		const abort = (this.#preparationAbort = new AbortController());
 		this.#preparation = Promise.resolve(this.#resolveEntry(preferred))
 			.then((resolved) => (typeof resolved === 'string' ? { clientEntry: resolved } : resolved))
-			.then((entry) => loadExactRemoteModule(entry.clientEntry, entry.integrity))
+			.then((entry) => loadExactRemoteModule(entry.clientEntry, entry.integrity, abort.signal))
 			.then((module) => {
 				if (module.buildKey === this.currentBuild)
 					throw new Error('Replacement eXact remote module did not change its build key');

@@ -1,9 +1,17 @@
+import {
+	assertComponentOperationProvider,
+	isOpaqueOperation
+} from '@exactjs/core/runtime/component-operations';
+import { clientComponentInputProvider } from '../component-input-admission.js';
+import { readClientComponentInput } from '../component-input-admission.js';
+import { componentContractVersion } from '../../component-contract-version.js';
+import { assertComponentInputVersion } from '@exactjs/core/runtime/component-operations';
 import { retainNamespaceProps } from '../../namespace.js';
 import type { AnyComponentInstance, Child } from '@exactjs/core';
 import {
 	exactActivityOperation,
 	exactChildRangeOperation,
-	exactComponentOperation,
+	exactComponentInputsOperationV6,
 	exactFragmentOperation,
 	exactIntrinsicOperation,
 	exactKeyedChildOperation,
@@ -20,9 +28,8 @@ import {
 	type ExactChildRangeOperationTarget,
 	type ExactChildRangeReceipt,
 	type ExactChildRangeReceiptData,
-	type ExactComponentOperationTarget,
+	type ExactComponentInputsOperationTarget,
 	type ExactComponentReceipt,
-	type ExactComponentReceiptData,
 	type ExactFragmentOperationTarget,
 	type ExactFragmentReceipt,
 	type ExactFragmentReceiptData,
@@ -69,6 +76,7 @@ import { requireUnsafeHtmlDomCapability } from '../unsafe-html-capability.js';
 import { patchChildren } from './children.js';
 import { patchKeyedOperation } from './keyed-operation.js';
 import { patchPortalReceipt } from './portal.js';
+import { intrinsicChildContainer } from '../intrinsic-child-container.js';
 import { intrinsicTextChildren } from '../intrinsic-text.js';
 
 type PatchResult = Mounted | undefined;
@@ -78,7 +86,7 @@ class NativePatchOperationTarget
 	implements
 		ExactActivityOperationTarget<PatchResult>,
 		ExactChildRangeOperationTarget<PatchResult>,
-		ExactComponentOperationTarget<PatchResult>,
+		ExactComponentInputsOperationTarget<PatchResult>,
 		ExactFragmentOperationTarget<PatchResult>,
 		ExactIntrinsicOperationTarget<PatchResult>,
 		ExactKeyedChildOperationTarget<PatchResult>,
@@ -127,10 +135,8 @@ class NativePatchOperationTarget
 		return patchRenderProgram(this.mounted, operation) ? this.mounted : undefined;
 	}
 
-	[exactComponentOperation](
-		_operation: ExactComponentReceipt,
-		data: ExactComponentReceiptData
-	): PatchResult {
+	[exactComponentInputsOperationV6](operation: ExactComponentReceipt): PatchResult {
+		const data = readClientComponentInput(operation)!;
 		const previous = this.mounted.componentReceipt;
 		if (
 			previous?.contract.artifact !== data.contract.artifact ||
@@ -139,7 +145,7 @@ class NativePatchOperationTarget
 		)
 			return undefined;
 		if (!this.root || !this.parent) return this.mounted;
-		return receiveComponentReceipt(this.mounted, data) ? this.mounted : undefined;
+		return receiveComponentReceipt(this.mounted, data).committed ? this.mounted : undefined;
 	}
 
 	[exactIntrinsicOperation](
@@ -157,7 +163,7 @@ class NativePatchOperationTarget
 		else
 			this.mounted.children = patchChildren(
 				this.root,
-				this.mounted.dom,
+				intrinsicChildContainer(this.mounted.dom),
 				this.mounted.children,
 				[...intrinsicTextChildren(this.root, data.tag, data.children)],
 				this.parentInstance,
@@ -292,6 +298,8 @@ class NativePatchOperationTarget
 
 /** Reports whether a mounted range can receive an opaque operation without replacement. */
 export function canPatchOpaqueOperation(mounted: Mounted, value: unknown): boolean {
+	if (isOpaqueOperation(value))
+		assertComponentOperationProvider(value, clientComponentInputProvider);
 	return (
 		executeOpaqueOperation<PatchResult>(value, new NativePatchOperationTarget(mounted))?.value !==
 		undefined
@@ -308,6 +316,8 @@ export function patchOpaqueOperation(
 	parentScope: EffectScope | undefined,
 	structuralOwner: Mounted | undefined
 ): Mounted | undefined {
+	if (isOpaqueOperation(value))
+		assertComponentOperationProvider(value, clientComponentInputProvider);
 	const result = executeOpaqueOperation<PatchResult>(
 		value,
 		new NativePatchOperationTarget(
@@ -322,3 +332,6 @@ export function patchOpaqueOperation(
 	if (result) result.operation = value;
 	return result;
 }
+
+// The private operation capability is required even by direct receipt-adoption lanes.
+assertComponentInputVersion(componentContractVersion);

@@ -107,10 +107,10 @@ export const witnesses = [
 		id: 'helper-state-bridges',
 		file: 'packages/reactive/src/state-access.test.ts',
 		environment:
-			'ordinary private-branded helper, explicit capabilities, readonly/lifetime enforcement and production bundle elimination',
+			'ordinary private-branded helper, explicit capabilities, TypeScript readonly checking, lifetime enforcement and production bundle elimination',
 		tests: [
 			'lets an ordinary branded helper use explicit state access without transforming the helper',
-			'preserves readonly policy and leaves ordinary storage outside a transaction',
+			'stages explicit access while leaving ordinary storage outside a transaction',
 			'compares storage identity explicitly without changing native equality',
 			'rejects owned class methods before effects and permits the same class as an ordinary helper',
 			...['prototype', 'selected'].map(
@@ -171,7 +171,7 @@ export const witnesses = [
 		tests: [
 			...['plain', 'reactive'].flatMap((writer) =>
 				['writer-first', 'reader-first'].map(
-					(order) => `preserves ${writer} writer policy with ${order} readonly aliases`
+					(order) => `preserves ${writer} publication with ${order} typed readonly aliases`
 				)
 			),
 			...['commit', 'discard'].map(
@@ -368,7 +368,7 @@ export const witnesses = [
 			'forwards Array subclass methods and descriptors while observing public fields',
 			'observes collection storage changes made by branded accessors and restores ordering',
 			'invokes Set overrides on equal additions, absent deletions and empty clears',
-			'retains authored Array method identity and permits readonly inspection',
+			'retains authored Array method identity and preserves native private brands',
 			'keeps objects returned by overridden Map readers observable',
 			'observes Array methods without invoking snapshot overrides or losing returned objects',
 			'keeps Map and Set public object members and branded getters observable'

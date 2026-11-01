@@ -217,7 +217,7 @@ export const languageFeatures = [
 		'pass-through',
 		'ordinary JavaScript execution and explicit pending receiver boundaries',
 		['ordinary-helper-inputs', 'helper-view-diagnostics', 'helper-state-bridges'],
-		'Classes keep their original implementations. Ordinary helper receivers may use private configuration while mutating supplied supported state inputs. Pending class receivers are rejected. Explicit capabilities preserve readonly and invocation lifetime. This does not promise transactional private storage, decorators, prototype changes or arbitrary class reconstruction.'
+		'Classes keep their original implementations. Ordinary helper receivers may use private configuration while mutating supplied supported state inputs. Pending class receivers are rejected. Explicit capabilities preserve invocation lifetime, with readonly checks owned by TypeScript. This does not promise transactional private storage, decorators, prototype changes or arbitrary class reconstruction.'
 	),
 	feature(
 		'generators-and-tagged-templates',
@@ -280,7 +280,7 @@ export const contractEdges = [
 				'pending-owner-overlap',
 				'pending-owner-sequences'
 			],
-			'Equivalent original and project helper behavior, external-effect controls, explicit identity, readonly enforcement, view lifetime and independent bundle elimination. Diagnostics recognize direct parameter equality and returned closure captures. Opaque helpers, arbitrary transitive retention and dynamic class member selection rely on documented limits and runtime guards.'
+			'Equivalent original and project helper behavior, external-effect controls, explicit identity, TypeScript readonly checking, view lifetime and independent bundle elimination. Diagnostics recognize direct parameter equality and returned closure captures. Opaque helpers, arbitrary transitive retention and dynamic class member selection rely on documented limits and runtime guards.'
 		),
 		producer: 'Supply invocation-owned state views without rewriting ordinary helper bodies.',
 		consumer:

@@ -27,19 +27,20 @@ func collectTaskResources(
 	work *ast.Node,
 	sourceFile *ast.SourceFile,
 	typeChecker *checker.Checker,
+	owner *executableBodyOwner,
 ) ([]TaskResource, []TaskSignalCall, []string) {
 	resources := []TaskResource{}
 	signalCalls := []TaskSignalCall{}
 	diagnostics := []string{}
 	walkNode(work, func(node *ast.Node) bool {
 		if node != work && isCallableNode(node) && taskResourceCleanupCallable(node, work, typeChecker) {
-			cleanupSignals, cleanupDiagnostics := collectTaskCleanupResources(node, sourceFile, typeChecker)
+			cleanupSignals, cleanupDiagnostics := collectTaskCleanupResources(node, sourceFile, typeChecker, owner)
 			signalCalls = append(signalCalls, cleanupSignals...)
 			diagnostics = append(diagnostics, cleanupDiagnostics...)
 			return false
 		}
 		if ast.IsCallExpression(node) {
-			if signal, ok := taskSignalCall(node, sourceFile, typeChecker); ok {
+			if signal, ok := taskSignalCall(node, sourceFile, typeChecker, owner); ok {
 				signalCalls = append(signalCalls, signal)
 			}
 		}
@@ -493,6 +494,7 @@ func taskSignalCall(
 	node *ast.Node,
 	sourceFile *ast.SourceFile,
 	typeChecker *checker.Checker,
+	owner *executableBodyOwner,
 ) (TaskSignalCall, bool) {
 	if !ast.IsCallExpression(node) {
 		return TaskSignalCall{}, false
@@ -505,6 +507,11 @@ func taskSignalCall(
 	// property does not make that parameter an authored cancellation options bag.
 	if symbol := resolvedCallableSymbol(callTargetSymbol(call.Expression, typeChecker), typeChecker); symbol != nil {
 		work := symbol.ValueDeclaration
+		if owner != nil {
+			if body, selected := owner.body(call.Expression); selected {
+				work = body
+			}
+		}
 		if work != nil && ast.IsVariableDeclaration(work) {
 			work = unwrapSourceCallableReference(work.AsVariableDeclaration().Initializer)
 		}
@@ -512,7 +519,7 @@ func taskSignalCall(
 			parameters := work.Parameters()
 			if len(parameters) != 0 && parameters[len(parameters)-1].AsParameterDeclaration().Initializer != nil {
 				imports := collectExternalImportBindings(ast.GetSourceFileOfNode(work), typeChecker)
-				if _, task := functionTaskPolicy(work, sourceFile, imports); task {
+				if _, task := functionTaskPolicy(work, ast.GetSourceFileOfNode(work), imports); task {
 					return TaskSignalCall{}, false
 				}
 			}

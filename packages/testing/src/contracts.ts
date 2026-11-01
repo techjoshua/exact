@@ -33,7 +33,7 @@ export type TestConfiguration = {
 export type ActionOptions = { settleTasks?: boolean };
 /** Defines the accessible name type contract. */
 export type AccessibleName = string | RegExp;
-/** Configures role query. */
+/** Filters a role by an exact accessible name or pattern. An empty name selects unnamed controls. */
 export type RoleQueryOptions = { name?: AccessibleName };
 /** Defines the context entry type contract. */
 export type ContextEntry = { token: ContextToken<unknown>; value: unknown };

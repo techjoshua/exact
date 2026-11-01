@@ -2,22 +2,27 @@
 import path from 'node:path';
 import { expect, it, onTestFinished } from 'vitest';
 import type { AnyComponentFunction } from '@exactjs/core';
-import { createCompiledComponentReceipt as receipt } from '@exactjs/core/runtime/component-operations';
+import { createCompiledComponentInputReceipt as receipt } from '@exactjs/core/runtime/component-operations';
 import { composeExactComponentContracts } from '@exactjs/core/framework/component-contracts';
 import { render, unmount } from '@exactjs/dom';
 import { hydrate } from '@exactjs/hydrate';
 import { renderToHydratableString } from '@exactjs/ssr';
 import { flushSync } from '@exactjs/reactive';
+import {
+	composeExactExecutorContract,
+	handleExactRequest,
+	exactResponseToFetchResponse,
+	type ExactServerContext
+} from '@exactjs/server';
 import { compileProjectArtifacts } from '../index.js';
-import { createTestWorkspace, writeTestFiles } from '../test-support/workspace.js';
+import { createCompilerTestWorkspace, writeTestFiles } from '../test-support/workspace.js';
 import { importArtifact } from '../test-support/import-artifact.js';
-
 it.each(
 	['declaration', 'arrow', 'expression'].flatMap((shape) =>
 		['mount', 'hydrate'].map((mode) => ({ shape, mode }))
 	)
 )('partitions latest task ownership by authored key: $shape ($mode)', async ({ shape, mode }) => {
-	const root = await createTestWorkspace('.exact-keyed-task-', process.cwd());
+	const root = await createCompilerTestWorkspace('.exact-keyed-task-', process.cwd());
 	const body = `(key:string,value:number,task:TaskContext=TaskContext.client().latest().key(key).deferred().blocking()){
    signals.set(value,task.signal);task.cleanup(()=>cleaned.push(value));
    await new Promise<void>(resolve=>gates.set(value,resolve));
@@ -104,7 +109,6 @@ return()=> <main><button data-a1 onClick={()=>completions.push(Promise.resolve(r
 	expect(host.childNodes).toHaveLength(0);
 	expect(reports).toEqual([]);
 });
-
 it.each(
 	[
 		'effect',
@@ -122,7 +126,7 @@ it.each(
 )(
 	'preserves inspected keyed setup activation across replacement and disposal: $shape ($mode)',
 	async ({ shape, mode }) => {
-		const root = await createTestWorkspace('.exact-keyed-setup-', process.cwd());
+		const root = await createCompilerTestWorkspace('.exact-keyed-setup-', process.cwd());
 		const files = await writeTestFiles(root, {
 			'page.tsx': `import {TaskContext,type Component} from '@exactjs/core';
 export const gates=new Map<number,()=>void>();export const signals=new Map<number,AbortSignal>();export const cleaned:number[]=[];
@@ -203,6 +207,121 @@ return()=> <main><button data-next onClick={()=>{this.state.input++;this.state.r
 		flushSync();
 		await expect.poll(() => [...cleaned].sort()).toEqual([1, 2, 3]);
 		expect(host.childNodes).toHaveLength(0);
+		expect(reports).toEqual([]);
+	}
+);
+it.each(['latest', 'queue'] as const)(
+	'binds authored server key arguments before transport under %s',
+	async (policy) => {
+		const root = await createCompilerTestWorkspace('.exact-server-key-arguments-', process.cwd());
+		const parameters =
+			policy === 'latest'
+				? '{key}:{key:string},value:number'
+				: 'key:string=defaultKey(),value:number';
+		const definition =
+			policy === 'latest'
+				? `const run=async(${parameters},task:TaskContext=TaskContext.server().latest().key(prefix+key).blocking())=>{BODY};`
+				: `const run=async function(${parameters},task:TaskContext=TaskContext.server().queue().key(prefix+key).blocking()){BODY};`;
+		const argument = (key: string) =>
+			policy === 'latest' ? `{key:'${key}'}` : key === 'a' ? 'undefined' : `'${key}'`;
+		const files = await writeTestFiles(root, {
+			'page.tsx': `import{TaskContext,type Component}from'@exactjs/core';
+export const gates=new Map<number,()=>void>();export const signals=new Map<number,AbortSignal>();export const cleaned:number[]=[];export const captures:number[]=[];export const completions:Promise<string>[]=[];
+function defaultKey(){captures.push(1);return'a';}
+export function Page(this:Component<{}>){const prefix='tenant:';
+${definition.replace('BODY', `signals.set(value,task.signal);task.cleanup(()=>cleaned.push(value));await new Promise<void>(resolve=>gates.set(value,resolve));return value;`)}
+const invoke=run;
+return()=> <main>${[
+				['a', 1],
+				['b', 2],
+				['a', 3],
+				['b', 4]
+			]
+				.map(
+					([key, value]) =>
+						`<button data-action="${value}" onClick={()=>completions.push(Promise.resolve(invoke(${argument(String(key))},${value})).then(result=>'ok'+result,()=> 'cancel${value}'))}>Run</button>`
+				)
+				.join('')}<output>keys</output></main>;}`
+		});
+		const [artifact] = await compileProjectArtifacts([files['page.tsx']!], {
+			rootDir: root,
+			outDir: path.join(root, 'generated')
+		});
+		const client = await importArtifact(artifact!.clientFile, path.join(root, 'client.mjs'));
+		const serverModule = await importArtifact(artifact!.serverFile, path.join(root, 'server.mjs'));
+		const gates = serverModule.gates as Map<number, () => void>,
+			signals = serverModule.signals as Map<number, AbortSignal>,
+			cleaned = serverModule.cleaned as number[],
+			completions = client.completions as Promise<string>[];
+		const reports: unknown[] = [];
+		const server: ExactServerContext = {
+			contract: composeExactExecutorContract([serverModule.Page as AnyComponentFunction]),
+			invocations: {},
+			logger: { log: (report) => reports.push(report) }
+		};
+		const rendered = await renderToHydratableString(
+			receipt(serverModule.Page as AnyComponentFunction, {})
+		);
+		const host = document.createElement('div');
+		host.innerHTML = rendered.html;
+		const hydration = hydrate(receipt(client.Page as AnyComponentFunction, {}), host, {
+			...composeExactComponentContracts([client.Page as AnyComponentFunction], 'client'),
+			resumptions: rendered.resumptions,
+			onMismatch: 'throw',
+			endpoint: '/__exact',
+			batch: false,
+			onErrorReport: (report) => reports.push(report.error),
+			fetch: async (url, init) =>
+				exactResponseToFetchResponse(
+					await handleExactRequest(
+						{
+							method: init.method,
+							url,
+							headers: init.headers,
+							body: JSON.parse(init.body),
+							signal: init.signal
+						},
+						server
+					)
+				)
+		});
+		onTestFinished(async () => {
+			hydration.dispose();
+			for (const release of gates.values()) release();
+			await Promise.allSettled(completions);
+			host.remove();
+		});
+		const click = (value: number) =>
+			host.querySelector<HTMLButtonElement>(`[data-action="${value}"]`)!.click();
+		click(1);
+		await expect.poll(() => gates.has(1)).toBe(true);
+		click(2);
+		await expect.poll(() => gates.has(2)).toBe(true);
+		click(3);
+		if (policy === 'latest') {
+			await expect.poll(() => gates.has(3)).toBe(true);
+			expect(signals.get(1)!.aborted).toBe(true);
+		} else {
+			expect(gates.has(3)).toBe(false);
+			expect(signals.get(1)!.aborted).toBe(false);
+			gates.get(1)!();
+			await expect.poll(() => gates.has(3)).toBe(true);
+		}
+		expect(signals.get(2)!.aborted).toBe(false);
+		gates.get(3)!();
+		expect(await completions[2]).toBe('ok3');
+		gates.get(1)!();
+		expect(await completions[0]).toBe(policy === 'latest' ? 'cancel1' : 'ok1');
+		gates.get(2)!();
+		expect(await completions[1]).toBe('ok2');
+		expect(client.captures).toEqual(policy === 'queue' ? [1, 1] : []);
+		click(4);
+		await expect.poll(() => gates.has(4)).toBe(true);
+		hydration.dispose();
+		gates.get(4)!();
+		expect(await completions[3]).toBe('cancel4');
+		expect(signals.get(4)!.aborted).toBe(true);
+		expect([...cleaned].sort()).toEqual([1, 2, 3, 4]);
 		expect(reports).toEqual([]);
 	}
 );

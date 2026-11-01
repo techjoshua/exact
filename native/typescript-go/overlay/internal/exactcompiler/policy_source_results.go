@@ -43,10 +43,11 @@ func sourceCallableResultPolicy(declaration *ast.Node, c *checker.Checker, analy
 				return false
 			}
 			if target := policyInvocationTarget(node); target != nil {
-				if signature := c.GetResolvedSignature(node); signature != nil {
-					callee := signature.Declaration()
-					if callee != nil && ast.IsFunctionLike(callee) && callee.Body() != nil {
-						resolve(callee)
+				if callee := analysis.owner.invocationBody(node, c); callee != nil && ast.IsFunctionLike(callee) && callee.Body() != nil {
+					inputs := resolve(callee)
+					if len(inputs) != 0 {
+						policy, _ := combineSubjectPolicies(inputs)
+						subjects.calls[policyCallKey(node)] = PolicySubject{Kind: "return", Policy: policy, Source: "inference"}
 					}
 				}
 			}
@@ -56,7 +57,16 @@ func sourceCallableResultPolicy(declaration *ast.Node, c *checker.Checker, analy
 			if ast.IsDeclarationName(node) || isStaticPropertyName(node) {
 				return true
 			}
-			for _, symbol := range policyMemberSymbols(node, c) {
+			symbols := policyMemberSymbols(node, c)
+			if analysis.owner != nil {
+				if symbol, owned := analysis.owner.expressionSymbol(node, make(map[ast.SymbolId]bool)); owned {
+					symbols = nil
+					if symbol != nil {
+						symbols = []*ast.Symbol{c.GetTargetSymbol(symbol)}
+					}
+				}
+			}
+			for _, symbol := range symbols {
 				id := ast.GetSymbolId(symbol)
 				if _, exists := subjects.symbols[id]; exists {
 					continue

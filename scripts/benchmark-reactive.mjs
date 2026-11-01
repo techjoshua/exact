@@ -11,6 +11,7 @@ const {
 	registerReactiveListKey,
 	scheduleWork,
 	watch,
+	unwrap,
 	withEffectScope,
 	writeReactive
 } = reactiveRuntime;
@@ -70,7 +71,8 @@ function serverSnapshot(value) {
 	return decodeProtocol(JSON.parse(JSON.stringify(encodeProtocol(snapshot))));
 }
 
-function timeReconcile(prepare, expectedRenders) {
+/** Times direct assignment plus observer settlement, excluding payload preparation and transport. */
+function timeAssignment(prepare, expectedRenders) {
 	const { state, next, assert } = prepare();
 	const observation = observe(state);
 	const start = performance.now();
@@ -80,6 +82,8 @@ function timeReconcile(prepare, expectedRenders) {
 	if (observation.renders !== expectedRenders) {
 		throw new Error(`Expected ${expectedRenders} observer runs, received ${observation.renders}`);
 	}
+	if (unwrap(state.records) !== unwrap(next))
+		throw new Error('Assignment did not retain normalized RHS storage');
 	assert?.(state);
 	observation.stop();
 	return elapsed;
@@ -87,9 +91,9 @@ function timeReconcile(prepare, expectedRenders) {
 
 const scenarios = [
 	{
-		name: 'unkeyed identical 10k refresh',
+		name: 'unkeyed equal-content replacement',
 		run: () =>
-			timeReconcile(() => {
+			timeAssignment(() => {
 				const original = records();
 				const state = reactive({ records: original });
 				const retained = state.records[Math.floor(size / 2)];
@@ -97,32 +101,32 @@ const scenarios = [
 					state,
 					next: clone(original),
 					assert: (current) => {
-						if (current.records[Math.floor(size / 2)] !== retained)
-							throw new Error('Unkeyed identical refresh lost item identity');
+						if (current.records[Math.floor(size / 2)] === retained)
+							throw new Error('Unkeyed replacement retained old item identity');
 					}
 				};
-			}, 1)
+			}, 2)
 	},
 	{
-		name: 'keyed identical 10k refresh',
+		name: 'keyed transport equal-content replacement',
 		run: () =>
-			timeReconcile(() => {
+			timeAssignment(() => {
 				const state = keyedState();
 				const retained = state.records[Math.floor(size / 2)];
 				return {
 					state,
 					next: serverSnapshot(state.records),
 					assert: (current) => {
-						if (current.records[Math.floor(size / 2)] !== retained)
-							throw new Error('Keyed identical refresh lost item identity');
+						if (current.records[Math.floor(size / 2)] === retained)
+							throw new Error('Keyed replacement retained old item identity');
 					}
 				};
-			}, 1)
+			}, 2)
 	},
 	{
-		name: 'keyed one-item change',
+		name: 'keyed transport one-item replacement',
 		run: () =>
-			timeReconcile(() => {
+			timeAssignment(() => {
 				const state = keyedState();
 				const changedIndex = Math.floor(size / 2);
 				const retained = state.records[changedIndex - 1];
@@ -134,16 +138,16 @@ const scenarios = [
 					assert: (current) => {
 						if (current.records[changedIndex].title !== 'Changed')
 							throw new Error('One-item change was not applied');
-						if (current.records[changedIndex - 1] !== retained)
-							throw new Error('One-item change lost adjacent identity');
+						if (current.records[changedIndex - 1] === retained)
+							throw new Error('Replacement retained an adjacent old item');
 					}
 				};
 			}, 2)
 	},
 	{
-		name: 'keyed one-percent change',
+		name: 'keyed transport one-percent replacement',
 		run: () =>
-			timeReconcile(() => {
+			timeAssignment(() => {
 				const state = keyedState();
 				const next = clone(state.records);
 				for (let index = 0; index < size; index += 100) next[index].detail.done = true;
@@ -158,9 +162,9 @@ const scenarios = [
 			}, 2)
 	},
 	{
-		name: 'keyed 10k rotation',
+		name: 'keyed transport rotated replacement',
 		run: () =>
-			timeReconcile(() => {
+			timeAssignment(() => {
 				const state = keyedState();
 				const first = state.records[0];
 				const next = clone(state.records);
@@ -169,16 +173,16 @@ const scenarios = [
 					state,
 					next: serverSnapshot(next),
 					assert: (current) => {
-						if (current.records[1] !== first || current.records[0].id !== String(size - 1))
-							throw new Error('Rotation lost keyed identity or order');
+						if (current.records[1] === first || current.records[0].id !== String(size - 1))
+							throw new Error('Replacement retained old storage or lost order');
 					}
 				};
 			}, 2)
 	},
 	{
-		name: 'keyed add-delete',
+		name: 'keyed transport add-delete replacement',
 		run: () =>
-			timeReconcile(() => {
+			timeAssignment(() => {
 				const state = keyedState();
 				const retained = state.records[100];
 				const next = clone(state.records.slice(100));
@@ -195,17 +199,17 @@ const scenarios = [
 					assert: (current) => {
 						if (
 							current.records.length !== size ||
-							current.records[0] !== retained ||
+							current.records[0] === retained ||
 							current.records.at(-1).id !== 'new-99'
 						) {
-							throw new Error('Add-delete reconciliation produced the wrong collection');
+							throw new Error('Add-delete replacement produced the wrong collection');
 						}
 					}
 				};
 			}, 2)
 	},
 	{
-		name: 'local mutation then matching fetch',
+		name: 'local mutation then equal-content replacement',
 		run: () => {
 			const state = keyedState();
 			const observation = observe(state);
@@ -220,15 +224,15 @@ const scenarios = [
 			writeReactive(state, ['records'], incoming);
 			flushSync();
 			const elapsed = performance.now() - start;
-			if (observation.renders !== 2 || state.records[index] !== retained) {
-				throw new Error('Matching fetch after a local mutation notified twice or lost identity');
+			if (observation.renders !== 3 || state.records[index] === retained) {
+				throw new Error('Replacement after local mutation lost publication or storage identity');
 			}
 			observation.stop();
 			return elapsed;
 		}
 	},
 	{
-		name: '100 local mutations then matching fetch',
+		name: '100 local mutations then equal-content replacement',
 		run: () => {
 			const state = keyedState();
 			const observation = observe(state);
@@ -244,8 +248,8 @@ const scenarios = [
 			writeReactive(state, ['records'], incoming);
 			flushSync();
 			const elapsed = performance.now() - start;
-			if (observation.renders !== 2 || state.records[1] !== retained) {
-				throw new Error('Matching fetch after batched mutations notified twice or lost identity');
+			if (observation.renders !== 3 || state.records[1] === retained) {
+				throw new Error('Replacement after batched mutations lost publication or storage identity');
 			}
 			observation.stop();
 			return elapsed;

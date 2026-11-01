@@ -1,6 +1,10 @@
 import type { CoreHydrationRoot, HydrateOptions } from '../types.js';
 import { roots } from './state.js';
-import { trackHydrationSettlement, waitForHydrationReadiness } from './settlement.js';
+import {
+	isHydrationActive,
+	trackHydrationSettlement,
+	waitForHydrationReadiness
+} from './settlement.js';
 import { consumeDomWork, createDomWorkBudget, type DomWorkBudget } from '@exactjs/dom/root';
 import { decodeExactMarkerPart, logFrameworkEvent } from '@exactjs/core';
 import { prepareRegistryHydration } from '@exactjs/core/runtime/registry';
@@ -60,6 +64,7 @@ export function activateHydrationWhenReady<T extends CoreHydrationRoot>(
 	work: DomWorkBudget,
 	activate: () => T
 ): T {
+	if (!isHydrationActive(root.domain)) return root;
 	let pending: Promise<void> | undefined;
 	try {
 		pending = prepareSelectedRegistries(rootContainer, work);
@@ -79,7 +84,7 @@ export function activateHydrationWhenReady<T extends CoreHydrationRoot>(
 			if (roots.get(rootContainer) !== root || pendingRegistryRoots.get(root) !== generation)
 				return;
 			pendingRegistryRoots.delete(root);
-			activate();
+			if (isHydrationActive(root.domain)) activate();
 		}
 	);
 	trackHydrationSettlement(root.domain, adoption);

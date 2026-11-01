@@ -27,17 +27,25 @@ export function installTaskFrameInspectionCapability(next: TaskFrameInspectionCa
 	capability ??= next;
 }
 
-/** Publishes through the optional diagnostic capability without retaining its implementation. */
+/** Publishes optional diagnostics without allowing projection failures to affect task ownership. */
 export function publishTaskFrameEvent(
 	frame: TaskFrameRecord,
 	kind: ExactRuntimeInspectionEventKind,
 	reason?: unknown,
 	observation?: TaskFrameEventObservation
 ): void {
-	capability?.publish(frame, kind, reason, observation);
+	try {
+		capability?.publish(frame, kind, reason, observation);
+	} catch {
+		// Snapshot preparation is observational, like delivery to the final sink.
+	}
 }
 
 /** Reports attachment without loading task snapshot and preview machinery in production builds. */
 export function taskFrameInspectionAttached(frame: TaskFrameRecord): boolean {
-	return capability?.attached(frame) ?? false;
+	try {
+		return capability?.attached(frame) ?? false;
+	} catch {
+		return false;
+	}
 }

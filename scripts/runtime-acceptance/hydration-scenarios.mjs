@@ -1,3 +1,17 @@
+import {
+	captureAccessibilityServer,
+	captureAccessibility,
+	verifyRetainedAccessibility,
+	verifyDisposedAccessibility
+} from './accessibility.mjs';
+import {
+	captureMountWork,
+	captureMountWorkServerTemplate,
+	verifyRetainedMountWork,
+	verifyDisposedMountWork
+} from './mount-work.mjs';
+import { collectBrowserErrors } from './browser-errors.mjs';
+import { checkEarlyNativeControls } from './hydration-control-scenarios.mjs';
 import { checkBrowserUrlCoercion } from './url-scenarios.mjs';
 import { checkSerializationScripts, checkBrowserJsonData } from './serialization-scenarios.mjs';
 import { verifySourceNormalization } from '../../packages/component-composition-corpus/test-support/source-normalization-journey.mjs';
@@ -16,14 +30,20 @@ import {
 	verifyDerivedPattern
 } from '../../packages/component-composition-corpus/test-support/collection-projection-journey.mjs';
 import { verifyTimePlanOwnership } from '../../packages/component-composition-corpus/test-support/time-plan-journey.mjs';
-import { verifyReplacementOwnership } from '../../packages/component-composition-corpus/test-support/replacement-journey.mjs';
+import {
+	verifyReplacementOwnership,
+	verifyArrayRollbackOwnership
+} from '../../packages/component-composition-corpus/test-support/replacement-journey.mjs';
+import { checkSsrReadiness } from './native-scenarios.mjs';
 import { checkEagerReplay } from './eager-replay.mjs';
+import { checkExternalSourceBrowser } from './task-captures.mjs';
 import { checkBootstrapLoading } from './bootstrap-scenarios.mjs';
 import assert from 'node:assert/strict';
 import { request, json } from './test-support.mjs';
 
 /** Verifies native SSR output, DOM adoption, repeated remote updates and client disposal. */
 export async function checkHydration(origin, browser, control) {
+	await checkExternalSourceBrowser(origin, browser);
 	const escaped = await json(await request(new URL('/hydration-escaping', origin)));
 	const safety = await json(await request(new URL('/serialization-safety', origin)));
 
@@ -42,57 +62,9 @@ export async function checkHydration(origin, browser, control) {
 	} finally {
 		await escapingPage.close();
 	}
-	// A local render deadline must end owned upstream work and allow another request to succeed.
-	const limited = await request(new URL('/limited-page?gate=deadline', origin));
-	assert.deepEqual(await json(limited, 504), { error: 'SsrTaskDeadlineError' });
-	const end = Date.now() + 5000;
-	while ((await json(await request(new URL('/status', control)))).pending.includes('deadline')) {
-		assert.ok(Date.now() < end, 'Timed-out SSR must cancel its upstream request');
-		await new Promise((resolve) => setTimeout(resolve, 20));
-	}
-	assert.deepEqual(await json(await request(new URL('/deadline-state', origin))), [
-		{ id: 'deadline', aborted: true }
-	]);
-	await (await request(new URL('/release?id=deadline-next', control))).text();
-	const next = await request(new URL('/limited-page?gate=deadline-next', origin));
-	assert.equal(next.status, 200);
-	assert.match(await next.text(), /id="deadline-result"[^>]*>released/);
-	assert.deepEqual(await json(await request(new URL('/deadline-state', origin))), [
-		{ id: 'deadline', aborted: true },
-		{ id: 'deadline-next', aborted: false }
-	]);
+	await checkSsrReadiness(origin, control);
 	await checkBootstrapLoading(origin, browser);
 	await checkEagerReplay(origin, browser);
-	// The gate opens only after bytes arrive, so buffered rendering cannot pass this witness.
-	const streamed = await request(new URL('/stream-page?gate=ssr', origin));
-	assert.equal(streamed.status, 200);
-	const reader = streamed.body.getReader();
-	try {
-		const first = await reader.read();
-		assert.equal(first.done, false, 'SSR shell must precede delayed server work');
-		assert.ok(first.value.byteLength > 0);
-		const pending = await json(await request(new URL('/page-state', origin)));
-		assert.ok(pending.created.includes('ssr'));
-		assert.equal(
-			pending.disposed.some((value) => value.id === 'ssr'),
-			false,
-			'Pending SSR must retain its request scope'
-		);
-		await (await request(new URL('/release?id=ssr', control))).text();
-		let html = new TextDecoder().decode(first.value);
-		const decoder = new TextDecoder();
-		while (true) {
-			const next = await reader.read();
-			if (next.done) break;
-			html += decoder.decode(next.value, { stream: true });
-		}
-		html += decoder.decode();
-		assert.match(html, /id="server-delayed"/);
-		assert.match(html, /__exact_hydration/);
-	} finally {
-		await reader.cancel();
-		reader.releaseLock();
-	}
 
 	for (const route of [
 		'/page',
@@ -113,14 +85,11 @@ export async function checkHydration(origin, browser, control) {
 		assert.match(html, /id="deferred-spread"[^>]*data-spread="ready"/);
 		assert.doesNotMatch(html, /title="\[object Object\]"/);
 		const page = await browser.newPage();
-		const errors = [];
+		const diagnosticCapture = collectBrowserErrors(page);
+		const { errors } = diagnosticCapture;
 		let requests = 0;
 		page.on('request', (request) => {
 			if (new URL(request.url()).pathname === '/__exact') requests++;
-		});
-		page.on('pageerror', (error) => errors.push(error.message));
-		page.on('console', (message) => {
-			if (message.type() === 'error') errors.push(message.text());
 		});
 		page.setDefaultTimeout(10000);
 		try {
@@ -149,11 +118,25 @@ export async function checkHydration(origin, browser, control) {
 				window.originalDeferredSpread = document.querySelector('#deferred-spread');
 				window.originalInput = document.querySelector('#draft');
 				window.originalInput.value = 'edited before hydration';
+				document.querySelector('#early-disclosure').open = false;
+				document.querySelector('#early-dialog').close();
 				window.originalInput.focus();
 				window.originalInput.setSelectionRange(2, 7);
+				window.originalUpload = document.querySelector('#upload');
+				const transfer = new DataTransfer();
+				transfer.items.add(new File(['owned fixture'], 'proof.txt'));
+				window.originalUpload.files = transfer.files;
 			});
+			await captureMountWorkServerTemplate(page);
+			await captureAccessibilityServer(page);
 			await page.addScriptTag({ url: new URL('/client.js', origin).href, type: 'module' });
 			await page.waitForFunction(() => window.runtimeReady);
+			await captureMountWork(page, route);
+			await captureAccessibility(page);
+			await checkEarlyNativeControls(page);
+			await page.evaluate(() => window.verifyHydrationFormRecovery());
+			await page.evaluate(() => window.verifyDomInspectionIdentity());
+			await page.evaluate(() => window.verifyPortalEventOwnership());
 			if (route === '/page') {
 				await checkBrowserJsonData(page);
 				await checkBrowserUrlCoercion(page);
@@ -265,6 +248,7 @@ export async function checkHydration(origin, browser, control) {
 			await page.evaluate(() => window.verifyDormantIslandActivation());
 			await page.evaluate(verifyTimePlanOwnership);
 			await page.evaluate(verifyReplacementOwnership);
+			await page.evaluate(verifyArrayRollbackOwnership);
 			await page.evaluate(verifyCollectionProjection);
 			await page.evaluate(verifyDerivedPattern);
 			await page.evaluate(verifyMutationContract);
@@ -277,10 +261,14 @@ export async function checkHydration(origin, browser, control) {
 				true,
 				'Enhancement contexts must survive adoption without replacing their descendants'
 			);
+			await diagnosticCapture.flush();
+			await diagnosticCapture.releaseFrames();
 			assert.deepEqual(errors, [], route);
 			assert.equal(await page.locator('#map-total').textContent(), '0');
 			assert.equal(await page.locator('#server-availability').textContent(), 'available');
 			assert.equal(await page.locator('#client-status').textContent(), '0:idle');
+			await verifyRetainedMountWork(page);
+			await verifyRetainedAccessibility(page);
 			assert.equal(await page.locator('#fragment-scope').textContent(), 'outer');
 			assert.equal(
 				await page.evaluate(
@@ -304,6 +292,12 @@ export async function checkHydration(origin, browser, control) {
 			assert.ok(
 				pending.pending.includes(route),
 				'Older continuation must suspend before unrelated work'
+			);
+			await page.locator('[data-generation-step]').first().click();
+			await page.waitForFunction(
+				() =>
+					document.querySelector('[data-generation-state]')?.textContent === 'published' &&
+					document.querySelector('[data-closure-state]')?.textContent === 'published'
 			);
 			for (const count of [1, 2]) {
 				const completed = page.waitForResponse(
@@ -359,6 +353,8 @@ export async function checkHydration(origin, browser, control) {
 				await page.evaluate(() => window.originalInput === document.querySelector('#draft')),
 				true
 			);
+			await verifyRetainedMountWork(page);
+			await verifyRetainedAccessibility(page);
 			await page.evaluate(() => {
 				const retiredButton = document.querySelector('#increment');
 				window.runtimeClient.dispose();
@@ -370,6 +366,8 @@ export async function checkHydration(origin, browser, control) {
 				}
 				retiredButton.click();
 			});
+			await verifyDisposedMountWork(page);
+			await verifyDisposedAccessibility(page);
 			await page.waitForTimeout(50);
 			await verifyComputedMemberDisposal(page);
 			assert.equal(
@@ -378,6 +376,18 @@ export async function checkHydration(origin, browser, control) {
 				'Full-root disposal removes its mount, island disposal retains inert server markup'
 			);
 			assert.equal(requests, 7, 'Disposal must remove interaction ownership');
+			assert.equal(await page.evaluate(() => window.responseObservations > 0), true);
+			assert.equal(
+				await page.evaluate(() =>
+					window.hydrationObservations.some(
+						(event) =>
+							event.kind === (location.pathname.includes('island-page') ? 'island' : 'root')
+					)
+				),
+				true
+			);
+			await page.evaluate(() => window.verifyEventResponsibility());
+			await diagnosticCapture.flush();
 			assert.deepEqual(errors, []);
 		} catch (error) {
 			throw new Error(route + ': ' + errors.join('; '), { cause: error });

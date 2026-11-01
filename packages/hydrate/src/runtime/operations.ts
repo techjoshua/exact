@@ -1,12 +1,17 @@
-import { acceptComponentStateCommit } from './state-ordering.js';
+import { captureContinuationSubmission } from './array-submission.js';
+import type { StatePublicationPlan } from '../state-publication.js';
+import { prepareContinuationResponse, type ComponentInvocation } from './continuation-response.js';
+import { linkExactObservationOwner } from '@exactjs/core/framework/inspection-transport';
+import { deriveRuntimeConfiguration } from '@exactjs/core/framework/configuration';
+import { acceptComponentStateCommit, componentRequestIdentity } from './state-ordering.js';
 import { requireEndpoint, endpointForOperation, transportForEndpoint } from './transport.js';
 export { requireEndpoint, endpointForOperation, transportForEndpoint } from './transport.js';
 import { createComponentProgressObserver } from './progress.js';
 import { createDomWorkBudget, type DomWorkBudget } from '@exactjs/dom/root';
-import { type AnyComponentInstance, type AnyContextToken, stageTaskMutation } from '@exactjs/core';
+import { stageTaskMutation } from '@exactjs/core';
 import { componentDomainInspection } from '@exactjs/core/framework/component-domains';
 import { enqueueExactOperation } from '../batching.js';
-import { ExactBuildUnsupportedError, invokeExact } from '../invocations.js';
+import { ExactBuildUnsupportedError, invokePreparedExact } from '../invocations.js';
 import { hydrateClientIslands } from '../islands.js';
 import {
 	applyPatches,
@@ -15,13 +20,6 @@ import {
 	createPatchBoundaryResolver,
 	partitionAuthority
 } from '../patches.js';
-import {
-	commitCollectionMutationsForContract,
-	commitStateForContract,
-	mergeCollectionMutationsForContract,
-	mergeStateForContract,
-	stateForContract
-} from '../state.js';
 import type {
 	ExactClient,
 	ExactInvocationKind,
@@ -39,13 +37,35 @@ export async function invokeAndApply(
 	id: string,
 	payload: unknown,
 	options: HydrateOptions,
-	component?: {
-		instance: AnyComponentInstance;
-		dependencies: readonly unknown[];
-		contextWrites: readonly Readonly<{ name: string; token: AnyContextToken }>[];
-		signal: AbortSignal;
-		generation?: number;
+	component?: ComponentInvocation
+): Promise<ExactInvocationResult> {
+	const ownership: { release?: () => void } = {};
+	try {
+		return await invokeAndApplyOwned(
+			container,
+			client,
+			type,
+			id,
+			payload,
+			options,
+			component,
+			ownership
+		);
+	} finally {
+		ownership.release?.();
 	}
+}
+
+/** Owns submitted correspondence until immediate apply or transfer into the existing staged queue. */
+async function invokeAndApplyOwned(
+	container: Element,
+	client: ExactClient,
+	type: ExactInvocationKind,
+	id: string,
+	payload: unknown,
+	options: HydrateOptions,
+	component: ComponentInvocation | undefined,
+	ownership: { release?: () => void }
 ): Promise<ExactInvocationResult> {
 	const work = createDomWorkBudget(options.maxTreeNodes);
 	const continuation = type === 'invoke' ? options.continuations?.[id] : undefined;
@@ -57,7 +77,7 @@ export async function invokeAndApply(
 		requestVersions.set(container, versions);
 	}
 	const configuredBoundaries = continuation?.boundaries;
-	const componentKey = component ? componentIdentity(component.instance) : undefined;
+	const componentKey = component ? componentRequestIdentity(component.instance) : undefined;
 	const scopeRequestKey = (key: string): string => (componentKey ? `${componentKey}:${key}` : key);
 	const requestKeys = [
 		...new Set(
@@ -68,7 +88,9 @@ export async function invokeAndApply(
 					: [`invocation:${id}`]
 		)
 	].map(scopeRequestKey);
-	const requestVersion = Math.max(0, ...requestKeys.map((key) => versions!.get(key) ?? 0)) + 1;
+	let requestVersion = 1;
+	for (const key of requestKeys)
+		requestVersion = Math.max(requestVersion, (versions.get(key) ?? 0) + 1);
 	for (const key of requestKeys) versions.set(key, requestVersion);
 	const requestOrdinalKey = componentKey ? `${componentKey}:request` : 'request';
 	const stateCommittedKey = componentKey ? `${componentKey}:state-committed` : 'state-committed';
@@ -78,6 +100,20 @@ export async function invokeAndApply(
 		type === 'refresh'
 			? partitionAuthority(container, id, work, options.executionRoot ?? 'page')
 			: undefined;
+	let submission = continuation
+		? captureContinuationSubmission(
+				component?.instance.state ?? client.state,
+				continuation,
+				component?.instance,
+				options.continuationArrays?.[id]
+			)
+		: undefined;
+	ownership.release = submission?.release;
+	const selectedState = submission ? submission.state : client.state;
+	const needsArray = Boolean(submission?.arrayParser);
+	const arrayParser = submission?.arrayParser;
+	const preparedState = submission?.preparedState;
+	let statePublication: StatePublicationPlan | undefined;
 	const operation: ExactInvocationRequest = {
 		type,
 		root: options.executionRoot ?? 'page',
@@ -89,12 +125,8 @@ export async function invokeAndApply(
 					...(component.generation === undefined ? {} : { generation: component.generation })
 				}
 			: payload,
-		state:
-			type === 'invoke'
-				? stateForContract(component?.instance.state ?? client.state, {
-						reads: continuation!.stateReads
-					})
-				: client.state,
+		state: needsArray ? undefined : selectedState,
+		...(needsArray ? { arrayCompletion: 4 as const } : {}),
 		publicContext:
 			type === 'invoke'
 				? publicContextFor(options.publicContexts, continuation?.publicContexts)
@@ -130,25 +162,33 @@ export async function invokeAndApply(
 				)
 			: undefined;
 	const stream = options.stream ?? Boolean(progress);
+	const observeResponse =
+		options.onOperation && linkExactObservationOwner(operation, options.onResponse);
 	let result: ExactInvocationResult;
 	try {
 		result =
 			options.batch === false
-				? await invokeExact({
-						endpoint,
-						...operation,
-						fetch: transport.fetch,
-						headers: transport.headers,
-						logger: options.logger,
-						stream,
-						progress,
-						streamLimits: options.streamLimits,
-						signal: component?.signal ?? options.signal,
-						onResponse: options.onResponse
-					})
+				? await invokePreparedExact(
+						{
+							endpoint,
+							...operation,
+							arrayParser,
+							fetch: transport.fetch,
+							headers: transport.headers,
+							logger: options.logger,
+							stream,
+							progress,
+							streamLimits: options.streamLimits,
+							signal: component?.signal ?? options.signal,
+							onResponse: observeResponse ?? options.onResponse
+						},
+						preparedState
+					)
 				: await enqueueExactOperation(container, {
 						endpoint,
 						operation,
+						arrayParser,
+						preparedState,
 						fetch: transport.fetch,
 						headers: transport.headers,
 						logger: options.logger,
@@ -156,7 +196,7 @@ export async function invokeAndApply(
 						progress,
 						streamLimits: options.streamLimits,
 						signal: component?.signal ?? options.signal,
-						onResponse: options.onResponse
+						onResponse: observeResponse ?? options.onResponse
 					});
 	} catch (error) {
 		if (error instanceof ExactBuildUnsupportedError) options.onBuildUnsupported?.();
@@ -164,42 +204,20 @@ export async function invokeAndApply(
 	} finally {
 		progress?.close();
 	}
-	let responseHasState = false;
-	let responseState: unknown;
 	if (continuation) {
-		responseHasState = 'state' in result;
-		responseState = result.state;
-		const invalidPatch = unauthorizedContinuationPatch(
+		const prepared = prepareContinuationResponse({
 			container,
-			result.patches,
-			continuation.boundaries,
+			state: component?.instance.state ?? client.state,
+			result,
+			continuation,
+			submission: submission!,
+			contextWrites: component?.contextWrites,
 			work
-		);
-		let mergedState =
-			'state' in result
-				? mergeStateForContract(component?.instance.state ?? client.state, result.state, {
-						writes: continuation.stateWrites
-					})
-				: undefined;
-		if (result.mutations) {
-			const mergedCollections = mergeCollectionMutationsForContract(
-				mergedState?.ok ? mergedState.state : (component?.instance.state ?? client.state),
-				result.mutations,
-				{ writes: continuation.stateWrites }
-			);
-			if (mergedCollections.ok) mergedState = mergedCollections;
-			else mergedState = { ok: false };
-		}
-		const invalidContexts = unauthorizedContinuationContexts(
-			result.contexts,
-			continuation.contextWrites,
-			component?.contextWrites
-		);
-		if (invalidPatch || mergedState?.ok === false || invalidContexts) {
+		});
+		if (!prepared) {
 			options.onDiagnostic?.({
 				code: 'invalid-response',
-				message: `rejected exact invocation response outside the continuation contract for ${id}`,
-				patch: invalidPatch
+				message: `rejected exact invocation response outside the continuation contract for ${id}`
 			});
 			options.onOperation?.({
 				operation,
@@ -210,8 +228,10 @@ export async function invokeAndApply(
 			});
 			return result;
 		}
-		if (mergedState?.ok) result = { ...result, state: mergedState.state };
+		statePublication = prepared.plan;
+		result = prepared.result;
 	}
+
 	// State-only component responses use declared write ordering. Their render boundaries
 	// may be shared by independent tasks even though no server DOM patch was returned.
 	const stateOnlyComponent =
@@ -261,7 +281,10 @@ export async function invokeAndApply(
 			patch: { type, id }
 		});
 	}
-	const patchOptions = { ...options, workBudget: work };
+	const patchOptions = deriveRuntimeConfiguration<HydrateOptions & { workBudget?: DomWorkBudget }>(
+		options,
+		() => ({ workBudget: work })
+	);
 	const applyResponse = (): void => {
 		let appliedPatches: readonly import('@exactjs/core/framework/operation-protocol').ExactPatch[] =
 			responsePatches ?? [];
@@ -291,21 +314,19 @@ export async function invokeAndApply(
 			hydrateClientIslands(container, options.islands, options);
 		if (
 			!partiallyStale &&
-			'state' in result &&
+			(statePublication !== undefined || 'state' in result) &&
 			(component
-				? acceptComponentStateCommit(component.instance, continuation!.stateWrites, requestOrdinal)
+				? acceptComponentStateCommit(
+						component.instance,
+						continuation!.stateWrites,
+						requestOrdinal,
+						statePublication?.footprint
+					)
 				: requestOrdinal >= (versions.get(stateCommittedKey) ?? 0))
 		) {
 			versions.set(stateCommittedKey, requestOrdinal);
-			if (component) {
-				if (responseHasState)
-					commitStateForContract(component.instance.state, responseState, {
-						writes: continuation!.stateWrites
-					});
-				if (result.mutations)
-					commitCollectionMutationsForContract(component.instance.state, result.mutations, {
-						writes: continuation!.stateWrites
-					});
+			if (component || (needsArray && statePublication)) {
+				statePublication?.apply();
 			} else {
 				client.state = result.state;
 			}
@@ -322,14 +343,14 @@ export async function invokeAndApply(
 					component: component.instance,
 					operationId: id,
 					generation: component.generation,
-					attributes: Object.freeze({ count: appliedPatches.length })
+					attributes: { count: appliedPatches.length }
 				});
 			componentDomainInspection(component.instance.domain)?.publish({
 				kind: 'continuation.apply',
 				component: component.instance,
 				operationId: id,
 				generation: component.generation,
-				attributes: Object.freeze({ stale: partiallyStale })
+				attributes: { stale: partiallyStale }
 			});
 		}
 		options.onOperation?.({
@@ -340,48 +361,22 @@ export async function invokeAndApply(
 			stale: partiallyStale
 		});
 	};
-	if (component && continuation?.readiness === 'blocking')
-		stageTaskMutation(component.signal, applyResponse);
-	else applyResponse();
+	const release = ownership.release;
+	const ownedApply = () => {
+		try {
+			applyResponse();
+		} finally {
+			release?.();
+		}
+	};
+	if (component && continuation?.readiness === 'blocking') {
+		if (component.signal.aborted) throw component.signal.reason;
+		stageTaskMutation(component.signal, ownedApply);
+	} else ownedApply();
+	ownership.release = undefined;
+	submission = undefined;
+
 	return result;
-}
-
-/** Rejects undeclared or unmapped component-context projections before client mutation. */
-function unauthorizedContinuationContexts(
-	contexts: Record<string, unknown> | undefined,
-	allowed: readonly string[],
-	mappings: readonly Readonly<{ name: string; token: AnyContextToken }>[] | undefined
-): boolean {
-	if (!contexts) return false;
-	const allowedNames = new Set(allowed);
-	const mappedNames = new Set((mappings ?? []).map((mapping) => mapping.name));
-	return Object.keys(contexts).some((name) => !allowedNames.has(name) || !mappedNames.has(name));
-}
-
-const componentIds = new WeakMap<AnyComponentInstance, number>();
-let nextComponentId = 1;
-
-/** Returns one request-generation namespace for a live component instance. */
-function componentIdentity(instance: AnyComponentInstance): string {
-	let id = componentIds.get(instance);
-	if (!id) {
-		id = nextComponentId++;
-		componentIds.set(instance, id);
-	}
-	return `component:${id}`;
-}
-
-/** Returns the first patch outside every compiler-declared affected boundary. */
-function unauthorizedContinuationPatch(
-	container: Element,
-	patches: readonly import('@exactjs/core/framework/operation-protocol').ExactPatch[] | undefined,
-	boundaries: readonly string[],
-	work: DomWorkBudget
-): import('@exactjs/core/framework/operation-protocol').ExactPatch | undefined {
-	if (!patches?.length) return undefined;
-	if (!boundaries.length) return patches[0];
-	const boundaryForPatch = createPatchBoundaryResolver(container, boundaries, work);
-	return patches.find((patch) => boundaryForPatch(patch.id) === undefined);
 }
 
 /** Selects only compiler-approved shared context projections for one activation record. */

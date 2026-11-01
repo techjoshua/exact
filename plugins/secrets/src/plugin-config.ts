@@ -37,9 +37,6 @@ const controller: ExactPluginConfigController<SecretsPluginConfig> = {
 			environment: context.environment,
 			signal: context.signal
 		});
-	},
-	renderConfig() {
-		return Object.freeze({});
 	}
 };
 

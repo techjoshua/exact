@@ -87,6 +87,12 @@ func remapLocationValue(value reflect.Value, source normalizedSource) {
 			nodeEnd.SetInt(int64(nextEnd))
 		}
 		for index := 0; index < value.NumField(); index++ {
+			// Only process-facing fields own authored coordinates. Private proof
+			// graphs can contain cyclic compiler identities and must stay untouched.
+			field := value.Type().Field(index)
+			if field.PkgPath != "" || strings.Split(field.Tag.Get("json"), ",")[0] == "-" {
+				continue
+			}
 			remapLocationValue(value.Field(index), source)
 		}
 	}

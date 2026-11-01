@@ -1,6 +1,7 @@
+import { createMountedScope } from './component-mount-ownership.js';
+import { type AdmittedClientComponentInput } from './component-input-admission.js';
 import { attachSuppressedCleanupFailure, type AnyComponentInstance } from '@exactjs/core';
-import type { ExactComponentReceiptData } from '@exactjs/core/runtime/component-operations';
-import { createEffectScope, type EffectScope } from '@exactjs/reactive/framework/runtime';
+import { type EffectScope } from '@exactjs/reactive/framework/runtime';
 import type { Root } from '../types.js';
 import { withTreeDepth, countDomWork } from './limits.js';
 import { PreparedComponentAttachment } from './prepared-component-attachment.js';
@@ -12,17 +13,17 @@ import { mountNativeComponentArtifact } from './mounting/native-component-artifa
  */
 export function prepareComponentReceipt(
 	root: Root,
-	receipt: ExactComponentReceiptData,
+	receipt: AdmittedClientComponentInput,
 	parentInstance?: AnyComponentInstance,
 	parentScope?: EffectScope,
 	parentNode?: Node,
 	mode: 'mount' | 'hydrate' = 'mount'
 ): PreparedComponentAttachment {
-	const prepared = new PreparedComponentAttachment();
+	const prepared = new PreparedComponentAttachment(root);
 	try {
 		withTreeDepth(root, () => {
 			countDomWork(root);
-			const scope = createEffectScope(parentScope);
+			const scope = createMountedScope(parentScope);
 			try {
 				mountNativeComponentArtifact(
 					root,

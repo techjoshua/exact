@@ -1,3 +1,4 @@
+import { deriveRuntimeConfiguration } from '@exactjs/core/framework/configuration';
 import { inheritRequestRenderScheduler } from '@exactjs/server/framework/render-scheduling';
 import { publishExactProfile } from '@exactjs/instrumentation';
 import { positiveLimit } from '../stream/protocol.js';
@@ -16,20 +17,21 @@ export function renderToStream(
 ): ReadableStream<Uint8Array> {
 	const started = options.onProfile ? performance.now() : undefined;
 	const owner = new AbortController();
-	inheritRequestRenderScheduler(options.signal, owner.signal);
+	const signal = options.signal;
+	inheritRequestRenderScheduler(signal, owner.signal);
 	let render: Promise<RenderToStringResult> | undefined;
 	let chunks: readonly string[] | undefined;
 	let index = 0;
 	let bytes = 0;
 	let closed = false;
 	let controller: ReadableStreamDefaultController<Uint8Array>;
-	const maxBytes = positiveLimit(options.maxStreamBytes, 16 * 1024 * 1024);
-	const maxChunks = positiveLimit(options.maxStreamChunks, 100_000);
-	const unlink = () => options.signal?.removeEventListener('abort', abort);
+	const maxBytes = positiveLimit(options.maxStreamBytes, Infinity);
+	const maxChunks = positiveLimit(options.maxStreamChunks, Infinity);
+	const unlink = () => signal?.removeEventListener('abort', abort);
 	const abort = () => {
 		if (closed) return;
 		closed = true;
-		const reason = options.signal?.reason ?? new DOMException('SSR stream aborted', 'AbortError');
+		const reason = signal?.reason;
 		owner.abort(reason);
 		chunks = undefined;
 		unlink();
@@ -39,8 +41,8 @@ export function renderToStream(
 		{
 			start(target) {
 				controller = target;
-				if (options.signal?.aborted) abort();
-				else options.signal?.addEventListener('abort', abort, { once: true });
+				if (signal?.aborted) abort();
+				else signal?.addEventListener('abort', abort, { once: true });
 			},
 			async pull(target) {
 				if (closed) return;
@@ -48,7 +50,10 @@ export function renderToStream(
 					if (!chunks) {
 						render = renderStringOutput(
 							operation,
-							{ ...options, onProfile: undefined, signal: owner.signal },
+							deriveRuntimeConfiguration(options, () => ({
+								onProfile: undefined,
+								signal: owner.signal
+							})),
 							false,
 							'stream'
 						);
@@ -90,13 +95,10 @@ export function renderToStream(
 		{ highWaterMark: 0 }
 	);
 	if (started !== undefined)
-		publishExactProfile(
-			options.onProfile,
-			Object.freeze({
-				subsystem: 'ssr',
-				phase: 'create-stream',
-				elapsedMs: performance.now() - started
-			})
-		);
+		publishExactProfile(options.onProfile, {
+			subsystem: 'ssr',
+			phase: 'create-stream',
+			elapsedMs: performance.now() - started
+		});
 	return stream;
 }

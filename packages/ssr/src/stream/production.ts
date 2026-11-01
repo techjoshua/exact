@@ -1,3 +1,4 @@
+import { deriveRuntimeConfiguration } from '@exactjs/core/framework/configuration';
 import { attachSuppressedCleanupFailure, logFrameworkEvent } from '@exactjs/core';
 import type { ExactResponseBodyWriter } from '@exactjs/server';
 import { utf8ByteLength } from '../render/utf8.js';
@@ -19,12 +20,12 @@ export async function produceProgressiveHtml(
 	write: ExactResponseBodyWriter,
 	controller: Pick<AbortController, 'signal' | 'abort'>
 ): Promise<void> {
-	const streamOptions: RenderToProgressiveHtmlStreamOptions = {
-		...options,
-		rootId: progressiveRootId(options)
-	};
-	const maxEvents = positiveLimit(options.maxStreamEvents, 100_000);
-	const maxBytes = positiveLimit(options.maxStreamBytes, 16 * 1024 * 1024);
+	const streamOptions: RenderToProgressiveHtmlStreamOptions = deriveRuntimeConfiguration(
+		options,
+		() => ({ rootId: progressiveRootId(options) })
+	);
+	const maxEvents = positiveLimit(options.maxStreamEvents, Infinity);
+	const maxBytes = positiveLimit(options.maxStreamBytes, Infinity);
 	const unlinkOptions = forwardAbort(options.signal, controller);
 	streamOptions.signal = controller.signal;
 	const documentState: ProgressiveDocumentState = {};
@@ -51,7 +52,7 @@ export async function produceProgressiveHtml(
 			(reason) => controller.abort(reason)
 		);
 	} catch (error) {
-		if (controller.signal.aborted) throw controller.signal.reason ?? error;
+		if (controller.signal.aborted) throw controller.signal.reason;
 		logFrameworkEvent(
 			'error',
 			'ssr',
@@ -73,5 +74,5 @@ export async function produceProgressiveHtml(
 
 function throwIfProgressiveAborted(signal: AbortSignal): void {
 	if (!signal.aborted) return;
-	throw signal.reason ?? new DOMException('SSR stream aborted', 'AbortError');
+	throw signal.reason;
 }

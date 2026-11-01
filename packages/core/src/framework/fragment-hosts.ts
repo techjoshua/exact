@@ -1,3 +1,4 @@
+import { isReservedElementIdentityName } from '../component-abi/element-identity.js';
 /** Prepared contribution facts for one enhancement owner. */
 export interface FragmentContribution {
 	readonly owner: symbol;
@@ -18,7 +19,9 @@ const bookkeeping = new Set(['key', 'children', '__exactEnhancements']);
 
 /** Detects a host contribution without evaluating reactive prop values. */
 export function hasFragmentHostProps(props: Readonly<Record<string, unknown>>): boolean {
-	return Object.keys(props).some((key) => !bookkeeping.has(key));
+	return Object.keys(props).some(
+		(key) => !bookkeeping.has(key) && !isReservedElementIdentityName(key)
+	);
 }
 
 /**

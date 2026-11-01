@@ -22,11 +22,11 @@ export function preparePackageEnhancementSource(
 ): ExactPreparedPackageEnhancements {
 	registrations = sourcePackageEnhancements(filename, registrations, applicationRoot);
 	if (!registrations?.length)
-		return Object.freeze({
+		return {
 			source,
 			authoredLength: source.length,
 			moduleSpecifiers: new Set<string>()
-		});
+		};
 	const imports: string[] = [];
 	const moduleSpecifiers = new Set<string>();
 	for (const registration of registrations) {
@@ -34,11 +34,11 @@ export function preparePackageEnhancementSource(
 		moduleSpecifiers.add(moduleSpecifier);
 		imports.push(renderPackageEnhancementImport(registration, moduleSpecifier));
 	}
-	return Object.freeze({
+	return {
 		source: `${source}\n${imports.join('\n')}\n`,
 		authoredLength: source.length,
 		moduleSpecifiers
-	});
+	};
 }
 
 /** Removes virtual-source artifacts while retaining enhancement activations and authored offsets. */

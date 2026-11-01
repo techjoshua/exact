@@ -1,23 +1,34 @@
+import { captureAdoptionCurrent, isAdoptionSuperseded } from './receiving-lifetime.js';
+import { clientComponentRecipe } from '../component-input-admission.js';
+import { isComponentInputIncompatibility } from '@exactjs/core/runtime/component-operations';
+import { type AdmittedClientComponentInput } from '../component-input-admission.js';
 import { registryHydrationContract } from '@exactjs/core/runtime/registry';
 import {
 	pageComponentDomain,
 	type AnyComponentInstance,
 	withComponentResumption
 } from '@exactjs/core';
-import type {
-	ExactClientComponentArtifact,
-	ExactComponentReceiptData
-} from '@exactjs/core/runtime/component-operations';
+import type { ExactClientComponentArtifact } from '@exactjs/core/runtime/component-operations';
 import {
 	createEffectScope,
+	registerEffectScopeCleanup,
 	withEffectScope,
 	type EffectScope
 } from '@exactjs/reactive/framework/runtime';
 import { placeMountedBefore } from '../../placement.js';
 import type { Mounted, Root } from '../../types.js';
 import { mountComponentReceipt } from '../mounting/native-component-artifact.js';
+
+import {
+	prepareComponentReceiptBinding,
+	bindComponentReceiptUpdate
+} from '../component-receipt-binding.js';
 import { ownMountedInstance } from '../component-mount-ownership.js';
-import { unmountMounted } from '../teardown.js';
+import {
+	unmountMounted,
+	releaseCreatedAdoptionEndpoints,
+	releaseUnpublishedAdoption
+} from '../teardown.js';
 import { adoptComponentChildren } from './boundaries.js';
 import {
 	attachHydratedComponent,
@@ -31,7 +42,7 @@ import {
 /** Adopts one opaque receipt through the artifact that issued it. */
 export function adoptComponentReceipt(
 	root: Root,
-	receipt: ExactComponentReceiptData,
+	receipt: AdmittedClientComponentInput,
 	nodes: readonly Node[],
 	cursor: number,
 	parentInstance: AnyComponentInstance | undefined,
@@ -39,6 +50,7 @@ export function adoptComponentReceipt(
 	rangeEnd: number,
 	omitCompilerOwnedBoundary: boolean
 ): { mounted: Mounted; next: number } | undefined {
+	receipt = clientComponentRecipe(receipt.admitted);
 	const scope = createEffectScope(parentScope);
 	const boundary = componentMarkerBoundaryByIdentity(
 		nodes,
@@ -89,10 +101,9 @@ export function adoptComponentReceipt(
 		}
 		return { mounted: replacement, next: boundary.endIndex + 1 };
 	}
-	const prepared = root.preparedComponents?.get(receipt);
+	const prepared = root.preparedComponents?.take(receipt.admitted.operation, parentInstance);
 	if (prepared) {
 		scope.stop();
-		root.preparedComponents!.delete(receipt);
 		const mounted = prepared.attachment.ownedRange;
 		if (prepared.attachment.owner.parent !== parentInstance)
 			throw new Error('Prepared component cannot adopt beneath a different context owner');
@@ -124,7 +135,7 @@ export function adoptComponentReceipt(
 		clientArtifact: receiptClientArtifact(receipt)
 	};
 	try {
-		const instance = constructReceipt(root, receipt, parentInstance);
+		const instance = constructReceipt(root, receipt, parentInstance, mounted);
 		ownMountedInstance(mounted, instance);
 		const artifact = mounted.clientArtifact!;
 		if (
@@ -143,8 +154,10 @@ export function adoptComponentReceipt(
 			unmountMounted(mounted);
 			return undefined;
 		}
+		bindComponentReceiptUpdate(mounted, receipt);
 		return { mounted, next: boundary.endIndex + 1 };
-	} catch {
+	} catch (error) {
+		if (isComponentInputIncompatibility(error) || isAdoptionSuperseded(error)) throw error;
 		unmountMounted(mounted);
 		return undefined;
 	}
@@ -152,24 +165,30 @@ export function adoptComponentReceipt(
 
 function adoptMarkerlessReceipt(
 	root: Root,
-	receipt: ExactComponentReceiptData,
+	receipt: AdmittedClientComponentInput,
 	nodes: readonly Node[],
 	cursor: number,
 	parentInstance: AnyComponentInstance | undefined,
 	scope: EffectScope,
 	rangeEnd: number
 ): { mounted: Mounted; next: number } | undefined {
+	const start = document.createTextNode('');
+	let end: Text | undefined;
+	const assertCurrent = captureAdoptionCurrent(root, scope);
 	const mounted: Mounted = {
 		componentReceipt: receipt,
-		dom: document.createTextNode(''),
+		dom: start,
 		// Match marked hydration's field order without allocating a boundary node.
 		end: undefined,
 		scope,
 		children: [],
 		clientArtifact: receiptClientArtifact(receipt)
 	};
+	registerEffectScopeCleanup(scope, () =>
+		releaseCreatedAdoptionEndpoints(root, mounted, start, end)
+	);
 	try {
-		const instance = constructReceipt(root, receipt, parentInstance);
+		const instance = constructReceipt(root, receipt, parentInstance, mounted);
 		ownMountedInstance(mounted, instance);
 		let adoptedNext = cursor;
 		const artifact = mounted.clientArtifact!;
@@ -190,6 +209,8 @@ function adoptMarkerlessReceipt(
 			})
 		)
 			return undefined;
+		bindComponentReceiptUpdate(mounted, receipt);
+		assertCurrent();
 		const first = mounted.children[0]?.dom;
 		const last = mounted.children.at(-1);
 		if (!first || !last) {
@@ -197,7 +218,7 @@ function adoptMarkerlessReceipt(
 			const parent = boundary?.parentNode;
 			if (!parent) return undefined;
 			parent.insertBefore(mounted.dom, boundary);
-			mounted.end = document.createTextNode('');
+			mounted.end = end = document.createTextNode('');
 			parent.insertBefore(mounted.end, boundary);
 			return { mounted, next: adoptedNext };
 		}
@@ -205,10 +226,14 @@ function adoptMarkerlessReceipt(
 		if (!parent) return undefined;
 		const endNode = last.end ?? last.dom;
 		parent.insertBefore(mounted.dom, first);
-		mounted.end = document.createTextNode('');
+		mounted.end = end = document.createTextNode('');
 		parent.insertBefore(mounted.end, endNode.nextSibling);
 		return { mounted, next: adoptedNext };
-	} catch {
+	} catch (error) {
+		if (isComponentInputIncompatibility(error) || isAdoptionSuperseded(error)) {
+			releaseUnpublishedAdoption(root, [mounted], error);
+			throw error;
+		}
 		unmountMounted(mounted);
 		return undefined;
 	}
@@ -216,7 +241,7 @@ function adoptMarkerlessReceipt(
 
 /** Returns the client artifact already selected by an opaque component operation. */
 export function receiptClientArtifact(
-	receipt: ExactComponentReceiptData
+	receipt: AdmittedClientComponentInput
 ): ExactClientComponentArtifact {
 	const artifact = registryHydrationContract(receipt.contract).artifact;
 	if (artifact.target !== 'client')
@@ -227,16 +252,26 @@ export function receiptClientArtifact(
 /** Constructs the durable instance selected by an adopted component operation. */
 export function constructReceipt(
 	root: Root,
-	receipt: ExactComponentReceiptData,
-	parent: AnyComponentInstance | undefined
+	receipt: AdmittedClientComponentInput,
+	parent: AnyComponentInstance | undefined,
+	mounted: Mounted,
+	receivingCurrent: () => boolean = () => true
 ): AnyComponentInstance {
+	receipt = clientComponentRecipe(receipt.admitted);
 	const artifact = receiptClientArtifact(receipt);
-	const props = { ...receipt.props };
-	if (receipt.children.length === 1) props.children = receipt.children[0];
-	else if (receipt.children.length > 1) props.children = receipt.children;
+	const prepared = prepareComponentReceiptBinding(mounted, receipt, receivingCurrent);
+	if (!prepared.isCurrent()) throw new Error('Component input construction was superseded');
+	const inputs = prepared.inputs;
+	const props = { ...inputs.props };
+	if (inputs.children.length === 1) props.children = inputs.children[0];
+	else if (inputs.children.length > 1) props.children = inputs.children;
 	const domain = receipt.domain ?? parent?.domain ?? root.domain ?? pageComponentDomain;
+	if (!prepared.isCurrent()) throw new Error('Component input construction was superseded');
+	prepared.beginDelivery();
+	if (root.componentInputAttempt?.operation === receipt.admitted.operation)
+		root.componentInputAttempt.deliveryStarted = true;
 	return withComponentResumption(domain, () =>
-		withEffectScope(parent?.scope, () =>
+		withEffectScope(mounted.scope, () =>
 			artifact.construct(
 				parent,
 				props,

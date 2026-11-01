@@ -1,5 +1,46 @@
 # Compiled component artifacts
 
+Library publication keeps inferred placement separate from inspected executable selection.
+An unknown component can have a real target-local compiled artifact while its inferred
+`artifactTargets` remain empty. Published export targets and direct relative-edge destinations
+record the binding inspected from the completed generation. They do not assert that every
+helper can execute on either target. Known target constraints, package authorization and concrete
+registration owners still apply. See [component library trust](component-library-trust.md) for
+publication and consumption requirements.
+
+Render-program version 4 requires the matching SSR operation provider. Its generated preparation
+prefix asserts the provider version before reading prepared slots or writing output. Core rejects
+older render-program descriptors. The SSR provider owns its generated version independently, so
+combining new core with an old SSR implementation cannot silently ignore required preparation.
+The local breaking prerelease migration retains released fixtures as rejection evidence, without
+maintaining a parallel implementation of their render-program contract.
+
+Server continuation executors reconstruct referenced task definitions synchronously
+inside the existing request task frame. A reconstructed task definition uses the
+server task helper facade's `bindTask` export so status and cancellation retain
+that request owner. Child invocation keeps its explicit parent task context across
+await boundaries. Direct SSR component construction can precede a task frame and
+does not acquire this executor binding. Its existing parent task work instead
+binds references to the stable setup-owned child definitions when that parent
+enters its task frame. Child work binds its own referenced children in the same
+way. Repeated activations retain definition and owner-lane identity.
+Shorthand task properties resolve the authored value symbol for ownership and task
+selection, preserving the authored property key with the selected facade value.
+
+Server projection checks liveness against the authored checker tree. Updated nodes resolve through
+their original source identity before a symbol query. Compiler-created import aliases have no
+checker symbol and retain the existing conservative reachability fallback. Shorthand references
+use their value binding, so a retained object member also retains the local value it reads. This
+keeps reachable setup effects and data while allowing dormant client closures to be omitted.
+Reference ownership follows the declaration and body in the projected tree. An authored source
+position alone cannot attribute a moved transport capture to its former, erased closure.
+
+New compiler output that imports this helper requires a core provider exporting
+`bindTask` from `@exactjs/core/framework/server-task-helpers`. This is an additive
+provider capability. Existing helper signatures and artifact fields are unchanged.
+Provider selection and package metadata must account for the new import before
+publication.
+
 ## Status
 
 Target architecture and migration contract. Native eXact components are compiler products; raw
@@ -60,10 +101,79 @@ construct, attach/adopt, receive, and dispose operations; it is not a rendered-n
 This is distinct from a **prop receipt**, which is one atomic delivery of finalized parent-owned prop
 values to the retained child instance.
 
+Component-input version 6 marks compiler-created prop readers separately from authored reactive
+values. Acquiring a marked reader removes exactly its compiler layer. A returned reactive value
+keeps its identity and is neither read nor structurally compared during acquisition. Ordinary public
+reactive and scalar-child behavior retains its own contract.
+Eager child recipes preserve marked compiler operands as atomic values until receiving acquisition.
+The receiving DOM or SSR occurrence samples that layer before flattening its authored array result.
+Ordinary authored child arrays continue to flatten in source order.
+
+A compiled prop receipt also carries the actual lexical supplier instance. Its exact artifact
+update contract validates that instance, while the rendering parent continues to own placement and
+context. Wrappers and multiple instances of the same definition do not change the supplier. A
+consumer acquires new supplier membership provisionally, commits after input delivery, and retires
+the previous membership. Reentrant replacement and disposal invalidate obsolete preparations.
+
+DOM and SSR import the required private component-input operation capability and validate their
+independently generated provider version before receipt redemption, direct adoption, or server
+output. The previous private operation export is removed. Render-program version checking alone
+does not cover component-only artifacts. Matching compiler, core, DOM, and SSR providers are
+required at version 0.8.0 or a compatible later release for this unpublished contract.
+
+Version 5 gives every component operation an eager children recipe or a private children-input
+reader. A closed native operand plan, including a closed zero-dependency plan, keeps the eager
+path. An incomplete plan uses the receiving occurrence's acquisition scope. The public rendering
+and hydration roots still require a component operation, including when its output is a range.
+No component kind is replaced with a range operation to make a fallback mountable.
+
+Inspection exposes only inert component identity metadata. Every eager or reader acquisition
+requires independent provider generation and target admission before constructors, readers,
+hydration markers or output effects. Matching duplicated core modules share the existing
+version-isolated receipt table and server-reference brand. Incompatible issued inputs carry a
+realm-stable failure discriminator that nested adoption paths must propagate. An authored object
+with matching-looking fields cannot redeem a private recipe. The old unrestricted payload reader
+and old issuance/root entry exports have no compatibility aliases.
+
+A receiving consumer captures a local attempt identity before authored reads, even if the incoming
+receipt and reader are unchanged. Post-read, delivery and flush fences prevent an obsolete outer
+attempt from publishing over a newer handoff. Hydration distinguishes supersession from markup
+mismatch, and an obsolete client handle cannot dispose the newer renderer.
+Mismatch reporting and form-focus restoration recheck the same receiving attempt before
+subsequent fallback, control or ownership writes. Application reporting callbacks may render a
+newer root and return without authorizing the obsolete attempt to resume. Scheduled SSR sibling
+preparation retains cleanup ownership before acquiring any later reader or nested slot.
+A failed preparation preserves accepted inputs only
+before delivery. Unused provisional attachments abort their own scopes, without rolling back
+ordinary authored side effects. Actual output sequences carry one-use receiving entries through
+preparation and construction. Operation identity validates an already selected entry, rather than
+recovering an occurrence after an arbitrary authored pick or reorder.
+
+SSR writers retain an ordered slot cursor with their prepared output. Each component position
+carries its selected occurrence into traversal, including child slots normalized into an array.
+The source handle validates that carried position. Component execution gives its descendants a
+separate preparation frame, so an opaque selection has its own receiving occurrences. A writer
+that prepares component inputs must forward occurrences through the existing traversal target.
+Abandoned entries remain owned by the program cleanup boundary.
+
+SSR occurrence records retain the accepted effective children input through same-execution copies
+and intentional resumption views. A delegated `props.children` getter is sampled once for that
+occurrence, including an explicit undefined result. Explicit recipe children suppress that getter.
+Other prop accessors keep their original prepared-props receiver. Their authored nested
+`this.children` reads remain ordinary reads, while the execution view's direct children property
+retains the captured value. Callable data values stay exact and unbound. A fresh final stream execution owns fresh inputs and pairs
+its publication with its output. See [child composition](child-composition.md) for the observable
+children-getter and supplied-placement limits.
+
 Opaque operations carry a realm-stable identity brand so two distinct handles are never collapsed
 by structural reactive equality merely because their public objects are empty. The brand is not a
 discriminator and exposes no operation kind, output shape, topology, or target payload; those inputs
 remain in issuer-private storage.
+
+DOM sibling selection reserves an unchanged opaque handle only when it appears once in both the
+old and new unkeyed lists. This happens before positional fallback can consume its range. Authored
+keys remain authoritative, and repeated handles retain their existing positional or refusal policy.
+The reservation is local to that sibling pass and grants no cross-parent relocation authority.
 
 That private storage uses a protocol-versioned realm registry. Equivalent duplicated runtime
 modules share redemption authority within the realm, so package duplication does not require a
@@ -74,6 +184,11 @@ An explicitly selected React compatibility operation installs the complete priva
 foreign tree may require. The compiler cannot know whether an imported React package will produce a
 host node, Suspense, Activity, a portal, or another React component. Owning those cases inside the
 precompiled island does not make their interpreter reachable from native-only artifact graphs.
+
+During unfinished document hydration, an explicit `render(operation, document.documentElement)`
+starts a render update. Accepted scalar bindings on the matched nodes receive the new values,
+including coalesced and empty text. Ordinary document hydration still checks the server values
+strictly. This does not permit replacing an incompatible document structure.
 
 ## Artifact responsibilities
 
@@ -208,6 +323,17 @@ rather than forcing the child program through a general render watcher. The comp
 runtime lane registry, per-region subscriptions, or a render-program updater. JSX outside a native
 component can use ordinary expression bindings, but it cannot manufacture a second implicit
 component update owner.
+
+Dependency setup resolves every indexed group and forwarded reference before acquiring subscriptions.
+A missing group refuses the binding without installing a listener or target. Publication storage is
+initialized before acquisition, and owner state and target membership commit only after acquisition
+succeeds. Failure attempts every acquired cleanup and preserves the original error. A version scan
+after commit includes mutations caused by forwarded-value evaluation during preparation. Replacing
+a live forwarded source acquires the new subscription before releasing the old one. Authored evaluation
+can replace that source again or dispose its owner. A pending replacement commits only while its
+captured binding record and current input still agree, so nested publication retains the newer source
+and every superseded provisional subscription is released.
+
 An exported operation factory therefore finalizes its ordinary function parameters when it creates
 the operation. It does not wrap those parameters in forwarded-reactive readers because no durable
 component instance owns such a reader. When a compiled component passes one of its props to a
@@ -217,7 +343,12 @@ operation whose mask is attached to every input slot. Arithmetic, comparison, lo
 conditional composition therefore reruns through the component artifact without allocating a
 retained watcher per DOM binding. Nested object reads, arbitrary calls, and deferred functions stay
 on the reactive lane unless their complete dependency semantics are separately proven; a top-level
-slot change cannot safely stand in for an observable nested mutation.
+slot change cannot safely stand in for an observable nested mutation. A nested prop selection retains the complete reader,
+including selection of its receiver, so replacing that receiver rebinds the member dependency.
+Parentheses, type assertions, non-null assertions and `satisfies` preserve that dependency.
+Only a stable declarative callback receiver uses the compact receiver/key operand. A nested reader
+also retains its compiler layer when it returns an authored reactive value or callable. Acquisition
+preserves that payload's identity without reading or invoking it.
 Static native-component slots are installed through the referenced client artifact. The parent
 publishes one final value per compiler-indexed prop slot; the receiving artifact compares those
 values, owns prop dirtiness, and applies at most one atomic update without allocating a partial
@@ -318,7 +449,7 @@ non-invalidated alias of the complete state facade uses the same indexed lane; n
 dynamic keys, external consumers, and DevTools continue through ordinary property semantics.
 Direct server frames use their plain request-local state records and do not import this client-only
 access lane.
-Compiler-proven top-level props reads use a separate deterministic layout on the readonly props
+Compiler-proven top-level props reads use a separate deterministic layout on the reactive props
 facade. Initial construction seeds that layout without publishing false changes, and later parent
 updates reconcile through the same numeric dependency identities. Every compiled definition emits
 state and props layouts, including empty layouts, so component construction never infers a generic
@@ -350,6 +481,13 @@ facade retains the same numeric identity inside nested callbacks. Nested-state a
 references retain path-based operations because their final target is runtime data.
 Compiler-synthesized computation and task wrappers consume the same analyzed write identity; they
 do not reconstruct a string path merely because the authored assignment moved into managed work.
+Selected scalar references retain the actual parent and raw computed key across RHS evaluation.
+Existing write and delete helper signatures serve those references through a single-key path,
+with numeric slot commits retained for proven top-level client fields. Logical skip arms perform
+no commit. Lean server task artifacts import those existing operations only for publishable task
+work. Setup-only storage remains plain. Key conversion at the native operation supplies the
+canonical successful publication key without changing the helper signature or wire schema.
+This direct-property repair does not instrument separately compiled ordinary helper bodies.
 An authored function task referenced by an interaction owns one durable compiled definition at its
 declaration. A setup call to that function invokes the same binding and does not create a second
 task transition or clone its work and dependency readers.
@@ -362,6 +500,8 @@ props). Its focused text operation reads the durable component instance's existi
 the invocation does not allocate a reader closure or an operand array. Derived values, nested reads,
 structural work, and arbitrary authored expressions retain executable readers and their existing
 reactive computation ownership.
+The compiler owns the `data-exact-id` attribute. This reservation also applies to native `_` and `_target` host contributions. Authored native attributes and known spread properties using it are errors. Opaque physical-host prop bags are merged normally before the compiler installs an enumerable symbol-keyed physical address, preserving string and symbol getter effects without accepting that bag as protocol authority. Physical metadata is installed last. Native renderers ignore reserved ASCII-case-equivalent string keys and serialize the physical address once. Structural contributions neither supply nor override the selected host address, including during target composition. This metadata is not operation authority.
+
 `data-exact-id` remains a separate identity only for operations that must address a live DOM target,
 such as authorized server patches and interaction replay. It is not a second render-program ABI.
 Generated server writers preflight each dynamic input into a compiler-named local and pass that
@@ -668,3 +808,41 @@ The migration is complete when production first-party code contains no manual na
 native entry points require artifacts, simple compiled applications do not retain generic component
 construction, and benchmark coverage confirms that only explicitly selected dynamic capabilities
 execute or remain bundled.
+
+## Array completion capabilities
+
+Component revision 4 carries exact structured `arrayRoots` checker facts separately from write
+authority and transported reads. Member-only facts require browser correspondence without granting
+a server Array read or a root mutation. Generated client artifacts import capture, parse, plan and
+apply from the narrow reactive Array patch entry. Root-writing server executors import capture and
+comparison from the separate Array diff entry, plus the patch parser. Type-only core links retain
+no engines. Generic codec retention for opaque nested values is independent of engine selection.
+Closed validators require the corresponding executable function records before composition.
+
+Array invocations require `arrayCompletion: 4`, including member-only operations. Allowlist dispatch
+checks the scoped discriminator before state preparation, application payload decoding, executor
+work or progress. Security and bounded envelope decoding retain their existing preceding order.
+Success echoes it even for a net-empty completion. Unexpected or absent tokens reject. Each active
+batch item owns its parser, and the same cancellation-filtered vector selects both request and
+result context. Validated stream indices select that context for mutation and terminal events.
+A non-Array sibling cannot borrow another artifact's parser. This discriminator grants no authority.
+
+Standalone owned helpers call `assertArrayCompletionVersion(4)` before their fenced callback.
+The Array completion discriminator remains 4 independently of the component input/provider generation.
+The obsolete `taskMutation.selectedArray` response witness is removed. There is no unpublished
+compatibility alias. Mixed providers fail module admission, helper capability admission, or scoped
+request admission before authored operation effects. Render-program revision 4, library facts 1,
+compiler process 1.0.0 and capability bit assignments are unchanged.
+
+Compressed structural spans are charged for their materialized sequence slots through the existing
+response `maxJsonNodes` resource policy before application. Defaults warn, while an explicit
+positive cap rejects. This prevents a short sparse frame from bypassing the configured allocation
+budget. Member-only frames do not materialize a sequence and retain ordinary graph accounting.
+
+Generated event and function-task calls supply their admitted component executable binding.
+Explicit root-state integrations select `continuations` and `continuationArrays` from
+`composeExactComponentContracts([ClientPage], 'client')`. Pass both into `createExactClient` or
+register them later with `client.registerComponents()` before invoking the opaque operation ID.
+The client retains these target-local callbacks outside serialized document configuration.
+Missing bindings reject before transport. See the [explicit root-state setup](ssr-hydration.md#state-transfer-ownership)
+for ownership and publication behavior.

@@ -1,18 +1,19 @@
+import { selectDataRoute } from './data-targets.js';
+import { prepareRouteAction } from './submission.js';
+import { attachSuppressedCleanupFailure } from '@exactjs/core';
 import type * as Contracts from './contracts.js';
 import {
 	hasDataWork,
 	hasOwnDataWork,
 	locationForUrl,
-	normalizeRouteIds,
-	redirectResult,
-	unwrapDataResult
+	normalizeRouteIds
 } from './data-operations.js';
-import { disposeRouterResources, releaseFetcherResources, subscribeResource } from './lifecycle.js';
+import * as routerLifecycle from './lifecycle.js';
 import {
-	createKey,
 	hrefFor,
 	locationValue,
 	normalizeBasename,
+	navigationLocation,
 	normalizePath,
 	resolveTarget,
 	stripBasename
@@ -21,6 +22,9 @@ import { matchRoutes } from './matching.js';
 import { idleRouterNavigation, publishRouterNavigation } from './navigation-publication.js';
 import * as routerOperation from './operation-coordinator.js';
 import { createRouteLoader } from './route-loaders.js';
+import { navigateHistory } from './location-sources.js';
+import { runRequestOperation, type OwnRequestCancellation } from './request-cancellation.js';
+import { createFetcherRuntime } from './fetchers.js';
 
 /**
  * Creates router state over the supplied location source and subscribes to its changes.
@@ -49,15 +53,28 @@ export function createExactRouter<Route extends Contracts.ExactRouteDefinition>(
 		revalidation = 'idle';
 	});
 	const join = routerOperation.joinRouterOperation;
-	const fetchers = new Map<string, Contracts.FetcherSnapshot>();
-	const fetcherAborts = new Map<string, AbortController>();
-	const loaderRuntime = createRouteLoader<Route>(options.context);
+	const loaderRuntime = createRouteLoader<Route>(options.context, options.request);
 	const runLoaders = loaderRuntime.run;
 	const materializeLazy = loaderRuntime.materialize;
 	const hasInitialData = options.hydrationData !== undefined || !routes.some(hasDataWork);
 	const listeners = new Set<() => void>();
 	const blockers = new Set<Contracts.NavigationBlocker>();
 	let initialized = hasInitialData;
+	const fetchers = createFetcherRuntime<Route>({
+		context: options.context,
+		assertActive: () => routerOperation.assertRouterActive(disposed),
+		resolve(target) {
+			const url = resolveTarget(target, source.location(), basename, mode);
+			return {
+				url,
+				matches: matchRoutes(routes, stripBasename(normalizePath(url.pathname), basename))
+			};
+		},
+		materialize: materializeLazy,
+		navigate: (target, options, own) => navigate(target, options, 0, own),
+		revalidate: (data, own) => revalidate(data, undefined, own),
+		publish: publishFetchers
+	});
 	let snapshot = buildSnapshot(source.action?.() ?? 'POP');
 
 	const notify = () => listeners.forEach((listener) => listener());
@@ -91,36 +108,56 @@ export function createExactRouter<Route extends Contracts.ExactRouteDefinition>(
 			loaderHeaders: Object.freeze({ ...loaderHeaders }),
 			actionHeaders: Object.freeze({ ...actionHeaders }),
 			revalidation,
-			fetchers: new Map(fetchers)
+			fetchers: new Map(fetchers.snapshots)
+		});
+	}
+
+	/** Publishes only navigation state without exposing prepared route data. */
+	function publishNavigation(navigation: Contracts.ExactRouterSnapshot<Route>['navigation']): void {
+		snapshot = Object.freeze({ ...snapshot, navigation: Object.freeze(navigation) });
+		notify();
+	}
+
+	/** Settles only the failed operation that still owns the view, preserving its primary error. */
+	function failNavigation(operation: routerOperation.RouterOperation, primary: unknown): void {
+		if (!operations.owns(operation) || snapshot.navigation.state === 'idle') return;
+		try {
+			publishNavigation(idleRouterNavigation(operation.id));
+		} catch (cleanup) {
+			attachSuppressedCleanupFailure(primary, cleanup);
+		}
+		operation.abort.abort();
+	}
+
+	/** Binds cancellation to this navigation identity while preserving newer callback-owned work. */
+	function ownNavigation(
+		operation: routerOperation.RouterOperation,
+		own?: OwnRequestCancellation
+	): void {
+		const ownedRevalidation = operations.revalidationId;
+		own?.(operation.abort, () => {
+			if (disposed || operation.id !== operations.transitionId) return;
+			if (ownedRevalidation === operations.revalidationId) revalidation = 'idle';
+			snapshot = buildSnapshot(snapshot.historyAction);
+			notify();
 		});
 	}
 
 	async function navigate(
 		to: string | URL | number,
 		options: Contracts.NavigationOptions = {},
-		redirectDepth = 0
+		redirectDepth = 0,
+		own?: OwnRequestCancellation
 	): Promise<void> {
 		routerOperation.assertRouterActive(disposed);
 		if (redirectDepth > 20) throw new Error('Router exceeded the maximum redirect depth of 20');
 		if (typeof to === 'number') {
-			if (!source.go)
-				throw new Error('This router location source does not support delta navigation');
-			source.go(to);
+			navigateHistory(source, to);
 			return;
 		}
 		const target = resolveTarget(to, source.location(), basename, mode);
 		const action: Contracts.HistoryAction = options.replace ? 'REPLACE' : 'PUSH';
-		const nextLocation = locationValue(
-			{
-				location: () => target,
-				push() {},
-				replace() {},
-				state: () => options.state,
-				key: () => createKey()
-			},
-			mode,
-			basename
-		);
+		const nextLocation = navigationLocation(target, options, mode, basename);
 		const transition = Object.freeze({
 			currentLocation: snapshot.location,
 			nextLocation,
@@ -129,63 +166,82 @@ export function createExactRouter<Route extends Contracts.ExactRouteDefinition>(
 		for (const blocker of blockers) if (blocker(transition)) return;
 
 		const operation = operations.beginAuthoritative();
+		ownNavigation(operation, own);
+		if (!operations.owns(operation)) return;
 		const currentTransition = operation.id;
-		snapshot = Object.freeze({
-			...snapshot,
-			navigation: Object.freeze({
+		try {
+			publishNavigation({
 				state: 'loading',
 				location: nextLocation,
 				transitionId: currentTransition
-			})
-		});
-		notify();
-		const revision = sourceRevision;
-		const nextMatches = matchRoutes(routes, nextLocation.pathname);
-		const result = nextMatches.some((match) => hasOwnDataWork(match.route))
-			? await runLoaders(target, nextMatches, operation.abort.signal)
-			: { data: {}, errors: {}, headers: {}, statusCode: 200 };
-		if (result.redirect) {
-			if (currentTransition !== operations.transitionId) return;
-			await navigate(result.redirect, { replace: true, status: result.status }, redirectDepth + 1);
-			return;
-		}
-		if (!operations.owns(operation)) return;
-		initialized = true;
-		loaderData = result.data;
-		errors = result.errors;
-		loaderHeaders = result.headers;
-		statusCode = result.statusCode;
-		await publishRouterNavigation({
-			publication,
-			signal: operation.abort.signal,
-			metadata: {
-				historyAction: action,
-				from: transition.currentLocation,
-				to: nextLocation,
-				transitionId: currentTransition
-			},
-			commit() {
-				if (options.replace) source.replace(target, options.state, options.status);
-				else source.push(target, options.state, options.status);
-				if (operations.owns(operation) && sourceRevision === revision) {
-					// Sources with subscriptions refresh themselves. Request-backed sources do
-					// not navigate locally, so retain their location and only settle state.
-					snapshot = source.subscribe
-						? buildSnapshot(action)
-						: Object.freeze({
-								...snapshot,
-								navigation: Object.freeze({ state: 'idle', transitionId: currentTransition })
-							});
-					notify();
-				}
+			});
+			const revision = sourceRevision;
+			const nextMatches = matchRoutes(routes, nextLocation.pathname);
+			const result = nextMatches.some((match) => hasOwnDataWork(match.route))
+				? await runLoaders(target, nextMatches, operation.abort.signal)
+				: { data: {}, errors: {}, headers: {}, statusCode: 200 };
+			if (result.redirect) {
+				if (currentTransition !== operations.transitionId) return;
+				await navigate(
+					result.redirect,
+					{ replace: true, status: result.status },
+					redirectDepth + 1,
+					own
+				);
+				return;
 			}
-		});
+			if (!operations.owns(operation)) return;
+			await publishRouterNavigation({
+				publication,
+				signal: operation.abort.signal,
+				metadata: {
+					historyAction: action,
+					from: transition.currentLocation,
+					to: nextLocation,
+					transitionId: currentTransition
+				},
+				commit() {
+					if (!operations.owns(operation)) return;
+					const revisionBeforeWrite = sourceRevision;
+					const previous = { initialized, loaderData, errors, loaderHeaders, statusCode };
+					try {
+						initialized = true;
+						loaderData = result.data;
+						errors = result.errors;
+						loaderHeaders = result.headers;
+						statusCode = result.statusCode;
+
+						if (options.replace) source.replace(target, options.state, options.status);
+						else source.push(target, options.state, options.status);
+						if (operations.owns(operation) && sourceRevision === revision) {
+							// Sources with subscriptions refresh themselves. Request-backed sources do
+							// not navigate locally, so retain their location and only settle state.
+							snapshot = source.subscribe
+								? buildSnapshot(action)
+								: Object.freeze({
+										...snapshot,
+										navigation: Object.freeze({ state: 'idle', transitionId: currentTransition })
+									});
+							notify();
+						}
+					} catch (error) {
+						if (operations.owns(operation) && sourceRevision === revisionBeforeWrite)
+							({ initialized, loaderData, errors, loaderHeaders, statusCode } = previous);
+						throw error;
+					}
+				}
+			});
+		} catch (error) {
+			failNavigation(operation, error);
+			throw error;
+		}
 	}
 
 	async function initialize(): Promise<void> {
 		routerOperation.assertRouterActive(disposed);
 		if (initialized) return;
 		const operation = operations.beginAuthoritative();
+		if (!operations.owns(operation)) return;
 		const result = await runLoaders(source.location(), snapshot.matches, operation.abort.signal);
 		if (!operations.owns(operation)) return;
 		if (result.redirect) {
@@ -204,75 +260,73 @@ export function createExactRouter<Route extends Contracts.ExactRouteDefinition>(
 		notify();
 	}
 
-	async function submit(target: string | URL, init: RequestInit = {}): Promise<void> {
+	async function submit(
+		target: string | URL,
+		init: RequestInit,
+		own: OwnRequestCancellation
+	): Promise<void> {
 		routerOperation.assertRouterActive(disposed);
 		const url = resolveTarget(target, source.location(), basename, mode);
 		const matches = matchRoutes(routes, stripBasename(normalizePath(url.pathname), basename));
-		const actionMatch = [...matches]
-			.reverse()
-			.find((match) => match.route.action || match.route.lazy);
-		if (!actionMatch) throw new Error(`No route action matches ${url.pathname}`);
+		const actionMatch = selectDataRoute(matches, url);
+		if (!actionMatch || (!actionMatch.route.action && !actionMatch.route.lazy))
+			throw new Error(`No route action matches ${url.pathname}`);
 		const operation = operations.beginAuthoritative();
+		ownNavigation(operation, own);
+		if (!operations.owns(operation)) return;
 		const currentTransition = operation.id;
-		snapshot = Object.freeze({
-			...snapshot,
-			navigation: Object.freeze({
-				state: 'submitting',
-				location: locationForUrl(url, init),
-				transitionId: currentTransition
-			})
+		publishNavigation({
+			state: 'submitting',
+			location: locationForUrl(url, init),
+			transitionId: currentTransition
 		});
-		notify();
-		try {
-			await materializeLazy(actionMatch.route);
-			const result = await actionMatch.route.action!({
-				request: new Request(url, init),
-				params: actionMatch.params,
-				context: options.context,
-				signal: operation.abort.signal
-			});
-			if (!operations.owns(operation)) return;
-			const redirect = redirectResult(result);
-			if (redirect) {
-				await navigate(redirect.location, { replace: true, status: redirect.status });
-				return;
-			}
-			if (result instanceof Response) {
-				actionHeaders = { [actionMatch.id]: new Headers(result.headers) };
-				statusCode = result.status;
-			}
-			const data = await unwrapDataResult(result);
-			if (!operations.owns(operation)) return;
-			actionData = { [actionMatch.id]: data };
-			await revalidate(data, operation);
-		} catch (error) {
-			if (!operations.owns(operation)) return;
-			const redirect = redirectResult(error);
-			if (redirect) {
-				await navigate(redirect.location, { replace: true, status: redirect.status });
-				return;
-			}
-			if (error instanceof Response) {
-				actionHeaders = { [actionMatch.id]: new Headers(error.headers) };
-				statusCode = error.status;
-			} else {
-				statusCode = 500;
-			}
-			errors = { ...errors, [actionMatch.id]: error };
+		const result = await prepareRouteAction(
+			actionMatch,
+			{ url, init, context: options.context, signal: operation.abort.signal },
+			materializeLazy
+		);
+		if (!result || !operations.owns(operation)) return;
+		if (result.kind === 'redirect') {
+			await navigate(result.location, { replace: true, status: result.status }, 0, own);
+			return;
+		}
+		if (result.headers) actionHeaders = { [actionMatch.id]: result.headers };
+		if (result.status !== undefined) statusCode = result.status;
+		if (result.kind === 'error') {
+			errors = { ...errors, [actionMatch.id]: result.error };
 			snapshot = buildSnapshot(snapshot.historyAction);
 			notify();
+		} else {
+			actionData = { [actionMatch.id]: result.data };
+			await revalidate(result.data, operation, own);
 		}
 	}
 
 	async function revalidate(
 		actionResult?: unknown,
-		owner?: Readonly<{ id: number; abort: AbortController }>
+		owner?: Readonly<{ id: number; abort: AbortController }>,
+		own?: OwnRequestCancellation
 	): Promise<void> {
 		routerOperation.assertRouterActive(disposed);
 		const operation = owner ?? operations.beginRevalidation();
+		if (operation.abort.signal.aborted) return;
 		const independentId = owner ? undefined : operations.revalidationId;
 		const startingTransition = operations.transitionId;
 		const startingRevision = sourceRevision;
+		if (!owner)
+			own?.(operation.abort, () => {
+				if (
+					disposed ||
+					independentId !== operations.revalidationId ||
+					operations.transitionId !== startingTransition ||
+					sourceRevision !== startingRevision
+				)
+					return;
+				revalidation = 'idle';
+				snapshot = Object.freeze({ ...snapshot, revalidation });
+				notify();
+			});
+		if (operation.abort.signal.aborted) return;
 		revalidation = 'loading';
 		snapshot = buildSnapshot(snapshot.historyAction);
 		notify();
@@ -298,7 +352,7 @@ export function createExactRouter<Route extends Contracts.ExactRouteDefinition>(
 		if (!current) return;
 		if (result.redirect) {
 			revalidation = 'idle';
-			await navigate(result.redirect, { replace: true, status: result.status });
+			await navigate(result.redirect, { replace: true, status: result.status }, 0, own);
 			return;
 		}
 		loaderData = result.data;
@@ -310,104 +364,59 @@ export function createExactRouter<Route extends Contracts.ExactRouteDefinition>(
 		notify();
 	}
 
-	async function fetch(
-		key: string,
-		routeId: string,
-		target: string | URL,
-		init: RequestInit = {}
-	): Promise<void> {
-		routerOperation.assertRouterActive(disposed);
-		const url = resolveTarget(target, source.location(), basename, mode);
-		const matches = matchRoutes(routes, stripBasename(normalizePath(url.pathname), basename));
-		const match = matches.find((candidate) => candidate.id === routeId);
-		if (!match) throw new Error(`Fetcher route ${routeId} does not match ${url.pathname}`);
-		const mutation = !!init.method && !/^(?:GET|HEAD)$/i.test(init.method);
-		fetchers.set(key, Object.freeze({ state: mutation ? 'submitting' : 'loading' }));
+	/** Publishes fetcher changes without treating them as a location revision. */
+	function publishFetchers(): void {
 		snapshot = buildSnapshot(snapshot.historyAction);
 		notify();
-		fetcherAborts.get(key)?.abort();
-		const abort = new AbortController();
-		fetcherAborts.set(key, abort);
-		try {
-			await materializeLazy(match.route);
-			const handler = mutation ? match.route.action : match.route.loader;
-			if (!handler)
-				throw new Error(`Route ${routeId} does not define a ${mutation ? 'action' : 'loader'}`);
-			const result = await handler({
-				request: new Request(url, init),
-				params: match.params,
-				context: options.context,
-				signal: abort.signal
-			});
-			if (fetcherAborts.get(key) !== abort || abort.signal.aborted) return;
-			const redirect = redirectResult(result);
-			if (redirect) {
-				fetchers.set(key, Object.freeze({ state: 'idle' }));
-				await navigate(redirect.location, { replace: true, status: redirect.status });
-				return;
-			}
-			const data = await unwrapDataResult(result);
-			fetchers.set(key, Object.freeze({ state: 'idle', data }));
-			if (mutation) await revalidate(data);
-		} catch (error) {
-			if (fetcherAborts.get(key) !== abort || abort.signal.aborted) return;
-			const redirect = redirectResult(error);
-			if (redirect) {
-				fetchers.set(key, Object.freeze({ state: 'idle' }));
-				await navigate(redirect.location, { replace: true, status: redirect.status });
-				return;
-			}
-			fetchers.set(key, Object.freeze({ state: 'idle', error }));
-		} finally {
-			if (fetcherAborts.get(key) === abort) {
-				fetcherAborts.delete(key);
-				snapshot = buildSnapshot(snapshot.historyAction);
-				notify();
-			}
-		}
 	}
 
-	return Object.freeze({
+	return {
 		basename,
 		mode,
 		getSnapshot: () => snapshot,
-		subscribe: (listener: () => void) => {
+		subscribe: (listener) => {
 			routerOperation.assertRouterActive(disposed);
-			return subscribeResource(listeners, listener);
+			return routerLifecycle.subscribeResource(listeners, listener);
 		},
 		sync(action = source.action?.() ?? 'POP', publish = true) {
 			routerOperation.assertRouterActive(disposed);
 			refresh(action, publish);
 		},
-		setRoutes(nextRoutes: readonly Route[]) {
+		setRoutes(nextRoutes) {
 			routerOperation.assertRouterActive(disposed);
 			routes = normalizeRouteIds(nextRoutes);
 			refresh(snapshot.historyAction);
 		},
 		releaseFetcher(key: string) {
-			routerOperation.assertRouterActive(disposed);
-			releaseFetcherResources(key, fetchers, fetcherAborts, () => {
-				snapshot = buildSnapshot(snapshot.historyAction);
-				notify();
-			});
+			if (disposed) return;
+			fetchers.release(key);
 		},
-		createHref: (to: string | URL) => hrefFor(to, source.location(), basename, mode),
-		navigate(to: string | URL | number, navigationOptions?: Contracts.NavigationOptions) {
+		createHref: (to) => hrefFor(to, source.location(), basename, mode),
+		navigate(to, navigationOptions) {
 			return join(navigate(to, navigationOptions));
 		},
 		initialize: () => join(initialize()),
-		submit: (target: string | URL, init?: RequestInit) => join(submit(target, init)),
-		fetch: (key: string, routeId: string, target: string | URL, init?: RequestInit) =>
-			join(fetch(key, routeId, target, init)),
+		submit: (target, init = {}) =>
+			join(runRequestOperation(init.signal, (own) => submit(target, init, own))),
+		fetch: (key, routeId, target, init = {}) =>
+			join(
+				runRequestOperation(init.signal, (own) => fetchers.fetch(key, routeId, target, init, own))
+			),
 		revalidate: () => join(revalidate()),
-		block: (blocker: Contracts.NavigationBlocker) => {
+		block: (blocker) => {
 			routerOperation.assertRouterActive(disposed);
-			return subscribeResource(blockers, blocker);
+			return routerLifecycle.subscribeResource(blockers, blocker);
 		},
 		dispose() {
 			if (disposed) return;
 			disposed = true;
-			disposeRouterResources(fetcherAborts, operations, unsubscribe, listeners, blockers);
+			routerLifecycle.disposeRouterResources(
+				fetchers.dispose,
+				operations,
+				unsubscribe,
+				listeners,
+				blockers
+			);
 		}
-	});
+	};
 }

@@ -1,9 +1,9 @@
+import { deriveRuntimeConfiguration } from '@exactjs/core/framework/configuration';
 import { withRequestRenderScheduling, withRequestStreamScheduling } from './resume-scheduling.js';
 import { withTaskObserver, type Child } from '@exactjs/core';
 import { publishExactProfile } from '@exactjs/instrumentation';
 import { isExactDocumentHtml } from '../document.js';
 import { renderHydrationScript } from '../hydration.js';
-import { withTaskDeadline } from '../render/limits.js';
 import { createSsrResumptionCapture } from '../resumption.js';
 import type {
 	ExactDocumentStreamEvent,
@@ -26,7 +26,13 @@ import {
 } from './output-result.js';
 import { fillDocumentHydration } from './document-output.js';
 import { createSsrOwner, disposePreservingPrimary, noPrimaryFailure } from './ownership.js';
-import { rootComponentIdentity, rootPropsForCapture, rootPropsOptions } from './root-props.js';
+import {
+	rootComponentIdentity,
+	rootPropsForCapture,
+	rootPropsOptions,
+	prepareRootComponentInputExecution,
+	type RootComponentInputExecution
+} from './root-props.js';
 import { planSuspenseStreamReplacements } from './suspense-streaming.js';
 import { renderTreeOutput } from './tree-output.js';
 
@@ -74,28 +80,34 @@ function renderOwnedOutput(
 	operation: Child,
 	options: RenderToStringOptions,
 	omitRootBoundary: boolean,
-	outputKind: 'html' | 'stream' = 'html'
+	outputKind: 'html' | 'stream' = 'html',
+	inputExecution?: RootComponentInputExecution
 ): RenderValue<RenderToStringResult> {
 	const started = options.onProfile ? performance.now() : undefined;
 	const owner = createSsrOwner();
 	return withRenderCleanup(
 		() =>
 			withTaskObserver(owner.observer, () =>
-				renderTreeOutput(operation, options, omitRootBoundary, outputKind)
+				renderTreeOutput(
+					operation,
+					options,
+					omitRootBoundary,
+					outputKind,
+					undefined,
+					undefined,
+					inputExecution
+				)
 			),
 		() => {
 			try {
 				owner.dispose('ssr render complete');
 			} finally {
 				if (started !== undefined)
-					publishExactProfile(
-						options.onProfile,
-						Object.freeze({
-							subsystem: 'ssr',
-							phase: 'render-to-string',
-							elapsedMs: performance.now() - started
-						})
-					);
+					publishExactProfile(options.onProfile, {
+						subsystem: 'ssr',
+						phase: 'render-to-string',
+						elapsedMs: performance.now() - started
+					});
 			}
 		}
 	);
@@ -127,13 +139,20 @@ export async function renderHydratableOutput(
 		if (scheduled) await scheduled;
 		options.signal?.throwIfAborted();
 	}
-	const prepared = rootPropsOptions(operation, options);
+	const inputExecution = prepareRootComponentInputExecution(operation);
+	const prepared = rootPropsOptions(operation, options, inputExecution);
 	const capture = createSsrResumptionCapture(
 		prepared,
-		rootPropsForCapture(operation, prepared),
+		rootPropsForCapture(operation, prepared, inputExecution),
 		rootComponentIdentity(operation)
 	);
-	const rendered = renderOwnedOutput(operation, capture.options, omitRootBoundary);
+	const rendered = renderOwnedOutput(
+		operation,
+		capture.options,
+		omitRootBoundary,
+		'html',
+		inputExecution
+	);
 	const result = rendered instanceof Promise ? await rendered : rendered;
 	const resumptions = capture.serializedRecords();
 	const emittedResumptions = resumptions.length
@@ -158,7 +177,7 @@ export async function renderHydratableOutput(
  */
 export async function streamDocumentRender(
 	operation: Child,
-	options: RenderToDocumentStreamOptions & { taskDeadline?: number },
+	options: RenderToDocumentStreamOptions,
 	emit: (event: ExactDocumentStreamEvent) => void | Promise<void>,
 	settleDocumentShell = false,
 	abort: (reason: unknown) => void = () => {}
@@ -170,8 +189,11 @@ export async function streamDocumentRender(
 		if (scheduled) await scheduled;
 		options.signal?.throwIfAborted();
 	}
-	options = withTaskDeadline(rootPropsOptions(operation, options));
-	if (options.documentShell) options = { ...options, markerlessRoot: true };
+	const originalInputOptions = options;
+	let inputExecution = prepareRootComponentInputExecution(operation);
+	options = rootPropsOptions(operation, options, inputExecution);
+	if (options.documentShell)
+		options = deriveRuntimeConfiguration(options, () => ({ markerlessRoot: true as const }));
 	const owner = createSsrOwner();
 	const scheduledShellComponents: DirectScheduledSsrComponent[] = [];
 	const disposedShellComponents = new Set<DirectScheduledSsrComponent>();
@@ -180,14 +202,13 @@ export async function streamDocumentRender(
 		await emit({ event: 'start', version: 1 });
 		let capture = createSsrResumptionCapture(
 			options,
-			rootPropsForCapture(operation, options),
+			rootPropsForCapture(operation, options, inputExecution),
 			rootComponentIdentity(operation)
 		);
-		const shellOptions: SsrRenderOptions = {
-			...capture.options,
+		const shellOptions: SsrRenderOptions = deriveRuntimeConfiguration(capture.options, () => ({
 			streamingScheduledComponents: scheduledShellComponents,
 			settleDocumentShell
-		};
+		}));
 		const shell = await withTaskObserver(owner.observer, () =>
 			renderTreeOutput(
 				operation,
@@ -201,7 +222,8 @@ export async function streamDocumentRender(
 							abort
 						}
 					: undefined,
-				options.streamBufferSize
+				options.streamBufferSize,
+				inputExecution
 			)
 		);
 		// HTML already sent cannot be replaced as an entire document. Event consumers
@@ -224,12 +246,7 @@ export async function streamDocumentRender(
 				throw new Error('A committed document cannot be rerendered after body publication');
 			// Initial streaming sends an early shell, drains observed tasks, then emits a
 			// root replacement only if the settled tree differs from the shell.
-			await drainTasks(
-				owner.pending,
-				options.maxTaskPasses ?? 10,
-				options.signal,
-				options.taskDeadline
-			);
+			await drainTasks(owner.pending, options.maxTaskPasses ?? 10, options.signal);
 			for (const component of scheduledShellComponents) {
 				const pending = component.drain();
 				if (pending instanceof Promise) await pending;
@@ -238,13 +255,23 @@ export async function streamDocumentRender(
 				await component[Symbol.asyncDispose]();
 				disposedShellComponents.add(component);
 			}
+			inputExecution = prepareRootComponentInputExecution(operation);
+			options = rootPropsOptions(operation, originalInputOptions, inputExecution);
 			capture = createSsrResumptionCapture(
 				options,
-				rootPropsForCapture(operation, options),
+				rootPropsForCapture(operation, options, inputExecution),
 				rootComponentIdentity(operation)
 			);
 			final = await withTaskObserver(owner.observer, () =>
-				renderTreeOutput(operation, capture.options, false)
+				renderTreeOutput(
+					operation,
+					capture.options,
+					false,
+					'html',
+					undefined,
+					undefined,
+					inputExecution
+				)
 			);
 			if (!deferShell && final.html !== shell.html) {
 				const replacements = planSuspenseStreamReplacements(shell.html, final.html);

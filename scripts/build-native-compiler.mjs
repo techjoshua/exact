@@ -12,6 +12,7 @@ import {
 import { prepareNativeCompilerSource } from './native-compiler-source.mjs';
 import { stageNativeCompilerPackage } from './package-native-compiler.mjs';
 import { summarizeNativeCoverage } from './compiler-confidence/coverage.mjs';
+import { nativeCompilerTestSelection } from './native-compiler-test-selection.mjs';
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const nativeRoot = path.join(repositoryRoot, 'native', 'typescript-go');
@@ -26,10 +27,12 @@ const targetArch = argument('arch') ?? process.arch;
 const packageOutput = process.argv.includes('--package');
 const collectCoverage = process.argv.includes('--coverage');
 const allTargets = process.argv.includes('--all-targets');
+const testPattern = argument('test-pattern');
+const testSelection = nativeCompilerTestSelection({ testPattern, packageOutput, collectCoverage, allTargets });
 if (allTargets && (!packageOutput || collectCoverage || argument('platform') || argument('arch'))) {
 	throw new Error('--all-targets requires --package and cannot select coverage or one target');
 }
-const forceBuild = process.argv.includes('--force') || collectCoverage;
+const forceBuild = process.argv.includes('--force') || collectCoverage || testSelection.focused;
 const supportedTargets = new Set([
 	'darwin-arm64',
 	'darwin-x64',
@@ -137,6 +140,7 @@ if (current) {
 			'test',
 			// The semantic fixture suite exceeds Go's default ten minutes on small CI runners.
 			'-timeout=30m',
+			...testSelection.args,
 			...(collectCoverage ? ['-count=1', '-covermode=count', `-coverprofile=${coverageFile}`] : []),
 			'./internal/exactcompiler',
 			'./cmd/exactc'
@@ -187,11 +191,16 @@ if (current) {
 			}
 		);
 		if (platform !== 'win32') await chmod(executable, 0o755);
-		await writeNativeCompilerBuildStamp(
-			path.join(outputDirectory, `${buildTarget}.build.json`),
-			await createNativeCompilerBuildKey({ repositoryRoot, revision, target: buildTarget }),
-			executable
-		);
+		if (!testSelection.focused) {
+			await writeNativeCompilerBuildStamp(
+				path.join(outputDirectory, `${buildTarget}.build.json`),
+				await createNativeCompilerBuildKey({ repositoryRoot, revision, target: buildTarget }),
+				executable
+			);
+		} else {
+			// A focused run must never certify the full-suite build cache.
+			await rm(path.join(outputDirectory, `${buildTarget}.build.json`), { force: true });
+		}
 		if (packageOutput) {
 			console.log(
 				await stageNativeCompilerPackage({

@@ -1,10 +1,11 @@
-import type { AnyComponentInstance } from '@exactjs/core';
+import { withSuppliedPlacementInputs } from './supplied-placement-capability.js';
+import { attachSuppressedCleanupFailure, type AnyComponentInstance } from '@exactjs/core';
 import type {
 	ExactNarrowComponentUpdateContract,
 	ExactWideComponentUpdateContract
 } from '@exactjs/core/framework/component-contracts';
 import type { ExactRenderProgramBindingTarget } from '@exactjs/core/runtime/render-operations';
-import { subscribeKeys } from '@exactjs/reactive/framework/runtime';
+import { subscribeKeys, type StopHandle } from '@exactjs/reactive/framework/runtime';
 import { compiledComponentUpdateOptions } from './component-update-dependencies.js';
 import {
 	bindComponentUpdateTarget,
@@ -41,21 +42,35 @@ export function bindCompiledStateComponentUpdate(
 ): void {
 	const owner = componentUpdateOwner(target) as StateUpdateOwner | undefined;
 	if (!owner) return;
-	let state = owner[compiledComponentUpdateState];
+	const state = owner[compiledComponentUpdateState];
 	if (!state) {
 		const dependencies = createComponentDependencyGroup(owner, updates.bindings, 'state');
 		if (!dependencies) {
 			(target as { valid: boolean }).valid = false;
 			return;
 		}
-		state = { d: dependencies, t: [] };
-		owner[compiledComponentUpdateState] = state;
-		subscribeKeys(
-			state.d.d,
-			state.d.k,
-			() => publishStateUpdate(updates, state!),
-			compiledComponentUpdateOptions(owner.scope)
-		);
+		const initialized: CompiledStateUpdateState = { d: dependencies, t: [] };
+		let release: StopHandle | undefined;
+		try {
+			release = subscribeKeys(
+				initialized.d.d,
+				initialized.d.k,
+				() => publishStateUpdate(owner, updates, initialized),
+				compiledComponentUpdateOptions(owner.scope)
+			);
+			bindComponentUpdateTarget(target, initialized.t, index);
+			owner[compiledComponentUpdateState] = initialized;
+		} catch (error) {
+			initialized.t.length = 0;
+			try {
+				release?.();
+			} catch (cleanup) {
+				attachSuppressedCleanupFailure(error, cleanup);
+			}
+			throw error;
+		}
+		publishStateUpdate(owner, updates, initialized);
+		return;
 	}
 	bindComponentUpdateTarget(target, state.t, index);
 }
@@ -68,26 +83,45 @@ export function bindCompiledWideStateComponentUpdate(
 ): void {
 	const owner = componentUpdateOwner(target) as StateUpdateOwner | undefined;
 	if (!owner) return;
-	let state = owner[wideComponentStateUpdate];
+	const state = owner[wideComponentStateUpdate];
 	if (!state) {
 		const dependencies = createComponentDependencyGroup(owner, updates.bindings, 'state');
 		if (!dependencies) {
 			(target as { valid: boolean }).valid = false;
 			return;
 		}
-		state = { d: dependencies, t: [], w: new Uint32Array(updates.words - 2) };
-		owner[wideComponentStateUpdate] = state;
-		subscribeKeys(
-			state.d.d,
-			state.d.k,
-			() => publishWideStateUpdate(updates, state!),
-			compiledComponentUpdateOptions(owner.scope)
-		);
+		const initialized: CompiledWideStateUpdateState = {
+			d: dependencies,
+			t: [],
+			w: new Uint32Array(updates.words - 2)
+		};
+		let release: StopHandle | undefined;
+		try {
+			release = subscribeKeys(
+				initialized.d.d,
+				initialized.d.k,
+				() => publishWideStateUpdate(owner, updates, initialized),
+				compiledComponentUpdateOptions(owner.scope)
+			);
+			bindComponentUpdateTarget(target, initialized.t, index);
+			owner[wideComponentStateUpdate] = initialized;
+		} catch (error) {
+			initialized.t.length = 0;
+			try {
+				release?.();
+			} catch (cleanup) {
+				attachSuppressedCleanupFailure(error, cleanup);
+			}
+			throw error;
+		}
+		publishWideStateUpdate(owner, updates, initialized);
+		return;
 	}
 	bindComponentUpdateTarget(target, state.t, index);
 }
 
 function publishStateUpdate(
+	owner: AnyComponentInstance,
 	updates: ExactNarrowComponentUpdateContract,
 	state: CompiledStateUpdateState
 ): void {
@@ -98,12 +132,15 @@ function publishStateUpdate(
 		dirtyHigh |= updates.bindings[index]![2];
 	});
 	if (dirtyLow || dirtyHigh)
-		publishComponentUpdateTargets(state.t, (targets) =>
-			updates.apply(targets, dirtyLow, dirtyHigh)
+		withSuppliedPlacementInputs(owner, () =>
+			publishComponentUpdateTargets(state.t, (targets) =>
+				updates.apply(targets, dirtyLow, dirtyHigh)
+			)
 		);
 }
 
 function publishWideStateUpdate(
+	owner: AnyComponentInstance,
 	updates: ExactWideComponentUpdateContract,
 	state: CompiledWideStateUpdateState
 ): void {
@@ -120,8 +157,10 @@ function publishWideStateUpdate(
 	});
 	if (!changed) return;
 	try {
-		publishComponentUpdateTargets(state.t, (targets) =>
-			updates.apply(targets, dirtyLow, dirtyHigh, state.w)
+		withSuppliedPlacementInputs(owner, () =>
+			publishComponentUpdateTargets(state.t, (targets) =>
+				updates.apply(targets, dirtyLow, dirtyHigh, state.w)
+			)
 		);
 	} finally {
 		state.w.fill(0);

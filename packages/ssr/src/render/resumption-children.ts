@@ -3,6 +3,7 @@ import { readServerSlotReceipt } from '@exactjs/core/runtime/component-abi';
 import { unwrap } from '@exactjs/reactive/framework/values';
 import {
 	serverComponentProps,
+	deriveResumptionComponentInputs,
 	type ServerComponentReference
 } from './server-component-reference.js';
 import type { SsrContext } from '../types.js';
@@ -19,20 +20,34 @@ export function prepareResumptionChildren(
 	const children: unknown = unwrap(constructionProps.children);
 	if (children === null || typeof children !== 'object') {
 		// Snapshot scalar accessors as well as reactive values before later publication.
-		const props = { ...constructionProps, children };
-		return { component: { ...component, props, children: [] }, props };
+		const inputs = deriveResumptionComponentInputs(component.inputs!, children, children);
+		const props = inputs.publicationProps as Record<string, unknown>;
+		return {
+			component: {
+				...component,
+				props,
+				children: [],
+				inputs
+			},
+			props
+		};
 	}
 	const existing = readServerSlotReceipt(children);
 	const slot = existing ? serverSlotReceiptReference(existing) : { id: serverSlotId(id) };
+	const inputs = deriveResumptionComponentInputs(
+		component.inputs!,
+		existing ? children : createServerSlot(slot.id, {}, children),
+		serverSlotPayload(slot, context)
+	);
+	const constructionView = inputs.constructionProps,
+		publicationView = inputs.publicationProps;
 	return {
 		component: {
 			...component,
 			children: [],
-			props: {
-				...constructionProps,
-				children: existing ? children : createServerSlot(slot.id, {}, children)
-			}
+			props: constructionView,
+			inputs
 		},
-		props: { ...constructionProps, children: serverSlotPayload(slot, context) }
+		props: publicationView as Record<string, unknown>
 	};
 }

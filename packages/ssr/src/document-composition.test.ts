@@ -1,3 +1,13 @@
+import { appendFileSync } from 'node:fs';
+import { createPreparedServerComponentInputReference } from '@exactjs/core/framework/server-render-structure';
+import { renderToProgressiveHtmlStream } from './render/entrypoints.js';
+import {
+	CapturedChildInput,
+	CapturedChildValue
+} from './render/component-prop-values.fixtures.test.js';
+import { createSsrContext } from './render/context.js';
+import { prepareRootComponentInputExecution } from './render/root-props.js';
+import { renderDocumentRootOutput } from './render/document-root-output.js';
 import { describe, expect, it } from 'vitest';
 import { composeDocument } from '../../core/src/document/composition.js';
 import { createCompiledIntrinsicReceipt as element } from '@exactjs/core/runtime/component-operations';
@@ -12,9 +22,8 @@ import {
 	CustomDocument
 } from './document-composition.fixtures.test.js';
 import { doctype, documentOutput } from '@exactjs/core/document';
-import { createCompiledComponentReceipt } from '@exactjs/core/runtime/component-operations';
+import { createCompiledComponentInputReceipt } from '@exactjs/core/runtime/component-operations';
 import { documentHydrationSlot } from './render/document-output.js';
-
 describe('composed documents', () => {
 	it('reclassifies document slots after an output extension replaces the markup', async () => {
 		for (const operation of [
@@ -24,7 +33,12 @@ describe('composed documents', () => {
 			const options = {
 				outputExtensions: [
 					{
-						transform(value: unknown, context: { kind: string }) {
+						transform(
+							value: unknown,
+							context: {
+								kind: string;
+							}
+						) {
 							return context.kind === 'html' ? `before${documentHydrationSlot}after` : value;
 						}
 					}
@@ -80,7 +94,7 @@ describe('composed documents', () => {
 	it('publishes the completed head before a pending body settles', async () => {
 		const release = gateComposedBody();
 		const reader = renderToHydratableProgressiveHtmlStream(
-			createCompiledComponentReceipt(PendingDocument, {}),
+			createCompiledComponentInputReceipt(PendingDocument, {}),
 			{ streamBufferSize: 1 }
 		).getReader();
 		try {
@@ -107,13 +121,13 @@ describe('composed documents', () => {
 	});
 	it('partitions compiled component children by identity', async () => {
 		const result = await renderToHydratableString(
-			createCompiledComponentReceipt(PartitionedDialog, {})
+			createCompiledComponentInputReceipt(PartitionedDialog, {})
 		);
 		expect(result.html).toMatch(/<header[^>]*>.*<h1[^>]*>Heading<\/h1>.*<\/header>/);
 		expect(result.html).toMatch(/<main[^>]*>.*<p[^>]*>Content<\/p>.*<\/main>/);
 	});
 	it('lets a replacement shell author its own doctype and output slots', async () => {
-		const operation = createCompiledComponentReceipt(CustomDocument, {});
+		const operation = createCompiledComponentInputReceipt(CustomDocument, {});
 		const options = { documentAssets: { bootstrap: [{ src: '/custom.js' }] }, streamBufferSize: 1 };
 		const result = await renderToHydratableString(operation, options);
 		const streamed = await new Response(
@@ -137,7 +151,9 @@ describe('composed documents', () => {
 	it.each([ComposedDocument, MinimalDocument])(
 		'renders compiler-authored document composition',
 		async (Component) => {
-			const result = await renderToHydratableString(createCompiledComponentReceipt(Component, {}));
+			const result = await renderToHydratableString(
+				createCompiledComponentInputReceipt(Component, {})
+			);
 			expect(result.htmlWithHydration).toMatch(/^<!doctype html>/);
 			expect(result.htmlWithHydration.match(/<html[ >]/g)).toHaveLength(1);
 			expect(result.htmlWithHydration.match(/<head[ >]/g)).toHaveLength(1);
@@ -157,7 +173,6 @@ describe('composed documents', () => {
 		expect(result.htmlWithHydration).toMatch(/<\/body><\/html>$/);
 		expect(result.htmlWithHydration).not.toContain('exact:document-hydration');
 	});
-
 	it('preserves supplied attributes and head ordering, and fills the framework slots once', async () => {
 		const operation = composeDocument(
 			element(
@@ -193,7 +208,6 @@ describe('composed documents', () => {
 		expect(html.indexOf('__exact_hydration')).toBeLessThan(html.indexOf('/app.js'));
 		expect(html).toContain('nonce="test"');
 	});
-
 	it('uses request-local assets when one document operation is reused concurrently', async () => {
 		const document = composeDocument(element('main', null, 'Shared'));
 		const results = await Promise.all(
@@ -208,7 +222,6 @@ describe('composed documents', () => {
 		expect(results[0]!.htmlWithHydration).not.toContain('/two.css');
 		expect(results[1]!.htmlWithHydration).toContain('/two.css');
 	});
-
 	it('keeps hydration before bootstrap in progressive documents with one doctype', async () => {
 		const operation = composeDocument(element('main', null, 'Streaming'));
 		const stream = renderToHydratableProgressiveHtmlStream(operation, {
@@ -222,7 +235,6 @@ describe('composed documents', () => {
 		expect(html.indexOf('__exact_hydration')).toBeLessThan(html.indexOf('/app.js'));
 		expect(html).toMatch(/<\/body><\/html>$/);
 	});
-
 	it('rejects ambiguous document roots without evaluating application children', () => {
 		expect(() => composeDocument([element('html', null), element('main', null)])).toThrow(
 			/sibling/
@@ -231,4 +243,111 @@ describe('composed documents', () => {
 			/at most one/
 		);
 	});
+});
+
+// Progressive document execution must consume the same occurrence that captured its inputs.
+it.each(['reader', 'getter'] as const)(
+	'acquires effective children once per progressive occurrence (%s)',
+	async (kind) => {
+		let reads = 0;
+		const next = () =>
+			createCompiledComponentInputReceipt(CapturedChildValue, { value: `child-${++reads}` });
+		const operation =
+			kind === 'reader'
+				? createPreparedServerComponentInputReference(
+						CapturedChildInput,
+						{},
+						{ kind: 'reader', read: () => [next()] }
+					)
+				: createPreparedServerComponentInputReference(CapturedChildInput, {
+						get children() {
+							return next();
+						}
+					});
+		const outputs: string[] = [];
+		for (let occurrence = 0; occurrence < 2; occurrence++) {
+			outputs.push(
+				await new Response(
+					renderToProgressiveHtmlStream(operation, { markers: false, hydration: false })
+				).text()
+			);
+		}
+		if (process.env.EXACT_CHILD_INPUT_OBSERVATIONS)
+			appendFileSync(
+				process.env.EXACT_CHILD_INPUT_OBSERVATIONS,
+				JSON.stringify({ case: kind, reads, outputs }) + '\n'
+			);
+		expect(reads).toBe(2);
+		expect(outputs[0]).toContain('<i>child-1</i>');
+		expect(outputs[1]).toContain('<i>child-2</i>');
+	}
+);
+it('claims the prepared root input record before progressive construction', async () => {
+	let reads = 0;
+	const operation = createPreparedServerComponentInputReference(
+		CapturedChildInput,
+		{},
+		{
+			kind: 'reader',
+			read() {
+				reads++;
+				return ['captured'];
+			}
+		}
+	);
+	const context = createSsrContext({ markers: false });
+	context.rootComponentInputs = prepareRootComponentInputExecution(operation);
+	const html = await renderDocumentRootOutput(context, operation, { markers: false });
+	if (process.env.EXACT_CHILD_INPUT_OBSERVATIONS)
+		appendFileSync(
+			process.env.EXACT_CHILD_INPUT_OBSERVATIONS,
+			JSON.stringify({
+				case: 'prepared-root',
+				reads,
+				claimed: context.rootComponentInputs === undefined,
+				html,
+				depth: context.traversalDepth
+			}) + '\n'
+		);
+	expect(reads).toBe(1);
+	expect(context.rootComponentInputs).toBeUndefined();
+	expect(html).toContain('captured</section>');
+	expect(context.traversalDepth).toBe(0);
+});
+it('preserves acquisition failure and releases the progressive traversal frame', async () => {
+	const failure = new Error('progressive child acquisition');
+	let reads = 0,
+		caught: unknown;
+	const operation = createPreparedServerComponentInputReference(
+		CapturedChildInput,
+		{},
+		{
+			kind: 'reader',
+			read() {
+				reads++;
+				throw failure;
+			}
+		}
+	);
+	const context = createSsrContext({ markers: false });
+	try {
+		await renderDocumentRootOutput(context, operation, { markers: false });
+	} catch (error) {
+		caught = error;
+	}
+	if (process.env.EXACT_CHILD_INPUT_OBSERVATIONS)
+		appendFileSync(
+			process.env.EXACT_CHILD_INPUT_OBSERVATIONS,
+			JSON.stringify({
+				case: 'acquisition-failure',
+				reads,
+				exactPrimary: caught === failure,
+				depth: context.traversalDepth,
+				componentDepth: context.enhancementOperationComponentDepth
+			}) + '\n'
+		);
+	expect(caught).toBe(failure);
+	expect(reads).toBe(1);
+	expect(context.traversalDepth).toBe(0);
+	expect(context.enhancementOperationComponentDepth).toBe(0);
 });

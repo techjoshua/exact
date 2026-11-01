@@ -51,7 +51,8 @@ export function createTaskProgressReceiver<Snapshot>(options: {
 		options.owner.signal.removeEventListener('abort', abort);
 		task.cancel(reason);
 	};
-	const abort = () => close(options.signal.reason ?? options.owner.signal.reason);
+	const abort = () =>
+		close(options.signal.aborted ? options.signal.reason : options.owner.signal.reason);
 	const drain = () => {
 		if (closed || running || !pending) return;
 		const { snapshot } = pending;

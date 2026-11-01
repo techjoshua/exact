@@ -9,12 +9,7 @@ import {
 	type ExactRefactorRequest,
 	type ExactSourceInspection
 } from '@exactjs/compiler';
-import {
-	findExactConfig,
-	loadExactConfig,
-	loadExactPackageEnhancements
-} from '@exactjs/config/node';
-import type { ExactPackageEnhancementImport } from '@exactjs/config';
+import { loadExactConfig } from '@exactjs/config/node';
 import type {
 	ExactLanguageCodeActionV1,
 	ExactLanguageCompletionV1,
@@ -29,18 +24,29 @@ import {
 	type ExactLanguageProviderStatus
 } from '@exactjs/language-extension-host';
 import path from 'node:path';
+import type {
+	DocumentState,
+	WorkspaceState,
+	WorkspaceInput,
+	WorkspaceEntry
+} from './workspace/state.js';
+import { createWorkspaceProject, lookupWorkspaceProject } from './workspace/project.js';
+import {
+	reconcileWorkspaceFolders,
+	type WorkspaceFolderOutcome
+} from './workspace/folder-reconciliation.js';
+import {
+	disposeWorkspaces,
+	finishWorkspacePreparation,
+	prepareWorkspaceInput,
+	reserveUnavailableWorkspace
+} from './workspace/input-preparation.js';
+import {
+	finalizeWorkspaceSynchronization,
+	inspectWorkspaceDocument
+} from './workspace/synchronization.js';
 import { fileURLToPath } from 'node:url';
-import { relevantLanguageProviderPackages } from './provider-relevance.js';
-
-type WorkspaceState = {
-	root: string;
-	workspaceRoot?: string;
-	service: ExactLanguageService;
-	documents: Map<string, number>;
-	languageHost: Promise<ExactLanguageExtensionHost>;
-	packageEnhancements: readonly ExactPackageEnhancementImport[];
-	providerFailure?: string;
-};
+import { providerFailureMessage, requestWorkspaceProviders } from './workspace/provider-request.js';
 
 /** Result of synchronizing one LSP document into its owning compiler project. */
 export type ExactDocumentSynchronization = Readonly<{
@@ -67,7 +73,7 @@ export class ExactLanguageWorkspaceManager {
 	private readonly createLanguageService: (
 		options: ExactLanguageServiceOptions
 	) => ExactLanguageService;
-	private readonly workspaces = new Map<string, WorkspaceState>();
+	private readonly workspaces = new Map<string, WorkspaceEntry>();
 	private readonly createLanguageExtensionHost: (
 		root: string
 	) => Promise<ExactLanguageExtensionHost>;
@@ -106,11 +112,49 @@ export class ExactLanguageWorkspaceManager {
 		return this.trusted;
 	}
 
-	/** Adds a newly opened multi-root workspace folder for future ownership resolution. */
+	/**
+	 * Adds a folder for future routing only. This void operation does not transfer open inputs or
+	 * retire pending requests. Hosts with unsaved documents should use reconcileWorkspaceFolders.
+	 */
 	addRoot(root: string): void {
 		const normalized = path.resolve(root);
 		if (!this.roots.includes(normalized)) this.roots.push(normalized);
 		this.roots.sort((left, right) => right.length - left.length);
+	}
+
+	/**
+	 * Migrates current unsaved inputs when workspace folders change. The normal LSP server supplies
+	 * actual open-document snapshots. Direct hosts must supply all their current open inputs too.
+	 * Planning/retirement is synchronous. affectedInputs retains the original input references for
+	 * caller readiness ownership, not publication authority. completion settles core preparation,
+	 * final inspection/provider diagnostics and all retired resources. It resolves { results, errors },
+	 * retaining successful current results and exact operational failures, including undefined/zero.
+	 * Setup/core/finalization errors precede cleanup errors. Existing disposed entry still throws.
+	 * Queries refuse during preparation. Core failure retires its replacement without automatic
+	 * retry or disk-input fallback. An unavailable reservation owns the attempted cleanup until explicit
+	 * input/reconciliation replaces it. A later reconciliation can reseed from current inputs. Identical net membership
+	 * preserves compatible projects. For a root in both arrays, removal wins as with addRoot/removeRoot.
+	 */
+	reconcileWorkspaceFolders(
+		change: Readonly<{ added: readonly string[]; removed: readonly string[] }>,
+		inputs: readonly WorkspaceInput[]
+	): Readonly<{
+		affectedInputs: readonly WorkspaceInput[];
+		completion: Promise<WorkspaceFolderOutcome>;
+	}> {
+		this.assertActive();
+		if (!this.trusted)
+			return { affectedInputs: [], completion: Promise.resolve({ results: [], errors: [] }) };
+		return reconcileWorkspaceFolders(this.roots, this.workspaces, change, inputs, {
+			create: (route) =>
+				createWorkspaceProject(route, this.createLanguageService, this.createLanguageExtensionHost),
+			owns: (workspace) => this.ownsWorkspace(workspace),
+			retire: (workspace) => reserveUnavailableWorkspace(this.workspaces, workspace),
+			finalize: (workspace, filename, document, update) =>
+				finalizeWorkspaceSynchronization(workspace, filename, document.version, update, () =>
+					this.ownsDocument(workspace, filename, document)
+				)
+		});
 	}
 
 	/** Synchronizes the newest document text and returns its compiler inspection. */
@@ -121,49 +165,63 @@ export class ExactLanguageWorkspaceManager {
 		signal?: AbortSignal
 	): Promise<ExactDocumentSynchronization | undefined> {
 		this.assertActive();
-		const workspace = this.workspaceForUri(uri);
+		const workspace = this.workspaceForUri(uri, 'edit');
 		if (!workspace) return undefined;
 		const filename = fileURLToPath(uri);
 		const current = workspace.documents.get(filename);
-		if (current !== undefined && current >= version) return undefined;
-		workspace.documents.set(filename, version);
-		const update = await workspace.service.synchronize(
-			[{ kind: 'upsert', filename, version, source }],
-			signal
-		);
-		if (workspace.documents.get(filename) !== version) return undefined;
-		const inspection = await workspace.service.inspect(filename, undefined, signal);
-		if (workspace.documents.get(filename) !== version) return undefined;
-		const projection = projectionForDocument(inspection.languageProjection, version);
-		let providerDiagnostics: readonly ExactHostedLanguageDiagnostic[] = [];
+		if (current !== undefined && current.version >= version) return undefined;
+		const document = { version };
+		workspace.documents.set(filename, document);
+		let preparationFailed = false;
 		try {
-			const languageHost = await workspace.languageHost;
-			await languageHost.synchronizeProviders(
-				relevantLanguageProviderPackages(projection, workspace.packageEnhancements),
-				signal
-			);
-			providerDiagnostics = (await languageHost.diagnostics(projection, signal)).diagnostics;
-			workspace.providerFailure = undefined;
+			const changes = [{ kind: 'upsert' as const, filename, version, source }];
+			const update = workspace.preparation
+				? await prepareWorkspaceInput(
+						workspace,
+						() =>
+							workspace.documents.get(filename) === document
+								? workspace.service.synchronize(changes, signal)
+								: Promise.resolve(undefined),
+						() => this.ownsWorkspace(workspace),
+						() => {
+							preparationFailed = this.ownsWorkspace(workspace);
+							return reserveUnavailableWorkspace(this.workspaces, workspace);
+						}
+					)
+				: await workspace.service.synchronize(changes, signal);
+			await finishWorkspacePreparation(workspace);
+			return update
+				? await finalizeWorkspaceSynchronization(
+						workspace,
+						filename,
+						document.version,
+						update,
+						() => this.ownsDocument(workspace, filename, document),
+						signal
+					)
+				: undefined;
 		} catch (error) {
-			if (signal?.aborted) throw error;
-			workspace.providerFailure = errorMessage(error);
+			if (preparationFailed || signal?.aborted || this.ownsDocument(workspace, filename, document))
+				throw error;
+			return undefined;
 		}
-		if (workspace.documents.get(filename) !== version) return undefined;
-		return Object.freeze({
-			update,
-			inspection: Object.freeze({ ...inspection, languageProjection: projection }),
-			providerDiagnostics
-		});
 	}
 
 	/** Releases an unsaved overlay and restores the disk-backed project snapshot. */
 	async closeDocument(uri: string, signal?: AbortSignal): Promise<void> {
 		this.assertActive();
-		const workspace = this.workspaceForUri(uri);
+		const workspace = this.workspaceForUri(uri, 'close');
 		if (!workspace) return;
 		const filename = fileURLToPath(uri);
 		workspace.documents.delete(filename);
-		await workspace.service.synchronize([{ kind: 'close', filename }], signal);
+		if (workspace.preparation) {
+			await prepareWorkspaceInput(
+				workspace,
+				() => workspace.service.synchronize([{ kind: 'close', filename }], signal),
+				() => this.ownsWorkspace(workspace),
+				() => reserveUnavailableWorkspace(this.workspaces, workspace)
+			);
+		} else await workspace.service.synchronize([{ kind: 'close', filename }], signal);
 	}
 
 	/** Returns the current compiler inspection for an open or disk-backed file. */
@@ -171,7 +229,59 @@ export class ExactLanguageWorkspaceManager {
 		this.assertActive();
 		const workspace = this.workspaceForUri(uri);
 		if (!workspace) return undefined;
-		return workspace.service.inspect(fileURLToPath(uri), undefined, signal);
+		const filename = fileURLToPath(uri);
+		const document = workspace.documents.get(filename);
+		return inspectWorkspaceDocument(
+			workspace,
+			filename,
+			() => this.ownsDocument(workspace, filename, document),
+			signal
+		);
+	}
+
+	/**
+	 * Reads core inspection and package inlays for one project/document capture and UTF-16 offset range.
+	 * Returns undefined for untrusted/non-file input or retired work. A live empty or failed provider
+	 * contribution retains inspection with an empty array and providerFailure(uri) status.
+	 * Disposed entry, live native inspection failures and explicit cancellation rejections propagate.
+	 * Data is current at the final manager check, without promising later transport delivery ordering.
+	 */
+	async inspectWithInlayHints(
+		uri: string,
+		range: Readonly<{ start: number; end: number }>,
+		signal?: AbortSignal
+	): Promise<
+		| Readonly<{
+				inspection: ExactSourceInspection;
+				contributions: readonly Readonly<{ provider: string; value: ExactLanguageInlayHintV1 }>[];
+		  }>
+		| undefined
+	> {
+		this.assertActive();
+		const workspace = this.workspaceForUri(uri);
+		if (!workspace) return undefined;
+		const filename = fileURLToPath(uri);
+		const document = workspace.documents.get(filename);
+		const inspection = await inspectWorkspaceDocument(
+			workspace,
+			filename,
+			() => this.ownsDocument(workspace, filename, document),
+			signal
+		);
+		if (!inspection || !this.ownsDocument(workspace, filename, document)) return undefined;
+		const contributions = await requestWorkspaceProviders(
+			workspace,
+			projectionForDocument(
+				inspection.languageProjection,
+				document?.version ?? inspection.languageProjection.document.version
+			),
+			(host, projection) => host.inlayHints(projection, range, signal),
+			() => this.ownsDocument(workspace, filename, document),
+			signal
+		);
+		return this.ownsDocument(workspace, filename, document)
+			? { inspection, contributions }
+			: undefined;
 	}
 
 	/** Queries enabled package providers for completions at one UTF-16 source offset. */
@@ -181,8 +291,10 @@ export class ExactLanguageWorkspaceManager {
 		trigger?: string,
 		signal?: AbortSignal
 	): Promise<readonly Readonly<{ provider: string; value: ExactLanguageCompletionV1 }>[]> {
-		return this.languageRequest(uri, (host, projection) =>
-			host.complete(projection, position, trigger, signal)
+		return this.languageRequest(
+			uri,
+			(host, projection) => host.complete(projection, position, trigger, signal),
+			signal
 		);
 	}
 
@@ -192,8 +304,10 @@ export class ExactLanguageWorkspaceManager {
 		position: number,
 		signal?: AbortSignal
 	): Promise<readonly Readonly<{ provider: string; value: ExactLanguageHoverV1 }>[]> {
-		return this.languageRequest(uri, (host, projection) =>
-			host.hover(projection, position, signal)
+		return this.languageRequest(
+			uri,
+			(host, projection) => host.hover(projection, position, signal),
+			signal
 		);
 	}
 
@@ -203,8 +317,10 @@ export class ExactLanguageWorkspaceManager {
 		range: Readonly<{ start: number; end: number }>,
 		signal?: AbortSignal
 	): Promise<readonly Readonly<{ provider: string; value: ExactLanguageInlayHintV1 }>[]> {
-		return this.languageRequest(uri, (host, projection) =>
-			host.inlayHints(projection, range, signal)
+		return this.languageRequest(
+			uri,
+			(host, projection) => host.inlayHints(projection, range, signal),
+			signal
 		);
 	}
 
@@ -215,8 +331,10 @@ export class ExactLanguageWorkspaceManager {
 		diagnostics: readonly string[],
 		signal?: AbortSignal
 	): Promise<readonly Readonly<{ provider: string; value: ExactLanguageCodeActionV1 }>[]> {
-		return this.languageRequest(uri, (host, projection) =>
-			host.codeActions(projection, range, diagnostics, signal)
+		return this.languageRequest(
+			uri,
+			(host, projection) => host.codeActions(projection, range, diagnostics, signal),
+			signal
 		);
 	}
 
@@ -225,9 +343,10 @@ export class ExactLanguageWorkspaceManager {
 		const workspace = this.workspaceForUri(uri);
 		if (!workspace) return [];
 		try {
-			return (await workspace.languageHost).status();
+			const host = await workspace.languageHost;
+			return this.ownsWorkspace(workspace) ? host.status() : [];
 		} catch (error) {
-			workspace.providerFailure = errorMessage(error);
+			if (this.ownsWorkspace(workspace)) workspace.providerFailure = providerFailureMessage(error);
 			return [];
 		}
 	}
@@ -237,7 +356,11 @@ export class ExactLanguageWorkspaceManager {
 		return this.workspaceForUri(uri)?.providerFailure;
 	}
 
-	/** Returns a compiler-verified refactor plan for the current document generation. */
+	/**
+	 * Returns the exact service plan only while its captured project/document remains current.
+	 * Successful retired work returns undefined. Every service rejection propagates unchanged,
+	 * including retired or cancelled work and ordinary primitive rejection values.
+	 */
 	async refactor(
 		uri: string,
 		request: Omit<ExactRefactorRequest, 'filename'>,
@@ -246,7 +369,10 @@ export class ExactLanguageWorkspaceManager {
 		this.assertActive();
 		const workspace = this.workspaceForUri(uri);
 		if (!workspace) return undefined;
-		return workspace.service.refactor({ ...request, filename: fileURLToPath(uri) }, signal);
+		const filename = fileURLToPath(uri);
+		const document = workspace.documents.get(filename);
+		const plan = await workspace.service.refactor({ ...request, filename }, signal);
+		return this.ownsDocument(workspace, filename, document) ? plan : undefined;
 	}
 
 	/** Removes and disposes a workspace root after a multi-root folder change. */
@@ -258,91 +384,82 @@ export class ExactLanguageWorkspaceManager {
 			([, workspace]) => workspace.workspaceRoot === normalized
 		);
 		for (const [projectRoot] of removed) this.workspaces.delete(projectRoot);
-		await Promise.all(
-			removed.flatMap(([, workspace]) => [
-				workspace.service.dispose(),
-				workspace.languageHost.then((host) => host.dispose())
-			])
-		);
+		await disposeWorkspaces(removed.map(([, workspace]) => workspace));
 	}
 
 	/** Disposes every native language session owned by the server. */
 	async dispose(): Promise<void> {
 		if (this.disposed) return;
 		this.disposed = true;
-		const services = [...this.workspaces.values()].map((workspace) => workspace.service);
-		const languageHosts = [...this.workspaces.values()].map((workspace) => workspace.languageHost);
+		const retired = [...this.workspaces.values()];
 		this.workspaces.clear();
-		await Promise.all([
-			...services.map((service) => service.dispose()),
-			...languageHosts.map(async (host) => (await host).dispose())
-		]);
+		await disposeWorkspaces(retired);
 	}
 
-	private workspaceForUri(uri: string): WorkspaceState | undefined {
-		if (!this.trusted || !uri.startsWith('file:')) return undefined;
-		const filename = path.resolve(fileURLToPath(uri));
-		const configuredRoot = this.roots.find(
-			(candidate) => filename === candidate || filename.startsWith(`${candidate}${path.sep}`)
+	private workspaceForUri(uri: string, input?: 'edit' | 'close'): WorkspaceState | undefined {
+		if (this.disposed || !this.trusted || !uri.startsWith('file:')) return undefined;
+		return lookupWorkspaceProject(
+			this.roots,
+			this.workspaces,
+			uri,
+			input,
+			this.createLanguageService,
+			this.createLanguageExtensionHost
 		);
-		const configPath = findExactConfig(path.dirname(filename), configuredRoot);
-		const root = configPath ? path.dirname(configPath) : (configuredRoot ?? path.dirname(filename));
-		let workspace = this.workspaces.get(root);
-		if (!workspace) {
-			const packageEnhancements = loadExactPackageEnhancements({
-				applicationRoot: root
-			}).packageEnhancements;
-			workspace = {
-				root,
-				...(configuredRoot ? { workspaceRoot: configuredRoot } : {}),
-				service: this.createLanguageService({
-					root,
-					noEmit: true,
-					projectKind: configuredRoot ? 'configured' : 'inferred',
-					packageEnhancements
-				}),
-				documents: new Map(),
-				languageHost: this.createLanguageExtensionHost(root),
-				packageEnhancements
-			};
-			this.workspaces.set(root, workspace);
-		}
-		return workspace;
 	}
 
 	private async languageRequest<T>(
 		uri: string,
-		request: (host: ExactLanguageExtensionHost, projection: ExactLanguageProjectionV1) => Promise<T>
+		request: (
+			host: ExactLanguageExtensionHost,
+			projection: ExactLanguageProjectionV1
+		) => Promise<T>,
+		signal?: AbortSignal
 	): Promise<T | readonly []> {
 		const workspace = this.workspaceForUri(uri);
 		if (!workspace) return [];
 		const filename = fileURLToPath(uri);
-		const inspection = await workspace.service.inspect(filename);
-		const projection = projectionForDocument(
-			inspection.languageProjection,
-			workspace.documents.get(filename) ?? inspection.languageProjection.document.version
+		const document = workspace.documents.get(filename);
+		const inspection = await inspectWorkspaceDocument(
+			workspace,
+			filename,
+			() => this.ownsDocument(workspace, filename, document),
+			signal
 		);
-		try {
-			const host = await workspace.languageHost;
-			await host.synchronizeProviders(
-				relevantLanguageProviderPackages(projection, workspace.packageEnhancements)
-			);
-			const result = await request(host, projection);
-			workspace.providerFailure = undefined;
-			return result;
-		} catch (error) {
-			workspace.providerFailure = errorMessage(error);
-			return [];
-		}
+		if (!inspection || !this.ownsDocument(workspace, filename, document)) return [];
+		return requestWorkspaceProviders(
+			workspace,
+			projectionForDocument(
+				inspection.languageProjection,
+				document?.version ?? inspection.languageProjection.document.version
+			),
+			request,
+			() => this.ownsDocument(workspace, filename, document),
+			signal
+		);
+	}
+
+	/** Refuses continuations from removed or replaced project records without changing future routing. */
+	private ownsWorkspace(workspace: WorkspaceState): boolean {
+		return !this.disposed && this.workspaces.get(workspace.root) === workspace;
+	}
+
+	/** Keeps each continuation on its exact project and accepted document synchronization. */
+	private ownsDocument(
+		workspace: WorkspaceState,
+		filename: string,
+		document: DocumentState | undefined
+	): boolean {
+		return (
+			this.ownsWorkspace(workspace) &&
+			!workspace.preparation &&
+			workspace.documents.get(filename) === document
+		);
 	}
 
 	private assertActive(): void {
 		if (this.disposed) throw new Error('The eXact language workspace manager has been disposed');
 	}
-}
-
-function errorMessage(error: unknown): string {
-	return error instanceof Error ? error.message : String(error);
 }
 
 function projectionForDocument(

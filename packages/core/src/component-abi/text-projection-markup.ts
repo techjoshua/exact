@@ -1,3 +1,4 @@
+import { isReservedElementIdentityName } from './element-identity.js';
 import type { UnsafeHtmlAuditEvent } from '../component/contracts.js';
 import { readUnsafeHtmlReceipt } from './unsafe-html-receipt.js';
 import { unwrap } from '@exactjs/reactive/framework/values';
@@ -58,7 +59,7 @@ export function projectedAttributes(
 			key === 'ref' ||
 			key === 'children' ||
 			key === 'key' ||
-			key === 'data-exact-id' ||
+			isReservedElementIdentityName(key) ||
 			key.startsWith('__exact')
 		)
 			continue;

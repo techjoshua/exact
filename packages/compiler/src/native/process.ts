@@ -1,4 +1,6 @@
 import { Worker } from 'node:worker_threads';
+import { createHash } from 'node:crypto';
+import { nativeExecutableSlotsVersion } from './process-executable-selection.js';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -42,6 +44,7 @@ export class NativeCompilerProcess {
 	private readonly decoder = new TextDecoder();
 	private typescriptVersion: string | undefined;
 	private backendVersion: string | undefined;
+	private executableSlotsVersion: number | undefined;
 	private disposed = false;
 	private workerClosed = false;
 
@@ -73,6 +76,7 @@ export class NativeCompilerProcess {
 			const version = this.request({ kind: 'version' });
 			this.typescriptVersion = version.typescriptVersion;
 			this.backendVersion = version.backendVersion;
+			this.executableSlotsVersion = version.executableSlotsVersion;
 		} catch (error) {
 			this.closeWorker(error);
 			this.disposed = true;
@@ -83,6 +87,13 @@ export class NativeCompilerProcess {
 	/** Executes one request through the existing native process. */
 	request(request: NativeCompilerRequest): NativeCompilerResponse {
 		this.assertActive();
+		if (
+			request.kind === 'executable-slots' &&
+			this.executableSlotsVersion !== nativeExecutableSlotsVersion
+		)
+			throw new Error(
+				this.withVersions('Native compiler does not support syntax-only executable slots')
+			);
 		if (Atomics.load(this.header, 0) !== stateIdle)
 			throw new Error('Native compiler process already has an active request');
 		const encoded = this.encoder.encode(JSON.stringify(request));
@@ -117,6 +128,45 @@ export class NativeCompilerProcess {
 			);
 		}
 		if (response.error) throw new Error(this.withVersions(response.error, response));
+		if (
+			request.kind === 'executable-slots' &&
+			(response.executableSlotsVersion !== nativeExecutableSlotsVersion ||
+				typeof response.helperSourceDiscovery?.completeNegative !== 'boolean' ||
+				response.helperSourceDiscovery.sourceRevision !==
+					createHash('sha256')
+						.update(request.source ?? '')
+						.digest('hex') ||
+				!Array.isArray(response.executableSlots) ||
+				response.executableSlots.some(
+					(slot, index) =>
+						!slot ||
+						slot.slot !== index ||
+						typeof slot.specifier !== 'string' ||
+						!slot.specifier ||
+						(slot.kind !== 'import' && slot.kind !== 'require') ||
+						typeof slot.typeOnly !== 'boolean'
+				))
+		)
+			throw new Error(
+				this.withVersions('Native compiler returned invalid executable syntax slots', response)
+			);
+		if (request.executableSelection) {
+			const ack = response.executableSelection;
+			const selected = request.executableSelection;
+			if (
+				request.kind !== 'synchronize' ||
+				!ack ||
+				ack.generation !== selected.generation ||
+				ack.revision !== selected.revision ||
+				ack.target !== selected.target
+			)
+				throw new Error(
+					this.withVersions(
+						'Native compiler did not acknowledge the executable selection snapshot',
+						response
+					)
+				);
+		}
 		if (
 			typeof response.typescriptVersion !== 'string' ||
 			!response.typescriptVersion ||

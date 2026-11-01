@@ -1,6 +1,7 @@
 import type { IntlScalarPresentationConsumer } from '@exactjs/intl';
 import type {
 	AxisProps,
+	ChartProps,
 	ChartAxisInput,
 	ChartSeriesInput,
 	DataProps,
@@ -47,29 +48,16 @@ export class ChartModel {
 		};
 	}
 
-	/** Normalizes compact inputs without taking ownership of caller arrays. @exact pure */
+	/** Registers a one-time compact snapshot without retaining caller array membership. @exact pure */
 	seed(
 		chartId: string,
 		axes: readonly ChartAxisInput[] = [],
 		series: readonly ChartSeriesInput[] = []
 	): void {
-		for (const axis of axes)
-			this.registerAxis({
-				props: axis,
-				...(axis.label === undefined ? {} : { textLabel: axis.label })
-			});
+		for (const axis of axes) this.registerAxis(compactAxisRegistration(axis));
 		for (const input of series) {
-			const registration: ChartSeriesRegistration = {
-				chartId,
-				props: input,
-				data: new Map(),
-				...(input.label === undefined ? {} : { textLabel: input.label })
-			};
-			this.registerSeries(registration);
-			for (const datum of input.data)
-				this.registerDatum(input.id, {
-					props: datum
-				});
+			this.registerSeries(compactSeriesRegistration(chartId, input));
+			for (const datum of input.data) this.registerDatum(input.id, { props: datum });
 		}
 	}
 
@@ -170,9 +158,7 @@ function registerUnique<Value>(
 	invalidate: () => void,
 	kind: string
 ): void {
-	if (!id.trim()) throw new TypeError(`Chart ${kind} ID cannot be empty`);
-	if (entries.has(id)) throw new Error(`Duplicate chart ${kind} ID ${id}`);
-	entries.set(id, value);
+	insertUnique(entries, id, value, kind);
 	invalidate();
 }
 
@@ -185,4 +171,76 @@ function unregisterOwned<Value>(
 	if (entries.get(id) !== value) return;
 	entries.delete(id);
 	invalidate();
+}
+
+/** Read-only capability for one complete presentation input, with no registration/lifecycle methods. */
+export interface ChartPresentationInput {
+	readonly id: string;
+	readonly props: ChartProps;
+	readonly model: {
+		readonly axes: ReadonlyMap<string, ChartAxisRegistration>;
+		readonly series: ReadonlyMap<string, ChartSeriesRegistration>;
+		readonly hasLegend: boolean;
+		readonly legendProps: LegendProps | undefined;
+	};
+}
+
+/**
+ * Prepares current compact inputs followed by declaration-owned registrations.
+ * Duplicate IDs fail before presentation publication. Durable registration maps are untouched.
+ * Superseded wrappers have no lifecycle and remain only as long as the presentation evaluation.
+ * @exact pure
+ */
+export function projectChartInputs(chart: {
+	readonly id: string;
+	readonly props: ChartProps;
+	readonly model: ChartModel;
+}): ChartPresentationInput {
+	const compactAxes = chart.props.axes;
+	const compactSeries = chart.props.series;
+	if (!compactAxes?.length && !compactSeries?.length) return chart;
+	const axes = new Map<string, ChartAxisRegistration>();
+	const series = new Map<string, ChartSeriesRegistration>();
+	for (const axis of compactAxes ?? [])
+		insertUnique(axes, axis.id, compactAxisRegistration(axis), 'axis');
+	for (const input of compactSeries ?? []) {
+		const registration = compactSeriesRegistration(chart.id, input);
+		insertUnique(series, input.id, registration, 'series');
+		for (const datum of input.data)
+			insertUnique(registration.data, datum.id, { props: datum }, 'datum');
+	}
+	for (const [id, axis] of chart.model.axes) insertUnique(axes, id, axis, 'axis');
+	for (const [id, entry] of chart.model.series) insertUnique(series, id, entry, 'series');
+	return {
+		id: chart.id,
+		props: chart.props,
+		model: { axes, series, hasLegend: chart.model.hasLegend, legendProps: chart.model.legendProps }
+	};
+}
+
+function compactAxisRegistration(props: ChartAxisInput): ChartAxisRegistration {
+	return { props, ...(props.label === undefined ? {} : { textLabel: props.label }) };
+}
+
+function compactSeriesRegistration(
+	chartId: string,
+	props: ChartSeriesInput
+): ChartSeriesRegistration {
+	return {
+		chartId,
+		props,
+		data: new Map(),
+		...(props.label === undefined ? {} : { textLabel: props.label })
+	};
+}
+
+function insertUnique<Value>(
+	entries: Map<string, Value>,
+	id: string,
+	value: Value,
+	kind: string
+): void {
+	if (!id.trim()) throw new TypeError(`Chart ${kind} ID cannot be empty`);
+	if (entries.has(id)) throw new Error(`Duplicate chart ${kind} ID ${id}`);
+	entries.set(id, value);
 }

@@ -91,7 +91,7 @@ export function isValidListItemFragment(fragment: DocumentFragment, key: string)
 	let started = false;
 	let complete = false;
 	for (const node of Array.from(fragment.childNodes)) {
-		if (node instanceof Comment && node.data.startsWith('exact:')) {
+		if (node instanceof Comment && (node.data.startsWith('exact:') || node.data.startsWith('i:'))) {
 			if (!stack.length) {
 				if (started || complete || !isExactItemStart(node, key)) return false;
 				started = true;
@@ -99,7 +99,10 @@ export function isValidListItemFragment(fragment: DocumentFragment, key: string)
 			stack.push(node.data);
 			continue;
 		}
-		if (node instanceof Comment && node.data.startsWith('/exact:')) {
+		if (
+			node instanceof Comment &&
+			(node.data.startsWith('/exact:') || node.data.startsWith('/i:'))
+		) {
 			const start = stack.pop();
 			if (!start || node.data !== `/${start}`) return false;
 			if (!stack.length) complete = true;

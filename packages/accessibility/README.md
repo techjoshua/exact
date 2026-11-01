@@ -21,7 +21,7 @@ Then attach narrowly scoped behavior without wrapper markup:
 const help = this.ref(helpKey);
 
 <span ref={help}>Use at least twelve characters.</span>
-<input aria-label="Password" a11y:describedBy={help} />
+<input aria-label="Password" a11y:described-by={help} />
 ```
 
 ## Reference

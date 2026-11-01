@@ -90,3 +90,26 @@ export function controlFlowParentInstance() {
 	if (!controlParent) throw new Error('Control-flow fixture has not been mounted');
 	return controlParent;
 }
+
+let helperMemberParent: Component<{ item: { value: string } }> | undefined;
+function HelperMemberChild(props: { value: string }) {
+	return () => <strong>{props.value}</strong>;
+}
+function helperMemberView(record: { item: { value: string } }) {
+	return (
+		<section>
+			<HelperMemberChild value={record.item.value} />
+		</section>
+	);
+}
+/** Keeps a helper's ordinary member read reactive across retained child input delivery. */
+export function HelperMemberParent(this: Component<{ item: { value: string } }>) {
+	helperMemberParent = this;
+	this.state.item = { value: 'first' };
+	return () => helperMemberView(this.state);
+}
+/** Returns the actual owner used by the helper-member input regression. */
+export function helperMemberParentInstance() {
+	if (!helperMemberParent) throw new Error('Helper member parent has not been mounted');
+	return helperMemberParent;
+}

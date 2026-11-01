@@ -1,7 +1,7 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { transform } from 'esbuild';
-import { createTestWorkspace } from './test-support/workspace.js';
+import { createCompilerTestWorkspace } from './test-support/workspace.js';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { transformSource } from './index.js';
@@ -18,7 +18,7 @@ describe('package-scoped enhancements', () => {
 	it.each(['client', 'server'] as const)(
 		'reads a linked library namespace from its owning config in %s',
 		async (target) => {
-			const root = await createTestWorkspace('.exact-library-config-', process.cwd());
+			const root = await createCompilerTestWorkspace('.exact-library-config-', process.cwd());
 			const kit = path.join(root, 'kit');
 			await mkdir(kit);
 			await writeFile(
@@ -48,7 +48,7 @@ describe('package-scoped enhancements', () => {
 	it.each(['client', 'server'] as const)(
 		'retains a standalone enhanced helper export in the %s artifact',
 		async (target) => {
-			const root = await createTestWorkspace('.exact-helper-export-', process.cwd());
+			const root = await createCompilerTestWorkspace('.exact-helper-export-', process.cwd());
 			const result = transformSource(
 				`export function renderShareBox(props: { text: string }) { return <p theme:text="body">{props.text}</p>; }`,
 				{

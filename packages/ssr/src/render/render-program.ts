@@ -1,3 +1,4 @@
+import { claimProgramComponentInput } from './program-component-inputs.js';
 import { normalizeRenderResult } from '@exactjs/core';
 import { readServerComponentOutputForHost } from '@exactjs/core/framework/server-component-execution';
 import type {
@@ -5,11 +6,12 @@ import type {
 	ExactRenderProgramSsrOutput
 } from '@exactjs/core/framework/render-structure';
 import {
-	createPreparedServerComponentReference,
-	createPreparedServerComponentReferenceFromPlainProps,
+	createPreparedServerComponentInputReference,
+	createPreparedServerComponentInputReferenceFromPlainProps,
 	type ExactPreparedServerRenderProgram
 } from '@exactjs/core/framework/server-render-structure';
 import { escapeText } from '../html.js';
+import { renderProgramVersion } from '../render-program-version.js';
 import { renderAttrs, renderCompiledNativeAttribute, renderNativeAttribute } from '../markup.js';
 import type { Child, SsrContext } from '../types.js';
 import { SsrOutputLimitError } from './limits.js';
@@ -83,6 +85,8 @@ function invokePreparedSsrProgram(
 	invocation: ExactPreparedServerRenderProgram
 ): unknown {
 	const writer = invocation.program.ssr!;
+	// The writer validates slots and prepares its complete actual child sequence once.
+	// Raw eager values can still be props bags and do not identify issued occurrences.
 	return writer(generatedSsrOperations, output.context, invocation, output);
 }
 
@@ -94,6 +98,12 @@ function invokePreparedSsrProgram(
  * operation table. The caller owns document ancestry and cleanup around the invocation.
  */
 const generatedSsrOperations: ExactRenderProgramSsrOperations = Object.freeze({
+	assertVersion(version) {
+		if (version !== renderProgramVersion)
+			throw new TypeError(
+				`Unsupported eXact SSR operation ABI; expected version ${renderProgramVersion}`
+			);
+	},
 	unprepared: unpreparedSsrValue,
 	promise: Promise,
 	reference(component, props, scalarPropKey, proofInvocation) {
@@ -107,12 +117,12 @@ const generatedSsrOperations: ExactRenderProgramSsrOperations = Object.freeze({
 		// must inspect props again because component execution may have exposed the bag.
 		const reference =
 			privateProps && scalarPropKey !== undefined && !hasScalarPropsAttempt(proofInvocation)
-				? createPreparedServerComponentReferenceFromPlainProps(
-						component as Parameters<typeof createPreparedServerComponentReference>[0],
+				? createPreparedServerComponentInputReferenceFromPlainProps(
+						component as Parameters<typeof createPreparedServerComponentInputReference>[0],
 						props as Record<string, unknown>
 					)
-				: createPreparedServerComponentReference(
-						component as Parameters<typeof createPreparedServerComponentReference>[0],
+				: createPreparedServerComponentInputReference(
+						component as Parameters<typeof createPreparedServerComponentInputReference>[0],
 						props as Record<string, unknown> | null
 					);
 		if (proofInvocation && scalarPropKey !== undefined)
@@ -165,46 +175,61 @@ const generatedSsrOperations: ExactRenderProgramSsrOperations = Object.freeze({
 		return nextCharacters;
 	},
 	child(opaqueContext, output, value, id, characters) {
-		return writeProgramChild(
-			opaqueContext as SsrContext,
-			output as SsrProgramWriterOutput<unknown>,
-			normalizeRenderResult(value as Child | Child[]),
-			id,
-			characters
+		const target = output as SsrProgramWriterOutput<unknown>;
+		return mapRenderValue(claimProgramComponentInput(target, value), (occurrence) =>
+			writeProgramChild(
+				opaqueContext as SsrContext,
+				target,
+				normalizeRenderResult(value as Child | Child[]),
+				id,
+				characters,
+				false,
+				occurrence
+			)
 		);
 	},
 	keyedChild(output, value) {
 		const target = output as SsrProgramWriterOutput<unknown>;
-		return mapRenderValue(
-			writeProgramChild(
-				target.context,
-				target,
-				normalizeRenderResult(value as Child | Child[]),
-				'',
-				0,
-				true
-			),
-			() => undefined
+		return mapRenderValue(claimProgramComponentInput(target, value), (occurrence) =>
+			mapRenderValue(
+				writeProgramChild(
+					target.context,
+					target,
+					normalizeRenderResult(value as Child | Child[]),
+					'',
+					0,
+					true,
+					occurrence
+				),
+				() => undefined
+			)
 		);
 	},
 	component(opaqueContext, output, value, id, characters, markerless) {
-		return writeProgramChild(
-			opaqueContext as SsrContext,
-			output as SsrProgramWriterOutput<unknown>,
-			value,
-			id,
-			characters,
-			markerless
+		const target = output as SsrProgramWriterOutput<unknown>;
+		return mapRenderValue(claimProgramComponentInput(target, value), (occurrence) =>
+			writeProgramChild(
+				opaqueContext as SsrContext,
+				target,
+				value,
+				id,
+				characters,
+				markerless,
+				occurrence
+			)
 		);
 	},
 	directComponent(opaqueContext, output, component, props, id, characters, markerless) {
-		const reference = createPreparedServerComponentReference(
-			component as Parameters<typeof createPreparedServerComponentReference>[0],
+		const target = output as SsrProgramWriterOutput<unknown>;
+		target.componentInputPosition = (target.componentInputPosition ?? 0) + 1;
+		const reference = createPreparedServerComponentInputReference(
+			component as Parameters<typeof createPreparedServerComponentInputReference>[0],
 			props as Record<string, unknown> | null
 		);
-		return generatedSsrOperations.component(
-			opaqueContext,
-			output,
+		// Props-only slots are not members of the retained child/component slot sequence.
+		return writeProgramChild(
+			opaqueContext as SsrContext,
+			output as SsrProgramWriterOutput<unknown>,
 			reference,
 			id,
 			characters,

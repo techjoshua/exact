@@ -36,7 +36,8 @@ export function AccessibilityPage(this: Component<{}>) {
 					Enable the package in your application configuration to use <code>a11y:*</code> attributes
 					throughout your components, or use an attributed import in one component. The package also
 					provides editor and build checks for accessibility mistakes. The runtime is included when
-					an enhancement is used.
+					an enhancement is used. Accessibility attributes use kebab-case, such as
+					<code>a11y:described-by</code>.
 				</p>
 			</section>
 			<section>
@@ -48,12 +49,13 @@ export function AccessibilityPage(this: Component<{}>) {
 				</p>
 				<CodeBlock source={accessibilityRelationshipSource} language="tsx" title="Password.tsx" />
 				<p>
-					<code>labelledBy</code>, <code>describedBy</code>, <code>controls</code>,
-					<code>details</code>, <code>errorMessage</code>, <code>flowTo</code>, <code>owns</code>,
+					<code>labelled-by</code>, <code>described-by</code>, <code>controls</code>,
+					<code>details</code>, <code>error-message</code>, <code>flow-to</code>, <code>owns</code>,
 					and
-					<code>activeDescendant</code> cover every ARIA ID-reference property. Authored IDs win.
-					Otherwise core assigns one permanent platform UUID. SSR emits ref identity before any
-					later relationship can need it, and hydration adopts the same nodes and tokens.
+					<code>active-descendant</code> cover every ARIA ID-reference property. Authored IDs follow
+					ordinary attribute and spread precedence. Otherwise core assigns one permanent platform
+					UUID. SSR prepares observable element refs before serializing lazy ref relationships, and
+					hydration adopts the same nodes and tokens.
 				</p>
 			</section>
 			<section>
@@ -137,6 +139,11 @@ export function AccessibilityPage(this: Component<{}>) {
 					and uncertainty, completions use pinned ARIA data, and navigation inlays show inferred
 					policy. Enabled errors and warnings use the same build gate in the editor and build. No
 					analyzer code is bundled for the browser.
+				</p>
+				<p>
+					ID checks follow attribute order. A spread after an ID makes its effective value unproven.
+					An explicit literal ID after the spread can be checked again. These checks do not predict
+					IDs after reactive updates, so keep IDs unique as your application changes.
 				</p>
 			</section>
 		</Article>

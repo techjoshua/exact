@@ -12,7 +12,7 @@ import type {
 	ExactRequestLike
 } from '../types.js';
 import { createRequestLifetime } from './request-lifetime.js';
-import { abortReason, applyOverrides, awaitWithAbort, headerValue } from './response.js';
+import { applyOverrides, awaitWithAbort, headerValue } from './response.js';
 import { ContextScope } from './scope.js';
 
 /** Defines the context runtime class contract. */
@@ -113,7 +113,7 @@ export class ContextRuntime implements ExactContextRuntime {
 			await scope.initialize();
 			if (requestValue.signal.aborted) {
 				await scope.dispose(requestValue.signal.reason);
-				throw abortReason(requestValue.signal);
+				throw requestValue.signal.reason;
 			}
 		} catch (error) {
 			lifetime.abort(error);
@@ -162,17 +162,15 @@ export class ContextRuntime implements ExactContextRuntime {
 			activeRequests.map((dispose) => dispose(reason))
 		);
 		const application = this.application ?? (await this.initializing?.catch(() => undefined));
-		let applicationFailure: unknown;
-		try {
-			await application?.dispose(reason);
-		} catch (error) {
-			applicationFailure = error;
-		}
-		this.application = undefined;
 		const failures = requestResults
 			.filter((result): result is PromiseRejectedResult => result.status === 'rejected')
 			.map((result) => result.reason);
-		if (applicationFailure !== undefined) failures.push(applicationFailure);
+		try {
+			await application?.dispose(reason);
+		} catch (error) {
+			failures.push(error);
+		}
+		this.application = undefined;
 		if (failures.length === 1) throw failures[0];
 		if (failures.length > 1)
 			throw new AggregateError(failures, 'Failed to dispose eXact server contexts');

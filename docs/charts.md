@@ -46,8 +46,21 @@ benchmark percentiles.
 
 Use the compositional form when content needs standard `intl:*` enhancements or per-datum semantic
 descriptions. The `axes` and `series` props provide a compact form for already-localized data. Both
-forms normalize into the same chart-instance-owned model and reject duplicate IDs, missing axes,
-invalid domains, and non-finite values.
+forms contribute to one presentation and reject duplicate IDs, missing axes, invalid domains, and
+non-finite values. Replacing a parent-owned compact array updates the retained chart, including
+added and removed data. Nested writable values keep ordinary TypeScript behavior. The chart keeps
+its figure, interaction state, and declaration-owned registrations.
+
+Compact inputs are read during presentation, without occupying the durable registration maps.
+A collision between compact and declarative IDs rejects that presentation before new output is
+published. Direct `ChartModel.seed` use remains an imperative snapshot, with immediate registration
+and duplicate checks. It does not become a subscription to later caller-array membership.
+
+The `@exactjs/charts/scales` entry exposes linear and categorical positioning and numeric ticks.
+Linear positioning accepts reversed or collapsed finite domains. It rejects a result outside the
+finite numeric range. Tick generation uses bounded work and distinct finite values, including for
+very small values and narrow domains at large magnitudes. Presentation values use TypeScript
+readonly checking and remain ordinary JavaScript values.
 
 Every mark is keyboard focusable. Arrow keys traverse marks in visual order, Home and End move to
 the bounds, Escape dismisses a pinned tooltip, and activating an interactive legend control toggles

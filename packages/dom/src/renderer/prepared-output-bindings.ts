@@ -1,7 +1,10 @@
+import { acquiredComponentChildren } from './component-receipt-binding.js';
+import { readClientComponentInput } from './component-input-admission.js';
 import {
 	isTextTargetOutput,
 	checkpointEnhancementFallback,
 	fallbackEnhancementEntries,
+	enhancementFallbackTargets,
 	claimEnhancementFallback,
 	enhancementFallbackAvailable,
 	forwardEnhancementFallback,
@@ -14,7 +17,6 @@ import {
 	type EnhancementEntry
 } from '@exactjs/core';
 import {
-	readCompiledComponentReceipt,
 	readCompiledIntrinsicReceipt,
 	readCompiledFragmentReceipt,
 	readCompiledTargetReceipt,
@@ -29,14 +31,44 @@ import { withPreparedProgramSlots, type PreparedProgramSlots } from './prepared-
 import type { Mounted, Root } from '../types.js';
 import { childEnhancementEntries } from './enhancement-chain.js';
 
+/** Incoming namespace entries and the actual boundary that owns their selection. */
 type Binding = { entries: readonly EnhancementEntry[]; boundary: Mounted };
+// Issued operations retain identity. Validated admitted recipes are temporary renderer views.
 const bindings = new WeakMap<Root, Map<object, Binding>>();
+
+/** Captured incoming routes belong only to one queued, still-current target adoption. */
+export type PreparedEnhancementBindings = ReadonlyMap<object, Binding>;
+
+/** Retains the active occurrence's routes before its synchronous preparation scope restores them. */
+export function capturePreparedEnhancementBindings(
+	root: Root
+): PreparedEnhancementBindings | undefined {
+	const routes = bindings.get(root);
+	return routes?.size ? new Map(routes) : undefined;
+}
+
+/** Restores captured routes only during the validated target claim, then releases the temporary view. */
+export function withCapturedEnhancementBindings<T>(
+	root: Root,
+	captured: PreparedEnhancementBindings | undefined,
+	adopt: () => T
+): T {
+	if (!captured) return adopt();
+	const previous = bindings.get(root);
+	bindings.set(root, new Map([...(previous ?? []), ...captured]));
+	try {
+		return adopt();
+	} finally {
+		if (previous) bindings.set(root, previous);
+		else bindings.delete(root);
+	}
+}
 
 /** Reads an incoming route without exposing renderer state on compiler receipts. */
 export function preparedEnhancementBinding(root: Root, value: Child): Binding | undefined {
 	const routes = bindings.get(root);
 	if (!routes) return undefined;
-	const key = readCompiledComponentReceipt(value) ?? value;
+	const key = readClientComponentInput(value)?.admitted.operation ?? value;
 	const binding = typeof key === 'object' && key !== null ? routes.get(key) : undefined;
 	if (binding?.entries.length === 1 && enhancementFallbackAvailable(binding.entries[0]!))
 		return binding;
@@ -54,7 +86,10 @@ export function withPreparedEnhancementBindings<T>(
 ): T {
 	const receipt = boundary.componentReceipt;
 	if (!receipt) return adopt(children);
-	const inherited = preparedEnhancementBinding(root, boundary.operation ?? receipt);
+	const inherited = preparedEnhancementBinding(
+		root,
+		boundary.operation ?? receipt.admitted.operation
+	);
 	if (!inherited && !receipt.enhancement) return adopt(children);
 	const merged = new Map((inherited?.entries ?? []).map((entry) => [entry.identity, entry]));
 	for (const entry of receipt.enhancement?.entries ?? []) {
@@ -97,7 +132,8 @@ export function withPreparedEnhancementBindings<T>(
 		}
 	}
 	children = prepareTextTargetOutput(children);
-	const supplied = receipt.children.length ? receipt.children : receipt.props.children;
+	const acquiredChildren = acquiredComponentChildren(boundary);
+	const supplied = acquiredChildren.length ? acquiredChildren : receipt.props.children;
 	const projected = new Set(
 		Array.isArray(supplied) ? supplied : supplied === undefined ? [] : [supplied]
 	);
@@ -113,11 +149,11 @@ export function withPreparedEnhancementBindings<T>(
 			return;
 		}
 		if (typeof value !== 'object' || value === null || (structured && projected.has(value))) return;
-		const component = readCompiledComponentReceipt(value);
+		const component = readClientComponentInput(value);
 		const intrinsic = readCompiledIntrinsicReceipt(value);
 		const fragment = readCompiledFragmentReceipt(value);
 		const program = readRenderProgramReceipt(value);
-		const key = component ?? value;
+		const key = component?.admitted.operation ?? value;
 		for (const marker of childEnhancementEntries(value as Child)) {
 			if (!entries.some((entry) => entry.identity === marker.identity) || !unwrap(marker.root))
 				continue;
@@ -164,11 +200,7 @@ export function withPreparedEnhancementBindings<T>(
 	const previous = new Map<object, Binding | undefined>();
 	for (const entry of entries) {
 		const selected = explicit.get(entry.identity);
-		const keys = selected
-			? [selected]
-			: fallbacks.length
-				? fallbacks
-				: [fragmentFallback ?? textFallback].filter((key): key is object => !!key);
+		const keys = enhancementFallbackTargets(selected, fallbacks, fragmentFallback ?? textFallback);
 		const candidates = selected
 			? [claimEnhancementFallback(entry)]
 			: fallbackEnhancementEntries(entry, keys.length);
@@ -199,7 +231,7 @@ export function withPreparedEnhancementBindings<T>(
 
 /** Consumes a selected operation while adopting its own wrapper chain, preventing recursive activation. */
 export function consumePreparedEnhancementBinding<T>(root: Root, value: Child, adopt: () => T): T {
-	const key = readCompiledComponentReceipt(value) ?? value;
+	const key = readClientComponentInput(value)?.admitted.operation ?? value;
 	if (typeof key !== 'object' || key === null) return adopt();
 	const routes = bindings.get(root);
 	const binding = routes?.get(key);

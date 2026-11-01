@@ -1,3 +1,4 @@
+import { requiresExactServerComponentSelection } from '@exactjs/component-library-policy';
 import { isMissingExactOptionalEnhancement as isMissingOptionalEnhancement } from '@exactjs/compiler/adapter-support';
 import { materializeExactComponentExecutionGuard } from '@exactjs/component-library-policy';
 import type { ExactComponentBuildFacts } from '@exactjs/compiler';
@@ -106,7 +107,7 @@ export class ExactBunComponentAuthorization {
 		if (!importer || !session) return undefined;
 		const importerId = importer.facts.filename;
 		const componentEdge = importer.facts.componentImports.find(
-			(edge) => edge.moduleSpecifier === request && edge.artifactTargets.includes('server')
+			(edge) => edge.moduleSpecifier === request && requiresExactServerComponentSelection(edge)
 		);
 		const enhancement = importer.facts.rendererEnhancements.find(
 			(edge) => edge.moduleSpecifier === request
@@ -190,7 +191,7 @@ export class ExactBunComponentAuthorization {
 		try {
 			if (facts) {
 				for (const edge of facts.componentImports) {
-					if (edge.artifactTargets.includes('server'))
+					if (requiresExactServerComponentSelection(edge))
 						await this.authorize(
 							edge.moduleSpecifier,
 							facts.filename,

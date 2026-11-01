@@ -22,16 +22,23 @@ export type ExactWebpackLanguageIntegration = Readonly<{
 	dispose(): Promise<void>;
 }>;
 
-/** Shares package bindings within each watch generation and lazily starts validation providers. */
+/** Shares package bindings within each watch generation and lazily starts validation providers.
+ * Calls onLoaded when configuration is consumed, including after watch invalidation.
+ */
 export function createExactWebpackLanguageIntegration(
-	options: ExactWebpackPluginOptions
+	options: ExactWebpackPluginOptions,
+	onLoaded?: (loaded: import('@exactjs/config/node').ExactLoadedConfig) => void
 ): ExactWebpackLanguageIntegration {
 	const applicationRoot = path.resolve(options.applicationRoot ?? process.cwd());
 	const configuration = createExactBuildConfiguration({
 		applicationRoot,
 		configPath: options.configPath
 	});
-	const config = configuration.read;
+	const config = async () => {
+		const loaded = await configuration.read();
+		onLoaded?.(loaded);
+		return loaded;
+	};
 	let dependencies: Promise<readonly ExactWebpackConfigurationDependency[]> | undefined;
 	const retired = new Set<Promise<void>>();
 	const disposalErrors: unknown[] = [];

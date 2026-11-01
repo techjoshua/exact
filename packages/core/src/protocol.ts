@@ -1,4 +1,5 @@
 const markerUtf8Encoder = new TextEncoder();
+const markerUtf8Decoder = new TextDecoder();
 const markerHexBytes = Array.from({ length: 256 }, (_, byte) => byte.toString(16).padStart(2, '0'));
 
 /** Encodes arbitrary UTF-8 data for use inside an eXact HTML comment marker. */
@@ -10,15 +11,15 @@ export function encodeExactMarkerPart(value: string): string {
 	return encoded;
 }
 
-/** Decodes data emitted by encodeExactMarkerPart; directly encoded safe values pass through. */
+/** Restores UTF-8 marker data, including the empty `~` token. Unencoded values pass through. */
 export function decodeExactMarkerPart(value: string): string {
-	if (!value.startsWith('~') || !/^(?:[0-9a-f]{2})+$/i.test(value.slice(1))) return value;
+	if (!value.startsWith('~') || !/^(?:[0-9a-f]{2})*$/i.test(value.slice(1))) return value;
 	const hex = value.slice(1);
 	const bytes = new Uint8Array(hex.length / 2);
 	for (let index = 0; index < bytes.length; index++) {
 		bytes[index] = Number.parseInt(hex.slice(index * 2, index * 2 + 2), 16);
 	}
-	return new TextDecoder().decode(bytes);
+	return markerUtf8Decoder.decode(bytes);
 }
 
 /** Performs the exact marker start domain operation. */

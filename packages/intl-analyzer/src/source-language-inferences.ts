@@ -1,6 +1,5 @@
 import { intl } from '@exactjs/core';
 import type { SourceCurrencyLabel } from './source-locale-profile.js';
-
 /** Bounded shorthand that supplements native Intl data for one authored source language. */
 export interface SourceLanguageInference {
 	readonly unitLabels?: Readonly<Record<string, string>>;
@@ -9,14 +8,12 @@ export interface SourceLanguageInference {
 	readonly ordinalMarkers?: readonly string[];
 	readonly ordinalWrappers?: readonly SourceOrdinalWrapper[];
 }
-
 /** One distinctive literal wrapper that proves a numeric placeholder is ordinal. */
 export interface SourceOrdinalWrapper {
 	readonly prefix: string;
 	readonly suffix: string;
 }
-
-const englishUnitLabels: Readonly<Record<string, string>> = Object.freeze({
+const englishUnitLabels: Readonly<Record<string, string>> = {
 	mi: 'mile',
 	mile: 'mile',
 	miles: 'mile',
@@ -232,32 +229,30 @@ const englishUnitLabels: Readonly<Record<string, string>> = Object.freeze({
 	PB: 'petabyte',
 	petabyte: 'petabyte',
 	petabytes: 'petabyte'
-});
-
-const englishCurrencyLabels: Readonly<Record<string, SourceCurrencyLabel>> = Object.freeze({
-	'us dollar': Object.freeze({ currency: 'USD', display: 'name' }),
-	'us dollars': Object.freeze({ currency: 'USD', display: 'name' }),
-	'canadian dollar': Object.freeze({ currency: 'CAD', display: 'name' }),
-	'canadian dollars': Object.freeze({ currency: 'CAD', display: 'name' }),
-	'australian dollar': Object.freeze({ currency: 'AUD', display: 'name' }),
-	'australian dollars': Object.freeze({ currency: 'AUD', display: 'name' }),
-	euro: Object.freeze({ currency: 'EUR', display: 'name' }),
-	euros: Object.freeze({ currency: 'EUR', display: 'name' }),
-	pound: Object.freeze({ currency: 'GBP', display: 'name' }),
-	pounds: Object.freeze({ currency: 'GBP', display: 'name' }),
-	yen: Object.freeze({ currency: 'JPY', display: 'name' }),
-	'€': Object.freeze({ currency: 'EUR', display: 'symbol' }),
-	'£': Object.freeze({ currency: 'GBP', display: 'symbol' }),
-	'¥': Object.freeze({ currency: 'JPY', display: 'symbol' })
-});
-
-const sourceLanguageInferences: Readonly<Record<string, SourceLanguageInference>> = Object.freeze({
-	en: Object.freeze({
+};
+const englishCurrencyLabels: Readonly<Record<string, SourceCurrencyLabel>> = {
+	'us dollar': { currency: 'USD', display: 'name' },
+	'us dollars': { currency: 'USD', display: 'name' },
+	'canadian dollar': { currency: 'CAD', display: 'name' },
+	'canadian dollars': { currency: 'CAD', display: 'name' },
+	'australian dollar': { currency: 'AUD', display: 'name' },
+	'australian dollars': { currency: 'AUD', display: 'name' },
+	euro: { currency: 'EUR', display: 'name' },
+	euros: { currency: 'EUR', display: 'name' },
+	pound: { currency: 'GBP', display: 'name' },
+	pounds: { currency: 'GBP', display: 'name' },
+	yen: { currency: 'JPY', display: 'name' },
+	'€': { currency: 'EUR', display: 'symbol' },
+	'£': { currency: 'GBP', display: 'symbol' },
+	'¥': { currency: 'JPY', display: 'symbol' }
+};
+const sourceLanguageInferences: Readonly<Record<string, SourceLanguageInference>> = {
+	en: {
 		unitLabels: englishUnitLabels,
 		currencyLabels: englishCurrencyLabels,
-		defaultCurrencyLabels: Object.freeze(['$']),
-		ordinalMarkers: Object.freeze(['st', 'nd', 'rd', 'th', 'ˢᵗ', 'ⁿᵈ', 'ʳᵈ', 'ᵗʰ'])
-	}),
+		defaultCurrencyLabels: ['$'],
+		ordinalMarkers: ['st', 'nd', 'rd', 'th', 'ˢᵗ', 'ⁿᵈ', 'ʳᵈ', 'ᵗʰ']
+	},
 	de: ordinalProfile(['.']),
 	fr: ordinalProfile(
 		['er', 're', 'e', 'ᵉʳ', 'ʳᵉ', 'ᵉ'],
@@ -359,20 +354,18 @@ const sourceLanguageInferences: Readonly<Record<string, SourceLanguageInference>
 		]
 	),
 	id: ordinalProfile(['ke-'], [{ prefix: 'ke-', suffix: '' }])
-});
-
+};
 function ordinalProfile(
 	markers: readonly string[],
 	wrappers: readonly SourceOrdinalWrapper[] = []
 ): SourceLanguageInference {
-	return Object.freeze({
-		ordinalMarkers: Object.freeze([...markers]),
-		ordinalWrappers: Object.freeze(wrappers.map((wrapper) => Object.freeze({ ...wrapper })))
-	});
+	return {
+		ordinalMarkers: [...markers],
+		ordinalWrappers: wrappers.map((wrapper) => ({ ...wrapper }))
+	};
 }
-
 /** Resolves optional authored-language shorthand without coupling the native analyzer to a language. */
 export function sourceLanguageInference(locale: string): SourceLanguageInference {
 	const language = intl.Locale(locale).language;
-	return sourceLanguageInferences[language] ?? Object.freeze({});
+	return sourceLanguageInferences[language] ?? {};
 }

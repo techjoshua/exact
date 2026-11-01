@@ -121,9 +121,22 @@ func (lowering *jsxLowering) identifierMatchesBinding(
 
 // lowerStateWrite retains authored result typing at every task and ordinary mutation entry.
 func (lowering *jsxLowering) lowerStateWrite(node *ast.Node, write StateWrite) *ast.Node {
-	if containsEagerAwait(node) {
-		if suspended := lowering.lowerSuspendedStateWrite(node, write, nil, false, nil); suspended != nil {
-			return suspended
+	// Indexed top-level operations already select their complete reference in one argument.
+	// General paths and logical assignments need native receiver/key and branch planning.
+	_, indexed := lowering.stateWriteSlots[nodeSpanKey(node)]
+	logical := false
+	if ast.IsBinaryExpression(node) {
+		_, _, logical = planMutationOperation(node).compoundOperator()
+		if node.AsBinaryExpression().OperatorToken.Kind == ast.KindEqualsToken {
+			if _, _, assigned := lowering.assignedTask(node.AsBinaryExpression().Right); assigned {
+				return lowering.lowerStateWriteOperation(node, write)
+			}
+		}
+	}
+	if (write.Operation == "assignment" || write.Operation == "update" || write.Operation == "delete") &&
+		(containsEagerAwait(node) || !indexed || lowering.target != TargetClient || logical) {
+		if selected := lowering.lowerSelectedStateWrite(node, write, nil, false, nil); selected != nil {
+			return selected
 		}
 	}
 	source := lowering.mutationSource(write.Start, write.Length)

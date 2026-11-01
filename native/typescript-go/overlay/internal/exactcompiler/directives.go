@@ -3,6 +3,7 @@ package exactcompiler
 import (
 	"fmt"
 	"regexp"
+	"strings"
 
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
 	"github.com/microsoft/TypeScript/tsc/internal/scanner"
@@ -14,6 +15,7 @@ var exactDirectivePattern = regexp.MustCompile(
 )
 
 var exactCoreDirectives = map[string]struct{}{
+	"ignore":        {},
 	"key":           {},
 	"cleanup":       {},
 	"own":           {},
@@ -46,6 +48,14 @@ func collectDirectives(source string) []Directive {
 				name = text[match[4]:match[5]]
 			}
 			argument, hasArgument := directiveArgument(text, match)
+			end := match[1]
+			if namespace == "exact" && name == "ignore" {
+				// An advisory acknowledgment owns the complete comment value, not a regex prefix.
+				tail := strings.TrimSpace(strings.TrimSuffix(text[match[3]:], "*/"))
+				hasArgument = strings.HasPrefix(tail, "=")
+				argument = strings.TrimSpace(strings.TrimPrefix(tail, "="))
+				end = len(text)
+			}
 			start := lexer.TokenStart() + match[0]
 			directives = append(directives, Directive{
 				Namespace:   namespace,
@@ -53,7 +63,7 @@ func collectDirectives(source string) []Directive {
 				Argument:    argument,
 				HasArgument: hasArgument,
 				Start:       start,
-				Length:      match[1] - match[0],
+				Length:      end - match[0],
 			})
 		}
 	}
@@ -79,13 +89,17 @@ func validateCoreDirectives(directives []Directive) []Diagnostic {
 			diagnostics = append(diagnostics, directiveDiagnostic(
 				directive,
 				fmt.Sprintf(
-					"unknown @exact directive '%s'. Supported directives are key, cleanup, own, track, client, server, shared, keep, pure, dynamic, state-view, and analyzer-only",
+					"unknown @exact directive '%s'. Supported directives are key, cleanup, own, track, client, server, shared, keep, pure, dynamic, state-view, ignore, and analyzer-only",
 					directive.Name,
 				),
 			))
 			continue
 		}
 		switch directive.Name {
+		case "ignore":
+			if _, valid := advisoryDirectiveCode(directive); !valid {
+				diagnostics = append(diagnostics, directiveDiagnostic(directive, "@exact ignore requires one complete advisory code, such as ignore=EXACT2004"))
+			}
 		case "keep":
 			if !directive.HasArgument {
 				diagnostics = append(diagnostics, directiveDiagnostic(
@@ -138,4 +152,24 @@ func directiveDiagnostic(directive Directive, message string) Diagnostic {
 		Start:    directive.Start,
 		Length:   directive.Length,
 	}
+}
+
+// advisoryDirectiveCode accepts one exact code. Unknown codes are inert and errors never use acknowledgment.
+func advisoryDirectiveCode(directive Directive) (string, bool) {
+	if !directive.HasArgument {
+		return "", false
+	}
+	code := directive.Argument
+	if len(code) >= 2 && ((code[0] == '"' && code[len(code)-1] == '"') || (code[0] == '\'' && code[len(code)-1] == '\'')) {
+		code = code[1 : len(code)-1]
+	}
+	if !strings.HasPrefix(code, "EXACT") || len(code) == len("EXACT") {
+		return "", false
+	}
+	for _, digit := range code[len("EXACT"):] {
+		if digit < '0' || digit > '9' {
+			return "", false
+		}
+	}
+	return code, true
 }

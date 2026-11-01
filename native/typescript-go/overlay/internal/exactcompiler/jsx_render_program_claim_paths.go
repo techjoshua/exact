@@ -310,8 +310,22 @@ func directProgramHasChildren(build *renderProgramBuild, parent []int) bool {
 	return false
 }
 
-// noRenderedProgramChildrenAfter proves that a structural slot owns the host's physical tail.
+// noRenderedProgramChildrenAfter proves a separately claimable structural tail.
+// A preceding literal Text would coalesce with scalar range output during HTML parsing.
 func noRenderedProgramChildrenAfter(children []*ast.Node, index int) bool {
+	for previous := index - 1; previous >= 0; previous-- {
+		child := children[previous]
+		if ast.IsJsxText(child) {
+			if normalizeJSXChildText(child.AsJsxText().Text, previous, len(children)) == "" {
+				continue
+			}
+			return false
+		}
+		if ast.IsJsxExpression(child) && child.AsJsxExpression().Expression == nil {
+			continue
+		}
+		break
+	}
 	for childIndex := index + 1; childIndex < len(children); childIndex++ {
 		child := children[childIndex]
 		if ast.IsJsxText(child) && normalizeJSXChildText(

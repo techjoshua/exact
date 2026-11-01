@@ -30,10 +30,14 @@ export function dispose(container: Element, removeDom = false): boolean {
 	const root = roots.get(container);
 	if (!root) return false;
 
+	root.componentInputAttempt = { operation: root.current, deliveryStarted: true, disposed: true };
 	// Delete first so lifecycle callbacks may safely mount a replacement into this container.
 	roots.delete(container);
 	unregisterInspectableRoot(root);
 	const failure = teardownFailure();
+	const pendingPlacement = root.suppliedPlacementPlan;
+	root.suppliedPlacementPlan = undefined;
+	attemptTeardown(failure, () => pendingPlacement?.abort());
 	attemptTeardown(failure, () => clearDelegated(root));
 	attemptTeardown(failure, () => disposeRetainedReleases(root));
 

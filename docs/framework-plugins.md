@@ -1,11 +1,19 @@
 # Framework plugins
 
 The application configuration has one runtime normalization boundary. `defineConfig()` and the
-Node configuration loader validate the same built-in schema and freeze the result before plugin
-discovery or adapter projection. Unknown built-in keys and invalid mode-specific fields fail at the
+Node configuration loader validate the same built-in schema before plugin discovery or adapter
+projection. Authored values, executable callbacks, and loader observations remain ordinary
+JavaScript objects with TypeScript readonly declarations. Validation preserves callback identity
+and leaves callback-owned state and metadata untouched. Unknown built-in keys and invalid mode-specific fields fail at the
 configuration file instead of being interpreted differently by separate consumers. Plugin-owned
 configuration remains extensible through the registered `plugins` keys, whose values must be a
 configuration transform or `false`.
+
+Configuration discovery stays within its selected workspace boundary. Public plugin entries stay
+inside their selected physical package and must be exported. Ordinary names beginning with `..`,
+such as `..generated`, remain valid child names. Only a complete `..` path segment traverses to
+a parent directory. Component-library facts and published translation data use the same containment
+rule.
 
 Status: implemented.
 
@@ -30,8 +38,10 @@ official plugins.
 
 ## Discovery and trust
 
-The host supports `root`, `trusted`, and `all` discovery modes. `trusted` is
-the default and initially trusts packages in the `@exactjs/` scope. Package
+The host supports `root`, `trusted`, and `all` discovery modes. Omitting `pluginDiscovery`
+uses `trusted` mode and initially trusts packages in the `@exactjs/` scope. Supplying a discovery
+object without `mode` currently selects `root`. Set the mode explicitly when changing discovery
+options. Package
 ignores, required dependencies, supported host capabilities, and version
 ranges are validated before plugin code participates.
 
@@ -47,15 +57,42 @@ compatible version or fails with provenance explaining the conflict.
 
 `exact.config.ts` is the canonical application configuration. Plugins augment
 its TypeScript shape and can contribute defaults or transformations through
-the dependency graph. Concurrent host loads own separate temporary modules when TypeScript or
-attributed enhancement declarations need preprocessing. Relative imports keep the configuration
-file as their base, and each load removes only its own temporary file.
+the dependency graph. Ordinary JavaScript ESM configurations load in place, including from read-only directories.
+Node keeps native query-based loading. Bun invalidates only the selected config through its
+supported module cache, leaving imported dependencies cached. Relative imports and native
+`import.meta` retain their authored module base. TypeScript and attributed enhancement declarations
+reuse separate same-directory temporary modules for preprocessing, with cleanup on success or
+failure. That preprocessing requires a writable directory. Explicit `.cjs` files retain their
+existing runtime cache behavior.
+
+Preparation has one parser/projection owner, backed by the exact runtime dependency
+`@typescript/native` (`npm:typescript@7.0.2`). The official async API parses isolated source without
+executing config code. TypeScript emit uses the selected tool's CLI with explicit options, no
+application tsconfig inheritance and no semantic project checks. Snapshots, APIs, emit children
+and temporary inputs are released before preparation completes. The dependency remains acyclic
+because config depends directly on the official tool, not on `@exactjs/compiler`.
+
+`loadExactPackageEnhancements()` retains its synchronous return for transformation and workspace
+callers. It invokes one same-runtime preparation command, with Bun remaining Bun. That command
+uses the same async extraction owner with emit disabled and returns only plain declarations or a
+structured error. Config execution and callbacks stay in the parent. Command responses are bounded
+to 8 MiB, with a separate 16 MiB parent capture bound. These are transport safety limits, not
+analysis-cost policy. Ordinary async config loads call the preparation owner directly.
+
+Use `.ts` or `.mts` for portable TypeScript ESM configs. Native `.cts` emit is CommonJS. The unchanged
+ESM execution path rejects the measured `.cts` case on Node while Bun accepts it. No separate
+CommonJS execution strategy or portable `.cts` support is implied.
+
+Callback contexts, parsed participation metadata, discovery results, and transform reports retain
+TypeScript readonly declarations and ordinary JavaScript values. Context provenance paths are
+independent of the discovery graph used to select code and schedule contributors. Policy arrays
+and forwarding choices are captured before validation, so the published values are the ones checked.
 
 Configuration order is deterministic:
 
-1. plugin defaults;
-2. dependency leaves before their consumers;
-3. alphabetic order between ready peers; and
+1. plugin defaults.
+2. dependency leaves before their consumers.
+3. alphabetic order within each ready batch.
 4. the application root last.
 
 A transform that returns `undefined` retains the current configuration. A
@@ -71,11 +108,23 @@ diagnostics, logs, or profile attributes.
 A prepared application registry can expose separate build, server, render,
 client, and testing projections. Build projections configure bundling and may
 be translated into ordinary compiler options, but the registry and plugin code
-never enter compiler analysis or lowering. Hosts run the shared lifecycle contracts rather than
+never enter compiler analysis or lowering. Build and language projections must contain JSON-safe
+data. Shared sibling references are permitted and serialize as copies. Ancestor cycles remain
+invalid. Hosts run the shared lifecycle contracts rather than
 inventing plugin-specific hooks.
 
 Application and request resources are disposed in reverse acquisition order.
-Cancellation and cleanup belong to the host scope that created the resource.
+Cancellation and cleanup belong to the host scope that created the resource. Failed initialization
+rolls back every acquired resource. If rollback also fails, an `AggregateError` retains the
+initialization error as its `cause` and first entry, followed by the cleanup failure group.
+Successful rollback preserves the original thrown value.
+Registry preparation rejects an already-aborted signal before loading configuration and checks
+cancellation again after loading, before starting plugin preparation. Preparation has no automatic
+deadline. Callers may supply `signal` or a positive `timeoutMs` in milliseconds. Cancellation
+preserves the signal’s exact reason and fences runtime extension loading, validation and registry
+publication. A foreign
+promise can finish after cancellation, but the host does not start the next owned stage after it
+settles. Configuration callbacks should observe their context signal while doing asynchronous work.
 Build adapters invalidate prepared registries when configuration, plugin
 manifests, or discovered package inputs change.
 
@@ -85,6 +134,11 @@ Output processing follows a strict boundary:
 2. all final validators run;
 3. validation failure prevents publication; and
 4. no plugin may mutate the output after final validation.
+
+Synchronous output boundaries require synchronous transforms and validators. A promise or
+thenable result rejects publication immediately. The host observes its eventual rejection so
+the invalid hook cannot also create an unhandled asynchronous failure. Asynchronous output
+boundaries await these hooks normally.
 
 ## Authoring guidance
 
@@ -124,7 +178,17 @@ implicitly enable or disable plugin runtime participation.
 See [Component language](component-language.md#enhancement-composition) for attributed imports,
 finite activators, direct `_` composition, `_target`, bounded routing, SSR, and hydration.
 
+Bun exposure builds request native build metadata and map its output paths relative to the
+configured output directory. Source identities come from metadata, so custom hashed names and
+ordinary `..name` child directories retain their published entry and resource URLs. Hashed exposure
+names require the metafile support introduced in [Bun 1.3.6](https://bun.com/blog/bun-v1.3.6#metafile-in-bunbuild).
+
 ## Current limitations
+
+- Bun producer builds are verified on 1.4.3. Bare bundler controls on Bun 1.3.0 and 1.3.6
+  place entries outside the configured output directory when physical and virtual entrypoints
+  are combined. Changing the supported producer minimum or virtual module identity needs a
+  separate compatibility decision. No runtime version rejection is added.
 
 - Webpack and Bun use the shared contracts but individual plugins may expose a
   narrower host-specific feature set. Check the plugin and runtime docs.

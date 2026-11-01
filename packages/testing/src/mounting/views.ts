@@ -1,3 +1,4 @@
+import { componentNodes } from './component-tree.js';
 import {
 	withTaskObserver,
 	type AnyComponentFunction,
@@ -42,7 +43,7 @@ export class TestView<
 		targetType?: AnyComponentFunction
 	) {
 		super(
-			() => allElements(container),
+			() => allElements(this),
 			async (work, options) => this.action(work, options)
 		);
 		const snapshot = this.snapshot();
@@ -192,11 +193,12 @@ export class TestComponent<
 		this.assertMounted();
 		return this.instance.props as Props;
 	}
-	/** Applies a state to the owned runtime state for this test component instance. */
+	/** Updates a mounted component state or rejects before invoking the update after removal. */
 	async setState(
 		update: Partial<State> | ((state: State) => void),
 		options?: ActionOptions
 	): Promise<this> {
+		this.assertMounted();
 		await this.view.action(
 			() =>
 				typeof update === 'function'
@@ -274,9 +276,6 @@ export class TestComponent<
 	}
 }
 
-function componentNodes(root: DomInspectionNode): DomInspectionNode[] {
-	return [root, ...root.children.flatMap(componentNodes)].filter((node) => !!node.instance);
-}
 function publicComponentNodes(root: DomInspectionNode): DomInspectionNode[] {
 	return componentNodes(root)
 		.slice(1)

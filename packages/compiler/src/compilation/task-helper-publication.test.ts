@@ -4,13 +4,12 @@ import { mkdir, writeFile, rm } from 'node:fs/promises';
 import { stripTypeScriptTypes } from 'node:module';
 import { expect, it, onTestFinished } from 'vitest';
 import type { AnyComponentFunction } from '@exactjs/core';
-import { createCompiledComponentReceipt } from '@exactjs/core/runtime/component-operations';
+import { createCompiledComponentInputReceipt } from '@exactjs/core/runtime/component-operations';
 import { render, dispose } from '@exactjs/dom';
 import { flushSync } from '@exactjs/reactive';
 import { NativeCompilerProcess } from '../native/process.js';
 import { resolveNativeCompilerExecutable } from '../native/executable.js';
 import { importArtifact } from '../test-support/import-artifact.js';
-
 for (const form of [
 	'synchronous helper',
 	'asynchronous helper',
@@ -154,7 +153,6 @@ export function assign(owner:Component<{count:number;trace:string}>,value:number
 						)
 						.replace('export const gates=new Map<number,()=>void>();', '');
 				}
-
 				const result = compiler.request({
 					kind: 'compile',
 					target: 'client',
@@ -179,9 +177,13 @@ export function assign(owner:Component<{count:number;trace:string}>,value:number
 					for (const release of gates.values()) release();
 				});
 				const reports: unknown[] = [];
-				render(createCompiledComponentReceipt(module.Probe as AnyComponentFunction, {}), host, {
-					onErrorReport: (r) => reports.push(r)
-				});
+				render(
+					createCompiledComponentInputReceipt(module.Probe as AnyComponentFunction, {}),
+					host,
+					{
+						onErrorReport: (r) => reports.push(r)
+					}
+				);
 				const button = host.querySelector('button')!,
 					output = host.querySelector('output')!;
 				const tick = async () => {

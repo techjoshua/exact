@@ -1,3 +1,4 @@
+import { deriveRuntimeConfiguration } from '@exactjs/core/framework/configuration';
 import { isServerSlotDiscriminator } from '@exactjs/core/framework/protocol-records';
 import type { ExactServerSlotReceiptData } from '@exactjs/core/runtime/component-abi';
 import { escapeAttr } from '../html.js';
@@ -5,7 +6,10 @@ import type { RenderToStringOptions, SsrContext } from '../types.js';
 
 /** Keeps retained server ranges outside the adopting island's activation sequence. */
 export function serverSlotRenderOptions(options: RenderToStringOptions): RenderToStringOptions {
-	return { ...options, clientResumptionOwner: false, resumptionCapture: undefined };
+	return deriveRuntimeConfiguration(options, () => ({
+		clientResumptionOwner: false,
+		resumptionCapture: undefined
+	}));
 }
 
 /** Static authority attached to one compiler-planned server slot. */

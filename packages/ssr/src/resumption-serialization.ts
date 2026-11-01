@@ -47,8 +47,6 @@ export type SsrResumptionSchema = Readonly<{
 const resumptionSchemas = new WeakMap<object, SsrResumptionSchema>();
 /** Shared immutable empty indexed field collection. */
 export const emptyIndexedEntries = Object.freeze([]) as readonly IndexedResumptionEntry[];
-/** Shared immutable empty named context collection. */
-export const emptyContextValues = Object.freeze({}) as Readonly<Record<string, never>>;
 /** Shared immutable empty settled-continuation collection. */
 export const emptyContinuationIds = Object.freeze([]) as readonly string[];
 

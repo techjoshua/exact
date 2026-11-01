@@ -1,3 +1,4 @@
+import { acquiredComponentChildren } from './component-receipt-binding.js';
 import { readEnhancementBinding } from './enhancement-bindings.js';
 import { type AnyComponentInstance, unwrap, type EnhancementEntry } from '@exactjs/core';
 import type { Mounted, Root } from '../types.js';
@@ -38,7 +39,7 @@ export function collectTargetEnhancements(
 	const orders = new Map<Mounted, Map<string, number>>();
 	let order = 0;
 	walkMounted(boundary, undefined, parentInstance, 0, (mounted, owner, instance, depth) => {
-		if (mounted.enhancement) return;
+		if (mounted.enhancement || mounted.pendingEnhancementAdoption) return;
 		for (const entry of mountedEnhancementEntries(mounted)) {
 			if (isRoutingOnlyEntry(entry)) continue;
 			const target = resolveEnhancementTarget(mounted, entry.identity, instance, owner, depth);
@@ -174,8 +175,9 @@ function findExplicitTarget(
 	dependencies: Set<Mounted>
 ): ExplicitSelection {
 	let selected: ExplicitSelection = { active: false };
-	const supplied = frame.componentReceipt?.children.length
-		? frame.componentReceipt.children
+	const acquiredChildren = acquiredComponentChildren(frame);
+	const supplied = acquiredChildren.length
+		? acquiredChildren
 		: frame.componentReceipt?.props.children;
 	const projected = new Set(
 		Array.isArray(supplied) ? supplied : supplied === undefined ? [] : [supplied]

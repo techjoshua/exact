@@ -137,7 +137,7 @@ function createIntlFacade(resolveLocalization: LocalizationResolver): IntlFacade
 			return globalThis.Intl.supportedValuesOf(key as never);
 		}
 	};
-	return Object.freeze(facade);
+	return facade;
 }
 
 function dateProjectionOptions(

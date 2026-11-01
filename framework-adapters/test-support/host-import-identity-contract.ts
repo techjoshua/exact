@@ -1,9 +1,14 @@
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
-import { mkdir, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { promisify } from 'node:util';
-import { buildDiagnosticFixture } from './compiler-diagnostic-build.js';
+import { fileURLToPath } from 'node:url';
+import { chromium } from 'playwright';
+import {
+	buildDiagnosticFixture,
+	assertDiagnosticBuildWarnings
+} from './compiler-diagnostic-build.js';
 
 /** Verifies lexical renderer and capability identity through each supported build adapter. */
 export async function verifyHostImportIdentityContract(adapter: 'vite' | 'webpack' | 'bun') {
@@ -61,6 +66,77 @@ assert.equal(receipts.length,2);assert.ok(receipts.every(Boolean));
 assert.equal(fixture.ordinary(value=>'local:'+value),'local:safe');`
 			);
 			await promisify(execFile)(process.execPath, [runner], { cwd: root });
+		}
+
+		// Real public bootstrap calls retain package operation contracts under the same
+		// host selection that keeps application-local callback identities above.
+		await writeFile(
+			path.join(root, 'entry.tsx'),
+			`import {render,unmount} from '@exactjs/dom';
+import {TaskContext,type Component} from '@exactjs/core';
+function Page(this:Component<{label:string}>){this.state.label='ready';const update=(_task:TaskContext=TaskContext.latest())=>{this.state.label='updated';};return()=> <button onClick={()=>update()}>{this.state.label}</button>;}
+const root=document.getElementById('app');if(!root)throw new Error('Missing root');render(<Page/>,root);const host=root;
+export function release(){unmount(host);return host.childNodes.length;}`
+		);
+		const warnings = await buildDiagnosticFixture(
+			adapter,
+			root,
+			'client',
+			false,
+			true,
+			false,
+			fileURLToPath(new URL('../../', import.meta.url))
+		);
+		await assertDiagnosticBuildWarnings(adapter, root, 'client', warnings);
+		const entry = (await readdir(path.join(root, 'out-client'))).find((file) =>
+			/^entry\.(?:js|mjs|cjs)$/.test(file)
+		);
+		assert.ok(entry, 'Missing public client entry');
+		const code = await readFile(path.join(root, 'out-client', entry), 'utf8'),
+			browser = await chromium.launch();
+		try {
+			const page = await browser.newPage(),
+				errors: string[] = [];
+			page.on('pageerror', (error) => errors.push(error.message));
+			await page.route('https://public-entry.test/**', (route) =>
+				route.fulfill(
+					route.request().url().endsWith('/entry.js')
+						? { contentType: 'text/javascript', body: code }
+						: { contentType: 'text/html', body: '<div id="app"></div>' }
+				)
+			);
+			await page.goto('https://public-entry.test/');
+			await page.evaluate(
+				async ({ adapter, code }) => {
+					if (adapter === 'webpack') {
+						const module = { exports: {} };
+						new Function('exports', 'module', code)(module.exports, module);
+						Object.assign(globalThis, { publicEntry: module.exports });
+					} else
+						Object.assign(globalThis, {
+							publicEntry: await new Function(
+								'return import("https://public-entry.test/entry.js")'
+							)()
+						});
+				},
+				{ adapter, code }
+			);
+			const initial = await page.locator('button').textContent();
+			await page.locator('button').click();
+			await page.waitForFunction(() => document.querySelector('button')?.textContent === 'updated');
+			const remaining = await page.evaluate(() => {
+				const module = Reflect.get(globalThis, 'publicEntry') as { release(): number };
+				return module.release();
+			});
+			await writeFile(
+				path.join(root, 'public-entry-observation.json'),
+				JSON.stringify({ initial, remaining, errors })
+			);
+			assert.equal(initial, 'ready');
+			assert.equal(remaining, 0);
+			assert.deepEqual(errors, []);
+		} finally {
+			await browser.close();
 		}
 	} finally {
 		await rm(root, { recursive: true, force: true });

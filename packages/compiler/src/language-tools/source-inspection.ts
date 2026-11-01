@@ -1,3 +1,4 @@
+import { capturePartitionPlan } from '../compilation/analysis-projections.js';
 import type {
 	NativeCompilerAnalysis,
 	NativeCompilerComponent,
@@ -43,77 +44,20 @@ export function createExactSourceInspection(
 	const components = response.analysis.components.map((component) =>
 		inspectComponent(component, source, response.analysis, taskRegions, includeReasons)
 	);
-	return Object.freeze({
+	return {
 		generation,
 		filename,
-		compiler: Object.freeze({
+		compiler: {
 			typescriptVersion: response.typescriptVersion,
 			backendVersion: response.backendVersion
-		}),
-		partitionPlan: freezePartitionPlan(response.analysis.partitionPlan),
+		},
+		partitionPlan: capturePartitionPlan(response.analysis.partitionPlan),
 		languageProjection: createExactLanguageProjection(filename, source, generation, response),
-		components: Object.freeze(components),
-		diagnostics: Object.freeze(
-			// TypeScript diagnostics remain available from the native response for builds,
-			// but editor inspection has a separate owner for them.
-			response.diagnostics
-				.filter(isExactCompilerDiagnostic)
-				.map((diagnostic) => sourceDiagnostic(filename, source, diagnostic, response.analysis))
-		)
-	});
-}
-
-function freezePartitionPlan(
-	plan: NativeCompilerAnalysis['partitionPlan']
-): ExactSourceInspection['partitionPlan'] {
-	return Object.freeze({
-		...plan,
-		version: 1,
-		roots: Object.freeze([...plan.roots]),
-		nodes: Object.freeze(
-			plan.nodes.map((node) =>
-				Object.freeze({
-					...node,
-					...(node.activationDecision
-						? { activationDecision: freezeActivationDecision(node.activationDecision) }
-						: {}),
-					artifactTargets: Object.freeze([...node.artifactTargets]),
-					renderPath: Object.freeze([...node.renderPath]),
-					childEdges: Object.freeze([...node.childEdges])
-				})
-			)
-		),
-		edges: Object.freeze(
-			plan.edges.map((edge) =>
-				Object.freeze({
-					...edge,
-					data: Object.freeze(edge.data.map((slot) => Object.freeze({ ...slot }))),
-					renderPath: Object.freeze([...edge.renderPath])
-				})
-			)
-		)
-	});
-}
-
-function freezeActivationDecision<
-	T extends {
-		mode: string;
-		reasons: readonly Record<string, unknown>[];
-		targets: readonly (Record<string, unknown> & { events: readonly Record<string, unknown>[] })[];
-	}
->(decision: T): T {
-	return Object.freeze({
-		...decision,
-		reasons: Object.freeze(decision.reasons.map((reason) => Object.freeze({ ...reason }))),
-		targets: Object.freeze(
-			decision.targets.map((target) =>
-				Object.freeze({
-					...target,
-					events: Object.freeze(target.events.map((event) => Object.freeze({ ...event })))
-				})
-			)
-		)
-	}) as T;
+		components: components,
+		diagnostics: response.diagnostics
+			.filter(isExactCompilerDiagnostic)
+			.map((diagnostic) => sourceDiagnostic(filename, source, diagnostic, response.analysis))
+	};
 }
 
 function inspectComponent(
@@ -141,10 +85,10 @@ function inspectComponent(
 		);
 	const returned = findReturnedRender(source, range);
 	const initializerStart = findBodyStart(source, range);
-	const initializerRange = Object.freeze({
+	const initializerRange = {
 		start: initializerStart,
 		end: Math.max(initializerStart, returned?.range.start ?? range.end)
-	});
+	};
 	const registrySelections = registrySelectionEntities(component, source, analysis);
 	const setupEntities = [
 		...regions,
@@ -156,20 +100,20 @@ function inspectComponent(
 	]
 		.filter((entity) => contains(initializerRange, entity.range))
 		.sort((left, right) => left.range.start - right.range.start);
-	const initializer = Object.freeze({
+	const initializer = {
 		id: `${component.id}:initializer`,
 		kind: 'initializer' as const,
 		name: 'Initialization',
 		range: initializerRange,
 		selectionRange: initializerRange,
-		children: Object.freeze(setupEntities),
-		classification: Object.freeze({
+		children: setupEntities,
+		classification: {
 			kind: 'initializer' as const,
 			execution: 'once-per-instance' as const,
 			placement: component.placement
-		}),
-		reasons: Object.freeze([])
-	});
+		},
+		reasons: []
+	};
 	const children: ExactSourceEntity[] = [initializer];
 	if (returned) {
 		const renderOwned = [
@@ -179,15 +123,15 @@ function inspectComponent(
 		];
 		children.push(renderEntity(component, source, analysis, returned, renderOwned));
 	}
-	return Object.freeze({
+	return {
 		id: component.id,
 		kind: 'component',
 		name: component.name,
 		range,
 		selectionRange: nameRange,
-		children: Object.freeze(children.sort((left, right) => left.range.start - right.range.start)),
-		reasons: Object.freeze(componentReasons(component, range, includeReasons))
-	});
+		children: children.sort((left, right) => left.range.start - right.range.start),
+		reasons: componentReasons(component, range, includeReasons)
+	};
 }
 
 function taskRegionMatches(
@@ -218,55 +162,50 @@ function renderEntity(
 	ownedChildren: readonly ExactSourceEntity[]
 ): ExactSourceEntity {
 	const dependencies = stateDependencies(analysis, component.name, source, returned.range);
-	return Object.freeze({
+	return {
 		id: `${component.id}:render`,
 		kind: 'render',
 		name: 'Render',
 		range: returned.range,
 		selectionRange: returned.selectionRange,
-		children: Object.freeze(
-			[
-				...analysis.jsx
-					.filter((element) =>
-						contains(returned.range, clampRange(source, element.start, element.length))
-					)
-					.map((element, index) => {
-						const elementRange = clampRange(source, element.start, element.length);
-						const edge = component.renderEdges.find(
-							(candidate) =>
-								candidate.path === String(element.start) && candidate.tag === element.tag
-						);
-						return renderExpression(
-							component.id,
-							index,
-							element.tag,
-							elementRange,
-							findTextRange(source, element.tag, elementRange) ?? elementRange,
-							dependencies,
-							edge
-						);
-					}),
-				...ownedChildren
-			].sort((left, right) => left.range.start - right.range.start)
-		),
-		classification: Object.freeze({
+		children: [
+			...analysis.jsx
+				.filter((element) =>
+					contains(returned.range, clampRange(source, element.start, element.length))
+				)
+				.map((element, index) => {
+					const elementRange = clampRange(source, element.start, element.length);
+					const edge = component.renderEdges.find(
+						(candidate) => candidate.path === String(element.start) && candidate.tag === element.tag
+					);
+					return renderExpression(
+						component.id,
+						index,
+						element.tag,
+						elementRange,
+						findTextRange(source, element.tag, elementRange) ?? elementRange,
+						dependencies,
+						edge
+					);
+				}),
+			...ownedChildren
+		].sort((left, right) => left.range.start - right.range.start),
+		classification: {
 			kind: 'render',
 			execution: 'reactive',
-			dependencies: Object.freeze(dependencies),
-			effects: Object.freeze([])
-		}),
-		reasons: Object.freeze(
-			dependencies.length
-				? [
-						Object.freeze({
-							code: 'reactive-dependency' as const,
-							summary: 'The returned view reads compiler-observed component data.',
-							range: returned.range
-						})
-					]
-				: []
-		)
-	});
+			dependencies: dependencies,
+			effects: []
+		},
+		reasons: dependencies.length
+			? [
+					{
+						code: 'reactive-dependency' as const,
+						summary: 'The returned view reads compiler-observed component data.',
+						range: returned.range
+					}
+				]
+			: []
+	};
 }
 
 function renderExpression(
@@ -278,30 +217,28 @@ function renderExpression(
 	dependencies: ReturnType<typeof stateDependencies>,
 	edge: NativeCompilerComponent['renderEdges'][number] | undefined
 ): ExactSourceEntity {
-	return Object.freeze({
+	return {
 		id: `${componentId}:render:${index}`,
 		kind: 'render-expression',
 		name: tag,
 		range,
 		selectionRange,
-		children: Object.freeze([]),
-		classification: Object.freeze({
+		children: [],
+		classification: {
 			kind: 'render',
 			execution: 'reactive',
-			dependencies: Object.freeze(
-				dependencies.filter((dependency) => contains(range, dependency.range))
-			),
-			effects: Object.freeze([]),
+			dependencies: dependencies.filter((dependency) => contains(range, dependency.range)),
+			effects: [],
 			...(edge
 				? {
-						referencedComponent: Object.freeze({
+						referencedComponent: {
 							...(edge.componentId ? { id: edge.componentId } : {}),
 							placement: edge.placement,
 							boundary: edge.boundary
-						})
+						}
 					}
 				: {})
-		}),
-		reasons: Object.freeze([])
-	});
+		},
+		reasons: []
+	};
 }

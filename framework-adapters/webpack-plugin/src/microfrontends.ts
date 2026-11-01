@@ -7,7 +7,6 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import type { Compiler, Compilation } from 'webpack';
 import type { ExactWebpackPluginOptions } from './plugin.js';
-import type { ExactProvidedPackageImportUsage } from '@exactjs/microfrontends/artifacts';
 
 type RemoteAdapter = ReturnType<
 	(typeof import('@exactjs/microfrontends/webpack'))['createExactRemoteWebpackAdapter']
@@ -202,11 +201,12 @@ export class ExactWebpackMicrofrontendIntegration {
 			if (!data) return;
 			const scope = this.scopeFor(data.contextInfo?.issuer);
 			if (!scope) return;
-			if (this.adapter && isProvidedRequest(data.request, this.adapter)) {
+			if (this.adapter?.isProvidedRequest(data.request)) {
 				const source = this.sourceFor(data.contextInfo?.issuer);
-				const usages = source
-					? importUsages(source, data.request)
-					: [{ kind: 'namespace' as const, exportNames: [] }];
+				const usages = this.adapter
+					.analyzeProvidedImports(source, data.contextInfo?.issuer ?? '')
+					.get(data.request);
+				if (!usages) throw new Error(`Provided-package import was not analyzed: ${data.request}`);
 				const bridgeSource = this.adapter.providedBridge(data.request, usages);
 				const id = this.virtualId(`bridge:${scope}:${data.request}:${JSON.stringify(usages)}`);
 				this.virtualSources.set(id, bridgeSource);
@@ -316,37 +316,4 @@ function webpackPublicPath(compiler: Compiler): string | undefined {
 
 function addScope(resource: string, scope: string): string {
 	return `${resource}${resource.includes('?') ? '&' : '?'}exact-remote-scope=${encodeURIComponent(scope)}`;
-}
-
-function isProvidedRequest(request: string, adapter: RemoteAdapter): boolean {
-	try {
-		adapter.providedBridge(request, [{ kind: 'namespace', exportNames: [] }]);
-		return true;
-	} catch {
-		return false;
-	}
-}
-
-function importUsages(source: string, request: string): ExactProvidedPackageImportUsage[] {
-	const escaped = request.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-	const match = source.match(new RegExp(`import\\s+([^;]+?)\\s+from\\s+["']${escaped}["']`));
-	if (!match) return [{ kind: 'namespace', exportNames: [] }];
-	const clause = match[1]!.trim();
-	if (clause.startsWith('*')) {
-		const local = clause.match(/^\*\s+as\s+(\w+)/)?.[1];
-		const exportNames = local
-			? [...source.matchAll(new RegExp(`\\b${local}\\.([A-Za-z_$][\\w$]*)`, 'g'))].map(
-					(value) => value[1]!
-				)
-			: [];
-		return [{ kind: 'namespace', exportNames: [...new Set(exportNames)] }];
-	}
-	const result: ExactProvidedPackageImportUsage[] = [];
-	if (!clause.startsWith('{')) result.push({ kind: 'default' });
-	const named = clause.match(/\{([^}]+)\}/)?.[1];
-	for (const item of named?.split(',') ?? []) {
-		const [imported, local] = item.trim().split(/\s+as\s+/);
-		if (imported) result.push({ kind: 'named', imported, ...(local ? { local } : {}) });
-	}
-	return result.length ? result : [{ kind: 'namespace', exportNames: [] }];
 }

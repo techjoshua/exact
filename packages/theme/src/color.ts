@@ -19,12 +19,12 @@ export function parseThemeColor(value: ThemeColor, path = 'color'): ParsedColor 
 		)
 			throw new Error('non-finite or out-of-range component');
 		const c = parsed.c < 0.000005 ? 0 : parsed.c;
-		return Object.freeze({
+		return {
 			l: parsed.l,
 			c,
 			h: c === 0 ? 0 : normalizeHue(parsed.h),
 			alpha: parsed.alpha
-		});
+		};
 	} catch (cause) {
 		if (cause instanceof ThemeResolutionError) throw cause;
 		throw new ThemeResolutionError(
@@ -36,18 +36,28 @@ export function parseThemeColor(value: ThemeColor, path = 'color'): ParsedColor 
 }
 
 function parseDtcgColor(value: Exclude<ThemeColor, string>): ParsedColor {
-	if (!value || !Array.isArray(value.components) || value.components.length !== 3)
+	if (!value) throw new Error('components');
+	const { components, colorSpace, alpha = 1 } = value;
+	if (!Array.isArray(components) || components.length !== 3) throw new Error('components');
+	const parts = [components[0], components[1], components[2]].map((part) =>
+		part === 'none' ? 0 : part
+	);
+	if (!parts.every((part) => typeof part === 'number' && Number.isFinite(part)))
 		throw new Error('components');
-	const components = value.components.map((part) => (part === 'none' ? 0 : part));
-	if (!components.every((part) => typeof part === 'number' && Number.isFinite(part)))
-		throw new Error('components');
-	const alpha = value.alpha ?? 1;
 	if (!Number.isFinite(alpha) || alpha < 0 || alpha > 1) throw new Error('alpha');
-	const [a, b, c] = components as [number, number, number];
-	if (value.colorSpace === 'oklch') return { l: a, c: b, h: c, alpha };
-	if (value.colorSpace === 'oklab') return oklabToOklch(a, b, c, alpha);
-	if (value.colorSpace === 'srgb') return srgbToOklch(a, b, c, alpha);
-	return p3ToOklch(a, b, c, alpha);
+	const [a, b, c] = parts as [number, number, number];
+	switch (colorSpace) {
+		case 'oklch':
+			return { l: a, c: b, h: c, alpha };
+		case 'oklab':
+			return oklabToOklch(a, b, c, alpha);
+		case 'srgb':
+			return srgbToOklch(a, b, c, alpha);
+		case 'display-p3':
+			return p3ToOklch(a, b, c, alpha);
+		default:
+			throw new Error('color space');
+	}
 }
 
 function parseCssColor(source: string): ParsedColor {
@@ -277,8 +287,8 @@ export function gamutMap(input: Pick<ParsedColor, 'l' | 'c' | 'h'>): OklchColor 
 		}
 		c = low;
 	}
-	if (c < 0.000005) return Object.freeze({ l, c: 0, h: 0, alpha: 1 as const });
-	return Object.freeze({ l, c, h, alpha: 1 as const });
+	if (c < 0.000005) return { l, c: 0, h: 0, alpha: 1 as const };
+	return { l, c, h, alpha: 1 as const };
 }
 
 /** Creates the canonical inspected form of a gamut-mapped color. */
@@ -289,11 +299,11 @@ export function resolveColor(input: Pick<ParsedColor, 'l' | 'c' | 'h'>): Resolve
 		number,
 		number
 	];
-	return Object.freeze({
+	return {
 		oklch,
-		srgb: Object.freeze(rgb),
+		srgb: rgb,
 		css: `oklch(${decimal(oklch.l, 5)} ${decimal(oklch.c, 5)} ${decimal(oklch.h, 3)})`
-	});
+	};
 }
 
 /** Composites a translucent source over an opaque background in linear-light sRGB. */

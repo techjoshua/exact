@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 import { expect, it, onTestFinished } from 'vitest';
-import { createCompiledComponentReceipt as receipt } from '@exactjs/core/runtime/component-operations';
+import { createCompiledComponentInputReceipt as receipt } from '@exactjs/core/runtime/component-operations';
 import { renderToHydratableString } from '@exactjs/ssr';
 import { flushSync } from '@exactjs/reactive';
 import { unmount } from '@exactjs/dom';
@@ -23,7 +23,6 @@ import {
 	GenericScalarClickPage as ServerGenericPage,
 	bindingState as serverBindingState
 } from './test-support/coalesced-scalars.fixtures.js?exact-target=server';
-
 it.each([
 	['strings', ['a', ' / ', 'b'], 'a / b'],
 	['numbers', [1, 2, 3], '123'],
@@ -61,7 +60,6 @@ it.each([
 	root.dispose();
 	expect(host.childNodes.length).toBe(0);
 });
-
 it.each(['throw', 'replace'] as const)(
 	'honors %s for a marked root text mismatch',
 	async (policy) => {
@@ -95,7 +93,6 @@ it.each(['throw', 'replace'] as const)(
 		expect(diagnostics).toEqual([expect.objectContaining({ code: 'adoption-mismatch' })]);
 	}
 );
-
 it('keeps independent scalar runs on each side of an opaque intrinsic', async () => {
 	const host = document.createElement('div');
 	onTestFinished(() => {
@@ -162,7 +159,6 @@ it('adopts an explicitly allowed markerless root with retained structural bounda
 	expect(host.textContent).toBe('cd');
 	root.dispose();
 });
-
 it.each([
 	['', 'a'],
 	['a', ''],
@@ -196,7 +192,6 @@ it.each([
 	root.dispose();
 	expect(host.childNodes).toHaveLength(0);
 });
-
 it.each(['mount', 'hydrate'])(
 	'updates mixed scalar lanes from an authored click after %s',
 	async (mode) => {
@@ -228,7 +223,6 @@ it.each(['mount', 'hydrate'])(
 		expect(host.querySelector('p')).toBe(paragraph);
 	}
 );
-
 it.each(['mount', 'hydrate'])('updates a generic scalar range after %s', async (mode) => {
 	const host = document.createElement('div');
 	onTestFinished(() => {

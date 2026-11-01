@@ -3,12 +3,14 @@ import { lstat, mkdir, realpath, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import {
 	validatePublishedModuleArtifacts,
-	validatePublishedArtifactModuleOwners
+	validatePublishedArtifactModuleOwners,
+	validatePublishedSelectionEvidence
 } from './compilation/published-artifact-validation.js';
 import type {
 	ExactComponentBuildFacts,
 	ExactPublishedComponentBuildFacts,
-	ExactPublishedModuleArtifacts
+	ExactPublishedModuleArtifacts,
+	ExactPublishedComponentBuildProjection
 } from './contracts/transform.js';
 
 /** Declarative package inputs used to produce inert component-library build facts. */
@@ -16,7 +18,7 @@ export type ExactComponentLibraryBuildInput = Readonly<{
 	package: Readonly<{ name: string; version: string }>;
 	modules: readonly Readonly<{
 		path: string;
-		facts: ExactComponentBuildFacts | Omit<ExactComponentBuildFacts, 'filename' | 'packageName'>;
+		facts: ExactComponentBuildFacts | ExactPublishedComponentBuildProjection;
 		artifacts?: ExactPublishedModuleArtifacts;
 	}>[];
 	exports: ExactPublishedComponentBuildFacts['exports'];
@@ -31,29 +33,39 @@ export function createExactPublishedComponentBuildFacts(
 	const modules = input.modules
 		.map((module) => {
 			const modulePath = normalizePackagePath(module.path);
-			const facts = module.facts as ExactComponentBuildFacts;
+			const facts = module.facts as ExactPublishedComponentBuildProjection;
 			if (facts.protocol !== 1)
 				throw new Error(
 					`Component build facts for ${modulePath} use an unsupported protocol. Rebuild the library with a compiler version compatible with the consuming application`
 				);
-			return Object.freeze({
+			return {
 				path: modulePath,
 				...(module.artifacts
 					? {
-							artifacts: Object.freeze({
+							artifacts: {
 								...module.artifacts,
 								clientModule: normalizePackagePath(module.artifacts.clientModule),
 								serverModule: normalizePackagePath(module.artifacts.serverModule)
-							})
+							}
 						}
 					: {}),
-				facts: Object.freeze({
+				facts: {
 					protocol: 1 as const,
-					components: Object.freeze([...facts.components]),
-					componentImports: Object.freeze([...facts.componentImports]),
-					rendererEnhancements: Object.freeze([...facts.rendererEnhancements])
-				})
-			});
+					components: [...facts.components],
+					componentImports: facts.componentImports.map((edge) => ({
+						...edge,
+						...('executable' in edge && edge.executable
+							? {
+									executable: {
+										target: edge.executable.target,
+										module: normalizePackagePath(edge.executable.module)
+									}
+								}
+							: {})
+					})),
+					rendererEnhancements: [...facts.rendererEnhancements]
+				}
+			};
 		})
 		.sort((left, right) => compareCanonicalStrings(left.path, right.path));
 	if (new Set(modules.map((module) => module.path)).size !== modules.length)
@@ -66,19 +78,18 @@ export function createExactPublishedComponentBuildFacts(
 			);
 	validatePublishedArtifactModuleOwners(modules);
 	const exports = input.exports
-		.map((record) =>
-			Object.freeze({
-				...record,
-				module: normalizePackagePath(record.module),
-				componentModule: normalizePackagePath(record.componentModule)
-			})
-		)
+		.map((record) => ({
+			...record,
+			module: normalizePackagePath(record.module),
+			componentModule: normalizePackagePath(record.componentModule)
+		}))
 		.sort((left, right) =>
 			compareCanonicalStrings(
 				[left.subpath, left.condition, left.exportName, left.componentId].join('\0'),
 				[right.subpath, right.condition, right.exportName, right.componentId].join('\0')
 			)
 		);
+	validatePublishedSelectionEvidence(modules, exports);
 	const exportSelections = new Map<string, string>();
 	for (const record of exports) {
 		const selection = [record.subpath, record.condition, record.exportName].join('\0');
@@ -103,12 +114,12 @@ export function createExactPublishedComponentBuildFacts(
 			throw new Error(
 				`Published export ${record.subpath}#${record.exportName} has no ${record.componentId} component in ${record.componentModule}`
 			);
-	return Object.freeze({
+	return {
 		protocol: componentLibraryProtocolVersion,
-		package: Object.freeze({ ...input.package }),
-		modules: Object.freeze(modules),
-		exports: Object.freeze(exports)
-	});
+		package: { ...input.package },
+		modules: modules,
+		exports: exports
+	};
 }
 
 /**

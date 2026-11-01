@@ -1,3 +1,5 @@
+import { isArrayBinding } from './array-validation.js';
+import type { ArrayClientBinding } from '@exactjs/reactive/framework/array-patch';
 import type {
 	AnyExactComponentCallable,
 	ExactComponentContinuationExecutorContract
@@ -11,7 +13,11 @@ export function addUniqueExecutor(
 	const previous = target[executor.id];
 	if (
 		previous &&
-		(previous.componentId !== executor.componentId || previous.execute !== executor.execute)
+		(previous.componentId !== executor.componentId ||
+			previous.execute !== executor.execute ||
+			previous.array?.capture !== executor.array?.capture ||
+			previous.array?.diff !== executor.array?.diff ||
+			previous.array?.parse !== executor.array?.parse)
 	)
 		throw new Error(`Conflicting eXact component continuation executor ${executor.id}`);
 	target[executor.id] = executor;
@@ -40,4 +46,24 @@ export function addUniqueJson<T>(
 	if (previous && JSON.stringify(previous) !== JSON.stringify(value))
 		throw new Error(`Conflicting eXact component ${kind} ${key}`);
 	target[key] = value;
+}
+
+/** Validates and adds target-local callbacks, rejecting conflicting continuation identities. */
+export function addUniqueArrayClientBinding(
+	target: Record<string, ArrayClientBinding>,
+	id: string,
+	binding: ArrayClientBinding
+): void {
+	if (!isArrayBinding(binding, 'client'))
+		throw new TypeError(`Invalid eXact Array client binding ${id}`);
+	const previous = target[id];
+	if (
+		previous &&
+		(previous.capture !== binding.capture ||
+			previous.parse !== binding.parse ||
+			previous.plan !== binding.plan ||
+			previous.apply !== binding.apply)
+	)
+		throw new Error(`Conflicting eXact component Array continuation ${id}`);
+	target[id] = binding;
 }

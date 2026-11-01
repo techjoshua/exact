@@ -40,7 +40,14 @@ the value.
 
 The package includes reactive objects and collections, computed values, watchers, batching, effect
 scopes, scheduling priorities, structural result equality, and external-source support.
+For data owned by another store, `createExternalSource()` connects its snapshot and subscription
+callbacks to a reactive value. Connections coalesce reentrant attempts and release subscriptions
+on failure or disposal. A failed explicit connection can be retried. A source created inside an
+effect scope belongs to that scope, otherwise call `dispose()` when it is no longer needed.
+The source's equality policy selects its current snapshot, preserving each accepted snapshot's identity.
 Arrays, `Map`, and `Set` retain their familiar JavaScript operations.
+Readonly types follow TypeScript's shallow compile-time rules. Reactive proxies do not add runtime
+immutability, and mutable aliases and nested values keep their ordinary mutation behavior.
 
 For an ordinary helper that needs explicit access to caller-supplied state, use
 `stateAccess(value)` and accept a `StateAccess<T>` parameter. Its `read`, `write`, and `remove`
@@ -49,6 +56,13 @@ compares storage identity across views without exposing raw storage. These optio
 are tree-shakeable. Task views retain their creating task's lifetime and must not be reused later.
 See the [task reference](https://github.com/techjoshua/exact/blob/main/docs/tasks.md#pending-transaction-ownership)
 for identity, native receiver and transactional limits.
+
+Integrations transporting reactive collections can use `encodeReactiveProtocolValue(value)` and
+`decodeReactiveProtocolValue(value)`. Both accept an optional second argument
+`{ maxDepth: 200 }` for a positive safe-integer depth cap. The default remains 100.
+Cycles and malformed protocol envelopes remain invalid. Framework response entry points apply
+their own resource policy. See the
+[production limits reference](https://github.com/techjoshua/exact/blob/main/docs/native-ssr-production-guide.md#limits).
 
 For application task and optimistic-state patterns, see
 [actions and forms](https://github.com/techjoshua/exact/blob/main/docs/actions-and-forms.md).

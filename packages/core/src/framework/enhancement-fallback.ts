@@ -3,6 +3,15 @@ import type { EnhancementEntry } from '../component/contracts.js';
 type Selection = { claimed: boolean };
 const selections = new WeakMap<EnhancementEntry, Selection>();
 
+/** Selects explicit roots before host candidates and range fallback. Callers own claims and rollback. */
+export function enhancementFallbackTargets(
+	selected: object | undefined,
+	candidates: readonly object[],
+	range: object | undefined
+): readonly object[] {
+	return selected ? [selected] : candidates.length ? candidates : range ? [range] : [];
+}
+
 /** Shares one unresolved bounded fallback across sequential prepared sibling candidates. */
 export function fallbackEnhancementEntries(
 	entry: EnhancementEntry,

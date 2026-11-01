@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, onTestFinished, vi } from 'vitest';
 import { createExactFrameworkFixtureArtifact } from '@exactjs/core/testing';
 import { loadExactRemoteModule } from './client.js';
 
@@ -36,6 +36,7 @@ describe('remote entry integrity loading', () => {
 			});
 		});
 
+		onTestFinished(() => append.mockRestore());
 		const loaded = await loadExactRemoteModule(
 			'https://cdn.example.test/integrity.js',
 			'sha384-YWJj'
@@ -46,4 +47,33 @@ describe('remote entry integrity loading', () => {
 		expect(script.crossOrigin).toBe('anonymous');
 		expect(loaded.root).toBe('@company/integrity#./Area');
 	});
+});
+
+it('releases the integrity script when its last caller cancels', async () => {
+	const first = new AbortController();
+	const second = new AbortController();
+	const tasks: Promise<unknown>[] = [];
+	onTestFinished(async () => {
+		first.abort();
+		second.abort();
+		await Promise.allSettled(tasks);
+	});
+	const url = 'https://cdn.example.test/last-owner.js';
+	const a = loadExactRemoteModule(url, 'sha256-AAAA', first.signal).catch((error) => error);
+	const b = loadExactRemoteModule(url, 'sha256-AAAA', second.signal).catch((error) => error);
+	tasks.push(a, b);
+	const script = document.head.querySelector<HTMLScriptElement>('script[src*="last-owner.js"]')!;
+	expect(script).not.toBeNull();
+	const token = new URL(script.src).searchParams.get('__exact_module_token');
+	first.abort(0);
+	expect(await a).toBe(0);
+	expect(script.isConnected).toBe(true);
+	second.abort(null);
+	expect(await b).toBeNull();
+	expect(script.isConnected).toBe(false);
+	const loader = Reflect.get(globalThis, loaderSymbol) as {
+		publish(token: string | null, value: unknown): void;
+	};
+	loader.publish(token, { component: IntegrityArea });
+	expect(script.isConnected).toBe(false);
 });

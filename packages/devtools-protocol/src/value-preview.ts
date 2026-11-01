@@ -4,9 +4,10 @@ export type ExactPreviewEntry = Readonly<{
 	value: ExactValuePreview;
 }>;
 
-/** Safe bounded representation that never exposes a raw runtime value. */
+/** Safe bounded representation that never exposes a raw runtime value. Constants preserve undefined and non-finite numbers without confusing them with strings or inspection failures. */
 export type ExactValuePreview =
 	| Readonly<{ kind: 'scalar'; value: string | number | boolean | null }>
+	| Readonly<{ kind: 'constant'; value: 'undefined' | 'NaN' | 'Infinity' | '-Infinity' | '-0' }>
 	| Readonly<{
 			kind: 'object';
 			type: string;
@@ -55,7 +56,7 @@ const defaults: Required<ExactValuePreviewLimits> = Object.freeze({
 });
 
 /**
- * Builds a bounded preview without invoking getters, toJSON, custom inspectors, or callbacks.
+ * Builds independent ordinary preview data without invoking getters, toJSON, or custom inspectors.
  *
  * Redaction runs before traversal. Property descriptor failures stop enumeration and return an
  * unavailable marker rather than retrying through a potentially hostile Proxy.
@@ -74,11 +75,13 @@ export function previewExactValue(
 	return preview(value, [...(options.path ?? [])], 0, state);
 }
 
-/** Returns an immutable redaction marker without inspecting the protected value. */
+/** Returns an ordinary redaction observation without inspecting the protected value. */
 export function redactExactValue(
 	reason: 'secret' | 'server-resource' | 'policy'
 ): ExactValuePreview {
-	return Object.freeze({ kind: 'redacted', reason });
+	return reason === 'secret' || reason === 'server-resource' || reason === 'policy'
+		? { kind: 'redacted', reason }
+		: { kind: 'unavailable', reason: 'redaction-failed' };
 }
 
 function preview(
@@ -89,25 +92,29 @@ function preview(
 ): ExactValuePreview {
 	let redaction: ReturnType<ExactValueRedactor>;
 	try {
-		redaction = state.redact?.(path, value);
+		if (state.redact !== undefined) redaction = state.redact([...path], value);
 	} catch {
-		return Object.freeze({ kind: 'unavailable', reason: 'redaction-failed' });
+		return { kind: 'unavailable', reason: 'redaction-failed' };
 	}
-	if (redaction) return redactExactValue(redaction);
+	if (redaction !== undefined) return redactExactValue(redaction);
+	if (typeof value === 'number' && Object.is(value, -0)) return { kind: 'constant', value: '-0' };
+	if (typeof value === 'number' && !Number.isFinite(value))
+		return {
+			kind: 'constant',
+			value: Number.isNaN(value) ? 'NaN' : value > 0 ? 'Infinity' : '-Infinity'
+		};
 	if (value === null || typeof value === 'boolean' || typeof value === 'number')
-		return Object.freeze({ kind: 'scalar', value });
+		return { kind: 'scalar', value };
 	if (typeof value === 'string') return scalarString(value, state);
 	if (typeof value === 'bigint') return scalarString(`${value}n`, state);
 	if (typeof value === 'symbol') return scalarString(String(value), state);
-	if (typeof value === 'undefined')
-		return Object.freeze({ kind: 'unavailable', reason: 'undefined' });
+	if (typeof value === 'undefined') return { kind: 'constant', value: 'undefined' };
 	if (typeof value === 'function') return previewFunction(value);
-	if (typeof value !== 'object')
-		return Object.freeze({ kind: 'unavailable', reason: typeof value });
+	if (typeof value !== 'object') return { kind: 'unavailable', reason: typeof value };
 	try {
 		if (domNode(value)) return previewDom(value);
 		if (depth >= state.limits.maxDepth) return objectPreview(typeName(value), [], true);
-		if (state.seen.has(value)) return Object.freeze({ kind: 'unavailable', reason: 'cycle' });
+		if (state.seen.has(value)) return { kind: 'unavailable', reason: 'cycle' };
 		state.seen.add(value);
 		if (value instanceof Map) return previewMap(value, path, depth, state);
 		if (value instanceof Set) return previewSet(value, path, depth, state);
@@ -115,7 +122,7 @@ function preview(
 		if (value instanceof Error) return previewError(value, path, depth, state);
 		return previewObject(value, path, depth, state);
 	} catch {
-		return Object.freeze({ kind: 'unavailable', reason: 'inspection-failed' });
+		return { kind: 'unavailable', reason: 'inspection-failed' };
 	}
 }
 
@@ -127,14 +134,17 @@ function previewError(
 ): ExactValuePreview {
 	const descriptors = Object.getOwnPropertyDescriptors(value);
 	const entries: ExactPreviewEntry[] = [];
+	let truncated = false;
 	for (const key of ['name', 'message', 'cause'] as const) {
 		const descriptor = descriptors[key];
-		if (!descriptor || !('value' in descriptor) || !reserve(key, state)) continue;
-		entries.push(
-			Object.freeze({ key, value: preview(descriptor.value, [...path, key], depth + 1, state) })
-		);
+		if (!descriptor || !('value' in descriptor)) continue;
+		if (!reserve(key, state)) {
+			truncated = true;
+			break;
+		}
+		entries.push({ key, value: preview(descriptor.value, [...path, key], depth + 1, state) });
 	}
-	return objectPreview(typeName(value), entries, false);
+	return objectPreview(typeName(value), entries, truncated);
 }
 
 function previewFunction(value: CallableFunction): ExactValuePreview {
@@ -144,9 +154,9 @@ function previewFunction(value: CallableFunction): ExactValuePreview {
 			descriptor && 'value' in descriptor && typeof descriptor.value === 'string'
 				? descriptor.value.slice(0, 128)
 				: undefined;
-		return Object.freeze({ kind: 'function', ...(name ? { name } : {}) });
+		return { kind: 'function', ...(name ? { name } : {}) };
 	} catch {
-		return Object.freeze({ kind: 'unavailable', reason: 'inspection-failed' });
+		return { kind: 'unavailable', reason: 'inspection-failed' };
 	}
 }
 
@@ -166,9 +176,7 @@ function previewObject(
 			truncated = true;
 			break;
 		}
-		entries.push(
-			Object.freeze({ key, value: preview(descriptor.value, [...path, key], depth + 1, state) })
-		);
+		entries.push({ key, value: preview(descriptor.value, [...path, key], depth + 1, state) });
 	}
 	return objectPreview(typeName(value), entries, truncated);
 }
@@ -185,9 +193,7 @@ function previewArray(
 		const descriptor = Object.getOwnPropertyDescriptor(value, key);
 		if (!descriptor || !('value' in descriptor) || !reserve(key, state))
 			return objectPreview('Array', entries, true);
-		entries.push(
-			Object.freeze({ key, value: preview(descriptor.value, [...path, key], depth + 1, state) })
-		);
+		entries.push({ key, value: preview(descriptor.value, [...path, key], depth + 1, state) });
 	}
 	return objectPreview('Array', entries, false);
 }
@@ -200,28 +206,27 @@ function previewMap(
 ): ExactValuePreview {
 	const entries: ExactPreviewEntry[] = [];
 	let index = 0;
-	for (const [key, item] of value) {
+	// Use the native iterator so inspection never invokes an application override.
+	for (const [key, item] of Map.prototype.entries.call(value)) {
 		const label = `entry:${index++}`;
 		if (!reserve(label, state)) return objectPreview('Map', entries, true);
-		entries.push(
-			Object.freeze({
-				key: label,
-				value: objectPreview(
-					'Entry',
-					[
-						Object.freeze({
-							key: 'key',
-							value: preview(key, [...path, label, 'key'], depth + 1, state)
-						}),
-						Object.freeze({
-							key: 'value',
-							value: preview(item, [...path, label, 'value'], depth + 1, state)
-						})
-					],
-					false
-				)
-			})
-		);
+		entries.push({
+			key: label,
+			value: objectPreview(
+				'Entry',
+				[
+					{
+						key: 'key',
+						value: preview(key, [...path, label, 'key'], depth + 1, state)
+					},
+					{
+						key: 'value',
+						value: preview(item, [...path, label, 'value'], depth + 1, state)
+					}
+				],
+				false
+			)
+		});
 	}
 	return objectPreview('Map', entries, false);
 }
@@ -234,10 +239,11 @@ function previewSet(
 ): ExactValuePreview {
 	const entries: ExactPreviewEntry[] = [];
 	let index = 0;
-	for (const item of value) {
+	// Use the native iterator so inspection never invokes an application override.
+	for (const item of Set.prototype.values.call(value)) {
 		const key = String(index++);
 		if (!reserve(key, state)) return objectPreview('Set', entries, true);
-		entries.push(Object.freeze({ key, value: preview(item, [...path, key], depth + 1, state) }));
+		entries.push({ key, value: preview(item, [...path, key], depth + 1, state) });
 	}
 	return objectPreview('Set', entries, false);
 }
@@ -248,7 +254,7 @@ function scalarString(value: string, state: PreviewState): ExactValuePreview {
 	const remaining = Math.max(0, state.limits.maxBytes - state.bytes);
 	const output = boundedStringPreview(characterBounded, truncated, remaining);
 	state.bytes += new TextEncoder().encode(output).byteLength;
-	return Object.freeze({ kind: 'scalar', value: output });
+	return { kind: 'scalar', value: output };
 }
 
 function boundedStringPreview(value: string, alreadyTruncated: boolean, maxBytes: number): string {
@@ -276,11 +282,18 @@ function safeUtf16Prefix(value: string, length: number): string {
 	return value.slice(0, end);
 }
 
+/** Reserves a protocol-safe key within the shared UTF-8 budget before inspecting its value. */
 function reserve(key: string, state: PreviewState): boolean {
-	if (state.entries >= state.limits.maxEntries || state.bytes >= state.limits.maxBytes)
+	if (
+		key.length > 512 ||
+		state.entries >= state.limits.maxEntries ||
+		state.bytes >= state.limits.maxBytes
+	)
 		return false;
+	const bytes = new TextEncoder().encode(key).byteLength;
+	if (bytes > state.limits.maxBytes - state.bytes) return false;
 	state.entries++;
-	state.bytes += key.length;
+	state.bytes += bytes;
 	return true;
 }
 
@@ -289,12 +302,24 @@ function objectPreview(
 	entries: readonly ExactPreviewEntry[],
 	truncated: boolean
 ): ExactValuePreview {
-	return Object.freeze({ kind: 'object', type, entries: Object.freeze(entries), truncated });
+	return { kind: 'object', type, entries: entries, truncated };
 }
 
+/** Reads a diagnostic type label through data descriptors without executing application accessors. */
 function typeName(value: object): string {
-	const prototype = Object.getPrototypeOf(value) as { constructor?: { name?: string } } | null;
-	return prototype?.constructor?.name || 'Object';
+	let prototype: object | null = Object.getPrototypeOf(value);
+	for (let depth = 0; prototype && depth < 20; depth++) {
+		const descriptor = Object.getOwnPropertyDescriptor(prototype, 'constructor');
+		if (descriptor) {
+			if (!('value' in descriptor) || typeof descriptor.value !== 'function') return 'Object';
+			const name = Object.getOwnPropertyDescriptor(descriptor.value, 'name');
+			return name && 'value' in name && typeof name.value === 'string' && name.value
+				? name.value.slice(0, 256)
+				: 'Object';
+		}
+		prototype = Object.getPrototypeOf(prototype);
+	}
+	return 'Object';
 }
 
 function domNode(value: object): value is {
@@ -320,14 +345,14 @@ function previewDom(value: {
 		const className = ownDataProperty(value, 'className');
 		const classes =
 			typeof className === 'string' ? className.split(/\s+/).filter(Boolean).slice(0, 10) : [];
-		return Object.freeze({
+		return {
 			kind: 'dom',
 			tag: typeof nodeName === 'string' ? nodeName.toLowerCase().slice(0, 64) : 'element',
 			...(typeof id === 'string' && id ? { id: id.slice(0, 128) } : {}),
-			classes: Object.freeze(classes.map((value) => String(value).slice(0, 128)))
-		});
+			classes: classes.map((value) => String(value).slice(0, 128))
+		};
 	} catch {
-		return Object.freeze({ kind: 'unavailable', reason: 'inspection-failed' });
+		return { kind: 'unavailable', reason: 'inspection-failed' };
 	}
 }
 

@@ -1,5 +1,5 @@
 import type { ScheduledWorkContext } from '@exactjs/reactive/framework/runtime';
-import { TaskCancellation } from './cancellation.js';
+import { linkTaskAbort, TaskCancellation } from './cancellation.js';
 import { taskFrameTokenBrand, type TaskFrameRecord } from './frame-contracts.js';
 import { taskFrameInspectionAttached } from './frame-inspection-capability.js';
 import {
@@ -79,6 +79,7 @@ function createScheduledReactionBatch(parent: TaskFrameRecord): ScheduledReactio
 /** Attaches one completion lease without a complete public task frame. */
 function createInlineScheduledReactionBatch(parent: TaskFrameRecord): ScheduledReactionBatch {
 	let controller: AbortController | undefined;
+	let releaseParent: (() => void) | undefined;
 	let acceptCompletion!: () => void;
 	let rejectCompletion!: (error: unknown) => void;
 	const completion = new Promise<void>((accept, fail) => {
@@ -93,7 +94,7 @@ function createInlineScheduledReactionBatch(parent: TaskFrameRecord): ScheduledR
 		get controller() {
 			if (!controller) {
 				controller = new AbortController();
-				linkAbort(parent.controller.signal, controller);
+				releaseParent = linkTaskAbort(parent.controller.signal, controller);
 			}
 			return controller;
 		},
@@ -110,31 +111,31 @@ function createInlineScheduledReactionBatch(parent: TaskFrameRecord): ScheduledR
 		settled: false
 	};
 	attachTaskFrameSettlement(parent, completion);
+	const finish = (settle: () => void) => {
+		frame.settled = true;
+		releaseParent?.();
+		settle();
+	};
 	return {
 		frame,
 		signal: parent.controller.signal,
 		resolve() {
 			frame.producerOpen = false;
 			void settleTaskFrameChildren(frame).then(
-				() => finishInlineFrame(frame, acceptCompletion),
-				(error) => finishInlineFrame(frame, () => rejectCompletion(error))
+				() => finish(acceptCompletion),
+				(error) => finish(() => rejectCompletion(error))
 			);
 		},
 		reject(error) {
 			frame.producerOpen = false;
 			controller?.abort(error);
-			const finish = () => finishInlineFrame(frame, () => rejectCompletion(error));
-			void settleTaskFrameChildren(frame).then(finish, finish);
+			const reject = () => finish(() => rejectCompletion(error));
+			void settleTaskFrameChildren(frame).then(reject, reject);
 		},
 		pending: 0,
 		failed: false,
 		closed: false
 	};
-}
-
-function finishInlineFrame(frame: TaskFrameRecord, settle: () => void): void {
-	frame.settled = true;
-	settle();
 }
 
 /** Retains the complete consequence projection while DevTools inspection is attached. */
@@ -170,11 +171,6 @@ function createInspectedScheduledReactionBatch(parent: TaskFrameRecord): Schedul
 		failed: false,
 		closed: false
 	};
-}
-
-function linkAbort(signal: AbortSignal, target: AbortController): void {
-	if (signal.aborted) target.abort(signal.reason);
-	else signal.addEventListener('abort', () => target.abort(signal.reason), { once: true });
 }
 
 function monotonicTimestamp(): number {

@@ -62,12 +62,12 @@ export function createExactDomInspectionHost(): ExactDomInspectionHost {
 				const mounted = root.mounted;
 				if (!mounted) continue;
 				const found = findMountedInstance(mounted, identity);
-				if (found) return Object.freeze(ownedElements(found));
+				if (found) return ownedElements(found);
 			}
-			return Object.freeze([]);
+			return [];
 		}
 	};
-	return Object.freeze(host);
+	return host;
 }
 
 function snapshotRoots(roots: readonly Root[]): ExactDomInspectionSnapshot {
@@ -79,28 +79,25 @@ function snapshotRoots(roots: readonly Root[]): ExactDomInspectionSnapshot {
 		if (!owner || !root.mounted) continue;
 		const before = components.length;
 		appendMounted(root.mounted, undefined, components);
-		executionRoots.push(
-			Object.freeze({
-				side: owner.side,
-				...(owner.binding ? { binding: owner.binding } : {}),
-				buildKey: owner.buildKey,
-				executionRoot: owner.executionRoot,
-				status: 'available',
-				components: components.length - before
-			})
-		);
+		executionRoots.push({
+			side: owner.side,
+			...(owner.binding ? { binding: owner.binding } : {}),
+			buildKey: owner.buildKey,
+			executionRoot: owner.executionRoot,
+			status: 'available',
+			components: components.length - before
+		});
 		partitions.push(...partitionRoots(root, owner.buildKey, owner.executionRoot));
 	}
-	return Object.freeze({
-		roots: Object.freeze(executionRoots),
-		components: Object.freeze(components),
-		partitions: Object.freeze(partitions)
-	});
+	return {
+		roots: executionRoots,
+		components: components,
+		partitions: partitions
+	};
 }
 
-type MutablePartitionInspection = {
-	value: Omit<ExactInspectedPartitionInstance, 'children'>;
-	children: MutablePartitionInspection[];
+type MutablePartitionInspection = Omit<ExactInspectedPartitionInstance, 'children'> & {
+	readonly children: MutablePartitionInspection[];
 };
 
 function partitionRoots(
@@ -136,16 +133,14 @@ function partitionRoots(
 				? componentDomainInspection(owner.domain)?.identity(owner)
 				: undefined;
 			const mutable: MutablePartitionInspection = {
-				value: Object.freeze({
-					executionRoot,
-					buildKey,
-					plan,
-					ownerComponentId,
-					...(ownerIdentity ? { ownerComponentInstance: ownerIdentity } : {}),
-					discriminator,
-					generation,
-					host: 'server' as const
-				}),
+				executionRoot,
+				buildKey,
+				plan,
+				ownerComponentId,
+				...(ownerIdentity ? { ownerComponentInstance: ownerIdentity } : {}),
+				discriminator,
+				generation,
+				host: 'server' as const,
 				children: []
 			};
 			byElement.set(node, mutable);
@@ -156,16 +151,7 @@ function partitionRoots(
 		},
 		{ maxNodes: root.maxTreeNodes }
 	);
-	return Object.freeze(roots.map(freezePartitionInspection));
-}
-
-function freezePartitionInspection(
-	instance: MutablePartitionInspection
-): ExactInspectedPartitionInstance {
-	return Object.freeze({
-		...instance.value,
-		children: Object.freeze(instance.children.map(freezePartitionInspection))
-	});
+	return roots;
 }
 
 function appendMounted(
@@ -184,22 +170,22 @@ function appendMounted(
 			ownedElements: ownedElements(mounted).length,
 			...(mounted.activity
 				? {
-						activity: Object.freeze({
+						activity: {
 							mode: mounted.activity.mode,
 							detached: mounted.activity.retained?.detached ?? false,
 							pending: mounted.activity.readiness.pending,
 							generation: mounted.activity.readiness.generation
-						})
+						}
 					}
 				: {}),
 			...(mounted.suspense
 				? {
-						suspense: Object.freeze({
+						suspense: {
 							pending: mounted.suspense.coordinator.pending,
 							generation: mounted.suspense.coordinator.generation,
 							revealed: mounted.suspense.revealed,
 							hasCandidate: mounted.suspense.candidate !== undefined
-						})
+						}
 					}
 				: {}),
 			targetContributions: inspectTargetContributions(mounted, instance)
@@ -223,45 +209,43 @@ function appendMounted(
 				? componentDomainInspection(instance.domain)
 				: undefined;
 		if (owner) {
-			const syntheticId: ExactInspectionRuntimeId = Object.freeze({
+			const syntheticId: ExactInspectionRuntimeId = {
 				...nextParent,
 				componentTypeId: `dynamic:${dynamic.id}`,
 				instanceId: `dynamic:${dynamic.id}`,
 				sourceEntityId: dynamic.id,
 				generation: dynamic.generation
-			});
-			output.push(
-				Object.freeze({
-					id: syntheticId,
-					parent: nextParent,
-					name: 'DynamicComponent',
-					status: 'mounted',
-					props: owner.preview(mounted.childRangeReceipt?.dynamicComponent?.props ?? {}, [
-						'dynamicComponent',
-						dynamic.id,
-						'props'
-					]),
-					state: owner.preview(
-						{
-							status: dynamic.status,
-							generation: dynamic.generation,
-							...(dynamic.componentId ? { componentId: dynamic.componentId } : {}),
-							...(dynamic.error === undefined ? {} : { error: dynamic.error })
-						},
-						['dynamicComponent', dynamic.id, 'state']
-					),
-					contexts: Object.freeze([]),
-					tasks: Object.freeze([]),
-					ownedElements: ownedElements(mounted).length,
-					synthetic: Object.freeze({
-						kind: 'dynamic-component',
-						boundaryId: dynamic.id,
-						availability: dynamic.status,
+			};
+			output.push({
+				id: syntheticId,
+				parent: nextParent,
+				name: 'DynamicComponent',
+				status: 'mounted',
+				props: owner.preview(mounted.childRangeReceipt?.dynamicComponent?.props ?? {}, [
+					'dynamicComponent',
+					dynamic.id,
+					'props'
+				]),
+				state: owner.preview(
+					{
+						status: dynamic.status,
 						generation: dynamic.generation,
-						...(dynamic.componentId ? { adoptedComponentId: dynamic.componentId } : {})
-					})
-				})
-			);
+						...(dynamic.componentId ? { componentId: dynamic.componentId } : {}),
+						...(dynamic.error === undefined ? {} : { error: dynamic.error })
+					},
+					['dynamicComponent', dynamic.id, 'state']
+				),
+				contexts: [],
+				tasks: [],
+				ownedElements: ownedElements(mounted).length,
+				synthetic: {
+					kind: 'dynamic-component',
+					boundaryId: dynamic.id,
+					availability: dynamic.status,
+					generation: dynamic.generation,
+					...(dynamic.componentId ? { adoptedComponentId: dynamic.componentId } : {})
+				}
+			});
 			nextParent = syntheticId;
 		}
 	}
@@ -273,7 +257,7 @@ function inspectTargetContributions(
 	owner: AnyComponentInstance
 ): NonNullable<ExactInspectedRuntimeComponent['targetContributions']> {
 	const inspection = componentDomainInspection(owner.domain);
-	if (!inspection) return Object.freeze([]);
+	if (!inspection) return [];
 	const contributions: NonNullable<
 		ExactInspectedRuntimeComponent['targetContributions']
 	>[number][] = [];
@@ -281,33 +265,31 @@ function inspectTargetContributions(
 		const selected = boundary.targetBoundary?.selected;
 		const element = selected?.dom instanceof Element ? selected.dom : undefined;
 		const effective = selected?.targetEffectiveProps;
-		contributions.push(
-			Object.freeze({
-				active: !!element,
-				...(element
-					? {
-							target: Object.freeze({
-								tagName: element.tagName.toLowerCase(),
-								connected: element.isConnected
-							})
+		contributions.push({
+			active: !!element,
+			...(element
+				? {
+						target: {
+							tagName: element.tagName.toLowerCase(),
+							connected: element.isConnected
 						}
-					: {}),
-				props: inspection.preview(snapshotTargetProps(boundary.targetReceipt?.props ?? {}), [
-					'targetContributions',
-					'props'
-				]),
-				...(effective
-					? {
-							effectiveProps: inspection.preview(snapshotTargetProps(effective), [
-								'targetContributions',
-								'effectiveProps'
-							])
-						}
-					: {})
-			})
-		);
+					}
+				: {}),
+			props: inspection.preview(snapshotTargetProps(boundary.targetReceipt?.props ?? {}), [
+				'targetContributions',
+				'props'
+			]),
+			...(effective
+				? {
+						effectiveProps: inspection.preview(snapshotTargetProps(effective), [
+							'targetContributions',
+							'effectiveProps'
+						])
+					}
+				: {})
+		});
 	});
-	return Object.freeze(contributions);
+	return contributions;
 }
 
 function visitOwnedTargetBoundaries(
@@ -325,12 +307,10 @@ function visitOwnedTargetBoundaries(
 function snapshotTargetProps(
 	props: Readonly<Record<string, unknown>>
 ): Readonly<Record<string, unknown>> {
-	return Object.freeze(
-		Object.fromEntries(
-			Object.entries(props)
-				.filter(([key]) => key !== 'children' && key !== 'ref' && !/^on[A-Z]/.test(key))
-				.map(([key, value]) => [key, unwrap(value)])
-		)
+	return Object.fromEntries(
+		Object.entries(props)
+			.filter(([key]) => key !== 'children' && key !== 'ref' && !/^on[A-Z]/.test(key))
+			.map(([key, value]) => [key, unwrap(value)])
 	);
 }
 
@@ -343,8 +323,18 @@ function findMountedInstance(
 		instance &&
 		instance.id === identity.instanceId &&
 		instance.domain.executionRoot === identity.executionRoot
-	)
-		return mounted;
+	) {
+		const actual = componentDomainInspection(instance.domain)?.identity(instance);
+		if (
+			actual &&
+			actual.sessionId === identity.sessionId &&
+			actual.side === identity.side &&
+			actual.binding === identity.binding &&
+			actual.buildKey === identity.buildKey &&
+			actual.componentTypeId === identity.componentTypeId
+		)
+			return mounted;
+	}
 	for (const child of mounted.children) {
 		const found = findMountedInstance(child, identity);
 		if (found) return found;

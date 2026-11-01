@@ -1,3 +1,4 @@
+import { acquiredComponentChildren } from './component-receipt-binding.js';
 import { installEnhancementRouteWatch } from './enhancement-route-watch.js';
 import type { AnyComponentInstance } from '@exactjs/core';
 import type { Mounted, Root } from '../types.js';
@@ -21,8 +22,10 @@ export function removeReroutedEnhancementPeer(
 		let predecessor: Mounted | undefined;
 		for (const entry of state.entries) {
 			const receipt = current?.componentReceipt;
-			if (!current || !receipt || receipt.children.length !== 1) return false;
-			const supplied = receipt.children[0];
+			if (!current || !receipt) return false;
+			const children = acquiredComponentChildren(current);
+			if (children.length !== 1) return false;
+			const supplied = children[0];
 			if (entry.identity === identity) {
 				removePreparedEnhancement(
 					root,

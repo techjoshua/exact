@@ -1,11 +1,20 @@
+import { sharedTaskRuntimeState } from './runtime-state.js';
+import { attachSuppressedCleanupFailure } from '../cleanup.js';
+import { withTaskPropertyMutationCapture } from './property-mutations.js';
 import { registerTaskResourceOwner } from './resource-lifetime.js';
 import {
 	setScheduledWorkContextCapture,
 	type ScheduledWorkContext
 } from '@exactjs/reactive/framework/runtime';
 import type { TaskContext, TaskOwner } from './contracts.js';
-import { raceTaskCancellation, TaskCancellation } from './cancellation.js';
 import {
+	linkTaskAbort,
+	raceTaskCancellation,
+	TaskCancellation,
+	isTaskCancellation
+} from './cancellation.js';
+import {
+	frameForTaskSignal,
 	registerTaskFrameSignal,
 	releaseTaskFrameSignal,
 	resumeTaskFrameContinuation
@@ -37,10 +46,13 @@ export type {
 	TaskFrameRecord,
 	TaskOwnerRecord
 } from './frame-contracts.js';
-let nextFrameId = 1;
-let currentFrame: TaskFrameRecord | undefined;
-let currentOwner: TaskOwnerRecord | undefined;
-let deferredFrameMaterializer: (() => TaskFrameRecord) | undefined;
+/** Synchronous ownership is shared across compatible providers. Explicit frame scopes restore it before promises continue. */
+const ambient = sharedTaskRuntimeState('ambient-frame-context', () => ({
+	nextFrameId: 1,
+	currentFrame: undefined as TaskFrameRecord | undefined,
+	currentOwner: undefined as TaskOwnerRecord | undefined,
+	deferredFrameMaterializer: undefined as (() => TaskFrameRecord) | undefined
+}));
 let scheduledWorkCaptureInstalled = false;
 const synchronousFrameErrors = new WeakMap<Promise<unknown>, { readonly error: unknown }>();
 
@@ -63,38 +75,38 @@ export function taskOwnerRecord(owner: TaskOwner): TaskOwnerRecord {
 
 /** Returns the frame active for the current synchronous execution segment. */
 export function currentTaskFrameRecord(): TaskFrameRecord | undefined {
-	return currentFrame;
+	return ambient.currentFrame;
 }
 
 /** Materializes an interaction frame only when synchronous work requests structural ownership. */
 export function materializeDeferredTaskFrame(): TaskFrameRecord | undefined {
-	return deferredFrameMaterializer?.();
+	return ambient.deferredFrameMaterializer?.();
 }
 
 /** Installs the lazy structural parent available to task and navigation operations during work. */
 export function withDeferredTaskFrame<T>(materialize: () => TaskFrameRecord, work: () => T): T {
-	const previous = deferredFrameMaterializer;
-	deferredFrameMaterializer = materialize;
+	const previous = ambient.deferredFrameMaterializer;
+	ambient.deferredFrameMaterializer = materialize;
 	try {
 		return work();
 	} finally {
-		deferredFrameMaterializer = previous;
+		ambient.deferredFrameMaterializer = previous;
 	}
 }
 
 /** Returns the durable owner supplied by the current framework host. */
 export function currentTaskOwnerRecord(): TaskOwnerRecord | undefined {
-	return currentFrame?.owner ?? currentOwner;
+	return ambient.currentFrame?.owner ?? ambient.currentOwner;
 }
 
 /** Establishes a durable host owner during component state-machine construction or adapter setup. */
 export function withTaskOwnerRecord<T>(owner: TaskOwnerRecord, work: () => T): T {
-	const previous = currentOwner;
-	currentOwner = owner;
+	const previous = ambient.currentOwner;
+	ambient.currentOwner = owner;
 	try {
 		return work();
 	} finally {
-		currentOwner = previous;
+		ambient.currentOwner = previous;
 	}
 }
 
@@ -102,16 +114,22 @@ export function withTaskOwnerRecord<T>(owner: TaskOwnerRecord, work: () => T): T
 export function withTaskFrameRecord<T>(frame: TaskFrameRecord | undefined, work: () => T): T {
 	if (frame?.settled) throw new Error('Cannot resume a settled task frame');
 	ensureScheduledWorkContextCapture();
-	const previous = currentFrame;
-	const previousMaterializer = deferredFrameMaterializer;
-	currentFrame = frame;
-	if (!frame) deferredFrameMaterializer = undefined;
+	const previous = ambient.currentFrame;
+	const previousMaterializer = ambient.deferredFrameMaterializer;
+	ambient.currentFrame = frame;
+	if (!frame) ambient.deferredFrameMaterializer = undefined;
 	try {
 		return work();
 	} finally {
-		currentFrame = previous;
-		deferredFrameMaterializer = previousMaterializer;
+		ambient.currentFrame = previous;
+		ambient.deferredFrameMaterializer = previousMaterializer;
 	}
+}
+
+/** Runs a synchronous resource callback in its generation and restores unrelated ambient ownership. */
+export function withTaskFrameForSignal<T>(signal: AbortSignal, work: () => T): T {
+	const frame = frameForTaskSignal(signal);
+	return withTaskFrameRecord(frame && !frame.settled ? frame : undefined, work);
 }
 
 /**
@@ -122,7 +140,7 @@ export function executeTaskFrame<T>(
 	options: InternalTaskFrameOptions,
 	work: (context: TaskContext) => T | PromiseLike<T>
 ): Promise<T> {
-	const structuralParent = options.detached ? undefined : (options.parent ?? currentFrame);
+	const structuralParent = options.detached ? undefined : (options.parent ?? ambient.currentFrame);
 	if (
 		structuralParent &&
 		!options.parentReserved &&
@@ -136,13 +154,16 @@ export function executeTaskFrame<T>(
 	if (owner.disposed) {
 		options.controller?.abort('task-owner-disposed');
 		return Promise.reject(
-			new TaskCancellation(options.controller?.signal.reason ?? 'task-owner-disposed')
+			new TaskCancellation(
+				options.controller ? options.controller.signal.reason : 'task-owner-disposed'
+			)
 		);
 	}
 	const controller = options.controller ?? new AbortController();
 	// The owner cancels its active frame controllers directly during disposal. Subscribing every
 	// frame to its durable signal would retain settled controllers until the owner itself is released.
-	if (structuralParent) linkAbort(structuralParent.controller.signal, controller);
+	const releaseParent =
+		structuralParent && linkTaskAbort(structuralParent.controller.signal, controller);
 
 	let resolveSettlement!: () => void;
 	let rejectSettlement!: (error: unknown) => void;
@@ -152,7 +173,7 @@ export function executeTaskFrame<T>(
 	});
 	const frame: TaskFrameRecord = {
 		[taskFrameTokenBrand]: true as const,
-		id: nextFrameId++,
+		id: ambient.nextFrameId++,
 		owner,
 		parent: structuralParent,
 		controller,
@@ -200,12 +221,12 @@ export function executeTaskFrame<T>(
 	}
 
 	let directResult: T | PromiseLike<T>;
-	let synchronousError: unknown;
+	let synchronousError: { readonly error: unknown } | undefined;
 	try {
 		if (controller.signal.aborted) throw new TaskCancellation(controller.signal.reason);
 		directResult = withTaskFrameRecord(frame, () => work(frame.context!));
 	} catch (error) {
-		synchronousError = error;
+		synchronousError = { error };
 		directResult = Promise.reject(error);
 	} finally {
 		uninspectedSynchronousFrames.delete(frame);
@@ -213,63 +234,20 @@ export function executeTaskFrame<T>(
 	const execution = raceTaskCancellation(controller.signal, directResult);
 
 	const result = execution.then(
-		async (value) => {
-			frame.producerOpen = false;
-			publishTaskFrameEvent(frame, 'task.foreground-settle');
-			let structuralError: unknown;
-			let structuralFailed = false;
-			try {
-				await settleTaskFrameChildren(frame);
-			} catch (error) {
-				structuralError = error;
-				structuralFailed = true;
-			}
-			try {
-				await runTaskFrameCleanups(frame);
-			} catch (cleanupError) {
-				if (!structuralFailed) throw cleanupError;
-				if (structuralError && typeof structuralError === 'object')
-					Object.defineProperty(structuralError, 'suppressed', {
-						configurable: true,
-						value: [cleanupError]
-					});
-			}
-			if (controller.signal.aborted) throw new TaskCancellation(controller.signal.reason);
-			if (structuralFailed) throw structuralError;
-			return value;
-		},
-		async (error) => {
-			const outcomeError =
-				controller.signal.aborted && !(error instanceof TaskCancellation)
+		(value) => settleTaskFrame(frame, false, value),
+		(error) =>
+			settleTaskFrame(
+				frame,
+				true,
+				controller.signal.aborted && !isTaskCancellation(error)
 					? new TaskCancellation(controller.signal.reason)
-					: error;
-			frame.producerOpen = false;
-			publishTaskFrameEvent(frame, 'task.foreground-settle');
-			controller.abort(error);
-			let childError: unknown;
-			let childFailed = false;
-			try {
-				await settleTaskFrameChildren(frame);
-			} catch (error) {
-				childError = error;
-				childFailed = true;
-			}
-			try {
-				await runTaskFrameCleanups(frame);
-			} catch (cleanupError) {
-				if (outcomeError && typeof outcomeError === 'object')
-					Object.defineProperty(outcomeError, 'suppressed', {
-						configurable: true,
-						value: [cleanupError]
-					});
-			}
-			if (outcomeError === undefined && childFailed) throw childError;
-			throw outcomeError;
-		}
+					: error
+			)
 	);
 	const output = result.then(
 		(value) => {
 			frame.settled = true;
+			releaseParent?.();
 			releaseTaskFrameSignal(controller.signal);
 			owner.frames.delete(frame);
 			resolveSettlement();
@@ -284,12 +262,13 @@ export function executeTaskFrame<T>(
 		},
 		(error) => {
 			frame.settled = true;
+			releaseParent?.();
 			releaseTaskFrameSignal(controller.signal);
 			owner.frames.delete(frame);
 			if (options.propagateFailure?.() === false) resolveSettlement();
 			else rejectSettlement(error);
 			publishTaskFrameEvent(frame, 'task.frame.exit');
-			const cancelled = error instanceof TaskCancellation;
+			const cancelled = isTaskCancellation(error);
 			publishTaskFrameEvent(frame, cancelled ? 'task.cancel' : 'task.fail', error, {
 				kind: 'outcome',
 				status: cancelled ? 'cancelled' : 'failed',
@@ -299,7 +278,7 @@ export function executeTaskFrame<T>(
 		}
 	);
 	if (synchronousError !== undefined) {
-		synchronousFrameErrors.set(output, { error: synchronousError });
+		synchronousFrameErrors.set(output, synchronousError);
 		// Callers that preserve a synchronous host contract rethrow this error
 		// immediately. The frame still settles asynchronously to release ownership.
 		void output.catch(() => undefined);
@@ -335,19 +314,19 @@ export function joinTask(settlement: PromiseLike<unknown>): void {
 /** Publishes a task-owned mutation only while its generation remains current. */
 export function taskMutation<Result>(signal: AbortSignal, mutation: () => Result): Result {
 	if (signal.aborted) throw new TaskCancellation(signal.reason);
-	return mutation();
+	return withTaskPropertyMutationCapture(signal, mutation);
 }
 
 /** Restores the owning task frame around one compiler-lowered async continuation. */
 export function resumeTaskFrame(signal: AbortSignal, resume: () => void): void {
 	resumeTaskFrameContinuation(signal, resume, (frame) => {
-		const previous = currentFrame;
-		const previousMaterializer = deferredFrameMaterializer;
-		currentFrame = frame;
-		if (!frame) deferredFrameMaterializer = undefined;
+		const previous = ambient.currentFrame;
+		const previousMaterializer = ambient.deferredFrameMaterializer;
+		ambient.currentFrame = frame;
+		if (!frame) ambient.deferredFrameMaterializer = undefined;
 		return () => {
-			currentFrame = previous;
-			deferredFrameMaterializer = previousMaterializer;
+			ambient.currentFrame = previous;
+			ambient.deferredFrameMaterializer = previousMaterializer;
 		};
 	});
 }
@@ -356,12 +335,39 @@ export { frameForTaskContext };
 const interactiveReactionContexts = new WeakMap<TaskFrameRecord, ScheduledWorkContext>();
 const uninspectedSynchronousFrames = new WeakSet<TaskFrameRecord>();
 
-function linkAbort(signal: AbortSignal, target: AbortController): void {
-	if (signal.aborted) {
-		target.abort(signal.reason);
-		return;
+/** Drains descendants and cleanup once, preserving a producer or child failure before cleanup diagnostics. */
+function settleTaskFrame(frame: TaskFrameRecord, failed: true, error: unknown): Promise<never>;
+function settleTaskFrame<Result>(
+	frame: TaskFrameRecord,
+	failed: false,
+	value: Result
+): Promise<Result>;
+async function settleTaskFrame<Result>(
+	frame: TaskFrameRecord,
+	foregroundFailed: boolean,
+	value: Result
+): Promise<Result> {
+	let failed = foregroundFailed;
+	let error: unknown = failed ? value : undefined;
+	frame.producerOpen = false;
+	publishTaskFrameEvent(frame, 'task.foreground-settle');
+	if (failed) frame.controller.abort(error);
+	try {
+		await settleTaskFrameChildren(frame);
+	} catch (childError) {
+		if (!failed) error = childError;
+		failed = true;
 	}
-	signal.addEventListener('abort', () => target.abort(signal.reason), { once: true });
+	try {
+		await runTaskFrameCleanups(frame);
+	} catch (cleanupError) {
+		if (!failed) throw cleanupError;
+		attachSuppressedCleanupFailure(error, cleanupError);
+	}
+	if (!foregroundFailed && frame.controller.signal.aborted)
+		throw new TaskCancellation(frame.controller.signal.reason);
+	if (failed) throw error;
+	return value;
 }
 
 function monotonicTimestamp(): number {
@@ -370,7 +376,7 @@ function monotonicTimestamp(): number {
 
 /** Allocates one process-local frame identity for internal consequence frames. */
 export function allocateTaskFrameId(): number {
-	return nextFrameId++;
+	return ambient.nextFrameId++;
 }
 
 function ensureScheduledWorkContextCapture(): void {

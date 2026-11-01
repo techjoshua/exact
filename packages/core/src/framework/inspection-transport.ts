@@ -1,4 +1,7 @@
 export {
+	attachExactObservationOwner,
+	readExactObservationOwner,
+	linkExactObservationOwner,
 	consumeExactServerObservations,
 	exactServerObservationRequestHeaders,
 	EXACT_SERVER_OBSERVATIONS_KEY,

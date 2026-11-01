@@ -16,7 +16,7 @@ import type {
 
 import { createErrorReport, handleComponentError } from '../component/errors.js';
 import { TaskCancellation } from './cancellation.js';
-import { resumeTaskFrame } from './frame-runtime.js';
+import { resumeTaskFrame, withTaskFrameForSignal } from './frame-runtime.js';
 
 import { logFrameworkEvent } from '../component/log.js';
 
@@ -227,7 +227,7 @@ export function taskObserver<T extends { disconnect(): void }>(
 
 function runTaskCallback(signal: AbortSignal, phase: string, callback: () => void): void {
 	try {
-		callback();
+		withTaskFrameForSignal(signal, callback);
 	} catch (error) {
 		const instance = componentForTaskSignal(signal);
 		if (instance) handleComponentError(instance, createErrorReport(error, 'task', instance, phase));

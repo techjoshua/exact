@@ -1,3 +1,7 @@
+import { boundedString, record } from './protocol-value-shapes.js';
+import { validSourceEntities } from './catalog-source-validation.js';
+import { boundedJson, everyCatalogEntry, hasValueField } from './catalog-validation-primitives.js';
+
 /** Current version of every eXact DevTools request, response, catalog, and event. */
 export const EXACT_DEVTOOLS_PROTOCOL_VERSION = 1 as const;
 
@@ -186,7 +190,7 @@ function validComponentAuthorization(value: unknown, buildKey: string): boolean 
 	const decisions = new Set(['root', 'allow', 'scope', 'delegated', 'all']);
 	const kinds = new Set(['dependency', 'devDependency', 'peerDependency', 'optionalDependency']);
 	return (
-		value.packages.every((candidate) => {
+		everyCatalogEntry(value.packages, (candidate) => {
 			if (
 				!record(candidate) ||
 				!boundedString(candidate.instanceId, 256) ||
@@ -197,12 +201,13 @@ function validComponentAuthorization(value: unknown, buildKey: string): boolean 
 				(candidate.matchedRule !== undefined && !boundedString(candidate.matchedRule, 512)) ||
 				!Array.isArray(candidate.reasons) ||
 				candidate.reasons.length > 32 ||
-				!candidate.reasons.every((reason) => boundedString(reason, 64)) ||
+				!everyCatalogEntry(candidate.reasons, (reason) => boundedString(reason, 64)) ||
 				!Array.isArray(candidate.provenance) ||
 				candidate.provenance.length > 100
 			)
 				return false;
-			return candidate.provenance.every(
+			return everyCatalogEntry(
+				candidate.provenance,
 				(edge) =>
 					record(edge) &&
 					boundedString(edge.owner, 256) &&
@@ -210,7 +215,8 @@ function validComponentAuthorization(value: unknown, buildKey: string): boolean 
 					kinds.has(edge.kind as string)
 			);
 		}) &&
-		value.omittedEnhancements.every(
+		everyCatalogEntry(
+			value.omittedEnhancements,
 			(candidate) =>
 				record(candidate) &&
 				boundedString(candidate.identity, 512) &&
@@ -231,13 +237,13 @@ function validRootCatalog(value: unknown, key: string): value is ExactInspection
 		(value.partitionPlans !== undefined &&
 			(!Array.isArray(value.partitionPlans) ||
 				value.partitionPlans.length > 10_000 ||
-				!value.partitionPlans.every(validPartitionPlan))) ||
+				!everyCatalogEntry(value.partitionPlans, validPartitionPlan))) ||
 		!validRedactions(value.redactions)
 	)
 		return false;
 	const entityIds = new Set<string>();
 	let entities = 0;
-	const valid = value.files.every((file) => {
+	const valid = everyCatalogEntry(value.files, (file) => {
 		if (
 			!record(file) ||
 			!relativeSourcePath(file.path) ||
@@ -247,9 +253,7 @@ function validRootCatalog(value: unknown, key: string): value is ExactInspection
 			return false;
 		const path = file.path;
 		const hash = file.sourceHash;
-		return file.components.every((component) =>
-			validEntity(component, path, hash, entityIds, () => ++entities <= 100_000)
-		);
+		return validSourceEntities(file.components, path, hash, entityIds, () => ++entities <= 100_000);
 	});
 	return valid && entityIds.has(value.rootComponentId);
 }
@@ -265,7 +269,7 @@ function validPartitionPlan(value: unknown): value is ExactRuntimePartitionPlan 
 		value.roots.length > 10_000 ||
 		value.nodes.length > 100_000 ||
 		value.edges.length > 200_000 ||
-		!value.roots.every((id) => boundedString(id, 1024)) ||
+		!everyCatalogEntry(value.roots, (id) => boundedString(id, 1024)) ||
 		!boundedJson(value, 0)
 	)
 		return false;
@@ -288,7 +292,7 @@ function validPartitionPlan(value: unknown): value is ExactRuntimePartitionPlan 
 			return false;
 		edgeIds.add(edge.id);
 	}
-	return value.roots.every((id) => nodeIds.has(id));
+	return everyCatalogEntry(value.roots, (id) => typeof id === 'string' && nodeIds.has(id));
 }
 
 function validProducer(value: unknown): boolean {
@@ -312,9 +316,10 @@ function validRedactions(value: unknown): value is ExactInspectionRedactionCatal
 	)
 		return false;
 	return (
-		value.statePaths.every((path) => boundedString(path, 2048)) &&
-		value.secretNames.every((name) => boundedString(name, 512)) &&
-		value.contextTokens.every(
+		everyCatalogEntry(value.statePaths, (path) => boundedString(path, 2048)) &&
+		everyCatalogEntry(value.secretNames, (name) => boundedString(name, 512)) &&
+		everyCatalogEntry(
+			value.contextTokens,
 			(token) =>
 				record(token) &&
 				!hasValueField(token) &&
@@ -327,87 +332,6 @@ function validRedactions(value: unknown): value is ExactInspectionRedactionCatal
 	);
 }
 
-function validEntity(
-	value: unknown,
-	path: string,
-	hash: string,
-	ids: Set<string>,
-	count: () => boolean
-): value is ExactRuntimeSourceEntity {
-	if (
-		!count() ||
-		!record(value) ||
-		hasValueField(value) ||
-		!boundedString(value.id, 1024) ||
-		ids.has(value.id) ||
-		!boundedString(value.kind, 128) ||
-		(value.name !== undefined && !boundedString(value.name, 512)) ||
-		!validLocation(value.location, path, hash) ||
-		(value.classification !== undefined &&
-			(!record(value.classification) || !boundedJson(value.classification, 0))) ||
-		!Array.isArray(value.reasons) ||
-		value.reasons.length > 1_000 ||
-		!Array.isArray(value.children) ||
-		value.children.length > 10_000
-	)
-		return false;
-	ids.add(value.id);
-	if (
-		!value.reasons.every(
-			(reason) =>
-				record(reason) &&
-				!hasValueField(reason) &&
-				boundedString(reason.code, 256) &&
-				boundedString(reason.summary, 4_096) &&
-				validLocation(reason.location, path, hash)
-		)
-	)
-		return false;
-	return value.children.every((child) => validEntity(child, path, hash, ids, count));
-}
-
-function validLocation(value: unknown, path: string, hash: string): boolean {
-	if (
-		!record(value) ||
-		value.path !== path ||
-		value.sourceHash !== hash ||
-		!validPoint(value.start) ||
-		!validPoint(value.end)
-	)
-		return false;
-	return value.start.offset <= value.end.offset;
-}
-
-function validPoint(value: unknown): value is { offset: number; line: number; column: number } {
-	return (
-		record(value) &&
-		nonnegativeInteger(value.offset) &&
-		positiveInteger(value.line) &&
-		positiveInteger(value.column)
-	);
-}
-
-function boundedJson(value: unknown, depth: number): boolean {
-	if (depth > 20) return false;
-	if (
-		value === null ||
-		typeof value === 'boolean' ||
-		(typeof value === 'number' && Number.isFinite(value)) ||
-		(typeof value === 'string' && value.length <= 16_384)
-	)
-		return true;
-	if (Array.isArray(value))
-		return value.length <= 10_000 && value.every((item) => boundedJson(item, depth + 1));
-	if (!record(value) || hasValueField(value) || Object.keys(value).length > 1_000) return false;
-	return Object.entries(value).every(
-		([key, item]) => key.length <= 512 && boundedJson(item, depth + 1)
-	);
-}
-
-function hasValueField(value: Record<string, unknown>): boolean {
-	return Object.prototype.hasOwnProperty.call(value, 'value');
-}
-
 function relativeSourcePath(value: unknown): value is string {
 	return (
 		boundedString(value, 2048) &&
@@ -418,20 +342,4 @@ function relativeSourcePath(value: unknown): value is string {
 
 function sourceHash(value: unknown): value is string {
 	return typeof value === 'string' && /^[a-f0-9]{64}$/i.test(value);
-}
-
-function nonnegativeInteger(value: unknown): value is number {
-	return Number.isSafeInteger(value) && (value as number) >= 0;
-}
-
-function positiveInteger(value: unknown): value is number {
-	return Number.isSafeInteger(value) && (value as number) > 0;
-}
-
-function boundedString(value: unknown, maximum: number): value is string {
-	return typeof value === 'string' && value.length > 0 && value.length <= maximum;
-}
-
-function record(value: unknown): value is Record<string, unknown> {
-	return typeof value === 'object' && value !== null && !Array.isArray(value);
 }

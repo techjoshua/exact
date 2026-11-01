@@ -56,7 +56,7 @@ export function applyGravity(
 	});
 	return {
 		inspect(): GravityApplicationInspection {
-			return Object.freeze({ name, field: field.name, selectedBodies, sampleCount, clampCount });
+			return { name, field: field.name, selectedBodies, sampleCount, clampCount };
 		},
 		[Symbol.dispose]() {
 			if (disposed) return;

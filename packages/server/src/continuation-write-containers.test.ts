@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { prepareContinuationWriteContainers } from './continuation-write-containers.js';
+import { prepareContinuationWriteContainers } from './continuation/write-containers.js';
 
 const writes = (...paths: string[]) =>
 	paths.map((path) => ({ path, kind: 'write' as const, confidence: 'exact' as const }));

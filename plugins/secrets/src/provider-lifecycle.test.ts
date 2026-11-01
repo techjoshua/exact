@@ -1,8 +1,8 @@
 import type { ExactPluginConfigContext } from '@exactjs/plugin-api';
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, onTestFinished } from 'vitest';
 import type { SecretsPluginConfig } from './config.js';
 import controller from './plugin-config.js';
 import { environmentSecrets, parseEnvironmentFile } from './providers.js';
@@ -12,6 +12,7 @@ import { secret } from './values.js';
 describe('secret provider and resolver lifecycle', () => {
 	it('loads environment files with exports, quotes, comments, and provider precedence', async () => {
 		const root = mkdtempSync(path.join(tmpdir(), 'exact-secrets-'));
+		onTestFinished(() => rmSync(root, { recursive: true, force: true }));
 		writeFileSync(
 			path.join(root, '.env'),
 			[
@@ -32,11 +33,11 @@ describe('secret provider and resolver lifecycle', () => {
 		expect(values.API_KEY).toBe('file value');
 		expect(values.QUOTED).toBe('literal # value');
 		expect(values.COMMENTED).toBe('value');
-		expect(Object.isFrozen(values)).toBe(true);
 	});
 
 	it('distinguishes optional missing files from required and unreadable files', async () => {
 		const root = mkdtempSync(path.join(tmpdir(), 'exact-secrets-errors-'));
+		onTestFinished(() => rmSync(root, { recursive: true, force: true }));
 		await expect(
 			environmentSecrets({
 				includeProcessEnvironment: false,
@@ -97,7 +98,6 @@ describe('secret provider and resolver lifecycle', () => {
 		expect(defaults.providers).toHaveLength(1);
 		expect(controller.structuralValidate?.(defaults, context)).toBeUndefined();
 		expect(await controller.validate(defaults, context)).toBeUndefined();
-		expect(await controller.renderConfig?.(defaults, context)).toEqual({});
 
 		const invalidShapes = [
 			null,

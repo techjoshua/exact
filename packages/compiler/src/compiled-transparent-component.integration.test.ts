@@ -1,3 +1,4 @@
+import { readClientComponentInput } from '../../dom/src/renderer/component-input-admission.js';
 /**
  * @vitest-environment jsdom
  */
@@ -22,7 +23,6 @@ import { flushSync } from '@exactjs/reactive';
 import ts from 'typescript';
 import { describe, expect, it, onTestFinished, vi } from 'vitest';
 import { transform } from './index.js';
-
 describe('compiled transparent component', () => {
 	it.each([
 		['planned', 'onClick'],
@@ -70,7 +70,6 @@ export function Page(props: { onClick?: () => void; label: string }) {
 		expect(first).toHaveBeenCalledOnce();
 		expect(second).toHaveBeenCalledOnce();
 	});
-
 	it.each(['component', 'helper'])(
 		'retains keyed rows from a shared projection in a %s',
 		(owner) => {
@@ -91,7 +90,12 @@ ${owner === 'helper' ? 'export function Report(props: {items: {id: string; label
 			onTestFinished(() => {
 				unmount(container);
 			});
-			const update = (items: { id: string; label: string }[]) => {
+			const update = (
+				items: {
+					id: string;
+					label: string;
+				}[]
+			) => {
 				render(createTestOperation(Report, { items }), container);
 				flushSync();
 			};
@@ -107,7 +111,6 @@ ${owner === 'helper' ? 'export function Report(props: {items: {id: string; label
 			expect(retained?.textContent).toBe('changed');
 		}
 	);
-
 	it.each(['client', 'hydrate', 'complete'] as const)(
 		'updates scalar helper arguments in the %s projection without remounting',
 		(componentContractProjection) => {
@@ -157,7 +160,6 @@ ${owner === 'helper' ? 'export function Report(props: {items: {id: string; label
 			expect(container.querySelector('button')).toBe(button);
 		}
 	);
-
 	it('refreshes shared derived selections in a retained render helper', () => {
 		const compiled = transform(
 			`
@@ -188,7 +190,6 @@ ${owner === 'helper' ? 'export function Report(props: {items: {id: string; label
 			unmount(container);
 		}
 	});
-
 	it('updates only its compiler-owned focused output range', () => {
 		const source = `
 			export function Transparent(props: { value: string }) {
@@ -203,21 +204,18 @@ ${owner === 'helper' ? 'export function Report(props: {items: {id: string; label
 		expect(compiled).toContain('createCompiledChildRangeReceipt');
 		expect(compiled).toContain('attachExactCompiledClientComponent');
 		expect(compiled).not.toContain('createCompiledComponentOutput');
-
 		const Transparent = executeCompiledComponent(compiled, 'Transparent');
 		const container = document.createElement('div');
 		render(createTestOperation(Transparent, { value: 'before' }), container);
 		expect(container.textContent).toBe('before');
 		const text = [...container.childNodes].find((node) => node instanceof Text);
 		expect(text).toBeInstanceOf(Text);
-
 		render(createTestOperation(Transparent, { value: 'after' }), container);
 		flushSync();
 		expect(container.textContent).toBe('after');
 		expect([...container.childNodes].find((node) => node instanceof Text)).toBe(text);
 		unmount(container);
 	});
-
 	it('publishes parent prop changes through the retained child artifact receipt', () => {
 		const source = `
 			function Child(props: { label: string }) {
@@ -234,20 +232,17 @@ ${owner === 'helper' ? 'export function Report(props: {items: {id: string; label
 		expect(compiled).toContain('[[2, 0, [[0]], 1]]');
 		expect(compiled).not.toContain('bindCompiledProgramComponent');
 		expect(compiled).not.toContain('applyCompiledProgramChild');
-
 		const Page = executeCompiledComponent(compiled, 'Page');
 		const container = document.createElement('div');
 		render(createTestOperation(Page, { label: 'before' }), container);
 		const childRoot = container.querySelector('strong');
 		expect(childRoot?.textContent).toBe('before');
-
 		render(createTestOperation(Page, { label: 'after' }), container);
 		flushSync();
 		expect(container.querySelector('strong')).toBe(childRoot);
 		expect(childRoot?.textContent).toBe('after');
 		unmount(container);
 	});
-
 	it('does not duplicate a keyed component range projected by a received conditional prop', () => {
 		const source = `
 			import { type Component } from '@exactjs/core';
@@ -276,23 +271,19 @@ ${owner === 'helper' ? 'export function Report(props: {items: {id: string; label
 		});
 		expect(compiled).not.toContain('bindCompiledProgramComponent');
 		expect(compiled).toContain('createCompiledChildRangeReceipt');
-
 		const Page = executeCompiledComponent(compiled, 'Page');
 		const container = document.createElement('div');
 		render(createTestOperation(Page, { shown: false }), container);
 		expect(container.querySelectorAll('.content')).toHaveLength(0);
-
 		render(createTestOperation(Page, { shown: true }), container);
 		flushSync();
 		expect(container.querySelectorAll('.content')).toHaveLength(1);
-
 		render(createTestOperation(Page, { shown: true }), container);
 		flushSync();
 		expect(container.querySelectorAll('.content')).toHaveLength(1);
 		unmount(container);
 	});
 });
-
 function executeCompiledComponent(
 	compiled: string,
 	exportName: string
@@ -330,7 +321,6 @@ function executeCompiledComponent(
 	if (!component) throw new Error(`Compiled fixture did not export ${exportName}`);
 	return component;
 }
-
 it.each(['Map', 'ReadonlyMap'])('keeps inferred %s reads reactive through a helper', (mapType) => {
 	const compiled = transform(
 		`
@@ -372,4 +362,153 @@ export function Page(this: Component<{values:Map<string,string>;timestamp:number
 	expect(paragraph.textContent).toBe('third:1000');
 	unmount(container);
 	expect(container.childNodes).toHaveLength(0);
+});
+// Supplied children belong to the actual lexical instance even when Shell owns placement.
+import { roots } from '../../dom/src/state.js';
+import type { Mounted } from '../../dom/src/types.js';
+import { receiveComponentReceipt } from '../../dom/src/renderer/mounting/native-component-artifact.js';
+const supplierSource = `
+import type {Child,Component} from '@exactjs/core';
+function Shell(props:{value:number;children?:Child|Child[]}){return()=> <section>{props.children}</section>}
+function Leaf(props:{value:number}){return()=> <b>{props.value}</b>}
+export function Forwarded(this:Component<{count:number}>,props:{value:number}){
+ this.state.count=0;return()=> <Shell {...props}><Leaf value={props.value+this.state.count}/></Shell>;
+}`;
+function mountSupplierPair() {
+	const Supplier = executeCompiledComponent(
+		transform(supplierSource, { filename: 'LexicalSupplier.tsx', target: 'client' }),
+		'Forwarded'
+	);
+	const a = document.createElement('div'),
+		b = document.createElement('div');
+	onTestFinished(() => {
+		unmount(a);
+		unmount(b);
+	});
+	render(createTestOperation(Supplier, { value: 1 }), a);
+	render(createTestOperation(Supplier, { value: 10 }), b);
+	return {
+		Supplier,
+		a,
+		b,
+		ai: roots.get(a)!.mounted!.instance!,
+		bi: roots.get(b)!.mounted!.instance!
+	};
+}
+function suppliedLeaf(mounted: Mounted): Mounted | undefined {
+	if (mounted.instance?.type.name === 'Leaf') return mounted;
+	for (const child of mounted.children ?? []) {
+		const found = suppliedLeaf(child);
+		if (found) return found;
+	}
+}
+it('keeps supplied child props, state, identity and lifetime with each actual supplier instance', () => {
+	const { Supplier, a, b, ai, bi } = mountSupplierPair();
+	const an = a.querySelector('b'),
+		bn = b.querySelector('b');
+	expect(an).not.toBeNull();
+	expect(bn).not.toBeNull();
+	ai.state.count = 1;
+	flushSync();
+	expect(ai.state.count).toBe(1);
+	expect(bi.state.count).toBe(0);
+	expect(a.textContent).toBe('2');
+	expect(b.textContent).toBe('10');
+	expect(a.querySelector('b')).toBe(an);
+	render(createTestOperation(Supplier, { value: 4 }), a);
+	expect(a.textContent).toBe('5');
+	expect(a.querySelector('b')).toBe(an);
+	expect(ai.state.count).toBe(1);
+	bi.state.count = 2;
+	flushSync();
+	expect(b.textContent).toBe('12');
+	expect(b.querySelector('b')).toBe(bn);
+	unmount(a);
+	expect(ai.scope.active).toBe(false);
+	bi.state.count = 3;
+	flushSync();
+	expect(b.textContent).toBe('13');
+	expect(b.querySelector('b')).toBe(bn);
+});
+it('commits exact supplier handoffs transactionally across failure, reentrancy and disposal', () => {
+	const { a, b, ai, bi } = mountSupplierPair();
+	const am = suppliedLeaf(roots.get(a)!.mounted!)!,
+		bm = suppliedLeaf(roots.get(b)!.mounted!)!;
+	const issued = bm.componentReceipt!,
+		update = issued.update!,
+		type = am.instance!.type;
+	const node = a.querySelector('b');
+	expect(update.owner).toBe(bi);
+	expect(update.owner).not.toBe(ai);
+	const receipt = (value: unknown) =>
+		readClientComponentInput(
+			exactComponentOperationsRuntime.createCompiledComponentInputReceipt(type, { value })
+		)!;
+	const observed = (read: () => unknown) =>
+		readClientComponentInput(
+			exactComponentOperationsRuntime.withCompiledComponentReceiptUpdate(
+				exactComponentOperationsRuntime.createCompiledComponentInputReceipt(type, {
+					value: exactRenderOperationsRuntime.createComponentPropExpression(read)
+				}),
+				update.target,
+				update.contract,
+				update.owner
+			)
+		)!;
+	let caught = false;
+	try {
+		receiveComponentReceipt(
+			am,
+			observed(() => {
+				throw 0;
+			})
+		);
+	} catch (error) {
+		caught = true;
+		expect(error).toBe(0);
+	}
+	expect(caught).toBe(true);
+	ai.state.count = 1;
+	flushSync();
+	expect(a.textContent).toBe('2');
+	receiveComponentReceipt(am, issued);
+	// Direct internal delivery queues reactive DOM work outside the public render flush.
+	flushSync();
+	expect(a.textContent).toBe('10');
+	ai.state.count = 2;
+	flushSync();
+	expect(a.textContent).toBe('10');
+	bi.state.count = 1;
+	flushSync();
+	expect(a.textContent).toBe('11');
+	expect(a.querySelector('b')).toBe(node);
+	const inner = receipt(5);
+	receiveComponentReceipt(
+		am,
+		observed(() => {
+			receiveComponentReceipt(am, inner);
+			return 99;
+		})
+	);
+	flushSync();
+	// Admission recipes are fresh views. The committed issued operation keeps exact identity.
+	expect(am.componentReceipt?.admitted.operation).toBe(inner.admitted.operation);
+	expect(a.textContent).toBe('5');
+	bi.state.count = 2;
+	flushSync();
+	expect(a.textContent).toBe('5');
+	expect(b.textContent).toBe('12');
+	receiveComponentReceipt(
+		am,
+		observed(() => {
+			unmount(a);
+			return 99;
+		})
+	);
+	expect(a.childNodes).toHaveLength(0);
+	expect(am.componentReceiptBinding?.current).toBeUndefined();
+	bi.state.count = 3;
+	flushSync();
+	expect(b.textContent).toBe('13');
+	expect(a.childNodes).toHaveLength(0);
 });

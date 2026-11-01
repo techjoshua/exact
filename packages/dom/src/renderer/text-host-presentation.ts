@@ -1,3 +1,4 @@
+import { reconcileSelectText } from '../controlled-select.js';
 import type { AnyComponentInstance, Child } from '@exactjs/core';
 import { reactiveObjects } from '@exactjs/reactive/framework/objects';
 import { createEffectScope, watch, type EffectScope } from '@exactjs/reactive/framework/runtime';
@@ -35,7 +36,10 @@ export function mountTextHostPresentation(
 				const value = projection.read(current);
 				if (initial && existing && text.data !== value)
 					throw new Error('Text host output does not match server text');
-				if (text.data !== value) text.data = value;
+				if (text.data !== value) {
+					text.data = value;
+					if (text.parentNode) reconcileSelectText(undefined, text.parentNode);
+				}
 				mounted.scalarValue = value;
 				if (!initial && text.parentNode)
 					placeMountedBefore(root, text.parentNode, mounted, text.nextSibling);

@@ -60,6 +60,80 @@ describe('@exactjs/tanstack-query', () => {
 		expect(query.external.disposed).toBe(true);
 	});
 
+	it.each(['query', 'infinite', 'mutation'] as const)(
+		'keeps %s ownership when methods and mutable aliases are assigned',
+		async (kind) => {
+			const client = new QueryClient({
+				defaultOptions: { queries: { retry: false, gcTime: Infinity } }
+			});
+			const source =
+				kind === 'query'
+					? clientAdapter.createQuerySource(client, {
+							queryKey: ['facade', kind],
+							enabled: false,
+							queryFn: async () => 7
+						})
+					: kind === 'infinite'
+						? clientAdapter.createInfiniteQuerySource(client, {
+								queryKey: ['facade', kind],
+								enabled: false,
+								queryFn: async () => 7,
+								initialPageParam: 0,
+								getNextPageParam: () => undefined
+							})
+						: clientAdapter.createMutationSource(client, { mutationFn: async () => 7 });
+			const observer = source.observer;
+			const external = source.external;
+			const result = source.result;
+			const dispose = source.dispose;
+			let disposals = 0;
+			try {
+				expect(external.connected).toBe(true);
+				expect(observer.hasListeners()).toBe(true);
+				expect(result).toBe(external.value);
+				expect(result.get()).toBe(external.snapshot());
+				source.dispose = () => {
+					disposals++;
+					dispose();
+				};
+				const mutable: { observer: typeof observer } = source;
+				mutable.observer = observer;
+				if ('refetch' in observer) await observer.refetch();
+				else await observer.mutate(undefined);
+				flushSync();
+				expect(source.observer).toBe(observer);
+				expect(source.external).toBe(external);
+				expect(source.result).toBe(result);
+				expect(result.get().status).toBe('success');
+				expect(result.get().data).toEqual(
+					kind === 'infinite' ? { pages: [7], pageParams: [0] } : 7
+				);
+				source.dispose();
+				expect(disposals).toBe(1);
+				expect(external.disposed).toBe(true);
+				expect(external.connected).toBe(false);
+				expect(observer.hasListeners()).toBe(false);
+				const following = clientAdapter.createQuerySource(client, {
+					queryKey: ['following', kind],
+					enabled: false,
+					queryFn: async () => 8
+				});
+				try {
+					await following.observer.refetch();
+					flushSync();
+					expect(following.result.get().data).toBe(8);
+					expect(following.observer.hasListeners()).toBe(true);
+				} finally {
+					following.dispose();
+				}
+				expect(observer.hasListeners()).toBe(false);
+			} finally {
+				dispose();
+				client.clear();
+			}
+		}
+	);
+
 	it('keeps the fully native entry free of React compatibility and React Query', async () => {
 		const result = await build({
 			stdin: {

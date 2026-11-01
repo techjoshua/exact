@@ -2,8 +2,6 @@ package exactcompiler
 
 import (
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
-	"github.com/microsoft/TypeScript/tsc/internal/core"
-	"github.com/microsoft/TypeScript/tsc/internal/sourcemap"
 )
 
 // ProtocolVersion identifies the process request and response contract.
@@ -37,6 +35,8 @@ const (
 
 // Request is one newline-delimited command accepted by a Session.
 type Request struct {
+	Analysis                    AnalysisOptions             `json:"analysis,omitempty"`
+	TraceAnalysisCost           bool                        `json:"traceAnalysisCost,omitempty"`
 	ID                          string                      `json:"id,omitempty"`
 	Kind                        string                      `json:"kind"`
 	Source                      string                      `json:"source,omitempty"`
@@ -60,6 +60,7 @@ type Request struct {
 	InstrumentInspection        bool                        `json:"instrumentInspection,omitempty"`
 	PackageEnhancementBoundary  int                         `json:"packageEnhancementBoundary,omitempty"`
 	Extension                   *ExtensionRequest           `json:"extension,omitempty"`
+	ExecutableSelection         *ExecutableSelection        `json:"executableSelection,omitempty"`
 	Sources                     []ProjectSource             `json:"sources,omitempty"`
 }
 
@@ -400,6 +401,7 @@ type StateWrite struct {
 	Component       string            `json:"component"`
 	Path            []string          `json:"path"`
 	Operation       string            `json:"operation"`
+	ArrayRoots      []ArrayRootProof  `json:"arrayRoots,omitempty"`
 	SetupExecution  string            `json:"setupExecution,omitempty"`
 	Start           int               `json:"start"`
 	Length          int               `json:"length"`
@@ -441,11 +443,13 @@ type StateAlias struct {
 
 // StateRead identifies one component-state dependency.
 type StateRead struct {
-	Component  string   `json:"component"`
-	Path       []string `json:"path"`
-	Confidence string   `json:"confidence"`
-	Start      int      `json:"start"`
-	Length     int      `json:"length"`
+	// dynamicSegments retains authored computed keys only within this source/checker request.
+	dynamicSegments map[int]*ast.Node
+	Component       string   `json:"component"`
+	Path            []string `json:"path"`
+	Confidence      string   `json:"confidence"`
+	Start           int      `json:"start"`
+	Length          int      `json:"length"`
 }
 
 // StateEffect describes one task read or write against component state.
@@ -453,11 +457,12 @@ type StateEffect struct {
 	// pathSegments retains compiler-owned property boundaries; Path is the existing display label.
 	// A nil path has no structured provenance and cannot prove dependency independence.
 	pathSegments []string
-	Path         string         `json:"path"`
-	Kind         string         `json:"kind"`
-	Confidence   string         `json:"confidence"`
-	Operation    string         `json:"operation,omitempty"`
-	Receiver     *StateReceiver `json:"receiver,omitempty"`
+	Path         string           `json:"path"`
+	Kind         string           `json:"kind"`
+	Confidence   string           `json:"confidence"`
+	Operation    string           `json:"operation,omitempty"`
+	Receiver     *StateReceiver   `json:"receiver,omitempty"`
+	ArrayRoots   []ArrayRootProof `json:"arrayRoots,omitempty"`
 }
 
 // StateReceiver identifies the component or callable parameter owning state.
@@ -477,10 +482,17 @@ type ContextEffect struct {
 
 // EnvironmentEffectSource explains one browser, server, or unresolved placement requirement.
 type EnvironmentEffectSource struct {
-	Environment string   `json:"environment"`
-	Description string   `json:"description"`
-	Path        []string `json:"path"`
-	Opaque      bool     `json:"-"`
+	Environment          string   `json:"environment"`
+	Description          string   `json:"description"`
+	Path                 []string `json:"path"`
+	Opaque               bool     `json:"-"`
+	provenanceIncomplete bool
+	callOrigin           *sourceCallOutcome
+	callForwarded        bool
+	fieldOrigin          *sourceFieldDemand
+	fieldForwarded       bool
+	descriptorOrigin     *sourceDescriptorEffectOrigin
+	descriptorForwarded  bool
 }
 
 // CallEdge describes one statically resolved or unresolved callable dependency.
@@ -505,6 +517,7 @@ type ReceiverBinding struct {
 
 // CallableSummary is the process-safe effect graph for one source callable.
 type CallableSummary struct {
+	ownedScalarBlocked  bool
 	ID                  string                    `json:"id"`
 	Name                string                    `json:"name"`
 	Kind                string                    `json:"kind"`
@@ -873,6 +886,7 @@ type PartitionPlanDataSlot struct {
 
 // Analysis contains eXact-owned semantic facts returned by the native host.
 type Analysis struct {
+	HelperSources          []HelperSource          `json:"helperSources,omitempty"`
 	Imports                []Import                `json:"imports"`
 	Components             []Component             `json:"components"`
 	JSX                    []JSXElement            `json:"jsx"`
@@ -1144,6 +1158,7 @@ type Timings struct {
 
 // WorkCounters report cache and rebuild behavior independently from machine timing noise.
 type WorkCounters struct {
+	EstimatedAnalysisCost    int   `json:"estimatedAnalysisCost,omitempty"`
 	ProgramRebuilds          int64 `json:"programRebuilds"`
 	CallableSourceAnalyses   int64 `json:"callableSourceAnalyses"`
 	ComponentSourceAnalyses  int64 `json:"componentSourceAnalyses"`
@@ -1165,32 +1180,4 @@ func (value WorkCounters) since(previous WorkCounters) WorkCounters {
 		AffectedSourceCount:      value.AffectedSourceCount - previous.AffectedSourceCount,
 		ReusedSourceCount:        value.ReusedSourceCount - previous.ReusedSourceCount,
 	}
-}
-
-// Response is one newline-delimited result emitted by a Session.
-type Response struct {
-	ProjectFiles        []string                `json:"projectFiles,omitempty"`
-	ID                  string                  `json:"id,omitempty"`
-	ProtocolVersion     string                  `json:"protocolVersion"`
-	TypeScriptVersion   string                  `json:"typescriptVersion"`
-	BackendVersion      string                  `json:"backendVersion"`
-	Code                string                  `json:"code"`
-	RuntimeDependencies []string                `json:"runtimeDependencies,omitempty"`
-	SourceMap           *sourcemap.RawSourceMap `json:"sourceMap,omitempty"`
-	Diagnostics         []Diagnostic            `json:"diagnostics"`
-	Analysis            Analysis                `json:"analysis"`
-	Timings             Timings                 `json:"timings"`
-	Counters            WorkCounters            `json:"counters"`
-	Structure           ArtifactStructure       `json:"structure"`
-	CacheHit            bool                    `json:"cacheHit,omitempty"`
-	Error               string                  `json:"error,omitempty"`
-	Extension           any                     `json:"extension,omitempty"`
-}
-
-// NewResponseVersionFields returns the versions required on every response,
-// including malformed-request and early-failure responses.
-func NewResponseVersionFields(response *Response) {
-	response.ProtocolVersion = ProtocolVersion
-	response.TypeScriptVersion = core.Version()
-	response.BackendVersion = BackendVersion
 }

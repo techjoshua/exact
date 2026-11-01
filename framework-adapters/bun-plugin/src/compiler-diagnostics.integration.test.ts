@@ -1,3 +1,9 @@
+import { ExactBunSourcePreparation } from './source-compilation/preparation.js';
+import { verifySourcePreparationContract } from '../../test-support/source-preparation-contract.js';
+import { verifyAssignmentIdentityContract } from '../../test-support/assignment-identity-contract.js';
+import { loadAdapterTestApi } from '../../test-support/adapter-test-api.js';
+import { verifyStatePublicationContract } from '../../test-support/state-publication-contract.js';
+import { verifyHydrationFormStateContract } from '../../test-support/hydration-form-state-contract.js';
 import { verifyCompilerIntlStructureContract } from '../../test-support/compiler-intl-structure-contract.js';
 import { verifyCompilerStateAliasContract } from '../../test-support/compiler-state-alias-contract.js';
 import { verifyRenderProgramContract } from '../../test-support/render-program-contract.js';
@@ -9,15 +15,30 @@ import {
 	verifyCompilerDiagnostics,
 	compilerDiagnosticContracts
 } from '../../test-support/compiler-diagnostics.js';
-type SharedTestApi = Pick<typeof import('vitest'), 'describe' | 'it'>;
 const runningInBun = Boolean((globalThis as { Bun?: unknown }).Bun);
-const bunTestModule: string = 'bun:test';
-const testApi = (
-	runningInBun ? await import(bunTestModule) : await import('vitest')
-) as SharedTestApi;
+const testApi = await loadAdapterTestApi();
 const describeBun = runningInBun ? testApi.describe : testApi.describe.skip;
 
 describeBun('compiler diagnostics', () => {
+	testApi.it(
+		'prepares identical source once per target and Intl generation',
+		() =>
+			verifySourcePreparationContract('bun', ({ filename, intl, options }) => {
+				const cache = new ExactBunSourcePreparation();
+				return {
+					prepare: (source, target) =>
+						cache.prepare(source, filename, target, options, intl, () => {}, true),
+					clear: () => cache.clear()
+				};
+			}),
+		60000
+	);
+
+	testApi.it(
+		'preserves performed state publication through both targets',
+		() => verifyStatePublicationContract('bun'),
+		120000
+	);
 	for (const selection of ['chain', 'table'] as const)
 		testApi.it(
 			`preserves helper alias return policy (${selection})`,
@@ -83,5 +104,21 @@ describeBun('compiler Intl structures', () => {
 		'preserves strict translated structure callback types',
 		() => verifyCompilerIntlStructureContract('bun'),
 		60000
+	);
+});
+
+describeBun('hydration form state', () => {
+	testApi.it(
+		'preserves browser-owned controls through paired hydration and recovery',
+		() => verifyHydrationFormStateContract('bun'),
+		60000
+	);
+});
+
+describeBun('authored assignment identity', () => {
+	testApi.it(
+		'preserves authored assignment through mount and paired hydration',
+		() => verifyAssignmentIdentityContract('bun'),
+		120000
 	);
 });

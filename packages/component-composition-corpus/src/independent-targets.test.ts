@@ -3,7 +3,7 @@ import { hydrate } from '@exactjs/hydrate';
 import { flushSync } from '@exactjs/reactive';
 import '@exactjs/dom/runtime/target';
 import { describe, expect, it } from 'vitest';
-import { renderCompiledComponentRoot as renderTestTree } from '../../dom/src/framework/component-root.js';
+import { renderCompiledComponentInputRoot as renderTestTree } from '../../dom/src/framework/component-root.js';
 import { registerDomEnhancementIntegration } from '../../dom/src/renderer/enhancement-integration.js';
 registerDomEnhancementIntegration();
 import { unmount } from '@exactjs/dom';

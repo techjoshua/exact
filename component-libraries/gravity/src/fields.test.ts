@@ -16,7 +16,6 @@ describe('gravity fields', () => {
 			uniformGravity({ x: -1, y: 4 })
 		]);
 		expect(field.accelerationAt(sample(100, -20))).toEqual({ x: 1, y: 7 });
-		expect(Object.isFrozen(field)).toBe(true);
 	});
 
 	it('keeps softened point gravity finite, symmetric, monotonic, and capped', () => {

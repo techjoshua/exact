@@ -1,11 +1,11 @@
 import type { TimeClock, TimeInstant } from './contracts.js';
 
 const maximumHostDelay = 2_147_483_647;
-let sharedWallSample: TimeInstant | undefined;
+let sharedWallSample: number | undefined;
 let wallSampleResetPending = false;
 
 function wallSample(): TimeInstant {
-	sharedWallSample ??= Object.freeze({ epochMilliseconds: Date.now() });
+	sharedWallSample ??= Date.now();
 	if (!wallSampleResetPending) {
 		wallSampleResetPending = true;
 		queueMicrotask(() => {
@@ -13,15 +13,15 @@ function wallSample(): TimeInstant {
 			wallSampleResetPending = false;
 		});
 	}
-	return sharedWallSample;
+	return { epochMilliseconds: sharedWallSample };
 }
 
 /**
  * Shared default wall clock. Its identity joins every compatible package copy, while `now()`
- * returns one immutable sample for all reads in the current synchronous reactive or render cycle.
+ * samples once in the current synchronous reactive or render cycle and returns independent observations.
  * @exact shared
  */
-export const wallTimeClock: TimeClock = Object.freeze({
+export const wallTimeClock: TimeClock = {
 	now: wallSample,
 	schedule(deadline: TimeInstant, notify: () => void) {
 		if (!('window' in globalThis)) return () => undefined;
@@ -41,14 +41,19 @@ export const wallTimeClock: TimeClock = Object.freeze({
 			document.removeEventListener('visibilitychange', visible);
 		};
 	}
-});
+};
 
 /**
- * Creates an immutable instant from milliseconds since the Unix epoch.
+ * Creates an ordinary instant with TypeScript readonly properties from milliseconds since the Unix epoch.
  * Accepts finite numbers, including negative and fractional values. Throws for NaN or infinity.
  * This constructs a value only and does not schedule a timer.
  */
 export function timeInstant(epochMilliseconds: number): TimeInstant {
-	if (!Number.isFinite(epochMilliseconds)) throw new TypeError('A time instant must be finite');
-	return Object.freeze({ epochMilliseconds });
+	return { epochMilliseconds: validateTimeEpoch(epochMilliseconds) };
+}
+
+/** Captures the finite numeric contract used by clocks and explicit instant construction. */
+export function validateTimeEpoch(epochMilliseconds: number): number {
+	if (!Number.isFinite(epochMilliseconds)) throw new TypeError('A clock sample must be finite');
+	return epochMilliseconds;
 }

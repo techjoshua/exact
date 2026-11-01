@@ -1,16 +1,16 @@
 import { isReactive, unwrap } from '../internal/values.js';
 import { writeReactiveLazy } from '../writes.js';
-import { reactiveProxyOptions } from '../proxy/collection-publication.js';
+import { wrapReactiveCollectionValue } from '../proxy/create-base.js';
 
-interface PublishedOwners {
-	first: object;
-	additional?: object[];
-}
+/** Consumed native positions use their real keys, independently of object property edges. */
+type SelectedCollectionMembers = Map<unknown, { key?: object; values?: Set<object> }>;
 
-/** Retains every published owner created when assignments reconcile one pending source reference. */
+/** Associates selected pending storage with reactive receivers used to publish its mutations. */
 export class PendingStatePublication {
-	private readonly published = new WeakMap<object, PublishedOwners>();
+	private readonly receivers = new WeakMap<object, object>();
 	private children?: WeakMap<object, Map<PropertyKey, object>>;
+	private members?: WeakMap<object, SelectedCollectionMembers>;
+	private association?: Array<[object, object]>;
 
 	/** Retains only selected data-property paths, without traversing untouched replacement storage. */
 	retainChild(parent: object, key: PropertyKey, child: unknown): unknown {
@@ -19,42 +19,63 @@ export class PendingStatePublication {
 		const descriptor = Reflect.getOwnPropertyDescriptor(raw, key);
 		if (!descriptor || !('value' in descriptor) || unwrap(descriptor.value) !== unwrap(child))
 			return child;
+		this.retainReceiver(parent);
 		let children = this.children?.get(raw);
 		if (!children) (this.children ??= new WeakMap()).set(raw, (children = new Map()));
 		children.set(key, unwrap(child));
+		const selected = Reflect.get(this.receivers.get(raw) ?? parent, key);
+		if (selected && typeof selected === 'object') this.retainSelectedTree(unwrap(child), selected);
 		return child;
+	}
+
+	/**
+	 * Retains distinct consumed native key/value storage for later receiver acquisition. Association
+	 * checks committed membership, including intermediate ordered publications. Acquired receivers
+	 * survive detachment. External removal before acquisition cannot grant new ownership.
+	 */
+	retainCollectionMember(parent: object, key: unknown, value: unknown, keyMember = false): unknown {
+		if (!value || typeof value !== 'object') return value;
+		const raw = unwrap(parent);
+		this.retainReceiver(parent);
+		let members = this.members?.get(raw);
+		if (!members) (this.members ??= new WeakMap()).set(raw, (members = new Map()));
+		let entry = members.get(key);
+		if (!entry) members.set(key, (entry = {}));
+		if (keyMember) entry.key = unwrap(value);
+		else (entry.values ??= new Set()).add(unwrap(value));
+		this.retainSelectedTree(unwrap(value), value);
+		return value;
+	}
+
+	/** Associates consumed members after a successful native mutation exposes its ordered storage. */
+	associateCollection(parent: object): void {
+		const raw = unwrap(parent);
+		if (this.members?.has(raw)) this.retainSelectedTree(raw, this.resolve(parent));
 	}
 
 	/** Releases selection relationships after their owner finishes publication or rejects the transaction. */
 	clearSelections(): void {
 		this.children = undefined;
+		this.members = undefined;
 	}
 
-	/** Keeps writable reactive aliases for publication without promoting a reader's readonly policy. */
+	/** Associates an acquired reactive alias and its selected descendants before any publication. */
 	retainReceiver(value: object): void {
-		if (!isReactive(value) || reactiveProxyOptions(value)?.readonly) return;
+		if (!isReactive(value)) return;
 		const raw = unwrap(value);
-		if (!this.published.has(raw)) this.published.set(raw, { first: value });
+		if (this.receivers.has(raw)) return;
+		this.receivers.set(raw, value);
+		if (this.children?.has(raw) || this.members?.has(raw)) this.retainSelectedTree(raw, value);
 	}
-	/** Reads the first retained owner while publication drains. */
+	/** Resolves a retained reactive receiver without changing the selected storage. */
 	resolve(target: object): object {
 		if (isReactive(target)) return target;
-		return this.published.get(unwrap(target))?.first ?? target;
+		return this.receivers.get(unwrap(target)) ?? target;
 	}
 
-	/** A source replacement can feed several independently retained object or Array owners. */
+	/** Publishes once to shared storage, preserving an explicitly selected reactive receiver. */
 	write(target: object, key: PropertyKey, value: unknown): void {
-		const owners = this.published.get(unwrap(target));
-		this.publishOwnerWrite(this.selectedOwner(target, owners), key, value);
-		if (owners?.additional)
-			for (const owner of owners.additional) this.publishOwnerWrite(owner, key, value);
-	}
-
-	/** Preserves an explicit writer alias while retaining replacement owners created by reconciliation. */
-	private selectedOwner(target: object, owners: PublishedOwners | undefined): object {
-		return isReactive(target) && (!owners || unwrap(owners.first) === unwrap(target))
-			? target
-			: (owners?.first ?? target);
+		this.publishOwnerWrite(this.resolve(target), key, value);
 	}
 
 	private publishOwnerWrite(owner: object, key: PropertyKey, value: unknown): void {
@@ -62,47 +83,63 @@ export class PendingStatePublication {
 		if (!value || typeof value !== 'object') return;
 		const stored = Reflect.get(owner, key);
 		if (!stored || typeof stored !== 'object') return;
-		this.retainPublishedTree(unwrap(value), stored);
+		// A raw property publication can precede attachment of its parent to a reactive owner.
+		this.retainChild(owner, key, value);
+		this.retainSelectedTree(unwrap(value), stored);
 	}
 
-	/** Maps touched descendant aliases at the reconciliation that first publishes them, before later replacement. */
-	private retainPublishedTree(source: object, owner: object): void {
+	/**
+	 * Associates selected properties and native members without scanning untouched storage.
+	 * Receiver acquisition and edge selection both establish association, independently of journal order.
+	 * Each traversal visits raw storage and its first retained reactive receiver at most once each,
+	 * bounding cycles even if raw storage is seen first.
+	 * Work and queue storage are O(V + E) in reachable selected or written properties and consumed
+	 * native positions per traversal.
+	 * Reentrant acquisition joins the active queue instead of recursively traversing the graph.
+	 */
+	private retainSelectedTree(source: object, owner: object): void {
+		if (this.association) {
+			this.association.push([source, owner]);
+			return;
+		}
 		const queue: Array<[object, object]> = [[source, owner]];
-		for (let index = 0; index < queue.length; index++) {
-			const [raw, stored] = queue[index]!;
-			const previous = this.published.get(raw);
-			if (
-				previous &&
-				(unwrap(previous.first) === unwrap(stored) ||
-					previous.additional?.some((target) => unwrap(target) === unwrap(stored)))
-			)
-				continue;
-			if (!previous) this.published.set(raw, { first: stored });
-			else (previous.additional ??= []).push(stored);
-			for (const [key, child] of this.children?.get(raw) ?? []) {
-				const input = Reflect.getOwnPropertyDescriptor(raw, key);
-				const destination = Reflect.getOwnPropertyDescriptor(unwrap(stored), key);
-				if (
-					!input ||
-					!('value' in input) ||
-					unwrap(input.value) !== child ||
-					!destination ||
-					!('value' in destination)
-				)
-					continue;
-				const selected = Reflect.get(stored, key);
-				if (selected && typeof selected === 'object') queue.push([child, selected]);
+		const visited = new Set<object>();
+		this.association = queue;
+		try {
+			for (let index = 0; index < queue.length; index++) {
+				const [raw, stored] = queue[index]!;
+				// A setter may store a different value. It cannot transfer the RHS storage's authority.
+				if (unwrap(stored) !== raw) continue;
+				if (isReactive(stored) && !this.receivers.has(raw)) this.receivers.set(raw, stored);
+				const receiver = this.receivers.get(raw) ?? stored;
+				if (visited.has(receiver)) continue;
+				visited.add(receiver);
+				for (const [key, entry] of this.members?.get(raw) ?? []) {
+					const present =
+						raw instanceof Map
+							? Map.prototype.has.call(raw, key)
+							: Set.prototype.has.call(raw, key);
+					if (!present) continue;
+					if (entry.key)
+						queue.push([entry.key, wrapReactiveCollectionValue(receiver, entry.key) as object]);
+					const value = unwrap(raw instanceof Map ? Map.prototype.get.call(raw, key) : key);
+					if (value && typeof value === 'object' && entry.values?.has(value))
+						queue.push([value, wrapReactiveCollectionValue(receiver, value) as object]);
+				}
+				for (const [key, child] of this.children?.get(raw) ?? []) {
+					const input = Reflect.getOwnPropertyDescriptor(raw, key);
+					if (!input || !('value' in input) || unwrap(input.value) !== child) continue;
+					const selected = Reflect.get(receiver, key);
+					if (selected && typeof selected === 'object') queue.push([child, selected]);
+				}
 			}
+		} finally {
+			this.association = undefined;
 		}
 	}
 
-	/** Deletes from all retained owners of the pending source reference. */
+	/** Deletes from the selected storage through its retained reactive receiver. */
 	remove(target: object, key: PropertyKey): boolean {
-		const owners = this.published.get(unwrap(target));
-		let success = Reflect.deleteProperty(this.selectedOwner(target, owners), key);
-		if (owners?.additional)
-			for (const owner of owners.additional)
-				success = Reflect.deleteProperty(owner, key) && success;
-		return success;
+		return Reflect.deleteProperty(this.resolve(target), key);
 	}
 }

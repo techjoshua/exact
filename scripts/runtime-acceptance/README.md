@@ -39,3 +39,15 @@ only on another write. Workers enable `enable_request_signal`. No local test ver
 deployed network, buffering, or plan limits; use `probe:task-progress` against a test deployment.
 Build-adapter and host-framework middleware suites remain independent checks. This suite is
 representative runtime boundary coverage, not a claim that every framework test runs on every host.
+
+The bounded authored keyed-list check can run independently after the same workspace build:
+
+```sh
+npm run test:runtimes:assignment-list
+```
+
+It shares source assertions with the composition corpus and compiles paired client/server
+artifacts for Chromium mount and strict hydration. Fresh same-key rows and retained row references
+preserve host and child identity, form edits, the next interaction and cleanup. The default
+Chromium aggregate also executes this check. The bounded command writes its own fingerprinted
+receipt and ignored artifact paths without replacing aggregate native-runtime evidence.

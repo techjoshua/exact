@@ -2,9 +2,8 @@ import { expect, it, vi } from 'vitest';
 import { privateHelperArtifact } from '../test-support/private-helper-artifact.js';
 import { composeExactExecutorContract } from '@exactjs/server';
 import { createExactServerHandlerRegistry, renderToString } from '@exactjs/ssr';
-import { createCompiledComponentReceipt } from '@exactjs/core/runtime/component-operations';
+import { createCompiledComponentInputReceipt } from '@exactjs/core/runtime/component-operations';
 import type { AnyComponentFunction } from '@exactjs/core';
-
 const forms = {
 	same: { setup: '', first: 'props.url', input: 'props.url' },
 	indexed: { setup: '', first: "props['url']", input: 'props.url' },
@@ -67,11 +66,11 @@ export function Work(this:Component<{text:string}>,props:{url:string;label:strin
 				inputs.length = 0;
 				(compiled.cleaned as unknown[]).length = 0;
 				const rendered = await renderToString(
-					createCompiledComponentReceipt(compiled.Work as AnyComponentFunction, {
+					createCompiledComponentInputReceipt(compiled.Work as AnyComponentFunction, {
 						url: 'https://example.invalid',
 						label: 'label'
 					}),
-					{ maxTaskDurationMs: 500 }
+					{ signal: AbortSignal.timeout(500) }
 				);
 				expect(rendered.html).toContain('completed');
 				expect(inputs).toEqual(['https://example.invalid']);

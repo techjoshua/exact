@@ -6,12 +6,8 @@ import type {
 } from './contracts.js';
 import type { IntlValidationLimits } from './descriptor-validation.js';
 import { validateFormatter } from './formatter-validation.js';
-import {
-	requireBinding,
-	requireBoundedString,
-	requireExactKeys,
-	requireRecord
-} from './validation-primitives.js';
+import { requireBinding, requireBoundedString, requireExactKeys } from './validation-primitives.js';
+import { requireRecord, captureArray } from './protocol-data.js';
 
 type ValidationBudget = {
 	remaining: number;
@@ -36,10 +32,11 @@ export function validatePattern(
 	depth: number,
 	path: string
 ): IntlPatternV1 {
-	if (!Array.isArray(input)) throw new TypeError(`${path} must be an array`);
 	if (depth > budget.maxDepth) throw new TypeError(`${path} exceeds intl nesting limits`);
 	return Object.freeze(
-		input.map((node, index) => validateNode(node, bindings, budget, depth, `${path}[${index}]`))
+		captureArray(input, path).map((node, index) =>
+			validateNode(node, bindings, budget, depth, `${path}[${index}]`)
+		)
 	);
 }
 
@@ -67,16 +64,15 @@ function validateNode(
 		}
 		case 'format': {
 			requireExactKeys(node, ['kind', 'bindings', 'formatter']);
-			if (!Array.isArray(node.bindings) || node.bindings.length === 0)
-				throw new TypeError(`${path}.bindings must be a nonempty array`);
 			const indexes = Object.freeze(
-				node.bindings.map((binding, index) => {
+				captureArray(node.bindings, `${path}.bindings`).map((binding, index) => {
 					const declared = requireBinding(binding, bindings, `${path}.bindings[${index}]`);
 					if (declared.kind === 'element' || declared.kind === 'opaque')
 						throw new TypeError(`${path} cannot format a structural binding`);
 					return declared.index;
 				})
 			);
+			if (indexes.length === 0) throw new TypeError(`${path}.bindings must be a nonempty array`);
 			const formatter = validateFormatter(node.formatter, bindings, path);
 			if (
 				formatter.kind === 'unit' &&
@@ -98,8 +94,9 @@ function validateNode(
 			);
 			const binding = requireBinding(node.binding, bindings, `${path}.binding`);
 			if (binding.kind !== 'selector') throw new TypeError(`${path} requires a selector binding`);
-			const selection = String(node.selection);
+			const selection = node.selection;
 			if (
+				typeof selection !== 'string' ||
 				![
 					'boolean',
 					'exact',
@@ -126,10 +123,9 @@ function validateNode(
 			} else if (node.rangeBinding !== undefined) {
 				throw new TypeError(`${path}.rangeBinding is supported only for plural-range selection`);
 			}
-			if (!Array.isArray(node.cases)) throw new TypeError(`${path}.cases must be an array`);
 			const keys = new Set<string>();
 			const cases = Object.freeze(
-				node.cases.map((entry, index) => {
+				captureArray(node.cases, `${path}.cases`).map((entry, index) => {
 					const candidate = requireRecord(entry, `${path}.cases[${index}]`);
 					requireExactKeys(candidate, ['key', 'value']);
 					const key = requireBoundedString(candidate.key, `${path}.cases[${index}].key`);

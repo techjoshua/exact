@@ -1,3 +1,4 @@
+import { compiledElementIdentity } from '@exactjs/core/runtime/component-operations';
 import type { ExactDomRenderProgram } from '@exactjs/core/runtime/render-operations';
 import { HTML_NAMESPACE, MATHML_NAMESPACE, SVG_NAMESPACE, namespaceForTag } from '../namespace.js';
 
@@ -56,7 +57,12 @@ export function readProgramTemplateRootProps(
 				: attribute.name === 'for'
 					? 'htmlFor'
 					: attribute.name;
-		props[name] = attribute.value;
+		if (name === 'data-exact-id')
+			Object.defineProperty(props, compiledElementIdentity, {
+				value: attribute.value,
+				enumerable: true
+			});
+		else props[name] = attribute.value;
 	}
 	return (state.rootProps = Object.freeze(props));
 }

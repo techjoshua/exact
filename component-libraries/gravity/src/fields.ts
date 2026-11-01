@@ -8,9 +8,7 @@ import type {
 	RadialGravityOptions
 } from './contracts.js';
 
-const prepared = Symbol('exact.gravity.field');
-
-/** Validates and freezes a reusable pure gravity field. */
+/** Prepares a reusable field with finite input/result checks and TypeScript readonly metadata. */
 export function defineGravityField(
 	name: string,
 	sample: (point: GravitySamplePoint) => Vector2,
@@ -18,16 +16,15 @@ export function defineGravityField(
 ): GravityField {
 	if (!name) throw new TypeError('A gravity field needs a stable name');
 	if (typeof sample !== 'function') throw new TypeError('A gravity field needs a sample function');
-	return Object.freeze({
+	return {
 		name,
 		kind: metadata.kind ?? 'custom',
-		parameters: Object.freeze({ ...(metadata.parameters ?? {}) }),
-		[prepared]: true,
+		parameters: { ...(metadata.parameters ?? {}) },
 		accelerationAt(point: GravitySamplePoint) {
 			validatePoint(point);
 			return finiteVector(sample(point), `gravity field "${name}" result`);
 		}
-	}) as unknown as GravityField;
+	} as unknown as GravityField;
 }
 
 /** Creates a constant acceleration field. */
@@ -123,7 +120,7 @@ export function boundedGravity(field: GravityField, options: BoundedGravityOptio
 
 /** Adds several prepared acceleration fields in stable source order. */
 export function combineGravity(name: string, fields: readonly GravityField[]): GravityField {
-	const stable = Object.freeze([...fields]);
+	const stable = [...fields];
 	return defineGravityField(
 		name,
 		(point) => {
@@ -148,9 +145,11 @@ export function pointAcceleration(
 	softening: number,
 	maxAcceleration?: number
 ): Vector2 {
+	nonnegative(strength, 'point gravity strength');
+	positive(softening, 'point gravity softening');
 	const delta = { x: attractor.x - position.x, y: attractor.y - position.y };
 	const distance = Math.hypot(delta.x, delta.y);
-	if (distance === 0) return { x: 0, y: 0 };
+	if (distance === 0) return cap({ x: 0, y: 0 }, maxAcceleration);
 	const magnitude = strength / (distance * distance + softening * softening);
 	return cap(
 		{ x: (delta.x / distance) * magnitude, y: (delta.y / distance) * magnitude },
@@ -160,23 +159,24 @@ export function pointAcceleration(
 
 function cap(value: Vector2, maximum?: number): Vector2 {
 	const limit = optionalPositive(maximum, 'maxAcceleration');
-	if (limit === undefined) return Object.freeze({ ...value });
+	if (limit === undefined) return value;
 	const magnitude = Math.hypot(value.x, value.y);
-	return Object.freeze(
-		magnitude > limit
-			? { x: (value.x / magnitude) * limit, y: (value.y / magnitude) * limit }
-			: { ...value }
-	);
+	return magnitude > limit
+		? { x: (value.x / magnitude) * limit, y: (value.y / magnitude) * limit }
+		: value;
 }
 
 function validatePoint(point: GravitySamplePoint): void {
-	finiteVector(point.position, 'gravity sample position');
+	// Validate the input without constructing a discarded acceleration result for every sample.
+	const position = point.position;
+	finite(position.x, 'gravity sample position.x');
+	finite(position.y, 'gravity sample position.y');
 	finite(point.time, 'gravity sample time');
 	positive(point.mass, 'gravity sample mass');
 }
 
 function finiteVector(value: Vector2, name: string): Vector2 {
-	return Object.freeze({ x: finite(value.x, `${name}.x`), y: finite(value.y, `${name}.y`) });
+	return { x: finite(value.x, `${name}.x`), y: finite(value.y, `${name}.y`) };
 }
 
 function finite(value: number, name: string): number {

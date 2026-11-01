@@ -16,60 +16,94 @@ export interface ExactClientEventStore extends ExactRuntimeInspectionSink {
 	clear(): void;
 }
 
-/** Creates a fixed-size client store; callers create it only after DevTools attaches. */
+/** Creates attached-only history with safe-integer retention budgets, detached observations, and ordered reentrant delivery. Zero events disables history while preserving live delivery. */
 export function createExactClientEventStore(
 	maxEvents: number,
 	maxBytes: number
 ): ExactClientEventStore {
-	const events: Array<{ event: ExactRuntimeInspectionEvent; bytes: number }> = [];
-	const listeners = new Set<{
+	if (![maxEvents, maxBytes].every((value) => Number.isSafeInteger(value) && value >= 0))
+		throw new RangeError('Client event retention budgets must be nonnegative safe integers');
+	/** Registration identity fences queued delivery after removal. */
+	type Subscription = {
 		filter?: ExactInspectionFilter;
 		listener: (event: ExactRuntimeInspectionEvent) => void;
-	}>();
-	let retainedBytes = 0;
-	let sequence = 0;
+	};
+	/** Detached serialized data and its bounded retention cost. */
+	type Retained = { payload: string; sequence: number; bytes: number };
+	const events: Retained[] = [];
+	const listeners = new Set<Subscription>();
+	const pending: Array<{ event: Retained; targets: Subscription[] }> = [];
+	const encoder = new TextEncoder();
+	let retainedBytes = 0,
+		sequence = 0,
+		revision = 0;
+	let delivering = false;
+	/** Drains complete replay batches and captured live targets without recursive observer calls. */
+	const drain = () => {
+		if (delivering) return;
+		delivering = true;
+		try {
+			while (pending.length) {
+				const { event, targets } = pending.shift()!;
+				for (const subscription of targets) {
+					if (!listeners.has(subscription)) continue;
+					const observation = JSON.parse(event.payload) as ExactRuntimeInspectionEvent;
+					if (exactInspectionEventMatches(observation, subscription.filter))
+						deliver(subscription.listener, observation);
+				}
+			}
+		} finally {
+			pending.length = 0;
+			delivering = false;
+		}
+	};
+	const history = (cursor?: string) => {
+		const after = cursor ? Number.parseInt(cursor, 36) : 0;
+		return events.filter((event) => event.sequence > after);
+	};
 	const store: ExactClientEventStore = {
 		publish(event) {
+			const generation = revision;
+			// Serialization already determines retention bytes. Keep its detached data rather
+			// than caller-owned objects, and allocate sequence only after reentrant capture.
+			const captured = JSON.parse(JSON.stringify(event)) as ExactRuntimeInspectionEvent;
+			if (revision !== generation) return;
 			const nextSequence = ++sequence;
-			const retained = Object.freeze({
-				...event,
+			const payload = JSON.stringify({
+				...captured,
 				sequence: nextSequence,
 				cursor: nextSequence.toString(36)
 			});
-			const bytes = new TextEncoder().encode(JSON.stringify(retained)).byteLength;
+			const bytes = encoder.encode(payload).byteLength;
 			if (bytes > maxBytes) return;
-			events.push({ event: retained, bytes });
+			const retained = { payload, sequence: nextSequence, bytes };
+			events.push(retained);
 			retainedBytes += bytes;
 			while (events.length > maxEvents || retainedBytes > maxBytes)
 				retainedBytes -= events.shift()!.bytes;
-			for (const subscription of listeners)
-				if (exactInspectionEventMatches(retained, subscription.filter))
-					deliver(subscription.listener, retained);
+			pending.push({ event: retained, targets: [...listeners] });
+			drain();
 		},
 		query(cursor, filter) {
-			const sequence = cursor ? Number.parseInt(cursor, 36) : 0;
-			return Object.freeze(
-				events
-					.map(({ event }) => event)
-					.filter(
-						(event) => event.sequence > sequence && exactInspectionEventMatches(event, filter)
-					)
-			);
+			return history(cursor)
+				.map(({ payload }) => JSON.parse(payload) as ExactRuntimeInspectionEvent)
+				.filter((event) => exactInspectionEventMatches(event, filter));
 		},
 		subscribe(cursor, filter, listener) {
-			for (const event of store.query(cursor, filter)) deliver(listener, event);
+			const replay = history(cursor);
 			const subscription = { filter, listener };
 			listeners.add(subscription);
+			for (const event of replay) pending.push({ event, targets: [subscription] });
+			drain();
 			return () => listeners.delete(subscription);
 		},
 		clear() {
-			events.length = 0;
-			retainedBytes = 0;
+			revision++;
+			events.length = pending.length = retainedBytes = sequence = 0;
 			listeners.clear();
-			sequence = 0;
 		}
 	};
-	return Object.freeze(store);
+	return store;
 }
 
 function deliver(

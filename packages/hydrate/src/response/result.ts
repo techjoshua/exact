@@ -1,64 +1,46 @@
+import { responseResourceBudget, responseGraphLimits } from '../response-resources.js';
 import type {
 	ExactInvocationRequest,
 	ExactOperationResult
 } from '@exactjs/core/framework/operation-protocol';
-import { hasOnlyKeys, isJsonSafe } from '../validation.js';
-import { type ResponseLimits, parseExactInvocationResponse } from './json.js';
+import { hasOnlyKeys, isDecodedProtocolSafe } from '../validation.js';
+import { type ResponseLimits, parseDecodedInvocationResponse } from './json.js';
 import { matchesOperation } from './operation-identity.js';
 
-/** Reads an exact operation result from its source representation. */
+/** Validates one decoded batch or stream result while preserving its native values and identity. */
 export function parseExactOperationResult(
 	value: unknown,
 	expected?: ExactInvocationRequest,
 	limits: ResponseLimits = {}
 ): ExactOperationResult {
+	limits = { ...limits, resources: limits.resources ?? responseResourceBudget(limits.logger) };
 	if (!value || typeof value !== 'object' || Array.isArray(value))
 		throw new Error('eXact batch invocation returned malformed results');
 	if (
-		!isJsonSafe(value, {
-			maxDepth: limits.maxJsonDepth,
-			maxNodes: limits.maxJsonNodes,
-			maxBytes: limits.maxBytes
-		})
+		!isDecodedProtocolSafe(
+			value,
+			responseGraphLimits(
+				limits,
+				limits.resources ?? responseResourceBudget(limits.logger),
+				'operation response graph'
+			)
+		)
 	)
 		throw new Error('eXact batch invocation returned malformed results');
 	const record = value as Record<string, unknown>;
+	if (record.type !== 'invoke' && record.type !== 'refresh')
+		throw new Error('eXact batch invocation returned malformed results');
+	if (typeof record.id !== 'string' || !record.id)
+		throw new Error('eXact batch invocation returned malformed results');
+	if (record.opId !== undefined && typeof record.opId !== 'string')
+		throw new Error('eXact batch invocation returned malformed results');
+	if (expected && !matchesOperation(record, expected))
+		throw new Error('eXact batch invocation returned malformed results');
 	if (record.ok === true) {
-		if (
-			!hasOnlyKeys(record, [
-				'ok',
-				'type',
-				'id',
-				'opId',
-				'patches',
-				'state',
-				'mutations',
-				'contexts',
-				'value',
-				'html'
-			])
-		)
-			throw new Error('eXact batch invocation returned malformed results');
-		if (record.type !== 'invoke' && record.type !== 'refresh')
-			throw new Error('eXact batch invocation returned malformed results');
-		if (typeof record.id !== 'string' || !record.id)
-			throw new Error('eXact batch invocation returned malformed results');
-		if (record.opId !== undefined && typeof record.opId !== 'string')
-			throw new Error('eXact batch invocation returned malformed results');
-		if (expected && !matchesOperation(record, expected))
-			throw new Error('eXact batch invocation returned malformed results');
-		const result = parseExactInvocationResponse(
-			{
-				ok: true,
-				...(record.patches === undefined ? {} : { patches: record.patches }),
-				...('state' in record ? { state: record.state } : {}),
-				...(record.mutations === undefined ? {} : { mutations: record.mutations }),
-				...(record.contexts === undefined ? {} : { contexts: record.contexts }),
-				...('value' in record ? { value: record.value } : {}),
-				...(record.html === undefined ? {} : { html: record.html })
-			},
+		const result = parseDecodedInvocationResponse(
+			record,
 			'eXact batch invocation returned malformed results',
-			undefined,
+			expected,
 			limits
 		);
 		return {
@@ -71,14 +53,6 @@ export function parseExactOperationResult(
 	}
 	if (record.ok === false) {
 		if (!hasOnlyKeys(record, ['ok', 'type', 'id', 'opId', 'status', 'error']))
-			throw new Error('eXact batch invocation returned malformed results');
-		if (record.type !== 'invoke' && record.type !== 'refresh')
-			throw new Error('eXact batch invocation returned malformed results');
-		if (typeof record.id !== 'string' || !record.id)
-			throw new Error('eXact batch invocation returned malformed results');
-		if (record.opId !== undefined && typeof record.opId !== 'string')
-			throw new Error('eXact batch invocation returned malformed results');
-		if (expected && !matchesOperation(record, expected))
 			throw new Error('eXact batch invocation returned malformed results');
 		if (typeof record.status !== 'number' || !Number.isInteger(record.status))
 			throw new Error('eXact batch invocation returned malformed results');

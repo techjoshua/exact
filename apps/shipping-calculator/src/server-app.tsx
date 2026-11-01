@@ -71,7 +71,7 @@ export async function handleParcelLabRequest(
 			() => <ShippingCalculatorPage url={url.toString()} />,
 			{
 				rootId: 'app',
-				maxTaskDurationMs: 1_200,
+				signal: AbortSignal.timeout(1_200),
 				...hydration
 			}
 		);

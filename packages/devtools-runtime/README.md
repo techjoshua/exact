@@ -6,12 +6,16 @@ Optional browser bridge between an eXact application and DevTools clients.
 
 Build integrations install this runtime automatically when browser inspection instrumentation is
 enabled. Custom integrations can call `installExactDevtoolsRuntime()` and dispose the returned
-installation with the application root.
+installation with the application root. Custom query services accept a result limit that is a positive safe integer
+and reject invalid limits during construction.
 
 The runtime combines renderer inspection, compiler source correlation, bounded event history, and
 optional authorized server data behind the versioned eXact page hook. It owns the cross-request
 timeline in the page: each server request returns only its own observations, which this runtime
 validates, resequences, and retains while the inspection session remains attached.
+
+Client inspection exposes values already delivered to the page without secret-name redaction.
+Server inspection applies authorization and redaction before transporting its observations.
 
 ## Deployment
 

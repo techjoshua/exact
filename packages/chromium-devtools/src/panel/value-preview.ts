@@ -82,6 +82,7 @@ function scalarPreview(preview: Exclude<ExactValuePreview, { kind: 'object' }>):
 }
 
 function scalarText(preview: Exclude<ExactValuePreview, { kind: 'object' }>): string {
+	if (preview.kind === 'constant') return preview.value;
 	return preview.kind === 'scalar'
 		? typeof preview.value === 'string'
 			? JSON.stringify(preview.value)

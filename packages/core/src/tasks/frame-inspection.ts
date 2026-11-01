@@ -16,8 +16,9 @@ import {
 	type TaskFrameEventObservation
 } from './frame-inspection-capability.js';
 import { taskOwnerForHost } from './owner-hosts.js';
+import { describeFailureReason } from '../failure-description.js';
 
-/** Immutable task-frame projection used by authorized runtime inspection. */
+/** Independent task-frame projection used by authorized runtime inspection. */
 export type TaskFrameInspection = Readonly<{
 	id: number;
 	parentId?: number;
@@ -40,7 +41,7 @@ export type TaskFrameInspection = Readonly<{
 /** Returns active frame metadata without exposing mutable frame or owner internals. */
 export function inspectTaskFramesForHost(host: object): readonly TaskFrameInspection[] {
 	const owner = taskOwnerForHost(host);
-	return owner ? Object.freeze([...owner.frames].map(inspectFrame)) : Object.freeze([]);
+	return owner ? [...owner.frames].map(inspectFrame) : [];
 }
 
 /** Returns active task snapshots for a component under an attached inspection owner. */
@@ -48,10 +49,8 @@ export function inspectTaskFrameSnapshotsForHost(
 	host: AnyComponentInstance,
 	inspection: ExactRuntimeInspectionOwner
 ): readonly ExactTaskRuntimeSnapshot[] {
-	return Object.freeze(
-		inspectTaskFramesForHost(host).map((frame) =>
-			taskFrameSnapshot(inspection, host, frame, 'running')
-		)
+	return inspectTaskFramesForHost(host).map((frame) =>
+		taskFrameSnapshot(inspection, host, frame, 'running')
 	);
 }
 
@@ -119,7 +118,7 @@ export function publishTaskFrameEvent(
 		component: target.host,
 		sourceEntityId: frameSourceEntityId(frame),
 		generation: frame.generation,
-		...(reason === undefined ? {} : { reason: String(reason) })
+		...(reason === undefined ? {} : { reason: describeFailureReason(reason, 'Task failed') })
 	});
 }
 
@@ -147,7 +146,7 @@ function taskFrameSnapshot(
 	outcome: TaskSnapshotOutcome = {}
 ): ExactTaskRuntimeSnapshot {
 	const settled = status !== 'running';
-	return Object.freeze({
+	return {
 		id: owner.identity(component, {
 			sourceEntityId: frame.sourceEntityId ?? `runtime-task-frame:${frame.id}`,
 			generation: frame.generation
@@ -178,11 +177,11 @@ function taskFrameSnapshot(
 		startedAt: frame.startedAt,
 		...(settled ? { settledAt: monotonicTimestamp() } : {}),
 		...outcome
-	});
+	};
 }
 
 function inspectFrame(frame: TaskFrameRecord): TaskFrameInspection {
-	return Object.freeze({
+	return {
 		id: frame.id,
 		...(frame.parent
 			? {
@@ -205,7 +204,7 @@ function inspectFrame(frame: TaskFrameRecord): TaskFrameInspection {
 		foreground: frame.readiness === 'blocking' && frame.priority !== 'deferred',
 		structuralPending: !frame.settled,
 		startedAt: frame.startedAt
-	});
+	};
 }
 
 function inspectedFrameTarget(frame: TaskFrameRecord): InspectedFrameTarget | undefined {

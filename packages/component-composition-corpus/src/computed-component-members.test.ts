@@ -3,7 +3,7 @@ import { dispose, render } from '@exactjs/dom';
 import { hydrate } from '@exactjs/hydrate';
 import { renderToHydratableString } from '@exactjs/ssr';
 import { flushSync } from '@exactjs/reactive';
-import { createCompiledComponentReceipt as receipt } from '@exactjs/core/runtime/component-operations';
+import { createCompiledComponentInputReceipt as receipt } from '@exactjs/core/runtime/component-operations';
 import {
 	ComputedComponentMembers,
 	ComputedRefMembers,
@@ -20,7 +20,6 @@ import {
 	computedMemberTrace as serverTrace,
 	resetComputedMemberTrace as resetServerTrace
 } from './test-support/computed-component-members.fixtures.js?exact-target=server';
-
 it.each(['mount', 'hydrate'] as const)(
 	'preserves computed member ownership through %s, retained updates, and disposal',
 	async (mode) => {
@@ -65,7 +64,6 @@ it.each(['mount', 'hydrate'] as const)(
 		expect(reports).toEqual([]);
 	}
 );
-
 for (const [name, Client, Server, initial] of [
 	['ref', ComputedRefMembers, ServerRefs, 0],
 	['reactive', ComputedReactiveMembers, ServerReactive, 1],

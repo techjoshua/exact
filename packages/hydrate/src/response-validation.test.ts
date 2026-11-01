@@ -344,7 +344,7 @@ describe('@exactjs/hydrate response-validation', () => {
 					}
 				])
 			})
-		).rejects.toThrow('malformed events');
+		).rejects.toThrow(/maxPatches: actual 2 patches, configured cap 1/);
 
 		await expect(
 			invokeExact({

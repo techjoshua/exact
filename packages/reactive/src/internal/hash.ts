@@ -1,8 +1,14 @@
+import { protocolConstantToken } from './protocol-constants.js';
+
 const encoder = new TextEncoder();
 
-/** Hashes strict JSON data with deterministic object ordering. This is not a security primitive. */
-export function hashCanonicalJson(value: unknown, domain: string): string {
-	const canonical = canonicalJson(value);
+/** Hashes ordered JSON data. Keyed-item callers preserve protocol constants with non-JSON tokens. This is not a security primitive. */
+export function hashCanonicalJson(
+	value: unknown,
+	domain: string,
+	preserveConstants = false
+): string {
+	const canonical = canonicalJson(value, preserveConstants);
 	return hashText(`${domain.length}:${domain}${canonical.length}:${canonical}`);
 }
 
@@ -13,13 +19,22 @@ export function hashStringSequence(values: readonly string[], domain: string): s
 	return hashText(framed);
 }
 
-/** Performs the canonical json domain operation. */
-export function canonicalJson(value: unknown): string {
-	return encodeValue(value, new WeakSet(), 0);
+/** Canonicalizes strict JSON, optionally distinguishing transport constants without literal-record collisions. */
+export function canonicalJson(value: unknown, preserveConstants = false): string {
+	return encodeValue(value, new WeakSet(), 0, preserveConstants);
 }
 
-function encodeValue(value: unknown, active: WeakSet<object>, depth: number): string {
+function encodeValue(
+	value: unknown,
+	active: WeakSet<object>,
+	depth: number,
+	preserveConstants: boolean
+): string {
 	if (depth > 100) throw new TypeError('Cannot hash JSON deeper than 100 levels');
+	if (preserveConstants && (value === undefined || typeof value === 'number')) {
+		const constant = protocolConstantToken(value);
+		if (constant !== undefined) return `!constant:${constant}`;
+	}
 	if (value === null) return 'null';
 	if (typeof value === 'boolean') return value ? 'true' : 'false';
 	if (typeof value === 'string') return JSON.stringify(value);
@@ -51,7 +66,7 @@ function encodeValue(value: unknown, active: WeakSet<object>, depth: number): st
 				const descriptor = Object.getOwnPropertyDescriptor(value, String(index));
 				if (!descriptor || !('value' in descriptor))
 					throw new TypeError('Cannot hash array accessors');
-				items.push(encodeValue(descriptor.value, active, depth + 1));
+				items.push(encodeValue(descriptor.value, active, depth + 1, preserveConstants));
 			}
 			return `[${items.join(',')}]`;
 		}
@@ -74,7 +89,9 @@ function encodeValue(value: unknown, active: WeakSet<object>, depth: number): st
 		for (const key of keys) {
 			const descriptor = descriptors[key]!;
 			if (!('value' in descriptor)) throw new TypeError('Cannot hash object accessors');
-			properties.push(`${JSON.stringify(key)}:${encodeValue(descriptor.value, active, depth + 1)}`);
+			properties.push(
+				`${JSON.stringify(key)}:${encodeValue(descriptor.value, active, depth + 1, preserveConstants)}`
+			);
 		}
 		return `{${properties.join(',')}}`;
 	} finally {

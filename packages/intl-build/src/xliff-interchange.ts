@@ -20,20 +20,16 @@ import {
 	serializeElement,
 	type XmlElement
 } from '@exactjs/intl-analyzer/xliff';
-
 const xliffNamespace = 'urn:oasis:names:tc:xliff:document:2.0';
-
 /** Inputs used to synchronize one bilingual XLIFF translation catalog. */
 export interface XliffCatalogSynchronizationOptions {
 	readonly owner: string;
 	readonly locale: string;
 }
-
 /** Inputs used to extract one source-only XLIFF translation request. */
 export interface XliffSourceCatalogOptions {
 	readonly owner: string;
 }
-
 /** Extracts every owned source message as targetless, generic XLIFF 2.1 input. */
 export function exportXliff21SourceCatalog(
 	descriptors: readonly IntlRuntimeDescriptorV1[],
@@ -47,7 +43,6 @@ export function exportXliff21SourceCatalog(
 		relevant.map((descriptor) => xliffUnit(descriptor, undefined, undefined, undefined))
 	);
 }
-
 /** Serializes a validated generic catalog as translator-facing XLIFF 2.1. */
 export function exportXliff21Catalog(
 	catalogInput: unknown,
@@ -66,7 +61,6 @@ export function exportXliff21Catalog(
 		)
 	);
 }
-
 /** Imports XLIFF targets after proving that every source unit matches its current generic contract. */
 export function importXliff21Catalog(
 	input: string,
@@ -102,7 +96,6 @@ export function importXliff21Catalog(
 	}
 	return validateIntlCatalog({ protocol: 1, locale, owner, messages }, descriptors);
 }
-
 /** Reconciles current source contracts while preserving only compatible active targets and notes. */
 export function synchronizeXliff21Catalog(
 	input: string | undefined,
@@ -150,7 +143,6 @@ export function synchronizeXliff21Catalog(
 		units
 	);
 }
-
 function xliffDocument(
 	owner: string,
 	locale: string | undefined,
@@ -165,7 +157,6 @@ ${units.map((unit) => indent(unit, 4)).join('\n')}
 </xliff>
 `;
 }
-
 function xliffUnit(
 	descriptor: IntlRuntimeDescriptorV1,
 	target: IntlTranslationPatternV1 | undefined,
@@ -184,14 +175,12 @@ ${notes ? indent(notes, 2) + '\n' : ''}  <segment${state ? ` state="${escapeXml(
 ${targetMarkup === undefined ? '' : `    <target>${targetMarkup}</target>\n`}  </segment>
 </unit>`;
 }
-
 function encodePattern(
 	pattern: IntlTranslationPatternV1,
 	guide: ReadonlyMap<string, IntlTranslationPlaceholderV1>
 ): string {
 	return pattern.map((node) => encodeNode(node, guide)).join('');
 }
-
 function encodeNode(
 	node: IntlTranslationPatternNodeV1,
 	guide: ReadonlyMap<string, IntlTranslationPlaceholderV1>
@@ -207,7 +196,6 @@ function encodeNode(
 		return `<pc id="${escapeXml(node.id)}" equivStart="&lt;${escapeXml(placeholder.name)}&gt;" equivEnd="&lt;/${escapeXml(placeholder.name)}&gt;"${constraints}>${encodePattern(node.value, guide)}</pc>`;
 	return `<pc id="${escapeXml(node.id)}" equivStart="{${escapeXml(placeholder.name)}}" equivEnd="{/}"${constraints}>${node.cases.map((candidate, index) => `<mrk id="${escapeXml(`${node.id}.case.${index}`)}" type="generic" value="${escapeXml(candidate.key)}">${encodePattern(candidate.value, guide)}</mrk>`).join('')}<mrk id="${escapeXml(`${node.id}.fallback`)}" type="generic">${encodePattern(node.fallback, guide)}</mrk></pc>`;
 }
-
 function decodePattern(
 	children: readonly (XmlElement | string)[],
 	descriptor: IntlRuntimeDescriptorV1
@@ -215,58 +203,57 @@ function decodePattern(
 	const projection = projectIntlTranslationContract(descriptor.bindings, descriptor.source);
 	const expected = translationNodeMap(projection.source);
 	const decode = (values: readonly (XmlElement | string)[]): IntlTranslationPatternV1 =>
-		Object.freeze(
-			values.flatMap((child): IntlTranslationPatternNodeV1[] => {
-				if (typeof child === 'string') return child ? [{ kind: 'text', value: child }] : [];
-				const name = localName(child.name);
-				const id = requiredAttribute(child, 'id');
-				const contract = expected.get(id);
-				if (!contract) throw new TypeError(`XLIFF references unknown placeholder ${id}`);
-				if (name === 'ph') {
-					if (contract.kind !== 'placeholder')
-						throw new TypeError(`XLIFF placeholder ${id} has an incompatible structure`);
-					return [{ kind: 'placeholder', id }];
+		values.flatMap((child): IntlTranslationPatternNodeV1[] => {
+			if (typeof child === 'string') return child ? [{ kind: 'text', value: child }] : [];
+			const name = localName(child.name);
+			const id = requiredAttribute(child, 'id');
+			const contract = expected.get(id);
+			if (!contract) throw new TypeError(`XLIFF references unknown placeholder ${id}`);
+			if (name === 'ph') {
+				if (contract.kind !== 'placeholder')
+					throw new TypeError(`XLIFF placeholder ${id} has an incompatible structure`);
+				return [{ kind: 'placeholder', id }];
+			}
+			if (name !== 'pc') throw new TypeError(`Unsupported XLIFF inline code ${child.name}`);
+			if (contract.kind === 'element')
+				return [{ kind: 'element', id, value: decode(child.children) }];
+			if (contract.kind !== 'select')
+				throw new TypeError(`XLIFF container ${id} has an incompatible structure`);
+			const cases: {
+				key: string;
+				value: IntlTranslationPatternV1;
+			}[] = [];
+			let fallback: IntlTranslationPatternV1 | undefined;
+			for (const branch of child.children) {
+				if (typeof branch === 'string') {
+					if (branch.trim())
+						throw new TypeError('XLIFF select containers may contain only markers');
+					continue;
 				}
-				if (name !== 'pc') throw new TypeError(`Unsupported XLIFF inline code ${child.name}`);
-				if (contract.kind === 'element')
-					return [{ kind: 'element', id, value: decode(child.children) }];
-				if (contract.kind !== 'select')
-					throw new TypeError(`XLIFF container ${id} has an incompatible structure`);
-				const cases: { key: string; value: IntlTranslationPatternV1 }[] = [];
-				let fallback: IntlTranslationPatternV1 | undefined;
-				for (const branch of child.children) {
-					if (typeof branch === 'string') {
-						if (branch.trim())
-							throw new TypeError('XLIFF select containers may contain only markers');
-						continue;
-					}
-					if (localName(branch.name) !== 'mrk')
-						throw new TypeError('XLIFF select branches must use mrk');
-					const branchId = requiredAttribute(branch, 'id');
-					if (branchId === `${id}.fallback`) {
-						if (fallback) throw new TypeError(`XLIFF selector ${id} repeats its fallback`);
-						fallback = decode(branch.children);
-					} else {
-						const key = requiredAttribute(branch, 'value');
-						if (cases.some((candidate) => candidate.key === key))
-							throw new TypeError(`XLIFF selector ${id} repeats case ${key}`);
-						cases.push({ key, value: decode(branch.children) });
-					}
+				if (localName(branch.name) !== 'mrk')
+					throw new TypeError('XLIFF select branches must use mrk');
+				const branchId = requiredAttribute(branch, 'id');
+				if (branchId === `${id}.fallback`) {
+					if (fallback) throw new TypeError(`XLIFF selector ${id} repeats its fallback`);
+					fallback = decode(branch.children);
+				} else {
+					const key = requiredAttribute(branch, 'value');
+					if (cases.some((candidate) => candidate.key === key))
+						throw new TypeError(`XLIFF selector ${id} repeats case ${key}`);
+					cases.push({ key, value: decode(branch.children) });
 				}
-				if (!fallback) throw new TypeError(`XLIFF selector ${id} requires one fallback`);
-				return [{ kind: 'select', id, cases: Object.freeze(cases), fallback }];
-			})
-		);
+			}
+			if (!fallback) throw new TypeError(`XLIFF selector ${id} requires one fallback`);
+			return [{ kind: 'select', id, cases: cases, fallback }];
+		});
 	return decode(children);
 }
-
 function validateSourcePattern(source: XmlElement, descriptor: IntlRuntimeDescriptorV1): void {
 	const actual = decodePattern(source.children, descriptor);
 	const expected = projectIntlTranslationContract(descriptor.bindings, descriptor.source).source;
 	if (JSON.stringify(actual) !== JSON.stringify(expected))
 		throw new TypeError(`XLIFF source for ${descriptor.key} does not match its current contract`);
 }
-
 function translationNodeMap(
 	pattern: IntlTranslationPatternV1
 ): ReadonlyMap<string, IntlTranslationPatternNodeV1> {
@@ -287,7 +274,6 @@ function translationNodeMap(
 	visit(pattern);
 	return result;
 }
-
 function descriptorMap(
 	descriptors: readonly IntlRuntimeDescriptorV1[],
 	owner: string
@@ -297,7 +283,6 @@ function descriptorMap(
 		result.set(descriptor.key, descriptor);
 	return result;
 }
-
 function uniqueTranslationDescriptors(
 	descriptors: readonly IntlRuntimeDescriptorV1[],
 	owner: string
@@ -318,7 +303,6 @@ function uniqueTranslationDescriptors(
 	}
 	return [...unique.values()];
 }
-
 function requireXliffDocument(document: XmlElement): void {
 	if (
 		localName(document.name) !== 'xliff' ||
@@ -328,7 +312,6 @@ function requireXliffDocument(document: XmlElement): void {
 		throw new TypeError('XLIFF interchange must be an XLIFF 2.1 document');
 	rejectExactRuntimeMetadata(document);
 }
-
 function rejectExactRuntimeMetadata(element: XmlElement): void {
 	for (const [name, value] of Object.entries(element.attributes))
 		if (
@@ -341,7 +324,6 @@ function rejectExactRuntimeMetadata(element: XmlElement): void {
 	for (const child of element.children)
 		if (typeof child !== 'string') rejectExactRuntimeMetadata(child);
 }
-
 function sourceLocaleFor(owner: string, descriptors: readonly IntlRuntimeDescriptorV1[]): string {
 	const locales = new Set(
 		descriptors
@@ -351,7 +333,6 @@ function sourceLocaleFor(owner: string, descriptors: readonly IntlRuntimeDescrip
 	if (locales.size !== 1) throw new TypeError(`Catalog owner ${owner} must have one source locale`);
 	return [...locales][0]!;
 }
-
 function xliffFileOwner(file: XmlElement): string {
 	return file.attributes.original ?? requiredAttribute(file, 'id');
 }

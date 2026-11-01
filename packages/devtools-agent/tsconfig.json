@@ -7,7 +7,11 @@
 		"lib": ["ES2022", "DOM"],
 		"types": ["node"]
 	},
-	"references": [{ "path": "../devtools-protocol" }],
+	"references": [
+		{
+			"path": "../devtools-protocol"
+		}
+	],
 	"include": ["src"],
-	"exclude": ["src/**/*.test.ts"]
+	"exclude": ["src/**/*.test.ts", "src/test-support/**"]
 }

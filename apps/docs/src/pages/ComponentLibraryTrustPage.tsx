@@ -36,7 +36,8 @@ export function ComponentLibraryTrustPage(this: Component<{}>) {
 					component libraries you have reviewed and approved for server execution. Client-only
 					packages do not need this authorization. Components in your application's own package are
 					application-owned, even when its package.json has no name or version. External packages
-					still need complete package metadata.
+					still need complete package metadata. Explicitly including a source file for compilation
+					does not make its package application-owned or grant server authorization.
 				</p>
 				<CodeBlock source={policySource} language="ts" title="exact.config.ts" />
 				<p>
@@ -144,10 +145,15 @@ export function ComponentLibraryTrustPage(this: Component<{}>) {
 					production source. The <code>.jest</code> suffix in <code>component.jest.ts</code> marks a
 					test file. Use <code>exactCompileModules</code> to select an explicit module list.
 					Imported production sources are compiled as dependencies, even when
-					<code>exclude</code> removes them from the project&apos;s initial source roots. Each
-					compiled component needs a proven placement. If an opaque helper leaves it unresolved, the
-					build fails before replacing your output. Verify the helper and provide its execution
-					contract.
+					<code>exclude</code> removes them from the project&apos;s initial source roots. Opaque
+					helpers may leave placement unknown. Ordinary synchronous setup expressions can still run
+					in the selected target when they need no task placement or resource policy. A known client
+					or server requirement still constrains the component. Authored tasks still need inferable
+					or explicit placement. The builder retains that uncertainty and checks the actual compiled
+					exports after both target builds finish. Missing artifacts, wrong component identities and
+					server-only boundaries offered as client implementations still fail before replacing your
+					output. Unknown placement does not imply portability. Libraries with these inspected
+					selections need consumer tooling that supports them.
 				</p>
 				<p>
 					The default build writes declarations at the output root and executable ESM modules in the

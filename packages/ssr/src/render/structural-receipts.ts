@@ -1,6 +1,10 @@
+import { consumeSuppliedPlacement } from './supplied-placement.js';
 import { prepareComponentProps } from './component-props.js';
 import { readSuppliedTargetValue } from '@exactjs/core/framework/render-structure';
-import { readCompiledFragmentReceipt } from '@exactjs/core/runtime/component-operations';
+import {
+	isOpaqueOperation,
+	readCompiledFragmentReceipt
+} from '@exactjs/core/runtime/component-operations';
 import { normalizeActivityMode, unwrap, type AnyComponentInstance } from '@exactjs/core';
 import { readDoctype } from '@exactjs/core/runtime/component-operations';
 import type {
@@ -79,6 +83,11 @@ export function renderTargetReceipt(
 		hasComponentAncestor: boolean
 	) => RenderValue<string>
 ): RenderValue<string> {
+	// The supplied helper already selected this child. Only its issued source fact can
+	// discharge matching ancestor checks, without another authored array/reactive read.
+	if (receipt.suppliedInput && receipt.children.some(isOpaqueOperation))
+		options = consumeSuppliedPlacement(options, receipt.suppliedInput.value);
+
 	const directFragment = readCompiledFragmentReceipt(readSuppliedTargetValue(receipt.children));
 	const contributions = directFragment ? [] : (receipt.contributions ?? [{ props: receipt.props }]);
 	// Target props can carry the same task-output dependencies as component inputs.

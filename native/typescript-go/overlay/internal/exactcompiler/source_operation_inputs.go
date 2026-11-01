@@ -1,0 +1,431 @@
+package exactcompiler
+
+import "github.com/microsoft/TypeScript/tsc/internal/ast"
+
+// sourceGetInputs records a real Get operation and its supplied receiver. It is
+// neither a CallExpression nor the numeric-conversion implicit input contract.
+// The enclosing installed plan retains captures and the zero-argument defaults.
+type sourceGetInputs struct {
+	ownedRequest *ownedGetRequest
+
+	// effectSummary borrows this settlement request only, not nested reads.
+	effectSummary *sourceOwnEffectSummary
+	// ownConditional is a native HasOwnProperty-gated Get. A proven
+	// prototype-only descriptor cannot supply this operation's getter.
+	// It supplies no own-slot presence, value or completeness certificate.
+	ownConditional bool
+	// Presence is an actual HasProperty result, distinct from a Get value.
+	presence    *sourcePropertyPresence
+	propertyKey string
+	hasOnly     bool
+	reflective  *sourceReflectiveOperation
+	// inspection is a synchronous reference-view borrow, never value input authority.
+	inspection *sourcePropertyReadInspection
+	// symbol is an actual well-known key supplied by an implicit native Get,
+	// never a string spelling or a type-only receiver/descriptor certificate.
+	symbol *ast.Symbol
+	// ownSlot is valid only for this actual field Get and receiver alternative.
+	ownSlot *sourceOwnSlot
+
+	// thenReferences belong to this actual settlement Get's normal producers.
+	// They add inherited alternatives, never private lifetime or absence proof.
+	thenReferences []sourceThenReference
+	thenIncomplete bool
+	// freshReturn is produced only at immediate settlement of a whole literal.
+	freshReturn bool
+	operation   *ast.Node
+	receiver    sourceValue
+	// lookupOwner is the descriptor search origin when it differs from this.
+	// It never replaces the receiver installed for a selected getter body.
+	lookupOwner *sourceValue
+}
+
+// receiverOrigins binds only the installed input's own lexical receiver. A
+// deferred write in another method/component keeps its symbolic receiver instead
+// of borrowing this consumer's arguments[0]. Arrow receivers remain lexical.
+func (query *sourceValueQuery) receiverOrigins(node *ast.Node, bindings sourceValueBindings) []sourceValue {
+	if query.inputs != nil && query.inputs.declaration != nil && !helperOwnsReceiver(node, query.inputs.declaration) {
+		return []sourceValue{{node: node}}
+	}
+	if values, present := bindings[0]; present {
+		return values
+	}
+	return []sourceValue{{node: node}}
+}
+
+func (get *sourceGetInputs) descriptorReceiver() sourceValue {
+	if get.lookupOwner != nil {
+		return *get.lookupOwner
+	}
+	return get.receiver
+}
+
+// explicitGetProjection checks a supplied operation's selected receiver and
+// residual field. It preserves actual Get ownership independently of optional
+// normal own-slot precision. It supplies neither a value nor completion proof.
+func (query *sourceValueQuery) explicitGetProjection(get *sourceGetInputs, value sourceValue, projection []string, name string, result *accessorCandidates) bool {
+	if get.operation == nil || !query.charge(result, get.operation) {
+		return false
+	}
+	receiver := get.receiver
+	if receiver.normal != nil && value.normal == nil && value.acquired != nil && receiver.acquired == value.acquired && value.acquired.value.normal == receiver.normal {
+		// Normal scope installation precedes acquired-wrapper installation.
+		// The matching observation retains the original normal relation after
+		// traversal removes that wrapper, while the actual receiver stays intact.
+		receiver.normal = nil
+	}
+	// The acquired wrapper was checked as a unit before its original value
+	// entered a normal wrapper. Removing that traversal wrapper does not change
+	// this Get's actual receiver or its original input/return association.
+	if receiver.acquired != nil && value.acquired == nil {
+		receiver = receiver.acquired.value
+	}
+	if receiver.normal != nil && receiver.normal == value.normal && value.acquired == nil {
+		// normalValueScope already validated this exact binding observation.
+		// Its original acquired wrapper is not another receiver alternative.
+		receiver.acquired = nil
+	}
+	if receiver.number != value.number || receiver.node != value.node || receiver.normal != value.normal || receiver.acquired != value.acquired || receiver.native != value.native || receiver.bound != value.bound || receiver.awaited != value.awaited || receiver.undefined != value.undefined {
+		return false
+	}
+	length := len(value.path) + len(projection)
+	if name != "" {
+		length++
+	}
+	if length != len(receiver.path)+1 {
+		return false
+	}
+	part := func(i int) string {
+		if i < len(value.path) {
+			return value.path[i]
+		}
+		i -= len(value.path)
+		if i < len(projection) {
+			return projection[i]
+		}
+		return name
+	}
+	for i, key := range receiver.path {
+		if !query.charge(result, get.operation) || part(i) != key {
+			return false
+		}
+	}
+	return get.propertyKey == "" || part(length-1) == get.propertyKey
+}
+
+// acquireRequiredProperty reads an already selected original alternative. The
+// operation owner is supplied by settlement/conversion, while the observation
+// retains its own scope and possibly nil inputs. No caller frame is lent.
+// acquireRequiredReceivers selects once under the original observation. The
+// retained alternatives are receivers, not snapshots of their mutable fields.
+func (query *sourceValueQuery) acquireRequiredReceivers(observed sourceObservedValue, result *accessorCandidates) []sourceObservedValue {
+	arguments := observed.scope.bindings
+	var parent *sourceObservedValue
+	selected := accessorCandidates{}
+	query.withAcquiredObservation(observed, &arguments, &parent, &selected, func() {
+		prior := query.operation
+		if prior != nil {
+			copy := *prior
+			copy.outputOnly = true
+			query.operation = &copy
+		}
+		defer func() { query.operation = prior }()
+		value := observed.value
+		value.acquired = &observed
+		selected = query.accessorsAtGet(value.node, nil, "", accessorAcquire, arguments, nil, nil, value)
+	})
+	mergeAccessorCandidates(result, selected)
+	var receivers []sourceObservedValue
+	for i, value := range selected.values {
+		if !query.charge(result, value.node) {
+			result.valueIncomplete = true
+			break
+		}
+		original := sourceObservedValue{value: value, scope: observed.scope}
+		if value.acquired != nil {
+			original = *value.acquired
+		} else if scope, ok := selected.callableScopes[i]; ok {
+			original.scope = scope
+		}
+		receivers = append(receivers, original)
+	}
+	if len(receivers) == 0 {
+		result.opaque = true
+		result.valueIncomplete = true
+	}
+	return receivers
+}
+
+// acquireRequiredPropertyAt consumes one selected receiver without projecting the
+// whole operand again. Original value scope and execution inspection stay separate.
+func (query *sourceValueQuery) acquireRequiredPropertyAt(original sourceObservedValue, get *sourceGetInputs, mode accessorTraversal) accessorCandidates {
+	result := accessorCandidates{}
+	if get == nil || get.operation == nil || !query.charge(&result, get.operation) {
+		result.opaque = true
+		result.valueIncomplete = true
+		return result
+	}
+	if op := get.reflective; op != nil && (!reflectiveNative(op.native) || op.operation != get.operation || op.frame == nil || query.inputs != op.frame || query.operation == nil || query.operation.node != op.operation || query.operation.owner != op.owner || query.operation.inputs != op.frame) {
+		result.opaque = true
+		result.valueIncomplete = true
+		return result
+	}
+	previousReading := query.reading
+	query.reading = get.operation
+	defer func() { query.reading = previousReading }()
+	receiver := original.value
+	receiver.acquired = &original
+	actual := *get
+	actual.receiver = receiver
+	actual.inspection = query.issuePropertyInspection(actual.reflective, &original, actual.propertyKey, &result)
+	if actual.reflective != nil && actual.inspection == nil {
+		result.opaque = true
+	}
+	acquired := query.accessorsAtGet(receiver.node, []string{actual.propertyKey}, "", mode, original.scope.bindings, nil, &actual, receiver)
+	mergeAccessorCandidates(&acquired, result)
+	return acquired
+}
+
+// acquireRequiredProperty is the thin single-property adapter for settlement and
+// existing owners. Presence is joined, never a last-receiver mutable cell.
+func (query *sourceValueQuery) acquireRequiredProperty(observed sourceObservedValue, get *sourceGetInputs, mode accessorTraversal) accessorCandidates {
+	result := accessorCandidates{}
+	if get == nil || get.operation == nil || !query.charge(&result, get.operation) {
+		result.opaque = true
+		result.valueIncomplete = true
+		return result
+	}
+	if op := get.reflective; op != nil && (!reflectiveNative(op.native) || op.operation != get.operation || op.frame == nil || query.inputs != op.frame || query.operation == nil || query.operation.owner != op.owner || query.operation.inputs != op.frame) {
+		result.opaque = true
+		result.valueIncomplete = true
+		return result
+	}
+	receivers := query.acquireRequiredReceivers(observed, &result)
+	incomplete := result.opaque || result.valueIncomplete || result.receiverIncomplete
+	presence := propertyUnknown
+	seen := false
+	for _, original := range receivers {
+		if !query.charge(&result, get.operation) {
+			incomplete = true
+			break
+		}
+		local := *get
+		cell := propertyUnknown
+		if get.presence != nil {
+			local.presence = &cell
+		}
+		acquired := query.acquireRequiredPropertyAt(original, &local, mode)
+		mergeAccessorCandidates(&result, acquired)
+		if !seen {
+			presence = cell
+			seen = true
+		} else if presence != cell {
+			presence = propertyUnknown
+		}
+		for i, value := range acquired.values {
+			if !query.charge(&result, get.operation) {
+				incomplete = true
+				break
+			}
+			if scope, ok := acquired.callableScopes[i]; ok {
+				if result.callableScopes == nil {
+					result.callableScopes = make(map[int]acquiredCallableScope)
+				}
+				result.callableScopes[len(result.values)] = scope
+			}
+			result.values = append(result.values, value)
+		}
+	}
+	if get.presence != nil {
+		if !seen || incomplete {
+			presence = propertyUnknown
+		}
+		*get.presence = presence
+	}
+	if incomplete {
+		result.valueIncomplete = true
+	}
+	return result
+}
+
+// installParameterInput is shared after each operation has acquired its actual
+// argument domain. Undefined, unknown, rest and copied terms remain distinct.
+func (query *sourceValueQuery) installParameterInput(parameter *ast.Node, values []sourceValue, inputs *sourceValueInputs, result *accessorCandidates) []sourceValue {
+	values = query.bindingDefault(values, parameter.Initializer(), inputs.bindings, result, inputs)
+	query.bindInputPattern(parameter.Name(), values, inputs.bindings, result, accessorAcquire, inputs)
+	if inputs != nil && ast.IsIdentifier(parameter.Name()) && parameter.Name().Text() != "this" && parameter.Initializer() == nil && parameter.AsParameterDeclaration().DotDotDotToken == nil {
+		symbol := query.owner.checker.GetSymbolAtLocation(parameter.Name())
+		if symbol != nil && query.charge(result, parameter) {
+			if _, installed := inputs.bindings[ast.GetSymbolId(symbol)]; installed {
+				if inputs.installedFormals == nil {
+					inputs.installedFormals = make(map[ast.SymbolId]sourceInstalledFormal)
+				}
+				inputs.installedFormals[ast.GetSymbolId(symbol)] = sourceInstalledFormal{symbol: symbol, parameter: parameter, inputs: inputs}
+			}
+		}
+	}
+	return values
+}
+
+// bindGetInputs installs an accessor's actual this and zero supplied arguments.
+// Arrow callbacks retain lexical this. Descriptor callbacks can have defaults or
+// patterns even though ordinary accessor declarations cannot declare arguments.
+// No caller or creating activation is inferred from the operation's AST identity.
+func (query *sourceValueQuery) bindGetInputs(declaration, operation *ast.Node, receiver sourceValue, captures sourceValueBindings, result *accessorCandidates) *sourceValueInputs {
+	inputs := &sourceValueInputs{declaration: declaration, get: &sourceGetInputs{operation: operation, receiver: receiver}, bindings: make(sourceValueBindings, len(captures)+1), defaults: make(map[*ast.Node]sourceDefaultInput)}
+	for id, values := range captures {
+		if !query.charge(result, operation) {
+			return inputs
+		}
+		inputs.bindings[id] = values
+	}
+	if !ast.IsArrowFunction(declaration) {
+		inputs.bindings[0] = []sourceValue{receiver}
+	}
+	for _, parameter := range declaration.Parameters() {
+		if !query.charge(result, parameter) {
+			return inputs
+		}
+		if ast.IsIdentifier(parameter.Name()) && parameter.Name().Text() == "this" {
+			continue
+		}
+		values := []sourceValue{{undefined: true}}
+		if parameter.AsParameterDeclaration().DotDotDotToken != nil {
+			values = []sourceValue{{node: parameter.Name(), rest: make([][]sourceValue, 0)}}
+		}
+		values = query.installParameterInput(parameter, values, inputs, result)
+		query.owner.substitutions += len(values)
+		query.recordFacts(len(values))
+		if len(values) > query.owner.maxTerms {
+			query.owner.maxTerms = len(values)
+		}
+	}
+	return inputs
+}
+
+// sourceGetReturn transfers a selected normal Get's values to that same
+// accessor invocation's return consumer. Site identity selects storage only. The
+// installed input owner and actually consumed demand supply its admission.
+type sourceGetReturn struct {
+	componentRefs []*ownedGetContribution
+	ownedGets     []*ownedGetPopulation
+
+	paid       *languageReceipt
+	site       *ast.Node
+	values     []sourceObservedValue
+	incomplete bool
+}
+
+// sourceOperationContext links an existing normal demand to its installed inputs.
+// The fact is conditional on that analysis operation. Generic index exploration
+// cannot inherit it and source positions cannot create it. It is query-local.
+type sourceOperationContext struct {
+	node, owner *ast.Node
+	inputs      *sourceValueInputs
+	// outputOnly is a scoped installed return consumer, never operation creation.
+	// It may select an existing disposition from this exact construction only.
+	outputOnly bool
+}
+
+// suspendOperation separates indexed may-candidates from this normal demand.
+// It changes no acquired alternative, effect, order, opacity or query budget.
+func (query *sourceValueQuery) suspendOperation() func() {
+	previous, previousCaller := query.operation, query.callerInputs
+	previousObservation := query.returnObservation
+	previousPrefix := query.argumentPrefix
+	query.argumentPrefix = query.currentArgumentPrefix()
+	if previous != nil && previous.inputs != nil && previous.inputs == query.inputs && (previous.owner == previous.inputs.declaration || previous.inputs.population != nil && previous.inputs.population.moduleEntry(previous.node, previous.owner) != nil) {
+		query.callerInputs = &sourceCallerInputOwner{owner: previous.inputs.declaration, frame: previous.inputs, effectOwner: previous.owner, population: previous.inputs.population, authority: query.normalAuthority()}
+	}
+	query.operation = nil
+	query.returnObservation = nil
+	return func() {
+		query.operation = previous
+		query.callerInputs = previousCaller
+		query.returnObservation = previousObservation
+		query.argumentPrefix = previousPrefix
+	}
+}
+
+// consumeGetInputs installs one selected Get's receiver/captures and zero
+// arguments. Effect and value consumers share this owner without conflating
+// unknown data with unknown execution. No caller or creating activation is lent.
+
+func (query *sourceValueQuery) consumeGetInputs(body *ast.Node, get *sourceGetInputs, scope acquiredCallableScope, result *accessorCandidates, consume func(*sourceValueInputs)) {
+	if query.operation != nil && query.operation.outputOnly {
+		// Return acquisition can consume retained output, never enter a Get
+		// wrapper to reconstruct a missing value or repeat its defaults/body.
+		result.valueIncomplete = true
+		return
+	}
+	previousObservation := query.returnObservation
+	query.returnObservation = nil
+	defer func() { query.returnObservation = previousObservation }()
+	previous := query.creators
+	query.creators = scope.creators
+	defer func() { query.creators = previous }()
+	inputs := query.bindGetInputs(body, get.operation, get.receiver, scope.bindings, result)
+	inputs.get.ownedRequest = get.ownedRequest
+	if query.inputs != nil {
+		inputs.ownedFact = query.inputs.ownedFact
+	}
+	beginNormalOperations(inputs)
+	// This wrapper created these Get inputs and owns the single interval until
+	// its selected final consumer returns. Nested body entry only borrows it.
+	defer func() { releaseNormalOperations(inputs) }()
+	if query.inputs != nil {
+		inputs.properties = query.inputs.properties
+	}
+	result.retainCallableEffect(get.operation, body)
+	consume(inputs)
+}
+
+func (query *sourceValueQuery) executeGetEffects(body *ast.Node, get *sourceGetInputs, scope acquiredCallableScope, result *accessorCandidates) {
+	query.consumeGetInputs(body, get, scope, result, func(inputs *sourceValueInputs) { query.executeInputs(body, inputs.bindings, result, nil, inputs) })
+}
+
+// acquireGetResult consumes the normal Get once and observes only its raw return.
+// Direct-return member outputs are acquired by that same body demand. A callable
+// then remains a value, never its fulfillment or a promise-job interpretation.
+func (query *sourceValueQuery) acquireGetResult(body *ast.Node, get *sourceGetInputs, scope acquiredCallableScope, result *accessorCandidates) sourceResultObservation {
+	// A wrapper that refuses before its consumer has no selected output.
+	observed := sourceResultObservation{incomplete: true}
+	// Body demands retain execution obligations in the same owned record, but
+	// their discarded values do not describe this Get's returned observation.
+	// A shallow local copy preserves receipt visibility without copying a frame.
+	execution := *result
+	query.consumeGetInputs(body, get, scope, &execution, func(inputs *sourceValueInputs) {
+		observed.incomplete = false
+		inputs.returnedGets = make([]sourceGetReturn, 0)
+		entered := query.executeInputs(body, inputs.bindings, &execution, nil, inputs)
+		query.observeInstalledGetResults(body, inputs, &observed, &execution)
+		// Copy the mutation component while this wrapper still owns the inputs.
+		// A primitive return or successful value observation cannot supply it.
+		verdict := sourceWriteTop
+		if entered && query.charge(&execution, body) {
+			verdict = inputs.writeComponents[body.Body()]
+		}
+		execution.accessorMutations = append(execution.accessorMutations, sourceAccessorMutation{operation: get.operation, body: body, verdict: verdict})
+		observed.effects = sourceEffectsRefused
+		if entered {
+			observed.effects = sourceEffectsAccounted
+		}
+	})
+	// Publish body effects, writes and refusals once. The caller's prior value
+	// uncertainty stays intact, while this Get's output precision travels only
+	// with observed. No execution-accounting fact certifies a complete value.
+	execution.valueIncomplete = result.valueIncomplete
+	*result = execution
+	return observed
+}
+
+// reachableGetResults preserves the existing deferred provenance traversal. It
+// installs original receiver/captures but does not execute this getter or enroll
+// prototype effects merely because a value is reachable from an argument.
+func (query *sourceValueQuery) reachableGetResults(body *ast.Node, get *sourceGetInputs, scope acquiredCallableScope, result *accessorCandidates) sourceResultObservation {
+	observed := sourceResultObservation{}
+	restore := query.suspendOperation()
+	defer restore()
+	query.consumeGetInputs(body, get, scope, result, func(inputs *sourceValueInputs) { query.observeInstalledGetResults(body, inputs, &observed, result) })
+	return observed
+}

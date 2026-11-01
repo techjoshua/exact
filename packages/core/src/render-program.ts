@@ -49,6 +49,8 @@ export type ExactRenderProgramSsrAttribute = readonly [
 
 /** Stateless server operations invoked directly by compiler-generated component wiring. */
 export type ExactRenderProgramSsrOperations = Readonly<{
+	/** Rejects an incompatible generated writer before preparation or output starts. */
+	assertVersion(version: number): void;
 	/** Private sentinel returned when generated slot validation rejects malformed output. */
 	unprepared: symbol;
 	/** Intrinsic promise identity, independent of authored names. */
@@ -72,8 +74,15 @@ export type ExactRenderProgramSsrOperations = Readonly<{
 	prepareComponent(invocation: ExactRenderProgramSsrInvocation, index: number): unknown;
 	/** Reads finalized props for a statically selected native component. */
 	prepareComponentProps(invocation: ExactRenderProgramSsrInvocation, index: number): unknown;
-	/** Reads and validates one host value before serialization mutates request state. */
-	prepareAttribute(invocation: ExactRenderProgramSsrInvocation, index: number): unknown;
+	/**
+	 * Reads one host value. A compiler-owned intrinsic bag prepares ref identity before
+	 * child serialization, without changing ordinary eager issuance or scalar reads.
+	 */
+	prepareAttribute(
+		invocation: ExactRenderProgramSsrInvocation,
+		index: number,
+		intrinsicProps?: true
+	): unknown;
 	/** Reserves the finite region's ownership identities and charges its request limit once. */
 	begin(
 		context: object,

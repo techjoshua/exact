@@ -1,3 +1,4 @@
+import { componentContractVersion } from '../component-contract-version.js';
 import type { AnyComponentInstance } from '@exactjs/core';
 import type {
 	ExactTargetReceiptData,
@@ -42,7 +43,9 @@ export type TargetDomCapability = Readonly<{
 	clearIntrinsic(mounted: Mounted): void;
 }>;
 
-const targetDomCapabilityKey = Symbol.for('@exactjs/dom.target-capability.v2');
+const targetDomCapabilityKey = Symbol.for(
+	`@exactjs/dom.target-capability.v2/component/${componentContractVersion}`
+);
 type TargetCapabilityRegistry = { abi: 2; capability?: TargetDomCapability };
 type TargetCapabilityHost = typeof globalThis & {
 	[targetDomCapabilityKey]?: TargetCapabilityRegistry;

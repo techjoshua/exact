@@ -12,7 +12,7 @@ import {
 	type ExactCompiledClientAttachmentTarget,
 	type ExactCompatibilityClientAttachmentTarget
 } from '@exactjs/core/runtime/component-operations';
-import type { Mounted } from '../types.js';
+import type { Mounted, Root } from '../types.js';
 import { withEffectScope } from '@exactjs/reactive/framework/runtime';
 import { unmountMounted } from './teardown.js';
 
@@ -25,7 +25,10 @@ type AttachmentTarget = ExactCompiledClientAttachmentTarget &
  * Use within one synchronous preparation transaction; asynchronous preparation needs generation fencing.
  */
 export class PreparedComponentAttachment {
+	/** Preparation belongs to the existing receiving renderer root. */
+	constructor(private readonly root: Root) {}
 	private phase: 'preparing' | 'ready' | 'committing' | 'committed' | 'aborted' = 'preparing';
+
 	private mounted?: Mounted;
 	private target?: AttachmentTarget;
 	private children?: Child[];
@@ -86,7 +89,7 @@ export class PreparedComponentAttachment {
 		mode: 'mount' | 'hydrate'
 	): Mounted {
 		this.assertCapture(artifact, instance, mode);
-		retainSuppliedPlacement(this.mounted!, children);
+		retainSuppliedPlacement(this.mounted!, children, this.root);
 		this.children = children;
 		return this.mounted!;
 	}

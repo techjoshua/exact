@@ -1,3 +1,6 @@
+import { readClientComponentInput } from '../component-input-admission.js';
+import { componentContractVersion } from '../../component-contract-version.js';
+import { assertComponentInputVersion } from '@exactjs/core/runtime/component-operations';
 import type { AnyComponentInstance, Child } from '@exactjs/core';
 import {
 	exactRenderProgramOperation,
@@ -6,7 +9,7 @@ import {
 	type ExactRenderProgramReceiptData
 } from '@exactjs/core/runtime/render-operations';
 import {
-	exactComponentOperation,
+	exactComponentInputsOperationV6,
 	exactActivityOperation,
 	exactChildRangeOperation,
 	exactFragmentOperation,
@@ -24,9 +27,8 @@ import {
 	type ExactChildRangeOperationTarget,
 	type ExactChildRangeReceipt,
 	type ExactChildRangeReceiptData,
-	type ExactComponentOperationTarget,
+	type ExactComponentInputsOperationTarget,
 	type ExactComponentReceipt,
-	type ExactComponentReceiptData,
 	type ExactFragmentOperationTarget,
 	type ExactFragmentReceipt,
 	type ExactFragmentReceiptData,
@@ -71,7 +73,7 @@ import { requireUnsafeHtmlDomCapability } from '../unsafe-html-capability.js';
 import { mountDetachedChildren, mountPortalReceipt } from './children.js';
 import { mountServerSlotReceipt } from '../../server-slots.js';
 import { mountRenderProgram } from '../render-program-operation.js';
-import { withTreeDepth } from '../limits.js';
+import { countDomWork, withTreeDepth } from '../limits.js';
 
 /**
  * Redeems compiler-issued operations without inspecting an operation kind or payload at the call
@@ -81,7 +83,7 @@ export class NativeMountOperationTarget
 	implements
 		ExactActivityOperationTarget<Mounted>,
 		ExactChildRangeOperationTarget<Mounted>,
-		ExactComponentOperationTarget<Mounted>,
+		ExactComponentInputsOperationTarget<Mounted>,
 		ExactFragmentOperationTarget<Mounted>,
 		ExactIntrinsicOperationTarget<Mounted>,
 		ExactKeyedChildOperationTarget<Mounted>,
@@ -101,10 +103,8 @@ export class NativeMountOperationTarget
 	) {}
 
 	/** Mounts a compiler-issued component operation into this target. */
-	[exactComponentOperation](
-		_operation: ExactComponentReceipt,
-		data: ExactComponentReceiptData
-	): Mounted {
+	[exactComponentInputsOperationV6](operation: ExactComponentReceipt): Mounted {
+		const data = readClientComponentInput(operation)!;
 		return mountComponentReceipt(
 			this.root,
 			data,
@@ -119,6 +119,8 @@ export class NativeMountOperationTarget
 		operation: ExactRenderProgramReceipt,
 		_data: ExactRenderProgramReceiptData
 	): Mounted {
+		// Charge the root before allocation. The program accounts for its remaining proven work.
+		countDomWork(this.root);
 		const mounted = mountRenderProgram(
 			this.root,
 			operation,
@@ -135,15 +137,16 @@ export class NativeMountOperationTarget
 		_operation: ExactIntrinsicReceipt,
 		data: ExactIntrinsicReceiptData
 	): Mounted {
-		return withTreeDepth(this.root, () =>
-			mountIntrinsicReceipt(
+		return withTreeDepth(this.root, () => {
+			countDomWork(this.root);
+			return mountIntrinsicReceipt(
 				this.root,
 				data,
 				createEffectScope(this.parentScope),
 				this.parentInstance,
 				this.parentNode
-			)
-		);
+			);
+		});
 	}
 
 	/** Mounts a compiler-issued fragment range into this target. */
@@ -277,3 +280,6 @@ export function retainMountedOperation(mounted: Mounted, operation: Child): Moun
 	mounted.operation = operation;
 	return mounted;
 }
+
+// The private operation capability is required even by direct receipt-adoption lanes.
+assertComponentInputVersion(componentContractVersion);

@@ -14,9 +14,9 @@ describe('deterministic theme resolution', () => {
 		const variables = serializeThemeVariables(theme);
 		expect(Object.keys(variables)).toEqual(Object.keys(variables).sort());
 		expect(Object.getPrototypeOf(variables)).toBeNull();
-		expect(Object.isFrozen(theme)).toBe(true);
-		expect(Object.isFrozen(theme.tones.accent)).toBe(true);
-		expect(Object.isFrozen(theme.source.temperament.surfaceIntervals)).toBe(true);
+		expect(Object.isFrozen(theme)).toBe(false);
+		expect(Object.isFrozen(theme.tones.accent)).toBe(false);
+		expect(Object.isFrozen(theme.source.temperament.surfaceIntervals)).toBe(false);
 	});
 
 	it('keeps all built-in foreground, boundary, focus, and solid pairs above their contract ratios', () => {

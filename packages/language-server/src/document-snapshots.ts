@@ -1,7 +1,8 @@
 import type { TextDocument } from 'vscode-languageserver-textdocument';
 
-/** Immutable text and version captured at the start of one language-server request. */
+/** Request-local open-document identity and immutable coordinates, never serialized over LSP. */
 export type ExactDocumentSnapshot = Readonly<{
+	document: Pick<TextDocument, 'uri' | 'version' | 'getText'>;
 	uri: string;
 	version: number;
 	source: string;
@@ -12,16 +13,21 @@ export function captureDocumentSnapshot(
 	document: Pick<TextDocument, 'uri' | 'version' | 'getText'>
 ): ExactDocumentSnapshot {
 	return Object.freeze({
+		document,
 		uri: document.uri,
 		version: document.version,
 		source: document.getText()
 	});
 }
 
-/** Reports whether a request snapshot still identifies the currently open document version. */
+/** Reports whether a request snapshot still identifies the currently open document lifetime and version. */
 export function isCurrentDocumentSnapshot(
 	snapshot: ExactDocumentSnapshot,
 	document: Pick<TextDocument, 'uri' | 'version'> | undefined
 ): boolean {
-	return document?.uri === snapshot.uri && document.version === snapshot.version;
+	return (
+		document === snapshot.document &&
+		document.uri === snapshot.uri &&
+		document.version === snapshot.version
+	);
 }

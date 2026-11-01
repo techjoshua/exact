@@ -29,7 +29,7 @@ export function installMotionDriver(driver: MotionDriver): () => void {
 /** Creates the browser Web Animations driver without reading browser globals during import. */
 export function createWebAnimationDriver(): MotionDriver {
 	const interruptedFrames = new WeakMap<Element, Readonly<Record<string, string>>>();
-	return Object.freeze({
+	return {
 		async play(element: Element, effect: MotionEffect, signal: AbortSignal): Promise<void> {
 			if (signal.aborted) throw signal.reason;
 			if (typeof element.animate !== 'function') return;
@@ -37,7 +37,7 @@ export function createWebAnimationDriver(): MotionDriver {
 			// still being placed. Starting a backwards-filled animation in that provisional state can
 			// leave Chromium displaying its first frame after the tree becomes connected. The next paint
 			// boundary is the first browser-owned point after synchronous and microtask-driven placement.
-			await placementFrame();
+			await placementFrame(signal);
 			if (signal.aborted) throw signal.reason;
 			const interrupted = interruptedFrames.get(element);
 			if (interrupted) interruptedFrames.delete(element);
@@ -65,12 +65,23 @@ export function createWebAnimationDriver(): MotionDriver {
 				animation.cancel();
 			}
 		}
-	});
+	};
 }
 
-function placementFrame(): Promise<void> {
+/** Releases a pending browser frame when playback is cancelled, even while painting is paused. */
+function placementFrame(signal: AbortSignal): Promise<void> {
 	if (typeof globalThis.requestAnimationFrame !== 'function') return Promise.resolve();
-	return new Promise((resolve) => globalThis.requestAnimationFrame(() => resolve()));
+	return new Promise((resolve, reject) => {
+		const frame = globalThis.requestAnimationFrame(() => {
+			signal.removeEventListener('abort', cancel);
+			resolve();
+		});
+		const cancel = () => {
+			globalThis.cancelAnimationFrame(frame);
+			reject(signal.reason);
+		};
+		signal.addEventListener('abort', cancel, { once: true });
+	});
 }
 
 function captureAnimatedFrame(
@@ -86,7 +97,7 @@ function captureAnimatedFrame(
 		const value = computed.getPropertyValue(cssPropertyName(property));
 		if (value) frame[property] = value;
 	}
-	return Object.keys(frame).length ? Object.freeze(frame) : undefined;
+	return Object.keys(frame).length ? frame : undefined;
 }
 
 function animatedProperties(keyframes: MotionEffect['keyframes']): Set<string> {

@@ -59,14 +59,14 @@ function parseFunctionDefinedTask(
 	if (!contextParameter) return undefined;
 	const parameters = rawParameters.slice(0, -1).map(parameterName);
 	if (parameters.some((parameter) => parameter === undefined)) return undefined;
-	return Object.freeze({
+	return {
 		dependencies: splitTopLevel(source.slice(activationOpen + 1, activationClose)),
 		parameters: parameters as string[],
 		contextParameter,
 		body: authored.slice(bodyOpen + 1, bodyClose),
-		range: Object.freeze({ start: lineStart, end: activationSemicolon + 1 }),
+		range: { start: lineStart, end: activationSemicolon + 1 },
 		indentation
-	});
+	};
 }
 
 function splitTopLevel(source: string): string[] {

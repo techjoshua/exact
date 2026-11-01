@@ -44,7 +44,7 @@ export function registerCollectionComponentStateFactory(factory: CollectionState
 	collectionStateFactory = factory;
 }
 
-/** Creates readonly reactive props while preserving compiler-owned children passthrough. */
+/** Creates reactive props while preserving compiler-owned children passthrough. */
 export function createComponentProps<Props extends Record<string, unknown>>(
 	rawProps: Props,
 	indexedKeys: readonly string[],
@@ -52,11 +52,7 @@ export function createComponentProps<Props extends Record<string, unknown>>(
 	opaqueKeys: readonly PropertyKey[] = []
 ): Reactive<Record<string, unknown>> {
 	const options: ReactiveOptions = {
-		readonly: true,
-		passthroughKeys: ['children', ...opaqueKeys],
-		onReadonlyWrite(key: PropertyKey) {
-			throw new TypeError(`Cannot write to readonly props.${String(key)}`);
-		}
+		passthroughKeys: ['children', ...opaqueKeys]
 	};
 	if (collections) {
 		if (!collectionPropsFactory)

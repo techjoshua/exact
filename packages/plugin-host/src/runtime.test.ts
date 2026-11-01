@@ -226,3 +226,40 @@ describe('plugin runtime phases', () => {
 		).rejects.toThrow('validate() must return undefined');
 	});
 });
+
+// A synchronous rejection must also observe settlement of the forbidden async result.
+describe('synchronous plugin output rejection ownership', () => {
+	it.each(['transform', 'validate'] as const)('observes a rejected %s promise', async (phase) => {
+		const rejection = new Error('forbidden asynchronous failure');
+		expect(() =>
+			processExactOutputSync('output', { kind: 'html' }, [
+				{
+					[phase]: () => Promise.reject(rejection)
+				}
+			])
+		).toThrow(phase === 'transform' ? Error : AggregateError);
+		await new Promise((resolve) => setTimeout(resolve, 0));
+	});
+
+	it.each(['transform', 'validate'] as const)(
+		'assimilates a rejecting %s thenable',
+		async (phase) => {
+			let observed = false;
+			const result = {
+				then(_resolve: unknown, reject: (cause: Error) => void) {
+					observed = true;
+					reject(new Error('foreign asynchronous failure'));
+				}
+			};
+			expect(() =>
+				processExactOutputSync('output', { kind: 'html' }, [
+					{
+						[phase]: () => result as never
+					}
+				])
+			).toThrow(phase === 'transform' ? Error : AggregateError);
+			await new Promise((resolve) => setTimeout(resolve, 0));
+			expect(observed).toBe(true);
+		}
+	);
+});

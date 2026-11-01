@@ -22,6 +22,7 @@ func appendInvokedCallbackEffects(fact *callableFacts, facts []callableFacts, ca
 			}
 		}
 		if resolved {
+			retainMapInputRole(fact, call, facts[target].node, argumentIndex, edge.ID)
 			edge.TargetID = facts[target].summary.ID
 			edge.Resolved = true
 			fact.targets = append(fact.targets, target)
@@ -83,8 +84,29 @@ func invokedCallbackArgument(node *ast.Node, index int, typeChecker *checker.Che
 			return true
 		}
 	}
+	if name == "from" && standardFactoryMapperSymbol(symbol) {
+		return index == 1
+	}
 	if name == "then" {
 		return index < 2
 	}
 	return index == 0
+}
+
+// standardFactoryMapperSymbol proves the array factory contract before choosing its mapper slot.
+// Callable input data and thisArg values are not invoked by standard from factories.
+func standardFactoryMapperSymbol(symbol *ast.Symbol) bool {
+	if symbol == nil || len(symbol.Declarations) == 0 {
+		return false
+	}
+	for _, declaration := range symbol.Declarations {
+		if !standardLibrarySource(ast.GetSourceFileOfNode(declaration)) || declaration.Parent == nil || !ast.IsInterfaceDeclaration(declaration.Parent) {
+			return false
+		}
+		owner := declaration.Parent.Name()
+		if owner == nil || !strings.HasSuffix(owner.Text(), "ArrayConstructor") || !portableNativeContainerName(strings.TrimSuffix(owner.Text(), "Constructor")) {
+			return false
+		}
+	}
+	return true
 }

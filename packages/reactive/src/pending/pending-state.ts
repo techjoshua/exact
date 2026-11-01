@@ -9,7 +9,6 @@ import {
 	pendingArrayIndex,
 	pendingPropertyKey,
 	pendingInheritedRead,
-	assertPendingWritable,
 	assertPendingAccessorReceiver
 } from './pending-property-policy.js';
 import { PendingInvocationCells } from './pending-cells.js';
@@ -29,7 +28,6 @@ import { PendingStatePublication } from './pending-publication.js';
 import {
 	applyPendingArray,
 	createPendingArrayView,
-	pendingArrayMutators,
 	retainPendingArrayWrite
 } from './pending-array.js';
 
@@ -38,7 +36,7 @@ export type { PendingReactiveState } from './pending-state-contract.js';
 
 /**
  * Owns lazy pending cells and native collection deltas for one explicit transaction. Helper
- * facades belong to explicit helper invocations. Publication resolves reconciled owners.
+ * facades belong to explicit helper invocations. Publication resolves selected reactive receivers.
  */
 class InvocationState implements PendingReactiveTransaction {
 	private readonly cells = new PendingInvocationCells();
@@ -156,7 +154,6 @@ class InvocationState implements PendingReactiveTransaction {
 		if (!this.owned.has(unwrap(target)))
 			return writeUnownedPendingProperty(this.policyReceiver(target), key, value, this);
 		this.assertCurrent();
-		assertPendingWritable(this.policyReceiver(target), key);
 		if (!data) assertPendingPropertyAssignable(unwrap(target), key);
 		const descriptor = pendingPropertyDescriptor(unwrap(target), key);
 		if (descriptor?.set && !data) {
@@ -179,6 +176,8 @@ class InvocationState implements PendingReactiveTransaction {
 		const reinserted = previous?.deleted || previous?.reinserted;
 		if (previous?.deleted) properties.delete(key);
 		properties.set(key, { value: storedValue, reinserted });
+		// A cell-only read must retain an existing data edge before a later parent acquisition.
+		this.publication.retainChild(target, key, storedValue);
 		const receiver = this.policyReceiver(target);
 		this.journal.stage(() => {
 			this.publication.write(receiver, key, storedValue);
@@ -195,7 +194,6 @@ class InvocationState implements PendingReactiveTransaction {
 		const raw = unwrap(target);
 		if (!this.owned.has(raw)) return removeUnownedPendingProperty(this.policyReceiver(target), key);
 		this.assertCurrent();
-		assertPendingWritable(this.policyReceiver(target), key);
 		if (Reflect.getOwnPropertyDescriptor(raw, key)?.configurable === false)
 			throw new TypeError('Cannot delete a nonconfigurable task state property');
 		if (this.journal.publishing) return this.publication.remove(this.policyReceiver(target), key);
@@ -224,7 +222,6 @@ class InvocationState implements PendingReactiveTransaction {
 		return (...args) => {
 			if (Array.isArray(raw)) {
 				this.assertCurrent();
-				if (pendingArrayMutators.has(key)) assertPendingWritable(this.policyReceiver(target), key);
 				this.arrayViews ??= new WeakMap();
 				let view = this.arrayViews.get(target);
 				if (!view)
@@ -249,6 +246,11 @@ class InvocationState implements PendingReactiveTransaction {
 		return delta;
 	}
 
+	/** Enrolls consumed native positions in the same association lifetime as selected properties. */
+	retainCollectionMember(target: object, key: unknown, value: unknown, keyMember = false): unknown {
+		return this.adopt(this.publication.retainCollectionMember(target, key, value, keyMember));
+	}
+
 	publishedReceiver(target: object): object {
 		return this.publication.resolve(target);
 	}
@@ -257,14 +259,11 @@ class InvocationState implements PendingReactiveTransaction {
 		return this.journal.publishing;
 	}
 
-	checkCollectionWrite(target: object, key: PropertyKey): void {
-		assertPendingWritable(this.policyReceiver(target), key);
-	}
-
 	stageCollectionWrite(target: object, key: PropertyKey, args: unknown[]): void {
 		const receiver = this.policyReceiver(target);
 		this.journal.stage(() => {
 			applyNativeReactiveCollection(this.publication.resolve(receiver), key, args);
+			this.publication.associateCollection(receiver);
 		});
 	}
 

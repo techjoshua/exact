@@ -48,6 +48,11 @@ export function GravityPage(this: Component<{}>) {
 					attraction around a location. Fields can be combined or limited to a region. Softening
 					limits the force near an attractor, and an acceleration cap prevents extreme values.
 				</p>
+				<p>
+					Field metadata and sample vectors follow TypeScript's shallow readonly checks. Writable
+					aliases and nested values keep normal JavaScript behavior. Each sample returns an
+					independent vector, so changing a returned value does not change future samples.
+				</p>
 			</section>
 			<section>
 				<h2>Apply a field to one body</h2>

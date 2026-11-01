@@ -5,6 +5,11 @@ import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
 import { build, type Plugin } from 'vite';
 import { exact } from './plugin.js';
+import {
+	pluginConfigurationObservationSource,
+	microfrontendProviderJourneySource,
+	verifyMicrofrontendProviderJourney
+} from '../../test-support/microfrontend-provider-journey.js';
 
 const buildKey = '0123456789abcdef0123456789abcdef01234567';
 const repositoryRoot = fileURLToPath(new URL('../../..', import.meta.url));
@@ -47,7 +52,7 @@ describe('@exactjs/vite-plugin: microfrontend integration', () => {
 			path.join(root, 'exact.config.mjs'),
 			`export default {
 	plugins: {
-		microfrontends(config) {
+		microfrontends(config, context) { ${pluginConfigurationObservationSource}
 			config.exposes['./Area'] = { component: './src/Area.tsx' };
 			config.remotes.billing = {
 				endpoint: 'http://billing.internal/__exact',
@@ -64,8 +69,14 @@ describe('@exactjs/vite-plugin: microfrontend integration', () => {
 		);
 		await writeFile(path.join(root, 'src', 'page.ts'), `globalThis.__pageLoaded = true;\n`);
 		await writeFile(
+			path.join(root, 'src', 'provider-journey.js'),
+			microfrontendProviderJourneySource
+		);
+		await writeFile(
 			path.join(root, 'src', 'Area.tsx'),
-			`export default function Area() { return () => <section>remote area</section>; }\n`
+			`import { providerJourney } from './provider-journey.js';
+export default function Area() { return () => <section>remote area</section>; }
+Area.providerJourney = providerJourney;\n`
 		);
 
 		const previousBuildKey = process.env.EXACT_BUILD_KEY;
@@ -97,6 +108,10 @@ describe('@exactjs/vite-plugin: microfrontend integration', () => {
 		const files = await recursiveFiles(path.join(root, 'dist'));
 		expect(files.some((file) => /exact-remote-Area.*\.js$/i.test(file))).toBe(true);
 		expect(emittedEntries?.['./Area']).toMatch(/exact-remote-Area.*\.js$/i);
+		verifyMicrofrontendProviderJourney(
+			repositoryRoot,
+			path.join(root, 'dist', emittedEntries!['./Area']!)
+		);
 		expect(developmentEntries).toEqual({
 			'./Area': '/@id/virtual:exact-remote-entry/Li9BcmVh'
 		});

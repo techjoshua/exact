@@ -42,7 +42,7 @@ export function replacementsForImporter(
 				selected.push(replacement);
 		}
 	}
-	return Object.freeze(selected);
+	return selected;
 }
 
 /** Performs the unsupported sources for importer domain operation. */
@@ -51,11 +51,9 @@ export function unsupportedSourcesForImporter(
 	registry: ResolvedReactCompatAdapters,
 	importer: string
 ): readonly UnsupportedReactCompatSource[] {
-	return Object.freeze(
-		registry.unsupportedSources.filter(
-			(source) =>
-				resolveSourceInstance(graph, importer, source.sourcePackage)?.id === source.sourceInstance
-		)
+	return registry.unsupportedSources.filter(
+		(source) =>
+			resolveSourceInstance(graph, importer, source.sourcePackage)?.id === source.sourceInstance
 	);
 }
 
@@ -65,11 +63,9 @@ export function sourcePoliciesForImporter(
 	registry: ResolvedReactCompatAdapters,
 	importer: string
 ): readonly ResolvedReactCompatSourcePolicy[] {
-	return Object.freeze(
-		registry.sourcePolicies.filter(
-			(source) =>
-				resolveSourceInstance(graph, importer, source.sourcePackage)?.id === source.sourceInstance
-		)
+	return registry.sourcePolicies.filter(
+		(source) =>
+			resolveSourceInstance(graph, importer, source.sourcePackage)?.id === source.sourceInstance
 	);
 }
 
@@ -157,35 +153,31 @@ export function discoverReactCompatAdapters(
 					satisfies(installedVersion, candidate.version, { includePrerelease: true })
 				);
 				if (!variant) {
-					unsupportedSources.push(
-						Object.freeze({
-							sourceInstance: sourceNode.id,
-							sourceLocation: sourceNode.location,
-							sourceModule,
-							sourcePackage,
-							installedVersion,
-							supportedRanges: Object.freeze(source.variants.map((candidate) => candidate.version)),
-							adapterPackage: name,
-							adapterVersion: packageVersion(node)
-						})
-					);
-					continue;
-				}
-				sourcePolicies.push(
-					Object.freeze({
+					unsupportedSources.push({
 						sourceInstance: sourceNode.id,
 						sourceLocation: sourceNode.location,
 						sourceModule,
 						sourcePackage,
 						installedVersion,
-						fallback: source.fallback,
+						supportedRanges: source.variants.map((candidate) => candidate.version),
 						adapterPackage: name,
 						adapterVersion: packageVersion(node)
-					})
-				);
+					});
+					continue;
+				}
+				sourcePolicies.push({
+					sourceInstance: sourceNode.id,
+					sourceLocation: sourceNode.location,
+					sourceModule,
+					sourcePackage,
+					installedVersion,
+					fallback: source.fallback,
+					adapterPackage: name,
+					adapterVersion: packageVersion(node)
+				});
 				for (const [sourceExport, replacement] of Object.entries(variant.exports)) {
 					const key = replacementKey(sourceNode.id, sourceModule, sourceExport);
-					const resolved: ResolvedReactCompatReplacement = Object.freeze({
+					const resolved: ResolvedReactCompatReplacement = {
 						...replacement,
 						sourceInstance: sourceNode.id,
 						sourceLocation: sourceNode.location,
@@ -196,7 +188,7 @@ export function discoverReactCompatAdapters(
 						adapterPackage: name,
 						adapterVersion: packageVersion(node),
 						specifier: replacement.subpath === '.' ? name : `${name}${replacement.subpath.slice(1)}`
-					});
+					};
 					const previous = replacements.get(key);
 					if (previous) {
 						throw new Error(
@@ -211,13 +203,13 @@ export function discoverReactCompatAdapters(
 			}
 		}
 	}
-	return Object.freeze({
+	return {
 		replacements,
-		unsupportedSources: Object.freeze(unsupportedSources),
-		sourcePolicies: Object.freeze(sourcePolicies),
-		adapters: Object.freeze(adapters),
-		ignoredAdapters: Object.freeze([...ignored].sort())
-	});
+		unsupportedSources,
+		sourcePolicies,
+		adapters,
+		ignoredAdapters: [...ignored].sort()
+	};
 }
 
 /** Loads the nearest npm lockfile and materializes the installed graph without running npm. */

@@ -1,3 +1,4 @@
+import { deriveRuntimeConfiguration } from '@exactjs/core/framework/configuration';
 import {
 	prepareExactPluginRegistry,
 	type ExactPreparedPluginRegistry,
@@ -13,5 +14,7 @@ export type {
 export function prepareExactRenderPlugins(
 	options: Omit<PrepareExactPluginRegistryOptions, 'hostMode'> = {}
 ): Promise<ExactPreparedPluginRegistry> {
-	return prepareExactPluginRegistry({ ...options, hostMode: 'render' });
+	return prepareExactPluginRegistry(
+		deriveRuntimeConfiguration(options, () => ({ hostMode: 'render' as const }))
+	);
 }

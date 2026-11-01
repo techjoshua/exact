@@ -130,6 +130,17 @@ export function StatePage(this: Component<{}>) {
 					counts as present.
 				</p>
 				<p>
+					Replacing an object or array stores the new value, even when its contents match the old
+					one. For example, <code>this.state.profile = nextProfile</code> moves readers to that
+					profile. A saved reference to the previous profile still refers to the previous object.
+					Writing <code>this.state.profile.name = 'Grace'</code> changes the selected profile in
+					place. Assigning the same object to two fields shares its storage.
+				</p>
+				<p>
+					Array mutations retain native JavaScript behavior. If an operation changes an array before
+					throwing, reactive readers observe those changes.
+				</p>
+				<p>
 					You can calculate one value from another with an ordinary expression. In the price
 					example, changing quantity updates the subtotal and total. The component keeps the same
 					instance throughout these changes.
@@ -172,6 +183,7 @@ export function StatePage(this: Component<{}>) {
 					calculation remain reactive.
 				</p>
 				<p>
+					Replacing a Map value stores the supplied object even when its fields match the old value.
 					When several parts of a view need the same Map or Set contents, a declaration such as
 					<code>const rows = Array.from(this.state.rows.values())</code> can share a reactive
 					snapshot. Other derived calculations can consume that array, such as
@@ -285,6 +297,14 @@ export function StatePage(this: Component<{}>) {
 				</p>
 				<CodeBlock source={explicitDerivedSource} language="tsx" title="Explicit derived value" />
 				<p>
+					For a value owned by another store, <code>createExternalSource()</code> from
+					<code>@exactjs/reactive</code> connects snapshot reads and change subscriptions to a
+					reactive value. Its equality policy selects the current snapshot and preserves its
+					identity. An effect scope owns sources created inside it. Otherwise, call
+					<code>dispose()</code> when the consumer ends. Failed connection releases its subscription
+					and can be retried, and disposal during setup releases any subscription it acquires.
+				</p>
+				<p>
 					A task function can accept the derived value as an ordinary argument. Calling it during
 					initialization records that argument expression as the activation dependency without
 					another registration API.
@@ -319,13 +339,16 @@ export function StatePage(this: Component<{}>) {
 				</p>
 				<p>
 					In callbacks, chained, compound, logical, computed-key, array-destructured, and
-					object-destructured writes keep JavaScript evaluation order and expression results.
-					Destructuring may mix local and state targets, including defaults and rest. A server
-					continuation still needs a statically transportable write path, so publish an enclosing
-					state value instead of a dynamic path such as <code>rows[index].value</code> at that
-					boundary. Selecting a collection dynamically, such as{' '}
-					<code>rows[index].set(key, value)</code>, has the same restriction in both named function
-					tasks and arrow tasks.
+					object-destructured writes keep JavaScript evaluation order and expression results. A
+					logical assignment skips its right side and any setter when the current value already
+					selects the result. An assignment retains its selected receiver across an awaited right
+					side, even if another operation replaces that receiver&apos;s parent. Computed keys keep
+					JavaScript expression and conversion order. Destructuring may mix local and state targets,
+					including defaults and rest. A server continuation still needs a statically transportable
+					write path, so publish an enclosing state value instead of a dynamic path such as{' '}
+					<code>rows[index].value</code> at that boundary. Selecting a collection dynamically, such
+					as <code>rows[index].set(key, value)</code>, has the same restriction in both named
+					function tasks and arrow tasks.
 				</p>
 				<p>
 					Array methods preserve native getter and setter behavior. When an indexed accessor could
@@ -337,9 +360,22 @@ export function StatePage(this: Component<{}>) {
 					runtime snapshots and deduplicates affected consumers before patching, so replacing a
 					large reactive collection does not repeatedly update a component merely because it reads
 					several changed entries. Interactive consequences patch before the callback returns.
-					Normal and deferred work keeps its scheduled host turn. Use an explicit{' '}
-					<code>batch()</code>
-					only when an external integration needs to define that same boundary itself.
+					Normal and deferred work keeps its scheduled host turn.
+				</p>
+				<p>
+					Use <code>batch()</code> to group writes from an external integration or to restore a
+					group when its synchronous callback throws. Successful nested batches belong to their
+					outer batch, including large update groups. An outer failure restores those writes and
+					preserves the original error. Ordinary event writes remain published when their callback
+					throws. A failed batch keeps its callback's original error even if restoring a property
+					also fails.
+				</p>
+				<p>
+					Array rollback preserves sparse slots and later authoritative appends. Array edits keep
+					the ordinary JavaScript coercion of their arguments, without repeating that coercion when
+					restoring state. When a full removal is restored into an empty array, custom property
+					traps can leave partial state. If reactive work makes the original slot identities
+					uncertain, older undo through those slots is refused. New captures use the current array.
 				</p>
 			</section>
 			<section>
@@ -371,16 +407,28 @@ export function StatePage(this: Component<{}>) {
 				<p>
 					Read-only helpers can accept <code>ReadonlyMap</code> or <code>ReadonlySet</code>. These
 					types, including aliases, preserve the collection methods&apos; client/server placement.
-					The annotation restricts mutation without copying the collection.
+					The annotation restricts mutation during type checking. Writable aliases and mutable
+					nested values retain ordinary JavaScript behavior. The same TypeScript-only readonly
+					guarantee applies to framework props, facade fields, and observations.
 				</p>
 				<CodeBlock source={collectionSource} language="tsx" title="Selection.tsx" />
 				<p>
 					Maps and Sets are encoded for SSR, hydration, and server operations and restored as real
-					collections, including nested values in whole-page hydration and independent islands.
-					Server continuations return ordered entry deltas instead of the complete collection.
-					Transported Map keys may be null, booleans, finite numbers, or strings. Local collections
-					may still use object keys. Hydration accepts native collections without custom iteration
-					or JSON serialization hooks.
+					collections, including nested values in whole-page hydration, independent islands, and
+					single, batched or streamed server results. Registered list keys are preserved when a
+					reactive array is nested inside another object. Server continuations return ordered entry
+					deltas instead of the complete collection. Transported Map keys may be null, booleans,
+					finite numbers, or strings. Local collections may still use object keys. Hydration accepts
+					native collections without custom iteration or JSON serialization hooks. Several fields
+					may refer to the same supported object or collection. Transport creates independent copies
+					of those values. References back to an ancestor form a cycle and cannot cross the server
+					boundary.
+				</p>
+				<p>
+					When an API response uses a field such as <code>$exact</code>, keep it as ordinary state
+					data. Hydration and server operations preserve the record fields, including names that
+					resemble collection markers. Graph size limits include the encoded transport wrappers used
+					for collections and those records.
 				</p>
 			</section>
 		</Article>

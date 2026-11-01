@@ -1,3 +1,4 @@
+import { loadAdapterTestApi } from '../../test-support/adapter-test-api.js';
 import path from 'node:path';
 import {
 	createConfigurationWatchFixture,
@@ -5,11 +6,7 @@ import {
 } from '../../test-support/configuration-watch.js';
 
 const runningInBun = Boolean((globalThis as { Bun?: unknown }).Bun);
-const bunTestModule: string = 'bun:test';
-const testApi = (runningInBun ? await import(bunTestModule) : await import('vitest')) as Pick<
-	typeof import('vitest'),
-	'describe' | 'it' | 'expect'
->;
+const testApi = await loadAdapterTestApi();
 const describeBun = runningInBun ? testApi.describe : testApi.describe.skip;
 
 describeBun('configuration rebuilds', () => {

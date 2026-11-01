@@ -5,7 +5,7 @@ import { pathToFileURL } from 'node:url';
 import { TextEncoder as NodeTextEncoder } from 'node:util';
 import { expect, it, onTestFinished } from 'vitest';
 import type { AnyComponentFunction } from '@exactjs/core';
-import { createCompiledComponentReceipt as receipt } from '@exactjs/core/runtime/component-operations';
+import { createCompiledComponentInputReceipt as receipt } from '@exactjs/core/runtime/component-operations';
 import {
 	composeExactComponentContracts,
 	exactComponentIdentity
@@ -14,14 +14,16 @@ import { render, unmount } from '@exactjs/dom';
 import { hydrate } from '../../../hydrate/src/index.js';
 import { renderToHydratableString } from '@exactjs/ssr';
 import { flushSync } from '@exactjs/reactive';
-
-import { createTestWorkspace, writeTestFiles } from '../test-support/workspace.js';
+import {
+	createCompilerTestWorkspace,
+	writeTestFiles,
+	repositoryPath
+} from '../test-support/workspace.js';
 import { importArtifact } from '../test-support/import-artifact.js';
-
 it.each(['default declaration', 'default alias', 'renamed barrel', 'star barrel'])(
 	'preserves component identity through %s and dependency replacement',
 	async (shape) => {
-		const root = await createTestWorkspace('.exact-export-semantics-', process.cwd());
+		const root = await createCompilerTestWorkspace('.exact-export-semantics-', process.cwd());
 		const imports = shape.startsWith('default')
 			? "import Selected from './child.js';"
 			: shape === 'renamed barrel'
@@ -40,7 +42,7 @@ export function Page(this:Component<{label:string}>){owner=this;this.state.label
 		for (const version of ['old', 'new']) {
 			const source = `import {type Component} from '@exactjs/core';${shape === 'default declaration' ? 'export default' : 'export'} function Child(this:Component<{count:number}>,props:{label:string}){this.state.count=0;return()=> <button onClick={()=>this.state.count++}>{props.label}:${version}:{this.state.count}</button>;} ${shape === 'default alias' ? 'const Alias=Child;export default Alias;' : ''}`;
 			await writeTestFiles(root, { 'child.tsx': source });
-			const require = createRequire(path.resolve('framework-adapters/vite-plugin/package.json'));
+			const require = createRequire(repositoryPath('framework-adapters/vite-plugin/package.json'));
 			const previousEncoder = globalThis.TextEncoder;
 			const previousArray = globalThis.Uint8Array;
 			onTestFinished(() => {
@@ -51,37 +53,42 @@ export function Page(this:Component<{label:string}>){owner=this;this.state.label
 			globalThis.Uint8Array = new NodeTextEncoder().encode('').constructor as Uint8ArrayConstructor;
 			const { exact } = await import('../../../../framework-adapters/vite-plugin/src/index.js');
 			const { build } = await import(pathToFileURL(require.resolve('vite')).href);
+			const { withExactViteBuildCompilerScope } = await import(
+				'../../../../framework-adapters/vite-plugin/src/compiler-session.js'
+			);
 			const modules: Record<string, Record<string, unknown>> = {};
-			for (const target of ['client', 'server'] as const) {
-				const outDir = path.join(root, `generated-${target}`);
-				await build({
-					root,
-					configFile: false,
-					logLevel: 'silent',
-					plugins: [
-						exact({
-							applicationRoot: root,
-							target,
-							serverComponents: false,
-							reactCompatibility: false
-						})
-					],
-					build: {
-						outDir,
-						ssr: target === 'server' ? files['page.tsx'] : false,
-						minify: false,
-						lib: { entry: files['page.tsx'], formats: ['es'], fileName: 'entry' },
-						rollupOptions: {
-							external: (id: string) => id.startsWith('@exactjs/'),
-							output: { entryFileNames: 'entry.js' }
+			await withExactViteBuildCompilerScope(async () => {
+				for (const target of ['client', 'server'] as const) {
+					const outDir = path.join(root, `generated-${target}`);
+					await build({
+						root,
+						configFile: false,
+						logLevel: 'silent',
+						plugins: [
+							exact({
+								applicationRoot: root,
+								target,
+								serverComponents: false,
+								reactCompatibility: false
+							})
+						],
+						build: {
+							outDir,
+							ssr: target === 'server' ? files['page.tsx'] : false,
+							minify: false,
+							lib: { entry: files['page.tsx'], formats: ['es'], fileName: 'entry' },
+							rollupOptions: {
+								external: (id: string) => id.startsWith('@exactjs/'),
+								output: { entryFileNames: 'entry.js' }
+							}
 						}
-					}
-				});
-				modules[target] = await importArtifact(
-					path.join(outDir, 'entry.js'),
-					path.join(root, `${target}-${version}.mjs`)
-				);
-			}
+					});
+					modules[target] = await importArtifact(
+						path.join(outDir, 'entry.js'),
+						path.join(root, `${target}-${version}.mjs`)
+					);
+				}
+			});
 			globalThis.TextEncoder = previousEncoder;
 			globalThis.Uint8Array = previousArray;
 			const client = modules.client!;
@@ -121,7 +128,13 @@ export function Page(this:Component<{label:string}>){owner=this;this.state.label
 				button.click();
 				flushSync();
 				expect(button.textContent).toBe(`first:${version}:1`);
-				(client.owner as { state: { label: string } }).state.label = 'second';
+				(
+					client.owner as {
+						state: {
+							label: string;
+						};
+					}
+				).state.label = 'second';
 				flushSync();
 				expect(button.textContent).toBe(`second:${version}:1`);
 				button.click();

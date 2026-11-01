@@ -8,9 +8,9 @@ export function addRuntime(
 	scripts: Record<string, string>
 ): void {
 	if (runtime === 'browser') return;
-	dependencies['@exactjs/ssr'] = '^0.7.0';
-	dependencies['@exactjs/server'] = '^0.7.0';
-	dependencies[`@exactjs/${runtime === 'serverless' ? 'serverless' : runtime}-adapter`] = '^0.7.0';
+	dependencies['@exactjs/ssr'] = '^0.8.0';
+	dependencies['@exactjs/server'] = '^0.8.0';
+	dependencies[`@exactjs/${runtime === 'serverless' ? 'serverless' : runtime}-adapter`] = '^0.8.0';
 	if (['node', 'express', 'fastify', 'hapi', 'koa'].includes(runtime)) {
 		devDependencies.tsx = '^4.20.0';
 		scripts['dev:server'] = 'tsx watch src/server.ts';
@@ -20,7 +20,7 @@ export function addRuntime(
 		dependencies.express = '^5.1.0';
 		devDependencies['@types/express'] = '^5.0.0';
 	}
-	if (runtime === 'fastify') dependencies.fastify = '^5.6.0';
+	if (runtime === 'fastify') dependencies.fastify = '^5.12.6';
 	if (runtime === 'hapi') dependencies['@hapi/hapi'] = '^21.4.0';
 	if (runtime === 'koa') {
 		dependencies.koa = '^3.0.0';

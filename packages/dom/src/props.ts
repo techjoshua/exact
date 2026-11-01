@@ -1,3 +1,7 @@
+import {
+	physicalElementIdentity,
+	isReservedElementIdentityName
+} from '@exactjs/core/runtime/component-operations';
 import { clearNamespaceEncoding, retainNamespaceEncoding } from './namespace.js';
 import { authoredEventKey } from './events.js';
 import {
@@ -26,6 +30,11 @@ import { directEventHandlers, eventHandlers, propBindings } from './state.js';
 import { clearPropBinding, releasePropBinding, setPropBinding } from './prop-binding-ownership.js';
 import { bindStyle } from './style.js';
 import type { Root } from './types.js';
+import {
+	setControlledSelectValue,
+	releaseControlledSelect,
+	reconcileSelectChildren
+} from './controlled-select.js';
 import { foreignChildCapability } from './renderer/foreign-child-capability.js';
 
 /** Retains numeric units across type-only updates without reevaluating an authored type expression. */
@@ -42,12 +51,23 @@ export function updateProps(
 ): void {
 	const apply = () => {
 		for (const key of Object.keys(previous)) {
+			if (!scope.active) return;
+			if (isReservedElementIdentityName(key)) continue;
 			if (!(key in next)) setElementProp(root, element, key, undefined, previous[key], scope);
 		}
 
 		for (const [key, value] of Object.entries(next)) {
+			if (!scope.active) return;
+			if (isReservedElementIdentityName(key)) continue;
 			if (!Object.is(previous[key], value))
 				setElementProp(root, element, key, value, previous[key], scope);
+		}
+		if (!scope.active) return;
+		const identity = physicalElementIdentity(next);
+		const priorIdentity = physicalElementIdentity(previous);
+		if (identity !== priorIdentity) {
+			if (identity === undefined) element.removeAttribute('data-exact-id');
+			else element.setAttribute('data-exact-id', identity);
 		}
 	};
 	if (preserveUserFocus) preserveFocus(root, apply);
@@ -57,6 +77,7 @@ export function updateProps(
 /** Stops reactive prop bindings and removes delegated event handlers for an element. */
 export function clearElementProps(element: Element): void {
 	clearNamespaceEncoding(element);
+	if (element instanceof HTMLSelectElement) releaseControlledSelect(element);
 	if (element instanceof HTMLInputElement) numericInputValues.delete(element);
 	for (const stop of propBindings.get(element)?.values() ?? []) {
 		stop();
@@ -171,11 +192,11 @@ export function setElementProp(
 
 	clearPropBinding(element, key);
 	if (!propMayObserveReactiveValue(key, value)) {
-		applyPropValue(root, element, key, value);
+		applyPropValue(root, element, key, value, scope);
 		return;
 	}
 	const stop = watchRetained(
-		() => preserveFocus(root, () => applyPropValue(root, element, key, value)),
+		() => preserveFocus(root, () => applyPropValue(root, element, key, value, scope)),
 		undefined,
 		{ scope, onRelease: () => releasePropBinding(element, key) }
 	);
@@ -199,10 +220,21 @@ export function isCompilerFormBindingProp(key: string): boolean {
 }
 
 /** Applies one ordinary prop after the caller has selected static or observed execution. */
-function applyPropValue(root: Root, element: Element, key: string, value: unknown): void {
+function applyPropValue(
+	root: Root,
+	element: Element,
+	key: string,
+	value: unknown,
+	scope: EffectScope
+): void {
 	const actual = normalizeNativeAttributeValue(unwrap(value), key);
 	if (actual === false || actual === null || actual === undefined) {
 		clearDomProp(element, key);
+		if (
+			(element instanceof HTMLOptionElement && (key === 'value' || key === 'selected')) ||
+			(element instanceof HTMLSelectElement && key === 'multiple')
+		)
+			reconcileSelectChildren(root, element);
 		return;
 	}
 	const normalized =
@@ -211,7 +243,11 @@ function applyPropValue(root: Root, element: Element, key: string, value: unknow
 			: key === 'class' || key === 'className'
 				? normalizeClassValue(actual)
 				: actual;
-	setDomProp(root, element, key, sanitizeUrlAttribute(key, normalized));
+	setDomProp(root, element, key, sanitizeUrlAttribute(key, normalized), scope);
+	if (element instanceof HTMLOptionElement && (key === 'value' || key === 'selected'))
+		reconcileSelectChildren(root, element);
+	if (element instanceof HTMLSelectElement && key === 'multiple')
+		reconcileSelectChildren(root, element);
 }
 
 /** Reports props whose supported value shape can contain compiler reactive expressions. */
@@ -263,7 +299,14 @@ function unsafeHtmlValue(value: unknown): Readonly<{ value: unknown }> | undefin
 	return foreignChildCapability()?.unsafeHtmlValue?.(value as import('@exactjs/core').Child);
 }
 
-function setDomProp(root: Root | undefined, element: Element, key: string, value: unknown): void {
+/** Applies a DOM property and retains controlled select values until their physical options settle. */
+function setDomProp(
+	root: Root | undefined,
+	element: Element,
+	key: string,
+	value: unknown,
+	scope?: EffectScope
+): void {
 	const property = normalizePropName(key);
 	if (property === 'value' && element instanceof HTMLInputElement) {
 		if (typeof value === 'number') {
@@ -284,13 +327,8 @@ function setDomProp(root: Root | undefined, element: Element, key: string, value
 	if (property in element) {
 		try {
 			const record = element as unknown as Record<string, unknown>;
-			if (property === 'value' && element instanceof HTMLSelectElement && element.multiple) {
-				const selected = new Set(
-					Array.isArray(value) ? value.map(String) : value == null ? [] : [String(value)]
-				);
-				for (const option of Array.from(element.options))
-					if (option.selected !== selected.has(option.value))
-						option.selected = selected.has(option.value);
+			if (property === 'value' && element instanceof HTMLSelectElement) {
+				setControlledSelectValue(root, element, value, scope);
 				return;
 			}
 			if (property === 'value' && element instanceof HTMLInputElement && isNativeInputDate(value)) {
@@ -299,7 +337,14 @@ function setDomProp(root: Root | undefined, element: Element, key: string, value
 				if ((current?.getTime() ?? null) !== (next?.getTime() ?? null)) element.valueAsDate = next;
 				return;
 			}
-			if (Object.is(record[property], value)) {
+			if (
+				Object.is(record[property], value) &&
+				!(
+					property === 'value' &&
+					element instanceof HTMLOptionElement &&
+					!element.hasAttribute('value')
+				)
+			) {
 				syncBooleanAttribute(element, property, value);
 				return;
 			}
@@ -345,7 +390,9 @@ function syncBooleanAttribute(element: Element, property: string, value: unknown
 	}
 }
 
+/** Clears a DOM property and releases any retained select value ownership before resetting it. */
 function clearDomProp(element: Element, key: string): void {
+	if (key === 'value' && element instanceof HTMLSelectElement) releaseControlledSelect(element);
 	const property = normalizePropName(key);
 	if (property === 'value' && element instanceof HTMLInputElement)
 		numericInputValues.delete(element);

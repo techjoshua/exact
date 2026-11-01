@@ -5,9 +5,11 @@ import { fileURLToPath } from 'node:url';
 
 /** Creates shared library sources and registers cleanup before any further filesystem work. */
 export async function createLibraryBuildFilesFixture(
-	registerCleanup: (cleanup: () => Promise<void>) => void
+	registerCleanup: (cleanup: () => Promise<void>) => void,
+	parent = tmpdir()
 ) {
-	const root = await mkdtemp(path.join(tmpdir(), 'exact-library-builder-'));
+	await mkdir(parent, { recursive: true });
+	const root = await mkdtemp(path.join(parent, 'exact-library-builder-'));
 	registerCleanup(() => rm(root, { recursive: true, force: true }));
 	await symlink(
 		fileURLToPath(new URL('../../../../node_modules', import.meta.url)),

@@ -35,9 +35,8 @@ export {
 	type ExactTableRenderProgram
 } from '../render-program.js';
 export {
-	createPreparedServerComponentReference,
-	createPreparedServerComponentReferenceFromPlainProps,
-	readPreparedServerComponentReference,
+	createPreparedServerComponentInputReference,
+	createPreparedServerComponentInputReferenceFromPlainProps,
 	type ExactPreparedServerComponentReference
 } from '../component-abi/receipt.js';
 export {
@@ -86,3 +85,12 @@ export function createCompiledChildRangeReceipt(
 
 export { createServerFragmentTargetProjection } from './server-fragment-target-projection.js';
 export { createCompiledComponentSpreadRange } from '../component-abi/server-component-spread-range.js';
+
+/** Acquires one compiler-created server prop expression while preserving its authored result. */
+export function createComponentPropExpression<T>(compute: () => T): T {
+	return compute();
+}
+/** Acquires one forwarded server input without unwrapping an authored reactive payload. */
+export function createForwardedComponentPropExpression<T>(compute: () => T): T {
+	return compute();
+}

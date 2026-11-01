@@ -3,22 +3,21 @@ import { expect, it, onTestFinished } from 'vitest';
 import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { compileProjectArtifacts } from '../index.js';
-import { createTestWorkspace } from '../test-support/workspace.js';
+import { createCompilerTestWorkspace } from '../test-support/workspace.js';
 import { importArtifact } from '../test-support/import-artifact.js';
-import { createCompiledComponentReceipt as receipt } from '@exactjs/core/runtime/component-operations';
+import { createCompiledComponentInputReceipt as receipt } from '@exactjs/core/runtime/component-operations';
 import type { AnyComponentFunction, Component } from '@exactjs/core';
 import { render, unmount } from '@exactjs/dom';
 import { hydrate } from '@exactjs/hydrate';
 import { composeExactComponentContracts } from '@exactjs/core/framework/component-contracts';
 import { renderToHydratableString } from '@exactjs/ssr';
 import { flushSync } from '@exactjs/reactive';
-
 // Erased read proofs must preserve the chain through an optional union member.
 // Mount, strict adoption and retained updates protect more than semantic checking.
 it.each(['member', 'literal element'])(
 	'preserves optional non-null render flow through a %s',
 	async (selector) => {
-		const root = await createTestWorkspace('.exact-optional-flow-', process.cwd());
+		const root = await createCompilerTestWorkspace('.exact-optional-flow-', process.cwd());
 		const entry = path.join(root, 'page.tsx');
 		const expression =
 			selector === 'member'
@@ -61,7 +60,13 @@ export function Probe(this:typeof owner){owner=this;this.state.outer=null;return
 			const node = host.querySelector('output')!;
 			expect(node).not.toBeNull();
 			if (adopted) expect(node).toBe(adopted);
-			const owner = client.owner as Component<{ outer: { nested: { count: number } } | null }>;
+			const owner = client.owner as Component<{
+				outer: {
+					nested: {
+						count: number;
+					};
+				} | null;
+			}>;
 			for (const value of [null, 1, null, 2]) {
 				owner.state.outer = value === null ? null : { nested: { count: value } };
 				flushSync();

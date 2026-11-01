@@ -38,6 +38,11 @@ export {
 	createServerBoundary,
 	createServerSlot
 } from '../component-abi/server-structure-receipts.js';
-export { createExpression, createForwardedExpression } from '../component/reactive-expressions.js';
+export {
+	createExpression,
+	createForwardedExpression,
+	createComponentPropExpression,
+	createForwardedComponentPropExpression
+} from '../component/reactive-expressions.js';
 export { createCompiledChildRangeReceipt } from '../component-abi/compiled-child-range.js';
 export { createCompiledComponentSpreadRange } from '../component-abi/component-spread-range.js';

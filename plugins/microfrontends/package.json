@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/microfrontends",
-	"version": "0.7.1",
+	"version": "0.8.0",
 	"type": "module",
 	"files": [
 		"AGENTS.md",
@@ -12,7 +12,7 @@
 	"exports": {
 		".": {
 			"types": "./dist/index.d.ts",
-			"browser": "./dist/client-artifact/index.js",
+			"browser": "./dist/client-artifact/browser.js",
 			"default": "./dist/server-artifact/index.js"
 		},
 		"./config": {
@@ -71,21 +71,21 @@
 	},
 	"sideEffects": false,
 	"dependencies": {
-		"@exactjs/compiler": "^0.7.0",
-		"@exactjs/config": "^0.7.0",
-		"@exactjs/core": "^0.7.0",
-		"@exactjs/dom": "^0.7.0",
-		"@exactjs/hydrate": "^0.7.0",
-		"@exactjs/plugin-api": "^0.7.0",
-		"@exactjs/server": "^0.7.0",
-		"@exactjs/ssr": "^0.7.0",
+		"@exactjs/compiler": "^0.8.0",
+		"@exactjs/config": "^0.8.0",
+		"@exactjs/core": "^0.8.0",
+		"@exactjs/dom": "^0.8.0",
+		"@exactjs/hydrate": "^0.8.0",
+		"@exactjs/plugin-api": "^0.8.0",
+		"@exactjs/server": "^0.8.0",
+		"@exactjs/ssr": "^0.8.0",
 		"typescript": "npm:@typescript/typescript6@^6.0.2"
 	},
 	"devDependencies": {
-		"@exactjs/ssr": "^0.7.0",
-		"@exactjs/testing": "^0.7.0",
+		"@exactjs/ssr": "^0.8.0",
+		"@exactjs/testing": "^0.8.0",
 		"@types/node": "^22.10.2",
-		"vite": "^8.1.5"
+		"vite": "^8.1.6"
 	},
 	"exact": {
 		"plugin": {

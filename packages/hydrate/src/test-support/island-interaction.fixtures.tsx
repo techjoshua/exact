@@ -29,7 +29,7 @@ export const readFocusNotifications = () => focusNotifications;
 /** Click target whose DOM shape matches its server placeholder. */
 export function InteractionCounter() {
 	return () => (
-		<button data-exact-id="counter-button" onClick={() => clicks++}>
+		<button data-testid="counter-button" onClick={() => clicks++}>
 			Count
 		</button>
 	);
@@ -38,14 +38,14 @@ export function InteractionCounter() {
 /** Records the durable component domain selected by the owning hydration client. */
 export function DomainCounter(this: Component<{}>) {
 	componentDomain = (this as Component<{}> & { domain: unknown }).domain;
-	return () => <button data-exact-id="counter-button">Count</button>;
+	return () => <button data-testid="counter-button">Count</button>;
 }
 
 /** Input target used to replay the browser-owned latest value. */
 export function InteractionInput() {
 	return () => (
 		<input
-			data-exact-id="name"
+			data-testid="name"
 			value={inputValue}
 			onInput={(event) => (inputValue = event.currentTarget.value)}
 		/>
@@ -55,7 +55,7 @@ export function InteractionInput() {
 /** Checkbox target used to preserve the native toggle before replay. */
 export function InteractionChoice() {
 	return () => (
-		<input data-exact-id="choice-box" type="checkbox" checked={false} onClick={() => clicks++} />
+		<input data-testid="choice-box" type="checkbox" checked={false} onClick={() => clicks++} />
 	);
 }
 
@@ -63,7 +63,7 @@ export function InteractionChoice() {
 export function InteractionForm() {
 	return () => (
 		<form
-			data-exact-id="profile-form"
+			data-testid="profile-form"
 			onSubmit={(event) => {
 				event.preventDefault();
 				submissions++;
@@ -77,7 +77,7 @@ export function InteractionForm() {
 /** Mismatching client target used to force replacement before replay. */
 export function ReplacementCounter() {
 	return () => (
-		<button data-exact-id="counter-button" onClick={() => clicks++}>
+		<button data-testid="counter-button" onClick={() => clicks++}>
 			Client
 		</button>
 	);
@@ -89,7 +89,7 @@ export const LazyCounter = InteractionCounter;
 /** Lazy input target that records only replayed values. */
 export function LazyInput() {
 	return () => (
-		<input data-exact-id="name" onInput={(event) => inputValues.push(event.currentTarget.value)} />
+		<input data-testid="name" onInput={(event) => inputValues.push(event.currentTarget.value)} />
 	);
 }
 
@@ -100,18 +100,18 @@ export function LazyStaticCounter() {
 
 /** Focus target used for notification-only replay. */
 export function LazyFocus() {
-	return () => <input data-exact-id="focus-input" onFocusIn={() => focusNotifications++} />;
+	return () => <input data-testid="focus-input" onFocusIn={() => focusNotifications++} />;
 }
 
 /** Empty form target used by bounded submit-queue coverage. */
 export function LazyCheckoutForm() {
-	return () => <form data-exact-id="checkout" />;
+	return () => <form data-testid="checkout" />;
 }
 
 /** Lazy click target used after abort or generation replacement. */
 export function LazyRelease() {
 	return () => (
-		<button data-exact-id="release-button" onClick={() => clicks++}>
+		<button data-testid="release-button" onClick={() => clicks++}>
 			Open
 		</button>
 	);
@@ -121,7 +121,7 @@ export function LazyRelease() {
 export function LazyAppearance() {
 	return () => (
 		<select
-			data-exact-id="appearance"
+			data-testid="appearance"
 			onChange={(event) => inputValues.push(event.currentTarget.value)}
 		>
 			<option value="system">System</option>
@@ -137,7 +137,7 @@ export const readHoverNotifications = () => hoverNotifications;
 /** Hover target used to verify activation inside a dormant ancestor's server slot. */
 export function LazyHover() {
 	return () => (
-		<button data-exact-id="hover-button" onMouseEnter={() => hoverNotifications++}>
+		<button data-testid="hover-button" onMouseEnter={() => hoverNotifications++}>
 			Hover
 		</button>
 	);

@@ -12,6 +12,7 @@ const dom = new JSDOM('<!doctype html><body></body>', {
 });
 // Keep native EventTarget, Event and AbortSignal in one realm for the resource
 // probe. Element APIs produce their own jsdom events without these globals.
+// DOM constructors must belong to this document, including option and optgroup selection.
 for (const name of [
 	'window',
 	'document',
@@ -22,6 +23,8 @@ for (const name of [
 	'HTMLInputElement',
 	'HTMLTextAreaElement',
 	'HTMLSelectElement',
+	'HTMLOptionElement',
+	'HTMLOptGroupElement',
 	'HTMLFormElement',
 	'DocumentFragment',
 	'Text',

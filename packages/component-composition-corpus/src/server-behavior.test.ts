@@ -5,6 +5,7 @@ import {
 	renderToString
 } from '@exactjs/ssr/enhanced';
 import { describe, expect, it } from 'vitest';
+import { ownCorpusCompilation } from './test-support/compiler-case.js';
 import { capabilitiesRoot } from './scenarios/capabilities.fixtures.js?exact-target=server';
 import { dynamicRoot } from './scenarios/dynamic.fixtures.js?exact-target=server';
 import { enhancementsRoot } from './scenarios/enhancements.fixtures.js?exact-target=server';
@@ -96,15 +97,20 @@ describe('composition corpus server behavior', () => {
 		expect(rendered.html).toContain('ready');
 	});
 
-	it('loads a finite lazy registry entry in async rendering', async () => {
-		const rendered = await renderToString(lazyRegistryRoot, { markers: false });
+	it('loads a finite lazy registry entry in async rendering', async (context) => {
+		const compile = ownCorpusCompilation(context);
+		const rendered = await compile(() => renderToString(lazyRegistryRoot, { markers: false }));
 		expect(rendered.html).toContain('lazy second');
-	});
+	}, 0);
 
-	it.each(['quote"key', 'slash\\key'] as const)(
+	it.for(['quote"key', 'slash\\key'] as const)(
 		'renders the exact registry key %s',
-		async (key) => {
-			const rendered = await renderToString(escapedRegistryRoot(key), { markers: false });
+		{ timeout: 0 },
+		async (key, context) => {
+			const compile = ownCorpusCompilation(context);
+			const rendered = await compile(() =>
+				renderToString(escapedRegistryRoot(key), { markers: false })
+			);
 			expect(rendered.html).toContain(key === 'quote"key' ? 'first' : 'lazy second');
 		}
 	);

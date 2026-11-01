@@ -1,3 +1,4 @@
+import { stateWriteFacts } from '../test-support/generated-contracts.js';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -248,7 +249,14 @@ describe('@exactjs/compiler: artifacts', () => {
 		expect(server).toMatch(
 			/execute: async \(__exactActivation_\d+: any, __exactExecution_\d+: any\)/
 		);
-		expect(server).toMatch(/__exactComponent_\d+\.state\.count = 1/);
+		expect(stateWriteFacts(server)).toContainEqual(
+			expect.objectContaining({
+				path: ['count'],
+				value: '1',
+				activationState: true,
+				taskGuarded: true
+			})
+		);
 		expect(server).not.toContain('__exactWriteState');
 	});
 
@@ -296,7 +304,14 @@ describe('@exactjs/compiler: artifacts', () => {
 		expect(server).toContain('getOptions(');
 		expect(server).toContain('__exactExecution_');
 		expect(server).not.toContain('__exactStageTaskMutation');
-		expect(server).toContain('["options"] = ');
+		expect(stateWriteFacts(server)).toContainEqual(
+			expect.objectContaining({
+				path: ['options'],
+				awaited: true,
+				activationState: true,
+				taskGuarded: true
+			})
+		);
 		expect(server).toContain('__exactServerTaskAwait');
 		expect(server).not.toContain('__exactUpdateResult');
 	});
@@ -343,9 +358,23 @@ describe('@exactjs/compiler: artifacts', () => {
 		expect(server).toContain('getOptions(');
 		expect(server).toContain('if (__exactComponentTaskContext.signal.aborted)');
 		expect(server).not.toContain('__exactStageTaskMutation');
-		expect(server).toContain('["options"] = ');
+		expect(stateWriteFacts(server)).toContainEqual(
+			expect.objectContaining({
+				path: ['options'],
+				awaited: true,
+				activationState: true,
+				taskGuarded: true
+			})
+		);
 		expect(server).toContain('__exactServerTaskAwait');
-		expect(server).toMatch(/__exactComponent_\d+\.state\.settled = true/);
+		expect(stateWriteFacts(server)).toContainEqual(
+			expect.objectContaining({
+				path: ['settled'],
+				value: 'true',
+				activationState: true,
+				taskGuarded: true
+			})
+		);
 		expect(server).not.toContain('__exactWriteState');
 	});
 

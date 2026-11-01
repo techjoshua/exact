@@ -1,8 +1,9 @@
-import type { AnyComponentInstance } from '@exactjs/core';
+import { withSuppliedPlacementInputs } from './supplied-placement-capability.js';
+import { attachSuppressedCleanupFailure, type AnyComponentInstance } from '@exactjs/core';
 import type { ExactWideComponentUpdateContract } from '@exactjs/core/framework/component-contracts';
 import type { ExactRenderProgramBindingTarget } from '@exactjs/core/runtime/render-operations';
 import {
-	createCompiledComponentDependencies,
+	prepareCompiledComponentDependencies,
 	type CompiledComponentDependencies,
 	visitChangedCompiledComponentDependencies
 } from './component-update-dependencies.js';
@@ -35,31 +36,47 @@ export function bindCompiledWideComponentUpdate(
 	const owner = componentUpdateOwner(target);
 	if (!owner) return;
 	const component = owner as WideComponentUpdateOwner;
-	let state = component[wideComponentUpdateState];
+	const state = component[wideComponentUpdateState];
 	if (!state) {
-		let initialized: CompiledWideComponentUpdateState;
-		const dependencies = createCompiledComponentDependencies(
+		const dependencies = prepareCompiledComponentDependencies(
 			owner,
 			updates.bindings,
 			updates.props!,
-			(binding) => publishCompiledWideComponentUpdate(updates, initialized, binding)
+			(binding) => publishCompiledWideComponentUpdate(owner, updates, initialized, binding)
 		);
 		if (!dependencies) {
 			(target as { valid: boolean }).valid = false;
 			return;
 		}
-		state = initialized = {
+		const initialized: CompiledWideComponentUpdateState = {
 			d: dependencies,
 			t: [],
 			w: new Uint32Array(updates.words - 2)
 		};
-		component[wideComponentUpdateState] = state;
+		try {
+			dependencies.activate();
+			bindComponentUpdateTarget(target, initialized.t, index);
+			component[wideComponentUpdateState] = initialized;
+		} catch (error) {
+			initialized.t.length = 0;
+			try {
+				dependencies.stop();
+			} catch (cleanup) {
+				attachSuppressedCleanupFailure(error, cleanup);
+			}
+			throw error;
+		}
+		// Publication starts only after complete acquisition and target commit, including versions
+		// advanced by forwarded evaluation before subscriptions existed.
+		publishCompiledWideComponentUpdate(owner, updates, initialized);
+		return;
 	}
 	bindComponentUpdateTarget(target, state.t, index);
 }
 
 /** Publishes every changed compiler-sized mask word through the generated wide updater. */
 function publishCompiledWideComponentUpdate(
+	owner: AnyComponentInstance,
 	updates: ExactWideComponentUpdateContract,
 	state: CompiledWideComponentUpdateState,
 	forwardedBinding?: number
@@ -82,8 +99,10 @@ function publishCompiledWideComponentUpdate(
 	);
 	if (!changed) return;
 	try {
-		publishComponentUpdateTargets(state.t, (targets) =>
-			updates.apply(targets, dirtyLow, dirtyHigh, state.w)
+		withSuppliedPlacementInputs(owner, () =>
+			publishComponentUpdateTargets(state.t, (targets) =>
+				updates.apply(targets, dirtyLow, dirtyHigh, state.w)
+			)
 		);
 	} finally {
 		state.w.fill(0);

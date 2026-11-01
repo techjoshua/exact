@@ -1,6 +1,5 @@
 import {
 	type AnyComponentInstance,
-	batch,
 	createErrorReport,
 	handleComponentError,
 	hasComponentTaskOwner,
@@ -13,7 +12,6 @@ import {
 	type InteractionScope
 } from '@exactjs/core';
 import { flushSync, publishBatch, runWithPriority } from '@exactjs/reactive/framework/runtime';
-import { preserveFocus } from './focus.js';
 import { findOwnerInstance } from './ownership.js';
 import { eventHandlers } from './state.js';
 import type { Root } from './types.js';
@@ -67,7 +65,7 @@ export function requiresDirectListener(type: string): boolean {
 	return DIRECT_EVENTS.has(type);
 }
 
-/** Ensures a delegated event listener exists for a root/type pair. */
+/** Installs one listener that delivers only callbacks owned by this root and physical container. */
 export function ensureDelegated(root: Root, type: string, container: Node = root.container): void {
 	let listeners = root.delegated.get(container);
 	if (!listeners) {
@@ -79,29 +77,27 @@ export function ensureDelegated(root: Root, type: string, container: Node = root
 	const listener = (event: Event) => {
 		dispatchEventPath(event, container, (cursor) => {
 			const binding = eventHandlers.get(cursor)?.get(type);
-			if (binding) {
+			if (binding && binding[2] === root && binding[3] === container) {
 				const handler = binding[0];
 				const flags = binding[1];
 				const current = cursor;
 				const closed = (flags & 2) !== 0;
-				preserveFocus(root, () => {
-					try {
-						const owner = findOwnerInstance(current);
-						const result = runInteractiveEvent(
-							root,
-							owner,
-							() =>
-								closed
-									? (handler as (this: Element) => unknown).call(current)
-									: callDelegatedHandler(handler, current, event),
-							(flags & 1) !== 0
-						);
-						observeComponentAsync(owner, result, 'event', type);
-					} catch (error) {
-						const owner = findOwnerInstance(current);
-						handleComponentError(owner, createErrorReport(error, 'event', owner, type));
-					}
-				});
+				try {
+					const owner = findOwnerInstance(current);
+					const result = runInteractiveEvent(
+						root,
+						owner,
+						() =>
+							closed
+								? (handler as (this: Element) => unknown).call(current)
+								: callDelegatedHandler(handler, current, event),
+						(flags & 1) !== 0
+					);
+					observeComponentAsync(owner, result, 'event', type);
+				} catch (error) {
+					const owner = findOwnerInstance(current);
+					handleComponentError(owner, createErrorReport(error, 'event', owner, type));
+				}
 			}
 			return !event.cancelBubble;
 		});
@@ -147,7 +143,7 @@ export function runEventInteraction<Result>(
 	);
 }
 
-/** Publishes one event transaction and applies its interactive consequences before returning. */
+/** Publishes completed event writes, including before a throw, without adding implicit rollback. */
 export function runInteractiveEvent<Result>(
 	root: Root,
 	owner: AnyComponentInstance | undefined,
@@ -158,7 +154,7 @@ export function runInteractiveEvent<Result>(
 	const useLazyInteraction = owner !== undefined && !hasComponentTaskOwner(owner);
 	try {
 		const result = runWithPriority('interactive', () =>
-			(direct ? publishBatch : batch)(() =>
+			publishBatch(() =>
 				owner
 					? direct || useLazyInteraction
 						? runDirectCompiledComponentInteraction(
@@ -224,23 +220,22 @@ export function installOwnedEventSubscription(
 	directInteraction = false
 ): () => void {
 	const { type, capture } = eventTypeForProp(key);
-	const listener: EventListener = (event) =>
-		preserveFocus(root, () => {
-			const activeOwner = owner ?? findOwnerInstance(element);
-			try {
-				const handler = unwrap(source);
-				if (typeof handler !== 'function') return;
-				const result = runInteractiveEvent(
-					root,
-					activeOwner,
-					() => callDelegatedHandler(handler as EventListener, element, event),
-					directInteraction
-				);
-				observeComponentAsync(activeOwner, result, 'event', type);
-			} catch (error) {
-				handleComponentError(activeOwner, createErrorReport(error, 'event', activeOwner, type));
-			}
-		});
+	const listener: EventListener = (event) => {
+		const activeOwner = owner ?? findOwnerInstance(element);
+		try {
+			const handler = unwrap(source);
+			if (typeof handler !== 'function') return;
+			const result = runInteractiveEvent(
+				root,
+				activeOwner,
+				() => callDelegatedHandler(handler as EventListener, element, event),
+				directInteraction
+			);
+			observeComponentAsync(activeOwner, result, 'event', type);
+		} catch (error) {
+			handleComponentError(activeOwner, createErrorReport(error, 'event', activeOwner, type));
+		}
+	};
 	element.addEventListener(type, listener, capture);
 	return () => element.removeEventListener(type, listener, capture);
 }
@@ -278,6 +273,7 @@ export function clearDelegated(root: Root): void {
 	}
 	root.delegated.clear();
 	root.portalTargets.clear();
+	root.portalTargetOwners?.clear();
 }
 
 /** Dispatches an event path without copying the browser's composed-path array. */

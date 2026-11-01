@@ -1,3 +1,4 @@
+import { verifyPhysicsClockArithmetic } from '../../../packages/component-composition-corpus/test-support/physics-force-recovery-journey.mjs';
 import { describe, expect, it } from 'vitest';
 import { createPhysicsWorld } from './world.js';
 
@@ -116,5 +117,35 @@ describe('physics world', () => {
 		expect(body.sleeping).toBe(true);
 		world.step(0.1);
 		expect(body.sleeping).toBe(false);
+	});
+
+	it('clears sub-threshold velocity when a body enters sleep', () => {
+		const world = createPhysicsWorld({ fixedStep: 0.1 });
+		try {
+			const body = world.createBody({
+				shape: { kind: 'circle', radius: 1 },
+				velocity: { x: 0.005, y: 0 },
+				angularVelocity: 0.005
+			});
+			world.step(0.5);
+			expect(body.sleeping).toBe(true);
+			expect(body.velocity).toEqual({ x: 0, y: 0 });
+			expect(body.angularVelocity).toBe(0);
+		} finally {
+			world[Symbol.dispose]();
+		}
+	});
+	it('plans decimal catch-up ticks without subtraction drift or zero-time progress', () => {
+		const world = createPhysicsWorld({ fixedStep: 0.1, maxCatchUpSteps: 1000, sleep: false });
+		try {
+			expect(world.step(0).steps).toBe(0);
+			expect(world.step(10).steps).toBe(100);
+			expect(world.step(0).steps).toBe(0);
+		} finally {
+			world[Symbol.dispose]();
+		}
+	});
+	it('shares finite clock rejection and timeline preservation controls', () => {
+		expect(verifyPhysicsClockArithmetic({ createPhysicsWorld })).toBe(true);
 	});
 });

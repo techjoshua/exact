@@ -1,12 +1,23 @@
+import { sharedTaskRuntimeState } from './runtime-state.js';
 import { batch, mutateReactiveCollection, unwrap } from '@exactjs/reactive/framework/runtime';
 import type { ExactCollectionMutation } from '../component-contracts.js';
+import {
+	discardTaskPropertyMutations,
+	withTaskPropertyMutationCapture,
+	taskPublicationCaptureOwner
+} from './property-mutations.js';
 import {
 	discardPendingTaskTransactions,
 	releasePendingTaskTransactions
 } from './pending-transactions.js';
 
-const taskMutations = new WeakMap<AbortSignal, Array<() => void>>();
-const taskCollectionMutations = new WeakMap<AbortSignal, ExactCollectionMutation[]>();
+const { taskMutations, taskCollectionMutations } = sharedTaskRuntimeState(
+	'publication-journals',
+	() => ({
+		taskMutations: new WeakMap<AbortSignal, Array<() => void>>(),
+		taskCollectionMutations: new WeakMap<AbortSignal, ExactCollectionMutation[]>()
+	})
+);
 
 /** Stages a compiler-generated mutation until its blocking task generation commits. */
 export function stageTaskMutation(signal: AbortSignal, mutation: () => void): void {
@@ -27,7 +38,7 @@ export function publishTaskMutations(signal: AbortSignal): void {
 	taskMutations.delete(signal);
 	try {
 		batch(() => {
-			for (const mutation of staged) mutation();
+			for (const mutation of staged) withTaskPropertyMutationCapture(signal, mutation);
 		});
 		releasePendingTaskTransactions(signal);
 	} catch (error) {
@@ -38,6 +49,7 @@ export function publishTaskMutations(signal: AbortSignal): void {
 
 /** Discards every unpublished mutation owned by a task generation. */
 export function discardTaskMutations(signal: AbortSignal): void {
+	discardTaskPropertyMutations(signal);
 	discardPendingTaskTransactions(signal);
 	taskMutations.delete(signal);
 	taskCollectionMutations.delete(signal);
@@ -55,18 +67,19 @@ export function mutateTaskCollection(
 	method: 'set' | 'add' | 'delete' | 'clear',
 	args: unknown[] | (() => unknown[])
 ): unknown {
-	if (signal.aborted) return undefined;
+	const owner = taskPublicationCaptureOwner(signal);
+	if (signal.aborted || owner.aborted) return undefined;
 	const input = typeof args === 'function' ? args() : args;
 	const collection = readTaskCollection(target, path);
 	const raw = unwrap(collection);
 	const changed = collectionMutationChanges(raw, kind, method, input);
 	const result = mutateReactiveCollection(target, path, kind, method, input);
 	if (changed) {
-		let mutations = taskCollectionMutations.get(signal);
+		let mutations = taskCollectionMutations.get(owner);
 		if (!mutations) {
 			mutations = [];
-			taskCollectionMutations.set(signal, mutations);
-			signal.addEventListener('abort', () => discardTaskMutations(signal), { once: true });
+			taskCollectionMutations.set(owner, mutations);
+			owner.addEventListener('abort', () => discardTaskMutations(owner), { once: true });
 		}
 		mutations.push(collectionMutation(path, kind, method, input));
 	}

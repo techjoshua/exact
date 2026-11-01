@@ -38,16 +38,16 @@ export async function resolveExactNodePackage(
 	const manifest = JSON.parse(await readFile(manifestPath, 'utf8')) as Record<string, unknown>;
 	if (manifest.name !== packageName || typeof manifest.version !== 'string' || !manifest.version)
 		throw new Error(`${manifestPath} does not describe ${packageName} with a valid version`);
-	return Object.freeze({
+	return {
 		key: `${realPath}\0${packageName}\0${manifest.version}`,
 		name: packageName,
 		version: manifest.version,
 		location,
 		realPath,
 		manifestPath,
-		manifest: Object.freeze(manifest),
+		manifest: manifest,
 		...(await lockfileIntegrity(workspaceRoot, location))
-	});
+	};
 }
 
 async function lockfileIntegrity(

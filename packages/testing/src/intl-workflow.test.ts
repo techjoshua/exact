@@ -3,7 +3,7 @@ import { expect, it, vi } from 'vitest';
 import { flushSync } from '@exactjs/reactive';
 import { render } from '@exactjs/dom';
 import { composeExactComponentContracts } from '@exactjs/core/framework/component-contracts';
-import { createCompiledComponentReceipt as receipt } from '@exactjs/core/runtime/component-operations';
+import { createCompiledComponentInputReceipt as receipt } from '@exactjs/core/runtime/component-operations';
 import {
 	composeExactExecutorContract,
 	exactResponseToFetchResponse,
@@ -20,7 +20,6 @@ import {
 	IntlHost as Server,
 	IntlOwner as ServerOwner
 } from './test-support/intl-owner.fixtures.test.js?exact-target=server';
-
 it('preserves root-local formatting through SSR, mounted clients, repeated continuations and disposal', async () => {
 	const runtime = createExactServerRuntime({
 		contract: composeExactExecutorContract([Server, ServerOwner])
@@ -32,7 +31,10 @@ it('preserves root-local formatting through SSR, mounted clients, repeated conti
 	const roots: {
 		client: ExactClient;
 		container: Element;
-		transport: { wait?: Promise<void>; held: boolean };
+		transport: {
+			wait?: Promise<void>;
+			held: boolean;
+		};
 	}[] = [];
 	const reports: unknown[] = [];
 	try {
@@ -53,12 +55,14 @@ it('preserves root-local formatting through SSR, mounted clients, repeated conti
 				Array(3).fill(formatted)
 			);
 			container.replaceChildren();
-			const transport: { wait?: Promise<void>; held: boolean } = { held: false };
+			const transport: {
+				wait?: Promise<void>;
+				held: boolean;
+			} = { held: false };
 			const client = createExactClient(container, {
 				endpoint: '/intl',
 				batch: false,
 				continuations,
-
 				logger: {
 					isEnabled: (level) => level === 'warn' || level === 'error',
 					log: (report) => reports.push(report)

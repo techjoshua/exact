@@ -1,7 +1,7 @@
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, onTestFinished } from 'vitest';
 import {
 	createExactPackageGraph,
 	createInstalledExactPackageGraph,
@@ -145,6 +145,7 @@ describe('plugin package graph', () => {
 
 function createFixtureRoot(name: string): string {
 	const root = mkdtempSync(path.join(tmpdir(), `exact-graph-${name}-`));
+	onTestFinished(() => rmSync(root, { recursive: true, force: true }));
 	mkdirSync(path.join(root, 'nested'), { recursive: true });
 	return root;
 }
@@ -162,3 +163,25 @@ function fixtureNode(location: string, manifest: Record<string, unknown>) {
 		dependencies: new Map()
 	};
 }
+
+it('returns the package identity value captured from a getter', () => {
+	let names = 0;
+	let versions = 0;
+	const node = {
+		id: 'example',
+		location: '/example',
+		realPath: '/example',
+		dependencies: new Map(),
+		manifest: {
+			get name() {
+				return ++names === 1 ? '@example/package' : undefined;
+			},
+			get version() {
+				return ++versions === 1 ? '1.0.0' : undefined;
+			}
+		}
+	};
+	expect(packageName(node)).toBe('@example/package');
+	expect(packageVersion(node)).toBe('1.0.0');
+	expect([names, versions]).toEqual([1, 1]);
+});

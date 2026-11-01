@@ -3,6 +3,7 @@ import { readChildRangeReceipt } from '../component-abi/child-range-receipt.js';
 import { readPreparedServerChildRange } from '../component-abi/server-child-range.js';
 import {
 	readCompiledTargetReceipt,
+	type ExactTargetReceipt,
 	type ExactTargetReceiptData
 } from '../component-abi/target-receipt.js';
 import { unwrap } from '@exactjs/reactive/framework/values';
@@ -15,7 +16,7 @@ import { unwrap } from '@exactjs/reactive/framework/values';
 export function readPreparedTargetOutput(
 	output: readonly Child[],
 	supplied: Child
-): ExactTargetReceiptData | undefined {
+): (ExactTargetReceiptData & Readonly<{ operation: ExactTargetReceipt }>) | undefined {
 	const value = singlePreparedValue(output, supplied);
 	if (value === supplied) return undefined;
 	const target = readCompiledTargetReceipt(value);
@@ -25,7 +26,7 @@ export function readPreparedTargetOutput(
 		);
 	if (singlePreparedValue(target.children, supplied) !== supplied)
 		throw new TypeError('An enhancement must place its supplied fragment exactly once');
-	return target;
+	return { ...target, operation: value as ExactTargetReceipt };
 }
 
 /** Retains the selected receipt itself while unwrapping transparent compiler expression ranges. */

@@ -7,27 +7,11 @@ import type {
 import {
 	requireBinding,
 	requireBoundedString,
-	requireExactKeys,
-	requireRecord
+	requireBindingType,
+	requireExactKeys
 } from './validation-primitives.js';
+import { requireRecord, captureArray } from './protocol-data.js';
 import { intlUnitDefinitions } from './unit-definitions.js';
-
-const bindingTypes = new Set([
-	'string',
-	'number',
-	'bigint',
-	'boolean',
-	'temporal-date',
-	'temporal-time',
-	'temporal-date-time',
-	'temporal-instant',
-	'temporal-zoned-date-time',
-	'temporal-duration',
-	'monetary',
-	'measurement',
-	'structure',
-	'opaque-structure'
-]);
 
 const numberOptionNames = new Set([
 	'useGrouping',
@@ -103,29 +87,32 @@ export function validateFormatter(
 			return Object.freeze({ kind: 'number', options });
 		case 'currency':
 			requireExactKeys(formatter, ['kind', 'currency', 'display', 'options']);
-			if (!/^[A-Z]{3}$/.test(String(formatter.currency)))
+			if (typeof formatter.currency !== 'string' || !/^[A-Z]{3}$/.test(formatter.currency))
 				throw new TypeError(`${path}.formatter.currency must be an ISO 4217 code`);
-			if (!['symbol', 'narrowSymbol', 'code', 'name'].includes(String(formatter.display)))
+			if (
+				typeof formatter.display !== 'string' ||
+				!['symbol', 'narrowSymbol', 'code', 'name'].includes(formatter.display)
+			)
 				throw new TypeError(`${path}.formatter.display is unsupported`);
 			return Object.freeze({
 				kind: 'currency',
-				currency: String(formatter.currency),
+				currency: formatter.currency,
 				display: formatter.display as 'symbol' | 'narrowSymbol' | 'code' | 'name',
 				options
 			});
 		case 'date-time':
 			requireExactKeys(formatter, ['kind', 'temporalKind', 'range', 'options'], ['range']);
-			if (
-				typeof formatter.temporalKind !== 'string' ||
-				!bindingTypes.has(formatter.temporalKind) ||
-				!formatter.temporalKind.startsWith('temporal-')
-			)
+			const temporalKind = requireBindingType(
+				formatter.temporalKind,
+				`${path}.formatter.temporalKind`
+			);
+			if (!temporalKind.startsWith('temporal-'))
 				throw new TypeError(`${path}.formatter.temporalKind is unsupported`);
 			if (formatter.range !== undefined && formatter.range !== true)
 				throw new TypeError(`${path}.formatter.range must be true when present`);
 			return Object.freeze({
 				kind: 'date-time',
-				temporalKind: formatter.temporalKind as IntlBindingDescriptorV1['type'],
+				temporalKind,
 				...(formatter.range === true ? { range: true as const } : {}),
 				options
 			});
@@ -184,14 +171,16 @@ export function validateFormatter(
 		}
 		case 'relative-duration': {
 			requireExactKeys(formatter, ['kind', 'fields', 'zero', 'options']);
-			if (!Array.isArray(formatter.fields) || formatter.fields.length === 0)
-				throw new TypeError(`${path}.formatter.fields must be a non-empty array`);
 			const allowed = new Set(['years', 'months', 'weeks', 'days', 'hours', 'minutes', 'seconds']);
-			const fields = formatter.fields.map((field, index) => {
-				if (typeof field !== 'string' || !allowed.has(field))
-					throw new TypeError(`${path}.formatter.fields[${index}] is unsupported`);
-				return field as import('./contracts.js').IntlRelativeDurationField;
-			});
+			const fields = captureArray(formatter.fields, `${path}.formatter.fields`).map(
+				(field, index) => {
+					if (typeof field !== 'string' || !allowed.has(field))
+						throw new TypeError(`${path}.formatter.fields[${index}] is unsupported`);
+					return field as import('./contracts.js').IntlRelativeDurationField;
+				}
+			);
+			if (fields.length === 0)
+				throw new TypeError(`${path}.formatter.fields must be a non-empty array`);
 			if (new Set(fields).size !== fields.length)
 				throw new TypeError(`${path}.formatter.fields contains duplicates`);
 			return Object.freeze({
@@ -267,8 +256,10 @@ function validateFiniteValue(input: unknown, path: string, depth: number): IntlF
 		if (!Number.isFinite(input)) throw new TypeError(`${path} must be finite`);
 		return Object.is(input, -0) ? 0 : input;
 	}
-	if (!Array.isArray(input) || depth >= 8) throw new TypeError(`${path} is not finite option data`);
+	if (depth >= 8) throw new TypeError(`${path} is not finite option data`);
 	return Object.freeze(
-		input.map((entry, index) => validateFiniteValue(entry, `${path}[${index}]`, depth + 1))
+		captureArray(input, path).map((entry, index) =>
+			validateFiniteValue(entry, `${path}[${index}]`, depth + 1)
+		)
 	);
 }

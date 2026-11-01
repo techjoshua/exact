@@ -204,13 +204,13 @@ async function pipeReadableStream(
 	const reader = stream.getReader();
 	try {
 		while (true) {
-			throwIfAborted(signal);
+			signal?.throwIfAborted();
 			const next = await reader.read();
 			if (next.done) break;
-			throwIfAborted(signal);
+			signal?.throwIfAborted();
 			if (response.write!(next.value) === false) await waitForDrain(response, signal);
 		}
-		throwIfAborted(signal);
+		signal?.throwIfAborted();
 		response.end!();
 	} catch (error) {
 		try {
@@ -247,8 +247,7 @@ function waitForDrain(response: ExactExpressResponse, signal?: AbortSignal): Pro
 			callback();
 		};
 		const drain = () => finish(resolve);
-		const abort = () =>
-			finish(() => reject(signal?.reason ?? new DOMException('Client disconnected', 'AbortError')));
+		const abort = () => finish(() => reject(signal?.reason));
 		if (signal?.aborted) {
 			abort();
 			return;
@@ -256,10 +255,6 @@ function waitForDrain(response: ExactExpressResponse, signal?: AbortSignal): Pro
 		response.once!('drain', drain);
 		signal?.addEventListener('abort', abort, { once: true });
 	});
-}
-
-function throwIfAborted(signal?: AbortSignal): void {
-	if (signal?.aborted) throw signal.reason ?? new DOMException('Client disconnected', 'AbortError');
 }
 
 /** Minimal event source used to derive an adapter request lifetime. */

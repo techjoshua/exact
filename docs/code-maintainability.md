@@ -23,6 +23,13 @@ Extract a helper when it names a domain operation, isolates a side effect,
 centralizes an invariant, removes proven duplication, or makes behavior
 independently testable. Do not extract a helper merely to reduce a line count.
 
+Review hardening changes for simpler algorithms, fewer intermediate allocations, and less
+production code. Share implementations when consumers enforce the same contract, including
+their failure and ownership rules. Keep serialization, validation, and publication coordinated
+so a checked value is the value that reaches its consumer. Report production code reductions
+separately from regression fixtures and tests, and support performance claims with appropriate
+measurements or explicit algorithmic bounds.
+
 For complex operations, prefer the following shape:
 
 1. validate input;
@@ -98,6 +105,51 @@ are defects and must be updated or removed with the corresponding change.
   is important or has meaningful edge cases.
 - Regression comments explain the invariant that was previously violated, not
   the mechanics of the assertion.
+
+### TypeScript framework coverage workflow
+
+After building workspace prerequisites, run `npm run test:framework:coverage` to measure
+TypeScript source in `core`, `reactive`, `dom`, `ssr`, `hydrate`, `server`, `testing`,
+`request`, `plugin-api`, `plugin-host`, `devtools-runtime`, `devtools-protocol`, and the native
+`router` component library.
+The command reuses the maintained package configurations, including their compiler targets,
+source aliases, and runtime setup, and executes the owned composition corpus alongside them.
+Adapters, other optional libraries, tooling, applications, and the native compiler are outside
+this runtime scope. Use workspace `test:coverage` commands to investigate other TypeScript
+packages separately. Compiler workspace commands select the repository test configuration so
+compiled fixtures resolve workspace providers from the repository root. Package commands retain
+coverage reports after test failures for investigation. A failed run remains failed and does not
+establish acceptance. Unexecuted source files remain in the denominator. Tests, declarations,
+fixtures, and test-support modules are excluded.
+
+The HTML source view and Istanbul JSON counters live under `.tmp/framework-confidence/coverage`.
+Successful runs also write `.tmp/framework-confidence/evidence.json`, with weighted package
+totals and files ordered by missed branches, then missed statements. The evidence records
+measurement time, source revision, source fingerprint, environment, and worktree status.
+Freeze source, fixture, and configuration files during measurement. A run whose source fingerprint
+changes fails without success evidence, since merged counters from different versions are not
+a meaningful coverage comparison. A dirty worktree cannot
+be reproduced from its Git revision alone. Failed or interrupted reruns remove prior success
+evidence. Keep these generated files out of Git.
+
+V8 reports statements, branches, functions, and lines. Its branch metric is not an independent
+condition metric or modified condition/decision coverage (MC/DC). For a consequential compound
+predicate, review each operand's true and false outcomes, which operands short-circuit, and
+observable behavior for valid and invalid inputs. Record executed witnesses separately from
+unexplored outcomes. Source-mapped counters for compiler-transformed TSX also need semantic
+tests before they can establish the authored contract.
+
+Use coverage gaps to choose the next investigation, weighted by consequence and uncertainty.
+Prioritize transaction integrity, task settlement and cancellation, DOM identity and cleanup,
+hydration integrity, and server authorization and serialization. Add the smallest stable contract
+tests that distinguish meaningful outcomes. A confirmed defect starts the related-defect workflow
+below. Coverage increases alone do not establish correctness, and instrumented test timings are
+not performance measurements. Use relevant existing performance guards after implementation
+changes. Package coverage does not replace browser, adapter, installed-package, or native-runtime
+acceptance. Source tests must keep their owner and its public entry points in the same
+module graph. Calls through a built dependency do not establish source coverage for that
+dependency. The root configuration aliases React compatibility entry points to source for this
+reason, while installed-package and native acceptance continue to exercise built artifacts.
 
 ## Change acceptance
 

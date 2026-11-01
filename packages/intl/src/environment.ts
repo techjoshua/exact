@@ -1,12 +1,11 @@
-import { batch, reactive, type Reactive } from '@exactjs/reactive';
+import { copyIntlProtocolData } from './protocol-data.js';
+import { prepareIntlCatalogState } from './catalog-state.js';
+import { copyIntlUnitPreferences } from './environment-policy.js';
+import { batch, reactive, unwrap, type Reactive } from '@exactjs/reactive';
 import { intl } from '@exactjs/core';
-import type { IntlCatalogV1, IntlPatternV1, IntlRuntimeDescriptorV1 } from './contracts.js';
-import { validateIntlCatalog, validateIntlRuntimeDescriptor } from './validation.js';
-import { snapshotIntlArtifacts } from './artifacts.js';
-import {
-	materializeIntlTranslation,
-	projectIntlTranslationContract
-} from './translation-contract.js';
+import type { IntlPatternV1, IntlRuntimeDescriptorV1 } from './contracts.js';
+import { currentIntlArtifactRevision, snapshotIntlArtifacts } from './artifacts.js';
+import { materializeIntlTranslation } from './translation-contract.js';
 import type { IntlUnitForDimension } from './unit-definitions.js';
 import type { IntlLocaleString } from './cldr-locale-types.js';
 import { canonicalLocale, localeFallbackChain } from './locale-resolution.js';
@@ -70,12 +69,15 @@ export interface IntlMissingMessage {
 export interface IntlEnvironment {
 	readonly state: Reactive<IntlEnvironmentState>;
 	readonly sourceLocale: IntlLocaleString;
+	/** Independent policy observation. Update provider and locale scopes through setUnitPreferences. */
 	readonly unitPreferences: IntlUnitPreferences;
 	setLocale(locale: IntlLocaleString): void;
+	/** Captures policy once and publishes one rollback-capable update across existing locale scopes. */
 	setUnitPreferences(preferences: IntlUnitPreferences): void;
 	/** Returns this environment for the active locale or a catalog-sharing locale scope. */
 	forLocale(locale: IntlLocaleString): IntlEnvironment;
 	addCatalog(catalog: unknown): void;
+	/** Returns an independent message plan, or undefined when authored source fallback should apply. */
 	find(owner: string, key: string, descriptor?: IntlRuntimeDescriptorV1): IntlPatternV1 | undefined;
 }
 
@@ -87,90 +89,48 @@ export function createIntlEnvironment(options: IntlEnvironmentOptions): IntlEnvi
 		locale: canonicalLocale(options.locale),
 		generation: 0
 	});
-	const catalogs = new Map<string, IntlCatalogV1>();
 	const generatedDescriptors = options.descriptors === undefined;
 	const generatedCatalogs = options.catalogs === undefined;
-	let generatedRevision = generated.revision;
-	const descriptors: IntlRuntimeDescriptorV1[] = [];
-	const descriptorByMessage = new Map<string, IntlRuntimeDescriptorV1>();
-	const descriptorByContract = new Map<string, IntlRuntimeDescriptorV1>();
 	const materialized = new WeakMap<object, Map<string, IntlPatternV1>>();
 	const reportedMissing = new Set<string>();
 	const localeScopes = new Map<string, IntlEnvironment>();
 	let fallbackLocale: string | undefined;
 	let fallbackCandidates: readonly string[] = [];
-	const manualCatalogs: unknown[] = [];
 	const layerPriority = { library: 1, application: 2, override: 3 } as const;
 	const catalogLayers = [...(options.catalogLayers ?? [])].sort(
 		(left, right) => layerPriority[left.kind] - layerPriority[right.kind]
 	);
-	let unitPreferences = Object.freeze({ ...(options.unitPreferences ?? {}) });
-	const replaceDescriptors = (inputs: readonly unknown[]): void => {
-		descriptors.length = 0;
-		descriptorByMessage.clear();
-		descriptorByContract.clear();
-		for (const input of inputs) {
-			const validated = validateIntlRuntimeDescriptor(input);
-			const shared = descriptorByContract.get(validated.contract);
-			if (shared && executionFingerprint(shared) !== executionFingerprint(validated))
-				throw new Error(
-					`Intl execution contract ${validated.contract} has conflicting definitions`
-				);
-			const descriptor = shared
-				? Object.freeze({
-						...validated,
-						bindings: shared.bindings,
-						source: shared.source,
-						capabilities: shared.capabilities
-					})
-				: validated;
-			if (!shared) descriptorByContract.set(descriptor.contract, descriptor);
-			const identity = messageIdentity(descriptor.owner, descriptor.key);
-			const previous = descriptorByMessage.get(identity);
-			if (previous && translationFingerprint(previous) !== translationFingerprint(descriptor))
-				throw new Error(`Intl translation contract ${identity} disagrees across loaded artifacts`);
-			if (!previous) {
-				descriptors.push(descriptor);
-				descriptorByMessage.set(identity, descriptor);
-			}
-		}
-	};
-	const addCatalog = (input: unknown): void => {
-		const catalog = validateIntlCatalog(input, descriptors);
-		const identity = catalogIdentity(catalog.locale, catalog.owner);
-		const previous = catalogs.get(identity);
-		catalogs.set(
-			identity,
-			previous
-				? Object.freeze({
-						...catalog,
-						messages: Object.freeze({ ...previous.messages, ...catalog.messages })
-					})
-				: catalog
-		);
-	};
-	const replaceCatalogs = (inputs: readonly unknown[]): void => {
-		catalogs.clear();
-		for (const catalog of inputs) addCatalog(catalog);
-		for (const layer of catalogLayers) addCatalog(layer.catalog);
-		for (const catalog of manualCatalogs) addCatalog(catalog);
-	};
-	replaceDescriptors(options.descriptors ?? generated.descriptors);
-	replaceCatalogs(options.catalogs ?? generated.catalogs);
-	const synchronizeGeneratedArtifacts = (): void => {
-		if (!generatedDescriptors && !generatedCatalogs) return;
+	const policy = reactive({ preferences: copyIntlUnitPreferences(options.unitPreferences ?? {}) });
+	const registry = reactive({
+		current: prepareIntlCatalogState(
+			options.descriptors ?? generated.descriptors,
+			options.catalogs ?? generated.catalogs,
+			catalogLayers.map((layer) => layer.catalog),
+			[],
+			generated.revision
+		)
+	});
+	const synchronizeGeneratedArtifacts = () => {
+		const previous = registry.current;
+		if (!generatedDescriptors && !generatedCatalogs) return previous;
+		if (currentIntlArtifactRevision() === previous.data.revision) return previous;
 		const snapshot = snapshotIntlArtifacts();
-		if (snapshot.revision === generatedRevision) return;
-		if (generatedDescriptors) replaceDescriptors(snapshot.descriptors);
-		if (generatedCatalogs) replaceCatalogs(snapshot.catalogs);
-		generatedRevision = snapshot.revision;
+		const next = prepareIntlCatalogState(
+			generatedDescriptors ? snapshot.descriptors : previous.data.descriptors,
+			generatedCatalogs ? snapshot.catalogs : previous.data.baseCatalogs,
+			previous.data.layers,
+			[...previous.data.manual.values()],
+			snapshot.revision
+		);
+		registry.current = next;
+		return next;
 	};
-	const environment: IntlEnvironment = Object.freeze({
+	const environment: IntlEnvironment = {
 		state,
 		sourceLocale,
 		get unitPreferences() {
 			void state.generation;
-			return unitPreferences;
+			return copyIntlUnitPreferences(policy.preferences);
 		},
 		setLocale(locale: IntlLocaleString): void {
 			const next = canonicalLocale(locale);
@@ -181,11 +141,16 @@ export function createIntlEnvironment(options: IntlEnvironmentOptions): IntlEnvi
 			});
 		},
 		setUnitPreferences(preferences: IntlUnitPreferences): void {
+			const captured = copyIntlUnitPreferences(preferences);
 			batch(() => {
-				unitPreferences = Object.freeze({ ...preferences });
+				policy.preferences = captured;
+				const accepted = unwrap(policy.preferences);
 				state.generation++;
+				for (const scope of localeScopes.values()) {
+					if (unwrap(policy.preferences) !== accepted) break;
+					scope.setUnitPreferences(copyIntlUnitPreferences(captured));
+				}
 			});
-			for (const scope of localeScopes.values()) scope.setUnitPreferences(preferences);
 		},
 		forLocale(locale: IntlLocaleString): IntlEnvironment {
 			const next = canonicalLocale(locale);
@@ -195,21 +160,34 @@ export function createIntlEnvironment(options: IntlEnvironmentOptions): IntlEnvi
 			scoped = createIntlEnvironment({
 				locale: next,
 				sourceLocale,
-				descriptors,
-				catalogs: [...catalogs.values()],
-				unitPreferences,
+				...(generatedDescriptors ? {} : { descriptors: registry.current.data.descriptors }),
+				...(generatedCatalogs ? {} : { catalogs: registry.current.data.baseCatalogs }),
+				catalogLayers: [
+					...registry.current.data.layers,
+					...registry.current.data.manual.values()
+				].map((catalog) => ({ kind: 'override' as const, catalog })),
+				unitPreferences: copyIntlUnitPreferences(policy.preferences),
 				onMissingMessage: options.onMissingMessage
 			});
 			localeScopes.set(next, scoped);
 			return scoped;
 		},
 		addCatalog(input: unknown): void {
+			const previous = registry.current;
+			const prepared = previous.withCatalog(input);
+			const catalog = prepared.catalog;
+			const next =
+				registry.current === previous
+					? prepared.state
+					: registry.current.withCatalog(catalog).state;
 			batch(() => {
-				manualCatalogs.push(input);
-				addCatalog(input);
+				registry.current = next;
 				state.generation++;
+				for (const scope of localeScopes.values()) {
+					if (registry.current !== next) break;
+					scope.addCatalog(catalog);
+				}
 			});
-			for (const scope of localeScopes.values()) scope.addCatalog(input);
 		},
 		find(
 			owner: string,
@@ -217,8 +195,8 @@ export function createIntlEnvironment(options: IntlEnvironmentOptions): IntlEnvi
 			descriptorInput?: IntlRuntimeDescriptorV1
 		): IntlPatternV1 | undefined {
 			void state.generation;
-			synchronizeGeneratedArtifacts();
-			const descriptor = descriptorInput ?? descriptorByMessage.get(messageIdentity(owner, key));
+			const current = synchronizeGeneratedArtifacts();
+			const descriptor = descriptorInput ?? current.descriptor(owner, key);
 			// Every reader must observe locale even when another message populated the cache.
 			// Keep only the current locale's chain; catalogs and message results remain live.
 			const locale = state.locale;
@@ -228,20 +206,20 @@ export function createIntlEnvironment(options: IntlEnvironmentOptions): IntlEnvi
 				fallbackLocale = locale;
 			}
 			for (const candidate of fallbackCandidates) {
-				const translated = catalogs.get(catalogIdentity(candidate, owner))?.messages[key];
+				const translated = current.pattern(candidate, owner, key);
 				if (translated && descriptor) {
 					let byContract = materialized.get(translated as object);
 					if (!byContract) materialized.set(translated as object, (byContract = new Map()));
 					const cached = byContract.get(descriptor.contract);
-					if (cached) return cached;
+					if (cached) return copyIntlProtocolData(cached);
 					const pattern = materializeIntlTranslation(translated, descriptor);
 					byContract.set(descriptor.contract, pattern);
-					return pattern;
+					return copyIntlProtocolData(pattern);
 				}
 			}
 			if (!descriptor) return undefined;
 			const pseudo = pseudoLocaleKind(state.locale);
-			if (pseudo) return pseudoPattern(descriptor.source, pseudo);
+			if (pseudo) return copyIntlProtocolData(pseudoPattern(descriptor.source, pseudo));
 			if (state.locale !== descriptor.sourceLocale && options.onMissingMessage) {
 				const identity = `${state.locale}\u0000${owner}\u0000${key}`;
 				if (!reportedMissing.has(identity)) {
@@ -256,7 +234,7 @@ export function createIntlEnvironment(options: IntlEnvironmentOptions): IntlEnvi
 			}
 			return undefined;
 		}
-	});
+	};
 	return environment;
 }
 
@@ -280,7 +258,7 @@ export function intlLocaleMetadata(locale: IntlLocaleString): IntlLocaleMetadata
 		(!nativeDirection && script !== undefined && rightToLeftScripts.has(script))
 			? 'rtl'
 			: 'ltr';
-	return Object.freeze({ lang: parsed.baseName, dir: direction });
+	return { lang: parsed.baseName, dir: direction };
 }
 
 /** Creates the zero-configuration locale scope used when no provider is available. */
@@ -312,31 +290,6 @@ const rightToLeftScripts = new Set([
 /** Validates and narrows a dynamic string to a canonical locale identifier. */
 export function defineIntlLocale(locale: string): IntlLocaleString {
 	return canonicalLocale(locale);
-}
-
-function catalogIdentity(locale: string, owner: string): string {
-	return `${locale}\u0000${owner}`;
-}
-
-function messageIdentity(owner: string, key: string): string {
-	return `${owner}\u0000${key}`;
-}
-
-function translationFingerprint(descriptor: IntlRuntimeDescriptorV1): string {
-	return JSON.stringify({
-		sourceLocale: descriptor.sourceLocale,
-		target: descriptor.target,
-		name: descriptor.name,
-		...projectIntlTranslationContract(descriptor.bindings, descriptor.source)
-	});
-}
-
-function executionFingerprint(descriptor: IntlRuntimeDescriptorV1): string {
-	return JSON.stringify({
-		bindings: descriptor.bindings,
-		source: descriptor.source,
-		capabilities: descriptor.capabilities
-	});
 }
 
 type PseudoLocaleKind = 'accented' | 'bidi';

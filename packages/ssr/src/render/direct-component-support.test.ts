@@ -4,7 +4,7 @@ import {
 	createCompiledIntrinsicReceipt
 } from '@exactjs/core/runtime/component-operations';
 import {
-	createPreparedServerComponentReference,
+	createPreparedServerComponentInputReference,
 	createPreparedServerKeyedChild
 } from '@exactjs/core/framework/server-render-structure';
 import { describe, expect, it } from 'vitest';
@@ -16,7 +16,6 @@ import {
 	sinkFixtureDisposals,
 	sinkFixtureStarts
 } from './program-sink.fixtures.test.js';
-
 describe('direct server map', () => {
 	it.each([undefined, 'rows-->\u{1F680}'])(
 		'preserves fragment and item markers for key %s',
@@ -36,7 +35,6 @@ describe('direct server map', () => {
 			}
 		}
 	);
-
 	it('snapshots iterable input before invoking item render and key callbacks', () => {
 		const reads: string[] = [];
 		function* input() {
@@ -65,7 +63,6 @@ describe('direct server map', () => {
 			'key:second'
 		]);
 	});
-
 	it.each([false, true])(
 		'releases scheduled children after list completion or abort=%s',
 		async (abort) => {
@@ -74,7 +71,7 @@ describe('direct server map', () => {
 			const list = createDirectSsrComponentFrame().map(
 				['pending'],
 				(value) => value,
-				() => createPreparedServerComponentReference(SinkFragments, {})
+				() => createPreparedServerComponentInputReference(SinkFragments, {})
 			);
 			const result = renderToString(list as Child, { signal: controller.signal });
 			void result.catch(() => undefined);
@@ -92,7 +89,6 @@ describe('direct server map', () => {
 			}
 		}
 	);
-
 	it('renders keyed intrinsic children in order through the shared renderer', async () => {
 		const frame = createDirectSsrComponentFrame();
 		const reads: string[] = [];

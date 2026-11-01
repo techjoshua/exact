@@ -3,6 +3,11 @@ import { build } from 'esbuild';
 
 const root = process.cwd();
 const entries = [
+	{
+		name: '@exactjs/microfrontends',
+		file: 'plugins/microfrontends/dist/client-artifact/browser.js',
+		platform: 'browser'
+	},
 	{ name: '@exactjs/plugin-host', file: 'packages/plugin-host/dist/index.js', platform: 'browser' },
 	{ name: '@exactjs/intl', file: 'packages/intl/dist/index.js', platform: 'browser' },
 	{

@@ -1,3 +1,4 @@
+import { deriveRuntimeConfiguration } from '../framework/configuration.js';
 import { combineTaskSignal, isAbortSignal } from './signals.js';
 import type { ManagedEventListenerOptions } from './signals.js';
 
@@ -15,9 +16,10 @@ export function withExistingTaskSignal<T extends object | undefined>(
 	owner: AbortSignal
 ): T {
 	if (!options) return options;
-	const normalized = { ...options };
-	if (!('signal' in normalized) || !isAbortSignal(normalized.signal)) return normalized;
-	return { ...normalized, signal: combineTaskSignal(owner, normalized.signal) } as T;
+	return deriveRuntimeConfiguration<object>(options, (captured) => {
+		const existing: unknown = Reflect.get(captured, 'signal');
+		return isAbortSignal(existing) ? { signal: combineTaskSignal(owner, existing) } : {};
+	}) as T;
 }
 
 /** Preserves native capture flags and cleanup event options, adapting only an authored signal. */
@@ -25,5 +27,11 @@ export function withExistingAbortSignal(
 	options: boolean | ManagedEventListenerOptions | undefined,
 	owner: AbortSignal
 ): boolean | ManagedEventListenerOptions | undefined {
-	return typeof options === 'boolean' ? options : withExistingTaskSignal(options, owner);
+	if (typeof options === 'boolean' || !options) return options;
+	return {
+		capture: options.capture,
+		once: options.once,
+		passive: options.passive,
+		signal: combineExistingTaskSignal(owner, options.signal)
+	};
 }

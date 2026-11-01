@@ -43,9 +43,43 @@ A supplied rendered child retains its original component owner, reactive binding
 Place that value once in the active tree. Rendering the same owned value in two places is rejected.
 To repeat content, author separate JSX children or call a JSX helper separately for each placement.
 
+Within one sibling list, keeping the same single supplied operation retains its mounted owner when
+other unkeyed siblings are inserted, removed, or moved. An authored key still controls keyed identity.
+Removing that operation disposes its owner, so adding it again creates a fresh mounted instance.
+This does not relocate an already-mounted owner between different parents.
+
+Child expressions that depend on their receiving component keep a private compiler-owned input
+reader. The renderer acquires it for an actual receiving occurrence, with that occurrence's scope.
+Forwarding a raw child recipe through a selector does not create a receiving occurrence by itself.
+An unselected recipe is not acquired simply because it appears in `props.children`. Reusing a recipe
+at two actual receiving occurrences gives each occurrence its own preparation. This does not permit
+two active placements of the same already-owned supplied value.
+
+When an update changes supplied placement through an opaque component, ordinary prop delivery
+reveals its actual output before the affected placements commit. The renderer validates those
+outputs together before parking, transferring or publishing their supplied ranges. Ordinary property
+updates and authored receive effects may already have occurred if validation fails. This is not a
+rollback guarantee for authored effects or the whole DOM. Mixed prop and child observers settle
+through the existing reactive batch, without a promise of exactly one receive callback.
+
+On the server, an empty child recipe delegates to `props.children`. If that property is a getter,
+the renderer samples it once per accepted execution occurrence and retains the exact returned value,
+including `undefined`, for construction and publication. Explicit recipe children take precedence.
+Other prop accessors keep their original prepared-props receiver. An authored accessor that reads
+`this.children` performs an ordinary read of the original bag, outside the framework acquisition.
+Direct children reads through the execution view still use the captured value. Callable data values
+remain unbound and retain identity. Copies within the same execution reuse its children value, while a
+fresh final streaming pass acquires its own value and pairs it with that pass's output and state.
+This changes children-getter timing and read counts under the breaking component-input contract.
+It does not assume getters are pure, unwrap an authored reactive payload or invoke an authored
+callable during input capture.
+
 Children crossing into a client island can be server-rendered elements, ranges or scalar content.
 They do not need to be exactly one server element. The compiler publishes server slots that let
-hydration retain that content and its ownership while activating the client boundary. A client-only
+hydration retain that content and its ownership while activating the client boundary. Hiding a
+receiver's region with the native `hidden` attribute keeps its children mounted. Successful
+adoption retains the existing nodes. If permitted mismatch recovery replaces the receiver's
+shell, valid referenced server content remains available without promising shell node identity. A client-only
 component marked `@exact client` has no server implementation, so its placeholder cannot provide
 that component's own server HTML.
 

@@ -18,6 +18,33 @@ import {
 } from './execution.js';
 
 describe('component interactions', () => {
+	it.each([undefined, null, false])('preserves synchronous callback failure: %s', async (error) => {
+		const owner = createFrameworkFixtureComponentInstance(() => () => null, {});
+		let thrown = false;
+		try {
+			try {
+				const unexpected = runComponentInteraction(
+					owner,
+					'event',
+					1,
+					'interactive',
+					new AbortController(),
+					() => {
+						throw error;
+					}
+				);
+				void unexpected.catch(() => undefined);
+			} catch (actual) {
+				thrown = true;
+				expect(actual).toBe(error);
+			}
+			expect(thrown).toBe(true);
+			await Promise.resolve();
+		} finally {
+			owner.unmount();
+		}
+	});
+
 	it('runs compiled interactions without a task frame when tracing is disabled', () => {
 		const owner = createFrameworkFixtureComponentInstance(() => () => null, {});
 		let generationReads = 0;

@@ -360,7 +360,7 @@ func (lowering *jsxLowering) pendingStateOperation(node, context *ast.Node, visi
 				return nil
 			}
 			write := StateWrite{Start: node.Pos(), Length: node.End() - node.Pos()}
-			if result := lowering.lowerSuspendedStateWrite(node, write, nil, false, visitor); result != nil {
+			if result := lowering.lowerSelectedStateWrite(node, write, nil, false, visitor); result != nil {
 				return result
 			}
 		}

@@ -97,50 +97,45 @@ export function ThemeScopeEnhancement(
 			motion: state.motion
 		})
 	);
-	const environment: ThemeEnvironment = peek(() =>
-		Object.freeze({
-			contract: 'exact-theme/1' as const,
-			get definition() {
-				return definition.get();
-			},
-			get preferences() {
-				return presentation.get().preferences;
-			},
-			get appearance() {
-				return state.preferencesKnown
-					? resolved.get().source.appearance
-					: presentation.get().appearance;
-			},
-			get background() {
-				return props.background === undefined || props.background === 'inherit'
-					? (parent?.background ?? 'canvas')
-					: props.background;
-			},
-			get system() {
-				return state.preferencesKnown
-					? { appearance: state.appearance, contrast: state.contrast, motion: state.motion }
-					: undefined;
-			},
-			get source() {
-				return resolved.get().source;
-			},
-			get current() {
-				return resolved.get();
-			},
-			get revision() {
-				return themeRevision(resolved.get().fingerprint);
-			}
-		})
-	);
+	const environment: ThemeEnvironment = peek(() => ({
+		contract: 'exact-theme/1' as const,
+		get definition() {
+			return definition.get();
+		},
+		get preferences() {
+			return presentation.get().preferences;
+		},
+		get appearance() {
+			return state.preferencesKnown
+				? resolved.get().source.appearance
+				: presentation.get().appearance;
+		},
+		get background() {
+			return props.background === undefined || props.background === 'inherit'
+				? (parent?.background ?? 'canvas')
+				: props.background;
+		},
+		get system() {
+			return state.preferencesKnown
+				? { appearance: state.appearance, contrast: state.contrast, motion: state.motion }
+				: undefined;
+		},
+		get source() {
+			return resolved.get().source;
+		},
+		get current() {
+			return resolved.get();
+		},
+		get revision() {
+			return themeRevision(resolved.get().fingerprint);
+		}
+	}));
 	this.setContext(ThemeContext, environment);
-	this.setContext(
-		ThemeSurfaceContext,
-		Object.freeze({
-			get bundle() {
-				return 0 as const;
-			}
-		})
-	);
+	this.setContext(ThemeSurfaceContext, {
+		get bundle() {
+			return 0 as const;
+		}
+	});
 	this.onMount(({ signal }) => {
 		const applyPreferences = (next: ThemeSystemPreferences) => {
 			state.appearance = next.appearance;
@@ -195,7 +190,7 @@ function sourceFromProps(props: ThemeScopeEnhancementProps): ThemeSource {
 			props.tonic === undefined || props.tonic === 'inherit'
 				? undefined
 				: typeof props.tonic === 'string' && isBuiltInThemeKey(props.tonic)
-					? builtInThemeKeys[props.tonic]
+					? themeKeyColors[props.tonic]
 					: props.tonic,
 		neutralColor: props.neutralColor === 'inherit' ? undefined : props.neutralColor,
 		canvasColor: props.canvasColor === 'inherit' ? undefined : props.canvasColor,
@@ -211,18 +206,20 @@ function sourceFromProps(props: ThemeScopeEnhancementProps): ThemeSource {
 }
 
 function isBuiltInThemeKey(value: string): value is BuiltInThemeKey {
-	return Object.hasOwn(builtInThemeKeys, value);
+	return Object.hasOwn(themeKeyColors, value);
 }
 
-/** CSS color values associated with the finite declarative key choices. */
-export const builtInThemeKeys: Readonly<Record<BuiltInThemeKey, string>> = Object.freeze({
+/** Canonical colors for the finite declarative key choices. */
+const themeKeyColors: Record<BuiltInThemeKey, string> = {
 	teal: '#126e75',
 	blue: '#2563eb',
 	violet: '#7357d9',
 	amber: '#b45309',
 	rose: '#be185d',
 	green: '#15803d'
-});
+};
+/** CSS color observations associated with the finite declarative key choices. */
+export const builtInThemeKeys: Readonly<Record<BuiltInThemeKey, string>> = { ...themeKeyColors };
 /** @exact client */
 function readSystemPreferences(): ThemeSystemPreferences {
 	if (typeof globalThis.matchMedia !== 'function')

@@ -128,7 +128,7 @@ func (lowering *jsxLowering) renderProgramSsrRootStatic(build *renderProgramBuil
 	if build.rootSsrClosed {
 		plan := make([]*ast.Node, len(build.rootSsrPlan))
 		for index, operation := range build.rootSsrPlan {
-			operation = proveSsrRootClass(build, operation)
+			operation = lowering.proveSsrRootClass(build, operation)
 			plan[index] = array([]*ast.Node{
 				lowering.factory.NewNumericLiteral(strconv.Itoa(operation.kind), ast.TokenFlagsNone),
 				lowering.factory.NewStringLiteral(operation.property, ast.TokenFlagsNone),

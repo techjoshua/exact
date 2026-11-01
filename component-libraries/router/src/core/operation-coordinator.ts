@@ -14,11 +14,13 @@ export class RouterOperationCoordinator {
 
 	/** Starts navigation or submission work and supersedes prior authoritative work. */
 	beginAuthoritative(): RouterOperation {
-		this.activeAbort?.abort();
-		this.cancelRevalidation();
+		const previous = this.activeAbort;
 		const abort = new AbortController();
 		this.activeAbort = abort;
-		return { id: ++this.transitionId, abort };
+		const operation = { id: ++this.transitionId, abort };
+		previous?.abort();
+		if (this.owns(operation)) this.cancelRevalidation();
+		return operation;
 	}
 
 	/** Returns whether an authoritative operation still owns publication rights. */
@@ -32,24 +34,30 @@ export class RouterOperationCoordinator {
 
 	/** Starts revalidation work without replacing current navigation ownership. */
 	beginRevalidation(): RouterOperation {
-		this.revalidationAbort?.abort();
+		const previous = this.revalidationAbort;
 		const abort = new AbortController();
 		this.revalidationAbort = abort;
-		return { id: ++this.revalidationId, abort };
+		const operation = { id: ++this.revalidationId, abort };
+		previous?.abort();
+		return operation;
 	}
 
 	/** Cancels independent revalidation and invalidates its publication token. */
 	cancelRevalidation(): void {
-		this.revalidationAbort?.abort();
+		const previous = this.revalidationAbort;
 		this.revalidationAbort = undefined;
 		this.revalidationId++;
 		this.onCancelRevalidation();
+		previous?.abort();
 	}
 
 	/** Cancels every operation owned by the router during disposal. */
 	dispose(): void {
-		this.activeAbort?.abort();
-		this.revalidationAbort?.abort();
+		const active = this.activeAbort;
+		const revalidation = this.revalidationAbort;
+		this.activeAbort = this.revalidationAbort = undefined;
+		active?.abort();
+		revalidation?.abort();
 	}
 }
 

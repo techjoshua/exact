@@ -95,6 +95,24 @@ describe('automatic React JSX ownership', () => {
 		expect(classic.map).toBeNull();
 	});
 
+	it('uses the final leading runtime pragma without reading source examples as directives', () => {
+		for (const prefix of [
+			'const example = "/** @jsxRuntime classic */";',
+			'/** @jsxRuntime classic */\n/** @jsxRuntime automatic */',
+			'/** @JSXRUNTIME automatic */',
+			'// @jsxRuntime classic',
+			'const value = 1;\n/** @jsxRuntime classic */'
+		]) {
+			const result = transformReactJsx(`${prefix}\nexport const V = () => <i />;`, {
+				filename: 'automatic.tsx',
+				target: 19,
+				sourceMap: false
+			});
+			expect(result.code).toContain('@exactjs/react-compat/jsx-runtime19');
+			expect(result.code).not.toContain('React.createElement');
+		}
+	});
+
 	it('extracts runtime exports from ESM, CommonJS, and namespace access', () => {
 		const source = `
 			import React, { useState as state, type ReactNode } from 'react';

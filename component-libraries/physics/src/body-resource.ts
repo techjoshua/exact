@@ -7,7 +7,7 @@ import type {
 	SetPoseOptions,
 	Vector2
 } from './contracts.js';
-import { add, cross, finiteVector, subtract } from './math.js';
+import { cross, finiteVector, subtract, translateFiniteVector } from './math.js';
 import {
 	finite,
 	nonnegative,
@@ -18,6 +18,11 @@ import {
 } from './world-validation.js';
 
 interface BodyState {
+	type: 'dynamic' | 'static' | 'kinematic';
+	forceX: number;
+	forceY: number;
+	torque: number;
+	sleepTime: number;
 	pose: { position: { x: number; y: number }; angle: number };
 	velocity: { x: number; y: number };
 	angularVelocity: number;
@@ -43,10 +48,6 @@ export class BodyResource implements PhysicsBody {
 	readonly groups: readonly string[];
 	readonly collisionLayer?: string;
 	readonly state: BodyState;
-	type: 'dynamic' | 'static' | 'kinematic';
-	force: Vector2 = { x: 0, y: 0 };
-	torque = 0;
-	sleepTime = 0;
 	disposed = false;
 
 	constructor(
@@ -55,18 +56,18 @@ export class BodyResource implements PhysicsBody {
 		id: string
 	) {
 		this.id = id;
-		this.type = definition.type ?? 'dynamic';
+		const type = definition.type ?? 'dynamic';
 		this.shape = validateShape(definition.shape);
-		this.mass = this.type === 'dynamic' ? positive(definition.mass ?? 1, 'mass') : Infinity;
+		this.mass = type === 'dynamic' ? positive(definition.mass ?? 1, 'mass') : Infinity;
 		this.inertia =
-			this.type === 'dynamic'
+			type === 'dynamic'
 				? positive(definition.inertia ?? shapeInertia(this.shape, this.mass), 'inertia')
 				: Infinity;
 		this.restitution = unit(definition.restitution ?? 0, 'restitution');
 		this.friction = unit(definition.friction ?? 0.2, 'friction');
 		this.damping = nonnegative(definition.damping ?? 0, 'damping');
 		this.angularDamping = nonnegative(definition.angularDamping ?? this.damping, 'angularDamping');
-		this.groups = Object.freeze([...(definition.groups ?? [])]);
+		this.groups = [...(definition.groups ?? [])];
 		if (this.groups.some((group) => !group))
 			throw new TypeError('Physics body groups must be non-empty');
 		this.collisionLayer = definition.collisionLayer;
@@ -78,11 +79,24 @@ export class BodyResource implements PhysicsBody {
 		const angle = finite(definition.angle ?? 0, 'angle');
 		const angularVelocity = finite(definition.angularVelocity ?? 0, 'angularVelocity');
 		this.state = reactive({
-			pose: { position: { ...position }, angle },
-			velocity: { ...velocity },
+			type,
+			forceX: 0,
+			forceY: 0,
+			torque: 0,
+			sleepTime: 0,
+			pose: { position, angle },
+			velocity,
 			angularVelocity,
 			sleeping: definition.sleeping ?? false
 		});
+	}
+
+	/** Observes the mode changed by a queued kinematic command. */
+	get type(): BodyState['type'] {
+		return this.state.type;
+	}
+	set type(value: BodyState['type']) {
+		this.state.type = value;
 	}
 
 	/** Reactive world-space position and angle owned by this body. */
@@ -111,9 +125,17 @@ export class BodyResource implements PhysicsBody {
 		const applicationPoint = point ? finiteVector(point, 'force point') : undefined;
 		this.world.command(this, () => {
 			if (this.type !== 'dynamic') return;
-			this.force = add(this.force, next);
-			if (applicationPoint)
-				this.torque += cross(subtract(applicationPoint, this.pose.position), next);
+			const forceX = finite(this.state.forceX + next.x, 'Accumulated force x');
+			const forceY = finite(this.state.forceY + next.y, 'Accumulated force y');
+			const torque = applicationPoint
+				? finite(
+						this.state.torque + cross(subtract(applicationPoint, this.pose.position), next),
+						'Accumulated torque'
+					)
+				: this.state.torque;
+			this.state.forceX = forceX;
+			this.state.forceY = forceY;
+			if (applicationPoint) this.state.torque = torque;
 			this.wakeNow();
 		});
 	}
@@ -124,12 +146,19 @@ export class BodyResource implements PhysicsBody {
 		const applicationPoint = point ? finiteVector(point, 'impulse point') : undefined;
 		this.world.command(this, () => {
 			if (this.type !== 'dynamic') return;
-			this.state.velocity.x += next.x / this.mass;
-			this.state.velocity.y += next.y / this.mass;
-			if (applicationPoint) {
-				this.state.angularVelocity +=
-					cross(subtract(applicationPoint, this.pose.position), next) / this.inertia;
-			}
+			const angularVelocity = applicationPoint
+				? finite(
+						this.state.angularVelocity +
+							cross(subtract(applicationPoint, this.pose.position), next) / this.inertia,
+						'Impulse angular velocity'
+					)
+				: this.state.angularVelocity;
+			translateFiniteVector(
+				this.state.velocity,
+				{ x: next.x / this.mass, y: next.y / this.mass },
+				'Impulse velocity'
+			);
+			if (applicationPoint) this.state.angularVelocity = angularVelocity;
 			this.wakeNow();
 		});
 	}
@@ -169,7 +198,7 @@ export class BodyResource implements PhysicsBody {
 
 	/** Immediately clears sleeping state for solver-internal use. */
 	wakeNow(): void {
-		this.sleepTime = 0;
+		this.state.sleepTime = 0;
 		this.state.sleeping = false;
 	}
 

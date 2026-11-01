@@ -1,3 +1,4 @@
+import { copyThemeData } from './observations.js';
 import type { ResolvedTheme, ResolvedThemeSource, ThemeWarning } from './contracts.js';
 
 // A process may serve arbitrarily many user-selected themes. Retain only a small working set,
@@ -8,7 +9,7 @@ const capacity = 32;
 const maximumKeyLength = 8192;
 
 /**
- * Reuses immutable results after source validation and inheritance have completed.
+ * Reuses private palette data after source validation and inheritance have completed.
  * The key includes full-precision resolved values and input warnings. Display fingerprints
  * round color values and cannot distinguish all inspected results. Entries contain theme data
  * only, never scope definitions, component instances, requests, or the creation callback.
@@ -29,9 +30,19 @@ export function reuseResolvedTheme(
 	}
 	const theme = create();
 	if (themes.size === capacity) themes.delete(themes.keys().next().value!);
-	themes.set(key, theme);
-	reusable.set(theme, Symbol());
-	return theme;
+	const cached = copyThemeData(theme);
+	const identity = Symbol();
+	themes.set(key, cached);
+	reusable.set(cached, identity);
+	return cached;
+}
+
+/** Publishes a writable observation while retaining its private palette reuse identity. */
+export function observeResolvedTheme(theme: ResolvedTheme): ResolvedTheme {
+	const observation = copyThemeData(theme);
+	const identity = reusable.get(theme);
+	if (identity) reusable.set(observation, identity);
+	return observation;
 }
 
 /** Identifies cacheable results without requiring presentations to retain their resolved theme graphs. */

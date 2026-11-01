@@ -1,3 +1,4 @@
+import { isExactArrayRoots } from './array-validation.js';
 import type {
 	ExactComponentContinuationContract,
 	ExactContinuationStatePathContract
@@ -62,8 +63,10 @@ export function isExactContinuationStatePath(
 ): value is ExactContinuationStatePathContract {
 	return (
 		isContractRecord(value) &&
-		hasOnlyContractKeys(value, ['path', 'kind', 'confidence', 'operation']) &&
+		hasOnlyContractKeys(value, ['path', 'kind', 'confidence', 'operation', 'arrayRoots']) &&
 		isContractString(value.path) &&
+		(value.arrayRoots === undefined ||
+			isExactArrayRoots(value.arrayRoots, value.path, value.confidence)) &&
 		(value.kind === 'read' || value.kind === 'write') &&
 		(value.confidence === 'exact' ||
 			value.confidence === 'broad' ||

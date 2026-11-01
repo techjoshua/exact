@@ -4,10 +4,9 @@ import { render, dispose } from '@exactjs/dom';
 import { hydrate } from '@exactjs/hydrate';
 import { renderToHydratableString } from '@exactjs/ssr';
 import { flushSync } from '@exactjs/reactive';
-import { createCompiledComponentReceipt as receipt } from '@exactjs/core/runtime/component-operations';
+import { createCompiledComponentInputReceipt as receipt } from '@exactjs/core/runtime/component-operations';
 import { IntlNumericRangeProbe } from './test-support/intl-numeric-range.fixtures.js';
 import { IntlNumericRangeProbe as ServerProbe } from './test-support/intl-numeric-range.fixtures.js?exact-target=server';
-
 for (const mode of ['mount', 'hydrate'])
 	it(`retains numeric range semantics through ${mode}`, async () => {
 		const host = document.createElement('div');

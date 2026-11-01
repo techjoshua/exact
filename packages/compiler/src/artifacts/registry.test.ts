@@ -10,6 +10,7 @@ import {
 } from '../index.js';
 import { createTestWorkspace } from '../test-support/workspace.js';
 import { artifactAnalysis } from '../compilation/analysis-results.js';
+import type { ExactPublishedComponentBuildFacts } from '../contracts/transform.js';
 
 describe('@exactjs/compiler: registries', () => {
 	it('discovers activation owners reached through enhancement edges', async () => {
@@ -82,12 +83,21 @@ describe('@exactjs/compiler: registries', () => {
 		expect(graph.clientIslands).toContainEqual(
 			expect.objectContaining({ exportName: 'InstalledCounter', module: '@fixture/islands' })
 		);
-		expect(graph.clientIslands).toContainEqual(
-			expect.objectContaining({
-				exportName: 'Row',
-				module: './node_modules/@fixture/islands/dist/client/Row.js'
-			})
+		const rowBuild: ExactPublishedComponentBuildFacts = JSON.parse(
+			await readFile(
+				path.join(fixture.root, 'node_modules/@fixture/islands/dist/exact-component-build.json'),
+				'utf8'
+			)
 		);
+		const row = rowBuild.modules.find(
+			(module) => module.artifacts?.clientModule === 'dist/client/Row.js'
+		);
+		expect(row?.artifacts?.build.clientRegistrations.length).toBeGreaterThan(0);
+		for (const registration of row!.artifacts!.build.clientRegistrations)
+			expect(graph.clientIslands).toContainEqual({
+				...registration,
+				module: './node_modules/@fixture/islands/dist/client/Row.js'
+			});
 		expect(graph.operations).toHaveLength(3);
 		expect(graph.serverParts.length).toBeGreaterThan(0);
 		await symlink(

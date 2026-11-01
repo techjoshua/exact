@@ -3,17 +3,16 @@
 import path from 'node:path';
 import { expect, it, onTestFinished } from 'vitest';
 import type { Component } from '@exactjs/core';
-import { createCompiledComponentReceipt as receipt } from '@exactjs/core/runtime/component-operations';
+import { createCompiledComponentInputReceipt as receipt } from '@exactjs/core/runtime/component-operations';
 import { render, dispose } from '@exactjs/dom';
 import { hydrate } from '@exactjs/hydrate';
 import { renderToHydratableString } from '@exactjs/ssr';
 import { flushSync } from '@exactjs/reactive';
 import { compileFileArtifacts } from '../index.js';
-import { createTestWorkspace, writeTestFiles } from '../test-support/workspace.js';
+import { createCompilerTestWorkspace, writeTestFiles } from '../test-support/workspace.js';
 import { importArtifact } from '../test-support/import-artifact.js';
-
 it('preserves formatter reuse, detached calls and dynamic locales in paired artifacts', async () => {
-	const root = await createTestWorkspace('.exact-intl-cache-semantics-', process.cwd());
+	const root = await createCompilerTestWorkspace('.exact-intl-cache-semantics-', process.cwd());
 	const files = await writeTestFiles(root, {
 		'page.tsx': `import {type Component} from '@exactjs/core';
 const globalFormat=new Intl.NumberFormat('en-US',{useGrouping:false});
@@ -61,7 +60,11 @@ export function Page(this:Component<{value:number,end:number,locale:string}>){
 			render(receipt(client.Page as never, {}), host, { onErrorReport: (r) => reports.push(r) });
 		const output = host.querySelector('output');
 		expect(output?.textContent).toBe(expected(1, 2, 'en-US'));
-		const owner = client.owner as Component<{ value: number; end: number; locale: string }>;
+		const owner = client.owner as Component<{
+			value: number;
+			end: number;
+			locale: string;
+		}>;
 		for (const [value, end, locale] of [
 			[1234.5, 2345.5, 'de-DE'],
 			[3, 7, 'en-US'],

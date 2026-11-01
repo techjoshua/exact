@@ -1,3 +1,9 @@
+import { Chart } from './components.js';
+import {
+	CurrentCompactChartFixture,
+	MixedCompactChartFixture
+} from './test-support/chart-behavior.fixtures.js';
+import { ChartContext } from './contexts.js';
 import { TableChartFixture, StatisticTableFixture } from './test-support/chart-table.fixtures.js';
 /**
  * @vitest-environment jsdom
@@ -207,5 +213,72 @@ describe('native chart composition', () => {
 		).toBe('false');
 		expect(view.container.querySelectorAll('circle')).toHaveLength(0);
 		view.unmount();
+	});
+});
+
+describe('current compact chart inputs', () => {
+	it('retains keyed rows across replacement, nested edits and empty membership', async () => {
+		const view = await testComponent(CurrentCompactChartFixture).mount();
+		try {
+			const chart = view.component(Chart);
+			const figure = view.container.querySelector('figure');
+			const table = view.container.querySelector('table')!;
+			const row = table.querySelector('tbody tr');
+			const old = view.root.state().series;
+			view.container.querySelector<HTMLButtonElement>('#compact-replace')!.click();
+			await view.flush();
+			expect(table.textContent).toContain('7');
+			expect(table.textContent).toContain('9');
+			expect(table.querySelector('tbody tr')).toBe(row);
+			expect(view.container.querySelector('figure')).toBe(figure);
+			expect(view.component(Chart).instance).toBe(chart.instance);
+			old[0]!.data[0]!.value = 99;
+			await view.flush();
+			expect(table.textContent).not.toContain('99');
+			view.container.querySelector<HTMLButtonElement>('#compact-nested')!.click();
+			await view.flush();
+			expect(table.textContent).toContain('8');
+			view.container.querySelector<HTMLButtonElement>('#compact-empty')!.click();
+			await view.flush();
+			expect(table.querySelectorAll('tbody tr')).toHaveLength(0);
+			view.container.querySelector<HTMLButtonElement>('#compact-restore')!.click();
+			await view.flush();
+			expect(table.textContent).toContain('12');
+			expect(view.container.querySelector('table')).toBe(table);
+		} finally {
+			view.unmount();
+		}
+		expect(view.container.childNodes).toHaveLength(0);
+	});
+
+	it('keeps declaration registrations alive across compact removal and releases their own lifetime', async () => {
+		const view = await testComponent(MixedCompactChartFixture).mount();
+		try {
+			const model = view.component(Chart).providedContext(ChartContext)!.model;
+			const registration = model.series.get('declared');
+			const values = () => view.container.querySelector('tbody')!.textContent;
+			expect(values()).toContain('3');
+			expect(values()).toContain('5');
+			view.container.querySelector<HTMLButtonElement>('#compact-toggle')!.click();
+			await view.flush();
+			expect(values()).not.toContain('3');
+			expect(values()).toContain('5');
+			expect(model.series.get('declared')).toBe(registration);
+			view.container.querySelector<HTMLButtonElement>('#declared-toggle')!.click();
+			await view.flush();
+			expect(model.series.size).toBe(0);
+			expect(view.container.querySelectorAll('tbody tr')).toHaveLength(0);
+			view.container.querySelector<HTMLButtonElement>('#compact-toggle')!.click();
+			await view.flush();
+			expect(values()).toContain('3');
+			expect(values()).not.toContain('5');
+			view.container.querySelector<HTMLButtonElement>('#declared-toggle')!.click();
+			await view.flush();
+			expect(model.series.get('declared')).not.toBe(registration);
+			expect(values()).toContain('5');
+		} finally {
+			view.unmount();
+		}
+		expect(view.container.childNodes).toHaveLength(0);
 	});
 });

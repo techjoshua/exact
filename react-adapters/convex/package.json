@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/convex",
-	"version": "0.7.0",
+	"version": "0.8.0",
 	"type": "module",
 	"files": [
 		"AGENTS.md",
@@ -31,13 +31,13 @@
 	],
 	"sideEffects": false,
 	"dependencies": {
-		"@exactjs/core": "^0.7.0",
-		"@exactjs/react-compat-adapter-api": "^0.7.0",
-		"@exactjs/reactive": "^0.7.0",
-		"@exactjs/ssr": "^0.7.0"
+		"@exactjs/core": "^0.8.0",
+		"@exactjs/react-compat-adapter-api": "^0.8.0",
+		"@exactjs/reactive": "^0.8.0",
+		"@exactjs/ssr": "^0.8.0"
 	},
 	"peerDependencies": {
-		"@exactjs/react-compat": "^0.7.0",
+		"@exactjs/react-compat": "^0.8.0",
 		"convex": ">=1 <2"
 	},
 	"peerDependenciesMeta": {

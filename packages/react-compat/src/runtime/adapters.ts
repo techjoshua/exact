@@ -1,6 +1,9 @@
 import { reactIslandComponent, reactRendererComponent } from './island-props.js';
 import {
 	ErrorContext,
+	attemptCleanup,
+	createCleanupFailure,
+	throwCleanupFailure,
 	createErrorContext,
 	type Component,
 	type ComponentFunction,
@@ -68,6 +71,8 @@ export const ReactClassIslandImplementation = function ReactClassIsland(
 	if ('children' in initialSnapshot.props)
 		initialSnapshot.props.children = toReactNode(initialSnapshot.props.children);
 	let currentRef = initialSnapshot.ref;
+	let releaseRef: (() => void) | undefined;
+	let refRevision = 0;
 	const initialContext = readClassContext(this, statics.contextType, statics.contextTypes);
 	const publicInstance = new type(initialSnapshot.props, initialContext) as ReactClassInstance<
 		Record<string, unknown>
@@ -204,7 +209,12 @@ export const ReactClassIslandImplementation = function ReactClassIsland(
 
 	this.onMount(() => {
 		mounted = true;
-		assignReactRef(currentRef as ReactRef<unknown> | undefined, publicInstance);
+		// Attachment can throw before returning a release, so retain a fallback first.
+		const ref = currentRef as ReactRef<unknown> | undefined;
+		releaseRef = () => {
+			assignReactRef(ref, null);
+		};
+		releaseRef = assignReactRef(ref, publicInstance);
 		publicInstance.componentDidMount?.();
 		scheduleCommit();
 	});
@@ -212,18 +222,19 @@ export const ReactClassIslandImplementation = function ReactClassIsland(
 		scheduleCommit();
 	});
 	this.onUnmount(() => {
-		finishTransitionRender();
+		const failure = createCleanupFailure();
 		mounted = false;
-		removeOwnerFrame(exactInstance);
-		try {
-			publicInstance.componentWillUnmount?.();
-		} finally {
-			assignReactRef(currentRef as ReactRef<unknown> | undefined, null);
-			callbacks.splice(0, callbacks.length);
-			delete (publicInstance as unknown as Record<PropertyKey, unknown>)[REACT_CLASS_UPDATER];
-			markReactClassInstanceUnmounted(publicInstance as object);
-			(publicInstance as unknown as { _reactInternals?: unknown })._reactInternals = null;
-		}
+		attemptCleanup(failure, finishTransitionRender);
+		attemptCleanup(failure, () => removeOwnerFrame(exactInstance));
+		attemptCleanup(failure, () => publicInstance.componentWillUnmount?.());
+		const release = releaseRef;
+		releaseRef = undefined;
+		attemptCleanup(failure, () => release?.());
+		callbacks.splice(0, callbacks.length);
+		delete (publicInstance as unknown as Record<PropertyKey, unknown>)[REACT_CLASS_UPDATER];
+		markReactClassInstanceUnmounted(publicInstance as object);
+		(publicInstance as unknown as { _reactInternals?: unknown })._reactInternals = null;
+		throwCleanupFailure(failure);
 	});
 
 	return () => {
@@ -288,13 +299,23 @@ export const ReactClassIslandImplementation = function ReactClassIsland(
 				this.setContext(LegacyReactContext, { ...readLegacyContext(this), ...childContext });
 			}
 			if (nextSnapshot.ref !== currentRef) {
-				const previousRef = currentRef;
 				currentRef = nextSnapshot.ref;
+				const revision = ++refRevision;
+				const ref = currentRef as ReactRef<unknown> | undefined;
 				if (mounted)
 					queueMicrotask(() => {
+						if (!mounted || revision !== refRevision) return;
 						try {
-							assignReactRef(previousRef as ReactRef<unknown> | undefined, null);
-							assignReactRef(currentRef as ReactRef<unknown> | undefined, publicInstance);
+							const release = releaseRef;
+							releaseRef = undefined;
+							release?.();
+							if (!mounted || revision !== refRevision) return;
+							releaseRef = () => {
+								assignReactRef(ref, null);
+							};
+							const nextRelease = assignReactRef(ref, publicInstance);
+							if (mounted && revision === refRevision) releaseRef = nextRelease;
+							else nextRelease?.();
 						} catch (error) {
 							routeClassLifecycleError(this, error, 'ref');
 						}

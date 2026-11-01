@@ -1,3 +1,4 @@
+import { trackReactiveSource } from './observation.js';
 import { describe, expect, it, vi } from 'vitest';
 import {
 	computed,
@@ -86,7 +87,7 @@ describe('@exactjs/reactive observation', () => {
 		stopSecond();
 	});
 
-	it('retains a locally mutated keyed item when a later server snapshot has the same hashes', () => {
+	it('replaces a locally mutated keyed item even when incoming hashes match', () => {
 		const state = reactive({
 			records: [
 				{ id: 'a', title: 'A', detail: { done: false } },
@@ -123,8 +124,9 @@ describe('@exactjs/reactive observation', () => {
 		writeReactive(state, ['records'], incoming);
 		flushSync();
 
-		expect(runs).toBe(1);
-		expect(state.records[0]).toBe(retained);
+		expect(runs).toBe(2);
+		expect(state.records[0]).not.toBe(retained);
+		expect(unwrap(state.records)).toBe(incoming);
 	});
 
 	it("keeps a computed value's last successful result after a handled recompute error", () => {
@@ -270,7 +272,7 @@ describe('@exactjs/reactive observation', () => {
 		const state = reactive({ task: { title: 'First' } });
 		const props = reactive(
 			{ task: computed(() => state.task) as unknown as { title: string } },
-			{ readonly: true }
+			{}
 		);
 		const title = computed(() => props.task.title);
 		const seen: string[] = [];
@@ -294,10 +296,7 @@ describe('@exactjs/reactive observation', () => {
 			}
 		}
 		const resource = new Resource();
-		const props = reactive(
-			{ resource: computed(() => resource) as unknown as Resource },
-			{ readonly: true }
-		);
+		const props = reactive({ resource: computed(() => resource) as unknown as Resource }, {});
 
 		expect(props.resource).toBe(resource);
 		props.resource.increment();
@@ -329,4 +328,39 @@ describe('@exactjs/reactive observation', () => {
 		flushSync();
 		expect(seen).toEqual(['Augusta', 'Ada']);
 	});
+});
+
+it('retains a forwarded object source without evaluating its getter again', () => {
+	let current = { value: 1 };
+	const getter = vi.fn(() => current);
+	const state = reactive({
+		get item() {
+			return getter();
+		},
+		set item(value) {
+			current = value;
+		}
+	});
+	const observed: object[] = [];
+	const stop = watch(() => {
+		const value = state.item;
+		trackReactiveSource(value);
+		observed.push(unwrap(value));
+	});
+	try {
+		expect(getter).toHaveBeenCalledTimes(1);
+		state.item = { value: 2 };
+		flushSync();
+		expect(observed).toEqual([{ value: 1 }, { value: 2 }]);
+	} finally {
+		stop();
+	}
+});
+
+it('does not inspect ordinary objects when retaining a forwarded source', () => {
+	const get = vi.fn();
+	const has = vi.fn();
+	trackReactiveSource(new Proxy({}, { get, has }));
+	expect(get).not.toHaveBeenCalled();
+	expect(has).not.toHaveBeenCalled();
 });

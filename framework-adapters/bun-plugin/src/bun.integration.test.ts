@@ -1,3 +1,4 @@
+import { loadAdapterTestApi } from '../../test-support/adapter-test-api.js';
 import { registerCompilerClosedSsrIntegration } from '../../test-support/bun-compiler-closed-ssr.js';
 import { registerTaskProgressIntegration } from '../../test-support/bun-task-progress.js';
 import { motionHydrationModes } from '../../test-support/motion-hydration.js';
@@ -9,16 +10,12 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { exact } from './plugin.js';
 import { exactBuild } from './build.js';
+import * as remoteJourney from '../../test-support/microfrontend-provider-journey.js';
 
 const repositoryRoot = fileURLToPath(new URL('../../..', import.meta.url));
 
-type SharedTestApi = Pick<typeof import('vitest'), 'describe' | 'it' | 'expect'>;
-
 const runningInBun = Boolean((globalThis as { Bun?: unknown }).Bun);
-const bunTestModule: string = 'bun:test';
-const testApi = (
-	runningInBun ? await import(bunTestModule) : await import('vitest')
-) as SharedTestApi;
+const testApi = await loadAdapterTestApi();
 const describeBun = runningInBun ? testApi.describe : testApi.describe.skip;
 
 describeBun('@exactjs/bun-plugin with Bun.build', () => {
@@ -76,10 +73,11 @@ describeBun('@exactjs/bun-plugin with Bun.build', () => {
 			await rm(fixture.root, { recursive: true, force: true });
 		}
 	});
-	testApi.it(
-		'coordinates and publishes a production remote exposure',
-		async () => {
+	testApi.it.each(['default', 'generated', '..generated'])(
+		'coordinates and publishes a production remote exposure in %s',
+		async (directory) => {
 			const root = await mkdtemp(path.join(os.tmpdir(), 'exact-bun-remote-build-'));
+			const outputRoot = path.join(root, 'dist');
 			try {
 				await mkdir(path.join(root, 'src'), { recursive: true });
 				await linkExactPackages(root);
@@ -114,40 +112,22 @@ describeBun('@exactjs/bun-plugin with Bun.build', () => {
 				);
 				await writeFile(
 					path.join(root, 'exact.config.mjs'),
-					`export default { plugins: { microfrontends(config) { config.exposes['./Area'] = { component: './src/Area.tsx' }; } } };\n`
+					`export default { plugins: { microfrontends(config, context) { ${remoteJourney.pluginConfigurationObservationSource} config.exposes['./Area'] = { component: './src/Area.tsx' }; } } };\n`
 				);
 				const page = path.join(root, 'src', 'page.ts');
-				await writeFile(page, 'export const page = true;\n');
-				await writeFile(
-					path.join(root, 'src', 'Area.tsx'),
-					`import './Area.css';
-				import icon from './icon.svg';
-				export default function Area() {
-					const load = () => import('./lazy');
-					return () => <section data-icon={icon} onClick={load}>bun remote</section>;
-				}\n`
-				);
-				await writeFile(path.join(root, 'src', 'Area.css'), '.remote-area { color: teal; }\n');
-				await writeFile(
-					path.join(root, 'src', 'icon.svg'),
-					'<svg xmlns="http://www.w3.org/2000/svg"/>\n'
-				);
-				await writeFile(path.join(root, 'src', 'lazy.ts'), 'export const lazyValue = "lazy";\n');
-				await writeFile(
-					path.join(root, 'src', 'assets.d.ts'),
-					'declare module "*.css"; declare module "*.svg" { const url: string; export default url; }\n'
-				);
+				await writeFile(page, 'globalThis.__ordinaryRemoteProducerPage = true;\n');
+				await remoteJourney.writeMicrofrontendProviderFixture(path.join(root, 'src'));
 				const previousBuildKey = process.env.EXACT_BUILD_KEY;
 				process.env.EXACT_BUILD_KEY = '0123456789abcdef0123456789abcdef01234567';
 				let entries: Readonly<Record<string, string>> | undefined;
 				try {
 					const result = (await exactBuild({
 						entrypoints: [page],
-						outdir: path.join(root, 'dist'),
+						outdir: outputRoot,
 						target: 'browser',
 						format: 'esm',
 						splitting: true,
-						metafile: true,
+						naming: directory === 'default' ? undefined : `${directory}/[name]-[hash].[ext]`,
 						publicPath: '/assets',
 						exact: {
 							applicationRoot: root,
@@ -161,18 +141,24 @@ describeBun('@exactjs/bun-plugin with Bun.build', () => {
 					else process.env.EXACT_BUILD_KEY = previousBuildKey;
 				}
 				testApi.expect(entries?.['./Area']).toMatch(/^\/assets\/.+\.js$/);
-				const emitted = await readdir(path.join(root, 'dist'), { recursive: true });
+				const emitted = await readdir(outputRoot, { recursive: true });
+				await remoteJourney.verifyMicrofrontendProducerPage(outputRoot);
 				const entry = entries!['./Area']!.slice('/assets/'.length);
+				remoteJourney.verifyMicrofrontendProviderJourney(
+					repositoryRoot,
+					path.join(outputRoot, entry),
+					outputRoot
+				);
 				testApi.expect(entry).not.toContain(':');
 				testApi.expect(emitted).toContain(entry);
 				testApi
-					.expect((await readFile(path.join(root, 'dist', entry), 'utf8')).length)
+					.expect((await readFile(path.join(outputRoot, entry), 'utf8')).length)
 					.toBeGreaterThan(0);
 				testApi.expect(emitted.some((file) => file.endsWith('.css'))).toBe(true);
 				testApi.expect(emitted.some((file) => file.endsWith('.svg'))).toBe(true);
 				testApi.expect(emitted.filter((file) => file.endsWith('.js')).length).toBeGreaterThan(2);
 				for (const filename of emitted.filter((file) => file.endsWith('.js'))) {
-					const source = await readFile(path.join(root, 'dist', filename), 'utf8');
+					const source = await readFile(path.join(outputRoot, filename), 'utf8');
 					for (const match of source.matchAll(/["'](\/assets[^"']+)["']/g)) {
 						testApi.expect(match[1]).toMatch(/^\/assets\//);
 						testApi.expect(emitted).toContain(match[1]!.slice('/assets/'.length));

@@ -32,6 +32,17 @@ export async function createInstalledIslandsFixture(
 			root,
 			packages.map((name) => '@exactjs/' + name)
 		);
+		const dependencies = Object.fromEntries(
+			await Promise.all(
+				packages.map(async (name) => {
+					const manifest = JSON.parse(
+						await readFile(path.join(root, 'node_modules/@exactjs', name, 'package.json'), 'utf8')
+					);
+					assert.equal(typeof manifest.version, 'string');
+					return ['@exactjs/' + name, manifest.version];
+				})
+			)
+		);
 		const producer = path.join(root, 'producer');
 		await mkdir(path.join(producer, 'src'), { recursive: true });
 		await writeFile(
@@ -57,7 +68,7 @@ export async function createInstalledIslandsFixture(
 					'ControlButton'
 				],
 				exactComponentLibrary: { protocol: 1, build: './dist/exact-component-build.json' },
-				dependencies: Object.fromEntries(packages.map((name) => ['@exactjs/' + name, '^0.7.0']))
+				dependencies
 			})
 		);
 		await mkdir(path.join(producer, 'styles'));
@@ -218,10 +229,46 @@ const contract=composeExactExecutorContract([InstalledCounter],{endpoint:'/__exa
 export const handleExact=createFetchHandler(createExactServerRuntime({contract,patchStrategy:'element'}));
 export const renderPage=${stream ? `async()=>({htmlWithHydration:await new Response(renderToHydratableProgressiveHtmlStream(<Page/>,createExactHydrationConfig(contract))).text()})` : `()=>renderToHydratableString(<Page/>,createExactHydrationConfig(contract));`}`
 		);
+		for (const name of [
+			'reactive-protocol-journey',
+			'array-end-mutation-journey',
+			'list-marker-journey',
+			'continuation-state-journey'
+		]) {
+			await cp(
+				path.join(workspace, 'packages/component-composition-corpus/test-support', name + '.ts'),
+				path.join(root, name + '.ts')
+			);
+		}
+		for (const name of ['assignment-identity-journey', 'assignment-pending-journey']) {
+			await cp(
+				path.join(workspace, 'packages/component-composition-corpus/test-support', name + '.mjs'),
+				path.join(root, name + '.mjs')
+			);
+		}
 		await writeFile(
 			path.join(root, 'client.tsx'),
 			`import '@fixture/islands/styles.css';import {InstalledCounter,LocalCounter} from '@fixture/islands';export function localReceipt(){return <LocalCounter/>;}export {localLifecycleCounts,rowWorkSignals,releaseRowWork,rowWorkEvents,dispatchRowWorkEvent,rowResourceReleases,rowFallbackResourceReleases,rowLexicalResourceReleases} from '@fixture/islands';
 import {createExactClient,readExactHydrationConfig} from '@exactjs/hydrate';
+import {verifyContinuationStateResponses as verifyStateResponses} from './continuation-state-journey.js';
+export function verifyContinuationStateResponses(){return verifyStateResponses({createExactClient},document);}
+import {verifyReactiveProtocolCollections as verifyCollections} from './reactive-protocol-journey.js';
+import * as reactiveProtocolApi from '@exactjs/reactive';
+import {writeIndexedReactiveValue} from '@exactjs/reactive/framework/runtime';
+import {createPendingReactiveTransaction} from '@exactjs/reactive/framework/transactions';
+import {assignmentIdentityCases,verifyAssignmentIdentity} from './assignment-identity-journey.mjs';
+import {assignmentPendingCases,verifyAssignmentPending} from './assignment-pending-journey.mjs';
+export function verifyAssignmentStorage(){
+ const api={...reactiveProtocolApi,writeIndexedReactiveValue,createPendingReactiveTransaction};
+ for(const mode of assignmentIdentityCases)verifyAssignmentIdentity(api,mode);
+ for(const mode of assignmentPendingCases)verifyAssignmentPending(api,mode);
+}
+import {encodeValidatedReactiveCollection} from '@exactjs/reactive/framework/protocol';
+import {verifyArrayEndMutations as verifyArrayEnds} from './array-end-mutation-journey.js';
+import {verifyListMarkerKeys,verifyMarkerEncoding} from './list-marker-journey.js';
+import {applyPatches} from './node_modules/@exactjs/hydrate/dist/patches.js';
+import {encodeExactMarkerPart,decodeExactMarkerPart} from '@exactjs/core';
+export function verifyReactiveProtocolCollections(){verifyCollections({...reactiveProtocolApi,encodeValidatedReactiveCollection});verifyArrayEnds(reactiveProtocolApi);verifyMarkerEncoding({encodeExactMarkerPart,decodeExactMarkerPart});verifyListMarkerKeys({encodeExactMarkerPart,applyPatches},document);}
 ${fault ? `import {composeExactComponentContracts} from '@exactjs/core/framework/component-contracts';const composed=composeExactComponentContracts([InstalledCounter,LocalCounter],'client');const registration={islands:composed.implementations,continuations:composed.continuations};` : "import {exactHydrationRegistration as registration} from './hydration-registration.js';"}
 export const mountPage=(root:Element,options={})=>createExactClient(root,{...readExactHydrationConfig(root),...registration,...options});`
 		);

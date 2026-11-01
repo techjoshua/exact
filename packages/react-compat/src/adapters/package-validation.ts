@@ -22,14 +22,11 @@ export function validateReactCompatAdapterPackage(
 	);
 	const rootId = '__exact_adapter_validation_root__';
 	const nodes = new Map(installed.nodes);
-	nodes.set(
-		rootId,
-		Object.freeze({
-			id: rootId,
-			location: adapter.location,
-			manifest: { name: '@exactjs/adapter-validation-root', version: '1.0.0' },
-			dependencies: Object.freeze([installed.rootId])
-		})
-	);
-	return discoverReactCompatAdapters(Object.freeze({ rootId, nodes }));
+	nodes.set(rootId, {
+		id: rootId,
+		location: adapter.location,
+		manifest: { name: '@exactjs/adapter-validation-root', version: '1.0.0' },
+		dependencies: [installed.rootId]
+	});
+	return discoverReactCompatAdapters({ rootId, nodes });
 }

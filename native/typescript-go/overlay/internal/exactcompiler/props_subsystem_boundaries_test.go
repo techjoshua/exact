@@ -32,8 +32,11 @@ func TestNestedInputRelationshipForms(t *testing.T) {
 			source := `declare class Component<S>{state:S}const key="value";export function Page(this:Component<{value:number}>,props:{record:{value:number;read():number}}){this.state.value=` + expression + `;return()=> <output>{this.state.value}</output>;}`
 			response := NewSession().Execute(Request{ID: "nested-input.tsx", Kind: "compile", Target: TargetClient, ComponentContractProjection: ComponentContractProjectionHydrate, Source: source})
 			if strings.Contains(expression, "read()") {
-				if !containsDiagnosticCode(response.Diagnostics, "EXACT2001") || response.Code != "" {
-					t.Fatalf("opaque member call lost its placement rejection: %#v", response.Diagnostics)
+				page := findComponent(t, response.Analysis.Components, "Page")
+				if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) || response.Code == "" ||
+					page.Placement != "unknown" || len(page.ArtifactTargets) != 0 ||
+					!strings.Contains(response.Code, "__exactActivateComputation(this") || strings.Contains(response.Code, "activateServerComponentTaskForHost as") {
+					t.Fatalf("opaque member computation gained portable or distributed authority: %#v %#v\n%s", page, response.Diagnostics, response.Code)
 				}
 				return
 			}

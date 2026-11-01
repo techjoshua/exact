@@ -7,7 +7,7 @@ function ModalAdoptionRoot(
 	this.state.open = false;
 	return () => (
 		<dialog
-			data-exact-id="settings"
+			data-testid="settings"
 			__exactModalOpen={this.state.open}
 			__exactBindModalToggle={(event: Event) => props.publish(event)}
 			__exactBindModalClose={(event: Event) => props.publish(event)}

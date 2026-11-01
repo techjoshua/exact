@@ -1,5 +1,11 @@
+import { runReactOwnedWork } from './owned-work.js';
 import { reactIslandComponent, reactRendererComponent } from './island-props.js';
-import { SuspensionContext, type Component, type ComponentFunction } from '@exactjs/core';
+import {
+	SuspensionContext,
+	type Component,
+	type ComponentFunction,
+	type AnyComponentInstance
+} from '@exactjs/core';
 import '@exactjs/core/runtime/collections';
 import '@exactjs/core/runtime/contexts';
 import '@exactjs/core/runtime/lifecycle';
@@ -65,7 +71,10 @@ const ReactSuspenseIslandImplementation = function ReactSuspenseIsland(
 		suspended: false
 	};
 	suspenseStates.set(this as object, suspenseState);
-	this.onUnmount(() => suspenseStates.delete(this as object));
+	this.onUnmount(() => {
+		generation++;
+		suspenseStates.delete(this as object);
+	});
 	this.setContext(SuspensionContext, {
 		suspend: (promise: PromiseLike<unknown>) => {
 			const current = ++generation;
@@ -84,7 +93,9 @@ const ReactSuspenseIslandImplementation = function ReactSuspenseIsland(
 		suspended = false;
 		suspenseState.suspended = false;
 		delete suspenseState.promise;
-		(this as import('@exactjs/core').ComponentInstance<Record<string, unknown>>).invalidate?.();
+		runReactOwnedWork(this as AnyComponentInstance, () => {
+			(this as import('@exactjs/core').ComponentInstance<Record<string, unknown>>).invalidate?.();
+		});
 	};
 	return () => {
 		return suspended ? props.fallback : props.children;
@@ -113,7 +124,7 @@ const serverImplementation = function ExactReactServerIsland(
 } as ComponentFunction<Record<string, unknown>, ReactIslandProps>;
 
 const commonArtifact = {
-	version: 2 as const,
+	version: 6 as const,
 	construct: constructDurableComponentInstance,
 	abi: 30,
 	capabilities: ['compatibility', 'collections', 'dynamic-components'] as const,
@@ -126,7 +137,7 @@ const commonArtifact = {
 };
 
 const clientContract: ExactComponentContract = {
-	version: 2,
+	version: 6,
 	placement: 'client',
 	role: 'client',
 	implementations: [
@@ -157,7 +168,7 @@ const clientContract: ExactComponentContract = {
 };
 
 const serverContract: ExactComponentContract = {
-	version: 2,
+	version: 6,
 	placement: 'server',
 	role: 'executor',
 	implementations: [

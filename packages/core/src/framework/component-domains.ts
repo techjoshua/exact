@@ -13,6 +13,7 @@ export {
 	markComponentDomainLoggerOverride,
 	setComponentDomainLogger,
 	withComponentDomain,
+	withComponentDomainSnapshot,
 	type ComponentDomainCapabilities,
 	type ComponentDomainLogging,
 	type FrameworkComponentDomainOptions

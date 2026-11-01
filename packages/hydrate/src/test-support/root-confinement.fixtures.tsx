@@ -1,7 +1,7 @@
 import { withComponentDomain, type Child, type ComponentDomain } from '@exactjs/core';
 
 function ConfinedLabel(props: { value: string }) {
-	return () => <span data-exact-id="title">{props.value}</span>;
+	return () => <span data-testid="title">{props.value}</span>;
 }
 
 function ConfinedHost(props: { page: ComponentDomain; remote: ComponentDomain }) {
@@ -22,7 +22,7 @@ function PageChild() {
 }
 
 function ForeignShell(props: { children?: Child | Child[] }) {
-	return () => <section data-exact-id="shell">{props.children}</section>;
+	return () => <section data-testid="shell">{props.children}</section>;
 }
 
 /** Creates a compiler-issued tree with colliding ids owned by two execution roots. */

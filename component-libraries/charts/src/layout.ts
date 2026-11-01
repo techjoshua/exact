@@ -32,7 +32,7 @@ export function resolveChartLayout(dimensions: ChartDimensions, rowLabelWidth = 
 	const right = width - padding;
 	const top = padding;
 	const bottom = height - padding - 36;
-	return Object.freeze({
+	return {
 		width,
 		height,
 		left,
@@ -41,7 +41,7 @@ export function resolveChartLayout(dimensions: ChartDimensions, rowLabelWidth = 
 		bottom,
 		plotWidth: Math.max(1, right - left),
 		plotHeight: Math.max(1, bottom - top)
-	});
+	};
 }
 
 /** Determines whether zero is semantically part of the default vertical domain. */

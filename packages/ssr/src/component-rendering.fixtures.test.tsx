@@ -163,3 +163,18 @@ export function CompiledTextSurroundings(props: { text: string; title: string })
 		</section>
 	);
 }
+
+/** Scheduled construction can reject before a later sibling's acquisition fails. */
+export function RejectingServerPreparation(
+	this: Component<{ value: number }>,
+	props: { fail(): void }
+) {
+	this.onUnmount(() => observedDisposals++);
+	this.state.value = 1;
+	props.fail();
+	const settle = async (_task: TaskContext = TaskContext.server().blocking()) => {
+		await Promise.resolve();
+	};
+	settle();
+	return () => <p>{this.state.value}</p>;
+}

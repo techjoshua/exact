@@ -5,9 +5,13 @@
 `npm create --yes @exactjs/exact-app@latest my-app -- --yes`; npm and the scaffolder each
 have their own prompt controls. Add `--no-install` after the separator to defer installation.
 
-The generated applications select the 0.7 package family for compiler, runtime, adapters, and
-testing dependencies. Before publishing a coordinated release, acceptance installs its packed
-candidate packages together. Published starters resolve those dependencies from npm.
+Generated applications use each eXact package’s current independent version as a caret range
+floor when the scaffolder release is prepared. For example, `^0.7.3` allows later 0.7 patches,
+and `^1.2.3` allows later 1.x minor and patch releases. Standard semver caret rules apply,
+including the narrower `^0.0.z` case. Fresh installs without a lockfile and dependency updates
+can select compatible releases. An existing lockfile retains its resolved versions until updated.
+Publication acceptance installs the selected packed candidate packages together. Published
+starters resolve their dependencies from npm.
 
 ## Generated application contract
 

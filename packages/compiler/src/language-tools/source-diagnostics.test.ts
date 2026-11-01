@@ -130,3 +130,30 @@ it('consumes finalized UTF-16 diagnostic spans without converting them twice', (
 	);
 	expect(source.slice(projected.range.start, projected.range.end)).toBe('wrongProp');
 });
+
+it('attributes point diagnostics inside tasks without attaching the preceding task at its end', () => {
+	const analysis = {
+		tasks: [
+			{
+				start: 10,
+				length: 10,
+				environmentEffect: 'mixed',
+				effectSources: [{ description: 'Owned task cause', environment: 'server', path: [] }]
+			}
+		]
+	} as unknown as NativeCompilerAnalysis;
+	const diagnostic = (start: number, length = 0): NativeCompilerDiagnostic => ({
+		severity: 'error',
+		code: 'EXACT_TASK_PLACEMENT_CONFLICT',
+		message: 'conflict',
+		filename: 'Page.tsx',
+		start,
+		length
+	});
+	for (const position of [10, 15, 19])
+		expect(
+			sourceDiagnostic('Page.tsx', ' '.repeat(30), diagnostic(position), analysis).related
+		).toHaveLength(1);
+	for (const value of [diagnostic(20), diagnostic(0, 10), diagnostic(20, 5)])
+		expect(sourceDiagnostic('Page.tsx', ' '.repeat(30), value, analysis).related).toEqual([]);
+});

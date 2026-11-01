@@ -6,7 +6,8 @@ import {
 	type ReactRootRuntime
 } from '@exactjs/react-compat/exact';
 import type { RootOptions } from '../client.js';
-import { disposeReactMounted, reconcileReactChildren } from './tree.js';
+import { reconcileReactChildren } from './tree.js';
+import { disposeReactMounts } from './teardown.js';
 import type { ReactRendererRoot } from './types.js';
 import { adoptReactRootMarkup } from './hydration-adoption.js';
 import {
@@ -88,7 +89,10 @@ export function renderReactRoot(root: ReactRendererRoot, value: ReactNode): void
 				{ root, parent: root.container, owner: root.owner },
 				root.mounted,
 				next,
-				root.before ?? null
+				root.before ?? null,
+				(next) => {
+					root.mounted = next;
+				}
 			);
 			if (root.pending !== undefined) next = root.pending;
 		} while (root.pending !== undefined);
@@ -104,8 +108,9 @@ export function renderReactRoot(root: ReactRendererRoot, value: ReactNode): void
 export function disposeReactRoot(root: ReactRendererRoot): void {
 	if (!root.active) return;
 	root.active = false;
-	for (const mounted of root.mounted) disposeReactMounted(mounted);
+	const mounted = root.mounted;
 	root.mounted = [];
+	disposeReactMounts(mounted);
 }
 
 /** Rebuilds server markup only when the current renderer cannot yet adopt it in place. */

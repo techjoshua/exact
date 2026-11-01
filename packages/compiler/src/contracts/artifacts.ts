@@ -64,6 +64,8 @@ export type ExactTaskStatePathPlan = Readonly<{
 	kind: 'read' | 'write';
 	confidence: 'exact' | 'broad' | 'unknown';
 	operation?: 'value' | 'map' | 'set';
+	/** Checker-owned Array prefixes, separate from effect authority. */
+	arrayRoots?: readonly Readonly<{ kind: 'array'; path: readonly string[]; confidence: 'exact' }>[];
 }>;
 
 /** Compiler-owned build description for one distributed task operation. */

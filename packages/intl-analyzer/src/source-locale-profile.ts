@@ -4,18 +4,15 @@ import {
 	sourceLanguageInference,
 	type SourceOrdinalWrapper
 } from './source-language-inferences.js';
-
 const profiledUnitDisplays = ['long', 'short', 'narrow'] as const;
 const baselineOperands = [0, 1, 2, 3, 5, 10, 11, 21, 22, 100, 1.5] as const;
 const profileCache = new Map<string, SourceLocaleProfile>();
 const maxCachedProfiles = 16;
-
 /** Locale evidence supplied by one localized currency label. */
 export interface SourceCurrencyLabel {
 	readonly currency: string;
 	readonly display: 'symbol' | 'name';
 }
-
 /** Bounded native-Intl vocabulary consumed by one native source-analysis request. */
 export interface SourceLocaleProfile {
 	readonly unitLabels: Readonly<Record<string, string>>;
@@ -24,7 +21,6 @@ export interface SourceLocaleProfile {
 	readonly ordinalMarkers: readonly string[];
 	readonly ordinalWrappers: readonly SourceOrdinalWrapper[];
 }
-
 /**
  * Builds the source-language vocabulary needed by native semantic analysis. JavaScript owns this
  * boundary because its `Intl` implementation is also used by application builds and previews.
@@ -37,19 +33,18 @@ export function sourceLocaleProfile(sourceLocale: string): SourceLocaleProfile {
 		profileCache.set(locale, cached);
 		return cached;
 	}
-
 	const operands = pluralOperands(locale);
 	const languageInference = sourceLanguageInference(locale);
-	const result = Object.freeze({
+	const result = {
 		unitLabels: mergeRecords(collectUnitLabels(locale, operands), languageInference.unitLabels),
 		currencyLabels: mergeRecords(
 			collectCurrencyLabels(locale, operands),
 			languageInference.currencyLabels
 		),
-		defaultCurrencyLabels: Object.freeze([...(languageInference.defaultCurrencyLabels ?? [])]),
-		ordinalMarkers: Object.freeze([...(languageInference.ordinalMarkers ?? [])]),
-		ordinalWrappers: Object.freeze([...(languageInference.ordinalWrappers ?? [])])
-	});
+		defaultCurrencyLabels: [...(languageInference.defaultCurrencyLabels ?? [])],
+		ordinalMarkers: [...(languageInference.ordinalMarkers ?? [])],
+		ordinalWrappers: [...(languageInference.ordinalWrappers ?? [])]
+	};
 	profileCache.set(locale, result);
 	while (profileCache.size > maxCachedProfiles) {
 		const oldest = profileCache.keys().next().value as string | undefined;
@@ -58,14 +53,12 @@ export function sourceLocaleProfile(sourceLocale: string): SourceLocaleProfile {
 	}
 	return result;
 }
-
 function mergeRecords<Value>(
 	generated: Readonly<Record<string, Value>>,
 	supplement: Readonly<Record<string, Value>> | undefined
 ): Readonly<Record<string, Value>> {
-	return Object.freeze({ ...(supplement ?? {}), ...generated });
+	return { ...(supplement ?? {}), ...generated };
 }
-
 function pluralOperands(locale: string): readonly number[] {
 	const rules = intl.PluralRules(locale);
 	const missing = new Set(rules.resolvedOptions().pluralCategories);
@@ -82,7 +75,6 @@ function pluralOperands(locale: string): readonly number[] {
 	}
 	return [...operands];
 }
-
 function collectUnitLabels(
 	locale: string,
 	operands: readonly number[]
@@ -101,9 +93,8 @@ function collectUnitLabels(
 			for (const value of operands) collectParts(formatter, value, 'unit', unit, labels, ambiguous);
 		}
 	}
-	return Object.freeze(Object.fromEntries(labels));
+	return Object.fromEntries(labels);
 }
-
 function collectCurrencyLabels(
 	locale: string,
 	operands: readonly number[]
@@ -123,7 +114,7 @@ function collectCurrencyLabels(
 					const label = normalizeLabel(part.value);
 					// ISO codes already have stronger syntax-level evidence and mean code display.
 					if (!label || label === currency.toLowerCase() || ambiguous.has(label)) continue;
-					const evidence = Object.freeze({ currency, display });
+					const evidence = { currency, display };
 					const previous = labels.get(label);
 					if (
 						previous &&
@@ -136,9 +127,8 @@ function collectCurrencyLabels(
 			}
 		}
 	}
-	return Object.freeze(Object.fromEntries(labels));
+	return Object.fromEntries(labels);
 }
-
 function collectParts(
 	formatter: Intl.NumberFormat,
 	value: number,
@@ -158,11 +148,9 @@ function collectParts(
 		} else labels.set(label, evidence);
 	}
 }
-
 function normalizeUnitLabel(value: string): string {
 	return value.normalize('NFKC').trim();
 }
-
 function normalizeLabel(value: string): string {
 	return value.normalize('NFKC').trim().toLowerCase();
 }

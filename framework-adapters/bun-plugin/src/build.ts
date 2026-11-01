@@ -86,6 +86,10 @@ export async function exactBuild(options: ExactBunBuildOptions): Promise<unknown
 	try {
 		return await runtime.Bun.build({
 			...buildOptions,
+			// Virtual exposure entries share the selected physical root. Metadata retains hashed identities.
+			...(remoteEntrypoints.length
+				? { root: options.root ?? applicationRoot, metafile: true }
+				: {}),
 			// Bun concatenates this prefix with chunk names; entry publication uses the same base.
 			...(outputPublicPath === undefined
 				? {}

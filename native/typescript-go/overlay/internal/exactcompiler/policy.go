@@ -36,6 +36,7 @@ type policySubjects struct {
 }
 
 type policyAnalysis struct {
+	owner               *executableBodyOwner
 	graph               PolicyAnalysis
 	sourceResults       map[*ast.Node]policySourceResult
 	sourceTypes         map[checker.TypeId]bool
@@ -70,11 +71,13 @@ func collectPolicyAnalysis(
 	stateReads []StateRead,
 	tasks []Task,
 	completedTypes map[checker.TypeId]bool,
+	owner *executableBodyOwner,
 ) policyAnalysis {
 	if completedTypes == nil {
 		completedTypes = make(map[checker.TypeId]bool)
 	}
 	analysis := policyAnalysis{
+		owner:           owner,
 		graph:           newPolicyAnalysis(),
 		sourceTypes:     completedTypes,
 		contextPolicies: make(map[string]PolicySubject),
@@ -239,7 +242,7 @@ func collectCallPolicySubjects(
 		)
 		subject.Name = policyInvocationName(expression)
 		addSubject(subject)
-		analysis.subjects.calls[nodeSpanKey(node)] = subject
+		analysis.subjects.calls[policyCallKey(node)] = subject
 		return true
 	})
 }

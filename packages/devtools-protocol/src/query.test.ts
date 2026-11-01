@@ -103,3 +103,15 @@ describe('eXact inspection query validation', () => {
 		).toThrow('too large');
 	});
 });
+
+it.each(['unavailable', 'not-authorized', 'bad-request'])(
+	'requires a string failure code (%s)',
+	(error) => {
+		const response = { protocol: 1, id: 'response', ok: false, error };
+		expect(parseExactInspectionResponse(response)).toEqual(response);
+		expect(() => parseExactInspectionResponse({ ...response, error: [error] })).toThrow(TypeError);
+		expect(() => parseExactInspectionResponse({ ...response, error: [[error]] })).toThrow(
+			TypeError
+		);
+	}
+);

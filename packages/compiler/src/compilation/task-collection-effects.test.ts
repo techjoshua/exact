@@ -3,15 +3,14 @@ import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { expect, it, onTestFinished } from 'vitest';
 import { render, unmount } from '@exactjs/dom';
-import { createCompiledComponentReceipt } from '@exactjs/core/runtime/component-operations';
+import { createCompiledComponentInputReceipt } from '@exactjs/core/runtime/component-operations';
 import { compileFileArtifacts } from '../index.js';
-import { createTestWorkspace } from '../test-support/workspace.js';
+import { createCompilerTestWorkspace } from '../test-support/workspace.js';
 import { importArtifact } from '../test-support/import-artifact.js';
 import { composeExactExecutorContract } from '@exactjs/server';
 import type { AnyComponentFunction } from '@exactjs/core';
-
 it.each(['function', 'arrow'])('publishes collection effects from a %s task', async (form) => {
-	const root = await createTestWorkspace('.exact-collection-effects-', process.cwd());
+	const root = await createCompilerTestWorkspace('.exact-collection-effects-', process.cwd());
 	const source = path.join(root, 'Page.tsx');
 	const signature =
 		form === 'function'
@@ -44,14 +43,13 @@ return ()=> <button onClick={()=>update()}>{this.state.rows.get('a')}</button>;
 		])
 	);
 });
-
 it.each([
 	['function', 'server'],
 	['arrow', 'server'],
 	['function', 'client'],
 	['arrow', 'client']
 ])('checks indexed collection effects from a %s %s task', async (form, placement) => {
-	const root = await createTestWorkspace('.exact-indexed-collections-', process.cwd());
+	const root = await createCompilerTestWorkspace('.exact-indexed-collections-', process.cwd());
 	const source = path.join(root, 'Page.tsx');
 	const signature =
 		form === 'function'
@@ -78,7 +76,7 @@ return ()=> <button onClick={()=>update('first',0)}>{this.state.rows.first.get('
 	onTestFinished(() => {
 		unmount(container);
 	});
-	render(createCompiledComponentReceipt(module.Page as AnyComponentFunction, {}), container);
+	render(createCompiledComponentInputReceipt(module.Page as AnyComponentFunction, {}), container);
 	const button = container.querySelector('button')!;
 	expect(button.textContent).toBe('0:1');
 	button.click();

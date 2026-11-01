@@ -4,13 +4,13 @@ import type {
 	PhysicsProjectionInput
 } from './contracts.js';
 
-const prepared = Symbol('exact.physics.projection');
-
-/** Validates and freezes a reusable DOM projection policy. */
+/** Validates and copies a reusable DOM projection policy. */
 export function definePhysicsProjection(input: PhysicsProjectionInput): PhysicsProjection {
-	if (!input.name) throw new TypeError('A physics projection needs a stable name');
-	if (typeof input.apply !== 'function') throw new TypeError('A physics projection needs apply()');
-	const channels = Object.freeze([...(input.channels ?? [])]);
+	const definition = { ...input };
+	if (!definition.name) throw new TypeError('A physics projection needs a stable name');
+	if (typeof definition.apply !== 'function')
+		throw new TypeError('A physics projection needs apply()');
+	const channels = [...(definition.channels ?? [])];
 	for (const channel of channels) {
 		if (channel !== 'translate' && channel !== 'rotate') {
 			throw new TypeError(`Unsupported physics projection channel "${channel}"`);
@@ -19,7 +19,7 @@ export function definePhysicsProjection(input: PhysicsProjectionInput): PhysicsP
 	if (new Set<PhysicsProjectionChannel>(channels).size !== channels.length) {
 		throw new TypeError('A physics projection cannot claim the same channel twice');
 	}
-	return Object.freeze({ ...input, channels, [prepared]: true }) as unknown as PhysicsProjection;
+	return { ...definition, channels } as unknown as PhysicsProjection;
 }
 
 /** Projects position through the CSS individual `translate` property. */

@@ -144,7 +144,15 @@ export type ExactPlugin = {
 		| null
 		| Promise<string | { code: string; moduleType: 'js' | 'jsx' | 'ts' | 'tsx' } | null>;
 	transform(
-		this: { warn?(message: string): void; addWatchFile?(file: string): void },
+		this: {
+			warn?(message: string): void;
+			addWatchFile?(file: string): void;
+			resolve?(
+				source: string,
+				importer?: string,
+				options?: { skipSelf?: boolean }
+			): Promise<{ id: string; external?: boolean | 'absolute' | 'relative' } | null>;
+		},
 		code: string,
 		id: string,
 		options?: { ssr?: boolean }

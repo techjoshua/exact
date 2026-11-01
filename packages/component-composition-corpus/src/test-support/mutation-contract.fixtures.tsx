@@ -1,14 +1,22 @@
 import { TaskContext as Policy, type Component } from '@exactjs/core';
-import { createCompiledComponentReceipt } from '@exactjs/core/runtime/component-operations';
-
-function appendReceiver(owner: { values: number[]; calls: number }, value: number) {
+import { createCompiledComponentInputReceipt } from '@exactjs/core/runtime/component-operations';
+function appendReceiver(
+	owner: {
+		values: number[];
+		calls: number;
+	},
+	value: number
+) {
 	owner.calls++;
 	owner.values['push'](value);
 }
-
 // The shared helper retains argument identity and observes eager pending collection results.
 function appendMutationInput(
-	owner: { values: number[]; lookup: Map<string, number>; members: Set<number> },
+	owner: {
+		values: number[];
+		lookup: Map<string, number>;
+		members: Set<number>;
+	},
 	value: number
 ) {
 	const source = {
@@ -25,15 +33,17 @@ function appendMutationInput(
 	if (owner.members['add'](value) !== owner.members || !owner.members.has(value))
 		throw new Error('Set pending read or identity disagrees');
 }
-
 /** @exact state-view */
 function makeMutationInput(
-	owner: { values: number[]; lookup: Map<string, number>; members: Set<number> },
+	owner: {
+		values: number[];
+		lookup: Map<string, number>;
+		members: Set<number>;
+	},
 	value: number
 ) {
 	return () => appendMutationInput(owner, value);
 }
-
 /** Exercises authored mutations, suspension and task capture through retained component ownership. */
 export function MutationContractProbe(
 	this: Component<{
@@ -43,9 +53,16 @@ export function MutationContractProbe(
 		members: Set<number>;
 		trace: string;
 		keyTrace: string;
-		missing?: { n: number };
+		missing?: {
+			n: number;
+		};
 		missingRows?: number[];
-		receiver: { values: number[]; calls: number } | undefined;
+		receiver:
+			| {
+					values: number[];
+					calls: number;
+			  }
+			| undefined;
 	}>
 ) {
 	this.state.count = 0;
@@ -119,10 +136,13 @@ export function MutationContractProbe(
 		</section>
 	);
 }
-
 /** Verifies that direct SSR resolves captures before ordered task-local state reads. */
 export function ServerMutationContractProbe(
-	this: Component<{ count: number; trace: string; values: number[] }>
+	this: Component<{
+		count: number;
+		trace: string;
+		values: number[];
+	}>
 ) {
 	this.state.count = 0;
 	this.state.trace = '';
@@ -133,11 +153,19 @@ export function ServerMutationContractProbe(
 	};
 	void seed();
 	const run = async (
-		{ value }: { value: number } = { value: 5 },
+		{
+			value
+		}: {
+			value: number;
+		} = { value: 5 },
 		task: Policy = Policy.server().latest().blocking()
 	) => {
 		void task;
-		function read(this: { state: { value: number } }) {
+		function read(this: {
+			state: {
+				value: number;
+			};
+		}) {
 			return this.state.value;
 		}
 		class Reader {
@@ -152,8 +180,7 @@ export function ServerMutationContractProbe(
 	void run();
 	return () => <output data-server-mutation-contract>{this.state.trace}</output>;
 }
-
 /** Supplies the corpus root without relying on an application fixture. */
 export function mutationContractRoot() {
-	return createCompiledComponentReceipt(MutationContractProbe, {});
+	return createCompiledComponentInputReceipt(MutationContractProbe, {});
 }

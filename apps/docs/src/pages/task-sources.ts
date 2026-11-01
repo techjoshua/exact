@@ -59,6 +59,20 @@ function Search(this: Component<SearchState>) {
   return () => <SearchView results={this.state.results} />;
 }`;
 
+const taskLocalHelperSource = `async function refresh(
+  task: TaskContext = TaskContext.server().latest()
+) {
+  const owner = this;
+  const messages = {
+    set(value: string) {
+      owner.state.status = value;
+    }
+  };
+  messages.set('loading');
+  await load();
+  messages.set('ready');
+}`;
+
 const capturedInputSource = `async function refreshRates(
   revision: number,
   draft: ShipmentDraft = this.state.draft,
@@ -229,11 +243,27 @@ const retryDelaySource = `function waitForRetry(milliseconds: number, signal: Ab
   });
 }`;
 
+const sharedStateHelperSource = `// labels.ts
+export function setLabel(state: { label: string }, label: string) {
+  state.label = label;
+}
+
+// Editor.tsx
+import { TaskContext } from '@exactjs/core';
+import { setLabel } from './labels.js';
+
+// Inside a component
+async function rename(label: string, task: TaskContext = TaskContext.server()) {
+  setLabel(this.state, label);
+}`;
+
 /** Code samples rendered by the task guide, grouped away from its article structure. */
 export const taskSources = Object.freeze({
+	sharedStateHelperSource,
 	retryTaskSource,
 	retryDelaySource,
 	capturedInputSource,
+	taskLocalHelperSource,
 	effectsAndResultsSource,
 	inferredLifetimeSource,
 	inferredTaskSource,

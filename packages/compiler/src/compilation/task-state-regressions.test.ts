@@ -3,7 +3,7 @@ import path from 'node:path';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { expect, it, onTestFinished } from 'vitest';
 import type { AnyComponentFunction } from '@exactjs/core';
-import { createCompiledComponentReceipt } from '@exactjs/core/runtime/component-operations';
+import { createCompiledComponentInputReceipt } from '@exactjs/core/runtime/component-operations';
 import { renderToString } from '@exactjs/ssr';
 import { render, dispose } from '@exactjs/dom';
 import { flushSync } from '@exactjs/reactive';
@@ -11,7 +11,6 @@ import { NativeCompilerProcess } from '../native/process.js';
 import { resolveNativeCompilerExecutable } from '../native/executable.js';
 import { importArtifact } from '../test-support/import-artifact.js';
 import { taskStateRegressionCases as cases } from '../test-support/task-state-regression-cases.js';
-
 for (const example of cases)
 	it(`preserves '${example.name}' in direct SSR and client tasks`, async () => {
 		const compiler = new NativeCompilerProcess({ executable: resolveNativeCompilerExecutable() });
@@ -55,8 +54,8 @@ return ()=> <section>${example.holdPath ? `<aside>{this.state.${example.holdPath
 			const module = await importArtifact(file, path.join(directory, target + '.mjs'));
 			const Component = module.Probe as AnyComponentFunction;
 			if (target === 'server') {
-				const html = await renderToString(createCompiledComponentReceipt(Component, {}), {
-					maxTaskDurationMs: 1000
+				const html = await renderToString(createCompiledComponentInputReceipt(Component, {}), {
+					signal: AbortSignal.timeout(1000)
 				});
 				expect(html.html).toContain(
 					`<output>${example.accessor ? '1,2,3' : example.expected}</output>`
@@ -70,7 +69,7 @@ return ()=> <section>${example.holdPath ? `<aside>{this.state.${example.holdPath
 					host.remove();
 				});
 				const reports: unknown[] = [];
-				render(createCompiledComponentReceipt(Component, {}), host, {
+				render(createCompiledComponentInputReceipt(Component, {}), host, {
 					onErrorReport: (report) => reports.push(report)
 				});
 				if (example.seed) {
@@ -118,7 +117,6 @@ return ()=> <section>${example.holdPath ? `<aside>{this.state.${example.holdPath
 			}
 		}
 	});
-
 it('evaluates client task status selection once in server rendering', async () => {
 	const compiler = new NativeCompilerProcess({ executable: resolveNativeCompilerExecutable() });
 	onTestFinished(() => compiler.dispose());
@@ -138,12 +136,11 @@ it('evaluates client task status selection once in server rendering', async () =
 	await writeFile(file, result.code!);
 	const module = await importArtifact(file, path.join(directory, 'server.mjs'));
 	const html = await renderToString(
-		createCompiledComponentReceipt(module.Page as AnyComponentFunction, {})
+		createCompiledComponentInputReceipt(module.Page as AnyComponentFunction, {})
 	);
 	expect(html.html).toContain('<output>0:1</output>');
 	expect(module.selections).toBe(1);
 });
-
 it('runs stateless task timers through the generated component owner', async () => {
 	const compiler = new NativeCompilerProcess({ executable: resolveNativeCompilerExecutable() });
 	onTestFinished(() => compiler.dispose());
@@ -163,7 +160,7 @@ it('runs stateless task timers through the generated component owner', async () 
 		const file = path.join(directory, target + '.ts');
 		await writeFile(file, result.code!);
 		const module = await importArtifact(file, path.join(directory, target + '.mjs'));
-		const receipt = createCompiledComponentReceipt(module.Page as AnyComponentFunction, {});
+		const receipt = createCompiledComponentInputReceipt(module.Page as AnyComponentFunction, {});
 		if (target === 'server') {
 			await renderToString(receipt);
 		} else {
@@ -180,7 +177,6 @@ it('runs stateless task timers through the generated component owner', async () 
 		expect(module.completed).toBe(1);
 	}
 });
-
 it('retains parameterized client task omission in server work', async () => {
 	const compiler = new NativeCompilerProcess({ executable: resolveNativeCompilerExecutable() });
 	onTestFinished(() => compiler.dispose());
@@ -200,11 +196,10 @@ it('retains parameterized client task omission in server work', async () => {
 	await writeFile(file, result.code!);
 	const module = await importArtifact(file, path.join(directory, 'server.mjs'));
 	const rendered = await renderToString(
-		createCompiledComponentReceipt(module.Page as AnyComponentFunction, {})
+		createCompiledComponentInputReceipt(module.Page as AnyComponentFunction, {})
 	);
 	expect(rendered.html).toContain('<output>2</output>');
 });
-
 it('preserves wrapped policy definitions through repeated blocking work', async () => {
 	const compiler = new NativeCompilerProcess({ executable: resolveNativeCompilerExecutable() });
 	onTestFinished(() => compiler.dispose());
@@ -231,7 +226,7 @@ it('preserves wrapped policy definitions through repeated blocking work', async 
 			const file = path.join(directory, target + '.ts');
 			await writeFile(file, result.code!);
 			const module = await importArtifact(file, path.join(directory, target + '.mjs'));
-			const receipt = createCompiledComponentReceipt(module.Page as AnyComponentFunction, {});
+			const receipt = createCompiledComponentInputReceipt(module.Page as AnyComponentFunction, {});
 			if (target === 'server') {
 				expect((await renderToString(receipt)).html).toContain('>1</button>');
 			} else {
@@ -253,7 +248,6 @@ it('preserves wrapped policy definitions through repeated blocking work', async 
 		}
 	}
 });
-
 it('rejects erased server collection publication before dispatch', async () => {
 	const compiler = new NativeCompilerProcess({ executable: resolveNativeCompilerExecutable() });
 	onTestFinished(() => compiler.dispose());

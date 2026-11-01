@@ -1,9 +1,7 @@
 import { readFile, realpath } from 'node:fs/promises';
 import path from 'node:path';
 import { loadIntlPackagePublication, type IntlPackagePublication } from './package-publication.js';
-
 const maximumDependencyPackages = 4096;
-
 /** Discovers inert intl publications across the application's installed dependency graph. */
 export async function discoverIntlPackagePublications(options: {
 	applicationRoot: string;
@@ -39,9 +37,8 @@ export async function discoverIntlPackagePublications(options: {
 		const packageRoot = path.dirname(packageJsonPath);
 		for (const name of dependencyNames(manifest, false)) queue.push({ name, from: packageRoot });
 	}
-	return Object.freeze(publications);
+	return publications;
 }
-
 async function resolveDependencyManifest(
 	name: string,
 	from: string,
@@ -61,11 +58,9 @@ async function resolveDependencyManifest(
 		const parent = path.dirname(current);
 		if (parent === current) return undefined;
 		current = parent;
-		if (path.relative(boundary, current).startsWith('..') && !isAncestor(current, boundary))
-			return undefined;
+		if (!isAncestor(boundary, current) && !isAncestor(current, boundary)) return undefined;
 	}
 }
-
 function dependencyNames(manifest: Record<string, unknown>, includeDevelopment: boolean): string[] {
 	const fields = [
 		'dependencies',
@@ -83,15 +78,13 @@ function dependencyNames(manifest: Record<string, unknown>, includeDevelopment: 
 		)
 	].sort();
 }
-
 async function readManifest(filename: string): Promise<Record<string, unknown>> {
 	const value = JSON.parse(await readFile(filename, 'utf8')) as unknown;
 	if (!value || typeof value !== 'object' || Array.isArray(value))
 		throw new TypeError(`${filename} must contain a package manifest object`);
 	return value as Record<string, unknown>;
 }
-
 function isAncestor(candidate: string, descendant: string): boolean {
 	const relative = path.relative(candidate, descendant);
-	return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
+	return relative !== '..' && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative);
 }

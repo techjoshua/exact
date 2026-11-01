@@ -3,7 +3,7 @@ import { render, dispose } from '@exactjs/dom';
 import { hydrate } from '@exactjs/hydrate';
 import { renderToHydratableString } from '@exactjs/ssr';
 import { flushSync } from '@exactjs/reactive';
-import { createCompiledComponentReceipt as receipt } from '@exactjs/core/runtime/component-operations';
+import { createCompiledComponentInputReceipt as receipt } from '@exactjs/core/runtime/component-operations';
 import {
 	NormalizationProbe,
 	AsyncNormalizationProbe,
@@ -24,9 +24,7 @@ import {
 	NormalizationExplicitSetupProbe as ServerExplicitSetup,
 	NormalizationExplicitHelperProbe as ServerExplicitHelper
 } from './test-support/source-normalization.fixtures.js?exact-target=server';
-
 import { NormalizationServerSnapshotProbe as ServerSnapshotAuthority } from './test-support/source-normalization-server.fixtures.js?exact-target=server';
-
 for (const mode of ['mount', 'hydrate'])
 	it(`preserves inferred setup computations through ${mode}`, async () => {
 		const host = document.createElement('div');
@@ -56,7 +54,6 @@ for (const mode of ['mount', 'hydrate'])
 		expect(host.childNodes).toHaveLength(0);
 		expect(reports).toEqual([]);
 	});
-
 it('hydrates async setup alongside an independent render local', async () => {
 	const host = document.createElement('div');
 	const reports: unknown[] = [];
@@ -83,7 +80,6 @@ it('hydrates async setup alongside an independent render local', async () => {
 	expect(host.childNodes).toHaveLength(0);
 	expect(reports).toEqual([]);
 });
-
 for (const mode of ['mount', 'hydrate'])
 	for (const kind of ['callback', 'snapshot', 'helper'])
 		it(`retains ${kind} readers through ${mode}`, async () => {
@@ -157,7 +153,6 @@ for (const mode of ['mount', 'hydrate'])
 			expect(host.childNodes).toHaveLength(0);
 			expect(reports).toEqual([]);
 		});
-
 for (const mode of ['mount', 'hydrate'])
 	it(`keeps explicit task body reads out of activation through ${mode}`, async () => {
 		const host = document.createElement('div');
@@ -192,7 +187,6 @@ for (const mode of ['mount', 'hydrate'])
 		expect(host.childNodes).toHaveLength(0);
 		expect(reports).toEqual([]);
 	});
-
 for (const mode of ['mount', 'hydrate'])
 	it(`keeps an explicit setup task at one startup run through ${mode}`, async () => {
 		const host = document.createElement('div');
@@ -224,12 +218,10 @@ for (const mode of ['mount', 'hydrate'])
 		expect(host.childNodes).toHaveLength(0);
 		expect(reports).toEqual([]);
 	});
-
 it('retains server snapshot read authority through a named callback', async () => {
 	const result = await renderToHydratableString(receipt(ServerSnapshotAuthority, {}));
 	expect(result.html).toContain('id="normalization-server-snapshot-result">2</output>');
 });
-
 for (const mode of ['mount', 'hydrate'])
 	it(`keeps explicit helper captures untracked through ${mode}`, async () => {
 		const host = document.createElement('div');

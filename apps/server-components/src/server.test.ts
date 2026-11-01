@@ -1,7 +1,8 @@
 /**
  * @vitest-environment jsdom
  */
-import { createCompiledComponentReceipt } from '@exactjs/core/runtime/component-operations';
+import { unmount } from '@exactjs/dom/framework/component-root';
+import { createCompiledComponentInputReceipt } from '@exactjs/core/runtime/component-operations';
 import {
 	createExactClient,
 	hydrateClientIslands,
@@ -99,6 +100,9 @@ describe('@exactjs/sample-server-components', () => {
 			brand: { name: 'Northwind', accent: '#2255aa' }
 		};
 		const runtime = identityRuntime(identity);
+		const container = document.createElement('div');
+		let boundary: Element | null = null;
+		let failed = false;
 		try {
 			const response = await renderExactRequestToHtmlResponse(
 				{
@@ -107,10 +111,9 @@ describe('@exactjs/sample-server-components', () => {
 					headers: {}
 				},
 				runtime,
-				() => createCompiledComponentReceipt(ServerIdentityProjection, {}),
+				() => createCompiledComponentInputReceipt(ServerIdentityProjection, {}),
 				{
-					hydration: false,
-					markers: false
+					hydration: false
 				}
 			);
 
@@ -118,24 +121,49 @@ describe('@exactjs/sample-server-components', () => {
 			expect(html).toContain('Northwind:editor');
 			expect(html).toContain('data-editor="true"');
 
-			const container = document.createElement('div');
-			const props = JSON.stringify({ props: { initial: identity } })
-				.replace(/&/g, '&amp;')
-				.replace(/"/g, '&quot;');
-			container.innerHTML = `<div data-exact-client-boundary="identity" data-exact-client-name="IdentityProvider" data-exact-client-props="${props}">${html}</div>`;
+			container.innerHTML = html;
+			boundary = container.querySelector('[data-exact-client-name="IdentityProvider"]');
+			expect(container.querySelectorAll('[data-exact-client-boundary]')).toHaveLength(1);
+			expect(container.querySelectorAll('button')).toHaveLength(1);
+			const originalButton = container.querySelector('button');
+			const hydration: unknown[] = [];
 
 			expect(
-				hydrateClientIslands(container, {
-					IdentityProvider
-				})
+				hydrateClientIslands(
+					container,
+					{ IdentityProvider },
+					{ onHydration: (event) => hydration.push(event) }
+				)
 			).toBe(1);
+			expect(hydration).toEqual([
+				expect.objectContaining({ outcome: 'adopted', component: 'IdentityProvider' })
+			]);
+			expect(container.querySelectorAll('button')).toHaveLength(1);
 			const button = container.querySelector('button');
+			expect(button).toBe(originalButton);
 			expect(button?.textContent).toBe('Northwind:editor');
 			expect(button?.getAttribute('data-brand')).toBe('Northwind');
 			expect(button?.getAttribute('data-accent')).toBe('#2255aa');
 			expect(button?.getAttribute('data-editor')).toBe('true');
+		} catch (error) {
+			failed = true;
+			throw error;
 		} finally {
-			await runtime.dispose?.();
+			const errors: unknown[] = [];
+			try {
+				if (boundary) unmount(boundary);
+			} catch (error) {
+				errors.push(error);
+			}
+			try {
+				await runtime.dispose?.();
+			} catch (error) {
+				errors.push(error);
+			}
+			if (errors.length) {
+				if (!failed) throw new AggregateError(errors, 'Identity test cleanup failed');
+				console.error('Identity test cleanup failed', ...errors);
+			}
 		}
 	});
 

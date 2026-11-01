@@ -13,22 +13,7 @@ import type {
 } from '@exactjs/language-extension-api';
 import { ariaProperties, ariaRoles } from './generated/aria-data.js';
 import { accessibilityDiagnostics, accessibilityHover } from './language/analysis.js';
-import { isAccessibilityActivation } from './language/facts.js';
-
-const activators = [
-	'activeDescendant',
-	'controls',
-	'describedBy',
-	'details',
-	'errorMessage',
-	'flowTo',
-	'focusScope',
-	'initialFocus',
-	'labelledBy',
-	'navigate',
-	'owns',
-	'returnFocus'
-] as const;
+import { accessibilityActivators, isAccessibilityActivation } from './language/facts.js';
 
 /** Creates the Node-only accessibility analyzer used by the generic language-extension host. */
 export const createExactLanguageAnalyzer: ExactLanguageAnalyzerFactory = async () =>
@@ -68,10 +53,10 @@ class AccessibilityLanguageAnalyzer implements ExactLanguageAnalyzer {
 					replace: { start: request.position - prefix.length - 5, end: request.position }
 				}));
 		}
-		const namespace = /a11y:([\w]*)$/u.exec(before);
+		const namespace = /a11y:([\w-]*)$/u.exec(before);
 		if (!namespace) return [];
 		const prefix = namespace[1]!;
-		return activators
+		return accessibilityActivators
 			.filter((value) => value.startsWith(prefix))
 			.map((value) => ({
 				label: value,

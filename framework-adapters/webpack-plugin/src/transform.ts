@@ -1,3 +1,8 @@
+import { prepareExactWebpackSource } from './source-preparation.js';
+import {
+	isExactOwnedHelperSource,
+	shouldTransformExactBuildModulePath
+} from '@exactjs/compiler/adapter-support';
 import { createTokenSourceMap, type ExactCompilerSession } from '@exactjs/compiler';
 import {
 	rebindExactPhysicalEnhancementFacade,
@@ -8,7 +13,7 @@ import {
 	transformExactAdapterModule
 } from '@exactjs/compiler/adapter-support';
 import type { IntlBuildCoordinator } from '@exactjs/intl-build';
-import { jsxSourceOwnership, resolveReactCompatibility } from '@exactjs/react-compat/plugin';
+import { resolveReactCompatibility } from '@exactjs/react-compat/plugin';
 import { transformReactJsx, usesReactRuntimeImports } from '@exactjs/react-compat/transform';
 import { appendWebpackDevtoolsBootstrap, webpackDebugEnabled } from './devtools.js';
 import type { ExactWebpackPluginOptions } from './plugin.js';
@@ -40,7 +45,8 @@ export function transformExactWebpackModule(
 	options: ExactWebpackPluginOptions = {},
 	session?: ExactCompilerSession,
 	intl?: IntlBuildCoordinator,
-	warn?: (message: string) => void
+	warn?: (message: string) => void,
+	preparedSource?: ReturnType<typeof prepareExactWebpackSource>
 ): ExactWebpackTransformResult | null {
 	let enhancementFacades: ExactWebpackTransformResult['enhancementFacades'];
 	// Already-owned facades have been selected in this consumer generation; do not wrap them again.
@@ -87,9 +93,25 @@ export function transformExactWebpackModule(
 			enhancementFacades
 		};
 	}
-	const reachedPublication =
-		intl && options.internationalization ? intl.activateReachedSource(source, filename) : undefined;
-	if (!shouldTransformWebpackModule(filename, source, options))
+	const { reachedPublication, intlAnalysis, analyzedSource, ownership } =
+		preparedSource ??
+		prepareExactWebpackSource(
+			source,
+			filename,
+			options,
+			intl,
+			warn,
+			shouldTransformWebpackModule(filename, source, options) ||
+				isExactOwnedHelperSource(filename, session)
+		);
+	if (
+		!shouldTransformWebpackModule(filename, analyzedSource, options) &&
+		!(
+			webpackTransformTarget(options) === 'server' &&
+			isExactOwnedHelperSource(filename, session) &&
+			shouldTransformExactBuildModulePath(filename, options)
+		)
+	)
 		return reachedPublication
 			? {
 					code: reachedPublication.code,
@@ -104,18 +126,8 @@ export function transformExactWebpackModule(
 	const compatibilityEngine = reactCompatibility
 		? webpackCompatibilityEngine(options, session, reactCompatibility.target)
 		: undefined;
-	const authoredOwnership = jsxSourceOwnership(filename, source, reactCompatibility);
-	const intlAnalysis =
-		intl && options.internationalization && authoredOwnership !== 'react'
-			? intl.analyzeConfiguredSource(source, filename)
-			: undefined;
-	for (const diagnostic of intlAnalysis?.diagnostics ?? [])
-		warn?.(`${diagnostic.file}:${diagnostic.start}: ${diagnostic.message}`);
-	const analyzedSource = intlAnalysis?.code ?? source;
-	const ownership = intlAnalysis
-		? jsxSourceOwnership(filename, analyzedSource, reactCompatibility)
-		: authoredOwnership;
 	const output = transformExactAdapterModule({
+		warn,
 		source: analyzedSource,
 		filename,
 		jsxOwnership: ownership,

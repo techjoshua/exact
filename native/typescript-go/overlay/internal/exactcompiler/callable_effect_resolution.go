@@ -322,33 +322,8 @@ func declarationCallEnvironment(
 			continue
 		}
 		annotations = mergeAnnotations(annotations, callableNodeAnnotations(declaration, sourceFile))
-		filename := strings.ToLower(
-			strings.ReplaceAll(sourceFile.FileName(), `\`, "/"),
-		)
-		switch {
-		case strings.Contains(filename, "/@types/node/"):
-			return "server", true
-		case strings.Contains(filename, "/packages/hydrate/") ||
-			strings.Contains(filename, "/@exactjs/hydrate/"):
-			return "browser", true
-		case strings.Contains(filename, "/packages/dom/") ||
-			strings.Contains(filename, "/@exactjs/dom/"):
-			// Resolved declarations own platform effects even when the import is renamed.
-			switch symbol.Name {
-			case "render", "renderCompiledComponentRoot", "unmount", "dispose", "adoptStatic",
-				"adoptComponentRoot", "adoptMarkerlessComponentRoot",
-				"findComponentDomNode", "disposeOwnedSubtree":
-				return "browser", true
-			default:
-				return "", true
-			}
-		case strings.Contains(filename, "/packages/core/") ||
-			strings.Contains(filename, "/@exactjs/core/") ||
-			strings.Contains(filename, "/packages/reactive/") ||
-			strings.Contains(filename, "/@exactjs/reactive/") ||
-			strings.Contains(filename, "/packages/request/") ||
-			strings.Contains(filename, "/@exactjs/request/"):
-			return "", true
+		if environment, classified := declarationSourceEnvironment(sourceFile, symbol.Name); classified {
+			return environment, true
 		}
 	}
 	// An unresolved published callable may expose its contract only in a declaration file.
@@ -368,6 +343,60 @@ func declarationCallEnvironment(
 	return "", false
 }
 
+// declarationSourceEnvironment owns the existing module declaration contract independently
+// of source receiver completeness. It grants effects only, not a callable implementation.
+func declarationSourceEnvironment(sourceFile *ast.SourceFile, name string) (string, bool) {
+	if sourceFile == nil {
+		return "", false
+	}
+	filename := strings.ToLower(strings.ReplaceAll(sourceFile.FileName(), `\`, "/"))
+	switch {
+	case strings.Contains(filename, "/@types/node/"):
+		return "server", true
+	case strings.Contains(filename, "/packages/hydrate/") ||
+		strings.Contains(filename, "/@exactjs/hydrate/"):
+		return "browser", true
+	case strings.Contains(filename, "/packages/dom/") ||
+		strings.Contains(filename, "/@exactjs/dom/"):
+		// Resolved declarations own platform effects even when the import is renamed.
+		switch name {
+		case "render", "renderComponentRoot", "renderCompiledComponentInputRoot", "unmount", "dispose", "adoptStatic",
+			"adoptComponentRoot", "adoptMarkerlessComponentRoot",
+			"findComponentDomNode", "disposeOwnedSubtree":
+			return "browser", true
+		default:
+			return "", true
+		}
+	case strings.Contains(filename, "/packages/core/") ||
+		strings.Contains(filename, "/@exactjs/core/") ||
+		strings.Contains(filename, "/packages/reactive/") ||
+		strings.Contains(filename, "/@exactjs/reactive/") ||
+		strings.Contains(filename, "/packages/request/") ||
+		strings.Contains(filename, "/@exactjs/request/"):
+		return "", true
+	}
+	return "", false
+}
+
+// portableDeclaredMethod requires every actual selected declaration to be a method
+// of a recognized portable package. Structural names and property/getter signatures
+// do not supply this existing package contract.
+func portableDeclaredMethod(symbol *ast.Symbol) bool {
+	if symbol == nil || len(symbol.Declarations) == 0 {
+		return false
+	}
+	for _, declaration := range symbol.Declarations {
+		source := ast.GetSourceFileOfNode(declaration)
+		if declaration.Kind != ast.KindMethodSignature || source == nil || !source.IsDeclarationFile {
+			return false
+		}
+		if environment, classified := declarationSourceEnvironment(source, symbol.Name); !classified || environment != "" {
+			return false
+		}
+	}
+	return true
+}
+
 func opaqueCallExpression(expression *ast.Node, typeChecker *checker.Checker) bool {
 	root := expression
 	for ast.IsPropertyAccessExpression(root) {
@@ -378,7 +407,7 @@ func opaqueCallExpression(expression *ast.Node, typeChecker *checker.Checker) bo
 	}
 	symbol := typeChecker.GetSymbolAtLocation(root)
 	if symbol == nil {
-		return false
+		return true
 	}
 	if symbol.Flags&ast.SymbolFlagsAlias != 0 {
 		return true
@@ -430,6 +459,7 @@ func receiverTypeEnvironment(
 	if value == nil {
 		return ""
 	}
+	value = typeChecker.GetNonNullableType(value)
 	if owner := nativeReceiverMemberEnvironment(expression, typeChecker); owner != "" {
 		return owner
 	}
@@ -458,7 +488,11 @@ func receiverTypeEnvironment(
 	return ""
 }
 
-func resolveCallableEffects(facts []callableFacts) {
+func resolveCallableEffects(facts []callableFacts, owners ...*executableBodyOwner) {
+	var mapOwner *executableBodyOwner
+	if len(owners) == 1 {
+		mapOwner = owners[0]
+	}
 	cycles := callableCycleGroups(facts)
 	work := newCallableEffectWork(facts)
 	changed := true
@@ -471,6 +505,7 @@ func resolveCallableEffects(facts []callableFacts) {
 			work.dirty[index] = false
 			fact := &facts[index]
 			factChanged := false
+			blocked := fact.directOwnedScalarBlocked
 			sources := append(
 				[]EnvironmentEffectSource(nil),
 				fact.summary.DirectEffectSources...,
@@ -486,17 +521,37 @@ func resolveCallableEffects(facts []callableFacts) {
 					continue
 				}
 				target := facts[targetIndex].summary
-				for _, source := range target.EffectSources {
-					path := source.Path
-					if len(path) == 0 || path[0] != fact.summary.Name {
-						path = append([]string{fact.summary.Name}, path...)
+				if len(target.StateWrites) != 0 {
+					blocked = blocked || target.ownedScalarBlocked
+					for _, edge := range fact.summary.Calls {
+						if edge.TargetID == target.ID && !fact.ownedScalarCalls[edge.ID] {
+							blocked = true
+						}
 					}
-					sources = append(sources, EnvironmentEffectSource{
-						Environment: source.Environment,
-						Description: source.Description,
-						Path:        path,
-						Opaque:      source.Opaque,
-					})
+				}
+				for _, edge := range fact.summary.Calls {
+					if !edge.Resolved || edge.TargetID != target.ID {
+						continue
+					}
+					for _, source := range target.EffectSources {
+						if mapInputFallbackFulfilled(fact, &facts[targetIndex], edge, source, mapOwner) || fieldFallbackFulfilled(fact, &facts[targetIndex], edge, source) || callFallbackFulfilled(fact, &facts[targetIndex], edge, source) || descriptorFallbackFulfilled(fact, &facts[targetIndex], edge, source) {
+							continue
+						}
+						transferred := source
+						if len(source.Path) == 0 || source.Path[0] != fact.summary.Name {
+							transferred.Path = append([]string{fact.summary.Name}, source.Path...)
+						}
+						if transferred.callOrigin != nil {
+							transferred.callForwarded = true
+						}
+						if transferred.descriptorOrigin != nil {
+							transferred.descriptorForwarded = true
+						}
+						if transferred.fieldOrigin != nil {
+							transferred.fieldForwarded = true
+						}
+						sources = append(sources, transferred)
+					}
 				}
 				reads = append(
 					reads,
@@ -525,7 +580,7 @@ func resolveCallableEffects(facts []callableFacts) {
 				// concrete browser or server dependency discovered by semantic analysis.
 				known := sources[:0]
 				for _, source := range sources {
-					if source.Environment != "unknown" {
+					if source.Environment != "unknown" || source.provenanceIncomplete {
 						known = append(known, source)
 					}
 				}
@@ -539,12 +594,12 @@ func resolveCallableEffects(facts []callableFacts) {
 				fact.summary.EffectSources = sources
 				factChanged = true
 			}
-			if signature := stateEffectsSignature(reads); signature != work.signatures[index].reads {
+			if signature := stateEffectSetSignature(reads); signature != work.signatures[index].reads {
 				work.signatures[index].reads = signature
 				fact.summary.StateReads = reads
 				factChanged = true
 			}
-			if signature := stateEffectsSignature(writes); signature != work.signatures[index].writes {
+			if signature := stateEffectSetSignature(writes); signature != work.signatures[index].writes {
 				work.signatures[index].writes = signature
 				fact.summary.StateWrites = writes
 				factChanged = true
@@ -552,6 +607,10 @@ func resolveCallableEffects(facts []callableFacts) {
 			if signature := contextEffectSetSignature(contexts); signature != work.signatures[index].contexts {
 				work.signatures[index].contexts = signature
 				fact.summary.Contexts = contexts
+				factChanged = true
+			}
+			if fact.summary.ownedScalarBlocked != blocked {
+				fact.summary.ownedScalarBlocked = blocked
 				factChanged = true
 			}
 			if factChanged {
@@ -594,6 +653,30 @@ func applyCallableArtifactConstraints(facts []callableFacts) {
 	}
 }
 
+// appendDirectReferenceEffects classifies an executed source reference for its
+// original effect publisher. Checker identity, context provenance and guarded
+// browser access stay shared by callable and actual field-initializer drivers.
+// This function neither executes a reference nor grants field/body admission.
+func appendDirectReferenceEffects(fact *callableFacts, node *ast.Node, sourceFile *ast.SourceFile, typeChecker *checker.Checker) {
+	if node == nil || !ast.IsIdentifier(node) || ast.IsDeclarationName(node) || isStaticPropertyName(node) {
+		return
+	}
+	name := node.Text()
+	symbol := typeChecker.GetSymbolAtLocation(node)
+	if effect, ok := contextBindingReferenceEffect(symbol, sourceFile, typeChecker); ok {
+		fact.directContext = append(fact.directContext, effect)
+	}
+	if _, candidate := browserGlobals[name]; candidate && symbolIsOutsideSource(symbol, sourceFile) && !browserGlobalReferenceIsGuarded(node, name, fact.node) {
+		fact.summary.DirectEffectSources = append(fact.summary.DirectEffectSources, environmentSource("browser", name, fact.summary.Name))
+	}
+	if _, candidate := serverGlobals[name]; candidate && symbolIsOutsideSource(symbol, sourceFile) {
+		fact.summary.DirectEffectSources = append(fact.summary.DirectEffectSources, environmentSource("server", name, fact.summary.Name))
+	}
+	if serverOnlyImportSymbol(symbol) {
+		fact.summary.DirectEffectSources = append(fact.summary.DirectEffectSources, environmentSource("server", "server-only import "+name, fact.summary.Name))
+	}
+}
+
 func environmentSource(
 	environment string,
 	description string,
@@ -612,13 +695,19 @@ func uniqueEnvironmentSources(
 	result := make([]EnvironmentEffectSource, 0, len(values))
 	shortest := make(map[string]EnvironmentEffectSource, len(values))
 	for _, value := range values {
-		key := value.Environment + ":" + value.Description
+		key := value.Environment + ":" + value.Description + fieldSourceIdentity(value)
 		current, exists := shortest[key]
 		if !exists || len(value.Path) < len(current.Path) ||
 			(len(value.Path) == len(current.Path) &&
 				strings.Join(value.Path, ".") < strings.Join(current.Path, ".")) {
+			value.provenanceIncomplete = value.provenanceIncomplete || current.provenanceIncomplete
+			value.Opaque = value.Opaque || current.Opaque
 			value.Path = nonNilSlice(value.Path)
 			shortest[key] = value
+		} else if value.provenanceIncomplete && !current.provenanceIncomplete {
+			current.provenanceIncomplete = true
+			current.Opaque = current.Opaque || value.Opaque
+			shortest[key] = current
 		}
 	}
 	for _, value := range shortest {
@@ -626,9 +715,9 @@ func uniqueEnvironmentSources(
 	}
 	sort.Slice(result, func(left int, right int) bool {
 		leftKey := result[left].Environment + ":" + result[left].Description + ":" +
-			strings.Join(result[left].Path, ".")
+			strings.Join(result[left].Path, ".") + fieldSourceIdentity(result[left])
 		rightKey := result[right].Environment + ":" + result[right].Description + ":" +
-			strings.Join(result[right].Path, ".")
+			strings.Join(result[right].Path, ".") + fieldSourceIdentity(result[right])
 		return leftKey < rightKey
 	})
 	return result
@@ -786,10 +875,14 @@ func environmentSourcesSignature(values []EnvironmentEffectSource) string {
 		result.WriteString(value.Environment)
 		result.WriteByte(':')
 		result.WriteString(value.Description)
+		result.WriteString(fieldSourceIdentity(value))
 		result.WriteByte(':')
 		result.WriteString(strings.Join(value.Path, "."))
 		if value.Opaque {
 			result.WriteString(":opaque")
+		}
+		if value.provenanceIncomplete {
+			result.WriteString(":provenance-incomplete")
 		}
 		result.WriteByte('\n')
 	}
@@ -803,6 +896,7 @@ func stateEffectsSignature(values []StateEffect) string {
 		result.WriteByte(':')
 		result.WriteString(stateEffectPathKey(value))
 		result.WriteByte(':')
+		result.WriteString(arrayRootProofSignature(value.ArrayRoots))
 		result.WriteString(value.Confidence)
 		result.WriteByte(':')
 		result.WriteString(stateReceiverSignature(value.Receiver))

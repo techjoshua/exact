@@ -16,12 +16,7 @@ const names = process.argv
 const workspaces = selectReleaseWorkspaces(await readWorkspaceManifests(root), names);
 const includesCompiler = workspaces.some((entry) => entry.manifest.name === '@exactjs/compiler');
 const nativePackages = includesCompiler ? path.resolve(argument('native-packages')) : undefined;
-await assertReleaseOutput(root, output);
-if (
-	nativePackages &&
-	(nativePackages === output || !path.relative(output, nativePackages).startsWith('..'))
-)
-	throw new Error('Native input archives must be outside the release output directory.');
+await assertReleaseOutput(root, output, nativePackages ? [nativePackages] : []);
 const nativeArchives = nativePackages
 	? (await readdir(nativePackages)).filter((entry) => entry.endsWith('.tgz'))
 	: [];

@@ -1,4 +1,5 @@
 import { disposeSymbolicTaskResource } from './resource-disposal.js';
+import { attachSuppressedCleanupFailure } from '../cleanup.js';
 import { registerTaskResourceOwner, settleTaskResourceLifetime } from './resource-lifetime.js';
 import type { TaskContext } from './contracts.js';
 import type { ServerExecutionOptions } from './server-component-execution-contracts.js';
@@ -66,11 +67,7 @@ export async function executeServerComponentTaskSlice<Args extends unknown[], Re
 			try {
 				await cleanups[index]!();
 			} catch (cleanupError) {
-				if (failure && typeof failure === 'object')
-					Object.defineProperty(failure, 'suppressed', {
-						configurable: true,
-						value: cleanupError
-					});
+				if (failed) attachSuppressedCleanupFailure(failure, cleanupError);
 				else failure = cleanupError;
 				failed = true;
 			}

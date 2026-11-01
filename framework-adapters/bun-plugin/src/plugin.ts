@@ -1,3 +1,5 @@
+import { withExactBunSourceSelection } from './source-compilation/execution.js';
+import { ExactBunSourcePreparation } from './source-compilation/preparation.js';
 import { createBunBuildResolver } from './build-resolver.js';
 import {
 	createCompilerSession,
@@ -48,6 +50,10 @@ export type * from './types.js';
 
 /** Creates the Bun plugin that transforms eXact JSX and resolves .exact facade imports. */
 export function exact(options: ExactBunPluginOptions = {}): ExactBunPlugin {
+	const preparation = new ExactBunSourcePreparation();
+	// Authored load observations distinguish changes, never executable source authority.
+	const observedSources = new Map<string, string>();
+	let buildGenerationStarted = false;
 	const explicitApplicationRoot = options.applicationRoot !== undefined;
 	let diagnosticsEnabled = options.diagnostics ?? false;
 	let compilerSession = createCompilerSession({
@@ -71,6 +77,9 @@ export function exact(options: ExactBunPluginOptions = {}): ExactBunPlugin {
 	const dispose = async (): Promise<void> => {
 		if (disposed) return;
 		disposed = true;
+		observedSources.clear();
+		buildGenerationStarted = false;
+		preparation.clear();
 		const authorization = componentAuthorization;
 		componentAuthorization = undefined;
 		const remote = remoteIntegration;
@@ -96,9 +105,11 @@ export function exact(options: ExactBunPluginOptions = {}): ExactBunPlugin {
 		dispose,
 		setup(build) {
 			if (disposed) throw new Error('Cannot set up a disposed eXact Bun plugin');
+			buildGenerationStarted = false;
 			const hostRoot = path.resolve(build.config?.root ?? process.cwd());
 			if (!explicitApplicationRoot && options.applicationRoot !== hostRoot) {
 				options = { ...options, applicationRoot: hostRoot };
+				preparation.clear();
 				intl.dispose();
 				intl = createIntl();
 			}
@@ -121,6 +132,7 @@ export function exact(options: ExactBunPluginOptions = {}): ExactBunPlugin {
 			const nextDiagnostics = options.diagnostics ?? automaticDevelopment;
 			if (nextDiagnostics !== diagnosticsEnabled) {
 				compilerSession.dispose();
+				observedSources.clear();
 				diagnosticsEnabled = nextDiagnostics;
 				compilerSession = createCompilerSession({
 					nativeCompiler: { executable: resolveNativeCompilerExecutable() },
@@ -134,14 +146,17 @@ export function exact(options: ExactBunPluginOptions = {}): ExactBunPlugin {
 			});
 			// Bun does not report a changed-file set, including erased type imports.
 			// Each build starts a fresh program while sharing its process across modules.
-			if (!build.onStart) compilerSession.clear();
+			if (!build.onStart) {
+				compilerSession.clear();
+				observedSources.clear();
+			}
 			let configuredDebug = options.debug;
 			let packageEnhancements: readonly ExactPackageEnhancementImport[] = [];
 			build.config ??= {};
-			build.config.conditions = mergeConditions(
-				normalizeConditions(build.config.conditions),
-				exactExportConditions(targetFor(options), options)
-			);
+			build.config.conditions = mergeConditions(normalizeConditions(build.config.conditions), [
+				...exactExportConditions(targetFor(options), options),
+				...(build.config.target === 'browser' ? ['browser'] : [])
+			]);
 			if (options.target === 'server')
 				componentAuthorization = new ExactBunComponentAuthorization({
 					warn: (message) => console.warn(message),
@@ -151,15 +166,19 @@ export function exact(options: ExactBunPluginOptions = {}): ExactBunPlugin {
 			build.onStart?.(async () => {
 				if (disposed) throw new Error('Cannot start a disposed eXact Bun plugin');
 				compilerSession.clear();
+				observedSources.clear();
+				buildGenerationStarted = true;
 				remoteIntegration?.begin();
 				inspectionModules.clear();
 				enhancementFacades.clear();
 				await resolveProvider.dispose();
 				resolveProvider = createBunBuildResolver(build, applicationRoot);
+				preparation.clear();
 				await intl.beginBuild();
 				configuration.invalidate();
 				const loadedConfig = await configuration.read();
 				packageEnhancements = loadedConfig.packageEnhancements;
+				compilerSession.setAnalysisPolicy(loadedConfig.config?.analysis);
 				await languageValidation?.dispose();
 				languageValidation = createExactLanguageValidationSession({
 					workspaceRoot: path.resolve(options.applicationRoot ?? process.cwd()),
@@ -233,7 +252,7 @@ export function exact(options: ExactBunPluginOptions = {}): ExactBunPlugin {
 					]);
 				}
 			});
-			remoteIntegration?.install(build);
+			remoteIntegration?.install(build, (request, options) => resolveProvider(request, options));
 			build.onResolve({ filter: /\.exact$/ }, (args) => {
 				const resolved = resolveExactBunRequest(args.path, args.importer, options);
 				return resolved ? { path: resolved } : undefined;
@@ -335,42 +354,66 @@ export function exact(options: ExactBunPluginOptions = {}): ExactBunPlugin {
 				const artifactFacts = readExactArtifactComponentFacts(source, args.path);
 				if (artifactFacts) componentAuthorization?.record(args.path, source, artifactFacts);
 				remoteIntegration?.recordSource(args.path, source);
-				if (compilerObservationFilter.test(args.path)) {
-					const invalidation = compilerSession.invalidate(args.path);
-					if (diagnosticsEnabled) reportDiagnostics(invalidation, console.warn);
-				}
-				const result = transformExactBunSource(
+				return withExactBunSourceSelection(
 					source,
 					args.path,
-					{
-						...options,
-						__exactPackageEnhancements: packageEnhancements,
-						__exactLanguageValidation: Boolean(languageValidation),
-						debug: resolveBunDebug(configuredDebug, automaticDevelopment)
-					},
+					options,
 					compilerSession,
+					applicationRoot,
+					packageEnhancements,
 					intl,
-					(message) => console.warn(message)
+					preparation,
+					resolveProvider,
+					() => {
+						if (compilerObservationFilter.test(args.path)) {
+							const previous = observedSources.get(args.path);
+							// A real build reset owns initial reads. Runtime loaders lack that boundary.
+							const initialCheck =
+								previous === undefined && (!buildGenerationStarted || diagnosticsEnabled);
+							if (initialCheck || (previous !== undefined && previous !== source)) {
+								const invalidation = compilerSession.invalidate(args.path);
+								if (diagnosticsEnabled) reportDiagnostics(invalidation, console.warn);
+							}
+							observedSources.set(args.path, source);
+						}
+					},
+					async (preparedSource, target) => {
+						const result = transformExactBunSourceImpl(
+							source,
+							args.path,
+							{
+								...options,
+								target,
+								__exactPackageEnhancements: packageEnhancements,
+								__exactLanguageValidation: Boolean(languageValidation),
+								debug: resolveBunDebug(configuredDebug, automaticDevelopment)
+							},
+							compilerSession,
+							intl,
+							(message) => console.warn(message),
+							preparedSource
+						);
+						if (!result) {
+							// Runtime loaders require a load result. Bundler loaders can defer to
+							// subsequent plugins through their build-only onStart lifecycle.
+							return build.onStart ? undefined : { contents: source, loader: bunLoader(args.path) };
+						}
+						remoteIntegration?.recordSource(args.path, result.code);
+						if (result.languageProjection)
+							await languageValidation?.validate([result.languageProjection]);
+						if (result.componentBuild)
+							componentAuthorization?.record(args.path, source, result.componentBuild);
+						if (result.inspection)
+							inspectionModules.set(path.resolve(args.path), {
+								...result.inspection,
+								source
+							});
+						return {
+							contents: bunSourceWithMap(result.code, result.map),
+							loader: bunLoader(args.path)
+						};
+					}
 				);
-				if (!result) {
-					// Runtime loaders require a load result. Bundler loaders can defer to
-					// subsequent plugins through their build-only onStart lifecycle.
-					return build.onStart ? undefined : { contents: source, loader: bunLoader(args.path) };
-				}
-				remoteIntegration?.recordSource(args.path, result.code);
-				if (result.languageProjection)
-					await languageValidation?.validate([result.languageProjection]);
-				if (result.componentBuild)
-					componentAuthorization?.record(args.path, source, result.componentBuild);
-				if (result.inspection)
-					inspectionModules.set(path.resolve(args.path), {
-						...result.inspection,
-						source
-					});
-				return {
-					contents: bunSourceWithMap(result.code, result.map),
-					loader: bunLoader(args.path)
-				};
 			});
 		}
 	};

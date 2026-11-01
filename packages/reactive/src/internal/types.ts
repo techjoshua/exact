@@ -21,7 +21,7 @@ export type ReactiveValue<T = unknown> = {
 	[Symbol.toPrimitive](): T;
 };
 
-/** Immutable, value-free diagnostic projection for one computed value. */
+/** Value-free diagnostic snapshot for one computed value with readonly TypeScript fields. */
 export type ComputedInspection = Readonly<{
 	state: 'clean' | 'checked' | 'dirty' | 'computing' | 'stopped' | 'failed' | 'paused';
 	priority: WorkPriority;
@@ -55,9 +55,7 @@ export type Reaction = {
 
 /** Configures reactive. */
 export type ReactiveOptions = {
-	readonly?: boolean;
 	passthroughKeys?: readonly PropertyKey[];
-	onReadonlyWrite?(key: PropertyKey): void;
 	/**
 	 * Observes successful mutations after dependency invalidation.
 	 * Failures are isolated so diagnostics cannot alter reactive semantics.

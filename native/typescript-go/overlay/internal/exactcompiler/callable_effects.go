@@ -28,39 +28,80 @@ var universalCallRoots = map[string]struct{}{
 	"Promise": {}, "Reflect": {}, "RegExp": {}, "Set": {}, "String": {},
 	"Symbol": {}, "URL": {}, "URLSearchParams": {}, "WeakMap": {}, "WeakSet": {},
 	"clearInterval": {}, "clearTimeout": {}, "console": {}, "fetch": {},
-	"parseFloat": {}, "parseInt": {}, "queueMicrotask": {}, "setInterval": {},
+	"decodeURI": {}, "decodeURIComponent": {}, "encodeURI": {}, "encodeURIComponent": {},
+	"isFinite": {}, "isNaN": {}, "parseFloat": {}, "parseInt": {}, "queueMicrotask": {}, "setInterval": {},
 	"setTimeout": {}, "structuredClone": {},
 }
 
 type callableFacts struct {
-	progressReceiver   bool
-	node               *ast.Node
-	sourceFile         *ast.SourceFile
-	summary            CallableSummary
-	directReads        []StateEffect
-	directWrites       []StateEffect
-	directContext      []ContextEffect
-	targets            []int
-	callSymbols        map[string]ast.SymbolId
-	callExpressions    map[string]*ast.Node
-	contextReferences  map[string]*ast.Node
-	artifactConstraint uint8
+	componentInputDemands []sourceComponentInputDemand
+	// Source coverage is immutable analysis metadata, never a runtime receipt.
+	pendingPrefixCoverage  *sourcePrefixRefusalCoverage
+	prefixCoverage         *sourcePrefixRefusalCoverage
+	initializerDraft       *moduleInitializerDraft
+	initializerPlan        *closedOwnGetterPlan
+	initializerDeclaration *ast.Node
+	ownedLegacyPending     []*sourceLegacyPublication
+	ownedGetResults        []*ownedGetPopulation
+	ownedGetPending        []*ownedGetFactObligation
+
+	// The producing analysis mode is immutable, independent of later routing.
+	descriptorMode      [32]byte
+	fieldCalls          []sourceFieldCall
+	mapInputs           []*sourceMapInputContribution
+	fieldEdgeOperations map[string]*ast.Node
+
+	// normalInputs exists only during this fact's normal demand construction.
+	normalInputs             *sourceValueInputs
+	thenReferences           []sourceThenReference
+	nativeCalls              []*sourceNativeInvocation
+	normalCalls              []*sourceInvocationResult
+	thenIncomplete           bool
+	ownedObligations         []sourceOwnedObligations
+	progressReceiver         bool
+	node                     *ast.Node
+	sourceFile               *ast.SourceFile
+	summary                  CallableSummary
+	directReads              []StateEffect
+	directWrites             []StateEffect
+	directContext            []ContextEffect
+	targets                  []int
+	callSymbols              map[string]ast.SymbolId
+	callExpressions          map[string]*ast.Node
+	contextReferences        map[string]*ast.Node
+	artifactConstraint       uint8
+	directOwnedScalarBlocked bool
+	ownedScalarCalls         map[string]bool
 }
 
 type callableAnalysis struct {
+	owner     *executableBodyOwner
 	summaries []CallableSummary
 	byNode    map[*ast.Node]CallableSummary
 	bySymbol  map[ast.SymbolId]CallableSummary
 	facts     []callableFacts
 }
 
+// projectCallableCache contains checker-bound facts for one exact program/checker generation.
+const advisoryAnalysisSemantics = 3
+
+// Analysis semantics is separate from diagnostic threshold policy.
 type projectCallableCache struct {
+	semantics    int
+	program      *compiler.Program
+	owner        *executableBodyOwner
 	assetRules   []AssetRule
 	bySource     map[*ast.SourceFile]callableAnalysis
 	fingerprints map[*ast.SourceFile]string
 	owned        map[*ast.SourceFile]bool
 	analyses     []callableAnalysis
 	merged       callableAnalysis
+}
+
+// ownsGeneration prevents source-value queries from borrowing a checker from a replaced program.
+// Source identity and unchanged authored text alone do not preserve checker-owned facts.
+func (cache *projectCallableCache) ownsGeneration(program *compiler.Program, typeChecker *checker.Checker) bool {
+	return cache != nil && cache.semantics == advisoryAnalysisSemantics && cache.program == program && cache.owner != nil && cache.owner.checker == typeChecker && cache.owner.values != nil
 }
 
 // collectCallableEffects builds a source-order-independent local call graph and
@@ -75,8 +116,37 @@ func collectCallableEffects(
 	stateWrites []StateWrite,
 	componentBindings map[int]componentBinding,
 	assets assetAnalysis,
+	owner *executableBodyOwner,
 ) callableAnalysis {
+	// Snapshot the actual producing mode before refusal removes routing.
+	// This scalar is not recovered from historical coverage or a later query.
+	prefixMode := [32]byte{}
+	if owner != nil && owner.values != nil {
+		if p := owner.values.closedPrefixCandidate; p != nil && p.source == sourceFile && p.history != nil {
+			prefixMode = p.history.mode
+		}
+	}
 	nodes := collectCallableNodes(sourceFile)
+	plans := map[*ast.Node]*closedOwnGetterPlan{}
+	declarations := map[*ast.Node]*ast.Node{}
+	for _, statement := range sourceFile.Statements.Nodes {
+		if declaration, plan, ok := preflightModuleInitializer(owner, statement); ok {
+			nodes = append(nodes, statement)
+			plans[statement] = plan
+			declarations[statement] = declaration
+		} else if possibleProxyInitializer(owner.values, statement) != nil {
+			nodes = append(nodes, statement)
+		} else if moduleCallInitializer(owner.values, statement) != nil {
+			// Ordinary Call initializers need an original effect owner. They do
+			// not use the specialized literal/getter publication cursor.
+			nodes = append(nodes, statement)
+		} else if moduleNestedCallEffects(owner.values, statement) {
+			// A trailing member Get does not erase the real nested Call's effects.
+			// This statement fact supplies no direct-Call result publication.
+			nodes = append(nodes, statement)
+		}
+	}
+	sort.Slice(nodes, func(i, j int) bool { return nodes[i].Pos() < nodes[j].Pos() })
 	facts := make([]callableFacts, 0, len(nodes))
 	componentByStart := make(map[int]Component, len(components))
 	for _, component := range components {
@@ -84,12 +154,27 @@ func collectCallableEffects(
 	}
 	symbolTargets := make(map[ast.SymbolId]int)
 	importBindings := collectExternalImportBindings(sourceFile, typeChecker)
+	// Reuse this analysis's selected components and imports before effect queries.
+	// Settlement must not rediscover all component bodies for each returned value.
+	if owner != nil && owner.values != nil {
+		if owner.values.components == nil {
+			owner.values.components = make(map[*ast.Node]externalImportBindings)
+		}
+		for _, node := range nodes {
+			if _, component := componentByStart[node.Pos()]; component {
+				owner.values.components[node] = importBindings
+			}
+		}
+	}
 	for _, node := range nodes {
 		name, kind, exportNames := callableIdentity(node, componentByStart)
 		index := len(facts)
 		facts = append(facts, callableFacts{
-			node:       node,
-			sourceFile: sourceFile,
+			node:                   node,
+			initializerPlan:        plans[node],
+			initializerDeclaration: declarations[node],
+			sourceFile:             sourceFile,
+			descriptorMode:         prefixMode,
 			summary: CallableSummary{
 				ID: fmt.Sprintf(
 					"callable:%s:%d",
@@ -108,10 +193,11 @@ func collectCallableEffects(
 				Contexts:            []ContextEffect{},
 			},
 			callSymbols:       make(map[string]ast.SymbolId),
+			ownedScalarCalls:  make(map[string]bool),
 			callExpressions:   make(map[string]*ast.Node),
 			contextReferences: make(map[string]*ast.Node),
 		})
-		if symbol := callableDeclarationSymbol(node, typeChecker); symbol != nil {
+		if symbol := callableDeclarationSymbol(node, typeChecker); symbol != nil && !ast.IsGetAccessorDeclaration(node) && !ast.IsSetAccessorDeclaration(node) {
 			symbolTargets[ast.GetSymbolId(symbol)] = index
 		}
 		if binding := sourceCallableBinding(node); binding != nil {
@@ -134,6 +220,7 @@ func collectCallableEffects(
 	)
 	contextBindings := collectContextBindings(sourceFile, typeChecker)
 
+	installBuildingInitializers(owner, sourceFile, facts)
 	for index := range facts {
 		if callableIsInteractiveHandler(facts[index].node) {
 			facts[index].summary.DirectEffectSources = append(
@@ -155,10 +242,17 @@ func collectCallableEffects(
 			importBindings,
 			contextBindings,
 			assets,
+			owner,
+			prefixMode,
 		)
 	}
+	sealMapInputs(facts, nodeTargets)
+	applyPrefixSourceCoverage(facts, nodeTargets, owner, prefixMode)
+	for index := range facts {
+		facts[index].directOwnedScalarBlocked = facts[index].directOwnedScalarBlocked || !directScalarHelper(&facts[index], typeChecker)
+	}
 	facts = appendComponentBindingCallableFacts(facts, sourceFile, componentBindings)
-	resolveCallableEffects(facts)
+	resolveCallableEffects(facts, owner)
 	applyCallableArtifactConstraints(facts)
 
 	summaries := make([]CallableSummary, len(facts))
@@ -172,8 +266,11 @@ func collectCallableEffects(
 			fact.summary.EffectSources,
 			fact.artifactConstraint,
 		)
-		summaries[index] = fact.summary
-		byNode[fact.node] = fact.summary
+		published := fact.summary
+		published.DirectEffectSources = displayEnvironmentSources(published.DirectEffectSources)
+		published.EffectSources = displayEnvironmentSources(published.EffectSources)
+		summaries[index] = published
+		byNode[fact.node] = published
 	}
 	bySymbol := make(map[ast.SymbolId]CallableSummary, len(symbolTargets))
 	for symbol, index := range symbolTargets {
@@ -272,19 +369,46 @@ func collectProjectCallableEffects(
 	componentBindings map[int]componentBinding,
 	assets assetAnalysis,
 	assetRules []AssetRule,
+	prefixCandidates ...*closedPrefixCandidate,
 ) callableAnalysis {
 	// Asset rules are request-owned. Reuse requires the same declaration contract,
 	// including for dependencies seeded before they become a requested source.
-	if project.callableCache == nil || !sameCallableAssetRules(project.callableCache.assetRules, assetRules) {
-		project.callableCache = &projectCallableCache{assetRules: snapshotCallableAssetRules(assetRules), bySource: make(map[*ast.SourceFile]callableAnalysis), fingerprints: make(map[*ast.SourceFile]string), owned: make(map[*ast.SourceFile]bool)}
+	cacheNeedsPublication := project.callableCache != nil && !project.callableCache.owned[sourceFile] && project.callableCache.owner != nil && project.callableCache.owner.values != nil && (project.callableCache.owner.values.language == nil || project.callableCache.owner.values.language.disposed)
+	if !project.callableCache.ownsGeneration(project.program, typeChecker) || !sameCallableAssetRules(project.callableCache.assetRules, assetRules) || cacheNeedsPublication || staleModuleOriginCache(project.callableCache, project.activeGeneration) {
+		project.callableCache = &projectCallableCache{semantics: advisoryAnalysisSemantics, program: project.program, owner: newExecutableBodyOwner(project, typeChecker), assetRules: snapshotCallableAssetRules(assetRules), bySource: make(map[*ast.SourceFile]callableAnalysis), fingerprints: make(map[*ast.SourceFile]string), owned: make(map[*ast.SourceFile]bool)}
+	}
+	for _, candidate := range prefixCandidates {
+		if candidate != nil && project.callableCache.owned[sourceFile] {
+			old := project.callableCache.owner.values.closedPrefixes[sourceFile]
+			if old == nil || !old.cacheCompatible(project.callableCache.owner.values, project.callableCache.owner, candidate.source, candidate.history.mode) {
+				project.callableCache = &projectCallableCache{semantics: advisoryAnalysisSemantics, program: project.program, owner: newExecutableBodyOwner(project, typeChecker), assetRules: snapshotCallableAssetRules(assetRules), bySource: make(map[*ast.SourceFile]callableAnalysis), fingerprints: make(map[*ast.SourceFile]string), owned: make(map[*ast.SourceFile]bool)}
+			}
+		}
 	}
 	cache := project.callableCache
+	// Reused facts never retain the first request's checker lease capability.
+	cache.owner.values.generation = project.activeGeneration
+	for _, candidate := range prefixCandidates {
+		candidate.attach(cache.owner.values, cache.owner)
+	}
+	cache.owner.values.index(sourceFile)
+	for _, candidate := range prefixCandidates {
+		candidate.qualifyIndex()
+	}
 	changed := false
 	// Seed the requested source from session-owned facts before discovering dependencies.
 	// This avoids analyzing it once provisionally and again with authoritative binding writes.
 	if !cache.owned[sourceFile] {
 		project.counters.CallableSourceAnalyses++
-		refreshed := collectCallableEffects(sourceFile, typeChecker, components, stateReads, stateWrites, componentBindings, assets)
+		refreshed := collectCallableEffects(sourceFile, typeChecker, components, stateReads, stateWrites, componentBindings, assets, cache.owner)
+		for _, candidate := range prefixCandidates {
+			if candidate != nil && candidate.retryLegacy {
+				candidate.refuse()
+				// No semantic entry occurred. Discard speculative definition facts, then
+				// rebuild the complete legacy analysis, including held initializer facts.
+				refreshed = collectCallableEffects(sourceFile, typeChecker, components, stateReads, stateWrites, componentBindings, assets, cache.owner)
+			}
+		}
 		fingerprint := callableAnalysisFingerprint(refreshed)
 		if fingerprint != cache.fingerprints[sourceFile] {
 			cache.bySource[sourceFile] = refreshed
@@ -294,9 +418,11 @@ func collectProjectCallableEffects(
 		cache.owned[sourceFile] = true
 	}
 	if ensureProjectCallableSources(project, typeChecker, cache, assetRules) || changed || cache.analyses == nil {
-		rebuildProjectCallableCache(project.program, cache)
+		rebuildProjectCallableCache(project.program, cache, cache.owner)
 	}
-	return projectCallableAnalysisForSource(sourceFile, cache.merged)
+	result := projectCallableAnalysisForSource(sourceFile, cache.merged)
+	result.owner = cache.owner
+	return result
 }
 
 // The merged graph is immutable until invalidation. A request owns only its summary
@@ -331,7 +457,7 @@ func ensureProjectCallableSources(
 			continue
 		}
 		project.counters.CallableSourceAnalyses++
-		analysis := analyzeProjectCallableSource(sourceFile, typeChecker, assetRules)
+		analysis := analyzeProjectCallableSource(sourceFile, typeChecker, assetRules, cache.owner)
 		cache.bySource[sourceFile] = analysis
 		cache.fingerprints[sourceFile] = callableAnalysisFingerprint(analysis)
 		changed = true
@@ -343,6 +469,7 @@ func analyzeProjectCallableSource(
 	sourceFile *ast.SourceFile,
 	typeChecker *checker.Checker,
 	assetRules []AssetRule,
+	owner *executableBodyOwner,
 ) callableAnalysis {
 	components := collectComponents(sourceFile)
 	_, reads, writes := collectStateAnalysis(sourceFile, typeChecker)
@@ -360,17 +487,29 @@ func analyzeProjectCallableSource(
 		writes,
 		bindings,
 		analyzeAssets(sourceFile, typeChecker, Request{AssetRules: assetRules}),
+		owner,
 	)
 }
 
 func callableAnalysisFingerprint(analysis callableAnalysis) string {
 	var result strings.Builder
 	for _, fact := range analysis.facts {
+		if fact.initializerDraft != nil {
+			result.WriteString(fact.initializerDraft.signature)
+		}
 		result.WriteString(fact.summary.ID)
 		result.WriteByte('|')
 		result.WriteString(fact.summary.Name)
 		result.WriteByte('|')
 		result.WriteString(fact.summary.Kind)
+		result.WriteString(fmt.Sprintf("|owned-scalar-blocked:%t", fact.directOwnedScalarBlocked))
+		result.WriteString(fmt.Sprintf("|descriptor-mode:%x", fact.descriptorMode))
+		for _, c := range fact.mapInputs {
+			result.WriteString(fmt.Sprintf("|map-input:%s:%x:%d:%s:%t:%d:%d", c.mode, c.sourceDigest, c.domain, c.reason, c.futureReadonly, len(c.items), len(c.roles)))
+		}
+		for _, owned := range fact.ownedObligations {
+			result.WriteString(sourceOwnedObligationKey(owned))
+		}
 		if fact.progressReceiver {
 			result.WriteString("|progress")
 		}
@@ -378,11 +517,17 @@ func callableAnalysisFingerprint(analysis callableAnalysis) string {
 		result.WriteString(strings.Join(fact.summary.ExportNames, ","))
 		result.WriteByte('\n')
 		result.WriteString(environmentSourcesSignature(fact.summary.DirectEffectSources))
+		for _, call := range fact.fieldCalls {
+			for _, outcome := range call.descriptorEffects {
+				result.WriteString(fmt.Sprintf("|descriptor-outcome:%p:%p:%p:%p:%t:%s", outcome.caller, outcome.call, outcome.target, outcome.occurrence, outcome.complete, descriptorSourceIdentity(EnvironmentEffectSource{descriptorOrigin: &outcome.origin})))
+			}
+		}
 		result.WriteString(stateEffectsSignature(fact.directReads))
 		result.WriteString(stateEffectsSignature(fact.directWrites))
 		result.WriteString(contextEffectsSignature(fact.directContext))
 		for _, edge := range fact.summary.Calls {
 			result.WriteString(edge.ID)
+			result.WriteString(fmt.Sprintf("|owned-scalar-call:%t", fact.ownedScalarCalls[edge.ID]))
 			result.WriteByte('|')
 			result.WriteString(edge.Name)
 			result.WriteByte('|')
@@ -413,6 +558,7 @@ func callableAnalysisFingerprint(analysis callableAnalysis) string {
 func rebuildProjectCallableCache(
 	program *compiler.Program,
 	cache *projectCallableCache,
+	owner *executableBodyOwner,
 ) {
 	cache.analyses = cache.analyses[:0]
 	var requested *ast.SourceFile
@@ -426,17 +572,19 @@ func rebuildProjectCallableCache(
 		}
 		cache.analyses = append(cache.analyses, analysis)
 	}
+	defer func() { sealModuleInitializers(owner, cache.merged.facts) }()
 	cache.merged = callableAnalysis{}
-	if len(cache.analyses) == 1 {
+	if len(cache.analyses) == 1 && (owner == nil || owner.selection == nil) {
 		cache.merged = cache.analyses[0]
-	} else if len(cache.analyses) > 1 {
-		cache.merged = mergeProjectCallableEffects(requested, cache.analyses)
+	} else if len(cache.analyses) > 0 {
+		cache.merged = mergeProjectCallableEffects(requested, cache.analyses, owner)
 	}
 }
 
 func mergeProjectCallableEffects(
 	requested *ast.SourceFile,
 	analyses []callableAnalysis,
+	owner *executableBodyOwner,
 ) callableAnalysis {
 	factCount := 0
 	for _, analysis := range analyses {
@@ -452,10 +600,12 @@ func mergeProjectCallableEffects(
 			symbolSummaryIDs[symbol] = summary.ID
 		}
 	}
+	factByNode := make(map[*ast.Node]int, len(facts))
 	factByID := make(map[string]int, len(facts))
 	exportedByModule := make(map[string]int)
 	for index := range facts {
 		factByID[facts[index].summary.ID] = index
+		factByNode[facts[index].node] = index
 		module := callableModuleKey(facts[index].sourceFile.FileName())
 		for _, exportName := range facts[index].summary.ExportNames {
 			exportedByModule[module+"\x00"+exportName] = index
@@ -484,38 +634,56 @@ func mergeProjectCallableEffects(
 			edge.Resolved = false
 		}
 	}
+	applySourceOwnedObligations(facts, factByNode, owner.values)
+	for index := range facts {
+		facts[index].summary.StateWrites = append([]StateEffect(nil), facts[index].directWrites...)
+	}
 	for factIndex := range facts {
 		fact := &facts[factIndex]
 		for edgeIndex := range fact.summary.Calls {
 			edge := &fact.summary.Calls[edgeIndex]
 			symbol, exists := fact.callSymbols[edge.ID]
 			targetIndex := -1
-			if edge.Resolved && edge.TargetID != "" {
-				if index, present := factByID[edge.TargetID]; present {
+			if body, hostOwned := owner.body(fact.callExpressions[edge.ID]); hostOwned {
+				edge.Resolved = false
+				edge.TargetID = ""
+				if index, found := factByNode[body]; found {
 					targetIndex = index
 				}
-			}
-			if exists {
-				if targetID, resolved := symbolSummaryIDs[symbol]; resolved {
-					if index, present := factByID[targetID]; present {
+				// A selected opaque/missing body cannot inherit typed-stub authority.
+				if targetIndex < 0 {
+					fact.summary.DirectEffectSources = append(fact.summary.DirectEffectSources, environmentSource("unknown", "unresolved call "+edge.Name, fact.summary.Name))
+				}
+			} else {
+				if edge.Resolved && edge.TargetID != "" {
+					if index, present := factByID[edge.TargetID]; present {
+						targetIndex = index
+					}
+				}
+				if exists {
+					if targetID, resolved := symbolSummaryIDs[symbol]; resolved {
+						if index, present := factByID[targetID]; present {
+							targetIndex = index
+						}
+					}
+				}
+				// Legacy inference without a host snapshot does not prove executable identity.
+				// TS-Go does not currently substitute every authored `.js` edge
+				// to a sibling `.tsx` root. The retained project already owns those
+				// source files, so link the same export by normalized module stem.
+				if targetIndex < 0 && edge.ModuleSpecifier != "" &&
+					strings.HasPrefix(edge.ModuleSpecifier, ".") &&
+					edge.ExportName != "" {
+					module := callableModuleKey(filepath.Join(
+						filepath.Dir(fact.sourceFile.FileName()),
+						edge.ModuleSpecifier,
+					))
+					if index, present := exportedByModule[module+"\x00"+edge.ExportName]; present {
 						targetIndex = index
 					}
 				}
 			}
-			// TS-Go does not currently substitute every authored `.js` edge
-			// to a sibling `.tsx` root. The retained project already owns those
-			// source files, so link the same export by normalized module stem.
-			if targetIndex < 0 && edge.ModuleSpecifier != "" &&
-				strings.HasPrefix(edge.ModuleSpecifier, ".") &&
-				edge.ExportName != "" {
-				module := callableModuleKey(filepath.Join(
-					filepath.Dir(fact.sourceFile.FileName()),
-					edge.ModuleSpecifier,
-				))
-				if index, present := exportedByModule[module+"\x00"+edge.ExportName]; present {
-					targetIndex = index
-				}
-			}
+
 			if targetIndex < 0 {
 				continue
 			}
@@ -545,7 +713,7 @@ func mergeProjectCallableEffects(
 			filtered...,
 		)
 	}
-	resolveCallableEffects(facts)
+	resolveCallableEffects(facts, owner)
 	applyCallableArtifactConstraints(facts)
 	return callableAnalysisFromFacts(requested, facts, analyses)
 }
@@ -570,11 +738,26 @@ func callableModuleKey(filename string) string {
 // cloneProjectCallableFact copies mutable graph inputs. Propagated summaries and targets
 // are replaced by the merge before resolution, so copying them would be discarded work.
 func cloneProjectCallableFact(value callableFacts) callableFacts {
+	value.componentInputDemands = append([]sourceComponentInputDemand(nil), value.componentInputDemands...)
+	value.initializerDraft = cloneModuleInitializerDraft(value.initializerDraft)
+	// Publication rights remain on original source facts. Cached copies retain
+	// only the immutable descriptor outcomes completed by those publishers.
+	value.ownedLegacyPending = nil
+	value.ownedGetPending = nil
+	value.mapInputs = append([]*sourceMapInputContribution(nil), value.mapInputs...)
+	for i := range value.mapInputs {
+		value.mapInputs[i] = cloneMapInput(value.mapInputs[i])
+	}
+	value.fieldCalls = append([]sourceFieldCall(nil), value.fieldCalls...)
+	for i := range value.fieldCalls {
+		value.fieldCalls[i] = cloneSourceFieldCall(value.fieldCalls[i])
+	}
 	value.summary.DirectEffectSources = append(
 		[]EnvironmentEffectSource(nil),
 		value.summary.DirectEffectSources...,
 	)
 	value.summary.Calls = append([]CallEdge(nil), value.summary.Calls...)
+	value.directWrites = append([]StateEffect(nil), value.directWrites...)
 	// Export names and source-reference maps are immutable after source analysis.
 	// Artifact targets and propagated effects are rebuilt before publication.
 	return value
@@ -597,10 +780,13 @@ func callableAnalysisFromFacts(
 			fact.summary.EffectSources,
 			fact.artifactConstraint,
 		)
-		finalByID[fact.summary.ID] = fact.summary
-		byNode[fact.node] = fact.summary
+		published := fact.summary
+		published.DirectEffectSources = displayEnvironmentSources(published.DirectEffectSources)
+		published.EffectSources = displayEnvironmentSources(published.EffectSources)
+		finalByID[fact.summary.ID] = published
+		byNode[fact.node] = published
 		if fact.sourceFile == requested {
-			summaries = append(summaries, fact.summary)
+			summaries = append(summaries, published)
 		}
 	}
 	bySymbol := make(map[ast.SymbolId]CallableSummary)
@@ -646,14 +832,15 @@ func isCallableNode(node *ast.Node) bool {
 	return ast.IsFunctionDeclaration(node) ||
 		ast.IsFunctionExpression(node) ||
 		ast.IsArrowFunction(node) ||
-		ast.IsMethodDeclaration(node)
+		ast.IsConstructorDeclaration(node) ||
+		ast.IsMethodDeclaration(node) || ast.IsGetAccessorDeclaration(node) || ast.IsSetAccessorDeclaration(node)
 }
 
 func callableIdentity(
 	node *ast.Node,
 	componentByStart map[int]Component,
 ) (string, string, []string) {
-	if ast.IsExpressionStatement(node) || isSideEffectImport(node) {
+	if ast.IsVariableStatement(node) || ast.IsExpressionStatement(node) || isSideEffectImport(node) {
 		return fmt.Sprintf("module@%d", node.Pos()), "module-initializer", nil
 	}
 	if component, ok := componentByStart[node.Pos()]; ok {
@@ -678,7 +865,7 @@ func callableIdentity(
 		name = fmt.Sprintf("<anonymous@%d>", node.Pos())
 	}
 	kind := "function"
-	if ast.IsMethodDeclaration(node) {
+	if ast.IsMethodDeclaration(node) || ast.IsGetAccessorDeclaration(node) || ast.IsSetAccessorDeclaration(node) {
 		kind = "method"
 	}
 	exports := []string{}
@@ -759,11 +946,8 @@ func callableAliasTarget(
 ) *ast.Symbol {
 	if ast.IsCallExpression(initializer) {
 		expression := initializer.AsCallExpression().Expression
-		if ast.IsPropertyAccessExpression(expression) {
-			member := expression.AsPropertyAccessExpression()
-			if member.Name() != nil && member.Name().Text() == "bind" {
-				return typeChecker.GetSymbolAtLocation(member.Expression)
-			}
+		if receiver, name := restrictedInvocationMember(expression, typeChecker); receiver != nil && name == "bind" && nativeFunctionInvocation(receiver, name, typeChecker) {
+			return sourceCallableReferenceSymbol(receiver, typeChecker)
 		}
 		return nil
 	}

@@ -104,7 +104,7 @@ export type ComponentRegistryRuntime = {
 	readonly entries: ReadonlyMap<string, ComponentRegistryEntryRuntime>;
 };
 
-/** Immutable diagnostic view of one compiler-owned component registry. */
+/** Diagnostic snapshot of one compiler-owned component registry with readonly TypeScript fields. */
 export type ComponentRegistryInspection = Readonly<{
 	id: string;
 	name: string;

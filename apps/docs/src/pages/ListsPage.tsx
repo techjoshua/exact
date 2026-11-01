@@ -77,7 +77,8 @@ export function ListsPage(this: Component<{}>) {
 				<p>
 					Keys may be strings or numbers. eXact normalizes them to strings, so numeric
 					<code>1</code> and string <code>&quot;1&quot;</code> count as duplicate keys in the same
-					list.
+					list. Empty strings and strings containing punctuation are valid keys. Their identities
+					are preserved through server rendering and hydration.
 				</p>
 				<p>
 					The framework owns list identity. Duplicate keys fail deterministically rather than

@@ -43,7 +43,6 @@ export function normalizeExactServerRuntimeOptions(options: ExactServerRuntimeOp
 		logger: options.logger,
 		state: options.state,
 		maxTaskPasses: options.maxTaskPasses,
-		maxTaskDurationMs: options.maxTaskDurationMs,
 		maxAsyncSsrConcurrency: options.maxAsyncSsrConcurrency,
 		maxTreeDepth: options.maxTreeDepth,
 		maxTreeNodes: options.maxTreeNodes,
@@ -104,15 +103,15 @@ export function normalizeExactServerRuntimeOptions(options: ExactServerRuntimeOp
 		outputExtensions: options.outputExtensions,
 		onProfile: options.onProfile
 	} satisfies Record<ServerConfigurationKeys, unknown>;
-	return Object.freeze({
-		context: Object.freeze(context),
-		server: Object.freeze(server),
-		registry: Object.freeze({
+	return {
+		context,
+		server,
+		registry: {
 			...rendering,
 			contract: options.contract,
 			invocations: options.invocations,
 			boundaries: options.boundaries,
 			patchStrategy: options.patchStrategy
-		})
-	});
+		}
+	};
 }

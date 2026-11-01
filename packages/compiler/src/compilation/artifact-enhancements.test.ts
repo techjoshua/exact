@@ -1,5 +1,5 @@
 import { compileProjectArtifacts } from './artifact-compilation.js';
-import { createTestWorkspace, writeTestFiles } from '../test-support/workspace.js';
+import { createCompilerTestWorkspace, writeTestFiles } from '../test-support/workspace.js';
 import path from 'node:path';
 import ts from 'typescript';
 import { expect, it } from 'vitest';
@@ -57,7 +57,7 @@ it('relocates optional edges without losing authored identity or source-map colu
 });
 
 it('links relative providers to their emitted target rather than the source directory', async () => {
-	const root = await createTestWorkspace('.exact-relative-enhancement-', process.cwd());
+	const root = await createCompilerTestWorkspace('.exact-relative-enhancement-', process.cwd());
 	const files = await writeTestFiles(root, {
 		'provider.tsx': "export { default } from './tone.js' with { type: 'exact-enhancement' };",
 		'tone.tsx':
@@ -104,7 +104,7 @@ it('links relative providers to their emitted target rather than the source dire
 it.each([false, true])(
 	'preserves optional enhancement import timing (deferred=%s)',
 	async (deferred) => {
-		const root = await createTestWorkspace('.exact-deferred-enhancement-', process.cwd());
+		const root = await createCompilerTestWorkspace('.exact-deferred-enhancement-', process.cwd());
 		const edge = {
 			identity: '@fixture/provider#default',
 			moduleSpecifier: '@fixture/provider',

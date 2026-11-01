@@ -3,6 +3,34 @@ import { describe, expect, it, vi } from 'vitest';
 import { createExactExpressMiddleware, type ExactExpressResponse } from './index.js';
 
 describe('@exactjs/express-adapter', () => {
+	it.each(['https://app.test', 'https://evil.test'])(
+		'checks debug origin %s before authorization',
+		async (origin) => {
+			const publicOrigin = vi.fn(() => 'https://app.test');
+			const allowDebug = vi.fn(() => true);
+			const configuration = {
+				contract: { version: 1 as const, endpoint: '/__exact', invocations: {}, boundaries: {} },
+				publicOrigin,
+				allowDebug
+			};
+			const expected = origin === 'https://app.test' ? 200 : 404;
+			const middleware = createExactExpressMiddleware(configuration);
+			const response = createExpressResponse();
+			middleware(
+				{
+					method: 'POST',
+					originalUrl: '/__exact',
+					headers: { origin },
+					body: { type: 'debug', version: 1, request: 'open' }
+				},
+				response
+			);
+			await response.done;
+			expect(response.statusCode).toBe(expected);
+			expect(publicOrigin).toHaveBeenCalledTimes(1);
+			expect(allowDebug.mock.calls.length > 0).toBe(origin === 'https://app.test');
+		}
+	);
 	it('writes eXact responses through Express response methods', async () => {
 		const middleware = createExactExpressMiddleware({
 			publicOrigin: 'http://express.example.test',

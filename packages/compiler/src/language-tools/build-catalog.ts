@@ -20,7 +20,7 @@ export type ExactBuildInspectionRootInput = Readonly<{
 	redactions?: Partial<ExactInspectionRedactionCatalog>;
 }>;
 
-/** Configuration for one immutable server-owned inspection catalog. */
+/** Configuration for one server-owned inspection catalog. */
 export type ExactBuildInspectionCatalogOptions = Readonly<{
 	buildKey: string;
 	root: string;
@@ -44,12 +44,12 @@ export function createExactBuildInspectionCatalog(
 			throw new Error(`Duplicate eXact inspection root ${input.executionRoot}`);
 		roots[input.executionRoot] = createRootCatalog(options.root, options.buildKey, input);
 	}
-	return Object.freeze({
+	return {
 		protocol: 1,
 		buildKey: options.buildKey,
-		producer: Object.freeze({ ...(options.producer ?? {}) }),
-		roots: Object.freeze(roots)
-	});
+		producer: { ...(options.producer ?? {}) },
+		roots: roots
+	};
 }
 
 /** Returns a stable SHA-256 source hash used to reject mismatched source projections. */
@@ -97,11 +97,11 @@ export function createExactInspectionRedactions(
 				statePaths.add(path.startsWith('state.') ? path : `state.${path}`);
 			}
 			if (subject.kind === 'context') {
-				const token = Object.freeze({
+				const token = {
 					name: subject.selector ?? subject.name,
 					scope: 'component' as const,
 					kind: subject.policy.secret ? ('secret' as const) : ('server-resource' as const)
-				});
+				};
 				if (subject.policy.secret || subject.policy.residency === 'server')
 					contextTokens.set(`${token.name}\0${token.scope}\0${token.kind}`, token);
 			}
@@ -109,13 +109,13 @@ export function createExactInspectionRedactions(
 		for (const consumer of analysis.policy.secretConsumers)
 			if (consumer.selector) secretNames.add(consumer.selector);
 	}
-	return Object.freeze({
-		statePaths: Object.freeze([...statePaths].sort()),
-		contextTokens: Object.freeze(
-			[...contextTokens.values()].sort((left, right) => left.name.localeCompare(right.name))
+	return {
+		statePaths: [...statePaths].sort(),
+		contextTokens: [...contextTokens.values()].sort((left, right) =>
+			left.name.localeCompare(right.name)
 		),
-		secretNames: Object.freeze([...secretNames].sort())
-	});
+		secretNames: [...secretNames].sort()
+	};
 }
 
 function createRootCatalog(
@@ -126,24 +126,20 @@ function createRootCatalog(
 	const files = input.inspections.map((inspection) =>
 		createRuntimeSourceFile(projectRoot, inspection, sourceForInspection(inspection, input.sources))
 	);
-	return Object.freeze({
+	return {
 		executionRoot: input.executionRoot,
 		rootComponentId: input.rootComponentId,
-		files: Object.freeze(files),
-		partitionPlans: Object.freeze(
-			input.inspections.map((inspection) =>
-				Object.freeze({
-					...structuredClone(inspection.partitionPlan),
-					buildKey
-				})
-			)
-		),
-		redactions: Object.freeze({
-			statePaths: Object.freeze([...(input.redactions?.statePaths ?? [])]),
-			contextTokens: Object.freeze([...(input.redactions?.contextTokens ?? [])]),
-			secretNames: Object.freeze([...(input.redactions?.secretNames ?? [])])
-		})
-	});
+		files: files,
+		partitionPlans: input.inspections.map((inspection) => ({
+			...structuredClone(inspection.partitionPlan),
+			buildKey
+		})),
+		redactions: {
+			statePaths: [...(input.redactions?.statePaths ?? [])],
+			contextTokens: [...(input.redactions?.contextTokens ?? [])],
+			secretNames: [...(input.redactions?.secretNames ?? [])]
+		}
+	};
 }
 
 function createRuntimeSourceFile(
@@ -153,44 +149,58 @@ function createRuntimeSourceFile(
 ): ExactRuntimeSourceFile {
 	const sourceHash = exactInspectionSourceHash(source);
 	const relative = normalizeRelativePath(projectRoot, inspection.filename);
-	return Object.freeze({
+	return {
 		path: relative,
 		sourceHash,
-		components: Object.freeze(
-			inspection.components.map((component) =>
-				createRuntimeEntity(component, source, relative, sourceHash)
-			)
+		components: inspection.components.map((component) =>
+			createRuntimeEntity(component, source, relative, sourceHash)
 		)
-	});
+	};
 }
 
+/** Projects source trees in authored depth-first order without native recursion. */
 function createRuntimeEntity(
 	entity: ExactSourceEntity,
 	source: string,
 	filename: string,
 	sourceHash: string
 ): ExactRuntimeSourceEntity {
-	return Object.freeze({
+	const node = runtimeEntityNode(entity, source, filename, sourceHash);
+	const frames = [{ entity, node, index: 0 }];
+	while (frames.length) {
+		const frame = frames[frames.length - 1]!;
+		if (frame.index >= frame.entity.children.length) {
+			frames.pop();
+			continue;
+		}
+		const child = frame.entity.children[frame.index++]!;
+		const childNode = runtimeEntityNode(child, source, filename, sourceHash);
+		frame.node.children.push(childNode);
+		frames.push({ entity: child, node: childNode, index: 0 });
+	}
+	return node;
+}
+
+/** Creates the parent metadata before the frame takes ownership of its mutable child list. */
+function runtimeEntityNode(
+	entity: ExactSourceEntity,
+	source: string,
+	filename: string,
+	sourceHash: string
+): ExactRuntimeSourceEntity & { children: ExactRuntimeSourceEntity[] } {
+	return {
 		id: entity.id,
 		kind: entity.kind,
 		...(entity.name ? { name: entity.name } : {}),
 		location: runtimeLocation(filename, sourceHash, source, entity.range),
-		...(entity.classification
-			? { classification: Object.freeze(structuredClone(entity.classification)) }
-			: {}),
-		reasons: Object.freeze(
-			entity.reasons.map((reason) =>
-				Object.freeze({
-					code: reason.code,
-					summary: reason.summary,
-					location: runtimeLocation(filename, sourceHash, source, reason.range)
-				})
-			)
-		),
-		children: Object.freeze(
-			entity.children.map((child) => createRuntimeEntity(child, source, filename, sourceHash))
-		)
-	});
+		...(entity.classification ? { classification: structuredClone(entity.classification) } : {}),
+		reasons: entity.reasons.map((reason) => ({
+			code: reason.code,
+			summary: reason.summary,
+			location: runtimeLocation(filename, sourceHash, source, reason.range)
+		})),
+		children: []
+	};
 }
 
 function runtimeLocation(
@@ -199,12 +209,12 @@ function runtimeLocation(
 	source: string,
 	range: ExactSourceRange
 ): ExactRuntimeSourceLocation {
-	return Object.freeze({
+	return {
 		path: filename,
 		sourceHash,
-		start: Object.freeze(sourcePoint(source, range.start)),
-		end: Object.freeze(sourcePoint(source, range.end))
-	});
+		start: sourcePoint(source, range.start),
+		end: sourcePoint(source, range.end)
+	};
 }
 
 function sourcePoint(

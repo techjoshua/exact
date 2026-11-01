@@ -4,6 +4,26 @@ import { describe, expect, it, vi } from 'vitest';
 import { createExactKoaMiddleware, type ExactKoaContext } from './index.js';
 
 describe('@exactjs/koa-adapter', () => {
+	it.each(['https://app.test', 'https://evil.test'])(
+		'checks debug origin %s before authorization',
+		async (origin) => {
+			const publicOrigin = vi.fn(() => 'https://app.test');
+			const allowDebug = vi.fn(() => true);
+			const configuration = {
+				contract: { version: 1 as const, endpoint: '/__exact', invocations: {}, boundaries: {} },
+				publicOrigin,
+				allowDebug
+			};
+			const expected = origin === 'https://app.test' ? 200 : 404;
+			const middleware = createExactKoaMiddleware(configuration);
+			const ctx = createKoaContext({ type: 'debug', version: 1, request: 'open' });
+			ctx.headers = { origin };
+			await middleware(ctx);
+			expect(ctx.status).toBe(expected);
+			expect(publicOrigin).toHaveBeenCalledTimes(1);
+			expect(allowDebug.mock.calls.length > 0).toBe(origin === 'https://app.test');
+		}
+	);
 	it('writes eXact responses into Koa context', async () => {
 		const middleware = createExactKoaMiddleware({
 			publicOrigin: 'http://koa.example.test',

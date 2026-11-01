@@ -1,8 +1,5 @@
 import { unwrap } from '@exactjs/reactive/framework/values';
-import {
-	readCompiledComponentReceipt,
-	readPreparedServerComponentReference
-} from '../component-abi/receipt.js';
+import { inspectComponentInput } from '../component-abi/receipt.js';
 import { readCompiledIntrinsicReceipt } from '../component-abi/intrinsic-receipt.js';
 import { readCompiledFragmentReceipt } from '../component-abi/fragment-receipt.js';
 import { readCompiledTargetReceipt } from '../component-abi/target-receipt.js';
@@ -20,7 +17,8 @@ import { readPreparedServerRenderProgram } from '../server-render-program.js';
  */
 export function assertSingleSuppliedPlacement(
 	output: readonly unknown[],
-	supplied: unknown
+	supplied: unknown,
+	readPrepared?: (entry: unknown) => Readonly<{ value: unknown; children: readonly unknown[] }>
 ): object | undefined {
 	let selected = unwrap(supplied);
 	while (Array.isArray(selected) && selected.length === 1) selected = unwrap(selected[0]);
@@ -32,10 +30,15 @@ export function assertSingleSuppliedPlacement(
 			throw new TypeError('A supplied target cannot be placed more than once by one component');
 		placement = value;
 	};
-	const visit = (raw: unknown): void => {
-		const value = unwrap(raw);
+	const visit = (raw: unknown, occurrence: { parent: unknown; cursor: number }): void => {
+		const prepared = readPrepared?.(raw);
+		const value = unwrap(prepared ? prepared.value : raw);
+		if (prepared && value === undefined) {
+			for (const child of prepared.children) visit(child, occurrence);
+			return;
+		}
 		if (Array.isArray(value)) {
-			for (const child of value) visit(child);
+			for (const child of value) visit(child, occurrence);
 			return;
 		}
 		if (typeof value !== 'object' || value === null) return;
@@ -48,8 +51,9 @@ export function assertSingleSuppliedPlacement(
 			place(value);
 			return;
 		}
-		const component =
-			readCompiledComponentReceipt(value) ?? readPreparedServerComponentReference(value);
+		const identity = inspectComponentInput(value);
+		if (identity.kind === 'component' && !prepared)
+			throw new TypeError('Component placement requires actual occurrence-owned prepared output');
 		const intrinsic = readCompiledIntrinsicReceipt(value);
 		const fragment = readCompiledFragmentReceipt(value);
 		const range = readChildRangeReceipt(value);
@@ -58,8 +62,8 @@ export function assertSingleSuppliedPlacement(
 		const program = readRenderProgramReceipt(value);
 		const serverProgram = readPreparedServerRenderProgram(value);
 		const children =
+			prepared?.children ??
 			target?.children ??
-			component?.children ??
 			intrinsic?.children ??
 			fragment?.children ??
 			(range
@@ -79,8 +83,9 @@ export function assertSingleSuppliedPlacement(
 										(index) => serverProgram.eagerValues[index]
 									)
 								: []);
-		for (const child of children) visit(child);
+		for (const child of children) visit(child, occurrence);
 	};
-	for (const child of output) visit(child);
+	const occurrence = { parent: undefined, cursor: 0 };
+	for (const child of output) visit(child, occurrence);
 	return placement;
 }

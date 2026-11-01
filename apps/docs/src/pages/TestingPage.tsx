@@ -41,7 +41,8 @@ export function TestingPage(this: Component<{}>) {
 					The test renders a component, finds a control by its role and accessible name, and acts on
 					it. Assert the resulting text or state of the control. Queries also support labels,
 					visible text, selectors, and test IDs. A query for one element fails if none or several
-					match.
+					match. A role query without <code>name</code> accepts any accessible name. Pass
+					<code>{"name: ''"}</code> to select unnamed controls.
 				</p>
 				<p>
 					Find selects by their wrapping or external label, and use the <code>option</code> role to
@@ -53,6 +54,12 @@ export function TestingPage(this: Component<{}>) {
 					<code>expect(control).toHaveClass('selected')</code>. The matcher accepts a queried
 					control or a DOM element and requires every requested class while allowing additional
 					classes. Pass several names or a string containing space-separated names.
+				</p>
+				<p>
+					To collect timing observations in a test, use <code>createProfileCollector()</code> from
+					<code>@exactjs/instrumentation</code> and pass its <code>sink</code> to{' '}
+					<code>onProfile</code>. Its <code>snapshot()</code> returns a separate event array.
+					Readonly observations use TypeScript checking and remain ordinary JavaScript objects.
 				</p>
 			</section>
 			<section>
@@ -78,11 +85,29 @@ export function TestingPage(this: Component<{}>) {
 					Await test interactions so rendering and the component tasks they start can finish before
 					you assert the result. Use <code>view.flush()</code> to apply pending reactive updates and
 					<code>view.settle()</code> to wait for observed work. Long-lived tasks can opt out of
-					settlement so a persistent connection does not block the test.
+					settlement so a persistent connection does not block the test. Retain element handles
+					while the same control remains mounted. Reads and interactions reject after the control is
+					removed or the view is unmounted, before changing its value or dispatching events. Query
+					again when an update replaces a control. Component state updates also reject after the
+					component is removed. Queries reject after the view is unmounted.
+				</p>
+				<p>
+					A handled component error can render its fallback without throwing from the render call.
+					For direct renderer tests, collect <code>onErrorReport</code> observations as well as
+					checking the page. The callback also receives a construction failure that occurs before
+					the root instance exists. Descendant failures follow their nearest error context.
 				</p>
 			</section>
 			<section>
 				<h2>Test client and server together</h2>
+				<p>
+					Server tests release their request and application resources after rendering, including
+					when initialization or cleanup fails. Render and initialization errors remain primary when
+					cleanup also fails. Extensible error objects expose those cleanup failures through
+					<code>cleanupError</code>. A failed client/server mount also removes the container it
+					created while preserving the settlement error. Containers you supply remain yours to
+					remove.
+				</p>
 				<p>
 					Keep SSR render helpers in a fixture module that imports the generated
 					<code>.exact.server.js</code> artifact. Vitest, Jest, and Bun select the server projection
@@ -136,6 +161,11 @@ export function TestingPage(this: Component<{}>) {
 					waits for started reads and cancellations. Unread bodies do not block settlement. Finish
 					consuming or cancel a started body before awaiting it.
 				</p>
+				<p>
+					DOM tree inspection returns ordinary snapshots with TypeScript readonly fields. Child and
+					element lists belong to each snapshot. Editing one through a writable alias does not
+					change the mounted component tree.
+				</p>
 			</section>
 			<section>
 				<h2>Observe progress before a task finishes</h2>
@@ -161,8 +191,11 @@ await view.settle();`}
 					returns before initial tasks and island loads settle. Wait for the expected control or
 					page state before interacting. Complete consumed protocol lines are available in
 					<code>view.protocol.exchanges[n].response.events</code> while streaming continues.
-					Progress may skip older snapshots, so tests should check meaningful visible states and
-					final results. Release held work and call <code>view.unmount()</code> in test cleanup.
+					Concurrent client and server-context observations stay with the request that produced
+					them, including batched and streamed operations. Recorded headers and server-context
+					access entries are metadata copies with readonly TypeScript fields. Progress may skip
+					older snapshots, so tests should check meaningful visible states and final results.
+					Release held work and call <code>view.unmount()</code> in test cleanup.
 				</p>
 			</section>
 			<section>

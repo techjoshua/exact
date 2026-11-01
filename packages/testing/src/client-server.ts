@@ -1,3 +1,5 @@
+import { createClientServerTransport } from './internal/client-server-transport.js';
+import { componentNodes } from './mounting/component-tree.js';
 import { flushSync } from '@exactjs/reactive';
 import {
 	createExactClient,
@@ -5,21 +7,17 @@ import {
 	type ClientIslandRegistry,
 	type ExactClient,
 	type ExactHydrationObservation,
-	type FetchLike,
 	type HydrateOptions
 } from '@exactjs/hydrate';
 import type { AnyComponentInstance } from '@exactjs/core';
-import {
-	exactResponseToFetchResponse,
-	type ExactRequestLike,
-	type ExactResponseLike
-} from '@exactjs/server';
+import { type ExactRequestLike, type ExactResponseLike } from '@exactjs/server';
 import { inspectDomRoot, type DomInspectionNode } from '@exactjs/dom/testing';
 
 import type { ActionOptions, PropsOf, StateOf } from './contracts.js';
 import { TestComponent, type AnyTestComponent, type ComponentTestView } from './mounting/views.js';
 import { ExactProtocolRecorder } from './protocol.js';
 import { QueryHost, allElements } from './queries/host.js';
+import { attachCleanupError, withTimeout } from './control/settling.js';
 
 /** Configures a real in-memory client/server component test. */
 export type ClientServerRenderOutput = {
@@ -68,7 +66,7 @@ export class ClientServerTestView extends QueryHost implements ComponentTestView
 		timeout: number
 	) {
 		super(
-			() => allElements(container),
+			() => allElements(this),
 			async (work, options) => this.action(work, options)
 		);
 		this.client = client;
@@ -85,32 +83,20 @@ export class ClientServerTestView extends QueryHost implements ComponentTestView
 		const container = options.container ?? document.createElement('div');
 		const attached = !options.container && options.attachToDocument !== false;
 		if (attached) document.body.appendChild(container);
-		container.innerHTML = server.htmlWithHydration ?? server.html;
-		const protocol = options.protocol ?? new ExactProtocolRecorder();
-		const transport: FetchLike = async (url, init) => {
-			const body = parseBody(init.body);
-			const response = await options.handle({
-				method: init.method,
-				url,
-				headers: init.headers,
-				body,
-				text: async () => init.body,
-				json: async () => body,
-				signal: init.signal
-			});
-			return exactResponseToFetchResponse(response);
-		};
-		const explicit = options.hydrate ?? {};
-		const config = readExactHydrationConfig(container, undefined, explicit.configLimits);
-		const transports = Object.fromEntries(
-			Object.entries(explicit.transports ?? {}).map(([endpoint, configured]) => [
-				endpoint,
-				{ ...configured, fetch: protocol.wrap(transport) }
-			])
-		);
 		let client: ExactClient | undefined;
 		const hydration: ExactHydrationObservation[] = [];
 		try {
+			container.innerHTML = server.htmlWithHydration ?? server.html;
+			const protocol = options.protocol ?? new ExactProtocolRecorder();
+			const transport = createClientServerTransport(options.handle);
+			const explicit = options.hydrate ?? {};
+			const config = readExactHydrationConfig(container, undefined, explicit.configLimits);
+			const transports = Object.fromEntries(
+				Object.entries(explicit.transports ?? {}).map(([endpoint, configured]) => [
+					endpoint,
+					{ ...configured, fetch: protocol.wrap(transport) }
+				])
+			);
 			client = createExactClient(container, {
 				...config,
 				...explicit,
@@ -138,8 +124,13 @@ export class ClientServerTestView extends QueryHost implements ComponentTestView
 			if (options.settleTasks !== false) await view.settle();
 			return view;
 		} catch (error) {
-			client?.dispose();
-			if (attached) container.remove();
+			try {
+				client?.dispose();
+			} catch (cleanup) {
+				attachCleanupError(error, cleanup);
+			} finally {
+				if (attached) container.remove();
+			}
 			throw error;
 		}
 	}
@@ -198,23 +189,11 @@ export class ClientServerTestView extends QueryHost implements ComponentTestView
 		const work = Promise.all([this.client.whenSettled(), this.protocol.settle()]).then(() => {
 			flushSync();
 		});
-		let timer: ReturnType<typeof setTimeout> | undefined;
-		try {
-			await Promise.race([
-				work,
-				new Promise<never>((_, reject) => {
-					timer = setTimeout(
-						() =>
-							reject(
-								new Error(`Timed out settling eXact client/server work after ${this.timeout}ms`)
-							),
-						this.timeout
-					);
-				})
-			]);
-		} finally {
-			if (timer) clearTimeout(timer);
-		}
+		await withTimeout(
+			work,
+			this.timeout,
+			() => new Error(`Timed out settling eXact client/server work after ${this.timeout}ms`)
+		);
 	}
 	/** Disposes the client and removes a container created by the test harness. */
 	unmount(): void {
@@ -251,16 +230,4 @@ export function mountClientServerTest(
 	options: ClientServerTestOptions
 ): Promise<ClientServerTestView> {
 	return ClientServerTestView.mount(options);
-}
-
-function parseBody(body: string): unknown {
-	try {
-		return JSON.parse(body);
-	} catch {
-		return body;
-	}
-}
-
-function componentNodes(root: DomInspectionNode): DomInspectionNode[] {
-	return [root, ...root.children.flatMap(componentNodes)].filter((node) => !!node.instance);
 }

@@ -11,13 +11,17 @@ import (
 )
 
 type projectComponent struct {
-	sourceFile     *ast.SourceFile
-	candidate      componentCandidate
-	candidateIndex int
-	component      Component
+	sourceFile                *ast.SourceFile
+	candidate                 componentCandidate
+	candidateIndex            int
+	component                 Component
+	inputDemands              []sourceComponentInputDemand
+	conditionalInputPlacement string
 }
 
 type projectComponentLinkFacts struct {
+	demands     []sourceComponentInputDemand
+	inputs      []sourceComponentInputAdoption
 	edges       []RenderEdge
 	diagnostics []string
 }
@@ -53,6 +57,10 @@ func linkProjectComponents(
 		callables,
 		completedPolicyTypes,
 	)
+	for i := range records {
+		records[i].inputDemands = componentInputDemandsFor(records[i].candidate.node, callables)
+		records[i].conditionalInputPlacement = componentInputBodyPlacement(records[i], callables)
+	}
 	componentBySymbol := make(map[ast.SymbolId]int, len(records))
 	componentByIdentity := make(map[string]int, len(records))
 	componentByImport := make(map[string]int, len(records))
@@ -287,8 +295,10 @@ func linkProjectComponents(
 			diagnostics: append([]string(nil), record.component.Diagnostics[diagnosticCount:]...),
 		}
 	}
+	attachComponentInputAdoptions(project, records, typeChecker)
 	refreshProjectComponentEdgePlacements(records)
-	resolveProjectComponentSubgraphs(records)
+	applyComponentInputAdoptions(project, records)
+	resolveProjectComponentSubgraphs(records, project)
 
 	result := []Component{}
 	for _, record := range records {
@@ -897,7 +907,7 @@ func projectComponentRecords(
 			reads,
 			tasks,
 			completedPolicyTypes,
-		)
+			nil)
 		tasks = applyTaskPolicies(tasks, policy)
 		collectSecretConsumptions(dependency, typeChecker, Request{Target: TargetDefault}, tasks, &policy)
 		components = analyzeComponents(
@@ -999,18 +1009,28 @@ func jsxTagSymbolNode(tag *ast.Node) *ast.Node {
 	return tag
 }
 
-func resolveProjectComponentSubgraphs(records []projectComponent) {
+func resolveProjectComponentSubgraphs(records []projectComponent, inputProjects ...*projectState) {
 	byID := make(map[string]int, len(records))
 	for index, record := range records {
 		byID[record.component.ID] = index
 	}
+	// Input obligations are requirements, unlike the combiner's known lane
+	// union. Only this edge's complete recipe may discharge the target's own
+	// requirements. Pending descendants continue through ordinary ancestors.
+	pendingInputs := make([]bool, len(records))
 	changed := true
 	for changed {
 		changed = false
 		for index := range records {
+			pending := len(records[index].inputDemands) != 0
 			placements := []string{records[index].component.Placement}
 			for _, edge := range records[index].component.RenderEdges {
 				if target, exists := byID[edge.ComponentID]; exists {
+					if len(inputProjects) != 0 && componentInputEdgeAdopted(inputProjects[0], records[index], edge) && len(records[target].component.RenderEdges) == 0 && records[target].conditionalInputPlacement != "" && edge.Placement == records[target].conditionalInputPlacement {
+						placements = append(placements, edge.Placement)
+						continue
+					}
+					pending = pending || len(records[target].inputDemands) != 0 || pendingInputs[target]
 					placements = append(
 						placements,
 						records[target].component.SubgraphPlacement,
@@ -1020,6 +1040,13 @@ func resolveProjectComponentSubgraphs(records []projectComponent) {
 				}
 			}
 			next := combinePlacements(placements)
+			if pending {
+				next = "unknown"
+			}
+			if pendingInputs[index] != pending {
+				pendingInputs[index] = pending
+				changed = true
+			}
 			if next != records[index].component.SubgraphPlacement {
 				records[index].component.SubgraphPlacement = next
 				changed = true

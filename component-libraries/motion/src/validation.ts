@@ -11,7 +11,7 @@ export function validateMotionEffect(
 	}
 	const timing = effect.options;
 	if (!timing) return;
-	finiteNonnegative(timing.delay, `${label} delay`);
+	finiteNonnegative(timing.delay, `${label} delay`, true);
 	finiteNonnegative(timing.endDelay, `${label} endDelay`, true);
 	finiteNonnegative(timing.iterationStart, `${label} iterationStart`);
 	if (timing.iterations === Infinity && options.allowInfiniteIterations) {

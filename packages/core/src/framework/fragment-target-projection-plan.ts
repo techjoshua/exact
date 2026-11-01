@@ -2,7 +2,7 @@ import type { AnyComponentInstance, Child } from '../component/contracts.js';
 import { unwrap } from '@exactjs/reactive/framework/values';
 import {
 	readCompiledTargetReceipt,
-	createCompiledTargetReceipt
+	withCompiledTargetPresentation
 } from '../component-abi/target-receipt.js';
 import {
 	readCompiledIntrinsicReceipt,
@@ -72,7 +72,7 @@ export function createFragmentTargetProjectionWithRanges(
 						contributions: [{ identity, props: contribution.props, owner }]
 					}))
 			);
-			result = createCompiledTargetReceipt(null, presentation);
+			result = withCompiledTargetPresentation(contribution.operation, presentation);
 		} else {
 			const intrinsic = readCompiledIntrinsicReceipt(value);
 			const fragment = readCompiledFragmentReceipt(value);

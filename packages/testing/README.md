@@ -35,7 +35,9 @@ server cleanup, including stateless components and repeated uses of the same com
 The builder preserves a generated factory's prop type. Its state remains inspectable as a record
 of unknown values because generated factory declarations do not expose the authored state type.
 Use `mountClientServerTest()` to hydrate generated client islands against an in-memory
-request handler and record protocol exchanges without depending on generated operation IDs. By default, mount
+request handler and record protocol exchanges without depending on generated operation IDs.
+Concurrent client and server-context observations stay with their originating request, including
+batched and streamed operations. By default, mount
 waits for eager lazy islands to finish loading and adopting before returning. Load failures reject
 mount. Interaction-deferred islands stay dormant until activated. `hydratedIslands` reflects the
 current hydration observations.

@@ -5,6 +5,7 @@ import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { corpusScenarios } from './scenarios.js';
+import { ownCorpusCompilation } from './test-support/compiler-case.js';
 
 const fixtureNames = [
 	...new Set(
@@ -17,14 +18,15 @@ const typescriptConfig = fileURLToPath(new URL('../tsconfig.test.json', import.m
 
 describe('normative compiled structure', () => {
 	for (const target of ['client', 'server'] as const) {
-		it(`${target} artifacts contain no forbidden native fallback`, async () => {
+		it(`${target} artifacts contain no forbidden native fallback`, async (context) => {
+			const compile = ownCorpusCompilation(context);
 			for (const fixture of fixtureNames) {
-				const result = await compileFixture(fixture, target);
+				const result = await compile(() => compileFixture(fixture, target));
 				expect(result.code, fixture).not.toMatch(
 					/createCompiledVNode|__exactVNode|runtimeComponentArtifacts|createRuntimeComponentArtifact/
 				);
 			}
-		});
+		}, 0);
 	}
 
 	it('emits target-local component facts and enhancement dependencies', async () => {
@@ -134,31 +136,36 @@ describe('normative compiled structure', () => {
 		expect(code).not.toContain('__exactExpression(() => item.label)');
 	});
 
-	it('encodes an object-valued indexed prop property as a direct child prop operand', async () => {
+	it('observes replacement of an indexed object prop through its component expression', async () => {
 		const { code } = await compileFixture('state.fixtures.tsx', 'client', 'hydrate');
+		const javascript = transformSync(code, { loader: 'ts' }).code;
 
-		expect(code).toMatch(
-			/label: \[__exactPropertyOperand, __exactReadState\(props, \d+\) as \{\s*label: string;\s*\}, "label"\]/
+		expect(javascript).toMatch(
+			/label: __exactComponentPropExpression\(\(\) => .*__exactReadState\(props, \d+\).*\.label\)/s
 		);
-		expect(code).not.toMatch(
-			/label: __exactForwardedExpression\(\(\) => \(__exactReadState\(props, \d+\)/
+		expect(javascript).not.toMatch(/label: \[__exactPropertyOperand, __exactReadState\(props,/);
+		expect(javascript).not.toMatch(
+			/label: __exactForwarded(?:ComponentProp)?Expression\(\(\) => .*__exactReadState\(props, \d+\).*\.label\)/s
 		);
 	});
 
 	it('keeps only arbitrary expressions in mixed intrinsic property writers', async () => {
 		const { code } = await compileFixture('state.fixtures.tsx', 'client', 'hydrate');
+		const javascript = transformSync(code, { loader: 'ts' }).code;
 
-		expect(code).toMatch(/\[12, \d+, \d+, \[\["data-count", 0, \d+\]\], true\]/);
-		expect(code).toMatch(/__exactApply\("disabled", !__exactReadState\(this\.state, \d+\)\)/);
-		const ordinary = code.slice(
-			code.indexOf('const __exactImplementation_IndexedState_1'),
-			code.indexOf('export const stateRoot')
+		expect(javascript).toMatch(/\[12, \d+, \d+, \[\["data-count", 0, \d+\]\], true\]/);
+		expect(javascript).toMatch(/__exactApply\("disabled", !__exactReadState\(this\.state, \d+\)\)/);
+		const ordinary = javascript.slice(
+			javascript.indexOf('const __exactImplementation_IndexedState_1'),
+			javascript.indexOf('export const stateRoot')
 		);
 		expect(ordinary).not.toMatch(
 			/__exactApply\("data-count", __exactReadState\(this\.state, \d+\)\)/
 		);
 		// Extracted receivers without indexed property operands still need their writer.
-		const extracted = code.slice(code.indexOf('export const IndexedState_ExactClient_1'));
+		const extracted = javascript.slice(
+			javascript.indexOf('export const IndexedState_ExactClient_1')
+		);
 		expect(extracted).toMatch(/__exactApply\("data-count", __exactReadState\(this\.state, \d+\)\)/);
 	});
 

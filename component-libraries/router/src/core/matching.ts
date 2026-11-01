@@ -1,21 +1,36 @@
 import type { ExactRouteDefinition, RouteMatch } from './contracts.js';
 import { decode, segments } from './locations.js';
+import { routeRecordValue, setRouteRecordValue } from './route-records.js';
+import { literalSegmentMatches, planOptionalPaths } from './optional-paths.js';
 
-/** Performs the match routes domain operation. */
+/**
+ * Returns the most specific complete route branch, including a parent at its own URL.
+ * Equal scores retain declaration order. Empty results indicate no match. Branch ranking uses
+ * one pass over cached scores, without sorting or allocating successful-candidate arrays.
+ */
 export function matchRoutes<Route extends ExactRouteDefinition>(
 	routes: readonly Route[],
 	pathname: string
 ): readonly RouteMatch<Route>[] {
 	const candidates: Array<{ routes: Route[]; score: number }> = [];
 	collectBranches(routes, [], candidates);
-	const matches = candidates
-		.map((candidate) => ({ ...candidate, matched: matchBranch(candidate.routes, pathname) }))
-		.filter(
-			(candidate): candidate is typeof candidate & { matched: readonly RouteMatch<Route>[] } =>
-				!!candidate.matched
-		)
-		.sort((left, right) => scoreBranch(right.routes) - scoreBranch(left.routes))[0];
-	return Object.freeze(matches?.matched ?? []);
+	const pathSegments = segments(pathname);
+	let best: readonly RouteMatch<Route>[] | undefined;
+	let bestScore = -Infinity;
+	for (const candidate of candidates) {
+		// Equal scores retain the first successful declaration, matching stable-sort precedence.
+		if (candidate.score <= bestScore) continue;
+		const planned = planOptionalPaths(candidate.routes, pathSegments, true);
+		if (planned === undefined) continue;
+		const score = planned ? scoreBranch(candidate.routes, planned) : candidate.score;
+		if (score <= bestScore) continue;
+		const matched = matchBranch(candidate.routes, pathSegments, true, planned);
+		if (matched) {
+			best = matched;
+			bestScore = score;
+		}
+	}
+	return Object.freeze(best ?? []);
 }
 
 /** Matches a single path pattern and returns decoded parameters. */
@@ -29,16 +44,13 @@ export function matchPath(
 		path: config.path,
 		caseSensitive: config.caseSensitive
 	};
-	const matched = matchRoute(route, segments(pathname), 0, {}, config.end ?? true);
-	if (!matched) return null;
-	return {
-		id: route.id ?? '__match_path__',
-		route,
-		path: route.path,
-		pathname: matched.pathname,
-		pathnameBase: matched.pathnameBase,
-		params: matched.params
-	};
+	const pathSegments = segments(pathname);
+	const branch = [route];
+	const end = config.end ?? true;
+	const planned = planOptionalPaths(branch, pathSegments, end);
+	return planned === undefined
+		? null
+		: (matchBranch(branch, pathSegments, end, planned)?.[0] ?? null);
 }
 
 /** Interpolates named and splat parameters into a route path template. */
@@ -52,7 +64,7 @@ export function generatePath(
 				/:([A-Za-z0-9_]+)(\?)?|\*/g,
 				(token, name: string | undefined, optional: string | undefined) => {
 					const key = name ?? '*';
-					const value = params[key];
+					const value = routeRecordValue(params, key);
 					if (value == null) {
 						if (optional) return '';
 						throw new Error(`Missing route parameter ${key}`);
@@ -68,6 +80,7 @@ export function generatePath(
 	);
 }
 
+/** Enumerates path-owning and terminal branches in declaration order, retaining their layout ancestry. */
 function collectBranches<Route extends ExactRouteDefinition>(
 	routes: readonly Route[],
 	parents: readonly Route[],
@@ -76,18 +89,19 @@ function collectBranches<Route extends ExactRouteDefinition>(
 	for (const route of routes) {
 		const branch = [...parents, route];
 		const children = route.children ?? [];
-		if (!children.length || route.index || route.path === '*')
+		if (!children.length || route.index || route.path !== undefined)
 			output.push({ routes: branch, score: scoreBranch(branch) });
 		if (children.length) collectBranches(children as readonly Route[], branch, output);
 	}
 }
 
-function scoreBranch(routes: readonly ExactRouteDefinition[]): number {
+/** Ranks authored paths, or their resolved omissions when optional planning changes specificity. */
+function scoreBranch(routes: readonly ExactRouteDefinition[], planned?: readonly string[]): number {
 	return routes.reduce(
-		(score, route) =>
+		(score, route, index) =>
 			score +
 			(route.index ? 5 : 0) +
-			segments(route.path ?? '').reduce(
+			segments(planned?.[index] ?? route.path ?? '').reduce(
 				(value, segment) =>
 					value +
 					(segment === '*' ? 1 : segment.startsWith(':') ? (segment.endsWith('?') ? 15 : 20) : 30),
@@ -98,16 +112,25 @@ function scoreBranch(routes: readonly ExactRouteDefinition[]): number {
 	);
 }
 
+/** Captures one prepared branch while preserving original route identity and inherited parameters. */
 function matchBranch<Route extends ExactRouteDefinition>(
 	routes: readonly Route[],
-	pathname: string
+	pathSegments: readonly string[],
+	end: boolean,
+	planned: readonly string[] | null
 ): readonly RouteMatch<Route>[] | undefined {
-	const pathSegments = segments(pathname);
 	let cursor = 0;
 	let params: Record<string, string> = {};
 	const matches: RouteMatch<Route>[] = [];
 	for (const route of routes) {
-		const matched = matchRoute(route, pathSegments, cursor, params, route === routes.at(-1));
+		const matched = matchRoute(
+			route,
+			pathSegments,
+			cursor,
+			params,
+			end && route === routes.at(-1),
+			planned?.[matches.length]
+		);
 		if (!matched) return undefined;
 		cursor = matched.cursor;
 		params = matched.params;
@@ -120,7 +143,7 @@ function matchBranch<Route extends ExactRouteDefinition>(
 			params: Object.freeze({ ...params })
 		});
 	}
-	if (cursor !== pathSegments.length) return undefined;
+	if (end && cursor !== pathSegments.length) return undefined;
 	return Object.freeze(matches);
 }
 
@@ -129,15 +152,18 @@ function matchRoute(
 	pathSegments: readonly string[],
 	start: number,
 	inherited: Readonly<Record<string, string>>,
-	end: boolean
+	end: boolean,
+	path = route.path
 ):
 	| { cursor: number; params: Record<string, string>; pathname: string; pathnameBase: string }
 	| undefined {
-	let cursor = route.path?.startsWith('/') ? 0 : start;
+	let cursor = path?.startsWith('/') ? 0 : start;
 	const params = { ...inherited };
+	let splatStart: number | undefined;
 	if (route.index && cursor !== pathSegments.length) return undefined;
-	for (const segment of route.index ? [] : segments(route.path ?? '')) {
+	for (const segment of route.index ? [] : segments(path ?? '')) {
 		if (segment === '*') {
+			splatStart = cursor;
 			params['*'] = decode(pathSegments.slice(cursor).join('/'));
 			cursor = pathSegments.length;
 			break;
@@ -150,24 +176,17 @@ function matchRoute(
 				if (optional) continue;
 				return undefined;
 			}
-			params[name] = decode(actual);
+			setRouteRecordValue(params, name, decode(actual));
 			cursor++;
 			continue;
 		}
 		if (actual === undefined) return undefined;
-		const equal = route.caseSensitive
-			? actual === segment
-			: actual.toLowerCase() === segment.toLowerCase();
-		if (!equal) return undefined;
+		if (!literalSegmentMatches(actual, segment, route.caseSensitive)) return undefined;
 		cursor++;
 	}
 	if (end && cursor !== pathSegments.length) return undefined;
 	const pathname = `/${pathSegments.slice(0, cursor).join('/')}` || '/';
-	const splat = route.path?.includes('*');
-	const pathnameBase = splat
-		? `/${pathSegments.slice(0, Math.max(start, cursor - segments(params['*'] ?? '').length)).join('/')}`
-		: pathname;
+	const pathnameBase =
+		splatStart === undefined ? pathname : `/${pathSegments.slice(0, splatStart).join('/')}`;
 	return { cursor, params, pathname, pathnameBase: pathnameBase || '/' };
 }
-
-/** Normalizes a location source into the router's public location value. */

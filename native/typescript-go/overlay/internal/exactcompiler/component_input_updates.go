@@ -117,6 +117,7 @@ func (lowering *jsxLowering) registerComponentInputUpdate(
 func omitComponentInputTaskTransitions(
 	components []Component,
 	continuations []Continuation,
+	tasks []Task,
 	taskIDs map[string]struct{},
 ) ([]Component, []Continuation) {
 	retainedContinuations := make([]Continuation, 0, len(continuations))
@@ -125,7 +126,16 @@ func omitComponentInputTaskTransitions(
 			retainedContinuations = append(retainedContinuations, continuation)
 		}
 	}
-	filter := func(execution ComponentExecution) ComponentExecution {
+	// Local opaque computations have no distributed transition to filter. Recompute
+	// their ownership from surviving original tasks, including components that keep
+	// an unconverted computation alongside an indexed input update.
+	localComputations := make(map[string]bool)
+	for _, task := range tasks {
+		if _, omitted := taskIDs[task.ID]; !omitted && targetLocalOpaqueComputation(task) {
+			localComputations[task.Component] = true
+		}
+	}
+	filter := func(execution ComponentExecution, component string) ComponentExecution {
 		transitions := make([]ComponentTransition, 0, len(execution.Transitions))
 		for _, transition := range execution.Transitions {
 			if _, omitted := taskIDs[transition.TaskID]; !omitted {
@@ -133,12 +143,14 @@ func omitComponentInputTaskTransitions(
 			}
 		}
 		execution.Transitions = transitions
+		execution.LocalComputation = localComputations[component]
 		return execution
 	}
 	for index := range components {
-		components[index].Execution = filter(components[index].Execution)
+		components[index].Execution = filter(components[index].Execution, components[index].Name)
 		components[index].TargetPlan.ClientExecution = filter(
 			components[index].TargetPlan.ClientExecution,
+			components[index].Name,
 		)
 	}
 	return components, retainedContinuations

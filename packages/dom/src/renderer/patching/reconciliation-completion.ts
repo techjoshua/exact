@@ -10,10 +10,14 @@ export function completeChildReconciliation(
 	parentInstance: AnyComponentInstance | undefined,
 	structuralOwner: Mounted | undefined
 ): void {
+	if (root.suppliedPlacementPlan?.pending && root.suppliedPlacementPlan.isCurrent()) {
+		root.suppliedPlacementPlan.complete(parentInstance, structuralOwner);
+		return;
+	}
 	if (structuralOwner) {
 		domEnhancementCapability()?.invalidate?.(structuralOwner);
 		refreshTargetDependents(root, structuralOwner);
 	}
-	if (parentInstance) refreshComponentRoot(parentInstance);
+	if (parentInstance) refreshComponentRoot(root, parentInstance);
 	if (!root.enhancementReconciliationDepth) root.reconcileEnhancements?.();
 }

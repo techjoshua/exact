@@ -1,6 +1,6 @@
 import { expect, it, onTestFinished, vi } from 'vitest';
 import { composeExactComponentContracts } from '@exactjs/core/framework/component-contracts';
-import { createCompiledComponentReceipt as receipt } from '@exactjs/core/runtime/component-operations';
+import { createCompiledComponentInputReceipt as receipt } from '@exactjs/core/runtime/component-operations';
 import { hydrate } from '@exactjs/hydrate';
 import { renderToHydratableString } from '@exactjs/ssr';
 import {
@@ -16,7 +16,6 @@ import {
 	NormalizationAsyncInputProbe as ServerAsyncInput,
 	NormalizationServerSnapshotProbe as ServerSnapshot
 } from './test-support/source-normalization-server.fixtures.js?exact-target=server';
-
 for (const [kind, Client, Server] of [
 	['async', NormalizationAsyncInputProbe, ServerAsyncInput],
 	['snapshot', NormalizationServerSnapshotProbe, ServerSnapshot]

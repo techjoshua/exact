@@ -115,7 +115,10 @@ callback remains available for translation-tool extraction.
 
 `catalogs` accepts already-loaded protocol objects for generated or programmatic integrations.
 `catalogFiles` accepts XLIFF 2.1 (`.xlf` or `.xliff`) or protocol JSON files, resolves them from
-`applicationRoot`, and adds them to the build watch set. XLIFF is the persisted translation source
+`applicationRoot`, and adds them to the build watch set. A protocol JSON file may hold one catalog
+or an array of catalogs, preserved in file order. Loading and package publication iterate those
+records directly, so large arrays do not depend on the host function-argument capacity.
+XLIFF is the persisted translation source
 of truth; the coordinator lowers its translated inline-code structure to bounded protocol data only
 after it has collected the source descriptors needed to validate it. In development, changing only
 a catalog reloads the data, relinks existing virtual
@@ -445,8 +448,12 @@ the derived projection carries the Unicode data license.
 Component libraries can consume the same decision through
 `resolveIntlMeasurementPresentation(environment, request)`. The request supplies semantic quantity
 and usage, an explicit source unit, representative values, conversion policy, and number options.
-The returned immutable presentation fixes the effective locale and destination units; the public
-convert, restore, value-format, and range-format functions apply it. Consumers must not reproduce
+The returned presentation records the effective locale and destination units under TypeScript
+readonly declarations. Its number options are copied, and values remain ordinary JavaScript data.
+Formatting requires a new presentation after an environment update, including direct reactive
+locale writes. Restoring a public generation value does not revive a retired presentation.
+Resolution also rejects an environment update triggered while reading request fields. The public
+convert, restore, value-format, and range-format functions apply it. Unsupported unit names are rejected, including identity conversions. Consumers must not reproduce
 locale parsing, CLDR selection, conversion, unit placement, precision, or formatter caches.
 
 An existing prepared scalar message may also publish a bounded value through
@@ -564,7 +571,15 @@ Semantic unit preferences default from CLDR using the locale's likely region and
 or `u-ms` overrides. Applications only provide the finite, dimension-checked
 `IntlUnitPreferences` entries that intentionally override those defaults.
 
-`environment.setLocale(locale)` is reactive and atomic. Generated companions are discovered
+Unit preference inputs are captured into environment-owned state, including copied mixed-unit
+tuples. Reading `environment.unitPreferences` returns an independent ordinary snapshot. Use
+`setUnitPreferences()` to update the provider and its existing locale scopes together. The update
+uses one reactive batch and participates in reactive rollback. Failed scope propagation restores
+the complete update, and newer reentrant policies supersede older propagation.
+
+`environment.setLocale(locale)` is reactive and atomic. Environment methods remain ordinary
+JavaScript properties, and locale metadata uses TypeScript readonly declarations with independent
+ordinary returned objects. Generated companions are discovered
 automatically; missing messages use the analyzed source plan. DOM, SSR, and hydration
 use the same plan and preserve direct-intrinsic identity across binding and locale changes.
 Message lookup retains the current locale's fallback candidate list per environment, avoiding
@@ -576,6 +591,14 @@ still observes reactive locale state and reads the current catalogs. Locale chan
 environment's retained list; catalog changes remain visible without rebuilding it. Shared entries
 contain only locale strings, never catalogs, message results, callbacks, or mutable environment state.
 Request-specific environments therefore gain fallback-list reuse without sharing request state.
+Existing locale scopes retain their provider’s generated or explicitly configured source mode.
+Generated scopes adopt lazy catalogs and later generations without replacing the environment.
+Public `find()` results and translation projection/materialization results are independent data
+with TypeScript readonly declarations. Writable aliases do not change retained execution plans
+or another lookup.
+Scoped manual overlays keep their priority, and explicit descriptor/catalog inputs remain isolated
+from unrelated generated artifacts. Inherited overlays are compacted by locale and owner.
+
 Message-only fragments stay transparent. A fragment gains a host only when an enhancement
 contributes props to its supplied `_target`. Locale metadata and translated attributes use this
 rule: the default host is `span`, and `intl:intrinsicFragment` can select a different constant tag.
@@ -584,6 +607,12 @@ component does not need to know about the enhancement at compilation time, inclu
 activations. Rich and opaque message structures retain their identity through locale changes.
 Within `title` or `textarea`, materialized markup is serialized as literal text, with no Element ref
 or event listener for that markup and no promotion of its attributes to the enclosing element.
+
+Catalog inputs are captured before publication. Rejected updates do not enter replay history,
+and later caller edits do not change accepted translations after generated artifact updates.
+Descriptor and catalog replacements are prepared together, then installed as one owned registry
+revision. Manual catalog updates and related locale scopes participate in reactive rollback.
+A failed generated replacement preserves the previously accepted registry for recovery.
 
 Translator data cannot provide functions, component identities, HTML, handlers, URLs, or undeclared
 bindings. Native `Intl` formatter instances live in one bounded, lazily created realm-wide cache
@@ -627,6 +656,9 @@ export function formatPrice(value: number, locale: string) {
 }
 ```
 
+Facade methods are ordinary object properties. Each component owns its facade, while formatter
+caches remain shared across compatible configurations.
+
 Dynamic option objects with accessors or non-data prototypes deliberately bypass reuse so cache
 keying cannot change observable JavaScript behavior. A missing constructor is not cached; a
 capability polyfill may fill it once before the first successful formatter request.
@@ -656,6 +688,17 @@ descriptor set. It deliberately does not translate, choose target locales, or co
 another catalog. A new locale starts from that source manifest; untranslated units may remain
 without `<target>` and therefore use the authored fallback.
 
+Package metadata validation returns independent ordinary records with TypeScript readonly fields.
+Source analysis, descriptor companions, catalog projections, interchange adapters, and runtime
+artifact observations use the same ordinary-value model and retain their readonly types.
+Generated descriptor and catalog literals use ordinary JavaScript objects without emitted freezing.
+Observation lists have independent membership,
+while accepted artifact generations still reject conflicting same-generation data and ignore stale
+registrations. The shared artifact state is initialized when used, so importing an unrelated value
+helper does not create the registry.
+Language-service results use the same readonly model, with half-open UTF-16 range filtering and
+hover containment that excludes a region’s trailing end.
+
 Installed dependencies can publish inert message contracts and locale catalogs through the fixed
 `exact.internationalization` package metadata. The shared coordinator discovers those declarations
 without evaluating package code, selects only configured/application catalog locales, validates
@@ -668,6 +711,8 @@ selected dependency catalog is not stranded by a more specific application local
 Descriptor companions loaded by a lazy component advance the shared artifact revision. Existing
 default environments synchronize that revision on lookup, validate the new descriptor/catalog
 slice, and can render the lazy translation without recreating the root provider.
+When the revision is unchanged, lookup checks the revision without traversing the artifact registry
+or copying its descriptor and catalog lists.
 
 `@exactjs/intl-build` exposes source extraction, XLIFF 2.1 import, export, and synchronization plus
 a protocol-JSON adapter for generated integrations. XLIFF is the human and workflow-facing format. Plain
@@ -699,7 +744,13 @@ Synchronization rewrites current `<source>` plans, preserves compatible `<target
 segment state, and translator ordering, and removes obsolete units. Import rejects stale or duplicate
 units and incompatible protected-code changes; untranslated targets intentionally use source fallback. Runtime JSON
 is derived, validated build data and should not be edited or committed as the authoritative
-translation catalog.
+translation catalog. Protocol arrays must be dense, and discriminants and formatter identifiers
+must be actual strings. Validation captures record fields and array entries once, checks those
+captured values, and publishes the same values without calling input-owned iteration methods.
+Validation limits are nonnegative safe-integer counts. Validation captures them once before reading
+artifact fields, so input getters cannot change an in-flight bound. Text limits apply to both
+authored and NFC-normalized strings in UTF-16 code units. Nonfinite, fractional, and negative
+limits are rejected even when an artifact contains no messages.
 
 The internal prepared activation, companion registration, and validation APIs are build-tool
 contracts; application code should not construct them. Message analysis remains lexical and does

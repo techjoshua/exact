@@ -1,3 +1,5 @@
+import { Chart as CurrentSourceChart } from '../components.js';
+import type { ChartSeriesInput } from '../contracts.js';
 import {
 	Axis,
 	AxisLabel,
@@ -133,3 +135,15 @@ export const valuesServerChartRoot = () => (
 		]}
 	/>
 );
+
+/** Source-owned compact inputs are acquired independently for each server occurrence. */
+export function currentCompactServerChartRoot(series: readonly ChartSeriesInput[]) {
+	return (
+		<CurrentSourceChart
+			id="current-source-chart"
+			type="bar"
+			title="Current compact"
+			series={series}
+		/>
+	);
+}

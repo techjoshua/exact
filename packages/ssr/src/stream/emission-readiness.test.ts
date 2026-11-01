@@ -1,3 +1,4 @@
+import { verifyProgressiveUnwindCancellation } from '../../../component-composition-corpus/test-support/ssr-prop-cancellation-journey.js';
 import { expect, it } from 'vitest';
 import { createProgressiveHtmlStream } from './creation.js';
 import { produceProgressiveHtml } from './production.js';
@@ -83,3 +84,6 @@ it.each([0, -1, 1.5, NaN, Infinity])(
 		).toThrow(RangeError);
 	}
 );
+
+it('retains cancellation when progressive rendering rejects during unwind', () =>
+	verifyProgressiveUnwindCancellation({ produceProgressiveHtml }));

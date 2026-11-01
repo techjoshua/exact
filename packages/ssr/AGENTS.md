@@ -5,6 +5,9 @@ streaming, or hydratable eXact server rendering. Await string results before rea
 
 - Choose the smallest render API that fits the response.
 - Forward the host request signal to SSR for cancellation and inherited adaptive scheduling.
+- Choose optional output caps for the page with `maxOutputBytes` and the relevant `maxStream*`
+  options, or `maxTreeNodes` for a render-value quota. Rendering has no default deadline or
+  total output-size quota.
 - Keep component inputs deterministic and serializable.
 - Add hydration data only when the browser needs eXact-owned behavior.
 - Use `Document` from `@exactjs/core/document` to complete authored document sections. Supply

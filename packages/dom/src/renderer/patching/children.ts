@@ -1,3 +1,4 @@
+import { reconcileSelectText } from '../../controlled-select.js';
 import { validateSuppliedPlacement } from '../supplied-placement-capability.js';
 import { type AnyComponentInstance, type Child } from '@exactjs/core';
 import { type EffectScope } from '@exactjs/reactive/framework/runtime';
@@ -28,6 +29,7 @@ import { completeChildReconciliation } from './reconciliation-completion.js';
 import { bindText } from './text-binding.js';
 import { canPatchOpaqueOperation, patchOpaqueOperation } from './native-operation-target.js';
 import { createForeignReplacementParking } from './replacement-parking.js';
+import { reserveUnkeyedOperationMatches, type SiblingMatch } from './unkeyed-operation-matches.js';
 
 export { bindText } from './text-binding.js';
 
@@ -46,7 +48,9 @@ export function patchChildren(
 	structuralOwner?: Mounted,
 	complete = true
 ): Mounted[] {
-	validateSuppliedPlacement(parentInstance);
+	validateSuppliedPlacement(parentInstance, root);
+	if (root.suppliedPlacementPlan?.pending && root.suppliedPlacementPlan.isCurrent())
+		root.suppliedPlacementPlan.retainChildren(structuralOwner);
 	if (root.interactionWork) root.interactionWork.reconciliations++;
 	domDebug(root, 'patch children', () => ({
 		parent: describeNode(parent),
@@ -59,7 +63,7 @@ export function patchChildren(
 	return withDomWork(root, () =>
 		preserveFocus(root, () => {
 			const operations = mixedChildOperations(nextChildren);
-			return patchMixedNativeChildren(
+			const result = patchMixedNativeChildren(
 				root,
 				parent,
 				oldChildren,
@@ -70,6 +74,9 @@ export function patchChildren(
 				structuralOwner,
 				complete
 			);
+			if (root.suppliedPlacementPlan?.pending && root.suppliedPlacementPlan.isCurrent())
+				root.suppliedPlacementPlan.children(oldChildren, result);
+			return result;
 		})
 	);
 }
@@ -113,7 +120,7 @@ function patchMixedNativeChildren(
 		return oldChildren;
 	}
 	const oldKeys = new Map<string, { mounted: Mounted; index: number }>();
-	const oldUnkeyed: Array<{ mounted: Mounted; index: number }> = [];
+	const oldUnkeyed: SiblingMatch[] = [];
 	for (let index = 0; index < oldChildren.length; index++) {
 		const mounted = oldChildren[index]!;
 		const key = mountedChildKey(mounted);
@@ -124,12 +131,17 @@ function patchMixedNativeChildren(
 		}
 	}
 	const seenKeys = new Set<string>();
-	const matches = new Array<{ mounted: Mounted; index: number } | undefined>(next.length);
+	const matches = new Array<SiblingMatch | undefined>(next.length);
+	const reserved = reserveUnkeyedOperationMatches(oldUnkeyed, next, matches);
 	let unkeyedIndex = 0;
 	for (let index = 0; index < next.length; index++) {
 		const operation = next[index]!;
-		if (operation.key === undefined) matches[index] = oldUnkeyed[unkeyedIndex++];
-		else {
+		if (operation.key === undefined) {
+			if (matches[index]) continue;
+			while (unkeyedIndex < oldUnkeyed.length && reserved?.has(oldUnkeyed[unkeyedIndex]!.mounted))
+				unkeyedIndex++;
+			matches[index] = oldUnkeyed[unkeyedIndex++];
+		} else {
 			if (seenKeys.has(operation.key))
 				throw new Error(`Duplicate key "${operation.key}" in rendered children`);
 			seenKeys.add(operation.key);
@@ -197,7 +209,9 @@ function patchMixedNativeChildren(
 	const teardown = teardownFailure();
 	for (const old of oldChildren) {
 		if (matched.has(old)) continue;
-		if (!releaseMountedRange(root, parent, old, 'reconcile-removed')) {
+		if (root.suppliedPlacementPlan?.pending && root.suppliedPlacementPlan.isCurrent())
+			root.suppliedPlacementPlan.remove(parent, old, 'reconcile-removed');
+		else if (!releaseMountedRange(root, parent, old, 'reconcile-removed')) {
 			attemptTeardown(teardown, () => unmountMounted(old));
 			attemptTeardown(teardown, () => removeMountedNodes(parent, old));
 		}
@@ -266,7 +280,9 @@ function patchCompilerChildReceipt(
 	if (!replacement) throw new Error('Compiler-issued child operation did not mount a range');
 	for (const commit of parking.commits) commit();
 	placeMountedBefore(root, parent, replacement, oldChild.dom);
-	if (!releaseMountedRange(root, parent, oldChild, 'reconcile-replaced')) {
+	if (root.suppliedPlacementPlan?.pending && root.suppliedPlacementPlan.isCurrent())
+		root.suppliedPlacementPlan.remove(parent, oldChild, 'reconcile-replaced');
+	else if (!releaseMountedRange(root, parent, oldChild, 'reconcile-replaced')) {
 		unmountMounted(oldChild);
 		removeMountedNodes(parent, oldChild);
 	}
@@ -286,7 +302,10 @@ function patchScalarChild(
 	parentScope: EffectScope | undefined
 ): Mounted {
 	if (mounted?.scalar && mounted.dom.nodeType === 3) {
-		if (mounted.scalarValue !== scalar) (mounted.dom as CharacterData).data = scalar;
+		if (mounted.scalarValue !== scalar) {
+			(mounted.dom as CharacterData).data = scalar;
+			reconcileSelectText(root, parent);
+		}
 		mounted.scalarValue = scalar;
 		bindText(mounted, value);
 		return mounted;
@@ -294,7 +313,9 @@ function patchScalarChild(
 	const replacement = mountDetachedOperation(root, value, parentInstance, parentScope, parent);
 	if (!mounted) return replacement;
 	placeMountedBefore(root, parent, replacement, mounted.dom);
-	if (!releaseMountedRange(root, parent, mounted, 'reconcile-replaced')) {
+	if (root.suppliedPlacementPlan?.pending && root.suppliedPlacementPlan.isCurrent())
+		root.suppliedPlacementPlan.remove(parent, mounted, 'reconcile-replaced');
+	else if (!releaseMountedRange(root, parent, mounted, 'reconcile-replaced')) {
 		unmountMounted(mounted);
 		removeMountedNodes(parent, mounted);
 	}

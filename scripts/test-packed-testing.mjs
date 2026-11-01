@@ -19,8 +19,8 @@ try {
 	};
 	const install = await createPackedAppInstaller(workspace, temporary, mixed ? released : {});
 	if (mixed) {
-		// The coordinated 0.7 release excludes 0.6 dependencies. Verify rejection explicitly
-		// until a compatible published 0.7 patch can supply a positive mixed-version journey.
+		// The current provider floor excludes these frozen 0.6 releases. Verify rejection explicitly.
+		// A positive mixed-version journey requires a compatible published provider.
 		for (const [name, version] of Object.entries(released)) {
 			const root = path.join(temporary, name.split('/')[1]);
 			await mkdir(root);
@@ -29,13 +29,13 @@ try {
 				JSON.stringify({
 					name: 'incompatible-release',
 					private: true,
-					dependencies: { [name]: '^0.7.0' }
+					dependencies: { [name]: '^0.8.0' }
 				})
 			);
 			await assert.rejects(install(root), {
-				message: `${name}@${version} does not satisfy ^0.7.0`
+				message: `${name}@${version} does not satisfy ^0.8.0`
 			});
-			console.log(`Rejected incompatible dependency ${name}@${version} for ^0.7.0`);
+			console.log(`Rejected incompatible dependency ${name}@${version} for ^0.8.0`);
 		}
 	}
 	for (const runner of mixed ? [] : ['vitest', 'bun-test']) {
@@ -48,19 +48,19 @@ try {
 				private: true,
 				type: 'module',
 				dependencies: {
-					'@exactjs/testing': '^0.7.0',
-					'@exactjs/core': '^0.7.0',
-					'@exactjs/jsx': '^0.7.0',
-					[`@exactjs/${runner}`]: '^0.7.0',
+					'@exactjs/testing': '^0.8.0',
+					'@exactjs/core': '^0.8.0',
+					'@exactjs/jsx': '^0.8.0',
+					[`@exactjs/${runner}`]: '^0.8.0',
 					...(runner === 'vitest'
 						? {
-								vitest: '4.1.11',
-								vite: '8.1.5',
+								vitest: '4.1.12',
+								vite: '8.1.6',
 								jsdom: '^25.0.1',
 								esbuild: '0.27.2',
-								'@exactjs/compiler': '^0.7.0',
-								'@exactjs/server': '^0.7.0',
-								'@exactjs/ssr': '^0.7.0'
+								'@exactjs/compiler': '^0.8.0',
+								'@exactjs/server': '^0.8.0',
+								'@exactjs/ssr': '^0.8.0'
 							}
 						: {})
 				}
@@ -76,6 +76,38 @@ try {
 			path.join(root, 'src'),
 			{ recursive: true }
 		);
+		// Exercise the same retired-control contract through installed runner exports.
+		await cp(
+			path.join(workspace, 'packages/testing/src/test-support/retired-controls.fixtures.test.tsx'),
+			path.join(root, 'src/RetiredControls.tsx')
+		);
+		await cp(
+			path.join(
+				workspace,
+				'packages/component-composition-corpus/test-support/testing-control-lifetime-journey.ts'
+			),
+			path.join(root, 'src/control-lifetime-journey.ts')
+		);
+		for (const name of ['control-lifetime', 'context-preparation-cleanup', 'role-name']) {
+			const source = await readFile(
+				path.join(workspace, 'packages/testing/src', name + '.test.ts'),
+				'utf8'
+			);
+			await writeFile(
+				path.join(root, 'src', name + '.test.ts'),
+				source
+					.replace("from './index.js'", "from '@exactjs/testing'")
+					.replace(
+						"from './test-support/retired-controls.fixtures.test.js'",
+						"from './RetiredControls.js'"
+					)
+					.replace(
+						"from '../../component-composition-corpus/test-support/testing-control-lifetime-journey.js'",
+						"from './control-lifetime-journey.js'"
+					)
+					.replace("from 'vitest'", runner === 'vitest' ? "from 'vitest'" : "from 'bun:test'")
+			);
+		}
 		await rename(
 			path.join(root, 'src/Counter.example.tsx'),
 			path.join(root, 'src/Counter.test.tsx')
@@ -143,7 +175,7 @@ try {
 
 			// Paired bundle queries need explicit test projections. Exclude their source roots
 			// because the journeys already compile those artifacts themselves. Limit source
-			// compilation to Counter so test helpers that generate TSX remain ordinary code.
+			// compilation to owned component fixtures so generated-source helpers remain ordinary code.
 			await writeFile(
 				path.join(root, 'vitest.config.ts'),
 				`import { defineConfig } from 'vitest/config';
@@ -151,7 +183,7 @@ import { exactVitest } from '@exactjs/vitest';
 export default defineConfig({
   plugins: [exactVitest({ compiler: {
     compileTestModules: true,
-    include: /Counter(?:[.]test)?[.]tsx$/,
+    include: /(?:Counter(?:[.]test)?|RetiredControls)[.]tsx$/,
     exclude: /[.]exact-(?:progress-testing|ownership|root-registry|island-registry|registry)-/
   } })],
   test: { environment: 'jsdom' }

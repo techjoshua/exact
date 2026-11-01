@@ -139,7 +139,7 @@ export function intlLiteralLocaleDiagnostics(
 		if (
 			!native.regions.some(
 				(region) =>
-					offset >= region.element.start && offset <= region.element.start + region.element.length
+					offset >= region.element.start && offset < region.element.start + region.element.length
 			)
 		)
 			continue;

@@ -1,10 +1,11 @@
 import { expect, it } from 'vitest';
 import { createCompiledComponentRegistry } from '@exactjs/core/runtime/registry';
-import { createCompiledComponentReceipt } from '@exactjs/core/runtime/component-abi';
+import { createCompiledComponentInputReceipt } from '@exactjs/core/runtime/component-abi';
 import { renderComponentReference } from './component.js';
 import { createSsrContext } from './context.js';
 import {
 	readServerComponentReference,
+	prepareServerComponentOccurrence,
 	receiptExecutionContract
 } from './server-component-reference.js';
 import { SynchronousBody } from './program-sink.fixtures.test.js';
@@ -13,23 +14,23 @@ import { prepareResumptionChildren } from './resumption-children.js';
 import { serverSlotReceiptReference, serverSlotReference } from './server-slots.js';
 import { createServerSlot } from '@exactjs/core/runtime/render-operations';
 import { readServerSlotReceipt } from '@exactjs/core/runtime/component-abi';
-
 it.each([null, undefined, false, 0, 'text'])(
 	'preserves scalar authored children in publication: %j',
-	(children) => {
-		const operation = createCompiledComponentReceipt(SynchronousBody, { children });
+	async (children) => {
+		const operation = createCompiledComponentInputReceipt(SynchronousBody, { children });
 		const reference = readServerComponentReference(operation)!;
-		const prepared = prepareResumptionChildren(reference, 'owner', createSsrContext({}));
+		const context = createSsrContext({});
+		const prepared = prepareResumptionChildren(
+			await prepareServerComponentOccurrence(context, reference, false),
+			'owner',
+			context
+		);
 		expect(prepared.component.children).toEqual([]);
 		expect(prepared.component.props).toBe(prepared.props);
 		expect(prepared.props.children).toBe(children);
 	}
 );
-
-it('snapshots a scalar child accessor before later publication', () => {
-	const reference = readServerComponentReference(
-		createCompiledComponentReceipt(SynchronousBody, null)
-	)!;
+it('snapshots a scalar child accessor before later publication', async () => {
 	let reads = 0;
 	const props = {
 		get children() {
@@ -37,17 +38,20 @@ it('snapshots a scalar child accessor before later publication', () => {
 			return 'text-' + reads;
 		}
 	};
+	const context = createSsrContext({});
+	const reference = readServerComponentReference(
+		createCompiledComponentInputReceipt(SynchronousBody, props)
+	)!;
 	const prepared = prepareResumptionChildren(
-		{ ...reference, props },
+		await prepareServerComponentOccurrence(context, reference, false),
 		'owner',
-		createSsrContext({})
+		context
 	);
-	expect(reads).toBe(2);
+	expect(reads).toBe(1);
 	expect(prepared.props.children).toBe('text-1');
-	expect(reads).toBe(2);
+	expect(reads).toBe(1);
 	expect(prepared.props).not.toBe(props);
 });
-
 it.each([
 	['range', { kind: 'single' }],
 	['range', { kind: 'branch', branch: 'selected' }],
@@ -66,9 +70,8 @@ it.each([
 	expect(serverSlotReference({ __exactServerSlot: id, ...authority })).toBe(true);
 	expect(serverSlotReference({ __exactServerSlot: 'foreign', ...authority })).toBe(false);
 });
-
 it('writes an adopted synchronous publication directly to the enclosing sink', async () => {
-	const operation = createCompiledComponentReceipt(SynchronousBody, null);
+	const operation = createCompiledComponentInputReceipt(SynchronousBody, null);
 	const reference = readServerComponentReference(operation)!;
 	expect(receiptExecutionContract(reference).artifact.execution.publication?.kind).toBe(
 		'resumption'
@@ -86,7 +89,6 @@ it('writes an adopted synchronous publication directly to the enclosing sink', a
 	expect(spans.length).toBeGreaterThan(0);
 	expect(spans.join('') + tail).toBe((await renderToString(operation, options)).html);
 });
-
 it.each([false, true])(
 	'keeps selected artifact publication under client ownership %j',
 	async (clientResumptionOwner) => {
@@ -97,7 +99,7 @@ it.each([false, true])(
 			({ lazy }) => ({ body: lazy(async () => SynchronousBody) })
 		);
 		const reference = readServerComponentReference(
-			createCompiledComponentReceipt(registry.body, null)
+			createCompiledComponentInputReceipt(registry.body, null)
 		)!;
 		expect(receiptExecutionContract(reference).artifact.execution.publication).toBeUndefined();
 		const options = { markers: false, clientResumptionOwner };

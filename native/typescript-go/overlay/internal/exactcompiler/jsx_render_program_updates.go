@@ -387,6 +387,12 @@ func (lowering *jsxLowering) directComponentProgramReader(
 				dependencies = append(dependencies, dependency)
 				return false
 			}
+			// Only indexed reads above have a complete component dependency. An ordinary
+			// member can belong to a reactive helper argument, so retain its tracked reader.
+			if ast.IsPropertyAccessExpression(current) || ast.IsElementAccessExpression(current) {
+				supported = false
+				return false
+			}
 			// Callback bodies are deferred component work. Their reads belong to the callback's
 			// interaction/task execution, not to the eager prop description that publishes the function.
 			if ast.IsFunctionLike(current) && lowering.authoredSourceNode(current) {
@@ -418,6 +424,8 @@ func (lowering *jsxLowering) generatedComponentReaderCall(name string) bool {
 		name == lowering.names.keyedChild ||
 		name == lowering.names.preparedRenderProgram ||
 		name == lowering.names.expression ||
+		name == lowering.names.componentPropExpression ||
+		name == lowering.names.forwardedPropExpression ||
 		name == lowering.names.forwardedExpression ||
 		name == lowering.names.indexedExpression ||
 		name == lowering.names.enhancements
@@ -536,8 +544,10 @@ func (lowering *jsxLowering) directRenderProgramDependency(
 	// Readers which have not yet been visited still use their source node. The state-slot index
 	// already joins exact semantic reads to the containing component, so use its constant-time
 	// span lookup instead of rescanning every state read and component layout for every AST node.
+	// Scalar authority was captured on the authored tree. A reconstructed callback can no longer
+	// be queried safely against that checker, even when its source interval still matches.
 	if read, exists := lowering.stateReadSlots[nodeSpanKey(node)]; exists &&
-		scalarDerivedType(lowering.checker.GetTypeAtLocation(node)) {
+		read.scalar {
 		return componentUpdateDependency{source: "state", slot: read.slot}, true
 	}
 	return componentUpdateDependency{}, false

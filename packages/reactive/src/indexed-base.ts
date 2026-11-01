@@ -1,5 +1,20 @@
+import { indexedRecords, indexedRecord, type IndexedRecord } from './reactive-record-slots.js';
+import { createPropertyUndo } from './arrays/property-undo.js';
+import { markReactiveHashDirty } from './internal/keyed-collections.js';
 import {
-	isCompiledReactivePropertyOperand,
+	requiresExactProxyValue,
+	normalizeDescriptor,
+	samePropertyDescriptor
+} from './proxy/property-descriptors.js';
+export {
+	readReactiveOwnProperty,
+	readReactiveOwnPropertyInto,
+	type ReactiveOwnPropertyReadCell
+} from './proxy/property-descriptors.js';
+import { notifyMutation } from './internal/mutation-observation.js';
+import {
+	isCompiledPropOperand,
+	readCompiledPropOperand,
 	indexedSourceChanged
 } from './internal/property-operand.js';
 export {
@@ -8,6 +23,7 @@ export {
 	type CompiledReactivePropertyOperand
 } from './internal/property-operand.js';
 import {
+	iterateKey,
 	proxyMarker,
 	rawTarget,
 	reactiveProxyPolicy,
@@ -18,38 +34,20 @@ import type { Reactive, ReactiveOptions, ReactiveRef, ReactiveValue } from './in
 import {
 	batch,
 	hasActiveTransaction,
+	peek,
 	readMutationVersion,
 	recordTransactionUndo,
 	track,
 	trigger
 } from './internal/deps.js';
-import { hasChanged, isReactiveContainer, reactiveSourceChanged } from './change-detection.js';
+import { isReactiveContainer, reactiveSourceChanged } from './change-detection.js';
 import { isReactiveValue, rejectReadonlyReactiveValueWrite, unwrap } from './internal/values.js';
 import { indexedLayout } from './indexed-layout.js';
 import {
 	ensureIndexedRecordIndex,
 	indexedRecordIndex,
-	indexedRecordKey,
-	type IndexedRecordLayout
+	indexedRecordKey
 } from './reactive-record-slots.js';
-
-type IndexedRecord = IndexedRecordLayout & {
-	readonly initialized: boolean[];
-	readonly target: Record<PropertyKey, unknown>;
-	readonly options: ReactiveOptions;
-	readonly wrap: (value: object, options: ReactiveOptions, parentSource?: ReactiveRef) => object;
-	readonly preserveReactiveValues: boolean;
-	sources?: ReactiveRef[];
-	values?: ReactiveValue[];
-};
-
-/** Stable dependency keys for compiler-known fields on one indexed reactive target. */
-export type ReactiveOwnDependencies = Readonly<{
-	target: object;
-	keys: readonly PropertyKey[];
-}>;
-
-const indexedRecords = new WeakMap<object, IndexedRecord>();
 
 type IndexedProxyHandler = ProxyHandler<Record<PropertyKey, unknown>> & {
 	record: IndexedRecord;
@@ -66,18 +64,47 @@ const indexedProxyHandler: ProxyHandler<Record<PropertyKey, unknown>> = {
 		if (key === reactiveProxyPolicy) return this.record;
 		const { record } = this;
 		const index = indexedRecordIndex(record, key);
-		return index === undefined
-			? Reflect.get(target, key, receiver)
-			: readIndexedValue(record, key, index, 'facade');
+		if (index !== undefined) return readIndexedValue(record, key, index, 'facade', receiver);
+		track(target, key);
+		return Reflect.get(target, key, receiver);
 	},
-	set(this: IndexedProxyHandler, _target, key, next) {
+	set(this: IndexedProxyHandler, target, key, next, receiver) {
 		const { record } = this;
-		if (record.options.readonly) {
-			record.options.onReadonlyWrite?.(key);
+		if (indexedRecords.get(receiver) !== record) return Reflect.set(target, key, next, receiver);
+		const existing = indexedRecordIndex(record, key);
+		if (existing === undefined && !Reflect.isExtensible(target) && !Object.hasOwn(target, key))
 			return false;
-		}
-		const index = ensureIndexedRecordIndex(record, key);
-		return writeIndexedRecord(record, index, next);
+		return writeIndexedRecord(
+			record,
+			existing ?? ensureIndexedRecordIndex(record, key),
+			next,
+			receiver
+		);
+	},
+	defineProperty(this: IndexedProxyHandler, target, key, descriptor) {
+		const previous = Reflect.getOwnPropertyDescriptor(target, key);
+		if (samePropertyDescriptor(previous, descriptor)) return true;
+		const undo = hasActiveTransaction() ? createPropertyUndo(target, key) : undefined;
+		if (!Reflect.defineProperty(target, key, normalizeDescriptor(descriptor, previous)))
+			return false;
+		const index = ensureIndexedRecordIndex(this.record, key);
+		if (undo) recordTransactionUndo(undo, target, index);
+		publishIndexedMutation(
+			this.record,
+			index,
+			key,
+			'define',
+			!previous || ('enumerable' in descriptor && descriptor.enumerable !== previous.enumerable)
+		);
+		return true;
+	},
+	ownKeys(this: IndexedProxyHandler, target) {
+		track(target, iterateKey);
+		return Reflect.ownKeys(target);
+	},
+	has(this: IndexedProxyHandler, target, key) {
+		track(target, indexedRecordIndex(this.record, key) ?? key);
+		return Reflect.has(target, key);
 	},
 	deleteProperty(this: IndexedProxyHandler, target, key) {
 		const { record } = this;
@@ -85,11 +112,6 @@ const indexedProxyHandler: ProxyHandler<Record<PropertyKey, unknown>> = {
 		return index === undefined
 			? Reflect.deleteProperty(target, key)
 			: deleteIndexedRecord(record, index);
-	},
-	has(this: IndexedProxyHandler, target, key) {
-		const { record } = this;
-		const index = indexedRecordIndex(record, key);
-		return (index !== undefined && record.initialized[index] === true) || Reflect.has(target, key);
 	}
 };
 
@@ -107,21 +129,19 @@ export function createIndexedReactive<T extends object>(
 ): Reactive<T> {
 	const layout = indexedLayout(keys);
 	const target: Record<PropertyKey, unknown> = {};
-	const initialized = new Array<boolean>(layout.keys.length).fill(false);
 	const record: IndexedRecord = {
 		layout,
-		initialized,
 		target,
 		options,
 		wrap,
 		preserveReactiveValues
 	};
-	if (initial) seedIndexedRecord(record, initial);
 
 	const handler = Object.create(indexedProxyHandler) as IndexedProxyHandler;
 	handler.record = record;
 	const facade = new Proxy(target, handler);
 	indexedRecords.set(facade, record);
+	if (initial) seedIndexedRecord(record, initial, facade);
 	return facade as Reactive<T>;
 }
 
@@ -142,61 +162,30 @@ export function updateIndexedReactive(
 		for (const key of Reflect.ownKeys(indexed.target)) {
 			if (Object.prototype.hasOwnProperty.call(next, key)) continue;
 			const index = indexedRecordIndex(indexed, key);
-			if (index !== undefined) deleteIndexedRecord(indexed, index);
+			if (index !== undefined && !deleteIndexedRecord(indexed, index))
+				throw new TypeError(`Cannot delete indexed state property ${String(key)}`);
 		}
 		for (const key of Reflect.ownKeys(next)) {
 			const incoming = Reflect.get(next, key);
 			const index = ensureIndexedRecordIndex(indexed, key);
-			if (indexed.initialized[index] && reconcileNested(indexed.target[key], incoming)) continue;
-			writeIndexedRecord(indexed, index, incoming);
+			const descriptor = Reflect.getOwnPropertyDescriptor(indexed.target, key);
+			if (
+				descriptor &&
+				'value' in descriptor &&
+				(Object.is(descriptor.value, incoming) || reconcileNested(descriptor.value, incoming))
+			)
+				continue;
+			if (!writeIndexedRecord(indexed, index, incoming, value))
+				throw new TypeError(`Cannot assign indexed state property ${String(key)}`);
 		}
 	});
 	return true;
 }
 
-/** Request-owned result cell for allocation-free repeated own-property reads. */
-export type ReactiveOwnPropertyReadCell = { value: unknown };
-
-/** Reads an own field into a caller-owned cell without invoking an arbitrary accessor. */
-export function readReactiveOwnPropertyInto(
-	value: object,
-	key: PropertyKey,
-	cell: ReactiveOwnPropertyReadCell
-): boolean {
-	const indexed = indexedRecords.get(value);
-	if (indexed) {
-		const index = indexedRecordIndex(indexed, key);
-		if (index !== undefined && indexed.initialized[index]) {
-			cell.value = indexed.target[key];
-			return true;
-		}
-		cell.value = undefined;
-		return false;
-	}
-	const descriptor = Object.getOwnPropertyDescriptor(value, key);
-	if (descriptor && 'value' in descriptor) {
-		cell.value = descriptor.value;
-		return true;
-	}
-	cell.value = undefined;
-	return false;
-}
-
-/** Reads an own field without invoking an arbitrary user-defined accessor. */
-export function readReactiveOwnProperty(
-	value: object,
-	key: PropertyKey
-): { present: true; value: unknown } | { present: false } {
-	const cell: ReactiveOwnPropertyReadCell = { value: undefined };
-	return readReactiveOwnPropertyInto(value, key, cell)
-		? { present: true, value: cell.value }
-		: { present: false };
-}
-
 /** Reads one compiler-proven top-level slot without entering the facade's property trap. */
 export function readIndexedReactiveSlot(value: object, index: number): unknown {
 	const indexed = indexedRecord(value, index, 'read');
-	return readIndexedValue(indexed, indexedRecordKey(indexed, index), index, 'direct');
+	return readIndexedValue(indexed, indexedRecordKey(indexed, index), index, 'direct', value);
 }
 
 /**
@@ -208,7 +197,7 @@ export function createIndexedReactiveValue<T>(target: object, index: number): Re
 	const values = (indexed.values ??= []);
 	const existing = values[index];
 	if (existing) return existing as ReactiveValue<T>;
-	const source = indexedParentSource(indexed, index) as ReactiveRef<T>;
+	const source = indexedParentSource(indexed, index, target) as ReactiveRef<T>;
 	const value = {
 		[reactiveValueMarker]: true,
 		target: source.target,
@@ -225,12 +214,20 @@ export function createIndexedReactiveValue<T>(target: object, index: number): Re
 /** Reads one compiler-proven slot without collecting a dependency. */
 export function peekIndexedReactiveSlot(value: object, index: number): unknown {
 	const indexed = indexedRecord(value, index, 'peek');
-	return readIndexedValue(indexed, indexedRecordKey(indexed, index), index, 'peek');
+	return peek(() =>
+		readIndexedValue(indexed, indexedRecordKey(indexed, index), index, 'peek', value)
+	);
 }
 
-/** Commits one compiler-proven slot without entering the facade's proxy traps. */
-export function setIndexedReactiveSlot(value: object, index: number, next: unknown): void {
-	writeIndexedRecord(indexedRecord(value, index, 'write'), index, next);
+/** Commits one compiler-proven slot without entering the facade's proxy traps. Internal commits may reuse the destination descriptor captured for the same write. */
+export function setIndexedReactiveSlot(
+	value: object,
+	index: number,
+	next: unknown,
+	descriptor: PropertyDescriptor | undefined = undefined
+): void {
+	if (!writeIndexedRecord(indexedRecord(value, index, 'write'), index, next, value, descriptor))
+		throw new TypeError('Cannot assign indexed state property');
 }
 
 /** Commits one compiler-proven slot and reports whether its dependency version advanced. */
@@ -241,7 +238,8 @@ export function setIndexedReactiveSlotWithResult(
 ): boolean {
 	const indexed = indexedRecord(value, index, 'write');
 	const previous = readMutationVersion(indexed.target, index);
-	writeIndexedRecord(indexed, index, next);
+	if (!writeIndexedRecord(indexed, index, next, value))
+		throw new TypeError('Cannot assign indexed state property');
 	return readMutationVersion(indexed.target, index) !== previous;
 }
 
@@ -254,82 +252,93 @@ export function deleteIndexedReactiveSlot(value: object, index: number): boolean
 export function deleteIndexedReactiveSlotWithResult(value: object, index: number): boolean {
 	const indexed = indexedRecord(value, index, 'delete');
 	const previous = readMutationVersion(indexed.target, index);
-	deleteIndexedRecord(indexed, index);
+	if (!deleteIndexedRecord(indexed, index))
+		throw new TypeError('Cannot delete indexed state property');
 	return readMutationVersion(indexed.target, index) !== previous;
 }
 
-function indexedRecord(value: object, index: number, operation: string): IndexedRecord {
-	const indexed = indexedRecords.get(value);
-	if (!indexed || !Number.isSafeInteger(index) || index < 0 || index >= indexed.initialized.length)
-		throw new TypeError(`Compiled reactive ${operation} referenced an invalid indexed slot`);
-	return indexed;
-}
-
-function writeIndexedRecord(indexed: IndexedRecord, index: number, next: unknown): boolean {
+/** Commits a native assignment before publishing slot membership, dependencies, or undo ownership. */
+function writeIndexedRecord(
+	indexed: IndexedRecord,
+	index: number,
+	next: unknown,
+	receiver: object,
+	knownDescriptor?: PropertyDescriptor
+): boolean {
 	const key = indexedRecordKey(indexed, index);
-	const previous = indexed.target[key];
+	const descriptor = knownDescriptor ?? Reflect.getOwnPropertyDescriptor(indexed.target, key);
+	if (descriptor && !('value' in descriptor)) {
+		const accepted = Reflect.set(indexed.target, key, next, receiver);
+		if (accepted) publishIndexedMutation(indexed, index, key);
+		return accepted;
+	}
+	if (descriptor?.writable === false) return false;
+	const previous = descriptor?.value;
 	const raw = retainedIndexedValue(indexed, key, next);
 	const value =
 		!indexed.options.passthroughKeys?.includes(key) &&
-		!isCompiledReactivePropertyOperand(raw) &&
+		!isCompiledPropOperand(raw) &&
 		!isReactiveValue(raw) &&
 		raw &&
 		typeof raw === 'object' &&
 		isReactiveContainer(raw)
-			? indexed.wrap(raw as object, indexed.options, indexedParentSource(indexed, index))
+			? indexed.wrap(raw as object, indexed.options, indexedParentSource(indexed, index, receiver))
 			: raw;
-	const wasInitialized = indexed.initialized[index] === true;
-	// Equal current values can belong to different live sources. Retained consumers must
-	// subscribe to the replacement before the previous source's owner is released.
 	if (
-		wasInitialized &&
+		descriptor &&
 		!indexedSourceChanged(previous, value) &&
 		!(indexed.preserveReactiveValues && reactiveSourceChanged(previous, value)) &&
-		!hasChanged(previous, value)
+		(Object.is(unwrap(previous), unwrap(value)) ||
+			(isCompiledPropOperand(previous) && isCompiledPropOperand(value)))
 	)
 		return true;
-	if (hasActiveTransaction())
-		recordTransactionUndo(
-			() => {
-				if (wasInitialized) indexed.target[key] = previous;
-				if (!wasInitialized) {
-					indexed.initialized[index] = false;
-					Reflect.deleteProperty(indexed.target, key);
-				}
-			},
-			indexed.target,
-			index
-		);
-	Reflect.defineProperty(indexed.target, key, {
-		configurable: true,
-		enumerable: true,
-		value,
-		writable: true
-	});
-	indexed.initialized[index] = true;
-	trigger(indexed.target, index);
-	try {
-		indexed.options.onMutation?.(key, 'set');
-	} catch {
-		// Observability must not alter state semantics.
-	}
+	const undo = hasActiveTransaction() ? createPropertyUndo(indexed.target, key) : undefined;
+	const accepted = descriptor
+		? Reflect.set(indexed.target, key, value)
+		: Reflect.defineProperty(indexed.target, key, {
+				value,
+				configurable: true,
+				enumerable: true,
+				writable: true
+			});
+	if (!accepted) return false;
+	if (undo) recordTransactionUndo(undo, indexed.target, index);
+	publishIndexedMutation(indexed, index, key, 'set', !descriptor);
 	return true;
 }
 
-function seedIndexedRecord(indexed: IndexedRecord, initial: object): void {
+/** Publishes accepted property changes through numeric slots and any earlier unresolved key reads. */
+function publishIndexedMutation(
+	indexed: IndexedRecord,
+	index: number,
+	key: PropertyKey,
+	operation: 'set' | 'define' | 'delete' = 'set',
+	structural = false
+): void {
+	markReactiveHashDirty(indexed.target);
+	trigger(indexed.target, index);
+	if (index >= indexed.layout.keys.length) trigger(indexed.target, key);
+	if (structural) trigger(indexed.target, iterateKey);
+	notifyMutation(indexed.options, key, operation);
+}
+
+function seedIndexedRecord(indexed: IndexedRecord, initial: object, receiver: object): void {
 	for (const key of Reflect.ownKeys(initial)) {
 		const index = ensureIndexedRecordIndex(indexed, key);
 		const raw = retainedIndexedValue(indexed, key, Reflect.get(initial, key));
 		indexed.target[key] =
 			!indexed.options.passthroughKeys?.includes(key) &&
-			!isCompiledReactivePropertyOperand(raw) &&
+			!isCompiledPropOperand(raw) &&
 			!isReactiveValue(raw) &&
 			raw &&
 			typeof raw === 'object' &&
 			isReactiveContainer(raw)
-				? indexed.wrap(raw as object, indexed.options, indexedParentSource(indexed, index))
+				? indexed.wrap(
+						raw as object,
+						indexed.options,
+						indexedParentSource(indexed, index, receiver)
+					)
 				: raw;
-		indexed.initialized[index] = true;
 	}
 }
 
@@ -343,33 +352,39 @@ function readIndexedValue(
 	indexed: IndexedRecord,
 	key: PropertyKey,
 	index: number,
-	mode: 'facade' | 'direct' | 'peek'
+	mode: 'facade' | 'direct' | 'peek',
+	receiver: object
 ): unknown {
-	const current = indexed.target[key];
+	const current = Reflect.get(indexed.target, key, receiver);
+	if (indexed.preserveReactiveValues && isCompiledPropOperand(current)) {
+		if (mode !== 'peek') track(indexed.target, index);
+		return readCompiledPropOperand(current);
+	}
 	if (indexed.options.passthroughKeys?.includes(key)) {
 		if (mode !== 'peek') track(indexed.target, index);
 		return current;
 	}
-	const propertyOperand =
-		indexed.preserveReactiveValues && isCompiledReactivePropertyOperand(current)
-			? current
-			: undefined;
-	const value = propertyOperand
-		? Reflect.get(propertyOperand[1], propertyOperand[2])
-		: indexed.preserveReactiveValues && isReactiveValue(current)
-			? current.get()
-			: current;
+	const value =
+		indexed.preserveReactiveValues && isReactiveValue(current) ? current.get() : current;
 	const raw = unwrap(value);
 	if (raw && typeof raw === 'object' && isReactiveContainer(raw)) {
+		if (requiresExactProxyValue(indexed.target, key)) {
+			if (mode !== 'peek') track(indexed.target, index);
+			return current;
+		}
 		if (mode === 'direct') track(indexed.target, index);
-		return indexed.wrap(raw as object, indexed.options, indexedParentSource(indexed, index));
+		return indexed.wrap(
+			raw as object,
+			indexed.options,
+			indexedParentSource(indexed, index, receiver)
+		);
 	}
 	if (mode !== 'peek') track(indexed.target, index);
 	return raw;
 }
 
 /** Stable parent dependency used by nested proxies without subscribing a reader that only forwards them. */
-function indexedParentSource(indexed: IndexedRecord, index: number): ReactiveRef {
+function indexedParentSource(indexed: IndexedRecord, index: number, receiver: object): ReactiveRef {
 	const sources = (indexed.sources ??= []);
 	const existing = sources[index];
 	if (existing) return existing;
@@ -377,86 +392,34 @@ function indexedParentSource(indexed: IndexedRecord, index: number): ReactiveRef
 		target: indexed.target,
 		key: index,
 		get() {
-			return readIndexedValue(indexed, indexedRecordKey(indexed, index), index, 'direct');
+			return readIndexedValue(indexed, indexedRecordKey(indexed, index), index, 'direct', receiver);
 		},
 		set(value: unknown) {
-			writeIndexedRecord(indexed, index, value);
+			if (!writeIndexedRecord(indexed, index, value, receiver))
+				throw new TypeError('Cannot assign indexed state property');
 		}
 	};
 	sources[index] = source;
 	return source;
 }
 
+/** Retires slot ownership only after native deletion succeeds. Failed deletes leave readers and journals intact. */
 function deleteIndexedRecord(indexed: IndexedRecord, index: number): boolean {
 	const key = indexedRecordKey(indexed, index);
-	if (indexed.initialized[index]) {
-		const previous = indexed.target[key];
-		if (hasActiveTransaction())
-			recordTransactionUndo(
-				() => {
-					Reflect.defineProperty(indexed.target, key, {
-						configurable: true,
-						enumerable: true,
-						value: previous,
-						writable: true
-					});
-					indexed.initialized[index] = true;
-				},
-				indexed.target,
-				index
-			);
-		trigger(indexed.target, index);
+	const descriptor = Reflect.getOwnPropertyDescriptor(indexed.target, key);
+	const undo =
+		descriptor && hasActiveTransaction() ? createPropertyUndo(indexed.target, key) : undefined;
+	if (!Reflect.deleteProperty(indexed.target, key)) return false;
+	if (descriptor) {
+		if (undo) recordTransactionUndo(undo, indexed.target, index);
+		publishIndexedMutation(indexed, index, key, 'delete', true);
 	}
-	indexed.initialized[index] = false;
-	return Reflect.deleteProperty(indexed.target, key);
+	return true;
 }
 
-/** Resolves compiler-known own fields to compact stable dependencies without evaluating them. */
-export function reactiveOwnDependencies(
-	value: object,
-	keys: readonly PropertyKey[]
-): ReactiveOwnDependencies | undefined {
-	const indexed = indexedRecords.get(value);
-	if (!indexed) return undefined;
-	const indexes: PropertyKey[] = [];
-	for (const key of keys) {
-		const index = indexedRecordIndex(indexed, key);
-		if (index === undefined) return undefined;
-		indexes.push(index);
-	}
-	return {
-		target: indexed.target,
-		keys: indexes
-	};
-}
-
-/** Resolves compiler-emitted numeric fields without repeating a property-layout lookup. */
-export function reactiveIndexedDependencies(
-	value: object,
-	indexes: readonly number[]
-): ReactiveOwnDependencies | undefined {
-	const indexed = indexedRecords.get(value);
-	if (!indexed) return undefined;
-	for (const index of indexes) {
-		if (!Number.isSafeInteger(index) || index < 0 || index >= indexed.initialized.length)
-			return undefined;
-	}
-	return { target: indexed.target, keys: indexes };
-}
-
-/** Reads the retained source value for one validated compiler-indexed field without evaluating it. */
-export function readIndexedReactiveSource(
-	value: object,
-	index: number
-): { present: true; value: unknown } | { present: false } {
-	const indexed = indexedRecords.get(value);
-	if (
-		!indexed ||
-		!Number.isSafeInteger(index) ||
-		index < 0 ||
-		index >= indexed.initialized.length ||
-		!indexed.initialized[index]
-	)
-		return { present: false };
-	return { present: true, value: indexed.target[indexedRecordKey(indexed, index)] };
-}
+export {
+	reactiveOwnDependencies,
+	reactiveIndexedDependencies,
+	readIndexedReactiveSource,
+	type ReactiveOwnDependencies
+} from './reactive-record-slots.js';

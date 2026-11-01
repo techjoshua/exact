@@ -199,23 +199,21 @@ describe('renderer enhancement target routing', () => {
 			{ identity: '@test/right#default', props: { onSetup: setup } }
 		]);
 		const container = document.createElement('div');
-		const reported = vi.spyOn(console, 'error').mockImplementation(() => {});
+		const reported = vi.fn();
 
-		try {
-			render(createOperation('button', { __exactEnhancements: marker }), container, {
-				enhancementCatalog: new Map([
-					['@test/left#default', RoutingCycleLeft],
-					['@test/right#default', RoutingCycleRight]
-				])
-			});
-			expect(reported).toHaveBeenCalledOnce();
-			expect(setup).not.toHaveBeenCalled();
-			expect(container.querySelector('[role="alert"]')?.textContent).toContain(
-				'Enhancement source order conflict: @test/left#default requires context from later provider @test/right#default'
-			);
-		} finally {
-			reported.mockRestore();
-		}
+		render(createOperation('button', { __exactEnhancements: marker }), container, {
+			onErrorReport: reported,
+			enhancementCatalog: new Map([
+				['@test/left#default', RoutingCycleLeft],
+				['@test/right#default', RoutingCycleRight]
+			])
+		});
+		expect(reported).toHaveBeenCalledOnce();
+		expect(reported.mock.calls[0]![0]).toMatchObject({ source: 'construct' });
+		expect(setup).not.toHaveBeenCalled();
+		expect(container.querySelector('[role="alert"]')?.textContent).toContain(
+			'Enhancement source order conflict: @test/left#default requires context from later provider @test/right#default'
+		);
 	});
 
 	it('lets different enhancements select and structurally wrap different logical targets', () => {

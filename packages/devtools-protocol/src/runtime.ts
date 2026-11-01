@@ -1,3 +1,4 @@
+import { boundedString, record } from './protocol-value-shapes.js';
 import { isExactInspectionRuntimeId, type ExactInspectionRuntimeId } from './identity.js';
 import type { ExactValuePreview } from './value-preview.js';
 
@@ -283,6 +284,11 @@ export function isExactRuntimeInspectionEvent(
 
 function validPreview(value: unknown, depth: number): boolean {
 	if (depth > 20 || !record(value) || typeof value.kind !== 'string') return false;
+	if (value.kind === 'constant')
+		return (
+			typeof value.value === 'string' &&
+			['undefined', 'NaN', 'Infinity', '-Infinity', '-0'].includes(value.value)
+		);
 	if (value.kind === 'scalar')
 		return (
 			value.value === null ||
@@ -313,21 +319,16 @@ function validPreview(value: unknown, depth: number): boolean {
 		value.entries.length <= 10_000 &&
 		value.entries.every(
 			(entry: unknown) =>
-				record(entry) && boundedString(entry.key, 512) && validPreview(entry.value, depth + 1)
+				record(entry) &&
+				typeof entry.key === 'string' &&
+				entry.key.length <= 512 &&
+				validPreview(entry.value, depth + 1)
 		)
 	);
 }
 
-function boundedString(value: unknown, maximum: number): value is string {
-	return typeof value === 'string' && value.length > 0 && value.length <= maximum;
-}
-
 function positiveInteger(value: unknown): value is number {
 	return Number.isSafeInteger(value) && (value as number) > 0;
-}
-
-function record(value: unknown): value is Record<string, unknown> {
-	return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 /** Browser-visible microfrontend availability and retained-build status. */

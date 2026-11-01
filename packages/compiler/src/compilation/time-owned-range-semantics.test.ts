@@ -2,7 +2,7 @@
 import path from 'node:path';
 import { readFile } from 'node:fs/promises';
 import { expect, it } from 'vitest';
-import { createCompiledComponentReceipt as receipt } from '@exactjs/core/runtime/component-operations';
+import { createCompiledComponentInputReceipt as receipt } from '@exactjs/core/runtime/component-operations';
 import { render, unmount } from '@exactjs/dom';
 import type { AnyComponentFunction } from '@exactjs/core';
 import { composeExactComponentContracts } from '@exactjs/core/framework/component-contracts';
@@ -11,18 +11,23 @@ import { hydrate } from '../../../hydrate/src/index.js';
 import { registerDomEnhancementIntegration } from '../../../dom/src/renderer/enhancement-integration.js';
 import { verifyTimePlanOwnership } from '../../../component-composition-corpus/test-support/time-plan-journey.mjs';
 import { compileProjectArtifacts } from '../index.js';
-import { createTestWorkspace, writeTestFiles } from '../test-support/workspace.js';
+import {
+	createCompilerTestWorkspace,
+	writeTestFiles,
+	repositoryPath
+} from '../test-support/workspace.js';
 import { importArtifact } from '../test-support/import-artifact.js';
-
 it.each(
 	(['mount', 'hydrate'] as const).flatMap((mode) => [0, 1, 2].map((depth) => ({ mode, depth })))
 )(
 	'retires a conditional provider-owned time range ($mode, $depth forwarders)',
 	async ({ mode, depth }) => {
 		registerDomEnhancementIntegration();
-		const root = await createTestWorkspace('.exact-time-owned-range-', process.cwd());
+		const root = await createCompilerTestWorkspace('.exact-time-owned-range-', process.cwd());
 		let source = await readFile(
-			'packages/component-composition-corpus/src/test-support/time-plan.fixtures.tsx',
+			repositoryPath(
+				'packages/component-composition-corpus/src/test-support/time-plan.fixtures.tsx'
+			),
 			'utf8'
 		);
 		// Paired root hydration exercises full SSR adoption. Adapter fixtures exercise client islands.
@@ -49,12 +54,12 @@ export function Shell(props:{children:import('@exactjs/core').Child}){return()=>
 				artifact![(target + 'File') as 'clientFile' | 'serverFile'],
 				path.join(root, target + '.mjs'),
 				{
-					'@exactjs/time': path.resolve('packages/time/dist/' + target + '/index.js'),
-					'@exactjs/time/internal': path.resolve('packages/time/dist/' + target + '/internal.js'),
-					'@exactjs/time/enhancements': path.resolve(
+					'@exactjs/time': repositoryPath('packages/time/dist/' + target + '/index.js'),
+					'@exactjs/time/internal': repositoryPath('packages/time/dist/' + target + '/internal.js'),
+					'@exactjs/time/enhancements': repositoryPath(
 						'packages/time/dist/' + target + '/enhancements.js'
 					),
-					'@exactjs/time/testing': path.resolve('packages/time/dist/' + target + '/testing.js')
+					'@exactjs/time/testing': repositoryPath('packages/time/dist/' + target + '/testing.js')
 				}
 			);
 		const client = await load('client');

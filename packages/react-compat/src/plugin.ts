@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { intersects, validRange } from 'semver';
+import { readJsxPragmas } from './jsx-pragmas.js';
 
 export {
 	createInstalledReactCompatPackageGraph,
@@ -112,7 +113,7 @@ function rangeAllowsMajor(range: string, major: 18 | 19): boolean {
 
 /** Performs the react compatibility aliases domain operation. */
 export function reactCompatibilityAliases(target: 18 | 19): Readonly<Record<string, string>> {
-	return Object.freeze({
+	return {
 		'react/jsx-runtime': `@exactjs/react-compat/jsx-runtime${target}`,
 		'react/jsx-dev-runtime': `@exactjs/react-compat/jsx-dev-runtime${target}`,
 		'react/compiler-runtime': '@exactjs/react-compat/compiler-runtime',
@@ -129,7 +130,7 @@ export function reactCompatibilityAliases(target: 18 | 19): Readonly<Record<stri
 				}
 			: {}),
 		'react-dom': `@exactjs/react-dom-compat/react${target}`
-	});
+	};
 }
 
 /** Reports whether react compatibility source. */
@@ -147,8 +148,9 @@ export function jsxSourceOwnership(
 	code: string,
 	resolved: ResolvedReactCompatibility | undefined
 ): JsxSourceOwnership {
-	const reactPragma = /@jsxImportSource\s+react(?:\s|$)/m.test(code);
-	const exactPragma = /@jsxImportSource\s+@exactjs\/jsx(?:\s|$)/m.test(code);
+	const { importSources } = readJsxPragmas(code);
+	const reactPragma = importSources.includes('react');
+	const exactPragma = importSources.includes('@exactjs/jsx');
 	if ((resolved?.strict ?? true) && reactPragma && exactPragma) {
 		throw new Error(
 			`Mixed React and eXact JSX import-source directives are not supported in ${id}`

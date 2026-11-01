@@ -35,40 +35,61 @@ function prepareProps(
 ): Record<string, unknown> | Promise<Record<string, unknown>> {
 	let resolved: Record<string, unknown> | undefined;
 	let pending: Promise<readonly [key: string, value: unknown]>[] | undefined;
-	for (const key in props) {
-		if (!Object.hasOwn(props, key)) continue;
-		const deferred = deferredTaskProps?.includes(key);
-		if (deferred && !snapshotExpressions) continue;
-		let value = props[key];
-		if (snapshotExpressions && isReactiveValue(value)) {
-			value = value.get();
-			resolved ??= { ...props };
-			resolved[key] = value;
+	let waitOwner: AbortController | undefined;
+	let waitSignal: AbortSignal | undefined;
+	// Preparation owns the waits, while the dependency sources may have other consumers.
+	try {
+		for (const key in props) {
+			if (!Object.hasOwn(props, key)) continue;
+			const deferred = deferredTaskProps?.includes(key);
+			if (deferred && !snapshotExpressions) continue;
+			let value = props[key];
+			if (snapshotExpressions && isReactiveValue(value)) {
+				value = value.get();
+				resolved ??= { ...props };
+				resolved[key] = value;
+			}
+			if (deferred) continue;
+			if (value === null || (typeof value !== 'object' && typeof value !== 'function')) continue;
+			const source =
+				serverComponentDependencyForValue(value) ?? plannedContinuationDependency(value);
+			if (!source) continue;
+			const snapshot = source.read();
+			if (snapshot.status === 'pending') {
+				if (!waitOwner) {
+					waitOwner = new AbortController();
+					waitSignal = options.signal
+						? AbortSignal.any([options.signal, waitOwner.signal])
+						: waitOwner.signal;
+				}
+				(pending ??= []).push(
+					availableSnapshot(source, waitSignal).then((available) => [
+						key,
+						settledValue(key, available)
+					])
+				);
+				continue;
+			}
+			if (!resolved) resolved = { ...props };
+			resolved[key] = settledValue(key, snapshot);
 		}
-		if (deferred) continue;
-		if (value === null || (typeof value !== 'object' && typeof value !== 'function')) continue;
-		const source = serverComponentDependencyForValue(value) ?? plannedContinuationDependency(value);
-		if (!source) continue;
-		const snapshot = source.read();
-		if (snapshot.status === 'pending') {
-			(pending ??= []).push(
-				availableSnapshot(source, options.signal).then((available) => [
-					key,
-					settledValue(key, available)
-				])
-			);
-			continue;
-		}
-		if (!resolved) resolved = { ...props };
-		resolved[key] = settledValue(key, snapshot);
+		if (pending)
+			return Promise.all(pending)
+				.then((entries) => {
+					const output = resolved ?? { ...props };
+					for (const [key, value] of entries) output[key] = value;
+					return resumeSsrWork(options, () => output);
+				})
+				.catch((error) => {
+					waitOwner!.abort(error);
+					throw error;
+				});
+		return resolved ?? props;
+	} catch (error) {
+		waitOwner?.abort(error);
+		if (pending) void Promise.all(pending).catch(() => undefined);
+		throw error;
 	}
-	if (pending)
-		return Promise.all(pending).then((entries) => {
-			const output = resolved ?? { ...props };
-			for (const [key, value] of entries) output[key] = value;
-			return resumeSsrWork(options, () => output);
-		});
-	return resolved ?? props;
 }
 function settledValue(
 	key: string,
@@ -81,7 +102,9 @@ function settledValue(
 ): unknown {
 	if (snapshot.status === 'failed') throw snapshot.error;
 	if (snapshot.status === 'cancelled')
-		throw snapshot.reason ?? new Error(`Component prop ${key} was cancelled before setup`);
+		throw snapshot.reason === undefined
+			? new Error(`Component prop ${key} was cancelled before setup`)
+			: snapshot.reason;
 	if (snapshot.status !== 'available') throw new Error(`Component prop ${key} did not settle`);
 	return snapshot.value;
 }

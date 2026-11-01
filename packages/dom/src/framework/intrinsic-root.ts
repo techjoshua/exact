@@ -14,5 +14,5 @@ export function renderCompiledIntrinsicRoot(
 	const receipt = readCompiledIntrinsicReceipt(operation);
 	if (!receipt)
 		throw new TypeError('Compiled intrinsic root requires a compiler-issued intrinsic operation');
-	renderFocusedOperationRoot(operation, receipt.domain, container, options);
+	renderFocusedOperationRoot(operation, container, options);
 }

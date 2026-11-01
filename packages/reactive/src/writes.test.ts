@@ -20,7 +20,8 @@ import {
 	deleteIndexedReactiveValue,
 	updateIndexedReactiveValue,
 	updateIndexedReactiveValueWithResult,
-	writeIndexedReactiveValue
+	writeIndexedReactiveValue,
+	withReactivePropertyMutationObserver
 } from './writes.js';
 
 describe('@exactjs/reactive writes', () => {
@@ -66,7 +67,7 @@ describe('@exactjs/reactive writes', () => {
 		replacement();
 	});
 
-	it('retains keyed record identity when an API response reorders records', () => {
+	it('replaces keyed records when an assignment reorders records', () => {
 		const state = reactive({
 			records: [
 				{ id: 'a', title: 'A' },
@@ -86,8 +87,9 @@ describe('@exactjs/reactive writes', () => {
 			]
 		);
 
-		expect(state.records[0]).toBe(b);
-		expect(state.records[1]).toBe(a);
+		expect(state.records[0]).not.toBe(b);
+		expect(b.title).toBe('B');
+		expect(state.records[1]).not.toBe(a);
 		expect(state.records[0].title).toBe('B updated');
 	});
 
@@ -111,7 +113,7 @@ describe('@exactjs/reactive writes', () => {
 		);
 	});
 
-	it('tracks defineProperty writes, honors readonly mode, and rolls them back', () => {
+	it('tracks defineProperty writes and rolls them back', () => {
 		const state = reactive({ value: 1 });
 		const seen: number[] = [];
 		watch(() => seen.push(state.value));
@@ -135,8 +137,6 @@ describe('@exactjs/reactive writes', () => {
 			})
 		).toThrow('rollback');
 		expect(state.value).toBe(2);
-		const readonly = reactive({ value: 1 }, { readonly: true });
-		expect(() => Object.defineProperty(readonly, 'value', { value: 2 })).toThrow();
 	});
 
 	it('keeps retained shared-child aliases subscribed to their own parent paths', () => {
@@ -203,7 +203,8 @@ describe('@exactjs/reactive writes', () => {
 
 		const record = state.record;
 		writeIndexedReactiveValue(state, 1, { value: 2 });
-		expect(state.record).toBe(record);
+		expect(state.record).not.toBe(record);
+		expect(record?.value).toBe(1);
 		expect(state.record?.value).toBe(2);
 		expect(deleteIndexedReactiveValue(state, 0)).toBe(true);
 		expect('count' in state).toBe(false);
@@ -224,24 +225,27 @@ describe('@exactjs/reactive writes', () => {
 		expect(() => writeIndexedReactiveValue(state, 2, 1)).toThrow('invalid indexed slot');
 	});
 
-	it('does not peek before the indexed storage commit', () => {
+	it('invokes an indexed setter without evaluating its getter', () => {
 		const state = indexedReactive<{ count: number }>(['count']);
 		state.count = 2;
 		const target = unwrap(state);
 		let reads = 0;
+		let stored = 2;
 		Object.defineProperty(target, 'count', {
 			configurable: true,
 			enumerable: true,
 			get() {
 				reads++;
-				return 2;
+				return stored;
+			},
+			set(value: number) {
+				stored = value;
 			}
 		});
 
 		expect(writeIndexedReactiveValue(state, 0, 3)).toBe(3);
-		// The commit reads once for comparison and indexed storage reads once for mutation bookkeeping.
-		// A preliminary compiler-hook peek would make this three reads without changing semantics.
-		expect(reads).toBe(2);
+		expect(reads).toBe(0);
+		expect(stored).toBe(3);
 		expect(state.count).toBe(3);
 	});
 
@@ -314,4 +318,84 @@ describe('@exactjs/reactive writes', () => {
 		second();
 		expect(keyedCollectionMetadata(records)).toBeUndefined();
 	});
+});
+
+// Evidence uses the successful put key, which can differ from the earlier native get key.
+it('reports the actual canonical key without additional coercion or accessor readback', () => {
+	const state = { left: 1, right: 10 };
+	const trace: string[] = [];
+	let conversions = 0;
+	const key = {
+		[Symbol.toPrimitive]() {
+			trace.push('key');
+			return ++conversions === 1 ? 'left' : 'right';
+		}
+	} as unknown as PropertyKey;
+	const observed: unknown[] = [];
+	const result = withReactivePropertyMutationObserver(
+		(receiver, actualKey, operation) => observed.push([receiver, actualKey, operation]),
+		() =>
+			updateReactiveValue(state, [key], (previous) => {
+				trace.push('rhs');
+				return Number(previous) + 2;
+			})
+	);
+	expect(trace).toEqual(['key', 'rhs', 'key']);
+	expect(result).toBe(3);
+	expect(state).toEqual({ left: 1, right: 3 });
+	expect(observed).toEqual([[state, 'right', 'set']]);
+});
+
+it('reports no evidence for a failed put or delete and does not recoerce its key', () => {
+	const state = Object.defineProperty({}, 'value', {
+		value: 1,
+		writable: false,
+		configurable: false
+	});
+	const observed: unknown[] = [];
+	let conversions = 0;
+	const key = {
+		[Symbol.toPrimitive]() {
+			conversions++;
+			return 'value';
+		}
+	} as unknown as PropertyKey;
+	withReactivePropertyMutationObserver(
+		(...entry) => observed.push(entry),
+		() => {
+			expect(() => writeReactiveLazy(state, [key], () => 1)).toThrow(TypeError);
+			expect(() => deleteReactiveValue(state, [key])).toThrow(TypeError);
+		}
+	);
+	expect(conversions).toBe(2);
+	expect(observed).toEqual([]);
+});
+
+// A primitive owns no persistent property, but native inherited setters still receive it.
+it('preserves primitive setter receivers without inventing object mutation evidence', () => {
+	const key = '__exactPrimitiveWrite';
+	const previous = Object.getOwnPropertyDescriptor(Number.prototype, key);
+	const receivers: unknown[] = [];
+	const observed: unknown[] = [];
+	try {
+		Object.defineProperty(Number.prototype, key, {
+			configurable: true,
+			set(value: unknown) {
+				receivers.push(typeof this, Number(this), value);
+			}
+		});
+		withReactivePropertyMutationObserver(
+			(...entry) => observed.push(entry),
+			() => {
+				expect(writeReactiveLazy(1 as unknown as object, [key], () => 2)).toBe(2);
+				expect(deleteReactiveValue(1 as unknown as object, ['absent'])).toBe(true);
+				expect(() => deleteReactiveValue('x' as unknown as object, ['0'])).toThrow(TypeError);
+			}
+		);
+		expect(receivers).toEqual(['number', 1, 2]);
+		expect(observed).toEqual([]);
+	} finally {
+		if (previous) Object.defineProperty(Number.prototype, key, previous);
+		else Reflect.deleteProperty(Number.prototype, key);
+	}
 });

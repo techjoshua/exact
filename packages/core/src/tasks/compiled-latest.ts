@@ -13,7 +13,10 @@ import {
 } from './frame-runtime.js';
 import { TaskInvocationValue } from './invocation.js';
 import { taskOwnerForHost } from './owner-hosts.js';
-import { activationInputDependency } from './dependency-source.js';
+import {
+	activationInputDependency,
+	type ContinuationDependencySource
+} from './dependency-source.js';
 import {
 	watchContinuationDependencies,
 	type ContinuationDependencyWatcher
@@ -28,7 +31,7 @@ import {
 	startCompiledTaskPerformanceTrace
 } from './performance-trace.js';
 
-type ActivationInput<T> = T | ReactiveValue<T>;
+type ActivationInput<T> = T | ReactiveValue<T> | ContinuationDependencySource<T>;
 
 type LatestTaskState<Args extends unknown[], Result> = {
 	readonly owner: TaskOwnerRecord;

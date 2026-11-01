@@ -25,9 +25,9 @@ export type {
 export {
 	createDirectScheduledSsrComponent,
 	disposeDirectSsrLifetime,
-	renderIssuedServerComponentChildren,
-	takePreparedDirectScheduledSsrComponent
+	renderIssuedServerComponentChildren
 } from './direct-component-scheduling.js';
+export { takePreparedDirectScheduledSsrComponent } from './server-component-reference.js';
 
 /** Shared output sink selected after direct child preparation. */
 export type DirectSsrSink<Result> = (

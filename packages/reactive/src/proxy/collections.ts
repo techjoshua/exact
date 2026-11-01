@@ -1,7 +1,6 @@
 import { notifyMutation } from '../internal/mutation-observation.js';
 import { nativeMember } from '../internal/native-operations.js';
 import { hasActiveTransaction, recordTransactionUndo, track, trigger } from '../internal/deps.js';
-import { hasChanged } from '../change-detection.js';
 import { unwrap } from '../internal/values.js';
 import type { ReactiveOptions } from '../internal/types.js';
 import { customCollectionMethod } from './custom-collections.js';
@@ -88,12 +87,11 @@ function reactiveMapMember(
 			};
 		case 'set':
 			return (input: unknown, value: unknown) => {
-				assertWritable(options, 'set');
 				const rawKey = unwrap(input);
 				const rawValue = unwrap(value);
 				const had = Map.prototype.has.call(target, rawKey);
 				const previous = Map.prototype.get.call(target, rawKey);
-				if (had && !hasChanged(previous, rawValue)) return receiver;
+				if (had && Object.is(unwrap(previous), rawValue)) return receiver;
 				recordMapUndo(target, rawKey, had, previous);
 				Map.prototype.set.call(target, rawKey, rawValue);
 				trigger(target, collectionKeyDependency(target, rawKey));
@@ -104,7 +102,6 @@ function reactiveMapMember(
 			};
 		case 'delete':
 			return (input: unknown) => {
-				assertWritable(options, 'delete');
 				const rawKey = unwrap(input);
 				if (!Map.prototype.has.call(target, rawKey)) return false;
 				const previous = Map.prototype.get.call(target, rawKey);
@@ -114,12 +111,13 @@ function reactiveMapMember(
 						() => {
 							if (!following.size) {
 								Map.prototype.set.call(target, rawKey, previous);
-								return;
+								return true;
 							}
 							const entries = [...Map.prototype.entries.call(target)];
 							const before = entries.findIndex(([key]) => following.has(key));
 							entries.splice(before < 0 ? entries.length : before, 0, [rawKey, previous]);
 							restoreMap(target, entries);
+							return true;
 						},
 						target,
 						collectionKeyDependency(target, rawKey)
@@ -134,11 +132,9 @@ function reactiveMapMember(
 			};
 		case 'clear':
 			return () => {
-				assertWritable(options, 'clear');
 				if (!Reflect.get(Map.prototype, 'size', target)) return undefined;
 				const previous = [...Map.prototype.entries.call(target)];
-				if (hasActiveTransaction())
-					recordTransactionUndo(() => restoreMap(target, previous), target, iterateDependency);
+				if (hasActiveTransaction()) recordClearUndo(target, previous);
 				Map.prototype.clear.call(target);
 				for (const [entryKey] of previous)
 					trigger(target, collectionKeyDependency(target, entryKey));
@@ -185,7 +181,6 @@ function reactiveSetMember(
 			};
 		case 'add':
 			return (input: unknown) => {
-				assertWritable(options, 'add');
 				const rawValue = unwrap(input);
 				if (Set.prototype.has.call(target, rawValue)) return receiver;
 				if (hasActiveTransaction())
@@ -203,7 +198,6 @@ function reactiveSetMember(
 			};
 		case 'delete':
 			return (input: unknown) => {
-				assertWritable(options, 'delete');
 				const rawValue = unwrap(input);
 				if (!Set.prototype.has.call(target, rawValue)) return false;
 				if (hasActiveTransaction()) {
@@ -212,12 +206,13 @@ function reactiveSetMember(
 						() => {
 							if (!following.size) {
 								Set.prototype.add.call(target, rawValue);
-								return;
+								return true;
 							}
 							const values = [...Set.prototype.values.call(target)];
 							const before = values.findIndex((value) => following.has(value));
 							values.splice(before < 0 ? values.length : before, 0, rawValue);
 							restoreSet(target, values);
+							return true;
 						},
 						target,
 						collectionKeyDependency(target, rawValue)
@@ -232,11 +227,13 @@ function reactiveSetMember(
 			};
 		case 'clear':
 			return () => {
-				assertWritable(options, 'clear');
 				if (!Reflect.get(Set.prototype, 'size', target)) return undefined;
 				const previous = [...Set.prototype.values.call(target)];
 				if (hasActiveTransaction())
-					recordTransactionUndo(() => restoreSet(target, previous), target, iterateDependency);
+					recordClearUndo(
+						target,
+						previous.map((key) => [key, key] as const)
+					);
 				Set.prototype.clear.call(target);
 				for (const value of previous) trigger(target, collectionKeyDependency(target, value));
 				trigger(target, iterateDependency);
@@ -341,8 +338,9 @@ function recordMapUndo(
 	if (!hasActiveTransaction()) return;
 	recordTransactionUndo(
 		() => {
-			if (had) Map.prototype.set.call(target, key, previous);
-			else Map.prototype.delete.call(target, key);
+			if (!had) return Map.prototype.delete.call(target, key);
+			Map.prototype.set.call(target, key, previous);
+			return true;
 		},
 		target,
 		collectionKeyDependency(target, key)
@@ -362,12 +360,6 @@ function restoreSet(target: Set<unknown>, values: readonly unknown[]): void {
 	for (const value of values) Set.prototype.add.call(target, value);
 }
 
-function assertWritable(options: ReactiveOptions, operation: string): void {
-	if (!options.readonly) return;
-	options.onReadonlyWrite?.(operation);
-	throw new TypeError(`Cannot call ${operation} on a readonly reactive collection`);
-}
-
 /** Retains insertion-order anchors only for the lifetime of a rollback journal. */
 function followingCollectionKeys(keys: Iterable<unknown>, removed: unknown): Set<unknown> {
 	const following = new Set<unknown>();
@@ -377,4 +369,53 @@ function followingCollectionKeys(keys: Iterable<unknown>, removed: unknown): Set
 		else if (key === removed || Object.is(key, removed)) found = true;
 	}
 	return following;
+}
+
+/** Restores still-owned cleared keys in one linear merge, retaining native successor anchors. */
+function recordClearUndo(
+	target: ReactiveCollection,
+	previous: readonly (readonly [unknown, unknown])[]
+): void {
+	recordTransactionUndo((restoration) => {
+		const restored = new Set<unknown>();
+		for (const [key] of previous)
+			if (restoration.allows(target, collectionKeyDependency(target, key))) restored.add(key);
+		if (!restored.size) return;
+		const receipts = [...restored].map((key) =>
+			restoration.capture(target, collectionKeyDependency(target, key))
+		);
+		const entries: Map<unknown, unknown> =
+			target instanceof Map
+				? new Map(Map.prototype.entries.call(target))
+				: new Map([...Set.prototype.values.call(target)].map((key) => [key, key]));
+		const tail = Symbol('restored-tail');
+		const buckets = new Map<unknown, (readonly [unknown, unknown])[]>();
+		let anchor: unknown = tail;
+		// Removed entries precede their next surviving original key, or append when none survives.
+		for (let index = previous.length - 1; index >= 0; index--) {
+			const entry = previous[index]!;
+			const key = entry[0];
+			if (!restored.has(key)) {
+				if (entries.has(key)) anchor = key;
+				continue;
+			}
+			let bucket = buckets.get(anchor);
+			if (!bucket) buckets.set(anchor, (bucket = []));
+			bucket.push(entry);
+			entries.delete(key);
+		}
+		const merged: (readonly [unknown, unknown])[] = [];
+		for (const entry of entries) {
+			for (const original of (buckets.get(entry[0]) ?? []).reverse()) merged.push(original);
+			merged.push(entry);
+		}
+		for (const original of (buckets.get(tail) ?? []).reverse()) merged.push(original);
+		if (target instanceof Map) restoreMap(target, merged);
+		else
+			restoreSet(
+				target,
+				merged.map(([key]) => key)
+			);
+		for (const receipt of receipts) restoration.mark(receipt);
+	});
 }

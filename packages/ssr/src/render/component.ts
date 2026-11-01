@@ -1,17 +1,20 @@
+import { consumeSuppliedPlacement } from './supplied-placement.js';
+import { deriveRuntimeConfiguration } from '@exactjs/core/framework/configuration';
 import { prepareComponentProps } from './component-props.js';
 import type { AnyComponentInstance, Child } from '@exactjs/core';
-import type { ExactComponentReceiptData } from '@exactjs/core/runtime/component-abi';
 import type { SsrContext } from '../types.js';
 import { renderChildren } from './children.js';
 import type { DirectSsrComponentPublisher } from './direct-component-contracts.js';
 import { directComponentHtml, type ComponentPublication } from './direct-component-output.js';
 import type { SsrRenderOptions } from './entrypoints.js';
-import { mapRenderValue, type RenderValue } from './execution.js';
+import { withRenderCleanup, mapRenderValue, type RenderValue } from './execution.js';
 import { renderServerComponentArtifactOutput } from './server-component-abi-execution.js';
 import { captureSsrProgramOutput } from './program-capture.js';
 import type { ServerArtifactExecution } from './server-artifact-context.js';
 import {
 	receiptExecutionContract,
+	readServerComponentReference,
+	prepareServerComponentOccurrence,
 	type ServerComponentReference
 } from './server-component-reference.js';
 import { createSsrResumptionCapture } from '../resumption.js';
@@ -43,24 +46,66 @@ const publishComponent: DirectSsrComponentPublisher<ComponentPublication> = (
 /** Renders one opaque component operation through its server artifact. */
 export function renderComponentReference(
 	context: SsrContext,
-	component: ExactComponentReceiptData,
+	component: ServerComponentReference,
 	parent: AnyComponentInstance | undefined,
 	options: SsrRenderOptions,
 	hasComponentAncestor: boolean,
 	omitCompilerOwnedBoundary = false,
 	omitRootBoundary = false
 ): RenderValue<string> {
+	if (!component.occurrenceClaimed) {
+		const prepared = prepareServerComponentOccurrence(context, component);
+		return mapRenderValue(prepared, (reference) =>
+			renderComponentReference(
+				context,
+				reference,
+				parent,
+				options,
+				hasComponentAncestor,
+				omitCompilerOwnedBoundary,
+				omitRootBoundary
+			)
+		);
+	}
+	const parentFrame = context.componentInputFrame;
+	context.componentInputFrame = undefined;
+	return withRenderCleanup(
+		() =>
+			renderClaimedComponentReference(
+				context,
+				component,
+				parent,
+				options,
+				hasComponentAncestor,
+				omitCompilerOwnedBoundary,
+				omitRootBoundary
+			),
+		() => {
+			context.componentInputFrame = parentFrame;
+		}
+	);
+}
+
+/** Descendant output cannot consume a future sibling from its parent's prepared sequence. */
+function renderClaimedComponentReference(
+	context: SsrContext,
+	component: ServerComponentReference,
+	parent: AnyComponentInstance | undefined,
+	options: SsrRenderOptions,
+	hasComponentAncestor: boolean,
+	omitCompilerOwnedBoundary: boolean,
+	omitRootBoundary: boolean
+): RenderValue<string> {
 	const rendererEnhancement =
-		context.enhancementProviderReferences?.has(component) === true ||
+		context.enhancementProviderReferences?.has(component.source) === true ||
 		component.fragmentTarget !== undefined;
 	if (options.documentShellScope?.claim(component)) {
 		// A client-capable application adopts its whole subtree within the shell.
 		// A server-only page cannot adopt children and must still publish its islands.
 		const { placement } = receiptExecutionContract(component);
-		options = {
-			...options.documentShellScope.applicationOptions,
+		options = deriveRuntimeConfiguration(options.documentShellScope.applicationOptions, () => ({
 			clientResumptionOwner: placement === 'client' || placement === 'isomorphic'
-		};
+		}));
 		hasComponentAncestor = false;
 		omitRootBoundary = true;
 		omitCompilerOwnedBoundary = true;
@@ -70,10 +115,9 @@ export function renderComponentReference(
 		// structural ancestor. Establish ownership from that component's contract,
 		// then retain the decision throughout its descendants, including plain SSR.
 		// Server roots publish islands because they cannot adopt a client subtree.
-		options = {
-			...options,
+		options = deriveRuntimeConfiguration(options, () => ({
 			clientResumptionOwner: ownsClientResumption(receiptExecutionContract(component))
-		};
+		}));
 	}
 	const publication =
 		component.contract.artifact.target === 'server'
@@ -140,7 +184,7 @@ export function renderComponentReference(
 /** Captures an island's activation sequence separately from its server-only parent. */
 function renderResumableIsland(
 	context: SsrContext,
-	component: ExactComponentReceiptData,
+	component: ServerComponentReference,
 	parent: AnyComponentInstance | undefined,
 	options: SsrRenderOptions,
 	name: string
@@ -151,7 +195,9 @@ function renderResumableIsland(
 		component.contract.artifact.id,
 		component.key
 	);
-	const capture = createSsrResumptionCapture({ ...options, clientResumptionOwner: true });
+	const capture = createSsrResumptionCapture(
+		deriveRuntimeConfiguration(options, () => ({ clientResumptionOwner: true }))
+	);
 	const prepared = prepareResumptionChildren(component, id, context);
 	// The island owns its complete activation sequence. Keep it out of the page's ordered
 	// capture so lazy siblings may settle in either order without sharing a cursor.
@@ -176,7 +222,7 @@ function renderResumableIsland(
 /** Keeps capture callbacks off component traversal that writes directly to its request sink. */
 function renderCapturedComponentReference(
 	context: SsrContext,
-	component: ExactComponentReceiptData,
+	component: ServerComponentReference,
 	parent: AnyComponentInstance | undefined,
 	options: SsrRenderOptions,
 	hasComponentAncestor: boolean,
@@ -218,5 +264,45 @@ function renderArtifactComponent(
 	child: ServerComponentReference,
 	owner: AnyComponentInstance | undefined
 ): RenderValue<string> {
-	return renderComponentReference(this.context, child, owner, this.options, true, true);
+	return renderComponentReference(
+		this.context,
+		child,
+		owner,
+		consumeSuppliedPlacement(this.options, child.source),
+		true,
+		true
+	);
+}
+
+/** Serializes an existing writer position, consuming only its explicitly carried occurrence. */
+export function renderProgramComponentSegment(
+	context: SsrContext,
+	segment: unknown,
+	parent: AnyComponentInstance | undefined,
+	options: SsrRenderOptions,
+	hasComponentAncestor: boolean,
+	occurrence?: ServerComponentReference
+): RenderValue<string> {
+	if (occurrence)
+		return renderComponentReference(
+			context,
+			occurrence,
+			parent,
+			consumeSuppliedPlacement(options, occurrence.source),
+			hasComponentAncestor,
+			true
+		);
+	if (Array.isArray(segment))
+		return renderChildren(context, segment, parent, options, hasComponentAncestor);
+	const component = readServerComponentReference(segment)!;
+	return mapRenderValue(prepareServerComponentOccurrence(context, component, false), (reference) =>
+		renderComponentReference(
+			context,
+			reference,
+			parent,
+			consumeSuppliedPlacement(options, reference.source),
+			hasComponentAncestor,
+			true
+		)
+	);
 }

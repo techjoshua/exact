@@ -8,23 +8,23 @@ import { validateMotionEffect } from './validation.js';
 
 const preparedMotionDefinition = Symbol('exact.motion.definition');
 
-/** Validates and freezes a reusable motion definition. */
+/** Validates reusable motion and copies static effects without freezing authored values. */
 export function defineMotion(definition: MotionDefinitionInput): MotionDefinition {
 	if (!definition || typeof definition !== 'object')
 		throw new TypeError('defineMotion() requires a motion definition object');
+	const { enter, change, leave, reduced } = definition;
 	const prepared = {
-		...(definition.enter ? { enter: preparePhase(definition.enter, 'enter') } : {}),
-		...(definition.change ? { change: preparePhase(definition.change, 'change') } : {}),
-		...(definition.leave ? { leave: preparePhase(definition.leave, 'leave') } : {}),
-		...(definition.reduced
+		...(enter ? { enter: preparePhase(enter, 'enter') } : {}),
+		...(change ? { change: preparePhase(change, 'change') } : {}),
+		...(leave ? { leave: preparePhase(leave, 'leave') } : {}),
+		...(reduced
 			? {
-					reduced:
-						definition.reduced === 'skip' ? 'skip' : preparePhase(definition.reduced, 'reduced')
+					reduced: reduced === 'skip' ? 'skip' : preparePhase(reduced, 'reduced')
 				}
 			: {})
 	};
 	Object.defineProperty(prepared, preparedMotionDefinition, { value: true });
-	return Object.freeze(prepared) as MotionDefinition;
+	return prepared as MotionDefinition;
 }
 
 /** Reports whether an unknown value is a package-prepared motion definition. */
@@ -38,14 +38,16 @@ function preparePhase(phase: MotionPhase, label: string): MotionPhase {
 }
 
 function prepareEffect(effect: MotionEffect, label: string, allowLoop: boolean): MotionEffect {
-	validateMotionEffect(effect, `Motion ${label} phase`, {
+	const keyframes = effect?.keyframes;
+	const options = effect?.options;
+	const prepared = {
+		keyframes: Array.isArray(keyframes)
+			? keyframes.map((frame) => ({ ...frame }))
+			: keyframes && { ...keyframes },
+		...(options ? { options: { ...options } } : {})
+	};
+	validateMotionEffect(prepared, `Motion ${label} phase`, {
 		allowInfiniteIterations: allowLoop
 	});
-	const keyframes = Array.isArray(effect.keyframes)
-		? Object.freeze(effect.keyframes.map((frame) => Object.freeze({ ...frame })))
-		: Object.freeze({ ...effect.keyframes });
-	return Object.freeze({
-		keyframes,
-		...(effect.options ? { options: Object.freeze({ ...effect.options }) } : {})
-	}) as MotionEffect;
+	return prepared;
 }

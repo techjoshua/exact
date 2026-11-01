@@ -1,12 +1,28 @@
+import type { ResponseLimits } from './json.js';
+import { responseResourceBudget, responseGraphLimits } from '../response-resources.js';
 import type { ExactStreamEvent } from '@exactjs/core/framework/operation-protocol';
-import { hasOnlyKeys, isJsonSafe } from '../validation.js';
+import { isStateOutputPathList } from '@exactjs/core/framework/protocol-records';
+import { hasOnlyKeys, isDecodedProtocolSafe } from '../validation.js';
 import { isCollectionMutationLike, isPatchLike } from './patch-validation.js';
 
 /** Reports whether exact stream start event. */
 export function isExactStreamStartEvent(
-	value: unknown
+	value: unknown,
+	limits: ResponseLimits = {}
 ): value is Extract<ExactStreamEvent, { event: 'start' }> {
-	if (!value || typeof value !== 'object' || Array.isArray(value) || !isJsonSafe(value))
+	if (
+		!value ||
+		typeof value !== 'object' ||
+		Array.isArray(value) ||
+		!isDecodedProtocolSafe(
+			value,
+			responseGraphLimits(
+				limits,
+				limits.resources ?? responseResourceBudget(limits.logger),
+				'stream event'
+			)
+		)
+	)
 		return false;
 	const record = value as Record<string, unknown>;
 	return (
@@ -21,9 +37,22 @@ export function isExactStreamStartEvent(
 
 /** Reports whether exact stream result event. */
 export function isExactStreamResultEvent(
-	value: unknown
+	value: unknown,
+	limits: ResponseLimits = {}
 ): value is Extract<ExactStreamEvent, { event: 'result' }> {
-	if (!value || typeof value !== 'object' || Array.isArray(value) || !isJsonSafe(value))
+	if (
+		!value ||
+		typeof value !== 'object' ||
+		Array.isArray(value) ||
+		!isDecodedProtocolSafe(
+			value,
+			responseGraphLimits(
+				limits,
+				limits.resources ?? responseResourceBudget(limits.logger),
+				'stream event'
+			)
+		)
+	)
 		return false;
 	const record = value as Record<string, unknown>;
 	return (
@@ -37,9 +66,22 @@ export function isExactStreamResultEvent(
 
 /** Reports whether exact stream patch event. */
 export function isExactStreamPatchEvent(
-	value: unknown
+	value: unknown,
+	limits: ResponseLimits = {}
 ): value is Extract<ExactStreamEvent, { event: 'patch' }> {
-	if (!value || typeof value !== 'object' || Array.isArray(value) || !isJsonSafe(value))
+	if (
+		!value ||
+		typeof value !== 'object' ||
+		Array.isArray(value) ||
+		!isDecodedProtocolSafe(
+			value,
+			responseGraphLimits(
+				limits,
+				limits.resources ?? responseResourceBudget(limits.logger),
+				'stream event'
+			)
+		)
+	)
 		return false;
 	const record = value as Record<string, unknown>;
 	return (
@@ -57,13 +99,35 @@ export function isExactStreamPatchEvent(
 
 /** Reports whether exact stream state event. */
 export function isExactStreamStateEvent(
-	value: unknown
+	value: unknown,
+	limits: ResponseLimits = {}
 ): value is Extract<ExactStreamEvent, { event: 'state' }> {
-	if (!value || typeof value !== 'object' || Array.isArray(value) || !isJsonSafe(value))
+	if (
+		!value ||
+		typeof value !== 'object' ||
+		Array.isArray(value) ||
+		!isDecodedProtocolSafe(
+			value,
+			responseGraphLimits(
+				limits,
+				limits.resources ?? responseResourceBudget(limits.logger),
+				'stream event'
+			)
+		)
+	)
 		return false;
 	const record = value as Record<string, unknown>;
 	return (
-		hasOnlyKeys(record, ['event', 'version', 'index', 'type', 'id', 'opId', 'value']) &&
+		hasOnlyKeys(record, [
+			'event',
+			'version',
+			'index',
+			'type',
+			'id',
+			'opId',
+			'value',
+			'statePaths'
+		]) &&
 		record.event === 'state' &&
 		record.version === 1 &&
 		typeof record.index === 'number' &&
@@ -72,15 +136,29 @@ export function isExactStreamStateEvent(
 		!!record.id &&
 		(record.opId === undefined || typeof record.opId === 'string') &&
 		'value' in record &&
-		record.value !== undefined
+		record.value !== undefined &&
+		(!('statePaths' in record) || isStateOutputPathList(record.statePaths))
 	);
 }
 
 /** Reports whether an exact stream event contains ordered collection deltas. */
 export function isExactStreamMutationsEvent(
-	value: unknown
+	value: unknown,
+	limits: ResponseLimits = {}
 ): value is Extract<ExactStreamEvent, { event: 'mutations' }> {
-	if (!value || typeof value !== 'object' || Array.isArray(value) || !isJsonSafe(value))
+	if (
+		!value ||
+		typeof value !== 'object' ||
+		Array.isArray(value) ||
+		!isDecodedProtocolSafe(
+			value,
+			responseGraphLimits(
+				limits,
+				limits.resources ?? responseResourceBudget(limits.logger),
+				'stream event'
+			)
+		)
+	)
 		return false;
 	const record = value as Record<string, unknown>;
 	return (
@@ -93,15 +171,28 @@ export function isExactStreamMutationsEvent(
 		!!record.id &&
 		(record.opId === undefined || typeof record.opId === 'string') &&
 		Array.isArray(record.mutations) &&
-		record.mutations.every(isCollectionMutationLike)
+		record.mutations.every((value) => isCollectionMutationLike(value, limits))
 	);
 }
 
 /** Reports whether exact stream html event. */
 export function isExactStreamHtmlEvent(
-	value: unknown
+	value: unknown,
+	limits: ResponseLimits = {}
 ): value is Extract<ExactStreamEvent, { event: 'html' }> {
-	if (!value || typeof value !== 'object' || Array.isArray(value) || !isJsonSafe(value))
+	if (
+		!value ||
+		typeof value !== 'object' ||
+		Array.isArray(value) ||
+		!isDecodedProtocolSafe(
+			value,
+			responseGraphLimits(
+				limits,
+				limits.resources ?? responseResourceBudget(limits.logger),
+				'stream event'
+			)
+		)
+	)
 		return false;
 	const record = value as Record<string, unknown>;
 	return (
@@ -119,9 +210,22 @@ export function isExactStreamHtmlEvent(
 
 /** Reports whether exact stream complete event. */
 export function isExactStreamCompleteEvent(
-	value: unknown
+	value: unknown,
+	limits: ResponseLimits = {}
 ): value is Extract<ExactStreamEvent, { event: 'complete' }> {
-	if (!value || typeof value !== 'object' || Array.isArray(value) || !isJsonSafe(value))
+	if (
+		!value ||
+		typeof value !== 'object' ||
+		Array.isArray(value) ||
+		!isDecodedProtocolSafe(
+			value,
+			responseGraphLimits(
+				limits,
+				limits.resources ?? responseResourceBudget(limits.logger),
+				'stream event'
+			)
+		)
+	)
 		return false;
 	const record = value as Record<string, unknown>;
 	return (
@@ -131,9 +235,22 @@ export function isExactStreamCompleteEvent(
 
 /** Reports whether an exact stream event carries observations owned by this response. */
 export function isExactStreamObservationsEvent(
-	value: unknown
+	value: unknown,
+	limits: ResponseLimits = {}
 ): value is Extract<ExactStreamEvent, { event: 'observations' }> {
-	if (!value || typeof value !== 'object' || Array.isArray(value) || !isJsonSafe(value))
+	if (
+		!value ||
+		typeof value !== 'object' ||
+		Array.isArray(value) ||
+		!isDecodedProtocolSafe(
+			value,
+			responseGraphLimits(
+				limits,
+				limits.resources ?? responseResourceBudget(limits.logger),
+				'stream event'
+			)
+		)
+	)
 		return false;
 	const record = value as Record<string, unknown>;
 	return (

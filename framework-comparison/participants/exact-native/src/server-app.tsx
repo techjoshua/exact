@@ -74,7 +74,7 @@ export async function handleNativeRequest(
 			() => <NativeIncidentPage path={url.pathname} />,
 			{
 				rootId: 'app',
-				maxTaskDurationMs: 1_200,
+				signal: AbortSignal.timeout(1_200),
 				...hydration,
 				documentAssets: {
 					styles: assets.stylesheet ? [assets.stylesheet] : [],

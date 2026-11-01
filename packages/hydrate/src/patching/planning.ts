@@ -1,4 +1,4 @@
-import { encodeExactMarkerPart } from '@exactjs/core';
+import { encodeExactMarkerPart, encodeReactiveProtocolValue } from '@exactjs/core';
 import {
 	isSafeDomPatchProperty,
 	type ExactPatch
@@ -86,7 +86,10 @@ export function canApplyPatch(index: ProtocolIndex, patch: ExactPatch): boolean 
 	if (patch.type === 'list') {
 		if (!index.ranges.has(patch.id)) return false;
 		if (patch.op === 'insert')
-			return !!patch.html && (!patch.before || !!findIndexedItem(index, patch.id, patch.before));
+			return (
+				!!patch.html &&
+				(patch.before === undefined || !!findIndexedItem(index, patch.id, patch.before))
+			);
 		const item = findIndexedItem(index, patch.id, patch.key);
 		if (patch.op === 'remove') return !!item;
 		return !!item || !!patch.html;
@@ -101,8 +104,7 @@ export function validatePatchSequence(
 ): boolean {
 	const keys = new Map<string, Set<string>>();
 	for (const [listId, items] of index.listItems) keys.set(listId, new Set(items.keys()));
-	const has = (set: Set<string>, key: string | undefined) =>
-		!key || set.has(key) || set.has(encodeExactMarkerPart(key));
+	const has = (set: Set<string>, key: string) => set.has(encodeExactMarkerPart(key));
 	for (const patch of patches) {
 		if (patch.type !== 'list') {
 			if (!canApplyPatch(index, patch)) return false;
@@ -111,17 +113,16 @@ export function validatePatchSequence(
 		if (!index.ranges.has(patch.id)) return false;
 		let list = keys.get(patch.id);
 		if (!list) keys.set(patch.id, (list = new Set()));
-		if (!has(list, patch.before)) return false;
+		if (patch.before !== undefined && !has(list, patch.before)) return false;
 		if (patch.op === 'insert') {
 			if (!patch.html || has(list, patch.key)) return false;
-			list.add(patch.key);
+			list.add(encodeExactMarkerPart(patch.key));
 		} else if (patch.op === 'remove') {
 			if (!has(list, patch.key)) return false;
-			list.delete(patch.key);
 			list.delete(encodeExactMarkerPart(patch.key));
 		} else if (!has(list, patch.key)) {
 			if (!patch.html) return false;
-			list.add(patch.key);
+			list.add(encodeExactMarkerPart(patch.key));
 		}
 	}
 	return true;
@@ -183,7 +184,7 @@ export function preparePatchBatch(
 			target.ownerDocument.createAttribute(patch.name);
 		}
 		if (patch.type === 'state') {
-			const stateJson = JSON.stringify(patch.value);
+			const stateJson = JSON.stringify(encodeReactiveProtocolValue(patch.value));
 			if (stateJson === undefined)
 				return { ok: false, detail: `state ${patch.id} is not JSON serializable` };
 			item.stateJson = stateJson;

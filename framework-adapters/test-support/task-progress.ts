@@ -42,11 +42,11 @@ import {exactComponentIdentity} from '@exactjs/core/framework/component-contract
 import { composeExactExecutorContract } from '@exactjs/server';
 import '@exactjs/ssr/runtime/structural-boundaries';
 import { renderToHydratableString } from '@exactjs/ssr';
-import { createServerBoundaryReceipt, createCompiledComponentReceipt } from '@exactjs/core/runtime/component-operations';
+import { createServerBoundaryReceipt, createCompiledComponentInputReceipt } from '@exactjs/core/runtime/component-operations';
 ${runtime === 'bun' ? "import { createExactBunHandler } from '@exactjs/bun-adapter';" : "import { createExactNodeHandler } from '@exactjs/node-adapter'; import { createServer } from 'node:http';"}
 for (const Selected of [Views.progress, Views.deferred]) {
 const island = await renderToHydratableString(createServerBoundaryReceipt('adapter-island', 'AdapterIsland', {
- __exactHydration:'eager', __exactHydrationFallback:createCompiledComponentReceipt(Selected,{owner:'adapter-owner'})
+ __exactHydration:'eager', __exactHydrationFallback:createCompiledComponentInputReceipt(Selected,{owner:'adapter-owner'})
 }));
 const encoded = island.html.match(/data-exact-client-props="([^"]*)"/);
 if (!encoded) throw new Error('Missing parent island payload');

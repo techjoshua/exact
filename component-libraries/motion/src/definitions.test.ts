@@ -1,24 +1,39 @@
 import { describe, expect, it } from 'vitest';
+import { resolveMotionEffect } from './playback.js';
+import type { MotionEffect, MotionPhase } from './contracts.js';
 import { defineMotion, isMotionDefinition } from './definitions.js';
 import { fade, pop, scale, slideDown, slideLeft, slideRight, slideUp } from './presets.js';
 
 describe('motion definitions', () => {
-	it('prepares immutable reusable definitions', () => {
-		const definition = defineMotion({
-			enter: {
-				keyframes: [{ opacity: 0 }, { opacity: 1 }],
-				options: { duration: 120 }
-			},
-			reduced: 'skip'
-		});
-
+	it('prepares reusable snapshots with ordinary mutable nested values and aliases', () => {
+		const source = { keyframes: [{ opacity: 0 }, { opacity: 1 }], options: { duration: 120 } };
+		const definition = defineMotion({ enter: source, reduced: 'skip' });
+		const effect = definition.enter as MotionEffect;
 		expect(isMotionDefinition(definition)).toBe(true);
-		expect(Object.isFrozen(definition)).toBe(true);
-		expect(Object.isFrozen(definition.enter)).toBe(true);
-		expect(Object.isFrozen((definition.enter as { keyframes: Keyframe[] }).keyframes)).toBe(true);
-		expect(
-			() => ((definition.enter as { options: { duration: number } }).options.duration = 300)
-		).toThrow();
+		effect.options!.duration = 300;
+		(effect.keyframes as Keyframe[])[0]!.opacity = 0.5;
+		(effect.keyframes as Keyframe[]).push({ opacity: 0.8 });
+		expect(source.options.duration).toBe(120);
+		expect(source.keyframes).toEqual([{ opacity: 0 }, { opacity: 1 }]);
+		const alias: { enter?: MotionPhase } = definition;
+		alias.enter = { keyframes: [{ opacity: 1 }] };
+		expect(definition.enter).toBe(alias.enter);
+		effect.options!.duration = NaN;
+		expect(() =>
+			resolveMotionEffect(effect, {} as Element, 'enter', {
+				enabled: true,
+				reducedMotion: 'never',
+				transition: {},
+				appear: false
+			})
+		).toThrow('duration must be finite');
+	});
+
+	it.each([-1, -120])('allows finite negative start delay %s', (delay) => {
+		const definition = defineMotion({
+			leave: { keyframes: [{ opacity: 0 }], options: { delay, duration: 120 } }
+		});
+		expect((definition.leave as MotionEffect).options!.delay).toBe(delay);
 	});
 
 	it('rejects effects without keyframes', () => {
@@ -63,4 +78,20 @@ describe('motion definitions', () => {
 			expect(preset.leave).toBeDefined();
 		}
 	});
+});
+
+it('validates the captured static timing rather than rereading authored getters', () => {
+	let reads = 0;
+	const definition = defineMotion({
+		enter: {
+			keyframes: [{ opacity: 0 }],
+			options: {
+				get duration() {
+					return ++reads <= 2 ? 120 : NaN;
+				}
+			}
+		}
+	});
+	expect(reads).toBe(1);
+	expect((definition.enter as MotionEffect).options!.duration).toBe(120);
 });

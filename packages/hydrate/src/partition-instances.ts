@@ -2,12 +2,11 @@ import { findNodeOwnerInstance, walkDomSubtree } from '@exactjs/dom/root';
 import { readExactPartitionDiscriminator } from '@exactjs/dom/framework/hydration';
 import type { ExactPartitionInstance } from './types.js';
 
-type MutablePartitionInstance = {
-	value: Omit<ExactPartitionInstance, 'children'>;
+type MutablePartitionInstance = Omit<ExactPartitionInstance, 'children'> & {
 	children: MutablePartitionInstance[];
 };
 
-/** Reconstructs the bounded live partition-instance tree from authoritative range markers. */
+/** Builds an ordinary detached partition tree in DOM order, validating the live range markers. */
 export function inspectExactPartitionInstances(
 	container: Element,
 	options: Readonly<{
@@ -25,23 +24,23 @@ export function inspectExactPartitionInstances(
 			if (!(node instanceof Element) || !node.hasAttribute('data-exact-partition-edge')) return;
 			const instance = partitionInstance(node, executionRoot, options.buildKey);
 			if (!instance) return;
-			const mutable = { value: instance, children: [] };
-			byElement.set(node, mutable);
+			byElement.set(node, instance);
 			const parentElement = node.parentElement?.closest('[data-exact-partition-edge]');
 			const parent = parentElement && byElement.get(parentElement);
-			if (parent) parent.children.push(mutable);
-			else roots.push(mutable);
+			if (parent) parent.children.push(instance);
+			else roots.push(instance);
 		},
 		options.maxTreeNodes === undefined ? undefined : { maxNodes: options.maxTreeNodes }
 	);
-	return Object.freeze(roots.map(freezePartitionInstance));
+	return roots;
 }
 
+/** Copies a marker whose root, build, identity and generation pass the inspection filters. */
 function partitionInstance(
 	marker: Element,
 	executionRoot: string,
 	buildKey: string | undefined
-): Omit<ExactPartitionInstance, 'children'> | undefined {
+): MutablePartitionInstance | undefined {
 	const markerRoot = marker.getAttribute('data-exact-partition-root');
 	const markerBuild = marker.getAttribute('data-exact-partition-build');
 	const plan = marker.getAttribute('data-exact-partition-edge');
@@ -61,7 +60,7 @@ function partitionInstance(
 	)
 		return undefined;
 	const owner = findNodeOwnerInstance(marker);
-	return Object.freeze({
+	return {
 		executionRoot,
 		buildKey: markerBuild,
 		plan,
@@ -69,13 +68,7 @@ function partitionInstance(
 		ownerComponentInstance: owner?.id ?? ownerComponentId,
 		discriminator,
 		generation,
-		host: 'server' as const
-	});
-}
-
-function freezePartitionInstance(instance: MutablePartitionInstance): ExactPartitionInstance {
-	return Object.freeze({
-		...instance.value,
-		children: Object.freeze(instance.children.map(freezePartitionInstance))
-	});
+		host: 'server',
+		children: []
+	};
 }

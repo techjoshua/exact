@@ -1,6 +1,9 @@
+import path from 'node:path';
 import { build } from 'esbuild';
 import { describe, expect, it } from 'vitest';
 import { transform } from '../../compiler/src/index.js';
+
+const workspaceRoot = path.resolve(import.meta.dirname, '../../..');
 
 async function bundledInputs(source: string, compile = false): Promise<string[]> {
 	const contents = compile
@@ -12,10 +15,11 @@ async function bundledInputs(source: string, compile = false): Promise<string[]>
 	const result = await build({
 		stdin: {
 			contents,
-			resolveDir: process.cwd(),
+			resolveDir: workspaceRoot,
 			sourcefile: `component-local-target-abi-reachability.${compile ? 'ts' : 'js'}`,
 			loader: compile ? 'ts' : 'js'
 		},
+		absWorkingDir: workspaceRoot,
 		bundle: true,
 		write: false,
 		format: 'esm',
@@ -24,7 +28,9 @@ async function bundledInputs(source: string, compile = false): Promise<string[]>
 		metafile: true,
 		conditions: ['browser', 'exact-client']
 	});
-	return Object.keys(result.metafile.inputs).map((filename) => filename.replaceAll('\\', '/'));
+	return Object.keys(result.metafile.inputs).map((filename) =>
+		path.resolve(workspaceRoot, filename).replaceAll('\\', '/')
+	);
 }
 
 describe('React compatibility bundle reachability', () => {

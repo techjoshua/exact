@@ -1,3 +1,4 @@
+import { attachSuppressedCleanupFailure } from '@exactjs/core';
 import type { HookHost } from '../internals.js';
 import { scheduleWork } from '@exactjs/reactive';
 import type { ReactContext } from '../types.js';
@@ -28,8 +29,17 @@ export function createExactDispatcher(host: HookHost): ReactDispatcher {
 			host.effect(
 				'layout',
 				() => {
-					assignReactRef(ref, create());
-					return () => assignReactRef(ref, null);
+					const value = create();
+					try {
+						return assignReactRef(ref, value);
+					} catch (primary) {
+						try {
+							assignReactRef(ref, null);
+						} catch (cleanup) {
+							attachSuppressedCleanupFailure(primary, cleanup);
+						}
+						throw primary;
+					}
 				},
 				deps === undefined ? undefined : [...deps, ref]
 			),

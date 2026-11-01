@@ -32,11 +32,17 @@ export function splitHostCursors(cursor: string | undefined): Map<string, string
 			[CLIENT_HOST, cursor],
 			[PAGE_SERVER_HOST, cursor]
 		]);
-	const [, client = '', server = ''] = cursor.split(':', 3);
-	return new Map([
-		...(client && client !== '-' ? ([[CLIENT_HOST, decodeURIComponent(client)]] as const) : []),
-		...(server && server !== '-' ? ([[PAGE_SERVER_HOST, decodeURIComponent(server)]] as const) : [])
-	]);
+	try {
+		const [, client = '', server = ''] = cursor.split(':', 3);
+		return new Map([
+			...(client && client !== '-' ? ([[CLIENT_HOST, decodeURIComponent(client)]] as const) : []),
+			...(server && server !== '-'
+				? ([[PAGE_SERVER_HOST, decodeURIComponent(server)]] as const)
+				: [])
+		]);
+	} catch {
+		return new Map();
+	}
 }
 
 /** Encodes independent host cursors deterministically. */
@@ -64,7 +70,7 @@ export function serverTargets(
 		if (!root.binding || (filter?.binding && filter.binding !== root.binding)) continue;
 		if (filter?.buildKey && filter.buildKey !== root.buildKey) continue;
 		if (filter?.executionRoot && filter.executionRoot !== root.executionRoot) continue;
-		const key = `binding:${root.binding}:${root.buildKey}:${root.executionRoot}`;
+		const key = `binding:${JSON.stringify([root.binding, root.buildKey, root.executionRoot])}`;
 		if (seen.has(key)) continue;
 		seen.add(key);
 		targets.push({

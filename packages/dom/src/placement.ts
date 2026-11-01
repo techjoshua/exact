@@ -1,3 +1,4 @@
+import { reconcileSelectChildren } from './controlled-select.js';
 import { describeNode, domDebug } from './debug.js';
 import { foreignChildCapability } from './renderer/foreign-child-capability.js';
 import type { Mounted, Root } from './types.js';
@@ -9,6 +10,10 @@ export function placeMountedBefore(
 	mounted: Mounted,
 	before?: Node | null
 ): void {
+	if (root.suppliedPlacementPlan?.pending && root.suppliedPlacementPlan.isCurrent()) {
+		root.suppliedPlacementPlan.place(parent, mounted, before ?? null);
+		return;
+	}
 	const cursor = before?.parentNode === parent ? before : null;
 	const nodes = mountedDomNodes(mounted);
 	const first = nodes[0];
@@ -26,8 +31,11 @@ export function placeMountedBefore(
 	}
 
 	for (const node of nodes) {
+		const previousParent = node.parentNode;
 		insertBeforeIfNeeded(root, parent, node, cursor);
+		if (previousParent && previousParent !== parent) reconcileSelectChildren(root, previousParent);
 	}
+	reconcileSelectChildren(root, parent);
 	runAfterPlacement(root, mounted);
 }
 
@@ -47,7 +55,7 @@ export function mountedDomNodes(mounted: Mounted): Node[] {
 		}
 		nodes.push(current.mounted.dom);
 		if (current.mounted.end) pending.push({ mounted: current.mounted, end: true });
-		if (current.mounted.rawNodes) nodes.push(...current.mounted.rawNodes);
+		for (const node of current.mounted.rawNodes ?? []) nodes.push(node);
 		if (ownsChildDom(current.mounted)) {
 			for (let index = current.mounted.children.length - 1; index >= 0; index--) {
 				pending.push({ mounted: current.mounted.children[index]!, end: false });

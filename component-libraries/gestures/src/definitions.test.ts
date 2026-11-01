@@ -4,12 +4,11 @@ import { defineDrag, defineGesture, isGestureDefinition } from './definitions.js
 import { draggable, longPress, pressable } from './presets.js';
 
 describe('gesture definitions', () => {
-	it('prepares immutable reusable definitions and recognizers', () => {
+	it('prepares reusable definitions and independent recognizers', () => {
 		const drag = defineDrag({ threshold: 5, axis: 'x' });
 		const definition = defineGesture({ name: 'card', semantics: 'decorative', drag });
 		expect(isGestureDefinition(definition)).toBe(true);
-		expect(Object.isFrozen(definition)).toBe(true);
-		expect(Object.isFrozen(definition.drag)).toBe(true);
+		expect(definition.drag).not.toBe(drag);
 		expect(definition.drag).toMatchObject({ threshold: 5, axis: 'x' });
 	});
 

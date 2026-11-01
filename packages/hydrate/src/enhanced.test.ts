@@ -26,7 +26,41 @@ import {
 } from './test-support/enhanced.fixtures.js?exact-target=server';
 import { noopLogger } from './test-support/responses.js';
 
+import { handoffRoot } from '../../component-composition-corpus/src/test-support/hydration-handoff.fixtures.js';
+import { handoffRoot as serverHandoffRoot } from '../../component-composition-corpus/src/test-support/hydration-handoff.fixtures.js?exact-target=server';
+
 describe('enhanced hydration facade', () => {
+	it('adopts an enhanced supplied Target before publishing the provider lifecycle', async () => {
+		const root = document.createElement('div');
+		const rendered = await renderToHydratableString(serverHandoffRoot);
+		root.innerHTML = rendered.html;
+		const button = root.querySelector('button')!;
+		const list = root.querySelector('.handoff-items');
+		const reports: unknown[] = [];
+		const client = hydrate(handoffRoot, root, {
+			onMismatch: 'throw',
+			logger: noopLogger,
+			resumptions: rendered.resumptions,
+			onErrorReport: (report) => reports.push(report)
+		});
+		try {
+			await client.whenSettled();
+			expect(root.querySelector('button')).toBe(button);
+			expect(root.querySelector('.handoff-items')).toBe(list);
+			button.click();
+			await client.whenSettled();
+			expect(button.getAttribute('aria-expanded')).toBe('true');
+			expect(root.querySelector('.handoff-body')?.hasAttribute('hidden')).toBe(false);
+			button.click();
+			button.click();
+			await client.whenSettled();
+			expect(root.querySelector('.handoff-items')).toBe(list);
+			expect(reports).toEqual([]);
+		} finally {
+			client.dispose();
+		}
+	});
+
 	it.each(['explicit', 'registered'] as const)(
 		'retains the %s enhancement catalog in an island',
 		async (catalog) => {

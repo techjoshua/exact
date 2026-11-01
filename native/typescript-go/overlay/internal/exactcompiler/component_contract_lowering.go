@@ -41,6 +41,7 @@ func lowerComponentContracts(
 	used := sourceIdentifiers(sourceFile)
 	brandingName := allocateGeneratedName(used, "__exactBrandComponent")
 	constructors := componentConstructorImports{
+		taskBindings:            newContinuationTaskBindings(sourceFile, used),
 		localizationContextName: allocateGeneratedName(used, "__exactContinuationLocalizationContext"),
 		renderName:              allocateGeneratedName(used, "__exactConstructRenderComponent"),
 		taskName:                allocateGeneratedName(used, "__exactConstructTaskComponent"),
@@ -205,6 +206,8 @@ func lowerComponentContracts(
 }
 
 type componentConstructorImports struct {
+	arrayImports            map[string]string
+	taskBindings            *continuationTaskBindings
 	localizationContextName string
 	localizationContextUsed bool
 	projectorName           string
@@ -309,6 +312,9 @@ func componentConstructorImport(
 
 func (imports *componentConstructorImports) declarations(factory *printer.NodeFactory) []*ast.Node {
 	declarations := []*ast.Node{}
+	if imports.taskBindings.used {
+		declarations = append(declarations, componentConstructorImport(factory, "bindTask", imports.taskBindings.name, "@exactjs/core/framework/server-task-helpers"))
+	}
 	if imports.localizationContextUsed {
 		declarations = append(declarations, componentConstructorImport(factory, "LocalizationContext", imports.localizationContextName, "@exactjs/core/runtime/localization"))
 	}
@@ -377,6 +383,7 @@ func (imports *componentConstructorImports) declarations(factory *printer.NodeFa
 	if imports.projectorUsed {
 		declarations = append(declarations, componentConstructorImport(factory, "registerPositionalProjector", imports.projectorName, "@exactjs/ssr/runtime/positional-projection"))
 	}
+	declarations = append(declarations, imports.arrayDeclarations(factory)...)
 	return declarations
 }
 
@@ -746,7 +753,7 @@ func rootComponentContractAttachment(
 			factory,
 			componentFunction,
 			runtimeContinuations,
-			constructors.localizationContextName,
+			constructors,
 			used,
 		)
 	}
@@ -766,7 +773,9 @@ func rootComponentContractAttachment(
 		projectedBoundaries = contractArray(factory)
 	}
 	usesCompatibility := component.TargetPlan.UsesCompatibility
-	hasResumption := component.Placement == "isomorphic" &&
+	// Snapshot authority is independent of incomplete environment inference. An emitted
+	// paired unknown component still restores its proven state without claiming portability.
+	hasResumption := (component.Placement == "isomorphic" || component.Placement == "unknown") &&
 		componentHasResumption(component.ID, resumptions)
 	reconstructibleResumption := hasResumption &&
 		len(componentContinuations) == 0 &&
@@ -861,6 +870,12 @@ func rootComponentContractAttachment(
 		updates,
 		inputs,
 	)
+	if target == TargetClient && continuationsHaveArrayRoots(componentContinuations, false) {
+		literal := artifact.AsObjectLiteralExpression()
+		properties := append([]*ast.Node{}, literal.Properties.Nodes...)
+		properties = append(properties, contractProperty(factory, "array", constructors.arrayBinding(factory, true, used)))
+		artifact = factory.UpdateObjectLiteralExpression(literal, factory.NewNodeList(properties), literal.MultiLine)
+	}
 	contractProperties := []*ast.Node{
 		contractProperty(
 			factory,
@@ -910,9 +925,7 @@ func rootComponentContractAttachment(
 			),
 		))
 	}
-	if component.Placement == "isomorphic" &&
-		projection != ComponentContractProjectionClient &&
-		hasResumption {
+	if projection != ComponentContractProjectionClient && hasResumption {
 		resumptionContinuations := []string{}
 		if target == TargetClient && projection == ComponentContractProjectionHydrate {
 			for _, continuation := range componentContinuations {

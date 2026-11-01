@@ -67,6 +67,14 @@ resolve those exact package keys from the page realm. This avoids duplicate
 framework/context identities without treating arbitrary semver similarity as
 runtime compatibility.
 
+The shared provider set includes specialized reactive entry points and component construction,
+branding, lifecycle, and rendering helpers. A remote's state and its page-owned observers must use
+the same dependency graph. Applications do not need to add these framework import keys to
+`providedPackages`. The page provider bootstrap is included only when remote bindings are configured.
+Ordinary applications and producer pages without remote bindings do not incur this bootstrap cost.
+Deploy a host bootstrap that supplies a new remote's required provider keys
+before deploying that remote. An older remote remains loadable by a host with additional providers.
+
 `RemoteComponent` loads the generated registration, establishes an immutable
 component domain, and mounts page-authored children beneath that domain.
 Contexts and portals continue to follow logical component ownership.
@@ -91,13 +99,18 @@ dependencies it imports, so production entries must reference immutable content-
 or keep their complete dependency graph under the same deployment trust boundary.
 Remote entry waits are owned by the mounting component: unmounting or replacing that component
 stops its wait without disrupting another component sharing the same load. The shared loader
-times out stalled entries after 30 seconds and retains at most 64 pending or completed entries.
+retains only pending work and releases its script or import wait after the last caller cancels.
+It imposes no deadline or concurrency ceiling. Direct callers can provide an `AbortSignal` to
+choose a deadline or cancel according to application policy. Native JavaScript imports may
+continue evaluating after cancellation, but retired components cannot install their results.
 
 ## Protocol and recovery
 
 The browser continues to use the page host's `/__exact` endpoint. Request authentication and CSRF
 hooks run before body reading. The gateway validates the configured binding, consumes its routing
 header, and relays original request and response bytes with bounded buffering and cancellation.
+The returned gateway exposes an ordinary `forward()` method, allowing application-owned wrappers.
+Rejection observations are separate data, so annotating them leaves the transport error unchanged.
 Build headers, cookies, and authorization pass through. Each service owns protocol validation,
 operation authorization, and its response. Applications may add credentials with
 `transformForwardedRequest`, which can change headers only. Use raw request bodies at gateway
@@ -114,6 +127,12 @@ settle. An unsupported build permits one bounded coordinated recovery attempt.
 Invalid loaders, registrations, responses, or ownership metadata render the
 configured fallback rather than partially mounting a remote tree.
 
+An application-owned `resolveClientEntry(preferredBuild)` discovers the replacement entry.
+This callback receives no `AbortSignal`, so removing the remote does not cancel discovery work.
+The resolver must arrange any cancellation or deadline through its own application policy.
+Once discovery returns an entry, the framework-owned module wait uses the remote boundary's
+abort signal. Retiring the boundary prevents a late result from replacing its component.
+
 Server-executing remote entries also carry the compact component-library
 authorization identity produced by their build: protocol, build key, and
 fingerprint. The browser forwards only the fingerprint with component
@@ -124,7 +143,10 @@ remain server-private.
 
 ## Operational limits
 
-- Browser remote entry loading has a fixed 30-second timeout and a 64-entry shared cache ceiling.
+- Provided packages support named and default ESM imports, named re-exports, and namespace access
+  to statically named exports. Dynamic imports of provided packages, dynamic namespace indexing,
+  and forwarding an entire namespace are unsupported. These checks apply consistently across
+  Vite/Rollup, Webpack, and Bun. Ordinary packages that are not provided retain normal bundler resolution.
 - Bun server `--hot` is unsupported because it cannot retain the last authorized generation; use
   watch/rebuild coordination instead.
 - Deployment discovery, signing, rollout policy, and service operation remain
@@ -134,3 +156,12 @@ remain server-private.
 
 See the plugin package and docs-app microfrontend page for configuration
 examples.
+
+Browser imports from the package root select the runtime facade, including the Web API binding
+gateway. Node imports additionally expose build adapters and artifact planners. The explicit `/client` entry remains
+available for runtime-only imports. Provider bootstrap is emitted only for a host with configured
+remote bindings. Ordinary applications and remote producer pages without bindings omit it.
+
+Scoped Bun remote imports use the enclosing build resolver and preserve its browser conditions
+and aliases. Relative remote files keep their exposure scope. Package resolution does not load
+Node build tools into the browser runtime facade.

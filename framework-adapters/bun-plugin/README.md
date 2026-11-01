@@ -39,15 +39,13 @@ await exactBuild({
 });
 ```
 
-`exactBuild()` installs `exact()` automatically. It emits actual exposure entry URLs through
-`onRemoteEntries` only after a complete successful generation and offers stable development IDs
-through `onRemoteDevelopmentEntries`. Direct `Bun.build({ plugins: [exact()] })` remains supported
-for ordinary builds and reports an actionable error if exposures require the coordinator.
-Nonempty `publicPath` prefixes such as `/assets` are normalized to `/assets/` for linked chunks;
-use the published entry map instead of predicting generated filenames.
-`exactBuild()` always releases its compiler resources after the build settles. A host that installs
-`exact()` directly must retain the plugin and call its idempotent `dispose()` after the final build
-or watch generation, including when `Bun.build()` rejects.
+`exactBuild()` installs `exact()` automatically. It emits actual exposure entry URLs through `onRemoteEntries` only after a complete successful generation and offers stable
+development IDs through `onRemoteDevelopmentEntries`. Direct `Bun.build({ plugins: [exact()] })` remains supported for ordinary builds and reports an actionable error if exposures
+require the coordinator. Nonempty `publicPath` prefixes such as `/assets` are normalized to `/assets/` for linked chunks; use the published entry map instead of predicting
+generated filenames. Exposure builds request Bun metadata automatically so published URLs retain custom hashed output names. Hashed exposure names require [Bun 1.3.6 or
+newer](https://bun.com/blog/bun-v1.3.6#metafile-in-bunbuild). Producer builds are verified on Bun 1.4.3. Bun 1.3.0 and 1.3.6 can emit entries outside `outdir` when physical and
+virtual entrypoints share a build. `exactBuild()` always releases its compiler resources after the build settles. A host that installs `exact()` directly must retain the plugin and
+call its idempotent `dispose()` after the final build or watch generation, including when `Bun.build()` rejects.
 
 Use `target: 'server'` with Bun's server target for the matching server build. Keep
 `serverComponents`, React compatibility, and build identity consistent across paired outputs.

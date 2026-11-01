@@ -1,6 +1,7 @@
 package exactcompiler
 
 import (
+	"sort"
 	"strings"
 
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
@@ -141,4 +142,70 @@ func definitelyNonTransportableMapKey(value *checker.Type, typeChecker *checker.
 		return constraint != nil && constraint != value && definitelyNonTransportableMapKey(constraint, typeChecker)
 	}
 	return flags&(checker.TypeFlagsObject|checker.TypeFlagsNonPrimitive|checker.TypeFlagsESSymbolLike|checker.TypeFlagsBigIntLike|checker.TypeFlagsUndefined) != 0
+}
+
+// detachedServerTaskDiagnostics reads original callable facts without registering unused tasks.
+// Policy identity belongs to the resolved TaskContext binding, never the request target or spelling.
+func detachedServerTaskDiagnostics(sourceFile *ast.SourceFile, components []Component, callables callableAnalysis, bindings externalImportBindings, directives []Directive) []Diagnostic {
+	componentStarts := make(map[int]int, len(components))
+	for _, component := range components {
+		componentStarts[component.Start] = component.Length
+	}
+	var definitions []*ast.Node
+	for _, fact := range callables.facts {
+		work := fact.node
+		if fact.sourceFile != sourceFile || !isCallableNode(work) || work.Body() == nil {
+			continue
+		}
+		if length, component := componentStarts[work.Pos()]; component && length == work.End()-work.Pos() {
+			continue
+		}
+		owned := false
+		for parent := work.Parent; parent != nil; parent = parent.Parent {
+			if length, component := componentStarts[parent.Pos()]; component && length == parent.End()-parent.Pos() {
+				owned = true
+				break
+			}
+		}
+		if !owned {
+			continue
+		}
+		if _, explicit := functionTaskPolicy(work, sourceFile, bindings); !explicit ||
+			taskPolicyFacetCount(work, "server") != 1 || taskPolicyHasFacet(work, "client") || !taskPolicyHasFacet(work, "detached") {
+			continue
+		}
+		definitions = append(definitions, work)
+	}
+	sort.Slice(definitions, func(i, j int) bool { return definitions[i].Pos() < definitions[j].Pos() })
+	var diagnostics []Diagnostic
+	for _, work := range definitions {
+		const code = "EXACT2004"
+		attachment := work
+		if binding := sourceCallableBinding(work); binding != nil {
+			attachment = binding
+		}
+		if compilerAdvisoryAcknowledged(sourceFile, attachment, directives, code) {
+			continue
+		}
+		start := scanner.GetTokenPosOfNode(work, sourceFile, false)
+		diagnostics = append(diagnostics, Diagnostic{Severity: "warning", Code: code,
+			Message: "SSR does not automatically wait for this detached server task. Explicitly awaiting it still delays the caller. Detachment does not guarantee execution after the response.",
+			Start:   start, Length: work.End() - start})
+	}
+	return diagnostics
+}
+
+// compilerAdvisoryAcknowledged attaches a validated exact code only before the intended node.
+// Callers opt in at advisory emission. Errors and other diagnostic protocols never pass through here.
+func compilerAdvisoryAcknowledged(sourceFile *ast.SourceFile, node *ast.Node, directives []Directive, code string) bool {
+	start := scanner.GetTokenPosOfNode(node, sourceFile, false)
+	for _, directive := range directives {
+		if directive.Namespace != "exact" || directive.Name != "ignore" || directive.Start >= start {
+			continue
+		}
+		if selected, valid := advisoryDirectiveCode(directive); valid && selected == code && dynamicDirectiveAttachesTo(&directive, node, sourceFile) {
+			return true
+		}
+	}
+	return false
 }

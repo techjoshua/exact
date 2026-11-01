@@ -1,10 +1,7 @@
 import { unwrap } from '@exactjs/reactive/framework/values';
 import type { AnyAuthoredComponentFunction, Child } from '../component/contracts.js';
 import { exactComponentIdentity, isExactComponent } from '../component-contracts.js';
-import {
-	readCompiledComponentReceipt,
-	readPreparedServerComponentReference
-} from '../component-abi/receipt.js';
+import { inspectComponentInput } from '../component-abi/receipt.js';
 import {
 	readComposableIntrinsicReceipt,
 	withIntrinsicReceiptChildren
@@ -30,7 +27,8 @@ export type ChildPartitions<Selectors extends Record<string, ChildSelector>> = {
 /**
  * Partitions immediate children without mounting them or traversing elements, components, or fragments.
  * Arrays are flattened and empty values omitted. Reactive inputs are read in the caller's scope.
- * The reserved name `remaining` cannot be used as a selector. Cost is O(children × selectors).
+ * Returns ordinary detached arrays with TypeScript readonly views. The reserved name `remaining`
+ * cannot be used as a selector. Cost is O(children × selectors).
  * @exact pure
  */
 export function partitionChildren<Selectors extends Record<string, ChildSelector>>(
@@ -50,8 +48,7 @@ export function partitionChildren<Selectors extends Record<string, ChildSelector
 		const match = entries.find(([, selector]) => matchesChild(child, selector));
 		result[match ? match[0] : 'remaining']!.push(child);
 	}
-	for (const values of Object.values(result)) Object.freeze(values);
-	return Object.freeze(result) as ChildPartitions<Selectors>;
+	return result as ChildPartitions<Selectors>;
 }
 
 /** Reads an intrinsic's immediate children without evaluating a component or mounting its output.
@@ -60,7 +57,7 @@ export function partitionChildren<Selectors extends Record<string, ChildSelector
 export function childrenOf(element: unknown): readonly Child[] {
 	const data = readComposableIntrinsicReceipt(unwrap(element));
 	if (!data) throw new TypeError('childrenOf requires a composable intrinsic element');
-	return Object.freeze(immediateChildren(data.children));
+	return immediateChildren(data.children);
 }
 
 /**
@@ -91,7 +88,9 @@ function matchesChild(child: Child, selector: ChildSelector): boolean {
 	if (selector === textKind) return typeof child === 'string' || typeof child === 'number';
 	if (typeof selector === 'string') return readComposableIntrinsicReceipt(child)?.tag === selector;
 	if (typeof selector !== 'function' || !isExactComponent(selector)) return false;
-	const component =
-		readCompiledComponentReceipt(child) ?? readPreparedServerComponentReference(child);
-	return component?.contract.artifact.id === exactComponentIdentity(selector);
+	const component = inspectComponentInput(child);
+	return (
+		component.kind === 'component' &&
+		exactComponentIdentity(component.component) === exactComponentIdentity(selector)
+	);
 }

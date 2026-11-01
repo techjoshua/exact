@@ -1,3 +1,9 @@
+import { responseResourceBudget } from '../response-resources.js';
+import {
+	normalizeProtocolLimit,
+	type ResponseResourceBudget
+} from '@exactjs/core/framework/protocol-records';
+import { deriveRuntimeConfiguration as deriveServerContext } from '@exactjs/core/framework/configuration';
 import { readGatewayBody } from '../gateway/body.js';
 import { runWithExactRequestScope } from '../context.js';
 import {
@@ -11,6 +17,7 @@ import {
 import { jsonResponse, parseExactRequestBody, readBody } from '../protocol.js';
 import { dispatchExactBatch, streamExactResponse, wantsStreaming } from '../streaming.js';
 import { exactServerDebugRuntime } from '../debug/runtime.js';
+import { scopedDebugRequest } from '../debug/request-origin.js';
 import type {
 	ExactBatchResult,
 	ExactInvocationRequest,
@@ -36,14 +43,11 @@ export async function handleExactRequest(
 		return await handleExactRequestOwned(request, context, context);
 	} finally {
 		if (profileStarted !== undefined) {
-			publishExactProfile(
-				context.onProfile,
-				Object.freeze({
-					subsystem: 'server',
-					phase: 'request',
-					elapsedMs: performance.now() - profileStarted
-				} satisfies ServerProfileEvent)
-			);
+			publishExactProfile(context.onProfile, {
+				subsystem: 'server',
+				phase: 'request',
+				elapsedMs: performance.now() - profileStarted
+			} satisfies ServerProfileEvent);
 		}
 	}
 }
@@ -79,7 +83,7 @@ async function handleExactRequestOwned(
 		if (!context.gateway) return jsonResponse(404, { error: 'unknown_binding' });
 		let body: string | Uint8Array;
 		try {
-			body = await readGatewayBody(request, context.limits?.maxRequestBytes);
+			body = await readGatewayBody(request, context.limits?.maxRequestBytes, context.logger);
 		} catch {
 			return jsonResponse(400, { error: 'bad_request' });
 		}
@@ -88,12 +92,11 @@ async function handleExactRequestOwned(
 
 	let input: ExactProtocolRequest;
 	try {
-		input = parseExactRequestBody(await readBody(request, context.limits?.maxRequestBytes), {
-			maxBatchOperations: context.limits?.maxBatchOperations,
-			maxJsonDepth: context.limits?.maxJsonDepth,
-			maxJsonNodes: context.limits?.maxJsonNodes,
-			maxRequestBytes: context.limits?.maxRequestBytes
-		});
+		input = parseExactRequestBody(
+			await readBody(request, context.limits?.maxRequestBytes),
+			context.limits,
+			context.logger
+		);
 	} catch {
 		logReject(context, 'rejected malformed exact invocation');
 		return jsonResponse(400, { error: 'bad_request' });
@@ -104,7 +107,11 @@ async function handleExactRequestOwned(
 			? (debugOwnerContext.debugRuntime ?? exactServerDebugRuntime(debugOwnerContext))
 			: undefined;
 
-	if (input.type === 'debug') return debugRuntime!.handle(request, input);
+	if (input.type === 'debug')
+		return debugRuntime!.handle(
+			scopedDebugRequest(request, context.requestContext.publicOrigin),
+			input
+		);
 
 	const build = resolveRemoteBuild(request, context);
 	if (build === null) {
@@ -118,9 +125,14 @@ async function handleExactRequestOwned(
 		return withBuildHeaders(jsonResponse(410, { error: 'exact_build_unsupported' }), context);
 	const debugSessionId = requestHeader(request, 'x-exact-debug-session');
 	const requestDebugRuntime = debugSessionId
-		? await exactServerDebugRuntime(debugOwnerContext).createRequestRuntime(request, debugSessionId)
+		? await exactServerDebugRuntime(debugOwnerContext).createRequestRuntime(
+				scopedDebugRequest(request, context.requestContext.publicOrigin),
+				debugSessionId
+			)
 		: undefined;
-	const responseContext = requestDebugRuntime ? { ...context, requestDebugRuntime } : context;
+	const responseContext = requestDebugRuntime
+		? deriveServerContext(context, () => ({ requestDebugRuntime }))
+		: context;
 	const dispatch = build
 		? (
 				operationRequest: ExactRequestLike,
@@ -141,6 +153,7 @@ async function handleExactRequestOwned(
 		);
 	}
 
+	const resources = responseResourceBudget(responseContext.logger);
 	if (input.type === 'batch') {
 		try {
 			const results = await dispatchExactBatch(
@@ -151,13 +164,19 @@ async function handleExactRequestOwned(
 			);
 			return withBuildHeaders(
 				withRequestObservations(
-					limitedJsonResponse(responseContext, 200, {
-						ok: true,
-						version: 1,
-						results
-					} satisfies ExactBatchResult),
+					limitedJsonResponse(
+						responseContext,
+						200,
+						{
+							ok: true,
+							version: 1,
+							results
+						} satisfies ExactBatchResult,
+						resources
+					),
 					requestDebugRuntime,
-					responseContext
+					responseContext,
+					resources
 				),
 				context
 			);
@@ -171,9 +190,9 @@ async function handleExactRequestOwned(
 		const result = await dispatch(request, input, responseContext);
 		const response = isOperationError(result)
 			? jsonResponse(result.status, { error: result.error })
-			: limitedJsonResponse(responseContext, 200, result);
+			: limitedJsonResponse(responseContext, 200, result, resources);
 		return withBuildHeaders(
-			withRequestObservations(response, requestDebugRuntime, responseContext),
+			withRequestObservations(response, requestDebugRuntime, responseContext, resources),
 			context
 		);
 	} catch (error) {
@@ -182,39 +201,54 @@ async function handleExactRequestOwned(
 	}
 }
 
+/** Serializes once and retains the newest complete event suffix within the final UTF-8 byte limit. */
 function withRequestObservations(
 	response: ExactTextResponse,
 	runtime: ExactServerRequestDebugRuntime | undefined,
-	context: ExactServerContext
+	context: ExactServerContext,
+	resources: ResponseResourceBudget
 ): ExactResponseLike {
 	if (!runtime) return response;
 	try {
 		const observations = [...runtime.drain()];
 		if (!observations.length) return response;
 		const body = JSON.parse(response.body) as Record<string, unknown>;
-		const maximum = context.limits?.maxResponseBytes ?? 16 * 1024 * 1024;
+		if (Array.isArray(body)) return response;
+		// Private protocol fields must not invoke inherited setters on the parsed envelope.
+		Object.setPrototypeOf(body, null);
+		// Optional telemetry is selected before applying the response cap to published bytes.
+		// Omitted caps remain warning-only, while explicit caps keep the newest complete suffix.
+		const maximum = normalizeProtocolLimit(
+			context.limits?.maxResponseBytes,
+			Number.MAX_SAFE_INTEGER
+		);
+		// Append at the end even if an output extension supplied this reserved field.
+		delete body.__exactObservations;
+		body.__exactObservations = [];
+		const empty = JSON.stringify(body);
 		const encoder = new TextEncoder();
+		const encoded = observations.map((event) => JSON.stringify(event) ?? 'null');
+		const sizes = encoded.map((event) => encoder.encode(event).byteLength);
+		let size =
+			encoder.encode(empty).byteLength +
+			sizes.reduce((sum, bytes) => sum + bytes, 0) +
+			encoded.length -
+			1;
 		let start = 0;
-		let encoded = encodeObservations(start);
-		if (encoder.encode(encoded).byteLength > maximum) {
-			let low = 1;
-			let high = observations.length;
-			while (low < high) {
-				const middle = Math.floor((low + high) / 2);
-				if (encoder.encode(encodeObservations(middle)).byteLength <= maximum) high = middle;
-				else low = middle + 1;
-			}
-			start = low;
-			encoded = encodeObservations(start);
+		while (size > maximum && start < encoded.length) {
+			size -= sizes[start++]! + (start < encoded.length ? 1 : 0);
 		}
-		if (start === observations.length || encoder.encode(encoded).byteLength > maximum)
-			return response;
-		return { ...response, body: encoded };
-
-		function encodeObservations(index: number): string {
-			body.__exactObservations = observations.slice(index);
-			return JSON.stringify(body);
-		}
+		if (start === encoded.length) return response;
+		const serialized = empty.slice(0, -2) + encoded.slice(start).join(',') + ']}';
+		resources(
+			'maxResponseBytes',
+			context.limits?.maxResponseBytes,
+			16 * 1024 * 1024,
+			size,
+			'buffered response with observations',
+			'encoded UTF-8 bytes'
+		);
+		return { ...response, body: serialized };
 	} finally {
 		runtime.dispose();
 	}
@@ -239,22 +273,20 @@ function contextForRemoteOperation(
 ): ExactServerContext {
 	const root = input.root ? build.roots[input.root] : undefined;
 	if (!root) {
-		return {
-			...context,
+		return deriveServerContext(context, () => ({
 			contract: emptyContract(context),
 			invocations: {},
 			refreshBoundaries: {},
 			payloadDecoders: {}
-		};
+		}));
 	}
-	return {
-		...context,
+	return deriveServerContext(context, () => ({
 		debugBuildKey: build.buildKey,
 		contract: root.contract,
 		invocations: root.invocations,
 		refreshBoundaries: root.refreshBoundaries,
 		payloadDecoders: root.payloadDecoders
-	};
+	}));
 }
 
 function emptyContract(context: ExactServerContext): ExactServerContext['contract'] {

@@ -6,7 +6,7 @@ import {
 } from '@exactjs/core';
 import { type ExactComponentContinuationContract } from '@exactjs/core/framework/component-contracts';
 import { describe, expect, it } from 'vitest';
-import { createExactContinuationHandler } from './continuation-execution.js';
+import { createExactContinuationHandler } from './continuation/execution.js';
 import { dispatchExactOperation, limitedJsonResponse } from './operations.js';
 import { context } from './test-support/server.js';
 
@@ -28,6 +28,40 @@ const contract: ExactComponentContinuationContract = {
 	contextWrites: [],
 	boundaries: []
 };
+
+it.each([false, true])(
+	'projects an input-present write from an explicitly invoked child (detached=%s)',
+	async (detached) => {
+		const { defineTask, invokeTask } = await import('@exactjs/core');
+		const { taskMutation } = await import('../../core/src/tasks/frame-runtime.js');
+		const { writeReactiveLazy } = await import('../../core/src/runtime/reactivity.js');
+		const handler = createExactContinuationHandler(contract, {
+			id: contract.id,
+			componentId: contract.componentId,
+			async execute(activation, execution) {
+				const child = defineTask<[], unknown>({ detached }, async (task) => {
+					await Promise.resolve();
+					return taskMutation(task.signal, () =>
+						writeReactiveLazy(activation.state, ['title'], () => 'after')
+					);
+				});
+				const launch = async () => await invokeTask(execution.task, child);
+				const value = await launch();
+				return { state: activation.state, value };
+			}
+		});
+		const result = await handler(
+			{
+				type: 'invoke',
+				id: contract.id,
+				payload: { dependencies: ['p1'] },
+				state: { id: 'p1', title: 'before' }
+			},
+			context()
+		);
+		expect(result).toEqual({ state: { title: 'after' }, value: 'after' });
+	}
+);
 
 describe('@exactjs/server generated continuation execution', () => {
 	it('supplies the full task frame context and releases owned resources', async () => {
@@ -469,3 +503,125 @@ it('propagates request cancellation into the generated task frame and releases o
 		await pending.catch(() => undefined);
 	}
 });
+
+it.each(['map', 'set'] as const)(
+	'publishes the final %s snapshot without replaying superseded deltas',
+	async (kind) => {
+		const { taskMutation } = await import('../../core/src/runtime/tasks.js');
+		const { writeReactiveLazy } = await import('../../core/src/runtime/reactivity.js');
+		const writes = [
+			{ path: 'selected', kind: 'write', confidence: 'exact', operation: kind },
+			{ path: 'selected', kind: 'write', confidence: 'exact' },
+			{ path: 'other', kind: 'write', confidence: 'exact', operation: 'map' }
+		] as const;
+		const spec = { ...contract, dependencies: [], stateReads: [], stateWrites: writes };
+		const handler = createExactContinuationHandler(spec, {
+			id: spec.id,
+			componentId: spec.componentId,
+			execute(activation, execution) {
+				mutateTaskCollection(
+					execution.signal,
+					activation.state,
+					['selected'],
+					kind,
+					kind === 'map' ? 'set' : 'add',
+					kind === 'map' ? ['obsolete', 1] : ['obsolete']
+				);
+				taskMutation(execution.signal, () =>
+					writeReactiveLazy(activation.state, ['selected'], () =>
+						kind === 'map' ? new Map([['fresh', 2]]) : new Set(['fresh'])
+					)
+				);
+				mutateTaskCollection(
+					execution.signal,
+					activation.state,
+					['selected'],
+					kind,
+					kind === 'map' ? 'set' : 'add',
+					kind === 'map' ? ['after', 3] : ['after']
+				);
+				mutateTaskCollection(execution.signal, activation.state, ['other'], 'map', 'set', [
+					'retained',
+					4
+				]);
+				return { state: activation.state };
+			}
+		});
+		const result = await handler(
+			{
+				type: 'invoke',
+				id: spec.id,
+				payload: { dependencies: [] },
+				state: { selected: kind === 'map' ? new Map() : new Set(), other: new Map() }
+			},
+			context()
+		);
+		const selected = (result.state as { selected: Map<string, number> | Set<string> }).selected;
+		expect([...selected]).toEqual(
+			kind === 'map'
+				? [
+						['fresh', 2],
+						['after', 3]
+					]
+				: ['fresh', 'after']
+		);
+		expect(result.mutations).toEqual([
+			{ path: 'other', operation: 'map-set', key: 'retained', value: 4 }
+		]);
+	}
+);
+
+it.each(['owned', 'detached', 'separate'] as const)(
+	'keeps %s child collection work under its publication owner',
+	async (mode) => {
+		const { runTaskFrame, captureTaskPropertyMutations, takeTaskPropertyMutations } = await import(
+			'@exactjs/core/framework/task-frames'
+		);
+		const { discardTaskMutations } = await import('@exactjs/core');
+		const spec = {
+			...contract,
+			dependencies: [],
+			stateReads: [],
+			stateWrites: [
+				{ path: 'lookup', kind: 'write', confidence: 'exact', operation: 'map' }
+			] as const
+		};
+		const handler = createExactContinuationHandler(spec, {
+			id: spec.id,
+			componentId: spec.componentId,
+			async execute(activation) {
+				await runTaskFrame(
+					{ kind: 'child-collection', detached: mode === 'detached' },
+					{
+						work(child) {
+							if (mode === 'separate') captureTaskPropertyMutations(child.signal);
+							try {
+								mutateTaskCollection(child.signal, activation.state, ['lookup'], 'map', 'set', [
+									'child',
+									1
+								]);
+								if (mode !== 'owned')
+									expect(takeTaskCollectionMutations(child.signal)).toEqual([
+										{ path: 'lookup', operation: 'map-set', key: 'child', value: 1 }
+									]);
+							} finally {
+								takeTaskPropertyMutations(child.signal);
+								discardTaskMutations(child.signal);
+							}
+						}
+					}
+				);
+				return { state: activation.state };
+			}
+		});
+		const result = await handler(
+			{ type: 'invoke', id: spec.id, payload: { dependencies: [] }, state: { lookup: new Map() } },
+			context()
+		);
+		expect(result.mutations).toEqual(
+			mode === 'owned'
+				? [{ path: 'lookup', operation: 'map-set', key: 'child', value: 1 }]
+				: undefined
+		);
+	}
+);

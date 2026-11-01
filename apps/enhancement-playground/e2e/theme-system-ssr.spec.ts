@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
 import type { AnyComponentFunction } from '@exactjs/core';
 import {
-	createCompiledComponentReceipt,
+	createCompiledComponentInputReceipt,
 	createCompiledIntrinsicReceipt
 } from '@exactjs/core/runtime/component-abi';
 import { renderToString } from '@exactjs/ssr';
@@ -23,29 +23,29 @@ for (const initial of ['light', 'dark'] as const) {
 		try {
 			const page = await context.newPage();
 			const content = createCompiledIntrinsicReceipt('p', {}, 'Server-rendered content');
-			const inherited = createCompiledComponentReceipt(component, {
+			const inherited = createCompiledComponentInputReceipt(component, {
 				tonic: '#7357d9',
 				children: content
 			});
-			const explicit = createCompiledComponentReceipt(component, {
+			const explicit = createCompiledComponentInputReceipt(component, {
 				appearance: 'light',
 				contrast: 'standard',
 				motion: 'full',
 				children: content
 			});
-			const inverse = createCompiledComponentReceipt(component, {
+			const inverse = createCompiledComponentInputReceipt(component, {
 				appearance: 'inverse',
 				children: content
 			});
-			const inverseSystem = createCompiledComponentReceipt(component, {
+			const inverseSystem = createCompiledComponentInputReceipt(component, {
 				appearance: 'inverse-system',
 				children: content
 			});
-			const explicitParent = createCompiledComponentReceipt(component, {
+			const explicitParent = createCompiledComponentInputReceipt(component, {
 				appearance: 'dark',
 				children: [inverse, inverseSystem]
 			});
-			const root = createCompiledComponentReceipt(component, {
+			const root = createCompiledComponentInputReceipt(component, {
 				children: [inherited, explicit, inverse, explicitParent]
 			});
 			const { html } = await renderToString(root);

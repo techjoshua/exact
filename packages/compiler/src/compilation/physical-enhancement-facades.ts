@@ -31,7 +31,7 @@ export function materializeExactPhysicalEnhancementFacades(
 	outputFile?: string,
 	resolveMissingProvider?: (moduleSpecifier: string, importer: string) => string | undefined
 ): Readonly<{ code: string; facades: readonly ExactPhysicalEnhancementFacade[] }> {
-	if (!enhancements?.length) return Object.freeze({ code, facades: Object.freeze([]) });
+	if (!enhancements?.length) return { code, facades: [] };
 	const root = path.resolve(outputRoot, '.exact', 'enhancements');
 	mkdirSync(root, { recursive: true });
 	let rewritten = code;
@@ -88,15 +88,13 @@ export function materializeExactPhysicalEnhancementFacades(
 					: exactUnavailableEnhancementFacadeSource(activationModule))
 		);
 
-		facades.push(
-			Object.freeze({ filename, importer: path.resolve(importer), request: entry.moduleSpecifier })
-		);
+		facades.push({ filename, importer: path.resolve(importer), request: entry.moduleSpecifier });
 		const facadeSpecifier = outputFile
 			? relativeModuleSpecifier(path.dirname(outputFile), filename)
 			: filename;
 		rewritten = rewritten.split(JSON.stringify(request)).join(JSON.stringify(facadeSpecifier));
 	}
-	return Object.freeze({ code: rewritten, facades: Object.freeze(facades) });
+	return { code: rewritten, facades: facades };
 }
 
 function relativeModuleSpecifier(from: string, target: string): string {

@@ -12,7 +12,7 @@ import { createFrameworkComponentDomain } from './domain.js';
 import type { ExactRuntimeInspectionEvent } from '@exactjs/devtools-protocol';
 
 describe('component runtime inspection', () => {
-	it('retains no pre-attachment history and emits ordered immutable lifecycle and state paths', () => {
+	it('retains no pre-attachment history and emits ordered lifecycle and state paths', () => {
 		function Counter(this: Component<{ count?: number }>) {
 			this.state.count = 1;
 			return () => null;
@@ -45,7 +45,9 @@ describe('component runtime inspection', () => {
 			'component.deactivate'
 		]);
 		expect(events[2]).toMatchObject({ path: 'state.count', sequence: 3 });
-		expect(events.every(Object.isFrozen)).toBe(true);
+		const observation: { sequence: number } = events[0]!;
+		observation.sequence = 99;
+		expect(events[1]?.sequence).toBe(2);
 		expect(events.some((event) => event.kind === 'component.construct')).toBe(false);
 	});
 
@@ -77,47 +79,56 @@ describe('component runtime inspection', () => {
 		}).not.toThrow();
 	});
 
-	it('projects public context values while redacting secret and server-resource contexts', () => {
-		const Public = createContext('public-user');
-		const Secret = createContext('payment-token', { keep: 'secret', scope: 'request' });
-		const Resource = createContext('database', { keep: 'server', scope: 'application' });
-		function Provider(this: Component<{}>) {
-			this.setContext(Public, { name: 'Ada' });
-			this.setContext(Secret, 'must-never-appear');
-			this.setContext(Resource, { password: 'must-never-appear' });
-			return () => null;
-		}
-		const owner = createExactRuntimeInspectionOwner({
-			buildKey: 'build',
-			executionRoot: 'page'
-		});
-		const instance = createFrameworkFixtureComponentInstance(
-			Provider,
-			{},
-			undefined,
-			undefined,
-			createFrameworkComponentDomain({ executionRoot: 'page', inspection: owner })
-		);
-		owner.attach('session', { publish() {} });
-
-		const snapshot = inspectExactRuntimeComponent(instance)!;
-		expect(snapshot.contexts).toEqual([
-			expect.objectContaining({ name: 'public-user', availability: 'value' }),
-			{
-				name: 'payment-token',
-				scope: 'request',
-				availability: 'secret',
-				secretName: 'payment-token'
-			},
-			{
-				name: 'database',
-				scope: 'application',
-				availability: 'resource',
-				type: 'server-resource'
+	it.each(['client', 'server'] as const)(
+		'projects contexts at the %s inspection boundary',
+		(side) => {
+			const Public = createContext('public-user');
+			const Secret = createContext('payment-token', { keep: 'secret', scope: 'request' });
+			const Resource = createContext('database', { keep: 'server', scope: 'application' });
+			function Provider(this: Component<{}>) {
+				this.setContext(Public, { name: 'Ada' });
+				this.setContext(Secret, 'must-never-appear');
+				this.setContext(Resource, { password: 'must-never-appear' });
+				return () => null;
 			}
-		]);
-		expect(JSON.stringify(snapshot)).not.toContain('must-never-appear');
-	});
+			const owner = createExactRuntimeInspectionOwner({
+				buildKey: 'build',
+				executionRoot: 'page',
+				side
+			});
+			const instance = createFrameworkFixtureComponentInstance(
+				Provider,
+				{},
+				undefined,
+				undefined,
+				createFrameworkComponentDomain({ executionRoot: 'page', inspection: owner })
+			);
+			owner.attach('session', { publish() {} });
+
+			const snapshot = inspectExactRuntimeComponent(instance)!;
+			if (side === 'client') {
+				expect(snapshot.contexts.every((context) => context.availability === 'value')).toBe(true);
+				expect(JSON.stringify(snapshot)).toContain('must-never-appear');
+			} else {
+				expect(snapshot.contexts).toEqual([
+					expect.objectContaining({ name: 'public-user', availability: 'value' }),
+					{
+						name: 'payment-token',
+						scope: 'request',
+						availability: 'secret',
+						secretName: 'payment-token'
+					},
+					{
+						name: 'database',
+						scope: 'application',
+						availability: 'resource',
+						type: 'server-resource'
+					}
+				]);
+				expect(JSON.stringify(snapshot)).not.toContain('must-never-appear');
+			}
+		}
+	);
 
 	it('retains bounded redacted task arguments and results after execution settles', async () => {
 		let executions!: readonly PromiseLike<{
@@ -148,6 +159,7 @@ describe('component runtime inspection', () => {
 			buildKey: 'build',
 			executionRoot: 'page',
 			maxTaskExecutions: 1,
+			side: 'server',
 			redact: (path) => (path.at(-1) === 'token' ? 'secret' : undefined)
 		});
 		owner.attach('session', { publish() {} });

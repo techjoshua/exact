@@ -10,6 +10,7 @@ import { ariaPropertyDomain, indexStaticIds, validateAriaElement } from './aria-
 import { validateDocumentSemantics } from './document-validation.js';
 import { validateEnhancements } from './enhancement-validation.js';
 import {
+	accessibilityRelationshipAttributes,
 	attributeMap,
 	isAccessibilityActivation,
 	staticString,
@@ -114,9 +115,11 @@ function activationHover(
 			? role && supportedNavigationRoles.has(role)
 				? `Complete \`${role}\` keyboard policy; runtime defaults are inferred from the role.`
 				: 'No runtime policy is selected until the target has a supported finite role.'
-			: activation.activator === 'focusScope'
+			: activation.activator === 'focus-scope'
 				? 'Focus entry and restoration only; native dialog owns modality and inertness.'
-				: `Ref-based \`aria-${camelToAria(activation.activator)}\` relationship with stable generated identity.`;
+				: accessibilityRelationshipAttributes[activation.activator]
+					? `Ref-based \`${accessibilityRelationshipAttributes[activation.activator]}\` relationship with stable generated identity.`
+					: 'Focus entry and restoration only; native dialog owns modality and inertness.';
 	return {
 		range: activation.range,
 		markdown: `### Accessibility enhancement\n\n**Activator:** \`a11y:${activation.activator}\`\n\n${detail}`
@@ -133,8 +136,4 @@ function ariaHover(attribute: ExactJsxAttributeV1): {
 		range: attribute.range,
 		markdown: `### ${attribute.name}\n\n**Value contract:** ${Array.isArray(domain) ? domain.map((value) => `\`${value}\``).join(', ') : (domain ?? 'unknown')}\n\nValidated against ${ariaDataSource}.`
 	};
-}
-
-function camelToAria(value: string): string {
-	return value.replace(/[A-Z]/gu, (letter) => `-${letter.toLowerCase()}`);
 }

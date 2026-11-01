@@ -29,14 +29,12 @@ import {
 	objectRecord,
 	runtimeDescriptor
 } from './coordinator-support.js';
-
 /** Host-neutral inputs used by every bundler's intl coordinator. */
 export interface IntlBuildCoordinatorOptions {
 	readonly applicationRoot?: string;
 	readonly configuration?: IntlBuildConfiguration;
 	readonly target?: 'client' | 'server';
 }
-
 /** Bundler-neutral internationalization build configuration. */
 export interface IntlBuildConfiguration {
 	/** Authored-message owner; defaults to the application package name. */
@@ -62,7 +60,6 @@ export interface IntlBuildConfiguration {
 		moduleId: string
 	) => void;
 }
-
 /** Owns shared mutable intl catalogs, descriptor companions, and generation fencing. */
 export class IntlBuildCoordinator {
 	readonly modules = new Map<string, ExactIntlDescriptorModule>();
@@ -71,7 +68,11 @@ export class IntlBuildCoordinator {
 	#packageFiles: readonly string[] = [];
 	#catalogs: readonly unknown[];
 	#configuredCatalogs: readonly unknown[] = [];
-	#xliffCatalogs: readonly Readonly<{ filename: string; input: string; locale: string }>[] = [];
+	#xliffCatalogs: readonly Readonly<{
+		filename: string;
+		input: string;
+		locale: string;
+	}>[] = [];
 	#libraryCatalogs: unknown[] = [];
 	#packagePublications: IntlPackagePublication[] = [];
 	#activePackages = new Set<string>();
@@ -81,7 +82,6 @@ export class IntlBuildCoordinator {
 	#owner: string | undefined;
 	#sourceLocale: string | undefined;
 	#developmentLocale: string | undefined;
-
 	constructor(private readonly options: IntlBuildCoordinatorOptions) {
 		this.#configuredCatalogs = options.configuration?.catalogs ?? [];
 		this.#catalogs = this.#configuredCatalogs;
@@ -89,22 +89,18 @@ export class IntlBuildCoordinator {
 		this.#sourceLocale = options.configuration?.sourceLocale;
 		this.#developmentLocale = options.configuration?.developmentLocale;
 	}
-
-	/** Returns the immutable catalog generation currently supplied to source transforms. */
+	/** Returns an independent catalog list currently supplied to source transforms. */
 	get catalogs(): readonly unknown[] {
-		return Object.freeze([...this.#libraryCatalogs, ...this.#catalogs]);
+		return [...this.#libraryCatalogs, ...this.#catalogs];
 	}
-
 	/** Returns resolved catalog paths that Vite must watch. */
 	get catalogFiles(): readonly string[] {
-		return Object.freeze([...this.#catalogFiles, ...this.#packageFiles]);
+		return [...this.#catalogFiles, ...this.#packageFiles];
 	}
-
 	/** Returns the current descriptor/catalog generation fence. */
 	get generation(): number {
 		return this.#generation;
 	}
-
 	/** Opens an empty generation and loads configured catalog inputs. */
 	async beginBuild(): Promise<void> {
 		this.modules.clear();
@@ -119,7 +115,6 @@ export class IntlBuildCoordinator {
 		await this.#reloadCatalogs();
 		await this.#discoverPackagePublications();
 	}
-
 	/** Analyzes one authored module and retains its component-owned companions for any host adapter. */
 	analyzeSource(input: {
 		code: string;
@@ -158,13 +153,11 @@ export class IntlBuildCoordinator {
 		this.options.configuration?.onClientRequirements?.(analysis.clientRequirements, input.filename);
 		return analysis;
 	}
-
 	/** Releases the persistent native analyzer process owned by this coordinator. */
 	dispose(): void {
 		this.#analyzer?.dispose();
 		this.#analyzer = undefined;
 	}
-
 	/** Analyzes with the configured owner and locale, or leaves source untouched when disabled. */
 	analyzeConfiguredSource(code: string, filename: string): IntlSourceAnalysis | undefined {
 		const configuration = this.options.configuration;
@@ -180,63 +173,55 @@ export class IntlBuildCoordinator {
 			sourceLocale: publication?.metadata.sourceLocale ?? this.#requiredSourceLocale()
 		});
 		return publicationImport
-			? Object.freeze({ ...analysis, code: `${publicationImport}\n${analysis.code}` })
+			? { ...analysis, code: `${publicationImport}\n${analysis.code}` }
 			: analysis;
 	}
-
 	/** Injects an inert registration import when a transformed file makes a published package reachable. */
 	activateReachedSource(code: string, filename: string): IntlSourceAnalysis | undefined {
 		const publicationImport = this.#activatePackageForFile(filename, code);
 		return publicationImport ? emptyIntlAnalysis(`${publicationImport}\n${code}`) : undefined;
 	}
-
 	/** Joins analyzer-local ordinals to compiler identities and publishes extraction facts. */
 	linkDescriptorOwners(
 		analysis: IntlSourceAnalysis,
-		components: readonly Readonly<{ id: string }>[],
+		components: readonly Readonly<{
+			id: string;
+		}>[],
 		filename: string
 	): readonly AnalyzedMessageDescriptorV1[] {
-		const linked = Object.freeze(
-			analysis.descriptors.map((descriptor, index) => {
-				const ordinal = analysis.descriptorOwnerOrdinals[index] ?? -1;
-				const component = components[ordinal];
-				if (!component)
-					throw new Error(
-						`Intl message ${descriptor.key} in ${filename} is not owned by a compiler-recognized component`
-					);
-				return Object.freeze({ ...descriptor, ownerComponentId: component.id });
-			})
-		);
+		const linked = analysis.descriptors.map((descriptor, index) => {
+			const ordinal = analysis.descriptorOwnerOrdinals[index] ?? -1;
+			const component = components[ordinal];
+			if (!component)
+				throw new Error(
+					`Intl message ${descriptor.key} in ${filename} is not owned by a compiler-recognized component`
+				);
+			return { ...descriptor, ownerComponentId: component.id };
+		});
 		this.options.configuration?.onDescriptors?.(linked, filename);
 		return linked;
 	}
-
 	/** Registers one inert package publication below application catalog authority. */
 	registerPackagePublication(publication: IntlPackagePublication): void {
 		this.descriptors.set(`package:${publication.packageName}`, publication.descriptors);
-		this.#libraryCatalogs.push(...publication.catalogs);
+		for (const catalog of publication.catalogs) this.#libraryCatalogs.push(catalog);
 	}
-
 	/** Advances fencing before one source or catalog watch update. */
 	advanceGeneration(): void {
 		this.#generation++;
 	}
-
 	/** Resolves the public generated descriptor request without side effects. */
 	resolve(source: string): string | undefined {
 		return resolveExactIntlDescriptorModule(source);
 	}
-
 	/** Returns one retained generated companion. */
 	load(id: string): ExactIntlDescriptorModule | undefined {
 		return this.modules.get(id);
 	}
-
 	/** Loads a public or host-resolved descriptor request through one shared lookup. */
 	loadRequest(source: string): ExactIntlDescriptorModule | undefined {
 		return this.modules.get(resolveExactIntlDescriptorModule(source) ?? source);
 	}
-
 	/** Validates every configured catalog against the completed descriptor set. */
 	validateCatalogs(): void {
 		this.#materializeXliffCatalogs();
@@ -244,29 +229,25 @@ export class IntlBuildCoordinator {
 		for (const catalog of this.catalogs) validateIntlCatalog(catalog, descriptors);
 		this.#relinkModules();
 	}
-
 	/** Lowers deferred XLIFF against every descriptor known at the current analysis frontier. */
 	#materializeXliffCatalogs(): void {
 		const descriptors = [...this.descriptors.values()].flat();
-		this.#catalogs = Object.freeze([
+		this.#catalogs = [
 			...this.#configuredCatalogs,
 			...this.#xliffCatalogs.map((catalog) => importXliff21Catalog(catalog.input, descriptors))
-		]);
+		];
 	}
-
 	/** Tests whether a watched path belongs to configured catalog data. */
 	isCatalogFile(file: string): boolean {
 		const candidate = path.resolve(file).toLowerCase();
 		return this.#catalogFiles.some((catalog) => catalog.toLowerCase() === candidate);
 	}
-
 	/** Removes every component companion owned by one changed source module. */
 	invalidateSource(filename: string): void {
 		for (const [id, module] of this.modules)
 			if (module.filename === filename) this.modules.delete(id);
 		this.descriptors.delete(filename);
 	}
-
 	/** Reloads and atomically relinks catalogs while preserving the last valid generation on error. */
 	async refreshCatalogGeneration(): Promise<void> {
 		const previousFiles = this.#catalogFiles;
@@ -284,7 +265,6 @@ export class IntlBuildCoordinator {
 			throw error;
 		}
 	}
-
 	/** Loads configured objects and files without publishing partially validated companions. */
 	async #reloadCatalogs(): Promise<void> {
 		if (!this.options.configuration) return;
@@ -293,14 +273,10 @@ export class IntlBuildCoordinator {
 			this.options.configuration.catalogFiles
 		);
 		this.#catalogFiles = loaded.files;
-		this.#configuredCatalogs = Object.freeze([
-			...(this.options.configuration.catalogs ?? []),
-			...loaded.catalogs
-		]);
+		this.#configuredCatalogs = [...(this.options.configuration.catalogs ?? []), ...loaded.catalogs];
 		this.#xliffCatalogs = loaded.xliff;
 		this.#catalogs = this.#configuredCatalogs;
 	}
-
 	/** Discovers package publications after application catalogs establish the requested locale set. */
 	async #discoverPackagePublications(): Promise<void> {
 		const configuration = this.options.configuration;
@@ -312,7 +288,11 @@ export class IntlBuildCoordinator {
 		]);
 		for (const catalog of this.#catalogs) {
 			if (catalog && typeof catalog === 'object' && !Array.isArray(catalog)) {
-				const locale = (catalog as { locale?: unknown }).locale;
+				const locale = (
+					catalog as {
+						locale?: unknown;
+					}
+				).locale;
 				if (typeof locale === 'string') locales.add(locale);
 			}
 		}
@@ -324,20 +304,18 @@ export class IntlBuildCoordinator {
 		this.#packagePublications = [...publications];
 		for (const publication of publications)
 			this.#packageFiles = [...this.#packageFiles, ...publication.files];
-		this.#packageFiles = Object.freeze([
-			...new Set(this.#packageFiles.map((file) => path.resolve(file)))
-		]);
+		this.#packageFiles = [...new Set(this.#packageFiles.map((file) => path.resolve(file)))];
 	}
-
 	/** Finds the inert dependency publication that physically owns one reached source file. */
 	#publicationForFile(filename: string): IntlPackagePublication | undefined {
 		const candidate = path.resolve(filename);
 		return this.#packagePublications.find((publication) => {
 			const relative = path.relative(publication.packageRoot, candidate);
-			return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
+			return (
+				relative !== '..' && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative)
+			);
 		});
 	}
-
 	/** Materializes a bounded registration companion for descriptor keys reached by package code. */
 	#activatePackageForFile(filename: string, code: string): string | undefined {
 		const publication = this.#publicationForFile(filename);
@@ -354,14 +332,13 @@ export class IntlBuildCoordinator {
 		}
 		if (!this.#activePackageModules.has(moduleIdentity)) {
 			this.#activePackageModules.add(moduleIdentity);
-			const declarations = publication.descriptors
-				.filter((descriptor) => reachableDescriptors.includes(descriptor))
+			const declarations = reachableDescriptors
 				.map(
 					(descriptor, index) =>
-						`export const __exactIntlDescriptor${index} = Object.freeze(${JSON.stringify(descriptor)});`
+						`export const __exactIntlDescriptor${index} = ${JSON.stringify(descriptor)};`
 				)
 				.join('\n');
-			const companionCode = `${declarations}\nexport const descriptors = Object.freeze([${reachableDescriptors.map((_descriptor, index) => `__exactIntlDescriptor${index}`).join(',')}]);\nexport const generation = ${this.#generation};\n`;
+			const companionCode = `${declarations}\nexport const descriptors = [${reachableDescriptors.map((_descriptor, index) => `__exactIntlDescriptor${index}`).join(',')}];\nexport const generation = ${this.#generation};\n`;
 			this.modules.set(
 				resolvedExactIntlDescriptorModule(moduleId),
 				relinkExactIntlDescriptorModule(
@@ -376,7 +353,6 @@ export class IntlBuildCoordinator {
 		}
 		return `import ${JSON.stringify(moduleId)};`;
 	}
-
 	/** Plans all companion replacements before mutating the retained module map. */
 	#relinkModules(): void {
 		const replacements = [...this.modules].map(
@@ -397,7 +373,6 @@ export class IntlBuildCoordinator {
 		);
 		for (const [id, module] of replacements) this.modules.set(id, module);
 	}
-
 	/** Selects target-aware provider bootstrap code for one companion's finite requirements. */
 	#clientBootstrap(requirements: readonly IntlClientRequirement[]): string {
 		return createIntlClientCapabilityBootstrap(
@@ -406,7 +381,6 @@ export class IntlBuildCoordinator {
 			this.options.target ?? 'client'
 		);
 	}
-
 	/** Resolves explicit or inert entry-package ownership and development-locale defaults. */
 	async #resolveApplicationIdentity(): Promise<void> {
 		if (!this.options.configuration) return;
@@ -434,13 +408,11 @@ export class IntlBuildCoordinator {
 			'developmentLocale'
 		);
 	}
-
 	/** Returns the resolved application owner after build initialization. */
 	#requiredOwner(): string {
 		if (!this.#owner) throw new Error('Intl build has not resolved its application owner');
 		return this.#owner;
 	}
-
 	/** Returns the resolved application source locale after build initialization. */
 	#requiredSourceLocale(): string {
 		if (!this.#sourceLocale) throw new Error('Intl build has not resolved its source locale');

@@ -180,12 +180,10 @@ describe('@exactjs/core context-reactive', () => {
 		expect(second[1]).toBe(first[0]);
 	});
 
-	it('prevents child components from writing to parent-owned props', () => {
+	it('preserves ordinary writes through explicitly mutable prop types', () => {
 		function Child(this: Component<{}>, props: { text: string }) {
 			return () => {
-				expect(() => {
-					props.text = 'changed';
-				}).toThrow(TypeError);
+				props.text = 'changed';
 				return createCompiledIntrinsicReceipt('span', null, props.text);
 			};
 		}
@@ -193,7 +191,7 @@ describe('@exactjs/core context-reactive', () => {
 		const instance = createFrameworkFixtureComponentInstance(Child, { text: 'original' });
 		const nodes = executeCompiledComponentOutput(instance);
 
-		expect(unwrap(readCompiledIntrinsicReceipt(nodes[0])?.children[0])).toBe('original');
+		expect(unwrap(readCompiledIntrinsicReceipt(nodes[0])?.children[0])).toBe('changed');
 	});
 
 	it('creates reactive template and lambda values on component instances', () => {

@@ -27,7 +27,7 @@ it('keeps browser timer placement with Node ambient declarations loaded', async 
 	expect(output).toMatch(/placement:\s*"current"/);
 });
 
-it('rejects unresolved component placement before replacing a previously valid library', async () => {
+it('publishes inspected paired artifacts without converting unresolved placement into neutrality', async () => {
 	const { root } = await createLibraryBuildFixture();
 	await buildLibrary({ root });
 	const output = path.join(root, 'dist/client/Example.js');
@@ -36,8 +36,22 @@ it('rejects unresolved component placement before replacing a previously valid l
 		path.join(root, 'src/Example.tsx'),
 		`declare const provider:{read():string};export function Example(){const value=provider.read();return()=> <p>{value}</p>;}`
 	);
-	await expect(buildLibrary({ root })).rejects.toThrow(/Example.*placement|placement.*Example/);
-	expect(await readFile(output, 'utf8')).toBe(previous);
+	await buildLibrary({ root });
+	const facts = JSON.parse(
+		await readFile(path.join(root, 'dist/exact-component-build.json'), 'utf8')
+	);
+	const unknown = facts.modules.flatMap(
+		(module: { facts: { components: { placement: string; artifactTargets: string[] }[] } }) =>
+			module.facts.components
+	);
+	expect(unknown).toContainEqual(
+		expect.objectContaining({ placement: 'unknown', artifactTargets: [] })
+	);
+	expect(facts.exports.map((record: { target: string }) => record.target).sort()).toEqual([
+		'client',
+		'server'
+	]);
+	expect(await readFile(output, 'utf8')).not.toBe(previous);
 	await writeFile(
 		path.join(root, 'src/Example.tsx'),
 		`const provider={read(){return 'Verified';}};export function Example(){const value=provider.read();return()=> <p>{value}</p>;}`
@@ -73,11 +87,10 @@ it.each([
 
 // Publication must use declaration ownership, even when ambient declarations or
 // service names resemble portable globals. Failed generations keep prior output.
-it('rejects borrowed native authority before publishing replacement artifacts', async () => {
+it('retains borrowed native uncertainty while publishing independently inspected artifacts', async () => {
 	const { root } = await createLibraryBuildFixture();
 	await buildLibrary({ root, declarations: false });
 	const output = path.join(root, 'dist/client/Example.js');
-	const previous = await readFile(output, 'utf8');
 	await writeFile(
 		path.join(root, 'src/lib.es.fixture.d.ts'),
 		`interface ReadonlyArray<T>{custom():number;}declare namespace Intl{interface NumberFormat{custom():number;}}declare namespace Shadow{interface Array<T>{map():number;}}`
@@ -89,10 +102,15 @@ it('rejects borrowed native authority before publishing replacement artifacts', 
 		`export function Example(props:{value:Shadow.Array<number>}){props.value.map();return()=> <p/>;}`
 	]) {
 		await writeFile(path.join(root, 'src/Example.tsx'), source);
-		await expect(buildLibrary({ root, declarations: false })).rejects.toThrow(
-			/Example.*placement|placement.*Example/
+		await buildLibrary({ root, declarations: false });
+		const facts = JSON.parse(
+			await readFile(path.join(root, 'dist/exact-component-build.json'), 'utf8')
 		);
-		expect(await readFile(output, 'utf8')).toBe(previous);
+		expect(
+			facts.modules.flatMap(
+				(module: { facts: { components: { placement: string }[] } }) => module.facts.components
+			)
+		).toContainEqual(expect.objectContaining({ placement: 'unknown', artifactTargets: [] }));
 	}
 	await writeFile(
 		path.join(root, 'src/Example.tsx'),

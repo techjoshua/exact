@@ -1,3 +1,4 @@
+import { isArrayBinding, hasArrayBindings } from './array-validation.js';
 import { componentContractVersion } from '../component/contract-versions.js';
 import type {
 	ExactComponentContract,
@@ -72,7 +73,8 @@ export function isExactComponentContract(
 			(isResumption(value.resumption) && value.resumption.componentId === componentId)) &&
 		(value.execution === undefined || isExecution(value.execution)) &&
 		isExecutableArtifact(value.artifact, componentId, value.role) &&
-		hasConsistentServerPublication(value)
+		hasConsistentServerPublication(value) &&
+		hasArrayBindings(value)
 	);
 }
 
@@ -133,6 +135,7 @@ function isClientArtifact(value: Record<PropertyKey, unknown>): boolean {
 			'template',
 			'construct',
 			'attach',
+			'array',
 			'receive',
 			'dispose',
 			'instantiate',
@@ -148,6 +151,7 @@ function isClientArtifact(value: Record<PropertyKey, unknown>): boolean {
 			'render',
 			'capabilities'
 		]) &&
+		(value.array === undefined || isArrayBinding(value.array, 'client')) &&
 		(value.template === undefined || isContractRecord(value.template)) &&
 		typeof value.attach === 'function' &&
 		typeof value.receive === 'function' &&
@@ -314,10 +318,11 @@ function isContinuation(value: unknown): boolean {
 function isExecutor(value: unknown): value is ExactComponentContinuationExecutorContract {
 	return (
 		isContractRecord(value) &&
-		hasOnlyContractKeys(value, ['id', 'componentId', 'execute']) &&
+		hasOnlyContractKeys(value, ['id', 'componentId', 'execute', 'array']) &&
 		isContractString(value.id) &&
 		isContractString(value.componentId) &&
-		typeof value.execute === 'function'
+		typeof value.execute === 'function' &&
+		(value.array === undefined || isArrayBinding(value.array, 'server'))
 	);
 }
 

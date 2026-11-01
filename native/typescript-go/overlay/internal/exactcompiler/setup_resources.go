@@ -16,6 +16,7 @@ func collectSetupResourceTasks(
 	sourceFile *ast.SourceFile,
 	typeChecker *checker.Checker,
 	authoredTasks []Task,
+	owner *executableBodyOwner,
 ) []Task {
 	var tasks []Task
 	for _, candidate := range componentCandidates(sourceFile) {
@@ -34,6 +35,7 @@ func collectSetupResourceTasks(
 					candidate,
 					sourceFile,
 					typeChecker,
+					owner,
 				)
 				if owned {
 					tasks = append(tasks, task)
@@ -84,11 +86,12 @@ func setupExpressionTask(
 	candidate componentCandidate,
 	sourceFile *ast.SourceFile,
 	typeChecker *checker.Checker,
+	owner *executableBodyOwner,
 ) (Task, bool) {
 	task := setupResourceTask(candidate.name, statement)
 	visitDirectComponentSyntax(statement.AsExpressionStatement().Expression, func(node *ast.Node) {
 		if ast.IsCallExpression(node) {
-			if signal, ok := taskSignalCall(node, sourceFile, typeChecker); ok {
+			if signal, ok := taskSignalCall(node, sourceFile, typeChecker, owner); ok {
 				task.SignalCalls = append(task.SignalCalls, signal)
 			}
 		}

@@ -2,7 +2,7 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { transform } from './index.js';
 import { analyzeSource } from './compilation/source-analysis.js';
-import { createTestWorkspace, writeTestFiles } from './test-support/workspace.js';
+import { createCompilerTestWorkspace, writeTestFiles } from './test-support/workspace.js';
 
 const fixture = (name: string) => path.join(process.cwd(), `${name}.policy-fixture.tsx`);
 
@@ -135,7 +135,7 @@ describe('policy emission and sinks', () => {
 	});
 
 	it('tracks imported readonly fields and method results without tainting public siblings', async () => {
-		const root = await createTestWorkspace('.exact-policy-types-', path.resolve('.tmp'));
+		const root = await createCompilerTestWorkspace('.exact-policy-types-', path.resolve('.tmp'));
 		await writeTestFiles(root, {
 			'contracts.ts': `import type { Secret } from '@exactjs/secrets';
 			 export type Credential = Secret<string>;

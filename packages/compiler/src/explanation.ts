@@ -1,3 +1,4 @@
+import { captureActivationDecision } from './compilation/analysis-projections.js';
 import type {
 	ExactCompilerExplanation,
 	ExactContinuationIR,
@@ -15,122 +16,85 @@ export function createExactCompilerExplanation(
 	const resumptions = new Map(
 		analysis.resumptions.map((resumption) => [resumption.componentId, resumption])
 	);
-	return Object.freeze({
+	return {
 		filename: analysis.filename,
 		target,
-		islands: Object.freeze(
-			analysis.boundaries.flatMap((boundary) =>
-				boundary.kind === 'client-island' && boundary.activation
-					? [
-							Object.freeze({
-								id: boundary.id,
-								name: boundary.name,
-								...(boundary.componentId ? { componentId: boundary.componentId } : {}),
-								activation: freezeActivationDecision(boundary.activation)
-							})
-						]
-					: []
-			)
+		islands: analysis.boundaries.flatMap((boundary) =>
+			boundary.kind === 'client-island' && boundary.activation
+				? [
+						{
+							id: boundary.id,
+							name: boundary.name,
+							...(boundary.componentId ? { componentId: boundary.componentId } : {}),
+							activation: captureActivationDecision(boundary.activation)
+						}
+					]
+				: []
 		),
-		registries: Object.freeze(
-			(analysis.registries ?? []).map((registry) =>
-				Object.freeze({
-					id: registry.id,
-					name: registry.name,
-					entries: Object.freeze(
-						registry.entries.map((entry) =>
-							Object.freeze({
-								...entry,
-								artifactTargets: Object.freeze([...entry.artifactTargets])
-							})
-						)
-					)
-				})
-			)
-		),
-		components: Object.freeze(
-			analysis.components.map((component) => {
-				const componentContinuations = continuations.get(component.id) ?? [];
-				const resumption = resumptions.get(component.id);
-				const returnedState = new Set(
-					componentContinuations.flatMap((continuation) =>
-						continuation.effects.stateWrites
-							.filter((write) => write.confidence === 'exact')
-							.map((write) => write.path)
-					)
-				);
-				return Object.freeze({
-					id: component.id,
-					name: component.name,
-					placement: component.placement,
-					artifactTargets: Object.freeze([...(component.artifactTargets ?? [])]),
-					continuations: Object.freeze(componentContinuations.map(explainContinuation)),
-					ssr: Object.freeze({
-						stateInputs: Object.freeze([...(resumption?.serverRender.stateReads ?? [])]),
-						serverOnlyContexts: Object.freeze(
-							(resumption?.serverRender.serverContexts ?? []).map((context) => context.token)
-						),
-						resumption: Object.freeze(explainResumption(resumption?.client, returnedState))
-					})
-				});
-			})
-		)
-	});
-}
-
-function freezeActivationDecision(
-	activation: NonNullable<ExactModuleAnalysis['boundaries'][number]['activation']>
-) {
-	return Object.freeze({
-		...activation,
-		reasons: Object.freeze(activation.reasons.map((reason) => Object.freeze({ ...reason }))),
-		targets: Object.freeze(
-			activation.targets.map((target) =>
-				Object.freeze({
-					...target,
-					events: Object.freeze(target.events.map((event) => Object.freeze({ ...event })))
-				})
-			)
-		)
-	});
+		registries: (analysis.registries ?? []).map((registry) => ({
+			id: registry.id,
+			name: registry.name,
+			entries: registry.entries.map((entry) => ({
+				...entry,
+				artifactTargets: [...entry.artifactTargets]
+			}))
+		})),
+		components: analysis.components.map((component) => {
+			const componentContinuations = continuations.get(component.id) ?? [];
+			const resumption = resumptions.get(component.id);
+			const returnedState = new Set(
+				componentContinuations.flatMap((continuation) =>
+					continuation.effects.stateWrites
+						.filter((write) => write.confidence === 'exact')
+						.map((write) => write.path)
+				)
+			);
+			return {
+				id: component.id,
+				name: component.name,
+				placement: component.placement,
+				artifactTargets: [...(component.artifactTargets ?? [])],
+				continuations: componentContinuations.map(explainContinuation),
+				ssr: {
+					stateInputs: [...(resumption?.serverRender.stateReads ?? [])],
+					serverOnlyContexts: (resumption?.serverRender.serverContexts ?? []).map(
+						(context) => context.token
+					),
+					resumption: explainResumption(resumption?.client, returnedState)
+				}
+			};
+		})
+	};
 }
 
 function explainContinuation(
 	continuation: ExactContinuationIR
 ): import('./types.js').ExactContinuationExplanation {
-	return Object.freeze({
+	return {
 		id: continuation.id,
 		kind: continuation.kind,
 		...(continuation.label ? { label: continuation.label } : {}),
 		placement: continuation.placement,
-		clientToServer: Object.freeze({
-			state: Object.freeze(continuation.activation.stateReads.map((effect) => effect.path)),
-			dependencies: Object.freeze(
-				continuation.activation.dependencies.map((dependency) => dependency.index)
-			),
-			publicContexts: Object.freeze(
-				continuation.activation.publicContexts.map((context) => context.token)
-			)
-		}),
-		serverOnlyContexts: Object.freeze(
-			continuation.activation.serverContexts.map((context) => context.token)
-		),
-		serverToClient: Object.freeze({
-			state: Object.freeze(continuation.effects.stateWrites.map((effect) => effect.path)),
-			contexts: Object.freeze(continuation.effects.contextWrites.map((context) => context.token)),
-			boundaries: Object.freeze([...continuation.effects.boundaries])
-		}),
+		clientToServer: {
+			state: continuation.activation.stateReads.map((effect) => effect.path),
+			dependencies: continuation.activation.dependencies.map((dependency) => dependency.index),
+			publicContexts: continuation.activation.publicContexts.map((context) => context.token)
+		},
+		serverOnlyContexts: continuation.activation.serverContexts.map((context) => context.token),
+		serverToClient: {
+			state: continuation.effects.stateWrites.map((effect) => effect.path),
+			contexts: continuation.effects.contextWrites.map((context) => context.token),
+			boundaries: [...continuation.effects.boundaries]
+		},
 		...(continuation.invocation
 			? {
-					invocation: Object.freeze({
+					invocation: {
 						concurrency: continuation.invocation.concurrency,
-						arguments: Object.freeze(
-							continuation.invocation.arguments.map((argument) => argument.index)
-						)
-					})
+						arguments: continuation.invocation.arguments.map((argument) => argument.index)
+					}
 				}
 			: {})
-	});
+	};
 }
 
 function explainResumption(
@@ -140,26 +104,32 @@ function explainResumption(
 	if (!resumption) return [];
 	return [
 		...resumption.statePaths.map(
-			(name): ExactResumptionFieldExplanation =>
-				Object.freeze({
-					kind: 'state',
-					name,
-					reason: returnedState.has(name)
-						? 'server-continuation-result'
-						: 'client-render-dependency'
-				})
+			(name): ExactResumptionFieldExplanation => ({
+				kind: 'state',
+				name,
+				reason: returnedState.has(name) ? 'server-continuation-result' : 'client-render-dependency'
+			})
 		),
 		...resumption.valueCaptures.map(
-			(name): ExactResumptionFieldExplanation =>
-				Object.freeze({ kind: 'capture', name, reason: 'client-closure-capture' })
+			(name): ExactResumptionFieldExplanation => ({
+				kind: 'capture',
+				name,
+				reason: 'client-closure-capture'
+			})
 		),
 		...resumption.contexts.map(
-			(name): ExactResumptionFieldExplanation =>
-				Object.freeze({ kind: 'context', name, reason: 'shared-context-result' })
+			(name): ExactResumptionFieldExplanation => ({
+				kind: 'context',
+				name,
+				reason: 'shared-context-result'
+			})
 		),
 		...resumption.boundaries.map(
-			(name): ExactResumptionFieldExplanation =>
-				Object.freeze({ kind: 'boundary', name, reason: 'dom-adoption' })
+			(name): ExactResumptionFieldExplanation => ({
+				kind: 'boundary',
+				name,
+				reason: 'dom-adoption'
+			})
 		)
 	];
 }

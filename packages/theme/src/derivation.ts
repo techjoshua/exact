@@ -17,9 +17,9 @@ import {
 
 /**
  * Defines the identity and calculation used to derive application-specific values from a theme.
- * Validates the ID, positive integer version, and function shape, then freezes a copy of the
- * definition. The calculation itself must be deterministic. This helper does not execute it
- * or verify determinism.
+ * Validates the ID, positive integer version, and function shape, then copies the
+ * definition. Readonly follows TypeScript assignability. The calculation itself must be
+ * deterministic. This helper does not execute it or verify determinism.
  */
 export function createThemeDeriver<Input, Output>(
 	definition: ThemeDeriver<Input, Output>
@@ -37,13 +37,14 @@ export function createThemeDeriver<Input, Output>(
 		throw new TypeError(
 			'A theme deriver requires a bounded ID, positive safe-integer version, and derive function'
 		);
-	return Object.freeze({ ...definition });
+	return { ...definition };
 }
 
 /**
  * Calculates application-specific values from a resolved theme and caller-supplied inputs.
- * Returns the deriver's validated, deeply frozen output. This call does not install a theme
- * scope or update `ThemeContext`. Reactive callers must read their changing inputs at the call.
+ * Returns the deriver's validated output with its original identity and writable aliases.
+ * This call does not install a theme scope or update `ThemeContext`. Reactive callers must
+ * read their changing inputs at the call.
  */
 export function deriveTheme<Input, Output>(
 	theme: ResolvedTheme,
@@ -56,7 +57,7 @@ export function deriveTheme<Input, Output>(
 		throw new TypeError('Invalid theme deriver');
 	const output = deriver.derive(createContext(theme), input);
 	validateDeriverOutput(output, new Set());
-	return deepFreeze(output);
+	return output;
 }
 
 function createContext(theme: ResolvedTheme): ThemeDerivationContext {
@@ -67,7 +68,7 @@ function createContext(theme: ResolvedTheme): ThemeDerivationContext {
 			parsed.alpha < 1 ? compositeColor(parsed, background ?? theme.surfaces[0].background) : parsed
 		);
 	};
-	return Object.freeze({
+	return {
 		contract: 'exact-theme/1' as const,
 		sourceFingerprint: theme.fingerprint,
 		appearance: theme.source.appearance,
@@ -78,7 +79,7 @@ function createContext(theme: ResolvedTheme): ThemeDerivationContext {
 		tones: theme.tones,
 		tonalPalette(input: ResolvedColor | ThemeTone): TonalPalette {
 			const color = typeof input === 'string' ? theme.tones[input].solid : input;
-			return Object.freeze({
+			return {
 				hue: color.oklch.h,
 				chroma: color.oklch.c,
 				at(tone: number) {
@@ -86,7 +87,7 @@ function createContext(theme: ResolvedTheme): ThemeDerivationContext {
 						throw new RangeError('Palette tone must be within 0..100');
 					return resolveColor({ l: tone / 100, c: color.oklch.c, h: color.oklch.h });
 				}
-			});
+			};
 		},
 		harmonize(color: ThemeColor | ResolvedColor, amount: number) {
 			if (!Number.isFinite(amount) || amount < 0 || amount > 1)
@@ -112,7 +113,7 @@ function createContext(theme: ResolvedTheme): ThemeDerivationContext {
 		toCss(color: ThemeColor | ResolvedColor) {
 			return parse(color).css;
 		}
-	});
+	};
 }
 
 /**
@@ -144,13 +145,13 @@ export function deriveDataColors(theme: ResolvedTheme, request: DataColorRequest
 	);
 	const foregrounds = colors.map(foregroundFor);
 	const patterns = ['solid', 'diagonal', 'crosshatch', 'dots'] as const;
-	return deepFreeze({
+	return {
 		colors: colors.map((x) => x.css),
 		foregrounds: foregrounds.map((x) => x.css),
 		strokes: strokes.map((x) => x.css),
 		recommendedPatterns: colors.map((_, index) => patterns[index % patterns.length]!),
 		warnings
-	});
+	};
 }
 
 function categorical(
@@ -314,11 +315,4 @@ function validateDeriverOutput(value: unknown, seen: Set<object>): void {
 }
 function isResolved(value: unknown): value is ResolvedColor {
 	return !!value && typeof value === 'object' && 'oklch' in value && 'css' in value;
-}
-function deepFreeze<T>(value: T): T {
-	if (value && typeof value === 'object' && !Object.isFrozen(value)) {
-		for (const child of Object.values(value as object)) deepFreeze(child);
-		Object.freeze(value);
-	}
-	return value;
 }

@@ -1,3 +1,4 @@
+import type { NativeCompilerDiagnostic } from '../native/process-diagnostic-contracts.js';
 import type {
 	ExactBuildInspectionCatalog,
 	ExactInspectionRedactionCatalog
@@ -27,6 +28,8 @@ export interface ModuleRewriteOptions {
 
 /** Configures transform. */
 export type TransformOptions = {
+	/** Advisory analysis warnings. Does not restrict semantic analysis. */
+	analysis?: import('@exactjs/config').ExactAnalysisOptions;
 	filename?: string;
 	/** Root used to resolve relative filenames; defaults to the nearest package.json from cwd. */
 	root?: string;
@@ -242,13 +245,26 @@ export type ExactComponentBuildFacts = Readonly<{
 	}>[];
 }>;
 
+/** Published-only component edges retain inspected selection evidence independently of inference. */
+export type ExactPublishedComponentBuildProjection = Omit<
+	ExactComponentBuildFacts,
+	'filename' | 'packageName' | 'componentImports'
+> &
+	Readonly<{
+		componentImports: readonly (ExactComponentBuildFacts['componentImports'][number] &
+			Readonly<{
+				/** Actual direct-owner destination inspected in this generation, without asserting portability. */
+				executable?: Readonly<{ target: ExactArtifactTarget; module: string }>;
+			}>)[];
+	}>;
+
 /** Static protocol-1 build facts published by a precompiled eXact component library. */
 export type ExactPublishedComponentBuildFacts = Readonly<{
 	protocol: 1;
 	package: Readonly<{ name: string; version: string }>;
 	modules: readonly Readonly<{
 		path: string;
-		facts: Omit<ExactComponentBuildFacts, 'filename' | 'packageName'>;
+		facts: ExactPublishedComponentBuildProjection;
 		/** Compiler-owned paired registration products for independent consumer composition. */
 		artifacts?: ExactPublishedModuleArtifacts;
 	}>[];
@@ -261,6 +277,8 @@ export type ExactPublishedComponentBuildFacts = Readonly<{
 		componentModule: string;
 		exportName: string;
 		componentId: string;
+		/** Target of the actual inspected facade binding, independent of inferred placement. */
+		target?: ExactArtifactTarget;
 	}>[];
 }>;
 
@@ -276,6 +294,8 @@ export type ExactPublishedModuleArtifacts = Readonly<{
 
 /** Describes the result produced by transform. */
 export type TransformResult = {
+	/** Structured authored diagnostics retained independently of inspection output. */
+	diagnostics?: readonly NativeCompilerDiagnostic[];
 	code: string;
 	map: ExactSourceMap | null;
 	filename: string;
@@ -290,15 +310,13 @@ export type TransformResult = {
 	inspectionCatalog?: ExactSourceInspection;
 	/** Value-free redaction identities paired with the optional inspection catalog. */
 	inspectionRedactions?: ExactInspectionRedactionCatalog;
-	/** Compact IDs lowered for runtime correlation; contains no paths, reasons, or source text. */
+	/** Canonical runtime IDs returned to host tooling, with no paths, reasons, or source text. */
 	inspectionCorrelation?: ExactRuntimeInspectionCorrelation;
 };
 
 /** Compact component-local source entity identity shared with instrumented runtime output. */
 export type ExactRuntimeInspectionCorrelation = Readonly<{
 	protocol: 1;
-	/** Compiler-qualified selectors only; never contains a corresponding value. */
-	redactions?: ExactInspectionRedactionCatalog;
 	components: readonly Readonly<{
 		componentTypeId: string;
 		slots: readonly Readonly<{ id: string; kind: ExactSourceEntityKind }>[];

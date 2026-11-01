@@ -104,7 +104,8 @@ build, gateway, and resource-limit options configure operation dispatch. The
 runtime also forwards `componentAuthorization` into every hydratable render so
 the document and operation endpoints advertise the same build identity.
 
-eXact never treats `Host` or `X-Forwarded-Proto` as deployment authority. A
+eXact preserves the configured origin even when an incoming pathname begins with
+`//`. It never treats `Host` or `X-Forwarded-Proto` as deployment authority. A
 multi-tenant application may supply a `publicOrigin(request)` resolver that
 uses `request.platformRequest` after the host adapter has applied its trusted
 proxy policy and the application has allowlisted the resulting host. Without
@@ -194,31 +195,66 @@ invocation or refresh IDs.
 
 ## Limits
 
-Production configurations should set explicit ceilings. Current server defaults
-are:
+Choose explicit response ceilings for the application and deployment. Omitted response
+settings use warning thresholds and accept otherwise valid output. Current server
+thresholds and incoming-request defaults are:
 
-| Resource                     | Default |
-| ---------------------------- | ------: |
-| Batch operations             |     100 |
-| Concurrent batch operations  |       8 |
-| JSON graph depth             |     100 |
-| JSON graph values/properties | 100,000 |
-| Request bytes                |   4 MiB |
-| Non-stream response bytes    |  16 MiB |
-| Patches per operation        |  10,000 |
-| Stream events                | 100,000 |
-| Stream bytes                 |  16 MiB |
+| Resource                         |            Default |
+| -------------------------------- | -----------------: |
+| Batch operations                 |                100 |
+| Concurrent batch operations      |                  8 |
+| Request JSON graph depth         |                100 |
+| Request graph values/properties  |            100,000 |
+| Response JSON graph depth        |     Warn above 100 |
+| Response graph values/properties | Warn above 100,000 |
+| Request bytes                    |   Warn above 4 MiB |
+| Non-stream response bytes        |  Warn above 16 MiB |
+| Patches per operation            |  Warn above 10,000 |
+| Stream events                    | Warn above 100,000 |
+| Stream bytes                     |  Warn above 16 MiB |
 
-SSR additionally bounds task passes and duration, tree depth and node count,
-output bytes, stream chunks and bytes, and hydration graph depth, nodes, and
-bytes. Lower these limits for public anonymous endpoints and raise them only
-with measured fixtures.
+Set `limits.maxRequestBytes` for a hard request-body cap. Without one, the 4 MiB
+threshold emits a warning and accepts otherwise valid requests. Choose the cap for the
+application's payloads and memory budget. Client `streamLimits.maxRequestBytes` applies an
+explicit cap before sending single or batched requests, with the same warning-only default.
 
-Browser hydration uses one bounded reactive-protocol decoder for document
-configuration, island props, JSON responses, and streaming events. Each entry
-path retains its own fail-soft or throwing behavior, but depth, node, byte,
-prototype, accessor, cycle, and finite-number checks stay at one authoritative
-boundary. Static hydration repair likewise uses the DOM package's intrinsic
+SSR bounds task passes, tree depth, and hydration graph depth, nodes,
+and bytes. Rendered markup has no default byte or stream-event quota. Set `maxOutputBytes`
+or the relevant `maxStreamBytes`, `maxStreamChunks`, and `maxStreamEvents` options when
+the application needs an output ceiling. These rendering options are separate from the
+invocation-response limits in the table above. Set `maxTreeNodes` for an explicit render-value
+quota. Rendering has no default
+timeout. Pass an application-owned abort signal to expire a response based on page
+requirements or current load. Request disconnection and runtime shutdown still cancel
+owned work.
+
+Continuation responses warn above depth 100 or 100,000 graph values/properties.
+Set server `limits.maxJsonDepth`, `maxJsonNodes`, `maxResponseBytes`, `maxPatches`,
+`maxStreamEvents`, or `maxStreamBytes` to positive safe integers for hard caps.
+Client `streamLimits` uses `maxJsonDepth`, `maxJsonNodes`, `maxBytes`, `maxPatches`,
+and `maxEvents`. Client caps are local and do not configure the server.
+
+Transport byte checks count exact UTF-8 output. Graph byte checks count UTF-8 string
+and key content per validated graph, without JSON punctuation or escaping. Server
+`maxResponseBytes` and client `maxBytes` also cap that graph content. Stream bytes and
+events accumulate for the whole response. Patch caps apply per operation, including
+streamed patches combined with terminal patches. Progress snapshots use the same graph
+settings and server `maxResponseBytes` or client `maxBytes`, with warning thresholds
+of depth 32, 10,000 nodes, and 64 KiB per snapshot. They also count toward stream totals.
+
+Each response owner reports the first breach per setting through its existing logger.
+Default breaches warn and continue. Explicit breaches log an error with the option,
+scope, units, threshold, and actual amount, then stop with an error. A committed stream
+fails rather than dropping result data. Client-only breaches use the client logger.
+Cancellation still releases readers and request-owned work.
+
+Incoming requests and hydration bootstrap retain their bounded decoding defaults.
+The public reactive protocol codec accepts an optional second argument
+`{ maxDepth: 200 }` on `encodeReactiveProtocolValue` and
+`decodeReactiveProtocolValue`. Omission retains depth 100. Positive safe integers
+select the cap. Response owners apply their resource policy before using a larger
+codec cap. Very deep values can still exceed the host JavaScript call stack.
+Prototype, accessor, cycle, capsule, and finite-number validity checks remain mandatory. Static hydration repair likewise uses the DOM package's intrinsic
 namespace, attribute, URL, class, and unsafe-HTML rules rather than maintaining
 a second element contract.
 

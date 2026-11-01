@@ -155,7 +155,7 @@ export function patchFragmentPresentation(
 			)
 		);
 		for (const contributor of [...owners].reverse())
-			attemptTeardown(failure, () => refreshComponentRoot(contributor));
+			attemptTeardown(failure, () => refreshComponentRoot(root, contributor));
 	}
 	throwTeardownFailure(failure);
 	return mounted;

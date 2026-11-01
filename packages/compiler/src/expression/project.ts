@@ -18,12 +18,20 @@ export class ExactCompilerSession {
 	private readonly nativeCompiler: NativeCompilerProcess;
 	private readonly onProfile?: ExactProfileSink<ExactCompilerProfileEvent>;
 	private disposed = false;
+	private analysisPolicy: ExactCompilerSessionOptions['analysis'];
 
 	constructor(options: ExactCompilerSessionOptions = {}) {
 		this.onProfile = options.onProfile;
+		this.analysisPolicy = options.analysis;
 		this.nativeCompiler = new NativeCompilerProcess(
 			options.nativeCompiler ?? { executable: resolveNativeCompilerExecutable() }
 		);
+	}
+
+	/** Updates advisory reporting for the application without invalidating semantic facts. */
+	setAnalysisPolicy(policy: ExactCompilerSessionOptions['analysis']): void {
+		this.assertActive();
+		this.analysisPolicy = policy;
 	}
 
 	/** Reports whether transforms owned by this session execute in the native host. */
@@ -36,7 +44,11 @@ export class ExactCompilerSession {
 	compileNative(request: NativeCompilerRequest): NativeCompilerResponse {
 		this.assertActive();
 		const started = this.onProfile ? performance.now() : undefined;
-		const response = this.nativeCompiler.request(request);
+		const response = this.nativeCompiler.request({
+			...request,
+			analysis: request.analysis ?? this.analysisPolicy,
+			traceAnalysisCost: request.traceAnalysisCost ?? Boolean(this.onProfile)
+		});
 		this.profile('native-request', started, {
 			cached: response.cacheHit ? 1 : 0,
 			dependencies: response.analysis.imports.length,
@@ -65,16 +77,16 @@ export class ExactCompilerSession {
 		const absoluteFilename = path.resolve(filename);
 		const kind = classifyExactWatchInvalidation(absoluteFilename);
 		if (kind === 'ignore') {
-			const ignoredResult = emptyInvalidation;
+			const ignoredResult: ExactCompilerInvalidation = { affectedFiles: [], diagnostics: [] };
 			this.profile('invalidate', started, { affectedFiles: 0 });
 			return ignoredResult;
 		}
 		if (kind === 'project' || removed || !existsSync(absoluteFilename)) {
 			this.nativeCompiler.request({ kind: 'reset' });
-			const removedResult = Object.freeze({
-				affectedFiles: Object.freeze([absoluteFilename]),
-				diagnostics: Object.freeze([]) as ExactCompilerInvalidation['diagnostics']
-			});
+			const removedResult = {
+				affectedFiles: [absoluteFilename],
+				diagnostics: [] as ExactCompilerInvalidation['diagnostics']
+			};
 			this.profile('invalidate', started, { affectedFiles: 1 });
 			return removedResult;
 		}
@@ -87,21 +99,21 @@ export class ExactCompilerSession {
 		const diagnostics = response.diagnostics.map((diagnostic) => {
 			const diagnosticFilename = diagnostic.filename ?? absoluteFilename;
 			const source = readFileSync(diagnosticFilename, 'utf8');
-			return Object.freeze({
+			return {
 				code: diagnostic.code,
 				message: diagnostic.message,
 				filename: diagnosticFilename,
 				...(diagnostic.start === undefined
 					? {}
 					: { span: sourceLocation(source, diagnostic.start) })
-			});
+			};
 		});
-		const result = Object.freeze({
-			affectedFiles: Object.freeze([
+		const result = {
+			affectedFiles: [
 				...new Set([absoluteFilename, ...diagnostics.map((diagnostic) => diagnostic.filename)])
-			]),
-			diagnostics: Object.freeze(diagnostics)
-		});
+			],
+			diagnostics: diagnostics
+		};
 		this.profile('invalidate', started, { affectedFiles: result.affectedFiles.length });
 		return result;
 	}
@@ -124,7 +136,7 @@ export class ExactCompilerSession {
 	/** Returns the stable native-session resource shape. */
 	stats(): ExactCompilerSessionStats {
 		this.assertActive();
-		return Object.freeze({
+		return {
 			workspaces: 1,
 			rebuilds: 0,
 			semanticDiagnostics: 0,
@@ -137,7 +149,7 @@ export class ExactCompilerSession {
 			languageServices: 0,
 			languageServiceAffectedFiles: 0,
 			languageServiceSynchronizationMs: 0
-		});
+		};
 	}
 
 	private assertActive(): void {
@@ -150,22 +162,14 @@ export class ExactCompilerSession {
 		counts?: Readonly<Record<string, number>>
 	): void {
 		if (started === undefined) return;
-		publishExactProfile(
-			this.onProfile,
-			Object.freeze({
-				subsystem: 'compiler',
-				phase,
-				elapsedMs: performance.now() - started,
-				...(counts ? { counts } : {})
-			})
-		);
+		publishExactProfile(this.onProfile, {
+			subsystem: 'compiler',
+			phase,
+			elapsedMs: performance.now() - started,
+			...(counts ? { counts } : {})
+		});
 	}
 }
-
-const emptyInvalidation: ExactCompilerInvalidation = Object.freeze({
-	affectedFiles: Object.freeze([]),
-	diagnostics: Object.freeze([])
-});
 
 function sourceLocation(
 	source: string,
@@ -173,5 +177,5 @@ function sourceLocation(
 ): Readonly<{ line: number; column: number }> {
 	const before = source.slice(0, offset);
 	const lines = before.split(/\r\n|\r|\n/);
-	return Object.freeze({ line: lines.length, column: lines.at(-1)!.length + 1 });
+	return { line: lines.length, column: lines.at(-1)!.length + 1 };
 }

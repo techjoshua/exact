@@ -9,6 +9,21 @@ import { clearIntlFormatterCache, requireIntlDurationFormatter } from './formatt
 import { componentIntl } from '../component/runtime-surface-localization.js';
 
 describe('realm Intl formatter facade', () => {
+	it('retains ordinary writable facade methods independently for each component', () => {
+		const owner = createFrameworkFixtureComponentInstance(() => () => null, {});
+		const peer = createFrameworkFixtureComponentInstance(() => () => null, {});
+		try {
+			const facade = owner.intl;
+			facade.formatNumber = (value) => 'local ' + value;
+			expect(owner.intl.formatNumber(12)).toBe('local 12');
+			expect(owner.intl.formatNumber(34)).toBe('local 34');
+			expect(peer.intl.formatNumber(12, 'en-US')).toBe(new Intl.NumberFormat('en-US').format(12));
+		} finally {
+			owner.unmount();
+			peer.unmount();
+		}
+	});
+
 	it('preserves strict native duration construction and optional facade fallback', () => {
 		const original = Object.getOwnPropertyDescriptor(Intl, 'DurationFormat');
 		clearIntlFormatterCache();

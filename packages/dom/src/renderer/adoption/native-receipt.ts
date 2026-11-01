@@ -1,3 +1,11 @@
+import { captureAdoptionCurrent } from './receiving-lifetime.js';
+import { attachSuppressedCleanupFailure, type RefBinding } from '@exactjs/core';
+import {
+	capturePreparedEnhancementBindings,
+	withCapturedEnhancementBindings,
+	type PreparedEnhancementBindings
+} from '../prepared-output-bindings.js';
+import { withDomWork } from '../limits.js';
 import { retainNamespaceProps, clearNamespaceEncoding } from '../../namespace.js';
 import { encodeExactMarkerPart } from '@exactjs/core';
 import { mountTextHost as mountTextHostPresentation } from '../text-host-capability.js';
@@ -15,8 +23,14 @@ import { updateProps } from '../../props.js';
 import type { Mounted, Root } from '../../types.js';
 import { installAdoptedChildRangeReceipt, rangeChildren } from '../child-range-receipt.js';
 import { refreshTargetBoundary } from '../target-capability.js';
+import { intrinsicChildContainer } from '../intrinsic-child-container.js';
 import { intrinsicTextChildren } from '../intrinsic-text.js';
-import { collectAuthoredChildren, closingMarkerIndex, isChildRangeOpening } from './boundaries.js';
+import {
+	adoptStaticChildren,
+	collectAuthoredChildren,
+	closingMarkerIndex,
+	isChildRangeOpening
+} from './boundaries.js';
 
 /** Adopts compiler-issued child operations within one bounded SSR-owned node range. */
 export type AdoptReceiptChildren = (
@@ -41,6 +55,7 @@ export function adoptIntrinsicReceipt(
 	adoptChildren: AdoptReceiptChildren
 ): { mounted: Mounted; next: number } | undefined {
 	const scope = createEffectScope(parentScope);
+	const assertCurrent = captureAdoptionCurrent(root, scope);
 	const node = nodes[cursor];
 	if (!(node instanceof Element) || node.tagName.toLowerCase() !== receipt.tag.toLowerCase()) {
 		scope.stop();
@@ -68,7 +83,8 @@ export function adoptIntrinsicReceipt(
 		scope.stop();
 		return undefined;
 	}
-	const { framework, nodes: authoredNodes } = collectAuthoredChildren(node);
+	const childContainer = intrinsicChildContainer(node);
+	const { framework, nodes: authoredNodes } = collectAuthoredChildren(childContainer);
 	const children = textHost
 		? [
 				mountTextHostPresentation(
@@ -87,7 +103,7 @@ export function adoptIntrinsicReceipt(
 				scope,
 				undefined,
 				undefined,
-				node
+				childContainer
 			);
 	if (!children) {
 		clearNamespaceEncoding(node);
@@ -96,7 +112,23 @@ export function adoptIntrinsicReceipt(
 	}
 	if (textHost && !existingText) node.appendChild(children[0]!.dom);
 	if (parentInstance) setElementOwner(node, parentInstance);
-	updateProps(root, node, {}, receipt.props, scope, false);
+	try {
+		updateProps(root, node, {}, receipt.props, scope, false);
+		assertCurrent();
+	} catch (error) {
+		// This intrinsic has not transferred into the published child view yet.
+		try {
+			scope.stop();
+		} catch (cleanup) {
+			attachSuppressedCleanupFailure(error, cleanup);
+		}
+		try {
+			(receipt.props.ref as RefBinding<unknown> | undefined)?.fulfill(undefined);
+		} catch (cleanup) {
+			attachSuppressedCleanupFailure(error, cleanup);
+		}
+		throw error;
+	}
 	return {
 		mounted: {
 			intrinsicReceipt: receipt,
@@ -166,19 +198,6 @@ export function adoptStructuralRangeReceipt(
 		scope.stop();
 		return undefined;
 	}
-	const children = adoptChildren(
-		root,
-		[...receipt.children],
-		nodes,
-		parentInstance,
-		scope,
-		cursor + 1,
-		endIndex
-	);
-	if (!children) {
-		scope.stop();
-		return undefined;
-	}
 	const mounted: Mounted = {
 		...(kind === 'fragment'
 			? { fragmentReceipt: receipt as ExactFragmentReceiptData }
@@ -186,9 +205,38 @@ export function adoptStructuralRangeReceipt(
 		dom: start,
 		end: nodes[endIndex]!,
 		scope,
-		children
+		children: []
 	};
-	if (kind === 'target') refreshTargetBoundary(root, mounted, parentInstance);
+	const plan = root.suppliedPlacementPlan;
+	if (kind === 'target' && plan?.pending && plan.isCurrent()) {
+		plan.adoptTarget({
+			bindings: capturePreparedEnhancementBindings(root),
+			mounted,
+			receipt: receipt as ExactTargetReceiptData,
+			nodes,
+			start: cursor + 1,
+			end: endIndex,
+			parentInstance
+		});
+		plan.own(mounted);
+	} else {
+		const children = adoptChildren(
+			root,
+			[...receipt.children],
+			nodes,
+			parentInstance,
+			scope,
+			cursor + 1,
+			endIndex
+		);
+		if (!children) {
+			scope.stop();
+			return undefined;
+		}
+		mounted.children = children;
+		if (kind === 'target') refreshTargetBoundary(root, mounted, parentInstance);
+	}
+
 	return { mounted, next: endIndex + 1 };
 }
 
@@ -236,4 +284,38 @@ export function adoptChildRangeReceipt(
 	};
 	installAdoptedChildRangeReceipt(root, mounted, receipt, parentInstance);
 	return { mounted, next: endIndex + 1 };
+}
+
+/** Concrete target adoption retained by its existing reconciliation frame until placement validation. */
+export type PendingTargetAdoption = Readonly<{
+	bindings: PreparedEnhancementBindings | undefined;
+	mounted: Mounted;
+	receipt: ExactTargetReceiptData;
+	nodes: readonly Node[];
+	start: number;
+	end: number;
+	parentInstance: AnyComponentInstance | undefined;
+}>;
+
+/** Adopts the validated supplied boundary into the same occurrence, without constructing a second owner. */
+export function commitTargetAdoption(root: Root, entry: PendingTargetAdoption): void {
+	if (!entry.mounted.scope.active) return;
+	const assertCurrent = captureAdoptionCurrent(root, entry.mounted.scope);
+	const children = withCapturedEnhancementBindings(root, entry.bindings, () =>
+		withDomWork(root, () =>
+			adoptStaticChildren(
+				root,
+				[...entry.receipt.children],
+				entry.nodes,
+				entry.parentInstance,
+				entry.mounted.scope,
+				entry.start,
+				entry.end
+			)
+		)
+	);
+	assertCurrent();
+	if (!children) throw new Error('Supplied target did not match the hydrated DOM');
+	entry.mounted.children = children;
+	refreshTargetBoundary(root, entry.mounted, entry.parentInstance);
 }

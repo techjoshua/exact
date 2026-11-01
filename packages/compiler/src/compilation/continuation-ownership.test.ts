@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 import type { AnyComponentFunction } from '@exactjs/core';
-import { createCompiledComponentReceipt } from '@exactjs/core/runtime/component-operations';
+import { createCompiledComponentInputReceipt } from '@exactjs/core/runtime/component-operations';
 import { composeExactExecutorContract, handleExactRequest } from '@exactjs/server';
 import { renderToHydratableString } from '@exactjs/ssr';
 import { mountClientServerTest, type ClientServerTestView } from '@exactjs/testing';
@@ -14,9 +14,8 @@ import {
 	createExactHydrationRegistrationModule
 } from '../index.js';
 import { importArtifact } from '../test-support/import-artifact.js';
-import { createTestWorkspace } from '../test-support/workspace.js';
+import { createCompilerTestWorkspace } from '../test-support/workspace.js';
 import { ownershipJourneySource } from '../test-support/ownership-journey-source.js';
-
 function gate<T>() {
 	let resolve!: (value: T) => void;
 	const promise = new Promise<T>((complete) => {
@@ -24,7 +23,6 @@ function gate<T>() {
 	});
 	return { promise, resolve };
 }
-
 it.each([false, true])(
 	'isolates repeated paired owners, optimistic rollback and owned resources (batch=%s)',
 	async (batch) => {
@@ -61,7 +59,7 @@ it.each([false, true])(
 			await Promise.all(views.map((view) => view.protocol.settle()));
 			vi.unstubAllGlobals();
 		});
-		const root = await createTestWorkspace('.exact-ownership-', process.cwd());
+		const root = await createCompilerTestWorkspace('.exact-ownership-', process.cwd());
 		const entry = path.join(root, 'page.tsx');
 		await writeFile(entry, ownershipJourneySource);
 		const outDir = path.join(root, 'generated');
@@ -109,7 +107,7 @@ it.each([false, true])(
 				])
 			);
 			const server = await renderToHydratableString(
-				createCompiledComponentReceipt(Server, { owner })
+				createCompiledComponentInputReceipt(Server, { owner })
 			);
 			expect(unmounted.get(owner)).toBe(1); // SSR releases its own instance.
 			const view = await mountClientServerTest({

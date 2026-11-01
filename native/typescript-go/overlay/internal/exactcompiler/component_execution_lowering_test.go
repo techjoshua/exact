@@ -260,10 +260,12 @@ func TestClientRetainsPropertyReadAfterStateFacadeAliasInvalidation(t *testing.T
 }
 
 func TestHydrateProjectionUsesIndexedSynchronousComponentInputUpdates(t *testing.T) {
-	response := NewSession().Execute(Request{
-		ID: "hydrate-computation.tsx", Kind: "compile", Target: TargetClient,
-		ComponentContractProjection: ComponentContractProjectionHydrate,
-		Source: `
+	for _, projection := range []ComponentContractProjection{ComponentContractProjectionHydrate, ComponentContractProjectionClient} {
+		t.Run(string(projection), func(t *testing.T) {
+			response := NewSession().Execute(Request{
+				ID: "hydrate-computation.tsx", Kind: "compile", Target: TargetClient,
+				ComponentContractProjection: projection,
+				Source: `
 			declare class Component<State> { state: State }
 			export function Greeting(this: Component<{ message: string }>, props: { name: string }) {
 				this.state.message = "initial";
@@ -271,40 +273,42 @@ func TestHydrateProjectionUsesIndexedSynchronousComponentInputUpdates(t *testing
 				return () => <p>{this.state.message}</p>;
 			}
 		`,
-	})
-	if response.Error != "" || len(response.Diagnostics) != 0 {
-		t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
-	}
-	for _, expected := range []string{
-		`const __exact_component_inputs_1 = { bindings: [[0, 1, 0]] as const`,
-		`const __exactDependency = __exactReadState(props, 0) as string`,
-		`__exactWriteState(__exactInstance.state, 0, "Hello " + __exactDependency)`,
-		`__exact_component_inputs_1.apply(this, 1, 0)`,
-		`inputs: __exact_component_inputs_1`,
-		`constructRenderComponentInstance as __exactConstructRenderComponent`,
-	} {
-		if !strings.Contains(response.Code, expected) {
-			t.Fatalf("hydrate projection omitted indexed component input update %q:\n%s", expected, response.Code)
-		}
-	}
-	if strings.Contains(response.Code, "activateComputationForHost as") ||
-		strings.Contains(response.Code, "__exactActivateComputation(this") ||
-		strings.Contains(response.Code, `"tasks"`) ||
-		strings.Contains(response.Code, `"continuations"`) {
-		t.Fatalf("indexed component input update retained computation/task machinery:\n%s", response.Code)
-	}
-	if !strings.Contains(response.Code, "__exactWriteState(__exactInstance.state, 0") ||
-		strings.Contains(response.Code, `__exactWrite(this.state, ["message"]`) {
-		t.Fatalf("indexed component input update did not preserve its indexed write:\n%s", response.Code)
-	}
-	if strings.Count(response.Code, "const __exact_component_inputs_1") != 1 ||
-		strings.Contains(response.Code, `updates: __exact_component_inputs_1`) {
-		t.Fatalf("component input and DOM update artifacts collided:\n%s", response.Code)
-	}
-	initialWrite := strings.Index(response.Code, `__exactWriteState(this.state, 0, "initial")`)
-	initialApply := strings.Index(response.Code, `__exact_component_inputs_1.apply(this, 1, 0)`)
-	if initialWrite < 0 || initialApply < initialWrite {
-		t.Fatalf("initial component input update moved ahead of authored setup order:\n%s", response.Code)
+			})
+			if response.Error != "" || len(response.Diagnostics) != 0 {
+				t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
+			}
+			for _, expected := range []string{
+				`const __exact_component_inputs_1 = { bindings: [[0, 1, 0]] as const`,
+				`const __exactDependency = __exactReadState(props, 0) as string`,
+				`__exactWriteState(__exactInstance.state, 0, "Hello " + __exactDependency)`,
+				`__exact_component_inputs_1.apply(this, 1, 0)`,
+				`inputs: __exact_component_inputs_1`,
+				`constructRenderComponentInstance as __exactConstructRenderComponent`,
+			} {
+				if !strings.Contains(response.Code, expected) {
+					t.Fatalf("hydrate projection omitted indexed component input update %q:\n%s", expected, response.Code)
+				}
+			}
+			if strings.Contains(response.Code, "activateComputationForHost as") ||
+				strings.Contains(response.Code, "__exactActivateComputation(this") ||
+				strings.Contains(response.Code, `"tasks"`) ||
+				strings.Contains(response.Code, `"continuations"`) {
+				t.Fatalf("indexed component input update retained computation/task machinery:\n%s", response.Code)
+			}
+			if !strings.Contains(response.Code, "__exactWriteState(__exactInstance.state, 0") ||
+				strings.Contains(response.Code, `__exactWrite(this.state, ["message"]`) {
+				t.Fatalf("indexed component input update did not preserve its indexed write:\n%s", response.Code)
+			}
+			if strings.Count(response.Code, "const __exact_component_inputs_1") != 1 ||
+				strings.Contains(response.Code, `updates: __exact_component_inputs_1`) {
+				t.Fatalf("component input and DOM update artifacts collided:\n%s", response.Code)
+			}
+			initialWrite := strings.Index(response.Code, `__exactWriteState(this.state, 0, "initial")`)
+			initialApply := strings.Index(response.Code, `__exact_component_inputs_1.apply(this, 1, 0)`)
+			if initialWrite < 0 || initialApply < initialWrite {
+				t.Fatalf("initial component input update moved ahead of authored setup order:\n%s", response.Code)
+			}
+		})
 	}
 }
 
@@ -332,6 +336,101 @@ func TestHydrateProjectionObservesNestedInputsAndRetainsAuthoredComputations(t *
 	}
 	if strings.Contains(response.Code, "inputs: __exact_component_inputs_") {
 		t.Fatalf("nested prop observation was reduced to top-level replacement:\n%s", response.Code)
+	}
+}
+
+func TestIndexedComponentInputsRetainUnconvertedLocalComputation(t *testing.T) {
+	for _, projection := range []ComponentContractProjection{ComponentContractProjectionHydrate, ComponentContractProjectionClient} {
+		t.Run(string(projection), func(t *testing.T) {
+			response := NewSession().Execute(Request{
+				ID: "mixed-indexed-local-computation.tsx", Kind: "compile", Target: TargetClient,
+				ComponentContractProjection: projection,
+				Source: `
+					declare class Component<State> { state: State }
+					export function Greeting(this: Component<{ message: string; nested: string }>, props: { name: string; input: { name: string } }) {
+						this.state.message = "Hello " + props.name;
+						this.state.nested = props.input.name;
+						return () => <p>{this.state.message} {this.state.nested}</p>;
+					}
+				`,
+			})
+			if response.Error != "" || len(response.Diagnostics) != 0 {
+				t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
+			}
+			for _, expected := range []string{
+				`inputs: __exact_component_inputs_1`,
+				`constructTaskComponentInstance as`,
+				`"tasks"`,
+				`activateComputationForHost as`,
+			} {
+				if !strings.Contains(response.Code, expected) {
+					t.Fatalf("mixed input/local work lost %q:\n%s", expected, response.Code)
+				}
+			}
+			if strings.Count(response.Code, "__exactActivateComputation(this") != 1 {
+				t.Fatalf("indexed work was reactivated or nested work lost its owner:\n%s", response.Code)
+			}
+			found := false
+			for _, component := range response.Analysis.Components {
+				if component.Name == "Greeting" {
+					found = true
+					if !component.TargetPlan.ClientExecution.LocalComputation || len(component.TargetPlan.ClientExecution.Transitions) != 0 {
+						t.Fatalf("unconverted local work requires ownership without a distributed transition: %#v", component.TargetPlan.ClientExecution)
+					}
+				}
+			}
+			if !found {
+				t.Fatal("missing Greeting source analysis")
+			}
+		})
+	}
+}
+
+func TestIndexedComponentInputsRetainAuthoredTaskOwnership(t *testing.T) {
+	for _, projection := range []ComponentContractProjection{ComponentContractProjectionHydrate, ComponentContractProjectionClient} {
+		t.Run(string(projection), func(t *testing.T) {
+			response := NewSession().Execute(Request{
+				ID: "indexed-input-authored-task.tsx", Kind: "compile", Target: TargetClient,
+				ComponentContractProjection: projection,
+				Source: `
+					import { TaskContext } from "@exactjs/core";
+					declare class Component<State> { state: State }
+					export function Greeting(this: Component<{ message: string; count: number }>, props: { name: string }) {
+						this.state.count = 0;
+						this.state.message = "Hello " + props.name;
+						function refresh(_task: TaskContext = TaskContext.client().latest()) {
+							this.state.count++;
+						}
+						return () => <button onClick={() => refresh()}>{this.state.message} {this.state.count}</button>;
+					}
+				`,
+			})
+			if response.Error != "" || len(response.Diagnostics) != 0 {
+				t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
+			}
+			for _, expected := range []string{
+				`inputs: __exact_component_inputs_1`,
+				`constructTaskComponentInstance as`,
+				`"tasks"`,
+				`"interactions"`,
+			} {
+				if !strings.Contains(response.Code, expected) {
+					t.Fatalf("authored task/input work lost %q:\n%s", expected, response.Code)
+				}
+			}
+			found := false
+			for _, component := range response.Analysis.Components {
+				if component.Name == "Greeting" {
+					found = true
+					if component.TargetPlan.ClientExecution.LocalComputation || len(component.TargetPlan.ClientExecution.Transitions) == 0 {
+						t.Fatalf("indexed input marker and authored task ownership were conflated: %#v", component.TargetPlan.ClientExecution)
+					}
+				}
+			}
+			if !found {
+				t.Fatal("missing Greeting source analysis")
+			}
+		})
 	}
 }
 
@@ -391,7 +490,7 @@ func TestServerDirectFrameEvaluatesSharedDerivedValuesWithoutReactiveOwnership(t
 	if response.Error != "" || len(response.Diagnostics) != 0 {
 		t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
 	}
-	for _, omitted := range []string{"createDerived", "label.get()", "componentExecutionValueForHost"} {
+	for _, omitted := range []string{"createDerived", "label.get()", "componentExecutionValueForHost", "resumption:", `kind: "resumption"`} {
 		if strings.Contains(response.Code, omitted) {
 			t.Fatalf("direct server frame retained %q:\n%s", omitted, response.Code)
 		}
@@ -399,7 +498,7 @@ func TestServerDirectFrameEvaluatesSharedDerivedValuesWithoutReactiveOwnership(t
 	for _, expected := range []string{
 		"const label = `Count: ${this.state.count}`",
 		`lane: "direct"`,
-		`"resumption"`,
+		`capabilities: []`,
 	} {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf("direct server frame is missing %q:\n%s", expected, response.Code)
@@ -633,11 +732,15 @@ func TestCompilerClosedServerRootDoesNotRequireImportedChildGraphClosure(t *test
 	for _, expected := range []string{
 		`renderCompilerClosedUnmarkedToString as`,
 		`from "@exactjs/ssr/runtime/compiler-closed"`,
-		`__exactSsr.reference(Child,`,
 	} {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf("imported child ABI root is missing %q:\n%s", expected, response.Code)
 		}
+	}
+	// Both preparation lanes retain the actual imported callable without requiring its body.
+	if !strings.Contains(response.Code, `__exactSsr.reference(Child,`) &&
+		!strings.Contains(response.Code, `__exactComponentReceipt(Child,`) {
+		t.Fatalf("imported child lost its compiler-owned reference:\n%s", response.Code)
 	}
 	if strings.Contains(response.Code, `from "@exactjs/ssr"`) {
 		t.Fatalf("imported child forced the universal renderer:\n%s", response.Code)
@@ -1179,8 +1282,8 @@ func TestServerProjectionLinksCanonicalRefBindingAndRootOperations(t *testing.T)
 	}
 	for _, expected := range []string{
 		`__exactDirectSsrRef(this, rootKey)`,
-		`__exactDirectSsrReadRef(this, rootKey)`,
-		`__exactDirectSsrRoot(this, binding)`,
+		`__exactDirectSsrRefs(this).get(rootKey)`,
+		`__exactDirectSsrRefs(this).root(binding)`,
 		`lane: "direct"`,
 	} {
 		if !strings.Contains(response.Code, expected) {
@@ -1513,16 +1616,16 @@ func TestComponentExecutionForwardsReactivePropIdentity(t *testing.T) {
 	if response.Error != "" || len(response.Diagnostics) != 0 {
 		t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
 	}
-	if !strings.Contains(response.Code, "createForwardedExpression as __exactForwardedExpression") ||
-		!strings.Contains(response.Code, "__exactForwardedExpression(() => props.value)") {
-		t.Fatalf("prop forwarding allocated a redundant reactive value:\n%s", response.Code)
+	if !strings.Contains(response.Code, "createForwardedComponentPropExpression as __exactForwardedComponentPropExpression") ||
+		!strings.Contains(response.Code, "__exactForwardedComponentPropExpression(() => props.value)") {
+		t.Fatalf("prop forwarding lost its dedicated component input operand:\n%s", response.Code)
 	}
 	if !strings.Contains(response.Code, "__exactExpression(() => props.open)") {
 		t.Fatalf("host attribute lost its focused expression owner:\n%s", response.Code)
 	}
 }
 
-func TestComponentExecutionUsesNestedPropPropertyOperand(t *testing.T) {
+func TestComponentExecutionRetainsNestedPropReader(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID:   "nested-forward.tsx",
 		Kind: "compile",
@@ -1538,13 +1641,11 @@ func TestComponentExecutionUsesNestedPropPropertyOperand(t *testing.T) {
 	if response.Error != "" || len(response.Diagnostics) != 0 {
 		t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
 	}
-	if !strings.Contains(response.Code, `severity: [__exactPropertyOperand,`) ||
-		!strings.Contains(response.Code, `"severity"]`) {
-		t.Fatalf("nested prop member omitted its exact property operand:\n%s", response.Code)
+	if strings.Contains(response.Code, `severity: [__exactPropertyOperand,`) ||
+		!strings.Contains(response.Code, `ComponentPropExpression`) {
+		t.Fatalf("nested receiver selection lost its retained complete reader:\n%s", response.Code)
 	}
-	if strings.Contains(response.Code, `__exactForwardedExpression(() =>`) {
-		t.Fatalf("nested prop member retained a replaceable forwarded computation:\n%s", response.Code)
-	}
+
 }
 
 func TestClientTransparentComponentUsesItsCompiledBoundaryRange(t *testing.T) {
@@ -2013,5 +2114,67 @@ func TestClientLatestTaskFallsBackWhenCallableIdentityEscapes(t *testing.T) {
 	if !strings.Contains(response.Code, "defineTask as __exactDefineTask") ||
 		strings.Contains(response.Code, "bindCompiledClientLatestTaskForHost") {
 		t.Fatalf("observable task identity did not retain the universal task lane:\n%s", response.Code)
+	}
+}
+
+func TestServerRefFacadeCallsRetainMethodDispatch(t *testing.T) {
+	config := timeSemanticConfig(t)
+	for _, method := range []string{"get", "root"} {
+		t.Run(method, func(t *testing.T) {
+			call := `this.refs.get(key)`
+			if method == "root" {
+				call = `this.refs.root()`
+			}
+			response := NewSession().Execute(Request{
+				Kind: "compile", ID: "ref-facade-dispatch.tsx", ConfigFile: config,
+				Target: TargetServer, Diagnostics: "semantic",
+				Source: `import {createRef,type Component} from '@exactjs/core';const key=createRef<object>('value');export function Page(this:Component<{}>){const refs=this.refs;return()=> <output>{String(` + call + `)}</output>;}`,
+			})
+			if response.Error != "" || len(response.Diagnostics) != 0 {
+				t.Fatalf("supported ref facade rejected: %s %#v", response.Error, response.Diagnostics)
+			}
+			if !strings.Contains(response.Code, "__exactDirectSsrRefs(this)."+method+"(") {
+				t.Fatalf("facade method dispatch was bypassed:\n%s", response.Code)
+			}
+		})
+	}
+}
+
+func TestServerRefSurfaceOwnershipControls(t *testing.T) {
+	config := timeSemanticConfig(t)
+	for _, setup := range []string{
+		`void this.readRef?.(key);`,
+		`void this.state;`,
+		`function foreign(this:{readRef(key:unknown):unknown}){return this.readRef(key);}void foreign;`,
+		`const holder={refs:{get(value:unknown){return value;}}};void holder.refs.get(key);`,
+		`void this.refs.get?.(key);`,
+		`void this.refs['get'](key);`,
+		`const name='get' as const;void this.refs[name](key);`,
+	} {
+		response := NewSession().Execute(Request{Kind: "compile", ID: "ref-surface-controls.tsx", ConfigFile: config, Target: TargetServer, Diagnostics: "semantic", Source: `import {createRef,type Component} from '@exactjs/core';const key=createRef<object>('value');declare const choose:boolean;export function Page(this:Component<{}>){` + setup + `return()=> <output>ready</output>;}`})
+		if response.Error != "" || len(response.Diagnostics) != 0 {
+			t.Fatalf("supported control rejected %s: %s %#v", setup, response.Error, response.Diagnostics)
+		}
+		if strings.Contains(setup, "function foreign") && !strings.Contains(response.Code, "this.readRef(key)") {
+			t.Fatalf("foreign receiver claimed component authority:\n%s", response.Code)
+		}
+	}
+}
+
+func TestUnknownPairedComponentRetainsProvenResumptionState(t *testing.T) {
+	source := `declare function sample():number;export function Provider(){this.state.sample=sample();return()=> <output>{this.state.sample}</output>;}`
+	for _, target := range []Target{TargetClient, TargetServer} {
+		t.Run(string(target), func(t *testing.T) {
+			response := NewSession().Execute(Request{ID: "unknown-resumption.tsx", Kind: "compile", Target: target, Source: source})
+			if response.Error != "" || len(response.Diagnostics) != 0 {
+				t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
+			}
+			if len(response.Analysis.Components) != 1 || response.Analysis.Components[0].Placement != "unknown" {
+				t.Fatalf("uncertainty was erased: %#v", response.Analysis.Components)
+			}
+			if !strings.Contains(response.Code, "resumption:") || !strings.Contains(response.Code, `"sample"`) {
+				t.Fatalf("paired uncertainty erased proven snapshot authority:\n%s", response.Code)
+			}
+		})
 	}
 }

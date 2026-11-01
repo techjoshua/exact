@@ -1,7 +1,16 @@
-import { flushSync, watch } from '@exactjs/reactive';
+import { createRef } from '../keys.js';
+import { verifyRefRootValues } from '../../../component-composition-corpus/test-support/ref-root-value-journey.mjs';
+import {
+	directSsrRef,
+	directSsrRefs,
+	directSsrRoot
+} from '../../../ssr/src/runtime/direct-refs.js';
+import '../runtime/refs.js';
+import { batch, flushSync, watch } from '@exactjs/reactive';
 import { describe, expect, it, onTestFinished } from 'vitest';
 import { createFrameworkFixtureComponentInstance } from '../testing.js';
 import {
+	bindComponentRoot,
 	componentRootLifecycle,
 	componentRootReleaseObserved,
 	disposeComponentRoot,
@@ -32,7 +41,6 @@ describe('component root observation', () => {
 
 		const lifecycle = componentRootLifecycle(instance);
 		expect(componentRootLifecycle(instance)).toBe(lifecycle);
-		expect(Object.isFrozen(lifecycle)).toBe(true);
 		expect(lifecycle.current).toBe(second);
 		expect(lifecycle.generation).toBe(2);
 		expect(lifecycle.introduction).toBe('update');
@@ -69,7 +77,7 @@ describe('component root observation', () => {
 			reason: 'reconcile-replaced',
 			presented: true
 		});
-		expect(lifecycle.release).toBe(release);
+		expect(lifecycle.release).toEqual(release);
 		expect(reverseComponentRootRelease(instance, 2)).toBe(false);
 		expect(reverseComponentRootRelease(instance, 1)).toBe(true);
 		flushSync();
@@ -102,5 +110,79 @@ describe('component root observation', () => {
 		expect(lifecycle.presented).toBe(false);
 		expect(lifecycle.release).toBeUndefined();
 		expect(componentRootReleaseObserved(instance)).toBe(false);
+	});
+	it('keeps public release observations writable without changing private generation authority', () => {
+		const instance = owner();
+		const target = {};
+		publishComponentRoot(instance, target, true, 'initial');
+		const lifecycle = componentRootLifecycle(instance);
+		publishComponentRootRelease(instance, 'reconcile-removed');
+		const view = lifecycle.release!;
+		const alias: { generation: number; target: object; presented: boolean } = view;
+		alias.generation = 999;
+		alias.target = {};
+		alias.presented = false;
+		expect(reverseComponentRootRelease(instance, 999)).toBe(false);
+		expect(reverseComponentRootRelease(instance, 1)).toBe(true);
+		expect(lifecycle.current).toBe(target);
+		expect(lifecycle.presented).toBe(true);
+		expect(lifecycle.release).toBeUndefined();
+	});
+	it('rolls public observations and private release authority back together', () => {
+		const instance = owner();
+		const target = {};
+		publishComponentRoot(instance, target, true, 'initial');
+		const lifecycle = componentRootLifecycle(instance);
+		publishComponentRootRelease(instance, 'reconcile-removed');
+		expect(() =>
+			batch(() => {
+				expect(reverseComponentRootRelease(instance, 1)).toBe(true);
+				throw new Error('abort');
+			})
+		).toThrow('abort');
+		expect(lifecycle.current).toBeUndefined();
+		expect(lifecycle.release).toBeDefined();
+		expect(reverseComponentRootRelease(instance, 1)).toBe(true);
+		expect(lifecycle.current).toBe(target);
+	});
+	it('shares source and built-package ref/root value controls', () => {
+		expect(
+			verifyRefRootValues({
+				directSsrRef,
+				directSsrRefs,
+				directSsrRoot,
+				createFrameworkFixtureComponentInstance,
+				publishComponentRoot,
+				publishComponentRootRelease,
+				reverseComponentRootRelease,
+				disposeComponentRoot,
+				batch
+			})
+		).toBe(true);
+	});
+	it('keeps framework ref origin while preserving composed ref contracts', () => {
+		const original = owner();
+		const foreign = owner();
+		const key = createRef<object>('root');
+		const binding = original.ref(key);
+		const alias: { owner: object } = binding;
+		alias.owner = foreign;
+		expect(() => bindComponentRoot(foreign, binding)).toThrow(/owned/);
+		expect(bindComponentRoot(original, binding)).toBe(binding);
+		const composedOwner = owner();
+		const inner = composedOwner.ref(key);
+		const composed = {
+			key: inner.key,
+			owner: inner.owner,
+			get current() {
+				return inner.current;
+			},
+			fulfill(value: object | undefined) {
+				inner.fulfill(value);
+			}
+		};
+		expect(bindComponentRoot(composedOwner, composed)).toBe(composed);
+		composed.owner = foreign;
+		expect(() => bindComponentRoot(foreign, composed)).toThrow(/owned/);
 	});
 });

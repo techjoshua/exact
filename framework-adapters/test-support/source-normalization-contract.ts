@@ -4,6 +4,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { expect } from 'vitest';
+import { nativePatternSources } from '../../packages/compiler/src/test-support/native-pattern-sources.js';
 import { buildDiagnosticFixture } from './compiler-diagnostic-build.js';
 
 const workspace = fileURLToPath(new URL('../../', import.meta.url));
@@ -27,6 +28,8 @@ export async function verifySourceNormalizationContract(adapter: 'vite' | 'webpa
 		await writeFile(
 			entry,
 			`import {BrowserData} from './BrowserData.js';import {createRef,peek,TaskContext,type Component} from '@exactjs/core';import {renderToString} from '@exactjs/ssr';
+${nativePatternSources.reported}
+export function NativePatternProbe(this:Component<{owner:{value:number;values:number[];trace:string[]}}>){this.state.owner={value:0,values:[],trace:[]};function save(task:TaskContext=TaskContext.server().blocking()){work(this.state.owner);}save();return()=> <output id="native-pattern">{this.state.owner.value}/{this.state.owner.values[0]}</output>;}
 declare global{namespace Intl{interface NumberFormat{custom():number;}}}
 export function NativeFormatter(props:{formatter:Intl.NumberFormat}){const text=peek(()=>props.formatter.format(1000));return()=> <output id="native-formatter">{text}</output>;}
 export function Probe(this:Component<{input:number;output:number}>){this.state.input=1;this.state.output=this.state.input+1;const offset=this.state.input;return()=> <output>{this.state.output} / {[2].map(input=>{const value=input+offset;return value;})}</output>;}
@@ -36,7 +39,7 @@ export function StartupProbe(this:Component<{input:number;output:number}>){this.
 export function NamedSnapshotProbe(this:Component<{input:number;snapshot:number;output:number}>){this.state.input=1;this.state.snapshot=1;this.state.output=0;const value=this.state.snapshot;const callback=()=>value;function read(){return peek(callback)}this.state.output=read()+this.state.input;return()=> <output id="named-snapshot">{this.state.output}</output>;}
 const memberTrace:string[]=[];class Session{dispose(){memberTrace.push('disposed')}}function ownershipKey(){memberTrace.push('key');return 'own' as const}function lifecycleKey(){memberTrace.push('lifecycle-key');return 'onMount' as const}const refKey=createRef<HTMLElement>('adapter-computed');
 export function ComputedMembers(this:Component<{value:number}>){this.state.value=1;const reactive='reactive' as const;const ref='ref' as const;this[ownershipKey()](new Session());this[lifecycleKey()](()=>window.alert('client-only'));const binding=this[ref](refKey);const value=this[reactive](()=>this.state.value+1);return()=> <output id="computed-members" ref={binding}>{value}</output>;}
-/** @exact server */ export function Root(){return()=> <main><Probe/><AsyncProbe/><SnapshotProbe/><StartupProbe/><BrowserData/><NamedSnapshotProbe/><ComputedMembers/><NativeFormatter formatter={new Intl.NumberFormat('en-US')}/></main>;}
+/** @exact server */ export function Root(){return()=> <main><NativePatternProbe/><Probe/><AsyncProbe/><SnapshotProbe/><StartupProbe/><BrowserData/><NamedSnapshotProbe/><ComputedMembers/><NativeFormatter formatter={new Intl.NumberFormat('en-US')}/></main>;}
 export async function run(){const html=(await renderToString(<Root/>,{markers:false})).html;if(memberTrace.join(',')!=='key,lifecycle-key,disposed')throw new Error('computed member evaluation/cleanup:'+memberTrace.join(','));return html;}`
 		);
 		for (const target of ['client', 'server'] as const) {
@@ -59,6 +62,7 @@ export async function run(){const html=(await renderToString(<Root/>,{markers:fa
 			);
 			const html: string = JSON.parse(result.stdout.trim());
 			expect(html).toContain('<output>2 / 3</output>');
+			expect(html).toMatch(/<output[^>]*id="native-pattern"[^>]*>3\/4<\/output>/);
 			expect(html).toMatch(/<output[^>]*id="native-formatter"[^>]*>1,000<\/output>/);
 			expect(html).toMatch(/<output[^>]*id="computed-members"[^>]*>2<\/output>/);
 			expect(html).toMatch(/<output[^>]*id="named-snapshot"[^>]*>2<\/output>/);

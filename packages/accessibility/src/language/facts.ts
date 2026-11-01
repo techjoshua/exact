@@ -6,6 +6,27 @@ import type {
 } from '@exactjs/language-extension-api';
 import { ariaDataSource } from '../generated/aria-data.js';
 
+/** Maps accepted JSX relationship spellings to the actual ARIA attribute described by hover. */
+export const accessibilityRelationshipAttributes: Readonly<Record<string, string>> = {
+	'active-descendant': 'aria-activedescendant',
+	controls: 'aria-controls',
+	'described-by': 'aria-describedby',
+	details: 'aria-details',
+	'error-message': 'aria-errormessage',
+	'flow-to': 'aria-flowto',
+	'labelled-by': 'aria-labelledby',
+	owns: 'aria-owns'
+};
+
+/** Accepted JSX names shared by package completion and source-fact consumers. */
+export const accessibilityActivators = [
+	...Object.keys(accessibilityRelationshipAttributes),
+	'focus-scope',
+	'initial-focus',
+	'navigate',
+	'return-focus'
+] as const;
+
 /** Runtime roles for which the package publishes a complete navigation policy. */
 export const supportedNavigationRoles = new Set([
 	'tablist',
@@ -25,6 +46,18 @@ export function attributeMap(
 			[attribute.localName, attribute]
 		])
 	);
+}
+
+/** Returns the final explicit ID candidate, discarding evidence overwritten by a spread. */
+export function effectiveIdAttribute(
+	element: ExactJsxLanguageFactV1
+): ExactJsxAttributeV1 | undefined {
+	let candidate: ExactJsxAttributeV1 | undefined;
+	for (const attribute of element.attributes) {
+		if (attribute.valueKind === 'spread') candidate = undefined;
+		else if (attribute.name === 'id' || attribute.localName === 'id') candidate = attribute;
+	}
+	return candidate;
 }
 
 /** Returns a compiler-proven string constant. */

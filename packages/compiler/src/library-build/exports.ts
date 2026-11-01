@@ -1,12 +1,14 @@
 import path from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import type {
 	ExactComponentBuildFacts,
 	ExactPublishedComponentBuildFacts,
-	ExactPublishedModuleArtifacts
+	ExactPublishedModuleArtifacts,
+	ExactPublishedComponentBuildProjection
 } from '../contracts/transform.js';
 import type { LibraryManifest } from './manifest.js';
 import { writeExactPublishedComponentBuildFacts } from '../component-library-build.js';
-import { inspectLibraryExports } from './export-inspection.js';
+import { inspectLibrarySelections } from './export-inspection.js';
 import {
 	type LibraryInspectionResolution,
 	withLibraryInspectionResolution
@@ -20,9 +22,13 @@ export async function publishLibraryFacts(
 	stagedOutput?: string,
 	artifactModules: ReadonlyMap<string, ExactPublishedModuleArtifacts> = new Map()
 ): Promise<void> {
+	const publishedModules = new Map<
+		string,
+		ExactComponentBuildFacts & ExactPublishedComponentBuildProjection
+	>(componentBuildModules);
 	const componentBuildExports: ExactPublishedComponentBuildFacts['exports'][number][] = [];
 	async function verifyTargets(scope?: LibraryInspectionResolution) {
-		for (const target of ['client', 'server'])
+		for (const target of ['client', 'server'] as const)
 			await verifyCompiledExports(
 				target,
 				manifest.exactTargetDirectories?.[target] ?? target,
@@ -33,7 +39,7 @@ export async function publishLibraryFacts(
 	else await verifyTargets();
 	await writeComponentLibraryBuildFacts();
 	async function verifyCompiledExports(
-		target: string,
+		target: 'client' | 'server',
 		targetDirectory: string,
 		scope?: LibraryInspectionResolution
 	) {
@@ -73,7 +79,63 @@ export async function publishLibraryFacts(
 				});
 			}
 		}
-		const namespaces = await inspectLibraryExports(selections, target, scope);
+		const relative = [...publishedModules].flatMap(([modulePath, facts]) =>
+			modulePath.startsWith(`dist/${targetDirectory}/`)
+				? facts.componentImports.flatMap((edge, index) =>
+						edge.moduleSpecifier.startsWith('.') &&
+						(!edge.artifactTargets.length || edge.artifactTargets.includes(target))
+							? [{ modulePath, edge, index }]
+							: []
+					)
+				: []
+		);
+		const inspected = await inspectLibrarySelections(
+			selections,
+			target,
+			scope,
+			relative.map(({ modulePath, edge }) => ({
+				parent: pathToFileURL(
+					stagedOutput
+						? path.join(stagedOutput, path.relative('dist', modulePath))
+						: path.resolve(packageRoot, modulePath)
+				).href,
+				specifier: edge.moduleSpecifier,
+				name: edge.exportName
+			}))
+		);
+		for (const [index, selection] of relative.entries()) {
+			const actual = inspected.relatives[index]!;
+			const filename = fileURLToPath(actual.url);
+			const modulePath = stagedOutput
+				? `dist/${path.relative(stagedOutput, filename).replaceAll('\\', '/')}`
+				: packageModulePath(filename);
+			const canonicalOwner = componentModuleFor(
+				actual.identity,
+				targetDirectory,
+				selection.edge.moduleSpecifier,
+				selection.edge.exportName
+			);
+			if (
+				modulePath !== canonicalOwner ||
+				(selection.edge.canonicalComponentId &&
+					selection.edge.canonicalComponentId !== actual.identity)
+			)
+				throw new Error('Inspected relative component does not match its direct canonical owner');
+			const facts = publishedModules.get(selection.modulePath)!;
+			publishedModules.set(selection.modulePath, {
+				...facts,
+				componentImports: facts.componentImports.map((edge, edgeIndex) =>
+					edgeIndex === selection.index
+						? {
+								...edge,
+								canonicalComponentId: actual.identity,
+								executable: { target, module: modulePath }
+							}
+						: edge
+				)
+			});
+		}
+		const namespaces = inspected.exports;
 		for (const [index, selection] of selections.entries()) {
 			const { subpath, names, condition, modulePath } = selection;
 			const namespace = namespaces[index]!;
@@ -87,7 +149,8 @@ export async function publishLibraryFacts(
 						module: modulePath,
 						componentModule,
 						exportName: name,
-						componentId: identity
+						componentId: identity,
+						target
 					});
 			}
 		}
@@ -138,7 +201,7 @@ export async function publishLibraryFacts(
 				: declaration.build;
 		await writeExactPublishedComponentBuildFacts(packageRoot, destination, {
 			package: { name: manifest.name, version: manifest.version },
-			modules: [...componentBuildModules]
+			modules: [...publishedModules]
 				.filter(
 					([, facts]) =>
 						facts.components.length ||

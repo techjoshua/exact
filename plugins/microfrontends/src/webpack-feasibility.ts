@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { createProvidedPackageImportAnalysis } from './import-analysis.js';
 import {
 	generateProvidedPackageBridge,
 	planProvidedPackageBridge,
@@ -58,6 +59,7 @@ export function createExactRemoteWebpackAdapter(options: {
 	);
 	options.onDevelopmentEntries?.(developmentEntries);
 	return Object.freeze({
+		...createProvidedPackageImportAnalysis(options.plan.providedPackages),
 		pageBootstrapImport,
 		pageBootstrapId,
 		entries: Object.freeze(entries),

@@ -29,10 +29,10 @@ export function createRequestContextValue(
 		input.url instanceof URL ? input.url.href : (input.url ?? '/'),
 		'http://exact.invalid'
 	);
-	const url = new URL(
-		`${supplied.pathname}${supplied.search}`,
-		publicOrigin ?? 'http://exact.invalid'
-	);
+	const url = new URL(publicOrigin ?? 'http://exact.invalid');
+	// Assign URL components so a leading // in the pathname cannot become an authority.
+	url.pathname = supplied.pathname;
+	url.search = supplied.search;
 	const setStatus = (status: number) => {
 		assertResponseMutable(response);
 		if (!Number.isInteger(status) || status < 100 || status > 999) {
@@ -52,12 +52,13 @@ export function createRequestContextValue(
 			if (!Number.isInteger(status) || status < 300 || status > 399) {
 				throw new RangeError(`Invalid HTTP redirect status ${status}`);
 			}
-			setStatus(status);
+			assertResponseMutable(response);
 			const target = location instanceof URL ? new URL(location) : new URL(location, url);
-			response.redirect = { location: target, status };
 			// Preserve authored relative redirects. Turning them into absolute
 			// locations would make request-controlled authority data observable.
 			response.headers.set('location', location instanceof URL ? location.href : location);
+			response.status = status;
+			response.redirect = { location: target, status };
 		},
 		setStatus,
 		setHeader(name, value) {
@@ -85,7 +86,7 @@ function normalizePublicOrigin(value: string | URL): URL {
 	return new URL(origin.origin);
 }
 
-/** Freezes request-owned response controls at the transport commit boundary. */
+/** Commits response controls and returns detached transport values. */
 export function commitRequestResponseState(response: RequestResponseState): Readonly<{
 	status?: number;
 	redirect?: { location: URL; status: number };

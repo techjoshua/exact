@@ -1,3 +1,4 @@
+import type { NativeCompilerDiagnostic } from '../native/process-diagnostic-contracts.js';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { collectInputFiles, commonRoot, outputPathFor } from '../paths.js';
@@ -86,7 +87,7 @@ async function prepareFile(
 					outputFile
 				).code
 			: result.code;
-	return Object.freeze({
+	return {
 		...result,
 		code: executable,
 		map:
@@ -100,7 +101,7 @@ async function prepareFile(
 		inputFile,
 		outputFile,
 		sourceMapFile
-	});
+	};
 }
 
 async function publishPreparedFile(prepared: PreparedCompileFile): Promise<void> {
@@ -194,10 +195,18 @@ export async function checkProject(
 	inputs: readonly string[],
 	options: CompileProjectOptions = {}
 ): Promise<void> {
+	await collectProjectCheckDiagnostics(inputs, options);
+}
+
+/** Executes one project check without printing, retaining structured diagnostics for the CLI. */
+export async function collectProjectCheckDiagnostics(
+	inputs: readonly string[],
+	options: CompileProjectOptions = {}
+): Promise<readonly NativeCompilerDiagnostic[]> {
 	const ownedSession = createOwnedNativeCompilationSession(options.session);
 	if (ownedSession) {
 		try {
-			return await checkProject(inputs, { ...options, session: ownedSession });
+			return await collectProjectCheckDiagnostics(inputs, { ...options, session: ownedSession });
 		} finally {
 			ownedSession.dispose();
 		}
@@ -235,27 +244,31 @@ export async function checkProject(
 		session: options.session
 	});
 	const errors: string[] = [];
+	const diagnostics: NativeCompilerDiagnostic[] = [];
 	for (const file of files) {
 		const source = synchronizedSources.get(file) ?? (await readFile(file, 'utf8'));
 		try {
-			checkSourceWithNativeCompiler(source, file, {
-				filename: file,
-				root: options.root,
-				configFile: options.configFile,
-				session: options.session,
-				packageEnhancements,
-				serverComponents: options.serverComponents,
-				preserveComponentHoisting: options.preserveComponentHoisting,
-				jsxInterop: options.jsxInterop,
-				assetRules: options.assetRules,
-				preserveClientAssetImports: options.preserveClientAssetImports,
-				...capabilityCompilationOptions(options)
-			});
+			diagnostics.push(
+				...checkSourceWithNativeCompiler(source, file, {
+					filename: file,
+					root: options.root,
+					configFile: options.configFile,
+					session: options.session,
+					packageEnhancements,
+					serverComponents: options.serverComponents,
+					preserveComponentHoisting: options.preserveComponentHoisting,
+					jsxInterop: options.jsxInterop,
+					assetRules: options.assetRules,
+					preserveClientAssetImports: options.preserveClientAssetImports,
+					...capabilityCompilationOptions(options)
+				})
+			);
 		} catch (error) {
 			errors.push(error instanceof Error ? error.message : String(error));
 		}
 	}
 	if (errors.length) throw new Error(errors.join('\n'));
+	return diagnostics;
 }
 
 type PreparedCompileFile = CompileFileResult & Readonly<{ source: string }>;

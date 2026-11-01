@@ -1,7 +1,7 @@
 /** @vitest-environment jsdom */
 import { expect, it, vi } from 'vitest';
 import { render } from '@exactjs/dom';
-import { createCompiledComponentReceipt as receipt } from '@exactjs/core/runtime/component-operations';
+import { createCompiledComponentInputReceipt as receipt } from '@exactjs/core/runtime/component-operations';
 import { composeExactComponentContracts } from '@exactjs/core/framework/component-contracts';
 import {
 	composeExactExecutorContract,
@@ -12,7 +12,6 @@ import { createExactServerRuntime } from '@exactjs/ssr';
 import { createExactClient } from '@exactjs/hydrate';
 import { ResultOwner as Client } from './test-support/awaited-task-result.fixtures.test.js';
 import { ResultOwner as Server } from './test-support/awaited-task-result.fixtures.test.js?exact-target=server';
-
 it('keeps awaited result assignments with each invoking event', async () => {
 	const contract = composeExactExecutorContract([Server]);
 	const runtime = createExactServerRuntime({ contract });

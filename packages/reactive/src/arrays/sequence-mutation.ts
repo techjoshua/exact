@@ -1,9 +1,12 @@
+import type { RestorationReceipt } from '../internal/transaction-restoration.js';
+import { propertyDescriptor } from '../proxy/property-descriptors.js';
 import { createPropertyUndo } from './property-undo.js';
 import {
 	batch,
 	hasActiveTransaction,
 	notifyReactiveDependency,
 	readOwnershipVersion,
+	readMutationVersion,
 	recordTransactionCleanup,
 	retainTransactionArray,
 	recordTransactionUndo,
@@ -18,14 +21,17 @@ import {
 	insertArrayPositions,
 	removeArrayPositions,
 	restoreArrayPosition,
-	releaseArrayPositions
+	releaseArrayPositions,
+	refuseArrayPositions,
+	canRestoreClearedPositions,
+	type ArrayPosition
 } from './positions.js';
+import { readArrayOrderVersion } from './reordering.js';
 import { arrayLengthWriteKey, iterateKey } from '../internal/symbols.js';
 import { markReactiveHashDirty } from '../internal/keyed-collections.js';
-import { unwrap } from '../internal/values.js';
 import type { ReactiveOptions } from '../internal/types.js';
 
-/** Applies native sequence edits with entry identity retained across overlapping optimistic tasks. */
+/** Applies native sequence edits to normalized arguments, retaining entry identity across optimistic tasks. */
 export function mutateArraySequence(
 	target: unknown[],
 	name: string,
@@ -51,10 +57,7 @@ export function mutateArraySequence(
 			descriptor: Reflect.getOwnPropertyDescriptor(target, String(index))
 		};
 	});
-	const result = method.apply(
-		target,
-		args.map((value) => unwrap(value))
-	);
+	const result = method.apply(target, args);
 	if (removed) removeArrayPositions(target, start, removed);
 	if (inserted && start < oldLength - removed) insertArrayPositions(target, start, inserted);
 	const added = Array.from(
@@ -64,38 +67,63 @@ export function mutateArraySequence(
 	if (journaled) {
 		const entries = [...deleted.map((entry) => entry.position), ...added];
 		recordTransactionCleanup(() => releaseArrayPositions(entries));
+		const cleared =
+			start === 0 && removed === oldLength && inserted === 0
+				? fullClearRestoration(target, deleted, lengthVersion)
+				: undefined;
 		for (const entry of deleted)
 			recordTransactionUndo(
 				(restoration) => {
-					if (entry.position.index >= 0) return;
+					if (cleared?.used || entry.position.index >= 0) return false;
 					const index = arrayRestorationIndex(entry.position);
 					const beforeLength = target.length;
+					const lengthReceipt = restoration.capture(target, 'length');
 					if (restoration.allows(target, arrayLengthWriteKey, lengthVersion)) {
 						Array.prototype.splice.call(target, index, 0, undefined);
 						insertArrayPositions(target, index, 1);
 						restoreArrayPosition(entry.position, index);
 					} else {
-						if (index >= target.length || Reflect.has(target, index)) return;
+						if (index >= target.length || Reflect.has(target, index)) return false;
 						restoreArrayPosition(entry.position, index);
 					}
-					if (entry.descriptor) Reflect.defineProperty(target, String(index), entry.descriptor);
-					else Reflect.deleteProperty(target, String(index));
-					notifyRestoration(target, index, beforeLength, restoration);
+					// Position attachment is complete here. Preserve a descriptor error over invalidation failure.
+					let completed: boolean;
+					try {
+						completed = entry.descriptor
+							? Reflect.defineProperty(target, String(index), entry.descriptor)
+							: Reflect.deleteProperty(target, String(index));
+					} catch (error) {
+						try {
+							notifyRestoration(target, index, beforeLength, restoration, lengthReceipt);
+						} catch {
+							/* The descriptor failure owns the exact primary. */
+						}
+						throw error;
+					}
+					notifyRestoration(target, index, beforeLength, restoration, lengthReceipt);
+					return completed;
 				},
 				entry.position,
 				arrayPositionKey
 			);
+		if (cleared) recordTransactionUndo(cleared.restore);
 		for (const position of added)
 			recordTransactionUndo(
 				(restoration) => {
-					if (position.index < 0) return;
+					if (position.index < 0) return false;
 					const index = position.index;
 					const beforeLength = target.length;
+					const lengthReceipt = restoration.capture(target, 'length');
 					if (restoration.allows(target, arrayLengthWriteKey, lengthVersion)) {
 						Array.prototype.splice.call(target, index, 1);
 						removeArrayPositions(target, index, 1);
-					} else Reflect.deleteProperty(target, String(index));
-					notifyRestoration(target, index, beforeLength, restoration);
+					} else {
+						const completed = Reflect.deleteProperty(target, String(index));
+						notifyRestoration(target, index, beforeLength, restoration, lengthReceipt);
+						return completed;
+					}
+					notifyRestoration(target, index, beforeLength, restoration, lengthReceipt);
+					return true;
 				},
 				position,
 				arrayPositionKey
@@ -127,11 +155,14 @@ function notifyRestoration(
 	target: unknown[],
 	start: number,
 	beforeLength: number,
-	restoration: MutationRestoration
+	restoration: MutationRestoration,
+	lengthReceipt: RestorationReceipt
 ): void {
-	for (let index = start; index < Math.max(beforeLength, target.length); index++)
-		restoration.notify(target, String(index));
-	if (beforeLength !== target.length) restoration.mark(target, 'length');
+	const end = Math.max(beforeLength, target.length);
+	// Version invalidation also reaches retained pull dependencies without live observers.
+	for (let index = start; index < end; index++) restoration.notify(target, String(index));
+	if (beforeLength !== target.length) restoration.mark(lengthReceipt);
+
 	restoration.notify(target, iterateKey);
 }
 
@@ -170,10 +201,7 @@ function replaceArraySegment(
 	if (hasActiveTransaction())
 		for (let index = start; index < start + count; index++)
 			recordTransactionUndo(createPropertyUndo(target, String(index)), target, String(index));
-	const result = method.apply(
-		target,
-		args.map((value) => unwrap(value))
-	);
+	const result = method.apply(target, args);
 	batch(() => {
 		for (let index = start; index < start + count; index++) trigger(target, String(index));
 		if (count) {
@@ -190,7 +218,9 @@ function replaceArraySegment(
 	return result;
 }
 
-/** Keeps descriptor-sensitive or coercion-driven mutations on the snapshot restoration path. */
+/** Keeps descriptor-sensitive or coercion-driven mutations on the snapshot restoration path.
+ * Checks inherited slots and new destinations too, because native methods can partially fail there.
+ */
 export function supportsSequenceTracking(
 	target: unknown[],
 	name: string,
@@ -214,8 +244,9 @@ export function supportsSequenceTracking(
 		return false;
 	const edit = sequenceEdit(name, args, target.length);
 	if (target.length - edit.removed + edit.inserted > 0xffff_ffff) return false;
-	for (let index = edit.start; index < target.length; index++) {
-		const descriptor = Reflect.getOwnPropertyDescriptor(target, String(index));
+	const nextLength = target.length - edit.removed + edit.inserted;
+	for (let index = edit.start; index < Math.max(target.length, nextLength); index++) {
+		const descriptor = propertyDescriptor(target, String(index));
 		if (
 			descriptor &&
 			(!('value' in descriptor) || !descriptor.writable || !descriptor.configurable)
@@ -223,4 +254,132 @@ export function supportsSequenceTracking(
 			return false;
 	}
 	return true;
+}
+
+/** Restores only a completed full clear into its exact empty receiver, with local partial progress. */
+function fullClearRestoration(
+	target: unknown[],
+	entries: readonly { position: ArrayPosition; descriptor: PropertyDescriptor | undefined }[],
+	lengthVersion: number
+): { used: boolean; restore(restoration: MutationRestoration): void } {
+	const positions = entries.map((entry) => entry.position);
+	const completed = new Set<number>();
+	let attached = false;
+	let disabled = false;
+	let uncertain = false;
+	const state = { used: false, restore };
+	const signal = () => [
+		readMutationVersion(target, iterateKey),
+		readArrayOrderVersion(target),
+		readMutationVersion(target, 'length'),
+		readMutationVersion(target, arrayLengthWriteKey)
+	];
+	const unchanged = (before: number[]) => signal().every((value, index) => value === before[index]);
+	const refuse = () => {
+		uncertain = true;
+		refuseArrayPositions(positions);
+	};
+	function apply(restoration: MutationRestoration, receipts: RestorationReceipt[]): void {
+		if (!attached) {
+			const before = signal();
+			const admitted =
+				target.length === 0 &&
+				canRestoreClearedPositions(positions) &&
+				restoration.allows(target, arrayLengthWriteKey, lengthVersion) &&
+				positions.every((position) => restoration.allows(position, arrayPositionKey));
+			if (!unchanged(before)) {
+				state.used = true;
+				refuse();
+				return;
+			}
+			if (!admitted) {
+				if (!state.used) disabled = true;
+				return;
+			}
+			state.used = true;
+			const lengthReceipt = restoration.capture(target, 'length');
+			const extentSignal = signal();
+			const accepted = Reflect.defineProperty(target, 'length', { value: entries.length });
+			const length = target.length;
+			if (!unchanged(extentSignal)) {
+				refuse();
+				return;
+			}
+			if (!accepted) {
+				if (length !== 0) refuse();
+				return;
+			}
+			if (length !== entries.length || !canRestoreClearedPositions(positions)) {
+				refuse();
+				return;
+			}
+			const holesSignal = signal();
+			const vacant = entries.every(
+				(_, index) => !Reflect.getOwnPropertyDescriptor(target, String(index))
+			);
+			if (!unchanged(holesSignal) || !vacant) {
+				refuse();
+				return;
+			}
+			positions.forEach((position, index) => restoreArrayPosition(position, index));
+			attached = true;
+			receipts.push(lengthReceipt);
+		}
+		for (let index = entries.length - 1; index >= 0; index--) {
+			if (completed.has(index)) continue;
+			const entry = entries[index]!;
+			if (!restoration.allows(entry.position, arrayPositionKey)) continue;
+			if (
+				entry.position.index !== index ||
+				arrayPosition(target, index, false) !== entry.position
+			) {
+				refuse();
+				return;
+			}
+			const receipt = restoration.capture(entry.position, arrayPositionKey);
+			const before = signal();
+			let accepted: boolean;
+			try {
+				accepted = entry.descriptor
+					? Reflect.defineProperty(target, String(index), entry.descriptor)
+					: Reflect.getOwnPropertyDescriptor(target, String(index)) === undefined;
+			} finally {
+				if (!unchanged(before)) refuse();
+			}
+			if (uncertain) return;
+			if (accepted && readOwnershipVersion(receipt.target, receipt.key) === receipt.expected) {
+				completed.add(index);
+				receipts.push(receipt);
+			}
+		}
+	}
+	function restore(restoration: MutationRestoration): void {
+		if (disabled || uncertain) return;
+		const receipts: RestorationReceipt[] = [];
+		let failed = false;
+		let primary: unknown;
+		try {
+			apply(restoration, receipts);
+		} catch (error) {
+			failed = true;
+			primary = error;
+			if (state.used && !attached) refuse();
+		}
+		try {
+			if (!uncertain) for (const receipt of receipts) restoration.mark(receipt);
+			if (state.used) {
+				for (let index = 0; index < entries.length; index++)
+					restoration.notify(target, String(index));
+				restoration.notify(target, 'length');
+				restoration.notify(target, iterateKey);
+			}
+		} catch (error) {
+			if (!failed) {
+				failed = true;
+				primary = error;
+			}
+		}
+		if (failed) throw primary;
+	}
+	return state;
 }

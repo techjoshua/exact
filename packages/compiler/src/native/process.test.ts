@@ -1,8 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { createHash } from 'node:crypto';
+import { nativeExecutableSlotsVersion } from './process-executable-selection.js';
 
 const workerState = vi.hoisted(() => ({
 	mode: 'protocol-mismatch' as 'protocol-mismatch' | 'startup-error' | 'timeout',
 	closeStalls: false,
+	response: undefined as Record<string, unknown> | undefined,
 	instances: [] as Array<{ messages: string[]; terminated: boolean }>
 }));
 
@@ -33,6 +36,10 @@ vi.mock('node:worker_threads', () => ({
 				Atomics.notify(this.header, 0);
 				return;
 			}
+			if (workerState.response) {
+				this.publish(2, JSON.stringify(workerState.response));
+				return;
+			}
 			if (workerState.mode === 'timeout') return;
 			this.publish(2, JSON.stringify({ protocolVersion: 999 }));
 		}
@@ -61,6 +68,7 @@ describe('native compiler process construction', () => {
 		workerState.instances.length = 0;
 		workerState.mode = 'protocol-mismatch';
 		workerState.closeStalls = false;
+		workerState.response = undefined;
 	});
 
 	it('closes its provisional worker when startup fails', () => {
@@ -124,5 +132,159 @@ describe('native compiler process construction', () => {
 		expect(
 			workerState.instances[0]!.messages.filter((message) => message === 'close')
 		).toHaveLength(1);
+	});
+});
+
+// Same-protocol binaries can ignore optional fields. A successful response alone
+// cannot establish that the requested executable graph was installed.
+describe('native executable selection acknowledgement', () => {
+	it.each(['missing', 'generation', 'revision', 'target', 'matching'] as const)(
+		'requires the requested snapshot: %s',
+		(mode) => {
+			workerState.closeStalls = false;
+			const selected = {
+				generation: 3,
+				revision: 'config-3',
+				target: 'default' as const,
+				modules: [],
+				edges: []
+			};
+			workerState.response = validWorkerResponse();
+			const process = new NativeCompilerProcess({ executable: 'synthetic-native-compiler' });
+			try {
+				// Ordinary requests remain usable without this optional internal contract.
+				expect(process.request({ kind: 'version' }).backendVersion).toBe('1.0.0');
+				const ack = {
+					generation: selected.generation,
+					revision: selected.revision,
+					target: selected.target as string
+				};
+				if (mode === 'generation') ack.generation++;
+				if (mode === 'revision') ack.revision = 'stale';
+				if (mode === 'target') ack.target = 'client';
+				if (mode !== 'missing') workerState.response.executableSelection = ack;
+				const request = () =>
+					process.request({ kind: 'synchronize', executableSelection: selected });
+				if (mode === 'matching') expect(request().executableSelection).toEqual(ack);
+				else expect(request).toThrow('did not acknowledge the executable selection snapshot');
+			} finally {
+				process.dispose();
+				workerState.response = undefined;
+			}
+		}
+	);
+});
+
+/** Builds only the process envelope required by the transport validation tests. */
+function validWorkerResponse(): Record<string, unknown> {
+	return {
+		protocolVersion: '1.0.0',
+		typescriptVersion: 'test',
+		backendVersion: '1.0.0',
+		diagnostics: [],
+		analysis: {
+			...Object.fromEntries(
+				[
+					'imports',
+					'components',
+					'jsx',
+					'stateAliases',
+					'stateReads',
+					'stateWrites',
+					'reactiveBindings',
+					'callables',
+					'tasks',
+					'exports',
+					'symbols',
+					'boundaries',
+					'continuations',
+					'resumptions',
+					'rendererEnhancements',
+					'assets'
+				].map((name) => [name, []])
+			),
+			requiredCapabilities: { rawHtml: [] },
+			policy: { version: 1, subjects: [], flows: [], secretConsumers: [] }
+		}
+	};
+}
+
+describe('native syntax-slot acquisition handshake', () => {
+	it.each([undefined, 1, 3])(
+		'refuses an unadvertised capability %s before sending syntax work',
+		(version) => {
+			workerState.closeStalls = false;
+			workerState.response = { ...validWorkerResponse(), executableSlotsVersion: version };
+			const compiler = new NativeCompilerProcess({ executable: 'synthetic-native-compiler' });
+			try {
+				const messages = workerState.instances.at(-1)!.messages.length;
+				expect(() =>
+					compiler.request({ kind: 'executable-slots', id: '/entry.ts', source: '' })
+				).toThrow('does not support syntax-only executable slots');
+				expect(workerState.instances.at(-1)!.messages).toHaveLength(messages);
+				expect(compiler.request({ kind: 'version' }).protocolVersion).toBe('1.0.0');
+			} finally {
+				compiler.dispose();
+				workerState.response = undefined;
+			}
+		}
+	);
+	it.each([
+		'missing',
+		'ordinal',
+		'kind',
+		'type-only',
+		'capability',
+		'missing-discovery',
+		'discovery-hash',
+		'discovery-shape',
+		'valid'
+	] as const)('validates syntax response %s', (mode) => {
+		workerState.closeStalls = false;
+		workerState.response = {
+			...validWorkerResponse(),
+			executableSlotsVersion: nativeExecutableSlotsVersion
+		};
+		const compiler = new NativeCompilerProcess({ executable: 'synthetic-native-compiler' });
+		try {
+			const slot = { slot: 0, specifier: './real.js', kind: 'import', typeOnly: false };
+			workerState.response.helperSourceDiscovery = {
+				sourceRevision: createHash('sha256').update("import './real.js'").digest('hex'),
+				completeNegative: true
+			};
+			if (mode === 'missing-discovery') delete workerState.response.helperSourceDiscovery;
+			if (mode === 'discovery-hash')
+				workerState.response.helperSourceDiscovery = {
+					sourceRevision: 'wrong',
+					completeNegative: true
+				};
+			if (mode === 'discovery-shape')
+				workerState.response.helperSourceDiscovery = {
+					sourceRevision: createHash('sha256').update("import './real.js'").digest('hex')
+				};
+			workerState.response.executableSlots =
+				mode === 'missing'
+					? null
+					: [
+							{
+								...slot,
+								...(mode === 'ordinal' ? { slot: 1 } : {}),
+								...(mode === 'kind' ? { kind: 'call' } : {}),
+								...(mode === 'type-only' ? { typeOnly: undefined } : {})
+							}
+						];
+			if (mode === 'capability') workerState.response.executableSlotsVersion = 3;
+			const request = () =>
+				compiler.request({
+					kind: 'executable-slots',
+					id: '/entry.ts',
+					source: "import './real.js'"
+				});
+			if (mode === 'valid') expect(request().executableSlots).toEqual([slot]);
+			else expect(request).toThrow('invalid executable syntax slots');
+		} finally {
+			compiler.dispose();
+			workerState.response = undefined;
+		}
 	});
 });

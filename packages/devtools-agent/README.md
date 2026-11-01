@@ -50,6 +50,9 @@ JavaScript.
 
 Connection establishment, target discovery, and individual CDP requests are time-bounded. Target
 discovery responses, WebSocket messages, and the number of pending requests are bounded as well. Advanced callers may
-tune these ceilings with `ExactCdpConnectionOptions` and cancel work with an `AbortSignal`.
+tune these ceilings with `ExactCdpConnectionOptions` and cancel work with an `AbortSignal`. Cancellation
+preserves the signal's exact reason, including null. Requests made after the transport closes reject immediately. Connection setup rejects malformed page sessions and releases partially acquired resources. Disconnect attempts every owned cleanup even when one fails. When discovering from a `debugUrl`, supply
+`targetId` to select one page. An unavailable ID fails the connection. Omitting it selects
+the first available page.
 
 [Documentation](https://techjoshua.github.io/exact/#/learn/devtools) | [Source on GitHub](https://github.com/techjoshua/exact/tree/main/packages/devtools-agent)

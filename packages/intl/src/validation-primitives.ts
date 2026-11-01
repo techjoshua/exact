@@ -1,5 +1,30 @@
 import { intl } from '@exactjs/core';
 import type { IntlBindingDescriptorV1 } from './contracts.js';
+import type { IntlValidationLimits } from './descriptor-validation.js';
+
+const bindingTypes = new Set([
+	'string',
+	'number',
+	'bigint',
+	'boolean',
+	'temporal-date',
+	'temporal-time',
+	'temporal-date-time',
+	'temporal-instant',
+	'temporal-zoned-date-time',
+	'temporal-duration',
+	'monetary',
+	'measurement',
+	'structure',
+	'opaque-structure'
+]);
+
+/** Requires a protocol binding type without coercing executable caller values to strings. */
+export function requireBindingType(input: unknown, path: string): IntlBindingDescriptorV1['type'] {
+	if (typeof input !== 'string' || !bindingTypes.has(input))
+		throw new TypeError(`${path} has an unsupported binding type`);
+	return input as IntlBindingDescriptorV1['type'];
+}
 
 /** Internal domain operation that require binding without publishing an application API. */
 export function requireBinding(
@@ -24,34 +49,40 @@ export function canonicalLocale(input: unknown, path: string): string {
 	}
 }
 
-/** Internal domain operation that require record without publishing an application API. */
-export function requireRecord(input: unknown, path: string): Record<string, unknown> {
-	if (typeof input !== 'object' || input === null || Array.isArray(input))
-		throw new TypeError(`${path} must be an object`);
-	const prototype = Object.getPrototypeOf(input);
-	if (prototype !== Object.prototype && prototype !== null)
-		throw new TypeError(`${path} must be a plain data object`);
-	return input as Record<string, unknown>;
-}
-
 /** Internal domain operation that require exact keys without publishing an application API. */
 export function requireExactKeys(
 	record: Record<string, unknown>,
 	allowed: readonly string[],
 	optional: readonly string[] = []
 ): void {
-	const allowedSet = new Set(allowed);
 	for (const key of Object.keys(record))
-		if (!allowedSet.has(key)) throw new TypeError(`Unexpected intl protocol field "${key}"`);
-	const optionalSet = new Set(optional);
+		if (!allowed.includes(key)) throw new TypeError(`Unexpected intl protocol field "${key}"`);
 	for (const key of allowed)
-		if (!optionalSet.has(key) && !(key in record))
+		if (!optional.includes(key) && !(key in record))
 			throw new TypeError(`Missing intl protocol field "${key}"`);
 }
 
-/** Internal domain operation that require bounded string without publishing an application API. */
+/** Bounds both authored and NFC-normalized strings in UTF-16 code units before publication. */
 export function requireBoundedString(input: unknown, path: string, maximum = 1024): string {
 	if (typeof input !== 'string' || input.length === 0 || input.length > maximum)
 		throw new TypeError(`${path} must be a nonempty string of at most ${maximum} code units`);
-	return input.normalize('NFC');
+	const normalized = input.normalize('NFC');
+	if (normalized.length > maximum)
+		throw new TypeError(`${path} exceeds the normalized string limit of ${maximum} code units`);
+	return normalized;
+}
+
+/** Captures configured work limits once and rejects nonfinite, fractional, or negative counts. */
+export function captureValidationLimits(limits: IntlValidationLimits): IntlValidationLimits {
+	const captured = {
+		maxDepth: limits.maxDepth,
+		maxNodes: limits.maxNodes,
+		maxTextLength: limits.maxTextLength
+	};
+	for (const key of ['maxDepth', 'maxNodes', 'maxTextLength'] as const) {
+		const value = captured[key];
+		if (value !== undefined && (!Number.isSafeInteger(value) || value < 0))
+			throw new RangeError(`Intl ${key} must be a non-negative safe integer`);
+	}
+	return captured;
 }

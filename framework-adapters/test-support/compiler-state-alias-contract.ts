@@ -5,13 +5,22 @@ import path from 'node:path';
 import { promisify } from 'node:util';
 import { buildDiagnosticFixture } from './compiler-diagnostic-build.js';
 
-/** Verifies setup state aliases and aliased DOM placement through each adapter's own build path. */
+/** Verifies state aliases and guarded versus unconditional browser placement through each adapter. */
 export async function verifyCompilerStateAliasContract(adapter: 'vite' | 'webpack' | 'bun') {
 	const parent = path.resolve('.tmp/compiler-state-alias-adapters');
 	await mkdir(parent, { recursive: true });
 	const root = await mkdtemp(path.join(parent, adapter + '-'));
 	try {
 		await Promise.all([
+			writeFile(
+				path.join(root, 'location.ts'),
+				`export function read(){if(typeof window==='undefined')return 'portable';return window.location.href;}`
+			),
+			writeFile(path.join(root, 'location-barrel.ts'), `export {read} from './location.js';`),
+			writeFile(
+				path.join(root, 'Guarded.tsx'),
+				`import {read} from './location-barrel.js';function deferred(){return {get browser(){return window.location.href;}};}export function Guarded(props:{format:(value:string)=>string}){const holder=deferred();const value=decodeURIComponent(encodeURIComponent(read()));return()=> <aside>{props.format(value)}</aside>;}`
+			),
 			writeFile(
 				path.join(root, 'package.json'),
 				JSON.stringify({ name: '@fixture/compiler-state-alias', type: 'module', private: true })
@@ -46,7 +55,7 @@ export function Browser(this:Component<{width:number}>){this.state.width=readWid
 				path.join(root, 'entry.tsx'),
 				`import {TaskContext,type Component} from '@exactjs/core';
 import {unmount as teardown} from '@exactjs/dom';import {renderToString} from '@exactjs/ssr';
-import {Browser} from './Browser.js';export {executions} from './Browser.js';
+import {Browser} from './Browser.js';import {Guarded} from './Guarded.js';export {executions} from './Browser.js';
 export let domExecutions=0;
 function DOMBrowser(){domExecutions++;teardown(null as unknown as Element);return()=> <p>browser</p>}
 export function Page(this:Component<{rows:{value:number}[][]}>){
@@ -54,7 +63,7 @@ export function Page(this:Component<{rows:{value:number}[][]}>){
  function mutate(){selected.value++;}
  function update(task:TaskContext=TaskContext.${target}().blocking()){mutate();}
  ${target === 'server' ? 'update();' : ''}
- return()=> <main><output>{selected.value}</output><Browser/><DOMBrowser/><button onClick={()=>update()}>next</button></main>;
+ return()=> <main><output>{selected.value}</output><Browser/><DOMBrowser/><Guarded format={(value:string)=>"guarded:"+value}/><button onClick={()=>update()}>next</button></main>;
 }
 export async function verify(){return renderToString(<Page/>,{markers:false})}`
 			);
@@ -69,7 +78,7 @@ export async function verify(){return renderToString(<Page/>,{markers:false})}`
 				`import assert from 'node:assert/strict';
 const imported=await import(${JSON.stringify('./out-server/' + entry)});
 const fixture=imported.verify?imported:imported.default;const result=await fixture.verify();
-assert.ok(result.html.includes('<output>3</output>'),result.html);assert.equal(fixture.executions,0);assert.equal(fixture.domExecutions,0);`
+assert.ok(result.html.includes('<output>3</output>'),result.html);assert.equal(fixture.executions,0);assert.equal(fixture.domExecutions,0);assert.ok(result.html.includes('<aside>guarded:portable</aside>'),result.html);`
 			);
 			await promisify(execFile)(process.execPath, [runner], { cwd: root });
 		}

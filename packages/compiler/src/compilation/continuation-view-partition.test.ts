@@ -11,13 +11,13 @@ import {
 	createExactArtifactGraph,
 	createExactHydrationRegistrationModule
 } from '../index.js';
-import { createTestWorkspace, writeTestFiles } from '../test-support/workspace.js';
+import { createCompilerTestWorkspace, writeTestFiles } from '../test-support/workspace.js';
 import { importArtifact } from '../test-support/import-artifact.js';
 
 it.each(['inline', 'helper'] as const)(
 	'adopts a complete continuation owner with a %s view',
 	async (viewShape) => {
-		const root = await createTestWorkspace('.exact-partition-view-', process.cwd());
+		const root = await createCompilerTestWorkspace('.exact-partition-view-', process.cwd());
 		const markup = `<section><button id="ok" onClick={handlers.ok}>OK</button><button id="fail" onClick={handlers.fail}>Fail</button><output>{state.value}:{state.error}</output></section>`;
 		const files = await writeTestFiles(root, {
 			'inputs.ts': `export function inputs(state: {revision: number; mode: string}) { return {ok: () => {state.mode=state.revision?'recovered':'ok'; state.revision++;}, fail: () => {state.mode='fail'; state.revision++;}}; }`,

@@ -1,3 +1,4 @@
+import { requiresExactServerComponentSelection } from '@exactjs/component-library-policy';
 import { runExactViteAuthorizationGeneration } from './authorization-generation.js';
 import { isMissingExactOptionalEnhancement as isMissingOptionalEnhancement } from '@exactjs/compiler/adapter-support';
 import { materializeExactComponentExecutionGuard } from '@exactjs/component-library-policy';
@@ -123,7 +124,7 @@ export class ExactViteComponentAuthorization {
 		const facts = this.#facts.get(exactModuleFilename(importer))?.facts;
 		return (
 			facts?.componentImports.some(
-				(edge) => edge.moduleSpecifier === source && edge.artifactTargets.includes('server')
+				(edge) => edge.moduleSpecifier === source && requiresExactServerComponentSelection(edge)
 			) === true ||
 			facts?.rendererEnhancements.some((edge) => edge.moduleSpecifier === source) === true
 		);
@@ -182,7 +183,7 @@ export class ExactViteComponentAuthorization {
 		const importerRecord = this.#facts.get(importerModuleId);
 		if (!importerRecord) return resolved;
 		const componentEdge = importerRecord.facts.componentImports.find(
-			(edge) => edge.moduleSpecifier === source && edge.artifactTargets.includes('server')
+			(edge) => edge.moduleSpecifier === source && requiresExactServerComponentSelection(edge)
 		);
 		const enhancementEdge = importerRecord.facts.rendererEnhancements.find(
 			(edge) => edge.moduleSpecifier === source
@@ -385,7 +386,7 @@ export class ExactViteComponentAuthorization {
 		visited: Set<string>
 	): Promise<void> {
 		for (const edge of facts.componentImports) {
-			if (!edge.artifactTargets.includes('server')) continue;
+			if (!requiresExactServerComponentSelection(edge)) continue;
 			await this.authorize(
 				edge.moduleSpecifier,
 				edge.moduleSpecifier,

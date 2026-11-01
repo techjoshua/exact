@@ -2,16 +2,15 @@
 import path from 'node:path';
 import { expect, it, onTestFinished, vi } from 'vitest';
 import type { AnyComponentFunction } from '@exactjs/core';
-import { createCompiledComponentReceipt as receipt } from '@exactjs/core/runtime/component-operations';
+import { createCompiledComponentInputReceipt as receipt } from '@exactjs/core/runtime/component-operations';
 import { composeExactComponentContracts } from '@exactjs/core/framework/component-contracts';
 import { render, unmount } from '@exactjs/dom';
 import { hydrate } from '@exactjs/hydrate';
 import { renderToHydratableString } from '@exactjs/ssr';
 import { flushSync } from '@exactjs/reactive';
 import { compileProjectArtifacts } from '../index.js';
-import { createTestWorkspace, writeTestFiles } from '../test-support/workspace.js';
+import { createBrowserTestWorkspace, writeTestFiles } from '../test-support/workspace.js';
 import { importArtifact } from '../test-support/import-artifact.js';
-
 it.each(
 	['boolean', 'options', 'external'].flatMap((options) =>
 		['direct', 'shared'].flatMap((lane) =>
@@ -21,7 +20,7 @@ it.each(
 )(
 	'preserves listener options and generation lifetime: $options ($mode, $lane)',
 	async ({ options, mode, lane }) => {
-		const root = await createTestWorkspace('.exact-resource-', process.cwd());
+		const root = await createBrowserTestWorkspace('.exact-resource-', process.cwd());
 		const option =
 			options === 'boolean'
 				? 'true'
@@ -122,7 +121,6 @@ it.each(
 		expect(reports).toEqual([]);
 	}
 );
-
 it.each(
 	['dispose', '[Symbol.dispose]', '[Symbol.asyncDispose]']
 		.flatMap((method) => ['auto', 'manual'].map((mode) => ({ method, mode })))
@@ -131,7 +129,7 @@ it.each(
 			{ method: '[Symbol.asyncDispose]', mode: 'context-alias' }
 		])
 )('releases a native helper class once: $method ($mode)', async ({ method, mode }) => {
-	const root = await createTestWorkspace('.exact-native-disposal-', process.cwd());
+	const root = await createBrowserTestWorkspace('.exact-native-disposal-', process.cwd());
 	const files = await writeTestFiles(root, {
 		'page.tsx': `/// <reference lib="esnext.disposable" />
 import {TaskContext} from '@exactjs/core';let releases=0,same=true;export function released(){return releases;}export function identity(){return same;}
@@ -161,11 +159,10 @@ return()=> <button onClick={()=>run()}>Run</button>;}`
 	}
 	expect(errors).toEqual([]);
 });
-
 it.each(['direct', 'registered'])(
 	'keeps native timer cancellation local and preserves callback publication: %s',
 	async (mode) => {
-		const root = await createTestWorkspace('.exact-native-timers-', process.cwd());
+		const root = await createBrowserTestWorkspace('.exact-native-timers-', process.cwd());
 		const files = await writeTestFiles(root, {
 			'page.tsx': `import {TaskContext,type Component} from '@exactjs/core';
 let observed=0,release!:()=>void;export function fired(){return observed;}export function resume(){release();}

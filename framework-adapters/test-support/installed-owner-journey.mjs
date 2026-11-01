@@ -1,5 +1,8 @@
 /** Shared observable ownership assertions for installed bundles in jsdom and Chromium. */
 export async function verifyInstalledOwnerJourney(browser, origin, verifyForms) {
+	browser.verifyAssignmentStorage();
+	browser.verifyReactiveProtocolCollections();
+	await browser.verifyContinuationStateResponses();
 	const assert = {
 		equal(actual, expected, message) {
 			if (actual !== expected)

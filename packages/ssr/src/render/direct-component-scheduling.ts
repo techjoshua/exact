@@ -1,3 +1,8 @@
+import { readServerSlotReceipt } from '@exactjs/core/runtime/component-abi';
+import {
+	isOpaqueOperation,
+	assertComponentOperationProvider
+} from '@exactjs/core/runtime/component-operations';
 import {
 	attachSuppressedCleanupFailure,
 	type AnyComponentInstance,
@@ -5,10 +10,10 @@ import {
 } from '@exactjs/core';
 import {
 	createServerComponentExecutionFrame,
-	withServerComponentIssuer,
 	type ServerComponentExecutionFrame
 } from '@exactjs/core/framework/server-component-execution';
 import type { SsrContext } from '../types.js';
+import { withRenderCleanup } from './execution.js';
 import { settleSsrReadiness } from './resume-scheduling.js';
 import { AsyncSsrScheduler } from './async-scheduler.js';
 import { prepareDirectComponentProps } from './component-props.js';
@@ -17,6 +22,7 @@ import { readDirectSsrContent } from './direct-component-content.js';
 import type {
 	DirectIssuedRender,
 	DirectScheduledPreparation,
+	DirectScheduledPreparationOwner,
 	DirectScheduledSsrComponent,
 	DirectSsrComponentLifetime,
 	PreparedDirectScheduledSsrComponent
@@ -33,6 +39,8 @@ import {
 	readServerComponentReference,
 	receiptExecutionContract,
 	serverComponentProps,
+	prepareServerComponentInputs,
+	serverComponentInputProvider,
 	type ServerComponentReference
 } from './server-component-reference.js';
 
@@ -69,41 +77,152 @@ export function createDirectScheduledSsrComponent(
 /**
  * Issues compiler-proven scheduled siblings before their serial HTML positions are written.
  * Accepts ordered program values directly so callers need not allocate a filtered reference list.
- * The returned boundary releases only frames that later rendering did not consume.
+ * The existing caller boundary must retain `owner.preparation` before invoking this walk.
+ * Its cleanup awaits every unconsumed prefix even when later acquisition throws synchronously.
  */
 export function prepareDirectScheduledSsrComponentReferences(
 	context: SsrContext,
-	values: readonly (ServerComponentReference | string | readonly Child[])[],
+	values: readonly unknown[],
 	parent: AnyComponentInstance | undefined,
-	options: SsrRenderOptions
+	options: SsrRenderOptions,
+	owner: DirectScheduledPreparationOwner
 ): DirectScheduledPreparation | undefined {
-	let prepared: PreparedDirectScheduledSsrComponent[] | undefined;
-	for (const value of values) {
-		if (typeof value === 'string' || Array.isArray(value)) continue;
-		// Array.isArray does not narrow the readonly array member of this internal union.
-		const reference = value as ServerComponentReference;
-		const record = prepareDirectScheduledSsrComponentReference(context, reference, parent, options);
-		if (record) (prepared ??= []).push(record);
+	const previous = context.componentInputFrame;
+	const next = previous?.entries[previous.cursor];
+	// The generated writer reaches the retained slot through an ordinary one-child wrapper.
+	// Keep its already selected entry pending until that slot passes its exact children sequence.
+	if (
+		next?.kind === 'slot' &&
+		values.length === 1 &&
+		values[0] === next.source &&
+		next.parent === parent
+	)
+		return owner.preparation;
+	// A server slot passes the same retained children sequence into its ordinary traversal.
+	// This consumes the carried frame. No raw component identity search selects an occurrence.
+	if (next?.kind === 'slot' && next.values === values && next.parent === parent) {
+		previous!.cursor++;
+		const frame = next.frame;
+		frame.previous = previous;
+		context.componentInputFrame = frame;
+		const prior = owner.preparation;
+		const preparation: DirectScheduledPreparation = {
+			frame,
+			[Symbol.asyncDispose]: async () => {
+				if (context.componentInputFrame === frame) context.componentInputFrame = previous;
+				if (prior) await prior[Symbol.asyncDispose]();
+			}
+		};
+		// Parent preparation still owns the slot's records.
+		owner.preparation = preparation;
+		return preparation;
 	}
-	const owned = prepared;
-	return owned ? { [Symbol.asyncDispose]: () => disposePrepared(context, owned) } : undefined;
+	const records: PreparedDirectScheduledSsrComponent[] = [];
+	const prior = owner.preparation;
+	let disposed = false;
+	const preparation = {
+		frame: undefined as
+			| import('./direct-component-contracts.js').ComponentInputOutputFrame
+			| undefined,
+		async [Symbol.asyncDispose]() {
+			if (disposed) return;
+			disposed = true;
+			if (preparation.frame && context.componentInputFrame === preparation.frame)
+				context.componentInputFrame = previous;
+			await withRenderCleanup(
+				() => disposePrepared(context, records),
+				() => (prior ? Promise.resolve(prior[Symbol.asyncDispose]()) : undefined)
+			);
+		}
+	} satisfies DirectScheduledPreparation;
+	// Publish cleanup ownership before the first input acquisition or nested slot traversal.
+	owner.preparation = preparation;
+	const frame = prepareOutputFrame(context, values, parent, options, records);
+	preparation.frame = frame;
+	if (!frame.entries.length) {
+		owner.preparation = prior;
+		return prior;
+	}
+	frame.previous = previous;
+	context.componentInputFrame = frame;
+	return preparation;
 }
 
-/** Creates one preparation record without allocating an ownership wrapper for its caller. */
+/** Extends the existing sibling prefix through already evaluated server-slot output only. */
+function prepareOutputFrame(
+	context: SsrContext,
+	values: readonly unknown[],
+	parent: AnyComponentInstance | undefined,
+	options: SsrRenderOptions,
+	records: PreparedDirectScheduledSsrComponent[]
+): import('./direct-component-contracts.js').ComponentInputOutputFrame {
+	const entries: import('./direct-component-contracts.js').ComponentInputOutputFrame['entries'][number][] =
+		[];
+	let position = -1;
+	for (const value of values) {
+		position++;
+		if (typeof value !== 'object' || value === null || Array.isArray(value)) continue;
+		if (isOpaqueOperation(value))
+			assertComponentOperationProvider(value, serverComponentInputProvider);
+		const slot = readServerSlotReceipt(value);
+		if (slot) {
+			entries.push({
+				kind: 'slot',
+				position,
+				source: value,
+				values: slot.children,
+				parent,
+				frame: prepareOutputFrame(context, slot.children, parent, options, records)
+			});
+			continue;
+		}
+		const reference = readServerComponentReference(value);
+		if (!reference) continue;
+		const root = context.rootComponentInputs;
+		// Only the actual original single root sequence owns this pre-captured pass record.
+		const inputs =
+			parent === undefined && values.length === 1 && root?.source === value
+				? root.inputs
+				: undefined;
+		const record = prepareDirectScheduledSsrComponentReference(
+			context,
+			reference,
+			parent,
+			options,
+			inputs
+		);
+		if (record) {
+			if (inputs) context.rootComponentInputs = undefined;
+			(record as { reserved?: true }).reserved = true;
+			records.push(record);
+			entries.push({ position, kind: 'component', record });
+		}
+	}
+	return { entries, cursor: 0 };
+}
+
 function prepareDirectScheduledSsrComponentReference(
 	context: SsrContext,
 	reference: ServerComponentReference,
 	parent: AnyComponentInstance | undefined,
-	options: SsrRenderOptions
+	options: SsrRenderOptions,
+	captured?: import('./server-component-reference.js').ComponentExecutionInputRecord
 ): PreparedDirectScheduledSsrComponent | undefined {
-	if (context.preparedDirectScheduledComponents?.has(reference)) return undefined;
+	if (receiptExecutionContract(reference).artifact.execution.classification !== 'scheduled') return;
+	const pass = (context.componentInputPass ??= {});
+	const inputs = captured ?? prepareServerComponentInputs(reference.admitted, pass, {});
+	reference = {
+		...reference,
+		props: inputs.inputs.props,
+		children: inputs.inputs.children,
+		inputs
+	};
 	let created:
 		| DirectScheduledSsrComponent
 		| Promise<DirectScheduledSsrComponent | undefined>
 		| undefined;
 	try {
 		const contract = receiptExecutionContract(reference);
-		if (contract.artifact.execution?.classification !== 'scheduled') return undefined;
 		created = createDirectScheduledSsrComponent(
 			context,
 			{ componentId: contract.artifact.id, contract },
@@ -114,13 +233,14 @@ function prepareDirectScheduledSsrComponentReference(
 	} catch (error) {
 		created = Promise.reject(error);
 	}
-	if (!created) return undefined;
 	const record: PreparedDirectScheduledSsrComponent = {
 		component: created,
+		inputs,
+		parent,
 		consumed: false,
 		reference
 	};
-	(context.preparedDirectScheduledComponents ??= new WeakMap()).set(reference, record);
+	(context.preparedDirectScheduledComponents ??= []).push(record);
 	return record;
 }
 
@@ -256,58 +376,18 @@ export function disposeDirectSsrLifetime(
 	return lifetime.lifecycle.dispose(lifetime.frame, reason);
 }
 
-/** Claims one frame issued when compiler-generated parent render code created this component. */
-export function takePreparedDirectScheduledSsrComponent(
-	context: SsrContext,
-	component: object
-): DirectScheduledSsrComponent | Promise<DirectScheduledSsrComponent | undefined> | undefined {
-	const prepared = context.preparedDirectScheduledComponents?.get(component);
-	if (!prepared || prepared.consumed) return undefined;
-	(prepared as { consumed: boolean }).consumed = true;
-	context.preparedDirectScheduledComponents?.delete(component);
-	return prepared.component;
-}
-
-/** Captures compiler-issued direct child frames while one component materializes its render tree. */
+/**
+ * Retains actual output for subsequent ordered consumption. Merely issuing a raw recipe during
+ * authored selection does not acquire it under a speculative receiving owner. Scheduled siblings
+ * start together when their evaluated output sequence enters the existing preparation boundary.
+ */
 export function renderIssuedServerComponentChildren(
-	context: SsrContext,
-	options: SsrRenderOptions,
+	_context: SsrContext,
+	_options: SsrRenderOptions,
 	render: () => unknown,
-	owner: AnyComponentInstance | undefined
-): DirectIssuedRender | Promise<DirectIssuedRender> {
-	let prepared: PreparedDirectScheduledSsrComponent[] | undefined;
-	try {
-		const output = withServerComponentIssuer((candidate) => {
-			const component = readServerComponentReference(candidate);
-			if (!component) return;
-			const record = prepareDirectScheduledSsrComponentReference(
-				context,
-				component,
-				owner,
-				options
-			);
-			if (record) (prepared ??= []).push(record);
-		}, render);
-		const content = readDirectSsrContent(output);
-		const owned = prepared;
-		return owned
-			? {
-					content,
-					preparation: Object.freeze({
-						[Symbol.asyncDispose]: () => disposePrepared(context, owned)
-					})
-				}
-			: { content };
-	} catch (error) {
-		if (!prepared) return Promise.reject(error);
-		return disposePrepared(context, prepared).then(
-			() => Promise.reject(error),
-			(cleanup) => {
-				attachSuppressedCleanupFailure(error, cleanup);
-				return Promise.reject(error);
-			}
-		);
-	}
+	_owner: AnyComponentInstance | undefined
+): DirectIssuedRender {
+	return { content: readDirectSsrContent(render()) };
 }
 
 async function disposePrepared(
@@ -316,7 +396,8 @@ async function disposePrepared(
 ): Promise<void> {
 	const failures: unknown[] = [];
 	for (const record of prepared) {
-		context.preparedDirectScheduledComponents?.delete(record.reference);
+		const index = context.preparedDirectScheduledComponents?.indexOf(record) ?? -1;
+		if (index >= 0) context.preparedDirectScheduledComponents!.splice(index, 1);
 		if (record.consumed) continue;
 		try {
 			const component = await record.component;

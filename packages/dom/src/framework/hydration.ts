@@ -9,15 +9,15 @@ export function readExactPartitionDiscriminator(
 	marker: Element
 ): ExactDomPartitionDiscriminator | undefined {
 	const kind = marker.getAttribute('data-exact-partition-discriminator');
-	if (kind === 'single') return Object.freeze({ kind });
+	if (kind === 'single') return { kind };
 	if (kind === 'branch') {
 		const branch = marker.getAttribute('data-exact-partition-branch');
-		return branch ? Object.freeze({ kind, branch }) : undefined;
+		return branch ? { kind, branch } : undefined;
 	}
 	if (kind === 'keyed') {
 		const list = marker.getAttribute('data-exact-partition-list');
 		const keyToken = marker.getAttribute('data-exact-partition-key');
-		return list && keyToken ? Object.freeze({ kind, list, keyToken }) : undefined;
+		return list && keyToken ? { kind, list, keyToken } : undefined;
 	}
 	return undefined;
 }

@@ -2,10 +2,8 @@
 
 Enhancement-first internationalization for eXact. Authored TSX remains the unavailable-capability fallback while analyzed builds use validated, data-only plans and ordinary component ownership.
 
-`@exactjs/intl` combines a cross-build plugin with a standard eXact component library. Shared
-adapter integration coordinates extraction and catalogs, while ordinary component branding covers
-`IntlProvider` and explicit intl components. The enhancement entry exports `message`, `plural`,
-`select`, `currency`, `unit`, `cldr`, and supported translated properties.
+`@exactjs/intl` combines a cross-build plugin with a standard eXact component library. Shared adapter integration coordinates extraction and catalogs, while ordinary component branding covers
+`IntlProvider` and explicit intl components. The enhancement entry exports `message`, `plural`, `select`, `currency`, `unit`, `cldr`, and supported translated properties.
 
 ## Usage
 
@@ -75,6 +73,8 @@ Component libraries can opt into `IntlScalarPresentationContext` to receive curr
 source fallback, locale, and direction; structurally movable messages remain render-only. Runtime
 values use `resolveIntlMeasurementPresentation()` plus the public conversion and formatting
 operations, reusing the same CLDR, preferences, precision, formatter cache, and bidi policy as
-`intl:unit`.
+`intl:unit`. Presentations use TypeScript readonly declarations and copied number options.
+Resolve a fresh presentation after an environment update before formatting. Unit preference
+observations are independent snapshots. Update provider policy with `setUnitPreferences()`.
 
 [Documentation](https://techjoshua.github.io/exact/#/plugins/internationalization) | [Source on GitHub](https://github.com/techjoshua/exact/tree/main/packages/intl)

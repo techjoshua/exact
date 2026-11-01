@@ -98,3 +98,22 @@ export function ClipboardPromiseProbe(this: Component<{ copied: string }>) {
 		</section>
 	);
 }
+
+/** Retains a mounted array and its observer through optimistic full-clear cancellation. */
+export function ArrayRollbackProbe(this: Component<{ items: string[] }>) {
+	this.state.items = ['A', 'B', 'C'];
+	const run = async (remove: boolean, task: TaskContext = TaskContext.client().latest()) => {
+		task.optimistic(() => {
+			if (remove) this.state.items.splice(0, 3);
+			else this.state.items.push('saved');
+		});
+		await navigator.clipboard.writeText(remove ? 'clear' : 'keep');
+	};
+	return () => (
+		<section data-array-rollback>
+			<button onClick={() => run(true)}>Clear array</button>
+			<button onClick={() => run(false)}>Keep array</button>
+			<output>{this.state.items.join('|')}</output>
+		</section>
+	);
+}

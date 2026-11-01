@@ -35,7 +35,8 @@ describe('@exactjs/compiler: inspection artifact packaging', () => {
 
 		const client = await readFile(result!.clientFile, 'utf8');
 		const server = await readFile(result!.serverFile, 'utf8');
-		expect(client).toContain('@exactjs/devtools-runtime');
+		expect(client).not.toContain('@exactjs/devtools-runtime');
+		expect(client).toContain('markExactInspectionSource');
 		expect(client).not.toContain('awaited-state-flow');
 		expect(server).not.toContain('@exactjs/devtools-runtime');
 	});

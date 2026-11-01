@@ -1,3 +1,4 @@
+import { compiledElementIdentity } from '@exactjs/core/runtime/component-operations';
 import {
 	createKeyedServerSlot,
 	createServerBoundary,
@@ -49,7 +50,11 @@ describe('@exactjs/ssr boundaries', () => {
 		const boundary = createServerBoundary('local-control', 'ReportControl', {
 			__exactCapture: { props: { inputs: { edit: () => undefined } } },
 			__exactHydration: 'eager',
-			__exactHydrationFallback: createOperation('button', { 'data-exact-id': 'edit' }, 'Edit')
+			__exactHydrationFallback: createOperation(
+				'button',
+				{ [compiledElementIdentity]: 'edit' },
+				'Edit'
+			)
 		});
 		const result = await renderToString(boundary, { clientResumptionOwner: true });
 		expect(result.html).toContain('<button data-exact-id="edit">Edit</button>');
@@ -103,7 +108,7 @@ describe('@exactjs/ssr boundaries', () => {
 				__exactHydration: 'interaction',
 				__exactHydrationFallback: createOperation(
 					'button',
-					{ 'data-exact-id': 'counter-button' },
+					{ [compiledElementIdentity]: 'counter-button' },
 					'Count 2'
 				)
 			})
@@ -283,7 +288,7 @@ describe('@exactjs/ssr boundaries', () => {
 		await expect(
 			renderToString(
 				createServerBoundary('bad', 'Bad_ExactClient_1', {
-					meta: { values: [1, Number.NaN] }
+					meta: { values: [1, Symbol('unsupported')] }
 				})
 			)
 		).rejects.toThrow('non-serializable value at $.meta.values[1]');

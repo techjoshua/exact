@@ -29,7 +29,7 @@ func collectReferencedMemberPolicies(sourceFile *ast.SourceFile, typeChecker *ch
 			return false
 		}
 		shorthand := node.Parent != nil && ast.IsShorthandPropertyAssignment(node.Parent) && node.Parent.Name() == node
-		identifierRead := ast.IsIdentifier(node) && (shorthand || (!ast.IsDeclarationName(node) && !isStaticPropertyName(node)))
+		identifierRead := ast.IsIdentifier(node) && !policyIntrinsicTagIdentifier(node) && (shorthand || (!ast.IsDeclarationName(node) && !isStaticPropertyName(node)))
 		if !identifierRead && !ast.IsPropertyAccessExpression(node) && !ast.IsElementAccessExpression(node) && policyInvocationTarget(node) == nil {
 			return true
 		}
@@ -67,6 +67,31 @@ func collectReferencedMemberPolicies(sourceFile *ast.SourceFile, typeChecker *ch
 			selectedType = typeChecker.GetTypeAtLocation(node)
 		}
 		selectedPolicy, selectedQualified := policyFromType(selectedType)
+		if body, owned := analysis.owner.body(policyInvocationTarget(node)); owned {
+			inputs := []PolicySubject{}
+			if selectedQualified {
+				inputs = append(inputs, PolicySubject{Policy: selectedPolicy})
+			}
+			if selectedDeclaration != nil {
+				if annotations := policyNodeAnnotations(selectedDeclaration, ast.GetSourceFileOfNode(selectedDeclaration)); annotations.policy != nil {
+					inputs = append(inputs, PolicySubject{Policy: *annotations.policy})
+				}
+			}
+			if body != nil {
+				if policy, qualified := sourceCallableResultPolicy(body, typeChecker, analysis); qualified {
+					inputs = append(inputs, PolicySubject{Policy: policy})
+				}
+				if annotations := policyNodeAnnotations(body, ast.GetSourceFileOfNode(body)); annotations.policy != nil {
+					inputs = append(inputs, PolicySubject{Policy: *annotations.policy})
+				}
+			}
+			if len(inputs) != 0 {
+				combined, _ := combineSubjectPolicies(inputs)
+				collectSelectedCallPolicy(node, nil, sourceFile, combined, typeChecker, analysis, addSubject)
+			}
+			return true
+		}
+
 		if selectedQualified && policyInvocationTarget(node) != nil {
 			collectSelectedCallPolicy(node, selectedDeclaration, sourceFile, selectedPolicy, typeChecker, analysis, addSubject)
 		}
@@ -153,7 +178,7 @@ func collectReferencedMemberPolicies(sourceFile *ast.SourceFile, typeChecker *ch
 // selectedCallPolicy preserves declaration annotations and narrows typed overload results.
 // Signature selection uses the checker, never a method name shared by unrelated receivers.
 func selectedCallPolicy(node *ast.Node, typeChecker *checker.Checker, subjects policySubjects) (PolicySubject, bool) {
-	if subject, exists := subjects.calls[nodeSpanKey(node)]; exists {
+	if subject, exists := subjects.calls[policyCallKey(node)]; exists {
 		return subject, true
 	}
 	for _, symbol := range policyCallSymbols(node, typeChecker) {
@@ -316,5 +341,35 @@ func collectSelectedCallPolicy(node, declaration *ast.Node, sourceFile *ast.Sour
 	subject := policySubject(node, "return", name, policy, source)
 	subject.ID = policyLocationID(sourceFile, "policy:return", node.Pos(), name)
 	addSubject(subject)
-	analysis.subjects.calls[nodeSpanKey(node)] = subject
+	analysis.subjects.calls[policyCallKey(node)] = subject
+}
+
+// Source-backed policy traversal crosses physical files with overlapping spans.
+// Calls remain distinct even when imports share a checker declaration.
+func policyCallKey(node *ast.Node) string {
+	source := ast.GetSourceFileOfNode(node)
+	if source == nil {
+		return nodeSpanKey(node)
+	}
+	return source.FileName() + "\x00" + nodeSpanKey(node)
+}
+
+// policyIntrinsicTagIdentifier excludes intrinsic tag syntax from value reads.
+// Component and qualified tags remain value selections. Returning false from
+// identifier classification does not skip JSX attributes or child expressions.
+func policyIntrinsicTagIdentifier(node *ast.Node) bool {
+	if node == nil || !ast.IsIdentifier(node) || !jsxIntrinsic(node.Text()) || node.Parent == nil {
+		return false
+	}
+	parent := node.Parent
+	switch {
+	case ast.IsJsxOpeningElement(parent):
+		return parent.AsJsxOpeningElement().TagName == node
+	case ast.IsJsxClosingElement(parent):
+		return parent.AsJsxClosingElement().TagName == node
+	case ast.IsJsxSelfClosingElement(parent):
+		return parent.AsJsxSelfClosingElement().TagName == node
+	default:
+		return false
+	}
 }

@@ -1,7 +1,5 @@
-import {
-	isExactComponentAuthorizationIdentity,
-	sameExactComponentAuthorization
-} from '@exactjs/core';
+import { resolveHydrationConfiguration } from './configuration-options.js';
+import { isExactComponentAuthorizationIdentity } from '@exactjs/core';
 import {
 	decodeExactValueWithSchema,
 	readPreparedExactClientExecutableComponentContract,
@@ -49,44 +47,7 @@ export function resolveRootHydrateOptions(
 	options: HydrateOptions
 ): HydrateOptions {
 	const config = readRootConfig(container, options.configLimits, options.maxTreeNodes);
-	if (
-		config.pluginRegistryFingerprint &&
-		options.clientPluginRegistryFingerprint &&
-		config.pluginRegistryFingerprint !== options.clientPluginRegistryFingerprint
-	)
-		throw new Error('Client and server eXact plugin registry fingerprints do not match');
-	if (config.buildKey && options.buildKey && config.buildKey !== options.buildKey)
-		throw new Error('Client and server eXact build identities do not match');
-	if (
-		config.componentAuthorization &&
-		options.componentAuthorization &&
-		!sameExactComponentAuthorization(config.componentAuthorization, options.componentAuthorization)
-	)
-		throw new Error('Client and server component authorization fingerprints do not match');
-	const componentAuthorization = options.componentAuthorization ?? config.componentAuthorization;
-	const buildKey = options.buildKey ?? config.buildKey;
-	if (componentAuthorization && buildKey && componentAuthorization.buildKey !== buildKey)
-		throw new Error('Component authorization identity does not match the hydration build key');
-	return {
-		...options,
-		state: options.state === undefined ? config.state : options.state,
-		markerlessRoot: options.markerlessRoot ?? config.markerlessRoot,
-		allowMarkerless: options.allowMarkerless ?? config.markerlessRoot,
-		resumptions: options.resumptions ?? config.resumptions,
-		publicContexts: options.publicContexts ?? config.publicContexts,
-		wallClockSnapshot: options.wallClockSnapshot ?? config.wallClockSnapshot,
-		hydrationTable: options.hydrationTable ?? config.hydrationTable,
-		executionRoot: options.executionRoot ?? config.executionRoot,
-		binding: options.binding ?? config.binding,
-		buildKey,
-		componentAuthorization,
-		headers: componentAuthorization
-			? {
-					...options.headers,
-					'X-Exact-Component-Authorization': componentAuthorization.fingerprint
-				}
-			: options.headers
-	};
+	return resolveHydrationConfiguration(options, config);
 }
 
 function readRootConfig(

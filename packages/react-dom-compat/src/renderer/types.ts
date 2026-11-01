@@ -19,6 +19,8 @@ export type ReactMounted = {
 	key?: string;
 	type?: ReactElement['type'];
 	props?: Record<string, unknown>;
+	/** Whether the host content is owned by its accepted raw-HTML payload rather than child ranges. */
+	rawHtml?: boolean;
 	children: ReactMounted[];
 	instance?: ReactRendererComponentInstance;
 	portalTarget?: Node;
@@ -69,3 +71,12 @@ export type ReactComponentInput = {
 	props: Record<string, unknown>;
 	key?: string;
 };
+
+/** Prepares and publishes one child list, retiring superseded ranges after the ownership callback. */
+export type ReactChildrenReconciler = (
+	context: ReactRenderContext,
+	previous: readonly ReactMounted[],
+	value: ReactNode,
+	before?: Node | null,
+	publish?: (next: ReactMounted[]) => void
+) => ReactMounted[];

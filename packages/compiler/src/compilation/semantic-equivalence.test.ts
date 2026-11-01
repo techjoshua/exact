@@ -3,18 +3,17 @@ import path from 'node:path';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { expect, it, onTestFinished } from 'vitest';
 import type { AnyComponentFunction } from '@exactjs/core';
-import { createCompiledComponentReceipt } from '@exactjs/core/runtime/component-operations';
+import { createCompiledComponentInputReceipt } from '@exactjs/core/runtime/component-operations';
 import { composeExactComponentContracts } from '@exactjs/core/framework/component-contracts';
 import { render, dispose } from '@exactjs/dom';
 import { hydrate } from '@exactjs/hydrate';
 import { renderToHydratableString } from '@exactjs/ssr';
 import { flushSync } from '@exactjs/reactive';
 import { compileProjectArtifacts } from '../index.js';
-import { createTestWorkspace } from '../test-support/workspace.js';
+import { createCompilerTestWorkspace } from '../test-support/workspace.js';
 import { importArtifact } from '../test-support/import-artifact.js';
 import { NativeCompilerProcess } from '../native/process.js';
 import { resolveNativeCompilerExecutable } from '../native/executable.js';
-
 const forms = {
 	direct: 'const value = this.state.values[0] ?? this.state.fallback;',
 	literal: "const value = this.state.values['0'] ?? this.state.fallback;",
@@ -35,14 +34,13 @@ const writes = {
 		trace: 'next,close'
 	}
 } as const;
-
 // The reference observes ordinary JS values, independently of compiler analysis or emitted code.
 // Every source form gets identical commands, including empty and zero values and a second update.
 for (const [form, declaration] of Object.entries(forms)) {
 	for (const [write, assignment] of Object.entries(writes)) {
 		it(`preserves ${form}/${write} evaluation and updates`, async () => {
 			await mkdir(path.resolve('.tmp'), { recursive: true });
-			const root = await createTestWorkspace('semantic-equivalence-', path.resolve('.tmp'));
+			const root = await createCompilerTestWorkspace('semantic-equivalence-', path.resolve('.tmp'));
 			const source = `import type {Component} from '@exactjs/core';
 function select(values:number[], fallback:number) {return values[0] ?? fallback;}
 export function Probe(this:Component<{values:number[];fallback:number;step:number;trace:string}>) {
@@ -130,10 +128,12 @@ export function Probe(this:Component<{values:number[];fallback:number;step:numbe
 					host.remove();
 				});
 				if (mode === 'hydrate') {
-					const output = await renderToHydratableString(createCompiledComponentReceipt(Server, {}));
+					const output = await renderToHydratableString(
+						createCompiledComponentInputReceipt(Server, {})
+					);
 					host.innerHTML = output.html;
 					const adopted = host.querySelector('output');
-					const client = hydrate(createCompiledComponentReceipt(Client, {}), host, {
+					const client = hydrate(createCompiledComponentInputReceipt(Client, {}), host, {
 						...composeExactComponentContracts([Client], 'client'),
 						...errorOptions,
 						onDiagnostic: (diagnostic) => diagnostics.push(diagnostic),
@@ -142,7 +142,7 @@ export function Probe(this:Component<{values:number[];fallback:number;step:numbe
 					});
 					onTestFinished(() => client.dispose());
 					expect(host.querySelector('output'), mode).toBe(adopted);
-				} else render(createCompiledComponentReceipt(Client, {}), host, errorOptions);
+				} else render(createCompiledComponentInputReceipt(Client, {}), host, errorOptions);
 				const output = host.querySelector('output')!;
 				const button = host.querySelector('button')!;
 				expect(output.textContent, mode).toBe('9');
@@ -165,6 +165,6 @@ export function Probe(this:Component<{values:number[];fallback:number;step:numbe
 				expect(reports).toEqual([]);
 				expect(diagnostics).toEqual([]);
 			}
-		}, 30_000);
+		}, 30000);
 	}
 }

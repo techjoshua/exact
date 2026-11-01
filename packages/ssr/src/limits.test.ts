@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { renderHydrationScript, renderToString } from './index.js';
 import { LargeOutputComponent, NeverSettledComponent } from './limits.fixtures.test.js';
 import { createOperation } from './test-support/native-operations.js';
@@ -22,10 +22,31 @@ describe('@exactjs/ssr limits', () => {
 		).rejects.toThrow('eXact SSR output exceeds the configured maximum of 9 bytes');
 	});
 
-	it('bounds the wall-clock duration of tasks that never settle', async () => {
-		await expect(
-			renderToString(createOperation(NeverSettledComponent, {}), { maxTaskDurationMs: 10 })
-		).rejects.toThrow('SSR task duration limit exceeded');
+	it('leaves response expiration to the application abort signal', async () => {
+		vi.useFakeTimers();
+		try {
+			const controller = new AbortController();
+			const reason = new Error('application response expired');
+			let settled = false;
+			const rendering = renderToString(createOperation(NeverSettledComponent, {}), {
+				signal: controller.signal
+			});
+			void rendering.then(
+				() => {
+					settled = true;
+				},
+				() => {
+					settled = true;
+				}
+			);
+			await vi.advanceTimersByTimeAsync(60_000);
+			expect(settled).toBe(false);
+			controller.abort(reason);
+			await expect(rendering).rejects.toBe(reason);
+			expect((await renderToString(createOperation('p', null, 'next'))).html).toContain('next');
+		} finally {
+			vi.useRealTimers();
+		}
 	});
 
 	it('bounds hydration payload traversal and encoded size without invoking accessors', () => {

@@ -17,6 +17,19 @@ export function placeReactRange(parent: Node, mounted: ReactMounted, before: Nod
 	for (const node of nodes) parent.insertBefore(node, before);
 }
 
+/** Places a sibling forest in source order before one physical cursor. */
+export function placeReactMounts(
+	parent: Node,
+	mounts: readonly ReactMounted[],
+	before: Node | null
+): void {
+	let cursor = before;
+	for (let index = mounts.length - 1; index >= 0; index--) {
+		placeReactRange(parent, mounts[index]!, cursor);
+		cursor = mounts[index]!.dom;
+	}
+}
+
 /** Removes a complete React-owned physical range. */
 export function removeReactRange(mounted: ReactMounted): void {
 	if (mounted.kind === 'portal') {

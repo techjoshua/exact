@@ -12,7 +12,7 @@ import {
 	type ExactExecutableComponentContract
 } from '../component-contracts.js';
 import { constructRenderComponentInstance } from '../component/render-instance-construction.js';
-import { createCompiledComponentReceipt } from '../component-abi/receipt.js';
+import { createCompiledComponentInputReceipt } from '../component-abi/receipt.js';
 import {
 	attachExactCompiledClientComponent,
 	disposeExactClientComponent,
@@ -120,7 +120,7 @@ function createRegistry<const Definition extends ComponentRegistryDefinition>(
 				if (!component) throw loadRegistryEntry(entry);
 				// Registry keys are selection identity even when two entries
 				// intentionally resolve to the same underlying component.
-				return createCompiledComponentReceipt(component, {
+				return createCompiledComponentInputReceipt(component, {
 					...props,
 					key: `exact-registry:${entry.key}`
 				});

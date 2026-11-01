@@ -18,17 +18,15 @@ export function createExactLanguageProjection(
 	project?: Readonly<{ kind: 'configured' | 'inferred'; root: string }>,
 	version = generation
 ): ExactLanguageProjectionV1 {
-	const components = response.analysis.components.map((component) =>
-		Object.freeze({
-			id: component.id,
-			name: component.name,
-			range: sourceRange(component.start, component.length),
-			nameRange: findNameRange(source, component.name, component.start, component.length),
-			placement: normalizePlacement(component.placement),
-			artifactTargets: Object.freeze([...component.artifactTargets]),
-			renderEdges: Object.freeze(component.renderEdges.map((edge) => edge.id))
-		})
-	);
+	const components = response.analysis.components.map((component) => ({
+		id: component.id,
+		name: component.name,
+		range: sourceRange(component.start, component.length),
+		nameRange: findNameRange(source, component.name, component.start, component.length),
+		placement: normalizePlacement(component.placement),
+		artifactTargets: [...component.artifactTargets],
+		renderEdges: component.renderEdges.map((edge) => edge.id)
+	}));
 	const jsx = response.analysis.jsx.map((element, index) =>
 		jsxFact(source, element, index, components)
 	);
@@ -45,7 +43,7 @@ export function createExactLanguageProjection(
 		);
 		const range = sourceRange(activation.start, activation.length);
 		return [
-			Object.freeze({
+			{
 				id: `${element.id}:enhancement:${activation.start}:${index}`,
 				namespace: activation.namespace,
 				activator: activation.activator,
@@ -62,7 +60,7 @@ export function createExactLanguageProjection(
 				...(element.ownerComponentId ? { ownerComponentId: element.ownerComponentId } : {}),
 				...(attribute?.expressionId ? { payloadExpressionId: attribute.expressionId } : {}),
 				application: activation.application
-			})
+			}
 		];
 	});
 	const expressions = jsx.flatMap((element) =>
@@ -75,54 +73,47 @@ export function createExactLanguageProjection(
 				)
 				.map((read) => `state.${read.path.join('.')}`);
 			return [
-				Object.freeze({
+				{
 					id: attribute.expressionId,
 					range: attribute.valueRange ?? attribute.range,
 					syntaxKind: 'jsx-attribute-expression',
-					referencedSymbols: Object.freeze([]),
-					reactiveDependencies: Object.freeze([...new Set(dependencies)]),
+					referencedSymbols: [],
+					reactiveDependencies: [...new Set(dependencies)],
 					effect: dependencies.length ? ('reads-state' as const) : ('unknown' as const)
-				})
+				}
 			];
 		})
 	);
-	return Object.freeze({
+	return {
 		protocol: 1,
 		generation,
-		project: Object.freeze({
+		project: {
 			root: project?.root ?? filename,
 			kind: project?.kind ?? 'inferred'
-		}),
-		document: Object.freeze({
+		},
+		document: {
 			uri: pathToFileURL(filename).href,
 			path: filename,
 			version,
 			textHash: createHash('sha256').update(source).digest('base64url'),
 			text: source
-		}),
-		imports: Object.freeze(
-			response.analysis.imports.map((value) =>
-				Object.freeze({
-					specifier: value.moduleSpecifier,
-					range: sourceRange(value.start, value.length),
-					kind: value.typeOnly ? ('type' as const) : ('runtime' as const),
-					...(value.enhancement ? { enhancement: true as const } : {}),
-					...(packageFact(value.moduleSpecifier)
-						? { package: packageFact(value.moduleSpecifier) }
-						: {})
-				})
-			)
-		),
-		components: Object.freeze(components),
-		enhancements: Object.freeze(enhancements),
-		jsx: Object.freeze(jsx),
-		expressions: Object.freeze(expressions),
-		types: Object.freeze(
-			expressions.map((expression) =>
-				Object.freeze({ expressionId: expression.id, types: Object.freeze(['unknown' as const]) })
-			)
-		)
-	});
+		},
+		imports: response.analysis.imports.map((value) => ({
+			specifier: value.moduleSpecifier,
+			range: sourceRange(value.start, value.length),
+			kind: value.typeOnly ? ('type' as const) : ('runtime' as const),
+			...(value.enhancement ? { enhancement: true as const } : {}),
+			...(packageFact(value.moduleSpecifier) ? { package: packageFact(value.moduleSpecifier) } : {})
+		})),
+		components: components,
+		enhancements: enhancements,
+		jsx: jsx,
+		expressions: expressions,
+		types: expressions.map((expression) => ({
+			expressionId: expression.id,
+			types: ['unknown' as const]
+		}))
+	};
 }
 
 function jsxFact(
@@ -134,19 +125,19 @@ function jsxFact(
 	const openingRange = sourceRange(element.start, element.length);
 	const range = jsxElementRange(source, openingRange, element.tag);
 	const tagOffset = source.indexOf(element.tag, openingRange.start);
-	const tagRange = Object.freeze({
+	const tagRange = {
 		start: tagOffset >= range.start && tagOffset < range.end ? tagOffset : range.start,
 		end:
 			tagOffset >= range.start && tagOffset < range.end
 				? tagOffset + element.tag.length
 				: range.start
-	});
+	};
 	const owner = [...components]
 		.filter((component) => component.range.start <= range.start && range.end <= component.range.end)
 		.sort(
 			(left, right) => left.range.end - left.range.start - (right.range.end - right.range.start)
 		)[0];
-	return Object.freeze({
+	return {
 		id: `jsx:${element.start}:${index}`,
 		range,
 		openingRange,
@@ -155,12 +146,10 @@ function jsxFact(
 			element.tag === '_' ? 'enhancement-target' : element.intrinsic ? 'intrinsic' : 'component',
 		tag: element.tag,
 		...(owner ? { ownerComponentId: owner.id } : {}),
-		attributes: Object.freeze(
-			element.attributes.map((attribute, attributeIndex) =>
-				attributeFact(source, attribute, attributeIndex)
-			)
+		attributes: element.attributes.map((attribute, attributeIndex) =>
+			attributeFact(source, attribute, attributeIndex)
 		)
-	});
+	};
 }
 
 /** Expands the native opening-element span to the complete authored JSX element. */
@@ -181,7 +170,7 @@ function jsxElementRange(
 		const selfClosing = source.slice(match.index, end + 1).match(/\/\s*>$/u) !== null;
 		if (closing) depth--;
 		else if (!selfClosing) depth++;
-		if (depth === 0) return Object.freeze({ start: openingRange.start, end: end + 1 });
+		if (depth === 0) return { start: openingRange.start, end: end + 1 };
 		token.lastIndex = end + 1;
 	}
 	return openingRange;
@@ -202,23 +191,22 @@ function attributeFact(
 		? `${attribute.namespace}:${attribute.name ?? ''}`
 		: (attribute.name ?? `...${index}`);
 	const nameOffset = source.indexOf(authoredName, range.start);
-	const nameRange = Object.freeze({
+	const nameRange = {
 		start: nameOffset >= range.start && nameOffset < range.end ? nameOffset : range.start,
 		end:
 			nameOffset >= range.start && nameOffset < range.end
 				? nameOffset + authoredName.length
 				: range.start
-	});
+	};
 	const equals = authored.indexOf('=');
-	const valueRange =
-		equals < 0 ? undefined : Object.freeze({ start: range.start + equals + 1, end: range.end });
+	const valueRange = equals < 0 ? undefined : { start: range.start + equals + 1, end: range.end };
 	const constant =
 		attribute.valueKind === 'string'
 			? stringAttributeValue(authored.slice(equals + 1))
 			: attribute.valueKind === 'expression'
 				? literalExpressionValue(authored.slice(equals + 1))
 				: undefined;
-	return Object.freeze({
+	return {
 		name: authoredName,
 		...(attribute.namespace ? { namespace: attribute.namespace } : {}),
 		localName: attribute.name ?? '',
@@ -230,7 +218,7 @@ function attributeFact(
 		...(attribute.valueKind === 'expression'
 			? { expressionId: `expression:${attribute.start}:${index}` }
 			: {})
-	});
+	};
 }
 
 function literalExpressionValue(authored: string): string | number | boolean | null | undefined {
@@ -260,14 +248,14 @@ function packageFact(specifier: string): Readonly<{ name: string; subpath?: stri
 	const parts = specifier.split('/');
 	const name = specifier.startsWith('@') ? parts.slice(0, 2).join('/') : parts[0]!;
 	const subpathParts = parts.slice(name.startsWith('@') ? 2 : 1);
-	return Object.freeze({
+	return {
 		name,
 		...(subpathParts.length ? { subpath: `./${subpathParts.join('/')}` } : {})
-	});
+	};
 }
 
 function sourceRange(start: number, length: number): ExactLanguageRange {
-	return Object.freeze({ start, end: start + length });
+	return { start, end: start + length };
 }
 
 function findNameRange(
@@ -278,7 +266,7 @@ function findNameRange(
 ): ExactLanguageRange {
 	const offset = source.indexOf(name, start);
 	return offset >= start && offset < start + length
-		? Object.freeze({ start: offset, end: offset + name.length })
+		? { start: offset, end: offset + name.length }
 		: sourceRange(start, 0);
 }
 

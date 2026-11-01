@@ -10,8 +10,11 @@ import { planExactTaskRefactor } from './task-refactor.js';
 afterEach(() => clearExpressionProjectCache());
 
 describe('compiler-planned task refactors', () => {
-	it('converts one simple inferred task to normalized function-defined source', async () => {
+	it('converts one simple inferred task to normalized function-defined source', async ({
+		onTestFinished
+	}) => {
 		const service = createExactLanguageService({ root: process.cwd(), noEmit: true });
+		onTestFinished(() => service.dispose());
 		let source = `export async function Page(
 	this: Component<{ value?: string }>,
 	props: { id: string }
@@ -22,6 +25,32 @@ describe('compiler-planned task refactors', () => {
 		await service.synchronize([{ kind: 'upsert', filename: 'Page.tsx', version: 1, source }]);
 		const inspection = await service.inspect('Page.tsx');
 		const inferred = tasks(inspection.components[0]!)[0]!;
+		for (const position of [inferred.range.start, inferred.range.end - 1]) {
+			expect(
+				planExactTaskRefactor(
+					{
+						generation: inspection.generation,
+						filename: 'Page.tsx',
+						range: { start: position, end: position },
+						kind: 'convert-to-explicit-task'
+					},
+					source,
+					inspection
+				)?.semanticChange
+			).toBe('none');
+		}
+		expect(
+			planExactTaskRefactor(
+				{
+					generation: inspection.generation,
+					filename: 'Page.tsx',
+					range: { start: inferred.range.end, end: inferred.range.end },
+					kind: 'convert-to-explicit-task'
+				},
+				source,
+				inspection
+			)
+		).toBeUndefined();
 		const explicitPlan = planExactTaskRefactor(
 			{
 				generation: inspection.generation,
@@ -53,7 +82,6 @@ describe('compiler-planned task refactors', () => {
 		const roundTripped = apply(source, inferredPlan!);
 		expect(roundTripped).toContain('this.state.value = await load(props.id);');
 		expect(roundTripped).not.toContain('const runTask');
-		await service.dispose();
 	});
 
 	it('withholds explicit-to-inferred conversion for nonblocking work', async () => {

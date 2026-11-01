@@ -1,5 +1,6 @@
 import { rewriteModuleReferences, type ModuleExportReplacement } from '@exactjs/module-rewrite';
 import ts from 'typescript';
+import { readJsxPragmas } from './jsx-pragmas.js';
 import { reactCompatibilityAliases } from './plugin.js';
 
 /** Configures react jsx transform. */
@@ -76,7 +77,7 @@ export function transformReactJsx(
 	options: ReactJsxTransformOptions
 ): ReactJsxTransformResult {
 	const filename = options.filename ?? 'input.tsx';
-	const classic = /@jsxRuntime\s+classic(?:\s|$)/m.test(source);
+	const classic = readJsxPragmas(source).runtime === 'classic';
 	const result = ts.transpileModule(source, {
 		fileName: filename,
 		reportDiagnostics: true,

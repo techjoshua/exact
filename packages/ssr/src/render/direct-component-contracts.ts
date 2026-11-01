@@ -14,7 +14,10 @@ export type DirectSsrComponentLifetime = Readonly<{
 }>;
 
 /** Cleanup boundary for eagerly issued compiler-proven descendant task frames. */
-export type DirectScheduledPreparation = AsyncDisposable;
+export type DirectScheduledPreparation = AsyncDisposable & {
+	/** Actual ordered output owned by this preparation, carried through its writer. */
+	readonly frame?: ComponentInputOutputFrame;
+};
 
 /** Render output paired with ownership for child work issued during operation materialization. */
 export type DirectIssuedRender = Readonly<{
@@ -35,7 +38,13 @@ export type DirectScheduledSsrComponent = AsyncDisposable &
 
 /** Request-local scheduled frame issued before its serial HTML position is published. */
 export type PreparedDirectScheduledSsrComponent = Readonly<{
-	component: DirectScheduledSsrComponent | Promise<DirectScheduledSsrComponent | undefined>;
+	component:
+		| DirectScheduledSsrComponent
+		| Promise<DirectScheduledSsrComponent | undefined>
+		| undefined;
+	inputs: import('./server-component-reference.js').ComponentExecutionInputRecord;
+	parent: AnyComponentInstance | undefined;
+	reserved?: true;
 	consumed: boolean;
 	reference: ServerComponentReference;
 }>;
@@ -50,3 +59,26 @@ export type DirectSsrComponentPublisher<Publication = undefined> = (
 	snapshot: DirectSsrComponentSnapshot,
 	publication: Publication
 ) => string;
+
+/** Ordered actual output retained through server-slot traversal, never recovered by raw identity. */
+export type ComponentInputOutputFrame = {
+	readonly entries: readonly (
+		| Readonly<{ position: number; kind: 'component'; record: PreparedDirectScheduledSsrComponent }>
+		| Readonly<{
+				kind: 'slot';
+				position: number;
+				source: object;
+				values: readonly unknown[];
+				parent: AnyComponentInstance | undefined;
+				frame: ComponentInputOutputFrame;
+		  }>
+	)[];
+	cursor: number;
+	previous?: ComponentInputOutputFrame;
+};
+
+/** Existing traversal or writer boundary owns its prefix before any authored acquisition. */
+export interface DirectScheduledPreparationOwner {
+	/** Preparation remains reachable even when its synchronous walk throws. */
+	preparation?: DirectScheduledPreparation;
+}

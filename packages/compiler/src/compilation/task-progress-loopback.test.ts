@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 import { type AnyComponentFunction } from '@exactjs/core';
-import { createCompiledComponentReceipt } from '@exactjs/core/runtime/component-operations';
+import { createCompiledComponentInputReceipt } from '@exactjs/core/runtime/component-operations';
 import { composeExactComponentContracts } from '@exactjs/core/framework/component-contracts';
 import { hydrate } from '@exactjs/hydrate';
 import {
@@ -22,8 +22,7 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { mountClientServerTest } from '@exactjs/testing';
 import { importArtifact } from '../test-support/import-artifact.js';
-import { createTestWorkspace } from '../test-support/workspace.js';
-
+import { createTestWorkspace, createCompilerTestWorkspace } from '../test-support/workspace.js';
 const source = `import { TaskContext, type Component } from '@exactjs/core';
 export function ProgressExample(this: Component<{ progress: number; result: number }>) {
  this.state.progress = 0;
@@ -40,7 +39,6 @@ export function ProgressExample(this: Component<{ progress: number; result: numb
  }
  return () => <main><button onClick={() => start()}>Start</button><output>{this.state.progress}:{this.state.result}</output></main>;
 }`;
-
 describe('compiled task progress loopback', () => {
 	it.each([
 		{ batch: false, supported: true, deferred: false },
@@ -118,7 +116,6 @@ describe('compiled task progress loopback', () => {
 			);
 			const logger = { log: vi.fn() };
 			let requests = 0;
-
 			if (packaged) {
 				const buildScript = path.join(root, 'build.mjs');
 				await writeFile(
@@ -136,7 +133,6 @@ describe('compiled task progress loopback', () => {
 						serverFile: path.join(root, 'dist/server/index.js')
 					}
 				: await compileFileArtifacts(entry, { rootDir: root, outDir: root });
-
 			const clientModule = await importArtifact(
 				artifacts.clientFile,
 				path.join(root, 'client.mjs')
@@ -149,10 +145,12 @@ describe('compiled task progress loopback', () => {
 			const Server = serverModule.ProgressExample as AnyComponentFunction;
 			const registration = composeExactComponentContracts([Client], 'client');
 			const contract = composeExactExecutorContract([Server], { endpoint: '/__exact' });
-			const rendered = await renderToHydratableString(createCompiledComponentReceipt(Server, {}));
+			const rendered = await renderToHydratableString(
+				createCompiledComponentInputReceipt(Server, {})
+			);
 			const container = document.createElement('main');
 			container.innerHTML = rendered.html;
-			const client = hydrate(createCompiledComponentReceipt(Client, {}), container, {
+			const client = hydrate(createCompiledComponentInputReceipt(Client, {}), container, {
 				...registration,
 				resumptions: rendered.resumptions,
 				endpoint: '/__exact',
@@ -197,11 +195,10 @@ describe('compiled task progress loopback', () => {
 		30000
 	);
 });
-
 it.each([false, true])(
 	'delivers progress through generated islands registration (batch=%s)',
 	async (batch) => {
-		const root = await createTestWorkspace('.exact-progress-islands-', process.cwd());
+		const root = await createCompilerTestWorkspace('.exact-progress-islands-', process.cwd());
 		const entry = path.join(root, 'page.tsx');
 		await writeFile(
 			entry,
@@ -238,7 +235,7 @@ export function Shell(this: Component<{ready: boolean}>) {
 			[Server, serverModule.ProgressExample as AnyComponentFunction],
 			{ endpoint: '/__exact' }
 		);
-		const server = await renderToHydratableString(createCompiledComponentReceipt(Server, {}));
+		const server = await renderToHydratableString(createCompiledComponentInputReceipt(Server, {}));
 		const test = await mountClientServerTest({
 			server,
 			islands: registration.islands,

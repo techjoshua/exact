@@ -38,8 +38,25 @@ export function cross(a: Vector2, b: Vector2): number {
 
 /** Validates and copies an externally supplied vector. */
 export function finiteVector(value: Vector2, label: string): Vector2 {
-	if (!Number.isFinite(value.x) || !Number.isFinite(value.y)) {
+	const x = value.x;
+	if (!Number.isFinite(x)) throw new TypeError(`${label} must contain finite coordinates`);
+	const y = value.y;
+	if (!Number.isFinite(y)) {
 		throw new TypeError(`${label} must contain finite coordinates`);
 	}
-	return { x: value.x, y: value.y };
+	return { x, y };
+}
+
+/** Plans a finite vector correction before publishing either coordinate. */
+export function translateFiniteVector(
+	target: { x: number; y: number },
+	delta: Vector2,
+	label: string
+): void {
+	const x = target.x + delta.x;
+	const y = target.y + delta.y;
+	if (!Number.isFinite(x) || !Number.isFinite(y))
+		throw new TypeError(`${label} must contain finite coordinates`);
+	target.x = x;
+	target.y = y;
 }

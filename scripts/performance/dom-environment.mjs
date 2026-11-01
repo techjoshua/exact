@@ -22,6 +22,8 @@ export function installPerformanceDom(target = globalThis) {
 		HTMLInputElement: dom.window.HTMLInputElement,
 		HTMLScriptElement: dom.window.HTMLScriptElement,
 		HTMLSelectElement: dom.window.HTMLSelectElement,
+		HTMLOptionElement: dom.window.HTMLOptionElement,
+		HTMLOptGroupElement: dom.window.HTMLOptGroupElement,
 		HTMLTextAreaElement: dom.window.HTMLTextAreaElement,
 		Event: dom.window.Event,
 		MouseEvent: dom.window.MouseEvent

@@ -7,7 +7,7 @@ import (
 )
 
 // prepareSsrSinkSiblings issues direct references after slot validation, then transfers the
-// sibling preparation resource to caller-owned output. The same references are visited later,
+// complete child sequence to caller-owned output. The same references are visited later,
 // preserving parallel task startup and disposal of unvisited siblings when traversal fails.
 func (lowering *jsxLowering) prepareSsrSinkSiblings(plan *renderProgramSsrPlan) []*ast.Node {
 	f := lowering.factory
@@ -20,13 +20,20 @@ func (lowering *jsxLowering) prepareSsrSinkSiblings(plan *renderProgramSsrPlan) 
 	}
 	for index := range plan.writes {
 		write := &plan.writes[index]
-		if write.method != "directComponent" && write.method != "component" {
+		if write.method != "directComponent" && write.method != "component" && write.method != "child" && write.method != "keyedChild" {
 			continue
 		}
 		expression := plan.statements[write.statement].AsExpressionStatement().Expression
-		assignment := expression.AsBinaryExpression()
-		arguments := assignment.Right.Arguments()
-		reference := arguments[2]
+		callExpression := expression
+		if write.assignsCharacters {
+			callExpression = expression.AsBinaryExpression().Right
+		}
+		arguments := callExpression.Arguments()
+		valueIndex := 2
+		if write.method == "keyedChild" {
+			valueIndex = 1
+		}
+		reference := arguments[valueIndex]
 		if write.method == "directComponent" {
 			reference = f.NewIdentifier("__exactSibling_" + strconv.Itoa(len(references)))
 			referenceArguments := append([]*ast.Node(nil), arguments[2:4]...)
@@ -42,7 +49,7 @@ func (lowering *jsxLowering) prepareSsrSinkSiblings(plan *renderProgramSsrPlan) 
 			componentArguments := []*ast.Node{arguments[0], arguments[1], reference}
 			componentArguments = append(componentArguments, arguments[4:]...)
 			plan.statements[write.statement] = f.NewExpressionStatement(lowering.binary(
-				assignment.Left, ast.KindEqualsToken, call(plan.target, "component", componentArguments)))
+				expression.AsBinaryExpression().Left, ast.KindEqualsToken, call(plan.target, "component", componentArguments)))
 			write.method = "component"
 		}
 		references = append(references, reference)

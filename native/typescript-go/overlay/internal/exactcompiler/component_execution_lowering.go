@@ -271,7 +271,7 @@ func componentArtifactMetadata(
 	for _, transition := range execution.Transitions {
 		tasks = append(tasks, transition.ID)
 	}
-	if len(tasks) != 0 {
+	if len(tasks) != 0 || execution.LocalComputation {
 		capabilities = append(capabilities, "tasks")
 	}
 	if len(continuations) != 0 {
@@ -591,7 +591,7 @@ func componentRuntimeABI(
 	if component.Lists {
 		abi |= componentABILists
 	}
-	if len(execution.Transitions) != 0 || compatibility || continuationDispatch {
+	if len(execution.Transitions) != 0 || execution.LocalComputation || compatibility || continuationDispatch {
 		abi |= componentABITasks
 	}
 	if component.Collections {
@@ -653,7 +653,8 @@ func projectComponentExecution(execution ComponentExecution, target Target) Comp
 	}
 	return ComponentExecution{
 		Version: execution.Version, Ports: ports, Transitions: transitions,
-		Reactive: append([]ReactiveAllocation{}, execution.Reactive...),
+		LocalComputation: execution.LocalComputation && target != TargetServer,
+		Reactive:         append([]ReactiveAllocation{}, execution.Reactive...),
 	}
 }
 

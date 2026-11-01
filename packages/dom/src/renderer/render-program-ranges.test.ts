@@ -42,7 +42,7 @@ it('retains hydrated child identity, replaces and removes within its boundary, a
 		state.shown ? createCompiledOperation(state.tag, {}, state.label) : null
 	);
 	const program: ExactRenderProgram = {
-		version: 2,
+		version: 4,
 		id: 'retained-marked-range',
 		namespace: 'html',
 		template: '<section><!--x:child--><!--/x:child--><footer>after</footer></section>',
@@ -87,7 +87,7 @@ function claimedRange(bounded: boolean, component = false): Mounted {
 	const element = document.createElement('main');
 	element.innerHTML = '<article>child</article>' + (bounded ? '<footer>after</footer>' : '');
 	const program: ExactRenderProgram = {
-		version: 2,
+		version: 4,
 		id: 'range-retention',
 		namespace: 'html',
 		template: '',
@@ -174,7 +174,7 @@ it.each(['template', 'ssr'] as const)(
 		element.innerHTML =
 			'<!--x:a--><section><!--x:nested--><i>inside</i><!--/x:nested--></section><!--/x:a--><!--x:b--><!--/x:b--><footer>after</footer>';
 		const program: ExactRenderProgram = {
-			version: 2,
+			version: 4,
 			id: 'marked-boundaries',
 			namespace: 'html',
 			template: '',

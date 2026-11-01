@@ -1,3 +1,4 @@
+import type { ArrayClientBinding } from '@exactjs/reactive/framework/array-patch';
 import type { componentContractVersion } from '../component/contract-versions.js';
 import type {
 	ExactCompiledComponentCapability,
@@ -54,6 +55,8 @@ export type ExactClientPropSource = Readonly<Record<string, unknown>>;
 export type ExactClientComponentArtifact = Readonly<{
 	version: typeof componentContractVersion;
 	target: 'client';
+	/** Statically selected client capture and completion planning capability. */
+	array?: ArrayClientBinding;
 	id: string;
 	template?: object;
 	construct: CompiledComponentInstanceConstructor;

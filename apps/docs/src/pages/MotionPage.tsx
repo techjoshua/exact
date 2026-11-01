@@ -79,15 +79,17 @@ export function MotionPage(this: Component<{}>) {
 				</p>
 				<CodeBlock source={definitionSource} language="ts" title="dialog-motion.ts" />
 				<p>
-					Definitions are validated, checked for settling-safe timing, and frozen. Keep them at
-					module scope, or use the small preset set from <code>@exactjs/motion/presets</code>, so
-					reactive updates do not accidentally recreate visual policy. Reduced-motion policy uses an
-					explicit reduced phase or completes visual work immediately.
+					Definitions capture static fields once, then validate the copy. Readonly follows
+					TypeScript, and finite negative start delays are supported. Keep definitions at module
+					scope, or use the small preset set from <code>@exactjs/motion/presets</code>, so reactive
+					updates do not accidentally recreate visual policy. Reduced-motion policy uses an explicit
+					reduced phase or completes visual work immediately.
 				</p>
 				<p>
 					Enter/change phases may deliberately loop. Those loops detach from structural settlement
 					but remain component-owned. Leave, Activity parking, and disposal cancel them. Leave
-					phases and the low-level <code>animate()</code> helper stay finite.
+					phases and the low-level <code>animate()</code> helper stay finite. The helper captures
+					timing when called, before waiting for element placement.
 				</p>
 				<p>
 					Later reactive insertions run enter automatically. Initial rendering and hydration skip it

@@ -1,3 +1,4 @@
+import { readClientComponentInput } from './component-input-admission.js';
 import { readExactEnhancementContexts, type Child } from '@exactjs/core';
 import { exactEnhancementCatalog } from '@exactjs/core/framework/enhancement-catalog';
 import {
@@ -7,8 +8,7 @@ import {
 	type PreparedTextResolver
 } from '@exactjs/core/framework/render-structure';
 import {
-	createCompiledComponentReceipt,
-	readCompiledComponentReceipt,
+	createCompiledComponentInputReceipt,
 	readCompiledFragmentReceipt,
 	createCompiledFragmentPresentation
 } from '@exactjs/core/runtime/component-operations';
@@ -36,7 +36,7 @@ export function createTextEnhancementProjection(
 	return (value, project) => {
 		if (typeof value !== 'object' || value === null) return undefined;
 		root.enhancementCatalog ??= exactEnhancementCatalog;
-		const receipt = readCompiledComponentReceipt(value);
+		const receipt = readClientComponentInput(value);
 		if (receipt)
 			return component(receipt, (output, mounted) =>
 				withPreparedEnhancementBindings(root, mounted, [...output], project)
@@ -88,12 +88,12 @@ export function createTextEnhancementProjection(
 						)
 					]);
 				const entry = entries[index]!;
-				const receipt = createCompiledComponentReceipt(
+				const receipt = createCompiledComponentInputReceipt(
 					root.enhancementCatalog!.get(entry.identity)!,
 					{ ...entry.props },
-					leaf
+					{ kind: 'eager', values: [leaf] }
 				);
-				return component(readCompiledComponentReceipt(receipt)!, (output, mounted) => {
+				return component(readClientComponentInput(receipt)!, (output, mounted) => {
 					const contribution = readPreparedTargetOutput(output, leaf);
 					let identity = identities.get(mounted);
 					if (!identity) {

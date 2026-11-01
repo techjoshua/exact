@@ -14,6 +14,8 @@ export type ServerArtifactExecution<Publication> = Readonly<{
 		owner: AnyComponentInstance | undefined
 	) => import('./direct-component-content.js').DirectSsrComponentContent;
 	context: SsrContext;
+	/** Accepted occurrence inputs shared by body and publication. */
+	inputs: import('./server-component-reference.js').ComponentExecutionInputRecord;
 	options: SsrRenderOptions;
 	publication: Publication;
 	publish: DirectSsrComponentPublisher<Publication>;

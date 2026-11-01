@@ -46,3 +46,36 @@ func TestKeyedTaskPolicyAcrossDeclarationShapesAndTargets(t *testing.T) {
 		}
 	}
 }
+
+// Transport and continuation decoration may erase callable parameters. Key
+// resolution must retain the authored bindings after defaults have been captured.
+var keyedTransportControls = []struct{ name, definition, argument, key string }{
+	{"declaration", `async function run(key:string,value:number,task:TaskContext=TaskContext.server().latest().key(key).blocking()){return value;}`, `'a',1`, `(key, value) => key`},
+	{"destructured-arrow", `const run=async({key}:{key:string},value:number,task:TaskContext=TaskContext.server().latest().key(prefix+key).blocking())=>value;`, `{key:'a'},1`, `({ key }, value) => prefix + key`},
+	{"captured-default-expression", `const run=async function(key:string=defaultKey(),value:number,task:TaskContext=TaskContext.server().queue().key(prefix+key).blocking()){return value;};`, `undefined,1`, `(key, value) => prefix + key`},
+	{"current", `async function run(key:string,value:number,task:TaskContext=TaskContext.latest().key(key).blocking()){return value;}`, `'a',1`, `(key, value) => key`},
+}
+
+func keyedTransportControlSource(definition, argument string) string {
+	return `import{TaskContext,type Component}from'@exactjs/core';export function Page(this:Component<{value:number}>){this.state.value=0;const prefix='tenant:';const defaultKey=()=>'a';` + definition + `const invoke=run;return()=> <button onClick={()=>invoke(` + argument + `)}>Run</button>;}`
+}
+func TestKeyedTransportRetainsAuthoredParameterBindings(t *testing.T) {
+	for _, c := range keyedTransportControls {
+		for _, target := range []Target{TargetClient, TargetServer} {
+			t.Run(c.name+"/"+string(target), func(t *testing.T) {
+				response := NewSession().Execute(Request{Kind: "compile", ID: "keyed-transport-" + c.name + ".tsx", Target: target, Diagnostics: "semantic", Source: keyedTransportControlSource(c.definition, c.argument)})
+				if response.Error != "" {
+					t.Fatal(response.Error)
+				}
+				for _, d := range response.Diagnostics {
+					if d.Severity == "error" {
+						t.Fatalf("valid authored key rejected: %#v", response.Diagnostics)
+					}
+				}
+				if target == TargetClient && !strings.Contains(response.Code, "concurrencyKey: "+c.key) {
+					t.Fatalf("key resolver omitted its authored parameters: %s", response.Code)
+				}
+			})
+		}
+	}
+}

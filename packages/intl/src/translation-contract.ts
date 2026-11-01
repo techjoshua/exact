@@ -1,3 +1,4 @@
+import { copyIntlProtocolData } from './protocol-data.js';
 import type {
 	IntlBindingDescriptorV1,
 	IntlPatternNodeV1,
@@ -14,7 +15,7 @@ export interface IntlTranslationContractProjection {
 	readonly placeholders: readonly IntlTranslationPlaceholderV1[];
 }
 
-/** Projects exact execution operations into stable translator-facing placeholder references. */
+/** Projects execution operations into independent translator-facing data with ordinary TypeScript readonly fields. */
 export function projectIntlTranslationContract(
 	bindings: readonly IntlBindingDescriptorV1[],
 	source: IntlPatternV1
@@ -26,99 +27,83 @@ export function projectIntlTranslationContract(
 		return value;
 	};
 	const project = (pattern: IntlPatternV1, path = 'n'): IntlTranslationPatternV1 =>
-		Object.freeze(
-			pattern.map((node, index): IntlTranslationPatternNodeV1 => {
-				if (node.kind === 'text') return Object.freeze({ ...node });
-				const id = `${path}${index}`;
-				if (node.kind === 'value') {
-					const declared = binding(node.binding);
-					placeholders.push(
-						placeholder(id, 'value', declared.type, declared.name ?? `value-${node.binding}`, true)
-					);
-					return Object.freeze({ kind: 'placeholder', id });
-				}
-				if (node.kind === 'format') {
-					const declared = binding(node.bindings[0]!);
-					placeholders.push(
-						placeholder(
-							id,
-							'format',
-							node.formatter.kind,
-							declared.name ?? node.formatter.kind,
-							true
-						)
-					);
-					return Object.freeze({ kind: 'placeholder', id });
-				}
-				if (node.kind === 'opaque') {
-					placeholders.push(placeholder(id, 'opaque', 'structure', node.name, false));
-					return Object.freeze({ kind: 'placeholder', id });
-				}
-				if (node.kind === 'element') {
-					const declared = binding(node.binding);
-					placeholders.push(
-						placeholder(id, 'element', 'structure', declared.name ?? 'element', false)
-					);
-					return Object.freeze({ kind: 'element', id, value: project(node.value, `${id}.`) });
-				}
+		pattern.map((node, index): IntlTranslationPatternNodeV1 => {
+			if (node.kind === 'text') return { ...node };
+			const id = `${path}${index}`;
+			if (node.kind === 'value') {
 				const declared = binding(node.binding);
 				placeholders.push(
-					placeholder(id, 'select', node.selection, declared.name ?? node.selection, false)
+					placeholder(id, 'value', declared.type, declared.name ?? `value-${node.binding}`, true)
 				);
-				return Object.freeze({
-					kind: 'select',
-					id,
-					cases: Object.freeze(
-						node.cases.map((candidate, caseIndex) =>
-							Object.freeze({
-								key: candidate.key,
-								value: project(candidate.value, `${id}.c${caseIndex}.`)
-							})
-						)
-					),
-					fallback: project(node.fallback, `${id}.f.`)
-				});
-			})
-		);
-	return Object.freeze({ source: project(source), placeholders: Object.freeze(placeholders) });
+				return { kind: 'placeholder', id };
+			}
+			if (node.kind === 'format') {
+				const declared = binding(node.bindings[0]!);
+				placeholders.push(
+					placeholder(id, 'format', node.formatter.kind, declared.name ?? node.formatter.kind, true)
+				);
+				return { kind: 'placeholder', id };
+			}
+			if (node.kind === 'opaque') {
+				placeholders.push(placeholder(id, 'opaque', 'structure', node.name, false));
+				return { kind: 'placeholder', id };
+			}
+			if (node.kind === 'element') {
+				const declared = binding(node.binding);
+				placeholders.push(
+					placeholder(id, 'element', 'structure', declared.name ?? 'element', false)
+				);
+				return { kind: 'element', id, value: project(node.value, `${id}.`) };
+			}
+			const declared = binding(node.binding);
+			placeholders.push(
+				placeholder(id, 'select', node.selection, declared.name ?? node.selection, false)
+			);
+			return {
+				kind: 'select',
+				id,
+				cases: node.cases.map((candidate, caseIndex) => ({
+					key: candidate.key,
+					value: project(candidate.value, `${id}.c${caseIndex}.`)
+				})),
+				fallback: project(node.fallback, `${id}.f.`)
+			};
+		});
+	return { source: project(source), placeholders };
 }
 
-/** Reattaches current execution metadata to one validated generic translation. */
+/** Reattaches execution metadata to a validated translation without sharing mutable data with its descriptor. */
 export function materializeIntlTranslation(
 	translation: IntlTranslationPatternV1,
 	descriptor: IntlRuntimeDescriptorV1
 ): IntlPatternV1 {
 	const exactById = exactNodeMap(descriptor.bindings, descriptor.source);
 	const materialize = (pattern: IntlTranslationPatternV1): IntlPatternV1 =>
-		Object.freeze(
-			pattern.map((node): IntlPatternNodeV1 => {
-				if (node.kind === 'text') return Object.freeze({ ...node });
-				const exact = exactById.get(node.id);
-				if (!exact)
-					throw new TypeError(`Intl translation references unknown placeholder ${node.id}`);
-				if (node.kind === 'placeholder') {
-					if (exact.kind === 'text' || exact.kind === 'element' || exact.kind === 'select')
-						throw new TypeError(`Intl placeholder ${node.id} has an incompatible structure`);
-					return exact;
-				}
-				if (node.kind === 'element') {
-					if (exact.kind !== 'element')
-						throw new TypeError(`Intl element ${node.id} has an incompatible structure`);
-					return Object.freeze({ ...exact, value: materialize(node.value) });
-				}
-				if (exact.kind !== 'select')
-					throw new TypeError(`Intl selector ${node.id} has an incompatible structure`);
-				return Object.freeze({
-					...exact,
-					cases: Object.freeze(
-						node.cases.map((candidate) =>
-							Object.freeze({ key: candidate.key, value: materialize(candidate.value) })
-						)
-					),
-					fallback: materialize(node.fallback)
-				});
-			})
-		);
+		pattern.map((node): IntlPatternNodeV1 => {
+			if (node.kind === 'text') return { ...node };
+			const exact = exactById.get(node.id);
+			if (!exact) throw new TypeError(`Intl translation references unknown placeholder ${node.id}`);
+			if (node.kind === 'placeholder') {
+				if (exact.kind === 'text' || exact.kind === 'element' || exact.kind === 'select')
+					throw new TypeError(`Intl placeholder ${node.id} has an incompatible structure`);
+				return copyIntlProtocolData(exact);
+			}
+			if (node.kind === 'element') {
+				if (exact.kind !== 'element')
+					throw new TypeError(`Intl element ${node.id} has an incompatible structure`);
+				return { ...exact, value: materialize(node.value) };
+			}
+			if (exact.kind !== 'select')
+				throw new TypeError(`Intl selector ${node.id} has an incompatible structure`);
+			return {
+				...exact,
+				cases: node.cases.map((candidate) => ({
+					key: candidate.key,
+					value: materialize(candidate.value)
+				})),
+				fallback: materialize(node.fallback)
+			};
+		});
 	return materialize(translation);
 }
 
@@ -154,5 +139,5 @@ function placeholder(
 	name: string,
 	canCopy: boolean
 ): IntlTranslationPlaceholderV1 {
-	return Object.freeze({ id, kind, role, name, canCopy, canDelete: false });
+	return { id, kind, role, name, canCopy, canDelete: false };
 }

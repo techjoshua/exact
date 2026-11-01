@@ -69,7 +69,7 @@ func (lowering *jsxLowering) lowerOpeningLikeWithoutTime(
 			lowering.names.fragment,
 			append(
 				[]*ast.Node{
-					lowering.props(opening.Attributes(), "", false, ""),
+					lowering.structuralProps(opening.Attributes(), ""),
 				},
 				lowering.children(children)...,
 			),
@@ -174,8 +174,10 @@ func (lowering *jsxLowering) lowerOpeningLikeWithoutTime(
 	if intrinsic && lowering.target == TargetServer && lowering.timeActivation != "" &&
 		lowering.timeAttributesHaveClockSpread(opening.Attributes()) {
 		metadata := []*ast.Node{}
-		props = lowering.propsWithDeferredProjection(opening.Attributes(), lowering.elementID(identityNode), true, tagText, false, false, &metadata)
+		props = lowering.propsWithDeferredProjection(opening.Attributes(), lowering.elementID(identityNode), true, tagText, false, false, &metadata, ordinaryExpressionInput)
 		deferredSpreadMetadata = lowering.factory.NewObjectLiteralExpression(lowering.factory.NewNodeList(metadata), false)
+	} else if lowering.exactCoreStructuralTag(tag) {
+		props = lowering.structuralProps(opening.Attributes(), tagText)
 	} else {
 		props = lowering.props(opening.Attributes(), lowering.elementID(identityNode), intrinsic, tagText)
 	}
@@ -258,9 +260,14 @@ func (lowering *jsxLowering) lowerOpeningLikeWithoutTime(
 		elementHelper = lowering.names.componentReceipt
 	}
 	element := lowering.call(elementHelper, arguments)
+	componentInputsClosed := true
+	if elementHelper == lowering.names.componentReceipt && lowering.target == TargetClient {
+		_, componentInputsClosed = lowering.directComponentProgramReader(element)
+	}
 	if lowering.target == TargetClient &&
 		elementHelper == lowering.names.componentReceipt &&
 		!derivedComponent &&
+		lowering.hasRegisteredComponentReceiver(identityNode) &&
 		lowering.renderProgramChildDepth == 0 &&
 		lowering.renderProgramComponentDepth == 0 {
 		if dependencies, closed := lowering.directComponentProgramReader(element); closed && len(dependencies) != 0 {
@@ -273,9 +280,13 @@ func (lowering *jsxLowering) lowerOpeningLikeWithoutTime(
 					element,
 					lowering.factory.NewNumericLiteral(strconv.Itoa(target), ast.TokenFlagsNone),
 					lowering.factory.NewIdentifier(updates),
+					lowering.factory.NewThisExpression(),
 				})
 			}
 		}
+	}
+	if elementHelper == lowering.names.componentReceipt {
+		element = lowering.componentInputRecipeCall(element, componentInputsClosed)
 	}
 	if lowering.directScheduledServerComponent(tag) {
 		element = lowering.call(lowering.names.issueServerComponent, []*ast.Node{element})
@@ -834,65 +845,6 @@ func (lowering *jsxLowering) children(children *ast.NodeList) []*ast.Node {
 	return result
 }
 
-// componentChildren lowers authored children as finalized component-ABI inputs. Unlike an
-// intrinsic child range, a component child is delivered through the receiving artifact's prop
-// receipt. Keeping a parent-owned live range here would hide keyed identity from transparent
-// components and allow a retained outgoing generation to observe values from its replacement.
-func (lowering *jsxLowering) componentChildren(children *ast.NodeList) []*ast.Node {
-	return lowering.componentChildrenMode(children, false)
-}
-
-func (lowering *jsxLowering) componentChildrenMode(children *ast.NodeList, observeTextSpreads bool) []*ast.Node {
-	if children == nil {
-		return nil
-	}
-	// Public composition retains intrinsic structure. Fixed declarations can carry a lazy view
-	// beside a render program; other children keep their directly inspectable representation.
-	previousFallback := lowering.renderProgramFallback
-	lowering.renderProgramFallback = true
-	defer func() { lowering.renderProgramFallback = previousFallback }()
-	result := []*ast.Node{}
-	semantic := ast.GetSemanticJsxChildren(children.Nodes)
-	for childIndex, child := range semantic {
-		switch {
-		case ast.IsJsxText(child):
-			text := normalizeJSXChildText(child.AsJsxText().Text, childIndex, len(semantic))
-			if text != "" {
-				result = append(
-					result,
-					lowering.factory.NewStringLiteral(text, ast.TokenFlagsNone),
-				)
-			}
-		case ast.IsJsxExpression(child):
-			expression := child.AsJsxExpression().Expression
-			if expression == nil {
-				continue
-			}
-			emitted := lowering.visitor.VisitNode(expression)
-			if lowering.declarativeRenderDepth > 0 {
-				result = append(result, emitted)
-				continue
-			}
-			result = append(result, lowering.reactiveExpression(expression, emitted))
-		default:
-			if !previousFallback {
-				if program := lowering.lowerComposableIntrinsicChild(child); program != nil {
-					result = append(result, program)
-					continue
-				}
-			}
-			emitted := lowering.visitor.VisitNode(child)
-			if observeTextSpreads && textHostChildHasIntrinsicSpread(child) {
-				// Text presentation owns this observation. Rebuild copied property bags under
-				// that observation so reconciled keys remain visible in serialized markup.
-				emitted = lowering.reactiveExpression(child, emitted)
-			}
-			result = append(result, emitted)
-		}
-	}
-	return result
-}
-
 // compatibilityContributionChildren closes each authored native child over its supplier-selected
 // placement operation. The React island receives only the opaque handle and cannot inspect whether
 // the operation contributes text, intrinsic topology, a component, a collection, or no output.
@@ -985,6 +937,27 @@ func (lowering *jsxLowering) timeAttributesHaveClockSpread(attributes *ast.Node)
 			property.AsJsxSpreadAttribute().Expression, lowering.checker, lowering.sourceFile, map[ast.SymbolId]struct{}{},
 		) {
 			return true
+		}
+	}
+	return false
+}
+
+// hasRegisteredComponentReceiver requires the first ordinary receiver to be the selected durable
+// definition. A nested function's explicit this parameter cannot redeem an enclosing contract.
+func (lowering *jsxLowering) hasRegisteredComponentReceiver(node *ast.Node) bool {
+	component, owned := lowering.componentContaining(node)
+	if !owned || !componentHasTargetArtifact(component, lowering.target) {
+		return false
+	}
+	for current := node.Parent; current != nil; current = current.Parent {
+		if !ast.IsFunctionLike(current) {
+			continue
+		}
+		if current.Pos() == component.Start && current.End() == component.Start+component.Length {
+			return componentCandidateIsModuleLevel(componentCandidate{node: current})
+		}
+		if !ast.IsArrowFunction(current) {
+			return false
 		}
 	}
 	return false

@@ -18,7 +18,7 @@ func (state *projectState) invalidateChangedProjectSources(changedFileName strin
 		return
 	}
 	changedSource := state.program.GetSourceFile(changedFileName)
-	if (changedSource != nil && changedSource.IsDeclarationFile) || projectRequiresConservativeInvalidation(state) {
+	if state.executableSelection != nil || (changedSource != nil && changedSource.IsDeclarationFile) || projectRequiresConservativeInvalidation(state) {
 		state.counters.FullInvalidations++
 		state.invalidateAnalysisCaches()
 		return
@@ -179,6 +179,12 @@ func (state *projectState) pruneCallableCache(
 	affected map[string]bool,
 ) {
 	if state.callableCache == nil {
+		return
+	}
+	// Every callable fact and its source-value owner belongs to the old checker.
+	// Other project caches retain their existing source-identity invalidation policy.
+	if state.callableCache.program != state.program {
+		state.callableCache = nil
 		return
 	}
 	for sourceFile := range state.callableCache.bySource {

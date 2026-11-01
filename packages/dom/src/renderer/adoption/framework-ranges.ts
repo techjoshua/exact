@@ -8,7 +8,7 @@ export type FrameworkChildRange = { start: Comment; end: Comment };
  * Only adjacent framework marker pairs hide content. An unmatched first opening preserves all
  * children, including later pairs, matching the adoption fallback for incomplete documents.
  */
-export function collectAuthoredChildren(parent: Element): {
+export function collectAuthoredChildren(parent: Node): {
 	framework: FrameworkChildRange | undefined;
 	nodes: Node[];
 } {

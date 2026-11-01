@@ -5,4 +5,5 @@ server-owned eXact work.
 
 - Never place secret values in client state, hydration, catalogs, logs, errors, or DevTools data.
 - Expose only names or presence when inspection policy permits it.
-- Configure redaction selectors before inspecting values that may contain secrets.
+- Configure server redaction selectors before server inspection of values that may contain secrets.
+- Custom providers should observe their context signal and validate credential-specific requirements.

@@ -8,8 +8,23 @@ client, server, shared, source-map, and inspection set before publication. A fil
 restores the prior generation instead of leaving target files mixed. Semantic work and
 deterministic diagnostics remain single-owned by the retained native session.
 
+Semantic generated-code validation keeps each module at its original identity. Imported finite
+mutation helpers are checked against the same compiler-owned companion bodies and runtime support
+imports emitted by their producer. This dependency view is local to validation. The authored
+program remains unchanged, and retained validation applies the same dependency view as a fresh
+program, including changed or removed producer sources. Relative module aliases also keep already resolved ordinary source imports
+linked to their original module identity during checking, including type-only edges. This is a
+source-type proof before publication, so a resolved relative alias does not require its output file
+to exist yet. Unresolved original imports and unresolved bare replacement targets remain errors.
+The checking view writes no files and does not prove that a final artifact set has been published.
+The artifact host owns the complete plan and commits it only after both targets validate. Generated import types retain that original dependency identity when an artifact moves to its output directory, including types inferred from an already resolved transitive source module.
+
+Supported package declaration contracts retain their operation requirements when a host snapshot leaves an external package executable opaque. This applies to actual ambient function and variable declarations, including merged type/value exports. An explicit selected executable still owns the body, and a declaration supplies neither a private helper nor implementation proof. Opaque local imports retain uncertainty.
+
 There is no JavaScript compiler fallback and no public backend selector. Native failures remain
 visible instead of silently changing compiler semantics.
+
+Native property validation reserves `data-exact-id` for compiler-generated physical element identity. This reservation also applies to native `_` and `_target` host contributions. Explicit attributes and statically known spread properties receive an error with a custom-attribute remedy. Validation includes members proved by the existing finite spread syntax facts, even when a type assertion hides them from the apparent type. Opaque spreads remain valid. Their normal evaluation and getter effects complete once before the compiler installs physical-address metadata under an internal shared symbol. This construction does not validate arbitrary runtime receipts or change replay authorization. Physical metadata is installed last. Native renderers ignore reserved ASCII-case-equivalent string keys and serialize the physical address once. Structural contributions neither supply nor override the selected host address, including during target composition. This metadata is not operation authority.
 
 ## No-emit language sessions
 
@@ -123,12 +138,30 @@ Build adapters derive application configuration and authorization ownership from
 Vite uses its resolved `root`, Webpack uses compiler `context`, and Bun uses build `root` when
 supplied, otherwise the process directory. An explicit `applicationRoot` overrides that default.
 Root-sensitive enhancement, translation, compatibility, and authorization owners must agree before
-build startup.
+build startup. Individually named absolute source files in an explicit adapter `include` can join
+the host-selected source graph outside that root. Each file still needs an actual resolver-selected
+edge and final compiler preparation. Pattern filters do not admit outside neighbors, and source
+availability does not grant component-library authorization to another physical package.
+
+Host-selected local server helpers use the adapter's actual resolved module for ordinary calls and
+private task-owned entries. The compiler keeps authored TypeScript diagnostics separate from the
+selected executable body and uses that body's parameter and write facts for publication. The build
+prepares the complete relative/absolute local source graph below its application source root before
+sibling modules load, so an ordinary import cannot race helper ownership acquisition. Snapshot
+installation and dependent compilation share one serialized session operation. The existing native
+acknowledgement binds target, generation, content revisions, and syntax slots. Missing or external
+edges cannot fall back to a neighboring TypeScript implementation for private authority. Bare
+package, alias, and virtual-source private authority are outside this local helper selection path.
+Vite and Bun keep require slots opaque because their current selection callbacks do not establish
+require-condition resolution. Webpack supplies its actual commonjs or esm resolver kind. Ordinary
+host execution remains available for opaque sources.
 
 Vite, Bun, and Webpack use these same contracts. Missing nested dependencies and invalid installed
 providers remain failures rather than silently disabling an enhancement.
 
-Paired `compileFileArtifacts` / `compileProjectArtifacts` output is portable build input. Each
+Paired `compileFileArtifacts` / `compileProjectArtifacts` output is portable build input.
+`compileFileArtifacts` also publishes compiler-required local helper companions within its output
+root. Keep those paired modules with the entry artifact when bundling or distributing it. Each
 module carries registrations and `exact:optional-enhancement` requests. Consume enhanced paired
 output through the eXact Vite, Bun, or Webpack adapter, which resolves those requests in the consuming module's
 scope and target. It applies server authorization before loading providers. Missing providers use
@@ -184,6 +217,19 @@ standard mapping from application methods. Destructured item callbacks retain th
 for key selection and their authored bindings for rendering. Defaulted callbacks retain their
 authored item type when emitted through a generic list helper. Authored JSX keys override
 inferred identity. Callback-local keys retain their lexical scope and derived-binding projection.
+Interactive callback ranges retain every enclosing repeated lexical scope under one island
+owner. State-connected sibling consumers share that owner. Immutable aliases of the actual component receiver are recreated under that owner rather
+than serialized as data. Captures and materialized locals retain readonly and generic constraints
+using checker-owned names in a retained lexical type environment. Module symbols keep their
+identity. A finite destination type environment retains demanded local aliases and interfaces, including
+merged and recursive groups. It owns the annotations actually emitted for captures, functions and
+materialized locals. Explicit syntax preserves instantiated generic arguments. Inferred binding
+types use the authored checker and its synthesized symbol map. Complete value queries rooted in
+component parameters or setup locals are projected before extraction, preserving member types
+without moving initializers or querying a generated capture envelope. Props observation does not
+supply children capability. Authored property/index/union facts select child-slot access and data
+sanitation, including guarded reads when only part of a union can supply children. Scalar read facts are captured before extraction,
+so reconstructed callbacks do not query a checker whose lexical tree has changed.
 Native callback parents establish separate nested list ownership instead of sharing a component
 site cache. Literal key fields use indexed
 access when their names cannot form an identifier. Primitive inference follows the existing
@@ -228,12 +274,31 @@ Applications normally compile through `@exactjs/vite-plugin`, `@exactjs/webpack-
 `createCompilerSession`, `transformSource`, and the artifact-planning APIs from
 `@exactjs/compiler`.
 
+Successful transform results retain optional structured `diagnostics` independently of inspection.
+Each `NativeCompilerDiagnostic` preserves its severity, stable code, authored filename and range.
+Programmatic transforms collect diagnostics without printing. The CLI reports warnings to stderr
+for checking, ordinary compilation, and paired artifacts. Warnings do not change a successful exit
+status or prevent emission. Vite, Bun, and Webpack forward them through their existing warning
+channels. Errors retain their refusal behavior.
+
+The CLI deduplicates repeated target diagnostics within one invocation while each target result
+retains its own collection. A local `@exact ignore=EXACT2004` acknowledgment removes only that
+compiler advisory before host delivery. It grants no placement or runtime authority. See
+[task lifetime](tasks.md#structural-settlement-and-failure) and the
+[directive reference](component-language.md).
+
 Each transform result reports `runtimeDependencies`, the bare package specifiers that remain in
 the final target-local module after lowering and pruning. Published-package builds validate those
 facts against `dependencies`, `peerDependencies`, and `optionalDependencies`; a generated DOM or
 SSR import can therefore never be hidden behind a development-only workspace installation. The
 monorepo discovers packages requesting target-local compilation from their manifests rather than
 maintaining a second ordered package list.
+
+Relative executable imports retain their runtime source edges when TypeScript resolves their types
+through a declaration companion. The runtime edge uses existing artifact planning and import
+rewriting. Dependencies without paired artifacts link back to the actual source module rather than
+being copied into `outDir`. Type-only imports and package declarations do not acquire runtime edges
+through this fallback.
 
 Precompiled pipelines treat `rootDir` as an output-containment boundary. Every input must resolve
 beneath that root before the compiler derives a path under `outDir`; an outside input fails without
@@ -286,6 +351,10 @@ work across file-affinity checkers. Parsing and generated validation retain thei
 Import bindings and state-alias proofs are shared within one acquired authored checker. Requested
 source callable facts seed project discovery before dependency analysis, avoiding provisional
 analysis and a second graph merge for that source. Import and alias proofs remain request-local.
+Callable facts and their executable/source-value owners are retained only for the exact authored
+Program and acquired checker that produced them. A replacement Program or checker renews that
+callable generation, even when some source text or AST identities survive. Unchanged generations
+retain their callable cache. Other project caches keep their existing source invalidation rules.
 Callable-cache reuse compares asset-rule values against an owned snapshot rather than formatting
 the declarations into a string on every request. Rule order, selector lists, evaluation, and
 delivery remain invalidation inputs. Replacement generations copy selector slices so later request
@@ -314,12 +383,24 @@ Requests project their own summary slice from the retained immutable graph, shar
 and node/symbol indexes rather than rebuilding graph-wide indexes for every module.
 Callable effect propagation revisits only callers whose callee summaries changed. Ascending
 passes preserve recursive widening, path selection and progress-receiver boundaries. Opaque-call
-effects and prior summary signatures are retained within one graph resolution. Context convergence
-compares capability membership so recursive helpers cannot stall compilation by repeatedly
-reordering the same set. Authored effect order remains available to consumers.
+effects and prior summary signatures are retained within one graph resolution. Context and state-effect convergence
+compare complete capability membership so recursive helpers cannot stall compilation by repeatedly
+reordering the same obligations. State comparisons preserve receiver identity, structured paths,
+operation and confidence. The comparison does not reorder retained effects or discard duplicates.
 Pending-helper searches use indexed work roots when available and prune disjoint authored
 subtrees. Mutation type capture shares only unnamed primitive types within one checker. Named,
 generic, composite and unique-symbol types retain their authored lexical construction.
+For server island snapshots, `EXACT2232` rejects a demanded authored computed key whose narrowed
+type still contains a symbol alternative. The diagnostic uses the same private island plan as
+emission and preserves authored key provenance before wildcard path deduplication. Key types are
+classified before transformation, but only a snapshot surviving final artifact printing publishes the
+diagnostic. The existing printer callback witnesses the exact constructed expression after
+projection has removed dormant locals. Metadata-only analysis retains conservative paths without treating an elided island
+plan as a transport demand. Client placeholders and continuation-absorbed element islands do not
+create snapshot diagnostics. This does not
+change client-local unique-symbol type preservation or the public state-path analysis schema.
+A computed key narrowed to one string literal selects that named property in the server snapshot.
+The conservative wildcard used by state-path analysis is not emitted as that finite property's name.
 
 The incremental measurement harness compiles twelve components with state aliases, ordinary
 helpers and blocking server tasks. Each operation edits authored text and measures native analysis,
@@ -378,6 +459,10 @@ inspection controls, instrumentation, source results, and contextual failures. V
 register resolved type-only imports and ambient declarations with their build watchers. Native
 watch queries select the requesting source’s dependency graph, excluding its own file and unrelated
 modules. Bun starts a fresh program at each build boundary because it supplies no changed-file set.
+Initial reads in that generation are load observations. Changed observed source bytes still
+refresh dependent analyses, including files outside the transform include. Runtime loaders without
+a build-start boundary retain conservative initial invalidation, and requested initial diagnostics
+still run.
 Resolution, HMR,
 asset emission, and build-tool lifecycle behavior remain adapter-owned. Shared adapter selection
 classifies `?raw` and `?url` query keys as asset representations before executable analysis.
@@ -385,7 +470,10 @@ Vite leaves their text or URL wrappers to its asset loader and does not assign t
 compiler observations, internationalization analysis, or authorization facts to those wrappers.
 Webpack excludes the same queries from its installed compiler pre-loader and explicit loader, preserving the host’s
 `asset/source` and `asset/resource` rules. Combined asset queries remain assets. Ordinary cache
-queries and `exact-target` test projections remain executable. Bun has no built-in query convention
+queries and `exact-target` test projections remain executable. Vite evaluates source filters and
+owned-helper identities against the authored filename without host query parameters. An explicit
+paired test projection owns its matching executable-selection transaction before compilation.
+Bun has no built-in query convention
 for these imports. A host asset plugin can resolve them into a separate namespace and return text
 without entering the eXact source loader. Executable importer fingerprints and stale-generation
 rejection remain unchanged. Client artifact isolation still rejects server artifact disclosure.
@@ -450,7 +538,10 @@ retains its argument prefix and widens the suffix to an unknown wildcard, preven
 recursion from enumerating exponentially many paths. Whole-receiver recursion and acyclic helper
 calls retain precise effects. The 32-segment depth bound remains a fallback. Unknown recursive
 writes cannot grant finite remote write authority. Literal property boundaries remain distinct
-during analysis.
+during analysis. Repeated primitive-input calls reuse the resolved callable effect graph rather
+than acquire an opaque effect solely from revisiting an active declaration. Object, unknown,
+projected and captured nonprimitive inputs still widen recursive value demands. This supplies
+neither a return value nor purity or performed-execution authority.
 
 ### Portable build analysis
 
@@ -458,6 +549,13 @@ Project-wide callable facts retain their source-file ownership. Artifact pruning
 lookup may use source offsets only after selecting the owning file. An unrelated module initializer
 included by `tsconfig.json` cannot remove another module's exports or change its component placement.
 Real imported call edges still propagate their environment requirements across files.
+
+Callback acquisition for callable effects retains explicit function-task execution ownership.
+Caller arguments and receiver access are evaluated by the caller, while callbacks executed
+inside a child belong to that child's effect graph. Source-value and producer proofs retain
+their ordinary traversal because a task boundary does not establish a return value or purity.
+Checking-only relocated modules use relative specifiers even when the source directory starts
+with a dot, preserving the original module's namespace and nominal types.
 
 Ordinary runtime values retain their local declaration ownership through aliases, default exports
 and destructuring. Target pruning removes opposite-runtime exports and their local initialization
@@ -474,7 +572,29 @@ symbol once per creation or execution mode, so shared dependencies do not multip
 cyclic dependencies retain all reachable environment requirements.
 Supplied-target helper proofs cache the callable and formal receiver together. Shared return paths
 reuse that proof, while recursive returns and receiver substitution remain opaque.
-Existing `typeof` guards keep portable fallbacks available in both targets.
+Existing `typeof` guards keep portable fallbacks available in both targets. An unavailable branch
+that exits with `return` or `throw` also guards later reads in that block. Partial exits, later
+checks and checks of another global do not establish availability.
+Getter and setter bodies retain their own execution ownership. Creating their object does not
+execute them. Reads, writes, updates and value enumeration carry the appropriate accessor effects,
+including structural annotations, source factory returns, nested projections and helper arguments.
+Computed member names still execute while the owner is created. Provenance searches retain
+structural safeguards, including 128 nested value or origin steps. Estimated work is advisory
+and accumulates across nested callable and projection demands. Structural refusal retains known
+effects and explicit incomplete provenance, including through purity filtering. Reflective descriptor installation and arbitrary
+external value production require independent execution contracts.
+Standard URI encoding and decoding functions, `isFinite()` and `isNaN()` retain portable ownership
+from their bundled library declarations. Local or imported shadows keep their authored effects.
+Standard typed-array, `ArrayBuffer` and `DataView` methods retain portable execution ownership
+through their selected bundled declarations. The same rule applies to their standard constructors.
+Local classes, method overrides and application-added methods do not gain authority from familiar
+names. Unrelated interface augmentation does not remove authority from selected standard methods.
+Standard `Array.from()` and typed-array `from()` calls carry the mapper callback's execution
+requirements. Callable input values and `thisArg` values remain data rather than invoked callbacks.
+Execution placement does not imply that mutation is safe inside a reactive derived calculation.
+Optional native receiver calls retain the selected method's declaration after excluding nullish
+receiver alternatives. Authored union members do not acquire native authority, and invoked callback
+effects remain independent.
 Standard-library `Event` and `EventTarget` methods remain portable across supported runtimes,
 including aliases and mapped type views such as `Readonly<EventTarget>`. Method declaration
 ownership preserves this placement without making DOM-specific methods portable.
@@ -512,8 +632,17 @@ the namespace begins with a lowercase letter. Plain lowercase tags remain intrin
 
 Project synchronization installs empty sources and publishes a reusable generation even for a
 single source. Generated-code checking uses an isolated program with the synchronized dependency
-overlays, including files which do not exist on disk. A dependency type change is checked against
-that generation without replacing the retained authored program with generated code.
+overlays, including files which do not exist on disk. Ordinary unselected synchronization updates
+or adds those authoritative overlays. Omitting a source from a later batch, even after deleting its
+physical file, does not discard its installed overlay. Explicit session reset clears that retained
+source authority before a new source set is synchronized. Selected executable snapshots retain their
+separate complete-replacement policy. A dependency type change is checked against
+that generation without replacing the retained authored program with generated code. Generated
+contents occupy the original canonical module identity in that isolated program, so circular
+type imports retain module-local unique-symbol and other nominal identities. The generated entry
+is parsed as TypeScript after JSX lowering during initial construction and retained updates.
+Authored dependency overlays do not overwrite it. Entry diagnostics retain a synthetic reporting
+name for source-map projection, while imported diagnostics keep their own source locations.
 Retained normalization identity includes the prepared package-enhancement suffix, while authored
 offsets remain separate for diagnostics and source maps. Synchronization and per-module requests
 therefore agree on unchanged source identity. Imported normalized computations retain compiler-owned
@@ -647,7 +776,11 @@ task results preserve distinct type identities through imported, private and sha
 The checking projection preserves contextual callback types in ordinary JSX helpers and
 materialized attribute readers, explicit annotations on derived values, and authored union or optional-value narrowing across generated
 read closures. A proof comes from the source checker: an unguarded optional read or invalid union
-member remains an error. Narrowing assertions never replace a `delete` operand, including
+member remains an error. A value assertion must not replace a terminal optional read that supplies
+an authored control-flow guard. Its receiver relationship stays in native syntax, while receiver
+prefixes and selected derived getter reads retain their own value proofs. Optional access can
+widen a property result, so assignability to the declared value type is checked separately from
+guard ownership. Narrowing assertions never replace a `delete` operand, including
 parenthesized property targets. State mutation lowering has the type-checking limitations described
 below. Awaited expressions inside object or array assignments settle before the
 compiler enters a synchronous task mutation, retaining cancellation checks before publication.
@@ -732,6 +865,437 @@ Standalone localization analysis supplies native ESNext and DOM declarations whe
 configuration is provided. Ordinary compilation retains its default library selection, and an
 explicit project configuration controls both paths. Session cache identities include this analysis
 profile so inspecting a Temporal expression cannot change a later application's type checking.
+
+### Executable selection during analysis
+
+An authored import can acquire its TypeScript signature from a different file than the module
+selected by a build host. Body-based analysis must distinguish those owners. The internal
+`synchronize` request accepts a complete, source-backed `executableSelection` snapshot before
+planning. Its generation and revision cover the host target, resolver conditions and configuration.
+Each module pairs a host identity with one physical prepared source and its content digest.
+Each edge identifies the original import or export syntax slot, specifier and import/require kind.
+Host discovery uses the optional internal `executable-slots` request. Its version-two capability
+is advertised as `executableSlotsVersion` during the native handshake. The request parses the
+exact supplied source with the native parser and returns syntax slots and syntax diagnostics.
+It creates no Program or checker, resolves no modules and performs no effect or policy analysis.
+It does not install executable authority or change retained semantic state. Older binaries may
+continue serving existing requests, but hosts reject this operation without the capability.
+The ordinary `analyze` request retains its complete analysis and diagnostic behavior.
+The syntax response also includes an exact-source helper-discovery result. Only a complete
+negative for the shared helper planner's necessary callsite form permits the host to omit that
+helper search. The fact is bound to the supplied source digest and rechecked against current
+prepared source. Direct calls in nested bodies, aliases and unresolved callees require the
+ordinary semantic helper analysis. This negative is not module purity, effect coverage or
+permission to omit later analysis, imports, preparation or snapshot installation.
+Repeated imports remain separate slots even when TypeScript resolves them to one declaration.
+Build hosts may select a bare-package runtime import only when their actual resolver returns an
+explicitly nominated executable file. Its reexport dependencies require the same source ownership.
+External, missing, virtual and preparation-vetoed selections remain opaque. Nomination does not
+change package conditions or supply factory purity. Standalone sessions without a resolver-backed
+snapshot do not acquire runtime bodies from package declarations.
+Native span indexes also retain physical source identity, so equal offsets in another root cannot
+establish local execution.
+
+The native session follows those slots before flattening aliases, including selected re-exports.
+For finite bindings resolved by this owner, selected callable bodies feed the existing local
+collectors and callable fixed point before task, policy and continuation construction. Export availability and module pruning share a separate
+mode-aware environment traversal through the same selection owner. It distinguishes making a
+callable or class from invoking it, including constructor and instance initialization work.
+Accessor argument substitution and returned-object provenance consult that owner too. A checker
+property declaration cannot reintroduce an accessor from a different executable factory.
+Eager export availability also consumes the existing explicit member, spread, own-value enumeration
+and argument-accessor analysis. Constructing a getter owner or a deferred callable does not
+execute the getter. Destructured bindings retain the binding operation, and omitted argument
+defaults participate in the bounded invocation search.
+TypeScript signatures and assignability retain authored resolution. An explicit opaque edge, a missing body, or an unprovided slot inside the
+snapshot closure cannot acquire typed-body authority. Outside that closure, sessions retain
+legacy checker and module-stem inference, which supplies no exact host-selection proof.
+A selected symbol must have one executable declaration. Bodyless overload signatures do not
+compete with an implementation. Source-backed CommonJS selection currently proves only a single
+direct object export of shorthand bindings in an inert module containing only function declarations
+and that assignment. Function references must resolve within the same source. Additional top-level
+execution, including unrelated calls, imported helpers and read-only loader-cache access, makes
+selection opaque. This positive bound deliberately sacrifices precision for otherwise valid CJS.
+It does not interpret arbitrary CJS initialization or prove safety against external interference.
+Unproven export shapes retain uncertainty, without exact
+write authority or a new unsupported-source diagnostic. Local binding stability alone cannot
+prove export-slot stability. Private rewrite proof remains separate.
+
+Snapshots contain no persisted AST pointers, symbol IDs or duplicate effect summaries. A replacement
+generation reparses configuration, drops obsolete execution roots and invalidates derived analyses
+and validation caches. Content changes invalidate selected facts. A stale source cannot use its
+old selection. Lower generations and synchronization without a replacement snapshot are rejected in selected
+sessions. Reset and session disposal release selection. Hosts must serialize or fence asynchronous preparation with
+these generation numbers. Module indexing scans the prepared closure once per analysis generation,
+and existing synchronization batches source loading rather than creating a checker per edge.
+
+Execution roots also belong to a different diagnostic universe. Synchronized semantic analysis
+uses the existing target-neutral checking projection and isolated generated validation for
+TypeScript, cached per retained program and request. JavaScript analysis checks an isolated
+authored source with its original script kind, `checkJs` policy and checking pragmas. It does not
+promote unchecked JavaScript to generated TypeScript. Watch diagnostics check authored project
+roots in an isolated validation program. These boundaries preserve the tested ambient-name and
+assignment diagnostics when runtime roots are added. Broader JSDoc and framework contextual-typing
+combinations still require validation. Readonly remains shallow TypeScript assignability, including
+writable aliases and mutable nested values.
+
+Successful synchronization acknowledges the selected generation, revision and target. The native
+process facade requires a matching acknowledgement whenever a snapshot is supplied, so an older
+same-protocol binary that ignores the field fails closed. Requests without a snapshot retain
+the existing protocol contract. This optional internal acknowledgement does not classify emitted
+artifact ABI compatibility or authorize adapter adoption.
+
+This internal path is limited to analysis. Explicit-selection sessions guard executable compilation
+until private lowering and artifact retention share the same owner. Build adapters do not yet
+supply these snapshots. Host resolution parity, ordinary/private module identity and helper
+publication remain separate acceptance work. General member and higher-order flow, derived-value
+reevaluation proof, registry loading and broader source-value provenance are still investigation
+frontiers. The source-value owner now caches declaration-relative return and execution demands
+against one checker generation. Finite creation edges substitute flattened source origins and
+projections, without constructing dynamic invocation environments. Explicit and implicit accessor
+reads, ordinary returned functions, callable effects and eager export availability consume those
+same demands. An uninstantiated callable retains its free capture demands until a creating edge
+supplies their source values.
+
+The bounded source relation distinguishes parameter entry values from live binding assignments.
+Local `const`, `let` and `var` aliases retain the source value read at initialization. Relevant
+same-owner assignments and direct lexical calls before initialization contribute to that value.
+An own binding read in a callable uses its body occurrence when the creating call is outside
+that lexical order. A proved unconditional replacement before the read supersedes the entry
+value. A callable invoked after its creator returns observes the live binding after that
+creating activation completes. This includes unconditional assignments within the selected return
+expression and enclosing `finally` blocks. Selecting the returned callable does not snapshot its
+captures. A definitely abrupt `finally` supersedes the earlier returned value, while the earlier
+return expression still executes. A call made inside the creator uses that invocation's earlier
+boundary. Each finite creating edge scopes its own inputs and return occurrence. Acquiring a returned
+callable through an object or array projection carries that occurrence's creating inputs and
+completion boundary to the existing invocation consumer. This traversal-local handoff shares
+the source query and keeps each acquired alternative separate. Acquisitions
+for earlier aliases keep their earlier boundary and source object. This changes bound-value
+provenance without removing parameter or local pattern evaluation effects. Unproved conditional
+replacements still join alternatives and cannot establish certain replacement. Completion proofs
+use bounded lexical reachability for the selected expression and its required finalizers.
+That shared relation excludes proved bypassed logical right operands, conditional arms and
+optional-chain continuations from possible writes. Tests, left operands and optional receivers
+retain their own evaluation. Finite primitive conditions are acquired through the existing
+source-value owner at the condition occurrence, rather than at the later capture observation.
+Disagreeing or opaque alternatives cannot establish certain execution or replacement. Optional
+continuations consult the actual optional roots, without assuming a custom method's behavior.
+This finite relation does not establish general branch inference or complete effectful condition
+acquisition. Completion proofs do not model general exception flow, async completion, conditional production through formal
+values, or writes through opaque helpers. Destructuring-assignment binding effects and exception
+suppression by an abrupt `finally` also remain analysis and emission frontiers.
+Later parameter replacement does not replace an earlier alias, while later writes to the alias's
+own binding remain visible. Unrelated calls and local writes do not change its input origin.
+Direct sibling replacement calls are joined only with the matching source creation site.
+Interference follows the demanded receiver through source arguments. Local rebinding and writes
+to separate finite object origins do not imply mutation of that receiver. Unproven transitive or
+opaque writers retain uncertainty. Indexed member assignments weakly
+join alternatives sharing an origin, including writes through source aliases. Separate named
+creation sites retain their precision. Demanded array-literal elements use the same source relation,
+including finite indexed assignments through aliases and nested array/object projections. Sparse
+holes keep their native positions, and named keys do not select numeric elements. Dynamic indices
+and spread-dependent positions retain incomplete provenance while preserving known candidates.
+Receiver calls and arguments share the receiver-relative interference relation. Calls after a
+same-owner acquisition or read, disjoint projected receivers, and source bodies without relevant
+writes do not revoke its provenance. Native mutation checks use existing declaration-owned write
+facts, rather than a method name or an inferred append position. Every possible callable value
+participates in completeness. An authored body does not discharge a native or unresolved alternative.
+Read-only native alternatives retain their existing nonwriter treatment. Relevant source writes
+retain known effects and incomplete provenance unless the ordered value relation proves replacement.
+A write's presence in the member index alone cannot establish the post-call value. This includes
+captured writes to an acquired object whose former container receives the method call.
+Method-produced elements remain incomplete when the relation cannot resolve their source. This analysis adds no array wrapper or
+runtime observation. Unresolved array-producing calls and constructors also retain uncertainty.
+A structural array type can revoke completeness but supplies no native identity proof.
+Projected aliases acquire finite source values at initialization. Later replacement of the
+container slot does not retarget that value, while writes to the acquired object's own members
+remain shared through aliases. Direct preceding replacements of ordinary own data slots in the
+same statement list can supersede their initializer. The same proof applies to a factory data-slot
+write preceding every returned value in that statement list. Direct standard data-member overrides
+on array literals participate in acquisition ordering, without establishing native callee identity.
+Conditional, computed, other cross-callable and opaque writes remain may alternatives or incomplete. This ordering proof does not extend to
+accessor setters or reflective descriptor changes. Repeated-site and recursive queries widen to
+incomplete provenance. Opaque writers and unproven transitive interference also retain uncertainty.
+This is an analysis slice, not complete JavaScript closure or heap analysis. Computed and reflective
+writers, escaped sibling methods, exception-sensitive alias timing, arbitrary returned-callable
+arguments and cross-module mutable alias interference still need independent verification.
+Finite array, object and nested projections of ordinary returned functions now compose the actual
+call's arguments and creating captures through the same source query. Omitted and explicitly
+undefined defaults, finite rest-element reads, ordinary member-call receivers and lexical arrow
+receivers participate in that substitution. Rest arguments retain their separate source alternatives.
+An unresolved native argument vector is distinct from a proven empty vector and cannot select a
+default as though an argument were omitted. TypeScript's explicit `this` parameter consumes no
+runtime argument. Rest-array forwarding, spread-dependent argument positions and unresolved
+receiver or callee alternatives remain incomplete. A source candidate contributes possible effects,
+not exact selection, and ordinary native methods retain their existing invocation contracts.
+Callable property acquisition separates the effects of a property operation from the values
+it may acquire. Calling a source method retains each known body's environment requirements,
+receiver and arguments beside unresolved callable alternatives. Reading or assigning the property
+does not execute that body, and calling the containing function does not execute its properties.
+An incomplete acquired value cannot restore an old implementation through a checker signature.
+Outside a supported built-in contract, a standard-library declaration on a receiver's type does
+not account for an authored replacement callable. When an executed source assignment can select a callable whose implementation is
+unavailable, eager module execution remains unknown and receives `EXACT2101`. Storing that
+callable without invoking it does not execute its body. Known source alternatives still contribute
+their own requirements alongside the unresolved alternative.
+
+Inference uses the supported built-in contracts described by the target's standard libraries,
+including conforming polyfills. It does not validate a polyfill's implementation or require a
+published library and its consumer to use the same constructor implementation. An authored shadow
+constructor does not acquire a built-in contract merely from its name. Host-specific globals such
+as `document` retain their target requirements. Source transformations that depend on a particular
+acquired reference or descriptor retain their own mutation and evaluation-order checks.
+
+A direct standard `new Promise` with a literal synchronous executor supplies its first two runtime
+parameters with the resolve and reject callable contracts. Their source identity survives aliases,
+ordinary wrappers and mutable bindings alongside the binding's initial and other assigned values.
+An arbitrary function with a compatible `() => void` type receives no such inference. The executor's
+own statements retain their ordinary effects. Settlement changes Promise state and supplies no
+reevaluation-safety or purity guarantee.
+
+Calling resolve with no argument or a primitive adds no thenable work. An object can execute a
+`then` getter and a callable `then` body, whose known host requirements remain visible alongside
+unresolved alternatives. Ordinary async returns also perform this settlement Get. The compiler
+retains the selected getter's actual receiver, captures and zero-argument defaults separately from
+its returned value. It follows selected eager dependency operations for relevant authored
+prototype changes. Deferred installers contribute only through an admitted invocation. Missing
+inputs, callable thenables and unaccounted construction retain uncertainty. These effect facts
+do not certify the fulfilled object's fields or lifetime. Reject does not assimilate its argument. Argument evaluation still runs
+for both functions. Direct calls, `call` and `apply` share the ordinary invocation plan, including
+`apply`'s length and indexed Gets even when a formal is unused. Authored replacement methods keep
+their raw arguments.
+
+Ordinary invocation analysis shares source acquisition and input binding across direct calls,
+`call`, `apply`, `bind`, immutable aliases and finite returned or projected callables. Known source
+bodies retain their environment, receiver, arguments and creating scopes independently of extra
+Get effects and unresolved alternatives. Declaration-owned adapter routing is an ordinary invocation
+relation, not selected native identity, purity or proof that a call performed. A modeled own method
+uses its actual receiver and raw arguments instead of inheriting the base function's body. Mutable
+bindings retain uncertainty alongside any reached replacement body's requirements. Constructing a
+bound function acquires its method, receiver and prefix without executing the target body. Later
+invocation retains those original capture sites. Unproved capture completion remains unknown.
+
+Definition requirements belong to the compilation-owned source and existing supported package
+contracts. A published component does not need to prove arbitrary future consumer implementations
+or mutation history. Actual callers add their receiver, key, argument, Get and invocation effects.
+Opaque external callables do not gain portability from a compatible type. Selected executable
+snapshots and component-library metadata keep their existing authority and limits.
+
+Member acquisition and interference inspect only the defining source and the query's actual
+acquisition, receiving and return sources. Existing indexes and structural guards bound this view.
+It does not expand import/reexport implementation trees. An unresolved intermediate module edge
+retains uncertainty beside the known definition. Cross-file source positions never establish
+ordering. Relevant owned assignments, literal containers passed to actual calls and reflective
+operations retain their effects. A callable-compatible constructor result cannot borrow Function
+method declarations to discharge its Get or trap effects. Unmodeled wrappers remain opaque.
+A known server body plus a browser getter remains mixed. Import provenance or an unavailable
+whole-prefix certificate alone does not erase the body's ordinary invocation requirements.
+
+A separate eager same-source certificate still limits call and writer-region participation for
+own-data acquisition and can refine a completed property operation's effect facts. It can license stronger acquisition conclusions and is not supplied by the
+ordinary invocation relation. Its runtime-import, unsupported-effect and exhaustion refusals
+remain conservative. The deferred private/export-history certificate is not part of ordinary
+inference. Known source methods use their actual receiver and raw arguments, while an invoked
+bodyless authored ambient signature remains an opaque call. Reevaluation safety from `@exact pure`
+does not supply that missing implementation or prove a neutral environment. Unknown compiler
+computations may still execute target-locally, without portable artifact availability or a remote
+continuation grant. A target-local client artifact can retain its component identity while its
+placement metadata remains unknown.
+
+A separate numeric-conversion proof can follow a direct named import whose source module performs
+only finite literal initialization without further runtime imports. It retains the actual receiver,
+zero-input own `valueOf` activation, primitive normal return and completed ordinary global binding
+assignment through the caller's preserved startup prefix. The module selected by the actual import
+specifier must own the audited declaration. Re-exports, stars, cycles and other unaudited module
+initialization cannot borrow the final declaration's certificate. An earlier activation of a body
+on the target acquisition path must have complete-prefix proof. The current numeric slice refuses
+that overlap rather than reuse the target activation's stop point. The later binding read can then observe
+the assigned source callable. Unary plus does not call global `Number`. Effective
+`@@toPrimitive`, accessors, custom prototypes, object-return fallback, unknown startup work,
+relevant descriptor changes, unsupported execution and structural refusal withhold this proof.
+Earlier acquired callees retain their original value. The ordinary native-conversion fence stays
+in place for unproved routes. This query-local proof adds no runtime object model or global cache.
+
+Capturing a callable retains its acquired reference. Later property reads still observe that
+callable's current properties. Exporting a definition or retaining it in a source container does
+not by itself execute an unknown future consumer. Actual escaped or replaced values remain
+separate uncertainty, and ordinary inference grants no purity or performed-write certificate.
+
+Callee acquisition precedes argument evaluation. Computed keys and receiver prefixes precede the
+property operation, and an assignment evaluates its RHS before Set. Computed method and accessor
+names execute in their enclosing region, while their bodies and parameter defaults remain deferred
+until invocation. Reached source-call regions are considered conservatively, including possible
+defaults. Descriptor changes in those regions remain relevant even if a later property read has a
+known callable candidate. Unsupported forms and structural refusal retain uncertainty.
+The indexed proof retains O(N) region entries and takes O(N\*D) worst-case ancestor work for N
+source nodes and nesting depth D. The advisory estimate does not bound index construction or checker cost.
+
+Module availability consumes performed producer dependencies from the same source-value query.
+A preceding straight-line binding or own-data-slot assignment contributes its full executing
+expression, including the receiver, computed key and RHS, to consumers of that value. The existing
+mode-aware environment walker follows those dependencies for export analysis and target pruning.
+Finite acquired literal values distinguish taken and skipped logical assignments. This is a
+bounded source-order proof, not general constant evaluation. Reads before a write and aliases to
+an earlier object retain their acquisition time and source identity. Source-owned receivers also
+prevent a structural getter declaration from restoring an overwritten getter.
+
+A source-owned object setter can contribute a performed body assignment through one reachable
+module assignment. The indexed assignment supplies its acquired receiver and actual RHS to the
+setter's existing source query. Receiver acquisition precedes RHS evaluation, while setter
+selection retains descriptor uncertainty from RHS and other preceding effects. The body write
+must pass the existing reachability and own-data-slot replacement proof. The full invoking
+assignment remains an evaluation dependency, including receiver, key, RHS and body effects.
+A setter's own property is not treated as an ordinary data slot. Noop setters and unperformed
+assignments do not replace the observed slot. Multiple possible setter invocation sites,
+reassigned setter parameters and incomplete receiver or descriptor acquisition do not supply
+this performed-invocation proof. These restrictions retain uncertainty rather than granting
+replacement authority from a possible effect.
+
+An interference scan can reuse a completed reachability predicate for repeated bare reads of
+one immutable local `const`. The declaration must be directly in the current callable body,
+with the same source binding, no indexed reassignment, and no import or module-export cell.
+Each scan owns its memo under fixed origin, path, mode, bindings and restored creator context.
+Only empty-operation predicates are memoized, and incomplete or exhausted acquisitions are
+never stored. Property reads, mutable bindings, parameters and repeated-region declarations
+retain independent acquisition. This does not choose a computed array index or remove calls
+from the worklist. Candidate visits contribute to the advisory estimate. The memo
+retains at most one boolean per eligible binder for that scan and is discarded on return.
+
+A dormant writer is distinct from a performed producer. Direct source calls, finite callback
+candidates and the existing call index retain possible routes. Unproved routes stay incomplete,
+and possible writes do not authorize certain replacement or private entry. At a module read,
+an overlapping write without a performed producer keeps the source alternatives uncertain,
+including a write in the same module. Its possible browser effects alone do not prove that
+the authored export is absent on server. Returned source values retain their individual return occurrence. A write can replace an
+own data slot only when it is proved to run before that acquisition or return. Literal-selected
+`if`, conditional and logical branches share the same finite decisions with producer discovery
+and module availability. A completely acquired source callable can supply a branch fact when
+its synchronous body consists of one immediate primitive return, including a finite primitive
+returned formal under its actual invocation input plan. Default activation and completion use
+that plan, preserving the earlier bindings captured by each initializer. Unknown or conditional
+inputs do not prove branch selection. Captured formals and nonformal return expressions remain
+outside this finite extension. Callee acquisition precedes argument evaluation, and the existing
+invocation owner retains argument, default and body effects. A branch fact is not a purity or
+private-entry certificate. A declaration-only variable can acquire a
+performed source assignment from the current executable file. A qualified assignment must
+identify the binder-owned namespace that exports that variable. A type-compatible receiver
+does not establish this identity, and an unproved assignment cannot replace the incoming value.
+A finite module-local possible Proxy construction can retain deferred Get effects after the
+original New has acquired its current constructor and observed literal target and handler
+origins. A reached caller read retains current handler and possible target-Get effects through
+the MAY graph, together with unknown alternatives. Original constructor selection preserves
+authored constructor effects beside native alternatives, even when allocation or origin
+publication refuses. Dormant construction does not select a handler body. This projection
+provides no Proxy value identity, DATA coverage, completed construction or Get, descriptor
+constraints, or native storage allocation. Unmodeled New completion can still prevent emission.
+
+A standard-library declaration alone does not prove which global
+operation will run. Native `Number` facts require finite decimal string, numeric, boolean or null
+literal inputs and a closed indexed mutation and call boundary. Native assignment targets,
+including destructuring, defaults, rest and loop targets, invalidate the fact when a destination
+can replace `Number` through an unresolved receiver. Stable literal receivers remain separate.
+Calls must resolve to stable source-owned bodies in the indexed file or primitive `Number`
+conversions, or occur in a provably later distinct module statement. This last case preserves
+an earlier acquisition without assuming the later call is inert. Unowned calls, including
+descriptor and reflective operations, otherwise invalidate the fact without interpreting their
+result. Nonliteral unary numeric conversion is also an open-call barrier because it can invoke
+`valueOf` or `Symbol.toPrimitive` code. A source-owned wrapper does not close that implicit
+work merely because its own body is visible. Constructors and tagged calls use the same acquisition boundary.
+A selected synchronous source return can carry its actual creating invocation back to a module
+statement for this ordering proof. This uses the existing occurrence-local creator record,
+including its selected callee and input context. Another invocation cannot lend its prefix.
+Missing, recursive, async or generator occurrence ownership retains uncertainty. Other callable,
+repeated and exception regions cannot borrow textual body order for this proof.
+Shadowed constructors, coercion objects and effectful arguments provide no intrinsic fact.
+This is a bounded source proof. Cross-module mutation, host changes and implicit foreign
+getter or coercion effects remain outside its coverage. Rejecting an intrinsic fact does not
+establish precise target pruning for an unresolved producer. Unknown placement retains authored
+control flow and static export names rather than removing an export based on a possible effect.
+That preservation does not certify target availability. A retained initializer can still throw
+on a target where its actual source execution uses an unavailable global. Proving such an export
+absent requires performed-producer and source-call authority, including implicit conversion
+execution when it determines a later callable binding.
+
+Named `break` statements retain their actual lexical label within the same callable. Ordered
+block completion stops at the first known abrupt statement, and only the matching label
+consumes its break into normal continuation. Work bypassed inside that label is unreachable,
+while work after its exit can be performed. Unknown `if` alternatives merge only when both
+complete normally or both return or throw. Incomplete prefixes remain incomplete.
+
+Target resolution and containment contribute to the advisory estimate. Unresolved or unlabeled jumps,
+`continue`, loops, switches and `try` statements remain incomplete. The relation does not model
+loop or exception control flow. Finalizer override selection still requires definite return or
+throw completion. An unconsumed labeled break supplies no such authority, while a locally
+consumed break followed by a real return can prove that existing override.
+The module environment walker uses the same reachable-statement relation for export analysis
+and target pruning, preserving receiver, computed-key and RHS evaluation dependencies.
+
+A finite acquired own method can contribute a captured binding replacement when its actual
+callee and creating occurrence match, and the existing prefix and synchronous-body checks prove
+that assignment performed before the read. Captured replacements from all sibling writers are
+merged by their actual performed occurrence order, never by method declaration order. Unproved
+ordering retains alternatives. Binding and own-member replacements share that completion merge.
+Acquiring a left reference is not a completed write. A proved assignment inside an assignment
+RHS completes before the enclosing replacement. Other overlap remains unproved.
+An ordinary object method is a writable data slot,
+so a source replacement selects its current body. Selection alone does not prove execution.
+Unresolved conditions, loops, suspension, generator bodies, exceptions, indirect calls and
+cross-module mutable storage remain outside this performed-producer proof. Possible alternatives
+do not certify replacement or portable execution. Unknown placement still does not establish correct target
+emission for these cases. Receiver methods that write through a composed `this` or
+callee formal can remain incomplete even when the receiver is finite.
+
+The shared input owner evaluates finite object parameter patterns at call entry, before body
+consumers. Selecting a property executes its getter even when the bound name is unused. Bound
+names retain the acquired source value for nested reads, aliases and returned closures. Ordinary
+unused identifier parameters do not read their input's properties. Local object declarations use
+the same binding owner. Module declaration readers request binding effects without requiring a
+finite result value. Invocation readers also acquire origins for body demands, so unknown value
+contents do not erase a known initializer's platform requirement. Formal and nested object
+binding defaults share an invocation-local input plan with callable demands and the module
+environment walker. Absent or explicit undefined inputs activate the default. Proved defined
+inputs, including null, false, zero and empty strings, bypass its demands. Active defaults use
+the earlier bound names at binding time, even when the body ignores the resulting value or
+later replaces a name. An unresolved input retains alternatives and conditional execution
+incompleteness when its default can contribute effects. This is a finite source relation,
+not a proof of every default expression or call result. Finite object rest copies acquire the remaining own values
+with the pattern's exclusions. These are provenance facts, not runtime copies introduced by the
+compiler. Native parameter syntax preserves argument order, getter order, exceptions and identity.
+
+Array patterns retain incomplete iterator provenance. Numeric element origins and array-like
+types do not establish iterator identity, consumption, closing or yielded-value origins. Known
+source iterator candidates remain visible beside that uncertainty. Dynamic computed keys,
+foreign sources, prototype changes and unproved rest enumeration also retain incompleteness.
+Unknown placement is not an emission safety proof for those paths. Captures of names introduced
+by local variable patterns and writes forwarded through helper formals can still lose receiver
+provenance. Identifier-only unused defaults and shared module input acquisitions can still lose
+execution precision. Retained module-level closure variables can still lose target execution
+precision across separate factory instances. Nested, recursive and opaque captures do not
+have a general completeness proof. These are separate open defects. This bounded object-parameter repair does not
+establish general pattern capture,
+parameter-pattern or module-projection acceptance.
+
+Capture-relative writes are materialized as existing caller, component or unknown receiver facts.
+Possible writes through returned getters and projected ordinary calls remain visible in caller and task summaries with unknown
+confidence while lowering is incomplete. They cannot supply finite publication authority. Captured closures
+remain blocked from scalar private-entry lowering, even when their finite paths are known.
+May alternatives do not prove selected implementations, performed writes or transport authority.
+Task publication still requires environment-preserving lowering and actual invocation evidence.
+Receiver matching retains a known parent's relative path instead of reacquiring its projected
+child during that parent's acquisition. A directly returned source object can be matched to its
+actual creating call without reading all of its getters. Direct immutable bodies with no eager
+operations are excluded from the receiver-writer relation using the existing generation index.
+Argument calls and real member/descriptor operations retain their independent effects. No
+operand-value memo or separate capture-timing rule is needed for this matching.
+The assignment index groups only stable literal object and array origins. Mutable, projected,
+returned and symbolic roots retain a dynamic candidate list. Queries merge those lists in source
+order, so index narrowing cannot reorder replacements. This reduces repeated unrelated-write
+visits without caching an invocation or granting exact receiver identity.
+Summary and assignment indexes belong to the current Program's analysis cache and are discarded
+with source, selection or configuration invalidation, reset and disposal. No public authoring API,
+persistent capture protocol or runtime observer is introduced.
+The existing private-entry path below does not establish those properties for adjacent TypeScript and JavaScript implementations.
 
 ### Related defect families and repair boundaries
 
@@ -818,6 +1382,10 @@ Copied continuation executors retain component type parameters, constraints and 
 Task policies recognize renamed and namespace imports by provider identity. Invocation lowering
 uses analyzed argument counts to distinguish the compiler-supplied context from application inputs.
 A local binding that shadows a provider does not acquire framework policy ownership.
+Recognized zero-argument policy defaults on the final parameter of a component-owned task
+are compiler syntax, excluded from runtime body-effect summaries. This does not classify the
+runtime marker as pure. Ordinary defaults, policy arguments and task bodies retain their
+existing effects, and an unbound call still requires an explicit placement or known implementation.
 Optimistic prelude extraction selects the framework `TaskContext.optimistic` method declaration.
 Ordinary helpers with that name retain their original placement. Indexed, aliased and destructured
 capability calls use the supplied generation context without capturing a server-local alias.
@@ -855,6 +1423,14 @@ The compiler emits no alternate helper bodies or class registration. It analyzes
 when they establish component effects, placement or data policy, without taking executable ownership
 of their modules. Callable-only modules are left to the host TypeScript/bundler pipeline.
 
+Computed component operation reads can retain exact receiving-prop obligations. A resolved JSX
+delivery with one matching named string-literal input can adopt its own obligation through a
+private body projection. Standalone definitions and unmatched deliveries retain unknown placement.
+A qualified edge does not authorize another edge to the same component or its global partition
+node. Spreads, retained expression operands, getters, Proxy inputs and later updates keep their
+independent evaluation effects. Recipe adoption checks the current program, checker, source indexes
+and dependency facts, together with the exact selected target, attribute and literal value.
+
 Policy receipt analysis includes pattern defaults and computed keys independently of the source
 container. Native computed `call`, `apply`, and `bind` use declaration-proven Function members.
 Public literal member selections retain type-derived narrowing. Secret-controlled helper returns
@@ -875,10 +1451,97 @@ callbacks remain eligible for component state lowering. Runtime view identity, l
 receiver limits are explicit, with `stateAccess()` and `sameStateTarget()` bridges described in the
 [pending transaction reference](tasks.md#pending-transaction-ownership).
 
+Task-created ordinary lexical closures retain their creating generation in both activated work
+and invoked continuations. Both lanes reuse the active mutation visitor for selected writes,
+resource ownership, context calls and awaits. Independently authored task definitions retain their
+own defaults and body owner. A cancelled generation cannot perform a later selected commit,
+including after an ordinary async closure resumes.
+
+Finite synchronous own methods on named const objects created directly in task work use a
+source-local lexical creation certificate. It retains the authored method and work-body identities,
+the source-resolved direct call, and every eligible TaskID and Component pair for repeated
+activations. A saved original keeps its creating signal. Replacing the member does not transfer
+that certificate. Computed names evaluate in the enclosing frame, defaults use expression-local
+storage, and method bodies get invocation-local temporaries. The certificate does not establish
+publication for setup-shared objects, class/accessor/constructor methods, nested factories or
+async/generator methods. Publication after successful task settlement remains a separate boundary.
+
 Mutation type facts are captured against authored parent relationships and sealed before executable
-lowering. Component operation plans preserve assignment results, evaluation order, short-circuiting
+lowering. Selected writes retain the expression, target, receiver, and computed-key annotations before
+task extraction can change those relationships. Temporary storage consumes these captured facts after
+sealing. Existing pending-read annotations take precedence. Authored checking retains the full type,
+while executable temporaries retain only portable annotations under the existing task capture policy. A module-local const unique-symbol query or computed type name also retains its annotation when the authored checker resolves the value declaration and the final destination preserves that same binding. Reconstructed task work must retain the actual authored callable or its shared body, and final parameters, locals and introduced outer bindings must not shadow the value. Generated island input parameters use one printer-owned unique identifier throughout their private envelope reads. This preserves authored module names without changing runtime helper or transport contracts.
+Uncaptured generated or non-selected expressions retain their existing query path.
+Component operation plans preserve assignment results, evaluation order, short-circuiting
 and suspension. Generated code must retain authored TypeScript constraints. JSX render helpers are
 component-support code, with rendering ownership separate from ordinary task helper execution.
+
+Scalar mutation lowering shares selected-reference planning across ordinary callbacks, indexed
+commits, and task work. It captures the actual receiver before the raw computed-key expression
+and keeps both across RHS suspension. Logical operators branch before committing. Publishable
+lean server tasks use the existing write and delete helpers under their task generation, while
+setup defaults and synchronous compiler computations retain lean storage and direct operations.
+Function, method, accessor, and constructor bodies own invocation-local reference temporaries.
+Computed member names evaluate in the enclosing definition scope. Parameter defaults and class
+field initializers use synchronous expression scopes because body-local declarations are
+unavailable during their evaluation. Unsupported selected references decline before creating
+an expression scope. Bare parameter assignments retain their native binding operation, while
+the normal child visitor can still lower eligible member mutations in their operands. Supported
+member initializers receive local storage even without an enclosing invocation frame.
+Static blocks retain their authored block and class
+bindings, with synchronous reference temporaries in the enclosing definition frame. These
+scopes preserve lexical `this`, `super`, private fields, and derived-constructor initialization
+order. State-path analysis and write-root selection share those lexical receiver boundaries.
+Resolved component and state aliases retain their original storage inside class bodies, while
+class-owned `this.state` and shadowed local aliases retain their ordinary TypeScript meaning.
+A computed member name bypasses only the class that declares that member. An object member
+name evaluated within a class field still uses the field's class receiver.
+The existing native operation owner converts the put or delete key at operation time and reports
+that canonical key after success, without another coercion or accessor read.
+
+Source-backed immutable module functions with finite scalar parameter effects can also own a
+private server entry. The existing callable fixed point propagates emission completeness alongside
+possible effects. Selection proof is separate, so resolving an effect through `call` or `apply`
+does not authorize replacing the function actually selected by that operation. The source plan
+retains resolved source files and private imports only for the exact-paired native and host build.
+It adds no component-library helper protocol. Artifact planning retains local import and re-export
+routes to required helpers, including type-only routes. Ordinary and private imports select one
+target module and keep its runtime captures and nominal types together.
+Build adapters acquire relative and absolute authored modules within their application source root
+through the actual host resolver. Raw source analysis discovers helper requirements only. A second
+snapshot binds final adapter-prepared content, including Intl descriptor imports, and its exact native
+syntax slots before private entries or effects become authoritative. The same prepared root result
+reaches the dependent transform without another Intl catalog pass. Build-owned preparation results
+are keyed by authored content and compiler target and cleared with the adapter's Intl generation.
+The existing session queue owns discovery, final preparation, snapshot acknowledgement, and dependent
+compilation together. This adds source acquisition and native analysis work per acquired graph.
+No linear or measured performance improvement is claimed. Bare, virtual, external, query-bearing,
+and out-of-root sources gain no private authority through this bounded local-source path.
+Vite and Bun leave require slots opaque. Webpack forwards the slot kind to its existing resolver.
+
+The synchronous entry accepts a signal, receiver, and original argument vector. Generated
+invocation references use unshadowed intrinsics, and the signal annotation comes from the
+framework task context rather than an authored type with the same name. It returns
+`Reflect.apply` of an instrumented ordinary-signature body directly, including an async body's
+promise. A type-only reference to the original callable preserves inferred parameter defaults
+and binding patterns under that invocation context. The original callee is read before arguments,
+including its temporal dead zone. Original exported values, self references, defaults, rest arguments, and module captures
+remain ordinary. Per-operation fences reuse selected-reference lowering and the existing capture.
+Native array and object assignment patterns retain their own input evaluation, defaults,
+iteration, abrupt completion, and assignment result. Finite parameter-member destinations,
+including destinations without defaults, contribute possible write paths through the existing
+callable effect collector. The private entry replaces each eligible destination reference with
+an assignable accessor whose closure captures the immediate receiver and raw key once at native
+reference selection. Its setter passes the engine-selected value through the same immediate
+write hook and per-put task fence. A supplied value still performs a put when its default is skipped.
+Destination types are captured before lowering, independently of default literal types.
+This finite entry proof covers named and numeric/string literal member keys. It does not extend
+rest or loop targets, nonliteral key ownership, or the pending invocation-view contract.
+No observer spans a promise. Pure helpers need no entry. Arrows that require lexical `this`,
+`arguments`, or `new.target`, nested execution owners, mutable callable selections, methods, and
+array mutator effects remain outside this entry proof. Existing acceptance and diagnostics are unchanged
+for those calls. Source-removed server helpers do not acquire executable ownership metadata.
+Generated private imports and entry signatures require artifact ABI review before release.
 
 Reactive task binding captures cover every lexical occurrence. Static selected paths share an
 activation value, while distinct selected paths carry separate inputs. Dependency metadata and
@@ -887,7 +1550,7 @@ unrelated props from transport. Guarded optional or mixed callable properties re
 pending field selection. Immutable imported namespace reads preserve their host export-replacement
 syntax, and those replacements consult restored authored checker parents.
 
-Ordinary helper factories, methods and accessors retain their authored bodies, descriptors and
+Client pending helper factories, methods and accessors retain their authored bodies, descriptors and
 lexical receivers. Their state arguments use the same invocation-owned views as external helpers.
 Component branding attaches metadata to the original component function through a focused provider.
 Enhancement-context registration uses its own lightweight dependency reader and immutable metadata.
@@ -1058,3 +1721,150 @@ coverage rather than retaining raw exploration captures in Git.
 CI retains native coverage and behavioral execution reports as seven-day artifacts. The report
 parsers and evidence validators are dependency-free build-script tests and do not import package
 outputs. These checks add execution evidence to the existing compiler and adapter acceptance jobs.
+
+## Compositional source analysis
+
+Maintainer validation uses `node scripts/build-native-compiler.mjs --source <pinned checkout>`.
+The build stages the maintained overlay and runs its native tests before producing the host.
+Use `--test-pattern '<Go test expression>'` for a bounded regression gate. That mode forces
+a fresh build, cannot produce release packages or coverage, and leaves no full-suite cache stamp.
+The ordinary build remains the complete native validation path.
+
+Selected source operations share acquired values, storage and completion history. A child Call
+uses the callee, receiver and arguments acquired by its caller. Completed work retains its effects
+when a later operation refuses precision. Historical coverage records which unentered source
+region belongs to a final refusal, without retaining a live execution owner or making an unrelated
+effect neutral. Retained project facts do not replay completed work on another request.
+
+Writer-candidate input matching uses a synchronous negative fence for its exact query, Call and input frame. It prevents the pending Call from being selected again as an input writer across raw, projected and container-origin lookup. Projection and declaration recursion retain their separate existing markers. The fence expires before receiver-body and write inspection, supplies no completion or effect authority, and cannot be inherited by a copied query or another input frame.
+
+Source-visible prototype alias walks retain path-local cycle detection. A cycle leaves its prototype obligation unresolved, while sibling inputs remain eligible for inspection. Shared acyclic inputs are inspected on each branch. This traversal guard supplies neither purity nor completion for an unresolved call.
+
+Property-reference preparation for a top-level expression or variable statement retains its
+module prefix and imported initializers. A later once-only statement cannot make an earlier
+descriptor conversion incomplete. Earlier work, deferred bodies, cyclic dependencies and work
+inside the current statement retain their independent requirements. A directly indexed constant
+Call initializer has its own normal effect fact. Property preparation references that exact
+statement and recorded Call rather than moving its callee, argument or body effects to a later
+requesting statement. An indexed eager Call nested inside a constant initializer also retains
+that statement's effect fact when a member Get follows its result. This effect ownership does
+not promote the nested Call to the initializer's value or completion proof.
+
+A reflective operation inside an actual default-class field also retains its allocating New as the caller boundary. Property preparation authenticates the live field inputs, unfinished original New publisher and canonical source occurrence before preparing predecessor modules. It stops before that New rather than entering the same allocation to establish its own field conversion. Missing, foreign, cyclic or unavailable construction relations remain incomplete. The boundary supplies neither descriptor completion nor prototype absence.
+
+A later same-module effect read can use a sealed family of finite literal origins from a completed original top-level Call. Each family keeps the Call, return site and authentic immutable formal-to-actual associations. Mutable object contents are read at the current source boundary. Every return alternative must qualify before publication, so unresolved or Proxy alternatives cannot publish only their supported siblings. This metadata supplies effect dependencies without retaining an input frame or supplying normal Get, Call or descriptor output.
+
+The reader checks source, program, checker, generation, mode and the sealed signature. Origin-bearing callable caches are recollected after request-generation turnover rather than renewing old evidence. Recollection adds analysis work for those sources. Other callable caches retain their existing reuse rules.
+
+An entered ordinary helper can fulfill a declaration-local read demand on a direct parameter property only from that exact Call's completed normal Get. The proof checks the installed supplied argument, current source population, original operation and caller edge. It covers the read's effects without granting descriptor, mutation or value-completion authority. Uninstalled parameters retain their relative origin and incomplete value, and getter, Proxy, forwarded or independently opaque alternatives retain their own effects and uncertainty. Local temporaries keep the value observed before a later property replacement.
+
+A selected component `map` retains a separate MAY-effect contribution from its original collection observation and key/render callback roles. Placement preserves known callee-key, argument, callback and possible item-getter effects, including computed getter names that may match. Dormant event bodies do not become eager setup work. Contributions retain exact source, operation, generation, analysis mode and immutable publication identity across copies.
+
+Every currently produced map input domain remains open. A finite literal list, an empty list or observation-only future uses do not prove inherited iterator behavior, later item membership or complete property coverage. The contribution therefore cannot discharge abstract item reads or manufacture a callback invocation, normal Get, native preservation or descriptor receipt. Known effects survive beside that uncertainty. Ordinary methods named `map` receive no framework contribution.
+
+Reflective descriptor conversion has a separate effect origin from callee selection. A generic
+function summary retains uncertainty when it lacks an actual caller prefix. An entered normal
+Call can account for that exact origin only after its target alternatives, descriptor fields,
+native mutation and input dependencies complete, and its original effect batch is published.
+Detached completion evidence retains source identities and effects without keeping a property
+view, acquisition scope or query alive. Matching checks the caller, Call occurrence, target,
+source, checker generation and analysis mode independently on each resolved edge. It does not
+make the generic function summary pure or remove unrelated effects. Later member acquisition
+still requires finalized descriptor outputs in its own live prefix view, with the actual receiver
+kept distinct from an inherited native prototype lookup owner.
+An earlier published ordinary Call can also supply a completed property prefix to a later
+construction. Its original batch separately seals empty reference coverage and finite converted
+mutation outputs. A scoped reader authenticates the exact earlier occurrence and original
+publication without entering its body again. Captured values are copied with their original
+provenance, and frame-dependent values refuse detachment. The initial projection covers
+discarded argument-free Calls with empty reference inventories. Recursive, unfinished and
+unknown-reference alternatives remain conservative. The original effects are published once.
+The callee Get of a reflective operation has its own mutation component. Authenticated standard
+data descriptors and their preserved source prefix can establish that component independently
+of the later descriptor mutation Call. A completed own-member installation remains a real
+write, with its selected value and getter effects consumed by the later member Get. Neither
+relation makes an unresolved callee, argument, body or prototype alternative neutral.
+A qualified namespace read of a selected source ES-module function export has a separate
+read-mutation component. Its bounded proof checks the actual import receiver, current selected
+export and dependency route. It does not certify module initialization, snapshot mutable export
+values or authorize the returned function's body. CommonJS, declaration-only and incomplete
+selected routes receive no such component.
+
+A finite closed module prefix can retain one initialized module `const` object cell in a zero-parameter ordinary arrow. Capture creation obtains the actual lexical cell from the defining prefix. Body reads use that same cell and the current storage branch, while own writable data-field assignment uses the existing reference and Set owners. The local-cell environment rule remains separate. Exactly two consecutive indexed zero-argument Calls to the same captured arrow can continue on the first actual Call's output branch. Each enters a fresh activation and retains its own receipt, while both use the original captured cell and object. Continuation requires the next original installed operation in the same live generation. Cached or released history cannot resume it. Unknown, external, mutable or multiple captured bindings receive no such source entry. This bounded driver does not admit asynchronous bodies, general closure captures, arbitrary repeated source Calls or new Promise result authority.
+
+A final module `const` initializer can bind the scalar Return of one original zero-argument Call to an admitted zero-formal closed body. The caller allocates the real destination cell before evaluation. It retains the original Call receipt and initializes the destination once on that Call's output storage branch. Throw, residual and unavailable output do not initialize the binding. Other returned-callable shapes, array projection and later invocation keep their separate admission.
+
+A separate finite construction path admits a one-formal module function whose only statement returns a zero-parameter arrow reading a direct member of that formal. The original Call acquires a genuine module object and initializes the original formal cell in its fresh activation. Creation retains that cell and defining environment, with an actual storage marker. The original tagged Return and creation ancestry can bind this callable to the final caller cell. The inner member-read body stays deferred during creation. One immediately following zero-argument Call through that initialized destination can enter the exact inner body from the post-initialization caller branch. It creates a fresh activation and reads the original captured formal cell from current storage before the ordinary member Reference/Get and Return. The original creator Call receipt remains separate from destination initialization. A completed own-DATA Get can cover only its exact captured-field effect demand on that resolved Call edge. Generic summaries, unmatched input obligations and independent effects remain conservative. This finite two-site path does not admit intervening mutation, array projection, arbitrary repeated Calls or general escaping captured-member reads.
+
+A creation-only module prefix can initialize one const with a dense, one-element array
+whose element is that same creator Call. Array allocation precedes the original callee and
+argument acquisition. The genuine callable Return resumes the same caller storage schedule
+through the existing array slot definition, length update and final cell initialization.
+The original Call receipt remains distinct from the post-container receipt. Its source Call
+slot projects the original pre-container receipt. The inner member-read body stays deferred.
+This finite destination adds no later array Get/Call, spread, hole, iterator, exported result
+or intervening captured-mutation authority.
+
+A zero-parameter module function declaration is instantiated before lexical initializers. Its actual defining environment retains the original captured Cell while that Cell is still uninitialized. This finite path admits one private synchronous zero-parameter declaration with the same one-const capture and direct one or two no-argument Calls, including Calls before the declaration's text. Instantiation executes no function body. The function binding keeps ordinary mutable storage semantics, and later captured reads use the current initialized Cell. Calls before the captured initializer remain outside this prefix slice.
+
+A qualified closed two-formal arrow can use its actual boolean argument to select a direct read of the second argument's own data field, with a literal alternative. The original acquired Call enters the finalized conditional body schedule before generic traversal. The selected Reference/Get and exact skipped interval produce only their own field-demand coverage after matching body completion. Current descriptor and storage state remain authoritative. Static conditional index entries remain false-once. A consumed generic Get or a lexical reachability result cannot replace the selected continuation. Defaulted formals, typeof predicates, general ordinary-function bodies, accessors, Proxy/unknown receivers and arbitrary conditional nesting receive no additional admission from this finite path. The field outcome is not a normal value, descriptor, target-wide or public-policy proof. Validation observations are optional and inert without a test observer.
+
+A separate finite closed-arrow path supports a capture-free numeric formal with a numeric-literal default and a direct return of that formal, such as `(x: number = 7) => x`. It also supports the exact earlier-formal read shape `(x: number = 7, y: number = x) => y`. A supplied known number bypasses its initializer. An omitted argument or authenticated `undefined` selects it. The existing acquired argument vector, default selector and merge initialize each formal once in declaration order. The second default reads the original initialized first cell in the same activation, before initializing the second cell. Omission does not add an actual argument. Unknown arguments and effectful, callable or throwing initializers retain conservative analysis. This path does not admit general multiple-formal defaults, destructured formals, initializer captures or general default completion. TypeScript's later-formal and self-reference diagnostics remain in force.
+
+A finite normal default can instead read the earlier required object formal: `(input: { value: number }, x: number = input.value) => x`. The original acquired object initializes the first formal before the selected ReadLocal, Member and Get. Omission or genuine `undefined` selects the current own DATA field, then initializes the second formal and returns it. A supplied known number bypasses the Member/Get. Current field writes before the Call remain observable. The annotation supplies no descriptor or purity proof. This coverage belongs only to that original Call and field read. Accessor, inherited, Proxy and unknown receiver alternatives retain their existing effects or conservative refusal. This normal path does not extend the separate finite null GetThrow producer or general throwing defaults.
+
+That normal field default path also admits `(input: { value: number | null | undefined }, x: number = input.value ?? 7) => x`. The earlier formal and own DATA Get execute once before the canonical nullish choice. An explicit own null or undefined value selects the literal `7` right operand, while a non-nullish number, including zero, forwards the actual Get value. A supplied numeric second argument bypasses both the Get and RHS. The inner nullish choice and outer parameter default each retain their own selector and merge. The field projection binds the actual Get independently from the final Return, since null or undefined can produce a Return value of 7. This finite path requires an explicit present own field and literal `7` fallback. It adds no absent-property/prototype inference, accessor or Proxy authority, general initializer Call/Throw, typeof, factory or policy admission.
+
+A qualified closed source arrow can classify an acquired formal with `typeof`, such as `(value: unknown) => typeof value`. Existing Number, Boolean, String, undefined, null, allocated object and constructed callable values produce their usual JavaScript type strings. The acquired category supplies the result independently of the annotation. The operand executes once through its admitted schedule, including its selected conditional path. Classifying an object or callable value performs no property read or invocation. Reads used to obtain the operand retain their own effects, abrupt completion and residual obligations. Source population and original Call associations remain required. BigInt and Symbol VALUE ingress, native-library value transfer, source array-literal arguments and hoisted functions passed to an unrelated arrow remain open in this route. Missing identifiers, TDZ reads and general throwing/default-initializer composition receive no new admission.
+
+One finite abrupt default is also tracked: `(x: number = (null as any).value) => x`. Omission and genuine `undefined` select the actual null Member/Get TypeError before formal initialization or body evaluation. A supplied known number bypasses that Get. The original Call retains its bare Get observation, raw Throw and checked caller exit, with the paid prefix state unchanged. The assertion is erased syntax and provides no runtime safety proof. This inference retains the native error category and producing occurrence, without granting Error-object identity or Normal error-object output. Other receivers, initializer Calls and general throwing defaults remain conservative. This original-Call terminal is separate from successful module-initializer result adoption and from iterator binding/finally routing.
+
+The synchronous iterator binding slice supports empty, one-name and two-identifier patterns with
+separately qualified acquisition, step, value and Close outcomes. Two identifiers use ordered
+element descriptors and retain each actual initialization record. The second Step reuses the
+paid Next acquisition while owning a fresh Call and completion. Exhaustion stays sticky, so a
+later target receives undefined without another Next or Close. The two-identifier slice excludes
+elisions, rest elements, defaults and loop bindings. Pre-record numeric-method and Getter-Throw
+terminals retain their EMPTY/ONE target scope.
+
+An abrupt selected default keeps its
+incoming Throw while Close still performs its own Get and Call work. A defined value bypasses
+the default. An abrupt default leaves its target uninitialized. A qualified scalar default result
+retains its actual pre-initialization receipt and initializes its target once. An exhausted iterator
+can select that default without performing Close. A finite two-key own-data alias assignment can
+also establish a numeric iterator method. Its completed Get and acquired header establish TypeError
+before invocation, iterator-record creation or target initialization. Callable replacements retain
+their ordinary protocol Calls. The independent unresolved alternative remains conservative.
+For an empty or one-name binding, a qualified computed iterator-method getter can finish with
+Throw before the iterator factory is called. A one-name target remains uninitialized in its
+authenticated source caller, separate from the Getter activation and the zero context target. Its actual computed key and finished Get receipt remain required.
+This role creates no iterator record, step, initialization or Close. Normal getter results and
+unfinished first-role diversion remain outside this accepted slice. A tested finish
+refusal retains residual transport and historical metadata without granting a finished Get.
+The independent unresolved Symbol alternative still prevents selected client/server partitions
+from certifying this initializer portable. Unpartitioned emission preserves its ordinary JavaScript
+Throw behavior.
+These are finite source proofs. General repeated iterator execution, arbitrary computed-key
+sequences, other noncallable method categories and normal completion of an invoked default remain
+outside this slice.
+Qualified source structure alone does not grant execution or artifact pruning authority.
+
+## Advisory analysis cost
+
+Estimated analysis cost helps explain expensive compiler work. It does not restrict source analysis or define TypeScript validity. The application may configure `analysis.estimatedCostWarningThreshold` in `exact.config.ts`, using a positive safe integer or `false` to disable the warning. The default is 4096 dimensionless estimate units. They describe estimated work rather than elapsed time or a heap limit.
+
+Nested work contributes to its requesting root query. Diagnostics aggregate the retained project summary into one nonfatal warning for the requested source. A threshold change reclassifies reporting without replaying a body or changing semantic facts. Optional explanation/profile requests can include the estimate. Missing historical measurements remain unavailable.
+
+Actual recursion, structural progress, checked allocation and identity arithmetic, source authority, lifetime and process/transport guards remain enforcing. Their refusal causes stay distinct from advisory cost.
+
+Default source-class construction retains actual instance field outputs only within the live normal operation that produced them. The bounded path covers implicit default constructors and public noncomputed data fields. Construction evaluates arguments and field initializers in source order, while later reads retain descriptor and mutation checks. Unsupported construction output stays incomplete. These live values cannot enter detached descriptor history or generation caches.
+
+Field completion consumes the actual field frame's Call results and preserves the original value and capture scope. A directly returned instance borrows its producing frame through the original caller's result slot until that caller is disposed. Closing either the generation or the input lifetime revokes the borrowed value.
+
+A proven abrupt initializer stops the field sequence. An unavailable Normal value keeps construction incomplete while subsequent ordinary demands contribute only possible effects. Their borrowed prefix retains mutation uncertainty and creates no field values, Get receipts, or complete instance. A conditional nested `new` can retain cached field effects from one authenticated implicit class in the same source and creating lexical region. This effects-only projection preserves arguments and genuine captures without allocating an inner instance or supplying its `this`, prior-field values, prototype proof, or normal receipts. Unknown targets and receiver-dependent work remain incomplete, while independently known effects are retained.
+
+An authenticated native `Object.freeze` Call can publish an integrity event for a finite immediate ordinary object literal. The original argument observation owns its identity and captures. Data members, including shorthand syntax, retain their original value observations and uncertainty. Freeze does not invoke its accessors. Later source reads preserve those accessors, while the same event records nonextensibility, nonconfigurable properties and nonwritable data properties. Unknown or aliased target shapes retain conditional value origins and effects without a completed freeze event. Primitive targets remain conservative rather than being assigned an Object.defineProperty-style throwing law.
+
+This source event supplies no typed-store allocation or source-body entry. Blocked source writes, deletion and incompatible redefinition retain incomplete completion instead of publishing successful mutation. Reflect and strict native outcomes remain distinct. Setter execution keeps its ordinary owner. An authenticated completed freeze event preserves its own accessor payload even when the enclosing property view has unresolved obligations. This operation-local fact prevents freeze itself from adding spurious setter opacity. It supplies no body purity or value completion, and independent unknown calls, arguments or setter effects remain uncertain.
+
+Definition-only, immutable hoisted helper calls can contribute their canonical graph edge without constructing occurrence results when the existing closed-capture and primitive-demand checks apply. Exact immutable formal forwarding uses the same effects-only relation, including a canonical returned render arrow that forwards its enclosing definition's formal. The graph solver retains known effects, unresolved input obligations and parameter writes. Moving an unavailable return value retains value incompleteness separately from execution opacity. Coercion keeps its own unknown effects. Defaults, rest inputs, replaced bindings, unrelated captures, asynchronous results and other value consumers keep their ordinary owners. This does not supply a runtime result, a NoWrites proof, an actual Call receipt or authority to share actual calls.

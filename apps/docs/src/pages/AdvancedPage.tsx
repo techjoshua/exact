@@ -179,18 +179,27 @@ export function AdvancedPage(this: Component<{}>) {
 					</p>
 				</details>
 				<p>
-					Server rendering produces HTML and public component state. Hydration adopts the existing
-					DOM, preserves form state and focus, and continues the same component in the browser.
-					Paired server and client builds preserve control identity during hydration. Sibling
-					components retain their DOM and continue receiving updates to parent-owned props. Hydrate
-					an embedded document from its own window. Hydration does not transfer a root across
-					document boundaries.
+					Native disclosures and dialogs can be used before client code arrives. Hydration keeps
+					their expanded, collapsed, open, or closed state. Server rendering produces HTML and
+					public component state. Hydration adopts the existing DOM, preserves form state and focus,
+					and continues the same component in the browser. Paired server and client builds preserve
+					control identity during hydration. Sibling components retain their DOM and continue
+					receiving updates to parent-owned props. Hydrate an embedded document from its own window.
+					Hydration does not transfer a root across document boundaries. For custom diagnostics,{' '}
+					<code>onHydration</code> reports root and island activation. Its observations and
+					partition inspection snapshots use ordinary objects with TypeScript readonly types.
 				</p>
 				<p>
 					When server HTML does not match the client root, hydration reports the mismatch and
 					replaces the element root by default. Set <code>onMismatch: 'throw'</code> to reject it
-					instead. Document roots cannot be replaced safely. Keep server ownership markers enabled
-					for dynamic lists and ranges, even when the outer root is markerless.
+					instead. Recovery preserves selected option values, disclosure and dialog choices, and
+					editable text. A named or identified control needs a unique matching replacement of the
+					same kind. Radio and checkbox option values must still match, and editable drafts need an
+					editable target. Retained editable content keeps its unchanged markup and selection.
+					Replacement recovery restores its plain text. File selections survive when the original
+					input remains. If recovery replaces a file input, the user must select files again.
+					Document roots cannot be replaced safely. Keep server ownership markers enabled for
+					dynamic lists and ranges, even when the outer root is markerless.
 				</p>
 				<p>
 					For roots without server operations or client islands, <code>hydrateAfterNavigation</code>

@@ -1,13 +1,12 @@
 import { createContext, watch, type Child, type Component } from '@exactjs/core';
 import {
-	createCompiledComponentReceipt,
+	createCompiledComponentInputReceipt,
 	createCompiledKeyedChildReceipt
 } from '@exactjs/core/runtime/component-abi';
 import { opaqueOperationKey } from '@exactjs/core/runtime/component-operations';
 import type { PresenceProps } from './contracts.js';
 import type { MotionPlayback } from './contracts.js';
 import { acquireSemanticAbsence, releaseSemanticAbsence } from './semantics.js';
-
 type PresenceRangeProps = Readonly<{
 	children?: Child;
 	returnFocus?: PresenceProps['returnFocus'];
@@ -16,21 +15,28 @@ type PresenceRangeProps = Readonly<{
 	onEntered?: () => void;
 	onExited?: () => void;
 }>;
-
-type PresenceItem = Readonly<{ key: string; child: Child }>;
-
+type PresenceItem = Readonly<{
+	key: string;
+	child: Child;
+}>;
 /** Internal collection-exit policy inherited by a motion-decorated list root. */
-export const ExitLayoutContext =
-	createContext<Readonly<{ mode: 'retain' | 'pop' }>>('motion.exit-layout');
-
+export const ExitLayoutContext = createContext<
+	Readonly<{
+		mode: 'retain' | 'pop';
+	}>
+>('motion.exit-layout');
 /** Internal enter-settlement collector inherited by motion descendants in one keyed range. */
 export const PresenceEnterContext = createContext<{
 	readonly entering: boolean;
 	register(playback: MotionPlayback): void;
 }>('motion.presence-enter');
-
 /** Conditionally projects children through generation-fenced renderer release and reversal. */
-export function Presence(this: Component<{ revision: number }>, props: PresenceProps) {
+export function Presence(
+	this: Component<{
+		revision: number;
+	}>,
+	props: PresenceProps
+) {
 	this.state.revision = 0;
 	let displayed: PresenceItem[] | undefined;
 	let pending: PresenceItem[] = [];
@@ -39,7 +45,6 @@ export function Presence(this: Component<{ revision: number }>, props: PresenceP
 	let transition = 0;
 	let awaiting = new Set<string>();
 	let entering = new Set<string>();
-
 	const invalidate = () => this.state.revision++;
 	const entered = (key: string) => {
 		if (phase !== 'waiting-enter' || !awaiting.delete(key) || awaiting.size) return;
@@ -59,7 +64,6 @@ export function Presence(this: Component<{ revision: number }>, props: PresenceP
 		entering = new Set(pending.map((item) => item.key));
 		invalidate();
 	};
-
 	const render = () => {
 		void this.state.revision;
 		const desired = props.when ? presenceItems(props.children) : [];
@@ -73,7 +77,6 @@ export function Presence(this: Component<{ revision: number }>, props: PresenceP
 			displayed = desired;
 			return projectPresence(displayed, props, entered, exited, entering);
 		}
-
 		if (phase === 'waiting-exit') {
 			if (sameIdentities(desired, exiting)) {
 				transition++;
@@ -95,7 +98,6 @@ export function Presence(this: Component<{ revision: number }>, props: PresenceP
 			}
 			return projectPresence(mergePresence(exiting, pending), props, entered, exited, entering);
 		}
-
 		if (sameIdentities(displayed, desired) || !displayed.length || !desired.length) {
 			if (!initial && !displayed.length) entering = new Set(desired.map((item) => item.key));
 			else if (!entering.size) entering.clear();
@@ -104,7 +106,6 @@ export function Presence(this: Component<{ revision: number }>, props: PresenceP
 			if (phase === 'idle') entering = new Set();
 			return result;
 		}
-
 		transition++;
 		exiting = displayed;
 		pending = desired;
@@ -125,7 +126,6 @@ export function Presence(this: Component<{ revision: number }>, props: PresenceP
 	};
 	return () => render();
 }
-
 function presenceItems(children: PresenceProps['children']): PresenceItem[] {
 	const values = Array.isArray(children) ? children : [children];
 	const result: PresenceItem[] = [];
@@ -139,13 +139,11 @@ function presenceItems(children: PresenceProps['children']): PresenceItem[] {
 	}
 	return result;
 }
-
 function sameIdentities(left: readonly PresenceItem[], right: readonly PresenceItem[]): boolean {
 	if (left.length !== right.length) return false;
 	const keys = new Set(left.map((item) => item.key));
 	return right.every((item) => keys.has(item.key));
 }
-
 function addedIdentities(
 	previous: readonly PresenceItem[],
 	next: readonly PresenceItem[]
@@ -153,7 +151,6 @@ function addedIdentities(
 	const existing = new Set(previous.map((item) => item.key));
 	return new Set(next.filter((item) => !existing.has(item.key)).map((item) => item.key));
 }
-
 function mergePresence(
 	oldItems: readonly PresenceItem[],
 	newItems: readonly PresenceItem[]
@@ -161,7 +158,6 @@ function mergePresence(
 	const desired = new Set(newItems.map((item) => item.key));
 	return [...newItems, ...oldItems.filter((item) => !desired.has(item.key))];
 }
-
 function projectPresence(
 	items: readonly PresenceItem[],
 	props: PresenceProps,
@@ -170,7 +166,7 @@ function projectPresence(
 	entering: ReadonlySet<string>
 ): Child[] {
 	return items.map((item) =>
-		createCompiledComponentReceipt(
+		createCompiledComponentInputReceipt(
 			PresenceRange,
 			{
 				key: item.key,
@@ -179,11 +175,10 @@ function projectPresence(
 				onEntered: () => entered(item.key),
 				onExited: () => exited(item.key)
 			},
-			item.child
+			{ kind: 'eager', values: [item.child] }
 		)
 	);
 }
-
 function PresenceRange(this: Component<{}>, props: PresenceRangeProps) {
 	const root = this.refs.root<Element>();
 	const parentEnter = this.hasContext(PresenceEnterContext)
@@ -234,7 +229,6 @@ function PresenceRange(this: Component<{}>, props: PresenceRangeProps) {
 			notifyEntered();
 		});
 	});
-
 	watch(() => {
 		const release = root.release;
 		if (release && typeof Element !== 'undefined' && release.target instanceof Element) {
@@ -249,10 +243,8 @@ function PresenceRange(this: Component<{}>, props: PresenceRangeProps) {
 		releaseSemanticAbsence(semanticTarget, semanticOwner);
 		props.onExited?.();
 	});
-
 	return () => props.children;
 }
-
 /** Applies a stable key and optional exit-layout owner to one projected list child. */
 export function keyedPresenceChild(
 	child: Child,
@@ -261,7 +253,11 @@ export function keyedPresenceChild(
 ): Child {
 	if (exitLayout === 'pop')
 		return createCompiledKeyedChildReceipt(
-			createCompiledComponentReceipt(PresenceRange, { exitLayout }, child),
+			createCompiledComponentInputReceipt(
+				PresenceRange,
+				{ exitLayout },
+				{ kind: 'eager', values: [child] }
+			),
 			key
 		);
 	return createCompiledKeyedChildReceipt(child, key);

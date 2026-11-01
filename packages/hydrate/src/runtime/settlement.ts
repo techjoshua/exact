@@ -2,6 +2,11 @@ import type { ComponentDomain } from '@exactjs/core';
 
 const owners = new WeakMap<ComponentDomain, HydrationSettlement>();
 
+/** Tests whether a retained root may still activate hydration work. */
+export function isHydrationActive(domain: ComponentDomain): boolean {
+	return owners.get(domain)?.active ?? true;
+}
+
 /** Tracks asynchronous adoption against its root rather than the shared module loader. */
 export function trackHydrationSettlement(domain: ComponentDomain, work: Promise<unknown>): void {
 	owners.get(domain)?.track(work);
@@ -33,6 +38,11 @@ export class HydrationSettlement {
 		});
 		if (signal.aborted) this.abort();
 		else signal.addEventListener('abort', this.abort, { once: true });
+	}
+
+	/** Reports cancellation independently of shared module readiness. */
+	get active(): boolean {
+		return !this.signal.aborted;
 	}
 
 	/** Waits for shared work only while this root remains active. */

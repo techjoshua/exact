@@ -149,7 +149,7 @@ finite plan had no future changes. Disabled ranges retain their frozen sample.
 ## Scheduling and ownership
 
 All registrations using the same clock share one earliest-deadline, one-shot scheduler. A fired
-timer publishes one immutable sample to the due ranges in one reactive transaction. The scheduler
+timer publishes one captured finite timestamp to the due ranges in one reactive transaction. The scheduler
 does not calculate or arm its next timer until that transaction, DOM publication, branch cleanup,
 and range disposal settle. It never accumulates historical interval callbacks.
 
@@ -239,3 +239,18 @@ reads safe to repeat. Expose the clock as an argument to a compiler-proven local
 ```tsx
 <time time:update="second">{formatCountdown(Date.now(), props.deadline)}</time>
 ```
+
+Clock scheduling releases timer and wake subscriptions when the final range leaves the clock.
+Retirement fences old timer callbacks before invoking cancellation, including when updates are
+disabled. Cancellation failures remain observable while independent work and replacement scheduling
+are still attempted. Scheduling that disposes its range releases the returned timer immediately.
+Callbacks captured before that removal cannot sample the clock or affect a replacement range.
+A subscription returned after synchronous disposal is immediately released. Failed setup can be
+retried, and all due ranges receive one captured finite timestamp per scheduler wake.
+
+Readonly clock values, plans, input observations, and scheduler inspection use TypeScript checking.
+Public observations are ordinary copies. Changing an observation does not change a private plan
+or the wall-clock timestamp shared by a synchronous cycle. Plan and binding inputs are captured
+once before validation. If floating-point spacing prevents ordinary deadline arithmetic from
+advancing, scheduling uses the next finite representable timestamp. No future deadline exists
+at the maximum finite numeric value.

@@ -1,13 +1,19 @@
+import type { ArrayNetMutation, ArrayServerBinding } from '@exactjs/reactive/framework/array-patch';
+import { responseResourceBudget, responseGraphLimits } from './response-resources.js';
+import type { ResponseResourceBudget } from '@exactjs/core/framework/protocol-records';
 import { stateNodeMatchesWrites } from '@exactjs/core/framework/protocol-records';
 import { ownRegistryEntry } from './registry-entry.js';
 import { hasOnlyKeys, isJsonSafe } from './protocol.js';
 import {
-	isSafeProtocolKey as isSafeObjectKey,
-	normalizeProtocolLimit as positiveLimit
+	isStateDeletionList,
+	isStateOutputPathList,
+	minimalStateReadPaths
 } from '@exactjs/core/framework/protocol-records';
+import { isSafeProtocolKey as isSafeObjectKey } from '@exactjs/core/framework/protocol-records';
 import { isSafeDomPatchProperty } from '@exactjs/core/framework/operation-protocol';
 import type {
 	ExactExecutorContract,
+	ExactServerContext,
 	ExactCollectionMutation,
 	ExactInvocationRequest,
 	ExactInvocationResult,
@@ -25,7 +31,7 @@ export function isExecutorAllowed(
 	return false;
 }
 
-/** Returns whether a handler result is JSON-safe and matches the invocation result envelope. */
+/** Validates result shape and serialization safety. Omitted resource settings warn, explicit positive caps throw ResponseResourceLimitError. Invalid graphs and unauthorized shapes remain false. */
 export function isInvocationResultSafe(
 	result: unknown,
 	limits: {
@@ -33,21 +39,34 @@ export function isInvocationResultSafe(
 		maxJsonNodes?: number;
 		maxResponseBytes?: number;
 		maxPatches?: number;
-	} = {}
+	} = {},
+	resources: ResponseResourceBudget = responseResourceBudget(),
+	arrayParser?: (value: unknown) => ArrayNetMutation
 ): result is ExactInvocationResult {
-	if (
-		!isJsonSafe(result, {
-			maxDepth: limits.maxJsonDepth,
-			maxNodes: limits.maxJsonNodes,
-			maxBytes: limits.maxResponseBytes
-		})
-	)
-		return false;
+	if (!isJsonSafe(result, responseGraphLimits(limits, resources, 'operation result'))) return false;
 	if (!result || typeof result !== 'object' || Array.isArray(result)) return false;
 	const record = result as Record<string, unknown>;
-	if (!hasOnlyKeys(record, ['patches', 'state', 'mutations', 'contexts', 'html', 'value']))
+	if (
+		!hasOnlyKeys(record, [
+			'arrayCompletion',
+			'patches',
+			'state',
+			'statePaths',
+			'mutations',
+			'deletions',
+			'contexts',
+			'html',
+			'value'
+		])
+	)
 		return false;
+	if (record.arrayCompletion !== undefined && record.arrayCompletion !== 4) return false;
 	if ('state' in record && record.state === undefined) return false;
+	if (
+		'statePaths' in record &&
+		(!Object.hasOwn(record, 'state') || !isStateOutputPathList(record.statePaths))
+	)
+		return false;
 	if (
 		record.contexts !== undefined &&
 		(!record.contexts || typeof record.contexts !== 'object' || Array.isArray(record.contexts))
@@ -55,15 +74,24 @@ export function isInvocationResultSafe(
 		return false;
 	if (record.patches !== undefined) {
 		if (!Array.isArray(record.patches)) return false;
-		if (record.patches.length > positiveLimit(limits.maxPatches, 10_000)) return false;
+		resources(
+			'maxPatches',
+			limits.maxPatches,
+			10_000,
+			record.patches.length,
+			'operation result',
+			'patches'
+		);
 		if (!record.patches.every(isPatchSafe)) return false;
 	}
 	if (
 		record.mutations !== undefined &&
-		(!Array.isArray(record.mutations) || !record.mutations.every(isCollectionMutationSafe))
+		(!Array.isArray(record.mutations) ||
+			!record.mutations.every((value) => isCollectionMutationSafe(value, arrayParser)))
 	)
 		return false;
 	if (record.html !== undefined && typeof record.html !== 'string') return false;
+	if (record.deletions !== undefined && !isStateDeletionList(record.deletions)) return false;
 	return true;
 }
 
@@ -84,17 +112,36 @@ export function collectionMutationsMatchContract(
 			.map((write) => [write.path, write.operation])
 	);
 	return mutations.every((mutation) => {
+		if (mutation.operation === 'array-net')
+			return writes.some(
+				(write) =>
+					write.kind === 'write' &&
+					write.confidence === 'exact' &&
+					write.path === mutation.path &&
+					write.arrayRoots?.some((root) => root.path.join('.') === write.path)
+			);
 		const kind = mutation.operation.startsWith('map-') ? 'map' : 'set';
 		return allowed.get(mutation.path) === kind;
 	});
 }
 
-function isCollectionMutationSafe(value: unknown): value is ExactCollectionMutation {
+function isCollectionMutationSafe(
+	value: unknown,
+	arrayParser?: (value: unknown) => ArrayNetMutation
+): value is ExactCollectionMutation {
 	if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
 	const record = value as Record<string, unknown>;
 	if (typeof record.path !== 'string' || !record.path.split('.').every(isSafeObjectKey))
 		return false;
 	switch (record.operation) {
+		case 'array-net':
+			if (!arrayParser) return false;
+			try {
+				arrayParser(value);
+				return true;
+			} catch {
+				return false;
+			}
 		case 'map-set':
 			return (
 				hasOnlyKeys(record, ['path', 'operation', 'key', 'value']) &&
@@ -142,11 +189,10 @@ export function boundaryHintsAllowed(
 	return true;
 }
 
-/** Returns whether submitted state satisfies every exact continuation read. */
+/** Checks required input snapshots, coalescing descendant reads already supplied by a complete enclosing value. */
 export function stateMatchesContract(state: unknown, reads: readonly ExactStatePath[]): boolean {
-	for (const read of reads) {
-		if (read.kind !== 'read' || read.confidence !== 'exact') continue;
-		if (!hasStatePath(state, read.path)) return false;
+	for (const path of minimalStateReadPaths(reads)) {
+		if (!hasStatePath(state, path)) return false;
 	}
 	return true;
 }
@@ -158,19 +204,18 @@ export function stateMatchesContract(state: unknown, reads: readonly ExactStateP
  */
 export function stateResponseMatchesContract(
 	state: unknown,
-	writes: readonly ExactStatePath[]
+	writes: readonly ExactStatePath[],
+	paths?: readonly string[]
 ): boolean {
 	if (state === undefined) return true;
-	const exactWrites = writes.filter(
-		(write) => write.kind === 'write' && write.confidence === 'exact'
-	);
-	if (exactWrites.some((write) => write.path === '*')) return true;
+	const selected =
+		paths ??
+		writes
+			.filter((write) => write.kind === 'write' && write.confidence === 'exact')
+			.map((write) => write.path);
+	for (let index = 0; index < selected.length; index++) if (selected[index] === '*') return true;
 	if (!state || typeof state !== 'object' || Array.isArray(state)) return false;
-	return stateNodeMatchesWrites(
-		state,
-		'',
-		exactWrites.map((write) => write.path)
-	);
+	return stateNodeMatchesWrites(state, '', selected);
 }
 
 /** Validates only explicitly public context projections transported by the client. */
@@ -210,8 +255,7 @@ function isPatchSafe(patch: unknown): patch is ExactPatch {
 				hasOnlyKeys(record, ['type', 'id', 'name', 'value']) &&
 				typeof record.name === 'string' &&
 				isSafeDomPatchProperty(record.name) &&
-				'value' in record &&
-				record.value !== undefined
+				Object.hasOwn(record, 'value')
 			);
 		case 'style':
 			return (
@@ -228,11 +272,7 @@ function isPatchSafe(patch: unknown): patch is ExactPatch {
 				(record.html === undefined || typeof record.html === 'string')
 			);
 		case 'state':
-			return (
-				hasOnlyKeys(record, ['type', 'id', 'value']) &&
-				'value' in record &&
-				record.value !== undefined
-			);
+			return hasOnlyKeys(record, ['type', 'id', 'value']) && Object.hasOwn(record, 'value');
 		case 'replace':
 			return hasOnlyKeys(record, ['type', 'id', 'html']) && typeof record.html === 'string';
 		default:
@@ -260,4 +300,64 @@ function hasStatePath(value: unknown, path: string): boolean {
 
 function isArrayIndex(segment: string): boolean {
 	return /^(0|[1-9]\d*)$/.test(segment);
+}
+
+/** Checks the finite discriminator against its admitted partition boundary. */
+export function partitionDiscriminatorMatchesBoundary(
+	authority: NonNullable<ExactInvocationRequest['partition']>,
+	boundary: ExactServerContext['contract']['boundaries'][string]
+): boolean {
+	const discriminator = authority.discriminator;
+	if (discriminator.kind === 'single') return true;
+	if (discriminator.kind === 'branch')
+		return boundary.discriminatorValues?.includes(discriminator.branch) === true;
+	return discriminator.list === boundary.parentPlanId;
+}
+
+/** Measures compact sequence materialization with the existing response resource policy before apply. */
+export function arrayResponseParser(
+	binding: ArrayServerBinding | undefined,
+	maxJsonNodes: number | undefined,
+	resources: ResponseResourceBudget
+): ((value: unknown) => ArrayNetMutation) | undefined {
+	if (!binding) return;
+	return (value) =>
+		binding.parse(value, (slots) =>
+			resources(
+				'maxJsonNodes',
+				maxJsonNodes,
+				100_000,
+				slots,
+				'Array completion sequence',
+				'materialized slots'
+			)
+		);
+}
+
+/** Compares the complete admitted partition authority, including its generation and discriminator. */
+export function samePartitionAuthority(
+	left: NonNullable<ExactInvocationRequest['partition']>,
+	right: NonNullable<ExactInvocationRequest['partition']>
+): boolean {
+	const leftDiscriminator = left.discriminator;
+	const rightDiscriminator = right.discriminator;
+	const sameDiscriminator =
+		leftDiscriminator.kind === rightDiscriminator.kind &&
+		(leftDiscriminator.kind === 'single' ||
+			(leftDiscriminator.kind === 'branch' &&
+				rightDiscriminator.kind === 'branch' &&
+				leftDiscriminator.branch === rightDiscriminator.branch) ||
+			(leftDiscriminator.kind === 'keyed' &&
+				rightDiscriminator.kind === 'keyed' &&
+				leftDiscriminator.list === rightDiscriminator.list &&
+				leftDiscriminator.keyToken === rightDiscriminator.keyToken));
+	return (
+		left.version === right.version &&
+		left.buildKey === right.buildKey &&
+		left.executionRoot === right.executionRoot &&
+		left.planEdgeId === right.planEdgeId &&
+		left.ownerComponentId === right.ownerComponentId &&
+		left.generation === right.generation &&
+		sameDiscriminator
+	);
 }

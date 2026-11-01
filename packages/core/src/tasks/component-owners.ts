@@ -1,3 +1,4 @@
+import { taskResourceOwnerSignal } from './resource-owner-signals.js';
 import type { AnyComponentInstance } from '../component/contracts.js';
 
 const owners = new WeakMap<AbortSignal, AnyComponentInstance>();
@@ -9,5 +10,5 @@ export function trackTaskOwner(signal: AbortSignal, owner: AnyComponentInstance)
 
 /** Finds the component for task awaits and owned resource callbacks, including detached receivers. */
 export function componentForTaskSignal(signal: AbortSignal): AnyComponentInstance | undefined {
-	return owners.get(signal);
+	return owners.get(taskResourceOwnerSignal(signal));
 }

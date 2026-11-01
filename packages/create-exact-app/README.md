@@ -8,7 +8,9 @@ Interactive project scaffolder for eXact applications.
 npm create @exactjs/exact-app@latest
 ```
 
-Generated applications use matching compiler and runtime dependencies from the 0.7 package family.
+Each scaffolder release starts eXact dependency ranges at each package’s current version, using
+caret ranges such as `^0.7.3`. Fresh installs without a lockfile and dependency updates can select
+newer compatible releases. An existing lockfile retains its resolved versions until updated.
 
 The CLI can configure Vite, Webpack, or Bun, browser-only or server runtime adapters, and Vitest, Jest,
 or Bun tests. It also offers optional React compatibility, dependency installation, and the portable

@@ -20,6 +20,7 @@ import {
 	type LogScope
 } from '../logging.js';
 import { defaultConsoleLogger } from './default-logger.js';
+import { describeFailureReason } from '../failure-description.js';
 
 export { defaultConsoleLogger } from './default-logger.js';
 
@@ -270,10 +271,15 @@ export function isErrorReport(value: unknown): value is ErrorReport {
 	);
 }
 
-/** Performs the format error domain operation. */
+/** Describes a failure, preferring its stack without allowing hostile getters to replace it. */
 export function formatError(error: unknown): string {
-	if (error instanceof Error) {
-		return error.stack ?? error.message;
+	try {
+		if (error instanceof Error) {
+			const description = error.stack ?? error.message;
+			if (typeof description === 'string') return description;
+		}
+	} catch {
+		return 'Unknown error';
 	}
-	return String(error);
+	return describeFailureReason(error, 'Unknown error');
 }

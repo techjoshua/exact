@@ -21,6 +21,42 @@ const snapshot = (index: number, receiver: string, value: number) => ({
 });
 
 describe('backpressured progress snapshots', () => {
+	it('retains a cancelled producer until its asynchronous cleanup settles', async () => {
+		const started = gate();
+		const cleaning = gate();
+		const cleanupReady = gate();
+		const owner = new AbortController();
+		let finished = false;
+		const stream = createProgressStream(
+			async (writer) => {
+				started.resolve();
+				try {
+					await writer.emit({ event: 'complete', version: 1 });
+				} finally {
+					cleaning.resolve();
+					await cleanupReady.promise;
+					finished = true;
+				}
+			},
+			{ signal: owner.signal, cancel: (reason) => owner.abort(reason), dispose() {} }
+		);
+		let settled = false;
+		let cancelled: Promise<void> | undefined;
+		try {
+			await started.promise;
+			cancelled = stream.cancel('gone').then(() => {
+				settled = true;
+			});
+			await cleaning.promise;
+			await Promise.resolve();
+			expect(settled).toBe(false);
+		} finally {
+			cleanupReady.resolve();
+			await (cancelled ?? stream.cancel());
+		}
+		expect(finished).toBe(true);
+	});
+
 	it('replaces unsent reports and isolates receivers and operations', async () => {
 		const ready = gate();
 		const finish = gate();
@@ -114,8 +150,12 @@ describe('backpressured progress snapshots', () => {
 		const captured = captureProgressSnapshot(source);
 		source.current.set('completed', 2);
 		expect(captured).toEqual({ current: new Map([['completed', 1]]) });
-		for (const value of [undefined, () => {}, { count: NaN }, { text: 'x'.repeat(65_537) }])
+		for (const value of [() => {}, { count: Symbol('unsupported') }, { text: 'x'.repeat(65_537) }])
 			expect(() => captureProgressSnapshot(value)).toThrow();
+		expect(captureProgressSnapshot({ value: undefined, count: NaN })).toEqual({
+			value: undefined,
+			count: NaN
+		});
 		const cycle: { self?: unknown } = {};
 		cycle.self = cycle;
 		expect(() => captureProgressSnapshot(cycle)).toThrow();

@@ -1,3 +1,4 @@
+import { compiledElementIdentity } from '@exactjs/core/runtime/component-operations';
 /* eslint-disable @typescript-eslint/no-explicit-any -- This test intentionally models external, private, or invalid values that production contracts reject. */
 /**
  * @vitest-environment jsdom
@@ -16,16 +17,42 @@ import { invokeExact, invokeExactBatch } from './invocations.js';
 import { applyPatches } from './patches.js';
 import {
 	readRequestClicks,
-	reorderedControlsRoot,
 	requestClickCounterRoot,
 	resetRequestClicks,
 	requestParagraphRoot
 } from './test-support/request-operations.fixtures.js';
-import {
-	reorderedControlsRoot as serverReorderedControlsRoot,
-	requestParagraphRoot as serverRequestParagraphRoot
-} from './test-support/request-operations.fixtures.js?exact-target=server';
+import { requestParagraphRoot as serverRequestParagraphRoot } from './test-support/request-operations.fixtures.js?exact-target=server';
 import { noopLogger, testContinuation } from './test-support/responses.js';
+
+import {
+	createCompiledFragmentReceipt,
+	createCompiledIntrinsicReceipt
+} from '@exactjs/core/runtime/component-operations';
+import {
+	createTestComponentReceipt,
+	createServerTestComponentReceipt
+} from '@exactjs/testing/internal/fixtures';
+
+/** Models a repair protocol with stable server IDs independent of JSX branch occurrences. */
+function ReorderedControlsProtocol(props: { reversed: boolean }) {
+	const fields = props.reversed ? ['b', 'a'] : ['a', 'b'];
+	return () =>
+		createCompiledFragmentReceipt(
+			{},
+			...fields.map((id) =>
+				createCompiledIntrinsicReceipt('input', {
+					[compiledElementIdentity]: id,
+					name: 'title',
+					value: id.toUpperCase()
+				})
+			)
+		);
+}
+
+const reorderedControlsRoot = (reversed: boolean) =>
+	createTestComponentReceipt(ReorderedControlsProtocol, { reversed });
+const serverReorderedControlsRoot = (reversed: boolean) =>
+	createServerTestComponentReceipt(ReorderedControlsProtocol, { reversed });
 
 describe('@exactjs/hydrate request-operations', () => {
 	it('encodes request Maps and Sets and decodes them in responses', async () => {

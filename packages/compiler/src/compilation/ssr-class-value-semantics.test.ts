@@ -2,15 +2,14 @@
 import path from 'node:path';
 import { expect, it, onTestFinished, vi } from 'vitest';
 import type { AnyComponentFunction } from '@exactjs/core';
-import { createCompiledComponentReceipt as receipt } from '@exactjs/core/runtime/component-operations';
+import { createCompiledComponentInputReceipt as receipt } from '@exactjs/core/runtime/component-operations';
 import { composeExactComponentContracts } from '@exactjs/core/framework/component-contracts';
 import { render, unmount } from '@exactjs/dom';
 import { hydrate } from '@exactjs/hydrate';
 import { renderToHydratableString } from '@exactjs/ssr';
 import { compileProjectArtifacts } from '../index.js';
-import { createTestWorkspace, writeTestFiles } from '../test-support/workspace.js';
+import { createCompilerTestWorkspace, writeTestFiles } from '../test-support/workspace.js';
 import { importArtifact } from '../test-support/import-artifact.js';
-
 const cases = [
 	{ name: 'ordinary', value: `['base',{active:props.active}]`, expected: 'base active' },
 	{
@@ -48,14 +47,13 @@ const cases = [
 	},
 	{ name: 'escaping-token', value: `['base',{'a"<b':props.active}]`, expected: 'base a"<b' }
 ] as const;
-
 it.each(
 	cases.flatMap((entry) => ['root', 'descendant'].map((placement) => ({ ...entry, placement })))
 )(
 	'preserves native class value semantics through SSR and strict hydration: $name ($placement)',
 	async (entry) => {
 		const { value, expected, placement } = entry;
-		const root = await createTestWorkspace('.exact-class-values-', process.cwd());
+		const root = await createCompilerTestWorkspace('.exact-class-values-', process.cwd());
 		const files = await writeTestFiles(root, {
 			'page.tsx': `import type {Component} from '@exactjs/core';export function Page(this:Component<{active:boolean}>,props:{active:boolean;extra?:{title?:string}}){this.state.active=props.active;return()=> ${placement === 'root' ? '' : '<main>'}<span {...props.extra} className={${value.replaceAll('props.active', 'this.state.active')}}><button onClick={()=>this.state.active=!this.state.active}>Toggle</button></span>${placement === 'root' ? '' : '</main>'};}`
 		});

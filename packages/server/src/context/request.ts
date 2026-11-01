@@ -1,3 +1,4 @@
+import { deriveRuntimeConfiguration as deriveServerContext } from '@exactjs/core/framework/configuration';
 import { type RequestResponseState } from '@exactjs/request';
 import type {
 	ExactContextRuntimeConfiguration,
@@ -17,14 +18,22 @@ import { ContextRuntime } from './runtime.js';
 /** Provides the canonical context runtimes value. */
 export const contextRuntimes = new WeakMap<ExactServerContext, ExactContextRuntime>();
 
-/** Creates an exact context runtime. */
+/**
+ * Owns application contexts and isolated request scopes for a custom server host.
+ * Opening a scope initializes its request contexts. Cancellation preserves the signal's exact
+ * reason, including null. Dispose the runtime to release application and active request resources.
+ */
 export function createExactContextRuntime(
 	configuration: ExactContextRuntimeConfiguration = {}
 ): ExactContextRuntime {
 	return new ContextRuntime(configuration);
 }
 
-/** Performs the open exact request scope domain operation. */
+/**
+ * Opens a request-owned context view with local overrides and retained server configuration.
+ * Dispose the returned scope after work completes. Configuration capture failure closes any
+ * newly opened resources and preserves the original thrown value.
+ */
 export async function openExactRequestScope(
 	request: ExactRequestLike,
 	server: ExactServerContext,
@@ -47,22 +56,30 @@ export async function openExactRequestScope(
 		contextRuntimes.set(server, runtime);
 	}
 	const opened = await runtime.open(request, platformRequest);
-	return {
-		context: {
-			...server,
-			contextRuntime: runtime,
-			contexts: opened.context,
-			requestContext: opened.request,
-			responseState: opened.response,
-			platformRequest,
-			signal: opened.request.signal
-		},
-		response: opened.response,
-		dispose: opened.dispose
-	};
+	try {
+		return {
+			context: deriveServerContext(server, () => ({
+				contextRuntime: runtime,
+				contexts: opened.context,
+				requestContext: opened.request,
+				responseState: opened.response,
+				platformRequest,
+				signal: opened.request.signal
+			})),
+			response: opened.response,
+			dispose: opened.dispose
+		};
+	} catch (error) {
+		await disposePreservingPrimary(opened.dispose, error);
+		throw error;
+	}
 }
 
-/** Runs with exact request scope with the supplied execution context. */
+/**
+ * Runs work in an isolated request scope and releases its resources after completion.
+ * A returned stream retains that scope until completion or cancellation, preserving the signal's
+ * exact abort reason. Ordinary buffered results release their scope before this promise resolves.
+ */
 export async function runWithExactRequestScope<T>(
 	request: ExactRequestLike,
 	server: ExactServerContext,

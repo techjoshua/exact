@@ -12,7 +12,7 @@ import {
 import type { ServerBoundary, ServerSlot } from '@exactjs/core/runtime/render-operations';
 import {
 	createCompiledActivityReceipt,
-	createCompiledComponentReceipt,
+	createCompiledComponentInputReceipt,
 	createCompiledFragmentReceipt,
 	createCompiledIntrinsicReceipt,
 	createCompiledPortalReceipt,
@@ -153,7 +153,7 @@ function pairedFixtureArtifact(
 	contract: ExactComponentContract
 ): ExactComponentExecutableArtifact {
 	const common = {
-		version: 2 as const,
+		version: source.version,
 		id,
 		instantiate,
 		construct: source.construct,
@@ -235,10 +235,10 @@ export function createTestComponentReceipt(
 	props: Record<string, unknown> | null,
 	...children: unknown[]
 ) {
-	return createCompiledComponentReceipt(
+	return createCompiledComponentInputReceipt(
 		testType(type as AnyExactComponentCallable, undefined, props),
 		props,
-		...children
+		{ kind: 'eager', values: [...children] }
 	);
 }
 
@@ -248,10 +248,10 @@ export function createServerTestComponentReceipt(
 	props: Record<string, unknown> | null,
 	...children: unknown[]
 ) {
-	return createCompiledComponentReceipt(
+	return createCompiledComponentInputReceipt(
 		testType(type as AnyExactComponentCallable, 'server', props),
 		props,
-		...children
+		{ kind: 'eager', values: [...children] }
 	);
 }
 
@@ -277,24 +277,8 @@ export function createTestJsx(
 	return createTestRuntimeOperation(type, props, key);
 }
 
-/** Multi-child counterpart to {@link createTestJsx}. */
-export function createTestJsxs<P extends TestJsxProps>(
-	type: AnyStateAuthoredComponentFunction<P>,
-	props: P | null,
-	key?: string
-): Child;
-export function createTestJsxs(
-	type: string | symbol | typeof Activity | typeof Fragment | typeof Suspense,
-	props: TestJsxProps | null,
-	key?: string
-): Child;
-export function createTestJsxs(
-	type: TestJsxType,
-	props: Record<string, unknown> | null,
-	key?: string
-): Child {
-	return createTestRuntimeOperation(type, props, key);
-}
+/** Multi-child JSX entry point with the same normalization and overloads as {@link createTestJsx}. */
+export const createTestJsxs = createTestJsx;
 
 function createTestRuntimeOperation(
 	type: TestJsxType,
@@ -335,9 +319,9 @@ function createTargetOperation(
 		return createCompiledServerSlotReceipt(props, ...children);
 	if (type === (Symbol.for('exact.unsafe-html') as typeof UnsafeHtml))
 		return createCompiledUnsafeHtmlReceipt(props);
-	return createCompiledComponentReceipt(
+	return createCompiledComponentInputReceipt(
 		testType(type as AnyExactComponentCallable, target, props),
 		props,
-		...children
+		{ kind: 'eager', values: [...children] }
 	);
 }

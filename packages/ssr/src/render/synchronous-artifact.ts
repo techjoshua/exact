@@ -28,7 +28,7 @@ export function executeSynchronousArtifact<Publication>(
 				// compiled receivers. Plain output needs no target-selection machinery.
 				html =
 					!reference.enhancement &&
-					!execution.context.boundEnhancementTargets?.has(reference) &&
+					!execution.context.boundEnhancementTargets?.has(reference.source) &&
 					!contract.artifact.capabilities.includes('targets')
 						? renderDirectSsrContent(execution, content, owner)
 						: renderComponentEnhancementBindings(execution, reference, content, owner);

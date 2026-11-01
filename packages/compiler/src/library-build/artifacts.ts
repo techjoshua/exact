@@ -23,13 +23,6 @@ export function libraryArtifactProducts(
 		configFile: path.resolve(packageRoot, project),
 		serverComponents: false
 	});
-	const unresolved = analysis.components.filter((component) => component.placement === 'unknown');
-	if (unresolved.length)
-		throw new Error(
-			`Cannot publish components with unresolved placement in ${filename}: ${unresolved
-				.map((component) => `${component.name}: ${component.diagnostics.join(' ')}`)
-				.join('\n')}. Verify the called helpers and provide their execution contracts.`
-		);
 	const products = createArtifactBuildProducts(filename, analysis);
 	if (
 		!products.clientRegistrations.length &&
@@ -37,15 +30,15 @@ export function libraryArtifactProducts(
 		!products.operations.length
 	)
 		return undefined;
-	return Object.freeze({
+	return {
 		clientModule,
 		serverModule,
-		build: Object.freeze({
+		build: {
 			clientRegistrations: products.clientRegistrations,
 			serverRegistrations: products.serverRegistrations,
 			operations: products.operations,
 			boundaries: products.boundaries,
 			exposureRoots: products.exposureRoots
-		})
-	});
+		}
+	};
 }

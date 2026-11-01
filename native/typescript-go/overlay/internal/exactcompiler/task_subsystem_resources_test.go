@@ -56,7 +56,8 @@ import {TaskContext} from '@exactjs/core';declare function publish(value:unknown
 				if escaped != c.escape {
 					t.Fatalf("escape=%t expected=%t: %#v %#v", escaped, c.escape, task.Resources, r.Diagnostics)
 				}
-				if !c.escape && len(r.Diagnostics) != 0 {
+				// Reporting an advisory estimate does not invalidate resource ownership.
+				if !c.escape && hasErrorDiagnostic(r.Diagnostics) {
 					t.Fatalf("valid ownership rejected: %#v", r.Diagnostics)
 				}
 				if c.disposal != "" && !containsTaskResource(task.Resources, "owned", c.disposal) {

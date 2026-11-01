@@ -84,3 +84,32 @@ func componentProtocolCallMember(node *ast.Node, typeChecker *checker.Checker) *
 	}
 	return nil
 }
+
+// checkedNonliteralComponentProtocolGet projects the existing component contract
+// only for a direct nonliteral callee. Dot/literal and generic member paths keep
+// their original acquisition. Package signatures are classification, not values.
+func checkedNonliteralComponentProtocolGet(node *ast.Node, typeChecker *checker.Checker) *ast.Symbol {
+	if node == nil || typeChecker == nil || !ast.IsElementAccessExpression(node) || ast.NodeIsSynthesized(node) || node.Parent == nil || normalCalleeGetOwner(node) == nil {
+		return nil
+	}
+	if normalCalleeGetOwner(node).AsCallExpression().Expression != node {
+		return nil
+	}
+	member := node.AsElementAccessExpression()
+	if sourceMemberKey(member.ArgumentExpression).resolved {
+		return nil
+	}
+	name, owned, dynamic := checkedComponentProtocolMember(node, typeChecker)
+	if !owned || dynamic || !exactComponentOperation("this."+name) || !componentProtocolReceiverOwned(node, typeChecker) {
+		return nil
+	}
+	value := typeChecker.GetTypeAtLocation(member.Expression)
+	if value == nil {
+		return nil
+	}
+	selected := typeChecker.GetPropertyOfType(typeChecker.GetNonNullableType(value), name)
+	if !portableDeclaredMethod(selected) {
+		return nil
+	}
+	return selected
+}

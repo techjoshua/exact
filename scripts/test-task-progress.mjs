@@ -6,11 +6,10 @@ import { pathToFileURL } from 'node:url';
 import { build } from 'esbuild';
 import { chromium } from 'playwright';
 import { compileFileArtifacts } from '@exactjs/compiler';
-import { createCompiledComponentReceipt } from '@exactjs/core/runtime/component-operations';
+import { createCompiledComponentInputReceipt } from '@exactjs/core/runtime/component-operations';
 import { composeExactExecutorContract } from '@exactjs/server';
 import { createExactNodeHandler } from '@exactjs/node-adapter';
 import { renderToHydratableString } from '@exactjs/ssr';
-
 const workspace = path.resolve(import.meta.dirname, '..');
 const fixture = path.join(
 	workspace,
@@ -36,15 +35,17 @@ try {
 	});
 	const { ProgressPage } = await import(pathToFileURL(serverBundle).href);
 	const contract = composeExactExecutorContract([ProgressPage], { endpoint: '/__exact' });
-	const rendered = await renderToHydratableString(createCompiledComponentReceipt(ProgressPage, {}));
+	const rendered = await renderToHydratableString(
+		createCompiledComponentInputReceipt(ProgressPage, {})
+	);
 	const clientEntry = path.join(temporary, 'client.ts');
 	await writeFile(
 		clientEntry,
 		`import {ProgressPage} from ${JSON.stringify(artifacts.clientFile)};
-import {createCompiledComponentReceipt} from '@exactjs/core/runtime/component-operations';
+import {createCompiledComponentInputReceipt} from '@exactjs/core/runtime/component-operations';
 import {composeExactComponentContracts} from '@exactjs/core/framework/component-contracts';
 import {hydrate} from '@exactjs/hydrate';
-const client=hydrate(createCompiledComponentReceipt(ProgressPage,{}),document.getElementById('root'),{
+const client=hydrate(createCompiledComponentInputReceipt(ProgressPage,{}),document.getElementById('root'),{
  ...composeExactComponentContracts([ProgressPage],'client'),endpoint:'/__exact',
  resumptions:JSON.parse(document.getElementById('resumptions').textContent)
 });

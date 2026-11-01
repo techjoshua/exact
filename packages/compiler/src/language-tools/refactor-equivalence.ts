@@ -1,3 +1,4 @@
+import { sourceEntities } from './source-entity-traversal.js';
 import path from 'node:path';
 import type { NativeCompilerResponse } from '../native/process-contracts.js';
 import type { ExactRefactorPlan, ExactSourceEntity, ExactSourceInspection } from './contracts.js';
@@ -21,11 +22,8 @@ export function applyRefactorEdits(source: string, edits: ExactRefactorPlan['edi
 /** Returns task entities in authored source order for before/after correlation. */
 export function inspectedTasks(inspection: ExactSourceInspection): ExactSourceEntity[] {
 	const tasks: ExactSourceEntity[] = [];
-	const visit = (entity: ExactSourceEntity): void => {
+	for (const entity of sourceEntities(inspection.components))
 		if (entity.classification?.kind === 'task') tasks.push(entity);
-		for (const child of entity.children) visit(child);
-	};
-	for (const component of inspection.components) visit(component);
 	return tasks.sort((left, right) => left.range.start - right.range.start);
 }
 
@@ -90,14 +88,6 @@ export function equivalentExactDiagnostics(
 			.map((diagnostic) => `${diagnostic.code}:${diagnostic.message}`)
 			.sort();
 	return equalValues(supported(before), supported(after));
-}
-
-/** Reports whether a requested refactor range selects one inspected task. */
-export function rangesOverlap(
-	left: Readonly<{ start: number; end: number }>,
-	right: Readonly<{ start: number; end: number }>
-): boolean {
-	return left.start <= right.end && right.start <= left.end;
 }
 
 function equalValues(left: readonly unknown[], right: readonly unknown[]): boolean {

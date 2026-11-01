@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { createDocumentSynchronizationPublisher } from './workspace/document-publication.js';
 import type { ExactRefactorKind, ExactSourceInspection } from '@exactjs/compiler';
 import {
 	CodeActionKind,
@@ -19,7 +20,6 @@ import type {
 } from 'vscode-languageserver/node.js';
 import { MarkupKind } from 'vscode-languageserver/node.js';
 import { TextDocument } from 'vscode-languageserver-textdocument';
-import { fileURLToPath } from 'node:url';
 import type {
 	ExactCompilerSeparationResult,
 	ExactComponentSemanticsParams,
@@ -40,15 +40,16 @@ import {
 	sourceOffset
 } from './lsp-projections.js';
 import { ExactLanguageWorkspaceManager } from './workspace-manager.js';
-import { supportsExactWorkspaceFolderChanges } from './workspace-folders.js';
+import {
+	supportsExactWorkspaceFolderChanges,
+	registerExactWorkspaceFolderChanges
+} from './workspace-folders.js';
 import { createServerSourceAccess } from './server-source-access.js';
 import {
 	compilerSeparation,
 	flattenInspection,
 	hoverMarkdown,
 	isExpectedSupersession,
-	lspDiagnostic,
-	lspProviderDiagnostic,
 	providerWorkspaceEdit,
 	workspaceEdit,
 	workspaceRoots
@@ -64,6 +65,14 @@ const analyses = new ExactDocumentAnalysisState();
 let workspaces: ExactLanguageWorkspaceManager | undefined;
 let workspaceFolderChangesSupported = false;
 let shuttingDown = false;
+const publishSynchronization = createDocumentSynchronizationPublisher(
+	connection,
+	documents,
+	analyses,
+	() => shuttingDown,
+	sourceForUri,
+	logPresentationError
+);
 const inlayPresentation = registerInlayPresentation(
 	connection,
 	documents,
@@ -86,12 +95,16 @@ connection.onInitialize((params: InitializeParams): InitializeResult => {
 
 connection.onInitialized(() => {
 	if (workspaceFolderChangesSupported)
-		connection.workspace.onDidChangeWorkspaceFolders(async (event) => {
-			for (const folder of event.added)
-				if (folder.uri.startsWith('file:')) workspaces?.addRoot(fileURLToPath(folder.uri));
-			for (const folder of event.removed)
-				if (folder.uri.startsWith('file:')) await workspaces?.removeRoot(fileURLToPath(folder.uri));
-		});
+		registerExactWorkspaceFolderChanges(
+			connection,
+			documents,
+			analyses,
+			() => workspaces,
+			publishSynchronization,
+			(error) => {
+				if (!isExpectedSupersession(error)) logRequestError(error);
+			}
+		);
 	if (!workspaces?.isTrusted())
 		connection.window.showWarningMessage(
 			'eXact Language Tools is in untrusted-workspace mode. Compiler execution and semantic analysis are disabled.'
@@ -347,31 +360,7 @@ async function synchronize(document: TextDocument): Promise<void> {
 			snapshot.source,
 			controller.signal
 		);
-		if (
-			!result ||
-			shuttingDown ||
-			controller.signal.aborted ||
-			!analyses.isCurrent(snapshot.uri, controller) ||
-			!isCurrentDocumentSnapshot(snapshot, documents.get(snapshot.uri))
-		)
-			return;
-		// Publish readiness before refresh notifications so follow-up presentation requests
-		// observe the completed provider generation instead of being fenced as concurrent work.
-		if (!analyses.publish(snapshot.uri, snapshot.version, controller)) return;
-		void connection.sendDiagnostics({
-			uri: snapshot.uri,
-			version: snapshot.version,
-			diagnostics: [
-				...result.inspection.diagnostics.map((diagnostic) => lspDiagnostic(snapshot, diagnostic)),
-				...result.providerDiagnostics.map((diagnostic) =>
-					lspProviderDiagnostic(snapshot, diagnostic, sourceForUri)
-				)
-			]
-		});
-		void connection.sendNotification('exact/providerStatusChanged', { uri: snapshot.uri });
-		connection.languages.semanticTokens.refresh();
-		void connection.languages.inlayHint.refresh().catch(logPresentationError);
-		void connection.sendRequest('workspace/codeLens/refresh').catch(() => undefined);
+		if (result) publishSynchronization(snapshot, controller, result);
 	} catch (error) {
 		if (!isExpectedSupersession(error)) logRequestError(error);
 	} finally {

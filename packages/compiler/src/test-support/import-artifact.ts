@@ -23,14 +23,19 @@ export async function importArtifact(
 		// import, and restore it even if module initialization fails.
 		const { build } = await import('esbuild');
 		const { exactGeneratedArtifactTarget } = await import('../artifacts.js');
+		const source = await readFile(entry, 'utf8');
+		// Keep the compiler-issued importer facts through this test-owned bundle.
+		// Dropping them makes the receiving adapter re-analyze already lowered code.
+		const facts = source.split('\n').filter((line) => line.startsWith('// exact:component-build/'));
 		await build({
 			stdin: {
-				contents: await readFile(entry, 'utf8'),
+				contents: source,
 				loader: 'ts',
 				resolveDir: path.dirname(entry),
 				sourcefile: path.basename(entry)
 			},
 			outfile: output,
+			footer: { js: facts.join('\n') },
 			bundle: true,
 			keepNames: true,
 			format: 'esm',

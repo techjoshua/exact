@@ -3,10 +3,10 @@ import { readFile } from 'node:fs/promises';
 import { build } from 'esbuild';
 import { expect, it } from 'vitest';
 import { compileFileArtifacts } from '../index.js';
-import { createTestWorkspace, writeTestFiles } from '../test-support/workspace.js';
+import { createCompilerTestWorkspace, writeTestFiles } from '../test-support/workspace.js';
 
 it('excludes a server task helper before browser evaluation while retaining shared imports', async () => {
-	const root = await createTestWorkspace('.exact-server-helper-', process.cwd());
+	const root = await createCompilerTestWorkspace('.exact-server-helper-', process.cwd());
 	const files = await writeTestFiles(root, {
 		'server-helper.ts': `import { createHash } from 'node:crypto'; export function digest(value: string) { return createHash('sha256').update(value).digest('hex'); }`,
 		'shared.ts': `export const label = 'Shared label';`,

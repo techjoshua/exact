@@ -16,7 +16,7 @@ The contract uses these terms:
 - **theme source**: the small authored set of choices from which a theme is resolved;
 - **temperament**: a named, versioned algorithm that controls the relationships among generated
   colors without selecting element semantics;
-- **resolved theme**: one immutable, validated set of primitive scales and semantic tokens;
+- **resolved theme**: one validated set of primitive scales and semantic tokens;
 - **theme scope**: a DOM and component-context boundary that publishes one resolved theme;
 - **surface context**: the independently nested semantic depth within a theme scope;
 - **recipe**: static CSS owned by an enhancement role, such as `theme:action`; and
@@ -32,7 +32,7 @@ The contract uses these terms:
    shape, depth, typography, contrast, and motion axes. Every field has an inherited or documented
    root default.
 3. The resolver converts colors to OKLCH, generates opaque tonal relationships, validates gamut
-   and contrast, and returns one immutable `ResolvedTheme`. Temperaments change generation
+   and contrast, and returns one TypeScript readonly `ResolvedTheme`. Temperaments change generation
    relationships; they do not silently select fonts, density, shape, or motion.
 4. Static recipe CSS is loaded once. A theme scope publishes the exact custom properties defined
    by contract `exact-theme/1`; themed descendants reference those live properties rather than
@@ -50,7 +50,7 @@ The contract uses these terms:
    modifiers `theme:tone` and `theme:size` where allowed.
 9. Native and ARIA state supplies disabled, invalid, selected, current, pressed, checked, hover,
    focus, and active information. Authors label visual intent rather than restating browser state.
-10. Exterior libraries use `createThemeDeriver()` and `deriveTheme()` over an immutable derivation
+10. Exterior libraries use `createThemeDeriver()` and `deriveTheme()` over a TypeScript readonly derivation
     context. The built-in `deriveDataColors()` covers categorical, sequential, and diverging data.
     No extension reads computed CSS, mutates a theme, or registers global callbacks.
 
@@ -150,12 +150,20 @@ function AppearanceButtons(this: Component<{}>) {
 
 Clicking Dark updates `AppTheme.state.appearance`, the scope output, and both pressed states.
 The context belongs to the application. Use a callback prop instead when the control is a direct
-child and no deeper descendants need the preference.
+child and no deeper descendants need the preference. A select can read the same preference through
+its ordinary `value` prop. The DOM renderer retains the evaluated value while enhancement children
+are placed, then reconciles selection against their physical options. Retained option changes do
+not require the application to read the context again or reassign the preference. Failed or
+superseded placement does not publish a delayed selection write.
+
+Scope ancestry is captured once for each resolution or CSS presentation and processed iteratively.
+Cyclic parent links fail with `ThemeResolutionError` before palette publication. Deep valid ancestry
+does not depend on the JavaScript call-stack limit.
 
 ### Complete public data model
 
-The package exports the following value types. All resolved objects and arrays are recursively
-frozen. `ThemeWarning.code` is a finite package-owned diagnostic code; messages are explanatory and
+The package exports the following value types. Resolved objects and arrays use TypeScript readonly declarations and ordinary JavaScript
+mutation semantics. Private cached copies keep mutations from affecting other resolutions. `ThemeWarning.code` is a finite package-owned diagnostic code; messages are explanatory and
 are not protocol identity.
 
 ```ts
@@ -288,7 +296,7 @@ path and retain no mutation. `serializeThemeVariables()` rejects an object whose
 `exact-theme/1` with `TypeError`. Derivation helper range errors use native `RangeError`; malformed
 deriver definitions use `TypeError`.
 
-`serializeThemeVariables()` inserts keys in ascending code-point order and returns a frozen null-
+`serializeThemeVariables()` inserts keys in ascending code-point order and returns an ordinary null-
 prototype record. The renderer and SSR join entries as `name:value` declarations in that order.
 Serialization never depends on object construction order, locale comparison, or the host's number
 formatting.
@@ -318,7 +326,10 @@ export type ThemeColor =
 ```
 
 The resolver must reject an unparseable color, an array other than exactly three components, a
-non-finite numeric component, or an alpha outside `0..1`. A DTCG `none` component canonicalizes to
+non-finite numeric component, unsupported color space, or an alpha outside `0..1`. Color, custom temperament, and typography
+fields are captured once before inheritance and validation. Color tuples are validated through the three native array indices. Sparse tuples and
+authored array methods cannot substitute different components. Omitted or `undefined` alpha
+defaults to one, while explicit `null` is invalid. A DTCG `none` component canonicalizes to
 zero; hue later canonicalizes under the achromatic rule. Theme source colors must be opaque after
 compositing. An input with alpha less than one is composited over the inherited canvas before
 generation; a root source with alpha requires an explicit opaque `canvasColor`.
@@ -477,10 +488,10 @@ stylesheet is injected.
 `resolveTheme()` is pure and requires explicit system preferences. It parses the documented
 context-free CSS Color 4 subset and DTCG structured colors without using a browser parser,
 composites translucent authored colors over an opaque canvas, converts to OKLCH, and gamut-maps
-with 24 fixed chroma bisections. Output is recursively frozen and carries a SHA-256-derived,
+with 24 fixed chroma bisections. Output uses TypeScript readonly declarations and carries a SHA-256-derived,
 base64url source fingerprint.
 
-Built-in temperaments are named, frozen data. They control accent multiplier/cap, neutral cap,
+Built-in temperament observations are ordinary data copied from the named presets. They control accent multiplier/cap, neutral cap,
 surface and state interval sequences, status harmonization, type-scale multiplication, tracking and
 weight intervals, line-height adjustment, spacing progression, control and radius ratios, depth
 progression, motion cadence, and easing tension. Typography, density, shape, depth, contrast,
@@ -548,9 +559,11 @@ rendering with its tone supplied through `accent-color`.
 ## Exterior derivation
 
 `createThemeDeriver()` validates a versioned, synchronous, data-only deriver. `deriveTheme()`
-passes an immutable context with the source fingerprint, appearance, contrast, key, neutral,
+passes a TypeScript readonly context with the source fingerprint, appearance, contrast, key, neutral,
 surfaces, tones, tonal palettes, hue harmonization, contrast adjustment, and CSS serialization.
-Derivers do not inspect computed style or register global callbacks.
+Deriver definitions, helper envelopes, and outputs are ordinary JavaScript values. Output validation
+preserves identity and does not freeze application-owned nested values. Derivers do not inspect
+computed style or register global callbacks.
 
 `deriveDataColors()` provides categorical sets of 1–12 colors, sequential sets of 2–12, and odd
 diverging sets of 3–11. It returns opaque colors, readable foregrounds, strokes, repeating
@@ -808,7 +821,7 @@ bundle within the existing theme.
 ### Let extensions read computed custom properties
 
 Rejected because computed style is DOM-only, late, stringly typed, override-sensitive, and absent
-during SSR. Pure derivers receive the immutable resolved source of truth.
+during SSR. Pure derivers receive the resolved theme values.
 
 ### Make overrides visible to derivers
 

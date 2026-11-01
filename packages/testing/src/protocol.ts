@@ -1,3 +1,7 @@
+import {
+	attachExactObservationOwner,
+	readExactObservationOwner
+} from '@exactjs/core/framework/inspection-transport';
 import type { ExactClientOperationObservation, FetchLike } from '@exactjs/hydrate';
 import type {
 	ExactInvocationRequest,
@@ -29,6 +33,7 @@ export type ExactProtocolExchange = {
 /** Records the transport envelopes and client-side results observed by a test. */
 export class ExactProtocolRecorder {
 	readonly exchanges: ExactProtocolExchange[] = [];
+	private observationOwners = new WeakMap<object, ExactProtocolExchange>();
 	private pendingStreams = new Set<Promise<void>>();
 
 	/** Wraps a fetch transport and records request, response, stream, and client-operation details. */
@@ -39,7 +44,7 @@ export class ExactProtocolRecorder {
 				sequence: this.exchanges.length + 1,
 				url: input,
 				method: init.method,
-				headers: Object.freeze({ ...init.headers }),
+				headers: { ...init.headers },
 				rawRequestBody: init.body,
 				requestBody,
 				operations: operationsFrom(requestBody),
@@ -47,7 +52,9 @@ export class ExactProtocolRecorder {
 				serverContextAccesses: []
 			};
 			this.exchanges.push(exchange);
-			const response = await fetch(input, init);
+			const owner = {};
+			this.observationOwners.set(owner, exchange);
+			const response = await fetch(input, attachExactObservationOwner({ ...init }, owner));
 			const responseRecord = {
 				status: response.status,
 				headers: normalizeHeaders(response.headers),
@@ -96,41 +103,51 @@ export class ExactProtocolRecorder {
 					}
 				);
 			}
-			return wrapped;
+			return attachExactObservationOwner(wrapped, owner);
 		};
 	}
 
-	/** Associates one value-free server context token observation with its generated operation. */
+	/** Associates value-free context use with its request. Transport observations carry exact ownership, while manually supplied observations use the latest matching operation. */
 	observeServerContextAccess(observation: ExactServerContextAccessObservation): void {
-		const exchange = [...this.exchanges]
-			.reverse()
-			.find((candidate) =>
-				candidate.operations.some((operation) => operation.id === observation.operationId)
-			);
-		if (!exchange)
-			throw new Error(`No recorded protocol request contains operation ${observation.operationId}`);
-		exchange.serverContextAccesses.push(Object.freeze({ ...observation }));
+		const exchange = this.observedExchange(observation, observation.operationId);
+		if (!exchange) return;
+		exchange.serverContextAccesses.push({ ...observation });
 	}
 
-	/** Associates the hydrator's final DOM disposition with its recorded request. */
+	/** Associates the hydrator's final DOM disposition with its request. Transport observations carry exact ownership, while manually supplied observations use the latest matching operation. */
 	observeClientOperation(observation: ExactClientOperationObservation): void {
-		const exchange = [...this.exchanges]
-			.reverse()
-			.find((candidate) =>
-				candidate.operations.some(
-					(operation) =>
-						operation.type === observation.operation.type &&
-						operation.id === observation.operation.id
-				)
-			);
-		if (!exchange)
-			throw new Error(
-				`No recorded protocol request contains ${observation.operation.type} operation ${observation.operation.id}`
-			);
+		const exchange = this.observedExchange(
+			observation.operation,
+			observation.operation.id,
+			observation.operation.type
+		);
+		if (!exchange) return;
 		exchange.clientOperations.push({
 			...observation,
 			appliedPatches: [...observation.appliedPatches]
 		});
+	}
+
+	/** Uses request ownership directly. Legacy manually supplied observations retain latest-match behavior. */
+	private observedExchange(
+		observation: object,
+		id: string,
+		type?: ExactInvocationRequest['type']
+	): ExactProtocolExchange | undefined {
+		const owner = readExactObservationOwner(observation);
+		if (owner) return this.observationOwners.get(owner);
+		for (let index = this.exchanges.length - 1; index >= 0; index--) {
+			const candidate = this.exchanges[index]!;
+			if (
+				candidate.operations.some(
+					(operation) => operation.id === id && (!type || operation.type === type)
+				)
+			)
+				return candidate;
+		}
+		throw new Error(
+			`No recorded protocol request contains ${type ? `${type} ` : ''}operation ${id}`
+		);
 	}
 
 	/** Waits for started response reads and cancellations, without draining unread bodies. */
@@ -138,9 +155,10 @@ export class ExactProtocolRecorder {
 		while (this.pendingStreams.size) await Promise.allSettled([...this.pendingStreams]);
 	}
 
-	/** Discards recorded exchanges without affecting transports or pending stream observation. */
+	/** Discards recorded exchanges without affecting transports or pending stream reads. Later observations from cleared requests are discarded. */
 	clear(): void {
 		this.exchanges.length = 0;
+		this.observationOwners = new WeakMap();
 	}
 
 	/** Flattens the generated invocation operations observed across all recorded exchanges. */

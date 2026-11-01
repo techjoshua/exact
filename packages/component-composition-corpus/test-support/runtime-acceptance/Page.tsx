@@ -1,3 +1,5 @@
+import { AccessibilityOwnership } from './accessibility-ownership.fixtures.js';
+import { OwnedWork } from './mount-work.fixtures.js';
 import { OwnedProtocolValues, OwnedProtocolSpreadValues } from './owned-protocol-islands.js';
 import { TimeWindowProbe } from './time-plan.js';
 import { AttributeOrder } from './render-attribute-order.js';
@@ -30,7 +32,11 @@ import { MutationContractProbe, ServerMutationContractProbe } from './mutation-c
 import { DerivedPatternProbe } from './derived-pattern.js';
 import { CollectionProjectionProbe } from './collection-projection.js';
 import { HoverProbe, MapProjectionProbe } from './keyed-prop-replacement.js';
-import { ClipboardProbe, ClipboardPromiseProbe } from './cancelled-task-catch.js';
+import {
+	ClipboardProbe,
+	ClipboardPromiseProbe,
+	ArrayRollbackProbe
+} from './cancelled-task-catch.js';
 import {
 	createComponentRegistry,
 	createContext,
@@ -41,29 +47,35 @@ import {
 	type Child,
 	type Component
 } from '@exactjs/core';
-
 import {
 	createCompiledFragmentReceipt,
-	createCompiledComponentReceipt,
+	createCompiledComponentInputReceipt,
 	createDeferredServerIntrinsicSpreadReceipt
 } from '@exactjs/core/runtime/component-operations';
-
 const FragmentScope = createContext<string>('runtime.fragment-scope', { reactive: false });
-
 /** Native host fixture with ordinary server continuations and stable hydrated DOM. */
 export function RuntimePage(
 	this: Component<{
 		slow: number;
 		returned: number;
 		localized: string;
-		profile: { label: string };
+		profile: {
+			label: string;
+		};
 		count: number;
 		fragments: string[];
 		fragmentStep: number;
-		rows: Map<string, { total: number }>;
+		rows: Map<
+			string,
+			{
+				total: number;
+			}
+		>;
 		selected: Set<string>;
 	}>,
-	props: { label?: string }
+	props: {
+		label?: string;
+	}
 ) {
 	this.setContext(FragmentScope, 'root');
 	this.state.localized = '';
@@ -74,9 +86,14 @@ export function RuntimePage(
 	this.state.slow = 0;
 	this.state.returned = 0;
 	async function slow(id: string, _task: TaskContext = TaskContext.server()) {
-		const response = await fetch('__EXACT_CONTROL__/gate?id=' + id, { signal: _task.signal });
-		await response.text();
-		this.state.slow = 42;
+		const owner = this;
+		const load = async () => {
+			owner.state.slow = owner.state.slow;
+			const response = await fetch('__EXACT_CONTROL__/gate?id=' + id, { signal: _task.signal });
+			await response.text();
+			owner.state.slow = 42;
+		};
+		await load();
 	}
 	this.state.rows = new Map([['first', { total: 0 }]]);
 	this.state.selected = new Set(['first']);
@@ -85,7 +102,13 @@ export function RuntimePage(
 		const field = 'label' as const;
 		const previous = this.state.profile[field];
 		this.state.profile.label = props.label ?? (previous === 'pending' ? 'native' : previous);
-		this.state.count++;
+		const owner = this;
+		const calls = {
+			increment() {
+				owner.state.count++;
+			}
+		};
+		calls.increment();
 		this.state.localized = new Intl.NumberFormat('en-US').format(1234.5 + this.state.count);
 		this.state.rows.set('first', { total: this.state.count });
 		this.state.selected.add('updated');
@@ -115,6 +138,8 @@ export function RuntimePage(
 			<div id="ordinary-receiver-members">
 				<OrdinaryReceiverMembers />
 			</div>
+			<OwnedWork />
+			<AccessibilityOwnership />
 			<IntlNumericRangeProbe />
 			<IntlProjectionProbe />
 			<NormalizationProbe />
@@ -128,7 +153,7 @@ export function RuntimePage(
 			{this.state.count >= 0 &&
 				scopedFragment(
 					scopedFragment(
-						createCompiledComponentReceipt(RuntimeScopeValue, { id: 'fragment-scope' })
+						createCompiledComponentInputReceipt(RuntimeScopeValue, { id: 'fragment-scope' })
 					),
 					'outer'
 				)}
@@ -168,6 +193,13 @@ export function RuntimePage(
 				Change scalar run
 			</button>
 			<input id="draft" value="initial" />
+			<input id="upload" type="file" />
+			<details id="early-disclosure" open>
+				<summary>More</summary>Content
+			</details>
+			<dialog id="early-dialog" open>
+				Message
+			</dialog>
 			<button
 				id="increment"
 				onClick={async () => {
@@ -196,6 +228,7 @@ export function RuntimePage(
 			<MapProjectionProbe />
 			<ClipboardProbe />
 			<ClipboardPromiseProbe />
+			<ArrayRollbackProbe />
 			<CollectionProjectionProbe />
 			<DerivedPatternProbe />
 			<MutationContractProbe />
@@ -203,13 +236,16 @@ export function RuntimePage(
 		</section>
 	);
 }
-
 /** Server-only document keeps the application hydration root independent of shell ownership.
  * @exact server
  */
 export function RuntimeShell(
 	this: Component<{}>,
-	props: { children: Child; gate?: string; unavailable?: boolean }
+	props: {
+		children: Child;
+		gate?: string;
+		unavailable?: boolean;
+	}
 ) {
 	this.setContext(LocalizationContext, { locale: 'de-DE', sourceLocale: 'en-US' });
 	return () => (
@@ -229,18 +265,27 @@ export function RuntimeShell(
 		</html>
 	);
 }
-
 /** Pending server work makes accidental response buffering observable. */
-export async function DelayedContent(this: Component<{ text: string }>, props: { url: string }) {
+export async function DelayedContent(
+	this: Component<{
+		text: string;
+	}>,
+	props: {
+		url: string;
+	}
+) {
 	const response = await fetch(props.url);
 	this.state.text = await response.text();
 	return () => <p id="server-delayed">{this.state.text}</p>;
 }
-
 /** Server task output must resolve before a contributed attribute is serialized.
  * @exact server
  */
-function SettledTarget(this: Component<{ title: string }>) {
+function SettledTarget(
+	this: Component<{
+		title: string;
+	}>
+) {
 	this.state.title = 'pending';
 	async function prepare(_task: TaskContext = TaskContext.server().blocking()) {
 		void _task;
@@ -250,23 +295,25 @@ function SettledTarget(this: Component<{ title: string }>) {
 	prepare();
 	return () => <_target title={this.state.title} />;
 }
-
 /** Shared registry supplies the same server fallback and client selection. */
 export const RuntimeViews = createComponentRegistry(({ lazy }) => ({
 	page: lazy(() => import('./Page.js').then((module) => module.RuntimePage))
 }));
-
 /** An extracted island owns the resumptions of its component descendants. */
 export function RuntimeIsland(this: Component<{}>) {
 	this.setContext(LocalizationContext, { locale: 'de-DE', sourceLocale: 'en-US' });
 	const Current = RuntimeViews.page;
 	return () => <Current />;
 }
-
 /** Transparent contributors retain their contexts even when they share a presentation host. */
 export function RuntimeScope(
-	this: Component<{ mounted: boolean }>,
-	props: { value?: string; children?: Child }
+	this: Component<{
+		mounted: boolean;
+	}>,
+	props: {
+		value?: string;
+		children?: Child;
+	}
 ) {
 	this.state.mounted = false;
 	this.onMount(() => {
@@ -276,23 +323,34 @@ export function RuntimeScope(
 	this.setContext(FragmentScope, value);
 	return () => <_target data-scope={value} data-runtime-enhancement-mounted={this.state.mounted} />;
 }
-
 /** Reads the nearest logical provider independently of presentation wrappers. */
-function RuntimeScopeValue(this: Component<{}>, props: { id: string }) {
-	return () => createCompiledComponentReceipt(RuntimeScopeBridge, props);
+function RuntimeScopeValue(
+	this: Component<{}>,
+	props: {
+		id: string;
+	}
+) {
+	return () => createCompiledComponentInputReceipt(RuntimeScopeBridge, props);
 }
-
 /** A second closed forwarding level keeps receipt ownership separate from child markers. */
-function RuntimeScopeBridge(this: Component<{}>, props: { id: string }) {
-	return () => createCompiledComponentReceipt(RuntimeScopeLeaf, props);
+function RuntimeScopeBridge(
+	this: Component<{}>,
+	props: {
+		id: string;
+	}
+) {
+	return () => createCompiledComponentInputReceipt(RuntimeScopeLeaf, props);
 }
-
 /** A marked context consumer beneath an omitted compiled parent retains its server host. */
-function RuntimeScopeLeaf(this: Component<{}>, props: { id: string }) {
+function RuntimeScopeLeaf(
+	this: Component<{}>,
+	props: {
+		id: string;
+	}
+) {
 	const value = readFragmentScope(this);
 	return () => <output id={props.id}>{value}</output>;
 }
-
 function scopedFragment(child: Child, value?: string): Child {
 	return createCompiledFragmentReceipt(
 		{
@@ -305,15 +363,23 @@ function scopedFragment(child: Child, value?: string): Child {
 		child
 	);
 }
-
-const deadlineCleanups: { id: string; aborted: boolean }[] = [];
+const deadlineCleanups: {
+	id: string;
+	aborted: boolean;
+}[] = [];
 /** Reports owned timeout cleanup independently of the HTTP response. */
 export function deadlineState() {
 	return deadlineCleanups;
 }
-
 /** Gated blocking work proves request limits cancel owned tasks without poisoning the next render. */
-export function RuntimeDeadline(this: Component<{ text: string }>, props: { id: string }) {
+export function RuntimeDeadline(
+	this: Component<{
+		text: string;
+	}>,
+	props: {
+		id: string;
+	}
+) {
 	this.state.text = 'pending';
 	async function prepare(task: TaskContext = TaskContext.server().blocking()) {
 		task.cleanup(() => {
@@ -325,14 +391,21 @@ export function RuntimeDeadline(this: Component<{ text: string }>, props: { id: 
 	prepare();
 	return () => <output id="deadline-result">{this.state.text}</output>;
 }
-
 /** Reads the inherited scope through ordinary helpers without giving the helper a component this. */
 function readFragmentScope(owner: Component<{}>): string {
 	const receiver = owner;
 	return resolveFragmentScope(receiver);
 }
-
 /** Keeps the shared native-host context check on the parameter-forwarding boundary. */
 function resolveFragmentScope(owner: Component<{}>): string {
 	return owner.getContext(FragmentScope);
+}
+/** Provides a small compiled native owner for browser inspection identity checks. */
+export function InspectionPanel(
+	this: Component<{}>,
+	props: {
+		label: string;
+	}
+) {
+	return () => <button>{props.label}</button>;
 }

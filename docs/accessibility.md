@@ -23,6 +23,9 @@ Node-only language checks:
 export * as a11y from '@exactjs/accessibility/enhancements' with { type: 'exact-enhancement', scope: 'package' };
 ```
 
+Accessibility JSX attributes use kebab-case, such as `a11y:described-by`. JavaScript exports
+and TypeScript prop names retain their declared camel-case names.
+
 The package-wide export behaves like a virtual import. Generated modules import the runtime only
 when they use an `a11y:*` activator. A local `a11y` declaration is a duplicate identifier rather
 than a shadowing override.
@@ -68,16 +71,16 @@ top-layer placement, Escape handling, or background inertness.
 
 The package covers every ARIA ID-reference property:
 
-| Enhancement             | DOM property            | Value                           |
-| ----------------------- | ----------------------- | ------------------------------- |
-| `a11y:activeDescendant` | `aria-activedescendant` | one ref                         |
-| `a11y:controls`         | `aria-controls`         | one ref or an ordered ref array |
-| `a11y:describedBy`      | `aria-describedby`      | one ref or an ordered ref array |
-| `a11y:details`          | `aria-details`          | one ref                         |
-| `a11y:errorMessage`     | `aria-errormessage`     | one ref                         |
-| `a11y:flowTo`           | `aria-flowto`           | one ref or an ordered ref array |
-| `a11y:labelledBy`       | `aria-labelledby`       | one ref or an ordered ref array |
-| `a11y:owns`             | `aria-owns`             | one ref or an ordered ref array |
+| Enhancement              | DOM property            | Value                           |
+| ------------------------ | ----------------------- | ------------------------------- |
+| `a11y:active-descendant` | `aria-activedescendant` | one ref                         |
+| `a11y:controls`          | `aria-controls`         | one ref or an ordered ref array |
+| `a11y:described-by`      | `aria-describedby`      | one ref or an ordered ref array |
+| `a11y:details`           | `aria-details`          | one ref                         |
+| `a11y:error-message`     | `aria-errormessage`     | one ref                         |
+| `a11y:flow-to`           | `aria-flowto`           | one ref or an ordered ref array |
+| `a11y:labelled-by`       | `aria-labelledby`       | one ref or an ordered ref array |
+| `a11y:owns`              | `aria-owns`             | one ref or an ordered ref array |
 
 ```tsx
 const helpKey = createRef<HTMLSpanElement>('password help');
@@ -87,7 +90,7 @@ function Password(this: Component<{}>) {
 	return () => (
 		<label>
 			Password
-			<input a11y:describedBy={help} />
+			<input a11y:described-by={help} />
 			<span ref={help}>Use at least twelve characters.</span>
 		</label>
 	);
@@ -100,18 +103,18 @@ relationship independent of whether its target appears before or after the enhan
 safe for streaming. Hydration adopts that ID. Arrays preserve order and deduplicate IDs.
 
 Scalar localized fallbacks remain authored. For example, `intl:aria-label` can coexist with
-`a11y:labelledBy`; native accessible-name precedence decides which source is effective. Neither
+`a11y:labelled-by`; native accessible-name precedence decides which source is effective. Neither
 package suppresses the other's output.
 
 ## Focus lifecycle
 
 ```tsx
-<section a11y:focusScope a11y:initialFocus={firstField} a11y:returnFocus={opener}>
+<section a11y:focus-scope a11y:initial-focus={firstField} a11y:return-focus={opener}>
 	<input ref={firstField} />
 </section>
 ```
 
-`a11y:initialFocus` and `a11y:returnFocus` require `a11y:focusScope`. Initial focus runs only after
+`a11y:initial-focus` and `a11y:return-focus` require `a11y:focus-scope`. Initial focus runs only after
 a new browser publication, never during passive hydration. The default return target is the
 connected element focused when the scope began; an explicit ref replaces it and `false` disables
 restoration. Nested scopes restore in stack order and an ending scope never steals focus after the
@@ -164,6 +167,10 @@ command completions, effective-name and enhancement hovers, inferred navigation 
 positive-`tabIndex` edit. Hover ownership selects the innermost JSX element at the cursor, so a
 containing layout element cannot mask a nested attribute or enhancement. Provider errors
 participate in the generic build validation gate.
+
+ID checks follow authored attribute order. A spread makes an earlier ID unproven, while a later
+explicit literal ID establishes a finite value again. The analyzer does not evaluate spread contents
+or predict IDs after reactive updates.
 
 Dynamic text, opaque component output, and runtime-created IDs are described as unproven rather
 than guessed invalid. Ignore and trust policy use the shared `languageExtensions` configuration;

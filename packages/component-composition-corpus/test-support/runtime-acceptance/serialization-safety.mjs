@@ -15,7 +15,7 @@ export function serializationSafety() {
 		Object.defineProperty({ value: 'safe' }, 'toJSON', { value: hook }),
 		Object.defineProperty(['safe'], 'toJSON', { get: hook }),
 		Object.defineProperty(['safe'], '0', { get: hook, enumerable: false }),
-		Object.defineProperty(['safe'], '0', { value: Infinity, enumerable: false }),
+		Object.defineProperty(['safe'], '0', { value: Symbol('unsupported'), enumerable: false }),
 		keyed,
 		Object.defineProperty(new Map([['safe', 1]]), Symbol.iterator, { get: hook }),
 		Object.defineProperty(new Set([1]), Symbol.iterator, { get: hook })

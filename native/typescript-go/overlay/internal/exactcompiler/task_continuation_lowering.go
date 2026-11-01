@@ -11,6 +11,7 @@ func (lowering *jsxLowering) lowerInvokedTaskOperationWork(
 	work *ast.Node,
 	operation InvokedTaskOperation,
 ) *ast.Node {
+	facades := &serverTaskFacadeScope{work: work}
 	frame := &mutationFrame{work: work}
 	lowering.mutationFrames = append(lowering.mutationFrames, frame)
 	defer func() { lowering.mutationFrames = lowering.mutationFrames[:len(lowering.mutationFrames)-1] }()
@@ -40,16 +41,41 @@ func (lowering *jsxLowering) lowerInvokedTaskOperationWork(
 	var visitor *ast.NodeVisitor
 	visitor = ast.NewNodeVisitor(
 		func(current *ast.Node) *ast.Node {
+			if ast.IsTypeNode(current) {
+				return current
+			}
+			if bound := facades.reference(lowering, current); bound != nil {
+				return bound
+			}
+			if lowering.taskMethodCreatedBy(current, work, operation.ID, operation.Component, operation.Start, operation.Length) {
+				return lowering.visitMutationMember(current, visitor)
+			}
 			if current != work && isCallableNode(current) {
+				if lowering.invokedWorkTaskDefinition(current) {
+					// Child work defaults and body must reach their own task owner untouched.
+					definition := ast.NewNodeVisitor(visitor.Visit, &lowering.factory.NodeFactory, ast.NodeVisitorHooks{
+						VisitParameters:   func(nodes *ast.ParameterList, _ *ast.NodeVisitor) *ast.ParameterList { return nodes },
+						VisitFunctionBody: func(body *ast.BlockOrExpression, _ *ast.NodeVisitor) *ast.BlockOrExpression { return body },
+					})
+					return definition.VisitEachChild(current)
+				}
+				if lowering.invokedWorkLexicalClosure(current, work) {
+					return lowering.withMutationFrame(current, visitor.VisitEachChild)
+				}
 				return lowering.lowerTaskResourceCallable(current, signal, context, resourcePlan)
 			}
 			if released := lowering.lowerTaskResourceRelease(current, signal, nil, visitor, resourcePlan); released != nil {
 				return released
 			}
+			if !lowering.checking {
+				if selected := lowering.lowerSelectedTaskWrite(current, signal, false, visitor); selected != nil {
+					return selected
+				}
+			}
 			if !lowering.checking && ast.IsExpressionStatement(current) {
 				expression := current.AsExpressionStatement().Expression
 				if write, exists := lowering.writes[nodeSpanKey(expression)]; exists && containsEagerAwait(expression) {
-					if suspended := lowering.lowerSuspendedStateWrite(expression, write, signal, false, visitor); suspended != nil {
+					if suspended := lowering.lowerSelectedStateWrite(expression, write, signal, false, visitor); suspended != nil {
 						return lowering.factory.NewExpressionStatement(suspended)
 					}
 				}
@@ -76,7 +102,7 @@ func (lowering *jsxLowering) lowerInvokedTaskOperationWork(
 			}
 			if write, exists := lowering.writes[nodeSpanKey(current)]; exists && !lowering.checking {
 				if containsEagerAwait(current) {
-					if suspended := lowering.lowerSuspendedStateWrite(current, write, signal, false, visitor); suspended != nil {
+					if suspended := lowering.lowerSelectedStateWrite(current, write, signal, false, visitor); suspended != nil {
 						return suspended
 					}
 				}
@@ -98,6 +124,9 @@ func (lowering *jsxLowering) lowerInvokedTaskOperationWork(
 					)
 				}
 			}
+			if owned := lowering.lowerOwnedHelperCall(current, signal, visitor); owned != nil {
+				return owned
+			}
 			if resource := lowering.lowerPlannedTaskResource(current, signal, context, visitor, false, resourcePlan); resource != nil {
 				return resource
 			}
@@ -116,7 +145,7 @@ func (lowering *jsxLowering) lowerInvokedTaskOperationWork(
 		&lowering.factory.NodeFactory,
 		ast.NodeVisitorHooks{},
 	)
-	rewrittenWork := lowering.finishMutationFrame(lowering.visitor.VisitEachChild(visitor.VisitNode(work)), frame)
+	rewrittenWork := facades.finish(lowering, lowering.finishMutationFrame(lowering.visitor.VisitEachChild(visitor.VisitNode(work)), frame))
 	if lowering.target == TargetClient && operation.Placement == "server" {
 		rewrittenWork = lowering.clientInvokedTaskContinuationWork(
 			operation,
@@ -740,6 +769,7 @@ func (lowering *jsxLowering) rewriteTaskWork(
 	directServer bool,
 ) *ast.Node {
 	callsTaskDefinition := lowering.taskWorkCallsDefinition(work)
+	facades := &serverTaskFacadeScope{work: work}
 	frame := &mutationFrame{work: work}
 	lowering.mutationFrames = append(lowering.mutationFrames, frame)
 	defer func() { lowering.mutationFrames = lowering.mutationFrames[:len(lowering.mutationFrames)-1] }()
@@ -763,6 +793,9 @@ func (lowering *jsxLowering) rewriteTaskWork(
 				// Type annotations have no runtime captures. Synthesized type members
 				// also need not have source parents for declaration-name classification.
 				return node
+			}
+			if bound := facades.reference(lowering, node); bound != nil {
+				return bound
 			}
 			if parameter := lowering.taskCallbackParameterType(node, visitor); parameter != nil {
 				return parameter
@@ -829,7 +862,7 @@ func (lowering *jsxLowering) rewriteTaskWork(
 		callsTaskDefinition,
 		directServer,
 	)
-	return lowering.finishMutationFrame(lowering.visitor.VisitEachChild(rewritten), frame)
+	return facades.finish(lowering, lowering.finishMutationFrame(lowering.visitor.VisitEachChild(rewritten), frame))
 }
 
 // Captures are evaluated by the invoking owner for each generation, after authored arguments.
@@ -842,4 +875,63 @@ func (lowering *jsxLowering) invokedTaskTransportArguments(args *ast.Node, opera
 		values = append(values, lowering.visitor.VisitNode(capture.expression))
 	}
 	return lowering.localizedTransportArguments(lowering.factory.NewArrayLiteralExpression(lowering.factory.NewNodeList(values), false), operation.localization)
+}
+
+// invokedWorkTaskDefinition crosschecks the existing task index with its authored binding.
+// A source span alone cannot make an ordinary closure a separately owned task.
+func (lowering *jsxLowering) invokedWorkTaskDefinition(node *ast.Node) bool {
+	original := lowering.emitContext.MostOriginal(node)
+	if ast.GetSourceFileOfNode(original) != lowering.sourceFile {
+		return false
+	}
+	task, exists := lowering.functionTasks[original.Pos()]
+	if !exists || original.End()-original.Pos() != task.WorkLength {
+		return false
+	}
+	binding := original
+	if !ast.IsFunctionDeclaration(original) {
+		binding = sourceCallableBinding(original)
+	}
+	if binding == nil || binding.Name() == nil {
+		return false
+	}
+	symbol := resolvedCallableSymbol(lowering.checker.GetSymbolAtLocation(binding.Name()), lowering.checker)
+	if symbol == nil {
+		return false
+	}
+	indexed, exists := lowering.taskDefinitions[ast.GetSymbolId(symbol)]
+	if !exists || indexed.ID != task.ID {
+		return false
+	}
+	for _, declaration := range symbol.Declarations {
+		if declaration == binding {
+			return true
+		}
+	}
+	return false
+}
+
+// invokedWorkLexicalClosure admits only authored ordinary closures reached from this work.
+// Existing excluded class and member environments do not acquire the enclosing signal.
+func (lowering *jsxLowering) invokedWorkLexicalClosure(node, work *ast.Node) bool {
+	original := lowering.emitContext.MostOriginal(node)
+	if ast.GetSourceFileOfNode(original) != lowering.sourceFile || original.Body() == nil {
+		return false
+	}
+	if !ast.IsArrowFunction(original) && !ast.IsFunctionExpression(original) && !ast.IsFunctionDeclaration(original) {
+		return false
+	}
+	if ast.IsFunctionExpression(original) && original.AsFunctionExpression().AsteriskToken != nil || ast.IsFunctionDeclaration(original) && original.AsFunctionDeclaration().AsteriskToken != nil {
+		return false
+	}
+	body := lowering.emitContext.MostOriginal(work.Body())
+	for parent := original.Parent; parent != nil; parent = parent.Parent {
+		if parent == body {
+			return true
+		}
+		if ast.IsClassDeclaration(parent) || ast.IsClassExpression(parent) {
+			return false
+		}
+	}
+	return false
 }

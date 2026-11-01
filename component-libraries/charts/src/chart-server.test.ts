@@ -1,3 +1,4 @@
+import { currentCompactServerChartRoot } from './test-support/chart-server.fixtures.js';
 import { renderToString } from '@exactjs/ssr';
 import { describe, expect, it } from 'vitest';
 import {
@@ -62,4 +63,20 @@ describe('native chart server output', () => {
 		expect(view.html).toContain('Throughput');
 		expect(view.html).toContain('1.234,5');
 	});
+});
+
+it('presents source-owned compact inputs separately for each server execution', async () => {
+	const first = await renderToString(
+		currentCompactServerChartRoot([{ id: 's', data: [{ id: 'a', x: 'A', value: 1 }] }]),
+		{ markers: false }
+	);
+	const second = await renderToString(
+		currentCompactServerChartRoot([{ id: 's', data: [{ id: 'b', x: 'B', value: 7 }] }]),
+		{ markers: false }
+	);
+	expect(first.html).toContain('<td>1</td>');
+	expect(second.html).toContain('<td>7</td>');
+	expect(second.html).not.toContain('<td>1</td>');
+	expect(first.html.match(/<figure/g)).toHaveLength(1);
+	expect(second.html.match(/<figure/g)).toHaveLength(1);
 });

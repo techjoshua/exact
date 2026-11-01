@@ -51,6 +51,11 @@ export function ChartsPage(this: Component<{}>) {
 				</p>
 				<CodeBlock source={chartSource} language="tsx" title="LatencyChart.tsx" />
 				<p>
+					Use finite numeric data and axis endpoints. Numeric tick generation remains bounded for
+					small values and narrow domains at large magnitudes. Readonly presentation values follow
+					TypeScript checking.
+				</p>
+				<p>
 					Load <code>@exactjs/charts/styles.css</code> from the application stylesheet or client
 					entry with the application's other global styles.
 				</p>
@@ -143,13 +148,15 @@ export function ChartsPage(this: Component<{}>) {
 					title="A table from the chart data"
 				/>
 				<p>
-					Each series in this example is a memory category. Each datum’s <code>x</code> identifies
-					its framework. <code>layout: 'categories'</code> puts frameworks in rows and memory
-					categories in columns. <code>layout: 'series'</code> reverses that arrangement. For
-					percentile charts, <code>layout: 'values'</code> accepts ordered columns naming the value,
-					minimum, maximum, marks, or supplementary statistics. When a cell needs to show a range,
-					its column can pair <code>field</code> with <code>rangeEnd</code>. Both endpoints must be
-					present and ordered. For several categories within each series,
+					Replacing the parent-owned series array updates the same chart and table, including added
+					and removed values. The chart retains its figure and interaction state. Each series in
+					this example is a memory category. Each datum’s <code>x</code> identifies its framework.
+					<code>layout: 'categories'</code> puts frameworks in rows and memory categories in
+					columns. <code>layout: 'series'</code> reverses that arrangement. For percentile charts,
+					<code>layout: 'values'</code> accepts ordered columns naming the value, minimum, maximum,
+					marks, or supplementary statistics. When a cell needs to show a range, its column can pair
+					<code>field</code> with <code>rangeEnd</code>. Both endpoints must be present and ordered.
+					For several categories within each series,
 					<code>rowLabel: 'series-category'</code> includes both labels in each row.
 				</p>
 				<p>

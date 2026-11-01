@@ -1,3 +1,5 @@
+import { eraseAdapterJavaScriptHelperTypes } from './adapter-javascript-output.js';
+import { isExactSourceMap } from '../source-maps.js';
 import { retainArtifactComponentFacts } from './artifact-component-facts.js';
 import {
 	artifactEnhancementDeclarations,
@@ -27,6 +29,18 @@ export function prepareArtifactPlanEntry(
 	sourceMap: boolean,
 	rewrites?: { client?: ModuleRewriteOptions; server?: ModuleRewriteOptions }
 ): CompileArtifactsResult {
+	const clientOutput = eraseAdapterJavaScriptHelperTypes(client, entry.inputFile);
+	const serverOutput = eraseAdapterJavaScriptHelperTypes(server, entry.inputFile);
+	client = {
+		...client,
+		code: clientOutput.code,
+		map: isExactSourceMap(clientOutput.map) ? clientOutput.map : client.map
+	};
+	server = {
+		...server,
+		code: serverOutput.code,
+		map: isExactSourceMap(serverOutput.map) ? serverOutput.map : server.map
+	};
 	client = linkArtifactEnhancements(client, entry.inputFile, entry.clientFile, rewrites?.client);
 	server = linkArtifactEnhancements(server, entry.inputFile, entry.serverFile, rewrites?.server);
 	const shared = !sourceMap && sharedArtifactResult(base, client, server);

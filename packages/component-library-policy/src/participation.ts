@@ -1,3 +1,5 @@
+import { validatePublishedComponentProjection } from './published-projection-validation.js';
+import { validatePublishedRelativeSelections } from './selection-evidence.js';
 import { selectInternalComponent } from './internal-component-selection.js';
 import { componentLibraryProtocolVersion } from './protocol-version.js';
 import type {
@@ -176,6 +178,17 @@ function selectComponentParticipation(
 			`${instance.name} build facts do not map ${resolvedModule}#${candidate.exportName}`
 		);
 	}
+	const component = resolvedModuleFacts.facts.components.find((entry) => entry.id === componentId)!;
+	if (
+		selected &&
+		((selected.target !== undefined && selected.target !== 'server') ||
+			((component.placement === 'unknown' || !component.artifactTargets.length) &&
+				selected.target !== 'server'))
+	)
+		throw new ExactComponentParticipationError(
+			'build-facts-invalid',
+			`${instance.name} selected component has no inspected server artifact`
+		);
 	return Object.freeze({
 		markerVersion,
 		buildFactsPath,
@@ -238,9 +251,15 @@ function validatePublishedBuildFacts(
 		const modulePath = normalizeModulePath(rawModule.path);
 		if (modulePath !== rawModule.path || modules.has(modulePath))
 			invalidBuildFacts(instance, `invalid or duplicate module ${String(rawModule.path)}`);
-		validateComponentBuildProjection(rawModule.facts, instance, modulePath);
+		validatePublishedComponentProjection(rawModule.facts, modulePath, (message) =>
+			invalidBuildFacts(instance, message)
+		);
 		modules.set(modulePath, rawModule as ExactPublishedComponentBuildFacts['modules'][number]);
 	}
+	validatePublishedRelativeSelections(modules, normalizeModulePath, (message) =>
+		invalidBuildFacts(instance, message)
+	);
+	const publicSelections = new Map<string, string>();
 	let previous = '';
 	const exportsSeen = new Set<string>();
 	for (const rawRecord of facts.exports as readonly unknown[]) {
@@ -257,6 +276,15 @@ function validatePublishedBuildFacts(
 		)
 			invalidBuildFacts(instance, 'export record contains invalid fields');
 		const record = rawRecord as ExactPublishedComponentBuildFacts['exports'][number];
+		if (record.target !== undefined && record.target !== 'client' && record.target !== 'server')
+			invalidBuildFacts(instance, 'invalid inspected export target');
+		if (record.target !== undefined) {
+			const selection = [record.module, record.exportName].join('\0');
+			const destination = [record.target, record.componentModule, record.componentId].join('\0');
+			if (publicSelections.has(selection) && publicSelections.get(selection) !== destination)
+				invalidBuildFacts(instance, 'conflicting inspected public component selections');
+			publicSelections.set(selection, destination);
+		}
 		const key = [record.subpath, record.condition, record.exportName, record.componentId].join(
 			'\0'
 		);
@@ -281,68 +309,6 @@ function validatePublishedBuildFacts(
 				`export ${record.subpath} condition ${record.condition} does not target ${record.module}`
 			);
 	}
-}
-
-function validateComponentBuildProjection(
-	facts: unknown,
-	instance: ExactResolvedPackageInstance,
-	modulePath: string
-): void {
-	if (
-		!isRecord(facts) ||
-		facts.protocol !== componentLibraryProtocolVersion ||
-		!Array.isArray(facts.components) ||
-		!Array.isArray(facts.componentImports) ||
-		!Array.isArray(facts.rendererEnhancements)
-	)
-		invalidBuildFacts(instance, `module ${modulePath} has an invalid component projection`);
-	const projection = facts as ExactPublishedComponentBuildFacts['modules'][number]['facts'];
-	const componentIds = new Set<string>();
-	for (const component of projection.components) {
-		if (
-			!isRecord(component) ||
-			typeof component.id !== 'string' ||
-			!component.id ||
-			!['client', 'server', 'isomorphic'].includes(String(component.placement)) ||
-			!validArtifactTargets(component.artifactTargets) ||
-			componentIds.has(component.id)
-		)
-			invalidBuildFacts(instance, `module ${modulePath} has an invalid component record`);
-		componentIds.add(component.id);
-	}
-	for (const edge of projection.componentImports)
-		if (
-			!isRecord(edge) ||
-			typeof edge.ownerComponentId !== 'string' ||
-			!edge.ownerComponentId ||
-			typeof edge.moduleSpecifier !== 'string' ||
-			!edge.moduleSpecifier ||
-			typeof edge.exportName !== 'string' ||
-			!edge.exportName ||
-			(edge.canonicalComponentId !== undefined && typeof edge.canonicalComponentId !== 'string') ||
-			!validArtifactTargets(edge.artifactTargets) ||
-			!['render', 'enhancement', 'registry', 'task-owner', 'continuation'].includes(
-				String(edge.reason)
-			)
-		)
-			invalidBuildFacts(instance, `module ${modulePath} has an invalid component import`);
-	for (const enhancement of projection.rendererEnhancements)
-		if (
-			!isRecord(enhancement) ||
-			!nonemptyString(enhancement.identity) ||
-			!nonemptyString(enhancement.moduleSpecifier) ||
-			!nonemptyString(enhancement.exportName)
-		)
-			invalidBuildFacts(instance, `module ${modulePath} has an invalid renderer enhancement`);
-}
-
-function validArtifactTargets(value: unknown): value is readonly ('client' | 'server')[] {
-	return (
-		Array.isArray(value) &&
-		value.length > 0 &&
-		value.every((target) => target === 'client' || target === 'server') &&
-		new Set(value).size === value.length
-	);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -382,7 +348,12 @@ function packageRelativePath(root: string, value: string, label: string): string
 		);
 	const resolved = path.resolve(root, value);
 	const relative = path.relative(path.resolve(root), resolved);
-	if (!relative || relative.startsWith('..') || path.isAbsolute(relative))
+	if (
+		!relative ||
+		relative === '..' ||
+		relative.startsWith(`..${path.sep}`) ||
+		path.isAbsolute(relative)
+	)
 		throw new ExactComponentParticipationError(
 			'build-facts-invalid',
 			`Component-library ${label} escapes the package root`
@@ -393,7 +364,12 @@ function packageRelativePath(root: string, value: string, label: string): string
 function packageModulePath(root: string, moduleId: string): string {
 	const clean = moduleId.replace(/[?#].*$/, '');
 	const relative = path.relative(path.resolve(root), path.resolve(clean));
-	if (!relative || relative.startsWith('..') || path.isAbsolute(relative))
+	if (
+		!relative ||
+		relative === '..' ||
+		relative.startsWith(`..${path.sep}`) ||
+		path.isAbsolute(relative)
+	)
 		throw new ExactComponentParticipationError(
 			'provenance-unresolved',
 			`Resolved component module is outside its package instance`

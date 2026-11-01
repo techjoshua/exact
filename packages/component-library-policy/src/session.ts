@@ -1,3 +1,4 @@
+import { requiresExactServerComponentSelection } from './selection-evidence.js';
 import type { ExactComponentBuildFacts } from '@exactjs/compiler';
 import type { ExactComponentLibraryTrustConfig } from '@exactjs/config';
 import path from 'node:path';
@@ -260,7 +261,7 @@ class ComponentAuthorizationGeneration implements ExactComponentAuthorizationSes
 			(edge) =>
 				edge.moduleSpecifier === candidate.moduleSpecifier &&
 				edge.exportName === candidate.exportName &&
-				edge.artifactTargets.includes('server')
+				requiresExactServerComponentSelection(edge)
 		);
 		const enhancementEdge =
 			candidate.optionalEnhancementIdentity !== undefined &&

@@ -5,12 +5,11 @@ import { render, unmount } from '@exactjs/dom';
 import { hydrate } from '@exactjs/hydrate';
 import { renderToHydratableString } from '@exactjs/ssr';
 import type { AnyComponentFunction } from '@exactjs/core';
-import { createCompiledComponentReceipt as receipt } from '@exactjs/core/runtime/component-operations';
+import { createCompiledComponentInputReceipt as receipt } from '@exactjs/core/runtime/component-operations';
 import { composeExactComponentContracts } from '@exactjs/core/framework/component-contracts';
 import { compileProjectArtifacts } from '../index.js';
-import { createTestWorkspace, writeTestFiles } from '../test-support/workspace.js';
+import { createCompilerTestWorkspace, writeTestFiles } from '../test-support/workspace.js';
 import { importArtifact } from '../test-support/import-artifact.js';
-
 it.each(
 	[
 		'manual',
@@ -73,7 +72,7 @@ it.each(
 			release === 'closure resource'
 				? 2
 				: 1;
-		const root = await createTestWorkspace('.exact-resource-control-', process.cwd());
+		const root = await createCompilerTestWorkspace('.exact-resource-control-', process.cwd());
 		const files = await writeTestFiles(root, {
 			'page.tsx': `/// <reference lib="esnext.disposable" />
 import {TaskContext} from '@exactjs/core';
@@ -138,11 +137,10 @@ return()=> <main>{[1,2,3,4].map(value=><button data-value={value} onClick={()=>c
 		expect(reports).toEqual([]);
 	}
 );
-
 it.each(['mount', 'hydrate'])(
 	'preserves native await using disposal and cancellation settlement (%s)',
 	async (mode) => {
-		const root = await createTestWorkspace('.exact-native-disposal-', process.cwd());
+		const root = await createCompilerTestWorkspace('.exact-native-disposal-', process.cwd());
 		const files = await writeTestFiles(root, {
 			'page.tsx': `/// <reference lib="esnext.disposable" />
 import {TaskContext} from '@exactjs/core';
@@ -209,9 +207,8 @@ return()=> <main>{[1,2].map(value=><button data-value={value} onClick={()=>compl
 		expect(reports).toEqual([]);
 	}
 );
-
 it('waits for native lexical disposal before publishing compiled server setup', async () => {
-	const root = await createTestWorkspace('.exact-server-disposal-', process.cwd());
+	const root = await createCompilerTestWorkspace('.exact-server-disposal-', process.cwd());
 	const files = await writeTestFiles(root, {
 		'page.tsx': `/// <reference lib="esnext.disposable" />
 import {TaskContext} from '@exactjs/core';
@@ -235,14 +232,42 @@ initialize();return()=> <output>{this.state.value}</output>;}`
 		settled = true;
 	});
 	onTestFinished(() => {
-		if ((server.status as () => { started: number })().started) (server.release as () => void)();
+		if (
+			(
+				server.status as () => {
+					started: number;
+				}
+			)().started
+		)
+			(server.release as () => void)();
 	});
-	await expect.poll(() => (server.status as () => { started: number })().started).toBe(1);
+	await expect
+		.poll(
+			() =>
+				(
+					server.status as () => {
+						started: number;
+					}
+				)().started
+		)
+		.toBe(1);
 	expect(settled).toBe(false);
 	(server.release as () => void)();
 	const output = await rendering;
 	expect(output.html).toContain('7');
-	expect((server.status as () => { released: number })().released).toBe(1);
-	expect((server.status as () => { started: number })().started).toBe(1);
+	expect(
+		(
+			server.status as () => {
+				released: number;
+			}
+		)().released
+	).toBe(1);
+	expect(
+		(
+			server.status as () => {
+				started: number;
+			}
+		)().started
+	).toBe(1);
 	expect(reports).toEqual([]);
 });

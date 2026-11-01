@@ -1,8 +1,20 @@
+import { isJsonSafe } from './protocol.js';
+import type { ResponseResourceBudget } from '@exactjs/core/framework/protocol-records';
+import { responseResourceBudget, responseGraphLimits } from './response-resources.js';
+import {
+	attachExactObservationOwner,
+	readExactObservationOwner
+} from '@exactjs/core/framework/inspection-transport';
+import { deriveRuntimeConfiguration as deriveServerContext } from '@exactjs/core/framework/configuration';
+import { operationIdentity, operationObservationIdentity } from './operation-identity.js';
 import { checkSecurityHooks } from './request-security.js';
 export { checkSecurityHooks, type ExactSecurityResult } from './request-security.js';
 import { ownRegistryEntry } from './registry-entry.js';
 import { isTaskCancellation, logFrameworkEvent } from '@exactjs/core';
-import { normalizeProtocolLimit as positiveLimit } from '@exactjs/core/framework/protocol-records';
+import {
+	stateDeletionPathsMatchWrites,
+	stateOutputPathsMatchWrites
+} from '@exactjs/core/framework/protocol-records';
 import { processExactOutputSync } from '@exactjs/plugin-host/runtime';
 import {
 	isExactFrameworkInvocationHandler,
@@ -12,7 +24,7 @@ import { jsonResponse } from './protocol.js';
 import {
 	continuationDependencies,
 	createExactContinuationHandler
-} from './continuation-execution.js';
+} from './continuation/execution.js';
 import { createRequestLifetime } from './context/request-lifetime.js';
 import type {
 	ExactInvocationRequest,
@@ -24,10 +36,13 @@ import type {
 } from './types.js';
 import {
 	boundaryHintsAllowed,
+	partitionDiscriminatorMatchesBoundary,
+	samePartitionAuthority,
 	contextResponseMatchesContract,
 	collectionMutationsMatchContract,
 	isExecutorAllowed,
 	isInvocationResultSafe,
+	arrayResponseParser,
 	publicContextMatchesContract,
 	stateResponseMatchesContract,
 	stateMatchesContract
@@ -60,18 +75,31 @@ export async function dispatchSecurityCheckedExactOperation(
 export function limitedJsonResponse(
 	context: ExactServerContext,
 	status: number,
-	body: unknown
+	body: unknown,
+	resources: ResponseResourceBudget = responseResourceBudget(context.logger)
 ): ExactTextResponse {
 	const validated = processExactOutputSync(
 		body,
 		{ kind: 'invocation-response', signal: context.signal },
 		context.outputExtensions ?? []
 	);
+	if (
+		!isJsonSafe(
+			validated,
+			responseGraphLimits(context.limits ?? {}, resources, 'final response graph')
+		)
+	)
+		throw new TypeError('Invalid exact response graph');
 	const response = jsonResponse(status, validated);
-	const limit = positiveLimit(context.limits?.maxResponseBytes, 16 * 1024 * 1024);
-	if (new TextEncoder().encode(response.body).byteLength <= limit) return response;
-	logReject(context, 'rejected oversized exact invocation response');
-	return jsonResponse(500, { error: 'internal_error' });
+	resources(
+		'maxResponseBytes',
+		context.limits?.maxResponseBytes,
+		16 * 1024 * 1024,
+		new TextEncoder().encode(response.body).byteLength,
+		'final buffered response',
+		'encoded UTF-8 bytes'
+	);
+	return response;
 }
 
 /** Returns whether a request targets the configured eXact endpoint. */
@@ -106,7 +134,7 @@ async function dispatchExactOperationAfterSecurity(
 		message: string
 	): ExactOperationResult => {
 		logReject(context, message);
-		return { ok: false, type: input.type, id: input.id, opId: input.opId, status, error };
+		return { ok: false, ...operationIdentity(input), status, error };
 	};
 
 	if (!securityChecked) {
@@ -122,6 +150,13 @@ async function dispatchExactOperationAfterSecurity(
 	if (!isExecutorAllowed(input, context.contract)) {
 		return reject(404, 'not_found', 'rejected unknown exact invocation id');
 	}
+	const arrayInvocation =
+		input.type === 'invoke' ? ownRegistryEntry(context.contract.invocations, input.id) : undefined;
+	const requiresArray = Boolean(
+		arrayInvocation?.stateWrites.some((write) => write.arrayRoots?.length)
+	);
+	if (requiresArray ? input.arrayCompletion !== 4 : input.arrayCompletion !== undefined)
+		return reject(400, 'bad_request', 'rejected mismatched Array completion contract');
 	if (!boundaryHintsAllowed(input, context.contract)) {
 		return reject(400, 'bad_request', 'rejected exact invocation with unknown boundary hints');
 	}
@@ -204,13 +239,15 @@ async function dispatchExactOperationAfterSecurity(
 		}
 	}
 
-	if (context.authorizeOperation) {
-		try {
-			if (!(await context.authorizeOperation(request, input, context)))
-				return reject(403, 'forbidden', 'rejected unauthorized exact operation');
-		} catch {
-			return reject(403, 'forbidden', 'exact operation authorization failed');
-		}
+	try {
+		const authorize = context.authorizeOperation;
+		if (
+			authorize !== undefined &&
+			(await Reflect.apply(authorize, context, [request, input, context])) !== true
+		)
+			return reject(403, 'forbidden', 'rejected unauthorized exact operation');
+	} catch {
+		return reject(403, 'forbidden', 'exact operation authorization failed');
 	}
 
 	const handler =
@@ -221,7 +258,7 @@ async function dispatchExactOperationAfterSecurity(
 	if (!handler)
 		return reject(404, 'not_found', 'rejected exact invocation without registered handler');
 
-	const observation = observationIdentity(context, input, invocation?.componentId);
+	const observation = operationObservationIdentity(context, input, invocation?.componentId);
 	context.requestDebugRuntime?.observe({
 		kind: executor ? 'continuation.receive' : 'task.start',
 		...observation
@@ -232,47 +269,61 @@ async function dispatchExactOperationAfterSecurity(
 			: undefined;
 	try {
 		const requestContext = operationLifetime
-			? { ...context, signal: operationLifetime.signal }
+			? deriveServerContext(context, () => ({ signal: operationLifetime.signal }))
 			: context;
-		const observedRequestContext = context.requestDebugRuntime
-			? {
-					...requestContext,
-					onContextAccess(
-						observed: Parameters<NonNullable<ExactServerContext['onContextAccess']>>[0]
-					) {
-						requestContext.onContextAccess?.(observed);
-						context.requestDebugRuntime!.observe({
-							kind: 'context.access',
-							...observation,
-							componentTypeId: observed.componentId,
-							operationId: observed.operationId,
-							attributes: Object.freeze({
-								token: observed.token,
-								scope: observed.scope
-							})
-						});
-					}
-				}
-			: requestContext;
+		const localObservationOwner = readExactObservationOwner(request);
+		const observedRequestContext =
+			context.requestDebugRuntime || localObservationOwner
+				? deriveServerContext(requestContext, () => ({
+						onContextAccess(
+							observed: Parameters<NonNullable<ExactServerContext['onContextAccess']>>[0]
+						) {
+							const { componentId, operationId, token, scope } = observed;
+							requestContext.onContextAccess?.(
+								attachExactObservationOwner(observed, localObservationOwner)
+							);
+							context.requestDebugRuntime?.observe({
+								kind: 'context.access',
+								...observation,
+								componentTypeId: componentId,
+								operationId,
+								attributes: { token, scope }
+							});
+						}
+					}))
+				: requestContext;
 		const handled = await handler(input, observedRequestContext);
 		const result = manualHandler ? normalizeExactHandlerResult(manualHandler, handled) : handled;
 		context.requestDebugRuntime?.observe({
 			kind: executor ? 'continuation.respond' : 'task.settle',
 			...observation
 		});
+		const outputResources = responseResourceBudget(context.logger);
 		if (
-			!isInvocationResultSafe(result, {
-				maxJsonDepth: context.limits?.maxJsonDepth,
-				maxJsonNodes: context.limits?.maxJsonNodes,
-				maxResponseBytes: context.limits?.maxResponseBytes,
-				maxPatches: context.limits?.maxPatches
-			})
+			!isInvocationResultSafe(
+				result,
+				{
+					maxJsonDepth: context.limits?.maxJsonDepth,
+					maxJsonNodes: context.limits?.maxJsonNodes,
+					maxResponseBytes: context.limits?.maxResponseBytes,
+					maxPatches: context.limits?.maxPatches
+				},
+				outputResources,
+				arrayResponseParser(executor?.array, context.limits?.maxJsonNodes, outputResources)
+			)
 		) {
 			return reject(500, 'internal_error', 'rejected non-serializable exact invocation result');
 		}
 		if (
 			input.type === 'invoke' &&
-			(!stateResponseMatchesContract(result.state, invocation?.stateWrites ?? []) ||
+			((result.statePaths !== undefined &&
+				!stateOutputPathsMatchWrites(result.statePaths, invocation?.stateWrites ?? [])) ||
+				!stateResponseMatchesContract(
+					result.state,
+					invocation?.stateWrites ?? [],
+					result.statePaths
+				) ||
+				!stateDeletionPathsMatchWrites(result.deletions ?? [], invocation?.stateWrites ?? []) ||
 				!collectionMutationsMatchContract(result.mutations, invocation?.stateWrites ?? []) ||
 				!contextResponseMatchesContract(result.contexts, invocation?.contextWrites ?? []))
 		) {
@@ -282,6 +333,12 @@ async function dispatchExactOperationAfterSecurity(
 				'rejected exact invocation result outside its continuation write contract'
 			);
 		}
+		if (input.type === 'refresh' && (result.deletions?.length || result.statePaths !== undefined))
+			return reject(
+				500,
+				'internal_error',
+				'rejected continuation deletion metadata in a refresh result'
+			);
 		if (input.type === 'refresh') {
 			const boundary = ownRegistryEntry(context.contract.boundaries, input.id);
 			if (boundary?.kind === 'partition-range') {
@@ -295,7 +352,12 @@ async function dispatchExactOperationAfterSecurity(
 				}
 			}
 		}
-		return { ok: true, type: input.type, id: input.id, opId: input.opId, ...result };
+		return {
+			ok: true,
+			...operationIdentity(input),
+			...result,
+			...(requiresArray ? { arrayCompletion: 4 as const } : {})
+		};
 	} catch (error) {
 		const signal = operationLifetime?.signal ?? context.signal;
 		// A disconnect is expected only when this rejection belongs to its aborted lifetime.
@@ -309,9 +371,7 @@ async function dispatchExactOperationAfterSecurity(
 			context.requestDebugRuntime?.observe({ kind: 'task.cancel', ...observation });
 			return {
 				ok: false,
-				type: input.type,
-				id: input.id,
-				opId: input.opId,
+				...operationIdentity(input),
 				status: 499,
 				error: 'internal_error'
 			};
@@ -331,80 +391,11 @@ async function dispatchExactOperationAfterSecurity(
 		);
 		return {
 			ok: false,
-			type: input.type,
-			id: input.id,
-			opId: input.opId,
+			...operationIdentity(input),
 			status: 500,
 			error: 'internal_error'
 		};
 	} finally {
 		operationLifetime?.dispose();
 	}
-}
-
-function partitionDiscriminatorMatchesBoundary(
-	authority: NonNullable<ExactInvocationRequest['partition']>,
-	boundary: ExactServerContext['contract']['boundaries'][string]
-): boolean {
-	const discriminator = authority.discriminator;
-	if (discriminator.kind === 'single') return true;
-	if (discriminator.kind === 'branch')
-		return boundary.discriminatorValues?.includes(discriminator.branch) === true;
-	return discriminator.list === boundary.parentPlanId;
-}
-
-function samePartitionAuthority(
-	left: NonNullable<ExactInvocationRequest['partition']>,
-	right: NonNullable<ExactInvocationRequest['partition']>
-): boolean {
-	const leftDiscriminator = left.discriminator;
-	const rightDiscriminator = right.discriminator;
-	const sameDiscriminator =
-		leftDiscriminator.kind === rightDiscriminator.kind &&
-		(leftDiscriminator.kind === 'single' ||
-			(leftDiscriminator.kind === 'branch' &&
-				rightDiscriminator.kind === 'branch' &&
-				leftDiscriminator.branch === rightDiscriminator.branch) ||
-			(leftDiscriminator.kind === 'keyed' &&
-				rightDiscriminator.kind === 'keyed' &&
-				leftDiscriminator.list === rightDiscriminator.list &&
-				leftDiscriminator.keyToken === rightDiscriminator.keyToken));
-	return (
-		left.version === right.version &&
-		left.buildKey === right.buildKey &&
-		left.executionRoot === right.executionRoot &&
-		left.planEdgeId === right.planEdgeId &&
-		left.ownerComponentId === right.ownerComponentId &&
-		left.generation === right.generation &&
-		sameDiscriminator
-	);
-}
-
-function observationIdentity(
-	context: ExactServerContext,
-	input: ExactInvocationRequest,
-	componentTypeId: string | undefined
-): {
-	buildKey: string;
-	executionRoot: string;
-	componentTypeId: string;
-	operationId?: string;
-	generation?: number;
-	requestId?: string;
-} {
-	const executionRoot = input.root ?? 'page';
-	const buildKey =
-		context.debugBuildKey ??
-		context.inspectionCatalogs?.find((catalog) => catalog.roots[executionRoot])?.buildKey ??
-		'unregistered-build';
-	return {
-		buildKey,
-		executionRoot,
-		componentTypeId: componentTypeId ?? 'server-operation',
-		...(input.opId ? { operationId: input.opId } : {}),
-		...(typeof (input.payload as { generation?: unknown } | undefined)?.generation === 'number'
-			? { generation: (input.payload as { generation: number }).generation }
-			: {}),
-		...(context.requestContext?.traceId ? { requestId: context.requestContext.traceId } : {})
-	};
 }

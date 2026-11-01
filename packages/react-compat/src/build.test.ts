@@ -2,7 +2,8 @@ import path from 'node:path';
 import { readFileSync } from 'node:fs';
 import { mkdtemp, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, expectTypeOf, it } from 'vitest';
+import type { ModuleExportReplacement } from '@exactjs/module-rewrite';
 import { createReactCompatibilityBuildEngine } from './build.js';
 
 const fixtureRoot = path.resolve(
@@ -17,13 +18,14 @@ const adapterVersion = JSON.parse(
 ).version;
 
 describe('React compatibility build engine', () => {
-	it('reports a frozen registry and fast-paths irrelevant modules', () => {
+	it('reports the selected registry and fast-paths irrelevant modules', () => {
 		const engine = createReactCompatibilityBuildEngine({ cwd: fixtureRoot, target: 18 });
 		expect(engine.jsxInterop.clientRendererModule).toBe('@exactjs/react-dom-compat/client18');
 		expect(engine.report()).toMatchObject({
 			activeAdapters: ['@exactjs/tanstack-query'],
 			target: 18
 		});
+		expectTypeOf(engine.report().activeAdapters).toEqualTypeOf<readonly string[]>();
 		const result = engine.transformModule({
 			id: '/value.js',
 			source: 'export const value = 1;',
@@ -236,4 +238,44 @@ describe('React compatibility build engine', () => {
 		).toBe('exact');
 		expect(engine.watchFiles).toContain(component);
 	});
+});
+
+it.each([18, 19] as const)(
+	'keeps returned rewrite decisions out of the shared cache for React %s',
+	(target) => {
+		const first = createReactCompatibilityBuildEngine({ cwd: fixtureRoot, target });
+		const observed = first.rewriteOptions.replacements! as ModuleExportReplacement[];
+		const originals = [...observed];
+		const selected = observed[0]! as { targetModule: string };
+		const expected = selected.targetModule;
+		try {
+			selected.targetModule = 'local-observation';
+			observed.length = 0;
+			const second = createReactCompatibilityBuildEngine({ cwd: fixtureRoot, target });
+			expect(second.rewriteOptions.replacements?.[0]?.targetModule).toBe(expected);
+		} finally {
+			selected.targetModule = expected;
+			observed.length = 0;
+			for (const entry of originals) observed.push(entry);
+		}
+	}
+);
+it.each([18, 19] as const)(
+	'keeps a normalized target observation separate from React %s compilation',
+	(target) => {
+		const engine = createReactCompatibilityBuildEngine({ cwd: fixtureRoot, target });
+		engine.resolved.target = target === 18 ? 19 : 18;
+		expect(engine.jsxInterop.clientRendererModule).toBe(
+			`@exactjs/react-dom-compat/client${target}`
+		);
+		expect(engine.resolved.target).toBe(target);
+	}
+);
+it('keeps ordinary report edits out of later engine observations', () => {
+	const engine = createReactCompatibilityBuildEngine({ cwd: fixtureRoot, target: 18 });
+	const report = engine.report();
+	(report.activeAdapters as string[]).push('local-observation');
+	(report.ignoredAdapters as string[]).push('local-ignore');
+	expect(engine.report().activeAdapters).not.toContain('local-observation');
+	expect(engine.report().ignoredAdapters).not.toContain('local-ignore');
 });

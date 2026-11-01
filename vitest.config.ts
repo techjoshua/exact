@@ -17,6 +17,10 @@ const reactiveSource = fileURLToPath(
 	new URL('./packages/reactive/src/', import.meta.url)
 ).replaceAll('\\', '/');
 
+const reactCompatibilitySource = fileURLToPath(
+	new URL('./packages/react-compat/src/', import.meta.url)
+).replaceAll('\\', '/');
+
 export default defineConfig({
 	plugins: [
 		exactVitest({
@@ -36,6 +40,8 @@ export default defineConfig({
 	// one source module graph so a focused test never depends on a previously built package artifact.
 	resolve: {
 		alias: [
+			{ find: /^@exactjs\/react-compat\/(.+)$/, replacement: `${reactCompatibilitySource}$1.ts` },
+			{ find: /^@exactjs\/react-compat$/, replacement: `${reactCompatibilitySource}index.ts` },
 			{ find: /^@exactjs\/reactive\/(.+)$/, replacement: `${reactiveSource}$1.ts` },
 			{ find: '@exactjs/reactive', replacement: `${reactiveSource}index.ts` },
 			{ find: /^@exactjs\/core\/(.+)$/, replacement: `${coreSource}$1.ts` },

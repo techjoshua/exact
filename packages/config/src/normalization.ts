@@ -1,13 +1,24 @@
 import type { ExactConfig } from './contracts.js';
 
-/** Validates and freezes one application configuration at its shared ownership boundary. */
+/** Validates built-in configuration fields while preserving caller-owned values and callbacks. */
 export function normalizeExactConfig<T extends ExactConfig>(value: T, label = 'eXact config'): T {
 	const config = record(value, label);
 	keys(
 		config,
-		['pluginDiscovery', 'componentLibraries', 'languageExtensions', 'debug', 'plugins'],
+		['pluginDiscovery', 'componentLibraries', 'languageExtensions', 'debug', 'plugins', 'analysis'],
 		label
 	);
+	if (config.analysis !== undefined) {
+		const analysis = record(config.analysis, `${label}.analysis`);
+		keys(analysis, ['estimatedCostWarningThreshold'], `${label}.analysis`);
+		const threshold = analysis.estimatedCostWarningThreshold;
+		if (
+			threshold !== undefined && threshold !== false &&
+			(typeof threshold !== 'number' || !Number.isSafeInteger(threshold) || threshold <= 0)
+		) {
+			throw new Error(`${label}.analysis.estimatedCostWarningThreshold must be a positive safe integer or false`);
+		}
+	}
 	if (config.pluginDiscovery !== undefined)
 		validatePluginDiscovery(record(config.pluginDiscovery, `${label}.pluginDiscovery`), label);
 	if (config.componentLibraries !== undefined)
@@ -23,7 +34,7 @@ export function normalizeExactConfig<T extends ExactConfig>(value: T, label = 'e
 	if (config.debug !== undefined) validateDebug(record(config.debug, `${label}.debug`), label);
 	if (config.plugins !== undefined)
 		validatePlugins(record(config.plugins, `${label}.plugins`), label);
-	return deepFreeze(value);
+	return value;
 }
 
 function validatePluginDiscovery(config: Record<string, unknown>, root: string): void {
@@ -254,16 +265,4 @@ function oneOf(value: unknown, allowed: readonly string[], label: string, option
 		throw new Error(
 			`${label} must be one of ${allowed.map((entry) => JSON.stringify(entry)).join(', ')}`
 		);
-}
-
-function deepFreeze<T>(value: T, seen = new WeakSet<object>()): T {
-	if (
-		!value ||
-		(typeof value !== 'object' && typeof value !== 'function') ||
-		seen.has(value as object)
-	)
-		return value;
-	seen.add(value as object);
-	for (const child of Object.values(value as Record<string, unknown>)) deepFreeze(child, seen);
-	return Object.freeze(value);
 }

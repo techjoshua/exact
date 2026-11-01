@@ -7,6 +7,9 @@ import type {
 	ComponentFunction
 } from './contracts.js';
 import { CompactComponentInstance } from './compact-instance.js';
+import { attemptCleanup, createCleanupFailure, throwCleanupFailure } from '../cleanup.js';
+import { releaseComponentUnmountHandlers } from './unmount-handlers.js';
+import { describeFailureReason } from '../failure-description.js';
 
 const logicalOwnerType: ComponentFunction<
 	Record<string, never>,
@@ -38,7 +41,9 @@ const logicalOwnerContract = Object.freeze({
 		attach: unsupportedAttachment,
 		receive() {},
 		dispose(instance: AnyComponentInstance, reason: unknown) {
-			instance.unmount(String(reason ?? 'logical owner disposed'));
+			instance.unmount(
+				describeFailureReason(reason ?? 'logical owner disposed', 'logical owner disposed')
+			);
 		},
 		state: [],
 		props: [],
@@ -54,6 +59,18 @@ class FrameworkLogicalOwner extends CompactComponentInstance<
 	Record<string, never>,
 	Record<string, never>
 > {
+	private released = false;
+
+	/** Releases framework registrations independently of authored component capability selection. */
+	override unmount(reason = 'unmount'): void {
+		if (this.released) return;
+		this.released = true;
+		const failure = createCleanupFailure();
+		attemptCleanup(failure, () => super.unmount(reason));
+		attemptCleanup(failure, () => releaseComponentUnmountHandlers(this, reason));
+		throwCleanupFailure(failure);
+	}
+
 	constructor(
 		parent: AnyComponentInstance | undefined,
 		ambientContexts: ComponentContextValues | undefined,

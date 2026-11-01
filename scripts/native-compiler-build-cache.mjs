@@ -17,7 +17,8 @@ export async function createNativeCompilerBuildKey({ repositoryRoot, revision, t
 		path.join(repositoryRoot, 'native', 'typescript-go', 'overlay'),
 		path.join(repositoryRoot, 'scripts', 'build-native-compiler.mjs'),
 		path.join(repositoryRoot, 'scripts', 'native-compiler-build-cache.mjs'),
-		path.join(repositoryRoot, 'scripts', 'native-compiler-source.mjs')
+		path.join(repositoryRoot, 'scripts', 'native-compiler-source.mjs'),
+		path.join(repositoryRoot, 'scripts', 'native-compiler-test-selection.mjs')
 	];
 	for (const filename of await listFiles(inputs)) {
 		hash.update(path.relative(repositoryRoot, filename).replaceAll('\\', '/'));

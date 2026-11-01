@@ -1,5 +1,5 @@
 import path from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, expectTypeOf, it } from 'vitest';
 import {
 	Children,
 	__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE,
@@ -22,12 +22,16 @@ import {
 
 describe('React compatibility elements', () => {
 	it('creates, clones, validates, and flattens React-shaped elements', () => {
+		expectTypeOf<typeof Children>().toEqualTypeOf<Readonly<typeof Children>>();
 		const original = createElement('span', { id: 'first', key: 7 }, 'hello');
 		const clone = cloneElement(original, { id: 'second' });
 		expect(isValidElement(original)).toBe(true);
 		expect(original.key).toBe('7');
 		expect(clone.props).toMatchObject({ id: 'second', children: 'hello' });
-		expect(Children.toArray([null, original, false, 'tail'])).toEqual([original, 'tail']);
+		const children = Children.toArray([null, original, false, 'tail']);
+		expect(children).toHaveLength(2);
+		expect(children[0]).toMatchObject({ type: original.type, props: original.props, key: '.$7' });
+		expect(children[1]).toBe('tail');
 		expect(jsx('div', { children: 'jsx' }).props.children).toBe('jsx');
 	});
 
@@ -60,6 +64,45 @@ describe('React compatibility elements', () => {
 		expect(jsxSourceOwnership('/other/view.tsx', '/** @jsxImportSource react */', resolved)).toBe(
 			'react'
 		);
+	});
+
+	it('reads ownership only from leading block pragmas and preserves conflict policy', () => {
+		const react = '/** @jsxImportSource react */';
+		const exact = '/** @jsxImportSource @exactjs/jsx */';
+		const resolved = resolveReactCompatibility({ target: 19, source: '/src/' });
+		for (const source of [
+			`const examples = [${JSON.stringify(react)}, ${JSON.stringify(exact)}];`,
+			'const example = `/** @jsxImportSource react */`;',
+			String.raw`const pattern = /@jsxImportSource react */;`,
+			`const value = 1;\n${react}`,
+			`function unused() { ${react} }`,
+			'// @jsxImportSource react\nconst value = 1;'
+		]) {
+			expect(jsxSourceOwnership('/other/view.tsx', source, resolved)).toBe('unknown');
+			expect(jsxSourceOwnership('/src/view.tsx', source, resolved)).toBe('react');
+		}
+		expect(jsxSourceOwnership('/other/view.tsx', `\uFEFF${react}\nconst view = 1;`, resolved)).toBe(
+			'react'
+		);
+		expect(jsxSourceOwnership('/other/view.tsx', `#!/usr/bin/env node\n${exact}`, resolved)).toBe(
+			'exact'
+		);
+		expect(
+			jsxSourceOwnership('/other/view.tsx', '/** @JSXIMPORTSOURCE react extra */', resolved)
+		).toBe('react');
+		expect(
+			jsxSourceOwnership(
+				'/other/view.tsx',
+				'/** @jsxImportSource react @jsxImportSource @exactjs/jsx */',
+				resolved
+			)
+		).toBe('react');
+		expect(() => jsxSourceOwnership('/src/view.tsx', `${react}\n${exact}`, resolved)).toThrow(
+			/Mixed React and eXact/
+		);
+		expect(
+			jsxSourceOwnership('/src/view.tsx', `${exact}\n${react}`, { ...resolved!, strict: false })
+		).toBe('react');
 	});
 
 	it('reports discoverable React/reconciler target mismatches', () => {

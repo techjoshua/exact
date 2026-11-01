@@ -335,7 +335,7 @@ func collectPolicyPropagation(
 				analysis.subjects,
 			)
 			if policyInvocationTarget(declaration.Initializer) != nil {
-				callKey := nodeSpanKey(declaration.Initializer)
+				callKey := policyCallKey(declaration.Initializer)
 				if callPolicy, exists := analysis.subjects.calls[callKey]; exists {
 					inputs = []PolicySubject{callPolicy}
 				}

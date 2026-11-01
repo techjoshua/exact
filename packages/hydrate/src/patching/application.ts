@@ -98,14 +98,18 @@ export function applyPatch(
 				: findExactItemRange(container, patch.key, range);
 			if (!item) return false;
 			replaceRange(item, undefined, budget, cleanupFailure);
+			// A retired item must leave neither contents nor a reusable key in the marker index.
+			item.start.remove();
+			item.end.remove();
 			if (index) reindexList(index, patch.id);
 			return true;
 		}
-		const before = patch.before
-			? index
-				? findIndexedItem(index, patch.id, patch.before)
-				: findExactItemRange(container, patch.before, range)
-			: undefined;
+		const before =
+			patch.before !== undefined
+				? index
+					? findIndexedItem(index, patch.id, patch.before)
+					: findExactItemRange(container, patch.before, range)
+				: undefined;
 		const anchor = before?.start ?? range.end;
 		if (patch.op === 'move') {
 			const item = index

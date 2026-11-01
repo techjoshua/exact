@@ -1,16 +1,40 @@
+import { responseResourceBudget } from '../response-resources.js';
+import type { ResponseLimits } from './json.js';
 import type {
 	ExactCollectionMutation,
 	ExactPatch
 } from '@exactjs/core/framework/operation-protocol';
 import { isTransportableReactiveMapKey } from '@exactjs/core';
-import { hasOnlyKeys, isJsonSafe } from '../validation.js';
+import { hasOnlyKeys, isDecodedProtocolSafe } from '../validation.js';
 
 /** Reports whether a decoded ordered collection delta has a valid protocol shape. */
-export function isCollectionMutationLike(value: unknown): value is ExactCollectionMutation {
+export function isCollectionMutationLike(
+	value: unknown,
+	limits: ResponseLimits = {}
+): value is ExactCollectionMutation {
 	if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
 	const record = value as Record<string, unknown>;
 	if (typeof record.path !== 'string' || !record.path) return false;
 	switch (record.operation) {
+		case 'array-net': {
+			const context = limits.arrayCompletion;
+			if (!context) return false;
+			try {
+				context.parse(value, (slots) =>
+					(limits.resources ?? responseResourceBudget(limits.logger))(
+						'maxJsonNodes',
+						limits.maxJsonNodes,
+						100_000,
+						slots,
+						'Array completion sequence',
+						'materialized slots'
+					)
+				);
+				return true;
+			} catch {
+				return false;
+			}
+		}
 		case 'map-set':
 			return (
 				hasOnlyKeys(record, ['path', 'operation', 'key', 'value']) &&
@@ -36,7 +60,7 @@ export function isCollectionMutationLike(value: unknown): value is ExactCollecti
 /** Reports whether patch like. */
 export function isPatchLike(value: unknown): value is ExactPatch {
 	if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
-	if (!isJsonSafe(value)) return false;
+	if (!isDecodedProtocolSafe(value)) return false;
 	const record = value as Record<string, unknown>;
 	if (typeof record.type !== 'string' || typeof record.id !== 'string' || !record.id) return false;
 	switch (record.type) {
@@ -46,8 +70,7 @@ export function isPatchLike(value: unknown): value is ExactPatch {
 			return (
 				hasOnlyKeys(record, ['type', 'id', 'name', 'value']) &&
 				typeof record.name === 'string' &&
-				'value' in record &&
-				record.value !== undefined
+				Object.hasOwn(record, 'value')
 			);
 		case 'style':
 			return (
@@ -64,11 +87,7 @@ export function isPatchLike(value: unknown): value is ExactPatch {
 				(record.html === undefined || typeof record.html === 'string')
 			);
 		case 'state':
-			return (
-				hasOnlyKeys(record, ['type', 'id', 'value']) &&
-				'value' in record &&
-				record.value !== undefined
-			);
+			return hasOnlyKeys(record, ['type', 'id', 'value']) && Object.hasOwn(record, 'value');
 		case 'replace':
 			return hasOnlyKeys(record, ['type', 'id', 'html']) && typeof record.html === 'string';
 		default:

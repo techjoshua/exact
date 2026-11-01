@@ -41,18 +41,21 @@ type CachedDiscovery = {
 	signature: string;
 	registry: ResolvedReactCompatAdapters;
 	graph: ReactCompatPackageGraph;
-	/** Context-free replacements retained for hosts that only consume rewrite options. */
+	/** Complete context-free replacements shared by lexical gates and copied rewrite views. */
 	replacements: readonly ModuleExportReplacement[];
 	watchFiles: readonly string[];
 	hash: string;
-	/** Complete lexical source-module gate for this immutable discovery generation. */
-	candidateReplacements: readonly ModuleExportReplacement[];
 	unsupportedSourceModules: readonly string[];
 };
 
 const discoveryCache = new Map<string, CachedDiscovery>();
 const maximumDiscoveryRoots = 64;
 
+/**
+ * Creates an independently configured rewriting session over the project's installed adapters.
+ * Reports and configuration getters return ordinary observations of captured build decisions.
+ * Forward reported manifest changes to invalidate() before processing the next generation.
+ */
 export function createReactCompatibilityBuildEngine(
 	options: ReactCompatibilityOptions = {}
 ): ReactCompatibilityBuildEngine {
@@ -91,10 +94,9 @@ export function createReactCompatibilityBuildEngine(
 			replacements,
 			watchFiles,
 			hash,
-			candidateReplacements: moduleReplacements([...registry.replacements.values()]),
-			unsupportedSourceModules: Object.freeze(
-				[...new Set(registry.unsupportedSources.map((source) => source.sourceModule))].sort()
-			)
+			unsupportedSourceModules: [
+				...new Set(registry.unsupportedSources.map((source) => source.sourceModule))
+			].sort()
 		};
 		discoveryCache.set(buildRoot, next);
 		while (discoveryCache.size > maximumDiscoveryRoots)
@@ -102,9 +104,18 @@ export function createReactCompatibilityBuildEngine(
 		return (activeDiscovery = next);
 	};
 	const engine: ReactCompatibilityBuildEngine = {
-		resolved,
+		get resolved() {
+			return {
+				...resolved,
+				aliases: { ...resolved.aliases },
+				source: Array.isArray(resolved.source) ? [...resolved.source] : resolved.source
+			};
+		},
 		get rewriteOptions() {
-			return Object.freeze({ moduleAliases: resolved.aliases, replacements: state().replacements });
+			return {
+				moduleAliases: { ...resolved.aliases },
+				replacements: state().replacements.map((replacement) => ({ ...replacement }))
+			};
 		},
 		get watchFiles() {
 			return combinedWatchFiles(state().watchFiles, ownershipFiles);
@@ -114,7 +125,7 @@ export function createReactCompatibilityBuildEngine(
 		},
 		get jsxInterop() {
 			const current = state();
-			return Object.freeze({
+			return {
 				adapterModule: '@exactjs/react-compat/exact' as const,
 				adapterExport: 'adaptReactComponent' as const,
 				clientRendererModule: `@exactjs/react-dom-compat/client${resolved.target}` as const,
@@ -152,7 +163,7 @@ export function createReactCompatibilityBuildEngine(
 					ownershipCache.set(key, ownership);
 					return ownership;
 				}
-			});
+			};
 		},
 		transformModule(input) {
 			const current = state();
@@ -160,12 +171,12 @@ export function createReactCompatibilityBuildEngine(
 			// importer-specific graph selection or TypeScript parsing while retaining every React
 			// alias, supported adapter source, and unsupported-version diagnostic candidate.
 			if (
-				!containsCandidate(input.source, resolved.aliases, current.candidateReplacements) &&
+				!containsCandidate(input.source, resolved.aliases, current.replacements) &&
 				!current.unsupportedSourceModules.some((sourceModule) =>
 					containsModule(input.source, sourceModule)
 				)
 			)
-				return Object.freeze({
+				return {
 					code: input.source,
 					map: null,
 					changed: false,
@@ -173,7 +184,7 @@ export function createReactCompatibilityBuildEngine(
 					dependencyIds: [],
 					diagnostics: [],
 					registryHash: current.hash
-				});
+				};
 			const resolvedReplacements = replacementsForImporter(
 				current.graph,
 				current.registry,
@@ -326,15 +337,15 @@ export function createReactCompatibilityBuildEngine(
 			diagnostics.push(
 				...retainedDiagnostics(input.id, transformed.code, current.registry, buildRoot)
 			);
-			return Object.freeze({
+			return {
 				code: transformed.code,
 				map: transformed.map,
 				changed: transformed.changed,
 				watchFiles: combinedWatchFiles(current.watchFiles, ownershipFiles),
-				dependencyIds: Object.freeze(dependencyIds),
-				diagnostics: Object.freeze(diagnostics),
+				dependencyIds,
+				diagnostics,
 				registryHash: current.hash
-			});
+			};
 		},
 		invalidate(file) {
 			const current = discoveryCache.get(buildRoot);
@@ -353,55 +364,43 @@ export function createReactCompatibilityBuildEngine(
 		},
 		report() {
 			const current = state();
-			return Object.freeze({
+			return {
 				buildRoot,
 				target: resolved.target,
 				registryHash: current.hash,
-				activeAdapters: current.registry.adapters,
-				ignoredAdapters: current.registry.ignoredAdapters,
-				unusedAdapters: Object.freeze(
-					current.registry.adapters.filter((adapter) => !usedAdapters.has(adapter))
-				),
-				substitutions: Object.freeze(
-					[...current.registry.replacements.values()].map((replacement) =>
-						Object.freeze({
-							sourceModule: replacement.sourceModule,
-							sourceExport: replacement.sourceExport,
-							sourceVersion: replacement.sourceVersion,
-							adapterPackage: replacement.adapterPackage,
-							adapterVersion: replacement.adapterVersion,
-							targetModule: replacement.specifier,
-							targetExport: replacement.export
-						})
+				activeAdapters: [...current.registry.adapters],
+				ignoredAdapters: [...current.registry.ignoredAdapters],
+				unusedAdapters: current.registry.adapters.filter((adapter) => !usedAdapters.has(adapter)),
+				substitutions: [...current.registry.replacements.values()].map((replacement) => ({
+					sourceModule: replacement.sourceModule,
+					sourceExport: replacement.sourceExport,
+					sourceVersion: replacement.sourceVersion,
+					adapterPackage: replacement.adapterPackage,
+					adapterVersion: replacement.adapterVersion,
+					targetModule: replacement.specifier,
+					targetExport: replacement.export
+				})),
+				selections: [...selections.values()]
+					.sort(
+						(left, right) =>
+							left.importer.localeCompare(right.importer) ||
+							left.sourceModule.localeCompare(right.sourceModule) ||
+							left.sourceExport.localeCompare(right.sourceExport)
 					)
-				),
-				selections: Object.freeze(
-					[...selections.values()]
-						.sort(
-							(left, right) =>
-								left.importer.localeCompare(right.importer) ||
-								left.sourceModule.localeCompare(right.sourceModule) ||
-								left.sourceExport.localeCompare(right.sourceExport)
-						)
-						.map((selection) => Object.freeze({ ...selection }))
-				),
-				unsupportedVersions: Object.freeze(
-					current.registry.unsupportedSources.map((source) =>
-						Object.freeze({
-							sourceModule: source.sourceModule,
-							sourceLocation: source.sourceLocation,
-							installedVersion: source.installedVersion,
-							supportedRanges: source.supportedRanges,
-							adapterPackage: source.adapterPackage,
-							adapterVersion: source.adapterVersion
-						})
-					)
-				),
+					.map((selection) => ({ ...selection })),
+				unsupportedVersions: current.registry.unsupportedSources.map((source) => ({
+					sourceModule: source.sourceModule,
+					sourceLocation: source.sourceLocation,
+					installedVersion: source.installedVersion,
+					supportedRanges: [...source.supportedRanges],
+					adapterPackage: source.adapterPackage,
+					adapterVersion: source.adapterVersion
+				})),
 				watchFiles: combinedWatchFiles(current.watchFiles, ownershipFiles)
-			});
+			};
 		}
 	};
-	return Object.freeze(engine);
+	return engine;
 }
 
 function classifyReactComponent(
@@ -604,5 +603,5 @@ function combinedWatchFiles(
 	base: readonly string[],
 	ownership: ReadonlySet<string>
 ): readonly string[] {
-	return Object.freeze([...new Set([...base, ...ownership])].sort());
+	return [...new Set([...base, ...ownership])].sort();
 }

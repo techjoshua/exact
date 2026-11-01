@@ -1,3 +1,4 @@
+import { compiledElementIdentity } from '@exactjs/core/runtime/component-operations';
 /** @vitest-environment jsdom */
 import { encodeExactMarkerPart } from '@exactjs/core';
 import { exactComponentIdentity } from '@exactjs/core/framework/component-contracts';
@@ -43,7 +44,7 @@ it('clones one compiler template and updates scalar slots without a generic vnod
 	const vnode = createCompiledRenderProgram(
 		'render-program:test',
 		() => ({
-			version: 2,
+			version: 4,
 			id: 'render-program:test',
 			namespace: 'html',
 			template: '<span data-exact-id="planned">\ue000exact:0\ue001</span>',
@@ -52,7 +53,7 @@ it('clones one compiler template and updates scalar slots without a generic vnod
 			nodes: [[0, 'span']]
 		}),
 		[() => state.label],
-		() => createCompiledOperation('span', { 'data-exact-id': 'planned' }, state.label)
+		() => createCompiledOperation('span', { [compiledElementIdentity]: 'planned' }, state.label)
 	);
 	const container = document.createElement('div');
 	render(vnode, container);
@@ -67,7 +68,7 @@ it('mounts and patches a static compiler program without reactive bindings', () 
 		createCompiledRenderProgram(
 			'render-program:static',
 			() => ({
-				version: 2,
+				version: 4,
 				id: 'render-program:static',
 				namespace: 'html',
 				template: '<p data-exact-id="static" class="message">Ready</p>',
@@ -93,7 +94,7 @@ it('materializes repeated program templates without sharing live DOM', () => {
 		createCompiledRenderProgram(
 			'render-program:repeated-template',
 			() => ({
-				version: 2,
+				version: 4,
 				id: 'render-program:repeated-template',
 				namespace: 'html',
 				template: '<p data-exact-id="repeated">Repeated</p>',
@@ -123,7 +124,7 @@ it('uses ordinary host semantics for planned properties, styles, events, and ref
 	const vnode = createCompiledRenderProgram(
 		'render-program:props',
 		() => ({
-			version: 2,
+			version: 4,
 			id: 'render-program:props',
 			namespace: 'html',
 			template: '<button data-exact-id="planned-button">Save</button>',
@@ -160,7 +161,7 @@ it('applies a controlled select value after slotted option values', () => {
 	const vnode = createCompiledRenderProgram(
 		'render-program:select-value-order',
 		() => ({
-			version: 2,
+			version: 4,
 			id: 'render-program:select-value-order',
 			namespace: 'html',
 			template:
@@ -201,7 +202,7 @@ it('releases non-reactive planned refs and preserves SVG namespaces', () => {
 	const vnode = createCompiledRenderProgram(
 		'render-program:svg',
 		() => ({
-			version: 2,
+			version: 4,
 			id: 'render-program:svg',
 			namespace: 'svg',
 			template: '<svg data-exact-id="svg"><circle data-exact-id="circle"></circle></svg>',
@@ -226,7 +227,7 @@ it('mounts a standalone planned SVG child in its compiler-owned namespace', () =
 	const vnode = createCompiledRenderProgram(
 		'render-program:svg-path',
 		() => ({
-			version: 2,
+			version: 4,
 			id: 'render-program:svg-path',
 			namespace: 'svg',
 			template: '<path data-exact-id="route"></path>',
@@ -235,7 +236,7 @@ it('mounts a standalone planned SVG child in its compiler-owned namespace', () =
 			nodes: [[0, 'path']]
 		}),
 		[() => 'M 0 0 L 10 10'],
-		() => createCompiledOperation('path', { 'data-exact-id': 'route' })
+		() => createCompiledOperation('path', { [compiledElementIdentity]: 'route' })
 	);
 	const container = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
 	render(vnode, container);
@@ -246,7 +247,7 @@ it('mounts a standalone planned SVG child in its compiler-owned namespace', () =
 
 it('resolves a component-local contextual program from each physical attachment', () => {
 	const descriptor = prepareCoreRenderProgram({
-		version: 2,
+		version: 4,
 		id: 'render-program:contextual-path',
 		namespace: 'contextual',
 		attachmentTag: 'path',
@@ -268,7 +269,7 @@ it('resolves a component-local contextual program from each physical attachment'
 
 it('resolves contextual HTML at an SVG integration point', () => {
 	const descriptor = prepareCoreRenderProgram({
-		version: 2,
+		version: 4,
 		id: 'render-program:contextual-foreign-object-child',
 		namespace: 'contextual',
 		attachmentTag: 'div',
@@ -290,7 +291,7 @@ it('reinstalls static event readers when a program invocation is patched', () =>
 		createCompiledRenderProgram(
 			'render-program:patched-event',
 			() => ({
-				version: 2,
+				version: 4,
 				id: 'render-program:patched-event',
 				namespace: 'html',
 				template: '<button data-exact-id="patched">Run</button>',
@@ -314,7 +315,7 @@ it('evaluates an initial planned slot exactly once', () => {
 	const vnode = createCompiledRenderProgram(
 		'render-program:single-read',
 		() => ({
-			version: 2,
+			version: 4,
 			id: 'render-program:single-read',
 			namespace: 'html',
 			template: '<span data-exact-id="single-read">\ue000exact:0\ue001</span>',
@@ -342,7 +343,7 @@ it('refreshes only the compiled slot group whose dependency changed', () => {
 	const vnode = createCompiledRenderProgram(
 		'render-program:independent-slots',
 		() => ({
-			version: 2,
+			version: 4,
 			id: 'render-program:independent-slots',
 			namespace: 'html',
 			template:
@@ -386,7 +387,7 @@ it('preserves static text between compiler-separated scalar slots', () => {
 	const vnode = createCompiledRenderProgram(
 		'render-program:adjacent-scalars',
 		() => ({
-			version: 2,
+			version: 4,
 			id: 'render-program:adjacent-scalars',
 			namespace: 'html',
 			template:
@@ -417,7 +418,7 @@ it('retracks replacement readers when a compiled program invocation is patched',
 		createCompiledRenderProgram(
 			'render-program:replacement-dependency',
 			() => ({
-				version: 2,
+				version: 4,
 				id: 'render-program:replacement-dependency',
 				namespace: 'html',
 				template: '<span data-exact-id="replacement">\ue000exact:0\ue001</span>',
@@ -448,7 +449,7 @@ it('fails closed when an initial text slot violates its scalar contract', () => 
 	const vnode = createCompiledRenderProgram(
 		'render-program:shape-fallback',
 		() => ({
-			version: 2,
+			version: 4,
 			id: 'render-program:shape-fallback',
 			namespace: 'html',
 			template: '<span data-exact-id="planned">\ue000exact:0\ue001</span>',
@@ -457,7 +458,7 @@ it('fails closed when an initial text slot violates its scalar contract', () => 
 			nodes: [[0, 'span']]
 		}),
 		[() => createCompiledOperation('strong', {}, 'generic')],
-		() => createCompiledOperation('span', { 'data-exact-id': 'fallback' }, 'fallback')
+		() => createCompiledOperation('span', { [compiledElementIdentity]: 'fallback' }, 'fallback')
 	);
 	const container = document.createElement('div');
 	render(vnode, container);
@@ -469,7 +470,7 @@ it('claims marked SSR nodes through compiler-generated hydration calls without i
 	const state = reactive({ label: '', disabled: false });
 	const program = prepareCoreRenderProgram(
 		legacyTestRenderProgram({
-			version: 2,
+			version: 4,
 			id: 'render-program:hydration-plan',
 			namespace: 'html',
 			template:
@@ -518,7 +519,7 @@ it('mounts and updates compiler-owned structural child slots without replacing t
 	const vnode = createCompiledRenderProgram(
 		'render-program:child-slot',
 		() => ({
-			version: 2,
+			version: 4,
 			id: 'render-program:child-slot',
 			namespace: 'html',
 			template:
@@ -548,12 +549,12 @@ it('mounts and updates compiler-owned structural child slots without replacing t
 it('claims a variable-width structural child range before later planned elements', () => {
 	const state = reactive({ label: 'server' });
 	const readChild = vi.fn(() =>
-		createCompiledOperation('strong', { 'data-exact-id': 'nested' }, state.label)
+		createCompiledOperation('strong', { [compiledElementIdentity]: 'nested' }, state.label)
 	);
 	const vnode = createCompiledRenderProgram(
 		'render-program:adopt-child-slot',
 		() => ({
-			version: 2,
+			version: 4,
 			id: 'render-program:adopt-child-slot',
 			namespace: 'html',
 			template: '<section><!--x:child--><!--/x:child--><footer>After</footer></section>',
@@ -592,7 +593,7 @@ it.each([
 	const vnode = createCompiledRenderProgram(
 		'render-program:adopt-component-slot',
 		() => ({
-			version: 2,
+			version: 4,
 			id: 'render-program:adopt-component-slot',
 			namespace: 'html',
 			template: '<section><!--x:child--><!--/x:child--><footer>After</footer></section>',

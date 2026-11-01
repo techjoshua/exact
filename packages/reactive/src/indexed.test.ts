@@ -245,16 +245,10 @@ describe('indexed reactive state', () => {
 		scope.stop();
 	});
 
-	it('seeds readonly indexed props and updates numeric dependencies through reconciliation', () => {
+	it('seeds indexed props and updates numeric dependencies through reconciliation', () => {
 		const props = indexedReactiveObjects<{ label: string; children?: object }>(
 			['label', 'children'],
-			{
-				readonly: true,
-				passthroughKeys: ['children'],
-				onReadonlyWrite(key) {
-					throw new TypeError(`readonly ${String(key)}`);
-				}
-			},
+			{ passthroughKeys: ['children'] },
 			{ label: 'first', children: { type: 'child' } }
 		);
 		const child = props.children;
@@ -266,9 +260,9 @@ describe('indexed reactive state', () => {
 
 		expect(seen).toEqual(['first', 'second']);
 		expect(props.children).toBe(child);
-		expect(() => {
-			props.label = 'authored write';
-		}).toThrow('readonly label');
+		props.label = 'authored write';
+		flushSync();
+		expect(seen).toEqual(['first', 'second', 'authored write']);
 		stop();
 	});
 
@@ -278,7 +272,7 @@ describe('indexed reactive state', () => {
 		const live = computed(() => state.label);
 		const props = indexedReactiveObjects<{ label: string }>(
 			['label'],
-			{ readonly: true },
+			{},
 			{ label: live as unknown as string },
 			true
 		);
@@ -302,7 +296,7 @@ describe('indexed reactive state', () => {
 		const live = computed(() => state.items.find((item) => item.id === state.selectedId));
 		const props = indexedReactiveObjects<{ item?: { id: string } }>(
 			['item'],
-			{ readonly: true },
+			{},
 			{ item: live as unknown as { id: string } },
 			true
 		);

@@ -1,5 +1,5 @@
 import type { AnyAuthoredComponentFunction, AnyComponentFunction } from '../component/contracts.js';
-import { createCompiledComponentReceipt } from '../component-abi/receipt.js';
+import { createCompiledComponentInputReceipt } from '../component-abi/receipt.js';
 import type {
 	AnyComponentRegistry,
 	ComponentRegistryInspection,
@@ -9,32 +9,28 @@ import { invalidRegistryEntry, unsafeComponentRegistryKeys } from './errors.js';
 import { loadRegistryEntry, registryEntryFor } from './loading.js';
 import { componentRegistryValues } from './storage.js';
 
-/** Returns a frozen diagnostic snapshot without exposing loaders or component functions. */
+/** Returns an independent diagnostic snapshot without exposing loaders or component functions. */
 export function inspectComponentRegistry(
 	registry: AnyComponentRegistry
 ): ComponentRegistryInspection {
 	const runtime = componentRegistryValues.get(registry as object);
 	if (!runtime) throw new TypeError('inspectComponentRegistry() requires a component registry');
-	return Object.freeze({
+	return {
 		id: runtime.id,
 		name: runtime.name,
-		entries: Object.freeze(
-			[...runtime.entries.values()].map((entry) =>
-				Object.freeze({
-					key: entry.key,
-					mode: entry.load ? ('lazy' as const) : ('eager' as const),
-					status: entry.resolved
-						? ('ready' as const)
-						: entry.pending
-							? ('loading' as const)
-							: entry.error
-								? ('failed' as const)
-								: ('idle' as const),
-					generation: entry.loadGeneration
-				})
-			)
-		)
-	});
+		entries: [...runtime.entries.values()].map((entry) => ({
+			key: entry.key,
+			mode: entry.load ? ('lazy' as const) : ('eager' as const),
+			status: entry.resolved
+				? ('ready' as const)
+				: entry.pending
+					? ('loading' as const)
+					: entry.error
+						? ('failed' as const)
+						: ('idle' as const),
+			generation: entry.loadGeneration
+		}))
+	};
 }
 
 /** Narrows an untrusted string to the finite keys owned by a branded registry. */
@@ -68,7 +64,7 @@ export function renderComponent<Registry extends AnyComponentRegistry>(
 	const selected = selection as { component: string; props: Record<string, unknown> };
 	if (!hasComponent(registry, selected.component))
 		throw invalidRegistryEntry(selected.component, 'key is not present in this registry');
-	return createCompiledComponentReceipt(
+	return createCompiledComponentInputReceipt(
 		registry[selected.component] as AnyComponentFunction,
 		selected.props
 	);

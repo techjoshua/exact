@@ -21,7 +21,9 @@ Use `property:event={writableStateLocation}` to project state into a native DOM 
 the control's converted value back:
 
 ```tsx
-function Editor(
+import type { Component } from '@exactjs/core';
+
+export function Editor(
 	this: Component<{
 		name: string;
 		quantity: number | null;
@@ -29,9 +31,19 @@ function Editor(
 		delivery: 'ground' | 'express';
 		carriers: ('ups' | 'usps')[];
 		tags: string[];
+		advanced: boolean;
 		settingsOpen: boolean;
 	}>
 ) {
+	this.state.name = '';
+	this.state.quantity = null;
+	this.state.published = false;
+	this.state.delivery = 'ground';
+	this.state.carriers = [];
+	this.state.tags = [];
+	this.state.advanced = false;
+	this.state.settingsOpen = false;
+
 	return () => (
 		<form>
 			<input value:onInput={this.state.name} />

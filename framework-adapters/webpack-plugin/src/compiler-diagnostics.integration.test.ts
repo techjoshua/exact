@@ -1,3 +1,7 @@
+import { ExactWebpackSourcePreparation } from './source-preparation.js';
+import { verifySourcePreparationContract } from '../../test-support/source-preparation-contract.js';
+import { verifyAssignmentIdentityContract } from '../../test-support/assignment-identity-contract.js';
+import { verifyStatePublicationContract } from '../../test-support/state-publication-contract.js';
 import { verifyCompilerIntlStructureContract } from '../../test-support/compiler-intl-structure-contract.js';
 import { verifyCompilerStateAliasContract } from '../../test-support/compiler-state-alias-contract.js';
 import { verifyRenderProgramContract } from '../../test-support/render-program-contract.js';
@@ -63,5 +67,31 @@ it(
 it(
 	'preserves strict translated structure callback types',
 	() => verifyCompilerIntlStructureContract('webpack'),
+	60000
+);
+
+it(
+	'preserves performed state publication through both targets',
+	() => verifyStatePublicationContract('webpack'),
+	120000
+);
+
+it(
+	'preserves authored assignment through mount and paired hydration',
+	() => verifyAssignmentIdentityContract('webpack'),
+	120000
+);
+
+it(
+	'prepares identical source once per target and Intl generation',
+	() =>
+		verifySourcePreparationContract('webpack', ({ filename, intl, options }) => {
+			const cache = new ExactWebpackSourcePreparation();
+			return {
+				prepare: (source, target) =>
+					cache.prepare(source, filename, target, options, intl, () => {}, true),
+				clear: () => cache.clear()
+			};
+		}),
 	60000
 );

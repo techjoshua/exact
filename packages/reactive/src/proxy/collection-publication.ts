@@ -1,15 +1,8 @@
 import { notifyReactiveAccessorWrite } from './accessor-dependencies.js';
 import { isReactive, unwrap } from '../internal/values.js';
 import { reactiveProxyPolicy } from '../internal/symbols.js';
-import type { ReactiveOptions } from '../internal/types.js';
 import { wrapReactiveCollectionValue } from './create-base.js';
 import type { ReactiveProxyRecord } from './capabilities.js';
-
-/** Reads the existing reactive policy so pending writes reject readonly access before staging. */
-export function reactiveProxyOptions(value: object): ReactiveOptions | undefined {
-	if (!isReactive(value)) return undefined;
-	return (value as { [reactiveProxyPolicy]?: ReactiveProxyRecord })[reactiveProxyPolicy]?.options;
-}
 
 /**
  * Executes a selected native Map or Set operation with the receiving proxy's notifications and

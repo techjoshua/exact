@@ -3,13 +3,11 @@
  */
 import { createContext, type Component } from '@exactjs/core';
 import { lazyClientIsland, readExactHydrationConfig } from '@exactjs/hydrate';
-import { createCompiledComponentReceipt } from '@exactjs/core/runtime/component-operations';
+import { createCompiledComponentInputReceipt } from '@exactjs/core/runtime/component-operations';
 import { renderToString } from '@exactjs/ssr';
 import { describe, expect, it } from 'vitest';
-
 import { ExactProtocolRecorder, mountClientServerTest, testServerComponent } from './index.js';
 import { createTestOperation as createOperation, markTestComponent } from './internal/fixtures.js';
-
 import {
 	ApplicationName,
 	RequestName,
@@ -26,8 +24,161 @@ import {
 	Cleanup,
 	disposalCount
 } from './test-support/server.fixtures.test.js?exact-target=server';
-
 describe('server component testing', () => {
+	it('retains the render failure and both cleanup failures', async () => {
+		const application = createContext<object>('testing.render-cleanup.application', {
+			scope: 'application'
+		});
+		const request = createContext<object>('testing.render-cleanup.request', { scope: 'request' });
+		const applicationError = new Error('application cleanup failed');
+		const requestError = new Error('request cleanup failed');
+		const order: string[] = [];
+		const failure = await testServerComponent(Cleanup)
+			.props({ fail: true })
+			.applicationContexts([
+				[
+					application,
+					{
+						create: () => ({}),
+						dispose() {
+							order.push('application');
+							throw applicationError;
+						}
+					}
+				]
+			])
+			.requestContexts([
+				[
+					request,
+					{
+						create: () => ({}),
+						dispose() {
+							order.push('request');
+							throw requestError;
+						}
+					}
+				]
+			])
+			.render()
+			.catch((error: unknown) => error);
+		expect(order).toEqual(['request', 'application']);
+		expect(failure).toBeInstanceOf(Error);
+		expect((failure as Error).message).toBe('fixture render failure');
+		expect(
+			(
+				failure as Error & {
+					cleanupError: AggregateError;
+				}
+			).cleanupError.errors
+		).toEqual([requestError, applicationError]);
+	});
+	it('retains request initialization failure during failed application cleanup', async () => {
+		const application = createContext<object>('testing.init-cleanup.application', {
+			scope: 'application'
+		});
+		const request = createContext<object>('testing.init-cleanup.request', { scope: 'request' });
+		const primary = new Error('request initialization failed');
+		const cleanup = new Error('application cleanup failed');
+		const failure = await testServerComponent(ReadyPage)
+			.applicationContexts([
+				[
+					application,
+					{
+						create: () => ({}),
+						dispose() {
+							throw cleanup;
+						}
+					}
+				]
+			])
+			.requestContexts([
+				[
+					request,
+					{
+						create() {
+							throw primary;
+						}
+					}
+				]
+			])
+			.render()
+			.catch((error: unknown) => error);
+		expect(failure).toBe(primary);
+		expect(
+			(
+				primary as Error & {
+					cleanupError: unknown;
+				}
+			).cleanupError
+		).toBe(cleanup);
+	});
+	it('releases application resources when request initialization fails', async () => {
+		const application = createContext<object>('testing.failed-request.application', {
+			scope: 'application'
+		});
+		const request = createContext<object>('testing.failed-request.request', { scope: 'request' });
+		let disposed = 0;
+		await expect(
+			testServerComponent(ReadyPage)
+				.applicationContexts([
+					[
+						application,
+						{
+							create: () => ({}),
+							dispose: () => {
+								disposed++;
+							}
+						}
+					]
+				])
+				.requestContexts([
+					[
+						request,
+						{
+							create: () => {
+								throw new Error('request initialization failed');
+							}
+						}
+					]
+				])
+				.render()
+		).rejects.toThrow('request initialization failed');
+		expect(disposed).toBe(1);
+	});
+	it('releases application resources even when request cleanup throws', async () => {
+		const application = createContext<object>('testing.failed-cleanup.application', {
+			scope: 'application'
+		});
+		const request = createContext<object>('testing.failed-cleanup.request', { scope: 'request' });
+		let disposed = 0;
+		await expect(
+			testServerComponent(ReadyPage)
+				.applicationContexts([
+					[
+						application,
+						{
+							create: () => ({}),
+							dispose: () => {
+								disposed++;
+							}
+						}
+					]
+				])
+				.requestContexts([
+					[
+						request,
+						{
+							create: () => ({}),
+							dispose: () => {
+								throw new Error('request cleanup failed');
+							}
+						}
+					]
+				])
+				.render()
+		).rejects.toThrow();
+		expect(disposed).toBe(1);
+	});
 	it('captures before disposal and releases failed renders without poisoning the next request', async () => {
 		const before = disposalCount();
 		await expect(testServerComponent(Cleanup).props({ fail: true }).render()).rejects.toThrow(
@@ -40,7 +191,7 @@ describe('server component testing', () => {
 	});
 	it('preserves stateless parents, preorder, and distinct repeated component identities', async () => {
 		const view = await testServerComponent(Tree).render();
-		const ordinary = await renderToString(createCompiledComponentReceipt(Tree, {}));
+		const ordinary = await renderToString(createCompiledComponentInputReceipt(Tree, {}));
 		expect(view.html).toBe(ordinary.html);
 		expect(view.allComponents().map((c) => c.type)).toEqual([Tree, Group, Leaf, Leaf]);
 		const group = view.root.child(Group);
@@ -55,7 +206,6 @@ describe('server component testing', () => {
 			.applicationContext(ApplicationName, 'Northwind')
 			.requestContext(RequestName, 'Ada')
 			.render();
-
 		expect(view.html).toContain('Northwind:Ada:dark');
 		expect(view.root.state()).toEqual({ ready: true });
 		expect(view.root.props()).toMatchObject({ label: 'Profile' });
@@ -66,7 +216,6 @@ describe('server component testing', () => {
 		expect(view.root.child(Child).context(Theme)).toBe('dark');
 		expect(view.root.child(Child).state()).toEqual({ summary: 'Northwind:Ada:dark' });
 	});
-
 	it('records opaque operations, responses, and their client-side disposition', async () => {
 		const ClientTheme = createContext<string>('test.client-theme');
 		function ClientChild(this: Component<{}>) {
@@ -126,7 +275,6 @@ describe('server component testing', () => {
 				};
 			}
 		});
-
 		expect(view.hydratedIslands).toBe(1);
 		expect(view.hydration).toEqual([
 			{
@@ -138,7 +286,6 @@ describe('server component testing', () => {
 		]);
 		await view.client.invokeTask('generated-action-7f3a');
 		await view.settle();
-
 		expect(view.protocol.operations()).toEqual([
 			expect.objectContaining({ type: 'invoke', id: 'generated-action-7f3a' })
 		]);
@@ -154,7 +301,6 @@ describe('server component testing', () => {
 		expect(view.component(ClientChild).context(ClientTheme)).toBe('ocean');
 		view.unmount();
 	});
-
 	it('exposes the exact public SSR resumption activations emitted to hydration', async () => {
 		const activation = {
 			componentId: 'component:Page',
@@ -162,11 +308,9 @@ describe('server component testing', () => {
 			contexts: { PublicStatus: 'ready' },
 			settledContinuations: ['task:load']
 		} as const;
-
 		const view = await testServerComponent(ReadyPage).render({
 			hydration: { resumptions: [activation] }
 		});
-
 		expect(view.resumptions).toEqual([activation]);
 		if (!view.hydrationScript) throw new Error('SSR resumption render omitted hydration state');
 		const container = document.createElement('div');
@@ -175,7 +319,6 @@ describe('server component testing', () => {
 			[activation.componentId, [['count', 3]], [['PublicStatus', 'ready']], ['task:load']]
 		]);
 	});
-
 	it('records consumed protocol events without changing client bytes', async () => {
 		const encoder = new TextEncoder();
 		const recorder = new ExactProtocolRecorder();
@@ -191,7 +334,6 @@ describe('server component testing', () => {
 			}),
 			json: async () => ({})
 		}));
-
 		const response = await fetch('/__exact', {
 			method: 'POST',
 			headers: {},
@@ -201,13 +343,11 @@ describe('server component testing', () => {
 			'{"event":"start"}\n{"event":"result","id":"opaque"}\n'
 		);
 		await recorder.settle();
-
 		expect(recorder.exchanges[0]?.response?.events).toEqual([
 			{ event: 'start' },
 			{ event: 'result', id: 'opaque' }
 		]);
 	});
-
 	it('correlates value-free server context token access with opaque operations', async () => {
 		const recorder = new ExactProtocolRecorder();
 		const fetch = recorder.wrap(async () => {
@@ -223,13 +363,11 @@ describe('server component testing', () => {
 				json: async () => ({ ok: true })
 			};
 		});
-
 		await fetch('/__exact', {
 			method: 'POST',
 			headers: {},
 			body: JSON.stringify({ type: 'invoke', id: 'generated-action-7f3a' })
 		});
-
 		expect(recorder.serverContextAccesses()).toEqual([
 			{
 				operationId: 'generated-action-7f3a',

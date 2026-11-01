@@ -1,5 +1,5 @@
 import {
-	createPreparedServerComponentReference,
+	createPreparedServerComponentInputReference,
 	createPreparedServerRenderProgram,
 	prepareCompiledRenderProgram,
 	type ExactPreparedServerChildRange
@@ -11,25 +11,26 @@ import { prepareDirectScheduledSsrComponentReferences } from './direct-component
 import { SsrOperationTarget } from './operation-target.js';
 import { renderChildren } from './children.js';
 import { readServerComponentReference } from './server-component-reference.js';
-
 describe('shared SSR operation target', () => {
 	it.each([false, true])(
 		'unwinds an unowned program after a child failure (pending: %s)',
 		async (pending) => {
 			const context = createSsrContext({});
 			const failure = new Error('child failed');
-			const target = new SsrOperationTarget(context, undefined, {}, false, () => {
+			const target = new SsrOperationTarget(context, undefined, {}, false, renderChildren);
+			// The prepared writer owns segment dispatch. Scalars bypass recursive child rendering.
+			target.renderProgramSegment = () => {
 				if (pending) return Promise.reject(failure);
 				throw failure;
-			});
+			};
 			const program = createPreparedServerRenderProgram(
 				prepareCompiledRenderProgram({
-					version: 2,
+					version: 4,
 					id: 'unowned-document',
 					namespace: 'html',
 					ssrHost: 'html',
 					ssr(operations, _context, _invocation, output) {
-						const pending = operations.keyedChild(output, 'child');
+						const pending = operations.keyedChild(output, ['child']);
 						return pending instanceof Promise ? pending.then(() => output) : output;
 					}
 				}),
@@ -41,10 +42,9 @@ describe('shared SSR operation target', () => {
 			expect(context.hostStack).toEqual([]);
 		}
 	);
-
 	it('does not evaluate synchronous props during scheduled sibling preparation', () => {
 		let reads = 0;
-		const issued = createPreparedServerComponentReference(
+		const issued = createPreparedServerComponentInputReference(
 			ServerCard,
 			{
 				get title() {
@@ -52,27 +52,27 @@ describe('shared SSR operation target', () => {
 					return 'Ready';
 				}
 			},
-			'child'
+			{ kind: 'eager', values: ['child'] }
 		);
 		const reference = readServerComponentReference(issued);
 		if (!reference) throw new Error('Expected an issued server component');
 		expect(
 			prepareDirectScheduledSsrComponentReferences(
 				createSsrContext({}),
-				['<section>', [], reference, '</section>'],
+				['<section>', [], issued, '</section>'],
 				undefined,
+				{},
 				{}
 			)
 		).toBeUndefined();
 		expect(reads).toBe(0);
 	});
-
 	it('retains item markers for server-only compiled external scripts', async () => {
 		const context = createSsrContext({ markers: true });
 		const target = new SsrOperationTarget(context, undefined, {}, false, renderChildren);
 		const program = createPreparedServerRenderProgram(
 			prepareCompiledRenderProgram({
-				version: 2,
+				version: 4,
 				id: 'external-script',
 				namespace: 'html',
 				ssrHost: 'script',
@@ -93,7 +93,6 @@ describe('shared SSR operation target', () => {
 		const target = new SsrOperationTarget(context, undefined, {}, false, (_context, children) =>
 			children.join('')
 		);
-
 		expect(
 			target.renderDirectServerChildRange({
 				value: 'ready',
@@ -102,7 +101,6 @@ describe('shared SSR operation target', () => {
 			} as ExactPreparedServerChildRange)
 		).toBe('<!--x-->ready<!--/x-->');
 	});
-
 	it('uses the compiler-prepared element itself as the keyed row boundary', () => {
 		const context = createSsrContext({ markers: true });
 		const target = new SsrOperationTarget(context, undefined, {}, false, (_context, children) =>
@@ -110,7 +108,7 @@ describe('shared SSR operation target', () => {
 		);
 		const program = createPreparedServerRenderProgram(
 			prepareCompiledRenderProgram({
-				version: 2,
+				version: 4,
 				id: 'row',
 				namespace: 'html',
 				ssr(operations, ssrContext, _invocation, output) {
@@ -121,7 +119,6 @@ describe('shared SSR operation target', () => {
 			}),
 			[]
 		);
-
 		expect(target.renderDirectServerKeyedChild({ key: 'incident-101', value: program })).toBe(
 			'<span>row</span>'
 		);

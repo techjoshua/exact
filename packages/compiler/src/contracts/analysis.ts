@@ -53,6 +53,8 @@ export type ExactStateEffect = {
 	kind: 'read' | 'write';
 	confidence: 'exact' | 'broad' | 'unknown';
 	operation?: 'map' | 'set';
+	/** Checker-owned Array prefixes, separate from effect authority. */
+	arrayRoots?: readonly Readonly<{ kind: 'array'; path: readonly string[]; confidence: 'exact' }>[];
 	receiver?:
 		| { kind: 'component' }
 		| { kind: 'parameter'; index: number; root?: 'value' }

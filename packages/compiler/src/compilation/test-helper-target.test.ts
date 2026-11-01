@@ -1,13 +1,12 @@
-import { mkdtemp, rm } from 'node:fs/promises';
 import path from 'node:path';
-import { expect, it, onTestFinished } from 'vitest';
+import { expect, it } from 'vitest';
 import { writePairedTestHelpers } from '../../../../framework-adapters/test-support/paired-test-helpers.js';
 import { exactTestHelperTarget } from './test-helper-target.js';
 import { transformSource } from './transformation.js';
+import { createCompilerTestWorkspace } from '../test-support/workspace.js';
 
 it('selects server-only helpers without changing production placement or client component ownership', async () => {
-	const root = await mkdtemp(path.resolve('.tmp/paired-target-'));
-	onTestFinished(() => rm(root, { recursive: true, force: true }));
+	const root = await createCompilerTestWorkspace('paired-target-', path.resolve('.tmp'));
 	const { filename, source } = await writePairedTestHelpers(root);
 	const options = { filename, root, serverComponents: true, preserveOrdinaryModules: true };
 	expect(exactTestHelperTarget(source, options, 'client')).toBe('server');

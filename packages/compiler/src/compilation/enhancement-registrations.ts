@@ -2,14 +2,14 @@ import type { ExactRendererEnhancementIR } from '../contracts/transform.js';
 import { exactEnhancementFacadeRequest } from './enhancement-facades.js';
 
 /** Renderer entry points redirected to application-bundle enhancement facades by build adapters. */
-export const exactEnhancementFacadeImports = Object.freeze({
+export const exactEnhancementFacadeImports = {
 	'@exactjs/dom': '@exactjs/dom/enhanced',
 	'@exactjs/hydrate': '@exactjs/hydrate/enhanced',
 	'@exactjs/ssr': '@exactjs/ssr/enhanced',
 	'@exactjs/ssr/runtime/compiler-closed': '@exactjs/ssr/enhanced',
 	'@exactjs/dom/framework/component-root': '@exactjs/dom/enhanced',
 	'@exactjs/hydrate/framework/component-root': '@exactjs/hydrate/enhanced'
-} as const);
+} as const;
 
 /** Adds imports and bundle-local registrations for compiler-observed enhancement capabilities. */
 export function prependExactEnhancementRegistrations(

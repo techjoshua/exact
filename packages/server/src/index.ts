@@ -52,13 +52,8 @@ export {
 	continuationDependencies,
 	createExactContinuationHandler,
 	type ExactGeneratedContinuationHandler
-} from './continuation-execution.js';
+} from './continuation/execution.js';
 export { createExactBindingGateway } from './gateway.js';
-export {
-	createExactInspectionCatalogRegistry,
-	type ExactInspectionCatalogRegistration,
-	type ExactInspectionCatalogRegistry
-} from './debug/catalog-registry.js';
 export {
 	createExactServerDebugRuntime,
 	exactServerDebugRuntime,

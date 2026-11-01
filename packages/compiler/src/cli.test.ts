@@ -8,7 +8,9 @@ import { describe, expect, it } from 'vitest';
 import { createTestWorkspace } from './test-support/workspace.js';
 
 const execFileAsync = promisify(execFile);
-const cliPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../dist/cli.js');
+const cliPath =
+	process.env.EXACT_COMPILER_TEST_CLI ??
+	path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../dist/cli.js');
 
 describe('exactc', { timeout: 15_000 }, () => {
 	it('selects inherited project roots, including unreferenced fixtures, unless paths are explicit', async () => {
@@ -260,3 +262,58 @@ describe('exactc', { timeout: 15_000 }, () => {
 		expect(server).toContain('__exactBoundary');
 	});
 });
+
+it.each(['check', 'compile', 'artifacts'] as const)(
+	'reports detached definition advisories once through CLI %s without refusing output',
+	async (mode) => {
+		const root = await createTestWorkspace('exact-detached-cli-', path.resolve('.tmp'));
+		const filename = path.join(root, 'entry.tsx');
+		const source = `import {TaskContext,type Component} from '@exactjs/core';
+export function Page(this:Component<{}>){
+ async function run(task:TaskContext=TaskContext.server().detached()){return 1;}
+ return()=> <p>ready</p>;
+}`;
+		await writeFile(
+			path.join(root, 'tsconfig.json'),
+			JSON.stringify({
+				compilerOptions: {
+					strict: true,
+					skipLibCheck: true,
+					jsx: 'react-jsx',
+					jsxImportSource: '@exactjs/jsx',
+					module: 'NodeNext'
+				}
+			})
+		);
+		await writeFile(filename, source);
+		const args =
+			mode === 'check'
+				? ['--check', filename]
+				: [
+						filename,
+						...(mode === 'artifacts' ? ['--artifacts'] : []),
+						'--outDir',
+						path.join(root, 'out')
+					];
+		const run = () => execFileAsync(process.execPath, [cliPath, ...args], { cwd: root });
+		const warning = await run();
+		expect(warning.stderr.match(/EXACT2004/g)).toHaveLength(1);
+		expect(warning.stderr).toContain('entry.tsx:3:');
+		expect(warning.stderr).toContain('Explicitly awaiting it still delays the caller');
+		if (mode === 'check') expect(warning.stdout).toBe('');
+		else expect((await readdir(path.join(root, 'out'))).length).toBeGreaterThan(0);
+		await writeFile(
+			filename,
+			source.replace(' async function', ' /** @exact ignore=EXACT2004 */\n async function')
+		);
+		expect((await run()).stderr).not.toContain('EXACT2004');
+		await writeFile(
+			filename,
+			source
+				.replace('return 1;', "document.title='unsafe';")
+				.replace('return()=>', 'run();return()=>')
+		);
+		await expect(run()).rejects.toMatchObject({ code: 1, stderr: expect.stringMatching(/EXACT/) });
+	},
+	30000
+);

@@ -1,3 +1,4 @@
+import { deriveRuntimeConfiguration } from '@exactjs/core/framework/configuration';
 import type { Child } from '@exactjs/core';
 import { renderHydratableOutput, renderStringOutput } from './render/render-output.js';
 import type { HydrationScriptOptions, RenderToStringOptions } from './types.js';
@@ -15,7 +16,11 @@ export function renderCompilerClosedUnmarkedToString(
 	operation: Child,
 	options: RenderToStringOptions = {}
 ) {
-	return renderStringOutput(operation, { ...options, markers: false }, true);
+	return renderStringOutput(
+		operation,
+		deriveRuntimeConfiguration(options, () => ({ markers: false })),
+		true
+	);
 }
 
 /** Hydration shares capture and execution with ordinary roots while omitting the proven root marker. */

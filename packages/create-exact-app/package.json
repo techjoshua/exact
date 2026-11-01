@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/create-exact-app",
-	"version": "0.7.0",
+	"version": "0.8.0",
 	"description": "Interactive project scaffolder for eXact web applications",
 	"type": "module",
 	"bin": {
@@ -13,10 +13,10 @@
 		"templates"
 	],
 	"dependencies": {
-		"@exactjs/agent-skill": "^0.7.0"
+		"@exactjs/agent-skill": "^0.8.0"
 	},
 	"devDependencies": {
-		"vitest": "^4.1.11"
+		"vitest": "^4.1.12"
 	},
 	"scripts": {
 		"build": "tsc -b",

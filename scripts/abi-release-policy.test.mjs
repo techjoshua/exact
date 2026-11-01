@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { validateAbiRelease } from './abi-release-policy.mjs';
+import { validateAbiRelease, releasedAbiFixturePaths } from './abi-release-policy.mjs';
 
 const policy = { epoch: 1, introduced: '0.5.0', providers: ['@exactjs/core', '@exactjs/dom'] };
 const contract = {
@@ -85,4 +85,18 @@ test('a compatible release cannot retarget or erase its ABI fixture baseline', (
 		assert.throws(() =>
 			validateAbiRelease(policy, current, contract, contract, versions, versions)
 		);
+});
+
+test('preserves all recorded released witnesses when an unpublished prior epoch has no fixture', () => {
+	assert.deepEqual(
+		releasedAbiFixturePaths([
+			'fixtures/release-abi/0.6.0/integrity.json',
+			'fixtures/release-abi/README.md',
+			'fixtures/release-abi/0.5.0/server.js',
+			'fixtures/release-abi/0.5.0/integrity.json',
+			'fixtures/release-abi/0.6.0/integrity.json'
+		]),
+		['fixtures/release-abi/0.5.0/integrity.json', 'fixtures/release-abi/0.6.0/integrity.json']
+	);
+	assert.deepEqual(releasedAbiFixturePaths([]), []);
 });

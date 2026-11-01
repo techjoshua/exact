@@ -122,7 +122,11 @@ function installRangeWatch(
 							mounted
 						)
 					);
-					if (parentInstance) refreshComponentRoot(parentInstance);
+					if (parentInstance) {
+						const plan = root.suppliedPlacementPlan;
+						if (plan?.pending && plan.isCurrent()) plan.present(parentInstance, true, 'update');
+						else refreshComponentRoot(root, parentInstance);
+					}
 				}
 				candidate = pending;
 			}

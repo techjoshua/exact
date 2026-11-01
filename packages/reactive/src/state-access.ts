@@ -4,7 +4,7 @@ import { unwrap } from './internal/values.js';
 export interface StateAccess<State extends object> {
 	/** Reads through the supplied state view, preserving tracking and pending values. */
 	read<Key extends keyof State>(key: Key): State[Key];
-	/** Writes through the supplied view, preserving readonly policy and transaction ownership. */
+	/** Writes through the supplied view, preserving transaction ownership and native descriptor rules. */
 	write<Key extends keyof State>(key: Key, value: State[Key]): State[Key];
 	/** Removes a property through the supplied view, preserving its mutation policy. */
 	remove<Key extends keyof State>(key: Key): boolean;
@@ -15,7 +15,7 @@ export interface StateAccess<State extends object> {
  * Works with plain objects, reactive objects and task-owned views without an ambient transaction.
  * The capability retains that view's lifetime. A task view cannot be reused after its task closes.
  * Private fields and unrelated external effects are outside this property-access contract.
- * Creating access does not enroll plain storage in a transaction or bypass readonly restrictions.
+ * Creating access does not enroll plain storage in a transaction or add runtime readonly checks.
  */
 export function stateAccess<State extends object>(state: State): StateAccess<State> {
 	return {

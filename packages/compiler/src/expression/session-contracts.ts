@@ -19,6 +19,8 @@ export type ExactCompilerSessionStats = Readonly<{
 
 /** Configures one persistent native compiler session. */
 export type ExactCompilerSessionOptions = Readonly<{
+	/** Application advisory policy, overridden by individual native requests. */
+	analysis?: import('@exactjs/config').ExactAnalysisOptions;
 	/** Overrides the platform-native compiler process. */
 	nativeCompiler?: NativeCompilerProcessOptions;
 	/** Receives compiler profiling observations. */

@@ -1,5 +1,6 @@
 import { dispose, render } from '@exactjs/dom';
 import { flushSync } from '@exactjs/reactive';
+import { ownCorpusCompilation } from './test-support/compiler-case.js';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
 	capabilitiesOwner,
@@ -36,7 +37,8 @@ afterEach(() => {
 });
 
 describe('composition corpus client behavior', () => {
-	it('retains exact registry keys across repeated selection and lazy replacement', async () => {
+	it('retains exact registry keys across repeated selection and lazy replacement', async (context) => {
+		const compile = ownCorpusCompilation(context);
 		const container = mount(escapedRegistryRoot('quote"key'));
 		const first = container.querySelector('[data-view="first"]');
 		expect(first?.textContent).toBe('first');
@@ -44,7 +46,7 @@ describe('composition corpus client behavior', () => {
 		expect(container.querySelector('[data-view="first"]')).toBe(first);
 		render(escapedRegistryRoot('slash\\key'), container);
 		// The lazy fixture is compiled on import. Await that work before checking its commit.
-		await vi.dynamicImportSettled();
+		await compile(() => vi.dynamicImportSettled());
 		expect(container.textContent).toContain('lazy second');
 		expect(container.contains(first)).toBe(false);
 		const lazy = container.querySelector('p');
@@ -53,7 +55,7 @@ describe('composition corpus client behavior', () => {
 		render(escapedRegistryRoot('quote"key'), container);
 		expect(container.querySelector('[data-view="first"]')).not.toBe(first);
 		expect(container.textContent).toBe('first');
-	});
+	}, 0);
 
 	it('mounts static, nested, and registry components from compiled artifacts', () => {
 		const fundamentals = mount(fundamentalsRoot('ready'));

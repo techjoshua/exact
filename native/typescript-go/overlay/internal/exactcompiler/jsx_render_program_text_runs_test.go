@@ -43,3 +43,33 @@ func TestSessionRetainsBoundariesForMixedScalarAndStructuralChildren(t *testing.
 		t.Fatalf("mixed content was treated as one text run:\n%s", response.Code)
 	}
 }
+
+// A scalar structural tail can share a browser Text with preceding literal prose.
+// Keep a delimiter there, while tails after elements and empty trivia stay markerless.
+func TestRenderProgramStructuralTailKeepsLiteralBoundary(t *testing.T) {
+	for _, row := range []struct {
+		name, prefix string
+		marked       bool
+	}{
+		{"literal", "Prefix:", true},
+		{"empty", "", false},
+		{"element", "<b>Prefix</b>", false},
+	} {
+		for _, target := range []Target{TargetClient, TargetServer} {
+			t.Run(row.name+"/"+string(target), func(t *testing.T) {
+				source := `import type {Component,Child} from '@exactjs/core';export function Page(this:Component<{}>,props:{value:Child}){return()=> <output>` + row.prefix + `{props.value}</output>;}`
+				response := NewSession().Execute(Request{Kind: "compile", ID: "structural-text-tail.tsx", Target: target, Source: source})
+				if response.Error != "" || len(response.Diagnostics) != 0 {
+					t.Fatalf("compile: %s %#v", response.Error, response.Diagnostics)
+				}
+				if target == TargetServer {
+					if strings.Contains(response.Code, "__exactSsr.keyedChild(") == row.marked {
+						t.Fatalf("incorrect structural tail delimiter:\n%s", response.Code)
+					}
+				} else if strings.Contains(response.Code, "<!--x:") != row.marked {
+					t.Fatalf("incorrect client template delimiter:\n%s", response.Code)
+				}
+			})
+		}
+	}
+}

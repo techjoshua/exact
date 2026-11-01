@@ -1,8 +1,9 @@
-import type { AnyComponentInstance } from '@exactjs/core';
+import { withSuppliedPlacementInputs } from './supplied-placement-capability.js';
+import { attachSuppressedCleanupFailure, type AnyComponentInstance } from '@exactjs/core';
 import type { ExactNarrowComponentUpdateContract } from '@exactjs/core/framework/component-contracts';
 import type { ExactRenderProgramBindingTarget } from '@exactjs/core/runtime/render-operations';
 import {
-	createCompiledComponentDependencies,
+	prepareCompiledComponentDependencies,
 	type CompiledComponentDependencies,
 	visitChangedCompiledComponentDependencies
 } from './component-update-dependencies.js';
@@ -39,27 +40,43 @@ export function bindCompiledComponentUpdate(
 	const owner = componentUpdateOwner(target);
 	if (!owner) return;
 	const component = owner as ComponentUpdateOwner;
-	let state = component[compiledComponentUpdateState];
+	const state = component[compiledComponentUpdateState];
 	if (!state) {
-		let initialized: CompiledComponentUpdateState;
-		const dependencies = createCompiledComponentDependencies(
+		const dependencies = prepareCompiledComponentDependencies(
 			owner,
 			updates.bindings,
 			updates.props!,
-			(binding) => publishCompiledComponentUpdate(updates, initialized, binding)
+			(binding) => publishCompiledComponentUpdate(owner, updates, initialized, binding)
 		);
 		if (!dependencies) {
 			(target as { valid: boolean }).valid = false;
 			return;
 		}
-		state = initialized = { d: dependencies, t: [] };
-		component[compiledComponentUpdateState] = state;
+		const initialized: CompiledComponentUpdateState = { d: dependencies, t: [] };
+		try {
+			dependencies.activate();
+			bindComponentUpdateTarget(target, initialized.t, index);
+			component[compiledComponentUpdateState] = initialized;
+		} catch (error) {
+			initialized.t.length = 0;
+			try {
+				dependencies.stop();
+			} catch (cleanup) {
+				attachSuppressedCleanupFailure(error, cleanup);
+			}
+			throw error;
+		}
+		// Publication starts only after complete acquisition and target commit, including versions
+		// advanced by forwarded evaluation before subscriptions existed.
+		publishCompiledComponentUpdate(owner, updates, initialized);
+		return;
 	}
 	bindComponentUpdateTarget(target, state.t, index);
 }
 
 /** Converts one mutation-version snapshot into the component's generated dirty operation mask. */
 function publishCompiledComponentUpdate(
+	owner: AnyComponentInstance,
 	updates: ExactNarrowComponentUpdateContract,
 	state: CompiledComponentUpdateState,
 	forwardedBinding?: number
@@ -75,7 +92,9 @@ function publishCompiledComponentUpdate(
 		forwardedBinding
 	);
 	if (dirtyLow || dirtyHigh)
-		publishComponentUpdateTargets(state.t, (targets) =>
-			updates.apply(targets, dirtyLow, dirtyHigh)
+		withSuppliedPlacementInputs(owner, () =>
+			publishComponentUpdateTargets(state.t, (targets) =>
+				updates.apply(targets, dirtyLow, dirtyHigh)
+			)
 		);
 }

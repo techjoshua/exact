@@ -1,10 +1,10 @@
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { compileProjectArtifacts } from './artifact-compilation.js';
-import { createTestWorkspace, writeTestFiles } from '../test-support/workspace.js';
+import { createCompilerTestWorkspace, writeTestFiles } from '../test-support/workspace.js';
 
 async function compileHelper(body: string, annotation = '') {
-	const root = await createTestWorkspace('derived-purity-', path.resolve('.tmp'));
+	const root = await createCompilerTestWorkspace('derived-purity-', path.resolve('.tmp'));
 	const files = await writeTestFiles(root, {
 		'tracked.ts': `export function evaluate(/** @exact track */ callback:()=>string){ return callback(); }`,
 		'helper.ts': `import {evaluate} from './tracked.js';

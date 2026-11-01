@@ -1,6 +1,6 @@
 import type { RefKey } from '@exactjs/core';
 import { describe, expect, it } from 'vitest';
-import { directSsrReadRef, directSsrRef, directSsrRoot } from './direct-refs.js';
+import { directSsrReadRef, directSsrRef, directSsrRefs, directSsrRoot } from './direct-refs.js';
 
 const first = { id: Symbol('first'), description: 'first' } satisfies RefKey<object>;
 const second = { id: Symbol('second'), description: 'second' } satisfies RefKey<object>;
@@ -38,5 +38,31 @@ describe('direct SSR refs', () => {
 		expect(root.current).toBeUndefined();
 		expect(() => directSsrRoot({}, binding)).toThrow(/owned/);
 		expect(() => directSsrRoot(owner, directSsrRef<object>(owner, second))).toThrow(/only one/);
+	});
+	it('retains per-owner facade identity while allowing ordinary method aliases', () => {
+		const owner = {};
+		const refs = directSsrRefs(owner);
+		const alias: { get(key: RefKey<unknown>): unknown } = refs;
+		alias.get = () => 'replacement';
+		expect(directSsrRefs(owner)).toBe(refs);
+		expect(refs.get(first)).toBe('replacement');
+		expect(directSsrRefs({}).get(first)).toBeUndefined();
+	});
+	it('keeps empty root observations as ordinary owner-local data', () => {
+		const owner = {};
+		const root = directSsrRoot(owner);
+		const alias: { generation: number } = root;
+		alias.generation = 7;
+		expect(directSsrRoot(owner).generation).toBe(7);
+		expect(directSsrRoot({}).generation).toBe(0);
+	});
+	it('does not transfer a framework binding when a writable owner alias changes', () => {
+		const original = {};
+		const foreign = {};
+		const binding = directSsrRef<object>(original, first);
+		const alias: { owner: object } = binding;
+		alias.owner = foreign;
+		expect(() => directSsrRoot(foreign, binding)).toThrow(/owned/);
+		expect(directSsrRoot(original, binding)).toBe(binding);
 	});
 });

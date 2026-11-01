@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, onTestFinished } from 'vitest';
 import { CompositeNavigationSession } from './navigation.js';
 import { testRootBinding } from './test-support/ref-binding.js';
 
@@ -152,6 +152,78 @@ describe('@exactjs/accessibility composite navigation', () => {
 		await Promise.resolve();
 		expect(first.hasAttribute('tabindex')).toBe(false);
 		expect(added.hasAttribute('tabindex')).toBe(false);
+	});
+
+	it('restores the latest external item value after an intervening roving publication', () => {
+		for (const external of ['7', null]) {
+			const listbox = composite('listbox', ['option']);
+			const option = listbox.firstElementChild as HTMLElement;
+			option.setAttribute('tabindex', '3');
+			const session = new CompositeNavigationSession(testRootBinding(listbox), { navigate: true });
+			onTestFinished(() => session.dispose());
+			session.reconcile();
+			expect(option.getAttribute('tabindex')).toBe('0');
+			if (external === null) option.removeAttribute('tabindex');
+			else option.setAttribute('tabindex', external);
+			session.reconcile();
+			expect(option.getAttribute('tabindex')).toBe('0');
+			session.dispose();
+			expect(option.getAttribute('tabindex')).toBe(external);
+		}
+	});
+	it('retains external restoration bases across modes, removed items and target replacement', () => {
+		const first = composite('listbox', ['option']);
+		const second = composite('listbox', ['option']);
+		const target = testRootBinding(first);
+		const props: { navigate: { mode: 'activeDescendant' | 'roving' } } = {
+			navigate: { mode: 'activeDescendant' }
+		};
+		first.setAttribute('tabindex', '-1');
+		const session = new CompositeNavigationSession(target, props);
+		onTestFinished(() => session.dispose());
+		session.reconcile();
+		first.setAttribute('tabindex', '7');
+		session.reconcile();
+		props.navigate.mode = 'roving';
+		session.reconcile();
+		expect(first.getAttribute('tabindex')).toBe('7');
+		const option = first.firstElementChild as HTMLElement;
+		option.setAttribute('tabindex', '9');
+		session.reconcile();
+		option.remove();
+		session.reconcile();
+		expect(option.getAttribute('tabindex')).toBe('9');
+		// Empty-target publication shares the same restoration owner.
+		first.removeAttribute('tabindex');
+		session.reconcile();
+		target.fulfill(second);
+		session.reconcile();
+		expect(first.hasAttribute('tabindex')).toBe(false);
+		expect((second.firstElementChild as HTMLElement).tabIndex).toBe(0);
+		session.dispose();
+		expect(second.firstElementChild!.hasAttribute('tabindex')).toBe(false);
+	});
+	it('leaves prevented own keys and unhandled keys to the existing event owners', () => {
+		const listbox = composite('listbox', ['option', 'option']);
+		document.body.append(listbox);
+		onTestFinished(() => listbox.remove());
+		const session = new CompositeNavigationSession(testRootBinding(listbox), { navigate: true });
+		onTestFinished(() => session.dispose());
+		session.reconcile();
+		const first = listbox.firstElementChild as HTMLElement;
+		first.focus();
+		const blocked = new KeyboardEvent('keydown', {
+			key: 'ArrowDown',
+			bubbles: true,
+			cancelable: true
+		});
+		blocked.preventDefault();
+		first.dispatchEvent(blocked);
+		expect(document.activeElement).toBe(first);
+		const unhandled = new KeyboardEvent('keydown', { key: 'x', bubbles: true, cancelable: true });
+		first.dispatchEvent(unhandled);
+		expect(unhandled.defaultPrevented).toBe(false);
+		expect(document.activeElement).toBe(first);
 	});
 
 	it('rejects roles whose complete keyboard policy is not shipped', () => {

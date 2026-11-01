@@ -27,8 +27,6 @@ const coreRenderBindings = new Set([
 	'UnsafeHtml'
 ]);
 
-const moduleRenderTargets = Object.freeze(['client', 'server'] as const);
-
 /**
  * Projects ephemeral compiler analysis into the target-neutral component protocol.
  *
@@ -40,13 +38,13 @@ export function createExactComponentBuildFacts(
 ): ExactComponentBuildFacts {
 	const imports = importedBindings(analysis);
 	const renderImports = analysis.components.flatMap((component) => {
-		const targets = Object.freeze([...(component.artifactTargets ?? [])]);
+		const targets = [...(component.artifactTargets ?? [])];
 		return component.renderEdges.flatMap((edge) => {
 			const binding = edge.moduleSpecifier
-				? Object.freeze({
+				? {
 						moduleSpecifier: edge.moduleSpecifier,
 						exportName: edge.exportName ?? 'default'
-					})
+					}
 				: imports.get(rootTagName(edge.tag));
 			if (binding && compilerOwnedRenderBinding(binding)) return [];
 			return binding
@@ -64,7 +62,7 @@ export function createExactComponentBuildFacts(
 								moduleSpecifier: entry.moduleSpecifier,
 								exportName: entry.exportName ?? 'default'
 							},
-							Object.freeze([...entry.artifactTargets]),
+							[...entry.artifactTargets],
 							'registry',
 							entry.componentId
 						)
@@ -139,31 +137,25 @@ export function createExactComponentBuildFacts(
 					moduleSpecifier: reference.moduleSpecifier,
 					exportName: exported
 				},
-				moduleRenderTargets,
+				['client', 'server'],
 				'render'
 			)
 		];
 	});
 	const componentImports = [...renderImports, ...moduleRenderImports, ...registryImports];
 
-	return Object.freeze({
+	return {
 		protocol: 1 as const,
 		filename: analysis.filename,
 		...(analysis.packageName ? { packageName: analysis.packageName } : {}),
-		components: Object.freeze(
-			analysis.components.map((component) =>
-				Object.freeze({
-					id: component.id,
-					placement: component.placement,
-					artifactTargets: Object.freeze([...(component.artifactTargets ?? [])])
-				})
-			)
-		),
-		componentImports: Object.freeze(componentImports),
-		rendererEnhancements: Object.freeze(
-			analysis.rendererEnhancements.map((enhancement) => Object.freeze({ ...enhancement }))
-		)
-	});
+		components: analysis.components.map((component) => ({
+			id: component.id,
+			placement: component.placement,
+			artifactTargets: [...(component.artifactTargets ?? [])]
+		})),
+		componentImports: componentImports,
+		rendererEnhancements: analysis.rendererEnhancements.map((enhancement) => ({ ...enhancement }))
+	};
 }
 
 function importedBindings(analysis: ExactModuleAnalysis): ReadonlyMap<string, ImportedBinding> {
@@ -171,13 +163,10 @@ function importedBindings(analysis: ExactModuleAnalysis): ReadonlyMap<string, Im
 	for (const declaration of analysis.semanticGraph?.declarations ?? []) {
 		if (declaration.kind !== 'import' || declaration.typeOnly || !declaration.moduleSpecifier)
 			continue;
-		result.set(
-			declaration.name,
-			Object.freeze({
-				moduleSpecifier: declaration.moduleSpecifier,
-				exportName: declaration.importedName ?? 'default'
-			})
-		);
+		result.set(declaration.name, {
+			moduleSpecifier: declaration.moduleSpecifier,
+			exportName: declaration.importedName ?? 'default'
+		});
 	}
 	return result;
 }
@@ -204,12 +193,12 @@ function componentImport(
 	reason: ExactComponentImportReason,
 	canonicalComponentId?: string
 ): ExactComponentBuildFacts['componentImports'][number] {
-	return Object.freeze({
+	return {
 		ownerComponentId,
 		moduleSpecifier: binding.moduleSpecifier,
 		exportName: binding.exportName,
 		...(canonicalComponentId ? { canonicalComponentId } : {}),
 		artifactTargets,
 		reason
-	});
+	};
 }

@@ -1,3 +1,5 @@
+import { normalizeBasename, stripBasename } from '../core/locations.js';
+import { routeRecordValue } from '../core/route-records.js';
 import {
 	createElement,
 	Component as ReactComponent,
@@ -16,7 +18,7 @@ import { OutletContext, RouteErrorContext, RouteIdContext, type RouteObject } fr
 import { parsePath } from './paths.js';
 
 export { createPath, createSearchParams, parsePath, resolvePath } from './paths.js';
-/** Performs the match routes domain operation. */
+/** Returns matches within a complete basename prefix, or null outside that prefix or without a route match. */
 export function matchRoutes(
 	routes: readonly RouteObject[],
 	location: string | Partial<RouteLocation>,
@@ -33,12 +35,9 @@ export function matchRoutes(
 		typeof location === 'string'
 			? (parsePath(location).pathname ?? '/')
 			: (location.pathname ?? '/');
-	const publicPath =
-		basename === '/'
-			? pathname
-			: pathname.toLowerCase().startsWith(basename.toLowerCase())
-				? pathname.slice(basename.length) || '/'
-				: pathname;
+	const base = normalizeBasename(basename);
+	const publicPath = stripBasename(pathname, base);
+	if (base && publicPath === pathname) return null;
 	const matches = exactMatchRoutes(routes, publicPath);
 	return matches.length
 		? matches.map((match) => ({
@@ -79,7 +78,7 @@ export function renderRouteMatches(snapshot: ExactRouterSnapshot<RouteObject>): 
 	if (!snapshot.matches.length) return null;
 	const errorMatch = [...snapshot.matches]
 		.reverse()
-		.find((match) => snapshot.errors[match.id] !== undefined);
+		.find((match) => Object.hasOwn(snapshot.errors, match.id));
 	if (errorMatch) {
 		const errorIndex = snapshot.matches.indexOf(errorMatch);
 		let boundaryIndex = -1;
@@ -95,7 +94,7 @@ export function renderRouteMatches(snapshot: ExactRouterSnapshot<RouteObject>): 
 			let outlet = routeProvider(
 				boundary.id,
 				createElement(RouteErrorContext.Provider, {
-					value: { active: true, error: snapshot.errors[errorMatch.id] },
+					value: { active: true, error: routeRecordValue(snapshot.errors, errorMatch.id) },
 					children: boundary.route.ErrorBoundary
 						? createElement(boundary.route.ErrorBoundary, {})
 						: boundary.route.errorElement

@@ -3,6 +3,7 @@ import { transformSync } from 'esbuild';
 import { isExactSourceMap } from './source-maps.js';
 import {
 	createExactDiagnosticReporter,
+	exactExplicitBuildSourceFiles,
 	exactComponentContractProjection,
 	planExactAdapterProjection,
 	exactEnhancementFacadeImports,
@@ -23,6 +24,23 @@ import {
 } from './adapter-support.js';
 
 describe('build adapter support', () => {
+	it('keeps outside source admissions finite and subordinate to current filters', () => {
+		const helper = '/workspace/sibling/helper.ts';
+		expect(
+			exactExplicitBuildSourceFiles({
+				include: [helper, /fixtures/, 'helper.ts', '/workspace/sibling/']
+			})
+		).toEqual([helper]);
+		expect(exactExplicitBuildSourceFiles({ include: helper, exclude: /helper/ })).toEqual([]);
+		expect(exactExplicitBuildSourceFiles({ include: ['/workspace/helper.test.ts'] })).toEqual([]);
+		expect(
+			exactExplicitBuildSourceFiles({
+				include: ['/workspace/helper.test.ts'],
+				compileTestModules: true
+			})
+		).toEqual(['/workspace/helper.test.ts']);
+		expect(exactExplicitBuildSourceFiles({})).toEqual([]);
+	});
 	it.each(['?raw', '?url', '?example=1&raw', '?raw&exact-target=server', '?url&inline', '?raw='])(
 		'excludes host asset representations before source filters: %s',
 		(query) => {

@@ -1,14 +1,17 @@
 package exactcompiler
 
 import (
+	"fmt"
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
 	"github.com/microsoft/TypeScript/tsc/internal/checker"
 	"github.com/microsoft/TypeScript/tsc/internal/printer"
+	"sort"
 )
 
 // jsxLoweringPlan is the immutable analysis handoff consumed by JSX emission. It keeps session
 // orchestration independent from the mutable traversal state created for one source artifact.
 type jsxLoweringPlan struct {
+	helperMutations      helperMutationPlan
 	analysisFacts        *sourceAnalysisFacts
 	nodeIDs              map[*ast.Node]string
 	checking             bool
@@ -69,7 +72,7 @@ func (plan jsxLoweringPlan) prepare(
 		elidedDerived = map[int]ReactiveBinding{}
 	}
 	if !hasJSX && len(plan.stateWrites) == 0 && len(plan.tasks) == 0 &&
-		len(derived) == 0 && len(plan.components) == 0 {
+		len(derived) == 0 && len(plan.components) == 0 && len(plan.helperMutations.entries) == 0 {
 		return nil, false
 	}
 	if plan.nodeIDs == nil {
@@ -81,6 +84,7 @@ func (plan jsxLoweringPlan) prepare(
 	}
 	lowering := &jsxLowering{
 		analysisFacts:               plan.analysisFacts,
+		helperMutations:             plan.helperMutations,
 		checking:                    plan.checking,
 		sourceFile:                  sourceFile,
 		factory:                     emitContext.Factory,
@@ -158,10 +162,33 @@ func (plan jsxLoweringPlan) prepare(
 			}
 		}
 	}
+	lowering.taskMethodOwners = planTaskMethodCreations(sourceFile, plan.tasks, lowering.writes, plan.typeChecker)
 	lowering.mutationFacts.initialize()
 	lowering.externalImports.captureImportReferences(sourceFile, plan.typeChecker)
 	lowering.externalImports.originalNode = lowering.emitContext.MostOriginal
+	for id, entry := range plan.helperMutations.entries {
+		lowering.helperMutationOrder = append(lowering.helperMutationOrder, id)
+		if entry.source == sourceFile {
+			for _, target := range entry.nativeTargets {
+				lowering.captureNativeMutationReferenceTypes(target)
+			}
+			for _, write := range entry.writes {
+				lowering.writes[fmt.Sprintf("%d:%d", write.Start, write.Length)] = write
+			}
+		}
+	}
+	sort.Strings(lowering.helperMutationOrder)
 	lowering.captureMutationResultTypes()
+	lowering.writes = indexStateWrites(plan.stateWrites)
+	walkNode(sourceFile.AsNode(), func(node *ast.Node) bool {
+		lowering.captureIndexedStateReadType(node)
+		if _, ok := plan.helperMutations.calls[nodeSpanKey(node)]; ok {
+			for _, argument := range callArguments(node) {
+				lowering.captureMutationArgumentType(argument)
+			}
+		}
+		return true
+	})
 	lowering.captureComponentPropTypes()
 	lowering.capturePendingStateFacts(plan.tasks)
 	lowering.mutationFacts.seal()

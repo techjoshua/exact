@@ -33,6 +33,8 @@ test('the native compiler cache follows repository-owned build inputs', async (c
 
 	assert.notEqual(changed, first);
 	assert.notEqual(otherTarget, changed);
+	await writeFile(path.join(root, 'scripts/native-compiler-test-selection.mjs'), '// changed validation selection\n');
+	assert.notEqual(await createNativeCompilerBuildKey({ repositoryRoot: root, revision: 'pinned-revision', target: 'linux-x64' }), changed);
 });
 
 test('a native compiler build is reused only with its matching successful stamp', async (context) => {
@@ -74,7 +76,8 @@ async function fixtureRepository(context) {
 		'native/typescript-go/overlay/cmd/main.go': 'package main\n',
 		'scripts/build-native-compiler.mjs': '// build host\n',
 		'scripts/native-compiler-build-cache.mjs': '// cache host\n',
-		'scripts/native-compiler-source.mjs': '// source resolver\n'
+		'scripts/native-compiler-source.mjs': '// source resolver\n',
+		'scripts/native-compiler-test-selection.mjs': '// validation selection\n'
 	};
 	for (const [relative, contents] of Object.entries(files)) {
 		const filename = path.join(root, relative);

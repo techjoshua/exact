@@ -10,12 +10,12 @@ export function publishContextAccess(
 	componentDomainInspection(instance.domain)?.publish({
 		kind: 'context.access',
 		component: instance,
-		attributes: Object.freeze({
+		attributes: {
 			name: token.description,
 			scope: token.scope,
 			availability:
 				token.keep === 'secret' ? 'secret' : token.keep === 'server' ? 'resource' : 'value',
 			operation
-		})
+		}
 	});
 }

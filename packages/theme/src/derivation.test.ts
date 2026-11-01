@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { verifyThemeDerivationValues } from '../../component-composition-corpus/test-support/theme-derivation-journey.mjs';
 import { parseThemeColor, resolveColor } from './color.js';
 import { builtInThemeKeys } from './components.js';
 import { createThemeDeriver, deriveDataColors, deriveTheme } from './derivation.js';
@@ -11,7 +12,17 @@ const theme = resolveTheme({
 });
 
 describe('exterior theme derivation', () => {
-	it('runs versioned derivers with immutable helpers', () => {
+	it('matches the public cross-runtime ownership journey', () => {
+		expect(
+			verifyThemeDerivationValues({
+				resolveTheme,
+				createThemeDeriver,
+				deriveTheme,
+				deriveDataColors
+			})
+		).toBe(true);
+	});
+	it('runs versioned derivers with typed color helpers', () => {
 		const deriver = createThemeDeriver({
 			id: 'fixture.syntax',
 			version: 1,
@@ -26,7 +37,72 @@ describe('exterior theme derivation', () => {
 		const result = deriveTheme(theme, deriver, { tone: 45 });
 		expect(result.key).toBe(theme.key.css);
 		expect(result.shade).toMatch(/^oklch\(/);
-		expect(Object.isFrozen(result)).toBe(true);
+		expect(Object.isFrozen(result)).toBe(false);
+	});
+
+	it('retains writable aliases and nested values returned by application derivers', () => {
+		const output = { nested: { value: 1 } };
+		const deriver = createThemeDeriver({
+			id: 'fixture.alias',
+			version: 1,
+			derive: () => output
+		});
+		const result = deriveTheme(theme, deriver, {});
+		expect(result).toBe(output);
+		output.nested.value = 2;
+		expect(result.nested.value).toBe(2);
+		const alias: { version: number } = deriver;
+		alias.version = 2;
+		expect(deriver.version).toBe(2);
+	});
+
+	it('retains shallow TypeScript readonly checks', () => {
+		const deriver = createThemeDeriver({
+			id: 'fixture.types',
+			version: 1,
+			derive: () => ({ value: 1, nested: { value: 1 } })
+		});
+		const result = deriveTheme(theme, deriver, {});
+		if (false) {
+			// @ts-expect-error Readonly prevents direct property assignment.
+			result.value = 2;
+			// @ts-expect-error Deriver definitions retain their readonly declarations.
+			deriver.version = 2;
+		}
+		result.nested.value = 2;
+		expect(result.nested.value).toBe(2);
+	});
+
+	it('keeps helper envelopes writable without changing another derivation', () => {
+		const deriver = createThemeDeriver({
+			id: 'fixture.helpers',
+			version: 1,
+			derive(context: ThemeDerivationContext) {
+				const palette = context.tonalPalette('accent');
+				const alias: { hue: number } = palette;
+				alias.hue = 12;
+				const contextAlias: { sourceFingerprint: string } = context;
+				contextAlias.sourceFingerprint = 'observed';
+				return { hue: palette.hue, fingerprint: context.sourceFingerprint };
+			}
+		});
+		expect(deriveTheme(theme, deriver, {})).toEqual({ hue: 12, fingerprint: 'observed' });
+		expect(theme.fingerprint).not.toBe('observed');
+	});
+
+	it('accepts shared output children and rejects ancestor cycles', () => {
+		const child = { value: 1 };
+		const shared = { first: child, second: child };
+		const make = (output: object) =>
+			createThemeDeriver({
+				id: 'fixture.graph',
+				version: 1,
+				derive: () => output
+			});
+		expect(deriveTheme(theme, make(shared), {})).toBe(shared);
+		const cycle: { self?: unknown } = {};
+		cycle.self = cycle;
+		expect(() => deriveTheme(theme, make(cycle), {})).toThrow(/acyclic/);
 	});
 
 	it('generates deterministic, opaque chart channels and independent patterns', () => {
@@ -48,7 +124,10 @@ describe('exterior theme derivation', () => {
 				'crosshatch',
 				'dots'
 			]);
-			expect(Object.isFrozen(first.colors)).toBe(true);
+			const alias = first.colors as string[];
+			alias[0] = '#abcdef';
+			expect(first.colors[0]).toBe('#abcdef');
+			expect(second.colors[0]).not.toBe('#abcdef');
 		}
 	});
 

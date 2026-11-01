@@ -3,11 +3,10 @@ import { render, dispose } from '@exactjs/dom';
 import { hydrate } from '@exactjs/hydrate';
 import { renderToHydratableString } from '@exactjs/ssr';
 import { flushSync } from '@exactjs/reactive';
-import { createCompiledComponentReceipt as receipt } from '@exactjs/core/runtime/component-operations';
+import { createCompiledComponentInputReceipt as receipt } from '@exactjs/core/runtime/component-operations';
 import { IntlProjectionProbe } from './test-support/intl-projection.fixtures.js';
 import { IntlProjectionProbe as ServerProbe } from './test-support/intl-projection.fixtures.js?exact-target=server';
 import { intlProjectionExpected } from '../test-support/intl-projection-journey.mjs';
-
 for (const mode of ['mount', 'hydrate'])
 	it(`retains native Intl projection semantics through ${mode}`, async () => {
 		const host = document.createElement('div');

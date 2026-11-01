@@ -23,6 +23,7 @@ export interface PrepareExactPluginRegistryOptions {
 	readonly loadedConfig?: ExactLoadedConfig;
 	readonly environment?: string;
 	readonly hostMode?: ExactPluginHostMode;
+	/** Optional positive preparation deadline in milliseconds. Omission leaves expiration to signal. */
 	readonly timeoutMs?: number;
 	readonly signal?: AbortSignal;
 	readonly graph?: ExactPackageGraph;
@@ -51,24 +52,39 @@ export interface ExactPreparedPluginRegistry {
 const registryCache = new Map<string, Promise<ExactPreparedPluginRegistry>>();
 const maximumCachedRegistries = 64;
 
-/** Performs the prepare exact plugin registry domain operation. */
+/**
+ * Loads application config and prepares mode-specific plugin projections and runtime extensions.
+ * Callers own cancellation through signal, or an explicit positive timeoutMs. No deadline is implicit.
+ * Build adapters normally call this entry and invalidate cached preparations when watched inputs change.
+ */
 export async function prepareExactPluginRegistry(
 	options: PrepareExactPluginRegistryOptions = {}
 ): Promise<ExactPreparedPluginRegistry> {
+	options = capturePreparationOptions(options);
+	assertPreparationActive(options.signal);
 	const applicationRoot = resolveApplicationRoot(options);
 	const loaded =
 		options.loadedConfig ??
 		(options.config
-			? Object.freeze({
+			? {
 					config: options.config,
 					...(options.configPath ? { configPath: path.resolve(options.configPath) } : {}),
-					watchFiles: Object.freeze(options.configPath ? [path.resolve(options.configPath)] : [])
-				})
+					watchFiles: options.configPath ? [path.resolve(options.configPath)] : []
+				}
 			: await loadExactConfig({ applicationRoot, configPath: options.configPath }));
+	// Configuration loading yields before this owner installs its abort listener.
+	assertPreparationActive(options.signal);
 	const configPath = loaded.configPath;
 	const environment = options.environment ?? process.env.NODE_ENV ?? 'development';
 	const hostMode = options.hostMode ?? 'build';
-	const key = JSON.stringify([applicationRoot, configPath, environment, hostMode]);
+	const key = JSON.stringify([
+		applicationRoot,
+		configPath,
+		environment,
+		hostMode,
+		options.syncTypes !== false,
+		preparationTimeout(options.timeoutMs)
+	]);
 	if (!options.graph && !options.config && !options.loadedConfig && !options.signal) {
 		const cached = registryCache.get(key);
 		if (cached) {
@@ -93,7 +109,7 @@ export async function prepareExactPluginRegistry(
 	try {
 		return await promise;
 	} catch (error) {
-		registryCache.delete(key);
+		if (registryCache.get(key) === promise) registryCache.delete(key);
 		throw error;
 	}
 }
@@ -105,15 +121,19 @@ export function invalidateExactPluginRegistry(applicationRoot?: string): void {
 		return;
 	}
 	const root = path.resolve(applicationRoot);
-	for (const key of registryCache.keys())
-		if (key.includes(JSON.stringify(root).slice(1, -1))) registryCache.delete(key);
+	// The application root is the first member of each private JSON cache key.
+	const prefix = `[${JSON.stringify(root)},`;
+	for (const key of registryCache.keys()) if (key.startsWith(prefix)) registryCache.delete(key);
 }
 
 /** Performs the sync exact plugin types domain operation. */
 export async function syncExactPluginTypes(
 	options: PrepareExactPluginRegistryOptions = {}
 ): Promise<string> {
-	const registry = await prepareExactPluginRegistry({ ...options, syncTypes: false });
+	const registry = await prepareExactPluginRegistry({
+		...capturePreparationOptions(options),
+		syncTypes: false
+	});
 	return writePluginTypes(registry.applicationRoot, registry.discovery);
 }
 
@@ -126,14 +146,17 @@ async function prepareUncached(
 		hostMode: ExactPluginHostMode;
 	}
 ): Promise<ExactPreparedPluginRegistry> {
-	const timeoutMs = positiveTimeout(options.timeoutMs);
+	const timeoutMs = preparationTimeout(options.timeoutMs);
 	const controller = new AbortController();
 	const onAbort = () => controller.abort(options.signal?.reason);
 	options.signal?.addEventListener('abort', onAbort, { once: true });
-	const timer = setTimeout(
-		() => controller.abort(new Error(`Plugin registry preparation exceeded ${timeoutMs}ms`)),
-		timeoutMs
-	);
+	const timer =
+		timeoutMs === undefined
+			? undefined
+			: setTimeout(
+					() => controller.abort(new Error(`Plugin registry preparation exceeded ${timeoutMs}ms`)),
+					timeoutMs
+				);
 	try {
 		const config = options.config;
 		const graph = options.graph ?? createExactPackageGraph(options.applicationRoot);
@@ -148,16 +171,20 @@ async function prepareUncached(
 			}),
 			controller.signal
 		);
-		if (controller.signal.aborted) {
-			throw controller.signal.reason instanceof Error
-				? controller.signal.reason
-				: new Error('Plugin registry preparation aborted');
-		}
-		const runtime = await loadRuntimeExtensions(resolution.plugins);
+		assertPreparationActive(controller.signal);
+		const runtime = await abortable(
+			loadRuntimeExtensions(resolution.plugins, controller.signal),
+			controller.signal
+		);
+		assertPreparationActive(controller.signal);
 		if (options.hostMode === 'server') {
-			await validateExactRuntimeExtensions(runtime.get('server') ?? []);
+			for (const extension of runtime.get('server') ?? []) {
+				assertPreparationActive(controller.signal);
+				await abortable(validateExactRuntimeExtensions([extension]), controller.signal);
+			}
+			assertPreparationActive(controller.signal);
 		}
-		const registry: ExactPreparedPluginRegistry = Object.freeze({
+		const registry: ExactPreparedPluginRegistry = {
 			applicationRoot: options.applicationRoot,
 			...(config ? { config } : {}),
 			configPath: options.configPath,
@@ -178,17 +205,20 @@ async function prepareUncached(
 				graph,
 				discovery
 			)
-		});
+		};
+		assertPreparationActive(controller.signal);
 		if (options.syncTypes !== false) await writePluginTypes(options.applicationRoot, discovery);
+		assertPreparationActive(controller.signal);
 		return registry;
 	} finally {
-		clearTimeout(timer);
+		if (timer !== undefined) clearTimeout(timer);
 		options.signal?.removeEventListener('abort', onAbort);
 	}
 }
 
 async function loadRuntimeExtensions(
-	resolved: ReadonlyMap<string, ExactResolvedPluginConfiguration>
+	resolved: ReadonlyMap<string, ExactResolvedPluginConfiguration>,
+	signal: AbortSignal
 ): Promise<ReadonlyMap<ExactPluginHostMode, readonly ExactRuntimePluginExtension[]>> {
 	const modes = ['server', 'render', 'client', 'testing'] as const;
 	const result = new Map<ExactPluginHostMode, readonly ExactRuntimePluginExtension[]>();
@@ -197,12 +227,15 @@ async function loadRuntimeExtensions(
 		for (const value of [...resolved.values()].sort((left, right) =>
 			left.plugin.packageName.localeCompare(right.plugin.packageName)
 		)) {
+			assertPreparationActive(signal);
 			const subpath = value.plugin.declaration.entries[mode];
 			const projection = value[mode];
 			if (!subpath || projection === undefined) continue;
 			const module = await importPublicPackageEntry(value.plugin.node, subpath);
+			assertPreparationActive(signal);
 			const factory = module.default ?? module.createExtension;
 			const extension = typeof factory === 'function' ? await factory(projection) : factory;
+			assertPreparationActive(signal);
 			if (!extension || typeof extension !== 'object') {
 				throw new Error(
 					`${value.plugin.packageName} ${mode} entry must export an extension or extension factory`
@@ -210,7 +243,7 @@ async function loadRuntimeExtensions(
 			}
 			extensions.push(extension as ExactRuntimePluginExtension);
 		}
-		result.set(mode, Object.freeze(extensions));
+		result.set(mode, extensions);
 	}
 	return result;
 }
@@ -274,7 +307,7 @@ function discoverWatchFiles(
 		files.add(path.join(participant.node.location, 'package.json'));
 	for (const plugin of discovery.plugins.values())
 		files.add(path.join(plugin.node.location, 'package.json'));
-	return Object.freeze([...files].sort());
+	return [...files].sort();
 }
 
 function resolveApplicationRoot(options: PrepareExactPluginRegistryOptions): string {
@@ -283,19 +316,44 @@ function resolveApplicationRoot(options: PrepareExactPluginRegistryOptions): str
 	return path.dirname(findUp(process.cwd(), 'package.json'));
 }
 
-function positiveTimeout(value: number | undefined): number {
-	return typeof value === 'number' && Number.isSafeInteger(value) && value > 0 ? value : 30_000;
+/** Captures declared options before config loading can yield or caller aliases can change. */
+function capturePreparationOptions(
+	options: PrepareExactPluginRegistryOptions
+): PrepareExactPluginRegistryOptions {
+	const {
+		applicationRoot,
+		configPath,
+		config,
+		loadedConfig,
+		environment,
+		hostMode,
+		timeoutMs,
+		signal,
+		graph,
+		syncTypes
+	} = options;
+	return {
+		applicationRoot,
+		configPath,
+		config,
+		loadedConfig,
+		environment,
+		hostMode,
+		timeoutMs,
+		signal,
+		graph,
+		syncTypes
+	} satisfies Record<keyof PrepareExactPluginRegistryOptions, unknown>;
+}
+
+function preparationTimeout(value: number | undefined): number | undefined {
+	return typeof value === 'number' && Number.isSafeInteger(value) && value > 0 ? value : undefined;
 }
 
 function abortable<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
 	if (signal.aborted) return Promise.reject(signal.reason);
 	return new Promise<T>((resolve, reject) => {
-		const abort = () =>
-			reject(
-				signal.reason instanceof Error
-					? signal.reason
-					: new Error('Plugin registry preparation aborted')
-			);
+		const abort = () => reject(signal.reason);
 		signal.addEventListener('abort', abort, { once: true });
 		promise.then(
 			(value) => {
@@ -308,4 +366,9 @@ function abortable<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
 			}
 		);
 	});
+}
+
+/** Fences preparation at asynchronous boundaries before starting further plugin work. */
+function assertPreparationActive(signal: AbortSignal | undefined): void {
+	if (signal?.aborted) throw signal.reason;
 }

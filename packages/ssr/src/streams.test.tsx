@@ -1,4 +1,6 @@
-import { createCompiledComponentReceipt } from '@exactjs/core/runtime/component-abi';
+import { appendFileSync } from 'node:fs';
+import { createPreparedServerComponentInputReference } from '@exactjs/core/framework/server-render-structure';
+import { createCompiledComponentInputReceipt } from '@exactjs/core/runtime/component-abi';
 import { exactResponseToFetchResponse, exactResponseBodyOf } from '@exactjs/server';
 import { describe, expect, it } from 'vitest';
 import {
@@ -29,17 +31,14 @@ import {
 	readStreamEvent,
 	readStreamText
 } from './test-support/streams.js';
-
 const streamEnhancementIdentity = './stream-enhancements.fixtures.test.js#routed';
-
 describe('@exactjs/ssr streams', () => {
 	it('streams an opaque compiler component receipt without a VNode root', async () => {
-		const reader = renderToStream(createCompiledComponentReceipt(ReceiptStreamRoot, null), {
+		const reader = renderToStream(createCompiledComponentInputReceipt(ReceiptStreamRoot, null), {
 			markers: false
 		}).getReader();
 		expect(await readRemainingStreamText(reader)).toBe('<p>receipt stream</p>');
 	});
-
 	it('supports inert progressive replacement payloads without inline execution', async () => {
 		let resolveTask!: () => void;
 		const taskReady = new Promise<void>((resolve) => {
@@ -63,35 +62,29 @@ describe('@exactjs/ssr streams', () => {
 		expect(remaining).toContain('&quot;operation&quot;:&quot;replace&quot;');
 		expect(remaining).not.toContain('<script');
 	});
-
 	it('can expose rendered html as a readable stream', async () => {
 		const stream = renderToStream(createOperation('p', null, 'streamed'), { markers: false });
 		const reader = stream.getReader();
 		const chunks: string[] = [];
 		const decoder = new TextDecoder();
-
 		while (true) {
 			const result = await reader.read();
 			if (result.done) break;
 			chunks.push(decoder.decode(result.value));
 		}
-
 		expect(chunks.join('')).toBe('<p>streamed</p>');
 	});
-
 	it('streams a routed enhancement without reconstructing its logical target', async () => {
 		resetRoutedStreamFixture();
 		const reader = renderToStream(createOperation(RoutedStreamPage, null), {
 			markers: false,
 			enhancementCatalog: new Map([[streamEnhancementIdentity, StreamEnhancement]])
 		}).getReader();
-
 		expect(await readRemainingStreamText(reader)).toMatch(
 			/^<aside><header><\/header><\/aside><main data-exact-id="[^"]+"><\/main>$/
 		);
 		expect(readRoutedStreamTargetSetups()).toBe(1);
 	});
-
 	it('does not construct streamed components until the consumer requests bytes', async () => {
 		let constructions = 0;
 		const reader = renderToStream(
@@ -99,21 +92,18 @@ describe('@exactjs/ssr streams', () => {
 			{ markers: false }
 		).getReader();
 		expect(constructions).toBe(0);
-
 		expect(new TextDecoder().decode((await reader.read()).value)).toBe(
 			'<section><p>streamed</p></section>'
 		);
 		expect(constructions).toBe(1);
 		await reader.cancel();
 	});
-
 	it('bounds broad trees in string and streaming renders', async () => {
 		const vnode = createOperation(
 			'main',
 			null,
 			...Array.from({ length: 12 }, (_, index) => createOperation('p', null, String(index)))
 		);
-
 		await expect(renderToString(vnode, { markers: false, maxTreeNodes: 5 })).rejects.toThrow(
 			'eXact SSR tree exceeds the configured maximum of 5 render values'
 		);
@@ -126,7 +116,6 @@ describe('@exactjs/ssr streams', () => {
 			})()
 		).rejects.toThrow('eXact SSR tree exceeds the configured maximum of 5 render values');
 	});
-
 	it('streams the initial shell before async tasks settle', async () => {
 		let resolveTask!: () => void;
 		const taskReady = new Promise<void>((resolve) => {
@@ -144,23 +133,19 @@ describe('@exactjs/ssr streams', () => {
 				hydration: false
 			}
 		).getReader();
-
 		expect(await readStreamEvent(reader)).toEqual({ event: 'start', version: 1 });
 		expect(await readStreamEvent(reader)).toEqual({
 			event: 'shell',
 			version: 1,
 			html: '<p>Loading</p>'
 		});
-
 		resolveTask();
 		const rest = await readRemainingStreamEvents(reader);
-
 		expect(rest).toEqual([
 			{ event: 'replace', version: 1, id: 'app', html: '<p>Ada</p>' },
 			{ event: 'complete', version: 1 }
 		]);
 	});
-
 	it('streams progressive browser-consumable html', async () => {
 		const html = await readStreamText(
 			renderToHydratableProgressiveHtmlStream(createOperation('p', null, 'ready'), {
@@ -169,12 +154,10 @@ describe('@exactjs/ssr streams', () => {
 				endpoint: '/__exact'
 			})
 		);
-
 		expect(html).toContain('<div id="app"><p>ready</p></div>');
 		expect(html).toContain('<script type="application/json" id="__exact_hydration">');
 		expect(html).toContain('[1,2,"/__exact"]');
 	});
-
 	it('streams progressive html shell before async task replacement', async () => {
 		let resolveTask!: () => void;
 		const taskReady = new Promise<void>((resolve) => {
@@ -193,19 +176,15 @@ describe('@exactjs/ssr streams', () => {
 			}
 		).getReader();
 		const first = await reader.read();
-
 		expect(new TextDecoder().decode(first.value)).toBe('<div id="profile"><p>Loading</p></div>');
-
 		resolveTask();
 		const rest = await readRemainingText(reader);
-
 		expect(rest).toContain('document.getElementById("profile")');
 		expect(rest).toContain('<script nonce="abc&quot;123">');
 		expect(rest).toContain('&lt;/script&gt;');
 		expect(rest).toContain('\\u003Cp>');
 		expect(rest).not.toContain('</script><strong>');
 	});
-
 	it('uses the same default root for progressive shell and replacement', async () => {
 		let resolveTask!: () => void;
 		const taskReady = new Promise<void>((resolve) => {
@@ -222,15 +201,11 @@ describe('@exactjs/ssr streams', () => {
 			}
 		).getReader();
 		const first = await reader.read();
-
 		expect(new TextDecoder().decode(first.value)).toBe('<div id="exact-root"><p>Loading</p></div>');
-
 		resolveTask();
 		const rest = await readRemainingText(reader);
-
 		expect(rest).toContain('document.getElementById("exact-root")');
 	});
-
 	it('packages progressive html as an asynchronously produced response', async () => {
 		const response = renderToHydratableProgressiveHtmlResponse(
 			createOperation('p', null, 'ready'),
@@ -242,7 +217,6 @@ describe('@exactjs/ssr streams', () => {
 				headers: { 'cache-control': 'no-store' }
 			}
 		);
-
 		expect(response.status).toBe(202);
 		expect(response.headers).toMatchObject({
 			'content-type': 'text/html; charset=utf-8',
@@ -254,24 +228,20 @@ describe('@exactjs/ssr streams', () => {
 			'<div id="app"><p>ready</p></div>'
 		);
 	});
-
 	it('writes progressive response strings in order without a Web stream adapter', async () => {
 		const response = renderToHydratableProgressiveHtmlResponse(
 			createOperation('p', null, 'ready'),
 			{ markers: false, rootId: 'app', endpoint: '/__exact' }
 		);
 		const chunks: string[] = [];
-
 		await exactResponseBodyOf(response)?.writeTo(async (chunk) => {
 			chunks.push(chunk);
 			await Promise.resolve();
 		});
-
 		const html = chunks.join('');
 		expect(html).toContain('<div id="app"><p>ready</p></div>');
 		expect(html).toContain('<script type="application/json" id="__exact_hydration">');
 	});
-
 	it('respects explicit progressive response content type headers', () => {
 		const response = renderToProgressiveHtmlResponse(createOperation('p', null, 'ready'), {
 			headers: { 'Content-Type': 'text/html' }
@@ -280,22 +250,18 @@ describe('@exactjs/ssr streams', () => {
 			headers: { 'Content-Type': 'text/html' },
 			contentType: 'application/xhtml+xml'
 		});
-
 		expect(response.headers['Content-Type']).toBe('text/html');
 		expect(overridden.headers['Content-Type']).toBe('application/xhtml+xml');
 	});
-
 	it('enforces progressive produced-response byte budgets', async () => {
 		const response = renderToProgressiveHtmlResponse(createOperation('p', null, 'x'.repeat(100)), {
 			markers: false,
 			maxStreamBytes: 32
 		});
-
 		await expect(exactResponseBodyOf(response)?.writeTo(() => undefined)).rejects.toThrow(
 			'byte limit'
 		);
 	});
-
 	it('does not construct streamed components ahead of reader demand', async () => {
 		let constructed = 0;
 		const reader = renderToDocumentStream(
@@ -309,7 +275,6 @@ describe('@exactjs/ssr streams', () => {
 		expect(constructed).toBe(1);
 		await reader.cancel();
 	});
-
 	it('does not construct progressive components ahead of reader demand', async () => {
 		let constructed = 0;
 		const reader = renderToProgressiveHtmlStream(
@@ -326,7 +291,6 @@ describe('@exactjs/ssr streams', () => {
 		expect(constructed).toBe(1);
 		await reader.cancel();
 	});
-
 	it('enforces SSR stream byte budgets', async () => {
 		const reader = renderToDocumentStream(createOperation('p', null, 'x'.repeat(100)), {
 			markers: false,
@@ -335,4 +299,51 @@ describe('@exactjs/ssr streams', () => {
 		expect(await readStreamEvent(reader)).toMatchObject({ event: 'start' });
 		await expect(reader.read()).rejects.toThrow('byte limit');
 	});
+});
+
+it('acquires fresh root children for the final streaming execution', async () => {
+	let release!: () => void;
+	configureControlledText(
+		new Promise<void>((resolve) => {
+			release = resolve;
+		})
+	);
+	let reads = 0;
+	const operation = createPreparedServerComponentInputReference(ControlledText, {
+		initial: 'shell-value',
+		settled: 'final-value',
+		get children() {
+			reads++;
+			return undefined;
+		}
+	});
+	const reader = renderToDocumentStream(operation, {
+		markers: false,
+		rootId: 'app',
+		hydration: false
+	}).getReader();
+	const events: unknown[] = [];
+	let shellReads = 0;
+	try {
+		events.push(await readStreamEvent(reader), await readStreamEvent(reader));
+		shellReads = reads;
+		release();
+		events.push(...(await readRemainingStreamEvents(reader)));
+		if (process.env.EXACT_CHILD_INPUT_OBSERVATIONS)
+			appendFileSync(
+				process.env.EXACT_CHILD_INPUT_OBSERVATIONS,
+				JSON.stringify({ case: 'shell-final', shellReads, reads, events }) + '\n'
+			);
+		expect(shellReads).toBe(1);
+		expect(reads).toBe(2);
+		expect(events).toEqual([
+			{ event: 'start', version: 1 },
+			{ event: 'shell', version: 1, html: '<p>shell-value</p>' },
+			{ event: 'replace', version: 1, id: 'app', html: '<p>final-value</p>' },
+			{ event: 'complete', version: 1 }
+		]);
+	} finally {
+		release();
+		await reader.cancel();
+	}
 });

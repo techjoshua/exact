@@ -18,9 +18,18 @@ type MotionFrameKind =
 	| 'layout-transition';
 const detachedPlaybacks = new WeakSet<MotionPlayback>();
 
-/** Starts finite motion inside an immediate, nonblocking task frame. */
+/** Starts finite motion in an immediate, nonblocking task frame, capturing timing before placement waits. */
 export function animate(element: Element, effect: MotionEffect): MotionPlayback {
-	return animateInFrame(element, effect, 'motion');
+	const keyframes = effect?.keyframes;
+	const options = effect?.options;
+	return animateInFrame(
+		element,
+		{
+			keyframes,
+			...(options ? { options: { ...options } } : {})
+		},
+		'motion'
+	);
 }
 
 /** Starts package-owned motion with a phase-specific semantic task kind. */

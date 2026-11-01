@@ -26,12 +26,12 @@ it('lets an ordinary branded helper use explicit state access without transformi
 	}
 });
 
-it('preserves readonly policy and leaves ordinary storage outside a transaction', () => {
+it('stages explicit access while leaving ordinary storage outside a transaction', () => {
 	const raw = { count: 0 };
-	const readonly = reactive(raw, { readonly: true });
+	const readonly = reactive(raw, {});
 	const pending = createPendingReactiveTransaction(readonly);
 	try {
-		expect(() => stateAccess(pending.view(readonly)).write('count', 1)).toThrow('readonly');
+		expect(stateAccess(pending.view(readonly)).write('count', 1)).toBe(1);
 		expect(raw.count).toBe(0);
 	} finally {
 		pending.discard();

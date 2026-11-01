@@ -9,7 +9,6 @@ import type {
 import { resolveDiscoveryPolicy } from './policy.js';
 import {
 	acceptParticipant,
-	freezeParticipant,
 	hasParticipation,
 	isTrustedChild,
 	manifestLabel,
@@ -55,13 +54,13 @@ export function discoverExactPlugins(
 				range: dependency.range,
 				required: dependency.kind !== 'optional',
 				parentId: root.id,
-				path: Object.freeze([rootName, packageName(node)])
+				path: [rootName, packageName(node)]
 			});
 	}
 	if (policy.mode !== 'root') {
 		const expanded = new Set<string>();
-		while (pending.length) {
-			const id = pending.shift()!;
+		for (let cursor = 0; cursor < pending.length; cursor++) {
+			const id = pending[cursor]!;
 			if (expanded.has(id)) continue;
 			expanded.add(id);
 			const participant = participants.get(id)!;
@@ -127,10 +126,7 @@ export function discoverExactPlugins(
 						range: dependency.range,
 						required: declaration.required === true || dependency.kind !== 'optional',
 						parentId: participant.node.id,
-						path: Object.freeze([
-							...(parentPaths[0] ?? [rootName, packageName(participant.node)]),
-							childName
-						])
+						path: [...(parentPaths[0] ?? [rootName, packageName(participant.node)]), childName]
 					});
 			}
 		}
@@ -160,7 +156,7 @@ export function discoverExactPlugins(
 						`${packageName(participant.node)} configures ${plugin} ${declaration.version}, but selected ${selected.version}`
 					);
 				}
-				contributors.push(Object.freeze({ plugin, node: participant.node, declaration }));
+				contributors.push({ plugin, node: participant.node, declaration });
 			}
 		}
 	}
@@ -169,21 +165,19 @@ export function discoverExactPlugins(
 			left.plugin.localeCompare(right.plugin) ||
 			packageName(left.node).localeCompare(packageName(right.node))
 	);
-	return Object.freeze({
+	// The synchronous builder transfers its completed collections to the result.
+	return {
 		policy,
 		root,
-		participants: new Map(
-			[...participants].map(([id, participant]) => [id, freezeParticipant(participant)])
-		),
-		participantEdges: new Map([...edges].map(([id, values]) => [id, new Set(values)])),
+		participants,
+		participantEdges: edges,
 		plugins,
-		contributors: Object.freeze(contributors),
-		warnings: Object.freeze(
+		contributors: contributors,
+		warnings:
 			policy.mode === 'all'
 				? [
 						'pluginDiscovery.mode "all" executes explicitly forwarded third-party packages as trusted in-process code'
 					]
 				: []
-		)
-	});
+	};
 }

@@ -25,6 +25,9 @@ links to the compiler-owned source evidence behind it. See
 
 Immediate JSX children can be selected with `partitionChildren()` from `@exactjs/core/children`.
 `childrenOf()` and `withChildren()` compose intrinsic contents without copying away their bindings.
+Child partition results and inspected child arrays are detached ordinary data with TypeScript
+readonly views. Changes through writable aliases leave the source children intact. Nested array and selector-group
+normalization currently follows the host JavaScript call stack.
 See [child composition](child-composition.md) for matching and document-shell examples.
 
 Application TSX uses the automatic JSX runtime:
@@ -132,11 +135,10 @@ A computed expression captures reactive ownership where it is created, not
 where its lazy first read happens. Consequently, a reusable expression sampled
 during SSR remains live for a later hydration owner instead of being disposed
 with the completed server render.
-Readonly prop tracking traverses plain objects and collections. Array mutation methods such as
-`push`, `splice`, and `sort` throw before changing parent-owned data or invoking a comparator.
-Non-mutating reads and copies remain available; keep local mutable data in `this.state`.
-Opaque class
-instances retain their authored identity even when supplied by a reactive JSX
+Prop expressions track reads through plain objects and collections. Props remain parent-owned
+inputs, with writes governed by their TypeScript declarations. Mutable nested values and writable
+aliases retain ordinary TypeScript semantics. Keep local mutable data in `this.state`.
+Opaque class instances retain their authored identity even when supplied by a reactive JSX
 expression, so resource methods may mutate their own private state without
 being mistaken for writes to the parent-owned prop binding. Frozen,
 non-writable object properties likewise retain their exact authored values as
@@ -334,6 +336,28 @@ requires it to declare its own enhancement.
 
 ## State
 
+Server ref helpers retain the authored `RefKey<T>` value type through registry access, method
+extraction with its JavaScript receiver preserved, and explicitly selected root bindings.
+
+Readonly declarations follow ordinary TypeScript assignability. They restrict writes during type
+checking and do not freeze values or add runtime mutation checks. The restriction is shallow:
+`Readonly<{ items: number[] }>` prevents replacing `items` through that typed reference while
+allowing `items.push(1)`. Use `readonly number[]` to restrict array writes during type checking.
+Writable aliases remain writable. This applies to state, reactive views, component props, and
+public observation data. Explicit JavaScript property descriptors retain their own assignment
+constraints, including equal-value assignments to non-writable data fields. Synchronization through
+`updateReactive` retains matching fields and can merge mutable children without replacing their
+containing properties. A required write or deletion that JavaScript rejects throws and rolls back
+that synchronization. Assigning an array replaces its storage, including when its contents are equal or the previous
+array has a fixed native length. Reflected value changes, field membership, and enumeration remain reactive,
+including changes to a field’s enumerability. Gateway and Intl facades retain ordinary method properties. Publication
+receipts use readonly TypeScript fields without freezing the returned objects.
+A reflected assignment to a different plain receiver preserves its supplied value's identity.
+An unchanged target publishes no mutation, and a refused native write creates no inverse entry.
+DOM testing tree records and their child and element lists follow the same contract. Each inspection
+owns its list membership, so edits through a writable alias do not alter renderer ownership.
+Logical root ranges also expose ordinary objects and return a fresh node list on each observation.
+
 `this.state` is a deeply reactive, instance-owned object. Read it normally and
 mutate it normally:
 
@@ -343,6 +367,16 @@ this.state.profile.name = 'Grace';
 this.state.profile.tags.push('compiler');
 ```
 
+An assignment stores the supplied object or array after reactive proxy normalization, even when
+its fields equal the previous value. Retained aliases keep the old storage. Assigning the same
+underlying storage is quiet. Explicit nested writes such as `this.state.profile.name = 'Grace'`
+mutate the selected object. Assigning one object to two fields shares that object's storage.
+
+Transactions group publication and own rollback independently of assignment. Outside an explicit
+transaction, writes performed by a setter before it throws remain observable, as in JavaScript.
+An enclosing batch or optimistic journal can restore the reactive writes it owns, including the
+previous object references. External setter effects remain outside that rollback contract.
+
 Reads connect the current compiler-owned expression, task, list, or derived
 value to the path it consumes. Writes transition the existing component state machine rather than
 calling the component again to redescribe its interface.
@@ -350,8 +384,16 @@ calling the component again to redescribe its interface.
 State mutations retain ordinary destination types, readonly restrictions, method arguments,
 callback context and expression results. Custom collection-like methods keep their authored calls.
 Accessor assignments invoke setters even when the value is equal, without first reading a getter.
+Logical assignments read once and skip the RHS, setter, and performed-write evidence when the
+current value selects the skipping arm. The selected receiver survives an awaited RHS, even if
+another operation replaces its parent. Computed key expressions execute once in receiver order.
+Their values retain JavaScript's separate key conversions at each get, put, or delete operation,
+so a coercible key can select different properties for a compound read and write.
 Array methods invalidate indexed accessor reads conservatively because setters can change backing
 values without replacing their descriptors. Mutation tracking adds no getter evaluations.
+If a native array operation changes some slots before throwing, those changes remain
+observable and the original failure propagates. An optimistic journal can restore the
+still-owned changed slots.
 Reactive collection subclasses retain the native receiver needed by private members. Their public
 properties and native storage remain observable, while private fields and external effects are
 opaque to automatic rollback. The [compiler reference](native-compiler.md#related-defect-families-and-repair-boundaries)
@@ -442,6 +484,11 @@ return () => (
 Helpers may accept standard-library `ReadonlyMap`, `ReadonlySet`, or `ReadonlyArray` views.
 Aliases of these views and their mutable `Map`, `Set`, and `Array` counterparts preserve method placement.
 They constrain authored mutation, not client/server availability, and do not copy the collection.
+Primitive string, numeric, boolean, bigint, and symbol views also retain standard method placement
+through literal unions and indexed aliases. The selected method's declaration must still belong
+to the compiler's standard library. Application methods and mixed unproven receivers retain their
+own effect requirements.
+
 The selected standard method retains its execution placement when another declaration augments the
 interface. An application-added method needs its own proven execution contract. A familiar receiver
 name, or its printed array shape, does not provide that authority. Standard-library declarations
@@ -455,15 +502,27 @@ For native collection methods, `Map.set()` and `Set.add()` return the reactive c
 whether an entry existed, and `clear()` returns `undefined`, matching native
 JavaScript. Adding an existing Set value or setting a Map key to the same value
 does not notify consumers.
+Map value equality uses `Object.is()` after reactive unwrapping. A distinct replacement object
+is stored even when its fields match the previous value, including during task publication.
 
 Maps and Sets cross SSR, hydration, invocation, and continuation boundaries through
 tagged JSON envelopes and are reconstructed as real collections. Transported
+Ordinary records retain their JSON fields across transport, including a `$exact` field that matches
+a collection marker. The framework distinguishes those records from actual collections while
+encoding and decoding them. Application authors do not need to rename or reserve data fields.
+
 Map keys must be `null`, booleans, finite numbers, or strings; values and Set
 members may use any otherwise transport-safe eXact value. Local-only
 collections may still use object keys. A server continuation returns effective
 collection mutations as ordered key/value deltas rather than returning the
 whole collection. The browser validates every delta against the
 compiler-generated write contract before applying any of them.
+Collection envelopes require present own entries in their positional arrays, including Map
+key/value pairs and keyed-list keys, hashes, and items. Malformed envelopes are rejected
+before installing keyed metadata. Encoding nested reactive proxies uses their raw collection
+identity, preserving registered list keys even inside an ordinary object.
+Keyed item hashes follow raw storage identity through reactive aliases, including indexed state.
+Accepted mutations and inverse restoration invalidate cached hashes before values are published.
 The same collection encoding applies to whole-document state, compact resumptions,
 and independently hydrated islands, including nested Maps and Sets. Named function
 tasks and arrow tasks publish the same ordered collection effects. Hydration requires native
@@ -500,8 +559,8 @@ share one calculation, non-view work needs it, or an allocation must have one
 identity across its consumers.
 
 A derived selection retains an existing reactive proxy instead of exposing its raw object.
-Consumers therefore track fields and collection operations through the selection when compiler
-assignments reconcile data in place. Reactive references use identity equality: selecting a
+Consumers therefore track fields and collection operations through the selection. A replacement
+moves those subscriptions to the newly selected storage. Reactive references use identity equality: selecting a
 different proxy must move consumers to that reference even if its fields are structurally equal.
 Newly calculated plain values retain structural result equality. This preserves precise nested
 tracking without cloning selected objects or traversing their fields to detect mutations.
@@ -641,6 +700,14 @@ The compiler observes setup-call arguments and reactivates the task when those
 inputs change. The task API is the same for component-owned and externally
 created `ReactiveValue` instances.
 
+For a value owned by another store, `createExternalSource()` from `@exactjs/reactive` bridges
+snapshot reads and change subscriptions into a reactive value. Its equality policy decides which
+snapshots become current, and accepted snapshots retain their identity. An effect scope owns a
+source created within it. Otherwise, dispose the source explicitly when its consumer ends.
+Connection coalesces reentrant attempts and releases subscriptions when setup fails or the owner
+is disposed during setup. A failed explicit connection can be retried. `getServerSnapshot`
+supplies an inert server value until an explicit connection is requested.
+
 `batch(() => { ... })`, exported by `@exactjs/core`, may group multiple
 imperative writes into one reactive publication when an application operation
 needs an explicit transaction. Compiler-lowered derived destructuring already
@@ -706,6 +773,8 @@ const title = 'Compiler';
 return () => <article {title} />;
 // Equivalent to <article title={title} />.
 ```
+
+`data-exact-id` is reserved for compiler-generated physical element identity. This reservation also applies to native `_` and `_target` host contributions. Native JSX cannot author it directly or through a statically known spread property. Use `data-testid` or another custom data attribute for application labels. Unknown spread bags remain supported, but cannot replace the compiler-owned identity. Other `data-*` attributes retain their ordinary behavior.
 
 Prop order is preserved. `key` is framework identity and is not passed to a
 component as an ordinary prop. `children` is delivered through the component
@@ -939,15 +1008,17 @@ function Field(props: FieldProps) {
 ```
 
 The same form works when `Field` is invoked explicitly or selected as an enhancement. A component
-may wrap or otherwise compose its supplied child around `_target`. The legacy explicit-child form
-remains supported during the versioned routing migration; an empty explicit-child form is a
-compiler diagnostic. Nested target boundaries contribute independently to the same intrinsic.
+may wrap or otherwise compose its supplied child around a self-closing `_target`. Authored children
+on `_target` are a compiler diagnostic. Nested target boundaries contribute independently to the
+same intrinsic.
 Authored singular props take precedence, followed by the nearest contribution; `undefined` falls
 through and `null` explicitly suppresses a lower value. Classes and token-list attributes are
 deduplicated, styles merge per property, refs fan out, and event subscriptions preserve intrinsic
 then inner-to-outer ordering. Compiler-owned native-control bindings remain attached verbatim while
 target layers contribute presentation or behavior, so enhancing a bound input or select cannot
-interpose on its state publication. Reactive contributions update without changing the authored VNode.
+interpose on its state publication. Reactive contributions use the same value acquisition as intrinsic attributes and update without
+replacing the supplied node. Compiler-owned component-prop operands remain confined to component
+input acquisition.
 Updating contributions on the same target retains unchanged ref and event subscriptions. A ref is
 released when its source, target, or owner changes, or when its contribution is removed.
 Server compilation projects client-only refs and event handlers out of `_target` props just as it
@@ -963,7 +1034,9 @@ uses the fragment boundary directly. For a component declaration, each canonical
 identity selects its matching active `namespace:root` in that component's authored output frame.
 `_target` placement does not override those independent destinations. Duplicate active roots are
 errors. A marked nested component delegates selection through its own frame; an empty explicit
-selection stays dormant instead of falling back to an unrelated sibling.
+selection stays dormant instead of falling back to an unrelated sibling. These choices are
+preserved through SSR, hydration, and queued child placement, including a selected component
+that forwards its child through `_target`.
 
 Without an active explicit selector, selection follows the first root-bearing output path to its
 first intrinsic. Unmarked nested component implementations do not become explicit candidates in
@@ -975,6 +1048,9 @@ presentation when present, otherwise its first intrinsic or Text/range output. A
 does not inherit a nested component's `_target` preference. Element-specific consumers must narrow
 the observed value before calling Element APIs. A multi-node or explicit empty fragment has a stable
 range presentation with `kind: 'range'` and its current `nodes`; it is not an Element.
+The computed `nodes` observation returns a fresh list of the last accepted range's actual nodes.
+Editing that list changes only the local observation. It does not change renderer ownership or
+recollect a pending, unvalidated placement. The list is an ordinary mutable JavaScript array.
 
 The versioned contract uses ABI epoch 2; see [compiled artifacts](compiled-component-artifacts.md)
 and [release readiness](release-readiness.md) for provider compatibility. Target discovery does not
@@ -1046,7 +1122,8 @@ handler before it is attached preserves the replacement callable's event argumen
 State writes made by a native event handler are published as one reactive update group. If a later
 statement throws, writes already made remain observable, matching ordinary JavaScript event
 semantics. Wrap a region in `batch()` when that region specifically requires synchronous rollback
-on failure.
+on failure. Authored focus, blur, and selection changes also remain in effect. The renderer
+preserves focus around its own DOM updates.
 
 ### Classes
 
@@ -1125,14 +1202,14 @@ callback's first argument is a replacement value:
 This is exactly shorthand for a reactive `expanded` prop and an ordinary `onExpandedChanged`
 callback prop that assigns its first argument to `this.state.settingsExpanded`. Both sides of the
 colon are ordinary names from the child component's finite prop type. The parent retains ownership
-of the writable state location; the child receives an immutable value and a callback. The callback
+of the writable state location; the child receives a value and a callback. The callback
 must return only `void` or `undefined`. Additional callback arguments are allowed and ignored.
 
 Parentheses, type assertions, `satisfies`, and non-null assertions retain the selected state
 location. Computed targets such as `this.state.rows[this.state.selected].value` select the
 current member when a notification arrives.
 
-The parent remains the state owner and the child still receives immutable props. Write the two
+The parent remains the state owner and the child still receives parent-owned props. Write the two
 props explicitly when the callback must validate, refuse, transform, log, await, or return a
 meaningful result. Supplying either generated prop explicitly is a duplicate-prop error; the
 compiler never composes component callbacks.
@@ -1315,7 +1392,15 @@ fields follow root replacement and retained `Activity` ranges. `introduction`
 is `initial`, `hydration`, or `update` for the current generation and survives
 an exact release reversal. Pass an element-valued binding to
 `this.refs.root(binding)` when that ref, rather than the first intrinsic output,
-defines the component root. The binding must belong to the same component.
+defines the component root. The binding must belong to the same component. Framework-created bindings retain their original
+component ownership even if a writable alias changes their public owner observation. Authored
+composed bindings capture their declared owner on first root selection and can forward fulfillment to another owned binding.
+
+Root lifecycle views use native getters on the client. Release observations are ordinary copied
+objects with TypeScript readonly fields. Changing a writable alias does not change the private
+renderer generation record used for reversal and settlement. Ref registry methods are ordinary
+JavaScript properties, including on SSR facades. Compiled calls retain the facade method being
+called, while `readRef()` remains a separate component operation.
 
 Root observation may start after mounting: the first read exposes the current root,
 generation, introduction phase, and presentation state, then follows subsequent changes.
@@ -1424,8 +1509,13 @@ function Dialog(this: Component<{}>, props: { target: Element }) {
 }
 ```
 
-Context, events, lifecycle, unmounting, and `Activity` ownership follow the
-logical tree, not the physical DOM parent.
+Context, lifecycle, unmounting, and `Activity` ownership follow the logical tree.
+Event callbacks belong to that logical owner, while bubbling follows the native
+DOM path. Shared portal targets and nested renderer roots deliver each callback
+once per native dispatch. Removing the last portal owned by a root releases that
+root's delegated listeners on a foreign target. Other roots sharing the target
+keep their listeners. A failed target placement releases prepared children and
+listeners before reporting the failure.
 
 ### Unsafe HTML
 
@@ -1744,6 +1834,11 @@ it. Only the process-global fallback context is framework-bounded: it keeps the 
 so an unattached failure path cannot retain an unlimited process history. Attaching or detaching
 inspection does not replay or retain reports outside the owning context.
 
+When the mounted root itself fails during construction, its DOM renderer retains the report in
+that root's error context and calls the configured `onErrorReport` callback. A parent component's
+nearest error context continues to own descendant construction failures. Rendering a handled
+error does not require the public render call to throw.
+
 `Suspense` waits for descendant blocking task generations:
 
 ```tsx
@@ -1896,6 +1991,8 @@ not extend across an `await`; asynchronous resources should use the lifecycle si
 Canonical mount, activate, and deactivate handlers belong to client activation and are not
 evaluated by the server artifact. `onRender`, `onUnmount`, and `own` retain server semantics where
 SSR rendering or request cleanup can exercise them.
+Unmount attempts the remaining owned cleanup after a failure and retains the first thrown value,
+including `null` or `undefined`.
 Final cleanup can read derived props, including callback props used only by an unmount handler.
 Disposal freezes values that have already been evaluated. A derived value that was never read
 remains lazy and resolves once on its first cleanup read without restoring reactive subscriptions.
@@ -1984,10 +2081,19 @@ Core annotations are:
 | `@exact keep=server`                      | retains the annotated value on the server                                    |
 | `@exact keep=secret`                      | marks the value and its derivations secret and server-only                   |
 | `@exact pure`                             | declares an otherwise opaque callable deterministic and effect-free          |
+| `@exact ignore=EXACT2004`                 | acknowledges one compiler advisory on its local definition                   |
 | `@exact state-view`                       | acknowledges pending input identity and invocation lifetime limits           |
 | `@exact cleanup` or `@exact cleanup=name` | identifies an opaque cleanup/disposal method, optionally by name             |
 | `@exact own`                              | declares that the receiving scope owns an opaque returned resource           |
 | `@exact track`                            | identifies a callback parameter whose reactive reads must be tracked         |
+
+To acknowledge a compiler advisory, place `/** @exact ignore=EXACT2004 */` immediately before its
+function declaration or the variable declaration owning its arrow/function expression. A single
+quoted code, such as `ignore="EXACT2004"`, is also accepted. The complete comment value must be one
+`EXACT` code followed by digits. Missing values, wildcards, lists, and trailing value text are errors.
+A well-formed unknown code has no effect. Parent, body, sibling, or invocation comments do not
+acknowledge a different definition. The directive never hides errors, TypeScript diagnostics, or
+language-provider contributions and never changes compiler proof or emitted behavior.
 
 Placement and data-policy annotations are checked against known effects. A client declaration
 cannot make a server-only import browser-safe, `@exact shared` cannot release a
@@ -2026,7 +2132,7 @@ Changing shared objects, writing component state, and sending requests belong in
 interaction handlers. Moving such work into `this.reactive()` does not make it effect-free.
 Purity also does not authorize an operation to run in the browser or to transport private data.
 
-Ordinary helpers are executed unchanged. Pending client task inputs may be state views with a
+Client pending tasks execute ordinary helper implementations unchanged. Their inputs may be state views with a
 different identity from their original storage. `EXACT2231` warns when analysis identifies a helper
 comparing or returning a closure that captures such an input. Prefer `sameStateTarget()` for explicit
 storage identity and pass new inputs when a later task invokes a callback. A preceding

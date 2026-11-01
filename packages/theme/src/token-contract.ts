@@ -1,3 +1,4 @@
+import { copyThemeData } from './observations.js';
 import type {
 	ThemeColorTokenName,
 	ThemeDimensionTokenName,
@@ -103,9 +104,12 @@ for (const [name, kind, minimum, maximum] of names()) {
 	}) as ThemeTokenDescriptor;
 }
 
-/** Machine-readable exact-theme/1 CSS custom-property contract. */
-export const exactThemeContract = Object.freeze({
+/** Authoritative token validation descriptors, independent of public observations. */
+export const exactThemeTokenDescriptors = descriptors;
+
+/** Machine-readable exact-theme/1 CSS custom-property observations. */
+export const exactThemeContract = {
 	version: 'exact-theme/1' as const,
 	prefix: '--exact-theme-' as const,
-	tokens: Object.freeze(descriptors)
-});
+	tokens: copyThemeData(descriptors)
+};

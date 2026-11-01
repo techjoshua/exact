@@ -7,6 +7,22 @@ and secrecy as related but independent properties. Compiler analysis and
 runtime validation enforce the boundary; application code should not reproduce
 it with local serialization or bundler workarounds.
 
+Request byte caps are application-owned. Set `limits.maxRequestBytes` to reject bodies above
+the chosen byte count during streaming reads and before dispatch. Without a configured cap,
+bodies over 4 MiB emit one `request-size` warning and continue. This applies to decoded bodies,
+text, bytes, streamed requests, and raw gateway forwarding. Client requests use the same warning
+policy before sending single or batched envelopes. Set client `streamLimits.maxRequestBytes`
+to enforce a cap before transport. JSON shape validation and separately
+configured incoming graph and batch limits retain their own contracts.
+
+Continuation output uses warning thresholds when resource settings are omitted.
+Positive safe-integer response caps fail with an error and stop output. Server logs
+identify the setting, scope, units, threshold, and measured amount. Each owner logs
+once per setting. Client-only caps report through the client logger. Graph validity,
+dispatch and state authority, and cancellation remain mandatory. See the
+[production limits reference](native-ssr-production-guide.md#limits) for settings,
+measurement units, snapshot thresholds, and stream totals.
+
 ## Context lifetimes
 
 `createContext()` may declare component, request, or application scope.
@@ -31,20 +47,39 @@ The portable `RequestContext` exposes normalized URL, method, headers, abort
 signal, response status/headers, and redirect control. Adapters establish it
 before instantiating the root component state machine.
 
+Request context views preserve inherited and nonenumerable server configuration. Request-owned
+overrides remain local even when the supplied configuration is frozen. If capturing configuration
+fails after a request scope opens, the framework closes that scope and preserves the original
+failure even when cleanup also throws.
+
 Plain supplied context values remain externally owned. Closing a scope with no
 factory-owned values skips dependency traversal, but still closes its lifetime
 and clears its resolved-value lookup. Factory
 initialization remains eager and deterministic; owned resources retain dependency
 ordering, cancellation, and reverse-order cleanup. This optimization does not
-change context residency or the compiled-component ABI.
+change context residency or the compiled-component ABI. Disposal failures remain failures for
+all thrown values, including `undefined`. When stream cancellation and scope cleanup both fail,
+the cancellation failure remains primary and scope cleanup still completes. Request initialization,
+request-body reads, and retained or produced response bodies preserve the signal's exact abort reason, including null,
+while canceling owned work and releasing request resources. A produced body forwards the same reason
+to its producer, blocked writes, and retained scope cleanup. Express response drain waits preserve
+that reason too. Batch cancellation prevents dependent operations from starting and retains
+the same reason. Canceling task-progress output before its queued producer starts prevents
+that producer from running after resource disposal. Already-started factory work
+remains observed if its factory cancels the request before returning a promise, so a late
+rejection does not escape as an unhandled failure.
 
 The application may configure a trusted `publicOrigin` on its server context.
 eXact combines that origin with the incoming path and query, but never infers
-public authority from `Host` or `X-Forwarded-Proto`. A resolver may consult the
+public authority from `Host` or `X-Forwarded-Proto`. Leading double slashes in the
+parsed pathname remain path data and cannot replace that origin. A resolver may consult the
 adapter-owned platform request for multi-tenant or trusted-proxy deployments;
 that resolver is an explicit deployment trust boundary and must validate any
 host it accepts. Without a configured origin, request URLs use the reserved
-`http://exact.invalid` authority and relative redirects remain relative.
+`http://exact.invalid` authority and relative redirects remain relative. `RequestContext.redirect()`
+validates its status, URL and Location header before publishing response controls. A rejected
+redirect leaves the previous status, redirect and headers unchanged, allowing the caller to
+recover with a valid redirect before response commitment.
 
 ## Supplying caller information to continuations
 
@@ -142,6 +177,24 @@ server-rendered HTML but cannot be captured in client code or returned through
 framework-controlled state, hydration, invocation, refresh, or patch payloads.
 
 ## Secrets
+
+Secret provider handles and returned name dictionaries retain ordinary TypeScript readonly
+semantics without runtime freezing. Environment-file identifiers are retained exactly, including
+names shared with JavaScript object properties. Resolver initialization captures its source signal
+when queued and captures application metadata before provider loading. Each provider receives its
+own context object. Caller aliases cannot redirect an in-flight initialization's cancellation or
+leave its original signal subscribed after completion. Environment-file loads likewise retain their
+original signal and abort reason. Generation fencing and server-only secret qualification remain
+independent of these ordinary public values.
+
+Secret resolver initialization shares pending provider work and publishes values only after all
+providers and required-name checks succeed. A failed attempt leaves no partial snapshot. Disposal
+clears values, cancels pending provider work, and prevents late results from republishing them.
+A later initialization starts a new isolated generation. Custom providers should observe their
+context's signal, which combines startup cancellation with resolver disposal. Empty strings remain
+configured values. Applications enforce credential-specific non-empty requirements themselves.
+Environment-file loading honors startup cancellation through the filesystem API. File providers
+require filesystem access. Hosts with secret bindings or a secret service can supply a custom provider.
 
 `@exactjs/secrets` supplies providers, references, runtime resolution, the
 `Secret<T>` qualification, and explicit `consume()` boundaries. Core compiler

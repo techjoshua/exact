@@ -19,7 +19,7 @@ export interface ExactDevtoolsAgentConnection extends ExactInspectionQueryServic
 	disconnect(): Promise<void>;
 }
 
-/** Attaches to one existing Chromium target and connects to its eXact page hook. */
+/** Attaches to one Chromium target, validates its page session, and releases partial setup on failure. */
 export async function connectExactDevtoolsAgent(
 	options: ExactCdpConnectionOptions
 ): Promise<ExactDevtoolsAgentConnection> {
@@ -30,7 +30,7 @@ export async function connectExactDevtoolsAgent(
 		hook = await evaluateHook(cdp);
 		await cdp.request('Runtime.addBinding', { name: bindingName });
 	} catch (error) {
-		await cdp.close().catch(() => undefined);
+		await releaseCdpResources(cdp).catch(() => undefined);
 		throw error;
 	}
 	const eventListeners = new Map<
@@ -40,46 +40,54 @@ export async function connectExactDevtoolsAgent(
 			sequences: Map<string, number>;
 		}>
 	>();
-	const removeEventListener = cdp.onEvent((method, params) => {
-		if (method !== 'Runtime.bindingCalled' || !bindingPayload(params)) return;
-		if (params.name !== bindingName) return;
-		try {
-			const message = JSON.parse(params.payload) as {
-				subscriptionId?: unknown;
-				event?: ExactRuntimeInspectionEvent;
-			};
-			if (
-				typeof message.subscriptionId !== 'string' ||
-				!isExactRuntimeInspectionEvent(message.event) ||
-				message.event.id.sessionId !== connectedSessionId
-			)
-				return;
-			const subscription = eventListeners.get(message.subscriptionId);
-			if (!subscription) return;
-			const host = JSON.stringify([
-				message.event.id.side,
-				message.event.id.binding ?? '',
-				message.event.id.buildKey,
-				message.event.id.executionRoot
-			]);
-			if (message.event.sequence <= (subscription.sequences.get(host) ?? 0)) return;
-			subscription.sequences.delete(host);
-			subscription.sequences.set(host, message.event.sequence);
-			while (subscription.sequences.size > maximumSubscriptionHosts)
-				subscription.sequences.delete(subscription.sequences.keys().next().value!);
-			subscription.listener(message.event);
-		} catch {
-			// Malformed page messages are ignored and never reflected into CDP evaluation.
-		}
-	});
+	let removeEventListener = () => {};
 	let connected: { id: string };
 	try {
-		connected = await callHook<{ id: string }>(cdp, hook, connectFunction);
+		removeEventListener = cdp.onEvent((method, params) => {
+			if (method !== 'Runtime.bindingCalled' || !bindingPayload(params)) return;
+			if (params.name !== bindingName) return;
+			try {
+				const message = JSON.parse(params.payload) as {
+					subscriptionId?: unknown;
+					event?: ExactRuntimeInspectionEvent;
+				};
+				if (
+					typeof message.subscriptionId !== 'string' ||
+					!isExactRuntimeInspectionEvent(message.event) ||
+					message.event.id.sessionId !== connectedSessionId
+				)
+					return;
+				const subscription = eventListeners.get(message.subscriptionId);
+				if (!subscription) return;
+				const host = JSON.stringify([
+					message.event.id.side,
+					message.event.id.binding ?? '',
+					message.event.id.buildKey,
+					message.event.id.executionRoot
+				]);
+				if (message.event.sequence <= (subscription.sequences.get(host) ?? 0)) return;
+				subscription.sequences.delete(host);
+				subscription.sequences.set(host, message.event.sequence);
+				while (subscription.sequences.size > maximumSubscriptionHosts)
+					subscription.sequences.delete(subscription.sequences.keys().next().value!);
+				subscription.listener(message.event);
+			} catch {
+				// Malformed page messages are ignored and never reflected into CDP evaluation.
+			}
+		});
+		const value = await callHook<unknown>(cdp, hook, connectFunction);
+		if (
+			!value ||
+			typeof value !== 'object' ||
+			Array.isArray(value) ||
+			!('id' in value) ||
+			typeof value.id !== 'string' ||
+			!value.id
+		)
+			throw new Error('The Chromium target returned an invalid eXact DevTools session');
+		connected = { id: value.id };
 	} catch (error) {
-		removeEventListener();
-		await cdp.request('Runtime.removeBinding', { name: bindingName }).catch(() => undefined);
-		await cdp.request('Runtime.releaseObjectGroup', { objectGroup }).catch(() => undefined);
-		await cdp.close().catch(() => undefined);
+		await releaseCdpResources(cdp, removeEventListener).catch(() => undefined);
 		throw error;
 	}
 	const connectedSessionId = connected.id;
@@ -110,7 +118,7 @@ export async function connectExactDevtoolsAgent(
 				eventListeners.delete(subscriptionId);
 				closed = true;
 			});
-			const handle: ExactInspectionSubscriptionHandle = Object.freeze({
+			const handle: ExactInspectionSubscriptionHandle = {
 				get closed() {
 					return closed;
 				},
@@ -121,7 +129,7 @@ export async function connectExactDevtoolsAgent(
 					subscriptions.delete(subscriptionId);
 					void callHook(cdp, hook, unsubscribeFunction, [subscriptionId]).catch(() => undefined);
 				}
-			});
+			};
 			subscriptions.set(subscriptionId, handle);
 			return handle;
 		},
@@ -131,14 +139,40 @@ export async function connectExactDevtoolsAgent(
 			for (const subscription of subscriptions.values()) subscription.close();
 			subscriptions.clear();
 			eventListeners.clear();
-			removeEventListener();
 			await callHook(cdp, hook, disconnectFunction).catch(() => undefined);
-			await cdp.request('Runtime.removeBinding', { name: bindingName }).catch(() => undefined);
-			await cdp.request('Runtime.releaseObjectGroup', { objectGroup }).catch(() => undefined);
-			await cdp.close();
+			await releaseCdpResources(cdp, removeEventListener);
 		}
 	};
-	return Object.freeze(connection);
+	return connection;
+}
+
+/** Releases partially or fully acquired page resources before closing their owning transport. */
+async function releaseCdpResources(
+	cdp: ExactCdpTransport,
+	unsubscribe?: () => void
+): Promise<void> {
+	let failure: { error: unknown } | undefined;
+	try {
+		unsubscribe?.();
+	} catch (error) {
+		failure = { error };
+	}
+	for (const [method, params] of [
+		['Runtime.removeBinding', { name: bindingName }],
+		['Runtime.releaseObjectGroup', { objectGroup }]
+	] as const) {
+		try {
+			await cdp.request(method, params);
+		} catch {
+			/* Cleanup commands may fail when their resource was never acquired. */
+		}
+	}
+	try {
+		await cdp.close();
+	} catch (error) {
+		failure ??= { error };
+	}
+	if (failure) throw failure.error;
 }
 
 async function evaluateHook(cdp: ExactCdpTransport): Promise<string> {
@@ -211,5 +245,5 @@ function bindingPayload(params: unknown): params is { name: string; payload: str
 }
 
 function closedSubscription(): ExactInspectionSubscriptionHandle {
-	return Object.freeze({ closed: true, close() {} });
+	return { closed: true, close() {} };
 }

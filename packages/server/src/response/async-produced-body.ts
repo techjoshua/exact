@@ -1,3 +1,4 @@
+import { ProducedResponseScope } from './produced-scope.js';
 import { attachSuppressedCleanupFailure } from '@exactjs/core';
 import type {
 	ExactAsyncProducedResponseBody,
@@ -19,10 +20,6 @@ export class AsyncProducedResponseBody implements ExactAsyncProducedResponseBody
 	readonly kind = 'asynchronous';
 	private produce: ExactAsyncResponseBodyProducer | undefined;
 	private readonly controller = new AbortController();
-	private release: ExactResponseBodyScopeRelease | undefined;
-	private requestSignal: AbortSignal | undefined;
-	private abort: (() => void) | undefined;
-	private completion: Promise<void> | undefined;
 	private production: Promise<void> | undefined;
 	private starting = false;
 
@@ -31,29 +28,22 @@ export class AsyncProducedResponseBody implements ExactAsyncProducedResponseBody
 		return this.controller.signal;
 	}
 
+	private scope: ProducedResponseScope | undefined;
+
 	constructor(produce: ExactAsyncResponseBodyProducer) {
 		this.produce = produce;
 	}
 
 	/** Retains request-owned resources until consumption, cancellation, or failure completes. */
 	retainRequestScope(release: ExactResponseBodyScopeRelease, signal?: AbortSignal): void {
-		if (this.release) throw new TypeError('eXact response body already owns a request scope');
 		if (!this.produce)
 			throw new TypeError('Retain the request scope before claiming the response body');
-		this.release = release;
-		this.requestSignal = signal;
-		this.abort = () => {
-			const reason =
-				signal?.reason ?? new DOMException('eXact response body aborted', 'AbortError');
-			void this.cancel(reason).catch((cleanup) => attachSuppressedCleanupFailure(reason, cleanup));
-		};
-		if (signal?.aborted) this.abort();
-		else signal?.addEventListener('abort', this.abort, { once: true });
+		(this.scope ??= new ProducedResponseScope()).retain(release, signal, this);
 	}
 
 	/** Produces ordered string spans into an asynchronous transport writer exactly once. */
 	writeTo(write: ExactResponseBodyWriter): Promise<void> {
-		if (this.release) return this.writeScoped(write);
+		if (this.scope) return this.writeScoped(write);
 		try {
 			const produce = this.claim();
 			this.starting = true;
@@ -81,10 +71,12 @@ export class AsyncProducedResponseBody implements ExactAsyncProducedResponseBody
 			throw error;
 		} finally {
 			this.starting = false;
-			const completion = this.finish(
+			const completion = this.scope?.finish(
 				failure
 					? failure.error
-					: (this.controller.signal.reason ?? 'eXact produced response complete'),
+					: this.controller.signal.aborted
+						? this.controller.signal.reason
+						: 'eXact produced response complete',
 				failure
 			);
 			if (completion) await completion;
@@ -125,10 +117,9 @@ export class AsyncProducedResponseBody implements ExactAsyncProducedResponseBody
 					started = true;
 					const writeBytes = (bytes: Uint8Array): void | Promise<void> => {
 						if (closed || this.controller.signal.aborted)
-							throw (
-								this.controller.signal.reason ??
-								new DOMException('eXact response body aborted', 'AbortError')
-							);
+							throw this.controller.signal.aborted
+								? this.controller.signal.reason
+								: new DOMException('eXact response body aborted', 'AbortError');
 						if (demand > 0 || (streamController!.desiredSize ?? 0) > 0) {
 							if (demand > 0) demand--;
 							streamController!.enqueue(bytes);
@@ -155,7 +146,7 @@ export class AsyncProducedResponseBody implements ExactAsyncProducedResponseBody
 							const tail = encoder.finish();
 							if (tail.length) await writeBytes(tail);
 							if (closed) return;
-							const completion = this.finish('eXact produced response stream complete');
+							const completion = this.scope?.finish('eXact produced response stream complete');
 							if (completion) await completion;
 							closed = true;
 							streamController!.close();
@@ -164,7 +155,7 @@ export class AsyncProducedResponseBody implements ExactAsyncProducedResponseBody
 							if (closed) return;
 							closed = true;
 							try {
-								await this.finish(error, { error });
+								await this.scope?.finish(error, { error });
 							} catch (cleanup) {
 								attachSuppressedCleanupFailure(error, cleanup);
 							}
@@ -191,7 +182,7 @@ export class AsyncProducedResponseBody implements ExactAsyncProducedResponseBody
 		// that call has returned before releasing resources it may still be using while unwinding.
 		if (this.starting) await Promise.resolve();
 		await this.production?.catch(() => undefined);
-		await this.finish(reason ?? 'eXact produced response cancelled');
+		await this.scope?.finish(reason === undefined ? 'eXact produced response cancelled' : reason);
 	}
 
 	private claim(): ExactAsyncResponseBodyProducer {
@@ -199,23 +190,5 @@ export class AsyncProducedResponseBody implements ExactAsyncProducedResponseBody
 		const produce = this.produce;
 		this.produce = undefined;
 		return produce;
-	}
-
-	private finish(reason: unknown, failure?: { error: unknown }): Promise<void> | undefined {
-		if (this.completion) return this.completion;
-		const release = this.release;
-		this.release = undefined;
-		if (this.abort) this.requestSignal?.removeEventListener('abort', this.abort);
-		this.abort = undefined;
-		this.requestSignal = undefined;
-		if (!release) return undefined;
-		this.completion = release(reason).catch((cleanup) => {
-			if (failure) {
-				attachSuppressedCleanupFailure(failure.error, cleanup);
-				return;
-			}
-			throw cleanup;
-		});
-		return this.completion;
 	}
 }

@@ -1,6 +1,18 @@
 import type { HistoryAction, LocationSource, RouterMode } from './contracts.js';
 import { createKey, toUrl } from './locations.js';
 
+/** Rejects lossy or nonfinite history steps before a source can mutate its retained location. */
+export function assertHistoryDelta(delta: number): void {
+	if (!Number.isSafeInteger(delta)) throw new RangeError('History delta must be a safe integer');
+}
+
+/** Validates controller history navigation before forwarding a step to a supported source. */
+export function navigateHistory(source: LocationSource, delta: number): void {
+	assertHistoryDelta(delta);
+	if (!source.go) throw new Error('This router location source does not support delta navigation');
+	source.go(delta);
+}
+
 /** Creates an in-memory history source with deterministic entry ownership. */
 export function createMemoryLocationSource(
 	initial: string | URL | readonly (string | URL)[] = 'http://exact.local/',
@@ -10,7 +22,7 @@ export function createMemoryLocationSource(
 	if (!initialEntries.length) throw new Error('Memory location source requires at least one entry');
 	const entries: URL[] = initialEntries.map((value) => toUrl(value));
 	let index = initialIndex ?? entries.length - 1;
-	if (index < 0 || index >= entries.length)
+	if (!Number.isInteger(index) || index < 0 || index >= entries.length)
 		throw new RangeError('Memory location source initialIndex is outside its entries');
 	let action: HistoryAction = 'POP';
 	const states: unknown[] = entries.map(() => undefined);
@@ -41,6 +53,7 @@ export function createMemoryLocationSource(
 			notify();
 		},
 		go(delta) {
+			assertHistoryDelta(delta);
 			const next = Math.min(entries.length - 1, Math.max(0, index + delta));
 			if (next === index) return;
 			action = 'POP';
@@ -86,6 +99,7 @@ export function createBrowserLocationSource(
 			} else window.history.replaceState(next, '', url);
 		},
 		go(delta) {
+			assertHistoryDelta(delta);
 			window.history.go(delta);
 		},
 		subscribe(listener) {

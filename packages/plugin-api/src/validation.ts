@@ -31,19 +31,19 @@ export function assertPublicPackageSubpath(value: string, label: string): void {
 	}
 }
 
-/** Reads a selectors from its source representation. */
+/** Captures and validates package selectors, returning an ordinary array. Omission returns an empty array. */
 export function readSelectors(value: unknown, label: string): readonly string[] {
-	if (value === undefined) return Object.freeze([]);
+	if (value === undefined) return [];
 	if (!Array.isArray(value)) throw new Error(`${label} must be an array`);
 	const seen = new Set<string>();
-	const result = value.map((raw, index) => {
+	const result = Array.from(value, (raw, index) => {
 		const selector = requiredString(raw, `${label}[${index}]`);
 		assertPackageSelector(selector, `${label}[${index}]`);
 		if (seen.has(selector)) throw new Error(`${label} contains duplicate selector ${selector}`);
 		seen.add(selector);
 		return selector;
 	});
-	return Object.freeze(result);
+	return result;
 }
 
 /** Reports whether package selectors. */

@@ -1,3 +1,11 @@
+import { componentContractVersionMismatch } from './component-abi/input-errors.js';
+import type { ArrayClientBinding } from '@exactjs/reactive/framework/array-patch';
+import type { ExactContinuationStatePathContract } from './component-contract/state-path.js';
+export type {
+	ExactContinuationStatePathContract,
+	ExactArrayRootProof
+} from './component-contract/state-path.js';
+import type { ArrayNetMutation, ArrayServerBinding } from '@exactjs/reactive/framework/array-patch';
 import { exactComponentContract, exactComponentType } from './component-contract/symbols.js';
 import { componentContractVersion } from './component/contract-versions.js';
 import type { ContextToken } from './component/contracts.js';
@@ -5,6 +13,7 @@ import type { TaskContext } from './tasks/contracts.js';
 import { validatedComponentContract } from './component-contract/contract-cache.js';
 import {
 	addUniqueExecutor,
+	addUniqueArrayClientBinding,
 	addUniqueImplementation,
 	addUniqueJson
 } from './component-contract/composition-support.js';
@@ -28,6 +37,8 @@ export {
 	type ExactValueSerializationSchema
 } from './component-abi/value-serialization.js';
 
+export { addUniqueArrayClientBinding } from './component-contract/composition-support.js';
+
 export { exactComponentContract, exactComponentType } from './component-contract/symbols.js';
 
 /** One executable implementation owned by a compiled component artifact. */
@@ -38,16 +49,9 @@ export type ExactComponentImplementationContract = Readonly<{
 	implementation: AnyExactComponentCallable;
 }>;
 
-/** Runtime-neutral state path used by a generated continuation contract. */
-export type ExactContinuationStatePathContract = Readonly<{
-	path: string;
-	kind: 'read' | 'write';
-	confidence: 'exact' | 'broad' | 'unknown';
-	operation?: 'value' | 'map' | 'set';
-}>;
-
-/** One ordered Map or Set mutation returned by a server continuation. */
+/** One authorized collection completion or ordered Map/Set mutation. */
 export type ExactCollectionMutation =
+	| ArrayNetMutation
 	| Readonly<{ path: string; operation: 'map-set'; key: unknown; value: unknown }>
 	| Readonly<{ path: string; operation: 'map-delete'; key: unknown }>
 	| Readonly<{ path: string; operation: 'map-clear' }>
@@ -110,6 +114,7 @@ export type ExactComponentContinuationExecutionResult = Readonly<{
 export type ExactComponentContinuationExecutorContract = Readonly<{
 	id: string;
 	componentId: string;
+	array?: ArrayServerBinding;
 	execute(
 		activation: ExactComponentContinuationActivation,
 		execution: ExactComponentContinuationExecution
@@ -223,6 +228,8 @@ export type ExactComposedComponentContracts = Readonly<{
 	implementations: Record<string, AnyExactComponentCallable>;
 	implementationsById: Record<string, AnyExactComponentCallable>;
 	continuations: Record<string, ExactComponentContinuationContract>;
+	/** Admitted generated client capability for each proof-bearing continuation. */
+	continuationArrays: Record<string, ArrayClientBinding>;
 	executors: Record<string, ExactComponentContinuationExecutorContract>;
 	boundaries: Record<string, ExactComponentBoundaryContract>;
 	resumptions: Record<string, ExactComponentResumptionContract>;
@@ -287,10 +294,9 @@ export function readPreparedExactComponentContract(
 	component: AnyExactComponentCallable
 ): ExactPreparedComponentContract | undefined {
 	const contract = (component as ContractComponent)[exactComponentContract];
-	if (contract && contract.artifact?.version !== componentContractVersion)
-		throw new TypeError(
-			`Unsupported eXact component artifact version ${contract.artifact?.version}; expected ${componentContractVersion}. Recompile with the matching eXact compiler.`
-		);
+	const version = contract?.artifact?.version;
+	if (contract && version !== componentContractVersion)
+		throw componentContractVersionMismatch(version, componentContractVersion);
 	return contract;
 }
 
@@ -358,6 +364,7 @@ function composeComponentContracts(
 	const implementations: Record<string, AnyExactComponentCallable> = {};
 	const implementationsById: Record<string, AnyExactComponentCallable> = {};
 	const continuations: Record<string, ExactComponentContinuationContract> = {};
+	const continuationArrays: Record<string, ArrayClientBinding> = {};
 	const executors: Record<string, ExactComponentContinuationExecutorContract> = {};
 	const boundaries: Record<string, ExactComponentBoundaryContract> = {};
 	const resumptions: Record<string, ExactComponentResumptionContract> = {};
@@ -390,8 +397,15 @@ function composeComponentContracts(
 			);
 			addUniqueImplementation(implementations, implementation.name, implementation.implementation);
 		}
-		for (const continuation of contract.continuations ?? [])
+		for (const continuation of contract.continuations ?? []) {
 			addUniqueJson(continuations, continuation.id, continuation, 'continuation');
+			if (
+				contract.artifact.target === 'client' &&
+				contract.artifact.array &&
+				continuation.stateWrites.some((write) => write.arrayRoots?.length)
+			)
+				addUniqueArrayClientBinding(continuationArrays, continuation.id, contract.artifact.array);
+		}
 		for (const executor of contract.executors ?? []) addUniqueExecutor(executors, executor);
 		for (const boundary of contract.boundaries ?? [])
 			addUniqueJson(boundaries, boundary.id, boundary, 'boundary');
@@ -411,6 +425,7 @@ function composeComponentContracts(
 		implementations,
 		implementationsById,
 		continuations,
+		continuationArrays,
 		executors,
 		boundaries,
 		resumptions,

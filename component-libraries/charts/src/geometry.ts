@@ -44,12 +44,12 @@ export function resolveGeometryDomain(
 	);
 	if (type === 'stacked-bar') values = stackedExtents(series, presentation);
 	if (chartTypeUsesZeroBaseline(type)) values.push(0);
-	return Object.freeze({
+	return {
 		xKind: continuous ? 'continuous' : 'category',
 		x: extent(xValues, [0, Math.max(1, categories.length - 1)]),
 		y: paddedExtent(values),
-		categories: Object.freeze(categories)
-	});
+		categories: categories
+	};
 }
 
 function stackedExtents(
@@ -103,7 +103,7 @@ export function positionSeries(
 		});
 		move = false;
 	}
-	return Object.freeze(points);
+	return points;
 }
 
 /** Emits one finite SVG line path without parsing or retaining rendered nodes. */
@@ -131,15 +131,22 @@ function extent(
 	fallback: readonly [number, number]
 ): readonly [number, number] {
 	if (!values.length) return fallback;
-	const low = Math.min(...values);
-	const high = Math.max(...values);
-	return low === high ? [low - 1, high + 1] : [low, high];
+	let low = Infinity;
+	let high = -Infinity;
+	for (const value of values) {
+		if (!Number.isFinite(value)) throw new TypeError('Chart geometry values must be finite');
+		low = Math.min(low, value);
+		high = Math.max(high, value);
+	}
+	if (low !== high) return [low, high];
+	const delta = Math.max(1, Math.abs(low) * Number.EPSILON);
+	return [Math.max(-Number.MAX_VALUE, low - delta), Math.min(Number.MAX_VALUE, high + delta)];
 }
 
 function paddedExtent(values: readonly number[]): readonly [number, number] {
 	const [low, high] = extent(values, [0, 1]);
-	const padding = Math.max((high - low) * 0.05, Number.EPSILON);
-	return [low - padding, high + padding];
+	const padding = Math.max(high * 0.05 - low * 0.05, Number.MIN_VALUE);
+	return [Math.max(-Number.MAX_VALUE, low - padding), Math.min(Number.MAX_VALUE, high + padding)];
 }
 
 function round(value: number): number {

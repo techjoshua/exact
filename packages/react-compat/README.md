@@ -27,6 +27,8 @@ Use `ReactHost` or `adaptReactComponent()` from `@exactjs/react-compat/exact` fo
 integration outside compiled JSX. Both names select the package's fixed precompiled client island;
 they do not create an adapter component for each React value. Native children crossing React
 ownership remain opaque compiled contributions rather than React-readable native VNodes.
+Callback refs may return cleanup functions. Host elements, class instances, and imperative handles
+retain one cleanup per attachment and release it once.
 
 See [React compatibility](https://github.com/techjoshua/exact/blob/main/docs/react-compatibility.md).
 

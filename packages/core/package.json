@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/core",
-	"version": "0.7.1",
+	"version": "0.8.0",
 	"type": "module",
 	"files": [
 		"AGENTS.md",
@@ -289,6 +289,16 @@
 			"types": "./dist/localization.d.ts",
 			"browser": "./dist/client/localization.js",
 			"default": "./dist/server/localization.js"
+		},
+		"./framework/ref-bindings": {
+			"types": "./dist/framework/ref-bindings.d.ts",
+			"browser": "./dist/client/framework/ref-bindings.js",
+			"default": "./dist/server/framework/ref-bindings.js"
+		},
+		"./framework/configuration": {
+			"types": "./dist/framework/configuration.d.ts",
+			"browser": "./dist/client/framework/configuration.js",
+			"default": "./dist/server/framework/configuration.js"
 		}
 	},
 	"main": "./dist/index.js",
@@ -318,8 +328,8 @@
 		"ErrorBoundary"
 	],
 	"dependencies": {
-		"@exactjs/devtools-protocol": "^0.7.0",
-		"@exactjs/reactive": "^0.7.1"
+		"@exactjs/devtools-protocol": "^0.8.0",
+		"@exactjs/reactive": "^0.8.0"
 	},
 	"scripts": {
 		"build": "tsc -b",

@@ -27,16 +27,16 @@ export function taskEntity(
 ): ExactSourceEntity {
 	const classification = taskClassification(task, region, source, bindings);
 	const reasons = includeReasons ? taskReasons(task, region.range) : [];
-	return Object.freeze({
+	return {
 		id: task?.id ?? id,
 		kind: region.origin === 'explicit' ? 'explicit-task' : 'inferred-task',
 		name: region.origin === 'explicit' ? 'Task with authored policy' : 'Inferred task',
 		range: region.range,
 		selectionRange: region.selectionRange,
-		children: Object.freeze([]),
+		children: [],
 		classification,
-		reasons: Object.freeze(reasons)
-	});
+		reasons: reasons
+	};
 }
 
 /** Returns component-level placement reasons retained by native analysis. */
@@ -53,11 +53,11 @@ export function componentReasons(
 				? 'server-module'
 				: 'unknown-call-effect';
 	return [
-		Object.freeze({
+		{
 			code,
 			summary: `The component has ${component.environmentEffect} environment effects.`,
 			range
-		})
+		}
 	];
 }
 
@@ -107,12 +107,12 @@ function taskClassification(
 									: dependency.source === 'context'
 										? (dependency.contextToken ?? 'context')
 										: inferredDependencyPath(source, region.range, dependency.source);
-							return Object.freeze({
+							return {
 								kind,
 								path,
 								range: findTextRange(source, path, region.range) ?? fallback,
 								confidence: path.endsWith('.*') ? 'broad' : 'exact'
-							}) as ExactSourceDependency;
+							} as ExactSourceDependency;
 						})
 					)
 				: [];
@@ -120,7 +120,7 @@ function taskClassification(
 		? [
 				...task.writes.map(
 					(effect) =>
-						Object.freeze({
+						({
 							kind: 'state-write' as const,
 							path: effect.path,
 							range: findTextRange(source, effect.path, region.range) ?? region.range,
@@ -131,7 +131,7 @@ function taskClassification(
 					.filter((effect) => effect.kind === 'write')
 					.map(
 						(effect) =>
-							Object.freeze({
+							({
 								kind: 'context-write' as const,
 								path: effect.token,
 								range: findTextRange(source, effect.token, region.range) ?? region.range,
@@ -144,14 +144,14 @@ function taskClassification(
 		const kind = input.source === 'props' ? 'prop' : input.source;
 		const path =
 			input.path || (input.source === 'context' ? (input.contextToken ?? 'context') : input.source);
-		return Object.freeze({
+		return {
 			parameter: input.parameter,
 			kind,
 			path,
 			range: findTextRange(source, path, region.range) ?? region.range
-		});
+		};
 	});
-	return Object.freeze({
+	return {
 		kind: 'task',
 		origin: region.origin,
 		placement: task?.placement ?? 'unknown',
@@ -160,32 +160,24 @@ function taskClassification(
 		readiness: task?.readiness ?? (region.awaited ? 'blocking' : 'nonblocking'),
 		concurrency: task?.concurrency ?? (task?.invoked ? 'parallel' : 'latest'),
 		detached: task?.detached ?? false,
-		dependencies: Object.freeze(dependencies),
-		capturedInputs: Object.freeze(capturedInputs),
-		effects: Object.freeze(effects),
+		dependencies: dependencies,
+		capturedInputs: capturedInputs,
+		effects: effects,
 		publication: region.origin === 'inferred' || effects.length ? 'staged' : 'immediate',
 		cancellation: 'generation-abort-signal',
-		signalCalls: Object.freeze(
-			(task?.signalCalls ?? []).map((call) =>
-				Object.freeze({
-					range: clampRange(source, call.start, call.length),
-					parameter: call.parameter,
-					mode: call.mode
-				})
-			)
-		),
-		resources: Object.freeze(
-			(task?.resources ?? []).map((resource) =>
-				Object.freeze({
-					kind: resource.kind,
-					range: clampRange(source, resource.start, resource.length),
-					...(resource.disposal ? { disposal: resource.disposal } : {}),
-					...(resource.description ? { description: resource.description } : {})
-				})
-			)
-		),
+		signalCalls: (task?.signalCalls ?? []).map((call) => ({
+			range: clampRange(source, call.start, call.length),
+			parameter: call.parameter,
+			mode: call.mode
+		})),
+		resources: (task?.resources ?? []).map((resource) => ({
+			kind: resource.kind,
+			range: clampRange(source, resource.start, resource.length),
+			...(resource.disposal ? { disposal: resource.disposal } : {}),
+			...(resource.description ? { description: resource.description } : {})
+		})),
 		cleanup: task?.resources.length ? 'generation' : 'none'
-	});
+	};
 }
 
 /** Projects authored-policy task arguments into their scheduling dependencies. */
@@ -200,12 +192,12 @@ function sourceDependencies(
 			: path.includes('state.')
 				? ('state' as const)
 				: ('capture' as const);
-		return Object.freeze({
+		return {
 			kind,
 			path,
 			range: findTextRange(source, path, range) ?? range,
 			confidence: 'exact' as const
-		});
+		};
 	});
 }
 
@@ -234,13 +226,11 @@ function taskReasons(
 ): ExactInferenceReason[] {
 	const reasons: ExactInferenceReason[] = [];
 	if (!task || task.readiness === 'blocking') {
-		reasons.push(
-			Object.freeze({
-				code: 'initial-render-dependency',
-				summary: 'Initial rendering waits for this task to publish its result.',
-				range
-			})
-		);
+		reasons.push({
+			code: 'initial-render-dependency',
+			summary: 'Initial rendering waits for this task to publish its result.',
+			range
+		});
 	}
 	for (const source of task?.effectSources ?? []) {
 		const code: ExactInferenceReasonCode =
@@ -251,38 +241,30 @@ function taskReasons(
 						? 'server-context'
 						: 'server-module'
 					: 'unknown-call-effect';
-		reasons.push(
-			Object.freeze({
-				code,
-				summary: source.description,
-				range,
-				related: Object.freeze(source.path.map((summary) => Object.freeze({ summary, range })))
-			})
-		);
+		reasons.push({
+			code,
+			summary: source.description,
+			range,
+			related: source.path.map((summary) => ({ summary, range }))
+		});
 	}
 	if (task?.requestedPlacement)
-		reasons.push(
-			Object.freeze({
-				code: 'requested-placement',
-				summary: `Source requests ${task.requestedPlacement} placement.`,
-				range
-			})
-		);
+		reasons.push({
+			code: 'requested-placement',
+			summary: `Source requests ${task.requestedPlacement} placement.`,
+			range
+		});
 	if (task?.signalCalls.length)
-		reasons.push(
-			Object.freeze({
-				code: 'recognized-signal-call',
-				summary: 'The compiler supplies the owning generation AbortSignal.',
-				range
-			})
-		);
+		reasons.push({
+			code: 'recognized-signal-call',
+			summary: 'The compiler supplies the owning generation AbortSignal.',
+			range
+		});
 	if (task?.resources.length)
-		reasons.push(
-			Object.freeze({
-				code: 'owned-resource',
-				summary: 'The active task generation owns a disposable resource.',
-				range
-			})
-		);
+		reasons.push({
+			code: 'owned-resource',
+			summary: 'The active task generation owns a disposable resource.',
+			range
+		});
 	return reasons;
 }

@@ -1,3 +1,4 @@
+import { deriveRuntimeConfiguration } from '@exactjs/core/framework/configuration';
 export { renderToStream } from './output-stream.js';
 export { renderToHydratableString, renderToString } from './render-output.js';
 import { logFrameworkEvent, type Child } from '@exactjs/core';
@@ -24,7 +25,6 @@ import { renderSignal } from './signals.js';
 
 /** Configures ssr render. */
 export type SsrRenderOptions = RenderToStringOptions & {
-	taskDeadline?: number;
 	/** Internal collector retaining scheduled frames until a progressive shell is published. */
 	streamingScheduledComponents?: DirectScheduledSsrComponent[];
 	/** Settles compiler-known documents and discovered document descendants; fragments retain replacements. */
@@ -37,7 +37,12 @@ export function renderToDocumentStream(
 	options: RenderToDocumentStreamOptions = {}
 ): ReadableStream<Uint8Array> {
 	return createDocumentEventStream(
-		(signal, emit) => streamDocumentRender(operation, { ...options, signal }, emit),
+		(signal, emit) =>
+			streamDocumentRender(
+				operation,
+				deriveRuntimeConfiguration(options, () => ({ signal })),
+				emit
+			),
 		{
 			signal: options.signal,
 			maxEvents: options.maxStreamEvents,
@@ -53,10 +58,10 @@ export function renderToHydratableDocumentStream(
 	operation: Child,
 	options: RenderToDocumentStreamOptions = {}
 ): ReadableStream<Uint8Array> {
-	return renderToDocumentStream(operation, {
-		...options,
-		hydration: options.hydration ?? true
-	});
+	return renderToDocumentStream(
+		operation,
+		deriveRuntimeConfiguration(options, () => ({ hydration: options.hydration ?? true }))
+	);
 }
 
 /** Transforms to progressive html stream into its required representation. */
@@ -76,10 +81,10 @@ export function renderToHydratableProgressiveHtmlStream(
 	operation: Child,
 	options: RenderToProgressiveHtmlStreamOptions = {}
 ): ReadableStream<Uint8Array> {
-	return renderToProgressiveHtmlStream(operation, {
-		...options,
-		hydration: options.hydration ?? true
-	});
+	return renderToProgressiveHtmlStream(
+		operation,
+		deriveRuntimeConfiguration(options, () => ({ hydration: options.hydration ?? true }))
+	);
 }
 
 /** Transforms to progressive html response into its required representation. */
@@ -95,75 +100,50 @@ export function renderToHydratableProgressiveHtmlResponse(
 	operation: Child,
 	options: RenderToProgressiveHtmlResponseOptions = {}
 ): ExactResponseLike {
-	return createProgressiveProducedResponse(operation, {
-		...options,
-		hydration: options.hydration ?? true
-	});
+	return createProgressiveProducedResponse(
+		operation,
+		deriveRuntimeConfiguration(options, () => ({ hydration: options.hydration ?? true }))
+	);
 }
 
-/** Transforms exact request to html response into its required representation. */
+/** Settles request-owned rendering before committing an HTML response, with hydration enabled by default. */
 export async function renderExactRequestToHtmlResponse(
 	request: ExactRequestLike,
 	server: ExactServerContext,
 	render: ExactRequestRenderFunction,
 	options: RenderExactRequestToHtmlResponseOptions = {}
 ): Promise<ExactResponseLike> {
-	return runWithExactRequestScope(
-		request,
-		server,
-		async (context) => {
-			const operation = await render(context);
-			const renderOptions = {
-				...options,
-				...requestInspectionOptions(context, options),
-				contexts: context.contexts?.componentValues,
-				signal: renderSignal(context.signal, options.signal)
-			};
-			let body: readonly string[];
-			let preloadLinks: readonly string[] | undefined;
-			if (options.hydration === false) {
-				const rendered = await renderToString(operation, renderOptions);
-				body = htmlChunksOf(rendered) ?? [rendered.html];
-				preloadLinks = rendered.preloadLinks;
-			} else {
-				const rendered = await renderToHydratableString(operation, renderOptions);
-				body = hydratableChunksOf(rendered) ?? [rendered.htmlWithHydration];
-				preloadLinks = rendered.preloadLinks;
-			}
-			return createExactBufferedResponse(
-				options.status ?? 200,
-				withPreloadLinks(
-					{
-						'content-type': options.contentType ?? 'text/html; charset=utf-8',
-						...(options.headers ?? {})
-					},
-					preloadLinks
-				),
-				body
-			);
-		},
-		request.platformRequest ?? request
-	);
+	return renderRequestResponse(request, server, render, options, false);
 }
 
-/** Transforms exact request to progressive html response into its required representation. */
+/** Settles the request before committing HTML and wraps fragment roots, leaving authored documents intact. */
 export async function renderExactRequestToProgressiveHtmlResponse(
 	request: ExactRequestLike,
 	server: ExactServerContext,
 	render: ExactRequestRenderFunction,
 	options: RenderToProgressiveHtmlResponseOptions = {}
 ): Promise<ExactResponseLike> {
+	return renderRequestResponse(request, server, render, options, true);
+}
+
+/** Owns request preparation, settled rendering, and response publication for both request entry points. */
+async function renderRequestResponse(
+	request: ExactRequestLike,
+	server: ExactServerContext,
+	render: ExactRequestRenderFunction,
+	options: RenderToProgressiveHtmlResponseOptions,
+	wrapRoot: boolean
+): Promise<ExactResponseLike> {
 	return runWithExactRequestScope(
 		request,
 		server,
 		async (context) => {
 			const operation = await render(context);
-			const renderOptions = {
-				...options,
+			const renderOptions = deriveRuntimeConfiguration(options, () => ({
 				...requestInspectionOptions(context, options),
 				contexts: context.contexts?.componentValues,
 				signal: renderSignal(context.signal, options.signal)
-			};
+			}));
 			// A response's status, headers, and authored head are committed before its
 			// body is consumed. Conservatively settle the root before returning the
 			// response; lower-level progressive APIs remain available when an
@@ -174,21 +154,22 @@ export async function renderExactRequestToProgressiveHtmlResponse(
 				const rendered = await renderToString(operation, renderOptions);
 				preloadLinks = rendered.preloadLinks;
 				const chunks = htmlChunksOf(rendered) ?? [rendered.html];
-				body = startsExactDocument(chunks)
-					? chunks
-					: [`<div id="${escapeAttr(options.rootId ?? 'exact-root')}">`, ...chunks, '</div>'];
+				body =
+					!wrapRoot || startsExactDocument(chunks)
+						? chunks
+						: [`<div id="${escapeAttr(options.rootId ?? 'exact-root')}">`, ...chunks, '</div>'];
 			} else {
 				const rendered = await renderToHydratableString(operation, renderOptions);
 				preloadLinks = rendered.preloadLinks;
-				const htmlChunks = htmlChunksOf(rendered) ?? [rendered.html];
-				body = isExactDocumentResult(rendered)
-					? (hydratableChunksOf(rendered) ?? [rendered.htmlWithHydration])
-					: [
-							`<div id="${escapeAttr(options.rootId ?? 'exact-root')}">`,
-							...htmlChunks,
-							'</div>',
-							rendered.hydrationScript
-						];
+				body =
+					!wrapRoot || isExactDocumentResult(rendered)
+						? (hydratableChunksOf(rendered) ?? [rendered.htmlWithHydration])
+						: [
+								`<div id="${escapeAttr(options.rootId ?? 'exact-root')}">`,
+								...(htmlChunksOf(rendered) ?? [rendered.html]),
+								'</div>',
+								rendered.hydrationScript
+							];
 			}
 			return createExactBufferedResponse(
 				options.status ?? 200,

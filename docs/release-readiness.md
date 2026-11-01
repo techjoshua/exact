@@ -1,10 +1,114 @@
 # Release readiness
 
+The local library selection-evidence candidate adds optional inspected targets to published public
+export selections and inspected destinations to direct package-relative component edges. Inference
+can remain unknown with no inferred targets. New consumers retain legacy known-placement facts,
+including libraries without registration products. Existing consumers reject new unknown records,
+so protocol 1 alone is not a compatibility promise for this capability. Before publishing any such
+library, establish an enforceable minimum consumer/compiler-policy/adapter requirement from the
+release dependency graph, or explicitly review a feature/protocol gate. A compiler development
+dependency does not constrain downstream consumers. No package version or protocol change is
+selected for the local candidate. Runtime helpers and native artifact contracts are unchanged,
+but published metadata acceptance and target selection remain semantic compatibility surfaces.
+Released 0.5.0, 0.6.0 and 0.7.1 artifacts remain compatibility inputs and must not be regenerated.
+
+SSR 0.8.0 removes the automatic 30-second task deadline and the `maxTaskDurationMs` render option.
+Applications that need response expiration pass `signal: AbortSignal.timeout(durationMs)`
+or another application-owned signal. Cancellation still combines with request disconnection
+and runtime shutdown and releases render-owned work. This is a source configuration change,
+not a compiler-emitted helper or artifact schema change. Consumers accept SSR ^0.7.0 or ^0.8.0
+when their existing calls work with both. Instrumentation 0.7.1 removes runtime freezing without
+changing its public types.
+
+Server request bytes no longer have an implicit 4 MiB rejection cap. Without
+`limits.maxRequestBytes`, larger bodies warn and continue. Explicit byte caps still reject
+before dispatch and cancel oversized streaming reads. Hydrate applies the same warning default
+before sending single and batched requests, with explicit `streamLimits.maxRequestBytes` caps
+still rejecting before fetch. Deployments relying on the former
+implicit cap should configure it explicitly. Profiling observations retain TypeScript readonly
+types without runtime freezing, including collector snapshots and phase summaries.
+
+Compiler, all six native compiler packages, and DevTools runtime 0.8.0 remove client redaction configuration and selectors from
+client correlation metadata. `createExactRuntimeInspectionCorrelation()` now accepts only the
+source inspection. `installExactDevtoolsRuntime()` no longer accepts `redactions`. The unused
+client source queue, its types, and `exactDevtoolsRuntimeSymbol` export are removed. Compiler
+instrumentation retains direct component and task identities without emitting queue bootstraps. Older
+instrumented client registrations remain loadable, with their obsolete selectors ignored.
+Server catalog selectors, server preview redaction, source authorization, and server-to-client
+secret exclusion remain in place. Compiler-emitted helper signatures and ABI epoch 2 are unchanged.
+
+DOM event delivery consistently retains state writes preceding an exception, while explicit
+`batch()` regions retain rollback. Event callbacks no longer restore the preceding focus or
+selection, so application-requested focus, blur, and selection changes remain in effect.
+Renderer-owned DOM updates continue to preserve focus. No emitted helper or artifact shape changes.
+
+Microfrontend loading removes its fixed timeout and pending-entry eviction policy. Callers own
+cancellation through the existing signal parameter, shared work remains active for remaining callers,
+and the last caller releases the loader's resources. Recovery preparation follows live membership.
+Module validation, integrity checking, and stale-result fencing retain their contracts. The browser
+root retains the Web API binding gateway export while excluding Node build tooling.
+
+Hydration and response observations, including partition trees, retain TypeScript readonly types
+without runtime freezing. Partition inspection constructs its detached result directly during
+validated DOM traversal, removing recursive copying. Server package metadata permits removal of
+unused modules, keeping the restored microfrontend gateway export free of unrelated client-side
+server initialization when the gateway is unused.
+
+Child partition results and inspected child arrays use ordinary detached data with TypeScript
+readonly views. Gateway and Intl facade methods retain their ordinary TypeScript method properties. Framework
+publication receipts and gateway rejection observations use TypeScript readonly fields without
+runtime freezing. Validated routing, rejection response contents, and renderer scheduling retain
+their existing ownership. The Webpack remote production-build test now declares its 60-second
+runner budget explicitly.
+
+Configuration validation preserves ordinary authored values and plugin callback identity instead
+of deep-freezing the caller's graph. Loader metadata and static enhancement declarations retain
+TypeScript readonly views without freezing. Built-in schema rejection remains in place.
+
+Motion 0.7.2 keeps readonly at the TypeScript layer, supports finite negative Web Animations
+start delays, and releases pending placement frames on owner cancellation without a render deadline.
+
+Gestures 0.7.2 uses TypeScript readonly definitions and ordinary detached sample coordinates.
+Clock leases restore active installations after out-of-order disposal. Updated inherited settings
+cancel recognition using captured previous scalar values. Motion and gesture preparation validate
+captured authored fields, and imperative motion retains its checked timing during placement. Compiler helpers and
+artifact ABI epoch 2 remain unchanged.
+
+Secrets 0.7.1 retains accepted environment names in prototype-free dictionaries, removes freezing
+from public providers and observations, and captures initialization and file-load cancellation
+ownership. Provider contexts retain inherited metadata without sharing mutable observations.
+Compiler secret qualification, server transport policy, helper signatures, and ABI epoch 2 remain.
+
+Plugin API, Plugin Host, and Package Provenance 0.7.1 retain readonly declarations while returning
+ordinary metadata, discovery records, callback contexts, and reports. Configuration preparation
+uses caller-owned cancellation with optional explicit deadlines. Contributor scheduling preserves
+sorted ready batches while reusing graph reachability for provenance. Forwarding and trust
+validation consume captured values, selector parsing owns validation, and root invalidation matches
+the complete workspace key. Secrets omits its unused empty render projection. Public helper
+signatures, plugin protocol versions, and compiler artifact ABI epoch 2 remain unchanged.
+
+Public package resolution, config discovery, component participation, and translation tooling
+preserve ordinary child names such as `..generated` while rejecting parent-directory traversal.
+`@exactjs/intl-build` joins the selected 0.7.1 patches for this correction. Public signatures and
+the compiled ABI epoch remain unchanged. Bun Plugin 0.7.2 resolves build metadata against its
+output directory once per generation and requests it for exposure builds, preserving hashed
+output identities and resources without changing the compiler ABI. Release packaging resolves native input directories
+before replacing its output and rejects inputs nested beneath that output, including directory aliases.
+
+Hydrate 0.7.3 validates JSON-only custom response data before serialized byte accounting.
+Rejected getters and `toJSON` hooks remain uncalled, including failed response bodies. Valid
+single and batched responses retain exact encoded byte caps, error classification, and ABI epoch 2.
+
+Intl and Intl Analyzer 0.7.2, with Intl Build 0.7.1, return ordinary readonly-typed observations
+and emit ordinary descriptor/catalog values. Shared artifact state initializes on use. Registration
+validation, generation fencing, global identity keys, companion export names, helper signatures, and
+ABI epoch 2 remain unchanged. Published descriptor selection reuses its reached list directly.
+
 ## Release identity and metadata
 
 The initial 0.5.0 release was published from commit
 `6476a2f5de46b716d26c2d7d7e6d8a22b501f7f9` on September 14, 2026, with ABI epoch 1.
-Its released fixtures are frozen. Current epoch-2 release requirements are described below;
+Its released fixtures are frozen. Current epoch-6 release requirements are described below;
 prepublication redesigns do not authorize incompatible changes to a released contract.
 
 `npm run check:npm-metadata` validates descriptions, package-specific keywords, repository links,
@@ -21,13 +125,13 @@ adapter-specific boundaries where the same framework contract can fail different
 job does not establish Bun or Webpack correctness. Resolve missing affected-path coverage and
 known cross-environment defects before publishing.
 
-## Coordinated 0.7.0 release
+## Published coordinated 0.7.0 baseline
 
-Every public workspace package and all six native compiler packages join version 0.7.0,
-including packages whose implementation is unchanged. The VS Code and Chromium extension artifacts
-also use 0.7.0. This explicitly coordinated release brings
+The coordinated 0.7.0 release selected every public workspace package and all six native compiler packages,
+including packages whose implementation was unchanged. The VS Code and Chromium extension artifacts
+also used 0.7.0. This coordinated release brought
 the framework packages back to one version after the independent 0.6 repairs. Applications and
-fixtures remain private. Independent versioning remains the default for subsequent releases.
+fixtures remained private. The local 0.8.0 preparation below is a separately selected coordinated exception.
 
 The compiler repairs invoked-task captures, awaited result assignments, component locale ownership,
 and lazy registry analysis. Rebuild application artifacts to receive those changes. Runtime repairs
@@ -56,6 +160,82 @@ descriptors remain supported, and existing artifact layouts and helper signature
 This is additive provider capability within the coordinated release, with ABI epoch 2 unchanged.
 Rebuild paired artifacts and their hydration registration together to enable loading-time replay.
 
+## Literal records in coordinated data transport
+
+Reactive 0.8.0 preserves ordinary records whose enumerable `$exact` field equals a collection
+marker. The encoder uses the existing map namespace with a `record` entry list, so other marker
+values remain ordinary JSON and native version-one Map, Set and keyed-array envelopes remain
+unchanged. The decoder validates dense own rows, unique string keys and exact envelope fields
+before reconstructing properties without changing the object prototype.
+
+Core 0.7.3 requires reactive ^0.8.0. SSR and server 0.8.0 and hydrate 0.7.3 require core ^0.7.3, and SSR also
+requires reactive ^0.8.0 for validated record publication. Update both producer and consumer
+providers when using the repaired record transport. Older decoders reject the record capsule.
+Existing valid payloads retain their representation. Previously colliding records gain a working
+representation without reserving another application marker value. This is an additive codec
+capability and compatible repair for existing valid artifacts, with emitted helper signatures,
+component artifact layouts and ABI epoch 2 unchanged. Released fixtures stay frozen.
+
+The same coordinated codec preserves `undefined`, `NaN`, `Infinity`, `-Infinity`, and `-0`
+using exact-field version-one map capsules with a `constant` token. Producer and consumer providers
+must be updated together. Old decoders reject these capsules, so mixed codec versions are not
+wire-compatible when constants are present. New decoders retain the existing Map, Set, keyed-array,
+and record formats. Application records that resemble a constant capsule remain literal records.
+Component artifact schemas and emitted helper signatures are unchanged, so this extension retains
+ABI epoch 2 and the frozen release fixtures. The currently unpublished reactive, server and SSR 0.8.0 and core,
+and hydrate 0.7.3 batch includes this provider capability and its dependency floors. Hydrate re-encodes state patches
+for their DOM attributes. Server and hydrate patch validators distinguish an owned undefined value
+from a missing required value field.
+
+The same provider batch adds compiler-owned `deletions` and optional `statePaths` selections to
+continuation results. Selections distinguish a descendant update from a parent replacement when
+both paths are permitted, and are omitted when the partial tree is already unambiguous. Producers
+and consumers must be upgraded together because older result parsers reject the additional field.
+Application code continues to use ordinary assignment and `delete`. Omitted conditional writes
+remain unchanged on the client. The recorder covers direct generation-fenced mutations, staged
+publication, and owned child frames without attaching capture storage to unrelated client tasks.
+Generic and indexed writes preserve own-property creation for undefined values, and generic
+compiler hooks preserve strict assignment and deletion failure. Existing core-emitted helper
+signatures and ABI epoch 2 remain unchanged. Property assignments, deletes, and array mutation hooks share synchronous generation-owned
+execution evidence. An input snapshot or prepared parent container alone does not establish that a
+conditional write ran. Equal-value assignments still count as performed writes. The underlying
+reactive deletion hook retains its two-argument signature. Proven array mutators now carry exact
+authority for their finite receiver path, allowing the existing array snapshot publication.
+Wildcard and erased-receiver effects retain conservative authority. This repairs the generated
+contract without changing its schema or emitted mutation helper signature. Artifacts that already
+contain broad array-write metadata must be recompiled to obtain the repaired authority. A runtime
+update alone cannot change that emitted contract.
+
+Direct scalar task lowering now uses the existing native write and delete operations in lean
+server continuations and preserves logical skips and selected references across suspension.
+Helper signatures and the transport schema are unchanged. New compiler output needs providers
+with successful operation-time canonical-key reporting. This does not resolve imported ordinary
+helper publication. Ordinary assignment replacement semantics are already an incompatible change
+against published core and reactive releases, including 0.6.0 and 0.7.1. The coordinated epoch,
+provider versions, and compatibility acceptance remain release gates. Do not infer compatibility
+from unchanged helper signatures or regenerate frozen fixtures to satisfy that gate.
+
+Task context, signal, publication, progress,
+and resource-lifetime registries are shared across compatible provider copies in the same realm.
+Public task definitions and the default concurrency lane also retain identity across those copies.
+Binding a bundled task through another compatible provider preserves queue serialization, latest
+cancellation, and parallel execution under the same explicit owner.
+Synchronous frame scopes, setup owners, deferred interaction materializers, and frame identifiers
+are shared as well. Ordinary child calls across provider copies retain structural settlement and
+cancellation. Explicitly detached calls retain their independent structural lifetime. Scopes restore
+their predecessor synchronously and do not become ambient across promises.
+Vite, Bun, and Webpack acceptance exercises separately bundled components against request
+handling outside their bundle, including task-owned disposal. Frozen artifacts stay
+unchanged and remain acceptance inputs. Value-only captures represent absent leaves as undefined.
+Exact enclosing reads supersede descendant captures so complete snapshots retain property
+presence, while missing containers and inherited leaf values remain invalid inputs.
+
+SSR normalizes proxy identity in its request-owned encoding cache. Encoded hydration graph limits
+include collection and record wrappers, checked while the existing JSON serializer visits them.
+Ordinary document payloads retain their direct serialization path. Generic island and prepared
+resumption JSON checks its encoded graph before publication. Server 0.8.0 changes its provider floor
+for the coordinated codec, without adding a server API.
+
 ## Native localization typing and constructor compatibility
 
 Compiled native Intl owner references use the qualified `ComponentLocalizationOwner` type from
@@ -69,7 +249,7 @@ artifacts to receive the compiler correction.
 
 ## Ordinary helper boundary compatibility
 
-Component compilation preserves ordinary helper bodies and supplies supported invocation-owned
+Client pending compilation preserves ordinary helper bodies and supplies supported invocation-owned
 state views. `stateAccess()` and `sameStateTarget()` are additive reactive exports. They do not
 change component contract or transport schemas. Rebuild components to receive the narrowed
 helper boundary and its identity, lifetime and class-receiver diagnostics.
@@ -81,6 +261,37 @@ require a compatibility registry or ABI epoch change. Released artifacts remain 
 and must not be regenerated. New publication must use new versions of affected packages because
 0.7.0 already exists in the registry. Runtime provider requirements must cover the additive pending
 transaction capabilities used by newly compiled components.
+
+## TypeScript readonly contract
+
+Reactive 0.8.0 removes the `ReactiveOptions.readonly` and `onReadonlyWrite` options and the internal
+`reactiveProxyOptions` export. This is a public API removal at 0.x and requires the minor version
+advance. Direct workspace consumers require reactive ^0.8.0 and use their own independent package
+versions. Core props and pending task views rely on TypeScript's shallow compile-time readonly
+checks. They do not reject ordinary writable aliases or mutable nested collections at runtime.
+Native property descriptor failures, generation fencing, and transport authorization remain their
+own contracts. No compiler-emitted helper references the removed export. Existing helper signatures
+and valid compiled artifact behavior remain compatible with ABI epoch 2, verified against the frozen
+fixtures. Wide nested batches merge inverse and cleanup records linearly, retaining atomic rollback,
+original failure identity, and lease release. Array segment inverses and retained-position
+reordering no longer expand stored values into function arguments. Detached position cleanup
+filters each affected array once. Intl Build 0.7.1 iterates wide catalog file and package
+publication arrays without a variadic call capacity limit. Replace the removed options with appropriate `Readonly<T>` or readonly collection types.
+Gravity 0.7.2 applies the same TypeScript-only contract to field metadata, attractor definitions,
+sample vectors, sampled arrays, and inspection records. Runtime values are ordinary objects.
+The constructor-only nominal brands remain in declarations without unused runtime symbols.
+Copied inputs and independent sample results remain intact, and moving attractor policy and
+registered force validation retain their numerical constraints. Public helper signatures and
+compiled component ABI epoch 2 are unchanged.
+Core 0.7.3 and SSR 0.7.3 keep ref methods and public root release observations as ordinary
+JavaScript values. Renderer generation authority remains private, and client lifecycle getters
+retain native descriptor behavior. Framework ref provenance is captured separately from mutable
+public owner observations. SSR 0.7.3 requires core ^0.7.3 for the additive ref-binding provider.
+Existing helper signatures and ABI epoch 2 remain unchanged.
+Physics 0.7.2 coordinates queued commands, transient force state, contacts, and simulation counters
+with reactive rollback. Force, impulse, collision, and constraint output remain finite before
+publication, including commands followed by kinematic transitions. Vector and attractor preparation use captured validated inputs. Existing
+public function and component helper signatures remain compatible with artifact epoch 2.
 
 ## Compiler 0.7.1 provider requirements
 
@@ -126,19 +337,246 @@ Core 0.7.1 also retains checked URL conversions for object and function values a
 DOM updates and text projection. This corrects publication of a different second conversion
 without changing URL policy, helper signatures or the ABI epoch.
 
+Server and hydrate 0.7.2 correct rejection of shared sibling references in JSON publication.
+Each serialized occurrence consumes graph budgets, while active ancestor cycles remain invalid.
+These patches retain the existing core dependency ranges, helper signatures, artifact schemas,
+ABI epoch 2, and released fixtures. SSR already applies this ancestry rule and requires no
+release for this correction.
+
+SSR 0.7.2 retains document-event producers until reader cancellation has finished their
+asynchronous cleanup. Synchronous producer failures follow the terminal error-event path and
+release request abort listeners. Public signatures, artifact schemas, ABI epoch 2, and frozen
+release fixtures remain unchanged.
+
+Server 0.7.2 retains operation-progress producers inside their stream owner until cancellation
+cleanup settles. The public request-scope wrapper already waits for request-owned work, and
+the stream owner now preserves that invariant independently.
+
+Compiler 0.7.3 and all six native compiler packages recognize terminal early availability
+checks when projecting browser-global effects. Guarded helpers retain their server fallback,
+while reads reachable without availability remain client-owned. Accessor bodies retain deferred
+ownership, their invocation effects survive source value and helper-argument projections, and
+standard URI globals and optional native receiver methods retain declaration-qualified portable
+ownership. Router 0.7.1 rebuilds its
+artifacts after resolving its caller-supplied location-source placement proof. Source SSR controls
+pass, but the current package publication check still rejects the opaque source methods. This is
+an unresolved release gap, and source tests do not establish rebuilt package acceptance. Its
+source controller now fences lazy handlers, fetcher response decoding, and delayed navigation
+publication after cancellation or supersession. Failed lazy materialization is evicted for retries.
+Route hydration validation rejects accessors and JSON hooks without invoking them and includes
+sparse cells and hidden array indices in its graph limits. Router requires core ^0.7.1 for the
+shared JSON property-inspection helpers, which are absent from published core 0.7.0.
+Memory history indices require an integer within the retained entries. Numeric navigation
+deltas require safe integers across memory, browser, and custom sources, rejecting invalid
+values before changing history.
+Its compatibility forms share submission preparation and interception. Fetcher forms retain inputs
+and publish their own interaction state. GET submissions replace query data without attaching a
+request body and preserve fragments. Fetcher cleanup is safe after provider disposal. Source and
+browser controls cover these behaviors, while rebuilt router package acceptance retains the gap above.
+Modern compatibility destinations resolve against their owning route, with path-relative options
+preserved by links, navigation, resolved paths and form actions. Resolved route fields precede
+basename, hash-mode and browser encoding. Absolute schemes and network-relative URL authorities
+remain outside basename resolution. These are compatible routing repairs without emitted helper
+or ABI epoch changes, retaining the same paired-publication gap.
+Standard typed-array and byte-storage placement follows bundled declaration identity for
+constructors and methods. Array and typed-array factories retain mapper effects without invoking
+callable input data or thisArg values. Shadow classes, overrides and added methods retain unknown execution
+requirements. This compatible inference repair leaves public helper signatures and ABI epoch unchanged.
+Native Router controller construction is setup-owned, retaining one subscription per component
+instance and releasing it on unmount.
+Route matching retains path-contributing parent branches, resolves optional parameters against
+later route segments, and ranks the actual matched path. Splat bases use raw URL segment positions. Compatibility matching requires
+complete basename prefixes and rejects outside locations before route matching.
+These compatible repairs retain declaration ties and the emitted ABI epoch. Ranking uses cached
+scores and a single winner pass, while URL segments are prepared once per match operation.
+Fetcher ownership is separate from target handler selection. Compatibility fetchers resolve from
+their owning route and dispatch by destination URL. Native `fetch()` accepts an undefined route ID
+for the same URL selection, retaining explicit route IDs and the existing emitted artifact contract.
+Fetcher cancellation ownership precedes pending-state notification. Reentrant retirement and
+replacement fence old work, including lazy factories and abort callbacks. Publication failures
+release only their own operation and preserve the first thrown value through cleanup.
+Destination hooks observe retained route changes inside memoized compatibility components.
+Forms share action resolution with direct submissions, retaining current owning routes and default
+queries. Index action selection is shared with fetcher dispatch. GET file fields encode filenames,
+and GET fetchers retain index selection while replacing ordinary query fields without mutating input.
+React compatibility wrappers infer no-props functions as object-props components while retaining
+declared prop checks. These provider typing changes leave runtime helper signatures and ABI epoch unchanged.
+Navigation, initialization, submission and independent revalidation register identity before old
+abort callbacks execute. Reentrant newer operations retain execution and publication rights.
+Static query methods observe incoming cancellation before dispatch and while awaiting handlers,
+settling with the original request reason while releasing the router. Handler Requests carry owned
+operation cancellation without discarding supplied RequestInit signals. Caller signals now retire
+owned submissions and fetchers, reject with the exact reason, and fence late publication. Static
+loaders receive incoming headers and GET/HEAD semantics, while action revalidation uses GET. The
+additive router `request` option accepts the incoming method and headers without changing ABI epoch. Submission paths share
+URL-encoded, multipart, text and JSON field encoding and reject unsupported encodings before dispatch.
+Routing dictionaries preserve prototype-named own entries without changing ordinary record shapes.
+Own-key reads exclude inherited values, and boundary selection retains explicitly thrown undefined errors.
+Static page queries dispose their router on success and rejection. Single-route queries validate
+selection before dispatch, invoke only the selected handler, preserve raw Response objects and
+exact thrown values, and release their private signal. Their redirects are returned directly.
+Caller lifetime follows delegated navigation and revalidation without changing public signatures
+or ABI epoch. Source and native HTTP controls cover these contracts, retaining the rebuilt-router
+publication limitation above.
+Navigation publishes prepared route data inside its owned history commit and restores the prior
+model after a rejected write. Failed redirects and publication settle only their owning navigation.
+Action handling keeps delegated navigation and revalidation outside its action-error catch so their
+failures remain observable. Public signatures and ABI epoch 2 remain unchanged.
+
+React DOM compatibility 0.7.1 binds host callbacks to the existing framework interaction and error
+contracts, retains ownership during DOM adoption, and fences late event failures after release.
+React compatibility 0.7.1 returns assignment-owned ref releases for callback cleanup.
+React DOM compatibility requires that provider floor and retains one lease per host element.
+Class refs and imperative handles use the same assignment contract. Queued class-ref changes
+are fenced by component lifetime and assignment revision. Class teardown retains the first
+lifecycle failure and completes ref release and instance ownership bookkeeping. Unused private
+ref-envelope and binding scaffolding is removed. No compiler artifact references those helpers.
+Hook deactivation and disposal share one failure-complete release operation. Effect and external
+store leases are detached before user cleanup, preserving non-object primary failures and
+allowing retained Activity ranges to reconnect after a cleanup error. Scheduled effect commit
+failures report through their durable owner. Suspense candidates transfer ownership before
+retiring old content, and promise retries share scheduled effects' error ownership with
+disposal fencing. Failed range preparation retires newly acquired
+hosts, fragments, components and portals without losing the initiating error or earlier ownership.
+Ref attachment retains a release fallback before calling authored code. A failed imperative
+value factory does not assign or release an untouched ref. Compiler-emitted helper
+signatures, artifact representation, and ABI epoch 2 are unchanged.
+Range retirement attempts every sibling and descendant release when a ref callback throws,
+preserves the first failure, and retains ownership of an accepted replacement.
+The public root signatures and precompiled compatibility-island artifact remain unchanged.
+Nested React child arrays share iterative traversal while keeping their group and empty-slot
+identities. Native projection preserves sparse cells, getter order and species selection.
+SSR keeps adjoining text boundaries across empty output. Hydration retires separator
+comments and preserves native-owned end delimiters, including transparent and empty ranges.
+Server promise children and Suspense share one cancellable wait and preserve explicit
+abort reasons, including null. Server request initialization and retained stream scopes likewise retain exact null abort
+reasons. Native SSR stream cancellation likewise retains exact null reasons. Hydration task and response
+readers retain exact falsey cancellation reasons and keep TypeError cancellation distinct
+from malformed UTF-8. Receiver failures retain their identity because decoding alone owns
+UTF-8 error normalization. Self-canceling factories and fetchers retain observation of
+already-started promises, preserving cancellation without an unhandled late rejection. Queued SSR component work
+checks cancellation after a permit grant and releases its permit without starting canceled work. Ordinary and resumed Node pipeable streams share one
+settlement owner, retain undefined failures and honor caller cancellation. Matching raw-HTML hosts adopt their existing DOM and authored comments. Accepted host content
+modes govern transfers back to child ownership, avoiding obsolete payload reads. Portals place
+their marker in the adopted parent and preserve foreign target content through updates and removal.
+React DOM compatibility 0.7.1 uses the new framework-facing child iterator exported by React
+compatibility 0.7.1, already required by its provider floor. Public child utilities repair
+absent-root counts, empty-slot callback positions and receiver binding, scoped copied keys,
+and mapped array flattening. The generic mapping result remains precise for scalar callbacks
+and uses the supported child type when callback arrays may flatten. This helper does not change
+compiler-emitted signatures, wire artifacts or ABI epoch 2.
+DevTools agent 0.7.1 preserves exact CDP cancellation reasons and rejects an unavailable
+explicit target instead of attaching to a different page. Its owned loopback controls run
+on Node, Bun and both Deno abort modes. Test-only WebSocket server support is excluded from package output.
+Request 0.7.1 preserves configured authority when parsed pathnames begin with double slashes.
+Router 0.7.1 and plugin-host 0.7.1 also apply active ancestry to JSON publication, permitting
+shared siblings while rejecting cycles and retaining route graph and byte budgets. Server 0.7.2
+and hydrate 0.7.2 preserve authorized context writes in streamed results and retain patch order
+across streamed chunks and terminal results. Conflicting mutation representations are rejected.
+Server 0.7.2 also checks debug origins against resolved public-origin configuration or absolute
+adapter URLs. Relative URLs cannot borrow authority from the caller's Origin header. The boundary
+also covers existing-session authorization and request observations.
+Plugin-host
+0.7.1 also fences cancellation before and after configuration loading, throughout runtime extension
+loading and validation, and before registry publication. Preparation timeouts cover runtime entries.
+Synchronous output rejection also observes forbidden async hook results so their later failures
+remain handled while publication is rejected. Resource rollback reports initialization and cleanup
+failures together, preserving the initialization cause without skipping later disposal.
+Secrets 0.7.1 shares pending initialization, publishes provider snapshots atomically, fences
+disposed generations, and preserves configured empty strings. Pending providers receive startup
+and resolver-disposal cancellation. Environment-file reads also honor cancellation.
+Core 0.7.2 restores task ownership during owned resource callbacks and preserves generation
+identity through cancellation adapters. Callback-created children extend parent settlement,
+inherit cancellation, and retain component error and asynchronous cleanup ownership.
+DOM 0.7.2 gives inspection-factory installations independent cleanup identity when a callback is
+reused. DOM 0.7.2 and DevTools runtime 0.7.1 require complete component ownership coordinates for
+DOM selection and client detail queries. DevTools task trees and detail lookup preserve operation
+and generation identity. Federated root selection uses unambiguous coordinates. Browser component,
+root, and microfrontend collections and server catalog roots apply ownership filters before
+pagination. Combined collections retain an active source cursor, accept retained global offsets,
+and bound each read to 128 source pages. Malformed legacy host-cursor escapes preserve bounded
+history resumption. Timeline reads stay independent of component snapshot collection. Queries
+that need browser records reuse one captured snapshot, and retired services cannot list a newer
+session's components.
+
+DevTools connection generations fence late opens and closes, share concurrent opens, and make
+disposal permanent. The browser transport validates session metadata and query/session correlation
+and cancels unused denied-open and close response bodies. Highlight cleanup restores detached owned
+elements without touching another owner's markers and preserves later changed outline values and
+priorities. Highlights require the active installation session.
+
+DevTools runtime 0.7.1 requires DOM ^0.7.2. DevTools protocol 0.8.0 rejects coerced request names,
+malformed capabilities, and unknown debug/query envelope fields. Its query, subscription,
+debug and response parsers now return detached own-data snapshots. Accessors, inherited
+envelopes, sparse arrays and unsupported transport values are rejected before dispatch.
+Server and browser rejection responses share bounded descriptor-based request-ID extraction.
+Standalone catalog and runtime-identity validation likewise rejects accessor records, array
+cells and authored iteration hooks. Valid compiler-generated metadata remains supported. Pagination rejects invalid maxima,
+and the browser query service rejects invalid result limits during construction. Supported
+positive limits retain their cursor and page behavior. Server 0.7.2 and DevTools runtime
+0.7.1 require protocol ^0.8.0. Core and DOM 0.7.2 also require that preview provider. DevTools
+agent 0.7.1 and Chromium extension 0.7.1 understand the expanded preview schema. Select these
+candidate releases together when using inspection. The new `constant` variant preserves
+`undefined`, `NaN`, infinities, and negative zero separately from strings and unavailable values.
+This public DTO expansion selects the protocol's next minor version. Older 0.7 preview consumers
+cannot interpret the new variant and must be upgraded with the inspection provider. Catalog and
+inspection wire version 1 and compiler ABI epoch 2 remain unchanged. Vite, Webpack, and Bun plugins
+require DevTools runtime ^0.7.1 for the repaired installation. Compiler, config 0.7.1, and build
+adapters accept either protocol 0.7 or 0.8 for the unchanged catalog contract.
+
+Core 0.7.2 also retains the first cleanup failure across component and task disposal, including
+`null` and `undefined`. Server 0.7.2 preserves `undefined` application-disposal and stream-cancellation
+failures. Testing 0.7.2 retains render, initialization, and failed-mount settlement errors during
+failed cleanup, preserving owned and caller-owned container lifetimes.
+Core 0.7.2 also completes readiness cleanup after callback failures, delivers asynchronous
+publication failures to readiness consumers, and releases structural logical-owner unmount
+registrations. SSR 0.7.2 preserves candidate render errors during failed readiness cleanup.
+Core also retains work registered during generation cleanup, waits for work registered by readiness
+notifications, and maintains pending counts without repeatedly scanning every registration.
+DOM 0.7.2 continues subtree teardown after failed suspension cancellation and routes readiness
+publication errors through Activity and Suspense error ownership before revealing a candidate.
+Hydrate 0.7.2 preserves browser ownership of selected file inputs during restoration, restores
+modeless dialogs and valid editable text attribute forms, and retains select values across option
+reordering. Missing or ambiguous captured identities cannot transfer drafts through positional
+recovery. Capture records sibling positions once during its bounded walk, avoiding repeated
+sibling scans in wide forms. Unchanged retained editable descendants and native selection survive
+restoration. Changed checkbox and radio option values, and replacements that are no longer
+editable, cannot acquire old control drafts. Replacement file inputs require reselection.
+SSR 0.7.2 also records native disclosure and dialog open defaults from a single property read.
+Hydrate 0.7.2 preserves controls closed before hydration. Compiler 0.7.3 routes authored native
+baseline metadata through the serializer instead of folding it into trusted HTML. Baselines remain
+framework-owned across ordinary, compiled, and uppercase attribute paths. Output limits account
+for the generated attributes. This uses the existing optional baseline marker and preserves ABI
+epoch 2. React and custom-element ownership remain unchanged.
+These repairs preserve helper signatures, artifact schemas, ABI epoch 2, and released fixtures.
+
+Testing 0.7.2 extends server-test ownership across request initialization and context inspection,
+always attempts application teardown after failed request disposal, and removes owned mount
+containers when setup fails. Caller-owned containers remain attached. Public API signatures,
+artifact schemas, ABI epoch 2, and released fixtures remain unchanged.
+
 ## Additional branch packages at 0.7.1
 
 The remaining changed public packages select unpublished 0.7.1 versions: reactive, DOM,
 component-library-policy, module-rewrite, Intl, Intl analyzer, Time, Bun plugin, gestures,
 gravity, physics, testing, Vitest, Jest, Bun test, configuration, the component-library marker,
-Motion, microfrontends, Theme, Jotai, and the agent skill. The component libraries adopt setup-owned resources.
+Motion, microfrontends, Theme, Jotai, React DOM compatibility, and the agent skill. The component libraries adopt setup-owned resources.
 The remote component retains its documented client-only placement in microfrontends 0.7.1.
+Microfrontends 0.7.2 expands the page-provided client helper set so specialized reactive state and
+component construction use the host graph. Deploy its host bootstrap before remotes emitted with
+the additional provider requirements. Older remote artifacts remain supported by the expanded
+bootstrap. Component helper signatures and artifact epoch 2 remain unchanged. This directional
+provider minimum does not establish that an older host can load a newly emitted remote.
+Bun and Webpack adapters require microfrontends 0.7.2 for their shared import-analysis SPI.
+Their existing generation and bridge signatures remain compatible. Static imports with repeated
+declarations, comments, aliases, and lexical namespace shadowing retain the page-owned provider.
 The agent skill publishes its revised application-authoring guidance. Charts has test-only
 changes and remains at 0.7.0. Private applications, comparison tooling, and fixtures do not
 receive release versions.
 
 Core requires reactive ^0.7.1 for its transaction entry point and pending-state implementation.
-DOM requires core and reactive ^0.7.1, and hydrate requires DOM ^0.7.1 for the repaired adoption
+DOM and SSR require core ^0.7.2 for their shared enhancement-target selection helper.
+DOM requires reactive ^0.7.1, and hydrate requires DOM ^0.7.1 for the repaired adoption
 paths. SSR requires reactive ^0.7.1. Time requires core ^0.7.1 for compiler-generated localization
 typing. Component-library policy requires compiler ^0.7.1 for component selection facts.
 All three build plugins require component-library-policy ^0.7.1. Vite also requires Intl and
@@ -158,6 +596,19 @@ Stateful context providers retain a complete activation owner and import the SSR
 capability with that owner. SSR preserves their rendered children using the existing retained-range
 representation. Rebuild paired library and consumer artifacts to receive the compiler correction.
 Legacy ID-only retained ranges remain valid, while partially supplied planned authority is rejected.
+Hydrate 0.7.2 preserves browser ownership of selected file inputs during restoration, restores
+modeless dialogs and valid editable text attribute forms, and retains select values across option
+reordering. Missing or ambiguous captured identities cannot transfer drafts through positional
+recovery. Capture records sibling positions once during its bounded walk, avoiding repeated
+sibling scans in wide forms. Unchanged retained editable descendants and native selection survive
+restoration. Changed checkbox and radio option values, and replacements that are no longer
+editable, cannot acquire old control drafts. Replacement file inputs require reselection.
+SSR 0.7.2 also records native disclosure and dialog open defaults from a single property read.
+Hydrate 0.7.2 preserves controls closed before hydration. Compiler 0.7.3 routes authored native
+baseline metadata through the serializer instead of folding it into trusted HTML. Baselines remain
+framework-owned across ordinary, compiled, and uppercase attribute paths. Output limits account
+for the generated attributes. This uses the existing optional baseline marker and preserves ABI
+epoch 2. React and custom-element ownership remain unchanged.
 These repairs preserve helper signatures, artifact schemas, and the ABI epoch.
 
 These are compatible implementation, manifest, typing, and additive provider updates.
@@ -481,6 +932,22 @@ require a framework release. Dependency ranges express supported versions and do
 equal the newest workspace version. Validation still requires them to accept the checked-out
 dependency version.
 
+Generated starters have a stricter floor policy. Their eXact dependency and development-dependency
+ranges must equal `^<current owning package version>`, including independently versioned patches.
+After changing a package version used by the scaffolder, update the existing template constants and
+run its generation matrix:
+
+```sh
+npx vitest run packages/create-exact-app/src/project-generation.test.ts --exclude '**/.tmp/**'
+```
+
+The matrix checks exact caret floors against workspace manifests across the advertised build,
+runtime, test, and React selections. It runs in the package suite used by the full release check.
+It does not install or build the generated applications. Floor updates require a new scaffolder
+patch release, without forcing unrelated packages onto a common version or changing their
+compatible dependency ranges. The selected dependency versions must be published or included in
+the release closure before a starter can install them. Packed-app acceptance remains separate.
+
 Preview a package version change before writing manifests:
 
 ```sh
@@ -540,24 +1007,31 @@ exists locally. Unmapped or unavailable revisions fail rather than silently sele
 The release-artifact job also runs `check:security-audit`; an unreviewed finding prevents the
 publication job from starting.
 
-The October 2026 dependency review updates compatible patched dependencies. Nuxt DevTools
-retains `simple-git` 3 because version 4 removes the default export DevTools imports.
-The comparison application disables DevTools and does not accept remote Git configuration,
-repositories or editor environment variables. The
-[simple-git advisories](https://github.com/advisories/GHSA-x6jw-m9v5-85vh) and its
-[argument-parser advisory](https://github.com/advisories/GHSA-v5rq-49vh-5v5c) remain recorded
-until the upstream caller supports the patched API.
+`security-audit-policy.json` retains narrowly reviewed exceptions for these dependency paths:
 
-`security-audit-policy.json` records exceptions expiring November 10, 2026 for three
-unpatched causes, the disabled DevTools Git dependency and their npm-reported dependents:
-
-- [braces recursion](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm) affects authored
-  glob patterns in build and lint tooling. Do not feed those tools untrusted patterns.
 - [node-forge signature verification](https://github.com/advisories/GHSA-86w9-cpqp-85rv)
-  arrives through listhen certificate tooling. Comparison servers use HTTP. This path does
-  not verify untrusted RSA signatures in repository applications.
-- [sprintf-js precision](https://github.com/advisories/GHSA-hp3w-g68c-fv3c) arrives through
-  argparse and Jest. Format strings belong to the tooling rather than remote requests.
+  arrives through listhen certificate tooling in the private comparison workspace. Its seven
+  inherited records retain a high severity ceiling and expire November 10, 2026. Comparison
+  servers use HTTP, and this path does not verify untrusted RSA signatures in repository
+  applications. This does not establish nonreachability for other callers.
+- SvelteKit [enhanced-action redirects](https://github.com/advisories/GHSA-pfhg-q3qv-9q6r)
+  and [prerendered cache headers](https://github.com/advisories/GHSA-27mw-82g8-phjj) affect
+  the private HTTP loopback comparison. It uses ordinary JSON onsubmit handlers and does not
+  derive prerendered cache-control headers from untrusted inputs. SvelteKit 3 contains fixes,
+  but the current Bun adapter requires SvelteKit 2. Exactly three inherited records have a low
+  severity ceiling and expire at the start of November 7, 2026 UTC. Revisit the decision before
+  expiry or any feature or exposure change.
+
+- [MSAL authorization-code handling](https://github.com/advisories/GHSA-xcx6-jx8p-x3h5)
+  remains vulnerable in the installed Azure dependency graph. Azure is unused. Local VSCE
+  packaging does not call `getPAT` or select `azureCredential`, and unstorage uses memory/HTTP
+  configuration without an Azure driver. Exactly two records have a high severity ceiling and
+  expire at the start of November 7, 2026 UTC. Revisit before expiry or any authentication,
+  publishing, driver, dependency or advisory change. This acknowledges the installed
+  vulnerability and does not establish safety for other usage.
+
+The withdrawn braces advisory has no retained exception. Fixed or absent causes do not justify
+stale entries, and a patched upstream release alone does not establish compatible parent APIs.
 
 These exceptions acknowledge retained vulnerable dependencies. They do not establish safety
 for other callers or input paths. Recheck upstream fixes before expiry and remove both the
@@ -666,12 +1140,52 @@ minor versions at 0.x, or major versions at 1.0 and later. Development artifacts
 released compatibility promise. Current runtime contracts are documented in
 [compiled component artifacts](compiled-component-artifacts.md) and [SSR/hydration](ssr-hydration.md).
 
+## Coordinated local 0.8.0 preparation
+
+All public npm packages and all six native compiler distributions are selected together at stable
+0.8.0 for local release preparation. This includes unchanged public packages. It does not authorize
+publication, replace an existing published version, or select private editor and browser extension
+artifact versions. Registry availability, prior-release comparison, platform CI and package
+acceptance remain publication prerequisites. The compiler's six native optional dependencies match
+its version exactly. Application and starter dependency floors must accept the matching providers.
+
+The working 0.9, 0.10 and 0.11 prerelease labels were unpublished preparation labels. Their approved
+artifact changes belong to this single 0.8.0 preparation. Correcting those labels does not reset the
+ABI epoch or weaken the version planner's published-version and downgrade protections.
+
+Release ABI epoch 6 and component definition/input revision 6 require matching compiler, core, DOM
+and SSR providers. Physical element addresses use compiler-installed symbol metadata rather than authored string props. Old generation-5 providers and render-program revision 3 reject before effects or output. Private children-input recipes, mandatory provider redemption, isolated receipt
+storage and server-reference generation replace the old private receipt issuance, unrestricted
+payload reads and root entry points without compatibility aliases. Component-only public roots
+and one-active-placement ownership remain required. Delegated SSR children getters have one
+acquisition per accepted execution occurrence. A fresh final stream pass acquires independently.
+Ordinary prop getters and authored reactive payload identity retain their existing semantics.
+
+Render-program revision 4 independently requires the SSR provider's version assertion before
+identity preparation or output. A new core provider cannot make an old SSR provider accept that
+contract. Component-input operation exports and compiler-created prop operands also require the
+matching provider graph. Component-library build facts remain revision 1 and the compiler process
+protocol remains 1.0.0. Existing capability bits do not change.
+
+Array invocations require scoped completion discriminator 4 before application payload decoding or
+execution. Success echoes it even without a patch. Single, batch and stream operations preserve
+operation-local parser context. Old parsers reject new requests before application work, and
+standalone owned helpers assert the matching capability before their callback. The obsolete
+selectedArray method has no compatibility alias.
+
+Released fixtures and their integrity records remain immutable, including old helper and artifact
+bytes used as rejection witnesses. Witness selection follows each recorded release-fixture tree.
+An unpublished epoch's introduced version does not require fabricating a released witness or imply
+registry publication. Compiler, providers, repository callers, tests and documentation migrate
+together while normal provider materialization and independent adapter and host acceptance remain
+release gates.
+
 The current contract versions are:
 
 | Boundary                      | Current version        | Ownership                                        |
 | ----------------------------- | ---------------------- | ------------------------------------------------ |
-| Render program                | 2                      | Core and native compiler                         |
-| Component definition          | 2                      | Core, native compiler, framework-owned artifacts |
+| Render program                | 4                      | Core and native compiler                         |
+| Component definition/input    | 6                      | Core, native compiler, framework-owned artifacts |
 | Component-library build facts | 1                      | Compiler, package marker, authorization          |
 | Compiler process protocol     | 1.0.0                  | JavaScript compiler host and native process      |
 | Capability mask               | 1, 2, 4, 8, 16, 32, 64 | Compiler/runtime capabilities                    |
@@ -695,7 +1209,7 @@ The additive `project-files` request uses the native TypeScript configuration pa
 root selection. It requires the matching native compiler package and changes no emitted component ABI.
 
 `check:compiled-abi` bundles preserved 0.5.0 JavaScript against current runtime packages without
-invoking the compiler. For epoch 2 it verifies rejection of epoch-1 artifacts before component construction or DOM mutation. Integrity hashes and the Git release gate
+invoking the compiler. For epoch 3 it verifies rejection of epoch-1 and epoch-2 render-program artifacts before component construction or DOM mutation. Integrity hashes and the Git release gate
 prevent refreshing a published fixture to hide an incompatible runtime change. These fixtures are
 representative regression protection, not exhaustive proof of every possible component behavior.
 
@@ -705,6 +1219,22 @@ Review must classify semantic ABI breaks that leave schema numbers unchanged and
 Adding a new helper is compatible with old artifacts, but newly compiled libraries must declare
 runtime dependency minimums that actually supply that helper. Do not claim backward compatibility
 merely because version constants match.
+
+Server child task facades emit `bindTask` imports from
+`@exactjs/core/framework/server-task-helpers`. Newly compiled artifacts and
+libraries require a core provider whose server helper facade exports that function.
+Select a dependency minimum from the release that supplies this export and verify
+its package contents and installed resolution. Existing `bindTask` signatures and
+artifact fields are unchanged. The export alone does not select an ABI epoch.
+
+Source-backed scalar task helpers add private module entries with the internal
+`entry(signal, receiver, args)` signature and static target imports. Publication must classify
+this linkage and its execution semantics alongside ordinary replacement semantics against the
+published provider contracts. The 0.6 and 0.7.1 releases rule out an unreleased-code exception.
+Keep the compiler host and native binary exactly paired, verify that ordinary and private imports
+share one target module through each adapter, and preserve the released fixtures. These source
+entries do not define a source-removed library helper protocol. The existing ABI and provider
+release gates still require an explicit compatibility decision before publication.
 
 ## Licensing
 
@@ -766,3 +1296,133 @@ activations require Intl ^0.7.1. Extraction also preserves call and property-rea
 potential effects, and removes
 unit-option metadata from reconstructed intrinsic hosts. These providers join their already selected unpublished 0.7.1
 releases and must be selected together for publication.
+
+Charts 0.7.2 bounds tick generation for finite numeric domains and avoids intermediate overflow
+in linear positioning. Charts and Physics 0.7.2 keep readonly guarantees in TypeScript rather
+than freezing presentation values, simulation snapshots, or reusable projection policies.
+Public helper signatures and ABI epoch 2 remain unchanged.
+
+Time 0.7.3 fences stale clock callbacks, closes reentrant subscription teardown, and permits
+retry after failed setup. Internal due publication carries a captured numeric timestamp and
+generation. Public component and helper signatures and ABI epoch 2 remain unchanged.
+
+Time 0.7.3 also captures plan, binding, environment, and input values before validation.
+Readonly observations remain ordinary copies while private scheduling state retains its validated
+values. Wall-clock reads share a timestamp per synchronous cycle without sharing a mutable
+observation object. This replaces the previous frozen-object identity with value consistency.
+Public helper signatures and ABI epoch 2 remain unchanged.
+
+Microfrontends 0.7.2 selects a runtime-only browser facade at its root while retaining the Node
+root API and the explicit `/client` entry. Compiled component identity and ABI epoch 2 are
+unchanged. Bun plugin 0.7.2 preserves browser conditions and resolves scoped remote packages
+through its build resolver. Provider bootstrap remains conditional on configured remote bindings.
+
+Compiler 0.7.3 preserves ref facade method dispatch in SSR artifacts, including replacements
+observed through ordinary writable aliases. It reuses the existing request-local facade helper
+and removes the canonical-call bypass. Previously emitted bypass calls retain their released
+meaning. Recompile components to receive the source-semantic repair. Helper signatures,
+ABI epoch 2, and frozen fixtures remain unchanged.
+
+Compiler 0.7.3 also retains standard method placement through primitive literal unions and indexed
+aliases. This repairs type-driven source acceptance without changing emitted helper signatures or
+the ABI epoch. Intl 0.7.2 captures validated protocol values consistently, rejects sparse arrays and
+nonstring discriminants, and ignores caller-owned iteration methods during protocol capture.
+
+Core 0.7.3 contains diagnostic reason conversion so inspection cannot replace a task's original
+failure. The existing error-format provider adds `describeFailureReason` without changing emitted
+helper signatures or ABI epoch 2. DevTools runtime 0.7.1 requires core ^0.7.3, emits bounded
+failure descriptions, and returns ordinary query observations with TypeScript readonly fields.
+
+SSR 0.7.3 reuses the public ref registry types in its focused helpers, preserving generic keyed
+values and root overloads in emitted TypeScript. This is a compatible declaration refinement.
+Helper runtime behavior, emitted call shapes, ABI epoch 2, and released fixtures are unchanged.
+
+Theme 0.7.2 keeps resolved palettes, scope presentations, deriver definitions, helper envelopes,
+and derivation outputs as ordinary
+JavaScript values under their existing TypeScript readonly declarations. Output validation
+retains identity, cycle rejection, and reserved-variable checks without freezing caller-owned data.
+Palette and CSS reuse retain private bounded caches, while scope resolution observes current
+definition values. Ancestry is captured once and processed iteratively, with explicit cycle
+rejection before palette publication. Public preset and token metadata observations are separate from their canonical
+definitions. This compatible correction does not change compiler helper signatures or the ABI epoch.
+
+Theme 0.7.2 also captures structured color fields once, validates native component indices,
+rejects unsupported color spaces, and distinguishes omitted opacity from invalid explicit null.
+Supported CSS Color 4 and Design Tokens inputs retain their existing results. Custom temperament
+fields include inherited accessors read with their original receiver, and partial typography fields
+are captured once before applying defaults.
+
+Intl 0.7.2 keeps measurement presentations, environment method handles, and locale metadata as
+ordinary JavaScript values under their existing TypeScript declarations. Formatting ownership
+reuses reactive mutation versions, so direct locale writes, restored public counters, and reactive
+rollback cannot revive retired presentations. Updates during request resolution fail before
+publication. Unit lookup excludes inherited object names, and identity conversions validate both
+units before returning. Public helper signatures, supported unit names, and ABI epoch 2 remain
+unchanged.
+
+Intl preference inputs and returned observations use independent tuple copies. Provider and locale
+scope policy updates share a reactive transaction, restoring private policy and public state on
+rollback and fencing superseded propagation. Public policy types and helper signatures remain.
+
+Intl catalog updates capture accepted inputs before replay publication. Descriptor and catalog
+replacements validate in private collections before one registry revision is installed. Manual
+history and scoped catalog updates share reactive rollback, preserving prior state after failures.
+This compatible repair retains public protocol and helper signatures.
+
+Intl locale scopes retain generated-source synchronization after creation while preserving scoped
+manual overlays and explicit source isolation. Repeated inherited layers compact by catalog
+identity, without changing the source protocol or emitted helper signatures.
+
+Intl public message plans and translation projections use ordinary independent data. Materialized
+formatter plans no longer alias their input descriptors, and writable result aliases cannot alter
+private cached execution plans. Public protocol, helper signatures, and ABI epoch 2 are unchanged.
+
+Intl 0.7.2 package metadata and editor observations retain TypeScript readonly declarations without
+runtime freezing. Intl 0.7.2 and Compiler 0.7.3 language tools distinguish half-open span intersection
+from cursor containment, avoiding adjacent hint, dependency, diagnostic, and refactor attribution.
+These corrections preserve protocol shapes and compiler artifact ABI epoch 2.
+
+DevTools Runtime 0.7.1 and Server 0.8.0 retain serialized event observations independently of
+caller-owned nested values. Client subscriptions queue replay and live events in sequence order,
+fence removed registrations, and preserve ordinary TypeScript readonly behavior. No compiler
+helper or wire shape changes are introduced.
+
+Core 0.7.3 and DevTools Protocol 0.8.0 return independent ordinary inspection observations under
+their existing TypeScript readonly declarations. Task history captures private copies, component
+names avoid authored accessors, and public method metadata cannot change dispatch authority.
+Redaction isolates callback path aliases and rejects malformed decisions without exposing values.
+Compiler helper signatures, event and query shapes, and ABI epoch 2 are unchanged.
+
+Server 0.8.0 requires literal boolean approval from configured request, CSRF, operation, and
+inspection policy callbacks. Derived request contexts preserve inherited and nonenumerable
+configuration policies with their original owners. Configuration capture failures release opened
+request resources while preserving the primary failure. Core 0.7.3 owns the internal
+`framework/configuration` helper shared by Server 0.8.0, DOM 0.7.2 enhancements, and Hydrate 0.7.3.
+Hydration entries preserve inherited work limits and callbacks while retaining live accessor
+aliases and root-local overrides. Existing helper signatures, public hook types, transport shapes,
+and compiler artifact ABI epoch 2 remain unchanged.
+
+Server 0.8.0 captures inspection catalogs before validation and retains identity and redaction
+metadata privately. Catalog lifecycle handles follow ordinary TypeScript readonly semantics. Catalog data must be plain and free of accessors and executable hooks.
+Canonical query composition uses private lookups, avoiding full-catalog copies per debug request.
+Wire shapes and compiler artifact ABI epoch 2 remain unchanged.
+
+Server 0.8.0 removes the unused standalone catalog registry factory and registry types from its
+public root. Applications supply `inspectionCatalogs`, use the server debug runtime's
+`registerCatalog()` method, or use `registerExactInspectionCatalog()` for lifecycle registration.
+The registry remains internal. This approved public API removal requires the 0.x minor version
+advance, while compiled helper signatures and ABI epoch 2 remain compatible. Existing workspace
+consumers accept Server 0.7.x and 0.8.x where their used APIs remain compatible.
+
+DevTools Runtime 0.7.1 retains private session identity and publishes ordinary descriptions.
+Concurrent pending connection calls retain shared opening-result identity. Later connected calls
+return independent descriptions. Internal connection, subscription, and disposal work retains its
+own lifecycle callbacks. DOM 0.7.2 returns ordinary independent inspection snapshots and element
+lists. Compiler 0.7.3 correlation observations retain readonly types without runtime freezing.
+Server 0.8.0 also removes redundant freezing from encoded inspection response preparation.
+Public types, wire shapes, compiler registration payloads, and artifact ABI epoch 2 are unchanged.
+
+Intl 0.7.2 captures validation limits before artifact fields are read and rejects invalid numeric
+counts. Zero remains supported for empty patterns and catalogs. Bounded strings also check their
+NFC-normalized output length in UTF-16 code units. Existing stage defaults, artifact shapes,
+compiler helper signatures, and ABI epoch 2 remain unchanged.

@@ -1,4 +1,5 @@
-import { unwrap } from '@exactjs/core';
+import { isReservedElementIdentityName } from '@exactjs/core/runtime/component-operations';
+import { unwrap, attemptCleanup, createCleanupFailure, throwCleanupFailure } from '@exactjs/core';
 import type { ExactRenderProgramPropertyOperand } from '@exactjs/core/runtime/render-operations';
 import { isReactiveValue, readIndexedReactiveSlot } from '@exactjs/reactive/framework/runtime';
 import { preserveFocus } from './focus.js';
@@ -50,6 +51,7 @@ export function applyCompiledProps(
 		state.invocation.propertyWriter?.(group, apply);
 		if (spreadValues) {
 			for (const key of new Set([...Object.keys(previous), ...Object.keys(spreadValues)])) {
+				if (isReservedElementIdentityName(key)) continue;
 				const value = unwrap(spreadValues[key]);
 				if (Object.hasOwn(previous, key) && Object.is(previous[key], value)) continue;
 				setElementProp(state.root, element, key, value, previous[key], mounted.scope);
@@ -72,4 +74,36 @@ export function releaseCompiledProps(mounted: Mounted): void {
 		clearElementProps(retained.element);
 	}
 	state.compiledProps = undefined;
+}
+
+/**
+ * Releases obsolete program refs without clearing a successor's bindings on reused host nodes.
+ * Removing these old records first keeps the program's ordinary stop idempotent after reentry.
+ */
+export function releaseReplacedProgramProps(
+	mounted: Mounted,
+	retainedHost: (node: Node) => boolean,
+	retainedRef: (node: Node, ref: unknown) => boolean
+): void {
+	const state = mounted.renderProgram;
+	if (!state) return;
+	const failure = createCleanupFailure();
+	const releaseRef = (element: Element, value: unknown) => {
+		if (retainedRef(element, value)) return;
+		attemptCleanup(failure, () =>
+			(value as { fulfill(value: unknown): void } | undefined)?.fulfill(undefined)
+		);
+	};
+	for (const [element, props] of state.props ?? []) {
+		if (!retainedHost(element)) continue;
+		state.props!.delete(element);
+		releaseRef(element, props.ref);
+	}
+	for (let index = 0; index < (state.compiledProps?.length ?? 0); index++) {
+		const retained = state.compiledProps![index];
+		if (!retained || !retainedHost(retained.element)) continue;
+		state.compiledProps![index] = undefined;
+		releaseRef(retained.element, retained.values.ref);
+	}
+	throwCleanupFailure(failure);
 }

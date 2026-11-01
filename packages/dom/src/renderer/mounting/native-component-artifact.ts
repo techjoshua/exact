@@ -1,59 +1,57 @@
-import { retainSuppliedPlacement } from '../supplied-placement-capability.js';
+import { roots } from '../../state.js';
+import { isComponentInputIncompatibility } from '@exactjs/core/runtime/component-operations';
+import {
+	clientComponentRecipe,
+	type AdmittedClientComponentInput
+} from '../component-input-admission.js';
+import {
+	retainSuppliedPlacement,
+	withSuppliedPlacementInputs
+} from '../supplied-placement-capability.js';
 import { domEnhancementCapability } from '../enhancement-capability.js';
 import {
 	type AnyComponentInstance,
 	type Child,
 	createErrorReport,
+	attachSuppressedCleanupFailure,
 	handleComponentError,
-	normalizeChildren,
 	pageComponentDomain
 } from '@exactjs/core';
 import { withComponentResumption } from '@exactjs/core';
 import {
 	exactCompiledClientAttachment,
 	exactCompatibilityClientAttachment,
-	type ExactClientComponentArtifact,
-	type ExactComponentReceiptData
+	type ExactClientComponentArtifact
 } from '@exactjs/core/runtime/component-operations';
-import {
-	isCompiledReactivePropertyOperand,
-	createEffectScope,
-	isReactiveValue,
-	unwrap,
-	withEffectScope,
-	type EffectScope
-} from '@exactjs/reactive/framework/runtime';
-import type { ExactRenderProgramBindingTarget } from '@exactjs/core/runtime/render-operations';
+import { withEffectScope, type EffectScope } from '@exactjs/reactive/framework/runtime';
 import type { Mounted, Root } from '../../types.js';
 import { isDomRenderLimitError, withTreeDepth } from '../limits.js';
 import { refreshComponentRoot, rootIntroduction } from '../component-roots.js';
-import { ownMountedInstance } from '../component-mount-ownership.js';
+import { createMountedScope, ownMountedInstance } from '../component-mount-ownership.js';
 import { createMarker } from '../root-support.js';
 import { mountDetachedChildren } from './children.js';
+import { unmountMounted } from '../teardown.js';
 import { countDomWork } from '../limits.js';
-import { bindCompiledComponentUpdate } from '../component-update-binding.js';
-import { bindCompiledWideComponentUpdate } from '../component-update-wide-binding.js';
 import {
-	bindCompiledStateComponentUpdate,
-	bindCompiledWideStateComponentUpdate
-} from '../component-state-update-binding.js';
-import type { CompiledProgramBindingTarget } from '../component-update-storage.js';
+	bindComponentReceiptUpdate,
+	prepareComponentReceiptBinding
+} from '../component-receipt-binding.js';
+
+export { applyCompiledComponentReceipt } from '../component-receipt-binding.js';
 import { requireForeignComponentCapability } from '../foreign-component-capability.js';
 import type { PreparedComponentAttachment } from '../prepared-component-attachment.js';
-
-const transparentComponentUpdateOwners = new WeakMap<AnyComponentInstance, AnyComponentInstance>();
 
 /** Redeems one opaque component receipt through only its compiler-selected client attachment ABI. */
 export function mountComponentReceipt(
 	root: Root,
-	receipt: ExactComponentReceiptData,
+	receipt: AdmittedClientComponentInput,
 	parentInstance?: AnyComponentInstance,
 	parentScope?: EffectScope,
 	parentNode?: Node
 ): Mounted {
-	const prepared = root.preparedComponents?.get(receipt);
+	receipt = clientComponentRecipe(receipt.admitted);
+	const prepared = root.preparedComponents?.take(receipt.admitted.operation, parentInstance);
 	if (prepared) {
-		root.preparedComponents!.delete(receipt);
 		const mounted = prepared.attachment.ownedRange;
 		if (prepared.attachment.owner.parent !== parentInstance)
 			throw new Error('Prepared component cannot attach beneath a different context owner');
@@ -65,11 +63,15 @@ export function mountComponentReceipt(
 	}
 	return withTreeDepth(root, () => {
 		countDomWork(root);
-		const scope = createEffectScope(parentScope);
+		const scope = createMountedScope(parentScope);
 		try {
 			return mountNativeComponentArtifact(root, receipt, scope, parentInstance, parentNode);
 		} catch (error) {
-			scope.stop();
+			try {
+				scope.stop();
+			} catch (cleanup) {
+				attachSuppressedCleanupFailure(error, cleanup);
+			}
 			throw error;
 		}
 	});
@@ -78,13 +80,14 @@ export function mountComponentReceipt(
 /** Constructs one native owner, optionally capturing its output for a separately selected preparation. */
 export function mountNativeComponentArtifact(
 	root: Root,
-	receipt: ExactComponentReceiptData,
+	receipt: AdmittedClientComponentInput,
 	scope: EffectScope,
 	parentInstance: AnyComponentInstance | undefined,
 	parentNode: Node | undefined,
 	preparation?: PreparedComponentAttachment,
 	preparationMode: 'mount' | 'hydrate' = 'mount'
 ): Mounted {
+	receipt = clientComponentRecipe(receipt.admitted);
 	const artifact = receipt.contract.artifact;
 	if (artifact.target !== 'client')
 		throw new TypeError(`Component receipt selected non-client artifact ${artifact.id}`);
@@ -97,55 +100,99 @@ export function mountNativeComponentArtifact(
 		children: [],
 		clientArtifact: artifact
 	};
+	if (root.suppliedPlacementPlan?.pending && root.suppliedPlacementPlan.isCurrent())
+		root.suppliedPlacementPlan.own(mounted);
+	const rootAttempt = root.componentInputAttempt;
+	const rootVersion = root.version;
+	const receivingCurrent = () =>
+		!rootAttempt?.disposed &&
+		(!rootAttempt ||
+			(root.componentInputAttempt === rootAttempt &&
+				roots.get(root.container) === root &&
+				root.version === rootVersion));
+	let deliveryStarted = false;
 	const target = new NativeClientAttachmentTarget(root, mounted, parentNode);
 	preparation?.own(mounted);
+	if (!receivingCurrent()) {
+		scope.stop();
+		return mounted;
+	}
 	try {
 		const domain = receipt.domain ?? parentInstance?.domain ?? root.domain ?? pageComponentDomain;
 		// Compiler-indexed component operations carry finalized parent values and therefore
 		// resolve their marked operands before construction. Framework-created operations
 		// (notably enhancement-provider chains) deliberately retain reactive prop sources so
 		// the provider can forward their ownership without inventing a runtime dirty program.
-		const initialProps = receipt.update ? resolvePropReceipt(receipt.props) : receipt.props;
+		const preparedInput =
+			mounted.componentReceiptBinding?.pending ??
+			prepareComponentReceiptBinding(mounted, receipt, receivingCurrent);
+		if (!preparedInput.isCurrent()) {
+			preparedInput.stop();
+			scope.stop();
+			return mounted;
+		}
+		const inputs = preparedInput.inputs;
+		const initialProps = withEffectScope(scope, () =>
+			componentProps(inputs.props, inputs.children)
+		);
+		if (!preparedInput.isCurrent()) {
+			preparedInput.stop();
+			scope.stop();
+			return mounted;
+		}
 		const construct = () =>
 			withEffectScope(scope, () =>
 				artifact.construct(
 					parentInstance,
-					componentProps(initialProps, resolveChildReceipt(receipt)),
+					initialProps,
 					parentInstance?.ambientContexts ?? root.ambientContexts,
 					domain,
 					undefined,
 					receipt.contract
 				)
 			);
+		deliveryStarted = true;
+		if (root.componentInputAttempt?.operation === receipt.admitted.operation)
+			root.componentInputAttempt.deliveryStarted = true;
+		preparedInput.beginDelivery();
 		const instance =
 			preparationMode === 'hydrate' ? withComponentResumption(domain, construct) : construct();
 		ownMountedInstance(mounted, instance);
-		const authoredUpdateOwner = componentReceiptUpdateOwner(parentInstance);
-		if (receipt.transparentUpdateOwner && authoredUpdateOwner)
-			transparentComponentUpdateOwners.set(instance, authoredUpdateOwner);
+		if (!preparedInput.isCurrent()) {
+			unmountMounted(mounted);
+			return mounted;
+		}
 		if (preparation) {
 			preparation.capture(
 				artifact,
 				instance,
 				target,
 				() => {
-					bindComponentReceiptUpdate(mounted, authoredUpdateOwner, receipt);
+					bindComponentReceiptUpdate(mounted, receipt);
 					target.finishConstruction();
 				},
 				preparationMode
 			);
 		} else {
 			artifact.attach(instance, target, 'mount');
-			bindComponentReceiptUpdate(mounted, authoredUpdateOwner, receipt);
+			bindComponentReceiptUpdate(mounted, receipt);
 			target.finishConstruction();
 		}
 	} catch (error) {
-		if (preparation || isDomRenderLimitError(error)) throw error;
-		const fallback = handleComponentError(
-			parentInstance,
-			createErrorReport(error, 'construct', parentInstance, artifact.id),
-			null
-		);
+		if (
+			!receivingCurrent() ||
+			!deliveryStarted ||
+			preparation ||
+			isDomRenderLimitError(error) ||
+			isComponentInputIncompatibility(error)
+		)
+			throw error;
+		const report = createErrorReport(error, 'construct', parentInstance, artifact.id);
+		const fallback = parentInstance
+			? handleComponentError(parentInstance, report, null)
+			: undefined;
+		// Before a root instance exists, its renderer still owns the error context and report hook.
+		if (!parentInstance) root.errors.report(report);
 		const output = fallback?.();
 		mounted.children =
 			output === undefined
@@ -161,80 +208,34 @@ export function mountNativeComponentArtifact(
 	return mounted;
 }
 
-/** Joins one compiler-indexed parent dirty target to this retained child receipt. */
-function bindComponentReceiptUpdate(
-	mounted: Mounted,
-	owner: AnyComponentInstance | undefined,
-	receipt: ExactComponentReceiptData
-): void {
-	const update = receipt.update;
-	if (!update || !owner) return;
-	const stopBindings: Array<{ stop(): void }> = [];
-	const target: CompiledProgramBindingTarget = { mounted, owner, stopBindings, valid: true };
-	const wide = 'words' in update.contract && typeof update.contract.words === 'number';
-	const receivesProps = 'props' in update.contract && typeof update.contract.props === 'number';
-	if (wide) {
-		if (receivesProps) bindCompiledWideComponentUpdate(target, update.target, update.contract);
-		else bindCompiledWideStateComponentUpdate(target, update.target, update.contract);
-	} else if (receivesProps) bindCompiledComponentUpdate(target, update.target, update.contract);
-	else bindCompiledStateComponentUpdate(target, update.target, update.contract);
-	if (stopBindings.length !== 0)
-		mounted.stop = () => {
-			for (const binding of stopBindings) binding.stop();
-		};
-}
-
-/** Skips renderer-injected providers while retaining their semantic context parentage. */
-function componentReceiptUpdateOwner(
-	instance: AnyComponentInstance | undefined
-): AnyComponentInstance | undefined {
-	let owner = instance;
-	const visited = new Set<AnyComponentInstance>();
-	while (owner && !visited.has(owner)) {
-		visited.add(owner);
-		const transparent = transparentComponentUpdateOwners.get(owner);
-		if (!transparent) return owner;
-		owner = transparent;
-	}
-	return owner;
-}
-
-/** Resolves only compiler-marked prop operands; arbitrary objects remain opaque values. */
-function resolvePropReceipt(
-	props: Readonly<Record<string, unknown>>
-): Readonly<Record<string, unknown>> {
-	let resolved: Record<string, unknown> | undefined;
-	for (const key of Object.keys(props)) {
-		const value = props[key];
-		const operand = isCompiledReactivePropertyOperand(value) ? value : undefined;
-		if (!operand && !isReactiveValue(value)) continue;
-		(resolved ??= { ...props })[key] = operand
-			? Reflect.get(operand[1], operand[2])
-			: unwrap(value);
-	}
-	return resolved ?? props;
-}
-
 /** Publishes the next compiler-issued receipt through its selected prop update contract. */
 export function receiveComponentReceipt(
 	mounted: Mounted,
-	receipt: ExactComponentReceiptData
-): boolean {
-	if (!mounted.clientArtifact || !mounted.instance) return false;
-	mounted.clientArtifact.receive(
-		mounted.instance,
-		receipt.update ? resolvePropReceipt(receipt.props) : receipt.props,
-		resolveChildReceipt(receipt)
-	);
-	mounted.componentReceipt = receipt;
-	return true;
-}
-
-/** Applies one compiler-selected parent prop receipt directly to its retained child artifact. */
-export function applyCompiledComponentReceipt(target: ExactRenderProgramBindingTarget): void {
-	const mounted = (target as CompiledProgramBindingTarget).mounted;
-	const receipt = mounted.componentReceipt;
-	if (receipt) receiveComponentReceipt(mounted, receipt);
+	receipt: AdmittedClientComponentInput,
+	onDelivery?: () => void
+): { committed: boolean; isCurrent(): boolean } {
+	const prepared = prepareComponentReceiptBinding(mounted, receipt);
+	try {
+		if (!mounted.clientArtifact || !mounted.instance || !prepared.isCurrent())
+			return { committed: false, isCurrent: prepared.isCurrent };
+		if (mounted.componentReceiptBinding?.pending !== prepared)
+			return { committed: false, isCurrent: prepared.isCurrent };
+		prepared.beginDelivery();
+		onDelivery?.();
+		withSuppliedPlacementInputs(mounted.instance, () =>
+			mounted.clientArtifact!.receive(
+				mounted.instance!,
+				prepared.inputs.props,
+				prepared.inputs.children
+			)
+		);
+		const committed = prepared.isCurrent() && prepared.commit();
+		return { committed, isCurrent: prepared.isCurrent };
+	} finally {
+		if (mounted.componentReceiptBinding?.pending === prepared)
+			mounted.componentReceiptBinding.pending = undefined;
+		prepared.stop();
+	}
 }
 
 function componentProps(
@@ -245,13 +246,6 @@ function componentProps(
 	if (children.length === 1) result.children = children[0];
 	else if (children.length > 1) result.children = children;
 	return result;
-}
-
-/** Indexed receipts finalize parent values. Ordinary receipts retain live forwarded children. */
-function resolveChildReceipt(receipt: ExactComponentReceiptData): Child[] {
-	return normalizeChildren(
-		receipt.children.map((child) => (receipt.update ? unwrap(child) : child))
-	);
 }
 
 class NativeClientAttachmentTarget {
@@ -268,7 +262,7 @@ class NativeClientAttachmentTarget {
 		mode: 'mount' | 'hydrate'
 	): Mounted {
 		this.assertAttachment(artifact, instance, mode);
-		retainSuppliedPlacement(this.mounted, rendered);
+		retainSuppliedPlacement(this.mounted, rendered, this.root);
 		this.mounted.children = mountDetachedChildren(
 			this.root,
 			this.mounted.componentReceipt?.fragmentTarget
@@ -278,7 +272,19 @@ class NativeClientAttachmentTarget {
 			this.mounted.scope,
 			this.parentNode
 		);
-		refreshComponentRoot(instance as AnyComponentInstance, true, rootIntroduction(this.root));
+		if (this.root.suppliedPlacementPlan?.pending && this.root.suppliedPlacementPlan.isCurrent())
+			this.root.suppliedPlacementPlan.present(
+				instance as AnyComponentInstance,
+				true,
+				rootIntroduction(this.root)
+			);
+		else
+			refreshComponentRoot(
+				this.root,
+				instance as AnyComponentInstance,
+				true,
+				rootIntroduction(this.root)
+			);
 		this.mounted.afterPlacement = () => (instance as AnyComponentInstance).markMounted();
 		this.mounted.afterPlacementPhase = 'mount';
 		return this.mounted;

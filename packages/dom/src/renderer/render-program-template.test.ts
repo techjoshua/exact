@@ -7,7 +7,7 @@ import { materializeProgramTemplate } from './render-program-template.js';
 for (const namespace of ['mathml', 'svg'] as const) {
 	it(`preserves foreign ${namespace} template topology across HTML breakout tags and cached clones`, () => {
 		const program: ExactDomRenderProgram = {
-			version: 2,
+			version: 4,
 			id: `foreign-${namespace}`,
 			namespace,
 			template:
@@ -43,7 +43,7 @@ for (const namespace of ['mathml', 'svg'] as const) {
 
 it('respects MathML text and annotation integration points within a foreign template', () => {
 	const program: ExactDomRenderProgram = {
-		version: 2,
+		version: 4,
 		id: 'foreign-integration',
 		namespace: 'mathml',
 		template:
@@ -61,7 +61,7 @@ it('respects MathML text and annotation integration points within a foreign temp
 
 it('preserves nested foreign blocks, namespaced attributes and explicit namespace roots', () => {
 	const program: ExactDomRenderProgram = {
-		version: 2,
+		version: 4,
 		id: 'foreign-blocks',
 		namespace: 'svg',
 		template:
@@ -82,7 +82,7 @@ it('preserves nested foreign blocks, namespaced attributes and explicit namespac
 
 it('rejects a malformed foreign template rather than mounting an XML parser error', () => {
 	const program: ExactDomRenderProgram = {
-		version: 2,
+		version: 4,
 		id: 'foreign-malformed',
 		namespace: 'svg',
 		template: '<g><span></g>',
@@ -99,7 +99,7 @@ it.each(['whitespace', 'reflection'])(
 	'preserves static attribute %s in a repaired foreign tree',
 	(kind) => {
 		const program: ExactDomRenderProgram = {
-			version: 2,
+			version: 4,
 			id: 'foreign-attributes',
 			namespace: 'svg',
 			template:
@@ -123,7 +123,7 @@ it.each(['svg', 'mathml'] as const)(
 	(namespace) => {
 		const tag = namespace === 'svg' ? 'g' : 'mrow';
 		const program: ExactDomRenderProgram = {
-			version: 2,
+			version: 4,
 			id: `foreign-case-${namespace}`,
 			namespace,
 			template: `<${tag}><input maxLength="4" data-Case="retained"></${tag}>`,

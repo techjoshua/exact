@@ -46,18 +46,23 @@ export function renderToPipeableStream(
 	options: PipeableStreamOptions = {}
 ): PipeableStream {
 	const controller = new AbortController();
+	const signal = options.signal
+		? AbortSignal.any([options.signal, controller.signal])
+		: controller.signal;
 	let destination: Writable | undefined;
 	let completed: string | undefined;
 	let failed: unknown;
+	let hasFailed = false;
 	const pump = () => {
 		if (!destination) return;
-		if (failed !== undefined) {
-			destination.destroy?.(failed instanceof Error ? failed : new Error(String(failed)));
+		if (hasFailed || signal.aborted) {
+			const error = hasFailed ? failed : signal.reason;
+			destination.destroy?.(error instanceof Error ? error : new Error(String(error)));
 			return;
 		}
 		if (completed !== undefined) nodeStream(completed).pipe(destination);
 	};
-	void renderReactToStringAsync(node, { ...options, signal: controller.signal }).then(
+	void renderReactToStringAsync(node, { ...options, signal }).then(
 		(html) => {
 			completed = withBootstrapScripts(html, options);
 			options.onShellReady?.();
@@ -65,6 +70,7 @@ export function renderToPipeableStream(
 			pump();
 		},
 		(error) => {
+			hasFailed = true;
 			failed = error;
 			options.onShellError?.(error);
 			pump();
@@ -78,7 +84,8 @@ export function renderToPipeableStream(
 			return next;
 		},
 		abort(reason) {
-			controller.abort(reason ?? new Error('The render was aborted'));
+			controller.abort(reason === undefined ? new Error('The render was aborted') : reason);
+			pump();
 		}
 	};
 }

@@ -3,6 +3,8 @@
  * @vitest-environment jsdom
  */
 import { render } from '@exactjs/dom';
+import { renderToHydratableString } from '@exactjs/ssr';
+import { bootstrapCounterRoot as serverBootstrapCounterRoot } from './test-support/islands.fixtures.js?exact-target=server';
 import { exactComponentIdentity } from '@exactjs/core/framework/component-contracts';
 import {
 	exactResponseToFetchResponse,
@@ -17,6 +19,7 @@ import { applyPatches } from './patches.js';
 import { noopLogger, testContinuation } from './test-support/responses.js';
 import {
 	clickCounterRoot,
+	ClickCounter,
 	DeepPropsObserver,
 	EagerCounter,
 	IslandShell,
@@ -32,6 +35,47 @@ import {
 } from './test-support/islands.fixtures.js';
 
 describe('@exactjs/hydrate islands', () => {
+	it.each(['absent', 'empty', 'provided'] as const)(
+		'keeps a %s bootstrap registry distinct during automatic and explicit hydration',
+		async (registry) => {
+			const container = document.createElement('main');
+			container.innerHTML = (
+				await renderToHydratableString(serverBootstrapCounterRoot)
+			).htmlWithHydration;
+			const original = container.querySelector('button');
+			expect(original).not.toBeNull();
+			expect(container.querySelector('[data-exact-client-name="ClickCounter"]')).not.toBeNull();
+			const warnings: string[] = [];
+			const outcomes: string[] = [];
+			const client = createExactClient(container, {
+				...(registry === 'absent' ? {} : { islands: registry === 'empty' ? {} : { ClickCounter } }),
+				onMismatch: 'throw',
+				logger: {
+					log: (event) => {
+						if (event.level === 'warn') warnings.push(event.message);
+					}
+				},
+				onHydration: ({ outcome }) => outcomes.push(outcome)
+			});
+			try {
+				expect(warnings).toHaveLength(registry === 'empty' ? 1 : 0);
+				if (registry === 'empty')
+					expect(warnings[0]).toContain('missing client island ClickCounter');
+				expect(outcomes).toEqual(registry === 'provided' ? ['adopted'] : []);
+				expect(hydrateClientIslands(container, { ClickCounter }, { onMismatch: 'throw' })).toBe(
+					registry === 'provided' ? 0 : 1
+				);
+				expect(container.querySelector('button')).toBe(original);
+				expect(container.querySelectorAll('button')).toHaveLength(1);
+				client.registerComponents({ islands: { ClickCounter } });
+				expect(container.querySelector('button')).toBe(original);
+			} finally {
+				client.dispose();
+			}
+			expect(() => client.registerComponents({ islands: { ClickCounter } })).toThrow('disposed');
+		}
+	);
+
 	it('supports an eager root override for compiler-approved interaction islands', () => {
 		const container = document.createElement('main');
 		container.innerHTML =
@@ -208,6 +252,27 @@ describe('@exactjs/hydrate islands', () => {
 			'Malformed eXact island props'
 		);
 		expect(boundary.hasAttribute('data-exact-client-hydrated')).toBe(false);
+	});
+
+	it('keeps valid opaque server children through permitted island root recovery', () => {
+		const container = document.createElement('main');
+		container.innerHTML = `<div data-exact-client-boundary="island-children" data-exact-client-name="Shell" data-exact-client-resumption="true" data-exact-client-props='{"props":{"children":{"__exactServerSlot":"island-children:children"}}}'>
+			<aside><span data-exact-server-slot="island-children:children"><ul><li>Retained frame</li></ul></span></aside></div>`;
+		const list = container.querySelector('ul');
+		const observations: unknown[] = [];
+		const client = createExactClient(container, {
+			islands: { Shell: IslandShell },
+			logger: noopLogger,
+			onHydration: (event) => observations.push(event)
+		});
+		try {
+			expect(container.querySelector('section ul')).toBe(list);
+			expect(container.querySelector('section')?.textContent).toBe('Retained frame');
+			expect(observations).toEqual([expect.objectContaining({ outcome: 'mounted' })]);
+			expect(container.querySelectorAll('[data-exact-server-slot]')).toHaveLength(1);
+		} finally {
+			client.dispose();
+		}
 	});
 
 	it('hydrates client islands without replacing server child slots', () => {

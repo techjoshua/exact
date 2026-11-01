@@ -26,11 +26,40 @@ export async function prepareEagerReplay(temporary, fixture) {
 		path.join(temporary, 'eager-registration.ts'),
 		createExactHydrationRegistrationModule(graph)
 	);
+	const replaySource = path.resolve(
+		fixture,
+		'../../../hydrate/src/test-support/island-replay.fixtures.tsx'
+	);
+	const replay = await compileFileArtifacts(replaySource, {
+		rootDir: path.dirname(replaySource),
+		outDir: path.join(temporary, 'generation-replay')
+	});
 	const client = path.join(temporary, 'eager-client.ts');
 	await writeFile(
 		client,
 		`import {exactHydrationRegistration} from './eager-registration.js';
-import {createExactClient,readExactHydrationConfig} from '@exactjs/hydrate';
+import {createExactClient,readExactHydrationConfig,hydrateClientIslands,lazyClientIsland,hydrate} from '@exactjs/hydrate';
+import {hydrate as hydrateOnly} from '@exactjs/hydrate/root';
+import {hydrateCompiledComponentInputRoot} from '@exactjs/hydrate/framework/component-root';
+import {createCompiledComponentRegistry as registry} from '@exactjs/core/runtime/registry';
+import {createCompiledComponentInputReceipt as operation} from '@exactjs/core/runtime/component-operations';
+import {verifyRootCancellation,verifyRejectedRootConstruction} from ${JSON.stringify(path.resolve(fixture, '../root-cancellation-journey.ts'))};
+import {render,unmount} from '@exactjs/dom/root';
+import {ReplayCounter,observeReplay} from ${JSON.stringify(replay.clientFile)};
+import {verifyIslandGenerationReplay,verifyRetiredInteractionBroker} from ${JSON.stringify(path.resolve(fixture, '../island-generation-journey.ts'))};
+import {ensureInteractionHydration,disposeInteractionHydration} from ${JSON.stringify(path.resolve(fixture, '../../../hydrate/dist/islands/interaction.js'))};
+window.verifyIslandGenerationReplay=async()=>{
+ await verifyRejectedRootConstruction({createExactClient,component:ReplayCounter},document);
+ verifyRetiredInteractionBroker({ensureInteractionHydration,disposeInteractionHydration},document);
+ const targetHost=document.createElement('div');
+ render(operation(ReplayCounter,{}),targetHost);
+ const replayTarget=targetHost.querySelector('[data-exact-id]')?.getAttribute('data-exact-id');
+ unmount(targetHost);
+ if(!replayTarget)throw new Error('Compiled replay target is missing');
+ await verifyIslandGenerationReplay({hydrateClientIslands,lazyClientIsland,component:ReplayCounter,targetId:replayTarget,observe:observeReplay,unmount},document);
+ for(const entry of [hydrate,hydrateOnly,hydrateCompiledComponentInputRoot])
+  for(const initial of [false,true])await verifyRootCancellation({component:ReplayCounter,observe:observeReplay,operation,registry,hydrate:entry,renderRegistry:async identity=>(await fetch('/eager-root-lifetime?identity='+encodeURIComponent(identity))).text()},document,initial);
+};
 const gate=new Promise<void>(resolve=>{window.releaseEager=resolve;});
 const islands=Object.fromEntries(Object.entries(exactHydrationRegistration.islands).map(([name,entry])=>[name,{...entry,load:()=>{window.eagerLoading=true;return gate.then(()=>entry.load());}}]));
 window.eagerClient=createExactClient(document.getElementById('root'),{...readExactHydrationConfig(document),...exactHydrationRegistration,islands});
@@ -47,12 +76,15 @@ await window.eagerClient.whenSettled();window.eagerReady=true;`
 	await writeFile(
 		handler,
 		`import {EagerPage} from ${JSON.stringify(artifact.serverFile)};
+import {ReplayCounter} from ${JSON.stringify(replay.serverFile)};
+import {createCompiledComponentRegistry} from '@exactjs/core/runtime/registry';
 import '@exactjs/ssr/runtime/structural-boundaries';
-import {createCompiledDocumentReceipt as documentReceipt,createCompiledIntrinsicReceipt as element,createCompiledComponentReceipt as receipt} from '@exactjs/core/runtime/component-operations';
+import {createCompiledDocumentReceipt as documentReceipt,createCompiledIntrinsicReceipt as element,createCompiledComponentInputReceipt as receipt} from '@exactjs/core/runtime/component-operations';
 import {renderToHydratableString,renderToHydratableProgressiveHtmlResponse} from '@exactjs/ssr';
 import {exactResponseToFetchResponse} from '@exactjs/server';
 export async function eagerReplayResponse(request){
  const url=new URL(request.url);
+ if(url.pathname==='/eager-root-lifetime'){const Server=createCompiledComponentRegistry(url.searchParams.get('identity'),'Views','server',()=>({panel:ReplayCounter}));return new Response((await renderToHydratableString(receipt(Server.panel,{}))).htmlWithHydration,{headers:{'content-type':'text/html'}});}
  if(url.pathname==='/eager-client.js') return new Response(${JSON.stringify(bundled.outputFiles[0].text)},{headers:{'content-type':'text/javascript'}});
  const options={hydration:true,documentShell:application=>documentReceipt(null,element('main',{id:'root'},application)),documentAssets:{bootstrapLoading:'normal',bootstrap:[{src:'/eager-client.js'}]}};
  if(url.searchParams.has('stream')) return exactResponseToFetchResponse(await renderToHydratableProgressiveHtmlResponse(receipt(EagerPage,{}),options));
@@ -85,6 +117,7 @@ export async function checkEagerReplay(origin, browser) {
 			await page.evaluate(() => window.eagerClient.dispose());
 			await page.selectOption('select', 'light');
 			assert.equal(await page.locator('output').textContent(), 'dark:2');
+			await page.evaluate(() => window.verifyIslandGenerationReplay());
 			assert.deepEqual(errors, []);
 		} finally {
 			await page.close();

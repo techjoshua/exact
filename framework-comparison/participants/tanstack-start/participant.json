@@ -2,7 +2,7 @@
 	"schemaVersion": 1,
 	"id": "tanstack-start-controlled",
 	"framework": "TanStack Start (React)",
-	"frameworkVersion": "1.168.49",
+	"frameworkVersion": "1.168.60",
 	"tracks": ["controlled-service"],
 	"runtime": "node-24",
 	"ssrTransports": {

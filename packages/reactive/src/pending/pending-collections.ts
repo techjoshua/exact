@@ -24,14 +24,17 @@ export interface PendingCollectionContext {
 	readonly publishing: boolean;
 	/** Rejects work whose owner has lost its transaction lifetime. */
 	assertCurrent(): void;
-	/** Checks the selected receiver alias before a mutator runs. */
-	checkCollectionWrite(target: object, key: PropertyKey): void;
 	/** Retrieves or creates a lazy per-key delta without copying collection storage. */
 	collection(raw: Map<unknown, unknown> | Set<unknown>): PendingCollectionDelta;
 	/** Resolves a pending source to the retained published receiver. */
 	publishedReceiver(target: object): object;
-	/** Retains returned objects as invocation-owned values. */
-	retain(value: unknown): unknown;
+	/** Retains a consumed native position and its returned object as invocation-owned storage. */
+	retainCollectionMember(
+		target: object,
+		key: unknown,
+		value: unknown,
+		keyMember?: boolean
+	): unknown;
 	/** Captures an already selected native operation in the host's publication order. */
 	stageCollectionWrite(target: object, key: PropertyKey, args: unknown[]): void;
 }
@@ -54,7 +57,6 @@ export function applyPendingNativeCollection(
 	const delta = context.collection(raw);
 	const mutation = key === 'set' || key === 'add' || key === 'delete' || key === 'clear';
 	if (mutation) {
-		context.checkCollectionWrite(target, key);
 		let result: unknown;
 		if (key === 'set') {
 			delta.set(args[0], args[1]);
@@ -67,39 +69,51 @@ export function applyPendingNativeCollection(
 		context.stageCollectionWrite(target, key, args);
 		return result;
 	}
-	if (key === 'get')
-		return context.retain(
-			delta.hasPending(args[0])
-				? delta.get(args[0])
-				: applyNativeReactiveCollection(target, key, args)
+	const select = (value: unknown, entryKey: unknown, keyMember = false) =>
+		context.retainCollectionMember(
+			target,
+			entryKey,
+			wrapReactiveCollectionValue(context.publishedReceiver(target), value),
+			keyMember
 		);
+	if (key === 'get')
+		return delta.hasPending(args[0])
+			? select(delta.get(args[0]), args[0])
+			: context.retainCollectionMember(
+					target,
+					args[0],
+					applyNativeReactiveCollection(context.publishedReceiver(target), key, args)
+				);
 	if (key === 'has') return delta.has(args[0]);
 	if (key === 'keys' || key === 'values' || key === 'entries' || key === Symbol.iterator) {
-		const entries = delta.iterate((value) =>
-			context.retain(wrapReactiveCollectionValue(target, value))
-		);
+		const entries = delta.iterate();
 		return (function* () {
 			while (true) {
-				// Pending cursors belong to this journal. A closed delta cannot safely resume
-				// against reconciled storage while retaining its former insertion cursor.
+				// A pending cursor cannot resume after its journal has settled.
 				context.assertCurrent();
 				const next = entries.next();
 				if (next.done) return;
 				const [entryKey, value] = next.value;
-				yield key === 'keys'
-					? entryKey
-					: key === 'values' || (key === Symbol.iterator && raw instanceof Set)
-						? value
-						: [entryKey, value];
+				if (key === 'keys') yield select(entryKey, entryKey, true);
+				else if (key === 'values' || (key === Symbol.iterator && raw instanceof Set))
+					yield select(value, entryKey);
+				else {
+					const selected = select(value, entryKey);
+					yield [raw instanceof Set ? selected : select(entryKey, entryKey, true), selected];
+				}
 			}
 		})();
 	}
 	if (key === 'forEach') {
 		if (typeof args[0] !== 'function') throw new TypeError('Expected a collection callback');
-		for (const [entryKey, value] of delta.iterate((entry) =>
-			context.retain(wrapReactiveCollectionValue(target, entry))
-		))
-			Reflect.apply(args[0], args[1], [value, raw instanceof Set ? value : entryKey, target]);
+		for (const [entryKey, value] of delta.iterate()) {
+			const selected = select(value, entryKey);
+			Reflect.apply(args[0], args[1], [
+				selected,
+				raw instanceof Set ? selected : select(entryKey, entryKey, true),
+				target
+			]);
+		}
 		return undefined;
 	}
 	return Reflect.apply(native, raw, args);

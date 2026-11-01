@@ -1,4 +1,5 @@
 import type { ExactValueSerializationSchema } from '@exactjs/core/framework/component-contracts';
+import { protocolConstantToken } from '@exactjs/reactive/framework/protocol';
 import {
 	isNativeJsonCollection,
 	jsonDataKeys,
@@ -24,7 +25,9 @@ type DirectHydrationShape = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 type ValidationState = Omit<PositionalProjectionContext, 'active'> & {
 	active: PositionalProjectionContext['active'];
 	readonly onValidatedCollection?: (value: Map<unknown, unknown> | Set<unknown>) => void;
+	readonly onValidatedRecord?: (value: Record<string, unknown>) => void;
 	readonly onValidatedArray?: (value: unknown[]) => void;
+	readonly onValidatedConstant?: () => void;
 	readonly path?: ValidationPath;
 	readonly positionalRoot?: PositionalRootPublication;
 	readonly directResumptions?: readonly SsrSerializedResumption[];
@@ -76,7 +79,9 @@ export function validateJsonSafeHydrationValue(
 		maxDepth?: number;
 		maxNodes?: number;
 		onValidatedCollection?: (value: Map<unknown, unknown> | Set<unknown>) => void;
+		onValidatedRecord?: (value: Record<string, unknown>) => void;
 		onValidatedArray?: (value: unknown[]) => void;
+		onValidatedConstant?: () => void;
 		directResumptions?: readonly SsrSerializedResumption[];
 		structurallyKnown?: { has(value: object): boolean };
 		structurallyKnownRoot?: object;
@@ -95,8 +100,10 @@ export function validateJsonSafeHydrationValue(
 		project: projectPositionalField,
 		mismatch: positionalMismatch,
 		unsafe: positionalUnsafe,
+		onValidatedRecord: limits.onValidatedRecord,
 		onValidatedArray: limits.onValidatedArray,
 		onValidatedCollection: limits.onValidatedCollection,
+		onValidatedConstant: limits.onValidatedConstant,
 		nodes: 0
 	};
 	try {
@@ -105,8 +112,10 @@ export function validateJsonSafeHydrationValue(
 		const diagnostic: ValidationState = {
 			...state,
 			active: new HydrationAncestors(),
+			onValidatedRecord: undefined,
 			onValidatedArray: undefined,
 			onValidatedCollection: undefined,
+			onValidatedConstant: undefined,
 			path: { arrays: [], keys: [] },
 			nodes: 0
 		};
@@ -125,8 +134,12 @@ function validateValue(
 	shape: DirectHydrationShape = 0
 ): boolean {
 	if (++state.nodes > state.maxNodes || depth > state.maxDepth) return false;
+	if (protocolConstantToken(value) !== undefined) {
+		state.onValidatedConstant?.();
+		return true;
+	}
 	if (value === null || typeof value === 'string' || typeof value === 'boolean') return true;
-	if (typeof value === 'number') return Number.isFinite(value);
+	if (typeof value === 'number') return true;
 	if (typeof value !== 'object' || state.active.has(value)) return false;
 	if (
 		shape === 0 &&
@@ -228,6 +241,7 @@ function validateContainer(
 		if (path) popValidationPath(path);
 	}
 	if (array) state.onValidatedArray?.(source as unknown[]);
+	else state.onValidatedRecord?.(source as Record<string, unknown>);
 	return true;
 }
 
@@ -319,16 +333,6 @@ function validatePositionalValue(
 	state: ValidationState
 ): unknown | typeof positionalMismatch | typeof positionalUnsafe {
 	if (schema === 0) {
-		// Primitive cells need the same budgets and JSON rules, but no container traversal.
-		if (value === null || typeof value !== 'object') {
-			if (++state.nodes > state.maxNodes || depth > state.maxDepth) return positionalUnsafe;
-			return value === null ||
-				typeof value === 'string' ||
-				typeof value === 'boolean' ||
-				(typeof value === 'number' && Number.isFinite(value))
-				? value
-				: positionalUnsafe;
-		}
 		return validateValue(value, depth, state) ? value : positionalUnsafe;
 	}
 	if (++state.nodes > state.maxNodes || depth > state.maxDepth) return positionalUnsafe;

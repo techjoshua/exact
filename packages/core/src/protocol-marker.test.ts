@@ -1,8 +1,10 @@
+import { verifyMarkerEncoding } from '../../component-composition-corpus/test-support/list-marker-journey.js';
 import { describe, expect, it } from 'vitest';
 import { decodeExactMarkerPart, encodeExactMarkerPart } from './protocol.js';
 
 describe('marker protocol encoding', () => {
 	it('preserves direct keys and the canonical UTF-8 hex wire format', () => {
+		verifyMarkerEncoding({ encodeExactMarkerPart, decodeExactMarkerPart });
 		for (const value of ['plain', 'A-z_0.9', '-', 'a-b'])
 			expect(encodeExactMarkerPart(value)).toBe(value);
 		expect(encodeExactMarkerPart('/assets/app.js')).toBe('~2f6173736574732f6170702e6a73');
@@ -27,8 +29,7 @@ describe('marker protocol encoding', () => {
 			const expected =
 				'~' + Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
 			expect(encodeExactMarkerPart(value)).toBe(expected);
-			if (bytes.length)
-				expect(decodeExactMarkerPart(expected)).toBe(new TextDecoder().decode(bytes));
+			expect(decodeExactMarkerPart(expected)).toBe(new TextDecoder().decode(bytes));
 		}
 	});
 });

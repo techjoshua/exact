@@ -7,7 +7,7 @@ import {
 } from './index.js';
 
 describe('@exactjs/instrumentation', () => {
-	it('collects immutable snapshots and clears without global state', () => {
+	it('returns independent snapshot arrays and clears without global state', () => {
 		const collector = createProfileCollector<ExactProfileEvent<'compiler', 'transform'>>();
 		collector.sink(
 			Object.freeze({
@@ -19,12 +19,16 @@ describe('@exactjs/instrumentation', () => {
 		);
 
 		const snapshot = collector.snapshot();
+		Object.assign(snapshot, { length: 0 });
+		expect(collector.snapshot()).toHaveLength(1);
+		const retained = collector.snapshot();
 		collector.clear();
 
-		expect(snapshot).toEqual([
+		expect(retained).toEqual([
 			expect.objectContaining({ subsystem: 'compiler', phase: 'transform' })
 		]);
-		expect(Object.isFrozen(snapshot)).toBe(true);
+		Object.assign(retained, { 0: { subsystem: 'compiler', phase: 'transform', elapsedMs: 99 } });
+		expect(retained[0]!.elapsedMs).toBe(99);
 		expect(collector.snapshot()).toEqual([]);
 	});
 
@@ -38,6 +42,16 @@ describe('@exactjs/instrumentation', () => {
 		expect(summarizeProfile(events)).toEqual([
 			{ subsystem: 'dom', phase: 'render', elapsedMs: 5, events: 2 },
 			{ subsystem: 'ssr', phase: 'render', elapsedMs: 1, events: 1 }
+		]);
+	});
+
+	it('leaves summary observations writable through ordinary JavaScript aliases', () => {
+		const events = [{ subsystem: 'ssr', phase: 'render', elapsedMs: 2 }];
+		const summary = summarizeProfile(events);
+		Object.assign(summary[0]!, { elapsedMs: 9 });
+		Object.assign(summary, { length: 0 });
+		expect(summarizeProfile(events)).toEqual([
+			{ subsystem: 'ssr', phase: 'render', elapsedMs: 2, events: 1 }
 		]);
 	});
 

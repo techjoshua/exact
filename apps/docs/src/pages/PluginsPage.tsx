@@ -41,7 +41,11 @@ export function PluginsPage(this: Component<{}>) {
 					there so your build tools and server use the same settings. eXact discovers the plugins
 					from their packages and checks compatibility before application code runs. Vite and
 					Webpack watch sessions pick up a newly created configuration file as well as later edits
-					or removal. Bun reads the configuration again on each build.
+					or removal. Bun reads the configuration again on each build. ESM configuration files are
+					evaluated afresh, with relative imports and module paths based on the authored file.
+					Ordinary JavaScript configuration can load from a read-only directory. Imported
+					dependencies keep the runtime’s normal module cache. Discovery stays inside the selected
+					workspace, including child directories whose names begin with two dots.
 				</p>
 				<CodeBlock source={pluginConfigSource} language="ts" title="exact.config.ts" />
 				<p>
@@ -52,8 +56,11 @@ export function PluginsPage(this: Component<{}>) {
 				<p>
 					eXact validates the configuration before using it, so misspelled options and invalid
 					plugin settings produce setup errors. Multiple build tools can read the same
-					configuration. You can write it in TypeScript and include enhancement declarations from
-					packages.
+					configuration. Use <code>.ts</code> or <code>.mts</code> for TypeScript ESM configuration.
+					Configuration syntax is prepared with TypeScript 7, and callbacks run normally in your
+					build tool. Validation preserves your values and callback identities, including callback
+					state or metadata. Readonly restrictions come from TypeScript. You can write it in
+					TypeScript and include enhancement declarations from packages.
 				</p>
 			</section>
 			<section>
@@ -126,8 +133,24 @@ export function PluginsPage(this: Component<{}>) {
 					<p>Supplies deterministic test-host behavior for the same concern.</p>
 				</div>
 				<p>
-					A plugin declares only the entries it needs. Host projections are loaded for the relevant
-					mode, so a server implementation does not become browser code by accident.
+					Build and language projections accept JSON-safe data, including shared sibling references
+					that serialize as copies. Cycles remain invalid. A plugin declares only the entries it
+					needs. Host projections are loaded for the relevant mode, so a server implementation does
+					not become browser code by accident. Preparation has no automatic deadline. Hosts may pass
+					a cancellation signal or choose an explicit <code>timeoutMs</code>. Async configuration
+					callbacks receive a signal so they can release their own work when preparation stops.
+					Contexts, metadata, and reports follow TypeScript readonly guarantees.
+				</p>
+				<p>
+					When writing an output transform or validator, match the boundary's execution mode.
+					Synchronous boundaries require synchronous hooks. Returning a promise prevents
+					publication, and the host observes any later rejection. Async boundaries await the hook
+					before publishing validated output.
+				</p>
+				<p>
+					If resource initialization fails, the host releases resources it already acquired in
+					reverse order. If cleanup also fails, the reported aggregate retains the initialization
+					error as its cause alongside cleanup failures.
 				</p>
 			</section>
 		</Article>

@@ -1,5 +1,8 @@
 # Using `@exactjs/reactive`
 
+Readonly types follow TypeScript's shallow compile-time rules. Reactive proxies do not add runtime
+immutability to objects or collections.
+
 See the [README](./README.md) for primitives and examples. Most components should use direct
 `this.state` access; use this package for standalone reactive models or framework integrations.
 

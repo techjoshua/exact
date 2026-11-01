@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { createProvidedPackageImportAnalysis } from './import-analysis.js';
 import {
 	generateProvidedPackageBridge,
 	planProvidedPackageBridge,
@@ -66,6 +67,7 @@ export function createExactRemoteBunAdapter(options: {
 	);
 	options.onDevelopmentEntries?.(developmentEntries);
 	return Object.freeze({
+		...createProvidedPackageImportAnalysis(options.plan.providedPackages),
 		pageBootstrapImport,
 		pageBootstrapId,
 		entrypoints: Object.freeze(entrypoints),

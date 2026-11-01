@@ -1,7 +1,10 @@
 import {
+	attemptCleanup,
+	createCleanupFailure,
 	createReadinessCoordinator,
 	normalizeRenderResult,
 	unwrap,
+	throwCleanupFailure,
 	type AnyComponentInstance,
 	type Child
 } from '@exactjs/core';
@@ -9,6 +12,7 @@ import type { SsrContext } from '../types.js';
 import { awaitWithAbort } from './context.js';
 import type { SsrRenderOptions } from './entrypoints.js';
 import type { RenderValue } from './execution.js';
+import { withRenderCleanup } from './execution.js';
 import { createSsrReadinessOwner } from './readiness-owner.js';
 import type {
 	SsrSuspenseBoundaryInput,
@@ -31,38 +35,39 @@ export async function renderNativeSuspenseCapability(
 	const coordinator = createReadinessCoordinator(() => undefined, { commitSettled: true });
 	coordinator.beginGeneration();
 	const owner = createSsrReadinessOwner(context, parent, coordinator.context);
-	try {
-		const maxPasses = context.maxTaskPasses;
-		for (let pass = 0; pass < maxPasses; pass++) {
-			if (pass) coordinator.beginGeneration();
-			const scheduledBefore = options.streamingScheduledComponents?.length ?? 0;
-			const candidate = await renderChildren(context, boundary.children, owner, options);
-			if (
-				options.streamingScheduledComponents &&
-				(options.streamingScheduledComponents.length > scheduledBefore || coordinator.pending > 0)
-			)
-				return {
-					html: await renderChildren(
-						context,
-						normalizeRenderResult(unwrap(boundary.props.fallback) as Child | Child[]),
-						parent,
-						options
-					),
-					status: 'fallback'
-				};
-			const readiness = await awaitWithAbort(
-				coordinator.whenReady(),
-				options.signal,
-				options.taskDeadline
+	return await withRenderCleanup(
+		async () => {
+			const maxPasses = context.maxTaskPasses;
+			for (let pass = 0; pass < maxPasses; pass++) {
+				if (pass) coordinator.beginGeneration();
+				const scheduledBefore = options.streamingScheduledComponents?.length ?? 0;
+				const candidate = await renderChildren(context, boundary.children, owner, options);
+				if (
+					options.streamingScheduledComponents &&
+					(options.streamingScheduledComponents.length > scheduledBefore || coordinator.pending > 0)
+				)
+					return {
+						html: await renderChildren(
+							context,
+							normalizeRenderResult(unwrap(boundary.props.fallback) as Child | Child[]),
+							parent,
+							options
+						),
+						status: 'fallback'
+					};
+				const readiness = await awaitWithAbort(coordinator.whenReady(), options.signal);
+				if (readiness.generation !== coordinator.generation || readiness.retry) continue;
+				return { html: candidate, status: 'content' };
+			}
+			throw new Error(
+				`eXact async SSR Suspense boundary did not stabilize after ${maxPasses} render passes`
 			);
-			if (readiness.generation !== coordinator.generation || readiness.retry) continue;
-			return { html: candidate, status: 'content' };
+		},
+		() => {
+			const failure = createCleanupFailure();
+			attemptCleanup(failure, () => coordinator.dispose());
+			attemptCleanup(failure, () => owner.unmount('ssr suspense complete'));
+			throwCleanupFailure(failure);
 		}
-		throw new Error(
-			`eXact async SSR Suspense boundary did not stabilize after ${maxPasses} render passes`
-		);
-	} finally {
-		coordinator.dispose();
-		owner.unmount('ssr suspense complete');
-	}
+	);
 }

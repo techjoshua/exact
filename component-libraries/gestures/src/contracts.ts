@@ -3,7 +3,7 @@ import type { Child } from '@exactjs/core';
 declare const gestureDefinitionBrand: unique symbol;
 declare const gestureRecognizerBrand: unique symbol;
 
-/** Immutable normalized semantic input delivered by gesture recognizers. */
+/** Normalized semantic input with TypeScript readonly fields delivered by gesture recognizers. */
 export interface GestureSample {
 	readonly phase: 'start' | 'move' | 'end' | 'cancel';
 	readonly pointerType: 'mouse' | 'pen' | 'touch' | 'keyboard';
@@ -22,7 +22,7 @@ export interface PinchGestureSample extends GestureSample {
 	readonly rotation: number;
 }
 
-/** Callback invoked for one immutable sample; synchronous results are ignored and thenables awaited. */
+/** Callback invoked for one sample. Synchronous results are ignored and thenables awaited. */
 export type GestureCallback<Sample extends GestureSample = GestureSample> = (
 	sample: Sample
 ) => unknown | PromiseLike<unknown>;
@@ -87,7 +87,7 @@ export type KeyboardRecognizerInput = Readonly<{
 	onPress?: GestureCallback;
 }>;
 
-/** Immutable branded recognizer accepted by site-specific overrides. */
+/** Branded recognizer with TypeScript readonly fields accepted by site-specific overrides. */
 export type PreparedRecognizer<Input extends object> = Readonly<Input> &
 	Readonly<{ [gestureRecognizerBrand]: true }>;
 /** Prepared press recognizer. */
@@ -119,7 +119,7 @@ export type GestureDefinitionInput = GestureDefinitionBase &
 		| Readonly<{ semantics: 'control'; keyboard: KeyboardRecognizerInput }>
 	);
 
-/** Validated immutable reusable gesture policy. */
+/** Prepared reusable gesture policy. */
 export type GestureDefinition = Readonly<
 	Omit<GestureDefinitionBase, 'press' | 'hover' | 'drag' | 'pan' | 'pinch'> & {
 		press?: PressRecognizer;

@@ -1,3 +1,4 @@
+import { verifyTaskProgressCancellation } from '../../../component-composition-corpus/test-support/task-progress-cancellation-journey.js';
 import { describe, expect, it, vi } from 'vitest';
 import { createTaskOwner } from './owners.js';
 import { createTaskProgressReceiver } from './progress-receiver.js';
@@ -140,3 +141,6 @@ it('closing one invocation does not cancel a sibling receiver on the same compon
 	await vi.waitFor(() => expect(published).toEqual([2, 3]));
 	second.close();
 });
+
+it('retains cancellation identity and releases active progress work', () =>
+	verifyTaskProgressCancellation({ createTaskOwner, taskAwait, createTaskProgressReceiver }));

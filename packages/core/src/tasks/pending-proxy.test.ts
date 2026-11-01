@@ -186,26 +186,8 @@ it('keeps descriptor-selected object mutations pending and publishes their notif
 	}
 });
 
-it('rejects readonly accessors before effects and unsupported private brands before execution', () => {
+it('rejects unsupported private brands before execution', () => {
 	let effects = 0;
-	const root = reactive(
-		{
-			get count() {
-				return 0;
-			},
-			set count(value: number) {
-				effects += value;
-			}
-		},
-		{ readonly: true }
-	);
-	const context = createTaskState(new AbortController().signal, root);
-	expect(() =>
-		context.helper((owner: typeof root) => {
-			owner.count = 1;
-		})(root)
-	).toThrow('readonly');
-	expect(effects).toBe(0);
 	class Private {
 		#count = 0;
 		change() {

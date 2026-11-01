@@ -36,7 +36,7 @@ export function retainArtifactComponentFacts(
 	};
 }
 
-/** Reads compiler artifact facts; malformed marked metadata fails before resolver authorization. */
+/** Reads compiler facts, retaining unresolved placement for resolver-owned authorization. Malformed marked metadata fails before authorization. */
 export function readExactArtifactComponentFacts(
 	source: string,
 	filename: string
@@ -61,7 +61,7 @@ export function readExactArtifactComponentFacts(
 				record(value) &&
 				text(value.id) &&
 				typeof value.placement === 'string' &&
-				['client', 'server', 'isomorphic'].includes(value.placement) &&
+				['client', 'server', 'isomorphic', 'unknown'].includes(value.placement) &&
 				targets(value.artifactTargets)
 		) ||
 		!facts.componentImports.every(
@@ -96,7 +96,6 @@ function text(value: unknown): value is string {
 function targets(value: unknown): boolean {
 	return (
 		Array.isArray(value) &&
-		value.length > 0 &&
 		value.every((target) => target === 'client' || target === 'server') &&
 		new Set(value).size === value.length
 	);

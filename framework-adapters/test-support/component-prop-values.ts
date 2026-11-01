@@ -20,14 +20,14 @@ export function componentPropValuesProbe(componentModule: string) {
 	return `
 import {ScalarProp, ScheduledScalarProp} from ${JSON.stringify(componentModule)};
 import {createExpression} from '@exactjs/core/runtime/render-operations';
-import {createCompiledComponentReceipt} from '@exactjs/core/runtime/component-operations';
+import {createCompiledComponentInputReceipt} from '@exactjs/core/runtime/component-operations';
 import {renderToString} from '@exactjs/ssr';
 import {literalFalse, literalZero, literalEmpty} from './general-helper.mjs';
 export async function probeComponentProps() {
  const result=[];
  for(const component of [ScalarProp,ScheduledScalarProp]) {
   for(const value of [false,true,0,'','ready',null,undefined]) {
-   const rendered = await renderToString(createCompiledComponentReceipt(component,{value:createExpression(()=>value)}),{markers:false});
+   const rendered = await renderToString(createCompiledComponentInputReceipt(component,{value:createExpression(()=>value)}),{markers:false});
    result.push(rendered.html);
   }
  }

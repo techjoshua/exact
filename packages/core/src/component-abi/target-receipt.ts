@@ -13,6 +13,8 @@ export type ExactTargetReceipt = object & { readonly [exactTargetReceiptBrand]: 
 export type ExactTargetReceiptData = Readonly<{
 	props: Readonly<Record<string, unknown>>;
 	children: readonly Child[];
+	/** Raw supplied argument, captured without another read for actual-consumption attribution. */
+	suppliedInput?: Readonly<{ value: unknown }>;
 	/** A compiler-known host contribution survives server-only callback projection. */
 	declaredHostProps?: boolean;
 	/** Prepared contributions ordered outer-to-inner, independent of rendered wrapper topology. */
@@ -78,7 +80,7 @@ export function createCompiledSuppliedTargetReceipt(
 	supplied: unknown
 ): ExactTargetReceipt {
 	const value = unwrap(supplied);
-	if (!Array.isArray(value)) return createCompiledTargetReceipt(props, value);
+	if (!Array.isArray(value)) return issueSuppliedTarget(props, value, supplied);
 	let selected: Child;
 	let found = false;
 	for (const child of normalizeRenderResult(value)) {
@@ -90,7 +92,34 @@ export function createCompiledSuppliedTargetReceipt(
 		selected = child;
 		found = true;
 	}
-	return createCompiledTargetReceipt(props, selected);
+	return issueSuppliedTarget(props, selected, supplied);
+}
+
+/** Retains the helper's already evaluated argument only on the issued operation's lifetime. */
+function issueSuppliedTarget(
+	props: Record<string, unknown> | null,
+	selected: unknown,
+	supplied: unknown
+): ExactTargetReceipt {
+	const receipt = createCompiledTargetReceipt(props, selected);
+	targets.set(receipt, { ...targets.get(receipt)!, suppliedInput: { value: supplied } });
+	return receipt;
+}
+
+/**
+ * Replaces an issued target's presentation after its existing contribution projection. Only the
+ * source's private store can carry supplied-input attribution. This does not acquire that input.
+ */
+export function withCompiledTargetPresentation(
+	source: ExactTargetReceipt,
+	...children: unknown[]
+): ExactTargetReceipt {
+	const data = targets.get(source);
+	if (!data) throw new TypeError('Target presentation requires a compiler-issued source');
+	const receipt = createCompiledTargetReceipt(null, ...children);
+	if (data.suppliedInput)
+		targets.set(receipt, { ...targets.get(receipt)!, suppliedInput: data.suppliedInput });
+	return receipt;
 }
 
 /**
@@ -111,6 +140,9 @@ export function createCompiledTargetContributions(
 	const receipt = createCompiledTargetReceipt(null, target);
 	targets.set(receipt, {
 		...targets.get(receipt)!,
+		...(typeof target === 'object' && target !== null && targets.get(target)?.suppliedInput
+			? { suppliedInput: targets.get(target)!.suppliedInput }
+			: {}),
 		contributions: Object.freeze([...contributions])
 	});
 	return receipt;

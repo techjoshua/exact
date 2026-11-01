@@ -1,12 +1,18 @@
+import {
+	componentRefBindingOwner,
+	registerComponentRefBindingOwner
+} from '@exactjs/core/framework/ref-bindings';
 import type {
 	AnyComponentInstance,
 	RefBinding,
 	RefKey,
+	RefRegistry,
 	RootBinding,
 	RootLifecycle
 } from '@exactjs/core';
 
 type DirectRefOwner = object;
+type DirectRefMethod = <T>(key: RefKey<T>) => RefBinding<T>;
 
 type DirectRefRecord = {
 	readonly bindings: Map<symbol, DirectRefBinding<unknown>>;
@@ -16,15 +22,9 @@ type DirectRefRecord = {
 };
 
 const records = new WeakMap<DirectRefOwner, DirectRefRecord>();
-const refMethods = new WeakMap<DirectRefOwner, (key: RefKey<unknown>) => RefBinding<unknown>>();
-const readMethods = new WeakMap<DirectRefOwner, (key: RefKey<unknown>) => unknown>();
-const refsFacades = new WeakMap<
-	DirectRefOwner,
-	Readonly<{
-		get(key: RefKey<unknown>): unknown;
-		root(binding?: RefBinding<object>): RootLifecycle<object> | RootBinding<object>;
-	}>
->();
+const refMethods = new WeakMap<DirectRefOwner, DirectRefMethod>();
+const readMethods = new WeakMap<DirectRefOwner, RefRegistry['get']>();
+const refsFacades = new WeakMap<DirectRefOwner, RefRegistry>();
 
 class DirectRefBinding<T> implements RefBinding<T> {
 	current: T | undefined;
@@ -32,7 +32,9 @@ class DirectRefBinding<T> implements RefBinding<T> {
 	constructor(
 		readonly owner: AnyComponentInstance,
 		readonly key: RefKey<T>
-	) {}
+	) {
+		registerComponentRefBindingOwner(this, owner);
+	}
 
 	fulfill(value: T | undefined): void {
 		this.current = value;
@@ -55,36 +57,36 @@ export function directSsrReadRef<T>(owner: DirectRefOwner, key: RefKey<T>): T | 
 }
 
 /** Returns the stable extracted `this.ref` method for a request-local frame. */
-export function directSsrRefMethod(
-	owner: DirectRefOwner
-): (key: RefKey<unknown>) => RefBinding<unknown> {
+export function directSsrRefMethod(owner: DirectRefOwner): DirectRefMethod {
 	let method = refMethods.get(owner);
 	if (!method) {
-		method = (key) => directSsrRef(owner, key);
+		method = <T>(key: RefKey<T>) => directSsrRef(owner, key);
 		refMethods.set(owner, method);
 	}
 	return method;
 }
 
 /** Returns the stable extracted `this.readRef` method for a request-local frame. */
-export function directSsrReadRefMethod(owner: DirectRefOwner): (key: RefKey<unknown>) => unknown {
+export function directSsrReadRefMethod(owner: DirectRefOwner): RefRegistry['get'] {
 	let method = readMethods.get(owner);
 	if (!method) {
-		method = (key) => directSsrReadRef(owner, key);
+		method = <T>(key: RefKey<T>) => directSsrReadRef(owner, key);
 		readMethods.set(owner, method);
 	}
 	return method;
 }
 
 /** Returns the stable focused `this.refs` facade for an extracted server reference surface. */
-export function directSsrRefs(owner: DirectRefOwner) {
+export function directSsrRefs(owner: DirectRefOwner): RefRegistry {
 	let facade = refsFacades.get(owner);
 	if (!facade) {
-		facade = Object.freeze({
+		facade = {
 			get: directSsrReadRefMethod(owner),
-			root: (binding?: RefBinding<object>) =>
-				binding ? directSsrRoot(owner, binding) : directSsrRoot<object>(owner)
-		});
+			root: ((binding?: RefBinding<object>) =>
+				binding
+					? directSsrRoot(owner, binding)
+					: directSsrRoot<object>(owner)) as RefRegistry['root']
+		};
 		refsFacades.set(owner, facade);
 	}
 	return facade;
@@ -102,15 +104,15 @@ export function directSsrRoot<T extends object>(
 	binding?: RefBinding<T>
 ): RootLifecycle<T> | RootBinding<T> {
 	const record = refRecord(owner);
-	const lifecycle = (record.root ??= Object.freeze({
+	const lifecycle = (record.root ??= {
 		current: undefined,
 		generation: 0,
 		introduction: undefined,
 		presented: false,
 		release: undefined
-	})) as RootLifecycle<T>;
+	}) as RootLifecycle<T>;
 	if (!binding) return lifecycle;
-	if (binding.owner !== owner)
+	if (componentRefBindingOwner(binding) !== owner)
 		throw new Error('A component root binding must be owned by the component selecting it');
 	if (record.explicit && record.explicit !== binding)
 		throw new Error('A component may select only one explicit root binding');

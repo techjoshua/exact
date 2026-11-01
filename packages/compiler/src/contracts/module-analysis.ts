@@ -21,6 +21,8 @@ export type ExactModuleAnalysis = {
 	version: 1;
 	filename: string;
 	dependencies: string[];
+	/** Resolved source-only owned helper edges for the current project compilation. */
+	helperSources?: readonly Readonly<{ moduleSpecifier: string; sourceFile: string }>[];
 	assets: ExactAssetDependencyIR[];
 	semanticGraph?: ExactSemanticGraphIR;
 	/** Canonical component facts and artifact reachability; descriptive, never authorization. */

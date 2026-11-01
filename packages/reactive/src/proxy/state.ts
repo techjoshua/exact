@@ -10,8 +10,6 @@ export function conflictingListKeyError(left: string, right: string): Error {
 
 /** Provides the canonical default reactive options value. */
 export const defaultReactiveOptions: ReactiveOptions = Object.freeze({});
-/** Provides the canonical readonly reactive options key value. */
-export const readonlyReactiveOptionsKey = Object.freeze({ readonly: true });
 /** Provides the canonical root proxy cache value. */
 export const rootProxyCache = new WeakMap<object, WeakMap<object, object>>();
 /** Provides the canonical sourced proxy cache value. */

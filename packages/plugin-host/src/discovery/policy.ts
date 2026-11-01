@@ -2,58 +2,44 @@ import type { ExactPluginDiscoveryConfig } from '@exactjs/config';
 import { assertPackageSelector } from '@exactjs/plugin-api';
 import type { ExactDiscoveryPolicy } from './contracts.js';
 
-/** Resolves a discovery policy. */
+/** Captures and validates discovery choices before selecting executable package code. */
 export function resolveDiscoveryPolicy(
 	config: ExactPluginDiscoveryConfig | undefined
 ): ExactDiscoveryPolicy {
-	if (!config) {
-		return Object.freeze({
-			mode: 'trusted',
-			trustedPackages: Object.freeze([]),
-			trustedPrefixes: Object.freeze(['@exactjs/']),
-			ignore: Object.freeze([])
-		});
-	}
-	if (config.mode === 'all') {
-		validateSelectors(config.ignore ?? [], 'pluginDiscovery.ignore');
-		return Object.freeze({
-			mode: 'all',
-			trustedPackages: Object.freeze([]),
-			trustedPrefixes: Object.freeze([]),
-			ignore: Object.freeze([...(config.ignore ?? [])])
-		});
-	}
-	if (config.mode === 'trusted') {
-		validateSelectors(config.trustedPackages ?? [], 'pluginDiscovery.trustedPackages');
-		for (const packageNameValue of config.trustedPackages ?? []) {
-			if (packageNameValue.endsWith('/'))
+	if (!config)
+		return { mode: 'trusted', trustedPackages: [], trustedPrefixes: ['@exactjs/'], ignore: [] };
+	const mode = config.mode;
+	const ignore = [...(config.ignore ?? [])];
+	validateSelectors(ignore, 'pluginDiscovery.ignore');
+	if (mode === 'trusted') {
+		const trustedPackages = [...(config.trustedPackages ?? [])];
+		const prefixes = [...(config.trustedPrefixes ?? [])];
+		const includeDefaults = config.includeDefaultTrustedPrefixes !== false;
+		validateSelectors(trustedPackages, 'pluginDiscovery.trustedPackages');
+		for (const name of trustedPackages) {
+			if (name.endsWith('/'))
 				throw new Error(
-					`pluginDiscovery.trustedPackages entry ${packageNameValue} must be an exact package name`
+					'pluginDiscovery.trustedPackages entry ' + name + ' must be an exact package name'
 				);
 		}
-		validateSelectors(config.trustedPrefixes ?? [], 'pluginDiscovery.trustedPrefixes');
-		for (const prefix of config.trustedPrefixes ?? []) {
+		validateSelectors(prefixes, 'pluginDiscovery.trustedPrefixes');
+		for (const prefix of prefixes) {
 			if (!prefix.endsWith('/'))
-				throw new Error(`pluginDiscovery.trustedPrefixes entry ${prefix} must end in /`);
+				throw new Error('pluginDiscovery.trustedPrefixes entry ' + prefix + ' must end in /');
 		}
-		validateSelectors(config.ignore ?? [], 'pluginDiscovery.ignore');
-		return Object.freeze({
-			mode: 'trusted',
-			trustedPackages: Object.freeze([...(config.trustedPackages ?? [])]),
-			trustedPrefixes: Object.freeze([
-				...(config.includeDefaultTrustedPrefixes === false ? [] : ['@exactjs/']),
-				...(config.trustedPrefixes ?? [])
-			]),
-			ignore: Object.freeze([...(config.ignore ?? [])])
-		});
+		return {
+			mode,
+			trustedPackages,
+			trustedPrefixes: [...(includeDefaults ? ['@exactjs/'] : []), ...prefixes],
+			ignore
+		};
 	}
-	validateSelectors(config.ignore ?? [], 'pluginDiscovery.ignore');
-	return Object.freeze({
-		mode: 'root',
-		trustedPackages: Object.freeze([]),
-		trustedPrefixes: Object.freeze([]),
-		ignore: Object.freeze([...(config.ignore ?? [])])
-	});
+	return {
+		mode: mode === 'all' ? 'all' : 'root',
+		trustedPackages: [],
+		trustedPrefixes: [],
+		ignore
+	};
 }
 
 function validateSelectors(values: readonly string[], label: string): void {

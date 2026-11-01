@@ -227,6 +227,16 @@ func semanticImportMetadata(
 }
 
 func semanticTypeOnly(node *ast.Node) bool {
+	return semanticTypeOnlyWithSteps(node, nil)
+}
+
+// semanticTypeOnlyWithSteps preserves erasure while exposing its own visited
+// nodes to an indexing owner's work accounting. Checker/library internals are
+// separate opaque units, not elapsed-time bounds.
+func semanticTypeOnlyWithSteps(node *ast.Node, step func(*ast.Node)) bool {
+	if step != nil {
+		step(node)
+	}
 	if node.Parent != nil && (ast.IsTypeAliasDeclaration(node.Parent) || ast.IsInterfaceDeclaration(node.Parent) || ast.IsTypeParameterDeclaration(node.Parent)) {
 		return true
 	}
@@ -234,6 +244,9 @@ func semanticTypeOnly(node *ast.Node) bool {
 		return true
 	}
 	for current := node.Parent; current != nil; current = current.Parent {
+		if step != nil {
+			step(current)
+		}
 		if ast.IsImportSpecifier(current) && current.AsImportSpecifier().IsTypeOnly {
 			return true
 		}

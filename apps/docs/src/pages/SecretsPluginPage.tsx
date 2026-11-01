@@ -61,7 +61,8 @@ export function SecretsPluginPage(this: Component<{}>) {
 					<code>.env</code>
 					files. Applications can add providers implementing the same async interface. Later
 					providers replace earlier values with the same name, and startup fails when a required
-					name remains missing.
+					name remains missing. An explicitly configured empty string is a present value. Validate
+					credential-specific requirements in your provider.
 				</p>
 			</section>
 			<section>
@@ -107,7 +108,13 @@ export function SecretsPluginPage(this: Component<{}>) {
 					The plugin prepares its resolver for the server projection, initializes providers at
 					application startup, validates required values, and clears resolved values on disposal.
 					The compiler projection receives only a bounded policy cache key and allowlist. Loaded
-					secret values stay on the server.
+					secret values stay on the server. Overlapping initialization shares provider work. A
+					failed attempt publishes no partial values, and late results cannot restore values after
+					disposal. Custom providers should observe their context signal to stop pending work.
+					Initialization retains its original cancellation signal even if a context alias changes.
+					Provider handles and returned name dictionaries follow TypeScript readonly guarantees.
+					Environment file providers require filesystem access. Hosts without it can use a provider
+					backed by their secret bindings or a secret service.
 				</p>
 			</section>
 		</Article>

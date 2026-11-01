@@ -10,7 +10,27 @@ import type {
 import { ExactCompilerLanguageService } from './service.js';
 
 describe('ExactCompilerLanguageService', () => {
-	it('publishes immutable compiler regions for unsaved source without emitting files', async () => {
+	it('forwards advisory analysis policy to unsaved-source analysis', async () => {
+		const client = new FakeNativeClient();
+		const analysis = { estimatedCostWarningThreshold: false } as const;
+		const service = new ExactCompilerLanguageService(
+			{ root: process.cwd(), analysis },
+			{ nativeClient: client }
+		);
+		try {
+			await service.synchronize([
+				{ kind: 'upsert', filename: 'Policy.tsx', version: 1, source: 'export function Page(){return()=> <p>policy</p>}' }
+			]);
+			await service.inspect('Policy.tsx');
+			const requests = client.requests.filter((request) => request.kind === 'analyze');
+			expect(requests.length).toBeGreaterThan(0);
+			expect(requests.every((request) => request.analysis === analysis)).toBe(true);
+		} finally {
+			await service.dispose();
+		}
+	});
+
+	it('publishes compiler regions for unsaved source without emitting files', async () => {
 		const client = new FakeNativeClient();
 		const service = new ExactCompilerLanguageService(
 			{ root: process.cwd(), noEmit: true },

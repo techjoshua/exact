@@ -93,11 +93,12 @@ func (lowering *jsxLowering) lowerTask(node *ast.Node, task Task) *ast.Node {
 	contextBindings := lowering.continuationContextWriteBindings(task.ID)
 	synchronousComputation := !task.Invoked &&
 		(lowering.contractProjection == ComponentContractProjectionHydrate ||
-			(lowering.target == TargetClient && directServerSetupComputation(task))) &&
+			(lowering.target == TargetClient &&
+				(directServerSetupComputation(task) || targetLocalOpaqueComputation(task)))) &&
 		task.CompilerComputation &&
 		!task.Async && len(contextBindings) == 0 && len(task.ResultWritePath) == 0
 	directServerComputation := lowering.target == TargetServer &&
-		directServerSetupComputation(task) && len(contextBindings) == 0
+		(directServerSetupComputation(task) || targetLocalOpaqueComputation(task)) && len(contextBindings) == 0
 	directComponent, directTransition, directServerSlice :=
 		lowering.directServerSetupTransition(task)
 	dependencies := []nativeTaskDependency{}
@@ -782,6 +783,8 @@ func (lowering *jsxLowering) boundTaskDefinition(
 			dependencyCount,
 		)
 	}
+	// Key bindings belong to resolved authored arguments, before transport erases them.
+	keyWork := work
 	useCompiledLatest := lowering.usesCompiledClientLatestLane(task, work, captureArguments)
 	if operation != nil &&
 		(operation.Placement == "server" || operation.Placement == "isomorphic") {
@@ -800,7 +803,7 @@ func (lowering *jsxLowering) boundTaskDefinition(
 			},
 		)
 	}
-	options := lowering.taskDefinitionOptions(name, work, task, captureArguments, dependencyCount)
+	options := lowering.taskDefinitionOptions(name, keyWork, task, captureArguments, dependencyCount)
 	defined := lowering.taskHelperCall(
 		"defineTask",
 		lowering.names.defineTask,

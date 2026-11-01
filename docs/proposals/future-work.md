@@ -14,6 +14,16 @@ epoch-2 and later contracts through focused static entry points, sharing compati
 and reporting the components responsible for retained older ABI code. Epoch 1 remains unsupported.
 Mixed-epoch execution and build attribution are proposed capabilities, not current guarantees.
 
+## Microfrontend provider retention
+
+Remote state and page observers currently share framework import keys through an eager host
+bootstrap. Publishing whole module namespaces retains every export of each required provider.
+Investigate selective publication or host-owned lazy provider chunks while preserving synchronous
+import behavior, one dependency graph, bootstrap order, and older remote artifacts. A shared
+compiler/provider capability catalog could also replace independently maintained import lists.
+Measure initial bytes, remote activation latency, and retained graphs before choosing a design.
+Any new provider acquisition contract needs explicit host minimums and mixed-version acceptance.
+
 ## Progressive native forms and file transport
 
 Task-owned forms currently coordinate validation, pending UI, optimism, server invocation, and
@@ -83,6 +93,11 @@ Immediate-child composition is implemented. No additional participation capabili
 graph, receipt-to-instance lookup, or target-export registry is selected. Intl does not depend on
 such a feature. Before designing one, demonstrate two independent consumers that cannot use
 composition, explicit identities, props, context, and registration.
+
+Native child helpers currently normalize nested arrays and selector groups recursively. Evaluate
+stack-independent traversal against the compact current path before broadening nesting guarantees.
+Preserve custom iterators, cleanup, sparse entries, getter order, and selector short circuiting.
+Require ordinary flat-input CPU and allocation measurements when considering shared traversal.
 
 Any candidate must distinguish authored order from stable identity, define capability delivery and
 cleanup before/after preparation, and cover keyed replacement, lazy readiness, Activity, portals,

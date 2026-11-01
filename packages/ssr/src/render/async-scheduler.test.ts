@@ -1,3 +1,4 @@
+import { verifySsrSchedulerGrant } from '../../../component-composition-corpus/test-support/ssr-scheduler-grant-journey.js';
 import { expect, it, vi } from 'vitest';
 import { AsyncSsrScheduler } from './async-scheduler.js';
 
@@ -73,3 +74,26 @@ it('rejects already aborted work before invocation', async () => {
 	await expect(new AsyncSsrScheduler(1).run(work, controller.signal)).rejects.toBe('closed');
 	expect(work).not.toHaveBeenCalled();
 });
+
+it('preserves null cancellation and releases the queued request', async () => {
+	const scheduler = new AsyncSsrScheduler(1);
+	let release!: () => void;
+	const running = scheduler.run(
+		() =>
+			new Promise<void>((resolve) => {
+				release = resolve;
+			})
+	);
+	const controller = new AbortController();
+	const work = vi.fn(async () => 'cancelled');
+	const waiting = scheduler.run(work, controller.signal);
+	controller.abort(null);
+	await expect(waiting).rejects.toBe(null);
+	release();
+	await running;
+	expect(work).not.toHaveBeenCalled();
+	expect(await scheduler.run(async () => 'ready')).toBe('ready');
+});
+
+it('checks cancellation again after a queued permit is granted', () =>
+	verifySsrSchedulerGrant(AsyncSsrScheduler));

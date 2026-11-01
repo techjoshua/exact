@@ -49,7 +49,7 @@ export class BodyProjectionController implements Disposable {
 						const matching = events.filter(
 							(event) => event.bodyA === configuration.body || event.bodyB === configuration.body
 						);
-						if (matching.length) configuration.collisions!(Object.freeze(matching));
+						if (matching.length) configuration.collisions!(matching);
 					})
 				: undefined;
 		}

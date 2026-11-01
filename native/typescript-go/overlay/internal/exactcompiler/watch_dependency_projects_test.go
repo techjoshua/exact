@@ -66,11 +66,16 @@ func TestWatchDependencyRetainsConsumerPreparation(t *testing.T) {
 	session := NewSession()
 	suffix := `;export declare const consumerCatalog:string;`
 	request := Request{Kind: "analyze", Root: root, ID: file, Source: initial + suffix, PackageEnhancementBoundary: utf16Length(initial)}
+	// Own the same discovered config used by Execute, including repository-contained TempDir roots.
+	request.ConfigFile = nearestTypeScriptConfig(file)
 	before := session.Execute(request)
 	if before.Error != "" || len(before.Diagnostics) != 0 {
 		t.Fatalf("initial preparation failed: %s %#v", before.Error, before.Diagnostics)
 	}
 	project := session.projects[nativeProjectKey(request, file)]
+	if project == nil || project.program == nil || project.program.GetSourceFile(file) == nil {
+		t.Fatal("initial preparation did not retain its owned project source")
+	}
 	changed := `export interface Model {value:readonly string[]}`
 	session.Execute(Request{Kind: "diagnose", ID: file, Source: changed})
 	prepared := project.program.GetSourceFile(file).Text()

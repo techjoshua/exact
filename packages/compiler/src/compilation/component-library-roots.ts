@@ -11,7 +11,7 @@ export async function applicationExactComponentLibraryRoots(
 	root: string
 ): Promise<readonly string[]> {
 	const libraries = await applicationExactComponentLibraries(root);
-	return Object.freeze([...new Set(libraries.map((library) => library.root))].sort());
+	return [...new Set(libraries.map((library) => library.root))].sort();
 }
 
 /** Finds declared import names for adapter-owned traversal, without granting execution authority. */
@@ -19,7 +19,7 @@ export async function applicationExactComponentLibraryNames(
 	root: string
 ): Promise<readonly string[]> {
 	const libraries = await applicationExactComponentLibraries(root);
-	return Object.freeze([...new Set(libraries.map((library) => library.name))].sort());
+	return [...new Set(libraries.map((library) => library.name))].sort();
 }
 
 async function applicationExactComponentLibraries(root: string) {

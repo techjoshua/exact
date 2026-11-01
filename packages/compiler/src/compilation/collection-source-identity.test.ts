@@ -6,7 +6,11 @@ import { flushSync } from '@exactjs/reactive';
 import { hydrate } from '@exactjs/hydrate/enhanced';
 import { renderToHydratableString } from '@exactjs/ssr/enhanced';
 import { compileProjectArtifacts } from '../index.js';
-import { createTestWorkspace, writeTestFiles } from '../test-support/workspace.js';
+import {
+	createTestWorkspace,
+	createCompilerTestWorkspace,
+	writeTestFiles
+} from '../test-support/workspace.js';
 import { importArtifact } from '../test-support/import-artifact.js';
 
 it.each(
@@ -113,7 +117,7 @@ it.each(
 
 // A user method can return a keyed array while retaining its own selection and ordering semantics.
 it('preserves an ordinary map method and its returned keyed values', async () => {
-	const root = await createTestWorkspace('.exact-collection-custom-', process.cwd());
+	const root = await createCompilerTestWorkspace('.exact-collection-custom-', process.cwd());
 	const files = await writeTestFiles(root, {
 		'list.tsx': `interface Row{id:string;label:string} export function Lists(props:{rows:Row[]}){const custom={map(callback:(row:Row)=>unknown){return props.rows.slice().reverse().map(row=><li key={row.id}>{row.label}</li>)}};return()=> <ul>{custom.map(row=><li key={row.id}>{row.label}</li>)}</ul>} export const listRoot=(rows:Row[])=> <Lists rows={rows}/>`
 	});
@@ -178,7 +182,10 @@ it.each(
 )(
 	'retains authored %s key identity across new data records in %s',
 	async (name, expression, mode) => {
-		const root = await createTestWorkspace('.exact-authored-collection-key-', process.cwd());
+		const root = await createCompilerTestWorkspace(
+			'.exact-authored-collection-key-',
+			process.cwd()
+		);
 		const files = await writeTestFiles(root, {
 			'list.tsx': `interface Row{/** @exact key */ id:string;label:string;detail:string}export function Lists(props:{rows:Row[]}){const rows=props.rows;return()=> <ul>{${expression}}</ul>}export const listRoot=(rows:Row[])=> <Lists rows={rows}/>`
 		});

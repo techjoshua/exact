@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/reactive",
-	"version": "0.7.1",
+	"version": "0.8.0",
 	"type": "module",
 	"sideEffects": false,
 	"files": [
@@ -54,12 +54,20 @@
 		"./framework/transactions": {
 			"types": "./dist/framework/transactions.d.ts",
 			"default": "./dist/framework/transactions.js"
+		},
+		"./framework/array-diff": {
+			"types": "./dist/framework/array-diff.d.ts",
+			"default": "./dist/framework/array-diff.js"
+		},
+		"./framework/array-patch": {
+			"types": "./dist/framework/array-patch.d.ts",
+			"default": "./dist/framework/array-patch.js"
 		}
 	},
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
 	"dependencies": {
-		"@exactjs/instrumentation": "^0.7.0"
+		"@exactjs/instrumentation": "^0.8.0"
 	},
 	"scripts": {
 		"build": "tsc -b",

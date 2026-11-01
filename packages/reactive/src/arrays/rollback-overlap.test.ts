@@ -1,11 +1,13 @@
 import { it, expect } from 'vitest';
 import {
+	batch,
 	reactive,
 	captureReactiveMutations,
 	watch,
 	flushSync,
 	computed,
-	unwrap
+	unwrap,
+	inspectComputed
 } from '../index.js';
 const orders = [
 	[0, 1, 2],
@@ -146,4 +148,419 @@ it('keeps a later ordinary order when an earlier optimistic reorder is rejected'
 	items.sort((left, right) => left - right);
 	journal.rollback();
 	expect(items).toEqual([1, 2, 3]);
+});
+
+import {
+	arrayPosition,
+	arrayPositionKey,
+	hasArrayPositions,
+	type ArrayPosition
+} from './positions.js';
+import { readOwnershipVersion } from '../internal/deps.js';
+const BASE = 'C-base',
+	OPT = 'C-optimistic',
+	LATER = 'C-independent';
+const describeValue = (value: unknown) => (value === undefined ? { undefined: true } : value);
+function caught(action: () => void) {
+	let didCatch = false;
+	let reason: unknown;
+	try {
+		action();
+	} catch (error) {
+		didCatch = true;
+		reason = error;
+	}
+	return { didCatch, reason };
+}
+function failureRecord(value: ReturnType<typeof caught>) {
+	return { didCatch: value.didCatch, reason: describeValue(value.reason) };
+}
+function snapshot(items: string[]) {
+	return {
+		values: Array.from(items, describeValue),
+		length: items.length,
+		keys: Object.keys(items)
+	};
+}
+function sameArray(left: string[], right: string[]) {
+	return (
+		left.length === right.length && left.every((value, index) => Object.is(value, right[index]))
+	);
+}
+
+it('R1 observes reentrant authority through two real journals, opposites and following progress', () => {
+	const rows: Record<string, unknown>[] = [];
+	for (const mode of ['unarmed', 'reentrant', 'before-clear'] as const) {
+		const raw = ['A', 'B', BASE];
+		let armed = false,
+			fired = false;
+		let restoredPosition: ArrayPosition | undefined;
+		const events: Record<string, unknown>[] = [];
+		let reentry: Record<string, unknown> | undefined;
+		const wrapped = new Proxy(raw, {
+			set(target, key, value) {
+				if (armed) events.push({ phase: 'set', key: String(key), value: describeValue(value) });
+				return Reflect.set(target, key, value, target);
+			},
+			defineProperty(target, key, descriptor) {
+				const success = Reflect.defineProperty(target, key, descriptor);
+				if (armed) {
+					events.push({
+						phase: 'define',
+						key: String(key),
+						value: describeValue(descriptor.value),
+						success
+					});
+					if (mode === 'reentrant' && !fired && success && descriptor.value === 'B') {
+						const index = raw.findIndex((value) => value === OPT);
+						expect(index).toBeGreaterThanOrEqual(0);
+						fired = true;
+						restoredPosition = arrayPosition(wrapped, index, false);
+						expect(restoredPosition).toBeDefined();
+						const before = readOwnershipVersion(wrapped, String(index));
+						alias[index] = LATER;
+						reentry = {
+							index,
+							before,
+							after: readOwnershipVersion(wrapped, String(index)),
+							actual: snapshot(alias)
+						};
+					}
+				}
+				return success;
+			}
+		});
+		const items = reactive(wrapped);
+		const alias = items;
+		const observed: ReturnType<typeof snapshot>[] = [];
+		const reports: unknown[] = [];
+		const view = computed(() => items.join('|'));
+		const stop = watch(
+			() => {
+				observed.push(snapshot(items));
+				void view.get();
+			},
+			undefined,
+			{ onError: (error) => reports.push(error) }
+		);
+		let older: ReturnType<typeof captureReactiveMutations> | undefined,
+			newer: ReturnType<typeof captureReactiveMutations> | undefined;
+		try {
+			expect(unwrap(items)).toBe(wrapped);
+			older = captureReactiveMutations(() => {
+				items[2] = OPT;
+			});
+			if (mode === 'before-clear') items[2] = LATER;
+			newer = captureReactiveMutations(() => {
+				items.splice(0, 3);
+			});
+			flushSync();
+			expect(items).toHaveLength(0);
+			armed = true;
+			const newerResult = caught(() => newer!.rollback());
+			armed = false;
+			flushSync();
+			const afterNewer = snapshot(items);
+			const ownerAfterNewer = restoredPosition
+				? readOwnershipVersion(restoredPosition, arrayPositionKey)
+				: undefined;
+			const olderResult = caught(() => older!.rollback());
+			flushSync();
+			const afterBoth = snapshot(items);
+			expect(newerResult.didCatch).toBe(false);
+			expect(olderResult.didCatch).toBe(false);
+			expect(reports).toEqual([]);
+			expect(observed.at(-1)).toEqual(afterBoth);
+			expect(view.get()).toBe(items.join('|'));
+			expect(unwrap(items)).toBe(wrapped);
+			const expected = mode === 'unarmed' ? BASE : LATER;
+			const desired = items[2] === expected;
+			const trackingAfterSettlement = hasArrayPositions(wrapped);
+			expect(trackingAfterSettlement).toBe(false);
+			const prior = Array.from(items);
+			const follow = captureReactiveMutations(() => {
+				items.push('FOLLOW');
+			});
+			follow.rollback();
+			expect(sameArray(Array.from(items), prior)).toBe(true);
+			const committed = captureReactiveMutations(() => {
+				items.push('KEEP');
+			});
+			committed.discard();
+			expect(items.at(-1)).toBe('KEEP');
+			flushSync();
+			expect(hasArrayPositions(wrapped)).toBe(false);
+			if (mode === 'reentrant') {
+				expect(fired).toBe(true);
+				expect(reentry?.after).not.toBe(reentry?.before);
+			}
+			rows.push({
+				mode,
+				events,
+				fired,
+				reentry,
+				ownerAfterNewer,
+				afterNewer,
+				afterBoth,
+				desiredSurvivesBoth: desired,
+				expectedFinalMember: expected,
+				newer: failureRecord(newerResult),
+				older: failureRecord(olderResult),
+				observed,
+				reports,
+				trackingAfterSettlement,
+				followingRollback: true,
+				followingDiscard: true,
+				followingTrackingReleased: !hasArrayPositions(wrapped)
+			});
+		} finally {
+			armed = false;
+			newer?.discard();
+			older?.discard();
+			stop();
+			flushSync();
+			const count = observed.length;
+			items.push('AFTER-STOP');
+			flushSync();
+			expect(observed).toHaveLength(count);
+			expect(inspectComputed(view)?.observed).toBe(false);
+		}
+	}
+
+	// Desired contract assertion deliberately fails on a reproduced baseline violation.
+	expect(rows.find((row) => row.mode === 'reentrant')?.desiredSurvivesBoth).toBe(true);
+});
+
+it.each(['dense', 'interior', 'trailing', 'holes'] as const)(
+	'restores full-clear descriptors and %s extent without placeholders',
+	(kind) => {
+		const raw = new Array<string>(3);
+		if (kind !== 'holes') raw[0] = 'A';
+		if (kind === 'dense') raw[1] = 'B';
+		if (kind === 'dense' || kind === 'interior') raw[2] = 'C';
+		const items = reactive(raw);
+		const before = Object.getOwnPropertyDescriptors(raw);
+		const journal = captureReactiveMutations(() => {
+			items.splice(0, 3);
+		});
+		journal.rollback();
+		expect(Object.getOwnPropertyDescriptors(raw)).toEqual(before);
+		const next = captureReactiveMutations(() => {
+			items.push('next');
+		});
+		next.rollback();
+		expect(Object.getOwnPropertyDescriptors(raw)).toEqual(before);
+		expect(hasArrayPositions(raw)).toBe(false);
+	}
+);
+
+it('fences an in-window shared original but renews following and unrelated capture authority', () => {
+	const raw = ['A', 'B', 'C'];
+	let armed = false,
+		fired = false;
+	let sameWindow: ReturnType<typeof captureReactiveMutations> | undefined;
+	let unrelated: ReturnType<typeof captureReactiveMutations> | undefined;
+	let newAddress: ReturnType<typeof arrayPosition>;
+	const other = reactive({ value: 'base' });
+	const wrapped = new Proxy(raw, {
+		defineProperty(target, key, descriptor) {
+			if (armed && !fired && descriptor.value === 'A') {
+				fired = true;
+				items.reverse();
+				const accepted = Reflect.defineProperty(target, key, descriptor);
+				items.reverse();
+				sameWindow = captureReactiveMutations(() => {
+					items[2] = 'fresh';
+				});
+				unrelated = captureReactiveMutations(() => {
+					other.value = 'fresh';
+					items.push('new-address');
+				});
+				newAddress = arrayPosition(wrapped, 3, false);
+				return accepted;
+			}
+			return Reflect.defineProperty(target, key, descriptor);
+		}
+	});
+	const items = reactive(wrapped);
+	const observed: string[] = [];
+	const reports: unknown[] = [];
+	const stop = watch(
+		() => {
+			observed.push(items.join('|'));
+		},
+		undefined,
+		{ onError: (e) => reports.push(e) }
+	);
+	const older = captureReactiveMutations(() => {
+		items[2] = 'optimistic';
+	});
+	const original = arrayPosition(wrapped, 2, false)!;
+	const clear = captureReactiveMutations(() => {
+		items.splice(0, 3);
+	});
+	try {
+		armed = true;
+		const result = caught(() => clear.rollback());
+		armed = false;
+		flushSync();
+		const actual = Array.from(items);
+		const current = items[2];
+		const shared = caught(() => sameWindow!.rollback());
+		const prior = caught(() => older.rollback());
+		const preservedNewAddress = arrayPosition(wrapped, 3, false) === newAddress;
+		const outside = caught(() => unrelated!.rollback());
+		const beforeNext = items[2];
+		const next = captureReactiveMutations(() => {
+			items[2] = 'next';
+		});
+		const renewed = arrayPosition(wrapped, 2, false)!;
+		const following = caught(() => next.rollback());
+		flushSync();
+		expect(result.didCatch).toBe(false);
+		expect(fired).toBe(true);
+		expect(current).toBe('fresh');
+		expect(shared.didCatch || prior.didCatch || outside.didCatch || following.didCatch).toBe(false);
+		expect(beforeNext).toBe('fresh');
+		expect(items[2]).toBe(beforeNext);
+		expect(renewed).not.toBe(original);
+		expect(other.value).toBe('base');
+		expect(newAddress).toBeDefined();
+		expect(preservedNewAddress).toBe(true);
+		expect(items).toHaveLength(3);
+		expect(observed).toContain(actual.join('|'));
+		expect(reports).toEqual([]);
+	} finally {
+		armed = false;
+		sameWindow?.discard();
+		unrelated?.discard();
+		older.discard();
+		clear.discard();
+		stop();
+		flushSync();
+	}
+	expect(hasArrayPositions(wrapped)).toBe(false);
+});
+
+it('refuses uncertain original addresses during unversioned batch undo and keeps named and other work', () => {
+	const raw = Object.assign(['A', 'B', 'C'], { note: 'base' });
+	const other = reactive({ value: 'base' });
+	let armed = false,
+		fired = false;
+	const wrapped = new Proxy(raw, {
+		defineProperty(target, key, descriptor) {
+			if (armed && !fired && descriptor.value === 'A') {
+				fired = true;
+				items.reverse();
+				const accepted = Reflect.defineProperty(target, key, descriptor);
+				items.reverse();
+				return accepted;
+			}
+			return Reflect.defineProperty(target, key, descriptor);
+		}
+	});
+	const items = reactive(wrapped);
+	const primary = { body: true };
+	const result = caught(() =>
+		batch(() => {
+			items.note = 'optimistic';
+			other.value = 'optimistic';
+			items[2] = 'optimistic';
+			items.splice(0, 3);
+			armed = true;
+			throw primary;
+		})
+	);
+	armed = false;
+	const actual = Array.from(items);
+	expect(result.didCatch).toBe(true);
+	expect(result.reason).toBe(primary);
+	expect(fired).toBe(true);
+	expect(actual[2]).toBe('A');
+	expect(items.note).toBe('base');
+	expect(other.value).toBe('base');
+	const next = captureReactiveMutations(() => {
+		items[2] = 'next';
+	});
+	next.rollback();
+	expect(Array.from(items)).toEqual(actual);
+	expect(hasArrayPositions(wrapped)).toBe(false);
+});
+
+it('detects identical-descriptor reversal through existing order authority', () => {
+	const raw = ['same', 'same', 'same'];
+	let armed = false,
+		fired = false;
+	const wrapped = new Proxy(raw, {
+		defineProperty(target, key, descriptor) {
+			if (armed && !fired && descriptor.enumerable === false) {
+				fired = true;
+				items.reverse();
+				const accepted = Reflect.defineProperty(target, key, descriptor);
+				items.reverse();
+				return accepted;
+			}
+			return Reflect.defineProperty(target, key, descriptor);
+		}
+	});
+	const items = reactive(wrapped);
+	const prior = captureReactiveMutations(() => {
+		Reflect.defineProperty(items, '2', {
+			value: 'same',
+			writable: true,
+			configurable: true,
+			enumerable: false
+		});
+	});
+	const original = arrayPosition(wrapped, 2, false)!;
+	const clear = captureReactiveMutations(() => {
+		items.splice(0, 3);
+	});
+	try {
+		armed = true;
+		clear.rollback();
+		armed = false;
+		const after = Object.getOwnPropertyDescriptors(raw);
+		prior.rollback();
+		expect(fired).toBe(true);
+		expect(original.index).toBe(-1);
+		expect(Object.getOwnPropertyDescriptors(raw)).toEqual(after);
+	} finally {
+		armed = false;
+		prior.discard();
+		clear.discard();
+	}
+	expect(hasArrayPositions(wrapped)).toBe(false);
+});
+
+it('keeps a proven full-clear prefix when another descriptor merely refuses', () => {
+	const raw = ['A', 'B', 'C'];
+	let armed = false;
+	const wrapped = new Proxy(raw, {
+		defineProperty(target, key, descriptor) {
+			if (armed && descriptor.value === 'B') return false;
+			return Reflect.defineProperty(target, key, descriptor);
+		}
+	});
+	const items = reactive(wrapped);
+	const older = captureReactiveMutations(() => {
+		items[2] = 'optimistic';
+	});
+	const clear = captureReactiveMutations(() => {
+		items.splice(0, 3);
+	});
+	try {
+		armed = true;
+		clear.rollback();
+		armed = false;
+		expect(items[2]).toBe('optimistic');
+		expect(Object.hasOwn(raw, 1)).toBe(false);
+		older.rollback();
+		expect(items[2]).toBe('C');
+	} finally {
+		armed = false;
+		clear.discard();
+		older.discard();
+	}
+	expect(hasArrayPositions(wrapped)).toBe(false);
 });

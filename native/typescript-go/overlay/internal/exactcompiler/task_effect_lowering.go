@@ -207,7 +207,13 @@ func (lowering *jsxLowering) manageTaskWork(
 	}
 	visitor = ast.NewNodeVisitor(
 		func(node *ast.Node) *ast.Node {
+			if (ast.IsArrowFunction(node) || ast.IsFunctionExpression(node) || ast.IsFunctionDeclaration(node)) && node.Body() != nil {
+				return lowering.withMutationFrame(node, visitor.VisitEachChild)
+			}
 			if ast.IsMethodDeclaration(node) || ast.IsGetAccessorDeclaration(node) || ast.IsSetAccessorDeclaration(node) || ast.IsConstructorDeclaration(node) {
+				if lowering.taskMethodCreatedBy(node, work, task.ID, task.Component, task.WorkStart, task.WorkLength) {
+					return lowering.visitMutationMember(node, visitor)
+				}
 				// Method definitions are not executions of the surrounding task. Computed names
 				// still evaluate here, while parameter defaults and bodies belong to their call.
 				definition := ast.NewNodeVisitor(visitor.Visit, &lowering.factory.NodeFactory, ast.NodeVisitorHooks{
@@ -235,9 +241,14 @@ func (lowering *jsxLowering) manageTaskWork(
 				return lowering.blockingLocalRead(local, visitor.VisitEachChild(node))
 			}
 
+			if !lowering.checking {
+				if selected := lowering.lowerSelectedTaskWrite(node, mutationSignal, !directServer && task.Readiness == "blocking" && lowering.target != TargetServer, visitor); selected != nil {
+					return selected
+				}
+			}
 			if !lowering.checking && mutationSignal != nil && !directServer && task.Readiness == "blocking" && lowering.target != TargetServer {
 				if write, exists := lowering.writes[nodeSpanKey(node)]; exists && (ast.IsBinaryExpression(node) || ast.IsPrefixUnaryExpression(node) || ast.IsPostfixUnaryExpression(node)) {
-					if expression := lowering.lowerSuspendedStateWrite(node, write, mutationSignal, true, visitor); expression != nil {
+					if expression := lowering.lowerSelectedStateWrite(node, write, mutationSignal, true, visitor); expression != nil {
 						return expression
 					}
 				}
@@ -246,7 +257,7 @@ func (lowering *jsxLowering) manageTaskWork(
 				expression := node.AsExpressionStatement().Expression
 				if write, exists := lowering.writes[nodeSpanKey(expression)]; exists {
 					if containsEagerAwait(expression) {
-						if suspended := lowering.lowerSuspendedStateWrite(expression, write, mutationSignal, !directServer && task.Readiness == "blocking" && lowering.target != TargetServer, visitor); suspended != nil {
+						if suspended := lowering.lowerSelectedStateWrite(expression, write, mutationSignal, !directServer && task.Readiness == "blocking" && lowering.target != TargetServer, visitor); suspended != nil {
 							return lowering.factory.NewExpressionStatement(suspended)
 						}
 					}
@@ -326,7 +337,7 @@ func (lowering *jsxLowering) manageTaskWork(
 			}
 			if !lowering.checking && mutationSignal != nil {
 				if write, exists := lowering.writes[nodeSpanKey(node)]; exists && containsEagerAwait(node) {
-					if suspended := lowering.lowerSuspendedStateWrite(node, write, mutationSignal, false, visitor); suspended != nil {
+					if suspended := lowering.lowerSelectedStateWrite(node, write, mutationSignal, false, visitor); suspended != nil {
 						return suspended
 					}
 				}
@@ -358,6 +369,9 @@ func (lowering *jsxLowering) manageTaskWork(
 						arguments,
 					)
 				}
+			}
+			if owned := lowering.lowerOwnedHelperCall(node, signal, visitor); owned != nil {
+				return owned
 			}
 			if resource := lowering.lowerPlannedTaskResource(node, signal, context, visitor, directServer, resourcePlan); resource != nil {
 				return resource

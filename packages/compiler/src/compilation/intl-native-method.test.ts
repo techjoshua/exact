@@ -5,11 +5,11 @@ import { render, dispose } from '@exactjs/dom';
 import { renderToString } from '@exactjs/ssr';
 import type { Child } from '@exactjs/core';
 import { compileFileArtifacts } from '../index.js';
-import { createTestWorkspace, writeTestFiles } from '../test-support/workspace.js';
+import { createCompilerTestWorkspace, writeTestFiles } from '../test-support/workspace.js';
 import { importArtifact } from '../test-support/import-artifact.js';
 
 it('executes declaration-only application Date methods in paired artifacts', async () => {
-	const root = await createTestWorkspace('.exact-native-method-', process.cwd());
+	const root = await createCompilerTestWorkspace('.exact-native-method-', process.cwd());
 	const files = await writeTestFiles(root, {
 		'helper.d.ts': `export declare class Date {/** @exact pure */ toLocaleString(locale?:string):string;/** @exact pure */ toLocaleDateString(locale?:string):string;/** @exact pure */ toLocaleTimeString(locale?:string):string;}`,
 		'helper.js': `export class Date {toLocaleString(){return 'authored'}toLocaleDateString(){return 'day'}toLocaleTimeString(){return 'clock'}}`,

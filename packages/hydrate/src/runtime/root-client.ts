@@ -1,4 +1,5 @@
 import { HydrationSettlement } from './settlement.js';
+import { createHydrationLifetime } from './root-lifetime.js';
 import { createFrameworkComponentDomain } from '@exactjs/core/framework/component-domains';
 import {
 	disposeOwnedSubtree,
@@ -7,7 +8,7 @@ import {
 } from '@exactjs/dom/framework/component-root';
 import type { CoreHydrationRoot, HydrateOptions } from '../types.js';
 import { createComponentResumptionResolver } from './resumption.js';
-import { roots } from './state.js';
+import { roots, hydrationOwnsDomRoot } from './state.js';
 
 /**
  * Creates the ownership client used by hydration-only applications.
@@ -19,9 +20,10 @@ export function createHydrationOnlyClient(
 	container: Element,
 	resolvedOptions: HydrateOptions
 ): CoreHydrationRoot {
+	if (roots.has(container)) throw new Error('An eXact hydration root is already registered here');
 	const resumptions = [...(resolvedOptions.resumptions ?? [])];
 	let disposed = false;
-	const lifetime = new AbortController();
+	const lifetime = createHydrationLifetime(resolvedOptions.signal);
 	const unsupportedDispatch = () =>
 		Promise.reject(
 			new Error(
@@ -61,14 +63,15 @@ export function createHydrationOnlyClient(
 		dispose() {
 			if (disposed) return;
 			disposed = true;
-			lifetime.abort(new DOMException('eXact hydration root disposed', 'AbortError'));
-			roots.delete(container);
-			container.removeAttribute('data-exact-hydrated');
-			disposeOwnedSubtree(container, false);
-			unmount(container);
+			lifetime.dispose();
+			if (roots.get(container) === root) roots.delete(container);
+			if (hydrationOwnsDomRoot(root)) container.removeAttribute('data-exact-hydrated');
+			if (hydrationOwnsDomRoot(root)) {
+				disposeOwnedSubtree(container, false);
+				if (hydrationOwnsDomRoot(root)) unmount(container);
+			}
 		}
 	};
-	if (roots.has(container)) throw new Error('An eXact hydration root is already registered here');
 	roots.set(container, root);
 	return root;
 }

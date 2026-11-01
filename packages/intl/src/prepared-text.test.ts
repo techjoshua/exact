@@ -1,3 +1,4 @@
+import { readClientComponentInput } from '../../dom/src/renderer/component-input-admission.js';
 import { render, unmount } from '@exactjs/dom';
 import { hydrate } from '@exactjs/hydrate';
 import { renderToHydratableString } from '@exactjs/ssr';
@@ -9,8 +10,7 @@ import {
 import '@exactjs/dom/runtime/target';
 import {
 	createCompiledIntrinsicReceipt,
-	createCompiledComponentReceipt,
-	readCompiledComponentReceipt
+	createCompiledComponentInputReceipt
 } from '@exactjs/core/runtime/component-operations';
 import { flushSync } from '@exactjs/reactive';
 import { describe, expect, it } from 'vitest';
@@ -29,7 +29,6 @@ import {
 	preparedIntlMessage,
 	preparedIntlProvider
 } from './test-support/preparation.fixtures.js';
-
 const descriptor: IntlRuntimeDescriptorV1 = {
 	protocol: 1,
 	owner: 'prepared-text',
@@ -42,7 +41,6 @@ const descriptor: IntlRuntimeDescriptorV1 = {
 	source: [{ kind: 'text', value: 'Hello' }],
 	capabilities: []
 };
-
 describe('prepared intl text presentation', () => {
 	it('mounts and hydrates nested messages in an authored textarea', async () => {
 		const environment = createIntlEnvironment({
@@ -59,16 +57,21 @@ describe('prepared intl text presentation', () => {
 		});
 		const message = prepareIntlActivation(descriptor, []);
 		const output = await renderToHydratableString(
-			createCompiledComponentReceipt(
+			createCompiledComponentInputReceipt(
 				ServerProvider,
 				{ environment },
-				createCompiledIntrinsicReceipt(
-					'textarea',
-					null,
-					createCompiledComponentReceipt(ServerMessage, { message }),
-					' / ',
-					createCompiledComponentReceipt(ServerMessage, { message })
-				)
+				{
+					kind: 'eager',
+					values: [
+						createCompiledIntrinsicReceipt(
+							'textarea',
+							null,
+							createCompiledComponentInputReceipt(ServerMessage, { message }),
+							' / ',
+							createCompiledComponentInputReceipt(ServerMessage, { message })
+						)
+					]
+				}
 			)
 		);
 		const container = document.createElement('div');
@@ -115,7 +118,7 @@ describe('prepared intl text presentation', () => {
 		const receipt = preparedIntlTextTree(environment, prepareIntlActivation(descriptor, []));
 		const container = document.createElement('textarea');
 		const root = createRendererRoot(container, receipt, {}, { version: 1 });
-		const prepared = prepareComponentReceipt(root, readCompiledComponentReceipt(receipt)!);
+		const prepared = prepareComponentReceipt(root, readClientComponentInput(receipt)!);
 		try {
 			const mounted = prepared.commit(new PreparedComponentTextTarget(root));
 			try {
@@ -159,7 +162,7 @@ describe('prepared intl text presentation', () => {
 			const root = createRendererRoot(container, providerReceipt, {}, { version: 1 });
 			const providerPreparation = prepareComponentReceipt(
 				root,
-				readCompiledComponentReceipt(providerReceipt)!
+				readClientComponentInput(providerReceipt)!
 			);
 			const provider = providerPreparation.commit();
 			try {
@@ -169,7 +172,7 @@ describe('prepared intl text presentation', () => {
 						: preparedIntlLocale(createCompiledIntrinsicReceipt('span', null, 'Hello'));
 				const prepared = prepareComponentReceipt(
 					root,
-					readCompiledComponentReceipt(receipt)!,
+					readClientComponentInput(receipt)!,
 					provider.instance,
 					provider.scope,
 					container

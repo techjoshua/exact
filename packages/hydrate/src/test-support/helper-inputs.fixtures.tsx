@@ -59,3 +59,40 @@ export function HelperInputs(this: Component<{ value: string; flag: boolean; unr
 
 /** Shared root for mounting and server adoption. */
 export const helperInputs = <HelperInputs />;
+
+function point(x: number) {
+	return { x, y: 1 };
+}
+function pathFor(value: { x: number; y: number }) {
+	return `M 0 0 L ${value.x} ${value.y}`;
+}
+function DerivedInputChild(this: Component<{}>, { value }: { value: { x: number } }) {
+	const projected = value ? point(value.x) : undefined;
+	const path = projected ? pathFor(projected) : undefined;
+	return () => <svg>{path ? <path className="derived-arc" d={path} /> : null}</svg>;
+}
+function derivedView(state: { value: { x: number } }) {
+	return (
+		<aside>
+			<DerivedInputChild value={state.value} />
+		</aside>
+	);
+}
+function DerivedInputOwner(this: Component<{ value: { x: number } }>) {
+	this.state.value = { x: 1 };
+	return () => (
+		<main>
+			<button
+				id="replace-derived"
+				onClick={() => {
+					this.state.value = { x: 2 };
+				}}
+			>
+				replace
+			</button>
+			{derivedView(this.state)}
+		</main>
+	);
+}
+/** Shared root for observing forwarded object inputs after mounting and hydration. */
+export const derivedInputs = <DerivedInputOwner />;

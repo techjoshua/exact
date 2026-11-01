@@ -31,3 +31,23 @@ export function ScheduledScalarProp(
 		</output>
 	);
 }
+
+/** Direct children use the accepted SSR input while unrelated accessors remain live. */
+export function CapturedChildInput(props: {
+	children?: import('@exactjs/core').Child;
+	other?: string;
+}) {
+	return () => (
+		<section
+			data-same={props.children === props.children}
+			data-other-a={props.other}
+			data-other-b={props.other}
+		>
+			{props.children}
+		</section>
+	);
+}
+/** A real child receipt protects captured opaque identity rather than serialized stand-ins. */
+export function CapturedChildValue(props: { value: string }) {
+	return () => <i>{props.value}</i>;
+}

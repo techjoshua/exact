@@ -3,8 +3,9 @@ import path from 'node:path';
 import { readFile, writeFile } from 'node:fs/promises';
 import { expect, it, onTestFinished } from 'vitest';
 import { withComponentDomain, type AnyComponentFunction, type ContextToken } from '@exactjs/core';
-import { createCompiledComponentReceipt as receipt } from '@exactjs/core/runtime/component-operations';
+import { createCompiledComponentInputReceipt as receipt } from '@exactjs/core/runtime/component-operations';
 import { composeExactComponentContracts } from '@exactjs/core/framework/component-contracts';
+import { decodeReactiveProtocolValue } from '@exactjs/reactive/framework/protocol';
 import { render, unmount } from '@exactjs/dom';
 import { mountClientServerTest } from '@exactjs/testing';
 import { renderToString } from '@exactjs/ssr';
@@ -15,9 +16,8 @@ import {
 	exactResponseToFetchResponse
 } from '@exactjs/server';
 import { compileProjectArtifacts } from '../index.js';
-import { createTestWorkspace } from '../test-support/workspace.js';
+import { createCompilerTestWorkspace, repositoryPath } from '../test-support/workspace.js';
 import { importArtifact } from '../test-support/import-artifact.js';
-
 it.each([
 	{
 		name: 'destructured server optimistic context',
@@ -80,7 +80,7 @@ it.each([
 		mode: 'nullable-collection'
 	},
 	{
-		name: 'absent nullable server collection',
+		name: 'undefined nullable server collection',
 		statement: '',
 		value: undefined,
 		mode: 'nullable-absent'
@@ -120,10 +120,10 @@ it.each([
 ])(
 	'preserves captured defaults with local helpers and server context ($name result)',
 	async ({ statement, value, mode }) => {
-		const root = await createTestWorkspace('.exact-activation-captures-', process.cwd());
+		const root = await createCompilerTestWorkspace('.exact-activation-captures-', process.cwd());
 		const entry = path.join(root, 'page.tsx');
 		let source = await readFile(
-			path.resolve(
+			repositoryPath(
 				'packages/component-composition-corpus/src/test-support/task-activation-captures.fixtures.tsx'
 			),
 			'utf8'
@@ -136,7 +136,6 @@ it.each([
 			'this.state.result = result;'
 		])
 			expect(source).toContain(anchor);
-
 		if (mode === 'destructured-optimistic')
 			source = source
 				.replace('TaskContext.server().blocking()', 'TaskContext.server().latest().blocking()')
@@ -181,7 +180,6 @@ it.each([
 					'const read = () => this.state.revision;const publish=(value:number)=>this.setContext(CaptureStatus,{value});'
 				)
 				.replace('this.setContext(CaptureStatus, { value: result });', 'publish(result);');
-
 		const helperVariants: Record<string, string> = {
 			'helper-constant': 'const offset=2;const read=()=>this.state.revision+offset;',
 			'helper-parenthesized': 'const offset=2;const read=((()=>this.state.revision+offset));',
@@ -209,7 +207,6 @@ it.each([
 			source = source.replace('const read = () => this.state.revision;', helperVariants[mode]);
 		if (mode === 'helper-immediate')
 			source = source.replace(' + shared + privateValue', ' + privateValue');
-
 		if (mode.startsWith('nullable-'))
 			source = source
 				.replace('result: number }', 'result: number;nested?:{lookup:Map<string,number>} }')
@@ -227,7 +224,6 @@ it.each([
 					'<output data-result>',
 					"<output data-collection>{this.state.nested?.lookup.get('result')}</output><output data-result>"
 				);
-
 		if (mode === 'nullable-absent')
 			source = source.replace(
 				"this.state.nested={lookup:new Map([['result',0]])};",
@@ -264,7 +260,6 @@ it.each([
 				);
 		if (mode === 'helper-spread')
 			source = source.replace('void run();', 'void run(...([5] as [number]));');
-
 		const resourceMode = mode.startsWith('resource-');
 		if (resourceMode) {
 			source =
@@ -277,13 +272,11 @@ it.each([
 					`void task;const resource=${mode === 'resource-wrapped' ? 'await (acquire())' : 'await acquire()'};void resource;`
 				);
 		}
-
 		if (mode === 'resource-nested')
 			source = source.replace(
 				'const resource=await acquire();void resource;',
 				'const readResource=async()=>{const resource=await acquire();void resource;};await readResource();'
 			);
-
 		if (mode === 'resource-release')
 			source = source.replace('void resource;', 'resource.dispose();');
 		if (mode === 'resource-optional')
@@ -302,7 +295,6 @@ it.each([
 				'void resource;',
 				'void resource;const handle=setTimeout(()=>{throw new Error("retired timer executed");},1000);clearTimeout(handle);'
 			);
-
 		await writeFile(
 			entry,
 			source.replace('this.state.result = result;', `this.state.result = result;${statement}`)
@@ -334,7 +326,6 @@ it.each([
 		host.innerHTML = output.html;
 		expect(host.querySelector('[data-result]')?.textContent).toBe(String(initial));
 		expect(host.querySelector('[data-status]')?.textContent).toBe(String(initial));
-
 		const contract = composeExactExecutorContract(serverComponents);
 		const contextRuntime = createExactContextRuntime({
 			requestContexts: [[server.CapturePrivate as ContextToken<number>, { value: 7 }]]
@@ -368,15 +359,15 @@ it.each([
 					}
 				});
 				const fetchResponse = exactResponseToFetchResponse(response);
-				const result = await fetchResponse.clone().json();
-				if (mode === 'nullable-absent') {
-					expect(response.status).toBe(400);
-					expect(result).toEqual({ error: 'bad_request' });
-					return response;
-				}
+				const result = decodeReactiveProtocolValue(await fetchResponse.clone().json()) as {
+					error?: string;
+					value?: unknown;
+					state?: {
+						result: unknown;
+					};
+				};
 				expect(response.status).toBe(200);
-				if (value === undefined) expect(Object.hasOwn(result, 'value')).toBe(false);
-				else expect(result.value).toBe(value === 'result' ? result.state.result : value);
+				expect(result.value).toBe(value === 'result' ? result.state!.result : value);
 				return response;
 			}
 		});
@@ -396,19 +387,6 @@ it.each([
 		const status = host.querySelector('[data-status]');
 		const run = host.querySelector<HTMLButtonElement>('[data-run]')!;
 		await view.settle();
-		if (mode === 'nullable-absent') {
-			expect(requests).toBeGreaterThan(0);
-			expect(reports).toEqual(
-				expect.arrayContaining([
-					expect.objectContaining({
-						message: 'rejected exact invocation with mismatched state contract'
-					})
-				])
-			);
-			expect(result?.textContent).toBe('0');
-			expect(host.querySelector('[data-run]')).toBe(run);
-			return;
-		}
 		expect(reports).toEqual([]);
 		await view.action(() => run.click());
 		await expect.poll(() => result?.textContent).toBe(String(initial));

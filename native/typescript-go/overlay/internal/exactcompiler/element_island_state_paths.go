@@ -5,6 +5,7 @@ import (
 	"sort"
 
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
+	"github.com/microsoft/TypeScript/tsc/internal/checker"
 )
 
 // islandStatePaths computes the minimal stable state snapshot needed to reconstruct one generated
@@ -20,8 +21,10 @@ func islandStatePaths(
 	captures []islandValueCapture,
 	reactiveBindings []ReactiveBinding,
 	additionalInputs []*ast.Node,
-) [][]string {
+	typeChecker *checker.Checker,
+) ([][]string, []*ast.Node) {
 	result := [][]string{}
+	keys := []*ast.Node{}
 	seen := make(map[string]struct{})
 	add := func(path []string) {
 		if len(path) == 0 {
@@ -39,12 +42,14 @@ func islandStatePaths(
 			!positionInIslandInputs(read.Start, node, additionalInputs) {
 			continue
 		}
-		add(read.Path)
+		keys = appendIslandStateKeyDemands(keys, read.Path, read.dynamicSegments)
+		add(islandSnapshotStatePath(read.Path, read.dynamicSegments, typeChecker))
 	}
 	for _, write := range stateWrites {
 		if write.Component == component &&
 			positionInIslandInputs(write.Start, node, additionalInputs) {
-			add(write.Path)
+			keys = appendIslandStateKeyDemands(keys, write.Path, write.DynamicSegments)
+			add(islandSnapshotStatePath(write.Path, write.DynamicSegments, typeChecker))
 		}
 	}
 	bindings := make(map[string]ReactiveBinding)
@@ -91,6 +96,7 @@ func islandStatePaths(
 		}
 		for _, read := range stateReads {
 			if read.Component == component && read.Start >= start && read.Start < end {
+				keys = appendIslandStateKeyDemands(keys, read.Path, read.dynamicSegments)
 				// A direct state alias is reconstructed from its snapshot. If island expressions
 				// already identify narrower reads through that alias, retaining the declaration's
 				// root read would unnecessarily serialize the entire object.
@@ -99,7 +105,7 @@ func islandStatePaths(
 					hasDescendantStatePath(result, alias.Path) {
 					continue
 				}
-				add(read.Path)
+				add(islandSnapshotStatePath(read.Path, read.dynamicSegments, typeChecker))
 			}
 		}
 		for _, dependency := range binding.Dependencies {
@@ -112,7 +118,7 @@ func islandStatePaths(
 	sort.Slice(result, func(left int, right int) bool {
 		return slices.Compare(result[left], result[right]) < 0
 	})
-	return result
+	return result, keys
 }
 
 func hasDescendantStatePath(paths [][]string, prefix []string) bool {
@@ -132,4 +138,40 @@ func hasDescendantStatePath(paths [][]string, prefix []string) bool {
 		}
 	}
 	return false
+}
+
+// appendIslandStateKeyDemands preserves authored key identity before conservative path deduplication.
+// These nodes remain private to the acquired checker and never become snapshot property names.
+func appendIslandStateKeyDemands(keys []*ast.Node, path []string, segments map[int]*ast.Node) []*ast.Node {
+	for index := range path {
+		if key := segments[index]; key != nil {
+			keys = append(keys, key)
+		}
+	}
+	return keys
+}
+
+// islandSnapshotStatePath resolves a singleton string key at its authored use. Public analysis
+// keeps conservative computed paths, while a snapshot must read the selected property rather
+// than treating the analysis wildcard as a literal key. Non-singleton keys remain conservative.
+func islandSnapshotStatePath(path []string, segments map[int]*ast.Node, typeChecker *checker.Checker) []string {
+	var result []string
+	for index, key := range segments {
+		if index < 0 || index >= len(path) {
+			continue
+		}
+		value := typeChecker.GetTypeAtLocation(key)
+		if value != nil && value.Flags()&checker.TypeFlagsStringLiteral != 0 {
+			if name, ok := value.AsLiteralType().Value().(string); ok {
+				if result == nil {
+					result = append([]string(nil), path...)
+				}
+				result[index] = name
+			}
+		}
+	}
+	if result == nil {
+		return path
+	}
+	return result
 }

@@ -1,5 +1,11 @@
 import { unwrap } from '@exactjs/reactive/framework/runtime';
 import { ReadinessContext } from './contexts.js';
+import {
+	attemptCleanup,
+	createCleanupFailure,
+	recordCleanupFailure,
+	throwCleanupFailure
+} from '../cleanup.js';
 import type {
 	AnyComponentInstance,
 	BlockingWork,
@@ -49,30 +55,46 @@ export function createReadinessCoordinator(
 	let generation = 0;
 	let disposed = false;
 	let generationNeedsRetry = false;
+	let publicationFailure: { error: unknown } | undefined;
+	let pendingRegistrations = 0;
 	const entries = new Set<Entry>();
-	const waiters = new Set<
-		(value: { readonly generation: number; readonly retry: boolean }) => void
-	>();
-	const pendingCount = () => {
-		let count = 0;
-		for (const entry of entries) if (entry.pending) count++;
-		return count;
-	};
-	const publish = (): void => {
-		const pending = pendingCount();
-		onPendingChange(pending, generation, generationNeedsRetry);
-		if (pending) return;
-		const result = Object.freeze({ generation, retry: generationNeedsRetry });
-		for (const resolve of waiters) resolve(result);
-		waiters.clear();
+	const waiters = new Set<{
+		resolve(value: { readonly generation: number; readonly retry: boolean }): void;
+		reject(error: unknown): void;
+	}>();
+	const publish = (settlement = false): void => {
+		const failure = createCleanupFailure();
+		attemptCleanup(failure, () =>
+			onPendingChange(pendingRegistrations, generation, generationNeedsRetry)
+		);
+		if (settlement && failure.failed) publicationFailure ??= { error: failure.error };
+		// Notifications can synchronously register more work, so inspect the current count afterward.
+		if (!pendingRegistrations || publicationFailure) {
+			const result = Object.freeze({ generation, retry: generationNeedsRetry });
+			for (const waiter of waiters) {
+				if (publicationFailure) waiter.reject(publicationFailure.error);
+				else waiter.resolve(result);
+			}
+			waiters.clear();
+		}
+		if (!settlement) throwCleanupFailure(failure);
 	};
 	const finalize = (entry: Entry, commit: boolean): void => {
 		if (!entry.active) return;
 		entry.active = false;
+		if (entry.pending) {
+			entry.pending = false;
+			pendingRegistrations--;
+		}
 		entries.delete(entry);
-		if (commit) entry.work.commit?.();
-		else entry.work.discard?.();
-		publish();
+		const failure = createCleanupFailure();
+		attemptCleanup(failure, () => {
+			if (commit) entry.work.commit?.();
+			else entry.work.discard?.();
+		});
+		if (commit && failure.failed) publicationFailure ??= { error: failure.error };
+		attemptCleanup(failure, publish);
+		throwCleanupFailure(failure);
 	};
 	const coordinator: ReadinessCoordinator = {
 		context: {
@@ -96,20 +118,26 @@ export function createReadinessCoordinator(
 				};
 				if (!entry.active) return registration;
 				entries.add(entry);
+				pendingRegistrations++;
 				if (work.retry) generationNeedsRetry = true;
-				publish();
 				const settle = () => {
 					if (!entry.active || !entry.pending || disposed || boundaryGeneration !== generation)
 						return;
 					entry.pending = false;
+					pendingRegistrations--;
 					if (options.commitSettled) {
 						entry.active = false;
 						entries.delete(entry);
-						entry.work.commit?.();
+						try {
+							entry.work.commit?.();
+						} catch (error) {
+							publicationFailure ??= { error };
+						}
 					}
-					publish();
+					publish(true);
 				};
 				Promise.resolve(work.settlement).then(settle, settle);
+				publish();
 				return registration;
 			}
 		},
@@ -117,27 +145,37 @@ export function createReadinessCoordinator(
 			return generation;
 		},
 		get pending() {
-			return pendingCount();
+			return pendingRegistrations;
 		},
 		beginGeneration() {
-			for (const entry of [...entries]) finalize(entry, false);
+			const failure = createCleanupFailure();
+			const previous = [...entries];
 			generation++;
 			generationNeedsRetry = false;
+			publicationFailure = undefined;
+			for (const entry of previous) attemptCleanup(failure, () => finalize(entry, false));
+			throwCleanupFailure(failure);
 			return generation;
 		},
 		whenReady() {
-			if (!pendingCount())
+			if (publicationFailure) return Promise.reject(publicationFailure.error);
+			if (!pendingRegistrations)
 				return Promise.resolve(Object.freeze({ generation, retry: generationNeedsRetry }));
-			return new Promise((resolve) => waiters.add(resolve));
+			return new Promise((resolve, reject) => waiters.add({ resolve, reject }));
 		},
 		commitGeneration() {
-			for (const entry of [...entries]) finalize(entry, true);
+			const failure = createCleanupFailure();
+			if (publicationFailure) recordCleanupFailure(failure, publicationFailure.error);
+			for (const entry of [...entries]) attemptCleanup(failure, () => finalize(entry, true));
+			throwCleanupFailure(failure);
 		},
 		dispose() {
 			if (disposed) return;
 			disposed = true;
-			for (const entry of [...entries]) finalize(entry, false);
-			publish();
+			const failure = createCleanupFailure();
+			for (const entry of [...entries]) attemptCleanup(failure, () => finalize(entry, false));
+			attemptCleanup(failure, publish);
+			throwCleanupFailure(failure);
 		}
 	};
 	return coordinator;

@@ -1,6 +1,7 @@
 import { expect, it } from 'vitest';
 import { reactive } from '../reactive.js';
 import { flushSync } from '../internal/scheduler.js';
+import { unwrap } from '../internal/values.js';
 import { watch } from '../observation.js';
 import { createPendingReactiveTransaction } from './pending-state.js';
 
@@ -34,7 +35,7 @@ it.each(['commit', 'discard'] as const)(
 
 for (const writer of ['plain', 'reactive'] as const)
 	for (const order of ['writer-first', 'reader-first'] as const)
-		it(`preserves ${writer} writer policy with ${order} readonly aliases`, () => {
+		it(`preserves ${writer} publication with ${order} typed readonly aliases`, () => {
 			for (const settle of ['discard', 'commit'] as const) {
 				const raw = {
 					count: 1,
@@ -44,7 +45,7 @@ for (const writer of ['plain', 'reactive'] as const)
 					members: new Set([1])
 				};
 				const mutable = writer === 'reactive' ? reactive(raw) : raw;
-				const readonly = reactive(raw, { readonly: true });
+				const readonly: Readonly<typeof raw> = reactive(raw);
 				const root = { mutable, readonly };
 				const pending = createPendingReactiveTransaction(root);
 				for (const key of order === 'writer-first'
@@ -54,23 +55,6 @@ for (const writer of ['plain', 'reactive'] as const)
 					for (const field of ['values', 'lookup', 'members']) pending.read(owner, field);
 				}
 				try {
-					expect(() => pending.helper((owner: typeof raw) => owner.count++)(readonly)).toThrow(
-						'readonly'
-					);
-					expect(() =>
-						pending.helper((owner: typeof raw) => Reflect.deleteProperty(owner, 'removable'))(
-							readonly
-						)
-					).toThrow('readonly');
-					expect(() =>
-						pending.helper((owner: typeof raw) => owner.values.push(9))(readonly)
-					).toThrow('readonly');
-					expect(() =>
-						pending.helper((owner: typeof raw) => owner.lookup.set('key', 9))(readonly)
-					).toThrow('readonly');
-					expect(() =>
-						pending.helper((owner: typeof raw) => owner.members.add(9))(readonly)
-					).toThrow('readonly');
 					pending.helper((owner: typeof raw) => {
 						owner.count = 5;
 						Reflect.deleteProperty(owner, 'removable');
@@ -282,7 +266,7 @@ it('enumerates pending integer properties in native order and moves reinserted s
 	pending.discard();
 });
 
-it('publishes touched nested references into each reconciled owner', () => {
+it('publishes touched nested references into shared replacement storage', () => {
 	const root = reactive({ first: { nested: { count: 0 } }, second: { nested: { count: 0 } } });
 	const first = root.first.nested;
 	const second = root.second.nested;
@@ -293,24 +277,35 @@ it('publishes touched nested references into each reconciled owner', () => {
 	const selected = transaction.read(replacement, 'nested') as typeof first;
 	transaction.write(selected, 'count', 9);
 	transaction.commit();
-	expect(root.first.nested).toBe(first);
-	expect(root.second.nested).toBe(second);
-	expect(first.count).toBe(9);
-	expect(second.count).toBe(9);
+	expect(root.first.nested).toBe(root.second.nested);
+	expect(root.first.nested.count).toBe(9);
+	expect(first.count).toBe(0);
+	expect(second.count).toBe(0);
 });
 
-it('keeps a selected reconciled alias detached after its parent property is removed', () => {
+it('keeps a selected replacement alias detached after its parent property is removed', () => {
 	const root = reactive({ branch: { nested: { count: 0 } } as { nested?: { count: number } } });
 	const retained = root.branch.nested!;
-	const transaction = createPendingReactiveTransaction(root);
 	const replacement = { nested: { count: 1 } };
-	transaction.write(root, 'branch', replacement);
-	const child = transaction.read(replacement, 'nested') as object;
-	transaction.remove(replacement, 'nested');
-	transaction.write(child, 'count', 9);
-	transaction.commit();
-	expect(root.branch.nested).toBeUndefined();
-	expect(retained.count).toBe(9);
+	const replacementChild = reactive(replacement.nested);
+	const seen: number[] = [];
+	const stop = watch(() => seen.push(replacementChild.count));
+	const transaction = createPendingReactiveTransaction(root);
+	try {
+		transaction.write(root, 'branch', replacement);
+		const child = transaction.read(replacement, 'nested') as object;
+		transaction.remove(replacement, 'nested');
+		transaction.write(child, 'count', 9);
+		transaction.commit();
+		flushSync();
+		expect(root.branch.nested).toBeUndefined();
+		expect(retained.count).toBe(0);
+		expect(replacementChild.count).toBe(9);
+		expect(seen).toEqual([1, 9]);
+	} finally {
+		transaction.discard();
+		stop();
+	}
 });
 
 it('adopts pending collection values consistently during iteration', () => {
@@ -326,3 +321,285 @@ it('adopts pending collection values consistently during iteration', () => {
 	transaction.commit();
 	expect(root.map.get('x')!.count).toBe(9);
 });
+
+it.each([
+	['commit', false],
+	['commit', true],
+	['discard', false],
+	['discard', true]
+] as const)(
+	'publishes shared replacement storage and selected descendants after %s with proxy RHS %s',
+	(settle, normalized) => {
+		const root = reactive({ first: { nested: { count: 0 } }, second: { nested: { count: 0 } } });
+		const old = root.first;
+		const raw = { nested: { count: 1 } };
+		const replacement = normalized ? reactive(raw) : raw;
+		const seen: number[] = [];
+		const selectedSeen: number[] = [];
+		const receiver = reactive(replacement.nested);
+		const stopSelected = watch(() => selectedSeen.push(receiver.count));
+		const stop = watch(() => seen.push(root.first.nested.count + root.second.nested.count));
+		const pending = createPendingReactiveTransaction(root);
+		try {
+			pending.write(root, 'first', replacement);
+			pending.write(root, 'second', replacement);
+			const selected = pending.read(replacement, 'nested') as object;
+			pending.write(selected, 'count', 9);
+			pending[settle]();
+			flushSync();
+			expect(old.nested.count).toBe(0);
+			if (settle === 'commit') {
+				expect(root.first.nested).toBe(root.second.nested);
+				expect(root.first.nested.count).toBe(9);
+				expect(seen).toEqual([0, 18]);
+				expect(selectedSeen).toEqual([1, 9]);
+				const next = createPendingReactiveTransaction(root);
+				next.write(root.first.nested, 'count', 10);
+				next.commit();
+				flushSync();
+				expect(seen).toEqual([0, 18, 20]);
+				expect(selectedSeen).toEqual([1, 9, 10]);
+				old.nested.count = 7;
+				flushSync();
+				expect(seen).toEqual([0, 18, 20]);
+				expect(selectedSeen).toEqual([1, 9, 10]);
+			} else {
+				expect(seen).toEqual([0]);
+				expect(selectedSeen).toEqual([1]);
+			}
+			expect(() => pending.write(selected, 'count', 11)).toThrow('closed');
+		} finally {
+			pending.discard();
+			stop();
+			stopSelected();
+		}
+	}
+);
+
+it.each(['mixed-alias', 'preselected-parent', 'cyclic', 'raw-publication'] as const)(
+	'notifies independent selected descendants after %s receiver attachment',
+	(order) => {
+		const raw: { nested: { count: number }; self?: object } = { nested: { count: 1 } };
+		if (order === 'cyclic') raw.self = raw;
+		const root = reactive({ first: { nested: { count: 0 } }, second: { nested: { count: 0 } } });
+		const receiver = reactive(raw.nested);
+		const seen: number[] = [];
+		const stop = watch(() => seen.push(receiver.count));
+		const pending = createPendingReactiveTransaction(root);
+		try {
+			pending.own(raw);
+			if (order === 'mixed-alias') pending.write(root, 'first', raw);
+			if (order === 'raw-publication') pending.write(raw, 'nested', raw.nested);
+			const selected = pending.read(raw, 'nested') as object;
+			if (order === 'cyclic') expect(pending.read(raw, 'self')).toBe(raw);
+			// Retaining the parent receiver must not mark its selected descendants as traversed.
+			pending.write(root, 'second', order === 'raw-publication' ? raw : reactive(raw));
+			pending.write(selected, 'count', 9);
+			pending.commit();
+			flushSync();
+			expect(root.second.nested.count).toBe(9);
+			if (order === 'mixed-alias') expect(root.first.nested).toBe(root.second.nested);
+			expect(seen).toEqual([1, 9]);
+		} finally {
+			pending.discard();
+			stop();
+		}
+	}
+);
+
+it('discards mixed receiver selections and permits independent publication afterward', () => {
+	const raw = { nested: { count: 1 } };
+	const root = reactive({ first: { nested: { count: 0 } }, second: { nested: { count: 0 } } });
+	const receiver = reactive(raw.nested);
+	const seen: number[] = [];
+	const stop = watch(() => seen.push(receiver.count));
+	const pending = createPendingReactiveTransaction(root);
+	try {
+		pending.write(root, 'first', raw);
+		const selected = pending.read(raw, 'nested') as object;
+		pending.write(root, 'second', reactive(raw));
+		pending.write(selected, 'count', 9);
+		pending.discard();
+		flushSync();
+		expect(root.first.nested.count).toBe(0);
+		expect(root.second.nested.count).toBe(0);
+		expect(raw.nested.count).toBe(1);
+		expect(seen).toEqual([1]);
+		expect(() => pending.write(selected, 'count', 11)).toThrow('closed');
+		const next = createPendingReactiveTransaction(root);
+		try {
+			next.write(root, 'first', raw);
+			const child = next.read(raw, 'nested') as object;
+			next.write(child, 'count', 10);
+			next.commit();
+			flushSync();
+			expect(root.first.nested.count).toBe(10);
+			expect(seen).toEqual([1, 10]);
+		} finally {
+			next.discard();
+		}
+	} finally {
+		pending.discard();
+		stop();
+	}
+});
+
+it('keeps selected RHS storage separate when a publication setter stores another object', () => {
+	const source = { nested: { count: 1 } };
+	const transformed = reactive({ nested: { count: 2 } });
+	const root = reactive({ branch: { nested: { count: 0 } } });
+	const seen: number[] = [];
+	const stop = watch(() => seen.push(transformed.nested.count));
+	const pending = createPendingReactiveTransaction(root);
+	try {
+		pending.write(root, 'branch', source);
+		const child = pending.read(source, 'nested') as object;
+		pending.write(child, 'count', 9);
+		let stored = root.branch;
+		Object.defineProperty(root, 'branch', {
+			configurable: true,
+			get: () => stored,
+			set: () => {
+				stored = transformed;
+			}
+		});
+		pending.commit();
+		flushSync();
+		expect(unwrap(root.branch)).toBe(unwrap(transformed));
+		expect(source.nested.count).toBe(9);
+		expect(transformed.nested.count).toBe(2);
+		expect(seen).toEqual([2]);
+	} finally {
+		pending.discard();
+		stop();
+	}
+});
+
+it.each(['parent-first', 'child-first'] as const)(
+	'associates selected descendants with a %s reactive alias without object publication',
+	(order) => {
+		const raw = { nested: { count: 1 } };
+		const root = { mutable: raw, readonly: reactive(raw) };
+		const receiver = reactive(raw.nested);
+		const seen: number[] = [];
+		const stop = watch(() => seen.push(receiver.count));
+		const pending = createPendingReactiveTransaction(root);
+		try {
+			if (order === 'parent-first') pending.read(root, 'readonly');
+			const parent = pending.read(root, 'mutable');
+			const child = pending.read(parent, 'nested') as object;
+			if (order === 'child-first') pending.read(root, 'readonly');
+			pending.write(child, 'count', 9);
+			pending.commit();
+			flushSync();
+			expect(raw.nested.count).toBe(9);
+			expect(seen).toEqual([1, 9]);
+		} finally {
+			pending.discard();
+			stop();
+		}
+	}
+);
+
+it.each(['selected', 'written-cell', 'failed-publication'] as const)(
+	'associates a %s child before its mutation precedes parent attachment',
+	(mode) => {
+		const raw = { nested: { count: 1 } };
+		const root = reactive({ branch: { nested: { count: 0 } }, reject: 0 });
+		const original = root.branch;
+		const receiver = reactive(raw.nested);
+		const seen: number[] = [];
+		const stop = watch(() => seen.push(receiver.count));
+		const pending = createPendingReactiveTransaction(root);
+		try {
+			pending.own(raw);
+			if (mode === 'written-cell') pending.write(raw, 'nested', raw.nested);
+			const child = pending.read(raw, 'nested') as object;
+			pending.write(child, 'count', 9);
+			pending.write(root, 'branch', reactive(raw));
+			if (mode === 'failed-publication') {
+				pending.write(root, 'reject', 1);
+				Object.defineProperty(unwrap(root), 'reject', {
+					configurable: true,
+					set() {
+						throw new Error('Rejected');
+					}
+				});
+				expect(() => pending.commit()).toThrow('Rejected');
+				expect(root.branch).toBe(original);
+			} else {
+				pending.commit();
+				expect(unwrap(root.branch)).toBe(raw);
+			}
+			flushSync();
+			expect(original.nested.count).toBe(0);
+			expect(raw.nested.count).toBe(mode === 'failed-publication' ? 1 : 9);
+			expect(seen).toEqual(mode === 'failed-publication' ? [1] : [1, 9]);
+		} finally {
+			pending.discard();
+			stop();
+		}
+	}
+);
+
+for (const operation of ['delete', 'array', 'map', 'set'] as const)
+	it.each(['commit', 'fail'] as const)(
+		`associates a late parent before selected ${operation} publication and inverse capture: %s`,
+		(settle) => {
+			const raw = { count: 1, values: [1], map: new Map([['x', 1]]), set: new Set([1]) };
+			const root = reactive({ branch: { nested: raw }, reject: 0 });
+			const parent = { nested: raw };
+			const aliasRoot = { mutable: parent, readonly: reactive(parent) };
+			const receiver = reactive(raw);
+			const sample = () => [
+				receiver.count,
+				receiver.values.length,
+				receiver.map.get('x'),
+				receiver.set.size
+			];
+			const seen: unknown[] = [];
+			const stop = watch(() => seen.push(sample()));
+			const pending = createPendingReactiveTransaction(root);
+			try {
+				pending.own(aliasRoot);
+				const selected = pending.read(pending.read(aliasRoot, 'mutable'), 'nested') as object;
+				const collection =
+					operation === 'delete'
+						? selected
+						: (pending.read(selected, operation === 'array' ? 'values' : operation) as object);
+				pending.read(aliasRoot, 'readonly');
+				if (operation === 'delete') pending.remove(selected, 'count');
+				else
+					pending.call(
+						collection,
+						operation === 'array' ? 'push' : operation === 'map' ? 'set' : 'add',
+						operation === 'map' ? ['x', 9] : [9]
+					);
+				if (settle === 'fail') {
+					pending.write(root, 'reject', 1);
+					Object.defineProperty(unwrap(root), 'reject', {
+						configurable: true,
+						set() {
+							throw new Error('Rejected');
+						}
+					});
+					expect(() => pending.commit()).toThrow('Rejected');
+				} else pending.commit();
+				flushSync();
+				const expected =
+					settle === 'fail'
+						? [1, 1, 1, 1]
+						: [
+								operation === 'delete' ? undefined : 1,
+								operation === 'array' ? 2 : 1,
+								operation === 'map' ? 9 : 1,
+								operation === 'set' ? 2 : 1
+							];
+				expect(sample()).toEqual(expected);
+				expect(seen).toEqual(settle === 'fail' ? [[1, 1, 1, 1]] : [[1, 1, 1, 1], expected]);
+			} finally {
+				pending.discard();
+				stop();
+			}
+		}
+	);

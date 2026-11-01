@@ -9,11 +9,18 @@ import (
 )
 
 type jsxLowering struct {
+	taskMethodOwners map[SourceSpan]taskMethodCreation
+
+	helperMutations              helperMutationPlan
+	helperMutationOrder          []string
+	helperMutationImports        map[string]string
 	analysisFacts                *sourceAnalysisFacts
 	phase                        jsxLoweringPhase
 	checking                     bool
 	componentPropTypes           map[SourceSpan]*ast.Node
 	mutationFrames               []*mutationFrame
+	taskAnnotationDestination    *taskAnnotationDestination
+	clientIslandProps            *ast.Node
 	blockingLocals               []*blockingTaskLocals
 	mutationNames                map[string]bool
 	mutationFacts                mutationSemanticFacts
@@ -220,6 +227,7 @@ func (lowering *jsxLowering) lowerAuthoredTree(sourceFile *ast.SourceFile) *ast.
 		ast.NodeVisitorHooks{},
 	)
 	transformed := lowering.visitor.VisitEachChild(sourceFile.AsNode()).AsSourceFile()
+	transformed = lowering.emitHelperMutationEntries(transformed, false)
 	transformed = lowering.lowerCompilerClosedSsrCalls(transformed)
 	transformed = lowering.lowerCompiledClientRootCalls(transformed)
 	return lowering.pruneRedirectedRootImports(transformed)
@@ -280,6 +288,15 @@ func (lowering *jsxLowering) assembleModule(
 	sourceStatementCount int,
 ) *ast.SourceFile {
 	lowering.advancePhase(jsxLoweringDefinitionsReady, jsxLoweringAssembled)
+	result := lowering.assembleModuleStatements(transformed, sourceStatementCount)
+	assertExecutableTree(result.AsNode())
+	return result
+}
+
+// assembleModuleStatements shares runtime support and directive ordering with the isolated
+// typecheck-only helper dependency view. Only assembleModule completes an executable
+// artifact and fences JSX. The checking view intentionally retains authored syntax.
+func (lowering *jsxLowering) assembleModuleStatements(transformed *ast.SourceFile, sourceStatementCount int) *ast.SourceFile {
 	runtimeImports := lowering.runtimeImports(transformed.AsNode())
 	interopImports := lowering.interopImports(transformed.AsNode())
 	statements := make([]*ast.Node, 0, len(transformed.Statements.Nodes)+len(runtimeImports)+len(interopImports))
@@ -311,7 +328,6 @@ func (lowering *jsxLowering) assembleModule(
 		transformed.EndOfFileToken,
 	).AsSourceFile()
 	ast.SetParentInChildren(result.AsNode())
-	assertExecutableTree(result.AsNode())
 	return result
 }
 
@@ -323,12 +339,11 @@ func (lowering *jsxLowering) advancePhase(expected jsxLoweringPhase, next jsxLow
 }
 
 func (lowering *jsxLowering) visit(node *ast.Node) *ast.Node {
-	if node != nil && (ast.IsArrowFunction(node) || ast.IsFunctionExpression(node) || ast.IsFunctionDeclaration(node)) && node.Body() != nil {
-		frame := &mutationFrame{}
-		lowering.mutationFrames = append(lowering.mutationFrames, frame)
-		result := lowering.visitNode(node)
-		lowering.mutationFrames = lowering.mutationFrames[:len(lowering.mutationFrames)-1]
-		return lowering.finishMutationFrame(result, frame)
+	if node != nil && mutationInvocationMember(node) {
+		return lowering.visitMutationMember(node, lowering.visitor)
+	}
+	if node != nil && isCallableNode(node) && node.Body() != nil {
+		return lowering.withMutationFrame(node, lowering.visitNode)
 	}
 	return lowering.visitNode(node)
 }
@@ -377,7 +392,7 @@ func (lowering *jsxLowering) visitNode(node *ast.Node) *ast.Node {
 			return read
 		}
 	}
-	if (ast.IsPropertyAccessExpression(node) || ast.IsElementAccessExpression(node)) && !identifierIsWriteTarget(node) && !isDeleteOperand(node) {
+	if (ast.IsPropertyAccessExpression(node) || ast.IsElementAccessExpression(node)) && !identifierIsWriteTarget(node) && !isDeleteOperand(node) && !authoredOptionalGuardRead(node) {
 		if narrowed := lowering.authoredNarrowedType(node); narrowed != nil {
 			baseType := lowering.authoredServerReadBaseType(node)
 			value := lowering.visitor.VisitEachChild(node)

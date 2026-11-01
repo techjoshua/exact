@@ -5,7 +5,8 @@ import { executeDirectSsrComponent } from '../../ssr/src/render/direct-component
 import {
 	readServerComponentReference,
 	receiptExecutionContract,
-	serverComponentProps
+	serverComponentProps,
+	prepareServerComponentOccurrence
 } from '../../ssr/src/render/server-component-reference.js';
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
@@ -18,7 +19,11 @@ beforeEach(() => Object.assign(preparationAudit, { setup: 0, mounted: 0, dispose
 describe('server component output preparation', () => {
 	it('keeps one issued component alive until its prepared text is consumed', async () => {
 		const operation = preparationRoot(createCompiledIntrinsicReceipt('span', null, 'text'));
-		const reference = readServerComponentReference(operation)!;
+		const context = createSsrContext({});
+		const reference = await prepareServerComponentOccurrence(
+			context,
+			readServerComponentReference(operation)!
+		);
 		let release!: () => void;
 		const pending = new Promise<void>((resolve) => {
 			release = resolve;
@@ -30,7 +35,7 @@ describe('server component output preparation', () => {
 		let outputCalls = 0;
 		const completion = Promise.resolve(
 			executeDirectSsrComponent(
-				createSsrContext({}),
+				context,
 				receiptExecutionContract(reference),
 				serverComponentProps(reference),
 				undefined,
@@ -64,14 +69,16 @@ describe('server component output preparation', () => {
 	});
 
 	it('disposes the issued server owner when preparation rejects its output', async () => {
-		const reference = readServerComponentReference(
-			preparationRoot(createCompiledIntrinsicReceipt('span', null))
-		)!;
+		const context = createSsrContext({});
+		const reference = await prepareServerComponentOccurrence(
+			context,
+			readServerComponentReference(preparationRoot(createCompiledIntrinsicReceipt('span', null)))!
+		);
 		const failure = new Error('preparation rejected');
 		await expect(
 			Promise.resolve().then(() =>
 				executeDirectSsrComponent(
-					createSsrContext({}),
+					context,
 					receiptExecutionContract(reference),
 					serverComponentProps(reference),
 					undefined,

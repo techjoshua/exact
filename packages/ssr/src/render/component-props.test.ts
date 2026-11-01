@@ -1,3 +1,10 @@
+import { createPreparedServerComponentInputReference } from '@exactjs/core/framework/server-render-structure';
+import {
+	readServerComponentReference,
+	prepareServerComponentInputs,
+	deriveResumptionComponentInputs
+} from './server-component-reference.js';
+import { ScalarProp } from './component-prop-values.fixtures.test.js';
 import { expect, it } from 'vitest';
 import { reactive } from '@exactjs/reactive';
 import { createExpression } from '@exactjs/core/runtime/render-operations';
@@ -29,4 +36,69 @@ it('propagates expression evaluation failures', () => {
 		})
 	};
 	expect(() => prepareDirectComponentProps(props, undefined, {})).toThrow('failed input');
+});
+
+it('keeps captured children separate from authored accessor receivers and exact callable values', () => {
+	const events: string[] = [],
+		failure = new Error('accessor failure'),
+		callback = () => 'uninvoked';
+	let childrenReads = 0;
+	class Inputs {
+		#label = 'before';
+		get children() {
+			events.push('children');
+			childrenReads++;
+			return undefined;
+		}
+		get inherited() {
+			events.push('inherited');
+			return this.#label;
+		}
+		set inherited(value: string) {
+			events.push('set');
+			this.#label = value;
+		}
+	}
+	const props = new Inputs();
+	Object.defineProperties(props, {
+		own: {
+			get() {
+				events.push('own');
+				return this.inherited;
+			},
+			enumerable: false,
+			configurable: false
+		},
+		failure: {
+			get() {
+				throw failure;
+			},
+			enumerable: true
+		},
+		callback: { value: callback, enumerable: true, writable: false }
+	});
+	const reference = readServerComponentReference(
+		createPreparedServerComponentInputReference(
+			ScalarProp,
+			props as unknown as Record<string, unknown>
+		)
+	)!;
+	const record = prepareServerComponentInputs(reference.admitted, {}, {});
+	const view = record.constructionProps;
+	expect(events).toEqual(['children']);
+	expect(view.children).toBeUndefined();
+	expect(view.own).toBe('before');
+	expect(Reflect.set(view, 'inherited', 'after')).toBe(true);
+	expect(view.inherited).toBe('after');
+	expect(() => view.failure).toThrow(failure);
+	expect(view.callback).toBe(callback);
+	expect(Object.getOwnPropertyDescriptor(view, 'own')).toMatchObject({
+		enumerable: false,
+		configurable: false
+	});
+	const derived = deriveResumptionComponentInputs(record, 'substitution', undefined);
+	expect(derived.constructionProps.own).toBe('after');
+	expect(derived.constructionProps.children).toBe('substitution');
+	expect(derived.publicationProps.children).toBeUndefined();
+	expect(childrenReads).toBe(1);
 });

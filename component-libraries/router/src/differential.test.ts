@@ -175,9 +175,25 @@ describe('pinned React Router differential conformance', () => {
 					actual.parsePath(actual.createPath(value))
 				);
 			}
-			expect(exact.resolvePath('../settings', '/users/42')).toEqual(
-				actual.resolvePath('../settings', '/users/42')
-			);
+			const destinations = [
+				'../settings',
+				'../../..',
+				'.',
+				'',
+				'next/',
+				'/users/../settings',
+				'next//child',
+				'%2e%2e/settings',
+				'?tab=one',
+				'#details',
+				{ pathname: 'next', search: 'tab=one', hash: 'details' },
+				{ search: '?', hash: '#' }
+			];
+			for (const from of ['/', '/users/42', '/users/42/'])
+				for (const to of destinations)
+					expect(exact.resolvePath(to, from), `${JSON.stringify(to)} from ${from}`).toEqual(
+						actual.resolvePath(to, from)
+					);
 			expect(exact.createSearchParams({ tag: ['one', 'two'] }).toString()).toBe(
 				actual.createSearchParams({ tag: ['one', 'two'] }).toString()
 			);

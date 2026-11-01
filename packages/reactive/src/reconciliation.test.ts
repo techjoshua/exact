@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- This test intentionally models external, private, or invalid values that production contracts reject. */
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
 	decodeReactiveProtocolValue,
 	encodeReactiveProtocolValue,
@@ -29,7 +29,7 @@ describe('@exactjs/reactive reconciliation', () => {
 		expect(props.added).toBe(true);
 	});
 
-	it('uses keyed item hashes across moves and only reconciles changed items', () => {
+	it('replaces keyed transport data without mutating retained records', () => {
 		const state = reactive({
 			records: [
 				{ id: 'a', title: 'A' },
@@ -60,12 +60,13 @@ describe('@exactjs/reactive reconciliation', () => {
 
 		writeReactive(state, ['records'], incoming);
 
-		expect(state.records[0]).toBe(b);
+		expect(state.records[0]).not.toBe(b);
+		expect(b.title).toBe('B');
 		expect(state.records[0].title).toBe('Changed');
-		expect(state.records[1]).toBe(a);
+		expect(state.records[1]).not.toBe(a);
 	});
 
-	it('compares, snapshots, and reconciles deeply nested values without overflowing the stack', () => {
+	it('replaces and snapshots deeply nested values without overflowing the stack', () => {
 		const makeDeep = () => {
 			const root: Record<string, any> = {};
 			let cursor = root;
@@ -80,87 +81,24 @@ describe('@exactjs/reactive reconciliation', () => {
 		expect(cursor.index).toBe(1_999);
 	});
 
-	it('reconciles equal JSON-shaped compiler writes without notifying dependents', () => {
-		const state = reactive({ project: { id: 'p1', title: 'Initial', tags: ['a'] } });
-		const project = state.project;
+	it('publishes equal-shaped replacements and moves subscriptions to their storage', () => {
+		const state = reactive({ project: { title: 'Initial' } });
+		const previous = state.project;
 		const seen: string[] = [];
-		watch(() => seen.push(state.project.title));
-
-		writeReactive(state, ['project'], JSON.parse('{"id":"p1","title":"Initial","tags":["a"]}'));
-		flushSync();
-		expect(state.project).toBe(project);
-		expect(seen).toEqual(['Initial']);
-
-		writeReactive(state, ['project'], JSON.parse('{"id":"p1","title":"Changed","tags":["a"]}'));
-		flushSync();
-		expect(state.project).toBe(project);
-		expect(seen).toEqual(['Initial', 'Changed']);
-	});
-
-	it('does not notify a list observer for an identical large API refresh', () => {
-		const records = Array.from({ length: 10_000 }, (_, id) => ({
-			id: String(id),
-			title: `Task ${id}`
-		}));
-		const state = reactive({ records });
-		const observer = vi.fn(() => state.records.map((record) => record.title).join(','));
-		watch(observer);
-
-		writeReactive(state, ['records'], JSON.parse(JSON.stringify(records)));
-		flushSync();
-
-		expect(observer).toHaveBeenCalledTimes(1);
-	});
-
-	it('updates only changed keyed records during a partial API refresh', () => {
-		const state = reactive({
-			records: [
-				{ id: 'a', title: 'A' },
-				{ id: 'b', title: 'B' }
-			]
-		});
-		registerReactiveListKey(state.records, (item) => (item as { id: string }).id);
-		const a = state.records[0];
-		const b = state.records[1];
-		const aObserver = vi.fn(() => a.title);
-		const bObserver = vi.fn(() => b.title);
-		watch(aObserver);
-		watch(bObserver);
-
-		writeReactive(
-			state,
-			['records'],
-			[
-				{ id: 'a', title: 'A' },
-				{ id: 'b', title: 'Changed' }
-			]
-		);
-		flushSync();
-
-		expect(aObserver).toHaveBeenCalledTimes(1);
-		expect(bObserver).toHaveBeenCalledTimes(2);
-	});
-
-	it('rejects duplicate keys before a keyed API refresh can mutate state', () => {
-		const state = reactive({
-			records: [
-				{ id: 'a', title: 'A' },
-				{ id: 'b', title: 'B' }
-			]
-		});
-		registerReactiveListKey(state.records, (item) => (item as { id: string }).id, 'Tasks.tsx:10');
-
-		expect(() =>
-			writeReactive(
-				state,
-				['records'],
-				[
-					{ id: 'a', title: 'New A' },
-					{ id: 'a', title: 'Duplicate' }
-				]
-			)
-		).toThrow('Duplicate key "a"');
-		expect(state.records.map((record) => record.title)).toEqual(['A', 'B']);
+		const stop = watch(() => seen.push(state.project.title));
+		try {
+			const replacement = { title: 'Initial' };
+			writeReactive(state, ['project'], replacement);
+			flushSync();
+			expect(unwrap(state.project)).toBe(replacement);
+			expect(seen).toEqual(['Initial', 'Initial']);
+			state.project.title = 'Changed';
+			flushSync();
+			expect(previous.title).toBe('Initial');
+			expect(seen).toEqual(['Initial', 'Initial', 'Changed']);
+		} finally {
+			stop();
+		}
 	});
 
 	it('publishes structured object writes only after the complete object is valid', () => {
@@ -198,7 +136,7 @@ describe('@exactjs/reactive reconciliation', () => {
 		expect(3 in state.items).toBe(false);
 	});
 
-	it('reconciles cyclic structured values without recursing indefinitely', () => {
+	it('replaces cyclic structured values without recursing indefinitely', () => {
 		const initial: { name: string; self?: unknown } = { name: 'node' };
 		initial.self = initial;
 		const state = reactive({ value: initial });

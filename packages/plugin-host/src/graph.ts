@@ -83,17 +83,14 @@ export function createNpmExactPackageGraph(cwd = process.cwd()): ExactPackageGra
 	for (const [id, raw] of rawNodes) {
 		const dependencies = new Map<string, ExactPackageDependency>();
 		for (const dependency of dependencyDeclarations(raw.manifest)) {
-			dependencies.set(
-				dependency.name,
-				Object.freeze({
-					...dependency,
-					targetId: resolveDependencyId(id, dependency.name, rawNodes, links)
-				})
-			);
+			dependencies.set(dependency.name, {
+				...dependency,
+				targetId: resolveDependencyId(id, dependency.name, rawNodes, links)
+			});
 		}
-		nodes.set(id, freezeNode(id, raw.location, raw.manifest, dependencies));
+		nodes.set(id, createPackageNode(id, raw.location, raw.manifest, dependencies));
 	}
-	return Object.freeze({ rootId, nodes });
+	return { rootId, nodes };
 }
 
 /** Creates an installed exact package graph. */
@@ -102,8 +99,8 @@ export function createInstalledExactPackageGraph(cwd = process.cwd()): ExactPack
 	const rootId = normalizeId(path.resolve(rootManifestFile));
 	const pending = [rootManifestFile];
 	const nodes = new Map<string, ExactPackageNode>();
-	while (pending.length) {
-		const manifestFile = path.resolve(pending.shift()!);
+	for (let cursor = 0; cursor < pending.length; cursor++) {
+		const manifestFile = path.resolve(pending[cursor]!);
 		const id = normalizeId(manifestFile);
 		if (nodes.has(id)) continue;
 		const manifest = parseJson(
@@ -114,42 +111,41 @@ export function createInstalledExactPackageGraph(cwd = process.cwd()): ExactPack
 		const dependencies = new Map<string, ExactPackageDependency>();
 		for (const dependency of dependencyDeclarations(manifest)) {
 			const resolved = resolveInstalledManifest(location, dependency.name);
-			dependencies.set(
-				dependency.name,
-				Object.freeze({
-					...dependency,
-					targetId: resolved ? normalizeId(path.resolve(resolved)) : undefined
-				})
-			);
+			dependencies.set(dependency.name, {
+				...dependency,
+				targetId: resolved ? normalizeId(path.resolve(resolved)) : undefined
+			});
 			if (resolved && !nodes.has(normalizeId(path.resolve(resolved)))) pending.push(resolved);
 		}
-		nodes.set(id, freezeNode(id, location, manifest, dependencies));
+		nodes.set(id, createPackageNode(id, location, manifest, dependencies));
 	}
-	return Object.freeze({ rootId, nodes });
+	return { rootId, nodes };
 }
 
-/** Performs the package name domain operation. */
+/** Reads and returns one nonempty package name, rejecting a missing or nonstring identity. */
 export function packageName(node: ExactPackageNode): string {
-	if (typeof node.manifest.name !== 'string' || !node.manifest.name) {
+	const name = node.manifest.name;
+	if (typeof name !== 'string' || !name) {
 		throw new Error(`${node.location}/package.json must declare a package name`);
 	}
-	return node.manifest.name;
+	return name;
 }
 
-/** Performs the package version domain operation. */
+/** Reads and returns one nonempty package version. Version-range compatibility is checked during selection. */
 export function packageVersion(node: ExactPackageNode): string {
-	if (typeof node.manifest.version !== 'string' || !node.manifest.version) {
+	const version = node.manifest.version;
+	if (typeof version !== 'string' || !version) {
 		throw new Error(`${node.location}/package.json must declare a package version`);
 	}
-	return node.manifest.version;
+	return version;
 }
 
 /** Performs the dependency distance domain operation. */
 export function dependencyDistance(graph: ExactPackageGraph): ReadonlyMap<string, number> {
 	const result = new Map<string, number>([[graph.rootId, 0]]);
 	const pending = [graph.rootId];
-	while (pending.length) {
-		const id = pending.shift()!;
+	for (let cursor = 0; cursor < pending.length; cursor++) {
+		const id = pending[cursor]!;
 		const node = graph.nodes.get(id);
 		if (!node) continue;
 		const distance = result.get(id)!;
@@ -179,7 +175,7 @@ export function findUp(cwd: string, filename: string): string {
 	}
 }
 
-function freezeNode(
+function createPackageNode(
 	id: string,
 	location: string,
 	manifest: ExactPackageManifest,
@@ -191,13 +187,13 @@ function freezeNode(
 	} catch {
 		realPath = path.resolve(location);
 	}
-	return Object.freeze({
+	return {
 		id,
 		location: path.resolve(location),
 		realPath: normalizeId(realPath),
 		manifest,
 		dependencies
-	});
+	};
 }
 
 function dependencyDeclarations(manifest: ExactPackageManifest): ExactPackageDependency[] {

@@ -1,28 +1,21 @@
 import {
 	type ExactInspectionRequest,
-	type ExactInspectionRedactionCatalog,
 	type ExactInspectionResponse,
 	type ExactInspectionSessionDescription,
 	type ExactInspectionSubscription,
-	type ExactInspectionSubscriptionHandle,
-	type ExactValueRedactor
+	type ExactInspectionSubscriptionHandle
 } from '@exactjs/devtools-protocol';
 import { createExactRuntimeInspectionOwner } from '@exactjs/core';
 import { setExactServerObservationBridge } from '@exactjs/core/framework/inspection-transport';
 import { createExactDomInspectionHost, setExactDomInspectionOwnerFactory } from '@exactjs/dom';
 import { createExactClientEventStore, type ExactClientEventStore } from './client-events.js';
 import type {
-	ExactClientCorrelationRuntime,
-	ExactClientSourceCorrelation,
 	ExactDevtoolsPageHook,
 	ExactDevtoolsRuntimeInstallation,
 	ExactDevtoolsRuntimeOptions
 } from './contracts.js';
 import { createExactClientInspectionQueryService } from './query-service.js';
 import { createExactBrowserServerInspectionClient } from './server-client.js';
-
-/** Global symbol used only by instrumented client output to register compact source slots. */
-export const exactDevtoolsRuntimeSymbol = Symbol.for('@exactjs/devtools-runtime');
 
 /** Global page-world hook detected by the Chromium extension and CDP adapter. */
 export const exactDevtoolsHookSymbol = Symbol.for('@exactjs/devtools-hook');
@@ -31,9 +24,12 @@ export const exactDevtoolsHookSymbol = Symbol.for('@exactjs/devtools-hook');
 export function installExactDevtoolsRuntime(
 	options: ExactDevtoolsRuntimeOptions = {}
 ): ExactDevtoolsRuntimeInstallation {
-	const runtime = correlationRuntime();
 	const dom = createExactDomInspectionHost();
 	let connected = false;
+	let disposed = false;
+	let connectionGeneration = 0;
+	let connecting: Promise<ExactInspectionSessionDescription> | undefined;
+	let disposal: Promise<void> | undefined;
 	let serverConnected = false;
 	let session: ExactInspectionSessionDescription | undefined;
 	let events: ExactClientEventStore | undefined;
@@ -52,8 +48,7 @@ export function installExactDevtoolsRuntime(
 				buildKey,
 				executionRoot,
 				...(binding ? { binding } : {}),
-				side: 'client',
-				redact: inspectionRedactor(options.redactions, runtime)
+				side: 'client'
 			});
 			owners.set(key, owner);
 			if (session && events) owner.attach(session.id, events);
@@ -71,201 +66,193 @@ export function installExactDevtoolsRuntime(
 		: undefined;
 	let service: ReturnType<typeof createExactClientInspectionQueryService> | undefined;
 	let highlightTimer: ReturnType<typeof setTimeout> | undefined;
-	const highlighted = new Map<HTMLElement, Readonly<{ outline: string; priority: string }>>();
-	const subscriptions = new Set<ExactInspectionSubscriptionHandle>();
+	const highlighted = new Map<
+		HTMLElement,
+		Readonly<{ outline: string; priority: string; appliedOutline: string; appliedPriority: string }>
+	>();
+	const subscriptions = new Set<() => void>();
 	const hook: ExactDevtoolsPageHook = {
 		protocol: 1,
 		get connected() {
 			return connected;
 		},
-		async connect() {
-			if (session) return session;
-			const remote = await server?.open(['catalog', 'snapshot', 'events', 'source']);
-			serverConnected = !!remote;
-			session = remote ?? localSession();
-			events = createExactClientEventStore(
-				positive(options.maxEvents, 10_000),
-				positive(options.maxEventBytes, 2 * 1024 * 1024)
-			);
-			if (serverConnected)
-				clearServerObservationBridge = setExactServerObservationBridge({
-					sessionId: session.id,
-					publish: (event) => events?.publish(event)
-				});
-			dom.attach(session.id, events);
-			for (const owner of owners.values()) owner.attach(session.id, events);
-			service = createExactClientInspectionQueryService({
-				sessionId: session.id,
-				dom,
-				events,
-				server,
-				serverConnected
-			});
-			connected = true;
-			return session;
-		},
-		async disconnect() {
-			if (!session) return;
-			for (const subscription of subscriptions) subscription.close();
-			subscriptions.clear();
-			dom.detach(session.id);
-			for (const owner of owners.values()) owner.detach(session.id);
-			clearServerObservationBridge?.();
-			clearServerObservationBridge = undefined;
-			events?.clear();
-			clearHighlight();
-			if (server && serverConnected) await server.close(session.id);
-			session = undefined;
-			events = undefined;
-			service = undefined;
-			serverConnected = false;
-			connected = false;
-		},
+		connect,
+		disconnect,
 		ownerOfElement(element) {
 			return connected ? dom.ownerOfElement(element) : undefined;
 		},
 		highlight(identity) {
+			if (!connected || identity.sessionId !== session?.id) return;
 			clearHighlight();
 			const elements = dom.ownedElements(identity);
 			for (const element of elements) {
 				element.setAttribute('data-exact-devtools-highlight', '');
 				const html = element as HTMLElement;
-				highlighted.set(
-					html,
-					Object.freeze({
-						outline: html.style.getPropertyValue('outline'),
-						priority: html.style.getPropertyPriority('outline')
-					})
-				);
+				const previous = {
+					outline: html.style.getPropertyValue('outline'),
+					priority: html.style.getPropertyPriority('outline')
+				};
 				html.style.setProperty('outline', '2px solid #7c3aed');
+				highlighted.set(html, {
+					...previous,
+					appliedOutline: html.style.getPropertyValue('outline'),
+					appliedPriority: html.style.getPropertyPriority('outline')
+				});
 			}
 			highlightTimer = setTimeout(clearHighlight, positive(options.highlightDurationMs, 2_000));
 		},
 		clearHighlight,
 		async request(request: ExactInspectionRequest): Promise<ExactInspectionResponse> {
-			if (!service) await hook.connect();
+			if (!service) await connect();
 			return service!.request(request);
 		},
 		subscribe(
 			request: ExactInspectionSubscription,
 			listener: Parameters<ExactDevtoolsPageHook['subscribe']>[1]
 		): ExactInspectionSubscriptionHandle {
-			if (!service) return Object.freeze({ closed: true, close() {} });
+			if (!service) return { closed: true, close() {} };
 			const owned = service.subscribe(request, listener);
-			const handle: ExactInspectionSubscriptionHandle = Object.freeze({
+			const close = () => {
+				owned.close();
+				subscriptions.delete(close);
+			};
+			const handle: ExactInspectionSubscriptionHandle = {
 				get closed() {
 					return owned.closed;
 				},
-				close() {
-					owned.close();
-					subscriptions.delete(handle);
-				}
-			});
-			subscriptions.add(handle);
+				close
+			};
+			subscriptions.add(close);
 			return handle;
 		}
 	};
 	Object.defineProperty(globalThis, exactDevtoolsHookSymbol, {
 		configurable: true,
 		enumerable: false,
-		value: Object.freeze(hook),
+		value: hook,
 		writable: false
 	});
-	return Object.freeze({
+	return {
 		hook,
 		inspection,
-		async dispose() {
-			await hook.disconnect();
-			clearInspectionFactory();
-			if (Reflect.get(globalThis, exactDevtoolsHookSymbol) === hook)
-				Reflect.deleteProperty(globalThis, exactDevtoolsHookSymbol);
+		dispose() {
+			if (disposal) return disposal;
+			disposed = true;
+			disposal = (async () => {
+				try {
+					await disconnect();
+				} finally {
+					clearInspectionFactory();
+					if (Reflect.get(globalThis, exactDevtoolsHookSymbol) === hook)
+						Reflect.deleteProperty(globalThis, exactDevtoolsHookSymbol);
+				}
+			})();
+			return disposal;
 		}
-	});
+	};
+
+	/** Owns shared session opening and publication independently of public method aliases. */
+	function connect() {
+		if (disposed)
+			return Promise.reject(new DOMException('DevTools installation is disposed', 'AbortError'));
+		if (session) return Promise.resolve(sessionDescription(session));
+		if (connecting) return connecting;
+		const generation = connectionGeneration;
+		const attempt = connectSession(generation).finally(() => {
+			if (connecting === attempt) connecting = undefined;
+		});
+		connecting = attempt;
+		return attempt;
+	}
+
+	/** Owns session retirement and resource cleanup independently of public method aliases. */
+	async function disconnect() {
+		connectionGeneration++;
+		connecting = undefined;
+		if (!session) return;
+		const closing = session;
+		const closeRemote = serverConnected;
+		for (const close of subscriptions) close();
+		subscriptions.clear();
+		dom.detach(session.id);
+		for (const owner of owners.values()) owner.detach(session.id);
+		clearServerObservationBridge?.();
+		clearServerObservationBridge = undefined;
+		events?.clear();
+		clearHighlight();
+		session = undefined;
+		events = undefined;
+		service = undefined;
+		serverConnected = false;
+		connected = false;
+		if (server && closeRemote) await server.close(closing.id);
+	}
+
+	/** Publishes only the opening generation that still owns this installation. */
+	async function connectSession(generation: number): Promise<ExactInspectionSessionDescription> {
+		const remote = await server?.open(['catalog', 'snapshot', 'events', 'source']);
+		if (disposed || generation !== connectionGeneration) {
+			if (remote && server) await server.close(remote.id);
+			throw new DOMException('DevTools connection was closed while opening', 'AbortError');
+		}
+		serverConnected = !!remote;
+		session = remote ?? localSession();
+		events = createExactClientEventStore(
+			positive(options.maxEvents, 10_000),
+			positive(options.maxEventBytes, 2 * 1024 * 1024)
+		);
+		if (serverConnected)
+			clearServerObservationBridge = setExactServerObservationBridge({
+				sessionId: session.id,
+				publish: (event) => events?.publish(event)
+			});
+		dom.attach(session.id, events);
+		for (const owner of owners.values()) owner.attach(session.id, events);
+		service = createExactClientInspectionQueryService({
+			sessionId: session.id,
+			dom,
+			events,
+			server,
+			serverConnected
+		});
+		connected = true;
+		return sessionDescription(session);
+	}
 
 	function clearHighlight(): void {
 		if (highlightTimer) clearTimeout(highlightTimer);
 		highlightTimer = undefined;
-		for (const element of document.querySelectorAll('[data-exact-devtools-highlight]')) {
+		for (const [element, previous] of highlighted) {
 			element.removeAttribute('data-exact-devtools-highlight');
-			const html = element as HTMLElement;
-			const previous = highlighted.get(html);
-			if (previous) html.style.setProperty('outline', previous.outline, previous.priority);
-			else html.style.removeProperty('outline');
-			highlighted.delete(html);
+			// A later authored outline owns its value and must survive inspection cleanup.
+			if (
+				element.style.getPropertyValue('outline') === previous.appliedOutline &&
+				element.style.getPropertyPriority('outline') === previous.appliedPriority
+			)
+				element.style.setProperty('outline', previous.outline, previous.priority);
 		}
+		highlighted.clear();
 	}
 }
 
-function inspectionRedactor(
-	configured: ExactDevtoolsRuntimeOptions['redactions'],
-	runtime: ExactClientCorrelationRuntime
-): ExactValueRedactor | undefined {
-	if (!configured && runtime.sources.every((source) => !source.redactions)) return undefined;
-	let sourceCount = -1;
-	let statePaths: readonly string[] = [];
-	let contexts: ExactInspectionRedactionCatalog['contextTokens'] = [];
-	let secretNames = new Set<string>();
-	return (path) => {
-		if (sourceCount !== runtime.sources.length) {
-			const state = new Set(configured?.statePaths ?? []);
-			const context = new Map(
-				(configured?.contextTokens ?? []).map((token) => [
-					`${token.name}\0${token.scope}\0${token.kind}`,
-					token
-				])
-			);
-			const names = new Set(configured?.secretNames ?? []);
-			for (const source of runtime.sources) {
-				for (const candidate of source.redactions?.statePaths ?? []) state.add(candidate);
-				for (const token of source.redactions?.contextTokens ?? [])
-					context.set(`${token.name}\0${token.scope}\0${token.kind}`, token);
-				for (const name of source.redactions?.secretNames ?? []) names.add(name);
-			}
-			statePaths = [...state];
-			contexts = [...context.values()];
-			secretNames = names;
-			sourceCount = runtime.sources.length;
-		}
-		const joined = path.join('.');
-		if (statePaths.some((candidate) => joined === candidate || joined.startsWith(`${candidate}.`)))
-			return 'secret';
-		if (path[0] === 'context') {
-			const context = contexts.find((candidate) => candidate.name === path[1]);
-			if (context) return context.kind === 'secret' ? 'secret' : 'server-resource';
-		}
-		if (path.some((segment) => secretNames.has(segment))) return 'secret';
-		return undefined;
-	};
-}
-
-function correlationRuntime(): ExactClientCorrelationRuntime {
-	const global = globalThis as typeof globalThis & {
-		[exactDevtoolsRuntimeSymbol]?: ExactClientCorrelationRuntime;
-	};
-	const existing = global[exactDevtoolsRuntimeSymbol];
-	if (existing) return existing;
-	const sources: ExactClientSourceCorrelation[] = [];
-	const runtime: ExactClientCorrelationRuntime = {
-		sources,
-		registerSource(source) {
-			if (source?.protocol === 1) sources.push(Object.freeze(source));
-		}
-	};
-	global[exactDevtoolsRuntimeSymbol] = runtime;
-	return runtime;
+/** Publishes an ordinary description without exposing retained session correlation or capabilities. */
+function sessionDescription(
+	session: ExactInspectionSessionDescription
+): ExactInspectionSessionDescription {
+	return { ...session, capabilities: [...session.capabilities] };
 }
 
 function localSession(): ExactInspectionSessionDescription {
 	const now = Date.now();
 	const bytes = new Uint8Array(16);
 	globalThis.crypto.getRandomValues(bytes);
-	return Object.freeze({
+	return {
 		id: `client-${Array.from(bytes, (value) => value.toString(16).padStart(2, '0')).join('')}`,
 		protocol: 1,
 		openedAt: now,
 		expiresAt: now + 30 * 60_000,
-		capabilities: Object.freeze(['snapshot', 'events'] as const)
-	});
+		capabilities: ['snapshot', 'events'] as const
+	};
 }
 
 /**

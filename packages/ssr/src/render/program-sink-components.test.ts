@@ -1,4 +1,5 @@
-import { createPreparedServerComponentReference } from '@exactjs/core/framework/server-render-structure';
+import { readServerComponentReference } from './server-component-reference.js';
+import { createPreparedServerComponentInputReference } from '@exactjs/core/framework/server-render-structure';
 import { createCompiledIntrinsicReceipt } from '@exactjs/core/runtime/component-operations';
 import { expect, it } from 'vitest';
 import { createSsrResumptionCapture } from '../resumption.js';
@@ -19,7 +20,6 @@ import {
 	sinkFixtureDisposals,
 	sinkFixtureStarts
 } from './program-sink.fixtures.test.js';
-
 it('keeps descendant capture on its execution scope across suspension with a shared output context', async () => {
 	const settle = resetSinkFixture();
 	const surrounding = createSsrResumptionCapture({});
@@ -33,7 +33,9 @@ it('keeps descendant capture on its execution scope across suspension with a sha
 		renderChildren
 	);
 	const rendered = Promise.resolve(
-		target.renderDirectServerComponent(createPreparedServerComponentReference(SinkFragments, {}))
+		target.renderDirectServerComponent(
+			readServerComponentReference(createPreparedServerComponentInputReference(SinkFragments, {}))!
+		)
 	);
 	void rendered.catch(() => undefined);
 	try {
@@ -50,7 +52,6 @@ it('keeps descendant capture on its execution scope across suspension with a sha
 		await rendered.catch(() => undefined);
 	}
 });
-
 it.each([false, true])(
 	'preserves compiled document and fragment output with markers=%s',
 	async (markers) => {
@@ -69,7 +70,7 @@ it.each([false, true])(
 					flush() {}
 				};
 				if (shared) context.writerSink = sink;
-				const root = createPreparedServerComponentReference(component, {});
+				const root = createPreparedServerComponentInputReference(component, {});
 				const target = new SsrOperationTarget(
 					context,
 					undefined,
@@ -79,7 +80,9 @@ it.each([false, true])(
 				);
 				try {
 					settle();
-					const remainder = await target.renderCompilerClosedRootComponent(root);
+					const remainder = await target.renderCompilerClosedRootComponent(
+						readServerComponentReference(root)!
+					);
 					const result = {
 						html: writes.join('') + remainder,
 						records: capture.serializedRecords(),
@@ -97,7 +100,6 @@ it.each([false, true])(
 		}
 	}
 );
-
 it('flushes a compiled document head before its scheduled body settles', async () => {
 	const settle = resetSinkFixture();
 	const capture = createSsrResumptionCapture({ markers: true });
@@ -116,10 +118,12 @@ it('flushes a compiled document head before its scheduled body settles', async (
 			if (reason === 'head') headReady();
 		}
 	};
-	const root = createPreparedServerComponentReference(SinkDocument, {});
+	const root = createPreparedServerComponentInputReference(SinkDocument, {});
 	const target = new SsrOperationTarget(context, undefined, capture.options, false, renderChildren);
 	let completed = false;
-	const rendered = Promise.resolve(target.renderCompilerClosedRootComponent(root)).then((value) => {
+	const rendered = Promise.resolve(
+		target.renderCompilerClosedRootComponent(readServerComponentReference(root)!)
+	).then((value) => {
 		completed = true;
 		return value;
 	});
@@ -150,7 +154,6 @@ it('flushes a compiled document head before its scheduled body settles', async (
 		await rendered.catch(() => undefined);
 	}
 });
-
 it('releases captured component ownership when the request aborts after head publication', async () => {
 	const settle = resetSinkFixture();
 	const controller = new AbortController();
@@ -169,8 +172,10 @@ it('releases captured component ownership when the request aborts after head pub
 	};
 	context.writerSink = sink;
 	const target = new SsrOperationTarget(context, undefined, capture.options, false, renderChildren);
-	const root = createPreparedServerComponentReference(SinkDocument, {});
-	const rendered = Promise.resolve(target.renderCompilerClosedRootComponent(root));
+	const root = createPreparedServerComponentInputReference(SinkDocument, {});
+	const rendered = Promise.resolve(
+		target.renderCompilerClosedRootComponent(readServerComponentReference(root)!)
+	);
 	void rendered.catch(() => undefined);
 	try {
 		for (let turn = 0; turn < 100 && (!headPublished || sinkFixtureStarts() === 0); turn++)
@@ -189,7 +194,6 @@ it('releases captured component ownership when the request aborts after head pub
 		await rendered.catch(() => undefined);
 	}
 });
-
 it.each([
 	[false, false],
 	[false, true],
@@ -215,7 +219,7 @@ it.each([
 				};
 			try {
 				settle();
-				const component = createPreparedServerComponentReference(SinkFragments, {});
+				const component = createPreparedServerComponentInputReference(SinkFragments, {});
 				const child = intrinsic
 					? createCompiledIntrinsicReceipt('section', null, 'Inside', component, 'End')
 					: component;
@@ -236,7 +240,6 @@ it.each([
 		}
 	}
 );
-
 it.each([false, true])('captures routed enhancement prefixes with markers=%s', async (markers) => {
 	let expected;
 	for (const shared of [false, true]) {
@@ -266,7 +269,9 @@ it.each([false, true])('captures routed enhancement prefixes with markers=%s', a
 			renderChildren
 		);
 		const remainder = await target.renderCompilerClosedRootComponent(
-			createPreparedServerComponentReference(RoutedStreamPage, {})
+			readServerComponentReference(
+				createPreparedServerComponentInputReference(RoutedStreamPage, {})
+			)!
 		);
 		const result = { html: writes.join('') + remainder, records: capture.serializedRecords() };
 		expect(readRoutedStreamTargetSetups()).toBe(1);

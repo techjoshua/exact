@@ -1,3 +1,4 @@
+import type { ExactWebpackSourcePreparation } from './source-preparation.js';
 import type { ExactCompilerSession } from '@exactjs/compiler';
 import type { IntlBuildCoordinator } from '@exactjs/intl-build';
 import type { ExactWebpackTransformResult } from './transform.js';
@@ -12,6 +13,7 @@ const bridgeKey = Symbol.for('@exactjs/webpack-loader-bridge');
 export type ExactWebpackLoaderBridge = Readonly<{
 	session: ExactCompilerSession;
 	intl: IntlBuildCoordinator;
+	preparation: ExactWebpackSourcePreparation;
 	intlReady(): Promise<void>;
 	packageEnhancements(): Promise<readonly ExactPackageEnhancementImport[]>;
 	resolveEnhancement?(moduleSpecifier: string, importer: string): string | undefined;

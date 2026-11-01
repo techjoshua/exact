@@ -1,3 +1,4 @@
+import { reconcileSelectText } from '../controlled-select.js';
 import type { AnyComponentInstance, Child } from '@exactjs/core';
 import { TextComponentProjection } from './text-component-projection.js';
 import {
@@ -49,14 +50,17 @@ export class PreparedComponentTextTarget {
 				if (initial && this.existing && text.data !== value)
 					throw new Error('Prepared component text does not match server output');
 				initial = false;
-				if (text.data !== value) text.data = value;
+				if (text.data !== value) {
+					text.data = value;
+					if (text.parentNode) reconcileSelectText(undefined, text.parentNode);
+				}
 			},
 			undefined,
 			{ scope: mounted.scope }
 		);
 		mounted.dom = text;
 		mounted.textPresentation = text;
-		refreshComponentRoot(owner, true, rootIntroduction(this.root));
+		refreshComponentRoot(this.root, owner, true, rootIntroduction(this.root));
 		mounted.afterPlacement = () => owner.markMounted();
 		mounted.afterPlacementPhase = 'mount';
 		return mounted;

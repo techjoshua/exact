@@ -46,26 +46,22 @@ describe('reactive proxy invariants', () => {
 			expect(receiver).toHaveProperty('onMutation', options.onMutation);
 	});
 
-	it('keeps captured mutator callbacks attached to their original array and policy', () => {
+	it('keeps captured mutator callbacks attached to their original array', () => {
 		const first = reactive([1]);
 		const second = reactive([2]);
-		const readonly = reactive([3], { readonly: true });
 		const pushFirst = first.push;
 		const pushSecond = second.push;
-		const pushReadonly = readonly.push;
 		expect(pushFirst(4)).toBe(2);
 		expect(pushSecond(5)).toBe(2);
-		expect(() => pushReadonly(6)).toThrow('readonly');
 		expect([...first]).toEqual([1, 4]);
 		expect([...second]).toEqual([2, 5]);
-		expect([...readonly]).toEqual([3]);
 	});
 
 	it('preserves frozen object-valued properties while observing an existing reactive value', () => {
 		const state = reactive({ locale: 'en-US' });
 		const metadata = { direction: 'ltr' };
 		const environment = Object.freeze({ state, metadata });
-		const props = reactive({ environment }, { readonly: true });
+		const props = reactive({ environment }, {});
 		let observed = '';
 
 		expect(props.environment.state).toBe(state);

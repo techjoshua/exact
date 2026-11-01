@@ -17,11 +17,17 @@ func nativePropDiagnostics(source *ast.SourceFile, typeChecker *checker.Checker)
 	}
 	catalogs := make(map[string]propCatalog)
 	var catalog propCatalog
+	var contribution bool
 	report := func(node *ast.Node, name string, valueType *checker.Type, literalString bool) {
+		if contribution && !reservedElementIdentityName(name) {
+			return
+		}
 		lower := strings.ToLower(name)
 		message := ""
-		switch lower {
-		case "innerhtml", "outerhtml", "dangerouslysetinnerhtml":
+		switch {
+		case reservedElementIdentityName(name):
+			message = "data-exact-id is compiler-owned. Use data-testid or another custom data attribute"
+		case lower == "innerhtml" || lower == "outerhtml" || lower == "dangerouslysetinnerhtml":
 			message = "native eXact does not support " + name + ". Use unsafeHtml() with explicit root opt-in"
 		default:
 			if strings.HasPrefix(lower, "on") && len(lower) > 2 && (literalString || nativeEventContainsString(valueType)) {
@@ -41,7 +47,8 @@ func nativePropDiagnostics(source *ast.SourceFile, typeChecker *checker.Checker)
 			return true
 		}
 		tag := sourceText(source, openingTag(node))
-		if !jsxIntrinsic(tag) || node.Attributes() == nil || len(node.Attributes().AsJsxAttributes().Properties.Nodes) == 0 {
+		contribution = hostContributionTag(openingTag(node), source, typeChecker)
+		if (!jsxIntrinsic(tag) && !contribution) || node.Attributes() == nil || len(node.Attributes().AsJsxAttributes().Properties.Nodes) == 0 {
 			return true
 		}
 		var exists bool
@@ -65,11 +72,22 @@ func nativePropDiagnostics(source *ast.SourceFile, typeChecker *checker.Checker)
 				report(property, jsxAttributeText(attribute.Name()), valueType, value != nil && (value.Kind == ast.KindStringLiteral || value.Kind == ast.KindNoSubstitutionTemplateLiteral))
 			} else if ast.IsJsxSpreadAttribute(property) {
 				value := property.AsJsxSpreadAttribute().Expression
+				reserved := reservedElementIdentitySpreadName(source, value, typeChecker)
+				reservedReported := reserved != ""
+				if reservedReported {
+					report(property, reserved, nil, false)
+				}
 				valueType := typeChecker.GetTypeAtLocation(value)
 				if valueType == nil {
 					continue
 				}
 				for _, symbol := range typeChecker.GetPropertiesOfType(valueType) {
+					if reservedElementIdentityName(symbol.Name) {
+						if reservedReported {
+							continue
+						}
+						reservedReported = true
+					}
 					var handlerType *checker.Type
 					if strings.HasPrefix(strings.ToLower(symbol.Name), "on") {
 						handlerType = typeChecker.GetTypeOfSymbolAtLocation(symbol, value)

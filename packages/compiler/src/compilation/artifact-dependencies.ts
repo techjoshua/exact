@@ -11,7 +11,7 @@ import {
 import type { CompileArtifactsOptions, ExactArtifactPlanEntry } from '../types.js';
 import { collectPlacementAnalysisDependencies } from './dependency-discovery.js';
 
-/** Expands explicit entries through reachable modules that require JSX compilation. */
+/** Expands explicit entries through JSX modules and native-resolved owned helper executables. */
 export async function expandArtifactPlanDependencies(
 	entries: readonly ExactArtifactPlanEntry[],
 	options: CompileArtifactsOptions
@@ -20,7 +20,8 @@ export async function expandArtifactPlanDependencies(
 	const sources = new Map<string, string>();
 	for (const entry of entries)
 		sources.set(path.resolve(entry.inputFile), await readFile(entry.inputFile, 'utf8'));
-	await collectPlacementAnalysisDependencies(sources, options.session);
+	const dependencies = await collectPlacementAnalysisDependencies(sources, options.session);
+	const helperModules = helperArtifactModuleKeys(dependencies.graph, dependencies.helperSources);
 	const rootDir = path.resolve(
 		options.rootDir ?? commonRoot(entries.map((entry) => entry.inputFile))
 	);
@@ -32,7 +33,7 @@ export async function expandArtifactPlanDependencies(
 		if (
 			planned.has(key) ||
 			!isTransformablePath(resolved) ||
-			!/\.[cm]?[jt]sx$/i.test(resolved) ||
+			(!/\.[cm]?[jt]sx$/i.test(resolved) && !helperModules.has(key)) ||
 			relative.startsWith(`..${path.sep}`) ||
 			path.isAbsolute(relative)
 		)
@@ -50,11 +51,21 @@ export function artifactModuleRewrites(
 	entry: ExactArtifactPlanEntry,
 	entries: readonly ExactArtifactPlanEntry[],
 	dependencies: readonly { specifier: string; file: string }[],
-	configured?: ModuleRewriteOptions
+	configured?: ModuleRewriteOptions,
+	sourceDependencies: readonly string[] = []
 ): { client?: ModuleRewriteOptions; server?: ModuleRewriteOptions } {
+	// Lowered type annotations can name a transitive source module which the authored
+	// entry never imported directly. Rebase those exact existing graph identities too.
+	const references = new Map(dependencies.map((edge) => [edge.specifier, edge]));
+	for (const file of sourceDependencies) {
+		const specifier = runtimeImportPath(entry.inputFile, file);
+		if (!references.has(specifier) && !Object.hasOwn(configured?.moduleAliases ?? {}, specifier))
+			references.set(specifier, { specifier, file });
+	}
+	const allReferences = [...references.values()];
 	return {
-		client: artifactModuleRewrite(entry, 'client', entries, dependencies, configured),
-		server: artifactModuleRewrite(entry, 'server', entries, dependencies, configured)
+		client: artifactModuleRewrite(entry, 'client', entries, allReferences, configured),
+		server: artifactModuleRewrite(entry, 'server', entries, allReferences, configured)
 	};
 }
 
@@ -99,4 +110,29 @@ function runtimeImportPath(fromArtifact: string, destination: string): string {
 function artifactInputKey(filename: string): string {
 	const resolved = slashPath(path.resolve(filename));
 	return process.platform === 'win32' ? resolved.toLowerCase() : resolved;
+}
+
+/** Keeps import and re-export routes to owned helpers on one target module identity. */
+function helperArtifactModuleKeys(
+	graph: ReadonlyMap<string, readonly string[]>,
+	helperSources: ReadonlySet<string>
+): ReadonlySet<string> {
+	const importers = new Map<string, string[]>();
+	for (const [source, dependencies] of graph)
+		for (const dependency of dependencies) {
+			const key = artifactInputKey(dependency);
+			let parents = importers.get(key);
+			if (!parents) importers.set(key, (parents = []));
+			parents.push(artifactInputKey(source));
+		}
+	const required = new Set([...helperSources].map(artifactInputKey));
+	const pending = [...required];
+	// Type-only routes also retain the defining module's nominal type identity.
+	for (let index = 0; index < pending.length; index++)
+		for (const parent of importers.get(pending[index]!) ?? []) {
+			if (required.has(parent)) continue;
+			required.add(parent);
+			pending.push(parent);
+		}
+	return required;
 }

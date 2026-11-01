@@ -1,3 +1,8 @@
+import { serverComponentInputProvider } from './server-component-reference.js';
+import {
+	isOpaqueOperation,
+	assertComponentOperationProvider
+} from '@exactjs/core/runtime/component-operations';
 import { type AnyComponentInstance } from '@exactjs/core';
 import {
 	readPreparedServerChildRange,
@@ -8,7 +13,7 @@ import { executeOpaqueOperation } from '@exactjs/core/runtime/component-operatio
 import { unwrap } from '@exactjs/reactive/framework/values';
 import { escapeText } from '../html.js';
 import type { Child, RenderToStringOptions, SsrContext } from '../types.js';
-import { mapRenderValue, type RenderValue } from './execution.js';
+import { withRenderCleanup, mapRenderValue, type RenderValue } from './execution.js';
 import { claimRootText } from './host.js';
 import { appendBoundedHtml, countSsrNode, enterSsrTreeDepth, leaveSsrTreeDepth } from './limits.js';
 import { captureNestedEnhancementStringPrefix } from './operation-enhancement-routes.js';
@@ -30,11 +35,22 @@ export function renderChildren(
 	options: RenderToStringOptions,
 	hasComponentAncestor = false
 ): RenderValue<string> {
-	return new ChildrenOutput(
+	const target = new SsrOperationTarget(
 		context,
-		children,
-		new SsrOperationTarget(context, parent, options, hasComponentAncestor, renderChildren)
-	).render();
+		parent,
+		options,
+		hasComponentAncestor,
+		renderChildren
+	);
+	const owner: import('./direct-component-contracts.js').DirectScheduledPreparationOwner = {};
+	return withRenderCleanup(
+		() => {
+			target.prepareProgramReferences(children, owner);
+			return new ChildrenOutput(context, children, target).render();
+		},
+		() =>
+			owner.preparation ? Promise.resolve(owner.preparation[Symbol.asyncDispose]()) : undefined
+	);
 }
 
 /** Ordered child traversal retains continuation state only once per sibling group. */
@@ -119,6 +135,9 @@ function renderChildValue(
 	child: Child,
 	target: SsrOperationTarget
 ): RenderValue<ChildRenderResult> {
+	if (isOpaqueOperation(child))
+		assertComponentOperationProvider(child, serverComponentInputProvider);
+	target = target.forActualChild(child);
 	const program = readPreparedServerRenderProgram(child);
 	if (program) return mapRenderValue(target.renderPreparedServerProgram(program), operationResult);
 	const component = readServerComponentReference(child);

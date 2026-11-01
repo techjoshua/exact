@@ -20,10 +20,32 @@ ball.applyImpulse({ x: 180, y: -260 });
 world.step(1 / 60);
 ```
 
-Elapsed time accumulates and advances in stable fixed increments. Catch-up is bounded; discarded
+Elapsed time accumulates and advances in stable fixed increments. Tick selection uses the
+configured interval, so a zero-time call cannot create a tick in an empty world. Time accumulation,
+simulation time, and discarded time must remain finite. Catch-up is bounded; discarded
 whole steps remain visible through `PhysicsStepResult` and `world.inspect()`. Body forces, impulses,
 pose changes, and kinematic changes are queued and become visible together at the next fixed-step
 boundary. One outer step batches reactive pose publication and collision callbacks.
+
+Readonly views follow TypeScript. Shapes, selection groups, projection policies, collision events,
+and inspection results are ordinary JavaScript values. Constructors copy shape and group inputs,
+and inspection copies pose and velocity data, so editing those snapshots does not change body state.
+
+If a force contributor throws or returns non-finite coordinates, the outer step restores body
+state, queued commands, force and torque accumulators, sleep state, contacts, and simulation time.
+Elapsed time remains pending. After repairing the contributor, `world.step(0)` retries that time
+without adding another elapsed interval. Queued work also participates in an enclosing reactive
+transaction, and optimistic rollback preserves commands appended later. Callback side effects on
+application-owned data and terminal resource disposal retain their own ownership rules.
+Vector inputs are captured once, so the validated coordinates are the coordinates used.
+Force and impulse accumulation, integrated motion, collision impulses, and constraint corrections
+must remain finite. An overflowing correction or queued command fails before publication and
+participates in the same rollback and retry policy. A contributor registered during
+dispatch begins on the next fixed tick. Disposal fences selected contributions before execution
+and publication, and removing a body or world stops its remaining force work.
+Collision subscriptions have independent ownership even when they use the same callback. Removing
+a subscription during delivery prevents its later invocation in that batch. Collision callbacks
+run after simulation commit, so a callback error does not roll back the completed step.
 
 Worlds support dynamic, static, and kinematic circle or axis-aligned box bodies, stable selection
 groups and collision layers, ordered named force contributors, distance constraints, impulses,

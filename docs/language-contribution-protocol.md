@@ -313,7 +313,11 @@ interface ExactLanguageProjectionV1 {
 ```
 
 All ranges are half-open UTF-16 offsets, matching the existing compiler language-service and LSP
-projection. URIs are canonical file URIs; `path` is absolute for the trusted analyzer and never used
+projection. Touching ranges do not intersect, and empty range filters select no spans. Intl hover
+and compiler task-refactor queries accept a cursor at a span’s start or interior, excluding its
+trailing end. Intl editor
+observations use TypeScript readonly declarations and ordinary JavaScript objects.
+URIs are canonical file URIs. `path` is absolute for the trusted analyzer and never used
 as protocol identity. The concrete protocol-1 records are:
 
 - `imports`: authored specifier/range, type/runtime kind, resolved file, and resolved package name,

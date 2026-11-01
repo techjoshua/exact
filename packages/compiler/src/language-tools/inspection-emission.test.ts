@@ -52,12 +52,13 @@ describe('compiler inspection catalog boundary', () => {
 			instrumentInspection: true
 		});
 		expect(result.inspectionCorrelation?.components[0]?.componentTypeId).toBeTruthy();
-		expect(result.code).toContain('@exactjs/devtools-runtime');
+		expect(result.code).not.toContain('@exactjs/devtools-runtime');
+		expect(result.code).toContain(result.inspectionCorrelation!.components[0]!.componentTypeId);
 		expect(result.code).not.toContain('reactive-dependency');
 		expect(result.code).not.toContain('Page.tsx');
 	});
 
-	it('lowers compiler-qualified redaction selectors without values', () => {
+	it('keeps server redaction selectors outside client correlation metadata', () => {
 		const source = `/** @exact keep=secret */ const apiKey = process.env.API_KEY;
 export function Page(this: Component<{}>) {
 	return () => <p>Ready</p>;
@@ -67,10 +68,9 @@ export function Page(this: Component<{}>) {
 			instrumentInspection: true,
 			target: 'server'
 		});
-		expect(result.inspectionCorrelation?.redactions?.secretNames).toContain('apiKey');
-		expect(result.inspectionCorrelation?.redactions?.statePaths).not.toContain(
-			'process.env.API_KEY'
-		);
+		expect(result.inspectionRedactions?.secretNames).toContain('apiKey');
+		expect(result.inspectionRedactions?.statePaths).not.toContain('process.env.API_KEY');
 		expect(JSON.stringify(result.inspectionCorrelation)).not.toContain('process.env.API_KEY');
+		expect(result.inspectionCorrelation).not.toHaveProperty('redactions');
 	});
 });

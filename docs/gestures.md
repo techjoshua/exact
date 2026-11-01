@@ -1,7 +1,8 @@
 # Gestures
 
 `@exactjs/gestures` recognizes semantic input without owning animation, physics, or application
-state. Definitions are prepared, immutable values; one stable component-owned session attaches to
+state. Definitions and samples follow ordinary TypeScript readonly guarantees. Sample coordinates
+are detached from private pointer geometry. One stable component-owned session attaches to
 the resolved intrinsic root and reconfigures without recreating the component.
 
 ## Prepared recognition
@@ -37,7 +38,14 @@ export const movable = defineGesture({
 
 The package exports `pressable`, `hoverable`, `draggable`, `pannable`, `pinchable`, and
 `longPress` policy presets. `definePress()`, `defineHover()`, `defineDrag()`, `definePan()`, and
-`definePinch()` prepare site-specific override recognizers.
+`definePinch()` prepare site-specific override recognizers. Definitions and recognizers capture
+authored fields once and validate the captured values. Declared fields may be inherited, and
+getters run against their original authored object.
+
+Clock installations own idempotent leases. Overlapping installations restore the latest active
+clock when released, including out-of-order disposal and repeated installations of the same clock.
+A session captures the current inherited settings when configured. A changed drag or press threshold
+cancels active recognition before subsequent input starts a new session. Equal values retain it.
 
 ## Semantic sessions
 

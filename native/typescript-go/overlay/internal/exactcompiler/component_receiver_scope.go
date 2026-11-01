@@ -43,18 +43,20 @@ func componentStateReceiverScopes(component *ast.Node, typeChecker *checker.Chec
 // componentOwnsReceiver follows lexical arrows and stops at the first ordinary receiver scope.
 // Class initializers and static blocks establish receivers even without a function boundary.
 func componentOwnsReceiver(node *ast.Node, owners map[*ast.Node]bool) bool {
-	computedName := false
+	var computedName *ast.Node
 	for child, current := node, node.Parent; current != nil; child, current = current, current.Parent {
 		if owners[current] {
 			return true
 		}
 		if (ast.IsFunctionLike(current) || ast.IsPropertyDeclaration(current)) && current.Name() == child {
-			computedName = true
+			computedName = current.Parent
 			continue
 		}
+		// A name bypasses only its own containing class. Object member names
+		// nested in a field still evaluate against that field's class receiver.
 		if ast.IsClassDeclaration(current) || ast.IsClassExpression(current) {
-			if computedName {
-				computedName = false
+			if computedName == current {
+				computedName = nil
 				continue
 			}
 			return false

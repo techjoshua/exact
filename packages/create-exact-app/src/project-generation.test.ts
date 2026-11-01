@@ -2,9 +2,14 @@ import { mkdtemp, readFile, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import semver from 'semver';
 import { glob } from 'node:fs/promises';
-import { bundlers, createExactApp, runtimes } from './project-generation.js';
+import {
+	bundlers,
+	createExactApp,
+	runtimes,
+	testRunners,
+	type CreateExactAppOptions
+} from './project-generation.js';
 
 describe('create-exact-app', () => {
 	it('installs through the active npm CLI without executing a Windows command shim', async () => {
@@ -205,27 +210,37 @@ describe('create-exact-app', () => {
 		}
 	});
 
-	it('materializes every advertised build and runtime option', async () => {
+	it('materializes current per-package caret floors for every build, runtime and test option', async () => {
 		const root = await mkdtemp(path.join(tmpdir(), 'create-exact-app-matrix-'));
-		const versions = new Map<string, string>();
-		const workspace = path.resolve(import.meta.dirname, '../../..');
-		for await (const filename of glob(
-			['packages/*/package.json', 'framework-adapters/*/package.json'],
-			{ cwd: workspace }
-		)) {
-			const manifest = JSON.parse(await readFile(path.join(workspace, filename), 'utf8'));
-			versions.set(manifest.name, manifest.version);
-		}
-		for (const bundler of bundlers) {
-			for (const runtime of runtimes) {
-				const target = path.join(root, `${bundler}-${runtime}`);
+		try {
+			const versions = new Map<string, string>();
+			const workspace = path.resolve(import.meta.dirname, '../../..');
+			for await (const filename of glob(
+				['packages/*/package.json', 'framework-adapters/*/package.json'],
+				{ cwd: workspace }
+			)) {
+				const manifest = JSON.parse(await readFile(path.join(workspace, filename), 'utf8'));
+				versions.set(manifest.name, manifest.version);
+			}
+			const cases: Omit<CreateExactAppOptions, 'directory' | 'name' | 'skill'>[] = [];
+			for (const bundler of bundlers) {
+				for (const runtime of runtimes) cases.push({ bundler, runtime, testRunner: 'none' });
+				for (const testRunner of testRunners)
+					for (const reactCompatibility of [false, 18, 19] as const) {
+						if (testRunner === 'none' && !reactCompatibility) continue;
+						cases.push({ bundler, runtime: 'browser', testRunner, reactCompatibility });
+					}
+			}
+			for (const reactCompatibility of [false, 18, 19] as const)
+				cases.push({ bundler: 'vite', runtime: 'node', testRunner: 'vitest', reactCompatibility });
+			for (const [index, options] of cases.entries()) {
+				const { bundler, runtime } = options;
+				const target = path.join(root, `${index}-${bundler}-${runtime}`);
 				await createExactApp({
+					...options,
 					directory: target,
 					name: `${bundler}-${runtime}`,
-					bundler,
-					runtime,
 					operationsOnly: bundler !== 'vite' && runtime !== 'browser',
-					testRunner: 'none',
 					skill: false
 				});
 				const manifest = JSON.parse(await readFile(path.join(target, 'package.json'), 'utf8'));
@@ -234,8 +249,11 @@ describe('create-exact-app', () => {
 					...manifest.dependencies,
 					...manifest.devDependencies
 				})) {
-					if (name.startsWith('@exactjs/'))
-						expect(semver.satisfies(versions.get(name)!, range), `${name} ${range}`).toBe(true);
+					if (name.startsWith('@exactjs/')) {
+						const version = versions.get(name);
+						expect(version, name).toBeDefined();
+						expect(range, `${name} in ${path.basename(target)}`).toBe(`^${version}`);
+					}
 				}
 				if (runtime === 'browser') {
 					await expect(readFile(path.join(target, 'src/server.ts'), 'utf8')).rejects.toThrow();
@@ -243,6 +261,8 @@ describe('create-exact-app', () => {
 					expect(manifest.dependencies).toHaveProperty(`@exactjs/${runtime}-adapter`);
 				}
 			}
+		} finally {
+			await rm(root, { recursive: true, force: true });
 		}
 	});
 });

@@ -23,6 +23,8 @@ func collectDirectCallableEffects(
 	importBindings externalImportBindings,
 	contextBindings map[ast.SymbolId]ContextEffect,
 	assets assetAnalysis,
+	owner *executableBodyOwner,
+	prefixMode [32]byte,
 ) {
 	if ast.IsFunctionLike(fact.node) {
 		if _, valid := functionTaskPolicy(fact.node, sourceFile, importBindings); valid {
@@ -53,7 +55,7 @@ func collectDirectCallableEffects(
 		}
 		if directlyOwnedSpan(write.Start, write.Start+write.Length, factIndex, facts) {
 			confidence := "exact"
-			if containsString(write.Path, "*") || write.Operation == "array-mutation" {
+			if containsString(write.Path, "*") || write.Operation == "opaque-mutation" {
 				confidence = "broad"
 			}
 			fact.directWrites = append(fact.directWrites, StateEffect{
@@ -62,118 +64,186 @@ func collectDirectCallableEffects(
 				Kind:         "write",
 				Confidence:   confidence,
 				Operation:    stateEffectOperation(write.Operation),
+				ArrayRoots:   write.ArrayRoots,
 			})
 		}
 	}
 
-	walkCallable(fact.node, func(node *ast.Node) bool {
+	fact.normalInputs = &sourceValueInputs{declaration: fact.node, bindings: make(sourceValueBindings)}
+	fact.normalInputs.population = owner.values.normalPopulation(fact.node)
+	frame := fact.normalInputs
+	if fact.initializerDeclaration != nil {
+		frame.initializerCursor = &moduleInitializerCursor{frame: frame, owner: owner.values, plan: fact.initializerPlan, declaration: fact.initializerDeclaration}
+	}
+	frame.ownedFact = fact
+	beginNormalOperations(frame)
+	fact.normalInputs.properties = &sourcePropertyReferenceView{frame: fact.normalInputs, state: sourcePropertyUnpublished}
+	defer func() {
+		for _, slot := range frame.operations {
+			if r := slot.ownedRequest; r != nil {
+				r.released = true
+				r.caller = nil
+			}
+		}
+		drainOwnedGetFact(fact, false, nodeTargets, sourceFile, typeChecker)
+		releaseNormalOperations(frame)
+		disposePropertyReferences(frame)
+		frame.initializerCursor = nil
+		fact.normalInputs = nil
+	}()
+	selection := sourceValueQuery{owner: owner.values, executable: owner, effectOwner: fact.node, remaining: 4096, active: make(map[*ast.Node]bool), inputs: fact.normalInputs}
+	selected := accessorCandidates{}
+	selection.installPriorPropertyFacts(facts, &selected)
+	if ast.IsFunctionLike(fact.node) || owner.values.prefixHistory(fact.node) == nil {
+		selection.prepareNormalStatementSelection(&selected)
+	}
+	appendOpaqueAccessorEffect(fact, selected)
+	consumeNode := func(node *ast.Node) bool {
 		if node.Parent != nil && ast.IsPartOfTypeNode(node) {
 			return false
 		}
-		if ast.IsIdentifier(node) && !ast.IsDeclarationName(node) &&
-			!isStaticPropertyName(node) {
-			name := node.Text()
-			symbol := typeChecker.GetSymbolAtLocation(node)
-			if effect, ok := contextBindingReferenceEffect(symbol, sourceFile, typeChecker); ok {
-				fact.directContext = append(fact.directContext, effect)
-			}
-			if _, candidate := browserGlobals[name]; candidate &&
-				symbolIsOutsideSource(symbol, sourceFile) &&
-				!browserGlobalReferenceIsGuarded(node, name, fact.node) {
-				fact.summary.DirectEffectSources = append(
-					fact.summary.DirectEffectSources,
-					environmentSource("browser", name, fact.summary.Name),
-				)
-			}
-			if _, candidate := serverGlobals[name]; candidate &&
-				symbolIsOutsideSource(symbol, sourceFile) {
-				fact.summary.DirectEffectSources = append(
-					fact.summary.DirectEffectSources,
-					environmentSource("server", name, fact.summary.Name),
-				)
-			}
-			if serverOnlyImportSymbol(symbol) {
-				fact.summary.DirectEffectSources = append(
-					fact.summary.DirectEffectSources,
-					environmentSource("server", "server-only import "+name, fact.summary.Name),
-				)
-			}
+		appendDirectReferenceEffects(fact, node, sourceFile, typeChecker)
+		if owner.values.prefixHistory(node) == nil {
+			appendAccessorEffects(fact, node, nodeTargets, sourceFile, typeChecker, owner)
+		}
+		if demand, dependent := describeNormalOperand(node); owner.values.prefixHistory(node) == nil && (!dependent || !demand.pattern) {
+			appendImplicitAccessorEffects(fact, node, nodeTargets, sourceFile, typeChecker, nil, owner)
 		}
 		if !ast.IsCallExpression(node) {
 			return true
 		}
 		call := node.AsCallExpression()
-		if effect, ok := contextEffect(call, sourceFile, typeChecker); ok {
-			fact.directContext = append(fact.directContext, effect)
-		} else if effect, ok := contextBindingCallEffect(
-			call.Expression,
-			contextBindings,
-			typeChecker,
-		); ok {
-			fact.directContext = append(fact.directContext, effect)
-		}
-		targetSymbol := resolvedCallableSymbol(
-			callTargetSymbol(call.Expression, typeChecker),
-			typeChecker,
-		)
-		targetIndex, resolved := syntacticTargets[strings.TrimSpace(
-			sourceText(sourceFile, call.Expression),
-		)]
-		if ast.IsIdentifier(call.Expression) &&
-			call.Expression.Text() == fact.summary.Name {
-			targetIndex, resolved = factIndex, true
-		}
-		if targetSymbol != nil {
-			if symbolTarget, exists := symbolTargets[ast.GetSymbolId(targetSymbol)]; exists {
-				targetIndex, resolved = symbolTarget, true
+		var targetSymbol *ast.Symbol
+		targetIndex, resolved := 0, false
+		resolveTarget := func() {
+			if effect, ok := contextEffect(call, sourceFile, typeChecker); ok {
+				fact.directContext = append(fact.directContext, effect)
+			} else if effect, ok := contextBindingCallEffect(
+				call.Expression,
+				contextBindings,
+				typeChecker,
+			); ok {
+				fact.directContext = append(fact.directContext, effect)
 			}
-		}
-		// An immediate callable has no declaration symbol. Its own AST identity
-		// still establishes a precise edge, including context and state effects.
-		if immediate, exists := nodeTargets[unwrapRenderExpression(call.Expression)]; exists {
-			targetIndex, resolved = immediate, true
-		}
-		edge := CallEdge{
-			ID:       fmt.Sprintf("%s:call:%d", fact.summary.ID, node.Pos()),
-			Name:     strings.TrimSpace(sourceText(sourceFile, call.Expression)),
-			Resolved: resolved,
-		}
-		fact.callExpressions[edge.ID] = call.Expression
-		fact.contextReferences[edge.ID] = stableSourceCallableReference(enhancementCallableReference(call.Expression), typeChecker)
-		if reference, exists := externalImportForExpression(
-			call.Expression,
-			importBindings,
-			typeChecker,
-		); exists {
-			edge.ModuleSpecifier = reference.moduleSpecifier
-			edge.ExportName = reference.exportName
-		}
-		if targetSymbol != nil {
-			fact.callSymbols[edge.ID] = ast.GetSymbolId(targetSymbol)
-		}
-		edge.ReceiverBindings = receiverBindingsForCall(call, fact.node, typeChecker)
-		if resolved {
-			edge.TargetID = facts[targetIndex].summary.ID
-			fact.targets = append(fact.targets, targetIndex)
-		} else if environment := unresolvedCallEnvironment(
-			call.Expression,
-			sourceFile,
-			typeChecker,
-			contextBindings,
-		); environment != "" && !(environment == "browser" && guardedBrowserCallReference(call.Expression, fact.node, sourceFile, typeChecker)) {
-			description := edge.Name
-			if environment == "unknown" {
-				description = "unresolved call " + edge.Name
-			}
-			source := environmentSource(environment, description, fact.summary.Name)
-			source.Opaque = environment == "unknown" &&
-				opaqueCallExpression(call.Expression, typeChecker)
-			fact.summary.DirectEffectSources = append(
-				fact.summary.DirectEffectSources,
-				source,
+			targetSymbol = resolvedCallableSymbol(
+				callTargetSymbol(call.Expression, typeChecker),
+				typeChecker,
 			)
+			targetIndex, resolved = syntacticTargets[strings.TrimSpace(
+				sourceText(sourceFile, call.Expression),
+			)]
+			if ast.IsIdentifier(call.Expression) &&
+				call.Expression.Text() == fact.summary.Name {
+				targetIndex, resolved = factIndex, true
+			}
+			if targetSymbol != nil {
+				if symbolTarget, exists := symbolTargets[ast.GetSymbolId(targetSymbol)]; exists {
+					targetIndex, resolved = symbolTarget, true
+				}
+			}
+			// An immediate callable has no declaration symbol. Its own AST identity
+			// still establishes a precise edge, including context and state effects.
+			if immediate, exists := nodeTargets[unwrapRenderExpression(call.Expression)]; exists {
+				targetIndex, resolved = immediate, true
+			}
+			if h := owner.values.prefixHistory(node); h != nil && h.receipt != nil && len(h.receipt.alternatives) == 1 {
+				inputs := h.receipt.alternatives[0].callInputs
+				if inputs != nil && inputs.calleeReady && inputs.callee.callable != nil {
+					if target, exists := nodeTargets[inputs.callee.callable.proof.arrow]; exists {
+						targetIndex, resolved = target, true
+						targetSymbol = nil
+					}
+				}
+			}
 		}
-		fact.summary.Calls = append(fact.summary.Calls, edge)
+		registerEdge := func(invocation accessorCandidates) {
+			invocationOwned := invocation.invocationOwned
+			if invocation.replacedInvocation {
+				targetSymbol = nil
+				resolved = false
+			}
+			edge := CallEdge{
+				ID:       fmt.Sprintf("%s:call:%d", fact.summary.ID, node.Pos()),
+				Name:     strings.TrimSpace(sourceText(sourceFile, call.Expression)),
+				Resolved: resolved,
+			}
+			fact.callExpressions[edge.ID] = call.Expression
+			if fact.fieldEdgeOperations == nil {
+				fact.fieldEdgeOperations = make(map[string]*ast.Node)
+			}
+			fact.fieldEdgeOperations[edge.ID] = node
+			fact.ownedScalarCalls[edge.ID] = selectedHelperSymbol(call.Expression, typeChecker) != nil
+			fact.contextReferences[edge.ID] = stableSourceCallableReference(enhancementCallableReference(call.Expression), typeChecker)
+			if reference, exists := externalImportForExpression(
+				call.Expression,
+				importBindings,
+				typeChecker,
+			); exists && !invocation.replacedInvocation {
+				edge.ModuleSpecifier = reference.moduleSpecifier
+				edge.ExportName = reference.exportName
+			}
+			if targetSymbol != nil {
+				fact.callSymbols[edge.ID] = ast.GetSymbolId(targetSymbol)
+			}
+			edge.ReceiverBindings = receiverBindingsForCall(call, fact.node, typeChecker)
+			_, hostOwned := owner.body(call.Expression)
+			if resolved {
+				edge.TargetID = facts[targetIndex].summary.ID
+				fact.targets = append(fact.targets, targetIndex)
+			} else if environment := unresolvedCallEnvironment(
+				call.Expression,
+				sourceFile,
+				typeChecker,
+				contextBindings,
+			); !(invocationOwned && environment == "unknown") && !hostOwned && environment != "" && !(environment == "browser" && guardedBrowserCallReference(call.Expression, fact.node, sourceFile, typeChecker)) {
+				description := edge.Name
+				if environment == "unknown" {
+					description = "unresolved call " + edge.Name
+				}
+				source := environmentSource(environment, description, fact.summary.Name)
+				if environment == "unknown" {
+					source.callOrigin = &sourceCallOutcome{declaration: fact.node, operation: node}
+				}
+				source.Opaque = environment == "unknown" &&
+					opaqueCallExpression(call.Expression, typeChecker)
+				fact.summary.DirectEffectSources = append(
+					fact.summary.DirectEffectSources,
+					source,
+				)
+			}
+			fact.summary.Calls = append(fact.summary.Calls, edge)
+		}
+		var definition *sourceDefinitionMAYCall
+		if ast.IsIdentifier(call.Expression) {
+			symbol := typeChecker.GetSymbolAtLocation(call.Expression)
+			if symbol != nil {
+				if index, exists := symbolTargets[ast.GetSymbolId(symbol)]; exists && index >= 0 && index < len(facts) {
+					var parent *callableFacts
+					if parentIndex, known := nodeTargets[enclosingCallableNode(fact.node)]; known && parentIndex >= 0 && parentIndex < len(facts) {
+						parent = &facts[parentIndex]
+					}
+					definition = prepareDefinitionMAYCall(fact, &facts[index], node, symbol, typeChecker, owner, parent)
+				}
+			}
+		}
+		if definition != nil {
+			// Install the canonical pending graph edge before suppressing recursive
+			// occurrence consumption. The fixed-point solver still owns its effects.
+			resolveTarget()
+			registerEdge(accessorCandidates{})
+			definition.edge = len(fact.summary.Calls) - 1
+		}
+		invocation := accessorCandidates{}
+		if owner.values.prefixHistory(node) == nil {
+			invocation = appendArgumentAccessorEffects(fact, node, nodeTargets, sourceFile, typeChecker, owner, definition)
+		}
+		fact.nativeCalls = append(fact.nativeCalls, invocation.nativeCalls...)
+		fact.normalCalls = append(fact.normalCalls, invocation.normalCalls...)
+		if definition == nil {
+			resolveTarget()
+			registerEdge(invocation)
+		}
+
 		if (eagerCallbackCall(call.Expression, typeChecker) || reactiveComputationOperation(call.Expression, typeChecker) || reactivePeekOperation(call.Expression, sourceFile, typeChecker) || isTaskContextCapabilityCall(node, typeChecker, "peek")) && call.Arguments != nil {
 			for argumentIndex, argument := range call.Arguments.Nodes {
 				if !invokedCallbackArgument(node, argumentIndex, typeChecker) {
@@ -183,7 +253,78 @@ func collectDirectCallableEffects(
 			}
 		}
 		return true
-	})
+	}
+	consumeOperand := func(demand sourceNormalOperand) {
+		if !ast.IsFunctionLike(fact.node) && owner.values.prefixHistory(demand.node) != nil {
+			return
+		}
+		values := newSourceValueOwner(typeChecker)
+		if owner != nil && owner.values != nil {
+			values = owner.values
+		}
+		query := sourceValueQuery{owner: values, executable: owner, effectOwner: fact.node, remaining: 4096, active: make(map[*ast.Node]bool), reading: demand.node, inputs: fact.normalInputs}
+		query.operation = &sourceOperationContext{node: demand.node, owner: fact.node, inputs: fact.normalInputs}
+		result := accessorCandidates{nativeCalls: fact.nativeCalls, normalCalls: fact.normalCalls}
+		bindings := fact.normalInputs.bindings
+		query.consumeNormalOperand(demand, fact.node, bindings, &result, fact.normalInputs)
+		if demand.pattern || demand.await || demand.get || demand.cellOnly {
+			appendOpaqueAccessorEffect(fact, result)
+			appendSourceValueWrites(fact, result, typeChecker)
+			appendAccessorTargets(fact, demand.node, result, nodeTargets, sourceFile)
+		}
+	}
+	consumePhase := func(phase sourceNormalPhase) {
+		query := sourceValueQuery{owner: owner.values, executable: owner, effectOwner: fact.node, remaining: 4096, active: make(map[*ast.Node]bool), inputs: fact.normalInputs, reading: phase.node}
+		query.operation = &sourceOperationContext{node: phase.node, owner: fact.node, inputs: fact.normalInputs}
+		result := accessorCandidates{}
+		query.returnObservation = &sourceReturnObservation{owner: fact.node, reader: phase.node, frame: fact.normalInputs, receipts: fact.nativeCalls, normalCalls: fact.normalCalls}
+		query.consumeNormalPhase(phase, fact.normalInputs.bindings, &result)
+
+		if !supportedBindingDeclaration(phase.node) {
+			appendOwnedGetFact(fact, phase.node, result, nodeTargets, sourceFile, typeChecker)
+		} else if phase.role == sourceNormalSelect && result.opaque && result.valueIncomplete && owner.values.prefixHistory(phase.node) == nil {
+			// An entered binding has its one prefix publisher. A refused real
+			// binding has no such publisher. Retain its actual refusal once at
+			// the final source phase, after any pre-entry refusal at admission,
+			// without interpreting its declaration as a Call/Get.
+			result.prefixCoverage = livePrefixRefusalCoverage(fact, &query, phase, frame, result, prefixMode)
+			appendOpaqueAccessorEffect(fact, result)
+		}
+		fact.nativeCalls = append(fact.nativeCalls, result.nativeCalls...)
+		fact.normalCalls = append(fact.normalCalls, result.normalCalls...)
+	}
+	consumeFold := func(fold sourceNormalFold) {
+		if !ast.IsFunctionLike(fact.node) && owner.values.prefixHistory(fold.node) != nil {
+			return
+		}
+		query := sourceValueQuery{owner: owner.values, executable: owner, effectOwner: fact.node, remaining: 4096, active: make(map[*ast.Node]bool), inputs: fact.normalInputs, reading: fold.node, operation: &sourceOperationContext{node: fold.node, owner: fact.node, inputs: fact.normalInputs}}
+		result := accessorCandidates{}
+		query.consumeNormalFold(fold, &result)
+		appendOpaqueAccessorEffect(fact, result)
+	}
+	for _, event := range owner.values.summary(fact.node).normal {
+		if frame.initializerCursor != nil {
+			switch frame.initializerCursor.disposition(event) {
+			case initializerAtomicDependency, initializerStructuralUnwind, initializerSkip:
+				continue
+			}
+		}
+		switch {
+		case event.fold != nil:
+			consumeFold(*event.fold)
+		case event.phase != nil:
+			consumePhase(*event.phase)
+		case event.operand != nil:
+			consumeOperand(*event.operand)
+		default:
+			consumeNode(event.node)
+		}
+	}
+	if frame.initializerCursor != nil {
+		frame.initializerCursor.finish(fact, frame)
+	}
+	detachModuleCallOrigins(fact, owner)
+	appendReturnSettlementEffects(fact, nodeTargets, sourceFile, typeChecker, owner)
 	applyCallableAnnotations(fact, sourceFile)
 	fact.summary.DirectEffectSources = uniqueEnvironmentSources(
 		fact.summary.DirectEffectSources,
@@ -198,96 +339,6 @@ func collectDirectCallableEffects(
 	fact.summary.StateReads = append([]StateEffect(nil), fact.directReads...)
 	fact.summary.StateWrites = append([]StateEffect(nil), fact.directWrites...)
 	fact.summary.Contexts = append([]ContextEffect(nil), fact.directContext...)
-}
-
-// browserGlobalReferenceIsGuarded recognizes the ordinary universal-runtime pattern where a
-// browser global is read only after a typeof availability test. The guard itself is safe in every
-// JavaScript runtime, and the guarded branch cannot execute on a server where the global is absent;
-// treating either reference as an unconditional browser effect would incorrectly project the
-// complete callable out of an otherwise valid server artifact.
-func browserGlobalReferenceIsGuarded(node *ast.Node, name string, callable *ast.Node) bool {
-	operand := node
-	for operand.Parent != nil && unwrapSourceCallableReference(operand.Parent) == node {
-		operand = operand.Parent
-	}
-	if operand.Parent != nil && ast.IsTypeOfExpression(operand.Parent) {
-		return true
-	}
-	for current := node; current != nil && current != callable; current = current.Parent {
-		parent := current.Parent
-		if parent == nil {
-			break
-		}
-		switch {
-		case ast.IsConditionalExpression(parent):
-			conditional := parent.AsConditionalExpression()
-			availableWhenTrue, recognized := browserAvailabilityGuard(conditional.Condition, name)
-			if recognized && ((nodeInside(current, conditional.WhenTrue) && availableWhenTrue) ||
-				(nodeInside(current, conditional.WhenFalse) && !availableWhenTrue)) {
-				return true
-			}
-		case ast.IsIfStatement(parent):
-			statement := parent.AsIfStatement()
-			availableWhenTrue, recognized := browserAvailabilityGuard(statement.Expression, name)
-			if recognized && ((nodeInside(current, statement.ThenStatement) && availableWhenTrue) ||
-				(statement.ElseStatement != nil && nodeInside(current, statement.ElseStatement) &&
-					!availableWhenTrue)) {
-				return true
-			}
-		case ast.IsBinaryExpression(parent):
-			binary := parent.AsBinaryExpression()
-			if !nodeInside(current, binary.Right) {
-				continue
-			}
-			availableWhenTrue, recognized := browserAvailabilityGuard(binary.Left, name)
-			if !recognized {
-				continue
-			}
-			if (binary.OperatorToken.Kind == ast.KindAmpersandAmpersandToken && availableWhenTrue) ||
-				(binary.OperatorToken.Kind == ast.KindBarBarToken && !availableWhenTrue) {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-func browserAvailabilityGuard(node *ast.Node, name string) (bool, bool) {
-	for node != nil && ast.IsParenthesizedExpression(node) {
-		node = node.AsParenthesizedExpression().Expression
-	}
-	if node == nil || !ast.IsBinaryExpression(node) {
-		return false, false
-	}
-	binary := node.AsBinaryExpression()
-	left, right := binary.Left, binary.Right
-	if !browserTypeofUndefinedComparison(left, right, name) &&
-		!browserTypeofUndefinedComparison(right, left, name) {
-		return false, false
-	}
-	switch binary.OperatorToken.Kind {
-	case ast.KindExclamationEqualsToken, ast.KindExclamationEqualsEqualsToken:
-		return true, true
-	case ast.KindEqualsEqualsToken, ast.KindEqualsEqualsEqualsToken:
-		return false, true
-	default:
-		return false, false
-	}
-}
-
-func browserTypeofUndefinedComparison(typeOf *ast.Node, undefined *ast.Node, name string) bool {
-	for typeOf != nil && ast.IsParenthesizedExpression(typeOf) {
-		typeOf = typeOf.AsParenthesizedExpression().Expression
-	}
-	for undefined != nil && ast.IsParenthesizedExpression(undefined) {
-		undefined = undefined.AsParenthesizedExpression().Expression
-	}
-	if typeOf == nil || undefined == nil || !ast.IsTypeOfExpression(typeOf) ||
-		!ast.IsStringLiteral(undefined) || undefined.Text() != "undefined" {
-		return false
-	}
-	expression := unwrapSourceCallableReference(typeOf.AsTypeOfExpression().Expression)
-	return expression != nil && ast.IsIdentifier(expression) && expression.Text() == name
 }
 
 func nodeInside(node *ast.Node, container *ast.Node) bool {
@@ -351,6 +402,8 @@ func eagerCallbackCall(expression *ast.Node, typeChecker *checker.Checker) bool 
 		"find", "findIndex", "reduce", "reduceRight", "sort",
 		"then", "catch", "finally":
 		return true
+	case "from":
+		return standardFactoryMapperSymbol(nativeReceiverMemberSymbol(expression, typeChecker))
 	default:
 		return false
 	}
@@ -363,22 +416,24 @@ func collectParameterStateEffects(
 	if !isCallableNode(callable) {
 		return nil, nil
 	}
-	parameters := make(map[ast.SymbolId]int)
-	for index, parameter := range callable.Parameters() {
-		name := parameter.Name()
-		if name == nil || !ast.IsIdentifier(name) {
-			continue
-		}
-		if symbol := typeChecker.GetSymbolAtLocation(name); symbol != nil {
-			parameters[ast.GetSymbolId(symbol)] = index
-		}
-	}
+	parameters := parameterStateSymbols(callable, typeChecker)
 	if len(parameters) == 0 {
 		return nil, nil
 	}
 	reads := []StateEffect{}
 	writes := []StateEffect{}
 	walkCallable(callable, func(node *ast.Node) bool {
+		// Native pattern members are puts even without a default operation node.
+		// Receiver/key and default RHS children retain their ordinary traversal.
+		if (ast.IsPropertyAccessExpression(node) || ast.IsElementAccessExpression(node)) && nativeAssignmentTargetRole(node) == nativeAssignmentPattern {
+			if effect, exists := parameterStateEffect(node, "write", parameters, typeChecker); exists {
+				writes = append(writes, effect)
+			}
+			return true
+		}
+		if ast.IsBinaryExpression(node) && nativeAssignmentTargetRole(node) == nativeAssignmentPattern {
+			return true
+		}
 		if target, operation := stateWriteTarget(node, typeChecker); operation != "" {
 			if effect, exists := parameterStateEffect(
 				target,
@@ -413,6 +468,24 @@ func collectParameterStateEffects(
 	return minimalStateEffects(reads), uniqueStateEffects(writes)
 }
 
+// parameterStateSymbols shares checker-bound parameter ownership with scalar body emission.
+func parameterStateSymbols(callable *ast.Node, typeChecker *checker.Checker) map[ast.SymbolId]int {
+	parameters := make(map[ast.SymbolId]int)
+	if !isCallableNode(callable) {
+		return parameters
+	}
+	for index, parameter := range callable.Parameters() {
+		name := parameter.Name()
+		if name == nil || !ast.IsIdentifier(name) {
+			continue
+		}
+		if symbol := typeChecker.GetSymbolAtLocation(name); symbol != nil {
+			parameters[ast.GetSymbolId(symbol)] = index
+		}
+	}
+	return parameters
+}
+
 func parameterStateEffect(
 	node *ast.Node,
 	kind string,
@@ -428,6 +501,11 @@ func parameterStateEffect(
 	segments := []string{}
 	current := node
 	for {
+		current = unwrapRenderExpression(current)
+		if reference := stateReferenceExpression(current); reference != current {
+			current = reference
+			continue
+		}
 		switch {
 		case ast.IsPropertyAccessExpression(current):
 			member := current.AsPropertyAccessExpression()
@@ -483,6 +561,7 @@ resolved:
 		Kind:         kind,
 		Confidence:   confidence,
 		Receiver:     &StateReceiver{Kind: "parameter", Index: parameterIndex, Root: root},
+		ArrayRoots:   arrayRootProofs(node, segments, typeChecker),
 	}, true
 }
 
@@ -544,18 +623,146 @@ func isSideEffectImport(node *ast.Node) bool {
 }
 
 func walkCallable(root *ast.Node, visit func(*ast.Node) bool) {
+	walkCallableNormal(root, visit, nil)
+}
+
+// walkCallableNormal shares the existing lexical walker with narrow dependent
+// operand consumers. The callback carries no completion or activation authority.
+func walkCallableNormal(root *ast.Node, visit func(*ast.Node) bool, operand func(sourceNormalOperand), phases ...func(sourceNormalPhase)) {
+	var phase func(sourceNormalPhase)
+	if len(phases) == 1 {
+		phase = phases[0]
+	}
+	walkCallableNormalWithFolds(root, visit, operand, phase, nil)
+}
+
+// walkCallableNormalWithFolds supplies immutable syntax folds alongside the
+// existing normal effect callbacks. Deferred edges do not supply body events.
+func walkCallableNormalWithFolds(root *ast.Node, visit func(*ast.Node) bool, operand func(sourceNormalOperand), phase func(sourceNormalPhase), fold func(sourceNormalFold), structural ...func(*ast.Node) bool) {
 	var walk func(*ast.Node)
 	walk = func(node *ast.Node) {
+		isStructural := sourceNormalStructural
+		if len(structural) == 1 {
+			isStructural = structural[0]
+		}
+		var children []*ast.Node
+		var erasedChildren []bool
+		descend := func(child *ast.Node) {
+			if fold != nil {
+				children = append(children, child)
+				erasedChildren = append(erasedChildren, isStructural(child))
+			}
+			walk(child)
+		}
+		creation := node != root && isCallableNode(node)
+		emit := fold != nil && !isStructural(node)
+		if emit {
+			fold(sourceNormalFold{node: node, kind: sourceNormalEnter})
+		}
+		defer func() {
+			if emit {
+				fold(sourceNormalFold{node: node, children: children, erasedChildren: erasedChildren, creation: creation, kind: normalFoldKind(node, creation)})
+			}
+		}()
+
 		if node != root && isCallableNode(node) {
+			// Computed names execute while the owner is constructed. Callable bodies do not.
+			if name := node.Name(); name != nil && ast.IsComputedPropertyName(name) {
+				descend(name.AsComputedPropertyName().Expression)
+			}
+			return
+		}
+		if node == root.Name() && ast.IsComputedPropertyName(node) {
+			return
+		}
+
+		if phase != nil && supportedBindingDeclaration(node) {
+			phase(sourceNormalPhase{node: node, role: sourceNormalAdmit})
+			descend(node.Initializer())
+			phase(sourceNormalPhase{node: node})
+			return
+		}
+		if phase != nil && ast.IsNewExpression(node) {
+			phase(sourceNormalPhase{node: node, role: sourceNormalAdmit})
+			descend(node.Expression())
+			phase(sourceNormalPhase{node: node})
+			if arguments := node.AsNewExpression().Arguments; arguments != nil {
+				for ordinal, argument := range arguments.Nodes {
+					descend(argument)
+					phase(sourceNormalPhase{node: node, argument: argument, role: sourceNormalArgumentEnd, ordinal: ordinal})
+				}
+			}
+			visit(node)
+			return
+		}
+		if phase != nil && ast.IsCallExpression(node) {
+			call := node.AsCallExpression()
+			phase(sourceNormalPhase{node: node, role: sourceNormalAdmit})
+			descend(call.Expression)
+			phase(sourceNormalPhase{node: node})
+			if call.Arguments != nil {
+				for ordinal, argument := range call.Arguments.Nodes {
+					phase(sourceNormalPhase{node: node, argument: argument, role: sourceNormalArgumentBegin, ordinal: ordinal})
+					func() {
+						completed := false
+						defer func() {
+							if !completed {
+								phase(sourceNormalPhase{node: node, argument: argument, role: sourceNormalArgumentAbort, ordinal: ordinal})
+							}
+						}()
+						descend(argument)
+						phase(sourceNormalPhase{node: node, argument: argument, role: sourceNormalArgumentEnd, ordinal: ordinal})
+						completed = true
+					}()
+				}
+			}
+			visit(node)
+			return
+		}
+		// Ordinary Gets and lexical writes consume their dependencies first.
+		if phase != nil && (ast.IsPropertyAccessExpression(node) || ast.IsElementAccessExpression(node) || ast.IsAssignmentExpression(node, false)) {
+			demand, dependent := describeNormalOperand(node)
+			node.ForEachChild(func(child *ast.Node) bool { descend(child); return false })
+			visit(node)
+			if operand != nil && dependent {
+				operand(demand)
+			}
+			return
+		}
+		if operand != nil && normalCalleeResultOperand(node) != nil {
+			callee := node.AsCallExpression().Expression
+			descend(callee)
+			if !visit(node) {
+				return
+			}
+			node.ForEachChild(func(child *ast.Node) bool {
+				if child != callee {
+					descend(child)
+				}
+				return false
+			})
 			return
 		}
 		if !visit(node) {
 			return
 		}
+		demand, dependent := describeNormalOperand(node)
+		if operand != nil && dependent && demand.pattern {
+			descend(demand.value)
+			operand(demand)
+			descend(node.AsBinaryExpression().Left)
+			return
+		}
 		node.ForEachChild(func(child *ast.Node) bool {
-			walk(child)
+			if sourceMemberOperationOwnsChild(node, child) && node != root {
+				return false
+			}
+			descend(child)
 			return false
 		})
+		if operand != nil && dependent {
+			operand(demand)
+		}
 	}
 	walk(root)
 }

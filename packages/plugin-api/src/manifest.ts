@@ -27,11 +27,11 @@ export function readExactPackageParticipation(
 	label = packageLabel(manifest)
 ): ExactPackageParticipation {
 	const exact = optionalRecord(manifest.exact, `${label}.exact`);
-	if (!exact) return Object.freeze({ configuration: Object.freeze({}) });
+	if (!exact) return { configuration: {} };
 	const plugin = readPlugin(exact.plugin, label);
 	const forwarding = readForwarding(exact.pluginForwarding, label);
 	const configuration = readConfiguration(exact.pluginConfiguration, label);
-	return Object.freeze({ plugin, forwarding, configuration });
+	return { plugin, forwarding, configuration };
 }
 
 /** Performs the package directly depends on plugin api domain operation. */
@@ -72,12 +72,12 @@ function readPlugin(value: unknown, label: string): ExactPluginDeclaration | und
 		assertPublicPackageSubpath(subpath, `${label}.exact.plugin.entries.${key}`);
 		entries[key] = subpath;
 	}
-	return Object.freeze({
+	return {
 		schemaVersion: exactPluginSchemaVersion,
 		protocolVersion,
 		configKey,
-		entries: Object.freeze(entries)
-	});
+		entries: entries
+	};
 }
 
 function readForwarding(
@@ -98,21 +98,22 @@ function readForwarding(
 		assertPackageName(name, `${label} forwarded package`);
 		const declaration = requiredRecord(raw, `${label} forwarding declaration for ${name}`);
 		assertOnlyKeys(declaration, ['required'], `${label} forwarding declaration for ${name}`);
-		if (declaration.required !== undefined && typeof declaration.required !== 'boolean') {
+		const required = declaration.required;
+		if (required !== undefined && typeof required !== 'boolean') {
 			throw new Error(`${label} forwarding declaration for ${name}.required must be boolean`);
 		}
-		include[name] = Object.freeze({ required: declaration.required });
+		include[name] = { required };
 	}
 	const ignore = readSelectors(record.ignore, `${label}.exact.pluginForwarding.ignore`);
 	for (const name of Object.keys(include)) {
 		if (matchesPackageSelectors(name, ignore))
 			throw new Error(`${label} cannot include and ignore ${name}`);
 	}
-	return Object.freeze({
+	return {
 		schemaVersion: exactPluginForwardingSchemaVersion,
-		include: Object.freeze(include),
+		include: include,
 		ignore
-	});
+	};
 }
 
 function readConfiguration(
@@ -120,7 +121,7 @@ function readConfiguration(
 	label: string
 ): Readonly<Record<string, ExactPluginConfigurationDeclaration>> {
 	const record = optionalRecord(value, `${label}.exact.pluginConfiguration`);
-	if (!record) return Object.freeze({});
+	if (!record) return {};
 	const result: Record<string, ExactPluginConfigurationDeclaration> = {};
 	for (const [name, raw] of Object.entries(record)) {
 		assertPackageName(name, `${label} configured plugin`);
@@ -142,7 +143,7 @@ function readConfiguration(
 		if (exportName !== 'default' && !/^[$A-Z_a-z][$\w]*$/.test(exportName)) {
 			throw new Error(`${label} configuration for ${name}.export must be an export name`);
 		}
-		result[name] = Object.freeze({
+		result[name] = {
 			...(declaration.version === undefined
 				? {}
 				: {
@@ -153,11 +154,12 @@ function readConfiguration(
 					}),
 			subpath,
 			export: exportName
-		});
+		};
 	}
-	return Object.freeze(result);
+	return result;
 }
 
 function packageLabel(manifest: ExactPackageManifest): string {
-	return typeof manifest.name === 'string' && manifest.name ? manifest.name : 'package.json';
+	const name = manifest.name;
+	return typeof name === 'string' && name ? name : 'package.json';
 }

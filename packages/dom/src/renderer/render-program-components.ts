@@ -1,4 +1,6 @@
-import { readCompiledComponentReceipt } from '@exactjs/core/runtime/component-operations';
+import { validateSuppliedPlacement } from './supplied-placement-capability.js';
+import { withDomWork } from './limits.js';
+import { readClientComponentInput } from './component-input-admission.js';
 import { readRenderProgramSlot } from '@exactjs/core/runtime/render-operations';
 import { peek, withEffectScope } from '@exactjs/reactive/framework/runtime';
 import { placeMountedBefore } from '../placement.js';
@@ -67,68 +69,90 @@ function prepareProgramComponentBinding(
 	}
 	releaseProgramChildStart(anchor);
 	let skipAdoptedInitialReceipt = initialBinding && childState.children.length !== 0;
-	return () => {
-		const value = withEffectScope(mounted.scope, () =>
-			readRenderProgramSlot(state.invocation, index)
-		);
-		const component = readCompiledComponentReceipt(value);
-		if (!component) return;
-		if (skipAdoptedInitialReceipt) {
-			skipAdoptedInitialReceipt = false;
-			childState.componentValue = component;
-			return;
-		}
-		peek(() => {
-			const current = childState.children.length === 1 ? childState.children[0] : undefined;
-			const parked = takeParkedOperation(
-				state.root,
-				value as import('@exactjs/core').Child,
-				state.parentInstance,
-				mounted.scope
+	return () =>
+		withDomWork(state.root, () => {
+			const attempt = state.root.componentInputAttempt;
+			validateSuppliedPlacement(state.parentInstance, state.root);
+			if (state.root.suppliedPlacementPlan?.pending && state.root.suppliedPlacementPlan.isCurrent())
+				state.root.suppliedPlacementPlan.retainChildren(mounted);
+			const value = withEffectScope(mounted.scope, () =>
+				readRenderProgramSlot(state.invocation, index)
 			);
 			if (
-				!parked &&
-				current?.clientArtifact &&
-				current.instance &&
-				current.componentReceipt &&
-				current.componentReceipt.contract.artifact === component.contract.artifact &&
-				current.componentReceipt.key === component.key &&
-				current.componentReceipt.domain === component.domain &&
-				!componentIdentityChanged(current, component.props)
-			) {
-				receiveComponentReceipt(current, component);
-			} else if (current) {
-				const replacement =
-					parked ??
-					mountComponentReceipt(
-						state.root,
-						component,
-						state.parentInstance,
-						mounted.scope,
-						childState.parent
-					);
-				placeMountedBefore(state.root, childState.parent, replacement, current.dom);
-				if (!releaseMountedRange(state.root, childState.parent, current, 'reconcile-replaced'))
-					disposeMounted(childState.parent, current);
-				childState.children[0] = replacement;
-			} else {
-				const child =
-					parked ??
-					mountComponentReceipt(
-						state.root,
-						component,
-						state.parentInstance,
-						mounted.scope,
-						childState.parent
-					);
-				placeMountedBefore(state.root, childState.parent, child, childState.before);
-				childState.children.push(child);
+				state.root.componentInputAttempt !== attempt ||
+				attempt?.disposed ||
+				!mounted.scope.active
+			)
+				return;
+			const component = readClientComponentInput(value);
+			if (!component) return;
+			if (skipAdoptedInitialReceipt) {
+				skipAdoptedInitialReceipt = false;
+				childState.componentValue = component;
+				return;
 			}
-			childState.componentValue = component;
-			childState.value = undefined;
-			refreshProgramMountedChildren(mounted);
+			peek(() => {
+				const current = childState.children.length === 1 ? childState.children[0] : undefined;
+				const parked = takeParkedOperation(
+					state.root,
+					value as import('@exactjs/core').Child,
+					state.parentInstance,
+					mounted.scope
+				);
+				if (
+					!parked &&
+					current?.clientArtifact &&
+					current.instance &&
+					current.componentReceipt &&
+					current.componentReceipt.contract.artifact === component.contract.artifact &&
+					current.componentReceipt.key === component.key &&
+					current.componentReceipt.domain === component.domain &&
+					!componentIdentityChanged(current, component.props)
+				) {
+					receiveComponentReceipt(current, component);
+				} else if (current) {
+					const replacement =
+						parked ??
+						mountComponentReceipt(
+							state.root,
+							component,
+							state.parentInstance,
+							mounted.scope,
+							childState.parent
+						);
+					placeMountedBefore(state.root, childState.parent, replacement, current.dom);
+					const plan = state.root.suppliedPlacementPlan;
+					if (plan?.pending && plan.isCurrent())
+						plan.remove(childState.parent, current, 'reconcile-replaced');
+					else if (
+						!releaseMountedRange(state.root, childState.parent, current, 'reconcile-replaced')
+					)
+						disposeMounted(childState.parent, current);
+					childState.children[0] = replacement;
+				} else {
+					const child =
+						parked ??
+						mountComponentReceipt(
+							state.root,
+							component,
+							state.parentInstance,
+							mounted.scope,
+							childState.parent
+						);
+					placeMountedBefore(state.root, childState.parent, child, childState.before);
+					childState.children.push(child);
+				}
+				if (
+					state.root.componentInputAttempt !== attempt ||
+					attempt?.disposed ||
+					!mounted.scope.active
+				)
+					return;
+				childState.componentValue = component;
+				childState.value = undefined;
+				refreshProgramMountedChildren(mounted);
+			});
 		});
-	};
 }
 
 /** Compares only identity inputs declared by the selected target artifact. */

@@ -1,5 +1,6 @@
 import {
 	fallbackEnhancementEntries,
+	enhancementFallbackTargets,
 	claimEnhancementFallback,
 	enhancementFallbackAvailable,
 	forwardEnhancementFallback,
@@ -14,8 +15,7 @@ import {
 	type EnhancementEntry
 } from '@exactjs/core';
 import {
-	readCompiledComponentReceipt,
-	readPreparedServerComponentReference,
+	inspectComponentInput,
 	readCompiledIntrinsicReceipt,
 	readCompiledFragmentReceipt,
 	readCompiledTargetReceipt,
@@ -51,11 +51,10 @@ export function checkpointBoundEnhancementTarget(context: SsrContext, key: objec
 /** Reads only compiler-owned child slots. Prop bags and nested component implementations stay opaque. */
 function candidate(value: unknown): Candidate | undefined {
 	if (typeof value !== 'object' || value === null) return undefined;
-	const component =
-		readCompiledComponentReceipt(value) ?? readPreparedServerComponentReference(value);
-	if (component)
+	const component = inspectComponentInput(value);
+	if (component.kind === 'component')
 		return {
-			key: component,
+			key: value,
 			marker: component.enhancement,
 			children: [],
 			component: true,
@@ -151,11 +150,7 @@ export function selectSsrEnhancementTargets(
 	for (const entry of entries) {
 		if (!enhancementFallbackAvailable(entry)) continue;
 		const selected = explicit.get(entry.identity);
-		const keys = selected
-			? [selected]
-			: fallbacks.length
-				? fallbacks
-				: [fragmentFallback ?? textFallback].filter((key): key is object => !!key);
+		const keys = enhancementFallbackTargets(selected, fallbacks, fragmentFallback ?? textFallback);
 		const routed = selected
 			? [claimEnhancementFallback(entry)]
 			: fallbackEnhancementEntries(entry, keys.length);

@@ -6,20 +6,19 @@ import { utf8ByteLength } from './utf8.js';
 export class DocumentStringSink implements SsrProgramSink {
 	private value = '';
 	private parts: string[] = [];
-	private remainingCharacters: number;
+	private characters = 0;
 	private closed = false;
 
-	constructor(private readonly maxBytes: number) {
-		this.remainingCharacters = maxBytes;
-	}
+	constructor(private readonly maxBytes: number) {}
 
 	/** Rejects the UTF-16 lower bound before retaining another complete span. */
 	write(html: string): void {
 		if (this.closed) throw new Error('SSR string sink is closed');
-		if (this.value.length + html.length > this.remainingCharacters) {
+		if (this.characters + html.length > this.maxBytes) {
 			this.destroy();
 			throw new SsrOutputLimitError(this.maxBytes);
 		}
+		this.characters += html.length;
 		if (html) this.value += html;
 	}
 
@@ -27,7 +26,6 @@ export class DocumentStringSink implements SsrProgramSink {
 	captureDocumentBoundary(): void {
 		if (this.closed) throw new Error('SSR string sink is closed');
 		this.parts.push(this.value);
-		this.remainingCharacters -= this.value.length;
 		this.value = '';
 	}
 
@@ -40,7 +38,7 @@ export class DocumentStringSink implements SsrProgramSink {
 	/** Transfers completed chunks after checking their combined UTF-8 limit, including prefix hints. */
 	finishChunks(prefix: readonly string[] = []): readonly string[] {
 		if (this.closed) throw new Error('SSR string sink is closed');
-		let characters = this.maxBytes - this.remainingCharacters + this.value.length;
+		let characters = this.characters;
 		for (const part of prefix) characters += part.length;
 		if (characters > this.maxBytes) {
 			this.destroy();

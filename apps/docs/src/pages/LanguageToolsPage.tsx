@@ -68,6 +68,26 @@ export function LanguageToolsPage(this: Component<{}>) {
 					Analysis runs only in trusted workspaces.
 				</p>
 				<p>
+					Closing and reopening a file starts a new document analysis session, even when the editor
+					uses the same version number. Pending diagnostics, hovers, completions, and inlay hints
+					from the previous session are discarded. Inlay hints also discard pending results when the
+					document changes.
+				</p>
+				<p>
+					When you add or remove workspace folders, Language Tools keeps your current unsaved text
+					in the newly selected project. Files in affected projects are prepared together before
+					language queries resume. Independent projects keep their existing sessions. Results from
+					projects that finish successfully remain available if another project reports an error. If
+					preparation fails, the affected project stays unavailable until a later explicit input or
+					folder change.
+				</p>
+				<p>
+					Removing a workspace retires its pending synchronization and package-provider queries.
+					Standard inlay hints read compiler and package data together, discarding both if their
+					project is no longer active when that read finishes. Refactor plans are also discarded if
+					their project retires or their document changes before planning finishes.
+				</p>
+				<p>
 					The{' '}
 					<a href="https://github.com/techjoshua/exact/tree/main/packages/vscode-extension">
 						extension guide
@@ -147,7 +167,10 @@ export function LanguageToolsPage(this: Component<{}>) {
 				<p>
 					Task diagnostics point to the local function, the call that starts it, and any explicit
 					<code>TaskContext</code> policy involved. Follow those locations to understand why the
-					compiler chose an execution environment or a dependency.
+					compiler chose an execution environment or a dependency. A local comment such as
+					<code>{'/** @exact ignore=EXACT2004 */'}</code> can acknowledge that specific compiler
+					advisory on its function definition. It does not hide errors or provider diagnostics and
+					does not change placement or task behavior.
 				</p>
 				<p>
 					Badges sit at token boundaries: before an assignment or immediately after a call's opening

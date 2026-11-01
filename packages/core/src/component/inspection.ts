@@ -1,3 +1,4 @@
+import { copyInspectionObservation } from './inspection-observations.js';
 import {
 	EXACT_DEVTOOLS_PROTOCOL_VERSION,
 	previewExactValue,
@@ -30,6 +31,7 @@ export type ExactRuntimeInspectionOwnerOptions = Readonly<{
 	executionRoot: string;
 	binding?: string;
 	side?: 'client' | 'server';
+	/** Server-side preview policy. Client inspection exposes values already delivered to the page. */
 	redact?: ExactValueRedactor;
 	/** Maximum task executions retained while an inspection session is attached. */
 	maxTaskExecutions?: number;
@@ -114,26 +116,24 @@ export function createExactRuntimeInspectionOwner(
 		},
 		publish(input) {
 			if (!sessionId || !sink) return;
-			const id = owner.identity(input.component, input);
-			if (!id) return;
-			const current = ++sequence;
 			try {
-				sink.publish(
-					Object.freeze({
-						protocol: EXACT_DEVTOOLS_PROTOCOL_VERSION,
-						cursor: current.toString(36),
-						sequence: current,
-						timestamp: monotonicTimestamp(),
-						wallTime: Date.now(),
-						kind: input.kind,
-						id,
-						...(input.requestId ? { requestId: input.requestId } : {}),
-						...(input.interactionId ? { interactionId: input.interactionId } : {}),
-						...(input.path ? { path: input.path } : {}),
-						...(input.reason ? { reason: input.reason } : {}),
-						...(input.attributes ? { attributes: Object.freeze({ ...input.attributes }) } : {})
-					} satisfies ExactRuntimeInspectionEvent)
-				);
+				const id = owner.identity(input.component, input);
+				if (!id) return;
+				const current = ++sequence;
+				sink.publish({
+					protocol: EXACT_DEVTOOLS_PROTOCOL_VERSION,
+					cursor: current.toString(36),
+					sequence: current,
+					timestamp: monotonicTimestamp(),
+					wallTime: Date.now(),
+					kind: input.kind,
+					id,
+					...(input.requestId ? { requestId: input.requestId } : {}),
+					...(input.interactionId ? { interactionId: input.interactionId } : {}),
+					...(input.path ? { path: input.path } : {}),
+					...(input.reason ? { reason: input.reason.slice(0, 1024) } : {}),
+					...(input.attributes ? { attributes: { ...input.attributes } } : {})
+				} satisfies ExactRuntimeInspectionEvent);
 			} catch {
 				// Inspection is observational and cannot participate in application errors.
 			}
@@ -141,27 +141,29 @@ export function createExactRuntimeInspectionOwner(
 		},
 		identity(component, details = {}) {
 			if (!sessionId) return undefined;
-			const authoredTypeName = component.type.name || 'anonymous-component';
-			return Object.freeze({
+			const type = component.type;
+			const authoredTypeName = inspectionComponentName(type, 'anonymous-component');
+			return {
 				sessionId,
 				side: owner.side,
 				...(owner.binding ? { binding: owner.binding } : {}),
 				buildKey: owner.buildKey,
 				executionRoot: owner.executionRoot,
-				componentTypeId: isExactComponent(component.type)
-					? exactComponentIdentity(component.type)
-					: authoredTypeName,
+				componentTypeId: isExactComponent(type) ? exactComponentIdentity(type) : authoredTypeName,
 				instanceId: component.id,
 				...(details.sourceEntityId ? { sourceEntityId: details.sourceEntityId } : {}),
 				...(details.operationId ? { operationId: details.operationId } : {}),
 				...(details.generation === undefined ? {} : { generation: details.generation })
-			});
+			};
 		},
 		preview(value, path = []) {
-			return previewExactValue(value, { redact: options.redact, path });
+			return previewExactValue(value, {
+				redact: owner.side === 'server' ? options.redact : undefined,
+				path
+			});
 		}
 	};
-	return Object.freeze(owner);
+	return owner;
 }
 
 /** Projects one component without exposing callbacks, controllers, scopes, or raw instances. */
@@ -180,14 +182,14 @@ export function inspectExactRuntimeComponent(
 	const owner = componentDomainInspection(component.domain);
 	const id = owner?.identity(component);
 	if (!owner || !id) return undefined;
-	return Object.freeze({
+	return copyInspectionObservation({
 		id,
 		...(options.parent ? { parent: options.parent } : {}),
-		name: component.type.name || 'Anonymous',
+		name: inspectionComponentName(component.type, 'Anonymous'),
 		status: options.status ?? (component.mounted ? 'mounted' : 'constructing'),
 		props: owner.preview(component.props, ['props']),
 		state: owner.preview(component.state, ['state']),
-		contexts: Object.freeze([...(options.contexts ?? inspectContexts(component, owner))]),
+		contexts: [...(options.contexts ?? inspectContexts(component, owner))],
 		tasks: mergeTaskSnapshots(
 			inspectRetainedTaskExecutions(owner, component),
 			inspectTaskFrameSnapshotsForHost(component, owner)
@@ -195,7 +197,7 @@ export function inspectExactRuntimeComponent(
 		...(options.activity ? { activity: options.activity } : {}),
 		...(options.suspense ? { suspense: options.suspense } : {}),
 		...(options.targetContributions?.length
-			? { targetContributions: Object.freeze([...options.targetContributions]) }
+			? { targetContributions: [...options.targetContributions] }
 			: {}),
 		ownedElements: options.ownedElements ?? 0
 	});
@@ -207,10 +209,7 @@ function mergeTaskSnapshots(
 ): readonly ExactTaskRuntimeSnapshot[] {
 	if (!active.length) return history;
 	const activeKeys = new Set(active.map(taskSnapshotKey));
-	return Object.freeze([
-		...active,
-		...history.filter((task) => !activeKeys.has(taskSnapshotKey(task)))
-	]);
+	return [...active, ...history.filter((task) => !activeKeys.has(taskSnapshotKey(task)))];
 }
 
 function taskSnapshotKey(task: ExactTaskRuntimeSnapshot): string {
@@ -223,39 +222,31 @@ function inspectContexts(
 ): ExactContextPreview[] {
 	const contexts: ExactContextPreview[] = [];
 	for (const token of component.contextTokens.values()) {
-		if (token.keep === 'secret') {
-			contexts.push(
-				Object.freeze({
-					name: token.description,
-					scope: token.scope,
-					availability: 'secret',
-					secretName: token.description
-				})
-			);
+		if (owner.side === 'server' && token.keep === 'secret') {
+			contexts.push({
+				name: token.description,
+				scope: token.scope,
+				availability: 'secret',
+				secretName: token.description
+			});
 			continue;
 		}
-		if (token.keep === 'server') {
-			contexts.push(
-				Object.freeze({
-					name: token.description,
-					scope: token.scope,
-					availability: 'resource',
-					type: 'server-resource'
-				})
-			);
+		if (owner.side === 'server' && token.keep === 'server') {
+			contexts.push({
+				name: token.description,
+				scope: token.scope,
+				availability: 'resource',
+				type: 'server-resource'
+			});
 			continue;
 		}
 		const value = resolveInspectedContext(component, token.id);
-		contexts.push(
-			Object.freeze({
-				name: token.description,
-				scope: token.scope,
-				availability: value.found ? 'value' : 'unavailable',
-				...(value.found
-					? { value: owner.preview(value.value, ['context', token.description]) }
-					: {})
-			})
-		);
+		contexts.push({
+			name: token.description,
+			scope: token.scope,
+			availability: value.found ? 'value' : 'unavailable',
+			...(value.found ? { value: owner.preview(value.value, ['context', token.description]) } : {})
+		});
 	}
 	return contexts;
 }
@@ -264,16 +255,26 @@ function resolveInspectedContext(
 	component: AnyComponentInstance,
 	token: symbol
 ): Readonly<{ found: boolean; value?: unknown }> {
-	if (component.contexts.has(token))
-		return Object.freeze({ found: true, value: component.contexts.get(token) });
+	if (component.contexts.has(token)) return { found: true, value: component.contexts.get(token) };
 	for (let cursor = component.parent; cursor; cursor = cursor.parent)
-		if (cursor.contexts.has(token))
-			return Object.freeze({ found: true, value: cursor.contexts.get(token) });
+		if (cursor.contexts.has(token)) return { found: true, value: cursor.contexts.get(token) };
 	if (component.ambientContexts?.has(token))
-		return Object.freeze({ found: true, value: component.ambientContexts.get(token) });
-	return Object.freeze({ found: false });
+		return { found: true, value: component.ambientContexts.get(token) };
+	return { found: false };
 }
 
 function monotonicTimestamp(): number {
 	return globalThis.performance?.now() ?? Date.now();
+}
+
+/** Selects string display metadata without invoking authored function accessors. */
+function inspectionComponentName(type: AnyComponentInstance['type'], fallback: string): string {
+	try {
+		const name = Object.getOwnPropertyDescriptor(type, 'name');
+		return name && 'value' in name && typeof name.value === 'string' && name.value
+			? name.value
+			: fallback;
+	} catch {
+		return fallback;
+	}
 }

@@ -4,14 +4,13 @@ import path from 'node:path';
 import ts from 'typescript';
 import { expect, it, onTestFinished } from 'vitest';
 import type { AnyComponentFunction } from '@exactjs/core';
-import { createCompiledComponentReceipt } from '@exactjs/core/runtime/component-operations';
+import { createCompiledComponentInputReceipt } from '@exactjs/core/runtime/component-operations';
 import { render, unmount } from '@exactjs/dom';
 import { renderToHydratableString } from '@exactjs/ssr';
 import { compileProjectArtifacts } from '../index.js';
 import { createTestWorkspace, writeTestFiles } from '../test-support/workspace.js';
 import { artifactAnalysis } from './analysis-results.js';
 import { importArtifact } from '../test-support/import-artifact.js';
-
 // Equivalent parameter annotations must not change a plain JSX helper's export surface.
 it.each([
 	['inline-props', '', 'props: { text: string }', 'props.text'],
@@ -64,7 +63,6 @@ it.each([
 		}
 	}
 );
-
 it.each([false, true])(
 	'executes imported inline-type JSX helpers (serverComponents=%s)',
 	async (serverComponents) => {
@@ -92,7 +90,7 @@ export function Page(this: Component<{ text: string }>) {
 		const page = results.find((result) => result.inputFile === files['Page.tsx'])!;
 		const server = await importArtifact(page.serverFile, path.join(root, 'server.mjs'));
 		const rendered = await renderToHydratableString(
-			createCompiledComponentReceipt(server.Page as AnyComponentFunction, {})
+			createCompiledComponentInputReceipt(server.Page as AnyComponentFunction, {})
 		);
 		const serverContainer = document.createElement('div');
 		serverContainer.innerHTML = rendered.htmlWithHydration;
@@ -102,13 +100,12 @@ export function Page(this: Component<{ text: string }>) {
 		onTestFinished(() => {
 			unmount(container);
 		});
-		render(createCompiledComponentReceipt(client.Page as AnyComponentFunction, {}), container);
+		render(createCompiledComponentInputReceipt(client.Page as AnyComponentFunction, {}), container);
 		expect(container.querySelector('p')?.textContent).toBe('initial');
 		container.querySelector('button')!.click();
 		await expect.poll(() => container.querySelector('p')?.textContent).toBe('updated');
 	}
 );
-
 it.each(['process.cwd()', 'window.name'])(
 	'does not borrow %s at the same offset in an unrelated module',
 	async (effect) => {

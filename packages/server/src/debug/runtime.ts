@@ -1,4 +1,5 @@
 import { createExactRuntimeInspectionOwner } from '@exactjs/core';
+import { isPromiseLike } from '@exactjs/core/framework/async-values';
 import {
 	exactDebugCapabilityForRequest,
 	isExactRuntimeInspectionEvent,
@@ -17,7 +18,9 @@ import type {
 } from '../types.js';
 import { createExactInspectionCatalogRegistry } from './catalog-registry.js';
 import { dispatchExactInspectionQuery } from './queries.js';
-import { createExactDebugSessionManager } from './sessions.js';
+import { createExactDebugSessionManager, type ExactDebugSession } from './sessions.js';
+import { debugRequestOrigin } from './request-origin.js';
+import { protocolUtf8ByteLength as utf8Length } from '@exactjs/core/framework/protocol-records';
 
 const debugRuntimes = new WeakMap<ExactServerContext, ExactServerDebugRuntime>();
 
@@ -55,7 +58,11 @@ export function createExactServerDebugRuntime(
 					? input.capabilities
 					: (['catalog', 'snapshot', 'events'] satisfies ExactDebugCapability[]);
 				const session = await sessions.open(request, requested);
-				if (!session || closed) return unavailable();
+				if (!session) return unavailable();
+				if (!sessionIsLive(session, request)) {
+					sessions.close(session.id);
+					return unavailable();
+				}
 
 				return jsonResponse(200, {
 					ok: true,
@@ -76,7 +83,7 @@ export function createExactServerDebugRuntime(
 				input.sessionId,
 				exactDebugCapabilityForRequest(input)
 			);
-			if (!session || closed) return unavailable();
+			if (!session || !sessionIsLive(session, request)) return unavailable();
 			const response = await dispatchExactInspectionQuery(session, input.query, {
 				context,
 				catalogs,
@@ -86,30 +93,36 @@ export function createExactServerDebugRuntime(
 				maxSnapshotBytes: limits.maxSnapshotBytes,
 				maxSourceExcerptBytes: limits.maxSourceExcerptBytes
 			});
-			audit(context, session.id, input.query.method, input.query.params?.identity, response);
-			return jsonResponse(
-				response.ok ? 200 : response.error === 'bad-request' ? 400 : 404,
-				response
-			);
+			// Query services can settle after their authorization owner has retired.
+			if (!sessionIsLive(session, request)) return unavailable();
+			audit(context, session.id, input.query.method, input.query.params?.identity, response.body);
+			return sessionIsLive(session, request) ? response : unavailable();
 		},
 		async authorize(request, input) {
-			if (closed || input.request === 'open' || input.request === 'close') return false;
+			if (
+				closed ||
+				!sameOrigin(request, context) ||
+				input.request === 'open' ||
+				input.request === 'close'
+			)
+				return false;
 			const session = await requireSession(
 				request,
 				input.sessionId,
 				exactDebugCapabilityForRequest(input)
 			);
-			return !!session && !closed;
+			return sessionIsLive(session, request);
 		},
 		async createRequestRuntime(request, sessionId) {
 			if (closed || !sameOrigin(request, context)) return undefined;
 			const session = await requireSession(request, sessionId, 'events');
-			return session && !closed
+			return session && sessionIsLive(session, request)
 				? createRequestDebugRuntime(
 						session.id,
 						limits.maxEvents,
 						limits.maxEventBytes,
-						requestHeader(request, 'x-exact-debug-binding')
+						requestHeader(request, 'x-exact-debug-binding'),
+						() => sessionIsLive(session, request)
 					)
 				: undefined;
 		},
@@ -124,9 +137,16 @@ export function createExactServerDebugRuntime(
 			return catalogs.register(catalog);
 		},
 		identityFor(sessionId, input) {
-			return Object.freeze({ sessionId, side: 'server', ...input });
+			return { sessionId, side: 'server', ...input };
 		}
 	};
+	/** Rechecks retained authorization after services and application callbacks can retire it. */
+	function sessionIsLive(
+		session: ExactDebugSession | undefined,
+		request: ExactRequestLike
+	): boolean {
+		return !!session && !closed && sessions.isActive(session) && !request.signal?.aborted;
+	}
 	function requireSession(
 		request: ExactRequestLike,
 		sessionId: string,
@@ -138,49 +158,62 @@ export function createExactServerDebugRuntime(
 			: sessions.require(request, sessionId, capability);
 	}
 
-	return Object.freeze(runtime);
+	return runtime;
 }
 
 function createRequestDebugRuntime(
 	sessionId: string,
 	maxEvents: number,
 	maxBytes: number,
-	binding?: string
+	binding: string | undefined,
+	isLive: () => boolean
 ): ExactServerRequestDebugRuntime {
-	const events: Array<{ event: ExactRuntimeInspectionEvent; bytes: number }> = [];
-	const owners = new Set<ReturnType<typeof createExactRuntimeInspectionOwner>>();
+	const events: Array<{ payload: string; bytes: number }> = [];
+	const encoder = new TextEncoder();
+	const owners = new Set<() => void>();
 	let retainedBytes = 0;
 	let sequence = 0;
 	let closed = false;
+	let retired = false;
 	const runtime: ExactServerRequestDebugRuntime = {
 		inspectionOwner(options) {
 			if (closed) throw new Error('Cannot inspect through a disposed request');
+			const { buildKey, executionRoot, binding: ownerBinding, ...extra } = options;
 			const owner = createExactRuntimeInspectionOwner({
-				...options,
-				...(binding ? { binding } : {}),
+				...extra,
+				buildKey,
+				executionRoot,
+				binding: binding || ownerBinding,
 				side: 'server'
 			});
-			owner.attach(sessionId, runtime);
-			owners.add(owner);
+			if (active()) {
+				owner.attach(sessionId, runtime);
+				const detach = owner.detach;
+				owners.add(() => Reflect.apply(detach, owner, [sessionId]));
+			}
 			return owner;
 		},
 		publish(event) {
-			if (closed || !isExactRuntimeInspectionEvent(event) || event.id.sessionId !== sessionId)
-				return;
-			retain(event);
+			if (!active()) return;
+			const payload = JSON.stringify(event);
+			const captured = JSON.parse(payload) as ExactRuntimeInspectionEvent;
+			if (!isExactRuntimeInspectionEvent(captured) || captured.id.sessionId !== sessionId) return;
+			retain(payload);
 		},
 		observe(event) {
-			if (closed) return;
+			if (!active()) return;
+			event = JSON.parse(JSON.stringify(event)) as typeof event;
+			if (!active()) return;
 			const current = ++sequence;
 			retain(
-				Object.freeze({
+				JSON.stringify({
 					protocol: 1,
 					cursor: current.toString(36),
 					sequence: current,
 					timestamp: globalThis.performance?.now() ?? Date.now(),
 					wallTime: Date.now(),
 					kind: event.kind,
-					id: Object.freeze({
+					id: {
 						sessionId,
 						side: 'server',
 						...((binding ?? event.binding) ? { binding: binding ?? event.binding } : {}),
@@ -191,7 +224,7 @@ function createRequestDebugRuntime(
 						...(event.sourceEntityId ? { sourceEntityId: event.sourceEntityId } : {}),
 						...(event.operationId ? { operationId: event.operationId } : {}),
 						...(event.generation === undefined ? {} : { generation: event.generation })
-					}),
+					},
 					...(event.requestId ? { requestId: event.requestId } : {}),
 					...(event.reason ? { reason: event.reason } : {}),
 					...(event.attributes ? { attributes: event.attributes } : {})
@@ -199,8 +232,10 @@ function createRequestDebugRuntime(
 			);
 		},
 		drain() {
-			if (closed || !events.length) return Object.freeze([]);
-			const drained = Object.freeze(events.map(({ event }) => event));
+			if (!active() || !events.length) return [];
+			const drained = events.map(
+				({ payload }) => JSON.parse(payload) as ExactRuntimeInspectionEvent
+			);
 			events.length = 0;
 			retainedBytes = 0;
 			return drained;
@@ -208,18 +243,33 @@ function createRequestDebugRuntime(
 		dispose() {
 			if (closed) return;
 			closed = true;
-			for (const owner of owners) owner.detach(sessionId);
-			owners.clear();
-			events.length = 0;
-			retainedBytes = 0;
+			release();
 		}
 	};
-	return Object.freeze(runtime);
+	return runtime;
 
-	function retain(event: ExactRuntimeInspectionEvent): void {
-		const bytes = new TextEncoder().encode(JSON.stringify(event)).byteLength;
+	/** Retires once, including after reentrant event capture, without canceling business work. */
+	function active(): boolean {
+		if (closed || retired) return false;
+		if (isLive()) return true;
+		retired = true;
+		release();
+		return false;
+	}
+
+	/** Releases request inspection resources independently of mutable public owner methods. */
+	function release(): void {
+		for (const detach of owners) detach();
+		owners.clear();
+		events.length = 0;
+		retainedBytes = 0;
+	}
+
+	function retain(payload: string): void {
+		if (!active()) return;
+		const bytes = encoder.encode(payload).byteLength;
 		if (bytes > maxBytes) return;
-		events.push({ event, bytes });
+		events.push({ payload, bytes });
 		retainedBytes += bytes;
 		while (events.length > maxEvents || retainedBytes > maxBytes)
 			retainedBytes -= events.shift()!.bytes;
@@ -228,16 +278,12 @@ function createRequestDebugRuntime(
 
 function sameOrigin(request: ExactRequestLike, context: ExactServerContext): boolean {
 	const origin = requestHeader(request, 'origin');
-	if (!origin)
+	if (origin === undefined)
 		return context.allowDebug !== undefined || context.debugSessionIdentity !== undefined;
 	try {
-		const configured =
-			typeof context.publicOrigin === 'string' || context.publicOrigin instanceof URL
-				? new URL(context.publicOrigin).origin
-				: request.url
-					? new URL(request.url, origin).origin
-					: undefined;
-		return !!configured && new URL(origin).origin === configured;
+		const configured = debugRequestOrigin(request, context);
+		const supplied = new URL(origin);
+		return !!configured && supplied.origin === configured && origin === supplied.origin;
 	} catch {
 		return false;
 	}
@@ -271,22 +317,20 @@ function audit(
 	sessionId: string,
 	method: string,
 	identity: ExactInspectionRuntimeId | undefined,
-	response: unknown
+	body: string
 ): void {
-	if (!context.onDebugAudit) return;
 	try {
-		context.onDebugAudit(
-			Object.freeze({
-				sessionId,
-				method,
-				...(identity?.binding ? { binding: identity.binding } : {}),
-				...(identity?.buildKey ? { buildKey: identity.buildKey } : {}),
-				...(identity?.executionRoot ? { executionRoot: identity.executionRoot } : {}),
-				resultBytes: new TextEncoder().encode(JSON.stringify(response)).byteLength
-			})
-		);
+		const notification = context.onDebugAudit?.({
+			sessionId,
+			method,
+			...(identity?.binding ? { binding: identity.binding } : {}),
+			...(identity?.buildKey ? { buildKey: identity.buildKey } : {}),
+			...(identity?.executionRoot ? { executionRoot: identity.executionRoot } : {}),
+			resultBytes: utf8Length(body)
+		});
+		if (isPromiseLike(notification)) void Promise.resolve(notification).catch(() => {});
 	} catch {
-		// Application audit failures cannot change an authorized read-only query.
+		// Notification failures leave live query authority intact.
 	}
 }
 

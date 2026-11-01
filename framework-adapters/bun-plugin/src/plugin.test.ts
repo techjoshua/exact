@@ -82,6 +82,76 @@ describe('@exactjs/bun-plugin', () => {
 		}
 	});
 
+	it.each([
+		{ mode: 'build', diagnostics: false, initial: 0 },
+		{ mode: 'build', diagnostics: true, initial: 1 },
+		{ mode: 'runtime', diagnostics: false, initial: 1 }
+	] as const)(
+		'distinguishes $mode source observations, diagnostics=$diagnostics',
+		async ({ mode, diagnostics, initial }) => {
+			const root = mkdtempSync(path.join(tmpdir(), 'exact-bun-source-observation-'));
+			const onProfile = vi.fn();
+			const plugin = exact({
+				applicationRoot: root,
+				include: path.join(root, 'selected'),
+				diagnostics,
+				reactCompatibility: false,
+				onProfile
+			});
+			let load!: (
+				args: BunLoadArgs
+			) => BunLoadResult | undefined | Promise<BunLoadResult | undefined>;
+			let start: (() => void | Promise<void>) | undefined;
+			const filename = path.join(root, 'outside.ts');
+			const first = 'export const value = 1;';
+			const next = 'export const value = 2;';
+			const invalidations = () =>
+				onProfile.mock.calls.filter(([event]) => event.phase === 'invalidate').length;
+			try {
+				writeFileSync(
+					path.join(root, 'package.json'),
+					JSON.stringify({ name: 'source-observation', private: true, type: 'module' })
+				);
+				writeFileSync(filename, first);
+				plugin.setup({
+					config: {},
+					onResolve() {},
+					onLoad(_options, handler) {
+						load = handler;
+					},
+					...(mode === 'build'
+						? {
+								onStart(handler: () => void | Promise<void>) {
+									start = handler;
+								}
+							}
+						: {})
+				});
+				await start?.();
+				await load({ path: filename, text: async () => first });
+				await load({ path: filename, text: async () => first });
+				expect(invalidations()).toBe(initial);
+				// A failed filesystem refresh must not record the proposed replacement bytes.
+				rmSync(filename);
+				mkdirSync(filename);
+				await expect(load({ path: filename, text: async () => next })).rejects.toThrow();
+				rmSync(filename, { recursive: true });
+				writeFileSync(filename, next);
+				await load({ path: filename, text: async () => next });
+				await load({ path: filename, text: async () => next });
+				expect(invalidations()).toBe(initial + 1);
+				if (start) {
+					await start();
+					await load({ path: filename, text: async () => next });
+					expect(invalidations()).toBe(initial + 1 + initial);
+				}
+			} finally {
+				await plugin.dispose();
+				rmSync(root, { recursive: true, force: true });
+			}
+		}
+	);
+
 	it('returns unchanged sources to runtime loaders while bundlers can fall through', async () => {
 		for (const bundler of [false, true]) {
 			const plugin = exact({ compileTestModules: true });
@@ -548,6 +618,16 @@ describe('@exactjs/bun-plugin', () => {
 			rmSync(model, { force: true });
 			rmSync(consumer, { force: true });
 		}
+	});
+
+	it('validates JSX ownership only for selected modules', () => {
+		const source =
+			'/** @jsxImportSource react */\n/** @jsxImportSource @exactjs/jsx */\nconst view = <span />;';
+		expect(transformExactBunSource(source, '/test/mixed.tsx', { include: '/src/' })).toBeNull();
+		expect(transformExactBunSource(source, '/src/mixed.tsx', { exclude: /mixed/ })).toBeNull();
+		expect(() => transformExactBunSource(source, '/src/mixed.tsx', { include: '/src/' })).toThrow(
+			/Mixed React and eXact/
+		);
 	});
 
 	it('registers React aliases and compiles React JSX to the compatibility runtime', async () => {

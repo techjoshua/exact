@@ -28,9 +28,11 @@ const movable = defineGesture({
 
 ## Runtime boundary
 
-The package normalizes pointer, hover, focus, keyboard, and pinch input into immutable semantic
-samples. Sessions own pointer capture, temporary policy, cancellation, coalesced move delivery, and
-cleanup. They do not own animation, simulation, or application data.
+Definitions and samples retain TypeScript readonly declarations without runtime freezing. Sample
+coordinates are detached from private session state. The package normalizes pointer, hover, focus,
+keyboard, and pinch input into semantic samples. Sessions own pointer capture, temporary policy, cancellation, coalesced move delivery, and
+cleanup. Updated inherited drag/press thresholds cancel the active gesture. They do not own
+animation, simulation, or application data.
 
 Use the explicit transparent `GestureElement` when recognition is functionally required. Vite
 activates reached attributed imports through the application bundle's local enhancement catalog.

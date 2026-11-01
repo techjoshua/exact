@@ -4,7 +4,8 @@ import path from 'node:path';
 import { createExactPublishedComponentBuildFacts } from '../component-library-build.js';
 import {
 	validatePublishedModuleArtifacts,
-	validatePublishedArtifactPath
+	validatePublishedArtifactPath,
+	validatePublishedSelectionEvidence
 } from './published-artifact-validation.js';
 import type { ExactArtifactGraphInput, ExactArtifactGraph } from '../types.js';
 import type { ExactPublishedComponentBuildFacts } from '../contracts/transform.js';
@@ -191,6 +192,7 @@ function readPublishedFacts(root: string): ExactPublishedComponentBuildFacts | u
 		validatePublishedArtifactPath(record.module);
 		validatePublishedArtifactPath(record.componentModule);
 	}
+	validatePublishedSelectionEvidence(facts.modules, facts.exports);
 	// Apply the same duplicate-selection and component-ownership rules as the publisher.
 	createExactPublishedComponentBuildFacts(facts);
 	return facts;

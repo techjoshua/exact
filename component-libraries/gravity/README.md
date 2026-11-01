@@ -19,7 +19,9 @@ const earth = uniformGravity({ x: 0, y: 980 }, { name: 'Earth gravity' });
 
 ## Runtime boundary
 
-Fields are immutable pure values that can be sampled without a world, DOM, or component. Gravity
+Fields can be sampled without a world, DOM, or component. Readonly metadata and sample vectors
+follow TypeScript's shallow guarantees. Runtime values remain ordinary objects, and each field
+sample returns an independent vector. Gravity
 registers named ordered force contributors into an existing physics world; it never starts a frame
 loop or integrates state. Uniform, directional, softened point, radial, bounded, and composite
 fields reject invalid numerical configuration before simulation.

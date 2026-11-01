@@ -1,7 +1,7 @@
+import { disposeReactMounts, rollbackReactMounts } from './teardown.js';
 import type { AnyReactComponentType, ReactElement, ReactNode } from '@exactjs/react-compat';
 import {
 	constructReactRendererComponent,
-	disposeReactRendererComponent,
 	finishReactRendererComponentTransition,
 	exactComponentType,
 	isReactElement,
@@ -20,62 +20,54 @@ import {
 } from '@exactjs/react-compat/exact';
 import { mountCompatibilityRange } from '@exactjs/dom/runtime/compatibility-ranges';
 import type { ReactMounted, ReactRenderContext } from './types.js';
-import {
-	applyReactHostProps,
-	finalizeReactHostProps,
-	releaseReactHostProps
-} from './host-properties.js';
+import { applyReactHostProps, finalizeReactHostProps } from './host-properties.js';
 import {
 	canPatchReactNode,
 	dangerousHtml,
 	hostNamespace,
 	normalizeReactChildren,
 	reactElementProps,
-	reactNodeKey,
 	type NormalizedReactNode
 } from './react-node.js';
-import {
-	placeReactRange,
-	removeReactRange,
-	retargetReactMountedParent,
-	setReactRangeHidden
-} from './range.js';
+import { placeReactMounts, retargetReactMountedParent, setReactRangeHidden } from './range.js';
 import { mountReactPortal } from './portal.js';
 import { firstReactHostNode, retainReactComponentDomNode } from './component-dom-node.js';
 
-/** Reconciles one React-owned sibling list without entering native eXact execution. */
+/**
+ * Reconciles one React-owned sibling list without entering native eXact execution.
+ * Publishes the accepted child array before retiring old ranges so cleanup failure cannot orphan it.
+ */
 export function reconcileReactChildren(
 	context: ReactRenderContext,
 	previous: readonly ReactMounted[],
 	value: ReactNode,
-	before: Node | null = null
+	before: Node | null = null,
+	publish?: (next: ReactMounted[]) => void
 ): ReactMounted[] {
 	const next = normalizeReactChildren(value);
-	const keyed = new Map<string, ReactMounted>();
-	const unkeyed: ReactMounted[] = [];
-	for (const mounted of previous) {
-		if (mounted.key === undefined) unkeyed.push(mounted);
-		else keyed.set(mounted.key, mounted);
-	}
+	const keyed = new Map(previous.map((mounted) => [mounted.key, mounted]));
 	const retained = new Set<ReactMounted>();
 	const result: ReactMounted[] = [];
-	let unkeyedIndex = 0;
-	for (const node of next) {
-		const key = reactNodeKey(node);
-		const candidate = key === undefined ? unkeyed[unkeyedIndex++] : keyed.get(key);
-		const mounted =
-			candidate && canPatchReactNode(candidate, node)
-				? patchReactNode(context, candidate, node)
-				: mountReactNode(context, node, before);
-		if (candidate && mounted === candidate) retained.add(candidate);
-		result.push(mounted);
+	const created: ReactMounted[] = [];
+	try {
+		for (const { node, key } of next) {
+			const candidate = keyed.get(key);
+			const mounted =
+				candidate && canPatchReactNode(candidate, node)
+					? patchReactNode(context, candidate, node)
+					: mountReactNode(context, node, before);
+			mounted.key = key;
+			if (candidate && mounted === candidate) retained.add(candidate);
+			else created.push(mounted);
+			result.push(mounted);
+		}
+		placeReactMounts(context.parent, result, before);
+	} catch (error) {
+		rollbackReactMounts(created, error);
 	}
-	for (const mounted of previous) if (!retained.has(mounted)) disposeReactMounted(mounted);
-	let cursor = before;
-	for (let index = result.length - 1; index >= 0; index--) {
-		placeReactRange(context.parent, result[index]!, cursor);
-		cursor = result[index]!.dom;
-	}
+
+	publish?.(result);
+	disposeReactMounts(previous, retained);
 	return result;
 }
 
@@ -103,28 +95,19 @@ function mountReactNode(
 			kind: 'native',
 			dom: range.start,
 			end: range.end,
-			...(node.key === null ? {} : { key: String(node.key) }),
 			type: node.type,
 			children: [],
 			nativeRange: range
 		};
 	}
 	const props = reactElementProps(node);
-	const key = node.key === null ? undefined : String(node.key);
-	if (typeof node.type === 'string') return mountHost(context, node.type, props, key, before);
+	if (typeof node.type === 'string') return mountHost(context, node.type, props, before);
 	if (node.type === REACT_FRAGMENT_TYPE || node.type === REACT_STRICT_MODE_TYPE)
-		return mountFragment(context, props.children as ReactNode, key, before);
+		return mountFragment(context, props.children as ReactNode, before);
 	if (node.type === REACT_SUSPENSE_TYPE)
-		return mountComponent(context, REACT_SUSPENSE_TYPE, props, key, before);
+		return mountComponent(context, REACT_SUSPENSE_TYPE, props, before);
 	if (node.type === REACT_ACTIVITY_TYPE) {
-		const mounted = mountFragment(
-			context,
-			props.children as ReactNode,
-			key,
-			before,
-			node.type,
-			props
-		);
+		const mounted = mountFragment(context, props.children as ReactNode, before, node.type, props);
 		setReactRangeHidden(mounted, props.mode === 'hidden');
 		return mounted;
 	}
@@ -135,14 +118,13 @@ function mountReactNode(
 		| symbol;
 	if (typeof type === 'symbol' && type !== REACT_PROFILER_TYPE)
 		throw new TypeError(`Unsupported React element type ${type.description ?? String(type)}`);
-	return mountComponent(context, type, props, key, before);
+	return mountComponent(context, type, props, before);
 }
 
 function mountHost(
 	context: ReactRenderContext,
 	tag: string,
 	props: Record<string, unknown>,
-	key: string | undefined,
 	before: Node | null
 ): ReactMounted {
 	const document = context.parent.ownerDocument!;
@@ -151,29 +133,35 @@ function mountHost(
 	const mounted: ReactMounted = {
 		kind: 'host',
 		dom,
-		...(key === undefined ? {} : { key }),
 		type: tag,
+		renderContext: context,
 		props,
 		children: []
 	};
-	applyReactHostProps(dom, {}, props);
-	context.parent.insertBefore(dom, before);
-	const html = dangerousHtml(props);
-	if (html !== undefined) dom.innerHTML = html;
-	else
-		mounted.children = reconcileReactChildren(
-			{ ...context, parent: dom },
-			[],
-			props.children as ReactNode
-		);
-	finalizeReactHostProps(dom, props);
-	return mounted;
+	try {
+		applyReactHostProps(dom, {}, props, context);
+		context.parent.insertBefore(dom, before);
+		const html = dangerousHtml(props);
+		mounted.rawHtml = html !== undefined;
+		if (html !== undefined) dom.innerHTML = html;
+		else
+			reconcileReactChildren(
+				{ ...context, parent: dom },
+				[],
+				props.children as ReactNode,
+				null,
+				(next) => (mounted.children = next)
+			);
+		finalizeReactHostProps(dom, props);
+		return mounted;
+	} catch (error) {
+		return rollbackReactMounts([mounted], error);
+	}
 }
 
 function mountFragment(
 	context: ReactRenderContext,
 	children: ReactNode,
-	key: string | undefined,
 	before: Node | null,
 	type: ReactElement['type'] = REACT_FRAGMENT_TYPE,
 	props: Record<string, unknown> = { children }
@@ -187,20 +175,22 @@ function mountFragment(
 		kind: 'fragment',
 		dom: start,
 		end,
-		...(key === undefined ? {} : { key }),
 		type,
 		props,
 		children: []
 	};
-	mounted.children = reconcileReactChildren(context, [], children, end);
-	return mounted;
+	try {
+		reconcileReactChildren(context, [], children, end, (next) => (mounted.children = next));
+		return mounted;
+	} catch (error) {
+		return rollbackReactMounts([mounted], error);
+	}
 }
 
 function mountComponent(
 	context: ReactRenderContext,
 	type: AnyReactComponentType | symbol,
 	props: Record<string, unknown>,
-	key: string | undefined,
 	before: Node | null
 ): ReactMounted {
 	const document = context.parent.ownerDocument!;
@@ -218,7 +208,6 @@ function mountComponent(
 		kind: 'component',
 		dom: start,
 		end,
-		...(key === undefined ? {} : { key }),
 		type,
 		props,
 		children: [],
@@ -261,15 +250,19 @@ function mountComponent(
 					);
 					suspension = readReactRendererSuspension(instance);
 					if (suspension?.suspended) {
-						for (const child of candidate) disposeReactMounted(child);
+						disposeReactMounts(candidate);
 					} else {
-						for (const child of mounted.children) disposeReactMounted(child);
+						try {
+							placeReactMounts(context.parent, candidate, mounted.end ?? null);
+							for (const child of candidate) retargetReactMountedParent(child, context.parent);
+						} catch (error) {
+							rollbackReactMounts(candidate, error);
+						}
+						const previous = mounted.children;
 						mounted.children = candidate;
 						mounted.suspenseFallback = false;
-						for (const child of candidate) {
-							placeReactRange(context.parent, child, mounted.end ?? null);
-							retargetReactMountedParent(child, context.parent);
-						}
+						// Accepted content remains owned even when superseded ref cleanup fails.
+						disposeReactMounts(previous);
 					}
 				}
 				if (
@@ -284,11 +277,12 @@ function mountComponent(
 						mounted.releaseSuspenseTransition = transition.retain();
 					}
 				} else {
-					mounted.children = reconcileReactChildren(
+					reconcileReactChildren(
 						{ ...mounted.renderContext!, owner: instance, transition },
 						mounted.children,
 						output,
-						mounted.end ?? null
+						mounted.end ?? null,
+						(next) => (mounted.children = next)
 					);
 					if (type === REACT_SUSPENSE_TYPE)
 						mounted.suspenseFallback = suspension?.suspended === true;
@@ -314,10 +308,7 @@ function mountComponent(
 		mountReactRendererComponent(instance);
 		return mounted;
 	} catch (error) {
-		disposeReactRendererComponent(instance);
-		start.remove();
-		end.remove();
-		throw error;
+		return rollbackReactMounts([mounted], error);
 	}
 }
 
@@ -331,10 +322,12 @@ function patchReactNode(
 		return mounted;
 	}
 	if (isReactPortal(node)) {
-		mounted.children = reconcileReactChildren(
+		reconcileReactChildren(
 			{ ...context, parent: mounted.portalTarget! },
 			mounted.children,
-			node.children
+			node.children,
+			null,
+			(next) => (mounted.children = next)
 		);
 		return mounted;
 	}
@@ -348,18 +341,23 @@ function patchReactNode(
 	if (mounted.kind === 'host') {
 		const element = mounted.dom as Element;
 		const previous = mounted.props ?? {};
-		applyReactHostProps(element, previous, props);
+		mounted.renderContext = context;
+		applyReactHostProps(element, previous, props, context);
+		const previousRawHtml = mounted.rawHtml;
 		const html = dangerousHtml(props);
+		mounted.rawHtml = html !== undefined;
 		if (html !== undefined) {
-			for (const child of mounted.children) disposeReactMounted(child);
+			disposeReactMounts(mounted.children);
 			mounted.children = [];
 			if (element.innerHTML !== html) element.innerHTML = html;
 		} else {
-			if (dangerousHtml(previous) !== undefined) element.textContent = '';
-			mounted.children = reconcileReactChildren(
+			if (previousRawHtml) element.textContent = '';
+			reconcileReactChildren(
 				{ ...context, parent: element },
 				mounted.children,
-				props.children as ReactNode
+				props.children as ReactNode,
+				null,
+				(next) => (mounted.children = next)
 			);
 		}
 		mounted.props = props;
@@ -367,11 +365,12 @@ function patchReactNode(
 		return mounted;
 	}
 	if (mounted.kind === 'fragment') {
-		mounted.children = reconcileReactChildren(
+		reconcileReactChildren(
 			context,
 			mounted.children,
 			props.children as ReactNode,
-			mounted.end ?? null
+			mounted.end ?? null,
+			(next) => (mounted.children = next)
 		);
 		mounted.props = props;
 		if (node.type === REACT_ACTIVITY_TYPE) setReactRangeHidden(mounted, props.mode === 'hidden');
@@ -390,17 +389,4 @@ function patchReactNode(
 		return mounted;
 	}
 	return mounted;
-}
-
-/** Disposes a complete React-owned range and every component resource below it. */
-export function disposeReactMounted(mounted: ReactMounted): void {
-	if (mounted.disposed) return;
-	mounted.disposed = true;
-	if (mounted.kind === 'host') releaseReactHostProps(mounted.dom as Element, mounted.props ?? {});
-	mounted.releaseComponentDomNode?.();
-	if (mounted.instance) disposeReactRendererComponent(mounted.instance);
-	mounted.releaseSuspenseTransition?.();
-	if (mounted.nativeRange) mounted.nativeRange.dispose();
-	for (const child of mounted.children) disposeReactMounted(child);
-	removeReactRange(mounted);
 }

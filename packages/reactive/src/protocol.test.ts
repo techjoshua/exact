@@ -1,4 +1,9 @@
+import { encodeValidatedReactiveCollection } from './framework/protocol.js';
 import { describe, expect, it } from 'vitest';
+import {
+	malformedCollectionEnvelopes,
+	verifyReactiveProtocolCollections
+} from '../../component-composition-corpus/test-support/reactive-protocol-journey.js';
 import {
 	decodeReactiveProtocolValue,
 	encodeReactiveProtocolValue,
@@ -7,6 +12,18 @@ import {
 } from './index.js';
 
 describe('@exactjs/reactive protocol', () => {
+	it.each(malformedCollectionEnvelopes())('rejects missing own slots in %s', (_name, envelope) => {
+		expect(() => decodeReactiveProtocolValue(envelope)).toThrow(/Malformed eXact/);
+	});
+	it('preserves collections and metadata across recursive transport', () => {
+		verifyReactiveProtocolCollections({
+			encodeValidatedReactiveCollection,
+			decodeReactiveProtocolValue,
+			encodeReactiveProtocolValue,
+			reactive,
+			registerReactiveListKey
+		});
+	});
 	it('round-trips keyed collections through a transparent protocol envelope', () => {
 		const records = [
 			{ id: 'a', title: 'A' },

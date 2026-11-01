@@ -28,6 +28,43 @@ async function invoke(
 }
 
 describe('opaque binding gateway', () => {
+	it('keeps rejection observations independent from the transport error', async () => {
+		let observed: string | undefined;
+		const gateway = createExactBindingGateway({
+			bindings: {},
+			onReject(event) {
+				const alias: { reason: string } = event;
+				alias.reason = 'annotated';
+				observed = event.reason;
+			}
+		});
+		const response = await gateway.forward(
+			{ method: 'POST', headers: { 'x-exact-binding': 'unknown' } },
+			'',
+			context()
+		);
+		expect(response.status).toBe(404);
+		expect(JSON.parse(response.body as string)).toEqual({ error: 'unknown_binding' });
+		expect(observed).toBe('annotated');
+	});
+
+	it('allows an application to decorate its gateway method', async () => {
+		const gateway = createExactBindingGateway({ bindings: {} });
+		const forward = gateway.forward;
+		let calls = 0;
+		gateway.forward = (...args) => {
+			calls++;
+			return forward(...args);
+		};
+		expect((await gateway.forward({ method: 'POST', headers: {} }, '', context())).status).toBe(
+			400
+		);
+		expect((await gateway.forward({ method: 'POST', headers: {} }, '', context())).status).toBe(
+			400
+		);
+		expect(calls).toBe(2);
+	});
+
 	it('preserves payload and response text without local operation authorization', async () => {
 		const fetch = vi.fn(
 			async (_url: string | URL | Request, _init?: RequestInit) =>
@@ -156,7 +193,9 @@ describe('opaque binding gateway', () => {
 		const result = await invoke(async () => new Response(source), {
 			limits: { maxResponseBytes: 4 }
 		});
-		await expect(exactResponseToFetchResponse(result).text()).rejects.toThrow('byte limit');
+		await expect(exactResponseToFetchResponse(result).text()).rejects.toThrow(
+			/maxResponseBytes: actual 5 upstream bytes, configured cap 4/
+		);
 		expect(cancel).toHaveBeenCalledOnce();
 	});
 	it('propagates downstream cancellation', async () => {

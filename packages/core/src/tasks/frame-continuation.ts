@@ -1,12 +1,20 @@
+import { sharedTaskRuntimeState } from './runtime-state.js';
+import { taskResourceOwnerSignal } from './resource-owner-signals.js';
 import type { TaskFrameRecord } from './frame-contracts.js';
 
-const framesBySignal = new WeakMap<AbortSignal, TaskFrameRecord>();
-const pendingResumptions: Array<{
-	readonly frame: TaskFrameRecord;
-	readonly resume: () => void;
-	readonly enter: (frame: TaskFrameRecord | undefined) => () => void;
-}> = [];
-let resumptionScheduled = false;
+const framesBySignal = sharedTaskRuntimeState(
+	'signal-frames',
+	() => new WeakMap<AbortSignal, TaskFrameRecord>()
+);
+const continuationState = sharedTaskRuntimeState('continuation-resumptions', () => ({
+	pending: [] as Array<{
+		readonly frame: TaskFrameRecord;
+		readonly resume: () => void;
+		readonly enter: (frame: TaskFrameRecord | undefined) => () => void;
+	}>,
+	scheduled: false
+}));
+const pendingResumptions = continuationState.pending;
 
 /** Associates a frame signal with the frame restored after compiler-lowered awaits. */
 export function registerTaskFrameSignal(signal: AbortSignal, frame: TaskFrameRecord): void {
@@ -18,20 +26,25 @@ export function releaseTaskFrameSignal(signal: AbortSignal): void {
 	framesBySignal.delete(signal);
 }
 
+/** Finds active frame ownership retained by an original or adapted resource signal. */
+export function frameForTaskSignal(signal: AbortSignal): TaskFrameRecord | undefined {
+	return framesBySignal.get(taskResourceOwnerSignal(signal));
+}
+
 /** Queues one serialized continuation resumption for the frame owning a task signal. */
 export function resumeTaskFrameContinuation(
 	signal: AbortSignal,
 	resume: () => void,
 	enter: (frame: TaskFrameRecord | undefined) => () => void
 ): void {
-	const frame = framesBySignal.get(signal);
+	const frame = frameForTaskSignal(signal);
 	if (!frame || frame.settled) {
 		resume();
 		return;
 	}
 	pendingResumptions.push({ frame, resume, enter });
-	if (resumptionScheduled) return;
-	resumptionScheduled = true;
+	if (continuationState.scheduled) return;
+	continuationState.scheduled = true;
 	// The promise-resolution job is already an asynchronous boundary. Enter the uncontended first
 	// continuation there and retain the queue only for resolutions that overlap its authored job.
 	runNextTaskResumption();
@@ -41,7 +54,7 @@ export function resumeTaskFrameContinuation(
 function runNextTaskResumption(): void {
 	const next = pendingResumptions.shift();
 	if (!next) {
-		resumptionScheduled = false;
+		continuationState.scheduled = false;
 		return;
 	}
 	let leave: (() => void) | undefined;
@@ -57,7 +70,7 @@ function runNextTaskResumption(): void {
 				leave?.();
 			} finally {
 				if (pendingResumptions.length) queueMicrotask(runNextTaskResumption);
-				else resumptionScheduled = false;
+				else continuationState.scheduled = false;
 			}
 		});
 	}

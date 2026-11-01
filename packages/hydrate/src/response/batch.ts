@@ -1,3 +1,4 @@
+import { responseResourceBudget, responseGraphLimits } from '../response-resources.js';
 import type {
 	ExactInvocationRequest,
 	ExactOperationResult
@@ -13,14 +14,15 @@ export function parseExactBatchResponse(
 	expected?: readonly ExactInvocationRequest[],
 	limits: ResponseLimits = {}
 ): ExactOperationResult[] {
+	limits = { ...limits, resources: limits.resources ?? responseResourceBudget(limits.logger) };
 	const message = 'eXact batch invocation returned malformed results';
 	body = decodeBoundedReactiveProtocolValue(
 		body,
-		{
-			maxDepth: limits.maxJsonDepth,
-			maxNodes: limits.maxJsonNodes,
-			maxBytes: limits.maxBytes
-		},
+		responseGraphLimits(
+			limits,
+			limits.resources ?? responseResourceBudget(limits.logger),
+			'operation response graph'
+		),
 		() => new Error(message)
 	);
 	if (!body || typeof body !== 'object' || Array.isArray(body)) throw new Error(message);
@@ -31,6 +33,10 @@ export function parseExactBatchResponse(
 	if (!Array.isArray(record.results)) throw new Error(message);
 	if (expected && record.results.length !== expected.length) throw new Error(message);
 	return record.results.map((result, index) =>
-		parseExactOperationResult(result, expected?.[index], limits)
+		parseExactOperationResult(result, expected?.[index], {
+			...limits,
+			arrayCompletion: limits.arrayCompletions?.[index],
+			arrayCompletions: undefined
+		})
 	);
 }

@@ -44,3 +44,11 @@ export {
 	opaqueOperationDomain,
 	opaqueOperationKey
 } from '../component-abi/opaque-operation.js';
+
+export { acquireComponentPropInputs } from '../component-abi/component-props.js';
+
+export {
+	compiledElementIdentity,
+	physicalElementIdentity,
+	isReservedElementIdentityName
+} from '../component-abi/element-identity.js';

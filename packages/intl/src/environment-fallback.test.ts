@@ -1,3 +1,5 @@
+import { verifyIntlScopedSources } from '../../component-composition-corpus/test-support/intl-measurement-journey.mjs';
+import { registerIntlArtifacts, snapshotIntlArtifacts } from './artifacts.js';
 import { describe, expect, it, vi } from 'vitest';
 import { computed } from '@exactjs/reactive';
 import { createEffectScope, withEffectScope } from '@exactjs/reactive/framework/runtime';
@@ -127,4 +129,84 @@ describe('environment locale fallback reuse', () => {
 		first.setLocale('de-DE');
 		expect(second.state.locale).toBe(locale);
 	});
+});
+
+describe('generated sources in existing locale scopes', () => {
+	it('adopts lazy catalogs and later generations without recreating a scope', () => {
+		const environment = createIntlEnvironment({ locale: 'en-US' });
+		const french = environment.forLocale('fr-FR');
+		const canadian = french.forLocale('fr-CA');
+		registerIntlArtifacts('scope-lazy-owned', 1, [descriptor], [catalog('fr', 'Bonjour')]);
+		try {
+			expect(french.find(descriptor.owner, descriptor.key)).toEqual([
+				{ kind: 'text', value: 'Bonjour' }
+			]);
+			expect(canadian.find(descriptor.owner, descriptor.key)).toEqual([
+				{ kind: 'text', value: 'Bonjour' }
+			]);
+			registerIntlArtifacts('scope-lazy-owned', 2, [descriptor], [catalog('fr', 'Salut')]);
+			expect(french.find(descriptor.owner, descriptor.key)).toEqual([
+				{ kind: 'text', value: 'Salut' }
+			]);
+			expect(environment.forLocale('fr-FR')).toBe(french);
+		} finally {
+			registerIntlArtifacts('scope-lazy-owned', 3, [], []);
+		}
+	});
+
+	it('preserves scoped manual overlays while generated sources refresh', () => {
+		registerIntlArtifacts('scope-manual-owned', 1, [descriptor], [catalog('fr', 'Generated')]);
+		try {
+			const environment = createIntlEnvironment({ locale: 'en-US' });
+			const french = environment.forLocale('fr-FR');
+			french.addCatalog(catalog('fr', 'Scoped'));
+			const canadian = french.forLocale('fr-CA');
+			registerIntlArtifacts(
+				'scope-manual-owned',
+				2,
+				[descriptor],
+				[catalog('fr', 'New generated')]
+			);
+			expect(french.find(descriptor.owner, descriptor.key)).toEqual([
+				{ kind: 'text', value: 'Scoped' }
+			]);
+			expect(canadian.find(descriptor.owner, descriptor.key)).toEqual([
+				{ kind: 'text', value: 'Scoped' }
+			]);
+			environment.addCatalog(catalog('fr', 'Parent update'));
+			expect(canadian.find(descriptor.owner, descriptor.key)).toEqual([
+				{ kind: 'text', value: 'Parent update' }
+			]);
+		} finally {
+			registerIntlArtifacts('scope-manual-owned', 3, [], []);
+		}
+	});
+
+	it('retains explicitly configured source isolation', () => {
+		const environment = createIntlEnvironment({
+			locale: 'en-US',
+			descriptors: [descriptor],
+			catalogs: [catalog('fr', 'Configured')]
+		});
+		const french = environment.forLocale('fr-FR');
+		registerIntlArtifacts(
+			'scope-configured-control',
+			1,
+			[descriptor],
+			[catalog('fr', 'Generated')]
+		);
+		try {
+			expect(french.find(descriptor.owner, descriptor.key)).toEqual([
+				{ kind: 'text', value: 'Configured' }
+			]);
+		} finally {
+			registerIntlArtifacts('scope-configured-control', 2, [], []);
+		}
+	});
+});
+
+it('matches the public cross-runtime scoped source journey', () => {
+	expect(
+		verifyIntlScopedSources({ createIntlEnvironment, registerIntlArtifacts, snapshotIntlArtifacts })
+	).toBe(true);
 });

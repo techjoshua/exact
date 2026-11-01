@@ -1,3 +1,5 @@
+import { PreparedComponentOccurrences } from './prepared-component-occurrences.js';
+import { readClientComponentInput } from './component-input-admission.js';
 import { movePreparedEnhancement } from './prepared-enhancement-move.js';
 import {
 	attachSuppressedCleanupFailure,
@@ -14,10 +16,9 @@ import {
 } from '@exactjs/core/framework/render-structure';
 import {
 	createChildRangeReceipt,
-	createCompiledComponentReceipt,
+	createCompiledComponentInputReceipt,
 	createCompiledFragmentPresentation,
 	createCompiledFragmentReceipt,
-	readCompiledComponentReceipt,
 	readCompiledFragmentReceipt,
 	withTransparentComponentUpdateOwner
 } from '@exactjs/core/runtime/component-operations';
@@ -63,7 +64,7 @@ export function mountPreparedFragmentEnhancements(
 	let currentTarget = target;
 	registerEffectScopeCleanup(scope, () => hosts.dispose());
 	const previous = root.preparedComponents;
-	const pending = new Map(previous);
+	const pending = new PreparedComponentOccurrences(previous);
 	try {
 		return withEffectScope(scope, () =>
 			withComponentDomain(domain, () => {
@@ -107,11 +108,15 @@ export function mountPreparedFragmentEnhancements(
 					if (!component) throw new Error(`Prepared enhancement is unavailable: ${entry.identity}`);
 					const child = chain;
 					chain = withTransparentComponentUpdateOwner(
-						createCompiledComponentReceipt(component, { ...entry.props }, child)
+						createCompiledComponentInputReceipt(
+							component,
+							{ ...entry.props },
+							{ kind: 'eager', values: [child] }
+						)
 					);
 					receipts.unshift({
 						operation: chain,
-						receipt: readCompiledComponentReceipt(chain)!,
+						receipt: readClientComponentInput(chain)!,
 						child,
 						entry
 					});
@@ -202,18 +207,18 @@ export function mountPreparedFragmentEnhancements(
 						}
 						const operation = withComponentDomain(domain, () =>
 							withTransparentComponentUpdateOwner(
-								createCompiledComponentReceipt(
+								createCompiledComponentInputReceipt(
 									root.enhancementCatalog!.get(entry.identity)!,
 									{ ...entry.props },
-									child
+									{ kind: 'eager', values: [child] }
 								)
 							)
 						);
-						const pendingInsertion = new Map(root.preparedComponents);
+						const pendingInsertion = new PreparedComponentOccurrences(root.preparedComponents);
 						const added = prepareFragmentOwner(
 							root,
 							operation,
-							readCompiledComponentReceipt(operation)!,
+							readClientComponentInput(operation)!,
 							child,
 							entry,
 							predecessor?.instance ?? parent,

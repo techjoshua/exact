@@ -1,3 +1,4 @@
+import { compiledTargetIdentity } from './test-support/compiled-target-identity.js';
 /**
  * @vitest-environment jsdom
  */
@@ -102,8 +103,7 @@ describe('@exactjs/hydrate lazy islands', () => {
 		async (interaction) => {
 			const container = document.createElement('main');
 			const destination = document.createElement('aside');
-			container.innerHTML =
-				'<div data-exact-client-boundary="release" data-exact-client-name="Release" data-exact-client-generation="1"><button data-exact-id="release-button">Open</button></div>';
+			container.innerHTML = `<div data-exact-client-boundary="release" data-exact-client-name="Release" data-exact-client-generation="1"><button data-exact-id="${compiledTargetIdentity(LazyRelease)}">Open</button></div>`;
 			const boundary = container.firstElementChild!;
 			if (interaction) boundary.setAttribute('data-exact-client-hydration', 'interaction');
 			const loaded = deferred<typeof LazyRelease>();
@@ -114,7 +114,9 @@ describe('@exactjs/hydrate lazy islands', () => {
 						loads++;
 						return loaded.promise;
 					},
-					interaction ? activation('release-button', 'click', 'native-click') : undefined
+					interaction
+						? activation(compiledTargetIdentity(LazyRelease), 'click', 'native-click')
+						: undefined
 				)
 			};
 			const controller = new AbortController();
@@ -142,8 +144,7 @@ describe('@exactjs/hydrate lazy islands', () => {
 
 	it('allows a pending island to move within its original container', async () => {
 		const container = document.createElement('main');
-		container.innerHTML =
-			'<section><div data-exact-client-boundary="release" data-exact-client-name="Release"><button data-exact-id="release-button">Open</button></div></section><aside></aside>';
+		container.innerHTML = `<section><div data-exact-client-boundary="release" data-exact-client-name="Release"><button data-exact-id="${compiledTargetIdentity(LazyRelease)}">Open</button></div></section><aside></aside>`;
 		const boundary = container.querySelector('[data-exact-client-boundary]')!;
 		const loaded = deferred<typeof LazyRelease>();
 		const controller = new AbortController();
@@ -165,8 +166,7 @@ describe('@exactjs/hydrate lazy islands', () => {
 
 	it('loads an interaction island once and replays ordered invocations after adoption', async () => {
 		const container = document.createElement('main');
-		container.innerHTML =
-			'<div data-exact-client-boundary="counter" data-exact-client-name="Counter" data-exact-client-hydration="interaction" data-exact-client-generation="1"><button data-exact-id="counter-button">Count</button></div>';
+		container.innerHTML = `<div data-exact-client-boundary="counter" data-exact-client-name="Counter" data-exact-client-hydration="interaction" data-exact-client-generation="1"><button data-exact-id="${compiledTargetIdentity(LazyCounter)}">Count</button></div>`;
 		resetInteractionFixture();
 		let loads = 0;
 		let resolveLoad!: (component: typeof LazyCounter) => void;
@@ -180,7 +180,7 @@ describe('@exactjs/hydrate lazy islands', () => {
 					loads++;
 					return loaded;
 				},
-				activation('counter-button', 'click', 'native-click')
+				activation(compiledTargetIdentity(LazyCounter), 'click', 'native-click')
 			)
 		});
 		const button = container.querySelector('button')!;
@@ -198,8 +198,7 @@ describe('@exactjs/hydrate lazy islands', () => {
 
 	it('coalesces state-like interactions while a lazy island loads', async () => {
 		const container = document.createElement('main');
-		container.innerHTML =
-			'<div data-exact-client-boundary="form" data-exact-client-name="Form" data-exact-client-hydration="interaction"><input data-exact-id="name"></div>';
+		container.innerHTML = `<div data-exact-client-boundary="form" data-exact-client-name="Form" data-exact-client-hydration="interaction"><input data-exact-id="${compiledTargetIdentity(LazyInput)}"></div>`;
 		resetInteractionFixture();
 		let resolveLoad!: (component: typeof LazyInput) => void;
 		const loaded = new Promise<typeof LazyInput>((resolve) => {
@@ -207,7 +206,10 @@ describe('@exactjs/hydrate lazy islands', () => {
 		});
 
 		hydrateClientIslands(container, {
-			Form: lazyClientIsland(() => loaded, activation('name', 'input', 'latest-value'))
+			Form: lazyClientIsland(
+				() => loaded,
+				activation(compiledTargetIdentity(LazyInput), 'input', 'latest-value')
+			)
 		});
 		const input = container.querySelector('input')!;
 		input.value = 'a';
@@ -232,8 +234,7 @@ describe('@exactjs/hydrate lazy islands', () => {
 
 	it('ignores events that are not authorized for the dormant target', () => {
 		const container = document.createElement('main');
-		container.innerHTML =
-			'<div data-exact-client-boundary="counter" data-exact-client-name="Counter" data-exact-client-hydration="interaction"><button data-exact-id="counter-button">Count</button></div>';
+		container.innerHTML = `<div data-exact-client-boundary="counter" data-exact-client-name="Counter" data-exact-client-hydration="interaction"><button data-exact-id="${compiledTargetIdentity(LazyCounter)}">Count</button></div>`;
 		let loads = 0;
 		hydrateClientIslands(container, {
 			Counter: lazyClientIsland(
@@ -241,7 +242,7 @@ describe('@exactjs/hydrate lazy islands', () => {
 					loads++;
 					return LazyStaticCounter;
 				},
-				activation('counter-button', 'click', 'native-click')
+				activation(compiledTargetIdentity(LazyCounter), 'click', 'native-click')
 			)
 		});
 
@@ -251,13 +252,15 @@ describe('@exactjs/hydrate lazy islands', () => {
 
 	it('replays only handler notification after native focus state has changed', async () => {
 		const container = document.createElement('main');
-		container.innerHTML =
-			'<div data-exact-client-boundary="focus" data-exact-client-name="Focus" data-exact-client-hydration="interaction"><input data-exact-id="focus-input"></div>';
+		container.innerHTML = `<div data-exact-client-boundary="focus" data-exact-client-name="Focus" data-exact-client-hydration="interaction"><input data-exact-id="${compiledTargetIdentity(LazyFocus)}"></div>`;
 		resetInteractionFixture();
 		let resolveLoad!: (component: typeof LazyFocus) => void;
 		const loaded = new Promise<typeof LazyFocus>((resolve) => (resolveLoad = resolve));
 		hydrateClientIslands(container, {
-			Focus: lazyClientIsland(() => loaded, activation('focus-input', 'focusin', 'notification'))
+			Focus: lazyClientIsland(
+				() => loaded,
+				activation(compiledTargetIdentity(LazyFocus), 'focusin', 'notification')
+			)
 		});
 		const input = container.querySelector('input') as HTMLInputElement;
 		input.dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
@@ -336,8 +339,7 @@ describe('@exactjs/hydrate lazy islands', () => {
 	it('ignores loader completion after root abort or generation replacement', async () => {
 		for (const release of ['abort', 'generation'] as const) {
 			const container = document.createElement('main');
-			container.innerHTML =
-				'<div data-exact-client-boundary="release" data-exact-client-name="Release" data-exact-client-hydration="interaction" data-exact-client-generation="1"><button data-exact-id="release-button">Open</button></div>';
+			container.innerHTML = `<div data-exact-client-boundary="release" data-exact-client-name="Release" data-exact-client-hydration="interaction" data-exact-client-generation="1"><button data-exact-id="${compiledTargetIdentity(LazyRelease)}">Open</button></div>`;
 			const controller = new AbortController();
 			resetInteractionFixture();
 			let resolveLoad!: (component: typeof LazyRelease) => void;
@@ -347,7 +349,7 @@ describe('@exactjs/hydrate lazy islands', () => {
 				{
 					Release: lazyClientIsland(
 						() => loaded,
-						activation('release-button', 'click', 'native-click')
+						activation(compiledTargetIdentity(LazyRelease), 'click', 'native-click')
 					)
 				},
 				{ signal: controller.signal }

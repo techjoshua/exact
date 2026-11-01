@@ -2,7 +2,9 @@ import {
 	createComponentRegistry,
 	createEnhancementNode,
 	createRef,
+	type Child,
 	type Component,
+	type AnyComponentInstance,
 	type RefBinding,
 	type RootLifecycle
 } from '@exactjs/core';
@@ -160,7 +162,7 @@ function InputRoot(this: Component<{}>) {
 function BoundInputRoot(this: Component<{}>, props: { publish(value: string): void }) {
 	return () => (
 		<input
-			data-exact-id="name"
+			data-testid="name"
 			value="server"
 			__exactBindInput={(event: Event) =>
 				props.publish((event.currentTarget as HTMLInputElement).value)
@@ -172,7 +174,7 @@ function BoundInputRoot(this: Component<{}>, props: { publish(value: string): vo
 function DisclosureRoot(this: Component<{}>, props: { publish(value: boolean): void }) {
 	return () => (
 		<details
-			data-exact-id="more"
+			data-testid="more"
 			open={false}
 			__exactBindToggle={(event: Event) =>
 				props.publish((event.currentTarget as HTMLDetailsElement).open)
@@ -368,3 +370,206 @@ export const siblingRoot = (props: {
 	firstLabel?: string;
 	input?: boolean;
 }) => <SiblingRoot {...props} />;
+
+/** Page-domain content whose lifetime survives an initial remote-shell replacement. */
+export function InitialTransferLeaf(
+	this: Component<{}>,
+	props: { mounted(): void; unmounted(): void }
+) {
+	this.onMount(props.mounted);
+	this.onUnmount(props.unmounted);
+	return () => <strong>Retained</strong>;
+}
+
+/** Includes a queued target beside an independently owned transferable child. */
+export function InitialTransferShell(props: { children?: Child; active: boolean }) {
+	return () => (
+		<>
+			{props.children}
+			{props.active ? <NestedTargetRoot /> : null}
+		</>
+	);
+}
+
+/** Test-owned observations stay outside serialized component inputs. */
+export type InitialLifetimeObservers = {
+	acquired(instance: AnyComponentInstance): void;
+	released(): void;
+	parentRef(value: HTMLDivElement | undefined): void;
+	receive(phase: string): void;
+	parentBinding?(binding: RefBinding<HTMLDivElement>): void;
+};
+let initialLifetimeObservers: InitialLifetimeObservers = {
+	acquired() {},
+	released() {},
+	parentRef() {},
+	receive() {}
+};
+const parentKey = createRef<HTMLDivElement>('initial-lifetime-parent');
+const lifetimeChildKey = createRef<HTMLElement>('initial-lifetime-child');
+
+/** Configures only this physical client fixture module before initial adoption. */
+export function configureInitialLifetimeObservers(next: InitialLifetimeObservers): void {
+	initialLifetimeObservers = next;
+}
+
+/** Records actual client construction and instance-owned cleanup separately from mounting. */
+export function UnpublishedLifetimeChild(this: Component<{}>) {
+	initialLifetimeObservers.acquired(this.ref(lifetimeChildKey).owner);
+	this.onUnmount(() => initialLifetimeObservers.released());
+	return () => <strong>Acquired child</strong>;
+}
+
+/** Acquires the child before the containing intrinsic's ordinary ref is fulfilled. */
+export function UnpublishedLifetimeParent(this: Component<{}>) {
+	const binding: RefBinding<HTMLDivElement> = {
+		current: undefined,
+		key: parentKey,
+		owner: this.ref(parentKey).owner,
+		fulfill(value) {
+			initialLifetimeObservers.parentRef(value);
+		}
+	};
+	return () => (
+		<div ref={binding}>
+			<UnpublishedLifetimeChild />
+		</div>
+	);
+}
+
+/** Ordinary reactive ref reader used to verify settled prop delivery on a retained component. */
+export function ParkedReceiveLeaf(this: Component<{}>, props: { phase: string }) {
+	this.onUnmount(() => initialLifetimeObservers.released());
+	return () => <strong ref={parkedReceiveRef(this, props.phase)}>Retained</strong>;
+}
+
+function parkedReceiveRef(owner: Component<{}>, phase: string): RefBinding<HTMLElement> {
+	return {
+		current: undefined,
+		key: parkedReceiveKey,
+		owner: owner.ref(parkedReceiveKey).owner,
+		fulfill(value) {
+			if (value) initialLifetimeObservers.receive(phase);
+		}
+	};
+}
+const parkedReceiveKey = createRef<HTMLElement>('parked-receive');
+
+/** Supplies a direct program to the existing internal adoption owner without serializing a callback. */
+export function unpublishedLifetimeProgram(binding?: RefBinding<HTMLDivElement>) {
+	return (
+		<div ref={binding}>
+			<UnpublishedLifetimeChild />
+		</div>
+	);
+}
+
+/** Places an acquired peer before the ref that cancels its enclosing unpublished array. */
+export function UnpublishedLifetimeSiblings(this: Component<{}>) {
+	const binding: RefBinding<HTMLDivElement> = {
+		current: undefined,
+		key: parentKey,
+		owner: this.ref(parentKey).owner,
+		fulfill(value) {
+			initialLifetimeObservers.parentRef(value);
+		}
+	};
+	return () => (
+		<>
+			<UnpublishedLifetimeChild />
+			<div ref={binding}>Cancel peers</div>
+		</>
+	);
+}
+
+let sameNodeTitle = 'obsolete';
+
+/** Selects the next instance's ordinary title without transporting authored callbacks. */
+export function configureSameNodeTitle(title: string): void {
+	sameNodeTitle = title;
+}
+
+/** Exposes independent real ref owners while adopting the identical intrinsic and child nodes. */
+export function SameNodeLifetimeParent(this: Component<{}>) {
+	const title = sameNodeTitle;
+	const ordinary = this.ref(parentKey);
+	initialLifetimeObservers.parentBinding?.(ordinary);
+	const binding: RefBinding<HTMLDivElement> = {
+		...ordinary,
+		fulfill(value) {
+			ordinary.fulfill(value);
+			initialLifetimeObservers.parentRef(value);
+		}
+	};
+	return () => (
+		<div title={title} onClick={() => initialLifetimeObservers.receive('click')} ref={binding}>
+			<UnpublishedLifetimeChild />
+		</div>
+	);
+}
+
+function EmptyEndpointLeaf(this: Component<{}>) {
+	return () => null;
+}
+function MultiEndpointLeaf(this: Component<{}>) {
+	return () => (
+		<>
+			<span>First</span>
+			<span>Second</span>
+		</>
+	);
+}
+function EmptyEndpointShell(this: Component<{}>) {
+	return () => (
+		<section>
+			<EmptyEndpointLeaf />
+			<b>Next</b>
+		</section>
+	);
+}
+function MultiEndpointShell(this: Component<{}>) {
+	return () => (
+		<section>
+			<MultiEndpointLeaf />
+			<b>Next</b>
+		</section>
+	);
+}
+function NestedEndpointShell(this: Component<{}>) {
+	return () => (
+		<main>
+			<MultiEndpointShell />
+			<i>Outer next</i>
+		</main>
+	);
+}
+/** Compiler-owned empty markerless range before a concrete sibling cursor. */
+export const emptyEndpointRoot = <EmptyEndpointShell />;
+/** Compiler-owned multi-node markerless range before a concrete sibling cursor. */
+export const multiEndpointRoot = <MultiEndpointShell />;
+/** Nested markerless component ranges with separate sibling bounds. */
+export const nestedEndpointRoot = <NestedEndpointShell />;
+
+function EndpointInterruptLeaf(this: Component<{}>) {
+	const ordinary = this.ref(parentKey);
+	initialLifetimeObservers.acquired(ordinary.owner);
+	this.onUnmount(() => initialLifetimeObservers.released());
+	const binding: RefBinding<HTMLDivElement> = {
+		...ordinary,
+		fulfill(value) {
+			ordinary.fulfill(value);
+			initialLifetimeObservers.parentRef(value);
+		}
+	};
+	return () => <div ref={binding}>Cancelable child</div>;
+}
+function EndpointInterruptShell(this: Component<{}>) {
+	return () => (
+		<section>
+			<EndpointInterruptLeaf />
+			<b>Next</b>
+		</section>
+	);
+}
+/** Cancels markerless child acquisition before its synthetic bounds are inserted. */
+export const interruptEndpointRoot = <EndpointInterruptShell />;

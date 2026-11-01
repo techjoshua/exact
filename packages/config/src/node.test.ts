@@ -2,9 +2,56 @@ import { mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { describe, expect, it, onTestFinished, vi } from 'vitest';
+import { checkConfigReload, checkStaticEnhancements } from '../test-support/reload.mjs';
 import { findExactConfig, loadExactConfig, loadExactPackageEnhancements } from './node.js';
 
 describe('@exactjs/config/node', () => {
+	it('retains the synchronous declaration API across native preparation', async () => {
+		await checkStaticEnhancements(loadExactPackageEnhancements);
+	});
+	it.each(['ts', 'mts'])('loads typed %s configs through native preparation', async (extension) => {
+		await checkConfigReload(loadExactConfig, extension);
+	});
+	it.skipIf(process.platform === 'win32' || process.getuid?.() === 0).each(['mjs', 'js'])(
+		'loads and reloads %s in a genuinely read-only directory',
+		async (extension) => {
+			await checkConfigReload(loadExactConfig, extension, true);
+		}
+	);
+	it.each(['mjs', 'js'])('reloads %s policy with authored module metadata', async (extension) => {
+		await checkConfigReload(loadExactConfig, extension);
+	});
+	it.each(['ts', 'mjs'])(
+		'returns ordinary %s loader metadata and callback values',
+		async (extension) => {
+			const root = mkdtempSync(path.join(tmpdir(), 'exact-config-aliases-'));
+			onTestFinished(() => rmSync(root, { recursive: true, force: true }));
+			writeFileSync(path.join(root, 'package.json'), '{"type":"module"}');
+			writeFileSync(
+				path.join(root, `exact.config.${extension}`),
+				`
+export * as theme from '@fixture/theme' with { type: 'exact-enhancement', scope: 'package' };
+const transform = Object.assign(() => {transform.calls++;}, {calls: 0});
+export default {debug: {runtime: true}, plugins: {example: transform}};`
+			);
+			const loaded = await loadExactConfig({ applicationRoot: root });
+			const watches: { length: number } = loaded.watchFiles;
+			watches.length = 0;
+			expect(loaded.watchFiles).toHaveLength(0);
+			if (!loaded.config?.debug) throw new Error('Missing owned configuration');
+			const debug: { runtime?: boolean | 'auto' } = loaded.config.debug;
+			debug.runtime = false;
+			const callback = Object.values(loaded.config.plugins ?? {})[0];
+			if (typeof callback !== 'function') throw new Error('Missing plugin callback');
+			Reflect.apply(callback, undefined, []);
+			expect(Reflect.get(callback, 'calls')).toBe(1);
+			const entry: { localName: string } = loaded.packageEnhancements[0]!;
+			entry.localName = 'snapshot alias';
+			const next = await loadExactConfig({ applicationRoot: root });
+			expect(next.packageEnhancements[0]?.localName).toBe('theme');
+		}
+	);
+
 	it.each(['ts', 'mjs'])(
 		'owns distinct temporary modules for concurrent %s loads',
 		async (extension) => {
@@ -31,6 +78,21 @@ export { default } from './settings.mjs';`
 			expect(readdirSync(root).filter((file) => file.startsWith('.exact-config-'))).toEqual([]);
 		}
 	);
+
+	it('discovers config under a dot-prefixed child while rejecting a neighboring workspace', () => {
+		const root = mkdtempSync(path.join(tmpdir(), 'exact-config-dot-prefix-'));
+		onTestFinished(() => rmSync(root, { recursive: true, force: true }));
+		const workspace = path.join(root, 'workspace');
+		const application = path.join(workspace, '..application');
+		const sibling = path.join(root, 'workspace-other');
+		mkdirSync(application, { recursive: true });
+		mkdirSync(sibling, { recursive: true });
+		writeFileSync(path.join(workspace, 'exact.config.mjs'), 'export default {};');
+		writeFileSync(path.join(sibling, 'exact.config.mjs'), 'export default {};');
+		expect(findExactConfig(application, workspace)).toBe(path.join(workspace, 'exact.config.mjs'));
+		expect(findExactConfig(sibling, workspace)).toBeUndefined();
+		expect(findExactConfig(root, workspace)).toBeUndefined();
+	});
 
 	it('finds the nearest nested project config without escaping its workspace boundary', () => {
 		const outer = mkdtempSync(path.join(tmpdir(), 'exact-config-boundary-'));

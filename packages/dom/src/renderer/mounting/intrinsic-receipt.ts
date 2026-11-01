@@ -8,6 +8,7 @@ import { updateProps } from '../../props.js';
 import type { Mounted, Root } from '../../types.js';
 import { createElement } from '../root-support.js';
 import { mountChildren } from './children.js';
+import { intrinsicChildContainer } from '../intrinsic-child-container.js';
 import { intrinsicTextChildren } from '../intrinsic-text.js';
 
 /** Executes one compiler-selected intrinsic operation directly. */
@@ -33,7 +34,7 @@ export function mountIntrinsicReceipt(
 	} else
 		mounted.children = mountChildren(
 			root,
-			element,
+			intrinsicChildContainer(element),
 			[...intrinsicTextChildren(root, receipt.tag, receipt.children)],
 			parentInstance,
 			scope

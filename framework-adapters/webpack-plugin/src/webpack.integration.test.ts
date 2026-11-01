@@ -13,6 +13,12 @@ import path from 'node:path';
 import webpack, { type Configuration, type Stats } from 'webpack';
 import { expect, it, onTestFinished } from 'vitest';
 import { fileURLToPath } from 'node:url';
+import {
+	pluginConfigurationObservationSource,
+	writeMicrofrontendProviderFixture,
+	verifyMicrofrontendProducerPage,
+	verifyMicrofrontendProviderJourney
+} from '../../test-support/microfrontend-provider-journey.js';
 
 const repositoryRoot = fileURLToPath(new URL('../../..', import.meta.url));
 
@@ -94,25 +100,13 @@ it('emits and publishes a real client remote exposure generation', async () => {
 	);
 	writeFileSync(
 		path.join(root, 'exact.config.mjs'),
-		`export default { plugins: { microfrontends(config) { config.exposes['./Area'] = { component: './src/Area.tsx' }; } } };\n`
+		`export default { plugins: { microfrontends(config, context) { ${pluginConfigurationObservationSource} config.exposes['./Area'] = { component: './src/Area.tsx' }; } } };\n`
 	);
-	writeFileSync(path.join(root, 'src', 'page.ts'), 'export const page = true;\n');
 	writeFileSync(
-		path.join(root, 'src', 'Area.tsx'),
-		`import './Area.css';
-		import icon from './icon.svg';
-		export default function Area() {
-			const load = () => import('./lazy');
-			return () => <section data-icon={icon} onClick={load}>webpack remote</section>;
-		}\n`
+		path.join(root, 'src', 'page.ts'),
+		'globalThis.__ordinaryRemoteProducerPage = true;\n'
 	);
-	writeFileSync(path.join(root, 'src', 'Area.css'), '.remote-area { color: rebeccapurple; }\n');
-	writeFileSync(path.join(root, 'src', 'icon.svg'), '<svg xmlns="http://www.w3.org/2000/svg"/>\n');
-	writeFileSync(path.join(root, 'src', 'lazy.ts'), 'export const lazyValue = "lazy";\n');
-	writeFileSync(
-		path.join(root, 'src', 'assets.d.ts'),
-		'declare module "*.css"; declare module "*.svg" { const url: string; export default url; }\n'
-	);
+	await writeMicrofrontendProviderFixture(path.join(root, 'src'));
 	const previousBuildKey = process.env.EXACT_BUILD_KEY;
 	process.env.EXACT_BUILD_KEY = '0123456789abcdef0123456789abcdef01234567';
 	let entries: Readonly<Record<string, string>> | undefined;
@@ -157,15 +151,17 @@ it('emits and publishes a real client remote exposure generation', async () => {
 	expect(entries?.['./Area']).toMatch(/^\/assets\/exact-remote-Area\..+\.mjs$/);
 	expect(development?.['./Area']).toContain('virtual:exact-remote-entry');
 	const files = readDirectory(path.join(root, 'dist'));
+	await verifyMicrofrontendProducerPage(path.join(root, 'dist'));
 	expect(files.some((file) => /^exact-remote-Area\..+\.mjs$/.test(file))).toBe(true);
 	expect(files.some((file) => file.endsWith('.css'))).toBe(true);
 	expect(files.some((file) => file.endsWith('.svg'))).toBe(true);
 	expect(files.filter((file) => file.endsWith('.mjs')).length).toBeGreaterThan(2);
 	const remoteEntry = files.find((file) => /^exact-remote-Area\..+\.mjs$/.test(file))!;
+	verifyMicrofrontendProviderJourney(repositoryRoot, path.join(root, 'dist', remoteEntry));
 	expect(readFileSync(path.join(root, 'dist', remoteEntry), 'utf8')).toContain(
 		"Symbol.for('@exactjs/provided-packages')"
 	);
-});
+}, 60000);
 
 async function compile(applicationRoot: string): Promise<Stats> {
 	const { ExactWebpackPlugin } = await import('../dist/index.js');

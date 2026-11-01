@@ -4,6 +4,7 @@ import {
 } from '@exactjs/core/framework/server-render-structure';
 import { expect, it } from 'vitest';
 import { createSsrContext } from './context.js';
+import { renderProgramVersion } from '../render-program-version.js';
 import { renderPreparedSsrProgram } from './render-program.js';
 import { consumeScalarPropsProof } from './scalar-props-proof.js';
 import {
@@ -16,7 +17,7 @@ function referenceIssuer(props: Record<string, unknown>, field: string | undefin
 	let reference: ServerComponentReference | undefined;
 	const invocation = createPreparedServerRenderProgram(
 		prepareCompiledRenderProgram({
-			version: 2,
+			version: 4,
 			id: 'reference-ownership',
 			namespace: 'html',
 			ssr(operations, _context, current, output) {
@@ -69,3 +70,34 @@ it('retains inherited metadata normalization before a first proof attempt', asyn
 		else Reflect.deleteProperty(Object.prototype, 'key');
 	}
 });
+
+// Core admission and SSR provider execution are distinct ABI boundaries. The SSR
+// implementation owns its version even when another core version is installed.
+it.each([2, renderProgramVersion])(
+	'checks actual SSR provider ABI %s before writer output',
+	async (version) => {
+		let writes = 0;
+		const invocation = createPreparedServerRenderProgram(
+			prepareCompiledRenderProgram({
+				version: 4,
+				id: 'provider-version',
+				namespace: 'html',
+				ssr(operations, _context, _current, output) {
+					operations.assertVersion(version);
+					writes++;
+					operations.static(output, 'matched');
+					return output;
+				}
+			}),
+			[]
+		);
+		const run = () => renderPreparedSsrProgram(createSsrContext({}), invocation, () => '');
+		if (version !== renderProgramVersion) {
+			await expect(async () => await run()).rejects.toThrow('Unsupported eXact SSR operation ABI');
+			expect(writes).toBe(0);
+		} else {
+			expect(await run()).toBe('matched');
+			expect(writes).toBe(1);
+		}
+	}
+);

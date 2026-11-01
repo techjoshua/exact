@@ -8,6 +8,19 @@ import (
 	"github.com/microsoft/TypeScript/tsc/internal/checker"
 )
 
+// portableNativeContainerName centralizes standard collection and byte-storage contracts.
+// Callers must still prove declaration ownership before granting execution authority.
+func portableNativeContainerName(name string) bool {
+	switch name {
+	case "Map", "Set", "Array", "ReadonlyMap", "ReadonlySet", "ReadonlyArray",
+		"Int8Array", "Uint8Array", "Uint8ClampedArray", "Int16Array", "Uint16Array", "Int32Array", "Uint32Array",
+		"Float32Array", "Float64Array", "BigInt64Array", "BigUint64Array", "ArrayBuffer", "DataView":
+		return true
+	default:
+		return false
+	}
+}
+
 // nativeNeutralReceiver recognizes standard-library receiver contracts without
 // treating same-named application types as portable. Read-only collection views
 // constrain mutation, not the environments in which their methods can execute.
@@ -16,12 +29,11 @@ func nativeNeutralReceiver(value *checker.Type) bool {
 	if symbol == nil || len(symbol.Declarations) == 0 {
 		return false
 	}
-	switch symbol.Name {
-	case "Map", "Set", "Array", "ReadonlyMap", "ReadonlySet", "ReadonlyArray":
+	if portableNativeContainerName(symbol.Name) {
 		if symbol.Parent != nil {
 			return false
 		}
-	default:
+	} else {
 		if symbol.Parent == nil || symbol.Parent.Name != "Intl" {
 			return false
 		}
@@ -147,7 +159,8 @@ func exactReactiveValueMember(declaration *ast.Node) bool {
 
 // nativeNeutralMember checks the selected method declaration independently of
 // unrelated global augmentations, including Intl namespace interfaces. Added
-// methods never inherit built-in authority.
+// methods never inherit built-in authority. Primitive aliases and boxed views
+// retain the same standard method owner without depending on receiver display text.
 func nativeNeutralMember(declaration *ast.Node, owner *ast.Symbol) bool {
 	if owner.Parent != nil {
 		if owner.Parent.Name != "Intl" {
@@ -158,9 +171,11 @@ func nativeNeutralMember(declaration *ast.Node, owner *ast.Symbol) bool {
 		}
 	} else {
 		switch owner.Name {
-		case "Map", "Set", "Array", "ReadonlyMap", "ReadonlySet", "ReadonlyArray":
+		case "String", "Number", "Boolean", "BigInt", "Symbol":
 		default:
-			return false
+			if !portableNativeContainerName(owner.Name) {
+				return false
+			}
 		}
 	}
 	source := ast.GetSourceFileOfNode(declaration)
@@ -210,7 +225,10 @@ func nativePortableEventMember(declaration *ast.Node, owner *ast.Symbol) bool {
 func nativeReceiverMemberSymbol(expression *ast.Node, typeChecker *checker.Checker) *ast.Symbol {
 	receiver, name := restrictedInvocationMember(unwrapSourceCallableReference(expression), typeChecker)
 	if receiver != nil && name != "" {
-		return typeChecker.GetPropertyOfType(typeChecker.GetTypeAtLocation(receiver), name)
+		// Optional evaluation skips nullish values, but the selected member still needs
+		// its declaration proof. A remaining authored union member cannot gain native authority.
+		value := typeChecker.GetNonNullableType(typeChecker.GetTypeAtLocation(receiver))
+		return typeChecker.GetPropertyOfType(value, name)
 	}
 	return typeChecker.GetSymbolAtLocation(expression)
 }

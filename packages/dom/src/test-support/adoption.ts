@@ -1,85 +1,59 @@
 import type { Child } from '@exactjs/core';
 import {
-	createCompiledComponentReceipt,
-	readCompiledComponentReceipt,
-	type ExactComponentReceiptData
+	createCompiledComponentInputReceipt,
+	inspectComponentInput
 } from '@exactjs/core/runtime/component-operations';
 import {
-	adoptCompiledComponentReceiptRoot,
-	adoptDocumentCompiledComponentReceiptRoot,
-	adoptMarkerlessCompiledComponentReceiptRoot
+	adoptCompiledComponentInputRoot,
+	adoptDocumentCompiledComponentInputRoot,
+	adoptMarkerlessCompiledComponentInputRoot,
+	type ComponentRootAdoption
 } from '../framework/component-root.js';
 import { TestOperationRoot } from '../testing-component.js';
 import type { RenderOptions } from '../types.js';
-
-/** Adopts one compiler-issued component operation using its selected target artifact. */
-export function adoptComponentReceiptRoot(
-	operation: Child,
-	receipt: ExactComponentReceiptData,
-	container: Element,
-	options: RenderOptions = {}
-): boolean {
-	return adoptCompiledComponentReceiptRoot(operation, receipt, container, options);
-}
-
-/** Adopts one markerless compiler-issued component operation. */
-export function adoptMarkerlessComponentReceiptRoot(
-	operation: Child,
-	receipt: ExactComponentReceiptData,
-	container: Element,
-	options: RenderOptions = {}
-): boolean {
-	return adoptMarkerlessCompiledComponentReceiptRoot(operation, receipt, container, options);
-}
-
-/** Adopts one compiler-issued component operation without exposing its private receipt payload. */
+/** Adopts an issued component through the provider-owned root admission boundary. */
 export function adoptComponentRoot(
 	operation: Child,
 	container: Element,
 	options: RenderOptions = {}
 ): boolean {
-	const receipt = readCompiledComponentReceipt(operation);
-	return receipt
-		? adoptCompiledComponentReceiptRoot(operation, receipt, container, options)
-		: false;
+	return inspectComponentInput(operation).kind === 'noncomponent'
+		? false
+		: isCurrentAdoption(adoptCompiledComponentInputRoot(operation, container, options));
 }
-
-/** Markerless counterpart to {@link adoptComponentRoot}. */
+/** Omits only the outer component boundary. Nested structural ranges still require their markers. */
 export function adoptMarkerlessComponentRoot(
 	operation: Child,
 	container: Element,
 	options: RenderOptions = {}
 ): boolean {
-	const receipt = readCompiledComponentReceipt(operation);
-	return receipt
-		? adoptMarkerlessCompiledComponentReceiptRoot(operation, receipt, container, options)
-		: false;
+	return inspectComponentInput(operation).kind === 'noncomponent'
+		? false
+		: isCurrentAdoption(adoptMarkerlessCompiledComponentInputRoot(operation, container, options));
 }
-
-/**
- * Adopts a low-level operation beneath an exactc-compiled test root.
- *
- * Renderer contract tests author the nested operation directly, while the component boundary and
- * its dynamic output range use the same compiled ABI as an application root.
- */
+/** Adopts a low-level operation through an actual compiled test root with normal provider admission. */
 export function adoptStatic(
 	operation: Child,
 	container: Element,
 	options: RenderOptions = {}
 ): boolean {
-	const rootOperation = createCompiledComponentReceipt(TestOperationRoot, { operation });
-	const receipt = readCompiledComponentReceipt(rootOperation)!;
-	return adoptMarkerlessCompiledComponentReceiptRoot(rootOperation, receipt, container, options);
+	const rootOperation = createCompiledComponentInputReceipt(TestOperationRoot, { operation });
+	return isCurrentAdoption(
+		adoptMarkerlessCompiledComponentInputRoot(rootOperation, container, options)
+	);
 }
-
-/** Adopts a compiled component whose output owns the current document element. */
+/** Adopts an issued component whose output owns the document element. */
 export function adoptDocumentRoot(
 	operation: Child,
 	documentNode: Document,
 	options: RenderOptions = {}
 ): boolean {
-	const receipt = readCompiledComponentReceipt(operation);
-	return receipt
-		? adoptDocumentCompiledComponentReceiptRoot(operation, receipt, documentNode, options)
-		: false;
+	return inspectComponentInput(operation).kind === 'noncomponent'
+		? false
+		: isCurrentAdoption(adoptDocumentCompiledComponentInputRoot(operation, documentNode, options));
+}
+
+/** The boolean test facade accepts only an adopted result whose receiving attempt remains current. */
+function isCurrentAdoption(result: ComponentRootAdoption): boolean {
+	return result.outcome === 'adopted' && result.isCurrent();
 }

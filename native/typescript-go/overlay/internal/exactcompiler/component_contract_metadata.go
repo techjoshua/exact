@@ -34,7 +34,7 @@ func continuationExecutorMetadata(
 	factory *printer.NodeFactory,
 	componentFunction *ast.Node,
 	continuations []Continuation,
-	localizationContextName string,
+	imports *componentConstructorImports,
 	used map[string]struct{},
 ) *ast.Node {
 	workByID := continuationWorkByID(componentFunction, continuations)
@@ -56,22 +56,19 @@ func continuationExecutorMetadata(
 			aliases,
 			stateType,
 			typeParameters,
-			localizationContextName,
+			imports,
 			used,
 		)
-		values = append(values, contractObject(factory, true,
-			contractProperty(
-				factory,
-				"id",
-				contractString(factory, continuation.ID),
-			),
-			contractProperty(
-				factory,
-				"componentId",
-				contractString(factory, continuation.ComponentID),
-			),
+		properties := []*ast.Node{
+			contractProperty(factory, "id", contractString(factory, continuation.ID)),
+			contractProperty(factory, "componentId", contractString(factory, continuation.ComponentID)),
 			contractProperty(factory, "execute", execute),
-		))
+		}
+		if continuationsHaveArrayRoots([]Continuation{continuation}, true) {
+			properties = append(properties, contractProperty(factory, "array", imports.arrayBinding(factory, false, used)))
+		}
+		values = append(values, contractObject(factory, true, properties...))
+
 	}
 	return contractArray(factory, values...)
 }
@@ -135,7 +132,7 @@ func continuationExecutor(
 	aliases []continuationContextAlias,
 	stateType *ast.Node,
 	typeParameters *ast.NodeList,
-	localizationContextName string,
+	imports *componentConstructorImports,
 	used map[string]struct{},
 ) *ast.Node {
 	activationName := allocateGeneratedName(used, "__exactActivation")
@@ -350,7 +347,7 @@ func continuationExecutor(
 		constStatement(
 			factory,
 			component,
-			continuationComponentValue(factory, activation, stateType, continuation, localizationContextName),
+			continuationComponentValue(factory, activation, stateType, continuation, imports.localizationContextName),
 		),
 		constStatement(
 			factory,
@@ -396,7 +393,7 @@ func continuationExecutor(
 	}
 	for _, dependency := range taskDependencies {
 		statements = append(statements, constStatement(factory, dependency.Name(),
-			visitor.VisitNode(projectContinuationCaptureReferences(factory, dependency.AsVariableDeclaration().Initializer, helperReferences))))
+			imports.taskBindings.bind(factory, visitor.VisitNode(projectContinuationCaptureReferences(factory, dependency.AsVariableDeclaration().Initializer, helperReferences)))))
 	}
 	resultProperties := []*ast.Node{
 		contractProperty(
@@ -671,6 +668,17 @@ func stateEffectMetadata(
 				"confidence",
 				contractString(factory, effect.Confidence),
 			),
+		}
+		if len(effect.ArrayRoots) != 0 {
+			roots := []*ast.Node{}
+			for _, root := range effect.ArrayRoots {
+				segments := []*ast.Node{}
+				for _, segment := range root.Path {
+					segments = append(segments, contractString(factory, segment))
+				}
+				roots = append(roots, contractObject(factory, true, contractProperty(factory, "kind", contractString(factory, "array")), contractProperty(factory, "path", contractArray(factory, segments...)), contractProperty(factory, "confidence", contractString(factory, "exact"))))
+			}
+			properties = append(properties, contractProperty(factory, "arrayRoots", contractArray(factory, roots...)))
 		}
 		if effect.Operation != "" {
 			properties = append(properties, contractProperty(

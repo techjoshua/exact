@@ -55,3 +55,10 @@ export function validateAbiRelease(
 		}
 	}
 }
+
+/** Selects every immutable released ABI witness recorded by a base revision. An unpublished policy epoch need not have a fabricated fixture. */
+export function releasedAbiFixturePaths(files) {
+	return [
+		...new Set(files.filter((file) => /^fixtures\/release-abi\/[^/]+\/integrity\.json$/.test(file)))
+	].sort();
+}

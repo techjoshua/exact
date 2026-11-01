@@ -1,249 +1,213 @@
+import { isCompiledPropOperand, trackReactiveSource } from '@exactjs/reactive/framework/runtime';
+import { componentContractVersion } from '../component/contract-versions.js';
 import { unwrap } from '@exactjs/reactive/framework/values';
-import type { Child, CompiledEnhancementNode, ComponentDomain } from '../component/contracts.js';
+import type {
+	AnyComponentInstance,
+	Child,
+	CompiledEnhancementNode
+} from '../component/contracts.js';
 import { currentComponentDomain } from '../component/domain.js';
-import {
-	readPreparedExactExecutableComponentContract,
-	type ExactExecutableComponentContract
-} from '../component-contracts.js';
-import { normalizeRenderResult } from '../render-children.js';
+import { readPreparedExactExecutableComponentContract } from '../component-contracts.js';
 import type { AnyExactComponentCallable } from './executable-fields.js';
-import { createOpaqueOperation, sharedOpaqueOperationStore } from './opaque-operation.js';
 import type {
 	ExactNarrowComponentUpdateContract,
 	ExactWideComponentUpdateContract
 } from '../component-contracts.js';
+import {
+	issueComponentInputRecipe,
+	transformComponentInput,
+	inspectComponentInput,
+	type ExactComponentChildrenInput,
+	type ExactComponentInputRecipe,
+	type ExactPreparedServerComponentReference
+} from './receipt-inputs.js';
+
+export {
+	inspectComponentInput,
+	redeemComponentInput,
+	redeemDirectServerComponentInput,
+	componentInputRecipe,
+	assertComponentOperationProvider,
+	assertComponentInputProvider,
+	exactComponentInputsOperationV6,
+	isComponentInputIncompatibility,
+	rethrowComponentInputFailure,
+	type ExactComponentChildrenInput,
+	type ExactComponentInputRecipe,
+	type ExactPreparedServerComponentReference,
+	type ExactComponentInputInspection,
+	type ExactComponentInputProvider,
+	type ExactComponentTarget,
+	type ExactAdmittedComponentInput,
+	type ExactComponentInputsOperationTarget,
+	type ExactComponentInputIncompatibility
+} from './receipt-inputs.js';
 
 declare const exactComponentReceiptBrand: unique symbol;
-const PreparedServerComponentReference = Symbol.for('@exactjs/prepared-server-component-reference');
-const emptyServerComponentChildren: readonly Child[] = Object.freeze([]);
-
-/** Opaque compiler-owned request to invoke one already-selected target component artifact. */
-export type ExactComponentReceipt = object & {
-	readonly [exactComponentReceiptBrand]: never;
-};
-
-/** Private receipt contents readable only by the selected target renderer. */
-export type ExactComponentReceiptData = Readonly<{
-	contract: ExactExecutableComponentContract;
-	props: Readonly<Record<string, unknown>>;
-	children: readonly Child[];
-	key?: string;
-	/** Compiler-issued placeholder identity for a client-only child owned by this hydrated parent. */
-	clientBoundaryId?: string;
-	domain?: ComponentDomain;
-	enhancement?: CompiledEnhancementNode;
-	update?: ExactComponentReceiptUpdate;
-	/** Renderer-injected provider whose descendants retain the authored update owner. */
-	transparentUpdateOwner?: true;
-	/** Renderer-selected fragment handoff for a structural enhancement owner. */
-	fragmentTarget?: Readonly<{ supplied: Child; tag: string }>;
-}>;
-
-/** Direct target-local component reference emitted only into compiler-closed server artifacts. */
-export type ExactPreparedServerComponentReference = ExactComponentReceiptData &
-	Readonly<Record<never, never>>;
-
-/** Compiler-owned parent update target carried opaquely to the selected target renderer. */
+/** Opaque selected component operation. Only matching providers can redeem its inputs. */
+export type ExactComponentReceipt = object & { readonly [exactComponentReceiptBrand]: never };
+/** Exact indexed supplier membership for a compiler-closed component input plan. */
 export type ExactComponentReceiptUpdate = Readonly<{
 	target: number;
+	owner: AnyComponentInstance;
 	contract: ExactNarrowComponentUpdateContract | ExactWideComponentUpdateContract;
 }>;
-
-const receipts = sharedOpaqueOperationStore<ExactComponentReceiptData>('component');
-/** Dispatch key implemented by render targets that accept component operations. */
-export const exactComponentOperation = Symbol.for('@exactjs/target-operation/component');
-
-/** Target-owned component invocation selected by the operation rather than by caller inspection. */
-export type ExactComponentOperationTarget<Result = unknown> = Readonly<{
-	[exactComponentOperation](
-		operation: ExactComponentReceipt,
-		data: ExactComponentReceiptData
-	): Result;
-}>;
-
-function executeComponentOperation(this: object, target: object): unknown {
-	const data = receipts.get(this);
-	if (!data) throw new TypeError('Component operation lost its compiler-issued payload');
-	return (target as ExactComponentOperationTarget)[exactComponentOperation](
-		this as ExactComponentReceipt,
-		data
-	);
+const emptyChildren: ExactComponentChildrenInput = { kind: 'eager', values: [] };
+/** Retains compiler operands for receiving acquisition while flattening ordinary authored arrays. */
+function eagerChildren(input: readonly unknown[]): Child[] {
+	const values = [...input];
+	const children: Child[] = [];
+	const append = (value: unknown): void => {
+		if (Array.isArray(value) && !isCompiledPropOperand(value)) {
+			for (const child of value) append(child);
+		} else children.push(value as Child);
+	};
+	for (const value of values) append(value);
+	// An actual empty array operand owns the children value. A childless call still delegates.
+	if (values.length && !children.length) children.push(undefined);
+	return children;
 }
-
-/**
- * Publishes a direct component-ABI operation without exposing component shape.
- * The compiler selects this operation only after resolving the target artifact at build time.
- */
-export function createCompiledComponentReceipt(
+function recipe(
 	type: AnyExactComponentCallable,
 	props: Record<string, unknown> | null,
-	...children: unknown[]
-): ExactComponentReceipt {
+	children: ExactComponentChildrenInput
+): ExactComponentInputRecipe {
+	const contract = readPreparedExactExecutableComponentContract(type);
 	const { key: authoredKey, __exactEnhancements: enhancement, ...componentProps } = props ?? {};
+	for (const key of Reflect.ownKeys(componentProps))
+		trackReactiveSource(Reflect.get(componentProps, key));
 	const rawKey = unwrap(authoredKey);
-	const domain = currentComponentDomain();
 	const key = rawKey === null || rawKey === undefined ? undefined : String(rawKey);
-	const receipt = createOpaqueOperation<ExactComponentReceipt>(executeComponentOperation, {
-		...(key === undefined ? {} : { key }),
-		...(domain ? { domain } : {})
-	});
-	receipts.set(receipt, {
-		contract: readPreparedExactExecutableComponentContract(type),
+	return {
+		contract,
 		props: componentProps,
-		children: normalizeRenderResult(children),
+		children:
+			children.kind === 'eager'
+				? { kind: 'eager', values: eagerChildren(children.values) }
+				: children,
+		domain: currentComponentDomain(),
 		...(key === undefined ? {} : { key }),
-		...(domain ? { domain } : {}),
 		...(enhancement ? { enhancement: enhancement as CompiledEnhancementNode } : {})
-	});
-	return receipt;
+	};
 }
-
-/** Attaches an opaque client-only placeholder identity without changing props or sibling keys. */
-export function withCompiledClientBoundaryIdentity(
-	value: ExactComponentReceipt,
-	boundaryId: string
+/** Issues eager or fallback child demand without changing the component root kind. */
+export function createCompiledComponentInputReceipt(
+	type: AnyExactComponentCallable,
+	props: Record<string, unknown> | null,
+	children: ExactComponentChildrenInput = emptyChildren
 ): ExactComponentReceipt {
-	const data = receipts.get(value);
-	if (!data) throw new TypeError('Client boundary identity requires a compiled component receipt');
-	const receipt = createOpaqueOperation<ExactComponentReceipt>(executeComponentOperation, data);
-	receipts.set(receipt, { ...data, clientBoundaryId: boundaryId });
-	return receipt;
+	return issueComponentInputRecipe(type, recipe(type, props, children)) as ExactComponentReceipt;
 }
-
-export function createPreparedServerComponentReference(
+/** Issues a server-local component input recipe consumed once per execution occurrence. */
+export function createPreparedServerComponentInputReference(
 	type: AnyExactComponentCallable,
 	props: Record<string, unknown> | null,
-	...children: unknown[]
-): ExactPreparedServerComponentReference;
-/**
- * Creates one direct server component reference without an opaque operation or WeakMap payload.
- *
- * The compiler emits this function only into server-target artifacts. The returned object remains
- * request-local and is consumed directly by the server renderer; it must never cross a client or
- * compatibility boundary.
- */
-export function createPreparedServerComponentReference(
-	type: AnyExactComponentCallable,
-	props: Record<string, unknown> | null,
-	...authoredChildren: unknown[]
+	children: ExactComponentChildrenInput = emptyChildren
 ): ExactPreparedServerComponentReference {
+	const contract = readPreparedExactExecutableComponentContract(type);
 	const source = props ?? {};
 	const authoredKey = source.key;
 	const enhancement = source.__exactEnhancements;
 	const rawKey = unwrap(authoredKey);
 	const key = rawKey === null || rawKey === undefined ? undefined : String(rawKey);
-	const domain = currentComponentDomain();
 	let componentProps = source;
 	if (Object.hasOwn(source, 'key') || Object.hasOwn(source, '__exactEnhancements')) {
 		componentProps = { ...source };
 		delete componentProps.key;
 		delete componentProps.__exactEnhancements;
 	}
-	let children: readonly Child[] = emptyServerComponentChildren;
-	if (authoredChildren.length > 0) children = normalizeRenderResult(authoredChildren);
-	const reference = {
-		[PreparedServerComponentReference]: true,
-		contract: readPreparedExactExecutableComponentContract(type),
-		props: componentProps,
-		children
-	} as {
-		readonly [key: symbol]: unknown;
-		contract: ExactExecutableComponentContract;
-		props: Record<string, unknown>;
-		children: readonly Child[];
-		key?: string;
-		domain?: ComponentDomain;
-		enhancement?: CompiledEnhancementNode;
-	};
-	if (key !== undefined) reference.key = key;
-	if (domain) reference.domain = domain;
-	if (enhancement) reference.enhancement = enhancement as CompiledEnhancementNode;
-	return reference as ExactPreparedServerComponentReference;
+	return issueComponentInputRecipe(
+		type,
+		{
+			contract,
+			props: componentProps,
+			children:
+				children.kind === 'eager'
+					? { kind: 'eager', values: eagerChildren(children.values) }
+					: children,
+			domain: currentComponentDomain(),
+			...(key === undefined ? {} : { key }),
+			...(enhancement ? { enhancement: enhancement as CompiledEnhancementNode } : {})
+		},
+		true
+	) as ExactPreparedServerComponentReference;
 }
-
-/**
- * Issues a reference for a compiler-proven fresh private data bag without reserved metadata.
- * The caller must exclude own and inherited key/enhancement metadata and previous exposure.
- * The bag is retained directly; ordinary reference construction handles all other inputs.
- */
-export function createPreparedServerComponentReferenceFromPlainProps(
+/** Retains a compiler-proven fresh plain prop bag with no reserved inherited or own metadata. */
+export function createPreparedServerComponentInputReferenceFromPlainProps(
 	type: AnyExactComponentCallable,
 	props: Record<string, unknown>
 ): ExactPreparedServerComponentReference {
-	const domain = currentComponentDomain();
-	const reference = {
-		[PreparedServerComponentReference]: true,
-		contract: readPreparedExactExecutableComponentContract(type),
-		props,
-		children: emptyServerComponentChildren
-	} as ExactPreparedServerComponentReference & { domain?: ComponentDomain };
-	if (domain) reference.domain = domain;
-	return reference;
+	return issueComponentInputRecipe(
+		type,
+		{
+			contract: readPreparedExactExecutableComponentContract(type),
+			props,
+			children: emptyChildren,
+			domain: currentComponentDomain()
+		},
+		true
+	) as ExactPreparedServerComponentReference;
 }
-
-/** Reads only the direct reference representation issued by a compiler-closed server artifact. */
-export function readPreparedServerComponentReference(
-	value: unknown
-): ExactPreparedServerComponentReference | undefined {
-	return typeof value === 'object' && value !== null && PreparedServerComponentReference in value
-		? (value as unknown as ExactPreparedServerComponentReference)
-		: undefined;
+/** Copies placeholder identity without acquiring props or child demand. */
+export function withCompiledClientBoundaryIdentity(
+	value: ExactComponentReceipt,
+	boundaryId: string
+): ExactComponentReceipt {
+	return transformComponentInput(value, (data) => ({ ...data, clientBoundaryId: boundaryId }));
 }
-
-/** Reads a compiler-issued receipt; arbitrary objects never become component candidates. */
-export function readCompiledComponentReceipt(
-	value: unknown
-): ExactComponentReceiptData | undefined {
-	return typeof value === 'object' && value !== null ? receipts.get(value) : undefined;
-}
-
-/** Attaches one compiler-indexed parent-to-child prop receipt operation. */
+/** Attaches exact indexed supplier membership without changing child demand. */
 export function withCompiledComponentReceiptUpdate(
 	value: ExactComponentReceipt,
 	target: number,
-	contract: ExactNarrowComponentUpdateContract | ExactWideComponentUpdateContract
+	contract: ExactNarrowComponentUpdateContract | ExactWideComponentUpdateContract,
+	owner: object
 ): ExactComponentReceipt {
-	const data = receipts.get(value);
-	if (!data) throw new TypeError('Component update metadata requires a compiled component receipt');
-	const receipt = createOpaqueOperation<ExactComponentReceipt>(executeComponentOperation, data);
-	receipts.set(receipt, { ...data, update: { target, contract } });
-	return receipt;
+	const update = { target, contract, owner: owner as AnyComponentInstance };
+	validateComponentReceiptSupplier(update);
+	return transformComponentInput(value, (data) => ({ ...data, update }));
 }
-
-/** Marks a renderer-injected provider without changing its semantic component parentage. */
+/** Preserves declaration metadata while selecting transparent parent update ownership. */
 export function withTransparentComponentUpdateOwner(
 	value: ExactComponentReceipt
 ): ExactComponentReceipt {
-	const data = receipts.get(value);
-	if (!data)
-		throw new TypeError('Transparent update ownership requires a compiled component receipt');
-	const receipt = createOpaqueOperation<ExactComponentReceipt>(executeComponentOperation, data);
-	receipts.set(receipt, { ...data, transparentUpdateOwner: true });
-	return receipt;
+	return transformComponentInput(value, (data) => ({ ...data, transparentUpdateOwner: true }));
 }
-
-/** Removes declaration metadata while preserving one compiler-issued component operation. */
+/** Removes declaration metadata without inspecting or evaluating component inputs. */
 export function withoutCompiledComponentReceiptEnhancement(
 	value: unknown
 ): ExactComponentReceipt | undefined {
-	const data = readCompiledComponentReceipt(value);
-	if (!data) return undefined;
-	if (!data.enhancement) return value as ExactComponentReceipt;
-	const receipt = createOpaqueOperation<ExactComponentReceipt>(executeComponentOperation, data);
-	const { enhancement: _enhancement, ...plain } = data;
-	receipts.set(receipt, plain);
-	return receipt;
+	const identity = inspectComponentInput(value);
+	if (identity.kind !== 'component') return undefined;
+	if (!identity.enhancement) return value as ExactComponentReceipt;
+	return transformComponentInput(
+		value as ExactComponentReceipt,
+		({ enhancement: _enhancement, ...plain }) => plain
+	);
 }
-
-/** Marks an already resolved fragment handoff without exposing renderer configuration as authored props. */
+/** Copies renderer-selected fragment handoff without adding authored props. */
 export function withFragmentEnhancementTarget(
 	value: ExactComponentReceipt,
 	supplied: Child,
 	tag = 'span'
 ): ExactComponentReceipt {
-	const data = receipts.get(value);
-	if (!data) throw new TypeError('Fragment handoff requires a compiled component receipt');
-	const receipt = createOpaqueOperation<ExactComponentReceipt>(executeComponentOperation, data);
-	receipts.set(receipt, { ...data, fragmentTarget: { supplied, tag } });
-	return receipt;
+	return transformComponentInput(value, (data) => ({ ...data, fragmentTarget: { supplied, tag } }));
+}
+/** Validates a live lexical issuer and its exact indexed update contract. */
+export function validateComponentReceiptSupplier(update: ExactComponentReceiptUpdate): void {
+	if (!update.owner?.scope.active)
+		throw new TypeError(
+			'Component update requires its live lexical supplier and exact compiled update contract'
+		);
+	const artifact = readPreparedExactExecutableComponentContract(update.owner.type).artifact;
+	if (artifact.target !== 'client' || artifact.updates !== update.contract)
+		throw new TypeError(
+			'Component update requires its live lexical supplier and exact compiled update contract'
+		);
+}
+/** Rejects a provider whose independent implementation generation does not match core. */
+export function assertComponentInputVersion(providerVersion: number): void {
+	if (providerVersion !== componentContractVersion)
+		throw new TypeError(
+			`Unsupported component input provider version ${String(providerVersion)}; expected ${componentContractVersion}. Rebuild matching eXact providers.`
+		);
 }

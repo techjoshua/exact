@@ -1,3 +1,8 @@
+import type { ServerComponentReference } from './server-component-reference.js';
+import type {
+	DirectScheduledPreparation,
+	DirectScheduledPreparationOwner
+} from './direct-component-contracts.js';
 import type { SsrContext } from '../types.js';
 import { mapRenderValue, withRenderCleanup, type RenderValue } from './execution.js';
 import { claimRootText, enterHostTag, leaveHost } from './host.js';
@@ -8,9 +13,12 @@ import type { SsrProgramSink } from './program-sink.js';
 /** Existing traversal owner whose methods can replace per-program forwarding closures. */
 export interface SsrProgramRenderTarget<T> {
 	/** Renders one child using the target's existing component ownership. */
-	renderProgramSegment(value: T): RenderValue<string>;
+	renderProgramSegment(value: T, occurrence?: ServerComponentReference): RenderValue<string>;
 	/** Prepares siblings under the same owner before serial traversal reaches them. */
-	prepareProgramReferences(values: readonly T[]): AsyncDisposable | undefined;
+	prepareProgramReferences(
+		values: readonly T[],
+		owner: DirectScheduledPreparationOwner
+	): DirectScheduledPreparation | undefined;
 }
 
 /** Caller-owned output and preparation lifetime consumed by a generated continuation writer. */
@@ -22,11 +30,13 @@ export interface SsrProgramWriterOutput<T> {
 	/** Existing traversal object retained only when shared forwarding methods are selected. */
 	readonly target?: SsrProgramRenderTarget<T>;
 	/** Renders one prepared child or component through the existing recursive renderer. */
-	readonly render: (value: T) => RenderValue<string>;
+	readonly render: (value: T, occurrence?: ServerComponentReference) => RenderValue<string>;
 	/** Starts scheduled sibling work before serial traversal reaches its positions. */
 	readonly prepareReferences?: (values: readonly T[]) => AsyncDisposable | undefined;
 	/** Sibling frames not consumed during traversal remain owned until this program settles. */
-	preparation?: AsyncDisposable;
+	preparation?: DirectScheduledPreparation;
+	/** Next actual child/component slot in the retained program output sequence. */
+	componentInputPosition?: number;
 }
 
 /**
@@ -95,9 +105,10 @@ function renderHostProgramWriter<T, Invocation>(
 /** Installed only for target-backed output; the target retains the original child owner. */
 function renderWriterTargetSegment<T>(
 	this: SsrProgramWriterOutput<T>,
-	value: T
+	value: T,
+	occurrence?: ServerComponentReference
 ): RenderValue<string> {
-	return this.target!.renderProgramSegment(value);
+	return this.target!.renderProgramSegment(value, occurrence);
 }
 
 /** Preparation belongs to this output invocation even when its traversal target is shared. */
@@ -105,7 +116,7 @@ function prepareWriterTargetReferences<T>(
 	this: SsrProgramWriterOutput<T>,
 	values: readonly T[]
 ): AsyncDisposable | undefined {
-	return this.target!.prepareProgramReferences(values);
+	return this.target!.prepareProgramReferences(values, this);
 }
 
 /** Allocates completion callbacks only for pending work or owned sibling cleanup. */

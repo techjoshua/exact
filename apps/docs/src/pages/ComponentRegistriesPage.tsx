@@ -137,7 +137,8 @@ export function ComponentRegistriesPage(this: Component<{}>) {
 					Concurrent reads deduplicate one lazy load. Failed loads may retry, and a stale candidate
 					cannot commit after the selected key changes. <code>preloadComponent()</code> starts a
 					known entry early, while <code>inspectComponentRegistry()</code> reports mode, status, and
-					generation without exposing loaders.
+					generation without exposing loaders. Inspection returns a separate snapshot with readonly
+					TypeScript fields.
 				</p>
 			</section>
 			<section>
@@ -151,7 +152,10 @@ export function ComponentRegistriesPage(this: Component<{}>) {
 				<p>
 					For a lazy selection, hydration waits for its module before connecting the existing DOM.
 					It keeps input edits made while loading and leaves unselected entries unloaded. When you
-					need to wait for that work, the hydration root exposes <code>whenSettled()</code>.
+					need to wait for that work, the hydration root exposes <code>whenSettled()</code>. An
+					explicit cancellation signal also applies to hydration-only roots. Cancellation rejects
+					readiness with the signal’s reason and prevents pending selections from activating. Other
+					roots sharing the module can still finish hydration.
 				</p>
 			</section>
 			<section>

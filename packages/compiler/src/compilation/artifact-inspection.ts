@@ -81,10 +81,10 @@ export function prepareArtifactInspection(
 		return retainArtifactAnalysis(
 			{
 				...result,
-				inspection: Object.freeze({
+				inspection: {
 					inspectionFile,
 					inspection: result.inspection.inspection
-				})
+				}
 			},
 			artifactAnalysis(result)
 		);

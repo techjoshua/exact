@@ -83,3 +83,26 @@ func TestSsrSinkContinuationEmptyAndWidePlans(t *testing.T) {
 		}
 	}
 }
+
+// Actual authored child slots and direct references share the writer's consumption positions.
+func TestSsrSinkPreparesCompleteChildSequence(t *testing.T) {
+	for _, tail := range []bool{false, true} {
+		context := printer.NewEmitContext()
+		lowering := jsxLowering{factory: context.Factory}
+		writer := lowering.directRenderProgramSsrSinkWriter(&renderProgramBuild{
+			serverSegments: []string{"<main>", "", "", "</main>"}, serverSlots: []int{0, 1, 2},
+			slots: []renderProgramSlot{
+				{kind: "child", id: "first"},
+				{kind: "component", id: "middle", serverComponent: context.Factory.NewIdentifier("Child")},
+				{kind: "child", id: "last", markerlessTail: tail},
+			},
+		})
+		emitter := printer.NewPrinter(printer.PrinterOptions{NewLine: core.NewLineKindLF, Target: core.ScriptTargetES2022}, printer.PrintHandlers{}, context)
+		text := printer.NewTextWriter("\n", 0)
+		emitter.Write(writer, nil, text, nil)
+		code := text.String()
+		if !strings.Contains(code, "prepareReferences([__exactValue_0, __exactSibling_1, __exactValue_2])") || strings.Count(code, "prepareReferences([") == 0 {
+			t.Fatalf("preparation dropped a child consumption position:\n%s", code)
+		}
+	}
+}

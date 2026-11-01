@@ -1,7 +1,12 @@
-import { batch, flushSync } from '@exactjs/reactive';
+import { batch, flushSync, reactive } from '@exactjs/reactive';
 import { indexedReactiveObjects } from '@exactjs/reactive/framework/indexed-objects';
-import { createIndexedReactiveValue } from '@exactjs/reactive/framework/runtime';
-import { describe, expect, it } from 'vitest';
+import {
+	createIndexedReactiveValue,
+	readIndexedReactiveSlot,
+	compiledReactivePropertyOperand
+} from '@exactjs/reactive/framework/runtime';
+import { createComponentPropExpression } from '../component/reactive-expressions.js';
+import { describe, expect, it, onTestFinished } from 'vitest';
 import { activateComputationForHost } from './computation-activation.js';
 import { createIndexedContinuationDependency } from './dependency-source.js';
 import { createTaskOwnerRecord } from './frame-runtime.js';
@@ -66,39 +71,62 @@ describe('indexed task dependency sources', () => {
 		expect(values).toEqual([2, 20]);
 	});
 
-	it('follows parent expression replacement and releases obsolete subscriptions', () => {
-		const owner = createTaskOwnerRecord('forwarded-computation');
-		const host = {};
-		registerTaskOwnerHost(host, owner);
-		const parent = indexedReactiveObjects(['first', 'second'], {}, { first: 1, second: 10 });
-		const props = indexedReactiveObjects(
-			['value'],
-			{},
-			{ value: createIndexedReactiveValue<number>(parent, 0) },
-			true
-		);
-		const values: number[] = [];
-		const activation = activateComputationForHost(
-			host,
-			(value: number, _context) => {
-				values.push(value);
-			},
-			createIndexedContinuationDependency<number>(props, 0)
-		);
-		parent.first = 2;
-		flushSync();
-		expect(values).toEqual([1, 2]);
-		props.value = createIndexedReactiveValue<number>(parent, 1);
-		flushSync();
-		parent.first = 3;
-		parent.second = 11;
-		flushSync();
-		expect(values).toEqual([1, 2, 10, 11]);
-		activation[Symbol.dispose]();
-		parent.second = 12;
-		flushSync();
-		expect(values).toEqual([1, 2, 10, 11]);
-	});
+	it.each(['reactive', 'expression', 'property', 'nested-property'] as const)(
+		'follows %s source replacement and releases obsolete subscriptions',
+		(kind) => {
+			const owner = createTaskOwnerRecord('forwarded-computation');
+			const host = {};
+			registerTaskOwnerHost(host, owner);
+			const parent = indexedReactiveObjects(['first', 'second'], {}, { first: 1, second: 10 });
+			const nested = reactive({ first: { value: 1 }, second: { value: 10 } });
+			const source = (index: number) =>
+				kind === 'expression'
+					? createComponentPropExpression(() => readIndexedReactiveSlot(parent, index))
+					: kind === 'nested-property'
+						? ([
+								compiledReactivePropertyOperand,
+								index === 0 ? nested.first : nested.second,
+								'value'
+							] as const)
+						: kind === 'property'
+							? ([
+									compiledReactivePropertyOperand,
+									parent,
+									index === 0 ? 'first' : 'second'
+								] as const)
+							: createIndexedReactiveValue<number>(parent, index);
+			const props = indexedReactiveObjects(['value'], {}, { value: source(0) }, true);
+			const values: number[] = [];
+			const activation = activateComputationForHost(
+				host,
+				(value: number, _context) => {
+					values.push(value);
+				},
+				createIndexedContinuationDependency<number>(props, 0)
+			);
+			onTestFinished(() => activation[Symbol.dispose]());
+			const update = (index: number, value: number) => {
+				if (kind === 'nested-property') (index === 0 ? nested.first : nested.second).value = value;
+				else parent[index === 0 ? 'first' : 'second'] = value;
+			};
+			expect(values).toEqual([1]);
+			update(0, 2);
+			flushSync();
+			expect(values).toEqual([1, 2]);
+			props.value = source(1);
+			flushSync();
+			update(0, 3);
+			flushSync();
+			expect(values).toEqual([1, 2, 10]);
+			update(1, 11);
+			flushSync();
+			expect(values).toEqual([1, 2, 10, 11]);
+			activation[Symbol.dispose]();
+			update(1, 12);
+			flushSync();
+			expect(values).toEqual([1, 2, 10, 11]);
+		}
+	);
 
 	it.each([false, true])(
 		'releases a failed synchronous initialization (deferred=%s)',

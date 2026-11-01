@@ -46,6 +46,101 @@ describe('component-library build facts', () => {
 		);
 	});
 
+	it.each([
+		'valid',
+		'wrong identity',
+		'missing owner',
+		'escaping path',
+		'wrong target',
+		'conflicting selection',
+		'conflicting public selection',
+		'conflicting normalized public selection',
+		'equivalent normalized public selection'
+	])('retains descriptive uncertainty and validates supplied selection records: %s', (mode) => {
+		const component = { id: 'Child', placement: 'unknown' as const, artifactTargets: [] };
+		const edge = {
+			ownerComponentId: 'Parent',
+			moduleSpecifier: './Child.js',
+			exportName: 'Child',
+			canonicalComponentId: mode === 'wrong identity' ? 'foreign' : 'Child',
+			artifactTargets: [],
+			reason: 'render' as const,
+			executable: {
+				target: mode === 'wrong target' ? 'worker' : 'server',
+				module:
+					mode === 'escaping path'
+						? '../outside.js'
+						: mode === 'missing owner'
+							? 'dist/missing.js'
+							: './dist/Child.js'
+			}
+		};
+		const input = {
+			package: { name: '@acme/cards', version: '1.0.0' },
+			modules: [
+				{
+					path: 'dist/Parent.js',
+					facts: {
+						...emptyFacts(),
+						components: [{ ...component, id: 'Parent' }],
+						componentImports: [
+							edge,
+							...(mode === 'conflicting selection'
+								? [{ ...edge, executable: { ...edge.executable, target: 'client' } }]
+								: [])
+						]
+					}
+				},
+				{ path: 'dist/Child.js', facts: { ...emptyFacts(), components: [component] } }
+			],
+			exports: [
+				'conflicting public selection',
+				'conflicting normalized public selection',
+				'equivalent normalized public selection'
+			].includes(mode)
+				? ['client', 'server'].map((target, index) => ({
+						subpath: '.',
+						condition: target,
+						module:
+							mode === 'equivalent normalized public selection' ||
+							(mode === 'conflicting normalized public selection' && index === 0)
+								? './dist/index.js'
+								: 'dist/index.js',
+						componentModule:
+							mode === 'equivalent normalized public selection' && index === 0
+								? './dist/Parent.js'
+								: 'dist/Parent.js',
+						exportName: 'Parent',
+						componentId: 'Parent',
+						target: mode === 'equivalent normalized public selection' ? 'server' : target
+					}))
+				: []
+		};
+		// Malformed producer input deliberately crosses the runtime validation boundary.
+		if (mode !== 'valid' && mode !== 'equivalent normalized public selection')
+			expect(() => createExactPublishedComponentBuildFacts(input as never)).toThrow();
+		else {
+			const published = createExactPublishedComponentBuildFacts(input as never);
+			if (mode === 'equivalent normalized public selection') {
+				expect(published.exports).toHaveLength(2);
+				for (const record of published.exports)
+					expect(record).toMatchObject({
+						module: 'dist/index.js',
+						componentModule: 'dist/Parent.js',
+						componentId: 'Parent',
+						target: 'server'
+					});
+			}
+			expect(
+				published.modules.find((module) => module.path === 'dist/Child.js')!.facts.components
+			).toEqual([component]);
+			expect(
+				published.modules.find((module) => module.path === 'dist/Parent.js')!.facts
+					.componentImports[0]!.executable
+			).toEqual({ target: 'server', module: 'dist/Child.js' });
+		}
+	});
+
 	it('keeps writes inside the physical package without rejecting dot-prefixed filenames', async () => {
 		const workspace = await createTestWorkspace('exact-facts-writer-');
 		const root = path.join(workspace, 'package');

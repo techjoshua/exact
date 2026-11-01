@@ -13,9 +13,9 @@ import { gatewayHeaders } from './gateway/headers.js';
 export function createExactBindingGateway(
 	options: ExactBindingGatewayOptions
 ): ExactBindingGateway {
-	const bindings = Object.freeze({ ...options.bindings });
+	const bindings = { ...options.bindings };
 	const maximum = normalizeProtocolLimit(options.maxBindingLength, 128);
-	return Object.freeze({
+	return {
 		async forward(request, body, context) {
 			const headers = gatewayHeaders(request.headers);
 			const binding = headers.get('x-exact-binding') ?? undefined;
@@ -70,7 +70,7 @@ export function createExactBindingGateway(
 				return reject(options, 'upstream_unavailable', binding, 502);
 			}
 		}
-	} satisfies ExactBindingGateway);
+	} satisfies ExactBindingGateway;
 }
 
 function reject(
@@ -79,7 +79,7 @@ function reject(
 	binding: string | undefined,
 	status: number
 ): ExactResponseLike {
-	options.onReject?.(Object.freeze({ reason, ...(binding ? { binding } : {}) }));
+	options.onReject?.({ reason, ...(binding ? { binding } : {}) });
 	return jsonResponse(status, { error: reason });
 }
 

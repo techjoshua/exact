@@ -9,8 +9,10 @@ import (
 )
 
 type indexedStateRead struct {
-	key  string
-	slot int
+	key      string
+	slot     int
+	typeNode *ast.Node
+	scalar   bool
 }
 
 // indexStateReadSlots joins semantic state reads to the component's deterministic top-level
@@ -76,38 +78,34 @@ func (lowering *jsxLowering) lowerIndexedStateRead(node *ast.Node) *ast.Node {
 	if receiver == nil {
 		return nil
 	}
-	if lowering.clientIslandPropsSlots != nil {
-		// Extracted island expressions are authored nodes emitted beneath a synthesized function.
-		// Their original component state-slot proof remains valid, but their `this` declaration is
-		// intentionally replaced; asking the TypeScript checker to rediscover its type can enter an
-		// invalid synthesized parent chain. The island's reactive expression owns the update when no
-		// authored scalar type was recorded before extraction.
-		return lowering.call(lowering.names.readState, []*ast.Node{
-			lowering.visitor.VisitNode(receiver),
-			lowering.factory.NewNumericLiteral(strconv.Itoa(read.slot), ast.TokenFlagsNone),
-		})
-	}
-	// Read semantic type information before recursively lowering the receiver. The visitor may
-	// synthesize a replacement parent chain for an extracted client-island expression; asking the
-	// checker about the authored node after that mutation can leave `this` without its declaration.
-	valueType := lowering.checker.GetTypeAtLocation(node)
 	call := lowering.call(lowering.names.readState, []*ast.Node{
 		lowering.visitor.VisitNode(receiver),
 		lowering.factory.NewNumericLiteral(strconv.Itoa(read.slot), ast.TokenFlagsNone),
 	})
 	result := call
-	if typeNode := lowering.checker.TypeToTypeNode(
-		valueType,
-		node,
-		nodebuilder.FlagsNoTruncation,
-		nil,
-	); typeNode != nil {
-		result = lowering.factory.NewAsExpression(call, typeNode)
+	if read.typeNode != nil {
+		result = lowering.factory.NewAsExpression(call, read.typeNode)
 	}
-	if scalarDerivedType(valueType) {
+	if read.scalar && lowering.clientIslandPropsSlots == nil {
 		lowering.indexedStateReads[result] = read
 	}
 	return result
+}
+
+// captureIndexedStateReadType retains the authored slot type before island extraction
+// reparents expressions beneath a synthesized receiver. Capture every exact indexed source
+// read, including component aliases that keep their general receiver during emission. Emission
+// never queries that receiver or a reconstructed callback scope.
+func (lowering *jsxLowering) captureIndexedStateReadType(node *ast.Node) {
+	key := nodeSpanKey(node)
+	read, exists := lowering.stateReadSlots[key]
+	if !exists || lowering.checker == nil {
+		return
+	}
+	value := lowering.checker.GetTypeAtLocation(node)
+	read.typeNode = lowering.checker.TypeToTypeNode(value, node, nodebuilder.FlagsNoTruncation, nil)
+	read.scalar = scalarDerivedType(value)
+	lowering.stateReadSlots[key] = read
 }
 
 // directStateReadReceiver accepts the canonical facade and a checker-proven whole-state alias.

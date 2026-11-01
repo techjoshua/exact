@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, expectTypeOf, it } from 'vitest';
+import { verifySsrResultLinks } from '../../../component-composition-corpus/test-support/ssr-result-observation-journey.mjs';
 import { hydratableChunksOf } from './output-buffer.js';
 import { documentHydrationSlot, fillDocumentHydration } from './document-output.js';
 import { createChunkedHydratableResult, createChunkedStringResult } from './output-result.js';
@@ -46,7 +47,7 @@ describe('chunked SSR results', () => {
 		expect(first.html).toBe('first');
 		expect(second.html).toBe('second');
 		expect(Object.keys(first)).toEqual(['html', 'state', 'wallClockSnapshot', 'preloadLinks']);
-		expect(Object.isFrozen(first.preloadLinks)).toBe(true);
+		expectTypeOf(first.preloadLinks).toEqualTypeOf<readonly string[] | undefined>();
 		expect(Object.getOwnPropertyDescriptor(first, 'html')).toMatchObject({
 			enumerable: true,
 			configurable: true,
@@ -69,7 +70,7 @@ describe('chunked SSR results', () => {
 		expect(first.state).toEqual({ owner: 1 });
 		expect(first.wallClockSnapshot).toBe(7);
 		expect(first.preloadLinks).toEqual(['asset']);
-		expect(Object.isFrozen(first.preloadLinks)).toBe(true);
+		expectTypeOf(first.preloadLinks).toEqualTypeOf<readonly string[] | undefined>();
 		expect(reads).toBe(0);
 		expect(Object.getPrototypeOf(first)).toBe(Object.prototype);
 		for (const key of ['resumptions', 'htmlWithHydration']) {
@@ -162,4 +163,10 @@ describe('chunked SSR results', () => {
 			'<!doctype html><html><body>Ready<!--exact:framework-body:start--><script>hydrate()</script><!--exact:framework-body:end--></body></html>'
 		);
 	});
+});
+
+it('keeps readonly preload metadata ordinary and isolates independent results', () => {
+	expect(verifySsrResultLinks({ createChunkedStringResult, createChunkedHydratableResult })).toBe(
+		true
+	);
 });

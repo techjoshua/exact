@@ -106,7 +106,7 @@ export function diffExactElementHtml(
 						stringValue(value)
 					);
 					if (!stylePatches) return undefined;
-					patches.push(...stylePatches);
+					for (const patch of stylePatches) patches.push(patch);
 				} else {
 					patches.push({ type: 'prop', id, name, value });
 				}
@@ -123,7 +123,7 @@ export function diffExactElementHtml(
 						undefined
 					);
 					if (!stylePatches) return undefined;
-					patches.push(...stylePatches);
+					for (const patch of stylePatches) patches.push(patch);
 				} else {
 					patches.push({ type: 'prop', id, name, value: null });
 				}

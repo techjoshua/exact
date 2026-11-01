@@ -13,11 +13,7 @@ describe('runtime inspection correlation', () => {
 			filename: '/src/Panel.tsx',
 			emitInspection: true
 		}).inspectionCatalog!;
-		const correlation = createExactRuntimeInspectionCorrelation(inspection, {
-			statePaths: ['state.credentials.token'],
-			contextTokens: [{ name: 'database', scope: 'component', kind: 'server-resource' }],
-			secretNames: ['apiKey']
-		});
+		const correlation = createExactRuntimeInspectionCorrelation(inspection);
 		const explicit = inspection.components[0]!.children.flatMap((entity) => entity.children).find(
 			(entity) => entity.kind === 'explicit-task'
 		);
@@ -28,12 +24,7 @@ describe('runtime inspection correlation', () => {
 		});
 		expect(JSON.stringify(correlation)).not.toContain('/src/Panel.tsx');
 		expect(JSON.stringify(correlation)).not.toContain('Promise');
-		expect(correlation.redactions).toEqual({
-			statePaths: ['state.credentials.token'],
-			contextTokens: [{ name: 'database', scope: 'component', kind: 'server-resource' }],
-			secretNames: ['apiKey']
-		});
-		expect(JSON.stringify(correlation)).not.toContain('must-never-appear');
+		expect(correlation).not.toHaveProperty('redactions');
 	});
 
 	it('marks task callbacks with their canonical compiler ID', () => {
@@ -53,4 +44,17 @@ describe('runtime inspection correlation', () => {
 		expect(result.code).toContain('markExactInspectionSource');
 		expect(result.code).toContain(JSON.stringify(task.id));
 	});
+});
+
+it('keeps correlation observations writable and independent under TypeScript readonly', () => {
+	const inspection = transformSource('export function Panel(){ return () => <p>Ready</p>; }', {
+		filename: '/src/Panel.tsx',
+		emitInspection: true
+	}).inspectionCatalog!;
+	const correlation = createExactRuntimeInspectionCorrelation(inspection);
+	// @ts-expect-error The public declaration retains TypeScript readonly.
+	correlation.protocol = 1;
+	Object.assign(correlation.components[0]!, { componentTypeId: 'caller' });
+	const next = createExactRuntimeInspectionCorrelation(inspection);
+	expect(next.components[0]!.componentTypeId).toBe(inspection.components[0]!.id);
 });

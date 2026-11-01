@@ -34,7 +34,7 @@ export function parseExactEnhancementFacadeRequest(
 		throw new TypeError(`Malformed eXact enhancement facade request ${specifier}`);
 	}
 	validateRequest(value);
-	return Object.freeze(value);
+	return value;
 }
 
 /** Emits a facade that statically selects one resolved provider export. */

@@ -1,9 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
+import type { ExactResponseMetadata } from './types.js';
 import { ExactBuildUnsupportedError, invokeExact } from './invocations.js';
 
 describe('build compatibility responses', () => {
 	it('reports a preferred build before consuming a successful response', async () => {
-		const onResponse = vi.fn();
+		const onResponse = vi.fn((observation: ExactResponseMetadata) => {
+			const alias: { status: number } = observation;
+			alias.status = 201;
+		});
 		await expect(
 			invokeExact({
 				endpoint: '/__exact',
@@ -25,7 +29,7 @@ describe('build compatibility responses', () => {
 		).resolves.toEqual({});
 
 		expect(onResponse).toHaveBeenCalledWith({
-			status: 200,
+			status: 201,
 			preferredBuildKey: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
 		});
 	});
@@ -37,6 +41,10 @@ describe('build compatibility responses', () => {
 				type: 'invoke',
 				root: 'catalog#card',
 				id: 'save',
+				onResponse(observation) {
+					const alias: { status: number } = observation;
+					alias.status = 200;
+				},
 				fetch: async () => ({
 					ok: false,
 					status: 410,

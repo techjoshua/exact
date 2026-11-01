@@ -1,3 +1,4 @@
+import { itemMarkerKey } from './item-markers.js';
 import { encodeExactMarkerPart } from '@exactjs/core';
 import { walkDomSubtree } from '@exactjs/dom/root';
 import { type ExactRange, type ProtocolIndex } from './planning.js';
@@ -126,11 +127,7 @@ export function findExactItemRange(
 
 /** Reports whether exact item start. */
 export function isExactItemStart(comment: Comment, key: string): boolean {
-	if (!comment.data.startsWith('exact:item:')) return false;
-	const suffix = comment.data.slice(comment.data.lastIndexOf(':') + 1);
-	return (
-		suffix === key || suffix === encodeExactMarkerPart(key) || comment.data.endsWith(`:${key}`)
-	);
+	return itemMarkerKey(comment.data) === encodeExactMarkerPart(key);
 }
 
 /** Resolves an indexed item. */
@@ -141,5 +138,5 @@ export function findIndexedItem(
 ): ExactRange | undefined {
 	const items = index.listItems.get(listId);
 	if (!items) return undefined;
-	return items.get(key) ?? items.get(encodeExactMarkerPart(key));
+	return items.get(encodeExactMarkerPart(key));
 }

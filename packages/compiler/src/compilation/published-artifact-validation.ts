@@ -85,3 +85,47 @@ export function validatePublishedArtifactModuleOwners(
 		}
 	}
 }
+
+/**
+ * Checks published selection evidence against its canonical module owners.
+ * This validates inert producer records. Only the normal publisher inspects executable namespaces.
+ */
+export function validatePublishedSelectionEvidence(
+	modules: ExactPublishedComponentBuildFacts['modules'],
+	exports: ExactPublishedComponentBuildFacts['exports']
+): void {
+	const owners = new Map(modules.map((module) => [module.path, module.facts.components]));
+	const publicSelections = new Map<string, string>();
+	for (const record of exports) {
+		if (record.target === undefined) continue;
+		if (record.target !== 'client' && record.target !== 'server')
+			throw new Error('Invalid inspected public component target');
+		const key = [record.module, record.exportName].join('\0');
+		const destination = [record.target, record.componentModule, record.componentId].join('\0');
+		if (publicSelections.has(key) && publicSelections.get(key) !== destination)
+			throw new Error('Conflicting inspected public component selections');
+		publicSelections.set(key, destination);
+	}
+	for (const module of modules) {
+		const selections = new Map<string, string>();
+		for (const edge of module.facts.componentImports) {
+			if (edge.executable === undefined) continue;
+			const selected = edge.executable;
+			if (
+				!selected ||
+				(selected.target !== 'client' && selected.target !== 'server') ||
+				!edge.moduleSpecifier.startsWith('.') ||
+				!edge.canonicalComponentId
+			)
+				throw new Error('Invalid inspected relative component selection');
+			validatePublishedArtifactPath(selected.module);
+			if (!owners.get(selected.module)?.some((owner) => owner.id === edge.canonicalComponentId))
+				throw new Error('Inspected relative component selection has no direct module owner');
+			const key = [edge.ownerComponentId, edge.moduleSpecifier, edge.exportName].join('\0');
+			const destination = [selected.target, selected.module, edge.canonicalComponentId].join('\0');
+			if (selections.has(key) && selections.get(key) !== destination)
+				throw new Error('Conflicting inspected relative component selections');
+			selections.set(key, destination);
+		}
+	}
+}

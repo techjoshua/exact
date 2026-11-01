@@ -3,18 +3,17 @@ import path from 'node:path';
 import ts from 'typescript';
 import { expect, it, onTestFinished } from 'vitest';
 import type { AnyComponentFunction } from '@exactjs/core';
-import { createCompiledComponentReceipt } from '@exactjs/core/runtime/component-operations';
+import { createCompiledComponentInputReceipt } from '@exactjs/core/runtime/component-operations';
 import { composeExactComponentContracts } from '@exactjs/core/framework/component-contracts';
 import { hydrate } from '@exactjs/hydrate';
 import { renderToHydratableString } from '@exactjs/ssr';
 import { compileProjectArtifacts } from '../index.js';
-import { createTestWorkspace, writeTestFiles } from '../test-support/workspace.js';
+import { createCompilerTestWorkspace, writeTestFiles } from '../test-support/workspace.js';
 import { importArtifact } from '../test-support/import-artifact.js';
-
 it.each(['destructured', 'direct', 'renamed-defaults', 'imported-helper'] as const)(
 	'preserves %s prop semantics across checking, SSR, hydration, and updates',
 	async (mode) => {
-		const root = await createTestWorkspace('.exact-destructured-props-', process.cwd());
+		const root = await createCompilerTestWorkspace('.exact-destructured-props-', process.cwd());
 		const props =
 			mode === 'direct'
 				? 'props:{label?:string;value:string;enabled:boolean}'
@@ -62,7 +61,7 @@ export function Page(this:Component<{value:string}>) {
 		).toEqual([]);
 		const server = await importArtifact(page.serverFile, path.join(root, 'server.mjs'));
 		const rendered = await renderToHydratableString(
-			createCompiledComponentReceipt(server.Page as AnyComponentFunction, {})
+			createCompiledComponentInputReceipt(server.Page as AnyComponentFunction, {})
 		);
 		const container = document.createElement('div');
 		container.innerHTML = rendered.htmlWithHydration;
@@ -71,7 +70,7 @@ export function Page(this:Component<{value:string}>) {
 		expect(original?.textContent).toBe('INITIAL');
 		const clientModule = await importArtifact(page.clientFile, path.join(root, 'client.mjs'));
 		const Page = clientModule.Page as AnyComponentFunction;
-		const client = hydrate(createCompiledComponentReceipt(Page, {}), container, {
+		const client = hydrate(createCompiledComponentInputReceipt(Page, {}), container, {
 			...composeExactComponentContracts(
 				[Page, clientModule.Child as AnyComponentFunction],
 				'client'

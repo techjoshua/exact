@@ -20,7 +20,7 @@ type ViewTransitionDocument = Document & {
 export function createViewTransitionCoordinator<Metadata = unknown>(
 	options: ViewTransitionCoordinatorOptions<Metadata> = {}
 ): FrameworkPublicationCoordinator<Metadata> {
-	return Object.freeze({
+	return {
 		async publish(request: FrameworkPublicationRequest<Metadata>): Promise<void> {
 			if (request.signal.aborted) return;
 			const document = globalThis.document as ViewTransitionDocument | undefined;
@@ -70,7 +70,7 @@ export function createViewTransitionCoordinator<Metadata = unknown>(
 			}
 			await transition.updateCallbackDone;
 		}
-	});
+	};
 }
 
 function reducedMotion(policy: 'system' | 'always' | 'never'): boolean {

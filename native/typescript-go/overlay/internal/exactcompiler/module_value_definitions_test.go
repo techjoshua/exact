@@ -1,6 +1,8 @@
 package exactcompiler
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -28,6 +30,8 @@ func TestModuleDefinitionAndExecutionBoundaries(t *testing.T) {
 		{"function factory", `export function createReader(){return ()=>document.title;}export const read=createReader();export const stable=1;`, "const read", false},
 		{"eager call", `function read(){return document.title;}export const title=read();export const stable=1;`, "const title", true},
 		{"eager call member", `function read(){return document.title;}export const title=read.call(null);export const stable=1;`, "const title", true},
+		{"present optional argument", `function read(v:string){return v}function choose(){return read}const selected=choose();export const value=selected?.call(undefined,document.title)??"skipped";`, "const value", true},
+		{"absent receiver effect", `function choose():((v:string)=>string)|undefined{document.title;return undefined}const selected=choose();export const value=selected?.call(undefined,document.title)??"skipped";`, "const value", true},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			response := NewSession().Execute(Request{ID: "/virtual/definitions.ts", Kind: "compile", Target: TargetServer, Diagnostics: "semantic", Source: test.source})
@@ -62,5 +66,35 @@ func TestBrowserTypesRemainErasedAtIslandBoundary(t *testing.T) {
 	response := NewSession().Execute(Request{ID: "browser-value.tsx", Kind: "compile", Target: TargetServer, Source: `export function Page(){const value=HTMLElement;return()=> <p>{String(value)}</p>;}`})
 	if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) || findComponent(t, response.Analysis.Components, "Page").Placement != "client" {
 		t.Fatalf("runtime constructor lost its client ownership: %#v", response)
+	}
+}
+
+// A known absent optional callee does not evaluate its browser-only argument.
+func TestModuleOptionalAbsentInvocationRetainsFallback(t *testing.T) {
+	for _, target := range []Target{TargetClient, TargetServer} {
+		t.Run(string(target), func(t *testing.T) {
+			root := t.TempDir()
+			config := filepath.Join(root, "tsconfig.json")
+			if err := os.WriteFile(config, []byte(`{"compilerOptions":{"module":"esnext","moduleResolution":"bundler","target":"es2022","skipLibCheck":true},"include":["*.ts"]}`), 0600); err != nil {
+				t.Fatal(err)
+			}
+			session := NewSession()
+			for _, file := range []struct{ name, source string }{
+				{"helper.ts", `export function read(v:string){return v}export function choose():typeof read|undefined{return undefined}`},
+				{"entry.ts", `import {read,choose} from './helper.js';const nothing=choose();export const value=nothing?.call(undefined,document.title)??'skipped';`},
+			} {
+				id := filepath.Join(root, file.name)
+				if err := os.WriteFile(id, []byte(file.source), 0600); err != nil {
+					t.Fatal(err)
+				}
+				response := session.Execute(Request{ID: id, Root: root, ConfigFile: config, Kind: "compile", Target: target, Diagnostics: "semantic", Source: file.source})
+				if response.Error != "" || len(response.Diagnostics) != 0 {
+					t.Fatalf("%s: %#v", file.name, response)
+				}
+				if file.name == "entry.ts" && !strings.Contains(response.Code, "export const value") {
+					t.Fatalf("lost absent-call fallback: %s", response.Code)
+				}
+			}
+		})
 	}
 }

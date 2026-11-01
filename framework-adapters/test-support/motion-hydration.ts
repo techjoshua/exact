@@ -39,8 +39,20 @@ export const motionHydrationModes = [
 	'wrapper-fragment-shell-stream'
 ] as const;
 
-/** Prepares the same SSR/hydration contract for each adapter; caller owns dispose(). */
-export async function createMotionHydrationFixture(mode: (typeof motionHydrationModes)[number]) {
+/** Exposes the already materialized test graph before normal paired compilation. */
+export interface MotionHydrationPreparation {
+	readonly root: string;
+	readonly inputs: readonly string[];
+	readonly options: Parameters<typeof compileProjectArtifacts>[1];
+}
+
+/** Prepares the shared contract. An optional diagnostic callback borrows the graph before compilation.
+ * The callback must restore temporary inputs. The caller owns dispose() on a successful result.
+ */
+export async function createMotionHydrationFixture(
+	mode: (typeof motionHydrationModes)[number],
+	beforeCompile?: (preparation: MotionHydrationPreparation) => Promise<void>
+) {
 	// A document wrapper must not turn a server-only parent into the owner of its islands.
 	// Client-capable roots still adopt their subtree, even with partitioned paired artifacts.
 	const shell = mode.includes('shell');
@@ -141,7 +153,7 @@ export async function createMotionHydrationFixture(mode: (typeof motionHydration
 			path.join(root, 'page.tsx'),
 			`
 import { readKey } from './semantic-probe.js';
-${continuation ? "import { DerivedStateIsland, KeyedSpreadWorkbench } from './keyed-spread.js'; import {HoverProbe, MapProjectionProbe} from './keyed-prop-replacement.js'; import {ClipboardProbe, ClipboardPromiseProbe} from './cancelled-task-catch.js'; import {CollectionProjectionProbe} from './collection-projection.js'; import {DerivedPatternProbe} from './derived-pattern.js'; import {NamespaceProbe} from './render-namespace.js'; import {TimeWindowProbe} from './time-plan.js';" : ''}
+${continuation ? "import { DerivedStateIsland, KeyedSpreadWorkbench } from './keyed-spread.js'; import {HoverProbe, MapProjectionProbe} from './keyed-prop-replacement.js'; import {ClipboardProbe, ClipboardPromiseProbe, ArrayRollbackProbe} from './cancelled-task-catch.js'; import {CollectionProjectionProbe} from './collection-projection.js'; import {DerivedPatternProbe} from './derived-pattern.js'; import {NamespaceProbe} from './render-namespace.js'; import {TimeWindowProbe} from './time-plan.js';" : ''}
 import { createComponentRegistry, Suspense, TaskContext, taskStatus, type Child, type Component } from '@exactjs/core';
 ${wrapper ? `import { _ } from '@exactjs/jsx'; import * as theme from '@exactjs/theme/enhancements' with {type:'exact-enhancement'};` : ''}
 import motion from '${mode === 'absent' ? '@fixture/motion' : '@exactjs/motion'}' with { type: 'exact-enhancement' };
@@ -194,7 +206,7 @@ ${
 	mode.includes('server-shell') || continuation || wrapper
 		? mode.startsWith('declared-') || continuation || wrapper
 			? `/** @exact server */
-export function Page() { return () => <section><Counter ${wrapper ? 'button-label="Add" dynamic-label="Dynamic"' : ''}>${wrapper ? '<aside data-server-content="retained"><input value="Server content" /><NestedCounter /></aside>' : ''}</Counter>${continuation ? '<KeyedSpreadWorkbench path="spread" /><KeyedSpreadWorkbench path="spread-key" /><KeyedSpreadWorkbench path="overwritten-key" /><KeyedSpreadWorkbench path="hidden-key" /><KeyedSpreadWorkbench path="conditional-empty" /><KeyedSpreadWorkbench path="short-circuit" /><DerivedStateIsland /><HoverProbe /><MapProjectionProbe /><ClipboardProbe /><ClipboardPromiseProbe /><CollectionProjectionProbe /><DerivedPatternProbe /><NamespaceProbe /><TimeWindowProbe />' : ''}${wrapper ? islandSemanticInstances() + partitionIslandInstances + '<MutationContractProbe/><EagerAppearance /><LocalWrapper /><EmptyWrapper kind="undefined" /><EmptyWrapper kind="null-child" children={null} /><EmptyWrapper kind="false" children={false} /><EmptyWrapper kind="zero" children={0} /><EmptyWrapper kind="text" children="Text" />' : ''}</section>; }`
+export function Page() { return () => <section><Counter ${wrapper ? 'button-label="Add" dynamic-label="Dynamic"' : ''}>${wrapper ? '<aside data-server-content="retained"><input value="Server content" /><NestedCounter /></aside>' : ''}</Counter>${continuation ? '<KeyedSpreadWorkbench path="spread" /><KeyedSpreadWorkbench path="spread-key" /><KeyedSpreadWorkbench path="overwritten-key" /><KeyedSpreadWorkbench path="hidden-key" /><KeyedSpreadWorkbench path="conditional-empty" /><KeyedSpreadWorkbench path="short-circuit" /><DerivedStateIsland /><HoverProbe /><MapProjectionProbe /><ClipboardProbe /><ClipboardPromiseProbe /><ArrayRollbackProbe /><CollectionProjectionProbe /><DerivedPatternProbe /><NamespaceProbe /><TimeWindowProbe />' : ''}${wrapper ? islandSemanticInstances() + partitionIslandInstances + '<MutationContractProbe/><EagerAppearance /><LocalWrapper /><EmptyWrapper kind="undefined" /><EmptyWrapper kind="null-child" children={null} /><EmptyWrapper kind="false" children={false} /><EmptyWrapper kind="zero" children={0} /><EmptyWrapper kind="text" children="Text" />' : ''}</section>; }`
 			: `export function Page(this: Component<{ ready: boolean }>) {
  const prepare = (_task: TaskContext = TaskContext.server().blocking()) => { this.state.ready = true; };
  prepare();
@@ -226,14 +238,14 @@ export function Page() { return () => <section><Counter ${wrapper ? 'button-labe
 				);
 				await promisify(execFile)(process.execPath, [producer], { timeout: 30_000 });
 				artifacts = [];
-			} else
-				artifacts = await compileProjectArtifacts(
-					[
-						path.join(root, 'page.tsx'),
-						...(continuation ? [path.join(root, 'keyed-spread.tsx')] : [])
-					],
-					options
-				);
+			} else {
+				const inputs = [
+					path.join(root, 'page.tsx'),
+					...(continuation ? [path.join(root, 'keyed-spread.tsx')] : [])
+				];
+				if (beforeCompile) await beforeCompile({ root, inputs, options });
+				artifacts = await compileProjectArtifacts(inputs, options);
+			}
 			if (partitioned) {
 				const graph = createExactArtifactGraph(artifacts, {
 					packageRoot: root,
@@ -300,6 +312,13 @@ const islands = Object.fromEntries(Object.entries(exactHydrationRegistration.isl
 export const mountPage = (root: Element, options = {}) => createExactClient(root, {...readExactHydrationConfig(root), ...exactHydrationRegistration, ${wrapper ? 'islands,' : ''} ...options});`
 				: `import {Page} from '${page('client')}'; import {hydrate} from '@exactjs/hydrate'; export const mountPage = (root: Element) => hydrate(<Page/>, root);`
 		);
+		if (mode === 'authored' || mode === 'paired')
+			await appendFile(
+				path.join(root, 'client.tsx'),
+				`\nimport {GestureSession,defineGesture,installGestureClock,defaultGestureSettings} from '@exactjs/gestures';
+import {verifyGestureSessionOwnership} from ${JSON.stringify(fileURLToPath(new URL('../../packages/component-composition-corpus/test-support/gesture-ownership-journey.mjs', import.meta.url)))};
+export const probeGestureOwnership = () => verifyGestureSessionOwnership({GestureSession,defineGesture,installGestureClock,defaultGestureSettings});`
+			);
 		await writeFile(
 			path.join(root, 'task-cancellation-probe.ts'),
 			await readFile(new URL('./task-cancellation-probe.ts', import.meta.url), 'utf8')

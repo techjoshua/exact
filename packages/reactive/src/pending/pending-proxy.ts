@@ -1,7 +1,6 @@
 import { pendingPropertyDescriptor } from './pending-reflection.js';
 import { assertPendingAccessorReceiver } from './pending-property-policy.js';
 import { unwrap } from '../internal/values.js';
-import { reactiveProxyOptions } from '../proxy/collection-publication.js';
 import {
 	proxyMarker,
 	rawTarget,
@@ -36,8 +35,7 @@ export class PendingReactiveProxies {
 		if (!copy && !this.context.owns(value)) return value;
 		const raw = unwrap(value),
 			context = this.context;
-		const readonly = Boolean(reactiveProxyOptions(value)?.readonly);
-		const mode = Number(readonly) + (copy ? 2 : 0);
+		const mode = Number(copy);
 		let aliases = this.views.get(raw);
 		const cached = aliases?.get(mode);
 		if (cached) return cached as Value;
@@ -93,11 +91,6 @@ export class PendingReactiveProxies {
 				context.assertCurrent();
 				if (receiver !== view)
 					throw new TypeError('Pending reflective writes require their original receiver');
-				const options = reactiveProxyOptions(value);
-				if (options?.readonly) {
-					options.onReadonlyWrite?.(key);
-					throw new TypeError('Cannot write through readonly task state');
-				}
 				const descriptor = pendingPropertyDescriptor(raw, key);
 				if (descriptor?.set) {
 					assertPendingAccessorReceiver(raw, key);

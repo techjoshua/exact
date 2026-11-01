@@ -1,42 +1,56 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
+import { flushSync, watch } from '@exactjs/reactive';
 import { createComponentProps } from './state.js';
+import '../runtime/collections.js';
+import type { ReactiveOptions } from '@exactjs/reactive';
 
-describe('readonly component array props', () => {
-	it.each([
-		['push', (items: number[]) => items.push(4)],
-		['pop', (items: number[]) => items.pop()],
-		['shift', (items: number[]) => items.shift()],
-		['unshift', (items: number[]) => items.unshift(4)],
-		['splice', (items: number[]) => items.splice(1, 1, 4)],
-		['reverse', (items: number[]) => items.reverse()],
-		['fill', (items: number[]) => items.fill(4)],
-		['copyWithin', (items: number[]) => items.copyWithin(0, 1)]
-	] as const)('rejects %s without changing the parent array', (_name, mutate) => {
-		const raw = { nested: { items: [3, 1, 2] } };
-		const props = createComponentProps(raw, ['nested']);
-		const nested = props.nested as typeof raw.nested;
-		expect(() => mutate(nested.items)).toThrow('Cannot write to readonly props.');
-		expect(raw.nested.items).toEqual([3, 1, 2]);
+describe('TypeScript readonly component props', () => {
+	it('retains shallow readonly types without imposing runtime immutability', () => {
+		const raw = { count: 1, nested: { items: [3, 1, 2] } };
+		const props = createComponentProps(raw, ['count', 'nested']);
+		const authored: Readonly<typeof raw> = props as typeof raw;
+		if (false) {
+			// @ts-expect-error Runtime readonly enforcement is deliberately absent from reactive options.
+			const options: ReactiveOptions = { readonly: true };
+			void options;
+			// @ts-expect-error TypeScript rejects assignment to a readonly property.
+			authored.count = 2;
+			// @ts-expect-error TypeScript rejects replacement of a readonly property.
+			authored.nested = { items: [] };
+		}
+		// Readonly does not recursively change the authored nested value's type.
+		authored.nested.items.sort((a, b) => a - b);
+		authored.nested.items.push(4);
+		expect(raw.nested.items).toEqual([1, 2, 3, 4]);
 	});
 
-	it('rejects sort before invoking a comparator', () => {
-		const raw = { items: [3, 1, 2] };
-		const props = createComponentProps(raw, ['items']);
-		const compare = vi.fn((a: number, b: number) => a - b);
-		expect(() => (props.items as number[]).sort(compare)).toThrow('readonly props.sort');
-		expect(compare).not.toHaveBeenCalled();
-		expect(raw.items).toEqual([3, 1, 2]);
+	it('allows writable aliases and keeps indexed prop reads reactive', () => {
+		const props = createComponentProps({ count: 1 }, ['count']);
+		const authored: Readonly<{ count: number }> = props as { count: number };
+		const writable = props as { count: number };
+		const seen: number[] = [];
+		const stop = watch(() => seen.push(authored.count));
+		try {
+			writable.count = 2;
+			flushSync();
+			expect(seen).toEqual([1, 2]);
+		} finally {
+			stop();
+		}
 	});
 
-	it('allows reading and copying arrays without changing parent ownership', () => {
-		const raw = { items: [3, 1, 2] };
-		const props = createComponentProps(raw, ['items']);
-		const items = props.items as number[];
-		expect(items.map((item) => item * 2)).toEqual([6, 2, 4]);
-		expect(items.slice().sort()).toEqual([1, 2, 3]);
-		expect(() => {
-			items[0] = 4;
-		}).toThrow('readonly props.0');
-		expect(raw.items).toEqual([3, 1, 2]);
+	it('preserves ordinary collection and property mutations through writable aliases', () => {
+		const raw = { values: new Map([['first', 1]]), members: new Set([1]), items: [1] };
+		const props = createComponentProps(raw, ['values', 'members', 'items'], true);
+		const authored: Readonly<typeof raw> = props as typeof raw;
+		authored.values.set('second', 2);
+		authored.members.add(2);
+		authored.items.splice(0, 1, 2);
+		expect([...raw.values]).toEqual([
+			['first', 1],
+			['second', 2]
+		]);
+		expect([...raw.members]).toEqual([1, 2]);
+		expect(raw.items).toEqual([2]);
 	});
 });

@@ -2,20 +2,19 @@
 import path from 'node:path';
 import { expect, it, onTestFinished } from 'vitest';
 import type { Component } from '@exactjs/core';
-import { createCompiledComponentReceipt as receipt } from '@exactjs/core/runtime/component-operations';
+import { createCompiledComponentInputReceipt as receipt } from '@exactjs/core/runtime/component-operations';
 import { render, unmount } from '@exactjs/dom';
 import { hydrate } from '@exactjs/hydrate';
 import { renderToHydratableString, renderToString } from '@exactjs/ssr';
 import { flushSync } from '@exactjs/reactive';
 import { compileFileArtifacts } from '../index.js';
 import { transformSource } from './transformation.js';
-import { createTestWorkspace, writeTestFiles } from '../test-support/workspace.js';
+import { createCompilerTestWorkspace, writeTestFiles } from '../test-support/workspace.js';
 import { importArtifact } from '../test-support/import-artifact.js';
-
 it.each(['radio', 'string radio', 'default radio', 'numeric text'] as const)(
 	'preserves %s conversion in both binding directions',
 	async (control) => {
-		const root = await createTestWorkspace('.exact-form-conversion-', process.cwd());
+		const root = await createCompilerTestWorkspace('.exact-form-conversion-', process.cwd());
 		const body =
 			control === 'default radio'
 				? `<input type={"radio"} name="choice" checked:onChange={this.state.value}/><input type="radio" name="choice" value={3} checked:onChange={this.state.value}/>`
@@ -61,7 +60,9 @@ return()=> <section>${body}<output>{this.state.value}</output></section>;}`
 				expect(host.querySelector('input')).toBe(original);
 			} else
 				render(receipt(client.Form as never, {}), host, { onErrorReport: (r) => reports.push(r) });
-			const owner = client.owner as Component<{ value: number | string | null }>;
+			const owner = client.owner as Component<{
+				value: number | string | null;
+			}>;
 			const inputs = [...host.querySelectorAll('input')];
 			expect(inputs).toHaveLength(2);
 			if (control.includes('radio')) {
@@ -122,9 +123,8 @@ return()=> <section>${body}<output>{this.state.value}</output></section>;}`
 		}
 	}
 );
-
 it('preserves native numeric APIs when an input type changes', async () => {
-	const root = await createTestWorkspace('.exact-form-dynamic-type-', process.cwd());
+	const root = await createCompilerTestWorkspace('.exact-form-dynamic-type-', process.cwd());
 	const files = await writeTestFiles(root, {
 		'form.tsx': `import {type Component} from '@exactjs/core';
  export let owner:Component<{value:number|null;type:string}>;
@@ -138,14 +138,17 @@ it('preserves native numeric APIs when an input type changes', async () => {
 		unmount(host);
 	});
 	render(receipt(client.Form as never, {}), host, { onErrorReport: (r) => reports.push(r) });
-	const owner = client.owner as Component<{ value: number | null; type: string }>;
+	const owner = client.owner as Component<{
+		value: number | null;
+		type: string;
+	}>;
 	const input = host.querySelector('input')!;
 	for (const [type, value, expected] of [
 		['text', '7', 7],
 		['number', '8', 8],
 		['date', '2026-01-02', Date.UTC(2026, 0, 2)],
 		['datetime-local', '2026-01-02T03:04', Date.UTC(2026, 0, 2, 3, 4)],
-		['time', '03:04', (3 * 60 + 4) * 60_000],
+		['time', '03:04', (3 * 60 + 4) * 60000],
 		['month', '2026-01', (2026 - 1970) * 12],
 		['week', '2026-W01', Date.UTC(2025, 11, 29)],
 		['text', '9', 9]
@@ -175,18 +178,17 @@ it('preserves native numeric APIs when an input type changes', async () => {
 	expect(input.value).toBe('');
 	expect(reports).toEqual([]);
 });
-
 it.each(['bound', 'explicit'] as const)(
 	'preserves %s numeric temporal values on initial rendering and hydration',
 	async (mode) => {
 		const controls = [
 			['date', '2026-01-02', Date.UTC(2026, 0, 2)],
 			['datetime-local', '2026-01-02T03:04', Date.UTC(2026, 0, 2, 3, 4)],
-			['time', '03:04', (3 * 60 + 4) * 60_000],
+			['time', '03:04', (3 * 60 + 4) * 60000],
 			['month', '2026-01', (2026 - 1970) * 12],
 			['week', '2026-W01', Date.UTC(2025, 11, 29)]
 		] as const;
-		const root = await createTestWorkspace('.exact-form-temporal-', process.cwd());
+		const root = await createCompilerTestWorkspace('.exact-form-temporal-', process.cwd());
 		const files = await writeTestFiles(root, {
 			'form.tsx': `import {type Component} from '@exactjs/core';
 export let owner:Component<{values:(number|null)[]}>;
@@ -224,7 +226,9 @@ return()=> <section>${controls.map(([type], index) => `<input type="${type}" ${m
 					onErrorReport: (report) => reports.push(report)
 				});
 			}
-			const owner = client.owner as Component<{ values: (number | null)[] }>;
+			const owner = client.owner as Component<{
+				values: (number | null)[];
+			}>;
 			const inputs = [...host.querySelectorAll('input')];
 			expect(inputs.map((input) => input.value)).toEqual(controls.map(([, value]) => value));
 			for (const [index, input] of inputs.entries()) {
@@ -249,11 +253,10 @@ return()=> <section>${controls.map(([type], index) => `<input type="${type}" ${m
 		}
 	}
 );
-
 it.each(['bound', 'explicit'] as const)(
 	'preserves %s root calendar values without duplicating type-helper evaluations',
 	async (mode) => {
-		const root = await createTestWorkspace('.exact-form-temporal-root-', process.cwd());
+		const root = await createCompilerTestWorkspace('.exact-form-temporal-root-', process.cwd());
 		const files = await writeTestFiles(root, {
 			'form.tsx': `import {type Component} from '@exactjs/core';
 export const calls={count:0};
@@ -268,7 +271,13 @@ export function Form(this:Component<{value:number|null;type:string}>){owner=this
 		const client = await importArtifact(compiled.clientFile, path.join(root, 'client.mjs'));
 		const server = await importArtifact(compiled.serverFile, path.join(root, 'server.mjs'));
 		const result = await renderToHydratableString(receipt(server.Form as never, {}));
-		expect((server.calls as { count: number }).count).toBe(1);
+		expect(
+			(
+				server.calls as {
+					count: number;
+				}
+			).count
+		).toBe(1);
 		const host = document.createElement('div');
 		onTestFinished(() => {
 			unmount(host);
@@ -284,28 +293,54 @@ export function Form(this:Component<{value:number|null;type:string}>){owner=this
 		});
 		expect(host.querySelector('input')).toBe(input);
 		expect(input.value).toBe('2026-01-02');
-		expect((client.calls as { count: number }).count).toBe(1);
-		const owner = client.owner as Component<{ value: number | null; type: string }>;
+		expect(
+			(
+				client.calls as {
+					count: number;
+				}
+			).count
+		).toBe(1);
+		const owner = client.owner as Component<{
+			value: number | null;
+			type: string;
+		}>;
 		owner.state.value = Date.UTC(2026, 0, 3);
 		flushSync();
 		expect(input.value).toBe('2026-01-03');
-		expect((client.calls as { count: number }).count).toBe(2);
+		expect(
+			(
+				client.calls as {
+					count: number;
+				}
+			).count
+		).toBe(2);
 		owner.state.type = 'text';
 		flushSync();
 		expect(input.value).toBe(String(Date.UTC(2026, 0, 3)));
-		expect((client.calls as { count: number }).count).toBe(3);
+		expect(
+			(
+				client.calls as {
+					count: number;
+				}
+			).count
+		).toBe(3);
 		owner.state.type = 'date';
 		flushSync();
 		expect(input.value).toBe('2026-01-03');
-		expect((client.calls as { count: number }).count).toBe(4);
+		expect(
+			(
+				client.calls as {
+					count: number;
+				}
+			).count
+		).toBe(4);
 		expect(reports).toEqual([]);
 	}
 );
-
 it.each(['date', 'DATE'] as const)(
 	'retains native Date aliases and HTML years with type %s',
 	async (type) => {
-		const root = await createTestWorkspace('.exact-native-date-surface-', process.cwd());
+		const root = await createCompilerTestWorkspace('.exact-native-date-surface-', process.cwd());
 		const files = await writeTestFiles(root, {
 			'form.tsx': `import {type Component} from '@exactjs/core';type Day=Date;export let owner:Component<{day:Day|null}>;
 export function Form(this:Component<{day:Day|null}>){owner=this;this.state.day=null;return()=> <section><input type="${type}" value:onChange={this.state.day}/><input type="${type}" value={this.state.day??new Date('+010000-01-02T00:00:00.000Z')}/></section>;}`
@@ -340,7 +375,9 @@ export function Form(this:Component<{day:Day|null}>){owner=this;this.state.day=n
 				render(receipt(client.Form as never, {}), host, {
 					onErrorReport: (report) => reports.push(report)
 				});
-			const owner = client.owner as Component<{ day: Date | null }>;
+			const owner = client.owner as Component<{
+				day: Date | null;
+			}>;
 			const inputs = [...host.querySelectorAll('input')];
 			expect(inputs.map((input) => input.value)).toEqual(['', '10000-01-02']);
 			owner.state.day = null;
@@ -359,7 +396,6 @@ export function Form(this:Component<{day:Day|null}>){owner=this;this.state.day=n
 		}
 	}
 );
-
 it.each(['number', 'string', 'Date'])(
 	'rejects scalar %s checkbox bindings before emission',
 	(kind) => {
@@ -371,7 +407,6 @@ it.each(['number', 'string', 'Date'])(
 		).toThrow(/checked:onChange requires a boolean/);
 	}
 );
-
 it.each(['intrinsic', 'component'] as const)(
 	'checks readonly %s binding targets with native TypeScript rules',
 	(mode) => {
@@ -403,7 +438,6 @@ it.each(['intrinsic', 'component'] as const)(
 		).not.toThrow();
 	}
 );
-
 it.each(['props.value', 'props.record.value', 'alias.value'] as const)(
 	'rejects binding into parent-owned %s',
 	(target) => {
@@ -413,9 +447,8 @@ it.each(['props.value', 'props.record.value', 'alias.value'] as const)(
 		).toThrow(/cannot write parent-owned props/);
 	}
 );
-
 it('projects Date state in ordinary server markup but rejects it in hydration state', async () => {
-	const root = await createTestWorkspace('.exact-date-transport-', process.cwd());
+	const root = await createCompilerTestWorkspace('.exact-date-transport-', process.cwd());
 	const files = await writeTestFiles(root, {
 		'form.tsx': `import {type Component} from '@exactjs/core';
 export function Form(this:Component<{day:Date}>){this.state.day=new Date('2026-01-02T00:00:00.000Z');return()=> <input type="DATE" value:onChange={this.state.day}/>;}`
@@ -428,9 +461,8 @@ export function Form(this:Component<{day:Date}>){this.state.day=new Date('2026-0
 		'Hydration payload must be JSON-serializable'
 	);
 });
-
 it('gives a native Date input receipt to an unchanged helper in a blocking task', async () => {
-	const root = await createTestWorkspace('.exact-date-helper-receipt-', process.cwd());
+	const root = await createCompilerTestWorkspace('.exact-date-helper-receipt-', process.cwd());
 	const files = await writeTestFiles(root, {
 		'form.tsx': `import {TaskContext,type Component} from '@exactjs/core';
 function read(day:Date){return day.getTime();}

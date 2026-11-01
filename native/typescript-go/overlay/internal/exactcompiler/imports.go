@@ -5,6 +5,7 @@ import "github.com/microsoft/TypeScript/tsc/internal/ast"
 // Import describes a static declaration, re-export, or literal dynamic import edge.
 type Import struct {
 	ModuleSpecifier string `json:"moduleSpecifier"`
+	ResolvedFile    string `json:"resolvedFile,omitempty"`
 	TypeOnly        bool   `json:"typeOnly"`
 	SideEffectOnly  bool   `json:"sideEffectOnly"`
 	RuntimeBinding  bool   `json:"runtimeBinding"`

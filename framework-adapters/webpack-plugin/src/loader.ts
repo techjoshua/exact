@@ -1,3 +1,4 @@
+import path from 'node:path';
 import { isExactBuildAssetRequest } from '@exactjs/compiler/adapter-support';
 import {
 	compilerSessionForWebpackLoader,
@@ -17,6 +18,9 @@ type LoaderContext = {
 	query?: unknown;
 	_compiler?: ExactWebpackLoaderBridgeCarrier;
 	getOptions?(): ExactWebpackLoaderOptions;
+	getResolve?(options: {
+		dependencyType: 'esm' | 'commonjs';
+	}): (context: string, request: string) => Promise<string | false>;
 	async?(): LoaderContext['callback'];
 	emitWarning?(warning: Error): void;
 	callback(error: Error | null, code?: string, map?: unknown): void;
@@ -51,7 +55,16 @@ export default function exactWebpackLoader(this: LoaderContext, source: string):
 				bridge?.validate,
 				bridge?.packageEnhancements(),
 				bridge?.warn ?? ((message) => this.emitWarning?.(new Error(message))),
-				bridge?.resolveEnhancement
+				bridge?.resolveEnhancement,
+				this.getResolve
+					? async (specifier, importer, kind) => {
+							const resolved = await this.getResolve!({
+								dependencyType: kind === 'require' ? 'commonjs' : 'esm'
+							})(path.dirname(importer), specifier);
+							return resolved ? { id: resolved } : undefined;
+						}
+					: undefined,
+				bridge?.preparation
 			);
 		})
 		.then(

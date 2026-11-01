@@ -1,4 +1,4 @@
-import { normalizeProtocolLimit } from '@exactjs/core/framework/protocol-records';
+import { responseResourceBudget } from '../response-resources.js';
 import type { ExactResponseLike, ExactResponseMetadata, ExactServerContext } from '../types.js';
 import { gatewayHeaders } from './headers.js';
 
@@ -8,6 +8,7 @@ export function copyGatewayResponse(
 	context: ExactServerContext
 ): ExactResponseLike {
 	const headers = gatewayHeaders(upstream.headers);
+	const resources = responseResourceBudget(context.logger);
 	// Fetch exposes decompressed bytes, so compressed wire metadata no longer describes this body.
 	headers.delete('content-encoding');
 	headers.delete('set-cookie');
@@ -22,17 +23,26 @@ export function copyGatewayResponse(
 		.get('content-type')
 		?.toLowerCase()
 		.startsWith('application/x-ndjson');
-	const limit = normalizeProtocolLimit(
-		streaming ? context.limits?.maxStreamBytes : context.limits?.maxResponseBytes,
-		16 * 1024 * 1024
-	);
-	return { ...result, stream: boundedGatewayStream(upstream.body, limit) };
+	const option = streaming ? 'maxStreamBytes' : 'maxResponseBytes';
+	return {
+		...result,
+		stream: boundedGatewayStream(upstream.body, (bytes) => {
+			resources(
+				option,
+				context.limits?.[option],
+				16 * 1024 * 1024,
+				bytes,
+				'gateway response relay',
+				'upstream bytes'
+			);
+		})
+	};
 }
 
 /** Retains backpressure and cancellation while counting bytes rather than protocol messages. */
 function boundedGatewayStream(
 	source: ReadableStream<Uint8Array>,
-	maximum: number
+	check: (bytes: number) => void
 ): ReadableStream<Uint8Array> {
 	const reader = source.getReader();
 	let bytes = 0;
@@ -54,7 +64,7 @@ function boundedGatewayStream(
 						return;
 					}
 					bytes += next.value.byteLength;
-					if (bytes > maximum) throw new RangeError('Gateway response byte limit exceeded');
+					check(bytes);
 					controller.enqueue(next.value);
 				} catch (error) {
 					await reader.cancel(error).catch(() => undefined);

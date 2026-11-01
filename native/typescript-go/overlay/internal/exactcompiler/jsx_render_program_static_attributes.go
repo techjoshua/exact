@@ -11,6 +11,10 @@ import (
 // A literal URL with an unambiguous safe prefix cannot match the runtime javascript: policy.
 // Other protocols, expressions, custom elements, and client artifacts retain the existing operations.
 func (lowering *jsxLowering) plannedStaticRenderProgramAttribute(tag string, name string, initializer *ast.Node) (string, string, bool) {
+	// Owned native defaults must pass through the serializer even when authored as literals.
+	if lowering.target == TargetServer && strings.ToLower(name) == "data-exact-ssr-open" && (tag == "details" || tag == "dialog") {
+		return "", "", false
+	}
 	if attribute, serialized, static := staticRenderProgramAttribute(tag, name, initializer); static {
 		return attribute, serialized, true
 	}

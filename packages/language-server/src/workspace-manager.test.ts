@@ -1,16 +1,15 @@
-import type {
-	ExactLanguageService,
-	ExactLanguageServiceOptions,
-	ExactSourceInspection
-} from '@exactjs/compiler';
-import type { ExactLanguageExtensionHost } from '@exactjs/language-extension-host';
+import type { ExactLanguageServiceOptions } from '@exactjs/compiler';
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { describe, expect, it, vi } from 'vitest';
 import { ExactLanguageWorkspaceManager } from './workspace-manager.js';
-
+import {
+	FakeLanguageService,
+	lifetimeFixture,
+	testLanguageHost
+} from './test-support/workspace-manager.js';
 describe('ExactLanguageWorkspaceManager', () => {
 	it('owns a document by its nearest nested eXact project inside a monorepo workspace', async () => {
 		const created: Array<{
@@ -97,7 +96,7 @@ export default {};\n`
 		const uri = pathToFileURL(path.join(root, 'Page.tsx')).href;
 		const manager = new ExactLanguageWorkspaceManager([root], true, {
 			createLanguageService: (options) => new FakeLanguageService(options),
-			createLanguageExtensionHost: async () => failingLanguageHost('provider discovery failed')
+			createLanguageExtensionHost: async () => testLanguageHost('provider discovery failed')
 		});
 
 		await manager.synchronizeDocument(uri, 1, 'export const page = 1;');
@@ -105,103 +104,104 @@ export default {};\n`
 		expect(manager.providerFailure(uri)).toBe('provider discovery failed');
 		await manager.dispose();
 	});
+
+	it.each(['synchronize', 'inspect', 'host', 'providers', 'diagnostics'] as const)(
+		'refuses the retired workspace after awaiting %s and permits the next owner',
+		async (stage) => {
+			const fixture = lifetimeFixture(stage);
+			const pending = fixture.manager.synchronizeDocument(fixture.uri, 1, 'export const old = 1;');
+			await fixture.entered.promise;
+			// The manager registered its continuation first, so it now awaits the held host.
+			if (stage === 'host') await vi.mocked(fixture.services[0]!.inspect).mock.results[0]!.value;
+			const retirement = fixture.manager.removeRoot(fixture.root);
+			fixture.release.resolve();
+			await retirement;
+			await expect(pending).resolves.toBeUndefined();
+			if (stage === 'synchronize') expect(fixture.services[0]!.inspect).not.toHaveBeenCalled();
+			if (stage === 'synchronize' || stage === 'inspect' || stage === 'host')
+				expect(fixture.hosts[0]!.synchronizeProviders).not.toHaveBeenCalled();
+			if (stage !== 'diagnostics') expect(fixture.hosts[0]!.diagnostics).not.toHaveBeenCalled();
+			expect(fixture.services[0]!.dispose).toHaveBeenCalledOnce();
+			expect(fixture.hosts[0]!.dispose).toHaveBeenCalledOnce();
+			fixture.manager.addRoot(fixture.root);
+			const next = await fixture.manager.synchronizeDocument(
+				fixture.uri,
+				1,
+				'export const next = 2;'
+			);
+			expect(next?.inspection.project?.kind).toBe('configured');
+			expect(next?.inspection.languageProjection.document.version).toBe(1);
+			expect(fixture.services).toHaveLength(2);
+		}
+	);
+
+	it.each([false, true])(
+		'retires provider completion on manager disposal, rejected=%s',
+		async (rejected) => {
+			const fixture = lifetimeFixture('diagnostics');
+			const pending = fixture.manager.synchronizeDocument(fixture.uri, 1, 'old');
+			await fixture.entered.promise;
+			await fixture.manager.dispose();
+			if (rejected) fixture.release.reject(new Error('retired provider'));
+			else fixture.release.resolve();
+			await expect(pending).resolves.toBeUndefined();
+			expect(fixture.services[0]!.dispose).toHaveBeenCalledOnce();
+			expect(fixture.hosts[0]!.dispose).toHaveBeenCalledOnce();
+			const next = lifetimeFixture();
+			await expect(next.manager.synchronizeDocument(next.uri, 1, 'next')).resolves.toBeDefined();
+			expect(next.manager.providerFailure(next.uri)).toBeUndefined();
+		}
+	);
+
+	it('distinguishes replacement workspace records with the same root and document version', async () => {
+		const fixture = lifetimeFixture('diagnostics');
+		const old = fixture.manager.synchronizeDocument(fixture.uri, 1, 'old');
+		await fixture.entered.promise;
+		await fixture.manager.removeRoot(fixture.root);
+		fixture.manager.addRoot(fixture.root);
+		const next = await fixture.manager.synchronizeDocument(fixture.uri, 1, 'next');
+		fixture.release.resolve();
+		await expect(old).resolves.toBeUndefined();
+		expect(next?.inspection.languageProjection.document.version).toBe(1);
+		expect(fixture.services).toHaveLength(2);
+		expect(fixture.manager.providerFailure(fixture.uri)).toBeUndefined();
+	});
+
+	it('rejects an old document version without retiring its still-current workspace', async () => {
+		const fixture = lifetimeFixture('diagnostics');
+		const old = fixture.manager.synchronizeDocument(fixture.uri, 1, 'old');
+		await fixture.entered.promise;
+		const next = fixture.manager.synchronizeDocument(fixture.uri, 2, 'next');
+		fixture.release.resolve();
+		await expect(old).resolves.toBeUndefined();
+		expect((await next)?.inspection.languageProjection.document.version).toBe(2);
+		expect(fixture.services).toHaveLength(1);
+		expect(fixture.services[0]!.dispose).not.toHaveBeenCalled();
+	});
+
+	it.each([false, true])(
+		'preserves live native errors and discards retired ones: retired=%s',
+		async (retired) => {
+			const fixture = lifetimeFixture('inspect');
+			const pending = fixture.manager.synchronizeDocument(fixture.uri, 1, 'old');
+			await fixture.entered.promise;
+			if (retired) await fixture.manager.removeRoot(fixture.root);
+			const primary = new Error('native request failed');
+			fixture.release.reject(primary);
+			if (retired) await expect(pending).resolves.toBeUndefined();
+			else await expect(pending).rejects.toBe(primary);
+		}
+	);
+
+	it('preserves exact cancellation rejection even after workspace retirement', async () => {
+		const fixture = lifetimeFixture('diagnostics');
+		const controller = new AbortController();
+		const pending = fixture.manager.synchronizeDocument(fixture.uri, 1, 'old', controller.signal);
+		await fixture.entered.promise;
+		await fixture.manager.removeRoot(fixture.root);
+		controller.abort();
+		const primary = new Error('cancelled');
+		fixture.release.reject(primary);
+		await expect(pending).rejects.toBe(primary);
+	});
 });
-
-function failingLanguageHost(message: string): ExactLanguageExtensionHost {
-	return {
-		async synchronizeProviders() {
-			throw new Error(message);
-		},
-		async diagnostics() {
-			return { diagnostics: [], statuses: [] };
-		},
-		async complete() {
-			return [];
-		},
-		async hover() {
-			return [];
-		},
-		async inlayHints() {
-			return [];
-		},
-		async codeActions() {
-			return [];
-		},
-		status() {
-			return [];
-		},
-		async dispose() {}
-	};
-}
-
-class FakeLanguageService implements ExactLanguageService {
-	readonly dispose = vi.fn(async () => undefined);
-	private generation = 0;
-	private filename = '';
-
-	constructor(private readonly options: ExactLanguageServiceOptions) {}
-
-	async synchronize(changes: Parameters<ExactLanguageService['synchronize']>[0]) {
-		this.generation++;
-		this.filename = changes[0]?.filename ?? this.filename;
-		return {
-			generation: this.generation,
-			changedFiles: [this.filename],
-			affectedFiles: [this.filename],
-			diagnostics: []
-		};
-	}
-
-	async inspect(): Promise<ExactSourceInspection> {
-		return {
-			generation: this.generation,
-			filename: this.filename,
-			project: { kind: this.options.projectKind ?? 'configured', root: this.options.root },
-			compiler: { typescriptVersion: '7.0.0', backendVersion: '1.26.0' },
-			partitionPlan: { version: 1, buildKey: 'fixture', roots: [], nodes: [], edges: [] },
-			components: [],
-			diagnostics: [],
-			languageProjection: {
-				protocol: 1,
-				generation: this.generation,
-				project: { kind: this.options.projectKind ?? 'configured', root: this.options.root },
-				document: {
-					uri: pathToFileURL(this.filename).href,
-					path: this.filename,
-					version: this.generation,
-					textHash: 'fixture',
-					text: ''
-				},
-				imports: [],
-				components: [],
-				enhancements: [],
-				jsx: [],
-				expressions: [],
-				types: []
-			}
-		};
-	}
-
-	async refactor() {
-		return undefined;
-	}
-
-	stats() {
-		return {
-			generation: this.generation,
-			overlays: 1,
-			analyzedFiles: 1,
-			snapshotEntries: 1,
-			snapshotSourceBytes: 1,
-			analysisEntries: 1,
-			analysisEstimatedBytes: 1,
-			importGraphEntries: 1,
-			importGraphEdges: 0,
-			analysisEvictions: 0,
-			cacheOverBudget: false,
-			changedFiles: 1,
-			affectedFiles: 1,
-			lastSynchronizationMs: 0
-		};
-	}
-}

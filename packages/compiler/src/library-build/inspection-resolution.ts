@@ -14,11 +14,23 @@ export interface LibraryInspectionResolution {
 const resolver = `
 let published;
 let staged;
+let selections;
+let port;
 export function initialize(data) {
  published = data.published;
  staged = data.staged;
+ selections = data.selections;
+ port = data.port;
 }
 export async function resolve(specifier, context, nextResolve) {
+ const selectionIndex = specifier.startsWith('exact-library-inspection:')
+  ? Number(specifier.slice('exact-library-inspection:'.length)) : undefined;
+ if (selectionIndex !== undefined) {
+  const selection = selections?.[selectionIndex];
+  if (!selection) throw new Error('Unknown library inspection selection');
+  specifier = selection.specifier;
+  context = {...context, parentURL: selection.parent};
+ }
  let resolution;
  try {
   resolution = await nextResolve(specifier, context);
@@ -27,8 +39,10 @@ export async function resolve(specifier, context, nextResolve) {
       !error.url.startsWith(published)) throw error;
   resolution = {url: error.url};
  }
- if (!resolution.url.startsWith(published)) return resolution;
- return nextResolve(staged + resolution.url.slice(published.length), context);
+ if (resolution.url.startsWith(published))
+  resolution = await nextResolve(staged + resolution.url.slice(published.length), context);
+ if (selectionIndex !== undefined) port.postMessage({index:selectionIndex, url:resolution.url});
+ return resolution;
 }
 `;
 

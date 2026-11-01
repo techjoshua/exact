@@ -126,7 +126,7 @@ The lab's host-page control rules explicitly exclude themed actions, fields, and
 
 Every runtime theme scope establishes `font-body`, `font-size-md`, and `line-height-body` on its wrapper. Native descendants and themed controls that use `font: inherit` therefore follow the selected typography preset, while heading/display and code roles switch to their dedicated generated families and scales.
 
-`theme:scope` is an ordinary eXact enhancement. Activate it on a transparent `_` range; it owns a real `div`, `section`, `article`, `aside`, or `main` wrapper and resolves the complete immutable theme before replacing that wrapper's ordered style attribute. Descendants consume live CSS variables, so source changes do not remount controls or charts. A nested scope resets surface depth and re-resolves inherited source fields. Use a nested `theme:scope` to derive a local theme from inherited settings. The separate `createThemeOverride()` helper serializes CSS-only token patches for an ordinary wrapper; it does not change `ThemeContext`, revision, fingerprint, or exterior derivation. No compiler, DOM, SSR, hydration, or core-runtime changes are part of this package.
+`theme:scope` is an ordinary eXact enhancement. Activate it on a transparent `_` range; it owns a real `div`, `section`, `article`, `aside`, or `main` wrapper and resolves the complete theme before replacing that wrapper's ordered style attribute. Descendants consume live CSS variables, so source changes do not remount controls or charts. A nested scope resets surface depth and re-resolves inherited source fields. Use a nested `theme:scope` to derive a local theme from inherited settings. The separate `createThemeOverride()` helper serializes CSS-only token patches for an ordinary wrapper; it does not change `ThemeContext`, revision, fingerprint, or exterior derivation. No compiler, DOM, SSR, hydration, or core-runtime changes are part of this package.
 
 V1 style publication requires a Content Security Policy that permits application style attributes.
 
@@ -257,18 +257,20 @@ Visible surfaces include density-aware padding that is never smaller than their 
 
 ## CSS and JavaScript contracts
 
-Theme resolution validates the source and applies inheritance before reusing immutable results.
+Theme resolution validates the source and applies inheritance before reusing private palette data.
 Equivalent scopes can share generated palettes and CSS across server requests. Their component
 state, requested preferences, children, and lifecycle ownership remain independent. Reuse is
 bounded to 32 resolved themes and 32 CSS presentations. Sources whose full-precision cache key
 exceeds 8,192 characters, or contains values other than plain data, are resolved without shared
 retention. A cold resolution or an evicted source still performs the complete palette calculation.
 Display fingerprints are not cache keys because their rounded colors do not preserve every
-inspected numeric value. Input warnings remain specific to the current resolution.
+inspected numeric value. Input warnings remain specific to the current resolution. Returned palettes and CSS presentations
+are ordinary writable observations copied from private cache data. Scope definitions capture their
+initial plain source data, and later writes through valid aliases participate in subsequent resolution.
 
 Every resolved theme publishes all 164 tokens described by `exactThemeContract.tokens`. Public variables begin `--exact-theme-`; recipe-private aliases begin `--_exact-theme-`. The public set covers six complete surface bundles, canvas and disabled roles, eleven roles for each of six semantic tones, typography, spacing, controls, radii, borders, shadows, durations, and easing.
 
-`resolveTheme()` is pure and browser-independent. It parses context-free CSS Color 4 and DTCG colors, converts to OKLCH, maps chroma to sRGB with 24 fixed bisections, and searches the fixed 1,001-value lightness grid nearest-first for required contrast. Once the closest valid distance is proven, resolution stops; unattainable contrast still examines the complete grid to select the deterministic maximum. The resolver returns recursively frozen output with a deterministic fingerprint. `serializeThemeVariables()` returns a frozen null-prototype record in code-point order. Invalid input throws `ThemeResolutionError` without a partial publication.
+`resolveTheme()` is pure and browser-independent. It parses context-free CSS Color 4 and DTCG colors, converts to OKLCH, maps chroma to sRGB with 24 fixed bisections, and searches the fixed 1,001-value lightness grid nearest-first for required contrast. Once the closest valid distance is proven, resolution stops; unattainable contrast still examines the complete grid to select the deterministic maximum. The resolver returns ordinary values with TypeScript readonly declarations and a deterministic fingerprint. `serializeThemeVariables()` returns an ordinary null-prototype record in code-point order. Structured colors require a supported space and exactly three finite components or Design Tokens `none` values. Omitted alpha defaults to one, and explicit opacity must be numeric within `0..1`. Invalid input throws `ThemeResolutionError` without a partial publication.
 
 The exact variable names, formulas, parsing matrices, preset values, validation ranges, override serialization, and role selectors remain normative in the [theme contract](theme-contract.md). The exported `exactThemeContract` is the machine-readable token authority.
 
@@ -279,7 +281,7 @@ presentation from finite build-time class discovery; it is not implemented API.
 
 ## Exterior derivation
 
-Charts, editors, maps, and other specialized components read the nearest `ThemeContext.current` and optional `ThemeSurfaceContext.bundle`. `createThemeDeriver()` defines a synchronous versioned derivation, while `deriveTheme()` supplies immutable palette, harmonization, conversion, and contrast helpers. Derivers never scrape computed CSS. They use the supplied resolved theme, including its reference environment when system preferences are still unknown during SSR.
+Charts, editors, maps, and other specialized components read the nearest `ThemeContext.current` and optional `ThemeSurfaceContext.bundle`. `createThemeDeriver()` defines a synchronous versioned derivation, while `deriveTheme()` supplies palette, harmonization, conversion, and contrast helpers with TypeScript readonly declarations. Deriver definitions, helper envelopes, and outputs remain ordinary JavaScript values. Returned outputs retain their identity and writable aliases. Derivers never scrape computed CSS. They use the supplied resolved theme, including its reference environment when system preferences are still unknown during SSR.
 
 Categorical data palettes reserve the theme accent and its immediate perceptual neighborhood for
 interaction and emphasis instead of returning that semantic color as a data series.

@@ -1,3 +1,4 @@
+import type { ServerComponentReference } from './server-component-reference.js';
 import type { SsrContext } from '../types.js';
 import type { RenderValue } from './execution.js';
 import { SsrOutputLimitError } from './limits.js';
@@ -93,7 +94,8 @@ export function writeProgramChild<T>(
 	value: T,
 	id: string,
 	characters: number,
-	markerless = false
+	markerless = false,
+	occurrence?: ServerComponentReference
 ): RenderValue<number> {
 	const marked = context.markers && !markerless;
 	const opening = marked ? `<!--x:${id}-->` : '';
@@ -103,8 +105,8 @@ export function writeProgramChild<T>(
 		throw new SsrOutputLimitError(context.maxOutputBytes);
 	const pending = openBoundary(context, output.sink, opening);
 	const completed = pending
-		? pending.then(() => renderProgramChild(context, output, value, closing))
-		: renderProgramChild(context, output, value, closing);
+		? pending.then(() => renderProgramChild(context, output, value, closing, occurrence))
+		: renderProgramChild(context, output, value, closing, occurrence);
 	return completed instanceof Promise ? completed.then(() => nextCharacters) : nextCharacters;
 }
 
@@ -113,7 +115,8 @@ function renderProgramChild<T>(
 	context: SsrContext,
 	output: SsrProgramWriterOutput<T>,
 	value: T,
-	closing: string
+	closing: string,
+	occurrence?: ServerComponentReference
 ): RenderValue<string> {
-	return publishBoundaryContent(context, output.sink, closing, output.render(value));
+	return publishBoundaryContent(context, output.sink, closing, output.render(value, occurrence));
 }

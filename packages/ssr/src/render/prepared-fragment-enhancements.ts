@@ -1,3 +1,4 @@
+import { readServerComponentReference } from './server-component-reference.js';
 import {
 	pageComponentDomain,
 	withComponentDomain,
@@ -14,8 +15,7 @@ import {
 	createChildRangeReceipt,
 	createCompiledFragmentPresentation,
 	createCompiledFragmentReceipt,
-	createCompiledTargetReceipt,
-	readCompiledComponentReceipt,
+	withCompiledTargetPresentation,
 	readCompiledFragmentReceipt,
 	type ExactTargetReceiptData
 } from '@exactjs/core/runtime/component-operations';
@@ -105,14 +105,14 @@ export function renderPreparedFragmentEnhancements(
 					if (!component) throw new Error(`Prepared enhancement is unavailable: ${entry.identity}`);
 					const child = chain;
 					chain = createSsrEnhancementOperation(context, component, { ...entry.props }, child);
-					const receipt = readCompiledComponentReceipt(chain)!;
+					const receipt = readServerComponentReference(chain)!;
 					const record: (typeof owners)[number] = {
 						identity: Symbol(entry.identity),
 						tag: entry.intrinsicFragment ?? tags.get(entry.identity)
 					};
 					owners.unshift(record);
-					records.push(receipt);
-					projections.set(receipt, (content, owner) => {
+					records.push(receipt.source);
+					projections.set(receipt.source, (content, owner) => {
 						if (!content.children)
 							throw new TypeError(
 								'Fragment contribution preparation requires ordinary prepared output'
@@ -124,7 +124,10 @@ export function renderPreparedFragmentEnhancements(
 							children: [
 								createChildRangeReceipt(
 									contribution
-										? createCompiledTargetReceipt(null, ...contribution.children)
+										? withCompiledTargetPresentation(
+												contribution.operation,
+												...contribution.children
+											)
 										: content.children
 								)
 							]

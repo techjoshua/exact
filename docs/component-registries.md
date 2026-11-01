@@ -134,9 +134,10 @@ Hydration adopts a matching selection. A nested identity mismatch remounts only
 that component range and keeps compatible sibling DOM adopted. A root identity
 mismatch still falls back to the root recovery policy.
 
-`inspectComponentRegistry()` returns immutable entry snapshots containing
+`inspectComponentRegistry()` returns independent entry snapshots with readonly TypeScript fields containing
 eager/lazy mode, load status, and generation. It does not expose component
-implementations or loader functions.
+implementations or loader functions. Editing a diagnostic record or its entry list does not alter
+private registry membership, identity, or loading state.
 
 ## React and remote boundaries
 

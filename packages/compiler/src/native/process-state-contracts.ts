@@ -23,6 +23,7 @@ export type NativeCompilerStateEffect = Readonly<{
 	kind: 'read' | 'write';
 	confidence: 'exact' | 'broad' | 'unknown';
 	operation?: 'map' | 'set';
+	arrayRoots?: readonly Readonly<{ kind: 'array'; path: readonly string[]; confidence: 'exact' }>[];
 	receiver?:
 		| Readonly<{ kind: 'component' }>
 		| Readonly<{ kind: 'parameter'; index: number; root?: 'value' }>

@@ -1,3 +1,5 @@
+import { withSuppliedPlacementInput } from './supplied-placement.js';
+import { captureSsrProgramOutput } from './program-capture.js';
 import {
 	isExactEnhancementPassThrough,
 	readExactEnhancementContexts,
@@ -5,7 +7,6 @@ import {
 } from '@exactjs/core';
 import {
 	assertEnhancementSourceOrder,
-	assertSingleSuppliedPlacement,
 	prepareTextTargetOutput
 } from '@exactjs/core/framework/render-structure';
 import {
@@ -34,14 +35,31 @@ export function renderComponentEnhancementBindings<Publication>(
 	if (
 		reference.contract.artifact.capabilities.includes('targets') &&
 		!readExactEnhancementContexts(reference.contract.artifact.instantiate)?.transparentTarget
-	)
-		assertSingleSuppliedPlacement(
-			content.children ?? [content.program],
-			reference.children.length ? reference.children : reference.props.children
+	) {
+		const accepted = {
+			...execution,
+			options: withSuppliedPlacementInput(
+				execution.options,
+				execution.inputs.constructionProps.children
+			)
+		};
+		return captureSsrProgramOutput(execution.context, () =>
+			renderBoundComponentContent(accepted, reference, content, owner)
 		);
+	}
+	return renderBoundComponentContent(execution, reference, content, owner);
+}
+
+/** Enhancement routing consumes the same occurrence input view as actual output validation. */
+function renderBoundComponentContent<Publication>(
+	execution: ServerArtifactExecution<Publication>,
+	reference: ServerComponentReference,
+	content: DirectSsrComponentContent,
+	owner: AnyComponentInstance | undefined
+): RenderValue<string> {
 	const enhancement = boundOperationEnhancement(
 		execution.context,
-		reference,
+		reference.source,
 		reference.enhancement,
 		true
 	);
@@ -88,7 +106,7 @@ export function renderComponentEnhancementBindings<Publication>(
 	const targets = selectSsrEnhancementTargets(
 		content.children ?? [content.program],
 		entries,
-		reference.children.length ? reference.children : reference.props.children
+		execution.inputs.constructionProps.children
 	);
 	const bindings = (execution.context.boundEnhancementTargets ??= new WeakMap());
 	const previous = new Map([...targets.keys()].map((key) => [key, bindings.get(key)]));

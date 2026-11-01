@@ -10,7 +10,11 @@ export default defineConfig({
 	plugins: [
 		exactVitest({
 			compiler: {
-				include: /\.fixtures\.tsx$/,
+				applicationRoot: source('./'),
+				include: [
+					/\.fixtures\.tsx$/,
+					source('../dom/src/test-support/components/component-registry-lazy-control.ts')
+				],
 				compileTestModules: true,
 				typescriptConfig: source('./tsconfig.test.json'),
 				reactCompatibility: false

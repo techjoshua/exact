@@ -8,6 +8,7 @@ export function ssrProjectFiles(
 	runtime: Runtime
 ): Record<string, string> {
 	const compatibility = reactTarget ? `, reactCompatibility: { target: ${reactTarget} }` : '';
+	const nodeFiles = ssrNodeFiles();
 	return {
 		'src/App.tsx': `import { TaskContext, type Component } from "@exactjs/core";
 
@@ -112,7 +113,7 @@ EXPOSE 3000
 CMD ["node", "dist/server/server.js"]
 `,
 		'.dockerignore': 'node_modules\ndist\n.exact\n.git\n',
-		...ssrNodeFiles(),
-		...ssrPlatformFiles(runtime, ssrNodeFiles()['src/server.ts']!)
+		...nodeFiles,
+		...ssrPlatformFiles(runtime, nodeFiles['src/server.ts']!)
 	};
 }

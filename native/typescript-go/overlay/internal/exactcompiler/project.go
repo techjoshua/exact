@@ -3,18 +3,29 @@ package exactcompiler
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
 	"github.com/microsoft/TypeScript/tsc/internal/bundled"
 	"github.com/microsoft/TypeScript/tsc/internal/checker"
 	"github.com/microsoft/TypeScript/tsc/internal/compiler"
 	"github.com/microsoft/TypeScript/tsc/internal/core"
+	"github.com/microsoft/TypeScript/tsc/internal/parser"
 	"github.com/microsoft/TypeScript/tsc/internal/tsoptions"
 	"github.com/microsoft/TypeScript/tsc/internal/tspath"
 	"github.com/microsoft/TypeScript/tsc/internal/vfs/osvfs"
 )
 
 type projectState struct {
+	// activeGeneration is request-scoped even when callable facts are reused.
+	activeGeneration *projectGeneration
+	// abandoned rejects reuse after interrupted checker mutation. The next advance
+	// reconstructs its Program from retained inputs, not from the failed checker.
+	abandoned           bool
+	executableSelection *executableSelection
+	selectionGeneration uint64
+	executionRoots      bool
+	generatedEntry      string
 	currentDirectory    string
 	configFile          string
 	sources             map[string]string
@@ -35,11 +46,17 @@ type projectState struct {
 }
 
 type projectGeneration struct {
-	sourceFile *ast.SourceFile
-	program    *compiler.Program
-	checker    *checker.Checker
-	release    func()
-	reused     bool
+	// Publication namespaces close with the generation, not a temporary checker lease.
+	languageOwners         []*languageOwner
+	project                *projectState
+	ctx                    context.Context
+	leaseRelease           func()
+	active, prepareImports bool
+	sourceFile             *ast.SourceFile
+	program                *compiler.Program
+	checker                *checker.Checker
+	release                func()
+	reused                 bool
 }
 
 func newProjectState(request Request, fileName string) (*projectState, []*ast.Diagnostic, error) {
@@ -49,6 +66,12 @@ func newProjectState(request Request, fileName string) (*projectState, []*ast.Di
 // newProjectStateWithSources isolates validation from the retained program while
 // preserving prepared dependencies which need not exist on disk.
 func newProjectStateWithSources(request Request, fileName string, sources map[string]string, observations ...*validationDependencies) (*projectState, []*ast.Diagnostic, error) {
+	return newProjectStateWithGeneratedEntry(request, fileName, sources, "", observations...)
+}
+
+// newProjectStateWithGeneratedEntry keeps generated checking at its authored module identity.
+// Only that isolated entry uses TypeScript parsing after JSX lowering.
+func newProjectStateWithGeneratedEntry(request Request, fileName string, sources map[string]string, generatedEntry string, observations ...*validationDependencies) (*projectState, []*ast.Diagnostic, error) {
 	currentDirectory := request.Root
 	if currentDirectory == "" {
 		currentDirectory = tspath.GetDirectoryPath(fileName)
@@ -66,7 +89,7 @@ func newProjectStateWithSources(request Request, fileName string, sources map[st
 	}
 	overlay.set(fileName, request.Source)
 	// eXact owns source lowering through its overlay, without an upstream content-mapper project.
-	host := compiler.NewCompilerHost(currentDirectory, overlay, bundled.LibPath(), nil, nil, nil)
+	host := projectCompilerHost(currentDirectory, overlay, generatedEntry)
 	configFile := request.ConfigFile
 	var config *tsoptions.ParsedCommandLine
 	var diagnostics []*ast.Diagnostic
@@ -135,6 +158,7 @@ func newProjectStateWithSources(request Request, fileName string, sources map[st
 	}
 	state := &projectState{
 		currentDirectory: currentDirectory,
+		generatedEntry:   generatedEntry,
 		configFile:       configFile,
 		sources: map[string]string{
 			overlay.canonical(fileName): request.Source,
@@ -158,6 +182,13 @@ func (state *projectState) advance(
 	fileName string,
 	source string,
 ) (*projectGeneration, error) {
+	if state.abandoned {
+		state.initialized = false
+		state.counters.ProgramRebuilds++
+		state.program = compiler.NewProgram(compiler.ProgramOptions{Config: state.config, Host: projectCompilerHost(state.currentDirectory, state.fs, state.generatedEntry)})
+		state.invalidateAnalysisCaches()
+		state.abandoned = false
+	}
 	existingSource := state.program.GetSourceFile(fileName)
 	reused := state.initialized && existingSource != nil && existingSource.Text() == source
 	state.refreshSource(fileName, source)
@@ -170,13 +201,33 @@ func (state *projectState) advance(
 	// Session requests are serialized and inspect dependencies as well as the requested file.
 	// Acquire the pool's primary checker exclusively to reuse one coherent type graph.
 	typeChecker, release := state.program.GetCheckerPool().GetChecker(ctx, nil)
-	return &projectGeneration{
-		sourceFile: sourceFile,
-		program:    state.program,
-		checker:    typeChecker,
-		release:    release,
-		reused:     reused,
-	}, nil
+	generation := &projectGeneration{
+		sourceFile:     sourceFile,
+		program:        state.program,
+		checker:        typeChecker,
+		project:        state,
+		ctx:            ctx,
+		leaseRelease:   release,
+		active:         true,
+		prepareImports: true,
+		reused:         reused,
+	}
+	// This stable final closure is captured by callers' defers. Suspension
+	// changes only leaseRelease, never consumes or replaces final close.
+	generation.release = sync.OnceFunc(func() {
+		generation.active, generation.prepareImports = false, false
+		generation.releaseLanguageOwners()
+		if state.activeGeneration == generation {
+			state.activeGeneration = nil
+		}
+		if generation.leaseRelease != nil {
+			closeLease := generation.leaseRelease
+			generation.leaseRelease = nil
+			closeLease()
+		}
+	})
+	state.activeGeneration = generation
+	return generation, nil
 }
 
 // refreshSource updates a program generation without acquiring a checker.
@@ -187,14 +238,7 @@ func (state *projectState) refreshSource(fileName, source string) {
 	if !unchanged {
 		state.counters.ProgramRebuilds++
 		state.fs.set(fileName, source)
-		host := compiler.NewCompilerHost(
-			state.currentDirectory,
-			state.fs,
-			bundled.LibPath(),
-			nil,
-			nil,
-			nil,
-		)
+		host := projectCompilerHost(state.currentDirectory, state.fs, state.generatedEntry)
 		if state.program.GetSourceFile(fileName) == nil {
 			rootFiles := append([]string(nil), state.config.FileNames()...)
 			rootFiles = append(rootFiles, fileName)
@@ -228,4 +272,31 @@ func (state *projectState) invalidateAnalysisCaches() {
 	state.componentCandidates = nil
 	state.componentNodeIDs = nil
 	state.componentLinks = nil
+}
+
+// generatedEntryHost changes parsing only for the generated entry. Module filename/path,
+// dependency resolution and every other host operation retain the existing compiler contract.
+type generatedEntryHost struct {
+	compiler.CompilerHost
+	sources *sourceOverlay
+	entry   string
+}
+
+func projectCompilerHost(directory string, sources *sourceOverlay, generatedEntry string) compiler.CompilerHost {
+	host := compiler.NewCompilerHost(directory, sources, bundled.LibPath(), nil, nil, nil)
+	if generatedEntry == "" {
+		return host
+	}
+	return &generatedEntryHost{CompilerHost: host, sources: sources, entry: sources.canonical(generatedEntry)}
+}
+
+func (host *generatedEntryHost) GetSourceFile(options ast.SourceFileParseOptions) *ast.SourceFile {
+	if host.sources.canonical(options.FileName) != host.entry {
+		return host.CompilerHost.GetSourceFile(options)
+	}
+	text, exists := host.FS().ReadFile(options.FileName)
+	if !exists {
+		return nil
+	}
+	return parser.ParseSourceFile(options, text, core.ScriptKindTS)
 }

@@ -59,20 +59,19 @@ export type RenderToStringOptions = {
 	logger?: Logger;
 	state?: unknown;
 	maxTaskPasses?: number;
-	/** Total wall-clock budget for all async component tasks in one render. Defaults to 30 seconds. */
-	maxTaskDurationMs?: number;
 	/** Request-wide limit for compiler-proven independent async SSR siblings. Defaults to 4. */
 	maxAsyncSsrConcurrency?: number;
 	/** Maximum nested operation depth. Defaults to 512 and is capped at 1,024. */
 	maxTreeDepth?: number;
-	/** Maximum operation and scalar child values visited by one render. Defaults to 100,000. */
+	/** Optional maximum operation and scalar child values visited by one render. */
 	maxTreeNodes?: number;
-	/** Maximum UTF-8 bytes in a checked string render. Defaults to 16 MiB. */
+	/** Optional maximum UTF-8 bytes of rendered markup, for both string and streaming modes. */
 	maxOutputBytes?: number;
-	/** Maximum bytes emitted by a plain HTML stream. Defaults to 16 MiB. */
+	/** Optional maximum encoded bytes emitted by a plain, document-event, or progressive HTML stream. */
 	maxStreamBytes?: number;
-	/** Maximum chunks emitted by a plain HTML stream. Defaults to 100,000. */
+	/** Optional maximum chunks emitted by a plain HTML stream. */
 	maxStreamChunks?: number;
+	/** Cancels request-owned rendering and tasks. Applications choose when to abort, with no default deadline. */
 	signal?: AbortSignal;
 	/** Prepared render output policies. Transformations run before all final validators. */
 	outputExtensions?: readonly ExactOutputExtension[];
@@ -185,6 +184,7 @@ export type RenderToDocumentStreamOptions = RenderToStringOptions &
 		streamBufferSize?: number;
 		rootId?: string;
 		hydration?: boolean;
+		/** Optional maximum events emitted by a document-event or progressive HTML stream. */
 		maxStreamEvents?: number;
 	};
 
@@ -410,10 +410,14 @@ export type SsrContext = {
 		consumed: boolean;
 	}>;
 	/** Request-local scheduled frames started from compiler-proven child reachability. */
-	preparedDirectScheduledComponents?: WeakMap<
-		object,
-		import('./render/direct-component.js').PreparedDirectScheduledSsrComponent
-	>;
+	preparedDirectScheduledComponents?: import('./render/direct-component-contracts.js').PreparedDirectScheduledSsrComponent[];
+	/** Existing preparation lifetime carries ordered occurrence claims, never receipt-only ownership. */
+	componentInputFrame?: import('./render/direct-component-contracts.js').ComponentInputOutputFrame;
+	componentInputPass?: object;
+	rootComponentInputs?: Readonly<{
+		source: Child;
+		inputs: import('./render/server-component-reference.js').ComponentExecutionInputRecord;
+	}>;
 	componentContexts?: ComponentContextValues;
 	componentDomain?: ComponentDomain;
 	/** Immutable wall-clock sample shared by the request render. */

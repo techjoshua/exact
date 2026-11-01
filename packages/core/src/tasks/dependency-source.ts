@@ -1,5 +1,8 @@
 import {
 	isReactiveValue,
+	isCompiledExpressionOperand,
+	isCompiledReactivePropertyOperand,
+	reactiveOwnDependencies,
 	peekIndexedReactiveSlot,
 	readIndexedReactiveSource,
 	reactiveIndexedDependencies,
@@ -276,8 +279,19 @@ class IndexedContinuationDependency<T> implements ContinuationDependencySource<T
 			stopValue?.();
 			stopValue = undefined;
 			const source = readIndexedReactiveSource(this.input, this.index);
-			if (source.present && isReactiveValue(source.value)) {
-				const ref = reactiveRef(source.value);
+			if (!source.present) return;
+			if (isCompiledReactivePropertyOperand(source.value)) {
+				const dependency = reactiveOwnDependencies(source.value[1], [source.value[2]]);
+				stopValue = subscribeKeys(
+					dependency?.target ?? (unwrap(source.value[1]) as object),
+					dependency?.keys ?? [source.value[2]],
+					publish
+				);
+				return;
+			}
+			const value = isCompiledExpressionOperand(source.value) ? source.value[1] : source.value;
+			if (isReactiveValue(value)) {
+				const ref = reactiveRef(value);
 				if (ref) stopValue = subscribe(ref, publish);
 			}
 		};

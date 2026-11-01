@@ -47,6 +47,7 @@ export type ExactDebugAuditEvent = Readonly<{
 	binding?: string;
 	buildKey?: string;
 	executionRoot?: string;
+	/** UTF-8 byte count of the encoded response body delivered for this query. */
 	resultBytes: number;
 }>;
 

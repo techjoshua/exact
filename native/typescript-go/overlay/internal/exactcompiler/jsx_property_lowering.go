@@ -47,7 +47,14 @@ func (lowering *jsxLowering) serverRenderProgramProps(
 	attributes *ast.Node,
 	tag string,
 ) *ast.Node {
-	return lowering.propsWithProjection(attributes, "", false, tag, false, true)
+	id := ""
+	if attributes != nil {
+		candidate := lowering.elementID(fullJSXElementNode(attributes.Parent))
+		if _, addressed := lowering.islandReplayTargets[candidate]; addressed {
+			id = candidate
+		}
+	}
+	return lowering.propsWithProjection(attributes, id, jsxIntrinsic(tag), tag, false, true)
 }
 
 func (lowering *jsxLowering) propsWithProjection(
@@ -58,14 +65,23 @@ func (lowering *jsxLowering) propsWithProjection(
 	reactive bool,
 	serverOnly bool,
 ) *ast.Node {
-	return lowering.propsWithDeferredProjection(attributes, elementID, intrinsic, tag, reactive, serverOnly, nil)
+	input := ordinaryExpressionInput
+	if !intrinsic && tag != "_target" {
+		input = componentExpressionInput
+	}
+	return lowering.propsWithDeferredProjection(attributes, elementID, intrinsic, tag, reactive, serverOnly, nil, input)
+}
+
+// structuralProps preserves ordinary values and authored reactive references without component acquisition.
+func (lowering *jsxLowering) structuralProps(attributes *ast.Node, tag string) *ast.Node {
+	return lowering.propsWithDeferredProjection(attributes, "", false, tag, true, false, nil, structuralExpressionInput)
 }
 
 // propsWithDeferredProjection separates eager enhancement ownership from a clock-bearing
 // host property group. The group remains one expression to preserve spread evaluation order.
 func (lowering *jsxLowering) propsWithDeferredProjection(
 	attributes *ast.Node, elementID string, intrinsic bool, tag string, reactive bool,
-	serverOnly bool, metadata *[]*ast.Node,
+	serverOnly bool, metadata *[]*ast.Node, input reactiveExpressionInput,
 ) *ast.Node {
 	properties := []*ast.Node{}
 	deferredTimeProperties := []*ast.Node{}
@@ -75,15 +91,7 @@ func (lowering *jsxLowering) propsWithDeferredProjection(
 		application = lowering.enhancementImports.applications[attributes.Pos()]
 	}
 	enhancements := newEnhancementPropertyAccumulator(application)
-	if intrinsic {
-		properties = append(
-			properties,
-			lowering.property(
-				lowering.factory.NewStringLiteral("data-exact-id", ast.TokenFlagsNone),
-				lowering.factory.NewStringLiteral(elementID, ast.TokenFlagsNone),
-			),
-		)
-	}
+
 	if attributes != nil {
 		conditionalClasses := jsxHasConditionalClassName(attributes)
 		classNameEmitted := false
@@ -182,8 +190,9 @@ func (lowering *jsxLowering) propsWithDeferredProjection(
 			case attribute.Initializer == nil:
 				initializer = lowering.factory.NewTrueExpression()
 			case ast.IsStringLiteral(attribute.Initializer):
+				literal, _ := namedJSXStringInput(property)
 				initializer = lowering.factory.NewStringLiteral(
-					attribute.Initializer.AsStringLiteral().Text,
+					literal,
 					ast.TokenFlagsNone,
 				)
 			case ast.IsJsxExpression(attribute.Initializer):
@@ -209,7 +218,7 @@ func (lowering *jsxLowering) propsWithDeferredProjection(
 					initializer = lowering.reactiveExpressionMode(
 						expression,
 						initializer,
-						!intrinsic,
+						input,
 					)
 				}
 				if directInteraction {
@@ -250,7 +259,10 @@ func (lowering *jsxLowering) propsWithDeferredProjection(
 			properties = append(properties, property)
 		}
 	}
-	props := lowering.factory.NewObjectLiteralExpression(lowering.factory.NewNodeList(properties), false)
+	if intrinsic {
+		properties = append(properties, lowering.elementIdentityProperty(elementID))
+	}
+	var props *ast.Node = lowering.factory.NewObjectLiteralExpression(lowering.factory.NewNodeList(properties), false)
 	if len(deferredTimeProperties) == 0 {
 		return props
 	}

@@ -26,11 +26,15 @@ export type ExactCdpConnectionOptions = Readonly<{
 type Pending = {
 	resolve(value: unknown): void;
 	reject(error: unknown): void;
-	timer: ReturnType<typeof setTimeout>;
 	cleanup(): void;
 };
 
-/** Opens a CDP WebSocket or returns the explicitly injected test transport. */
+/**
+ * Opens the supplied WebSocket or discovers one Chromium target, with bounded waits and requests.
+ * During discovery, an explicit target ID never falls back to another target. Cancellation preserves the signal's
+ * exact reason, including null. Close the returned transport to release its socket and requests.
+ * Requests after closure reject immediately.
+ */
 export async function connectExactCdp(
 	options: ExactCdpConnectionOptions
 ): Promise<ExactCdpTransport> {
@@ -67,10 +71,7 @@ export async function connectExactCdp(
 			);
 			const opened = () => finish(resolve);
 			const failed = () => finish(() => reject(new Error('CDP WebSocket failed')));
-			const aborted = () =>
-				finish(() =>
-					reject(options.signal?.reason ?? new DOMException('CDP connection aborted', 'AbortError'))
-				);
+			const aborted = () => finish(() => reject(options.signal?.reason));
 			const finish = (action: () => void) => {
 				clearTimeout(timer);
 				socket.removeEventListener('open', opened);
@@ -125,17 +126,17 @@ export async function connectExactCdp(
 			request.reject(new Error('CDP socket closed'));
 		}
 		pending.clear();
+		listeners.clear();
 	});
 	const transport: ExactCdpTransport = {
 		request(method, params = {}, signal) {
+			if (socket.readyState !== WebSocket.OPEN)
+				return Promise.reject(new Error('CDP socket closed'));
 			if (pending.size >= maxPendingRequests)
 				return Promise.reject(new Error('CDP pending request limit exceeded'));
 			const id = nextId++;
 			return new Promise((resolve, reject) => {
-				const abort = () =>
-					settle(() =>
-						reject(signal?.reason ?? new DOMException('CDP request aborted', 'AbortError'))
-					);
+				const abort = () => settle(() => reject(signal?.reason));
 				const timer = setTimeout(
 					() => settle(() => reject(new Error(`CDP request timed out during ${method}`))),
 					requestTimeoutMs
@@ -149,7 +150,7 @@ export async function connectExactCdp(
 					cleanup();
 					action();
 				};
-				pending.set(id, { resolve, reject, timer, cleanup });
+				pending.set(id, { resolve, reject, cleanup });
 				if (signal?.aborted) return abort();
 				signal?.addEventListener('abort', abort, { once: true });
 				try {
@@ -238,8 +239,9 @@ async function discoverWebSocketUrl(
 		webSocketDebuggerUrl?: string;
 	}>;
 	const target =
-		targets.find((candidate) => candidate.id === targetId) ??
-		targets.find((candidate) => candidate.type === 'page' && candidate.webSocketDebuggerUrl);
+		targetId === undefined
+			? targets.find((candidate) => candidate.type === 'page' && candidate.webSocketDebuggerUrl)
+			: targets.find((candidate) => candidate.id === targetId);
 	return target?.webSocketDebuggerUrl;
 }
 
@@ -256,6 +258,7 @@ async function readBoundedText(
 		while (true) {
 			if (signal.aborted) throw signal.reason;
 			const next = await reader.read();
+			signal.throwIfAborted();
 			if (next.done) break;
 			length += next.value.byteLength;
 			if (length > maxBytes) throw new Error('Chromium target discovery exceeded its byte limit');
@@ -269,8 +272,9 @@ async function readBoundedText(
 		}
 		return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
 	} catch (error) {
-		await reader.cancel(error).catch(() => undefined);
-		throw error;
+		const failure = signal.aborted ? signal.reason : error;
+		await reader.cancel(failure).catch(() => undefined);
+		throw failure;
 	} finally {
 		reader.releaseLock();
 	}

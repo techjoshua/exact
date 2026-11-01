@@ -40,3 +40,6 @@ contributes policy completions, activation inspection, and targeted diagnostics.
 Custom providers retain their initial server observation in ordinary component state for hydration.
 The live clock object stays application-local. `TimeClock.now()` returns a finite epoch-millisecond
 observation without changing the clock or scheduling work.
+
+Readonly clock observations and inspection values follow TypeScript. They are ordinary copies,
+so editing a writable alias does not change the scheduler’s private state.

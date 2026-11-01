@@ -36,6 +36,15 @@ integrations using the engine directly must watch its reported `watchFiles` and 
 to `invalidate()`. Modules that do not lexically reference React or a discovered adapter source
 skip importer-specific graph selection and source parsing.
 
+The engine's `resolved`, `rewriteOptions`, and report values are observations of that
+generation. Their readonly annotations follow TypeScript. Editing a returned record or
+array does not reconfigure the engine or change another engine's build decisions. Create
+a new engine to select a different React target.
+
+Adapter declarations preserve explicit JavaScript export names as data, including
+`__proto__`. Declared replacements still require a supported source version and an
+exported adapter entry point.
+
 ## Provider-first migration
 
 Install the native adapter beside the existing React binding. Existing imports
@@ -53,6 +62,11 @@ the service descendant-scoped across alternating React/eXact layers.
 - `@exactjs/redux`: native store providers/selectors, server snapshots, dispatch,
   nested subscriptions, and compatibility custom-context support.
 - `@exactjs/jotai`: vanilla atoms/stores and native atom sources.
+
+Query, infinite-query, and mutation source handles follow TypeScript's shallow, compile-time
+readonly rules. Their writable methods and mutable aliases keep ordinary JavaScript behavior.
+Source disposal releases the observer subscription. The application continues to own its
+`QueryClient` and cache.
 
 `ExactJotaiProvider` uses the supplied store or Jotai's default singleton. The native adapter
 resolves that singleton when its module loads. Supply a request-owned store when SSR data must

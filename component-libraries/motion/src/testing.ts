@@ -21,6 +21,7 @@ export interface MotionTestDriver extends MotionDriver {
  * Creates a motion driver whose recorded playbacks are controlled by the test.
  * Install it with `installMotionDriver` before playback. Each playback remains pending until
  * `finish()`, `fail(error)`, `finishAll()`, or its abort signal settles it. No real animation runs.
+ * Settled playbacks release their abort subscription.
  * Call the installation's returned restore function during test cleanup.
  */
 export function createMotionTestDriver(): MotionTestDriver {
@@ -33,12 +34,19 @@ export function createMotionTestDriver(): MotionTestDriver {
 					element,
 					effect,
 					signal,
-					finish: resolve,
-					fail: reject
+					finish() {
+						signal.removeEventListener('abort', abort);
+						resolve();
+					},
+					fail(error) {
+						signal.removeEventListener('abort', abort);
+						reject(error);
+					}
 				};
+				const abort = () => playback.fail(signal.reason);
 				playbacks.push(playback);
 				if (signal.aborted) reject(signal.reason);
-				else signal.addEventListener('abort', () => reject(signal.reason), { once: true });
+				else signal.addEventListener('abort', abort, { once: true });
 			});
 		},
 		finishAll() {

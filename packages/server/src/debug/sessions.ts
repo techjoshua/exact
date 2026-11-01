@@ -16,7 +16,7 @@ export type ExactDebugSession = {
 	readonly absoluteExpiry: number;
 	expiresAt: number;
 	readonly capabilities: Set<ExactDebugCapability>;
-	readonly closeListeners: Set<() => void>;
+	closed: boolean;
 	readonly authenticatedIdentity?: string;
 };
 
@@ -39,7 +39,8 @@ export interface ExactDebugSessionManager {
 	): Promise<ExactDebugSession | undefined>;
 	describe(session: ExactDebugSession): ExactInspectionSessionDescription;
 	active(): readonly ExactDebugSession[];
-	onClose(session: ExactDebugSession, listener: () => void): () => void;
+	/** Rechecks revocation and both expiry limits before asynchronous query publication. */
+	isActive(session: ExactDebugSession): boolean;
 	close(sessionId: string): boolean;
 	closeAll(): void;
 }
@@ -60,16 +61,7 @@ export function createExactDebugSessionManager(
 			if (!(await authorize(context, request, capability))) return undefined;
 			const authenticatedIdentity = await resolveIdentity(context, request, capability);
 			if (authenticatedIdentity === null || authorizingGeneration !== generation) return undefined;
-			const openedAt = Date.now();
-			return {
-				id: sessionId,
-				openedAt,
-				absoluteExpiry: openedAt + lifetime,
-				expiresAt: openedAt + inactivity,
-				capabilities: new Set([capability]),
-				closeListeners: new Set(),
-				...(authenticatedIdentity ? { authenticatedIdentity } : {})
-			};
+			return createSession(sessionId, [capability], authenticatedIdentity);
 		},
 		async open(request, requested) {
 			const openingGeneration = generation;
@@ -93,16 +85,7 @@ export function createExactDebugSessionManager(
 				sessions.size >= limits.maxSessions
 			)
 				return undefined;
-			const openedAt = Date.now();
-			const session: ExactDebugSession = {
-				id: randomSessionId(),
-				openedAt,
-				absoluteExpiry: openedAt + lifetime,
-				expiresAt: Math.min(openedAt + inactivity, openedAt + lifetime),
-				capabilities: new Set(capabilities),
-				closeListeners: new Set(),
-				...(authenticatedIdentity ? { authenticatedIdentity } : {})
-			};
+			const session = createSession(randomSessionId(), capabilities, authenticatedIdentity);
 			sessions.set(session.id, session);
 			return session;
 		},
@@ -137,28 +120,26 @@ export function createExactDebugSessionManager(
 			return session;
 		},
 		describe(session) {
-			return Object.freeze({
+			return {
 				id: session.id,
 				protocol: 1,
 				openedAt: session.openedAt,
 				expiresAt: session.expiresAt,
-				capabilities: Object.freeze([...session.capabilities].sort())
-			});
+				capabilities: [...session.capabilities].sort()
+			};
 		},
 		active() {
 			prune();
-			return Object.freeze([...sessions.values()]);
+			return [...sessions.values()];
 		},
-		onClose(session, listener) {
-			session.closeListeners.add(listener);
-			return () => session.closeListeners.delete(listener);
+		isActive(session) {
+			return !session.closed && !expired(session);
 		},
 		close(sessionId) {
 			const session = sessions.get(sessionId);
 			if (!session) return false;
+			session.closed = true;
 			sessions.delete(sessionId);
-			for (const listener of session.closeListeners) listener();
-			session.closeListeners.clear();
 			return true;
 		},
 		closeAll() {
@@ -166,7 +147,25 @@ export function createExactDebugSessionManager(
 			for (const id of [...sessions.keys()]) manager.close(id);
 		}
 	};
-	return Object.freeze(manager);
+	return manager;
+
+	/** Initializes local and forwarded leases with one clock sample and identical expiry rules. */
+	function createSession(
+		id: string,
+		capabilities: readonly ExactDebugCapability[],
+		authenticatedIdentity?: string
+	): ExactDebugSession {
+		const openedAt = Date.now();
+		return {
+			id,
+			openedAt,
+			absoluteExpiry: openedAt + lifetime,
+			expiresAt: openedAt + inactivity,
+			capabilities: new Set(capabilities),
+			closed: false,
+			...(authenticatedIdentity ? { authenticatedIdentity } : {})
+		};
+	}
 
 	function prune(): void {
 		for (const [id, session] of sessions) if (expired(session)) manager.close(id);
@@ -183,7 +182,7 @@ async function authorize(
 		return process.env.NODE_ENV !== 'production' && !!context.inspectionCatalogs?.length;
 	if (typeof policy === 'boolean') return policy;
 	try {
-		return await policy(authorizationContext(context, request, capability));
+		return (await policy(authorizationContext(context, request, capability))) === true;
 	} catch {
 		return false;
 	}

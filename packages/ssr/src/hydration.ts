@@ -1,3 +1,5 @@
+import { unwrap } from '@exactjs/reactive';
+import { quoteValidatedProtocolRecord } from '@exactjs/reactive/framework/protocol';
 import {
 	jsonDataKeys,
 	jsonDataProperty,
@@ -72,17 +74,28 @@ function renderHydrationScriptValue(
 		? createDirectHydrationMetadata(options, directResumptions!)
 		: createExtensibleHydrationMetadata(options, resumptionLayouts);
 	let reactiveCollections: WeakMap<object, unknown> | undefined;
+	let hasConstants = false;
 	const unsafePath = validateJsonSafeHydrationValue(compacted, {
 		maxDepth: options.maxHydrationDepth,
 		maxNodes: options.maxHydrationNodes,
+		onValidatedConstant() {
+			hasConstants = true;
+		},
+		onValidatedRecord(value) {
+			const encoded = quoteValidatedProtocolRecord(value);
+			if (encoded !== value) (reactiveCollections ??= new WeakMap()).set(unwrap(value), encoded);
+		},
 		onValidatedCollection(value) {
-			(reactiveCollections ??= new WeakMap()).set(value, encodeReactiveProtocolValue(value));
+			(reactiveCollections ??= new WeakMap()).set(
+				unwrap(value),
+				encodeReactiveProtocolValue(value)
+			);
 		},
 		onValidatedArray(value) {
 			const encoded = encodeValidatedReactiveCollection(value, value);
 			if (encoded === value) return;
 			(reactiveCollections ??= new WeakMap()).set(
-				value,
+				unwrap(value),
 				encodeValidatedReactiveCollection(value, [...value])
 			);
 		},
@@ -91,7 +104,12 @@ function renderHydrationScriptValue(
 		structurallyKnownRoot: directMetadata ? compacted : undefined
 	});
 	if (unsafePath) throw new Error(`Hydration payload must be JSON-serializable at ${unsafePath}`);
-	const payload = serializeValidatedHydrationPayload(compacted, reactiveCollections);
+	const payload = serializeValidatedHydrationPayload(
+		compacted,
+		reactiveCollections,
+		options,
+		hasConstants
+	);
 	const payloadBytes = encodedByteLength(payload);
 	if (payloadBytes > positiveLimit(options.maxHydrationBytes, 16 * 1024 * 1024)) {
 		throw new Error('Hydration payload exceeded maxHydrationBytes');
@@ -110,19 +128,34 @@ export function serializeHydrationPayload(payload: Record<string, unknown>): str
 }
 
 function serializeEncodedHydrationPayload(payload: unknown): string {
+	if (jsonUnsafePath(payload))
+		throw new Error('Encoded hydration payload exceeded JSON graph limits');
 	return serializeJson(payload);
 }
 
 /** Encodes validated collections as JSON visits them without cloning the surrounding payload graph. */
 function serializeValidatedHydrationPayload(
 	payload: unknown,
-	reactiveCollections?: WeakMap<object, unknown>
+	reactiveCollections: WeakMap<object, unknown> | undefined,
+	limits: HydrationScriptOptions,
+	hasConstants: boolean
 ): string {
-	if (!reactiveCollections) return serializeJson(payload);
-	return serializeJson(payload, function (_key, value) {
-		if (!value || typeof value !== 'object') return value;
-		const encoded = reactiveCollections.get(value);
-		if (encoded === undefined) return value;
+	if (!reactiveCollections && !hasConstants) return serializeJson(payload);
+	const maxNodes = positiveLimit(limits.maxHydrationNodes, 100_000);
+	const maxDepth = positiveLimit(limits.maxHydrationDepth, 100);
+	const depthByContainer = new WeakMap<object, number>();
+	let nodes = 0;
+	return serializeJson(payload, function (this: unknown, key, value) {
+		const depth = (depthByContainer.get(this as object) ?? -1) + 1;
+		if (++nodes > maxNodes || depth > maxDepth)
+			throw new Error('Encoded hydration payload exceeded graph limits');
+		// Sparse slots retain the existing JSON null representation, distinct from an owned undefined.
+		if (Array.isArray(this) && !Object.hasOwn(this, key)) return null;
+		const encoded =
+			!value || typeof value !== 'object'
+				? encodeReactiveProtocolValue(value)
+				: (reactiveCollections?.get(unwrap(value)) ?? value);
+		if (encoded && typeof encoded === 'object') depthByContainer.set(encoded, depth);
 		return encoded;
 	});
 }
@@ -163,10 +196,9 @@ function findJsonUnsafePath(
 			}
 			if (++nodes > maxNodes || current.depth > maxDepth) return current.path;
 			const item = current.value;
-			if (item === null || (!strict && item === undefined)) continue;
+			if (item === null || item === undefined) continue;
 			if (typeof item === 'string' || typeof item === 'boolean') continue;
 			if (typeof item === 'number') {
-				if (!Number.isFinite(item)) return current.path;
 				continue;
 			}
 			if (typeof item !== 'object' || seen.has(item)) return current.path;

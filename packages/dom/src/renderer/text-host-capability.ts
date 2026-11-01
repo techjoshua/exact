@@ -1,9 +1,12 @@
+import { componentContractVersion } from '../component-contract-version.js';
 import type { mountTextHostPresentation } from './text-host-presentation.js';
 import type { AnyComponentInstance, Child } from '@exactjs/core';
 import type { EffectScope } from '@exactjs/reactive/framework/runtime';
 import type { Mounted, Root } from '../types.js';
 
-const capabilityKey = Symbol.for('@exactjs/dom.text-host-capability.v2');
+const capabilityKey = Symbol.for(
+	`@exactjs/dom.text-host-capability.v2/component/${componentContractVersion}`
+);
 type Host = typeof globalThis & { [capabilityKey]?: typeof mountTextHostPresentation };
 
 /** Installs component-aware text presentation when a text-host artifact is loaded. */

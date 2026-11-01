@@ -1,9 +1,10 @@
+import { executeExactViteSource } from './source-execution.js';
+import { ExactViteSourcePreparation } from './source-preparation.js';
 import { loadExactViteVirtualModule } from './virtual-modules.js';
 import { ExactViteDevelopmentEnhancementCatalog } from './development-enhancement-catalog.js';
 import { refreshExactViteCatalogModules } from './intl-hot-update.js';
 import { ExactViteDevelopmentUpdates } from './development-updates.js';
 import { createExactViteRootOwners, exactViteApplicationRoot } from './root-owners.js';
-import { existsSync } from 'node:fs';
 import { preflightExactViteChangedSource } from './changed-source-preflight.js';
 import {
 	isExactBuildAssetRequest,
@@ -19,7 +20,6 @@ import {
 import {
 	assertExactViteBuildTarget,
 	exactModuleFilename,
-	isExactViteCacheModule,
 	exactTransformTarget
 } from './module-selection.js';
 import { exactViteConfig } from './vite-config.js';
@@ -36,7 +36,7 @@ import {
 	resolveExactViteTargetEnhancement
 } from './enhancement-catalog.js';
 import { ExactViteComponentAuthorization } from './component-authorization.js';
-import { transformExactViteModule, type ExactViteInspectionRecord } from './transform.js';
+import { type ExactViteInspectionRecord } from './transform.js';
 import {
 	createExactLanguageValidationSession,
 	type ExactLanguageValidationSession
@@ -46,11 +46,11 @@ import { emitExactViteServerArtifacts } from './server-artifacts.js';
 import { resolveExactTestTargetRequest } from './test-host/module-selection.js';
 import { resolveExactFrameworkImport } from './framework-import.js';
 import { attachExactViteServerDisposal } from './server-lifecycle.js';
-import { finalizeExactViteTransform } from './transform-result.js';
 import { ExactViteTestHelperTargets } from './test-host/helper-targets.js';
 
 /** Creates the Vite plugin that transforms eXact JSX and resolves .exact facade imports. */
 export function exact(options: ExactPluginOptions = {}): ExactPlugin {
+	const preparation = new ExactViteSourcePreparation();
 	const compiler = new ExactViteCompilerSession(options.diagnostics ?? false, options.onProfile);
 	let { reactCompatibility, compatibilityEngine, configuration, intl, microfrontends } =
 		createExactViteRootOwners(options);
@@ -84,6 +84,7 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 		componentAuthorization.dispose();
 		developmentCatalog.dispose();
 		compiler.dispose();
+		preparation.clear();
 		intl.dispose();
 		await languageValidation?.dispose();
 		languageValidation = undefined;
@@ -94,6 +95,7 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 	const configureRoot = (root: string | undefined) => {
 		if (explicitApplicationRoot || !root || options.applicationRoot === root) return;
 		options = { ...options, applicationRoot: root };
+		preparation.clear();
 		intl.dispose();
 		({ reactCompatibility, compatibilityEngine, configuration, intl, microfrontends } =
 			createExactViteRootOwners(options));
@@ -142,6 +144,7 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 			if (disposed) throw new Error('eXact Vite plugin has been disposed');
 			inspectionModules.clear();
 			for (const file of compatibilityEngine?.watchFiles ?? []) this.addWatchFile(file);
+			preparation.clear();
 			await intl.beginBuild();
 			for (const file of intl.catalogFiles) this.addWatchFile(file);
 			const registry = await prepareRegistry();
@@ -294,6 +297,7 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 		async handleHotUpdate(context) {
 			return developmentUpdates.run(async () => {
 				if (disposed) return;
+				preparation.clear();
 				intl.advanceGeneration();
 				const localizedModules = await refreshExactViteCatalogModules(intl, context);
 				if (localizedModules) return localizedModules;
@@ -354,6 +358,7 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 			});
 		},
 		async watchChange(id, change) {
+			preparation.clear();
 			intl.advanceGeneration();
 			if (intl.isCatalogFile(id)) {
 				await intl.refreshCatalogGeneration();
@@ -373,46 +378,31 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 		},
 		closeBundle: async () => disposeBuildProcesses(),
 		transform(code, id, hookOptions) {
-			if (isExactBuildAssetRequest(id) || isExactViteCacheModule(id, viteCacheDir)) return null;
-			const applicationRoot = exactViteApplicationRoot(configuration, options);
-			const requestTarget = testModuleTargets.transform(code, id, hookOptions?.ssr, {
-				root: applicationRoot,
-				session: compiler.current,
-				packageEnhancements: configuration.loaded?.packageEnhancements
-			});
-			ensureServerAuthorization(requestTarget);
-			const configurationFiles = configuration.observeSource(exactModuleFilename(id));
-			watchSourceConfiguration?.(configurationFiles);
-			if (viteCommand === 'build')
-				for (const file of configurationFiles) if (existsSync(file)) this.addWatchFile?.(file);
-			// Rollup resolves a module's imports after this hook. Record every remote-scoped source here,
-			// including precompiled package JavaScript that the compiler transform intentionally skips.
-			microfrontends.recordModule(code, id);
-			const transformed = transformExactViteModule({
+			return executeExactViteSource.call(
+				this,
+				{
+					options,
+					compiler,
+					preparation,
+					testModuleTargets,
+					languageValidation,
+					componentAuthorization,
+					inspectionModules,
+					viteCommand,
+					viteCacheDir,
+					configuredDebug,
+					watchSourceConfiguration,
+					ensureServerAuthorization,
+					configuration,
+					reactCompatibility,
+					compatibilityEngine,
+					intl,
+					microfrontends
+				},
 				code,
 				id,
-				options,
-				requestTarget,
-				applicationRoot,
-				compilerSession: compiler.current,
-				packageEnhancements: configuration.loaded?.packageEnhancements ?? [],
-				reactCompatibility,
-				compatibilityEngine,
-				configuredDebug,
-				languageValidation: Boolean(languageValidation),
-				viteCommand,
-				componentAuthorization,
-				inspectionModules,
-				intl,
-				recordMicrofrontendModule: (source, moduleId) =>
-					microfrontends.recordModule(source, moduleId),
-				warn: (message) => this.warn?.(message)
-			});
-			if (transformed)
-				compiler.observeProjectFiles(exactModuleFilename(id), (files) =>
-					files.forEach((file) => this.addWatchFile?.(file))
-				);
-			return finalizeExactViteTransform(transformed, languageValidation);
+				hookOptions
+			);
 		}
 	};
 }

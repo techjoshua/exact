@@ -1,5 +1,6 @@
 import { hasComputedResultChanged } from './change-detection.js';
 import { createComputedValue } from './computed-value.js';
+export { inspectComputed } from './computed-value.js';
 import {
 	cleanupReaction,
 	hasActiveReactiveTransaction,
@@ -50,7 +51,6 @@ type ComputedDependency = ReactiveDependency & {
 export type { ComputedInspection } from './internal/types.js';
 
 const computedTargets = new WeakMap<object, ComputedNode<unknown>>();
-const computedValues = new WeakMap<object, ComputedNode<unknown>>();
 const maximumSettlementSteps = 100_000;
 const cycleMessage = 'eXact reactive computation cycle detected';
 let nextSettlementGeneration = 0;
@@ -62,15 +62,12 @@ let activeSettlementGeneration = 0;
  * first explicit read without subscriptions, so cleanup can still consume its declared value.
  */
 export function computed<T>(compute: () => T): ReactiveValue<T> {
-	const node = new ComputedNode(compute, currentEffectScope());
-	const value = createComputedValue(node);
-	computedValues.set(value, node as ComputedNode<unknown>);
-	return value;
+	return createComputedValue(new ComputedNode(compute, currentEffectScope()));
 }
 
-/** Returns bounded graph state for tooling without exposing computed values or source text. */
-export function inspectComputed(value: ReactiveValue): ComputedInspection | undefined {
-	return computedValues.get(value as object)?.inspect();
+/** Retains an external owner's accepted snapshot identity while preserving computed inspection and scope ownership. */
+export function computedSnapshot<T>(compute: () => T): ReactiveValue<T> {
+	return createComputedValue(new SnapshotComputedNode(compute, currentEffectScope()));
 }
 
 class ComputedNode<T> implements Reaction, ReactiveRef<T> {
@@ -177,14 +174,14 @@ class ComputedNode<T> implements Reaction, ReactiveRef<T> {
 	}
 
 	inspect(): ComputedInspection {
-		return Object.freeze({
+		return {
 			state: this.failed ? 'failed' : this.scope?.paused ? 'paused' : this.state,
 			priority: this.pendingPriority ?? effectScopeWorkPriority(this.scope, currentWorkPriority()),
 			observed: this.isRetained(),
 			initialized: this.initialized,
 			sources: this.dependencies.length,
 			sinks: this.computedSinks?.size ?? 0
-		});
+		};
 	}
 
 	private settle(): void {
@@ -264,7 +261,7 @@ class ComputedNode<T> implements Reaction, ReactiveRef<T> {
 			cleanupReaction(this);
 			this.detachComputedSources();
 		}
-		const changed = !hadValue || hasComputedResultChanged(previousValue, next);
+		const changed = !hadValue || this.resultChanged(previousValue, next);
 		this.current = hadValue && !changed ? previousValue : next;
 		this.initialized = true;
 		this.state = this.invalidatedWhileComputing ? 'dirty' : 'clean';
@@ -294,6 +291,10 @@ class ComputedNode<T> implements Reaction, ReactiveRef<T> {
 		const onError = this.scope?.onError;
 		if (!onError) throw error;
 		onError(error);
+	}
+
+	protected resultChanged(previous: T, next: T): boolean {
+		return hasComputedResultChanged(previous, next);
 	}
 
 	private queue(force = false): void {
@@ -400,6 +401,13 @@ function settleGraph(root: ComputedNode<unknown>): void {
 			const source = dependencies[index]!.computed;
 			if (source) stack.push({ node: source, leave: false });
 		}
+	}
+}
+
+/** External owners already filter snapshots. Preserve their accepted identities without changing ordinary computed equality. */
+class SnapshotComputedNode<T> extends ComputedNode<T> {
+	protected override resultChanged(previous: T, next: T): boolean {
+		return !Object.is(previous, next);
 	}
 }
 

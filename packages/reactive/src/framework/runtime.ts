@@ -25,6 +25,7 @@ export {
 } from '../internal/scheduler.js';
 export {
 	createEffectScope,
+	createDetachedEffectScope,
 	createProfiledEffectScope,
 	currentEffectScope,
 	effectScopeParent,
@@ -48,13 +49,19 @@ export type {
 	WatchOptions
 } from '../internal/types.js';
 export { isReactive, isReactiveValue, unwrap } from '../internal/values.js';
-export { computed, inspectComputed, type ComputedInspection } from '../computation.js';
+export {
+	computed,
+	computedSnapshot,
+	inspectComputed,
+	type ComputedInspection
+} from '../computation.js';
 export {
 	collectionRef,
 	ref,
 	subscribe,
 	subscribeKeys,
 	trackCollectionStructure,
+	trackReactiveSource,
 	watch,
 	watchStructural
 } from '../observation.js';
@@ -77,7 +84,6 @@ export {
 export type { CompiledReactivePropertyOperand } from '../indexed-base.js';
 export { snapshot } from '../snapshot.js';
 export {
-	reactiveProxyOptions,
 	notifyReactivePrivateWrite,
 	applyNativeReactiveCollection
 } from '../proxy/collection-publication.js';
@@ -98,7 +104,17 @@ export {
 	updateReactiveValueWithResult,
 	writeIndexedReactiveValue,
 	writeReactive,
-	writeReactiveLazy
+	writeReactiveLazy,
+	withReactivePropertyMutationObserver,
+	type ReactivePropertyMutationObserver
 } from '../writes.js';
 
 export { proxyMarker, rawTarget, reactiveProxyPolicy } from '../internal/symbols.js';
+
+export {
+	compiledReactiveExpressionOperand,
+	isCompiledPropOperand,
+	isCompiledExpressionOperand,
+	readCompiledPropOperand,
+	type CompiledExpressionOperand
+} from '../internal/property-operand.js';

@@ -170,6 +170,11 @@ export function createEffectScope(
 	return new EffectScopeRecord(parentScope, onError, onProfile);
 }
 
+/** Creates an independent framework root without inheriting the ambient callback scope. */
+export function createDetachedEffectScope(): EffectScope {
+	return new EffectScopeRecord(undefined, undefined, undefined);
+}
+
 /** Returns the current ownership parent for framework integrations that preserve nested scope identity. */
 export function effectScopeParent(scope: EffectScope): EffectScope | undefined {
 	return (scope as EffectScopeRecord).parent;

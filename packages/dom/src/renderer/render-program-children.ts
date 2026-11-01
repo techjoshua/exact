@@ -1,5 +1,5 @@
+import { readClientComponentInput } from './component-input-admission.js';
 import type { AnyComponentInstance, Child } from '@exactjs/core';
-import { readCompiledComponentReceipt } from '@exactjs/core/runtime/component-operations';
 import type { ExactRenderProgramInvocation } from '@exactjs/core/runtime/render-operations';
 import { type OwnedRetainedWatch, watchRetained } from '@exactjs/reactive/framework/watch';
 import { peek, withEffectScope } from '@exactjs/reactive/framework/runtime';
@@ -117,9 +117,12 @@ function prepareProgramChildBinding(
 	releaseProgramChildStart(anchor);
 	let skipAdoptedInitialPatch = initialBinding && childState.children.length !== 0;
 	return () => {
+		const attempt = state.root.componentInputAttempt;
 		const next = withEffectScope(mounted.scope, () =>
 			read(state.invocation, index, state.parentInstance)
 		);
+		if (state.root.componentInputAttempt !== attempt || attempt?.disposed || !mounted.scope.active)
+			return;
 		if (skipAdoptedInitialPatch) {
 			skipAdoptedInitialPatch = false;
 			return;
@@ -186,8 +189,8 @@ export function programComponentSlotIncludes(
 
 function soleComponentReceipt(
 	children: readonly Child[]
-): ReturnType<typeof readCompiledComponentReceipt> {
-	return children.length === 1 ? readCompiledComponentReceipt(children[0]) : undefined;
+): ReturnType<typeof readClientComponentInput> {
+	return children.length === 1 ? readClientComponentInput(children[0]) : undefined;
 }
 
 /** Resolves a general structural slot and admits only explicitly installed foreign children. */
@@ -237,6 +240,6 @@ function sameProgramChildren(
 export function refreshProgramMountedChildren(mounted: Mounted): void {
 	mounted.children.length = 0;
 	for (const slot of mounted.renderProgram!.childSlots ?? []) {
-		if (slot) mounted.children.push(...slot.children);
+		for (const child of slot?.children ?? []) mounted.children.push(child);
 	}
 }

@@ -27,8 +27,17 @@ func (lowering *jsxLowering) captureScalarRootAttributes(build *renderProgramBui
 	seen := map[string]bool{}
 	var dynamic *ast.Node
 	for _, property := range bag.AsObjectLiteralExpression().Properties.Nodes {
-		if !ast.IsPropertyAssignment(property) ||
-			(!ast.IsIdentifier(property.Name()) && !ast.IsStringLiteral(property.Name())) {
+		if !ast.IsPropertyAssignment(property) {
+			return
+		}
+		if ast.IsComputedPropertyName(property.Name()) {
+			if !lowering.isElementIdentityProperty(property) {
+				return
+			}
+			properties = append(properties, property)
+			continue
+		}
+		if !ast.IsIdentifier(property.Name()) && !ast.IsStringLiteral(property.Name()) {
 			return
 		}
 		key := property.Name().Text()

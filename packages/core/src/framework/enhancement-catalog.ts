@@ -1,3 +1,4 @@
+import { deriveRuntimeConfiguration } from './configuration.js';
 import type { ComponentFunction } from '../component/contracts.js';
 
 type EnhancementComponent = ComponentFunction<Record<string, never>, Record<string, unknown>>;
@@ -28,6 +29,8 @@ export function withExactEnhancementCatalog<Options extends Readonly<Record<stri
 				| undefined
 		)?.enhancementCatalog
 			? options
-			: { ...options, enhancementCatalog: exactEnhancementCatalog }
+			: deriveRuntimeConfiguration<Readonly<Record<string, unknown>>>(options ?? {}, () => ({
+					enhancementCatalog: exactEnhancementCatalog
+				}))
 	) as Options & Readonly<{ enhancementCatalog: ReadonlyMap<string, EnhancementComponent> }>;
 }

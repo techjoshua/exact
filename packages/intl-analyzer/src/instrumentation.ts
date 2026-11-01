@@ -16,9 +16,11 @@ import type {
 	NativeIntlRegion,
 	NativeIntlSpan
 } from './native-analysis.js';
-
-type SourceEdit = Readonly<{ start: number; length: number; replacement: string }>;
-
+type SourceEdit = Readonly<{
+	start: number;
+	length: number;
+	replacement: string;
+}>;
 /** Finalizes native semantic facts and instruments their source spans without a TypeScript runtime. */
 export function instrumentNativeIntlAnalysis(
 	source: string,
@@ -27,14 +29,13 @@ export function instrumentNativeIntlAnalysis(
 ): IntlSourceAnalysis {
 	const descriptors = native.descriptors.map(finalizeNativeIntlDescriptor);
 	if (descriptors.length === 0)
-		return Object.freeze({
+		return {
 			code: source,
-			descriptors: Object.freeze(descriptors),
-			descriptorOwnerOrdinals: Object.freeze([...native.descriptorOwnerOrdinals]),
-			diagnostics: Object.freeze([...native.diagnostics]),
-			clientRequirements: Object.freeze([...native.clientRequirements])
-		});
-
+			descriptors: descriptors,
+			descriptorOwnerOrdinals: [...native.descriptorOwnerOrdinals],
+			diagnostics: [...native.diagnostics],
+			clientRequirements: [...native.clientRequirements]
+		};
 	const runtimeDescriptors = descriptors.map(runtimeDescriptor);
 	const edits: SourceEdit[] = [];
 	for (const region of native.regions) {
@@ -68,7 +69,6 @@ export function instrumentNativeIntlAnalysis(
 		for (const span of uniqueSpans(region.transferred ?? []))
 			if (span.length > 0) edits.push({ ...span, replacement: '' });
 	}
-
 	const declaration =
 		'import { prepareIntlActivation as __exactPrepareIntl } from "@exactjs/intl/internal";';
 	const enhancement = native.regions.some((region) => !region.explicit)
@@ -84,33 +84,30 @@ export function instrumentNativeIntlAnalysis(
 		: runtimeDescriptors
 				.map(
 					(descriptor, index) =>
-						`const __exactIntlDescriptor${index} = Object.freeze(${JSON.stringify(descriptor)});`
+						`const __exactIntlDescriptor${index} = ${JSON.stringify(descriptor)};`
 				)
 				.join('\n');
 	const code = `${enhancement}${declaration}\n${descriptorPrelude}\n${applySourceEdits(source, edits)}`;
-	return Object.freeze({
+	return {
 		code,
-		descriptors: Object.freeze(descriptors),
-		descriptorOwnerOrdinals: Object.freeze([...native.descriptorOwnerOrdinals]),
-		diagnostics: Object.freeze([...native.diagnostics]),
-		clientRequirements: Object.freeze([...native.clientRequirements]),
+		descriptors: descriptors,
+		descriptorOwnerOrdinals: [...native.descriptorOwnerOrdinals],
+		diagnostics: [...native.diagnostics],
+		clientRequirements: [...native.clientRequirements],
 		...(options.descriptorModuleId
 			? {
-					companions: Object.freeze(
-						descriptorGroups(native.descriptorOwnerOrdinals).map(([ordinal, indexes]) =>
-							createCompanion(
-								componentDescriptorModuleId(options.descriptorModuleId!, ordinal),
-								indexes,
-								runtimeDescriptors,
-								options.generation ?? 0
-							)
+					companions: descriptorGroups(native.descriptorOwnerOrdinals).map(([ordinal, indexes]) =>
+						createCompanion(
+							componentDescriptorModuleId(options.descriptorModuleId!, ordinal),
+							indexes,
+							runtimeDescriptors,
+							options.generation ?? 0
 						)
 					)
 				}
 			: {})
-	});
+	};
 }
-
 /** Finalizes one native descriptor with independent translation and execution identities. */
 export function finalizeNativeIntlDescriptor(
 	native: NativeIntlDescriptor
@@ -129,15 +126,14 @@ export function finalizeNativeIntlDescriptor(
 		source: native.source,
 		capabilities: [...native.capabilities].sort()
 	});
-	return Object.freeze({
+	return {
 		...descriptor,
 		...(name ? { name } : {}),
 		contract: createIntlExecutionContractHash(canonicalContract),
 		key: createIntlMessageKey(canonicalTranslation, name),
 		canonicalTranslation
-	});
+	};
 }
-
 function runtimeDescriptor(descriptor: AnalyzedMessageDescriptorV1): IntlRuntimeDescriptorV1 {
 	const {
 		ownerComponentId: _ownerComponentId,
@@ -147,11 +143,9 @@ function runtimeDescriptor(descriptor: AnalyzedMessageDescriptorV1): IntlRuntime
 	} = descriptor;
 	return runtime;
 }
-
 function sliceSpan(source: string, span: NativeIntlSpan): string {
 	return source.slice(span.start, span.start + span.length);
 }
-
 function structureFactory(
 	source: string,
 	structure: NativeIntlRegion['structures'][number]
@@ -182,7 +176,6 @@ function structureFactory(
 	// Keep the element input explicit so strict builds do not infer an implicit any.
 	return `(__intlChildren: Parameters<import("@exactjs/intl").IntlElementFactory>[0]) => ${element.slice(0, sanitizedContentStart)}{__intlChildren}${element.slice(sanitizedContentEnd)}`;
 }
-
 function targetFactory(source: string, region: NativeIntlRegion): string {
 	const element = removeOwnedAttributes(
 		sliceSpan(source, region.element),
@@ -203,7 +196,6 @@ function targetFactory(source: string, region: NativeIntlRegion): string {
 		);
 	return `__intlContent => ${element.slice(0, sanitizedContentStart)}{__intlContent}${element.slice(sanitizedContentEnd)}`;
 }
-
 /** Removes compiler-consumed attributes from one retained source slice. */
 function removeOwnedAttributes(
 	source: string,
@@ -220,7 +212,6 @@ function removeOwnedAttributes(
 	}
 	return result;
 }
-
 function removedLengthBefore(
 	attributes: readonly NativeIntlSpan[],
 	base: number,
@@ -232,7 +223,6 @@ function removedLengthBefore(
 		0
 	);
 }
-
 function removedLengthBetween(
 	attributes: readonly NativeIntlSpan[],
 	start: number,
@@ -244,11 +234,9 @@ function removedLengthBetween(
 		0
 	);
 }
-
 function spansOverlap(left: NativeIntlSpan, right: NativeIntlSpan): boolean {
 	return left.start < right.start + right.length && right.start < left.start + left.length;
 }
-
 function uniqueSpans(spans: readonly NativeIntlSpan[]): readonly NativeIntlSpan[] {
 	const seen = new Set<string>();
 	return spans.filter((span) => {
@@ -258,7 +246,6 @@ function uniqueSpans(spans: readonly NativeIntlSpan[]): readonly NativeIntlSpan[
 		return true;
 	});
 }
-
 function applySourceEdits(source: string, edits: readonly SourceEdit[]): string {
 	const ordered = [...edits].sort(
 		(left, right) => right.start - left.start || right.length - left.length
@@ -275,7 +262,6 @@ function applySourceEdits(source: string, edits: readonly SourceEdit[]): string 
 	}
 	return output;
 }
-
 function descriptorGroups(
 	ownerOrdinals: readonly number[]
 ): readonly (readonly [number, readonly number[]])[] {
@@ -286,13 +272,11 @@ function descriptorGroups(
 		indexes.push(index);
 		groups.set(ordinal, indexes);
 	}
-	return [...groups].map(([ordinal, indexes]) => [ordinal, Object.freeze(indexes)] as const);
+	return [...groups].map(([ordinal, indexes]) => [ordinal, indexes] as const);
 }
-
 function componentDescriptorModuleId(moduleId: string, ownerOrdinal: number): string {
 	return `${moduleId}/component/${ownerOrdinal}`;
 }
-
 function createCompanion(
 	id: string,
 	indexes: readonly number[],
@@ -302,13 +286,13 @@ function createCompanion(
 	const declarations = indexes
 		.map(
 			(index) =>
-				`export const __exactIntlDescriptor${index} = Object.freeze(${JSON.stringify(descriptors[index])});`
+				`export const __exactIntlDescriptor${index} = ${JSON.stringify(descriptors[index])};`
 		)
 		.join('\n');
-	return Object.freeze({
+	return {
 		id,
-		code: `${declarations}\nexport const descriptors = Object.freeze([${indexes.map((index) => `__exactIntlDescriptor${index}`).join(',')}]);\nexport const generation = ${generation};\n`,
+		code: `${declarations}\nexport const descriptors = [${indexes.map((index) => `__exactIntlDescriptor${index}`).join(',')}];\nexport const generation = ${generation};\n`,
 		generation,
-		descriptorIndexes: Object.freeze([...indexes])
-	});
+		descriptorIndexes: [...indexes]
+	};
 }

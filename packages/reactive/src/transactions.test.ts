@@ -117,14 +117,14 @@ describe('@exactjs/reactive transactions', () => {
 		expect(observer).toHaveBeenCalledTimes(1);
 	});
 
-	it('preserves identity for structurally equal writes and remains rollback-safe', () => {
+	it('replaces structurally equal storage and restores its reference on rollback', () => {
 		const state = reactive({ record: { title: 'Same' } });
 		const record = state.record;
 
 		expect(() =>
 			batch(() => {
 				state.record = { title: 'Same' };
-				expect(state.record).toBe(record);
+				expect(state.record).not.toBe(record);
 				throw new Error('abort');
 			})
 		).toThrow('abort');

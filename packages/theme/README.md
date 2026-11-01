@@ -43,6 +43,9 @@ control appearance; `data-exact-theme-appearance` exposes the requested choice a
 `ThemeContext.appearance` is undefined during SSR for browser-dependent choices.
 Generated CSS selects both palette and native control appearance before activation.
 
+Resolved themes and derivation outputs use TypeScript readonly declarations. JavaScript values
+remain ordinary objects, and private cache data is kept separate from returned observations.
+
 ## Reference
 
 See the [semantic generative theming reference](https://github.com/techjoshua/exact/blob/main/docs/theme.md) for the complete source, token, enhancement, nesting, and derivation contracts.

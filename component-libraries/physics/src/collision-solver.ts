@@ -1,5 +1,5 @@
 import type { PhysicsCollisionEvent, Vector2 } from './contracts.js';
-import { add, dot, length, normalize, scale, subtract } from './math.js';
+import { add, dot, length, normalize, scale, subtract, translateFiniteVector } from './math.js';
 import type { BodyResource } from './body-resource.js';
 
 /** Contact manifold retained across fixed steps for lifecycle event publication. */
@@ -119,30 +119,28 @@ export function inverseMass(body: BodyResource): number {
 
 /** Mutates a body's reactive world position by one solver correction delta. */
 export function moveBody(body: BodyResource, delta: Vector2): void {
-	body.state.pose.position.x += delta.x;
-	body.state.pose.position.y += delta.y;
+	translateFiniteVector(body.state.pose.position, delta, 'Corrected body position');
 }
 
 function changeVelocity(body: BodyResource, delta: Vector2): void {
-	body.state.velocity.x += delta.x;
-	body.state.velocity.y += delta.y;
+	translateFiniteVector(body.state.velocity, delta, 'Corrected body velocity');
 }
 
-/** Creates the immutable collision event exposed by the world API. */
+/** Creates the copied collision event exposed by the world API. */
 export function physicsContactEvent(
 	phase: 'begin' | 'persist' | 'end',
 	contact: PhysicsContact,
 	step: number
 ): PhysicsCollisionEvent {
-	return Object.freeze({
+	return {
 		phase,
 		bodyA: contact.bodyA,
 		bodyB: contact.bodyB,
-		normal: Object.freeze({ ...contact.normal }),
+		normal: { ...contact.normal },
 		penetration: contact.penetration,
-		point: Object.freeze({ ...contact.point }),
+		point: { ...contact.point },
 		step
-	});
+	};
 }
 
 /** Stable pair identity for contact lifecycle tracking. */

@@ -3,7 +3,8 @@ import {
 	LoggerContext,
 	type Child,
 	type ComponentContextValues,
-	type ComponentDomain
+	type ComponentDomain,
+	type ExactRuntimeInspectionOwner
 } from '@exactjs/core';
 import {
 	componentDomainLogging,
@@ -24,6 +25,8 @@ export type RendererRootConstruction = {
 	readonly version: number;
 	readonly mode?: Root['mode'];
 	readonly markerlessHydration?: boolean;
+	/** Inspection fallback supplied by the selected mount entry point. */
+	readonly inspection?: ExactRuntimeInspectionOwner;
 };
 
 /** Constructs the common renderer-root state shared by mount and adoption entry points. */
@@ -33,16 +36,16 @@ export function createRendererRoot(
 	options: RenderOptions,
 	construction: RendererRootConstruction
 ): Root {
-	const domain =
-		childDomain(current) ??
-		options.componentDomain ??
-		(options.inspection
-			? createFrameworkComponentDomain({
-					executionRoot: options.inspection.executionRoot,
-					inspection: options.inspection,
-					logger: options.logger
-				})
-			: undefined);
+	let domain = childDomain(current) ?? options.componentDomain;
+	if (!domain) {
+		const inspection = construction.inspection ?? options.inspection;
+		if (inspection)
+			domain = createFrameworkComponentDomain({
+				executionRoot: inspection.executionRoot,
+				inspection,
+				logger: options.logger
+			});
+	}
 	const errors = createDomErrorContext(options, () => renderRootErrorView(root));
 	const ambientEntries: Array<readonly [symbol, unknown]> = [[ErrorContext.id, errors]];
 	if (options.logger) ambientEntries.push([LoggerContext.id, options.logger]);

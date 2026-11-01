@@ -1,5 +1,14 @@
 # Agent guidance
 
+## Preserve agreed architectural direction
+
+Discuss proposed changes in architectural direction with the user and obtain agreement before
+adopting them. Autonomous implementation does not authorize replacing an agreed architecture
+with a different strategy. During an incremental migration, classify failures as unmigrated
+behavior, implementation defects, or gaps in the shared contract before drawing architectural
+conclusions. A partial pilot is not expected to support the entire language. Use alternative
+bases and prototypes as comparison evidence unless the user agrees to change direction.
+
 ## Maintainability requirements
 
 All repository changes must follow the
@@ -176,6 +185,17 @@ Props remain parent-owned inputs. Local mutable data belongs in `this.state`; de
 usually remain an ordinary compiler-observed expression or an explicit reactive value when a
 first-class value is useful.
 
+### Readonly follows TypeScript
+
+Enforce readonly through ordinary TypeScript assignability and diagnostics. It is a shallow,
+compile-time restriction. Mutable nested values and writable aliases retain ordinary TypeScript
+semantics. Do not add runtime readonly proxies, deep immutability, freezing, mutation rejection,
+or snapshot-and-restore machinery to strengthen this guarantee, including for component props.
+Keep native JavaScript descriptor constraints, task generation fencing, and transport authority
+checks tied to their own contracts. Hardening and regression tests must not reintroduce runtime
+readonly enforcement. Protect this distinction with type-checking controls and observable alias
+and nested-mutation tests.
+
 ### Tasks, interactions, and optimistic state
 
 Keep ordinary event and form callbacks when inferred interaction ownership is sufficient. Define a
@@ -241,11 +261,11 @@ justification.
 
 ## Prepare independent releases
 
-Independent versioning is the default. The explicitly coordinated 0.7.0 release is an exception:
-all public framework packages, including unchanged utilities and all six native compiler packages,
-release at 0.7.0. The VS Code and Chromium extension artifacts also use 0.7.0.
-Applications and fixtures remain private. Resume independent versioning for
-subsequent releases. Published versions cannot be replaced in place, so later code or manifest
+Independent versioning is the default. The coordinated local 0.8.0 preparation is an exception:
+all public npm packages, including unchanged utilities and all six native compiler packages,
+use stable 0.8.0. This selection does not authorize publication or select private VS Code and
+Chromium extension artifact versions. Applications and fixtures remain private. Resume independent
+versioning for subsequent releases. Published versions cannot be replaced in place, so later code or manifest
 changes require a new version of each affected package.
 
 eXact-owned code is Apache-2.0, copyright Joshua Friesen. Follow `docs/licensing.md` when
@@ -379,6 +399,32 @@ when the observable contract remains unchanged.
 - Treat test complexity, execution time, brittleness, and rewrite cost as part of the test's cost.
 - When an intentional redesign invalidates implementation-coupled tests, remove or replace those
   tests. Do not mechanically reproduce obsolete expectations.
+
+### Work efficiently without weakening acceptance
+
+Make efficient execution the default. Plan around the behavior and its owning contracts before
+expanding implementation or validation.
+
+- Qualify fixture syntax, types, working directories, configuration, public APIs, and prerequisite
+  inputs before expensive runs. Distinguish setup failures from product failures.
+- Batch independent controls and test compositions early. Use each failure to refine the affected
+  assumption while preserving mechanisms that remain sound. Replace a design only when evidence
+  shows that refinement cannot preserve its contracts or would create worse ownership or complexity.
+- Reuse evidence when the relevant source, configuration, dependencies, tools, and execution context
+  remain unchanged. Record the binding and limits. Repeat a check when changed inputs, a failure,
+  unresolved risk, or an explicit acceptance requirement justifies it.
+- Consolidate disconnected prototype code and duplicate analysis before adding more layers. Review
+  production cost separately from tests and investigation artifacts.
+- Use substantive phase checkpoints. Report unexpected semantic failures, scope expansion, and
+  missing authority promptly. Resolve routine setup corrections within the authorized scope while
+  retaining the original failure, rather than requiring another approval for each correction.
+- Keep protection and provenance proportional to mutation risk. Avoid redundant copies, full
+  inventories, and evidence packaging when existing immutable inputs suffice. Preserve required
+  freeze boundaries, before/after checks, process cleanup, and the ability to reproduce conclusions.
+
+Efficiency does not waive compiler/runtime regression acceptance, meaningful negative controls, or
+required adapter, emitted-artifact, browser, runtime, and package-consumer checks. Optimize redundant
+work and coordination before reducing protection.
 
 ### Working rule
 

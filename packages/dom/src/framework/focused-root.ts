@@ -1,4 +1,4 @@
-import type { Child, ComponentDomain } from '@exactjs/core';
+import type { Child } from '@exactjs/core';
 import { componentDomainInspection } from '@exactjs/core/framework/component-domains';
 import { flushSync } from '@exactjs/reactive/framework/runtime';
 import { profileTimestamp, publishExactProfile } from '@exactjs/instrumentation';
@@ -9,29 +9,28 @@ import { withDomWork } from '../renderer/limits.js';
 import { mountDetachedOperation } from '../renderer/mounting/children.js';
 import { patchChildren } from '../renderer/patching/children.js';
 import { createRendererRoot, renderRootErrorView } from '../renderer/root-construction.js';
-import { applyRootOptions, resolveRootRenderOptions } from './root-policy.js';
+import { applyRootOptions } from './root-policy.js';
 
 /** Executes one compiler-selected non-component root operation without reopening public rendering. */
 export function renderFocusedOperationRoot(
 	operation: Child,
-	domain: ComponentDomain | undefined,
 	container: Element,
 	options: RenderOptions
 ): void {
 	let root = roots.get(container);
 	if (root?.mode === 'document')
 		throw new Error('eXact cannot replace a mounted Document root with a client operation root');
-	const inspection = options.inspection ?? exactDomInspectionOwner();
-	const effectiveOptions = resolveRootRenderOptions(domain, root, options, inspection);
 	if (!root) {
-		root = createRendererRoot(container, operation, effectiveOptions, {
+		root = createRendererRoot(container, operation, options, {
 			version: 0,
-			mode: 'client'
+			mode: 'client',
+			inspection: options.inspection ?? exactDomInspectionOwner()
 		});
 		roots.set(container, root);
 	}
-	applyRootOptions(root, effectiveOptions);
+	applyRootOptions(root, options);
 	if (root.domain && componentDomainInspection(root.domain)) registerInspectableRoot(root);
+	const logicalParent = options.logicalParent;
 	const startedAt = profileTimestamp();
 	withDomWork(root, () => {
 		if (root!.mounted) {
@@ -40,15 +39,15 @@ export function renderFocusedOperationRoot(
 				container,
 				[root!.mounted],
 				[operation],
-				effectiveOptions.logicalParent,
-				effectiveOptions.logicalParent?.scope
+				logicalParent,
+				logicalParent?.scope
 			)[0];
 		} else {
 			const mounted = mountDetachedOperation(
 				root!,
 				operation,
-				effectiveOptions.logicalParent,
-				effectiveOptions.logicalParent?.scope,
+				logicalParent,
+				logicalParent?.scope,
 				container
 			);
 			placeMountedBefore(root!, container, mounted, null);

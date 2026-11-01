@@ -11,12 +11,12 @@ import {
 	resolveExactArtifactImport,
 	transform
 } from '../index.js';
-import { createTestWorkspace } from '../test-support/workspace.js';
+import { createTestWorkspace, createCompilerTestWorkspace } from '../test-support/workspace.js';
 import { artifactAnalysis } from './analysis-results.js';
 
 describe('@exactjs/compiler: artifact bundling', () => {
 	it('keeps a transitive server data stack out of final client chunks and assets', async () => {
-		const root = await createTestWorkspace('.exact-heavy-server-stack-', process.cwd());
+		const root = await createCompilerTestWorkspace('.exact-heavy-server-stack-', process.cwd());
 		const srcDir = path.join(root, 'src');
 		const outDir = path.join(root, 'dist');
 		await mkdir(path.join(srcDir, 'data'), { recursive: true });
@@ -230,7 +230,7 @@ describe('@exactjs/compiler: artifact bundling', () => {
 	});
 
 	it('keeps used CSS Modules and removes unused component styles from a side-effect-free package', async () => {
-		const root = await createTestWorkspace('.exact-css-module-bundle-', process.cwd());
+		const root = await createCompilerTestWorkspace('.exact-css-module-bundle-', process.cwd());
 		const packageRoot = path.join(root, 'node_modules', 'exact-components');
 		await mkdir(packageRoot, { recursive: true });
 		await writeFile(

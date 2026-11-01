@@ -3,6 +3,8 @@ import {
 	ReadinessContext,
 	componentReadinessContext,
 	createReadinessCoordinator,
+	createErrorReport,
+	handleComponentError,
 	normalizeActivityMode,
 	unwrap,
 	watch,
@@ -40,8 +42,13 @@ export function prepareActivity(
 				if (queuedGeneration !== generation) return;
 				queuedGeneration = undefined;
 				const activity = mounted.activity;
-				if (activity?.mode === 'active' && !activity.parentReadiness)
-					finishActivityActivation(root, mounted, activity.activationGeneration);
+				if (activity?.mode === 'active' && !activity.parentReadiness && mounted.scope.active) {
+					try {
+						finishActivityActivation(root, mounted, activity.activationGeneration);
+					} catch (error) {
+						reportActivityReadinessFailure(mounted, activity.activationGeneration, error);
+					}
+				}
 			});
 		},
 		{ commitSettled: true }
@@ -135,13 +142,23 @@ export function applyActivityMode(root: Root, mounted: Mounted, mode: ActivityMo
 				commit: () => finishActivityActivation(root, mounted, activationGeneration)
 			});
 		} else {
-			void settlement.then(() => finishActivityActivation(root, mounted, activationGeneration));
+			void settlement
+				.then(() => finishActivityActivation(root, mounted, activationGeneration))
+				.catch((error) => reportActivityReadinessFailure(mounted, activationGeneration, error));
 		}
 		return;
 	}
 
 	// Dirty work accumulated while parked settles against the disconnected
 	// fragment. The boundary becomes visible only after that state is coherent.
+	if (mode === 'active') {
+		try {
+			activity.readiness.commitGeneration();
+		} catch (error) {
+			reportActivityReadinessFailure(mounted, activity.activationGeneration, error);
+			return;
+		}
+	}
 	if (activity.retained?.detached) {
 		flushSync();
 		if (mode === 'active') {
@@ -158,6 +175,8 @@ function finishActivityActivation(root: Root, mounted: Mounted, generation: numb
 	const activity = mounted.activity;
 	if (!activity || activity.mode !== 'active' || activity.activationGeneration !== generation)
 		return;
+	if (!mounted.scope.active || activity.readinessFailureGeneration === generation) return;
+	activity.readiness.commitGeneration();
 	flushSync();
 	if (activity.retained?.detached) {
 		restoreMountedRanges(root, activity.retained);
@@ -166,6 +185,26 @@ function finishActivityActivation(root: Root, mounted: Mounted, generation: numb
 	setDescendantActivity(mounted, true);
 	activity.readinessRegistration = undefined;
 	publishActivityChange(mounted);
+}
+
+function reportActivityReadinessFailure(
+	mounted: Mounted,
+	generation: number,
+	error: unknown
+): void {
+	const activity = mounted.activity;
+	if (
+		!activity ||
+		!mounted.scope.active ||
+		activity.activationGeneration !== generation ||
+		activity.readinessFailureGeneration === generation
+	)
+		return;
+	activity.readinessFailureGeneration = generation;
+	handleComponentError(
+		activity.owner,
+		createErrorReport(error, 'render', activity.owner, 'activity-readiness')
+	);
 }
 
 function publishActivityChange(mounted: Mounted): void {

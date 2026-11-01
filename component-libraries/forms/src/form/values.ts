@@ -1,10 +1,5 @@
-import { type Child } from '@exactjs/core';
 import type { FieldValue } from './contracts.js';
 
-/** Performs the children array domain operation. */
-export function childrenArray(children: Child | Child[] | undefined): Child[] {
-	return Array.isArray(children) ? children : children === undefined ? [] : [children];
-}
 /**
  * Performs the merge ids domain operation.
  * @exact pure

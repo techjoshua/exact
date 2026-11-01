@@ -46,14 +46,8 @@ export function customCollectionMethod(
 					!Object.is(previous.get(key), next.get(key)) ||
 					oldPositions.get(key) !== positions.get(key)
 			);
-			if (changed.length && options.readonly) {
-				restore(target, previous);
-				options.onReadonlyWrite?.('custom collection method');
-				publishProperties(true);
-				throw new TypeError('Cannot mutate a readonly reactive collection');
-			}
 			batch(() => {
-				const propertiesChanged = publishProperties(options.readonly);
+				const propertiesChanged = publishProperties();
 				for (const key of changed) {
 					if (hasActiveTransaction()) {
 						const position = oldPositions.get(key) ?? oldKeys.length;
@@ -69,6 +63,7 @@ export function customCollectionMethod(
 									entries.splice(before < 0 ? entries.length : before, 0, [key, previous.get(key)]);
 									restore(target, new Map(entries));
 								} else remove(target, key);
+								return true;
 							},
 							target,
 							dependency(key)

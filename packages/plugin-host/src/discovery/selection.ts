@@ -18,7 +18,6 @@ import {
 } from '../graph.js';
 import type {
 	ExactDiscoveryPolicy,
-	ExactParticipatingPackage,
 	ExactPluginRequirement,
 	ExactSelectedPlugin
 } from './contracts.js';
@@ -101,16 +100,13 @@ export function selectPlugins(
 		const declaration = readExactPackageParticipation(node.manifest, manifestLabel(node)).plugin!;
 		validatePluginProtocol(name, declaration);
 		validatePluginEntries(node, declaration);
-		result.set(
-			name,
-			Object.freeze({
-				packageName: name,
-				version: packageVersion(node),
-				node,
-				declaration,
-				requirements: Object.freeze([...ranges])
-			})
-		);
+		result.set(name, {
+			packageName: name,
+			version: packageVersion(node),
+			node,
+			declaration,
+			requirements: ranges
+		});
 	}
 	return result;
 }
@@ -234,17 +230,6 @@ export function hasParticipation(value: ExactPackageParticipation): boolean {
 		value.forwarding !== undefined ||
 		Object.keys(value.configuration).length > 0
 	);
-}
-
-/** Performs the freeze participant domain operation. */
-export function freezeParticipant(value: MutableParticipant): ExactParticipatingPackage {
-	return Object.freeze({
-		node: value.node,
-		participation: value.participation,
-		activationPaths: Object.freeze(
-			value.activationPaths.map((pathValue) => Object.freeze([...pathValue]))
-		)
-	});
 }
 
 /** Performs the required node domain operation. */

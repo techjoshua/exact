@@ -1,3 +1,4 @@
+import { selectsRange } from './source-ranges.js';
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { performance } from 'node:perf_hooks';
@@ -23,7 +24,6 @@ import {
 	equivalentExactDiagnostics,
 	equivalentTaskClassification,
 	inspectedTasks,
-	rangesOverlap,
 	refactorFilename
 } from './refactor-equivalence.js';
 import { planExactTaskRefactor } from './task-refactor.js';
@@ -75,6 +75,7 @@ export class ExactCompilerLanguageService implements ExactLanguageService {
 	private readonly projectKind: 'configured' | 'inferred';
 	private readonly client: ExactNativeLanguageClient;
 	private readonly ownsClient: boolean;
+	private readonly analysisPolicy: ExactLanguageServiceOptions['analysis'];
 	private readonly maxCachedAnalyses: number;
 	private readonly maxCachedAnalysisBytes: number;
 	private readonly packageEnhancements: ExactLanguageServiceOptions['packageEnhancements'];
@@ -96,6 +97,7 @@ export class ExactCompilerLanguageService implements ExactLanguageService {
 		this.configFile = options.configFile ? path.resolve(this.root, options.configFile) : undefined;
 		this.projectKind = options.projectKind ?? 'configured';
 		this.packageEnhancements = options.packageEnhancements;
+		this.analysisPolicy = options.analysis;
 		this.maxCachedAnalyses = positiveCacheLimit(
 			options.maxCachedAnalyses,
 			defaultMaxCachedAnalyses,
@@ -110,7 +112,7 @@ export class ExactCompilerLanguageService implements ExactLanguageService {
 		this.ownsClient = host.nativeClient === undefined;
 	}
 
-	/** Applies overlays, analyzes affected files, and publishes one immutable generation. */
+	/** Applies overlays, analyzes affected files, and publishes one committed generation. */
 	async synchronize(
 		changes: readonly ExactLanguageServiceChange[],
 		signal?: AbortSignal
@@ -125,10 +127,11 @@ export class ExactCompilerLanguageService implements ExactLanguageService {
 			if (change.kind === 'upsert') {
 				const previous = this.snapshots.get(filename);
 				if (previous && change.version <= previous.version) continue;
-				this.snapshots.set(
-					filename,
-					Object.freeze({ version: change.version, source: change.source, overlay: true })
-				);
+				this.snapshots.set(filename, {
+					version: change.version,
+					source: change.source,
+					overlay: true
+				});
 				changedFiles.push(filename);
 				if (isProjectConfiguration(filename)) reset = true;
 			} else if (change.kind === 'close') {
@@ -182,12 +185,12 @@ export class ExactCompilerLanguageService implements ExactLanguageService {
 		this.lastSynchronizationMs = performance.now() - started;
 		this.releaseDiskSnapshots();
 		this.enforceAnalysisBudget();
-		return Object.freeze({
+		return {
 			generation: this.generation,
-			changedFiles: Object.freeze(unique(changedFiles)),
-			affectedFiles: Object.freeze(unique(affected)),
-			diagnostics: Object.freeze(diagnostics)
-		});
+			changedFiles: unique(changedFiles),
+			affectedFiles: unique(affected),
+			diagnostics: diagnostics
+		};
 	}
 
 	/** Returns bounded project resources and the latest synchronization measurement. */
@@ -197,7 +200,7 @@ export class ExactCompilerLanguageService implements ExactLanguageService {
 			[...this.snapshots.values()].map((snapshot) => sourceBytes(snapshot.source))
 		);
 		const analysisEstimatedBytes = this.analysisBytes();
-		return Object.freeze({
+		return {
 			generation: this.generation,
 			overlays: [...this.snapshots.values()].filter((snapshot) => snapshot.overlay).length,
 			analyzedFiles: this.analyses.size,
@@ -214,10 +217,10 @@ export class ExactCompilerLanguageService implements ExactLanguageService {
 			changedFiles: this.lastChangedFiles,
 			affectedFiles: this.lastAffectedFiles,
 			lastSynchronizationMs: this.lastSynchronizationMs
-		});
+		};
 	}
 
-	/** Returns a source outline from the newest immutable project generation. */
+	/** Returns a source outline from the current project generation. */
 	async inspect(
 		filename: string,
 		options: ExactInspectionRequest = {},
@@ -275,7 +278,7 @@ export class ExactCompilerLanguageService implements ExactLanguageService {
 		if (candidate.semanticChange === 'none') {
 			const beforeTasks = inspectedTasks(inspection);
 			const beforeIndex = beforeTasks.findIndex((entity) =>
-				rangesOverlap(entity.range, request.range)
+				selectsRange(entity.range, request.range)
 			);
 			const proposedInspection = createExactSourceInspection(
 				refactorFilename(filename),
@@ -314,6 +317,7 @@ export class ExactCompilerLanguageService implements ExactLanguageService {
 			{
 				id: filename,
 				kind: 'analyze',
+				analysis: this.analysisPolicy,
 				source: prepared.source,
 				...(prepared.moduleSpecifiers.size
 					? { packageEnhancementBoundary: prepared.authoredLength }
@@ -348,11 +352,11 @@ export class ExactCompilerLanguageService implements ExactLanguageService {
 		snapshot: SourceSnapshot,
 		response: NativeCompilerResponse
 	): AnalysisSnapshot {
-		const analysis = Object.freeze({
+		const analysis = {
 			source: snapshot.source,
 			response,
 			estimatedBytes: estimateAnalysisBytes(snapshot.source, response)
-		});
+		};
 		this.analyses.delete(filename);
 		this.analyses.set(filename, analysis);
 		return analysis;
@@ -389,7 +393,7 @@ export class ExactCompilerLanguageService implements ExactLanguageService {
 
 	private diskSnapshot(filename: string): SourceSnapshot | undefined {
 		if (!existsSync(filename)) return undefined;
-		return Object.freeze({ version: -1, source: readFileSync(filename, 'utf8'), overlay: false });
+		return { version: -1, source: readFileSync(filename, 'utf8'), overlay: false };
 	}
 
 	private filename(filename: string): string {
@@ -397,15 +401,15 @@ export class ExactCompilerLanguageService implements ExactLanguageService {
 	}
 
 	private withProject(inspection: ExactSourceInspection): ExactSourceInspection {
-		const project = Object.freeze({ kind: this.projectKind, root: this.root });
-		return Object.freeze({
+		const project = { kind: this.projectKind, root: this.root };
+		return {
 			...inspection,
 			project,
-			languageProjection: Object.freeze({
+			languageProjection: {
 				...inspection.languageProjection,
 				project
-			})
-		});
+			}
+		};
 	}
 
 	private assertActive(): void {

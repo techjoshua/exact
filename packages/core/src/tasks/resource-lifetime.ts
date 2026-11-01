@@ -1,12 +1,16 @@
+import { sharedTaskRuntimeState } from './runtime-state.js';
+import { linkTaskResourceOwnerSignal, taskResourceOwnerSignal } from './resource-owner-signals.js';
 /** Resource cancellation retained independently of a task's successful outcome. */
 type TaskResourceLifetime = {
 	readonly controller: AbortController;
 	readonly releaseOwner: () => void;
 	readonly pending: Set<Promise<void>>;
 };
-const owners = new WeakSet<AbortSignal>();
-const closedOwners = new WeakSet<AbortSignal>();
-const lifetimes = new WeakMap<AbortSignal, TaskResourceLifetime>();
+const { owners, closedOwners, lifetimes } = sharedTaskRuntimeState('resource-lifetimes', () => ({
+	owners: new WeakSet<AbortSignal>(),
+	closedOwners: new WeakSet<AbortSignal>(),
+	lifetimes: new WeakMap<AbortSignal, TaskResourceLifetime>()
+}));
 
 /** Enrolls a generation without allocating resource storage until a helper needs it. */
 export function registerTaskResourceOwner(signal: AbortSignal): void {
@@ -30,6 +34,7 @@ export function taskResourceSignal(owner: AbortSignal): AbortSignal {
 			pending: new Set()
 		};
 		lifetimes.set(owner, lifetime);
+		linkTaskResourceOwnerSignal(controller.signal, owner);
 		controller.signal.addEventListener('abort', lifetime.releaseOwner, { once: true });
 		if (closedOwners.has(owner)) controller.abort('task-resources-settled');
 		else if (owner.aborted) abort();
@@ -40,7 +45,7 @@ export function taskResourceSignal(owner: AbortSignal): AbortSignal {
 
 /** Retains asynchronous resource cleanup until generation settlement. */
 export function trackTaskResourceCleanup(owner: AbortSignal, cleanup: Promise<void>): void {
-	const lifetime = lifetimes.get(owner);
+	const lifetime = lifetimes.get(taskResourceOwnerSignal(owner));
 	if (!lifetime) return;
 	lifetime.pending.add(cleanup);
 	void cleanup.finally(() => lifetime.pending.delete(cleanup)).catch(() => undefined);

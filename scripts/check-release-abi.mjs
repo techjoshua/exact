@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
-import { validateAbiRelease } from './abi-release-policy.mjs';
+import { validateAbiRelease, releasedAbiFixturePaths } from './abi-release-policy.mjs';
 import { resolveReleaseRevision } from './release-revision.mjs';
 import { readWorkspaceManifests } from './workspace-manifests.mjs';
 
@@ -42,13 +42,23 @@ if (!paths.trim()) {
 	console.log('Initial public ABI baseline: epoch 1 at 0.5.0.');
 } else {
 	const previous = readGitJson(policyPath);
-	const frozenPath = `fixtures/release-abi/${previous.introduced}/integrity.json`;
-	const frozen = readGitJson(frozenPath);
-	if (
-		JSON.stringify(frozen) !==
-		JSON.stringify(JSON.parse(await readFile(path.join(root, frozenPath), 'utf8')))
-	)
-		throw new Error('Previously published ABI fixtures must not be regenerated.');
+	// Introduced identifies a contract epoch, including unpublished development epochs.
+	// Frozen released witnesses are independently owned by the base revision's tree.
+	const frozenPaths = releasedAbiFixturePaths(
+		execFileSync('git', ['ls-tree', '-r', '--name-only', base, '--', 'fixtures/release-abi'], {
+			cwd: root,
+			encoding: 'utf8'
+		}).split('\n')
+	);
+	for (const frozenPath of frozenPaths) {
+		const frozen = readGitJson(frozenPath);
+		if (
+			JSON.stringify(frozen) !==
+			JSON.stringify(JSON.parse(await readFile(path.join(root, frozenPath), 'utf8')))
+		)
+			throw new Error('Previously published ABI fixtures must not be regenerated.');
+	}
+
 	const previousVersions = new Map(
 		previous.providers.map((name) => {
 			const entry = entries.find((candidate) => candidate.manifest.name === name);

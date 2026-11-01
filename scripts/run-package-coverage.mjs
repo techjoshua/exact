@@ -3,26 +3,32 @@ import path from 'node:path';
 
 const root = path.resolve(import.meta.dirname, '..');
 const vitest = path.join(root, 'node_modules', 'vitest', 'vitest.mjs');
+const packageRoot = process.cwd();
+const workspace = process.argv.includes('--workspace');
+const testRoot = workspace ? root : packageRoot;
+const source = path.relative(testRoot, path.join(packageRoot, 'src')).replaceAll('\\', '/');
 const arguments_ = [
 	vitest,
 	'run',
+	...(workspace ? [source] : []),
 	'--coverage',
 	'--coverage.provider=v8',
+	'--coverage.reportOnFailure',
 	'--coverage.reporter=text',
 	'--coverage.reporter=json-summary',
 	'--coverage.reporter=html',
-	'--coverage.reportsDirectory=coverage',
-	'--coverage.include=src/**/*.{ts,tsx}',
-	'--coverage.exclude=src/**/*.test.{ts,tsx}',
-	'--coverage.exclude=src/**/*.d.ts',
-	'--coverage.exclude=src/**/fixtures/**',
-	'--coverage.exclude=src/**/test-support/**',
+	'--coverage.reportsDirectory=' + path.join(packageRoot, 'coverage'),
+	'--coverage.include=' + source + '/**/*.{ts,tsx}',
+	'--coverage.exclude=' + source + '/**/*.test.{ts,tsx}',
+	'--coverage.exclude=' + source + '/**/*.d.ts',
+	'--coverage.exclude=' + source + '/**/fixtures/**',
+	'--coverage.exclude=' + source + '/**/test-support/**',
 	'--passWithNoTests',
 	'--testTimeout=15000'
 ];
 
 const child = spawn(process.execPath, arguments_, {
-	cwd: process.cwd(),
+	cwd: testRoot,
 	env: { ...process.env, EXACT_COVERAGE: '1' },
 	stdio: 'inherit'
 });

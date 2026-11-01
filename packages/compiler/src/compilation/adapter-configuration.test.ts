@@ -33,6 +33,8 @@ it('redirects an unfinished superseded load to the current generation', async ()
 	const current = config.read();
 	expect(stale).not.toBe(current);
 	expect(await stale).toBe(await current);
+	const observedFiles = await config.watchFiles();
+	expect(Reflect.set(observedFiles, 'length', 0)).toBe(true);
 	expect(await config.watchFiles()).toContain(filename);
 	await rm(filename);
 	expect(config.invalidate(filename)).toBe(true);

@@ -1,7 +1,15 @@
-import { type Child, type Component, type RefBinding } from '@exactjs/core';
+import { type Component, type RefBinding } from '@exactjs/core';
 
 import { ControlRef, FieldContext, FormContext } from './context.js';
-import type { LabelProps, SubmitProps } from './contracts.js';
+import type {
+	ControlProps,
+	InputProps,
+	TextareaProps,
+	SelectProps,
+	CheckboxProps,
+	LabelProps,
+	SubmitProps
+} from './contracts.js';
 import { combineAsync, mergeIds } from './values.js';
 
 /** Performs the label domain operation. */
@@ -15,25 +23,14 @@ export function Label(this: Component<{}>, props: LabelProps) {
 	);
 }
 
-/** Defines the properties accepted by control. */
-export type ControlProps = Record<string, unknown> & {
-	id?: string;
-	name?: string;
-	required?: boolean;
-	ref?: RefBinding<HTMLElement>;
-	onInput?: (event: InputEvent) => unknown;
-	onBlur?: (event: FocusEvent) => unknown;
-	children?: Child | Child[];
-};
+export type {
+	ControlProps,
+	InputProps,
+	TextareaProps,
+	SelectProps,
+	CheckboxProps
+} from './contracts.js';
 
-/** Defines the properties accepted by input. */
-export type InputProps = ControlProps;
-/** Defines the properties accepted by textarea. */
-export type TextareaProps = ControlProps;
-/** Defines the properties accepted by select. */
-export type SelectProps = ControlProps;
-/** Defines the properties accepted by checkbox. */
-export type CheckboxProps = ControlProps;
 /** Performs the input domain operation. */
 export function Input(this: Component<{}>, props: InputProps) {
 	return controlComponent.call(this, 'input', props);

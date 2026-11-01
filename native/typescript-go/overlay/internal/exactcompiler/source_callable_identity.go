@@ -5,9 +5,18 @@ import (
 	"github.com/microsoft/TypeScript/tsc/internal/checker"
 )
 
-// Type-only wrappers retain the selected callable's native identity.
+// Type-only wrappers retain the underlying authored reference, without proving runtime identity.
 func unwrapSourceCallableReference(node *ast.Node) *ast.Node {
+	return unwrapSourceCallableReferenceWithBudget(node, nil)
+}
+
+// unwrapSourceCallableReferenceWithBudget charges each inspected wrapper and terminal
+// reference when used by bounded source queries. Other syntax owners preserve their contract.
+func unwrapSourceCallableReferenceWithBudget(node *ast.Node, charge func(*ast.Node) bool) *ast.Node {
 	for node != nil {
+		if charge != nil && !charge(node) {
+			return nil
+		}
 		switch {
 		case ast.IsParenthesizedExpression(node), ast.IsAsExpression(node), ast.IsSatisfiesExpression(node), ast.IsNonNullExpression(node):
 			node = node.Expression()
@@ -77,10 +86,19 @@ func sourceCallableSymbol(symbol *ast.Symbol, typeChecker *checker.Checker) *ast
 // sourceCallableBinding finds the variable owning a callable through type-only
 // wrappers. It never crosses an evaluating expression or another callable.
 func sourceCallableBinding(node *ast.Node) *ast.Node {
+	return sourceCallableBindingWithBudget(node, nil)
+}
+
+// sourceCallableBindingWithBudget shares the existing parent-only binding locator.
+// A bounded query also charges wrapper inspection instead of doing hidden work.
+func sourceCallableBindingWithBudget(node *ast.Node, charge func(*ast.Node) bool) *ast.Node {
 	current := node
 	for current.Parent != nil {
 		parent := current.Parent
-		if unwrapSourceCallableReference(parent) == node {
+		if charge != nil && !charge(parent) {
+			return nil
+		}
+		if unwrapSourceCallableReferenceWithBudget(parent, charge) == node {
 			current = parent
 			continue
 		}

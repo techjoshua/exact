@@ -50,13 +50,11 @@ export function ThemeSurfaceEnhancement(this: Component<{}>, props: ThemeSurface
 	const parent = this.hasContext(ThemeSurfaceContext)
 		? this.getContext(ThemeSurfaceContext)
 		: undefined;
-	const environment: ThemeSurfaceEnvironment = peek(() =>
-		Object.freeze({
-			get bundle() {
-				return surfaceBundle(parent?.bundle ?? 0, props.surface);
-			}
-		})
-	);
+	const environment: ThemeSurfaceEnvironment = peek(() => ({
+		get bundle() {
+			return surfaceBundle(parent?.bundle ?? 0, props.surface);
+		}
+	}));
 	this.setContext(ThemeSurfaceContext, environment);
 	return () => renderThemeSurface(props, environment.bundle);
 }

@@ -87,7 +87,7 @@ func TestJSXLoweringEmitsNativeRuntimeOperations(t *testing.T) {
 		`createIndexedReactiveValue as __exactIndexedExpression`,
 		`createCompiledChildRangeReceipt as __exactDynamic`,
 		`__exactIntrinsicReceipt("button"`,
-		`"data-exact-id": "xpQ67SWvp8CKhdHZwKUD67e"`,
+		`[__exactElementIdentity]: "xpQ67SWvp8CKhdHZwKUD67e"`,
 		`title: __exactIndexedExpression(this.state, 0)`,
 		`__exactDynamic(() => this.state.count, "xBmtwVG9HoTfsvcpoWEg1vm")`,
 	} {
@@ -124,7 +124,7 @@ func TestJSXLoweringPreservesOrdinaryCallerLocalsMaterializedIntoComponentProps(
 	if response.Error != "" {
 		t.Fatal(response.Error)
 	}
-	for _, expected := range []string{`const next = [...base];`, `mutate(next);`, `__exactExpression(() => next)`} {
+	for _, expected := range []string{`const next = [...base];`, `mutate(next);`, `__exactComponentPropExpression(() => next)`} {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf("ordinary caller local was not preserved at %q:\n%s", expected, response.Code)
 		}
@@ -153,7 +153,7 @@ func TestClientRootLoweringRetainsMixedGenericRenderImport(t *testing.T) {
 	}
 	for _, expected := range []string{
 		`import { render } from "@exactjs/dom";`,
-		`renderCompiledComponentRoot`,
+		`renderCompiledComponentInputRoot`,
 		`render(operation, container);`,
 	} {
 		if !strings.Contains(response.Code, expected) {
@@ -282,7 +282,8 @@ func TestJSXLoweringRepublishesReactiveTransparentRangeAttributes(t *testing.T) 
 	for _, expected := range []string{
 		`createCompiledFragmentReceipt as __exactFragment`,
 		`createCompiledChildRangeReceipt as __exactDynamic`,
-		`__exactDynamic(() => __exactFragment({ ...attributes(__exactReadState(this.state, 0)`,
+		`__exactDynamic(() => __exactFragment(`,
+		`attributes(__exactReadState(this.state, 0)`,
 	} {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf("reactive transparent range omitted %q:\n%s", expected, response.Code)
@@ -435,7 +436,7 @@ func TestModuleDeclarativeCollectionRetainsReactiveComponentProps(t *testing.T) 
 	) {
 		t.Fatalf("module declarative component prop lost reactivity:\n%s", response.Code)
 	}
-	if strings.Contains(response.Code, `id: __exactExpression(() => column.id)`) {
+	if strings.Contains(response.Code, `id: __exactComponentPropExpression(() => column.id)`) {
 		t.Fatalf("module collection value gained a redundant subscription:\n%s", response.Code)
 	}
 }
@@ -459,7 +460,7 @@ func TestKeyedRowComponentPropUsesDirectReactivePropertyOperand(t *testing.T) {
 	if !strings.Contains(response.Code, `severity: [__exactPropertyOperand, item, "severity"]`) {
 		t.Fatalf("direct keyed-row prop omitted its property operand:\n%s", response.Code)
 	}
-	if !strings.Contains(response.Code, `label: __exactExpression(() => item.severity + "!")`) {
+	if !strings.Contains(response.Code, `label: __exactComponentPropExpression(() => item.severity + "!")`) {
 		t.Fatalf("derived keyed-row prop lost its executable expression fallback:\n%s", response.Code)
 	}
 }
@@ -483,7 +484,7 @@ func TestPropertyOperandRetainsPrimitiveAndArbitraryFallbacks(t *testing.T) {
 	if strings.Contains(response.Code, `length: [__exactPropertyOperand, item, "length"]`) {
 		t.Fatalf("primitive receiver incorrectly selected an object property operand:\n%s", response.Code)
 	}
-	if !strings.Contains(response.Code, `label: __exactExpression(() => item + "!")`) {
+	if !strings.Contains(response.Code, `label: __exactComponentPropExpression(() => item + "!")`) {
 		t.Fatalf("arbitrary expression lost its executable fallback:\n%s", response.Code)
 	}
 }
@@ -526,5 +527,49 @@ func TestDerivedObjectMemberCanBeForwardedToChildComponent(t *testing.T) {
 		if response.Error != "" || len(response.Diagnostics) != 0 {
 			t.Fatalf("derived object prop failed (%s): %s %#v", target, response.Error, response.Diagnostics)
 		}
+	}
+}
+
+func TestJSXStructuralPropsKeepOrdinaryReactiveValues(t *testing.T) {
+	for _, fixture := range []struct {
+		name, imports, jsx, expected string
+	}{
+		{"suspense-alias", `import { Suspense as Wait } from "@exactjs/core";`, `<Wait fallback={props.value}><span>Ready</span></Wait>`, `fallback: __exactForwardedExpression(`},
+		{"activity", `import { Activity } from "@exactjs/core";`, `<Activity mode={props.value}><span>Ready</span></Activity>`, `mode: __exactForwardedExpression(`},
+		{"portal-alias", `import { Portal as Destination } from "@exactjs/core";`, `<Destination target={props.value}><span>Ready</span></Destination>`, `target: __exactForwardedExpression(`},
+		{"unsafe-html", `import { UnsafeHtml } from "@exactjs/core";`, `<UnsafeHtml value={props.value} />`, `value: __exactForwardedExpression(`},
+		{"fallback-expression", `import { Suspense } from "@exactjs/core";`, `<Suspense fallback={<span>Waiting</span>}><span>Ready</span></Suspense>`, `fallback: __exactExpression(`},
+	} {
+		t.Run(fixture.name, func(t *testing.T) {
+			response := NewSession().Execute(Request{
+				ID: "C:/tmp/structural-" + fixture.name + ".tsx", Kind: "compile",
+				Source: fixture.imports + `export function Panel(props: { value: unknown }) { return () => ` + fixture.jsx + `; }`,
+			})
+			if response.Error != "" {
+				t.Fatal(response.Error)
+			}
+			if !strings.Contains(response.Code, fixture.expected) {
+				t.Fatalf("structural input omitted %q:\n%s", fixture.expected, response.Code)
+			}
+			if strings.Contains(response.Code, "__exactComponentPropExpression") || strings.Contains(response.Code, "__exactForwardedComponentPropExpression") || strings.Contains(response.Code, "__exactPropertyOperand") {
+				t.Fatalf("structural value leaked a component acquisition operand:\n%s", response.Code)
+			}
+		})
+	}
+}
+
+func TestJSXForeignStructuralNameRetainsComponentAcquisition(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "C:/tmp/foreign-structural.tsx", Kind: "compile",
+		Source: `import { Suspense } from "./foreign";
+			export function Panel(props: { value: unknown }) {
+				return () => <Suspense fallback={props.value} />;
+			}`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if !strings.Contains(response.Code, "fallback: __exactForwardedComponentPropExpression(") {
+		t.Fatalf("foreign component lost input acquisition:\n%s", response.Code)
 	}
 }

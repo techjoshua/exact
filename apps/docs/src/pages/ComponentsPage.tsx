@@ -1,3 +1,4 @@
+import { ComponentChildComposition } from './ComponentChildComposition.jsx';
 import type { Component } from '@exactjs/core';
 import { Link } from '@exactjs/router';
 import { CodeBlock } from '../CodeBlock.jsx';
@@ -5,8 +6,6 @@ import { Article } from './Article.jsx';
 
 import {
 	componentSource,
-	partitionSource,
-	dialogUsageSource,
 	microComponentSource,
 	contextSource,
 	componentTaskSource,
@@ -62,16 +61,16 @@ export function ComponentsPage(this: Component<{}>) {
 					In the profile card example above, the parent supplies <code>name</code> and
 					<code>children</code>. The card owns whether it is open. The card can read props directly
 					as the parent changes them and mutate
-					<code>this.state</code> for its own data. Props are readonly, including arrays nested in
-					ordinary objects. Calculations that read nested props follow the parent’s changes,
-					including optional access such as <code>props.user?.name</code>. If a child needs to
-					change a parent-owned value, give it a callback or use a value binding, shown below.
+					<code>this.state</code> for its own data. Readonly declarations follow TypeScript's
+					shallow, compile-time rules. eXact does not freeze props. Native JavaScript descriptors
+					apply. Calculations that read nested props follow the parent’s changes, including optional
+					access such as <code>props.user?.name</code>. If a child needs to change a parent-owned
+					value, give it a callback or use a value binding, shown below.
 				</p>
 				<p>
 					When a child needs a boolean option, <code>{'unavailable={false}'}</code> passes the
-					boolean
-					<code>false</code>, just as a variable holding that value would. Component props keep
-					their JavaScript values in both server and browser code. Omitting a prop supplies
+					boolean <code>false</code>, just as a variable holding that value would. Component props
+					keep their JavaScript values in both server and browser code. Omitting a prop supplies
 					<code>undefined</code>, so any component default can apply.
 				</p>
 				<p>
@@ -80,16 +79,17 @@ export function ComponentsPage(this: Component<{}>) {
 					directly, which is useful for providing context without adding an HTML wrapper.
 				</p>
 				<details>
-					<summary>Destructuring props and handling mutation errors</summary>
+					<summary>Destructuring props and choosing mutable types</summary>
 					<p>
-						Flat props destructuring, including aliases and defaults, follows parent updates. Use a
-						named props parameter for nested, rest, or computed bindings. Array methods such as
-						<code>push()</code>, <code>splice()</code>, and <code>sort()</code> throw before
-						mutating props. Read or copy props as needed, keeping mutable local data in state.
+						Flat props destructuring supports aliases and defaults. Use a named props parameter for
+						nested, rest, or computed bindings. Forwarded fields follow updates and record
+						replacement. Readonly is shallow. Use <code>readonly number[]</code> to restrict writes
+						through that view. Writable aliases stay mutable. Keep local data in state and
+						coordinate parent changes through callbacks.
 					</p>
 					<p>
 						Event state writes publish together, but a later exception does not undo earlier writes.
-						An explicit <code>batch()</code> gives a region synchronous rollback on failure.
+						Use <code>batch()</code> for rollback. Callback focus and selection remain in effect.
 					</p>
 				</details>
 			</section>
@@ -118,52 +118,7 @@ export function ComponentsPage(this: Component<{}>) {
 					owned by the surrounding component.
 				</p>
 			</section>
-			<section>
-				<h2>Arrange children into a shared layout</h2>
-				<p>
-					A dialog may need to place its title, body, and actions in different regions while letting
-					callers supply them as children. <code>partitionChildren()</code> groups those immediate
-					children so the dialog can arrange them without recreating their content.
-				</p>
-				<CodeBlock
-					source={dialogUsageSource}
-					language="tsx"
-					title="Excerpt: content supplied by a caller"
-				/>
-				<p>
-					The caller supplies a title, ordinary body content, and action buttons. The layout below
-					selects the two named components and leaves the paragraph in the body.
-				</p>
-				<CodeBlock source={partitionSource} language="tsx" title="Dialog layout" />
-				<p>
-					The header and footer appear only when their groups contain children. Each child enters
-					the first matching group. Unmatched children go into
-					<code>remaining</code>, and order stays the same within each group. Write the children you
-					want to select directly inside the parent: partitioning does not execute a nested
-					component to inspect what it will render. This example shows layout. A complete dialog
-					also needs <a href="#/components/accessibility">accessible naming and interaction</a>.
-				</p>
-				<p>
-					A supplied rendered child retains its original owner and cleanup. Place that value once in
-					the active tree. To repeat content, author separate JSX children or call a JSX helper
-					separately for each placement. Server content passed into a client island can contain
-					elements, ranges or scalar values. The compiler preserves it through server slots.
-				</p>
-				<details>
-					<summary>Selectors and child transformation helpers</summary>
-					<p>
-						Selectors accept component types, intrinsic tag names, <code>childKinds.text</code>
-						for strings and numbers, or arrays of those choices. Arrays of children flatten, empty
-						values disappear, and explicit fragments remain one opaque child.
-					</p>
-					<p>
-						For an intrinsic child, <code>childrenOf(element)</code> reads its immediate contents.
-						<code>withChildren(element, replacement)</code> derives an element with new contents
-						while retaining attribute bindings, key, refs, and enhancements. These helpers compose
-						renderable values. They do not move already-mounted component instances.
-					</p>
-				</details>
-			</section>
+			<ComponentChildComposition />
 			<section>
 				<h2>Share a value with descendants</h2>
 				<p>
@@ -214,7 +169,7 @@ export function ComponentsPage(this: Component<{}>) {
 					<code>TaskContext.client()</code> or <code>TaskContext.server()</code> parameter makes the
 					choice explicit when needed. Renaming a framework import preserves its execution
 					requirements. These requirements also follow a component when another module imports it.
-					Standard collection methods retain their placement through type aliases and interface
+					Standard methods on collections and primitive values retain placement through aliases and
 					augmentations. An application-added method needs its own proven implementation or
 					execution contract. Contradictory placement is a compiler error.
 				</p>
@@ -281,6 +236,12 @@ export function ComponentsPage(this: Component<{}>) {
 					<code>{'data-selected={String(selected)}'}</code> to retain both textual values. Null and
 					undefined omit these attributes. These rules also apply during SSR and hydration.
 				</p>
+				<p>
+					The attribute <code>data-exact-id</code>, including ASCII-case variants, is reserved for
+					compiler-generated identity. Use <code>data-testid</code> or another custom data attribute
+					for application labels. Authored uses, including statically known spread properties and
+					native <code>_</code> or <code>_target</code> host contributions, are compile errors.
+				</p>
 				<details>
 					<summary>Class merging, prop spreads, and HTML-specific behavior</summary>
 					<p>
@@ -290,8 +251,9 @@ export function ComponentsPage(this: Component<{}>) {
 						duplicates it can prove. Named classes cannot be mixed with a prop spread. HTML elements
 						accept <code>className</code>. Native event props take functions, and recognized HTML
 						prop casing is corrected. Component and custom-element props retain their authored
-						casing. A named event handler reassigned before attachment receives the event required
-						by its replacement callable.
+						casing. Events bubble along the native DOM path. Shared portal targets and nested eXact
+						roots invoke each owned callback once per dispatch. A named event handler reassigned
+						before attachment receives the event required by its replacement callable.
 					</p>
 					<p>
 						A JSX prop spread stays reactive. In
@@ -340,9 +302,9 @@ export function ComponentsPage(this: Component<{}>) {
 					work can respond when the element appears or disappears without polling.
 				</p>
 				<p>
-					Ref type arguments such as <code>HTMLElement</code> or <code>SVGElement</code> describe
-					the element and are erased at runtime. They can appear in components rendered on the
-					server. Reading those constructor values is browser work.
+					Ref keys carry their value type through bindings, registry reads, and root selection. DOM
+					types such as <code>HTMLElement</code> and <code>SVGElement</code> are erased and can
+					appear in server components. Reading those constructor values is browser work.
 				</p>
 				<p>
 					<code>this.onMount()</code> runs after the browser places the component’s DOM, when refs
@@ -351,7 +313,8 @@ export function ComponentsPage(this: Component<{}>) {
 					<code>this.own()</code> can register it for automatic disposal. For other final cleanup or
 					bookkeeping, you can register a <code>this.onUnmount()</code> callback. That callback can
 					read derived props, including a destructured callback prop that was unused while the
-					component was mounted.
+					component was mounted. Unmount still attempts remaining cleanup after a failure and
+					retains the first thrown value.
 				</p>
 				<p>
 					A helper can select an operation with a statically known key, such as
@@ -376,7 +339,9 @@ export function ComponentsPage(this: Component<{}>) {
 					<p>
 						<code>this.refs.root()</code> observes the component’s root, introduction, presentation,
 						and release. It can support work such as leaving animations that must finish before
-						removal. A first read after mounting still exposes the current root and generation. The{' '}
+						removal. Release observations are copied values with TypeScript readonly fields.
+						Changing a writable alias does not change renderer generation ownership. A first read
+						after mounting still exposes the current root and generation. The{' '}
 						<a href="https://github.com/techjoshua/exact/blob/main/docs/component-language.md">
 							component reference
 						</a>{' '}

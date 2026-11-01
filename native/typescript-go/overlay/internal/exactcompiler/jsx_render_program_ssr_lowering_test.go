@@ -1,6 +1,9 @@
 package exactcompiler
 
 import (
+	"encoding/json"
+	"fmt"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -127,5 +130,50 @@ export function Page(){return()=> <main>` + child + `<footer>After</footer></mai
 		if !strings.Contains(response.Code, "__exactSsr.prepareChild(") || strings.Contains(response.Code, "__exactSsr.prepareComponent(") {
 			t.Fatalf("client boundary used component-reference preparation: %s", response.Code)
 		}
+	}
+}
+
+// An observed relationship gives the inner ref a server-owned identity-bearing bag.
+// An unobserved ref keeps ordinary scalar preparation. Slot numbering is incidental.
+func TestServerProgramPreparesOnlyIntrinsicBagsForRefIdentity(t *testing.T) {
+	identityPreparation := regexp.MustCompile(`prepareAttribute\(__exactInvocation, [0-9]+, true\)`)
+	for _, test := range []struct {
+		name, relationship string
+		observed           bool
+	}{
+		{"observed", `<button aria-describedby={resolveElementId(help)}>Action</button>`, true},
+		{"unobserved", ``, false},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			request := Request{ID: "inner-ref-preparation-" + test.name + ".tsx", Kind: "compile", Target: TargetServer,
+				Source: `import {createRef,resolveElementId,type Component} from '@exactjs/core';
+                const helpKey=createRef<HTMLSpanElement>('help');
+                export function Page(this:Component<{}>,props:{title:string}) {
+                  const help=this.ref(helpKey);
+                  return()=> <section>` + test.relationship + `<span title={props.title} ref={help}>Help</span></section>;
+                }`,
+			}
+			response := NewSession().Execute(request)
+			observation, err := json.Marshal(struct {
+				Request  Request
+				Response Response
+			}{request, response})
+			if err != nil {
+				t.Fatal(err)
+			}
+			t.Logf("REF_IDENTITY_OBSERVATION=%s", observation)
+			if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) {
+				t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
+			}
+			constPrefix := strings.Index(response.Code, fmt.Sprintf("__exactSsr.assertVersion(%d)", renderProgramVersion))
+			if constPrefix < 0 || constPrefix > strings.Index(response.Code, "__exactSsr.begin(") ||
+				constPrefix > strings.Index(response.Code, "__exactSsr.prepareAttribute(") {
+				t.Fatalf("SSR ABI guard must precede output preparation: %s", response.Code)
+			}
+			if identityPreparation.MatchString(response.Code) != test.observed ||
+				strings.Contains(response.Code, "__exactSsr.attributes(") != test.observed {
+				t.Fatalf("inner ref identity preparation does not match observation: %s", response.Code)
+			}
+		})
 	}
 }

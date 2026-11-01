@@ -10,6 +10,7 @@ export let attributeOrderOwner: Component<{
 	bag: AttributeBag;
 	inputBag: InputBag;
 	generation: string;
+	closure: string;
 }>;
 
 function TextSpread(props: { bag: AttributeBag }) {
@@ -26,14 +27,27 @@ function TextScalar(props: { bag: AttributeBag }) {
 
 /** Shares native attribute precedence and reconciled spread behavior across acceptance environments. */
 export function AttributeOrder(
-	this: Component<{ bag: AttributeBag; inputBag: InputBag; generation: string }>
+	this: Component<{ bag: AttributeBag; inputBag: InputBag; generation: string; closure: string }>
 ) {
 	attributeOrderOwner = this;
 	this.state.bag = { title: 'spread', id: 'spread-id' };
 	this.state.inputBag = { required: false, maxLength: 2, className: 'spread' };
 	this.state.generation = 'waiting';
+	this.state.closure = 'waiting';
 	const publish = async (task: TaskContext = TaskContext.client().blocking()) => {
-		await taskAwait(task.signal, Promise.resolve());
+		const owner = this;
+		const calls = {
+			publish() {
+				owner.state.closure = 'published';
+			}
+		};
+		const prepare = async () => {
+			owner.state.closure = 'preparing';
+			await taskAwait(task.signal, Promise.resolve());
+			owner.state.closure = 'prepared';
+		};
+		await prepare();
+		calls.publish();
 		stageTaskMutation(task.signal, () => {
 			this.state.generation = 'published';
 		});
@@ -67,6 +81,7 @@ export function AttributeOrder(
 				{...this.state.inputBag}
 				data-attribute-spread-input
 			/>
+			<output data-closure-state>{this.state.closure}</output>
 			<output data-generation-state>{this.state.generation}</output>
 			<button data-generation-step onClick={() => publish()}>
 				Publish

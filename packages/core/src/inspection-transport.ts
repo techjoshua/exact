@@ -67,3 +67,33 @@ function publishObservations(value: unknown): void {
 
 /** Reserved response property used only between the server collector and hydration transport. */
 export const EXACT_SERVER_OBSERVATIONS_KEY = observationsKey;
+
+const localObservationOwnerKey = '@exactjs/local-observation-owner';
+
+/** Reads opaque process-local correlation without executing an accessor or reading the wire body. */
+export function readExactObservationOwner(value: object): object | undefined {
+	const owner = Object.getOwnPropertyDescriptor(value, Symbol.for(localObservationOwnerKey))?.value;
+	return owner && typeof owner === 'object' ? owner : undefined;
+}
+/** Attaches local, non-enumerable correlation to a framework-owned mutable observation. */
+export function attachExactObservationOwner<Value extends object>(
+	value: Value,
+	owner: object | undefined
+): Value {
+	if (owner)
+		Object.defineProperty(value, Symbol.for(localObservationOwnerKey), {
+			value: owner,
+			configurable: true
+		});
+	return value;
+}
+/** Retains response ownership on an operation and forwards the original listener with its ordinary receiver. */
+export function linkExactObservationOwner<Value extends object>(
+	operation: object,
+	listener?: (value: Value) => void
+): (value: Value) => void {
+	return (value) => {
+		attachExactObservationOwner(operation, readExactObservationOwner(value));
+		listener?.(value);
+	};
+}

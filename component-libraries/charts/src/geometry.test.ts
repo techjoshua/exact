@@ -65,4 +65,34 @@ describe('chart geometry', () => {
 		const points = positionSeries(input, domain, resolveChartLayout({ width: 640, height: 360 }));
 		expect(linePath(points).match(/M/gu)).toHaveLength(2);
 	});
+	it('keeps inferred extreme domains finite', () => {
+		const extreme = resolveGeometryDomain('line', [
+			series([
+				['low', -1e308],
+				['high', 1e308]
+			])
+		]);
+		expect(extreme.y.every(Number.isFinite)).toBe(true);
+	});
+	it('handles large data without argument spreading', () => {
+		const many = series(Array.from({ length: 150000 }, (_, i) => [String(i), i] as const));
+		const domain = resolveGeometryDomain('line', [many]);
+		expect(domain.y[0]).toBeLessThan(0);
+		expect(domain.y[1]).toBeGreaterThan(149999);
+	});
+	it('preserves TypeScript readonly views without freezing presentation copies', () => {
+		const layout = resolveChartLayout({});
+		const mutable: { width: number } = layout;
+		mutable.width = 700;
+		expect(resolveChartLayout({}).width).toBe(640);
+		const domain = resolveGeometryDomain('line', [
+			series([
+				['one', 1],
+				['two', 2]
+			])
+		]);
+		const alias: { categories: readonly string[] } = domain;
+		alias.categories = ['edited'];
+		expect(domain.categories).toEqual(['edited']);
+	});
 });

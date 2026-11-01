@@ -234,7 +234,7 @@ func collectTasks(
 			task.Contexts = []ContextEffect{}
 			task.EffectSources = []EnvironmentEffectSource{}
 			resources, signalCalls, resourceDiagnostics :=
-				collectTaskResources(work, sourceFile, typeChecker)
+				collectTaskResources(work, sourceFile, typeChecker, callables.owner)
 			task.Resources = resources
 			task.SignalCalls = signalCalls
 			task.Diagnostics = append(task.Diagnostics, resourceDiagnostics...)
@@ -432,12 +432,13 @@ func excludeChildTaskEffects(
 		if symbol == nil {
 			return true
 		}
-		summary, exists := callables.bySymbol[ast.GetSymbolId(symbol)]
+		summary, exists := callables.expressionSummary(node.AsCallExpression().Expression, typeChecker)
 		var child *ast.Node
 		if exists {
 			child = callableNodeForSummary(callables, summary.ID)
 		}
-		if child == nil {
+		_, hostOwned := callables.owner.body(node.AsCallExpression().Expression)
+		if child == nil && !hostOwned {
 			for _, declaration := range symbol.Declarations {
 				if !ast.IsVariableDeclaration(declaration) {
 					continue
@@ -542,7 +543,7 @@ func functionTaskActivation(
 	var summary CallableSummary
 	var exists bool
 	if symbol != nil {
-		summary, exists = callables.bySymbol[ast.GetSymbolId(symbol)]
+		summary, exists = callables.expressionSummary(call.Expression, typeChecker)
 	}
 	if !exists {
 		direct := unwrapRenderExpression(call.Expression)
@@ -555,7 +556,8 @@ func functionTaskActivation(
 	if !exists {
 		summary, exists = ownedTaskLocalCallSummary(call.Expression, component.node, sourceFile, taskPolicyBindings, callables)
 	}
-	if !exists && symbol != nil {
+	_, hostOwned := callables.owner.body(call.Expression)
+	if !exists && symbol != nil && !hostOwned {
 		for _, declaration := range symbol.Declarations {
 			if !ast.IsVariableDeclaration(declaration) {
 				continue
@@ -1012,7 +1014,7 @@ func taskWriteEffects(writes []StateWrite, component string, work *ast.Node) []S
 			continue
 		}
 		confidence := "exact"
-		if containsString(write.Path, "*") || write.Operation == "array-mutation" || write.Operation == "opaque-mutation" {
+		if containsString(write.Path, "*") || write.Operation == "opaque-mutation" {
 			confidence = "broad"
 		}
 		effects = append(effects, StateEffect{
@@ -1021,6 +1023,7 @@ func taskWriteEffects(writes []StateWrite, component string, work *ast.Node) []S
 			Kind:         "write",
 			Confidence:   confidence,
 			Operation:    stateEffectOperation(write.Operation),
+			ArrayRoots:   write.ArrayRoots,
 		})
 	}
 	return uniqueStateEffects(effects)
@@ -1039,6 +1042,13 @@ func stateEffectOperation(operation string) string {
 
 func minimalStateEffects(effects []StateEffect) []StateEffect {
 	unique := uniqueStateEffects(effects)
+	for i := range unique {
+		for j := range unique {
+			if i != j && unique[i].Confidence == "exact" && unique[j].Confidence == "exact" && stateReceiverSignature(unique[i].Receiver) == stateReceiverSignature(unique[j].Receiver) && stateEffectPathContains(unique[i], unique[j]) {
+				unique[i].ArrayRoots = joinArrayRootProofs(unique[i].ArrayRoots, unique[j].ArrayRoots)
+			}
+		}
+	}
 	sort.SliceStable(unique, func(left int, right int) bool {
 		return len(strings.Split(unique[left].Path, ".")) <
 			len(strings.Split(unique[right].Path, "."))
@@ -1065,15 +1075,29 @@ func minimalStateEffects(effects []StateEffect) []StateEffect {
 }
 
 func uniqueStateEffects(effects []StateEffect) []StateEffect {
-	seen := make(map[string]struct{}, len(effects))
+	seen := make(map[string]int, len(effects))
 	result := make([]StateEffect, 0, len(effects))
 	for _, effect := range effects {
 		key := effect.Kind + ":" + stateEffectPathKey(effect) + ":" + effect.Operation + ":" +
 			stateReceiverSignature(effect.Receiver)
-		if _, exists := seen[key]; exists || (effect.Path == "" && effect.pathSegments == nil) {
+		if index, exists := seen[key]; exists {
+			if result[index].Confidence == "exact" && effect.Confidence == "exact" {
+				result[index].ArrayRoots = joinArrayRootProofs(result[index].ArrayRoots, effect.ArrayRoots)
+			} else {
+				result[index].ArrayRoots = nil
+				if effect.Confidence != "exact" {
+					result[index].Confidence = effect.Confidence
+				}
+			}
 			continue
 		}
-		seen[key] = struct{}{}
+		if effect.Path == "" && effect.pathSegments == nil {
+			continue
+		}
+		if effect.Confidence != "exact" {
+			effect.ArrayRoots = nil
+		}
+		seen[key] = len(result)
 		result = append(result, effect)
 	}
 	return result
@@ -1097,4 +1121,39 @@ func joinTaskFacets(facets []string) string {
 		result += facet
 	}
 	return result
+}
+
+// erasedTaskPolicyParameter classifies only a component-owned task's genuine
+// zero-argument policy syntax. Its runtime marker throws and is never a pure
+// native value. Ordinary defaults, aliases, argument-bearing policies and work
+// bodies retain their existing execution owners.
+func (owner *sourceValueOwner) erasedTaskPolicyParameter(work *ast.Node) *ast.Node {
+	if work == nil || !ast.IsFunctionLike(work) || owner.checker == nil {
+		return nil
+	}
+	bindings, component := owner.components[enclosingCallableNode(work)]
+	if !component || bindings.checker != owner.checker {
+		return nil
+	}
+	if _, task := functionTaskPolicy(work, ast.GetSourceFileOfNode(work), bindings); !task {
+		return nil
+	}
+	parameters := work.Parameters()
+	parameter := parameters[len(parameters)-1]
+	policy := unwrapRenderExpression(parameter.Initializer())
+	for ast.IsCallExpression(policy) {
+		owner.summaryWork++
+		call := policy.AsCallExpression()
+		if call.Arguments != nil && len(call.Arguments.Nodes) != 0 || !ast.IsPropertyAccessExpression(call.Expression) {
+			return nil
+		}
+		member := call.Expression.AsPropertyAccessExpression()
+		switch member.Name().Text() {
+		case "client", "server", "parallel", "latest", "queue", "immediate", "normal", "deferred", "blocking", "nonblocking", "detached", "progress":
+		default:
+			return nil
+		}
+		policy = unwrapRenderExpression(member.Expression)
+	}
+	return parameter
 }

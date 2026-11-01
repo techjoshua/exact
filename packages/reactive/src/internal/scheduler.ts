@@ -149,11 +149,11 @@ export function inspectScheduledWork(): Readonly<{
 	const reactions = { interactive: 0, normal: 0, deferred: 0 };
 	for (const queued of queuedComputations.values()) computations[queued.priority]++;
 	for (const queued of queuedReactions.values()) reactions[queued.priority]++;
-	return Object.freeze({
+	return {
 		currentPriority: currentWorkPriority(),
-		computations: Object.freeze(computations),
-		reactions: Object.freeze(reactions)
-	});
+		computations: computations,
+		reactions: reactions
+	};
 }
 
 /** Schedules framework-owned computation work at an explicit priority. */
@@ -275,22 +275,19 @@ export function flushSync(through: WorkPriority = 'deferred'): void {
 		if (!hasEligibleWork('deferred')) settleScheduler();
 		if (profileStarted !== undefined) {
 			for (const [sink, reactions] of profiledReactions) {
-				publishExactProfile(
-					sink,
-					Object.freeze({
-						subsystem: 'reactive',
-						phase: 'flush',
-						elapsedMs: profileTimestamp() - profileStarted,
-						counts: Object.freeze({ passes, reactions })
-					})
-				);
+				publishExactProfile(sink, {
+					subsystem: 'reactive',
+					phase: 'flush',
+					elapsedMs: profileTimestamp() - profileStarted,
+					counts: { passes, reactions }
+				});
 			}
 		}
 	}
 	if (hasError) throw firstError;
 }
 
-/** Publishes one stable settlement generation without admitting recursive reconciliation. */
+/** Attempts the whole selected settlement generation before reporting its first failure. */
 function settleScheduler(): void {
 	if (settling || hasEligibleWork('deferred')) return;
 	settlementScheduled = false;
@@ -298,8 +295,17 @@ function settleScheduler(): void {
 	const callbacks = [...settlementCallbacks];
 	settlementCallbacks.clear();
 	settling = true;
+	let hasError = false;
+	let firstError: unknown;
 	try {
-		for (const callback of callbacks) callback();
+		for (const callback of callbacks) {
+			try {
+				callback();
+			} catch (error) {
+				if (!hasError) firstError = error;
+				hasError = true;
+			}
+		}
 	} finally {
 		settling = false;
 		if (settlementCallbacks.size && !settlementScheduled) {
@@ -307,6 +313,7 @@ function settleScheduler(): void {
 			queueMicrotask(settleScheduler);
 		}
 	}
+	if (hasError) throw firstError;
 }
 
 /** Clears a runaway generation and reports it once to each owning scope. */

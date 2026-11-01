@@ -1,6 +1,13 @@
 /**
  * @vitest-environment jsdom
  */
+import {
+	SubmitLifetime,
+	submitErrors
+} from '../../../packages/component-composition-corpus/test-support/forms/submit-lifetime.fixtures.js';
+import { Form } from './form/form.js';
+import { FormContext } from './form/context.js';
+import { verifySubmitLifetime } from '../../../packages/component-composition-corpus/test-support/forms/submit-lifetime-journey.js';
 import { createErrorContext, ErrorContext } from '@exactjs/core';
 import '@exactjs/core/runtime/refs';
 import { renderTestTree as render } from '@exactjs/dom/testing';
@@ -137,4 +144,44 @@ describe('forms', () => {
 		release();
 		await vi.waitFor(() => expect(button.textContent).toBe('Save'));
 	});
+});
+
+// Disposal must retire later Form stages without cancelling an already-started user callback.
+it('retires asynchronous submit stages with their Form owner', async () => {
+	expect(await verifySubmitLifetime()).toEqual({
+		disposedValidation: true,
+		disposedRaw: true,
+		alreadyStarted: true,
+		cancelled: true,
+		progress: true,
+		refsReleased: true,
+		detachedHandlerInactive: true,
+		expectedRejections: 1,
+		unexpectedReports: []
+	});
+});
+
+it('keeps newer Field validity when an aborted validation settles later', async () => {
+	const pending: { signal: AbortSignal; resolve(value: string | boolean): void }[] = [];
+	const view = await testComponent(SubmitLifetime)
+		.props({
+			validate: (_value, context) =>
+				new Promise<string | boolean>((resolve) =>
+					pending.push({ signal: context.signal, resolve })
+				)
+		})
+		.mount();
+	try {
+		const form = view.component(Form).providedContext(FormContext)!;
+		const first = form.validate();
+		const second = form.validate();
+		expect(pending[0]!.signal.aborted).toBe(true);
+		pending[1]!.resolve(true);
+		expect(await second).toBe(true);
+		pending[0]!.resolve('obsolete error');
+		expect(await first).toBe(true);
+		expect(submitErrors?.errors).toEqual([]);
+	} finally {
+		view.unmount();
+	}
 });

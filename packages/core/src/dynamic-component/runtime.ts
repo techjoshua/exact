@@ -15,7 +15,7 @@ import {
 	createChildRangeReceipt,
 	type ExactChildRangeReceipt
 } from '../component-abi/child-range-receipt.js';
-import { createCompiledComponentReceipt } from '../component-abi/receipt.js';
+import { createCompiledComponentInputReceipt } from '../component-abi/receipt.js';
 import { dynamicComponentResolverFor } from './creation.js';
 import type {
 	AnyDynamicComponentCandidate,
@@ -121,7 +121,7 @@ export function createCompiledDynamicComponent<Props extends Record<string, unkn
 		void state.revision;
 		switch (state.status) {
 			case 'available':
-				return createCompiledComponentReceipt(
+				return createCompiledComponentInputReceipt(
 					state.candidate! as ComponentFunction<Record<string, unknown>, Props>,
 					{
 						...options.props,

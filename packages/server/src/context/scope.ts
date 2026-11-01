@@ -12,7 +12,7 @@ import type {
 	ExactContextRegistration,
 	ExactContextScope
 } from '../types.js';
-import { abortReason, awaitWithAbort, disposeOwnedValue, isFactory } from './response.js';
+import { awaitWithAbort, disposeOwnedValue, isFactory } from './response.js';
 
 /** Defines the scope kind type contract. */
 export type ScopeKind = 'application' | 'request';
@@ -197,7 +197,7 @@ export class ContextScope implements ExactContextScope {
 			}
 			if (this.signal.aborted) {
 				await disposeOwnedValue({ token, value, factory: source }, this.signal.reason);
-				throw abortReason(this.signal);
+				throw this.signal.reason;
 			}
 			this.owned.set(token.id, { token, value, factory: source });
 		} else {

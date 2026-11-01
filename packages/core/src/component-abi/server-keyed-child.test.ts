@@ -6,7 +6,7 @@ import {
 import { createPreparedServerKeyedChild } from './server-keyed-child.js';
 
 const program = prepareCompiledRenderProgram({
-	version: 2,
+	version: 4,
 	id: 'keyed-root',
 	namespace: 'html',
 	ssr: (operations, _context, _invocation, output) => {

@@ -148,8 +148,20 @@ export interface ExactRouter<Route extends ExactRouteDefinition = ExactRouteDefi
 	createHref(to: string | URL): string;
 	navigate(to: string | URL | number, options?: NavigationOptions): Promise<void>;
 	initialize(): Promise<void>;
+	/** Runs a route action and revalidation. Caller cancellation rejects with its exact reason and fences late results. */
 	submit(target: string | URL, init?: RequestInit): Promise<void>;
-	fetch(key: string, routeId: string, target: string | URL, init?: RequestInit): Promise<void>;
+	/**
+	 * Loads or submits independent of page navigation. An explicit route ID must match the target.
+	 * Undefined selects the deepest path-contributing match, or the leaf index for a naked `?index`.
+	 * Release the key when its owner is disposed. Handler failures settle in the fetcher error state.
+	 * Caller cancellation rejects with its exact reason and releases only the canceled operation.
+	 */
+	fetch(
+		key: string,
+		routeId: string | undefined,
+		target: string | URL,
+		init?: RequestInit
+	): Promise<void>;
 	releaseFetcher(key: string): void;
 	revalidate(): Promise<void>;
 	block(blocker: NavigationBlocker): () => void;
@@ -163,6 +175,8 @@ export type CreateExactRouterOptions<Route extends ExactRouteDefinition> = {
 	basename?: string;
 	mode?: RouterMode;
 	context?: unknown;
+	/** Supplies incoming headers and HEAD semantics to request-backed loaders. Static handlers set this automatically. */
+	request?: Pick<Request, 'method' | 'headers'>;
 	hydrationData?: ExactHydrationData;
 	publication?: FrameworkPublicationCoordinator<NavigationPublicationMetadata>;
 };

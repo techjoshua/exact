@@ -15,10 +15,12 @@ import {
 } from './pattern-validation.js';
 import {
 	canonicalLocale,
+	captureValidationLimits,
 	requireBoundedString,
-	requireExactKeys,
-	requireRecord
+	requireBindingType,
+	requireExactKeys
 } from './validation-primitives.js';
+import { requireRecord, captureArray } from './protocol-data.js';
 
 const propertyNames = new Set<IntlPropertyName>([
 	'alt',
@@ -29,23 +31,8 @@ const propertyNames = new Set<IntlPropertyName>([
 	'aria-roledescription',
 	'aria-valuetext'
 ]);
-const bindingTypes = new Set([
-	'string',
-	'number',
-	'bigint',
-	'boolean',
-	'temporal-date',
-	'temporal-time',
-	'temporal-date-time',
-	'temporal-instant',
-	'temporal-zoned-date-time',
-	'temporal-duration',
-	'monetary',
-	'measurement',
-	'structure',
-	'opaque-structure'
-]);
-/** Limits recursive validation work for untrusted descriptors and catalogs. */
+
+/** Bounds validation work with nonnegative safe-integer counts. Limits are captured once per validation call. */
 export interface IntlValidationLimits {
 	readonly maxDepth?: number;
 	readonly maxNodes?: number;
@@ -57,6 +44,7 @@ export function validateIntlRuntimeDescriptor(
 	input: unknown,
 	limits: IntlValidationLimits = {}
 ): IntlRuntimeDescriptorV1 {
+	limits = captureValidationLimits(limits);
 	const record = requireRecord(input, 'descriptor');
 	requireExactKeys(
 		record,
@@ -85,17 +73,14 @@ export function validateIntlRuntimeDescriptor(
 		record.name === undefined ? undefined : requireBoundedString(record.name, 'descriptor.name');
 	const sourceLocale = canonicalLocale(record.sourceLocale, 'descriptor.sourceLocale');
 	const target = validateTarget(record.target);
-	if (!Array.isArray(record.bindings)) throw new TypeError('descriptor.bindings must be an array');
 	const bindings = Object.freeze(
-		record.bindings.map((binding, index) => validateBinding(binding, index))
+		captureArray(record.bindings, 'descriptor.bindings').map(validateBinding)
 	);
 	const budget = validationBudget(limits);
 	const source = validatePattern(record.source, bindings, budget, 0, 'descriptor.source');
 	validateStructuralUsage(source, bindings, 'descriptor.source');
-	if (!Array.isArray(record.capabilities))
-		throw new TypeError('descriptor.capabilities must be an array');
 	const capabilities = Object.freeze(
-		record.capabilities.map((capability, index) =>
+		captureArray(record.capabilities, 'descriptor.capabilities').map((capability, index) =>
 			requireBoundedString(capability, `descriptor.capabilities[${index}]`)
 		)
 	);
@@ -124,6 +109,7 @@ export function validateIntlCatalog(
 	descriptors: readonly IntlRuntimeDescriptorV1[],
 	limits: IntlValidationLimits = {}
 ): IntlCatalogV1 {
+	limits = captureValidationLimits(limits);
 	const record = requireRecord(input, 'catalog');
 	requireExactKeys(record, ['protocol', 'locale', 'owner', 'messages']);
 	if (record.protocol !== 1) throw new TypeError('Intl catalog protocol must be 1');
@@ -174,10 +160,9 @@ function validateTranslationPattern(
 	let nodes = 0;
 	let textLength = 0;
 	const visit = (value: unknown, currentPath: string, depth: number): IntlTranslationPatternV1 => {
-		if (!Array.isArray(value)) throw new TypeError(`${currentPath} must be an array`);
 		if (depth > maximumDepth) throw new TypeError(`${path} exceeds the translation depth limit`);
 		return Object.freeze(
-			value.map((inputNode, index): IntlTranslationPatternNodeV1 => {
+			captureArray(value, currentPath).map((inputNode, index): IntlTranslationPatternNodeV1 => {
 				nodes++;
 				if (nodes > maximumNodes) throw new TypeError(`${path} exceeds the translation node limit`);
 				const node = requireRecord(inputNode, `${currentPath}[${index}]`);
@@ -205,11 +190,9 @@ function validateTranslationPattern(
 				if (node.kind !== 'select')
 					throw new TypeError(`${currentPath}[${index}] has an unsupported translation kind`);
 				requireExactKeys(node, ['kind', 'id', 'cases', 'fallback']);
-				if (!Array.isArray(node.cases))
-					throw new TypeError(`${currentPath}[${index}].cases must be an array`);
 				const seen = new Set<string>();
 				const cases = Object.freeze(
-					node.cases.map((inputCase, caseIndex) => {
+					captureArray(node.cases, `${currentPath}[${index}].cases`).map((inputCase, caseIndex) => {
 						const candidate = requireRecord(
 							inputCase,
 							`${currentPath}[${index}].cases[${caseIndex}]`
@@ -294,10 +277,12 @@ function validateBinding(input: unknown, index: number): IntlBindingDescriptorV1
 	);
 	if (binding.index !== index)
 		throw new TypeError('Intl binding indexes must be dense and ordered');
-	if (!['value', 'selector', 'element', 'opaque'].includes(String(binding.kind)))
+	if (
+		typeof binding.kind !== 'string' ||
+		!['value', 'selector', 'element', 'opaque'].includes(binding.kind)
+	)
 		throw new TypeError(`Unsupported intl binding kind "${String(binding.kind)}"`);
-	if (typeof binding.type !== 'string' || !bindingTypes.has(binding.type))
-		throw new TypeError(`Unsupported intl binding type "${String(binding.type)}"`);
+	const type = requireBindingType(binding.type, `descriptor.bindings[${index}].type`);
 	if (binding.kind === 'element' && binding.type !== 'structure')
 		throw new TypeError('Intl element bindings require structure type');
 	if (binding.kind === 'opaque' && binding.type !== 'opaque-structure')
@@ -307,7 +292,7 @@ function validateBinding(input: unknown, index: number): IntlBindingDescriptorV1
 	return Object.freeze({
 		index,
 		kind: binding.kind as IntlBindingDescriptorV1['kind'],
-		type: binding.type as IntlBindingDescriptorV1['type'],
+		type,
 		...(binding.name === undefined
 			? {}
 			: { name: requireBoundedString(binding.name, `descriptor.bindings[${index}].name`) }),

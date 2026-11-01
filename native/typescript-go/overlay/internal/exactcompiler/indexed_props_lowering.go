@@ -146,7 +146,7 @@ func (lowering *jsxLowering) lowerIndexedPropsRead(node *ast.Node) *ast.Node {
 	if name, captured := lowering.captureValues[read.symbol]; captured {
 		if read.key == "children" && lowering.clientCaptureIsland != nil {
 			if _, slotted := islandChildrenCapture(*lowering.clientCaptureIsland); slotted {
-				return lowering.clientIslandPropsRead(lowering.factory.NewIdentifier("props"), "children")
+				return lowering.clientIslandPropsRead(lowering.clientIslandProps, "children")
 			}
 		}
 		return lowering.factory.NewElementAccessExpression(lowering.clientIslandCapturedValue(name), nil,

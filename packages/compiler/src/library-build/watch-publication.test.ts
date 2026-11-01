@@ -8,8 +8,8 @@ import { watchLibraryBuild } from './watch.js';
 vi.setConfig({ testTimeout: 30_000 });
 
 it('publishes paired output after shared config edits and recovers from nearer invalid config', async () => {
-	const initial = await fixture();
 	const workspace = await createTestWorkspace('exact-library-config-parent-');
+	const initial = await fixture(workspace);
 	const root = path.join(workspace, 'kit');
 	await rename(initial.root, root);
 	const shared = path.join(workspace, 'exact.config.mjs');

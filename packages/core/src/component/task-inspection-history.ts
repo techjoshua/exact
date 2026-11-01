@@ -1,3 +1,4 @@
+import { copyInspectionObservation } from './inspection-observations.js';
 import type { ExactTaskRuntimeSnapshot } from '@exactjs/devtools-protocol';
 import type { AnyComponentInstance } from './contracts.js';
 import type { ExactRuntimeInspectionOwner } from './inspection.js';
@@ -13,7 +14,7 @@ const defaultTaskInspectionHistoryLimit = 200;
 const taskHistories = new WeakMap<ExactRuntimeInspectionOwner, TaskInspectionHistory>();
 
 /**
- * Retains only immutable, redaction-safe task projections for the current inspection session.
+ * Retains private, captured redaction-safe task projections for the current inspection session.
  *
  * The global bound applies across every component in the owner. Updating an existing execution
  * does not consume another slot, and clearing the session releases every retained preview.
@@ -29,6 +30,7 @@ export class TaskInspectionHistory {
 
 	/** Adds or replaces one execution without retaining application-owned values. */
 	record(component: AnyComponentInstance, snapshot: ExactTaskRuntimeSnapshot): void {
+		snapshot = copyInspectionObservation(snapshot);
 		const key = taskExecutionKey(snapshot);
 		const existing = this.#records.get(key);
 		if (!existing && this.#records.size >= this.#limit) {
@@ -40,18 +42,18 @@ export class TaskInspectionHistory {
 				this.#order.splice(this.#order.indexOf(oldestKey), 1);
 			}
 		}
-		this.#records.set(key, Object.freeze({ key, componentId: component.id, snapshot }));
+		this.#records.set(key, { key, componentId: component.id, snapshot });
 		if (!existing) this.#order.push(key);
 	}
 
-	/** Returns newest-first executions for one live component. */
+	/** Returns internal canonical executions for composition into an independently copied public observation. */
 	list(component: AnyComponentInstance): readonly ExactTaskRuntimeSnapshot[] {
 		const snapshots: ExactTaskRuntimeSnapshot[] = [];
 		for (let index = this.#order.length - 1; index >= 0; index--) {
 			const record = this.#records.get(this.#order[index]!);
 			if (record?.componentId === component.id) snapshots.push(record.snapshot);
 		}
-		return Object.freeze(snapshots);
+		return snapshots;
 	}
 
 	/** Releases all execution previews owned by the inspection session. */
@@ -95,7 +97,7 @@ export function releaseTaskInspectionHistory(owner: ExactRuntimeInspectionOwner)
 	taskHistories.delete(owner);
 }
 
-/** Retains one immutable, preview-only task execution for an attached internal owner. */
+/** Retains one captured, preview-only task execution for an attached internal owner. */
 export function recordInspectedTask(
 	owner: ExactRuntimeInspectionOwner,
 	component: AnyComponentInstance,
@@ -109,9 +111,7 @@ export function inspectRetainedTaskExecutions(
 	owner: ExactRuntimeInspectionOwner,
 	component: AnyComponentInstance
 ): readonly ExactTaskRuntimeSnapshot[] {
-	return owner.attached
-		? (taskHistories.get(owner)?.list(component) ?? Object.freeze([]))
-		: Object.freeze([]);
+	return owner.attached ? (taskHistories.get(owner)?.list(component) ?? []) : [];
 }
 
 function taskExecutionKey(snapshot: ExactTaskRuntimeSnapshot): string {

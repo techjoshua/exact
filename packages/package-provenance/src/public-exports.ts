@@ -14,8 +14,9 @@ export function resolveExactPublicPackageEntry(
 	node: ExactPublicPackageNode,
 	subpath: string
 ): string {
-	const name = typeof node.manifest.name === 'string' ? node.manifest.name : undefined;
-	if (!name) throw new Error(`${node.location}/package.json must declare a package name`);
+	const name = node.manifest.name;
+	if (typeof name !== 'string' || !name)
+		throw new Error(`${node.location}/package.json must declare a package name`);
 	const specifier = subpath === '.' ? name : `${name}${subpath.slice(1)}`;
 	const require = createRequire(path.join(node.location, '__exact_package_provenance__.cjs'));
 	let resolved: string;
@@ -25,7 +26,7 @@ export function resolveExactPublicPackageEntry(
 		throw new Error(`Unable to resolve public package entry ${specifier}`, { cause: error });
 	}
 	const relative = path.relative(node.realPath, resolved);
-	if (relative.startsWith('..') || path.isAbsolute(relative))
+	if (relative === '..' || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative))
 		throw new Error(`Public package entry ${specifier} resolves outside ${node.location}`);
 	return resolved;
 }

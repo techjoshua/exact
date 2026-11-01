@@ -18,7 +18,7 @@ func TestDeferredRootFactoryRetainsCompiledHydrationEntry(t *testing.T) {
 		if response.Error != "" || len(response.Diagnostics) != 0 {
 			t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
 		}
-		if !strings.Contains(response.Code, "hydrateCompiledComponentRootAfterNavigation as") {
+		if !strings.Contains(response.Code, "hydrateCompiledComponentInputRootAfterNavigation as") {
 			t.Fatalf("factory lost narrow entry: %s", response.Code)
 		}
 	}

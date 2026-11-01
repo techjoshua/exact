@@ -131,7 +131,7 @@ class IntlLanguageAnalyzer implements ExactLanguageAnalyzer {
 				)
 			);
 		}
-		return Object.freeze(diagnostics);
+		return diagnostics;
 	}
 
 	async complete(
@@ -148,16 +148,14 @@ class IntlLanguageAnalyzer implements ExactLanguageAnalyzer {
 		const start = request.position - before.length + valueStart;
 		const prefix = source.slice(start, request.position);
 		const values = intlCompletionValues(attribute, before);
-		return Object.freeze(
-			values
-				.filter((value) => value.label.startsWith(prefix))
-				.slice(0, 100)
-				.map((value) => ({
-					label: value.label,
-					detail: value.detail,
-					replace: { start, end: request.position }
-				}))
-		);
+		return values
+			.filter((value) => value.label.startsWith(prefix))
+			.slice(0, 100)
+			.map((value) => ({
+				label: value.label,
+				detail: value.detail,
+				replace: { start, end: request.position }
+			}));
 	}
 
 	async hover(
@@ -168,7 +166,7 @@ class IntlLanguageAnalyzer implements ExactLanguageAnalyzer {
 		const region = native.regions.find(
 			(candidate) =>
 				candidate.element.start <= request.position &&
-				request.position <= candidate.element.start + candidate.element.length
+				request.position < candidate.element.start + candidate.element.length
 		);
 		if (!region) return undefined;
 		const descriptor = native.descriptors[region.descriptorIndex];
@@ -181,7 +179,7 @@ class IntlLanguageAnalyzer implements ExactLanguageAnalyzer {
 		const inference = describeIntlInference(descriptor);
 		const details = describeIntlInferenceDetails(descriptor);
 		const translatable = intlDescriptorRequiresTranslation(descriptor);
-		return Object.freeze({
+		return {
 			range: intlLanguageRange(region.element),
 			markdown: [
 				'### Internationalized message',
@@ -196,7 +194,7 @@ class IntlLanguageAnalyzer implements ExactLanguageAnalyzer {
 					? [`**Missing required locales:** ${missing.join(', ')}`]
 					: [])
 			].join('\n\n')
-		});
+		};
 	}
 
 	async inlayHints(
@@ -206,31 +204,29 @@ class IntlLanguageAnalyzer implements ExactLanguageAnalyzer {
 		if (this.config.showInlayHints === false) return [];
 		const native = await this.analyze(request, signal);
 		const coverage = (await this.catalogInventory(native.descriptors, signal)).coverage;
-		return Object.freeze(
-			native.regions
-				.filter((region) =>
-					intlLanguageRangesOverlap(intlLanguageRange(region.attribute), request.range)
-				)
-				.map((region) => {
-					const descriptor = native.descriptors[region.descriptorIndex]!;
-					const locales = [...(coverage.get(descriptor.key) ?? [])].sort();
-					const missing = (this.config.requiredLocales ?? []).filter(
-						(locale) => !locales.includes(locale)
-					);
-					const coveragePresentation = describeIntlCoverage(descriptor, locales, missing);
-					return {
-						position: region.attribute.start + region.attribute.length,
-						label: ` ⇒ ${describeIntlInference(descriptor).join(' + ') || 'message'} · ${coveragePresentation.label}`,
-						tooltip: coveragePresentation.tooltip,
-						paddingLeft: true,
-						evidence: region.evidence.map((item) => ({
-							range: intlLanguageRange(item),
-							kind: item.kind,
-							explanation: item.detail
-						}))
-					};
-				})
-		);
+		return native.regions
+			.filter((region) =>
+				intlLanguageRangesOverlap(intlLanguageRange(region.attribute), request.range)
+			)
+			.map((region) => {
+				const descriptor = native.descriptors[region.descriptorIndex]!;
+				const locales = [...(coverage.get(descriptor.key) ?? [])].sort();
+				const missing = (this.config.requiredLocales ?? []).filter(
+					(locale) => !locales.includes(locale)
+				);
+				const coveragePresentation = describeIntlCoverage(descriptor, locales, missing);
+				return {
+					position: region.attribute.start + region.attribute.length,
+					label: ` ⇒ ${describeIntlInference(descriptor).join(' + ') || 'message'} · ${coveragePresentation.label}`,
+					tooltip: coveragePresentation.tooltip,
+					paddingLeft: true,
+					evidence: region.evidence.map((item) => ({
+						range: intlLanguageRange(item),
+						kind: item.kind,
+						explanation: item.detail
+					}))
+				};
+			});
 	}
 
 	async dispose(): Promise<void> {

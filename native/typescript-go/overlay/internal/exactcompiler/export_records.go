@@ -14,8 +14,8 @@ func collectExportRecords(
 	sourceFile *ast.SourceFile,
 	typeChecker *checker.Checker,
 	components []Component,
-	callables []CallableSummary,
 	policy PolicyAnalysis,
+	owner *executableBodyOwner,
 ) []ExportRecord {
 	if sourceFile.Symbol == nil {
 		return []ExportRecord{}
@@ -25,13 +25,6 @@ func collectExportRecords(
 	for _, component := range components {
 		componentPlacements[component.Name] = component.Placement
 		componentPlacementsByStart[component.Start] = component.Placement
-	}
-	callablePlacements := make(map[string]string)
-	for _, callable := range callables {
-		callablePlacements[callable.Name] = placementForCallable(callable)
-		for _, exportName := range callable.ExportNames {
-			callablePlacements[exportName] = placementForCallable(callable)
-		}
 	}
 	policyPlacements := make(map[string]string)
 	for _, subject := range policy.Subjects {
@@ -82,19 +75,9 @@ func collectExportRecords(
 		} else if value, exists := componentPlacements[name]; ownedDeclaration && exists {
 			kind = "component"
 			placement = value
-		} else if value, exists := callablePlacements[localName]; ownedDeclaration && exists {
-			placement = value
-		} else if value, exists := callablePlacements[name]; ownedDeclaration && exists {
-			placement = value
-		} else if value := exportedValuePlacement(
-			exported,
-			sourceFile,
-			typeChecker,
-		); value != "" {
-			placement = value
 		}
 		if kind == "value" {
-			placement = moduleValueDefinitionPlacement(exported, sourceFile, typeChecker)
+			placement = moduleValueDefinitionPlacement(exported, typeChecker, owner)
 		}
 		if value, exists := policyPlacements[localName]; ownedDeclaration && exists {
 			placement = value
@@ -112,41 +95,6 @@ func collectExportRecords(
 		return records[left].Name < records[right].Name
 	})
 	return records
-}
-
-func exportedValuePlacement(
-	symbol *ast.Symbol,
-	sourceFile *ast.SourceFile,
-	typeChecker *checker.Checker,
-) string {
-	browser, server := exportedValueEnvironment(symbol, sourceFile, typeChecker, make(map[ast.SymbolId]struct{}))
-	switch {
-	case browser && server:
-		return "unknown"
-	case browser:
-		return "client"
-	case server:
-		return "server"
-	default:
-		return ""
-	}
-}
-
-func placementForCallable(callable CallableSummary) string {
-	switch {
-	case callable.Effect == "browser" ||
-		(len(callable.ArtifactTargets) == 1 &&
-			callable.ArtifactTargets[0] == "client"):
-		return "client"
-	case callable.Effect == "server" ||
-		(len(callable.ArtifactTargets) == 1 &&
-			callable.ArtifactTargets[0] == "server"):
-		return "server"
-	case callable.Effect == "neutral":
-		return "isomorphic"
-	default:
-		return "unknown"
-	}
 }
 
 func placementForResidency(residency string) string {

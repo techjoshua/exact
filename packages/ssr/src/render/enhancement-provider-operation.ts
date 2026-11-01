@@ -1,8 +1,5 @@
 import type { AnyComponentFunction, Child } from '@exactjs/core';
-import {
-	createCompiledComponentReceipt,
-	readCompiledComponentReceipt
-} from '@exactjs/core/runtime/component-operations';
+import { createCompiledComponentInputReceipt } from '@exactjs/core/runtime/component-operations';
 import type { SsrContext } from '../types.js';
 
 /**
@@ -16,9 +13,10 @@ export function createSsrEnhancementOperation(
 	props: Record<string, unknown>,
 	child: Child
 ) {
-	const operation = createCompiledComponentReceipt(component, props, child);
-	(context.enhancementProviderReferences ??= new WeakSet()).add(
-		readCompiledComponentReceipt(operation)!
-	);
+	const operation = createCompiledComponentInputReceipt(component, props, {
+		kind: 'eager',
+		values: [child]
+	});
+	(context.enhancementProviderReferences ??= new WeakSet()).add(operation);
 	return operation;
 }

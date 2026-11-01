@@ -22,7 +22,7 @@ describe('@exactjs/dom limits', () => {
 			'eXact DOM tree exceeds the configured maximum depth of 8'
 		);
 		expect(container.childNodes).toHaveLength(0);
-		expect(unmount(container)).toBe(true);
+		expect(unmount(container)).toBe(false);
 	});
 
 	it('rejects over-broad vnode and placeholder trees without mounting a partial root', () => {
@@ -35,7 +35,7 @@ describe('@exactjs/dom limits', () => {
 			render(createOperation('main', null, ...children), container, { maxTreeNodes: 8 })
 		).toThrow('eXact DOM update exceeds the configured maximum of 8 render values');
 		expect(container.childNodes).toHaveLength(0);
-		expect(unmount(container)).toBe(true);
+		expect(unmount(container)).toBe(false);
 	});
 
 	it('applies the DOM work budget per update rather than across the root lifetime', () => {

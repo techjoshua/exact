@@ -51,26 +51,23 @@ export function TimeProvider(this: Component<{ initialSample: number }>, props: 
 		});
 	this.state.initialSample = sampleProviderClock(props.clock);
 	const thisOwner = this;
-	this.setContext(
-		TimeEnvironmentContext,
-		Object.freeze({
-			get initialSample() {
-				return thisOwner.state.initialSample;
-			},
-			get clock() {
-				return props.clock;
-			},
-			get timeZone() {
-				return props.timeZone;
-			},
-			get calendar() {
-				return props.calendar;
-			},
-			get weekStartsOn() {
-				return props.weekStartsOn;
-			}
-		})
-	);
+	this.setContext(TimeEnvironmentContext, {
+		get initialSample() {
+			return thisOwner.state.initialSample;
+		},
+		get clock() {
+			return props.clock;
+		},
+		get timeZone() {
+			return props.timeZone;
+		},
+		get calendar() {
+			return props.calendar;
+		},
+		get weekStartsOn() {
+			return props.weekStartsOn;
+		}
+	});
 	return () => props.children;
 }
 
@@ -105,7 +102,6 @@ function renderTimeUpdate(
 ): Child | Child[] {
 	const activation = resolveActivation(unwrap(props.update));
 	if (activation) {
-		activation.configure(activation.policy, activation.plan);
 		const environment = resolveTimeEnvironment(owner);
 		if (environment) activation.configureEnvironment(environment, environment.initialSample);
 		if (state.mountedActivation && state.mountedActivation !== activation) {

@@ -380,6 +380,26 @@ describe('server-cooperative debug protocol', () => {
 	});
 });
 
+it('filters server root catalogs before pagination', async () => {
+	const context = server({ allowDebug: () => true });
+	const opened = await handleExactRequest(debugOpen(), context);
+	const sessionId = (await exactResponseToFetchResponse(opened).json()).session.id as string;
+	for (const [filter, count] of [
+		[{ side: 'server', buildKey, executionRoot: 'page' }, 1],
+		[{ side: 'client' }, 0],
+		[{ buildKey: 'missing' }, 0],
+		[{ executionRoot: 'missing' }, 0]
+	] as const) {
+		const response = await handleExactRequest(
+			debugQuery(sessionId, 'roots.list', { filter, page: { limit: 1 } }),
+			context
+		);
+		const body = await exactResponseToFetchResponse(response).json();
+		expect(body.ok).toBe(true);
+		expect(body.result, JSON.stringify(filter)).toHaveLength(count);
+	}
+});
+
 function server(overrides: Partial<ExactServerContext> = {}): ExactServerContext {
 	const invocationContracts = Object.fromEntries(
 		Object.keys(overrides.invocations ?? {}).map((id) => [id, defineExactOperationContract(id)])
@@ -393,6 +413,7 @@ function server(overrides: Partial<ExactServerContext> = {}): ExactServerContext
 			boundaries: {}
 		},
 		inspectionCatalogs: [catalog],
+		publicOrigin: 'http://localhost',
 		...overrides
 	};
 }

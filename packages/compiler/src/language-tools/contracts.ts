@@ -257,6 +257,8 @@ export type ExactInspectionRequest = Readonly<{
 
 /** No-emit project configuration for a compiler-aware language service. */
 export type ExactLanguageServiceOptions = Readonly<{
+	/** Advisory analysis warnings with the same policy as compilation. */
+	analysis?: import('@exactjs/config').ExactAnalysisOptions;
 	root: string;
 	configFile?: string;
 	noEmit?: true;

@@ -1,7 +1,7 @@
 import type { ReactiveOptions, ReactiveRef } from '../internal/types.js';
 import { reactiveCollectionMember } from './collections.js';
 import { createReactiveBase } from './create-base.js';
-import { defaultReactiveOptions, readonlyReactiveOptionsKey } from './state.js';
+import { reactiveOptionsKey } from './cache.js';
 
 type CollectionReactiveOptions = ReactiveOptions & { __exactCollectionCacheMode: true };
 const collectionOptions = new WeakMap<object, CollectionReactiveOptions>();
@@ -12,7 +12,7 @@ export function createReactive(
 	options: ReactiveOptions,
 	parentSource?: ReactiveRef
 ): object {
-	const key = collectionOptionsKey(options);
+	const key = reactiveOptionsKey(options);
 	let selected = collectionOptions.get(key);
 	if (!selected) {
 		const created = Object.assign(Object.create(key) as ReactiveOptions, {
@@ -22,22 +22,4 @@ export function createReactive(
 		selected = created;
 	}
 	return createReactiveBase(value, selected, parentSource, reactiveCollectionMember);
-}
-
-function collectionOptionsKey(options: ReactiveOptions): object {
-	if (
-		!options.readonly &&
-		!options.onReadonlyWrite &&
-		!options.onMutation &&
-		!options.passthroughKeys?.length
-	)
-		return defaultReactiveOptions;
-	if (
-		options.readonly &&
-		!options.onReadonlyWrite &&
-		!options.onMutation &&
-		!options.passthroughKeys?.length
-	)
-		return readonlyReactiveOptionsKey;
-	return options as object;
 }

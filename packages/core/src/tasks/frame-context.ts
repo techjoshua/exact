@@ -1,9 +1,13 @@
+import { sharedTaskRuntimeState } from './runtime-state.js';
 import { disposeSymbolicTaskResource } from './resource-disposal.js';
 import { peek } from '@exactjs/reactive/framework/runtime';
 import type { TaskContext } from './contracts.js';
 import type { InternalTaskFrameOptions, TaskFrameRecord } from './frame-contracts.js';
 
-const contextFrames = new WeakMap<TaskContext, TaskFrameRecord>();
+const contextFrames = sharedTaskRuntimeState(
+	'context-frames',
+	() => new WeakMap<TaskContext, TaskFrameRecord>()
+);
 
 /** Creates and retains the public context owned by one task frame. */
 export function createTaskFrameContext(

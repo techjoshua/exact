@@ -41,8 +41,82 @@ For each document, the language server searches upward from the file for the nea
 `exact.config.*`, stopping at the containing editor workspace folder. That config's directory owns
 the compiler session, package-scoped enhancement exports, and language-provider host. Documents in
 different applications inside one monorepo therefore retain independent configs and provider
-policies; a document with no nested config continues to use the workspace root. Removing a
-workspace folder disposes every nested compiler and provider session it owns.
+policies. A document with no nested config continues to use the workspace root. Removing a
+workspace folder disposes every nested compiler and provider session it owns. Pending document
+synchronization, inspections, provider queries, and status requests stop using that project record
+after removal, even if awaited work settles later. Disposed managers do not open new sessions.
+Closing and reopening a document starts a new synchronization identity, including when the editor
+reuses its prior version number. Old results and provider failures do not become current again.
+
+When the editor adds or removes workspace folders, the server captures all current open-document
+inputs and reconciles their project ownership. Projects whose input set or construction context
+changes are recreated and seeded with current unsaved text before input-dependent queries can use
+them. Open siblings in an affected project are seeded together. Compatible independent projects and
+nested configs retain their sessions. This does not watch config-content changes outside folder events.
+
+Embedding hosts can call `manager.reconcileWorkspaceFolders({ added, removed }, inputs)` with all
+current open `{ uri, version, source }` inputs. The call synchronously returns
+`{ affectedInputs, completion }`. `affectedInputs` contains the original input references so a host
+can retire affected analysis controllers before awaiting `completion`. That promise resolves to
+`{ results, errors }`. The results pair successful current inputs with their synchronization results.
+Operational setup, core input, final inspection and cleanup failures appear in `errors` as their exact
+thrown values. An errors array containing `undefined` still records a failure. Disposed method entry
+continues to throw. These references provide correspondence, while
+private project/document identities and the host's actual document lifetime still control publication.
+Roots present in both arrays are removed, preserving add-then-remove behavior. Compatible projects
+are unchanged when final membership is unchanged.
+
+During project preparation, inspection/refactor queries return `undefined` and provider queries
+return empty results. New edits and close/reopen notifications admitted in that interval are ordered
+after seeding against the captured service. A superseded queued upsert does not run. Provider
+analysis follows core input preparation without becoming part of its input queue. General slow
+close ordering outside this interval is not extended by this API.
+
+A failed core preparation removes execution authority and leaves an unavailable project reservation.
+Queries do not silently recreate disk-backed input for those known unsaved documents. The operation
+settles every owned cleanup before completing its data outcome. Setup/core/finalization errors
+precede cleanup errors in stable destination/input order. Resource cleanup keeps its existing
+first-error/all-attempts semantics. No error string or aggregate wrapper replaces primitive values.
+A later explicit reconciliation with current inputs can reseed the project. An ordinary explicit edit
+can recreate its own project input, without automatically reseeding every sibling. There is no
+background retry. Cleanup is attempted once. A later operation retiring an unavailable reservation
+also records its prior cleanup failure, even if that operation successfully seeds a new project.
+Live provider failures retain the existing empty-contribution/status behavior.
+
+Successful current documents are published even when another destination fails. A final inspection
+failure does not undo its already seeded input or prevent a successful sibling from becoming ready.
+It is distinct from a core/setup failure reservation. Identical membership and the same admitted
+version remain a no-op for final inspection alone, without forcing reanalysis. A genuinely newer
+explicit input can progress that document. The standard folder callback publishes successful results
+before reporting recorded operational errors, then releases all its affected analysis controllers.
+
+Low-level `addRoot(root): void` changes future routing only. `removeRoot(root): Promise<void>` retires
+its owned sessions. Neither method receives unsaved source or promises automatic input migration.
+Direct hosts with open documents should use the reconciliation method, or explicitly establish fresh
+affected contexts and synchronize current inputs before querying. The normal LSP folder callback
+uses reconciliation and republishes only actual current document/controller results.
+
+Hosts combining compiler and package inlays can use
+`ExactLanguageWorkspaceManager.inspectWithInlayHints(uri, range, signal?)`. The range uses UTF-16
+source offsets. This additive manager method inspects once and returns `{ inspection, contributions }`
+from the same captured project and accepted document input. It follows `inspect` admission:
+a disposed manager rejects, while untrusted or non-file input returns `undefined`. Retirement during
+the read also returns `undefined`, so a caller can discard both parts. A live empty provider result
+retains the inspection with `contributions: []`. Live provider failures retain that same shape and
+record `providerFailure(uri)`. Native inspection errors and explicit cancellation rejections keep
+the existing query error behavior.
+
+The standard inlay handler uses this paired read, checks its actual open-document snapshot, then
+projects both parts synchronously. Provider-only `inlayHints` remains available for independent
+contributions. Ownership is checked when the manager publishes data, without a stronger promise
+about later protocol delivery or settings changes during the request. Presentation exceptions
+remain outside provider failure handling.
+
+Manager `refactor` also checks its captured project and document before returning a successful plan.
+A retired success returns `undefined`. A live success retains the exact plan object. All service
+rejections propagate unchanged, including primitive values and retired or cancelled requests.
+This check does not bind an earlier independent inspection to a later refactor or establish ownership
+of every previously prepared item in an aggregate code-action response.
 
 The VS Code status tooltip shows the resolved project root and active language-provider health.
 Provider synchronization refreshes it after analysis, and a provider or host failure changes the
@@ -160,8 +234,12 @@ await language.dispose();
 ```
 
 `noEmit` is fixed to `true`. The service retains compiler projects, semantic
-graphs, dependency indexes, document overlays, and immutable inspections in
-memory. It does not write JavaScript, client/server artifacts, manifests,
+graphs, dependency indexes, document overlays, and native analysis in memory. Each inspection
+projects separate metadata records. Compiler inspections, explanations, and build facts use readonly
+TypeScript fields and ordinary JavaScript records and lists. Session statistics, invalidation results,
+and build reports follow the same convention. Editing an observation does not change
+retained native analysis or a later inspection. Refactor descriptions also own their returned lists.
+The service does not write JavaScript, client/server artifacts, manifests,
 source maps, inspection catalogs, or any other generated project file.
 
 Every synchronization returns one monotonically increasing `generation`,
@@ -205,6 +283,10 @@ regions and render expressions, inferred tasks and tasks with authored policy, i
 per-write setup assignments, derived values, bindings, context operations, lifecycle
 registrations, and registry selections.
 
+Catalog projection, runtime slot correlation, and task searches traverse these trees
+iteratively in authored order. Their traversal storage grows with tree depth, and slot
+correlation visits each entity once. The native parser determines accepted source nesting.
+
 Each entity has a complete `range`, a small `selectionRange`, compiler-local
 identity, children, a normalized classification, and typed inference reasons.
 Native UTF-8 byte positions are normalized to the UTF-16 offsets used by
@@ -233,6 +315,10 @@ explains the referenced component, such as a client component rendered by a
 server parent, instead of falling back to the containing component's placement.
 Intrinsic elements and unresolved external component values do not invent this
 metadata.
+
+Source ranges are half-open UTF-16 offsets. Task selection accepts a cursor at the start or
+inside the task, excluding its trailing end. Touching source spans do not contribute dependencies
+or diagnostic causes to one another.
 
 Task classifications expose:
 
@@ -296,10 +382,10 @@ enhancement candidate retains both interpretations; the native compiler issues t
 ambiguity diagnostic.
 
 eXact does not publish a duplicate TypeScript error at the same range. The
-language server captures immutable URI, version, and source text
-before asynchronous analysis. A result is published only if that snapshot is
-still the current open document, so a compiler diagnostic cannot appear or
-disappear one edit late.
+language server captures the current document object together with immutable URI, version, and
+source text before asynchronous requests. Snapshot checks require that same open document and
+version to remain current. Closing and reopening a path creates a new document owner, even when
+the editor restarts its version counter, so a previous session cannot satisfy that check.
 
 ## Refactoring inferred work and authored task policy
 
@@ -413,7 +499,9 @@ These settings never change compiler meaning.
 `important` includes compiler operation badges and package inference notes such as intl message
 behavior and translation coverage. `off` suppresses all eXact inlays, while `all` also admits any
 lower-priority hints providers add later. Changes apply immediately. VS Code's native
-`editor.inlayHints.enabled` setting must independently allow inlays.
+`editor.inlayHints.enabled` setting must independently allow inlays. Standard inlay results are
+discarded if the open document or its version changes while compiler or provider work is pending,
+before source offsets are projected into editor positions.
 
 An analyzer may attach bounded source evidence to an inlay. The VS Code client renders that evidence
 as an underline without changing the token's syntax color; hovering it explains the inference and

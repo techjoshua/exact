@@ -1,77 +1,13 @@
+import { ServerRenderingLesson } from './ServerRenderingLesson.jsx';
+import {
+	authoredSource,
+	requestContextSource,
+	sharedProjectionSource
+} from '../examples/server-execution.js';
 import type { Component } from '@exactjs/core';
 import { CodeBlock } from '../CodeBlock.jsx';
 import { Article } from './Article.jsx';
 import { Callout } from './Callout.jsx';
-
-const authoredSource = `import { createContext, type Component } from '@exactjs/core';
-
-export type Product = { id: string; name: string; price: number };
-
-interface ProductRepository {
-  /** @exact shared */
-  find(id: string): Promise<Product>;
-}
-
-export const ProductRepositoryContext = createContext<ProductRepository>(
-  'products.repository',
-  { scope: 'request', reactive: false }
-);
-
-export async function ProductPage(
-  this: Component<{ product?: Product; detailsOpen: boolean }>,
-  props: { productId: string }
-) {
-  const products = this.getContext(ProductRepositoryContext);
-  this.state.detailsOpen = false;
-
-  // The repository makes this continuation server-only. productId is
-  // captured automatically and the public result is staged into state.
-  this.state.product = await products.find(props.productId);
-
-  return () => (
-    <article>
-      <h1>{this.state.product?.name}</h1>
-      <button onClick={() => this.state.detailsOpen = !this.state.detailsOpen}>
-        {this.state.detailsOpen ? 'Hide details' : 'Show details'}
-      </button>
-      {this.state.detailsOpen && <p>Product ID: {this.state.product?.id}</p>}
-    </article>
-  );
-}`;
-
-const requestContextSource = `import {
-  composeExactExecutorContract, createExactHydrationConfig
-} from '@exactjs/server';
-import { createExactServerRuntime } from '@exactjs/ssr';
-import {
-  ProductPage, ProductRepositoryContext
-} from '../.exact/ProductPage.exact.server.js';
-
-// Compose the operations emitted for this server component.
-const contract = composeExactExecutorContract([ProductPage], { endpoint: '/__exact' });
-// Spread these options into a custom hydratable SSR renderer.
-const hydration = createExactHydrationConfig(contract, { includeContinuations: false });
-
-const runtime = createExactServerRuntime({
-  contract,
-  requestContexts: async ({ platformRequest }) => [
-    [ProductRepositoryContext, {
-      value: await repositoryForVerifiedRequest(platformRequest)
-    }]
-  ]
-});`;
-
-const sharedProjectionSource = `interface Database {
-  // Database and its credentials stay server-only.
-  /** @exact shared */
-  queryProducts(category: string): Promise<ProductSummary[]>;
-}
-
-interface UnsafeDatabase {
-  // Without @exact shared, returning this server-resident value to client
-  // state is rejected. Secret-qualified results can never be made shared.
-  queryInternalRecord(id: string): Promise<InternalRecord>;
-}`;
 
 /** Explains compiler-distributed component continuations and their data boundary. */
 export function ServerExecutionPage(this: Component<{}>) {
@@ -111,12 +47,22 @@ export function ServerExecutionPage(this: Component<{}>) {
 				<p>
 					If <code>productId</code> changes, eXact starts the corresponding work and prevents an
 					outdated run from overwriting the new product. When calls share a batched request,
-					canceling one leaves the other calls running. Removing the component cancels its work,
-					just as it does for a local <a href="#/learn/tasks">task</a>.
+					canceling one leaves the other calls running. Client request cancellation rejects with the
+					AbortSignal's exact reason, including null. Request context initialization, request-body
+					reads, and response bodies also preserve that reason while releasing owned resources.
+					Produced response bodies forward it to blocked writes and retained scope cleanup. Removing
+					the component cancels its work, just as it does for a local{' '}
+					<a href="#/learn/tasks">task</a>.
 				</p>
 			</section>
 			<section>
 				<h2>Supply the service for each request</h2>
+				<p>
+					When request URLs need your public deployment origin, configure <code>publicOrigin</code>
+					on the server runtime. eXact combines it with the incoming path and query, including paths
+					beginning with <code>//</code>, while preserving your configured origin. Without that
+					configuration, normalized request URLs use <code>http://exact.invalid</code>.
+				</p>
 				<p>
 					The server must decide which user is making the request and which records they may read.
 					Provide the repository through <code>requestContexts</code> when creating the runtime.
@@ -128,7 +74,8 @@ export function ServerExecutionPage(this: Component<{}>) {
 					browser to invoke. <code>composeExactExecutorContract()</code> collects those operations
 					and their endpoint into the <code>contract</code> used by the runtime. The example below
 					assumes
-					<code>ProductPage.tsx</code> is the compiled entry.
+					<code>ProductPage.tsx</code> is the compiled entry. Contract helper results are ordinary
+					records whose readonly fields follow TypeScript’s compile-time rules.
 				</p>
 				<CodeBlock
 					source={requestContextSource}
@@ -158,8 +105,9 @@ export function ServerExecutionPage(this: Component<{}>) {
 				<details>
 					<summary>Owning and releasing request resources</summary>
 					<p>
-						A factory-backed context lets eXact own a resource’s lifetime and cleanup. An existing
-						value supplied to the context keeps its existing owner. When a context scope closes,
+						A factory-backed context lets eXact own a resource’s lifetime and cleanup. Disposal
+						failures propagate even when a callback throws a primitive value. An existing value
+						supplied to the context keeps its existing owner. When a context scope closes,
 						factory-owned resources are released before the dependencies they use.
 					</p>
 				</details>
@@ -170,8 +118,22 @@ export function ServerExecutionPage(this: Component<{}>) {
 					A product’s display name may be public even though the database connection is private.
 					Application and request contexts stay on the server by default. Mark a method’s return
 					value with <code>@exact shared</code> when it is intended to cross to the client. eXact
-					still checks that value against its data policy and serialization rules.
+					still checks that value against its data policy and serialization rules. Runtime
+					validation rejects accessors and serialization hooks in results without invoking them.
 				</p>
+				<p>
+					State passed to server tasks preserves <code>undefined</code>, <code>NaN</code>,
+					<code>Infinity</code>, <code>-Infinity</code>, and <code>-0</code>. Assigning
+					<code>undefined</code> on the server clears the client value while keeping the property. A
+					missing property remains distinct from a property whose value is <code>undefined</code>.
+					Use ordinary <code>delete</code> to remove a state property on both sides. A conditional
+					branch that skips the write preserves client edits made while the request was pending. An
+					assignment that runs still publishes when its value equals the captured input. Updating a
+					nested field retains its siblings. Assigning the enclosing object replaces that subtree.
+					The server and client validate returned fields against the operation’s compiler-generated
+					write permissions before publishing them.
+				</p>
+
 				<CodeBlock
 					source={sharedProjectionSource}
 					language="ts"
@@ -198,7 +160,9 @@ export function ServerExecutionPage(this: Component<{}>) {
 						<code>validateCsrf(request, context)</code> to check credentials and headers before body
 						parsing. Use <code>authorizeOperation(request, input, context)</code> for checks that
 						need the decoded operation. A forwarding host authenticates the request. The downstream
-						service applies its own operation policy.
+						service applies its own operation policy. Configured hooks must return or resolve to
+						<code>true</code> to approve access. Other results and errors deny access. Omitted hooks
+						leave the corresponding optional check disabled.
 					</p>
 					<p>
 						When registering custom operations, use explicit entries in ordinary object literals for
@@ -207,40 +171,7 @@ export function ServerExecutionPage(this: Component<{}>) {
 					</p>
 				</details>
 			</section>
-			<section>
-				<h2>Render the first result on the server</h2>
-				<p>
-					The product page can arrive with its product already visible. Server-side rendering (SSR)
-					resolves the request context and runs the server work before sending the resulting HTML.{' '}
-					<strong>Hydration</strong> connects the browser component to that HTML and restores the
-					settled state, so it does not need to repeat the initial request.
-				</p>
-				<p>
-					Later changes still use the same task. Selecting another product loads its data and
-					updates the existing component. Independent tasks can start while earlier tasks are
-					waiting, subject to request concurrency limits, while HTML stays in page order.
-				</p>
-				<details>
-					<summary>Sending HTML progressively</summary>
-					<p>
-						Progressive output can send a completed document head while body tasks are still
-						running. The browser can discover stylesheets and scripts sooner. The body, hydration
-						data, and closing tags follow in the same render. If pending work can change the head,
-						or a transformation needs the complete output, eXact waits for that work first.
-					</p>
-					<p>
-						String and streaming output both support hydration of the existing DOM. For custom
-						response handlers, see <a href="#/advanced">server rendering and hydration setup</a>.
-						The{' '}
-						<a href="https://github.com/techjoshua/exact/blob/main/docs/ssr-hydration.md">
-							SSR reference
-						</a>{' '}
-						covers publication, URL handling, and output limits. Native URL attributes block
-						javascript protocols in server output and DOM updates. When a value needs string
-						conversion, eXact publishes the same text it checked.
-					</p>
-				</details>
-			</section>
+			<ServerRenderingLesson />
 			<section>
 				<h2>Add interactive regions to a server page</h2>
 				<p>
@@ -254,7 +185,8 @@ export function ServerExecutionPage(this: Component<{}>) {
 					that stateful provider as one hydrated component instance, including when the controls
 					come from a library. The provider can respond to those controls without owning an event
 					handler itself. Its server-rendered children remain in place as nested islands activate
-					within its context.
+					within its context. Authorized public-context updates also reach the browser when task
+					responses stream, including when several calls share a batch.
 				</p>
 				<p>
 					A visible control can be used while its island code is still loading. Once the hydration
@@ -262,7 +194,10 @@ export function ServerExecutionPage(this: Component<{}>) {
 					both eager and interaction-triggered islands and delivers them after adoption. Repeated
 					input or change events retain the latest value for each control and event type. For
 					example, choosing Light while an eager island loads applies that choice when its handler
-					becomes available. Unsupported events and events before capture starts are not replayed.
+					becomes available. If a refresh replaces an island while its code loads, interactions with
+					the replacement belong to that new island. The shared code can finish loading once without
+					delivering actions from the retired island. Unsupported events and events before capture
+					starts are not replayed.
 				</p>
 				<p>
 					Replay preserves supported event and control data, such as an input’s value. A handler
@@ -276,11 +211,14 @@ export function ServerExecutionPage(this: Component<{}>) {
 					root. An explicitly client-only child mounts in its server placeholder while retaining the
 					parent’s DOM and edited inputs. When an island contains other components, eXact restores
 					their server-rendered state together as that island activates. Data passed to an
-					independent island must be serializable. Wrappers can also accept{' '}
-					<code>props.children</code> rendered on the server. eXact retains that content and any
-					nested islands, so you do not need to recreate it in browser code. An enhancement attached
-					to an element activates with the client component or island that owns that element. Its
-					lifecycle work keeps that ownership.
+					independent island must be serializable. Symbol-keyed state can remain client-local, but
+					cannot enter an SSR hydration snapshot. The compiler reports <code>EXACT2232</code>
+					at a captured symbol key. Use named string or number properties for state that must be
+					restored from the server. Wrappers can also accept <code>props.children</code> rendered on
+					the server. eXact retains that content and any nested islands, so you do not need to
+					recreate it in browser code. An enhancement attached to an element activates with the
+					client component or island that owns that element. Its lifecycle work keeps that
+					ownership.
 				</p>
 				<p>
 					When a page component should run only on the server, you can mark it with
@@ -296,7 +234,9 @@ export function ServerExecutionPage(this: Component<{}>) {
 						<li>
 							Use <code>createExactClient(root, options)</code> with the generated island
 							registration for a page partitioned into independent islands. An islands-only
-							bootstrap cannot activate a page that emitted no independent boundaries.
+							bootstrap cannot activate a page that emitted no independent boundaries. To attach
+							transport before later hydration or registration, omit the <code>islands</code>{' '}
+							option. Supplying an empty registry still checks for missing island entries.
 						</li>
 					</ul>
 					<p>
@@ -305,6 +245,12 @@ export function ServerExecutionPage(this: Component<{}>) {
 						<code>documentShell</code> preserves whole-application hydration for a client or
 						isomorphic application. A server-only page inside that shell still uses its independent
 						islands and the island bootstrap.
+					</p>
+					<p>
+						Initial hydration publishes refs for the content it adopts before returning. Lazy
+						islands attach after their modules load. Disposing a hydration handle releases the mount
+						it accepted. If a callback replaces that mount, disposing the older handle leaves the
+						replacement active.
 					</p>
 					<p>
 						Both APIs discover serialized configuration, including scripts beside the application
@@ -345,7 +291,37 @@ export function ServerExecutionPage(this: Component<{}>) {
 					When a request disconnects, its rendering and server tasks should stop too. The composed
 					server runtime carries the request’s abort signal through both. A render-specific signal
 					can stop work sooner, but cannot keep it alive after the request ends or the runtime shuts
-					down. Pass task signals to data clients so their I/O can stop as well.
+					down. Rendering has no automatic timeout. Choose a page-specific expiration with
+					<code>signal: AbortSignal.timeout(durationMs)</code>, or abort an
+					<code>AbortController</code> when your application needs to release capacity. Pass task
+					signals to data clients so their I/O can stop as well. Set{' '}
+					<code>limits.maxRequestBytes</code>
+					for a hard request-body cap. Client <code>streamLimits.maxRequestBytes</code> enforces a
+					cap before sending single or batched requests. Without a cap, bodies over 4 MiB warn and
+					continue.
+				</p>
+				<p>
+					For invocation responses, omitted resource settings warn above 16 MiB, 100,000 stream
+					events, 10,000 patches per operation, depth 100, or 100,000 graph values and properties.
+					Otherwise valid output continues. Set positive integer caps in server <code>limits</code>
+					to stop excess output with an error. For example,
+					<code>maxStreamBytes: 32 * 1024 * 1024</code>
+					caps total UTF-8 stream bytes. <code>maxResponseBytes</code> caps buffered output and
+					graph string/key content, while <code>maxJsonDepth</code>, <code>maxJsonNodes</code>,
+					<code>maxPatches</code>, and <code>maxStreamEvents</code> select the other caps. The
+					server logger reports the option, scope, threshold, and measured amount. Client
+					<code>streamLimits</code> applies local caps using <code>maxBytes</code> and
+					<code>maxEvents</code> for bytes and events. Client-only breaches use the client logger.
+					Graph validity, authorization, and cancellation still apply at every size.
+				</p>
+				<p>
+					A large rendered page can keep streaming while its reader keeps up. Rendering has no
+					default total byte or stream-event quota. For a page that needs an output ceiling, set
+					<code>maxOutputBytes</code> on its render options. Streaming also accepts explicit
+					<code>maxStreamBytes</code>, <code>maxStreamChunks</code> for plain HTML, and
+					<code>maxStreamEvents</code> for document events or progressive HTML. These caps apply to
+					total output. Set <code>maxTreeNodes</code> when a page needs a ceiling on visited render
+					values. Hydration payload, nesting-depth, and task-stabilization limits apply separately.
 				</p>
 				<p>
 					On Node, unexpected request and cleanup failures go to the runtime logger, or the server

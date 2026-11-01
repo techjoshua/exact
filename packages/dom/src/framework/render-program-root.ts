@@ -16,5 +16,5 @@ export function renderCompiledProgramRoot(
 		throw new TypeError(
 			'Compiled program root requires a compiler-issued render-program operation'
 		);
-	renderFocusedOperationRoot(operation, receipt.domain, container, options);
+	renderFocusedOperationRoot(operation, container, options);
 }

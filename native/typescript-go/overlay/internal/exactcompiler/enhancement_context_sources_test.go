@@ -27,7 +27,7 @@ func TestEnhancementSubsystemImportedContextSources(t *testing.T) {
 	}
 	for _, c := range []struct {
 		name, imports, setup, invocation string
-		opaque                           bool
+		replacement                      bool
 	}{
 		{"call", `import {read} from './helper.js';`, "", `read.call(undefined,this)`, false},
 		{"apply", `import {read} from './helper.js';`, "", `read.apply(undefined,[this])`, false},
@@ -56,9 +56,11 @@ func TestEnhancementSubsystemImportedContextSources(t *testing.T) {
 				if response.Error != "" || len(response.Diagnostics) != 0 {
 					t.Fatalf("context consumer rejected: %s %#v", response.Error, response.Diagnostics)
 				}
-				if c.opaque {
-					if strings.Contains(response.Code, "readCompiledEnhancementContextDependency") || response.Analysis.Components[0].Placement == "isomorphic" {
-						t.Fatalf("mutable alias inherited the original helper contract: %s", response.Code)
+				if c.replacement {
+					// The selected neutral body is portable independently of the imported
+					// helper's token contract. Mutable type compatibility supplies neither.
+					if strings.Contains(response.Code, "readCompiledEnhancementContextDependency") || len(response.Analysis.Components) != 1 || response.Analysis.Components[0].Placement != "isomorphic" {
+						t.Fatalf("neutral replacement lost availability or inherited the helper contract: %#v\n%s", response.Analysis.Components, response.Code)
 					}
 					return
 				}

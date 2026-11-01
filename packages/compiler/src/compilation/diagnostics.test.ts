@@ -6,6 +6,25 @@ import { analyzeSource } from './source-analysis.js';
 import { createTestWorkspace } from '../test-support/workspace.js';
 
 describe('@exactjs/compiler: diagnostics', () => {
+	it('reports reserved physical identity through public analysis and paired compilation', () => {
+		for (const source of [
+			'export function Page(){return()=> <button data-exact-id="authored"/>}',
+			'export function Page(){return()=> <select {...({"data-exact-id":"authored"} as {})}/>}'
+		]) {
+			const options = { filename: '/src/ReservedIdentity.tsx' };
+			expect(analyzeSource(source, options).diagnostics).toContainEqual(
+				expect.stringContaining('data-exact-id is compiler-owned')
+			);
+			for (const target of ['client', 'server'] as const) {
+				expect(() => transform(source, { ...options, target })).toThrow(
+					'data-exact-id is compiler-owned'
+				);
+				expect(
+					transform(source.replace('data-exact-id', 'data-testid'), { ...options, target })
+				).toContain('data-testid');
+			}
+		}
+	});
 	it('diagnoses unresolved runtime JSX component tags', () => {
 		const source = `
       export function Page() {

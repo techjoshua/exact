@@ -95,3 +95,38 @@ it('commits nested state through retained reactive receivers while snapshot merg
 		stop();
 	}
 });
+
+it('preserves unrelated sparse slots while merging an exact nested write', () => {
+	const rows = new Array<{ value: string }>(3);
+	rows[2] = { value: 'before' };
+	const update = { rows: new Array<{ value: string }>(3) };
+	update.rows[2] = { value: 'after' };
+	const merged = mergeStateForContract({ rows }, update, {
+		writes: [{ path: 'rows.2.value', kind: 'write', confidence: 'exact' }]
+	});
+	expect(merged.ok).toBe(true);
+	if (!merged.ok) return;
+	const result = merged.state as { rows: typeof rows };
+	expect(Object.keys(result.rows)).toEqual(['2']);
+	expect(result.rows[2]!.value).toBe('after');
+	expect(rows[2]!.value).toBe('before');
+});
+
+it('preserves unrelated sparse slots while merging collection deltas', () => {
+	const rows = new Array<{ lookup: Map<string, number> }>(3);
+	rows[2] = { lookup: new Map([['before', 1]]) };
+	const merged = mergeCollectionMutationsForContract(
+		{ rows },
+		[{ path: 'rows.2.lookup', operation: 'map-set', key: 'after', value: 2 }],
+		{ writes: [{ path: 'rows.2.lookup', kind: 'write', confidence: 'exact', operation: 'map' }] }
+	);
+	expect(merged.ok).toBe(true);
+	if (!merged.ok) return;
+	const result = merged.state as { rows: typeof rows };
+	expect(Object.keys(result.rows)).toEqual(['2']);
+	expect([...result.rows[2]!.lookup]).toEqual([
+		['before', 1],
+		['after', 2]
+	]);
+	expect([...rows[2]!.lookup]).toEqual([['before', 1]]);
+});

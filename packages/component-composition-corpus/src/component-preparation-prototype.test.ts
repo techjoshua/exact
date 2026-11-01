@@ -1,4 +1,5 @@
-import { renderCompiledComponentRoot } from '../../dom/src/framework/component-root.js';
+import { readClientComponentInput } from '../../dom/src/renderer/component-input-admission.js';
+import { renderCompiledComponentInputRoot } from '../../dom/src/framework/component-root.js';
 import { unmount } from '@exactjs/dom';
 import '@exactjs/dom/runtime/target';
 import { createComponentDomain, currentComponentDomain } from '@exactjs/core';
@@ -7,10 +8,9 @@ import {
 	registerEffectScopeCleanup
 } from '@exactjs/reactive/framework/runtime';
 import {
-	createCompiledComponentReceipt,
+	createCompiledComponentInputReceipt,
 	readChildRangeReceipt,
 	createCompiledIntrinsicReceipt,
-	readCompiledComponentReceipt,
 	readCompiledTargetReceipt
 } from '@exactjs/core/runtime/component-operations';
 import { createCompiledFragmentReceipt } from '@exactjs/core/runtime/component-abi';
@@ -30,20 +30,22 @@ import {
 	preparationRoot,
 	transparentPreparationRoot
 } from './prototypes/preparation.fixtures.js';
-
 beforeEach(() => Object.assign(preparationAudit, { setup: 0, mounted: 0, disposed: 0 }));
-
 describe('compiled component preparation', () => {
 	it('updates destructured props and the implicit supplied child without recreating its host', () => {
 		const container = document.createElement('div');
 		const child = createCompiledIntrinsicReceipt('button', null, 'supplied');
 		const tree = (label: string) =>
-			createCompiledComponentReceipt(DestructuredPreparedEnhancement, { label }, child);
+			createCompiledComponentInputReceipt(
+				DestructuredPreparedEnhancement,
+				{ label },
+				{ kind: 'eager', values: [child] }
+			);
 		try {
-			renderCompiledComponentRoot(tree('before'), container);
+			renderCompiledComponentInputRoot(tree('before'), container);
 			const button = container.querySelector('button');
 			expect(button?.title).toBe('before');
-			renderCompiledComponentRoot(tree('after'), container);
+			renderCompiledComponentInputRoot(tree('after'), container);
 			flushSync();
 			expect(container.querySelector('button')).toBe(button);
 			expect(button?.title).toBe('after');
@@ -61,7 +63,7 @@ describe('compiled component preparation', () => {
 			const root = createRendererRoot(container, operation, {}, { version: 1 });
 			const prepared = prepareComponentReceipt(
 				root,
-				readCompiledComponentReceipt(operation)!,
+				readClientComponentInput(operation)!,
 				undefined,
 				undefined,
 				container
@@ -89,7 +91,7 @@ describe('compiled component preparation', () => {
 		const root = createRendererRoot(container, operation, {}, { version: 1 });
 		const prepared = prepareComponentReceipt(
 			root,
-			readCompiledComponentReceipt(operation)!,
+			readClientComponentInput(operation)!,
 			undefined,
 			undefined,
 			container
@@ -124,7 +126,7 @@ describe('compiled component preparation', () => {
 			const root = createRendererRoot(container, operation, {}, { version: 1 });
 			const prepared = prepareComponentReceipt(
 				root,
-				readCompiledComponentReceipt(operation)!,
+				readClientComponentInput(operation)!,
 				undefined,
 				undefined,
 				container
@@ -166,7 +168,7 @@ describe('compiled component preparation', () => {
 			{ componentDomain: domain },
 			{ version: 1 }
 		);
-		const prepared = prepareComponentReceipt(root, readCompiledComponentReceipt(operation)!);
+		const prepared = prepareComponentReceipt(root, readClientComponentInput(operation)!);
 		const failure = new Error('cannot project');
 		const cleanup = vi.fn();
 		try {
@@ -187,7 +189,7 @@ describe('compiled component preparation', () => {
 	});
 	it('preserves a preparation failure while still disposing its constructed instance', () => {
 		const operation = preparationRoot(createCompiledIntrinsicReceipt('button', null));
-		const receipt = readCompiledComponentReceipt(operation)!;
+		const receipt = readClientComponentInput(operation)!;
 		const artifact = receipt.contract.artifact;
 		if (artifact.target !== 'client') throw new Error('Expected client fixture');
 		const container = document.createElement('div');
@@ -229,7 +231,7 @@ describe('compiled component preparation', () => {
 			const root = createRendererRoot(container, operation, {}, { version: 1, mode: 'hydrated' });
 			const prepared = prepareComponentReceipt(
 				root,
-				readCompiledComponentReceipt(operation)!,
+				readClientComponentInput(operation)!,
 				undefined,
 				undefined,
 				container
@@ -264,7 +266,7 @@ describe('compiled component preparation', () => {
 		const root = createRendererRoot(container, operation, {}, { version: 1 });
 		const prepared = prepareComponentReceipt(
 			root,
-			readCompiledComponentReceipt(operation)!,
+			readClientComponentInput(operation)!,
 			undefined,
 			undefined,
 			container
@@ -296,12 +298,12 @@ describe('compiled component preparation', () => {
 		const operation = preparationRoot(createCompiledIntrinsicReceipt('button', null, 'target'));
 		const container = document.createElement('div');
 		const root = createRendererRoot(container, operation, {}, { version: 1 });
-		const artifact = readCompiledComponentReceipt(operation)!.contract.artifact;
+		const artifact = readClientComponentInput(operation)!.contract.artifact;
 		if (artifact.target !== 'client') throw new Error('Expected client fixture');
 		const attach = vi.spyOn(artifact, 'attach');
 		const prepared = prepareComponentReceipt(
 			root,
-			readCompiledComponentReceipt(operation)!,
+			readClientComponentInput(operation)!,
 			undefined,
 			undefined,
 			container
@@ -337,14 +339,13 @@ describe('compiled component preparation', () => {
 		}
 		expect(preparationAudit.disposed).toBe(1);
 	});
-
 	it('releases an abandoned preparation once without mount or ref publication', () => {
 		const operation = preparationRoot(createCompiledIntrinsicReceipt('button', null));
 		const container = document.createElement('div');
 		const root = createRendererRoot(container, operation, {}, { version: 1 });
 		const prepared = prepareComponentReceipt(
 			root,
-			readCompiledComponentReceipt(operation)!,
+			readClientComponentInput(operation)!,
 			undefined,
 			undefined,
 			container
@@ -356,7 +357,6 @@ describe('compiled component preparation', () => {
 		expect(() => prepared.commit()).toThrow('not ready');
 		expect(() => prepared.output).toThrow('not available');
 	});
-
 	it('does not commit into a stopped parent scope', () => {
 		const parent = createEffectScope();
 		const operation = preparationRoot(createCompiledIntrinsicReceipt('button', null));
@@ -364,7 +364,7 @@ describe('compiled component preparation', () => {
 		const root = createRendererRoot(container, operation, {}, { version: 1 });
 		const prepared = prepareComponentReceipt(
 			root,
-			readCompiledComponentReceipt(operation)!,
+			readClientComponentInput(operation)!,
 			undefined,
 			parent,
 			container

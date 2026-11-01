@@ -2,6 +2,10 @@ package exactcompiler
 
 import (
 	"context"
+	"github.com/microsoft/TypeScript/tsc/internal/checker"
+	"maps"
+	"slices"
+	"strconv"
 
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
 	"github.com/microsoft/TypeScript/tsc/internal/core"
@@ -21,9 +25,12 @@ func validateGeneratedCode(
 	return validateGeneratedCodeWithCache(request, fileName, code, sources, nil)
 }
 
-func (s *Session) validateGeneratedCode(request Request, fileName string, code string, sources *sourceOverlay) ([]Diagnostic, error) {
+func (s *Session) validateGeneratedCode(request Request, fileName string, code string, sources *sourceOverlay, helpers generatedValidationHelpers) ([]Diagnostic, error) {
 	if s.generatedValidations == nil {
 		s.generatedValidations = make(map[Target]*generatedValidationProject)
+	}
+	if request.Kind != "check" && request.Diagnostics == "semantic" && (request.Target == TargetServer || request.ModuleRewrite != nil && len(request.ModuleRewrite.ModuleAliases) != 0) {
+		sources = helpers.dependencies(fileName, sources, request.ModuleRewrite)
 	}
 	return validateGeneratedCodeWithCache(request, fileName, code, sources, s.generatedValidations)
 }
@@ -54,7 +61,7 @@ func validateGeneratedCodeWithCache(request Request, fileName string, code strin
 	}
 
 	generatedRequest := request
-	generatedRequest.ID = generatedFileName
+	generatedRequest.ID = fileName
 	generatedRequest.Source = code
 	var dependencySources map[string]string
 	if sources != nil {
@@ -63,14 +70,14 @@ func validateGeneratedCodeWithCache(request Request, fileName string, code strin
 	key := nativeProjectKey(request, fileName) + "\x00" + generatedFileName
 	entry := cache[request.Target]
 	var project *projectState
-	if entry.reusable(key, generatedFileName, sources) {
+	if entry.reusable(key, fileName, sources) {
 		project = entry.project
 		if err := updateValidationOverlays(project, sources); err != nil {
 			return diagnostics, err
 		}
 	} else {
 		observations := newValidationDependencies()
-		created, configDiagnostics, err := newProjectStateWithSources(generatedRequest, generatedFileName, dependencySources, observations)
+		created, configDiagnostics, err := newProjectStateWithGeneratedEntry(generatedRequest, fileName, dependencySources, fileName, observations)
 		for _, diagnostic := range configDiagnostics {
 			diagnostics = append(diagnostics, projectDiagnostic(diagnostic))
 		}
@@ -82,19 +89,135 @@ func validateGeneratedCodeWithCache(request Request, fileName string, code strin
 			cache[request.Target] = &generatedValidationProject{key: key, project: project, dependencies: observations}
 		}
 	}
-	generation, err := project.advance(context.Background(), generatedFileName, code)
+	generation, err := project.advance(context.Background(), fileName, code)
 	if err != nil {
 		return diagnostics, err
 	}
 	defer generation.release()
+	// Semantic checking shares the original module identity so imports cannot create a
+	// second local nominal type. Keep the existing generated diagnostic label for mapping.
+	appendGenerated := func(diagnostic *ast.Diagnostic) {
+		projected := projectDiagnostic(diagnostic)
+		if project.fs.canonical(projected.FileName) == project.fs.canonical(fileName) {
+			projected.FileName = generatedFileName
+		}
+		diagnostics = append(diagnostics, projected)
+	}
 	for _, diagnostic := range generation.sourceFile.BindDiagnostics() {
-		diagnostics = append(diagnostics, projectDiagnostic(diagnostic))
+		appendGenerated(diagnostic)
 	}
 	for _, diagnostic := range generation.checker.GetDiagnostics(
 		context.Background(),
 		generation.sourceFile,
 	) {
-		diagnostics = append(diagnostics, projectDiagnostic(diagnostic))
+		appendGenerated(diagnostic)
 	}
 	return diagnostics, nil
+}
+
+// generatedValidationHelpers carries existing checked source authority only across this emission.
+// Its finite dependency view is shared by fresh and retained validation, never the authored program.
+type generatedValidationHelpers struct {
+	plan      helperMutationPlan
+	callables callableAnalysis
+	checker   *checker.Checker
+	imports   []Import
+}
+
+func (helpers generatedValidationHelpers) dependencies(entry string, sources *sourceOverlay, rewrite *ModuleRewrite) *sourceOverlay {
+	if sources == nil || len(helpers.plan.sources) == 0 && (rewrite == nil || len(rewrite.ModuleAliases) == 0) {
+		return sources
+	}
+	projected := &sourceOverlay{base: sources.base, files: maps.Clone(sources.files)}
+	seen := map[string]bool{projected.canonical(entry): true}
+	pending := append([]HelperSource{}, helpers.plan.sources...)
+	owners := make(map[string]*ast.SourceFile)
+	for _, helper := range helpers.plan.entries {
+		owners[projected.canonical(helper.source.FileName())] = helper.source
+	}
+	for len(pending) != 0 {
+		next := pending[0]
+		pending = pending[1:]
+		path := projected.canonical(next.SourceFile)
+		if seen[path] {
+			continue
+		}
+		seen[path] = true
+		source := owners[path]
+		if source == nil {
+			continue
+		}
+		plan := planHelperMutations(source, helpers.callables, helpers.checker)
+		projected.set(source.FileName(), emitValidationHelperSource(source, plan, helpers.checker))
+		pending = append(pending, plan.sources...)
+	}
+	// Module aliases relocate this already selected helper module. Keep the actual
+	// rewritten specifier resolvable without parsing a second nominal copy of its
+	// declarations. The checking-only forwarding module exports the real projected
+	// source namespace, including the generated companion exports. It invents no
+	// declarations and is never published. Export replacements remain independent.
+	if rewrite != nil {
+		selected := append([]HelperSource{}, helpers.plan.sources...)
+		// Ordinary relocated imports need the same nominal checking identity as companions.
+		// Use resolved local identities in the existing program, never another dependency walk.
+		if helpers.callables.owner != nil {
+			program := helpers.callables.owner.project.program
+			entrySource := program.GetSourceFile(entry)
+			for _, specifier := range slices.Sorted(maps.Keys(rewrite.ModuleAliases)) {
+				if !tspath.IsExternalModuleNameRelative(specifier) {
+					continue
+				}
+				file := ""
+				for _, edge := range helpers.imports {
+					if edge.ModuleSpecifier == specifier {
+						file = edge.ResolvedFile
+						break
+					}
+				}
+				// Lowered inferred types can refer to a transitive source module.
+				// Resolve only explicit host aliases, retaining an actual source in
+				// the existing program rather than constructing another dependency graph.
+				if file == "" && entrySource != nil {
+					if resolved := program.ResolveModuleName(specifier, entry, program.GetDefaultResolutionModeForFile(entrySource)); resolved != nil && resolved.IsResolved() {
+						file = resolved.ResolvedFileName
+					}
+				}
+				source := program.GetSourceFile(file)
+				if source == nil || source.IsDeclarationFile {
+					continue
+				}
+				owners[projected.canonical(source.FileName())] = source
+				selected = append(selected, HelperSource{ModuleSpecifier: specifier, SourceFile: source.FileName()})
+			}
+		}
+		for _, helper := range selected {
+			target := rewrite.ModuleAliases[helper.ModuleSpecifier]
+			if target == "" || target == helper.ModuleSpecifier || !tspath.IsExternalModuleNameRelative(target) {
+				continue
+			}
+			source := owners[projected.canonical(helper.SourceFile)]
+			if source == nil {
+				continue
+			}
+			filename := tspath.GetNormalizedAbsolutePath(target, tspath.GetDirectoryPath(entry))
+			if projected.canonical(filename) == projected.canonical(helper.SourceFile) {
+				continue
+			}
+			reference := tspath.GetRelativePathFromDirectory(tspath.GetDirectoryPath(filename), tspath.GetNormalizedAbsolutePath(helper.ModuleSpecifier, tspath.GetDirectoryPath(entry)), tspath.ComparePathsOptions{UseCaseSensitiveFileNames: projected.UseCaseSensitiveFileNames()})
+			if !tspath.IsExternalModuleNameRelative(reference) {
+				reference = "./" + reference
+			}
+			text := "export * from " + strconv.Quote(reference) + ";"
+			if symbol := source.AsNode().Symbol(); symbol != nil {
+				for _, exported := range helpers.checker.GetExportsOfModule(symbol) {
+					if exported.Name == "default" {
+						text += "export {default} from " + strconv.Quote(reference) + ";"
+						break
+					}
+				}
+			}
+			projected.set(filename, text)
+		}
+	}
+	return projected
 }

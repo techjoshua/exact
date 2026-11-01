@@ -144,14 +144,13 @@ import assert from "node:assert/strict";
 if (typeof renderLabBox !== 'function' || !renderLabBox({text:'visible'})) throw new Error('Missing executable JSX helper');
 if (!await loadBox()) throw new Error('Missing executable lazy JSX helper');
 for(const [Constructor,bindWork,immediateWork] of [[Counter,bind,immediate],[JavaScriptCounter,bindJavaScript,immediateJavaScript],[CommonJSCounter,bindCommonJS,immediateCommonJS]]) {
-const helper=new Constructor(),counter={count:1},readonly=reactive(counter,{readonly:true}),root={counter,readonly};
+const helper=new Constructor(),counter={count:1},alias=reactive(counter),root={counter,alias};
 for(const settlement of ['discard','commit']) {
  const pending=createPendingReactiveTransaction(root);
- pending.read(root,'counter');pending.read(root,'readonly');
- assert.throws(()=>pending.helper(immediateWork)(readonly),/readonly/);
+ pending.read(root,'counter');pending.read(root,'alias');
  assert.equal(pending.helper(helper.increment,helper)(counter),2);
  assert.equal(pending.helper(bindWork)(counter)(),4);
- assert.equal(pending.helper(immediateWork)(counter),5);
+ assert.equal(pending.helper(immediateWork)(alias),5);
  assert.equal(counter.count,1);
  pending[settlement]();
  assert.equal(counter.count,settlement==='commit'?5:1);

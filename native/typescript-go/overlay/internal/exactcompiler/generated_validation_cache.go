@@ -30,6 +30,9 @@ func (entry *generatedValidationProject) reusable(key string, filename string, s
 	}
 	if sources != nil {
 		for path, text := range sources.files {
+			if path == entry.project.fs.canonical(filename) {
+				continue
+			}
 			previous, present := entry.project.fs.files[path]
 			// New virtual files can change config root discovery or failed resolution probes.
 			// Changed non-source overlays can alter compiler options or package exports.
@@ -47,6 +50,10 @@ func updateValidationOverlays(project *projectState, sources *sourceOverlay) err
 	}
 	paths := make([]string, 0, len(sources.files))
 	for path, text := range sources.files {
+		// Authored dependencies must never overwrite this isolated generated entry.
+		if path == project.fs.canonical(project.generatedEntry) {
+			continue
+		}
 		project.fs.set(path, text)
 		paths = append(paths, path)
 	}

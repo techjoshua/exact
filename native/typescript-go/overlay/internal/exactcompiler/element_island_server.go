@@ -225,7 +225,7 @@ func (lowering *jsxLowering) serverIslandFallback(
 	if enhanced {
 		if lowering.timeActivation != "" && lowering.timeAttributesHaveClockSpread(opening.Attributes()) {
 			metadata := []*ast.Node{}
-			projected = lowering.propsWithDeferredProjection(opening.Attributes(), lowering.elementID(identityNode), true, tagText, false, true, &metadata)
+			projected = lowering.propsWithDeferredProjection(opening.Attributes(), lowering.elementID(identityNode), true, tagText, false, true, &metadata, ordinaryExpressionInput)
 			deferredSpreadMetadata = lowering.factory.NewObjectLiteralExpression(lowering.factory.NewNodeList(metadata), false)
 		} else {
 			projected = lowering.propsWithProjection(opening.Attributes(), lowering.elementID(identityNode), true, tagText, false, true)
@@ -274,9 +274,7 @@ func (lowering *jsxLowering) serverIslandFallback(
 		// Native component inputs remain local under a hydrated owner. Preserve callback
 		// props so the child can render normally; only independent captures serialize.
 		localProps := lowering.propsWithReactivity(opening.Attributes(), "", false, tagText, false)
-		props = lowering.factory.NewObjectLiteralExpression(lowering.factory.NewNodeList(append(
-			[]*ast.Node{properties[0]}, localProps.AsObjectLiteralExpression().Properties.Nodes...,
-		)), false)
+		props = localProps
 	}
 	arguments := []*ast.Node{emittedTag, props}
 	if !intrinsic || tagText == "title" || tagText == "textarea" || tagText == "script" || tagText == "style" {
@@ -310,22 +308,11 @@ func (lowering *jsxLowering) serverIslandAttributeProperties(
 	finiteSpreads map[int][]finiteSpreadProperty,
 ) []*ast.Node {
 	properties := []*ast.Node{}
-	if includeElementID {
-		properties = append(
-			properties,
-			lowering.property(
-				lowering.factory.NewStringLiteral(
-					"data-exact-id",
-					ast.TokenFlagsNone,
-				),
-				lowering.factory.NewStringLiteral(
-					elementID,
-					ast.TokenFlagsNone,
-				),
-			),
-		)
-	}
+
 	if attributes == nil {
+		if includeElementID {
+			properties = append(properties, lowering.elementIdentityProperty(elementID))
+		}
 		return properties
 	}
 	conditionalClasses := jsxHasConditionalClassName(attributes)
@@ -419,6 +406,9 @@ func (lowering *jsxLowering) serverIslandAttributeProperties(
 			properties,
 			lowering.property(jsxPropertyName(lowering.factory, name), value),
 		)
+	}
+	if includeElementID {
+		properties = append(properties, lowering.elementIdentityProperty(elementID))
 	}
 	return properties
 }

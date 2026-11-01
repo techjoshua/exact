@@ -1,3 +1,4 @@
+import { deriveRuntimeConfiguration } from '@exactjs/core/framework/configuration';
 import { type ComponentResumptionActivation } from '@exactjs/core';
 import {
 	exactComponentIdentity,
@@ -70,15 +71,14 @@ class DirectSsrResumptionCapture implements CreatedSsrResumptionCapture, SsrResu
 		private readonly publishedRootProps: Readonly<Record<string, unknown>> | undefined,
 		private readonly rootComponentId: string | undefined
 	) {
-		this.options = {
-			...options,
+		this.options = deriveRuntimeConfiguration(options, () => ({
 			resumptionCapture: this,
 			allowIndependentComponentObservation:
 				!options.onComponentCreated &&
 				!options.onComponentRendered &&
 				!options.onDirectComponentCreated &&
 				!options.onDirectComponentRendered
-		};
+		}));
 	}
 
 	checkpoint(): number {

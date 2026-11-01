@@ -650,6 +650,13 @@ restored insertion order. Transactional deletion records ordering anchors in lin
 deletion retains its constant-time path. This microbenchmark is a cost diagnostic, not an application
 throughput estimate or a historical speedup claim.
 
+The direct replacement scenarios time assignment and observer settlement in milliseconds.
+Payload preparation, protocol encoding and decoding, and network work are outside that interval.
+Equal-content replacements publish new storage and move subscriptions. They do not measure HTTP
+refresh or an identity-preserving snapshot reconciler. Historical hashed reconciliation results
+apply only to their recorded source variant and workload. The separate protocol roundtrip scenario
+times encoding, JSON transport representation, and decoding without a network request.
+
 The reactive benchmark also measures scope-owned deep-chain settlement and an equal-result diamond.
 The chain guards affected-graph traversal cost; the diamond verifies that equality prevents
 downstream execution while reporting settlement timing alongside the collection scenarios.

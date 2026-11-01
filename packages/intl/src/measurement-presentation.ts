@@ -1,3 +1,7 @@
+import {
+	ownIntlMeasurementPresentation,
+	requireIntlMeasurementEnvironment
+} from './measurement-owner.js';
 import type { IntlFiniteOptionsV1 } from './contracts.js';
 import type { IntlEnvironment } from './environment.js';
 import { listFormatter, numberFormatter } from './formatter-cache.js';
@@ -30,7 +34,7 @@ export interface IntlMeasurementPresentationRequest {
 	readonly values: readonly number[];
 }
 
-/** Intl-owned immutable decision used to convert and format related measurement values. */
+/** Intl-owned decision with TypeScript readonly fields used to convert and format related measurement values. */
 export interface IntlMeasurementPresentation {
 	readonly locale: string;
 	readonly quantity: string;
@@ -43,58 +47,45 @@ export interface IntlMeasurementPresentation {
 	readonly options: IntlMeasurementNumberOptions;
 }
 
-interface MeasurementPresentationOwner {
-	readonly environment: IntlEnvironment;
-	readonly generation: number;
-}
-
-const presentationEnvironments = new WeakMap<
-	IntlMeasurementPresentation,
-	MeasurementPresentationOwner
->();
-
 /** Resolves application policy and CLDR preferences once for a related set of values. */
 export function resolveIntlMeasurementPresentation(
 	environment: IntlEnvironment,
 	request: IntlMeasurementPresentationRequest
 ): IntlMeasurementPresentation {
-	validateMeasurementRequest(request);
-	const preference =
-		request.convertTo && request.convertTo !== 'auto'
-			? request.convertTo
-			: (environment.unitPreferences[
-					`${request.quantity}/${request.usage}` as keyof typeof environment.unitPreferences
-				] ??
-				resolveCldrUnitPreference(
-					environment.state.locale,
-					request.quantity,
-					request.usage,
-					request.values,
-					request.sourceUnit
-				));
-	const preferred = Array.isArray(preference) ? preference : [preference ?? request.sourceUnit];
-	const composition = request.unitComposition ?? 'mixed';
-	const destinations = Object.freeze(
-		(composition === 'single' ? preferred.slice(0, 1) : preferred).map((unit) =>
-			assertCompatibleUnit(request.sourceUnit, assertUnitName(unit))
-		)
-	);
-	const presentation = Object.freeze({
-		locale: environment.state.locale,
-		quantity: request.quantity,
-		usage: request.usage,
-		sourceUnit: request.sourceUnit,
-		destinationUnits: destinations,
-		unitComposition: composition,
-		...(request.precision ? { precision: request.precision } : {}),
-		...(request.difference ? { difference: true as const } : {}),
-		options: Object.freeze({ ...(request.options ?? {}) })
+	return ownIntlMeasurementPresentation(environment, () => {
+		validateMeasurementRequest(request);
+		const preference =
+			request.convertTo && request.convertTo !== 'auto'
+				? request.convertTo
+				: (environment.unitPreferences[
+						`${request.quantity}/${request.usage}` as keyof typeof environment.unitPreferences
+					] ??
+					resolveCldrUnitPreference(
+						environment.state.locale,
+						request.quantity,
+						request.usage,
+						request.values,
+						request.sourceUnit
+					));
+		const preferred = Array.isArray(preference) ? preference : [preference ?? request.sourceUnit];
+		const composition = request.unitComposition ?? 'mixed';
+		const destinations = (composition === 'single' ? preferred.slice(0, 1) : preferred).map(
+			(unit) => assertCompatibleUnit(request.sourceUnit, assertUnitName(unit))
+		);
+		const presentation = {
+			locale: environment.state.locale,
+			quantity: request.quantity,
+			usage: request.usage,
+			sourceUnit: request.sourceUnit,
+			destinationUnits: destinations,
+			unitComposition: composition,
+			...(request.precision ? { precision: request.precision } : {}),
+			...(request.difference ? { difference: true as const } : {}),
+			options: { ...(request.options ?? {}) }
+		};
+
+		return presentation;
 	});
-	presentationEnvironments.set(presentation, {
-		environment,
-		generation: environment.state.generation
-	});
-	return presentation;
 }
 
 /** Converts one source value through a scalar measurement presentation. @exact pure */
@@ -208,7 +199,7 @@ function formatIntlMeasurementValues(
 		throw new TypeError('Intl measurement formatting requires one value or one range');
 	for (const value of values)
 		if (!Number.isFinite(value)) throw new TypeError('Intl measurement values must be finite');
-	const environment = requirePresentationEnvironment(presentation);
+	const environment = requireIntlMeasurementEnvironment(presentation);
 	const destinations = presentation.destinationUnits;
 	const options = sourcePrecisionOptions(presentation, values, convertedValues);
 	if (destinations.length > 1) {
@@ -358,18 +349,6 @@ function formatUnitSymbol(
 		.formatToParts(value)
 		.map((part) => (part.type === 'unit' ? symbol : part.value))
 		.join('');
-}
-
-function requirePresentationEnvironment(
-	presentation: IntlMeasurementPresentation
-): IntlEnvironment {
-	const owner = presentationEnvironments.get(presentation);
-	if (!owner) throw new TypeError('Intl measurement presentation was not created by intl');
-	if (owner.generation !== owner.environment.state.generation)
-		throw new TypeError(
-			'Intl measurement presentation must be resolved again after an intl update'
-		);
-	return owner.environment;
 }
 
 function assertUnitName(value: string): IntlUnitName {

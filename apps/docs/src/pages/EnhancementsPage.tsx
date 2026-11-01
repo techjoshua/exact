@@ -94,7 +94,9 @@ export function EnhancementsPage(this: Component<{}>) {
 					independently. A <code>_target</code> placement does not override those roots. Duplicate
 					active roots are errors. An explicitly selected empty component waits for its own output
 					instead of falling back to another element. Peer wrappers follow source order, and
-					required context providers must precede their consumers.
+					required context providers must precede their consumers. These choices also apply when a
+					selected component places its child through <code>_target</code>, including during
+					hydration.
 				</p>
 				<p>
 					Enhancements on <code>_</code> occupy that transparent fragment boundary directly,
@@ -181,8 +183,9 @@ export function EnhancementsPage(this: Component<{}>) {
 				<CodeBlock source={fieldSource} language="tsx" title="Field.tsx" />
 				<p>
 					A self-closing <code>_target</code> places the component&apos;s supplied child and adds
-					its properties there. An explicit fragment counts as one logical child, even when it
-					contains several nodes. Several separately supplied children require an explicit fragment.
+					its properties there. Reactive property values update the supplied element while retaining
+					its identity. An explicit fragment counts as one logical child, even when it contains
+					several nodes. Several separately supplied children require an explicit fragment.
 				</p>
 				<p>A finite attributed export publishes that ordinary component as an enhancement:</p>
 				<CodeBlock source={fieldExportSource} language="ts" title="enhancements.ts" />

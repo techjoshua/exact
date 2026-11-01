@@ -4,7 +4,7 @@ Small, shared profiling contracts for eXact compiler, build, server, and runtime
 
 ## Usage
 
-Integrations publish immutable `ExactProfileEvent` values to an `onProfile` sink. Use
+Integrations publish `ExactProfileEvent` values with TypeScript readonly fields to an `onProfile` sink. Use
 `createProfileCollector()` for an in-memory event list and `summarizeProfile()` for totals by
 subsystem and phase.
 Framework publishers contain sink exceptions: profiling is observational and cannot turn a

@@ -1,6 +1,6 @@
 import type { GestureSample } from './contracts.js';
 
-/** Immutable viewport coordinate used by normalized gesture calculations. */
+/** Viewport coordinate with TypeScript readonly fields used by normalized gesture calculations. */
 export type Point = Readonly<{ x: number; y: number }>;
 /** Mutable session record retaining a pointer's origin and latest observed position. */
 export type PointerRecord = { origin: Point; last: Point; time: number; pointerType: string };
@@ -18,12 +18,13 @@ type PointerSampleInput = Readonly<{
 	signal: AbortSignal;
 }>;
 
-/** Normalizes pointer state into an immutable viewport/local gesture sample. */
+/** Normalizes pointer state into detached viewport/local observations. */
 export function createPointerGestureSample(input: PointerSampleInput): GestureSample {
 	const previous = input.previous ?? input.pointer;
 	const axis = input.axis ?? 'both';
-	const elapsed = Math.max(0, input.now() - input.startedAt);
-	const seconds = Math.max((input.now() - previous.time) / 1000, 1 / 1000);
+	const now = input.now();
+	const elapsed = Math.max(0, now - input.startedAt);
+	const seconds = Math.max((now - previous.time) / 1000, 1 / 1000);
 	let delta = {
 		x: input.point.x - input.pointer.origin.x,
 		y: input.point.y - input.pointer.origin.y
@@ -31,10 +32,10 @@ export function createPointerGestureSample(input: PointerSampleInput): GestureSa
 	if (axis === 'x') delta = { x: delta.x, y: 0 };
 	if (axis === 'y') delta = { x: 0, y: delta.y };
 	const bounds = input.element?.getBoundingClientRect();
-	return freezeGestureSample({
+	return {
 		phase: input.phase,
 		pointerType: normalizePointerType(input.pointer.pointerType),
-		point: input.point,
+		point: { ...input.point },
 		localPoint: {
 			x: input.point.x - (bounds?.left ?? 0),
 			y: input.point.y - (bounds?.top ?? 0)
@@ -47,35 +48,23 @@ export function createPointerGestureSample(input: PointerSampleInput): GestureSa
 		elapsed,
 		signal: input.signal,
 		originalEvent: input.event
-	});
+	};
 }
 
 /** Creates a zero-coordinate semantic sample for hover, focus, and keyboard intent. */
 export function createIdleGestureSample(phase: 'start' | 'end', event: Event): GestureSample {
-	const point = { x: 0, y: 0 };
-	return freezeGestureSample({
+	return {
 		phase,
 		pointerType:
 			event.type.startsWith('focus') || event.type.startsWith('key') ? 'keyboard' : 'mouse',
-		point,
-		localPoint: point,
-		delta: point,
-		velocity: point,
+		point: { x: 0, y: 0 },
+		localPoint: { x: 0, y: 0 },
+		delta: { x: 0, y: 0 },
+		velocity: { x: 0, y: 0 },
 		elapsed: 0,
 		signal: new AbortController().signal,
 		originalEvent: event
-	});
-}
-
-/** Freezes a semantic sample and each public coordinate so callbacks cannot mutate session data. */
-export function freezeGestureSample(sample: GestureSample): GestureSample {
-	return Object.freeze({
-		...sample,
-		point: Object.freeze(sample.point),
-		localPoint: Object.freeze(sample.localPoint),
-		delta: Object.freeze(sample.delta),
-		velocity: Object.freeze(sample.velocity)
-	});
+	};
 }
 
 /** Reads one pointer event as a viewport coordinate, tolerating incomplete test events. */

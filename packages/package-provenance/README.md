@@ -8,7 +8,8 @@ avoid maintaining independent public-export, real-path, and containment logic.
 
 Tooling hosts call `resolveExactNodePackage()` to preserve real-path, version, manifest, and lockfile
 integrity identity, then `resolveExactPublicPackageEntry()` to enforce an exported in-package
-subpath.
+subpath. Resolution returns ordinary independent metadata records with TypeScript readonly
+views. Mutating an observation does not edit package files or a subsequent resolution.
 
 ## Runtime boundary
 

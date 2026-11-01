@@ -37,6 +37,7 @@ func indexClientElementIslands(
 		}
 		owned = promoteStateConnectedClientRanges(
 			owned,
+			candidates[componentIndex].node,
 			component.Name,
 			renderedIslandStateReads(owned, component.Name, stateReads, reactiveBindings),
 			islandCapturedStateWrites(owned, candidates[componentIndex].node, stateWrites, typeChecker),
@@ -73,7 +74,7 @@ func indexClientElementIslands(
 			}
 
 			reconstructedSpreads, reconstructedDerived := islandReconstructedSpreads(element.node, derivedCaptures, typeChecker)
-			paths := islandStatePaths(
+			paths, stateKeys := islandStatePaths(
 				sourceFile,
 				component.Name,
 				node,
@@ -83,9 +84,11 @@ func indexClientElementIslands(
 				stateCaptures,
 				reactiveBindings,
 				spreadInputs,
+				typeChecker,
 			)
-			paths = islandDerivedStatePaths(
+			paths, stateKeys = islandDerivedStatePaths(
 				paths,
+				stateKeys,
 				derivedCaptures,
 				stateReads,
 				stateAliases,
@@ -99,8 +102,17 @@ func indexClientElementIslands(
 						valueCaptures[captureIndex].propsKeys = append([]string{}, component.PropsSlots...)
 						valueCaptures[captureIndex].propsEscape = islandPropsEscape(candidates[componentIndex].node, props, typeChecker)
 						// An open props surface can select children without a literal member read or declaration.
-						if valueCaptures[captureIndex].propsEscape && !slices.Contains(valueCaptures[captureIndex].propsKeys, "children") {
+						name := componentPropsParameterIdentifier(candidates[componentIndex].node)
+						valueCaptures[captureIndex].propsChildren = islandPropsChildren(typeChecker.GetTypeAtLocation(name), typeChecker)
+						children := valueCaptures[captureIndex].propsChildren != islandChildrenAbsent
+						if !children {
+							valueCaptures[captureIndex].propsKeys = slices.DeleteFunc(valueCaptures[captureIndex].propsKeys, func(key string) bool { return key == "children" })
+						}
+						if children && valueCaptures[captureIndex].propsEscape && !slices.Contains(valueCaptures[captureIndex].propsKeys, "children") {
 							valueCaptures[captureIndex].propsKeys = append(valueCaptures[captureIndex].propsKeys, "children")
+						}
+						if !slices.Contains(valueCaptures[captureIndex].propsKeys, "children") {
+							valueCaptures[captureIndex].propsChildren = islandChildrenAbsent
 						}
 					}
 				}
@@ -110,7 +122,17 @@ func indexClientElementIslands(
 			activation := analyzeIslandSubtreeActivation(
 				sourceFile, node, typeChecker, nodeIDs,
 			)
+			var receiverType *ast.Node
+			for _, parameter := range candidates[componentIndex].node.Parameters() {
+				if name := parameter.Name(); name != nil && ast.IsIdentifier(name) && name.Text() == "this" {
+					receiverType = parameter.Type()
+					break
+				}
+			}
 			result[node] = clientElementIsland{
+				receiverType:      receiverType,
+				types:             planIslandTypes(candidates[componentIndex].node, node, valueCaptures, functionCaptures, derivedCaptures, typeChecker),
+				typeParameters:    candidates[componentIndex].node.FunctionLikeData().TypeParameters,
 				renderedChildren:  islandRenderedChildrenReads(candidates[componentIndex].node),
 				captureReferences: islandCaptureReferences(candidates[componentIndex].node, valueCaptures, typeChecker),
 				component:         component,
@@ -128,6 +150,7 @@ func indexClientElementIslands(
 					islandIndex,
 				),
 				statePaths:           paths,
+				stateKeys:            stateKeys,
 				interaction:          activation.Mode == "interaction",
 				activation:           activation,
 				serverSlot:           serverSlot,
@@ -149,6 +172,7 @@ func indexClientElementIslands(
 // independent snapshots and an interaction in one range could not update consumers in another.
 func promoteStateConnectedClientRanges(
 	elements []componentElement,
+	definition *ast.Node,
 	component string,
 	reads []StateRead,
 	writes []StateWrite,
@@ -159,15 +183,36 @@ func promoteStateConnectedClientRanges(
 			continue
 		}
 		minimum, maximum := element.fullStart, element.fullEnd
-		connected := false
+		// A callback binding belongs to its invocation, even without a connected state write.
+		// Retain its enclosing repeated range rather than extracting an unbound parameter.
+		// Nested callbacks retain every enclosing binding, not only the nearest JSX range.
+		var callbackRange *ast.Node
+		inCallback := false
+		for parent := element.node.Parent; parent != nil && parent != definition; parent = parent.Parent {
+			inCallback = inCallback || ast.IsArrowFunction(parent) || ast.IsFunctionExpression(parent)
+			if inCallback && (ast.IsJsxElement(parent) || ast.IsJsxFragment(parent)) {
+				callbackRange = parent
+			}
+		}
+		connected := callbackRange != nil
+		if callbackRange != nil {
+			minimum = min(minimum, callbackRange.Pos())
+			maximum = max(maximum, callbackRange.End())
+		}
 		for _, write := range writes {
 			if write.Component != component || write.Start < element.fullStart || write.Start >= element.fullEnd {
 				continue
 			}
 			for _, read := range reads {
-				if read.Component != component || !statePathsAffectEachOther(write.Path, read.Path) ||
-					(read.Start >= element.fullStart && read.Start < element.fullEnd) {
+				if read.Component != component || !statePathsAffectEachOther(write.Path, read.Path) {
 					continue
+				}
+				if read.Start >= element.fullStart && read.Start < element.fullEnd {
+					if callbackRange == nil {
+						continue
+					}
+					minimum = min(minimum, callbackRange.Pos())
+					maximum = max(maximum, callbackRange.End())
 				}
 				connected = true
 				if read.Start < minimum {
@@ -215,13 +260,14 @@ func statePathsAffectEachOther(left []string, right []string) bool {
 
 func islandDerivedStatePaths(
 	paths [][]string,
+	keys []*ast.Node,
 	captures []islandDerivedCapture,
 	stateReads []StateRead,
 	stateAliases []StateAlias,
 	component string,
 	candidate componentCandidate,
 	typeChecker *checker.Checker,
-) [][]string {
+) ([][]string, []*ast.Node) {
 	seen := make(map[string]struct{}, len(paths))
 	for _, path := range paths {
 		seen[statePathIdentity(path)] = struct{}{}
@@ -234,12 +280,14 @@ func islandDerivedStatePaths(
 				len(read.Path) == 0 {
 				continue
 			}
-			key := statePathIdentity(read.Path)
+			keys = appendIslandStateKeyDemands(keys, read.Path, read.dynamicSegments)
+			path := islandSnapshotStatePath(read.Path, read.dynamicSegments, typeChecker)
+			key := statePathIdentity(path)
 			if _, exists := seen[key]; exists {
 				continue
 			}
 			seen[key] = struct{}{}
-			paths = append(paths, append([]string(nil), read.Path...))
+			paths = append(paths, path)
 		}
 	}
 	if typeChecker != nil {
@@ -264,6 +312,8 @@ func islandDerivedStatePaths(
 				if !ok || len(path) == 0 {
 					return true
 				}
+				keys = appendIslandStateKeyDemands(keys, path, stateWriteDynamicSegments(target, path))
+				path = islandSnapshotStatePath(path, stateWriteDynamicSegments(target, path), typeChecker)
 				key := statePathIdentity(path)
 				if _, exists := seen[key]; exists {
 					return true
@@ -290,7 +340,7 @@ func islandDerivedStatePaths(
 	sort.Slice(paths, func(left int, right int) bool {
 		return slices.Compare(paths[left], paths[right]) < 0
 	})
-	return paths
+	return paths, keys
 }
 
 func islandDerivedCaptures(
@@ -432,7 +482,7 @@ func islandCaptures(
 			}
 			symbol := typeChecker.GetSymbolAtLocation(identifier)
 			if symbol != nil {
-				locals[ast.GetSymbolId(symbol)] = islandValueCapture{name: identifier.Text(), symbol: ast.GetSymbolId(symbol), start: identifier.Pos()}
+				locals[ast.GetSymbolId(symbol)] = islandValueCapture{name: identifier.Text(), symbol: ast.GetSymbolId(symbol), start: identifier.Pos(), typeLocation: identifier}
 			}
 		}
 		return true

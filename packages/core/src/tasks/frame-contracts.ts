@@ -1,7 +1,7 @@
 import type { AnyTaskFunction, TaskActivation, TaskContext, TaskOwner } from './contracts.js';
 
 /** Brands internal task frame records without exposing their representation publicly. */
-export const taskFrameTokenBrand = Symbol('exact.task-frame-token');
+export const taskFrameTokenBrand = Symbol.for('@exactjs/task-frame-token/abi-2');
 /** Brands durable task owners shared by compiler-authored and explicit runtime tasks. */
 export const taskOwnerBrand = Symbol.for('@exactjs/task-owner');
 /** Releases one resource owned by a task frame, synchronously or asynchronously. */

@@ -5,6 +5,7 @@ import {
 	disposeReactRendererComponent,
 	exactComponentType,
 	isReactElement,
+	iterateReactChildEntries,
 	isReactPortal,
 	readReactRendererSuspension,
 	renderReactRendererComponent,
@@ -118,7 +119,7 @@ async function renderNodeAsync(
 	if (node instanceof Promise)
 		return renderNodeAsync(
 			context,
-			(await Promise.resolve(node as PromiseLike<unknown>)) as ReactNode,
+			(await waitForServerValue(node as PromiseLike<unknown>, context.options.signal)) as ReactNode,
 			parent,
 			textSeparators
 		);
@@ -225,7 +226,7 @@ async function renderComponentAsync(
 		let rendered = await renderNodeAsync(context, output, instance, textSeparators);
 		const suspension = readReactRendererSuspension(instance);
 		if (suspension?.suspended && suspension.promise) {
-			await waitForSuspense(suspension.promise, context.options.signal);
+			await waitForServerValue(suspension.promise, context.options.signal);
 			output = renderReactRendererComponent(instance, () => undefined);
 			rendered = await renderNodeAsync(context, output, instance, textSeparators);
 		}
@@ -312,13 +313,15 @@ function renderArraySync(
 ): string {
 	let html = '';
 	let previousText = false;
-	for (const child of children) {
+	for (const child of iterateReactChildEntries(children as ReactNode[], true)) {
+		if (child === null || child === undefined || typeof child === 'boolean') continue;
 		const text = isTextNode(child);
 		const rendered = renderNodeSync(context, child, parent, textSeparators);
 		if (textSeparators && text && previousText && rendered) html += '<!-- -->';
 		html += rendered;
-		previousText = text && rendered !== '';
+		if (rendered !== '') previousText = text;
 	}
+	assertNotAborted(context.options.signal);
 	return html;
 }
 
@@ -330,33 +333,39 @@ async function renderArrayAsync(
 ): Promise<string> {
 	let html = '';
 	let previousText = false;
-	for (const child of children) {
+	for (const child of iterateReactChildEntries(children as ReactNode[], true)) {
+		if (child === null || child === undefined || typeof child === 'boolean') continue;
 		const text = isTextNode(child);
 		const rendered = await renderNodeAsync(context, child, parent, textSeparators);
 		if (textSeparators && text && previousText && rendered) html += '<!-- -->';
 		html += rendered;
-		previousText = text && rendered !== '';
+		if (rendered !== '') previousText = text;
 	}
+	assertNotAborted(context.options.signal);
 	return html;
 }
 
 function assertNotAborted(signal: AbortSignal | undefined): void {
-	if (signal?.aborted) throw signal.reason ?? new DOMException('Aborted', 'AbortError');
+	signal?.throwIfAborted();
 }
 
-function waitForSuspense(
-	promise: PromiseLike<unknown>,
+/** Every asynchronous server child shares one cancellation and listener lifetime. */
+function waitForServerValue<T>(
+	promise: PromiseLike<T>,
 	signal: AbortSignal | undefined
-): Promise<void> {
-	if (!signal) return Promise.resolve(promise).then(() => undefined);
+): Promise<T> {
+	if (!signal) return Promise.resolve(promise);
 	assertNotAborted(signal);
-	return new Promise<void>((resolve, reject) => {
-		const abort = () => reject(signal.reason ?? new DOMException('Aborted', 'AbortError'));
+	return new Promise<T>((resolve, reject) => {
+		const abort = () => {
+			signal.removeEventListener('abort', abort);
+			reject(signal.reason);
+		};
 		signal.addEventListener('abort', abort, { once: true });
 		void Promise.resolve(promise).then(
-			() => {
+			(value) => {
 				signal.removeEventListener('abort', abort);
-				resolve();
+				resolve(value);
 			},
 			(error) => {
 				signal.removeEventListener('abort', abort);

@@ -49,6 +49,11 @@ export function GettingStartedPage(this: Component<{}>) {
 					packages and build configuration.
 				</p>
 				<CodeBlock source={createAppSource} language="shell" title="Terminal" compact />
+				<p>
+					Each scaffolder release starts eXact package ranges at their current versions. Caret
+					ranges allow compatible updates. Fresh installs without a lockfile can select those
+					updates, while an existing lockfile keeps its resolved versions until you update it.
+				</p>
 			</section>
 
 			<section>

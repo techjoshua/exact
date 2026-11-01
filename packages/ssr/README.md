@@ -14,11 +14,9 @@ const html = await renderToString(<App />);
 
 `renderToString()` and `renderToHydratableString()` return promises. Both use the same rendering engine as streaming and progressive documents. Available component work runs immediately; rendering waits only when required tasks or child output are pending. Await the result before reading its HTML.
 
-Node hosts use `createNodeHandler()` for custom pages or `createExactNodeHandler()` for framework
-endpoints. Native Bun hosts use the Bun adapter. These handlers automatically trial scheduling
-under load and keep quiet requests immediate. Forward the handler's request signal to SSR so
-render entry and pending component data reuse the same adaptive policy. Ready components and
-transport drains do not add checkpoints.
+Node hosts use `createNodeHandler()` for custom pages or `createExactNodeHandler()` for framework endpoints. Native Bun hosts use the Bun adapter. These handlers automatically trial scheduling under
+load and keep quiet requests immediate. Forward the handler's request signal to SSR so render entry and pending component data reuse the same adaptive policy. Ready components and transport drains do
+not add checkpoints.
 
 Custom hosts can provide `scheduleRender(signal)`: return void to continue immediately or a
 promise to defer rendering. The hook also runs after pending component data settles. It overrides
@@ -37,13 +35,10 @@ capable Node adapters or use a platform-encoded Blob on Fetch hosts, avoiding ex
 Plain SSR can remain script-free. Pair hydratable output with `@exactjs/hydrate` and matching client
 artifacts. Component inputs included in hydration must be deterministic and serializable.
 
-`Document` from `@exactjs/core/document` completes partial document JSX and places framework output.
-Pass `documentAssets` with stylesheet URLs and head/bootstrap script descriptors to render assets
-at those slots. Hydration precedes bootstrap. Bootstrap scripts are requested after window load by
-default. For earlier activation, set `documentAssets.bootstrapLoading` to `"normal"`. The default
-inline loader needs an allowed `documentAssets.nonce` or CSP hash under a strict script policy.
-Normal loading supports policies that allow only external scripts. Shells author declarations with `doctype()`.
-See [document composition](https://github.com/techjoshua/exact/blob/main/docs/child-composition.md).
+`Document` from `@exactjs/core/document` completes partial document JSX and places framework output. Pass `documentAssets` with stylesheet URLs and head/bootstrap script descriptors to render assets
+at those slots. Hydration precedes bootstrap. Bootstrap scripts are requested after window load by default. For earlier activation, set `documentAssets.bootstrapLoading` to `"normal"`. The default
+inline loader needs an allowed `documentAssets.nonce` or CSP hash under a strict script policy. Normal loading supports policies that allow only external scripts. Shells author declarations with
+`doctype()`. See [document composition](https://github.com/techjoshua/exact/blob/main/docs/child-composition.md).
 
 To keep an enclosing document server-only, pass `documentShell` while rendering the application:
 
@@ -73,6 +68,11 @@ leave authored output unchanged and warn once per identity.
 normalizes context, rendering, authorization, decoding, partition, retained-build, gateway, and
 limit settings to their owning runtimes. Request cancellation always remains authoritative: an
 optional render signal can cancel work earlier but cannot detach it from the request lifetime.
+
+Rendering has no default deadline or total output-size quota. Pass `signal` to expire work
+according to application policy. Set `maxOutputBytes` or the relevant `maxStream*` limits
+when a page needs a hard output ceiling. Hydration payload and traversal limits remain separate.
+Use `maxTreeNodes` for an explicit render-value quota. Broad finite trees have no default quota.
 
 See [SSR and hydration](https://github.com/techjoshua/exact/blob/main/docs/ssr-hydration.md), [tasks](https://github.com/techjoshua/exact/blob/main/docs/tasks.md), and
 [component registries](https://github.com/techjoshua/exact/blob/main/docs/component-registries.md).

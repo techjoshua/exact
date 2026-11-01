@@ -198,7 +198,7 @@ func (lowering *jsxLowering) lowerRenderProgramWithRootAttributes(
 		))
 	}
 	invocation := lowering.call(prepared, arguments)
-	if !deferred && !lowering.composableRenderProgram && lowering.target == TargetServer && enhancement == nil && staticServerInvocationSlots(build) && literalServerInvocationValue(arguments[1]) {
+	if !deferred && !lowering.composableRenderProgram && lowering.target == TargetServer && enhancement == nil && staticServerInvocationSlots(build) && lowering.literalServerInvocationValue(arguments[1]) {
 		return lowering.hoistStaticServerInvocation(identityNode.Pos(), programName, invocation), ""
 	}
 	return invocation, ""
@@ -521,6 +521,14 @@ func (lowering *jsxLowering) appendRenderProgramElement(
 	parentNamespace string,
 ) bool {
 	tag := sourceText(lowering.sourceFile, openingTag(opening))
+	// Selection belongs to the existing intrinsic traversal: a select establishes its value
+	// while each option consumes it, including options supplied by another component. A flat
+	// writer cannot serialize either host independently without losing that scoped relationship.
+	// Keep the paired client on this same projection: its indexed child claims cannot consume
+	// the generic or unmarked child ranges emitted by the intrinsic server fallback.
+	if tag == "select" || tag == "option" {
+		return build.decline("select-intrinsic-projection")
+	}
 	if !jsxIntrinsic(tag) || (unsupportedPlannedHost(tag) && !(lowering.target == TargetServer && len(path) == 0 && (plannedDocumentHost(tag) || lowering.plannedEmptyExternalScript(opening, children)))) {
 		return build.decline("unsupported-host-" + tag)
 	}
@@ -575,9 +583,11 @@ func (lowering *jsxLowering) appendRenderProgramElement(
 		id := lowering.elementID(identityNode)
 		if _, exists := lowering.islandReplayTargets[id]; exists {
 			if lowering.target == TargetServer {
-				// Replay identity belongs to live elements, not inert text presentation.
-				// An attribute slot lets the existing serializer apply the current host contract.
-				build.propertySlot(id, path, nodeIndex, "data-exact-id", lowering.factory.NewStringLiteral(id, ast.TokenFlagsNone))
+				if !jsxAttributesContainSpread(opening.Attributes()) {
+					// Replay identity belongs to live elements, not inert text presentation.
+					// An attribute slot lets the existing serializer apply the current host contract.
+					build.propertySlot(id, path, nodeIndex, "data-exact-id", lowering.factory.NewStringLiteral(id, ast.TokenFlagsNone))
+				}
 			} else {
 				build.write(` data-exact-id="` + html.EscapeString(id) + `"`)
 			}

@@ -1,3 +1,10 @@
+import { captureAdoptionCurrent } from './adoption/receiving-lifetime.js';
+import { attachSuppressedCleanupFailure } from '@exactjs/core';
+import {
+	compiledElementIdentity,
+	physicalElementIdentity,
+	isReservedElementIdentityName
+} from '@exactjs/core/runtime/component-operations';
 import { mountedTargetPresentation } from './component-roots.js';
 import { authoredEventKey } from '../events.js';
 import {
@@ -63,6 +70,7 @@ export function refreshTargetBoundary(
 	boundary: Mounted,
 	parentInstance: AnyComponentInstance | undefined
 ): void {
+	const assertCurrent = captureAdoptionCurrent(root, boundary.scope, true);
 	const previous = boundary.targetBoundary;
 	const boundaryProps = boundary.targetReceipt?.props;
 	if (!boundaryProps)
@@ -73,6 +81,7 @@ export function refreshTargetBoundary(
 	if (retained) {
 		if (previous?.dependencies) releaseDependencies(boundary, previous.dependencies);
 	} else previous?.release?.();
+	if (!assertCurrent()) return;
 	for (const dependency of dependencies) {
 		if (dependency === boundary) continue;
 		dependency.targetDependents ??= new Set();
@@ -82,7 +91,12 @@ export function refreshTargetBoundary(
 	if (!selected || !(selected.dom instanceof Element)) {
 		const presentation = selected ? mountedTargetPresentation(selected) : undefined;
 		const existing = previous?.layerRefs?.get(boundary);
-		const releaseRef =
+		let releaseRef = () => undefined as void;
+		boundary.targetBoundary.release = () => {
+			releaseRef();
+			releaseDependencies(boundary, dependencies);
+		};
+		releaseRef =
 			retained &&
 			existing &&
 			existing.source === boundaryProps.ref &&
@@ -90,17 +104,15 @@ export function refreshTargetBoundary(
 				? existing.release
 				: (() => {
 						existing?.release();
+						if (!assertCurrent()) return () => undefined;
 						return presentation
-							? installTargetRef(boundary, presentation, boundaryProps.ref)
+							? installTargetRef(root, boundary, presentation, boundaryProps.ref)
 							: () => undefined;
 					})();
+		if (!assertCurrent()) return;
 		boundary.targetBoundary.layerRefs = new Map([
 			[boundary, { source: boundaryProps.ref, presentation, release: releaseRef }]
 		]);
-		boundary.targetBoundary.release = () => {
-			releaseRef();
-			releaseDependencies(boundary, dependencies);
-		};
 		if (!retained) refreshTargetDependents(root, boundary);
 		return;
 	}
@@ -119,6 +131,13 @@ export function refreshTargetBoundary(
 			: {})
 	});
 	let refs = retained ? previous?.layerRefs : undefined;
+	boundary.targetBoundary.release = () => {
+		releaseDependencies(boundary, dependencies);
+		for (const subscription of refs?.values() ?? []) subscription.release();
+		refs?.clear();
+		if (!selected.targetContributions?.delete(boundary)) return;
+		applyTargetProps(root, selected);
+	};
 	const contributions = boundary.targetReceipt?.contributions;
 	// Attribute-only layers own no ref subscriptions. Allocate records only when a ref
 	// exists, or when a previously installed ref needs to be updated or released.
@@ -129,6 +148,7 @@ export function refreshTargetBoundary(
 			: boundaryProps.ref !== undefined)
 	) {
 		refs ??= new Map();
+		boundary.targetBoundary.layerRefs = refs;
 		const refLayers = contributions ?? [{ identity: boundary, props: boundaryProps }];
 		const active = new Set(refLayers.map((layer) => layer.identity));
 		for (const [identity, subscription] of refs) {
@@ -140,21 +160,17 @@ export function refreshTargetBoundary(
 			const existing = refs.get(layer.identity);
 			if (existing?.source === layer.props.ref) continue;
 			existing?.release();
+			if (!assertCurrent()) return;
 			refs.set(layer.identity, {
 				source: layer.props.ref,
-				release: installTargetRef(boundary, selected.dom, layer.props.ref)
+				release: installTargetRef(root, boundary, selected.dom, layer.props.ref)
 			});
 		}
 	}
+	if (!assertCurrent()) return;
 	boundary.targetBoundary.layerRefs = refs;
 	applyTargetProps(root, selected);
-	boundary.targetBoundary.release = () => {
-		releaseDependencies(boundary, dependencies);
-		for (const subscription of refs?.values() ?? []) subscription.release();
-		refs?.clear();
-		if (!selected.targetContributions?.delete(boundary)) return;
-		applyTargetProps(root, selected);
-	};
+
 	if (!retained) refreshTargetDependents(root, boundary);
 }
 
@@ -182,26 +198,52 @@ function releaseDependencies(boundary: Mounted, dependencies: ReadonlySet<Mounte
 	}
 }
 
-function installTargetRef(boundary: Mounted, element: object, source: unknown): () => void {
+function installTargetRef(
+	root: Root,
+	boundary: Mounted,
+	element: object,
+	source: unknown
+): () => void {
 	if (source === undefined) return () => undefined;
+	const assertCurrent = captureAdoptionCurrent(root, boundary.scope, true);
 	let current: RefBinding<unknown> | undefined;
-	const stop = watch(
-		() => {
-			const next = unwrap(source) as RefBinding<unknown> | undefined | null;
-			if (next === current) return;
-			current?.fulfill(undefined);
-			current = next ?? undefined;
-			if (current && element instanceof Element) attachElementIdentity(current, element);
-			current?.fulfill(element);
-		},
-		undefined,
-		{ scope: boundary.scope }
-	);
-	return () => {
+	let stop = () => undefined as void;
+	const release = () => {
 		stop();
-		current?.fulfill(undefined);
+		const previous = current;
 		current = undefined;
+		previous?.fulfill(undefined);
 	};
+	try {
+		stop = watch(
+			() => {
+				const next = unwrap(source) as RefBinding<unknown> | undefined | null;
+				if (next === current) return;
+				const previous = current;
+				current = undefined;
+				previous?.fulfill(undefined);
+				if (!boundary.scope.active) return;
+				current = next ?? undefined;
+				if (current && element instanceof Element) attachElementIdentity(current, element);
+				current?.fulfill(element);
+			},
+			undefined,
+			{ scope: boundary.scope }
+		);
+		// Keep cancellation outside the watched callback and its authored error handler.
+		if (!assertCurrent()) {
+			release();
+			return () => undefined;
+		}
+		return release;
+	} catch (error) {
+		try {
+			release();
+		} catch (cleanup) {
+			attachSuppressedCleanupFailure(error, cleanup);
+		}
+		throw error;
+	}
 }
 
 function applyTargetProps(
@@ -210,10 +252,11 @@ function applyTargetProps(
 	previousAuthored: Readonly<Record<string, unknown>> = authoredIntrinsicProps(mounted),
 	nextAuthored: Readonly<Record<string, unknown>> = authoredIntrinsicProps(mounted)
 ): void {
-	if (!(mounted.dom instanceof Element)) return;
+	if (!(mounted.dom instanceof Element) || !mounted.scope.active) return;
 	const previous = mounted.targetEffectiveProps ?? previousAuthored;
 	const plan = composeTargetProps(nextAuthored, mounted.targetContributions);
 	updateProps(root, mounted.dom, previous, plan.props, mounted.scope);
+	if (!mounted.scope.active) return;
 	mounted.targetEffectiveProps = plan.props;
 	reconcileTargetEvents(root, mounted, plan.events);
 }
@@ -260,7 +303,9 @@ function composeTargetProps(
 	const innerToOuter = [...contributions.values()].flatMap((layer) => layer.layers ?? [layer]);
 	const keys = new Set(Object.keys(authored));
 	for (const layer of innerToOuter) for (const key of Object.keys(layer.props)) keys.add(key);
-	const result: Record<string, unknown> = {};
+	const result: Record<string, unknown> = {
+		[compiledElementIdentity]: physicalElementIdentity(authored)
+	};
 	const events: TargetPropPlan['events'][number][] = [];
 	const handledEvents = new Set<string>();
 	const overrides = new Set(
@@ -274,6 +319,7 @@ function composeTargetProps(
 		})
 	);
 	for (const key of keys) {
+		if (isReservedElementIdentityName(key)) continue;
 		if (key === 'children' || key === 'key') continue;
 		if (key === 'ref') {
 			if (authored.ref !== undefined) result.ref = authored.ref;

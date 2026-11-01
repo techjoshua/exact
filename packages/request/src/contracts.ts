@@ -8,6 +8,7 @@ export type RequestContextValue = {
 	signal: AbortSignal;
 	locale?: string;
 	traceId?: string;
+	/** Records an HTTP redirect (302 by default), preserving relative Location headers. Invalid status, URL or header leaves response controls unchanged. */
 	redirect(location: string | URL, status?: number): void;
 	setStatus(status: number): void;
 	setHeader(name: string, value: string): void;

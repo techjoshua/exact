@@ -8,11 +8,13 @@ import (
 )
 
 type islandValueCapture struct {
-	propsKeys   []string
-	propsEscape bool
-	name        string
-	symbol      ast.SymbolId
-	start       int
+	typeLocation  *ast.Node
+	propsKeys     []string
+	propsEscape   bool
+	propsChildren islandChildrenAccess
+	name          string
+	symbol        ast.SymbolId
+	start         int
 }
 
 // Executable setup declarations are recreated under the island owner, including task status views.
@@ -29,7 +31,25 @@ type islandDerivedCapture struct {
 	declaration *ast.Node
 }
 
+// islandSnapshotDiagnostic retains an authored key and its checker-owned diagnostic before lowering.
+type islandSnapshotDiagnostic struct {
+	key        *ast.Node
+	diagnostic Diagnostic
+}
+
+// islandSnapshotDemand is request-local evidence for snapshots surviving final artifact printing.
+// Copies of an island share this record, so elided plans cannot acquire transport diagnostics.
+type islandSnapshotDemand struct {
+	diagnostics []islandSnapshotDiagnostic
+	expressions []*ast.Node
+	emitted     bool
+}
+
 type clientElementIsland struct {
+	typeParameters       *ast.NodeList
+	types                islandTypeEnvironment
+	receiverType         *ast.Node
+	stateSnapshotDemand  *islandSnapshotDemand
 	captureReferences    map[string]string
 	renderedChildren     map[string]bool
 	component            Component
@@ -38,6 +58,7 @@ type clientElementIsland struct {
 	id                   string
 	name                 string
 	statePaths           [][]string
+	stateKeys            []*ast.Node
 	propsSlots           []string
 	interaction          bool
 	activation           ActivationDecision
@@ -166,6 +187,10 @@ func (lowering *jsxLowering) clientIslandArtifactAttachment(
 			}
 		}
 	}
+	var updates []*ast.Node
+	if build := lowering.componentUpdates[island.name]; build != nil && len(build.operations) != 0 {
+		updates = append(updates, contractProperty(factory, "updates", factory.NewIdentifier(build.name)))
+	}
 	role := "client-island"
 	contract := contractObject(factory, true,
 		contractProperty(factory, "version", contractNumber(factory, componentContractVersion)),
@@ -182,7 +207,7 @@ func (lowering *jsxLowering) clientIslandArtifactAttachment(
 		contractProperty(factory, "continuations", contractArray(factory)),
 		contractProperty(factory, "executors", contractArray(factory)),
 		contractProperty(factory, "boundaries", contractArray(factory)),
-		contractProperty(factory, "artifact", contractObject(factory, true,
+		contractProperty(factory, "artifact", contractObject(factory, true, append([]*ast.Node{
 			contractProperty(factory, "version", contractNumber(factory, componentContractVersion)),
 			contractProperty(factory, "target", contractString(factory, "client")),
 			contractProperty(factory, "id", contractString(factory, island.id)),
@@ -195,7 +220,7 @@ func (lowering *jsxLowering) clientIslandArtifactAttachment(
 			contractProperty(factory, "state", stringMetadata(factory, state)),
 			contractProperty(factory, "props", stringMetadata(factory, island.propsSlots)),
 			contractProperty(factory, "capabilities", stringMetadata(factory, capabilities)),
-		)),
+		}, updates...)...)),
 	)
 	assigned := factory.NewCallExpression(
 		factory.NewIdentifier(lowering.names.brandComponent), nil, nil,
@@ -226,6 +251,42 @@ func (lowering *jsxLowering) clientIslandDefinition(
 	for _, capture := range island.valueCaptures {
 		lowering.captureValues[capture.symbol] = capture.name
 	}
+	props := lowering.factory.NewUniqueName("props")
+	previousIslandProps := lowering.clientIslandProps
+	lowering.clientIslandProps = props
+	defer func() { lowering.clientIslandProps = previousIslandProps }()
+	receiverType := island.receiverType
+	if receiverType == nil {
+		receiverType = lowering.factory.NewKeywordTypeNode(ast.KindAnyKeyword)
+	}
+	thisParameter := lowering.factory.NewParameterDeclaration(
+		nil,
+		nil,
+		lowering.factory.NewIdentifier("this"),
+		nil,
+		receiverType,
+		nil,
+	)
+	propsParameter := lowering.factory.NewParameterDeclaration(
+		nil,
+		nil,
+		props,
+		nil,
+		lowering.factory.NewKeywordTypeNode(ast.KindAnyKeyword),
+		lowering.factory.NewObjectLiteralExpression(nil, false),
+	)
+
+	// Only this owner certifies the actual generated outer parameter and locals.
+	previousAnnotationDestination := lowering.taskAnnotationDestination
+	destination := &taskAnnotationDestination{module: lowering.sourceFile, uniqueParameter: props, bindings: []*ast.Node{propsParameter}}
+	for _, capture := range island.functionCaptures {
+		destination.bindings = append(destination.bindings, capture.declaration)
+	}
+	for _, capture := range island.derivedCaptures {
+		destination.bindings = append(destination.bindings, capture.declaration)
+	}
+	lowering.taskAnnotationDestination = destination
+	defer func() { lowering.taskAnnotationDestination = previousAnnotationDestination }()
 	capturedFunctions := make(
 		[]*ast.Node,
 		0,
@@ -257,23 +318,6 @@ func (lowering *jsxLowering) clientIslandDefinition(
 			lowering.clientIslandDerivedCapture(capture),
 		)
 	}
-	props := lowering.factory.NewIdentifier("props")
-	thisParameter := lowering.factory.NewParameterDeclaration(
-		nil,
-		nil,
-		lowering.factory.NewIdentifier("this"),
-		nil,
-		lowering.factory.NewKeywordTypeNode(ast.KindAnyKeyword),
-		nil,
-	)
-	propsParameter := lowering.factory.NewParameterDeclaration(
-		nil,
-		nil,
-		props,
-		nil,
-		lowering.factory.NewKeywordTypeNode(ast.KindAnyKeyword),
-		lowering.factory.NewObjectLiteralExpression(nil, false),
-	)
 	var stateInitialization *ast.Node
 	if len(island.statePaths) != 0 {
 		stateInput := lowering.clientIslandPropsRead(props, "__exactState")
@@ -340,9 +384,9 @@ func (lowering *jsxLowering) clientIslandDefinition(
 				}
 			}
 			var properties []*ast.Node
+			var projected *ast.Node
 			if lowering.islandUsesAuthoredRootProps(island) {
-				projected := lowering.props(opening.Attributes(), lowering.elementID(island.node), true, tagText)
-				properties = projected.AsObjectLiteralExpression().Properties.Nodes
+				projected = lowering.props(opening.Attributes(), lowering.elementID(island.node), true, tagText)
 			} else {
 				properties = lowering.clientIslandAttributeProperties(island, opening.Attributes(), props, tagText)
 			}
@@ -352,14 +396,10 @@ func (lowering *jsxLowering) clientIslandDefinition(
 					properties...,
 				)
 			}
-			arguments = append(
-				arguments,
-				emittedTag,
-				lowering.factory.NewObjectLiteralExpression(
-					lowering.factory.NewNodeList(properties),
-					false,
-				),
-			)
+			if projected == nil {
+				projected = lowering.factory.NewObjectLiteralExpression(lowering.factory.NewNodeList(properties), false)
+			}
+			arguments = append(arguments, emittedTag, projected)
 		}
 	}
 
@@ -378,7 +418,7 @@ func (lowering *jsxLowering) clientIslandDefinition(
 	)
 	lowering.captureValues = previousCaptures
 	lowering.clientIslandPropsSlots = previousPropsSlots
-	bodyStatements := []*ast.Node{}
+	bodyStatements := append([]*ast.Node(nil), island.types.declarations...)
 	if stateInitialization != nil {
 		bodyStatements = append(bodyStatements, stateInitialization)
 	}
@@ -398,11 +438,11 @@ func (lowering *jsxLowering) clientIslandDefinition(
 		lowering.factory.NewNodeList(bodyStatements),
 		true,
 	)
-	return lowering.factory.NewFunctionDeclaration(
+	return island.types.apply(lowering.factory.NewFunctionDeclaration(
 		nil,
 		nil,
 		lowering.factory.NewIdentifier(island.name),
-		nil,
+		island.typeParameters,
 		lowering.factory.NewNodeList([]*ast.Node{
 			thisParameter,
 			propsParameter,
@@ -410,7 +450,7 @@ func (lowering *jsxLowering) clientIslandDefinition(
 		nil,
 		nil,
 		body,
-	)
+	), &lowering.factory.NodeFactory)
 }
 
 func (lowering *jsxLowering) clientIslandDerivedCapture(
@@ -575,13 +615,25 @@ func (lowering *jsxLowering) clientIslandCaptureReference(
 // The generated props parameter owns its private envelope type. An indexed runtime read returns
 // unknown, so restore that parameter's type before selecting a captured authored value.
 func (lowering *jsxLowering) clientIslandCapturedValue(name string) *ast.Node {
-	props := lowering.factory.NewIdentifier("props")
+	props := lowering.clientIslandProps
 	envelope := lowering.factory.NewParenthesizedExpression(lowering.factory.NewAsExpression(
 		lowering.clientIslandPropsRead(props, "__exactCapture"),
 		lowering.factory.NewTypeQueryNode(props, nil),
 	))
-	return lowering.factory.NewPropertyAccessExpression(envelope, nil,
+	value := lowering.factory.NewPropertyAccessExpression(envelope, nil,
 		lowering.factory.NewIdentifier(name), ast.NodeFlagsNone)
+	// Captured data keeps its authored type after the private envelope's indexed read.
+	// In particular, readonly arrays must still contextualize nested list callbacks.
+	if island := lowering.clientCaptureIsland; island != nil {
+		for _, capture := range island.valueCaptures {
+			if capture.name == name {
+				if annotation := island.types.annotations[capture.typeLocation]; annotation != nil {
+					return lowering.factory.NewAsExpression(value, annotation)
+				}
+			}
+		}
+	}
+	return value
 }
 
 func (lowering *jsxLowering) clientIslandAttributeProperties(
@@ -590,19 +642,11 @@ func (lowering *jsxLowering) clientIslandAttributeProperties(
 	props *ast.Node,
 	tag string,
 ) []*ast.Node {
-	properties := []*ast.Node{
-		lowering.property(
-			lowering.factory.NewStringLiteral(
-				"data-exact-id",
-				ast.TokenFlagsNone,
-			),
-			lowering.factory.NewStringLiteral(
-				lowering.elementID(island.node),
-				ast.TokenFlagsNone,
-			),
-		),
-	}
+	properties := []*ast.Node{}
 	if attributes == nil {
+		if jsxIntrinsic(tag) {
+			properties = append(properties, lowering.elementIdentityProperty(lowering.elementID(island.node)))
+		}
 		return properties
 	}
 	for _, property := range attributes.AsJsxAttributes().Properties.Nodes {
@@ -675,6 +719,9 @@ func (lowering *jsxLowering) clientIslandAttributeProperties(
 			properties,
 			lowering.property(jsxPropertyName(lowering.factory, name), value),
 		)
+	}
+	if jsxIntrinsic(tag) {
+		properties = append(properties, lowering.elementIdentityProperty(lowering.elementID(island.node)))
 	}
 	return properties
 }
@@ -836,7 +883,11 @@ func (lowering *jsxLowering) islandStateSnapshot(
 		current.leaf = true
 		current.children = nil
 	}
-	return lowering.islandStateObject(root, nil)
+	snapshot := lowering.islandStateObject(root, nil)
+	if island := lowering.serverCaptureIsland; island != nil && island.stateSnapshotDemand != nil {
+		island.stateSnapshotDemand.expressions = append(island.stateSnapshotDemand.expressions, snapshot)
+	}
+	return snapshot
 }
 
 func (lowering *jsxLowering) islandStateObject(

@@ -2,14 +2,13 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { expect, it, onTestFinished } from 'vitest';
-import { createCompiledComponentReceipt as receipt } from '@exactjs/core/runtime/component-operations';
+import { createCompiledComponentInputReceipt as receipt } from '@exactjs/core/runtime/component-operations';
 import { render, unmount } from '@exactjs/dom';
 import { renderToStream, renderToString } from '@exactjs/ssr';
 import { createCompilerSession, transform } from '../index.js';
 import { createTestWorkspace } from '../test-support/workspace.js';
 import { importArtifact } from '../test-support/import-artifact.js';
 import { readStreamText } from '../../../ssr/src/test-support/streams.js';
-
 // Retained consumers must lower against current dependency types across project keys.
 it.each(['client', 'server'] as const)(
 	'rechecks and executes %s output after a sibling declaration edit',

@@ -14,6 +14,10 @@ import {
 } from './compiled-latest.js';
 import { createTaskOwnerRecord, executeTaskFrame } from './frame-runtime.js';
 import { registerTaskOwnerHost } from './owner-hosts.js';
+import {
+	compilerContinuationDependency,
+	createContinuationDependencySlot
+} from './dependency-source.js';
 import { deferTaskOwnerActivations, releaseTaskOwnerActivations } from './owner-activations.js';
 
 function deferred<T>() {
@@ -155,5 +159,33 @@ it('never starts a compact generation superseded before the scheduler turn', asy
 	await cancelled;
 	await expect(current).resolves.toBe('current');
 	expect(calls).toEqual(['current']);
+	await owner[Symbol.asyncDispose]();
+});
+
+it('waits for a typed dependency source and releases its compact activation', async () => {
+	const { host, owner } = fixtureOwner('availability');
+	const dependency = createContinuationDependencySlot<number>();
+	const generation = dependency.beginGeneration();
+	const values: number[] = [];
+	const activation = activateCompiledClientLatestTaskForHost(
+		host,
+		'typed',
+		(value: number, _context: TaskContext) => {
+			values.push(value);
+		},
+		compilerContinuationDependency(dependency)
+	);
+	flushSync();
+	await Promise.resolve();
+	expect(values).toEqual([]);
+	dependency.publish(generation, 4);
+	flushSync();
+	await Promise.resolve();
+	expect(values).toEqual([4]);
+	activation[Symbol.dispose]();
+	dependency.publish(generation, 7);
+	flushSync();
+	await Promise.resolve();
+	expect(values).toEqual([4]);
 	await owner[Symbol.asyncDispose]();
 });

@@ -109,7 +109,7 @@ export abstract class QueryHost {
 			(element) =>
 				isElementVisible(element) &&
 				roleOf(element) === role &&
-				(!options.name || matchesName(accessibleName(element), options.name))
+				(options.name === undefined || matchesName(accessibleName(element), options.name))
 		);
 	}
 	private wrap(elements: Element[]): TestElement[] {
@@ -125,7 +125,7 @@ export abstract class QueryHost {
 	}
 }
 
-/** Defines the test element class contract. */
+/** A retained element handle whose reads and interactions reject after removal or view unmount. */
 export class TestElement<E extends Element = Element> extends QueryHost {
 	constructor(
 		readonly view: TestElementView,
@@ -190,7 +190,7 @@ export class TestElement<E extends Element = Element> extends QueryHost {
 	}
 	/** Performs the dispatch domain operation for this test element instance. */
 	async dispatch(type: string, init: EventInit = {}, options?: ActionOptions): Promise<this> {
-		await this.view.action(
+		await this.action(
 			() => this.element.dispatchEvent(createEvent(this.element, type, init)),
 			options
 		);
@@ -198,7 +198,7 @@ export class TestElement<E extends Element = Element> extends QueryHost {
 	}
 	/** Performs the click domain operation for this test element instance. */
 	async click(options?: ActionOptions): Promise<this> {
-		await this.view.action(() => {
+		await this.action(() => {
 			const clickable = this.element as unknown as { click?: () => void };
 			if (typeof clickable.click === 'function') clickable.click();
 			else
@@ -210,11 +210,13 @@ export class TestElement<E extends Element = Element> extends QueryHost {
 	}
 	/** Performs the input domain operation for this test element instance. */
 	async input(value: unknown, options?: ActionOptions): Promise<this> {
+		this.assertLive();
 		setNativeValue(this.element, value);
 		return this.dispatch('input', { bubbles: true, cancelable: true }, options);
 	}
 	/** Performs the change domain operation for this test element instance. */
 	async change(value: unknown, options?: ActionOptions): Promise<this> {
+		this.assertLive();
 		setNativeValue(this.element, value);
 		return this.dispatch('change', { bubbles: true, cancelable: true }, options);
 	}
@@ -224,7 +226,7 @@ export class TestElement<E extends Element = Element> extends QueryHost {
 			? (this.element as unknown as HTMLFormElement)
 			: this.element.closest('form');
 		if (!form) throw new Error('submit() requires a form or an element inside a form');
-		await this.view.action(() => {
+		await this.action(() => {
 			const submitter =
 				this.element.matches('button') ||
 				(this.element.matches('input') &&
@@ -245,12 +247,12 @@ export class TestElement<E extends Element = Element> extends QueryHost {
 	}
 	/** Performs the focus domain operation for this test element instance. */
 	async focus(options?: ActionOptions): Promise<this> {
-		await this.view.action(() => (this.element as unknown as HTMLElement).focus(), options);
+		await this.action(() => (this.element as unknown as HTMLElement).focus(), options);
 		return this;
 	}
 	/** Performs the blur domain operation for this test element instance. */
 	async blur(options?: ActionOptions): Promise<this> {
-		await this.view.action(() => (this.element as unknown as HTMLElement).blur(), options);
+		await this.action(() => (this.element as unknown as HTMLElement).blur(), options);
 		return this;
 	}
 	/** Performs the key down domain operation for this test element instance. */
@@ -267,7 +269,7 @@ export class TestElement<E extends Element = Element> extends QueryHost {
 	}
 	/** Performs the press domain operation for this test element instance. */
 	async press(key: string, init: KeyboardEventInit = {}, options?: ActionOptions): Promise<this> {
-		await this.view.action(() => {
+		await this.action(() => {
 			const EventType = windowFor(this.element).KeyboardEvent;
 			this.element.dispatchEvent(
 				new EventType('keydown', { bubbles: true, cancelable: true, key, ...init })
@@ -284,7 +286,7 @@ export class TestElement<E extends Element = Element> extends QueryHost {
 		init: KeyboardEventInit,
 		options?: ActionOptions
 	): Promise<this> {
-		await this.view.action(
+		await this.action(
 			() =>
 				this.element.dispatchEvent(
 					new (windowFor(this.element).KeyboardEvent)(type, {
@@ -316,9 +318,10 @@ export type TestElementView = {
 	componentFor(instance: AnyComponentInstance): AnyTestComponent;
 };
 
-/** Performs the all elements domain operation. */
-export function allElements(container: Element): Element[] {
-	return Array.from(container.querySelectorAll('*'));
+/** Lists live view descendants, rejecting queries after the view has been unmounted. */
+export function allElements(view: TestElementView): Element[] {
+	view.snapshot();
+	return Array.from(view.container.querySelectorAll('*'));
 }
 /** Validates element live and throws when the contract is violated. */
 export function assertElementLive(view: TestElementView, element: Element): void {

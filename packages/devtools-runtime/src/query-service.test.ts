@@ -213,3 +213,87 @@ function hostEvent(binding: string, sequence: number): ExactRuntimeInspectionEve
 		})
 	});
 }
+
+it('keeps timeline queries available when component snapshots cannot be collected', async () => {
+	const events = createExactClientEventStore(100, 100000);
+	events.publish({ ...event('client', 1), kind: 'error' });
+	const service = createExactClientInspectionQueryService({
+		sessionId: 'session',
+		serverConnected: false,
+		events,
+		dom: {
+			attach() {},
+			detach() {},
+			snapshot() {
+				throw new Error('Component snapshots unavailable');
+			},
+			ownerOfElement: () => undefined,
+			ownedElements: () => []
+		}
+	});
+	for (const method of ['timeline.query', 'errors.list'] as const) {
+		const response = await service.request({ protocol: 1, id: 'timeline', method });
+		expect(response.ok && response.result).toHaveLength(1);
+	}
+});
+
+it('rejects accessor IDs without entering DOM inspection and accepts the next valid query', async () => {
+	let snapshots = 0;
+	const service = createExactClientInspectionQueryService({
+		sessionId: 'session',
+		events: createExactClientEventStore(100, 100_000),
+		serverConnected: false,
+		dom: {
+			attach() {},
+			detach() {},
+			snapshot() {
+				snapshots++;
+				return { roots: [], components: [], partitions: [] };
+			},
+			ownerOfElement: () => undefined,
+			ownedElements: () => []
+		}
+	});
+	let reads = 0;
+	const input = Object.defineProperty({ protocol: 1, method: 'roots.list' }, 'id', {
+		enumerable: true,
+		get() {
+			reads++;
+			throw new Error('authored getter');
+		}
+	}) as unknown as ExactInspectionRequest;
+	expect(await service.request(input)).toMatchObject({
+		ok: false,
+		id: 'invalid-request',
+		error: 'bad-request'
+	});
+	expect(reads).toBe(0);
+	expect(snapshots).toBe(0);
+	expect(await service.request({ protocol: 1, id: 'next', method: 'roots.list' })).toMatchObject({
+		ok: true,
+		id: 'next',
+		result: []
+	});
+	expect(snapshots).toBe(1);
+});
+
+it.each([0, -1, NaN, Infinity, 0.5])(
+	'rejects invalid result limits during service construction (%s)',
+	(maxResults) => {
+		expect(() =>
+			createExactClientInspectionQueryService({
+				sessionId: 'session',
+				maxResults,
+				events: createExactClientEventStore(100, 100_000),
+				serverConnected: false,
+				dom: {
+					attach() {},
+					detach() {},
+					snapshot: () => ({ roots: [], components: [], partitions: [] }),
+					ownerOfElement: () => undefined,
+					ownedElements: () => []
+				}
+			})
+		).toThrow(RangeError);
+	}
+);

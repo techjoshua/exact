@@ -1,3 +1,8 @@
+import { prepareExactBunSource } from './source-compilation/preparation.js';
+import {
+	isExactOwnedHelperSource,
+	shouldTransformExactBuildModulePath
+} from '@exactjs/compiler/adapter-support';
 import {
 	createTokenSourceMap,
 	type ExactCompilerSession,
@@ -17,7 +22,7 @@ import {
 	createReactCompatibilityBuildEngine,
 	type ReactCompatibilityBuildEngine
 } from '@exactjs/react-compat/build';
-import { jsxSourceOwnership, resolveReactCompatibility } from '@exactjs/react-compat/plugin';
+import { resolveReactCompatibility } from '@exactjs/react-compat/plugin';
 import { transformReactJsx, usesReactRuntimeImports } from '@exactjs/react-compat/transform';
 import { appendBunDevtoolsBootstrap, bunDebugEnabled } from './devtools.js';
 import type { ExactBunPluginOptions } from './plugin.js';
@@ -35,7 +40,8 @@ export function transformExactBunSource(
 	options: ExactBunPluginOptions = {},
 	session?: ExactCompilerSession,
 	intl?: IntlBuildCoordinator,
-	warn?: (message: string) => void
+	warn?: (message: string) => void,
+	preparedSource?: ReturnType<typeof prepareExactBunSource>
 ): {
 	code: string;
 	map: unknown;
@@ -53,9 +59,24 @@ export function transformExactBunSource(
 			map: options.sourceMap === false ? null : createTokenSourceMap(filename, source, rebound.code)
 		};
 
-	const reachedPublication =
-		intl && options.internationalization ? intl.activateReachedSource(source, filename) : undefined;
-	if (!shouldTransform(filename, source, options))
+	const { reachedPublication, intlAnalysis, analyzedSource, ownership } =
+		preparedSource ??
+		prepareExactBunSource(
+			source,
+			filename,
+			options,
+			intl,
+			warn,
+			shouldTransform(filename, source, options) || isExactOwnedHelperSource(filename, session)
+		);
+	if (
+		!shouldTransform(filename, analyzedSource, options) &&
+		!(
+			targetFor(options) === 'server' &&
+			isExactOwnedHelperSource(filename, session) &&
+			shouldTransformExactBuildModulePath(filename, options)
+		)
+	)
 		return reachedPublication
 			? {
 					code: reachedPublication.code,
@@ -65,7 +86,7 @@ export function transformExactBunSource(
 							: createTokenSourceMap(filename, source, reachedPublication.code)
 				}
 			: null;
-	if (options.__exactTestHost) {
+	if (options.__exactTestHost && !preparedSource) {
 		const target = exactTestHelperTarget(
 			source,
 			{ filename, root: options.applicationRoot, session },
@@ -78,18 +99,8 @@ export function transformExactBunSource(
 	const compatibilityEngine = reactCompatibility
 		? compatibilityEngineFor(options, session, reactCompatibility.target)
 		: undefined;
-	const authoredOwnership = jsxSourceOwnership(filename, source, reactCompatibility);
-	const intlAnalysis =
-		intl && options.internationalization && authoredOwnership !== 'react'
-			? intl.analyzeConfiguredSource(source, filename)
-			: undefined;
-	for (const diagnostic of intlAnalysis?.diagnostics ?? [])
-		warn?.(`${diagnostic.file}:${diagnostic.start}: ${diagnostic.message}`);
-	const analyzedSource = intlAnalysis?.code ?? source;
-	const ownership = intlAnalysis
-		? jsxSourceOwnership(filename, analyzedSource, reactCompatibility)
-		: authoredOwnership;
 	const output = transformExactAdapterModule({
+		warn,
 		source: analyzedSource,
 		filename,
 		jsxOwnership: ownership,

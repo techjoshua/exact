@@ -33,7 +33,69 @@ func (lowering *jsxLowering) authoredNarrowedType(node *ast.Node) *ast.Node {
 	if declared.Flags()&checker.TypeFlagsUnion == 0 || (declared == read && (lowering.target != TargetServer || !lowering.authoredStateRead(node))) || read.Flags()&(checker.TypeFlagsAny|checker.TypeFlagsUnknown|checker.TypeFlagsNever) != 0 {
 		return nil
 	}
+	// Optional access can widen a property result without proving a narrowed value.
+	// Such a projection must not replace the authored receiver guard.
+	if !lowering.checker.IsTypeAssignableTo(read, declared) {
+		return nil
+	}
 	return lowering.checker.TypeToTypeNode(read, node, nodebuilder.FlagsNoTruncation, nil)
+}
+
+// authoredOptionalGuardRead keeps a terminal optional read visible to native flow checking.
+// A result assertion cannot transport the receiver relationship supplied by a guard. Receiver
+// prefixes retain their own value proofs. Only exact condition edges are followed, never an
+// argument, computed key, callable body or unrelated value descendant of a condition.
+func authoredOptionalGuardRead(node *ast.Node) bool {
+	if node.Flags&ast.NodeFlagsOptionalChain == 0 || optionalChainContinuesThrough(node.Parent, node) {
+		return false
+	}
+	for parent := node.Parent; parent != nil; parent = node.Parent {
+		switch parent.Kind {
+		case ast.KindParenthesizedExpression, ast.KindNonNullExpression, ast.KindSatisfiesExpression, ast.KindTypeOfExpression:
+			if parent.Expression() != node {
+				return false
+			}
+		case ast.KindPrefixUnaryExpression:
+			if parent.AsPrefixUnaryExpression().Operator != ast.KindExclamationToken || parent.AsPrefixUnaryExpression().Operand != node {
+				return false
+			}
+		case ast.KindBinaryExpression:
+			binary := parent.AsBinaryExpression()
+			switch binary.OperatorToken.Kind {
+			case ast.KindAmpersandAmpersandToken, ast.KindBarBarToken, ast.KindQuestionQuestionToken:
+				if binary.Left == node {
+					return true
+				}
+				if binary.Right != node {
+					return false
+				}
+			case ast.KindEqualsEqualsToken, ast.KindExclamationEqualsToken, ast.KindEqualsEqualsEqualsToken, ast.KindExclamationEqualsEqualsToken:
+				if binary.Left != node && binary.Right != node {
+					return false
+				}
+			case ast.KindInKeyword:
+				if binary.Right != node {
+					return false
+				}
+			case ast.KindInstanceOfKeyword:
+				if binary.Left != node {
+					return false
+				}
+			default:
+				return false
+			}
+		case ast.KindIfStatement, ast.KindWhileStatement, ast.KindDoStatement:
+			return parent.Expression() == node
+		case ast.KindForStatement:
+			return parent.AsForStatement().Condition == node
+		case ast.KindConditionalExpression:
+			return parent.AsConditionalExpression().Condition == node
+		default:
+			return false
+		}
+		node = parent
+	}
+	return false
 }
 
 // isDeleteOperand excludes property references whose identity must survive checking projection.

@@ -10,11 +10,28 @@ export function scaleLinear(scale: LinearScale, value: number): number {
 	const [rangeStart, rangeEnd] = scale.range;
 	if (![domainStart, domainEnd, rangeStart, rangeEnd, value].every(Number.isFinite))
 		throw new TypeError('Linear scale values must be finite');
-	if (domainStart === domainEnd) return (rangeStart + rangeEnd) / 2;
-	return rangeStart + ((value - domainStart) / (domainEnd - domainStart)) * (rangeEnd - rangeStart);
+	const span = rangeEnd - rangeStart;
+	if (domainStart === domainEnd)
+		return Number.isFinite(span) ? rangeStart + span / 2 : rangeStart / 2 + rangeEnd / 2;
+	let fraction = (value - domainStart) / (domainEnd - domainStart);
+	if (!Number.isFinite(value - domainStart) || !Number.isFinite(domainEnd - domainStart)) {
+		const magnitude = Math.max(Math.abs(domainStart), Math.abs(domainEnd), Math.abs(value));
+		fraction =
+			(value / magnitude - domainStart / magnitude) /
+			(domainEnd / magnitude - domainStart / magnitude);
+	}
+	let result = rangeStart + fraction * span;
+	if (!Number.isFinite(result)) {
+		const magnitude = Math.max(Math.abs(rangeStart), Math.abs(rangeEnd));
+		result =
+			(rangeStart / magnitude + fraction * (rangeEnd / magnitude - rangeStart / magnitude)) *
+			magnitude;
+	}
+	if (!Number.isFinite(result)) throw new RangeError('Linear scale result must be finite');
+	return result;
 }
 
-/** Produces stable inclusive ticks with a human-scale interval. */
+/** Produces ordered, distinct finite ticks with bounded work, including narrow large domains. */
 export function linearTicks(domain: readonly [number, number], requested = 5): readonly number[] {
 	const [start, end] = domain;
 	if (!Number.isFinite(start) || !Number.isFinite(end))
@@ -27,9 +44,16 @@ export function linearTicks(domain: readonly [number, number], requested = 5): r
 	const high = Math.max(start, end);
 	const step = niceStep((high - low) / (requested - 1));
 	const first = Math.ceil(low / step) * step;
+	const count = Math.floor((high - first) / step + 1e-10) + 1;
+	// Integer indexing guarantees progress when a floating-point increment cannot change a value.
+	if (!Number.isFinite(first) || !Number.isSafeInteger(count) || count < 1 || count > 300)
+		return reversed ? [high, low] : [low, high];
 	const ticks: number[] = [];
-	for (let value = first; value <= high + step * 1e-10; value += step)
-		ticks.push(normalizeTick(value, step));
+	for (let index = 0; index < count; index++) {
+		const value = normalizeTick(first + index * step, step);
+		if (Number.isFinite(value) && (ticks.length === 0 || value > ticks[ticks.length - 1]!))
+			ticks.push(value);
+	}
 	if (!ticks.length) ticks.push(low, high);
 	return reversed ? ticks.reverse() : ticks;
 }
@@ -54,6 +78,7 @@ function niceStep(rough: number): number {
 }
 
 function normalizeTick(value: number, step: number): number {
+	if (step < 1e-14) return Number(value.toPrecision(15));
 	const decimals = Math.max(0, Math.min(14, -Math.floor(Math.log10(step)) + 1));
 	return Number(value.toFixed(decimals));
 }

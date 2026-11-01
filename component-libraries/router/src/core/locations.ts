@@ -1,4 +1,5 @@
-import type { LocationSource, RouteLocation, RouterMode } from './contracts.js';
+import type { LocationSource, NavigationOptions, RouteLocation, RouterMode } from './contracts.js';
+import { isAbsoluteDestination } from './url-destinations.js';
 
 /** Performs the location value domain operation. */
 export function locationValue(
@@ -8,13 +9,13 @@ export function locationValue(
 ): RouteLocation {
 	const url = routeUrl(source.location(), mode);
 	const pathname = stripBasename(normalizePath(url.pathname), basename);
-	return Object.freeze({
+	return {
 		pathname,
 		search: url.search,
 		hash: url.hash,
 		state: source.state?.(),
 		key: source.key?.() ?? 'default'
-	});
+	};
 }
 
 /** Formats a destination URL as a browser- or hash-router href. */
@@ -24,8 +25,7 @@ export function hrefFor(
 	basename: string,
 	mode: RouterMode
 ): string {
-	if (to instanceof URL || (typeof to === 'string' && /^[a-z][a-z\d+.-]*:/i.test(to)))
-		return String(to);
+	if (isAbsoluteDestination(to)) return String(to);
 	const url = resolveTarget(to, current, basename, mode);
 	const path = `${url.pathname}${url.search}${url.hash}`;
 	return mode === 'hash' ? `#${path}` : path;
@@ -39,7 +39,7 @@ export function resolveTarget(
 	mode: RouterMode
 ): URL {
 	if (to instanceof URL) return to;
-	if (/^[a-z][a-z\d+.-]*:/i.test(to)) return new URL(to);
+	if (isAbsoluteDestination(to)) return new URL(to, current);
 	const routeCurrent = routeUrl(current, mode);
 	if (to.startsWith('/')) return new URL(`${basename}${to}` || '/', routeCurrent.origin);
 	return new URL(to, routeCurrent);
@@ -90,4 +90,24 @@ let keySequence = 0;
 /** Allocates a compact process-local history entry key. */
 export function createKey(): string {
 	return (++keySequence).toString(36);
+}
+
+/** Builds a proposed history location while retaining authored state and normalizing router mode and basename. */
+export function navigationLocation(
+	url: URL,
+	options: NavigationOptions,
+	mode: RouterMode,
+	basename: string
+): RouteLocation {
+	return locationValue(
+		{
+			location: () => url,
+			push() {},
+			replace() {},
+			state: () => options.state,
+			key: () => createKey()
+		},
+		mode,
+		basename
+	);
 }

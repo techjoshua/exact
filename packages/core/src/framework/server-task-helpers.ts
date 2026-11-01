@@ -19,7 +19,7 @@ export {
 } from '../tasks/resource-release.js';
 export { createTaskArgumentDependencies } from '../tasks/argument-dependencies.js';
 export { taskNativeCleanupScope } from '../tasks/native-cleanup-scope.js';
-export { bindTaskForHost, defineTask, invokeTask } from '../tasks/runtime.js';
+export { bindTask, bindTaskForHost, defineTask, invokeTask } from '../tasks/runtime.js';
 export { activateServerComponentTaskTreeForHost } from '../tasks/server-component-task-tree.js';
 export { mutateTaskCollection, stageTaskMutation } from '../tasks/task-publication.js';
 export {
@@ -44,3 +44,5 @@ export {
 	withExistingTaskSignal,
 	withExistingAbortSignal
 } from '../tasks/cleanup-signals.js';
+
+export { assertArrayCompletionVersion } from './operation-protocol.js';

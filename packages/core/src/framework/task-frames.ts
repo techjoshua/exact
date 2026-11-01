@@ -1,5 +1,9 @@
 import type { TaskContext } from '../tasks/contracts.js';
-import { TaskCancellation } from '../tasks/cancellation.js';
+export {
+	captureTaskPropertyMutations,
+	takeTaskPropertyMutations
+} from '../tasks/property-mutations.js';
+import { isTaskCancellation } from '../tasks/cancellation.js';
 import {
 	attachTaskFrameSettlement,
 	currentTaskFrameRecord,
@@ -183,21 +187,21 @@ async function runTaskFrameInternal<T>(
 
 /** Classifies foreground failure using the frame's cancellation authority. */
 function foregroundOutcome(signal: AbortSignal, error: unknown): TaskForegroundOutcome {
-	return signal.aborted || error instanceof TaskCancellation
+	return signal.aborted || isTaskCancellation(error)
 		? { status: 'cancelled', reason: cancellationReason(signal, error) }
 		: { status: 'rejected', error };
 }
 
 /** Classifies structural failure using the frame's cancellation authority. */
 function structuralOutcome<T>(signal: AbortSignal, error: unknown): TaskFrameOutcome<T> {
-	return error instanceof TaskCancellation
+	return isTaskCancellation(error)
 		? { status: 'cancelled', reason: cancellationReason(signal, error) }
 		: { status: 'rejected', error };
 }
 
 /** Preserves the originating abort reason after runtime cancellation wrapping. */
 function cancellationReason(signal: AbortSignal, error: unknown): unknown {
-	if (error instanceof TaskCancellation) return error.reason;
+	if (isTaskCancellation(error)) return error.reason;
 	return signal.aborted ? signal.reason : error;
 }
 

@@ -4,7 +4,7 @@ import "github.com/microsoft/TypeScript/tsc/internal/ast"
 
 // proveSsrRootClass admits unescaped classes only after the compiler has constructed the
 // root bag. The slot's complete value must be ASCII-safe; unknown sources remain generic.
-func proveSsrRootClass(build *renderProgramBuild, attribute renderProgramSsrAttribute) renderProgramSsrAttribute {
+func (lowering *jsxLowering) proveSsrRootClass(build *renderProgramBuild, attribute renderProgramSsrAttribute) renderProgramSsrAttribute {
 	if attribute.kind != 1 || attribute.property != "className" {
 		return attribute
 	}
@@ -21,6 +21,9 @@ func proveSsrRootClass(build *renderProgramBuild, attribute renderProgramSsrAttr
 
 	var value *ast.Node
 	for _, property := range bag.AsObjectLiteralExpression().Properties.Nodes {
+		if lowering.isElementIdentityProperty(property) {
+			continue
+		}
 		if !ast.IsPropertyAssignment(property) ||
 			(!ast.IsIdentifier(property.Name()) && !ast.IsStringLiteral(property.Name())) {
 			return attribute

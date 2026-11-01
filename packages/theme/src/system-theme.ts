@@ -1,3 +1,5 @@
+import { ThemeResolutionError } from './errors.js';
+import { copyThemeData } from './observations.js';
 import type {
 	ResolvedTheme,
 	ThemeAppearance,
@@ -6,12 +8,10 @@ import type {
 	ThemeSource,
 	ThemeSystemPreferences
 } from './contracts.js';
-import { resolveTheme, serializeThemeVariables } from './resolver.js';
+import { resolveThemeData, serializeThemeVariables } from './resolver.js';
 import { themeStyleAttribute } from './overrides.js';
-import { selectThemeAxis, selectThemeAppearance } from './source-resolution.js';
-import { resolvedThemeReuseIdentity } from './resolution-cache.js';
+import { observeResolvedTheme, resolvedThemeReuseIdentity } from './resolution-cache.js';
 
-const resolutions = new WeakMap<ThemeScopeDefinition, Map<string, ResolvedTheme>>();
 const presentations: Array<{
 	identities: readonly symbol[];
 	presentation: ThemeScopePresentation;
@@ -22,46 +22,53 @@ export function createThemeScopeDefinition(
 	source: ThemeSource,
 	parent?: ThemeScopeDefinition
 ): ThemeScopeDefinition {
-	return Object.freeze({ source: snapshotSource(source), ...(parent ? { parent } : {}) });
+	return { source: copyThemeData(source), ...(parent ? { parent } : {}) };
 }
 
-/** Reads reactive source leaves and copies caller-owned data before identity-based caching. */
-function snapshotSource<T>(value: T): T {
-	if (!value || typeof value !== 'object') return value;
-	return Object.freeze(
-		Array.isArray(value)
-			? value.map(snapshotSource)
-			: Object.fromEntries(
-					Object.entries(value).map(([name, child]) => [name, snapshotSource(child)])
-				)
-	) as T;
-}
-
-/** Resolves explicit host preferences with scope-owned lookup and bounded reuse of immutable theme data. @exact pure */
+/** Resolves explicit host preferences with scope-owned lookup and bounded reuse of private palette data. @exact pure */
 export function resolveThemeScope(
 	definition: ThemeScopeDefinition,
 	environment: ThemeSystemPreferences
 ): ResolvedTheme {
-	const parent = definition.parent ? resolveThemeScope(definition.parent, environment) : undefined;
-	const source = definition.source;
-	const effective = {
-		appearance: selectThemeAppearance(
-			source.appearance,
-			parent?.source.appearance,
-			environment.appearance
-		),
-		contrast: selectThemeAxis(source.contrast, parent?.source.contrast, environment.contrast),
-		motion: selectThemeAxis(source.motion, parent?.source.motion, environment.motion)
-	};
-	const key = `${parent?.fingerprint ?? ''}/${effective.appearance}/${effective.contrast}/${effective.motion}`;
-	let cache = resolutions.get(definition);
-	if (!cache) resolutions.set(definition, (cache = new Map()));
-	let theme = cache.get(key);
-	if (!theme) {
-		theme = resolveTheme({ source, parent, environment });
-		cache.set(key, theme);
+	return observeResolvedTheme(resolveThemeScopeData(scopeAncestry(definition), environment));
+}
+
+/** Captures ancestry once, rejecting cycles before any palette resolution or publication. */
+function scopeAncestry(definition: ThemeScopeDefinition): ThemeScopeDefinition[] {
+	const ancestry: ThemeScopeDefinition[] = [];
+	const seen = new Set<ThemeScopeDefinition>();
+	for (
+		let current: ThemeScopeDefinition | undefined = definition;
+		current;
+		current = current.parent
+	) {
+		if (seen.has(current))
+			throw new ThemeResolutionError(
+				'invalid-source',
+				'scope.parent',
+				'Cyclic theme scope ancestry'
+			);
+		seen.add(current);
+		ancestry.push(current);
 	}
-	return theme;
+	if (!ancestry.length)
+		throw new ThemeResolutionError(
+			'invalid-source',
+			'scope',
+			'A theme scope definition is required'
+		);
+	return ancestry;
+}
+
+/** Reads validated private palettes without allocating public graphs for each CSS branch. */
+function resolveThemeScopeData(
+	ancestry: readonly ThemeScopeDefinition[],
+	environment: ThemeSystemPreferences
+): ResolvedTheme {
+	let parent: ResolvedTheme | undefined;
+	for (let index = ancestry.length - 1; index >= 0; index--)
+		parent = resolveThemeData({ source: ancestry[index]!.source, parent, environment });
+	return parent!;
 }
 
 /** Scope-owned CSS and requested preferences; CSS selection never depends on client activation. */
@@ -83,10 +90,11 @@ export type ThemeScopePresentation = Readonly<{
 export function createThemeScopePresentation(
 	definition: ThemeScopeDefinition
 ): ThemeScopePresentation {
+	const ancestry = scopeAncestry(definition);
 	const themes = Array.from({ length: 8 }, (_, mask) =>
-		resolveThemeScope(definition, preferencesForMask(mask))
+		resolveThemeScopeData(ancestry, preferencesForMask(mask))
 	);
-	const preferences = requestedPreferences(definition);
+	const preferences = requestedPreferences(ancestry);
 	const identities = themes.map(resolvedThemeReuseIdentity);
 	// Shared results contain no definition or component references. Compare all eight exact
 	// resolutions and requested preferences, since relative and explicit choices can render the
@@ -101,7 +109,7 @@ export function createThemeScopePresentation(
 	if (cachedIndex >= 0) {
 		const [entry] = presentations.splice(cachedIndex, 1);
 		presentations.push(entry!);
-		return entry!.presentation;
+		return copyThemeData(entry!.presentation);
 	}
 	const variables = themes.map((theme) => ({
 		...serializeThemeVariables(theme),
@@ -136,7 +144,7 @@ export function createThemeScopePresentation(
 		const media = mediaForMask(mask);
 		rules.push(media ? `@media ${media}{${body}}` : body);
 	}
-	const presentation = Object.freeze({
+	const presentation = {
 		preferences,
 		appearance:
 			themes[0]!.source.appearance === themes[1]!.source.appearance
@@ -146,10 +154,10 @@ export function createThemeScopePresentation(
 		style: themeStyleAttribute(inline),
 		// Keep style text safe in both parsed HTML and DOM text insertion.
 		css: rules.join('').replace(/</g, '\\3c ')
-	});
+	};
 	if (identities.every((identity) => identity !== undefined)) {
 		if (presentations.length === 32) presentations.shift();
-		presentations.push({ identities, presentation });
+		presentations.push({ identities, presentation: copyThemeData(presentation) });
 	}
 	return presentation;
 }
@@ -179,15 +187,19 @@ function mediaForMask(mask: number): string {
 }
 
 /** Retains inherited system choices instead of inheriting a parent's temporary resolved appearance. */
-function requestedPreferences(definition: ThemeScopeDefinition): ThemePreferences {
-	const parent = definition.parent ? requestedPreferences(definition.parent) : undefined;
+function requestedPreferences(ancestry: readonly ThemeScopeDefinition[]): ThemePreferences {
+	let preferences: ThemePreferences | undefined;
 	const choose = <T extends string>(
 		value: T | 'inherit' | undefined,
 		inherited: T | undefined
 	): T | 'system' => (value === undefined || value === 'inherit' ? (inherited ?? 'system') : value);
-	return Object.freeze({
-		appearance: choose(definition.source.appearance, parent?.appearance),
-		contrast: choose(definition.source.contrast, parent?.contrast),
-		motion: choose(definition.source.motion, parent?.motion)
-	});
+	for (let index = ancestry.length - 1; index >= 0; index--) {
+		const source = ancestry[index]!.source;
+		preferences = {
+			appearance: choose(source.appearance, preferences?.appearance),
+			contrast: choose(source.contrast, preferences?.contrast),
+			motion: choose(source.motion, preferences?.motion)
+		};
+	}
+	return preferences!;
 }

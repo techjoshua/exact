@@ -1,12 +1,20 @@
-import { stateNodeMatchesWrites } from '@exactjs/core/framework/protocol-records';
+import {
+	stateNodeMatchesWrites,
+	stateDeletionPathsMatchWrites,
+	stateOutputPathsMatchWrites,
+	minimalStateReadPaths
+} from '@exactjs/core/framework/protocol-records';
 import type {
 	ExactCollectionMutation,
 	ExactContinuationStatePathContract
 } from '@exactjs/core/framework/component-contracts';
 import { hasOnlySafeProtocolKeys } from '@exactjs/core/framework/protocol-records';
 import { isSafeObjectKey } from './safety.js';
+import type { ExactInvocationResult } from './types.js';
 
 type MutableStateContainer = Record<string, unknown> | unknown[];
+/** Distinguishes absent paths from owned values without allocating a result for each traversal. */
+const missingPath = Symbol('missing state path');
 type StateReadContract = {
 	readonly reads?: readonly ExactContinuationStatePathContract[];
 };
@@ -14,19 +22,40 @@ type StateWriteContract = {
 	readonly writes?: readonly ExactContinuationStatePathContract[];
 };
 
-/** Returns only the client state paths required by an eXact server invocation contract. */
-export function stateForContract(state: unknown, contract: StateReadContract | undefined): unknown {
+/** Captures required value reads without mutating client state. Missing leaves become undefined, while enclosing snapshots retain presence and missing containers remain invalid. */
+export function stateForContract(
+	state: unknown,
+	contract: StateReadContract | undefined,
+	read?: (receiver: object, key: string) => unknown
+): unknown {
 	if (!contract) return state;
-	const reads =
-		contract.reads?.filter((read) => read.kind === 'read' && read.confidence === 'exact') ?? [];
+	const reads = minimalStateReadPaths(contract.reads ?? []);
 	if (!reads.length) return undefined;
-	if (reads.some((read) => read.path === '*')) return state;
+	if (reads.includes('*')) return state;
 	const output: Record<string, unknown> = {};
-	for (const read of reads) {
-		const value = getPath(state, read.path);
-		if (value !== undefined) setPath(output, read.path, value);
+	for (const path of reads) {
+		const value = getPath(state, path, true, read);
+		if (value !== missingPath) updatePath(output, path, value);
 	}
 	return Object.keys(output).length ? output : undefined;
+}
+
+/** Plans all continuation state changes against one snapshot before publication. Invalid scalar, deletion, or collection authority rejects the complete state result without mutating live receivers. No state changes produce no plan. */
+export function mergeStatePublicationForContract(
+	state: unknown,
+	result: Pick<ExactInvocationResult, 'state' | 'statePaths' | 'deletions' | 'mutations'>,
+	contract: StateWriteContract
+): { ok: true; state: unknown } | { ok: false } | undefined {
+	const merged =
+		'state' in result || result.deletions?.length
+			? mergeStateForContract(state, result.state, contract, result.deletions, result.statePaths)
+			: undefined;
+	if (merged?.ok === false || !result.mutations) return merged;
+	return mergeCollectionMutationsForContract(
+		merged?.ok ? merged.state : state,
+		result.mutations,
+		contract
+	);
 }
 
 /**
@@ -34,53 +63,104 @@ export function stateForContract(state: unknown, contract: StateReadContract | u
  *
  * The returned object may contain only exact compiler-declared write paths.
  * Parent writes replace their complete subtree; unrelated client state is
- * retained. A wildcard write deliberately authorizes full replacement.
+ * retained. A wildcard write deliberately authorizes full replacement. Explicit authorized deletions remove
+ * properties, while omitted conditional writes leave them unchanged. Snapshot deletion retains
+ * unrelated state and array length. Explicit statePaths select the performed outputs independently
+ * of potential parent writes and must remain within the supplied authority.
  */
 export function mergeStateForContract(
 	state: unknown,
 	update: unknown,
-	contract: StateWriteContract
+	contract: StateWriteContract,
+	deletions: readonly string[] = [],
+	statePaths?: readonly string[]
 ): { ok: true; state: unknown } | { ok: false } {
-	const writes =
-		contract.writes?.filter((write) => write.kind === 'write' && write.confidence === 'exact') ??
-		[];
-	if (writes.some((write) => write.path === '*'))
-		return hasOnlySafeProtocolKeys(update) ? { ok: true, state: update } : { ok: false };
-	if (!update || typeof update !== 'object' || Array.isArray(update)) return { ok: false };
-	const paths = writes.map((write) => write.path);
-	if (!stateNodeMatchesWrites(update, '', paths)) return { ok: false };
+	if (!stateDeletionPathsMatchWrites(deletions, contract.writes ?? [])) return { ok: false };
+	const paths = stateWritePaths(contract, statePaths);
+	if (!paths) return { ok: false };
+	if (paths.includes('*') && update !== undefined) {
+		if (!hasOnlySafeProtocolKeys(update)) return { ok: false };
+		if (!deletions.length) return { ok: true, state: update };
+		const output = cloneContainer(update);
+		if (!output) return { ok: false };
+		for (let index = 0; index < deletions.length; index++)
+			updatePath(
+				output as Record<string, unknown>,
+				deletions[index]!,
+				undefined,
+				'snapshot',
+				'delete'
+			);
+		return { ok: true, state: output };
+	}
+	if (
+		update === undefined
+			? !deletions.length
+			: !update || typeof update !== 'object' || Array.isArray(update)
+	)
+		return { ok: false };
+	if (update !== undefined && !stateNodeMatchesWrites(update as object, '', paths))
+		return { ok: false };
 
 	let output = cloneContainer(state);
 	for (const path of paths) {
 		const value = getPath(update, path);
-		if (value === undefined) continue;
+		if (value === missingPath) continue;
 		if (!output) output = {};
-		setPath(output as Record<string, unknown>, path, value);
+		updatePath(output as Record<string, unknown>, path, value);
 	}
+	if (deletions.length && !output) return { ok: false };
+	for (let index = 0; index < deletions.length; index++)
+		updatePath(
+			output as Record<string, unknown>,
+			deletions[index]!,
+			undefined,
+			'snapshot',
+			'delete'
+		);
 	return { ok: true, state: output ?? state };
 }
 
-/** Commits validated continuation writes into a live reactive component state object. */
+/** Commits validated sets and deletions into live reactive receivers, retaining container identity and rejecting unauthorized deletion paths. */
 export function commitStateForContract(
 	target: Record<string, unknown>,
 	update: unknown,
-	contract: StateWriteContract
+	contract: StateWriteContract,
+	deletions: readonly string[] = [],
+	statePaths?: readonly string[]
 ): void {
-	const writes =
-		contract.writes?.filter((write) => write.kind === 'write' && write.confidence === 'exact') ??
-		[];
-	if (writes.some((write) => write.path === '*')) {
+	if (!stateDeletionPathsMatchWrites(deletions, contract.writes ?? [])) return;
+	const paths = stateWritePaths(contract, statePaths);
+	if (!paths) return;
+	if (paths.includes('*') && update !== undefined) {
 		if (!update || typeof update !== 'object' || Array.isArray(update)) return;
 		if (!hasOnlySafeProtocolKeys(update)) return;
 		for (const key of Object.keys(target))
 			if (!Object.prototype.hasOwnProperty.call(update, key)) delete target[key];
 		for (const key of Object.keys(update)) target[key] = (update as Record<string, unknown>)[key];
-		return;
-	}
-	for (const write of writes) {
-		const value = getPath(update, write.path);
-		if (value !== undefined) setPath(target, write.path, value, 'live');
-	}
+	} else
+		for (const path of paths) {
+			const value = getPath(update, path);
+			if (value !== missingPath) updatePath(target, path, value, 'live');
+		}
+	for (let index = 0; index < deletions.length; index++)
+		updatePath(target, deletions[index]!, undefined, 'live', 'delete');
+}
+
+/** Selects performed value outputs under compiler authority. Omitted selections use complete declared snapshot paths. Owned lists are copied by index so caller iteration hooks cannot enter publication. */
+function stateWritePaths(
+	contract: StateWriteContract,
+	selected?: readonly string[]
+): readonly string[] | undefined {
+	const writes = contract.writes ?? [];
+	if (selected === undefined)
+		return writes
+			.filter((write) => write.kind === 'write' && write.confidence === 'exact')
+			.map((write) => write.path);
+	if (!stateOutputPathsMatchWrites(selected, writes)) return undefined;
+	const paths: string[] = [];
+	for (let index = 0; index < selected.length; index++) paths.push(selected[index]!);
+	return paths;
 }
 
 /** Validates and immutably applies ordered Map and Set continuation deltas. */
@@ -101,7 +181,7 @@ export function mergeCollectionMutationsForContract(
 			cloned.add(mutation.path);
 		}
 		const collection = getPath(output, mutation.path);
-		if (!applyCollectionMutation(collection, mutation)) return { ok: false };
+		if (!applyPreparedCollectionMutation(collection, mutation)) return { ok: false };
 	}
 	return { ok: true, state: output };
 }
@@ -116,7 +196,7 @@ export function commitCollectionMutationsForContract(
 	for (const mutation of mutations) {
 		const expected = mutation.operation.startsWith('map-') ? 'map' : 'set';
 		if (allowed.get(mutation.path) !== expected) return false;
-		if (!applyCollectionMutation(getPath(target, mutation.path), mutation)) return false;
+		if (!applyPreparedCollectionMutation(getPath(target, mutation.path), mutation)) return false;
 	}
 	return true;
 }
@@ -166,8 +246,14 @@ function cloneCollectionAtPath(
 	return false;
 }
 
-function applyCollectionMutation(value: unknown, mutation: ExactCollectionMutation): boolean {
+/** Applies one prevalidated Map or Set delta to its once-prepared receiver. */
+export function applyPreparedCollectionMutation(
+	value: unknown,
+	mutation: ExactCollectionMutation
+): boolean {
 	switch (mutation.operation) {
+		case 'array-net':
+			return false;
 		case 'map-set':
 			if (!(value instanceof Map)) return false;
 			value.set(mutation.key, mutation.value);
@@ -195,30 +281,38 @@ function applyCollectionMutation(value: unknown, mutation: ExactCollectionMutati
 	}
 }
 
-function getPath(value: unknown, path: string): unknown {
+function getPath(
+	value: unknown,
+	path: string,
+	absentLeaf = false,
+	read?: (receiver: object, key: string) => unknown
+): unknown {
 	if (path === '*') return value;
 	let cursor = value;
-	for (const segment of path.split('.')) {
-		if (Array.isArray(cursor)) {
-			if (!isArrayIndex(segment) || !Object.prototype.hasOwnProperty.call(cursor, segment))
-				return undefined;
-			cursor = cursor[Number(segment)];
-			continue;
-		}
-		if (!cursor || typeof cursor !== 'object') return undefined;
-		if (!isSafeObjectKey(segment) || !Object.prototype.hasOwnProperty.call(cursor, segment))
-			return undefined;
-		cursor = (cursor as Record<string, unknown>)[segment];
+	const segments = path.split('.');
+	for (let index = 0; index < segments.length; index++) {
+		const segment = segments[index]!;
+		if (!cursor || typeof cursor !== 'object') return missingPath;
+		if (Array.isArray(cursor) ? !isArrayIndex(segment) : !isSafeObjectKey(segment))
+			return missingPath;
+		if (!Object.hasOwn(cursor, segment))
+			return absentLeaf && index === segments.length - 1 && !Reflect.has(cursor, segment)
+				? undefined
+				: missingPath;
+		cursor = read
+			? read(cursor, Array.isArray(cursor) ? String(Number(segment)) : segment)
+			: readContainerValue(cursor as MutableStateContainer, segment);
 	}
 	return cursor;
 }
 
-/** Snapshot projection copies ancestors; live commits retain and mutate the reactive receivers. */
-function setPath(
+/** Sets create missing containers. Deletes leave missing paths alone. Snapshots copy ancestors while live commits retain receiver identity. */
+function updatePath(
 	target: Record<string, unknown>,
 	path: string,
 	value: unknown,
-	mode: 'snapshot' | 'live' = 'snapshot'
+	mode: 'snapshot' | 'live' = 'snapshot',
+	operation: 'set' | 'delete' = 'set'
 ): void {
 	if (path === '*') return;
 	const segments = path.split('.');
@@ -231,6 +325,7 @@ function setPath(
 
 		const next = readContainerValue(cursor, segment);
 		if (!isMutableStateContainer(next)) {
+			if (operation === 'delete') return;
 			// Numeric path segments create arrays so contracts like projects.1.id preserve
 			// the same shape the server validator expects, even if that means sparse JSON.
 			const nextContainer: MutableStateContainer = isArrayIndex(nextSegment) ? [] : {};
@@ -243,19 +338,27 @@ function setPath(
 		} else if (mode === 'live') {
 			cursor = next;
 		} else {
-			const nextContainer: MutableStateContainer = Array.isArray(next) ? [...next] : { ...next };
+			const nextContainer = cloneContainer(next)!;
 			writeContainerValue(cursor, segment, nextContainer);
 			cursor = nextContainer;
 		}
 	}
 	const last = segments[segments.length - 1]!;
 	if (Array.isArray(cursor) && !isArrayIndex(last)) return;
-	writeContainerValue(cursor, last, value);
+	if (operation === 'delete') {
+		if (!Reflect.deleteProperty(cursor, last))
+			throw new TypeError(`Cannot delete state property ${path}`);
+	} else writeContainerValue(cursor, last, value);
 }
 
-/** Clones the root container so state commits do not mutate a prior snapshot. */
+/** Copies containers without filling sparse slots or invoking array iteration/species hooks. */
 function cloneContainer(value: unknown): MutableStateContainer | undefined {
-	if (Array.isArray(value)) return [...value];
+	if (Array.isArray(value)) {
+		const copy = new Array<unknown>(value.length);
+		for (let index = 0; index < value.length; index++)
+			if (index in value) copy[index] = value[index];
+		return copy;
+	}
 	if (value && typeof value === 'object') return { ...(value as Record<string, unknown>) };
 	return undefined;
 }

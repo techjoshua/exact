@@ -4,7 +4,7 @@ import type {
 	ExactLanguageDiagnosticV1
 } from '@exactjs/language-extension-api';
 import { ariaProperties, ariaRoles } from '../generated/aria-data.js';
-import { attributeMap, error, staticBoolean, staticString, warning } from './facts.js';
+import { effectiveIdAttribute, error, staticBoolean, staticString, warning } from './facts.js';
 
 const roleSet = new Set<string>(ariaRoles);
 const propertyEntries = ariaProperties as Readonly<Record<string, string | readonly string[]>>;
@@ -16,7 +16,7 @@ export function indexStaticIds(
 ): ReadonlyMap<string, ExactJsxLanguageFactV1 & { tag: string }> {
 	const ids = new Map<string, ExactJsxLanguageFactV1 & { tag: string }>();
 	for (const element of elements) {
-		const attribute = attributeMap(element).get('id');
+		const attribute = effectiveIdAttribute(element);
 		const id = staticString(attribute);
 		if (!id) continue;
 		const previous = ids.get(id);

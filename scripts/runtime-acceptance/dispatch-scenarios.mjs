@@ -1,3 +1,6 @@
+import { encodeReactiveProtocolValue } from '@exactjs/core';
+import { verifyInvocationCollectionTransports } from '../../packages/component-composition-corpus/test-support/invocation-collection-journey.ts';
+import { invokeExact, invokeExactBatch } from '../../packages/hydrate/dist/invocations.js';
 import assert from 'node:assert/strict';
 import { request, json } from './test-support.mjs';
 
@@ -45,12 +48,18 @@ export async function checkDispatch(origin, control) {
 		'array-json',
 		'hidden-index',
 		'map-iterator',
-		'set-iterator'
+		'set-iterator',
+		'ancestor-cycle'
 	]) {
 		const response = await invoke('serialization', { kind });
 		assert.equal(response.status, 500, await response.text());
 	}
 	assert.equal((await state()).hookCalls, 0);
+	assert.deepEqual((await json(await invoke('serialization', { kind: 'shared-siblings' }))).value, {
+		left: { count: 1 },
+		right: { count: 1 },
+		rows: [{ count: 1 }, { count: 1 }]
+	});
 	assert.deepEqual((await json(await invoke('serialization', { kind: 'sparse' }))).value, [
 		null,
 		null,
@@ -59,6 +68,34 @@ export async function checkDispatch(origin, control) {
 	assert.deepEqual((await json(await invoke('serialization', { kind: 'hidden-data' }))).value, [
 		'safe'
 	]);
+	assert.deepEqual(
+		(await json(await invoke('serialization', { kind: 'debug-query-lifetime' }))).value,
+		{ checked: true }
+	);
+	const clientFetch = (url, options = {}) => {
+		const headers = new Headers(options.headers);
+		headers.set('x-request-id', 'operation-' + ++sequence);
+		return request(url, { ...options, headers });
+	};
+	for (const stream of [false, true]) {
+		const endpoint = new URL('/operations', origin).href;
+		const operation = { type: 'invoke', id: 'context-write', payload: {} };
+		const single = await invokeExact({ endpoint, ...operation, stream, fetch: clientFetch });
+		assert.deepEqual(single.contexts, { StatusContext: { message: 'ready' } });
+		const [batch] = await invokeExactBatch({
+			endpoint,
+			operations: [operation],
+			stream,
+			fetch: clientFetch
+		});
+		assert.equal(batch.ok, true);
+		assert.deepEqual(batch.contexts, { StatusContext: { message: 'ready' } });
+	}
+	await verifyInvocationCollectionTransports(
+		{ invokeExact, invokeExactBatch, encodeReactiveProtocolValue },
+		new URL('/operations', origin).href,
+		clientFetch
+	);
 	// Concurrent request-owned scopes must survive awaits without borrowing a neighbor's identity.
 	const first = invoke('context', { gate: 'context-a' }, { 'x-request-id': 'context-a' });
 	const second = invoke('context', { gate: 'context-b' }, { 'x-request-id': 'context-b' });

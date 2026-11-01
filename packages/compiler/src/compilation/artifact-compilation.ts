@@ -38,7 +38,7 @@ const preparedLanguageProjections = new WeakMap<
 	NonNullable<CompileArtifactsResult['client']['inspectionCatalog']>['languageProjection']
 >();
 
-/** Compiles one source file into paired client/server artifacts. */
+/** Compiles one source entry and its required local helper companions into paired artifacts. */
 export async function compileFileArtifacts(
 	inputFile: string,
 	options: CompileArtifactsOptions
@@ -76,6 +76,10 @@ export async function compileFileArtifacts(
 		generatedValidation: options.generatedValidation,
 		...capabilityOptions
 	});
+	if (analysis.helperSources?.length) {
+		const results = await compileProjectArtifacts([inputFile], { ...options, buildKey });
+		return results.find((result) => path.resolve(result.inputFile) === path.resolve(inputFile))!;
+	}
 	const client = transformSource(source, {
 		filename,
 		buildKey,
@@ -132,7 +136,7 @@ export async function compileFileArtifacts(
 		options.emitInspection !== false
 	)
 		result = retainArtifactAnalysis(
-			{ ...result, inspection: Object.freeze({ inspection: client.inspectionCatalog }) },
+			{ ...result, inspection: { inspection: client.inspectionCatalog } },
 			analysis
 		);
 	const finalization = prepareArtifactInspection(
@@ -181,6 +185,7 @@ export async function compileProjectArtifacts(
 			moduleTransform: options.moduleTransform,
 			jsxInterop: options.jsxInterop,
 			assetRules: options.assetRules,
+			generatedValidation: options.generatedValidation,
 			emitInspection: options.languageExtensions === false ? options.emitInspection : true,
 			instrumentInspection: options.instrumentInspection,
 			packageEnhancements,
@@ -327,7 +332,13 @@ async function compileArtifactPlanEntry(
 	retainInspection = emitInspection !== undefined && emitInspection !== false
 ): Promise<CompileArtifactsResult> {
 	const source = await readFile(entry.inputFile, 'utf8');
-	const rewrites = artifactModuleRewrites(entry, entries, localDependencies, moduleRewrite);
+	const rewrites = artifactModuleRewrites(
+		entry,
+		entries,
+		localDependencies,
+		moduleRewrite,
+		dependencies
+	);
 	const base = analyzeSource(source, {
 		filename,
 		buildKey,
@@ -392,7 +403,7 @@ async function compileArtifactPlanEntry(
 	const inspected = retainArtifactAnalysis(
 		{
 			...result,
-			inspection: Object.freeze({ inspection: client.inspectionCatalog })
+			inspection: { inspection: client.inspectionCatalog }
 		},
 		artifactAnalysis(result)
 	);

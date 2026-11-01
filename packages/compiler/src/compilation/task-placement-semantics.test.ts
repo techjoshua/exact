@@ -2,7 +2,7 @@
 import path from 'node:path';
 import { expect, it, onTestFinished } from 'vitest';
 import type { AnyComponentFunction } from '@exactjs/core';
-import { createCompiledComponentReceipt as receipt } from '@exactjs/core/runtime/component-operations';
+import { createCompiledComponentInputReceipt as receipt } from '@exactjs/core/runtime/component-operations';
 import { composeExactComponentContracts } from '@exactjs/core/framework/component-contracts';
 import { hydrate } from '../../../hydrate/src/index.js';
 import { renderToHydratableString } from '@exactjs/ssr';
@@ -13,13 +13,12 @@ import {
 	type ExactServerContext
 } from '@exactjs/server';
 import { compileFileArtifacts } from '../index.js';
-import { createTestWorkspace, writeTestFiles } from '../test-support/workspace.js';
+import { createCompilerTestWorkspace, writeTestFiles } from '../test-support/workspace.js';
 import { importArtifact } from '../test-support/import-artifact.js';
-
 it.each(['client', 'server'] as const)(
 	'preserves nested %s task results, captured props and failure recovery',
 	async (placement) => {
-		const root = await createTestWorkspace('.exact-task-placement-', process.cwd());
+		const root = await createCompilerTestWorkspace('.exact-task-placement-', process.cwd());
 		const files = await writeTestFiles(root, {
 			'page.tsx': `import {TaskContext,type Component} from '@exactjs/core';
 /** @exact pure */ export function expected(value:string,suffix:string){if(value==='fail')throw new Error('expected failure');return value+suffix;}

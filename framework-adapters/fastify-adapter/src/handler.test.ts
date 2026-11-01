@@ -4,6 +4,33 @@ import { describe, expect, it, vi } from 'vitest';
 import { createExactFastifyHandler, type ExactFastifyReply } from './index.js';
 
 describe('@exactjs/fastify-adapter', () => {
+	it.each(['https://app.test', 'https://evil.test'])(
+		'checks debug origin %s before authorization',
+		async (origin) => {
+			const publicOrigin = vi.fn(() => 'https://app.test');
+			const allowDebug = vi.fn(() => true);
+			const configuration = {
+				contract: { version: 1 as const, endpoint: '/__exact', invocations: {}, boundaries: {} },
+				publicOrigin,
+				allowDebug
+			};
+			const expected = origin === 'https://app.test' ? 200 : 404;
+			const handler = createExactFastifyHandler(configuration);
+			const reply = createFastifyReply();
+			await handler(
+				{
+					method: 'POST',
+					url: '/__exact',
+					headers: { origin },
+					body: { type: 'debug', version: 1, request: 'open' }
+				},
+				reply
+			);
+			expect(reply.statusCode).toBe(expected);
+			expect(publicOrigin).toHaveBeenCalledTimes(1);
+			expect(allowDebug.mock.calls.length > 0).toBe(origin === 'https://app.test');
+		}
+	);
 	it('writes eXact responses through Fastify reply methods', async () => {
 		const handler = createExactFastifyHandler({
 			publicOrigin: 'http://fastify.example.test',

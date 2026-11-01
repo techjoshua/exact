@@ -100,6 +100,7 @@ func collectStateAnalysis(
 				Component:     candidate.name,
 				Path:          path,
 				Operation:     operation,
+				ArrayRoots:    componentArrayRootProofs(node, target, candidate.node, sourceFile, path, typeChecker, policyBindings),
 				Start:         node.Pos(),
 				Length:        node.End() - node.Pos(),
 				RootAlias:     rootAlias,
@@ -377,15 +378,11 @@ func stateWriteDynamicSegments(
 	return result
 }
 
+// stateWriteHasNestedThis uses the same lexical receiver boundaries as state-path
+// analysis. A resolved alias must survive wherever synthesizing component this
+// would instead select an ordinary function, class instance or static receiver.
 func stateWriteHasNestedThis(node *ast.Node, component *ast.Node) bool {
-	for current := node.Parent; current != nil && current != component; current = current.Parent {
-		if ast.IsMethodDeclaration(current) ||
-			ast.IsFunctionDeclaration(current) ||
-			ast.IsFunctionExpression(current) {
-			return true
-		}
-	}
-	return false
+	return !componentOwnsReceiver(node, map[*ast.Node]bool{component: true})
 }
 
 func stateWriteAliasRoot(
@@ -452,11 +449,12 @@ func collectComponentStateReads(
 			}
 		}
 		reads = append(reads, StateRead{
-			Component:  candidate.name,
-			Path:       path,
-			Confidence: confidence,
-			Start:      target.Pos(),
-			Length:     target.End() - target.Pos(),
+			dynamicSegments: stateWriteDynamicSegments(target, path),
+			Component:       candidate.name,
+			Path:            path,
+			Confidence:      confidence,
+			Start:           target.Pos(),
+			Length:          target.End() - target.Pos(),
 		})
 		return true
 	})

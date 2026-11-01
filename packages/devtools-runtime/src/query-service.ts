@@ -1,9 +1,11 @@
 import {
 	paginateExactInspection,
 	parseExactInspectionRequest,
+	readExactInspectionRequestId as requestId,
 	parseExactInspectionSubscription,
 	type ExactInspectionQueryService,
 	type ExactInspectionRequest,
+	type ExactInspectionExecutionRoot,
 	type ExactInspectionResponse,
 	type ExactInspectionRuntimeId,
 	type ExactInspectionSubscriptionHandle,
@@ -19,6 +21,12 @@ import {
 	successfulInspectionResponse as success
 } from './query/response.js';
 import { mergedTimeline } from './query/timeline.js';
+import {
+	InspectionCollectionCursorError,
+	paginateInspectionSources,
+	type InspectionCollectionSource
+} from './query/collection-pagination.js';
+import { matchesInspectionRoot, matchesInspectionComponent } from './query/collection-filters.js';
 
 /** Inputs retained by the shared page query service while one session is attached. */
 export type ExactClientQueryServiceOptions = Readonly<{
@@ -30,11 +38,13 @@ export type ExactClientQueryServiceOptions = Readonly<{
 	maxResults?: number;
 }>;
 
-/** Creates the canonical service shared by the panel model and agent bridge. */
+/** Creates the shared page service. maxResults defaults to 500 and must be a positive safe integer, or construction throws RangeError. */
 export function createExactClientInspectionQueryService(
 	options: ExactClientQueryServiceOptions
 ): ExactInspectionQueryService {
 	const maxResults = options.maxResults ?? 500;
+	if (!Number.isSafeInteger(maxResults) || maxResults < 1)
+		throw new RangeError('Invalid eXact inspection result maximum');
 	const service: ExactInspectionQueryService = {
 		async request(untrusted) {
 			let request: ExactInspectionRequest;
@@ -43,7 +53,13 @@ export function createExactClientInspectionQueryService(
 			} catch (error) {
 				return failure(requestId(untrusted), 'bad-request', error);
 			}
-			const snapshot = options.dom.snapshot().components;
+			// Collect browser records only when needed, retaining one snapshot for values and routing.
+			let captured: ReturnType<ExactDomInspectionHost['snapshot']> | undefined;
+			const domSnapshot = () => (captured ??= options.dom.snapshot());
+			const components = () =>
+				domSnapshot().components.filter(
+					(component) => component.id.sessionId === options.sessionId
+				);
 			const serverOwned =
 				request.params?.identity?.side === 'server' && options.serverConnected && options.server;
 			if (
@@ -60,14 +76,25 @@ export function createExactClientInspectionQueryService(
 				return options.server!.query(options.sessionId, request);
 			switch (request.method) {
 				case 'roots.list':
-					return mergedServerCollection(request, options, options.dom.snapshot().roots, maxResults);
+					return mergedServerCollection(
+						request,
+						options,
+						{
+							values: domSnapshot().roots.filter((root) =>
+								matchesInspectionRoot(root, request.params?.filter)
+							),
+							roots: domSnapshot().roots
+						},
+						maxResults
+					);
 				case 'microfrontends.list':
 					return collection(
 						request,
 						options.sessionId,
-						options.dom
-							.snapshot()
-							.roots.filter((root) => root.binding)
+						domSnapshot()
+							.roots.filter(
+								(root) => root.binding && matchesInspectionRoot(root, request.params?.filter)
+							)
 							.map((root) => ({
 								binding: root.binding,
 								buildKey: root.buildKey,
@@ -80,18 +107,33 @@ export function createExactClientInspectionQueryService(
 						maxResults
 					);
 				case 'components.tree':
-					return mergedServerCollection(request, options, snapshot, maxResults);
+					return mergedServerCollection(
+						request,
+						options,
+						{
+							values: components().filter((component) =>
+								matchesInspectionComponent(component.id, request.params?.filter)
+							),
+							roots: domSnapshot().roots
+						},
+						maxResults
+					);
 				case 'partitions.tree':
 					return mergedServerCollection(
 						request,
 						options,
-						options.dom.snapshot().partitions,
+						{ values: domSnapshot().partitions, roots: domSnapshot().roots },
 						maxResults
 					);
 				case 'components.get':
-					return componentResponse(request, options.sessionId, snapshot, (component) => component);
+					return componentResponse(
+						request,
+						options.sessionId,
+						components(),
+						(component) => component
+					);
 				case 'state.get':
-					return componentResponse(request, options.sessionId, snapshot, (component) => ({
+					return componentResponse(request, options.sessionId, components(), (component) => ({
 						state: component.state,
 						props: component.props
 					}));
@@ -99,20 +141,20 @@ export function createExactClientInspectionQueryService(
 					return componentResponse(
 						request,
 						options.sessionId,
-						snapshot,
+						components(),
 						(component) => component.contexts
 					);
 				case 'tasks.list':
 					return componentResponse(
 						request,
 						options.sessionId,
-						snapshot,
+						components(),
 						(component) => component.tasks
 					);
 				case 'tasks.get':
-					return nestedResponse(request, options.sessionId, snapshot, 'tasks');
+					return nestedResponse(request, options.sessionId, components(), 'tasks');
 				case 'tasks.getTree':
-					return componentResponse(request, options.sessionId, snapshot, (component) =>
+					return componentResponse(request, options.sessionId, components(), (component) =>
 						taskTree(component.tasks)
 					);
 				case 'timeline.query':
@@ -139,7 +181,7 @@ export function createExactClientInspectionQueryService(
 			const closes: Array<() => void> = [
 				options.events.subscribe(cursors.get(CLIENT_HOST), request.filter, listener)
 			];
-			return Object.freeze({
+			return {
 				get closed() {
 					return closed;
 				},
@@ -148,59 +190,73 @@ export function createExactClientInspectionQueryService(
 					closed = true;
 					for (const close of closes) close();
 				}
-			});
+			};
 		}
 	};
-	return Object.freeze(service);
+	return service;
 }
 
 async function mergedServerCollection(
 	request: ExactInspectionRequest,
 	options: ExactClientQueryServiceOptions,
-	clientValues: readonly unknown[],
+	client: Readonly<{ values: readonly unknown[]; roots: readonly ExactInspectionExecutionRoot[] }>,
 	maximum: number
 ): Promise<ExactInspectionResponse> {
-	let serverValues: readonly unknown[] = [];
+	const sources: InspectionCollectionSource[] = [
+		{
+			size: client.values.length,
+			async read(page) {
+				const result = paginateExactInspection(client.values, page, maximum);
+				return { values: result.values, nextCursor: result.nextCursor };
+			}
+		}
+	];
 	if (options.serverConnected && options.server) {
-		const responses = await Promise.all(
-			serverTargets(options.dom.snapshot().roots, request.params?.filter).map(async (target) => {
-				try {
-					const route = target.filter;
-					let routedRequest = request;
-					if (target.key !== PAGE_SERVER_HOST) {
-						if (!route?.binding || !route.buildKey || !route.executionRoot) return [];
-						routedRequest = {
+		for (const target of serverTargets(client.roots, request.params?.filter)) {
+			sources.push({
+				async read(page) {
+					try {
+						const route = target.filter;
+						if (
+							target.key !== PAGE_SERVER_HOST &&
+							(!route?.binding || !route.buildKey || !route.executionRoot)
+						)
+							return { values: [] };
+						const identity =
+							target.key === PAGE_SERVER_HOST
+								? request.params?.identity
+								: {
+										sessionId: options.sessionId,
+										side: 'server' as const,
+										binding: route?.binding,
+										buildKey: route!.buildKey!,
+										executionRoot: route!.executionRoot!,
+										componentTypeId: 'execution-root'
+									};
+						const remote = await options.server!.query(options.sessionId, {
 							...request,
-							params: {
-								...request.params,
-								identity: {
-									sessionId: options.sessionId,
-									side: 'server',
-									binding: route.binding,
-									buildKey: route.buildKey,
-									executionRoot: route.executionRoot,
-									componentTypeId: 'execution-root'
-								}
-							}
-						};
+							params: { ...request.params, identity, page }
+						});
+						return remote.ok && Array.isArray(remote.result)
+							? { values: remote.result, nextCursor: remote.page?.nextCursor }
+							: { values: [] };
+					} catch {
+						return { values: [] };
 					}
-					const remote = await options.server!.query(options.sessionId, {
-						...routedRequest
-					});
-					return remote.ok && Array.isArray(remote.result) ? remote.result : [];
-				} catch {
-					return [];
 				}
-			})
-		);
-		serverValues = Object.freeze(responses.flat());
+			});
+		}
 	}
-	return collection(
-		request,
-		options.sessionId,
-		Object.freeze([...clientValues, ...serverValues]),
-		maximum
-	);
+	try {
+		const page = await paginateInspectionSources(sources, request.params?.page, maximum);
+		return success(request, options.sessionId, page.values, page.nextCursor);
+	} catch (error) {
+		return failure(
+			request.id,
+			error instanceof InspectionCollectionCursorError ? 'bad-request' : 'unavailable',
+			error
+		);
+	}
 }
 
 function componentResponse(
@@ -209,7 +265,7 @@ function componentResponse(
 	components: readonly ExactInspectedRuntimeComponent[],
 	select: (component: ExactInspectedRuntimeComponent) => unknown
 ): ExactInspectionResponse {
-	const component = findComponent(request.params?.identity, components);
+	const component = findComponent(request.params?.identity, components, sessionId);
 	return component
 		? success(request, sessionId, select(component))
 		: failure(request.id, 'not-found', 'component unavailable');
@@ -221,9 +277,18 @@ function nestedResponse(
 	components: readonly ExactInspectedRuntimeComponent[],
 	key: 'tasks'
 ): ExactInspectionResponse {
-	const component = findComponent(request.params?.identity, components);
+	const component = findComponent(request.params?.identity, components, sessionId);
 	const sourceEntityId = request.params?.sourceEntityId ?? request.params?.identity?.sourceEntityId;
-	const record = component?.[key].find((entry) => entry.id.sourceEntityId === sourceEntityId);
+	const operationId = request.params?.identity?.operationId;
+	const generation = request.params?.identity?.generation;
+	const record =
+		(sourceEntityId !== undefined || operationId !== undefined) &&
+		component?.[key].find(
+			(entry) =>
+				(sourceEntityId === undefined || entry.id.sourceEntityId === sourceEntityId) &&
+				(operationId === undefined || entry.id.operationId === operationId) &&
+				(generation === undefined || entry.id.generation === generation)
+		);
 	return record
 		? success(request, sessionId, record)
 		: failure(request.id, 'not-found', `${key} record unavailable`);
@@ -250,24 +315,34 @@ function taskTree(tasks: readonly ExactTaskRuntimeSnapshot[]): readonly TaskTree
 }
 
 function runtimeIdentityKey(identity: ExactInspectionRuntimeId): string {
-	return [
+	return JSON.stringify([
+		identity.sessionId,
+		identity.side,
+		identity.binding,
 		identity.buildKey,
 		identity.executionRoot,
+		identity.componentTypeId,
 		identity.instanceId,
-		identity.sourceEntityId ?? '',
-		identity.generation ?? ''
-	].join(':');
+		identity.sourceEntityId,
+		identity.operationId,
+		identity.generation
+	]);
 }
 
 function findComponent(
 	identity: ExactInspectionRuntimeId | undefined,
-	components: readonly ExactInspectedRuntimeComponent[]
+	components: readonly ExactInspectedRuntimeComponent[],
+	sessionId: string
 ): ExactInspectedRuntimeComponent | undefined {
-	if (!identity) return undefined;
+	if (!identity || identity.sessionId !== sessionId) return undefined;
 	return components.find(
 		(component) =>
+			component.id.sessionId === identity.sessionId &&
+			component.id.side === identity.side &&
+			component.id.binding === identity.binding &&
 			component.id.buildKey === identity.buildKey &&
 			component.id.executionRoot === identity.executionRoot &&
+			component.id.componentTypeId === identity.componentTypeId &&
 			component.id.instanceId === identity.instanceId
 	);
 }
@@ -283,14 +358,5 @@ function collection(
 }
 
 function closedSubscription(): ExactInspectionSubscriptionHandle {
-	return Object.freeze({ closed: true, close() {} });
-}
-
-function requestId(value: unknown): string {
-	return typeof value === 'object' &&
-		value !== null &&
-		'id' in value &&
-		typeof (value as { id?: unknown }).id === 'string'
-		? (value as { id: string }).id
-		: 'invalid-request';
+	return { closed: true, close() {} };
 }

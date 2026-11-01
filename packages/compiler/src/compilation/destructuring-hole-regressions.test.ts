@@ -3,15 +3,14 @@ import path from 'node:path';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { expect, it, onTestFinished } from 'vitest';
 import type { AnyComponentFunction } from '@exactjs/core';
-import { createCompiledComponentReceipt } from '@exactjs/core/runtime/component-operations';
+import { createCompiledComponentInputReceipt } from '@exactjs/core/runtime/component-operations';
 import { renderToString } from '@exactjs/ssr';
 import { render, dispose } from '@exactjs/dom';
 import { flushSync } from '@exactjs/reactive';
 import { NativeCompilerProcess } from '../native/process.js';
 import { resolveNativeCompilerExecutable } from '../native/executable.js';
 import { importArtifact } from '../test-support/import-artifact.js';
-import { createTestWorkspace } from '../test-support/workspace.js';
-
+import { createCompilerTestWorkspace } from '../test-support/workspace.js';
 it.each([
 	'leading',
 	'nested',
@@ -27,7 +26,7 @@ it.each([
 	async (shape) => {
 		const parent = path.resolve('.tmp/destructuring-hole-regressions');
 		await mkdir(parent, { recursive: true });
-		const directory = await createTestWorkspace('case-', parent);
+		const directory = await createCompilerTestWorkspace('case-', parent);
 		const compiler = new NativeCompilerProcess({ executable: resolveNativeCompilerExecutable() });
 		onTestFinished(() => compiler.dispose());
 		for (const target of ['client', 'server'] as const) {
@@ -62,7 +61,7 @@ export function Page(this:Component<{rows:${nested ? '{value:number}[][]' : '{va
 			const module = await importArtifact(file, path.join(directory, `${target}.mjs`));
 			const Page = module.Page as AnyComponentFunction;
 			if (target === 'server') {
-				const result = await renderToString(createCompiledComponentReceipt(Page, {}), {
+				const result = await renderToString(createCompiledComponentInputReceipt(Page, {}), {
 					markers: false
 				});
 				expect(result.html).toContain('<output>3</output>');
@@ -71,7 +70,7 @@ export function Page(this:Component<{rows:${nested ? '{value:number}[][]' : '{va
 				onTestFinished(() => {
 					dispose(host, true);
 				});
-				render(createCompiledComponentReceipt(Page, {}), host);
+				render(createCompiledComponentInputReceipt(Page, {}), host);
 				flushSync();
 				const output = host.querySelector('output')!;
 				expect(output.textContent).toBe('2');

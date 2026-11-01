@@ -1,6 +1,33 @@
 import ts from 'typescript';
 import type { ExactProvidedPackageImportUsage } from './artifacts.js';
 
+/** Shares import validation across build adapters with bounded, most-recent-source caching. */
+export function createProvidedPackageImportAnalysis(providedKeys: readonly string[]) {
+	const keys = [...new Set(providedKeys)];
+	const provided = new Set(keys);
+	let previousSource: string | undefined;
+	let previousFilename: string | undefined;
+	let previousAnalysis: ReturnType<typeof analyzeProvidedPackageImports> | undefined;
+	return {
+		/** Checks provider membership without swallowing malformed import diagnostics. */
+		isProvidedRequest(request: string): boolean {
+			return provided.has(request);
+		},
+		/** Analyzes the complete importer, retaining at most one source and its static usages. */
+		analyzeProvidedImports(source: string | undefined, filename: string) {
+			if (source === undefined)
+				throw new Error(`Provided-package importer source is unavailable: ${filename}`);
+			if (source !== previousSource || filename !== previousFilename || !previousAnalysis) {
+				const analysis = analyzeProvidedPackageImports(source, filename, keys);
+				previousSource = source;
+				previousFilename = filename;
+				previousAnalysis = analysis;
+			}
+			return previousAnalysis;
+		}
+	};
+}
+
 /** Finds the static import shape used for each exact configured provider key. */
 export function analyzeProvidedPackageImports(
 	code: string,
@@ -69,11 +96,13 @@ export function analyzeProvidedPackageImports(
 	}
 
 	const namespaceExports = new Map<string, Set<string>>();
+	const checker = namespaces.size ? importBindingChecker(source) : undefined;
 	const visit = (node: ts.Node): void => {
+		if (ts.isTypeNode(node)) return;
 		if (
 			ts.isCallExpression(node) &&
 			node.expression.kind === ts.SyntaxKind.ImportKeyword &&
-			node.arguments.length === 1
+			node.arguments.length >= 1
 		) {
 			const key = moduleKey(node.arguments[0], keys);
 			if (key)
@@ -83,7 +112,12 @@ export function analyzeProvidedPackageImports(
 		}
 		if (ts.isIdentifier(node)) {
 			const namespace = namespaces.get(node.text);
-			if (namespace && node !== namespace.declaration.name) {
+			if (
+				namespace &&
+				node !== namespace.declaration.name &&
+				checker?.getSymbolAtLocation(node) ===
+					checker?.getSymbolAtLocation(namespace.declaration.name)
+			) {
 				const parent = node.parent;
 				let exported: string | undefined;
 				if (ts.isPropertyAccessExpression(parent) && parent.expression === node)
@@ -92,7 +126,7 @@ export function analyzeProvidedPackageImports(
 					ts.isElementAccessExpression(parent) &&
 					parent.expression === node &&
 					parent.argumentExpression &&
-					ts.isStringLiteral(parent.argumentExpression)
+					ts.isStringLiteralLike(parent.argumentExpression)
 				)
 					exported = parent.argumentExpression.text;
 				else
@@ -116,8 +150,35 @@ export function analyzeProvidedPackageImports(
 	return new Map([...usages].map(([key, values]) => [key, Object.freeze(values)] as const));
 }
 
+/** Binds one importer without resolving packages so namespace checks follow lexical identity. */
+function importBindingChecker(source: ts.SourceFile): ts.TypeChecker {
+	return ts
+		.createProgram(
+			[source.fileName],
+			{
+				noLib: true,
+				noResolve: true,
+				allowJs: true,
+				allowNonTsExtensions: true,
+				types: []
+			},
+			{
+				getSourceFile: () => source,
+				getDefaultLibFileName: () => '',
+				writeFile: () => {},
+				getCurrentDirectory: () => '/',
+				getCanonicalFileName: (filename) => filename,
+				useCaseSensitiveFileNames: () => true,
+				getNewLine: () => '\n',
+				fileExists: () => false,
+				readFile: () => undefined
+			}
+		)
+		.getTypeChecker();
+}
+
 function moduleKey(node: ts.Node | undefined, keys: ReadonlySet<string>): string | undefined {
-	return node && ts.isStringLiteral(node) && keys.has(node.text) ? node.text : undefined;
+	return node && ts.isStringLiteralLike(node) && keys.has(node.text) ? node.text : undefined;
 }
 
 function scriptKind(filename: string): ts.ScriptKind {
