@@ -150,6 +150,67 @@ it('preserves method reference, receiver, defaults and invocation-local storage 
 	expect(fixture.reports).toEqual([]);
 });
 
+it('retains the original method across nested awaits and stops later operands after failure or cancellation', async () => {
+	const fixture = await taskClosureRuntime('nested-evaluation');
+	const gates = fixture.module.gates as Map<string, () => void>;
+	const trace = fixture.module.trace as string[];
+	const cleaned = fixture.module.cleaned as string[];
+	const normal = fixture.invoke({ mode: 'normal', value: 0 });
+	await expect.poll(() => gates.has('normal')).toBe(true);
+	expect(trace).toEqual(['normal:get', 'normal:arg1', 'normal:set']);
+	gates.get('normal')!();
+	expect(await normal).toMatchObject({ state: { value: 3 }, value: 3 });
+	expect(trace).toEqual([
+		'normal:get',
+		'normal:arg1',
+		'normal:set',
+		'normal:resume',
+		'normal:arg2',
+		'normal:call:original',
+		'normal:finally'
+	]);
+	const thrown = fixture.invoke({ mode: 'throw', value: 0 }).catch((error) => error);
+	await expect.poll(() => gates.has('throw')).toBe(true);
+	gates.get('throw')!();
+	expect(await thrown).toMatchObject({
+		message: expect.stringContaining('Task fixture HTTP 500')
+	});
+	expect(trace.filter((entry) => entry.startsWith('throw:'))).toEqual([
+		'throw:get',
+		'throw:arg1',
+		'throw:set',
+		'throw:resume',
+		'throw:catch:Error',
+		'throw:finally'
+	]);
+	const controller = new AbortController();
+	const cancelled = fixture
+		.invoke({ mode: 'cancel', value: 0 }, undefined, undefined, controller.signal)
+		.catch((error) => error);
+	await expect.poll(() => gates.has('cancel')).toBe(true);
+	controller.abort();
+	expect(await cancelled).toMatchObject({ name: 'AbortError' });
+	await expect.poll(() => cleaned.includes('cancel')).toBe(true);
+	const beforeRelease = trace.filter((entry) => entry.startsWith('cancel:'));
+	expect(beforeRelease).not.toContain('cancel:arg2');
+	expect(beforeRelease).not.toContain('cancel:call:original');
+	expect(beforeRelease).not.toContain('cancel:replacement');
+	expect(beforeRelease.filter((entry) => entry === 'cancel:finally')).toHaveLength(1);
+	gates.get('cancel')!();
+	const following = fixture.invoke({ mode: 'following', value: 0 });
+	await expect.poll(() => gates.has('following')).toBe(true);
+	gates.get('following')!();
+	expect(await following).toMatchObject({ state: { value: 3 }, value: 3 });
+	expect(trace.filter((entry) => entry.startsWith('cancel:'))).toEqual(beforeRelease);
+	expect(cleaned).toEqual(['normal', 'throw', 'cancel', 'following']);
+	expect(fixture.reports).toEqual([
+		expect.objectContaining({
+			level: 'error',
+			data: expect.objectContaining({ message: 'argument failure' })
+		})
+	]);
+});
+
 it('leaves a separately owned detached child on its own signal after parent cancellation', async () => {
 	const fixture = await taskClosureRuntime('child');
 	const gates = fixture.module.gates as Map<string, () => void>;

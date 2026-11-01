@@ -1915,6 +1915,16 @@ methods and async closures with input-present writes. Render-property and native
 check client closure publication alongside existing generation state. Detached child ownership is
 checked separately from its unresolved parent-response publication contract.
 
+The `nested-evaluation` task fixture adds an accessor-selected method with two awaited arguments.
+Its first argument replaces the method after the original reference has been read. The HTTP test
+requires one original Get, the original receiver and callee, argument order, and catch/finally
+behavior. Cancellation must stop the remaining argument and invocation, release once, and admit a
+following activation without reviving canceled work. Strict TypeScript 7 qualifies the source.
+On the current integrated analysis source, its initial Analyze request exceeds the unchanged
+30-second deadline, before transformation or runtime execution. Those runtime assertions remain
+unexecuted. The existing synchronous method/default fixture passes. Its harness ignores only
+warning-level `EXACT_ANALYSIS_COST` and retains all other diagnostic obligations.
+
 ## Form submission lifetime
 
 `test-support/forms/submit-lifetime.fixtures.tsx` uses the Form and Field source owners

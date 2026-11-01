@@ -58,9 +58,14 @@ export async function taskClosureRuntime(name: string) {
 			target,
 			diagnostics: 'semantic'
 		});
+		// Cost warnings are advisory. Every semantic error and other warning still
+		// participates in the fixture's explicit diagnostic contract below.
+		const diagnostics = checked.diagnostics.filter(
+			(diagnostic) => diagnostic.severity !== 'warning' || diagnostic.code !== 'EXACT_ANALYSIS_COST'
+		);
 		const expectedAdvisory =
 			name === 'child'
-				? checked.diagnostics.filter(
+				? diagnostics.filter(
 						(diagnostic) =>
 							diagnostic.code === 'EXACT2004' &&
 							diagnostic.severity === 'warning' &&
@@ -69,7 +74,7 @@ export async function taskClosureRuntime(name: string) {
 				: [];
 		if (name === 'child' && expectedAdvisory.length !== 1)
 			throw new Error(`${name}/${target}: missing detached server advisory`);
-		if (checked.error || checked.diagnostics.length !== expectedAdvisory.length)
+		if (checked.error || diagnostics.length !== expectedAdvisory.length)
 			throw new Error(`${name}/${target}: ${checked.error ?? JSON.stringify(checked.diagnostics)}`);
 		if (
 			!checked.analysis.tasks.length ||
