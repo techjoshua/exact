@@ -90,6 +90,13 @@ export function SecretsPluginPage(this: Component<{}>) {
 					consumers.
 				</p>
 				<p>
+					A record also stays protected when a member function or constructor can return a secret.
+					Select a public sibling such as <code>record.label</code> when that is the value you
+					intend to disclose. A generic helper's selected result type determines that projection,
+					while its arguments retain their own secret checks. If recursive types prevent a complete
+					disclosure check, the compiler keeps the value protected.
+				</p>
+				<p>
 					Logging can disclose a secret through its message or through the decision to log. Native
 					console methods, their immutable aliases and Node console imports retain this protection.
 					An ordinary parameter named <code>console</code> follows its own declared contract.

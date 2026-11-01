@@ -1442,7 +1442,12 @@ Getter reads still infer their result immediately, and an earlier function refer
 satisfy the separate query for a later call. Declaration annotations and selected type
 qualification remain checked on references. Source result queries cache declaration and completed type-qualification facts
 within their analysis and checker generation. Successful recursive searches never publish partial
-negative facts. Context residency resolves the core factory and native option syntax, including
+negative facts. Whole-value qualification follows deferred call and construct result contracts,
+while a selected public sibling is checked through its resolved invocation type. Argument policy
+and execution effects remain independent. Expanding generic queries reuse the pinned checker's
+recursion-identity detection and retain incomplete protection without caching success. Finite
+record width is not an expansion limit, and subtree cache warmth cannot change the decision.
+Context residency resolves the core factory and native option syntax, including
 factory aliases and immutable option objects, rather
 than matching function names or substrings in authored text. Console sink analysis similarly uses
 native receiver and module identity through immutable aliases and native Function forwarding.
