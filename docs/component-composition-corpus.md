@@ -2007,6 +2007,12 @@ consumer counts `document.title` getter calls without rereading it for the oracl
 Client browser initialization must read it once, the safe control must not read it,
 and the server artifact must not read it.
 
+The existing compiler-confidence runner includes these three emitted tests as
+`shared-capture-composition`. Its `capture-dependencies-to-consumers` contract edge
+requires all three current executions to pass exactly once. Declaring the witness does
+not grant execution credit, and its Node-hosted scope does not replace the environment
+matrix below.
+
 Baseline execution on 2026-11-01 used production checkpoint `e50c3c860`
 (native inputs unchanged from `b30c50e45`) with these
 new tests, pinned TypeScript source `1f70213d4922b434345f639b441681e470c7cfc1`

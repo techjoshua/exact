@@ -247,6 +247,19 @@ export const languageFeatures = [
 export const contractEdges = [
 	{
 		...feature(
+			'capture-dependencies-to-consumers',
+			'contract',
+			'per-use source capture and member-write dependencies -> target exports and reactive consumers',
+			['shared-capture-composition'],
+			'The unchanged projected closure and safe RHS require actual paired artifacts and once-only browser reads. A nested captured state read updates the same mounted instance without replaying an unrelated consumer. SSR and disposal are checked in Node-hosted Vitest/jsdom. This does not establish adapter, real-browser hydration, installed-package or cross-runtime acceptance.'
+		),
+		producer:
+			'Preserve the captured binding/object relationship and applicable member-write dependencies independently of exact runtime values.',
+		consumer:
+			'Project authorized target exports and update only the affected retained component work, preserving runtime evaluation and cleanup.'
+	},
+	{
+		...feature(
 			'type-policy-to-disclosure',
 			'contract',
 			'resolved qualification declarations -> component data-policy sinks',

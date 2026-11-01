@@ -3,6 +3,17 @@ const compiler = 'packages/compiler/src/';
 /** Paired module publication and lexical framework import behavior, with explicit invalid controls. */
 export const moduleWitnesses = [
 	{
+		id: 'shared-capture-composition',
+		file: compiler + 'compilation/shared-composition-runtime.test.ts',
+		environment:
+			'paired emitted modules, browser RHS counts, jsdom mounted reactive updates, retained instance/state/DOM, SSR and disposal',
+		tests: [
+			'updates a container-carried capture on the same mounted component',
+			'executes the paired original projected call without replaying its original call',
+			'executes the paired safe RHS control without replaying its original call'
+		]
+	},
+	{
 		id: 'core-import-identity',
 		file: compiler + 'compilation/core-import-identity.test.ts',
 		environment:
