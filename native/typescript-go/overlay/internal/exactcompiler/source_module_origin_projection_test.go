@@ -272,11 +272,11 @@ func TestModuleOriginKnownGetterEffectSurvivesUnknown(t *testing.T) {
 func TestModuleOriginReturnAlternatives(t *testing.T) {
 	for _, test := range []struct {
 		name, alternative string
-		families          int
+		opaque            bool
 	}{
-		{"supported-pair", `{get value(){return input.value}}`, 2},
-		{"unknown-return", `unknownValue`, 0},
-		{"proxy-return", `new Proxy({value:'safe'},{get(){return 'proxy'}})`, 0},
+		{"supported-pair", `{get value(){return input.value}}`, false},
+		{"unknown-return", `unknownValue`, true},
+		{"proxy-return", `new Proxy({value:'safe'},{get(){return 'proxy'}})`, true},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			source := `declare const pick:boolean;declare const unknownValue:{value:string};function make(input:{value:string}){return pick?{get value(){return input.value}}:` + test.alternative + `}const box=make({get value(){return document.title}});export const value=(document.title,box.value);`
@@ -291,20 +291,11 @@ func TestModuleOriginReturnAlternatives(t *testing.T) {
 			}
 			defer generation.release()
 			collectProjectCallableEffects(project, generation.sourceFile, generation.checker, nil, nil, nil, nil, analyzeAssets(generation.sourceFile, generation.checker, request), nil, nil)
-			families := 0
-			for _, p := range project.callableCache.owner.values.initializerDeclarations {
-				if p.Sealed && p.Draft != nil && p.Draft.Mode == "CallEffectOrigin" && p.Draft.Declaration.Name().Text() == "box" {
-					families += len(p.Draft.Origins)
-				}
-			}
-			if families != test.families {
-				t.Fatalf("published families=%d, want %d", families, test.families)
-			}
 			last := generation.sourceFile.Statements.Nodes[len(generation.sourceFile.Statements.Nodes)-1].AsVariableStatement().DeclarationList.AsVariableDeclarationList().Declarations.Nodes[0]
 			analysis := newModuleDefinitionAnalysis(generation.checker, project.callableCache.owner)
 			analysis.symbol(generation.checker.GetSymbolAtLocation(last.Name()), false)
-			if !analysis.browser || analysis.opaque != (test.families == 0) {
-				t.Fatalf("browser=%v opaque=%v families=%d", analysis.browser, analysis.opaque, families)
+			if !analysis.browser || analysis.opaque != test.opaque {
+				t.Fatalf("browser=%v opaque=%v wantOpaque=%v", analysis.browser, analysis.opaque, test.opaque)
 			}
 			for _, target := range []Target{TargetClient, TargetServer} {
 				session := NewSession()
@@ -312,7 +303,7 @@ func TestModuleOriginReturnAlternatives(t *testing.T) {
 				if r.Error != "" {
 					t.Fatal(r.Error)
 				}
-				if test.families == 0 {
+				if test.opaque {
 					// Value availability is independent of initializer execution
 					// placement. This plain comma initializer can be emitted, but
 					// must never turn incomplete return provenance into portability.
@@ -334,7 +325,25 @@ func TestModuleOriginReturnAlternatives(t *testing.T) {
 						}
 					}
 				}
-				if test.families != 0 && (r.Error != "" || hasErrorDiagnostic(r.Diagnostics) || r.Code == "") {
+				if !test.opaque {
+					found := false
+					for _, export := range r.Analysis.Exports {
+						if export.Name == "value" {
+							found = true
+							if export.Placement != "client" {
+								t.Fatalf("supported return placement: %#v", export)
+							}
+						}
+					}
+					if !found {
+						t.Fatal("supported return export missing")
+					}
+					emitted := strings.Contains(r.Code, "const value =")
+					if emitted != (target == TargetClient) {
+						t.Fatalf("browser export emission for %s: %v", target, emitted)
+					}
+				}
+				if !test.opaque && (r.Error != "" || hasErrorDiagnostic(r.Diagnostics) || r.Code == "") {
 					t.Fatal(r.Error, r.Diagnostics)
 				}
 			}

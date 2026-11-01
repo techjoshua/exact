@@ -130,6 +130,12 @@ func (query *sourceValueQuery) constructDependencyEffects(site *ast.Node, bindin
 		return result
 	}
 	expression := site.AsNewExpression().Expression
+	selected := query.selectSourceConstruction(site, bindings, &result)
+	query.retainSelectedConstructionDependencies(site, selected, &result)
+	if len(selected.declarations) > 0 || selected.base.selected || selected.base.invocationOwned {
+		result.opaque, result.valueIncomplete = true, true
+		return result
+	}
 	values := query.originsAt(expression, site, bindings, &result)
 	if len(values) == 0 {
 		result.opaque = true
@@ -137,17 +143,6 @@ func (query *sourceValueQuery) constructDependencyEffects(site *ast.Node, bindin
 	for _, value := range values {
 		target := value.node
 		if target == nil || len(value.path) > 0 {
-			result.opaque = true
-			continue
-		}
-		if ast.IsClassDeclaration(target) || ast.IsClassExpression(target) {
-			selected := sourcePreparedInvocation{declarations: []*ast.Node{target}}
-			query.retainSourceConstructorEffects(site, &selected, &result)
-			result.opaque = true
-			continue
-		}
-		if ast.IsFunctionLike(target) && target.Body() != nil {
-			result.retainCallableEffect(site, target)
 			result.opaque = true
 			continue
 		}

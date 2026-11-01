@@ -222,6 +222,13 @@ Query-local advisory work is accumulated into the checker owner's existing cost 
 without retaining a query or its binding maps. Binding-write and member-write relations remain
 owned by `source_value_bindings.go` and `source_value_members.go`.
 
+Constructor dependencies share the selected executable target owner with normal construction.
+Selected constructor bodies and instance-field demands retain known effects beside unresolved
+construction, without supplying an instance or completion receipt. Default derived constructors
+retain base dependencies. Class-definition keys, static initializers and deferred field closures
+keep their own evaluation phases. Array-binding summaries retain default donors beside unresolved
+iterator/value selection. Such a summary does not prove iterator execution or default bypass.
+
 The first summary slice must distinguish these controls:
 
 - `let x=a; const f=()=>x.value; x=b; f()` reads the later live binding `x`.

@@ -118,9 +118,15 @@ func (q *sourceValueQuery) prepareConstructionPhase(phase sourceNormalPhase, bin
 // selection for actual and MAY New consumers. It neither evaluates arguments
 // nor creates a normal operation or construction receipt.
 func (q *sourceValueQuery) selectSourceConstruction(site *ast.Node, bindings sourceValueBindings, result *accessorCandidates) *sourcePreparedInvocation {
+	return q.selectSourceConstructionReference(site.Expression(), site, bindings, result)
+}
+
+// selectSourceConstructionReference preserves selected executable ownership for
+// New and inherited constructor dependencies without allocating an instance.
+func (q *sourceValueQuery) selectSourceConstructionReference(reference, site *ast.Node, bindings sourceValueBindings, result *accessorCandidates) *sourcePreparedInvocation {
 	selected := &sourcePreparedInvocation{scope: q.acquireCallableScope(bindings, result)}
-	if possibleProxyReference(q.owner, site.Expression()) {
-		part := q.accessors(site.Expression(), nil, "", accessorAcquire, bindings, nil)
+	if possibleProxyReference(q.owner, reference) {
+		part := q.accessors(reference, nil, "", accessorAcquire, bindings, nil)
 		selected.acquired = selectionProjection(part)
 		mergeAccessorCandidates(result, part)
 		for _, v := range part.values {
@@ -133,7 +139,7 @@ func (q *sourceValueQuery) selectSourceConstruction(site *ast.Node, bindings sou
 	}
 	// A real authored constructor reference with unavailable output must
 	// refuse rather than fall into the neutral non-Promise fallback.
-	symbol := sourceCallableReferenceSymbol(site.Expression(), q.owner.checker)
+	symbol := sourceCallableReferenceSymbol(reference, q.owner.checker)
 	if symbol != nil && symbol.Flags&ast.SymbolFlagsAlias != 0 {
 		symbol = q.sourceAlias(symbol, result)
 	}
@@ -145,13 +151,24 @@ func (q *sourceValueQuery) selectSourceConstruction(site *ast.Node, bindings sou
 	}
 	// Use the existing executable definition owner before generic value
 	// origins, whose declaration projection deliberately models callables.
-	if definition, owned := q.executable.definition(site.Expression()); owned {
-		if definition != nil && (ast.IsClassDeclaration(definition) || ast.IsClassExpression(definition)) && !ast.GetSourceFileOfNode(definition).IsDeclarationFile {
+	if definition, owned := q.executable.definition(reference); owned {
+		selected.base.invocationOwned = true
+		if sourceConstructorDefinition(definition) {
 			selected.declarations = []*ast.Node{definition}
 		}
 		return selected
 	}
-	for _, value := range q.originsAt(site.Expression(), site, bindings, result) {
+	var values []sourceValue
+	if q.dependenciesOnly {
+		// Abstract acquisition preserves source alternatives without demanding
+		// a normal callee output. Executable ownership above still takes priority.
+		part := q.accessors(reference, nil, "", accessorAcquire, bindings, nil)
+		mergeAccessorCandidates(result, part)
+		values = part.values
+	} else {
+		values = q.originsAt(reference, site, bindings, result)
+	}
+	for _, value := range values {
 		if !q.charge(result, site) {
 			break
 		}
@@ -161,13 +178,18 @@ func (q *sourceValueQuery) selectSourceConstruction(site *ast.Node, bindings sou
 				value.node = symbol.ValueDeclaration
 			}
 		}
-		if value.node == nil || len(value.path) != 0 || !ast.IsClassDeclaration(value.node) && !ast.IsClassExpression(value.node) || ast.GetSourceFileOfNode(value.node).IsDeclarationFile {
+		if len(value.path) != 0 || !sourceConstructorDefinition(value.node) {
 			selected.base.valueIncomplete = true
 			continue
 		}
 		selected.declarations = append(selected.declarations, value.node)
 	}
 	return selected
+}
+
+// sourceConstructorDefinition qualifies a selected source body, never a signature.
+func sourceConstructorDefinition(node *ast.Node) bool {
+	return node != nil && (ast.IsClassDeclaration(node) || ast.IsClassExpression(node) || ast.IsFunctionLike(node) && node.Body() != nil) && !ast.GetSourceFileOfNode(node).IsDeclarationFile
 }
 
 // retainSourceConstructorEffects belongs to original New selection, before

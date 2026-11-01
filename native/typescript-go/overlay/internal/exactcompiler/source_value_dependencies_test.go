@@ -109,8 +109,6 @@ func TestSymbolicDependenciesEmitted(t *testing.T) {
 // Existing binding/default operations must appear in the shared demand stream.
 func TestSymbolicBindingAndNestedUseContexts(t *testing.T) {
 	for _, test := range []struct{ name, source, want string }{
-		{"array default", `function read(input:string[]){const [value=document.title]=input;return value}export const value=read([]);`, "client"},
-		{"array default bypass", `function read(input:string[]){const [value=document.title]=input;return value}export const value=read(['safe']);`, "isomorphic"},
 		{"earlier formal", `function read(input:{value:string},value=input.value){return value}export const value=read({get value(){return document.title}});`, "client"},
 		{"explicit bypass", `function read(input:{value:string},value=input.value){return value}export const value=read({get value(){return document.title}},'safe');`, "isomorphic"},
 		{"nested contexts", `function invoke(f:()=>string){return f()}function make(input:{value:string}){return ()=>invoke(()=>input.value)}const a=make({value:'safe'}),b=make({get value(){return document.title}});export const safeValue=a();export const value=b();`, "client"},
@@ -142,5 +140,93 @@ func TestSymbolicGeneratorEffectPhases(t *testing.T) {
 			}
 			t.Fatal("missing generator creation observation")
 		})
+	}
+}
+
+// The binding demand stream retains activated default donors even when iterator
+// identity and selected values remain unresolved. This is not a bypass proof.
+func TestSymbolicArrayBindingDonorConservation(t *testing.T) {
+	for _, input := range []string{"[]", "['safe']"} {
+		t.Run(input, func(t *testing.T) {
+			source := `function read(input:string[]){const [value=document.title]=input;return value}export const value=read(` + input + `);`
+			assertSymbolicInitializerDonors(t, source)
+		})
+	}
+}
+
+// Context alternatives reaching the same helper AST must retain both a known
+// donor and an unresolved receiver across forwarding and reversed acquisition.
+func TestSymbolicForwardedContextAlternatives(t *testing.T) {
+	for _, creators := range []string{
+		`const a=make({get value(){return document.title}}),b=make(other);`,
+		`const b=make(other),a=make({get value(){return document.title}});`,
+	} {
+		source := `declare const choose:boolean;declare const other:{value:string};function read(input:{value:string}){return input.value}function invoke(read:()=>string){return read()}function make(input:{value:string}){return ()=>invoke(()=>read(input))}` + creators + `export const value=(choose?a:b)();`
+		assertSymbolicInitializerDonors(t, source)
+	}
+}
+
+func TestSymbolicRecursiveCaptureDonors(t *testing.T) {
+	assertSymbolicInitializerDonors(t, `declare const repeat:boolean;function read(input:{value:string}):string{if(repeat)return read(input);return input.value}function make(input:{value:string}){return ()=>read(input)}export const value=make({get value(){return document.title}})();`)
+}
+
+func assertSymbolicInitializerDonors(t *testing.T, source string) {
+	t.Helper()
+	response := NewSession().Execute(Request{Kind: "analyze", ID: "/virtual/symbolic-donors.ts", Source: source, Diagnostics: "semantic"})
+	if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) {
+		t.Fatal(response.Error, response.Diagnostics)
+	}
+	name := fmt.Sprint("module@", strings.LastIndex(source, "export const value="))
+	for _, fact := range response.Analysis.Callables {
+		if fact.Name != name {
+			continue
+		}
+		browser, unknown := false, false
+		for _, effect := range fact.EffectSources {
+			browser = browser || effect.Environment == "browser"
+			unknown = unknown || effect.Environment == "unknown"
+		}
+		if !browser || !unknown {
+			t.Fatalf("caller donors browser=%v unknown=%v: %#v", browser, unknown, fact.EffectSources)
+		}
+		return
+	}
+	t.Fatal("missing exported initializer")
+}
+
+// Short-lived dependency queries return advisory work once without lending
+// instantiated bindings or a live query to the checker owner's caches.
+func TestSymbolicDependencyAdvisoryAccounting(t *testing.T) {
+	const source = `function read(input:{value:string}){return input.value}export const value=read({get value(){return document.title}});`
+	request := Request{Kind: "analyze", ID: "/virtual/dependency-accounting.ts", Source: source, Diagnostics: "semantic"}
+	project, diagnostics, err := newProjectState(request, request.ID)
+	if err != nil || len(diagnostics) != 0 {
+		t.Fatal(err, diagnostics)
+	}
+	generation, err := project.advance(context.Background(), request.ID, source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer generation.release()
+	owner := newExecutableBodyOwner(project, generation.checker)
+	statement := generation.sourceFile.Statements.Nodes[len(generation.sourceFile.Statements.Nodes)-1]
+	operation := statement.AsVariableStatement().DeclarationList.AsVariableDeclarationList().Declarations.Nodes[0].Initializer()
+	query := newSourceDependencyQuery(operation, generation.checker, owner, statement)
+	if query.owner == owner.values {
+		t.Fatal("dependency query borrowed mutable owner")
+	}
+	query.invocation(operation, nil)
+	if query.owner.work == 0 {
+		t.Fatal("source query did not account work")
+	}
+	before := owner.values.work
+	query.publishDependencyStatistics()
+	if owner.values.work <= before || query.dependencyStatsOwner != nil {
+		t.Fatal("dependency work not returned and detached")
+	}
+	published := owner.values.work
+	query.publishDependencyStatistics()
+	if owner.values.work != published {
+		t.Fatal("dependency work counted twice")
 	}
 }
