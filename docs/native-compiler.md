@@ -1732,6 +1732,11 @@ bindings, calls, captures and writes to determine dependencies, effects and plac
 Cells and completion records. Those records are analysis artifacts, not application runtime
 objects or emitted activation identities.
 
+The host's `process-callable-contracts.ts` owns the serialized callable dependency and effect
+summary. It carries source identities, known environment requirements and unresolved edges,
+without transferring live analysis frames or precision-engine storage into the host. The process
+envelope references that contract without changing its wire representation.
+
 Executable transformation uses the TypeScript AST visitor, factory and printer. Ordinary nested
 expressions retain JavaScript evaluation order through their AST structure. Framework transforms
 that split work across suspension or placement boundaries must preserve that order in generated

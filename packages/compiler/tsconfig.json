@@ -102,6 +102,7 @@
 		"src/native/process-activation-contracts.ts",
 		"src/native/process-continuation-contracts.ts",
 		"src/native/process-contracts.ts",
+		"src/native/process-callable-contracts.ts",
 		"src/native/process-executable-selection.ts",
 		"src/native/process-component-contracts.ts",
 		"src/native/process-diagnostic-contracts.ts",
