@@ -47,7 +47,7 @@ func runtimeModuleEvaluation(statement *ast.Node) bool {
 
 // A definitely abrupt first initializer never acquires a resource to dispose.
 // Otherwise the implicit protocol remains unmodeled, including for-of inputs.
-func (query *sourceValueQuery) moduleDisposalMayBeAcquired(node *ast.Node) bool {
+func (query *sourceValueQuery) sourceDisposalMayBeAcquired(node *ast.Node) bool {
 	if !ast.IsVariableDeclarationList(node) || node.Flags&ast.NodeFlagsUsing == 0 {
 		return false
 	}
@@ -125,4 +125,11 @@ func sourceDefaultPhaseEffect(effect EnvironmentEffectSource, operation, boundar
 		effect.callOrigin = &sourceCallOutcome{declaration: boundary, operation: initializer, consumer: boundary, phase: sourceDefaultEvaluation}
 	}
 	return effect
+}
+
+// Disposal remains a protocol obligation, not a call to a selected handler.
+func sourceDisposalEffect(node, boundary *ast.Node, name string) EnvironmentEffectSource {
+	effect := environmentSource("unknown", "implicit resource disposal", name)
+	effect.Opaque = true
+	return sourceDefaultPhaseEffect(effect, node, boundary)
 }

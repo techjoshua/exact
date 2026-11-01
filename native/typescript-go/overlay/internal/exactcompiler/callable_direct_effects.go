@@ -122,10 +122,14 @@ func collectDirectCallableEffects(
 				fact.summary.DirectEffectSources = append(fact.summary.DirectEffectSources, effect)
 			}
 		}
-		if moduleFlow != nil && moduleFlow.moduleDisposalMayBeAcquired(node) {
-			effect := environmentSource("unknown", "implicit resource disposal", fact.summary.Name)
-			effect.Opaque = true
-			fact.summary.DirectEffectSources = append(fact.summary.DirectEffectSources, effect)
+		if ast.IsVariableDeclarationList(node) && node.Flags&ast.NodeFlagsUsing != 0 {
+			flow := moduleFlow
+			if flow == nil {
+				flow = &sourceValueQuery{owner: owner.values, executable: owner, effectOwner: fact.node, dependenciesOnly: true, active: make(map[*ast.Node]bool)}
+			}
+			if possible, _ := flow.reachable(node, nil); possible && flow.sourceDisposalMayBeAcquired(node) {
+				fact.summary.DirectEffectSources = append(fact.summary.DirectEffectSources, sourceDisposalEffect(node, fact.node, fact.summary.Name))
+			}
 		}
 		if node.Parent != nil && ast.IsPartOfTypeNode(node) {
 			return false

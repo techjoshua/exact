@@ -419,3 +419,113 @@ func TestModuleDecoratorDefaultPhases(t *testing.T) {
 		})
 	}
 }
+
+// A reached helper's disposal is an implicit operation in the same source body
+// summary. Declaring the helper or throwing before acquisition does not dispose.
+func TestModuleHelperDisposal(t *testing.T) {
+	for _, test := range []struct {
+		name, body, call string
+		opaque, browser  bool
+	}{
+		{"await activated", `await using resource={[Symbol.asyncDispose]:async()=>{}}`, `run();`, true, false},
+		{"known initializer", `using resource=(document.title,{[Symbol.dispose](){}})`, `run();`, true, true},
+		{"independent body", `using resource={[Symbol.dispose](){}};document.title`, `run();`, true, true},
+		{"failed initializer", `function stop():never{throw 9}using resource=stop()`, `run();`, false, false},
+		{"activated", `using resource={[Symbol.dispose](){}}`, `run();`, true, false},
+		{"dormant", `using resource={[Symbol.dispose](){}}`, ``, false, false},
+		{"caller throw", `using resource={[Symbol.dispose](){}}`, `{throw 9;run()}`, false, false},
+		{"helper throw", `throw 9;using resource={[Symbol.dispose](){}}`, `run();`, false, false},
+		{"acquired before throw", `using resource={[Symbol.dispose](){}};throw 9;`, `run();`, true, false},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			source := `/// <reference lib="esnext.disposable" />
+function run(){` + test.body + `}` + test.call + `export const result=1;`
+			if test.name == "await activated" {
+				source = strings.Replace(source, "function run()", "async function run()", 1)
+			}
+			r := NewSession().Execute(Request{Kind: "analyze", ID: "/virtual/helper-disposal.ts", Source: source, Diagnostics: "semantic"})
+			if r.Error != "" || hasErrorDiagnostic(r.Diagnostics) {
+				t.Fatal(r.Error, r.Diagnostics)
+			}
+			opaque, browser := false, false
+			for _, fact := range r.Analysis.Callables {
+				if fact.Kind == "module-initializer" {
+					for _, effect := range fact.EffectSources {
+						opaque = opaque || effect.Opaque
+						browser = browser || effect.Environment == "browser"
+					}
+				}
+			}
+			if opaque != test.opaque || browser != test.browser {
+				t.Fatalf("disposal browser=%v opaque=%v want=%v/%v", browser, opaque, test.browser, test.opaque)
+			}
+		})
+	}
+}
+
+func TestHelperDisposalDefaultPhases(t *testing.T) {
+	for _, test := range []struct {
+		name, source    string
+		opaque, browser bool
+	}{
+		{"activated", `function run(value=(()=>{using resource={[Symbol.dispose](){}};return 0})()){}run();`, true, false},
+		{"supplied", `function run(value=(()=>{using resource={[Symbol.dispose](){}};return 0})()){}run(1);`, false, false},
+		{"dormant", `function run(value=(()=>{using resource={[Symbol.dispose](){}};return 0})()){}`, false, false},
+		{"independent body", `function run(value=(()=>{using resource={[Symbol.dispose](){}};return 0})()){document.title}run(1);`, false, true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			source := `/// <reference lib="esnext.disposable" />
+` + test.source + `export const result=1;`
+			r := NewSession().Execute(Request{Kind: "analyze", ID: "/virtual/helper-disposal-default.ts", Source: source, Diagnostics: "semantic"})
+			if r.Error != "" || hasErrorDiagnostic(r.Diagnostics) {
+				t.Fatal(r.Error, r.Diagnostics)
+			}
+			opaque, browser := false, false
+			for _, fact := range r.Analysis.Callables {
+				if fact.Kind == "module-initializer" {
+					for _, effect := range fact.EffectSources {
+						opaque = opaque || effect.Opaque
+						browser = browser || effect.Environment == "browser"
+					}
+				}
+			}
+			if opaque != test.opaque || browser != test.browser {
+				t.Fatalf("cleanup=%v browser=%v want=%v/%v", opaque, browser, test.opaque, test.browser)
+			}
+		})
+	}
+}
+
+// Strict module artifacts cannot silently own cleanup. The separate ordinary
+// host fixture executes native disposal, including cleanup on abrupt exit.
+func TestHelperDisposalArtifacts(t *testing.T) {
+	for _, mode := range []string{"normal", "throw", "await"} {
+		for _, target := range []Target{TargetClient, TargetServer} {
+			t.Run(mode+"/"+string(target), func(t *testing.T) {
+				body := `using resource={[Symbol.dispose](){observe()}};return 1;`
+				if mode == "throw" {
+					body = `using resource={[Symbol.dispose](){observe()}};throw 9;`
+				}
+				declaration := "function read()"
+				if mode == "await" {
+					declaration = "async function read()"
+					body = `await using resource={[Symbol.asyncDispose]:async()=>{observe()}};return 1;`
+				}
+				source := `/// <reference lib="esnext.disposable" />
+declare function observe():void;` + declaration + `{` + body + `}export const value=read();`
+				request := Request{Kind: "compile", ID: "/virtual/helper-disposal-artifact.ts", Source: source, Target: target, Diagnostics: "semantic", SourceMap: true}
+				strict := NewSession().Execute(request)
+				if strict.Error != "" || !containsDiagnosticCode(strict.Diagnostics, "EXACT2101") || strict.Code != "" || strict.SourceMap != nil {
+					t.Fatal("strict helper cleanup emitted artifact", strict.Error, strict.Diagnostics)
+				}
+				request.PreserveOrdinaryModules = true
+				host := NewSession().Execute(request)
+				if host.Error != "" || hasErrorDiagnostic(host.Diagnostics) || host.Code == "" {
+					t.Fatal("host cleanup artifact", host.Error, host.Diagnostics)
+				}
+				const runner = `const fs=require('node:fs'),vm=require('node:vm');let disposed=0;const exports={};(async()=>{let failure;try{vm.runInNewContext(fs.readFileSync(process.argv[1],'utf8'),{exports,observe(){disposed++}});if(await exports.value!==1)throw Error('return changed')}catch(e){failure=e}if(process.argv[2]==='throw'){if(failure!==9)throw Error('Throw changed')}else if(failure)throw failure;if(disposed!==1)throw Error('cleanup '+disposed)})().catch(e=>{console.error(e);process.exitCode=1});`
+				sourceNodeScript(t, host.Code, runner, mode)
+			})
+		}
+	}
+}
