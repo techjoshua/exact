@@ -6,7 +6,7 @@ import (
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
 )
 
-func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []string, name string, mode accessorTraversal, arguments sourceValueBindings, invoke func(*ast.Node, sourceValueBindings, *accessorCandidates), get *sourceGetInputs, producer *sourceNormalOperation, alternatives ...sourceValue) (result accessorCandidates) {
+func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []string, name string, mode accessorTraversal, arguments sourceValueBindings, invoke func(*ast.Node, sourceValueBindings, *accessorCandidates), get *sourceGetInputs, producer *sourceNormalOperation, reference *sourceGetReference, alternatives ...sourceValue) (result accessorCandidates) {
 	restoreDeferredRead := query.beginDeferredRead(get)
 	defer restoreDeferredRead()
 	previousReading := query.reading
@@ -501,7 +501,7 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 			previousReceiver := inheritedReceiver
 			inheritedReceiver = &sourceValue{node: value}
 			defer func() { inheritedReceiver = previousReceiver }()
-			query.visitConstructedAccessor(sourceConstructedMemberDemand{value, projection, name, mode}, arguments, &result, visit, visitOrigins)
+			query.visitConstructedAccessor(sourceConstructedMemberDemand{value, projection, name, mode, reference}, arguments, &result, visit, visitOrigins)
 			return
 		}
 		if len(projection) > 1 && projection[0] == "prototype" && sourceFunctionPrototype(sourceValue{node: value, path: projection[:1]}, typeChecker) {
@@ -710,10 +710,10 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 				}
 				if deep && instance && query.dependenciesOnly && ast.IsPropertyDeclaration(member) {
 					query.visitSourceConstructedField(member, actualReceiver, arguments, &result, func(values []sourceValue) {
-						previousGet := get
-						get = nil
+						previousGet, previousReference := get, reference
+						get, reference = nil, reference.after(projection, name)
 						visitOrigins(values, projection, false)
-						get = previousGet
+						get, reference = previousGet, previousReference
 					})
 				}
 				if deep && ast.IsPropertyAssignment(member) {
@@ -734,14 +734,14 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 						if ast.IsPropertyAssignment(member) || ast.IsShorthandPropertyAssignment(member) {
 							// This selected data read is consumed. Its output owns
 							// any later child read, not this receiver's outer Get.
-							previousGet := get
-							get = nil
+							previousGet, previousReference := get, reference
+							get, reference = nil, reference.after(projection, name)
 							if ast.IsPropertyAssignment(member) {
 								visit(member.AsPropertyAssignment().Initializer, projection[1:], false)
 							} else {
 								visit(member.Name(), projection[1:], false)
 							}
-							get = previousGet
+							get, reference = previousGet, previousReference
 						}
 						if ast.IsGetAccessorDeclaration(member) {
 							if mode&accessorNoGet == 0 && len(projection) == 1 && name == "" && mode != accessorAcquire && mode != accessorInvoke && !deep {
@@ -767,8 +767,8 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 									} else {
 										value.acquired = &returned
 									}
-									previousGet := get
-									get = nil // This read was consumed. Its output is not another receiver.
+									previousGet, previousReference := get, reference
+									get, reference = nil, reference.after(projection, name) // This read was consumed. Its output is not another receiver.
 									start := len(result.values)
 									visitOrigins([]sourceValue{value}, projection[1:], false)
 									if associate {
@@ -778,7 +778,7 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 											population.indices = append(population.indices, start)
 										}
 									}
-									get = previousGet
+									get, reference = previousGet, previousReference
 								}
 								if complete {
 									selectedGet.effectSummary.populations = append(selectedGet.effectSummary.populations, population)
@@ -789,10 +789,10 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 							if instance {
 								if query.dependenciesOnly {
 									query.visitSourceConstructedField(member, actualReceiver, arguments, &result, func(values []sourceValue) {
-										previousGet := get
-										get = nil
+										previousGet, previousReference := get, reference
+										get, reference = nil, reference.after(projection, name)
 										visitOrigins(values, projection[1:], false)
-										get = previousGet
+										get, reference = previousGet, previousReference
 									})
 								} else {
 									result.valueIncomplete = true
@@ -837,10 +837,10 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 								for _, returned := range observed.values {
 									previousArguments, previousCreators := arguments, query.creators
 									arguments, query.creators = returned.scope.bindings, returned.scope.creators
-									previousGet := get
-									get = nil
+									previousGet, previousReference := get, reference
+									get, reference = nil, reference.after(projection, name)
 									visitOrigins([]sourceValue{returned.value}, projection, false)
-									get = previousGet
+									get, reference = previousGet, previousReference
 									arguments, query.creators = previousArguments, previousCreators
 								}
 							}

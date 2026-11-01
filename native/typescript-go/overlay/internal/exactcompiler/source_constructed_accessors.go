@@ -9,6 +9,7 @@ type sourceConstructedMemberDemand struct {
 	projection []string
 	name       string
 	mode       accessorTraversal
+	reference  *sourceGetReference
 }
 
 // visitConstructedAccessor resolves member effects of source constructor results.
@@ -16,7 +17,11 @@ type sourceConstructedMemberDemand struct {
 func (query *sourceValueQuery) visitConstructedAccessor(demand sourceConstructedMemberDemand, arguments sourceValueBindings, result *accessorCandidates, visit func(*ast.Node, []string, bool), visitOrigins func([]sourceValue, []string, bool)) {
 	value, projection, name, mode := demand.source, demand.projection, demand.name, demand.mode
 
-	if (len(projection) > 0 || name != "") && query.possibleProxyGetEffects(value, projection, name, mode, arguments, result) {
+	if query.dependenciesOnly {
+		if len(projection) > 0 || name != "" || demand.reference != nil {
+			query.sourceProxyGetDependencies(value, projection, name, mode, arguments, result, demand.reference)
+		}
+	} else if (len(projection) > 0 || name != "") && query.possibleProxyGetEffects(value, projection, name, mode, arguments, result) {
 		return
 	}
 	// A structural array type can revoke completeness, never prove native identity.

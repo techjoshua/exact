@@ -1229,12 +1229,22 @@ performed source assignment from the current executable file. A qualified assign
 identify the binder-owned namespace that exports that variable. A type-compatible receiver
 does not establish this identity, and an unproved assignment cannot replace the incoming value.
 A finite module-local possible Proxy construction can retain deferred Get effects after the
-original New has acquired its current constructor and observed literal target and handler
-origins. A reached caller read retains current handler and possible target-Get effects through
-the MAY graph, together with unknown alternatives. Original constructor selection preserves
+original New has selected its guarded constructor and acquired symbolic target and handler
+origins. Ordinary effect analysis projects those source relationships without requiring
+a normal initializer draft or live recipient frame. Argument evaluation remains at New. A later
+read observes the acquired objects, including current handler member writes, without repeating
+argument evaluation. A reached caller read retains current handler and possible target-Get
+effects through the MAY graph, together with unknown alternatives. Original constructor selection preserves
 authored constructor effects beside native alternatives, even when allocation or origin
-publication refuses. Dormant construction does not select a handler body. This projection
-provides no Proxy value identity, DATA coverage, completed construction or Get, descriptor
+publication refuses. Dormant construction does not select a handler body.
+
+Possible trap calls bind the handler receiver and protocol arguments through the shared source input plan. The defined target
+and property key bypass top-level defaults. An explicit original source Member reference
+also establishes a defined receiver, independently of its unknown value. That relation ends
+at its Get and cannot be inherited from an outer or nested lookup. Unanchored receivers and
+nested patterns retain their own default uncertainty. Generator trap bodies stay deferred.
+Independent constructor, handler lookup, trap and target fallback uncertainty remains. This
+projection provides no Proxy value identity, DATA coverage, completed construction or Get, descriptor
 constraints, or native storage allocation. Unmodeled New completion can still prevent emission.
 
 A standard-library declaration alone does not prove which global

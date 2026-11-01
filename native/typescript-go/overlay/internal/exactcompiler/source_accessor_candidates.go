@@ -141,7 +141,11 @@ func (query *sourceValueQuery) sourceAccessorOperationCandidates(receiver *ast.N
 	previous := query.protectedMember
 	query.protectedMember = operation
 	defer func() { query.protectedMember = previous }()
-	result := query.accessors(receiver, path, name, mode, arguments, nil)
+	var reference *sourceGetReference
+	if query.dependenciesOnly {
+		reference = sourceGetReferenceFor(operation, receiver, path, name, mode)
+	}
+	result := query.accessorsAtGetOutput(receiver, path, name, mode, arguments, nil, nil, nil, reference)
 	if operation != nil && operation.Parent != nil {
 		mutation := planMutationOperation(operation.Parent)
 		if mutation.target == operation {
@@ -212,7 +216,7 @@ func (query *sourceValueQuery) accessors(receiver *ast.Node, path []string, name
 // accessorsAtGet supplies an explicit implicit-Get input at the selected receiver.
 // Ordinary recursive property/callee queries do not inherit this operation input.
 func (query *sourceValueQuery) accessorsAtGet(receiver *ast.Node, path []string, name string, mode accessorTraversal, arguments sourceValueBindings, invoke func(*ast.Node, sourceValueBindings, *accessorCandidates), get *sourceGetInputs, alternatives ...sourceValue) accessorCandidates {
-	return query.accessorsAtGetOutput(receiver, path, name, mode, arguments, invoke, get, nil, alternatives...)
+	return query.accessorsAtGetOutput(receiver, path, name, mode, arguments, invoke, get, nil, nil, alternatives...)
 }
 
 // accessorsAtGetOutput admits a producer's initial acquisition exactly once.

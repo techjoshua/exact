@@ -43,57 +43,54 @@ func TestPossibleProxyDirectGetConservesEffects(t *testing.T) {
 	}
 }
 
+// Ordinary source relationships do not require detached normal initializer history.
 func TestPossibleProxyOriginalNewProducer(t *testing.T) {
 	source := `export{};const input=new Proxy({value:'safe'},{get(){document.title;return 'proxy'}});`
 	s := NewSession()
 	r := s.Execute(Request{Kind: "analyze", ID: "/virtual/possible-proxy-producer.ts", Source: source, Diagnostics: "semantic"})
-	if r.Error != "" {
-		t.Fatal(r.Error)
+	if r.Error != "" || hasErrorDiagnostic(r.Diagnostics) {
+		t.Fatal(r.Error, r.Diagnostics)
 	}
-	for _, d := range r.Diagnostics {
-		if strings.HasPrefix(d.Code, "TS") {
-			t.Fatal("invalid source", r.Diagnostics)
-		}
-	}
-	rows := 0
+	checked := false
 	for _, project := range s.projects {
 		if project.callableCache == nil {
 			continue
 		}
 		owner := project.callableCache.owner
+		walkNode(project.program.GetSourceFile("/virtual/possible-proxy-producer.ts").AsNode(), func(site *ast.Node) bool {
+			if !ast.IsNewExpression(site) {
+				return true
+			}
+			q := sourceValueQuery{owner: owner.values, executable: owner, dependenciesOnly: true, remaining: 4096, active: make(map[*ast.Node]bool)}
+			inputs, possible := q.sourceProxyInputs(site, nil)
+			args := site.AsNewExpression().Arguments.Nodes
+			if !possible || len(inputs[0]) != 1 || len(inputs[1]) != 1 || inputs[0][0].node != args[0] || inputs[1][0].node != args[1] {
+				t.Fatal("original acquired target/handler relation missing", inputs)
+			}
+			checked = true
+			return false
+		})
 		for _, fact := range project.callableCache.merged.facts {
-			if fact.initializerDraft == nil {
-				t.Log("no draft", fact.summary.Name, fact.summary.DirectEffectSources)
+			if !strings.HasPrefix(fact.summary.Name, "module@") {
 				continue
 			}
-			d := fact.initializerDraft
-			for _, row := range d.PossibleProxyGets {
-				rows++
-				if row.Site != d.Declaration.Initializer() || row.ConstructorRead != row.Site.Expression() || row.Entry == nil || !row.Entry.once || row.Entry.region != nil || row.Entry.node != row.Site || row.Entry.statement != fact.node || row.Entry != owner.values.indexes[d.Source].normalOccurrences[row.Site] || d.Program != owner.values.program || d.Checker != owner.checker || d.OriginGeneration != owner.values.generation || d.OriginMode != fact.descriptorMode {
-					t.Fatal("original New/source/slot envelope missing")
+			if fact.normalInputs != nil || len(fact.normalCalls) != 0 {
+				t.Fatal("source association entered normal execution")
+			}
+			for _, effect := range fact.summary.EffectSources {
+				if effect.Environment == "browser" {
+					t.Fatal("handler body eagerly ran at construction", fact.summary)
 				}
-				global := owner.checker.GetGlobalSymbol("Proxy", ast.SymbolFlagsValue, nil)
-				if global == nil || row.Constructor != global.ValueDeclaration || row.Target != row.Site.AsNewExpression().Arguments.Nodes[0] || row.Handler != row.Site.AsNewExpression().Arguments.Nodes[1] {
-					t.Fatal("actual canonical constructor/observed target-handler origins")
-				}
-				if fact.normalInputs != nil || len(fact.normalCalls) != 0 || len(d.Rows) != 1 || d.Rows[0].Domain != "Unrepresented" {
-					t.Fatal("possible effect association minted normal output or retained frame")
-				}
-				for _, effect := range fact.summary.EffectSources {
-					if effect.Environment == "browser" {
-						t.Fatal("handler body eagerly ran at construction")
-					}
-				}
-				for _, edge := range fact.summary.Calls {
-					if edge.Resolved && edge.Name == "get" {
-						t.Fatal("handler edge at construction")
-					}
+			}
+			for _, edge := range fact.summary.Calls {
+				if edge.Resolved && edge.Name == "get" {
+					t.Fatal("trap body edge at construction")
 				}
 			}
 		}
 	}
-	if rows != 1 {
-		t.Fatal("original reached New has no unique possible constructor/args producer", rows)
+	if !checked {
+		t.Fatal("original source New absent")
 	}
 }
 
@@ -163,54 +160,44 @@ func TestPossibleProxyCurrentHandlerEffects(t *testing.T) {
 	}
 }
 
-// These are post-analysis metadata/copy kernels, not intercepted live issuance.
+// A source MAY relation cannot renew the separate normal recipient authority.
 func TestPossibleProxyDetachedLifetimeRefusal(t *testing.T) {
 	s, _, _ := currentProxyCaller(t, possibleProxyDirectSource, "read(input);")
-	for _, p := range s.projects {
-		if p.callableCache == nil {
+	checked := false
+	for _, project := range s.projects {
+		if project.callableCache == nil {
 			continue
 		}
-		owner := p.callableCache.owner
-		for _, projection := range owner.values.initializerDeclarations {
-			d := projection.Draft
-			if d == nil || len(d.PossibleProxyGets) != 1 {
-				continue
+		owner := project.callableCache.owner
+		walkNode(project.program.GetSourceFile("/virtual/possible-proxy.ts").AsNode(), func(site *ast.Node) bool {
+			if !ast.IsNewExpression(site) {
+				return true
 			}
-			copy := cloneModuleInitializerDraft(d)
-			copy.PossibleProxyGets[0].Handler = nil
-			if d.PossibleProxyGets[0].Handler == nil {
-				t.Fatal("copy aliases original row slice")
+			source := sourceValueQuery{owner: owner.values, executable: owner, dependenciesOnly: true, remaining: 4096, active: make(map[*ast.Node]bool)}
+			if _, ok := source.sourceProxyInputs(site, nil); !ok {
+				t.Fatal("genuine source relation absent")
 			}
-			for _, name := range []string{"no-live-recipient", "mode", "generation", "checker", "source", "entry"} {
-				t.Run(name, func(t *testing.T) {
-					changed := cloneModuleInitializerDraft(d)
-					old := projection.Draft
-					projection.Draft = changed
-					defer func() { projection.Draft = old }()
-					switch name {
-					case "mode":
-						changed.Mode = "wrong"
-					case "generation":
-						changed.OriginGeneration = &projectGeneration{}
-					case "checker":
-						changed.Checker = nil
-					case "source":
-						changed.Source = nil
-					case "entry":
-						changed.PossibleProxyGets[0].Entry = nil
-					}
-					q := sourceValueQuery{owner: owner.values, executable: owner, remaining: 4096, active: make(map[*ast.Node]bool)}
-					result := accessorCandidates{}
-					q.possibleProxyGetEffects(d.PossibleProxyGets[0].Site, []string{"value"}, "", accessorRead, nil, &result)
-					if len(result.effects) != 0 || len(result.values) != 0 || len(result.normalCalls) != 0 || len(result.fieldOutcomes) != 0 || len(result.ownedGets) != 0 {
-						t.Fatal("metadata renewed output/effect authority")
-					}
-				})
+			normal := sourceValueQuery{owner: owner.values, executable: owner, remaining: 4096, active: make(map[*ast.Node]bool)}
+			result := accessorCandidates{}
+			normal.possibleProxyGetEffects(site, []string{"value"}, "", accessorRead, nil, &result)
+			if len(result.effects) != 0 || len(result.environmentEffects) != 0 || len(result.values) != 0 || len(result.normalCalls) != 0 || len(result.fieldOutcomes) != 0 || len(result.ownedGets) != 0 {
+				t.Fatal("source relation renewed normal output/effect authority")
 			}
-			return
-		}
+			sourceResult := accessorCandidates{}
+			source.sourceProxyGetDependencies(site, []string{"value"}, "", accessorRead, nil, &sourceResult, nil)
+			if !sourceResult.opaque || !sourceResult.valueIncomplete {
+				t.Fatal("possible Get lost residual")
+			}
+			if len(sourceResult.values) != 0 || len(sourceResult.normalCalls) != 0 || len(sourceResult.fieldCalls) != 0 || len(sourceResult.fieldOutcomes) != 0 || len(sourceResult.ownedGets) != 0 {
+				t.Fatal("possible Get minted DATA or normal authority")
+			}
+			checked = true
+			return false
+		})
 	}
-	t.Fatal("genuine producer missing")
+	if !checked {
+		t.Fatal("original source New absent")
+	}
 }
 
 func TestPossibleProxyCurrentRequestReplacement(t *testing.T) {
@@ -249,17 +236,24 @@ func TestPossibleProxyConservativeCompileAndSourceNodePhases(t *testing.T) {
 		{"dormant", `const input=new Proxy({value:'safe'},{get(){document.title;return 'proxy'}});`, "dormant", 0},
 		{"read", `const input=new Proxy({value:'safe'},{get(){document.title;return 'proxy'}});read(input);`, "proxy", 1},
 		{"handler-getter", `const input=new Proxy({value:'safe'},{get get(){document.title;return ()=>{document.title;return 'proxy'}}});read(input);`, "proxy", 2},
+		{"supplied-default", `const input=new Proxy({value:'safe'},{get(_target={value:document.title},_key:string|symbol=document.title){return 'safe'}});read(input);`, "safe", 0},
+		{"direct-receiver-default", `const input=new Proxy({value:'safe'},{get(_target,_key,receiver=document.title){return 'safe'}});read(input);`, "safe", 0},
+		{"reflect-undefined-receiver", `const input=new Proxy({value:'safe'},{get(_target,_key,receiver=document.title){return receiver}});Reflect.get(input,'value',undefined);`, "title", 1},
+		{"handler-receiver", `const handler={get title(){return document.title},get(){return this.title}};const input=new Proxy({value:'safe'},handler);read(input);`, "title", 1},
+		{"generator-extra-default", `const handler:ProxyHandler<{value:string}>={*get(_target,_key,_receiver,extra=document.title){yield extra}};const input=new Proxy({value:'safe'},handler);read(input);`, "[object Generator]", 1},
+		{"generator-body", `const input=new Proxy({value:'safe'},{*get(){document.title;yield 'proxy'}});read(input);`, "[object Generator]", 0},
+		{"argument-get-phase", `const args={get handler(){document.title;return {get(){return 'safe'}}}};const input=new Proxy({value:'safe'},args.handler);read(input);`, "safe", 1},
 		{"throw", `const input=new Proxy({value:'safe'},{get(){document.title;throw 9}});read(input);`, "throw9", 1},
 	} {
 		for _, target := range []string{"client", "server"} {
 			t.Run(c.name+"/"+target, func(t *testing.T) {
 				source := read + c.body
-				r := NewSession().Execute(Request{Kind: "compile", ID: "/virtual/possible-proxy-runtime.ts", Source: source, Target: Target(target), Diagnostics: "semantic"})
+				r := NewSession().Execute(Request{Kind: "compile", ID: "/virtual/possible-proxy-runtime.ts", Source: source, Target: Target(target), Diagnostics: "semantic", SourceMap: true})
 				denied := false
 				for _, d := range r.Diagnostics {
 					denied = denied || d.Severity == "error" && d.Code == "EXACT2101"
 				}
-				if r.Error != "" || !denied || r.Code != "" {
+				if r.Error != "" || !denied || r.Code != "" || r.SourceMap != nil {
 					t.Fatal("effects-only Proxy unexpectedly completed compilation", r.Error, r.Diagnostics)
 				}
 				script := `const fs=require('node:fs'),vm=require('node:vm');let reads=0;const document={get title(){reads++;return 'title'}};let outcome;try{const value=vm.runInNewContext(fs.readFileSync(process.argv[1],'utf8'),{exports:{},document});outcome=process.argv[2]==='dormant'?'dormant':value===undefined?'undefined':String(value)}catch(e){outcome='throw'+String(e)};if(outcome!==process.argv[2]||reads!==Number(process.argv[3]))throw Error(JSON.stringify({outcome,reads}));`

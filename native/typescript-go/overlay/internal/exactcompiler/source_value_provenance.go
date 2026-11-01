@@ -873,7 +873,7 @@ func (query *sourceValueQuery) executeDemand(node, declaration *ast.Node, bindin
 			} else if read && !write && query.operation != nil {
 				candidates = query.consumeNormalGet(node, bindings)
 			} else {
-				candidates = query.accessors(receiver, nil, name, mode, bindings, nil)
+				candidates = query.sourceAccessorOperationCandidates(receiver, nil, name, mode, bindings, node)
 			}
 			// Actual normal Get publication emits the outcome once. Non-normal
 			// reads retain the existing direct producer's checked relation.

@@ -632,7 +632,7 @@ func (query *sourceValueQuery) consumeNormalGet(node *ast.Node, bindings sourceV
 		if query.observeComponentProtocolGet(node, slot, bindings, &result) {
 			return
 		}
-		result = query.accessorsAtGetOutput(node, nil, "", accessorAcquire, bindings, nil, nil, slot)
+		result = query.accessorsAtGetOutput(node, nil, "", accessorAcquire, bindings, nil, nil, slot, nil)
 	}
 	// This Get used to run inside receiverCandidates' active invocation interval.
 	// Keep that same fence when the shared normal producer consumes it first.
