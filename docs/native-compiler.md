@@ -943,6 +943,11 @@ mode-aware environment traversal through the same selection owner. It distinguis
 callable or class from invoking it, including constructor and instance initialization work.
 Accessor argument substitution and returned-object provenance consult that owner too. A checker
 property declaration cannot reintroduce an accessor from a different executable factory.
+Selected runtime authority through a returned closure stored in a container remains an open
+analysis gap when the authored signature and nominated runtime bodies differ. The runtime
+closure's browser donor can be lost, while a safe selected closure can remain unknown.
+`TestClosureProjectedSelectedInvocation` protects both directions. Direct selected-body and
+Proxy source-demand checks do not establish acceptance of this projected-closure path.
 Eager export availability also consumes the existing explicit member, spread, own-value enumeration
 and argument-accessor analysis. Constructing a getter owner or a deferred callable does not
 execute the getter. Destructured bindings retain the binding operation, and omitted argument
@@ -1249,6 +1254,12 @@ nested patterns retain their own default uncertainty. Generator trap bodies stay
 Independent constructor, handler lookup, trap and target fallback uncertainty remains. This
 projection provides no Proxy value identity, DATA coverage, completed construction or Get, descriptor
 constraints, or native storage allocation. Unmodeled New completion can still prevent emission.
+
+The Proxy regression cohort includes `TestPossibleProxyReadModifyWriteEffects` for Get before
+Put and the plain-assignment no-Get control. Source-reference and input controls retain current
+handler writes, acquired argument cuts, deferred bodies and independent unknown effects. Strict
+client/server checks require EXACT2101 with neither code nor a source map. Authored TS7-erased
+Node phase checks supply runtime oracles independently of that artifact refusal.
 
 A standard-library declaration alone does not prove which global
 operation will run. Native `Number` facts require finite decimal string, numeric, boolean or null
@@ -1842,6 +1853,9 @@ summary consumer. Repeated or saturated contexts retain uncertainty and previous
 donors. These active facts are released with the outer source entry. They are neither runtime
 activation identities nor a completed-result cache. This local bound does not establish
 request-wide termination or successful package compilation.
+`TestSelectedStateWriteEvaluationEnvironments` also exposes a stack overflow while analyzing
+an ordinary helper's class-field computed object name with its own receiver. That termination
+failure aborts the test process, leaving subsequent selected controls unexecuted.
 
 Maintainer validation uses `node scripts/build-native-compiler.mjs --source <pinned checkout>`.
 The build prepares workspace declarations with the installed official TypeScript 7 CLI,
