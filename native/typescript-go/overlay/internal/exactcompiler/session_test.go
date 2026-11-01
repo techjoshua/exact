@@ -7043,43 +7043,6 @@ __fixtureTask33();
 	}
 }
 
-func TestSessionBrandsBrowserComponentWithOpaqueSetupCalls(t *testing.T) {
-	response := NewSession().Execute(Request{
-		ID:     "component.tsx",
-		Kind:   "compile",
-		Target: TargetClient,
-		Source: `
-			declare class Component<State> { state: State }
-			declare function tokenize(source: string): string[];
-			export function CodeBlock(
-				this: Component<{ copied: boolean }>,
-				props: { source: string },
-			) {
-				void tokenize(props.source);
-				const copy = () => navigator.clipboard.writeText(props.source);
-				return () => <button onClick={() => void copy()}>Copy</button>;
-			}
-		`,
-		JSXInterop: &JSXInterop{
-			AdapterModule: "@exactjs/react-compat/exact",
-			AdapterExport: "adaptReactComponent",
-		},
-	})
-	if response.Error != "" {
-		t.Fatal(response.Error)
-	}
-	if len(response.Diagnostics) != 0 {
-		t.Fatalf("unexpected diagnostics: %#v", response.Diagnostics)
-	}
-	component := findComponent(t, response.Analysis.Components, "CodeBlock")
-	copy := findCallable(t, response.Analysis.Callables, "copy")
-	if component.Placement != "unknown" || component.EnvironmentEffect != "unknown" || len(component.ArtifactTargets) != 0 ||
-		!strings.Contains(strings.Join(component.Diagnostics, "\n"), "opaque call") ||
-		!strings.Contains(response.Code, `, "`+component.ID+`"`) || !strings.Contains(response.Code, `placement: "unknown"`) || copy.Effect != "browser" {
-		t.Fatalf("local artifact lost opaque availability or its known browser callback: %#v %#v\n%s", component, copy, response.Code)
-	}
-}
-
 func TestSessionDoesNotScheduleTaskFromItsOwnUpdateTarget(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID:   "component.tsx",

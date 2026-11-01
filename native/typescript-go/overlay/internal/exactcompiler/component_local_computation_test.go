@@ -80,3 +80,75 @@ func TestOpaqueComputationPreservesKnownComponentResidency(t *testing.T) {
 		}
 	}
 }
+
+// A structural field can invoke an unknown getter without erasing the selected
+// browser operation. Emission preserves that Get before the clipboard Call.
+func TestOpaqueCallbackInputConservesKnownEffects(t *testing.T) {
+	source := `export function copy(props:{source:string}){navigator.clipboard.writeText(props.source)}`
+	r := NewSession().Execute(Request{Kind: "compile", ID: "opaque-callback-input.ts", Target: TargetClient, Source: source, Diagnostics: "semantic", PreserveOrdinaryModules: true})
+	if r.Error != "" || hasErrorDiagnostic(r.Diagnostics) || r.Code == "" {
+		t.Fatalf("host-owned callback: %s %#v", r.Error, r.Diagnostics)
+	}
+	callback := findCallable(t, r.Analysis.Callables, "copy")
+	browser, unknown := false, false
+	for _, effect := range callback.EffectSources {
+		browser = browser || effect.Environment == "browser"
+		unknown = unknown || effect.Environment == "unknown"
+	}
+	if !browser || !unknown || callback.Effect != "unknown" {
+		t.Fatalf("independent callback effects lost: %#v", callback)
+	}
+	sourceNodeScript(t, r.Code, `const fs=require('node:fs'),vm=require('node:vm');
+let gets=0,calls=0;const order=[];const stop={};
+const sandbox={exports:{},navigator:{clipboard:{writeText(value){calls++;order.push('call');if(value!=='safe')throw Error('argument')}}}};
+vm.runInNewContext('(function(exports){'+fs.readFileSync(process.argv[1],'utf8')+'\n})(exports)',sandbox);
+if(gets||calls)throw Error('deferred callback executed');
+sandbox.exports.copy({get source(){gets++;order.push('get');return 'safe'}});
+if(gets!==1||calls!==1||order.join()!=='get,call')throw Error('callback order');
+try{sandbox.exports.copy({get source(){gets++;throw stop}});throw Error('missing Throw')}catch(error){if(error!==stop)throw error}
+if(gets!==2||calls!==1)throw Error('Throw did not stop clipboard Call');`)
+}
+
+func TestSessionBrandsBrowserComponentWithOpaqueSetupCalls(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID:     "component.tsx",
+		Kind:   "compile",
+		Target: TargetClient,
+		Source: `
+			declare class Component<State> { state: State }
+			declare function tokenize(source: string): string[];
+			export function CodeBlock(
+				this: Component<{ copied: boolean }>,
+				props: { source: string },
+			) {
+				void tokenize(props.source);
+				const copy = () => navigator.clipboard.writeText(props.source);
+				return () => <button onClick={() => void copy()}>Copy</button>;
+			}
+		`,
+		JSXInterop: &JSXInterop{
+			AdapterModule: "@exactjs/react-compat/exact",
+			AdapterExport: "adaptReactComponent",
+		},
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if len(response.Diagnostics) != 0 {
+		t.Fatalf("unexpected diagnostics: %#v", response.Diagnostics)
+	}
+	component := findComponent(t, response.Analysis.Components, "CodeBlock")
+	copy := findCallable(t, response.Analysis.Callables, "copy")
+	knownBrowser, unknownInput := false, false
+	for _, effect := range copy.EffectSources {
+		knownBrowser = knownBrowser || effect.Environment == "browser"
+		unknownInput = unknownInput || effect.Environment == "unknown"
+	}
+	// The structural props read can invoke an unknown getter. Its residual
+	// must coexist with the independent clipboard dependency.
+	if component.Placement != "unknown" || component.EnvironmentEffect != "unknown" || len(component.ArtifactTargets) != 0 ||
+		!strings.Contains(strings.Join(component.Diagnostics, "\n"), "opaque call") ||
+		!strings.Contains(response.Code, `, "`+component.ID+`"`) || !strings.Contains(response.Code, `placement: "unknown"`) || !knownBrowser || !unknownInput || copy.Effect != "unknown" {
+		t.Fatalf("local artifact lost opaque availability or its known browser callback: %#v %#v\n%s", component, copy, response.Code)
+	}
+}
