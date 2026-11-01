@@ -748,6 +748,7 @@ func (query *sourceValueQuery) prepareInvocation(node *ast.Node, bindings source
 	}
 	call := node.AsCallExpression()
 	declarations := query.callDeclarations(call.Expression, &result)
+	selectedCall := result.selected
 	if query.dependenciesOnly {
 		// A value binding's initializer may itself be a return, branch or
 		// container projection. Its declaration is not the callable target.
@@ -865,6 +866,9 @@ func (query *sourceValueQuery) prepareInvocation(node *ast.Node, bindings source
 	}
 	selected.remaining = query.remaining
 	mergeAccessorCandidates(&result, acquired)
+	// A selected factory in the callee's value history does not own this Call.
+	// Keep its effects, but dispatch this operation using its own selection.
+	result.selected = selectedCall
 	return selected, result
 }
 

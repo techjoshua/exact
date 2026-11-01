@@ -943,11 +943,13 @@ mode-aware environment traversal through the same selection owner. It distinguis
 callable or class from invoking it, including constructor and instance initialization work.
 Accessor argument substitution and returned-object provenance consult that owner too. A checker
 property declaration cannot reintroduce an accessor from a different executable factory.
-Selected runtime authority through a returned closure stored in a container remains an open
-analysis gap when the authored signature and nominated runtime bodies differ. The runtime
-closure's browser donor can be lost, while a safe selected closure can remain unknown.
-`TestClosureProjectedSelectedInvocation` protects both directions. Direct selected-body and
-Proxy source-demand checks do not establish acceptance of this projected-closure path.
+A returned closure retains its selected factory body, acquired inputs and creating context
+through array, object and lexical-binding destinations. Executable-selection routing belongs
+to the original Call being dispatched. A selected factory in a later callee's value history
+cannot suppress invocation of that acquired closure. Known runtime-body effects and independent
+uncertainty remain additive. The source signature continues to own TypeScript checking.
+`TestClosureProjectedSelectedInvocation` and `TestExecutableClosureSelectionComposition`
+protect both body-selection directions, with paired emitted array consumers.
 Eager export availability also consumes the existing explicit member, spread, own-value enumeration
 and argument-accessor analysis. Constructing a getter owner or a deferred callable does not
 execute the getter. Destructured bindings retain the binding operation, and omitted argument

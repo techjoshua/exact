@@ -52,6 +52,11 @@ export function CompilerTourPage(this: Component<{}>) {
 					checks.
 				</p>
 				<p>
+					A helper returned by an imported factory keeps its dependencies when stored in an object
+					or array. Available dependency source supplies its implementation, and TypeScript
+					declarations determine the call&apos;s types.
+				</p>
+				<p>
 					Ordinary helpers keep their JavaScript implementation and receive supported state views
 					when called by blocking client tasks. Plain fields, arrays and supported Map and Set
 					operations can participate in pending publication. External captures, private storage and
