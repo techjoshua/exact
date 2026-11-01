@@ -1882,7 +1882,10 @@ factory return boundary. Unproved Call timing retains alternatives and uncertain
 relationships neither replay argument effects at the read nor supply normal invocation receipts. Refused Call selection retains a source callable
 that was actually exposed as callee or argument, with its captured inputs and unknown foreign
 invocation inputs. Its possible indexed writes cannot become performed replacements or supply
-write ordering. Known non-invoking bodies remain deferred. Source interference uses the same
+write ordering. Known non-invoking bodies remain deferred. An unavailable source Call output
+still retains its original binding origin for indexed possible member writes. This preserves
+independently known donors beside the unresolved output without asserting object identity,
+fresh allocation or a completed native result. Source interference uses the same
 original Call's existing performed-write proof rather than losing it at the input boundary.
 
 Source SDK state-write execution remains blocked before test collection by a native stack

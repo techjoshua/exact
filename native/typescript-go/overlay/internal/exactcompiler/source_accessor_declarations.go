@@ -1127,6 +1127,17 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 			// as invocation effects. Per-alternative captures stay installed while
 			// the projected value is consumed, without a normal output receipt.
 			query.withAcquiredOutput(&acquiredParent, nil, func() {
+				if query.dependenciesOnly {
+					// Classify this projection independently from earlier alternatives.
+					// Every prior uncertainty survives the additive join below.
+					opaque, receiverIncomplete := result.opaque, result.receiverIncomplete
+					result.opaque, result.receiverIncomplete = false, false
+					defer func() {
+						result.opaque = result.opaque || opaque
+						result.receiverIncomplete = result.receiverIncomplete || receiverIncomplete
+					}()
+				}
+				start := len(result.values)
 				part := query.projectSourceCallReturns(value, arguments, func(returned sourceValue, captures sourceValueBindings) {
 					previous := arguments
 					arguments = captures
@@ -1145,6 +1156,14 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 					}
 				})
 				mergeAccessorCandidates(&result, part)
+				if query.dependenciesOnly && len(result.values) == start && (len(projection) > 0 || name != "") && (result.opaque || result.receiverIncomplete) {
+					// An unavailable output still has its original binding origin.
+					// Retain indexed MAY writes through that origin without inventing
+					// an object, a fresh allocation or a completed Call result.
+					query.withActiveInvocation(value, func() {
+						query.memberValuesAtGet(value, projection, name, mode, arguments, &result, visitMember, sourceMemberOperationProof{}, nil, readCut)
+					})
+				}
 			})
 			if query.dependenciesOnly {
 				result.callOutcomes = append(result.callOutcomes, query.returnOutcome(value, !result.opaque && !result.receiverIncomplete))

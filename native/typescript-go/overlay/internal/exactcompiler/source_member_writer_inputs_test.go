@@ -236,3 +236,37 @@ func TestMemberWriterRefusedInputs(t *testing.T) {
 		})
 	}
 }
+
+// An unavailable Call result still owns its source binding. Indexed possible
+// writes through that same binding remain visible without a fresh-object proof.
+func TestMemberWriterOpaqueResultOrigin(t *testing.T) {
+	for _, row := range []struct {
+		name, creation, setup, suffix string
+		browser                       bool
+	}{
+		{"ambient-result", `declare function make():{field:{value:string}};const box=make();`, `put(box);`, ``, true},
+		{"create-result", `const box=Object.create(null) as {field:{value:string}};`, `put(box);`, ``, true},
+		{"returned-create-result", `function make(){return Object.create(null) as {field:{value:string}}}const box=make();`, `put(box);`, ``, true},
+		{"later-writer", `declare function make():{field:{value:string}};const box=make();`, ``, `put(box);`, false},
+	} {
+		t.Run(row.name, func(t *testing.T) {
+			source := row.creation + `function put(box:{field:{value:string}}){box.field={get value(){return document.title}}}` + row.setup + `export const value=box.field.value;` + row.suffix
+			_, _, summary := currentProxyCaller(t, source, "export const value")
+			browser, unknown := false, false
+			for _, effect := range summary.EffectSources {
+				browser = browser || effect.Environment == "browser"
+				unknown = unknown || effect.Environment == "unknown"
+			}
+			if browser != row.browser || !unknown {
+				t.Fatal("opaque result lost original binding or residual", summary.EffectSources)
+			}
+		})
+	}
+}
+
+// A residual receiver cannot turn recursive getter projection into unbounded
+// origin acquisition. Retain the reached donor while widening the recursive read.
+func TestMemberWriterOpaqueResultRecursion(t *testing.T) {
+	const source = `declare function make():any;const box=make();function put(box:any){box.field={get value():string{document.title;return box.field.value}}}put(box);export const value=box.field.value;`
+	assertSymbolicInitializerDonors(t, source)
+}
