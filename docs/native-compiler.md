@@ -1799,7 +1799,9 @@ incomplete while source analysis accounts for that operation's effects. Only a m
 operation, selected target, source use, consumer and phase can discharge its classified
 obligation, across all relevant alternatives. Independent opacity and known browser or server
 donors remain. Ordinary Call contributions also retain relative receiver bindings through
-forwarded and reordered arguments, without turning an ordinary object into component state.
+forwarded and reordered arguments, without turning an ordinary object into component state. Repeated
+contributions to one source operation join its receiver alternatives across analysis phases.
+Distinct original operations retain distinct edges and independent unresolved receivers.
 
 Active source-body reentry compares finite relationships between source endpoints, formal
 positions, captures, creating sites and member edges. New relationships may reach the existing

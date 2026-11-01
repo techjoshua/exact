@@ -110,14 +110,21 @@ func appendAccessorTargets(fact *callableFacts, node *ast.Node, candidates acces
 		targetID := fmt.Sprintf("callable:%s:%d", owner.FileName(), declaration.Pos())
 		edge := CallEdge{ID: fmt.Sprintf("%s:accessor:%s:%d:%s", fact.summary.ID, operationSource.FileName(), operation.Pos(), targetID), Name: strings.TrimSpace(sourceText(operationSource, operation)), Resolved: true, TargetID: targetID}
 		edge.ReceiverBindings = joinSourceReceiverBindings(nil, bindings)
-		seen[key] = len(fact.summary.Calls)
-		duplicate := false
-		for _, existing := range fact.summary.Calls {
-			duplicate = duplicate || existing.ID == edge.ID
+		prior := -1
+		for index, existing := range fact.summary.Calls {
+			if existing.ID == edge.ID {
+				prior = index
+				break
+			}
 		}
-		if duplicate {
+		if prior >= 0 {
+			// An earlier phase already published this operation. Join its
+			// receiver alternatives and retain the actual existing edge index.
+			seen[key] = prior
+			fact.summary.Calls[prior].ReceiverBindings = joinSourceReceiverBindings(fact.summary.Calls[prior].ReceiverBindings, bindings)
 			continue
 		}
+		seen[key] = len(fact.summary.Calls)
 		fact.summary.Calls = append(fact.summary.Calls, edge)
 		if contribution.operation != nil {
 			if fact.fieldEdgeOperations == nil {
