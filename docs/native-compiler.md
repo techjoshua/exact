@@ -371,8 +371,9 @@ its own selected type. Imported values, members and instantiated call results re
 Client artifact containment separately plans qualified initializers and assertions against authored
 AST identities before lowering. Qualified parameter defaults, including constructor parameter
 properties, retain the same obligation even when their body is deferred. Destructuring defaults
-also consume the binding's existing propagated secret policy, including renamed bindings whose
-inferred checker type does not carry the input annotation. Public defaults keep their ordinary
+also consume the receiving bindings' existing propagated secret policy, including renamed and
+nested object/array patterns whose inferred checker types do not carry the input annotation.
+An enclosing pattern default retains the obligation of its qualified leaves. Public defaults keep their ordinary
 behavior. Writes to qualified fields and annotated deferred bodies retain
 the same containment obligation. Owned qualification also follows native array, promise, map,
 and set payloads, plus declaration-backed stored record properties. Application-declared stored

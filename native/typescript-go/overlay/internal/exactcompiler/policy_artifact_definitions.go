@@ -121,10 +121,15 @@ func planSecretArtifactDefinitions(source *ast.SourceFile, c *checker.Checker, s
 				if secretArtifactOwnDataQualified(c.GetTypeAtLocation(node), c, make(map[checker.TypeId]bool)) {
 					p.values[initializer] = struct{}{}
 				}
-				if ast.IsBindingElement(node) && ast.IsIdentifier(node.Name()) {
-					if symbol := c.GetSymbolAtLocation(node.Name()); symbol != nil {
-						if subject, found := subjects.symbols[ast.GetSymbolId(symbol)]; found && subject.Policy.Secret {
-							p.values[initializer] = struct{}{}
+				if ast.IsBindingElement(node) || ast.IsParameterDeclaration(node) {
+					// A pattern default supplies its bound leaves together. Reuse
+					// the policy owner names, including nested and renamed leaves.
+					for _, binding := range policyBindingNames(node.Name()) {
+						if symbol := c.GetSymbolAtLocation(binding); symbol != nil {
+							if subject, found := subjects.symbols[ast.GetSymbolId(symbol)]; found && subject.Policy.Secret {
+								p.values[initializer] = struct{}{}
+								break
+							}
 						}
 					}
 				}
