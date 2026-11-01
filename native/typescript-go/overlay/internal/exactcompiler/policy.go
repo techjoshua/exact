@@ -513,15 +513,11 @@ func applyComponentPolicies(
 			return true
 		}
 		call := node.AsCallExpression()
-		member := resourceTargetName(call.Expression)
-		if (member != "getContext" && member != "setContext") ||
-			call.Arguments == nil ||
-			len(call.Arguments.Nodes) == 0 ||
-			!ast.IsIdentifier(call.Arguments.Nodes[0]) {
+		if policy.owner == nil || !contextPolicyOperation(call.Expression, policy.owner.checker) ||
+			call.Arguments == nil || len(call.Arguments.Nodes) == 0 {
 			return true
 		}
-		token := call.Arguments.Nodes[0].Text()
-		requirement, exists := policy.contextPolicies[token]
+		requirement, exists := contextPolicyInput(call.Arguments.Nodes[0], policy)
 		if !exists ||
 			(!requirement.Policy.Secret &&
 				requirement.Policy.Residency != "server") {
@@ -540,9 +536,15 @@ func applyComponentPolicies(
 					return true
 				}
 			}
-			component.Placement = "server"
-			component.EnvironmentEffect = "server"
-			component.ArtifactTargets = []string{"server"}
+			// Data residency narrows existing execution authority. It cannot erase
+			// opaque writers, browser effects or their independent qualification.
+			if artifactTargetsInclude(component.ArtifactTargets, TargetServer) {
+				component.Placement = "server"
+				component.ArtifactTargets = []string{"server"}
+			} else {
+				component.Placement = "unknown"
+				component.ArtifactTargets = []string{}
+			}
 			return true
 		}
 		return true

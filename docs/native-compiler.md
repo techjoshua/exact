@@ -1610,6 +1610,12 @@ Framework APIs are identified by their checker-resolved imported values. Registr
 open dynamic-component factories, structural JSX lowering, and structural partition planning share
 that import-identity rule. Renamed imports, namespaces, reexports, and immutable aliases preserve
 framework identity. Lexically shadowing local values retain their authored behavior.
+Context policy uses that import identity for factories, lexical component receiver ownership
+for `getContext` and `setContext`, and checker-bound token subjects for residency. Static
+computed protocol members retain the same policy. Ordinary receivers and shadowed token
+bindings do not acquire another context's policy from their spelling. These policy restrictions
+do not discharge current-callee, argument acquisition or writer effects. Residency narrows
+existing artifact targets without replacing the component's independently analyzed effects.
 
 Install workspace dependencies and build `@exactjs/core` first.
 The composition test configuration anchors its application root to the corpus package, so
