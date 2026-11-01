@@ -23,7 +23,18 @@ func TestConstructionResultResiduals(t *testing.T) {
 		t.Run(fixture.name, func(t *testing.T) {
 			source := fixture.declarations + `export function read(){return new Box().value}`
 			for _, target := range []Target{TargetClient, TargetServer} {
-				response := NewSession().Execute(Request{Kind: "compile", ID: "/virtual/construction-result.ts", Source: source, Target: target, Diagnostics: "semantic"})
+				request := Request{Kind: "compile", ID: "/virtual/construction-result.ts", Source: source, Target: target, Diagnostics: "semantic", SourceMap: true}
+				decorated := strings.HasPrefix(fixture.name, "decorated-")
+				if decorated {
+					strict := NewSession().Execute(request)
+					if !containsDiagnosticCode(strict.Diagnostics, "EXACT2101") || strict.Code != "" || strict.SourceMap != nil {
+						t.Fatalf("strict eager decorator application emitted an artifact: %#v", strict.Diagnostics)
+					}
+					// This separate ordinary-module runtime fixture delegates eager module
+					// evaluation to its host. It does not prove decorator portability.
+					request.PreserveOrdinaryModules = true
+				}
+				response := NewSession().Execute(request)
 				if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) || response.Code == "" {
 					t.Fatalf("%s source: %s %#v", target, response.Error, response.Diagnostics)
 				}
@@ -40,17 +51,17 @@ func TestConstructionResultResiduals(t *testing.T) {
 				}
 				eagerSource := fixture.declarations + `export const value=new Box().value`
 				denied := NewSession().Execute(Request{Kind: "compile", ID: "/virtual/construction-result-eager.ts", Source: eagerSource, Target: target, SourceMap: true, Diagnostics: "semantic"})
-				if fixture.knownBrowser && target == TargetClient {
-					// Existing target-local authorization retains the opaque fact.
-					if denied.Error != "" || hasErrorDiagnostic(denied.Diagnostics) || denied.Code == "" {
-						t.Fatalf("known browser target lost authorization: %s %#v", denied.Error, denied.Diagnostics)
-					}
+				// Later constructor work cannot authorize a different class-definition
+				// decorator application. Keep its donor even when that earlier owner denies.
+				if fixture.knownBrowser {
 					initializer := executableSummary(t, denied, fmt.Sprint("module@", strings.LastIndex(eagerSource, "export const value=")))
-					if !containsString(initializer.ArtifactTargets, "client") || containsString(initializer.ArtifactTargets, "server") {
-						t.Fatalf("target-local allowance lost its owning target facts: %#v", initializer)
+					browser := false
+					for _, effect := range initializer.EffectSources {
+						browser = browser || effect.Environment == "browser"
 					}
-					sourceNodeScript(t, denied.Code, `const fs=require('node:fs'),vm=require('node:vm');const exports={};let reads=0;const document={get title(){reads++;return 'browser'}};vm.runInNewContext(fs.readFileSync(process.argv[1],'utf8'),{exports,document});if(exports.value!=='browser'||reads!==2)throw Error(JSON.stringify({value:exports.value,reads}));`)
-					continue
+					if !browser {
+						t.Fatal("denied artifact lost later constructor donor", initializer)
+					}
 				}
 				placement := false
 				for _, diagnostic := range denied.Diagnostics {

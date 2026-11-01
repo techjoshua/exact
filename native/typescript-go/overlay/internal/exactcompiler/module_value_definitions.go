@@ -381,7 +381,7 @@ func (analysis *moduleDefinitionAnalysis) accessors(candidates accessorCandidate
 	}
 }
 
-// moduleDefinitionNodeIsDeferred distinguishes bodies and instance fields from computed names
+// moduleDefinitionNodeIsDeferred distinguishes bodies and instance fields from computed names and decorators
 // and static initialization. The selected work root may itself be an executing body or field.
 func moduleDefinitionNodeIsDeferred(node, work *ast.Node) bool {
 	if node == work {
@@ -398,8 +398,7 @@ func moduleDefinitionNodeIsDeferred(node, work *ast.Node) bool {
 			}
 		}
 		if ast.IsFunctionLike(current) {
-			name := current.Name()
-			if name != nil && ast.IsComputedPropertyName(name) && node.Pos() >= name.Pos() && node.End() <= name.End() {
+			if sourceDefinitionExpressionContains(current, node) {
 				continue
 			}
 			return true

@@ -135,9 +135,6 @@ func collectCallableEffects(
 		if !runtimeVariableInitializer(statement) {
 			continue
 		}
-		// Every runtime initializer has an effect owner. Optional getter
-		// refinement plans do not decide whether its operations are analyzed.
-		nodes = append(nodes, statement)
 		if declaration, plan, ok := preflightModuleInitializer(owner, statement); ok {
 			plans[statement] = plan
 			declarations[statement] = declaration
@@ -809,8 +806,7 @@ func callableAnalysisFromFacts(
 func collectCallableNodes(sourceFile *ast.SourceFile) []*ast.Node {
 	var result []*ast.Node
 	for _, statement := range sourceFile.Statements.Nodes {
-		if ast.IsExpressionStatement(statement) ||
-			isSideEffectImport(statement) {
+		if runtimeModuleEvaluation(statement) {
 			result = append(result, statement)
 		}
 	}
@@ -838,7 +834,7 @@ func callableIdentity(
 	node *ast.Node,
 	componentByStart map[int]Component,
 ) (string, string, []string) {
-	if ast.IsVariableStatement(node) || ast.IsExpressionStatement(node) || isSideEffectImport(node) {
+	if runtimeModuleEvaluation(node) {
 		return fmt.Sprintf("module@%d", node.Pos()), "module-initializer", nil
 	}
 	if component, ok := componentByStart[node.Pos()]; ok {

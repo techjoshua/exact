@@ -135,7 +135,10 @@ type sourceDefaultInput struct {
 // defaultInput finds the binding-time context of a summary demand, stopping at its
 // lexical execution owner so creating a closure cannot execute its deferred defaults.
 func (query *sourceValueQuery) defaultInput(inputs *sourceValueInputs, node *ast.Node, result *accessorCandidates) (sourceDefaultInput, bool) {
-	for current := node; current != nil && !ast.IsFunctionLike(current); current = current.Parent {
+	for current := node; current != nil; current = current.Parent {
+		if ast.IsFunctionLike(current) && !sourceDefinitionExpressionContains(current, node) {
+			break
+		}
 		if !query.charge(result, current) {
 			return sourceDefaultInput{bindings: inputs.bindings, conditional: true}, true
 		}

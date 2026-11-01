@@ -162,7 +162,7 @@ func sourceParameterDefault(node, boundary *ast.Node) *ast.Node {
 		if (ast.IsParameterDeclaration(current) || ast.IsBindingElement(current)) && current.Initializer() != nil && current.Initializer().Contains(node) {
 			return current.Initializer()
 		}
-		if ast.IsFunctionLike(current) {
+		if ast.IsFunctionLike(current) && !sourceDefinitionExpressionContains(current, node) {
 			break
 		}
 	}

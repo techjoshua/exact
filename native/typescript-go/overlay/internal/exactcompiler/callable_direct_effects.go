@@ -102,9 +102,41 @@ func collectDirectCallableEffects(
 		}
 		appendOpaqueAccessorEffect(fact, selected)
 	}
+	var moduleFlow *sourceValueQuery
+	if runtimeModuleEvaluation(fact.node) {
+		moduleFlow = &sourceValueQuery{owner: owner.values, executable: owner, effectOwner: fact.node, dependenciesOnly: true, active: make(map[*ast.Node]bool)}
+	}
 	consumeNode := func(node *ast.Node) bool {
+		if moduleFlow != nil {
+			if possible, _ := moduleFlow.reachable(node, nil); !possible {
+				return false
+			}
+		}
+		if sourceClassHasDecoratorApplication(node) {
+			flow := moduleFlow
+			if flow == nil {
+				flow = &sourceValueQuery{owner: owner.values, executable: owner, effectOwner: fact.node, dependenciesOnly: true, active: make(map[*ast.Node]bool)}
+			}
+			if possible, _ := flow.reachable(node, nil); possible {
+				effect := sourceDecoratorApplicationEffect(node, fact.node, fact.summary.Name)
+				fact.summary.DirectEffectSources = append(fact.summary.DirectEffectSources, effect)
+			}
+		}
+		if moduleFlow != nil && moduleFlow.moduleDisposalMayBeAcquired(node) {
+			effect := environmentSource("unknown", "implicit resource disposal", fact.summary.Name)
+			effect.Opaque = true
+			fact.summary.DirectEffectSources = append(fact.summary.DirectEffectSources, effect)
+		}
 		if node.Parent != nil && ast.IsPartOfTypeNode(node) {
 			return false
+		}
+		if initializer := sourceParameterDefault(node, fact.node); initializer != nil && enclosingCallableNode(initializer) == fact.node {
+			first := len(fact.summary.DirectEffectSources)
+			defer func() {
+				for i := first; i < len(fact.summary.DirectEffectSources); i++ {
+					fact.summary.DirectEffectSources[i] = sourceDefaultPhaseEffect(fact.summary.DirectEffectSources[i], node, fact.node)
+				}
+			}()
 		}
 		appendDirectReferenceEffects(fact, node, sourceFile, typeChecker)
 		if !precisionRequested || owner.values.prefixHistory(node) == nil {
@@ -692,11 +724,21 @@ func walkCallableNormalWithFolds(root *ast.Node, visit func(*ast.Node) bool, ope
 		}()
 
 		if node != root && isCallableNode(node) {
+			for _, decorator := range sourceDefinitionDecorators(node) {
+				descend(decorator)
+			}
 			// Computed names execute while the owner is constructed. Callable bodies do not.
 			if name := node.Name(); name != nil && ast.IsComputedPropertyName(name) {
 				descend(name.AsComputedPropertyName().Expression)
 			}
 			return
+		}
+		if ast.IsDecorator(node) && ast.IsFunctionLike(root) {
+			for _, decorator := range sourceDefinitionDecorators(root) {
+				if decorator == node {
+					return
+				}
+			}
 		}
 		if node == root.Name() && ast.IsComputedPropertyName(node) {
 			return

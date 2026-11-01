@@ -189,6 +189,9 @@ func (owner *sourceValueOwner) summary(node *ast.Node) sourceValueSummary {
 			summary.returnSites = append(summary.returnSites, child)
 		}
 		executable := false
+		if sourceClassHasDecoratorApplication(child) {
+			summary.nodes = append(summary.nodes, child)
+		}
 		if ast.IsIdentifier(child) && !ast.IsDeclarationName(child) && !isStaticPropertyName(child) {
 			summary.nodes = append(summary.nodes, child)
 		}
@@ -787,6 +790,15 @@ func (query *sourceValueQuery) executeDemand(node, declaration *ast.Node, bindin
 	possible, _ := query.reachable(node, bindings)
 	if !possible {
 		return
+	}
+	if query.dependenciesOnly && sourceClassHasDecoratorApplication(node) {
+		name := "<anonymous>"
+		if declaration.Name() != nil {
+			name = callableNameText(declaration.Name())
+		}
+		effect := sourceDecoratorApplicationEffect(node, declaration, name)
+		effect.callOrigin = nil // This source demand has passed its actual default/phase gate.
+		result.environmentEffects = append(result.environmentEffects, effect)
 	}
 	if query.dependenciesOnly && ast.IsIdentifier(node) {
 		name := "<anonymous>"

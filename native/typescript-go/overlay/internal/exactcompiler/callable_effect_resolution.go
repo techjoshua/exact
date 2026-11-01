@@ -546,6 +546,11 @@ func resolveCallableEffects(facts []callableFacts, owners ...*executableBodyOwne
 							continue
 						}
 						transferred := source
+						operation := fact.callExpressions[edge.ID]
+						if operation == nil {
+							operation = fact.fieldEdgeOperations[edge.ID]
+						}
+						transferred = sourceDefaultPhaseEffect(transferred, operation, fact.node)
 						if len(source.Path) == 0 || source.Path[0] != fact.summary.Name {
 							transferred.Path = append([]string{fact.summary.Name}, source.Path...)
 						}
