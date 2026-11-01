@@ -371,7 +371,10 @@ its own selected type. Imported values, members and instantiated call results re
 Client artifact containment separately plans qualified initializers and assertions against authored
 AST identities before lowering. Writes to qualified fields and annotated deferred bodies retain
 the same containment obligation. Owned qualification also follows native array, promise, map,
-and set payloads. These contracts require a native library declaration and do not turn arbitrary
+and set payloads, plus declaration-backed stored record properties. Synthetic constructor
+prototypes describe deferred instances and do not count as stored payload fields. Changing instantiable template arguments defer to selected-use policy without discarding
+independent secret fields. Unchanged free arguments do not excuse closed structural growth.
+Closed expanding stored payloads retain their incomplete containment obligation. These contracts require a native library declaration and do not turn arbitrary
 user generic arguments, callable result signatures, or `ThisType<T>` into runtime fields.
 Contextual checker types retain explicit nested return and
 storage contracts even when an expression is asserted as `any`. Assignment patterns and loop
@@ -384,7 +387,9 @@ reference, while execution-policy checks still inspect its ownership requirement
 target projection, a retained qualified initializer
 produces EXACT3022 with no code or source map. Pure, unreferenced module definitions containing
 such initializers can be removed. Exported definitions, observable creation effects, dynamic scope,
-and unresolved generated references prevent that removal. This limited removal is not general
+and unresolved generated references prevent that removal. Dynamic-scope checks run against the
+retained AST after server projection. Direct eval normalization removes parentheses and erased
+type wrappers while retaining the distinction from comma, member and optional calls. This limited removal is not general
 value analysis or permission to evaluate deferred members. Client maps omit embedded authored
 source when the file contains private policy or qualified initializers, since projected server code
 must not reappear through `sourcesContent`. Mappings and source filenames remain available.

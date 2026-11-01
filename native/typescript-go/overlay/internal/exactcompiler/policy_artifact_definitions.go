@@ -44,9 +44,6 @@ func planSecretArtifactDefinitions(source *ast.SourceFile, c *checker.Checker) s
 			})
 			return false
 		}
-		if ast.IsCallExpression(node) && ast.IsIdentifier(node.AsCallExpression().Expression) && node.AsCallExpression().Expression.Text() == "eval" || ast.IsWithStatement(node) {
-			p.deadProjection = false
-		}
 		shorthand := node.Parent != nil && ast.IsShorthandPropertyAssignment(node.Parent) && node.Parent.Name() == node
 		// A qualified assertion introduces a runtime representation. References to
 		// ambient credentials have no initializer payload to publish here.
@@ -56,8 +53,8 @@ func planSecretArtifactDefinitions(source *ast.SourceFile, c *checker.Checker) s
 			}
 		}
 		// Contextual contracts survive an inferred any or a nested aggregate
-		// return. Inspect only the expression's own known qualification, never
-		// an incomplete aggregate obligation or a display-name approximation.
+		// return. Inspect stored-data obligations separately from deferred
+		// whole-value disclosure, unknown effects and display-name approximations.
 		if ast.IsExpression(node) && (shorthand || !ast.IsDeclarationName(node) && !isStaticPropertyName(node)) {
 			contextual := c.GetContextualType(node, checker.ContextFlagsNone)
 			if shorthand {
@@ -232,6 +229,16 @@ func secretArtifactPureClass(node *ast.Node) bool {
 // and the retained AST scan are linear in nodes and binding-reference edges.
 func pruneDeadSecretDefinitions(file *ast.SourceFile, emit *printer.EmitContext, p secretArtifactPlan) *ast.SourceFile {
 	if !p.deadProjection || len(p.values) == 0 {
+		return file
+	}
+	// Only delivered dynamic scope can reach otherwise unreferenced bindings.
+	// Server-projected bodies must not prevent safe client definition pruning.
+	dynamicScope := false
+	walkNode(file.AsNode(), func(node *ast.Node) bool {
+		dynamicScope = dynamicScope || secretArtifactDirectEval(node) || ast.IsWithStatement(node)
+		return !dynamicScope
+	})
+	if dynamicScope {
 		return file
 	}
 	dependencies := make(map[ast.SymbolId][]ast.SymbolId)
@@ -440,70 +447,13 @@ func secretArtifactKeyQualified(receiver, key *checker.Type, c *checker.Checker,
 	return false
 }
 
-// secretArtifactOwnDataQualified follows owned qualification through native
-// payload containers and indexed storage. Callable result contracts belong to
-// whole-value disclosure. They do not by themselves label a function definition
-// as embedded private data. User generic arguments do not imply runtime fields.
-func secretArtifactOwnDataQualified(value *checker.Type, c *checker.Checker, seen map[checker.TypeId]bool) bool {
-	return secretArtifactOwnDataWithin(value, c, seen, nil)
-}
-
-func secretArtifactOwnDataWithin(value *checker.Type, c *checker.Checker, seen map[checker.TypeId]bool, active []*checker.Type) bool {
-	if value == nil || seen[value.Id()] {
+// secretArtifactDirectEval fences lexical reachability without interpreting
+// source strings. Parentheses and erased assertions preserve the eval reference.
+// Comma, assignment, member access and optional calls do not establish direct eval.
+func secretArtifactDirectEval(node *ast.Node) bool {
+	if !ast.IsCallExpression(node) || node.AsCallExpression().QuestionDotToken != nil {
 		return false
 	}
-	if checkerTypeIsSecret(value, c, make(map[checker.TypeId]bool)) {
-		return true
-	}
-	if c.IsExactPolicyTypeExpanding(value, active) {
-		return true
-	}
-	seen[value.Id()] = true
-	active = append(active, value)
-	if value.Flags()&checker.TypeFlagsUnionOrIntersection != 0 {
-		for _, member := range value.Types() {
-			if secretArtifactOwnDataWithin(member, c, seen, active) {
-				return true
-			}
-		}
-		return false
-	}
-	if value.Flags()&checker.TypeFlagsTypeParameter != 0 {
-		return secretArtifactOwnDataWithin(c.GetBaseConstraintOfType(value), c, seen, active)
-	}
-	// An index describes stored data. Recursively follow only known native
-	// carriers, not arbitrary user generic object shapes or deferred signatures.
-	for _, index := range c.GetIndexInfosOfType(value) {
-		item := index.ValueType()
-		if checkerTypeIsSecret(item, c, make(map[checker.TypeId]bool)) || secretArtifactNativeCarrier(item, c) && secretArtifactOwnDataWithin(item, c, seen, active) {
-			return true
-		}
-	}
-	if secretArtifactNativeCarrier(value, c) && value.ObjectFlags()&checker.ObjectFlagsReference != 0 {
-		for _, argument := range c.GetTypeArguments(value) {
-			if checkerTypeIsSecret(argument, c, make(map[checker.TypeId]bool)) || secretArtifactNativeCarrier(argument, c) && secretArtifactOwnDataWithin(argument, c, seen, active) {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-// secretArtifactNativeCarrier recognizes native data-position contracts. A
-// generic marker such as ThisType<T>, descriptor metadata, or a user type with
-// the same spelling does not establish a runtime payload position. Augmentation
-// preserves an original native payload contract rather than erasing it.
-func secretArtifactNativeCarrier(value *checker.Type, c *checker.Checker) bool {
-	if value == nil || value.Symbol() == nil {
-		return false
-	}
-	switch ast.SymbolName(value.Symbol()) {
-	case "Array", "ReadonlyArray", "Promise", "PromiseLike", "Map", "ReadonlyMap", "Set", "ReadonlySet", "WeakMap", "WeakSet":
-		for _, declaration := range value.Symbol().Declarations {
-			if c.IsLibSymbolForHoverVerbosity(&ast.Symbol{Declarations: []*ast.Node{declaration}}) {
-				return true
-			}
-		}
-	}
-	return false
+	callee := ast.SkipOuterExpressions(node.AsCallExpression().Expression, ast.OEKParentheses|ast.OEKAssertions)
+	return ast.IsIdentifier(callee) && callee.Text() == "eval"
 }

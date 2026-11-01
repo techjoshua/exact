@@ -317,7 +317,9 @@ Field declaration annotations participate in whole-value qualification through c
 property declarations. Public sibling selection and retained-definition containment are separate
 consumers. After target and task projection, retained qualified initializers deny client publication
 with EXACT3022 and no code or map. Only unreferenced definitions with effect-free creation may be
-removed. Private authored source must not reappear in client map `sourcesContent`.
+removed. Stored-property contracts follow checker declarations across aliases without treating
+synthetic constructor prototypes or callable result types as stored data. Retained direct eval
+fences pruning after erased wrappers are normalized. Private authored source must not reappear in client map `sourcesContent`.
 
 ### 5.8 Proof and lifetime contract
 

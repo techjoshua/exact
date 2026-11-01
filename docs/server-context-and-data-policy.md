@@ -253,7 +253,10 @@ Field qualification applies to whole records even when a field's ordinary TypeSc
 Selecting a public sibling does not authorize delivery of a retained secret field initializer.
 If its definition remains in client code and cannot be removed safely, compilation reports
 EXACT3022 and supplies neither code nor a source map. Dead pure definitions and server-owned task
-bodies can be projected away. Client source maps omit embedded authored source for files containing
+bodies can be projected away. Stored record contracts retain field qualification through aliases
+and native payload containers. A constructor's synthetic instance prototype and deferred callable
+results are separate from its stored data. Direct `eval`, including erased type wrappers, prevents
+dead-definition pruning in delivered code. Client source maps omit embedded authored source for files containing
 private definitions so that removed server code is not delivered through the map.
 
 Containment is established before delivery. The compiler rejects secret-bearing client

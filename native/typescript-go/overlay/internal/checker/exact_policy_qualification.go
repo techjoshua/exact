@@ -30,3 +30,9 @@ func (c *Checker) GetExactPolicyPropertyKey(name *ast.Node) *Type {
 	}
 	return c.getLiteralTypeFromPropertyName(name)
 }
+
+// HasExactPolicyRecursionIdentity compares native recursion origins, preserving
+// the pinned checker's treatment of anonymous, indexed and mapped targets.
+func (c *Checker) HasExactPolicyRecursionIdentity(value, ancestor *Type) bool {
+	return hasMatchingRecursionIdentity(ancestor, getRecursionIdentity(value))
+}
