@@ -774,7 +774,7 @@ func (s *Session) executeProjection(request Request, authored *authoredCheckProg
 	secretQualifications := planSecretQualifications(policy.qualifications, generation.checker)
 	var secretArtifact secretArtifactPlan
 	if request.Target == TargetClient {
-		secretArtifact = planSecretArtifactDefinitions(sourceFile, generation.checker)
+		secretArtifact = planSecretArtifactDefinitions(sourceFile, generation.checker, policy.subjects)
 	}
 	transformed, componentUpdates, componentInputUpdates, componentInputTaskIDs, componentRangeOutputs, artifactStructure, componentListOwners := lowerExactJSX(
 		sourceFile,

@@ -19,7 +19,7 @@ type secretArtifactPlan struct {
 	privateSource  bool
 }
 
-func planSecretArtifactDefinitions(source *ast.SourceFile, c *checker.Checker) secretArtifactPlan {
+func planSecretArtifactDefinitions(source *ast.SourceFile, c *checker.Checker, subjects policySubjects) secretArtifactPlan {
 	p := secretArtifactPlan{values: make(map[*ast.Node]struct{}), references: make(map[*ast.Node]ast.SymbolId), declarations: make(map[*ast.Node]ast.SymbolId), pure: make(map[ast.SymbolId]bool), names: make(map[string]ast.SymbolId), deadProjection: source.ExternalModuleIndicator != nil}
 	// Completed roots belong to this unchanged checker only. Incomplete roots
 	// retain protection and are not published as completed qualification facts.
@@ -109,9 +109,10 @@ func planSecretArtifactDefinitions(source *ast.SourceFile, c *checker.Checker) s
 				p.values[loop.Expression] = struct{}{}
 			}
 		}
-		// A deferred parameter default still embeds executable payload in a
-		// retained definition, including constructor parameter properties.
-		if ast.IsVariableDeclaration(node) || ast.IsPropertyDeclaration(node) || ast.IsParameterDeclaration(node) {
+		// Deferred defaults still embed payload in retained definitions. Binding
+		// elements consume the existing propagated subject, since an input's
+		// explicit policy need not appear in the binding's inferred checker type.
+		if ast.IsVariableDeclaration(node) || ast.IsPropertyDeclaration(node) || ast.IsParameterDeclaration(node) || ast.IsBindingElement(node) {
 			if initializer := node.Initializer(); initializer != nil {
 				annotations := policyNodeAnnotations(node, source)
 				if annotations.policy != nil && annotations.policy.Secret {
@@ -119,6 +120,13 @@ func planSecretArtifactDefinitions(source *ast.SourceFile, c *checker.Checker) s
 				}
 				if secretArtifactOwnDataQualified(c.GetTypeAtLocation(node), c, make(map[checker.TypeId]bool)) {
 					p.values[initializer] = struct{}{}
+				}
+				if ast.IsBindingElement(node) && ast.IsIdentifier(node.Name()) {
+					if symbol := c.GetSymbolAtLocation(node.Name()); symbol != nil {
+						if subject, found := subjects.symbols[ast.GetSymbolId(symbol)]; found && subject.Policy.Secret {
+							p.values[initializer] = struct{}{}
+						}
+					}
 				}
 			}
 		}

@@ -150,8 +150,9 @@ export function ServerExecutionPage(this: Component<{}>) {
 					A public field can be read from a record with secret fields. Keep secret initializers
 					inside server-owned work. If their containing definition remains in a client build, the
 					compiler rejects delivery even when the selected field is public. This includes secret
-					fields inside stored records and containers reached through aliases. Client source maps
-					also exclude embedded source that could reveal removed private definitions.
+					fields inside stored records and containers reached through aliases, as well as defaults
+					for secret parameters and destructured bindings. Client source maps also exclude embedded
+					source that could reveal removed private definitions.
 				</p>
 				<Callout title="Sharing a result does not grant access to it">
 					<p>

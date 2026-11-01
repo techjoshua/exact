@@ -43,19 +43,34 @@ func TestPolicyProtectedBindingDefaultOwnership(t *testing.T) {
 	}
 }
 
-// A retained default inherits the same qualified binding obligation as its leaf.
+// Qualified defaults may disappear with dead definitions. Observable class
+// creation keeps the containing definition live and must instead deny delivery.
 func TestPolicyProtectedBindingDefaultContainment(t *testing.T) {
 	for _, local := range []string{"value", "selected"} {
-		t.Run(local, func(t *testing.T) {
-			r := NewSession().Execute(Request{Kind: "compile", ID: "binding-default-containment.ts", Target: TargetClient, SourceMap: true,
-				Source: protectedBindingDefaultSource(local, true, false)})
-			if r.Error != "" || hasDiagnosticCode(r.Diagnostics, "EXACT2101") || hasDiagnosticCode(r.Diagnostics, "EXACT3020") {
-				t.Fatalf("retained binding contract not isolated: %s %#v", r.Error, r.Diagnostics)
+		for _, retained := range []bool{false, true} {
+			name := local + "/pruned"
+			source := protectedBindingDefaultSource(local, true, false)
+			if retained {
+				name = local + "/retained"
+				source = strings.Replace(source, "factory:class{", "factory:class{static{console.log('public creation')}", 1)
 			}
-			if !hasDiagnosticCode(r.Diagnostics, "EXACT3022") || r.Code != "" || r.SourceMap != nil {
-				t.Fatalf("qualified binding default delivered: diagnostics=%#v code=%v payload=%v map=%v", r.Diagnostics, r.Code != "", strings.Contains(r.Code, "PRIVATE_BINDING_PAYLOAD"), r.SourceMap != nil)
-			}
-		})
+			t.Run(name, func(t *testing.T) {
+				r := NewSession().Execute(Request{Kind: "compile", ID: "binding-default-containment.ts", Target: TargetClient, SourceMap: true,
+					Source: source})
+				if r.Error != "" || hasDiagnosticCode(r.Diagnostics, "EXACT2101") || hasDiagnosticCode(r.Diagnostics, "EXACT3020") {
+					t.Fatalf("retained binding contract not isolated: %s %#v", r.Error, r.Diagnostics)
+				}
+				if retained {
+					if !hasDiagnosticCode(r.Diagnostics, "EXACT3022") || r.Code != "" || r.SourceMap != nil {
+						t.Fatalf("qualified binding default delivered: diagnostics=%#v code=%v payload=%v map=%v", r.Diagnostics, r.Code != "", strings.Contains(r.Code, "PRIVATE_BINDING_PAYLOAD"), r.SourceMap != nil)
+					}
+				} else {
+					if hasErrorDiagnostic(r.Diagnostics) || strings.Contains(r.Code, "PRIVATE_BINDING_PAYLOAD") || r.SourceMap != nil && len(r.SourceMap.SourcesContent) != 0 {
+						t.Fatalf("pruned private binding survived: diagnostics=%#v code=%s map=%#v", r.Diagnostics, r.Code, r.SourceMap)
+					}
+				}
+			})
+		}
 	}
 }
 
