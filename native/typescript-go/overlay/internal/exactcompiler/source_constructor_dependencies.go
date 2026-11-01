@@ -15,6 +15,9 @@ func (q *sourceValueQuery) retainSelectedConstructionDependencies(site *ast.Node
 			continue
 		}
 		if ast.IsFunctionLike(target) {
+			if !sourceFunctionConstructible(target) {
+				continue
+			}
 			result.retainCallableEffect(site, target)
 			continue
 		}
@@ -23,11 +26,16 @@ func (q *sourceValueQuery) retainSelectedConstructionDependencies(site *ast.Node
 			q.owner.widenings++
 			continue
 		}
+		if ast.HasDecorators(target) {
+			result.opaque = true
+		}
 		func() {
 			q.active[target] = true
 			defer delete(q.active, target)
 			previousCreators := q.creators
-			q.creators = selected.scope.creators
+			scope := q.acquireCallableScope(selected.scope.bindings, result)
+			scope.bindings[0] = []sourceValue{{node: site}}
+			q.creators = scope.creators
 			defer func() { q.creators = previousCreators }()
 			for _, member := range target.Members() {
 				if !q.charge(result, member) {
@@ -36,12 +44,19 @@ func (q *sourceValueQuery) retainSelectedConstructionDependencies(site *ast.Node
 				if !ast.IsPropertyDeclaration(member) || ast.HasSyntacticModifier(member, ast.ModifierFlagsStatic) || member.Initializer() == nil {
 					continue
 				}
-				inputs := &sourceValueInputs{declaration: member, bindings: selected.scope.bindings}
+				inputs := &sourceValueInputs{declaration: member, bindings: scope.bindings}
+				previousInputs := q.inputs
+				q.inputs = inputs
 				for _, node := range q.owner.summary(member).nodes {
 					if !member.Initializer().Contains(node) {
 						continue
 					}
 					q.executeDemand(node, member, inputs.bindings, result, nil, inputs)
+				}
+				q.inputs = previousInputs
+				if !q.sourceInitializerMayComplete(member.Initializer(), scope.bindings) {
+					result.valueIncomplete = true
+					break
 				}
 			}
 			// The default derived constructor forwards construction to its base.
@@ -67,6 +82,7 @@ func (q *sourceValueQuery) retainSelectedConstructionDependencies(site *ast.Node
 						return
 					}
 					next := q.selectSourceConstructionReference(base.Expression(), site, selected.scope.bindings, result)
+					result.opaque = result.opaque || len(next.declarations) == 0 || next.base.valueIncomplete
 					q.retainSelectedConstructionDependencies(site, next, result)
 				}
 			}

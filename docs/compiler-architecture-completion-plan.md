@@ -230,8 +230,17 @@ Constructor dependencies share the selected executable target owner with normal 
 Selected constructor bodies and instance-field demands retain known effects beside unresolved
 construction, without supplying an instance or completion receipt. Default derived constructors
 retain base dependencies. Class-definition keys, static initializers and deferred field closures
-keep their own evaluation phases. Array-binding summaries retain default donors beside unresolved
-iterator/value selection. Such a summary does not prove iterator execution or default bypass.
+keep their own evaluation phases. Effects-only New origins carry selected source fields and
+prototype members into ordinary member and serialization demands. Field initializers acquire
+scalars at construction while referenced objects retain applicable later member writes. The
+existing ordered write owner qualifies replacement of a known own data field. Unknown escape
+or constructor-return replacement keeps independent lookup uncertainty. Missing exact instance
+output alone does not add an effect. Shared selected-return projection also supplies getter
+return relationships without issuing a Get receipt. Definite abrupt construction prevents later
+field or serialization consumers, and nonconstructible functions do not perform their bodies.
+Completion projection here establishes no successful Normal result. Literal-computed class
+member selection and the serialization `toJSON` protocol still require separate donor audits.
+Array-binding summaries retain default donors beside unresolved iterator/value selection. Such a summary does not prove iterator execution or default bypass.
 
 The first summary slice must distinguish these controls:
 

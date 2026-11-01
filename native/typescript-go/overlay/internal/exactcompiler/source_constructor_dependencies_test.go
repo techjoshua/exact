@@ -2,25 +2,25 @@ package exactcompiler
 
 import "testing"
 
-// Construction selection conserves body and field donors beside independent
-// allocation uncertainty. A class declaration and expression share this contract.
+// Construction selection conserves body and field donors beside genuinely
+// unresolved constructor alternatives. Missing instance values are separate. A class declaration and expression share this contract.
 func TestSourceConstructorDependencies(t *testing.T) {
 	for _, test := range []struct {
-		name, source         string
-		browser, constructor bool
+		name, source                  string
+		browser, constructor, unknown bool
 	}{
-		{"declaration", `class C{constructor(){document.title}}export function run(){new C()}`, true, true},
-		{"expression", `const C=class{constructor(){document.title}};export function run(){new C()}`, true, true},
-		{"safe", `class C{constructor(){}}export function run(){new C()}`, false, true},
-		{"field", `class C{value=document.title}export function run(){new C()}`, true, false},
-		{"base", `class Base{constructor(){document.title}}class C extends Base{}export function run(){new C()}`, true, true},
-		{"base field", `class Base{value=document.title}class C extends Base{}export function run(){new C()}`, true, false},
-		{"overload body", `class C{constructor(value:string);constructor(value?:string){document.title}}export function run(){new C('safe')}`, true, true},
-		{"unknown alternative", `class C{constructor(){document.title}}declare const choose:boolean;declare const Other:typeof C;const Pick=choose?C:Other;export function run(){new Pick()}`, true, true},
-		{"function constructor", `const C:any=function(){document.title};export function run(){new C()}`, true, true},
-		{"recursive fields", `class C{self:C=new C();value=document.title}export function run(){new C()}`, true, false},
-		{"definition key", `class C{[document.title]='safe'}export function run(){new C()}`, false, false},
-		{"deferred field", `class C{value=()=>document.title;static immediate='safe'}export function run(){new C()}`, false, false},
+		{"declaration", `class C{constructor(){document.title}}export function run(){new C()}`, true, true, false},
+		{"expression", `const C=class{constructor(){document.title}};export function run(){new C()}`, true, true, false},
+		{"safe", `class C{constructor(){}}export function run(){new C()}`, false, true, false},
+		{"field", `class C{value=document.title}export function run(){new C()}`, true, false, false},
+		{"base", `class Base{constructor(){document.title}}class C extends Base{}export function run(){new C()}`, true, true, false},
+		{"base field", `class Base{value=document.title}class C extends Base{}export function run(){new C()}`, true, false, false},
+		{"overload body", `class C{constructor(value:string);constructor(value?:string){document.title}}export function run(){new C('safe')}`, true, true, false},
+		{"unknown alternative", `class C{constructor(){document.title}}declare const choose:boolean;declare const Other:typeof C;const Pick=choose?C:Other;export function run(){new Pick()}`, true, true, true},
+		{"function constructor", `const C:any=function(){document.title};export function run(){new C()}`, true, true, false},
+		{"recursive fields", `class C{self:C=new C();value=document.title}export function run(){new C()}`, true, false, true},
+		{"definition key", `class C{[document.title]='safe'}export function run(){new C()}`, false, false, false},
+		{"deferred field", `class C{value=()=>document.title;static immediate='safe'}export function run(){new C()}`, false, false, false},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			id := "/virtual/constructor-dependency.ts"
@@ -31,12 +31,12 @@ func TestSourceConstructorDependencies(t *testing.T) {
 			if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) {
 				t.Fatal(response.Error, response.Diagnostics)
 			}
-			assertConstructorDependencies(t, response, test.browser, test.constructor)
+			assertConstructorDependencies(t, response, test.browser, test.constructor, test.unknown)
 		})
 	}
 }
 
-func assertConstructorDependencies(t *testing.T, response Response, browser, constructor bool) {
+func assertConstructorDependencies(t *testing.T, response Response, browser, constructor, wantUnknown bool) {
 	t.Helper()
 	for _, fact := range response.Analysis.Callables {
 		if fact.Name != "run" {
@@ -47,7 +47,7 @@ func assertConstructorDependencies(t *testing.T, response Response, browser, con
 			known = known || effect.Environment == "browser"
 			unknown = unknown || effect.Environment == "unknown"
 		}
-		if known != browser || !unknown {
+		if known != browser || unknown != wantUnknown {
 			t.Fatalf("browser=%v unknown=%v sources=%#v", known, unknown, fact.EffectSources)
 		}
 		if constructor && len(fact.Calls) == 0 {
@@ -79,7 +79,7 @@ func TestSourceConstructorSelectedBody(t *testing.T) {
 			if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) {
 				t.Fatal(response.Error, response.Diagnostics)
 			}
-			assertConstructorDependencies(t, response, browser, true)
+			assertConstructorDependencies(t, response, browser, true, false)
 		})
 	}
 }

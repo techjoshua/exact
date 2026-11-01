@@ -133,7 +133,11 @@ func (query *sourceValueQuery) constructDependencyEffects(site *ast.Node, bindin
 	selected := query.selectSourceConstruction(site, bindings, &result)
 	query.retainSelectedConstructionDependencies(site, selected, &result)
 	if len(selected.declarations) > 0 || selected.base.selected || selected.base.invocationOwned {
-		result.opaque, result.valueIncomplete = true, true
+		// The selected body/field dependency consumer accounts construction
+		// effects. Missing an exact instance output supplies no extra opacity.
+		// Unselected constructor alternatives remain independent operations.
+		result.valueIncomplete = true
+		result.opaque = result.opaque || len(selected.declarations) == 0 || selected.base.valueIncomplete
 		return result
 	}
 	values := query.originsAt(expression, site, bindings, &result)

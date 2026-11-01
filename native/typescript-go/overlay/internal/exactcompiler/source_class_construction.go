@@ -124,6 +124,11 @@ func (q *sourceValueQuery) selectSourceConstruction(site *ast.Node, bindings sou
 // selectSourceConstructionReference preserves selected executable ownership for
 // New and inherited constructor dependencies without allocating an instance.
 func (q *sourceValueQuery) selectSourceConstructionReference(reference, site *ast.Node, bindings sourceValueBindings, result *accessorCandidates) *sourcePreparedInvocation {
+	if q.dependenciesOnly {
+		previous := q.initializing
+		q.initializing = site
+		defer func() { q.initializing = previous }()
+	}
 	selected := &sourcePreparedInvocation{scope: q.acquireCallableScope(bindings, result)}
 	if possibleProxyReference(q.owner, reference) {
 		part := q.accessors(reference, nil, "", accessorAcquire, bindings, nil)
@@ -134,6 +139,15 @@ func (q *sourceValueQuery) selectSourceConstructionReference(reference, site *as
 				selected.declarations = append(selected.declarations, v.node)
 				selected.base.selected = true
 			}
+		}
+		return selected
+	}
+	// Use the existing executable definition owner before generic value
+	// origins, whose declaration projection deliberately models callables.
+	if definition, owned := q.executable.definition(reference); owned {
+		selected.base.invocationOwned = true
+		if sourceConstructorDefinition(definition) {
+			selected.declarations = []*ast.Node{definition}
 		}
 		return selected
 	}
@@ -149,21 +163,14 @@ func (q *sourceValueQuery) selectSourceConstructionReference(reference, site *as
 		sourceClass := ast.IsClassDeclaration(declaration) || ast.IsVariableDeclaration(declaration) && declaration.Initializer() != nil && ast.IsClassExpression(unwrapSourceCallableReference(declaration.Initializer()))
 		selected.base.selected = source != nil && !source.IsDeclarationFile && sourceClass
 	}
-	// Use the existing executable definition owner before generic value
-	// origins, whose declaration projection deliberately models callables.
-	if definition, owned := q.executable.definition(reference); owned {
-		selected.base.invocationOwned = true
-		if sourceConstructorDefinition(definition) {
-			selected.declarations = []*ast.Node{definition}
-		}
-		return selected
-	}
+
 	var values []sourceValue
 	if q.dependenciesOnly {
 		// Abstract acquisition preserves source alternatives without demanding
 		// a normal callee output. Executable ownership above still takes priority.
 		part := q.accessors(reference, nil, "", accessorAcquire, bindings, nil)
 		mergeAccessorCandidates(result, part)
+		selected.base.valueIncomplete = part.opaque || part.valueIncomplete || part.receiverIncomplete
 		values = part.values
 	} else {
 		values = q.originsAt(reference, site, bindings, result)

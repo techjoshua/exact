@@ -394,6 +394,17 @@ func (query *sourceValueQuery) executeGetEffects(body *ast.Node, get *sourceGetI
 // Direct-return member outputs are acquired by that same body demand. A callable
 // then remains a value, never its fulfillment or a promise-job interpretation.
 func (query *sourceValueQuery) acquireGetResult(body *ast.Node, get *sourceGetInputs, scope acquiredCallableScope, result *accessorCandidates) sourceResultObservation {
+	if query.dependenciesOnly {
+		observed := sourceResultObservation{}
+		query.consumeGetInputs(body, get, scope, result, func(inputs *sourceValueInputs) {
+			query.consumeSourceBodyEffects(get.operation, body, inputs.bindings, inputs, nil, result)
+			query.projectSelectedSourceReturns(body, get.operation, inputs.bindings, inputs, result, func(value sourceValue, bindings sourceValueBindings) {
+				observed.values = append(observed.values, sourceObservedValue{value: value, scope: query.acquireCallableScope(bindings, result)})
+			}, func() { observed.incomplete = true })
+		})
+		return observed
+	}
+
 	// A wrapper that refuses before its consumer has no selected output.
 	observed := sourceResultObservation{incomplete: true}
 	// Body demands retain execution obligations in the same owned record, but

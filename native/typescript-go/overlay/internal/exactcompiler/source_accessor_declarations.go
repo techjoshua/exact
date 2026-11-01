@@ -48,7 +48,7 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 	visitProduced := func(node *ast.Node, projection []string, instance bool) bool {
 		if node != nil && ast.IsNewExpression(node) {
 			if observed, found := query.constructedOutput(node); found {
-				retainResultUncertainty(observed, &result, sourceExecutionOutput)
+				retainResultUncertainty(observed, &result, query.getProjectionDemand())
 				for _, value := range observed.values {
 					visitOrigins([]sourceValue{value.value}, projection, instance)
 				}
@@ -70,7 +70,7 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 		importCandidateReferences(&result, observed.componentRefs)
 		importCandidateReferences(&result, ownedPopulationContributions(observed.ownedGets))
 		mergeOwnedGets(&result.ownedGets, observed.ownedGets)
-		retainResultUncertainty(observed, &result, sourceExecutionOutput)
+		retainResultUncertainty(observed, &result, query.getProjectionDemand())
 		for _, original := range observed.values {
 			if !query.charge(&result, node) {
 				return true
@@ -453,7 +453,7 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 				}
 			}
 			term := sourceValue{node: value}
-			if query.dependenciesOnly && (ast.IsObjectLiteralExpression(value) || ast.IsArrayLiteralExpression(value) || ast.IsFunctionLike(value)) {
+			if query.dependenciesOnly && (ast.IsObjectLiteralExpression(value) || ast.IsArrayLiteralExpression(value) || ast.IsFunctionLike(value) || ast.IsNewExpression(value)) {
 				scope := query.acquireCallableScope(arguments, &result)
 				term.capture = &scope
 			}
@@ -688,6 +688,14 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 					visit(member.AsSpreadAssignment().Expression, projection, false)
 					continue
 				}
+				if deep && instance && query.dependenciesOnly && ast.IsPropertyDeclaration(member) {
+					query.visitSourceConstructedField(member, actualReceiver, arguments, &result, func(values []sourceValue) {
+						previousGet := get
+						get = nil
+						visitOrigins(values, projection, false)
+						get = previousGet
+					})
+				}
 				if deep && ast.IsPropertyAssignment(member) {
 					visit(member.AsPropertyAssignment().Initializer, projection, false)
 				}
@@ -722,7 +730,7 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 								result.valueIncomplete = true
 							} else if mode&accessorNoGet == 0 {
 								observed := query.acquireGetResult(member, selectedGet, query.acquireCallableScope(arguments, &result), &result)
-								retainResultUncertainty(observed, &result, sourceExecutionOutput)
+								retainResultUncertainty(observed, &result, query.getProjectionDemand())
 								// Import once before filtering. Only unchanged terminal outputs
 								// can transfer publication to this settlement request.
 								var population paidMayPopulation
@@ -734,7 +742,11 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 								complete := associate
 								for _, returned := range observed.values {
 									value := returned.value
-									value.acquired = &returned
+									if query.dependenciesOnly {
+										value.capture = &returned.scope
+									} else {
+										value.acquired = &returned
+									}
 									previousGet := get
 									get = nil // This read was consumed. Its output is not another receiver.
 									start := len(result.values)
@@ -755,9 +767,16 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 						}
 						if ast.IsPropertyDeclaration(member) && mode&accessorNoGet == 0 {
 							if instance {
-								// An admitted normal output was consumed at entry. Without
-								// that producer, an instance field has no retained value.
-								result.valueIncomplete = true
+								if query.dependenciesOnly {
+									query.visitSourceConstructedField(member, actualReceiver, arguments, &result, func(values []sourceValue) {
+										previousGet := get
+										get = nil
+										visitOrigins(values, projection[1:], false)
+										get = previousGet
+									})
+								} else {
+									result.valueIncomplete = true
+								}
 							} else {
 								visit(member.AsPropertyDeclaration().Initializer, projection[1:], false)
 							}
@@ -794,7 +813,7 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 							// zero supplied arguments and defaults remain installed.
 							observed := query.acquireGetResult(member, selectedGet, query.acquireCallableScope(arguments, &result), &result)
 							if deep {
-								retainResultUncertainty(observed, &result, sourceExecutionOutput)
+								retainResultUncertainty(observed, &result, query.getProjectionDemand())
 								for _, returned := range observed.values {
 									previousArguments, previousCreators := arguments, query.creators
 									arguments, query.creators = returned.scope.bindings, returned.scope.creators

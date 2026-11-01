@@ -23,6 +23,30 @@ func (query *sourceValueQuery) visitConstructedAccessor(demand sourceConstructed
 	if len(projection) > 0 && query.owner.checker.IsArrayLikeType(query.owner.checker.GetTypeAtLocation(value)) {
 		result.opaque = true
 	}
+	if query.dependenciesOnly {
+		selected := query.selectSourceConstruction(value, arguments, result)
+		known := false
+		for _, target := range selected.declarations {
+			if !ast.IsClassDeclaration(target) && !ast.IsClassExpression(target) {
+				continue
+			}
+			known = true
+			if !query.sourceConstructionFieldsMayComplete(target, selected.scope.bindings) {
+				result.valueIncomplete = true
+				continue
+			}
+			if constructor := ast.GetFirstConstructorWithBody(target); constructor != nil && len(query.owner.summary(constructor).returns) > 0 {
+				// Constructor-return replacement has not established this result's
+				// lookup owner. Retain actual Get uncertainty beside known donors.
+				result.opaque, result.receiverIncomplete = true, true
+			}
+			visit(target, projection, true)
+		}
+		if !known || selected.base.valueIncomplete {
+			result.opaque, result.receiverIncomplete = true, true
+		}
+		return
+	}
 	sourceInstance := false
 	if definition, selected := query.executable.definition(value.AsNewExpression().Expression); selected {
 		result.selected = true
