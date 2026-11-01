@@ -248,6 +248,14 @@ Native console calls are disclosure sinks, including immutable receiver and meth
 remains protected even when its message is public. A parameter or application object named
 `console` follows its own declared parameter contract.
 
+Field qualification applies to whole records even when a field's ordinary TypeScript type is
+`string`. It includes inherited and mapped declaration contracts and deferred constructor results.
+Selecting a public sibling does not authorize delivery of a retained secret field initializer.
+If its definition remains in client code and cannot be removed safely, compilation reports
+EXACT3022 and supplies neither code nor a source map. Dead pure definitions and server-owned task
+bodies can be projected away. Client source maps omit embedded authored source for files containing
+private definitions so that removed server code is not delivered through the map.
+
 Containment is established before delivery. The compiler rejects secret-bearing client
 artifacts and transfer contracts, and server execution projects framework payloads through
 those contracts before serialization. A browser-side error cannot restore containment once

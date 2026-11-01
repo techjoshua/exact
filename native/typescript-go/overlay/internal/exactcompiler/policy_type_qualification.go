@@ -124,6 +124,9 @@ func checkerTypeContainsSecret(value *checker.Type, typeChecker *checker.Checker
 	}
 
 	for _, property := range typeChecker.GetPropertiesOfType(value) {
+		if checkerPropertyHasSecretPolicy(property) {
+			return true
+		}
 		if checkerTypeContainsSecret(typeChecker.GetTypeOfSymbol(property), typeChecker, obligation) {
 			return true
 		}
@@ -262,4 +265,19 @@ func qualifiedDeclarationPolicy(node *ast.Node, owner *ast.SourceFile, annotated
 		})
 	}
 	return dataPolicy("secret")
+}
+
+// checkerPropertyHasSecretPolicy reads the selected property's original contract,
+// including inherited and mapped declarations whose ordinary value type has no brand.
+func checkerPropertyHasSecretPolicy(property *ast.Symbol) bool {
+	for _, declaration := range property.Declarations {
+		owner := ast.GetSourceFileOfNode(declaration)
+		if owner != nil {
+			annotations := policyNodeAnnotations(declaration, owner)
+			if annotations.policy != nil && annotations.policy.Secret {
+				return true
+			}
+		}
+	}
+	return false
 }

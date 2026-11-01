@@ -772,6 +772,10 @@ func (s *Session) executeProjection(request Request, authored *authoredCheckProg
 	generation.prepareImports = false
 	loweringStarted := time.Now()
 	secretQualifications := planSecretQualifications(policy.qualifications, generation.checker)
+	var secretArtifact secretArtifactPlan
+	if request.Target == TargetClient {
+		secretArtifact = planSecretArtifactDefinitions(sourceFile, generation.checker)
+	}
 	transformed, componentUpdates, componentInputUpdates, componentInputTaskIDs, componentRangeOutputs, artifactStructure, componentListOwners := lowerExactJSX(
 		sourceFile,
 		emitContext,
@@ -885,6 +889,14 @@ func (s *Session) executeProjection(request Request, authored *authoredCheckProg
 			return response
 		}
 	}
+	if request.Target == TargetClient {
+		transformed = pruneDeadSecretDefinitions(transformed, emitContext, secretArtifact)
+		if diagnostic := retainedSecretArtifactDiagnostic(transformed, emitContext, secretArtifact); diagnostic != nil {
+			response.Diagnostics = append(response.Diagnostics, *diagnostic)
+			remapAuthoredLocations(&response, fileName, normalization, len(response.Diagnostics))
+			return response
+		}
+	}
 	response.RuntimeDependencies = emittedRuntimeDependencies(transformed)
 	response.Structure = artifactStructure
 	for _, dependency := range response.RuntimeDependencies {
@@ -928,6 +940,7 @@ func (s *Session) executeProjection(request Request, authored *authoredCheckProg
 	} else {
 		response.Code = emitter.EmitSourceFile(transformed)
 	}
+	omitSecretArtifactSourceContent(&response, request.Target, secretArtifact)
 	response.Structure.RuntimeCreatedNativeArtifacts = strings.Count(
 		response.Code,
 		"createExactCompatibilityArtifact(",
@@ -974,6 +987,7 @@ func (s *Session) executeProjection(request Request, authored *authoredCheckProg
 		response.Code = ""
 	}
 	remapAuthoredLocations(&response, fileName, normalization, sourceDiagnosticCount)
+	omitSecretArtifactSourceContent(&response, request.Target, secretArtifact)
 	applySetupAssignmentExecutions(
 		response.Analysis.StateWrites,
 		setupAssignmentExecutions,

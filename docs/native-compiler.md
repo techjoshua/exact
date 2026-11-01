@@ -364,9 +364,30 @@ shared by member and source-result policy analysis, including dependency compone
 They are retained separately for each exclusive checker owned by the unchanged authored program,
 and discarded on every source invalidation or program replacement. Recursive provisional results
 and inferred source subjects remain local to their traversal and source analysis. Member policy
-discovery filters local
-identifier declarations before qualifying selected types, since annotation and inference already
-own those declarations. Imported values, members and instantiated call results retain their checks.
+discovery filters primitive local bindings before qualifying selected types, since annotation and
+inference own their assignment contracts. Inferred local aggregates also inspect checker-resolved
+field declaration policy, including inherited and mapped members. Public sibling selection retains
+its own selected type. Imported values, members and instantiated call results retain their checks.
+Client artifact containment separately plans qualified initializers and assertions against authored
+AST identities before lowering. Writes to qualified fields and annotated deferred bodies retain
+the same containment obligation. Owned qualification also follows native array, promise, map,
+and set payloads. These contracts require a native library declaration and do not turn arbitrary
+user generic arguments, callable result signatures, or `ThisType<T>` into runtime fields.
+Contextual checker types retain explicit nested return and
+storage contracts even when an expression is asserted as `any`. Assignment patterns and loop
+destinations share native assignment-target classification. Finite computed keys and their
+constraints use a narrow checker property-key adapter. An unresolved key retains every known
+qualified destination of its receiver, while a proven public key keeps its own policy. Incomplete
+destination qualification retains its publication obligation without classifying an ordinary
+unknown checker value as secret. Result inference treats a simple assignment destination as a
+reference, while execution-policy checks still inspect its ownership requirements. After task and
+target projection, a retained qualified initializer
+produces EXACT3022 with no code or source map. Pure, unreferenced module definitions containing
+such initializers can be removed. Exported definitions, observable creation effects, dynamic scope,
+and unresolved generated references prevent that removal. This limited removal is not general
+value analysis or permission to evaluate deferred members. Client maps omit embedded authored
+source when the file contains private policy or qualified initializers, since projected server code
+must not reappear through `sourcesContent`. Mappings and source filenames remain available.
 Generated semantic validation owns isolated programs for the last artifact in each target. Reuse
 checks the virtual file set, changed virtual configuration and package metadata, and observed
 filesystem inputs, including configuration, directory entries,

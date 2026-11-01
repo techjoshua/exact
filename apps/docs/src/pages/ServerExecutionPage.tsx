@@ -146,6 +146,12 @@ export function ServerExecutionPage(this: Component<{}>) {
 					renaming and re-exports. Type-only references do not access those values, while an actual
 					client task read of server-kept or secret data produces a compiler error.
 				</p>
+				<p>
+					A public field can be read from a record with secret fields. Keep secret initializers
+					inside server-owned work. If their containing definition remains in a client build, the
+					compiler rejects delivery even when the selected field is public. Client source maps also
+					exclude embedded source that could reveal removed private definitions.
+				</p>
 				<Callout title="Sharing a result does not grant access to it">
 					<p>
 						Your application authenticates requests and authorizes access to records. The compiler

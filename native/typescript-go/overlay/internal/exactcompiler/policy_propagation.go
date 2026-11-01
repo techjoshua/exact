@@ -580,6 +580,15 @@ func policyInputsForBoundary(
 				return includeConsumed
 			}
 		}
+		// A simple assignment evaluates a destination reference, not its stored
+		// value. Execution requirements still inspect it. Result inference walks
+		// its receiver and computed key without importing the field's value policy.
+		if !includeConsumed && candidate.Parent != nil {
+			assignment := ast.GetAssignmentTarget(candidate)
+			if assignment != nil && (ast.IsForInOrOfStatement(assignment) || ast.IsBinaryExpression(assignment) && assignment.AsBinaryExpression().OperatorToken.Kind == ast.KindEqualsToken) {
+				return true
+			}
+		}
 		shorthand := candidate.Parent != nil &&
 			ast.IsShorthandPropertyAssignment(candidate.Parent) && candidate.Parent.Name() == candidate
 		memberRead := ast.IsPropertyAccessExpression(candidate) || ast.IsElementAccessExpression(candidate)

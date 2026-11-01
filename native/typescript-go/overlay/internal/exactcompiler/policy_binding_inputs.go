@@ -96,30 +96,42 @@ func policyAliasWritesAllowPublicSelection(writes []*ast.Node, c *checker.Checke
 	return true
 }
 
-// Assignment patterns own destinations, while defaults and computed keys are reads.
+// policyAliasPatternWrites retains the binding-only contract used by alias
+// inference. Member destinations are owned by the property-write consumers.
 func policyAliasPatternWrites(node *ast.Node, add func(*ast.Node)) {
+	policyAssignmentTargets(node, func(target *ast.Node) {
+		if ast.IsIdentifier(target) {
+			add(target)
+		}
+	})
+}
+
+// policyAssignmentTargets enumerates assignment destinations. Defaults and
+// computed keys remain reads and are not destinations. Callers own the policy
+// of each selected value and must retain independent execution requirements.
+func policyAssignmentTargets(node *ast.Node, add func(*ast.Node)) {
 	node = unwrapRenderExpression(node)
 	switch {
-	case ast.IsIdentifier(node):
+	case ast.IsIdentifier(node), ast.IsPropertyAccessExpression(node), ast.IsElementAccessExpression(node):
 		add(node)
 	case ast.IsBinaryExpression(node):
-		policyAliasPatternWrites(node.AsBinaryExpression().Left, add)
+		policyAssignmentTargets(node.AsBinaryExpression().Left, add)
 	case ast.IsSpreadElement(node):
-		policyAliasPatternWrites(node.AsSpreadElement().Expression, add)
+		policyAssignmentTargets(node.AsSpreadElement().Expression, add)
 	case ast.IsArrayLiteralExpression(node):
 		for _, element := range node.AsArrayLiteralExpression().Elements.Nodes {
-			policyAliasPatternWrites(element, add)
+			policyAssignmentTargets(element, add)
 		}
 	case ast.IsObjectLiteralExpression(node):
 		for _, property := range node.AsObjectLiteralExpression().Properties.Nodes {
 			if ast.IsPropertyAssignment(property) {
-				policyAliasPatternWrites(property.AsPropertyAssignment().Initializer, add)
+				policyAssignmentTargets(property.AsPropertyAssignment().Initializer, add)
 			}
 			if ast.IsShorthandPropertyAssignment(property) {
-				policyAliasPatternWrites(property.Name(), add)
+				policyAssignmentTargets(property.Name(), add)
 			}
 			if ast.IsSpreadAssignment(property) {
-				policyAliasPatternWrites(property.AsSpreadAssignment().Expression, add)
+				policyAssignmentTargets(property.AsSpreadAssignment().Expression, add)
 			}
 		}
 	}

@@ -313,6 +313,12 @@ The current `moduleInitializerDiagnostics` contract is narrower than blanket rej
 
 Before changing this boundary, pin positive and negative fixtures for each existing allowance and trace the fact to its current policy owner. Preserve the existing allowance when justified, or record an actual defect and repair it with its counterexample. Do not silently broaden an exception or abolish it as part of an analysis refactor. Default-target analysis is not evidence that a client/server artifact was authorized.
 
+Field declaration annotations participate in whole-value qualification through checker-resolved
+property declarations. Public sibling selection and retained-definition containment are separate
+consumers. After target and task projection, retained qualified initializers deny client publication
+with EXACT3022 and no code or map. Only unreferenced definitions with effect-free creation may be
+removed. Private authored source must not reappear in client map `sourcesContent`.
+
 ### 5.8 Proof and lifetime contract
 
 Keep precise analysis receipts where they justify optimization, elision, descriptor preservation or other consequential facts. They remain compiler-side derivation artifacts with source/generation/dependency validity.

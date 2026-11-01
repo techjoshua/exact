@@ -38,12 +38,13 @@ func collectReferencedMemberPolicies(sourceFile *ast.SourceFile, typeChecker *ch
 			symbols = policyCallSymbols(node, typeChecker)
 		}
 		if identifierRead {
-			// Local declarations already own annotation, inference and selector facts.
-			// Reject them before materializing and qualifying their selected value types.
+			// Inferred local values can contain declaration-qualified fields even when
+			// no lexical secret input appears in their initializer. Qualify their selected
+			// type at reads, while function references retain selected-call ownership.
 			foreignSymbols := symbols[:0]
 			for _, symbol := range symbols {
 				for _, declaration := range symbol.Declarations {
-					if ast.GetSourceFileOfNode(declaration) != sourceFile {
+					if ast.GetSourceFileOfNode(declaration) != sourceFile || ast.IsVariableDeclaration(declaration) && declaration.Initializer() != nil && policyLocalAggregateDeclaration(declaration, typeChecker) {
 						foreignSymbols = append(foreignSymbols, symbol)
 						break
 					}
@@ -372,4 +373,25 @@ func policyIntrinsicTagIdentifier(node *ast.Node) bool {
 	default:
 		return false
 	}
+}
+
+// policyLocalAggregateDeclaration selects inferred record bindings without
+// assigning a read's contextual type to a primitive assignment destination.
+// Full qualification, including incomplete recursive obligations, follows below.
+func policyLocalAggregateDeclaration(declaration *ast.Node, c *checker.Checker) bool {
+	value := c.GetTypeAtLocation(declaration.Name())
+	if value == nil {
+		return false
+	}
+	if value.Flags()&checker.TypeFlagsObject != 0 {
+		return true
+	}
+	if value.Flags()&checker.TypeFlagsUnionOrIntersection != 0 {
+		for _, member := range value.Types() {
+			if member.Flags()&checker.TypeFlagsObject != 0 {
+				return true
+			}
+		}
+	}
+	return false
 }
