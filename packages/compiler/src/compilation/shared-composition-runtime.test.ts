@@ -1,7 +1,7 @@
 /** @vitest-environment jsdom */
 import path from 'node:path';
 import { readFile } from 'node:fs/promises';
-import { expect, it } from 'vitest';
+import { expect, it, vi } from 'vitest';
 import { createErrorContext, ErrorContext, type AnyComponentFunction } from '@exactjs/core';
 import { testComponent } from '@exactjs/testing';
 import { renderToString } from '@exactjs/ssr';
@@ -96,11 +96,18 @@ it.each([
 		rootDir: root,
 		outDir: path.join(root, 'generated')
 	});
-	document.title = 'captured browser title';
-	const client = await importArtifact(artifact!.clientFile, path.join(root, 'client.mjs'));
-	expect(client.value).toBe(browser ? document.title : 'safe replacement');
-	const server = await importArtifact(artifact!.serverFile, path.join(root, 'server.mjs'));
-	expect(server.stable).toBe('stable');
-	if (browser) expect(server).not.toHaveProperty('value');
-	else expect(server.value).toBe('safe replacement');
+	const titleGet = vi.spyOn(document, 'title', 'get').mockReturnValue('captured browser title');
+	try {
+		const client = await importArtifact(artifact!.clientFile, path.join(root, 'client.mjs'));
+		expect(client.value).toBe(browser ? 'captured browser title' : 'safe replacement');
+		expect(titleGet).toHaveBeenCalledTimes(browser ? 1 : 0);
+		titleGet.mockClear();
+		const server = await importArtifact(artifact!.serverFile, path.join(root, 'server.mjs'));
+		expect(server.stable).toBe('stable');
+		if (browser) expect(server).not.toHaveProperty('value');
+		else expect(server.value).toBe('safe replacement');
+		expect(titleGet).not.toHaveBeenCalled();
+	} finally {
+		titleGet.mockRestore();
+	}
 });

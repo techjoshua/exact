@@ -1,6 +1,10 @@
 package exactcompiler
 
-import "testing"
+import (
+	"fmt"
+	"strings"
+	"testing"
+)
 
 // These source witnesses exercise the summary contract independently of concrete
 // Call receipts. Each destination must carry the captured object's current member
@@ -66,4 +70,65 @@ func assertSharedCompositionPlacement(t *testing.T, source, placement string) {
 		t.Fatal("missing value export observation")
 	}
 	assertClosurePlacement(t, source, placement)
+}
+
+// Unknown interference cannot strongly erase a browser-derived alternative. Read
+// the current export initializer fact, not the aggregate module or writer body.
+func TestSharedCompositionUnknownOverlap(t *testing.T) {
+	source := `declare function mutate(input:{value:string}):void;function make(input:{value:string}){return ()=>input.value}const input={value:"safe"};const reads=[make(input)];input.value=document.title;mutate(input);export const value=reads[0]!();`
+	current := sharedCompositionCurrentFact(t, source, "export const value=")
+	browser, unknown := false, false
+	for _, effect := range current.EffectSources {
+		browser = browser || effect.Environment == "browser"
+		unknown = unknown || effect.Environment == "unknown"
+	}
+	if !browser || !unknown {
+		t.Fatalf("current read lost known donor or overlap uncertainty: %#v", current.EffectSources)
+	}
+}
+
+// Returning a container does not perform its getter or Proxy trap body. Proxy
+// construction retains its existing uncertainty and does not gain DATA authority.
+func TestSharedCompositionReturnedDeferredBodies(t *testing.T) {
+	for _, test := range []struct{ name, body string }{
+		{"getter", `return {get value(){return document.title}}`},
+		{"proxy", `return new Proxy({value:"safe"},{get(){return document.title}})`},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			source := `function make(){` + test.body + `}const box=[make()];export const value="safe";`
+			current := sharedCompositionCurrentFact(t, source, "const box=")
+			for _, effect := range current.EffectSources {
+				if effect.Environment == "browser" {
+					t.Fatalf("creation performed deferred body: %#v", current)
+				}
+			}
+			if test.name == "getter" {
+				assertSharedCompositionPlacement(t, source, "isomorphic")
+			} else if current.Effect != "unknown" {
+				t.Fatalf("Proxy construction lost its residual uncertainty: %#v", current)
+			}
+		})
+	}
+}
+
+// Select one authored initializer by source position so a donor elsewhere in the
+// module cannot satisfy a current-read assertion. Warnings remain advisory.
+func sharedCompositionCurrentFact(t *testing.T, source, statement string) CallableSummary {
+	t.Helper()
+	offset := strings.LastIndex(source, statement)
+	if offset < 0 {
+		t.Fatal("missing authored observation", statement)
+	}
+	response := NewSession().Execute(Request{Kind: "analyze", ID: "/virtual/shared-current.ts", Source: source, Diagnostics: "semantic"})
+	if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) {
+		t.Fatalf("analysis failed: %s %#v", response.Error, response.Diagnostics)
+	}
+	name := fmt.Sprint("module@", offset)
+	for _, current := range response.Analysis.Callables {
+		if current.Name == name {
+			return current
+		}
+	}
+	t.Fatal("missing current initializer fact", name)
+	return CallableSummary{}
 }
