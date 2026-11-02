@@ -1011,7 +1011,11 @@ An own binding read in a callable uses its body occurrence when the creating cal
 that lexical order. A proved unconditional replacement before the read supersedes the entry
 value. Local object-binding elements use that same current-write cut when a captured
 initializer slot is unavailable. An unresolved entry remains an input demand alongside
-possible writes. Binding-time Gets name their original binding element and source slot for
+possible writes. An unchanged direct alias of a destructured formal can name its own
+source Get obligation. Its initialization cut retains the saved input when the formal is
+later replaced. A caller's complete source observation accounts for that exact Get, while
+normal output and descriptor admission remain separate. Binding-time Gets name their
+original binding element and source slot for
 source effect coverage. Initial pattern values project from the selected creating scope at
 the authored acquisition cut through the ordinary binder. Only value relationships and
 uncertainty reach a later capture. Earlier Getter, argument and body effects remain at

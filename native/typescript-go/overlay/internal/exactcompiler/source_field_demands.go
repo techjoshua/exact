@@ -87,10 +87,10 @@ func (query *sourceValueQuery) fieldDemand(operation, receiver *ast.Node, key st
 		if !ast.IsVariableDeclaration(symbol.ValueDeclaration) && !ast.IsBindingElement(symbol.ValueDeclaration) {
 			return sourceFieldDemand{}, nil
 		}
-		// Destructured formals and actual local pattern Gets are source-relative
-		// input operations. Other same-owner locals and normal descriptor/output
-		// admission retain their separate contracts.
-		if declaration == slotOwner && !(query.dependenciesOnly && (sourcePatternParameter(root, query.owner.checker) || sourceLocalPatternGetReceiver(operation, key) == receiver)) {
+		// Destructured formals, their unchanged direct aliases and actual local
+		// pattern Gets are source-relative input operations. Naming an alias's
+		// original slot grants no normal descriptor/output admission.
+		if declaration == slotOwner && !(query.dependenciesOnly && (sourcePatternParameter(root, query.owner.checker) || query.sourcePatternAlias(root) || sourceLocalPatternGetReceiver(operation, key) == receiver)) {
 			return sourceFieldDemand{}, nil
 		}
 	}
@@ -214,4 +214,20 @@ func sourceLocalPatternGetReceiver(operation *ast.Node, key string) *ast.Node {
 		}
 	}
 	return nil
+}
+
+// sourcePatternAlias names an unchanged direct alias of a destructured formal.
+// It qualifies only a source effect obligation. Initialization/current-write
+// cuts still acquire the value, and normal Get admission remains independent.
+func (query *sourceValueQuery) sourcePatternAlias(root *ast.Node) bool {
+	symbol := query.owner.checker.GetSymbolAtLocation(root)
+	if symbol == nil || query.owner.bindingWritten(symbol) {
+		return false
+	}
+	declaration := symbol.ValueDeclaration
+	if declaration == nil || !ast.IsVariableDeclaration(declaration) {
+		return false
+	}
+	initializer := unwrapSourceCallableReference(declaration.Initializer())
+	return initializer != nil && ast.IsIdentifier(initializer) && sourcePatternParameter(initializer, query.owner.checker)
 }
