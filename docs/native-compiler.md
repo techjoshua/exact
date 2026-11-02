@@ -1941,8 +1941,16 @@ original Call's existing performed-write proof rather than losing it at the inpu
 The last source SDK state-write attempt stopped before test collection with a native stack
 overflow while transforming `packages/core/src/component/error-boundary.tsx`. Passing the
 class-receiver native cohort does not establish that SDK path or request-wide termination.
-The later integrated Core replay still misses its request deadline, so that SDK path requires
-fresh execution after termination is repaired.
+The integrated Core replay misses its configured request deadline. An uncapped diagnostic run
+on `c2a7829ea` source, recorded at documentation revision `dc62e7a35`, fails naturally with a
+stack overflow after 435.604 seconds. It uses the preserved 300-source request and runtime
+profiling without analysis changes. The first two complete CPU segments cover repeated writer
+input, member lookup and invocation preparation. At the second allocation snapshot,
+`acquireCallableScope` accounts for 51.74% of sampled cumulative allocation bytes. The runtime
+reports approximately 325 GB allocated by 374.589 seconds, with about 96 MB live heap at that
+snapshot. These observations identify repeated copying and allocation churn, not a proven
+semantic cycle or a validated replacement architecture. The remaining recurrence needs a
+source-bound ownership diagnosis. The SDK path requires fresh execution after that repair.
 
 Maintainer validation uses `node scripts/build-native-compiler.mjs --source <pinned checkout>`.
 The build prepares workspace declarations with the installed official TypeScript 7 CLI,
