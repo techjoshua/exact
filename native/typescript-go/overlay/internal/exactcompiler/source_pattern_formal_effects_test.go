@@ -163,6 +163,8 @@ func TestPatternFormalRestUnresolvedProjection(t *testing.T) {
 	for _, source := range []string{
 		`function read({inner,...rest}:{inner:{value:number},tail?:string},value=inner.value){document.title;return rest.tail}export const value=read({inner:{value:0}},5);`,
 		`declare const other:{value:string};function read({inner,...rest}:{inner:{value:number},tail:{value:string}},value=inner.value){document.title;return rest.tail.value}export const value=read({inner:{value:0},tail:other},5);`,
+		`declare function foreign():void;function read({inner,...rest}:{inner:{value:number},tail:string,touch():void},value=inner.value){rest.touch();return value+rest.tail}export const value=read({inner:{value:0},tail:'',touch(){document.title;foreign()}},5);`,
+		`declare function foreign():void;function read({inner,...rest}:{inner:{value:number},tail:string},value=inner.value){const selected=()=>{foreign();return rest.tail};document.title;return value+selected()}export const value=read({inner:{value:0},tail:''},5);`,
 	} {
 		assertSymbolicInitializerDonors(t, source)
 	}

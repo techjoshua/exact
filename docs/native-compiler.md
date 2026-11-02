@@ -1861,15 +1861,19 @@ contexts retain their prior refusal outside their supported domains. Obsolete co
 are retired, while authored source effects and actual emitted initialization remain covered.
 
 Effect contributions remain additive. A missing precise Return value can leave the value
-incomplete while source analysis accounts for that operation's effects. Source dependency field
-coverage marks matched effect obligations and supplies no normal DATA output. Destructured formal names retain their original formal slot in those obligations, including reads in later parameter defaults. A direct present field of an observation-only object-rest copy can account for source read effects. Copies with writes, escapes or dynamic scope retain independent uncertainty. A fulfilled
-source-only obligation does not authorize a normal Get result or descriptor. Only a matching
-operation, selected target, source use, consumer and phase can discharge its classified
-obligation, across all relevant alternatives. Independent opacity and known browser or server
-donors remain. Ordinary Call contributions also retain relative receiver bindings through
-forwarded and reordered arguments, without turning an ordinary object into component state. Repeated
-contributions to one source operation join its receiver alternatives across analysis phases.
-Distinct original operations retain distinct edges and independent unresolved receivers.
+incomplete while source analysis accounts for that operation's effects. Source dependency
+field coverage marks matched effect obligations and supplies no normal DATA output.
+Destructured formal names retain their original formal slot in those obligations, including
+reads in later parameter defaults. A direct present field of an observation-only object-rest
+copy can account for source read effects. This copy relation does not discharge writes,
+escapes or dynamic scope. A fulfilled source-only obligation does not authorize a normal Get
+result or descriptor. Only a matching operation, selected target, source use, consumer and
+phase can discharge its classified obligation, across all relevant alternatives. Independent
+opacity and known browser or server donors remain. Ordinary Call contributions also retain
+relative receiver bindings through forwarded and reordered arguments, without turning an
+ordinary object into component state. Repeated contributions to one source operation join its
+receiver alternatives across analysis phases. Distinct original operations retain distinct
+edges and independent unresolved receivers.
 
 Active source-body reentry compares finite relationships between source endpoints, formal
 positions, captures, creating sites and member edges. New relationships may reach the existing
