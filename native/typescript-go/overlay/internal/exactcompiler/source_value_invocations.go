@@ -16,6 +16,8 @@ type sourceInvocationConsumer struct {
 	reflective func(*sourceReflectiveOperation, *accessorCandidates)
 	// selection reports callee coverage separately from input value/effect opacity.
 	selection func(bool)
+	// sourceReturn receives only a selected source relationship, never native output.
+	sourceReturn func(sourceValue, sourceValueBindings)
 	// construction consumes an acquired callable result without executing its body.
 	construction func(sourceInvocationBody, *accessorCandidates)
 	// unaccounted belongs to normal execution only. Observing a selected result
@@ -239,6 +241,10 @@ func (query *sourceValueQuery) consumeInvocation(node *ast.Node, bindings source
 			for index, value := range acquired.values {
 				if value.native != nil {
 					if value.native.kind == sourceNativeObjectFreeze {
+						if query.dependenciesOnly {
+							query.sourceFreezeRelationship(node, value, bindings, complete, consumer.sourceReturn, &result)
+							continue
+						}
 						query.consumeNativeFreeze(node, value, len(acquired.values) == 1 && complete, &result)
 						continue
 					}

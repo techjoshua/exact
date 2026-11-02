@@ -1107,7 +1107,10 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 			if !query.dependenciesOnly {
 				produced, hasProduced = query.acquireNormalCallResult(value, &result)
 			}
-			if !hasProduced && (mode&accessorNoGet != 0 || get != nil && instance) {
+			// A source Set effect can follow the existing return relationship
+			// without claiming presence, setter selection or normal receiver output.
+			sourceSetEffects := query.dependenciesOnly && mode&accessorSet != 0 && mode != accessorSetAcquire && get == nil
+			if !hasProduced && (mode&accessorNoGet != 0 && !sourceSetEffects || get != nil && instance) {
 				// Presence and instance lookup cannot reconstruct initializer or
 				// heritage values by binding a receiptless Call's defaults.
 				result.opaque, result.valueIncomplete = true, true

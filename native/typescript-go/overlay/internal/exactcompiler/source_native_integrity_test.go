@@ -22,9 +22,9 @@ func TestNativeFreezeSourceEffects(t *testing.T) {
 		{"plain-data", `const o={value:1};return o.value`, "neutral", false},
 		{"frozen-data", `const o=Object.freeze({value:1});return o.value`, "neutral", false},
 		{"frozen-shorthand", `const value=1;const o=Object.freeze({value});return o.value`, "neutral", false},
-		// An unacquired browser RHS retains provenance uncertainty in both forms.
-		{"frozen-named-browser", `const value=document.title;const o=Object.freeze({value:value});return o.value`, "unknown", true},
-		{"frozen-shorthand-browser", `const value=document.title;const o=Object.freeze({value});return o.value`, "unknown", true},
+		// Ordinary browser RHS effects match plain literal input relationships.
+		{"frozen-named-browser", `const value=document.title;const o=Object.freeze({value:value});return o.value`, "browser", true},
+		{"frozen-shorthand-browser", `const value=document.title;const o=Object.freeze({value});return o.value`, "browser", true},
 		{"callee-alias", `const freeze=Object.freeze;const o=freeze({get value(){return document.title}});return o.value`, "browser", true},
 		{"alias-setter", `const freeze=Object.freeze;const o=freeze({set value(v:string){document.title=v}});(o as {value:string}).value='kept';return 1`, "browser", true},
 		{"target-alias-residual-keeps-getter", `const original={get value(){return document.title}};const o=Object.freeze(original);return o.value`, "unknown", true},

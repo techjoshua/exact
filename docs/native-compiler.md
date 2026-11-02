@@ -2086,6 +2086,15 @@ Field completion consumes the actual field frame's Call results and preserves th
 
 A proven abrupt initializer stops the field sequence. An unavailable Normal value keeps construction incomplete while subsequent ordinary demands contribute only possible effects. Their borrowed prefix retains mutation uncertainty and creates no field values, Get receipts, or complete instance. A conditional nested `new` can retain cached field effects from one authenticated implicit class in the same source and creating lexical region. This effects-only projection preserves arguments and genuine captures without allocating an inner instance or supplying its `this`, prior-field values, prototype proof, or normal receipts. Unknown targets and receiver-dependent work remain incomplete, while independently known effects are retained.
 
+Source effects and return relationships use the canonically selected native alternative and
+its original argument cut. An immediate ordinary literal adds no accessor execution during
+freeze. Its MAY return keeps the input AST and captures for later getter or setter effects.
+Aliases, replacement alternatives, foreign overlapping writes and unavailable inputs retain
+their independent uncertainty. Source projection supplies no integrity event, normal output,
+descriptor or absence fact, field DATA or NoWrites proof. Source descriptor Top remains Top.
+The original Call is excluded only while matching its own input/return relationship, without
+excluding other writers. Earlier argument acquisition effects remain at the original Call.
+
 An authenticated native `Object.freeze` Call can publish an integrity event for a finite immediate ordinary object literal. The original argument observation owns its identity and captures. Data members, including shorthand syntax, retain their original value observations and uncertainty. Freeze does not invoke its accessors. Later source reads preserve those accessors, while the same event records nonextensibility, nonconfigurable properties and nonwritable data properties. Unknown or aliased target shapes retain conditional value origins and effects without a completed freeze event. Primitive targets remain conservative rather than being assigned an Object.defineProperty-style throwing law.
 
 This source event supplies no typed-store allocation or source-body entry. Blocked source writes, deletion and incompatible redefinition retain incomplete completion instead of publishing successful mutation. Reflect and strict native outcomes remain distinct. Setter execution keeps its ordinary owner. An authenticated completed freeze event preserves its own accessor payload even when the enclosing property view has unresolved obligations. This operation-local fact prevents freeze itself from adding spurious setter opacity. It supplies no body purity or value completion, and independent unknown calls, arguments or setter effects remain uncertain.

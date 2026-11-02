@@ -71,6 +71,7 @@ func (query *sourceValueQuery) interferenceInSources(origin *ast.Node, projectio
 	// One scan retains the same origin, demand, bindings and restored creator context.
 	// Cache complete predicates only, never a query failure or an acquired mutable cell.
 	seen := make(map[*ast.Node]bool)
+	_, nativeOriginKind := query.nativeRootDeclaration(origin)
 	visit := func(calls []*ast.Node) {
 		for _, node := range calls {
 			if result.opaque {
@@ -182,7 +183,16 @@ func (query *sourceValueQuery) interferenceInSources(origin *ast.Node, projectio
 							}
 						}
 					}
-					if value.node == origin {
+					sameOrigin := value.node == origin
+					if !sameOrigin {
+						// Bare standard globals keep their authored identifier. Native
+						// member lookup uses the declaration, so normalize possible
+						// overlap without proving the current runtime entry unchanged.
+						if nativeOriginKind != 0 {
+							sameOrigin = query.nativeReceiverMatches(value, sourceValue{node: origin, native: &sourceNativeValue{kind: nativeOriginKind}})
+						}
+					}
+					if sameOrigin {
 						demand := append(append([]string{}, projection...), name)
 						matches := (len(value.path) < len(demand) || mode&accessorReachable != 0) && sourceProjectionOverlap(value.path, demand)
 						if operation == "array-mutation" && len(value.path) < len(demand) {

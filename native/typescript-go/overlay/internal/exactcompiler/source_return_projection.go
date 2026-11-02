@@ -9,7 +9,8 @@ import "github.com/microsoft/TypeScript/tsc/internal/ast"
 func (query *sourceValueQuery) projectSourceCallReturns(call *ast.Node, bindings sourceValueBindings, project func(sourceValue, sourceValueBindings), deferred func()) accessorCandidates {
 	selected := false
 	result := query.consumeInvocation(call, bindings, sourceInvocationConsumer{
-		selection: func(complete bool) { selected = complete },
+		selection:    func(complete bool) { selected = complete },
+		sourceReturn: project,
 		body: func(body *ast.Node, captures sourceValueBindings, inputs *sourceValueInputs, invocation *ast.Node, part *accessorCandidates) {
 			query.projectSelectedSourceReturns(body, call, captures, inputs, part, project, deferred)
 		},
