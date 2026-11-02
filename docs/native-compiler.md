@@ -1957,7 +1957,12 @@ input, member lookup and invocation preparation. At the second allocation snapsh
 reports approximately 325 GB allocated by 374.589 seconds, with about 96 MB live heap at that
 snapshot. These observations identify repeated copying and allocation churn, not a proven
 semantic cycle or a validated replacement architecture. The remaining recurrence needs a
-source-bound ownership diagnosis. The SDK path requires fresh execution after that repair.
+source-bound ownership diagnosis. Selected source-return acquisition now uses the existing source
+body-entry interval, and its reduced recurrence controls pass. The subsequent uncapped
+`387038cca` host still fails naturally with a stack overflow after 79.551 seconds. Its sampled
+fatal stack includes refused writer-input and native member acquisition. Its CPU profile is
+incomplete because the process fails before a snapshot, so no profile or speed improvement is
+claimed for that run. The SDK path requires fresh execution after termination is repaired.
 
 Maintainer validation uses `node scripts/build-native-compiler.mjs --source <pinned checkout>`.
 The build prepares workspace declarations with the installed official TypeScript 7 CLI,
