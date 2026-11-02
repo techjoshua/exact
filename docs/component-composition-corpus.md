@@ -2118,16 +2118,18 @@ inputs. Earlier requests returned, but the batch had not published. Its bounded
 fresh-project probe sampled repeated accessor and writer-interference traversal
 during callable-effect analysis, before lowering.
 
-A separate integrated-host replay on 2026-11-01 binds to `41bf418768ae02dbdf97cf1e47e087fa5fb6516b`.
-The host was rebuilt from that committed overlay and the pinned upstream above.
-It synchronized the preserved 300 source overlays without diagnostics, then the
-same client compile request stack-overflowed in 1.82 seconds without a response.
-The request used semantic diagnostics and `traceAnalysisCost`, with the original
-30-second deadline. It retained the saved acceptance workspace's project root and
-configuration files, so this is a bound replay of that request, not a clean installed
-package build. The process was reaped. Earlier 30-second misses on private query-graph
-variants do not describe this integrated-host result.
+Integrated-host replays use the preserved 300-source synchronization and the same
+client compile request, semantic diagnostics, `traceAnalysisCost` and 30-second deadline.
+The `efb6cf1da` host synchronizes without diagnostics, then stack-overflows in 11.50 seconds.
+A same-source single-file comparison without the early static writer-key filter does
+not respond within 30 seconds and is deliberately interrupted. The earlier `7a8bac4fc`
+host also missed the deadline, while `41bf418768ae02dbdf97cf1e47e087fa5fb6516b`
+stack-overflowed in 1.82 seconds. These outcomes do not prove termination or a performance
+improvement. Every replay process was reaped.
 
+The requests retain the saved acceptance workspace's project root and configuration,
+so these are bound source replays, not clean installed-package builds. Private query-graph
+variants remain separate comparison evidence.
 Core compilation remains a product blocker before lowering. The mounted SDK and
 transformed-continuation rows require fresh execution after it is repaired. The
 earlier Intl timeout's current input is still unidentified. Preserve the normal
