@@ -2049,17 +2049,36 @@ workspace source aliases. This does not establish installed-package, build-adapt
 Chromium, cross-runtime, performance or native branch/condition-audit acceptance.
 The coordinated checkpoint remains unaccepted work in progress.
 
-The plain-module anchor is separately rebound on 2026-11-02 to native production
-`6f70066b8` and the rebuilt current compiler SDK. The ordinary paired-artifact API
-compiles the exact projected-call source and safe RHS control. The browser client
-observes the correct value with one title Get, while its server artifact omits that
-export and performs no Get. The safe case retains its value on both targets with
-no title Get. Node executes the esbuild-normalized artifacts. This check imports no
-Core source and does not revalidate the mounted fixture, hydration or an adapter.
-The same production passes the original module-write, shared capture/destination,
-selected executable-closure and forwarded state-mapping native controls. Full
-`Policy|Secret` passes without exclusions. Source-matched command and harness
-bindings remain ignored under `.tmp/current-architecture`.
+Current compiler artifacts are separately rebound on 2026-11-02 to native production
+`b0f2c5808` and the rebuilt compiler SDK. The ordinary paired-artifact API compiles
+the exact projected-call source and safe RHS control. The browser client observes
+the correct value with one title Get, while its server artifact omits that export
+and performs no Get. The safe case retains its value on both targets with no title
+Get. Node executes the esbuild-normalized artifacts.
+
+The unchanged mounted source also passes with these current component artifacts
+in Node/jsdom: two updates, stable instance/state/DOM identity, no unrelated consumer
+replay, one mount, one disposal and paired SSR. This check uses retained workspace
+runtime providers. Their sources are unchanged from `09925238a`, but their package
+builds have not been regenerated with the current compiler. It is not installed-package,
+hydration or adapter acceptance. The original module-write and shared destination/mapping
+native controls passed at `6f70066b8`. The subsequent member-callee integration passes
+full `Policy|Secret` without exclusions and the focused binding/member controls.
+Source-matched command and harness bindings remain ignored under `.tmp/current-architecture`.
+
+Direct framework-fixture harnesses must retain the runtime capability installation
+owned by `packages/core/src/test-support/runtime-surfaces.ts` and a complete standard
+DOM environment. A missing task capability can render a default error view before
+the Testing harness reports a missing mount host. Inspect the captured construction
+error before attributing that symptom to generated component identity. Correcting
+these harness prerequisites does not change the component or its assertions.
+
+The unchanged `task-closures/nested-evaluation.tsx` source passes official strict
+TypeScript with `jsxImportSource: '@exactjs/jsx'`. Current SDK analysis reaches its
+transport timeout before semantic compilation or HTTP execution. Its required method,
+receiver, operand order, Throw/finally and cancelled-publication assertions remain
+unexecuted. Runtime-only source profiles identify member/array/writer-input preparation,
+not a proven source-context equivalence or an accepted continuation repair.
 
 The affected-environment matrix below records the remaining acceptance obligations.
 Chromium, hydration, adapter, other native hosts, installed packages and the native
