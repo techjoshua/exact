@@ -6,6 +6,7 @@ export function verifyRuntimeExecution(report, { runToken, started }) {
 		!runToken ||
 		!Number.isFinite(Date.parse(started)) ||
 		report.version !== 1 ||
+		(report.profile !== undefined && report.profile !== 'full') ||
 		report.success !== true ||
 		report.runToken !== runToken ||
 		!['chromium', 'firefox', 'webkit'].includes(report.browser) ||

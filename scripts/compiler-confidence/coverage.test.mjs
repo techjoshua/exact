@@ -221,6 +221,9 @@ test('native runtime evidence requires fresh, complete, uniquely executed host a
 	);
 	for (const mutate of [
 		(value) => {
+			value.profile = 'shared-composition';
+		},
+		(value) => {
 			value.success = false;
 		},
 		(value) => {

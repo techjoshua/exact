@@ -2036,6 +2036,23 @@ consumer counts `document.title` getter calls without rereading it for the oracl
 Client browser initialization must read it once, the safe control must not read it,
 and the server artifact must not read it.
 
+The Chromium mount journey uses that exact fixture through current Compiler SDK
+artifacts and public `testComponent()` mount/update/unmount operations. Run
+`node scripts/runtime-acceptance/run.mjs --shared-composition` after building the SDK
+and supplying the native host. The profile runs before native-runtime preflight,
+hydration and other fixture builds. It checks updates to 2 and 3, retained component,
+state and DOM identity, no unrelated consumer replay, one mount, one disposal, an
+inactive disposed scope, empty container and no framework/browser faults. It installs
+the standard public runtime capability surfaces used by the mounted test owner.
+The same journey is registered in the default Chromium runtime runner.
+
+The narrow report is scoped to the compiled component and the browser providers
+actually supplied. Retained providers have unverified build provenance. This profile
+does not establish fresh Core, installed framework, hydration or full runtime-matrix
+acceptance, and its report cannot satisfy the full runtime evidence validator.
+The default report and narrow report use separate output paths. Registration in the
+default runner does not establish execution of the default matrix.
+
 The existing compiler-confidence runner includes these three emitted tests as
 `shared-capture-composition`. Its `capture-dependencies-to-consumers` contract edge
 requires all three current executions to pass exactly once. Declaring the witness does

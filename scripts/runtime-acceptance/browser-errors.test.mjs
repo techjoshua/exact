@@ -80,3 +80,78 @@ test('retains errors when browser handles can no longer establish their identity
 	await capture.flush();
 	assert.deepEqual(capture.errors, ['unverified']);
 });
+
+// This journey is source-only so build-script tests never load compiled framework packages.
+const { verifySharedComposition } = await import(
+	'../../packages/component-composition-corpus/test-support/shared-composition-journey.mjs'
+);
+for (const fault of [undefined, 'unrelated', 'cleanup']) {
+	test(`shared composition browser oracle detects ${fault ?? 'healthy behavior'}`, async () => {
+		let props;
+		let unmounts = 0;
+		const instance = { scope: { active: true } };
+		const state = { count: 1 };
+		const affected = { textContent: '1' };
+		const unrelated = { textContent: '10' };
+		const container = {
+			childNodes: [affected, unrelated],
+			querySelector: (selector) => (selector.includes('"affected"') ? affected : unrelated)
+		};
+		const view = {
+			container,
+			root: {
+				instance,
+				state: () => state,
+				async setState({ count }) {
+					state.count = count;
+					affected.textContent = String(props.observe('affected', count));
+					if (fault === 'unrelated') props.observe('unrelated', 10);
+				}
+			},
+			async unmount() {
+				unmounts++;
+				props.disposed();
+				instance.scope.active = false;
+				if (fault !== 'cleanup') container.childNodes = [];
+			}
+		};
+		const builder = {
+			props(value) {
+				props = value;
+				return this;
+			},
+			context() {
+				return this;
+			},
+			async mount() {
+				props.observe('affected', 1);
+				props.observe('unrelated', 10);
+				props.mounted();
+				return view;
+			}
+		};
+		const run = verifySharedComposition({
+			SharedComposition: {},
+			ErrorContext: {},
+			createErrorContext: () => ({ errors: [] }),
+			testComponent: () => builder
+		});
+		if (fault)
+			await assert.rejects(
+				run,
+				fault === 'unrelated' ? /unrelated consumer replay/ : /empty disposed container/
+			);
+		else
+			assert.deepEqual(await run, {
+				updates: [2, 3],
+				sameInstance: true,
+				sameState: true,
+				sameDOM: true,
+				unrelatedReplay: false,
+				mounts: 1,
+				disposals: 1,
+				frameworkErrors: 0
+			});
+		assert.equal(unmounts, 1);
+	});
+}

@@ -51,3 +51,23 @@ artifacts for Chromium mount and strict hydration. Fresh same-key rows and retai
 preserve host and child identity, form edits, the next interaction and cleanup. The default
 Chromium aggregate also executes this check. The bounded command writes its own fingerprinted
 receipt and ignored artifact paths without replacing aggregate native-runtime evidence.
+
+The original shared-composition fixture has a bounded Chromium mount profile:
+
+```sh
+node scripts/runtime-acceptance/run.mjs --shared-composition
+```
+
+Build the Compiler SDK and its dependency closure first and supply a matching native
+host through `EXACT_COMPILER_EXECUTABLE` when using a development host. Browser-target
+runtime/testing providers and Chromium must be available. The profile compiles the
+unchanged fixture and runs public mount, updates to 2 and 3, retained identity,
+unrelated-consumer isolation and disposal checks. It uses the standard public runtime
+capability imports. It starts before whole-runtime preflight and unrelated builds,
+and closes its page, browser, loopback server, session and generated artifacts.
+
+Its separate `.tmp/runtime-acceptance/shared-composition.json` report covers the current
+compiled component with the browser providers supplied. Retained provider build
+provenance remains unverified. It does not establish fresh Core, installed framework,
+hydration or the full runtime matrix. The same journey runs in the default Chromium
+aggregate, whose execution remains a separate acceptance requirement.
