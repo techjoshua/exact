@@ -40,6 +40,8 @@ func TestSourceReturnAcquisitionRecurrence(t *testing.T) {
 		{"current write", `let cell={value:'safe'};function make(){cell={get value(){return document.title}};if(cell)return cell;return {value:'safe'}}export const value=make().value;`, true},
 		{"recursive parameter donor", `function pick(x:{value:string},done:boolean):{value:string}{if(done)return x;return pick({get value(){return document.title}},true)}export const value=pick({value:'safe'},false).value;`, true},
 		{"nested Get return donor", `function create(x:{value:string}){return {get result(){return x}}}function read(){return create({get value(){return document.title}}).result}export const value=read().value;`, true},
+		{"direct returned Call cycle", `function spin():{value:string}{return spin()}export const value=spin().value;`, false},
+		{"mutual returned Call cycle", `function left():{value:string}{return right()}function right():{value:string}{return left()}export const value=left().value;`, false},
 		{"recursive donor", `function make(done:boolean):{value:string}{if(done)return {get value(){return document.title}};return make(true)}export const value=make(false).value;`, true},
 		{"captured donor", `function create(input:{value:string}){let cell=input;function make(){if(cell)return cell;cell={value:'safe'};return cell}return make()}export const value=create({get value(){return document.title}}).value;`, true},
 		{"throw", `function make():{value:string}{throw 9;return {get value(){return document.title}}}export const value=make().value;`, false},
