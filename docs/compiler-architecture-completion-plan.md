@@ -379,6 +379,14 @@ Examples:
 - A supported Promise operation uses its specified scheduling and callback/settlement contract. The compiler need not establish the concrete Promise implementation or solve the eventual fulfillment value merely to represent or emit it.
 - A supported array operation uses the modeled callback and access behavior. A readonly annotation does not prove immutable elements, native method identity or absence of getters and Proxy behavior.
 
+Async return settlement keeps source Get-effect coverage separate from normal fulfillment
+observations. A request-local source query reuses selected dependency edges, original Call
+bindings and reflective descriptor consumers. Empty source obligations describe effect coverage
+only. They do not supply an absent property, an undefined value, a completed operation or a
+successful Promise payload. Relevant intrinsic prototype escapes remain uncertain, and known
+getter captures remain dependencies beside that uncertainty. An own `then` slot masks the
+inherited route, while a literal `__proto__: null` removes that route.
+
 Recognize local shadowing and relevant authored replacements. If the selected reference or an operation's effect is genuinely unresolved, preserve that uncertainty and any known alternatives. Do not silently treat an arbitrary function with a matching signature as a system function.
 
 Apply stronger current-reference, descriptor or mutation proof only when a particular optimization or framework boundary requires it, such as eliding a Get, selecting one replacement method or asserting absence of a callback. Do not make proof of the entire platform or globally pristine prototypes a general condition of transpilation. Changes to public host-integrity assumptions remain separate architecture decisions.

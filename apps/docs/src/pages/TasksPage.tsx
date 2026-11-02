@@ -316,8 +316,9 @@ export function TasksPage(this: Component<{}>) {
 				<p>
 					Returning an object from async work can invoke its <code>then</code> getter during
 					JavaScript promise settlement. That getter's resource requirements also count toward task
-					placement. A <code>PromiseLike</code> type describes the result contract without making
-					the getter free of effects.
+					placement, including getters inherited from a prototype. An own <code>then</code> property
+					masks an inherited getter. A <code>PromiseLike</code> type describes the result contract
+					without making the getter free of effects.
 				</p>
 				<p>
 					A <code>Suspense</code> boundary displays fallback content while blocking work beneath it

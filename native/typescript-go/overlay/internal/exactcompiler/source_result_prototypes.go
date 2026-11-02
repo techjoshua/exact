@@ -313,6 +313,16 @@ func (query *sourceValueQuery) explicitObjectPrototypePath(node *ast.Node, bindi
 			}
 		}
 	}
+	if ast.IsArrayLiteralExpression(root) {
+		for _, element := range root.AsArrayLiteralExpression().Elements.Nodes {
+			if ast.IsSpreadElement(element) {
+				element = element.AsSpreadElement().Expression
+			}
+			if query.explicitObjectPrototypePath(element, bindings, result, active) {
+				return true
+			}
+		}
+	}
 	if ast.IsObjectLiteralExpression(root) {
 		for _, field := range root.AsObjectLiteralExpression().Properties.Nodes {
 			if ast.IsPropertyAssignment(field) && query.explicitObjectPrototypePath(field.Initializer(), bindings, result, active) {
@@ -497,4 +507,178 @@ func (query *sourceValueQuery) normalSourceFoldResidual(entry *sourceNormalOccur
 		return true
 	}
 	return false
+}
+
+// sourceSettlementPrototype relates one implicit source Get to a possible builtin
+// prototype writer. It supplies no runtime identity, absence or completed value.
+func (query *sourceValueQuery) sourceSettlementPrototype(value sourceValue, origin *ast.Node, get *sourceGetInputs) bool {
+	if !query.dependenciesOnly || get == nil || get.propertyKey != "then" || get.receiver.node != origin || len(get.receiver.path) != 0 || origin == nil || !ast.IsObjectLiteralExpression(origin) || get.operation == nil || !ast.IsReturnStatement(get.operation) || unwrapSourceCallableReference(get.operation.AsReturnStatement().Expression) != origin {
+		return false
+	}
+	async, ordinary := ordinaryResultCategory(enclosingCallableNode(get.operation))
+	if !async || !ordinary || !sourceFunctionPrototype(value, query.owner.checker) || value.node == nil || value.node.Text() != "Object" {
+		return false
+	}
+	symbol := query.owner.checker.GetSymbolAtLocation(value.node)
+	if symbol == nil || query.owner.bindingWritten(symbol) || len(query.owner.index(ast.GetSourceFileOfNode(value.node)).bindings[ast.GetSymbolId(symbol)]) != 0 || len(query.owner.index(ast.GetSourceFileOfNode(get.operation)).bindings[ast.GetSymbolId(symbol)]) != 0 {
+		return false
+	}
+	for _, field := range origin.AsObjectLiteralExpression().Properties.Nodes {
+		if field.Name() == nil || ast.IsComputedPropertyName(field.Name()) || ast.IsSpreadAssignment(field) || callableNameText(field.Name()) == "__proto__" || callableNameText(field.Name()) == "then" {
+			return false
+		}
+	}
+	return true
+}
+
+// sourceSettlementObligations accounts only for source Get effects. In particular,
+// an empty population contains no undefined value or normal fulfillment receipt.
+// All state is request-local and selected imports retain the current owner lease.
+type sourceSettlementObligations struct {
+	effects    accessorCandidates
+	incomplete bool
+}
+
+// sourceSettlementThen visits only current source indexes and selected imports.
+// Writer inputs retain original symbolic scopes, without entering a normal plan.
+func (query *sourceValueQuery) sourceSettlementThen(get *sourceGetInputs, bindings sourceValueBindings) sourceSettlementObligations {
+	obligations := sourceSettlementObligations{}
+	// The literal prototype setter with null removes this inherited route. The
+	// expression's ordinary effects were already collected by its source owner.
+	for _, field := range get.receiver.node.AsObjectLiteralExpression().Properties.Nodes {
+		if ast.IsPropertyAssignment(field) && callableNameText(field.Name()) == "__proto__" && unwrapSourceCallableReference(field.Initializer()).Kind == ast.KindNullKeyword {
+			return obligations
+		}
+	}
+	q := newSourceDependencyQuery(get.operation, query.owner.checker, query.executable, query.effectOwner)
+	q.remaining, q.creators = query.remaining, query.creators
+	defer q.publishDependencyStatistics()
+	defer func() { query.remaining = q.remaining }()
+	result := &obligations.effects
+	seen := make(map[*ast.SourceFile]bool)
+	var inspect func(*ast.SourceFile)
+	inspect = func(source *ast.SourceFile) {
+		if source == nil || seen[source] {
+			return
+		}
+		seen[source] = true
+		if !q.charge(result, source.AsNode()) {
+			obligations.incomplete = true
+			return
+		}
+		index := q.owner.index(source)
+		obligations.incomplete = obligations.incomplete || index.incomplete
+		for _, edge := range index.runtimeImports {
+			dependency, state := q.operationDependencyState(edge, result)
+			switch state {
+			case sourceDependencyAvailable:
+				inspect(dependency)
+			case sourceDependencyErased:
+			default:
+				obligations.incomplete = true
+			}
+		}
+		for owner, region := range index.operationRegions {
+			// A dormant constructor or instance field cannot contribute merely
+			// because its syntax was indexed. Actual New remains open below.
+			if owner != nil && (ast.IsConstructorDeclaration(owner) || ast.IsPropertyDeclaration(owner) && !ast.HasSyntacticModifier(owner, ast.ModifierFlagsStatic)) {
+				continue
+			}
+			for _, call := range region.calls {
+				if q.afterRead(call) {
+					continue
+				}
+				if possible, _ := q.reachable(call, bindings); !possible {
+					continue
+				}
+				if !q.charge(result, call) {
+					obligations.incomplete = true
+					return
+				}
+				_, method := restrictedInvocationMember(call.AsCallExpression().Expression, q.owner.checker)
+				args := call.AsCallExpression().Arguments
+				// Apply the descriptor owner's literal key mismatch law before
+				// acquiring writer inputs for a source-only candidate.
+				key := ""
+				if args != nil && len(args.Nodes) > 1 {
+					key = sourceLiteralMemberName(args.Nodes[1])
+				}
+				if method == "defineProperty" && (key == "" || key == "then") {
+					values, possible := q.reflectiveMemberValuesAtGet(get.receiver.node, []string{"then"}, "", call, accessorAcquire, bindings, result, get, nil)
+					if possible {
+						// MAY descriptors cannot close the resulting then value. Known
+						// callable alternatives still retain their existing body donors.
+						part := accessorCandidates{values: values}
+						retainCallableThenEffects(&part, get.operation)
+						mergeAccessorCandidates(result, part)
+						obligations.incomplete = true
+					}
+				}
+
+				for _, input := range q.memberWriterInputs(call, bindings, result, nil) {
+					q.memberWriterScope(input, func() {
+						if possible, _ := q.reachable(call, input.scope.bindings); !possible {
+							return
+						}
+						part := accessorCandidates{}
+						q.retainThenOperation(call, input.scope.bindings, &part)
+						q.retainOpaqueThenReceiver(call, input.scope.bindings, &part)
+						obligations.incomplete = obligations.incomplete || len(part.thenReferences) != 0 || part.thenIncomplete || part.opaque
+					})
+				}
+			}
+			for _, write := range region.writes {
+				if q.afterRead(write) {
+					continue
+				}
+				for _, input := range q.memberWriterInputs(write, bindings, result, nil) {
+					q.memberWriterScope(input, func() {
+						part := accessorCandidates{}
+						if possible, _ := q.reachable(write, input.scope.bindings); !possible {
+							return
+						}
+						q.retainThenOperation(write.Parent, input.scope.bindings, &part)
+						if ast.IsPropertyAccessExpression(write) || ast.IsElementAccessExpression(write) {
+							receiver, key := accessorReceiver(write)
+							if key == "then" || key == "" {
+								for _, prototype := range q.originsAt(receiver, write, input.scope.bindings, &part) {
+									if !q.sourceSettlementPrototype(prototype, get.receiver.node, get) {
+										continue
+									}
+									cut := q.memberWriterReadCut(nil, bindings, result)
+									q.memberValuesAtGet(prototype.node, []string{"prototype", "then"}, "", accessorAcquire, input.scope.bindings, result, func(value sourceValue) {
+										q.retainSourceThenValue(value, get.operation, input.scope.bindings, result)
+									}, sourceMemberOperationProof{}, nil, cut)
+								}
+							}
+							if key == "__proto__" {
+								prototype, _ := q.thenPrototypeReceiver(receiver, input.scope.bindings, &part)
+								obligations.incomplete = obligations.incomplete || prototype
+							}
+						}
+						obligations.incomplete = obligations.incomplete || len(part.thenReferences) != 0 || part.thenIncomplete || part.opaque
+					})
+				}
+			}
+			for _, call := range region.openCalls {
+				if q.afterRead(call) {
+					continue
+				}
+				for _, input := range q.memberWriterInputs(call, bindings, result, nil) {
+					q.memberWriterScope(input, func() {
+						if possible, _ := q.reachable(call, input.scope.bindings); !possible {
+							return
+						}
+						obligations.incomplete = obligations.incomplete || q.unaccountedConstruction(call, input.scope.bindings, result) || ast.IsTaggedTemplateExpression(call)
+					})
+				}
+			}
+		}
+	}
+	inspect(ast.GetSourceFileOfNode(get.operation))
+	// Values were used only to retain callable then donors. They are not
+	// observations of fulfillment or inputs to another acquisition.
+	obligations.effects.values = nil
+	obligations.effects.callableScopes = nil
+	return obligations
 }

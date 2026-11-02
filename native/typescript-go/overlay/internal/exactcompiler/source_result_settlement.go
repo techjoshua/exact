@@ -238,6 +238,31 @@ func (query *sourceValueQuery) settlementAcquiredValue(value sourceObservedValue
 		}
 		fresh = fresh && member.Name() != nil && !ast.IsComputedPropertyName(member.Name()) && callableNameText(member.Name()) != "__proto__" && !ast.IsSpreadAssignment(member)
 	}
+	// Source effect coverage is independent of the unavailable definition-root
+	// normal property view. This branch publishes no successful payload.
+	sourceLiteral := false
+	if ast.IsReturnStatement(site) && unwrapSourceCallableReference(site.AsReturnStatement().Expression) == term.node {
+		sourceLiteral = true
+		for _, field := range term.node.AsObjectLiteralExpression().Properties.Nodes {
+			ordinary := field.Name() != nil && !ast.IsComputedPropertyName(field.Name()) && !ast.IsSpreadAssignment(field)
+			if ordinary && callableNameText(field.Name()) == "__proto__" {
+				ordinary = ast.IsPropertyAssignment(field) && unwrapSourceCallableReference(field.Initializer()).Kind == ast.KindNullKeyword
+			}
+			sourceLiteral = sourceLiteral && ordinary
+		}
+	}
+	if sourceLiteral {
+		own := false
+		for _, field := range term.node.AsObjectLiteralExpression().Properties.Nodes {
+			own = own || field.Name() != nil && callableNameText(field.Name()) == "then"
+		}
+		if !own {
+			obligations := query.sourceSettlementThen(&sourceGetInputs{operation: site, receiver: term, propertyKey: "then"}, bindings)
+			mergeAccessorCandidates(result, obligations.effects)
+			result.opaque = result.opaque || obligations.incomplete
+			return false
+		}
+	}
 	if !*referencesReady {
 		query.preparePropertyReferences(observation.owner, result)
 		*references = append(*references, result.thenReferences...)

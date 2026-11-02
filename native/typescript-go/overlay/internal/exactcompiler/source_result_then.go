@@ -148,3 +148,33 @@ func retainCallableThenEffects(result *accessorCandidates, operation *ast.Node, 
 		}
 	}
 }
+
+// retainSourceThenValue consumes only the existing source callable projection.
+// Captures are retained, but no resolver arguments, Call or payload is invented.
+func (query *sourceValueQuery) retainSourceThenValue(value sourceValue, operation *ast.Node, bindings sourceValueBindings, result *accessorCandidates) {
+	previous := query.creators
+	if value.capture != nil {
+		bindings = value.capture.bindings
+		query.creators = value.capture.creators
+	}
+	defer func() { query.creators = previous }()
+	selected := query.accessorsAtGetOutput(nil, nil, "", accessorAcquire, bindings, nil, nil, nil, nil, value)
+	retainCallableThenEffects(&selected, operation)
+	selectionCreators := query.creators
+	for i, term := range selected.values {
+		if term.node == nil || len(term.path) != 0 || !ast.IsFunctionLike(term.node) || term.node.Body() == nil {
+			continue
+		}
+		scope := acquiredCallableScope{bindings: bindings, creators: selectionCreators}
+		if term.capture != nil {
+			scope = *term.capture
+		} else if selectedScope, ok := selected.callableScopes[i]; ok {
+			scope = selectedScope
+		}
+		query.creators = scope.creators
+		query.consumeSourceBodyEffects(operation, term.node, scope.bindings, nil, nil, result)
+	}
+	selected.values = nil
+	selected.callableScopes = nil
+	mergeAccessorCandidates(result, selected)
+}
