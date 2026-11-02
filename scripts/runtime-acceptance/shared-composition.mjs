@@ -8,6 +8,7 @@ import { startInstalledIslandsHttp } from '../../framework-adapters/test-support
 export async function checkSharedCompositionBrowser(root, browser) {
 	const { compileProjectArtifacts, createCompilerSession } = await import('@exactjs/compiler');
 	const { build } = await import('esbuild');
+	const engine = browser.browserType().name();
 	await mkdir(path.join(root, '.tmp'), { recursive: true });
 	const temporary = await mkdtemp(path.join(root, '.tmp/shared-composition-browser-'));
 	let session;
@@ -93,10 +94,11 @@ export function verify(){return verifySharedComposition({SharedComposition,testC
 			const { verify } = await import('/client.mjs');
 			return verify();
 		});
-		assert.deepEqual(faults, [], 'Unexpected Chromium reports');
+		assert.deepEqual(faults, [], 'Unexpected ' + engine + ' reports');
 		assert.deepEqual(deployment.errors, [], 'Unexpected HTTP host errors');
 		return {
-			id: 'shared-composition-chromium-mount',
+			id: 'shared-composition-' + engine + '-mount',
+			engine,
 			status: 'verified',
 			browser: browser.version(),
 			fixtureSHA256: createHash('sha256').update(source).digest('hex'),

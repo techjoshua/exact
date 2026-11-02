@@ -34,8 +34,12 @@ let worker;
 let primaryFailure;
 try {
 	if (sharedCompositionOnly) {
-		assert.equal(evidence.browser, 'chromium', 'Shared composition profile requires Chromium');
-		browser = await chromium.launch();
+		const engine = evidence.browser;
+		assert.ok(
+			['chromium', 'firefox', 'webkit'].includes(engine),
+			'Unknown acceptance browser: ' + engine
+		);
+		browser = await { chromium, firefox, webkit }[engine].launch();
 		evidence.profile = 'shared-composition';
 		evidence.scope =
 			'Current compiled component with retained browser runtime providers. Provider build provenance unverified. No full runtime matrix, installed framework, fresh Core or hydration acceptance.';

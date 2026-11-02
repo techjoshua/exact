@@ -52,21 +52,26 @@ preserve host and child identity, form edits, the next interaction and cleanup. 
 Chromium aggregate also executes this check. The bounded command writes its own fingerprinted
 receipt and ignored artifact paths without replacing aggregate native-runtime evidence.
 
-The original shared-composition fixture has a bounded Chromium mount profile:
+The original shared-composition fixture has a bounded browser mount profile, using Chromium by default:
 
 ```sh
 node scripts/runtime-acceptance/run.mjs --shared-composition
+EXACT_ACCEPTANCE_BROWSER=firefox node scripts/runtime-acceptance/run.mjs --shared-composition
 ```
 
 Build the Compiler SDK and its dependency closure first and supply a matching native
 host through `EXACT_COMPILER_EXECUTABLE` when using a development host. Browser-target
-runtime/testing providers and Chromium must be available. The profile compiles the
+runtime/testing providers and the selected cached browser with its host libraries must be available.
+`EXACT_ACCEPTANCE_BROWSER` accepts `chromium`, `firefox` or `webkit`, matching the aggregate
+runner. Each engine can run independently. Missing engine prerequisites fail that run. The profile compiles the
 unchanged fixture and runs public mount, updates to 2 and 3, retained identity,
 unrelated-consumer isolation and disposal checks. It uses the standard public runtime
 capability imports. It starts before whole-runtime preflight and unrelated builds,
 and closes its page, browser, loopback server, session and generated artifacts.
 
-Its separate `.tmp/runtime-acceptance/shared-composition.json` report covers the current
+Its separate `.tmp/runtime-acceptance/shared-composition.json` report names the actual
+engine and engine-specific journey ID. Set `EXACT_ACCEPTANCE_REPORT` to retain separate
+reports when running several engines. The report covers the current
 compiled component with the browser providers supplied. Retained provider build
 provenance remains unverified. It does not establish fresh Core, installed framework,
 hydration or the full runtime matrix. The same journey runs in the default Chromium

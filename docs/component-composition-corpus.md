@@ -2036,10 +2036,13 @@ consumer counts `document.title` getter calls without rereading it for the oracl
 Client browser initialization must read it once, the safe control must not read it,
 and the server artifact must not read it.
 
-The Chromium mount journey uses that exact fixture through current Compiler SDK
+The browser mount journey uses that exact fixture through current Compiler SDK
 artifacts and public `testComponent()` mount/update/unmount operations. Run
 `node scripts/runtime-acceptance/run.mjs --shared-composition` after building the SDK
-and supplying the native host. The profile runs before native-runtime preflight,
+and supplying the native host. Chromium remains the default. Select Firefox or WebKit
+with `EXACT_ACCEPTANCE_BROWSER=firefox` or `EXACT_ACCEPTANCE_BROWSER=webkit` when that
+engine and its host libraries are available. Each engine runs independently and the
+report names its actual engine and journey ID. The profile runs before native-runtime preflight,
 hydration and other fixture builds. It checks updates to 2 and 3, retained component,
 state and DOM identity, no unrelated consumer replay, one mount, one disposal, an
 inactive disposed scope, empty container and no framework/browser faults. It installs
