@@ -5,6 +5,20 @@ import (
 	"testing"
 )
 
+// Task facade checks consume emitted ownership contracts. Advisory work estimates
+// remain available in the response, while every other diagnostic rejects the fixture.
+func assertContinuationTaskCompilation(t *testing.T, target Target, response Response) {
+	t.Helper()
+	if response.Error != "" || response.Code == "" {
+		t.Fatalf("%s: missing compiled task artifact: %s %#v", target, response.Error, response.Diagnostics)
+	}
+	for _, diagnostic := range response.Diagnostics {
+		if diagnostic.Severity != "warning" || diagnostic.Code != "EXACT_ANALYSIS_COST" {
+			t.Fatalf("%s: unexpected task diagnostic: %#v", target, diagnostic)
+		}
+	}
+}
+
 // Child control must select the same definition and owner as invocation. Direct
 // SSR construction precedes a request task frame, so only executor reconstruction binds.
 func TestContinuationTaskFacadesRetainRequestOwner(t *testing.T) {
@@ -18,9 +32,7 @@ func TestContinuationTaskFacadesRetainRequestOwner(t *testing.T) {
  return()=> <button onClick={()=>parent()}/>;}`
 	for _, target := range []Target{TargetClient, TargetServer} {
 		response := NewSession().Execute(Request{Kind: "compile", ID: "child-facade.tsx", Target: target, Source: source})
-		if response.Error != "" || len(response.Diagnostics) != 0 {
-			t.Fatalf("%s: %s %#v", target, response.Error, response.Diagnostics)
-		}
+		assertContinuationTaskCompilation(t, target, response)
 		expected := []string{"bindTaskForHost as"}
 		if target == TargetServer {
 			expected = []string{"bindTask as __exactBindContinuationTask", "const child = __exactDefineTask(", "const child = __exactBindContinuationTask", "__exactInvokeTask(task, __exactBoundServerChild", ".cancel(", "const ordinary = function ordinary"}
@@ -48,9 +60,7 @@ func TestContinuationTaskShorthandFacades(t *testing.T) {
  await child();this.state.value=shorthand.child.result+expanded.child.result+aliases.setupAlias.result+aliases.multiAlias.result+local;}
  parent();return()=> <output>{this.state.value}</output>;}`
 	response := NewSession().Execute(Request{Kind: "compile", ID: "shorthand-facade.tsx", Target: TargetServer, Source: source})
-	if response.Error != "" || len(response.Diagnostics) != 0 {
-		t.Fatalf("compile: %s %#v", response.Error, response.Diagnostics)
-	}
+	assertContinuationTaskCompilation(t, TargetServer, response)
 	for _, expected := range []string{"const shorthand = { child: __exactBoundServerChild", "const expanded = { child: __exactBoundServerChild", "const shadow = { child }", "setupAlias: __exactBoundServerChild", "multiAlias: __exactBoundServerChild", "expanded: __exactBoundServerChild", "const opposite = { mutable }"} {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf("task value or ordinary shadow omitted %q", expected)
@@ -78,9 +88,7 @@ const parent=async ({signal}:TaskContext=TaskContext.server().blocking())=>{
 func TestContinuationTaskDestructuredContextFacades(t *testing.T) {
 	for _, target := range []Target{TargetClient, TargetServer} {
 		response := NewSession().Execute(Request{Kind: "compile", ID: "destructured-context-facade.tsx", Target: target, Source: serverTaskDestructuredContextSource})
-		if response.Error != "" || len(response.Diagnostics) != 0 {
-			t.Fatalf("%s: %s %#v", target, response.Error, response.Diagnostics)
-		}
+		assertContinuationTaskCompilation(t, target, response)
 		if target == TargetServer {
 			for _, expected := range []string{"const shorthand = { child: __exactBoundServerChild", "const aliases = { setupAlias: __exactBoundServerChild", "const expanded = { child: __exactBoundServerChild", "const { signal } = __exactTaskContext_", "const child = () => 23"} {
 				if !strings.Contains(response.Code, expected) {
@@ -95,9 +103,7 @@ func TestContinuationTaskDestructuredContextFacades(t *testing.T) {
 // cause the parent to bind that placeholder before any authored server work runs.
 func TestContinuationTaskFacadeOmitsClientPlaceholder(t *testing.T) {
 	response := NewSession().Execute(Request{Kind: "compile", ID: "client-placeholder.tsx", Target: TargetServer, Source: `import{TaskContext,type Component}from'@exactjs/core';export function Page(this:Component<{value:number}>){this.state.value=0;const browser=(value:number,task:TaskContext=TaskContext.client())=>{this.state.value=value;};async function run(task:TaskContext=TaskContext.server().blocking()){await Promise.resolve();browser(100);this.state.value+=2;}run();return()=> <output>{this.state.value}</output>;}`})
-	if response.Error != "" || len(response.Diagnostics) != 0 {
-		t.Fatalf("compile: %s %#v", response.Error, response.Diagnostics)
-	}
+	assertContinuationTaskCompilation(t, TargetServer, response)
 	if strings.Contains(response.Code, "__exactBindRequestTask(browser)") || strings.Contains(response.Code, "__exactInvokeTask(task, browser") {
 		t.Fatalf("omitted client task gained runtime task-definition authority:\n%s", response.Code)
 	}
