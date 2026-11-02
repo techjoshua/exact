@@ -9,20 +9,29 @@ import { verifyRuntimeExecution } from './runtime-evidence.mjs';
 /** Executes existing acceptance journeys freshly, with host-specific reports and no cached evidence. */
 export async function collectEnvironmentEvidence({ root, output, run }) {
 	const vitest = adapterWitnesses.filter((witness) => !witness.file.includes('/bun-plugin/'));
-	const adapterReport = path.join(output, 'adapters.json');
-	await run(process.execPath, [
-		path.join(root, 'node_modules/vitest/vitest.mjs'),
-		'run',
-		...new Set(vitest.map((witness) => witness.file)),
-		'--reporter=default',
-		'--reporter=json',
-		'--outputFile.json=' + adapterReport
-	]);
-	const executions = verifyExecution(
-		JSON.parse(await readFile(adapterReport, 'utf8')),
-		vitest,
-		root
-	);
+	const projects = new Map();
+	for (const witness of vitest) {
+		const config = witness.config ?? 'vitest.config.ts';
+		if (!projects.has(config)) projects.set(config, []);
+		projects.get(config).push(witness);
+	}
+	const executions = [];
+	for (const [config, witnesses] of projects) {
+		const adapterReport = path.join(output, path.basename(config, '.ts') + '.json');
+		await run(process.execPath, [
+			path.join(root, 'node_modules/vitest/vitest.mjs'),
+			'run',
+			'--config',
+			config,
+			...new Set(witnesses.map((witness) => witness.file)),
+			'--reporter=default',
+			'--reporter=json',
+			'--outputFile.json=' + adapterReport
+		]);
+		executions.push(
+			...verifyExecution(JSON.parse(await readFile(adapterReport, 'utf8')), witnesses, root)
+		);
+	}
 	const bunRoot = path.join(root, 'framework-adapters/bun-plugin');
 	const bunReport = path.join(output, 'bun.xml');
 	await run(

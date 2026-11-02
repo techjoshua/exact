@@ -346,10 +346,14 @@ adapter. Assertions check the stable export, browser title value with one getter
 server omission of that value with zero getter reads, and safe replacement values with
 zero getter reads on both targets. The environment profile registers this named test for
 all three adapters. Registration does not establish successful execution of that profile.
-Focused adapter runs establish these module assertions separately from canonical
-repository test collection, whose global Core setup remains a prerequisite.
-This is source-adapter module coverage, separate from installed
-packages, Core regeneration, mounted components, hydration and HTTP runtimes.
+Vite and Webpack use the maintained
+`framework-adapters/test-support/module-builds.config.ts` configuration, which omits
+component-runtime setup because these fixtures enter through adapter build hooks.
+Run it with `vitest run --config framework-adapters/test-support/module-builds.config.ts`.
+The confidence runner groups witnesses by configuration and still requires the
+remaining adapter, native Bun and runtime checks. This is source-adapter module
+coverage, separate from installed packages, Core regeneration, mounted components,
+hydration and HTTP runtimes.
 
 Library publication regressions reject opaque component placement, shadowed portable globals,
 application-added collection methods, and declarations with standard-library lookalike filenames.

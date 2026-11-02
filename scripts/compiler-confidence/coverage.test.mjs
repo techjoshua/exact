@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
 import {
 	summarizeNativeCoverage,
 	summarizeGobcoCoverage,
@@ -12,6 +15,48 @@ import { witnesses } from './witnesses.mjs';
 import { adapterWitnesses, runtimeWitnesses, environmentEdges } from './environment-witnesses.mjs';
 import { readBunExecution } from './bun-evidence.mjs';
 import { verifyRuntimeExecution } from './runtime-evidence.mjs';
+import { collectEnvironmentEvidence } from './environment-profile.mjs';
+
+test('adapter configuration grouping retains every witness and the native runtime prerequisite', async () => {
+	const output = await mkdtemp(path.join(os.tmpdir(), 'exact-adapter-groups-'));
+	const calls = [];
+	const stop = new Error('native Bun prerequisite');
+	try {
+		await assert.rejects(
+			collectEnvironmentEvidence({
+				root: '/repo',
+				output,
+				async run(command, args) {
+					if (!args.includes('--config')) throw stop;
+					calls.push(args);
+					const files = args.filter((argument) => argument.endsWith('.test.ts'));
+					const witnesses = adapterWitnesses.filter((witness) => files.includes(witness.file));
+					const report = {
+						success: true,
+						testResults: witnesses.map((witness) => ({
+							name: path.join('/repo', witness.file),
+							assertionResults: witness.tests.map((title) => ({ title, status: 'passed' }))
+						}))
+					};
+					const reportFile = args.find((argument) => argument.startsWith('--outputFile.json='));
+					await writeFile(reportFile.slice('--outputFile.json='.length), JSON.stringify(report));
+				}
+			}),
+			(error) => error === stop
+		);
+		assert.equal(calls.length, 2);
+		for (const witness of adapterWitnesses.filter((row) => !row.file.includes('/bun-plugin/'))) {
+			const matching = calls.filter((args) => args.includes(witness.file));
+			assert.equal(matching.length, 1);
+			assert.equal(
+				matching[0][matching[0].indexOf('--config') + 1],
+				witness.config ?? 'vitest.config.ts'
+			);
+		}
+	} finally {
+		await rm(output, { recursive: true, force: true });
+	}
+});
 
 test('coverage retains uncovered ranges and weights statements rather than files', () => {
 	const result = summarizeNativeCoverage(

@@ -51,6 +51,7 @@ export const adapterWitnesses = ['vite', 'webpack', 'bun'].flatMap((host) => {
 		},
 		{
 			id: host + '-helper-modules',
+			...(native ? {} : { config: 'framework-adapters/test-support/module-builds.config.ts' }),
 			file:
 				file +
 				(native ? 'bun.integration.test.ts' : 'project-source-isolation.integration.test.ts'),
