@@ -71,6 +71,9 @@ func TestSourceFreezeSelectionControls(t *testing.T) {
 		{"frozen browser RHS", "", `const value=document.title;const o=Object.freeze({value});return o.value`, "browser", true},
 		{"replaced", `Object.freeze=((x:unknown)=>{document.title;return {value:1}}) as typeof Object.freeze;`, `return Object.freeze({value:0}).value`, "browser", true},
 		{"foreign overlapping", `declare function external(value:object):void;external(Object);`, `return Object.freeze({get value(){return document.title}}).value`, "unknown", true},
+		{"same type shadow", `const freeze=((x:unknown)=>({get value(){return document.title}})) as typeof Object.freeze;`, `return freeze({value:0}).value`, "browser", true},
+		{"argument acquired before later getter", ``, `let input={value:0};const o=Object.freeze(input);input={get value(){document.title;return 1}};return o.value`, "unknown", false},
+		{"argument getter survives later replacement", ``, `let input={get value(){document.title;return 1}};const o=Object.freeze(input);input={value:0};return o.value`, "unknown", true},
 		{"unknown target", `declare const external:object;`, `Object.freeze(external);return 1`, "unknown", false},
 	} {
 		t.Run(row.name, func(t *testing.T) {
@@ -87,5 +90,75 @@ func TestSourceFreezeSelectionControls(t *testing.T) {
 				t.Fatalf("effect=%s browser=%v want %s/%v", fact.Effect, browser, row.effect, row.browser)
 			}
 		})
+	}
+}
+
+// The original argument Get runs once. Projecting the returned object's data
+// must not replay it or execute an accessor while freezing the object.
+func TestSourceFreezeEmittedInputOrdering(t *testing.T) {
+	const source = `const input={get value(){console.log('argument');return 1}};export const object=Object.freeze({value:input.value,get selected(){console.log('selected');return 2}});export const alias=object;export function read(){return object.value+object.selected}`
+	for _, target := range []Target{TargetClient, TargetServer} {
+		t.Run(string(target), func(t *testing.T) {
+			r := NewSession().Execute(Request{Kind: "compile", ID: "/virtual/freeze-input-order.ts", Source: source, Target: target, Diagnostics: "semantic", PreserveOrdinaryModules: true})
+			if r.Error != "" || hasErrorDiagnostic(r.Diagnostics) || r.Code == "" {
+				t.Fatal(r.Error, r.Diagnostics)
+			}
+			sourceNodeScript(t, r.Code, `const fs=require('node:fs'),vm=require('node:vm'),out={},events=[];vm.runInNewContext(fs.readFileSync(process.argv[1],'utf8'),{exports:out,console:{log:v=>events.push(v)}});if(out.object!==out.alias||!Object.isFrozen(out.object)||events.join(',')!=='argument')throw Error('creation '+events);if(out.read()!==3||events.join(',')!=='argument,selected')throw Error('read '+events);`)
+		})
+	}
+}
+
+func TestSourceFreezeReplacementAndProxy(t *testing.T) {
+	session := NewSession()
+	sources := []string{
+		`export function read(){return Object.freeze({get value(){return document.title}}).value}`,
+		`export function read(){return Object.freeze({value:1}).value}`,
+		`declare const external:{value:number};export function read(){return Object.freeze(external).value}`,
+		`export function read(){const p=new Proxy({value:1},{preventExtensions(){document.title;return true}});return Object.freeze(p).value}`,
+		`export function read(){return Object.freeze({get value(){return document.title}}).value}`,
+	}
+	for i, source := range sources {
+		r := session.Execute(Request{Kind: "analyze", ID: "/virtual/freeze-replacement.ts", Source: source, Diagnostics: "semantic"})
+		if r.Error != "" || hasErrorDiagnostic(r.Diagnostics) {
+			t.Fatal(r.Error, r.Diagnostics)
+		}
+		c := findCallable(t, r.Analysis.Callables, "read")
+		browser := false
+		for _, e := range c.EffectSources {
+			browser = browser || e.Environment == "browser"
+		}
+		if (i == 0 || i == 4) && (!browser || c.Effect != "browser") {
+			t.Fatal("getter replacement lost original effect")
+		}
+		if i == 1 && (browser || c.Effect != "neutral") {
+			t.Fatal("stale getter effect after replacement")
+		}
+		if (i == 2 || i == 3) && c.Effect != "unknown" {
+			t.Fatal("unknown/proxy target acquired ordinary integrity effects")
+		}
+	}
+}
+
+// Argument acquisition belongs to the original Call. Projecting its MAY return
+// retains uncertainty without publishing that earlier Get as a new read effect.
+func TestSourceFreezeArgumentEffectOwnership(t *testing.T) {
+	source := `const input={get object(){document.title;return {value:1}}};const o=Object.freeze(input.object);export const value=o.value;`
+	r := NewSession().Execute(Request{Kind: "analyze", ID: "/virtual/freeze-argument-owner.ts", Source: source, Diagnostics: "semantic"})
+	browser, unknown := reentrantInitializerEffects(t, r, source, true)
+	if browser || !unknown {
+		t.Fatalf("later read browser=%v unknown=%v", browser, unknown)
+	}
+	ownerBrowser := false
+	for _, fact := range r.Analysis.Callables {
+		for _, call := range fact.Calls {
+			if call.Name == "Object.freeze" {
+				for _, effect := range fact.EffectSources {
+					ownerBrowser = ownerBrowser || effect.Environment == "browser"
+				}
+			}
+		}
+	}
+	if !ownerBrowser {
+		t.Fatal("original argument Get lost its browser effect")
 	}
 }
