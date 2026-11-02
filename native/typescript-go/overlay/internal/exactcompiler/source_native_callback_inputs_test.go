@@ -417,3 +417,126 @@ func TestNativeMapNoncallableKeepsArgumentGet(t *testing.T) {
 	}
 	sourceNodeScript(t, response.Code, `const fs=require('node:fs'),vm=require('node:vm');let gets=0;const sandbox={exports:{},document:{get title(){gets++;return 'browser'}}};vm.runInNewContext(fs.readFileSync(process.argv[1],'utf8'),sandbox);let thrown=false;try{sandbox.exports.work()}catch(error){if(error.name!=='TypeError')throw error;thrown=true}if(!thrown||gets!==1)throw Error(JSON.stringify({thrown,gets}));`)
 }
+
+// Protocol-defined top-level arguments bypass local native-branch defaults.
+// Generic callback edges retain their existing default donor because complete
+// actual-native slot identity is unavailable. Node protects actual Get counts,
+// while undefined elements and nested/rest patterns keep separate behavior.
+func TestNativeMapCallbackInputPresence(t *testing.T) {
+	for _, test := range []struct {
+		name, declarations, input, callback, want string
+		browser                                   bool
+		gets                                      int
+	}{
+		{"supplied index residual", ``, `[{value:'safe'}]`, `(value,index=(document.title,0))=>value.value`, "safe", true, 0},
+		{"supplied array residual", ``, `[{value:'safe'}]`, `(value,index,array:{value:string}[]=(document.title,[]))=>value.value`, "safe", true, 0},
+		{"undefined element", ``, `([undefined] as ({value:string}|undefined)[])`, `(value={value:(document.title,'safe')})=>value.value`, "safe", true, 1},
+		{"unknown element", `declare const foreign:{value:string}|undefined;`, `[foreign]`, `(value={value:(document.title,'safe')})=>value.value`, "safe", true, 1},
+		{"captured element default", `const fallback={get value(){return document.title}};`, `([undefined] as ({value:string}|undefined)[])`, `(value=fallback)=>value.value`, "browser", true, 1},
+		{"nested index pattern", ``, `[{value:'safe'}]`, `(value,{missing=(document.title,0)}:any={})=>value.value`, "safe", true, 1},
+		{"rest index conservative", ``, `[{value:'safe'}]`, `(value,...[index=(document.title,0)])=>value.value`, "safe", true, 0},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			source := test.declarations + `const input=` + test.input + `;export function work(){return input.map(` + test.callback + `)}`
+			response := NewSession().Execute(Request{Kind: "compile", ID: "/virtual/map-presence.ts", Source: source, Diagnostics: "semantic"})
+			if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) || response.Code == "" {
+				t.Fatal("invalid emitted source", response.Error, response.Diagnostics)
+			}
+			summary := executableSummary(t, response, "work")
+			browser := false
+			for _, effect := range summary.EffectSources {
+				browser = browser || effect.Environment == "browser"
+			}
+			if browser != test.browser {
+				t.Errorf("browser=%v: %#v", browser, summary.EffectSources)
+			}
+			sourceNodeScript(t, response.Code, `const fs=require('node:fs'),vm=require('node:vm');let gets=0;const sandbox={exports:{},foreign:undefined,document:{get title(){gets++;return 'browser'}}};vm.runInNewContext(fs.readFileSync(process.argv[1],'utf8'),sandbox);const result=sandbox.exports.work();if(result.join(',')!==process.argv[2]||gets!==Number(process.argv[3]))throw Error(JSON.stringify({result,gets}));`, test.want, fmt.Sprint(test.gets))
+		})
+	}
+}
+
+// Unmodeled/replaced methods cannot inherit a native callback default waiver.
+func TestNativeMapDefaultUnmodeledCallee(t *testing.T) {
+	for _, test := range []struct {
+		name, source string
+		gets         int
+		unknown      bool
+	}{
+		{"foreign method", `const input=[{value:'safe'}];declare const externalMap:typeof input.map;input.map=externalMap;export function work(){return input.map((value,index=(document.title,0))=>value.value)}`, 0, true},
+		{"authored replacement", `const input={map(cb:(value:{value:string},index?:number)=>string){return [cb({value:'safe'})]}} as unknown as {value:string}[];export function work(){return input.map((value,index=(document.title,0))=>value.value)}`, 1, true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			response := NewSession().Execute(Request{Kind: "compile", ID: "/virtual/map-default-callee.ts", Source: test.source, Diagnostics: "semantic"})
+			if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) || response.Code == "" {
+				t.Fatal("invalid emitted source", response.Error, response.Diagnostics)
+			}
+			summary := executableSummary(t, response, "work")
+			browser, unknown := false, false
+			for _, effect := range summary.EffectSources {
+				browser = browser || effect.Environment == "browser"
+				unknown = unknown || effect.Environment == "unknown"
+			}
+			if !browser || test.unknown && !unknown {
+				t.Errorf("browser=%v unknown=%v: %#v", browser, unknown, summary.EffectSources)
+			}
+			sourceNodeScript(t, response.Code, `const fs=require('node:fs'),vm=require('node:vm');let gets=0;const sandbox={exports:{},externalMap:function(...args){return Array.prototype.map.apply(this,args)},document:{get title(){gets++;return 'browser'}}};vm.runInNewContext(fs.readFileSync(process.argv[1],'utf8'),sandbox);const result=sandbox.exports.work();if(result.join(',')!=='safe'||gets!==Number(process.argv[2]))throw Error(JSON.stringify({result,gets}));`, fmt.Sprint(test.gets))
+		})
+	}
+}
+
+// The shared binder accounts only protocol-defined top-level presence. Unknown
+// payloads stay unknown and explicit element undefined still activates defaults.
+func TestNativeMapLocalDefinedInputDomain(t *testing.T) {
+	const id = "/virtual/map-defined-inputs.ts"
+	session := NewSession()
+	response := session.Execute(Request{Kind: "analyze", ID: id, Source: `const input:({value:string}|undefined)[]=[undefined];export function work(){return input.map((value={value:document.title},index=(document.title,0),array:({value:string}|undefined)[]=(document.title,[]))=>value.value)}`, Diagnostics: "semantic"})
+	if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) {
+		t.Fatal(response.Error, response.Diagnostics)
+	}
+	found := false
+	for _, project := range session.projects {
+		file := project.program.GetSourceFile(id)
+		if file == nil || project.callableCache == nil {
+			continue
+		}
+		var call, body *ast.Node
+		walkNode(file.AsNode(), func(n *ast.Node) bool {
+			if ast.IsCallExpression(n) {
+				call = n
+			}
+			if ast.IsArrowFunction(n) {
+				body = n
+			}
+			return true
+		})
+		if call == nil || body == nil || len(body.Parameters()) != 3 {
+			t.Fatal("missing actual inputs")
+		}
+		owner := project.callableCache.owner
+		query := newSourceDependencyQuery(call, owner.checker, owner, enclosingCallableNode(call))
+		inputs := &sourceValueInputs{declaration: body, invocation: call, bindings: make(sourceValueBindings), defaults: make(map[*ast.Node]sourceDefaultInput)}
+		part := accessorCandidates{}
+		query.installParameterInput(body.Parameters()[0], []sourceValue{{undefined: true}}, inputs, &part)
+		for _, parameter := range body.Parameters()[1:] {
+			query.bindDefinedParameterInput(parameter, []sourceValue{{}}, inputs, &part)
+			if inputs.defaults[parameter.Initializer()].bindings != nil {
+				t.Fatal("protocol argument activated top-level default")
+			}
+			symbol := owner.checker.GetSymbolAtLocation(parameter.Name())
+			values := inputs.bindings[ast.GetSymbolId(symbol)]
+			if len(values) != 1 || values[0].node != nil || values[0].undefined || values[0].normal != nil || values[0].acquired != nil {
+				t.Fatal("presence fabricated DATA", values)
+			}
+		}
+		if inputs.defaults[body.Parameters()[0].Initializer()].bindings == nil {
+			t.Fatal("undefined element default bypassed")
+		}
+		if inputs.operationLifetime != nil || inputs.population != nil || inputs.fulfilled != nil || len(inputs.operations) != 0 || len(part.normalCalls)+len(part.nativeCalls) != 0 {
+			t.Fatal("source presence issued normal authority")
+		}
+		found = true
+	}
+	if !found {
+		t.Fatal("missing current Program")
+	}
+}

@@ -302,6 +302,17 @@ func (query *sourceValueQuery) installParameterInput(parameter *ast.Node, values
 	return values
 }
 
+// bindDefinedParameterInput shares a native protocol's supplied, nonundefined
+// top-level argument law. Its abstract value and nested pattern reads remain
+// unchanged. This bypass is not normal DATA or body/Call completion authority.
+func (query *sourceValueQuery) bindDefinedParameterInput(parameter *ast.Node, values []sourceValue, inputs *sourceValueInputs, result *accessorCandidates) {
+	if initializer := parameter.Initializer(); initializer != nil {
+		inputs.defaults[initializer] = sourceDefaultInput{}
+		inputs.order = append(inputs.order, initializer)
+	}
+	query.bindInputPattern(parameter.Name(), values, inputs.bindings, result, accessorAcquire, inputs)
+}
+
 // bindGetInputs installs an accessor's actual this and zero supplied arguments.
 // Arrow callbacks retain lexical this. Descriptor callbacks can have defaults or
 // patterns even though ordinary accessor declarations cannot declare arguments.

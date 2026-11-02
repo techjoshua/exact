@@ -50,11 +50,7 @@ func (q *sourceValueQuery) bindProxyTrapInputs(body *ast.Node, handler sourceVal
 		if supplied && (position < 2 || position == 2 && definedReceiver) {
 			// The native protocol guarantees supplied arguments, not their nested
 			// properties. Pattern binding still owns all nested reads/defaults.
-			if initializer := parameter.Initializer(); initializer != nil {
-				inputs.defaults[initializer] = sourceDefaultInput{}
-				inputs.order = append(inputs.order, initializer)
-			}
-			q.bindInputPattern(parameter.Name(), values, inputs.bindings, result, accessorAcquire, inputs)
+			q.bindDefinedParameterInput(parameter, values, inputs, result)
 		} else {
 			q.installParameterInput(parameter, values, inputs, result)
 		}

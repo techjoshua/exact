@@ -122,7 +122,11 @@ func (query *sourceValueQuery) nativeCallbackInputEffects(node *ast.Node, bindin
 					}
 					values = []sourceValue{{node: parameter.Name(), rest: groups}}
 				}
-				query.installParameterInput(parameter, values, inputs, &part)
+				if parameter.AsParameterDeclaration().DotDotDotToken == nil && (position == 1 || position == 2) {
+					query.bindDefinedParameterInput(parameter, values, inputs, &part)
+				} else {
+					query.installParameterInput(parameter, values, inputs, &part)
+				}
 			}
 			query.consumeOrdinaryBody(node, body, inputs.bindings, inputs, nil, &part)
 			query.creators = prior

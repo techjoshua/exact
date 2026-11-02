@@ -279,6 +279,12 @@ expressions do not gain completion precision from this relation. A represented
 noncallable callback excludes numeric-index and callback-body work. Unknown or mixed
 alternatives keep that work possible. Existing receiver acquisition donors remain
 independent, without establishing a complete borrowed-native length protocol.
+The local native alternative binds callback index and array arguments as defined
+at the top level through the same supplied-input law as source Proxy traps.
+Undefined elements and nested/rest defaults remain separate. Generic callback
+edges still retain default-effect donors because complete actual-native callee
+and slot coverage is unavailable. A library signature does not establish that
+coverage, and unknown or replaced methods receive no default-phase waiver.
 Dependency-only body entry joins finite source input relationships for an active declaration.
 Distinct acquired callbacks and capture roots can instantiate that same summary before its
 outer invocation finishes. The relation uses source nodes, formal symbols, creator/use sites
