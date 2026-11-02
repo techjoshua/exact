@@ -74,8 +74,8 @@ func TestImplicitUnavailableDependency(t *testing.T) {
 	}
 }
 
-// A selected Get's direct-return member value is handed forward from the real
-// ordinary demand. This conditional owner guard is not a runtime activation proof.
+// A source-selected getter has effects, but an unowned query cannot reconstruct
+// its normal returned payload. The original source still executes through emission.
 func TestInstalledGetReturnHandoff(t *testing.T) {
 	q := Request{Kind: "analyze", ID: "/virtual/installed-get-return.ts", Source: `const helper={value:undefined,get selected(){window.name;return this.value}};async function make(){return {kind:'audit',value:'outer',get then(){return helper.selected}}}export async function read(){return (await make()).kind}`, Diagnostics: "semantic"}
 	session := NewSession()
@@ -106,17 +106,20 @@ func TestInstalledGetReturnHandoff(t *testing.T) {
 		query := sourceValueQuery{owner: owner.values, executable: owner, remaining: 4096, active: make(map[*ast.Node]bool)}
 		result := accessorCandidates{}
 		observed := query.acquireGetResult(getter, &sourceGetInputs{operation: record, receiver: sourceValue{node: record}}, acquiredCallableScope{}, &result)
-		if len(observed.values) != 1 || !observed.values[0].value.undefined || observed.incomplete {
-			t.Errorf("actual Get return handoff values=%#v incomplete=%v", observed.values, observed.incomplete)
-			continue
-		}
-		inputs := observed.values[0].inputs
-		if inputs == nil || len(inputs.returnedGets) != 1 || len(inputs.returnedGets[0].values) != 1 {
-			t.Error("normal returned member output missing")
+		if !observed.incomplete || len(observed.values) != 0 || observed.owned != nil {
+			t.Fatalf("unowned Get manufactured normal return: %#v", observed)
 		}
 		if query.inputs != nil || query.creators != nil {
 			t.Error("Get context leaked")
 		}
-		t.Logf("INSTALLED_GET_OUTPUT groups=%d values=%d remaining=%d", len(inputs.returnedGets), len(observed.values), query.remaining)
 	}
+	if !settlementBrowser(executableSummary(t, r, "make")) || !settlementBrowser(executableSummary(t, r, "read")) {
+		t.Fatal("original getter source lost browser donor")
+	}
+	q.Kind, q.Target = "compile", TargetClient
+	compiled := session.Execute(q)
+	if compiled.Error != "" || hasErrorDiagnostic(compiled.Diagnostics) || compiled.Code == "" {
+		t.Fatal(compiled.Error, compiled.Diagnostics)
+	}
+	sourceNodeScript(t, compiled.Code, `const fs=require('node:fs'),vm=require('node:vm');let gets=0;const sandbox={exports:{},window:{get name(){gets++;return 'browser'}}};vm.runInNewContext(fs.readFileSync(process.argv[1],'utf8'),sandbox);sandbox.exports.read().then(value=>{if(value!=='audit'||gets!==1)throw Error('Get handoff/get count')}).catch(error=>{console.error(error);process.exitCode=1})`)
 }

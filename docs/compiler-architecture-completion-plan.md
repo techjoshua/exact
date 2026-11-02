@@ -250,7 +250,7 @@ context stay installed through successful-return projection, including Call-valu
 and stored intermediate functions. This relation creates no normal output or execution receipt.
 A missing exact output can be discharged only by its matching operation relationship.
 Known dependencies, unmatched unknown effects, normal outputs and execution receipts remain
-separate contributions. Generator calls evaluate arguments and activated defaults while their
+separate contributions. Destructured formal names retain source-only field obligations at their original slots. Present fields of an observation-only object-rest copy can account for read effects without granting normal DATA, descriptors or property absence. Conditional selection between a known browser getter and a safe value retains the browser dependency without inventing an opaque operation. Independent foreign work remains unknown. Generator calls evaluate arguments and activated defaults while their
 bodies remain deferred. This source contract does not model generator resume state.
 Dependency-only body entry joins finite source input relationships for an active declaration.
 Distinct acquired callbacks and capture roots can instantiate that same summary before its

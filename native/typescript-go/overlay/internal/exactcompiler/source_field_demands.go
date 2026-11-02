@@ -76,8 +76,16 @@ func (query *sourceValueQuery) fieldDemand(operation, receiver *ast.Node, key st
 		if actual != receiver || selected != key {
 			return sourceFieldDemand{}, nil
 		}
-	} else if (!ast.IsVariableDeclaration(symbol.ValueDeclaration) && !ast.IsBindingElement(symbol.ValueDeclaration)) || declaration == slotOwner {
-		return sourceFieldDemand{}, nil
+	} else {
+		if !ast.IsVariableDeclaration(symbol.ValueDeclaration) && !ast.IsBindingElement(symbol.ValueDeclaration) {
+			return sourceFieldDemand{}, nil
+		}
+		// A destructured formal is still a relative input to this declaration.
+		// Only source effect substitution may account for its same-owner Get.
+		// Normal descriptor/output admission and ordinary locals stay unchanged.
+		if declaration == slotOwner && !(query.dependenciesOnly && sourcePatternParameter(root, query.owner.checker)) {
+			return sourceFieldDemand{}, nil
+		}
 	}
 	return sourceFieldDemand{declaration: declaration, operation: operation, slot: symbol.ValueDeclaration, key: key, use: query.effectUse(), consumer: query.effectOwner}, symbol
 }

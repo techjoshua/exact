@@ -1862,7 +1862,7 @@ are retired, while authored source effects and actual emitted initialization rem
 
 Effect contributions remain additive. A missing precise Return value can leave the value
 incomplete while source analysis accounts for that operation's effects. Source dependency field
-coverage marks matched effect obligations and supplies no normal DATA output. A fulfilled
+coverage marks matched effect obligations and supplies no normal DATA output. Destructured formal names retain their original formal slot in those obligations, including reads in later parameter defaults. A direct present field of an observation-only object-rest copy can account for source read effects. Copies with writes, escapes or dynamic scope retain independent uncertainty. A fulfilled
 source-only obligation does not authorize a normal Get result or descriptor. Only a matching
 operation, selected target, source use, consumer and phase can discharge its classified
 obligation, across all relevant alternatives. Independent opacity and known browser or server

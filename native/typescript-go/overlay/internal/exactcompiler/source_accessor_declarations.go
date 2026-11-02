@@ -295,6 +295,9 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 				if len(path) == 0 && name != "" {
 					path = []string{name}
 				}
+				if query.copiedFieldEffectOwned(term, path, &result) {
+					result.sourceOwned = true
+				}
 				if len(path) > 0 {
 					for _, entry := range query.boundProjection([]sourceValue{term}, path, &result) {
 						selected := query.accessors(entry.node, entry.path, "", mode, arguments, invoke)

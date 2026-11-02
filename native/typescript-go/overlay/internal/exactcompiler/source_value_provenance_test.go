@@ -1214,8 +1214,8 @@ func TestClosureParameterDefaultExecution(t *testing.T) {
 	}
 }
 
-// A possibly undefined actual retains the known default getter and incomplete activation.
-// Purity cannot turn that conditional execution into a neutral or exact call certificate.
+// A possibly undefined actual retains the known default getter. Control/value
+// uncertainty supplies neither a new opaque effect nor normal execution authority.
 func TestClosureParameterDefaultUncertainty(t *testing.T) {
 	source := `function read({inner}:{inner:{value:string}},value=inner.value){return value}/** @exact pure */ export function run(flag:boolean){return [read][0]!({inner:{get value(){return document.title}}},flag?undefined:"safe")}`
 	response := NewSession().Execute(Request{Kind: "analyze", ID: "parameter-default-uncertainty.ts", Source: source, Diagnostics: "semantic"})
@@ -1223,14 +1223,18 @@ func TestClosureParameterDefaultUncertainty(t *testing.T) {
 		t.Fatalf("%s %#v", response.Error, response.Diagnostics)
 	}
 	summary := executableSummary(t, response, "run")
-	browser, incomplete := false, false
+	browser := false
 	for _, effect := range summary.EffectSources {
 		browser = browser || effect.Environment == "browser"
-		incomplete = incomplete || effect.provenanceIncomplete
 	}
-	if !browser || !incomplete || environmentEffectFor(summary.EffectSources) != "unknown" {
+	if !browser || summary.ReevaluationSafe || environmentEffectFor(summary.EffectSources) == "neutral" {
 		t.Fatalf("lost default alternatives: %#v", summary)
 	}
+	compiled := NewSession().Execute(Request{Kind: "compile", ID: "parameter-default-uncertainty.ts", Source: source, Diagnostics: "semantic", Target: TargetClient})
+	if compiled.Error != "" || hasErrorDiagnostic(compiled.Diagnostics) || compiled.Code == "" {
+		t.Fatal(compiled.Error, compiled.Diagnostics)
+	}
+	sourceNodeScript(t, compiled.Code, `const fs=require('node:fs'),vm=require('node:vm');let gets=0;const sandbox={exports:{},document:{get title(){gets++;return 'browser'}}};vm.runInNewContext(fs.readFileSync(process.argv[1],'utf8'),sandbox);if(sandbox.exports.run(false)!=='safe'||gets!==0||sandbox.exports.run(true)!=='browser'||gets!==1)throw Error('default selection/get count');const sentinel=Error('stop');Object.defineProperty(sandbox.document,'title',{get(){gets++;throw sentinel}});try{sandbox.exports.run(true);throw Error('missing Throw')}catch(error){if(error!==sentinel||gets!==2)throw error}`)
 }
 
 // A returned closure reads the live binding through invocation, while an earlier
