@@ -150,3 +150,47 @@ func TestSourceReturnAcquisitionEmitted(t *testing.T) {
 		}
 	}
 }
+
+// Normal return projection keeps its prior source relationship even when a body
+// is active. It neither enters the source dependency join nor borrows its scope.
+func TestSourceReturnAcquisitionNormalBoundary(t *testing.T) {
+	const source = `function make(){return {value:'safe'}}export const value=make().value;`
+	session := NewSession()
+	response := session.Execute(Request{Kind: "analyze", ID: "/virtual/normal-return-boundary.ts", Source: source, Diagnostics: "semantic"})
+	if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) {
+		t.Fatal(response.Error, response.Diagnostics)
+	}
+	for _, project := range session.projects {
+		file := project.program.GetSourceFile("/virtual/normal-return-boundary.ts")
+		if file == nil {
+			continue
+		}
+		var body, literal *ast.Node
+		walkNode(file.AsNode(), func(node *ast.Node) bool {
+			if ast.IsFunctionDeclaration(node) {
+				body = node
+			}
+			if ast.IsObjectLiteralExpression(node) {
+				literal = node
+			}
+			return true
+		})
+		if body == nil || literal == nil {
+			t.Fatal("missing normal boundary fixture")
+		}
+		query := newSourceDependencyQuery(body, project.callableCache.owner.values.checker, project.callableCache.owner, nil)
+		query.dependenciesOnly = false
+		query.active[body] = true
+		part := accessorCandidates{}
+		projected := 0
+		query.projectSelectedSourceReturns(body, nil, nil, nil, &part, func(value sourceValue, _ sourceValueBindings) {
+			if value.node != literal || value.undefined || value.normal != nil || value.acquired != nil {
+				t.Fatal("normal source relationship changed")
+			}
+			projected++
+		}, func() { t.Fatal("ordinary body deferred") })
+		if projected != 1 || !query.active[body] || len(query.dependencyEntries) != 0 || query.inputs != nil || query.returning != nil || query.operation != nil || len(query.creators) != 0 {
+			t.Fatal("source interval changed normal projection ownership")
+		}
+	}
+}
