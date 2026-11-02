@@ -42,10 +42,15 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 	}()
 	var acquiredParent *sourceObservedValue
 	type memberVisit struct {
+		node       *ast.Node
 		projection []string
 		instance   bool
 	}
-	seen := make(map[*ast.Node][]memberVisit)
+	// Only active visits participate in cycle detection. Keep common shallow
+	// traversals on the stack and grow one trail for deeper paths, rather than
+	// allocating a map and a separate visit slice for each active node.
+	var initialVisits [8]memberVisit
+	seen := initialVisits[:0]
 	depth := 0
 	// Class heritage changes the declaration being selected, not the Get's
 	// receiver. A NewExpression remains an origin, never a repeated construction.
@@ -356,9 +361,8 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 		if value == nil {
 			return
 		}
-		priorVisits := seen[value]
-		for _, prior := range priorVisits {
-			if prior.instance == instance && slices.Equal(prior.projection, projection) {
+		for _, prior := range seen[:depth] {
+			if prior.node == value && prior.instance == instance && slices.Equal(prior.projection, projection) {
 				result.opaque = true
 				query.owner.widenings++
 				return
@@ -376,13 +380,11 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 		// A getter can select another member of its original receiver. Only a
 		// repeated receiver/projection lookup is a local cycle. Outer visits
 		// remain active until their own selected output has been consumed.
-		seen[value] = append(priorVisits, memberVisit{slices.Clone(projection), instance})
+		slot := depth - 1
+		seen = append(seen, memberVisit{value, slices.Clone(projection), instance})
 		defer func() {
-			if len(priorVisits) == 0 {
-				delete(seen, value)
-			} else {
-				seen[value] = priorVisits
-			}
+			seen[slot] = memberVisit{}
+			seen = seen[:slot]
 		}()
 		if ast.IsSpreadElement(value) {
 			result.opaque = true
