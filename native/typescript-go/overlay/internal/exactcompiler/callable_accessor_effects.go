@@ -275,6 +275,18 @@ func (query *sourceValueQuery) reflectiveMemberValuesAtGet(origin *ast.Node, pro
 		}
 		return nil, possible
 	}
+	if reflectiveDescriptorCall(node.AsCallExpression(), query.owner.checker) {
+		key := name
+		if len(projection) > 0 {
+			key = projection[0]
+		}
+		selected := sourceLiteralMemberName(unwrapSourceCallableReference(node.AsCallExpression().Arguments.Nodes[1]))
+		if selected != "" && (selected != key || actualGet != nil && actualGet.symbol != nil) {
+			// A literal key cannot depend on writer inputs. Exclude it before
+			// acquiring those inputs reenters this unrelated member lookup.
+			return nil, false
+		}
+	}
 	// Allocation association is the reader's already-acquired receiver scope,
 	// distinct from the original consumer cut used only for ordering.
 	receiverScope := query.acquireCallableScope(bindings, result)
@@ -368,8 +380,7 @@ func (query *sourceValueQuery) reflectiveMemberValueInScope(origin *ast.Node, pr
 		return nil, false
 	}
 	call := node.AsCallExpression()
-	receiver, method := restrictedInvocationMember(call.Expression, query.owner.checker)
-	descriptorCall := method == "defineProperty" && ast.IsIdentifier(receiver) && (receiver.Text() == "Object" || receiver.Text() == "Reflect") && standardLibraryCallRoot(call.Expression, query.owner.checker) && call.Arguments != nil && len(call.Arguments.Nodes) == 3
+	descriptorCall := reflectiveDescriptorCall(call, query.owner.checker)
 	if !descriptorCall && (!native || !resolvedReflectiveMutation(call.Expression, query.owner.checker, map[ast.SymbolId]bool{})) {
 		return nil, false
 	}
@@ -454,7 +465,7 @@ func (query *sourceValueQuery) reflectiveMemberValueInScope(origin *ast.Node, pr
 				owned := ast.IsObjectLiteralExpression(allocation) || ast.IsArrayLiteralExpression(allocation) || query.sourceConstructedDataSlot(allocation, key, receiverScope.bindings)
 				if owned {
 					same = same || query.sourceCreatorValue(value, factory, readerCall)
-					if value.node == allocation && len(value.path) == 0 && value.capture != nil && value.capture.creators[factory].invocation != nil {
+					if value.node == allocation && len(value.path) == 0 && value.capture != nil && value.capture.creators[factory].invocation != nil && (!ast.IsNewExpression(allocation) || query.sourceConstructedDataSlot(allocation, key, value.capture.bindings)) {
 						same = query.sourceCreatorValue(value, factory, readerCall)
 						qualifiedDifferent = !same
 					}
@@ -516,34 +527,19 @@ func (query *sourceValueQuery) reflectiveMemberValueInScope(origin *ast.Node, pr
 			}
 			get := field == "get" && mode&accessorNoGet == 0
 			set := field == "set" && mode&accessorSet != 0 && mode != accessorSetAcquire
+			if input != nil && query.dependenciesOnly && get {
+				if ast.IsShorthandPropertyAssignment(member) {
+					body = member.Name()
+				}
+				query.reflectiveSourceGet(body, node, key, actualGet, bindings, result)
+				continue
+			}
 			if (get || set) && ast.IsFunctionLike(body) && body.Body() != nil {
 				operation := node
 				if actualGet != nil {
 					operation = actualGet.operation
 				}
-				if input != nil && query.dependenciesOnly && get {
-					// Uncorrelated source Get projects free captures, never an actual receiver
-					// or an output receipt. Arrow this remains lexical in bindGetInputs.
-					var sourceOperation *ast.Node
-					sourceReceiver := sourceValue{}
-					if actualGet != nil && actualGet.operation != nil && (ast.IsPropertyAccessExpression(actualGet.operation) || ast.IsElementAccessExpression(actualGet.operation)) {
-						_, observedKey := accessorReceiver(actualGet.operation)
-						if observedKey != "" && observedKey == key {
-							sourceOperation = actualGet.operation
-							sourceReceiver = actualGet.receiver
-						}
-					}
-					inputs := query.bindGetInputs(body, sourceOperation, sourceReceiver, bindings, result)
-					result.opaque = true
-					result.retainCallableEffect(sourceOperation, body)
-					query.consumeSourceBodyEffects(sourceOperation, body, inputs.bindings, inputs, nil, result)
-					query.projectSelectedSourceReturns(body, sourceOperation, inputs.bindings, inputs, result, func(term sourceValue, bound sourceValueBindings) {
-						scope := query.acquireCallableScope(bound, result)
-						term.capture = &scope
-						result.values = append(result.values, term)
-					}, func() { result.valueIncomplete = true })
-					continue
-				}
+
 				result.retainCallableEffect(operation, body)
 				// A selected setter keeps its generic effect owner. The actual Get
 				// carrier supplies no assigned RHS or zero-argument Set authority.
@@ -611,4 +607,11 @@ func sourceFunctionPrototype(value sourceValue, c *checker.Checker) bool {
 	}
 	symbol := c.GetSymbolAtLocation(value.node)
 	return symbol != nil && symbol.ValueDeclaration != nil && standardLibrarySource(ast.GetSourceFileOfNode(symbol.ValueDeclaration))
+}
+
+// reflectiveDescriptorCall classifies the existing binder-owned descriptor
+// operation without acquiring its target, key or caller inputs.
+func reflectiveDescriptorCall(call *ast.CallExpression, c *checker.Checker) bool {
+	receiver, method := restrictedInvocationMember(call.Expression, c)
+	return method == "defineProperty" && ast.IsIdentifier(receiver) && (receiver.Text() == "Object" || receiver.Text() == "Reflect") && standardLibraryCallRoot(call.Expression, c) && call.Arguments != nil && len(call.Arguments.Nodes) == 3
 }

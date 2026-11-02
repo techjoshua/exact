@@ -1903,7 +1903,11 @@ Call is available. Its possible indexed writes cannot become performed replaceme
 write ordering. Known non-invoking bodies remain deferred. An unavailable source Call output
 still retains its original binding origin for indexed possible member writes. This preserves
 independently known donors beside the unresolved output without asserting object identity,
-fresh allocation or a completed native result. Source interference uses the same
+fresh allocation or a completed native result. Descriptor getter values use the same acquired
+source bindings as literal getter bodies, including default initialization and captured returns.
+Earlier getter-selection effects remain with descriptor installation. Literal descriptor keys
+are compared before caller-input acquisition, avoiding reentry through an unrelated member.
+Constructor-context disjointness requires the existing allocation law on both alternatives. Source interference uses the same
 original Call's existing performed-write proof rather than losing it at the input boundary.
 
 Source SDK state-write execution remains blocked before test collection by a native stack

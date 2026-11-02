@@ -140,3 +140,47 @@ func TestReflectiveCreatorContextCannotExcludeReturningConstructor(t *testing.T)
 		t.Fatalf("unqualified constructor excluded possible donor: browser=%v unknown=%v", browser, unknown)
 	}
 }
+
+// Getter-valued inputs keep their captured body through descriptor shorthand and
+// explicit properties. Earlier argument Gets stay with descriptor installation.
+func TestReflectiveGetterFormalInputs(t *testing.T) {
+	for _, descriptor := range []string{`{get}`, `{get:get}`} {
+		for _, row := range []struct {
+			name, setup, getter string
+			browser             bool
+		}{
+			{"captured", `function make(v:{value:string}){return ()=>v}`, `make(donor)`, true},
+			{"safe", ``, `()=>({value:'safe'})`, false},
+			{"default", ``, `(v=document.title)=>({value:v})`, true},
+			{"joined unknown", `declare const choose:boolean;declare function external():{value:string};`, `choose?()=>donor:external`, true},
+			{"snapshot", `let chosen=()=>donor;`, `chosen`, true},
+			{"earlier Get", `const holder={get reader(){document.title;return ()=>({value:'safe'})}};`, `holder.reader`, false},
+		} {
+			t.Run(descriptor+"/"+row.name, func(t *testing.T) {
+				source := `function install(box:object,get:()=>{value:string}){Object.defineProperty(box,'field',` + descriptor + `)}const target:{field?:{value:string}}={};const donor={get value(){return document.title}};` + row.setup + `install(target,` + row.getter + `);`
+				if row.name == "snapshot" {
+					source += `chosen=()=>({value:'safe'});`
+				}
+				source += `export const value=target.field!.value;`
+				r := NewSession().Execute(Request{Kind: "analyze", ID: "/virtual/reflective-getter-formal.ts", Source: source, Diagnostics: "semantic"})
+				browser, unknown := reentrantInitializerEffects(t, r, source, true)
+				if browser != row.browser || !unknown {
+					t.Fatal("descriptor getter lost capture, replayed acquisition or lost residual", browser, unknown)
+				}
+			})
+		}
+	}
+}
+
+func TestReflectiveGetterFormalEmitted(t *testing.T) {
+	const source = `export function read(fail:boolean){const trace:string[]=[];function install(box:object,get:()=>{value:string}){Object.defineProperty(box,'field',{get})}let selected={get value(){trace.push('value');if(fail)throw 'stop';return 'browser'}};function make(){trace.push('factory');const saved=selected;return()=>{trace.push('get');return saved}}const box={field:{value:'safe'}};install(box,make());selected={value:'safe'};try{trace.push(box.field.value)}catch(e){trace.push(String(e))}return trace}`
+	for _, target := range []Target{TargetClient, TargetServer} {
+		t.Run(string(target), func(t *testing.T) {
+			r := NewSession().Execute(Request{Kind: "compile", ID: "/virtual/reflective-formal-order.ts", Source: source, Target: target, Diagnostics: "semantic"})
+			if r.Error != "" || hasErrorDiagnostic(r.Diagnostics) || r.Code == "" {
+				t.Fatal(r.Error, r.Diagnostics)
+			}
+			sourceNodeScript(t, r.Code, `const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),out={};vm.runInNewContext(fs.readFileSync(process.argv[1],'utf8'),{exports:out});assert.deepEqual(Array.from(out.read(false)),['factory','get','value','browser']);assert.deepEqual(Array.from(out.read(true)),['factory','get','value','stop']);`)
+		})
+	}
+}
