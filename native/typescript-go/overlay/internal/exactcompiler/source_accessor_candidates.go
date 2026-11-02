@@ -205,7 +205,7 @@ func (query *sourceValueQuery) evaluatedSourceAccessors(node *ast.Node, bindings
 	return candidates
 }
 
-// accessors instantiates finite relative roots. Recursive demands share this query's budget.
+// accessors instantiates relative roots through this query's source acquisition owners.
 func (query *sourceValueQuery) accessors(receiver *ast.Node, path []string, name string, mode accessorTraversal, arguments sourceValueBindings, invoke func(*ast.Node, sourceValueBindings, *accessorCandidates)) accessorCandidates {
 	return query.accessorsAtGet(receiver, path, name, mode, arguments, invoke, nil)
 }
@@ -216,10 +216,9 @@ func (query *sourceValueQuery) accessorsAtGet(receiver *ast.Node, path []string,
 	return query.accessorsAtGetOutput(receiver, path, name, mode, arguments, invoke, get, nil, nil, alternatives...)
 }
 
-// accessorsAtGetOutput admits a producer's initial acquisition exactly once.
-// All later raw/acquired entries read that operation's output without effects.
-// acquireCallableScope retains one reached body's creating inputs. Copies are
-// query-local and fuel bounded, with no identity inferred from declaration spans.
+// acquireCallableScope snapshots a reached body's bindings and creator relations.
+// Initializer observations are sealed before transfer. Scope allocation identity
+// does not establish source identity, and cost accounting does not bound copying.
 func (query *sourceValueQuery) acquireCallableScope(arguments sourceValueBindings, result *accessorCandidates) acquiredCallableScope {
 	scope := acquiredCallableScope{bindings: make(sourceValueBindings), creators: make(map[*ast.Node]sourceValueCreation)}
 	for id, terms := range arguments {

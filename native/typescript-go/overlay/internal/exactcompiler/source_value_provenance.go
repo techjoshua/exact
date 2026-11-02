@@ -1138,8 +1138,9 @@ func (query *sourceValueQuery) recordFacts(count int) {
 	}
 }
 
-// charge shares the root resource safeguard across substitution copies and relation scans.
-// Static indexes and templates separately account for their single generation-owned source walk.
+// charge records advisory root cost across substitution copies and relation scans.
+// It does not refuse analysis. Static indexes and templates separately account
+// for their single generation-owned source walk.
 func (query *sourceValueQuery) charge(result *accessorCandidates, cause *ast.Node) bool {
 
 	query.remaining--

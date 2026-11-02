@@ -6,6 +6,8 @@ import (
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
 )
 
+// accessorsAtGetOutput admits a producer's initial acquisition exactly once.
+// Later raw/acquired entries read that operation's output without its effects.
 func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []string, name string, mode accessorTraversal, arguments sourceValueBindings, invoke func(*ast.Node, sourceValueBindings, *accessorCandidates), get *sourceGetInputs, producer *sourceNormalOperation, reference *sourceGetReference, alternatives ...sourceValue) (result accessorCandidates) {
 	restoreDeferredRead := query.beginDeferredRead(get)
 	defer restoreDeferredRead()
