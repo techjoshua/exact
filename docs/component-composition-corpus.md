@@ -2120,12 +2120,13 @@ during callable-effect analysis, before lowering.
 
 Integrated-host replays use the preserved 300-source synchronization and the same
 client compile request, semantic diagnostics, `traceAnalysisCost` and 30-second deadline.
-The `efb6cf1da` host synchronizes without diagnostics, then stack-overflows in 11.50 seconds.
-A same-source single-file comparison without the early static writer-key filter does
-not respond within 30 seconds and is deliberately interrupted. The earlier `7a8bac4fc`
-host also missed the deadline, while `41bf418768ae02dbdf97cf1e47e087fa5fb6516b`
-stack-overflowed in 1.82 seconds. These outcomes do not prove termination or a performance
-improvement. Every replay process was reaped.
+The `c2a7829ea` host synchronizes without diagnostics but gives no compile response
+within the unchanged 30-second deadline. It is deliberately interrupted and reaped.
+The earlier `4e40d2d27` host also missed that deadline after repairing the reproduced
+writer-precondition cycle. Before that repair, `efb6cf1da` stack-overflowed in 11.50 seconds.
+These source-bound outcomes do not establish request-wide termination or a performance
+improvement. Private relation comparison `72dd7b70a` also misses the unchanged deadline
+at 30.049 seconds and remains unaccepted.
 
 The requests retain the saved acceptance workspace's project root and configuration,
 so these are bound source replays, not clean installed-package builds. Private query-graph
