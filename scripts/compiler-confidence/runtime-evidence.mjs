@@ -18,6 +18,8 @@ export function verifyRuntimeExecution(report, { runToken, started }) {
 		report.executions.length !== runtimeWitnesses.length
 	)
 		throw new Error('Missing, stale or unsuccessful native runtime evidence');
+	if (report.browser === 'chromium')
+		requireSharedCompositionResult(report.sharedCompositionBrowser);
 	return runtimeWitnesses.map((witness) => {
 		const matches = report.executions.filter((entry) => entry.id === witness.id);
 		if (
@@ -34,4 +36,28 @@ export function verifyRuntimeExecution(report, { runToken, started }) {
 			status: 'verified'
 		};
 	});
+}
+
+/** Requires the observable result of the additional journey owned by the full Chromium runner. */
+function requireSharedCompositionResult(result) {
+	if (
+		!result ||
+		result.id !== 'shared-composition-chromium-mount' ||
+		result.status !== 'verified' ||
+		typeof result.browser !== 'string' ||
+		result.browser.length === 0 ||
+		result.fixtureUnchanged !== true ||
+		!Array.isArray(result.updates) ||
+		result.updates.length !== 2 ||
+		result.updates[0] !== 2 ||
+		result.updates[1] !== 3 ||
+		result.sameInstance !== true ||
+		result.sameState !== true ||
+		result.sameDOM !== true ||
+		result.unrelatedReplay !== false ||
+		result.mounts !== 1 ||
+		result.disposals !== 1 ||
+		result.frameworkErrors !== 0
+	)
+		throw new Error('Missing or unsuccessful Chromium shared composition evidence');
 }

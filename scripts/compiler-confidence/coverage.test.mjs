@@ -209,6 +209,20 @@ test('native runtime evidence requires fresh, complete, uniquely executed host a
 		success: true,
 		runToken: context.runToken,
 		browser: 'chromium',
+		sharedCompositionBrowser: {
+			id: 'shared-composition-chromium-mount',
+			status: 'verified',
+			browser: '149.0',
+			fixtureUnchanged: true,
+			updates: [2, 3],
+			sameInstance: true,
+			sameState: true,
+			sameDOM: true,
+			unrelatedReplay: false,
+			mounts: 1,
+			disposals: 1,
+			frameworkErrors: 0
+		},
 		started: context.started,
 		finished: '2026-10-01T00:01:00Z',
 		executions: runtimeWitnesses.map((entry) => ({ ...entry, status: 'verified' }))
@@ -219,6 +233,42 @@ test('native runtime evidence requires fresh, complete, uniquely executed host a
 		verified.find((entry) => entry.id === 'native-installed-cloudflare').environment,
 		/\(jsdom\)$/
 	);
+	// Chromium requires its registered browser journey in addition to the unchanged host matrix.
+	const missing = structuredClone(report);
+	delete missing.sharedCompositionBrowser;
+	assert.throws(() => verifyRuntimeExecution(missing, context), /shared composition/);
+	for (const [field, value] of Object.entries({
+		id: 'other-journey',
+		status: 'failed',
+		browser: '',
+		fixtureUnchanged: false,
+		updates: [2],
+		sameInstance: false,
+		sameState: false,
+		sameDOM: false,
+		unrelatedReplay: true,
+		mounts: 0,
+		disposals: 0,
+		frameworkErrors: 1
+	})) {
+		const bad = structuredClone(report);
+		bad.sharedCompositionBrowser[field] = value;
+		assert.throws(() => verifyRuntimeExecution(bad, context), /shared composition/, field);
+		delete bad.sharedCompositionBrowser[field];
+		assert.throws(
+			() => verifyRuntimeExecution(bad, context),
+			/shared composition/,
+			field + ' missing'
+		);
+	}
+	for (const browser of ['firefox', 'webkit']) {
+		const otherEngine = structuredClone(missing);
+		otherEngine.browser = browser;
+		assert.equal(verifyRuntimeExecution(otherEngine, context).length, runtimeWitnesses.length);
+		otherEngine.executions.pop();
+		assert.throws(() => verifyRuntimeExecution(otherEngine, context));
+	}
+
 	for (const mutate of [
 		(value) => {
 			value.profile = 'shared-composition';

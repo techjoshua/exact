@@ -2045,6 +2045,11 @@ state and DOM identity, no unrelated consumer replay, one mount, one disposal, a
 inactive disposed scope, empty container and no framework/browser faults. It installs
 the standard public runtime capability surfaces used by the mounted test owner.
 The same journey is registered in the default Chromium runtime runner.
+Full Chromium evidence must include its verified named result, unchanged fixture,
+updates, retained identities, absence of unrelated replay, lifecycle counts and zero
+framework errors, in addition to every existing host-matrix check. Full Firefox and
+WebKit reports retain their existing requirements because their default paths do not
+run this additional journey.
 
 The narrow report is scoped to the compiled component and the browser providers
 actually supplied. Retained providers have unverified build provenance. This profile
