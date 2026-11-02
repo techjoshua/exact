@@ -32,6 +32,7 @@ export async function taskClosureRuntime(name: string) {
 				moduleResolution: 'NodeNext',
 				strict: true,
 				jsx: 'preserve',
+				jsxImportSource: '@exactjs/jsx',
 				skipLibCheck: true
 			},
 			files: ['page.tsx']
