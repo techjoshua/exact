@@ -1965,11 +1965,20 @@ reports approximately 325 GB allocated by 374.589 seconds, with about 96 MB live
 snapshot. These observations identify repeated copying and allocation churn, not a proven
 semantic cycle or a validated replacement architecture. The remaining recurrence needs a
 source-bound ownership diagnosis. Selected source-return acquisition now uses the existing source
-body-entry interval, and its reduced recurrence controls pass. The subsequent uncapped
-`387038cca` host still fails naturally with a stack overflow after 79.551 seconds. Its sampled
-fatal stack includes refused writer-input and native member acquisition. Its CPU profile is
-incomplete because the process fails before a snapshot, so no profile or speed improvement is
-claimed for that run. The SDK path requires fresh execution after termination is repaired.
+body-entry interval, and its reduced recurrence controls pass. The latest uncapped
+`57c2fd127` host still fails naturally with a stack overflow after 75.983 seconds. A completed
+24-second profile segment again shows repeated member and invocation acquisition. At that
+snapshot, callable-scope acquisition accounts for 55.58% of sampled allocation bytes. These
+runs are diagnostic observations, not an isolated performance comparison.
+
+A separate held-context observation binds repeated `Object.freeze({...metadata})` callee
+acquisition to source inputs containing two empty copied maps and a rest container. The current
+pending-callee relation supports syntax terms only and declines the entire description when
+such a carrier is present. Rest, copied and getter-captured reduced sources still overflow,
+while their literal-key peers terminate. Their source-only status does not itself establish
+context equality. The observer is stopped after binding the source context, with its compiler
+process reaped. It supplies no compile or performance acceptance. The SDK path requires fresh
+execution after termination is repaired.
 
 Maintainer validation uses `node scripts/build-native-compiler.mjs --source <pinned checkout>`.
 The build prepares workspace declarations with the installed official TypeScript 7 CLI,
