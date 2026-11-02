@@ -366,19 +366,27 @@ func (query *sourceValueQuery) origins(node *ast.Node, bindings sourceValueBindi
 					return query.boundProjection(values, path, result)
 				}
 			}
-			values := query.originsAt(declaration.Initializer(), declaration, bindings, result)
-			if query.owner.bindingWritten(symbol) {
-				for _, seed := range values {
-					if seed.node != nil && ast.IsFunctionLike(seed.node) && seed.node.Body() != nil {
-						result.sourceCallable = true
-						break
+			entry := func() []sourceValue {
+				values := query.originsAt(declaration.Initializer(), declaration, bindings, result)
+				if query.owner.bindingWritten(symbol) {
+					for _, seed := range values {
+						if seed.node != nil && ast.IsFunctionLike(seed.node) && seed.node.Body() != nil {
+							result.sourceCallable = true
+							break
+						}
 					}
 				}
+				for i := range values {
+					values[i].path = append(values[i].path, path...)
+				}
+				return values
 			}
-			for i := range values {
-				values[i].path = append(values[i].path, path...)
+			var values []sourceValue
+			if query.dependenciesOnly {
+				values = query.bindingValues(symbol, nil, entry, root, bindings, result)
+			} else {
+				values = query.liveValues(symbol, entry(), root, bindings, result)
 			}
-			values = query.liveValues(symbol, values, root, bindings, result)
 			return values
 		}
 	}

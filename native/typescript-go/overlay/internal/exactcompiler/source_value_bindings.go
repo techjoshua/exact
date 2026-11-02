@@ -83,6 +83,20 @@ func (query *sourceValueQuery) mergeReplacements(values []sourceValue, replaceme
 // values across all writers. Unordered and unresolved routes retain their alternatives.
 // This relation never creates a dynamic invocation identity or recursively nested context.
 func (query *sourceValueQuery) liveValues(symbol *ast.Symbol, entry []sourceValue, read *ast.Node, bindings sourceValueBindings, result *accessorCandidates) []sourceValue {
+	return query.bindingValues(symbol, entry, nil, read, bindings, result)
+}
+
+// bindingValues permits source entry acquisition to wait until current-write selection.
+// A proved replacement needs no obsolete entry value. The initializer's execution
+// effects remain owned by its original body demand, never by this later value read.
+// Eager callers retain their acquired entry and consumed-write associations.
+func (query *sourceValueQuery) bindingValues(symbol *ast.Symbol, entry []sourceValue, acquire func() []sourceValue, read *ast.Node, bindings sourceValueBindings, result *accessorCandidates) []sourceValue {
+	entryValues := func() []sourceValue {
+		if acquire != nil {
+			return acquire()
+		}
+		return entry
+	}
 	// A declaration-only variable can be assigned in the current executable source.
 	// The declaration supplies no body. Source ordering must prove replacement.
 	valueDeclaration := symbol.ValueDeclaration
@@ -93,7 +107,7 @@ func (query *sourceValueQuery) liveValues(symbol *ast.Symbol, entry []sourceValu
 		}
 	}
 	if !query.owner.bindingWritten(symbol) && (!ambient || read == nil || len(query.owner.index(ast.GetSourceFileOfNode(read)).bindings[ast.GetSymbolId(symbol)]) == 0) {
-		return entry
+		return entryValues()
 	}
 	// Only same-owner writes use the live capture's invocation/return boundary.
 	// Applying it to sibling searches would hide writes after the factory returned.
@@ -116,12 +130,14 @@ func (query *sourceValueQuery) liveValues(symbol *ast.Symbol, entry []sourceValu
 	if query.live[id] {
 		result.opaque = true
 		query.owner.widenings++
-		return entry
+		return entryValues()
 	}
 	query.live[id] = true
 	defer delete(query.live, id)
 	values := append([]sourceValue{}, entry...)
-	values = append(values, query.consumedWriteValues(symbol, entry, result)...)
+	if acquire == nil {
+		values = append(values, query.consumedWriteValues(symbol, entry, result)...)
+	}
 	// Keep the conservative join until all relevant writers have been acquired.
 	// Declaration order is not execution order across sibling method bodies.
 	var replacements []sourceValueReplacement
@@ -308,7 +324,16 @@ func (query *sourceValueQuery) liveValues(symbol *ast.Symbol, entry []sourceValu
 			}
 		}
 	}
-	values, _ = query.mergeReplacements(values, replacements, result)
+	var replaced bool
+	values, replaced = query.mergeReplacements(values, replacements, result)
+	if acquire != nil && !replaced {
+		// The entry keeps its original acquisition scope, outside the writer scan.
+		delete(query.live, id)
+		query.initializing = previous
+		initial := append([]sourceValue{}, entryValues()...)
+		initial = append(initial, query.consumedWriteValues(symbol, initial, result)...)
+		values = append(initial, values...)
+	}
 	if len(values) > query.owner.maxTerms {
 		query.owner.maxTerms = len(values)
 	}

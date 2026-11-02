@@ -1138,7 +1138,9 @@ func TestClosureParameterBindingReplacement(t *testing.T) {
 		{"identifier-reassign-safe", `function make(){return (inner:{value:string})=>{inner={value:"safe"};return inner.value}}export const value=[make()][0]!({get value(){return document.title}});`, "isomorphic"},
 		{"local-alias-safe", `function make(){return (input:{inner:{value:string}})=>{let {inner:alias}=input;alias={value:"safe"};return alias.value}}export const value=[make()][0]!({inner:{get value(){return document.title}}});`, "isomorphic"},
 		{"local-rest-safe", `function make(){return (input:{inner:{value:string}})=>{let {...rest}=input;rest={inner:{value:"safe"}};return rest.inner.value}}export const value=[make()][0]!({inner:{get value(){return document.title}}});`, "isomorphic"},
-		{"local-identifier-safe", `function make(){return (input:{inner:{value:string}})=>{let inner=input.inner;inner={value:"safe"};return inner.value}}export const value=[make()][0]!({inner:{get value(){return document.title}}});`, "unknown"},
+		// The source-owned inner Get executes at binding. A proved later replacement
+		// makes the deferred browser value getter irrelevant to the current read.
+		{"local-identifier-safe", `function make(){return (input:{inner:{value:string}})=>{let inner=input.inner;inner={value:"safe"};return inner.value}}export const value=[make()][0]!({inner:{get value(){return document.title}}});`, "isomorphic"},
 		{"formal-initial-binding-effect", `function make(){return ({inner}:{inner:{value:string}})=>{inner={value:"safe"};return inner.value}}export const value=[make()][0]!({get inner(){document.title;return {value:"safe"}}});`, "client"},
 		{"formal-final-browser", `function make(){return ({inner}:{inner:{value:string}})=>{inner={get value(){return document.title}};return inner.value}}export const value=[make()][0]!({inner:{value:"safe"}});`, "client"},
 		{"formal-plain-reassign", `function make(){return ({inner}:{inner:{value:string}})=>{inner={value:"safe"};return inner.value}}export const value=[make()][0]!({inner:{value:"old"}});`, "isomorphic"},

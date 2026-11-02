@@ -1009,7 +1009,11 @@ Local `const`, `let` and `var` aliases retain the source value read at initializ
 same-owner assignments and direct lexical calls before initialization contribute to that value.
 An own binding read in a callable uses its body occurrence when the creating call is outside
 that lexical order. A proved unconditional replacement before the read supersedes the entry
-value. Local object-binding elements use that same current-write cut when a captured
+value. Source reads consult that existing replacement proof before acquiring an obsolete
+local initializer value. Unproved or unordered writes retain entry values and uncertainty.
+The initializer Get still executes at its original binding operation, with its donors,
+abrupt completion and order. This selection supplies no normal output or descriptor proof.
+Local object-binding elements use that same current-write cut when a captured
 initializer slot is unavailable. An unresolved entry remains an input demand alongside
 possible writes. An unchanged direct alias of a destructured formal can name its own
 source Get obligation. Its initialization cut retains the saved input when the formal is
