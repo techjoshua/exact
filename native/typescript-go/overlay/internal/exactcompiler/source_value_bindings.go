@@ -210,8 +210,9 @@ func (query *sourceValueQuery) liveValues(symbol *ast.Symbol, entry []sourceValu
 				cut := query.memberWriterReadCut(nil, bindings, result)
 				for _, input := range query.memberWriterInputs(assignment.left, bindings, result, cut) {
 					// Accessor/constructor fallback scopes require their original
-					// source body context. Index membership alone cannot enter them.
-					if input.call == nil && writer != enclosingCallableNode(query.reading) && query.creators[writer].invocation == nil && (query.inputs == nil || query.inputs.declaration != writer) {
+					// source body context. An exposed callback's incomplete MAY scope
+					// remains relevant without proving a performed Call.
+					if input.call == nil && !input.incomplete && writer != enclosingCallableNode(query.reading) && query.creators[writer].invocation == nil && (query.inputs == nil || query.inputs.declaration != writer) {
 						continue
 					}
 					query.memberWriterScope(input, func() {

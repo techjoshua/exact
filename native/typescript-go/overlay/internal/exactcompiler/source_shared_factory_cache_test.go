@@ -8,6 +8,22 @@ import (
 
 const sharedFactoryCacheSource = `let cached:{field:{value:string}}|undefined;function make(){if(!cached)cached={field:{value:'safe'}};return{box:cached}}function install(box:object,value:{value:string}){Object.defineProperty(box,'field',{value})}const a=make();const b=make();const donor={get value(){return document.title}};install(a.box,donor);export const value=b.box.field.value;`
 
+// An opaque invoker exposes a captured writer without proving a performed Call.
+// That MAY scope differs from an unentered accessor or constructor fallback.
+func TestSharedFactoryCacheExposedWriter(t *testing.T) {
+	for _, rhs := range []string{`{get value(){return document.title}}`, `donor`} {
+		source := `declare function invoke(fn:()=>void):void;let cached:{value:string}|undefined;const donor={get value(){return document.title}};invoke(()=>{cached=` + rhs + `});export const value=cached!.value;`
+		r := NewSession().Execute(Request{Kind: "analyze", ID: "/virtual/cache-exposed-writer.ts", Source: source, Diagnostics: "semantic"})
+		browser, unknown := reentrantInitializerEffects(t, r, source, true)
+		if !browser || !unknown {
+			t.Fatalf("exposed cache writer lost donor/residual: %v/%v", browser, unknown)
+		}
+		if rhs == "donor" {
+			sourceNodeScript(t, source, `const fs=require('node:fs'),vm=require('node:vm'),out={};let gets=0;vm.runInNewContext(fs.readFileSync(process.argv[1],'utf8'),{exports:out,invoke(fn){fn()},document:{get title(){gets++;return 'donor'}}});if(out.value!=='donor'||gets!==1)throw Error(JSON.stringify({value:out.value,gets}));`)
+		}
+	}
+}
+
 // The cache is shared across Calls. A returned envelope cannot make its nested
 // mutable cell private, and a missing source value must not erase the donor.
 func TestSharedFactoryCacheSource(t *testing.T) {
