@@ -319,7 +319,9 @@ export function TasksPage(this: Component<{}>) {
 					JavaScript promise settlement. That getter's resource requirements also count toward task
 					placement, including getters inherited from a prototype. An own <code>then</code> property
 					masks an inherited getter. A <code>PromiseLike</code> type describes the result contract
-					without making the getter free of effects.
+					without making the getter free of effects. Giving foreign code access to a shared
+					prototype leaves its settlement behavior uncertain, including when that prototype is
+					passed inside another object.
 				</p>
 				<p>
 					A <code>Suspense</code> boundary displays fallback content while blocking work beneath it

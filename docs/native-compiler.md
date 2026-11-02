@@ -1106,7 +1106,9 @@ Calling resolve with no argument or a primitive adds no thenable work. An object
 unresolved alternatives. Ordinary async returns also perform this settlement Get. The compiler
 retains the selected getter's actual receiver, captures and zero-argument defaults separately from
 its returned value. It follows selected eager dependency operations for relevant authored
-prototype changes. Deferred installers contribute only through an admitted invocation. Missing
+prototype changes. Deferred installers contribute only through an admitted invocation. Explicit
+prototype escapes through shorthand properties, object spreads and nested containers passed to
+foreign code retain uncertainty. Missing
 inputs, callable thenables and unaccounted construction retain uncertainty. These effect facts
 do not certify the fulfilled object's fields or lifetime. Reject does not assimilate its argument. Argument evaluation still runs
 for both functions. Direct calls, `call` and `apply` share the ordinary invocation plan, including

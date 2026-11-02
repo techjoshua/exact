@@ -296,6 +296,9 @@ func (query *sourceValueQuery) explicitObjectPrototypePath(node *ast.Node, bindi
 			return root.Text() == "Object"
 		}
 		symbol := query.owner.checker.GetSymbolAtLocation(root)
+		if root.Parent != nil && ast.IsShorthandPropertyAssignment(root.Parent) {
+			symbol = query.owner.checker.GetShorthandAssignmentValueSymbol(root.Parent)
+		}
 		if symbol != nil {
 			if terms, ok := bindings[ast.GetSymbolId(symbol)]; ok {
 				for _, term := range terms {
@@ -325,7 +328,16 @@ func (query *sourceValueQuery) explicitObjectPrototypePath(node *ast.Node, bindi
 	}
 	if ast.IsObjectLiteralExpression(root) {
 		for _, field := range root.AsObjectLiteralExpression().Properties.Nodes {
-			if ast.IsPropertyAssignment(field) && query.explicitObjectPrototypePath(field.Initializer(), bindings, result, active) {
+			var value *ast.Node
+			switch {
+			case ast.IsPropertyAssignment(field):
+				value = field.Initializer()
+			case ast.IsShorthandPropertyAssignment(field):
+				value = field.Name()
+			case ast.IsSpreadAssignment(field):
+				value = field.AsSpreadAssignment().Expression
+			}
+			if value != nil && query.explicitObjectPrototypePath(value, bindings, result, active) {
 				return true
 			}
 		}
