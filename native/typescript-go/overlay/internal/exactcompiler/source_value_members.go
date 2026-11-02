@@ -128,6 +128,15 @@ func (query *sourceValueQuery) memberValuesAtGet(origin *ast.Node, projection []
 				assignment = dynamic[j]
 				j++
 			}
+			// Interference has already been collected. An opaque source acquisition
+			// needs no writer inputs when its static final key cannot occur in the
+			// demanded path. Keep structural and unknown keys on the ordinary route.
+			if query.dependenciesOnly && result.opaque && mode == accessorAcquire {
+				_, key := accessorReceiver(assignment.left)
+				if !sourceMemberKeyMaySupply(key, demand) {
+					continue
+				}
+			}
 			operation := assignment.right.Parent
 			if query.afterRead(assignment.left) {
 				continue
@@ -359,6 +368,26 @@ func (query *sourceValueQuery) memberValuesAtGet(origin *ast.Node, projection []
 		visit(value)
 	}
 	return replaced
+}
+
+// sourceMemberKeyMaySupply rejects only impossible final keys of indexed RHS
+// contributions. The final empty demand is an acquisition sentinel. Earlier
+// unknown segments and structural writes keep the full matching path.
+func sourceMemberKeyMaySupply(key string, demand []string) bool {
+	if key == "" || key == "*" || key == "__proto__" || key == "prototype" || key == "constructor" || key == "length" {
+		return true
+	}
+	known := false
+	for i, part := range demand {
+		if part == "" && i == len(demand)-1 {
+			continue
+		}
+		if part == "" || part == "*" || part == key {
+			return true
+		}
+		known = true
+	}
+	return !known
 }
 
 // sourceArrayIndex keeps canonical element keys distinct from ordinary named slots.
