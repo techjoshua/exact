@@ -82,6 +82,8 @@ func TestNativeMapCallbackInputPhases(t *testing.T) {
 		{"mixed argument getter", `declare const flag:boolean;declare const foreign:{readonly callback:(node:string)=>string};const throwing={get callback():(node:string)=>string{throw 9}};const args=flag?throwing:foreign;const input:string[]=[];input.length=1;Object.defineProperty(input,'0',{get(){return document.title},configurable:true});export function work(){return input.map(args.callback)}`, true, true},
 		{"argument success alternative", `declare const flag:boolean;const throwing={get callback():(node:string)=>string{throw 9}};const success={callback:(node:string)=>node};const args=flag?throwing:success;const input:string[]=[];input.length=1;Object.defineProperty(input,'0',{get(){return document.title},configurable:true});export function work(){return input.map(args.callback)}`, true, true},
 		{"all argument getters Throw", `declare const flag:boolean;const first={get callback():(node:string)=>string{throw 9}};const second={get callback():(node:string)=>string{throw 10}};const args=flag?first:second;const input:string[]=[];input.length=1;Object.defineProperty(input,'0',{get(){return document.title},configurable:true});export function work(){return input.map(args.callback)}`, false, true},
+		{"thisArg acquired snapshot", `let chosen={get value(){return document.title}};const args={get context(){return chosen}};const input=[{value:'safe'}];export function work(){return input.map(function(this:{value:string}){chosen={value:'safe'};return this.value},args.context)}`, true, true},
+		{"thisArg safe snapshot", `let chosen={value:'safe'};const args={get context(){return chosen}};const input=[{value:'safe'}];export function work(){return input.map(function(this:{value:string}){chosen={get value(){return document.title}};return this.value},args.context)}`, false, true},
 		{"foreign array", `declare const input:readonly {value:string}[];export function work(){return input.map(node=>node.value)}`, false, true},
 		{"foreign callback", `declare const callback:(node:{value:string})=>string;const input=[{value:'safe'}];export function work(){return input.map(callback)}`, false, true},
 		{"known body foreign alternative", `declare const foreign:(node:{value:string})=>string;declare const flag:boolean;const input=[{get value(){return document.title}}];const callback=flag?((node:{value:string})=>node.value):foreign;export function work(){return input.map(callback)}`, true, true},
@@ -107,7 +109,7 @@ func TestNativeMapCallbackInputPhases(t *testing.T) {
 			// matched phase controls and a still-red source relation unchanged.
 			want, gets, run := "safe", 0, true
 			switch test.name {
-			case "alias", "current element write", "argument receiver rebind", "argument element write", "undefined default", "sparse inherited getter":
+			case "alias", "current element write", "argument receiver rebind", "argument element write", "undefined default", "sparse inherited getter", "thisArg acquired snapshot":
 				want, gets = "browser", 1
 			case "index getter", "argument getter effect":
 				gets = 1
@@ -331,7 +333,7 @@ func TestNativeMapCallbackCallabilityPhases(t *testing.T) {
 			if !test.throws {
 				gets = 1
 			}
-			sourceNodeScript(t, response.Code, `const fs=require('node:fs'),vm=require('node:vm');let gets=0;const sandbox={exports:{},flag:false,cb:value=>value.value,document:{get title(){gets++;return 'browser'}}};vm.runInNewContext(fs.readFileSync(process.argv[1],'utf8'),sandbox);let thrown=false;try{const result=sandbox.exports.work();if(result.join(',')!=='safe')throw Error('wrong result')}catch(error){if(error.name!=='TypeError')throw error;thrown=true}if(thrown!==(process.argv[2]==='true')||gets!==Number(process.argv[3]))throw Error(JSON.stringify({thrown,gets}));`, fmt.Sprint(test.throws), fmt.Sprint(gets))
+			sourceNodeScript(t, response.Code, `const fs=require('node:fs'),vm=require('node:vm');const mixed=process.argv[4]==='true';for(const flag of(mixed?[false,true]:[false])){let gets=0;const sandbox={exports:{},flag,cb:value=>value.value,document:{get title(){gets++;return 'browser'}}};vm.runInNewContext(fs.readFileSync(process.argv[1],'utf8'),sandbox);let thrown=false;try{const result=sandbox.exports.work();if(result.join(',')!=='safe')throw Error('wrong result')}catch(error){if(error.name!=='TypeError')throw error;thrown=true}const expected=mixed?flag:process.argv[2]==='true';if(thrown!==expected||gets!==(expected?0:Number(process.argv[3])))throw Error(JSON.stringify({flag,thrown,gets}));}`, fmt.Sprint(test.throws), fmt.Sprint(gets), fmt.Sprint(test.name == "mixed callback"))
 		})
 	}
 }
@@ -351,6 +353,67 @@ func TestNativeMapNoncallableLengthOrder(t *testing.T) {
 	}
 	if !browser {
 		t.Errorf("length Get donor lost: %#v", summary.EffectSources)
+	}
+	sourceNodeScript(t, response.Code, `const fs=require('node:fs'),vm=require('node:vm');let gets=0;const sandbox={exports:{},document:{get title(){gets++;return 'browser'}}};vm.runInNewContext(fs.readFileSync(process.argv[1],'utf8'),sandbox);let thrown=false;try{sandbox.exports.work()}catch(error){if(error.name!=='TypeError')throw error;thrown=true}if(!thrown||gets!==1)throw Error(JSON.stringify({thrown,gets}));`)
+}
+
+// A noncallable result cannot erase the original argument Get's own effect.
+// Its actual source body and the later index getter are separate donor owners.
+func TestNativeMapNoncallableKeepsArgumentGet(t *testing.T) {
+	const id = "/virtual/map-noncallable-argument.ts"
+	source := `const input:{value:string}[]=[];input.length=1;Object.defineProperty(input,'0',{get(){document.title;return {value:'safe'}},configurable:true});const args={get callback(){document.title;return undefined as unknown as (node:{value:string})=>string}};export function work(){return input.map(args.callback)}`
+	session := NewSession()
+	response := session.Execute(Request{Kind: "compile", ID: id, Source: source, Diagnostics: "semantic"})
+	if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) || response.Code == "" {
+		t.Fatal("invalid emitted source", response.Error, response.Diagnostics)
+	}
+	summary := executableSummary(t, response, "work")
+	browser := false
+	for _, effect := range summary.EffectSources {
+		browser = browser || effect.Environment == "browser"
+	}
+	if !browser {
+		t.Fatal("argument Get effect lost", summary.EffectSources)
+	}
+	checked := false
+	for _, project := range session.projects {
+		file := project.program.GetSourceFile(id)
+		if file == nil || project.callableCache == nil {
+			continue
+		}
+		var call, argumentGetter, indexGetter *ast.Node
+		walkNode(file.AsNode(), func(n *ast.Node) bool {
+			if ast.IsCallExpression(n) && ast.IsPropertyAccessExpression(n.Expression()) && n.Expression().AsPropertyAccessExpression().Name().Text() == "map" {
+				call = n
+			}
+			if ast.IsGetAccessorDeclaration(n) {
+				argumentGetter = n
+			}
+			if ast.IsMethodDeclaration(n) && n.Name().Text() == "get" {
+				indexGetter = n
+			}
+			return true
+		})
+		if call == nil || argumentGetter == nil || indexGetter == nil {
+			t.Fatal("missing source owners")
+		}
+		owner := project.callableCache.owner
+		query := newSourceDependencyQuery(call, owner.checker, owner, enclosingCallableNode(call))
+		prepared, _ := query.prepareInvocation(call, nil)
+		part := accessorCandidates{}
+		query.nativeCallbackInputEffects(call, nil, prepared, &part)
+		argument, index := false, false
+		for _, effect := range part.effects {
+			argument = argument || effect.declaration == argumentGetter
+			index = index || effect.declaration == indexGetter
+		}
+		if !argument || index {
+			t.Fatalf("argument=%v index=%v", argument, index)
+		}
+		checked = true
+	}
+	if !checked {
+		t.Fatal("missing Program")
 	}
 	sourceNodeScript(t, response.Code, `const fs=require('node:fs'),vm=require('node:vm');let gets=0;const sandbox={exports:{},document:{get title(){gets++;return 'browser'}}};vm.runInNewContext(fs.readFileSync(process.argv[1],'utf8'),sandbox);let thrown=false;try{sandbox.exports.work()}catch(error){if(error.name!=='TypeError')throw error;thrown=true}if(!thrown||gets!==1)throw Error(JSON.stringify({thrown,gets}));`)
 }
