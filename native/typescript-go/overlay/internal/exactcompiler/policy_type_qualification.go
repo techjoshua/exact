@@ -246,7 +246,7 @@ func protectedPolicyContainer(value *checker.Type, typeChecker *checker.Checker)
 			return true
 		}
 	}
-	if policyNativeDataCarrier(value, typeChecker) && value.ObjectFlags()&checker.ObjectFlagsReference != 0 {
+	if (policyNativeDataCarrier(value, typeChecker) || policyStandardLibraryType(value, typeChecker)) && value.ObjectFlags()&checker.ObjectFlagsReference != 0 {
 		for _, argument := range typeChecker.GetTypeArguments(value) {
 			if _, secret := policyFromCheckerType(argument, typeChecker); secret {
 				return true
