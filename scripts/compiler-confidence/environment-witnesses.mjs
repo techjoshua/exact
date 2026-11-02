@@ -57,7 +57,10 @@ export const adapterWitnesses = ['vite', 'webpack', 'bun'].flatMap((host) => {
 			environment:
 				host +
 				' client/server bundles, ordinary TS/JS/CommonJS helpers, readonly aliases, discard and subsequent publication',
-			tests: ['isolates unrelated project initializers in both artifacts']
+			tests: [
+				'isolates unrelated project initializers in both artifacts',
+				'preserves projected module writes in both artifacts'
+			]
 		},
 		{
 			id: host + '-installed-enhancements',

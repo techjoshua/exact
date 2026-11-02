@@ -60,82 +60,7 @@ export async function verifyProjectSourceIsolation(
 			)
 		]);
 		for (const target of ['client', 'server'] as const) {
-			const outdir = path.join(root, target);
-			const options = {
-				applicationRoot: root,
-				target,
-				serverComponents: true,
-				reactCompatibility: false
-			};
-			let output = path.join(outdir, 'entry.mjs');
-			if (adapter === 'vite') {
-				const viteRequire = createRequire(new URL('../vite-plugin/package.json', import.meta.url));
-				const { exact } = await import('../vite-plugin/src/index.js');
-				const { build } = await import(pathToFileURL(viteRequire.resolve('vite')).href);
-				await build({
-					root,
-					configFile: false,
-					logLevel: 'silent',
-					plugins: [exact(options)],
-					build: {
-						outDir: outdir,
-						ssr: target === 'server' ? path.join(root, 'entry.ts') : false,
-						rollupOptions: { output: { entryFileNames: 'entry.mjs' } },
-						lib: {
-							entry: path.join(root, 'entry.ts'),
-							formats: ['es'],
-							fileName: () => 'entry.mjs'
-						},
-						minify: false
-					}
-				});
-			} else if (adapter === 'webpack') {
-				const { default: webpack } = await import('webpack');
-				const { ExactWebpackPlugin } = await import('../webpack-plugin/dist/index.js');
-				const compiler = webpack({
-					mode: 'production',
-					target: 'node',
-					context: root,
-					entry: './entry.ts',
-					output: { path: outdir, filename: 'entry.mjs', library: { type: 'module' } },
-					experiments: { outputModule: true },
-					resolve: {
-						extensions: ['.tsx', '.ts', '.js'],
-						extensionAlias: { '.js': ['.js', '.ts', '.tsx'] }
-					},
-					resolveLoader: { modules: [path.join(workspace, 'node_modules')] },
-					plugins: [new ExactWebpackPlugin(options)]
-				});
-				try {
-					const stats = await new Promise<import('webpack').Stats>((resolve, reject) =>
-						compiler.run((error, stats) =>
-							error
-								? reject(error)
-								: stats
-									? resolve(stats)
-									: reject(new Error('Missing Webpack stats'))
-						)
-					);
-					assert.equal(stats.hasErrors(), false, stats.toString({ all: false, errors: true }));
-				} finally {
-					await new Promise<void>((resolve, reject) =>
-						compiler.close((error) => (error ? reject(error) : resolve()))
-					);
-				}
-			} else {
-				const runner = path.join(root, 'build.mjs');
-				await writeFile(
-					runner,
-					`import { exact } from ${JSON.stringify(new URL('../bun-plugin/dist/index.js', import.meta.url).href)};
-const plugin = exact(${JSON.stringify(options)});
-try {
- const result = await Bun.build({entrypoints:[${JSON.stringify(path.join(root, 'entry.ts'))}],outdir:${JSON.stringify(outdir)},target:'bun',format:'esm',plugins:[plugin]});
- if (!result.success) throw new Error(JSON.stringify(result.logs));
-} finally { await plugin.dispose(); }`
-				);
-				await execute(process.env.BUN_EXECUTABLE ?? 'bun', [runner], { cwd: root });
-				output = path.join(outdir, 'entry.js');
-			}
+			const output = await buildProjectSourceArtifact(adapter, root, target);
 			const verifier = path.join(root, 'verify.mjs');
 			await writeFile(
 				verifier,
@@ -164,6 +89,154 @@ console.log('helper retained');`
 				{ cwd: root }
 			);
 			assert.equal(result.stdout.trim(), 'helper retained');
+		}
+	} finally {
+		await rm(root, { recursive: true, force: true });
+	}
+}
+
+/** Builds one artifact through the host adapter, including its finite close lifecycle. */
+async function buildProjectSourceArtifact(
+	adapter: 'vite' | 'webpack' | 'bun',
+	root: string,
+	target: 'client' | 'server',
+	include?: readonly string[]
+): Promise<string> {
+	const outdir = path.join(root, target);
+	const options = {
+		applicationRoot: root,
+		target,
+		serverComponents: true,
+		reactCompatibility: false,
+		...(include ? { include } : {})
+	};
+	let output = path.join(outdir, 'entry.mjs');
+	if (adapter === 'vite') {
+		const viteRequire = createRequire(new URL('../vite-plugin/package.json', import.meta.url));
+		const { exact } = await import('../vite-plugin/src/index.js');
+		const { build } = await import(pathToFileURL(viteRequire.resolve('vite')).href);
+		await build({
+			root,
+			configFile: false,
+			logLevel: 'silent',
+			plugins: [exact(options)],
+			build: {
+				outDir: outdir,
+				ssr: target === 'server' ? path.join(root, 'entry.ts') : false,
+				rollupOptions: { output: { entryFileNames: 'entry.mjs' } },
+				lib: {
+					entry: path.join(root, 'entry.ts'),
+					formats: ['es'],
+					fileName: () => 'entry.mjs'
+				},
+				minify: false
+			}
+		});
+	} else if (adapter === 'webpack') {
+		const { default: webpack } = await import('webpack');
+		const { ExactWebpackPlugin } = await import('../webpack-plugin/dist/index.js');
+		const compiler = webpack({
+			mode: 'production',
+			target: 'node',
+			context: root,
+			entry: './entry.ts',
+			output: { path: outdir, filename: 'entry.mjs', library: { type: 'module' } },
+			experiments: { outputModule: true },
+			resolve: {
+				extensions: ['.tsx', '.ts', '.js'],
+				extensionAlias: { '.js': ['.js', '.ts', '.tsx'] }
+			},
+			resolveLoader: { modules: [path.join(workspace, 'node_modules')] },
+			plugins: [new ExactWebpackPlugin(options)]
+		});
+		try {
+			const stats = await new Promise<import('webpack').Stats>((resolve, reject) =>
+				compiler.run((error, stats) =>
+					error
+						? reject(error)
+						: stats
+							? resolve(stats)
+							: reject(new Error('Missing Webpack stats'))
+				)
+			);
+			assert.equal(stats.hasErrors(), false, stats.toString({ all: false, errors: true }));
+		} finally {
+			await new Promise<void>((resolve, reject) =>
+				compiler.close((error) => (error ? reject(error) : resolve()))
+			);
+		}
+	} else {
+		const runner = path.join(root, 'build.mjs');
+		await writeFile(
+			runner,
+			`import { exact } from ${JSON.stringify(new URL('../bun-plugin/dist/index.js', import.meta.url).href)};
+const plugin = exact(${JSON.stringify(options)});
+try {
+ const result = await Bun.build({entrypoints:[${JSON.stringify(path.join(root, 'entry.ts'))}],outdir:${JSON.stringify(outdir)},target:'bun',format:'esm',plugins:[plugin]});
+ if (!result.success) throw new Error(JSON.stringify(result.logs));
+} finally { await plugin.dispose(); }`
+		);
+		await execute(process.env.BUN_EXECUTABLE ?? 'bun', [runner], { cwd: root });
+		output = path.join(outdir, 'entry.js');
+	}
+	return output;
+}
+
+/** Preserves the original projected call and safe control through actual adapter build hooks. */
+export async function verifyProjectedModuleWrites(
+	adapter: 'vite' | 'webpack' | 'bun'
+): Promise<void> {
+	await mkdir(path.join(workspace, '.tmp'), { recursive: true });
+	const root = await mkdtemp(path.join(workspace, '.tmp/projected-module-'));
+	try {
+		await writeFile(
+			path.join(root, 'package.json'),
+			JSON.stringify({ name: '@fixture/projected-module', type: 'module', private: true })
+		);
+		await writeFile(path.join(root, 'exact.config.mjs'), 'export default {};');
+		await writeFile(
+			path.join(root, 'tsconfig.json'),
+			JSON.stringify({
+				compilerOptions: {
+					target: 'ES2022',
+					module: 'ESNext',
+					moduleResolution: 'Bundler',
+					strict: true,
+					lib: ['ESNext', 'DOM'],
+					types: []
+				},
+				include: ['entry.ts']
+			})
+		);
+		const entry = path.join(root, 'entry.ts');
+		for (const browser of [true, false]) {
+			const rhs = browser ? 'document.title' : '"safe replacement"';
+			await writeFile(
+				entry,
+				`function make(input:{value:string}){return ()=>input.value}const input={value:"safe"};const xs=[make(input)];input.value=${rhs};export const value=xs[0]!();export const stable="stable";`
+			);
+			for (const target of ['client', 'server'] as const) {
+				// Explicit include is the supported ownership declaration for a plain TS module.
+				const output = await buildProjectSourceArtifact(adapter, root, target, [entry]);
+				const verifier = path.join(root, 'verify.mjs');
+				await writeFile(
+					verifier,
+					`import assert from 'node:assert/strict';
+let gets=0;
+globalThis.document=Object.defineProperty({},'title',{get(){gets++;return 'captured browser title'}});
+const result=await import(${JSON.stringify(pathToFileURL(output).href)});
+assert.equal(result.stable,'stable');
+${browser && target === 'server' ? "assert.equal(Object.hasOwn(result,'value'),false);" : `assert.equal(result.value,${JSON.stringify(browser ? 'captured browser title' : 'safe replacement')});`}
+assert.equal(gets,${browser && target === 'client' ? 1 : 0});
+console.log('projected module retained');`
+				);
+				const result = await execute(
+					adapter === 'bun' ? (process.env.BUN_EXECUTABLE ?? 'bun') : process.execPath,
+					[verifier],
+					{ cwd: root }
+				);
+				assert.equal(result.stdout.trim(), 'projected module retained');
+			}
 		}
 	} finally {
 		await rm(root, { recursive: true, force: true });

@@ -336,6 +336,21 @@ values, native callable identity/name/arity/prototype shape, pending invisibilit
 retained DOM and disposal. The Node 24/26 compatibility jobs also run the complete compiler test suite
 through `npm run test:compiler`, including helper rendering and portable placement checks.
 
+The same owner checks the unchanged projected-closure module and its safe RHS control
+through each adapter's client/server build hooks. An exact absolute `include` declares
+ownership of the plain TypeScript entry without adding a component importer. The fixture
+has no Core or mounted-runtime imports. Vite uses finite library and SSR builds,
+Webpack uses its production module-library build, and Bun uses native `Bun.build`.
+Each emitted module executes in a fresh Node process, or native Bun for the Bun
+adapter. Assertions check the stable export, browser title value with one getter read,
+server omission of that value with zero getter reads, and safe replacement values with
+zero getter reads on both targets. The environment profile registers this named test for
+all three adapters. Registration does not establish successful execution of that profile.
+Focused adapter runs establish these module assertions separately from canonical
+repository test collection, whose global Core setup remains a prerequisite.
+This is source-adapter module coverage, separate from installed
+packages, Core regeneration, mounted components, hydration and HTTP runtimes.
+
 Library publication regressions reject opaque component placement, shadowed portable globals,
 application-added collection methods, and declarations with standard-library lookalike filenames.
 Each failed generation preserves the previous artifacts. Native source controls pair those failures

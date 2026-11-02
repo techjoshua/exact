@@ -599,6 +599,17 @@ registerCompilerClosedSsrIntegration(describeBun, testApi);
 
 describeBun('project source isolation', () => {
 	testApi.it(
+		'preserves projected module writes in both artifacts',
+		async () => {
+			const { verifyProjectedModuleWrites } = await import(
+				'../../test-support/project-source-isolation.js'
+			);
+			await verifyProjectedModuleWrites('bun');
+		},
+		60000
+	);
+
+	testApi.it(
 		'isolates unrelated project initializers in both artifacts',
 		async () => {
 			const { verifyProjectSourceIsolation } = await import(
