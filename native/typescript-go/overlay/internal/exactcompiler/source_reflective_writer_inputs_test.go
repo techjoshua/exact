@@ -184,3 +184,18 @@ func TestReflectiveGetterFormalEmitted(t *testing.T) {
 		})
 	}
 }
+
+// Returned New alternatives retain their individual instance identity through
+// lowering, including independent descriptor installations on sibling instances.
+func TestReflectiveClassWriterInputsEmitted(t *testing.T) {
+	const source = `export function run(){class Box{field={value:"safe"}}function make(){return new Box()}function install(box:Box,value:{value:string}){Object.defineProperty(box,"field",{value})}const a=make(),b=make();install(a,{value:"donor"});const first=[a.field.value,b.field.value];install(b,{value:"other"});return [...first,a.field.value,b.field.value,a===b]}`
+	for _, target := range []Target{TargetClient, TargetServer} {
+		t.Run(string(target), func(t *testing.T) {
+			response := NewSession().Execute(Request{Kind: "compile", ID: "/virtual/reflective-class-inputs.ts", Source: source, Target: target, Diagnostics: "semantic"})
+			if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) || response.Code == "" {
+				t.Fatal(response.Error, response.Diagnostics)
+			}
+			sourceNodeScript(t, response.Code, `const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),out={};vm.runInNewContext(fs.readFileSync(process.argv[1],'utf8'),{exports:out});assert.deepEqual(Array.from(out.run()),['donor','safe','donor','other',false]);`)
+		})
+	}
+}

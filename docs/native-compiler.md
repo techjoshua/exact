@@ -1908,9 +1908,11 @@ republishing that Call's arguments, defaults or callee effects. Unsupported outp
 remains an opaque original Call origin for indexed MAY writes. This supplies no
 Object.create freshness, native descriptor completion or normal Get output.
 Selected source return projection keeps the existing dependency-entry and active-body
-ownership through return reachability and value consumption. An initializer or captured
-binding that asks for its own pending return rejoins those source inputs instead of starting
-another acquisition from copied scopes. Saturated reentry retains uncertainty without supplying
+ownership through return reachability and completion selection. Selected values then
+pass to downstream consumers with their creating scope after that acquisition interval ends.
+A sibling allocation comparison therefore does not inherit saturation from the completed
+selection. An initializer or captured binding that asks for its own pending return during
+selection rejoins those source inputs instead of starting another acquisition from copied scopes. Saturated reentry retains uncertainty without supplying
 an undefined value or successful completion. Other input alternatives and discovered donors
 remain available. This source interval does not change normal output or completion authority,
 and emitted code retains ordinary JavaScript initialization and Throw behavior.
