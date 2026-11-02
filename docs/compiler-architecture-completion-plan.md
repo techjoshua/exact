@@ -290,11 +290,13 @@ are immutable snapshots, compared by source contents. The borrow expires before 
 default or body dispatch. It supplies no value, completion, alias or NoWrites proof.
 Snapshot and comparison scans contribute to the existing advisory cost estimate without
 limiting analysis or charging normal queries.
-Finite source rest/copied descriptions can participate when their container-origin ancestor
-shapes do not repeat. Container presence, nil versus present-empty alternatives, copied keys
+Finite source rest/copied and capture descriptions can participate when their source-origin
+ancestor shapes do not repeat. Container presence, nil versus present-empty alternatives, copied keys
 and ordered rest slots remain distinct. Repeated shapes decline proof rather than equating
-contexts, including some finite descriptions. Captured, adapted and normal input carriers
-retain their existing acquisition route. This closes the reduced descriptor/freeze acquisition cycle
+contexts, including some finite descriptions. Capture bindings and creator body/call/return
+endpoints share the top-level immutable context snapshot and exact content matcher. Absent
+and present-empty captures remain distinct. Adapted and normal input carriers retain their
+existing acquisition route. This closes the reduced descriptor/freeze acquisition cycle
 for supported syntax inputs without claiming request-wide Core termination or general
 source-context equivalence. Finite body-entry joins remain a different relation.
 

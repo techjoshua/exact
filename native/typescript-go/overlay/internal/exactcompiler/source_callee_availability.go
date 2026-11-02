@@ -4,14 +4,18 @@ import "github.com/microsoft/TypeScript/tsc/internal/ast"
 
 // sourcePendingCallee names unavailable output while one original Call acquires
 // its callee and receiver. Syntax inputs and creator endpoints are snapshots,
-// not activation identities or completed results. Normal/runtime carriers and
-// source captures cannot use this negative availability relation. Source
-// rest/copied containers retain their exact contents.
+// not activation identities or completed results. Source descriptions retain
+// exact rest/copied and acyclic capture contents.
+// Normal/runtime carriers cannot use this negative availability relation.
 type sourcePendingCallee struct {
-	owner    *sourceValueQuery
-	call     *ast.Node
-	prior    *sourcePendingCallee
-	cuts     [4]*ast.Node
+	owner *sourceValueQuery
+	call  *ast.Node
+	prior *sourcePendingCallee
+	cuts  [4]*ast.Node
+	sourceCalleeScope
+}
+
+type sourceCalleeScope struct {
 	bindings []sourceCalleeBinding
 	creators []sourceCalleeCreator
 }
@@ -27,6 +31,7 @@ type sourceCalleeTerm struct {
 	undefined bool
 	rest      [][]sourceCalleeTerm
 	copied    map[string][]sourceCalleeTerm
+	capture   *sourceCalleeScope
 }
 
 type sourceCalleeCreator struct {
@@ -34,10 +39,10 @@ type sourceCalleeCreator struct {
 	creation sourceValueCreation
 }
 
-// calleeSyntaxCarrier declines captured, adapted and normal terms. Rest/copied
-// contents need their own finite source-description snapshot before comparison.
+// calleeSyntaxCarrier declines adapted and normal terms. Source capture and
+// container contents need a finite immutable description before comparison.
 func calleeSyntaxCarrier(value sourceValue) bool {
-	return value.capture == nil && value.instance == nil && value.number == (numberPayload{}) &&
+	return value.instance == nil && value.number == (numberPayload{}) &&
 		value.ownedGetRow == nil && value.initializerUse == nil && value.adapter == nil &&
 		value.acquired == nil && value.entrySlot == nil && value.bound == nil && value.normal == nil &&
 		len(value.forwarded) == 0 && value.awaited == nil && value.native == nil
@@ -47,9 +52,9 @@ func calleeSyntaxCarrier(value sourceValue) bool {
 // including some finite descriptions. It proves no graph equivalence. Pointer
 // allocation identities, finite body-entry joins and depth limits are not keys.
 type sourceCalleeAncestor struct {
-	node         *ast.Node
-	rest, copied bool
-	prior        *sourceCalleeAncestor
+	node                  *ast.Node
+	rest, copied, capture bool
+	prior                 *sourceCalleeAncestor
 }
 
 // snapshotCalleeTerms copies source containers, preserving absent versus present
@@ -66,14 +71,14 @@ func (query *sourceValueQuery) snapshotCalleeTerms(values []sourceValue, ancesto
 			return nil, false
 		}
 		parent := ancestors
-		if len(value.rest) > 0 || len(value.copied) > 0 {
+		if len(value.rest) > 0 || len(value.copied) > 0 || value.capture != nil && len(value.capture.bindings) > 0 {
 			for ancestor := ancestors; ancestor != nil; ancestor = ancestor.prior {
 				query.recordEstimatedCost(1)
-				if ancestor.node == value.node && ancestor.rest == (value.rest != nil) && ancestor.copied == (value.copied != nil) {
+				if ancestor.node == value.node && ancestor.rest == (value.rest != nil) && ancestor.copied == (value.copied != nil) && ancestor.capture == (value.capture != nil) {
 					return nil, false
 				}
 			}
-			parent = &sourceCalleeAncestor{node: value.node, rest: value.rest != nil, copied: value.copied != nil, prior: ancestors}
+			parent = &sourceCalleeAncestor{node: value.node, rest: value.rest != nil, copied: value.copied != nil, capture: value.capture != nil, prior: ancestors}
 		}
 		term := sourceCalleeTerm{node: value.node, path: append([]string(nil), value.path...), undefined: value.undefined}
 		if value.rest != nil {
@@ -98,6 +103,13 @@ func (query *sourceValueQuery) snapshotCalleeTerms(values []sourceValue, ancesto
 				term.copied[key] = copied
 			}
 		}
+		if value.capture != nil {
+			scope, ok := query.snapshotCalleeScope(value.capture.bindings, value.capture.creators, parent)
+			if !ok {
+				return nil, false
+			}
+			term.capture = &scope
+		}
 		terms[i] = term
 	}
 	return terms, true
@@ -114,7 +126,7 @@ func (query *sourceValueQuery) matchCalleeTerms(previous []sourceCalleeTerm, val
 		query.recordEstimatedCost(1)
 		value := values[i]
 		if !calleeSyntaxCarrier(value) || term.node != value.node || term.undefined != value.undefined || len(term.path) != len(value.path) ||
-			(term.rest == nil) != (value.rest == nil) || (term.copied == nil) != (value.copied == nil) || len(term.rest) != len(value.rest) || len(term.copied) != len(value.copied) {
+			(term.rest == nil) != (value.rest == nil) || (term.copied == nil) != (value.copied == nil) || len(term.rest) != len(value.rest) || len(term.copied) != len(value.copied) || (term.capture == nil) != (value.capture == nil) {
 			return false
 		}
 		for j, key := range term.path {
@@ -122,6 +134,9 @@ func (query *sourceValueQuery) matchCalleeTerms(previous []sourceCalleeTerm, val
 			if key != value.path[j] {
 				return false
 			}
+		}
+		if term.capture != nil && !query.calleeScopeBoundary(*term.capture, value.capture.bindings, value.capture.creators) {
+			return false
 		}
 		// Validate this node's entire container boundary before descending into
 		// any child. Current extra keys/slots/alternatives cannot hide a cycle.
@@ -152,6 +167,63 @@ func (query *sourceValueQuery) matchCalleeTerms(previous []sourceCalleeTerm, val
 				return false
 			}
 		}
+		if term.capture != nil && !query.matchCalleeScopeBindings(*term.capture, value.capture.bindings) {
+			return false
+		}
+	}
+	return true
+}
+
+// snapshotCalleeScope shares immutable source bindings and creator endpoints
+// between the original selection context and nested source captures.
+func (query *sourceValueQuery) snapshotCalleeScope(bindings sourceValueBindings, creators map[*ast.Node]sourceValueCreation, ancestors *sourceCalleeAncestor) (sourceCalleeScope, bool) {
+	scope := sourceCalleeScope{}
+	for symbol, values := range bindings {
+		query.recordEstimatedCost(1)
+		terms, ok := query.snapshotCalleeTerms(values, ancestors)
+		if !ok {
+			return sourceCalleeScope{}, false
+		}
+		scope.bindings = append(scope.bindings, sourceCalleeBinding{symbol: symbol, values: terms})
+	}
+	for body, creation := range creators {
+		query.recordEstimatedCost(1)
+		scope.creators = append(scope.creators, sourceCalleeCreator{body: body, creation: creation})
+	}
+	return scope, true
+}
+
+// calleeScopeBoundary checks all source keys, alternative cardinalities and
+// creator endpoints before any nested input description is traversed.
+func (query *sourceValueQuery) calleeScopeBoundary(previous sourceCalleeScope, bindings sourceValueBindings, creators map[*ast.Node]sourceValueCreation) bool {
+	if len(previous.bindings) != len(bindings) || len(previous.creators) != len(creators) {
+		return false
+	}
+	for _, creator := range previous.creators {
+		query.recordEstimatedCost(1)
+		current, present := creators[creator.body]
+		if !present || current != creator.creation {
+			return false
+		}
+	}
+	for _, binding := range previous.bindings {
+		query.recordEstimatedCost(1)
+		current, present := bindings[binding.symbol]
+		if !present || (binding.values == nil) != (current == nil) || len(binding.values) != len(current) {
+			return false
+		}
+	}
+	return true
+}
+
+// matchCalleeScopeBindings consumes an already checked scope boundary. Recursion
+// follows only its finite immutable description, without scope identity or joins.
+func (query *sourceValueQuery) matchCalleeScopeBindings(previous sourceCalleeScope, bindings sourceValueBindings) bool {
+	for _, binding := range previous.bindings {
+		query.recordEstimatedCost(1)
+		if !query.matchCalleeTerms(binding.values, bindings[binding.symbol]) {
+			return false
+		}
 	}
 	return true
 }
@@ -171,18 +243,11 @@ func (query *sourceValueQuery) beginCalleeAcquisition(call *ast.Node, bindings s
 	}
 	query.recordEstimatedCost(1)
 	pending := sourcePendingCallee{owner: query, call: call, prior: query.pendingCallee, cuts: query.calleeAcquisitionCuts()}
-	for symbol, values := range bindings {
-		query.recordEstimatedCost(1)
-		terms, ok := query.snapshotCalleeTerms(values, nil)
-		if !ok {
-			return nil
-		}
-		pending.bindings = append(pending.bindings, sourceCalleeBinding{symbol: symbol, values: terms})
+	scope, ok := query.snapshotCalleeScope(bindings, query.creators, nil)
+	if !ok {
+		return nil
 	}
-	for body, creation := range query.creators {
-		query.recordEstimatedCost(1)
-		pending.creators = append(pending.creators, sourceCalleeCreator{body: body, creation: creation})
-	}
+	pending.sourceCalleeScope = scope
 	query.pendingCallee = &pending
 	return func() {
 		query.pendingCallee = pending.prior
@@ -205,21 +270,7 @@ func (query *sourceValueQuery) pendingCalleeOutput(call *ast.Node, bindings sour
 			len(pending.bindings) != len(bindings) || len(pending.creators) != len(query.creators) {
 			continue
 		}
-		same := true
-		for _, creator := range pending.creators {
-			query.recordEstimatedCost(1)
-			current, present := query.creators[creator.body]
-			same = same && present && current == creator.creation
-		}
-		for _, binding := range pending.bindings {
-			query.recordEstimatedCost(1)
-			values, present := bindings[binding.symbol]
-			if !present || !query.matchCalleeTerms(binding.values, values) {
-				same = false
-				break
-			}
-		}
-		if same {
+		if query.calleeScopeBoundary(pending.sourceCalleeScope, bindings, query.creators) && query.matchCalleeScopeBindings(pending.sourceCalleeScope, bindings) {
 			return true
 		}
 	}

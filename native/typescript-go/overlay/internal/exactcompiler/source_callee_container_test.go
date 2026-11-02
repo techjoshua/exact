@@ -176,9 +176,9 @@ func TestPendingCalleeContainerDescriptions(t *testing.T) {
 			})
 		}
 		unsupported := fresh()
-		unsupported.copied["nested"][0].rest[0][0].capture = &acquiredCallableScope{}
+		unsupported.copied["nested"][0].rest[0][0].capture = &acquiredCallableScope{bindings: sourceValueBindings{1: {{normal: &sourceNormalValue{}}}}}
 		if q.beginCalleeAcquisition(call, sourceValueBindings{1: {unsupported}}) != nil {
-			t.Fatal("nested source capture described")
+			t.Fatal("normal carrier inside source capture described")
 		}
 		repeated := sourceValue{node: first, copied: map[string][]sourceValue{"child": {{node: first, copied: map[string][]sourceValue{"leaf": {{node: second}}}}}}}
 		if q.beginCalleeAcquisition(call, sourceValueBindings{1: {repeated}}) != nil {
