@@ -272,12 +272,21 @@ func (query *sourceValueQuery) reflectiveMemberValuesAtGet(origin *ast.Node, pro
 		}
 		return nil, possible
 	}
-	if reflectiveDescriptorCall(node.AsCallExpression(), query.owner.checker) {
+	// These exclusions do not depend on writer inputs. Apply the existing
+	// operation gate before acquiring those inputs can reopen the native member
+	// currently being selected. The normal consumer retains its own same gate.
+	call := node.AsCallExpression()
+	descriptorCall := reflectiveDescriptorCall(call, query.owner.checker)
+	native := actualGet != nil && actualGet.receiver.native != nil
+	if query.active[node] || !descriptorCall && (!native || !resolvedReflectiveMutation(call.Expression, query.owner.checker, map[ast.SymbolId]bool{})) {
+		return nil, false
+	}
+	if descriptorCall {
 		key := name
 		if len(projection) > 0 {
 			key = projection[0]
 		}
-		selected := sourceLiteralMemberName(unwrapSourceCallableReference(node.AsCallExpression().Arguments.Nodes[1]))
+		selected := sourceLiteralMemberName(unwrapSourceCallableReference(call.Arguments.Nodes[1]))
 		if selected != "" && (selected != key || actualGet != nil && actualGet.symbol != nil) {
 			// A literal key cannot depend on writer inputs. Exclude it before
 			// acquiring those inputs reenters this unrelated member lookup.

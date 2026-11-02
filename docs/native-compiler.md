@@ -1933,12 +1933,16 @@ fresh allocation or a completed native result. Descriptor getter values use the 
 source bindings as literal getter bodies, including default initialization and captured returns.
 Earlier getter-selection effects remain with descriptor installation. Literal descriptor keys
 are compared before caller-input acquisition, avoiding reentry through an unrelated member.
+Active indexed operations and ineligible mutation categories are excluded before projecting
+writer inputs. They cannot reopen the native member acquisition that selected the same Call.
 Constructor-context disjointness requires the existing allocation law on both alternatives. Source interference uses the same
 original Call's existing performed-write proof rather than losing it at the input boundary.
 
-Source SDK state-write execution remains blocked before test collection by a native stack
+The last source SDK state-write attempt stopped before test collection with a native stack
 overflow while transforming `packages/core/src/component/error-boundary.tsx`. Passing the
 class-receiver native cohort does not establish that SDK path or request-wide termination.
+The later integrated Core replay still misses its request deadline, so that SDK path requires
+fresh execution after termination is repaired.
 
 Maintainer validation uses `node scripts/build-native-compiler.mjs --source <pinned checkout>`.
 The build prepares workspace declarations with the installed official TypeScript 7 CLI,
