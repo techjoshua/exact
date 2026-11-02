@@ -135,6 +135,8 @@ func (query *sourceValueQuery) memberValuesAtGet(origin *ast.Node, projection []
 			// Interference has already been collected. An opaque source acquisition
 			// needs no writer inputs when its static final key cannot occur in the
 			// demanded path. Keep structural and unknown keys on the ordinary route.
+			// Opacity is required: input matching also retains refused writer/setter
+			// scopes. A disjoint RHS key alone cannot exclude those effects.
 			if query.dependenciesOnly && result.opaque && mode == accessorAcquire {
 				_, key := accessorReceiver(assignment.left)
 				if !sourceMemberKeyMaySupply(key, demand) {
