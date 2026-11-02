@@ -334,6 +334,10 @@ func (query *sourceValueQuery) origins(node *ast.Node, bindings sourceValueBindi
 		values = query.liveValues(symbol, values, root, bindings, result)
 		return query.boundProjection(values, path, result)
 	}
+	if values, acquired := query.sourceLocalBindingValues(symbol, bindings, result); acquired {
+		values = query.liveValues(symbol, values, root, bindings, result)
+		return query.boundProjection(values, path, result)
+	}
 	if !query.dependenciesOnly && query.missingNormalInput(symbol, root, bindings, result) {
 		return []sourceValue{{node: root, path: path, entrySlot: symbol.ValueDeclaration}}
 	}

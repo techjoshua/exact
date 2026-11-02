@@ -314,3 +314,48 @@ func (query *sourceValueQuery) liveValues(symbol *ast.Symbol, entry []sourceValu
 	}
 	return values
 }
+
+// sourceLocalBindingValues projects a local pattern's value relationship at its
+// authored acquisition cut under its selected creating scope. Uninstantiated
+// summaries retain their relative demand. The ordinary binder owns Get/default selection.
+// Only values and uncertainty escape, so earlier Get/body effects are not
+// republished at a later captured read. No normal output or receipt is issued.
+func (query *sourceValueQuery) sourceLocalBindingValues(symbol *ast.Symbol, bindings sourceValueBindings, result *accessorCandidates) ([]sourceValue, bool) {
+	if !query.dependenciesOnly || symbol == nil || symbol.ValueDeclaration == nil || !ast.IsBindingElement(symbol.ValueDeclaration) {
+		return nil, false
+	}
+	declaration := symbol.ValueDeclaration
+	for declaration != nil && (ast.IsBindingElement(declaration) || ast.IsObjectBindingPattern(declaration) || ast.IsArrayBindingPattern(declaration)) {
+		declaration = declaration.Parent
+	}
+	if declaration == nil || !ast.IsVariableDeclaration(declaration) || declaration.Initializer() == nil || query.active[declaration] {
+		return nil, false
+	}
+	owner := enclosingCallableNode(declaration)
+	creator := query.creators[owner].invocation
+	if owner == nil || creator == nil {
+		return nil, false
+	}
+	part := accessorCandidates{}
+	scope := query.acquireCallableScope(bindings, &part)
+	reading, initializing, returning := query.reading, query.initializing, query.returning
+	query.reading, query.initializing, query.returning = declaration, declaration, nil
+	defer func() { query.reading, query.initializing, query.returning = reading, initializing, returning }()
+	// The creating Call is not an external writer while matching its own input.
+	// Same-owner indexed writes still use their original before/after cut.
+	query.withPendingWriterInput(creator, &part, func() {
+		query.withActiveInvocation(declaration, func() {
+			values := query.originsAt(declaration.Initializer(), declaration, bindings, &part)
+			// This transient default plan has no normal operations or receipts.
+			inputs := &sourceValueInputs{declaration: owner, bindings: scope.bindings, defaults: make(map[*ast.Node]sourceDefaultInput)}
+			query.bindInputPattern(declaration.Name(), values, scope.bindings, &part, accessorAcquire, inputs)
+		})
+	})
+	values, acquired := scope.bindings[ast.GetSymbolId(symbol)]
+	incomplete := part.opaque || part.valueIncomplete || part.receiverIncomplete || part.fieldReceiverIncomplete
+	result.valueIncomplete = result.valueIncomplete || incomplete
+	if acquired && (len(values) == 0 || incomplete) {
+		values = append(append([]sourceValue(nil), values...), sourceValue{})
+	}
+	return values, acquired
+}

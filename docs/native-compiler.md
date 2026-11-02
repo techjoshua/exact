@@ -1012,10 +1012,14 @@ that lexical order. A proved unconditional replacement before the read supersede
 value. Local object-binding elements use that same current-write cut when a captured
 initializer slot is unavailable. An unresolved entry remains an input demand alongside
 possible writes. Binding-time Gets name their original binding element and source slot for
-source effect coverage. That coverage neither supplies a normal own-slot receipt nor
-reconstructs an unavailable initial capture from its type. A callable invoked after its
-creator returns observes the live binding after that
-creating activation completes. This includes unconditional assignments within the selected return
+source effect coverage. Initial pattern values project from the selected creating scope at
+the authored acquisition cut through the ordinary binder. Only value relationships and
+uncertainty reach a later capture. Earlier Getter, argument and body effects remain at
+their original operation. Same-owner writes before the binding still contribute, while
+later source-input replacement does not retarget the acquired value. That coverage
+neither supplies a normal own-slot receipt nor reconstructs an unavailable initial capture
+from its type. A callable invoked after its creator returns observes the live binding after
+that creating activation completes. This includes unconditional assignments within the selected return
 expression and enclosing `finally` blocks. Selecting the returned callable does not snapshot its
 captures. A definitely abrupt `finally` supersedes the earlier returned value, while the earlier
 return expression still executes. A call made inside the creator uses that invocation's earlier

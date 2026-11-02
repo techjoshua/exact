@@ -969,6 +969,11 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 				visitOrigins(values, projection, instance)
 				return
 			}
+			if values, acquired := query.sourceLocalBindingValues(symbol, arguments, &result); acquired {
+				values = query.liveValues(symbol, values, value, arguments, &result)
+				visitOrigins(values, projection, instance)
+				return
+			}
 			if query.dependenciesOnly && symbol.ValueDeclaration != nil && ast.IsBindingElement(symbol.ValueDeclaration) && !sourcePatternParameter(value, typeChecker) {
 				// Local pattern slots obey the same live writer cut as lexical aliases.
 				// An uninstalled initializer remains a demand, not an acquired value.
