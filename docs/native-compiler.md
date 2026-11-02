@@ -1015,8 +1015,10 @@ possible writes. An unchanged direct alias of a destructured formal can name its
 source Get obligation. Its initialization cut retains the saved input when the formal is
 later replaced. A caller's complete source observation accounts for that exact Get, while
 normal output and descriptor admission remain separate. Binding-time Gets name their
-original binding element and source slot for
-source effect coverage. Initial pattern values project from the selected creating scope at
+original binding element and source slot for source effect coverage. Nested object
+patterns retain each Get's operation while referring to the outer initializer's input
+slot. The existing binder supplies intermediate values and owns computed-key and default
+evaluation. Initial pattern values project from the selected creating scope at
 the authored acquisition cut through the ordinary binder. Only value relationships and
 uncertainty reach a later capture. Earlier Getter, argument and body effects remain at
 their original operation. Same-owner writes before the binding still contribute, while

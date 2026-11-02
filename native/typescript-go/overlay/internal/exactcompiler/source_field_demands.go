@@ -190,8 +190,9 @@ func (query *sourceValueQuery) missingFieldGet(value sourceValue, key string, op
 	return true
 }
 
-// sourceLocalPatternGetReceiver names a direct Get in a local object pattern.
-// It supplies only source effect substitution, never a normal descriptor proof.
+// sourceLocalPatternGetReceiver names an authored Get in a local object pattern.
+// Nested Gets retain their own operation and the outer initializer's input slot.
+// Only source effect substitution uses this relation, never normal descriptors.
 func sourceLocalPatternGetReceiver(operation *ast.Node, key string) *ast.Node {
 	if operation == nil || !ast.IsBindingElement(operation) || key == "" {
 		return nil
@@ -200,20 +201,40 @@ func sourceLocalPatternGetReceiver(operation *ast.Node, key string) *ast.Node {
 	if pattern == nil || !ast.IsObjectBindingPattern(pattern) {
 		return nil
 	}
-	declaration := pattern.Parent
-	if declaration == nil || !ast.IsVariableDeclaration(declaration) || declaration.Name() != pattern || declaration.Initializer() == nil {
-		return nil
-	}
+	matched := false
 	for index, binding := range pattern.AsBindingPattern().Elements.Nodes {
 		if binding == operation {
 			selected, finite := bindingSegment(pattern, binding, index)
-			if finite && selected == key && binding.AsBindingElement().DotDotDotToken == nil {
-				return unwrapSourceCallableReference(declaration.Initializer())
+			if property := binding.AsBindingElement().PropertyName; property != nil && ast.IsComputedPropertyName(property) {
+				selected = sourceLiteralMemberName(property.AsComputedPropertyName().Expression)
+				finite = selected != ""
 			}
+			matched = finite && selected == key && binding.AsBindingElement().DotDotDotToken == nil
+			break
+		}
+	}
+	if !matched {
+		return nil
+	}
+	for {
+		declaration := pattern.Parent
+		if declaration == nil {
+			return nil
+		}
+		if ast.IsVariableDeclaration(declaration) {
+			if declaration.Name() != pattern || declaration.Initializer() == nil {
+				return nil
+			}
+			return unwrapSourceCallableReference(declaration.Initializer())
+		}
+		if !ast.IsBindingElement(declaration) || declaration.Name() != pattern {
+			return nil
+		}
+		pattern = declaration.Parent
+		if pattern == nil || !ast.IsObjectBindingPattern(pattern) {
 			return nil
 		}
 	}
-	return nil
 }
 
 // sourcePatternAlias names an unchanged direct alias of a destructured formal.

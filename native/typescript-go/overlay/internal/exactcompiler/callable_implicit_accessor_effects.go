@@ -219,22 +219,28 @@ func (query *sourceValueQuery) bindingPropertyOperation(values []sourceValue, ke
 	result = &field
 	defer func() {
 		if operation != nil && ast.IsBindingElement(operation) {
-			pattern := operation.Parent
-			if pattern != nil && ast.IsObjectBindingPattern(pattern) {
-				if declaration := pattern.Parent; declaration != nil && ast.IsVariableDeclaration(declaration) {
-					if demand, _ := query.fieldDemand(operation, declaration.Initializer(), key); demand.declaration != nil {
-						covered := false
-						if query.dependenciesOnly {
-							// Source substitution covers this Get's effects, without an
-							// own-slot receipt or a normal value/descriptor certificate.
-							covered = field.sourceOwned && !field.fieldReceiverIncomplete
-						} else {
-							covered = query.fieldSlotsCover(operation, key, values, field.ownSlots, &field)
-						}
-						fulfilled := len(values) > 0 && covered && !field.opaque && !field.valueIncomplete && !field.receiverIncomplete
-						field.fieldOutcomes = append(field.fieldOutcomes, sourceFieldOutcome{demand: demand, fulfilled: fulfilled})
+			demand := query.operationFieldDemand(operation, key)
+			if !query.dependenciesOnly {
+				// Preserve the original normal captured-slot request. Source-only
+				// nested coverage cannot widen its top-level receipt contract.
+				pattern := operation.Parent
+				if pattern != nil && ast.IsObjectBindingPattern(pattern) {
+					if declaration := pattern.Parent; declaration != nil && ast.IsVariableDeclaration(declaration) {
+						demand, _ = query.fieldDemand(operation, declaration.Initializer(), key)
 					}
 				}
+			}
+			if demand.declaration != nil {
+				covered := false
+				if query.dependenciesOnly {
+					// Source substitution covers this Get's effects, without an
+					// own-slot receipt or a normal value/descriptor certificate.
+					covered = field.sourceOwned && !field.fieldReceiverIncomplete
+				} else {
+					covered = query.fieldSlotsCover(operation, key, values, field.ownSlots, &field)
+				}
+				fulfilled := len(values) > 0 && covered && !field.opaque && !field.valueIncomplete && !field.receiverIncomplete
+				field.fieldOutcomes = append(field.fieldOutcomes, sourceFieldOutcome{demand: demand, fulfilled: fulfilled})
 			}
 		}
 		mergeAccessorCandidates(parent, field)
