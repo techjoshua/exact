@@ -679,7 +679,7 @@ func (query *sourceValueQuery) executeInputs(declaration *ast.Node, bindings sou
 		func() {
 			node := demand.node
 			finish := query.normalWork(result, node)
-			defer finish()
+			defer finish.finish(result)
 			previousInitializing := query.initializing
 			defer func() { query.initializing = previousInitializing }()
 			demandBindings := bindings

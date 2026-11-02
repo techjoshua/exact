@@ -363,9 +363,10 @@ func (query *sourceValueQuery) setterWriteProducer(left *ast.Node, bindings sour
 // sourceNumericPrefix is a query-local proof of the actual startup-to-acquisition
 // prefix. It retains completed occurrences, not an abstract heap or a reusable
 // clean environment. Unknown execution refuses the whole proof under existing fuel.
+// The borrowed result is passed separately through synchronous proof steps. Keeping
+// it out of the proof record prevents escaping proof inputs from retaining it.
 type sourceNumericPrefix struct {
 	query       *sourceValueQuery
-	result      *accessorCandidates
 	path        map[*ast.Node]*ast.Node
 	active      map[*ast.Node]bool
 	initialized map[*ast.SourceFile]bool
@@ -393,7 +394,7 @@ func (query *sourceValueQuery) numericBindingReplacement(symbol *ast.Symbol, rea
 	if !implicit {
 		return nil, false
 	}
-	proof := &sourceNumericPrefix{query: query, result: result, path: make(map[*ast.Node]*ast.Node), active: make(map[*ast.Node]bool), initialized: make(map[*ast.SourceFile]bool), allocated: make(map[*ast.Node]bool), bindings: make(map[ast.SymbolId]bool)}
+	proof := &sourceNumericPrefix{query: query, path: make(map[*ast.Node]*ast.Node), active: make(map[*ast.Node]bool), initialized: make(map[*ast.SourceFile]bool), allocated: make(map[*ast.Node]bool), bindings: make(map[ast.SymbolId]bool)}
 	root := read
 	for root.Parent != nil {
 		if !query.charge(result, root) {
@@ -415,7 +416,7 @@ func (query *sourceValueQuery) numericBindingReplacement(symbol *ast.Symbol, rea
 		proof.path[parent] = root
 		root = parent
 	}
-	if !ast.IsSourceFile(root) || !ast.IsExternalModule(root.AsSourceFile()) || !proof.imports(root.AsSourceFile()) || !proof.node(root) {
+	if !ast.IsSourceFile(root) || !ast.IsExternalModule(root.AsSourceFile()) || !proof.imports(root.AsSourceFile(), result) || !proof.node(root, result) {
 		return nil, false
 	}
 	var selected *sourceImplicitInvocation
@@ -441,13 +442,13 @@ func (query *sourceValueQuery) numericBindingReplacement(symbol *ast.Symbol, rea
 // literal initialization without further syntactic runtime imports is admitted here.
 // Standard emit elision serves operation dependency proofs, not this numeric
 // startup premise. An erased import cannot relax its historical prefix policy.
-func (proof *sourceNumericPrefix) imports(source *ast.SourceFile) bool {
+func (proof *sourceNumericPrefix) imports(source *ast.SourceFile, result *accessorCandidates) bool {
 	index := proof.query.owner.index(source)
 	if index.incomplete {
 		return false
 	}
 	for _, node := range index.runtimeImports {
-		if !proof.query.charge(proof.result, node) || !ast.IsImportDeclaration(node) {
+		if !proof.query.charge(result, node) || !ast.IsImportDeclaration(node) {
 			return false
 		}
 		// Alias resolution identifies a value, not every module that initializes it.
@@ -466,7 +467,7 @@ func (proof *sourceNumericPrefix) imports(source *ast.SourceFile) bool {
 			return false
 		}
 		for _, imported := range named.AsNamedImports().Elements.Nodes {
-			if !proof.query.charge(proof.result, imported) {
+			if !proof.query.charge(result, imported) {
 				return false
 			}
 			symbol := proof.query.owner.checker.GetSymbolAtLocation(imported.Name())
@@ -485,7 +486,7 @@ func (proof *sourceNumericPrefix) imports(source *ast.SourceFile) bool {
 				continue
 			}
 			for _, statement := range producer.Statements.Nodes {
-				if !ast.IsVariableStatement(statement) && !ast.IsFunctionDeclaration(statement) || !proof.node(statement) {
+				if !ast.IsVariableStatement(statement) && !ast.IsFunctionDeclaration(statement) || !proof.node(statement, result) {
 					return false
 				}
 			}
@@ -499,8 +500,8 @@ func (proof *sourceNumericPrefix) imports(source *ast.SourceFile) bool {
 // direct zero-input source calls and the selected numeric activation. It is not a
 // JavaScript evaluator. Loops, accessors, reflective work and unsupported operations
 // refuse rather than gaining a completed-write fact from possible effects.
-func (proof *sourceNumericPrefix) node(node *ast.Node) bool {
-	if node == nil || !proof.query.charge(proof.result, node) {
+func (proof *sourceNumericPrefix) node(node *ast.Node, result *accessorCandidates) bool {
+	if node == nil || !proof.query.charge(result, node) {
 		return false
 	}
 	next := proof.path[node]
@@ -512,7 +513,7 @@ func (proof *sourceNumericPrefix) node(node *ast.Node) bool {
 			statements = node.AsBlock().Statements.Nodes
 		}
 		for _, statement := range statements {
-			if !proof.node(statement) {
+			if !proof.node(statement, result) {
 				return false
 			}
 			if statement == next {
@@ -523,7 +524,7 @@ func (proof *sourceNumericPrefix) node(node *ast.Node) bool {
 	}
 	if ast.IsVariableStatement(node) {
 		for _, declaration := range node.AsVariableStatement().DeclarationList.AsVariableDeclarationList().Declarations.Nodes {
-			if !proof.query.charge(proof.result, declaration) || !ast.IsIdentifier(declaration.Name()) || !proof.node(declaration.Initializer()) {
+			if !proof.query.charge(result, declaration) || !ast.IsIdentifier(declaration.Name()) || !proof.node(declaration.Initializer(), result) {
 				return false
 			}
 			if symbol := proof.query.owner.checker.GetSymbolAtLocation(declaration.Name()); symbol != nil {
@@ -536,22 +537,22 @@ func (proof *sourceNumericPrefix) node(node *ast.Node) bool {
 		return true
 	}
 	if ast.IsVariableDeclaration(node) {
-		return ast.IsIdentifier(node.Name()) && proof.node(node.Initializer())
+		return ast.IsIdentifier(node.Name()) && proof.node(node.Initializer(), result)
 	}
 	if ast.IsImportDeclaration(node) || ast.IsFunctionDeclaration(node) {
 		return true
 	}
 	if ast.IsIfStatement(node) {
-		return next == node.AsIfStatement().Expression && proof.node(next)
+		return next == node.AsIfStatement().Expression && proof.node(next, result)
 	}
 	if ast.IsExpressionStatement(node) {
-		return proof.node(node.AsExpressionStatement().Expression)
+		return proof.node(node.AsExpressionStatement().Expression, result)
 	}
 	if ast.IsReturnStatement(node) {
-		return next != nil && proof.node(next)
+		return next != nil && proof.node(next, result)
 	}
 	if ast.IsParenthesizedExpression(node) || ast.IsAsExpression(node) || ast.IsSatisfiesExpression(node) || ast.IsNonNullExpression(node) {
-		return proof.node(node.Expression())
+		return proof.node(node.Expression(), result)
 	}
 	if ast.IsIdentifier(node) {
 		symbol := proof.query.owner.checker.GetSymbolAtLocation(node)
@@ -571,11 +572,11 @@ func (proof *sourceNumericPrefix) node(node *ast.Node) bool {
 	}
 	if ast.IsObjectLiteralExpression(node) {
 		for _, member := range node.AsObjectLiteralExpression().Properties.Nodes {
-			if !proof.query.charge(proof.result, member) || member.Name() == nil || ast.IsComputedPropertyName(member.Name()) || callableNameText(member.Name()) == "__proto__" {
+			if !proof.query.charge(result, member) || member.Name() == nil || ast.IsComputedPropertyName(member.Name()) || callableNameText(member.Name()) == "__proto__" {
 				return false
 			}
 			if ast.IsPropertyAssignment(member) {
-				if !proof.node(member.AsPropertyAssignment().Initializer) {
+				if !proof.node(member.AsPropertyAssignment().Initializer, result) {
 					return false
 				}
 			} else if !ast.IsMethodDeclaration(member) {
@@ -586,14 +587,14 @@ func (proof *sourceNumericPrefix) node(node *ast.Node) bool {
 		return true
 	}
 	if ast.IsPropertyAccessExpression(node) && next == node.AsPropertyAccessExpression().Expression {
-		return proof.node(next)
+		return proof.node(next, result)
 	}
 	if ast.IsPrefixUnaryExpression(node) {
-		invocation := proof.query.numericOwnInvocation(node, proof.producer, proof.result)
+		invocation := proof.query.numericOwnInvocation(node, proof.producer, result)
 		if invocation == nil || !proof.allocated[invocation.receiver] {
 			return false
 		}
-		if invocation.assignment != nil && !proof.globalPut(invocation.assignment.AsBinaryExpression().Left) {
+		if invocation.assignment != nil && !proof.globalPut(invocation.assignment.AsBinaryExpression().Left, result) {
 			return false
 		}
 		if invocation.producer == nil {
@@ -607,7 +608,7 @@ func (proof *sourceNumericPrefix) node(node *ast.Node) bool {
 	}
 	call := node.AsCallExpression()
 	if next == call.Expression {
-		return proof.node(next)
+		return proof.node(next, result)
 	}
 	if !ast.IsIdentifier(call.Expression) || call.Arguments != nil && len(call.Arguments.Nodes) != 0 {
 		return false
@@ -631,7 +632,7 @@ func (proof *sourceNumericPrefix) node(node *ast.Node) bool {
 		proof.producer = node
 	}
 	proof.active[body] = true
-	accepted := proof.node(body.Body())
+	accepted := proof.node(body.Body(), result)
 	delete(proof.active, body)
 	proof.producer = previous
 	return accepted
@@ -640,8 +641,8 @@ func (proof *sourceNumericPrefix) node(node *ast.Node) bool {
 // globalPut requires the binder-owned globalThis namespace and actual standard
 // Number variable symbol. Its writable ordinary startup slot survives only this
 // admitted prefix. A type-compatible receiver or authored ambient shadow is not it.
-func (proof *sourceNumericPrefix) globalPut(left *ast.Node) bool {
-	if !proof.query.charge(proof.result, left) || !ast.IsPropertyAccessExpression(left) {
+func (proof *sourceNumericPrefix) globalPut(left *ast.Node, result *accessorCandidates) bool {
+	if !proof.query.charge(result, left) || !ast.IsPropertyAccessExpression(left) {
 		return false
 	}
 	receiver := left.AsPropertyAccessExpression().Expression

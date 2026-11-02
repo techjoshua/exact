@@ -47,7 +47,7 @@ func appendBoundAccessorEffects(fact *callableFacts, node *ast.Node, targets map
 		} else {
 			finish := query.normalWork(&candidates, node)
 			candidates = query.evaluatedSourceAccessors(node, fact.normalInputs.bindings)
-			finish()
+			finish.finish(&candidates)
 		}
 	} else {
 		candidates = evaluatedSourceAccessors(node, typeChecker, bindings, owner, fact.node, nil)

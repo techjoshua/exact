@@ -33,7 +33,7 @@ func visitImplicitAccessors(node *ast.Node, typeChecker *checker.Checker, bindin
 	}
 	result := accessorCandidates{}
 	finish := query.normalWork(&result, node)
-	defer func() { finish(); visit(result) }()
+	defer func() { finish.finish(&result); visit(result) }()
 	if !query.dependenciesOnly {
 		query.returnObservation = &sourceReturnObservation{owner: consumer, reader: node, frame: query.inputs, receipts: receipts}
 	}

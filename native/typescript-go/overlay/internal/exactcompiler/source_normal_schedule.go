@@ -320,7 +320,7 @@ func (query *sourceValueQuery) consumeNormalPhase(phase sourceNormalPhase, bindi
 		result.opaque, result.valueIncomplete, result.cause = true, true, phase.node
 		return
 	}
-	defer query.normalWork(result, phase.node)()
+	defer query.normalWork(result, phase.node).finish(result)
 	if phase.role == sourceNormalAdmit {
 		if !query.charge(result, phase.node) {
 			slot.state = sourceOperationRefused
@@ -555,7 +555,7 @@ func (query *sourceValueQuery) consumeNormalGet(node *ast.Node, bindings sourceV
 			produced.output.componentRefs = candidateContributionReferences(result)
 		}
 	}()
-	defer query.normalWork(&result, node)()
+	defer query.normalWork(&result, node).finish(&result)
 	priorOperation := query.operation
 	if priorOperation != nil && query.inputs != nil && priorOperation.inputs == query.inputs && priorOperation.owner == query.inputs.declaration {
 		query.operation = &sourceOperationContext{node: node, owner: priorOperation.owner, inputs: query.inputs, outputOnly: priorOperation.outputOnly}

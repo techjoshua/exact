@@ -30,7 +30,7 @@ type sourceInvocationConsumer struct {
 }
 
 func (query *sourceValueQuery) invocation(node *ast.Node, bindings sourceValueBindings) (result accessorCandidates) {
-	defer query.normalWork(&result, node)()
+	defer query.normalWork(&result, node).finish(&result)
 	slot := query.normalOperation(node, false)
 	if slot != nil {
 		defer func() { finishNormalPending(query.inputs, slot) }()
@@ -399,7 +399,7 @@ func sourceInvocationWithResults(node *ast.Node, c *checker.Checker, owner *exec
 			query.returnObservation.frame = normal[0]
 		}
 	}
-	defer query.normalWork(&result, node)()
+	defer query.normalWork(&result, node).finish(&result)
 	references := accessorCandidates{}
 	query.retainThenOperation(node, nil, &references)
 	result = query.invocation(node, nil)
@@ -987,7 +987,12 @@ func (query *sourceValueQuery) visitSourceCallableInvocation(value *ast.Node, pr
 	result.declarations = append(result.declarations, value)
 	previousReturn := query.returning
 	query.returning = nil
-	invoke(value, arguments, result)
+	// The callback borrows the complete current result during this synchronous
+	// visit. Publish every header change, including partial changes on panic,
+	// without making all non-callback accessor results escape through invoke.
+	callbackResult := *result
+	defer func() { *result = callbackResult }()
+	invoke(value, arguments, &callbackResult)
 	query.returning = previousReturn
 	return true
 }

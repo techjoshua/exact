@@ -68,7 +68,7 @@ func releaseNormalDispatcher(inputs *sourceValueInputs) {
 // normalWork bounds fresh callback queries by every admitted enclosing operation.
 // A nested wrapper pays only ledgers not already owned by an outer interval.
 // Defers debit actual work on all exits, including refusal and panic unwinding.
-func (query *sourceValueQuery) normalWork(result *accessorCandidates, node *ast.Node) func() {
+func (query *sourceValueQuery) normalWork(result *accessorCandidates, node *ast.Node) sourceNormalWork {
 	var candidates []*sourceNormalOperation
 	if query.inputs != nil && query.inputs.dispatcher != nil {
 		candidates = append(candidates, query.inputs.dispatcher.pending...)
@@ -97,22 +97,36 @@ func (query *sourceValueQuery) normalWork(result *accessorCandidates, node *ast.
 			break
 		}
 	}
-	return func() {
-		spent := before - query.remaining
-		if spent < 0 {
-			spent = before
-			recordCandidateLocalCause(result, node, "normal work negative spent")
-			result.ownedLocalCauses = append(result.ownedLocalCauses, "normal work negative spent")
-			result.opaque = true
-		}
-		for _, slot := range ledgers {
-			delete(query.workLedgers, slot)
-			slot.remaining -= spent
+	return sourceNormalWork{query: query, node: node, ledgers: ledgers, priorLedgers: priorLedgers, before: before}
+}
 
-		}
-		if priorLedgers == nil && len(query.workLedgers) == 0 {
-			query.workLedgers = nil
-		}
+// sourceNormalWork retains only entry-selected ledger state. Its caller finishes
+// it exactly once at the original cleanup point, borrowing the current result
+// only for that finish rather than retaining it in an escaping closure.
+type sourceNormalWork struct {
+	query        *sourceValueQuery
+	node         *ast.Node
+	ledgers      []*sourceNormalOperation
+	priorLedgers map[*sourceNormalOperation]bool
+	before       int
+}
+
+// finish debits actual work and restores ledger ownership on the same exits as
+// the owning consumer. Negative spent work keeps its original result effects.
+func (work sourceNormalWork) finish(result *accessorCandidates) {
+	spent := work.before - work.query.remaining
+	if spent < 0 {
+		spent = work.before
+		recordCandidateLocalCause(result, work.node, "normal work negative spent")
+		result.ownedLocalCauses = append(result.ownedLocalCauses, "normal work negative spent")
+		result.opaque = true
+	}
+	for _, slot := range work.ledgers {
+		delete(work.query.workLedgers, slot)
+		slot.remaining -= spent
+	}
+	if work.priorLedgers == nil && len(work.query.workLedgers) == 0 {
+		work.query.workLedgers = nil
 	}
 }
 
