@@ -41,8 +41,14 @@ func TestTaskPendingOperationSources(t *testing.T) {
 				t.Run(fmt.Sprintf("%s/%s/inspection=%t", c.name, target, inspection), func(t *testing.T) {
 					source := `import {TaskContext,type Component} from '@exactjs/core';` + c.definitions + `export function Probe(this:Component<{count:number;values:number[];trace:string}>){this.state.count=0;this.state.values=[];this.state.trace='';const run=async(task:TaskContext=TaskContext.client().blocking())=>{this.state.values.push(0);` + c.work + `};return()=> <button onClick={()=>run()}>{this.state.trace}</button>;}`
 					response := NewSession().Execute(Request{Kind: "compile", ID: "pending-operations.tsx", Source: source, Target: target, Diagnostics: "semantic", InstrumentInspection: inspection})
-					if response.Error != "" || len(response.Diagnostics) != 0 || response.Code == "" {
+					if response.Error != "" || response.Code == "" {
 						t.Fatalf("valid pending operation rejected: %s %#v", response.Error, response.Diagnostics)
+					}
+					// Advisory work estimates do not invalidate emitted ownership contracts.
+					for _, diagnostic := range response.Diagnostics {
+						if diagnostic.Severity != "warning" || diagnostic.Code != "EXACT_ANALYSIS_COST" {
+							t.Fatalf("unexpected pending operation diagnostic: %#v", diagnostic)
+						}
 					}
 					if len(response.Analysis.Tasks) != 1 || response.Analysis.Tasks[0].Placement != "client" {
 						t.Fatalf("pending task ownership changed: %#v", response.Analysis.Tasks)
