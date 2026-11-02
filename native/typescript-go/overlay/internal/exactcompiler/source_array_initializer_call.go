@@ -41,25 +41,3 @@ func sourceArrayInitializerCallLayout(r *storageRecipe) (*ast.Node, int, bool) {
 	}
 	return d, pc, true
 }
-
-// arrayInitializerReady reads the actual pre-Call array from current registers.
-// It cannot allocate, replace a value or initialize a destination on refusal.
-func arrayInitializerReady(r *storageRecipe, pc int, a languageAlternative, values []languageValue, ready []bool, work *languageCopyWork) bool {
-	reg := r.events[pc+1].a
-	if reg < 0 || reg >= len(values) || !ready[reg] || values[reg].object == nil || !values[reg].object.array || values[reg].object.origin != r.events[reg].node {
-		return false
-	}
-	object := values[reg].object
-	o := a.branch.owner
-	if o == nil || object.id.owner != o {
-		return false
-	}
-	// Quote both canonical own-record scans, without a semantic cost cutoff.
-	for row := a.branch.state.storage; row != nil; row = row.previous {
-		work.spend(2)
-	}
-	_, present, complete, _ := o.readOwnRecord(a.branch, object, languageStringKey("0"))
-	length, lp, lc, _ := o.readOwnRecord(a.branch, object, languageStringKey("length"))
-	number, known := numericNumberPayload(length.value)
-	return !present && complete && lp && lc && !length.accessor && length.writable && !length.enumerable && !length.configurable && known && float64(number) == 0
-}
