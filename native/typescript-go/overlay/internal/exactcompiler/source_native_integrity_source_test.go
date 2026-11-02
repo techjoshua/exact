@@ -162,3 +162,19 @@ func TestSourceFreezeArgumentEffectOwnership(t *testing.T) {
 		t.Fatal("original argument Get lost its browser effect")
 	}
 }
+
+// A fixed spread tuple retains its getter donor through an authored native alias.
+func TestSourceFreezeTupleSpreadDonor(t *testing.T) {
+	const source = `export function read(){const freeze=Object.freeze;const args=[{get value(){return document.title}}] as const;return freeze(...args).value}`
+	r := NewSession().Execute(Request{Kind: "analyze", ID: "/virtual/freeze-tuple-argument.ts", Source: source, Diagnostics: "semantic"})
+	if r.Error != "" || hasErrorDiagnostic(r.Diagnostics) {
+		t.Fatal(r.Error, r.Diagnostics)
+	}
+	fact := findCallable(t, r.Analysis.Callables, "read")
+	for _, effect := range fact.EffectSources {
+		if effect.Environment == "browser" {
+			return
+		}
+	}
+	t.Fatal("tuple spread lost its getter donor")
+}

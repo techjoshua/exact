@@ -2102,6 +2102,10 @@ their independent uncertainty. Source projection supplies no integrity event, no
 descriptor or absence fact, field DATA or NoWrites proof. Source descriptor Top remains Top.
 The original Call is excluded only while matching its own input/return relationship, without
 excluding other writers. Earlier argument acquisition effects remain at the original Call.
+Fixed tuple spreads through an authored freeze alias retain their source getter donors.
+Abrupt-expression coverage remains conservative: a known throwing property initializer can
+still leave a later accessor as a possible donor. This predates the source freeze relationship
+and does not establish successful argument evaluation.
 
 An authenticated native `Object.freeze` Call can publish an integrity event for a finite immediate ordinary object literal. The original argument observation owns its identity and captures. Data members, including shorthand syntax, retain their original value observations and uncertainty. Freeze does not invoke its accessors. Later source reads preserve those accessors, while the same event records nonextensibility, nonconfigurable properties and nonwritable data properties. Unknown or aliased target shapes retain conditional value origins and effects without a completed freeze event. Primitive targets remain conservative rather than being assigned an Object.defineProperty-style throwing law.
 
