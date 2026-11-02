@@ -49,12 +49,16 @@ func (query *sourceValueQuery) calleeAcquisitionCuts() [4]*ast.Node {
 // The complete selection interval includes the final receiver-origin lookup,
 // which can demand the same still-unavailable Call through a descriptor writer.
 // No scope/map allocation identity participates in the source-content match.
+// Snapshot and comparison scans update advisory cost without limiting analysis.
 func (query *sourceValueQuery) beginCalleeAcquisition(call *ast.Node, bindings sourceValueBindings) func() {
 	if !query.dependenciesOnly || query.inputs != nil {
 		return nil
 	}
+	query.recordEstimatedCost(1)
 	for _, values := range bindings {
+		query.recordEstimatedCost(1)
 		for _, value := range values {
+			query.recordEstimatedCost(1)
 			if !calleeSyntaxTerm(value) {
 				return nil
 			}
@@ -62,13 +66,16 @@ func (query *sourceValueQuery) beginCalleeAcquisition(call *ast.Node, bindings s
 	}
 	pending := sourcePendingCallee{owner: query, call: call, prior: query.pendingCallee, cuts: query.calleeAcquisitionCuts()}
 	for symbol, values := range bindings {
+		query.recordEstimatedCost(1)
 		binding := sourceCalleeBinding{symbol: symbol, values: make([]sourceCalleeTerm, len(values))}
 		for i, value := range values {
+			query.recordEstimatedCost(1 + len(value.path))
 			binding.values[i] = sourceCalleeTerm{node: value.node, path: append([]string(nil), value.path...), undefined: value.undefined}
 		}
 		pending.bindings = append(pending.bindings, binding)
 	}
 	for body, creation := range query.creators {
+		query.recordEstimatedCost(1)
 		pending.creators = append(pending.creators, sourceCalleeCreator{body: body, creation: creation})
 	}
 	query.pendingCallee = &pending
@@ -86,29 +93,35 @@ func (query *sourceValueQuery) pendingCalleeOutput(call *ast.Node, bindings sour
 	if !query.dependenciesOnly || query.inputs != nil {
 		return false
 	}
+	query.recordEstimatedCost(1)
 	for pending := query.pendingCallee; pending != nil; pending = pending.prior {
+		query.recordEstimatedCost(1)
 		if pending.owner != query || pending.call != call || pending.cuts != query.calleeAcquisitionCuts() ||
 			len(pending.bindings) != len(bindings) || len(pending.creators) != len(query.creators) {
 			continue
 		}
 		same := true
 		for _, creator := range pending.creators {
+			query.recordEstimatedCost(1)
 			current, present := query.creators[creator.body]
 			same = same && present && current == creator.creation
 		}
 		for _, binding := range pending.bindings {
+			query.recordEstimatedCost(1)
 			values, present := bindings[binding.symbol]
 			if !present || len(values) != len(binding.values) {
 				same = false
 				break
 			}
 			for i, previous := range binding.values {
+				query.recordEstimatedCost(1)
 				value := values[i]
 				if !calleeSyntaxTerm(value) || previous.node != value.node || previous.undefined != value.undefined || len(previous.path) != len(value.path) {
 					same = false
 					break
 				}
 				for j, key := range previous.path {
+					query.recordEstimatedCost(1)
 					same = same && key == value.path[j]
 				}
 			}

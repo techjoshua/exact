@@ -288,6 +288,8 @@ acquires its callee and receiver, a return demand for that same pending selectio
 unknown when its syntax inputs, creator endpoints and read cuts match. These descriptions
 are immutable snapshots, compared by source contents. The borrow expires before argument,
 default or body dispatch. It supplies no value, completion, alias or NoWrites proof.
+Snapshot and comparison scans contribute to the existing advisory cost estimate without
+limiting analysis or charging normal queries.
 Captured, adapted, container and normal input carriers decline this comparison and retain
 their existing acquisition route. This closes the reduced descriptor/freeze acquisition cycle
 for supported syntax inputs without claiming request-wide Core termination or general

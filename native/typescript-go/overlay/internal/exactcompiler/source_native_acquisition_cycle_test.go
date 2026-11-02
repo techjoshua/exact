@@ -140,9 +140,13 @@ func TestPendingCalleeAvailabilityLifetime(t *testing.T) {
 		q := newSourceDependencyQuery(call, project.callableCache.owner.values.checker, project.callableCache.owner, body)
 		bindings := sourceValueBindings{1: {{node: first, path: []string{"value"}}}}
 		q.creators = map[*ast.Node]sourceValueCreation{body: {invocation: other}}
+		beforeCost, beforeRemaining := q.estimatedCost, q.remaining
 		release := q.beginCalleeAcquisition(call, bindings)
 		if release == nil || !q.pendingCalleeOutput(call, bindings) {
 			t.Fatal("live syntax context not withheld")
+		}
+		if q.estimatedCost <= beforeCost || q.remaining != beforeRemaining {
+			t.Fatal("snapshot work was unaccounted or depleted execution fuel")
 		}
 		initial := q.pendingCallee
 		copy := *q
@@ -192,6 +196,7 @@ func TestPendingCalleeAvailabilityLifetime(t *testing.T) {
 			t.Fatal("nested borrow failed to restore prior")
 		}
 		q.inputs = &sourceValueInputs{}
+		beforeCost = q.estimatedCost
 		if q.pendingCalleeOutput(call, bindings) || q.beginCalleeAcquisition(call, bindings) != nil {
 			t.Fatal("input frame acquired availability proof")
 		}
@@ -199,6 +204,9 @@ func TestPendingCalleeAvailabilityLifetime(t *testing.T) {
 		q.dependenciesOnly = false
 		if q.pendingCalleeOutput(call, bindings) || q.beginCalleeAcquisition(call, bindings) != nil {
 			t.Fatal("normal query acquired availability proof")
+		}
+		if q.estimatedCost != beforeCost || q.remaining != beforeRemaining {
+			t.Fatal("normal or installed-input refusal charged source snapshot work")
 		}
 		q.dependenciesOnly = true
 		release()
