@@ -223,7 +223,15 @@ func (query *sourceValueQuery) bindingPropertyOperation(values []sourceValue, ke
 			if pattern != nil && ast.IsObjectBindingPattern(pattern) {
 				if declaration := pattern.Parent; declaration != nil && ast.IsVariableDeclaration(declaration) {
 					if demand, _ := query.fieldDemand(operation, declaration.Initializer(), key); demand.declaration != nil {
-						fulfilled := len(values) > 0 && query.fieldSlotsCover(operation, key, values, field.ownSlots, &field) && !field.opaque && !field.valueIncomplete && !field.receiverIncomplete
+						covered := false
+						if query.dependenciesOnly {
+							// Source substitution covers this Get's effects, without an
+							// own-slot receipt or a normal value/descriptor certificate.
+							covered = field.sourceOwned && !field.fieldReceiverIncomplete
+						} else {
+							covered = query.fieldSlotsCover(operation, key, values, field.ownSlots, &field)
+						}
+						fulfilled := len(values) > 0 && covered && !field.opaque && !field.valueIncomplete && !field.receiverIncomplete
 						field.fieldOutcomes = append(field.fieldOutcomes, sourceFieldOutcome{demand: demand, fulfilled: fulfilled})
 					}
 				}

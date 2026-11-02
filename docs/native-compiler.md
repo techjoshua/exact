@@ -1009,7 +1009,12 @@ Local `const`, `let` and `var` aliases retain the source value read at initializ
 same-owner assignments and direct lexical calls before initialization contribute to that value.
 An own binding read in a callable uses its body occurrence when the creating call is outside
 that lexical order. A proved unconditional replacement before the read supersedes the entry
-value. A callable invoked after its creator returns observes the live binding after that
+value. Local object-binding elements use that same current-write cut when a captured
+initializer slot is unavailable. An unresolved entry remains an input demand alongside
+possible writes. Binding-time Gets name their original binding element and source slot for
+source effect coverage. That coverage neither supplies a normal own-slot receipt nor
+reconstructs an unavailable initial capture from its type. A callable invoked after its
+creator returns observes the live binding after that
 creating activation completes. This includes unconditional assignments within the selected return
 expression and enclosing `finally` blocks. Selecting the returned callable does not snapshot its
 captures. A definitely abrupt `finally` supersedes the earlier returned value, while the earlier

@@ -68,11 +68,18 @@ func (query *sourceValueQuery) fieldDemand(operation, receiver *ast.Node, key st
 	if ast.IsParameterDeclaration(symbol.ValueDeclaration) {
 		// Naming a bound lexical read is not an activation/descriptor proof.
 		// Exact coverage remains the responsibility of its separate consumer.
-		if !ast.IsIdentifier(symbol.ValueDeclaration.Name()) || !ast.IsPropertyAccessExpression(operation) && !ast.IsElementAccessExpression(operation) {
+		if !ast.IsIdentifier(symbol.ValueDeclaration.Name()) {
 			return sourceFieldDemand{}, nil
 		}
 
-		actual, selected := accessorReceiver(operation)
+		var actual *ast.Node
+		selected := ""
+		if ast.IsPropertyAccessExpression(operation) || ast.IsElementAccessExpression(operation) {
+			actual, selected = accessorReceiver(operation)
+		}
+		if query.dependenciesOnly && sourceLocalPatternGetReceiver(operation, key) == receiver {
+			actual, selected = receiver, key
+		}
 		if actual != receiver || selected != key {
 			return sourceFieldDemand{}, nil
 		}
@@ -80,10 +87,10 @@ func (query *sourceValueQuery) fieldDemand(operation, receiver *ast.Node, key st
 		if !ast.IsVariableDeclaration(symbol.ValueDeclaration) && !ast.IsBindingElement(symbol.ValueDeclaration) {
 			return sourceFieldDemand{}, nil
 		}
-		// A destructured formal is still a relative input to this declaration.
-		// Only source effect substitution may account for its same-owner Get.
-		// Normal descriptor/output admission and ordinary locals stay unchanged.
-		if declaration == slotOwner && !(query.dependenciesOnly && sourcePatternParameter(root, query.owner.checker)) {
+		// Destructured formals and actual local pattern Gets are source-relative
+		// input operations. Other same-owner locals and normal descriptor/output
+		// admission retain their separate contracts.
+		if declaration == slotOwner && !(query.dependenciesOnly && (sourcePatternParameter(root, query.owner.checker) || sourceLocalPatternGetReceiver(operation, key) == receiver)) {
 			return sourceFieldDemand{}, nil
 		}
 	}
@@ -93,6 +100,12 @@ func (query *sourceValueQuery) fieldDemand(operation, receiver *ast.Node, key st
 // operationFieldDemand names the authored receiver before alias projection.
 // A traversal through an alias initializer must not change the obligation's slot.
 func (query *sourceValueQuery) operationFieldDemand(operation *ast.Node, key string) sourceFieldDemand {
+	if query.dependenciesOnly {
+		if receiver := sourceLocalPatternGetReceiver(operation, key); receiver != nil {
+			demand, _ := query.fieldDemand(operation, receiver, key)
+			return demand
+		}
+	}
 	if operation == nil || (!ast.IsPropertyAccessExpression(operation) && !ast.IsElementAccessExpression(operation)) {
 		return sourceFieldDemand{}
 	}
@@ -175,4 +188,30 @@ func (query *sourceValueQuery) missingFieldGet(value sourceValue, key string, op
 	}
 	result.valueIncomplete = true
 	return true
+}
+
+// sourceLocalPatternGetReceiver names a direct Get in a local object pattern.
+// It supplies only source effect substitution, never a normal descriptor proof.
+func sourceLocalPatternGetReceiver(operation *ast.Node, key string) *ast.Node {
+	if operation == nil || !ast.IsBindingElement(operation) || key == "" {
+		return nil
+	}
+	pattern := operation.Parent
+	if pattern == nil || !ast.IsObjectBindingPattern(pattern) {
+		return nil
+	}
+	declaration := pattern.Parent
+	if declaration == nil || !ast.IsVariableDeclaration(declaration) || declaration.Name() != pattern || declaration.Initializer() == nil {
+		return nil
+	}
+	for index, binding := range pattern.AsBindingPattern().Elements.Nodes {
+		if binding == operation {
+			selected, finite := bindingSegment(pattern, binding, index)
+			if finite && selected == key && binding.AsBindingElement().DotDotDotToken == nil {
+				return unwrapSourceCallableReference(declaration.Initializer())
+			}
+			return nil
+		}
+	}
+	return nil
 }

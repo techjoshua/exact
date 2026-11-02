@@ -969,6 +969,21 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 				visitOrigins(values, projection, instance)
 				return
 			}
+			if query.dependenciesOnly && symbol.ValueDeclaration != nil && ast.IsBindingElement(symbol.ValueDeclaration) && !sourcePatternParameter(value, typeChecker) {
+				// Local pattern slots obey the same live writer cut as lexical aliases.
+				// An uninstalled initializer remains a demand, not an acquired value.
+				unresolved := false
+				for _, current := range query.liveValues(symbol, []sourceValue{{node: value}}, value, arguments, &result) {
+					if current.node == value && len(current.path) == 0 {
+						unresolved = true
+					} else {
+						visitOrigins([]sourceValue{current}, projection, instance)
+					}
+				}
+				if !unresolved {
+					return
+				}
+			}
 			if symbol.ValueDeclaration != nil && (ast.IsParameterDeclaration(symbol.ValueDeclaration) || ast.IsBindingElement(symbol.ValueDeclaration)) {
 				if query.dependenciesOnly && mode == accessorRead && (name != "" || len(projection) > 0) {
 					key := name
