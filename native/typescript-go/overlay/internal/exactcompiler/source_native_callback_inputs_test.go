@@ -297,3 +297,60 @@ func TestNativeMapArgumentProjectionRefusals(t *testing.T) {
 		t.Fatal("missing Program")
 	}
 }
+
+// Map checks callback callability before indexed Gets. A source category can
+// exclude an impossible callback without proving invocation or result values.
+func TestNativeMapCallbackCallabilityPhases(t *testing.T) {
+	for _, test := range []struct {
+		name, callback  string
+		browser, throws bool
+	}{
+		{"undefined", `const cb=undefined as unknown as (value:{value:string})=>string;`, false, true},
+		{"number", `const cb=0 as unknown as (value:{value:string})=>string;`, false, true},
+		{"object", `const cb={} as unknown as (value:{value:string})=>string;`, false, true},
+		{"known callable", `const cb=(value:{value:string})=>value.value;`, true, false},
+		{"unknown callable", `declare const cb:(value:{value:string})=>string;`, true, false},
+		{"mixed callback", `declare const flag:boolean;const cb=flag?(undefined as unknown as (value:{value:string})=>string):((value:{value:string})=>value.value);`, true, false},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			source := `const input:{value:string}[]=[];input.length=1;Object.defineProperty(input,'0',{get(){document.title;return {value:'safe'}},configurable:true});` + test.callback + `export function work(){return input.map(cb)}`
+			response := NewSession().Execute(Request{Kind: "compile", ID: "/virtual/map-callback-category.ts", Source: source, Diagnostics: "semantic"})
+			if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) || response.Code == "" {
+				t.Fatal("invalid emitted source", response.Error, response.Diagnostics)
+			}
+			summary := executableSummary(t, response, "work")
+			browser, unknown := false, false
+			for _, effect := range summary.EffectSources {
+				browser = browser || effect.Environment == "browser"
+				unknown = unknown || effect.Environment == "unknown"
+			}
+			if browser != test.browser || !unknown {
+				t.Errorf("browser=%v unknown=%v: %#v", browser, unknown, summary.EffectSources)
+			}
+			gets := 0
+			if !test.throws {
+				gets = 1
+			}
+			sourceNodeScript(t, response.Code, `const fs=require('node:fs'),vm=require('node:vm');let gets=0;const sandbox={exports:{},flag:false,cb:value=>value.value,document:{get title(){gets++;return 'browser'}}};vm.runInNewContext(fs.readFileSync(process.argv[1],'utf8'),sandbox);let thrown=false;try{const result=sandbox.exports.work();if(result.join(',')!=='safe')throw Error('wrong result')}catch(error){if(error.name!=='TypeError')throw error;thrown=true}if(thrown!==(process.argv[2]==='true')||gets!==Number(process.argv[3]))throw Error(JSON.stringify({thrown,gets}));`, fmt.Sprint(test.throws), fmt.Sprint(gets))
+		})
+	}
+}
+
+// Native map reads length before checking callback callability. A borrowed
+// library method cannot hide that independent source Get behind the callback.
+func TestNativeMapNoncallableLengthOrder(t *testing.T) {
+	source := `const input={map:Array.prototype.map,get length(){document.title;return 1},0:{value:'safe'}};const cb=undefined as unknown as (value:{value:string})=>string;export function work(){return input.map(cb)}`
+	response := NewSession().Execute(Request{Kind: "compile", ID: "/virtual/map-length-order.ts", Source: source, Diagnostics: "semantic"})
+	if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) || response.Code == "" {
+		t.Fatal("invalid emitted source", response.Error, response.Diagnostics)
+	}
+	summary := executableSummary(t, response, "work")
+	browser := false
+	for _, effect := range summary.EffectSources {
+		browser = browser || effect.Environment == "browser"
+	}
+	if !browser {
+		t.Errorf("length Get donor lost: %#v", summary.EffectSources)
+	}
+	sourceNodeScript(t, response.Code, `const fs=require('node:fs'),vm=require('node:vm');let gets=0;const sandbox={exports:{},document:{get title(){gets++;return 'browser'}}};vm.runInNewContext(fs.readFileSync(process.argv[1],'utf8'),sandbox);let thrown=false;try{sandbox.exports.work()}catch(error){if(error.name!=='TypeError')throw error;thrown=true}if(!thrown||gets!==1)throw Error(JSON.stringify({thrown,gets}));`)
+}

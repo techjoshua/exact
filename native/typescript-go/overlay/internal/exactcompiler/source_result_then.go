@@ -34,12 +34,12 @@ func (query *sourceValueQuery) settlementThen(get *sourceGetInputs, bindings sou
 		if setter && !getter && get.freshReturn && len(selected.effects.values) == 0 {
 			selected.effects.values = append(selected.effects.values, sourceValue{undefined: true})
 		}
-		selected.noncallable = !selected.effects.opaque && sourceThenValuesNoncallable(selected.effects.values)
+		selected.noncallable = !selected.effects.opaque && sourceValuesNoncallable(selected.effects.values)
 		retainCallableThenEffects(&selected.effects, get.operation, summary.populations...)
 		return selected
 	}
 	populations := query.inheritedThenValues(get, bindings, references, incomplete, &selected.effects)
-	selected.noncallable = !selected.effects.opaque && sourceThenValuesNoncallable(selected.effects.values)
+	selected.noncallable = !selected.effects.opaque && sourceValuesNoncallable(selected.effects.values)
 	retainCallableThenEffects(&selected.effects, get.operation, populations...)
 	return selected
 }
@@ -106,21 +106,6 @@ func (query *sourceValueQuery) inheritedThenValues(get *sourceGetInputs, binding
 		}
 	}
 	return populations
-}
-
-func sourceThenValuesNoncallable(values []sourceValue) bool {
-	if len(values) == 0 {
-		return false
-	}
-	for _, value := range values {
-		if value.undefined || value.copied != nil || value.rest != nil {
-			continue
-		}
-		if value.node == nil || len(value.path) != 0 || !sourcePrimitiveValue(value.node) && !ast.IsObjectLiteralExpression(value.node) && !ast.IsArrayLiteralExpression(value.node) {
-			return false
-		}
-	}
-	return true
 }
 
 // Known callable then alternatives retain their existing conservative body facts.

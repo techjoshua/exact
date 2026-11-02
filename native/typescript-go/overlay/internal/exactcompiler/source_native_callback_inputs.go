@@ -50,6 +50,7 @@ func (query *sourceValueQuery) nativeCallbackInputEffects(node *ast.Node, bindin
 		if noSuccessfulArgument {
 			return
 		}
+		noncallable := !acquired.opaque && !acquired.valueIncomplete && !acquired.receiverIncomplete && !acquired.fieldReceiverIncomplete && !acquired.thenIncomplete && sourceValuesNoncallable(acquired.values)
 		var elements []sourceValue
 		for _, receiver := range native.bindings[0] {
 			if !query.charge(&part, receiver.node) {
@@ -59,7 +60,15 @@ func (query *sourceValueQuery) nativeCallbackInputEffects(node *ast.Node, bindin
 			if receiver.node != nil && ast.IsArrayLiteralExpression(receiver.node) && len(receiver.path) == 0 && receiver.normal == nil && receiver.native == nil && receiver.acquired == nil {
 				get.arrayIndexMay = &sourceArrayIndexMay{owner: query, operation: node, receiver: receiver.node}
 			}
+			if noncallable && query.arrayIndexMayAtGet(get, receiver.node, []string{"*"}, "", accessorAcquire) {
+				continue
+			}
+			// Unclassified receiver acquisition keeps its existing MAY donors.
+			// It is not a numeric-index or complete native length protocol.
 			elements = append(elements, query.bindingPropertyAtGet(receiver, "*", bindings, &part, accessorAcquire, get)...)
+		}
+		if noncallable {
+			return
 		}
 		// Acquisition uncertainty remains an effect residual. It is not a supplied
 		// undefined value and cannot itself activate a callback default.

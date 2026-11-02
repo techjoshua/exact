@@ -275,7 +275,10 @@ property absence or NoWrites authority. A direct first callback-argument Get may
 later index and callback effects only when the selected source completion owner
 explicitly assessed every represented route with no successful or unknown route.
 Missing, unentered, refused and foreign projections remain unknown. Other argument
-expressions do not gain completion precision from this relation.
+expressions do not gain completion precision from this relation. A represented
+noncallable callback excludes numeric-index and callback-body work. Unknown or mixed
+alternatives keep that work possible. Existing receiver acquisition donors remain
+independent, without establishing a complete borrowed-native length protocol.
 Dependency-only body entry joins finite source input relationships for an active declaration.
 Distinct acquired callbacks and capture roots can instantiate that same summary before its
 outer invocation finishes. The relation uses source nodes, formal symbols, creator/use sites
