@@ -203,6 +203,44 @@ func (query *sourceValueQuery) liveValues(symbol *ast.Symbol, entry []sourceValu
 				query.initializing = previous
 				continue
 			}
+			// A module cell has no creating callable. Its source writers retain
+			// their original Call inputs instead of requiring a nil-owner creator.
+			// These are MAY alternatives, never performed writes or replacements.
+			if query.dependenciesOnly && enclosingCallableNode(declaration) == nil && writer != nil {
+				cut := query.memberWriterReadCut(nil, bindings, result)
+				for _, input := range query.memberWriterInputs(assignment.left, bindings, result, cut) {
+					// Accessor/constructor fallback scopes require their original
+					// source body context. Index membership alone cannot enter them.
+					if input.call == nil && writer != enclosingCallableNode(query.reading) && query.creators[writer].invocation == nil && (query.inputs == nil || query.inputs.declaration != writer) {
+						continue
+					}
+					query.memberWriterScope(input, func() {
+						if possible, _ := query.reachable(assignment.left, input.scope.bindings); !possible {
+							return
+						}
+						// RHS acquisition effects belong to the original writer Call.
+						// Only values and unresolved source relationships reach this read.
+						projection := accessorCandidates{}
+						next := query.originsAt(assignment.right, assignment.left, input.scope.bindings, &projection)
+						result.valueIncomplete = result.valueIncomplete || projection.opaque || projection.valueIncomplete || projection.receiverIncomplete || projection.fieldReceiverIncomplete
+						result.thenIncomplete = result.thenIncomplete || projection.thenIncomplete
+						result.sourceCallable = result.sourceCallable || projection.sourceCallable
+						for i := range next {
+							if next[i].capture == nil {
+								scope := input.scope
+								next[i].capture = &scope
+							}
+						}
+						at := input.call
+						if at == nil {
+							at = operation
+						}
+						add(at, operation, next, input.scope.bindings, false)
+					})
+				}
+				result.opaque = true
+				continue
+			}
 			creator := query.creators[enclosingCallableNode(declaration)].invocation
 			if creator == nil || writer == nil {
 				result.opaque = true

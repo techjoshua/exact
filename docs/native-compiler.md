@@ -1911,7 +1911,14 @@ relationships neither replay argument effects at the read nor supply normal invo
 that was actually exposed as callee or argument, with its captured inputs and unknown foreign
 invocation inputs. Captured RHS values retain that source scope even when no performed
 Call is available. Its possible indexed writes cannot become performed replacements or supply
-write ordering. Known non-invoking bodies remain deferred. An unavailable source Call output
+write ordering. Module bindings have no creating callable. Source reads of a module cell
+without an initializer retain its possible writer RHS values under each original Call's bindings,
+including values returned through nested fields. Member reads consume those same captured source
+alternatives. The unresolved entry stays uncertain, and these alternatives supply neither a
+performed assignment nor an allocation or normal-output receipt. Constructor and accessor fallback
+scopes require their original source body context. Index membership alone cannot enter those
+writers. Earlier RHS acquisition effects remain at the writer Call, while their value
+uncertainty and captured source values reach the later read. Known non-invoking bodies remain deferred. An unavailable source Call output
 still retains its original binding origin for indexed possible member writes. This preserves
 independently known donors beside the unresolved output without asserting object identity,
 fresh allocation or a completed native result. Descriptor getter values use the same acquired

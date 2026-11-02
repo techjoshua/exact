@@ -1011,6 +1011,20 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 					return
 				}
 			}
+			// Source reads of an initializer-free module cell consume its MAY
+			// writer origins in every member mode. Acquisition alone cannot own
+			// later getter effects, and no normal slot/output is supplied here.
+			if query.dependenciesOnly && symbol.ValueDeclaration != nil && ast.IsVariableDeclaration(symbol.ValueDeclaration) && symbol.ValueDeclaration.Initializer() == nil && enclosingCallableNode(symbol.ValueDeclaration) == nil && !ast.GetSourceFileOfNode(symbol.ValueDeclaration).IsDeclarationFile && symbol.ValueDeclaration.Flags&ast.NodeFlagsAmbient == 0 {
+				values := query.liveValues(symbol, []sourceValue{{node: value}}, value, arguments, &result)
+				for _, term := range values {
+					if term.node == value {
+						result.opaque, result.valueIncomplete = true, true
+						continue
+					}
+					visitOrigins([]sourceValue{term}, projection, instance)
+				}
+				return
+			}
 			// An ambient authored receiver is not a proven ordinary source object.
 			// Library globals retain their existing environment owner.
 			if len(projection) > 0 || name != "" {
