@@ -2080,18 +2080,26 @@ receiver, operand order, Throw/finally and cancelled-publication assertions rema
 unexecuted. Runtime-only source profiles identify member/array/writer-input preparation,
 not a proven source-context equivalence or an accepted continuation repair.
 
-The affected-environment matrix below records the remaining acceptance obligations.
-Chromium, hydration, adapter, other native hosts, installed packages and the native
-branch/condition audit have not executed for this new fixture.
+Installed Linux/Node compiler-only acceptance also passes against native production
+`b0f2c5808`. A clean external consumer installs local `0.8.0` SDK dependency tarballs
+and the Linux x64 platform package. It selects that installed executable without a
+workspace override and runs browser, safe and browser source revisions in one session.
+All six paired rows pass explicit generated semantic validation, exported-value and
+pruning assertions, stable exports and title-Get counts. This does not regenerate
+Core or qualify installed mounted framework providers.
 
-| Boundary                                    | Required evidence                                                                                | Scope                                                                                    |
-| ------------------------------------------- | ------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------- |
-| Native analysis and both executable targets | Session source witnesses and fresh branch/condition audit                                        | Capture relationships, current writes, placement and target projection                   |
-| SDK artifacts in Vitest/jsdom               | Paired module values and server projection, mounted updates and SSR                              | Compiler SDK test above, with actual generated artifacts                                 |
-| Browser mount and hydration                 | Retained update, unrelated consumer isolation and cleanup                                        | Required integration follow-up for changed reactive dependency plans                     |
-| Vite, Bun and Webpack                       | Both target configurations using the same authored source                                        | Required because adapters select executable sources and artifact targets before bundling |
-| Node, Bun, Deno and workerd                 | Existing runtime corpus plus new shared contract when runtime or emitted server boundary changes | Node execution alone does not establish cross-host acceptance                            |
-| Installed packages                          | Clean built consumer using published export resolution                                           | Workspace source aliases do not establish installed-package acceptance                   |
+The affected-environment matrix below records the remaining acceptance obligations.
+Chromium, hydration, adapters, other native hosts, installed framework providers and
+the native branch/condition audit for the mounted fixture remain open.
+
+| Boundary                                    | Required evidence                                                                                | Scope                                                                                                     |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------- |
+| Native analysis and both executable targets | Session source witnesses and fresh branch/condition audit                                        | Capture relationships, current writes, placement and target projection                                    |
+| SDK artifacts in Vitest/jsdom               | Paired module values and server projection, mounted updates and SSR                              | Compiler SDK test above, with actual generated artifacts                                                  |
+| Browser mount and hydration                 | Retained update, unrelated consumer isolation and cleanup                                        | Required integration follow-up for changed reactive dependency plans                                      |
+| Vite, Bun and Webpack                       | Both target configurations using the same authored source                                        | Required because adapters select executable sources and artifact targets before bundling                  |
+| Node, Bun, Deno and workerd                 | Existing runtime corpus plus new shared contract when runtime or emitted server boundary changes | Node execution alone does not establish cross-host acceptance                                             |
+| Installed packages                          | Clean built consumer using published export resolution                                           | Linux/Node SDK plain modules pass via local packed exports. Mounted framework providers remain unverified |
 
 An analysis-only repair that preserves emitted helper signatures and runtime contracts
 has no independent runtime implementation change. That classification must be verified

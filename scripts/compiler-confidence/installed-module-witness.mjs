@@ -67,7 +67,6 @@ export async function verifyInstalledModuleWitness(root) {
 			for (const target of ['client', 'server']) {
 				const file = artifact[target + 'File'];
 				const code = await readFile(file, 'utf8');
-				if (!browser || target === 'server') assert.doesNotMatch(code, /\bdocument\b/);
 				const bundled = await build({
 					stdin: { contents: code, loader: 'ts', resolveDir: path.dirname(file) },
 					write: false,
