@@ -248,7 +248,8 @@ func (query *sourceValueQuery) nativeMemberKey(value sourceValue, projection []s
 	replaced := query.memberValuesAtGet(origin, []string{key}, "", mode, bindings, result, visitMember, sourceMemberOperationProof{sources: sources}, get)
 	// Delete/computed writes have no assignment RHS. Retain them explicitly at
 	// this same owned source view rather than treating an empty RHS list as safe.
-	for _, index := range query.occurrenceSourceViewIn(origin, result, sources) {
+	var sourceIndexes [4]sourceValueIndex
+	for _, index := range query.occurrenceSourceViewIn(origin, result, sources, sourceIndexes[:0]) {
 		for _, region := range index.operationRegions {
 			for _, written := range region.writes {
 				if !query.charge(result, written) {

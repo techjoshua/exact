@@ -46,15 +46,18 @@ func (query *sourceValueQuery) occurrenceOrigins(node, at, origin *ast.Node, bin
 // occurrenceSourceView visits only the defining source and actual acquisition,
 // receiving and return occurrences already owned by this query. Indexes are not
 // merged, and positions in different sources never establish execution order.
-func (query *sourceValueQuery) occurrenceSourceView(origin *ast.Node, result *accessorCandidates) []sourceValueIndex {
-	return query.occurrenceSourceViewIn(origin, result, nil)
+func (query *sourceValueQuery) occurrenceSourceView(origin *ast.Node, result *accessorCandidates, storage []sourceValueIndex) []sourceValueIndex {
+	return query.occurrenceSourceViewIn(origin, result, nil, storage)
 }
 
 // occurrenceSourceViewIn adds only explicitly selected dependency indexes. Their
-// references still pass the ordinary occurrence and write-producer checks.
-func (query *sourceValueQuery) occurrenceSourceViewIn(origin *ast.Node, result *accessorCandidates, selected []*ast.SourceFile) []sourceValueIndex {
+// references still pass the ordinary occurrence and write-producer checks. All
+// index values are copied before a consumer runs, including incomplete or not-yet
+// import-prepared entries. Storage belongs to this caller until consumption ends.
+// Additional sources grow the slice normally, without imposing a source limit.
+func (query *sourceValueQuery) occurrenceSourceViewIn(origin *ast.Node, result *accessorCandidates, selected []*ast.SourceFile, storage []sourceValueIndex) []sourceValueIndex {
 	var sources []*ast.SourceFile
-	var indexes []sourceValueIndex
+	indexes := storage[:0]
 	for _, node := range []*ast.Node{origin, query.initializing, query.reading, query.returning} {
 		if node == nil || !query.charge(result, node) {
 			continue
@@ -115,7 +118,8 @@ func (query *sourceValueQuery) memberValuesAtGet(origin *ast.Node, projection []
 	var alternatives []sourceValue
 	var replacements []sourceValueReplacement
 	demand := append(append([]string{}, projection...), name)
-	for _, index := range query.occurrenceSourceViewIn(origin, result, operation.sources) {
+	var sourceIndexes [4]sourceValueIndex
+	for _, index := range query.occurrenceSourceViewIn(origin, result, operation.sources, sourceIndexes[:0]) {
 		// The existing source-relative producer and occurrence checks below decide
 		// reachability. Membership in this view alone never proves a write performed.
 		known, dynamic := index.memberOrigins[origin], index.dynamicMembers

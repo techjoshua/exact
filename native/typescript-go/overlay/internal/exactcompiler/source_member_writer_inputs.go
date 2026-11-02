@@ -137,7 +137,8 @@ func (q *sourceValueQuery) memberWriterInputs(left *ast.Node, bindings sourceVal
 		}
 	}
 	seen := make(map[*ast.Node]bool)
-	for _, index := range q.occurrenceSourceView(left, result) {
+	var sourceIndexes [4]sourceValueIndex
+	for _, index := range q.occurrenceSourceView(left, result, sourceIndexes[:0]) {
 		for _, call := range index.calls {
 			if seen[call] || q.active[call] || q.pendingWriterInputExcluded(call, result) || q.afterRead(call) && !cut.argumentMayPrecede(q, call, result) {
 				continue

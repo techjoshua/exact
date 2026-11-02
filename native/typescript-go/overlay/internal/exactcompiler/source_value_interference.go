@@ -312,7 +312,8 @@ func (query *sourceValueQuery) interferenceInSources(origin *ast.Node, projectio
 		}
 	}
 
-	for _, index := range query.occurrenceSourceViewIn(origin, result, sources) {
+	var sourceIndexes [4]sourceValueIndex
+	for _, index := range query.occurrenceSourceViewIn(origin, result, sources, sourceIndexes[:0]) {
 		if ast.IsFunctionLike(origin) {
 			// Literal containers may carry this function into an actual opaque call.
 			// Test the current occurrence's arguments, not hypothetical future users.
