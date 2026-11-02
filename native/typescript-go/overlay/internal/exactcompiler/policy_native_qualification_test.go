@@ -58,3 +58,14 @@ interface Phantom<T>{label:string}declare global{` + test.declarations + `};decl
 		})
 	}
 }
+
+// Public native API bytes retain ordinary JavaScript alias behavior. Readonly
+// remains a TypeScript restriction and cannot freeze the writable backing array.
+func TestPolicyNativeAugmentedPublicRuntime(t *testing.T) {
+	source := `export {};declare global{interface Array<T>{custom():void}}const backing=[1,2];const view:readonly number[]=backing;export function work(){backing.push(3);return view.map(value=>value*2).join(',')}`
+	response := NewSession().Execute(Request{Kind: "compile", ID: "native-public-runtime.ts", Source: source, Diagnostics: "semantic", SourceMap: true})
+	if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) || response.Code == "" || response.SourceMap == nil {
+		t.Fatal("public native artifact missing", response.Error, response.Diagnostics)
+	}
+	sourceNodeScript(t, response.Code, `const fs=require('node:fs'),vm=require('node:vm');const sandbox={exports:{}};vm.runInNewContext(fs.readFileSync(process.argv[1],'utf8'),sandbox);if(sandbox.exports.work()!=='2,4,6'||sandbox.exports.work()!=='2,4,6,6')throw Error('readonly alias was frozen or detached');`)
+}
