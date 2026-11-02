@@ -110,20 +110,3 @@ func (h *languageCallHistory) parameterDefaultGetThrowProducer() bool {
 	}
 	return count == 1
 }
-
-// parameterDefaultGetTerminal is one original prefix consumer, never a generic
-// Throw publisher. Its live Call proof precedes disposal and covers no siblings.
-func (h *closedPrefixHistory) parameterDefaultGetTerminal(row languageAlternative) bool {
-	if h == nil || h.authority.owner == nil || h.receipt == nil || len(h.receipt.alternatives) != 1 || row.callHistory == nil || !row.callHistory.validCompletion(row) || !row.callHistory.parameterDefaultGetThrowProducer() {
-		return false
-	}
-	// Initializer destination adoption is its own Normal-only terminal contract.
-	if _, _, initializer := sourceInitializerCallLayout(h.recipe); initializer {
-		return false
-	}
-
-	o := h.authority.owner
-	c := o.closedPrefixCandidate
-	e := row.callHistory.entry
-	return c != nil && c.history == h && c.slot != nil && c.slot.closedPrefix == h && c.call == h.call && c.enteredCallable(o.language, e.proof) && e.inputs.call == h.call && e.proof.source == h.source && h.authority.checker == o.checker && h.authority.program == o.program && h.authority.generation == o.generation
-}

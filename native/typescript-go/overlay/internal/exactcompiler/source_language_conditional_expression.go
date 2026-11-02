@@ -110,34 +110,6 @@ func conditionalMerge(prior languageAlternative, r *storageRecipe, pc int, value
 	return out, owner.end
 }
 
-// conditionalInterval extends the SAME bounded proof owner to exact ?: source
-// domains. Inner merge donors belong to their conditional, not its own arms.
-func (p *shortCircuitPopulationProof) conditionalInterval(pc int) bool {
-	r := p.recipe
-	if !p.spend() {
-		return false
-	}
-	e, ok := conditionalLayout(r, pc)
-	if !ok || !p.runtime[e.node] {
-		return false
-	}
-	c := e.node.AsConditionalExpression()
-	mt, mf := r.events[e.merge], r.events[e.end-1]
-	if !p.ends(e.a, pc, c.Condition) || !p.ends(mt.a, e.merge, c.WhenTrue) || !p.ends(mf.a, e.end-1, c.WhenFalse) {
-		return false
-	}
-	for i, child := range r.events {
-		if !p.spend() {
-			return false
-		}
-		yes, no := p.within(child.node, c.WhenTrue), p.within(child.node, c.WhenFalse)
-		if yes != (i >= e.entry && i < e.merge) || no != (i >= e.merge+1 && i < e.end-1) {
-			return false
-		}
-	}
-	return true
-}
-
 // prefixChoiceOwnsEdge explains a false-once parent ONLY through an exact emitted
 // selector already validated by this same proof. No index field is rewritten.
 func prefixChoiceOwnsEdge(e storageEvent, parent, child *ast.Node) bool {

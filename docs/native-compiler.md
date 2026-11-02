@@ -1849,11 +1849,16 @@ original-statement precision frame. Production-requested default, Get, async and
 refinement retain their separate normal input and lifetime checks. The historical prefix hold
 guards and Call-retargeting lookup are removed from ordinary source consumers, along with the
 uncalled candidate authentication and entry methods. Generic provenance and normal phase consumers
-keep their existing fallback semantics. Prefix-only reservation, qualification, history and
-continuation declarations remain for a separate consumer audit and retirement. The uncalled
-source-call finishing adapter and native-symbol prefix preparation, including its exclusive
-shape/proof helpers, are removed. Shared binding-symbol shape facts and well-known KEY validators
-retain their separate consumers. Remaining internal tests do not establish production reachability.
+keep their existing fallback semantics. Source owners have no prefix execution lifecycle registry.
+Reservation, generation attachment, source population qualification, history publication and
+successor-Call dispatch adapters are retired. Storage schedules retain their normal body, event,
+result and lifetime validators. Initializer/binding recipes and source-prefix getter or captured
+Call paths retain refusal where retired source authority was required. No independent normal
+request gains authority from that absence. Normal expression/recipe lowering and shared native
+symbol facts remain separate from source admission. The orphan module-interval qualification builder
+and its source-only lowering branches are removed. Independent formal, capture and receiver
+contexts retain their prior refusal outside their supported domains. Obsolete compile-to-receipt bootstrap tests
+are retired, while authored source effects and actual emitted initialization remain covered.
 
 Effect contributions remain additive. A missing precise Return value can leave the value
 incomplete while source analysis accounts for that operation's effects. Only a matching

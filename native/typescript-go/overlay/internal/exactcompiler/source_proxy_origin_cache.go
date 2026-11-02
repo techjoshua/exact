@@ -2,14 +2,10 @@ package exactcompiler
 
 import "github.com/microsoft/TypeScript/tsc/internal/ast"
 
-// possibleProxyOriginMode binds effects-only Proxy metadata to its request mode.
+// possibleProxyOriginMode retains the ordinary source mode without a prefix
+// execution override. Program/generation and native-contract fences stay owned
+// by the existing Proxy metadata consumers.
 func possibleProxyOriginMode(owner *sourceValueOwner, source *ast.SourceFile) [32]byte {
-	if h := owner.closedPrefixes[source]; h != nil {
-		return h.mode
-	}
-	if p := owner.closedPrefixCandidate; p != nil && p.source == source && p.history != nil {
-		return p.history.mode
-	}
 	return [32]byte{}
 }
 

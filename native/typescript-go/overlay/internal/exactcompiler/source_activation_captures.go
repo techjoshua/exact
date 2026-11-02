@@ -2,7 +2,6 @@ package exactcompiler
 
 import (
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
-	"unsafe"
 )
 
 // moduleActivationCaptureCreator is finite syntax eligibility, not entry proof.
@@ -42,72 +41,6 @@ func activationCaptureLayout(p *closedCallableProof, outer *ast.Node) bool {
 	return ok && slot == 0
 }
 
-// activationCreatorProof discovers the inner free set separately. Its member
-// expression is not put in the outer runtime map or evaluated by the creator.
-func (p *closedPrefixBuilder) activationCreatorProof(n *ast.Node) (*closedCallableProof, bool) {
-	parameter := n.Parameters()[0]
-	inner := activationCaptureInner(n)
-	declared := p.query.owner.checker.GetSymbolAtLocation(parameter.Name())
-	captured := p.query.owner.checker.GetSymbolAtLocation(inner.Body().Expression())
-	if !p.discover() || declared == nil || captured != declared || declared.ValueDeclaration != parameter || len(declared.Declarations) != 1 {
-		return nil, false
-	}
-	mapping := &closedParameterMap{arrow: n, physical: append([]*ast.Node(nil), n.Parameters()...), declarations: append([]*ast.Node(nil), n.Parameters()...), references: map[*ast.Node]int{}}
-	if !mapping.validProjection() {
-		return nil, false
-	}
-	nested := &closedCallableProof{arrow: inner, parameters: 0, empty: false, captureDeclarations: []*ast.Node{parameter}, captureReferences: map[*ast.Node]int{inner.Body().Expression(): 0}}
-	child := storageBuilder{discovery: p.discovery, recipe: storageRecipe{body: n, callBody: true, locals: 1, declarations: mapping.declarations}}
-	runtime := map[*ast.Node]bool{}
-	for _, node := range []*ast.Node{parameter, parameter.Name(), n.Body(), n.Body().AsBlock().Statements.Nodes[0], inner} {
-		if !child.discover() {
-			return nil, false
-		}
-		runtime[node] = true
-	}
-	input := child.event(storageEvent{kind: "ReadAcquiredArgument", node: parameter, cell: 0})
-	child.event(storageEvent{kind: "InitializeCell", node: parameter, a: input, cell: 0})
-	function := child.event(storageEvent{kind: "CreateClosedCallable", node: inner, callable: nested})
-	child.event(storageEvent{kind: "Return", node: n.Body().AsBlock().Statements.Nodes[0], a: function})
-	p.discovery, p.exhausted = child.discovery, child.exhausted
-	recipe := &child.recipe
-	return &closedCallableProof{arrow: n, parameters: 1, empty: true, entry: recipe, plan: &closedBodyPlan{recipe: recipe, parameters: mapping, runtime: runtime}}, !p.exhausted
-}
-
-// qualifyActivationCreation authenticates the actual nested source region and
-// checker declaration. Deferred children stay deferred and receive no once flag.
-func (p *shortCircuitPopulationProof) qualifyActivationCreation(event storageEvent) bool {
-	outer := p.body.arrow
-	if !p.spend() || !activationCaptureLayout(event.callable, outer) || event.node != activationCaptureInner(outer) {
-		return false
-	}
-	inner := event.node
-	base := inner.Body().Expression()
-	symbol := p.candidate.checker.GetSymbolAtLocation(base)
-	if symbol == nil || symbol.ValueDeclaration != outer.Parameters()[0] || len(symbol.Declarations) != 1 {
-		return false
-	}
-	for node := inner.Body(); node != inner; node = node.Parent {
-		if !p.spend() || node == nil {
-			return false
-		}
-		e := p.index.normalOccurrences[node]
-		parent := p.index.normalOccurrences[node.Parent]
-		if e == nil || parent == nil || e.node != node || e.parent != parent || e.region != inner {
-			return false
-		}
-	}
-	e := p.index.normalOccurrences[base]
-	if e == nil || e.region != inner {
-		return false
-	}
-	if event.callable.entry != nil {
-		nested := *p
-		return nested.qualifyBody(event.callable)
-	}
-	return true
-}
-
 // finalizeActivationCreation stamps a copied construction proof. It supplies no
 // normal operation or receipt to the deferred inner function. An optional
 // independently qualified inner plan receives the same immutable source stamp.
@@ -126,76 +59,6 @@ func finalizeActivationCreation(f *closedCallableProof) {
 	plan := *f.plan
 	plan.recipe = &r
 	f.entry, f.plan = &r, &plan
-}
-
-// instantiateActivationCreator uses the actual module environment and mutable
-// function binding while the formal and argument object do not yet exist.
-func (o *languageOwner) instantiateActivationCreator(b languageBranch, p *closedCallableProof, lexicals []languageLexical, binding languageCell, c *closedPrefixCandidate) languageAlternative {
-	if !o.live(b) || !o.canAdvance(b, 4) || p == nil || !p.empty || p.parameters != 1 || !moduleFunctionDeclaration(p.arrow) || !moduleActivationCaptureCreator(p.arrow) || !p.finalizedBodyProof(o) || c == nil || !c.enteredCallable(o, p) || !c.authoredEntry() || !c.sourceConstructs(p) || c.continuation != nil || b.env.outer != nil || binding.id.owner != o || binding.environment != b.env.id || binding.immutable || binding.summary || len(lexicals) != len(c.history.recipe.declarations) {
-		return storageResidual(b, "activation creator module instantiation")
-	}
-	count := 0
-	for i, v := range lexicals {
-		if v.declaration != c.history.recipe.declarations[i] || v.cell.id.owner != o || v.cell.environment != b.env.id {
-			return storageResidual(b, "activation creator module cells")
-		}
-		if v.declaration == p.arrow && v.cell == binding {
-			count++
-		}
-	}
-	if count != 1 {
-		return storageResidual(b, "activation creator binding")
-	}
-	for r := b.state.storage; r != nil; r = r.previous {
-		if r.cell == binding {
-			return storageResidual(b, "activation creator duplicate instantiation")
-		}
-	}
-	f := &languageCallable{id: o.identity(), proof: p, captures: b.env}
-	created := o.storageStep(b, languageStorage{value: languageValue{callable: f}})
-	return o.initializeLocal(created, binding, languageValue{callable: f, node: p.arrow})
-}
-
-// activationCreatorInputs requires a genuine acquired module object, not its
-// source/type metadata. The named argument must select its original const Cell.
-func (p *closedPrefixCandidate) activationCreatorInputs(a languageAlternative, work *languageCopyWork) bool {
-	in := a.callInputs
-	if p == nil || p.owner == nil || p.checker == nil || in == nil || in.call == nil || !ast.IsCallExpression(in.call) || in.callee.callable == nil || in.callee.callable.proof == nil || !moduleActivationCaptureCreator(in.callee.callable.proof.arrow) || len(in.arguments) != 1 || in.arguments[0].value.object == nil || in.call.AsCallExpression().Arguments == nil || len(in.call.AsCallExpression().Arguments.Nodes) != 1 {
-		return false
-	}
-	arg := in.call.AsCallExpression().Arguments.Nodes[0]
-	if !ast.IsIdentifier(arg) {
-		return false
-	}
-	symbol := p.checker.GetSymbolAtLocation(arg)
-	if symbol == nil || symbol.ValueDeclaration == nil || len(symbol.Declarations) != 1 || !ast.IsVariableDeclaration(symbol.ValueDeclaration) {
-		return false
-	}
-	d := symbol.ValueDeclaration
-	if d.Parent == nil || d.Parent.Flags&ast.NodeFlagsConst == 0 || d.Initializer() == nil || !ast.IsObjectLiteralExpression(d.Initializer()) {
-		return false
-	}
-	object := in.arguments[0].value.object
-	if object.id.owner != p.owner.language || !object.unique || !object.ownComplete || object.array {
-		return false
-	}
-	for _, field := range d.Initializer().AsObjectLiteralExpression().Properties.Nodes {
-		work.spend(1)
-		if !ast.IsPropertyAssignment(field) || !ast.IsIdentifier(field.Name()) || !expressionLiteralNode(field.Initializer()) {
-			return false
-		}
-	}
-	for _, v := range in.lexicals {
-		work.spend(1)
-		if v.declaration == d {
-			for r := a.branch.state.storage; r != nil; r = r.previous {
-				work.spend(1)
-			}
-			value := p.owner.language.readLocal(a.branch, v.cell)
-			return value.completion == languageNormal && value.value.object == object
-		}
-	}
-	return false
 }
 
 // createActivationCapturedCallable executes only the creation expression. The
@@ -305,36 +168,6 @@ func activationParameterProof(p *closedCallableProof) bool {
 	return p != nil && len(p.captureDeclarations) == 1 && p.captureDeclarations[0] != nil && ast.IsParameterDeclaration(p.captureDeclarations[0]) && activationCaptureLayout(p, p.captureDeclarations[0].Parent)
 }
 
-// prepareActivationCallBody adds a plan only when the same finite source has
-// a second original Call. It does not execute the inner body during creation.
-func (p *closedPrefixBuilder) prepareActivationCallBody(r *storageRecipe) bool {
-	found := false
-	for _, e := range r.events {
-		f := e.callable
-		if f == nil || !moduleActivationCaptureCreator(f.arrow) {
-			continue
-		}
-		if found || f.entry == nil || len(f.entry.events) != 4 {
-			return false
-		}
-		inner := f.entry.events[2].callable
-		if !activationParameterProof(inner) || inner.entry != nil {
-			return false
-		}
-		mapping := &closedParameterMap{arrow: inner.arrow, references: map[*ast.Node]int{}}
-		recipe, plan := p.callBodyRecipe(inner.arrow, mapping, inner)
-		if recipe == nil || plan == nil {
-			return false
-		}
-		inner.entry, inner.plan = recipe, plan
-		if !activationInnerRecipe(inner) {
-			return false
-		}
-		found = true
-	}
-	return found
-}
-
 // activationCaptureState validates actual storage issuance, not a captured
 // value snapshot. The live original successor candidate supplies Call authority.
 func (o *languageOwner) activationCaptureState(b languageBranch, f *languageCallable) bool {
@@ -397,61 +230,4 @@ func activationCapturedDemand(inner, member, parameter *ast.Node, key string) bo
 		return false
 	}
 	return ast.GetSourceFileOfNode(inner) == ast.GetSourceFileOfNode(parameter)
-}
-
-// activationCapturedFieldCall projects only the original second Call's complete
-// native Get. The prior pointer is consumed while it is still history.receipt.
-// Detached outcomes carry no captured value, branch, frame or publication right.
-func (p *closedPrefixCandidate) activationCapturedFieldCall(row languageAlternative, fact *callableFacts) (sourceFieldCall, bool) {
-	if p == nil || !p.activationCallLayout() || p.continuation == nil || !p.priorContinuationValid() || !p.authenticated || !p.bodyClaimed || p.owner == nil || p.owner.closedPrefixCandidate != p || p.frame == nil || p.slot == nil || p.frame.ownedFact != fact || fact == nil || fact.node != p.statement || fact.descriptorMode != p.history.mode || p.slot.closedPrefix != p.history || p.frame.operations[p.call] != p.slot || p.slot.entry != p.entry || p.slot.population != p.frame.population || p.frame.population == nil || p.frame.population.root != p.statement || p.frame.population.entries[p.call] != p.entry || p.entry == nil || !p.entry.once || p.entry.region != nil || p.entry.node != p.call || row.callHistory == nil || !row.callHistory.validResult(row) {
-		return sourceFieldCall{}, false
-	}
-	h := p.history
-	if p.slot.state != sourceOperationPending || p.slot.authority != h.authority || p.program.GetSourceFile(p.source.FileName()) != p.source {
-		return sourceFieldCall{}, false
-	}
-	work := languageCopyWork{}
-	defer func() { p.owner.indexWork = estimatedCostSum(p.owner.indexWork, work.used) }()
-	e := row.callHistory.entry
-	if e == nil || e.callable != p.successorCallable() || !activationParameterProof(e.proof) || !p.enteredCallable(p.owner.language, e.proof) || e.inputs.call != p.call || len(e.inputs.arguments) != 0 || e.proof.source != p.source || h.source != p.source || h.authority.program != p.program || h.authority.checker != p.checker || h.authority.generation != p.generation || h.authority.owner != p.owner || p.owner.program != p.program || p.owner.checker != p.checker || p.owner.generation != p.generation || e.acquisition.input != p.continuation.prior.alternatives[0].branch {
-		return sourceFieldCall{}, false
-	}
-	first := h.callReceipts[0].alternatives[0]
-	if !activationCapturedReturn(first, &work) || first.value.callable != e.callable {
-		return sourceFieldCall{}, false
-	}
-	raw := row.callHistory.raw.alternatives[0]
-	r := e.proof.entry
-	if !callBodySnapshot(e, raw) || raw.completion != languageReturn || raw.returnBoundary != e.boundary || raw.storage.pc != 4 || len(raw.storage.ready) != 4 || len(raw.storage.values) != 4 || len(raw.storage.references) != 4 || len(raw.storage.choices) != 0 || raw.storage.copy != nil || r.finally != nil || !raw.storage.ready[0] || !raw.storage.ready[1] || !raw.storage.ready[2] || !raw.storage.ready[3] || raw.value != raw.storage.values[2] || raw.value != raw.storage.values[3] {
-		return sourceFieldCall{}, false
-	}
-	parameter := e.callable.capturedLexicals[0].declaration
-	member := e.proof.arrow.Body()
-	key := member.Name().Text()
-	if !activationCapturedDemand(e.proof.arrow, member, parameter, key) {
-		return sourceFieldCall{}, false
-	}
-	index, indexed := p.owner.indexes[p.source]
-	memberEntry, baseEntry, innerEntry := index.normalOccurrences[member], index.normalOccurrences[member.Expression()], index.normalOccurrences[e.proof.arrow]
-	work.spend(3)
-	if !indexed || index.incomplete || memberEntry == nil || baseEntry == nil || innerEntry == nil || memberEntry.node != member || memberEntry.parent != innerEntry || memberEntry.region != e.proof.arrow || baseEntry.node != member.Expression() || baseEntry.parent != memberEntry || baseEntry.region != e.proof.arrow || index.normalOccurrences[p.call] != p.entry {
-		return sourceFieldCall{}, false
-	}
-	symbol := p.checker.GetSymbolAtLocation(member.Expression())
-	if symbol == nil || symbol.ValueDeclaration != parameter || len(symbol.Declarations) != 1 {
-		return sourceFieldCall{}, false
-	}
-	receiver := raw.storage.values[0]
-	ref := raw.storage.references[1]
-	o := p.owner.language
-	if receiver.object == nil || receiver.object != first.callHistory.entry.inputs.arguments[0].value.object || ref.id.owner != o || ref.id.serial == 0 || ref.cell != (languageCell{}) || ref.receiver != receiver || ref.key != languageStringKey(key) {
-		return sourceFieldCall{}, false
-	}
-	descriptor, present, complete, _ := o.readOwnRecord(raw.branch, receiver.object, ref.key)
-	if !present || !complete || descriptor.accessor || descriptor.value != raw.value {
-		return sourceFieldCall{}, false
-	}
-	work.spend(int(unsafe.Sizeof(sourceFieldCall{})) + int(unsafe.Sizeof(sourceFieldOutcome{})))
-	demand := sourceFieldDemand{declaration: e.proof.arrow, operation: member, slot: parameter, key: key}
-	return sourceFieldCall{operation: p.call, target: e.proof.arrow, complete: true, outcomes: []sourceFieldOutcome{{demand: demand, fulfilled: true}}}, true
 }

@@ -120,11 +120,6 @@ func collectCallableEffects(
 	// Capture the descriptor request-mode fence independently of source
 	// contributions. It is not a live lease or execution receipt.
 	prefixMode := [32]byte{}
-	if owner != nil && owner.values != nil {
-		if p := owner.values.closedPrefixCandidate; p != nil && p.source == sourceFile && p.history != nil {
-			prefixMode = p.history.mode
-		}
-	}
 	nodes := collectCallableNodes(sourceFile)
 	plans := map[*ast.Node]*closedOwnGetterPlan{}
 	declarations := map[*ast.Node]*ast.Node{}

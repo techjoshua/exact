@@ -77,7 +77,7 @@ func (p *storageBuilder) defaultOperand(node *ast.Node, input int, shared *expre
 				}
 			}
 		}
-		if shared.storageBuilder != p || shared.context.prefix == nil && !formalDefault || !shared.mark(node) {
+		if shared.storageBuilder != p || !formalDefault || !shared.mark(node) {
 			return storageOperand{}, false
 		}
 		fallback.register, ok = shared.value(node)

@@ -165,13 +165,6 @@ func (c *moduleInitializerCursor) observe(node *ast.Node, output sourceResultObs
 
 // finish reads the already consumed O result. It neither replays Get nor publishes.
 func (c *moduleInitializerCursor) finish(fact *callableFacts, frame *sourceValueInputs) {
-	if supportedBindingDeclaration(c.declaration) {
-		slot := frame.operations[c.declaration]
-		if slot == nil || slot.closedPrefix == nil || slot.state != sourceOperationConsumed || slot.closedPrefix.statement != frame.declaration || !slot.closedPrefix.published {
-			c.residual = true
-		}
-		return
-	}
 	if len(c.structuralStack) != 0 {
 		c.residual = true
 	}

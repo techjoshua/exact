@@ -31,3 +31,15 @@ func validCallValueTarget(o *languageOwner, in *languageCallInputs) bool {
 	v := in.valueOrigin
 	return valueTargetProducer(v.recipe, v.acquirePC, v.valuePC) && v.recipe.events[v.acquirePC].node == in.call && o.live(v.input) && o.live(v.output) && v.input == v.output && v.output == in.calleeBranch && v.value == in.callee
 }
+
+// expressionValueProducer classifies shared VALUE events without granting source entry.
+func expressionValueProducer(kind string) bool {
+	if prefixChoiceSelector(kind) {
+		return true
+	}
+	switch kind {
+	case "Typeof", "InvokeAcquiredCall", "NumberNegate", "NumberAdd", "NumberSubtract", "NumberMultiply", "NumberDivide", "NumberRemainder", "NumberLessThan", "NumberStrictEqual", "NumberGreaterThan", "NumberLessThanOrEqual", "NumberGreaterThanOrEqual", "NumberStrictNotEqual", "ReadThisValue", "Literal", "ReadCell", "ReadCapturedCell", "GetValue", "PutValue", "LogicalNot", "CreateClosedCallable", "AllocateObject":
+		return true
+	}
+	return false
+}

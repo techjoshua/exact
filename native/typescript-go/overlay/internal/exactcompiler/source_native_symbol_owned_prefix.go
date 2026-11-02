@@ -48,7 +48,7 @@ func bindingSymbolWrite(r *storageRecipe) (first, last, put int, ok bool) {
 		return first, last, put, false
 	}
 	write := r.events[put]
-	if !ast.IsBinaryExpression(write.node) || write.node.Parent == nil || !closedPrefixAssignmentStatement(write.node.Parent) {
+	if !ast.IsBinaryExpression(write.node) || write.node.Parent == nil || !storageAssignmentStatement(write.node.Parent) {
 		return first, last, put, false
 	}
 	b := write.node.AsBinaryExpression()
@@ -108,9 +108,27 @@ func sourceSymbolKeyReady(r *storageRecipe, pc int, b languageBranch, work *lang
 	return work.spend(1) && work.spend(1)
 }
 
-// Diagnostic observer is nil in normal operation and cannot grant authority.
-var sourceSymbolFirstLoss func(string)
-
 // Optional private observers cannot grant native authority or increase fuel.
-var sourceSymbolExecutionLimit func(int) int
 var sourceSymbolObserve func(*storageRecipe, int, int, languageAlternative, []bool, int, *languageCallTargetOrigin)
+
+// storageAssignmentStatement classifies a finite source shape, never entry authority.
+func storageAssignmentStatement(s *ast.Node) bool {
+	if s == nil || !ast.IsExpressionStatement(s) || !ast.IsBinaryExpression(s.Expression()) {
+		return false
+	}
+	b := s.Expression().AsBinaryExpression()
+	if b.OperatorToken.Kind != ast.KindEqualsToken || ast.IsOptionalChain(b.Left) {
+		return false
+	}
+	if ast.IsPropertyAccessExpression(b.Left) {
+		return ast.IsIdentifier(b.Left.Expression()) && (ast.IsIdentifier(b.Right) || expressionLiteralNode(b.Right))
+	}
+	if !ast.IsElementAccessExpression(b.Left) || !ast.IsIdentifier(b.Left.Expression()) {
+		return false
+	}
+	key := b.Left.AsElementAccessExpression().ArgumentExpression
+	if key == nil || !ast.IsPropertyAccessExpression(key) || ast.IsOptionalChain(key) || !ast.IsIdentifier(key.Expression()) || key.Expression().Text() != "Symbol" || key.Name().Text() != "iterator" {
+		return false
+	}
+	return b.Right.Kind == ast.KindNumericLiteral || ast.IsFunctionExpression(b.Right)
+}

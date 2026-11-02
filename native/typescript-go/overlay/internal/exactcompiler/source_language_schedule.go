@@ -21,8 +21,8 @@ type storageEvent struct {
 	excluded          []languagePropertyKey
 	entry, merge, end int
 }
+
 type storageRecipe struct {
-	callSites    []closedPrefixCallSite // immutable ordinary source sequence, separate from binding roles
 	binding      *storageBindingRecipe
 	sourceSymbol bool              // discovery demand marker, never admission authority
 	symbolCase   *sourceSymbolCase // immutable shared native S association, no VALUE
@@ -361,14 +361,11 @@ func (o *languageOwner) executeStorageRecipe(recipe *storageRecipe, budget int) 
 // executeStorageSchedule is the existing adapter. Only a completed live prefix
 // hands inputs to Call entry, before terminal publication. Historical projection
 // never reaches this execution adapter.
-func (o *languageOwner) executeStorageSchedule(recipe *storageRecipe, budget int, a languageAlternative, candidates ...*closedPrefixCandidate) (languageAlternative, int) {
+func (o *languageOwner) executeStorageSchedule(recipe *storageRecipe, budget int, a languageAlternative) (languageAlternative, int) {
 	input := a.branch
-	out, used := o.executeStorageScheduleEntry(recipe, budget, a, nil, candidates...)
+	out, used := o.executeStorageScheduleEntry(recipe, budget, a, nil)
 	if _, _, initializer := sourceInitializerCallLayout(recipe); !initializer && recipe != nil && recipe.prefix && out.completion == languageNormal && out.callInputs != nil && out.callInputs.complete {
-		if len(candidates) == 1 && candidates[0].continuation != nil && !candidates[0].successorCallee(out) {
-			return callEntryRefusal(out, "source successor callable identity"), used
-		}
-		result, spent := o.consumeClosedCallInputs(input, out, budget-used, candidates...)
+		result, spent := o.consumeClosedCallInputs(input, out, budget-used)
 		return result, used + spent
 	}
 	return out, used
@@ -385,7 +382,7 @@ func (o *languageOwner) executeStorageCallBody(recipe *storageRecipe, budget int
 	}
 	return o.executeStorageScheduleEntry(recipe, budget, a, entry)
 }
-func (o *languageOwner) executeStorageScheduleEntry(recipe *storageRecipe, budget int, a languageAlternative, entry *languageCallEntryInput, candidates ...*closedPrefixCandidate) (languageAlternative, int) {
+func (o *languageOwner) executeStorageScheduleEntry(recipe *storageRecipe, budget int, a languageAlternative, entry *languageCallEntryInput) (languageAlternative, int) {
 	// Entry eligibility is checked before setup arrays, cell identities or any
 	// acquired-header access. A vetoed predecessor remains inert and unchanged.
 	if a.completion != languageNormal {
@@ -395,10 +392,10 @@ func (o *languageOwner) executeStorageScheduleEntry(recipe *storageRecipe, budge
 		return callEntryRefusal(a, "Call body mode/context association"), 0
 	}
 
-	if _, _, initializer := sourceInitializerCallLayout(recipe); initializer && (len(candidates) != 1 || candidates[0] == nil) {
+	if _, _, initializer := sourceInitializerCallLayout(recipe); initializer {
 		return callEntryRefusal(a, "initializer source candidate unavailable"), 0
 	}
-	if recipe.binding != nil && (!recipe.binding.valid(recipe) || len(candidates) != 1) {
+	if recipe.binding != nil {
 		return callEntryRefusal(a, "Binding recipe/context association"), 0
 	}
 	if recipe.finally != nil && !recipe.finally.valid(recipe) {
@@ -431,26 +428,14 @@ func (o *languageOwner) executeStorageScheduleEntry(recipe *storageRecipe, budge
 	if recipe.locals < 0 || recipe.registers < 0 || !o.canIssue(uint64(recipe.locals)+8) {
 		return callEntryRefusal(a, "storage identity capacity"), 0
 	}
-	parentInput := a.branch
 	baseSetup := setup
 	budget -= setup
 	// call body activation observation
 	cells := make([]languageCell, recipe.locals)
-	successor := len(candidates) == 1 && candidates[0].continuation != nil && recipe == candidates[0].currentSourceRecipe()
-	if successor {
-		p := candidates[0]
-		if !p.resumeInputs(recipe, a) {
-			return callEntryRefusal(a, "source caller continuation inputs"), 0
-		}
-		for i, v := range a.callInputs.lexicals {
-			cells[i] = v.cell
-		}
-	} else {
-		for i := range cells {
-			cells[i] = o.cell(a.branch.env, false)
-			if recipe.prefix {
-				cells[i].immutable = recipe.constants[i]
-			}
+	for i := range cells {
+		cells[i] = o.cell(a.branch.env, false)
+		if recipe.prefix {
+			cells[i].immutable = recipe.constants[i]
 		}
 	}
 	values := make([]languageValue, recipe.registers)
@@ -655,167 +640,6 @@ func (o *languageOwner) executeStorageScheduleEntry(recipe *storageRecipe, budge
 			continue
 		}
 
-		if _, invoke, initializer := sourceInitializerCallLayout(recipe); initializer && pc == invoke {
-			p := candidates[0]
-			if conditionalFieldObserve != nil {
-				// Validation borrows current buffers before the consumer. This
-				// zero-ID view is not an issued or resumable continuation.
-				observed := a
-				observed.storage = &storageContinuation{recipe: recipe, pc: pc, cells: cells, values: values, ready: ready, callInputs: a.callInputs, childBranch: a.branch}
-				conditionalFieldObserve(p.history, observed)
-			}
-			work := languageCopyWork{remaining: budget - used}
-			readyCall := p.initializerCallReady(recipe, a, cells, values, ready, &work)
-			used = estimatedCostSum(used, work.used)
-			if !readyCall {
-				a = cutAt("initializer original Call association", pc)
-				break
-			}
-			out, spent := o.consumeClosedCallInputs(parentInput, a, budget-used, p)
-			used = estimatedCostSum(used, spent)
-			a = out
-			returnWork := languageCopyWork{remaining: budget - used}
-			supported := initializerReturnSupported(a, &returnWork)
-			used = estimatedCostSum(used, returnWork.used)
-			if a.callHistory == nil || !a.callHistory.validResult(a) || !supported {
-				if a.completion == languageNormal {
-					a = cutAt("initializer scalar Return unavailable", pc)
-				}
-				break
-			}
-			// Retain the actual issued result before caller initialization changes
-			// state. It is history, never another activation or publication right.
-			copyWork, addressable := storageEventCopyCharge(a, a.callInputs, int(^uint(0)>>1))
-			if !addressable {
-				a = cutAt("initializer receipt storage addressability", pc)
-				break
-			}
-			used = estimatedCostSum(used, estimatedCostSum(copyWork, int(unsafe.Sizeof(languageReceipt{}))+int(unsafe.Sizeof(languageAlternative{}))))
-			receipt := o.receipt(parentInput, []languageAlternative{a})
-			if receipt == nil {
-				a = cutAt("initializer receipt capacity", pc)
-				break
-			}
-			p.history.callReceipts = []*languageReceipt{receipt}
-			values[e.out], ready[e.out] = a.value, true
-			a.storage = nil
-			pc++
-			continue
-		}
-
-		if recipe.binding != nil && e.kind == "InvokeAcquiredCall" {
-			d, invoke, isDefault := bindingDefaultCallLayout(recipe, recipe.binding)
-			if isDefault && pc == invoke {
-				p := candidates[0]
-				if p.entryInputs != nil || callInputs == nil || a.callInputs == nil || !sameLanguageCallInputs(callInputs, a.callInputs) || !acquired(e.a) || ready[e.out] || len(choices) != 1 || choices[0] != (storageChoice{destination: d.out, merge: d.merge, end: d.end}) {
-					a = cutAt("Default Invoke association", pc)
-					break
-				}
-				parent := a
-				a.storage = snapshot(pc, nil)
-				p.entryInputs = a.callInputs
-				out, spent := o.consumeClosedCallInputs(a.callInputs.targetOrigin.input, a, budget-used, p)
-				p.entryInputs = nil
-				used = estimatedCostSum(used, spent)
-				a = out
-				if a.callHistory == nil || !a.callHistory.validCompletion(a) || a.completion != languageThrow {
-					a = cutAt("Default Call incomplete", pc)
-					break
-				}
-				a.binding, a.finally = parent.binding, parent.finally
-				a.storage, a.callInputs = nil, nil
-				callInputs, targetOrigin = nil, nil
-				if !bindingDefaultChild(a.binding, a) {
-					a = cutAt("Default completed child association", pc)
-					break
-				}
-				choices = choices[:len(choices)-1]
-				pc = recipe.binding.park
-				continue
-			}
-		}
-		if recipe.binding != nil && e.kind == "InvokeAcquiredCall" {
-			site := recipe.binding.site(pc)
-			p := candidates[0]
-			if site == nil || p.history.recipe != recipe || p.bindingPhase != recipe.binding.siteOrdinal(site) || callInputs == nil || callInputs.bindingSite != site || !callInputs.complete || !acquired(e.a) {
-				a = cutAt("Binding invocation site association", pc)
-				break
-			}
-			// The child retains its own immutable family history. Its active
-			// context cannot replace the parent's context when buffers resume.
-			parent := a
-			p.bindingSite = site
-			out, spent := o.consumeClosedCallInputs(parentInput, a, budget-used, p)
-			p.bindingSite = nil
-			used = estimatedCostSum(used, spent)
-			a = out
-			throwingClose := bindingCloseRole(recipe.binding, site) && a.completion == languageThrow
-			throwingNext := bindingStepDescriptor(recipe.binding, site) != nil && a.completion == languageThrow
-			throwingFirst := bindingFirstRole(recipe.binding, site) && a.completion == languageThrow
-			numberNext := bindingNextNumberResult(a, recipe.binding, site)
-			numberFirst := bindingFirstNumberResult(a, recipe.binding, site)
-			throwingProtocol := throwingClose || throwingNext || throwingFirst
-			if a.completion != languageNormal && !throwingProtocol {
-				a = o.bindingResidual(a, "Binding protocol outcome unsupported", recipe.binding)
-				a.finally = parent.finally
-				a.storage = snapshot(pc, nil)
-				break
-			}
-			if throwingNext || numberNext {
-				descriptor := bindingStepDescriptor(recipe.binding, site)
-				ordinal := recipe.events[descriptor.initialize].cell
-				if ordinal < 0 || ordinal >= len(cells) {
-					a = cutAt("Binding Next target ordinal", pc)
-					break
-				}
-				if _, ok := bindingNextThrowTarget(recipe.binding, a, cells[ordinal]); !ok {
-					a = o.bindingResidual(a, "Binding Next target association", recipe.binding)
-					a.finally = parent.finally
-					a.storage = snapshot(pc, nil)
-					break
-				}
-			}
-			var ok bool
-			a, ok = bindingAdoptChild(a, recipe.binding, site, parent)
-			if !ok {
-				if throwingProtocol {
-					reason := "Binding Close completion association"
-					if throwingFirst {
-						reason = "Binding first completion association"
-					}
-					a = o.bindingResidual(a, reason, recipe.binding)
-					a.finally = parent.finally
-					a.storage = snapshot(pc, nil)
-				} else {
-					a = cutAt("Binding child object association", pc)
-				}
-				break
-			}
-			if a.completion == languageNormal {
-				values[e.out], ready[e.out] = a.value, true
-			}
-			// Validation-only observation of the new typed handoff. The live
-			// header is still present here, before it is cleared below.
-			if throwingProtocol && emptyBindingObserve != nil {
-				emptyBindingObserve(recipe, pc, a, used+baseSetup)
-			}
-			// Child raw/history own their immutable snapshots. The parent still owns
-			// these live buffers, and never copies a child recipe as its own active PC.
-			a.storage = nil
-			a.callInputs = nil
-			callInputs = nil
-			targetOrigin = nil
-			if !throwingProtocol && emptyBindingObserve != nil {
-				emptyBindingObserve(recipe, pc, a, used+baseSetup)
-			}
-			// Next failures set Done. First-site failures have no iterator record.
-			// Both stop before any later protocol Get, initialization or Close.
-			if throwingNext || numberNext || numberFirst || throwingFirst {
-				break
-			}
-			pc++
-			continue
-		}
 		// Select an actual own descriptor once. The data path still uses the
 		// ordinary sequence owner. Only prefix getter roles enter this adapter.
 		var selectedGet languageAlternative
@@ -827,107 +651,11 @@ func (o *languageOwner) executeStorageScheduleEntry(recipe *storageRecipe, budge
 			}
 			selectedGet, getterInstall = o.selectGetReference(a.branch, references[e.a])
 		}
-		if e.kind == "GetValue" && recipe.prefix && getterInstall != nil && (recipe.binding == nil || bindingGetterRole(recipe, pc) != 0) {
-			parent := a
-			reference := references[e.a]
-			if !getterDescriptorPayload(getterInstall.descriptor) || !shortCircuitCanonical(parent) || len(candidates) != 1 || candidates[0].entryInputs != nil {
-				a = cutAt("Own getter descriptor/admission unavailable", pc)
-				break
-			}
-			if recipe.binding != nil {
-				receiverPC, receiver, valid := bindingGetterReceiver(recipe, pc, parent)
-				if !valid || !acquired(receiverPC) || values[receiverPC] != receiver || reference.receiver != receiver || bindingGetterRole(recipe, pc) == bindingCloseGetterRole && parent.callInputs != nil || bindingGetterRole(recipe, pc) == bindingFirstGetterRole && (parent.callInputs != nil || callInputs != nil || targetOrigin != nil) {
-					a = cutAt("Binding getter source/read context unavailable", pc)
-					break
-				}
-			}
-			// H+1 is an actual finished-Get observation, not an object result.
-			// Charge only the extra conservative copy population above H.
-			horizon, hok := budgetSum(budget-used, len(parent.objects), 1)
-			if !hok {
-				a = cutAt("Getter history addressability", pc)
-				break
-			}
-			if _, ok := budgetProduct(budget-used, len(cells), int(unsafe.Sizeof(languageLexical{}))); !ok {
-				a = cutAt("Getter lexical header addressability", pc)
-				break
-			}
-			before, bok := storageEventCopyCharge(parent, callInputs, budget-used, len(parent.objects))
-			after, aok := storageEventCopyCharge(parent, callInputs, budget-used, horizon)
-			if !bok || !aok {
-				a = cutAt("Getter history addressability", pc)
-				break
-			}
-			used = estimatedCostSum(estimatedCostSum(used, max(0, after-before)), 8)
-			origin := &languageCallTargetOrigin{getterInstall: getterInstall, recipe: recipe, referencePC: e.a, getPC: pc, acquirePC: -1, reference: reference, input: parent.branch, output: parent.branch, value: getterInstall.descriptor.value}
-			header := &languageCallInputs{targetOrigin: origin, category: callReferenceTarget, call: e.node, callee: origin.value, calleeBranch: parent.branch, reference: reference, receiver: reference.receiver, calleeReady: true, complete: true}
-			// Lexicals describe the source frame, never getter captures.
-			header.lexicals = make([]languageLexical, len(cells))
-			for i, cell := range cells {
-				header.lexicals[i] = languageLexical{declaration: recipe.declarations[i], cell: cell}
-			}
-			child := parent
-			child.callInputs = header
-			candidates[0].entryInputs = header
-			out, spent := o.consumeClosedCallInputs(parentInput, child, budget-used, candidates[0])
-			candidates[0].entryInputs = nil
-			used = estimatedCostSum(used, spent)
-			if out.completion != languageNormal && out.completion != languageThrow || (bindingGetterRole(recipe, pc) == bindingCloseGetterRole || bindingGetterRole(recipe, pc) == bindingFirstGetterRole) && out.completion != languageThrow {
-				a = out
-				if a.completion == languageNormal {
-					a = shortCircuitCut(a, "Own getter completion association", a.value)
-				}
-
-				// Row retains the child header/pending raw outcome. Snapshot
-				// retains the independent parent header and original buffers.
-				a.finally, a.binding = parent.finally, parent.binding
-				a.storage = snapshot(pc, nil)
-				break
-			}
-			var getterTarget languageCell
-			if recipe.binding != nil && out.completion == languageThrow && bindingGetterRole(recipe, pc) != bindingCloseGetterRole {
-				var targetOK bool
-				getterTarget, targetOK = bindingGetThrowTarget(recipe, pc, out, cells)
-				if !targetOK {
-					a = shortCircuitCut(out, "Binding getter target unavailable", out.value)
-					a.finally, a.binding = parent.finally, parent.binding
-					a.storage = snapshot(pc, nil)
-					break
-				}
-			}
-			finished, ok := o.finishOwnGetterGet(parent, out, recipe, pc, reference)
-			if !ok {
-				a = shortCircuitCut(out, "Getter finished Get association/capacity", out.value)
-				a.finally, a.binding = parent.finally, parent.binding
-				a.storage = snapshot(pc, nil)
-				break
-			}
-			if recipe.binding != nil && finished.completion == languageThrow {
-				var adopted bool
-				finished, adopted = adoptBindingGetThrow(parent, finished, recipe, pc, getterTarget)
-				if !adopted {
-					a = shortCircuitCut(out, "Binding getter Throw adoption unavailable", out.value)
-					a.finally, a.binding = parent.finally, parent.binding
-					a.storage = snapshot(pc, nil)
-					break
-				}
-			}
-			a = finished
-			if recipe.binding != nil && emptyBindingObserve != nil {
-				emptyBindingObserve(recipe, pc, a, used)
-			}
-			if a.completion == languageThrow {
-				if recipe.binding != nil && bindingDefaultGetterRoute(recipe, recipe.binding.route, a) {
-					pc = recipe.binding.route
-					continue
-				}
-				break
-			}
-			values[e.out], ready[e.out] = a.value, true
-			// Explicit adoption replaces the ordinary sequence at this Get.
-			pc++
-			continue
+		if e.kind == "GetValue" && recipe.prefix && getterInstall != nil {
+			a = cutAt("Own getter descriptor/admission unavailable", pc)
+			break
 		}
+
 		nextPC := pc + 1
 		var progress *languageCopyProgress
 		expressionDisposition := expressionSelectionOrdinary
@@ -1006,42 +734,12 @@ func (o *languageOwner) executeStorageScheduleEntry(recipe *storageRecipe, budge
 					out = o.createActivationCapturedCallable(b, e.callable, cells, entry)
 					break
 				}
-				if e.callable != nil && len(e.callable.captureDeclarations) == 1 {
-					// Acquire only the selected actual cell, without copying a prefix vector.
-					used = estimatedCostSum(used, len(recipe.declarations)+1)
-					var selected languageLexical
-					count := 0
-					for i, declaration := range recipe.declarations {
-						if declaration == e.callable.captureDeclarations[0] && i < len(cells) {
-							selected = languageLexical{declaration: declaration, cell: cells[i]}
-							count++
-						}
-					}
-					var lexicals []languageLexical
-					if count == 1 {
-						lexicals = []languageLexical{selected}
-					}
-					var candidate *closedPrefixCandidate
-					if len(candidates) == 1 {
-						candidate = candidates[0]
-					}
-					if e.kind == "InstantiateModuleFunction" {
-						if e.cell < 0 || e.cell >= len(cells) || recipe.declarations[e.cell] != e.node {
-							return []languageAlternative{storageResidual(b, "module function binding layout")}
-						}
-						out = o.instantiateModuleFunction(b, e.callable, callInputs.lexicals, cells[e.cell], candidate)
-					} else {
-						out = o.createModuleCapturedCallable(b, e.callable, lexicals, candidate)
-					}
-				} else if e.kind == "InstantiateModuleFunction" {
-					if e.callable != nil && moduleActivationCaptureCreator(e.callable.arrow) && e.cell >= 0 && e.cell < len(cells) {
-						out = o.instantiateModuleFunction(b, e.callable, callInputs.lexicals, cells[e.cell], candidates[0])
-					} else {
-						out = storageResidual(b, "module function capture layout")
-					}
+				if e.kind == "InstantiateModuleFunction" || e.callable != nil && len(e.callable.captureDeclarations) == 1 {
+					out = storageResidual(b, "module capture source authority unavailable")
 				} else {
 					out = o.createClosedCallable(b, e.callable)
 				}
+
 			case "ResolveLexicalReference":
 				if e.cell < 0 || e.cell >= len(cells) {
 					return []languageAlternative{storageResidual(b, "lexical cell unavailable")}
@@ -1306,30 +1004,7 @@ func (o *languageOwner) executeStorageScheduleEntry(recipe *storageRecipe, budge
 			used = estimatedCostSum(used, estimate)
 			nextPC = bindingSuccessor(recipe, pc, a)
 		}
-		if recipe.binding != nil && pc == recipe.binding.first.get && a.completion == languageNormal && bindingFirstMethodNumber(a.value) {
-			estimate, capacityOK := o.bindingDataGetCharge(a)
-			if !capacityOK {
-				a = cutAt("First method Get capacity", pc)
-				break
-			}
-			var sealed bool
-			a, sealed = o.finishBindingFirstMethodGet(a, recipe, pc, targetOrigin, ready)
-			if !sealed {
-				a = cutAt("First method Get association", pc)
-				break
-			}
-			used = estimatedCostSum(used, estimate)
-		}
-		if recipe.binding != nil && pc == recipe.binding.first.finalize && a.completion == languageThrow && a.callInputs != nil && bindingFirstMethodNumber(a.callInputs.callee) {
-			var adopted bool
-			a, adopted = o.finishBindingFirstMethodError(a, recipe, pc, ready)
-			if !adopted {
-				a = cutAt("First method error association", pc)
-				break
-			}
-			callInputs, targetOrigin = nil, nil
-			break
-		}
+
 		if recipe.binding != nil && pc == recipe.binding.close.get && a.completion == languageNormal && (bindingAbsentValue(recipe.binding, a.value) || bindingReturnGetNumberError(a.binding, a.value)) {
 			estimate, chargeOK := o.bindingDataGetCharge(a)
 			if !chargeOK || !bindingReturnGetPlan(recipe, pc) || pc < 0 || pc >= len(ready) || !ready[pc] || recipe.binding.close.invoke >= len(ready) || ready[recipe.binding.close.acquire] || ready[recipe.binding.close.finalize] || ready[recipe.binding.close.invoke] {
@@ -1495,7 +1170,7 @@ func storageBuffersAddressable(r *storageRecipe) bool {
 	for _, p := range []struct {
 		count int
 		size  uintptr
-	}{{r.locals, unsafe.Sizeof(languageCell{})}, {r.registers, unsafe.Sizeof(languageValue{})}, {r.registers, unsafe.Sizeof(languageReference{})}, {r.registers, unsafe.Sizeof(false)}, {r.choiceSlots, unsafe.Sizeof(storageChoice{})}, {len(r.callSites), unsafe.Sizeof(closedPrefixCallSite{})}} {
+	}{{r.locals, unsafe.Sizeof(languageCell{})}, {r.registers, unsafe.Sizeof(languageValue{})}, {r.registers, unsafe.Sizeof(languageReference{})}, {r.registers, unsafe.Sizeof(false)}, {r.choiceSlots, unsafe.Sizeof(storageChoice{})}} {
 		if p.size != 0 && uint64(p.count) > uint64(^uint(0)>>1)/uint64(p.size) {
 			return false
 		}

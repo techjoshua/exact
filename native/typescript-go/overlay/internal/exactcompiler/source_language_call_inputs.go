@@ -93,7 +93,7 @@ func sameLanguageCallInputs(a, b *languageCallInputs) bool {
 // storageScheduleSetup bounds activation buffers and cut snapshots before root
 // publication. Per-event history and storage scans are additionally metered.
 func storageScheduleSetup(r *storageRecipe) int {
-	return r.locals*3 + r.registers*5 + len(r.callSites)*4 + 16
+	return r.locals*3 + r.registers*5 + 16
 }
 func (o *languageOwner) createClosedCallable(b languageBranch, p *closedCallableProof) languageAlternative {
 	if !o.canAdvance(b, 3) {

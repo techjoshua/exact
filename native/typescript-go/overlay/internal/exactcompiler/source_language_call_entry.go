@@ -353,7 +353,7 @@ func callEntryRefusal(a languageAlternative, reason string) languageAlternative 
 // consumeClosedCallInputs is called once at the live completed acquisition cut.
 // It creates no root. Acquired state enters one activation and returns with the
 // latest child state, while only the environment changes on paid scope exit.
-func (o *languageOwner) consumeClosedCallInputs(input languageBranch, a languageAlternative, budget int, candidates ...*closedPrefixCandidate) (languageAlternative, int) {
+func (o *languageOwner) consumeClosedCallInputs(input languageBranch, a languageAlternative, budget int) (languageAlternative, int) {
 	if a.completion != languageNormal {
 		return a, 0
 	}
@@ -365,128 +365,7 @@ func (o *languageOwner) consumeClosedCallInputs(input languageBranch, a language
 	if f.proof == nil || f.proof.entry == nil {
 		return callEntryRefusal(a, "Call entry unimplemented"), 0
 	}
-	implicit := inputs.targetOrigin != nil && inputs.targetOrigin.getterInstall != nil
-	admitted := false
-	if len(candidates) == 1 {
-		if implicit {
-			admitted = candidates[0].admitsOwnGetter(o, f.proof, inputs, a)
-		} else {
-			admitted = candidates[0].admits(o, f.proof, a)
-		}
-	}
-	if !admitted {
-		return callEntryRefusal(a, "Call finalized source authority"), 0
-	}
-	if !implicit && candidates[0].history.recipe.binding != nil && !bindingInputsMatchSite(candidates[0], inputs, a) {
-		return callEntryRefusal(a, "Binding acquired site association"), 0
-	}
-	recipe := f.proof.entry
-	if recipe.finally != nil && !recipe.finally.valid(recipe) {
-		return callEntryRefusal(a, "Finally recipe association"), 0
-	}
-	if !o.live(input) || !o.live(a.branch) || f.id.owner != o || !f.proof.captureLayoutValid() || !o.callableCaptureState(a.branch, f) || recipe.body != f.proof.arrow || !recipe.callBody || recipe.prefix || recipe.locals != f.proof.parameters || recipe.locals != len(recipe.declarations) {
-		return callEntryRefusal(a, "Call entry proof association"), 0
-	}
-	fixed, ok := callCopyCharge(recipe, a, inputs, budget)
-	if !ok {
-		fixed = estimatedCostSum(-1, 0)
-	}
-	// Three activation identities, one per formal cell and the finite raw/cut
-	// tail are actual issuance counts, not the advisory work quotation.
-	if !storageBuffersAddressable(recipe) || recipe.locals < 0 || !o.canIssue(uint64(recipe.locals)+11) || a.branch.cursor > ^uint64(0)-2 {
-		return callEntryRefusal(a, "Call identity/cursor capacity"), 0
-	}
-
-	if !callAcquisitionValid(o, input, a) {
-		return callEntryRefusal(a, "Call acquired context association"), 0
-	}
-	if f.proof.mapping.scalarDefaultParameter(0) != nil {
-		for i := 0; i < len(recipe.declarations) && i < len(inputs.arguments); i++ {
-			value := inputs.arguments[i].value
-			undefined, known := acquiredUndefined(a.branch, value)
-			_, canonical := acquiredBoolean(a.branch, value)
-			if _, number := numericNumberPayload(value); !known || !canonical || !undefined && !number {
-				return callEntryRefusal(a, "Scalar default actual argument unavailable"), 0
-			}
-		}
-	}
-	if f.proof.mapping.objectDefaultMember() != nil {
-		if len(inputs.arguments) < 1 || len(inputs.arguments) > 2 || inputs.arguments[0].value.object == nil {
-			return callEntryRefusal(a, "Object default actual input unavailable"), 0
-		}
-		if len(inputs.arguments) == 2 {
-			value := inputs.arguments[1].value
-			undefined, known := acquiredUndefined(a.branch, value)
-			_, canonical := acquiredBoolean(a.branch, value)
-			if _, number := numericNumberPayload(value); !known || !canonical || !undefined && !number {
-				return callEntryRefusal(a, "Object default actual argument unavailable"), 0
-			}
-		}
-	}
-	// Claim the authenticated source consumer only after every no-allocation preflight.
-	if inputs.bindingSite != nil {
-		candidates[0].bindingPhase++
-	} else if implicit {
-		candidates[0].entryInputs = nil
-	} else {
-		candidates[0].entryInputs = nil
-		candidates[0].bodyClaimed = true
-	}
-	acquisition := o.receipt(input, []languageAlternative{a})
-	frozen := acquisition.alternatives[0].callInputs
-	entry := &languageCallEntryInput{proof: f.proof, acquisition: acquisition, inputs: frozen, callable: f, boundary: o.identity(), caller: a.branch.env, activation: a.branch}
-	entry.activation.env = o.environment(f.captures)
-	entry.activation.cursor++
-	// The sealed acquisition owns this read-only history during internal child
-	// execution. All other payloads retain their existing defensive copies.
-	seed := a
-	seed.objects = nil
-	child := languageCopy(seed)
-	sealedObjects := acquisition.alternatives[0].objects
-	child.objects = sealedObjects[:len(sealedObjects):len(sealedObjects)]
-	child.branch = entry.activation
-	child.callInputs = frozen
-	raw, spent := o.executeStorageCallBody(recipe, budget-fixed, child, entry)
-	used := estimatedCostSum(fixed, spent)
-	body := o.receipt(entry.activation, []languageAlternative{raw})
-	history := &languageCallHistory{id: o.identity(), entry: entry, raw: body}
-	out := raw
-	// Buffer/cut/exit copies were reserved. Boundary execution itself must still
-	// pay one unit after the body, so a cut can retain a tagged pending Return.
-	{
-		if raw.completion == languageReturn {
-			used = estimatedCostSum(used, 1)
-		}
-		if raw.value.object != nil && raw.completion == languageReturn && !ast.IsFunctionExpression(entry.proof.arrow) && !ast.IsGetAccessorDeclaration(entry.proof.arrow) {
-			work := languageCopyWork{remaining: budget - used}
-			valid := validObjectCallReturn(entry, raw, &work)
-			used = estimatedCostSum(used, work.used)
-			if !valid {
-				out = callBoundaryResidual(raw, "Object Return provenance")
-			} else {
-				out = history.normalize()
-			}
-		} else if raw.completion == languageReturn && raw.value.object != nil && ast.IsFunctionExpression(entry.proof.arrow) {
-			work := languageCopyWork{remaining: budget - used}
-			out = history.normalize(&work)
-			used = estimatedCostSum(used, work.used)
-		} else {
-			out = history.normalize()
-		}
-		history.converted = raw.completion == languageReturn && out.completion == languageNormal
-	}
-	out.branch.env = entry.caller
-	if out.branch.cursor == ^uint64(0) {
-		// Raw completion remains inspectable. Outward fields have not been
-		// issued, so neither completion validator can grant handoff authority.
-		out = callBoundaryResidual(out, "Call cursor capacity")
-		out.callHistory = history
-		return out, used
-	}
-	out.branch.cursor++
-	history.outward, history.completion, history.value = out.branch, out.completion, out.value
-	out.callHistory = history
-	return out, used
+	return callEntryRefusal(a, "Call finalized source authority"), 0
 }
 
 // strictFunctionScalar is output admission, not coercion. Receiver identity and

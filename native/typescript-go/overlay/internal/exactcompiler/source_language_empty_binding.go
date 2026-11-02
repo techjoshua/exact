@@ -283,100 +283,6 @@ func prefixEntryNode(r *storageRecipe) *ast.Node {
 	return r.call
 }
 
-// Compilation emits protocol roles into the existing loop after the exact RHS.
-// No fake Call AST, body builder, runtime AST lookup or extra index is involved.
-func (p *closedPrefixBuilder) emptyBinding(d *ast.Node) bool {
-	nodes, ok := bindingElements(d)
-	if !ok {
-		return false
-	}
-	base, ok := p.expression(d.Initializer())
-	if !ok || !p.discover() {
-		return false
-	}
-	descriptorBytes, ok := budgetProduct(0, len(nodes), int(unsafe.Sizeof(bindingElementRecipe{})))
-	if !ok {
-		return false
-	}
-	descriptorBytes, ok = budgetSum(0, descriptorBytes, 31)
-	if !ok {
-		return false
-	}
-	for units := descriptorBytes / 32; units > 0; units-- {
-		if !p.discover() {
-			return false
-		}
-	}
-	plan := &storageBindingRecipe{declaration: d, elements: make([]bindingElementRecipe, len(nodes))}
-	p.recipe.binding = plan
-	for i, n := range nodes {
-		plan.elements[i] = bindingElementRecipe{plan: plan, node: n, index: i}
-	}
-	k := p.event(storageEvent{kind: "StaticWellKnownIteratorKey", node: d, key: languageIteratorKey()})
-	emitCall := func(receiver int, key languagePropertyKey, keyPC int, site *bindingCallSite) int {
-		site.plan = plan
-		if site == &plan.close {
-			site.role = 1
-			if len(nodes) > 0 {
-				site.role = 2
-			}
-		}
-		site.member = p.event(storageEvent{kind: "Member", node: d, a: receiver, key: key})
-		p.recipe.events[site.member].keyProducerPC = keyPC
-		site.get = p.event(storageEvent{kind: "GetValue", node: d, a: site.member})
-		site.acquire = p.event(storageEvent{kind: "AcquireCallCallee", node: d, a: site.get, b: site.member})
-		site.finalize = p.event(storageEvent{kind: "FinalizeCallInputs", node: d, a: site.get})
-		site.invoke = p.event(storageEvent{kind: "InvokeAcquiredCall", node: d, a: site.get, cell: site.role})
-		return site.invoke
-	}
-	plan.iterator = emitCall(base, languageIteratorKey(), k, &plan.first)
-	nextRef := p.event(storageEvent{kind: "Member", node: d, a: plan.iterator, key: languageStringKey("next")})
-	plan.next = p.event(storageEvent{kind: "GetValue", node: d, a: nextRef})
-	if len(nodes) > 0 {
-		plan.elements[0].step = bindingCallSite{plan: plan, role: 1, member: nextRef, get: plan.next}
-		plan.elements[0].step.acquire = p.event(storageEvent{kind: "AcquireCallCallee", node: d, a: plan.next, b: nextRef})
-	}
-	plan.record = p.event(storageEvent{kind: "InstallIteratorRecord", node: d, a: plan.iterator, b: plan.next})
-	for i := range plan.elements {
-		element := &plan.elements[i]
-		site := &element.step
-		if i > 0 {
-			*site = bindingCallSite{plan: plan, role: 1, member: nextRef, get: plan.next}
-			site.acquire = p.event(storageEvent{kind: "AcquireCallCallee", node: d, a: plan.next, b: nextRef})
-		}
-		site.finalize = p.event(storageEvent{kind: "FinalizeCallInputs", node: d, a: plan.next})
-		site.invoke = p.event(storageEvent{kind: "InvokeAcquiredCall", node: d, a: plan.next, cell: 1})
-		doneRef := p.event(storageEvent{kind: "Member", node: d, a: site.invoke, key: languageStringKey("done")})
-		element.doneGet = p.event(storageEvent{kind: "GetValue", node: d, a: doneRef})
-		element.doneSelect = p.event(storageEvent{kind: "SelectIteratorDone", node: d, a: element.doneGet})
-		valueRef := p.event(storageEvent{kind: "Member", node: d, a: site.invoke, key: languageStringKey("value")})
-		element.valueGet = p.event(storageEvent{kind: "GetValue", node: d, a: valueRef})
-		element.selectValue = p.event(storageEvent{kind: "SelectBindingValue", node: d, a: element.valueGet})
-		symbol := p.query.owner.checker.GetSymbolAtLocation(element.node.Name())
-		if symbol == nil {
-			return false
-		}
-		binding, found := p.locals[ast.GetSymbolId(symbol)]
-		if !found {
-			return false
-		}
-		selected := element.selectValue
-		if element.node.Initializer() != nil {
-			x := p.lowerer()
-			fallback, ok := p.storageBuilder.defaultOperand(element.node.Initializer(), selected, &x)
-			if !ok {
-				return false
-			}
-			selected = fallback.register
-		}
-		element.initialize = p.event(storageEvent{kind: "InitializeCell", node: element.node, a: selected, cell: binding.cell})
-	}
-	plan.park = p.event(storageEvent{kind: "ParkBindingCompletion", node: d, a: plan.record})
-	emitCall(plan.iterator, languageStringKey("return"), -1, &plan.close)
-	plan.route = p.event(storageEvent{kind: "RouteIteratorClose", node: d, a: plan.close.invoke})
-	return !p.exhausted
-}
-
 func (p *storageBindingRecipe) sites() []*bindingCallSite {
 	if p == nil {
 		return nil
@@ -487,17 +393,6 @@ func (p *storageBindingRecipe) valid(r *storageRecipe) bool {
 	}
 	return p.park == p.elements[len(nodes)-1].initialize+1 && r.events[p.record].kind == "InstallIteratorRecord" && r.events[p.record].a == p.iterator && r.events[p.record].b == p.next
 }
-func (p *closedPrefixCandidate) admitsBinding(o *languageOwner, f *closedCallableProof, rows ...languageAlternative) bool {
-	if !p.enteredCallable(o, f) {
-		return false
-	}
-	plan := p.history.recipe.binding
-	site := p.bindingSite
-	if site == nil && len(rows) == 1 {
-		return bindingDefaultInputs(p, rows[0].callInputs, rows[0]) && p.sourceConstructs(f)
-	}
-	return plan.valid(p.history.recipe) && site != nil && site.plan == plan && plan.siteOrdinal(site) == p.bindingPhase && plan.site(site.invoke) == site && p.sourceConstructs(f)
-}
 
 // bindingCloseRole names the one exact declaration-backed Close site. It is
 // shared by child admission and historical routing, never general abrupt dispatch.
@@ -564,46 +459,6 @@ func bindingFirstMethodReady(r *storageRecipe, pc int, ready []bool) bool {
 	return pc == p.first.finalize && ready[p.first.acquire]
 }
 
-// Current source admission is checked only at live issuance/installation.
-// Detached terminal inspection never reconstructs this owner or its lease.
-func (o *languageOwner) bindingFirstMethodSourceLive(r *storageRecipe, b languageBranch) bool {
-	if o == nil || r == nil || r.binding == nil || r.symbolCase == nil || !o.live(b) {
-		return false
-	}
-	source := r.symbolCase
-	authority := source.authority
-	if source.recipe != r || authority.owner == nil || authority.owner.language != o || authority.generation == nil || !authority.generation.active ||
-		authority.owner.generation != authority.generation || authority.owner.program != authority.program || authority.owner.checker != authority.checker ||
-		source.facts.source == nil || r.body != source.facts.source.AsNode() || source.facts.call == nil || source.facts.call.node != r.binding.declaration ||
-		!o.live(source.input) || b.owner != source.input.owner || b.generation != source.input.generation || b.guard != "native Symbol standard" || b.env != source.input.env {
-		return false
-	}
-	candidate := authority.owner.closedPrefixCandidate
-	return candidate != nil && candidate.authenticated && !candidate.released && candidate.history != nil && candidate.history.recipe == r &&
-		candidate.history.state == prefixEntered && candidate.executable == authority.executable
-}
-
-// finishBindingFirstMethodGet seals the actual Normal DATA read before header
-// acquisition. It never reconstructs Normal from a later Throw/residual row.
-func (o *languageOwner) finishBindingFirstMethodGet(a languageAlternative, r *storageRecipe, pc int, t *languageCallTargetOrigin, ready []bool) (languageAlternative, bool) {
-	if !bindingFirstMethodOrigin(r, t) || !bindingFirstMethodReady(r, pc, ready) || !o.bindingFirstMethodSourceLive(r, a.branch) || pc != r.binding.first.get || a.completion != languageNormal || !shortCircuitCanonical(a) ||
-		a.storage != nil || a.callInputs != nil || a.callHistory != nil || a.binding != nil ||
-		a.value != t.value || a.branch != t.output || !o.live(t.input) || !o.live(a.branch) {
-		return a, false
-	}
-	d, present, _, record := o.readOwnRecord(t.input, t.reference.receiver.object, t.reference.key)
-	if !present || record == nil || record.deleted || !record.initialized || d.accessor || d.value != a.value {
-		return a, false
-	}
-	for _, observation := range a.objects {
-		if observation.recipe == r && observation.pc == pc {
-			return a, false
-		}
-	}
-	bare := languageAlternative{branch: a.branch, completion: languageNormal, value: a.value, finally: a.finally}
-	return o.appendCompletedGet(a, t.input, bare, r, pc, t.reference)
-}
-
 // bindingFirstMethodInputs inspects the sealed acquired header and caller
 // lexicals historically. It does not require a callable proof or live lease.
 func bindingFirstMethodInputs(r *storageRecipe, in *languageCallInputs, branch languageBranch) bool {
@@ -655,34 +510,6 @@ func bindingFirstMethodReceipt(a languageAlternative, r *storageRecipe, in *lang
 		found = true
 	}
 	return found
-}
-
-// bindingFirstMethodErrorLive validates the actual Finalize error before any
-// context installation/header clear. validCallTarget authenticates the acquired
-// reference, while canonical numeric9 separately proves it is not callable.
-func (o *languageOwner) bindingFirstMethodErrorLive(a languageAlternative, r *storageRecipe, pc int, ready []bool) bool {
-	if r == nil || r.binding == nil || !r.binding.valid(r) || !bindingFirstMethodReady(r, pc, ready) || !o.bindingFirstMethodSourceLive(r, a.branch) || pc != r.binding.first.finalize ||
-		a.completion != languageThrow || a.value != (languageValue{text: "TypeError"}) || a.remaining != "" ||
-		a.pending != languageNormal || a.pendingValue != (languageValue{}) || a.pendingReturnBoundary != (languageID{}) ||
-		a.returnBoundary != (languageID{}) || a.storage != nil || a.binding != nil || a.callHistory != nil ||
-		!o.live(a.branch) || !bindingFirstMethodReceipt(a, r, a.callInputs) || !validCallTarget(o, a.callInputs) {
-		return false
-	}
-	t := a.callInputs.targetOrigin
-	d, present, _, record := o.readOwnRecord(t.input, t.reference.receiver.object, t.reference.key)
-	return present && record != nil && record.initialized && !record.deleted && !d.accessor && d.value == a.callInputs.callee
-}
-
-// finishBindingFirstMethodError borrows the already-copied complete header.
-// Nothing mutates that header/lexical vector afterward. Context and receipt
-// authority remain distinct from a completed Call and a parked H completion.
-func (o *languageOwner) finishBindingFirstMethodError(a languageAlternative, r *storageRecipe, pc int, ready []bool) (languageAlternative, bool) {
-	if !o.bindingFirstMethodErrorLive(a, r, pc, ready) {
-		return a, false
-	}
-	a.binding = &languageBindingContext{plan: r.binding, firstMethod: a.callInputs}
-	a.callInputs = nil
-	return a, true
 }
 
 // firstMethodNumberErrorOutput is a detached source terminal, not activation
@@ -1529,98 +1356,6 @@ func bindingSuccessor(r *storageRecipe, pc int, a languageAlternative) int {
 		}
 	}
 	return pc + 1
-}
-
-// The common activation gate validates the loaned header itself. The outer
-// dispatch check cannot substitute for exact successful-Get/site correspondence.
-func bindingInputsMatchSite(p *closedPrefixCandidate, in *languageCallInputs, rows ...languageAlternative) bool {
-	if p != nil && p.bindingSite == nil && len(rows) == 1 && bindingDefaultInputs(p, in, rows[0]) {
-		return true
-	}
-	if p == nil || p.history == nil || in == nil || p.bindingSite == nil || in.bindingSite != p.bindingSite || in.targetOrigin == nil || len(in.arguments) != 0 {
-		return false
-	}
-	s, t := p.bindingSite, in.targetOrigin
-	if d := bindingStepDescriptor(s.plan, s); d != nil {
-		if len(rows) != 1 || rows[0].binding == nil {
-			return false
-		}
-		c := rows[0].binding
-		if c.plan != s.plan || c.currentElement() != d || c.first == nil || c.nextReceipt == nil || c.step != nil || c.done || !completedElements(c, rows[0], d.index) || len(c.nextReceipt.alternatives) != 1 || c.nextReceipt.input != c.nextBranch || c.nextReceipt.alternatives[0].branch != c.nextBranch || c.nextReceipt.alternatives[0].completion != languageNormal || c.nextReceipt.alternatives[0].value != c.next || c.next != in.callee || c.nextReference != in.reference || c.nextBranch != in.calleeBranch || c.iterator != in.receiver {
-			return false
-		}
-		for index := d.index; index < len(s.plan.elements); index++ {
-			if _, ok := bindingUninitializedTarget(&s.plan.elements[index], rows[0].branch, in.lexicals); !ok {
-				return false
-			}
-		}
-		if d.index > 0 {
-			return in.call == s.plan.declaration && in.category == callReferenceTarget && in.valueOrigin == nil && bindingRetainedNextOrigin(rows[0], s) == t && s.plan == p.history.recipe.binding && s.plan.valid(p.history.recipe) && p.bindingPhase == s.plan.siteOrdinal(s)
-		}
-	}
-	return s.plan == p.history.recipe.binding && s.plan.valid(p.history.recipe) && s.plan.site(s.invoke) == s && s.plan.siteOrdinal(s) == p.bindingPhase && in.call == s.plan.declaration && t.recipe == p.history.recipe && t.referencePC == s.member && t.getPC == s.get && t.acquirePC == s.acquire
-}
-
-// indexedElement finalizes only this recipe's real const BindingElement and its
-// deferred InitializeCell role. Structural population alone cannot grant entry.
-func (p *storageBindingRecipe) indexedElement(c *closedPrefixCandidate, work *shortCircuitPopulationProof) bool {
-	if c == nil || c.history == nil || p != c.history.recipe.binding || !p.valid(c.history.recipe) || len(p.elements) == 0 || p.declaration.Parent == nil || p.declaration.Parent.Flags&ast.NodeFlagsConst == 0 || p.declaration.Parent.Parent != c.statement {
-		return false
-	}
-	r := p.recipe
-	if len(r.declarations) != r.locals || len(r.constants) != r.locals {
-		return false
-	}
-	work.recipe, work.runtime = r, c.history.runtime
-	for _, node := range []*ast.Node{p.declaration, p.declaration.Name()} {
-		if !work.spend() || !work.occurrence(node) {
-			return false
-		}
-	}
-	for i := range p.elements {
-		d := &p.elements[i]
-		if d.index != i || d.node.Parent != p.declaration.Name() || d.node.Name().Parent != d.node {
-			return false
-		}
-		symbol := c.checker.GetSymbolAtLocation(d.node.Name())
-		if symbol == nil || symbol.ValueDeclaration != d.node || len(symbol.Declarations) != 1 {
-			return false
-		}
-		cell := r.events[d.initialize].cell
-		if cell < 0 || cell >= r.locals || !r.constants[cell] {
-			return false
-		}
-		for prior := 0; prior < i; prior++ {
-			if r.events[p.elements[prior].initialize].cell == cell {
-				return false
-			}
-		}
-		for _, node := range []*ast.Node{d.node, d.node.Name()} {
-			if !work.spend() || !work.occurrence(node) {
-				return false
-			}
-			e := work.index.normalOccurrences[node]
-			if e == nil || e.statement != c.statement || e.callOwner != nil {
-				return false
-			}
-		}
-		count := 0
-		for _, event := range r.events {
-			if !work.spend() {
-				return false
-			}
-			if event.kind == "InitializeCell" && event.cell == cell {
-				count++
-				if event.node != d.node || event.a != bindingInitializeInput(d) {
-					return false
-				}
-			}
-		}
-		if count != 1 {
-			return false
-		}
-	}
-	return true
 }
 
 const bindingCloseGetterRole = 3

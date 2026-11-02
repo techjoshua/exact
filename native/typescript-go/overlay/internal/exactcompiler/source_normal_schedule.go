@@ -50,7 +50,6 @@ type sourcePreparedInvocation struct {
 	receiverValues []sourceValue
 }
 type sourceNormalOperation struct {
-	closedPrefix *closedPrefixHistory
 	ownedRequest *ownedGetRequest
 
 	prefixView   *sourcePropertyReferenceView
@@ -205,9 +204,6 @@ func releaseNormalOperations(inputs *sourceValueInputs) {
 	}
 	if inputs == nil || inputs.operationLifetime == nil {
 		return
-	}
-	for _, slot := range inputs.operations {
-		slot.closedPrefix = nil
 	}
 	dropInitializerActuals(inputs.operations)
 	inputs.writeComponents = inputs.operationLifetime.previousComponents

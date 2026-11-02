@@ -1,66 +1,8 @@
 package exactcompiler
 
 import (
-	"encoding/json"
 	"testing"
 )
-
-func TestNullishFormalDefaultSource(t *testing.T) {
-	for _, target := range []Target{TargetClient, TargetServer} {
-		for _, test := range []struct {
-			args string
-			want int
-		}{
-			{`{value:3}`, 3}, {`{value:0}`, 0}, {`{value:null}`, 7}, {`{value:undefined}`, 7}, {`{value:null},5`, 5}, {`{value:3},5`, 5}, {`{value:undefined},5`, 5}, {`{value:null},undefined`, 7},
-		} {
-			t.Run(string(target)+"/"+test.args, func(t *testing.T) {
-				const id = "/virtual/nullish-formal-default.ts"
-				session := NewSession()
-				response := session.Execute(Request{Kind: "compile", ID: id, Source: `export {};const read=(input:{value:number|null|undefined},x:number=input.value??7)=>x;read(` + test.args + `);`, Target: target, Diagnostics: "semantic"})
-				if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) || response.Code == "" {
-					t.Fatal("unchanged source qualification", response.Error, response.Diagnostics)
-				}
-				h := bindingCloseHistory(session, id)
-				if h == nil || h.receipt == nil || len(h.receipt.alternatives) != 1 {
-					t.Fatal("actual original Call missing")
-				}
-				row := h.receipt.alternatives[0]
-				n, known := numericNumberPayload(row.value)
-				if row.completion != languageNormal || row.callHistory == nil || !known || int(n) != test.want {
-					t.Fatal("actual default Call result", row.remaining, row.value)
-				}
-				nullishDefaultSnapshot(t, row, test.want, test.args)
-				data, _ := json.Marshal(response)
-				var fields map[string]json.RawMessage
-				if err := json.Unmarshal(data, &fields); err != nil {
-					t.Fatal(err)
-				}
-				delete(fields, "timings")
-				data, _ = json.Marshal(fields)
-				t.Log("NULLISHDEFAULTRESPONSE", string(data))
-				fulfilled := false
-				for _, project := range session.projects {
-					if project.callableCache == nil {
-						continue
-					}
-					for _, fact := range project.callableCache.merged.facts {
-						for _, call := range fact.fieldCalls {
-							for _, out := range call.outcomes {
-								if out.fulfilled && out.demand.operation == row.callHistory.entry.proof.mapping.objectDefaultMember() {
-									fulfilled = true
-								}
-							}
-						}
-					}
-				}
-				if !fulfilled {
-					t.Fatal("actual nullish field outcome not adopted")
-				}
-				conditionalNodeCompletion(t, response.Code, test.want, 0)
-			})
-		}
-	}
-}
 
 // These are immutable installed facts after request disposal, not live renewal.
 func nullishDefaultSnapshot(t *testing.T, row languageAlternative, want int, args string) {

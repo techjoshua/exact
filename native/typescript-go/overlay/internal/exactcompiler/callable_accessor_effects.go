@@ -217,9 +217,6 @@ func appendOpaqueAccessorEffect(fact *callableFacts, candidates accessorCandidat
 	fact.thenIncomplete = fact.thenIncomplete || candidates.thenIncomplete
 	if candidates.opaque {
 		description := "accessor provenance incomplete"
-		if candidates.closedPrefixReason != "" {
-			description = candidates.closedPrefixReason
-		}
 		if candidates.cause != nil {
 			if source := ast.GetSourceFileOfNode(candidates.cause); source != nil {
 				description = fmt.Sprintf("%s at %s:%d", description, source.FileName(), candidates.cause.Pos())

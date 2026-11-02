@@ -32,7 +32,6 @@ type accessorCandidates struct {
 	environmentEffects []EnvironmentEffectSource
 	contextEffects     []ContextEffect
 
-	closedPrefixReason              string
 	ownedComponents                 *sourceCandidateComponents
 	ownedGets                       []*ownedGetPopulation
 	ownedClaims                     []*ownedGetFactObligation

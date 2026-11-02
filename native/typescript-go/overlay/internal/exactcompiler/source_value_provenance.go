@@ -84,8 +84,6 @@ type sourceNormalDemand struct {
 // for its checker generation. It is not a heap, selected-callee certificate or lowering plan.
 type sourceValueOwner struct {
 	estimatedCostMaximum    int // immutable cached advisory summary, not authority
-	closedPrefixCandidate   *closedPrefixCandidate
-	closedPrefixes          map[*ast.SourceFile]*closedPrefixHistory
 	initializerDeclarations map[*ast.Node]*moduleInitializerProjection
 	initializerOccurrences  map[*ast.Node]*moduleInitializerProjection
 	initializerRevision     uint64

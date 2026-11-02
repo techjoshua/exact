@@ -30,34 +30,6 @@ func (p *closedCallableProof) captureLayoutValid() bool {
 	return true
 }
 
-// createModuleCapturedCallable borrows only a currently executing, source-owned
-// prefix. It acquires an initialized immutable CellId and keeps the defining
-// environment, never its value as a capture snapshot. The storage marker binds
-// callable identity to its original branch lineage without another registry.
-func (o *languageOwner) createModuleCapturedCallable(b languageBranch, p *closedCallableProof, lexicals []languageLexical, candidate *closedPrefixCandidate) languageAlternative {
-	if !o.live(b) || !o.canAdvance(b, 3) || p == nil || !ast.IsArrowFunction(p.arrow) || p.empty || !p.captureLayoutValid() || !p.finalizedBodyProof(o) || candidate == nil || !candidate.enteredCallable(o, p) || !candidate.authoredEntry() || !candidate.sourceConstructs(p) || candidate.history.recipe.binding != nil || b.env.outer != nil {
-		return storageResidual(b, "module capture defining entry")
-	}
-	var captured languageLexical
-	count := 0
-	for _, v := range lexicals {
-		if v.declaration == p.captureDeclarations[0] {
-			captured = v
-			count++
-		}
-	}
-	c := captured.cell
-	if count != 1 || c.id.owner != o || c.environment != b.env.id || c.summary || !c.immutable {
-		return storageResidual(b, "module capture cell ownership")
-	}
-	acquired := o.readLocal(b, c)
-	if acquired.completion != languageNormal || acquired.value.object == nil || acquired.value.object.id.owner != o || !acquired.value.object.unique || !acquired.value.object.ownComplete {
-		return storageResidual(b, "module capture initialized object")
-	}
-	f := &languageCallable{id: o.identity(), proof: p, captures: b.env, capturedLexicals: []languageLexical{captured}}
-	return languageAlternative{branch: o.storageStep(b, languageStorage{cell: c, value: languageValue{callable: f}}), value: languageValue{callable: f, node: p.arrow}}
-}
-
 // callableCaptureState validates only immutable capture membership and current
 // storage ancestry. It never resolves a source name or revives a disposed owner.
 func (o *languageOwner) callableCaptureState(b languageBranch, f *languageCallable) bool {

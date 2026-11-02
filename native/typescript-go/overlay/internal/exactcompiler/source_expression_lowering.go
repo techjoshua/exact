@@ -21,12 +21,11 @@ type closedParameterMap struct {
 	references   map[*ast.Node]int
 }
 
-// expressionContext selects two closed admission domains, not execution modes.
+// expressionContext carries normal parameter, capture and receiver domains.
 // Builders/query capabilities are borrowed during discovery and never retained
 // in the returned recipe or a semantic receipt.
 type expressionContext struct {
 	captures       *closedCallableProof
-	prefix         *closedPrefixBuilder
 	parameters     *closedParameterMap
 	runtime        map[*ast.Node]bool
 	receiverBody   bool
@@ -49,7 +48,7 @@ func (p *expressionLowerer) binding(n *ast.Node) (int, bool) {
 		return 0, false
 	}
 	if m := p.context.parameters; m != nil {
-		if p.context.prefix != nil || m.arrow == nil || len(m.declarations) != p.recipe.locals {
+		if m.arrow == nil || len(m.declarations) != p.recipe.locals {
 			return 0, false
 		}
 		slot, ok := m.references[n]
@@ -58,19 +57,7 @@ func (p *expressionLowerer) binding(n *ast.Node) (int, bool) {
 		}
 		return slot, true
 	}
-	prefix := p.context.prefix
-	if prefix == nil || p.query == nil || p.query.owner == nil || p.query.owner.checker == nil {
-		return 0, false
-	}
-	symbol := p.query.owner.checker.GetSymbolAtLocation(n)
-	if symbol == nil {
-		return 0, false
-	}
-	binding, ok := p.locals[ast.GetSymbolId(symbol)]
-	if !ok || binding.cell < 0 || binding.cell >= len(prefix.declarations) || symbol.ValueDeclaration != prefix.declarations[binding.cell] || len(symbol.Declarations) != 1 {
-		return 0, false
-	}
-	return binding.cell, true
+	return 0, false
 }
 
 // scalarDefaultParameter classifies the finite numeric-default/direct-return
@@ -229,7 +216,7 @@ func (p *expressionLowerer) reference(n *ast.Node) (int, bool) {
 	if ast.IsParenthesizedExpression(n) {
 		return p.reference(n.Expression())
 	}
-	if (p.context.prefix != nil || p.context.captures != nil && len(p.context.captures.captureDeclarations) == 1 || p.context.receiverBody && n == p.context.receiverMember || p.context.captures != nil && p.context.captures.empty && (p.context.parameters.formalMember(n) || p.context.parameters.nullDefaultMember() == n)) && (ast.IsPropertyAccessExpression(n) || ast.IsElementAccessExpression(n)) {
+	if (p.context.captures != nil && len(p.context.captures.captureDeclarations) == 1 || p.context.receiverBody && n == p.context.receiverMember || p.context.captures != nil && p.context.captures.empty && (p.context.parameters.formalMember(n) || p.context.parameters.nullDefaultMember() == n)) && (ast.IsPropertyAccessExpression(n) || ast.IsElementAccessExpression(n)) {
 		var base *ast.Node
 		key := ""
 		keyNode := (*ast.Node)(nil)
@@ -263,16 +250,9 @@ func (p *expressionLowerer) reference(n *ast.Node) (int, bool) {
 			return 0, false
 		}
 		if keyNode != nil {
-			producer, ok := p.sourceIteratorKey(keyNode)
-			if !ok {
-				return 0, false
-			}
-			out := p.event(storageEvent{kind: "Member", node: n, a: v, key: languageIteratorKey(), keyProducerPC: producer})
-			if out >= 0 {
-				p.recipe.events[out].keyProducerPC = producer
-			}
-			return out, !p.exhausted
+			return 0, false
 		}
+
 		return p.event(storageEvent{kind: "Member", node: n, a: v, key: languageStringKey(key), keyProducerPC: -1}), !p.exhausted
 	}
 	if !ast.IsIdentifier(n) {
@@ -283,36 +263,6 @@ func (p *expressionLowerer) reference(n *ast.Node) (int, bool) {
 		return 0, false
 	}
 	return p.event(storageEvent{kind: "ResolveLexicalReference", node: n, cell: position}), !p.exhausted
-}
-
-// callInputs lowers actual source acquisition through the existing reference owner.
-// Invocation and source-entry permission remain separate caller responsibilities.
-func (p *expressionLowerer) callInputs(call *ast.Node) (int, bool) {
-	if p.context.prefix == nil || call == nil || !ast.IsCallExpression(call) || ast.IsOptionalChain(call) || !p.mark(call) {
-		return 0, false
-	}
-	ref, ok := p.reference(call.Expression())
-	if !ok {
-		return 0, false
-	}
-	callee := p.event(storageEvent{kind: "GetValue", node: call.Expression(), a: ref})
-	p.event(storageEvent{kind: "AcquireCallCallee", node: call, a: callee, b: ref})
-	count := 0
-	if call.AsCallExpression().Arguments != nil {
-		for _, arg := range call.AsCallExpression().Arguments.Nodes {
-			if ast.IsSpreadElement(arg) {
-				return 0, false
-			}
-			reg, ok := p.value(arg)
-			if !ok {
-				return 0, false
-			}
-			p.event(storageEvent{kind: "AcquireCallArgument", node: arg, a: reg, cell: count})
-			count++
-		}
-	}
-	p.event(storageEvent{kind: "FinalizeCallInputs", node: call, a: callee, cell: count})
-	return callee, !p.exhausted
 }
 
 func (p *expressionLowerer) value(n *ast.Node) (int, bool) {
@@ -379,118 +329,17 @@ func (p *expressionLowerer) value(n *ast.Node) (int, bool) {
 		// Only prefix VALUE demand can use this existing standard-symbol law.
 		// Body globals remain subject to capture/parameter authority. A local
 		// named undefined has already resolved above and keeps its actual cell.
-		if p.exhausted || p.context.prefix == nil || p.query == nil || p.query.owner == nil || p.query.owner.checker == nil || !p.discover() {
-			return 0, false
-		}
-		symbol := p.query.owner.checker.GetSymbolAtLocation(n)
-		if !standardUndefinedSymbol(p.query.owner.checker, n, symbol) {
-			return 0, false
-		}
-		return p.event(storageEvent{kind: "Literal", node: n, value: languageValue{undefined: true, node: n}}), !p.exhausted
+		return 0, false
 	}
-	if p.context.prefix != nil && ast.IsObjectLiteralExpression(n) {
-		reg := p.event(storageEvent{kind: "AllocateObject", node: n})
-		keys := map[languagePropertyKey]bool{}
-		for _, field := range n.AsObjectLiteralExpression().Properties.Nodes {
-			if !p.mark(field) || (!ast.IsPropertyAssignment(field) && !ast.IsGetAccessorDeclaration(field)) || field.Name() == nil || (!ast.IsIdentifier(field.Name()) && field.Name().Kind != ast.KindStringLiteral && !ast.IsComputedPropertyName(field.Name())) {
-				return 0, false
-			}
-			key := languagePropertyKey{}
-			producer := -1
-			if ast.IsComputedPropertyName(field.Name()) {
-				if !p.mark(field.Name()) {
-					return 0, false
-				}
-				var ok bool
-				producer, ok = p.sourceIteratorKey(field.Name().AsComputedPropertyName().Expression)
-				if !ok {
-					return 0, false
-				}
-				key = languageIteratorKey()
-			} else {
-				key = languageStringKey(field.Name().Text())
-			}
-			if key == languageStringKey("__proto__") || keys[key] || !p.discover() {
-				return 0, false
-			}
-			keys[key] = true
-			var value int
-			var ok bool
-			kind := "DefineSlot"
-			if ast.IsGetAccessorDeclaration(field) {
-				value, ok = p.value(field)
-				kind = "DefineAccessorSlot"
-			} else {
-				value, ok = p.value(field.Initializer())
-			}
-			if !ok {
-				return 0, false
-			}
-			out := p.event(storageEvent{kind: kind, node: field, a: reg, b: value, key: key, keyProducerPC: producer})
-			if out >= 0 {
-				p.recipe.events[out].keyProducerPC = producer
-			}
-		}
-		p.event(storageEvent{kind: "ObjectComplete", node: n, a: reg})
-		return reg, !p.exhausted
-	}
-	if (p.context.prefix != nil || p.context.captures != nil && len(p.context.captures.captureDeclarations) == 1 || p.context.receiverBody && n == p.context.receiverMember || p.context.captures != nil && p.context.captures.empty && (p.context.parameters.formalMember(n) || p.context.parameters.nullDefaultMember() == n)) && (ast.IsPropertyAccessExpression(n) || ast.IsElementAccessExpression(n)) {
+
+	if (p.context.captures != nil && len(p.context.captures.captureDeclarations) == 1 || p.context.receiverBody && n == p.context.receiverMember || p.context.captures != nil && p.context.captures.empty && (p.context.parameters.formalMember(n) || p.context.parameters.nullDefaultMember() == n)) && (ast.IsPropertyAccessExpression(n) || ast.IsElementAccessExpression(n)) {
 		ref, ok := p.reference(n)
 		if !ok {
 			return 0, false
 		}
 		return p.event(storageEvent{kind: "GetValue", node: n, a: ref}), !p.exhausted
 	}
-	if closedCallableNode(n) {
-		if p.context.prefix == nil {
-			return 0, false
-		}
-		proof, ok := p.context.prefix.capture(n)
-		if !ok {
-			return 0, false
-		}
-		return p.event(storageEvent{kind: "CreateClosedCallable", node: n, callable: proof}), !p.exhausted
-	}
-	if ast.IsCallExpression(n) {
-		if p.context.prefix == nil || p.recipe.binding == nil || bindingDefaultCall(p.recipe.binding.elementNode(0)) != n {
-			return 0, false
-		}
-		// Both syntax paths need a complete deferred body before entry, even
-		// when the acquired binding value will bypass this Call entirely.
-		if p.query == nil || p.query.owner == nil || p.query.owner.checker == nil || !p.discover() {
-			return 0, false
-		}
-		symbol := p.query.owner.checker.GetSymbolAtLocation(n.Expression())
-		if symbol == nil || symbol.ValueDeclaration == nil || len(symbol.Declarations) != 1 || !ast.IsVariableDeclaration(symbol.ValueDeclaration) {
-			return 0, false
-		}
-		declaration := symbol.ValueDeclaration
-		if declaration.Parent == nil || declaration.Parent.Flags&ast.NodeFlagsConst == 0 || !closedCallableNode(declaration.Initializer()) {
-			return 0, false
-		}
-		complete := false
-		for _, event := range p.recipe.events {
-			if !p.discover() {
-				return 0, false
-			}
-			if event.kind != "CreateClosedCallable" || event.node != declaration.Initializer() {
-				continue
-			}
-			proof := event.callable
-			if complete || proof == nil || proof.entry == nil || proof.parameters != 0 || proof.entry.finally == nil || !proof.entry.finally.valid(proof.entry) || !bindingDefaultThrowShape(proof.arrow) {
-				return 0, false
-			}
-			complete = true
-		}
-		if !complete {
-			return 0, false
-		}
-		callee, ok := p.callInputs(n)
-		if !ok {
-			return 0, false
-		}
-		return p.event(storageEvent{kind: "InvokeAcquiredCall", node: n, a: callee}), !p.exhausted
-	}
+
 	if ast.IsConditionalExpression(n) {
 		return p.conditionalOperand(n)
 	}
@@ -666,44 +515,4 @@ func (m *closedParameterMap) validProjection() bool {
 		}
 	}
 	return true
-}
-
-// sourceIteratorKey discovers one key demand. Declarations identify only the
-// possible standard contract. The post-matches native proof owns admission.
-func (p *expressionLowerer) sourceIteratorKey(n *ast.Node) (int, bool) {
-	if p.context.prefix == nil || p.query == nil || !ast.IsPropertyAccessExpression(n) || ast.IsOptionalChain(n) {
-		return 0, false
-	}
-	m := n.AsPropertyAccessExpression()
-	if !ast.IsIdentifier(m.Expression) || !p.mark(n) || !p.mark(m.Expression) || !p.mark(m.Name()) {
-		return 0, false
-	}
-	_, member := p.query.nativeWellKnownKey("iterator", &accessorCandidates{})
-	global := p.query.owner.checker.GetGlobalSymbol("Symbol", ast.SymbolFlagsValue, nil)
-	if global == nil {
-		if sourceSymbolFirstLoss != nil {
-			sourceSymbolFirstLoss("discovery Symbol global missing")
-		}
-		return 0, false
-	}
-	if member == nil {
-		if sourceSymbolFirstLoss != nil {
-			sourceSymbolFirstLoss("discovery iterator declaration missing")
-		}
-		return 0, false
-	}
-	if p.query.owner.checker.GetSymbolAtLocation(m.Expression) != global {
-		if sourceSymbolFirstLoss != nil {
-			sourceSymbolFirstLoss("discovery Symbol declaration mismatch")
-		}
-		return 0, false
-	}
-	if p.query.owner.checker.GetSymbolAtLocation(m.Name()) != member {
-		if sourceSymbolFirstLoss != nil {
-			sourceSymbolFirstLoss("discovery iterator declaration mismatch")
-		}
-		return 0, false
-	}
-	p.recipe.sourceSymbol = true
-	return p.event(storageEvent{kind: "SourceWellKnownIteratorKey", node: n, key: languageIteratorKey(), keyProducerPC: -1}), !p.exhausted
 }

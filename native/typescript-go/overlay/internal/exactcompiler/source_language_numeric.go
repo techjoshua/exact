@@ -193,32 +193,3 @@ func negateSuccessor(prior languageAlternative, operand languageValue, origin *a
 	out.value, _ = prior.branch.owner.numericNumberArtifact(-n, origin)
 	return out
 }
-
-// numericNegateInterval authenticates the exact unary operator, operand producer
-// and complete contiguous donor interval, including a selector's exclusive end.
-func (p *shortCircuitPopulationProof) numericNegateInterval(pc int) bool {
-	r := p.recipe
-	if !p.spend() || r == nil || pc < 0 || pc >= len(r.events) {
-		return false
-	}
-	e := r.events[pc]
-	if e.kind != "NumberNegate" || e.out != pc || e.node == nil || !ast.IsPrefixUnaryExpression(e.node) || e.node.AsPrefixUnaryExpression().Operator != ast.KindMinusToken || !p.runtime[e.node] {
-		return false
-	}
-	return p.unaryOperandInterval(pc, e.node.AsPrefixUnaryExpression().Operand)
-}
-func (p *shortCircuitPopulationProof) numericNegateOccurrence(node *ast.Node) bool {
-	found := -1
-	for pc, e := range p.recipe.events {
-		if !p.spend() {
-			return false
-		}
-		if e.node == node && e.kind == "NumberNegate" {
-			if found >= 0 {
-				return false
-			}
-			found = pc
-		}
-	}
-	return found >= 0 && p.numericNegateInterval(found)
-}

@@ -84,30 +84,6 @@ func typeofSuccessor(prior languageAlternative, operand languageValue, origin *a
 	return out
 }
 
-func (p *shortCircuitPopulationProof) typeofInterval(pc int) bool {
-	r := p.recipe
-	if !p.spend() || r == nil || pc < 0 || pc >= len(r.events) {
-		return false
-	}
-	e := r.events[pc]
-	return e.kind == "Typeof" && e.out == pc && e.node != nil && ast.IsTypeOfExpression(e.node) && p.runtime[e.node] && p.unaryOperandInterval(pc, e.node.Expression())
-}
-func (p *shortCircuitPopulationProof) typeofOccurrence(node *ast.Node) bool {
-	found := -1
-	for pc, e := range p.recipe.events {
-		if !p.spend() {
-			return false
-		}
-		if e.node == node && e.kind == "Typeof" {
-			if found >= 0 {
-				return false
-			}
-			found = pc
-		}
-	}
-	return found >= 0 && p.typeofInterval(found)
-}
-
 // finalizedCallableCategory distinguishes construction from body entry. The
 // ordinary proof retains its existing validation. A creation-only inner arrow
 // instead uses its original finalized source/generation/free-set association.

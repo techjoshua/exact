@@ -114,44 +114,6 @@ func bindingDefaultCallLayout(r *storageRecipe, p *storageBindingRecipe) (storag
 	return d, i, true
 }
 
-func (p *shortCircuitPopulationProof) defaultInterval(pc int) bool {
-	r := p.recipe
-	if r == nil || !p.spend() {
-		return false
-	}
-	var d storageEvent
-	var ok bool
-	if r.binding != nil {
-		d, _, ok = bindingDefaultLayout(r, r.binding)
-	} else if p.body != nil && r.callBody && p.body.plan != nil {
-		d, _, ok = defaultChoiceLayout(r, pc)
-		if ok {
-			input := r.events[d.a]
-			formal := p.body.plan.parameters.defaultParameter(input.cell)
-			ok = formal != nil && d.node == formal.Initializer() && input.kind == "ReadAcquiredArgument" && input.node == formal
-		}
-	}
-	if !ok || pc != d.out || !p.runtime[d.node] || !p.ends(r.events[d.merge].a, d.merge, d.node) {
-		return false
-	}
-	if p.body != nil && !p.bodyExpressionRegion(d.entry, d.merge, d.node) {
-		return false
-	}
-	for i, event := range r.events {
-		if !p.spend() {
-			return false
-		}
-		inside := i >= d.entry && i < d.merge
-		if event.node == d.node && (i == pc || i == d.merge) {
-			continue
-		}
-		if inside != p.within(event.node, d.node) {
-			return false
-		}
-	}
-	return true
-}
-
 // bindingDefaultSelected is shared source-Get/Next metadata. It grants neither
 // entry nor parking. The actual acquired entry and current source cell follow.
 func bindingDefaultSelected(c *languageBindingContext, a languageAlternative) bool {
@@ -198,72 +160,6 @@ func bindingDefaultSelected(c *languageBindingContext, a languageAlternative) bo
 		return false
 	}
 	return true
-}
-
-// bindingDefaultInputs consumes the existing one-use source input loan. The
-// explicit Call does not masquerade as one of the iterator's protocol sites.
-func bindingDefaultInputs(p *closedPrefixCandidate, in *languageCallInputs, a languageAlternative) bool {
-	if p == nil ||
-		p.history == nil ||
-		p.history.recipe == nil ||
-		in == nil ||
-		p.entryInputs != in ||
-		p.bodyClaimed ||
-		p.bindingSite != nil ||
-		in.bindingSite != nil ||
-		in.call == nil ||
-		in.receiver != (languageValue{undefined: true}) ||
-		len(in.arguments) != 0 ||
-		!in.complete ||
-		!in.calleeReady ||
-		a.callInputs != in ||
-		!bindingDefaultSelected(a.binding, a) {
-		return false
-	}
-	r := p.history.recipe
-	d, invoke, ok := bindingDefaultCallLayout(r, r.binding)
-	if !ok ||
-		a.storage == nil ||
-		a.storage.recipe != r ||
-		a.storage.pc != invoke ||
-		a.storage.childBranch != a.branch ||
-		len(a.storage.choices) != 1 ||
-		a.storage.choices[0] != (storageChoice{destination: d.out, merge: d.merge, end: d.end}) ||
-		p.bindingPhase != r.binding.siteOrdinal(&r.binding.close) ||
-		in.call != r.events[invoke].node ||
-		in.targetOrigin == nil ||
-		in.targetOrigin.recipe != r ||
-		in.targetOrigin.getPC != invoke-3 ||
-		in.targetOrigin.acquirePC != invoke-2 ||
-		in.targetOrigin.referencePC != r.events[invoke-2].b ||
-		in.targetOrigin.getPC < d.entry ||
-		!validCallTarget(a.branch.owner, in) {
-		return false
-	}
-	ref := r.events[in.targetOrigin.referencePC]
-	if ref.cell < 0 ||
-		ref.cell >= len(in.lexicals) ||
-		ref.cell >= len(r.declarations) ||
-		ref.cell >= len(r.constants) ||
-		!r.constants[ref.cell] ||
-		in.lexicals[ref.cell].declaration != r.declarations[ref.cell] ||
-		in.reference.cell != in.lexicals[ref.cell].cell ||
-		!in.reference.cell.immutable {
-		return false
-	}
-	if _, ok := bindingUninitializedTarget(r.binding.elementAt(0), a.branch, in.lexicals); !ok {
-		return false
-	}
-	if len(a.binding.doneReceipt.alternatives) != 1 {
-		return false
-	}
-	done, doneKnown := acquiredBoolean(a.branch, a.binding.doneReceipt.alternatives[0].value)
-	undefined, undefinedKnown := acquiredUndefined(a.branch, a.binding.selected.alternatives[0].value)
-	if !doneKnown || done || !undefinedKnown || !undefined {
-		return false
-	}
-	f := in.callee.callable
-	return f != nil && f.proof != nil && f.proof.entry != nil && f.proof.parameters == 0 && f.proof.entry.finally != nil && bindingDefaultThrowShape(f.proof.arrow) && f.proof.entry.finally.valid(f.proof.entry)
 }
 
 // bindingDefaultChild is the immutable counterpart of the live checked handoff.
