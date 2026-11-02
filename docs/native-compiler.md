@@ -1973,20 +1973,26 @@ reports approximately 325 GB allocated by 374.589 seconds, with about 96 MB live
 snapshot. These observations identify repeated copying and allocation churn, not a proven
 semantic cycle or a validated replacement architecture. The remaining recurrence needs a
 source-bound ownership diagnosis. Selected source-return acquisition now uses the existing source
-body-entry interval, and its reduced recurrence controls pass. The latest uncapped
+body-entry interval, and its reduced recurrence controls pass. The uncapped
 `57c2fd127` host still fails naturally with a stack overflow after 75.983 seconds. A completed
 24-second profile segment again shows repeated member and invocation acquisition. At that
 snapshot, callable-scope acquisition accounts for 55.58% of sampled allocation bytes. These
 runs are diagnostic observations, not an isolated performance comparison.
 
 A separate held-context observation binds repeated `Object.freeze({...metadata})` callee
-acquisition to source inputs containing two empty copied maps and a rest container. The current
-pending-callee relation supports syntax terms only and declines the entire description when
-such a carrier is present. Rest, copied and getter-captured reduced sources still overflow,
-while their literal-key peers terminate. Their source-only status does not itself establish
-context equality. The observer is stopped after binding the source context, with its compiler
-process reaped. It supplies no compile or performance acceptance. The SDK path requires fresh
-execution after termination is repaired.
+acquisition to source inputs containing two empty copied maps and a rest container. Immutable
+pending-callee descriptions now retain exact acyclic source containers and captures. The
+reduced rest, copied and getter-capture regressions pass without normal output authority.
+Unsupported and cyclic descriptions still decline comparison.
+
+Core acceptance remains blocked. The subsequent `b7a2942c5` uncapped diagnostic produces no
+compile response before a deliberate stop after three completed profile segments. At the
+886.831-second snapshot, runtime cumulative allocation is approximately 549 GB. This is a
+diagnostic stop, not a request timeout, natural failure or completed compile. A separate
+frequency observer on `1c8d82d1c` records over 6.4 million acquisitions across 281 query/Call/cut
+combinations. The most repeated combination is the original `Symbol.for` Call. These counts
+locate repeated work but do not prove equal source bindings or justify result reuse. All owned
+compiler processes are reaped. The SDK path requires fresh execution after termination is repaired.
 
 Maintainer validation uses `node scripts/build-native-compiler.mjs --source <pinned checkout>`.
 The build prepares workspace declarations with the installed official TypeScript 7 CLI,
