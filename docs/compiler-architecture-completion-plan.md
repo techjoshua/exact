@@ -283,6 +283,16 @@ Query-local advisory work is accumulated into the checker owner's existing cost 
 without retaining a query or its binding maps. Binding-write and member-write relations remain
 owned by `source_value_bindings.go` and `source_value_members.go`.
 
+Callee selection has a separate synchronous availability boundary. While an original Call
+acquires its callee and receiver, a return demand for that same pending selection remains
+unknown when its syntax inputs, creator endpoints and read cuts match. These descriptions
+are immutable snapshots, compared by source contents. The borrow expires before argument,
+default or body dispatch. It supplies no value, completion, alias or NoWrites proof.
+Captured, adapted, container and normal input carriers decline this comparison and retain
+their existing acquisition route. This closes the reduced descriptor/freeze acquisition cycle
+for supported syntax inputs without claiming request-wide Core termination or general
+source-context equivalence. Finite body-entry joins remain a different relation.
+
 Constructor dependencies share the selected executable target owner with normal construction.
 Selected constructor bodies and instance-field demands retain known effects beside unresolved
 construction, without supplying an instance or completion receipt. Default derived constructors

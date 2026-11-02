@@ -746,6 +746,9 @@ func (query *sourceValueQuery) prepareInvocation(node *ast.Node, bindings source
 		result.opaque, result.valueIncomplete, result.cause = true, true, node
 		return sourcePreparedInvocation{base: selectionProjection(result), remaining: query.remaining}, result
 	}
+	if release := query.beginCalleeAcquisition(node, bindings); release != nil {
+		defer release()
+	}
 	call := node.AsCallExpression()
 	declarations := query.callDeclarations(call.Expression, &result)
 	selectedCall := result.selected

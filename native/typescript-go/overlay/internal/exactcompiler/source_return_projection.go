@@ -7,6 +7,9 @@ import "github.com/microsoft/TypeScript/tsc/internal/ast"
 // observes parameterized return syntax without executing bodies or publishing
 // a normal Call/Get output, mutation delta or completion receipt.
 func (query *sourceValueQuery) projectSourceCallReturns(call *ast.Node, bindings sourceValueBindings, project func(sourceValue, sourceValueBindings), deferred func()) accessorCandidates {
+	if query.pendingCalleeOutput(call, bindings) {
+		return accessorCandidates{opaque: true, valueIncomplete: true}
+	}
 	selected := false
 	result := query.consumeInvocation(call, bindings, sourceInvocationConsumer{
 		selection:    func(complete bool) { selected = complete },

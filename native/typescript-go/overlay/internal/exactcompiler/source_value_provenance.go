@@ -119,6 +119,7 @@ type sourceValueQuery struct {
 	// dependenciesOnly instantiates source relationships without consuming normal storage.
 	dependenciesOnly bool
 
+	pendingCallee      *sourcePendingCallee         // synchronous unavailable-selection borrow, never cached
 	pendingWriterInput *sourcePendingWriterInput    // synchronous negative writer-candidate fence, never cached
 	constructionMay    *sourceConstructionMayPrefix // synchronous effects-only prefix borrow, never cached
 	workLedgers        map[*sourceNormalOperation]bool
