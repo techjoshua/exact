@@ -102,9 +102,12 @@ func TestSourceReturnAcquisitionAuthority(t *testing.T) {
 			t.Fatal("first source input was refused")
 		}
 		query.active[body] = true
-		query.projectSelectedSourceReturns(body, call, nil, nil, &refused, func(sourceValue, sourceValueBindings) { t.Fatal("refused entry fabricated a return") }, func() { t.Fatal("refused entry deferred") })
+		assessment := query.projectSelectedSourceReturns(body, call, nil, nil, &refused, func(sourceValue, sourceValueBindings) { t.Fatal("refused entry fabricated a return") }, func() { t.Fatal("refused entry deferred") })
 		query.active[body] = false
 		release()
+		if assessment.assessed || assessment.successful || assessment.unknown {
+			t.Fatal("refused source selection assessed a completion")
+		}
 		if !refused.opaque || !refused.valueIncomplete {
 			t.Fatal("saturated source entry lost uncertainty")
 		}
@@ -192,5 +195,44 @@ func TestSourceReturnAcquisitionNormalBoundary(t *testing.T) {
 		if projected != 1 || !query.active[body] || len(query.dependencyEntries) != 0 || query.inputs != nil || query.returning != nil || query.operation != nil || len(query.creators) != 0 {
 			t.Fatal("source interval changed normal projection ownership")
 		}
+	}
+}
+
+// Successful fallthrough supplies undefined. A deferred generator body supplies
+// neither a successful source completion nor a normal execution receipt.
+func TestSourceReturnAcquisitionCompletionKinds(t *testing.T) {
+	const source = `function empty(){}function* deferred(){yield document.title}export const value=empty();`
+	session := NewSession()
+	response := session.Execute(Request{Kind: "analyze", ID: "/virtual/return-completion-kinds.ts", Source: source, Diagnostics: "semantic"})
+	if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) {
+		t.Fatal(response.Error, response.Diagnostics)
+	}
+	for _, project := range session.projects {
+		file := project.program.GetSourceFile("/virtual/return-completion-kinds.ts")
+		if file == nil {
+			continue
+		}
+		walkNode(file.AsNode(), func(body *ast.Node) bool {
+			if !ast.IsFunctionDeclaration(body) {
+				return true
+			}
+			query := newSourceDependencyQuery(body, project.callableCache.owner.values.checker, project.callableCache.owner, nil)
+			part := accessorCandidates{}
+			projected, deferred := 0, false
+			assessment := query.projectSelectedSourceReturns(body, nil, nil, nil, &part, func(value sourceValue, _ sourceValueBindings) {
+				if !value.undefined || value.normal != nil || value.acquired != nil {
+					t.Fatal("fallthrough invented source value authority")
+				}
+				projected++
+			}, func() { deferred = true })
+			if body.Name().Text() == "empty" {
+				if projected != 1 || deferred || !assessment.assessed || !assessment.successful || assessment.unknown {
+					t.Fatal("fallthrough lost successful undefined", assessment)
+				}
+			} else if projected != 0 || !deferred || assessment.assessed || assessment.successful || assessment.unknown {
+				t.Fatal("deferred body assessed a successful completion", assessment)
+			}
+			return false
+		})
 	}
 }
