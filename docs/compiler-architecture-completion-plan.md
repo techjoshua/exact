@@ -265,26 +265,11 @@ their own source Get obligations. A readonly annotation or type alias supplies n
 those effects nor normal DATA, runtime method identity or immutable elements. Tests of
 selected method ownership therefore check it independently of component placement.
 
-Source-only native array callback inputs reuse the original Call's actual receiver
-and argument plan. Receiver acquisition precedes arguments. Possible numeric index
-Gets follow their evaluation, with canonical array indices and binder-owned standard
-prototype ancestors kept separate from named properties. These inputs retain known
-callback, getter and capture dependencies beside independent unknown routes. They
-supply no map-result model, normal DATA, field or Call completion, descriptor contents,
-property absence or NoWrites authority. A direct first callback-argument Get may stop
-later index and callback effects only when the selected source completion owner
-explicitly assessed every represented route with no successful or unknown route.
-Missing, unentered, refused and foreign projections remain unknown. Other argument
-expressions do not gain completion precision from this relation. A represented
-noncallable callback excludes numeric-index and callback-body work. Unknown or mixed
-alternatives keep that work possible. Existing receiver acquisition donors remain
-independent, without establishing a complete borrowed-native length protocol.
-The local native alternative binds callback index and array arguments as defined
-at the top level through the same supplied-input law as source Proxy traps.
-Undefined elements and nested/rest defaults remain separate. Generic callback
-edges still retain default-effect donors because complete actual-native callee
-and slot coverage is unavailable. A library signature does not establish that
-coverage, and unknown or replaced methods receive no default-phase waiver.
+The [native compiler reference](native-compiler.md) owns the implemented source-only native
+array callback input, acquisition-phase and default-presence contracts. Complete runtime-native
+callback-slot identity and generic edge default coverage remain unresolved. They cannot be
+inferred from library declarations or supplied-defined local bindings.
+
 Dependency-only body entry joins finite source input relationships for an active declaration.
 Distinct acquired callbacks and capture roots can instantiate that same summary before its
 outer invocation finishes. The relation uses source nodes, formal symbols, creator/use sites

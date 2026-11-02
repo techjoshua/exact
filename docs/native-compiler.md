@@ -2005,6 +2005,23 @@ A selected component `map` retains a separate MAY-effect contribution from its o
 
 Every currently produced map input domain remains open. A finite literal list, an empty list or observation-only future uses do not prove inherited iterator behavior, later item membership or complete property coverage. The contribution therefore cannot discharge abstract item reads or manufacture a callback invocation, normal Get, native preservation or descriptor receipt. Known effects survive beside that uncertainty. Ordinary methods named `map` receive no framework contribution.
 
+Ordinary `Array.map` source inputs use a separate effect-only native alternative. The original
+receiver is acquired before arguments, while possible numeric index Gets follow argument
+evaluation. Canonical array indices and binder-owned prototype ancestors retain known getter
+and callback donors beside unknown routes. This supplies neither a map-result model nor
+field, descriptor, absence, normal DATA or callback-completion authority. A direct first
+callback-argument Get suppresses later index and callback effects only when the source
+completion owner assessed every represented route without a successful or unknown route.
+Missing, unentered, refused and foreign projections remain unknown. A represented noncallable
+callback suppresses numeric-index and callback-body work, preserving earlier acquisition donors.
+
+Within that native alternative, index and array parameters are supplied and nonundefined,
+so their top-level defaults are bypassed. Nested patterns and possibly undefined elements
+retain their usual defaults. This local binding does not close the generic eager callback
+edge. The current library method candidate is a typed possible target, without a complete
+runtime-native callback-slot identity. Generic default donors therefore remain conservative,
+and borrowed-method length behavior is not fully modeled.
+
 Reflective descriptor conversion has a separate effect origin from callee selection. A generic
 function summary retains uncertainty when it lacks an actual caller prefix. An entered normal
 Call can account for that exact origin only after its target alternatives, descriptor fields,

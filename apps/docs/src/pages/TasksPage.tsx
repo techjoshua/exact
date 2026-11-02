@@ -311,10 +311,13 @@ export function TasksPage(this: Component<{}>) {
 					choose where a task runs. Without either, eXact infers placement from the resources the
 					task uses. Caching an object does not remove the resource requirements of getters read
 					through references to that shared object. Freezing an object also preserves its getters
-					and setters, including the resources they use when you read or assign its properties.
-					Placement analysis also follows captured inputs and current assignments through helper
-					returns, including recursive helpers. These relationships preserve ordinary JavaScript
-					initialization and thrown errors.
+					and setters, including the resources they use when you read or assign its properties. An
+					array callback that reads an element's getter also keeps that getter's resource
+					requirements. Placement follows captured inputs and current assignments through helper
+					returns, preserving ordinary JavaScript initialization and thrown errors. Unresolved
+					callbacks or externally supplied values can leave placement uncertain.
+				</p>
+				<p>
 					<code>immediate()</code>, <code>normal()</code>, and <code>deferred()</code> choose when
 					eligible work runs. Normal priority is the default for invoked tasks.
 				</p>
