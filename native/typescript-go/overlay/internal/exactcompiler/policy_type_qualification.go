@@ -110,7 +110,8 @@ func checkerTypeContainsSecret(value *checker.Type, typeChecker *checker.Checker
 			return true
 		}
 	}
-	if value.ObjectFlags()&checker.ObjectFlagsMapped == 0 && policyStandardLibraryType(value, typeChecker) {
+	nativeCarrier := policyNativeDataCarrier(value, typeChecker)
+	if nativeCarrier || value.ObjectFlags()&checker.ObjectFlagsMapped == 0 && policyStandardLibraryType(value, typeChecker) {
 		if value.ObjectFlags()&checker.ObjectFlagsReference != 0 {
 			for _, argument := range typeChecker.GetTypeArguments(value) {
 				if checkerTypeContainsSecret(argument, typeChecker, obligation) {
@@ -118,12 +119,17 @@ func checkerTypeContainsSecret(value *checker.Type, typeChecker *checker.Checker
 				}
 			}
 		}
-		// Native declarations cannot contain framework qualification. Their payload arguments
-		// and index values are inspected above, without walking unrelated browser object graphs.
-		return false
+		// Native API graphs are not payloads. Augmented data carriers still
+		// retain every authored property beside the payload/index obligations.
+		if !nativeCarrier {
+			return false
+		}
 	}
 
 	for _, property := range typeChecker.GetPropertiesOfType(value) {
+		if nativeCarrier && policyStandardLibraryProperty(property, typeChecker) {
+			continue
+		}
 		if checkerPropertyHasSecretPolicy(property) {
 			return true
 		}
@@ -240,7 +246,7 @@ func protectedPolicyContainer(value *checker.Type, typeChecker *checker.Checker)
 			return true
 		}
 	}
-	if policyStandardLibraryType(value, typeChecker) && value.ObjectFlags()&checker.ObjectFlagsReference != 0 {
+	if policyNativeDataCarrier(value, typeChecker) && value.ObjectFlags()&checker.ObjectFlagsReference != 0 {
 		for _, argument := range typeChecker.GetTypeArguments(value) {
 			if _, secret := policyFromCheckerType(argument, typeChecker); secret {
 				return true

@@ -48,7 +48,7 @@ func secretArtifactOwnDataWithin(value *checker.Type, c *checker.Checker, seen m
 			return true
 		}
 	}
-	nativeCarrier := secretArtifactNativeCarrier(value, c)
+	nativeCarrier := policyNativeDataCarrier(value, c)
 	if nativeCarrier && value.ObjectFlags()&checker.ObjectFlagsReference != 0 {
 		for _, argument := range c.GetTypeArguments(value) {
 			if secretArtifactOwnDataWithin(argument, c, seen, active) {
@@ -59,7 +59,7 @@ func secretArtifactOwnDataWithin(value *checker.Type, c *checker.Checker, seen m
 	// Native API members are not payloads. Application augmentations remain
 	// independent stored-data obligations beside the native payload contract.
 	for _, property := range c.GetPropertiesOfType(value) {
-		if nativeCarrier && secretArtifactLibraryProperty(property, c) {
+		if nativeCarrier && policyStandardLibraryProperty(property, c) {
 			continue
 		}
 		if !secretArtifactStoredProperty(property) {
@@ -70,20 +70,6 @@ func secretArtifactOwnDataWithin(value *checker.Type, c *checker.Checker, seen m
 		}
 	}
 	return false
-}
-
-// secretArtifactLibraryProperty excludes only wholly native declarations.
-// A merged application declaration keeps its stored-data obligation visible.
-func secretArtifactLibraryProperty(property *ast.Symbol, c *checker.Checker) bool {
-	if len(property.Declarations) == 0 {
-		return false
-	}
-	for _, declaration := range property.Declarations {
-		if !c.IsLibSymbolForHoverVerbosity(&ast.Symbol{Declarations: []*ast.Node{declaration}}) {
-			return false
-		}
-	}
-	return true
 }
 
 // secretArtifactStoredProperty distinguishes declared storage from deferred
@@ -103,25 +89,6 @@ func secretArtifactStoredProperty(property *ast.Symbol) bool {
 		}
 	}
 	return len(property.Declarations) == 0 && property.Flags&ast.SymbolFlagsProperty != 0 && property.Flags&(ast.SymbolFlagsMethod|ast.SymbolFlagsAccessor) == 0
-}
-
-// secretArtifactNativeCarrier recognizes native data-position contracts. A
-// generic marker such as ThisType<T>, descriptor metadata, or a user type with
-// the same spelling does not establish a runtime payload position. Augmentation
-// preserves an original native payload contract rather than erasing it.
-func secretArtifactNativeCarrier(value *checker.Type, c *checker.Checker) bool {
-	if value == nil || value.Symbol() == nil {
-		return false
-	}
-	switch ast.SymbolName(value.Symbol()) {
-	case "Array", "ReadonlyArray", "Promise", "PromiseLike", "Map", "ReadonlyMap", "Set", "ReadonlySet", "WeakMap", "WeakSet":
-		for _, declaration := range value.Symbol().Declarations {
-			if c.IsLibSymbolForHoverVerbosity(&ast.Symbol{Declarations: []*ast.Node{declaration}}) {
-				return true
-			}
-		}
-	}
-	return false
 }
 
 // secretArtifactOpenExpansion defers only recursive changes whose values are

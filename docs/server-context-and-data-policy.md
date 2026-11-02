@@ -254,7 +254,10 @@ Selecting a public sibling does not authorize delivery of a retained secret fiel
 If its definition remains in client code and cannot be removed safely, compilation reports
 EXACT3022 and supplies neither code nor a source map. Dead pure definitions and server-owned task
 bodies can be projected away. Stored record contracts retain field qualification through aliases
-and native payload containers. A constructor's synthetic instance prototype and deferred callable
+and native payload containers. Native payloads and authored augmentation members retain separate
+qualification obligations. An unrelated public collection extension does not make its payload
+secret, and it does not release a secret payload or an annotated augmentation field. Standard
+library API members are not recursively treated as stored payloads. A constructor's synthetic instance prototype and deferred callable
 results are separate from its stored data. Direct `eval`, including erased type wrappers, prevents
 dead-definition pruning in delivered code. Client source maps omit embedded authored source for files containing
 private definitions so that removed server code is not delivered through the map.
