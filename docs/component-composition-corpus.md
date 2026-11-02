@@ -2174,3 +2174,18 @@ that tarball directory when it differs from
 `.tmp/native-artifact/native-package-artifacts`. The packed testing runner deliberately
 removes `EXACT_COMPILER_EXECUTABLE` from installed consumers. A workspace binary or
 historical paired output cannot substitute for the packaged candidate.
+
+`npm run test:packed-testing -- --compiler-only` selects the installed SDK/plain-module
+slice, which also runs in the default packed testing CI job. Build the Compiler SDK
+and its workspace dependency closure first, then supply a coherent native tarball as
+above. This slice requires no Core build, browser, adapter or mounted runtime.
+The isolated consumer imports the public Compiler SDK export, requests generated
+semantic validation and runs the unchanged projected-call and safe RHS modules.
+One session replaces browser source with safe source and then browser source again.
+Each target checks the exported value or its pruning, the stable export and title
+getter count. Installed workspace package realpaths must stay within the consumer,
+and the session must select its installed platform executable. These checks establish
+installed compiler/plain-module behavior only. They do not complete the installed
+framework/runtime matrix. The consumer, generated artifacts and tarballs are removed
+in the runner's `finally` block. Prerequisite package builds and the supplied native
+tarball remain owned by their producing build jobs.

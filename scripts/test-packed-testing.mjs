@@ -11,6 +11,8 @@ const workspace = path.resolve(import.meta.dirname, '..');
 const temporary = await mkdtemp(path.join(tmpdir(), 'exact-packed-testing-'));
 try {
 	const mixed = process.argv.includes('--mixed');
+	const compilerOnly = process.argv.includes('--compiler-only');
+	assert.ok(!(mixed && compilerOnly), 'Choose one packed acceptance profile');
 	const released = {
 		'@exactjs/reactive': '0.6.2',
 		'@exactjs/ssr': '0.6.3',
@@ -18,6 +20,7 @@ try {
 		'@exactjs/jsx': '0.6.1'
 	};
 	const install = await createPackedAppInstaller(workspace, temporary, mixed ? released : {});
+	if (!mixed) await verifyPackedCompilerModules(install);
 	if (mixed) {
 		// The current provider floor excludes these frozen 0.6 releases. Verify rejection explicitly.
 		// A positive mixed-version journey requires a compatible published provider.
@@ -38,7 +41,7 @@ try {
 			console.log(`Rejected incompatible dependency ${name}@${version} for ^0.8.0`);
 		}
 	}
-	for (const runner of mixed ? [] : ['vitest', 'bun-test']) {
+	for (const runner of mixed || compilerOnly ? [] : ['vitest', 'bun-test']) {
 		const root = path.join(temporary, runner);
 		await mkdir(root);
 		await writeFile(
@@ -221,4 +224,43 @@ export default defineConfig({
 	}
 } finally {
 	await rm(temporary, { recursive: true, force: true });
+}
+
+/** Installs only the SDK closure and runs its plain-module witness without framework providers. */
+async function verifyPackedCompilerModules(install) {
+	const root = path.join(temporary, 'compiler-modules');
+	await mkdir(root);
+	const compiler = JSON.parse(
+		await readFile(path.join(workspace, 'packages/compiler/package.json'), 'utf8')
+	);
+	await writeFile(
+		path.join(root, 'package.json'),
+		JSON.stringify({
+			name: 'packed-compiler-modules',
+			private: true,
+			type: 'module',
+			dependencies: {
+				'@exactjs/compiler': compiler.version,
+				[`@exactjs/compiler-native-${process.platform}-${process.arch}`]: compiler.version
+			}
+		})
+	);
+	await install(root);
+	// Inspect the installed closure, including transitive workspace packages, without a fixed inventory.
+	const lock = JSON.parse(await readFile(path.join(root, 'package-lock.json'), 'utf8'));
+	for (const entry of Object.keys(lock.packages).filter((name) =>
+		name.includes('node_modules/@exactjs/')
+	)) {
+		assert.ok((await realpath(path.join(root, entry))).startsWith(root + path.sep), entry);
+	}
+	await cp(
+		path.join(workspace, 'scripts/compiler-confidence/installed-module-witness.mjs'),
+		path.join(root, 'installed-module-witness.mjs')
+	);
+	await writeFile(
+		path.join(root, 'run.mjs'),
+		"import { verifyInstalledModuleWitness } from './installed-module-witness.mjs';\n" +
+			'console.log(JSON.stringify(await verifyInstalledModuleWitness(process.cwd())));\n'
+	);
+	console.log((await runAcceptanceCommand(['run.mjs'], root)).stdout);
 }
