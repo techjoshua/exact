@@ -1890,7 +1890,12 @@ MAY association. It cannot establish receiver identity, completed replacement, D
 Get authority. Existing normal and native receiver proofs retain their separate contracts.
 The class-field computed-name receiver controls cover this boundary alongside distinct creators,
 captured inputs, current writes, recursive uncertainty and known effect donors. Ordinary
-writer Calls use the canonical selected-body and argument binding relation before alias matching.
+writer Calls use the canonical selected-body and argument binding relation before alias
+matching. Indexed Calls satisfy their existing caller/creator eligibility before ordering and
+branch queries. During those queries, the original Call's active occurrence boundary prevents
+it from being selected again as a separate writer of its own precondition. That interval ends
+before the canonical argument/body consumer takes ownership. An unknown predicate retains
+possible writer contributions and supplies no performed Call or normal output authority.
 Member alternatives keep their acquired source bindings and creator context through subsequent
 container and getter projection. Returning only their AST node would lose a writer-created
 closure's formal captures.

@@ -109,18 +109,27 @@ func (q *sourceValueQuery) memberWriterInputs(left *ast.Node, bindings sourceVal
 			if seen[call] || q.active[call] || q.pendingWriterInputExcluded(call, result) || q.afterRead(call) {
 				continue
 			}
-			if cut != nil && cut.use != nil && q.precedes(cut.use, call, cut.scope.bindings) {
-				continue
-			}
-			seen[call] = true
-			if possible, _ := q.reachable(call, bindings); !possible {
-				continue
-			}
+			// Original caller eligibility precedes its ordering/branch queries.
+			// A dormant region cannot establish its own source invocation by
+			// recursively inspecting another dormant writer's precondition.
 			caller := enclosingCallableNode(call)
 			if caller != nil && caller != enclosingCallableNode(q.reading) && q.creators[caller].invocation == nil {
 				continue
 			}
-			collect(call, bindings)
+			// Eligibility cannot select this same original Call as a separate
+			// writer of its own precondition. Unknown branches remain possible.
+			// End this interval before collect owns argument/body acquisition.
+			possible := false
+			q.withActiveInvocation(call, func() {
+				if cut != nil && cut.use != nil && q.precedes(cut.use, call, cut.scope.bindings) {
+					return
+				}
+				seen[call] = true
+				possible, _ = q.reachable(call, bindings)
+			})
+			if possible {
+				collect(call, bindings)
+			}
 		}
 	}
 	return alternatives
