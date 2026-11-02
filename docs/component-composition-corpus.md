@@ -2049,6 +2049,18 @@ workspace source aliases. This does not establish installed-package, build-adapt
 Chromium, cross-runtime, performance or native branch/condition-audit acceptance.
 The coordinated checkpoint remains unaccepted work in progress.
 
+The plain-module anchor is separately rebound on 2026-11-02 to native production
+`6f70066b8` and the rebuilt current compiler SDK. The ordinary paired-artifact API
+compiles the exact projected-call source and safe RHS control. The browser client
+observes the correct value with one title Get, while its server artifact omits that
+export and performs no Get. The safe case retains its value on both targets with
+no title Get. Node executes the esbuild-normalized artifacts. This check imports no
+Core source and does not revalidate the mounted fixture, hydration or an adapter.
+The same production passes the original module-write, shared capture/destination,
+selected executable-closure and forwarded state-mapping native controls. Full
+`Policy|Secret` passes without exclusions. Source-matched command and harness
+bindings remain ignored under `.tmp/current-architecture`.
+
 The affected-environment matrix below records the remaining acceptance obligations.
 Chromium, hydration, adapter, other native hosts, installed packages and the native
 branch/condition audit have not executed for this new fixture.
