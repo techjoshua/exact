@@ -803,6 +803,13 @@ Track three distinct dimensions:
 
 The existing fixed capability ledger mixes ordinary syntax, required framework analysis, transformations and optional precise modeling. Suspend its use as a current project-percentage headline. Its historical IDs and results remain available for crosswalk, but they do not measure this plan's completion.
 
+At the user's request, concise updates also give a coarse overall engineering estimate.
+The current estimate on 2026-11-02 is about 50% of this entire plan, including remaining
+source convergence, transformed execution, environment acceptance and consolidation.
+This is a judgment about completed requirements and remaining work, not a capability-ledger
+ratio, test-pass percentage or schedule forecast. Passing another scoped check does not
+by itself advance the estimate. The requirement-level states above remain the acceptance record.
+
 Classify their completion criteria using section 8 before proposing a new current metric. Preserve the historical record and explicitly document any metric/version change. Do not silently split capabilities, narrow scope or award private-test credit to make a number move. Current progress should identify the first integrated delivery's concrete exit criteria and remaining gaps.
 
 During execution, report only substantive checkpoints:
