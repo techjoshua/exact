@@ -475,7 +475,14 @@ func (query *sourceValueQuery) receiverCandidates(call *ast.Node, bindings sourc
 	defer func() { query.initializing = previous }()
 	result := accessorCandidates{}
 	query.withActiveInvocation(call, func() {
-		result = query.accessors(call.AsCallExpression().Expression, nil, "", accessorAcquire, bindings, nil)
+		callee := unwrapSourceCallableReference(call.AsCallExpression().Expression)
+		if query.dependenciesOnly && (ast.IsPropertyAccessExpression(callee) || ast.IsElementAccessExpression(callee)) {
+			// A member callee owns this exact Get. A saved identifier's earlier
+			// binding Get belongs to its initializer, not this later Call.
+			result = query.sourceAccessorOperationCandidates(callee, nil, "", accessorAcquire, bindings, callee)
+		} else {
+			result = query.accessors(call.AsCallExpression().Expression, nil, "", accessorAcquire, bindings, nil)
+		}
 	})
 	return result
 }

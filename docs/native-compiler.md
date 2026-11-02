@@ -1018,7 +1018,11 @@ initializer slot is unavailable. An unresolved entry remains an input demand alo
 possible writes. An unchanged direct alias of a destructured formal can name its own
 source Get obligation. Its initialization cut retains the saved input when the formal is
 later replaced. A caller's complete source observation accounts for that exact Get, while
-normal output and descriptor admission remain separate. Binding-time Gets name their
+normal output and descriptor admission remain separate. A genuine member callee names
+its authored Get while acquiring source callable alternatives, including a saved receiver
+alias. The Get obligation supplies neither callable completeness nor a normal output.
+A separately saved method value still requires its original binding-Get result relation
+at the later identifier Call. Binding-time Gets name their
 original binding element and source slot for source effect coverage. Nested object
 patterns retain each Get's operation while referring to the outer initializer's input
 slot. The existing binder supplies intermediate values and owns computed-key and default
