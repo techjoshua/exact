@@ -358,9 +358,8 @@ func (o *languageOwner) executeStorageRecipe(recipe *storageRecipe, budget int) 
 // This source subset has single-alternative children. Every event uses the shared
 // sequence algebra rather than resetting prefix contributions. Conditional child
 // completion is merged only on Normal, with explicit register readiness.
-// executeStorageSchedule is the existing adapter. Only a completed live prefix
-// hands inputs to Call entry, before terminal publication. Historical projection
-// never reaches this execution adapter.
+// Completed prefix-shaped acquisitions pass through the refusal-only Call adapter.
+// They cannot activate a body or supply finalized source authority.
 func (o *languageOwner) executeStorageSchedule(recipe *storageRecipe, budget int, a languageAlternative) (languageAlternative, int) {
 	input := a.branch
 	out, used := o.executeStorageScheduleEntry(recipe, budget, a, nil)

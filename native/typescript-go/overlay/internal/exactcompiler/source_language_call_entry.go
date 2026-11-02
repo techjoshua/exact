@@ -350,9 +350,8 @@ func callEntryRefusal(a languageAlternative, reason string) languageAlternative 
 	return a
 }
 
-// consumeClosedCallInputs is called once at the live completed acquisition cut.
-// It creates no root. Acquired state enters one activation and returns with the
-// latest child state, while only the environment changes on paid scope exit.
+// consumeClosedCallInputs checks the completed acquisition before refusing Call
+// entry without finalized source authority. It creates no root or activation.
 func (o *languageOwner) consumeClosedCallInputs(input languageBranch, a languageAlternative, budget int) (languageAlternative, int) {
 	if a.completion != languageNormal {
 		return a, 0
