@@ -3,6 +3,9 @@ package exactcompiler
 import (
 	"os"
 	"path/filepath"
+	"strings"
+
+	"github.com/microsoft/TypeScript/tsc/internal/ast"
 	"testing"
 )
 
@@ -31,12 +34,55 @@ func TestNullableContextCallableBinding(t *testing.T) {
 	}
 }
 
-// Standard method declarations remain portable through an imported array alias.
+// A portable selected library declaration does not close structural props Gets
+// or callback element inputs. Mutable and readonly views retain that same limit.
 func TestReadonlyArrayAliasCallablePlacement(t *testing.T) {
 	source := `export {};declare global{interface ReadonlyArray<T>{custom():void;}}type Pattern=readonly {value:number}[];function project(pattern:Pattern){return pattern.map(node=>node.value);}export function Page(props:{pattern:Pattern}){const values=project(props.pattern);return()=> <p>{values.join(',')}</p>;}`
-	r := NewSession().Execute(Request{Kind: "compile", ID: "readonly-pattern.tsx", Target: TargetServer, Source: source})
-	if r.Error != "" || len(r.Analysis.Components) != 1 || r.Analysis.Components[0].Placement != "isomorphic" {
-		t.Fatalf("readonly array alias lost placement: %#v %#v", r.Analysis.Components, r.Diagnostics)
+	for _, readonly := range []bool{true, false} {
+		current := source
+		if !readonly {
+			current = strings.Replace(current, "type Pattern=readonly ", "type Pattern=", 1)
+		}
+		session := NewSession()
+		r := session.Execute(Request{Kind: "compile", ID: "readonly-pattern.tsx", Target: TargetServer, Source: current})
+		if r.Error != "" || len(r.Analysis.Components) != 1 || r.Analysis.Components[0].Placement != "unknown" {
+			t.Fatalf("structural input acquired authority readonly=%v: %#v %#v", readonly, r.Analysis.Components, r.Diagnostics)
+		}
+		assertSelectedCollectionMethod(t, session, "readonly-pattern.tsx", "map", true)
+	}
+}
+
+// assertSelectedCollectionMethod checks the existing selected-declaration contract
+// independently of the unowned structural receiver's Get and callback effects.
+func assertSelectedCollectionMethod(t *testing.T, session *Session, id, method string, native bool) {
+	t.Helper()
+	found := false
+	for _, project := range session.projects {
+		if project.callableCache == nil {
+			continue
+		}
+		source := project.program.GetSourceFile(id)
+		if source == nil {
+			continue
+		}
+		walkNode(source.AsNode(), func(n *ast.Node) bool {
+			if !ast.IsCallExpression(n) {
+				return true
+			}
+			expression := n.AsCallExpression().Expression
+			if !ast.IsPropertyAccessExpression(expression) || expression.AsPropertyAccessExpression().Name().Text() != method {
+				return true
+			}
+			found = true
+			environment := receiverTypeEnvironment(expression, project.callableCache.owner.checker)
+			if (environment == "neutral") != native {
+				t.Errorf("selected %s native=%v environment=%s", method, native, environment)
+			}
+			return true
+		})
+	}
+	if !found {
+		t.Fatalf("missing actual selected %s", method)
 	}
 }
 
@@ -76,15 +122,17 @@ func TestAugmentedCollectionMemberFamilies(t *testing.T) {
 		{"ReadonlySet<T>", "ReadonlySet<string>", "has('x')"},
 	} {
 		for _, custom := range []bool{false, true} {
-			call, placement := collection.call, "isomorphic"
+			call := collection.call
 			if custom {
-				call, placement = "custom()", "unknown"
+				call = "custom()"
 			}
 			source := `export {};declare global{interface ` + collection.declaration + `{custom():void;}}type View=` + collection.view + `;export function Page(props:{value:View}){const selected=props.value.` + call + `;return()=> <p>{String(selected)}</p>;}`
-			r := NewSession().Execute(Request{Kind: "analyze", ID: "collection-augmentation.tsx", Target: TargetServer, Source: source})
-			if r.Error != "" || len(r.Analysis.Components) != 1 || r.Analysis.Components[0].Placement != placement {
-				t.Fatalf("%s custom=%v changed selected-member authority: %#v %#v", collection.view, custom, r.Analysis.Components, r.Diagnostics)
+			session := NewSession()
+			r := session.Execute(Request{Kind: "analyze", ID: "collection-augmentation.tsx", Target: TargetServer, Source: source})
+			if r.Error != "" || len(r.Analysis.Components) != 1 || r.Analysis.Components[0].Placement != "unknown" {
+				t.Fatalf("%s custom=%v changed structural input authority: %#v %#v", collection.view, custom, r.Analysis.Components, r.Diagnostics)
 			}
+			assertSelectedCollectionMethod(t, session, "collection-augmentation.tsx", strings.Split(call, "(")[0], !custom)
 		}
 	}
 }
@@ -126,17 +174,20 @@ func TestCollectionDeclarationAuthorityControls(t *testing.T) {
 		if err := os.WriteFile(entry, []byte(source), 0600); err != nil {
 			t.Fatal(err)
 		}
-		r := NewSession().Execute(Request{Kind: "compile", ID: entry, Root: root, ConfigFile: config, Source: source, Target: TargetServer})
-		if r.Error != "" || len(r.Analysis.Components) != 1 || r.Analysis.Components[0].Placement != test.placement {
-			t.Fatalf("%s.%s acquired incorrect authority: %#v %#v", test.view, test.call, r.Analysis.Components, r.Diagnostics)
+		session := NewSession()
+		r := session.Execute(Request{Kind: "compile", ID: entry, Root: root, ConfigFile: config, Source: source, Target: TargetServer})
+		if r.Error != "" || len(r.Analysis.Components) != 1 || r.Analysis.Components[0].Placement != "unknown" {
+			t.Fatalf("%s.%s acquired incorrect structural input authority: %#v %#v", test.view, test.call, r.Analysis.Components, r.Diagnostics)
 		}
+		assertSelectedCollectionMethod(t, session, entry, strings.Split(test.call, "(")[0], test.placement == "isomorphic")
 	}
 	for _, name := range []string{"Math", "JSON", "Array", "Date", "Promise", "console"} {
 		source := `export function Page(){` + name + `.custom();return()=> <p/>;}`
 		if err := os.WriteFile(entry, []byte(source), 0600); err != nil {
 			t.Fatal(err)
 		}
-		r := NewSession().Execute(Request{Kind: "compile", ID: entry, Root: root, ConfigFile: config, Source: source, Target: TargetServer})
+		session := NewSession()
+		r := session.Execute(Request{Kind: "compile", ID: entry, Root: root, ConfigFile: config, Source: source, Target: TargetServer})
 		if r.Error != "" || len(r.Analysis.Components) != 1 || r.Analysis.Components[0].Placement != "unknown" {
 			t.Fatalf("%s static extension acquired portable authority: %#v", name, r.Analysis.Components)
 		}

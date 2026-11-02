@@ -257,6 +257,13 @@ selection between a known browser getter and a safe value retains the browser de
 without inventing an opaque operation. Independent foreign work remains unknown. Generator
 calls evaluate arguments and activated defaults while their bodies remain deferred. This
 source contract does not model generator resume state.
+
+Selected standard collection declarations and source input effects are separate
+obligations. An application augmentation does not change an unrelated native method's
+declaration contract. Structural component props and callback elements still require
+their own source Get obligations. A readonly annotation or type alias supplies neither
+those effects nor normal DATA, runtime method identity or immutable elements. Tests of
+selected method ownership therefore check it independently of component placement.
 Dependency-only body entry joins finite source input relationships for an active declaration.
 Distinct acquired callbacks and capture roots can instantiate that same summary before its
 outer invocation finishes. The relation uses source nodes, formal symbols, creator/use sites
