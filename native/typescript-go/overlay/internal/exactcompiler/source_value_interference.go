@@ -162,51 +162,54 @@ func (query *sourceValueQuery) interferenceInSources(origin *ast.Node, projectio
 			reaches := func(input *ast.Node, operation string) bool {
 				temporary := accessorCandidates{}
 				relevant := false
-				values := query.occurrenceOrigins(input, node, origin, bindings, &temporary)
+				// Each acquisition owns its returned slice. Queue those slices in FIFO
+				// order so expanding a container never recopies large sourceValue records.
+				pending := [][]sourceValue{query.occurrenceOrigins(input, node, origin, bindings, &temporary)}
 				seenValues := make(map[*ast.Node]bool)
-				for next := 0; next < len(values); next++ {
-					value := values[next]
-					// An actual call can receive the demanded function through a local
-					// literal container. Follow its existing source origins only, never
-					// arbitrary properties, dependency implementations or getter bodies.
-					if value.node != nil && len(value.path) == 0 && ast.IsObjectLiteralExpression(value.node) && !seenValues[value.node] {
-						seenValues[value.node] = true
-						for _, member := range value.node.AsObjectLiteralExpression().Properties.Nodes {
-							if !query.charge(&temporary, member) {
-								break
-							}
-							if ast.IsPropertyAssignment(member) {
-								values = append(values, query.occurrenceOrigins(member.Initializer(), node, origin, bindings, &temporary)...)
-							}
-							if ast.IsShorthandPropertyAssignment(member) {
-								values = append(values, query.occurrenceOrigins(member.Name(), node, origin, bindings, &temporary)...)
+				for next := 0; next < len(pending); next++ {
+					for _, value := range pending[next] {
+						// An actual call can receive the demanded function through a local
+						// literal container. Follow its existing source origins only, never
+						// arbitrary properties, dependency implementations or getter bodies.
+						if value.node != nil && len(value.path) == 0 && ast.IsObjectLiteralExpression(value.node) && !seenValues[value.node] {
+							seenValues[value.node] = true
+							for _, member := range value.node.AsObjectLiteralExpression().Properties.Nodes {
+								if !query.charge(&temporary, member) {
+									break
+								}
+								if ast.IsPropertyAssignment(member) {
+									pending = append(pending, query.occurrenceOrigins(member.Initializer(), node, origin, bindings, &temporary))
+								}
+								if ast.IsShorthandPropertyAssignment(member) {
+									pending = append(pending, query.occurrenceOrigins(member.Name(), node, origin, bindings, &temporary))
+								}
 							}
 						}
-					}
-					sameOrigin := value.node == origin
-					if !sameOrigin {
-						// Bare standard globals keep their authored identifier. Native
-						// member lookup uses the declaration, so normalize possible
-						// overlap without proving the current runtime entry unchanged.
-						if nativeOriginKind != 0 {
-							sameOrigin = query.nativeReceiverMatches(value, sourceValue{node: origin, native: &sourceNativeValue{kind: nativeOriginKind}})
+						sameOrigin := value.node == origin
+						if !sameOrigin {
+							// Bare standard globals keep their authored identifier. Native
+							// member lookup uses the declaration, so normalize possible
+							// overlap without proving the current runtime entry unchanged.
+							if nativeOriginKind != 0 {
+								sameOrigin = query.nativeReceiverMatches(value, sourceValue{node: origin, native: &sourceNativeValue{kind: nativeOriginKind}})
+							}
 						}
-					}
-					if sameOrigin {
-						demand := append(append([]string{}, projection...), name)
-						matches := (len(value.path) < len(demand) || mode&accessorReachable != 0) && sourceProjectionOverlap(value.path, demand)
-						if operation == "array-mutation" && len(value.path) < len(demand) {
-							key := demand[len(value.path)]
-							_, indexed := sourceArrayIndex(key)
-							// Existing native collection write facts concern elements and length.
-							// They cannot invalidate an unrelated named slot such as this method.
-							matches = matches && (indexed || key == "length" || key == "" || key == "*")
+						if sameOrigin {
+							demand := append(append([]string{}, projection...), name)
+							matches := (len(value.path) < len(demand) || mode&accessorReachable != 0) && sourceProjectionOverlap(value.path, demand)
+							if operation == "array-mutation" && len(value.path) < len(demand) {
+								key := demand[len(value.path)]
+								_, indexed := sourceArrayIndex(key)
+								// Existing native collection write facts concern elements and length.
+								// They cannot invalidate an unrelated named slot such as this method.
+								matches = matches && (indexed || key == "length" || key == "" || key == "*")
+							}
+							relevant = relevant || matches
 						}
-						relevant = relevant || matches
-					}
-					for _, creator := range query.creators {
-						if creator.invocation != nil && value.node == creator.invocation {
-							relevant = true
+						for _, creator := range query.creators {
+							if creator.invocation != nil && value.node == creator.invocation {
+								relevant = true
+							}
 						}
 					}
 				}
