@@ -29,8 +29,9 @@ func TestObjectFormalDefaultBrowserGetter(t *testing.T) {
 				for _, fact := range project.callableCache.merged.facts {
 					for _, call := range fact.fieldCalls {
 						for _, out := range call.outcomes {
-							if out.fulfilled {
-								t.Fatal("accessor granted DATA coverage")
+							// Dependency fulfillment accounts effects and supplies no normal DATA.
+							if out.fulfilled && !call.dependencies {
+								t.Fatal("accessor granted normal DATA coverage")
 							}
 						}
 					}

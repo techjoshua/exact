@@ -1861,7 +1861,9 @@ contexts retain their prior refusal outside their supported domains. Obsolete co
 are retired, while authored source effects and actual emitted initialization remain covered.
 
 Effect contributions remain additive. A missing precise Return value can leave the value
-incomplete while source analysis accounts for that operation's effects. Only a matching
+incomplete while source analysis accounts for that operation's effects. Source dependency field
+coverage marks matched effect obligations and supplies no normal DATA output. A fulfilled
+source-only obligation does not authorize a normal Get result or descriptor. Only a matching
 operation, selected target, source use, consumer and phase can discharge its classified
 obligation, across all relevant alternatives. Independent opacity and known browser or server
 donors remain. Ordinary Call contributions also retain relative receiver bindings through

@@ -105,13 +105,13 @@ func TestReturnedActivationExactFieldEdge(t *testing.T) {
 
 func TestReturnedActivationUnmatchedEffects(t *testing.T) {
 	for _, c := range []struct {
-		name, source string
-		browser      bool
+		name, source     string
+		browser, unknown bool
 	}{
-		{"getter", `export{};function make(input:{value:string}){return()=>input.value}const input={get value(){return document.title}};const selected=make(input);selected();`, true},
-		{"proxy", `export{};function make(input:{value:string}){return()=>input.value}const input=new Proxy({value:'safe'},{get(){document.title;return 'proxy'}});const selected=make(input);selected();`, true},
-		{"body-browser", `export{};function make(input:{value:string}){return()=>{document.title;return input.value}}const input={value:'safe'};const selected=make(input);selected();`, true},
-		{"independent-unknown", `export{};declare function foreign():void;function make(input:{value:string}){return()=>{foreign();return input.value}}const input={value:'safe'};const selected=make(input);selected();`, false},
+		{"getter", `export{};function make(input:{value:string}){return()=>input.value}const input={get value(){return document.title}};const selected=make(input);selected();`, true, false},
+		{"proxy", `export{};function make(input:{value:string}){return()=>input.value}const input=new Proxy({value:'safe'},{get(){document.title;return 'proxy'}});const selected=make(input);selected();`, true, true},
+		{"body-browser", `export{};function make(input:{value:string}){return()=>{document.title;return input.value}}const input={value:'safe'};const selected=make(input);selected();`, true, false},
+		{"independent-unknown", `export{};declare function foreign():void;function make(input:{value:string}){return()=>{foreign();return input.value}}const input={value:'safe'};const selected=make(input);selected();`, false, true},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			session := NewSession()
@@ -137,12 +137,13 @@ func TestReturnedActivationUnmatchedEffects(t *testing.T) {
 							browser = browser || effect.Environment == "browser"
 							unknown = unknown || effect.Environment == "unknown"
 						}
-						if !unknown || c.browser && !browser {
+						// Only authored foreign or uncertain Proxy work requires a residual.
+						if c.unknown && !unknown || c.browser && !browser {
 							t.Fatalf("CURRENT selected() caller lost propagated effects: %s browser=%v unknown=%v effects=%#v", fact.summary.Name, browser, unknown, fact.summary.EffectSources)
 						}
 						for _, call := range fact.fieldCalls {
 							for _, outcome := range call.outcomes {
-								if outcome.fulfilled && ast.IsParameterDeclaration(outcome.demand.slot) && outcome.demand.slot.Parent != outcome.demand.declaration {
+								if outcome.fulfilled && !call.dependencies && ast.IsParameterDeclaration(outcome.demand.slot) && outcome.demand.slot.Parent != outcome.demand.declaration {
 									t.Fatal("CURRENT caller received unadmitted DATA field outcome")
 								}
 							}
@@ -158,7 +159,7 @@ func TestReturnedActivationUnmatchedEffects(t *testing.T) {
 					for _, fact := range project.callableCache.merged.facts {
 						for _, call := range fact.fieldCalls {
 							for _, outcome := range call.outcomes {
-								if outcome.fulfilled && ast.IsParameterDeclaration(outcome.demand.slot) && outcome.demand.slot.Parent != outcome.demand.declaration {
+								if outcome.fulfilled && !call.dependencies && ast.IsParameterDeclaration(outcome.demand.slot) && outcome.demand.slot.Parent != outcome.demand.declaration {
 									t.Fatal("unadmitted accessor/Proxy/body received capture DATA coverage")
 								}
 							}

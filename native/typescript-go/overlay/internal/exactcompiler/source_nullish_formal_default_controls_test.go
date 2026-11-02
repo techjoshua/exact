@@ -28,8 +28,9 @@ func TestNullishFormalDefaultBrowserEffect(t *testing.T) {
 			for _, fact := range project.callableCache.merged.facts {
 				for _, call := range fact.fieldCalls {
 					for _, o := range call.outcomes {
-						if o.fulfilled {
-							t.Fatal("getter received DATA coverage")
+						// Dependency fulfillment accounts effects and supplies no normal DATA.
+						if o.fulfilled && !call.dependencies {
+							t.Fatal("getter received normal DATA coverage")
 						}
 					}
 				}
