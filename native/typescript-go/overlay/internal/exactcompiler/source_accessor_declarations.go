@@ -604,7 +604,7 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 		}
 		if ast.IsArrayLiteralExpression(value) {
 			result.sourceOwned = true
-			query.arrayValues(value, projection, name, mode, arguments, &result, visit, visitMember)
+			query.arrayValues(value, projection, name, mode, arguments, &result, visit, visitMember, get)
 			return
 		}
 		if ast.IsClassDeclaration(value) || ast.IsClassExpression(value) || ast.IsObjectLiteralExpression(value) {

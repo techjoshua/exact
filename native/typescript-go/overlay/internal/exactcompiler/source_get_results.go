@@ -36,6 +36,13 @@ type sourceResultObservation struct {
 	effects    sourceEffectAccounting
 }
 
+// sourceSuccessfulProjection is assessed by the existing selected source
+// completion owner. It excludes execution/normal authority. An absent assessment
+// cannot be interpreted as an abrupt argument or an empty successful result.
+type sourceSuccessfulProjection struct {
+	assessed, successful, unknown bool
+}
+
 // sourceProjectionDemand separates observing provenance from reusing the output
 // of an actual execution producer. Its zero value requires execution accounting.
 // Neither demand discharges independently retained effect causes.
@@ -201,22 +208,27 @@ func (query *sourceValueQuery) acquireReturnAlternatives(value, body *ast.Node, 
 	return query.accessors(value, nil, "", accessorAcquire, inputs.bindings, nil)
 }
 
-// consumeSuccessfulCompletions is the shared normal return projection. It is not
+// consumeSuccessfulCompletions is the shared successful-return projection. It is not
 // an expression evaluator. Throw/rejection supplies no undefined alternative, and
 // the existing structured completion owner accounts for replacing finalizers.
-func (query *sourceValueQuery) consumeSuccessfulCompletions(body *ast.Node, bindings sourceValueBindings, observed *sourceResultObservation, obligations *accessorCandidates, consume func(*ast.Node, *ast.Node)) {
+func (query *sourceValueQuery) consumeSuccessfulCompletions(body *ast.Node, bindings sourceValueBindings, observed *sourceResultObservation, obligations *accessorCandidates, consume func(*ast.Node, *ast.Node)) sourceSuccessfulProjection {
+	if body == nil || !ast.IsFunctionLike(body) || body.Body() == nil {
+		return sourceSuccessfulProjection{}
+	}
 	outcomes := sourceReturnValue
 	if ast.IsBlock(body.Body()) {
 		outcomes = query.completionFor(body.Body(), bindings, true).outcomes
 	}
 	observed.incomplete = observed.incomplete || outcomes&sourceReturnUnknown != 0
+	assessment := sourceSuccessfulProjection{assessed: true, successful: outcomes&(sourceReturnNormal|sourceReturnValue) != 0, unknown: observed.incomplete || outcomes == 0}
 	if outcomes&sourceReturnNormal != 0 {
 		consume(nil, nil)
 	}
 	for _, site := range query.owner.summary(body).returnSites {
 		if !query.charge(obligations, site) {
 			observed.incomplete = true
-			return
+			assessment.unknown = true
+			return assessment
 		}
 		possible, _ := query.reachable(site, bindings)
 		if !possible || !query.returnCompletesFor(site, bindings, true) {
@@ -228,6 +240,7 @@ func (query *sourceValueQuery) consumeSuccessfulCompletions(body *ast.Node, bind
 		}
 		consume(site, expression)
 	}
+	return assessment
 }
 
 // acquireNormalCallResult consumes the actual normal producer's detached result.

@@ -18,6 +18,8 @@ type sourceInvocationConsumer struct {
 	selection func(bool)
 	// sourceReturn receives only a selected source relationship, never native output.
 	sourceReturn func(sourceValue, sourceValueBindings)
+	// callbackInputs contributes source-only MAY effects at this original native Call.
+	callbackInputs func(*ast.Node, sourceValueBindings, sourcePreparedInvocation, *accessorCandidates)
 	// construction consumes an acquired callable result without executing its body.
 	construction func(sourceInvocationBody, *accessorCandidates)
 	// unaccounted belongs to normal execution only. Observing a selected result
@@ -64,7 +66,8 @@ func (query *sourceValueQuery) invocation(node *ast.Node, bindings sourceValueBi
 		}
 	}()
 	return query.consumeInvocation(node, bindings, sourceInvocationConsumer{
-		selection: func(value bool) { ownedComplete = value },
+		selection:      func(value bool) { ownedComplete = value },
+		callbackInputs: query.nativeCallbackInputEffects,
 		construction: func(body sourceInvocationBody, result *accessorCandidates) {
 			query.boundConstructionGets(node, body, result)
 			if query.inputs == nil || !query.invocationValueConsumed(node, result) || !query.charge(result, node) {
@@ -178,6 +181,9 @@ func (query *sourceValueQuery) consumeInvocation(node *ast.Node, bindings source
 		mergeAccessorCandidates(&result, effects)
 	}
 	mergeAccessorCandidates(&result, prepared.base)
+	if consumer.callbackInputs != nil && query.dependenciesOnly {
+		consumer.callbackInputs(node, bindings, prepared, &result)
+	}
 	declarations := prepared.declarations
 	if result.selected && result.opaque {
 		return result

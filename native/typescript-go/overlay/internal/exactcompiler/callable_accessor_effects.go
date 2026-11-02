@@ -287,7 +287,7 @@ func (query *sourceValueQuery) reflectiveMemberValuesAtGet(origin *ast.Node, pro
 			key = projection[0]
 		}
 		selected := sourceLiteralMemberName(unwrapSourceCallableReference(call.Arguments.Nodes[1]))
-		if selected != "" && (selected != key || actualGet != nil && actualGet.symbol != nil) {
+		if selected != "" && (!sourceGetKeyMayMatch(selected, key, query.arrayIndexMayAtGet(actualGet, origin, projection, name, mode)) || actualGet != nil && actualGet.symbol != nil) {
 			// A literal key cannot depend on writer inputs. Exclude it before
 			// acquiring those inputs reenters this unrelated member lookup.
 			return nil, false
@@ -424,7 +424,7 @@ func (query *sourceValueQuery) reflectiveMemberValueInScope(origin *ast.Node, pr
 	if actualGet != nil && actualGet.symbol != nil && selectedKey != "" {
 		return nil, false
 	}
-	if selectedKey != "" && selectedKey != key {
+	if !sourceGetKeyMayMatch(selectedKey, key, query.arrayIndexMayAtGet(actualGet, origin, projection, name, mode)) {
 		return nil, false
 	}
 	if selectedKey == "" {
@@ -482,7 +482,7 @@ func (query *sourceValueQuery) reflectiveMemberValueInScope(origin *ast.Node, pr
 			same = query.nativeReceiverMatches(value, actualGet.descriptorReceiver())
 		}
 		matching = matching || same
-		prototype = prototype || sourceFunctionPrototype(value, query.owner.checker) && query.sourceCallableImplementation(origin, result)
+		prototype = prototype || sourceFunctionPrototype(value, query.owner.checker) && query.sourceCallableImplementation(origin, result) || query.arrayIndexMayAtGet(actualGet, origin, projection, name, mode) && sourceArrayPrototype(value, query.owner.checker)
 		prototypeOnly = prototypeOnly && sourceFunctionPrototype(value, query.owner.checker)
 		// Fresh source allocations and distinct acquired native entries cannot
 		// be this selected standard object. An unresolved origin is not disjoint.
@@ -609,6 +609,16 @@ func sourceFunctionPrototype(value sourceValue, c *checker.Checker) bool {
 		return false
 	}
 	if value.node.Text() != "Function" && value.node.Text() != "Object" {
+		return false
+	}
+	symbol := c.GetSymbolAtLocation(value.node)
+	return symbol != nil && symbol.ValueDeclaration != nil && standardLibrarySource(ast.GetSourceFileOfNode(symbol.ValueDeclaration))
+}
+
+// sourceArrayPrototype supplies a possible ancestor only for a tagged source
+// array index Get. Familiar application declarations cannot own that relation.
+func sourceArrayPrototype(value sourceValue, c *checker.Checker) bool {
+	if value.node == nil || !ast.IsIdentifier(value.node) || len(value.path) != 1 || value.path[0] != "prototype" || (value.node.Text() != "Array" && value.node.Text() != "Object") {
 		return false
 	}
 	symbol := c.GetSymbolAtLocation(value.node)

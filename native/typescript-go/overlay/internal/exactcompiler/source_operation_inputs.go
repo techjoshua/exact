@@ -6,7 +6,13 @@ import "github.com/microsoft/TypeScript/tsc/internal/ast"
 // neither a CallExpression nor the numeric-conversion implicit input contract.
 // The enclosing installed plan retains captures and the zero-argument defaults.
 type sourceGetInputs struct {
-	ownedRequest *ownedGetRequest
+	// argumentProjection observes only this original argument Get's selected
+	// source completion. It grants no normal or invocation permission.
+	argumentProjection *sourceArgumentGetProjection
+	// arrayIndexMay is a source-only numeric-index effect domain. It never
+	// supplies presence, descriptor contents, normal values or completion.
+	arrayIndexMay *sourceArrayIndexMay
+	ownedRequest  *ownedGetRequest
 
 	// effectSummary borrows this settlement request only, not nested reads.
 	effectSummary *sourceOwnEffectSummary
@@ -38,6 +44,35 @@ type sourceGetInputs struct {
 	// lookupOwner is the descriptor search origin when it differs from this.
 	// It never replaces the receiver installed for a selected getter body.
 	lookupOwner *sourceValue
+}
+
+// sourceArrayIndexMay belongs to one native callback input plan's actual Call
+// and represented source array. It ends at index acquisition, before any
+// returned element's member Gets are consumed.
+type sourceArrayIndexMay struct {
+	owner               *sourceValueQuery
+	operation, receiver *ast.Node
+}
+
+func (query *sourceValueQuery) arrayIndexMayAtGet(get *sourceGetInputs, origin *ast.Node, projection []string, name string, mode accessorTraversal) bool {
+	if !query.dependenciesOnly || get == nil || get.arrayIndexMay == nil || get.argumentProjection != nil || (mode != accessorRead && mode != accessorAcquire) || get.ownedRequest != nil || get.reflective != nil || get.symbol != nil || get.receiver.normal != nil || get.receiver.native != nil || get.receiver.acquired != nil || get.lookupOwner != nil || get.inspection != nil || get.effectSummary != nil || get.hasOnly || get.ownConditional || get.freshReturn || len(get.thenReferences) > 0 {
+		return false
+	}
+	domain := get.arrayIndexMay
+	if domain.owner != query || domain.operation != get.operation || domain.operation == nil || !ast.IsCallExpression(domain.operation) || domain.receiver != origin || origin == nil || !ast.IsArrayLiteralExpression(origin) || get.receiver.node != origin || len(get.receiver.path) != 0 || get.propertyKey != "*" {
+		return false
+	}
+	return len(projection) == 0 && name == "*" || len(projection) == 1 && projection[0] == "*" && name == ""
+}
+
+// sourceGetKeyMayMatch preserves exact-key selection except for an explicitly
+// owned source-array index domain. Unknown keys remain possible in either case.
+func sourceGetKeyMayMatch(selected, key string, arrayIndexMay bool) bool {
+	if selected == "" || selected == key {
+		return true
+	}
+	_, index := sourceArrayIndex(selected)
+	return arrayIndexMay && key == "*" && index
 }
 
 // receiverOrigins binds only the installed input's own lexical receiver. A
@@ -397,10 +432,13 @@ func (query *sourceValueQuery) acquireGetResult(body *ast.Node, get *sourceGetIn
 	if query.dependenciesOnly {
 		observed := sourceResultObservation{}
 		query.consumeGetInputs(body, get, scope, result, func(inputs *sourceValueInputs) {
-			query.consumeSourceBodyEffects(get.operation, body, inputs.bindings, inputs, nil, result)
-			query.projectSelectedSourceReturns(body, get.operation, inputs.bindings, inputs, result, func(value sourceValue, bindings sourceValueBindings) {
+			entered := query.consumeSourceBodyEffects(get.operation, body, inputs.bindings, inputs, nil, result)
+			assessment := query.projectSelectedSourceReturns(body, get.operation, inputs.bindings, inputs, result, func(value sourceValue, bindings sourceValueBindings) {
 				observed.values = append(observed.values, sourceObservedValue{value: value, scope: query.acquireCallableScope(bindings, result)})
 			}, func() { observed.incomplete = true })
+			if entered {
+				query.observeArgumentGetProjection(get, assessment)
+			}
 		})
 		return observed
 	}

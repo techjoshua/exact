@@ -26,15 +26,15 @@ func (query *sourceValueQuery) projectSourceCallReturns(call *ast.Node, bindings
 
 // projectSelectedSourceReturns shares parameterized return relationships between
 // selected Call and Get inputs. It issues no output or execution capability.
-func (query *sourceValueQuery) projectSelectedSourceReturns(body, operation *ast.Node, captures sourceValueBindings, inputs *sourceValueInputs, part *accessorCandidates, project func(sourceValue, sourceValueBindings), deferred func()) {
+func (query *sourceValueQuery) projectSelectedSourceReturns(body, operation *ast.Node, captures sourceValueBindings, inputs *sourceValueInputs, part *accessorCandidates, project func(sourceValue, sourceValueBindings), deferred func()) sourceSuccessfulProjection {
 
 	if body == nil || body.Body() == nil {
 		part.opaque = true
-		return
+		return sourceSuccessfulProjection{}
 	}
 	if _, ordinary := ordinaryResultCategory(body); !ordinary {
 		deferred()
-		return
+		return sourceSuccessfulProjection{}
 	}
 	if query.dependenciesOnly {
 		// Return reachability consumes the same selected source inputs as body
@@ -45,7 +45,7 @@ func (query *sourceValueQuery) projectSelectedSourceReturns(body, operation *ast
 		defer release()
 		if !fresh {
 			part.opaque, part.valueIncomplete = true, true
-			return
+			return sourceSuccessfulProjection{}
 		}
 		previous, had := query.active[body]
 		query.active[body] = true
@@ -75,7 +75,7 @@ func (query *sourceValueQuery) projectSelectedSourceReturns(body, operation *ast
 	}()
 	query.creators[body] = sourceValueCreation{invocation: operation}
 	observed := sourceResultObservation{}
-	query.consumeSuccessfulCompletions(body, captures, &observed, part, func(site, returned *ast.Node) {
+	assessment := query.consumeSuccessfulCompletions(body, captures, &observed, part, func(site, returned *ast.Node) {
 		query.returning = returned
 		query.creators[body] = sourceValueCreation{invocation: operation, returning: returned}
 		if returned == nil {
@@ -85,4 +85,5 @@ func (query *sourceValueQuery) projectSelectedSourceReturns(body, operation *ast
 		}
 	})
 	part.valueIncomplete = part.valueIncomplete || observed.incomplete
+	return assessment
 }

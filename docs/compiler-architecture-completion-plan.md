@@ -264,6 +264,18 @@ declaration contract. Structural component props and callback elements still req
 their own source Get obligations. A readonly annotation or type alias supplies neither
 those effects nor normal DATA, runtime method identity or immutable elements. Tests of
 selected method ownership therefore check it independently of component placement.
+
+Source-only native array callback inputs reuse the original Call's actual receiver
+and argument plan. Receiver acquisition precedes arguments. Possible numeric index
+Gets follow their evaluation, with canonical array indices and binder-owned standard
+prototype ancestors kept separate from named properties. These inputs retain known
+callback, getter and capture dependencies beside independent unknown routes. They
+supply no map-result model, normal DATA, field or Call completion, descriptor contents,
+property absence or NoWrites authority. A direct first callback-argument Get may stop
+later index and callback effects only when the selected source completion owner
+explicitly assessed every represented route with no successful or unknown route.
+Missing, unentered, refused and foreign projections remain unknown. Other argument
+expressions do not gain completion precision from this relation.
 Dependency-only body entry joins finite source input relationships for an active declaration.
 Distinct acquired callbacks and capture roots can instantiate that same summary before its
 outer invocation finishes. The relation uses source nodes, formal symbols, creator/use sites

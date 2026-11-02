@@ -98,7 +98,7 @@ func (query *sourceValueQuery) memberValuesAtGet(origin *ast.Node, projection []
 		cut = cuts[0]
 	}
 	if cut == nil {
-		cut = query.memberWriterReadCut(nil, bindings, result)
+		cut = query.memberWriterReadCut(nil, bindings, result, get)
 	}
 	restoreReader := query.memberWriterRead(cut)
 	defer restoreReader()
@@ -399,12 +399,16 @@ func sourceArrayIndex(key string) (uint64, bool) {
 // arrayValues applies the same finite member demand to native array syntax. Holes retain
 // their positions. A spread's iterator and length are unproved, so suffix positions widen.
 // Receiver calls are not append facts: even a method named push can be replaced.
-func (query *sourceValueQuery) arrayValues(origin *ast.Node, projection []string, name string, mode accessorTraversal, bindings sourceValueBindings, result *accessorCandidates, visit func(*ast.Node, []string, bool), sourceVisit func(sourceValue)) {
+func (query *sourceValueQuery) arrayValues(origin *ast.Node, projection []string, name string, mode accessorTraversal, bindings sourceValueBindings, result *accessorCandidates, visit func(*ast.Node, []string, bool), sourceVisit func(sourceValue), get *sourceGetInputs) {
 	visitMember := func(value sourceValue) { visit(value.node, value.path, false) }
 	if query.dependenciesOnly {
 		visitMember = sourceVisit
 	}
-	if query.memberValuesAtGet(origin, projection, name, mode, bindings, result, visitMember, sourceMemberOperationProof{}, nil) {
+	var indexGet *sourceGetInputs
+	if query.arrayIndexMayAtGet(get, origin, projection, name, mode) {
+		indexGet = get
+	}
+	if query.memberValuesAtGet(origin, projection, name, mode, bindings, result, visitMember, sourceMemberOperationProof{}, indexGet) {
 		return
 	}
 	selection, rest := name, []string(nil)

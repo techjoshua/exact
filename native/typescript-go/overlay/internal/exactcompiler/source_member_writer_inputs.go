@@ -8,9 +8,12 @@ import "github.com/microsoft/TypeScript/tsc/internal/ast"
 type sourceMemberWriterReadCut struct {
 	operation, use *ast.Node
 	scope          acquiredCallableScope
+	// afterArguments supplies MAY ordering only for the issuing native array
+	// index Get. Receiver acquisition retains its earlier, original source value.
+	afterArguments *sourceArrayIndexMay
 }
 
-func (q *sourceValueQuery) memberWriterReadCut(reference *sourceGetReference, bindings sourceValueBindings, result *accessorCandidates) *sourceMemberWriterReadCut {
+func (q *sourceValueQuery) memberWriterReadCut(reference *sourceGetReference, bindings sourceValueBindings, result *accessorCandidates, actual ...*sourceGetInputs) *sourceMemberWriterReadCut {
 	if !q.dependenciesOnly {
 		return nil
 	}
@@ -22,7 +25,37 @@ func (q *sourceValueQuery) memberWriterReadCut(reference *sourceGetReference, bi
 	if use == nil {
 		use = operation
 	}
-	return &sourceMemberWriterReadCut{operation: operation, use: use, scope: q.acquireCallableScope(bindings, result)}
+	cut := &sourceMemberWriterReadCut{operation: operation, use: use, scope: q.acquireCallableScope(bindings, result)}
+	if len(actual) == 1 && actual[0] != nil && q.arrayIndexMayAtGet(actual[0], actual[0].receiver.node, []string{"*"}, "", accessorAcquire) && operation == actual[0].operation && use == operation {
+		cut.afterArguments = actual[0].arrayIndexMay
+	}
+	return cut
+}
+
+// argumentMayPrecede admits only eager source Calls inside this original Call's
+// actual argument expressions. It cannot enter deferred bodies or prove that an
+// argument completed, a write performed or the native Call was reached normally.
+func (cut *sourceMemberWriterReadCut) argumentMayPrecede(q *sourceValueQuery, call *ast.Node, result *accessorCandidates) bool {
+	if cut == nil || !q.dependenciesOnly || cut.afterArguments == nil || cut.afterArguments.owner != q || cut.operation != cut.afterArguments.operation || cut.use != cut.operation || q.reading != cut.use || call == nil || call.Pos() <= cut.operation.Pos() || call.End() > cut.operation.End() {
+		return false
+	}
+	for child, parent := call, call.Parent; parent != nil; child, parent = parent, parent.Parent {
+		if !q.charge(result, parent) {
+			return false
+		}
+		if parent == cut.operation {
+			for _, argument := range restrictedInvocationArguments(parent.AsCallExpression()) {
+				if argument == child {
+					return true
+				}
+			}
+			return false
+		}
+		if sourceMemberOperationOwnsChild(parent, child) {
+			return false
+		}
+	}
+	return false
 }
 
 // memberWriterRead lends the immutable reader cut only for source ordering.
@@ -106,7 +139,7 @@ func (q *sourceValueQuery) memberWriterInputs(left *ast.Node, bindings sourceVal
 	seen := make(map[*ast.Node]bool)
 	for _, index := range q.occurrenceSourceView(left, result) {
 		for _, call := range index.calls {
-			if seen[call] || q.active[call] || q.pendingWriterInputExcluded(call, result) || q.afterRead(call) {
+			if seen[call] || q.active[call] || q.pendingWriterInputExcluded(call, result) || q.afterRead(call) && !cut.argumentMayPrecede(q, call, result) {
 				continue
 			}
 			// Original caller eligibility precedes its ordering/branch queries.
