@@ -36,6 +36,27 @@ func (query *sourceValueQuery) projectSelectedSourceReturns(body, operation *ast
 		deferred()
 		return
 	}
+	if query.dependenciesOnly {
+		// Return reachability consumes the same selected source inputs as body
+		// demands. Keep that acquisition active through predicate and value
+		// projection, so a binding's initializer cannot reacquire its own pending
+		// return under another copy of the same captures.
+		release, fresh := query.enterDependencyBody(body, captures, inputs, operation, part)
+		defer release()
+		if !fresh {
+			part.opaque, part.valueIncomplete = true, true
+			return
+		}
+		previous, had := query.active[body]
+		query.active[body] = true
+		defer func() {
+			if had {
+				query.active[body] = previous
+			} else {
+				delete(query.active, body)
+			}
+		}()
+	}
 	previousInputs, previousReturn, previousFresh := query.inputs, query.returning, query.freshReturnCall
 	query.inputs, query.freshReturnCall = inputs, nil
 	defer func() {
