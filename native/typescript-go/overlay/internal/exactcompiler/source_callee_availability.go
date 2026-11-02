@@ -4,8 +4,9 @@ import "github.com/microsoft/TypeScript/tsc/internal/ast"
 
 // sourcePendingCallee names unavailable output while one original Call acquires
 // its callee and receiver. Syntax inputs and creator endpoints are snapshots,
-// not activation identities or completed results. Normal inputs and richer source
-// carriers cannot use this negative availability relation.
+// not activation identities or completed results. Normal/runtime carriers and
+// source captures cannot use this negative availability relation. Source
+// rest/copied containers retain their exact contents.
 type sourcePendingCallee struct {
 	owner    *sourceValueQuery
 	call     *ast.Node
@@ -24,6 +25,8 @@ type sourceCalleeTerm struct {
 	node      *ast.Node
 	path      []string
 	undefined bool
+	rest      [][]sourceCalleeTerm
+	copied    map[string][]sourceCalleeTerm
 }
 
 type sourceCalleeCreator struct {
@@ -31,14 +34,126 @@ type sourceCalleeCreator struct {
 	creation sourceValueCreation
 }
 
-// calleeSyntaxTerm deliberately declines captured, adapted, normal and container
-// terms. Their absence is not a proof about their values. A new supported source
-// carrier needs its own exact comparison before it can withhold pending output.
-func calleeSyntaxTerm(value sourceValue) bool {
+// calleeSyntaxCarrier declines captured, adapted and normal terms. Rest/copied
+// contents need their own finite source-description snapshot before comparison.
+func calleeSyntaxCarrier(value sourceValue) bool {
 	return value.capture == nil && value.instance == nil && value.number == (numberPayload{}) &&
 		value.ownedGetRow == nil && value.initializerUse == nil && value.adapter == nil &&
 		value.acquired == nil && value.entrySlot == nil && value.bound == nil && value.normal == nil &&
-		len(value.forwarded) == 0 && value.awaited == nil && value.native == nil && value.rest == nil && value.copied == nil
+		len(value.forwarded) == 0 && value.awaited == nil && value.native == nil
+}
+
+// sourceCalleeAncestor refuses repeated container-origin shapes conservatively,
+// including some finite descriptions. It proves no graph equivalence. Pointer
+// allocation identities, finite body-entry joins and depth limits are not keys.
+type sourceCalleeAncestor struct {
+	node         *ast.Node
+	rest, copied bool
+	prior        *sourceCalleeAncestor
+}
+
+// snapshotCalleeTerms copies source containers, preserving absent versus present
+// empty vectors/maps and every ordered alternative. No live container survives
+// in a pending record. Unsupported or cyclic descriptions publish no snapshot.
+func (query *sourceValueQuery) snapshotCalleeTerms(values []sourceValue, ancestors *sourceCalleeAncestor) ([]sourceCalleeTerm, bool) {
+	if values == nil {
+		return nil, true
+	}
+	terms := make([]sourceCalleeTerm, len(values))
+	for i, value := range values {
+		query.recordEstimatedCost(1 + len(value.path))
+		if !calleeSyntaxCarrier(value) {
+			return nil, false
+		}
+		parent := ancestors
+		if len(value.rest) > 0 || len(value.copied) > 0 {
+			for ancestor := ancestors; ancestor != nil; ancestor = ancestor.prior {
+				query.recordEstimatedCost(1)
+				if ancestor.node == value.node && ancestor.rest == (value.rest != nil) && ancestor.copied == (value.copied != nil) {
+					return nil, false
+				}
+			}
+			parent = &sourceCalleeAncestor{node: value.node, rest: value.rest != nil, copied: value.copied != nil, prior: ancestors}
+		}
+		term := sourceCalleeTerm{node: value.node, path: append([]string(nil), value.path...), undefined: value.undefined}
+		if value.rest != nil {
+			term.rest = make([][]sourceCalleeTerm, len(value.rest))
+			for slot, alternatives := range value.rest {
+				query.recordEstimatedCost(1)
+				copied, ok := query.snapshotCalleeTerms(alternatives, parent)
+				if !ok {
+					return nil, false
+				}
+				term.rest[slot] = copied
+			}
+		}
+		if value.copied != nil {
+			term.copied = make(map[string][]sourceCalleeTerm, len(value.copied))
+			for key, alternatives := range value.copied {
+				query.recordEstimatedCost(1)
+				copied, ok := query.snapshotCalleeTerms(alternatives, parent)
+				if !ok {
+					return nil, false
+				}
+				term.copied[key] = copied
+			}
+		}
+		terms[i] = term
+	}
+	return terms, true
+}
+
+// matchCalleeTerms follows only a previously finite immutable description. A
+// cyclic current carrier cannot match a finite leaf. Keys, slots and alternatives
+// must all match by contents, never by container allocation identity.
+func (query *sourceValueQuery) matchCalleeTerms(previous []sourceCalleeTerm, values []sourceValue) bool {
+	if (previous == nil) != (values == nil) || len(previous) != len(values) {
+		return false
+	}
+	for i, term := range previous {
+		query.recordEstimatedCost(1)
+		value := values[i]
+		if !calleeSyntaxCarrier(value) || term.node != value.node || term.undefined != value.undefined || len(term.path) != len(value.path) ||
+			(term.rest == nil) != (value.rest == nil) || (term.copied == nil) != (value.copied == nil) || len(term.rest) != len(value.rest) || len(term.copied) != len(value.copied) {
+			return false
+		}
+		for j, key := range term.path {
+			query.recordEstimatedCost(1)
+			if key != value.path[j] {
+				return false
+			}
+		}
+		// Validate this node's entire container boundary before descending into
+		// any child. Current extra keys/slots/alternatives cannot hide a cycle.
+		for slot, alternatives := range term.rest {
+			query.recordEstimatedCost(1)
+			current := value.rest[slot]
+			if (alternatives == nil) != (current == nil) || len(alternatives) != len(current) {
+				return false
+			}
+		}
+		for key, alternatives := range term.copied {
+			query.recordEstimatedCost(1)
+			current, present := value.copied[key]
+			if !present || (alternatives == nil) != (current == nil) || len(alternatives) != len(current) {
+				return false
+			}
+		}
+		for slot, alternatives := range term.rest {
+			query.recordEstimatedCost(1)
+			if !query.matchCalleeTerms(alternatives, value.rest[slot]) {
+				return false
+			}
+		}
+		for key, alternatives := range term.copied {
+			query.recordEstimatedCost(1)
+			current, present := value.copied[key]
+			if !present || !query.matchCalleeTerms(alternatives, current) {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 func (query *sourceValueQuery) calleeAcquisitionCuts() [4]*ast.Node {
@@ -55,24 +170,14 @@ func (query *sourceValueQuery) beginCalleeAcquisition(call *ast.Node, bindings s
 		return nil
 	}
 	query.recordEstimatedCost(1)
-	for _, values := range bindings {
-		query.recordEstimatedCost(1)
-		for _, value := range values {
-			query.recordEstimatedCost(1)
-			if !calleeSyntaxTerm(value) {
-				return nil
-			}
-		}
-	}
 	pending := sourcePendingCallee{owner: query, call: call, prior: query.pendingCallee, cuts: query.calleeAcquisitionCuts()}
 	for symbol, values := range bindings {
 		query.recordEstimatedCost(1)
-		binding := sourceCalleeBinding{symbol: symbol, values: make([]sourceCalleeTerm, len(values))}
-		for i, value := range values {
-			query.recordEstimatedCost(1 + len(value.path))
-			binding.values[i] = sourceCalleeTerm{node: value.node, path: append([]string(nil), value.path...), undefined: value.undefined}
+		terms, ok := query.snapshotCalleeTerms(values, nil)
+		if !ok {
+			return nil
 		}
-		pending.bindings = append(pending.bindings, binding)
+		pending.bindings = append(pending.bindings, sourceCalleeBinding{symbol: symbol, values: terms})
 	}
 	for body, creation := range query.creators {
 		query.recordEstimatedCost(1)
@@ -109,21 +214,9 @@ func (query *sourceValueQuery) pendingCalleeOutput(call *ast.Node, bindings sour
 		for _, binding := range pending.bindings {
 			query.recordEstimatedCost(1)
 			values, present := bindings[binding.symbol]
-			if !present || len(values) != len(binding.values) {
+			if !present || !query.matchCalleeTerms(binding.values, values) {
 				same = false
 				break
-			}
-			for i, previous := range binding.values {
-				query.recordEstimatedCost(1)
-				value := values[i]
-				if !calleeSyntaxTerm(value) || previous.node != value.node || previous.undefined != value.undefined || len(previous.path) != len(value.path) {
-					same = false
-					break
-				}
-				for j, key := range previous.path {
-					query.recordEstimatedCost(1)
-					same = same && key == value.path[j]
-				}
 			}
 		}
 		if same {
