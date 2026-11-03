@@ -126,7 +126,7 @@ func (query *sourceValueQuery) definitionWriteInventoryContext() bool {
 	return query.inputs == nil && query.operation == nil && query.callerInputs == nil &&
 		query.returnObservation == nil && query.argumentPrefix == nil && query.pendingWriterInput == nil &&
 		query.deferredRead == nil && query.installedReceiverCall == nil && query.receiverInspection == nil &&
-		query.constructionMay == nil && query.initializerSelection == nil &&
+		query.constructionMay == nil && !query.provingConstructionCompletion && query.constructionFieldRead == nil && query.initializerSelection == nil &&
 		!query.provingFunctionOperation && len(query.live) == 0 && len(query.workLedgers) == 0
 }
 

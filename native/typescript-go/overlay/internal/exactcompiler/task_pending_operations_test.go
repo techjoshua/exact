@@ -120,8 +120,18 @@ func TestTaskPendingPrivateCallConstraints(t *testing.T) {
 						}
 						source := `import {TaskContext,type Component} from '@exactjs/core';export function Probe(this:Component<{values:number[];trace:string}>){this.state.values=[];this.state.trace='';const run=async(task:TaskContext=TaskContext.client().blocking())=>{this.state.values.push(0);class Local{#read(` + signature + `){return 1;}result=this.#read` + invocation + `(` + argument + `);}this.state.trace=String(new Local().result);};return()=> <button onClick={()=>run()}>{this.state.trace}</button>;}`
 						r := NewSession().Execute(Request{Kind: kind, ID: "private-pending-types.tsx", Source: source, Target: target, Diagnostics: "semantic"})
-						if r.Error != "" || hasDiagnosticCode(r.Diagnostics, code) != invalid || (!invalid && len(r.Diagnostics) != 0) {
+						if r.Error != "" || hasDiagnosticCode(r.Diagnostics, code) != invalid {
 							t.Fatalf("private call obligations changed: %s %#v", r.Error, r.Diagnostics)
+						}
+						if !invalid {
+							for _, diagnostic := range r.Diagnostics {
+								if diagnostic.Severity != "warning" || diagnostic.Code != "EXACT_ANALYSIS_COST" {
+									t.Fatalf("unexpected private call diagnostic: %#v", diagnostic)
+								}
+							}
+							if target != TargetDefault && r.Code == "" {
+								t.Fatal("valid private call produced no code")
+							}
 						}
 					})
 				}

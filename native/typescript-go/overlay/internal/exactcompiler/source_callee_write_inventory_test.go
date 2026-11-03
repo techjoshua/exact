@@ -99,6 +99,33 @@ func TestSourceCalleeWriteInventoryNormalGuard(t *testing.T) {
 	})
 }
 
+// Construction proofs and field reads have their own synchronous prerequisites.
+// A source-only inventory cannot detach them or consume an older demand under them.
+func TestSourceCalleeWriteConstructionContext(t *testing.T) {
+	withSourceCalleeWriteQuery(t, `const box={run(){}};export function invoke(){box.run()}`, func(q *sourceValueQuery, call *ast.Node) {
+		initial := q.receiverWriteCandidates(call, nil)
+		if initial.unknown || len(initial.dependencies) == 0 {
+			t.Fatal("ordinary source context did not issue a demand")
+		}
+		for _, fieldRead := range []bool{false, true} {
+			if fieldRead {
+				q.constructionFieldRead = &sourceConstructionFieldRead{owner: q}
+			} else {
+				q.provingConstructionCompletion = true
+			}
+			if q.definitionWriteInventoryContext() || initial.dependencies[0].live(q) {
+				t.Fatal("construction prerequisite escaped into write inspection")
+			}
+			view := q.receiverWriteCandidates(call, nil)
+			if !view.unknown || len(view.candidates.normalCalls) != 0 || len(view.candidates.ownedGets) != 0 {
+				t.Fatal("construction context acquired a write verdict or normal output")
+			}
+			q.provingConstructionCompletion, q.constructionFieldRead = false, nil
+			assertSourceCalleeInventoryReleased(t, q)
+		}
+	})
+}
+
 // A carrier's exclusion survives inventory refusal. Its node cannot become a
 // raw source object merely because this consumer cannot interpret the carrier.
 func TestSourceCalleeWriteInventoryCarrierGuards(t *testing.T) {

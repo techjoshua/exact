@@ -2170,6 +2170,15 @@ Default source-class construction retains actual instance field outputs only wit
 
 Field completion consumes the actual field frame's Call results and preserves the original value and capture scope. A directly returned instance borrows its producing frame through the original caller's result slot until that caller is disposed. Closing either the generation or the input lifetime revokes the borrowed value.
 
+Source dependency inspection keeps an in-progress field's lexical receiver separate from a
+completed construction result. Reentrant negative completion proofs retain a possible
+continuation. A query-owned field-read borrow can follow that receiver through already selected
+source methods and getters, then expires before the post-field completion check. It supplies
+no successful instance, normal value or receipt. Other constructors and detached receivers
+cannot borrow it, and callee-write inventory refuses these live construction contexts. Private
+member selection follows the original Get's checker symbol, keeping public string keys with
+the same spelling distinct.
+
 A proven abrupt initializer stops the field sequence. An unavailable Normal value keeps construction incomplete while subsequent ordinary demands contribute only possible effects. Their borrowed prefix retains mutation uncertainty and creates no field values, Get receipts, or complete instance. A conditional nested `new` can retain cached field effects from one authenticated implicit class in the same source and creating lexical region. This effects-only projection preserves arguments and genuine captures without allocating an inner instance or supplying its `this`, prior-field values, prototype proof, or normal receipts. Unknown targets and receiver-dependent work remain incomplete, while independently known effects are retained.
 
 Source effects and return relationships use the canonically selected native alternative and
