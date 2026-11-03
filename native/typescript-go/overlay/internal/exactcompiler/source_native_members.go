@@ -20,6 +20,7 @@ const (
 	sourceNativeFunctionPrototype
 	sourceNativeObjectFreeze
 	sourceNativePossibleProxyConstructor
+	sourceNativeArrayPush
 )
 
 // sourceNativeValue is one trusted standard-entry alternative. The declaration
@@ -309,4 +310,20 @@ func (query *sourceValueQuery) nativeMemberKey(value sourceValue, projection []s
 	if !replaced && mode == accessorAcquire {
 		result.values = append(result.values, seed)
 	}
+}
+
+// standardArrayMemberValue identifies the inherited operation of an established
+// source array. The caller owns own-member replacement selection and retains all
+// independent uncertainty. Standard identity grants no result, completion or
+// nonwriter fact. It is independent of the receiver later supplied to the Call.
+func standardArrayMemberValue(origin, declaration, acquired *ast.Node) sourceValue {
+	value := sourceValue{node: declaration}
+	if origin == nil || !ast.IsArrayLiteralExpression(origin) || declaration == nil || acquired == nil || declaration.Kind != ast.KindMethodSignature || !standardLibrarySource(ast.GetSourceFileOfNode(declaration)) {
+		return value
+	}
+	parent := declaration.Parent
+	if parent != nil && ast.IsInterfaceDeclaration(parent) && callableNameText(parent.Name()) == "Array" && callableNameText(declaration.Name()) == "push" {
+		value.native = &sourceNativeValue{kind: sourceNativeArrayPush, acquired: acquired}
+	}
+	return value
 }

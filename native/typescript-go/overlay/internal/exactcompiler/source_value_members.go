@@ -440,14 +440,19 @@ func (query *sourceValueQuery) arrayValues(origin *ast.Node, projection []string
 	}
 	if !unknown && !positional {
 		if mode == accessorAcquire {
-			// Keep the unresolved inherited value beside authored alternatives. Library
-			// declarations are candidates here, not concrete runtime method identities.
+			// Own replacements were selected above. An established source array
+			// supplies the inherited standard contract beside remaining alternatives.
+			// Other library declarations remain unbranded candidates.
 			member := query.owner.checker.GetPropertyOfType(query.owner.checker.GetTypeAtLocation(origin), selection)
 			if member == nil || len(projection) != 1 {
 				result.opaque = true
 			} else {
+				acquired := query.reading
+				if get != nil && get.operation != nil {
+					acquired = get.operation
+				}
 				for _, declaration := range member.Declarations {
-					result.values = append(result.values, sourceValue{node: declaration})
+					result.values = append(result.values, standardArrayMemberValue(origin, declaration, acquired))
 				}
 			}
 		}
