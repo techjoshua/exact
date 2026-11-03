@@ -762,8 +762,9 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 					visit(member.Name(), projection, false)
 				}
 				if len(projection) > 0 {
-					computedMayMatch := member.Name() != nil && ast.IsComputedPropertyName(member.Name()) && sourceLiteralMemberName(member.Name().AsComputedPropertyName().Expression) == ""
-					if member.Name() != nil && (projection[0] == "" && !exactEmpty || projection[0] == "*" || callableNameText(member.Name()) == projection[0] || computedMayMatch) {
+					privateMatch, privateGet := query.sourcePrivateMemberMatch(member, projection)
+					computedMayMatch := !privateGet && member.Name() != nil && ast.IsComputedPropertyName(member.Name()) && sourceLiteralMemberName(member.Name().AsComputedPropertyName().Expression) == ""
+					if member.Name() != nil && (privateMatch || !privateGet && (projection[0] == "" && !exactEmpty || projection[0] == "*" || callableNameText(member.Name()) == projection[0] || computedMayMatch)) {
 						if computedMayMatch {
 							result.opaque = true
 						}
@@ -1250,4 +1251,23 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 		result.cause = receiver
 	}
 	return result
+}
+
+// sourcePrivateMemberMatch selects only the declaration of an authored private
+// Get. Its symbol owns the entire selected segment, so a public '#name' member
+// cannot also match. Public reflection and normal traversal keep their owner.
+func (query *sourceValueQuery) sourcePrivateMemberMatch(member *ast.Node, projection []string) (matches, privateGet bool) {
+	operation := query.protectedMember
+	if !query.dependenciesOnly || len(projection) != 1 || operation == nil || !ast.IsPropertyAccessExpression(operation) {
+		return false, false
+	}
+	name := operation.AsPropertyAccessExpression().Name()
+	if name.Kind != ast.KindPrivateIdentifier || projection[0] != name.Text() {
+		return false, false
+	}
+	if member.Name() == nil || member.Name().Kind != ast.KindPrivateIdentifier || member.Parent == nil || !ast.IsClassDeclaration(member.Parent) && !ast.IsClassExpression(member.Parent) {
+		return false, true
+	}
+	original := query.owner.checker.GetSymbolAtLocation(name)
+	return original != nil && original == query.owner.checker.GetSymbolAtLocation(member.Name()), true
 }

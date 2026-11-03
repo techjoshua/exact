@@ -41,7 +41,7 @@ func (query *sourceValueQuery) visitConstructedAccessor(demand sourceConstructed
 				continue
 			}
 			known = true
-			if !query.sourceConstructionFieldsMayComplete(target, selected.scope.bindings) {
+			if !query.sourceConstructionFieldReceiver(value, target) && !query.sourceConstructionFieldsMayComplete(target, selected.scope.bindings) {
 				result.valueIncomplete = true
 				continue
 			}

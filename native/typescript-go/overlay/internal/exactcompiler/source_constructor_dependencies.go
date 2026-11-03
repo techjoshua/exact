@@ -50,15 +50,14 @@ func (q *sourceValueQuery) retainSelectedConstructionDependencies(site *ast.Node
 					continue
 				}
 				inputs := &sourceValueInputs{declaration: member, bindings: scope.bindings}
-				previousInputs := q.inputs
-				q.inputs = inputs
-				for _, node := range q.owner.summary(member).nodes {
-					if !member.Initializer().Contains(node) {
-						continue
+				q.withConstructionFieldRead(site, target, inputs, func() {
+					for _, node := range q.owner.summary(member).nodes {
+						if !member.Initializer().Contains(node) {
+							continue
+						}
+						q.executeDemand(node, member, inputs.bindings, result, nil, inputs)
 					}
-					q.executeDemand(node, member, inputs.bindings, result, nil, inputs)
-				}
-				q.inputs = previousInputs
+				})
 				if !q.sourceInitializerMayComplete(member.Initializer(), scope.bindings) {
 					result.valueIncomplete = true
 					break

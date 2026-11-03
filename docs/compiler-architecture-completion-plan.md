@@ -316,8 +316,16 @@ or constructor-return replacement keeps independent lookup uncertainty. Missing 
 output alone does not add an effect. Shared selected-return projection also supplies getter
 return relationships without issuing a Get receipt. Definite abrupt construction prevents later
 field or serialization consumers, and nonconstructible functions do not perform their bodies.
-Completion projection here establishes no successful Normal result. Literal-computed class
-member selection and the serialization `toJSON` protocol still require separate donor audits.
+Completion projection here establishes no successful Normal result.
+Nested field-completion proofs retain a possible continuation when callee lookup reenters
+construction. This negative-proof refusal supplies no instance or successful completion,
+and the outer proof still excludes values after a definitely abrupt field prefix.
+The original field-demand interval can retain its own lexical receiver through already
+selected source method and getter bodies. Its issuing query owns the synchronous header,
+which is revoked on exit and restored before post-field completion. It cannot
+qualify another constructor, detached receiver or normal output. Private member selection
+uses the original Get's checker symbol, keeping public string keys with the same spelling separate.
+Literal-computed class member selection and the serialization `toJSON` protocol still require separate donor audits.
 Array-binding summaries retain default donors beside unresolved iterator/value selection. Such a summary does not prove iterator execution or default bypass.
 
 The first summary slice must distinguish these controls:

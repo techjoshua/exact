@@ -139,6 +139,10 @@ type sourceValueQuery struct {
 	callerInputs *sourceCallerInputOwner
 	// operation is a scoped normal-analysis producer, not runtime activation or indexed admission.
 	operation *sourceOperationContext
+	// Nested construction-completion proofs retain MAY, never successful instances.
+	provingConstructionCompletion bool
+	constructionFieldRead         *sourceConstructionFieldRead
+
 	// effectOwner scopes caller effect acquisition. Value/producer proofs leave it nil.
 	// These scoped syntax endpoints certify neither activation nor acquired values.
 	protectedMember          *ast.Node
@@ -609,6 +613,9 @@ func (query *sourceValueQuery) executeInputs(declaration *ast.Node, bindings sou
 	// Generic source instantiation owns substitutions and per-use effects. It
 	// does not enter normal storage or issue a consumed-body lifetime.
 	if query.dependenciesOnly {
+		// Only this selected source body can carry its caller's live field use.
+		restoreField := query.enterConstructionFieldBody(previousInputs, inputs)
+		defer restoreField()
 		inputs.dependencyScope = query.acquireCallableScope(bindings, result)
 		inputs.dependencyUse = query.effectUse()
 		// Source demands describe possible work. They neither execute a storage
