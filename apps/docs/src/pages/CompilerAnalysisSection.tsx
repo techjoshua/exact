@@ -97,7 +97,10 @@ export const value = readers[0]!();`}
 				Saving a method in a local variable keeps the function selected by that read. Replacing its
 				original receiver later does not change the saved function. Calling the saved variable
 				follows ordinary JavaScript rules for <code>this</code>. Possible foreign values retain
-				uncertainty alongside any known browser or server requirements.
+				uncertainty alongside any known browser or server requirements. Getter effects and returned
+				values are tracked separately. If a getter returns a known defined value, an unresolved
+				effect during its evaluation does not activate a caller default. The unresolved effect still
+				contributes to placement.
 			</p>
 			<p>
 				A small helper can also use a numeric literal as its only parameter default. For
