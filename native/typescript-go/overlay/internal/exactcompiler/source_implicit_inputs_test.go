@@ -60,12 +60,12 @@ func TestSourceReceiverInputBorrow(t *testing.T) {
 	}
 }
 
-// A real selected then method maps this writes to its actual source object.
-// That relation does not brand the object as component state. Neither a copied
-// Await nor an acquired receiver may borrow the original source operation.
-func TestSourceThenReceiverWrite(t *testing.T) {
-	const id = "/virtual/source-then-write.ts"
-	const source = `export async function probe(){await {state:{value:0},then(resolve:(value:number)=>void){this.state.value++;resolve(1)}}}`
+// A canonical source Get supplies the selected body's capture and receiver.
+// The generic loan maps this and captured writes without component branding,
+// normal invocation authority or a protocol-specific input binder.
+func TestSourceBorrowedReceiverWrite(t *testing.T) {
+	const id = "/virtual/source-borrowed-write.ts"
+	const source = `export function probe(captured:{value:number}){const receiver={state:{value:0},work(){this.state.value++;captured.value++}};receiver.work()}`
 	session := NewSession()
 	response := session.Execute(Request{Kind: "analyze", ID: id, Source: source, Diagnostics: "semantic"})
 	if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) {
@@ -76,23 +76,29 @@ func TestSourceThenReceiverWrite(t *testing.T) {
 		if file == nil || project.callableCache == nil {
 			continue
 		}
-		var operation *ast.Node
+		var operation, captured *ast.Node
 		walkNode(file.AsNode(), func(node *ast.Node) bool {
-			if ast.IsAwaitExpression(node) {
+			if ast.IsPropertyAccessExpression(node) && node.Name().Text() == "work" {
 				operation = node
+			}
+			if ast.IsParameterDeclaration(node) && node.Name().Text() == "captured" {
+				captured = node.Name()
 			}
 			return true
 		})
-		if operation == nil {
-			t.Fatal("missing original Await")
+		if operation == nil || captured == nil {
+			t.Fatal("missing original source Get or capture")
 		}
 		owner := project.callableCache.owner
 		query := newSourceDependencyQuery(operation, owner.checker, owner, enclosingCallableNode(operation))
-		operand := operation.AsAwaitExpression().Expression
-		scope := acquiredCallableScope{bindings: make(sourceValueBindings)}
-		receiver := sourceObservedValue{value: sourceValue{node: operand}, scope: scope}
-		get := &sourceGetInputs{operation: operation, propertyKey: "then", receiver: receiver.value}
-		selected := query.accessorsAtGet(operand, []string{"then"}, "", accessorAcquire, scope.bindings, nil, get, receiver.value)
+		receivers := query.accessors(operation.Expression(), nil, "", accessorAcquire, nil, nil)
+		if len(receivers.values) != 1 || receivers.values[0].capture == nil {
+			t.Fatal("source Get lost receiver scope")
+		}
+		receiver := receivers.values[0]
+		scope := *receiver.capture
+		get := &sourceGetInputs{operation: operation, propertyKey: "work", receiver: receiver}
+		selected := query.accessorsAtGet(receiver.node, []string{"work"}, "", accessorAcquire, scope.bindings, nil, get, receiver)
 		if len(selected.values) != 1 || selected.values[0].acquired != nil || selected.values[0].normal != nil {
 			t.Fatal("source Get did not select a whole source method")
 		}
@@ -101,13 +107,28 @@ func TestSourceThenReceiverWrite(t *testing.T) {
 			t.Fatal("source Get lost method capture")
 		}
 		part := accessorCandidates{}
-		query.consumeSourceThenInputs(operation, method.node, receiver, *method.capture, &part)
-		mapped := false
+		// This zero-parameter method needs only its canonical source captures
+		// and selected receiver. No Call/Get input carrier is stripped or reused.
+		inputs := &sourceValueInputs{declaration: method.node, bindings: query.acquireCallableScope(method.capture.bindings, &part).bindings}
+		inputs.bindings[0] = []sourceValue{receiver}
+		priorCreators := query.creators
+		query.creators = method.capture.creators
+		query.withSourceReceiverInputs(operation, method.node, inputs, &part, func() {
+			copiedBody := method.node.Clone(ast.NewNodeFactory(ast.NodeFactoryHooks{}))
+			if query.sourceReceiverInputsLive(inputs, copiedBody) {
+				t.Fatal("cloned body inherited original receiver loan")
+			}
+			query.consumeSourceBodyEffects(operation, method.node, inputs.bindings, inputs, nil, &part)
+		})
+		query.creators = priorCreators
+		mapped, captureMapped := false, false
+		captureSymbol := owner.checker.GetSymbolAtLocation(captured)
 		for _, write := range part.writes {
-			mapped = mapped || write.value.node == operand && len(write.value.path) == 2 && write.value.path[0] == "state" && write.value.path[1] == "value"
+			mapped = mapped || write.value.node == receiver.node && len(write.value.path) == 2 && write.value.path[0] == "state" && write.value.path[1] == "value"
+			captureMapped = captureMapped || write.value.node != nil && ast.IsIdentifier(write.value.node) && owner.checker.GetSymbolAtLocation(write.value.node) == captureSymbol && len(write.value.path) == 1 && write.value.path[0] == "value"
 		}
-		if !mapped || query.inputs != nil || len(part.normalCalls)+len(part.nativeCalls) != 0 {
-			t.Fatal("source receiver mapping missing or normal authority published")
+		if !mapped || !captureMapped || query.inputs != nil || query.sourceReceiver != nil || len(part.normalCalls)+len(part.nativeCalls) != 0 {
+			t.Fatal("source receiver/capture mapping missing or normal authority published")
 		}
 		fact := callableFacts{node: enclosingCallableNode(operation)}
 		appendSourceValueWrites(&fact, part, owner.checker)
@@ -116,20 +137,14 @@ func TestSourceThenReceiverWrite(t *testing.T) {
 				t.Fatal("ordinary source object acquired component state authority")
 			}
 		}
-		copyOperation := operation.Clone(ast.NewNodeFactory(ast.NodeFactoryHooks{}))
-		for _, control := range []struct {
-			operation *ast.Node
-			receiver  sourceObservedValue
-		}{
-			{copyOperation, receiver},
-			{operand, receiver},
-			{operation, sourceObservedValue{value: sourceValue{node: operand, acquired: &receiver}, scope: scope}},
-		} {
-			refused := accessorCandidates{}
-			query.consumeSourceThenInputs(control.operation, method.node, control.receiver, *method.capture, &refused)
-			if !refused.opaque || len(refused.effects)+len(refused.writes) != 0 || query.inputs != nil {
-				t.Fatal("foreign operation or whole carrier borrowed source receiver authority")
-			}
+		normal := *query
+		normal.dependenciesOnly = false
+		refused := accessorCandidates{}
+		normal.withSourceReceiverInputs(operation, method.node, inputs, &refused, func() {
+			t.Fatal("normal query entered source receiver loan")
+		})
+		if !refused.opaque || normal.inputs != nil || normal.sourceReceiver != nil {
+			t.Fatal("normal refusal changed receiver ownership")
 		}
 		return
 	}
