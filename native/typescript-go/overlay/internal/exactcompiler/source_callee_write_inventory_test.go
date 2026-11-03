@@ -189,6 +189,28 @@ func TestSourceCalleeWriteInventoryDemandDomain(t *testing.T) {
 	})
 }
 
+func TestSourceCalleeWriteInventoryReaderCarrierRefusal(t *testing.T) {
+	withSourceCalleeWriteQuery(t, `const box={run(){}};export function invoke(){box.run()}`, func(q *sourceValueQuery, call *ast.Node) {
+		for _, term := range []sourceValue{
+			{node: call, initializerUse: &sourceInitializerUse{}},
+			{node: call, normal: &sourceNormalValue{}},
+		} {
+			cut := q.memberWriterReadCut(nil, nil, &accessorCandidates{})
+			cut.scope.bindings[1] = []sourceValue{term}
+			view, result := sourceCalleeWriteView{}, accessorCandidates{}
+			q.calleeWriteInventory = &view
+			q.inventoryMemberWrites(call.Expression(), []string{"run"}, "", accessorAcquire, nil, &result, nil, cut)
+			q.calleeWriteInventory = nil
+			if !view.unknown || len(view.dependencies) != 1 || view.dependencies[0].supported || view.dependencies[0].scope.bindings != nil || result.opaque || result.valueIncomplete {
+				t.Fatal("reader mapping was sealed/resolved before source refusal")
+			}
+			if cut.scope.bindings[1][0].initializerUse != term.initializerUse || cut.scope.bindings[1][0].normal != term.normal {
+				t.Fatal("inventory mutated original reader carrier")
+			}
+		}
+	})
+}
+
 // Copied slots must pass selected children through the carrier-aware visitor.
 // Passing only node/path would turn unsupported observations into source bodies.
 func TestSourceCalleeWriteInventoryCopiedChild(t *testing.T) {

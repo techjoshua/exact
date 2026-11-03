@@ -79,16 +79,9 @@ func (query *sourceValueQuery) inventoryMemberWrites(origin *ast.Node, projectio
 		demand.supported = false
 	}
 	if demand.supported {
-		for _, terms := range bindings {
-			query.recordEstimatedCost(1)
-			for _, term := range terms {
-				query.recordEstimatedCost(1)
-				if !inventorySourceValue(term) {
-					// In particular, do not resolve a pending initializer while
-					// taking a source-only inventory's detached map snapshot.
-					demand.supported = false
-				}
-			}
+		demand.supported = query.inventorySourceBindings(bindings)
+		if demand.supported && cut != nil {
+			demand.supported = query.inventorySourceBindings(cut.scope.bindings)
 		}
 	}
 	if demand.supported {
@@ -104,6 +97,22 @@ func (query *sourceValueQuery) inventoryMemberWrites(origin *ast.Node, projectio
 		view.unknown = true
 	}
 	view.dependencies = append(view.dependencies, demand)
+	return true
+}
+
+// inventorySourceBindings refuses before acquire/copyCallableScope can seal a
+// pending normal initializer. Canonical reader cuts already seal their direct
+// initializers at production, but no mutable mapping can borrow that invariant.
+func (query *sourceValueQuery) inventorySourceBindings(bindings sourceValueBindings) bool {
+	for _, terms := range bindings {
+		query.recordEstimatedCost(1)
+		for _, term := range terms {
+			query.recordEstimatedCost(1)
+			if !inventorySourceValue(term) {
+				return false
+			}
+		}
+	}
 	return true
 }
 
