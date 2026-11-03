@@ -148,5 +148,19 @@ func (query *sourceValueQuery) inventoryLookupUnknown() bool {
 func inventorySourceValue(value sourceValue) bool {
 	return value.instance == nil && value.number == (numberPayload{}) && value.ownedGetRow == nil &&
 		value.initializerUse == nil && value.adapter == nil && value.acquired == nil && value.entrySlot == nil &&
-		value.bound == nil && value.normal == nil && value.awaited == nil && value.native == nil
+		value.bound == nil && value.normal == nil && value.awaited == nil && inventorySourceNative(value)
+}
+
+// inventorySourceNative admits only detached, already established standard-entry
+// identity. Native result facades retain invocation/frame ownership and cannot
+// cross this source-only inventory boundary. This validates transport, not the
+// operation's runtime origin, receiver requirements or successful execution.
+func inventorySourceNative(value sourceValue) bool {
+	if value.native == nil {
+		return true
+	}
+	native := value.native
+	return native.kind != 0 && native.acquired != nil && native.async == nil && native.resolve == nil &&
+		native.kind != sourceNativePromiseFacade && native.kind != sourceNativeAsyncFacade &&
+		value.node != nil && standardLibrarySource(ast.GetSourceFileOfNode(value.node))
 }

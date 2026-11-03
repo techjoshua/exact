@@ -231,9 +231,14 @@ func (query *sourceValueQuery) consumeInvocation(node *ast.Node, bindings source
 				observed     *sourceObservedValue
 			}
 			var bodies []installedBody
+			var nativeTargets []sourceValue
 			if adapterOwned {
 				for _, body := range acquired.ordinaryBodies {
 					if body.invocation != node {
+						continue
+					}
+					if body.nativeTarget != nil {
+						nativeTargets = append(nativeTargets, *body.nativeTarget)
 						continue
 					}
 					if construction {
@@ -249,44 +254,8 @@ func (query *sourceValueQuery) consumeInvocation(node *ast.Node, bindings source
 			}
 			for index, value := range acquired.values {
 				if value.native != nil {
-					if value.native.kind == sourceNativeArrayPush {
-						if consumer.arrayPush != nil {
-							query.withActiveInvocation(node, func() { consumer.arrayPush(node, bindings, &result) })
-						} else {
-							result.valueIncomplete = true
-						}
-						continue
-					}
-					if value.native.kind == sourceNativeObjectFreeze {
-						if query.dependenciesOnly {
-							query.sourceFreezeRelationship(node, value, bindings, complete, consumer.sourceReturn, &result)
-							continue
-						}
-						query.consumeNativeFreeze(node, value, len(acquired.values) == 1 && complete, &result)
-						continue
-					}
-					if reflectiveNative(value.native.kind) {
-						query.withActiveInvocation(node, func() {
-							operation := query.acquireReflectiveOperation(node, value, bindings, nativeCount == len(acquired.values) && !acquired.opaque && !acquired.valueIncomplete && !acquired.receiverIncomplete, &result)
-							result.reflective = append(result.reflective, operation)
-							if consumer.reflective != nil {
-								consumer.reflective(operation, &result)
-							} else {
-								result.valueIncomplete = true
-							}
-						})
-						continue
-					}
-
-					query.withActiveInvocation(node, func() {
-						receipt := query.acquireNativeInputs(node, value, bindings, nativeCount == len(acquired.values) && !acquired.opaque && !acquired.valueIncomplete && !acquired.receiverIncomplete, &result)
-						result.nativeCalls = append(result.nativeCalls, receipt)
-						if consumer.native != nil {
-							consumer.native(receipt, &result)
-						} else {
-							result.opaque = true
-						}
-					})
+					covered := nativeCount == len(acquired.values) && !acquired.opaque && !acquired.valueIncomplete && !acquired.receiverIncomplete
+					query.consumeNativeInvocation(node, value, bindings, consumer, complete, len(acquired.values) == 1 && complete, covered, &result)
 					continue
 				}
 				body := value.node
@@ -303,6 +272,11 @@ func (query *sourceValueQuery) consumeInvocation(node *ast.Node, bindings source
 					continue
 				}
 				bodies = append(bodies, installedBody{body, acquired.callableScopes[index], true, nil, nil, value.acquired})
+			}
+			for _, target := range nativeTargets {
+				// The adapter relation transports MAY effects only. It grants no
+				// callee coverage, descriptor or successful native result rights.
+				query.consumeNativeInvocation(node, target, bindings, consumer, false, false, false, &result)
 			}
 			enroll()
 			for _, body := range bodies {
@@ -510,11 +484,14 @@ func (query *sourceValueQuery) receiverCandidates(call *ast.Node, bindings sourc
 // sourceInvocationBody pairs an actual source receiver alternative with its
 // creating scope. It is an ordinary invocation edge, not complete callee identity.
 type sourceInvocationBody struct {
-	actuals     []sourceNormalActual
-	invocation  *ast.Node
-	binding     *ast.Node
-	declaration *ast.Node
-	scope       acquiredCallableScope
+	// nativeTarget is an already acquired standard operation behind call/apply.
+	// It is routed separately from authored bodies and carries no result receipt.
+	nativeTarget *sourceValue
+	actuals      []sourceNormalActual
+	invocation   *ast.Node
+	binding      *ast.Node
+	declaration  *ast.Node
+	scope        acquiredCallableScope
 }
 
 // sourceOrdinaryAdapter belongs to one actual callee Get construction. It

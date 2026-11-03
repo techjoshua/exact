@@ -38,6 +38,25 @@ type sourceNativeValue struct {
 	referencesIncomplete bool
 }
 
+// standardNativeLookup identifies a lookup on an established standard container,
+// not an ordinary receiver that happens to inherit a standard method. Unknown
+// implementation corruption of that container is outside the builtin contract.
+// Instance/facade own writes still require the ordinary pending-write path.
+// This distinction supplies no own-write closure or descriptor/result authority.
+func standardNativeLookup(get *sourceGetInputs) bool {
+	if get == nil || get.receiver.native == nil {
+		return false
+	}
+	switch get.receiver.native.kind {
+	case sourceNativeGlobalObject, sourceNativePromiseConstructor,
+		sourceNativePromisePrototype, sourceNativeObjectConstructor,
+		sourceNativeReflectObject, sourceNativeFunctionConstructor,
+		sourceNativeFunctionPrototype:
+		return true
+	}
+	return false
+}
+
 func (query *sourceValueQuery) nativeEntryRoot(root *ast.Node, path []string) (*ast.Symbol, sourceNativeKind) {
 	symbol := query.owner.checker.GetSymbolAtLocation(root)
 	for _, entry := range []struct {
@@ -213,6 +232,12 @@ func (query *sourceValueQuery) nativeMemberKey(value sourceValue, projection []s
 		result.opaque = true
 		return
 	}
+	// Invocation adapters keep target identity separate from the selected call/apply
+	// property. The existing ordinary route owns actual this and argument vectors.
+	if nativeInvocable(value.native.kind) && (key == "call" || key == "apply") {
+		query.nativeInvocationMember(value, key, mode, bindings, result, visit, sourceVisits...)
+		return
+	}
 	origin, seed, ok := query.nativeMemberSeed(value, key, symbol, result)
 	if !ok {
 		return
@@ -246,7 +271,15 @@ func (query *sourceValueQuery) nativeMemberKey(value sourceValue, projection []s
 	if query.dependenciesOnly && len(sourceVisits) == 1 {
 		visitMember = sourceVisits[0]
 	}
-	replaced := query.memberValuesAtGet(origin, []string{key}, "", mode, bindings, result, visitMember, sourceMemberOperationProof{sources: sources}, get)
+	// A selected standard entry uses the same conditional acquisition path as
+	// source arrays. Pending own writers and descriptors remain in that owner.
+	// No native implementation body is needed to retain this alternative, and
+	// no normal result or descriptor premise is supplied by the candidate.
+	var standard *sourceValue
+	if mode == accessorAcquire {
+		standard = &seed
+	}
+	replaced := query.memberValuesAtGetWithStandard(origin, []string{key}, "", mode, bindings, result, visitMember, sourceMemberOperationProof{sources: sources}, get, standard)
 	// Delete/computed writes have no assignment RHS. Retain them explicitly at
 	// this same owned source view rather than treating an empty RHS list as safe.
 	var sourceIndexes [4]sourceValueIndex
@@ -326,4 +359,35 @@ func standardArrayMemberValue(origin, declaration, acquired *ast.Node) sourceVal
 		value.native = &sourceNativeValue{kind: sourceNativeArrayPush, acquired: acquired}
 	}
 	return value
+}
+
+// nativeInvocationMember retains an established standard target through the
+// existing ordinary adapter relation. Own overrides remain selected members,
+// while unresolved lookup debt stays additive. The target is not the adapter's
+// identity and cannot grant normal input, output or completion authority.
+func (query *sourceValueQuery) nativeInvocationMember(value sourceValue, key string, mode accessorTraversal, bindings sourceValueBindings, result *accessorCandidates, visit func(*ast.Node, []string, bool), sourceVisits ...func(sourceValue)) {
+	ordinary, occurrence := query.ordinaryFunctionMember(value.node, nil, key, mode)
+	if ordinary == nil {
+		result.opaque = true
+		return
+	}
+	visitMember := func(member sourceValue) { visit(member.node, member.path, false) }
+	if query.dependenciesOnly && len(sourceVisits) == 1 {
+		visitMember = sourceVisits[0]
+	}
+	get := &sourceGetInputs{operation: query.reading, receiver: value}
+	members := accessorCandidates{}
+	replaced := query.memberValuesAtGetWithStandard(value.node, []string{key}, "", mode, bindings, &members, visitMember, sourceMemberOperationProof{}, get, &value)
+	if !members.ownOperation && !replaced {
+		target := value
+		target.path = nil
+		result.sourceCallable = true
+		result.ordinaryBodies = append(result.ordinaryBodies, sourceInvocationBody{invocation: occurrence, declaration: value.node, scope: query.acquireCallableScope(bindings, result), nativeTarget: &target})
+		if mode == accessorAcquire {
+			for _, declaration := range ordinary.Declarations {
+				result.values = append(result.values, sourceValue{node: declaration})
+			}
+		}
+	}
+	mergeAccessorCandidates(result, members)
 }

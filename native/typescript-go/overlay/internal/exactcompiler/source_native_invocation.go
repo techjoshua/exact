@@ -1,0 +1,50 @@
+package exactcompiler
+
+import "github.com/microsoft/TypeScript/tsc/internal/ast"
+
+// consumeNativeInvocation routes an already selected standard alternative to its
+// existing algorithm owner. Coverage describes the acquired alternative set,
+// not builtin implementation integrity. Each consumer retains its actual-input,
+// normal-completion, storage and descriptor requirements. Unknown siblings stay
+// on the enclosing invocation and are never discharged by this dispatch.
+func (query *sourceValueQuery) consumeNativeInvocation(node *ast.Node, value sourceValue, bindings sourceValueBindings, consumer sourceInvocationConsumer, complete, exclusive, covered bool, result *accessorCandidates) {
+	if value.native.kind == sourceNativeArrayPush {
+		if consumer.arrayPush != nil {
+			query.withActiveInvocation(node, func() { consumer.arrayPush(node, bindings, result) })
+		} else {
+			result.valueIncomplete = true
+		}
+		return
+	}
+	if value.native.kind == sourceNativeObjectFreeze {
+		if query.dependenciesOnly {
+			query.sourceFreezeRelationship(node, value, bindings, complete, consumer.sourceReturn, result)
+			return
+		}
+		query.consumeNativeFreeze(node, value, exclusive, result)
+		return
+	}
+	if reflectiveNative(value.native.kind) {
+		query.withActiveInvocation(node, func() {
+			operation := query.acquireReflectiveOperation(node, value, bindings, covered, result)
+			result.reflective = append(result.reflective, operation)
+			if consumer.reflective != nil {
+				consumer.reflective(operation, result)
+			} else {
+				result.valueIncomplete = true
+			}
+		})
+		return
+	}
+
+	query.withActiveInvocation(node, func() {
+		receipt := query.acquireNativeInputs(node, value, bindings, covered, result)
+		result.nativeCalls = append(result.nativeCalls, receipt)
+		if consumer.native != nil {
+			consumer.native(receipt, result)
+		} else {
+			result.opaque = true
+		}
+	})
+	return
+}

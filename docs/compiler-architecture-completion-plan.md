@@ -473,6 +473,42 @@ Generic operations and branded operations impose different receiver requirements
 
 The approved insertion point is the existing array member-selection owner. An established literal-array origin and standard declaration identify a conditional push alternative before interference finishes. Indexed own writers retain their existing source cuts, input mappings, captures and descriptor consumers. Inventory callers retain pending obligations in their existing view. Outside that supported inventory context, unfinished interference stays unknown and replacement precision is withheld while known authored donors continue through the indexed owner. The push invocation consumer contributes possible receiver mutation through source-write summaries, with no native result receipt, exact contents or completion authority. Unsupported length/index hooks remain conservative. This narrow established-source acquisition path does not establish complete built-in coverage or resolve the original nested integration gate.
 
+#### Shared represented-operation acquisition checkpoint
+
+Standard candidates from `nativeMemberSeed` and source-array acquisition use
+`memberValuesAtGetWithStandard`. An established standard-container lookup does
+not require a hypothetical implementation-integrity proof. Actual inventory
+demands, indexed own writers, descriptors, source captures and independent
+uncertainty remain with the existing selection owner. Ordinary receivers retain
+their unfinished own-operation debt. A candidate cannot supply replacement
+precision or establish that own writes are complete.
+
+The source inventory transports detached `sourceNativeValue` identities with
+their existing standard declaration and acquisition origin. It continues to
+refuse native result facades and invocation receipts. `consumeNativeInvocation`
+routes selected alternatives to the existing push, freeze, property-definition
+and Promise-resolution consumers. Native `.call` and `.apply` targets cross the
+existing ordinary adapter relation separately from the acquired adapter property.
+`planOrdinaryInvocation` retains actual receiver and argument-vector routing.
+That bridge transfers MAY effects without granting normal input, output,
+completion, storage, descriptor or successful-await authority.
+
+Bounded native controls cover static and prototype consumers, saved borrowed
+calls and apply vectors, shadowed and type-only negatives, own adapter overrides,
+mixed alternatives, callback and getter donors, pending own writers, public
+placement rejection, and paired client/server emission. The unchanged source-only
+freeze relationship and adjacent output/descriptor negative controls pass. TS7
+qualifies the cross-category fixture sources. These checks do not establish
+complete builtin coverage or resolve the original nested integration gate.
+
+General primitive/prototype recognition, native bound construction, Promise
+`then` invocation, generic receiver algorithm protocols, broader callback
+algorithms, iterator and species summaries remain incomplete. Existing
+reevaluation classifications do not supply those missing summaries. Unsupported
+paths must retain uncertainty and their existing known hook effects. Broader
+acceptance also remains open around pre-existing ordinary callback-reassignment
+and authored-apply failures, reproduced on the immutable c61 baseline.
+
 #### First vertical slice and acceptance gates
 
 1. Trace a genuine local array literal and its stable alias into a direct `xs.push(value)` lookup. Add the standard member candidate through the shared recognition seam, preserving authored own-member overrides and caller conditions. Nonconforming standard-prototype replacement is outside the supported assumptions. Reuse the existing effect/write summary ownership for the algorithm's indexed and length writes. Do not derive exact array contents or a successful numeric return merely from recognition.

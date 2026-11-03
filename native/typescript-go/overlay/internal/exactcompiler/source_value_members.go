@@ -123,12 +123,14 @@ func (query *sourceValueQuery) memberValuesAtGetWithStandard(origin *ast.Node, p
 	inventory := query.inventoryMemberWrites(origin, projection, name, mode, bindings, result, operation.sources, cut)
 	capture := sourceMemberOperationProof{}
 	if standard != nil {
-		// Inventory callers retain their existing pending demand. Other callers
-		// retain unfinished interference as unknown in source and normal input
-		// acquisition. The standard alternative does not require recursive callee
-		// preparation.
-		// Own RHS discovery below still runs and cannot use replacement precision.
-		result.opaque = true
+		// Standard containers do not need an implementation-integrity proof.
+		// Actual inventory demands remain on their existing view, and indexed
+		// own writers/descriptors below still contribute their own uncertainty.
+		// Ordinary receivers retain their unfinished own-interference debt.
+		// Neither path gains replacement precision from the standard candidate.
+		if !standardNativeLookup(get) {
+			result.opaque = true
+		}
 		inventory = true
 	} else if !inventory {
 		capture = query.interferenceInSources(origin, projection, name, mode, bindings, result, operation.sources, cut)
