@@ -131,6 +131,13 @@ func (work *sourceCalleeWriteWork) receiverCandidates(query *sourceValueQuery, c
 // demands close without unknown. Failure reruns the unchanged synchronous
 // consumer, including all original scope/cut and negative availability owners.
 func (query *sourceValueQuery) tryCalleeWriteInterference(origin *ast.Node, projection []string, name string, mode accessorTraversal, bindings sourceValueBindings, result *accessorCandidates, sources []*ast.SourceFile, cut *sourceMemberWriterReadCut, boundary sourceMemberOperationProof) bool {
+	query.recordEstimatedCost(1)
+	// Reject the identical unsupported source-site shapes before constructing
+	// inventory scopes. This is admission to this optimization only, never a
+	// type-based writer skip or a completed interference verdict.
+	if _, supported := calleeWriteSite(sourceMemberWriteDemand{member: query.protectedMember, origin: origin, projection: projection, name: name, mode: mode}); !supported {
+		return false
+	}
 	view := sourceCalleeWriteView{}
 	previousInventory, previousWork := query.calleeWriteInventory, query.calleeWriteWork
 	defer func() {

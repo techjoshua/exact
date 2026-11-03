@@ -473,9 +473,11 @@ func (query *sourceValueQuery) receiverCandidates(call *ast.Node, bindings sourc
 	// Associate before initializing and active state change. This source-only
 	// borrow cannot outlive or reinstall the canonical pending selection header.
 	if query.dependenciesOnly {
-		use := sourceCalleeWriteUse{borrow: query.calleeWriteBorrow(call, bindings), prior: query.calleeWriteUse}
-		query.calleeWriteUse = &use
-		defer func() { query.calleeWriteUse = use.prior }()
+		if borrow := query.calleeWriteBorrow(call, bindings); borrow.header != nil {
+			use := sourceCalleeWriteUse{borrow: borrow, prior: query.calleeWriteUse}
+			query.calleeWriteUse = &use
+			defer func() { query.calleeWriteUse = use.prior }()
+		}
 	}
 	previous := query.initializing
 	query.initializing = call
