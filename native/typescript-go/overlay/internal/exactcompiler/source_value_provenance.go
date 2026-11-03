@@ -113,6 +113,9 @@ func newSourceValueOwner(c *checker.Checker) *sourceValueOwner {
 type sourceValueQuery struct {
 	// setterInput belongs only to the original source assignment selection.
 	setterInput *sourceSetterInputRequest
+	// sourceReceiver lends an already bound receiver only within this source
+	// query's selected body. It is never retained on an input frame.
+	sourceReceiver *sourceReceiverInputs
 
 	calleeWriteInventory *sourceCalleeWriteView // synchronous source-only inventory, never a completed write verdict
 	calleeWriteUse       *sourceCalleeWriteUse  // original selection interval only, never cached
@@ -970,7 +973,7 @@ func (query *sourceValueQuery) executeDemand(node, declaration *ast.Node, bindin
 	if target, operation := stateWriteTarget(node, query.owner.checker); operation != "" {
 		root, path := effectArgumentRoot(target)
 		captureOwner := declaration
-		boundReceiver := invocation != nil || inputs != nil && inputs.get != nil
+		boundReceiver := invocation != nil || inputs != nil && inputs.get != nil || query.sourceReceiverInputsLive(inputs, declaration)
 		if boundReceiver {
 			captureOwner = nil
 		}
