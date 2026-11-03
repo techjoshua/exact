@@ -1147,6 +1147,12 @@ for both functions. Direct calls, `call` and `apply` share the ordinary invocati
 `apply`'s length and indexed Gets even when a formal is unused. Authored replacement methods keep
 their raw arguments.
 
+Normal Await selects each original receiver alternative before its implicit `then` Get. Conditional,
+logical and saved operands retain known then-body environment and state dependencies alongside
+unknown alternatives in callable and task summaries. These effects constrain artifact placement
+without certifying fulfillment, returned fields or lifetime. Normal result observations and task
+generation fencing retain their existing owners.
+
 Ordinary invocation analysis shares source acquisition and input binding across direct calls,
 `call`, `apply`, `bind`, immutable aliases and finite returned or projected callables. Known source
 bodies retain their environment, receiver, arguments and creating scopes independently of extra

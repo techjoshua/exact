@@ -180,6 +180,13 @@ export const value = readers[0]!();`}
 				getter and body, so those requirements also contribute to placement. Rejecting an object
 				does not inspect its <code>then</code> property. Neither operation is treated as pure.
 			</p>
+			<p>
+				Awaiting a value can also run its <code>then</code> getter and method. When an awaited
+				expression can select a known thenable or an unresolved value, the known thenable's
+				environment requirements still constrain task placement. A browser-reading method therefore
+				prevents server placement even when another alternative remains unknown. The compiler does
+				not need to know the fulfilled value to retain that requirement.
+			</p>
 		</section>
 	);
 }
