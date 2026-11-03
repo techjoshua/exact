@@ -1078,6 +1078,15 @@ captured writes to an acquired object whose former container receives the method
 Method-produced elements remain incomplete when the relation cannot resolve their source. This analysis adds no array wrapper or
 runtime observation. Unresolved array-producing calls and constructors also retain uncertainty.
 A structural array type can revoke completeness but supplies no native identity proof.
+For eligible definition-relative named callee reads, receiver-write inspection separates
+MAY candidate discovery from its interference dependencies. A query-local worklist visits
+finite member-site, source-origin and named-slot rows inside the original selection interval.
+Discovery retains old and replacement alternatives until inspection settles. Each source body
+keeps its captured mapping, and library declarations remain conditional candidates. Getter
+uncertainty, unsupported capabilities, expired availability borrows and ambiguous repeated
+input mappings return to the original synchronous analysis. This worklist supplies neither
+callee output nor strong replacement, native identity or normal execution authority. It bounds
+the admitted interference rows, not every invocation or writer-input preparation they inspect.
 Projected aliases acquire finite source values at initialization. Later replacement of the
 container slot does not retarget that value, while writes to the acquired object's own members
 remain shared through aliases. Direct preceding replacements of ordinary own data slots in the
