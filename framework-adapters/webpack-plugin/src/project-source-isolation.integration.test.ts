@@ -34,5 +34,5 @@ it(
 it(
 	'preserves invoked callable requirements and receiver semantics',
 	() => verifyComponentCallableInputs('webpack'),
-	90000
+	240000
 );

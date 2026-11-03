@@ -12,7 +12,7 @@ export function registerProjectSourceIsolationIntegration(
 				);
 				await verifyComponentCallableInputs('bun');
 			},
-			90000
+			240000
 		);
 		testApi.it(
 			'preserves reassigned callable requirements in both artifacts',

@@ -32,7 +32,11 @@ export function CompilerAnalysisSection(this: Component<{}>) {
 				use of the component. The shared component definition stays the same for other callers.
 				Passing a callback to a component that never calls it does not execute its body. When the
 				callable selection remains unresolved, analysis keeps the uncertainty and reports a warning
-				while preserving the JavaScript.
+				while preserving the JavaScript. Callback props follow JSX source order. A final explicit
+				prop selects its value after earlier spreads. A later unresolved spread keeps known possible
+				callback requirements alongside uncertainty. Reading a spread property does not call the
+				callback stored in it. Serialization requirements still apply when inputs cross a
+				server/client boundary.
 			</p>
 			<p>
 				Ordinary function receiver annotations retain their TypeScript meaning. When an annotation

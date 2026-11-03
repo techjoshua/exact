@@ -5,10 +5,24 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import { componentInputInvarianceConsumers } from '../../packages/compiler/src/test-support/component-input-invariance-consumers.js';
+import {
+	componentInputOverrideConsumers,
+	componentInputDormantGetterSource
+} from '../../packages/compiler/src/test-support/component-input-invariance-overrides.js';
 import { buildDiagnosticFixture } from './compiler-diagnostic-build.js';
 
 const execute = promisify(execFile);
 const workspace = fileURLToPath(new URL('../../', import.meta.url));
+
+// Integration seams, with complete source compositions retained in native/SDK tables.
+const adapterOverrideNames = new Set([
+	'spreadBefore',
+	'spreadAfter',
+	'explicitOverride',
+	'unknownKeyBrowser',
+	'serverBefore',
+	'literalMethod'
+]);
 
 /**
  * Checks invoked and dormant callable inputs through both real adapter targets.
@@ -51,18 +65,69 @@ export async function verifyComponentCallableInputs(
 					moduleResolution: 'NodeNext',
 					strict: true,
 					lib: ['ES2022', 'DOM'],
-					types: [],
+					types: ['node'],
 					jsx: 'preserve',
 					jsxImportSource: '@exactjs/jsx',
 					skipLibCheck: true,
 					noEmit: true
 				},
-				files: ['entry.tsx', ...files]
+				files: ['entry.tsx', 'page.tsx', ...files]
 			})
 		);
-		for (const name of ['namedSafe', 'namedBrowser', 'dormantBrowser', 'mutable'] as const) {
-			await writeFile(path.join(root, 'entry.tsx'), componentInputInvarianceConsumers[name]);
+		const recipes = [
+			...(['namedSafe', 'mutable', 'namedSpellingBrowser'] as const).map((name) => ({
+				name,
+				source: componentInputInvarianceConsumers[name],
+				uncertain: name === 'mutable',
+				expected:
+					name === 'namedSafe'
+						? 'safesafecaptured'
+						: name === 'namedSpellingBrowser'
+							? 'browserbrowser'
+							: undefined,
+				runtimeTarget: name === 'namedSpellingBrowser' ? 'client' : 'both',
+				counters: false
+			})),
+			// Native and SDK tables cover the remaining source compositions.
+			...componentInputOverrideConsumers
+				.filter((recipe) => adapterOverrideNames.has(recipe.name))
+				.map((recipe) => ({
+					name: recipe.name,
+					source: recipe.source,
+					uncertain: recipe.placement === 'unknown',
+					expected:
+						recipe.name === 'explicitOverride'
+							? 'edgeedge'
+							: recipe.name === 'serverBefore'
+								? 'edgeedge' + process.platform
+								: recipe.name === 'spreadAfter'
+									? 'edgeedge'
+									: undefined,
+					runtimeTarget:
+						recipe.name === 'serverBefore'
+							? 'server'
+							: recipe.name === 'spreadAfter'
+								? 'client'
+								: 'both',
+					counters: false
+				})),
+			{
+				name: 'dormantGetter',
+				source: componentInputDormantGetterSource,
+				uncertain: false,
+				expected: 'edge',
+				runtimeTarget: 'both',
+				counters: true
+			}
+		];
+		for (const recipe of recipes) {
+			await writeFile(path.join(root, 'page.tsx'), recipe.source);
 			for (const target of ['server', 'client'] as const) {
+				// Verifiers share the artifact's capability and reactive-record owners.
+				await writeFile(
+					path.join(root, 'entry.tsx'),
+					`export * from './page.js';export {createCompiledComponentInputReceipt as __verifyReceipt} from '@exactjs/core/runtime/component-operations';${target === 'server' ? "export {renderToString as __verifySSR} from '@exactjs/ssr';" : "export {render as __verifyRender,unmount as __verifyUnmount} from '@exactjs/dom';"}`
+				);
 				const warnings = await buildDiagnosticFixture(
 					adapter,
 					root,
@@ -71,9 +136,10 @@ export async function verifyComponentCallableInputs(
 					true,
 					false,
 					packageRoot,
-					[path.join(root, 'entry.tsx'), ...files.map((file) => path.join(root, file))]
+					[path.join(root, 'page.tsx'), ...files.map((file) => path.join(root, file))],
+					['@exactjs/core', '@exactjs/ssr', '@exactjs/reactive', '@exactjs/dom']
 				);
-				if (name === 'mutable') {
+				if (recipe.uncertain) {
 					assert.ok(
 						warnings.some(
 							(warning) =>
@@ -86,7 +152,11 @@ export async function verifyComponentCallableInputs(
 						warnings.join('\n')
 					);
 				} else assert.equal(warnings.length, 0, warnings.join('\n'));
-				if (name !== 'namedSafe') continue;
+				if (
+					recipe.expected === undefined ||
+					(recipe.runtimeTarget !== 'both' && recipe.runtimeTarget !== target)
+				)
+					continue;
 				const output = path.join(root, 'out-' + target);
 				const entry =
 					adapter === 'webpack'
@@ -95,18 +165,20 @@ export async function verifyComponentCallableInputs(
 				assert.ok(entry, 'missing adapter artifact');
 				const check =
 					target === 'server'
-						? `const {renderToString}=await import('@exactjs/ssr');const {createCompiledComponentInputReceipt}=await import('@exactjs/core/runtime/component-operations');const result=await renderToString(createCompiledComponentInputReceipt(Parent,{}),{markers:false});assert.ok(result.html.includes('safesafecaptured'),result.html);`
-						: `const {JSDOM}=await import('jsdom');const dom=new JSDOM('<!doctype html><body></body>');for(const key of ['window','document',...Object.getOwnPropertyNames(dom.window).filter(key=>/^HTML.*Element$/.test(key)),'Node','Element','HTMLElement','Text','Comment','DocumentFragment','MutationObserver'])globalThis[key]=dom.window[key];const {testComponent}=await import('@exactjs/testing');const view=await testComponent(Parent).mount();try{assert.ok(document.body.textContent.includes('safesafecaptured'),document.body.innerHTML)}finally{view.unmount();dom.window.close()}`;
+						? `const renderToString=imported.__verifySSR??imported.default?.__verifySSR;const createCompiledComponentInputReceipt=imported.__verifyReceipt??imported.default?.__verifyReceipt;${recipe.counters ? "await assert.rejects(()=>renderToString(createCompiledComponentInputReceipt(Parent,{}),{markers:false}),error=>error instanceof Error&&error.message.includes('props must be JSON-serializable')&&error.message.includes('$.read'));" : `const result=await renderToString(createCompiledComponentInputReceipt(Parent,{}),{markers:false});assert.ok(result.html.includes(${JSON.stringify(recipe.expected)}),result.html);`}`
+						: `const {JSDOM}=await import('jsdom');const dom=new JSDOM('<!doctype html><body></body>');for(const key of ['window','document',...Object.getOwnPropertyNames(dom.window).filter(key=>/^HTML.*Element$/.test(key)),'Node','Element','HTMLElement','Text','Comment','DocumentFragment','MutationObserver'])globalThis[key]=dom.window[key];const render=imported.__verifyRender??imported.default?.__verifyRender;const unmount=imported.__verifyUnmount??imported.default?.__verifyUnmount;const receipt=imported.__verifyReceipt??imported.default?.__verifyReceipt;const host=document.createElement('div');document.body.append(host);const reports=[];try{render(receipt(Parent,{}),host,{onErrorReport:report=>reports.push(report.error)});assert.ok(host.textContent.includes(${JSON.stringify(recipe.expected)}),host.innerHTML);assert.deepEqual(reports,[])}finally{unmount(host);host.remove();dom.window.close()}`;
 				const verifier = path.join(root, 'verify.mjs');
 				await writeFile(
 					verifier,
-					`import assert from 'node:assert/strict';const imported=await import('./out-${target}/${entry}');const Parent=imported.Parent??imported.default?.Parent;assert.equal(typeof Parent,'function');${check}`
+					`import assert from 'node:assert/strict';const imported=await import('./out-${target}/${entry}');const Parent=imported.Parent??imported.default?.Parent;assert.equal(typeof Parent,'function');${check}${recipe.counters ? 'const counters=imported.counters??imported.default?.counters;assert.deepEqual(counters(),{gets:1,calls:0});' : ''}`
 				);
 				const result = await execute(
 					'node',
 					[...(target === 'client' ? ['--conditions=browser'] : []), verifier],
 					{ timeout: 30000 }
-				);
+				).catch((error: unknown) => {
+					throw new Error(adapter + '/' + recipe.name + '/' + target, { cause: error });
+				});
 				assert.equal(result.stderr, '', 'unexpected framework report');
 			}
 		}

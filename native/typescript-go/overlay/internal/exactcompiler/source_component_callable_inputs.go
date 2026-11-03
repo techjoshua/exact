@@ -85,51 +85,31 @@ func (r componentInputRequirements) placement(base string) string {
 func componentCallableInputRequirements(site *ast.Node, demands []sourceComponentCallableInput, analysis callableAnalysis, c *checker.Checker, owner *executableBodyOwner) componentInputRequirements {
 	var result componentInputRequirements
 	for _, demand := range demands {
-		var expression *ast.Node
-		ambiguous := false
-		if site.Attributes() != nil {
-			for _, input := range site.Attributes().AsJsxAttributes().Properties.Nodes {
-				if !ast.IsJsxAttribute(input) {
-					ambiguous = true
+		selection := selectComponentCallableInput(site, demand.key)
+		result.unknown = result.unknown || selection.unknown || len(selection.values) == 0
+		for _, expression := range selection.values {
+			declaration := expression
+			if ast.IsIdentifier(expression) {
+				symbol := resolvedCallableSymbol(c.GetSymbolAtLocation(expression), c)
+				if symbol == nil || symbol.ValueDeclaration == nil || !ast.IsFunctionDeclaration(symbol.ValueDeclaration) || owner == nil || owner.values == nil || owner.values.bindingWritten(symbol) {
+					result.unknown = true
 					continue
 				}
-				if jsxAttributeText(input.Name()) != demand.key {
-					continue
-				}
-				if expression != nil {
-					ambiguous = true
-				}
-				init := input.AsJsxAttribute().Initializer
-				if init != nil && ast.IsJsxExpression(init) {
-					expression = init.AsJsxExpression().Expression
-				}
-			}
-		}
-		if ambiguous || expression == nil {
-			result.unknown = true
-			continue
-		}
-		declaration := expression
-		if ast.IsIdentifier(expression) {
-			symbol := resolvedCallableSymbol(c.GetSymbolAtLocation(expression), c)
-			if symbol == nil || symbol.ValueDeclaration == nil || !ast.IsFunctionDeclaration(symbol.ValueDeclaration) || owner == nil || owner.values == nil || owner.values.bindingWritten(symbol) {
+				declaration = symbol.ValueDeclaration
+			} else if !ast.IsFunctionExpression(expression) && !ast.IsArrowFunction(expression) && !ast.IsMethodDeclaration(expression) {
 				result.unknown = true
 				continue
 			}
-			declaration = symbol.ValueDeclaration
-		} else if !ast.IsFunctionExpression(expression) && !ast.IsArrowFunction(expression) {
-			result.unknown = true
-			continue
+			summary, known := analysis.byNode[declaration]
+			if !known {
+				result.unknown = true
+				continue
+			}
+			browser, server := knownEffectEnvironments(summary.EffectSources)
+			result.browser = result.browser || browser || summary.Effect == "browser"
+			result.server = result.server || server || summary.Effect == "server"
+			result.unknown = result.unknown || summary.Kind == "component" || summary.Effect == "unknown" || containsEnvironment(summary.EffectSources, "unknown")
 		}
-		summary, known := analysis.byNode[declaration]
-		if !known {
-			result.unknown = true
-			continue
-		}
-		browser, server := knownEffectEnvironments(summary.EffectSources)
-		result.browser = result.browser || browser || summary.Effect == "browser"
-		result.server = result.server || server || summary.Effect == "server"
-		result.unknown = result.unknown || summary.Kind == "component" || summary.Effect == "unknown" || containsEnvironment(summary.EffectSources, "unknown")
 	}
 	return result
 }

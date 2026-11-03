@@ -198,6 +198,15 @@ existing callable facts and subgraph fixed point independently of literal adopti
 callable summaries. Other selections retain uncertainty and a warning. No input substitution
 or callable body activation is performed by this projection.
 
+Input recipes follow JSX source order. Definite own-property writes replace the preceding
+value and its selection residual. Later unresolved spreads or computed keys retain known MAY
+callable donors beside independent uncertainty, including a donor introduced by an unknown
+key. Finite object-literal data properties and methods supply ordinary cached callable facts.
+Getters stay unresolved value producers, with their eager spread effects owned by the original
+source operation. Selection never replays a Get or activates a dormant callback. Function-valued
+inputs still obey the existing serialization boundary. The side-effectful dormant-getter
+control retains the server serialization rejection and verifies one Get with no callback Call.
+
 Focused acceptance pairs named safe/browser callbacks with a dormant browser callback and
 retains the inline and mutable controls. A mutable unresolved selection must preserve
 JavaScript and diagnostic uncertainty without recursively proving every writer. Known donors
