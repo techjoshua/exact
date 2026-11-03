@@ -105,6 +105,11 @@ export function LanguageToolsPage(this: Component<{}>) {
 					TypeScript navigation and type information.
 				</p>
 				<p>
+					A call through a reassigned callback follows the functions that can be selected at that
+					call. Saving a callback before reassignment retains the earlier function. Its dependencies
+					still apply when the saved callback runs.
+				</p>
+				<p>
 					The Component Semantics view organizes those facts by authored ownership: initialization,
 					tasks, derived values, and render boundaries. Selecting an entry reveals its source range,
 					dependencies, captures, effects, supplied signal, resources, cleanup, and typed inference

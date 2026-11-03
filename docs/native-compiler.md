@@ -1011,6 +1011,8 @@ An own binding read in a callable uses its body occurrence when the creating cal
 that lexical order. A proved unconditional replacement before the read supersedes the entry
 value. Source reads consult that existing replacement proof before acquiring an obsolete
 local initializer value. Unproved or unordered writes retain entry values and uncertainty.
+Calls through reassigned variable bindings consume those acquired callable alternatives and
+their captures, rather than selecting the declaration's original function initializer again.
 The initializer Get still executes at its original binding operation, with its donors,
 abrupt completion and order. This selection supplies no normal output or descriptor proof.
 Local object-binding elements use that same current-write cut when a captured

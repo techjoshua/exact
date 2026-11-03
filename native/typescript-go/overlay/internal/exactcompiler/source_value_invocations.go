@@ -759,6 +759,15 @@ func (query *sourceValueQuery) prepareInvocation(node *ast.Node, bindings source
 	call := node.AsCallExpression()
 	declarations := query.callDeclarations(call.Expression, &result)
 	selectedCall := result.selected
+	// A declaration names a mutable binding, not the value acquired at this Call.
+	// Current-write acquisition below already retains replacements, joins and
+	// their original captures. Do not unwrap an obsolete initializer afterward.
+	for _, declaration := range declarations {
+		if ast.IsVariableDeclaration(declaration) && declaration.Name() != nil && query.owner.bindingWritten(query.owner.checker.GetSymbolAtLocation(declaration.Name())) {
+			declarations = nil
+			break
+		}
+	}
 	if query.dependenciesOnly {
 		// A value binding's initializer may itself be a return, branch or
 		// container projection. Its declaration is not the callable target.
