@@ -44,10 +44,13 @@ func (query *sourceValueQuery) pendingWriterInputExcluded(call *ast.Node, result
 // member relation. Recognized read-only intrinsics and source bodies without receiver writes
 // do not invalidate a capture merely because its object was passed as an argument.
 func (query *sourceValueQuery) interference(origin *ast.Node, projection []string, name string, mode accessorTraversal, bindings sourceValueBindings, result *accessorCandidates) sourceMemberOperationProof {
-	return query.interferenceInSources(origin, projection, name, mode, bindings, result, nil)
+	return query.interferenceInSources(origin, projection, name, mode, bindings, result, nil, nil)
 }
 
-func (query *sourceValueQuery) interferenceInSources(origin *ast.Node, projection []string, name string, mode accessorTraversal, bindings sourceValueBindings, result *accessorCandidates, sources []*ast.SourceFile) sourceMemberOperationProof {
+func (query *sourceValueQuery) interferenceInSources(origin *ast.Node, projection []string, name string, mode accessorTraversal, bindings sourceValueBindings, result *accessorCandidates, sources []*ast.SourceFile, cut *sourceMemberWriterReadCut) sourceMemberOperationProof {
+	// Admission observes the original interval, before suspendOperation removes
+	// normal/return capabilities that this source-only consumer cannot transport.
+	writeContext := query.definitionWriteInventoryContext()
 	// One completed native input operation has already consumed its real Get.
 	// Its intrinsic never writes this fresh data input. This excludes only that
 	// original operation, not another indexed call or a generic caller's inputs.
@@ -68,6 +71,18 @@ func (query *sourceValueQuery) interferenceInSources(origin *ast.Node, projectio
 	if result.opaque {
 		return boundary
 	}
+	if query.calleeWriteWork == nil && writeContext && query.definitionWriteInventoryContext() {
+		if query.tryCalleeWriteInterference(origin, projection, name, mode, bindings, result, sources, cut, boundary) {
+			return boundary
+		}
+	}
+	query.scanInterferenceInSources(origin, projection, name, mode, bindings, result, sources, boundary, nativeInputs)
+	return boundary
+}
+
+// scanInterferenceInSources is the existing single receiver-write consumer.
+// Write inventory work changes only callee preparation, not this body algorithm.
+func (query *sourceValueQuery) scanInterferenceInSources(origin *ast.Node, projection []string, name string, mode accessorTraversal, bindings sourceValueBindings, result *accessorCandidates, sources []*ast.SourceFile, boundary sourceMemberOperationProof, nativeInputs []*sourceNativeInvocation) {
 	// One scan retains the same origin, demand, bindings and restored creator context.
 	// Cache complete predicates only, never a query failure or an acquired mutable cell.
 	seen := make(map[*ast.Node]bool)
@@ -233,16 +248,29 @@ func (query *sourceValueQuery) interferenceInSources(origin *ast.Node, projectio
 			if receiverRelevant {
 				// Looking up the member precedes its invocation. Resolve possible authored
 				// bodies with the same projection visitor, never by the method's spelling.
-				candidates := query.receiverCandidates(node, bindings)
+				candidates := accessorCandidates{}
+				if work := query.calleeWriteWork; work != nil && !work.fallback {
+					candidates = work.receiverCandidates(query, node, bindings)
+					if work.unknown {
+						result.opaque = true
+						continue
+					}
+				} else {
+					candidates = query.receiverCandidates(node, bindings)
+				}
 				implemented := len(candidates.values) != 0 && !candidates.opaque
-				for _, value := range candidates.values {
+				for index, value := range candidates.values {
 					if value.node == nil {
 						implemented = false
 						result.opaque = true
 						continue
 					}
 					if ast.IsFunctionLike(value.node) && value.node.Body() != nil {
-						query.receiverInterference(value.node, node, sourceValue{node: origin, path: append(append([]string{}, projection...), name)}, bindings, result, make(map[*ast.Node]bool))
+						if work := query.calleeWriteWork; work != nil && !work.fallback {
+							work.inspectBody(query, candidates, index, value, node, sourceValue{node: origin, path: append(append([]string{}, projection...), name)}, result)
+						} else {
+							query.receiverInterference(value.node, node, sourceValue{node: origin, path: append(append([]string{}, projection...), name)}, bindings, result, make(map[*ast.Node]bool))
+						}
 					} else if ast.IsCallExpression(value.node) {
 						// Resolve the closure under its creating captures, but inspect only
 						// receiver writes on the acquired value. Reacquiring its container
@@ -326,7 +354,6 @@ func (query *sourceValueQuery) interferenceInSources(origin *ast.Node, projectio
 			visit(index.originCalls[creator.invocation])
 		}
 	}
-	return boundary
 }
 
 // receiverInterference follows only writes and forwarded arguments that can reach the

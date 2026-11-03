@@ -427,6 +427,9 @@ func (query *sourceValueQuery) consumeGetInputs(body *ast.Node, get *sourceGetIn
 }
 
 func (query *sourceValueQuery) executeGetEffects(body *ast.Node, get *sourceGetInputs, scope acquiredCallableScope, result *accessorCandidates) {
+	if query.inventoryLookupUnknown() {
+		return
+	}
 	query.consumeGetInputs(body, get, scope, result, func(inputs *sourceValueInputs) {
 		if query.dependenciesOnly {
 			query.consumeSourceBodyEffects(get.operation, body, inputs.bindings, inputs, nil, result)
@@ -440,6 +443,9 @@ func (query *sourceValueQuery) executeGetEffects(body *ast.Node, get *sourceGetI
 // Direct-return member outputs are acquired by that same body demand. A callable
 // then remains a value, never its fulfillment or a promise-job interpretation.
 func (query *sourceValueQuery) acquireGetResult(body *ast.Node, get *sourceGetInputs, scope acquiredCallableScope, result *accessorCandidates) sourceResultObservation {
+	if query.inventoryLookupUnknown() {
+		return sourceResultObservation{incomplete: true}
+	}
 	if query.dependenciesOnly {
 		observed := sourceResultObservation{}
 		query.consumeGetInputs(body, get, scope, result, func(inputs *sourceValueInputs) {
@@ -489,6 +495,9 @@ func (query *sourceValueQuery) acquireGetResult(body *ast.Node, get *sourceGetIn
 // installs original receiver/captures but does not execute this getter or enroll
 // prototype effects merely because a value is reachable from an argument.
 func (query *sourceValueQuery) reachableGetResults(body *ast.Node, get *sourceGetInputs, scope acquiredCallableScope, result *accessorCandidates) sourceResultObservation {
+	if query.inventoryLookupUnknown() {
+		return sourceResultObservation{incomplete: true}
+	}
 	observed := sourceResultObservation{}
 	restore := query.suspendOperation()
 	defer restore()

@@ -470,6 +470,13 @@ func (query *sourceValueQuery) invokeAcquired(body, node *ast.Node, bindings sou
 // receiverCandidates acquires callable alternatives before invocation. The active call
 // cannot interfere with its own lookup, and later assignments cannot retarget this value.
 func (query *sourceValueQuery) receiverCandidates(call *ast.Node, bindings sourceValueBindings) accessorCandidates {
+	// Associate before initializing and active state change. This source-only
+	// borrow cannot outlive or reinstall the canonical pending selection header.
+	if query.dependenciesOnly {
+		use := sourceCalleeWriteUse{borrow: query.calleeWriteBorrow(call, bindings), prior: query.calleeWriteUse}
+		query.calleeWriteUse = &use
+		defer func() { query.calleeWriteUse = use.prior }()
+	}
 	previous := query.initializing
 	query.initializing = call
 	defer func() { query.initializing = previous }()

@@ -112,7 +112,11 @@ func (query *sourceValueQuery) memberValuesAtGet(origin *ast.Node, projection []
 	if query.ownsDataSlot(get, origin, projection, name, mode) || query.confinedEnvelope(origin, projection, name, mode, result) {
 		return false
 	}
-	capture := query.interferenceInSources(origin, projection, name, mode, bindings, result, operation.sources)
+	inventory := query.inventoryMemberWrites(origin, projection, name, mode, bindings, result, operation.sources, cut)
+	capture := sourceMemberOperationProof{}
+	if !inventory {
+		capture = query.interferenceInSources(origin, projection, name, mode, bindings, result, operation.sources, cut)
+	}
 	restoreOperation := query.suspendOperation()
 	defer restoreOperation()
 	var alternatives []sourceValue
@@ -369,7 +373,12 @@ func (query *sourceValueQuery) memberValuesAtGet(origin *ast.Node, projection []
 			}
 		}
 	}
-	alternatives, replaced := query.mergeReplacements(alternatives, replacements, result)
+	// Pending write inspection cannot remove the old member or a possible RHS.
+	// Its consumer must close interference before using replacement precision.
+	replaced := false
+	if !inventory {
+		alternatives, replaced = query.mergeReplacements(alternatives, replacements, result)
+	}
 	for _, value := range alternatives {
 		visit(value)
 	}

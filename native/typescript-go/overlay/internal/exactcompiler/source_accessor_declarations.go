@@ -113,6 +113,14 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 	}
 	visitOrigins = func(values []sourceValue, projection []string, instance bool) {
 		for _, term := range values {
+			if query.calleeWriteInventory != nil {
+				query.recordEstimatedCost(1)
+			}
+			if query.calleeWriteInventory != nil && !inventorySourceValue(term) {
+				query.calleeWriteInventory.unknown = true
+				result.valueIncomplete = true
+				continue
+			}
 			if term.instance != nil {
 				query.constructedRead(term, projection, name, mode, arguments, &result, func(observed sourceObservedValue, path []string) {
 					query.withAcquiredObservation(observed, &arguments, &acquiredParent, &result, func() { visitOrigins([]sourceValue{observed.value}, path, false) })
@@ -307,7 +315,14 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 				}
 				if len(path) > 0 {
 					for _, entry := range query.boundProjection([]sourceValue{term}, path, &result) {
-						selected := query.accessors(entry.node, entry.path, "", mode, arguments, invoke)
+						var selected accessorCandidates
+						if query.calleeWriteInventory != nil {
+							// Selected children retain their carrier and capture through
+							// the same guarded visitor as direct source alternatives.
+							selected = query.accessorsAtGetOutput(nil, nil, "", mode, arguments, invoke, nil, nil, nil, entry)
+						} else {
+							selected = query.accessors(entry.node, entry.path, "", mode, arguments, invoke)
+						}
 						mergeAccessorCandidates(&result, selected)
 						for index, scope := range selected.callableScopes {
 							if result.callableScopes == nil {
@@ -336,6 +351,13 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 	}
 	visit = func(value *ast.Node, projection []string, instance bool) {
 		value = unwrapSourceCallableReference(value)
+		if query.calleeWriteInventory != nil && value != nil && (ast.IsCallExpression(value) || ast.IsNewExpression(value) || ast.IsTaggedTemplateExpression(value)) {
+			// Output-producing syntax is not a represented direct method body.
+			// Keep its uncertainty without starting another argument/body driver.
+			query.calleeWriteInventory.unknown = true
+			result.valueIncomplete = true
+			return
+		}
 		if visitProduced(value, projection, instance) {
 			return
 		}
