@@ -211,6 +211,9 @@ function nativeComponent(
 		exported: component.exported,
 		placement: component.placement,
 		subgraphPlacement: component.subgraphPlacement,
+		renderCapability: {
+			...(component.renderCapability ?? { server: 'unknown', client: 'unknown' })
+		},
 		renderEdges: component.renderEdges.map(({ nodeId: _nodeId, ...edge }) => ({ ...edge })),
 		clientIslandCount: component.clientIslandCount,
 		...(component.standaloneClientActivation ? { standaloneClientActivation: true } : {}),

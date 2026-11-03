@@ -1,3 +1,4 @@
+import type { ExactComponentRenderCapability } from '../contracts/analysis.js';
 import type { NativeCompilerContextEffect } from './process-contracts.js';
 
 /** Describes one component declaration discovered inside the native process. */
@@ -10,6 +11,7 @@ export type NativeCompilerComponent = Readonly<{
 	signals: readonly string[];
 	placement: 'client' | 'server' | 'isomorphic' | 'unknown';
 	subgraphPlacement: 'client' | 'server' | 'isomorphic' | 'unknown';
+	renderCapability: ExactComponentRenderCapability;
 	environmentEffect: 'neutral' | 'browser' | 'server' | 'mixed' | 'unknown';
 	artifactTargets: readonly ('client' | 'server')[];
 	renderEdges: readonly NativeCompilerRenderEdge[];

@@ -15,6 +15,17 @@ export function CompilerAnalysisSection(this: Component<{}>) {
 				environment requirements can still prevent a client or server artifact from being emitted.
 			</p>
 			<p>
+				Rendering and task execution have separate requirements. A component can render on the
+				server while its event callbacks run in the browser and invoke server tasks through the
+				framework's transport. Isomorphic rendering means that the component can render correctly on
+				both targets. Compiler analysis records each target as supported, unsupported or unknown in{' '}
+				<code>renderCapability</code>. Unknown means that support has not been proven. The current
+				proof covers returned render functions with native HTML elements and covered setup and
+				render effects. Child composition can remain unknown. The selected module and its
+				initialization must also be legal for the requested artifact. These rendering facts do not
+				grant hydration or server-operation authority.
+			</p>
+			<p>
 				Before rewriting an expression, the compiler captures its authored type constraints and
 				evaluation requirements. Checking and executable lowering retain those constraints while
 				preserving receiver selection, short-circuiting, suspension, and expression results.

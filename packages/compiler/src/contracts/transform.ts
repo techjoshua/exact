@@ -228,6 +228,8 @@ export type ExactComponentBuildFacts = Readonly<{
 	components: readonly Readonly<{
 		id: string;
 		placement: import('./policy.js').ExactPlacement;
+		/** Absent in older protocol-1 artifacts. Readers treat absence as unknown on both targets. */
+		renderCapability?: import('./analysis.js').ExactComponentRenderCapability;
 		artifactTargets: readonly ExactArtifactTarget[];
 	}>[];
 	componentImports: readonly Readonly<{

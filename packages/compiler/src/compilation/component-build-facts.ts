@@ -151,6 +151,7 @@ export function createExactComponentBuildFacts(
 		components: analysis.components.map((component) => ({
 			id: component.id,
 			placement: component.placement,
+			renderCapability: { ...component.renderCapability },
 			artifactTargets: [...(component.artifactTargets ?? [])]
 		})),
 		componentImports: componentImports,

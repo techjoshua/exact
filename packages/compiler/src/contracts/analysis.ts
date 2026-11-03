@@ -124,6 +124,15 @@ export type ExactComponentRenderEdgeIR = {
 	path: string;
 };
 
+/** Proven target-local rendering, independent of artifact availability and execution ownership.
+ * Unknown does not authorize rendering. Module initialization and retained import closure must
+ * separately be legal for the selected artifact. Both supported entries mean isomorphic rendering.
+ */
+export type ExactComponentRenderCapability = Readonly<{
+	server: 'supported' | 'unsupported' | 'unknown';
+	client: 'supported' | 'unsupported' | 'unknown';
+}>;
+
 /** Defines the exact component ir type contract. */
 export type ExactComponentIR = {
 	id: string;
@@ -131,6 +140,7 @@ export type ExactComponentIR = {
 	exported: boolean;
 	placement: ExactPlacement;
 	subgraphPlacement: ExactPlacement;
+	renderCapability: ExactComponentRenderCapability;
 	renderEdges: ExactComponentRenderEdgeIR[];
 	clientIslandCount: number;
 	/** Local activation requires an owner instead of already partitioned element islands. */
