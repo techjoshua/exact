@@ -70,3 +70,16 @@ func TestReflectiveSourceGetHasNoNormalAuthority(t *testing.T) {
 		t.Fatal("source getter published normal/descriptor evidence")
 	}
 }
+
+// Literal-indexed Gets retain the requested member's captured descriptor donor.
+func TestReflectiveSourceGetLiteralIndex(t *testing.T) {
+	const source = `function install(box:object,get:()=>{value:string}){Object.defineProperty(box,"field",{get})}const target:{field?:{value:string}}={};const donor={get value(){return document.title}};install(target,()=>donor);export const value=target["field"]!.value;`
+	r := NewSession().Execute(Request{Kind: "analyze", ID: "/virtual/reflective-get-index.ts", Source: source, Diagnostics: "semantic"})
+	if r.Error != "" || hasErrorDiagnostic(r.Diagnostics) {
+		t.Fatal(r.Error, r.Diagnostics)
+	}
+	browser, unknown := reentrantInitializerEffects(t, r, source, true)
+	if !browser || !unknown {
+		t.Fatal("literal-indexed descriptor Get lost donor or residual", browser, unknown)
+	}
+}
