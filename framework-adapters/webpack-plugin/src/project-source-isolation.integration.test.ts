@@ -27,5 +27,5 @@ it(
 it(
 	'validates selected module initialization before partitioning',
 	() => verifySelectedModulePartition('webpack'),
-	60000
+	90000
 );

@@ -27,5 +27,5 @@ it(
 it(
 	'validates selected module initialization before partitioning',
 	() => verifySelectedModulePartition('vite'),
-	60000
+	90000
 );

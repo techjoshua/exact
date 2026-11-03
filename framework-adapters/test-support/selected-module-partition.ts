@@ -24,7 +24,7 @@ export const selectedModuleCoordinatedImplementations = {
 		"export const browserValue=document.title+':node-browser';export const serverValue=process.version+':node-entry';"
 } as const;
 
-/** Qualifies captured initialization using one package and each adapter's actual build hooks. */
+/** Qualifies selected initialization and resource-list ownership through actual adapter build hooks. */
 export async function verifySelectedModulePartition(adapter: 'vite' | 'webpack' | 'bun') {
 	await mkdir(path.join(workspace, '.tmp'), { recursive: true });
 	const root = await mkdtemp(path.join(workspace, '.tmp/selected-module-partition-'));
@@ -179,6 +179,21 @@ export async function verifySelectedModulePartition(adapter: 'vite' | 'webpack' 
 				{ cwd: root, timeout: 15000 }
 			);
 			assert.equal(result.stdout.trim(), 'coordinated module linked');
+		}
+		// A framework module cannot inherit ordinary-host permission for opaque
+		// disposal. Keep the exact cause visible through each adapter's diagnostic.
+		await writeFile(
+			entry,
+			'using a={[Symbol.dispose](){}},b={[Symbol.dispose](){}};export function View(){return()=> <output/>;}'
+		);
+		for (const target of ['client', 'server'] as const) {
+			await assert.rejects(
+				() =>
+					buildDiagnosticFixture(adapter, root, target, false, true, false, undefined, owned, [
+						'selected-donor'
+					]),
+				/EXACT2101[\s\S]*implicit resource disposal/
+			);
 		}
 	} finally {
 		await rm(root, { recursive: true, force: true });

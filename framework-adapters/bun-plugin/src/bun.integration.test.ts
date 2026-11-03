@@ -638,6 +638,6 @@ describeBun('project source isolation', () => {
 			);
 			await verifySelectedModulePartition('bun');
 		},
-		60000
+		90000
 	);
 });
