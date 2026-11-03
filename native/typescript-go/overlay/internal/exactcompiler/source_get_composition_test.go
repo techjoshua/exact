@@ -137,9 +137,9 @@ func TestGetterMemberProjectionRecursion(t *testing.T) {
 		{"cycle donor", `const helper={get selected():()=>number{window.name;return this.next},get next():()=>number{return this.selected}};export function read(){return helper.selected()}`, "unknown", true},
 		{"static", `class Helper{static run(){window.name;return 1}static get selected(){return this.run}}export function read(){return Helper.selected()}`, "browser", true},
 		{"instance", `class Helper{static run(){return 1}run(){window.name;return 1}get selected(){return this.run}}const helper=new Helper();export function read(){return helper.selected()}`, "browser", true},
-		// The nested New selection retains its own residual. Its known method
-		// donor must survive the static-to-instance lookup independently.
-		{"static to instance", `class Helper{run(){window.name;return 1}get selected():()=>number{return this.run}static get selected():()=>number{return new Helper().selected}}export function read(){return Helper.selected()}`, "unknown", true},
+		// Static-to-instance selection retains the known method browser donor
+		// through both getter reads and the final call.
+		{"static to instance", `class Helper{run(){window.name;return 1}get selected():()=>number{return this.run}static get selected():()=>number{return new Helper().selected}}export function read(){return Helper.selected()}`, "browser", true},
 	} {
 		t.Run(row.name, func(t *testing.T) {
 			r := NewSession().Execute(Request{Kind: "analyze", ID: "getter-member-projection.ts", Source: row.source, Diagnostics: "semantic"})
