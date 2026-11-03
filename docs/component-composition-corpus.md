@@ -2061,6 +2061,30 @@ acceptance, and its report cannot satisfy the full runtime evidence validator.
 The default report and narrow report use separate output paths. Registration in the
 default runner does not establish execution of the default matrix.
 
+The current Chromium row passed on 2026-11-03 UTC against clean source
+`3ec2d8985a7815f45cf0b1139d346fefc759b52d` in `/home/techj/projects/exact`, using
+Node 26.11.1 and Chromium 149.0.7827.55. The command was
+`EXACT_COMPILER_EXECUTABLE=/home/techj/.t3/worktrees/exact/t3-67b5890d/.tmp/await-normal/exactc-await-fix EXACT_ACCEPTANCE_BROWSER=chromium EXACT_ACCEPTANCE_REPORT=<owned-report> node scripts/runtime-acceptance/run.mjs --shared-composition`.
+The immutable host SHA256 was
+`bbcbc5d450fe2448c86a4323c1d7ddd5d400f59073ee49b041aaa800cc1376a6` before and after execution.
+The unchanged fixture SHA256 was
+`320f1305a34178c9c72b6f4b945b82effd11e864603a279bfc26449ff8470ee3`.
+The verified `shared-composition-chromium-mount` journey retained instance, state and DOM
+identity through updates to 2 and 3, isolated the unrelated consumer, mounted and disposed
+once, deactivated the disposed scope, emptied its container and reported no framework,
+browser or HTTP faults. The browser closed and the profile released its owned temporary
+artifacts, compiler session and loopback HTTP host.
+
+This row consumes the current source fixture through the existing retained Compiler SDK
+and browser runtime outputs resolved from main's workspace packages. Their fresh-build
+provenance is unverified. It establishes no fresh Core/provider, installed-framework,
+hydration, paired SSR or full runtime-matrix acceptance. The canonical Node/jsdom/SSR row
+at this source binding remains blocked and unexecuted because its maintained configuration
+aliases Core to source and includes `component/error-boundary.tsx` for native analysis during
+module loading. Existing built outputs do not bypass that path. This is a setup boundary,
+not a product assertion failure or missing dependencies. Earlier Node/SSR and other-browser
+evidence retains its original binding.
+
 The WebKit 26.5 shared-composition run uses a manually validated Ubuntu 26.04
 user-local prefix containing 62 official packages. Its dependency check covers all
 19 cached WebKit ELF objects and 212 staged ELF objects, with no unresolved libraries,
