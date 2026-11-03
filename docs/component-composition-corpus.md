@@ -1939,10 +1939,98 @@ Its first argument replaces the method after the original reference has been rea
 requires one original Get, the original receiver and callee, argument order, and catch/finally
 behavior. Cancellation must stop the remaining argument and invocation, release once, and admit a
 following activation without reviving canceled work. Strict TypeScript 7 qualifies the source.
-On the current integrated analysis source, its initial Analyze request exceeds the unchanged
-30-second deadline, before transformation or runtime execution. Those runtime assertions remain
-unexecuted. The existing synchronous method/default fixture passes. Its harness ignores only
-warning-level `EXACT_ANALYSIS_COST` and retains all other diagnostic obligations.
+At frozen production `fd3446424`, the unchanged source passes Analyze, semantic client/server
+compilation, SDK paired artifacts and the Node HTTP assertions using retained built providers.
+This is scoped execution evidence, not canonical Vitest or fresh Core acceptance. The
+[execution binding below](#nested-method-evaluation-execution-evidence) identifies the exact
+inputs, command and observed traces. The existing synchronous method/default fixture passes.
+The maintained harness ignores only warning-level `EXACT_ANALYSIS_COST` and retains all other
+diagnostic obligations.
+
+### Nested method evaluation execution evidence
+
+The executed ownership fixture is
+[`task-closures/nested-evaluation.tsx`](../packages/component-composition-corpus/test-support/task-closures/nested-evaluation.tsx).
+Its maintained regression owner is the test named
+`retains the original method across nested awaits and stops later operands after failure or cancellation`
+in [`task-closure-ownership.test.ts`](../packages/compiler/src/compilation/task-closure-ownership.test.ts).
+[`taskClosureRuntime`](../packages/compiler/src/test-support/task-closure-runtime.ts) owns semantic
+client/server checks, `compileProjectArtifacts`, real Node HTTP dispatch, protocol encoding,
+dependency projection, held gates, session disposal and listener cleanup.
+
+Execution on 2026-11-03 reused the saved original Analyze response, avoiding another standalone
+Analyze request. A local adaptation of that maintained helper replaced Vitest cleanup registration
+and assertions with an owned Node lifecycle and equivalent assertions. It retained the original
+fixture/configuration, explicit server policy, HTTP handler and payload contract. The same eight
+built-package runtime surfaces installed by
+[`runtime-surfaces.ts`](../packages/core/src/test-support/runtime-surfaces.ts) were loaded.
+The initial local bundle misplaced the SDK worker URL and stopped before compilation. Corrected
+packaging left SDK modules external at their original paths. No compiler semantic request was
+repeated to correct that setup failure.
+
+Both semantic targets returned no error and only `EXACT_ANALYSIS_COST`, with analysis unrestricted.
+The SDK produced one paired page artifact. Each recorded trace entry is `<mode>:<suffix>`:
+
+| Mode        | Exact observed suffix sequence                                     | Observable result                                                                                                                                          |
+| ----------- | ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `normal`    | `get`, `arg1`, `set`, `resume`, `arg2`, `call:original`, `finally` | Response value and published `state.value` are both `3`.                                                                                                   |
+| `throw`     | `get`, `arg1`, `set`, `resume`, `catch:Error`, `finally`           | HTTP 500 and exactly the expected `argument failure` error report.                                                                                         |
+| `cancel`    | `get`, `arg1`, `set`, `catch:AbortError`, `finally`                | Client aborts. No second argument, original call or replacement executes, including after releasing the held gate and completing the following activation. |
+| `following` | `get`, `arg1`, `set`, `resume`, `arg2`, `call:original`, `finally` | Response value and published `state.value` are both `3`.                                                                                                   |
+
+Cleanup records are exactly `['normal', 'throw', 'cancel', 'following']`. The normal pre-release
+trace is exactly `['normal:get', 'normal:arg1', 'normal:set']`. These observations protect the
+original Get, saved method and receiver, operand order, Throw/finally and cancellation contracts.
+They do not establish browser hydration or mounted-client publication behavior.
+
+The executed child command was:
+
+```sh
+cd /home/techj/projects/exact
+EXACT_COMPILER_EXECUTABLE=/home/techj/.t3/worktrees/exact/t3-9077d422/.tmp/nested-end-to-end/exactc \
+NODE_PATH=/home/techj/projects/exact/node_modules GOMAXPROCS=2 GOMEMLIMIT=512MiB \
+node --max-old-space-size=1024 /home/techj/projects/exact/.tmp/shared-policy-nested-runtime-fd/runner-sdk-external.mjs
+```
+
+An outer owner supplied a 45-second diagnostic wall limit, CPU limits of 40/45 seconds and a
+64 MiB file-size limit. It reaped the Node process and verified that its process group was absent.
+The generated runner and artifact directory were temporary outputs, not maintained entry points.
+Actual responses, ownership logs, adapted source and bindings remain local under the lane's
+`.tmp/nested-runtime`. The preserved host remains under `.tmp/nested-end-to-end/exactc`.
+
+The clean host source is `fd34464245854141b69dfb5620ba370907acfa7f`, including c61 ancestry,
+against native upstream `1f70213d4922b434345f639b441681e470c7cfc1`. It was built with Go 1.27.1,
+`CGO_ENABLED=0`, `GOMAXPROCS=2`, `GOMEMLIMIT=1GiB`, the shared Go cache, and
+`go build -p=1 -buildvcs=false -trimpath -o <lane>/.tmp/nested-end-to-end/exactc ./cmd/exactc`.
+The source snapshot contains 862 overlay Go files. Host and bound input hashes were unchanged
+after execution:
+
+| Input                                   | SHA-256                                                            |
+| --------------------------------------- | ------------------------------------------------------------------ |
+| Frozen native host                      | `6f009a6914031a11bfd0c393f56fb61baafb33e09af405350eefc9aaaeaef135` |
+| Unchanged fixture and copied `page.tsx` | `e14b495931bacd3a655efaa867cc360d6321c9a9389947675d50b9714ee06518` |
+| Original `tsconfig.json`                | `d4d0f011ec3c94a0843891939363af009cf0d7254ed22ff11439960d54581611` |
+| Saved original Analyze request          | `78b933dd55ad0f0c851e6b9a84cdefd1ee12eddba874bd617926304c6a119160` |
+| Maintained runtime helper               | `8ce931822eeff27b934d88093feb9070c1254934622b30926362a0cf6988a62d` |
+| Maintained assertion owner              | `753421ea9485afd0787b398c47bc9a70e5ae39ce722d7f7a4f8e9c216224f55b` |
+| Retained compiler SDK entry             | `0118aa86323cb41c536005842c724ef4842e92b4425b8291e5e9443f509de6b4` |
+| Retained Core server entry              | `7b1a0423ca9773cafeb4c10347644e652522e1c349e74f0a8e9840adbbe1a614` |
+| Retained server entry                   | `74d0061a5a55bb82b82fc078656febf929e20d80bbc332a968231c32df64d388` |
+| Retained Node adapter entry             | `f184757164325987b1ffd10e4c4d9d7cbce48b3c1d157e39d3765b645879b101` |
+
+The configuration is the original strict ES2022, ESNext/DOM, NodeNext, preserve-JSX configuration
+with `jsxImportSource: '@exactjs/jsx'`, `skipLibCheck: true` and `files: ['page.tsx']`.
+Provider entry hashes identify the retained inputs, not a freshly rebuilt dependency graph.
+Canonical root Vitest, fresh Core/provider qualification, browser/hydration, adapter and full
+runtime acceptance remain open. No benchmark or performance conclusion follows from this run.
+
+Every runtime assertion already belongs to the maintained test. The ignored adaptation supplies
+execution evidence, not the sole regression protection. If standalone Node execution is retained
+as an acceptance mode, extract the journey and its cleanup ownership into the existing shared
+harness and call it from both owners. Do not maintain a second assertion copy or introduce an
+alternate fixture/configuration. That source consolidation is deferred while the Core gate owns
+the shared harness. The pre-existing callback-reassignment and authored-apply baseline failures
+remain unwaived.
 
 ## Form submission lifetime
 
@@ -2156,12 +2244,11 @@ the Testing harness reports a missing mount host. Inspect the captured construct
 error before attributing that symptom to generated component identity. Correcting
 these harness prerequisites does not change the component or its assertions.
 
-The unchanged `task-closures/nested-evaluation.tsx` source passes official strict
-TypeScript with `jsxImportSource: '@exactjs/jsx'`. Current SDK analysis reaches its
-transport timeout before semantic compilation or HTTP execution. Its required method,
-receiver, operand order, Throw/finally and cancelled-publication assertions remain
-unexecuted. Runtime-only source profiles identify member/array/writer-input preparation,
-not a proven source-context equivalence or an accepted continuation repair.
+The unchanged nested method-evaluation fixture now has scoped semantic compilation, SDK paired
+artifact and canonical Node HTTP evidence at `fd3446424`, detailed in the
+[nested execution binding](#nested-method-evaluation-execution-evidence). Canonical Vitest and
+fresh Core/provider qualification remain separate open obligations. Earlier stopped analysis and
+runtime profiles remain historical evidence, not current execution status or performance claims.
 
 Installed Linux/Node compiler-only acceptance also passes against native production
 `b0f2c5808`. A clean external consumer installs local `0.8.0` SDK dependency tarballs
