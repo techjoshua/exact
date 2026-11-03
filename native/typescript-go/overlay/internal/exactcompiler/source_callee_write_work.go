@@ -43,6 +43,13 @@ func (work *sourceCalleeWriteWork) add(query *sourceValueQuery, demand sourceMem
 		work.unknown = true
 		return
 	}
+	for _, excluded := range demand.excludedCalls {
+		query.recordEstimatedCost(1)
+		if excluded != site.member.Parent && (work.root == nil || excluded != work.root.site.member.Parent) {
+			work.unknown = true
+			return
+		}
+	}
 	for _, terms := range demand.scope.bindings {
 		query.recordEstimatedCost(1)
 		for _, term := range terms {
@@ -115,15 +122,6 @@ func (work *sourceCalleeWriteWork) receiverCandidates(query *sourceValueQuery, c
 	}
 	for _, demand := range view.dependencies {
 		query.recordEstimatedCost(1)
-		for _, excluded := range demand.excludedCalls {
-			query.recordEstimatedCost(1)
-			if excluded == call {
-				continue // The existing original pre-invocation ordering exclusion.
-			}
-			if work.root == nil || excluded != work.root.site.member.Parent {
-				work.unknown = true
-			}
-		}
 		work.add(query, demand)
 	}
 	return view.candidates

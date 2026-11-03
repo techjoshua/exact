@@ -21,6 +21,7 @@ func TestSourceCalleeWriteWorkAlternatives(t *testing.T) {
 		{"prototype mutation", `const box:string[]=[];Object.setPrototypeOf(box,{push(){document.title;return 0}});export function invoke(){box.push("value")}`},
 		{"foreign mutation", `declare function foreign(value:unknown):void;const box:string[]=[];foreign(box);export function invoke(){box.push("value")}`},
 		{"captured setter", `let selected=()=>{};const box={get run(){return selected},set other(value:()=>void){selected=value}};function install(){box.other=()=>{document.title}}declare function foreign(write:()=>void):void;foreign(install);export function invoke(){box.run()}`},
+		{"mutually replacing methods", `const box={left(){box.right=()=>{document.title;return "new-right"};return "left"},right(){box.left=()=>{document.title;return "new-left"};return "right"}};export function invoke(){return box.left()+":"+box.right()}`},
 	} {
 		t.Run(row.name, func(t *testing.T) {
 			withSourceCalleeWriteQuery(t, row.source, func(q *sourceValueQuery, call *ast.Node) {
@@ -45,6 +46,81 @@ func TestSourceCalleeWriteWorkAlternatives(t *testing.T) {
 			})
 		})
 	}
+}
+
+// A source endpoint is not an equivalence proof for changed discovery domains
+// or captured inputs. These transitions must refuse rather than drop an arm.
+func TestSourceCalleeWriteRowContextRefusal(t *testing.T) {
+	withSourceCalleeWriteQuery(t, `const box={run(){document.title}};export function invoke(){box.run()}`, func(q *sourceValueQuery, call *ast.Node) {
+		view := q.receiverWriteCandidates(call, nil)
+		if len(view.dependencies) != 1 {
+			t.Fatal("missing source use")
+		}
+		original := view.dependencies[0]
+		for _, row := range []struct {
+			name   string
+			change func(*sourceMemberWriteDemand)
+		}{
+			{"source membership", func(d *sourceMemberWriteDemand) { d.sources = []*ast.SourceFile{ast.GetSourceFileOfNode(call)} }},
+			{"read cut", func(d *sourceMemberWriteDemand) { cut := *d.cut; cut.use = call.Expression(); d.cut = &cut }},
+			{"receiver bindings", func(d *sourceMemberWriteDemand) {
+				d.scope = q.acquireCallableScope(sourceValueBindings{1: {{node: call}}}, &accessorCandidates{})
+			}},
+			{"reader bindings", func(d *sourceMemberWriteDemand) {
+				cut := *d.cut
+				cut.scope = q.acquireCallableScope(sourceValueBindings{1: {{node: call}}}, &accessorCandidates{})
+				d.cut = &cut
+			}},
+		} {
+			t.Run(row.name, func(t *testing.T) {
+				work := &sourceCalleeWriteWork{owner: q, rows: make(map[sourceCalleeWriteSite]*sourceCalleeWriteRow)}
+				work.add(q, original)
+				work.add(q, original)
+				if work.unknown || len(work.queue) != 1 {
+					t.Fatal("unchanged unparameterized endpoint did not retain one row")
+				}
+				changed := original
+				row.change(&changed)
+				work.add(q, changed)
+				if !work.unknown || len(work.queue) != 1 {
+					t.Fatal("changed use was silently merged or expanded into contexts")
+				}
+			})
+		}
+	})
+}
+
+func TestSourceCalleeWriteExtraActiveAncestorFallback(t *testing.T) {
+	const source = `const box={run(){document.title}};export function ancestor(){box.run()}export function invoke(){box.run()}`
+	withSourceCalleeWriteQuery(t, source, func(q *sourceValueQuery, call *ast.Node) {
+		var ancestor *ast.Node
+		walkNode(ast.GetSourceFileOfNode(call).AsNode(), func(node *ast.Node) bool {
+			if ast.IsCallExpression(node) && enclosingCallableNode(node) != nil && callableNameText(enclosingCallableNode(node).Name()) == "ancestor" {
+				ancestor = node
+			}
+			return true
+		})
+		if ancestor == nil {
+			t.Fatal("missing valid source ancestor")
+		}
+		q.active[ancestor] = true
+		view := q.receiverWriteCandidates(call, nil)
+		work := &sourceCalleeWriteWork{owner: q, rows: make(map[sourceCalleeWriteSite]*sourceCalleeWriteRow)}
+		for _, demand := range view.dependencies {
+			work.add(q, demand)
+		}
+		if !work.unknown {
+			t.Fatal("unrepresented active ancestor became completed write inspection")
+		}
+		old := newSourceDependencyQuery(call, q.owner.checker, q.executable, q.effectOwner)
+		old.active[ancestor] = true
+		old.calleeWriteWork = &sourceCalleeWriteWork{fallback: true}
+		want, wantEffects := old.prepareInvocation(call, nil)
+		got, gotEffects := q.prepareInvocation(call, nil)
+		if !reflect.DeepEqual(candidatePublisherPayload(wantEffects), candidatePublisherPayload(gotEffects)) || !reflect.DeepEqual(candidatePublisherPayload(want.acquired), candidatePublisherPayload(got.acquired)) || !reflect.DeepEqual(want.acquired.values, got.acquired.values) {
+			t.Fatal("active-ancestor refusal lost known payload or alternatives")
+		}
+	})
 }
 
 // Independent callable regions share the array source relationship without
