@@ -11,6 +11,8 @@ import (
 // body or intrinsic resolver. A result observer never enrolls execution escapes
 // merely by selecting the same call. Both consumers keep actual input obligations.
 type sourceInvocationConsumer struct {
+	// arrayPush consumes MAY mutation effects only, never a native result receipt.
+	arrayPush func(*ast.Node, sourceValueBindings, *accessorCandidates)
 	// native consumes an already acquired alternative, never a declaration lookup.
 	native     func(*sourceNativeInvocation, *accessorCandidates)
 	reflective func(*sourceReflectiveOperation, *accessorCandidates)
@@ -68,6 +70,7 @@ func (query *sourceValueQuery) invocation(node *ast.Node, bindings sourceValueBi
 	return query.consumeInvocation(node, bindings, sourceInvocationConsumer{
 		selection:      func(value bool) { ownedComplete = value },
 		callbackInputs: query.nativeCallbackInputEffects,
+		arrayPush:      query.nativeArrayPushEffects,
 		construction: func(body sourceInvocationBody, result *accessorCandidates) {
 			query.boundConstructionGets(node, body, result)
 			if query.inputs == nil || !query.invocationValueConsumed(node, result) || !query.charge(result, node) {
@@ -246,6 +249,14 @@ func (query *sourceValueQuery) consumeInvocation(node *ast.Node, bindings source
 			}
 			for index, value := range acquired.values {
 				if value.native != nil {
+					if value.native.kind == sourceNativeArrayPush {
+						if consumer.arrayPush != nil {
+							query.withActiveInvocation(node, func() { consumer.arrayPush(node, bindings, &result) })
+						} else {
+							result.valueIncomplete = true
+						}
+						continue
+					}
 					if value.native.kind == sourceNativeObjectFreeze {
 						if query.dependenciesOnly {
 							query.sourceFreezeRelationship(node, value, bindings, complete, consumer.sourceReturn, &result)

@@ -2,6 +2,7 @@ package exactcompiler
 
 import (
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
+	"strings"
 	"testing"
 )
 
@@ -19,6 +20,8 @@ func TestSourceNativeArrayPushSelection(t *testing.T) {
 		{"shadow", `const Array={prototype:{push(){return 9}}};const xs:number[]=[];export function invoke(){xs.push(1)}`, true, ""},
 		{"object", `const xs={push(value:number){return value}};export function invoke(){xs.push(1)}`, false, "push"},
 		{"class", `class Rows{push(value:number){return value}}const xs=new Rows();export function invoke(){xs.push(1)}`, false, "push"},
+		{"mixed", `declare const choose:boolean;const values:number[]=[];const xs=choose?values:{push(value:number){document.title;return value}};export function invoke(){xs.push(1)}`, true, "push"},
+		{"asserted unknown", `export function invoke(input:unknown){const xs=input as number[];xs.push(1)}`, false, ""},
 		{"typed input", `export function invoke(xs:number[]){xs.push(1)}`, false, ""},
 		{"override", `class Rows extends Array<number>{push(...values:number[]){return 9}}const xs=new Rows();export function invoke(){xs.push(1)}`, false, "push"},
 		{"own replacement", `const xs:number[]=[];xs.push=function custom(...values:number[]){return 9};export function invoke(){xs.push(1)}`, true, "custom"},
@@ -65,5 +68,75 @@ func TestSourceNativeArrayPushEmittedOrder(t *testing.T) {
 			}
 			sourceNodeScript(t, r.Code, nativeArrayPushOrderRunner)
 		})
+	}
+}
+
+// Identity must reach the actual source-write consumer, with no Promise receipt
+// or normal output. Runtime JavaScript behavior alone cannot establish this path.
+func TestSourceNativeArrayPushConsumer(t *testing.T) {
+	for _, source := range []string{
+		`const xs:number[]=[];export function invoke(){xs.push(1)}`,
+		`const xs:number[]=[];const alias=xs;export function invoke(){alias.push(1)}`,
+	} {
+		withSourceCalleeWriteQuery(t, source, func(q *sourceValueQuery, call *ast.Node) {
+			result := q.invocation(call, nil)
+			if !result.invocationOwned || len(result.writes) == 0 {
+				t.Fatal("standard push identity did not reach mutation consumer")
+			}
+			if !result.valueIncomplete || !result.opaque || len(result.nativeCalls) != 0 || len(result.normalCalls) != 0 {
+				t.Fatal("mutation summary granted result or completion authority")
+			}
+			for _, write := range result.writes {
+				if write.value.node == nil || !ast.IsArrayLiteralExpression(write.value.node) || write.operation != stateEffectOperation("array-mutation") {
+					t.Fatal("mutation lost actual source receiver")
+				}
+			}
+		})
+	}
+}
+
+// Early standard selection cannot turn a pending own writer into a missing donor.
+func TestSourceNativeArrayPushPendingOwnWriter(t *testing.T) {
+	const source = `function install(xs:number[]){xs.push=function custom(...values:number[]){document.title;return 0}}const xs:number[]=[];install(xs);export function invoke(){return xs.push(1)}`
+	response := NewSession().Execute(Request{Kind: "analyze", ID: "/virtual/push-own-writer.ts", Source: source, Diagnostics: "semantic"})
+	if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) {
+		t.Fatal(response.Error, response.Diagnostics)
+	}
+	var caller *CallableSummary
+	for i := range response.Analysis.Callables {
+		if response.Analysis.Callables[i].Name == "invoke" {
+			caller = &response.Analysis.Callables[i]
+		}
+	}
+	if caller == nil {
+		t.Fatal("missing caller")
+	}
+	browser, unknown := false, false
+	for _, effect := range caller.EffectSources {
+		browser = browser || effect.Environment == "browser"
+		unknown = unknown || effect.Environment == "unknown"
+	}
+	if !browser || !unknown {
+		t.Fatal("pending own writer lost browser or uncertainty", caller.EffectSources)
+	}
+}
+
+// A conditional standard alternative cannot make a browser-writing own method
+// eligible for an explicitly server-placed task or emit its conflicting output.
+func TestSourceNativeArrayPushOwnWriterServerRejection(t *testing.T) {
+	const source = `import{TaskContext}from '@exactjs/core';function install(xs:number[]){xs.push=function custom(...values:number[]){document.title;return 0}}const xs:number[]=[];install(xs);function invoke(){return xs.push(1)}export function Page(){const run=(_task:TaskContext=TaskContext.server())=>invoke();return()=> <button onClick={()=>run()}>Go</button>;}`
+	response := NewSession().Execute(Request{Kind: "compile", ID: "/virtual/push-own-server.tsx", Target: TargetServer, Source: source})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if !hasErrorDiagnostic(response.Diagnostics) || response.Code != "" {
+		t.Fatal("conflicting server placement emitted", response.Diagnostics)
+	}
+	message := ""
+	for _, diagnostic := range response.Diagnostics {
+		message += diagnostic.Message + "\n"
+	}
+	if !strings.Contains(message, "browser") || !strings.Contains(message, "server") {
+		t.Fatal("rejection did not explain browser/server conflict", response.Diagnostics)
 	}
 }

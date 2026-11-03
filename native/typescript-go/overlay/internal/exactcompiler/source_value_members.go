@@ -96,6 +96,14 @@ func (query *sourceValueQuery) occurrenceSourceViewIn(origin *ast.Node, result *
 // existing descriptor owner. Inherited lookup origin and receiver are distinct.
 // Alternatives include their source capture, which must survive the next visitor.
 func (query *sourceValueQuery) memberValuesAtGet(origin *ast.Node, projection []string, name string, mode accessorTraversal, bindings sourceValueBindings, result *accessorCandidates, visit func(sourceValue), operation sourceMemberOperationProof, get *sourceGetInputs, cuts ...*sourceMemberWriterReadCut) bool {
+	return query.memberValuesAtGetWithStandard(origin, projection, name, mode, bindings, result, visit, operation, get, nil, cuts...)
+}
+
+// memberValuesAtGetWithStandard retains a conditional standard alternative while
+// indexed own writers keep their original inputs, captures and descriptor paths.
+// Unfinished interference remains unknown. The candidate cannot close that debt,
+// prove a replacement or supply any normal-operation authority.
+func (query *sourceValueQuery) memberValuesAtGetWithStandard(origin *ast.Node, projection []string, name string, mode accessorTraversal, bindings sourceValueBindings, result *accessorCandidates, visit func(sourceValue), operation sourceMemberOperationProof, get *sourceGetInputs, standard *sourceValue, cuts ...*sourceMemberWriterReadCut) bool {
 	var cut *sourceMemberWriterReadCut
 	if len(cuts) > 0 {
 		cut = cuts[0]
@@ -114,7 +122,14 @@ func (query *sourceValueQuery) memberValuesAtGet(origin *ast.Node, projection []
 	}
 	inventory := query.inventoryMemberWrites(origin, projection, name, mode, bindings, result, operation.sources, cut)
 	capture := sourceMemberOperationProof{}
-	if !inventory {
+	if standard != nil && query.dependenciesOnly {
+		// Inventory callers retain their existing pending demand. Other callers
+		// retain unfinished interference as unknown instead of recursively
+		// preparing arbitrary callees before consuming the standard alternative.
+		// Own RHS discovery below still runs and cannot use replacement precision.
+		result.opaque = true
+		inventory = true
+	} else if !inventory {
 		capture = query.interferenceInSources(origin, projection, name, mode, bindings, result, operation.sources, cut)
 	}
 	restoreOperation := query.suspendOperation()
@@ -423,7 +438,25 @@ func (query *sourceValueQuery) arrayValues(origin *ast.Node, projection []string
 	if query.arrayIndexMayAtGet(get, origin, projection, name, mode) {
 		indexGet = get
 	}
-	if query.memberValuesAtGet(origin, projection, name, mode, bindings, result, visitMember, sourceMemberOperationProof{}, indexGet) {
+	var standard *sourceValue
+	var inherited []sourceValue
+	if mode == accessorAcquire && len(projection) == 1 && name == "" {
+		acquired := query.reading
+		if get != nil && get.operation != nil {
+			acquired = get.operation
+		}
+		member := query.owner.checker.GetPropertyOfType(query.owner.checker.GetTypeAtLocation(origin), projection[0])
+		if member != nil {
+			for _, declaration := range member.Declarations {
+				candidate := standardArrayMemberValue(origin, declaration, acquired)
+				inherited = append(inherited, candidate)
+				if candidate.native != nil {
+					standard = &candidate
+				}
+			}
+		}
+	}
+	if query.memberValuesAtGetWithStandard(origin, projection, name, mode, bindings, result, visitMember, sourceMemberOperationProof{}, indexGet, standard) {
 		return
 	}
 	selection, rest := name, []string(nil)
@@ -440,21 +473,10 @@ func (query *sourceValueQuery) arrayValues(origin *ast.Node, projection []string
 	}
 	if !unknown && !positional {
 		if mode == accessorAcquire {
-			// Own replacements were selected above. An established source array
-			// supplies the inherited standard contract beside remaining alternatives.
-			// Other library declarations remain unbranded candidates.
-			member := query.owner.checker.GetPropertyOfType(query.owner.checker.GetTypeAtLocation(origin), selection)
-			if member == nil || len(projection) != 1 {
+			if len(inherited) == 0 {
 				result.opaque = true
-			} else {
-				acquired := query.reading
-				if get != nil && get.operation != nil {
-					acquired = get.operation
-				}
-				for _, declaration := range member.Declarations {
-					result.values = append(result.values, standardArrayMemberValue(origin, declaration, acquired))
-				}
 			}
+			result.values = append(result.values, inherited...)
 		}
 		return
 	}
