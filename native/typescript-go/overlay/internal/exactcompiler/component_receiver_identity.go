@@ -7,7 +7,7 @@ import (
 
 // hasComponentReceiver authenticates a receiver against the core Component
 // declaration before normalization changes its body. The TypeScript binder owns
-// lexical shadowing, including type parameters. Import and local type aliases
+// lexical shadowing, including type parameters. Imports, local type aliases and interface heritage
 // retain identity, while structural compatibility supplies no such authority.
 func hasComponentReceiver(node *ast.Node, sourceFile *ast.SourceFile) bool {
 	annotation := componentReceiverAnnotation(node)
@@ -34,7 +34,12 @@ func componentReceiverType(node *ast.Node, seen map[*ast.Symbol]bool) bool {
 	if !ast.IsTypeReferenceNode(node) {
 		return false
 	}
-	name := node.AsTypeReferenceNode().TypeName
+	return componentReceiverName(node.AsTypeReferenceNode().TypeName, seen)
+}
+
+// componentReceiverName follows declaration edges only. Each symbol is visited
+// once, so cyclic aliases or interface bases cannot recurse indefinitely.
+func componentReceiverName(name *ast.Node, seen map[*ast.Symbol]bool) bool {
 	if ast.IsQualifiedName(name) {
 		qualified := name.AsQualifiedName()
 		if !ast.IsIdentifier(qualified.Left) || qualified.Right.Text() != "Component" {
@@ -70,6 +75,21 @@ func componentReceiverType(node *ast.Node, seen map[*ast.Symbol]bool) bool {
 			}
 		} else if ast.IsTypeAliasDeclaration(declaration) && componentReceiverType(declaration.Type(), seen) {
 			return true
+		} else if ast.IsInterfaceDeclaration(declaration) {
+			heritage := declaration.AsInterfaceDeclaration().HeritageClauses
+			if heritage == nil {
+				continue
+			}
+			for _, clause := range heritage.Nodes {
+				if clause.AsHeritageClause().Token != ast.KindExtendsKeyword {
+					continue
+				}
+				for _, base := range clause.AsHeritageClause().Types.Nodes {
+					if componentReceiverType(base, seen) {
+						return true
+					}
+				}
+			}
 		}
 	}
 	return false

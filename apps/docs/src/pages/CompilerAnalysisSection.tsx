@@ -41,7 +41,8 @@ export function CompilerAnalysisSection(this: Component<{}>) {
 			<p>
 				Ordinary function receiver annotations retain their TypeScript meaning. When an annotation
 				refers to the core <code>Component</code> contract, the compiler follows its declaration
-				identity through renamed imports and type aliases.
+				identity through renamed imports, type aliases and interface inheritance. A custom interface
+				with a similar shape does not acquire component identity.
 			</p>
 			<p>
 				Before rewriting an expression, the compiler captures its authored type constraints and
