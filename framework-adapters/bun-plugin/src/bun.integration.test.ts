@@ -1,3 +1,4 @@
+import { registerProjectSourceIsolationIntegration } from '../../test-support/bun-project-source-isolation.js';
 import { loadAdapterTestApi } from '../../test-support/adapter-test-api.js';
 import { registerCompilerClosedSsrIntegration } from '../../test-support/bun-compiler-closed-ssr.js';
 import { registerTaskProgressIntegration } from '../../test-support/bun-task-progress.js';
@@ -597,47 +598,4 @@ registerTaskProgressIntegration(describeBun, testApi);
 
 registerCompilerClosedSsrIntegration(describeBun, testApi);
 
-describeBun('project source isolation', () => {
-	testApi.it(
-		'preserves reassigned callable requirements in both artifacts',
-		async () => {
-			const { verifyReassignedCallableModules } = await import(
-				'../../test-support/reassigned-callable-contract.js'
-			);
-			await verifyReassignedCallableModules('bun');
-		},
-		60000
-	);
-
-	testApi.it(
-		'preserves projected module writes in both artifacts',
-		async () => {
-			const { verifyProjectedModuleWrites } = await import(
-				'../../test-support/project-source-isolation.js'
-			);
-			await verifyProjectedModuleWrites('bun');
-		},
-		60000
-	);
-
-	testApi.it(
-		'isolates unrelated project initializers in both artifacts',
-		async () => {
-			const { verifyProjectSourceIsolation } = await import(
-				'../../test-support/project-source-isolation.js'
-			);
-			await verifyProjectSourceIsolation('bun');
-		},
-		60000
-	);
-	testApi.it(
-		'validates selected module initialization before partitioning',
-		async () => {
-			const { verifySelectedModulePartition } = await import(
-				'../../test-support/selected-module-partition.js'
-			);
-			await verifySelectedModulePartition('bun');
-		},
-		90000
-	);
-});
+registerProjectSourceIsolationIntegration(describeBun, testApi);

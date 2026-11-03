@@ -36,13 +36,14 @@ var universalCallRoots = map[string]struct{}{
 type callableFacts struct {
 	callOutcomes []sourceCallOutcome
 
-	componentInputDemands  []sourceComponentInputDemand
-	initializerDraft       *moduleInitializerDraft
-	initializerPlan        *closedOwnGetterPlan
-	initializerDeclaration *ast.Node
-	ownedLegacyPending     []*sourceLegacyPublication
-	ownedGetResults        []*ownedGetPopulation
-	ownedGetPending        []*ownedGetFactObligation
+	componentInputDemands   []sourceComponentInputDemand
+	componentCallableInputs []sourceComponentCallableInput
+	initializerDraft        *moduleInitializerDraft
+	initializerPlan         *closedOwnGetterPlan
+	initializerDeclaration  *ast.Node
+	ownedLegacyPending      []*sourceLegacyPublication
+	ownedGetResults         []*ownedGetPopulation
+	ownedGetPending         []*ownedGetFactObligation
 
 	// The producing analysis mode is immutable, independent of later routing.
 	descriptorMode      [32]byte
@@ -233,6 +234,11 @@ func collectCallableEffects(
 			assets,
 			owner,
 		)
+	}
+	for index := range facts {
+		if _, component := componentByStart[facts[index].node.Pos()]; component {
+			facts[index].componentCallableInputs = collectComponentCallableInputs(facts[index].node, typeChecker, owner)
+		}
 	}
 	sealMapInputs(facts, nodeTargets)
 	for index := range facts {
@@ -480,6 +486,9 @@ func callableAnalysisFingerprint(analysis callableAnalysis) string {
 		result.WriteByte('|')
 		result.WriteString(strings.Join(fact.summary.ExportNames, ","))
 		result.WriteByte('\n')
+		for _, input := range fact.componentCallableInputs {
+			result.WriteString(fmt.Sprintf("|component-call-input:%p:%p:%p:%s", input.declaration, input.slot, input.operation, input.key))
+		}
 		result.WriteString(environmentSourcesSignature(fact.summary.DirectEffectSources))
 		for _, call := range fact.fieldCalls {
 			for _, outcome := range call.descriptorEffects {
@@ -703,6 +712,7 @@ func callableModuleKey(filename string) string {
 // are replaced by the merge before resolution, so copying them would be discarded work.
 func cloneProjectCallableFact(value callableFacts) callableFacts {
 	value.callOutcomes = append([]sourceCallOutcome(nil), value.callOutcomes...)
+	value.componentCallableInputs = append([]sourceComponentCallableInput(nil), value.componentCallableInputs...)
 	value.componentInputDemands = append([]sourceComponentInputDemand(nil), value.componentInputDemands...)
 	value.initializerDraft = cloneModuleInitializerDraft(value.initializerDraft)
 	// Publication rights remain on original source facts. Cached copies retain

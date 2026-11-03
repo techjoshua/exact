@@ -147,7 +147,11 @@ func (builder *partitionPlanBuilder) addExternalComponent(edge RenderEdge) strin
 		}
 	}
 	if conservative && edge.ModuleSpecifier == "" {
-		reason = "unresolved foreign render edge " + edge.Name + ": " + reason
+		if edge.ComponentID != "" {
+			reason = "unresolved native render edge " + edge.Name + ": " + reason
+		} else {
+			reason = "unresolved foreign render edge " + edge.Name + ": " + reason
+		}
 	}
 	id := exactStableID(builder.filename, "partition", contract, "component")
 	builder.addNode(PartitionPlanNode{
@@ -867,14 +871,18 @@ func partitionPlanDiagnostics(plan PartitionPlan) []Diagnostic {
 	diagnostics := []Diagnostic{}
 	for _, node := range plan.Nodes {
 		if node.Kind != "component" || !node.Conservative ||
-			!strings.HasPrefix(node.Reason, "unresolved foreign render edge ") {
+			(!strings.HasPrefix(node.Reason, "unresolved foreign render edge ") && !strings.HasPrefix(node.Reason, "unresolved native render edge ")) {
 			continue
+		}
+		guidance := "; the narrowest enclosing region remains unsplit. Configure a compatibility adapter or use a compiler-branded native component contract"
+		if strings.HasPrefix(node.Reason, "unresolved native render edge ") {
+			guidance = ". The narrowest enclosing region remains unsplit. Check the invoked callable inputs and their environment requirements. Ordinary JavaScript is preserved"
 		}
 		diagnostics = append(diagnostics, Diagnostic{
 			Severity: "warning",
 			Code:     "EXACT2212",
 			Message: "warning: " + node.Reason +
-				"; the narrowest enclosing region remains unsplit. Configure a compatibility adapter or use a compiler-branded native component contract",
+				guidance,
 			Start:  node.Start,
 			Length: node.Length,
 		})

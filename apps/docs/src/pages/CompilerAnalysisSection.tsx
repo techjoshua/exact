@@ -26,6 +26,25 @@ export function CompilerAnalysisSection(this: Component<{}>) {
 				grant hydration or server-operation authority.
 			</p>
 			<p>
+				A component can accept a callback and call it while producing its output. For a direct named
+				props call in its returned render function, the compiler checks a supplied named function or
+				inline callback at that particular composition edge. A browser requirement belongs to that
+				use of the component. The shared component definition stays the same for other callers.
+				Passing a callback to a component that never calls it does not execute its body. When the
+				callable selection remains unresolved, analysis keeps the uncertainty and reports a warning
+				while preserving the JavaScript. Callback props follow JSX source order. A final explicit
+				prop selects its value after earlier spreads. A later unresolved spread keeps known possible
+				callback requirements alongside uncertainty. Reading a spread property does not call the
+				callback stored in it. Serialization requirements still apply when inputs cross a
+				server/client boundary.
+			</p>
+			<p>
+				Ordinary function receiver annotations retain their TypeScript meaning. When an annotation
+				refers to the core <code>Component</code> contract, the compiler follows its declaration
+				identity through renamed imports, type aliases and interface inheritance. A custom interface
+				with a similar shape does not acquire component identity.
+			</p>
+			<p>
 				Before rewriting an expression, the compiler captures its authored type constraints and
 				evaluation requirements. Checking and executable lowering retain those constraints while
 				preserving receiver selection, short-circuiting, suspension, and expression results.
