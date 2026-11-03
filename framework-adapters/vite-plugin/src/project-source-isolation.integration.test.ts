@@ -1,8 +1,15 @@
 import { it } from 'vitest';
+import { verifyReassignedCallableModules } from '../../test-support/reassigned-callable-contract.js';
 import {
 	verifyProjectSourceIsolation,
 	verifyProjectedModuleWrites
 } from '../../test-support/project-source-isolation.js';
+
+it(
+	'preserves reassigned callable requirements in both artifacts',
+	() => verifyReassignedCallableModules('vite'),
+	60000
+);
 
 it(
 	'isolates unrelated project initializers in both artifacts',
