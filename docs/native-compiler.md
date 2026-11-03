@@ -1121,7 +1121,7 @@ their own requirements alongside the unresolved alternative.
 
 The agreed extension of standard built-in trust, its runtime-origin requirements and the pending
 first implementation slice are specified in the [architecture completion plan](compiler-architecture-completion-plan.md#agreed-standard-built-in-trust-policy).
-That policy is agreed direction, not completed implementation or validation. Existing successful
+That policy separates acquired function/property identity from algorithm-specific receiver requirements, including generic borrowed methods and branded receiver failures. It is agreed direction, not completed implementation or validation. Existing successful
 output, descriptor and completion authority remains with its current owners.
 
 Inference uses the supported built-in contracts described by the target's standard libraries,
