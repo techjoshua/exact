@@ -2,6 +2,7 @@ import path from 'node:path';
 import { expect, it, onTestFinished } from 'vitest';
 import { NativeCompilerProcess } from './process.js';
 import { resolveNativeCompilerExecutable } from './executable.js';
+import { createBrowserTestWorkspace, writeTestFiles } from '../test-support/workspace.js';
 
 it.each([
 	{
@@ -107,3 +108,56 @@ export function owner(this: {state:{nested:{text:string};scalar:string}}) {
 		[{ source: 'unknown', path: [] }]
 	]);
 });
+
+// Await must retain its known donor even when a second operand alternative is opaque.
+it('retains browser and unknown Await donors through public task placement', async () => {
+	const root = await createBrowserTestWorkspace('.exact-await-consumer-', process.cwd());
+	const compiler = new NativeCompilerProcess({
+		executable: resolveNativeCompilerExecutable(),
+		timeoutMs: 5_000
+	});
+	onTestFinished(() => compiler.dispose());
+	for (const browser of [false, true]) {
+		for (const placement of ['server', 'client'] as const) {
+			const source = `import {TaskContext} from '@exactjs/core';
+const known = { then(resolve: (value: string) => void) { resolve(${browser ? 'window.location.href' : "'safe'"}); } };
+export function Page(props: { known: boolean; foreign: unknown }) {
+ const run = async (task: TaskContext = TaskContext.${placement}()) => {
+  await (props.known ? known : props.foreign);
+ };
+ return () => <button onClick={() => void run()}>Run</button>;
+}
+`;
+			const files = await writeTestFiles(root, { 'Page.tsx': source });
+			const request = { id: files['Page.tsx']!, root, source, diagnostics: 'semantic' as const };
+			const analysis = compiler.request({ ...request, kind: 'analyze' });
+			expect.soft(analysis.error).toBeUndefined();
+			const task = analysis.analysis.tasks[0]!;
+			const callable = analysis.analysis.callables.find((value) => value.name === 'run');
+			expect.soft(callable).toBeDefined();
+			for (const sources of [task.effectSources, callable!.effectSources]) {
+				expect.soft(sources).toContainEqual(expect.objectContaining({ environment: 'unknown' }));
+				if (browser)
+					expect.soft(sources).toContainEqual(expect.objectContaining({ environment: 'browser' }));
+				else expect.soft(sources?.some((value) => value.environment === 'browser')).toBe(false);
+			}
+			const compiled = compiler.request({ ...request, kind: 'compile', target: placement });
+			expect.soft(compiled.error).toBeUndefined();
+			const errors = compiled.diagnostics.filter((value) => value.severity === 'error');
+			if (browser && placement === 'server') {
+				expect
+					.soft(
+						errors.some((value) =>
+							value.message.includes(
+								'task requests server placement but references browser-only globals'
+							)
+						)
+					)
+					.toBe(true);
+			} else {
+				expect.soft(errors).toEqual([]);
+				expect.soft(compiled.code).toBeTruthy();
+			}
+		}
+	}
+}, 60_000);
