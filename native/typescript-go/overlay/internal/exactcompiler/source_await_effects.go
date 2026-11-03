@@ -129,9 +129,12 @@ func (query *sourceValueQuery) awaitAcquiredValue(observed sourceObservedValue, 
 	if value.node != nil && len(value.path) == 0 && !ast.IsCallExpression(value.node) && !ast.IsPropertyAccessExpression(value.node) && !ast.IsElementAccessExpression(value.node) && !ast.IsObjectLiteralExpression(value.node) {
 		// This is the terminal Get of an already acquired raw result. A symbolic
 		// projection or unconsumed call cannot replay its earlier producer here.
-		selected := query.asyncFacadeGet(value, "then", nil, observed.scope.bindings, result)
+		// Select each original receiver before supplying the implicit Get. A
+		// conditional/logical operand is a relationship, not the actual receiver
+		// of every branch's property read. Keep known effects beside refusals.
+		selected := query.acquireRequiredProperty(observed, &sourceGetInputs{operation: operation, receiver: value, propertyKey: "then"}, accessorAcquire)
 		retainCallableThenEffects(&selected, operation)
-		result.effects = append(result.effects, selected.effects...)
+		mergeAccessorCandidates(result, selected)
 	}
 	output.incomplete = true
 }
