@@ -967,7 +967,7 @@ func (query *sourceValueQuery) executeDemand(node, declaration *ast.Node, bindin
 	if target, operation := stateWriteTarget(node, query.owner.checker); operation != "" {
 		root, path := effectArgumentRoot(target)
 		captureOwner := declaration
-		boundReceiver := invocation != nil || inputs != nil && inputs.get != nil
+		boundReceiver := invocation != nil || inputs != nil && inputs.get != nil || query.sourceReceiverInputsLive(inputs, declaration)
 		if boundReceiver {
 			captureOwner = nil
 		}

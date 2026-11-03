@@ -71,6 +71,9 @@ func (query *sourceValueQuery) boundProjection(values []sourceValue, path []stri
 // proves bypass. Active entries retain the earlier bindings used by that initializer.
 // This is neither a runtime environment nor a selected-callee or production certificate.
 type sourceValueInputs struct {
+	// sourceReceiver is a synchronous source-only borrow. Its private issuer
+	// validates the exact query, inputs and selected body before write mapping.
+	sourceReceiver *sourceReceiverInputs
 	// deferredBody separates generator parameter initialization from first resume.
 	deferredBody  bool
 	dependencyUse *ast.Node
