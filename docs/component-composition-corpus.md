@@ -2061,6 +2061,21 @@ acceptance, and its report cannot satisfy the full runtime evidence validator.
 The default report and narrow report use separate output paths. Registration in the
 default runner does not establish execution of the default matrix.
 
+The WebKit 26.5 shared-composition run uses a manually validated Ubuntu 26.04
+user-local prefix containing 62 official packages. Its dependency check covers all
+19 cached WebKit ELF objects and 212 staged ELF objects, with no unresolved libraries,
+plus successful `RTLD_NOW` loading of `libGLESv2.so.2` and `libx264.so`. The scoped
+library path includes the package-owned `libproxy` directory required by its absolute
+RUNPATH. Package versions and archive hashes bind that environment.
+
+Playwright 1.61.1 checks these two DLOPEN libraries through the system linker cache,
+which cannot see the prefix. This run therefore uses an explicitly authorized
+`PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS=1` override only on the owned narrow
+subprocess after those manual probes pass. Its warning and environment are retained
+with the qualification. This is current compiled-component acceptance with retained
+browser providers, not a stock host-preflight pass. No hydration, fresh Core/provider,
+installed framework or full runtime-matrix result follows from it.
+
 The existing compiler-confidence runner includes these three emitted tests as
 `shared-capture-composition`. Its `capture-dependencies-to-consumers` contract edge
 requires all three current executions to pass exactly once. Declaring the witness does
