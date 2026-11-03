@@ -449,12 +449,13 @@ func (query *sourceValueQuery) acquireGetResult(body *ast.Node, get *sourceGetIn
 	if query.dependenciesOnly {
 		observed := sourceResultObservation{}
 		execution := *result
+		priorValueIncomplete := result.valueIncomplete
 		query.consumeGetInputs(body, get, scope, &execution, func(inputs *sourceValueInputs) {
-			beforeBodyValueIncomplete := execution.valueIncomplete
 			entered := query.consumeSourceBodyEffects(get.operation, body, inputs.bindings, inputs, nil, &execution)
-			// Preserve caller and wrapper uncertainty, while discarded body values
-			// remain separate from the selected return projection below.
-			execution.valueIncomplete = beforeBodyValueIncomplete
+			// Defaults, patterns and discarded body values retain their effects,
+			// but only the selected return describes this Get's output. Preserve
+			// caller uncertainty and any refusal before this consumer is entered.
+			execution.valueIncomplete = priorValueIncomplete
 			assessment := query.projectSelectedSourceReturns(body, get.operation, inputs.bindings, inputs, &execution, func(value sourceValue, bindings sourceValueBindings) {
 				observed.values = append(observed.values, sourceObservedValue{value: value, scope: query.acquireCallableScope(bindings, &execution)})
 			}, func() { observed.incomplete = true })

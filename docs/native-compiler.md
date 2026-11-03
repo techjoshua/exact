@@ -1919,12 +1919,15 @@ or completion authority.
 
 Binding projection preserves an unresolved alternative beside known values when the
 selected values are incomplete. Otherwise a later consumer could mistake a partial
-set for an exhaustive selection. Getter acquisition separately tracks discarded body
-values and conditional successful returns. Source Get analysis preserves uncertainty
-from the caller and input wrapper before analyzing the return projection. Unknown
-body effects remain even when a successful return is known, and unknown returned values
-remain incomplete. This prevents a foreign effect in a getter from activating a
-default that its known successful return bypasses.
+set for an exhaustive selection. Getter acquisition separately tracks discarded input
+and body values and conditional successful returns. Source Get analysis preserves
+prior caller uncertainty and refusals before entry. Defaults and parameter-pattern reads
+retain their effects without making an independently known return incomplete. Returning
+an unavailable parameter still contributes output uncertainty through return projection.
+Reflective source getters use this same Get owner, preserving their captures without
+issuing normal output or a correlated receiver for an uncorrelated read. Unknown effects
+remain even when a successful return is known. A foreign effect or unused input cannot
+activate a caller default that the getter's known successful return bypasses.
 
 Active source-body reentry compares finite relationships between source endpoints, formal
 positions, captures, creating sites and member edges. New relationships may reach the existing

@@ -5,6 +5,7 @@ import "github.com/microsoft/TypeScript/tsc/internal/ast"
 // reflectiveSourceGet selects an installed getter from its definition's source
 // inputs. Selection does not republish earlier descriptor/argument Gets. Each
 // selected body keeps its captures, without a normal Get lease or output.
+// The shared Get owner separates input/body effects from returned values.
 func (query *sourceValueQuery) reflectiveSourceGet(expression, definition *ast.Node, key string, actualGet *sourceGetInputs, bindings sourceValueBindings, result *accessorCandidates) {
 	selected := accessorCandidates{}
 	if ast.IsFunctionLike(expression) {
@@ -47,14 +48,13 @@ func (query *sourceValueQuery) reflectiveSourceGet(expression, definition *ast.N
 					operation, receiver = actualGet.operation, actualGet.receiver
 				}
 			}
-			inputs := query.bindGetInputs(body, operation, receiver, scope.bindings, result)
-			result.retainCallableEffect(operation, body)
-			query.consumeSourceBodyEffects(operation, body, inputs.bindings, inputs, nil, result)
-			query.projectSelectedSourceReturns(body, operation, inputs.bindings, inputs, result, func(term sourceValue, bound sourceValueBindings) {
-				captured := query.acquireCallableScope(bound, result)
+			observed := query.acquireGetResult(body, &sourceGetInputs{operation: operation, receiver: receiver}, scope, result)
+			result.valueIncomplete = result.valueIncomplete || observed.incomplete
+			for _, returned := range observed.values {
+				term, captured := returned.value, returned.scope
 				term.capture = &captured
 				result.values = append(result.values, term)
-			}, func() { result.valueIncomplete = true })
+			}
 		})
 	}
 }
