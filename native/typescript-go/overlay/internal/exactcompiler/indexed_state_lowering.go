@@ -70,6 +70,9 @@ func indexStateWriteSlots(components []Component, writes []StateWrite) map[strin
 // lowerIndexedStateRead emits the compiler-only numeric access lane while retaining enough
 // semantic identity for the render-program planner to select its dirty-mask update path.
 func (lowering *jsxLowering) lowerIndexedStateRead(node *ast.Node) *ast.Node {
+	if indexedMemberNeedsReference(node) {
+		return nil
+	}
 	read, exists := lowering.stateReadSlots[nodeSpanKey(node)]
 	if !exists {
 		return nil

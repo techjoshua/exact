@@ -177,6 +177,12 @@ adopted. Graph propagation cannot repair classification, module initialization o
 validators by itself. Optional precision remains with the [existing future-work inventory](proposals/future-work.md#compiler-precision-after-the-bounded-core).
 Required source-effect transfer and finite Core compilation remain core acceptance obligations.
 
+Indexed prop and state lowering must retain the ordinary member-access lane for receiver-bearing
+Calls and template tags, including erased wrappers. Numeric slot reads produce values and cannot
+replace JavaScript References in those positions. Saved callable values remain detached. The
+paired artifact witness checks actual receiver, argument and capture behavior independently of
+the analysis projection.
+
 Broader composition acceptance still requires paired ordinary-call/transport and dormant-body
 creation/invocation controls, target-dependent invoked formals, legal retained projection versus
 illegal module initialization, and client lifecycle with SSR fallback. Preserve positive and

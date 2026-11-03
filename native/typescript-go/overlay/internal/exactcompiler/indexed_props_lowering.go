@@ -134,6 +134,9 @@ func indexPropsReadSlots(
 
 // lowerIndexedPropsRead bypasses property-key proxy lookup for one compiler-proven top-level prop.
 func (lowering *jsxLowering) lowerIndexedPropsRead(node *ast.Node) *ast.Node {
+	if indexedMemberNeedsReference(node) {
+		return nil
+	}
 	read, exists := lowering.propsReadSlots[nodeSpanKey(node)]
 	if !exists {
 		return nil
