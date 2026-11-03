@@ -177,11 +177,44 @@ adopted. Graph propagation cannot repair classification, module initialization o
 validators by itself. Optional precision remains with the [existing future-work inventory](proposals/future-work.md#compiler-precision-after-the-bounded-core).
 Required source-effect transfer and finite Core compilation remain core acceptance obligations.
 
+The bounded component-input source producer records a declaration-relative invocation dependency for
+`props.read(props.label)`. The owned source witnesses are
+`packages/compiler/src/test-support/component-input-invariance.fixtures.tsx` and
+`component-input-invariance-consumers.ts`. The target definition and emitted target body must
+remain identical across library/application consumers. Supplied callable requirements belong
+to the particular parent render edge. The existing `sourceComponentInputDemand` and adoption
+owner certify exact named string-literal protocol recipes only. They do not certify callable
+inputs, and their private body-placement projection must not be broadened to erase a Call.
+
+The detached invoked-input demand identifies the target
+declaration, props parameter slot, named member and original Call occurrence. It must retain
+the method receiver, argument relationships and captured bindings through the existing source
+dependency owners. A field Get or callable creation alone cannot issue this demand. Composition
+delivery must authenticate the selected JSX target and input at its source occurrence, then
+add known callable requirements and independent unresolved alternatives to that edge before
+the existing subgraph fixed point. It must never substitute the consumer into the target
+definition, publish an ordinary invocation receipt or retain a live query/frame. This uses the
+existing callable facts and subgraph fixed point independently of literal adoption. Direct function declarations and inline function expressions supply their existing
+callable summaries. Other selections retain uncertainty and a warning. No input substitution
+or callable body activation is performed by this projection.
+
+Focused acceptance pairs named safe/browser callbacks with a dormant browser callback and
+retains the inline and mutable controls. A mutable unresolved selection must preserve
+JavaScript and diagnostic uncertainty without recursively proving every writer. Known donors
+must survive alongside that uncertainty. Fresh native source-matched Analyze and both-target
+Compile checks, emitted receiver/argument/capture behavior and branch/condition witnesses are
+required before acceptance. SDK sessions must compare identical target source and path across
+library/application contexts. Shared adapter acceptance must exercise the same edge outcomes
+through Vite, Webpack and Bun. Scoped checks cover these callback recipes through each adapter
+with retained package providers. Broader module-loading and retained-export compositions remain
+in the acceptance frontier below. TypeScript qualification alone is not compiler regression evidence.
 Indexed prop and state lowering must retain the ordinary member-access lane for receiver-bearing
 Calls and template tags, including erased wrappers. Numeric slot reads produce values and cannot
 replace JavaScript References in those positions. Saved callable values remain detached. The
 paired artifact witness checks actual receiver, argument and capture behavior independently of
-the analysis projection.
+the analysis projection. Type-spelling-dependent component receiver recognition remains
+outside this vertical. The `namedSpellingBrowser` control preserves that source and is not
+passing evidence for ordinary-callable delivery.
 
 Broader composition acceptance still requires paired ordinary-call/transport and dormant-body
 creation/invocation controls, target-dependent invoked formals, legal retained projection versus

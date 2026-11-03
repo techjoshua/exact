@@ -1,3 +1,4 @@
+import { verifyComponentCallableInputs } from '../../test-support/component-callable-input-contract.js';
 import { verifySelectedModulePartition } from '../../test-support/selected-module-partition.js';
 import { it } from 'vitest';
 import { verifyReassignedCallableModules } from '../../test-support/reassigned-callable-contract.js';
@@ -27,5 +28,11 @@ it(
 it(
 	'validates selected module initialization before partitioning',
 	() => verifySelectedModulePartition('vite'),
+	90000
+);
+
+it(
+	'preserves invoked callable requirements and receiver semantics',
+	() => verifyComponentCallableInputs('vite'),
 	90000
 );

@@ -17,6 +17,8 @@ type projectComponent struct {
 	component                 Component
 	inputDemands              []sourceComponentInputDemand
 	conditionalInputPlacement string
+	callableInputDemands      []sourceComponentCallableInput
+	callableInputRequirements componentInputRequirements
 }
 
 type projectComponentLinkFacts struct {
@@ -58,6 +60,11 @@ func linkProjectComponents(
 		completedPolicyTypes,
 	)
 	for i := range records {
+		for _, fact := range callables.facts {
+			if fact.node == records[i].candidate.node {
+				records[i].callableInputDemands = fact.componentCallableInputs
+			}
+		}
 		records[i].inputDemands = componentInputDemandsFor(records[i].candidate.node, callables)
 		records[i].conditionalInputPlacement = componentInputBodyPlacement(records[i], callables)
 	}
@@ -298,6 +305,7 @@ func linkProjectComponents(
 	attachComponentInputAdoptions(project, records, typeChecker)
 	refreshProjectComponentEdgePlacements(records)
 	applyComponentInputAdoptions(project, records)
+	applyComponentCallableInputs(project, records, typeChecker)
 	resolveProjectComponentSubgraphs(records, project)
 
 	result := []Component{}
@@ -1018,14 +1026,17 @@ func resolveProjectComponentSubgraphs(records []projectComponent, inputProjects 
 	// union. Only this edge's complete recipe may discharge the target's own
 	// requirements. Pending descendants continue through ordinary ancestors.
 	pendingInputs := make([]bool, len(records))
+	relativeInputs := make([]componentInputRequirements, len(records))
 	changed := true
 	for changed {
 		changed = false
 		for index := range records {
+			requirements := records[index].callableInputRequirements
 			pending := len(records[index].inputDemands) != 0
 			placements := []string{records[index].component.Placement}
 			for _, edge := range records[index].component.RenderEdges {
 				if target, exists := byID[edge.ComponentID]; exists {
+					requirements = requirements.join(relativeInputs[target])
 					if len(inputProjects) != 0 && componentInputEdgeAdopted(inputProjects[0], records[index], edge) && len(records[target].component.RenderEdges) == 0 && records[target].conditionalInputPlacement != "" && edge.Placement == records[target].conditionalInputPlacement {
 						placements = append(placements, edge.Placement)
 						continue
@@ -1039,7 +1050,11 @@ func resolveProjectComponentSubgraphs(records []projectComponent, inputProjects 
 					placements = append(placements, edge.Placement)
 				}
 			}
-			next := combinePlacements(placements)
+			next := requirements.placement(combinePlacements(placements))
+			if relativeInputs[index] != requirements {
+				relativeInputs[index] = requirements
+				changed = true
+			}
 			if pending {
 				next = "unknown"
 			}
@@ -1053,4 +1068,13 @@ func resolveProjectComponentSubgraphs(records []projectComponent, inputProjects 
 			}
 		}
 	}
+	for index, requirements := range relativeInputs {
+		if requirements.browser {
+			records[index].component.RenderCapability.Server = "unsupported"
+		}
+		if requirements.server {
+			records[index].component.RenderCapability.Client = "unsupported"
+		}
+	}
+
 }
