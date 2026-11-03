@@ -62,6 +62,7 @@ func collectComponentsWithIDs(sourceFile *ast.SourceFile, ids map[*ast.Node]stri
 			Length:            candidate.node.End() - candidate.node.Pos(),
 			Exported:          candidate.exported,
 			Signals:           signals,
+			RenderCapability:  unknownComponentRenderCapability(),
 			Placement:         "isomorphic",
 			SubgraphPlacement: "isomorphic",
 			EnvironmentEffect: "neutral",

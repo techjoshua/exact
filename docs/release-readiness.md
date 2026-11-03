@@ -104,6 +104,24 @@ and emit ordinary descriptor/catalog values. Shared artifact state initializes o
 validation, generation fencing, global identity keys, companion export names, helper signatures, and
 ABI epoch 2 remain unchanged. Published descriptor selection reuses its reached list directly.
 
+## Additive component render-capability facts
+
+The component analysis and SDK IR add per-target renderCapability statuses independently of
+legacy component coordination placement. Component-build protocol 1 accepts absent facts as
+unknown on both targets and validates present records strictly. Its writer now retains
+component-only facts. Existing readers can ignore the additive field. It supplies no new runtime
+authority, and existing task defaults, transport, publication, hydration and resumption records
+retain their semantics. Public analysis types change, so compiler and native-provider publication
+selection still requires review. The local coordinated 0.8.0 preparation does not prove publication
+status or authorize publishing this change.
+
+This slice does not change emitted helper signatures, runtime component record version 6,
+render-program version 4 or runtime artifact authority. A later replacement of placement-dependent
+publication or resumption checks requires producer/validator migration and semantic ABI review,
+even if its JSON layout stays the same. Adding required runtime keys also conflicts with current
+exact-key validators. Preserve released fixtures and apply epoch/provider version rules if a later
+migration is incompatible. The approved separation does not authorize a silent ABI break.
+
 ## Release identity and metadata
 
 The initial 0.5.0 release was published from commit

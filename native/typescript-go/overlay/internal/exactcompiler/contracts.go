@@ -152,6 +152,13 @@ type Directive struct {
 	Length      int
 }
 
+// ComponentRenderCapability records proven rendering independently of coordinated execution.
+// Unknown never authorizes rendering or grants publication, import, or transport authority.
+type ComponentRenderCapability struct {
+	Server string `json:"server"`
+	Client string `json:"client"`
+}
+
 // Component identifies a native eXact component declaration.
 type Component struct {
 	ID                         string                    `json:"id"`
@@ -162,6 +169,7 @@ type Component struct {
 	Signals                    []string                  `json:"signals"`
 	Placement                  string                    `json:"placement"`
 	SubgraphPlacement          string                    `json:"subgraphPlacement"`
+	RenderCapability           ComponentRenderCapability `json:"renderCapability"`
 	EnvironmentEffect          string                    `json:"environmentEffect"`
 	ArtifactTargets            []string                  `json:"artifactTargets"`
 	RenderEdges                []RenderEdge              `json:"renderEdges"`

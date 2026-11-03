@@ -45,6 +45,9 @@ func analyzeComponents(
 		clientEffects, serverEffects := false, false
 		clientTaskEffects := false
 		summaryClientEffect := false
+		renderUnknown := false
+		renderServerRequirements := false
+		renderBrowserRequirements := false
 		opaqueComputation := false
 		indivisible := ""
 		opaquePath := ""
@@ -72,6 +75,11 @@ func analyzeComponents(
 		if setup, exists := callables.byNode[candidate.node]; exists {
 			contexts = append(contexts, setup.Contexts...)
 			if len(taskActivations) == 0 {
+				if setup.Effect == "mixed" || setup.Effect == "unknown" {
+					browser, server := knownEffectEnvironments(setup.EffectSources)
+					renderBrowserRequirements = renderBrowserRequirements || browser
+					renderServerRequirements = renderServerRequirements || server
+				}
 				switch setup.Effect {
 				case "browser":
 					summaryClientEffect = true
@@ -85,6 +93,7 @@ func analyzeComponents(
 							effectSourcePath(setup.EffectSources)+")",
 					)
 				case "unknown":
+					renderUnknown = true
 					knownBrowser, knownServer := knownEffectEnvironments(setup.EffectSources)
 					switch {
 					case knownBrowser && knownServer:
@@ -194,6 +203,11 @@ func analyzeComponents(
 				!isStaticPropertyName(node) {
 				name := node.Text()
 				symbol := typeChecker.GetSymbolAtLocation(node)
+				// Rendering retains server-global requirements independently of the
+				// legacy coordination walk and any extracted setup summary.
+				if _, server := serverGlobals[name]; server && symbolIsOutsideSource(symbol, sourceFile) {
+					renderServerRequirements = true
+				}
 				if _, browser := browserGlobals[name]; browser &&
 					symbolIsOutsideSource(symbol, sourceFile) {
 					clientEffects = true
@@ -220,6 +234,13 @@ func analyzeComponents(
 					}
 				}
 				if exists {
+					if target.Effect == "mixed" || target.Effect == "unknown" {
+						// A mixed label cannot replace the known requirements carried
+						// by this ordinary Call's applicable effect sources.
+						browser, server := knownEffectEnvironments(target.EffectSources)
+						renderBrowserRequirements = renderBrowserRequirements || browser
+						renderServerRequirements = renderServerRequirements || server
+					}
 					switch target.Effect {
 					case "browser":
 						// An effect-only setup call can be omitted while the server emits
@@ -241,6 +262,7 @@ func analyzeComponents(
 					case "mixed":
 						indivisible = target.Effect
 					case "unknown":
+						renderUnknown = true
 						knownBrowser, knownServer := knownEffectEnvironments(target.EffectSources)
 						switch {
 						case knownBrowser && knownServer:
@@ -262,6 +284,20 @@ func analyzeComponents(
 							}
 						}
 					}
+				} else {
+					// Declaration-owned platform and framework operations can publish
+					// environment facts without an authored target in this call graph.
+					// Reuse their existing classifier instead of inventing uncertainty.
+					// Independent accessor/argument effects remain in their own facts.
+					switch unresolvedCallEnvironment(call.Expression, sourceFile, typeChecker, nil) {
+					case "server":
+						renderServerRequirements = true
+					case "browser":
+						renderBrowserRequirements = renderBrowserRequirements || setupCallConsumesSynchronousResult(node)
+					case "", "neutral":
+					default:
+						renderUnknown = true
+					}
 				}
 			}
 			return true
@@ -272,6 +308,28 @@ func analyzeComponents(
 		if summaryClientEffect && !clientEffects && !clientTaskEffects {
 			clientEffects = true
 		}
+
+		// Capture render requirements before distributed task placement contributes to
+		// the legacy coordination label. New capability grants no runtime authority.
+		renderUnknown = renderUnknown || indivisible != "" || componentRenderProofIncomplete(
+			*component, candidate.node, callables, tasks, clientLifecycleSpans,
+			dormantCallableSpans, ownedElements,
+		)
+		renderBrowser, renderServer := clientEffects || renderBrowserRequirements, serverEffects || renderServerRequirements
+		for _, task := range tasks {
+			if task.Component != component.Name || task.Start < component.Start ||
+				task.Start+task.Length > component.Start+component.Length ||
+				!componentRenderInputTask(task) {
+				continue
+			}
+			// Normalization moved these required setup inputs out of the direct walk.
+			// Restore all environment requirements and uncertainty, independently of
+			// task placement. An authored deferred task body supplies none of these facts.
+			renderBrowser = renderBrowser || task.BrowserEffects || containsEnvironment(task.EffectSources, "browser")
+			renderServer = renderServer || task.ServerEffects || containsEnvironment(task.EffectSources, "server")
+			renderUnknown = renderUnknown || task.EnvironmentEffect == "unknown" || containsEnvironment(task.EffectSources, "unknown")
+		}
+		component.RenderCapability = componentRenderCapability(renderBrowser, renderServer, renderUnknown)
 
 		for _, task := range tasks {
 			if task.Component != component.Name ||

@@ -26,6 +26,38 @@ visible instead of silently changing compiler semantics.
 
 Native property validation reserves `data-exact-id` for compiler-generated physical element identity. This reservation also applies to native `_` and `_target` host contributions. Explicit attributes and statically known spread properties receive an error with a custom-attribute remedy. Validation includes members proved by the existing finite spread syntax facts, even when a type assertion hides them from the apparent type. Opaque spreads remain valid. Their normal evaluation and getter effects complete once before the compiler installs physical-address metadata under an internal shared symbol. This construction does not validate arbitrary runtime receipts or change replay authorization. Physical metadata is installed last. Native renderers ignore reserved ASCII-case-equivalent string keys and serialize the physical address once. Structural contributions neither supply nor override the selected host address, including during target composition. This metadata is not operation authority.
 
+## Component rendering facts
+
+Component analysis exposes `renderCapability` separately from operation placement:
+
+```ts
+renderCapability: {
+	server: 'supported' | 'unsupported' | 'unknown';
+	client: 'supported' | 'unsupported' | 'unknown';
+}
+```
+
+Each entry describes the component's render path, including required setup data. A known
+incompatible requirement is unsupported. Missing proof is unknown, even when the other target
+is supported. Both supported entries mean isomorphic rendering. Task placement and its existing
+defaults remain independent. Client event and mount callbacks can belong to a component with a
+server render path without executing during server rendering.
+
+The first proof covers compiler-recognized returned render functions with intrinsic JSX and
+covered setup/render effects. Child composition and missing effect coverage remain unknown.
+Neutral callable effects alone do not establish rendering support. Module initialization,
+retained imports and selected export availability must separately be legal for the artifact.
+Neither this field nor paired artifact availability grants publication, hydration, resumption
+or transport authority. Existing capture, secret, serialization and lifecycle checks still apply.
+
+The field passes through native analysis, the SDK component IR and retained component-build facts.
+Protocol-1 readers treat a missing field in older artifacts as unknown on both targets. A present
+record must have exactly server and client entries with valid statuses. Component-only facts are
+retained even without import or enhancement edges. Older readers can ignore the additive field,
+so capability cannot be used as a new authorization requirement without a protocol review.
+The existing component placement label continues to describe coordination for its current
+consumers during this incremental separation.
+
 ## No-emit language sessions
 
 `createExactLanguageService()` owns a persistent editor-oriented project in the

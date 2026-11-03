@@ -9,7 +9,12 @@ export function retainArtifactComponentFacts(
 	rewrite?: ModuleRewriteOptions
 ): TransformResult {
 	const facts = result.componentBuild;
-	if (!facts.componentImports.length && !facts.rendererEnhancements.length) return result;
+	if (
+		!facts.components.length &&
+		!facts.componentImports.length &&
+		!facts.rendererEnhancements.length
+	)
+		return result;
 	const componentImports = facts.componentImports.map((edge) => {
 		const replacement = rewrite?.replacements?.find(
 			(value) =>
@@ -62,7 +67,8 @@ export function readExactArtifactComponentFacts(
 				text(value.id) &&
 				typeof value.placement === 'string' &&
 				['client', 'server', 'isomorphic', 'unknown'].includes(value.placement) &&
-				targets(value.artifactTargets)
+				targets(value.artifactTargets) &&
+				(value.renderCapability === undefined || renderCapability(value.renderCapability))
 		) ||
 		!facts.componentImports.every(
 			(value: unknown) =>
@@ -84,7 +90,15 @@ export function readExactArtifactComponentFacts(
 		)
 	)
 		throw new TypeError('Invalid artifact component build facts');
-	return { ...(facts as Omit<ExactComponentBuildFacts, 'filename'>), filename };
+	const validated = facts as Omit<ExactComponentBuildFacts, 'filename'>;
+	return {
+		...validated,
+		filename,
+		components: validated.components.map((component) => ({
+			...component,
+			renderCapability: component.renderCapability ?? { server: 'unknown', client: 'unknown' }
+		}))
+	};
 }
 
 function record(value: unknown): value is Record<string, unknown> {
@@ -98,5 +112,20 @@ function targets(value: unknown): boolean {
 		Array.isArray(value) &&
 		value.every((target) => target === 'client' || target === 'server') &&
 		new Set(value).size === value.length
+	);
+}
+
+/** Accepts only complete capability records. Extra keys cannot carry unchecked authority. */
+function renderCapability(value: unknown): boolean {
+	const statuses = ['supported', 'unsupported', 'unknown'];
+	return (
+		record(value) &&
+		Object.keys(value).length === 2 &&
+		Object.hasOwn(value, 'server') &&
+		Object.hasOwn(value, 'client') &&
+		typeof value.server === 'string' &&
+		statuses.includes(value.server) &&
+		typeof value.client === 'string' &&
+		statuses.includes(value.client)
 	);
 }
