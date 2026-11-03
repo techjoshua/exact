@@ -1,3 +1,4 @@
+import { verifySelectedModulePartition } from '../../test-support/selected-module-partition.js';
 import { it } from 'vitest';
 import { verifyReassignedCallableModules } from '../../test-support/reassigned-callable-contract.js';
 import {
@@ -20,5 +21,11 @@ it(
 it(
 	'preserves projected module writes in both artifacts',
 	() => verifyProjectedModuleWrites('vite'),
+	60000
+);
+
+it(
+	'validates selected module initialization before partitioning',
+	() => verifySelectedModulePartition('vite'),
 	60000
 );

@@ -968,6 +968,18 @@ snapshot do not acquire runtime bodies from package declarations.
 Native span indexes also retain physical source identity, so equal offsets in another root cannot
 establish local execution.
 
+Target validation checks the definition requirements of values used by an eager initializer
+alongside its invocation effects. A selected helper that captures a server-created module value
+and reads the browser when called cannot leave a retained client caller importing an export
+removed by server-only declaration projection. The same check follows selected re-exports and
+eager imported value dependencies. A scalar exported property value remains a source binding
+when callable-alias discovery has no result. That binding supplies definition requirements,
+without becoming a callable implementation. Independent declarations retain ordinary target
+projection, and dormant opposite-target function bodies do not execute during module loading.
+Opaque calls and side-effect imports keep their existing uncertainty and host ownership rules.
+Invocation summaries and definition availability remain separate facts. Validation combines
+their known environment requirements without deriving safety from the selected target.
+
 The native session follows those slots before flattening aliases, including selected re-exports.
 For finite bindings resolved by this owner, selected callable bodies feed the existing local
 collectors and callable fixed point before task, policy and continuation construction. Export availability and module pruning share a separate

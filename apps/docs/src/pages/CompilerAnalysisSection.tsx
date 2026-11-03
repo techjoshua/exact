@@ -63,6 +63,14 @@ export function CompilerAnalysisSection(this: Component<{}>) {
 				retain unknown effects.
 			</p>
 			<p>
+				An imported helper may capture a value created when its module loads. Calling that helper
+				requires both the captured value and the work in its body to be available. A server-created
+				value captured by a browser-reading helper prevents that eager call from being emitted for
+				either target. Independent declarations can still be assigned to their own target, and a
+				dormant function keeps its body deferred. Package export conditions select an
+				implementation. The selected implementation still has its own environment requirements.
+			</p>
+			<p>
 				For a small helper with no captured values, the compiler can connect a conditional field
 				read to the arguments of that particular call. In this example the false branch returns zero
 				without reading <code>input.value</code>.

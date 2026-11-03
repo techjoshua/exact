@@ -13,6 +13,7 @@ const execute = promisify(execFile);
  * Builds one diagnostic fixture and releases its compiler resources.
  * Explicit owned modules opt those paths into compiler processing through the public include option.
  * Omission preserves each adapter's ordinary source-ownership discovery.
+ * Bundled packages disable Vite SSR externalization for nominated-source fixtures.
  */
 export async function buildDiagnosticFixture(
 	adapter: 'vite' | 'webpack' | 'bun',
@@ -22,7 +23,8 @@ export async function buildDiagnosticFixture(
 	exposeExports = false,
 	useHostRoot: boolean | 'override' = false,
 	testPackageRoot?: string,
-	ownedModule?: string | readonly string[]
+	ownedModule?: string | readonly string[],
+	bundledPackages?: readonly string[]
 ) {
 	const testRequire = testPackageRoot
 		? createRequire(path.join(testPackageRoot, 'package.json'))
@@ -53,7 +55,7 @@ export async function buildDiagnosticFixture(
 import {exact} from ${JSON.stringify(pathToFileURL(testRequire.resolve('@exactjs/vite-plugin')).href)};
 import {writeFile} from 'node:fs/promises';
 const warnings=[],diagnostics=[];
-await build({root:${JSON.stringify(hostRoot)},configFile:false,logLevel:'silent',plugins:[exact(${JSON.stringify(options)})],build:{outDir:${JSON.stringify(outdir)},ssr:${JSON.stringify(target === 'server' ? path.join(root, 'entry.tsx') : false)},lib:{entry:${JSON.stringify(path.join(root, 'entry.tsx'))},formats:['es'],fileName:'entry'},minify:false,rollupOptions:{onwarn:warning=>{warnings.push(warning.message);diagnostics.push({message:warning.message,code:warning.code,plugin:warning.plugin})}}}});
+await build({root:${JSON.stringify(hostRoot)},configFile:false,logLevel:'silent',ssr:{noExternal:${JSON.stringify(bundledPackages ?? [])}},plugins:[exact(${JSON.stringify(options)})],build:{outDir:${JSON.stringify(outdir)},ssr:${JSON.stringify(target === 'server' ? path.join(root, 'entry.tsx') : false)},lib:{entry:${JSON.stringify(path.join(root, 'entry.tsx'))},formats:['es'],fileName:'entry'},minify:false,rollupOptions:{onwarn:warning=>{warnings.push(warning.message);diagnostics.push({message:warning.message,code:warning.code,plugin:warning.plugin})}}}});
 await writeFile(${JSON.stringify(receipt)},JSON.stringify(warnings));
 await writeFile(${JSON.stringify(diagnosticReceipt)},JSON.stringify(diagnostics));`
 			);
@@ -66,6 +68,7 @@ await writeFile(${JSON.stringify(diagnosticReceipt)},JSON.stringify(diagnostics)
 			root: hostRoot,
 			configFile: false,
 			logLevel: 'silent',
+			ssr: { noExternal: bundledPackages ? [...bundledPackages] : undefined },
 			plugins: [exact(options)],
 			build: {
 				outDir: outdir,
