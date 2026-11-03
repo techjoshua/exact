@@ -20,6 +20,7 @@ func pruneArtifactStatements(
 		return sourceFile
 	}
 	omittedStarts := make(map[int]struct{})
+	omittedInitializers := make(map[int]struct{})
 	for _, fact := range callables.facts {
 		// Facts span the whole program, but positions identify nodes only within one file.
 		// The emitted source is a transformed tree, so compare its retained filename.
@@ -36,7 +37,12 @@ func pruneArtifactStatements(
 			continue
 		}
 		if len(fact.summary.ArtifactTargets) != 0 {
-			omittedStarts[fact.node.Pos()] = struct{}{}
+			if ast.IsVariableDeclaration(fact.node) {
+				// This fact owns one declarator, not its statement siblings.
+				omittedInitializers[fact.node.Pos()] = struct{}{}
+			} else {
+				omittedStarts[fact.node.Pos()] = struct{}{}
+			}
 		}
 	}
 	omittedNames := make(map[string]struct{})
@@ -48,7 +54,7 @@ func pruneArtifactStatements(
 		}
 		omittedNames[exported.Name] = struct{}{}
 	}
-	if len(omittedStarts) == 0 && len(omittedNames) == 0 && len(omittedModuleValues.bindings) == 0 && len(omittedModuleValues.statements) == 0 {
+	if len(omittedStarts) == 0 && len(omittedInitializers) == 0 && len(omittedNames) == 0 && len(omittedModuleValues.bindings) == 0 && len(omittedModuleValues.statements) == 0 {
 		return sourceFile
 	}
 
@@ -74,7 +80,7 @@ func pruneArtifactStatements(
 				continue
 			}
 		}
-		updated, keep := pruneOppositeExportedValues(statement, factory, omittedNames, omittedBindings)
+		updated, keep := pruneOppositeExportedValues(statement, factory, omittedNames, omittedBindings, omittedInitializers)
 		if !keep {
 			changed = true
 			continue
@@ -110,6 +116,7 @@ func pruneOppositeExportedValues(
 	factory *printer.NodeFactory,
 	omittedNames map[string]struct{},
 	omittedBindings map[string]struct{},
+	omittedInitializers map[int]struct{},
 ) (*ast.Node, bool) {
 	if ast.IsFunctionDeclaration(statement) || ast.IsClassDeclaration(statement) {
 		if statement.Name() != nil {
@@ -130,6 +137,9 @@ func pruneOppositeExportedValues(
 		list := variable.DeclarationList.AsVariableDeclarationList()
 		declarations := make([]*ast.Node, 0, len(list.Declarations.Nodes))
 		for _, declaration := range list.Declarations.Nodes {
+			if _, omitted := omittedInitializers[declaration.Pos()]; omitted {
+				continue
+			}
 			names := componentBindingNames(declaration.Name())
 			omit := len(names) != 0
 			for _, name := range names {

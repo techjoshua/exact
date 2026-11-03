@@ -289,6 +289,12 @@ func (owner *executableBodyOwner) symbol(symbol *ast.Symbol, seen map[ast.Symbol
 			if initializer != nil && (ast.IsIdentifier(initializer) || ast.IsPropertyAccessExpression(initializer) || ast.IsElementAccessExpression(initializer)) {
 				// Effect selection follows existing finite aliases. This is not immutable-call rewrite proof.
 				selected, owned := owner.expressionSymbol(initializer, seen)
+				// An ordinary property value is still this module's exported binding.
+				// Failure to prove a callable alias must not erase its definition and
+				// captured initialization requirements from downstream partitioning.
+				if selected == nil && !owned {
+					return symbol, false
+				}
 				source := ast.GetSourceFileOfNode(declaration)
 				if owned && (declaration.Parent == nil || declaration.Parent.Flags&ast.NodeFlagsConst == 0 || componentValueSymbolIsWrittenAfter(symbol, declaration.End(), source, owner.checker)) {
 					return nil, true

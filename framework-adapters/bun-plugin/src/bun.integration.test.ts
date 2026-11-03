@@ -630,4 +630,14 @@ describeBun('project source isolation', () => {
 		},
 		60000
 	);
+	testApi.it(
+		'validates selected module initialization before partitioning',
+		async () => {
+			const { verifySelectedModulePartition } = await import(
+				'../../test-support/selected-module-partition.js'
+			);
+			await verifySelectedModulePartition('bun');
+		},
+		90000
+	);
 });

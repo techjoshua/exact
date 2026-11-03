@@ -183,12 +183,15 @@ func collectCallableEffects(
 			callExpressions:   make(map[string]*ast.Node),
 			contextReferences: make(map[string]*ast.Node),
 		})
-		if symbol := callableDeclarationSymbol(node, typeChecker); symbol != nil && !ast.IsGetAccessorDeclaration(node) && !ast.IsSetAccessorDeclaration(node) {
-			symbolTargets[ast.GetSymbolId(symbol)] = index
-		}
-		if binding := sourceCallableBinding(node); binding != nil {
-			if symbol := typeChecker.GetSymbolAtLocation(binding.Name()); symbol != nil {
+		// A declarator evaluation is not the callable stored in its binding.
+		if kind != "module-initializer" {
+			if symbol := callableDeclarationSymbol(node, typeChecker); symbol != nil && !ast.IsGetAccessorDeclaration(node) && !ast.IsSetAccessorDeclaration(node) {
 				symbolTargets[ast.GetSymbolId(symbol)] = index
+			}
+			if binding := sourceCallableBinding(node); binding != nil {
+				if symbol := typeChecker.GetSymbolAtLocation(binding.Name()); symbol != nil {
+					symbolTargets[ast.GetSymbolId(symbol)] = index
+				}
 			}
 		}
 	}
@@ -774,6 +777,22 @@ func collectCallableNodes(sourceFile *ast.SourceFile) []*ast.Node {
 	var result []*ast.Node
 	for _, statement := range sourceFile.Statements.Nodes {
 		if runtimeModuleEvaluation(statement) {
+			if ast.IsVariableStatement(statement) {
+				list := statement.AsVariableStatement().DeclarationList.AsVariableDeclarationList()
+				declarations := list.Declarations.Nodes
+				// Resource lists retain their enclosing traversal owner. The existing
+				// list visitor publishes implicit disposal after acquisition.
+				if len(declarations) > 1 && list.Flags&ast.NodeFlagsUsing == 0 {
+					// Partitionable declarations must not share one effect summary.
+					// Single-declaration statements retain their existing refinement owner.
+					for _, declaration := range declarations {
+						if runtimeModuleEvaluation(declaration) {
+							result = append(result, declaration)
+						}
+					}
+					continue
+				}
+			}
 			result = append(result, statement)
 		}
 	}

@@ -852,8 +852,20 @@ func moduleInitializerDiagnostics(
 		if callable.Kind != "module-initializer" {
 			continue
 		}
+		// Invocation effects do not include a captured binding's earlier module
+		// initialization. Partitioning must also retain the definition requirements
+		// of the values this initializer uses, without executing dormant bodies.
+		sources := append([]EnvironmentEffectSource(nil), callable.EffectSources...)
+		definition := newModuleDefinitionAnalysis(callables.owner.checker, callables.owner)
+		definition.expression(fact.node, false)
+		if definition.browser {
+			sources = append(sources, environmentSource("browser", "required module definition", callable.Name))
+		}
+		if definition.server {
+			sources = append(sources, environmentSource("server", "required module definition", callable.Name))
+		}
 		message := ""
-		switch callable.Effect {
+		switch environmentEffectFor(sources) {
 		case "mixed":
 			message = "executable module initializer has indivisible browser and server effects"
 		case "unknown":
@@ -872,7 +884,7 @@ func moduleInitializerDiagnostics(
 			diagnostics = append(diagnostics, Diagnostic{
 				Severity: "error",
 				Code:     "EXACT2101",
-				Message:  "error: " + message + placementDiagnosticContext(callable.EffectSources),
+				Message:  "error: " + message + placementDiagnosticContext(sources),
 				Start:    fact.node.Pos(),
 				Length:   fact.node.End() - fact.node.Pos(),
 			})
