@@ -1929,6 +1929,14 @@ issuing normal output or a correlated receiver for an uncorrelated read. Unknown
 remain even when a successful return is known. A foreign effect or unused input cannot
 activate a caller default that the getter's known successful return bypasses.
 
+Plain source assignments pass their original RHS alternatives and caller captures to an
+already selected authored setter. The existing input binder installs the receiver as `this`
+and resolves the setter parameter before consuming body demands. Unknown RHS alternatives
+remain beside known inputs. This conditional source relationship supplies no performed Set,
+normal output, unique setter or descriptor proof. Compound, update, reflective and foreign
+write protocols retain their existing residual analysis. A later lexical read of a value
+assigned inside the setter still requires its own writer relationship.
+
 Active source-body reentry compares finite relationships between source endpoints, formal
 positions, captures, creating sites and member edges. New relationships may reach the existing
 summary consumer. Repeated or saturated contexts retain uncertainty and previously discovered

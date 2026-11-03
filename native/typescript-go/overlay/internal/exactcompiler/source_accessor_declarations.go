@@ -886,7 +886,7 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 							}
 						} else {
 							result.retainCallableEffect(selectedGet.operation, member)
-							if !query.consumeSourceSetter(member, actualReceiver, arguments, &result) {
+							if !query.consumeSourceSetter(member, selectedGet.operation, actualReceiver, arguments, &result) {
 								query.execute(member, arguments, &result, nil)
 							}
 						}

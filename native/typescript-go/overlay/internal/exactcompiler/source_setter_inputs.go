@@ -34,7 +34,7 @@ func (q *sourceValueQuery) sourceSetterRequest(target *ast.Node, mode accessorTr
 // consuming source demands. RHS provenance uses the original caller's mapping
 // and source phase. It never looks up the receiver or selects a setter again.
 // Missing RHS alternatives stay unknown alongside every represented alternative.
-func (q *sourceValueQuery) consumeSourceSetter(body *ast.Node, receiver sourceValue, captures sourceValueBindings, result *accessorCandidates) bool {
+func (q *sourceValueQuery) consumeSourceSetter(body, effectOperation *ast.Node, receiver sourceValue, captures sourceValueBindings, result *accessorCandidates) bool {
 	request := q.setterInput
 	if !q.dependenciesOnly || request == nil || request.target != q.protectedMember || !ast.IsSetAccessorDeclaration(body) {
 		return false
@@ -42,17 +42,20 @@ func (q *sourceValueQuery) consumeSourceSetter(body *ast.Node, receiver sourceVa
 	// A nested Get during RHS acquisition cannot consume this assignment's input.
 	q.setterInput = nil
 	defer func() { q.setterInput = request }()
-	previousCreators := q.creators
-	q.creators = request.caller.creators
 	part := accessorCandidates{}
-	values := q.originsAt(request.right, request.right, request.caller.bindings, &part)
+	var values []sourceValue
+	func() {
+		previousCreators := q.creators
+		q.creators = request.caller.creators
+		defer func() { q.creators = previousCreators }()
+		values = q.originsAt(request.right, request.right, request.caller.bindings, &part)
+	}()
 	for i := range values {
 		if values[i].capture == nil {
 			scope := request.caller
 			values[i].capture = &scope
 		}
 	}
-	q.creators = previousCreators
 	incomplete := part.opaque || part.valueIncomplete || part.receiverIncomplete || len(values) == 0
 	mergeAccessorCandidates(result, part)
 	if incomplete {
@@ -69,6 +72,6 @@ func (q *sourceValueQuery) consumeSourceSetter(body *ast.Node, receiver sourceVa
 		}
 		q.installParameterInput(parameter, values, inputs, result)
 	}
-	q.consumeSourceBodyEffects(request.operation, body, inputs.bindings, inputs, nil, result)
+	q.consumeSourceBodyEffects(effectOperation, body, inputs.bindings, inputs, nil, result)
 	return true
 }
