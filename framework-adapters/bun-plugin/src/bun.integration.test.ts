@@ -599,6 +599,17 @@ registerCompilerClosedSsrIntegration(describeBun, testApi);
 
 describeBun('project source isolation', () => {
 	testApi.it(
+		'preserves reassigned callable requirements in both artifacts',
+		async () => {
+			const { verifyReassignedCallableModules } = await import(
+				'../../test-support/reassigned-callable-contract.js'
+			);
+			await verifyReassignedCallableModules('bun');
+		},
+		60000
+	);
+
+	testApi.it(
 		'preserves projected module writes in both artifacts',
 		async () => {
 			const { verifyProjectedModuleWrites } = await import(
