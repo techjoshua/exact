@@ -6,7 +6,7 @@ import (
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
 )
 
-// Source receiver permission cannot survive copying, normal entry, a nested
+// Source receiver mapping cannot survive copying, normal entry, a nested
 // input owner, or revocation. A panic restores exactly the prior inputs/stamp.
 func TestSourceReceiverInputBorrow(t *testing.T) {
 	operation, body := &ast.Node{}, &ast.Node{}
@@ -16,7 +16,7 @@ func TestSourceReceiverInputBorrow(t *testing.T) {
 	result := accessorCandidates{}
 	var borrowed *sourceReceiverInputs
 	query.withSourceReceiverInputs(operation, body, inputs, &result, func() {
-		borrowed = inputs.sourceReceiver
+		borrowed = query.sourceReceiver
 		if !query.sourceReceiverInputsLive(inputs, body) {
 			t.Fatal("original source borrow refused")
 		}
@@ -25,17 +25,18 @@ func TestSourceReceiverInputBorrow(t *testing.T) {
 			t.Fatal("copied or foreign owner inherited source borrow")
 		}
 		copyStamp := *borrowed
-		inputs.sourceReceiver = &copyStamp
+		query.sourceReceiver = &copyStamp
 		if query.sourceReceiverInputsLive(inputs, body) {
 			t.Fatal("copied stamp inherited original issuance")
 		}
-		inputs.sourceReceiver = borrowed
+		query.sourceReceiver = borrowed
 		query.dependenciesOnly = false
 		if query.sourceReceiverInputsLive(inputs, body) {
 			t.Fatal("normal query inherited source borrow")
 		}
 		query.dependenciesOnly = true
 		nested := &sourceValueInputs{declaration: body}
+		var nestedStamp *sourceReceiverInputs
 		func() {
 			defer func() {
 				if recover() == nil {
@@ -43,17 +44,18 @@ func TestSourceReceiverInputBorrow(t *testing.T) {
 				}
 			}()
 			query.withSourceReceiverInputs(operation, body, nested, &result, func() {
+				nestedStamp = query.sourceReceiver
 				if query.sourceReceiverInputsLive(inputs, body) || !query.sourceReceiverInputsLive(nested, body) {
 					t.Fatal("nested input ownership confused")
 				}
 				panic("owned exit")
 			})
 		}()
-		if nested.sourceReceiver != nil || !query.sourceReceiverInputsLive(inputs, body) {
+		if query.sourceReceiver != borrowed || nestedStamp == nil || nestedStamp.live || !query.sourceReceiverInputsLive(inputs, body) {
 			t.Fatal("panic failed to restore outer borrow")
 		}
 	})
-	if result.opaque || query.inputs != prior || inputs.sourceReceiver != nil || borrowed == nil || borrowed.live || borrowed.owner != nil || query.sourceReceiverInputsLive(inputs, body) {
+	if result.opaque || query.inputs != prior || query.sourceReceiver != nil || borrowed == nil || borrowed.live || borrowed.owner != nil || query.sourceReceiverInputsLive(inputs, body) {
 		t.Fatal("source borrow survived its issuer")
 	}
 }

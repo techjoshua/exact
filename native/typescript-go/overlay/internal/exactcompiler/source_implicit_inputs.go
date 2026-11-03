@@ -4,8 +4,8 @@ import "github.com/microsoft/TypeScript/tsc/internal/ast"
 
 // sourceReceiverInputs is a synchronous borrow issued by a selected source
 // operation's input owner. Operation syntax is descriptive data, not activation
-// identity. The exact issuer and input pointers prevent copies from inheriting
-// permission. Revocation runs on ordinary, nested and panic exits.
+// identity. The exact issuer and input pointers prevent copied queries or inputs
+// from inheriting the association. Revocation runs on nested and panic exits.
 // This permits receiver write mapping only, never normal or descriptor proof.
 type sourceReceiverInputs struct {
 	owner           *sourceValueQuery
@@ -19,7 +19,7 @@ func (query *sourceValueQuery) sourceReceiverInputsLive(inputs *sourceValueInput
 	if !query.dependenciesOnly || inputs == nil || query.inputs != inputs || inputs.declaration != body {
 		return false
 	}
-	stamp := inputs.sourceReceiver
+	stamp := query.sourceReceiver
 	return stamp != nil && stamp.issuer == stamp && stamp.live && stamp.owner == query && stamp.inputs == inputs && stamp.body == body && stamp.operation != nil
 }
 
@@ -31,13 +31,13 @@ func (query *sourceValueQuery) withSourceReceiverInputs(operation, body *ast.Nod
 		result.opaque = true
 		return
 	}
-	priorInputs, priorStamp := query.inputs, inputs.sourceReceiver
+	priorInputs, priorStamp := query.inputs, query.sourceReceiver
 	stamp := sourceReceiverInputs{owner: query, inputs: inputs, body: body, operation: operation, live: true}
 	stamp.issuer = &stamp
-	query.inputs, inputs.sourceReceiver = inputs, &stamp
+	query.inputs, query.sourceReceiver = inputs, &stamp
 	defer func() {
 		stamp = sourceReceiverInputs{}
-		inputs.sourceReceiver = priorStamp
+		query.sourceReceiver = priorStamp
 		query.inputs = priorInputs
 	}()
 	consume()
