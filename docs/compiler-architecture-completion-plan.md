@@ -440,16 +440,48 @@ Recognize local shadowing and relevant authored replacements. If the selected re
 
 Apply stronger current-reference, descriptor or mutation proof only when a particular optimization or framework boundary requires it, such as eliding a Get, selecting one replacement method or asserting absence of a callback. Do not make proof of the entire platform or globally pristine prototypes a general condition of transpilation. Changes to public host-integrity assumptions remain separate architecture decisions.
 
-The lookup contract must name the supported host/builtin model, bound reference or receiver relationship, member key when applicable, and acquisition point. Its dependencies include relevant authored writes through aliases, reachable prototype writes, imported changes and foreign escapes that can affect that lookup. Reuse the mutation and standard-entry owners described in `docs/native-compiler.md` rather than introducing a competing native-identity rule.
+#### Agreed standard built-in trust policy
 
-- Direct local shadowing selects the authored binding, not the builtin contract.
-- A definite replacement of `xs.map` or `Array.prototype.map` participates in a later lookup and selects or joins the authored behavior.
-- A foreign operation receiving an alias to `xs` can make a later method lookup uncertain. Invalidate the overlapping receiver/member facts, preserve known alternatives and apply section 5.7 to the use.
-- A method value acquired before a later property replacement remains that earlier acquired value. Looking up the method again is a fresh observation. Calling it still includes argument, callback and other effects required by its contract.
+Policy agreed by the user on 2026-11-03. Implementation and validation are pending. This policy applies to all standard built-in types, functions and properties under the selected target libraries, including conforming polyfills. It applies equally to applications and published libraries. The first implementation slice below is deliberately narrower than the policy.
 
-These are local lookup and dependency rules. They do not require scanning or proving an entire platform implementation. Precision about a specific acquired reference must not silently become an assumption that every ambient prototype is unchanged.
+An established standard operation uses its full specified semantics without proving that the engine or a conforming polyfill implements it correctly. Hypothetical monkey-patching or foreign corruption of standard entries is no longer a prerequisite to using that contract. This supersedes the earlier requirement in this section to invalidate standard identity merely because an alias escaped. It does not discard effects of foreign code or invalidate fewer ordinary authored object facts.
 
-This follows the existing `docs/native-compiler.md` contract: inference supports the target standard libraries, including conforming polyfills, without validating their implementation. Host globals retain their target requirements. System API contracts do not establish blanket purity, policy release, serialization or ownership authority.
+Recognition still needs a runtime origin or receiver relationship. Reuse binder-owned standard globals, existing standard-member declaration recognition and source value origins. A checker signature, annotation, assertion, familiar class name or method spelling alone cannot establish a runtime built-in operation. An unknown input typed `number[]` can have an authored `push`. Caller-supplied array facts remain conditional on that caller and input alternative, including through library summaries. Unsupported origin paths retain uncertainty rather than gaining trust from a type.
+
+Source-visible shadowing, explicit own-member replacements, relevant prototype assignments and custom implementations remain ordinary authored behavior. They select or join their actual alternatives at the original acquisition point. An established array subclass can inherit the standard operation, but an overriding method is authored behavior. Calling an explicitly acquired standard prototype method on a non-array uses that algorithm's generic receiver requirements, not an array identity inferred from the method name. A conforming polyfill supplies the standard contract without implementation inspection. An explicit source replacement does not acquire that status from its name or signature.
+
+Trust establishes the operation contract, not purity, NoWrites or successful completion. Preserve callback execution (`map`, `sort`), getters, Proxy traps, iteration, coercion, species and Symbol hooks, `Object.assign` source Gets and target Sets, and Promise thenable assimilation wherever the algorithm invokes them. Retain writes, Throw and independent state, secret and placement restrictions. A trusted operation can return arbitrary authored values. Those values acquire no native identity, descriptor, successful output or completion authority from their producer's trust. Existing normal and storage owners retain those decisions.
+
+Keep the original receiver evaluation, member Get, saved callable and `this`, then argument order. A saved method survives a later replacement, while a fresh Get observes the replacement. Trust does not authorize removing or repeating those operations.
+
+#### Proposed shared recognition seam for coordinator adjudication
+
+The smallest shared owner is the existing standard-entry/value acquisition path in `source_native_members.go`, with operation identity represented by `sourceNativeValue`. Reuse `standardLibraryValue`, `standardLibraryCallOwner` in `derived_builtin_operations.go` and `nativeReceiverMemberSymbol` for declaration recognition. These helpers supply candidates, not runtime receiver proof. Reuse source origins and current authored replacement selection for that proof. Do not introduce a name-based whitelist, independent interference engine or second algorithm summary system.
+
+Proposed internal interface, not implemented:
+
+```go
+func (query *sourceValueQuery) trustedBuiltinMember(
+    receiver sourceValue,
+    key string,
+    symbol *ast.Symbol,
+    acquired *ast.Node,
+) (sourceValue, bool)
+```
+
+The result is one existing `sourceValue` with `native` carrying its standard operation kind and original acquisition point. A true result establishes only that alternative's standard semantic contract. False means recognition is unavailable, not that the source operation is invalid. The caller retains other alternatives, binding/input conditions and acquisition effects. Extend the existing native kind representation only for operations actually integrated. Reuse `nativeMemberSeed` and `nativeMemberKey` as the selection entry points, keeping explicit replacement selection outside this candidate helper. The helper must not recursively prove global prototype integrity, create an executed Call receipt, manufacture a value result or clear independent uncertainty. Invocation continues through `planOrdinaryInvocation` and the existing source/native effect consumers. `acquireNativeInputs` retains its separate actual-input and normal-operation requirements.
+
+The coordinator must confirm the exact insertion point after tracing array origins through current member selection. If recognition cannot reach an established array without normal output proof, report that as a missing origin transfer. Do not substitute a type-only admission or widen normal authority. This is a proposed shared seam, not a claim that current recognition already supports all built-ins.
+
+#### First vertical slice and acceptance gates
+
+1. Trace a genuine local array literal and its stable alias into a direct `xs.push(value)` lookup. Add the standard member candidate through the shared recognition seam, preserving authored overrides and caller conditions. Reuse the existing effect/write summary ownership for the algorithm's indexed and length writes. Do not derive exact array contents or a successful numeric return merely from recognition.
+2. Let source callee discovery and receiver-write inspection consume that selected standard contract before seeking arbitrary authored `push` bodies. Remove only hypothetical standard-entry corruption prerequisites on this path. Preserve explicit replacement alternatives and algorithm effects. The failed unqualified interference draft remains comparison evidence and is not adopted or widened.
+3. Pair the genuine-array and stable-alias cases with a custom same-name object/class, an own `push` replacement, a source-visible prototype replacement, unknown and typed-only inputs, and a mixed caller alternative. Include inherited subclass behavior and an authored subclass override. Check saved-method versus fresh lookup order. Reuse existing provenance and invocation fixtures where possible.
+4. Verify mutation and abrupt behavior independently. Include an argument with visible effects, a throwing argument, a non-writable length or non-extensible array, and an inherited indexed setter. A generic explicit prototype call and Proxy receiver must retain their Gets, coercions, Sets and traps, or stay conservatively unresolved if outside this first slice. Do not demand exact completion to preserve these effects. Ordinary push stores its arguments without coercing them. Confirm that state writes and secret/placement restrictions survive trust.
+5. Run native analysis controls and paired emitted semantic checks, then the unchanged original nested source as the required integration gate. Preserve the earlier six-region comparison as scoped evidence. Earlier five-second stops prove neither termination nor nontermination. Do not weaken the nested source or report slice success as architecture completion. Complete the maintainability standard's related-defect, native condition audit and affected-environment acceptance before accepting a compiler fix.
+
+No builds, compiler requests or semantic acceptance runs were performed for this policy documentation. Public documentation remains unchanged because this records agreed internal direction with implementation pending. Update supported public limits when implementation and acceptance establish them.
 
 ## 6. Representative use cases and required outcomes
 
