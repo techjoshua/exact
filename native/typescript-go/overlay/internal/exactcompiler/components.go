@@ -567,7 +567,9 @@ func componentSignals(candidate componentCandidate, sourceFile *ast.SourceFile) 
 	}
 	// Setup-local ordinary helpers use the enclosing instance. Protocol access
 	// alone must not grant them a second durable component or render identity.
-	if componentCandidateIsModuleLevel(candidate) && containsComponentProtocolCall(candidate.node) {
+	if componentCandidateIsModuleLevel(candidate) &&
+		(componentReceiverAnnotation(candidate.node) == nil || hasComponentReceiver(candidate.node, sourceFile)) &&
+		containsComponentProtocolCall(candidate.node) {
 		signals["component-protocol"] = struct{}{}
 	}
 	result := make([]string, 0, len(signals))
@@ -594,20 +596,6 @@ func containsJSX(node *ast.Node) bool {
 		return true
 	})
 	return found
-}
-
-func hasComponentReceiver(node *ast.Node, sourceFile *ast.SourceFile) bool {
-	for _, parameter := range node.Parameters() {
-		name := parameter.Name()
-		typeNode := parameter.Type()
-		if name == nil || !ast.IsIdentifier(name) || name.Text() != "this" || typeNode == nil {
-			continue
-		}
-		if strings.Contains(sourceText(sourceFile, typeNode), "Component") {
-			return true
-		}
-	}
-	return false
 }
 
 func containsComponentProtocolCall(node *ast.Node) bool {

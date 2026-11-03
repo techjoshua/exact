@@ -35,6 +35,11 @@ export function CompilerAnalysisSection(this: Component<{}>) {
 				while preserving the JavaScript.
 			</p>
 			<p>
+				Ordinary function receiver annotations retain their TypeScript meaning. When an annotation
+				refers to the core <code>Component</code> contract, the compiler follows its declaration
+				identity through renamed imports and type aliases.
+			</p>
+			<p>
 				Before rewriting an expression, the compiler captures its authored type constraints and
 				evaluation requirements. Checking and executable lowering retain those constraints while
 				preserving receiver selection, short-circuiting, suspension, and expression results.

@@ -212,9 +212,13 @@ Indexed prop and state lowering must retain the ordinary member-access lane for 
 Calls and template tags, including erased wrappers. Numeric slot reads produce values and cannot
 replace JavaScript References in those positions. Saved callable values remain detached. The
 paired artifact witness checks actual receiver, argument and capture behavior independently of
-the analysis projection. Type-spelling-dependent component receiver recognition remains
-outside this vertical. The `namedSpellingBrowser` control preserves that source and is not
-passing evidence for ordinary-callable delivery.
+the analysis projection. Receiver recognition uses TypeScript binder scopes and the core
+`Component` import declaration, including renamed imports, namespace imports and local type
+aliases. Ordinary interfaces, structural receivers and shadowing type parameters supply no
+component identity. An explicitly ordinary receiver cannot regain identity through a protocol
+method's spelling. The unchanged `namedSpellingBrowser` source is an ordinary-callable control.
+Optional/computed callee access, aliases of invoked props and call/apply forwarding remain
+outside this direct-call producer.
 
 Broader composition acceptance still requires paired ordinary-call/transport and dormant-body
 creation/invocation controls, target-dependent invoked formals, legal retained projection versus
