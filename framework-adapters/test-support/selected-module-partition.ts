@@ -12,6 +12,10 @@ import {
 const execute = promisify(execFile);
 const workspace = fileURLToPath(new URL('../../', import.meta.url));
 
+/** One coordinated definition shared by SDK and adapter paired-artifact checks. */
+export const selectedModuleCoordinatedSource =
+	"import {TaskContext,type Component} from '@exactjs/core';import {browserValue,serverValue} from 'selected-donor';export const client=browserValue,server=serverValue;export function View(this:Component<{value:string}>){this.state.value='ready';async function load(task:TaskContext=TaskContext.server()){return server;}return()=> <button onClick={async()=>{this.state.value=client+await load();}}>{this.state.value}</button>;}";
+
 /** Qualifies captured initialization using one package and each adapter's actual build hooks. */
 export async function verifySelectedModulePartition(adapter: 'vite' | 'webpack' | 'bun') {
 	await mkdir(path.join(workspace, '.tmp'), { recursive: true });
@@ -35,11 +39,13 @@ export async function verifySelectedModulePartition(adapter: 'vite' | 'webpack' 
 				JSON.stringify({
 					compilerOptions: {
 						target: 'ES2022',
+						jsx: 'preserve',
+						jsxImportSource: '@exactjs/jsx',
 						module: 'ESNext',
 						moduleResolution: 'Bundler',
 						strict: true,
 						types: [],
-						lib: ['ES2022', 'DOM'],
+						lib: ['ES2022', 'DOM', 'ESNext.Disposable'],
 						noEmit: true
 					},
 					files: ['entry.tsx']
@@ -120,6 +126,48 @@ export async function verifySelectedModulePartition(adapter: 'vite' | 'webpack' 
 				);
 				assert.equal(result.stdout.trim(), 'selected module linked');
 			}
+		}
+		// Both imports are legitimate inputs to the paired component. Each artifact
+		// retains its own scalar declaration and the compiler's coordinated View.
+		await writeFile(entry, selectedModuleCoordinatedSource);
+		await writeFile(
+			path.join(directory, 'index.d.ts'),
+			'export declare const browserValue:string,serverValue:string;'
+		);
+		for (const file of ['browser.js', 'node.js'])
+			await writeFile(
+				path.join(directory, file),
+				'export const browserValue=document.title;export const serverValue=process.version;'
+			);
+		for (const target of ['client', 'server'] as const) {
+			const warnings = await buildDiagnosticFixture(
+				adapter,
+				root,
+				target,
+				false,
+				true,
+				false,
+				undefined,
+				owned,
+				['selected-donor']
+			);
+			await assertDiagnosticBuildWarnings(adapter, root, target, warnings);
+			const output = path.join(
+				root,
+				`out-${target}`,
+				adapter === 'webpack' ? 'entry.cjs' : 'entry.js'
+			);
+			const verifier = path.join(root, 'verify.mjs');
+			await writeFile(
+				verifier,
+				`import assert from 'node:assert/strict';globalThis.document={title:'browser'};const imported=await import(${JSON.stringify(pathToFileURL(output).href)});const result=imported.default??imported;assert.equal(typeof result.View,'function');assert.equal(result[${JSON.stringify(target === 'client' ? 'client' : 'server')}],${target === 'client' ? "'browser'" : 'process.version'});assert.equal(Object.hasOwn(result,${JSON.stringify(target === 'client' ? 'server' : 'client')}),false);console.log('coordinated module linked');`
+			);
+			const result = await execute(
+				adapter === 'bun' ? (process.env.BUN_EXECUTABLE ?? 'bun') : process.execPath,
+				[verifier],
+				{ cwd: root, timeout: 15000 }
+			);
+			assert.equal(result.stdout.trim(), 'coordinated module linked');
 		}
 	} finally {
 		await rm(root, { recursive: true, force: true });

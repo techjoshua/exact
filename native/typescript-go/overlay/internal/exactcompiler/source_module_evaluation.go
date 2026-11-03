@@ -28,7 +28,19 @@ func runtimeModuleEvaluation(statement *ast.Node) bool {
 		return false
 	}
 	source := ast.GetSourceFileOfNode(statement)
-	if source == nil || source.IsDeclarationFile || statement.Parent != source.AsNode() || ast.HasSyntacticModifier(statement, ast.ModifierFlagsAmbient) {
+	if source == nil || source.IsDeclarationFile {
+		return false
+	}
+	if ast.IsVariableDeclaration(statement) {
+		// Multi-declaration statements own independent eager boundaries. Keep
+		// destructuring inside its declarator, including its initialization effects.
+		list := statement.Parent
+		if list == nil || !ast.IsVariableDeclarationList(list) || list.Parent == nil || !runtimeVariableInitializer(list.Parent) {
+			return false
+		}
+		return statement.Initializer() != nil
+	}
+	if statement.Parent != source.AsNode() || ast.HasSyntacticModifier(statement, ast.ModifierFlagsAmbient) {
 		return false
 	}
 	switch statement.Kind {

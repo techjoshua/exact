@@ -67,7 +67,9 @@ export function CompilerAnalysisSection(this: Component<{}>) {
 				requires both the captured value and the work in its body to be available. A server-created
 				value captured by a browser-reading helper prevents that eager call from being emitted for
 				either target. Independent declarations can still be assigned to their own target, and a
-				dormant function keeps its body deferred. Package export conditions select an
+				dormant function keeps its body deferred. Several declarations in one <code>const</code>
+				statement keep their independent target placement. A single initializer expression that
+				requires both environments remains a conflict. Package export conditions select an
 				implementation. The selected implementation still has its own environment requirements.
 			</p>
 			<p>
