@@ -684,6 +684,11 @@ Detailed generator/Promise/Proxy execution modeling and other optional precision
 
 ### Step 10. Consolidate and remove superseded machinery
 
+The uncalled array-initializer readiness helper and pass-through object-return validator have
+been removed after verifying that the retired prefix lifecycle held their sole callers.
+Live layout guards, object-completion ancestry checks and pending-actual refinements remain.
+This is partial consolidation, not completion of the remaining bridge inventory.
+
 1. Finish the consumer inventory and removals begun with each integrated slice. Inventory every remaining destination-specific bridge before deletion.
 2. Migrate each consumer to the shared relationship and prove the same behavior there.
 3. Remove obsolete initializer/array/two-site receipt-selection branches once their ordinary-analysis role is replaced.

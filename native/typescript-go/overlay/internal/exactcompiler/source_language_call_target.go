@@ -55,28 +55,6 @@ func validCallTarget(o *languageOwner, in *languageCallInputs) bool {
 	return in.reference.cell.id.owner == o && in.receiver == (languageValue{undefined: true})
 }
 
-// validObjectCallReturn checks the selected pass-through producer and exact
-// allocation/completion ancestry. Its caller pays every scan before publishing.
-func validObjectCallReturn(e *languageCallEntryInput, row languageAlternative, w *languageCopyWork) bool {
-	if e == nil || row.value.object == nil || row.value.object.id.owner != row.branch.owner || row.completion != languageReturn || row.returnBoundary != e.boundary || row.storage == nil || row.storage.recipe != e.proof.entry {
-		return false
-	}
-	r := e.proof.entry
-	pc := row.storage.pc - 1
-	if pc < 0 || pc >= len(r.events) || r.events[pc].kind != "Return" {
-		return false
-	}
-	reg := r.events[pc].a
-	if reg < 0 || reg >= pc || r.events[reg].kind != "ReadCell" {
-		return false
-	}
-	slot := r.events[reg].cell
-	if slot < 0 || slot >= len(e.inputs.arguments) || e.inputs.arguments[slot].value != row.value {
-		return false
-	}
-	return scanOwnedObjectCompletion(e.proof.source, e.inputs.arguments[slot].output, row, w)
-}
-
 // scanOwnedObjectCompletion shares only allocation and producing-prefix ancestry.
 // Each producer caller authenticates its own anchor. Environments may differ.
 func scanOwnedObjectCompletion(source *ast.SourceFile, anchor languageBranch, row languageAlternative, w *languageCopyWork) bool {
