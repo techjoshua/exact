@@ -344,7 +344,9 @@ func (query *sourceValueQuery) bindingPropertyAtGet(value sourceValue, key strin
 	}
 	mergeAccessorCandidates(result, acquired)
 	selected = append(selected, acquired.values...)
-	if len(acquired.values) == 0 {
+	// Incompleteness belongs beside known alternatives, not only to an empty
+	// result. Dropping it here would make later consumers see an exhaustive set.
+	if len(acquired.values) == 0 || acquired.valueIncomplete {
 		selected = append(selected, sourceValue{})
 	}
 	return selected

@@ -439,24 +439,30 @@ func (query *sourceValueQuery) executeGetEffects(body *ast.Node, get *sourceGetI
 	})
 }
 
-// acquireGetResult consumes the normal Get once and observes only its raw return.
-// Direct-return member outputs are acquired by that same body demand. A callable
-// then remains a value, never its fulfillment or a promise-job interpretation.
+// acquireGetResult retains a selected Get's effects separately from its raw return.
+// Discarded body values do not describe that return. Source projections grant no
+// normal output authority. A callable return is never a promise-job interpretation.
 func (query *sourceValueQuery) acquireGetResult(body *ast.Node, get *sourceGetInputs, scope acquiredCallableScope, result *accessorCandidates) sourceResultObservation {
 	if query.inventoryLookupUnknown() {
 		return sourceResultObservation{incomplete: true}
 	}
 	if query.dependenciesOnly {
 		observed := sourceResultObservation{}
-		query.consumeGetInputs(body, get, scope, result, func(inputs *sourceValueInputs) {
-			entered := query.consumeSourceBodyEffects(get.operation, body, inputs.bindings, inputs, nil, result)
-			assessment := query.projectSelectedSourceReturns(body, get.operation, inputs.bindings, inputs, result, func(value sourceValue, bindings sourceValueBindings) {
-				observed.values = append(observed.values, sourceObservedValue{value: value, scope: query.acquireCallableScope(bindings, result)})
+		execution := *result
+		query.consumeGetInputs(body, get, scope, &execution, func(inputs *sourceValueInputs) {
+			beforeBodyValueIncomplete := execution.valueIncomplete
+			entered := query.consumeSourceBodyEffects(get.operation, body, inputs.bindings, inputs, nil, &execution)
+			// Preserve caller and wrapper uncertainty, while discarded body values
+			// remain separate from the selected return projection below.
+			execution.valueIncomplete = beforeBodyValueIncomplete
+			assessment := query.projectSelectedSourceReturns(body, get.operation, inputs.bindings, inputs, &execution, func(value sourceValue, bindings sourceValueBindings) {
+				observed.values = append(observed.values, sourceObservedValue{value: value, scope: query.acquireCallableScope(bindings, &execution)})
 			}, func() { observed.incomplete = true })
 			if entered {
 				query.observeArgumentGetProjection(get, assessment)
 			}
 		})
+		*result = execution
 		return observed
 	}
 

@@ -1909,6 +1909,23 @@ ordinary object into component state. Repeated contributions to one source opera
 receiver alternatives across analysis phases. Distinct original operations retain distinct
 edges and independent unresolved receivers.
 
+A definition-only Call through an unchanged local initialized by a direct member read
+retains its missing callee implementation as an exact Call-selection obligation. The
+initializer Get keeps its own field obligation. This classification requires ordinary
+locals and direct statements in the same body, a complete source index without dynamic
+scope, and the original Get in that body's source summary. Installed inputs still
+select their own callable alternatives and captures. Classification supplies no value
+or completion authority.
+
+Binding projection preserves an unresolved alternative beside known values when the
+selected values are incomplete. Otherwise a later consumer could mistake a partial
+set for an exhaustive selection. Getter acquisition separately tracks discarded body
+values and conditional successful returns. Source Get analysis preserves uncertainty
+from the caller and input wrapper before analyzing the return projection. Unknown
+body effects remain even when a successful return is known, and unknown returned values
+remain incomplete. This prevents a foreign effect in a getter from activating a
+default that its known successful return bypasses.
+
 Active source-body reentry compares finite relationships between source endpoints, formal
 positions, captures, creating sites and member edges. New relationships may reach the existing
 summary consumer. Repeated or saturated contexts retain uncertainty and previously discovered

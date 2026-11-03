@@ -94,6 +94,12 @@ export const value = readers[0]!();`}
 				that construction can still prevent emission.
 			</p>
 			<p>
+				Saving a method in a local variable keeps the function selected by that read. Replacing its
+				original receiver later does not change the saved function. Calling the saved variable
+				follows ordinary JavaScript rules for <code>this</code>. Possible foreign values retain
+				uncertainty alongside any known browser or server requirements.
+			</p>
+			<p>
 				A small helper can also use a numeric literal as its only parameter default. For
 				<code>{'const read = (x: number = 7) => x'}</code>, a known numeric argument bypasses the
 				initializer, while an omitted argument or <code>undefined</code> selects seven. This precise
