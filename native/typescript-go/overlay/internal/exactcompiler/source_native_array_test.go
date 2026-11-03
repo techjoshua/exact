@@ -140,3 +140,34 @@ func TestSourceNativeArrayPushOwnWriterServerRejection(t *testing.T) {
 		t.Fatal("rejection did not explain browser/server conflict", response.Diagnostics)
 	}
 }
+
+// Normal/input member acquisition retains the conditional native donor without
+// requiring hypothetical callee preparation or granting normal Get output rights.
+func TestSourceNativeArrayPushNormalAcquisition(t *testing.T) {
+	for _, row := range []struct {
+		source   string
+		authored bool
+	}{
+		{`const xs:number[]=[];export function invoke(){xs.push(1)}`, false},
+		{`const xs:number[]=[];xs.push=function custom(...values:number[]){document.title;return 0};export function invoke(){xs.push(1)}`, true},
+	} {
+		withSourceCalleeWriteQuery(t, row.source, func(q *sourceValueQuery, call *ast.Node) {
+			q.dependenciesOnly = false
+			candidates := q.receiverCandidates(call, nil)
+			native, authored := false, false
+			for _, value := range candidates.values {
+				native = native || value.native != nil && value.native.kind == sourceNativeArrayPush
+				authored = authored || value.node != nil && ast.IsFunctionLike(value.node) && value.node.Body() != nil && callableNameText(value.node.Name()) == "custom"
+				if value.normal != nil || value.acquired != nil {
+					t.Fatal("conditional donor acquired normal output rights")
+				}
+			}
+			if !native || !candidates.opaque || row.authored && !authored {
+				t.Fatal("normal acquisition lost native, uncertainty or own donor", native, candidates.opaque, authored)
+			}
+			if len(candidates.normalCalls) != 0 || len(candidates.nativeCalls) != 0 || len(candidates.writeOutcomes) != 0 {
+				t.Fatal("member selection manufactured operation authority")
+			}
+		})
+	}
+}

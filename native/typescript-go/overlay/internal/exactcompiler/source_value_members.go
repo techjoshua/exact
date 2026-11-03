@@ -122,10 +122,11 @@ func (query *sourceValueQuery) memberValuesAtGetWithStandard(origin *ast.Node, p
 	}
 	inventory := query.inventoryMemberWrites(origin, projection, name, mode, bindings, result, operation.sources, cut)
 	capture := sourceMemberOperationProof{}
-	if standard != nil && query.dependenciesOnly {
+	if standard != nil {
 		// Inventory callers retain their existing pending demand. Other callers
-		// retain unfinished interference as unknown instead of recursively
-		// preparing arbitrary callees before consuming the standard alternative.
+		// retain unfinished interference as unknown in source and normal input
+		// acquisition. The standard alternative does not require recursive callee
+		// preparation.
 		// Own RHS discovery below still runs and cannot use replacement precision.
 		result.opaque = true
 		inventory = true
