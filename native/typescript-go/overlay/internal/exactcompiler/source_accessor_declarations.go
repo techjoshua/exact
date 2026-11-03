@@ -862,6 +862,9 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 							arguments, query.creators = previousArguments, previousCreators
 						}
 					}
+					if mode == accessorSetAcquire && ast.IsSetAccessorDeclaration(member) {
+						query.retainSourceSetterWriterInputs(member, actualReceiver, arguments, &result)
+					}
 					if mode != accessorReachable && mode != accessorSetAcquire && ((ast.IsGetAccessorDeclaration(member) && mode&accessorNoGet == 0) || (ast.IsSetAccessorDeclaration(member) && mode&accessorSet != 0)) {
 						if ast.IsGetAccessorDeclaration(member) && query.operation != nil && query.operation.outputOnly {
 							result.valueIncomplete = true

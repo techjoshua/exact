@@ -9,12 +9,15 @@ import "github.com/microsoft/TypeScript/tsc/internal/ast"
 type sourceSetterInputRequest struct {
 	operation, target, right *ast.Node
 	caller                   acquiredCallableScope
+	// writer requests source input mappings only, never body execution.
+	writer *ast.Node
+	scopes []acquiredCallableScope
 }
 
 // sourceSetterRequest admits only authored plain assignment references. Other
 // write protocols keep their existing residual path and cannot borrow its RHS.
 func (q *sourceValueQuery) sourceSetterRequest(target *ast.Node, mode accessorTraversal, bindings sourceValueBindings) *sourceSetterInputRequest {
-	if !q.dependenciesOnly || mode&accessorSet == 0 || mode == accessorSetAcquire || target == nil || target.Parent == nil || !ast.IsBinaryExpression(target.Parent) {
+	if !q.dependenciesOnly || mode&accessorSet == 0 || target == nil || target.Parent == nil || !ast.IsBinaryExpression(target.Parent) {
 		return nil
 	}
 	assignment := target.Parent.AsBinaryExpression()
@@ -39,6 +42,18 @@ func (q *sourceValueQuery) consumeSourceSetter(body, effectOperation *ast.Node, 
 	if !q.dependenciesOnly || request == nil || request.target != q.protectedMember || !ast.IsSetAccessorDeclaration(body) {
 		return false
 	}
+	inputs := q.bindSourceSetterInputs(request, body, receiver, captures, result)
+
+	q.withSourceReceiverInputs(request.operation, body, inputs, result, func() {
+		q.consumeSourceBodyEffects(effectOperation, body, inputs.bindings, inputs, nil, result)
+	})
+	return true
+}
+
+// bindSourceSetterInputs shares the assignment's whole RHS and formal binding
+// across effect consumption and captured-writer inspection. It does not consume
+// the setter body or establish that the assignment completed.
+func (q *sourceValueQuery) bindSourceSetterInputs(request *sourceSetterInputRequest, body *ast.Node, receiver sourceValue, captures sourceValueBindings, result *accessorCandidates) *sourceValueInputs {
 	// A nested Get during RHS acquisition cannot consume this assignment's input.
 	q.setterInput = nil
 	defer func() { q.setterInput = request }()
@@ -72,6 +87,17 @@ func (q *sourceValueQuery) consumeSourceSetter(body, effectOperation *ast.Node, 
 		}
 		q.installParameterInput(parameter, values, inputs, result)
 	}
-	q.consumeSourceBodyEffects(effectOperation, body, inputs.bindings, inputs, nil, result)
-	return true
+	return inputs
+}
+
+// retainSourceSetterWriterInputs publishes the mapping only for an already
+// selected conditional setter at this original assignment. The caller retains
+// all other candidates and uncertainty. No body/output driver is entered.
+func (q *sourceValueQuery) retainSourceSetterWriterInputs(body *ast.Node, receiver sourceValue, captures sourceValueBindings, result *accessorCandidates) {
+	request := q.setterInput
+	if !q.dependenciesOnly || request == nil || request.writer != body || request.target != q.protectedMember {
+		return
+	}
+	inputs := q.bindSourceSetterInputs(request, body, receiver, captures, result)
+	request.scopes = append(request.scopes, q.acquireCallableScope(inputs.bindings, result))
 }

@@ -132,3 +132,40 @@ func sharedCompositionCurrentFact(t *testing.T, source, statement string) Callab
 	t.Fatal("missing current initializer fact", name)
 	return CallableSummary{}
 }
+
+// A selected DATA argument cannot prove a general exported member read pure.
+// The annotation also admits getters and proxies supplied by future callers.
+func TestSharedCompositionExportedInputBoundary(t *testing.T) {
+	const helper = `export function read(input:{value:string}){return input.value}`
+	for _, test := range []struct{ name, use, placement string }{
+		{"library", `export const value="stable";`, "isomorphic"},
+		{"safe use", `export const value=read({value:"safe"});`, "isomorphic"},
+		{"browser use", `export const value=read({get value(){return document.title}});`, "client"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			source := helper + test.use
+			response := NewSession().Execute(Request{Kind: "analyze", ID: "/virtual/exported-input.ts", Source: source, Diagnostics: "semantic"})
+			if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) {
+				t.Fatal(response.Error, response.Diagnostics)
+			}
+			found := false
+			for _, fact := range response.Analysis.Callables {
+				if fact.Name != "read" {
+					continue
+				}
+				found = true
+				unknown := false
+				for _, effect := range fact.EffectSources {
+					unknown = unknown || effect.Environment == "unknown"
+				}
+				if !unknown {
+					t.Fatalf("selected use erased open exported input uncertainty: %#v", fact)
+				}
+			}
+			if !found {
+				t.Fatal("missing exported helper fact")
+			}
+			assertSharedCompositionPlacement(t, source, test.placement)
+		})
+	}
+}

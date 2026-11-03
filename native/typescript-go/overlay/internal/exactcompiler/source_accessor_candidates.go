@@ -134,7 +134,7 @@ func sourceAccessorOperationCandidates(receiver *ast.Node, path []string, name s
 
 // sourceAccessorOperationCandidates owns the member's key identity and mutation
 // retention for direct, eager, and installed-input consumers on the same query.
-func (query *sourceValueQuery) sourceAccessorOperationCandidates(receiver *ast.Node, path []string, name string, mode accessorTraversal, arguments sourceValueBindings, operation *ast.Node) accessorCandidates {
+func (query *sourceValueQuery) sourceAccessorOperationCandidates(receiver *ast.Node, path []string, name string, mode accessorTraversal, arguments sourceValueBindings, operation *ast.Node, setter ...*sourceSetterInputRequest) accessorCandidates {
 	previous := query.protectedMember
 	query.protectedMember = operation
 	defer func() { query.protectedMember = previous }()
@@ -143,7 +143,11 @@ func (query *sourceValueQuery) sourceAccessorOperationCandidates(receiver *ast.N
 		reference = sourceGetReferenceFor(operation, receiver, path, name, mode)
 	}
 	previousSetter := query.setterInput
-	query.setterInput = query.sourceSetterRequest(operation, mode, arguments)
+	if query.dependenciesOnly && mode == accessorSetAcquire && len(setter) == 1 && setter[0] != nil && setter[0].target == operation {
+		query.setterInput = setter[0]
+	} else {
+		query.setterInput = query.sourceSetterRequest(operation, mode, arguments)
+	}
 	defer func() { query.setterInput = previousSetter }()
 	result := query.accessorsAtGetOutput(receiver, path, name, mode, arguments, nil, nil, nil, reference)
 	if operation != nil && operation.Parent != nil {

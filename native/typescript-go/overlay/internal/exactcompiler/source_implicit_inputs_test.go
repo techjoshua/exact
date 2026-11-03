@@ -116,12 +116,12 @@ func TestSourceThenReceiverWrite(t *testing.T) {
 				t.Fatal("ordinary source object acquired component state authority")
 			}
 		}
-		copyOperation := *operation
+		copyOperation := operation.Clone(ast.NewNodeFactory(ast.NodeFactoryHooks{}))
 		for _, control := range []struct {
 			operation *ast.Node
 			receiver  sourceObservedValue
 		}{
-			{&copyOperation, receiver},
+			{copyOperation, receiver},
 			{operand, receiver},
 			{operation, sourceObservedValue{value: sourceValue{node: operand, acquired: &receiver}, scope: scope}},
 		} {

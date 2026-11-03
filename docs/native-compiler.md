@@ -1934,8 +1934,11 @@ already selected authored setter. The existing input binder installs the receive
 and resolves the setter parameter before consuming body demands. Unknown RHS alternatives
 remain beside known inputs. This conditional source relationship supplies no performed Set,
 normal output, unique setter or descriptor proof. Compound, update, reflective and foreign
-write protocols retain their existing residual analysis. A later lexical read of a value
-assigned inside the setter still requires its own writer relationship.
+write protocols retain their existing residual analysis. Later captured-binding reads join
+conditional setter input mappings through the existing lexical replacement relation. This
+MAY join keeps the original callable and independent unknown effects. It supplies no strong
+replacement or unconditional exported-library fact. Filtering unreachable inner setter writes
+is deferred precision, tracked in the architecture completion plan.
 
 Active source-body reentry compares finite relationships between source endpoints, formal
 positions, captures, creating sites and member edges. New relationships may reach the existing

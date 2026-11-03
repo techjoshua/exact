@@ -258,6 +258,13 @@ func (query *sourceValueQuery) bindingValues(symbol *ast.Symbol, entry []sourceV
 				result.opaque = true
 				continue
 			}
+			if query.dependenciesOnly && writer != nil && ast.IsSetAccessorDeclaration(writer) {
+				for _, replacement := range query.sourceSetterBindingWrites(assignment, writer, boundary, bindings, result) {
+					add(replacement.at, replacement.operation, replacement.values, replacement.bindings, false)
+				}
+				result.opaque = true
+				continue
+			}
 			creator := query.creators[enclosingCallableNode(declaration)].invocation
 			if creator == nil || writer == nil {
 				result.opaque = true

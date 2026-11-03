@@ -16,11 +16,19 @@ func TestSourceSetterInputs(t *testing.T) {
 		{"captured caller", `function make(input:{value:string}){const box={set work(next:()=>string){next()}};box.work=()=>input.value;return 'safe'}export const value=make({get value(){return document.title}});`, "client"},
 		{"receiver", `function make(){const box={get value(){return document.title},set work(next:string){this.value}};box.work='safe';return 'safe'}export const value=make();`, "client"},
 		{"pattern", `function make(){const box={set work({read}:{read:()=>string}){read()}};box.work={read:()=>document.title};return 'safe'}export const value=make();`, "client"},
+		{"pattern default", `function make(){const box={set work({read=()=>document.title}:{read?:()=>string}){read()}};box.work={};return 'safe'}export const value=make();`, "client"},
+		{"pattern default bypass", `function make(){const box={set work({read=()=>document.title}:{read?:()=>string}){read()}};box.work={read:()=> 'safe'};return 'safe'}export const value=make();`, "isomorphic"},
 		{"RHS getter", `function make(){const input={get value(){return ()=>document.title}};const box={set work(next:()=>string){next()}};box.work=input.value;return 'safe'}export const value=make();`, "client"},
 		{"unknown sibling", `declare function foreign():()=>string;declare const choose:boolean;function make(){const box={set work(next:()=>string){next()}};box.work=choose?()=>document.title:foreign();return 'safe'}export const value=make();`, "client"},
 		{"throwing RHS donor", `function make(){const input={get value():()=>string{document.title;throw Error('stop')}};const box={set work(next:()=>string){next()}};box.work=input.value;return 'safe'}export const value=make();`, "client"},
 	} {
-		t.Run(row.name, func(t *testing.T) { assertClosurePlacement(t, row.source, row.placement) })
+		t.Run(row.name, func(t *testing.T) {
+			if row.name == "original lexical browser" || row.name == "reverse lexical browser" || row.name == "unknown sibling" || row.name == "throwing RHS donor" {
+				assertSourceSetterResidual(t, row.source)
+			} else {
+				assertClosurePlacement(t, row.source, row.placement)
+			}
+		})
 	}
 }
 
@@ -51,6 +59,14 @@ func TestSourceSetterReceiverWriteMapping(t *testing.T) {
 		symbol := q.owner.checker.GetSymbolAtLocation(parameter)
 		bindings := sourceValueBindings{ast.GetSymbolId(symbol): {{node: captured}}}
 		part := q.evaluatedSourceAccessors(selected, bindings)
+		if q.setterInput != nil || q.sourceReceiver != nil {
+			t.Fatal("source Set association survived its selected consumer")
+		}
+		q.dependenciesOnly = false
+		if q.sourceSetterRequest(selected, accessorSet, bindings) != nil {
+			t.Fatal("normal query issued a source Set mapping")
+		}
+		q.dependenciesOnly = true
 		seenReceiver, seenCapture := false, false
 		for _, write := range part.writes {
 			if len(write.value.path) != 1 || write.value.path[0] != "field" {
@@ -63,4 +79,53 @@ func TestSourceSetterReceiverWriteMapping(t *testing.T) {
 			t.Fatalf("receiver write=%v captured write=%v", seenReceiver, seenCapture)
 		}
 	})
+}
+
+// A MAY association preserves known donors without authorizing an unresolved
+// module initializer on a conflicting target. Closed use mappings are not library facts.
+func assertSourceSetterResidual(t *testing.T, source string) {
+	t.Helper()
+	session := NewSession()
+	r := session.Execute(Request{Kind: "analyze", ID: "/virtual/setter-residual.ts", Source: source, Diagnostics: "semantic"})
+	browser, unknown := reentrantInitializerEffects(t, r, source, true)
+	if !browser || !unknown {
+		t.Fatalf("browser=%v unknown=%v, want both", browser, unknown)
+	}
+	for _, e := range r.Analysis.Exports {
+		if e.Name == "value" && e.Placement != "unknown" {
+			t.Fatalf("unresolved placement %s", e.Placement)
+		}
+	}
+	for _, target := range []Target{TargetClient, TargetServer} {
+		out := session.Execute(Request{Kind: "compile", ID: "/virtual/setter-residual.ts", Source: source, Target: target, Diagnostics: "semantic"})
+		if target == TargetClient {
+			if out.Error != "" || hasErrorDiagnostic(out.Diagnostics) || out.Code == "" {
+				t.Fatalf("browser artifact refused: %s %#v", out.Error, out.Diagnostics)
+			}
+		} else if !hasDiagnosticCode(out.Diagnostics, "EXACT2101") || out.Code != "" {
+			t.Fatalf("unresolved server target was admitted: %s %#v", out.Error, out.Diagnostics)
+		}
+	}
+}
+
+// An observed safe installation may specialize that application use. The
+// exported install body must still retain the unknown caller's callable input.
+func TestSourceSetterOpenLibrary(t *testing.T) {
+	const source = `export function install(input:()=>string){const box={set work(next:()=>string){next()}};box.work=input;return 'safe'}export const value=install(()=> 'safe');`
+	r := NewSession().Execute(Request{Kind: "analyze", ID: "/virtual/setter-library.ts", Source: source, Diagnostics: "semantic"})
+	if r.Error != "" || hasErrorDiagnostic(r.Diagnostics) {
+		t.Fatal(r.Error, r.Diagnostics)
+	}
+	found := false
+	for _, fact := range r.Analysis.Callables {
+		if fact.Name != "install" {
+			continue
+		}
+		for _, effect := range fact.EffectSources {
+			found = found || effect.Environment == "unknown"
+		}
+	}
+	if !found {
+		t.Fatal("observed safe caller erased the open-library unknown callable")
+	}
 }
