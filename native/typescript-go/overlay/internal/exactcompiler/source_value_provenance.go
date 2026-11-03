@@ -111,6 +111,9 @@ func newSourceValueOwner(c *checker.Checker) *sourceValueOwner {
 // declaration widens after its finite source input relation stops growing. Normal
 // execution retains its declaration guard instead of growing capture contexts.
 type sourceValueQuery struct {
+	// setterInput belongs only to the original source assignment selection.
+	setterInput *sourceSetterInputRequest
+
 	calleeWriteInventory *sourceCalleeWriteView // synchronous source-only inventory, never a completed write verdict
 	calleeWriteUse       *sourceCalleeWriteUse  // original selection interval only, never cached
 	calleeWriteWork      *sourceCalleeWriteWork // synchronous receiver effects only, never outputs

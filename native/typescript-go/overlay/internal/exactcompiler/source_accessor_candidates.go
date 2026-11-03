@@ -142,6 +142,9 @@ func (query *sourceValueQuery) sourceAccessorOperationCandidates(receiver *ast.N
 	if query.dependenciesOnly {
 		reference = sourceGetReferenceFor(operation, receiver, path, name, mode)
 	}
+	previousSetter := query.setterInput
+	query.setterInput = query.sourceSetterRequest(operation, mode, arguments)
+	defer func() { query.setterInput = previousSetter }()
 	result := query.accessorsAtGetOutput(receiver, path, name, mode, arguments, nil, nil, nil, reference)
 	if operation != nil && operation.Parent != nil {
 		mutation := planMutationOperation(operation.Parent)
