@@ -7,6 +7,32 @@ Current capabilities and limits are indexed in [`../README.md`](../README.md).
 A substantial design may move into its own proposal when its audience, unresolved decisions, and
 scope warrant one. Ordinary fixes and implementation details do not require standalone proposals.
 
+## Compiler precision after the bounded core
+
+The [architecture completion plan](../compiler-architecture-completion-plan.md#fact-scope-and-bounded-core-acceptance)
+owns the bounded core and its required safety and finite-compilation acceptance. After that
+boundary, consider exact callee/output identity, strong replacement, finer caller discrimination
+and unreachable MAY setter-write pruning only where an identified consumer benefits from the
+additional proof. Conservative alternatives may remain when the existing artifact and boundary
+rules permit them. Analysis stalls and missing known effects or independent uncertainty are not
+precision candidates to defer here.
+
+One pruning witness remains planned and unexecuted: compare an inner captured setter containing
+`if (false) selected = next` with a paired reachable assignment. The former may currently retain an
+unreachable MAY write. Investigate removing that overapproximation without changing the latter's
+possible write or promoting either caller's result into a declaration-wide library fact.
+
+Source-only Await effect migration may follow existing normal analysis when a supported core
+consumer does not require decoupling. Its source property projection and direct resolve/reject
+role draft remain unqualified. Reconsider them against a concrete consumer, preserving known
+assimilation effects, independent uncertainty and the distinction between an async Call's Promise
+object and its payload. Exact settlement and broader alias/capture discrimination are optional
+precision only where a conservative result already satisfies the required consumer.
+
+Closed application callers may provide conditional inputs for their own uses. Open libraries
+must retain relative dependencies for unknown callers. Neither setting permits an observed
+caller to certify unconditional exported purity, target safety, identity, NoWrites or completion.
+
 ## Compiled component compatibility
 
 The [compiled ABI evolution proposal](compiled-abi-evolution.md) owns the design for retaining
