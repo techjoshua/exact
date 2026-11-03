@@ -69,8 +69,11 @@ export function CompilerAnalysisSection(this: Component<{}>) {
 				either target. Independent declarations can still be assigned to their own target, and a
 				dormant function keeps its body deferred. Several declarations in one <code>const</code>
 				statement keep their independent target placement. A single initializer expression that
-				requires both environments remains a conflict. Package export conditions select an
-				implementation. The selected implementation still has its own environment requirements.
+				requires both environments remains a conflict. A <code>using</code> declaration releases its
+				resources when its scope ends. Multiple resources in one list keep that shared cleanup
+				requirement, which can remain unknown to placement analysis. Package export conditions
+				select an implementation. The selected implementation still has its own environment
+				requirements.
 			</p>
 			<p>
 				For a small helper with no captured values, the compiler can connect a conditional field

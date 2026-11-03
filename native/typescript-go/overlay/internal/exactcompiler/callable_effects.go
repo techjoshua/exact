@@ -778,8 +778,11 @@ func collectCallableNodes(sourceFile *ast.SourceFile) []*ast.Node {
 	for _, statement := range sourceFile.Statements.Nodes {
 		if runtimeModuleEvaluation(statement) {
 			if ast.IsVariableStatement(statement) {
-				declarations := statement.AsVariableStatement().DeclarationList.AsVariableDeclarationList().Declarations.Nodes
-				if len(declarations) > 1 {
+				list := statement.AsVariableStatement().DeclarationList.AsVariableDeclarationList()
+				declarations := list.Declarations.Nodes
+				// Resource lists retain their enclosing traversal owner. The existing
+				// list visitor publishes implicit disposal after acquisition.
+				if len(declarations) > 1 && list.Flags&ast.NodeFlagsUsing == 0 {
 					// Partitionable declarations must not share one effect summary.
 					// Single-declaration statements retain their existing refinement owner.
 					for _, declaration := range declarations {

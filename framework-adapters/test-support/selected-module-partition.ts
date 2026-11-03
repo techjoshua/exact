@@ -16,6 +16,14 @@ const workspace = fileURLToPath(new URL('../../', import.meta.url));
 export const selectedModuleCoordinatedSource =
 	"import {TaskContext,type Component} from '@exactjs/core';import {browserValue,serverValue} from 'selected-donor';export const client=browserValue,server=serverValue;export function View(this:Component<{value:string}>){this.state.value='ready';async function load(task:TaskContext=TaskContext.server()){return server;}return()=> <button onClick={async()=>{this.state.value=client+await load();}}>{this.state.value}</button>;}";
 
+/** Distinct routed implementations. Wrong-route selection changes the observed export value. */
+export const selectedModuleCoordinatedImplementations = {
+	client:
+		"export const browserValue=document.title+':browser-entry';export const serverValue=process.version+':browser-server';",
+	server:
+		"export const browserValue=document.title+':node-browser';export const serverValue=process.version+':node-entry';"
+} as const;
+
 /** Qualifies captured initialization using one package and each adapter's actual build hooks. */
 export async function verifySelectedModulePartition(adapter: 'vite' | 'webpack' | 'bun') {
 	await mkdir(path.join(workspace, '.tmp'), { recursive: true });
@@ -134,11 +142,14 @@ export async function verifySelectedModulePartition(adapter: 'vite' | 'webpack' 
 			path.join(directory, 'index.d.ts'),
 			'export declare const browserValue:string,serverValue:string;'
 		);
-		for (const file of ['browser.js', 'node.js'])
-			await writeFile(
-				path.join(directory, file),
-				'export const browserValue=document.title;export const serverValue=process.version;'
-			);
+		await writeFile(
+			path.join(directory, 'browser.js'),
+			selectedModuleCoordinatedImplementations.client
+		);
+		await writeFile(
+			path.join(directory, 'node.js'),
+			selectedModuleCoordinatedImplementations.server
+		);
 		for (const target of ['client', 'server'] as const) {
 			const warnings = await buildDiagnosticFixture(
 				adapter,
@@ -160,7 +171,7 @@ export async function verifySelectedModulePartition(adapter: 'vite' | 'webpack' 
 			const verifier = path.join(root, 'verify.mjs');
 			await writeFile(
 				verifier,
-				`import assert from 'node:assert/strict';globalThis.document={title:'browser'};const imported=await import(${JSON.stringify(pathToFileURL(output).href)});const result=imported.default??imported;assert.equal(typeof result.View,'function');assert.equal(result[${JSON.stringify(target === 'client' ? 'client' : 'server')}],${target === 'client' ? "'browser'" : 'process.version'});assert.equal(Object.hasOwn(result,${JSON.stringify(target === 'client' ? 'server' : 'client')}),false);console.log('coordinated module linked');`
+				`import assert from 'node:assert/strict';globalThis.document={title:'browser'};const imported=await import(${JSON.stringify(pathToFileURL(output).href)});const result=imported.default??imported;assert.equal(typeof result.View,'function');assert.equal(result[${JSON.stringify(target === 'client' ? 'client' : 'server')}],${target === 'client' ? "'browser:browser-entry'" : "process.version+':node-entry'"});assert.equal(Object.hasOwn(result,${JSON.stringify(target === 'client' ? 'server' : 'client')}),false);console.log('coordinated module linked');`
 			);
 			const result = await execute(
 				adapter === 'bun' ? (process.env.BUN_EXECUTABLE ?? 'bun') : process.execPath,

@@ -978,7 +978,10 @@ without becoming a callable implementation. Independent declarations retain ordi
 projection, and dormant opposite-target function bodies do not execute during module loading.
 Each declarator in a variable statement retains its independent target projection, including
 several declarations written in one `const` statement. Analysis and emission share declarator
-evaluation boundaries. Destructuring and a single initializer expression remain indivisible, so
+evaluation boundaries. Resource lists written with `using` or `await using` retain the enclosing
+statement owner, including the existing opaque implicit-disposal requirement. Native JavaScript
+owns acquisition, reverse cleanup, and abrupt completion. Destructuring and a single initializer
+expression remain indivisible, so
 one expression requiring both environments is still rejected. Coordinated components may retain
 browser inputs in their client part and server inputs in a server task without merging those
 execution requirements.

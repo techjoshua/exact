@@ -125,6 +125,7 @@ func TestSelectedModuleDeclaratorBoundaries(t *testing.T) {
 		}{
 			{"separate", `export const client=browserValue;export const server=serverValue;`, false},
 			{"same statement", `export const client=browserValue, server=serverValue;`, false},
+			{"uninitialized sibling", `let untouched:number,client=browserValue;export {client};`, false},
 			{"direct same statement", `export const client=document.title, server=process.version;`, target == TargetClient},
 			{"direct separate statements", `export const client=document.title;export const server=process.version;`, target == TargetClient},
 			{"dormant captured declarator", `export const client=()=>browserValue, server=()=>serverValue;`, false},
