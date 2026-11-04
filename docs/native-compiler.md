@@ -1095,7 +1095,10 @@ return expression still executes. A call made inside the creator uses that invoc
 boundary. Each finite creating edge scopes its own inputs and return occurrence. Acquiring a returned
 callable through an object or array projection carries that occurrence's creating inputs and
 completion boundary to the existing invocation consumer. This traversal-local handoff shares
-the source query and keeps each acquired alternative separate. Acquisitions
+the source query and keeps each acquired alternative separate. Conditional and logical
+initializers acquire their callable alternatives at the original binding read before
+later member replacement. Known dependencies remain beside unknown alternatives,
+and each returned callable retains its own creating context. Acquisitions
 for earlier aliases keep their earlier boundary and source object. This changes bound-value
 provenance without removing parameter or local pattern evaluation effects. Unproved conditional
 replacements still join alternatives and cannot establish certain replacement. Completion proofs

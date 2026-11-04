@@ -223,6 +223,16 @@ initializers. Adapter checks compile its client-task and server-task forms. Pend
 journeys cover deletion, copying, iteration, template tags and private receiver/accessor order,
 with repeated updates, retained DOM identity and disposal.
 
+The shared reassigned-callable module fixture also saves a conditional factory-created
+helper before replacing its object member. Vite, Webpack and Bun build both targets.
+The client artifact executes the original browser read once, and the server artifact
+omits the browser-dependent export. Native source checks cover conditional, logical
+and nullish alternatives beside unknown callbacks, independent factory captures,
+completed `finally` writes, detached calls and omitted or undefined defaults. The paired
+emitted composition checks both branch directions and exact creation, completion and
+invocation order. Adapter execution instruments `document` in Node or Bun and does not
+establish browser or hydration coverage.
+
 The native host fixture also invokes local callbacks that shadow named and namespace SSR imports,
 and a local callback named `unsafeHtml`. Node, Bun, both Deno cancellation modes and workerd verify
 that these calls retain their arguments and ordinary results. The shared adapter identity fixture

@@ -54,7 +54,9 @@ export function CompilerTourPage(this: Component<{}>) {
 				<p>
 					A helper returned by an imported factory keeps its dependencies when stored in an object
 					or array. Available dependency source supplies its implementation, and TypeScript
-					declarations determine the call&apos;s types.
+					declarations determine the call&apos;s types. Saving a selected helper before replacing
+					its object member keeps the original helper and its dependencies, including when the
+					selection uses a conditional or logical expression.
 				</p>
 				<p>
 					Ordinary helpers keep their JavaScript implementation and receive supported state views

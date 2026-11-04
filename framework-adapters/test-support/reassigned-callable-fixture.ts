@@ -1,6 +1,12 @@
 /** Ordinary module cases shared by paired SDK and adapter artifact acceptance. */
 export const reassignedCallableCases = [
 	{
+		name: 'saved conditional factory capture',
+		browser: true,
+		source:
+			'function browser(){return document.title}function safe(){return "safe"}function make(read:()=>string){return ()=>read()}function work(flag:boolean,foreign:()=>string){const box={read:make(browser)};const sibling=make(safe);const saved=flag?box.read:foreign;box.read=sibling;return saved()}export const value=work(true,safe);export const stable="stable";'
+	},
+	{
 		name: 'replacement',
 		browser: true,
 		source:

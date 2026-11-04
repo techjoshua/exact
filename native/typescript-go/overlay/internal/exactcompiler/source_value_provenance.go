@@ -437,7 +437,21 @@ func (query *sourceValueQuery) originsAt(node, at *ast.Node, bindings sourceValu
 				continue
 			}
 			// Symbolic receiver demands remain relative to the eventual caller.
-			if value.node == nil || len(value.path) == 0 || ast.IsIdentifier(value.node) || value.node.Kind == ast.KindThisKeyword {
+			// A branching source entry can contain an original member Get.
+			// Acquire its alternatives before releasing this binding's read cut,
+			// retaining each callable's creating scope beside unknown siblings.
+			// Leaving that syntax lazy would reread a replaced member at the Call.
+			branchingEntry := false
+			if query.dependenciesOnly && value.node != nil {
+				branchingEntry = ast.IsConditionalExpression(value.node)
+				if ast.IsBinaryExpression(value.node) {
+					switch value.node.AsBinaryExpression().OperatorToken.Kind {
+					case ast.KindBarBarToken, ast.KindAmpersandAmpersandToken, ast.KindQuestionQuestionToken:
+						branchingEntry = true
+					}
+				}
+			}
+			if value.node == nil || len(value.path) == 0 && !branchingEntry || ast.IsIdentifier(value.node) || value.node.Kind == ast.KindThisKeyword {
 				acquired = append(acquired, value)
 				continue
 			}
