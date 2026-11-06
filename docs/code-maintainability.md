@@ -163,6 +163,28 @@ Each architectural change must:
 - pass type checking, package tests, package-content checks, and relevant
   performance guards.
 
+### Shared migration connection acceptance
+
+A shared producer or handoff is integrated only when its intended production consumers use
+it. Before expanding a migration, inspect affected callers and context-construction sites,
+including equivalent module, implicit-operation and deferred-body paths. Record connected,
+explicitly unmigrated and unaffected entries in existing task state, with the reason for
+exclusions. Validate the source operation through transfer, consuming decision and publication.
+A helper pass or narrower source profile cannot stand in for the original workload.
+
+Review required setup for silent omission. Prefer an owning entry point that installs required
+handoffs consistently. Where setup is conditional, missing setup must retain explicit legacy
+ownership or pending coverage rather than grant completion. Test registration versus adoption,
+local readiness versus dependency closure and fresh-graph ownership when these boundaries change.
+For a changed shared queue, protect interleaving and task/cursor ownership. For retained binding
+or capture data, verify that the actual consuming edge receives it, not merely that the binder
+published it.
+
+Incremental review follows the changed contract into affected callers while reusing unchanged
+qualified evidence. State the scope of acceptance explicitly. Retire superseded adapters and
+duplicate legacy/staged work as their replacements become accepted. This supplements the
+regression and affected-environment requirements below without adding a separate report.
+
 ### Compiler and runtime regression acceptance
 
 For a behavioral fix, record the violated contract and its owning layer. Demonstrate that the

@@ -426,6 +426,45 @@ Efficiency does not waive compiler/runtime regression acceptance, meaningful neg
 required adapter, emitted-artifact, browser, runtime, and package-consumer checks. Optimize redundant
 work and coordination before reducing protection.
 
+### Plan and verify connected migrations
+
+When changing analysis, scheduling or another shared subsystem, plan around the original
+workload and production entry points before implementing another local case.
+
+- Keep one compact connection map in existing task state. For each affected path, name the
+  original operation, source owner, producer, transfer, consuming decision and publication
+  condition. Record required inputs, observation cuts, module/capture contexts and unresolved
+  prerequisites. A list of feature families or helper APIs is not a connection map.
+- Search callers and query/frame construction sites when introducing or changing a shared
+  handoff. Classify each affected production entry as connected, explicitly unmigrated or
+  unaffected with a reason. Check sibling paths together, including implicit operations and
+  module initialization where relevant. Do not discover missing wiring only through later
+  workload timeouts.
+- Implement a connected group against a terminal behavioral target. Local source extraction,
+  registration and helper qualification remain useful intermediate evidence, but do not
+  establish that the original consumer uses or completes the path.
+- Make mandatory setup hard to omit through the owning API where practical. If an opt-in
+  borrow or callback is necessary, its absence must have an explicit unmigrated outcome.
+  Distinguish registration, adoption, local extraction and dependency closure in both the
+  interface and acceptance checks. A received Effects fact cannot pay a DATA or exact-proof
+  obligation, and pending compiler work cannot become runtime unknown.
+- Review the changed contract plus its affected callers. Retain prior review results for
+  unchanged inputs. A review of a declared subset does not approve whole-workload coverage.
+  Include one real production-entry connection control and meaningful negative boundaries,
+  rather than duplicating implementation-shaped tests for every helper.
+- When the same missing handoff or prerequisite recurs, pause new case expansion and inspect
+  all consumers of that mechanism. Correct the shared connection or demand contract, then
+  resume. Consolidate superseded adapters in the touched group.
+- Give parallel lanes complete observable paths through stable interfaces. Record file
+  ownership, dependencies, terminal acceptance and the next integration action. Keep shared
+  queue/lifetime owners explicit. Serialize only conflicting state and actual resource limits.
+- The coordinator checks original-workload coverage and remaining blockers at substantive
+  integration boundaries. Continue authorized work after a checkpoint without another approval
+  round. Keep delivered effort, forecast remaining effort and semantic acceptance separate.
+
+These requirements reuse existing task state and tests. They do not require a new report,
+recurring full inventories, a review per helper or repeated known-failing integration runs.
+
 ### Working rule
 
 Before adding or retaining a test, identify:
