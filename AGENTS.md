@@ -23,6 +23,19 @@ filters, and concise guidance about applying those rules. Raw benchmark captures
 outputs are excluded from review, while source, fixtures, benchmark runners, and report prose
 remain eligible. Review findings require verification against current code before applying fixes.
 
+For automated and delegated reviews, a defect finding must identify a supported reachable
+trigger, the violated contract, a concrete consequence, why existing protections do not prevent
+it, and a proportionate correction. A reproducer is preferred where practical, but a clear
+source-backed failure argument is sufficient. Label unsupported concerns as questions or
+optional hardening, and identify consequential unresolved risks without claiming proof.
+
+The coordinator triages findings before assigning fixes. Check whether the evidence supports
+the claim and whether the remedy is proportionate. Ask for clarification when reachability,
+impact, caller guarantees or added complexity are unclear. This is a lightweight safety net,
+not a second full audit. Use independent reassessment for consequential unresolved disputes.
+Implementation still verifies accepted findings against current code. Reviewer authority,
+severity labels and consensus alone do not justify production changes.
+
 Complete the intended changes and local validation before pushing to an open PR branch. Multiple
 local commits are welcome, but batch them into one push to conserve CodeRabbit review budget.
 

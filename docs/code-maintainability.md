@@ -163,6 +163,18 @@ Each architectural change must:
 - pass type checking, package tests, package-content checks, and relevant
   performance guards.
 
+### Review finding evidence and triage
+
+A defect finding identifies the supported trigger or reachable path, violated contract,
+observable consequence, existing protections considered and smallest proportionate remedy.
+A source-backed failure argument can establish the finding without an executable reproducer.
+Questions, optional hardening and consequential unverified risks remain distinct from proven
+defects. The coordinator checks the claim and evidence for plausibility, requests clarification
+when needed and avoids automatically translating speculative concerns into guards or abstractions.
+This triage does not require re-auditing every finding. Accepted fixes are verified against
+current code, and costly or consequential unresolved disputes may need independent reassessment.
+A valid finding does not by itself validate the suggested implementation.
+
 ### Shared migration connection acceptance
 
 A shared producer or handoff is integrated only when its intended production consumers use
