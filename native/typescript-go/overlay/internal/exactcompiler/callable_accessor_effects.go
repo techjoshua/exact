@@ -128,6 +128,7 @@ func appendAccessorTargets(fact *callableFacts, node *ast.Node, candidates acces
 		edge := CallEdge{ID: sourceAccessorEffectEdgeID(fact.summary.ID, operationSource.FileName(), operation.Pos(), targetID, contribution.use), Name: strings.TrimSpace(sourceText(operationSource, operation)), Resolved: true, TargetID: targetID}
 		if contribution.arrayMapCall != nil && enclosingCallableNode(contribution.arrayMapCall) == fact.node {
 			edge.arrayMapCall = contribution.arrayMapCall
+			edge.arrayMapBody = declaration
 		}
 		if contribution.use != nil && ast.GetSourceFileOfNode(contribution.use) != nil {
 			edge.sourceUse = contribution.use
@@ -147,6 +148,7 @@ func appendAccessorTargets(fact *callableFacts, node *ast.Node, candidates acces
 			fact.summary.Calls[prior].ReceiverBindings = joinSourceReceiverBindings(fact.summary.Calls[prior].ReceiverBindings, bindings)
 			if edge.arrayMapCall != nil {
 				fact.summary.Calls[prior].arrayMapCall = edge.arrayMapCall
+				fact.summary.Calls[prior].arrayMapBody = edge.arrayMapBody
 			}
 			continue
 		}
