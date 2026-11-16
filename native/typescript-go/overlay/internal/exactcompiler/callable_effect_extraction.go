@@ -88,7 +88,7 @@ const (
 // registerCallableEffectWork registers all source producers before any local
 // extraction can request another producer. The existing effect work owner owns
 // the finite source-index queue as well as later summary propagation.
-func registerCallableEffectWork(facts []callableFacts) callableEffectWork {
+func registerCallableEffectWork(facts []callableFacts, demand ...[]bool) callableEffectWork {
 	work := callableEffectWork{
 		extractionPhases: make([]callableExtractionPhase, len(facts)),
 		extractionQueue:  make([]callableExtractionTask, len(facts)),
@@ -97,10 +97,23 @@ func registerCallableEffectWork(facts []callableFacts) callableEffectWork {
 	}
 	work.indexOperationSources(facts)
 	for index := range facts {
+		if len(demand) != 0 && demand[0] != nil && !demand[0][index] {
+			work.extractionQueue[index].operationDone = true
+			continue
+		}
 		work.extractionPhases[index] = callableExtractionQueued
 		work.extractionQueue[index] = callableExtractionTask{callable: index}
 	}
 	return work
+}
+
+// demandCallable coalesces a genuine consumer's dependency on a registered body.
+// Inventory membership alone never grants readiness or queues a public body.
+func (work *callableEffectWork) demandCallable(index int) {
+	if index >= 0 && index < len(work.extractionPhases) && work.extractionPhases[index] == callableExtractionRegistered {
+		work.extractionPhases[index] = callableExtractionQueued
+		work.extractionQueue = append(work.extractionQueue, callableExtractionTask{callable: index})
+	}
 }
 
 func (work *callableEffectWork) nextExtraction() (callableExtractionTask, bool) {
@@ -120,6 +133,9 @@ func (work *callableEffectWork) nextExtraction() (callableExtractionTask, bool) 
 }
 
 func (work *callableEffectWork) finishExtraction(facts []callableFacts, index int) {
+	for _, target := range facts[index].targets {
+		work.demandCallable(target)
+	}
 	work.extractionPhases[index] = callableExtractionReady
 	facts[index].staged.ready = true
 	work.extracting = -1

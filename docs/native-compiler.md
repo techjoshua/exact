@@ -8,6 +8,12 @@ client, server, shared, source-map, and inspection set before publication. A fil
 restores the prior generation instead of leaving target files mixed. Semantic work and
 deterministic diagnostics remain single-owned by the retained native session.
 
+Public callable body demand starts at the requested executable source. TypeScript project roots
+remain available for checking and shared static inventories; unrelated components and tasks in
+those roots do not become execution demands. Real helper and JSX references, runtime imports,
+and module initialization extend that demand through their original owners. Independently
+compiling a component still supplies its own portable implementation and contract.
+
 Semantic generated-code validation keeps each module at its original identity. Imported finite
 mutation helpers are checked against the same compiler-owned companion bodies and runtime support
 imports emitted by their producer. This dependency view is local to validation. The authored
