@@ -1384,6 +1384,7 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 			// Source return relationships use the same selected-body/input owner
 			// as invocation effects. Per-alternative captures stay installed while
 			// the projected value is consumed, without a normal output receipt.
+			sourcePending := false
 			query.withAcquiredOutput(&acquiredParent, nil, func() {
 				if query.dependenciesOnly {
 					// Classify this projection independently from earlier alternatives.
@@ -1399,7 +1400,17 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 				tracePriorProjection := query.traceProjection
 				query.traceProjection = progressBeginProjection(query, value, projection, name, mode)
 				defer func() { query.traceProjection = tracePriorProjection }()
-				part := query.projectSourceCallReturnsWithViews(value, arguments, sourceCallResultInterest{purpose: resultSourceProjection}, func(returned sourceValue, captures sourceValueBindings) {
+				interest := sourceCallResultInterest{purpose: resultSourceProjection}
+				if query.dependenciesOnly && query.stagedMember != nil && query.stagedMember.returnResult != nil && query.normalBindingCall == nil && len(query.creators) == 0 && len(arguments) == 0 && (len(projection) != 0 || name != "" || mode&(accessorReachable|accessorEnumerate) != 0) {
+					interest.discover = func(source *sourceStagedFreezeReturnSource) bool {
+						if query.projectFreezeReturnPrefix(source, projection, name, mode, arguments, &result, visit) {
+							sourcePending = true
+							return true
+						}
+						return false
+					}
+				}
+				part := query.projectSourceCallReturnsWithViews(value, arguments, interest, func(returned sourceValue, captures sourceValueBindings) {
 					previous := arguments
 					arguments = captures
 					defer func() { arguments = previous }()
@@ -1437,7 +1448,7 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 				}
 			})
 			if query.dependenciesOnly {
-				result.callOutcomes = append(result.callOutcomes, query.returnOutcome(value, !result.opaque && !result.receiverIncomplete))
+				result.callOutcomes = append(result.callOutcomes, query.returnOutcome(value, !sourcePending && !result.opaque && !result.receiverIncomplete))
 			} else {
 				query.refuseExactOutput(value, &result)
 			}

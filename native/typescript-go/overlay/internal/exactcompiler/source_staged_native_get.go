@@ -33,6 +33,7 @@ type sourceStagedNativeGetSource struct {
 	moduleSources     []sourceStagedModuleInput      // selected source initialization dependencies, never acquired values
 	keySources        []sourceStagedKeySource        // original primitive-category requirements, not key identities
 	inputEffects      bool                           // input Effects independently represented
+	createTarget      bool                           // Original Create-shaped target ticket, not selection or execution authority.
 	eager             *sourceStagedNativeEagerInputs
 	installation      *sourceStagedNativeInstallation   // conditional original source endpoints, never a performed write
 	standard          sourceDemandStandardPremises      // conditional intrinsic relationship, not source preservation
@@ -694,6 +695,15 @@ func (query *sourceValueQuery) consumeStagedNativeAlgorithm(source *sourceStaged
 		}
 		return work.admitNativeDescriptor(facts, source, selection, plan, standard)
 	})
+	if reflectiveNative(source.kind) && query.stagedNativeGet != nil {
+		issuer := query.stagedNativeGet.effectsIssuer
+		if issuer.live() && issuer.work == work && sameOperationRequest(issuer.request, source.request) {
+			current := work.operationRecipes[nativeRootDebtRequest(source, "algorithm").producer].nativeGet
+			if call, _ := nativeReflectiveTargetCall(current, query.executable); call != nil {
+				work.describeNativeCreateTargetTicket(facts, current, call, query.executable)
+			}
+		}
+	}
 	if source.kind == sourceNativeObjectDefineProperty && query.stagedNativeGet != nil {
 		// Only this original selected interval can issue the separate pending
 		// mutation-output description. It acquires no operand and grants no Get

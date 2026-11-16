@@ -242,3 +242,74 @@ func (work *callableEffectWork) freezeReturnReadMatches(read *sourceStagedFreeze
 	current := work.freezeReturnReading(read.data)
 	return current != nil && current.source == read.source
 }
+
+// discoverFreezeReturnPrefix uses the existing original SOURCE issuer only.
+// A genuine selected prefix describes a conditional lexical field, even when
+// finishing/input/DATA debt is still unpaid. It never returns a current loan.
+func (work *callableEffectWork) discoverFreezeReturnPrefix(q *sourceValueQuery, reading sourceStagedOperationRequest, interest sourceCallResultInterest) {
+	if !validSourceCallResultInterest(interest) || interest.purpose != resultSourceProjection || interest.discover == nil || q == nil || !q.dependenciesOnly || q.normalBindingCall != nil || len(q.creators) != 0 || q.owner == nil || q.owner.generation != work.operationGeneration || work.operationGeneration == nil || !work.operationGeneration.active {
+		return
+	}
+	b := q.stagedMember
+	if b == nil || b.projectingReturn != reading.producer.operation || !q.liveStagedMemberSource(b, b.get, b.read) {
+		return
+	}
+	if q.executable == nil {
+		return
+	}
+	caller, known := work.memberNodes[b.request.consumer]
+	publisher := q.executable.pendingMemberPublishers[b.request.consumer]
+	if !known || caller < 0 || caller >= len(work.operationFacts) || publisher == nil || !publisher.live || publisher.fact != &work.operationFacts[caller] {
+		return
+	}
+	if b.getPreparation != nil && (b.getPreparation.work != work || b.getPreparation.id.epoch != work.operationEpoch) {
+		return
+	}
+	if n := q.stagedNativeGet; n != nil && (n.sourceWork != work || n.sourceEpoch != work.operationEpoch) {
+		return
+	}
+
+	recipe := work.operationRecipes[reading.producer]
+	source := recipe.callResult
+	if source == nil || source.generation != work.operationGeneration || !validFreezeReturnSource(source.freezeReturn, source) || source.freezeReturn.declaration != q.effectOwner || source.freezeReturn.declaration != b.request.consumer {
+		return
+	}
+	prefix := source.freezeReturn
+	native := work.operationRecipes[prefix.root.producer].nativeGet
+	if native == nil || native.kind != sourceNativeObjectFreeze || !sameOperationRequest(native.request, prefix.root) || !sameOperationRequest(nativeInputInvocationRequest(native), prefix.input) || native.input == nil || !sameOperationEndpoint(native.input.input, prefix.endpoint) {
+		return
+	}
+	// Both callers already own an exact original reading. Registration validates
+	// identity, never DATA extraction, subscriber APPLIED or current transport.
+	id := work.operationIDs[reading.producer]
+	if id.epoch != work.operationEpoch || id.index == 0 || int(id.index) >= len(work.operations) {
+		return
+	}
+	state := &work.operations[id.index]
+	sub := state.subscribers[sourceStagedOperationConsumer{reading.consumer, reading.edge}]
+	if state.invalid || !state.dependenciesRegistered || state.key != reading.producer || sub == nil || sub.blocked || !sameOperationRequest(sub.request, reading) {
+		return
+	}
+	// Retain the separate original physical/semantic domains. Preparation uses
+	// the acquisition issuer; physical projection uses the original C reader.
+	matched := false
+	if b.getPreparation != nil {
+		for _, data := range source.preparationData {
+			if sameOperationRequest(data.reading, reading) && q.getPreparationDataContextMatches(data) {
+				matched = true
+				break
+			}
+		}
+	} else {
+		for _, projection := range source.projections {
+			if sameOperationRequest(projection.reading, reading) && validFreezeProjection(source, projection) && sameOperationRequest(projection.parent, b.request) && projection.physical == b.observation && q.relativeInputCut(b.get.operation) == b.observation {
+				matched = true
+				break
+			}
+		}
+	}
+	if !matched {
+		return
+	}
+	interest.discover(prefix)
+}

@@ -44,6 +44,10 @@ func (issuer *sourceStagedNativeEffectsIssuer) nativeEffectsTaskChildAcquisition
 	if issuer.eager != nil {
 		return issuer.eager.liveChild(issuer)
 	}
+	if target := issuer.work.nativeCreateTargetTaskSource(issuer.task); target != nil {
+		call, _ := nativeReflectiveTargetCall(target, issuer.owner)
+		return issuer.call == call && source.kind == sourceNativeObjectCreate && source.get == call.Expression()
+	}
 	parent := issuer.work.nativeEffectsTaskSource(issuer.task)
 	if parent == nil || issuer.work.operations[issuer.task.index].key != parent.request.producer || issuer.call == parent.request.use || !issuer.work.nativeEffectsGetCurrent(parent) {
 		return false

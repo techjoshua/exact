@@ -82,29 +82,29 @@ func (work *callableEffectWork) originalFreezeProjection(q *sourceValueQuery, ca
 
 // retainFreezeProjection records genuine k1 intent before result extraction.
 // It adds no DATA child, observation stamp or receipt to a sealed producer.
-func (work *callableEffectWork) retainFreezeProjection(facts []callableFacts, q *sourceValueQuery, call *ast.Node) bool {
+func (work *callableEffectWork) retainFreezeProjection(facts []callableFacts, q *sourceValueQuery, call *ast.Node) (sourceStagedFreezeProjection, bool) {
 	p, ok := work.originalFreezeProjection(q, call)
 	if !ok {
-		return false
+		return sourceStagedFreezeProjection{}, false
 	}
 	recipe := work.operationRecipes[p.reading.producer]
 	for _, old := range recipe.callResult.projections {
 		if sameFreezeProjection(old, p) {
 			work.enrollNativeProjectionGet(facts, p.reading.producer)
-			return true
+			return p, true
 		}
 	}
 	if recipe.delta.extracted {
-		return false
+		return sourceStagedFreezeProjection{}, false
 	}
 	s := cloneStagedCallResultSource(recipe.callResult)
 	s.projections = append(s.projections, p)
 	recipe.callResult = s
 	if !work.attachOperationSource(facts, recipe) {
-		return false
+		return sourceStagedFreezeProjection{}, false
 	}
 	work.enrollNativeProjectionGet(facts, p.reading.producer)
-	return true
+	return p, true
 }
 
 func (l *sourceStagedFreezeProjectionLoan) live(q *sourceValueQuery) bool {

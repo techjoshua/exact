@@ -78,6 +78,17 @@ func (issuer *sourceStagedNativeEffectsIssuer) live() bool {
 	if issuer.task.index == 0 {
 		return issuer.work.extracting == issuer.caller
 	}
+	if target := issuer.work.nativeCreateTargetTaskSource(issuer.task); target != nil {
+		call, _ := nativeReflectiveTargetCall(target, issuer.owner)
+		if call == nil {
+			return false
+		}
+		expected, valid := stagedNativeInputOccurrenceRequest(issuer.fact, call)
+		if prior := issuer.work.operationRecipes[expected.producer].nativeGet; prior != nil {
+			expected = prior.request
+		}
+		return valid && call == issuer.call && sameOperationRequest(expected, issuer.request) && issuer.work.operations[issuer.task.index].writerSourceRunning && issuer.work.liveNativeEffectsExecution(issuer.task, issuer.owner, issuer.fact)
+	}
 	parent := issuer.work.nativeEffectsTaskSource(issuer.task)
 	if parent == nil || !issuer.work.operations[issuer.task.index].writerSourceRunning || !issuer.work.liveNativeEffectsExecution(issuer.task, issuer.owner, issuer.fact) {
 		return false

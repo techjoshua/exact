@@ -10,6 +10,7 @@ import (
 // candidates stay pending. A separately observed external runtime terminal can
 // carry its unknown residual, without paying any candidate or selection debt.
 type sourceStagedMemberSource struct {
+	nativeFieldGet              *sourceStagedNativeFieldGet         // Immutable foreign Get SOURCE purpose; never a query or receipt.
 	originalGetMutationInterest *sourceOriginalGetMutationInterest  // Passive original-owner demand, no Get/current receipt.
 	originalGetMutation         *sourceOriginalGetMutationSource    // Distinct conditional Get SOURCE output, no Effects/value loan.
 	reflectiveContribution      *sourceStagedReflectiveContribution // Conditional original-reader SOURCE, not installation/value authority.
@@ -77,6 +78,9 @@ func validStagedMemberRecipe(recipe sourceStagedOperationRecipe) bool {
 		return validStagedGetPreparationRecipe(recipe)
 	}
 	source := recipe.memberSource
+	if source != nil && source.nativeFieldGet != nil {
+		return validNativeFieldGetRecipe(recipe)
+	}
 	if source != nil && source.originalGetMutationInterest != nil {
 		return validOriginalGetMutationInterestRecipe(recipe)
 	}
@@ -410,6 +414,10 @@ func cloneStagedMemberSource(source *sourceStagedMemberSource) *sourceStagedMemb
 		return nil
 	}
 	copy := *source
+	if source.nativeFieldGet != nil {
+		header := *source.nativeFieldGet
+		copy.nativeFieldGet = &header
+	}
 	copy.originalGetMutation = cloneOriginalGetMutationSource(source.originalGetMutation)
 	copy.originalGetMutationInterest = cloneOriginalGetMutationInterest(source.originalGetMutationInterest)
 	copy.reflectiveContribution = cloneReflectiveContribution(source.reflectiveContribution)
@@ -633,7 +641,7 @@ func (work *callableEffectWork) prepareStagedMemberActivation(facts []callableFa
 }
 
 func sameStagedMemberSource(a, b *sourceStagedMemberSource) bool {
-	return a == b || a != nil && b != nil && a.generation == b.generation && sameExternalGetPreparation(a, b) && sameGetPreparation(a.getPreparation, b.getPreparation) && (a.getEffects == nil || b.getEffects != nil && sameOperationRequest(a.getEffects.preparation, b.getEffects.preparation)) && sameConstructedLookupProtocol(a, b) && stagedMemberCoverageBodyRefinement(a.coverage, b.coverage) && originalGetMutationInterestRefinementAllowed(a.originalGetMutationInterest, b.originalGetMutationInterest) && originalGetMutationRefinementAllowed(a.originalGetMutation, b.originalGetMutation) && (a.reflectiveContribution == nil || sameReflectiveContribution(a.reflectiveContribution, b.reflectiveContribution)) && sameDescriptorStrongReader(a.descriptorStrong, b.descriptorStrong) && (a.getEffects == nil || b.getEffects != nil && sameDescriptorRecordGet(a.getEffects.descriptor, b.getEffects.descriptor)) && sameInstalledCallSelectionSource(a.installedCallSelection, b.installedCallSelection) && sameInstalledMemberApplication(a.installedMember, b.installedMember) && sameFrameworkViewReading(a.frameworkRead, b.frameworkRead) && (a.nativeWriter == nil || sameNativeWriterCapability(a.nativeWriter, b.nativeWriter)) && sameStagedGlobalWrite(a.globalWrite, b.globalWrite) && a.writeEffects == b.writeEffects && (a.hasFreshTarget == nil || sameHasFreshTarget(a.hasFreshTarget, b.hasFreshTarget)) && (a.protocolSource == nil || a.protocolSource.nativeArgument == nil || b.protocolSource != nil && sameStagedNativeArgumentProtocol(a.protocolSource.nativeArgument, b.protocolSource.nativeArgument)) && (a.coverage == nil || b.coverage == nil || a.coverage.nativeObserver == b.coverage.nativeObserver) && (a.targetSource == nil || b.targetSource == nil || sameStagedReflectiveTarget(a.targetSource, b.targetSource)) && sameOperationRequest(a.request, b.request) && sameOperationRequest(a.parent, b.parent) && (sameStagedMemberCandidate(a.candidate, b.candidate) || sameRequestedMemberCallSource(a, b))
+	return a == b || a != nil && b != nil && a.generation == b.generation && (a.nativeFieldGet == b.nativeFieldGet || a.nativeFieldGet != nil && b.nativeFieldGet != nil && *a.nativeFieldGet == *b.nativeFieldGet) && sameExternalGetPreparation(a, b) && sameGetPreparation(a.getPreparation, b.getPreparation) && (a.getEffects == nil || b.getEffects != nil && sameOperationRequest(a.getEffects.preparation, b.getEffects.preparation)) && sameConstructedLookupProtocol(a, b) && stagedMemberCoverageBodyRefinement(a.coverage, b.coverage) && originalGetMutationInterestRefinementAllowed(a.originalGetMutationInterest, b.originalGetMutationInterest) && originalGetMutationRefinementAllowed(a.originalGetMutation, b.originalGetMutation) && (a.reflectiveContribution == nil || sameReflectiveContribution(a.reflectiveContribution, b.reflectiveContribution)) && sameDescriptorStrongReader(a.descriptorStrong, b.descriptorStrong) && (a.getEffects == nil || b.getEffects != nil && sameDescriptorRecordGet(a.getEffects.descriptor, b.getEffects.descriptor)) && sameInstalledCallSelectionSource(a.installedCallSelection, b.installedCallSelection) && sameInstalledMemberApplication(a.installedMember, b.installedMember) && sameFrameworkViewReading(a.frameworkRead, b.frameworkRead) && (a.nativeWriter == nil || sameNativeWriterCapability(a.nativeWriter, b.nativeWriter)) && sameStagedGlobalWrite(a.globalWrite, b.globalWrite) && a.writeEffects == b.writeEffects && (a.hasFreshTarget == nil || sameHasFreshTarget(a.hasFreshTarget, b.hasFreshTarget)) && (a.protocolSource == nil || a.protocolSource.nativeArgument == nil || b.protocolSource != nil && sameStagedNativeArgumentProtocol(a.protocolSource.nativeArgument, b.protocolSource.nativeArgument)) && (a.coverage == nil || b.coverage == nil || a.coverage.nativeObserver == b.coverage.nativeObserver) && (a.targetSource == nil || b.targetSource == nil || sameStagedReflectiveTarget(a.targetSource, b.targetSource)) && sameOperationRequest(a.request, b.request) && sameOperationRequest(a.parent, b.parent) && (sameStagedMemberCandidate(a.candidate, b.candidate) || sameRequestedMemberCallSource(a, b))
 }
 
 // refreshStagedMemberActivations observes late original graph associations.

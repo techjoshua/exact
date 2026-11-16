@@ -62,6 +62,10 @@ func (work *callableEffectWork) attachOperationSource(facts []callableFacts, rec
 			}
 			return true
 		}
+		if recipe.memberSource != nil && recipe.memberSource.nativeFieldGet != nil {
+			work.attachSourceObservationDependencies(facts, id)
+			return true // Only delivered current Get provenance completes this reader.
+		}
 		if recipe.memberSource != nil && recipe.memberSource.reflectiveContribution != nil {
 			// A cached description cannot issue an observation. Publication uses
 			// only the current original reader stamp recorded by its issuer.
@@ -131,6 +135,28 @@ func (work *callableEffectWork) attachOperationSource(facts []callableFacts, rec
 		}
 		if recipe.memberSource != nil && recipe.memberSource.moduleExcluded != nil {
 			return work.publishStagedModuleWriterExclusion(facts, id)
+		}
+		// Reflective root and eager-input owners extract the local graph separately
+		// from their blueprints. Preserve that disposition after enrolling every
+		// refined debt; dedicated Effects, map and value owners stay separate.
+		if source := recipe.nativeGet; source != nil && reflectiveNative(source.kind) && recipe.key.kind == relativeDemandEffects &&
+			source.effectsSource == nil && source.inputInvocation == nil && source.descriptorEntry == nil && source.descriptorMap == nil &&
+			!recipe.delta.extracted && work.operations[id.index].delta.extracted &&
+			(recipe.key == source.request.producer || source.eager != nil &&
+				recipe.key.selector == (sourceStagedOperationSelector{occurrence: source.get, field: "eager-inputs"})) {
+			return true
+		}
+		// Field Has/Get and direct descriptor-algorithm extraction belong to
+		// their original owners. Keep that graph disposition when attaching
+		// an unextracted blueprint; the refreshed memberships above still gate
+		// closure. Dependency enrollment may have grown the operations slice.
+		if source := recipe.nativeGet; source != nil && !recipe.delta.extracted && work.operations[id.index].delta.extracted &&
+			recipe.key.kind == relativeDemandEffects && source.descriptorGet != nil &&
+			(reflectiveNative(source.kind) || source.kind == sourceNativeObjectDefineProperties && source.descriptorEntry != nil) &&
+			(recipe.key.selector.occurrence == source.descriptorGet && stagedDescriptorFieldIndex(recipe.key.selector.field) >= 0 ||
+				reflectiveNative(source.kind) && source.descriptorEntry == nil && source.descriptorMap == nil &&
+					recipe.key.selector.occurrence == source.get && recipe.key.selector.field == "algorithm") {
+			return true
 		}
 		if state.revision != 0 || recipe.delta.extracted {
 			if operationDeltaSize(recipe.delta) == 0 {

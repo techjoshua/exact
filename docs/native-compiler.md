@@ -2668,6 +2668,24 @@ Cloned graphs must observe a fresh original interval. This lower transport event
 supplies no Get completion or coverage/current stamp: the SOURCE projection still
 requires the native finishing/input proof and exact DATA subscriber APPLIED.
 
+A reached reflective Effects source can describe a pending direct or immutable
+saved `Object.create` target on its existing eager-target task. Only the actual
+target dispatcher opens the target's own synchronous callee SOURCE interval.
+The original operand and initializer cuts remain distinct. A current original
+producer receipt is reused; an associated pending child resumes through its own
+Get task and exact dependency delivery. Neither a target description nor task
+presence supplies execution permission, a target result, DATA, APPLIED or closure.
+A running Freeze source task claims only the already queued canonical target task
+for its adopted DefineProperty input before requiring that conditional target
+association. The target keeps its own execution and issuer; unrelated work is
+not drained, and consumed tasks receive no replacement dispatch. The original
+result-law checks still decide whether the parent can retain input progress. Existing
+target/Get subscribers also wake waiting Freeze tasks along their validated
+nested input-source chain; these observation links add no Effects debt or
+current-result permission.
+The complete-callee recursion and current ordinary-result checks remain separate.
+Authored or unknown target callees keep their independent required work.
+
 For a canonical selected Freeze input, a bounded SOURCE return relation can
 preserve an immediate data literal containing one shorthand reference to an
 unwritten simple formal in the same declaration. The actual input acquisition
@@ -2680,6 +2698,21 @@ normal return or NoUser evidence. Captured, substituted, cross-declaration,
 computed, spread, accessor and callable literal forms remain pending unless
 their independent owners provide the required association. Generic capture
 conversion keeps its existing requirements.
+
+An actual SOURCE field visitor can also consume this genuine selected prefix
+synchronously through its existing original result issuer while finishing or
+DATA delivery remains pending. The canonical single-formal relation is visited
+through the original literal/member visitor with its lexical formal role. Known
+conditional dependencies remain visible beside incomplete source accounting.
+This path returns no value or current transport tag and retains the exact
+consumer purpose, parent, subscriber and physical reading separately from the
+producer's semantic Get cut. It expires when the original issuer returns or is
+revoked. A copied query, changed graph epoch or generation, blocked or invalid
+reader, contextual capture, and whole-object request cannot use it.
+The separate current DATA transport still requires genuine finishing/input
+currency and exact extracted DATA/APPLIED. Source discovery cannot certify
+selection, input invocation, Get/C coverage, preparation or closure. Other native
+result fields and wider literal/capture shapes retain their existing owners.
 
 Source-return readers retain the purpose chosen by their original caller. Direct
 callable exposure may use a conditional noncallable relation; reflective target
@@ -2869,6 +2902,45 @@ Effects, descriptor fields and possible Throw remain required. No successful
 completion, object identity, normal property value or NoWrites fact follows.
 The implicit descriptor algorithm's source recipe retains its six field
 requirements, while delivered algorithm completion belongs to the current graph.
+Its original field-source mapper can retain an input dependency prefix for the
+nominal write to a distinct fresh target when that exact Create producer is current
+during the original mapping. Callee, eager inputs and the full Create child remain
+required. Delivery of this prefix does not complete other source candidates,
+Has/Get coverage or full Effects closure, and supplies no Value or NoWrites law.
+Raw native source mappings retain the field consumer's ownership. Without a typed
+cross-owner reading, a foreign source stays unmapped rather than contributing its
+consumer's request to this field recipe. It still blocks complete source coverage;
+well-formed same-owner prefixes retain their original dependencies and delivery
+receipts. Dedicated input-bound and other typed source mappings remain separate.
+
+The six Effects fields are enumerable, configurable, value, writable, get and set.
+Enrollment requires the exact live field demand and property key; canonical field
+identity separates both passive task keys and their SOURCE/phase subscriber edges.
+Own-writer, DirectExposure and DATA roles are outside these purposes.
+
+A fixed ToPropertyDescriptor Effects prototype SOURCE reader may retain a typed interest in another
+original declaration's Object.create, Object.freeze or Object.defineProperty callee Get. The producer's genuine finishing
+Get owns exhaustive alternative and implicit-work accounting. Only its positive
+standard Get disposition and current canonical delivery complete that reader;
+indexed eligibility and empty Effects do not. Producer and reader declarations,
+original source identities and physical/graph cuts remain separate. Late delivery
+refines the existing passive reader without replaying field discovery or acquiring
+a Get. The view accounts for this Get only, with no Call, value, creation or general
+NoWrites grant. Other foreign candidates remain pending and actual work stays independently required.
+Cloning retains immutable reader metadata while rebuilding observations, revisions
+and subscriber receipts in the new graph; source edits retire the old view.
+The view also requires its generation to remain the project's active generation;
+a live older checker lease alone does not retain current SOURCE authority.
+
+A separate nominal Create SOURCE purpose may account for the one-argument
+standard algorithm's action relative to a pre-existing descriptor-field prototype
+reader of an original literal descriptor. It requires the exact complete Get view and current canonical deliveries
+of the original admitted input/prototype and algorithm phases. Conditional
+nominal disjointness supplies no fresh output, Value, creation or invocation right
+and does not complete the Call. Argument evaluation, coercion, Throw and all
+other alternatives keep their original obligations. Unknown or missing phase
+publications leave the reader pending. Only the existing owned reader resumes on
+phase delivery; field discovery and Get acquisition are not replayed.
 
 Candidate registration grants no invocation, output, normal result, category, absence or
 NoWrites authority. Nested and revoked issuers, copied queries and changed generations
@@ -3394,6 +3466,17 @@ bodies retain their original field producer instead of becoming executed Get
 or Call demands. A field read follows implicit conversion steps after argument
 evaluation, so its source context cannot reuse a callee or initial-enum
 no-user-entry disposition. Those predecessor laws remain separate requirements.
+For the first `enumerable` Has/Get of an original direct descriptor conversion,
+a current live field issuer may exclude generic prior-activation candidates when
+the receiver is the exact fresh inert ordinary literal with that own data field
+and the property key is a primitive literal. Aliases, accessors, spreads, computed
+names, `__proto__`, effectful creation and later fields do not inherit this scope.
+Indexed/reflective writes, module work, prototype SOURCE memberships and all
+field, input and Call dependencies remain required; no value or absence is issued.
+The original field issuer applies this scope during initial prototype SOURCE
+mapping before enrolling irrelevant deferred contributions. Existing typed
+Get/Create views and every committed prefix remain intact. Other fields and
+source purposes retain their original discovery and coverage obligations.
 Original ordinary Has, static own DATA Get and conditional intrinsic lookup
 owners publish distinct local entry laws. Initial ordinary-map OwnKeys and each
 accepted DATA entry read have separate laws as well. Graph-local receipts retain

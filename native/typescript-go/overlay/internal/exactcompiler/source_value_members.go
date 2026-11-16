@@ -133,7 +133,7 @@ func (query *sourceValueQuery) memberValuesAtGetWithStandard(origin *ast.Node, p
 				}
 			}
 			indexes = query.occurrenceSourceViewIn(origin, result, operation.sources, sourceIndexes[:0])
-			query.prepareStagedMemberSources(get, cut, origin, projection, name, mode, indexes, result)
+			query.prepareStagedMemberSources(get, cut, origin, projection, name, mode, indexes, result, standard)
 			query.publishOriginalGetMutationSource(get, cut, mode, origin, projection, name, standard)
 			query.acquireConstructedCoverageReceiver(get, cut, mode, result)
 			if query.transferStagedMapMemberEffects(origin, get, cut, mode, result) {

@@ -40,3 +40,26 @@ func (q *sourceValueQuery) projectFreezeLexicalReturn(value sourceValue, project
 	visitNode(read.source.endpoint.expression, path, false)
 	return true
 }
+
+// projectFreezeReturnPrefix is called synchronously by the existing original
+// result issuer. No sourceValue, current transport tag or callback escapes it.
+// The original field visitor retains formal dependencies beside pending work.
+func (q *sourceValueQuery) projectFreezeReturnPrefix(source *sourceStagedFreezeReturnSource, projection []string, name string, mode accessorTraversal, bindings sourceValueBindings, result *accessorCandidates, visit func(*ast.Node, []string, bool)) bool {
+	b := q.stagedMember
+	if source == nil || b == nil || q.owner == nil || source.generation != q.owner.generation || source.generation != b.generation || b.projectingReturn != source.root.producer.operation || !q.dependenciesOnly || q.normalBindingCall != nil || len(q.creators) != 0 || len(bindings) != 0 || q.effectOwner != source.declaration || b.request.consumer != source.declaration || !q.liveStagedMemberSource(b, b.get, b.read) {
+		return false
+	}
+	if len(projection) == 0 && name == "" && mode&(accessorReachable|accessorEnumerate) == 0 {
+		return false
+	}
+	// Set pending before visiting: nested authored source work cannot pay the
+	// outer result, finishing, DATA, APPLIED or preparation obligations.
+	result.valueIncomplete = true
+	if b.getPreparation != nil {
+		b.getPreparation.dataPending = true
+	} else {
+		b.represented = false
+	}
+	visit(source.endpoint.expression, projection, false)
+	return true
+}
