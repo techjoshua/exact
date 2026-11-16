@@ -4,9 +4,11 @@ import "github.com/microsoft/TypeScript/tsc/internal/ast"
 
 // componentCallableDemand selects public analysis work, not runtime execution.
 // Canonical inventories remain available to every source. Only a component,
-// framework task/policy boundary, or their transitive references demand bodies.
+// framework task/policy boundary in the requested source, or its transitive
+// references demand bodies. Program roots retain type context, not body demand.
+// Omitted scope preserves full-registry inspection for existing private harnesses.
 // The private replacement harness deliberately retains its all-facts experiment.
-func componentCallableDemand(collection *projectCallableCollection) []bool {
+func componentCallableDemand(collection *projectCallableCollection, requested ...*ast.SourceFile) []bool {
 	facts, owner := collection.facts, collection.owner
 	nodes, symbols := collection.nodes, collection.symbols
 	if owner == nil || owner.project == nil || owner.project.stagedReplacement {
@@ -32,7 +34,13 @@ func componentCallableDemand(collection *projectCallableCollection) []bool {
 			sources = append(sources, s)
 		}
 	}
+	if len(requested) != 0 {
+		needSource(requested[0])
+	}
 	for i, f := range facts {
+		if len(requested) != 0 && f.sourceFile != requested[0] {
+			continue
+		}
 		_, component := owner.values.components[f.node]
 		annotations := callableNodeAnnotations(f.node, f.sourceFile)
 		task := owner.values.erasedTaskPolicyParameter(f.node) != nil
@@ -117,12 +125,18 @@ func componentCallableDemand(collection *projectCallableCollection) []bool {
 		head++
 		f := &facts[i]
 		needSource(f.sourceFile)
-		if !isCallableNode(f.node) {
+		if !isCallableNode(f.node) && !runtimeModuleEvaluation(f.node) {
 			continue
 		}
 		_, componentReturn := owner.values.components[f.node]
 		summary := owner.values.summary(f.node)
 		for _, node := range summary.nodes {
+			if ast.IsJsxOpeningElement(node) {
+				demandReference(node.AsJsxOpeningElement().TagName, accessorInvoke)
+			}
+			if ast.IsJsxSelfClosingElement(node) {
+				demandReference(node.AsJsxSelfClosingElement().TagName, accessorInvoke)
+			}
 			if ast.IsCallExpression(node) || ast.IsNewExpression(node) {
 				demandReference(unwrapSourceCallableReference(node.Expression()), accessorInvoke)
 			}

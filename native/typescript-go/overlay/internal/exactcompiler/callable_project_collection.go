@@ -76,13 +76,13 @@ type projectCallableCollection struct {
 }
 
 func collectPreparedProjectCallableEffects(requested *ast.SourceFile, cache *projectCallableCache, owner *executableBodyOwner) callableAnalysis {
-	collection := beginProjectCallableCollection(cache, owner)
+	collection := beginProjectCallableCollection(cache, owner, requested)
 	defer collection.close()
 	collection.collect()
 	return collection.resolve(requested)
 }
 
-func beginProjectCallableCollection(cache *projectCallableCache, owner *executableBodyOwner) *projectCallableCollection {
+func beginProjectCallableCollection(cache *projectCallableCache, owner *executableBodyOwner, requested ...*ast.SourceFile) *projectCallableCollection {
 	collections := make([]projectSourceCollection, 0, len(cache.analyses))
 	count := 0
 	for _, source := range cache.program.GetSourceFiles() {
@@ -145,7 +145,7 @@ func beginProjectCallableCollection(cache *projectCallableCache, owner *executab
 		bySource[collections[i].context.source] = &collections[i]
 	}
 	collection := &projectCallableCollection{cache: cache, owner: owner, sources: collections, facts: facts, nodes: nodes, symbols: symbols, symbolSummaries: symbolSummaries, bySource: bySource}
-	demand := componentCallableDemand(collection)
+	demand := componentCallableDemand(collection, requested...)
 	if demand != nil {
 		for _, group := range collections {
 			for i := group.first; i < group.end && i < group.first+group.context.canonicalCount; i++ {
