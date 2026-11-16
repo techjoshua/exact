@@ -8,92 +8,122 @@ import (
 // Source publication precedes the original argument/receiver/RHS consumers.
 // It must not promote candidate discovery to activation, even with real inputs.
 func TestStagedMemberOriginalSourceBeforeRecovery(t *testing.T) {
-	const fixture = `const box={run:()=>1};function put(target:typeof box,value:()=>number){target.run=value}function install(){Object.defineProperty(box,'run',{value:()=>2})}export function invoke(){put(box,()=>3);install();return box.run()}`
-	withSourceCalleeWriteQuery(t, fixture, func(q *sourceValueQuery, call *ast.Node) {
-		facts := installationSourceFacts(q)
-		fact := &facts[installationFactIndex(t, facts, q.effectOwner)]
-		request, ok := sourceStagedOccurrenceRequest(fact, call, relativeDemandEffects, "member-owner-control")
-		if !ok {
-			t.Fatal("original source occurrence")
-		}
-		work := callableEffectWork{extracting: -1, operationGeneration: q.owner.generation}
-		candidates := []sourceStagedMemberCandidate{}
-		dispositions := 0
-		revoke, installed := q.beginStagedMemberSource(request, func(candidate sourceStagedMemberCandidate) bool {
-			if q.pendingWriterInput != nil || q.normalBindingCall != nil || q.stagedMember.read == nil {
-				t.Fatal("source publication waited for writer inputs")
-			}
-			altered := candidate
-			altered.target.expression = q.effectOwner
-			if work.registerStagedMemberCandidate(facts, q, request, altered) {
-				t.Fatal("altered source endpoint admitted")
-			}
-			copied := *q
-			if work.registerStagedMemberCandidate(facts, &copied, request, candidate) {
-				t.Fatal("copied issuer acquired publication")
-			}
-			if !work.registerStagedMemberCandidate(facts, q, request, candidate) {
-				t.Fatal("original candidate not registered")
-			}
-			recipe := work.operationRecipes[stagedMemberCandidateRequest(request, candidate).producer]
-			if recipe.delta.extracted || operationDeltaSize(recipe.delta) != 0 {
-				t.Fatal("candidate paid activation/value debt")
-			}
-			candidates = append(candidates, candidate)
-			return true
-		}, func(receipt sourceStagedMemberDisposition) bool {
-			if receipt.delta.extracted || len(receipt.delta.residuals) != 0 {
-				t.Fatal("inventory became completion or runtime unknown")
-			}
-			dispositions++
-			return work.registerStagedMemberDisposition(facts, q, receipt)
+	for _, control := range []struct{ name, target string }{
+		{"direct", "target.run"},
+		{"parenthesizedProperty", "(target.run)"},
+		{"nestedProperty", "((target.run))"},
+		{"assertedProperty", "(target.run as (() => number))"},
+		{"parenthesizedElement", "(target['run'])"},
+		{"nonnullElement", "(target['run']!)"},
+	} {
+		t.Run(control.name, func(t *testing.T) {
+			fixture := `const box={run:()=>1};function put(target:typeof box,value:()=>number){` + control.target + `=value}function install(){Object.defineProperty(box,'run',{value:()=>2})}export function invoke(){put(box,()=>3);install();return box.run()}`
+			// This owner control inspects pending SOURCE registration, not public algorithm completion.
+			// The existing helper rejects all non-coverage errors and partial artifacts.
+			withSourceCalleeWriteQueryStatus(t, fixture, func(q *sourceValueQuery, call *ast.Node) {
+				facts := installationSourceFacts(q)
+				fact := &facts[installationFactIndex(t, facts, q.effectOwner)]
+				request, ok := sourceStagedOccurrenceRequest(fact, call, relativeDemandEffects, "member-owner-control")
+				if !ok {
+					t.Fatal("original source occurrence")
+				}
+				work := callableEffectWork{extracting: -1, operationGeneration: q.owner.generation}
+				candidates := []sourceStagedMemberCandidate{}
+				dispositions := 0
+				revoke, installed := q.beginStagedMemberSource(request, func(candidate sourceStagedMemberCandidate) bool {
+					if q.pendingWriterInput != nil || q.normalBindingCall != nil || q.stagedMember.read == nil {
+						t.Fatal("source publication waited for writer inputs")
+					}
+					if !candidate.reflective && ast.IsBinaryExpression(candidate.operation) {
+						assignment := candidate.operation.AsBinaryExpression()
+						member := unwrapSourceCallableReference(assignment.Left)
+						receiver, key := accessorReceiver(member)
+						if candidate.target.expression != receiver || key != "run" || candidate.value.expression != assignment.Right || candidate.value.get != assignment.Left {
+							t.Fatal("normalized target lost original writer/value/Get association")
+						}
+						var expectedKey *ast.Node
+						if ast.IsElementAccessExpression(member) {
+							expectedKey = member.AsElementAccessExpression().ArgumentExpression
+						} else {
+							expectedKey = member.Name()
+						}
+						if candidate.key.expression != expectedKey || candidate.target.producer != candidate.operation || candidate.key.producer != candidate.operation || candidate.value.producer != candidate.operation || candidate.target.cut != candidate.cut || candidate.key.cut != candidate.cut || candidate.value.cut != candidate.cut {
+							t.Fatal("source endpoints lost original key/producer/cut")
+						}
+					}
+					altered := candidate
+					altered.target.expression = q.effectOwner
+					if work.registerStagedMemberCandidate(facts, q, request, altered) {
+						t.Fatal("altered source endpoint admitted")
+					}
+					copied := *q
+					if work.registerStagedMemberCandidate(facts, &copied, request, candidate) {
+						t.Fatal("copied issuer acquired publication")
+					}
+					if !work.registerStagedMemberCandidate(facts, q, request, candidate) {
+						t.Fatal("original candidate not registered")
+					}
+					recipe := work.operationRecipes[stagedMemberCandidateRequest(request, candidate).producer]
+					if recipe.delta.extracted || operationDeltaSize(recipe.delta) != 0 {
+						t.Fatal("candidate paid activation/value debt")
+					}
+					candidates = append(candidates, candidate)
+					return true
+				}, func(receipt sourceStagedMemberDisposition) bool {
+					if receipt.delta.extracted || len(receipt.delta.residuals) != 0 {
+						t.Fatal("inventory became completion or runtime unknown")
+					}
+					dispositions++
+					return work.registerStagedMemberDisposition(facts, q, receipt)
+				})
+				if !installed {
+					t.Fatal("original source interval")
+				}
+				q.receiverCandidates(call, nil)
+				revoke()
+				assignment, reflective := false, false
+				for _, candidate := range candidates {
+					assignment = assignment || !candidate.reflective
+					reflective = reflective || candidate.reflective
+				}
+				if !assignment || !reflective || dispositions == 0 {
+					t.Fatal("original assignment/reflective source relations missing", assignment, reflective, dispositions)
+				}
+				if work.registerStagedMemberCandidate(facts, q, request, candidates[0]) {
+					t.Fatal("expired source publication accepted")
+				}
+				for _, recipe := range work.operationRecipes {
+					if recipe.memberSource == nil {
+						continue
+					}
+					if work.registerOperationUse(facts, sourceStagedOperationUse{request: recipe.memberSource.request, call: call}) {
+						t.Fatal("source inventory authorized a stored invocation")
+					}
+					if _, ok := work.requireOperation(facts, recipe.memberSource.request); !ok {
+						t.Fatal("typed pending source ticket refused")
+					}
+				}
+				work.prepareOperationUses(facts, q.executable)
+				knownStored := false
+				for _, recipe := range work.operationRecipes {
+					if recipe.memberSource == nil {
+						continue
+					}
+					for _, value := range recipe.delta.exposures {
+						knownStored = knownStored || value.endpoint.expression != nil && ast.IsArrowFunction(value.endpoint.expression)
+					}
+					if len(recipe.delta.invoked)+len(recipe.delta.effects)+len(recipe.delta.relative)+len(recipe.delta.residuals) != 0 {
+						t.Fatal("stored source data activated a body")
+					}
+				}
+				if !knownStored {
+					t.Fatal("current creating association did not transfer known stored RHS")
+				}
+				// Original reference Effects can close without proving a writer ran.
+				// The stored payload must remain dormant, as checked above.
+			}, true)
 		})
-		if !installed {
-			t.Fatal("original source interval")
-		}
-		q.receiverCandidates(call, nil)
-		revoke()
-		assignment, reflective := false, false
-		for _, candidate := range candidates {
-			assignment = assignment || !candidate.reflective
-			reflective = reflective || candidate.reflective
-		}
-		if !assignment || !reflective || dispositions == 0 {
-			t.Fatal("original assignment/reflective source relations missing", assignment, reflective, dispositions)
-		}
-		if work.registerStagedMemberCandidate(facts, q, request, candidates[0]) {
-			t.Fatal("expired source publication accepted")
-		}
-		for _, recipe := range work.operationRecipes {
-			if recipe.memberSource == nil {
-				continue
-			}
-			if work.registerOperationUse(facts, sourceStagedOperationUse{request: recipe.memberSource.request, call: call}) {
-				t.Fatal("source inventory authorized a stored invocation")
-			}
-			if _, ok := work.requireOperation(facts, recipe.memberSource.request); !ok {
-				t.Fatal("typed pending source ticket refused")
-			}
-		}
-		work.prepareOperationUses(facts, q.executable)
-		knownStored := false
-		for _, recipe := range work.operationRecipes {
-			if recipe.memberSource == nil {
-				continue
-			}
-			for _, value := range recipe.delta.exposures {
-				knownStored = knownStored || value.endpoint.expression != nil && ast.IsArrowFunction(value.endpoint.expression)
-			}
-			if len(recipe.delta.invoked)+len(recipe.delta.effects)+len(recipe.delta.relative)+len(recipe.delta.residuals) != 0 {
-				t.Fatal("stored source data activated a body")
-			}
-		}
-		if !knownStored {
-			t.Fatal("current creating association did not transfer known stored RHS")
-		}
-		// Original reference Effects can close without proving a writer ran.
-		// The stored payload must remain dormant, as checked above.
-	})
+	}
 }
 
 func TestStagedMemberExternalUnknownOriginalSource(t *testing.T) {

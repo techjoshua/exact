@@ -15,7 +15,7 @@ func (work *callableEffectWork) registerStagedDeclarationCallEffects(facts []cal
 	}
 	work.operationGeneration = owner.values.generation
 	request := stagedDeclarationCallEffectsRequest(call, facts[consumer].node)
-	description, supported := describeStagedInputSubstitution(call, facts[consumer].node, owner)
+	description, supported := describeStagedDeclarationEffectsInputs(call, facts[consumer].node, owner)
 	var declaration *sourceStagedDeclarationCall
 	if supported {
 		declaration = &sourceStagedDeclarationCall{kind: relativeDemandEffects, invocation: description.invocation, sourceInputs: description}

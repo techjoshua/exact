@@ -108,6 +108,7 @@ type sourcePendingMemberPublisher struct {
 // ownership. None of its functions or query arguments enters source descriptions.
 // Absence refuses registration; registration itself pays no semantic source work.
 type sourcePendingMemberWorkRegistrar struct {
+	arrayPush              func(*sourceValueQuery, *ast.Node, sourceValue, *ast.Node, sourceValue)
 	originalGetMutation    func(*sourceValueQuery, *sourceGetInputs, *sourceMemberWriterReadCut, accessorTraversal, *ast.Node, []string, string, *sourceValue, ...*ast.Node) bool
 	installedCallSelection func(*sourceValueQuery, *ast.Node) (func(), bool)
 	descriptorSource       func(*sourceValueQuery, *sourceWriterInputRequest)

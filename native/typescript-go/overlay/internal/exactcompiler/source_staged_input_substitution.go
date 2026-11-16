@@ -20,6 +20,18 @@ type sourceStagedInputSubstitution struct {
 // their original argument observation, not the later member's read cut. Effects
 // and result selection remain separate required demands on the existing queue.
 func describeStagedInputSubstitution(call, consumer *ast.Node, bodyOwner *executableBodyOwner) (*sourceStagedInputSubstitution, bool) {
+	return describeStagedDeclarationInputs(call, consumer, bodyOwner, false)
+}
+
+// describeStagedDeclarationEffectsInputs also describes a direct declaration in
+// the caller's own lexical activation. Only Effects uses this wider source
+// domain: returned DATA, creating inputs and demanded captures keep their own
+// producers. In particular this does not reconstruct an enclosing scope.
+func describeStagedDeclarationEffectsInputs(call, consumer *ast.Node, bodyOwner *executableBodyOwner) (*sourceStagedInputSubstitution, bool) {
+	return describeStagedDeclarationInputs(call, consumer, bodyOwner, true)
+}
+
+func describeStagedDeclarationInputs(call, consumer *ast.Node, bodyOwner *executableBodyOwner, nestedEffects bool) (*sourceStagedInputSubstitution, bool) {
 	if bodyOwner == nil {
 		return nil, false
 	}
@@ -35,7 +47,7 @@ func describeStagedInputSubstitution(call, consumer *ast.Node, bodyOwner *execut
 	if symbol == nil || declaration == nil {
 		return nil, false
 	}
-	if !ast.IsFunctionDeclaration(declaration) || declaration.Parent != source.AsNode() || declaration.Body() == nil || !envelopeSynchronousFunction(declaration) {
+	if !ast.IsFunctionDeclaration(declaration) || declaration.Parent != source.AsNode() && (!nestedEffects || !stagedDeclarationEffectsOwner(declaration, consumer)) || declaration.Body() == nil || !envelopeSynchronousFunction(declaration) {
 		return nil, false
 	}
 	if async, ordinary := ordinaryResultCategory(declaration); async || !ordinary {
@@ -94,7 +106,7 @@ func (work *callableEffectWork) stageSourceDeclarationCall(facts []callableFacts
 	if _, old := stageDeclarationCall(fact, call, owner.checker, owner); old == stagedCallSupported {
 		return false
 	}
-	source, ok := describeStagedInputSubstitution(call, fact.node, owner)
+	source, ok := describeStagedDeclarationEffectsInputs(call, fact.node, owner)
 	if !ok {
 		// A nonterminal lexical default Call needs the same original B as a
 		// terminal Call. Neither the passive planner nor its result reader may
@@ -213,4 +225,14 @@ func sourceProjectedReturnedInvocation(alternative sourceStagedOperationAlternat
 		return out, false
 	}
 	return sourceStagedReturnedInvocation{alternative: alternative, later: later}, true
+}
+
+// stagedDeclarationEffectsOwner admits module definitions and definitions owned
+// by this original caller activation. A saved or cross-activation closure needs
+// its independent creating/capture relationship; a source Call cannot supply it.
+func stagedDeclarationEffectsOwner(declaration, caller *ast.Node) bool {
+	if declaration == nil || caller == nil || declaration.Parent == nil || ast.GetSourceFileOfNode(declaration) != ast.GetSourceFileOfNode(caller) {
+		return false
+	}
+	return ast.IsSourceFile(declaration.Parent) || enclosingCallableNode(declaration.Parent) == caller
 }

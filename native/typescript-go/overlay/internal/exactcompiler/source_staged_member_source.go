@@ -319,12 +319,16 @@ func (q *sourceValueQuery) observeStagedMemberCandidate(get *sourceGetInputs, cu
 		}
 	} else if ast.IsBinaryExpression(operation) && operation.AsBinaryExpression().OperatorToken.Kind == ast.KindEqualsToken {
 		assignment := operation.AsBinaryExpression()
-		receiver, key := accessorReceiver(assignment.Left)
+		// The index classifies the unwrapped target, while its original writer
+		// retains authored wrappers. Select endpoints from the same target without
+		// changing the original operation, value Get or observation cut.
+		member := unwrapSourceCallableReference(assignment.Left)
+		receiver, key := accessorReceiver(member)
 		candidate.target = sourceRelativeEndpoint{kind: relativeEndpointExpression, expression: receiver, producer: operation, cut: candidate.cut}
-		if ast.IsElementAccessExpression(assignment.Left) {
-			candidate.key = sourceRelativeEndpoint{kind: relativeEndpointExpression, expression: assignment.Left.AsElementAccessExpression().ArgumentExpression, producer: operation, cut: candidate.cut}
+		if ast.IsElementAccessExpression(member) {
+			candidate.key = sourceRelativeEndpoint{kind: relativeEndpointExpression, expression: member.AsElementAccessExpression().ArgumentExpression, producer: operation, cut: candidate.cut}
 		} else if key != "" {
-			candidate.key = sourceRelativeEndpoint{kind: relativeEndpointExpression, expression: assignment.Left.Name(), producer: operation, cut: candidate.cut}
+			candidate.key = sourceRelativeEndpoint{kind: relativeEndpointExpression, expression: member.Name(), producer: operation, cut: candidate.cut}
 		}
 		candidate.value = sourceRelativeEndpoint{kind: relativeEndpointExpression, expression: assignment.Right, producer: operation, get: assignment.Left, cut: candidate.cut}
 	}
@@ -357,6 +361,10 @@ func (q *sourceValueQuery) prepareStagedMemberSources(get *sourceGetInputs, cut 
 			assignment, found := cursor.next()
 			if !found {
 				break
+			}
+			if cut.followsCalleeGet(q, get, assignment.right.Parent, result) {
+				b.seen[assignment.right.Parent] = true
+				continue
 			}
 			if q.afterRead(assignment.left) && runtimeModuleEvaluation(q.effectOwner) {
 				continue

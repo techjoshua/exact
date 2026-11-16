@@ -148,6 +148,13 @@ func (work *callableEffectWork) refreshStagedMemberSourceReceipts(facts []callab
 		work.retainStagedDeclarationResultEffects(facts, request.producer)
 		work.issueStagedAssignmentSource(facts, recipe, owner)
 		work.refreshStagedAssignmentSource(facts, recipe, owner)
+		if source := recipe.callResult; source != nil && source.getResult != nil && source.getResult.role == "effects" && source.getResult.sourceInput.parent.use == nil {
+			if caller, known := work.memberNodes[source.declaration]; known {
+				// Renew the original demanded Effects owner, not its value or
+				// a passive flag. Captured/local SOURCE eligibility stays there.
+				work.observeStagedLocalGetEffects(facts, caller, request.use, owner)
+			}
+		}
 		if source := recipe.memberSource; source != nil && source.candidate.protocol && source.protocolSource == nil {
 			parent := work.operationRecipes[source.parent.producer]
 			if host := parent.memberSource; host != nil && host.protocolSource != nil && host.protocolSource.get != nil && !host.protocolSource.selfRead && work.stagedSelfReadMethod(source.candidate.operation, source.parent.consumer) {
@@ -163,7 +170,7 @@ func (work *callableEffectWork) refreshStagedMemberSourceReceipts(facts []callab
 		work.attachStagedMemberProtocol(facts, request.producer)
 		work.refreshStagedMemberExternalGet(facts, request.producer, owner)
 		recipe = work.operationRecipes[request.producer]
-		pending = append(pending, recipe.delta.required...)
+		pending = append(pending, operationRecipeEffectRequirements(recipe)...)
 	}
 }
 

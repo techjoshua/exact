@@ -407,6 +407,12 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 			result.valueIncomplete = true
 			return
 		}
+		if query.projectGetEffectsSource(value, projection, mode, get, visit) {
+			return
+		}
+		if query.projectAssignmentSourceReceiver(value, mode, &result, visit) {
+			return
+		}
 		if query.deferStagedAssignmentReceiver(value, mode, &result) {
 			return
 		}
@@ -721,7 +727,7 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 			var argumentLookup *sourceStagedFieldArgumentLookup
 			if get != nil && len(projection) == 0 && name == "" && query.liveStagedMapObservation(get, mode) {
 				selectedGet = get
-			} else if get != nil && len(projection) == 1 && name == "" && (get.propertyKey == "" || get.propertyKey == projection[0]) && (get.receiver.node == value || inheritedReceiver != nil && get.receiver.node == inheritedReceiver.node && len(get.receiver.path) == 0) {
+			} else if get != nil && len(projection) == 1 && name == "" && (get.propertyKey == "" || get.propertyKey == projection[0]) && (get.receiver.node == value || inheritedReceiver != nil && get.receiver.node == inheritedReceiver.node && len(get.receiver.path) == 0 || query.stagedLocalGetEffectsSelection(get, value, projection, name, mode)) {
 				// The selected New/class/heritage route changes lookup origin only.
 				// Preserve this read's receiver tuple, native relation and Has cell.
 				selectedGet, argumentLookup = query.copyStagedFieldLookupGet(get, value)
@@ -1055,6 +1061,9 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 								}
 							}
 						} else {
+							if query.supplyAssignmentSourceSetter(member, selectedGet, mode, &result) {
+								continue
+							}
 							if staged := query.liveStagedAssignment(); staged != nil && staged.consume != nil && staged.consume(member, actualReceiver, arguments, &result) {
 								continue
 							}

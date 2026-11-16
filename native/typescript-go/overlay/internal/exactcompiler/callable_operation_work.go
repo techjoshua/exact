@@ -12,6 +12,7 @@ type sourceStagedOperationConsumer struct {
 	edge     string
 }
 type sourceStagedOperationSubscriber struct {
+	readWrites          []sourceQualifiedReadWrite         // Actually consumed conditional source effects, graph-local only.
 	writerSourceParents []sourceStagedOperationID          // Exact source tasks waiting on this applied prerequisite.
 	nativeInputObserved uint64                             // Graph-local original observer refresh, not Call completion.
 	returned            []sourceStagedOperationAlternative // graph-local dormant return-source data
@@ -921,6 +922,9 @@ func (work *callableEffectWork) prepareOperationUses(facts []callableFacts, owne
 // a source callback cannot execute the same task again. Appended work joins this
 // finite pass and canonical nextExtraction skips only these completed tasks.
 func (work *callableEffectWork) drainOperationExtractions(facts []callableFacts, owner *executableBodyOwner) {
+	preparing := work.operationPreparing
+	work.operationPreparing = true
+	defer func() { work.operationPreparing = preparing }()
 	for index := work.extractionHead; index < len(work.extractionQueue); index++ {
 		task := work.extractionQueue[index]
 		if task.operation.index == 0 || task.operationDone {
@@ -987,7 +991,7 @@ func (work *callableEffectWork) registerOperationDependencies(facts []callableFa
 			work.indexNativeWriterCapability(key)
 		}
 		work.enrollNativeEagerKey(facts, recipe)
-		required := recipe.delta.required
+		required := operationRecipeEffectRequirements(recipe)
 		if recipe.memberSource != nil && recipe.memberSource.moduleExcluded != nil {
 			required = append(append([]sourceStagedOperationRequest(nil), required...), recipe.memberSource.moduleExcluded.required...)
 		}

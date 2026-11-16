@@ -172,7 +172,7 @@ func (query *sourceValueQuery) memberValuesAtGetWithStandard(origin *ast.Node, p
 			// own writers/descriptors below still contribute their own uncertainty.
 			// Ordinary receivers retain their unfinished own-interference debt.
 			// Neither path gains replacement precision from the standard candidate.
-			if !standardNativeLookup(get) && !query.stagedStandardAssignmentLookup(get, standard, mode) && !query.stagedConstructedGetLookup(get, standard, mode) && !query.stagedStandardConstructedCallLookup(get, standard, mode) && !query.stagedConstructedResultCoverageLookup(get, standard, mode) {
+			if !standardNativeLookup(get) && !query.stagedArrayGetEffectsLookup(origin, get, mode, standard) && !query.stagedStandardAssignmentLookup(get, standard, mode) && !query.stagedConstructedGetLookup(get, standard, mode) && !query.stagedStandardConstructedCallLookup(get, standard, mode) && !query.stagedConstructedResultCoverageLookup(get, standard, mode) {
 				result.opaque = true
 			}
 			inventory = true
@@ -500,6 +500,7 @@ func (query *sourceValueQuery) memberValuesAtGetWithStandard(origin *ast.Node, p
 		for _, value := range alternatives {
 			visit(value)
 		}
+		query.observeArrayGetEffects(origin, get, cut, mode, standard)
 		query.observeStagedAssignmentStandardSet(origin, get, cut, mode, standard, result)
 		query.observeStagedConstructedGetEffects(origin, get, cut, mode, standard, result)
 		query.observeStagedConstructedResultCoverage(origin, get, cut, mode, standard, result)
@@ -547,6 +548,13 @@ func (query *sourceValueQuery) arrayValues(origin *ast.Node, projection []string
 	var indexGet *sourceGetInputs
 	if query.arrayIndexMayAtGet(get, origin, projection, name, mode) {
 		indexGet = get
+	} else if query.stagedLocalGetEffectsSelection(get, origin, projection, name, mode) && stagedEmptyArrayDataConstruction(origin) {
+		// Same SOURCE lookup relation as the literal member visitor: preserve
+		// the original receiver/Get, changing only the descriptive lookup root.
+		selected := *get
+		lookup := sourceValue{node: origin}
+		selected.lookupOwner = &lookup
+		indexGet = &selected
 	}
 	var standard *sourceValue
 	var inherited []sourceValue

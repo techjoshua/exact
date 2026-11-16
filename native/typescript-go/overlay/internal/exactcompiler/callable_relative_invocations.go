@@ -50,6 +50,7 @@ func (work *callableEffectWork) prepareRelativeInvocations(facts []callableFacts
 	if owner == nil || owner.values == nil {
 		return
 	}
+	work.prepareRelativeSetEffects(facts, owner)
 	work.prepareBindingInvocations(facts, owner)
 	// Every canonical mutation-transfer table is reset and rebuilt below. This
 	// clock only invalidates graph-local DATA retry bookkeeping.

@@ -109,10 +109,25 @@ func TestStagedFieldGetterInvokedFormalCapture(t *testing.T) {
 // A reassigned formal still needs its completed capture/write producer. The
 // relative read must not be reduced to its initial argument or closed unknown.
 func TestStagedFieldGetterWrittenCaptureRemainsPending(t *testing.T) {
-	withSourceCalleeWriteQuery(t, `function browser(){return document.title}function quiet(){return 'safe'}export function invoke(fn:()=>string){fn=quiet;return Object.defineProperty({},'run',{get value(){return fn()}})}`, func(query *sourceValueQuery, call *ast.Node) {
+	withSourceCalleeWriteQueryStatus(t, `function browser(){return document.title}function quiet(){return 'safe'}export function invoke(fn:()=>string){fn=quiet;return Object.defineProperty({},'run',{get value(){return fn()}})}`, func(query *sourceValueQuery, call *ast.Node) {
 		facts := installationSourceFacts(query)
 		declaration := enclosingCallableNode(call)
 		descriptor := restrictedInvocationArguments(call.AsCallExpression())[2]
+		// This is a pending-source producer control. The strict public/terminal
+		// compile tests retain their own analysis completion requirements.
+		getter := descriptor.AsObjectLiteralExpression().Properties.Nodes[0]
+		read := getter.Body().AsBlock().Statements.Nodes[0].AsReturnStatement().Expression.Expression()
+		symbol := query.owner.checker.GetSymbolAtLocation(read)
+		if symbol == nil || symbol.ValueDeclaration == nil || !query.owner.bindingWritten(symbol) {
+			t.Fatal("original reassigned formal not found")
+		}
+		role := sourceRelativeRole{kind: relativeRoleCapture, declaration: getter, binding: symbol.ValueDeclaration}
+		if _, mapped := fieldGetterCaptureFormal(role, declaration, query.executable); mapped {
+			t.Fatal("written formal gained immutable-formal substitution")
+		}
+		if _, mapped := describeStagedCapturedBinding(read, getter, query.executable); mapped {
+			t.Fatal("written formal gained declaration-relative read SOURCE without its writer")
+		}
 		request := sourceStagedNativeRequest{call: call, get: call.Expression(), descriptorGet: descriptor, request: sourceStagedOperationRequest{producer: sourceStagedOperationKey{declaration: declaration, operation: call, kind: relativeDemandEffects}, consumer: declaration, edge: "written-field-capture", use: call, cut: sourceRelativeCut{operation: call, use: call, reading: call}}}
 		work := callableEffectWork{extracting: -1}
 		revoke, ok := beginStagedNativeDescriptorSource(query, &work, facts, request)
@@ -128,5 +143,5 @@ func TestStagedFieldGetterWrittenCaptureRemainsPending(t *testing.T) {
 		if len(state.getters) != 1 || state.getters[0].inputs == nil || state.getters[0].bodyTransferred || work.closedOperationDependencies()[work.operationIDs[key].index] {
 			t.Fatal("written capture acquired initial-formal or completion authority")
 		}
-	})
+	}, true)
 }

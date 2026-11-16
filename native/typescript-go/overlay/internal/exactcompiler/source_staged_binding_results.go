@@ -110,6 +110,9 @@ func describeStagedBindingData(read, caller *ast.Node, owner *executableBodyOwne
 
 func validStagedBindingResultRecipe(recipe sourceStagedOperationRecipe) bool {
 	source := recipe.callResult
+	if source.capturedBinding != nil {
+		return validStagedCapturedBindingRecipe(recipe)
+	}
 	if source == nil || source.binding == nil || !ast.IsIdentifier(recipe.key.operation) || source.declaration != recipe.key.declaration || source.operand != nil || source.getResult != nil || source.nativeCall || source.constructedRoot.producer.operation != nil || !sameOperationRequest(source.request, stagedBindingResultRequest(recipe.key.operation, recipe.key.declaration)) {
 		return false
 	}

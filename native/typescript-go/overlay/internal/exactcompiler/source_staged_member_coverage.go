@@ -28,7 +28,7 @@ type sourceStagedMemberCoverage struct {
 func validStagedMemberParent(parent sourceStagedOperationRequest) bool {
 	operation := parent.producer.operation
 	_, _, field := stagedFieldMemberParent(parent)
-	return operation != nil && parent.inputs == nil && parent.consumer == parent.producer.declaration && parent.producer.kind == relativeDemandEffects && (parent.producer.selector == (sourceStagedOperationSelector{}) || field || stagedMapEntryMemberParent(parent)) && parent.use == operation && parent.cut == (sourceRelativeCut{operation: operation, use: operation, reading: operation}) && sourceStagedOccurrenceOwned(operation, parent.producer.declaration)
+	return operation != nil && parent.inputs == nil && parent.consumer == parent.producer.declaration && parent.producer.kind == relativeDemandEffects && (parent.producer.selector == (sourceStagedOperationSelector{}) || field || stagedMapEntryMemberParent(parent) || assignmentSourceMemberParent(parent)) && parent.use == operation && parent.cut == (sourceRelativeCut{operation: operation, use: operation, reading: operation}) && sourceStagedOccurrenceOwned(operation, parent.producer.declaration)
 }
 
 func stagedMemberCoverageRequest(parent sourceStagedOperationRequest, origin *ast.Node, cut sourceRelativeCut) sourceStagedOperationRequest {
@@ -178,6 +178,10 @@ func (q *sourceValueQuery) prepareStagedMemberCoverage(get *sourceGetInputs, cut
 			// The current Get is not its own predecessor. Function bodies still
 			// retain later operations as possible prior-activation source work.
 			if node == get.operation || node == b.call || node == q.protectedMember || b.seen[node] || runtimeModuleEvaluation(q.effectOwner) && q.afterRead(node) {
+				continue
+			}
+			if cut.followsCalleeGet(q, get, node, result) {
+				b.seen[node] = true
 				continue
 			}
 			if q.privateDeferredDefinitionExcluded(node, result) {

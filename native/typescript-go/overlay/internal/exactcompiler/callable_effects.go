@@ -476,7 +476,12 @@ func callableAnalysisFingerprint(analysis callableAnalysis) string {
 				result.WriteString(fmt.Sprintf("|has-instance:%#v", *source))
 			}
 			if source := recipe.nativeGet; source != nil && source.effectsSource != nil {
-				result.WriteString(fmt.Sprintf("|native-effects-source:%#v", source.effectsSource))
+				description := *source.effectsSource
+				description.arrayIssuer = nil // Graph receipt is not cached semantic content.
+				result.WriteString(fmt.Sprintf("|native-effects-source:%#v", &description))
+			}
+			if source := recipe.nativeGet; source != nil && source.arrayPush != nil {
+				result.WriteString(fmt.Sprintf("|native-array-push:%#v", *source.arrayPush))
 			}
 			fieldMutationDataFingerprint(recipe.mutationData, &result)
 			installedMutationRHSFingerprint(recipe.installedMutationRHS, &result)
@@ -652,6 +657,8 @@ func callableAnalysisFingerprint(analysis callableAnalysis) string {
 			}
 			if recipe.nativeGet != nil {
 				source := *recipe.nativeGet
+				// Dedicated markers above cover these descriptions without carrier or issuer identity.
+				source.effectsSource, source.arrayPush = nil, nil
 				source.installation, source.eager, source.input, source.prototype, source.calleeEntry, source.inputInvocation, source.descriptorRead = nil, nil, nil, nil, nil, nil, nil
 				if source.descriptorMap != nil {
 					plan := *source.descriptorMap

@@ -312,7 +312,10 @@ func (query *sourceValueQuery) setterWriteProducer(left *ast.Node, bindings sour
 		if !query.charge(&accessorCandidates{}, assignment.left) {
 			return nil, bindings
 		}
-		if enclosingCallableNode(assignment.left) != nil || assignment.left.Pos() >= at.Pos() || ast.GetSourceFileOfNode(assignment.left) != ast.GetSourceFileOfNode(at) || assignment.left.Parent == nil || !ast.IsBinaryExpression(assignment.left.Parent) || assignment.left.Parent.AsBinaryExpression().OperatorToken.Kind != ast.KindEqualsToken {
+		// The index retains the normalized member and original RHS. Classify the
+		// original assignment so wrapped references still count for uniqueness.
+		operation := assignment.right.Parent
+		if enclosingCallableNode(assignment.left) != nil || assignment.left.Pos() >= at.Pos() || ast.GetSourceFileOfNode(assignment.left) != ast.GetSourceFileOfNode(at) || operation == nil || !ast.IsBinaryExpression(operation) || operation.AsBinaryExpression().OperatorToken.Kind != ast.KindEqualsToken || unwrapSourceCallableReference(operation.AsBinaryExpression().Left) != assignment.left {
 			continue
 		}
 		possible, _ := query.reachable(assignment.left, bindings)

@@ -51,7 +51,7 @@ func stagedFieldMemberParent(request sourceStagedOperationRequest) (sourceStaged
 // descriptor expressions cannot alias another entry or Has/Get observation.
 func stagedMemberContextField(parent sourceStagedOperationRequest, name string) string {
 	_, _, field := stagedFieldMemberParent(parent)
-	if field || stagedMapEntryMemberParent(parent) {
+	if field || stagedMapEntryMemberParent(parent) || assignmentSourceMemberParent(parent) {
 		return fmt.Sprintf("%s:%s:%p:%p", name, parent.producer.selector.field, parent.producer.selector.occurrence, parent.producer.selector.association)
 	}
 	return name

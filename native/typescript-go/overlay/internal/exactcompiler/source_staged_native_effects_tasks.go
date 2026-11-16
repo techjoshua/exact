@@ -363,7 +363,7 @@ func (work *callableEffectWork) nativeEffectsSourceCurrent(recipe sourceStagedOp
 	if !validNativeEffectsRequest(registered) || !sameNativeGetSource(registered.nativeGet, recipe.nativeGet) || !sameNativeEffectsRequest(registered.nativeGet.effectsSource, recipe.nativeGet.effectsSource) || !operationDeltaPrefix(registered.delta, recipe.delta) || !operationDeltaPrefix(recipe.delta, registered.delta) {
 		return false
 	}
-	return work.nativeEffectsGetCurrent(recipe.nativeGet)
+	return recipe.nativeGet.kind != sourceNativeArrayPush && work.nativeEffectsGetCurrent(recipe.nativeGet)
 }
 
 func (work *callableEffectWork) prepareNativeEffectsSource(facts []callableFacts, task callableExtractionTask, owner *executableBodyOwner) {
@@ -381,6 +381,12 @@ func (work *callableEffectWork) prepareNativeEffectsSource(facts []callableFacts
 	st := &work.operations[id.index]
 	if st.invalid || st.writerSourceRunning {
 		return
+	}
+	if source.kind == sourceNativeArrayPush {
+		if work.arrayPushPrefixCurrent(source) {
+			work.publishOperation(id, work.operationRecipes[st.key].delta)
+		}
+		return // Original issued dependency prefix, not a child/current/algorithm ACK.
 	}
 	revisions := work.sourceObservationRevisions(id)
 	if revisions == nil || st.writerSourceRevisions != nil && slices.Equal(st.writerSourceRevisions, revisions) {

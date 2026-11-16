@@ -163,7 +163,11 @@ func (work *callableEffectWork) indexStagedMemberProtocolSource(recipe sourceSta
 		record(source.root.producer.operation, source.root)
 	} else if source := recipe.assignment; source != nil && source.phase == "" {
 		record(source.root.producer.operation, source.root)
-		record(source.root.producer.operation.AsBinaryExpression().Left, source.root)
+		// A plain Set owns its target source. An update first reads that target;
+		// its original Get Effects producer remains independent of the whole update.
+		if plan := planMutationOperation(source.root.producer.operation); plan.kind == mutationAssign {
+			record(plan.target, source.root)
+		}
 	} else if source := recipe.nativeGet; source != nil {
 		work.indexStagedNativeArgumentProtocol(recipe)
 		if recipe.key == source.request.producer {

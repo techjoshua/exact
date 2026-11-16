@@ -13,7 +13,7 @@ import (
 type sourceInvocationConsumer struct {
 	descriptorView func(sourceNativeDescriptorView, sourceValueBindings) // Typed result channel, never raw receiver/output.
 	// arrayPush consumes MAY mutation effects only, never a native result receipt.
-	arrayPush func(*ast.Node, sourceValueBindings, *accessorCandidates)
+	arrayPush func(*ast.Node, sourceValue, sourceValueBindings, *accessorCandidates)
 	// native consumes an already acquired alternative, never a declaration lookup.
 	native     func(*sourceNativeInvocation, *accessorCandidates)
 	reflective func(*sourceReflectiveOperation, *accessorCandidates)

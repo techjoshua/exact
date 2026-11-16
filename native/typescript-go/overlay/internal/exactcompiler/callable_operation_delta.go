@@ -10,16 +10,16 @@ import (
 // atom channels. A disposition revision can advance with all offsets unchanged.
 // Offsets never become acquisition, result or publication authority.
 type sourceStagedOperationCursor struct {
-	exposures, invoked, relative, effects, required, residuals int
+	exposures, invoked, relative, effects, required, residuals, readWrites int
 }
 
 func operationDeltaCursor(delta sourceStagedOperationDelta) sourceStagedOperationCursor {
-	return sourceStagedOperationCursor{len(delta.exposures), len(delta.invoked), len(delta.relative), len(delta.effects), len(delta.required), len(delta.residuals)}
+	return sourceStagedOperationCursor{len(delta.exposures), len(delta.invoked), len(delta.relative), len(delta.effects), len(delta.required), len(delta.residuals), len(delta.readWrites)}
 }
 
 func operationDeltaSize(delta sourceStagedOperationDelta) int {
 	c := operationDeltaCursor(delta)
-	return c.exposures + c.invoked + c.relative + c.effects + c.required + c.residuals
+	return c.exposures + c.invoked + c.relative + c.effects + c.required + c.residuals + c.readWrites
 }
 
 func sameOperationRequest(a, b sourceStagedOperationRequest) bool {
@@ -53,12 +53,13 @@ func operationPrefix[T any](prefix, all []T, equal func(T, T) bool) bool {
 // operationDeltaPrefix authenticates ordered prefix growth, including private
 // causal identities. Same environment bits do not imply the same requirement.
 func operationDeltaPrefix(a, b sourceStagedOperationDelta) bool {
-	return operationPrefix(a.exposures, b.exposures, sameOperationAlternative) && operationPrefix(a.invoked, b.invoked, sameOperationInvocation) && operationPrefix(a.relative, b.relative, func(a, b sourceRelativeInvokedInput) bool { return a == b }) && operationPrefix(a.effects, b.effects, sameOperationEffect) && operationPrefix(a.required, b.required, sameOperationRequest) && operationPrefix(a.residuals, b.residuals, sameOperationResidual)
+	return operationPrefix(a.readWrites, b.readWrites, sameQualifiedReadWrite) && operationPrefix(a.exposures, b.exposures, sameOperationAlternative) && operationPrefix(a.invoked, b.invoked, sameOperationInvocation) && operationPrefix(a.relative, b.relative, func(a, b sourceRelativeInvokedInput) bool { return a == b }) && operationPrefix(a.effects, b.effects, sameOperationEffect) && operationPrefix(a.required, b.required, sameOperationRequest) && operationPrefix(a.residuals, b.residuals, sameOperationResidual)
 }
 
 // cloneOperationDelta owns all mutable slices. Bound C edges and AST endpoints
 // are already sealed generation-relative descriptions and remain shared.
 func cloneOperationDelta(delta sourceStagedOperationDelta) sourceStagedOperationDelta {
+	delta.readWrites = cloneQualifiedReadWrites(delta.readWrites)
 	delta.exposures = append([]sourceStagedOperationAlternative(nil), delta.exposures...)
 	for i := range delta.exposures {
 		delta.exposures[i].endpoint = cloneSourceRelativeEndpoint(delta.exposures[i].endpoint)
@@ -88,6 +89,7 @@ func operationDeltaTail(delta sourceStagedOperationDelta, c sourceStagedOperatio
 	delta.effects = delta.effects[c.effects:]
 	delta.required = delta.required[c.required:]
 	delta.residuals = delta.residuals[c.residuals:]
+	delta.readWrites = delta.readWrites[c.readWrites:]
 	return delta
 }
 
@@ -97,6 +99,9 @@ func operationDeltaTail(delta sourceStagedOperationDelta, c sourceStagedOperatio
 // subrequirements must issue to the producer's own declaration, at exact cuts.
 func validOperationEnvelope(recipe sourceStagedOperationRecipe) bool {
 	key := recipe.key
+	if len(recipe.delta.readWrites) != 0 && recipe.assignment == nil {
+		return false
+	}
 	if len(recipe.fieldMutationLinks) != 0 && recipe.mutationData == nil {
 		return false
 	}

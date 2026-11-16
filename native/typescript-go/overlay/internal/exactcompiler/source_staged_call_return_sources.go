@@ -23,13 +23,19 @@ type sourceStagedCallReturnBranch struct {
 // substitutes an invoked role for dormant data. True validates association
 // only, including when no explicit return sources were inventoried.
 func describeStagedCallReturnSources(call sourceStagedDeclarationCall, owner *executableBodyOwner) (sourceStagedCallReturnPlan, bool) {
+	return describeStagedCallReturnSourcesForPurpose(call, owner, nil)
+}
+
+// The Set SOURCE owner supplies its original consumer, never a creating scope.
+// The ordinary DATA entry above keeps its narrower declaration/capture domain.
+func describeStagedCallReturnSourcesForPurpose(call sourceStagedDeclarationCall, owner *executableBodyOwner, setOwner *ast.Node) (sourceStagedCallReturnPlan, bool) {
 	var plan sourceStagedCallReturnPlan
 	declaration, operation := call.invocation.declaration, call.invocation.operation
 	if owner == nil || owner.values == nil || owner.checker == nil || owner.values.program == nil || declaration == nil || !ast.IsFunctionDeclaration(declaration) && !ast.IsGetAccessorDeclaration(declaration) || declaration.Body() == nil || operation == nil || !stagedResultExpression(operation) || ast.IsCallExpression(operation) && !ast.IsIdentifier(operation.Expression()) || !validStagedDataResultCall(call) || call.inputs != nil && call.sourceInputs != nil {
 		return plan, false
 	}
 	file := ast.GetSourceFileOfNode(declaration)
-	if file == nil || file.IsDeclarationFile || standardLibrarySource(file) || !ast.IsExternalModule(file) || ast.IsFunctionDeclaration(declaration) && declaration.Parent != file.AsNode() || ast.GetSourceFileOfNode(operation) != file || owner.values.program.GetSourceFile(file.FileName()) != file {
+	if file == nil || file.IsDeclarationFile || standardLibrarySource(file) || !ast.IsExternalModule(file) || ast.IsFunctionDeclaration(declaration) && declaration.Parent != file.AsNode() && (setOwner == nil || !stagedDeclarationEffectsOwner(declaration, setOwner) || enclosingCallableNode(operation) != setOwner) || ast.GetSourceFileOfNode(operation) != file || owner.values.program.GetSourceFile(file.FileName()) != file {
 		return plan, false
 	}
 	if async, ordinary := ordinaryResultCategory(declaration); async || !ordinary {
@@ -61,7 +67,8 @@ func describeStagedCallReturnSources(call sourceStagedDeclarationCall, owner *ex
 	}
 	plan = sourceStagedCallReturnPlan{call: call, declaration: declaration, operation: operation}
 	plan.call.invocation = cloneStagedWriterInvocation(call.invocation)
-	templates := describeStagedReturnTemplates(declaration, owner.values)
+	var templates []sourceStagedReturnTemplate
+	templatesReady := false
 	for _, site := range owner.values.summary(declaration).returnSites {
 		expression := site
 		if ast.IsReturnStatement(site) {
@@ -81,6 +88,11 @@ func describeStagedCallReturnSources(call sourceStagedDeclarationCall, owner *ex
 			if selected != nil && selected.ValueDeclaration != nil {
 				branch.binding = selected.ValueDeclaration
 				parameter := selected.ValueDeclaration
+				if setOwner != nil && ast.IsVariableDeclaration(parameter) && enclosingCallableNode(parameter) == setOwner && parameter.Initializer() != nil && !owner.values.bindingWritten(selected) && !capturedBindingMutated(selected, owner) {
+					branch.endpoint.producer = parameter
+					branch.endpoint.get = value
+					branch.pending = false // SOURCE binding/read only; no literal DATA or scope.
+				}
 				if originalStagedGetterCall(call) {
 					// This Get B supplies receiver context. Only its separately
 					// described lexical source binding can carry captured DATA.
@@ -115,6 +127,10 @@ func describeStagedCallReturnSources(call sourceStagedDeclarationCall, owner *ex
 				}
 			}
 		case ast.IsArrowFunction(value) || ast.IsFunctionExpression(value):
+			if !templatesReady {
+				templates = describeStagedReturnTemplates(declaration, owner.values)
+				templatesReady = true
+			}
 			branch.pending = true
 			for _, template := range templates {
 				if template.returning == site && template.callable == value {
