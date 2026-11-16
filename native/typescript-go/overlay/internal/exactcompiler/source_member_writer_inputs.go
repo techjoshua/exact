@@ -245,6 +245,15 @@ func (q *sourceValueQuery) memberWriterInputs(left *ast.Node, bindings sourceVal
 			// A dormant region cannot establish its own source invocation by
 			// recursively inspecting another dormant writer's precondition.
 			caller := enclosingCallableNode(call)
+			// Transformation erases only this authenticated policy default subtree.
+			// Its indexed Calls cannot execute as writers of another input.
+			if caller != nil {
+				if entry := index.normalOccurrences[call]; entry != nil && entry.defaultRoot != nil {
+					if policy := q.owner.summary(caller).erasedPolicy; policy != nil && policy.Initializer() == entry.defaultRoot {
+						continue
+					}
+				}
+			}
 			if caller != nil && caller != enclosingCallableNode(q.reading) && q.creators[caller].invocation == nil {
 				continue
 			}

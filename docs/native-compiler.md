@@ -1993,8 +1993,9 @@ compilation checks this boundary for both emission targets: an explicit server t
 effects is rejected, and a staged source coverage gap stops publication before tasks or artifacts
 escape. This boundary does not change component state ownership or task execution semantics.
 Both ordinary and precision effect collection exclude the exact component-owned, authenticated
-task policy parameter erased by transformation; ordinary defaults and authored body work remain
-effect consumers.
+task policy parameter erased by transformation; indexed writer discovery reuses the same
+checker-bound erasure for that exact default subtree. Ordinary defaults, policy arguments and
+authored body work remain effect consumers.
 
 Library definition publication is independent of the application's selected invocation inputs.
 Named callable props can qualify a receiving JSX edge through their actual receiver, arguments
