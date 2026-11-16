@@ -128,7 +128,15 @@ func (query *sourceValueQuery) nativeCallbackInputEffects(node *ast.Node, bindin
 					query.installParameterInput(parameter, values, inputs, &part)
 				}
 			}
+			first := len(part.effects)
 			query.consumeOrdinaryBody(node, body, inputs.bindings, inputs, nil, &part)
+			// Keep only the actual acquired callback's effect association. Its
+			// scope/bindings/throw handling above remain owned by this producer.
+			for i := first; i < len(part.effects); i++ {
+				if part.effects[i].declaration == body && part.effects[i].operation == node {
+					part.effects[i].arrayMapCall = node
+				}
+			}
 			query.creators = prior
 		}
 	})

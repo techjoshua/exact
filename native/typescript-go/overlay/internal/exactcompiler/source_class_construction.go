@@ -518,7 +518,7 @@ func (q *sourceValueQuery) adoptConstructionMayEffects(field *ast.Node, part acc
 		return
 	}
 	for _, effect := range part.effects {
-		result.effects = append(result.effects, sourceCallableEffect{declaration: effect.declaration})
+		result.effects = append(result.effects, sourceCallableEffect{declaration: effect.declaration, arrayMapCall: effect.arrayMapCall})
 		q.recordFacts(1)
 	}
 	for _, write := range part.writes {

@@ -20,19 +20,20 @@ type importedHelperUse struct {
 }
 
 type importedHelperPolicyPlan struct {
-	source  *ast.SourceFile
-	checker *checker.Checker
-	owner   *executableBodyOwner
-	uses    map[*ast.Node]*importedHelperUse
+	source    *ast.SourceFile
+	checker   *checker.Checker
+	owner     *executableBodyOwner
+	uses      map[*ast.Node]*importedHelperUse
+	callables map[*ast.Node]CallableSummary
 }
 
 // planImportedHelperPolicy snapshots resolved component edges before lowering
 // reparents originals. It issues no execution or artifact-retention authority.
-func planImportedHelperPolicy(source *ast.SourceFile, c *checker.Checker, owner *executableBodyOwner, components []Component) *importedHelperPolicyPlan {
+func planImportedHelperPolicy(source *ast.SourceFile, c *checker.Checker, owner *executableBodyOwner, components []Component, callables map[*ast.Node]CallableSummary) *importedHelperPolicyPlan {
 	if owner == nil || owner.checker != c {
 		return nil
 	}
-	p := &importedHelperPolicyPlan{source: source, checker: c, owner: owner, uses: make(map[*ast.Node]*importedHelperUse)}
+	p := &importedHelperPolicyPlan{source: source, checker: c, owner: owner, uses: make(map[*ast.Node]*importedHelperUse), callables: callables}
 	// Cache only completed root walks in this pass; cyclic partial results are never cached.
 	consumptions := make(map[*ast.Node][]*ast.Node)
 	for _, component := range components {
@@ -76,6 +77,7 @@ func planImportedHelperPolicy(source *ast.SourceFile, c *checker.Checker, owner 
 // declarations, using existing source-owned normal-node inventories. It neither
 // visits unrelated functions nor infers bodies from a callable signature. Task
 // and component boundaries need their own projection and are not inherited.
+// Inline Array.map bodies require their original source-native Effects association.
 func (p *importedHelperPolicyPlan) ordinaryHelperConsumptions(root *ast.Node) []*ast.Node {
 	var calls []*ast.Node
 	seen := make(map[*ast.Node]bool)
@@ -115,6 +117,26 @@ func (p *importedHelperPolicyPlan) ordinaryHelperConsumptions(root *ast.Node) []
 			}
 			visit(next)
 		}
+		// Only the source-native producer can mark this edge. The generic
+		// eager-callback/spelling fallback carries no arrayMapCall association.
+		for _, edge := range p.callables[helper].Calls {
+			call := edge.arrayMapCall
+			if call == nil || !edge.Resolved || enclosingCallableNode(call) != helper {
+				continue
+			}
+			args := call.AsCallExpression().Arguments
+			if args == nil || len(args.Nodes) == 0 {
+				continue
+			}
+			callback := unwrapSourceCallableReference(args.Nodes[0])
+			if !ast.IsArrowFunction(callback) && !ast.IsFunctionExpression(callback) {
+				continue
+			}
+			if summary, known := p.callables[callback]; known && summary.ID == edge.TargetID {
+				visit(callback)
+			}
+		}
+
 	}
 	visit(root)
 	return calls
