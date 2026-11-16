@@ -49,6 +49,18 @@ func planImportedHelperPolicy(source *ast.SourceFile, c *checker.Checker, owner 
 			}
 			file := ast.GetSourceFileOfNode(helper)
 			if file != nil && file != source && !file.IsDeclarationFile {
+				// Only direct policy consumers need retention evidence. Reuse the
+				// original body inventory instead of tracking ordinary helpers.
+				relevant := false
+				for _, operation := range owner.values.summary(helper).nodes {
+					if ast.IsCallExpression(operation) && isImportedSecretConsume(operation.Expression(), c) {
+						relevant = true
+						break
+					}
+				}
+				if !relevant {
+					return true
+				}
 				p.uses[n] = &importedHelperUse{edge: n, helper: helper, source: file}
 			}
 			return true
@@ -109,7 +121,13 @@ func (p *importedHelperPolicyPlan) audit(file *ast.SourceFile, emit *printer.Emi
 			return true
 		}
 		use := p.uses[emit.MostOriginal(n)]
-		if use == nil || !use.retained || use.target != TargetClient || emit.MostOriginal(n.Expression()) != use.edge.Expression() || seenHelpers[use.helper] {
+		if use == nil || !use.retained || use.target != TargetClient {
+			return true
+		}
+		if emit.MostOriginal(n.Expression()) != use.edge.Expression() {
+			panic("Compiler analysis coverage gap: retained imported policy callee identity changed")
+		}
+		if seenHelpers[use.helper] {
 			return true
 		}
 		// Compare checked original identities, not names or cross-file positions.
