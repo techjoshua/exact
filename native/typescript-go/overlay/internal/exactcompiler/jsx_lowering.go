@@ -9,6 +9,7 @@ import (
 )
 
 type jsxLowering struct {
+	importedPolicy   *importedHelperPolicyPlan
 	taskMethodOwners map[SourceSpan]taskMethodCreation
 
 	helperMutations              helperMutationPlan
@@ -173,7 +174,9 @@ func lowerExactJSX(
 ) (*ast.SourceFile, map[string]string, map[string]string, map[string]struct{}, map[string]struct{}, ArtifactStructure, map[string]struct{}) {
 	lowering, required := plan.prepare(sourceFile, emitContext)
 	if !required {
-		return lowerIntlOperations(sourceFile, emitContext.Factory, plan.intl, ""), nil, nil, nil, nil, ArtifactStructure{}, nil
+		transformed := lowerIntlOperations(sourceFile, emitContext.Factory, plan.intl, "")
+		plan.importedPolicy.project(transformed, emitContext, plan.target)
+		return transformed, nil, nil, nil, nil, ArtifactStructure{}, nil
 	}
 	transformed := lowering.lowerAuthoredTree(sourceFile)
 	transformed = lowering.projectTargetTree(transformed)
@@ -183,7 +186,9 @@ func lowerExactJSX(
 	statementCount := len(transformed.Statements.Nodes)
 	transformed = lowerIntlOperations(transformed, emitContext.Factory, plan.intl, lowering.names.componentIntl)
 	sourceStatementCount += len(transformed.Statements.Nodes) - statementCount
-	return lowering.assembleModule(transformed, sourceStatementCount), componentUpdateNames, componentInputUpdateNames, lowering.componentInputTaskIDs, lowering.componentRangeOutputs, lowering.artifactStructure(), lowering.componentListOwners()
+	assembled := lowering.assembleModule(transformed, sourceStatementCount)
+	plan.importedPolicy.project(assembled, emitContext, lowering.target)
+	return assembled, componentUpdateNames, componentInputUpdateNames, lowering.componentInputTaskIDs, lowering.componentRangeOutputs, lowering.artifactStructure(), lowering.componentListOwners()
 }
 
 // componentListOwners returns target-local constructor facts discovered only after typed JSX

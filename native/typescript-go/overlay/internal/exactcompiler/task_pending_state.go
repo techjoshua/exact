@@ -340,6 +340,7 @@ func (lowering *jsxLowering) pendingStateOperation(node, context *ast.Node, visi
 			arguments = append(arguments, lowering.pendingHelperArgument(argument, visitor))
 		}
 		result := lowering.factory.NewCallExpression(selected, nil, nil, lowering.factory.NewNodeList(arguments), ast.NodeFlagsNone)
+		lowering.importedPolicy.recordPendingHelper(node, result, selected, lowering.emitContext)
 		if typeNode := lowering.mutationFacts.at(nodeSourceSpan(node)).pending; typeNode != nil {
 			result = lowering.factory.NewAsExpression(result, typeNode)
 		}
