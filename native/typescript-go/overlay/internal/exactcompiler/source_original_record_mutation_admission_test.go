@@ -18,6 +18,7 @@ func TestOriginalRecordGetMutationSourceAdmission(t *testing.T) {
 		collection.resolve(file)
 		work := &collection.work
 		var observed *sourceOriginalGetMutationSource
+		var observedRecipe sourceStagedOperationRecipe
 		for _, recipe := range work.operationRecipes {
 			if recipe.memberSource == nil || recipe.memberSource.originalGetMutation == nil || recipe.memberSource.originalGetMutation.record == nil {
 				continue
@@ -76,6 +77,7 @@ func TestOriginalRecordGetMutationSourceAdmission(t *testing.T) {
 				t.Fatal("copied physical Get cut accepted")
 			}
 			observed = s
+			observedRecipe = recipe
 		}
 		if observed == nil {
 			t.Fatal("real original record SOURCE admission UNREACHED")
@@ -86,5 +88,45 @@ func TestOriginalRecordGetMutationSourceAdmission(t *testing.T) {
 			t.Fatal("fresh work inherited Source DATA authority")
 		}
 		fresh.close()
+
+		// Repeating a sealed original SOURCE must not recertify or republish it.
+		// This is a sealed no-op/refuser control, not an unsealed retry transition.
+		{
+			s := observed
+			recipe := observedRecipe
+			id, adopted := work.operationIDs[recipe.key]
+			if !adopted || id.epoch != work.operationEpoch || id.index == 0 || int(id.index) >= len(work.operations) {
+				t.Fatal("actual SOURCE adoption UNREACHED")
+			}
+			state := &work.operations[id.index]
+			if state.invalid || !recipe.delta.extracted || !state.delta.extracted || state.revision == 0 || !work.originalGetMutationCurrent(recipe) {
+				t.Fatal("actual provider SOURCE local extraction/currentness UNREACHED")
+			}
+			for _, provider := range s.providers {
+				if provider.kind == originalGetMutationProviderUnsupported || provider.reader.producer.operation == nil || !operationContainsRequest(recipe.delta.required, provider.candidate) || !operationContainsRequest(recipe.delta.required, provider.reader) {
+					t.Fatal("actual provider description or retained debt UNREACHED")
+				}
+			}
+			applied := false
+			for _, sub := range state.subscribers {
+				applied = applied || sub != nil && !sub.blocked && sub.applied == state.revision && sameOperationRequest(sub.request, recipe.memberSource.request)
+			}
+			if !applied {
+				t.Fatal("actual SOURCE default APPLIED UNREACHED")
+			}
+			stamp, revision := work.memberCoverageObserved[recipe.key], state.revision
+			if work.refineOriginalGetMutationProviders(work.operationFacts, id) {
+				t.Fatal("sealed SOURCE refined again")
+			}
+			if work.memberCoverageObserved[recipe.key] != stamp || work.operations[id.index].revision != revision {
+				t.Fatal("retry recertified original event or republished sealed source")
+			}
+			fresh := beginProjectCallableCollection(cache, cache.owner)
+			if fresh.work.refineOriginalGetMutationProviders(nil, id) || fresh.work.originalGetMutationCurrent(recipe) {
+				fresh.close()
+				t.Fatal("fresh work inherited SOURCE authority")
+			}
+			fresh.close()
+		}
 	})
 }
