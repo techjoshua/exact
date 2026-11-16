@@ -32,6 +32,12 @@ export function Page(this:Component<{count:number}>){
 }`
 			for _, target := range []Target{TargetClient, TargetServer} {
 				r := NewSession().Execute(Request{Kind: "compile", ID: filepath.Join(root, "policy-writer-"+c.name+".tsx"), Source: source, Target: target, Diagnostics: "semantic"})
+				if c.name == "shadowed-method" {
+					if r.Error != "" || r.Code != "" || r.SourceMap != nil || len(r.Diagnostics) != 1 || r.Diagnostics[0].Code != "EXACT2001" || r.Diagnostics[0].Severity != "error" || r.Diagnostics[0].Message != "error: task policy must be rooted at TaskContext imported from @exactjs/core" {
+						t.Fatalf("shadowed policy acquired an artifact or lost its original refusal: %s %#v", r.Error, r.Diagnostics)
+					}
+					continue
+				}
 				if r.Error != "" || hasErrorDiagnostic(r.Diagnostics) || r.Code == "" {
 					t.Fatalf("public component %s rejected: %s %#v", target, r.Error, r.Diagnostics)
 				}
