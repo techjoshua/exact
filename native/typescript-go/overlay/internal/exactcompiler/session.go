@@ -800,7 +800,7 @@ func (s *Session) executeProjection(request Request, authored *authoredCheckProg
 	}
 	var importedPolicy *importedHelperPolicyPlan
 	if request.Target == TargetClient {
-		importedPolicy = planImportedHelperPolicy(sourceFile, generation.checker, callables.owner, components)
+		importedPolicy = planImportedHelperPolicy(sourceFile, generation.checker, callables.owner, components, callables.byNode)
 	}
 	transformed, componentUpdates, componentInputUpdates, componentInputTaskIDs, componentRangeOutputs, artifactStructure, componentListOwners := lowerExactJSX(
 		sourceFile,

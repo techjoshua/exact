@@ -18,7 +18,8 @@ type acquiredCallableScope struct {
 // Declaration selection alone is not an execution contribution. A nil operation
 // retains a conservative effect edge but can never fulfill an input disposition.
 type sourceCallableEffect struct {
-	use *ast.Node // Original contextual EFFECT parent only; operation identity remains separate.
+	arrayMapCall *ast.Node // Original acquired Array.map MAY callback parent; no execution rights.
+	use          *ast.Node // Original contextual EFFECT parent only; operation identity remains separate.
 
 	operation, declaration *ast.Node
 	receivers              *sourceEffectReceivers

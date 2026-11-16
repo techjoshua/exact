@@ -286,7 +286,11 @@ A retained member route without that function identity refuses coverage rather t
 borrowing authority from its receiver/key. Callee-owned normal-node inventories preserve
 eager evaluations without invoking dormant nested bodies. Repeated calls and cycles are
 deduplicated by original declaration and consume identity. Task/component boundaries and
-unresolved higher-order calls do not inherit the root's retention authority. Captured parameter defaults run on the originating
+unresolved higher-order calls do not inherit the root's retention authority. Inline authored callbacks of standard Array.map are
+included only through the original acquired native callback Effects association
+published with the existing call edge. Authored lookalike methods and stored
+callback values do not obtain that association. This MAY-effects handoff carries
+no callback completion, selected value or normal-execution permission. Captured parameter defaults run on the originating
 host, so secret resolution belongs inside the server task body.
 
 Secret qualification dominates sharing and placement:
