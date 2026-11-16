@@ -84,6 +84,7 @@ func (plan jsxLoweringPlan) prepare(
 		plan.analysisFacts = newSourceAnalysisFacts(sourceFile, plan.typeChecker)
 	}
 	lowering := &jsxLowering{
+		importedPolicy:              plan.importedPolicy,
 		analysisFacts:               plan.analysisFacts,
 		helperMutations:             plan.helperMutations,
 		checking:                    plan.checking,

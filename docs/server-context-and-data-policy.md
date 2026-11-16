@@ -278,7 +278,11 @@ from component code, the consuming compile audits direct consumption in that hel
 when the original Call survives target lowering and final pruning. A server-task body
 replaced by a client continuation does not retain that Call. Qualification and audit
 receipt locations remain owned by the helper source; the diagnostic points to the
-consuming component edge. This check does not certify nested callable bodies or
+consuming component edge. Pending-helper lowering retains the original edge on its
+exact generated invocation; projection still decides whether that invocation survives.
+The final audit also validates the original function passed to the helper selector.
+A retained member route without that function identity refuses coverage rather than
+borrowing authority from its receiver/key. This check does not certify nested callable bodies or
 unresolved higher-order calls. Captured parameter defaults run on the originating
 host, so secret resolution belongs inside the server task body.
 

@@ -15,6 +15,7 @@ type importedHelperUse struct {
 	source       *ast.SourceFile
 	target       Target
 	retained     bool
+	routed       *ast.Node
 }
 
 type importedHelperPolicyPlan struct {
@@ -72,6 +73,38 @@ func planImportedHelperPolicy(source *ast.SourceFile, c *checker.Checker, owner 
 	return p
 }
 
+// recordPendingHelper preserves only the exact replacement made by pending
+// helper lowering. Registration is not retention: an erased server-task body
+// leaves its replacement absent from project/final audit just like normal work.
+func (p *importedHelperPolicyPlan) recordPendingHelper(original, replacement, selection *ast.Node, emit *printer.EmitContext) {
+	if p == nil {
+		return
+	}
+	use := p.uses[emit.MostOriginal(original)]
+	if use == nil {
+		return
+	}
+	routed := *use
+	routed.retained = false
+	routed.routed = selection
+	p.uses[replacement] = &routed
+}
+
+// calleeCurrent validates the selected original function carried by ctx.helper.
+// A routed member/other selection is deliberately not reattributed to a function
+// reference; retained unsupported or identity-losing routes fail coverage.
+func (use *importedHelperUse) calleeCurrent(call *ast.Node, emit *printer.EmitContext) bool {
+	callee := call.Expression()
+	if use.routed == nil {
+		return emit.MostOriginal(callee) == use.edge.Expression()
+	}
+	if !ast.IsCallExpression(callee) || emit.MostOriginal(callee) != use.routed {
+		return false
+	}
+	args := callee.AsCallExpression().Arguments
+	return args != nil && len(args.Nodes) > 0 && emit.MostOriginal(args.Nodes[0]) == use.edge.Expression()
+}
+
 // project commits/discards edges after ordinary-work/continuation selection.
 // Factory MostOriginal links are the existing retained-secret artifact law.
 func (p *importedHelperPolicyPlan) project(file *ast.SourceFile, emit *printer.EmitContext, target Target) {
@@ -87,7 +120,7 @@ func (p *importedHelperPolicyPlan) project(file *ast.SourceFile, emit *printer.E
 			return false
 		}
 		if ast.IsCallExpression(n) {
-			if use := p.uses[emit.MostOriginal(n)]; use != nil && emit.MostOriginal(n.Expression()) == use.edge.Expression() {
+			if use := p.uses[emit.MostOriginal(n)]; use != nil && (use.routed != nil && emit.MostOriginal(n.Expression()) == use.routed || use.routed == nil && emit.MostOriginal(n.Expression()) == use.edge.Expression()) {
 				use.retained = true
 			}
 		}
@@ -124,7 +157,7 @@ func (p *importedHelperPolicyPlan) audit(file *ast.SourceFile, emit *printer.Emi
 		if use == nil || !use.retained || use.target != TargetClient {
 			return true
 		}
-		if emit.MostOriginal(n.Expression()) != use.edge.Expression() {
+		if !use.calleeCurrent(n, emit) {
 			panic("Compiler analysis coverage gap: retained imported policy callee identity changed")
 		}
 		if seenHelpers[use.helper] {
