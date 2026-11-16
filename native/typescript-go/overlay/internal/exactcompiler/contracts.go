@@ -512,6 +512,7 @@ type EnvironmentEffectSource struct {
 // CallEdge describes one statically resolved or unresolved callable dependency.
 type CallEdge struct {
 	arrayMapCall *ast.Node // Original source-native callback EFFECT parent, never invocation authority.
+	arrayMapBody *ast.Node // Exact acquired callback declaration paired with arrayMapCall and TargetID.
 	sourceUse    *ast.Node // Private original source EFFECT parent; no target/value/execution authority.
 
 	ID               string            `json:"id"`

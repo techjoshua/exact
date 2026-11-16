@@ -128,7 +128,9 @@ func (p *importedHelperPolicyPlan) ordinaryHelperConsumptions(root *ast.Node) []
 			if args == nil || len(args.Nodes) == 0 {
 				continue
 			}
-			callback := unwrapSourceCallableReference(args.Nodes[0])
+			// The native producer already acquired this body; argument syntax
+			// cannot recover it when a stable callback value is passed by name.
+			callback := edge.arrayMapBody
 			if !ast.IsArrowFunction(callback) && !ast.IsFunctionExpression(callback) {
 				continue
 			}
