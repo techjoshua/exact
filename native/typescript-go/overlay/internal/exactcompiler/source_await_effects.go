@@ -27,12 +27,17 @@ func (query *sourceValueQuery) consumeAwaitEffects(operation, owner *ast.Node, b
 	operand := unwrapSourceCallableReference(operation.AsAwaitExpression().Expression)
 	var values []sourceObservedValue
 	found := false
+	taskOwned := false
 	if ast.IsCallExpression(operand) {
 		raw, present := query.acquireNormalCallResult(operand, result)
 		if present {
 			found = true
 			values = append(values, raw.values...)
 			observed.incomplete = observed.incomplete || raw.incomplete
+			// Framework task invocation observes its owned result edge. A checked
+			// primitive payload adds no caller-owned thenable/member work. Keep
+			// the normal value unavailable; child Effects remain on their real edge.
+			taskOwned = raw.effects == sourceEffectsTaskOwned && query.primitiveSettlementValue(operand)
 		}
 	} else {
 		// Local completed values retain their actual original binding/creator pair.
@@ -67,7 +72,10 @@ func (query *sourceValueQuery) consumeAwaitEffects(operation, owner *ast.Node, b
 		query.creators = previousCreators
 	}
 	observed.incomplete = observed.incomplete || !found
-	result.opaque = result.opaque || observed.incomplete
+	if taskOwned {
+		observed.effects = sourceEffectsTaskOwned
+	}
+	result.opaque = result.opaque || observed.incomplete && !taskOwned
 	inputs.awaits = append(inputs.awaits, sourceAwaitResult{operation: operation, owner: owner, observed: observed})
 }
 

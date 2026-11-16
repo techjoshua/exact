@@ -1,6 +1,7 @@
 package exactcompiler
 
 import (
+	"fmt"
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
 )
 
@@ -24,6 +25,8 @@ const (
 	sourceEffectsAccounted
 	sourceEffectsRefused
 	sourceEffectsBypassed
+	// The actual child-task edge owns Effects, never a normal output or entry.
+	sourceEffectsTaskOwned
 )
 
 type sourceResultObservation struct {
@@ -268,7 +271,18 @@ func (query *sourceValueQuery) acquireNormalCallResult(call *ast.Node, obligatio
 			continue
 		}
 		found = true
-		if receipt.raw.effects != sourceEffectsAccounted || !receipt.entered && !receipt.construction {
+		if receipt.raw.effects == sourceEffectsTaskOwned && !receipt.entered && context.frame.operationLifetime != nil && query.owner.erasedTaskPolicyParameter(receipt.declaration) != nil {
+			retained, exhausted := query.retainsTaskCallEffect(receipt, obligations)
+			if exhausted {
+				observed.effects = sourceEffectsRefused
+				return observed, found
+			}
+			if retained && (observed.effects == sourceEffectsUnaccounted || observed.effects == sourceEffectsTaskOwned) {
+				observed.effects = sourceEffectsTaskOwned
+			} else {
+				observed.effects = sourceEffectsRefused
+			}
+		} else if receipt.raw.effects != sourceEffectsAccounted || !receipt.entered && !receipt.construction || observed.effects == sourceEffectsTaskOwned {
 			observed.effects = sourceEffectsRefused
 		} else if observed.effects != sourceEffectsRefused {
 			observed.effects = sourceEffectsAccounted
@@ -306,6 +320,44 @@ func (query *sourceValueQuery) acquireNormalCallResult(call *ast.Node, obligatio
 	}
 
 	return observed, found
+}
+
+// retainsTaskCallEffect checks the original child's retained dependency, never
+// reconstructing it from a task marker. A direct collector publishes a Call's
+// edges before the later operand consumer receives its receipts-only accumulator.
+// Read that same live fact when the edge has already left the local accumulator.
+func (query *sourceValueQuery) retainsTaskCallEffect(receipt *sourceInvocationResult, obligations *accessorCandidates) (retained, exhausted bool) {
+	for _, edge := range obligations.effects {
+		if !query.charge(obligations, receipt.operation) {
+			return false, true
+		}
+		if edge.operation == receipt.operation && edge.declaration == receipt.declaration {
+			return true, false
+		}
+	}
+	frame := query.inputs
+	if frame == nil || frame != receipt.frame || frame.operationLifetime == nil || frame.declaration != receipt.owner || query.effectOwner != receipt.owner || query.executable == nil || query.executable.values != query.owner || query.owner.program == nil || query.owner.generation == nil || !query.owner.generation.active || query.executable.project == nil || query.executable.project.program != query.owner.program || query.executable.project.activeGeneration != query.owner.generation || query.executable.checker != query.owner.checker {
+		return false, false
+	}
+	fact := frame.ownedFact
+	publisher := query.executable.pendingMemberPublishers[receipt.owner]
+	if fact == nil || fact.node != receipt.owner || fact.normalInputs != frame || publisher == nil || !publisher.live || publisher.fact != fact {
+		return false, false
+	}
+	source := ast.GetSourceFileOfNode(receipt.declaration)
+	if source == nil || query.owner.program.GetSourceFile(source.FileName()) != source {
+		return false, false
+	}
+	target := fmt.Sprintf("callable:%s:%d", source.FileName(), receipt.declaration.Pos())
+	for _, edge := range fact.summary.Calls {
+		if !query.charge(obligations, receipt.operation) {
+			return false, true
+		}
+		if edge.Resolved && edge.TargetID == target && fact.fieldEdgeOperations[edge.ID] == receipt.operation {
+			return true, false
+		}
+	}
+	return false, false
 }
 
 // invocationValueConsumed describes a normal operation's value use, not a
