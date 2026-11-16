@@ -285,6 +285,9 @@ func (work *callableEffectWork) beginStagedMemberWork(query *sourceValueQuery, f
 }
 
 func (work *callableEffectWork) beginStagedMemberWorkAtEntry(query *sourceValueQuery, facts []callableFacts, parent sourceStagedOperationRequest, entry *sourceStagedNativeEntryAcquisition) (func(), bool) {
+	if work.purpose == callableMayEffects {
+		return func() {}, false
+	}
 	if query == nil || query.owner == nil || query.owner.generation == nil {
 		return func() {}, false
 	}

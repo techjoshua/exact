@@ -1006,6 +1006,14 @@ been removed after verifying that the retired prefix lifecycle held their sole c
 Live layout guards, object-completion ancestry checks and pending-actual refinements remain.
 This is partial consolidation, not completion of the remaining bridge inventory.
 
+Ordinary task and helper effect collection keeps authored operations on the existing
+semantic collector. Syntax alone does not transfer them to staged result or protocol
+consumers. Such a transfer requires an explicit operation purpose; required results,
+initializer transformations and the internal replacement experiment retain strict
+source, generation and completion checks. MAY summaries supply no result, binding
+or completed-protocol authority.
+
+
 1. Finish the consumer inventory and removals begun with each integrated slice. Inventory every remaining destination-specific bridge before deletion.
 2. Migrate each consumer to the shared relationship and prove the same behavior there.
 3. Remove obsolete initializer/array/two-site receipt-selection branches once their ordinary-analysis role is replaced.

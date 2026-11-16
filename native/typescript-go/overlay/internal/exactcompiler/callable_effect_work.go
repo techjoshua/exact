@@ -7,10 +7,29 @@ import (
 	"strings"
 )
 
+// callableEffectPurpose distinguishes summary collection from an operation owner.
+// Only the latter may transfer original expression work to a staged protocol.
+type callableEffectPurpose uint8
+
+const (
+	callableProtocolEffects callableEffectPurpose = iota
+	callableMayEffects
+)
+
+// publicCallableEffectPurpose preserves the explicit replacement experiment.
+func publicCallableEffectPurpose(owner *executableBodyOwner) callableEffectPurpose {
+	if owner != nil && owner.project != nil && !owner.project.stagedReplacement {
+		return callableMayEffects
+	}
+	return callableProtocolEffects
+}
+
 // callableEffectWork schedules only callers whose inputs changed. Ascending passes retain
 // the original solver's traversal order, including cycle widening and path tie breaking.
 // Opaque effects and prior summary signatures remain immutable between input changes.
 type callableEffectWork struct {
+	// purpose is synchronous and restored on nested extraction/return, not cloned.
+	purpose                       callableEffectPurpose
 	operationCanonical            sourceCanonicalReadinessOwner              // Synchronous canonical readiness owner while direct-call extraction is suspended.
 	descriptorTargetExecution     *sourceDescriptorTargetExecution           // Stack-only original Get/result source executor.
 	nativeCapabilityNotifications *sourceStagedNativeCapabilityNotifications // Derived THIS-graph fan-in, never authority.

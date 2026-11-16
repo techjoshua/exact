@@ -93,7 +93,7 @@ type callableAnalysis struct {
 }
 
 // projectCallableCache contains checker-bound facts for one exact program/checker generation.
-const advisoryAnalysisSemantics = 8
+const advisoryAnalysisSemantics = 9
 
 // Analysis semantics is separate from diagnostic threshold policy.
 type projectCallableCache struct {
@@ -172,6 +172,7 @@ func collectCallableEffects(
 			assets,
 			owner,
 			&work,
+			publicCallableEffectPurpose(owner),
 		)
 		work.finishExtraction(facts, index)
 	}

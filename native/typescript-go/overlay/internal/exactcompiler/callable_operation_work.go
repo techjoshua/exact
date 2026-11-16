@@ -447,6 +447,9 @@ func (work *callableEffectWork) consumeOperation(id sourceStagedOperationID, req
 }
 
 func (work *callableEffectWork) extractOperation(facts []callableFacts, task callableExtractionTask, owners ...*executableBodyOwner) {
+	priorPurpose := work.purpose
+	work.purpose = callableProtocolEffects
+	defer func() { work.purpose = priorPurpose }()
 	if task.operation.epoch != work.operationEpoch || task.operation.index == 0 || uint64(task.operation.index) >= uint64(len(work.operations)) {
 		return
 	}

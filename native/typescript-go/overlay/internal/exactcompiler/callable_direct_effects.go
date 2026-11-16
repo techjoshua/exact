@@ -25,6 +25,7 @@ func collectDirectCallableEffects(
 	assets assetAnalysis,
 	owner *executableBodyOwner,
 	work *callableEffectWork,
+	purposes ...callableEffectPurpose,
 ) {
 	erasedPolicy := owner.values.erasedTaskPolicyParameter(fact.node)
 	if ast.IsFunctionLike(fact.node) {
@@ -71,6 +72,20 @@ func collectDirectCallableEffects(
 	}
 
 	precisionRequested := sourceValueRefinementRequired(fact, owner.values)
+	purpose := callableProtocolEffects
+	if len(purposes) == 1 && purposes[0] == callableMayEffects && !precisionRequested {
+		purpose = purposes[0]
+	}
+	priorPurpose := work.purpose
+	work.purpose = purpose
+	defer func() { work.purpose = priorPurpose }()
+	// MAY collection keeps the original expression owner; only an actual
+	// operation/result demand may transfer it to a staged source protocol.
+	protocol := purpose == callableProtocolEffects
+	accessorWork := work
+	if !protocol {
+		accessorWork = nil
+	}
 	var frame *sourceValueInputs
 	if precisionRequested {
 		fact.normalInputs = &sourceValueInputs{declaration: fact.node, bindings: make(sourceValueBindings)}
@@ -147,6 +162,9 @@ func collectDirectCallableEffects(
 			}()
 		}
 		for _, occurrence := range fact.staged.constructedOccurrences {
+			if !protocol {
+				break
+			}
 			if node == occurrence.request.producer.operation.Expression() {
 				return true
 			}
@@ -154,6 +172,9 @@ func collectDirectCallableEffects(
 		progressWriterInputSource(owner, sourceFile, node)
 		appendDirectReferenceEffects(fact, node, sourceFile, typeChecker, owner)
 		for _, use := range fact.staged.operationUses {
+			if !protocol {
+				break
+			}
 			if operation := use.request.producer.operation; use.request.producer.declaration == fact.node && operation != nil && ast.IsCallExpression(operation) && node == operation.Expression() && work.operationRecipes[use.request.producer].nativeGet != nil {
 				return true
 			}
@@ -162,13 +183,15 @@ func collectDirectCallableEffects(
 				return true // Only this source use is transferred, without a value receipt.
 			}
 		}
+		if protocol && ast.IsCallExpression(node) && (work.stageReturnedSavedCall(facts, factIndex, node, owner) || work.stageReturnedCreation(facts, factIndex, node, nodeTargets, owner)) {
+			return true
+		}
 		if ast.IsCallExpression(node) {
-			if work.stageReturnedSavedCall(facts, factIndex, node, owner) || work.stageReturnedCreation(facts, factIndex, node, nodeTargets, owner) {
-				return true
-			}
 			if reference, task := describeTaskEffectsReference(fact, node, owner); task && work.ownTaskReferenceEffects(facts, factIndex, reference, owner) == sourceTaskEffectsOwned {
-				return true // Eager children retain their original collector; no closure DATA is requested.
+				return true // Actual task capability owns this Effects transfer.
 			}
+		}
+		if protocol && ast.IsCallExpression(node) {
 			if work.stageStagedBindingInvocation(facts, factIndex, node, owner) {
 				fact.staged.operationSkipped = append(fact.staged.operationSkipped, node)
 				return true
@@ -208,7 +231,7 @@ func collectDirectCallableEffects(
 				}
 			}
 		}
-		if ast.IsPropertyAccessExpression(node) {
+		if protocol && ast.IsPropertyAccessExpression(node) {
 			if plan, supported := describeStagedGetter(fact, owner); supported && plan.get == node {
 				request := sourceStagedOperationRequest{producer: plan.effects.key, consumer: fact.node, edge: fmt.Sprintf("%s:getter-effects:%d", fact.summary.ID, node.Pos()), use: node, cut: sourceRelativeCut{operation: node, use: node, reading: node}}
 				if work.registerOperationRecipe(facts, plan.effects) && work.registerOperationRecipe(facts, plan.exposure) && work.registerOperationUse(facts, sourceStagedOperationUse{request: request}) {
@@ -217,15 +240,17 @@ func collectDirectCallableEffects(
 				}
 			}
 		}
-		if stagedGetDataUse(node) && fact.normalInputs == nil && fact.initializerPlan == nil && work.stageStagedGetResult(facts, factIndex, node, owner) {
+		if protocol && stagedGetDataUse(node) && fact.normalInputs == nil && fact.initializerPlan == nil && work.stageStagedGetResult(facts, factIndex, node, owner) {
 			fact.staged.operationSkipped = append(fact.staged.operationSkipped, node)
 			return true
 		}
 		// Creation registration is passive. Original Effects consumers decide
 		// adoption, so unsupported creation protocols keep their legacy owner.
-		work.stageSourceEvaluation(facts, factIndex, node, owner)
-		stagedAssignment := work.stageAssignment(facts, factIndex, node, owner)
-		if (ast.IsPropertyAccessExpression(node) || ast.IsElementAccessExpression(node)) && stagedAssignmentOperation(node.Parent) && stagedAssignmentTarget(node.Parent) == node {
+		if protocol {
+			work.stageSourceEvaluation(facts, factIndex, node, owner)
+		}
+		stagedAssignment := protocol && work.stageAssignment(facts, factIndex, node, owner)
+		if protocol && (ast.IsPropertyAccessExpression(node) || ast.IsElementAccessExpression(node)) && stagedAssignmentOperation(node.Parent) && stagedAssignmentTarget(node.Parent) == node {
 			key := sourceStagedOperationKey{declaration: fact.node, operation: node.Parent, kind: relativeDemandEffects}
 			if recipe := work.operationRecipes[key]; recipe.assignment != nil {
 				for _, use := range fact.staged.operationUses {
@@ -236,10 +261,10 @@ func collectDirectCallableEffects(
 		if stagedAssignment && stagedAssignmentOperation(node) {
 			fact.staged.operationSkipped = append(fact.staged.operationSkipped, stagedAssignmentTarget(node))
 		}
-		stagedHasInstance := work.stageHasInstance(facts, factIndex, node, owner)
-		stagedConstructed := ast.IsCallExpression(node) && work.stageConstructedResultOccurrence(facts, factIndex, node, owner)
-		stagedSourceCall := !stagedConstructed && ast.IsCallExpression(node) && work.stageSourceDeclarationCall(facts, factIndex, node, owner)
-		stagedNative := !stagedConstructed && !stagedSourceCall && ast.IsCallExpression(node) && (work.stageNativeInputCall(facts, factIndex, node, owner) || work.stageNativeDescriptorCall(facts, factIndex, node, owner))
+		stagedHasInstance := protocol && work.stageHasInstance(facts, factIndex, node, owner)
+		stagedConstructed := protocol && ast.IsCallExpression(node) && work.stageConstructedResultOccurrence(facts, factIndex, node, owner)
+		stagedSourceCall := protocol && !stagedConstructed && ast.IsCallExpression(node) && work.stageSourceDeclarationCall(facts, factIndex, node, owner)
+		stagedNative := protocol && !stagedConstructed && !stagedSourceCall && ast.IsCallExpression(node) && (work.stageNativeInputCall(facts, factIndex, node, owner) || work.stageNativeDescriptorCall(facts, factIndex, node, owner))
 		stagedFramework := !stagedConstructed && !stagedSourceCall && !stagedNative && ast.IsCallExpression(node) && work.stageFrameworkEffects(facts, factIndex, node, owner)
 		var capturedDemand sourceRelativeInvokedInput
 		captured := false
@@ -252,9 +277,9 @@ func collectDirectCallableEffects(
 		opaqueDeclaration := ast.IsCallExpression(node) && fact.normalInputs == nil && sourceOpaqueDeclarationCall(node, owner)
 		if !captured && !stagedAssignment && !stagedHasInstance && !stagedNative && !stagedSourceCall && !stagedConstructed && !stagedFramework && !opaqueDeclaration {
 			registerPendingMemberSource(fact, node, owner, work)
-			appendAccessorEffects(fact, node, nodeTargets, sourceFile, typeChecker, owner, work, facts)
+			appendAccessorEffects(fact, node, nodeTargets, sourceFile, typeChecker, owner, accessorWork, facts)
 			if demand, dependent := describeNormalOperand(node); !dependent || !demand.pattern {
-				appendImplicitAccessorEffects(fact, node, nodeTargets, sourceFile, typeChecker, nil, owner, work, facts)
+				appendImplicitAccessorEffects(fact, node, nodeTargets, sourceFile, typeChecker, nil, owner, accessorWork, facts)
 			}
 		}
 		if !ast.IsCallExpression(node) {
@@ -379,7 +404,9 @@ func collectDirectCallableEffects(
 			return false // The original Get and input Effects have separate graph owners.
 		}
 		if opaqueDeclaration {
-			work.registerStagedMemberExternal(facts, factIndex, node, owner)
+			if protocol {
+				work.registerStagedMemberExternal(facts, factIndex, node, owner)
+			}
 			resolveTarget()
 			resolved = false // A declaration-only fact is not an executable callee summary.
 			registerEdge(accessorCandidates{})
@@ -387,7 +414,7 @@ func collectDirectCallableEffects(
 			return false // Zero actuals and a lexical lookup own no skipped input effects.
 		}
 		staged, gap := stageDeclarationCall(fact, node, typeChecker, owner)
-		if gap == stagedCallSupported {
+		if protocol && gap == stagedCallSupported {
 			resolveTarget()
 			inputs, inputSupported := bindStagedDeclarationInputs(fact, staged, owner)
 			if resolved && inputSupported && work.deferDeclarationCall(facts, factIndex, targetIndex, inputs.request, inputs) {

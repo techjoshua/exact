@@ -96,18 +96,30 @@ func registerWriterInputFacts(owner *executableBodyOwner, facts []callableFacts,
 			publisher := owner.pendingMemberPublishers[facts[i].node]
 			publisher.workRegistrar = &sourcePendingMemberWorkRegistrar{
 				arrayPush: func(q *sourceValueQuery, call *ast.Node, selected sourceValue, receiver *ast.Node, origin sourceValue) {
+					if work.purpose == callableMayEffects {
+						return
+					}
 					work.publishArrayPushEffects(facts, owner, publisher, q, call, selected, receiver, origin)
 				},
 				writerScopeSource: func(q *sourceValueQuery, request *sourceWriterInputRequest) {
+					if work.purpose == callableMayEffects {
+						return
+					}
 					work.registerDeclarationWriterScope(facts, owner, publisher, q, request)
 				},
 				installedCallSelection: func(q *sourceValueQuery, call *ast.Node) (func(), bool) {
+					if work.purpose == callableMayEffects {
+						return func() {}, false
+					}
 					if q == nil || q.owner == nil || owner.values == nil || q.executable != owner || q.owner.program != owner.values.program || q.owner.checker != owner.values.checker || q.owner.generation != owner.values.generation || !publisher.live || publisher.fact == nil || owner.pendingMemberPublishers[q.effectOwner] != publisher || publisher.fact.node != q.effectOwner || call == nil {
 						return func() {}, false
 					}
 					return work.beginInstalledSourceCallSelection(facts, q, call)
 				},
 				descriptorTarget: func(q *sourceValueQuery, call *ast.Node, selected sourceValue, bindings sourceValueBindings) bool {
+					if work.purpose == callableMayEffects {
+						return false
+					}
 					if q == nil || q.executable != owner || publisher == nil || !publisher.live || publisher.fact == nil || owner.pendingMemberPublishers[q.effectOwner] != publisher || publisher.fact.node != q.effectOwner {
 						return false
 					}
@@ -131,15 +143,24 @@ func registerWriterInputFacts(owner *executableBodyOwner, facts []callableFacts,
 					return enumerated && work.publishDescriptorTargetSource(facts, q, event, plan)
 				},
 				originalGetMutation: func(q *sourceValueQuery, get *sourceGetInputs, cut *sourceMemberWriterReadCut, mode accessorTraversal, origin *ast.Node, projection []string, name string, standard *sourceValue, ownMembers ...*ast.Node) bool {
+					if work.purpose == callableMayEffects {
+						return false
+					}
 					if q == nil || q.owner == nil || q.executable != owner || q.owner.program != owner.values.program || q.owner.checker != owner.values.checker || q.owner.generation != owner.values.generation || !publisher.live || publisher.fact == nil || owner.pendingMemberPublishers[q.effectOwner] != publisher || publisher.fact.node != q.effectOwner {
 						return false
 					}
 					return work.publishOriginalGetMutationSource(facts, q, get, cut, mode, origin, projection, name, standard, ownMembers...)
 				},
 				descriptorSource: func(q *sourceValueQuery, request *sourceWriterInputRequest) {
+					if work.purpose == callableMayEffects {
+						return
+					}
 					work.registerDescriptorWriterSource(facts, owner, publisher, q, request)
 				},
 				descriptorPhases: func(q *sourceValueQuery, call *ast.Node, selected sourceValue) (func(), bool) {
+					if work.purpose == callableMayEffects {
+						return func() {}, false
+					}
 					if q == nil || q.owner == nil || q.executable != owner || q.owner.program != owner.values.program || q.owner.checker != owner.values.checker || q.owner.generation != owner.values.generation || !publisher.live || publisher.fact == nil || owner.pendingMemberPublishers[q.effectOwner] != publisher || publisher.fact.node != q.effectOwner || call == nil {
 						return func() {}, false
 					}
@@ -154,6 +175,9 @@ func registerWriterInputFacts(owner *executableBodyOwner, facts []callableFacts,
 					return work.beginInstalledDescriptorMemberPhases(facts, q, nativeRootDebtRequest(source, "algorithm"), source, selected)
 				},
 				installedPhase: func(q *sourceValueQuery, parent sourceStagedOperationRequest, get *sourceGetInputs, cut *sourceMemberWriterReadCut, phase sourceInstalledMemberPhase, key string, receiver sourceRelativeEndpoint) (*sourceInstalledMemberEvent, func(), bool) {
+					if work.purpose == callableMayEffects {
+						return nil, func() {}, false
+					}
 					if q == nil || q.owner == nil || q.executable != owner || q.owner.program != owner.values.program || q.owner.checker != owner.values.checker || q.owner.generation != owner.values.generation || !publisher.live || publisher.fact == nil || owner.pendingMemberPublishers[q.effectOwner] != publisher || publisher.fact.node != q.effectOwner {
 						return nil, func() {}, false
 					}
