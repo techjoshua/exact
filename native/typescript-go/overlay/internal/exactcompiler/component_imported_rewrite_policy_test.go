@@ -3,7 +3,6 @@ package exactcompiler
 import (
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 )
 
@@ -32,14 +31,19 @@ export function read(){void document.title;void consume(credential);return 1;}`
 		if setup.Error != "" || hasErrorDiagnostic(setup.Diagnostics) {
 			t.Fatal("rewrite setup", setup.Error, setup.Diagnostics)
 		}
-		r := session.Execute(Request{Kind: "compile", ID: entry, ConfigFile: config, Source: source, Target: TargetClient, Diagnostics: "semantic", ModuleRewrite: &ModuleRewrite{Replacements: []ModuleExportReplacement{{SourceModule: "./rewrite-policy-helper.js", SourceExport: "read", TargetModule: "./rewrite-policy-helper.js", TargetExport: "read"}}}})
+		var r Response
+		var failure any
+		func() {
+			defer func() { failure = recover() }()
+			r = session.Execute(Request{Kind: "compile", ID: entry, ConfigFile: config, Source: source, Target: TargetClient, Diagnostics: "semantic", ModuleRewrite: &ModuleRewrite{Replacements: []ModuleExportReplacement{{SourceModule: "./rewrite-policy-helper.js", SourceExport: "read", TargetModule: "./rewrite-policy-helper.js", TargetExport: "read"}}}})
+		}()
 		if secret {
-			if !strings.Contains(r.Error, "retained imported policy callee identity changed") || r.Code != "" || r.SourceMap != nil {
-				t.Fatal("identity-losing rewrite bypassed policy refusal", r.Error, r.Diagnostics)
+			if failure != "Compiler analysis coverage gap: retained imported policy callee identity changed" || r.Code != "" || r.SourceMap != nil {
+				t.Fatal("identity-losing rewrite bypassed policy refusal", failure, r.Error, r.Diagnostics)
 			}
 		} else {
-			if r.Error != "" || hasErrorDiagnostic(r.Diagnostics) || r.Code == "" || len(r.Analysis.Tasks) != 1 || !r.Analysis.Tasks[0].BrowserEffects {
-				t.Fatal("ordinary public rewrite rejected or lost effects", r.Error, r.Diagnostics, r.Analysis.Tasks)
+			if failure != nil || r.Error != "" || hasErrorDiagnostic(r.Diagnostics) || r.Code == "" || len(r.Analysis.Tasks) != 1 || !r.Analysis.Tasks[0].BrowserEffects {
+				t.Fatal("ordinary public rewrite rejected or lost effects", failure, r.Error, r.Diagnostics, r.Analysis.Tasks)
 			}
 		}
 	}
