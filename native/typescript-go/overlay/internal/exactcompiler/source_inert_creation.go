@@ -55,3 +55,18 @@ func sourceInertClassCreation(node *ast.Node) bool {
 	}
 	return true
 }
+
+// sourceInertDataLiteral bounds source creation, never field selection or output.
+func sourceInertDataLiteral(node *ast.Node, field string) bool {
+	if node == nil || !ast.IsObjectLiteralExpression(node) {
+		return false
+	}
+	found := field == ""
+	for _, property := range node.AsObjectLiteralExpression().Properties.Nodes {
+		if !ast.IsPropertyAssignment(property) || property.Name() == nil || ast.IsComputedPropertyName(property.Name()) || callableNameText(property.Name()) == "__proto__" || !sourceInertValueCreation(property.AsPropertyAssignment().Initializer) {
+			return false
+		}
+		found = found || callableNameText(property.Name()) == field
+	}
+	return found
+}

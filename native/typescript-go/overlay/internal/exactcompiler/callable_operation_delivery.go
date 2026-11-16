@@ -41,6 +41,9 @@ func (work *callableEffectWork) operationDependencyReadiness(admission bool) []b
 		if recipe.installedMember != nil {
 			ready = ready && work.installedMemberObservationCurrent(recipe)
 		}
+		if recipe.memberSource != nil && recipe.memberSource.nativeFieldGet != nil {
+			ready = ready && work.nativeFieldSourceCurrent(recipe)
+		}
 		if recipe.memberSource != nil && recipe.memberSource.originalGetMutationInterest != nil {
 			ready = ready && work.originalGetMutationInterestCurrent(recipe)
 		}
@@ -486,6 +489,9 @@ func (work *callableEffectWork) applyOperationDelivery(facts []callableFacts, co
 		return work.deliverStagedGetPreparation(use, delta)
 	}
 	fact := &facts[consumer]
+	if recipe := work.operationRecipes[use.request.producer]; work.validNativeFieldGetReading(recipe, use.request) || work.validNativeFieldCreateReading(recipe, use.request) {
+		return use.call == nil && use.installed == nil && len(delta.exposures)+len(delta.invoked)+len(delta.relative)+len(delta.residuals)+len(delta.effects) == 0
+	}
 	if recipe := work.operationRecipes[use.request.producer]; recipe.mutationData != nil {
 		return work.applyFieldMutationDataDelivery(facts, consumer, use, delta, owner)
 	}
@@ -568,6 +574,9 @@ func (work *callableEffectWork) applyOperationDelivery(facts []callableFacts, co
 			return true
 		}
 		return work.applyStagedCallResultData(use, delta)
+	}
+	if recipe := work.operationRecipes[use.request.producer]; recipe.memberSource != nil && recipe.memberSource.nativeFieldGet != nil {
+		return use.call == nil && use.installed == nil && sameOperationRequest(use.request, recipe.memberSource.request) && work.nativeFieldSourceCurrent(recipe) && len(delta.exposures)+len(delta.invoked)+len(delta.relative)+len(delta.residuals)+len(delta.effects) == 0
 	}
 	if recipe := work.operationRecipes[use.request.producer]; recipe.memberSource != nil && recipe.memberSource.originalGetMutationInterest != nil {
 		return use.call == nil && use.installed == nil && sameOperationRequest(use.request, recipe.memberSource.request) && work.originalGetMutationInterestCurrent(recipe) && len(delta.exposures)+len(delta.invoked)+len(delta.relative)+len(delta.residuals)+len(delta.effects) == 0

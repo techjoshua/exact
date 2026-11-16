@@ -273,6 +273,9 @@ func (work *callableEffectWork) requireOperation(facts []callableFacts, request 
 			return sourceStagedOperationID{}, false
 		}
 	} else if recipe.memberSource != nil {
+		if recipe.memberSource.nativeFieldGet != nil && work.nativeFieldGetSource(recipe) == nil {
+			return sourceStagedOperationID{}, false
+		}
 		if !validStagedMemberRecipe(recipe) || work.operationGeneration != nil && recipe.memberSource.generation != work.operationGeneration || !sameOperationRequest(request, recipe.memberSource.request) && !work.acceptedStandardMemberCallReading(request) && !work.acceptedStagedReflectiveTargetReading(request) && !work.acceptedGetPreparationSourceReading(request) {
 			return sourceStagedOperationID{}, false
 		}
@@ -292,7 +295,7 @@ func (work *callableEffectWork) requireOperation(facts []callableFacts, request 
 		if recipe.nativeGet.inputInvocation != nil && !work.nativeInputInvocationCurrent(recipe) && !work.requestedWriterSourceSupported(recipe) {
 			return sourceStagedOperationID{}, false
 		}
-		inputReading := work.describedNativeInputInvocationReading(request) || work.acceptedGetPreparationSourceReading(request)
+		inputReading := work.describedNativeInputInvocationReading(request) || work.acceptedGetPreparationSourceReading(request) || work.validNativeFieldGetReading(recipe, request) || work.validNativeFieldCreateReading(recipe, request)
 		if !validNativeGetRequest(recipe, request) && !inputReading || request.reading != (sourceStagedOperationKey{}) && !work.validFieldExposureReading(recipe, request) && !work.validStagedKeySourceReading(recipe, request) && !inputReading {
 			return sourceStagedOperationID{}, false
 		}
@@ -592,6 +595,10 @@ func (work *callableEffectWork) extractOperation(facts []callableFacts, task cal
 			}
 			return
 		}
+		if recipe.memberSource.nativeFieldGet != nil {
+			work.prepareNativeFieldGet(facts, task.operation)
+			return
+		}
 		if recipe.memberSource.originalGetMutationInterest != nil {
 			work.prepareOriginalGetMutationInterest(facts, task.operation)
 			return
@@ -691,6 +698,14 @@ func (work *callableEffectWork) extractOperation(facts []callableFacts, task cal
 			return
 		}
 		if recipe.nativeGet != nil && recipe.key.selector.field == "eager-target" {
+			if work.nativeCreateTargetTaskSource(task.operation) != nil {
+				revoke, installed := work.beginNativeEffectsExecution(facts, task, owners[0])
+				if installed {
+					defer revoke()
+					work.consumeNativeCreateTarget(facts, task, owners[0])
+				}
+				return
+			}
 			if recipe.nativeGet.targetSource.producer.operation != nil {
 				work.publishOperation(task.operation, recipe.delta)
 				return

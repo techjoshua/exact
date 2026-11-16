@@ -33,6 +33,14 @@ func (work *callableEffectWork) implicitNativeInputCurrent(source, original *sou
 }
 
 func (work *callableEffectWork) implicitMappedNativeCurrent(mapping sourceStagedImplicitFieldMapping, original *sourceStagedNativeGetSource, required []sourceStagedOperationRequest) bool {
+	if mapping.kind == implicitFieldMappingForeignCreate && mapping.mapped && len(mapping.required) == 1 && operationContainsRequest(required, mapping.required[0]) {
+		reader := work.operationRecipes[mapping.required[0].producer]
+		return work.nativeFieldSourceCurrent(reader) && reader.memberSource.nativeFieldGet.nominalCreate && mapping.operation == reader.memberSource.nativeFieldGet.source.producer.operation && sameOperationRequest(mapping.original, reader.memberSource.nativeFieldGet.source)
+	}
+	if mapping.kind == implicitFieldMappingForeignCalleeLookup && mapping.mapped && len(mapping.required) == 1 && operationContainsRequest(required, mapping.required[0]) {
+		reader := work.operationRecipes[mapping.required[0].producer]
+		return work.nativeFieldGetCurrent(reader) && mapping.operation == reader.memberSource.nativeFieldGet.get && sameOperationRequest(mapping.original, reader.memberSource.nativeFieldGet.source)
+	}
 	if !mapping.mapped {
 		return false
 	}
@@ -94,6 +102,9 @@ func (work *callableEffectWork) implicitFieldSourcesCurrent(observed *sourceStag
 }
 func (work *callableEffectWork) implicitSourceRequirementCurrent(request sourceStagedOperationRequest, original *sourceStagedNativeGetSource) bool {
 	recipe := work.operationRecipes[request.producer]
+	if recipe.memberSource != nil && recipe.memberSource.nativeFieldGet != nil {
+		return sameOperationRequest(request, recipe.memberSource.request) && work.nativeFieldSourceCurrent(recipe) && work.nativeWriterCapabilityApplied(request)
+	}
 	source := recipe.nativeGet
 	if source == nil || !validNativeGetRequest(recipe, request) {
 		return false

@@ -335,7 +335,7 @@ func (q *sourceValueQuery) observeStagedMemberCandidate(get *sourceGetInputs, cu
 // interference, input or receiver consumers. Index population is only local
 // candidate membership. Activation, source selection and all value work remain
 // independently required even when every indexed relationship was accepted.
-func (q *sourceValueQuery) prepareStagedMemberSources(get *sourceGetInputs, cut *sourceMemberWriterReadCut, origin *ast.Node, projection []string, name string, mode accessorTraversal, indexes []sourceValueIndex, result *accessorCandidates) {
+func (q *sourceValueQuery) prepareStagedMemberSources(get *sourceGetInputs, cut *sourceMemberWriterReadCut, origin *ast.Node, projection []string, name string, mode accessorTraversal, indexes []sourceValueIndex, result *accessorCandidates, standard *sourceValue) {
 	b := q.stagedMember
 	if !q.liveStagedMemberSource(b, get, cut) || !b.enumerating {
 		return
@@ -385,7 +385,7 @@ func (q *sourceValueQuery) prepareStagedMemberSources(get *sourceGetInputs, cut 
 			}
 		}
 	}
-	q.prepareStagedMemberCoverage(get, cut, origin, projection, name, mode, indexes, result)
+	q.prepareStagedMemberCoverage(get, cut, origin, projection, name, mode, indexes, result, standard)
 }
 
 func (q *sourceValueQuery) publishStagedMemberCandidate(get *sourceGetInputs, cut *sourceMemberWriterReadCut, candidate sourceStagedMemberCandidate) bool {
@@ -446,7 +446,7 @@ func (q *sourceValueQuery) observeStagedExternalMember(expression *ast.Node, pro
 	}
 	var storage [4]sourceValueIndex
 	indexes := q.occurrenceSourceViewIn(expression, result, sources, storage[:0])
-	q.prepareStagedMemberSources(get, cut, expression, projection, name, mode, indexes, result)
+	q.prepareStagedMemberSources(get, cut, expression, projection, name, mode, indexes, result, nil)
 	if host != nil {
 		host.cut = q.memberSourceObservationCut(get, cut)
 		b.externalGet = host

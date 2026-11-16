@@ -52,7 +52,7 @@ func (q *sourceValueQuery) observeStagedExternalGetValue(expression *ast.Node, s
 	sources, _ := q.nativeSelectionSources(expression, result)
 	var storage [4]sourceValueIndex
 	indexes := q.occurrenceSourceViewIn(expression, result, sources, storage[:0])
-	q.prepareStagedMemberSources(get, cut, expression, projection, name, mode, indexes, result)
+	q.prepareStagedMemberSources(get, cut, expression, projection, name, mode, indexes, result, nil)
 	if q.liveStagedGetResult(get) != b || !q.liveStagedMemberSource(member, get, cut) {
 		return
 	}

@@ -57,6 +57,7 @@ func (work *callableEffectWork) discoverFieldSources(facts []callableFacts, dema
 		issued[identity] = true
 		return []sourceStagedOperationRequest{required}
 	}
+	firstOwnField := query.stagedFirstOwnDataField(get, get.receiver.node)
 	var ownMappings, prototypeMappings []sourceStagedImplicitFieldMapping
 	emitStagedFieldSourceDiscovery(query, get, requests, sources, complete,
 		func(request sourceStagedOperationRequest, operation, region *ast.Node) (out sourceStagedOperationDelta, mapped bool) {
@@ -73,6 +74,15 @@ func (work *callableEffectWork) discoverFieldSources(facts []callableFacts, dema
 			result := accessorCandidates{}
 			if !query.liveStagedFieldGet(get) || !query.charge(&result, operation) {
 				return sourceStagedOperationDelta{}, false
+			}
+			if firstOwnField && region != nil && sameOperationRequest(request, requests.prototype) {
+				source := nativeSources[operation]
+				view := source != nil && source.request.consumer != request.consumer && (operation == source.get || source.kind == sourceNativeObjectCreate && operation == source.request.producer.operation)
+				// Keep the original typed views (and failed admission) below. Other
+				// prior prototype work cannot enter this first own-data Effects read.
+				if !view {
+					return sourceStagedOperationDelta{extracted: true}, true
+				}
 			}
 			reader := work.operationRecipes[demand.request.producer].nativeGet
 			if reader != nil && stagedSourceRegionOwned(operation, region, reader.request.producer.declaration) {
@@ -116,6 +126,23 @@ func (work *callableEffectWork) discoverFieldSources(facts []callableFacts, dema
 				return delta, true
 			}
 			if source := nativeSources[operation]; source != nil && stagedSourceRegionOwned(operation, region, source.request.producer.declaration) {
+				if source.request.consumer != request.consumer && operation == source.request.producer.operation && source.kind == sourceNativeObjectCreate {
+					if reading, enrolled := work.enrollNativeFieldGet(facts, demand, query, get, request, source, true); enrolled {
+						kind, original = implicitFieldMappingForeignCreate, source.request
+						return sourceStagedOperationDelta{required: []sourceStagedOperationRequest{reading}, extracted: true}, true
+					}
+				}
+				if source.request.consumer != request.consumer && operation == source.get {
+					if reading, enrolled := work.enrollNativeFieldGet(facts, demand, query, get, request, source, false); enrolled {
+						kind, original = implicitFieldMappingForeignCalleeLookup, source.request
+						return sourceStagedOperationDelta{required: []sourceStagedOperationRequest{reading}, extracted: true}, true
+					}
+				}
+				// Raw foreign sources have no typed reading for this field consumer.
+				// Leave that candidate unmapped without poisoning its known local prefix.
+				if source.request.consumer != request.consumer {
+					return sourceStagedOperationDelta{}, false
+				}
 				if operation == source.get {
 					kind, original = implicitFieldMappingCalleeLookup, source.request
 					return sourceStagedOperationDelta{required: nativeDebt(request, source, 0), extracted: true}, true
@@ -141,6 +168,12 @@ func (work *callableEffectWork) discoverFieldSources(facts []callableFacts, dema
 					if operation == demand.request.producer.operation {
 						arguments := restrictedInvocationArguments(operation.AsCallExpression())
 						harmless = len(arguments) > 0 && ast.IsObjectLiteralExpression(arguments[0]) && arguments[0] != get.receiver.node
+						if !harmless && reader != nil && sameOperationRequest(source.request, reader.request) && validNativeTargetSource(source) {
+							// The actual Create producer is current here, before this mapping is retained.
+							// Only its nominal fresh target write is disjoint; input Effects stay required.
+							target := work.currentNativeResultRoot(source.targetSource.producer)
+							harmless = target != nil && target.kind == sourceNativeObjectCreate && sameOperationRequest(target.request, source.targetSource)
+						}
 					}
 				}
 				if harmless {

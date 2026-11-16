@@ -509,6 +509,8 @@ func (work *callableEffectWork) afterWriterSourcePrerequisite(id sourceStagedOpe
 				continuation.callable = work.memberNodes[source.request.consumer]
 			} else if source := work.getPreparationTaskSource(parent); source != nil {
 				continuation.callable = work.memberNodes[source.parent.consumer]
+			} else if source := work.nativeCreateTargetTaskSource(parent); source != nil {
+				continuation.callable = work.memberNodes[source.request.consumer]
 			} else if source := work.nativeEffectsTaskSource(parent); source != nil {
 				continuation.callable = work.memberNodes[source.request.consumer]
 			} else if source := work.nativeScopeGetTaskSource(parent); source != nil {

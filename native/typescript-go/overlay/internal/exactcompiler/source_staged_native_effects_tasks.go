@@ -22,6 +22,9 @@ func (work *callableEffectWork) liveNativeEffectsExecution(id sourceStagedOperat
 }
 func (work *callableEffectWork) beginNativeEffectsExecution(facts []callableFacts, task callableExtractionTask, owner *executableBodyOwner) (func(), bool) {
 	source := work.nativeEffectsTaskSource(task.operation)
+	if source == nil {
+		source = work.nativeCreateTargetTaskSource(task.operation)
+	}
 	if source == nil || task.delivery || task.nativeInputRevision != 0 || task.nativeTargetRevision != 0 || task.nativeInputReading != (sourceStagedOperationRequest{}) || owner == nil || owner.values == nil || owner.project == nil || owner.values.generation != work.operationGeneration || owner.project.activeGeneration != work.operationGeneration {
 		return func() {}, false
 	}
@@ -77,26 +80,51 @@ func (work *callableEffectWork) nativeEffectsTaskDependencies(id sourceStagedOpe
 	if algorithm == nil || !validStagedNativeInputSource(algorithm) {
 		return dependencies
 	}
-	child := work.operationRecipes[algorithm.inputSource.producer].nativeGet
-	if child == nil || !sameOperationRequest(child.request, algorithm.inputSource) {
-		return dependencies
-	}
-	childID := work.operationIDs[child.request.producer]
-	getID := work.operationIDs[nativeRootDebtRequest(child, "callee-get").producer]
-	if childID.epoch != work.operationEpoch || getID.epoch != work.operationEpoch || childID.index == 0 || getID.index == 0 {
-		return dependencies
-	}
-	for _, d := range work.operations[childID.index].dependencies {
-		if d.producer == getID {
+	request := algorithm.inputSource
+	// Each validated inputSource names the actual nested Call argument, so this
+	// chain strictly descends authored syntax. Observe existing subscribers only;
+	// conditional result support never adds another mandatory child debt edge.
+	for {
+		child := work.operationRecipes[request.producer].nativeGet
+		if child == nil || !sameOperationRequest(child.request, request) {
+			return dependencies
+		}
+		childID := work.operationIDs[child.request.producer]
+		getID := work.operationIDs[nativeRootDebtRequest(child, "callee-get").producer]
+		if childID.epoch != work.operationEpoch || getID.epoch != work.operationEpoch || childID.index == 0 || getID.index == 0 {
+			return dependencies
+		}
+		for _, d := range work.operations[childID.index].dependencies {
+			if d.producer == getID {
+				appendDependency(d)
+			}
+		}
+		for _, d := range work.operations[getID.index].dependencies {
 			appendDependency(d)
 		}
+		if child.kind == sourceNativeObjectDefineProperty {
+			targetID := work.operationIDs[nativeEagerTargetRequest(child).producer]
+			target := work.nativeCreateTargetTaskSource(targetID)
+			if target != nil && sameNativeGetSource(target, child) {
+				// The target already owns Create and its Get/C dependencies. Their exact
+				// delivery must also wake a Freeze waiting on its recursive result law.
+				for _, d := range work.nativeCreateTargetDependencies(targetID) {
+					appendDependency(d)
+				}
+			}
+		}
+		nested := work.operationRecipes[nativeRootDebtRequest(child, "algorithm").producer].nativeGet
+		if !sameNativeGetSource(nested, child) || !validStagedNativeInputSource(nested) {
+			return dependencies
+		}
+		request = nested.inputSource
 	}
-	for _, d := range work.operations[getID.index].dependencies {
-		appendDependency(d)
-	}
-	return dependencies
+
 }
 func (work *callableEffectWork) sourceObservationDependencies(id sourceStagedOperationID) []sourceStagedOperationDependency {
+	if work.nativeCreateTargetTaskSource(id) != nil {
+		return work.nativeCreateTargetDependencies(id)
+	}
 	if work.getPreparationTaskSource(id) != nil {
 		return work.getPreparationTaskDependencies(id)
 	}
@@ -137,7 +165,7 @@ func (work *callableEffectWork) sourceObservationTaskSupported(id sourceStagedOp
 		return false
 	}
 	recipe := work.operationRecipes[work.operations[id.index].key]
-	return work.constructedResultProducerTask(id) != nil || work.getPreparationTaskSource(id) != nil || work.constructedCoverageTaskSource(id) != nil || work.nativeScopeGetTaskSource(id) != nil || recipe.memberSource != nil && (recipe.memberSource.originalGetMutation != nil || recipe.memberSource.originalGetMutationInterest != nil) || recipe.mutationData != nil || work.installedCallTaskSource(id) != nil || recipe.nativeGet != nil && recipe.nativeGet.descriptorRead != nil && (recipe.key == nativeRootDebtRequest(recipe.nativeGet, "algorithm").producer || recipe.key == nativeRootDebtRequest(recipe.nativeGet, "eager-inputs").producer) || work.operationRecipes[work.operations[id.index].key].descriptorSource != nil || work.requestedWriterSourceSupported(work.operationRecipes[work.operations[id.index].key]) || work.nativeEffectsTaskSource(id) != nil || work.reflectiveGetTaskSource(id) != nil || work.nativeEagerTaskSource(id) != nil || work.frameworkGetResumptionSource(id) != nil
+	return work.nativeCreateTargetTaskSource(id) != nil || work.constructedResultProducerTask(id) != nil || work.getPreparationTaskSource(id) != nil || work.constructedCoverageTaskSource(id) != nil || work.nativeScopeGetTaskSource(id) != nil || recipe.memberSource != nil && (recipe.memberSource.nativeFieldGet != nil || recipe.memberSource.originalGetMutation != nil || recipe.memberSource.originalGetMutationInterest != nil) || recipe.mutationData != nil || work.installedCallTaskSource(id) != nil || recipe.nativeGet != nil && recipe.nativeGet.descriptorRead != nil && (recipe.key == nativeRootDebtRequest(recipe.nativeGet, "algorithm").producer || recipe.key == nativeRootDebtRequest(recipe.nativeGet, "eager-inputs").producer) || work.operationRecipes[work.operations[id.index].key].descriptorSource != nil || work.requestedWriterSourceSupported(work.operationRecipes[work.operations[id.index].key]) || work.nativeEffectsTaskSource(id) != nil || work.reflectiveGetTaskSource(id) != nil || work.nativeEagerTaskSource(id) != nil || work.frameworkGetResumptionSource(id) != nil
 }
 func (work *callableEffectWork) attachSourceObservationDependencies(facts []callableFacts, id sourceStagedOperationID) {
 	work.registerOperationDependencies(facts, id)
@@ -440,6 +468,7 @@ func (work *callableEffectWork) prepareNativeEffectsSource(facts []callableFacts
 		// before an older generic physical refresh can be dispatched.
 		work.admitNativeEffectsSourceGet(facts, child, childIssuer)
 	}
+	work.bootstrapNativeCreateTarget(facts, id, child.source, owner)
 	childAlgorithm := work.operationRecipes[nativeRootDebtRequest(child.source, "algorithm").producer].nativeGet
 	if !work.describeNativeOrdinaryInputResult(childAlgorithm) || !work.describeNativeInputSource(facts, algorithm, child.source) {
 		return

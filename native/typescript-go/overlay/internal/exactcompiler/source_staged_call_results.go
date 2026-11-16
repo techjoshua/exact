@@ -344,18 +344,19 @@ func (work *callableEffectWork) transferStagedCallResult(facts []callableFacts, 
 			caller = sourceStagedModuleOwner(call)
 		}
 		s := work.operationRecipes[stagedResultSourceRequest(call, caller, nil).producer].callResult
-		if s != nil {
-			for _, data := range s.preparationData {
-				if q.getPreparationDataContextMatches(data) {
-					transfer.source = work.freezeReturnReading(data)
-					break
-				}
-			}
-		}
 		matched := false
 		if s != nil {
 			for _, data := range s.preparationData {
-				matched = matched || q.getPreparationDataContextMatches(data)
+				if q.getPreparationDataContextMatches(data) {
+					matched = true
+					transfer.source = work.freezeReturnReading(data)
+					if transfer.source == nil {
+						// Discovery cannot settle this preparation's DATA debt.
+						b.getPreparation.dataPending = true
+						work.discoverFreezeReturnPrefix(q, data.reading, interest)
+					}
+					break
+				}
 			}
 		}
 		if matched {
@@ -389,8 +390,14 @@ func (work *callableEffectWork) transferStagedCallResult(facts []callableFacts, 
 		return transfer
 	}
 	if interest.purpose == resultSourceProjection && q.stagedMember.getPreparation == nil && recipe.callResult != nil && recipe.callResult.nativeCall {
-		if work.retainFreezeProjection(facts, q, call) {
+		if projection, retained := work.retainFreezeProjection(facts, q, call); retained {
 			transfer.source = work.freezeProjectionReading(q, call)
+			if transfer.source == nil && interest.discover != nil {
+				// Keep this source set open while its known conditional field
+				// is visited. The current transport still owns completion.
+				b.represented = false
+				work.discoverFreezeReturnPrefix(q, projection.reading, interest)
+			}
 		}
 		return transfer
 	}

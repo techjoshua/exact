@@ -144,18 +144,34 @@ func (work *callableEffectWork) stagedMemberCoverageChildren(q *sourceValueQuery
 // original canonical regions, preserving deferred and previous-activation
 // relationships without asking whether those activations happened. Publication
 // remains passive until an actual Effects consumer adopts this source set.
-func (q *sourceValueQuery) prepareStagedMemberCoverage(get *sourceGetInputs, cut *sourceMemberWriterReadCut, origin *ast.Node, projection []string, name string, mode accessorTraversal, indexes []sourceValueIndex, result *accessorCandidates) {
+func (q *sourceValueQuery) prepareStagedMemberCoverage(get *sourceGetInputs, cut *sourceMemberWriterReadCut, origin *ast.Node, projection []string, name string, mode accessorTraversal, indexes []sourceValueIndex, result *accessorCandidates, standard *sourceValue) {
 	b := q.stagedMember
 	if !q.liveStagedMemberSource(b, get, cut) || !b.enumerating || origin == nil {
 		return
 	}
 	complete := b.indexed && b.represented
+	// Prior generic operations cannot corrupt an established standard container.
+	// Indexed assignments and reflective replacements already remain in b.required.
+	// The earlier global binding Get borrows this same original standard seed;
+	// its receiver is still the global object, not the acquired container.
+	standardEntry := !runtimeModuleEvaluation(q.effectOwner) && mode == accessorAcquire && standardNativeLookup(get) &&
+		(get.receiver.native.kind == sourceNativeObjectConstructor || get.receiver.native.kind == sourceNativeReflectObject ||
+			get.receiver.native.kind == sourceNativeGlobalObject && standard != nil && standard.native != nil &&
+				(standard.native.kind == sourceNativeObjectConstructor || standard.native.kind == sourceNativeReflectObject))
+	// Prior activations cannot reach this fresh first own-data slot.
+	firstOwnField := q.stagedFirstOwnDataFieldRead(get, cut, origin, mode)
 	for _, index := range indexes {
 		operations, populated := stagedFieldPrototypeDiscovery(index)
 		complete = complete && populated && index.normalOccurrences != nil && !index.normalDynamicScope
+		if standardEntry {
+			continue
+		}
 		sort.SliceStable(operations, func(i, j int) bool { return operations[i].operation.Pos() < operations[j].operation.Pos() })
 		for _, operation := range operations {
 			node := operation.operation
+			if firstOwnField && operation.region != nil {
+				continue
+			}
 			if !q.liveStagedMemberSource(b, get, cut) {
 				return
 			}

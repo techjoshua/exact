@@ -97,7 +97,7 @@ func (work *callableEffectWork) publishDescriptorRecordGet(facts []callableFacts
 	// The marker remains the actual receiver. The library declaration anchors
 	// only this conditional prototype lookup's source population; it is not a
 	// replacement receiver, raw result object or an installed-field issuer.
-	q.prepareStagedMemberSources(get, read, prototype.prototype, []string{get.propertyKey}, "", accessorRead, indexes, &part)
+	q.prepareStagedMemberSources(get, read, prototype.prototype, []string{get.propertyKey}, "", accessorRead, indexes, &part, nil)
 	if !q.liveStagedMemberSource(b, get, read) || b.coverage == nil || b.coverage.origin != prototype.prototype || !work.publishStagedMemberCoverage(facts, q) {
 		return false
 	}

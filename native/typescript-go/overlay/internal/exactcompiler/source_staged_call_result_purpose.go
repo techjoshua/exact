@@ -20,14 +20,19 @@ const (
 type sourceCallResultInterest struct {
 	purpose   sourceCallResultPurpose
 	operation *ast.Node
+	// discover is supplied only by the actual SOURCE field visitor. The existing
+	// original issuer calls it synchronously; neither it nor a query is retained.
+	discover func(*sourceStagedFreezeReturnSource) bool
 }
 
 func validSourceCallResultInterest(interest sourceCallResultInterest) bool {
 	switch interest.purpose {
-	case resultSourceProjection, resultCallableExposure, resultConstructedReceiver, resultWriterValue:
+	case resultSourceProjection:
 		return interest.operation == nil
+	case resultCallableExposure, resultConstructedReceiver, resultWriterValue:
+		return interest.operation == nil && interest.discover == nil
 	case resultReflectiveTarget:
-		return interest.operation != nil && ast.IsCallExpression(interest.operation)
+		return interest.discover == nil && interest.operation != nil && ast.IsCallExpression(interest.operation)
 	default:
 		return false
 	}

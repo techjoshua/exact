@@ -215,6 +215,13 @@ func (work *callableEffectWork) describeNativeInputOccurrenceInEntry(facts []cal
 		}
 	}
 	if reflectiveNative(recipe.nativeGet.kind) {
+		// The same selected publisher already enrolled the target ticket.
+		// Its future owned dispatch, never this passive recursion, acquires it.
+		target := work.operationRecipes[nativeEagerTargetRequest(recipe.nativeGet).producer]
+		eager := work.operationRecipes[nativeRootDebtRequest(recipe.nativeGet, "eager-inputs").producer]
+		if effectsIssuer.live() && effectsIssuer.work == work && sameOperationRequest(effectsIssuer.request, occurrence.source.request) && target.nativeGet != nil && target.nativeGet.createTarget && eager.nativeGet.createTarget && operationContainsRequest(eager.delta.required, nativeEagerTargetRequest(recipe.nativeGet)) && sameNativeGetSource(target.nativeGet, recipe.nativeGet) && validOperationEnvelope(target) {
+			return occurrence, true
+		}
 		if target, binding := nativeReflectiveTargetCall(recipe.nativeGet, owner); target != nil {
 			child, supported := work.describeNativeInputOccurrence(facts, consumer, target, owner)
 			if !supported {

@@ -94,12 +94,7 @@ func validNativeInstallationMutationSource(s *sourceNativeInstallationMutationSo
 			return false
 		}
 	}
-	for _, property := range actuals[2].AsObjectLiteralExpression().Properties.Nodes {
-		if !ast.IsPropertyAssignment(property) || property.Name() == nil || ast.IsComputedPropertyName(property.Name()) || callableNameText(property.Name()) == "__proto__" || !sourceInertValueCreation(property.AsPropertyAssignment().Initializer) {
-			return false
-		}
-	}
-	return true
+	return sourceInertDataLiteral(actuals[2], "")
 }
 
 func nativeInstallationMutationRequirements(s *sourceNativeInstallationMutationSource) []sourceStagedOperationRequest {
