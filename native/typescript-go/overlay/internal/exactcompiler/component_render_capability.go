@@ -36,6 +36,7 @@ func componentRenderProofIncomplete(component Component, node *ast.Node, callabl
 			return true
 		}
 	}
+	projected := callableSourceProjectionCurrent(callables, ast.GetSourceFileOfNode(node))
 	for _, fact := range callables.facts {
 		if fact.sourceFile != ast.GetSourceFileOfNode(node) || fact.node.Pos() < node.Pos() || fact.node.End() > node.End() ||
 			insideTaskSpan(fact.node.Pos(), tasks, component.Name) ||
@@ -43,7 +44,9 @@ func componentRenderProofIncomplete(component Component, node *ast.Node, callabl
 			continue
 		}
 		for _, source := range fact.summary.DirectEffectSources {
-			if source.Environment == "unknown" {
+			// Keep every untagged/unpaid unknown. Only the same completed local
+			// SOURCE obligation already removed by canonical propagation is paid.
+			if source.Environment == "unknown" && (!projected || !sourceObligationCoveredLocally(&fact, source)) {
 				return true
 			}
 		}

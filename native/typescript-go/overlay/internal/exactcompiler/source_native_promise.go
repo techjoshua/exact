@@ -209,7 +209,8 @@ func (query *sourceValueQuery) nativeSelectionSources(origin *ast.Node, result *
 // constructor member. Reflection on globalThis.Promise and aliases shares the
 // same descriptor/write owner as Promise.resolve. Unknown alternatives survive.
 func (query *sourceValueQuery) nativeEntryValues(value sourceValue, bindings sourceValueBindings, result *accessorCandidates) []sourceValue {
-	if value.native.kind == sourceNativeGlobalObject {
+	query.publishStagedNativeEntrySource(value, bindings, result)
+	if value.native.kind == sourceNativeGlobalObject || query.probingDirectExposure && (value.native.kind == sourceNativeObjectConstructor || value.native.kind == sourceNativeSymbolConstructorExposure) {
 		return []sourceValue{value}
 	}
 	// Reentrant provenance cannot certify a native entry. Retain its possible
@@ -220,6 +221,8 @@ func (query *sourceValueQuery) nativeEntryValues(value sourceValue, bindings sou
 		return []sourceValue{value}
 	}
 	previous, present := query.active[at]
+	traceRelease := progressActiveCall(query, at, previous)
+	defer traceRelease()
 	query.active[at] = true
 	defer func() {
 		if present {
@@ -233,6 +236,8 @@ func (query *sourceValueQuery) nativeEntryValues(value sourceValue, bindings sou
 	acquired := accessorCandidates{}
 	// Entry acquisition observes the original binding read. A later member Get
 	// keeps its own boundary instead of freezing mutable slots at alias creation.
+	revokeEntry := query.beginNativeEntryAcquisition(value)
+	defer revokeEntry()
 	previousReading := query.reading
 	query.reading = value.native.acquired
 	defer func() { query.reading = previousReading }()

@@ -8384,8 +8384,8 @@ func TestSessionAuditsImportedSecretConsumption(t *testing.T) {
 		consumer.Consumer.Symbol != "consume" ||
 		consumer.Authorization != "implicit-application-owner" ||
 		consumer.Target != "server" ||
-		consumer.Dynamic ||
-		consumer.Selector != "API_KEY" {
+		!consumer.Dynamic ||
+		consumer.Selector != "" {
 		t.Fatalf("unexpected secret consumer: %#v", consumer)
 	}
 	if !hasPolicyFlowTo(response.Analysis.Policy.Flows, consumer.ID, true) {
@@ -8397,7 +8397,7 @@ func TestSessionAuditsImportedSecretConsumption(t *testing.T) {
 	}
 }
 
-func TestSessionPreservesSelectorFromTypedSecretProviderFacade(t *testing.T) {
+func TestSessionKeepsTypedSecretProviderFacadeSelectorDynamic(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID:          "app.ts",
 		Kind:        "analyze",
@@ -8418,9 +8418,12 @@ func TestSessionPreservesSelectorFromTypedSecretProviderFacade(t *testing.T) {
 	}
 	consumers := response.Analysis.Policy.SecretConsumers
 	if len(consumers) != 1 ||
-		consumers[0].Dynamic ||
-		consumers[0].Selector != "STRIPE_SECRET_KEY" {
-		t.Fatalf("typed provider selector was not preserved: %#v", consumers)
+		!consumers[0].Dynamic ||
+		consumers[0].Selector != "" {
+		t.Fatalf("typed facade invented selector metadata: %#v", consumers)
+	}
+	if consumers[0].Authorization != "implicit-application-owner" || !hasPolicyFlowTo(response.Analysis.Policy.Flows, consumers[0].ID, true) || containsDiagnosticCode(response.Diagnostics, "EXACT3002") || containsDiagnosticCode(response.Diagnostics, "EXACT3004") {
+		t.Fatalf("unknown metadata changed consumption authority: %#v %#v", consumers, response.Diagnostics)
 	}
 }
 

@@ -20,7 +20,7 @@ func (query *sourceValueQuery) moduleRead() *ast.Node {
 // Only direct statement-list assignments and direct calls establish a producer. Conditional,
 // recursive and indirect routes remain possible, never a certificate for target pruning.
 // The existing generation index and query budget bound the search, with no second source walk.
-func (query *sourceValueQuery) moduleWriteProducer(left *ast.Node, bindings sourceValueBindings) (*ast.Node, bool) {
+func (query *sourceValueQuery) moduleWriteProducer(left *ast.Node, bindings sourceValueBindings, result *accessorCandidates) (*ast.Node, bool) {
 	if query.deferredCandidateExcluded(left, &accessorCandidates{}) {
 		return nil, false
 	}
@@ -76,6 +76,11 @@ func (query *sourceValueQuery) moduleWriteProducer(left *ast.Node, bindings sour
 	}
 	possible = false
 	for _, call := range query.owner.index(ast.GetSourceFileOfNode(left)).calls {
+		// Only the enclosing invocation is later than this actual child-map
+		// observation. Its callee and nested argument operations remain indexed.
+		if query.stagedMapInvocationFollows(call) {
+			continue
+		}
 		if query.active[call] || query.afterRead(call) {
 			continue
 		}
@@ -110,6 +115,12 @@ func (query *sourceValueQuery) moduleWriteProducer(left *ast.Node, bindings sour
 		possible = possible || candidates.opaque
 
 		if body != writer && (ast.IsPropertyAccessExpression(expression) || ast.IsElementAccessExpression(expression)) && !query.active[call] {
+			if disposition := query.stagedWriterRelevance(call, result); disposition.handled {
+				if disposition.excluded {
+					continue
+				}
+				return nil, true // The caller retains the explicit compiler-pending result.
+			}
 			candidates := query.receiverCandidates(call, bindings)
 			for _, candidate := range candidates.values {
 				if candidate.node == writer {

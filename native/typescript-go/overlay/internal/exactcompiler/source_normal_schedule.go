@@ -41,13 +41,14 @@ type sourcePreparedBody struct {
 	observed    *sourceObservedValue
 }
 type sourcePreparedInvocation struct {
-	bodies         []sourcePreparedBody
-	declarations   []*ast.Node
-	base, acquired accessorCandidates
-	scope          acquiredCallableScope
-	remaining      int
-	receiver       *ast.Node
-	receiverValues []sourceValue
+	constructionSource *sourceConstructionSelection // Synchronous original New publication only; revoked on publication.
+	bodies             []sourcePreparedBody
+	declarations       []*ast.Node
+	base, acquired     accessorCandidates
+	scope              acquiredCallableScope
+	remaining          int
+	receiver           *ast.Node
+	receiverValues     []sourceValue
 }
 type sourceNormalOperation struct {
 	ownedRequest *ownedGetRequest
@@ -289,7 +290,7 @@ func normalGetOutput(slot *sourceNormalOperation) sourceResultObservation {
 // selectionProjection transfers only retained selection facts. Producer effects
 // have already been published and must not be merged by later lookup.
 func selectionProjection(c accessorCandidates) accessorCandidates {
-	return accessorCandidates{ownedComponents: candidateReferenceView(c), ownedGets: c.ownedGets, values: c.values, callableScopes: c.callableScopes, ordinaryBodies: c.ordinaryBodies, sourceCallable: c.sourceCallable, sourceOwned: c.sourceOwned, selected: c.selected, opaque: c.opaque, valueIncomplete: c.valueIncomplete, receiverIncomplete: c.receiverIncomplete}
+	return accessorCandidates{installedCallSelections: cloneInstalledCallSelections(c.installedCallSelections), standardMemberTransfers: c.standardMemberTransfers, ownedComponents: candidateReferenceView(c), ownedGets: c.ownedGets, values: c.values, callableScopes: c.callableScopes, ordinaryBodies: c.ordinaryBodies, sourceCallable: c.sourceCallable, sourceOwned: c.sourceOwned, selected: c.selected, opaque: c.opaque, valueIncomplete: c.valueIncomplete, receiverIncomplete: c.receiverIncomplete}
 }
 
 func (query *sourceValueQuery) consumeNormalPhase(phase sourceNormalPhase, bindings sourceValueBindings, result *accessorCandidates) {
@@ -903,7 +904,11 @@ func (query *sourceValueQuery) appendFieldReadOutcome(node, receiver *ast.Node, 
 			}
 		}
 		fulfilled := covered && !candidates.fieldReceiverIncomplete && !candidates.opaque && !candidates.receiverIncomplete && (query.dependenciesOnly || !candidates.valueIncomplete || query.normalGetEffectsAccounted(node, candidates))
-		candidates.fieldOutcomes = append(candidates.fieldOutcomes, sourceFieldOutcome{demand: demand, fulfilled: fulfilled})
+		if installed := query.installedMemberRequirement(demand, candidates); installed != nil {
+			candidates.fieldOutcomes = append(candidates.fieldOutcomes, sourceFieldOutcome{demand: demand, installedMember: installed})
+		} else {
+			candidates.fieldOutcomes = append(candidates.fieldOutcomes, sourceFieldOutcome{demand: demand, fulfilled: fulfilled})
+		}
 	}
 }
 

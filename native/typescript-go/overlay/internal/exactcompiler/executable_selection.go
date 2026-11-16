@@ -142,6 +142,18 @@ func prepareExecutableSelection(request Request, sources []synchronizedProjectSo
 // executableBodyOwner is acquired with one checker and never survives its Program.
 // The boolean result distinguishes an explicitly owned opaque edge from no host proof.
 type executableBodyOwner struct {
+	ambientArgumentReferences *sourceAmbientArgumentReferences // Lazy semantic classification; never graph/Call authority.
+	descriptorProducer        *sourceDescriptorProducer        // synchronous original collector borrow only
+	descriptorProducersDone   map[*ast.Node]bool               // original source visitation, never a value cache
+	writerValues              map[sourceWriterValue]struct{}   // original Set source substitutions only
+
+	constructionSubscribers map[*ast.Node]map[sourcePendingConstructionDependency]struct{} // finite source endpoints, no query borrows
+
+	standardConstructions map[*ast.Node]sourceStandardConstructionContribution // detached original-New contributions only
+
+	pendingMemberPublishers map[*ast.Node]*sourcePendingMemberPublisher // active original fact publishers only
+	writerInputFacts        map[*ast.Node]*sourceWriterInputGraph       // active owning facts, restored after recursive collection
+
 	selection    *executableSelection
 	project      *projectState
 	checker      *checker.Checker
@@ -438,6 +450,13 @@ func (owner *executableBodyOwner) definition(expression *ast.Node) (*ast.Node, b
 	if !owned {
 		return nil, false
 	}
+	return owner.uniqueSymbolDefinition(symbol)
+}
+
+// uniqueSymbolDefinition retains the shared stable-body uniqueness algorithm.
+// Callers authenticate their own binding domain first; this helper does not
+// establish selected-module ownership or execution/currentness authority.
+func (owner *executableBodyOwner) uniqueSymbolDefinition(symbol *ast.Symbol) (*ast.Node, bool) {
 	var result *ast.Node
 	if symbol != nil {
 		for _, declaration := range symbol.Declarations {

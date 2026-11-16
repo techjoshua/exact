@@ -165,6 +165,9 @@ func (query *sourceValueQuery) bindingValues(symbol *ast.Symbol, entry []sourceV
 		}
 		index := query.owner.index(source)
 		for _, assignment := range index.bindings[id] {
+			if query.stagedReturnBindingWrite(assignment, declaration) {
+				continue
+			}
 			// The index retains the RHS's actual assignment operation. Acquiring its
 			// left reference precedes the RHS, but replacement happens on completion.
 			operation := assignment.right.Parent
@@ -176,7 +179,7 @@ func (query *sourceValueQuery) bindingValues(symbol *ast.Symbol, entry []sourceV
 				continue
 			}
 			if query.moduleRead() != nil && enclosingCallableNode(declaration) == nil {
-				producer, possible := query.moduleWriteProducer(assignment.left, bindings)
+				producer, possible := query.moduleWriteProducer(assignment.left, bindings, result)
 				if !possible {
 					continue
 				}

@@ -27,6 +27,7 @@ const (
 )
 
 type sourceDependencyEntry struct {
+	traceSerial uint64 // disposable observer interval, never read by analysis
 	// Each alternative is a source relation, compared by contents. Scope/map
 	// allocation identities and completed results never participate in reuse.
 	alternatives []map[sourceDependencyFact]bool
@@ -40,8 +41,11 @@ func (query *sourceValueQuery) enterDependencyBody(declaration *ast.Node, bindin
 	if !query.dependenciesOnly {
 		return func() {}, false
 	}
+	progressCount(query, tBodyAttempts, 1)
+	progressFrontier(query, declaration, 1)
 	entry := query.dependencyEntries[declaration]
 	if query.active[declaration] && entry == nil {
+		progressCount(query, tActiveWithoutEntry, 1)
 		return func() {}, false
 	}
 	release := func() {}
@@ -49,10 +53,14 @@ func (query *sourceValueQuery) enterDependencyBody(declaration *ast.Node, bindin
 		if query.dependencyEntries == nil {
 			query.dependencyEntries = make(map[*ast.Node]*sourceDependencyEntry)
 		}
-		entry = &sourceDependencyEntry{}
+		entry = &sourceDependencyEntry{traceSerial: progressNewInterval(query, declaration)}
 		query.dependencyEntries[declaration] = entry
-		release = func() { delete(query.dependencyEntries, declaration) }
+		release = func() { progressCloseInterval(query, entry.traceSerial); delete(query.dependencyEntries, declaration) }
 	}
+	previousInterval := query.traceInterval
+	query.traceInterval = entry.traceSerial
+	originalRelease := release
+	release = func() { originalRelease(); query.traceInterval = previousInterval }
 	facts := make(map[sourceDependencyFact]bool)
 	saturated := false
 	add := func(fact sourceDependencyFact) {
@@ -134,9 +142,18 @@ func (query *sourceValueQuery) enterDependencyBody(declaration *ast.Node, bindin
 			}
 		}
 		if same {
+			progressCount(query, tExistingBlocked, 1)
+			progressObserveFacts(query, declaration, entry, facts, false, saturated)
 			return release, false
 		}
 	}
+	if len(entry.alternatives) == 0 {
+		progressCount(query, tFirstAlternative, 1)
+	} else {
+		progressCount(query, tNewAlternative, 1)
+	}
+	progressCount(query, tAdmittedFactOccurrences, uint64(len(facts)))
+	progressObserveFacts(query, declaration, entry, facts, true, saturated)
 	entry.alternatives = append(entry.alternatives, facts)
 	return release, true
 }

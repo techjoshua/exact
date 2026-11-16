@@ -17,6 +17,8 @@ import (
 )
 
 type projectState struct {
+	stagedReplacement bool // Internal replacement analysis refuses unmigrated source recovery.
+
 	// activeGeneration is request-scoped even when callable facts are reused.
 	activeGeneration *projectGeneration
 	// abandoned rejects reuse after interrupted checker mutation. The next advance
@@ -46,6 +48,8 @@ type projectState struct {
 }
 
 type projectGeneration struct {
+	// sourceJSXConstruction is early compile semantics, never a graph receipt.
+	sourceJSXConstruction *sourceJSXConstructionMode
 	// Publication namespaces close with the generation, not a temporary checker lease.
 	languageOwners         []*languageOwner
 	project                *projectState
@@ -157,9 +161,10 @@ func newProjectStateWithGeneratedEntry(request Request, fileName string, sources
 		)
 	}
 	state := &projectState{
-		currentDirectory: currentDirectory,
-		generatedEntry:   generatedEntry,
-		configFile:       configFile,
+		stagedReplacement: request.stagedReplacement,
+		currentDirectory:  currentDirectory,
+		generatedEntry:    generatedEntry,
+		configFile:        configFile,
 		sources: map[string]string{
 			overlay.canonical(fileName): request.Source,
 		},

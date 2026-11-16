@@ -6,6 +6,9 @@ import "github.com/microsoft/TypeScript/tsc/internal/ast"
 // neither a CallExpression nor the numeric-conversion implicit input contract.
 // The enclosing installed plan retains captures and the zero-argument defaults.
 type sourceGetInputs struct {
+	resultSource        *sourceStagedGetResultBorrow       // One original source Get DATA loan, revoked synchronously.
+	constructionEffects *sourceStagedConstructionGetBorrow // Exact original New prototype Get, revoked synchronously.
+	hasInstance         *sourceStagedHasInstanceGetBorrow  // One original operator Get, revoked synchronously.
 	// argumentProjection observes only this original argument Get's selected
 	// source completion. It grants no normal or invocation permission.
 	argumentProjection *sourceArgumentGetProjection
@@ -21,10 +24,12 @@ type sourceGetInputs struct {
 	// It supplies no own-slot presence, value or completeness certificate.
 	ownConditional bool
 	// Presence is an actual HasProperty result, distinct from a Get value.
-	presence    *sourcePropertyPresence
-	propertyKey string
-	hasOnly     bool
-	reflective  *sourceReflectiveOperation
+	presence      *sourcePropertyPresence
+	propertyKey   string
+	hasOnly       bool
+	reflective    *sourceReflectiveOperation
+	fieldEffects  *sourceReflectiveFieldRead  // synchronous terminal Get accounting only
+	stagedEffects *sourceStagedFieldGetBorrow // exact typed Effects request, never normal input authority
 	// inspection is a synchronous reference-view borrow, never value input authority.
 	inspection *sourcePropertyReadInspection
 	// symbol is an actual well-known key supplied by an implicit native Get,
@@ -427,6 +432,12 @@ func (query *sourceValueQuery) consumeGetInputs(body *ast.Node, get *sourceGetIn
 }
 
 func (query *sourceValueQuery) executeGetEffects(body *ast.Node, get *sourceGetInputs, scope acquiredCallableScope, result *accessorCandidates) {
+	if query.transferStagedFieldGetter(body, get, scope, result) {
+		return
+	}
+	if query.transferInstalledSourceGetter(body, get, scope, result) {
+		return
+	}
 	if query.inventoryLookupUnknown() {
 		return
 	}
@@ -443,6 +454,20 @@ func (query *sourceValueQuery) executeGetEffects(body *ast.Node, get *sourceGetI
 // Discarded body values do not describe that return. Source projections grant no
 // normal output authority. A callable return is never a promise-job interpretation.
 func (query *sourceValueQuery) acquireGetResult(body *ast.Node, get *sourceGetInputs, scope acquiredCallableScope, result *accessorCandidates) sourceResultObservation {
+	if borrow := query.liveStagedGetResult(get); borrow != nil {
+		query.executable.project.requireStagedReplacement(stagedReplacementGap{operation: get.operation, consumer: borrow.request.consumer, parent: borrow.request, demand: "original Get DATA consumer", transition: "acquireGetResult"})
+		return sourceResultObservation{incomplete: true, effects: sourceEffectsUnaccounted}
+	}
+	if query.transferStagedFieldGetter(body, get, scope, result) {
+		// The Effects owner retained this selected binder/body requirement. The
+		// output remains unavailable and grants no normal-completion authority.
+		return sourceResultObservation{incomplete: true, effects: sourceEffectsAccounted}
+	}
+	if query.transferInstalledSourceGetter(body, get, scope, result) {
+		// The original SOURCE Get body contributed Effects. Its returned DATA
+		// remains unavailable to this caller; no normal lifetime was installed.
+		return sourceResultObservation{incomplete: true, effects: sourceEffectsAccounted}
+	}
 	if query.inventoryLookupUnknown() {
 		return sourceResultObservation{incomplete: true}
 	}

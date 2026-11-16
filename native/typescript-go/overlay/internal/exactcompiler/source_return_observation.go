@@ -298,7 +298,9 @@ func (query *sourceValueQuery) copyCallableScope(scope acquiredCallableScope, re
 	previous := query.creators
 	query.creators = scope.creators
 	defer func() { query.creators = previous }()
-	return query.acquireCallableScope(scope.bindings, result)
+	copy := query.acquireCallableScope(scope.bindings, result)
+	copy.constructionCapture = cloneConstructionCallableValue(scope.constructionCapture)
+	return copy
 }
 
 // privatePatternReads consumes the existing pattern projection algorithm. Only

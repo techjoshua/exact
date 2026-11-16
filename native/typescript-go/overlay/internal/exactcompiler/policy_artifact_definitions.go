@@ -179,11 +179,11 @@ func planSecretArtifactDefinitions(source *ast.SourceFile, c *checker.Checker, s
 			add(statement, true)
 		}
 		if ast.IsClassDeclaration(statement) {
-			add(statement, secretArtifactPureClass(statement))
+			add(statement, sourceInertClassCreation(statement))
 		}
 		if ast.IsVariableStatement(statement) {
 			for _, declaration := range statement.AsVariableStatement().DeclarationList.AsVariableDeclarationList().Declarations.Nodes {
-				add(declaration, secretArtifactPureValue(declaration.Initializer()))
+				add(declaration, sourceInertValueCreation(declaration.Initializer()))
 			}
 		}
 	}
@@ -207,58 +207,6 @@ func secretArtifactOwnedBinding(binding *ast.Node, c *checker.Checker, subjects 
 	}
 	subject, found := subjects.symbols[ast.GetSymbolId(symbol)]
 	return found && subject.Policy.Secret
-}
-
-// secretArtifactPureValue proves only creation without reads, calls, coercion,
-// spreads or abrupt binding effects. Deferred bodies are not executed by creation.
-func secretArtifactPureValue(node *ast.Node) bool {
-	node = unwrapSourceCallableReference(node)
-	if node == nil {
-		return false
-	}
-	if ast.IsFunctionExpression(node) || ast.IsArrowFunction(node) || ast.IsStringLiteral(node) || ast.IsNumericLiteral(node) || ast.IsNoSubstitutionTemplateLiteral(node) || node.Kind == ast.KindTrueKeyword || node.Kind == ast.KindFalseKeyword || node.Kind == ast.KindNullKeyword {
-		return true
-	}
-	if ast.IsClassExpression(node) {
-		return secretArtifactPureClass(node)
-	}
-	if ast.IsObjectLiteralExpression(node) {
-		for _, property := range node.AsObjectLiteralExpression().Properties.Nodes {
-			if property.Name() == nil || ast.IsComputedPropertyName(property.Name()) {
-				return false
-			}
-			if ast.IsPropertyAssignment(property) {
-				if !secretArtifactPureValue(property.AsPropertyAssignment().Initializer) {
-					return false
-				}
-			} else if !ast.IsMethodDeclaration(property) && !ast.IsGetAccessorDeclaration(property) && !ast.IsSetAccessorDeclaration(property) {
-				return false
-			}
-		}
-		return true
-	}
-	return false
-}
-
-func secretArtifactPureClass(node *ast.Node) bool {
-	if ast.HasDecorators(node) {
-		return false
-	}
-	var class *ast.ClassLikeBase
-	if ast.IsClassDeclaration(node) {
-		class = &node.AsClassDeclaration().ClassLikeBase
-	} else {
-		class = &node.AsClassExpression().ClassLikeBase
-	}
-	if class.HeritageClauses != nil {
-		return false
-	}
-	for _, member := range class.Members.Nodes {
-		if ast.HasDecorators(member) || ast.HasSyntacticModifier(member, ast.ModifierFlagsStatic) || member.Name() != nil && ast.IsComputedPropertyName(member.Name()) || ast.IsClassStaticBlockDeclaration(member) {
-			return false
-		}
-	}
-	return true
 }
 
 // pruneDeadSecretDefinitions removes unreachable pure module definitions in the

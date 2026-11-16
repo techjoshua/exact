@@ -6,14 +6,48 @@ import "github.com/microsoft/TypeScript/tsc/internal/ast"
 // Each alternative keeps its acquired creating scope through the callback. This
 // observes parameterized return syntax without executing bodies or publishing
 // a normal Call/Get output, mutation delta or completion receipt.
-func (query *sourceValueQuery) projectSourceCallReturns(call *ast.Node, bindings sourceValueBindings, project func(sourceValue, sourceValueBindings), deferred func()) accessorCandidates {
+func (query *sourceValueQuery) projectSourceCallReturns(call *ast.Node, bindings sourceValueBindings, interest sourceCallResultInterest, project func(sourceValue, sourceValueBindings), deferred func()) accessorCandidates {
+	return query.projectSourceCallReturnsWithViews(call, bindings, interest, project, nil, deferred)
+}
+
+// projectSourceCallReturnsWithViews keeps framework storage relationships on a
+// separate typed channel. Existing source consumers receive no raw-object donor
+// when they lack a view-aware rule. Selection and missing result work stay
+// incomplete independently of a delivered conditional MAY description.
+func (query *sourceValueQuery) projectSourceCallReturnsWithViews(call *ast.Node, bindings sourceValueBindings, interest sourceCallResultInterest, project func(sourceValue, sourceValueBindings), view func(sourceFrameworkStorageView, sourceValueBindings), deferred func(), descriptor ...func(sourceNativeDescriptorView, sourceValueBindings)) accessorCandidates {
+	if transfer := query.transferStagedCallReturn(call, interest); transfer.accepted {
+		if transfer.source != nil && interest.purpose == resultSourceProjection {
+			project(sourceValue{node: transfer.source.source.endpoint.expression, freezeLexical: transfer.source}, bindings)
+			return accessorCandidates{}
+		}
+		if view != nil {
+			for _, projected := range transfer.views {
+				view(projected, bindings)
+			}
+		}
+		if len(descriptor) == 1 && descriptor[0] != nil {
+			for _, projected := range transfer.descriptorViews {
+				descriptor[0](projected, bindings)
+			}
+		} else if len(transfer.descriptorViews) != 0 {
+			return accessorCandidates{opaque: true, valueIncomplete: true}
+		}
+		return accessorCandidates{valueIncomplete: true, opaque: transfer.sourcePending}
+	}
 	if query.pendingCalleeOutput(call, bindings) {
+		progressPendingTrue(query, call)
 		return accessorCandidates{opaque: true, valueIncomplete: true}
+	}
+	var descriptorConsumer func(sourceNativeDescriptorView, sourceValueBindings)
+	if len(descriptor) == 1 {
+		descriptorConsumer = descriptor[0]
 	}
 	selected := false
 	result := query.consumeInvocation(call, bindings, sourceInvocationConsumer{
-		selection:    func(complete bool) { selected = complete },
-		sourceReturn: project,
+		selection:      func(complete bool) { selected = complete },
+		sourceReturn:   project,
+		sourceView:     view,
+		descriptorView: descriptorConsumer,
 		body: func(body *ast.Node, captures sourceValueBindings, inputs *sourceValueInputs, invocation *ast.Node, part *accessorCandidates) {
 			query.projectSelectedSourceReturns(body, call, captures, inputs, part, project, deferred)
 		},
@@ -65,6 +99,10 @@ func (query *sourceValueQuery) projectSelectedSourceReturns(body, operation *ast
 	}
 	previousInputs, previousReturn, previousFresh := query.inputs, query.returning, query.freshReturnCall
 	query.inputs, query.freshReturnCall = inputs, nil
+	if inputs != nil && inputs.installedMemberDescription != nil {
+		revoke, _ := query.beginInstalledMemberInput(inputs, inputs.installedMemberDescription)
+		defer revoke()
+	}
 	defer func() {
 		query.inputs, query.returning, query.freshReturnCall = previousInputs, previousReturn, previousFresh
 	}()

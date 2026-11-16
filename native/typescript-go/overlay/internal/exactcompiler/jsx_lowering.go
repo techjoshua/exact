@@ -486,6 +486,9 @@ func (lowering *jsxLowering) visitNode(node *ast.Node) *ast.Node {
 			if lowering.target == TargetServer && task.Placement == "client" {
 				return lowering.lowerInvokedTaskDeclaration(node.AsFunctionDeclaration(), task, nil)
 			}
+			if !lowering.taskSourceBindingElidable(node) {
+				return lowering.visitor.VisitEachChild(node)
+			}
 			return nil
 		}
 	}
@@ -506,8 +509,9 @@ func (lowering *jsxLowering) visitNode(node *ast.Node) *ast.Node {
 				setupTasks = false
 				break
 			}
-			task, setup := lowering.functionTasks[unwrapSourceCallableReference(declaration.Initializer).Pos()]
-			if !setup {
+			body := unwrapSourceCallableReference(declaration.Initializer)
+			task, setup := lowering.functionTasks[body.Pos()]
+			if !setup || !lowering.taskSourceBindingElidable(body) {
 				setupTasks = false
 				break
 			}
@@ -553,9 +557,6 @@ func (lowering *jsxLowering) visitNode(node *ast.Node) *ast.Node {
 			}
 			if component, exists := lowering.components[name.Text()]; exists &&
 				component.Placement == "server" {
-				if lowering.serverComponents && !component.Exported {
-					return lowering.factory.NewEmptyStatement()
-				}
 				return lowering.clientComponentFunctionStub(
 					node.AsFunctionDeclaration(),
 					component,
@@ -637,6 +638,9 @@ func (lowering *jsxLowering) visitNode(node *ast.Node) *ast.Node {
 						declaration.Type,
 						lowering.serverClientTaskCallable(task),
 					)
+				}
+				if !lowering.taskSourceBindingElidable(unwrapSourceCallableReference(declaration.Initializer)) {
+					return lowering.visitor.VisitEachChild(node)
 				}
 				return nil
 			}

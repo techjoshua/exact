@@ -512,10 +512,13 @@ func (query *sourceValueQuery) finishPropertyEntry(v *sourcePropertyReferenceVie
 // propertyReferenceEffects consumes a complete MAY view for this field operation.
 // Pending candidates are not executed or discarded by source order. A current
 // native conversion omits ONLY its own later nominal DefineOwnProperty step.
-func (query *sourceValueQuery) propertyReferenceEffects(get *sourceGetInputs, key string, bindings sourceValueBindings, result *accessorCandidates) sourcePropertyPresence {
+func (query *sourceValueQuery) propertyReferenceEffects(get *sourceGetInputs, key string, bindings sourceValueBindings, result *accessorCandidates, physical ...*sourceMemberWriterReadCut) sourcePropertyPresence {
 	if get.operation == nil || !query.charge(result, get.operation) {
 		result.opaque = true
 		return propertyUnknown
+	}
+	if query.liveStagedFieldGet(get) && !get.hasOnly && get.stagedEffects.prototype != nil {
+		get.stagedEffects.prototype(query, get)
 	}
 	v := query.propertyView()
 	issued := false
@@ -523,6 +526,20 @@ func (query *sourceValueQuery) propertyReferenceEffects(get *sourceGetInputs, ke
 		v, issued = query.propertyInspectionView(get, key, result)
 	}
 	if v == nil || v.state == sourcePropertyDiscovering || v.state == sourcePropertyUnpublished {
+		if len(physical) == 1 {
+			query.observeStagedFieldIntrinsicMutation(get, key, physical[0])
+		}
+		query.observeStagedFieldIntrinsicEntry(get, key)
+		if query.observeStagedFieldSourceCoverage(get) {
+			// The original Effects owner has represented its source alternatives
+			// and required children. Normal field selection is still unavailable.
+			result.valueIncomplete = true
+			return propertyUnknown
+		}
+		if query.observeStagedHasInstanceInheritedSource(get) {
+			result.valueIncomplete = true
+			return propertyUnknown
+		}
 		result.opaque = true
 		return propertyUnknown
 	}

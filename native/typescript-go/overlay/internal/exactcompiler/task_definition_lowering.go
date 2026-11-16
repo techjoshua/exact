@@ -18,6 +18,9 @@ type nativeTaskDependency struct {
 }
 
 func (lowering *jsxLowering) lowerTask(node *ast.Node, task Task) *ast.Node {
+	if d := task.activationSource; d != nil && (d.checker != lowering.checker || !d.sourceCurrent(lowering.sourceFile, node)) {
+		panic("Compiler analysis coverage gap: stale task activation source")
+	}
 	if lowering.target == TargetClient &&
 		lowering.contractProjection == ComponentContractProjectionHydrate &&
 		task.Placement == "server" && !task.Invoked &&
@@ -32,7 +35,11 @@ func (lowering *jsxLowering) lowerTask(node *ast.Node, task Task) *ast.Node {
 	}
 	if task.ReusesInvokedDefinition && lowering.target != TargetServer {
 		call := node.AsCallExpression()
-		callee := lowering.visitor.VisitNode(call.Expression)
+		calleeExpression := call.Expression
+		if d := task.activationSource; d != nil {
+			calleeExpression = d.target
+		}
+		callee := lowering.visitor.VisitNode(calleeExpression)
 		callee = lowering.taskActivationCallable(node, callee, task)
 		if len(task.ResultWritePath) != 0 {
 			work := lowering.stageBoundTaskResult(callee, task.ResultWritePath, task, true)
@@ -43,18 +50,18 @@ func (lowering *jsxLowering) lowerTask(node *ast.Node, task Task) *ast.Node {
 			lowering.factory.NewThisExpression(),
 			callee,
 		}
-		if call.Arguments != nil {
+		if actuals := taskActivationActuals(task, node, lowering.sourceFile); actuals != nil {
 			hasSpread := false
-			for _, argument := range call.Arguments.Nodes {
+			for _, argument := range actuals {
 				if ast.IsSpreadElement(argument) {
 					hasSpread = true
 				}
 			}
 			if hasSpread {
-				arguments = append(arguments, lowering.taskArgumentVector(call.Arguments.Nodes, task.ArgumentCount))
+				arguments = append(arguments, lowering.taskArgumentVector(actuals, task.ArgumentCount))
 				return lowering.taskHelperCall(lowering.setupTaskActivation(task), lowering.setupTaskActivationName(task), arguments)
 			}
-			for _, argument := range call.Arguments.Nodes {
+			for _, argument := range actuals {
 				arguments = append(arguments, lowering.componentReactive(argument, lowering.visitor.VisitNode(argument)))
 			}
 		}
@@ -75,11 +82,7 @@ func (lowering *jsxLowering) lowerTask(node *ast.Node, task Task) *ast.Node {
 	}
 	// Setup resources use lowerSetupResourceTask. collectTasks only supplies function-defined
 	// activations here, with invoked declarations routed separately by visit().
-	call := node.AsCallExpression()
-	arguments := []*ast.Node{}
-	if call.Arguments != nil {
-		arguments = call.Arguments.Nodes
-	}
+	arguments := taskActivationActuals(task, node, lowering.sourceFile)
 	work := lowering.functionTaskWork(task)
 	if work == nil {
 		return lowering.visitor.VisitEachChild(node)
@@ -536,7 +539,7 @@ func (lowering *jsxLowering) functionTaskWork(task Task) *ast.Node {
 	if declaration == nil {
 		return nil
 	}
-	parameters := append([]*ast.Node(nil), declaration.Parameters()...)
+	parameters := append([]*ast.Node(nil), taskRuntimeParameters(declaration)...)
 	if len(parameters) != 0 {
 		final := parameters[len(parameters)-1]
 		if len(parameters) > task.ArgumentCount {
@@ -991,7 +994,7 @@ func (lowering *jsxLowering) taskConcurrencyKey(
 	if expression == nil {
 		return nil
 	}
-	parameters := append([]*ast.Node(nil), work.Parameters()...)
+	parameters := append([]*ast.Node(nil), taskRuntimeParameters(work)...)
 	if len(parameters) > dependencyCount {
 		parameters = parameters[:dependencyCount]
 	}

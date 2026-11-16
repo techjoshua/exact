@@ -20,6 +20,9 @@ const (
 	sourceReturnRelationship   sourceCallPhase = 1
 	sourceArgumentRelationship sourceCallPhase = 2
 	sourceDefaultEvaluation    sourceCallPhase = 3
+	// A contract runtime alternative is not discharged by callee/output completion.
+	sourceFrameworkViewEffects       sourceCallPhase = 4
+	sourceDescriptorRetrievalEffects sourceCallPhase = 5
 )
 
 // retainCallSelectionFallback records only unavailable callee implementation.

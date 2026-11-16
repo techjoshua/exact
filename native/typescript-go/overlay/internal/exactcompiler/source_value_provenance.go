@@ -13,6 +13,17 @@ import (
 // A nil node is an unresolved input term, not an omitted JavaScript argument.
 // Substitution flattens entry roots before installing another callable's parameters.
 type sourceValue struct {
+	freezeLexical          *sourceStagedFreezeReturnRead // SOURCE-only ownership; generic value conversion refuses it.
+	constructionOrdinal    int
+	constructionRole       sourceRelativeRole // Original capture target metadata, never outer-formal substitution.
+	constructionRequired   sourceStagedOperationRequest
+	constructionGeneration *projectGeneration
+	constructionView       *sourceRelativeEndpoint          // Conditional construction operator; no raw object.
+	constructionCallable   *sourceConstructionCallableValue // Deferred SOURCE capture; never normal creating B.
+	descriptorView         *sourceNativeDescriptorView      // Conditional descriptor provenance, never a raw/native object.
+	// frameworkView is a source-domain marker, never its raw donor/value.
+	// A nil node intentionally prevents ordinary/native-object promotion.
+	frameworkView *sourceFrameworkStorageView
 	// capture retains a symbolic creating context, never normal Get/Call authority.
 	capture *acquiredCallableScope
 
@@ -111,6 +122,65 @@ func newSourceValueOwner(c *checker.Checker) *sourceValueOwner {
 // declaration widens after its finite source input relation stops growing. Normal
 // execution retains its declaration guard instead of growing capture contexts.
 type sourceValueQuery struct {
+	componentContextSource     *sourceBoundComponentProtocol  // Original bound-member SOURCE interval; never cached.
+	originalGetMutationTarget  *sourceOriginalGetTargetBorrow // Same original native-target SOURCE query only; revoked synchronously.
+	installedCallBody          *sourceInstalledCallBody
+	installedCallDemand        *sourceInstalledCallDemand
+	installedCallSelection     *sourceInstalledCallSelection
+	installedGetBody           *sourceInstalledGetBody // exact SOURCE getter binder, live stack interval only
+	constructionCall           *sourceConstructionCallInterest
+	constructionSelection      *sourceConstructionCallSelection
+	installedMemberIssuer      *sourceValueQuery                 // uncached SOURCE self, copies cannot reissue
+	installedMemberInput       *sourceInstalledMemberInput       // fresh original SOURCE activation
+	installedMemberPhase       *sourceInstalledMemberEvent       // original field interval
+	installedMemberNativePhase *sourceInstalledMemberNativePhase // real selected descriptor algorithm
+	// Source-body accounting is borrowed only by the original synchronous publisher.
+	sourceEffects             sourceEffectsObserver
+	sourceEffectsEvent        *sourceCalleeEffectsObservation
+	memberReceiverPreparation *sourceMemberReceiverPreparation // original visitor DATA-only stack interval
+
+	stagedHasInstance                           *sourceStagedHasInstanceGetBorrow // Exact synchronous operator Get, never graph-retained.
+	stagedReturnBinding                         *sourceStagedReturnBindingBorrow
+	probingStagedTarget                         bool      // Synchronous target-Effects domain, never normal acquisition authority.
+	directWriterExposure, probingDirectExposure bool      // synchronous exposure-only consumer/probe
+	directExposureConsumer                      *ast.Node // original input Call, never output authority
+	directExposureArgument                      *ast.Node
+	directExposureCuts                          [4]*ast.Node
+	standardConstructionSource                  *ast.Node // synchronous original AST descent, never a result receipt
+
+	pendingMemberRequest *sourceWriterInputRequest // synchronous original selection borrow, restored by collect
+
+	writerTraceState  *progressState
+	writerTraceSerial uint64
+
+	traceRoot             *progressRoot // disposable observer scalars only
+	traceInterval         uint64        // issuing dependency interval, not semantic identity
+	traceMode             accessorTraversal
+	traceModeKnown        bool
+	traceExposure         progressExposure
+	traceProjection       progressProjection
+	traceFallbackEndpoint int
+	// stagedNativeSelection is a synchronous original-callee borrow only.
+	// Copied queries cannot publish through its exact issuer and cut checks.
+	implicitSourceInputs    *sourceImplicitInputBorrow           // synchronous original implicit-operation vector
+	stagedFieldGet          *sourceStagedFieldGetBorrow          // synchronous Effects-only original Get
+	stagedConstructedMember *sourceStagedConstructedMemberBorrow // scoped original constructed Get source
+	stagedMember            *sourceStagedMemberBorrow            // original candidate/extraction publication before recovery
+	stagedWriter            *sourceStagedWriterBorrow            // synchronous original writer publication before RHS recovery
+	stagedMap               *sourceStagedMapBorrow               // synchronous original map protocol observation, never cached
+	stagedNativeGet         *sourceStagedNativeGetBorrow         // synchronous actual member producer only
+	stagedNativeSelection   *sourceStagedNativeBorrow
+
+	// relativeInputRequest and relativeInputConsumer are a synchronous borrow of
+	// the original binder occurrence. They are never stored in callable facts.
+	// The consumer receives detached descriptions, never this query or its frame.
+	// The scoped issuer must be this exact query. A copied query cannot inherit
+	// callback delivery rights from its copied request and consumer fields.
+	relativeInputBinding  *sourceValueInputs // only during original parameter-installation publication
+	relativeInputIssuer   *sourceValueQuery
+	relativeInputRequest  *sourceRelativeInvocation
+	relativeInputConsumer func(sourceRelativeBoundInputs)
+
 	// setterInput belongs only to the original source assignment selection.
 	setterInput *sourceSetterInputRequest
 	// sourceReceiver lends an already bound receiver only within this source
@@ -413,6 +483,9 @@ func (query *sourceValueQuery) origins(node *ast.Node, bindings sourceValueBindi
 // originsAt evaluates binding provenance at its authored initialization or argument site.
 // This is a finite source-order filter, not a runtime cell or an object snapshot.
 func (query *sourceValueQuery) originsAt(node, at *ast.Node, bindings sourceValueBindings, result *accessorCandidates) []sourceValue {
+	if values, owned := query.stagedReturnBindingOperand(node, at); owned {
+		return values
+	}
 	previous := query.initializing
 	query.initializing = at
 	values := query.origins(node, bindings, result)
@@ -420,6 +493,8 @@ func (query *sourceValueQuery) originsAt(node, at *ast.Node, bindings sourceValu
 	// meaning. Later reads retain that origin, so replacing the slot cannot retarget it.
 	if at != nil && !query.active[at] {
 		previousActive, hadActive := query.active[at]
+		traceRelease := progressActiveCall(query, at, previousActive)
+		defer traceRelease()
 		query.active[at] = true
 		// This interval owns only its temporary value, not prior membership.
 		defer func() {
@@ -487,6 +562,10 @@ func (query *sourceValueQuery) originsAt(node, at *ast.Node, bindings sourceValu
 }
 
 func mergeAccessorCandidates(result *accessorCandidates, other accessorCandidates) {
+	result.installedMemberReadings = append(result.installedMemberReadings, cloneInstalledMemberReadings(other.installedMemberReadings)...)
+	result.installedCallSelections = append(result.installedCallSelections, cloneInstalledCallSelections(other.installedCallSelections)...)
+	result.installedMemberPending = append(result.installedMemberPending, other.installedMemberPending...)
+	result.standardMemberTransfers = append(result.standardMemberTransfers, other.standardMemberTransfers...)
 	mergeCandidateComponents(result, other)
 	result.environmentEffects = append(result.environmentEffects, other.environmentEffects...)
 	result.contextEffects = append(result.contextEffects, other.contextEffects...)
@@ -633,11 +712,19 @@ func (query *sourceValueQuery) executeInputs(declaration *ast.Node, bindings sou
 	// Generic source instantiation owns substitutions and per-use effects. It
 	// does not enter normal storage or issue a consumed-body lifetime.
 	if query.dependenciesOnly {
+		if inputs.installedMemberDescription != nil {
+			revoke, _ := query.beginInstalledMemberInput(inputs, inputs.installedMemberDescription)
+			defer revoke()
+		}
 		// Only this selected source body can carry its caller's live field use.
 		restoreField := query.enterConstructionFieldBody(previousInputs, inputs)
 		defer restoreField()
 		inputs.dependencyScope = query.acquireCallableScope(bindings, result)
 		inputs.dependencyUse = query.effectUse()
+		if observed, owned := query.consumeInstalledCallMemberDemand(declaration, inputs, result); owned {
+			result.inputs = append(result.inputs, inputs)
+			return observed
+		}
 		// Source demands describe possible work. They neither execute a storage
 		// recipe nor acquire normal outputs from a previous analysis interval.
 		visited := make(map[*ast.Node]bool)
@@ -826,6 +913,25 @@ func (query *sourceValueQuery) executeDemand(node, declaration *ast.Node, bindin
 	if !possible {
 		return
 	}
+	// This source-only expression statement requests Effects, not the ambient
+	// Call's output. Normal operations and return observers keep their original
+	// pending result/selection obligations and cannot borrow this classification.
+	outer := node
+	for outer.Parent != nil && unwrapSourceCallableReference(outer.Parent) == node {
+		outer = outer.Parent
+	}
+	if query.dependenciesOnly && query.operation == nil && query.returnObservation == nil && outer.Parent != nil && ast.IsExpressionStatement(outer.Parent) && outer.Parent.Expression() == outer {
+		name := "<anonymous>"
+		if declaration.Name() != nil {
+			name = callableNameText(declaration.Name())
+		}
+		if effect, supported := sourceOpaqueDeclarationEffect(node, declaration, name, query.executable); supported {
+			result.environmentEffects = append(result.environmentEffects, effect)
+			return
+		}
+	}
+	query.publishSourceSetterWrite(node, inputs)
+	query.publishInstalledMutationRHS(node, inputs)
 	if query.dependenciesOnly && query.sourceDisposalMayBeAcquired(node) {
 		name := "<anonymous>"
 		if declaration.Name() != nil {
@@ -908,7 +1014,9 @@ func (query *sourceValueQuery) executeDemand(node, declaration *ast.Node, bindin
 			} else if read && !write && query.operation != nil {
 				candidates = query.consumeNormalGet(node, bindings)
 			} else {
-				candidates = query.sourceAccessorOperationCandidates(receiver, nil, name, mode, bindings, node)
+				query.withDescriptorGetEffectsUse(node, func() {
+					candidates = query.sourceAccessorOperationCandidates(receiver, nil, name, mode, bindings, node)
+				})
 			}
 			// Actual normal Get publication emits the outcome once. Non-normal
 			// reads retain the existing direct producer's checked relation.

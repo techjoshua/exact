@@ -49,6 +49,9 @@ func (query *sourceValueQuery) receiverWriteCandidates(call *ast.Node, bindings 
 }
 
 func (query *sourceValueQuery) inventoryMemberWrites(origin *ast.Node, projection []string, name string, mode accessorTraversal, bindings sourceValueBindings, result *accessorCandidates, sources []*ast.SourceFile, cut *sourceMemberWriterReadCut) bool {
+	if query.installedMemberInventory(origin, projection, name, mode, result, cut) {
+		return true
+	}
 	view := query.calleeWriteInventory
 	if view == nil || !query.dependenciesOnly {
 		return false
@@ -146,7 +149,10 @@ func (query *sourceValueQuery) inventoryLookupUnknown() bool {
 // inventorySourceValue refuses unsupported carriers without removing their
 // exclusion markers and reinterpreting their syntax as a source allocation.
 func inventorySourceValue(value sourceValue) bool {
-	return value.instance == nil && value.number == (numberPayload{}) && value.ownedGetRow == nil &&
+	if value.freezeLexical != nil {
+		return false
+	}
+	return value.descriptorView == nil && value.instance == nil && value.number == (numberPayload{}) && value.ownedGetRow == nil &&
 		value.initializerUse == nil && value.adapter == nil && value.acquired == nil && value.entrySlot == nil &&
 		value.bound == nil && value.normal == nil && value.awaited == nil && inventorySourceNative(value)
 }

@@ -35,13 +35,14 @@ type sourcePropertyResult struct {
 	presence   sourcePropertyPresence
 	values     []sourceObservedValue
 	incomplete bool
+	effects    sourceReflectiveFieldEffects // independent of value count/completeness
 }
 
 func reflectiveNative(kind sourceNativeKind) bool {
 	return kind == sourceNativeObjectDefineProperty || kind == sourceNativeReflectDefineProperty
 }
 func nativeInvocable(kind sourceNativeKind) bool {
-	return kind == sourceNativeArrayPush || kind == sourceNativePromiseResolve || kind == sourceNativeObjectFreeze || reflectiveNative(kind)
+	return kind == sourceNativeArrayPush || kind == sourceNativePromiseResolve || kind == sourceNativeObjectFreeze || kind == sourceNativeObjectGetOwnPropertyDescriptor || reflectiveNative(kind)
 }
 
 func (query *sourceValueQuery) acquireReflectiveOperation(node *ast.Node, callee sourceValue, bindings sourceValueBindings, exclusive bool, result *accessorCandidates) *sourceReflectiveOperation {
@@ -134,6 +135,15 @@ func (query *sourceValueQuery) acquireReflectiveOperation(node *ast.Node, callee
 // reflectiveOperationEffects performs conversion at the actual native alternative.
 // It never executes the function stored in a descriptor's get/set DATA field.
 func (query *sourceValueQuery) reflectiveOperationEffects(op *sourceReflectiveOperation, result *accessorCandidates) {
+	// The pending effect consumer may use only an original owner's delivered
+	// protocol disposition. Missing/relative outcomes remain unknown, not normal
+	// descriptor, current-value, replacement or NoWrites authority.
+	if query.executable != nil {
+		if p := query.executable.descriptorProducer; p != nil && p.call == op.operation && (p.query == query || p.originalQuery == query) {
+			defer func() { p.protocolOwned = true }()
+		}
+	}
+
 	firstFallback := len(result.descriptorFallbacks)
 	query.preparePropertyReferences(op.owner, result, op)
 	if len(result.descriptorFallbacks) != firstFallback {
@@ -239,6 +249,7 @@ func (query *sourceValueQuery) reflectiveOperationEffects(op *sourceReflectiveOp
 		// Six fixed refusal publications retain known outputs without semantic reads.
 		for _, key := range reflectiveDescriptorKeys {
 			field := op.fields[key]
+			field.effects = field.effects.pending()
 			field.presence = propertyUnknown
 			field.incomplete = true
 			op.fields[key] = field
@@ -284,6 +295,7 @@ func (query *sourceValueQuery) joinReflectiveFields(op *sourceReflectiveOperatio
 		if !query.charge(result, op.operation) {
 			prior.presence = propertyUnknown
 			prior.incomplete = true
+			prior.effects = prior.effects.pending()
 			op.fields[key] = prior
 			op.conversionIncomplete = true
 			continue
@@ -292,6 +304,7 @@ func (query *sourceValueQuery) joinReflectiveFields(op *sourceReflectiveOperatio
 			prior.presence = propertyUnknown
 		}
 		prior.incomplete = prior.incomplete || field.incomplete
+		prior.effects = prior.effects.merge(field.effects)
 		for _, value := range field.values {
 			if !query.charge(result, op.operation) {
 				prior.presence = propertyUnknown
@@ -307,11 +320,25 @@ func (query *sourceValueQuery) joinReflectiveFields(op *sourceReflectiveOperatio
 
 func (query *sourceValueQuery) reflectiveDescriptorProperty(op *sourceReflectiveOperation, descriptor sourceObservedValue, key string, result *accessorCandidates) sourcePropertyResult {
 	presence := propertyUnknown
-	get := &sourceGetInputs{operation: op.operation, receiver: descriptor.value, presence: &presence, propertyKey: key, hasOnly: true, reflective: op}
+	get := &sourceGetInputs{operation: op.operation, receiver: descriptor.value, presence: &presence, propertyKey: key, hasOnly: true, reflective: op, fieldEffects: reflectiveFieldInput(op, key, query)}
+	defer func() {
+		if get.fieldEffects != nil {
+			get.fieldEffects.issuer = nil
+			get.fieldEffects.op = nil
+			get.fieldEffects = nil
+		}
+	}()
 	has := query.acquireRequiredPropertyAt(descriptor, get, accessorNoGet)
 	mergeAccessorCandidates(result, has)
 	field := sourcePropertyResult{presence: presence, incomplete: has.opaque || has.valueIncomplete || has.receiverIncomplete}
+	if get.fieldEffects != nil {
+		field.effects.has = get.fieldEffects.effects.has
+	}
+	if !field.incomplete && presence != propertyUnknown {
+		field.effects.has = sourceEffectsAccounted
+	}
 	if field.presence == propertyAbsent && !field.incomplete {
+		field.effects.get = sourceEffectsBypassed // positive original Has absence, not an empty output
 		return field
 	}
 	get.hasOnly = false
@@ -324,6 +351,14 @@ func (query *sourceValueQuery) reflectiveDescriptorProperty(op *sourceReflective
 		}
 	}
 	mergeAccessorCandidates(result, acquired)
+	if get.fieldEffects != nil {
+		field.effects.get = get.fieldEffects.effects.get
+		field.effects.getter = get.fieldEffects.effects.getter
+		field.effects.invoked = get.fieldEffects.effects.invoked
+		if acquired.opaque || acquired.receiverIncomplete {
+			field.effects.get = sourceEffectsUnaccounted
+		}
+	}
 	field.incomplete = field.incomplete || acquired.opaque || acquired.valueIncomplete || acquired.receiverIncomplete || len(acquired.values) == 0
 	for i, value := range acquired.values {
 		scope, ok := acquired.callableScopes[i]
@@ -398,9 +433,20 @@ func (query *sourceValueQuery) reflectiveWriteDisjoint(node, origin *ast.Node, d
 // ToPropertyKey may Get/call coercion hooks. Their primitive outcome is not
 // interpreted here. Known Get and callable MAY effects survive the refusal.
 func (query *sourceValueQuery) reflectiveKeyEffects(op *sourceReflectiveOperation, result *accessorCandidates) {
+	if !query.sourcePropertyKeyEffects(op, result) {
+		return
+	}
+	op.conversionIncomplete = true
+	result.opaque = true
+}
+
+// sourcePropertyKeyEffects retains the original coercion Get/call MAY without
+// requesting its primitive result. Precision consumers add their unchanged
+// conversion refusal above; the selected descriptor algorithm needs Effects.
+func (query *sourceValueQuery) sourcePropertyKeyEffects(op *sourceReflectiveOperation, result *accessorCandidates) bool {
 	for _, observed := range op.keys {
 		if !query.charge(result, op.operation) {
-			return
+			return false
 		}
 		value := observed.value
 		if value.undefined || value.node != nil && len(value.path) == 0 && sourcePrimitiveValue(value.node) {
@@ -429,8 +475,7 @@ func (query *sourceValueQuery) reflectiveKeyEffects(op *sourceReflectiveOperatio
 		}
 		query.creators = previous
 	}
-	op.conversionIncomplete = true
-	result.opaque = true
+	return true
 }
 
 // Only an already acquired standard native alternative supplies this ordinary
@@ -438,7 +483,7 @@ func (query *sourceValueQuery) reflectiveKeyEffects(op *sourceReflectiveOperatio
 // It does not complete the Get, discard authored alternatives or clear input
 // uncertainty, which remain separate fields on the actual contribution.
 func (query *sourceValueQuery) nativeOrdinaryReflectiveTarget(value sourceValue, result *accessorCandidates) bool {
-	if value.native == nil || value.native.referencesIncomplete || !query.charge(result, value.node) {
+	if value.descriptorView != nil || value.native == nil || value.native.referencesIncomplete || !query.charge(result, value.node) {
 		return false
 	}
 	if len(value.path) == 0 {
@@ -449,4 +494,82 @@ func (query *sourceValueQuery) nativeOrdinaryReflectiveTarget(value sourceValue,
 	}
 	_, selected, ok := query.nativeMemberSeed(value, value.path[0], nil, result)
 	return ok && selected.native != nil && selected.native.kind == sourceNativePromisePrototype
+}
+
+// sourceReflectiveGetterRequirements describes conditional own-getter source
+// relationships for a demanded field. It does not infer presence/absence from a
+// literal, select current members, execute a getter, or interpret returned data.
+// Earlier writes, spreads, replacements and the default prototype remain with
+// the field selection owner. Data-valued callbacks/methods issue no requirement.
+func sourceReflectiveGetterRequirements(descriptor *ast.Node, key string) []*ast.Node {
+	if descriptor == nil || !ast.IsObjectLiteralExpression(descriptor) || stagedDescriptorFieldIndex(key) < 0 {
+		return nil
+	}
+	var declarations []*ast.Node
+	for _, member := range descriptor.AsObjectLiteralExpression().Properties.Nodes {
+		if !ast.IsGetAccessorDeclaration(member) || member.Name() == nil {
+			continue
+		}
+		name := callableNameText(member.Name())
+		if ast.IsComputedPropertyName(member.Name()) {
+			name = sourceLiteralMemberName(member.Name().AsComputedPropertyName().Expression)
+		}
+		// An unresolved computed key may supply this field. Preserve its known
+		// getter declaration while member selection stays independently pending.
+		if name != "" && name != key {
+			continue
+		}
+		declarations = append(declarations, member)
+	}
+	return declarations
+}
+
+// consumeStagedFieldDispositionSource runs the original ordered source Has/Get
+// owners for an issued Effects-only demand. It creates no normal frame and never
+// enters reflectiveDescriptorProperty's stronger descriptor/value acquisition.
+// Only semantic observer hooks establish accounting. An unobserved or refused
+// branch remains pending even if acquisition returns no values or no diagnostics.
+func consumeStagedFieldDispositionSource(query *sourceValueQuery, get *sourceGetInputs, observation *sourceStagedFieldObservation) sourceStagedFieldDisposition {
+	if observation == nil || observation.phase != stagedFieldObservationUnstarted || !query.liveStagedFieldGet(get) || get.stagedEffects.observation != observation {
+		return sourceStagedFieldDisposition{}
+	}
+	defer func() { observation.phase = stagedFieldObservationFinished }()
+	presence := propertyUnknown
+	original := *get
+	original.presence = &presence
+	original.hasOnly = true
+	observation.phase = stagedFieldObservationHas
+	// The owner hooks, not this returned candidate set, establish effects and
+	// positive presence. Inheritance, Proxy and unresolved writer work keep their
+	// existing semantic owners. Their uncertainty is never an empty result.
+	consume := func(mode accessorTraversal) {
+		if get.stagedEffects.beginMemberSource != nil {
+			revoke, installed := get.stagedEffects.beginMemberSource(&original)
+			if installed {
+				defer revoke()
+			}
+		}
+		result := query.accessorsAtGet(original.receiver.node, []string{original.propertyKey}, "", mode, nil, nil, &original, original.receiver)
+		terminal := snapshotStagedTraversalTerminal(result)
+		if observation.phase == stagedFieldObservationHas {
+			observation.hasTraversal = terminal
+		} else {
+			observation.getTraversal = terminal
+		}
+	}
+	consume(accessorNoGet)
+	if observation.hasSeen && observation.effects.has == sourceEffectsAccounted && observation.presence == propertyAbsent {
+		observation.effects.get = sourceEffectsBypassed
+		observation.getBypassed = true
+	} else {
+		observation.phase = stagedFieldObservationGet
+		original.hasOnly = false
+		consume(accessorAcquire)
+	}
+	// Snapshot at the live original observation cut. The graph's use/cut is a
+	// separate issuing identity checked by central. Known bodies remain detached
+	// and visible even while aggregate accounting or body mapping is unresolved.
+	effects := observation.effects
+	invoked := cloneOperationDelta(sourceStagedOperationDelta{invoked: effects.invoked}).invoked
+	return sourceStagedFieldDisposition{operation: get.operation, receiver: get.receiver.node, field: get.propertyKey, cut: query.relativeInputCut(get.operation), has: effects.has, get: effects.get, kind: classifyStagedFieldObservation(observation), invoked: invoked}
 }

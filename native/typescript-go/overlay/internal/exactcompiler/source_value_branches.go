@@ -114,6 +114,9 @@ func (query *sourceValueQuery) literalDecision(node *ast.Node, bindings sourceVa
 // acquisition. Unknown or disagreeing alternatives never certify branch selection.
 // This reuses the value owner and its root budget, without executing custom code.
 func (query *sourceValueQuery) branchDecision(node *ast.Node, bindings sourceValueBindings) (known, truthy, nullish bool) {
+	if query.liveStagedReturnBinding() != nil {
+		return // Both source branches remain possible. No predicate is acquired.
+	}
 	if known, truthy, nullish = query.literalDecision(node, bindings); known || node == nil {
 		return
 	}
@@ -185,6 +188,8 @@ func (query *sourceValueQuery) sourceCallBranchDecision(node *ast.Node, bindings
 	if candidates.opaque || candidates.receiverIncomplete || candidates.valueIncomplete || len(candidates.values) == 0 {
 		return
 	}
+	traceRelease := progressActiveCall(query, node, query.active[node])
+	defer traceRelease()
 	query.active[node] = true
 	defer delete(query.active, node)
 	for i, value := range candidates.values {

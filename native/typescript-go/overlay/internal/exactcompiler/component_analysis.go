@@ -179,7 +179,10 @@ func analyzeComponents(
 							typeChecker,
 						)
 						if symbol != nil {
-							target, exists = callables.expressionSummary(call.Expression, typeChecker)
+							summary, found := callables.expressionSummary(call.Expression, typeChecker)
+							if found {
+								target, exists = callableCallEffects{Effect: summary.Effect, EffectSources: summary.EffectSources}, true
+							}
 						}
 					}
 					if exists {
@@ -230,7 +233,10 @@ func analyzeComponents(
 						typeChecker,
 					)
 					if symbol != nil {
-						target, exists = callables.expressionSummary(call.Expression, typeChecker)
+						summary, found := callables.expressionSummary(call.Expression, typeChecker)
+						if found {
+							target, exists = callableCallEffects{Effect: summary.Effect, EffectSources: summary.EffectSources}, true
+						}
 					}
 				}
 				if exists {
@@ -618,35 +624,13 @@ func componentContextEffects(
 	return result
 }
 
-func callableEffectForCall(
-	callables callableAnalysis,
-	sourceFile *ast.SourceFile,
-	position int,
-) (CallableSummary, bool) {
-	// Owned protocol operations publish effects without manufacturing an
-	// authored callable target for their runtime callback invocations.
+// callableEffectForCall consumes this component definition's own source use.
+// It never specializes the callee definition from application callers.
+func callableEffectForCall(callables callableAnalysis, sourceFile *ast.SourceFile, position int) (callableCallEffects, bool) {
 	if effects, found := mapInputEffectsForCall(callables, sourceFile, position); found {
-		return effects, true
+		return callableCallEffects{Effect: effects.Effect, EffectSources: effects.EffectSources}, true
 	}
-	suffix := fmt.Sprintf(":call:%d", position)
-	for _, fact := range callables.facts {
-		// A project-wide call graph can contain identical offsets in unrelated modules.
-		if fact.sourceFile != sourceFile {
-			continue
-		}
-		for _, edge := range fact.summary.Calls {
-			if !edge.Resolved || !strings.HasSuffix(edge.ID, suffix) {
-				continue
-			}
-			for _, target := range callables.facts {
-				if target.summary.ID == edge.TargetID {
-					return target.summary, true
-				}
-			}
-
-		}
-	}
-	return CallableSummary{}, false
+	return projectedCallableEffectsForCall(callables, sourceFile, position)
 }
 
 func activeComponentCandidates(sourceFile *ast.SourceFile) []componentCandidate {

@@ -165,26 +165,13 @@ func collectTypePolicySubjects(
 	})
 }
 
+// secretSelectorForDeclaration recognizes compiler-owned sources only. A structural
+// facade return qualification proves secrecy, not a relation to its name argument.
 func secretSelectorForDeclaration(
 	node *ast.Node,
 	typeChecker *checker.Checker,
 ) string {
 	call := secretProviderCall(node, typeChecker)
-	if call == nil && ast.IsVariableDeclaration(node) {
-		initializer := node.AsVariableDeclaration().Initializer
-		if initializer != nil && ast.IsCallExpression(initializer) {
-			candidate := initializer.AsCallExpression()
-			if ast.IsPropertyAccessExpression(candidate.Expression) {
-				method := candidate.Expression.AsPropertyAccessExpression().Name().Text()
-				if method == "require" || method == "optional" {
-					// An explicitly annotated secret may use an application-owned
-					// provider facade. Preserve its static selector even though the
-					// facade itself is not treated as a compiler-known secret source.
-					call = candidate
-				}
-			}
-		}
-	}
 	if call == nil || call.Arguments == nil ||
 		len(call.Arguments.Nodes) == 0 ||
 		!ast.IsStringLiteral(call.Arguments.Nodes[0]) {
@@ -369,6 +356,11 @@ func collectPolicyPropagation(
 					target.publicSelectionBlocked = !policyAliasWritesAllowPublicSelection(aliasWrites[targetID], typeChecker, analysis.subjects)
 					addSubject(target)
 					analysis.subjects.symbols[targetID] = target
+					changed = true
+				}
+				// Qualification may already exist from a typed member read. Attach provenance
+				// independently, without replacing known metadata or granting secret authority.
+				if target.Policy.Secret && analysis.selectorsByID[target.ID] == "" {
 					selector := secretSelectorForDeclaration(node, typeChecker)
 					if selector == "" {
 						selector = commonSecretSelector(
@@ -378,8 +370,8 @@ func collectPolicyPropagation(
 					}
 					if selector != "" {
 						analysis.selectorsByID[target.ID] = selector
+						changed = true
 					}
-					changed = true
 				}
 				if policySubjectAllowsPublicSelection(target) && !policyInputsAllowPublicSelection(inputs) {
 					target.publicSelectionBlocked = true

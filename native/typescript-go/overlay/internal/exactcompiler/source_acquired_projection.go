@@ -27,6 +27,8 @@ func (query *sourceValueQuery) withAcquiredObservation(observed sourceObservedVa
 // A nil observation explicitly withholds output ownership for legacy syntax
 // traversal. It grants neither completion nor a borrowed outer input plan.
 func (query *sourceValueQuery) withAcquiredOutput(parent **sourceObservedValue, observed *sourceObservedValue, consume func()) {
+	restoreLookup := query.suspendStagedFieldArgumentLookup()
+	defer restoreLookup()
 	priorInputs, priorReturn, priorParent := query.inputs, query.returning, *parent
 	priorOperation, priorCaller := query.operation, query.callerInputs
 	priorInspection := query.receiverInspection

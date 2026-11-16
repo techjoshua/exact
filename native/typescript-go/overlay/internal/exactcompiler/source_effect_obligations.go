@@ -44,7 +44,7 @@ func localCallCovered(origin sourceCallOutcome, outcomes []sourceCallOutcome) bo
 	}
 	return matched
 }
-func localFieldCovered(origin sourceFieldDemand, calls []sourceFieldCall) bool {
+func localFieldCovered(origin sourceFieldDemand, calls []sourceFieldCall, installed ...func(*sourceInstalledMemberRequirement) bool) bool {
 	matched := false
 	for _, call := range calls {
 		if call.dependencies {
@@ -53,7 +53,11 @@ func localFieldCovered(origin sourceFieldDemand, calls []sourceFieldCall) bool {
 					continue
 				}
 				matched = true
-				if !call.complete || !outcome.fulfilled {
+				fulfilled := outcome.fulfilled
+				if outcome.installedMember != nil {
+					fulfilled = len(installed) == 1 && installed[0] != nil && installed[0](outcome.installedMember)
+				}
+				if (!call.complete && !installedCallFieldBody(call, outcome)) || !fulfilled {
 					return false
 				}
 			}
@@ -64,12 +68,12 @@ func localFieldCovered(origin sourceFieldDemand, calls []sourceFieldCall) bool {
 
 // sourceObligationCoveredLocally normalizes only a contextual obligation at its
 // original owner. A different use, phase or unmatched residual cannot discharge it.
-func sourceObligationCoveredLocally(fact *callableFacts, source EnvironmentEffectSource) bool {
+func sourceObligationCoveredLocally(fact *callableFacts, source EnvironmentEffectSource, installed ...func(*sourceInstalledMemberRequirement) bool) bool {
 	if origin := source.callOrigin; origin != nil && origin.use != nil && origin.consumer == fact.node && !source.callForwarded {
 		return localCallCovered(*origin, fact.callOutcomes)
 	}
 	if origin := source.fieldOrigin; origin != nil && origin.use != nil && origin.consumer == fact.node && !source.fieldForwarded {
-		return localFieldCovered(*origin, fact.fieldCalls)
+		return localFieldCovered(*origin, fact.fieldCalls, installed...)
 	}
 	return false
 }
@@ -126,10 +130,13 @@ func (q *sourceValueQuery) accountBypassedSourceDemand(node *ast.Node, bindings 
 // sourceObligationCoveredOnEdge uses the complete instantiation at this actual
 // caller edge, including every matching source alternative. It does not infer
 // context from a target name or waive unclassified/descriptor effects.
-func sourceObligationCoveredOnEdge(caller, target *callableFacts, edge CallEdge, source EnvironmentEffectSource) bool {
+func sourceObligationCoveredOnEdge(caller, target *callableFacts, edge CallEdge, source EnvironmentEffectSource, installed ...func(*sourceInstalledMemberRequirement) bool) bool {
 	root := caller.fieldEdgeOperations[edge.ID]
 	if root == nil {
 		return false
+	}
+	if origin := source.fieldOrigin; origin != nil && len(installed) == 1 && installedCallFieldCoveredOnEdge(caller, target, root, *origin, installed[0]) {
+		return true
 	}
 	rootCovered := false
 	for _, call := range caller.fieldCalls {
@@ -151,7 +158,7 @@ func sourceObligationCoveredOnEdge(caller, target *callableFacts, edge CallEdge,
 	if origin := source.fieldOrigin; origin != nil {
 		contextual := *origin
 		contextual.use, contextual.consumer = root, caller.node
-		return localFieldCovered(contextual, caller.fieldCalls)
+		return localFieldCovered(contextual, caller.fieldCalls, installed...)
 	}
 	return false
 }

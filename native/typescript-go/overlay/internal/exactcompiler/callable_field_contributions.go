@@ -60,14 +60,15 @@ func fieldFallbackFulfilled(caller, target *callableFacts, edge CallEdge, source
 // fieldSourceIdentity participates in internal joins before public display
 // deduplication. Forwarded demands can never be discharged transitively.
 func fieldSourceIdentity(source EnvironmentEffectSource) string {
+	relative := relativeInvokedSourceIdentity(source) + relativeCoercionIdentity(source) + relativeFieldMutationIdentity(source.relativeMutation)
 	if source.fieldOrigin == nil {
-		return callSourceIdentity(source) + descriptorSourceIdentity(source)
+		return relative + callSourceIdentity(source) + descriptorSourceIdentity(source)
 	}
 	key := ":field:" + source.fieldOrigin.identity()
 	if source.fieldForwarded {
 		key += ":forwarded"
 	}
-	return key + callSourceIdentity(source) + descriptorSourceIdentity(source)
+	return relative + key + callSourceIdentity(source) + descriptorSourceIdentity(source)
 }
 
 // displayEnvironmentSources preserves the existing process-facing summary shape
@@ -75,6 +76,9 @@ func fieldSourceIdentity(source EnvironmentEffectSource) string {
 func displayEnvironmentSources(values []EnvironmentEffectSource) []EnvironmentEffectSource {
 	display := append([]EnvironmentEffectSource(nil), values...)
 	for i := range display {
+		display[i].relativeInput = nil
+		display[i].relativeMutation = nil
+		display[i].relativeCoercion = nil
 		display[i].callOrigin = nil
 		display[i].callForwarded = false
 		display[i].fieldOrigin = nil

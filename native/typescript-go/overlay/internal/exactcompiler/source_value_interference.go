@@ -89,6 +89,9 @@ func (query *sourceValueQuery) scanInterferenceInSources(origin *ast.Node, proje
 	_, nativeOriginKind := query.nativeRootDeclaration(origin)
 	visit := func(calls []*ast.Node) {
 		for _, node := range calls {
+			if query.stagedMapInvocationFollows(node) {
+				continue // This invocation follows the original child argument observation.
+			}
 			if result.opaque {
 				return
 			}
@@ -160,7 +163,7 @@ func (query *sourceValueQuery) scanInterferenceInSources(origin *ast.Node, proje
 					// An operation cannot establish its own caller while that caller's
 					// inputs and callee are still being acquired.
 					query.withActiveInvocation(node, func() {
-						producer, _ = query.moduleWriteProducer(node, bindings)
+						producer, _ = query.moduleWriteProducer(node, bindings, result)
 					})
 					if producer == nil {
 						continue
@@ -246,6 +249,12 @@ func (query *sourceValueQuery) scanInterferenceInSources(origin *ast.Node, proje
 				receiverRelevant = receiver != nil && reaches(receiver, "")
 			})
 			if receiverRelevant {
+				if query.componentContextWriteSource(node, origin, projection, name) {
+					continue
+				}
+				if disposition := query.stagedWriterRelevance(node, result); disposition.handled {
+					continue
+				}
 				// Looking up the member precedes its invocation. Resolve possible authored
 				// bodies with the same projection visitor, never by the method's spelling.
 				candidates := accessorCandidates{}
@@ -275,11 +284,13 @@ func (query *sourceValueQuery) scanInterferenceInSources(origin *ast.Node, proje
 						// Resolve the closure under its creating captures, but inspect only
 						// receiver writes on the acquired value. Reacquiring its container
 						// or executing reads here would revisit sibling calls.
+						traceRelease := progressActiveCall(query, node, query.active[node])
 						query.active[node] = true
 						effects := query.accessors(value.node, value.path, "", accessorInvoke, bindings, func(body *ast.Node, captures sourceValueBindings, result *accessorCandidates) {
 							query.receiverInterference(body, node, sourceValue{node: origin, path: append(append([]string{}, projection...), name)}, captures, result, make(map[*ast.Node]bool))
 						})
 						delete(query.active, node)
+						traceRelease()
 						result.opaque = result.opaque || effects.opaque
 						implemented = implemented && len(effects.declarations) != 0
 					} else {
@@ -457,6 +468,9 @@ func (query *sourceValueQuery) receiverInterferenceAtInputs(body, call *ast.Node
 			}
 
 			if !relevant {
+				continue
+			}
+			if query.componentContextWriteSource(demand, demanded.node, demanded.path, "") {
 				continue
 			}
 

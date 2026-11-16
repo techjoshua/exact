@@ -17,7 +17,7 @@ func (lowering *jsxLowering) taskCallableSignature(task Task, callable *ast.Node
 			bounds := []*ast.Node{}
 			for _, signature := range signatures {
 				owner := signature.Declaration()
-				parameters := owner.Parameters()[:min(task.ArgumentCount, len(owner.Parameters()))]
+				parameters := taskRuntimeParameters(owner)[:min(task.ArgumentCount, len(taskRuntimeParameters(owner)))]
 				result := lowering.checker.TypeToTypeNode(lowering.checker.GetReturnTypeOfSignature(signature), owner, nodebuilder.FlagsNoTruncation, nil)
 				function := lowering.factory.NewFunctionTypeNode(nil, lowering.factory.NewNodeList(parameters), result)
 				arguments := lowering.factory.NewTypeReferenceNode(lowering.factory.NewIdentifier("Parameters"), lowering.factory.NewNodeList([]*ast.Node{function}))
@@ -53,7 +53,7 @@ func (lowering *jsxLowering) taskActivationCallable(call, callee *ast.Node, task
 		return callee
 	}
 	owner := signature.Declaration()
-	parameters := owner.Parameters()[:min(task.ArgumentCount, len(owner.Parameters()))]
+	parameters := taskRuntimeParameters(owner)[:min(task.ArgumentCount, len(taskRuntimeParameters(owner)))]
 	result := lowering.checker.TypeToTypeNode(lowering.checker.GetReturnTypeOfSignature(signature), owner, nodebuilder.FlagsNoTruncation, nil)
 	function := lowering.factory.NewFunctionTypeNode(nil, lowering.factory.NewNodeList(parameters), result)
 	arguments := lowering.factory.NewTypeReferenceNode(lowering.factory.NewIdentifier("Parameters"), lowering.factory.NewNodeList([]*ast.Node{function}))
@@ -68,7 +68,7 @@ func (lowering *jsxLowering) taskCallableTypes(task Task) (arguments, resolved *
 		return nil, nil
 	}
 	parameters := []*ast.Node{}
-	for index, node := range declaration.Parameters()[:min(task.ArgumentCount, len(declaration.Parameters()))] {
+	for index, node := range taskRuntimeParameters(declaration)[:min(task.ArgumentCount, len(taskRuntimeParameters(declaration)))] {
 		parameter := node.AsParameterDeclaration()
 		typeNode := parameter.Type
 		if typeNode == nil {
@@ -77,7 +77,7 @@ func (lowering *jsxLowering) taskCallableTypes(task Task) (arguments, resolved *
 		optional := parameter.QuestionToken
 		if parameter.Initializer != nil {
 			requiredAfter := false
-			for _, later := range declaration.Parameters()[index+1 : min(task.ArgumentCount, len(declaration.Parameters()))] {
+			for _, later := range taskRuntimeParameters(declaration)[index+1 : min(task.ArgumentCount, len(taskRuntimeParameters(declaration)))] {
 				candidate := later.AsParameterDeclaration()
 				if candidate.Initializer == nil && candidate.QuestionToken == nil && candidate.DotDotDotToken == nil {
 					requiredAfter = true

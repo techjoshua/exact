@@ -15,5 +15,5 @@ func setupTaskInitializationOnly(sourceFile *ast.SourceFile, task Task) bool {
 		return false
 	}
 	source := nodeAtSpan(sourceFile.AsNode(), task.Start, task.Length)
-	return source != nil && ast.IsCallExpression(source) && len(callArguments(source)) == 0 && len(work.Parameters()) > task.ArgumentCount
+	return source != nil && ast.IsCallExpression(source) && len(taskActivationActuals(task, source, sourceFile)) == 0 && len(taskRuntimeParameters(work)) > task.ArgumentCount
 }

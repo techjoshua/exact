@@ -24,6 +24,8 @@ Supported package declaration contracts retain their operation requirements when
 There is no JavaScript compiler fallback and no public backend selector. Native failures remain
 visible instead of silently changing compiler semantics.
 
+Fresh paired artifacts from the real extracted SDK and default native provider cover the unchanged shared-composition SSR/mounted journey and public generated-partition registration journey in Node/jsdom and Chromium `149.0.7827.55`, including activation/replay, original DOM and instance identity, isolated state/event updates and disposal; Node/jsdom also covers strict direct-API empty-child-range hydration with edited-input preservation and rejection of malformed boundary resumptions before target component activation or DOM replacement. A separate fresh paired compile of the independent-islands fixture covers serialized configuration and generated registration in Node/jsdom and Chromium `149.0.7827.55`, including second-then-first interaction activation, original DOM adoption, isolated updates, one shared loader and disposal. Retained runtime-provider hashes identify inputs whose build provenance remains unverified; these bounded checks establish no fresh Core/provider build or general serialized-bootstrap or hydration matrix. Matching complete-component resumption and reverse asynchronous sibling loading use a separate artifact contract and are not qualified by these generated-partition checks.
+
 Native property validation reserves `data-exact-id` for compiler-generated physical element identity. This reservation also applies to native `_` and `_target` host contributions. Explicit attributes and statically known spread properties receive an error with a custom-attribute remedy. Validation includes members proved by the existing finite spread syntax facts, even when a type assertion hides them from the apparent type. Opaque spreads remain valid. Their normal evaluation and getter effects complete once before the compiler installs physical-address metadata under an internal shared symbol. This construction does not validate arbitrary runtime receipts or change replay authorization. Physical metadata is installed last. Native renderers ignore reserved ASCII-case-equivalent string keys and serialize the physical address once. Structural contributions neither supply nor override the selected host address, including during target composition. This metadata is not operation authority.
 
 ## Component rendering facts
@@ -391,6 +393,11 @@ Callable-cache reuse compares asset-rule values against an owned snapshot rather
 the declarations into a string on every request. Rule order, selector lists, evaluation, and
 delivery remain invalidation inputs. Replacement generations copy selector slices so later request
 mutation cannot change the cache's retained contract.
+Binding DATA and external global-write descriptions keep their original factories
+across reuse. They do not transfer current Get/event receipts or applied reader
+revisions into a replacement program: publication still requires that generation's
+source owners. Fresh and reused Sessions must agree on diagnostics, placement,
+runtime effects and emitted behavior after a source edit.
 Completed secret-type qualification queries are
 shared by member and source-result policy analysis, including dependency component analysis.
 They are retained separately for each exclusive checker owned by the unchanged authored program,
@@ -1422,6 +1429,57 @@ do not certify replacement or portable execution. Unknown placement still does n
 emission for these cases. Receiver methods that write through a composed `this` or
 callee formal can remain incomplete even when the receiver is finite.
 
+An original source-input consumer retains its actual binder publication on the current
+creating-call association. The packet separates acquired input descriptions from the
+canonical declaration-relative recipe. Both retain their original observation cuts.
+This publication borrows the binder already running for that input consumer. It does
+not bind again, retain raw scopes or make its enclosing body a normal execution proof.
+A member DATA consumer can use that real packet even when other input protocols still
+retain their legacy owner. Each unmodified formal demands its own source binding.
+An unrelated receiver or capture gap does not erase a complete formal DATA projection.
+Unknown or pending sources of that formal, written bindings, defaults and rest retain
+their separate requirements.
+
+Canonical source-input qualification distinguishes a completed input owner from an
+owned pending protocol Call. A pending member request must identify the original
+formal use and argument slot, its exact registered source request and cuts, and a
+real queued or prerequisite-backed continuation. The actual canonical Call retains
+that requirement on its existing source-input wait. Fresh standard-method source
+publication and exact argument association retire the wait; the callee, receiver,
+eager-input, own-writer, body, unknown-alternative and result debts still close
+independently. An adopted result, preparation or generic member request alone does
+not cover a formal use. Clones clear these graph-local waits and rebuild their
+associations. Real revision publication or newly applied delivery schedules
+revalidation; an unchanged check or ACK does not create a source observation.
+
+Source-set coverage demands an ordinary assignment's Effects through a separate
+finite request from its stored-value ticket. The Effects request depends on the
+original Set producer. It does not wait for a stronger value, activation or receiver
+identity result. Stored values retain their independent RHS, capture and creating-B
+requirements. Actual value publication still routes to that original data ticket.
+Reflective descriptor writers retain their separate descriptor conversion and
+later-Get callback requirements. These are owned by their existing semantic paths.
+
+A direct library Get requirement can be issued at its original source occurrence
+without invoking the containing dormant callable. The Identifier owner verifies the
+actual library declarations and publishes a fresh Get receipt. This path does not
+recover user initializers, captured receivers or actual argument bindings.
+
+An original setter-only member lookup can transfer a possible earlier assignment to
+that assignment's issued Effects producer before recovering its old stored value.
+The assignment's left-hand reference belongs to the same producer and preserves
+receiver evaluation, key evaluation and coercion. This transfer does not perform a
+Get of the old DATA value. Receiver, RHS, setter-body and source coverage children
+remain independently required. The current member owner seals the exact demand mode
+and observation before transfer. A value Get cannot consume this setter-only receipt.
+
+Ordinary adoption checks current semantic producers through the same required-edge
+closure used for delivery. Fresh local roles are lent only by their original live
+owner. A registered source description alone cannot displace legacy handling.
+Early indexed prefixes leave source coverage open until reached terminals publish,
+including explicit external runtime alternatives. Unfinished source work remains
+pending and cannot replace those runtime alternatives.
+
 The shared input owner evaluates finite object parameter patterns at call entry, before body
 consumers. Selecting a property executes its getter even when the bound name is unused. Bound
 names retain the acquired source value for nested reads, aliases and returned closures. Ordinary
@@ -1921,6 +1979,122 @@ bindings, calls, captures and writes to determine dependencies, effects and plac
 Cells and completion records. Those records are analysis artifacts, not application runtime
 objects or emitted activation identities.
 
+Framework consumers retain the independent contributions in a stabilized callable summary.
+Task analysis carries state reads and writes, derived activation dependencies and known browser
+effects into the existing placement and concurrency policy. A separate runtime-unknown effect
+does not erase the browser constraint or become unfinished compiler coverage. Public Session
+compilation checks this boundary for both emission targets: an explicit server task with browser
+effects is rejected, and a staged source coverage gap stops publication before tasks or artifacts
+escape. This boundary does not change component state ownership or task execution semantics.
+Both ordinary and precision effect collection exclude the exact component-owned, authenticated
+task policy parameter erased by transformation; ordinary defaults and authored body work remain
+effect consumers.
+
+Library definition publication is independent of the application's selected invocation inputs.
+Named callable props can qualify a receiving JSX edge through their actual receiver, arguments
+and captures while the exported component retains its unbound MAY contract. Compiling the same
+library before and after application composition preserves its callable effects, state effects,
+derived dependencies and task policy. An incompatible actual receiver remains a TypeScript
+assignability error. Raw compilation may retain diagnostic code; target-neutral public checking
+returns no executable code, and the host rejects error diagnostics before publishing artifacts.
+
+Staged demands identify their original source occurrence independently of the surrounding body
+shape. A function declaration and each existing module-initializer fact have distinct ownership.
+Multi-declarator module statements retain the compiler's existing initializer partitions. Captured
+member inputs name those initializer producers as availability dependencies. This does not invoke
+the initializer again or merge its effects into the function. Receiver and ordered argument roles
+are registered before value selection. They remain descriptive until their semantic producers and
+consuming operations accept all required contributions. Registration alone retires no recovery.
+
+Source registration and consumer adoption are separate. Conditional recipes can be recorded
+before their original Get without making an unsupported Effects consumer mandatory. An admitted
+native input group obtains each original callee handoff and required input relationship before it
+suppresses recovery. Untransferred alternatives retain the existing semantic owner. The handoff is
+specific to one work graph and generation and carries no query, acquired scope or callback. A
+native-only result-category premise remains stronger than general Effects completion with an
+explicit unknown alternative.
+
+Module availability edges participate in publication cycles without becoming invocation edges.
+They do not change the Call-only recursion groups used for state-path widening.
+Source registrations issued before propagation retain their exact same-graph module
+subscriptions while revision and reverse-caller indexes initialize. Re-enrollment validates
+the original source nodes, membership and complete required factory, then observes the
+producer's actual current revision through the existing summary-delivery owner. Optional
+native or member-ledger snapshots do not replace earlier availability requirements. New
+work graphs issue their own registrations; pending producers and projections remain debts.
+
+Retained import and re-export consumers preserve module initialization requirements separately
+from the invoked function's Effects. A captured server initializer can therefore conflict with
+an independently browser-effectful invocation even when runtime MAY is also present. Dormant
+function bodies do not contribute performed body effects, and type-only imports do not
+activate their dependency modules' eager effects.
+Public module analysis keeps these owners separate; target compilation checks the retained
+closure before publishing code or a source map for an incompatible initializer.
+The Identifier-based control does not qualify ambient host property Gets. In particular,
+`process.version` still retains compiler-incomplete accessor provenance in this route, so
+PropertyGet coverage remains unqualified. Environment classification alone supplies no
+property-read or returned host-object proof.
+
+The existing zero-actual, unwritten same-source ambient-function Call contract also applies
+to a reached source-only Effects demand for an expression statement. It preserves opaque
+runtime uncertainty and Throw with the original Call association. Return observers and normal
+operation consumers retain their pending output obligations; this classification supplies no
+callee, result, successful invocation, NoWrites or no-user-entry receipt. Known implementations,
+aliases and argument-bearing calls keep their existing owners.
+
+Invoked server tasks carry stabilized state effects into the existing continuation contract.
+Authored arguments and public numeric prop/helper captures occupy distinct activation slots;
+ordinary helpers are reconstructed from source rather than transported as function identities.
+The component owns the returned state writes, and the invocation retains its cancellation and
+concurrency policy. A helper's separately server-kept setup capture remains forbidden transport
+data even when the task itself is server-placed. That framework-policy error prevents code and
+source-map publication on either target. A generic task definition retains its declaration-relative
+prop-Get MAY obligation, including unresolved accessor provenance. Task metadata retains its
+process-facing projection, which omits private origin pointers without clearing opacity or
+incompleteness. The invocation's exact original Get association identifies a capture; it does not
+discharge that obligation or prove Get completion,
+NoWrites or runtime purity. The invoking owner evaluates captures after authored arguments, and
+server lowering substitutes their activation slots. Consumer coverage here qualifies capture and
+transport planning plus policy rejection, without claiming prop-Get Effects coverage or host/runtime
+execution. A blanket rejection of this generic definition metadata would conflate those boundaries.
+
+Constructed-member source handoffs use the reached constructor contribution and the original
+member owner. Their queue records separate own-writer, eager-input, callee-exposure and member-result
+obligations. A conditional standard method can be delivered while those obligations remain pending.
+A native Set payload can feed a separately issued Get-result source demand without reconstructing
+keys or table contents. This data consumer retains the original writer endpoint, formal role and
+argument observation cut. It neither invokes a stored callback nor supplies a normal Get output.
+Unrepresented writer activation, capture substitution and input work continue to block settlement.
+The ordinary collector now issues reached member occurrences with original constructor
+source relationships, including returned results and results used as later receivers.
+Conditional source inventory alone activates no Call. A delivered Set-payload prefix can
+supply a later receiver's possible New source, with the original Get-result request retained
+as a required dependency. This neither chooses a runtime key nor equates two instances.
+Receiver-alternative, own-writer and eager coverage remain pending until their semantic
+owners publish dispositions. Unfinished coverage blocks public artifacts.
+
+For a private source-constructed receiver, Effects coverage uses the existing complete
+runtime-reference population and checker-owned export identities. Every alias use must
+be represented by its source protocol. Merely finding no indexed writer is insufficient.
+A receiver passed to an unknown operation, exported, or mutated through an unrepresented
+property path retains required work. Unrelated imported names or syntax do not supply or
+erase this per-receiver coverage. The stronger private-callable purity owner keeps its
+separate restrictions.
+
+Original New selection records whether its constructor alternatives were represented,
+independently of unavailable allocation output. The existing collector owns eager argument
+contributions. Staged source dispositions still wait for their required callable-summary
+deliveries before publication. Empty covered contributions publish a disposition revision
+through the shared source lifecycle, without becoming normal completion or NoWrites.
+
+Ordinary lexical Calls can also yield their canonical Effects summaries with descriptive
+entry-role substitutions. The existing M03 planner supplies those roles without claiming
+synchronous binder delivery. Nested actual Calls retain their original eager collection and
+returned callbacks remain dormant. Defaults, rest, captures, member input protocols and
+coercion consumers that lack a migrated role consumer retain the original input owner,
+explicitly marked as unmigrated. That owner does not authorize result completeness or pay
+a source-projection ticket. Covered source Calls do not recursively prepare their callee.
+
 The host's `process-callable-contracts.ts` owns the serialized callable dependency and effect
 summary. It carries source identities, known environment requirements and unresolved edges,
 without transferring live analysis frames or precision-engine storage into the host. The process
@@ -1942,6 +2116,281 @@ binding plan separate from normal operation lifetimes. A supplied precise observ
 its original owner. Returned dependency relationships no longer use the detached
 module-initializer origin-family side channel. Effects-only Proxy construction metadata retains
 its separate source, generation and request-mode fences.
+
+The relative binder handoff is an opt-in synchronous description of one original Call's
+inputs. `describeSourceRelativeBoundInputs` runs after parameter installation and before the
+binder returns. It copies declaration roles, source expressions, projections and creation/return
+occurrences. It retains no query, input frame, scope map or normal execution receipt. The
+issuing consumer validates the declaration, operation, use and observation cut before storing
+those descriptions on a composition edge. Declaration summaries remain independent of the
+actual values supplied by application callers.
+
+Selected standard input operations retain separate graph obligations for their original
+callee Get, argument Effects and algorithm Effects. For immediate ordinary literals,
+`Object.freeze` leaves stored getters, methods and callbacks dormant. Static construction
+can read source-bound lexical bindings/formals and use supported zero-argument source
+Calls. Those Calls require their actual binder associations and canonical summaries.
+Their returned values remain independent of eager effect transfer.
+
+One-argument `Object.create` preserves its original null, inert object-literal or unmodified
+formal prototype association. It neither reads that prototype's properties nor invokes it.
+This source association grants no exact prototype or returned-object identity. A selected
+create or covered freeze algorithm can supply a conditional ordinary-target premise to
+an enclosing freeze. For `Object.freeze(Object.create(prototype))`, both parent argument
+and algorithm obligations require the child's entire Effects root at its original cut.
+An unavailable child result stays pending rather than being classified from unknown.
+The older direct-exposure-only create category remains a separate consumer.
+
+The ordinary collector issues supported standard input operations at their original
+occurrences in synchronous module functions and existing module-initializer partitions.
+Its existing control traversal retains conditional execution ownership. Registration and
+adoption remain separate, so an unsupported group retains its existing consumer. Descriptor
+map conversion and target definition have independent pending producers. Computed/spread
+construction, unsupported input Calls, external/context/import reads and two-argument
+create retain their existing owners unless their specific producer contracts are covered. This path publishes no result value, property contents, integrity
+event, normal completion or NoWrites proof. Source and normal value owners retain those
+responsibilities. Reconstructed graphs obtain fresh original Get receipts and preserve
+both supported and unresolved algorithm dispositions.
+
+Default initializer dispositions distinguish unclassified, bypassed, required and conditional
+work. A missing default-map entry is unclassified. A present entry with no binding context
+proves bypass. A recorded binding context requires the initializer, with its conditional flag
+retaining a MAY requirement. These eager initializer requirements remain separate from any
+later invocation of the value returned by that initializer. An independently demanded direct Value projection can transport known capture-free
+returned callable templates from a supported eager initializer's already delivered binder
+association. Publication requires the exact creating edge in the current work graph.
+The callable retains the creating Call and return-site cut, rather than the later descriptor
+Get cut. Unknown or captured siblings remain pending with their Value owner. This prefix
+neither invokes the stored callback nor proves complete alternatives or normal return.
+A supported original installed Get can consume such a sealed returned callable through
+its existing canonical summary owner. This first invocation domain requires no parameters,
+defaults, captures or receiver observations. Its creating association remains distinct from
+the later Get's receiver and cut. Known body contributions can arrive while target evaluation
+and complete Value-source coverage remain pending. An unrepresented target does not block
+registration of known initializer Calls, but it prevents eager-phase closure.
+The ordinary collector also covers a bounded straight-line accessor installation followed by its
+original descriptor Get. Both Calls require actual standard selection. Their original
+callee, target, eager initializer, field and direct-exposure producers must settle before
+publication. Source discovery accounts every indexed candidate and keeps unrelated passive
+regions, data installations in this two-statement domain, computed/spread descriptors,
+unsupported targets and unmapped callback inputs on
+their existing paths. The intrinsic baseline contributes source alternatives rather than
+property absence or current-value proof. Runtime-opaque calls and reached external host
+reads preserve explicit unknown alternatives beside known callables. An undelivered local
+producer remains pending.
+
+A possible previous activation's installation is a conditional relative source relationship
+in this input-independent domain. It retains the original creating Call and return cut, and
+supplies no prior value identity or captured-state snapshot. Each graph rebuilds target and
+Value dispositions from its original owners. Descriptor-integrity metadata remains separate
+from executed effects, including when its source verdict is Top. The target acquisition
+alternative is scoped to its Effects owner and does not brand ordinary prototype reads.
+Public Session and client/server artifact controls cover the installed getter's known donor,
+independent unknown, evaluation order, later invocation, Throw and dormant setters.
+Known empty argument vectors can
+supply omitted `undefined` inputs. Unresolved vectors preserve uncertainty instead. Rest inputs
+retain ordered groups and mark positions after an unresolved spread as uncertain. A finite
+index can select an exact prefix slot or the possible later groups. Invoking the whole rest
+container does not activate its stored callbacks.
+
+`substituteSourceRelativeInvokedInput` transfers only the role and projection named by an
+actual invocation obligation. It preserves known sources, independent unknown and already
+registered pending producers. Missing delivery remains a transfer gap and does not register a
+producer. Written lexical captures remain relative binding obligations with their original
+creation association. Their initial binder entries cannot substitute for the later live-read
+owner's completed-activation write selection. These captures, unclassified defaults and
+unsupported normal/native input descriptions remain explicitly unmigrated. The central effect
+consumer owns producer registration, subscribers and final publication. The handoff and pure
+substitution helper alone do not retire the existing acquisition path.
+
+The bounded returned-capture consumer connects immutable factory formals to an actual later
+saved Call. The factory's original return records a conditional callable template. Its
+creating Call obtains a real synchronous binder description, and each const binding retains
+that separate creating association. The returned callable's actual inner Call records a
+relative capture requirement. Only the later invocation subscribes to that requirement and
+maps it through the original creating inputs into existing summary dependencies. Merely
+creating an uninvoked sibling does not activate its callback. Cloned descriptions must rebuild
+required membership before publication. This route grants no normal result, callable identity,
+completion or NoWrites receipt. Written captures, defaults/rest, receiver-dependent inputs,
+module activations and descriptor/member transport retain their explicitly unmigrated owners.
+
+The selected-native handoff contract keeps a graph request separate from the original
+callee query's observation cut. Its stack-scoped issuer accepts a selected alternative and an
+authenticated argument-vector extent synchronously. Copies and expired issuers cannot deliver,
+and nested borrows restore their prior issuer. Detached argument endpoints retain their order.
+Delivery alone supplies no algorithm registration, field absence, effect ACK, normal result or
+NoWrites authority. A scoped original-Get issuer now lets the standard member owner register a
+conditional source branch before member-write inventory. Registration creates separate callee
+Get/own-writer, eager-input and algorithm requirements on the existing queue. Their original
+Call, Get, use and cut remain detached source records. Queue extraction cannot settle these
+pending source roles. This is a source-produced registration boundary, not ordinary collector
+enrollment or retired recovery. The admitted registration subset requires the standard receiver's
+original acquisition occurrence and the exact field projection. A wrapper initializer, earlier
+alias acquisition or different Get cannot stand in for that occurrence. Independent own overrides
+and unknown siblings retain the original path.
+
+The optional `sourceStagedNativeAlgorithmConsumer` runs synchronously inside that original
+member-owner publication after the three root debts are registered. It receives the selected
+source value and an admission callback that expires on return. Direct argument-vector extent
+must be known, and the descriptor anchor must be the original third argument. No argument is
+evaluated by this handoff. Admission validates and attaches the algorithm role plus all six
+correlated pending field producers before queue extraction. It does not attach descriptor value
+exposure or accept field contributions from an unauthenticated prefix. A locally extracted
+algorithm still waits for its six field requirements. Callee Get and eager-input debts remain
+independent. The ordinary collector is not enrolled by this source admission API alone.
+
+The reflective field owner records Has and Get effect accounting separately from field
+presence and returned values. A selected ordinary own slot can account for Has effects before
+optional inherited-presence precision. Data reads account for their own Get operation separately
+from value projection. Getter accounting comes from the original Get-result owner and preserves
+its receiver and input binder. A throwing getter can account for effects while supplying no
+normal field value. Stored data callbacks and methods remain dormant. The temporary field
+observation expires on return and cannot become a queued query or input frame.
+
+These accounting records describe owned contributions. They do not settle required staged field
+work, erase unresolved alternatives, or supply absence, normal completion, value identity or
+NoWrites authority. Value consumers retain the original reflective-frame checks and refusal
+conditions. The producer also retains each known getter declaration and its original receiver
+endpoint when value output is unavailable or another population remains pending. No input frame
+is copied into that relationship. Transporting all known getter contributions, receiver/capture
+relationships and remaining field obligations is still required before a field consumer may ACK.
+Declaration-relative field Effects demands now issue from the registered native field keys to
+the reflective source owner without a normal frame. They request canonical summaries for known
+conditional own-getter declarations and retain the original descriptor receiver relationship.
+Summary availability, member selection, receiver binding and body delivery are separate states.
+Requesting declaration facts creates no invocation edge and activates no stored callback.
+Unobserved formal inputs retain their checker-bound role and exclude an authored TypeScript
+`this` parameter from formal numbering. Missing constructor relationships remain pending rather
+than becoming covered empty fields. Constructor-declaration inventory is generation-local source
+information, not a cached member-selection result.
+
+For an issued literal field demand, the original source Get selects conditional getter
+alternatives and its existing zero-argument binder detaches the actual receiver at that Get's
+cut. The Effects-only consumer yields before normal lifetime, body execution or return-value
+projection. Receiver-independent getter bodies connect to the same required summary edge and
+use ordinary effect propagation, retaining known and unknown effects. An actual zero-argument
+Call through an immutable enclosing formal capture also maps through the original Get's
+source-relative input association and M03's demanded-role substitution. Caller values and
+argument/default/rest decisions stay on their original invocation edges. Reassigned formals,
+other creators, receiver projections and state-dependent bodies retain their detached binder
+contribution and remain pending. Stored and returned callbacks are not invoked by this handoff. No field is settled by a selected branch,
+and no field output or normal completion is supplied. Has/Get closure, eager input contributions
+and remaining receiver/capture obligations must still settle before ACK. Public native-field
+known-donor acceptance remains open until ordinary collector enrollment is complete.
+
+Each original field also registers two finite source-coverage requirements before traversal:
+its own-writer population and inherited/prototype contributions. Reference discovery follows
+selected executable dependency edges without executing modules or borrowing a normal property
+view. Mapped contributions publish through the exact live field issuer and preserve their
+independent required work. A known selected algorithm writing a fresh literal target retains
+its original callee-Get and eager-input debts. Unmapped operations remain compiler-pending,
+with known prefixes retained. Writer discovery can finish locally without proving property
+absence. The actual selected-native owner also detaches the existing conditional standard premise
+for an ordinary literal's default prototype link. This does not run a preservation/integrity
+check, settle authored prototype installations or establish any field's absence. Explicit
+`__proto__` setter syntax retains its separate source relationship. Ordinary calls and member
+Gets remain discovery candidates alongside mutation operations, including passive regions.
+Any unmapped relationship keeps inherited coverage pending. Cloned graphs rebuild these dependencies and subscriber cursors
+from immutable source descriptions.
+
+The selected native owner also retains a conditional nominal-installation relationship
+with the original target, key and descriptor argument endpoints. It carries no performed
+write, target/key identity or normal-completion receipt. An actual own data Get may detach a
+capture-free callable literal for the descriptor's `get` or `value` DirectExposure producer.
+Registration alone does not request that exposure or invoke the stored function. The local
+own-data prefix has independently required writer/prototype **value** projections, in addition
+to the field's Effects requirement. Those projection producers remain pending in the current
+slice. Effects coverage cannot pay them, and empty acquisition does not establish an empty
+callable set.
+
+For a preceding standalone installation on the genuine standard Object prototype, a literal
+key and a later missing-own-slot Get in the same ordinary callable block, the original Get
+requests that installation's `get` exposure. The source consumer preserves the original
+installation cut separately from the reading Get's receiver and cut. It can register a
+possible zero-argument, receiver/capture-independent getter body under required installation
+and projection requirements. The actual Get transfers a known getter contribution through
+the canonical summary owner without waiting for complete Value selection. Installation,
+Value alternatives and eager dependencies remain on reader closure and still block ACK.
+Availability or storage does not activate that body. Late delivery and clone reconstruction
+use the existing summary work owner, without retaining or replaying a query or manufacturing
+a binder frame. Component definitions do not supply this linear
+execution relationship. At that same actual Get, a selected installation's stored `value`
+callable can instead forward into the reading descriptor field's `get` or `value` exposure.
+Its original endpoint, creating association and acquisition cut are retained. The reading
+producer requires both the writer root and exact demanded Value exposure in addition to its
+own field and writer/prototype requirements. Reading stored data invokes no callback. This
+known prefix supplies no complete Value baseline, field settlement or normal result. Other
+callers, captured stored values and explicit receivers remain separate migration work.
+
+Required DirectExposure source roles have a separate non-call consumer. A known own-data
+alternative published by the original live Get can enter its own-writer Value baseline and
+then the parent field producer. The original Get publishes only to that source role, so
+parent publication requires its typed consumer. Native Value revision deliveries join the
+existing extraction queue, coalesced by producer until consumed. They retain no query or
+callback and repeat no original Get. That baseline remains locally pending until the remaining
+source relationships are represented. Exact producer requests distinguish it from an ordinary
+Call or another required role sharing the same edge label. Explicit runtime residuals remain
+Value alternatives, while unfinished compiler work stays pending. Neither producer readiness
+nor delivery of a known prefix supplies a field output or ACK.
+
+An accounted original Has/Get receipt can complete the field producer's local Effects
+extraction after every known getter has an owned binder/required-summary association. The
+original binder receiver source is compared at its live acquisition cut, separately from the
+graph request's use cut. Where both original writer/prototype Effects source roles have locally
+represented their alternatives, the original semantic owner may also publish a source-covered
+Effects disposition with unknown property presence. It does not establish a field value or
+absence. Required source, body and receiver obligations still govern closure.
+A terminal data Get under that live Effects borrow does not acquire its stored output or
+re-evaluate the creating initializer. Direct exposure retains its separate value producer,
+and eager initializer effects retain their original evaluation owner. Other member
+projections and ordinary value queries continue through the existing acquisition path.
+
+The original callee Get and eager input owners publish separate completion evidence. The
+first callee domain requires a declaration-relative, unsubstituted Get of a genuine standard
+root, with its completed alternative set containing only the selected native operation and no
+untransferred effects. Recursive invocation preparation or writer-input recovery leaves this
+source domain pending. Its Get receipt belongs to one work graph and generation. Cloning
+retains the conditional source template and requests a fresh original Get producer, rather
+than caching its acquired result.
+
+Eager input coverage reuses the shared language proof for inert value creation, with a fresh
+ordinary literal target and an inert primitive key. Ordered original endpoints are retained.
+Descriptor getters and stored callbacks remain dormant during creation, and their later
+Has/Get effects stay with the six field producers. Calls, reads, spreads, computed keys,
+unknown targets and coercion hooks require their own input producers. This source evidence
+grants no normal result, native output identity, NoWrites or target-wide property knowledge.
+A field prefix cannot pay either shared debt. Root Effects close only after every required
+phase and body relationship has settled.
+
+The ordinary effect collector issues these requests for a module-level synchronous function
+with no parameters and one direct return of the original native Call. Its three original
+actuals must satisfy the shared inert-creation proof, including literal target and descriptor
+objects and a primitive key. Source-region discovery must contain only that Call, its
+callee Get, and admitted opaque body calls owned by its descriptor Gets. Receiver-dependent
+getters, explicit prototype links, runtime imports and unmapped source regions keep the
+existing collector. This eligibility check supplies no
+native identity. The actual selected source owner still registers and settles each debt.
+A literal data initializer can also issue a direct, same-source zero-argument Call to an
+implemented ordinary declaration. Its ordered property/argument association is retained.
+The existing binder publishes that inner Call's detached input envelope at its own read
+boundary, separately from the outer native request. Canonical summary membership is
+registered before binding. Local eager extraction can yield while the body is pending,
+and final closure waits for body delivery without reacquiring inputs. Captures, defaults,
+rest, receivers, aliases and unsupported source operations retain their existing owners.
+A directly returned callable body stays deferred. Effects completion neither acquires the
+initializer result nor completes the independent Value/return-template projection.
+The covered collector yields before recursive Call recovery and leaves normal output,
+returned-value acquisition and strong proofs with their existing owners. Descriptor getter
+execution and stored callable dormancy are checked independently in client and server artifacts.
+An unmodified, same-source ambient lexical function with no implementation can issue a
+runtime-unknown effect for a zero-argument Call without recursively preparing a callee.
+An explicit environment contract remains with its existing owner. A declaration-only fact
+cannot become an empty executable target during collection or project relinking.
+Conditional getter body discovery requires the exact original field Get producer. The
+actual Get must still select and bind the getter, and its canonical summary must deliver
+known and unknown contributions before publication. Repeated syntax shares that finite
+field requirement without invoking a stored or unrelated body. Argument-bearing, aliased,
+imported and receiver/capture-dependent body calls require their separate source consumers.
 
 Normal operation slots have no separate callee, argument or result view derived from prefix
 history. Ordinary source-effect analysis uses parameterized source relationships and does not
@@ -2028,6 +2477,934 @@ branch queries. During those queries, the original Call's active occurrence boun
 it from being selected again as a separate writer of its own precondition. That interval ends
 before the canonical argument/body consumer takes ownership. An unknown predicate retains
 possible writer contributions and supplies no performed Call or normal output authority.
+The original member owner can publish a detached writer relationship after its receiver,
+reachability, order and creating-input checks, before recovering the RHS value. The scoped
+consumer may take ownership of that RHS projection after registering its source obligation.
+This does not complete the Get or aggregate writer inventory. The original binder supplies
+its adapted argument vector, including unknown-vector disposition, and detaches already
+acquired projections at the creating Call. A callable's stored source identity is separate
+from its capture inputs. A reached member Call registers its canonical summary before
+using the original receiver and creating-input binder events. Immutable enclosing formal
+roles can then supply actual invoked-input requirements. Written captures remain pending
+at that invocation and never borrow initial parameter state. Copied queries, copied
+Gets, callback reentry and revoked observers cannot skip the original RHS recovery.
+The existing operation queue registers each RHS projection before delivering its known
+stored prefix. Those data subscribers never invoke stored functions. Source recipes retain
+the exact required relationship across graph cloning, while graph IDs and delivery cursors
+are rebuilt. Original creating-Call projections and later Get cuts remain separate. A ready
+RHS contribution cannot complete aggregate writer discovery, map enumeration or target
+mutation. The same original publication routes to exact member-source parents as well
+as constructed, descriptor-field and map parents. MAY RHS transfer precedes the stronger
+performed-write/replacement consumers. An original query can register dormant projections
+and real input receipts before its consumer adopts them. Those graph-local input receipts
+contain no acquired scope or callback. Adoption registers the required source/body edges
+and consumes the retained B packet after the query expires. A cloned graph retains the
+description but must receive a fresh input publication. Passive registration never appends
+an invocation edge or schedules its own RHS consumer.
+Before input, receiver or RHS recovery, this same member owner can publish
+original indexed assignment and reflective relationships. Publication and recovery share
+the original source ordering and reflective eligibility rules. The source request keeps
+its graph cut while an earlier binding Get inside that callee retains its own live cut.
+Indexed extraction is separate from aggregate activation and replacement.
+The source input issuer also supports an original implicit-operator vector lent by
+its semantic owner. For `instanceof`, the retained right receiver and left actual feed
+the existing formal/default/rest binder at the original binary occurrence. No synthetic
+Call or second argument acquisition is introduced. The transport checks do not supply
+HasInstance selection, Get/prototype coverage or an Effects disposition. Copied queries,
+wrong vectors and an absent loan cannot publish an implicit B packet.
+
+An original Has Get can retain a typed reader for an already-issued module
+intrinsic's fresh-target relation. Its candidate keeps the full source Effects
+and computed entry-law requirements at their original cuts. Transport ACK does
+not require or grant the Has transcript. Candidate extraction separately checks
+that transcript's current complete alternatives and the applied law revision.
+Law delivery and the original complete Has event coalesce the same candidate
+task; neither replays an acquisition or resets ordinary Has extraction. Cached
+reader descriptions retain no current authority after cloning.
+An original `instanceof` left Identifier retains its separate binding DATA
+request, including the initializer Get's own read cut and required children.
+Current cumulative delivery can account for the left population independently
+of the operator's right-hand Get and prototype protocol. It does not establish
+an ordinary object, an inert prototype chain or a runtime-unknown effect from
+an unavailable producer; those semantic obligations remain pending.
+The external computed-Get source path is limited to an unwritten same-activation
+`const` receiver alias of the original global binding. That relationship only
+admits an original Get query. Arbitrary conditional runtime DATA requires its
+live external terminal and retains key evaluation, source C, Get Effects and any
+getter-body dependencies. Written, captured and unrelated aliases stay pending.
+An operator's graph-local native-default transcript separately records the
+original method and prototype Gets. Late lhs DATA can consume that transcript
+without replaying Get acquisition, changing the class-default proof or issuing
+a Boolean result. Unknown external objects retain possible Proxy prototype-walk
+effects; a missing input producer does not become such an effect.
+
+The ordinary module collector can separately lend a child-argument ordering
+observation to descriptor-map enumeration. After the real parent callee Get,
+its installed child query also has a scoped callee-acquisition interval. That
+interval excludes only the later parent invocation while the child acquires
+its original receiver and property. It requires the current module publisher,
+entry lease, parent receipt and exact child query/cut, and expires before
+child descendants or body work. Passive queries and copied or expired entries
+cannot supply it; no child algorithm or result follows from this ordering. It records the actual parent callee
+Get and child Get under the current module extraction. During that child's map
+conversion, only the later enclosing invocation's mutation route is excluded;
+callee acquisition, argument evaluation and unrelated writers keep their debts.
+Passive descriptions cannot issue this observation, and cloned source plans
+must obtain it again. A demanded map registers its module-argument source
+request before Enum or C extraction. In a new graph, that adopted task lends a
+separate source-only entry to the original parent and child Get owners. It
+neither impersonates direct collection nor replays an initializer body. Current
+observation delivery must be applied before the existing map task resumes;
+parent callee Effects and the complete native/input protocols remain independent
+requirements. The same producer has separate readers for the original map-entry
+Get and issued descriptor-field Has/Get conversion. Field readers retain the
+exact map/entry/receiver association and their own, prototype, Get, getter-body
+and input requirements before C extraction. Their scoped current Get loan is
+not inherited by getter bodies, ordinary Gets or sequence queries. The lookup
+owner can issue a scoped selected copy of that original field Get, preserving
+its receiver, key and Has/source association while adjusting lookup origin and
+inspection. Only that issued pointer can use the current field reader during
+member interference and lookup. The canonical Get stays unchanged; alternative
+callbacks and output scopes suspend the loan, and finished/revoked fields cannot
+resume it. A further acquired/native-freeze proof copy keeps its separate owner.
+This transport supplies no child result or completion. Reflective candidate discovery,
+module writer activation, source interference and writer-input recovery use the
+same phase eligibility check before registering or reconstructing a later
+invocation. Recursive writer recovery rechecks the live phase; stored writer
+edges and earlier acquisition dependencies remain intact. The native Get
+writer-input marker is set when an actual input/capture scope is entered, or
+before invocation reconstruction even if reconstruction returns no scopes.
+An indexed writer with no discovered inputs does not set this marker by itself;
+its source, Get and pending requirements remain independently owned.
+
+The original member owner separately publishes its finite source-set disposition.
+Every assignment, reflective relation and open-operation protocol receives an exact
+child request before local extraction can finish. Deferred and later function writes
+retain prior-activation source relationships. This disposition does not select a
+performed writer or a current value. Required children still block closure, and a
+new graph must receive its own original Get observation. An observed source set with
+no payload atoms uses the same explicit disposition delivery as a nonempty source
+prefix. Its empty representation supplies no authority by itself. Assignment/reflective role
+mapping shares the existing lexical endpoint owner. Open operations use their own
+semantic producers instead of being interpreted as an unknown assignment.
+
+Protocol source requirements subscribe to the original semantic operation producer.
+They retain that producer's consumer, input association and cuts rather than invoking
+its enclosing body in the reader. Callee-selector Gets require the original Get role,
+while target Gets retain their independently issued target role. Call requirements
+retain their full original Effects producer. The same per-occurrence registration
+supports implicit operators without another native family admission rule. A represented
+source child remains a required dependency until its own current-graph producer settles.
+
+A generic property Get can retain a separate preparation source before receiver
+acquisition has entered its physical Get interval. This debt-only role belongs to
+the original query, fact publisher, source request and generation. It records exact
+invocation-source requirements on the existing operation queue; registration grants
+no receiver, source-set observation, selected method, normal value or completed Get.
+The original Get-effects publisher retains that exact preparation child alongside
+its unchanged per-origin source sets. A completed prefix cannot acquire it later.
+
+The preparation task reenters the original Get source owner after an enrolled
+prerequisite changes. Its immutable graph-local observation retains the actual
+source requests and semantic/APPLIED revisions, including the original Get's
+source-set dependencies. An acknowledgement can schedule a fresh traversal; it
+cannot renew that observation. Scope exclusion still requires the complete current
+standard-method source relationship and exact ROOT delivery. The same preparation
+can retain existing selected native input-scope requests through their original
+request-only wrappers. Those descriptions preserve the original Call, callee Get,
+input and implicit-operation prerequisites. Descriptor installation requests cover
+only the callee component; every original argument still undergoes scope discovery.
+The actual source child is adopted with its exact dependencies before preparation
+ownership is checked. Native selection, current source observations and exact
+APPLIED delivery remain separate from preparation registration. An adopted native
+source request may wait on its exact queued canonical caller or current extraction
+owner until that caller finishes and notifies the existing source queue. This
+compiler-work ownership supplies no source completion or scope exclusion. A plain
+library property Get can retain source-scope debt before C exists. Its original
+Get work issuer registers a preparation reader with the source producer's full
+request and the consumer's exact semantic context. Cross-declaration module
+sources retain their own producer and activation requirements. The source's
+current invocation-scope disposition and the new reader's APPLIED delivery are
+required before scopes can be excluded; descriptor callee dispositions leave
+all argument scopes to their existing owners.
+
+Preparation is a named sibling of C in the original Get publication. Its
+immutable observation retains every source request and the actual Get's semantic
+readset. Existing source tasks revisit the original plain-library or constructed
+Get when prerequisites change. A queued request, local extraction or an ACK is
+not a Get observation. Normal frames, dynamic keys and implicit map/descriptor
+phases retain their distinct owners; a missing preparation entry stays unmigrated. Full Get, constructor,
+argument, implicit Effects and returned DATA requirements remain independent.
+Queries without a supported original preparation issuer retain their existing
+unmigrated outcome, including normal input frames and unrelated implicit phases.
+
+A pending native callee can discover returned-DATA and member-source debts in
+interleaved phases. Its required vector preserves the order already issued.
+Envelope validation retains each DATA and member-source subsequence, requires
+all exact declared children once, and permits the separately issued selection
+premises and Get contribution between them. Unknown, duplicate or mismatched
+requests remain invalid. This ordering rule supplies no local extraction,
+selected-callee, subscriber delivery or final-currentness evidence.
+
+Accessor SOURCE projections can retain an exact returned-DATA reader on the
+same preparation role when a previously completed per-origin source set cannot
+grow. The DATA producer keeps its creating cut; the reader records its complete
+physical Get cut, caller purpose and original parent independently. Registration
+must precede the preparation role's own seal. Deferred projection keeps that
+role's enumeration pending, and actual DATA delivery schedules the existing
+original Get task. DATA publication does not depend recursively on final
+preparation currentness; its original source observation and exact subscriber
+APPLIED delivery remain separate checks.
+
+A direct Identifier receiver acquisition may enroll that DATA debt before the
+outer property Get has a coverage set. The tagged reading retains the outer
+logical parent, actual inner physical and semantic cuts, receiver projection,
+and caller purpose independently. Only a normal return from that original Get
+interval issues its graph-local read-demand event; panic cleanup, registration,
+and delivery acknowledgements cannot issue or renew it. Its source/input readset
+excludes its own DATA result and final preparation completion. Exact required
+membership and other observed source/subscriber revisions still invalidate it.
+Cloned graphs must observe a fresh original interval. This lower transport event
+supplies no Get completion or coverage/current stamp: the SOURCE projection still
+requires the native finishing/input proof and exact DATA subscriber APPLIED.
+
+For a canonical selected Freeze input, a bounded SOURCE return relation can
+preserve an immediate data literal containing one shorthand reference to an
+unwritten simple formal in the same declaration. The actual input acquisition
+must observe empty binding and creator maps and authenticate the shorthand's
+value symbol. Selection publishes an uncertain prefix. Only the matching real
+finishing Get can settle the callee uncertainty; input uncertainty survives.
+The owning SOURCE consumer preserves the explicit lexical formal role through
+field projection. This supplies no acquired object, creating binder, integrity,
+normal return or NoUser evidence. Captured, substituted, cross-declaration,
+computed, spread, accessor and callable literal forms remain pending unless
+their independent owners provide the required association. Generic capture
+conversion keeps its existing requirements.
+
+Source-return readers retain the purpose chosen by their original caller. Direct
+callable exposure may use a conditional noncallable relation; reflective target
+comparison retains its separate target provenance. A preparation-owned target
+reader is a sibling dependency of the original Get, with the creating Call
+retained as a mandatory Effects closure debt of the target. An authenticated
+Symbol-versus-string key exclusion answers only key relevance. Other target
+relations still require their original selected-source and birth proofs; neither
+preparation nor an Effects receipt supplies object identity or a normal value.
+The same original callee may acquire its direct Identifier receiver before its
+property Get. Target preparation retains a tagged receiver-acquisition description
+with that actual physical cut, separately from the outer full request and key.
+The synchronous Get interval issues and revokes this association; recipes retain
+no Get, query or frame. The queued outer owner recreates it on a fresh traversal.
+A receiver acquisition cannot substitute for the outer Get or its source set.
+Preparation target requests distinguish their complete physical acquisition cut,
+role and ordered receiver projection in both producer and subscriber identities.
+Their outer logical request remains unchanged. A later context cannot overwrite
+an earlier immutable target description or borrow its observation.
+A live declaration publisher can also enroll an existing native input-scope or
+descriptor-callee source request under its original outer native Get before a
+physical source-set observation exists. Its synchronous registration context
+keeps the consumer's semantic cut separate from the outer Get's physical cut.
+The existing Get queue retains the exact ROOT reader before sealing and wakes
+on its real prerequisites. Registration and pending ownership grant no source
+completion; final consumption still requires the original selected/current
+source contract and exact APPLIED delivery. Descriptor callee coverage continues
+to traverse every original argument.
+
+Operation-source preparation shares the canonical extraction queue without consuming
+queued callable definitions. A source loan can dispatch already-issued operation work
+while a definition is collecting. Completed operation tasks are recorded on that queue,
+and the canonical owner still visits each callable in its original order. Operation
+callbacks do not inherit the active definition's direct-call context. This permits
+module dependencies to deliver before an ordinary adoption decision without entering
+another body recursively or losing a dormant definition's source summary.
+
+Passive assignment dependencies obtain their own original Set observation in a fresh
+graph. This source-only loan may retain local DATA or external accounting and required
+children, but cannot adopt an ordinary use or bind a selected setter. Once a consumer
+requires that operation, its already-observed detached phase receipts transfer to the
+required producer. The query and acquired scopes do not survive the loan. This keeps
+mutually required writer Effects representable without replaying a Set observation
+or treating a cloned source description as current accounting. A fresh module-only
+writer exclusion is likewise consumed from its original disposition rather than the
+immutable recipe's extraction flag. Selected import initialization and every explicit
+required child remain independent prerequisites. This does not account for function
+prior invocations.
+
+Original zero-argument WeakMap construction has separate callee, input, prototype
+Get and algorithm Effects roles. Its prototype lookup lends only the exact live
+construction marker to the original native member Get. The original source-set
+requirements remain attached. An assignment RHS consumes that New Effects producer,
+not its conditional construction category. Passive phase observations join the same
+required-edge conjunction as Set, so neither side of a source cycle is paid by an
+unpublished recipe. Arguments, authored or unavailable constructors and unsupported
+creating inputs retain their existing owners. No constructor B, instance result,
+normal completion or NoWrites receipt follows from this source contribution.
+Construction phases retain current contextual method and native-input invocation
+readers at the construction graph cut while their producer observations keep their
+original physical cuts. Admission validates each typed reader against its original
+current source observation; a detached description cannot renew that authority. An
+incomplete constructor Get retains its original source-set requirement alongside
+every used invocation ticket. These local premises do not complete selection or
+replace the full native Call Effects requirement.
+
+The original binder-owned Object entry lends its conditional Create member source
+before recursive global-property recovery. The selected algorithm retains its original
+prototype endpoint and full Call Effects root; entry, callee and target alternatives
+still use their existing owners. Early registration supplies no complete callee,
+normal result or ordinary invocation, and cannot replace a fresh source observation.
+A pending reflective-target role can retain an immutable local initializer
+association before that source arrives. Its exact constructor-callee subscription
+uses the existing operation queue. A delivered current Create contribution queues
+a fresh constructor source observation; it does not resume an acquired query or
+wait for full dependency closure to schedule work. The full creating Call remains
+required before publication, and fresh observations retain the sealed required
+prefix. Constructor and callee keys are continuation identities, not additional
+self dependencies of the target role.
+
+The original opaque-declaration terminal and library member-reference owner can publish
+finite source contributions without supplying a value or normal completion. Library Get
+contributions require the selected compiler-library declarations and either the existing
+execution-environment contract or the original standard-entry DATA-slot contribution.
+The latter recognizes the genuine selected Symbol entry and its well-known-symbol own
+data slots. It supplies a conditional primitive category, never a symbol identity,
+lookup absence, integrity or NoWrites. Its original Get and all writer/source children
+remain independent requirements. They retain every discovered writer and open-protocol
+child. Written receiver inputs and unsupported alternatives remain pending. Fresh graphs
+reissue these source contributions through their original owners. Cached descriptions,
+empty lookup results and availability of a body cannot replace that publication. Actual
+unknown Effects remain on the original invocation publisher, preserving dormant bodies
+and the distinction between an external runtime alternative and unfinished source work.
+
+Creation and computed-name source contributions share the original eager evaluation
+owner. A method's computed name belongs to its surrounding creation, while its body
+remains deferred. Class creation composes the canonical eager child operations and
+retains separate pending heritage and decorator protocols. Computed names require
+both their original input producer and key conversion. Primitive source categories can
+account for conversion only with their original producer requirements. Unmapped
+coercion and eager work stay pending. These are source extraction contributions, not
+proof that a class or key evaluation completed successfully. A fresh graph receives
+the current original event contribution before required delivery is published.
+
+The original callee Get can issue an Effects-only receipt whose required children
+represent that finite source set and the Get's own direct contributions. This receipt
+is independent of exclusive native selection. A separate actual-Call requirement
+retains authored callable alternatives and their canonical body requirements. Unmapped
+receiver, capture, implicit getter and open-protocol contributions remain pending.
+Passive source discovery never invokes those bodies. Result-category consumers still
+require the stronger selected-native receipt, so Effects extraction cannot classify an
+unknown or authored result as an ordinary native result. Source descriptions can be
+cloned, while both receipts require a fresh original Get observation in each graph.
+An ordinary native Effects entry can adopt a supported pending writer-source
+request before its complete callee Get arrives. Its original Call/Get/C factories,
+exact readers and source-task continuations must exist before it yields. The
+source task observes the original Get again and renews the same required C; its
+current receipt tracks each exact reader's applied revision independently. C and
+callee-Get readers therefore have distinct private edges even when they share a
+producer and revision. Their full source, input, protocol and imported-module
+requirements remain attached. Applied readers resume the adopted full-Get owner
+when it owns that observation, including a physical refresh queued before that
+ownership was established. Other native observers retain their physical-cut
+refresh owner. Only a genuine current parent Get permits source-only discovery of
+its actual input child; this adds requirements without another ordinary use,
+body activation, normal result or selected invocation. Cloned descriptions rebuild
+their tasks, observations and subscriptions rather than carrying those receipts.
+
+Lexical regions come from the canonical source population. A source mapper consumes the
+current work's original creating-Call associations. It does not rediscover a closure by
+name or reconstruct an acquired scope. Real binder delivery and descriptive source inputs
+remain distinct. The queue can retain a known dormant stored prefix while indirect,
+prior-invocation, written-capture and unavailable creating-input relationships stay pending.
+An original checker-selected external-global Get or setter-only Set can publish a separate
+runtime-unknown terminal. That branch cannot settle indexed writers or missing source work.
+For a checker-authenticated global binding, an original setter-only Set records
+external global property-write Effects through its live publication interval. The
+opaque runtime effect retains user-code and throw possibilities without labeling
+compiler coverage incomplete. A cloned description cannot publish this terminal
+until the original event is observed in the new graph. The typed terminal keeps
+its source-set, receiver, key, RHS and imported-source obligations; unsupported
+member terminals retain their existing incomplete-coverage representation.
+An original module-before-read goal can exclude a deferred writer only after the
+original evaluation event stream represents every earlier semantic contribution and
+host-selected import initializer. The source Get supplies a separate no-user-entry
+receipt. Empty Effects, native category selection and descriptor preservation cannot
+supply it. Initializer availability remains a required graph dependency even when its
+local source law is represented. Callee evaluation ends before that Call's actuals.
+Earlier user entry and function prior-invocation state prevent this exclusion. The
+receipt is reissued in each graph and expires with its original issuer and generation.
+An indexed protocol can retain its complete Effects request alongside an independently
+issued contextual exclusion for that same candidate. The exclusion consumes the original
+current coverage, module prefix and entry-law receipt; the protocol's invocation is still
+owed. An indexed source or a nonempty Effects contribution cannot create that disposition.
+A returned target encountered by this member owner can yield before
+`projectSourceCallReturns` enters invocation recovery. The original live Get seals a
+DirectExposure dependency on that creating Call. Its physical observation cut stays
+separate from the Call's graph cut. Current graph facts supply the exact original
+creating input association. Structurally equal detached packets cannot install it.
+The declaration's canonical body summary is required independently of return data.
+The existing successful-completion and binding owners describe conditional return
+sources with abstract predicates and original RHS endpoints. Definite replacement and
+replacing finalizers retain their ordinary completion semantics. Cross-activation
+writes, unavailable captures and unevaluated Call/Get operands remain required source
+work, rather than runtime-unknown alternatives. A formal's data role transfers its
+actual source relationships without invoking stored callbacks. Raw actual operands
+retain their own result requirements.
+
+Each graph caches this symbolic projection for the exact retained creating packet.
+It retains no acquired scope, input frame or live query. Data delivery uses the
+existing revision queue and cannot activate a callable, supply a normal result or
+settle the requesting member's prior-state and alternative-coverage obligations.
+A native result token additionally requires the original selected algorithm and its
+complete Effects root. It cannot derive a result category from an opaque Effects
+alternative. A missing function prior-state disposition therefore stays pending even
+when a known return prefix has arrived.
+
+A selected create result can provide the conditional ordinary, non-Proxy target
+for a later defineProperty operation. Direct children and immutable local target
+bindings retain their original source requests. Freeze can inherit that result
+relationship through nested children. Description registers each full child
+requirement before adoption, with local semantic completion still pending.
+Actual adoption validates the current original native Get and guarded algorithm
+at every descendant before publishing the parent phase. A noncallable token or a
+descriptive target validator alone cannot supply this premise. Complete child
+Effects, descriptor fields and possible Throw remain required. No successful
+completion, object identity, normal property value or NoWrites fact follows.
+The implicit descriptor algorithm's source recipe retains its six field
+requirements, while delivered algorithm completion belongs to the current graph.
+
+Candidate registration grants no invocation, output, normal result, category, absence or
+NoWrites authority. Nested and revoked issuers, copied queries and changed generations
+cannot inherit publication rights. Plain reached `get` and `set` Effects
+use the same occurrence issuer as result-to-receiver demands. Returning their values does
+not grant native result identity or a category for another receiver. Existing unresolved
+assignment Effects retain their own opaque provenance.
+
+Descriptor-map conversion uses the same source queue. The original selected map owner
+registers independent own-writer, OwnKeys, enumerability and target obligations, then all
+entry, field and source requirements before ordered entry Gets. Original member traversal
+publishes writer RHS relationships before value recovery. Entry data remains dormant.
+Getter reads retain the original binder receiver and a separate pending summary ticket.
+The original immediate map-creation owner can publish complete private source-use
+coverage after writer traversal. Its receipt requires the original live issuer, Get, group,
+cut and generation. Required RHS contributions remain independent. A fresh graph must
+receive that observation again. Aliases still need their separate source-alternative
+completion. For the original immediate ordinary map creation, that live receipt can
+support initial OwnKeys and data-entry enumerability Effects. Computed key evaluation
+and coercion retain their independent requirements. Getter ordering, spread and unresolved
+population remain pending. The selected ordinary target owner supplies separate definition
+Effects. These contributions provide no key list, property absence, identity, normal output
+or NoWrites proof. The live original read publishes entries, while detached metadata,
+cloned facts and literal member counts cannot supply that authority.
+Source key consumers separate expression Effects from a conditional primitive category.
+An original selected Symbol algorithm has independent callee, input conversion and algorithm
+requirements. Exposure-only evidence cannot supply the category. A computed key consumer
+retains the complete original producer dependency, including a separate reading association
+when a module initializer owns the producer. No registry name, symbol identity or property
+value is reconstructed. Template substitutions issue explicit ToString input demands,
+separate from invoked callable roles. Only actual primitive source bindings discharge the
+represented demand. A represented formal ToString remains an opaque runtime MAY effect,
+including hooks and Throw, rather than compiler coverage debt. This classification supplies
+no actual-input binding or completion of an unsupported conversion. Types and argument
+presence do not discharge the demand. Unsupported object conversion retains its original
+owner and uncertainty.
+Imported scalar reads reuse source module-availability requirements and late revision
+delivery. Initializer effects remain on module facts. Isolated source graphs stay pending
+when the selected producer is unavailable, while the merged graph can settle its actual
+module dependency. No normal module frame or acquired value is borrowed.
+Source callee acquisition preserves its original Call or New before-arguments read cut
+through receiver projection. A New selector lends this phase explicitly and ends
+it before its separate prototype Get. Original module Get intervals also exclude later direct module
+operations, while deferred callable activation retains its separate owner. Later argument writers are excluded only under the live original
+callee loan shared by native and ordinary source consumers. Earlier writes and operations inside the callee expression remain visible.
+The loan expires with its issuer and generation and cannot authorize normal recovery.
+The original member disposition publisher consumes candidate module dispositions
+for every connected source entry. Computed literal names retain their original
+primitive-key producer requirements. The DATA-definition wrapper supplies only
+its local no-user-entry contribution, while key evaluation and coercion remain
+separate children. Selected import initialization retains the required producers
+from both its own events and recursively selected dependencies. A per-file work
+graph retains an authenticated external initializer declaration until project
+merge binds its real producer. That pending membership does not invalidate the
+local source contribution. Ordinary adoption may retain the selected deferred
+producer, while publication remains blocked until actual initializer delivery.
+Its positive prefix may exclude an earlier activation of a deferred writer or protocol. That exclusion supplies no execution
+or body coverage for the current Get, Call or constructor. Finite source transfer
+withholds selected output. An independently complete original selector retains
+its stronger receipt without paying the broader source inventory a second time.
+A complete selector retains the entry-law requirements it actually used,
+independently of broader source inventory. A selected intrinsic that defines or freezes a newly created ordinary target
+can retain that target's source relationship before reflective output recovery.
+The target cannot be the preexisting intrinsic container being read. Its complete
+algorithm entry law remains required, including callee and implicit Get alternatives.
+Every actual callee and prototype Get retains the entry-law prerequisites it
+consumed. These requests keep their original module declarations and cuts, and
+closure requires their delivered children. Refreshing a callee's source
+requirements preserves its current graph Get receipt after registering new
+memberships. Its unextracted cached blueprint cannot downgrade that receipt.
+This relation supplies no runtime identity, global preservation or NoWrites verdict.
+Native Call producers retain their original callee return-data relationship.
+New preselection can require the same dormant data through its member source-set
+child. Each reading keeps its creating Call and original physical Get cut. Late delivered inputs feed that exact data subscriber without replaying
+the creating binder or supplying constructor selection. A required data prefix
+cannot complete an unknown result or invoke its stored callback.
+Constructed member results use the same demanded Call-result reader. Passive
+preparation invokes the original construction/member source publishers and seals
+their existing semantic roles without ordinary use or root IDs. A later reached
+occurrence activates that same source description. The data reader retains both
+the aggregate Effects root and each original member-result role, forwarding only
+those roles' DATA prefixes. It supplies no noncallable, native category or normal
+result law. Fresh graph publication and the actual reader source observation are
+required independently of cached recipes and local source extraction.
+An actual complete native callee Get also renews any retained weaker population
+roles from that same original lookup. Strong and finite Get receipts remain
+separate.
+A native input binding description keeps the original Identifier, its binding
+DATA request and the initializer's independent source owner. Lexical admission
+supplies no input value. The literal-input owner refuses an unconnected binding
+plan. The selected owner enrolls a supported immutable binding's exact DATA
+reading before phase adoption. Its existing phase tasks consume cumulative
+applied DATA together with the original current callee Get and every delivered
+initializer endpoint. Both phases retain the initializer's full Effects root
+and module availability; a cloned complete description supplies no current Get
+or applied DATA. Population refinement preserves prior requirements and alternatives;
+a copied description or a different physical Get cannot issue its current stamp.
+Original member-writer publications can subscribe their unfinished RHS to the
+same DATA producer. The live writer owns the receiver, activation and physical
+read cut. The result reader retains the exact current Call association and
+canonical producer requirements. DATA delivery refines both dormant stored
+sources and reached callable sources without constructing acquired scopes.
+Direct lexical Calls also have an Effects specialization of the same operation
+requests. A passive source description keeps its original callee, vector and
+eager requirements. It cannot activate the Call. Publication separately requires
+the original collector's resolved edge and current source-input or binder
+association, together with the canonical body revision. The operation owner
+requires and observes that existing definition without constructing another
+invocation edge. An adopted producer task revalidates its original lexical source
+against the current program and fact publisher when a fresh graph has only a
+cached description. This renews source membership without supplying a canonical
+Call, inputs or body revision. Bound protocol readers retain their existing
+factory and dependency throughout renewal. RHS and protocol consumers therefore cannot pay an unfinished
+Call with its DATA result or an empty Effects summary.
+A callable body whose existing lexical input owner proves independence from
+receiver, arguments and captures needs its canonical body contribution rather
+than a fabricated binder packet. Other input requirements remain pending.
+Reaching the aggregate Effects operation does not itself request each candidate
+as raw DATA. Those descriptive candidates stay passive until an actual consumer
+adopts their role. Local result extraction cannot complete the surrounding
+source population, protocol or canonical-body requirements.
+Source-set relevance stays separate from an operation's Effects. The original
+complete allocation-use relation can exclude a writer whose immutable target is
+another independently published fresh allocation. Actual aliases, escaped or
+written sources and the current receiver's own-writer dependencies remain.
+A contextual member-source contribution can also account for a represented
+method that adds only the current Get to this read's source population. It needs
+the original method association and complete owning operation contributions.
+This does not complete the method invocation, infer NoWrites or remove the
+Get's other writer and protocol dependencies. These dispositions belong to the
+original parent, physical read cut and current graph. Cached descriptions do not
+supply fresh publication authority. A late original method contribution refreshes
+already-issued source consumers through the same source owner. Contextual Effects
+subscribers acknowledge revisions on the existing delivery queue, including
+revisions with no value payload or new environment contribution. Every adopted
+producer with a validated subscriber queues a nonzero revision, including late
+pure Effects publication and a reader added after publication. Notifications
+coalesce without requiring dependency closure. The original typed delivery
+handler still owns acceptance, and a rejected transfer remains blocked. An ACK
+does not supply a current source observation or complete the producer's children.
+A Template used by an original selected `Symbol.for` input can retain that
+source's eager-input Effects through a typed member-protocol association. The
+association keeps every original formal ToString demand and the producer's
+physical cut; each Get or Set reader retains its own observation cut. It is a
+source description, supplies no selected Call or output, and cannot substitute
+for an unissued original native input source.
+A required Set
+source uses its own original declaration and five phase owners. Passive source
+registration cannot enroll an ordinary use, bind a setter or activate its RHS.
+A no-setter source loan shares its validated receipt with ordinary publication
+without paying any independent child or invocation requirement. Original protocol
+source publication also attaches already-described consumers of that exact
+operation through the same typed source contract. It does not activate those
+consumers. An adopted protocol task can request an existing immutable lexical
+Call's Effects factory under the original caller. The descriptor and source
+input association cannot replace its current canonical Call edge, inputs or
+body revision; those remain independent publication requirements. A fresh Get
+observation can renew a completed source description
+without replaying an already-current receipt or retracting the description to a
+pending prefix. Cloned descriptions retain their children but require the new
+original owner to observe them before publication. Pending writer-result
+admission currently applies to the constructed-member source owner. Generic
+member, descriptor-field and map writers retain their existing phase owners and
+pending requirements rather than inheriting that admission rule.
+Argument result readers use the same DATA producer and subscriber. Their issuer
+checks the current owning Call fact, complete original argument vector and exact
+source-input or delivered-binder association. A source-input recipe supplies no
+binder event. The producing Call, outer Call and argument read cuts remain
+separate. Registration queues the result without ordinary parent activation and
+without implying readiness. Consumers read the subscriber's cumulative DATA
+prefix because incremental queue delivery may already have consumed its cursor.
+Local extraction never pays the result's canonical-body or operation requirements.
+Invoked-formal consumers retain that typed DATA use while known synchronous,
+capture-free, zero-parameter callback bodies flow through their canonical summary
+requirements. Other pending alternatives do not erase the known prefix. Receiver,
+default, rest and captured inputs remain explicit producer gaps. A source-input
+recipe is never converted into a binder receipt. Real binder readers preserve
+their original physical cut, including a nil source use, independently of the
+source-description graph cut and the producing Call. Early source work can
+register summary requirements before propagation starts, but consumes no revision
+until that namespace has an actual producer version.
+Immutable lexical Identifier reads use that same DATA queue. The read retains
+its original checker-selected binding and read cut, with initializer Call or Get
+results required separately. Own-formal roles and already-owned callable
+references transport DATA without acquiring a value or invoking a body. Known
+child alternatives retain their actual creating association even while other
+children remain pending. Fresh graph work rebuilds the binding source projection
+before publication. Argument and return readers share this role, replacing the
+saved-factory-specific reader rewrite. Same-activation variable writes reuse
+the original binding and completion owner. Source predicates join MAY endpoints
+without acquiring their values. Immutable alias-use closure admits only uses
+already owned by migrated consumers. Cross-activation writes, written formals
+and unavailable initializer producers remain explicit gaps. This source
+relation alone does not grant aliased receiver identity or an invocation.
+An unwritten same-file module `const` read keeps the original initializer's
+DATA request and a separate canonical module-availability membership. Its
+initializer is neither replayed nor retargeted into the referencing function.
+Local DATA closure follows that exact initializer child, including its full
+native Effects requirements. Final fact settlement still waits for every
+independent module contribution and its current canonical revision. A pending
+module cannot publish artifacts merely because one captured DATA source closed.
+This bounded path forwards existing initializer producers. It does not create
+module literal or construction results from source syntax.
+Each fixed descriptor field can subscribe to that same original binding DATA
+producer. Its contextual reader retains the original descriptor Identifier,
+parent field request and independent read cut. Registration preserves the
+field's own-writer and prototype requirements. DATA prefixes retain their original
+initializer endpoint and creating association. They do not establish Has/Get,
+object immutability or getter completion. New DATA revisions schedule the
+already-issued field producer through the existing extraction queue. Eager
+descriptor evaluation uses the same relationship and retains its DATA child.
+An actual zero-argument Call through an immutable local binding registers that
+same base DATA use. The existing relative phase then consumes its cumulative
+alternatives. A mapped own-formal source issues the original invoked-role demand,
+a supported capture-free callable requires its canonical body, and a matched
+captured result still needs the authenticated child creating B. DATA requirements
+without that original Call use cannot activate a body. New DATA revisions wake
+the same phase, while cached reads remain idempotent. Missing receiver, default,
+rest and capture inputs retain compiler obligations independently of actual
+runtime-unknown sources.
+A current binding or completion projection can also require the original native
+result DATA directly. Its exact source branch and required child authenticate
+the reader without a synthetic member Get. The current native callee receipt,
+guarded algorithm and full Effects root remain separate prerequisites. A cloned
+source description without that current projection cannot supply the reader.
+Native callee DATA prerequisites retain the original Call, Get-value or binding
+factory and its producing cut. The callee reading changes only its consumer,
+reader key and edge; it does not turn a Get or binding read into a Call. Both
+the callee envelope and the direct-input-invocation envelope validate that same
+relationship. Registration still needs the actual source reader and current
+delivery, and every independent Get, source and full Effects debt remains.
+Callable resolution installs its actual resolving facts for the whole source
+work interval, including project-cache clones. Nested per-file resolution
+restores the prior writer registry and original fact publishers on exit. This
+lifetime supplies source-request associations, not a Get receipt or invocation
+authority; individual semantic owners still authenticate their observations.
+Return operands subscribe to the same original Call DATA producer, including
+Calls retained by the lexical binding owner. The outer creating association
+substitutes its own formal DATA roles without replaying the inner invocation.
+Each link retains the inner result and canonical body requirements. DATA
+substitution retains already-owned callable declarations as body references,
+independently of expression creation. Their invocation inputs and captures still
+need their own producer. Local extraction stays open while operand DATA is unavailable, and known alternatives
+can still reach existing invoked-input subscribers. Later result revisions drain
+through the existing delivery queue and revisit that consumer before publication.
+A newly applied input-DATA revision coalesces that continuation on the existing
+propagation loop, regardless of which operation owner drained its delivery.
+Cached extraction-status reads do not schedule another pass. Actual invocation
+edges discovered by the consumer join the existing reverse caller index and
+wake their caller so current canonical body contributions can be consumed.
+Project Call relinking derives canonical declaration identity from current
+source facts even when pending per-file Effects have no published symbol
+summaries. This retains the same original body without settling its Effects. Explicit host-selected bodies and opaque or bodyless imports keep their
+existing resolution rules; a passive Effects description cannot restore a
+missing canonical Call edge.
+Original Get DATA can feed these same argument and return subscribers. For an
+immediate ordinary object literal with a static own member, the original member
+selector describes own DATA or invokes the real getter binder after registering
+its canonical body. Receiver creation, key evaluation, Get Effects and result
+DATA retain separate required roles. Getter returns use the existing completion,
+binding and return-operand producers. A source-authenticated module call inside a
+getter keeps its own inputs and canonical body requirements rather than requiring
+capture value recovery. No normal property view or selected value is retained.
+Fresh work reobserves the Get and creates a new getter B before publication,
+while immutable DATA descriptions retain their monotone source prefixes.
+Getter Effects, Throw and returned callback invocation remain independent.
+A getter's original zero-argument call through an immutable enclosing formal can
+use the existing lexical capture-to-formal association. That description may
+precede canonical getter extraction. The real receiver B remains unchanged, and
+only its relative source inputs carry the capture role. A matching plain returned
+identifier can describe that formal as a DATA role through the core return
+producer. The eventual value still comes from the outer factory input, and the
+Get B never becomes that returned value's creator. Admission requires the
+current original Get receipt and canonical membership, while body delivery and
+closure remain separate. Written, local, receiver, default and rest inputs keep
+their unsupported or independently pending source requirements.
+Aliased receivers, computed keys and unprovided receiver or capture inputs stay
+explicit producer gaps. Ordinary requests keep their previous owner when this
+source producer is unadmitted. The private replacement gate reports that DATA gap
+before legacy recovery. Other unavailable Get results and capture relationships
+remain explicit pending work.
+A matched returned literal can retain its original delivered creating B for
+unwritten factory-formal captures. The reached creating-call collector owns that
+binder delivery, including a nested argument Call. Saved input identifiers borrow
+the existing const creation record while keeping their original endpoint and
+read cut. A source-input recipe or structurally copied B supplies no creating
+capture authority. The projected-input consumer retains the whole alternative,
+registers its canonical body, and subscribes to captured-formal demands at the
+actual later invocation. Those demands use the same relative queue, including
+atoms processed before DATA exposed the new subscriber. Independent saved
+creations retain separate B associations. Known captured donors and actual
+unknown alternatives remain separate, and unused inputs stay dormant.
+Completed local state, written captures, receivers and parameter activation
+require their own producers.
+Internal replacement-analysis tests use a private request gate to stop at the original
+source dispatch boundary when a staged member writer-input, returned-DATA,
+argument projection or authenticated native Call Effects consumer still requests
+recursive legacy recovery. The native boundary requires the original current
+Get owner to have published a genuine native branch. A method name, type or
+cached source recipe alone cannot trigger it. Passive DATA descriptions do not
+enter that ordinary collector fallback. The gate
+is unavailable on the wire and is off for ordinary requests. It does not change normal frames, identity analysis
+or unrelated strong selection owners. A missing migration consumer returns the
+existing coverage-gap error channel with its source operation, consumer, demand
+and attempted transition. Interrupted requests publish no code, source map or
+callable summaries, and their checker state is abandoned before reuse. Explicit
+runtime-unknown contributions remain ordinary represented source alternatives.
+The same boundary covers raw writer recovery from a live original source fact
+when no typed member loan is installed. Its exact issuing request, original
+Call/Get, physical cut, generation and current publisher authenticate only the
+diagnostic. Cached facts, copied issuers and expired publishers cannot supply
+that diagnostic context. Normal input/operation owners and DEFAULT keep their
+existing dispatch.
+
+Reflective writer relevance retains unknown-key uncertainty until its original
+receiver relation is decided. A complete, nonempty set of disjoint targets can
+exclude that candidate's key uncertainty. Ordering, deferred-activation and other
+negative relevance results do not provide that exclusion. Key and receiver
+acquisition still retain their effects, gaps and source requirements, including
+when the eventual mutation cannot reach the member being read.
+
+The callee-alternatives source role can retain a conditional standard method
+branch with its original construction, method, Get and physical observation cut.
+Its own-writer, eager-input, callee and source-set requirements remain separate.
+Local method accounting creates no invocation edge, selected Call result or
+normal-output authority. Each consuming member source has an exact parent-owned
+subscription. It preserves the method producer and its physical observation cut
+while retaining the parent C request and graph cut. Pending registration does not
+retire writer discovery. Only current local disposition delivery supplies that
+conditional exclusion, and its full source requirements remain required. Current
+source observation must be renewed in a new graph before the role can participate
+in delivery.
+Writer registration distinguishes reuse of a current source from requesting its
+supported description. Ordinary Get, constructor-callee and native-observer readers
+enroll their own parent dependencies and subscribers before yielding. The existing
+source task renews the original Get under its current fact publisher; an applied
+revision resumes the corresponding parent observation without replaying an ordinary
+collector or borrowing another reader's physical cut. Missing source descriptions
+and unsupported activations remain explicit obligations.
+
+Declaration-relative invocation-scope readers use the same live publisher registry
+and exact source-root transport. An initializer, default or captured binding keeps
+its authored acquisition cut; that cut cannot consume an enclosing native Get's
+physical C. The first actual source demand retains its exact root request on the
+live Effects issuer until that same selected or finishing Get can transfer it
+before sealing. Physical-C pending readers remain separate. Real delivery can
+wake the Get's existing source task. Only a current
+complete standard-method source and its applied root reader can retire invocation
+scope discovery. Registration and pending work grant no exclusion, normal value,
+returned DATA or physical Get receipt. A fresh graph rebuilds this association,
+and a sealed prefix cannot acquire a missing child after publication.
+A selected callee Get can own those SOURCE-root requirements independently of
+an ordinary Effects issuer. Its existing operation task observes a fresh original
+callee Get when the exact required semantic revisions change. Only the successful
+Get publisher records the immutable full-request readset and actual root delivery;
+an acknowledgement schedules work and cannot refresh that observation. Pending
+roots with no real selected Get task retain the original recovery path. This Get
+continuation grants no ordinary Call, input algorithm or returned-value rights.
+
+Selected native source consumers share the original callee Get traversal and
+selected-algorithm callback. Its query and child-callee loan end before any
+descendant description or ordinary adoption. Calling this traversal supplies
+no module argument-order lease; the original caller owns that separate phase.
+An actual complete Get can deliver its proof to that Get's already-adopted
+ticket before child input description completes. It creates no ticket or Call
+use, and does not adopt the child's algorithm or output. Ordinary adoption
+still pays a Get whose ticket is first registered later.
+
+Freeze's direct-input-invocation source role joins its original selected
+algorithm admission to a complete observation of the same callee Get. It says
+only that the algorithm does not directly call its argument. The whole Call,
+callee, source sets and used selection prerequisites remain required, including
+Proxy protocols and Throw. A cached description cannot supply the new graph's
+observation, and no argument category, output or no-user-entry law follows.
+A requested source executor requires the adopted writer-source task's current
+running interval and original fact publisher. It reuses that selected Get
+traversal without entering child inputs or an ordinary collector. A cached
+descriptor cannot authorize the executor or replace its actual Get observation.
+A member reader subscribes at its own contextual source request and graph cut.
+Local delivery can retire direct-input discovery while the full Freeze Call
+remains pending. The used premise retains both that full Call and the exact
+reader subscription; neither is replaced by the algorithm child.
+
+The private WeakMap method producer enters through the original no-argument
+construction and finishes after the original Get's writer traversal. Complete
+private-use coverage permits no own-method writer or escape exemption, and each
+receiver source must be covered independently. An early description retains the
+same required roles while pending. This Effects branch says that the standard
+get/set algorithm does not invoke the receiver, key or payload; mutation, Throw,
+stored DATA and returned receiver relationships retain their separate owners.
+Aggregate Get opacity does not pay or prevent this independently authenticated
+method law. It remains unchanged, with every original Get/source requirement
+retained; the method branch grants no Get output or selected-call authority.
+This method branch currently represents one direct receiver source. Multiple
+allocation sources and receivers supplied by an upstream Get retain pending
+source requirements until their complete original Get/container relationships
+are represented; a known inner allocation alone cannot pay those requirements.
+
+Refused writer exposure recovery issues these readings before installing an earlier
+Call's temporary acquisition cut. A transferred callee or actual remains pending
+source data. Other actuals still retain their known callable and capture relationships.
+A live original source description can register an unfinished parent before attaching
+its result reading. Only the original Get finish event supplies observation and local
+completion. Refused attachment leaves the live borrower's required prefix unchanged.
+A passive native result reader can consume an already reached producer's current
+strong Get receipt and guarded algorithm relationship. Its exact source-set reading
+must have a fresh observation. The original full Effects root remains required, and
+this local data disposition creates no operation IDs or ordinary parent use. Authored
+or unresolved Call alternatives still prevent the native ordinary-result premise.
+Writer exposure can use the selected algorithm's noncallable-result premise to
+exclude that component as a direct callable source. This consumer retains the
+exact producer root as a used selection prerequisite. An argument transfer is
+committed only after every component is covered, so a later pending component
+cannot leave a successful selection premise behind. Before a native parent is
+published, its original live member source can register the same generic DATA
+reading. Later parent publication preserves that reading and its original cut.
+A complete strong native Get retains the full child Effects root actually used
+for exclusion. Its broader descriptive member source is not an additional
+selection premise merely because the DATA reading was registered there. Raw
+target and returned-value consumers keep their DATA and source requirements.
+This handoff does not supply acquired receiver scopes or account for possible Proxy
+target Gets and traps. Those retain their original source consumers and requirements.
+Completed module algorithms have separate no-user-entry requirements. Descriptor-map
+conversion composes original enumeration, entry Gets and the six field laws.
+Freeze composes its ordinary-input relation with the child's algorithm law.
+The original canonical module Get also owns fresh selected descriptor-map input
+admission when its caller requests only that Get. Its bounded inert-input clause
+covers an empty target and the original two actuals with inert map construction
+and no key or import associations; descriptor conversion and implicit Gets retain
+their separate requirements. A later graph reuses the map's initial description
+through strict prefix validation, preserving ordered children and extraction.
+Graph identity exists before this event without adopting operation IDs. Adoption
+attaches the same Get task's exact dependency watchers. A new semantic dependency
+revision renews the original selected callback and complete Get, issuing a
+replacement eager receipt without rewriting the old semantic snapshot. ACKs
+can only complete matching recorded revisions; cached descriptions and physical
+probes cannot renew an observation.
+
+All-row direct-target and original fresh-target exclusions have distinct event
+provenance. The fresh-target callback can associate the exact module candidate,
+source set and physical cut before writer-row enumeration, retaining its creator,
+Get and algorithm-law debts. Strict description attachment never observes an
+event; a previously stamped unrelated association cannot authorize refinement.
+Clones retain descriptions without graph-local observations. Final source
+coverage, complete callee selection, every hidden-entry and eager law, and their
+current delivery must all hold before writer exclusion is published. Neither a
+callee-Get receipt nor the full Effects root establishes the whole Call's
+no-user-entry law. These module whole-call clauses supply no function or
+prior-activation capability.
+
+A separate function-owned path accounts for the original
+`Object.defineProperties({}, {x:{value:1}})` result passed through a same-activation
+binding to `Object.freeze(value)`. Its fresh selected-input receipt pays input
+construction accounting only; the module algorithm-law wrapper remains separate.
+Actual enumeration completion, accepted DATA entry reads and all six descriptor
+Has/Get-or-bypass owners retain their modeled alternative membership, exact source
+contexts, required prefixes and current delivery. Unknown normal values or presence
+do not alone imply unresolved implicit sources. Complete empty implicit-source
+membership and the original all-row direct-target exclusion must both hold before
+the exact reader candidate can be accounted. Bodies, unclassified alternatives and
+nonempty source contributions retain their pending requirements.
+
+A typed canonical callee-Get contribution uses only its own complete current
+all-MAY, no-user-entry Get proof. A full Freeze Call has a distinct read-relevance clause: current
+binding DATA must identify the original ordinary, non-Proxy initializer, and the
+complete all-MAY Freeze Get and eager input must be current. Its integrity-attribute changes cannot
+alter values, getter identity, prototype, keys or enumerability at the authenticated
+descriptor-map Enum/entry Get and six field Has/Get reads. Set, attribute and
+integrity consumers receive no such clause. Every Call/Get, input, creator, implicit
+operation and Throw debt remains required; neither clause grants whole-Call
+NoUser, normal output, object identity or binding authority.
+
+Current receipt validation preserves exact observed semantic revisions and full
+requests across real ACK completion. Repeated completion is idempotent, fresh
+semantic dependencies require a new original Get, and clones carry descriptions
+without observation authority. The unchanged Session incremental corpus covers
+global-store, named-module and named-local client/server initial, repeated, edited
+and fresh compilation with emitted Node checks. Stored/prior-function cases, G2,
+nonempty implicit-writer transfer and general count-one composition remain outside
+this qualification. The five unsafe source controls stop at upstream coverage
+refusals; their downstream rejection paths remain unqualified.
+
+Late input and result deliveries revalidate only Calls with an installed eager-input
+consumer wait. Initial classification, unrelated Calls and legacy binding ownership
+remain separate; retiring a wait requires the original current coverage.
+The full Effects roots remain required. Scalar algorithms with an existing
+inert-input no-user-entry law consume their original strong Get prerequisite in
+both module-prefix and implicit entry accounting. Composite algorithms retain
+their separate conversion and child-algorithm laws. Actual callee and prototype
+DATA Gets supply the zero-input constructor law. Under the original live construction Get,
+the genuine WeakMap constructor owns an immutable own `prototype` DATA slot.
+That local Get does not require generic writer result recovery or a NoWrites
+verdict. Constructor selection and receiver evaluation remain separate requirements,
+and mutable instance members retain their writer and protocol owners. Empty Effects and a conditional native
+category supply none of these laws. Argument evaluation remains an earlier,
+independent contribution, including computed keys and coercion.
+Initial descriptor-map enumeration has a separate after-arguments boundary. The
+same module-prefix owner handles ordinary static-name and primitive-key reference
+evaluation before its current Get or Set. Object-valued keys still require their
+own coercion contribution. A standard-library identifier alone cannot certify
+a global binding as a DATA read. Global accessors, foreign entry and shadowed
+bindings retain their independent original-owner obligations.
+An original complete constructor-prototype Get retains a graph-local receipt
+for its actual receiver, acquired constructor, physical cut and generation.
+Partial or unknown prototype Gets keep their source-set requirements instead.
+Neither receipt supplies a construction result or normal object identity.
+Closing source Effects preserves reached external alternatives. An arbitrary
+global-property Set can invoke a setter installed before module evaluation.
+Its runtime-unknown contribution therefore remains a placement constraint even
+when the New and Set source dependencies have all settled.
+The production map driver installs its map and writer scopes, then the shared member owner.
+That owner registers the original source-set child on the required own-writers phase
+before enumeration can yield from legacy interference recovery. The final source
+observation and every child still gate publication. An initial module OwnKeys prefix
+can exclude deferred source operations only before entry getters begin. Entry reads
+and field queries retain their own phase and source obligations. NoGet enumeration
+cannot invoke a stored writer value, and its withheld output supplies no property
+value, key population or absence proof.
+The fixed descriptor-field driver gives each original Has and Get its own
+source context, including the map-entry association. Their finite source-set
+children feed the existing own-writer and prototype roles. Stored descriptor
+bodies retain their original field producer instead of becoming executed Get
+or Call demands. A field read follows implicit conversion steps after argument
+evaluation, so its source context cannot reuse a callee or initial-enum
+no-user-entry disposition. Those predecessor laws remain separate requirements.
+Original ordinary Has, static own DATA Get and conditional intrinsic lookup
+owners publish distinct local entry laws. Initial ordinary-map OwnKeys and each
+accepted DATA entry read have separate laws as well. Graph-local receipts retain
+their exact field phase, entry association, physical cut and generation. Their
+immutable source descriptions cannot publish a receipt in a cloned graph.
+The existing dependency conjunction composes these laws with the original
+module prefix, source alternatives, prior descriptor fields and possible prior
+entry conversions. An unfinished getter, external alternative or predecessor
+keeps the dependent source contribution pending. Empty Effects, selected native
+categories and stored callable summaries do not supply these laws. This protocol
+grants no field value, property absence, runtime key order or normal output.
 Member alternatives keep their acquired source bindings and creator context through subsequent
 container and getter projection. Returning only their AST node would lose a writer-created
 closure's formal captures.
@@ -2299,3 +3676,9 @@ An authenticated native `Object.freeze` Call can publish an integrity event for 
 This source event supplies no typed-store allocation or source-body entry. Blocked source writes, deletion and incompatible redefinition retain incomplete completion instead of publishing successful mutation. Reflect and strict native outcomes remain distinct. Setter execution keeps its ordinary owner. An authenticated completed freeze event preserves its own accessor payload even when the enclosing property view has unresolved obligations. This operation-local fact prevents freeze itself from adding spurious setter opacity. It supplies no body purity or value completion, and independent unknown calls, arguments or setter effects remain uncertain.
 
 Definition-only, immutable hoisted helper calls can contribute their canonical graph edge without constructing occurrence results when the existing closed-capture and primitive-demand checks apply. Exact immutable formal forwarding uses the same effects-only relation, including a canonical returned render arrow that forwards its enclosing definition's formal. The graph solver retains known effects, unresolved input obligations and parameter writes. Moving an unavailable return value retains value incompleteness separately from execution opacity. Coercion keeps its own unknown effects. Defaults, rest inputs, replaced bindings, unrelated captures, asynchronous results and other value consumers keep their ordinary owners. This does not supply a runtime result, a NoWrites proof, an actual Call receipt or authority to share actual calls.
+
+A reached, unused call to a component's immutable local task arrow can own a declaration-MAY Effects edge without acquiring closure DATA when it has no authored arguments and only the authenticated erased policy parameter. The current lexical binding, component, task definition and original Call retain their identities; the canonical task summary still owns body effects, capture Gets, state dependencies and pending contributions. Graph reconstruction indexes the current callable facts before validating that association and rebuilding its required summary revision; this metadata setup does not register operation recipes or advance propagation. Source replacement, including an imported helper body edit beneath an unchanged component, rebinds task and helper effects without importing retired program/checker ownership. Reversing that helper edit retires its removed donor from both the declaration-MAY summary and public task effects; fresh and reused Sessions retain the same capture, state, placement and policy semantics.
+
+This bounded handoff supplies no captured value, creating input packet, normal result or completion receipt. Ordinary defaults, arguments, aliases, written or cross-activation bindings and value-consuming calls keep their existing owners. General captured binding DATA remains incomplete until its independent input requirements are represented, and the ordinary task capture, transport and placement checks still precede emission.
+
+Server-owned components use the same inert client boundary stub for private and exported function declarations and callable values. This preserves retained module-level component receipts while eliding the server implementation and its private imports; an existing partition edge still replaces its own child reference with a server slot. Semantic validation checks the complete client module before SDK publication.

@@ -8,8 +8,9 @@ import (
 // acquiredCallableScope preserves the traversal-local creating inputs and return occurrence
 // for one acquired alternative. It is not authority for other alternatives or later lookups.
 type acquiredCallableScope struct {
-	bindings sourceValueBindings
-	creators map[*ast.Node]sourceValueCreation
+	constructionCapture *sourceConstructionCallableValue // Source-only expected roles, never a creating B.
+	bindings            sourceValueBindings
+	creators            map[*ast.Node]sourceValueCreation
 }
 
 // accessorCandidates carries a bounded provenance proof. Exhaustion retains unknown effects.
@@ -17,6 +18,8 @@ type acquiredCallableScope struct {
 // Declaration selection alone is not an execution contribution. A nil operation
 // retains a conservative effect edge but can never fulfill an input disposition.
 type sourceCallableEffect struct {
+	use *ast.Node // Original contextual EFFECT parent only; operation identity remains separate.
+
 	operation, declaration *ast.Node
 	receivers              *sourceEffectReceivers
 }
@@ -29,6 +32,11 @@ type sourceAccessorMutation struct {
 }
 
 type accessorCandidates struct {
+	installedMemberReadings []sourceInstalledMemberRequirement   // detached original Get-to-field handoff
+	installedCallSelections []sourceInstalledCallSelectionSource // detached actual callee source descriptions
+	installedMemberPending  []sourceInstalledMemberPending       // exact compiler-owned phase requirement, not opacity
+	standardMemberTransfers []sourceStandardMemberTransfer       // source-only Get transfers, no execution authority
+
 	environmentEffects []EnvironmentEffectSource
 	contextEffects     []ContextEffect
 
@@ -138,6 +146,15 @@ func (query *sourceValueQuery) sourceAccessorOperationCandidates(receiver *ast.N
 	previous := query.protectedMember
 	query.protectedMember = operation
 	defer func() { query.protectedMember = previous }()
+	// The original callee owner lends a distinct source selector; absence does
+	// not invent source membership or broaden the definition-member factory.
+	restoreSelection := func() {}
+	if query.dependenciesOnly && query.initializing != nil {
+		if revoke, owned := query.beginInstalledSourceCallSelectionWork(query.initializing); owned {
+			restoreSelection = revoke
+		}
+	}
+	defer restoreSelection()
 	var reference *sourceGetReference
 	if query.dependenciesOnly {
 		reference = sourceGetReferenceFor(operation, receiver, path, name, mode)
@@ -149,6 +166,19 @@ func (query *sourceValueQuery) sourceAccessorOperationCandidates(receiver *ast.N
 		query.setterInput = query.sourceSetterRequest(operation, mode, arguments)
 	}
 	defer func() { query.setterInput = previousSetter }()
+	if query.memberReceiverPreparation == nil && query.memberReceiverPreparationEligible(reference, path, name, mode) {
+		// Only this original visitor issues preparation. A copied reference
+		// outside this stack interval cannot install or authenticate the loan.
+		prior := query.memberReceiverPreparation
+		preparation := sourceMemberReceiverPreparation{issuer: query, borrower: query.stagedMember, reference: reference, parent: query.stagedMember.request, cut: query.stagedMember.request.cut, queryCut: query.relativeInputCut(operation), bindingCall: query.normalBindingCall, publisher: query.executable.pendingMemberPublishers[query.effectOwner]}
+		query.memberReceiverPreparation = &preparation
+		defer func() {
+			if query.memberReceiverPreparation == &preparation {
+				query.memberReceiverPreparation = prior
+			}
+			preparation.issuer, preparation.borrower, preparation.reference, preparation.read, preparation.publisher = nil, nil, nil, nil, nil
+		}()
+	}
 	result := query.accessorsAtGetOutput(receiver, path, name, mode, arguments, nil, nil, nil, reference)
 	if operation != nil && operation.Parent != nil {
 		mutation := planMutationOperation(operation.Parent)
@@ -156,6 +186,7 @@ func (query *sourceValueQuery) sourceAccessorOperationCandidates(receiver *ast.N
 			query.retainThenOperation(operation.Parent, arguments, &result)
 		}
 	}
+	query.finishInstalledSourceCallSelection(&result)
 	return result
 }
 
@@ -227,6 +258,7 @@ func (query *sourceValueQuery) accessorsAtGet(receiver *ast.Node, path []string,
 // Initializer observations are sealed before transfer. Scope allocation identity
 // does not establish source identity, and cost accounting does not bound copying.
 func (query *sourceValueQuery) acquireCallableScope(arguments sourceValueBindings, result *accessorCandidates) acquiredCallableScope {
+	progressCount(query, tScopeAcquired, 1)
 	// Both maps remain writable and detached. Reserve their known entry counts
 	// so snapshot publication does not repeatedly grow and rehash them.
 	scope := acquiredCallableScope{bindings: make(sourceValueBindings, len(arguments)), creators: make(map[*ast.Node]sourceValueCreation, len(query.creators))}

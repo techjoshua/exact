@@ -7,7 +7,24 @@ import (
 
 // appendArgumentAccessorEffects instantiates shared callable demands, including returned closures.
 // Construction alone never executes a getter. The shared query retains captured receiver writes.
-func appendArgumentAccessorEffects(fact *callableFacts, node *ast.Node, targets map[*ast.Node]int, source *ast.SourceFile, c *checker.Checker, owner *executableBodyOwner, definition *sourceDefinitionMAYCall) accessorCandidates {
+func appendArgumentAccessorEffects(fact *callableFacts, node *ast.Node, targets map[*ast.Node]int, source *ast.SourceFile, c *checker.Checker, owner *executableBodyOwner, definition *sourceDefinitionMAYCall, delivered ...*sourceRelativeInputEdge) accessorCandidates {
+	return appendArgumentAccessorEffectsWithBodyEffects(fact, node, targets, source, c, owner, definition, nil, delivered...)
+}
+
+// appendArgumentAccessorEffectsWithBodyEffects retains the original three-appender
+// publication and borrows source-body accounting only during that same traversal.
+func appendArgumentAccessorEffectsWithBodyEffects(fact *callableFacts, node *ast.Node, targets map[*ast.Node]int, source *ast.SourceFile, c *checker.Checker, owner *executableBodyOwner, definition *sourceDefinitionMAYCall, observe func(sourceBodyEffectsObservation), delivered ...*sourceRelativeInputEdge) accessorCandidates {
+	return appendArgumentAccessorEffectsObserved(fact, node, targets, source, c, owner, definition, sourceEffectsObserver{body: observe}, delivered...)
+}
+
+// appendArgumentAccessorEffectsObserved keeps source body and original callee
+// accounting on one synchronous publisher. Ordinary callers install no callee
+// consumer and retain their existing candidate metadata unchanged.
+func appendArgumentAccessorEffectsObserved(fact *callableFacts, node *ast.Node, targets map[*ast.Node]int, source *ast.SourceFile, c *checker.Checker, owner *executableBodyOwner, definition *sourceDefinitionMAYCall, observe sourceEffectsObserver, delivered ...*sourceRelativeInputEdge) accessorCandidates {
+	defer finishDirectExposureProducer(fact, node, owner)
+	defer finishDescriptorFormalProducer(fact, node, owner)
+	finishProjection := beginDescriptorProducer(fact, node, targets, owner)
+	defer finishProjection()
 	if definition != nil && definition.registered(fact, node) {
 		// No occurrence value or completion is published. This empty local delta
 		// is NOT a neutral summary: the registered edge remains solver-owned.
@@ -21,7 +38,7 @@ func appendArgumentAccessorEffects(fact *callableFacts, node *ast.Node, targets 
 		return accessorCandidates{}
 	}
 	if fact.normalInputs == nil {
-		candidates := sourceInvocationDependencies(node, c, owner, fact.node)
+		candidates := sourceInvocationDependenciesObserved(node, node, c, owner, fact.node, nil, observe, delivered...)
 		appendOpaqueAccessorEffect(fact, candidates)
 		appendSourceValueWrites(fact, candidates, c)
 		appendAccessorTargets(fact, node, candidates, targets, source)

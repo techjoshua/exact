@@ -102,12 +102,7 @@ func TestTaskSubsystemGenericAndSetupSources(t *testing.T) {
 		for _, target := range []Target{TargetClient, TargetServer} {
 			t.Run(fmt.Sprintf("%s/%s", c.name, target), func(t *testing.T) {
 				r := NewSession().Execute(Request{Kind: "compile", ID: "task-subsystem-setup.tsx", Target: target, Diagnostics: "semantic", Source: `import {TaskContext,taskStatus,type Component} from '@exactjs/core';` + c.source})
-				if r.Error != "" || len(r.Diagnostics) != 0 || r.Code == "" {
-					for _, d := range r.Diagnostics {
-						t.Logf("%s %s", d.Code, d.Message)
-					}
-					t.Fatalf("supported setup scope rejected: %s", r.Error)
-				}
+				assertContinuationTaskCompilation(t, target, r)
 			})
 		}
 	}

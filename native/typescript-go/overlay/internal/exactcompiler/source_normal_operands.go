@@ -128,6 +128,10 @@ func (query *sourceValueQuery) consumeNormalOperand(demand sourceNormalOperand, 
 		admittedInput := false
 		acquired.callableScopes = make(map[int]acquiredCallableScope)
 		for _, value := range values {
+			if value.descriptorView != nil {
+				acquired.opaque = true
+				continue
+			}
 			normal := value.normal
 			if normal == nil || normal.owner != owner || normal.observed.inputs != inputs || normal.installed != nil || query.inputs != inputs {
 				acquired.opaque = true

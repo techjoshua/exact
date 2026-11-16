@@ -101,6 +101,11 @@ func collectTasks(
 		facts = sharedFacts[0]
 	}
 	var tasks []Task
+	workFacts := make(map[*ast.Node]taskSourceWorkFacts)
+	taskScopes := make(map[*ast.Node]bool)
+	var taskBindingCalls map[*ast.Node]*ast.Node
+	var taskTypeQueries map[string]bool
+	unknownTaskTypeQuery := false
 	var taskPolicyBindings externalImportBindings
 	if facts == nil {
 		taskPolicyBindings = collectExternalImportBindings(sourceFile, typeChecker)
@@ -111,8 +116,26 @@ func collectTasks(
 		if len(componentSignals(candidate, sourceFile)) == 0 {
 			continue
 		}
+		taskScopes[candidate.node] = true
 		invokedDefinitions := make(map[int]struct{})
 		walkNode(candidate.node, func(node *ast.Node) bool {
+			// Type queries survive in generated TypeScript even though the source
+			// execution index correctly excludes them from runtime value references.
+			if ast.IsTypeQueryNode(node) {
+				name := node.AsTypeQueryNode().ExprName
+				for ast.IsQualifiedName(name) {
+					name = name.AsQualifiedName().Left
+				}
+				if ast.IsIdentifier(name) {
+					if taskTypeQueries == nil {
+						taskTypeQueries = make(map[string]bool)
+					}
+					taskTypeQueries[name.Text()] = true
+				} else {
+					unknownTaskTypeQuery = true
+				}
+			}
+
 			var call *ast.CallExpression
 			var work *ast.Node
 			var facets []string
@@ -136,28 +159,60 @@ func collectTasks(
 			task.FunctionDefined = true
 			task.WorkStart = work.Pos()
 			task.WorkLength = work.End() - work.Pos()
+			sourceFacts, knownFacts := workFacts[work]
+			if !knownFacts {
+				sourceFacts.browser, sourceFacts.server, sourceFacts.receiver = taskEnvironmentEffects(work, sourceFile, typeChecker)
+				workFacts[work] = sourceFacts
+			}
+			task.BrowserEffects, task.ServerEffects = sourceFacts.browser, sourceFacts.server
+			var actuals []*ast.Node
+			if call != nil {
+				actuals = callArguments(node)
+			}
+			if call != nil {
+				task.activationSource = describeTaskActivationSource(node, work, candidate.node, sourceFile, typeChecker, callables.owner, &sourceFacts)
+				workFacts[work] = sourceFacts
+				if task.activationSource != nil {
+					if task.activationSource.hold != "" {
+						tasks = append(tasks, task)
+						return true
+					}
+					actuals = task.activationSource.actuals
+				}
+			}
 			if _, explicit := functionTaskPolicy(work, sourceFile, taskPolicyBindings); explicit &&
 				(work.Pos() < candidate.node.Pos() || work.End() > candidate.node.End()) {
 				task.Diagnostics = append(task.Diagnostics,
 					"error: function-defined tasks must be declared inside their owning component. Call shared helpers from a component-owned task")
 			}
 			task.Invoked = call == nil || taskRegistrationInsideNestedFunction(node, candidate.node)
-			task.ArgumentCount = len(work.Parameters())
+			if !task.Invoked {
+				if taskBindingCalls == nil {
+					taskBindingCalls = make(map[*ast.Node]*ast.Node)
+				}
+				if previous, exists := taskBindingCalls[node]; exists && previous != work {
+					taskBindingCalls[node] = nil
+				} else {
+					taskBindingCalls[node] = work
+				}
+			}
+			runtimeParameters := taskRuntimeParameters(work)
+			task.ArgumentCount = len(runtimeParameters)
 			if _, explicit := functionTaskPolicy(work, sourceFile, taskPolicyBindings); explicit {
 				task.ArgumentCount--
 			}
-			for _, parameter := range work.Parameters()[:task.ArgumentCount] {
+			for _, parameter := range runtimeParameters[:task.ArgumentCount] {
 				if parameter.AsParameterDeclaration().DotDotDotToken != nil {
 					task.Diagnostics = append(task.Diagnostics, "error: compiler-managed task parameters require fixed argument positions. Pass rest values as one array input and spread them inside the task when calling an ordinary helper")
 				}
 			}
 			if call != nil && call.Arguments != nil {
-				task.ActivationArgumentCount = min(len(call.Arguments.Nodes), task.ArgumentCount)
+				task.ActivationArgumentCount = min(len(actuals), task.ArgumentCount)
 			}
 			for _, capture := range taskCaptureRanges(work, task.ArgumentCount) {
 				task.CapturedParameters = append(task.CapturedParameters, capture.parameter)
 			}
-			if call != nil && call.Arguments != nil && len(call.Arguments.Nodes) > task.ArgumentCount {
+			if call != nil && call.Arguments != nil && len(actuals) > task.ArgumentCount {
 				task.Diagnostics = append(task.Diagnostics,
 					"error: application calls must omit the compiler-supplied TaskContext argument")
 			}
@@ -261,15 +316,14 @@ func collectTasks(
 				typeChecker,
 				dependencyExclusions,
 			)
-			if !task.Invoked && call.Arguments != nil && len(call.Arguments.Nodes) != 0 {
+			if !task.Invoked && len(actuals) != 0 {
 				task.Dependencies = functionTaskActivationDependencies(
-					call,
+					actuals,
 					task.ArgumentCount,
 					sourceFile,
 				)
 			}
-			task.BrowserEffects, task.ServerEffects =
-				taskEnvironmentEffects(work, sourceFile, typeChecker)
+			// Environment and receiver facts were collected once above, before activation routing.
 			if callable, exists := callables.byNode[work]; exists {
 				task.Reads = uniqueStateEffects(
 					append(
@@ -406,6 +460,7 @@ func collectTasks(
 		})
 	}
 	tasks = reuseInvokedFunctionTaskDefinitions(tasks)
+	prepareTaskBindingElision(facts, taskBindingCalls, workFacts, callables.owner, taskScopes, taskTypeQueries, unknownTaskTypeQuery)
 	sort.Slice(tasks, func(left int, right int) bool {
 		return tasks[left].Start < tasks[right].Start
 	})
@@ -497,16 +552,16 @@ func callableNodeForSummary(
 }
 
 func functionTaskActivationDependencies(
-	call *ast.CallExpression,
+	arguments []*ast.Node,
 	argumentCount int,
 	sourceFile *ast.SourceFile,
 ) []TaskDependency {
-	if call.Arguments == nil || argumentCount == 0 {
+	if arguments == nil || argumentCount == 0 {
 		return nil
 	}
-	count := min(argumentCount, len(call.Arguments.Nodes))
+	count := min(argumentCount, len(arguments))
 	result := make([]TaskDependency, 0, count)
-	for index, argument := range call.Arguments.Nodes[:count] {
+	for index, argument := range arguments[:count] {
 		path := strings.TrimSpace(sourceText(sourceFile, argument))
 		source := "derived"
 		switch {

@@ -29,23 +29,38 @@ func (query *sourceValueQuery) visitConstructedAccessor(demand sourceConstructed
 		result.opaque = true
 	}
 	if query.dependenciesOnly {
+		// Only a reached original New may have supplied this contribution. The
+		// ordinary source constructor/Proxy alternatives below remain independent.
+		transferStart := len(result.standardMemberTransfers)
+		if query.standardConstructionMember(demand, arguments, result, visit, visitOrigins) {
+			return // Original standard Set source; no normal constructor output.
+		}
 		selected := query.selectSourceConstruction(value, arguments, result)
 		known := false
+		transferComplete := len(selected.declarations) == 0 // authored constructor alternatives keep original recovery
+		for _, alternative := range selected.acquired.values {
+			if alternative.native != nil && alternative.native.kind != sourceNativeWeakMapConstructor {
+				transferComplete = false
+			}
+		}
 		for _, target := range selected.declarations {
 			if !ast.IsClassDeclaration(target) && !ast.IsClassExpression(target) {
 				// A function constructor can replace its instance with an object
 				// whose later Get is independent of constructor body effects.
 				if sourceFunctionConstructible(target) {
+					transferComplete = false
 					result.opaque, result.receiverIncomplete = true, true
 				}
 				continue
 			}
 			known = true
 			if !query.sourceConstructionFieldReceiver(value, target) && !query.sourceConstructionFieldsMayComplete(target, selected.scope.bindings) {
+				transferComplete = false
 				result.valueIncomplete = true
 				continue
 			}
 			if constructor := ast.GetFirstConstructorWithBody(target); constructor != nil && len(query.owner.summary(constructor).returns) > 0 {
+				transferComplete = false
 				// Constructor-return replacement has not established this result's
 				// lookup owner. Retain actual Get uncertainty beside known donors.
 				result.opaque, result.receiverIncomplete = true, true
@@ -55,6 +70,7 @@ func (query *sourceValueQuery) visitConstructedAccessor(demand sourceConstructed
 		if !known || selected.base.valueIncomplete {
 			result.opaque, result.receiverIncomplete = true, true
 		}
+		finishStandardConstructionGet(result, transferStart, value, transferComplete)
 		return
 	}
 	sourceInstance := false

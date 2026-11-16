@@ -8,6 +8,11 @@ import "github.com/microsoft/TypeScript/tsc/internal/ast"
 // normal-completion, storage and descriptor requirements. Unknown siblings stay
 // on the enclosing invocation and are never discharged by this dispatch.
 func (query *sourceValueQuery) consumeNativeInvocation(node *ast.Node, value sourceValue, bindings sourceValueBindings, consumer sourceInvocationConsumer, complete, exclusive, covered bool, result *accessorCandidates) {
+	// Exposure-only kinds never own an invocation algorithm or receipt.
+	if directExposureNative(value.native.kind) {
+		result.opaque, result.valueIncomplete = true, true
+		return
+	}
 	if value.native.kind == sourceNativeArrayPush {
 		if consumer.arrayPush != nil {
 			query.withActiveInvocation(node, func() { consumer.arrayPush(node, bindings, result) })
@@ -22,6 +27,14 @@ func (query *sourceValueQuery) consumeNativeInvocation(node *ast.Node, value sou
 			return
 		}
 		query.consumeNativeFreeze(node, value, exclusive, result)
+		return
+	}
+	if value.native.kind == sourceNativeObjectGetOwnPropertyDescriptor {
+		query.withActiveInvocation(node, func() {
+			revoke, _ := query.beginDescriptorSourcePhases(node, value)
+			defer revoke()
+			query.descriptorInvocationEffects(node, value, bindings, result)
+		})
 		return
 	}
 	if reflectiveNative(value.native.kind) {

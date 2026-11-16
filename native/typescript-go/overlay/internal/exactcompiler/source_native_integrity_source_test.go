@@ -36,7 +36,7 @@ func TestSourceFreezeRelationshipAuthority(t *testing.T) {
 		}
 		q := newSourceDependencyQuery(call, project.callableCache.owner.values.checker, project.callableCache.owner, body)
 		var values []sourceValue
-		part := q.projectSourceCallReturns(call, nil, func(value sourceValue, _ sourceValueBindings) { values = append(values, value) }, func() { t.Error("ordinary source return refused") })
+		part := q.projectSourceCallReturns(call, nil, sourceCallResultInterest{purpose: resultSourceProjection}, func(value sourceValue, _ sourceValueBindings) { values = append(values, value) }, func() { t.Error("ordinary source return refused") })
 		if part.opaque || len(values) != 1 || values[0].node != literal {
 			t.Fatalf("source relationship opaque=%v values=%d", part.opaque, len(values))
 		}
@@ -52,6 +52,20 @@ func TestSourceFreezeRelationshipAuthority(t *testing.T) {
 		for _, effect := range part.nativeDescriptorEffects {
 			if effect.verdict != sourceWriteTop {
 				t.Fatal("source descriptor Top became NoWrites")
+			}
+		}
+		// Selection incompleteness is a refusal at this operation, independent
+		// of output authority. An earlier cause remains its original producer.
+		callee := sourceValue{native: &sourceNativeValue{kind: sourceNativeObjectFreeze}}
+		for _, cause := range []*ast.Node{nil, literal} {
+			refused := accessorCandidates{cause: cause}
+			q.sourceFreezeRelationship(call, callee, nil, false, nil, &refused)
+			want := cause
+			if want == nil {
+				want = call
+			}
+			if !refused.opaque || refused.cause != want {
+				t.Fatal("freeze refusal lost its original operation", refused.opaque, refused.cause)
 			}
 		}
 		if _, found := q.acquireNormalCallResult(call, &accessorCandidates{}); found {

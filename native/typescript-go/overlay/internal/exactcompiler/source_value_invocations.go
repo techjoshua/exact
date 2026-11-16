@@ -11,6 +11,7 @@ import (
 // body or intrinsic resolver. A result observer never enrolls execution escapes
 // merely by selecting the same call. Both consumers keep actual input obligations.
 type sourceInvocationConsumer struct {
+	descriptorView func(sourceNativeDescriptorView, sourceValueBindings) // Typed result channel, never raw receiver/output.
 	// arrayPush consumes MAY mutation effects only, never a native result receipt.
 	arrayPush func(*ast.Node, sourceValueBindings, *accessorCandidates)
 	// native consumes an already acquired alternative, never a declaration lookup.
@@ -20,6 +21,9 @@ type sourceInvocationConsumer struct {
 	selection func(bool)
 	// sourceReturn receives only a selected source relationship, never native output.
 	sourceReturn func(sourceValue, sourceValueBindings)
+	// sourceView receives a framework storage relationship without flattening
+	// its donor into a sourceValue or changing ordinary result completeness.
+	sourceView func(sourceFrameworkStorageView, sourceValueBindings)
 	// callbackInputs contributes source-only MAY effects at this original native Call.
 	callbackInputs func(*ast.Node, sourceValueBindings, sourcePreparedInvocation, *accessorCandidates)
 	// construction consumes an acquired callable result without executing its body.
@@ -32,6 +36,8 @@ type sourceInvocationConsumer struct {
 }
 
 func (query *sourceValueQuery) invocation(node *ast.Node, bindings sourceValueBindings) (result accessorCandidates) {
+	query.claimDescriptorProducer(node)
+	defer func() { query.publishDescriptorNormalResults(node, &result) }()
 	defer query.normalWork(&result, node).finish(&result)
 	slot := query.normalOperation(node, false)
 	if slot != nil {
@@ -69,7 +75,7 @@ func (query *sourceValueQuery) invocation(node *ast.Node, bindings sourceValueBi
 	}()
 	return query.consumeInvocation(node, bindings, sourceInvocationConsumer{
 		selection:      func(value bool) { ownedComplete = value },
-		callbackInputs: query.nativeCallbackInputEffects,
+		callbackInputs: query.declaredCallbackInputEffects,
 		arrayPush:      query.nativeArrayPushEffects,
 		construction: func(body sourceInvocationBody, result *accessorCandidates) {
 			query.boundConstructionGets(node, body, result)
@@ -107,6 +113,8 @@ func (query *sourceValueQuery) consumeInvocation(node *ast.Node, bindings source
 		result.opaque, result.valueIncomplete, result.cause = true, true, node
 		return
 	}
+	query.requireStagedInvocationConsumer(node, consumer)
+	var memberPreparation sourcePendingMemberPreparation
 	complete := false
 	enrolled := false
 	enroll := func() {
@@ -119,6 +127,7 @@ func (query *sourceValueQuery) consumeInvocation(node *ast.Node, bindings source
 	// with known bodies enroll before any dependent body or settlement query.
 	defer enroll()
 	defer func() {
+		endPendingMemberPreparation(&memberPreparation, false)
 		if slot := query.normalOperation(node, false); slot != nil {
 			slot.selectionComplete = complete
 		}
@@ -180,10 +189,13 @@ func (query *sourceValueQuery) consumeInvocation(node *ast.Node, bindings source
 		}
 	} else {
 		var effects accessorCandidates
+		memberPreparation = query.beginPendingMemberPreparation(node, bindings)
 		prepared, effects = query.prepareInvocation(node, bindings)
+		endPendingMemberPreparation(&memberPreparation, true)
 		mergeAccessorCandidates(&result, effects)
 	}
 	mergeAccessorCandidates(&result, prepared.base)
+	query.publishPendingMemberSelection(node, bindings, prepared)
 	if consumer.callbackInputs != nil && query.dependenciesOnly {
 		consumer.callbackInputs(node, bindings, prepared, &result)
 	}
@@ -335,6 +347,9 @@ func (query *sourceValueQuery) consumeInvocation(node *ast.Node, bindings source
 		}
 		if declaration == nil || ast.GetSourceFileOfNode(declaration) == nil || ast.GetSourceFileOfNode(declaration).IsDeclarationFile {
 			complete = false
+			if consumer.sourceView != nil {
+				query.publishFrameworkStorageView(node, declarations, bindings, consumer.sourceView, &result)
+			}
 			continue
 		}
 		if !ast.IsFunctionLike(declaration) {
@@ -449,6 +464,8 @@ func (query *sourceValueQuery) invokeAcquired(body, node *ast.Node, bindings sou
 	if slot := query.normalOperation(node, false); slot != nil && slot.state == sourceOperationInProgress && slot.selected != nil && query.charge(result, node) {
 		query.installedReceiverCall = &sourceInstalledReceiverCall{slot: slot, operation: node, parent: query.inputs, inputs: inputs, selection: sourceInvocationBody{declaration: body, scope: scope, invocation: node, binding: binding}}
 	}
+	revokeSourceBody := query.beginInstalledCallBody(body, node, inputs, result)
+	defer revokeSourceBody()
 	consumer.body(body, inputs.bindings, inputs, nil, result)
 }
 
@@ -467,6 +484,8 @@ func (query *sourceValueQuery) receiverCandidates(call *ast.Node, bindings sourc
 	previous := query.initializing
 	query.initializing = call
 	defer func() { query.initializing = previous }()
+	releaseConstructionSelection := query.beginConstructionCallSelection(call)
+	defer releaseConstructionSelection()
 	result := accessorCandidates{}
 	query.withActiveInvocation(call, func() {
 		callee := unwrapSourceCallableReference(call.AsCallExpression().Expression)
@@ -743,6 +762,13 @@ func sourceNumericPrimitive(node *ast.Node) bool {
 // prepareInvocation is the existing selection owner, split before input/default
 // dispatch. Retained alternatives cannot be retargeted by argument writes.
 func (query *sourceValueQuery) prepareInvocation(node *ast.Node, bindings sourceValueBindings) (sourcePreparedInvocation, accessorCandidates) {
+	releaseConstructionInterest := query.beginConstructionCallInterest(node)
+	defer releaseConstructionInterest()
+	if query.stagedNativeGet != nil {
+		query.stagedNativeGet.legacyPrepared = true
+	}
+	progressCount(query, tPrepare, 1)
+	progressFrontier(query, node, 3)
 	result := accessorCandidates{}
 	// A binding declaration remains an unsupported invocation operation,
 	// never a Call selected by this fallback.
@@ -905,6 +931,9 @@ func (query *sourceValueQuery) consumeOrdinaryBody(node, body *ast.Node, capture
 		result.valueIncomplete = true
 	} else {
 		result.retainCallableEffect(node, body)
+		// Retain parent-use description before any original body callback can
+		// publish this contribution. The actual child operation stays unchanged.
+		result.effects[len(result.effects)-1].use = query.componentAssignmentEffectUse(node)
 		if query.dependenciesOnly {
 			index := len(result.effects) - 1
 			receivers := query.sourceEffectReceiverBindings(result.effects[index], inputs, result)
@@ -913,6 +942,17 @@ func (query *sourceValueQuery) consumeOrdinaryBody(node, body *ast.Node, capture
 	}
 	if query.dependenciesOnly {
 		query.consumeSourceBodyEffects(node, body, captures, inputs, invocation, result)
+		if producer := query.descriptorProducerAt(node); producer != nil {
+			query.projectSelectedSourceReturns(body, node, captures, inputs, result, func(value sourceValue, bound sourceValueBindings) {
+				query.publishDescriptorValue(producer, value, bound)
+			}, func() {
+				for _, row := range producer.fact.pendingMembers.descriptorProjections {
+					if row.value == node {
+						row.blocked = true
+					}
+				}
+			})
+		}
 		return
 	}
 	if inputs != nil {

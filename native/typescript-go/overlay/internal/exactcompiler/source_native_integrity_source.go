@@ -6,9 +6,27 @@ import "github.com/microsoft/TypeScript/tsc/internal/ast"
 // return relationship. It cannot publish integrity, descriptor or normal-output
 // evidence. Callee replacement and interference remain with canonical selection.
 func (q *sourceValueQuery) sourceFreezeRelationship(site *ast.Node, callee sourceValue, bindings sourceValueBindings, calleeComplete bool, project func(sourceValue, sourceValueBindings), result *accessorCandidates) {
-	if !q.dependenciesOnly || callee.native == nil || callee.native.kind != sourceNativeObjectFreeze {
+	q.sourceFreezeRelationshipObserved(site, callee, bindings, calleeComplete, project, result, nil)
+}
+
+func (q *sourceValueQuery) sourceFreezeRelationshipObserved(site *ast.Node, callee sourceValue, bindings sourceValueBindings, calleeComplete bool, project func(sourceValue, sourceValueBindings), result *accessorCandidates, observed func(sourceValue, sourceValueBindings, *accessorCandidates)) {
+	// A local refusal belongs to this original freeze operation. Keep an
+	// earlier producer's cause, and do not publish the same operation again as
+	// an unrelated unlocated unknown when selection becomes more precise.
+	refuse := func() {
 		result.opaque = true
+		if result.cause == nil {
+			result.cause = site
+		}
+	}
+	if !q.dependenciesOnly || callee.native == nil || callee.native.kind != sourceNativeObjectFreeze {
+		refuse()
 		return
+	}
+	if project == nil {
+		if producer := q.descriptorProducerAt(site); producer != nil {
+			project = func(value sourceValue, bound sourceValueBindings) { q.publishDescriptorValue(producer, value, bound) }
+		}
 	}
 	plan := planOrdinaryInvocation(site.AsCallExpression().Expression, restrictedInvocationArguments(site.AsCallExpression()), q.owner.checker, func(node *ast.Node) bool { return q.charge(result, node) })
 	q.materializeInvocationVectors(site, plan, bindings, result)
@@ -18,14 +36,14 @@ func (q *sourceValueQuery) sourceFreezeRelationship(site *ast.Node, callee sourc
 		sameVector = sameVector && i < len(actuals) && argument == actuals[i]
 	}
 	if !calleeComplete || plan.adapted && (!sameVector || plan.receiver != nil || len(plan.vectors) > 0) || len(plan.actuals) != 1 || callee.native.referencesIncomplete {
-		result.opaque = true
+		refuse()
 	}
 	for i, argument := range plan.actuals {
 		if !q.charge(result, argument) {
 			return
 		}
 		if ast.IsSpreadElement(argument) {
-			result.opaque = true
+			refuse()
 			continue
 		}
 		acquired := accessorCandidates{}
@@ -42,13 +60,16 @@ func (q *sourceValueQuery) sourceFreezeRelationship(site *ast.Node, callee sourc
 		// An immediate literal has ordinary own-property integrity operations. This
 		// environmental effect contract does not prove its descriptors or identity.
 		if !ast.IsObjectLiteralExpression(unwrapSourceCallableReference(argument)) || len(values) == 0 {
-			result.opaque = true
+			refuse()
 		}
 		if project != nil {
 			for _, value := range values {
 				if value.capture == nil {
 					scope := q.acquireCallableScope(bindings, result)
 					value.capture = &scope
+				}
+				if observed != nil {
+					observed(value, bindings, &acquired)
 				}
 				// Matching this alternative's own input/output cannot enroll the
 				// same Call as an independent writer. This borrow issues no proof.

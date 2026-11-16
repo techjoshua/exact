@@ -253,10 +253,17 @@ func taskEnvironmentEffects(
 	work *ast.Node,
 	sourceFile *ast.SourceFile,
 	typeChecker *checker.Checker,
-) (bool, bool) {
+) (bool, bool, taskReceiverFacts) {
+	receiverFacts := taskReceiverFacts{}
 	browser := false
 	server := false
 	walkNode(work, func(node *ast.Node) bool {
+		if node.Kind == ast.KindThisKeyword && helperOwnsReceiver(node, work) {
+			receiverFacts.usesThis = true
+		}
+		if ast.IsIdentifier(node) && node.Text() == "arguments" && !ast.IsDeclarationName(node) && !isStaticPropertyName(node) && helperOwnsReceiver(node, work) {
+			receiverFacts.usesArguments = true
+		}
 		if !ast.IsIdentifier(node) || ast.IsDeclarationName(node) ||
 			isStaticPropertyName(node) {
 			return true
@@ -276,7 +283,7 @@ func taskEnvironmentEffects(
 		}
 		return true
 	})
-	return browser, server
+	return browser, server, receiverFacts
 }
 
 // isStaticPropertyName excludes property labels from value-reference analysis. A computed

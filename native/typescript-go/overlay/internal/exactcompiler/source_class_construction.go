@@ -130,6 +130,7 @@ func (q *sourceValueQuery) selectSourceConstructionReference(reference, site *as
 		defer func() { q.initializing = previous }()
 	}
 	selected := &sourcePreparedInvocation{scope: q.acquireCallableScope(bindings, result)}
+	q.lendStandardConstructionSelection(site, selected)
 	if possibleProxyReference(q.owner, reference) {
 		part := q.accessors(reference, nil, "", accessorAcquire, bindings, nil)
 		selected.acquired = selectionProjection(part)
@@ -171,6 +172,7 @@ func (q *sourceValueQuery) selectSourceConstructionReference(reference, site *as
 		part := q.accessors(reference, nil, "", accessorAcquire, bindings, nil)
 		mergeAccessorCandidates(result, part)
 		selected.base.valueIncomplete = part.opaque || part.valueIncomplete || part.receiverIncomplete
+		selected.acquired = selectionProjection(part)
 		values = part.values
 	} else {
 		values = q.originsAt(reference, site, bindings, result)
@@ -469,7 +471,7 @@ func (q *sourceValueQuery) consumeClassFieldDemands(destinationInstance *sourceC
 				destination := inputs.ownedFact
 				if destination != nil && destinationInstance.live(q) && destination == destinationInstance.inputs.ownedFact && destination.node == q.effectOwner && destination.normalInputs != nil && destination.normalInputs.ownedFact == destination && destination.normalInputs.operationLifetime != nil {
 					beforeSources, beforeContexts := len(destination.summary.DirectEffectSources), len(destination.directContext)
-					appendDirectReferenceEffects(destination, demand.node, ast.GetSourceFileOfNode(demand.node), q.owner.checker)
+					appendDirectReferenceEffects(destination, demand.node, ast.GetSourceFileOfNode(demand.node), q.owner.checker, q.executable)
 					q.recordEstimatedCost(len(destination.summary.DirectEffectSources) - beforeSources + len(destination.directContext) - beforeContexts)
 				}
 			}

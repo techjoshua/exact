@@ -225,6 +225,13 @@ func (query *sourceValueQuery) completeDescriptorConversion(op *sourceReflective
 func cloneSourceFieldCall(call sourceFieldCall) sourceFieldCall {
 	call.calls = append([]sourceCallOutcome(nil), call.calls...)
 	call.outcomes = append([]sourceFieldOutcome(nil), call.outcomes...)
+	for i := range call.outcomes {
+		if installed := call.outcomes[i].installedMember; installed != nil {
+			copy := *installed
+			copy.application = *cloneInstalledMemberApplication(&installed.application)
+			call.outcomes[i].installedMember = &copy
+		}
+	}
 	call.descriptorEffects = append([]sourceDescriptorEffectOutcome(nil), call.descriptorEffects...)
 	return call
 }

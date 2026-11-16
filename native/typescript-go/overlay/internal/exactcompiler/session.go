@@ -34,15 +34,26 @@ func NewSession() *Session {
 }
 
 // Execute handles one request while retaining reusable native source state.
-func (s *Session) Execute(request Request) Response {
+func (s *Session) Execute(request Request) (response Response) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	defer func() {
+		if failure := recover(); failure != nil {
+			gap, owned := failure.(stagedReplacementGap)
+			if !owned {
+				panic(failure)
+			}
+			gap.project.abandoned = true
+			response = newSessionResponse(request.ID)
+			response.Error = gap.Error()
+		}
+	}()
 	if request.Kind == "executable-slots" {
 		return executableSyntaxSlots(request, newSessionResponse(request.ID), time.Now())
 	}
 	defer s.pruneAuthoredValidations()
 	started := time.Now()
-	response := s.executeLocked(request)
+	response = s.executeLocked(request)
 	if s.checkExecutableAuthoredTypes(request, &response) {
 		response.Timings.TotalMicroseconds = time.Since(started).Microseconds()
 	}
@@ -184,6 +195,10 @@ func (s *Session) executeProjection(request Request, authored *authoredCheckProg
 	}
 
 	projectKey := nativeProjectKey(request, fileName)
+	if request.stagedReplacement {
+		// Replacement runs cannot reuse facts accepted through legacy recovery.
+		projectKey += ":staged-replacement"
+	}
 	programStarted := time.Now()
 	project := s.projects[projectKey]
 	if project == nil {
@@ -439,6 +454,7 @@ func (s *Session) executeProjection(request Request, authored *authoredCheckProg
 	)
 	response.Timings.SourceMicroseconds = time.Since(analysisStarted).Microseconds()
 	callableStarted := time.Now()
+	generation.sourceJSXConstruction = describeSourceJSXConstruction(generation, request)
 	callables := collectProjectCallableEffects(
 		project,
 		sourceFile,
@@ -450,6 +466,11 @@ func (s *Session) executeProjection(request Request, authored *authoredCheckProg
 		assets,
 		request.AssetRules,
 	)
+	if len(callables.pending) != 0 {
+		response.Timings.CallableMicroseconds = time.Since(callableStarted).Microseconds()
+		response.Error = stagedPublicationError(callables.pending)
+		return response
+	}
 	helperMutations := planHelperMutations(sourceFile, callables, generation.checker)
 	response.Timings.CallableMicroseconds = time.Since(callableStarted).Microseconds()
 	policyTaskStarted := time.Now()
@@ -467,6 +488,10 @@ func (s *Session) executeProjection(request Request, authored *authoredCheckProg
 		callables,
 		analysisFacts,
 	)
+	if gap := taskActivationCoverageError(tasks, sourceFile, generation.checker); gap != "" {
+		response.Error = gap
+		return response
+	}
 	tasks = append(
 		tasks,
 		collectSetupResourceTasks(

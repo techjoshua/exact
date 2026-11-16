@@ -35,6 +35,9 @@ const (
 
 // Request is one newline-delimited command accepted by a Session.
 type Request struct {
+	// stagedReplacement is an internal migration harness gate, never a wire option.
+	stagedReplacement bool
+
 	Analysis                    AnalysisOptions             `json:"analysis,omitempty"`
 	TraceAnalysisCost           bool                        `json:"traceAnalysisCost,omitempty"`
 	ID                          string                      `json:"id,omitempty"`
@@ -490,10 +493,13 @@ type ContextEffect struct {
 
 // EnvironmentEffectSource explains one browser, server, or unresolved placement requirement.
 type EnvironmentEffectSource struct {
-	Environment          string   `json:"environment"`
-	Description          string   `json:"description"`
-	Path                 []string `json:"path"`
-	Opaque               bool     `json:"-"`
+	relativeMutation     *sourceRelativeFieldMutation // Private typed SOURCE obligation; not invoked input or normal output.
+	relativeCoercion     *sourceRelativeCoercion      // implicit input operation, independent from invocation
+	relativeInput        *sourceRelativeInvokedInput  // declaration-relative effect requirement, never a value receipt
+	Environment          string                       `json:"environment"`
+	Description          string                       `json:"description"`
+	Path                 []string                     `json:"path"`
+	Opaque               bool                         `json:"-"`
 	provenanceIncomplete bool
 	callOrigin           *sourceCallOutcome
 	callForwarded        bool
@@ -505,6 +511,8 @@ type EnvironmentEffectSource struct {
 
 // CallEdge describes one statically resolved or unresolved callable dependency.
 type CallEdge struct {
+	sourceUse *ast.Node // Private original source EFFECT parent; no target/value/execution authority.
+
 	ID               string            `json:"id"`
 	Name             string            `json:"name"`
 	TargetID         string            `json:"targetId,omitempty"`
@@ -603,6 +611,7 @@ type SourceSpan struct {
 
 // Task identifies one component task registration and its authored facets.
 type Task struct {
+	activationSource        *taskActivationSource // Private original source description; never a runtime/graph loan.
 	helperCaptures          []invokedTaskCapture
 	localReads              []taskCaptureRange
 	potentialLocalReads     []taskCaptureRange

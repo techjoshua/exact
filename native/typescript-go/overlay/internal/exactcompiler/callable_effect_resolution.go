@@ -488,17 +488,33 @@ func receiverTypeEnvironment(
 	return ""
 }
 
-func resolveCallableEffects(facts []callableFacts, owners ...*executableBodyOwner) {
+func resolveCallableEffects(facts []callableFacts, owners ...*executableBodyOwner) []sourceStagedPending {
 	var mapOwner *executableBodyOwner
 	if len(owners) == 1 {
 		mapOwner = owners[0]
 	}
+	work := callableEffectWork{extracting: -1}
+	return resolveCallableEffectsWithWork(facts, mapOwner, &work)
+}
+
+func resolveCallableEffectsWithWork(facts []callableFacts, mapOwner *executableBodyOwner, work *callableEffectWork) []sourceStagedPending {
+	restoreWriterInputs := registerWriterInputFacts(mapOwner, facts, work)
+	defer restoreWriterInputs()
+	work.prepareTaskReferenceEffects(facts, mapOwner)
+	drainDirectExposures(facts, mapOwner)
+	drainDescriptorProjections(facts)
+	consumeSourceWriterValues(facts, mapOwner)
+	work.prepareOperationUses(facts, mapOwner)
+	work.prepareSourceInputConsumers(facts, mapOwner)
+	work.prepareRelativeInvocations(facts, mapOwner)
+	work.prepareRelativeCoercions(facts)
 	cycles := callableCycleGroups(facts)
-	work := newCallableEffectWork(facts)
+	work.initializePropagation(facts)
 	changed := true
 	for changed {
 		changed = false
 		for index := range facts {
+			work.refreshPendingMembers(facts, index)
 			if !work.dirty[index] {
 				continue
 			}
@@ -512,7 +528,7 @@ func resolveCallableEffects(facts []callableFacts, owners ...*executableBodyOwne
 			)
 			unresolved := sources[:0]
 			for _, source := range sources {
-				if sourceObligationCoveredLocally(fact, source) {
+				if sourceObligationCoveredLocally(fact, source, work.installedMemberFieldOutcomeCurrent) {
 					continue
 				}
 				unresolved = append(unresolved, source)
@@ -541,30 +557,8 @@ func resolveCallableEffects(facts []callableFacts, owners ...*executableBodyOwne
 					if !edge.Resolved || edge.TargetID != target.ID {
 						continue
 					}
-					for _, source := range target.EffectSources {
-						if sourceObligationCoveredOnEdge(fact, &facts[targetIndex], edge, source) || mapInputFallbackFulfilled(fact, &facts[targetIndex], edge, source, mapOwner) || fieldFallbackFulfilled(fact, &facts[targetIndex], edge, source) || callFallbackFulfilled(fact, &facts[targetIndex], edge, source) || descriptorFallbackFulfilled(fact, &facts[targetIndex], edge, source) {
-							continue
-						}
-						transferred := source
-						operation := fact.callExpressions[edge.ID]
-						if operation == nil {
-							operation = fact.fieldEdgeOperations[edge.ID]
-						}
-						transferred = sourceDefaultPhaseEffect(transferred, operation, fact.node)
-						if len(source.Path) == 0 || source.Path[0] != fact.summary.Name {
-							transferred.Path = append([]string{fact.summary.Name}, source.Path...)
-						}
-						if transferred.callOrigin != nil {
-							transferred.callForwarded = true
-						}
-						if transferred.descriptorOrigin != nil {
-							transferred.descriptorForwarded = true
-						}
-						if transferred.fieldOrigin != nil {
-							transferred.fieldForwarded = true
-						}
-						sources = append(sources, transferred)
-					}
+					work.observeStagedSummary(facts, index, targetIndex, edge.ID)
+					sources = appendCallableEdgeEffectSources(sources, fact, &facts[targetIndex], edge, mapOwner, work.installedMemberFieldOutcomeCurrent)
 				}
 				reads = append(
 					reads,
@@ -627,16 +621,43 @@ func resolveCallableEffects(facts []callableFacts, owners ...*executableBodyOwne
 				factChanged = true
 			}
 			if factChanged {
+				work.stagedRevisions[index]++
+				changed = work.notifyPendingMemberDonors(facts, index) || changed
 				for _, caller := range work.callers[index] {
 					work.dirty[caller] = true
 					changed = changed || caller <= index
 				}
 			}
 		}
+		if resultsChanged := work.refreshStagedCallResults(facts, mapOwner); resultsChanged || work.inputDataChanged {
+			// A delivery from any existing operation owner can satisfy a prior
+			// DATA reading. Consume this notification before rerunning the same
+			// relative phase, so deliveries made by that phase remain queued.
+			work.inputDataChanged = false
+			work.refreshSourceInputConsumerWaits(facts, mapOwner)
+			work.prepareRelativeInvocations(facts, mapOwner)
+			changed = true
+		}
+		changed = work.refreshStagedMemberActivations(facts, mapOwner) || changed
+		// A later fact can deliver a new source relationship to an earlier
+		// owner. Observe its revision before deciding this pass is quiescent.
+		for index := range facts {
+			if work.refreshPendingMembers(facts, index) {
+				changed = true
+			}
+		}
+		// Resumptions and member activation can register installed getter bodies
+		// after initial preparation. Drain them before declaring quiescence.
+		changed = work.deliverInstalledFieldGetters(facts, mapOwner) || changed
 	}
+	work.refreshOperationPublication(facts)
+	return work.settleStagedPublication(facts, cycles)
 }
 
 func applyCallableArtifactConstraints(facts []callableFacts) {
+	if len(stagedPublicationPending(facts)) != 0 {
+		return
+	}
 	constraints := make([]uint8, len(facts))
 	for index := range facts {
 		for _, source := range facts[index].summary.EffectSources {
@@ -670,9 +691,18 @@ func applyCallableArtifactConstraints(facts []callableFacts) {
 // original effect publisher. Checker identity, context provenance and guarded
 // browser access stay shared by callable and actual field-initializer drivers.
 // This function neither executes a reference nor grants field/body admission.
-func appendDirectReferenceEffects(fact *callableFacts, node *ast.Node, sourceFile *ast.SourceFile, typeChecker *checker.Checker) {
-	sources, contexts := sourceReferenceEffects(node, fact.node, sourceFile, typeChecker, fact.summary.Name)
-	fact.summary.DirectEffectSources = append(fact.summary.DirectEffectSources, sources...)
+func appendDirectReferenceEffects(fact *callableFacts, node *ast.Node, sourceFile *ast.SourceFile, typeChecker *checker.Checker, owner *executableBodyOwner) {
+	if node == nil || !ast.IsIdentifier(node) || ast.IsDeclarationName(node) || isStaticPropertyName(node) {
+		return
+	}
+	sources, contexts, ambient := sourceCallArgumentReferenceEffects(fact, node, sourceFile, typeChecker, owner, nil, -1)
+	if ambient.reference == nil {
+		fact.summary.DirectEffectSources = append(fact.summary.DirectEffectSources, sources...)
+	} else {
+		for _, source := range sources {
+			appendOperationEffect(fact, source)
+		}
+	}
 	fact.directContext = append(fact.directContext, contexts...)
 }
 
@@ -683,8 +713,13 @@ func sourceReferenceEffects(node, boundary *ast.Node, sourceFile *ast.SourceFile
 	if node == nil || !ast.IsIdentifier(node) || ast.IsDeclarationName(node) || isStaticPropertyName(node) {
 		return nil, nil
 	}
+	return sourceBoundReferenceEffects(node, boundary, sourceFile, typeChecker, nameOfOwner, typeChecker.GetSymbolAtLocation(node))
+}
+
+// sourceBoundReferenceEffects reuses a classifier's original symbol lookup.
+// It preserves the existing global/context/default rules without another walk.
+func sourceBoundReferenceEffects(node, boundary *ast.Node, sourceFile *ast.SourceFile, typeChecker *checker.Checker, nameOfOwner string, symbol *ast.Symbol) (sources []EnvironmentEffectSource, contexts []ContextEffect) {
 	name := node.Text()
-	symbol := typeChecker.GetSymbolAtLocation(node)
 	if effect, ok := contextBindingReferenceEffect(symbol, sourceFile, typeChecker); ok {
 		contexts = append(contexts, effect)
 	}

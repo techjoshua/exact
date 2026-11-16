@@ -11,6 +11,12 @@ func sourceValuesNoncallable(values []sourceValue) bool {
 		return false
 	}
 	for _, value := range values {
+		if value.freezeLexical != nil {
+			return false
+		}
+		if value.descriptorView != nil {
+			return false
+		}
 		if value.undefined || value.copied != nil || value.rest != nil {
 			continue
 		}

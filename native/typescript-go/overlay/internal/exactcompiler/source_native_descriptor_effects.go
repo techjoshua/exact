@@ -10,6 +10,7 @@ const (
 	sourceStandardObjectEntry
 	sourceStandardObjectDefineProperty
 	sourceStandardObjectFreeze
+	sourceStandardLibraryMethodData
 )
 
 type sourceNativeDescriptorEffect struct {
@@ -36,6 +37,9 @@ func standardNativeDataSlot(value sourceValue, key string) sourceNativeDescripto
 	}
 	if value.native.kind == sourceNativeObjectConstructor && key == "defineProperty" {
 		return sourceStandardObjectDefineProperty
+	}
+	if value.native.kind == sourceNativeObjectConstructor && (key == "create" || key == "defineProperties" || key == "getOwnPropertyDescriptor") || value.native.kind == sourceNativeReflectObject && key == "defineProperty" || value.native.kind == sourceNativeSymbolConstructor && key == "for" {
+		return sourceStandardLibraryMethodData
 	}
 	if value.native.kind == sourceNativePromiseConstructor && key == "prototype" {
 		return sourceStandardPromisePrototype

@@ -79,6 +79,8 @@ func (q *sourceValueQuery) sourceProxyGetDependencies(site *ast.Node, path []str
 	if q.active[site] {
 		return
 	}
+	traceRelease := progressActiveCall(q, site, q.active[site])
+	defer traceRelease()
 	q.active[site] = true
 	defer delete(q.active, site)
 	operation := q.protectedMember

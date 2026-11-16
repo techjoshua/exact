@@ -106,7 +106,7 @@ func TestPendingCalleeSourceCaptures(t *testing.T) {
 		if clone.pendingCalleeOutput(call, initial) {
 			t.Fatal("query copy inherited capture borrow")
 		}
-		part := q.projectSourceCallReturns(call, initial, func(sourceValue, sourceValueBindings) { t.Error("pending capture output published") }, func() { t.Error("pending capture output dispatched") })
+		part := q.projectSourceCallReturns(call, initial, sourceCallResultInterest{purpose: resultSourceProjection}, func(sourceValue, sourceValueBindings) { t.Error("pending capture output published") }, func() { t.Error("pending capture output dispatched") })
 		if !part.opaque || !part.valueIncomplete || len(part.normalCalls) != 0 || len(part.nativeCalls) != 0 || len(part.fieldCalls) != 0 {
 			t.Fatal("capture refusal granted normal authority")
 		}

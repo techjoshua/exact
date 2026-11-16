@@ -19,6 +19,7 @@ func (q *sourceValueQuery) retainSelectedConstructionDependencies(site *ast.Node
 				continue
 			}
 			result.retainCallableEffect(site, target)
+			q.retainConstructorInputDependencies(site, target, selected, selected.scope.bindings, result)
 			continue
 		}
 		if q.active[target] {
@@ -65,7 +66,8 @@ func (q *sourceValueQuery) retainSelectedConstructionDependencies(site *ast.Node
 			}
 			// The default derived constructor forwards construction to its base.
 			// Explicit constructors retain their own body graph, including super calls.
-			if ast.GetFirstConstructorWithBody(target) != nil {
+			if constructor := ast.GetFirstConstructorWithBody(target); constructor != nil {
+				q.retainConstructorInputDependencies(site, constructor, selected, selected.scope.bindings, result)
 				return
 			}
 			var class *ast.ClassLikeBase
@@ -92,4 +94,21 @@ func (q *sourceValueQuery) retainSelectedConstructionDependencies(site *ast.Node
 			}
 		}()
 	}
+}
+
+// retainConstructorInputDependencies instantiates the existing source demand
+// plan with the original New's ordered actuals. It grants neither an instance
+// nor normal completion/output, and does not activate merely stored callbacks.
+func (q *sourceValueQuery) retainConstructorInputDependencies(site, constructor *ast.Node, selected *sourcePreparedInvocation, bindings sourceValueBindings, result *accessorCandidates) {
+	if !q.dependenciesOnly || site == nil || !ast.IsNewExpression(site) {
+		return
+	}
+	owner := enclosingCallableNode(constructor)
+	if owner != nil && owner != q.effectOwner && selected.scope.creators[owner].invocation == nil {
+		result.opaque = true
+		return
+	}
+	inputs := q.bindInvocationInputsAtScope(constructor, site, bindings, &selected.scope, result, false)
+	inputs.bindings[0] = []sourceValue{{node: site}}
+	q.executeInputs(constructor, inputs.bindings, result, nil, inputs)
 }

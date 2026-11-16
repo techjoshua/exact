@@ -57,6 +57,12 @@ func referencedFunctionTask(
 
 // Parentheses and type assertions do not turn a direct activation into a callback value.
 func functionTaskCallTarget(node *ast.Node) bool {
+	return functionTaskReferenceCall(node) != nil
+}
+
+// functionTaskReferenceCall returns the original call containing the same
+// transparent target reference. It neither resolves a target nor calls it.
+func functionTaskReferenceCall(node *ast.Node) *ast.Node {
 	current := node
 	for current.Parent != nil {
 		parent := current.Parent
@@ -73,7 +79,10 @@ func functionTaskCallTarget(node *ast.Node) bool {
 				continue
 			}
 		}
-		return ast.IsCallExpression(parent) && parent.AsCallExpression().Expression == current
+		if ast.IsCallExpression(parent) && parent.AsCallExpression().Expression == current {
+			return parent
+		}
+		return nil
 	}
-	return false
+	return nil
 }

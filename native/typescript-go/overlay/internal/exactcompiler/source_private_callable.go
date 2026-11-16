@@ -96,6 +96,10 @@ func privateUseCovered(node *ast.Node) bool {
 		return node.Kind != ast.KindUnknown && node.Kind != ast.KindWithKeyword
 	}
 	switch node.Kind {
+	// These declaration roots are erased too. The existing traversal still
+	// accounts for their children and all runtime references in the source.
+	case ast.KindInterfaceDeclaration, ast.KindTypeAliasDeclaration, ast.KindTypeParameter:
+		return true
 	case ast.KindSourceFile, ast.KindBlock, ast.KindEmptyStatement, ast.KindExpressionStatement,
 		ast.KindClassDeclaration, ast.KindClassExpression, ast.KindConstructor, ast.KindPropertyDeclaration, ast.KindNewExpression,
 		ast.KindVariableStatement, ast.KindVariableDeclarationList, ast.KindVariableDeclaration,
@@ -107,6 +111,12 @@ func privateUseCovered(node *ast.Node) bool {
 		ast.KindParenthesizedExpression, ast.KindAsExpression, ast.KindSatisfiesExpression, ast.KindNonNullExpression,
 		ast.KindTypeOfExpression, ast.KindVoidExpression, ast.KindPrefixUnaryExpression, ast.KindPostfixUnaryExpression,
 		ast.KindBinaryExpression, ast.KindConditionalExpression, ast.KindAwaitExpression,
+		// JSX is covered as source reference syntax only. The index still visits
+		// component tags, expressions, spreads and callbacks with their checker
+		// identities; this grants no JSX execution or preservation contract.
+		ast.KindJsxElement, ast.KindJsxSelfClosingElement, ast.KindJsxOpeningElement, ast.KindJsxClosingElement,
+		ast.KindJsxFragment, ast.KindJsxOpeningFragment, ast.KindJsxClosingFragment,
+		ast.KindJsxAttribute, ast.KindJsxAttributes, ast.KindJsxSpreadAttribute, ast.KindJsxExpression, ast.KindJsxNamespacedName,
 		ast.KindExportDeclaration, ast.KindNamedExports, ast.KindExportSpecifier, ast.KindExportAssignment:
 		return true
 	}
@@ -138,8 +148,21 @@ func (query *sourceValueQuery) privateDefinitionObserved(body *ast.Node, result 
 	if len(pop.unresolved[""]) != 0 || len(pop.unresolved[body.Name().Text()]) != 0 {
 		return false
 	}
+	// Component artifacts and their implicit framework entry are portable.
+	// A later completed semantic owner must veto an earlier private proof.
+	if _, component := query.owner.components[body]; component {
+		return false
+	}
 	if proof, ok := pop.proofs[body]; ok {
 		return proof
+	}
+	// Source-only consumers can precede component metadata publication. Reuse
+	// the compiler's canonical source classifier only as a conservative veto.
+	// Its immutable AST/source inputs share this generation-owned proof cache;
+	// no call, body execution or invocation authority is supplied by a signal.
+	if ast.IsFunctionDeclaration(body) && len(componentSignals(componentCandidate{name: body.Name().Text(), node: body}, source)) != 0 {
+		pop.proofs[body] = false
+		return false
 	}
 	// Query-local proof lookup is charged separately from generation indexing.
 	if !query.charge(result, body.Name()) {

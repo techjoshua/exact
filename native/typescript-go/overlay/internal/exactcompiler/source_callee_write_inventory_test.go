@@ -1,6 +1,7 @@
 package exactcompiler
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
@@ -268,13 +269,29 @@ func assertSourceCalleeInventoryReleased(t *testing.T, q *sourceValueQuery) {
 	}
 }
 
-func withSourceCalleeWriteQuery(t *testing.T, source string, inspect func(*sourceValueQuery, *ast.Node)) {
+func withSourceCalleeWriteQuery(t *testing.T, source string, inspect func(*sourceValueQuery, *ast.Node), packageTypes ...string) {
+	t.Helper()
+	withSourceCalleeWriteQueryStatus(t, source, inspect, false, packageTypes...)
+}
+
+// Pending-source controls inspect original producers before their required
+// algorithms are migrated. Public behavior controls retain the strict helper.
+// Only the causal coverage-gap response is permitted, with no partial artifacts.
+func withSourceCalleeWriteQueryStatus(t *testing.T, source string, inspect func(*sourceValueQuery, *ast.Node), allowPending bool, packageTypes ...string) {
 	t.Helper()
 	const id = "/virtual/callee-write-inventory.ts"
 	session := NewSession()
-	r := session.Execute(Request{Kind: "analyze", ID: id, Source: source, Diagnostics: "semantic"})
-	if r.Error != "" || hasErrorDiagnostic(r.Diagnostics) {
+	packageType := ""
+	if len(packageTypes) != 0 {
+		packageType = packageTypes[0]
+	}
+	r := session.Execute(Request{Kind: "analyze", ID: id, Source: source, PackageType: packageType, Diagnostics: "semantic"})
+	pending := allowPending && strings.HasPrefix(r.Error, "Compiler analysis coverage gap: required staged effect contribution")
+	if hasErrorDiagnostic(r.Diagnostics) || r.Error != "" && !pending {
 		t.Fatal(r.Error, r.Diagnostics)
+	}
+	if pending && (r.Code != "" || len(r.Analysis.Callables) != 0) {
+		t.Fatal("pending source control received partial artifacts")
 	}
 	for _, project := range session.projects {
 		file := project.program.GetSourceFile(id)
@@ -283,7 +300,7 @@ func withSourceCalleeWriteQuery(t *testing.T, source string, inspect func(*sourc
 		}
 		var call *ast.Node
 		walkNode(file.AsNode(), func(node *ast.Node) bool {
-			if ast.IsCallExpression(node) && enclosingCallableNode(node) != nil && callableNameText(enclosingCallableNode(node).Name()) == "invoke" {
+			if ast.IsCallExpression(node) && enclosingCallableNode(node) != nil && enclosingCallableNode(node).Name() != nil && callableNameText(enclosingCallableNode(node).Name()) == "invoke" {
 				call = node
 			}
 			return true

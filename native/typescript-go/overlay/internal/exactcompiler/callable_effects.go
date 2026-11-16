@@ -2,6 +2,7 @@ package exactcompiler
 
 import (
 	"fmt"
+	"maps"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -34,6 +35,12 @@ var universalCallRoots = map[string]struct{}{
 }
 
 type callableFacts struct {
+	staged sourceCallableExtractionFact
+
+	directExposurePublished map[*ast.Node]bool         // immutable original source effect publication events
+	pendingMembers          *sourcePendingMemberLedger // source-only exposure/relative dependencies, no live publication rights
+	writerInputs            *sourceWriterInputGraph    // declaration-owned exposure recipes, never acquired query results
+
 	callOutcomes []sourceCallOutcome
 
 	componentInputDemands   []sourceComponentInputDemand
@@ -75,7 +82,10 @@ type callableFacts struct {
 }
 
 type callableAnalysis struct {
+	sourceContext *callableSourceContext // Static source preparation, never graph observation authority.
+
 	owner     *executableBodyOwner
+	pending   []sourceStagedPending
 	summaries []CallableSummary
 	byNode    map[*ast.Node]CallableSummary
 	bySymbol  map[ast.SymbolId]CallableSummary
@@ -83,7 +93,7 @@ type callableAnalysis struct {
 }
 
 // projectCallableCache contains checker-bound facts for one exact program/checker generation.
-const advisoryAnalysisSemantics = 3
+const advisoryAnalysisSemantics = 7
 
 // Analysis semantics is separate from diagnostic threshold policy.
 type projectCallableCache struct {
@@ -118,100 +128,28 @@ func collectCallableEffects(
 	assets assetAnalysis,
 	owner *executableBodyOwner,
 ) callableAnalysis {
-	// Capture the descriptor request-mode fence independently of source
-	// contributions. It is not a live lease or execution receipt.
-	prefixMode := [32]byte{}
-	nodes := collectCallableNodes(sourceFile)
-	plans := map[*ast.Node]*closedOwnGetterPlan{}
-	declarations := map[*ast.Node]*ast.Node{}
-	for _, statement := range sourceFile.Statements.Nodes {
-		if !runtimeVariableInitializer(statement) {
+	prepared := prepareCallableSourceFacts(sourceFile, typeChecker, components, owner)
+	facts := prepared.facts
+	componentByStart := prepared.componentByStart
+	symbolTargets, syntacticTargets, nodeTargets := prepared.symbolTargets, prepared.syntacticTargets, prepared.nodeTargets
+	importBindings, contextBindings := prepared.importBindings, prepared.contextBindings
+
+	// Work preparation only indexes these genuine facts and queues extraction.
+	// Install its scope registrar before any original source publisher can run.
+	work := registerCallableEffectWork(facts)
+	restoreWriterInputs := registerWriterInputFacts(owner, facts, &work)
+	defer restoreWriterInputs()
+	installBuildingInitializers(owner, sourceFile, facts)
+	for {
+		task, available := work.nextExtraction()
+		if !available {
+			break
+		}
+		if task.operation.index != 0 {
+			work.extractOperation(facts, task, owner)
 			continue
 		}
-		if declaration, plan, ok := preflightModuleInitializer(owner, statement); ok {
-			plans[statement] = plan
-			declarations[statement] = declaration
-		}
-	}
-	sort.Slice(nodes, func(i, j int) bool { return nodes[i].Pos() < nodes[j].Pos() })
-	facts := make([]callableFacts, 0, len(nodes))
-	componentByStart := make(map[int]Component, len(components))
-	for _, component := range components {
-		componentByStart[component.Start] = component
-	}
-	symbolTargets := make(map[ast.SymbolId]int)
-	importBindings := collectExternalImportBindings(sourceFile, typeChecker)
-	// Reuse this analysis's selected components and imports before effect queries.
-	// Settlement must not rediscover all component bodies for each returned value.
-	if owner != nil && owner.values != nil {
-		if owner.values.components == nil {
-			owner.values.components = make(map[*ast.Node]externalImportBindings)
-		}
-		for _, node := range nodes {
-			if _, component := componentByStart[node.Pos()]; component {
-				owner.values.components[node] = importBindings
-			}
-		}
-	}
-	for _, node := range nodes {
-		name, kind, exportNames := callableIdentity(node, componentByStart)
-		index := len(facts)
-		facts = append(facts, callableFacts{
-			node:                   node,
-			initializerPlan:        plans[node],
-			initializerDeclaration: declarations[node],
-			sourceFile:             sourceFile,
-			descriptorMode:         prefixMode,
-			summary: CallableSummary{
-				ID: fmt.Sprintf(
-					"callable:%s:%d",
-					sourceFile.FileName(),
-					node.Pos(),
-				),
-				Name:                name,
-				Kind:                kind,
-				ExportNames:         nonNilSlice(exportNames),
-				DirectEffectSources: []EnvironmentEffectSource{},
-				EffectSources:       []EnvironmentEffectSource{},
-				Calls:               []CallEdge{},
-				ArtifactTargets:     []string{},
-				StateReads:          []StateEffect{},
-				StateWrites:         []StateEffect{},
-				Contexts:            []ContextEffect{},
-			},
-			callSymbols:       make(map[string]ast.SymbolId),
-			ownedScalarCalls:  make(map[string]bool),
-			callExpressions:   make(map[string]*ast.Node),
-			contextReferences: make(map[string]*ast.Node),
-		})
-		// A declarator evaluation is not the callable stored in its binding.
-		if kind != "module-initializer" {
-			if symbol := callableDeclarationSymbol(node, typeChecker); symbol != nil && !ast.IsGetAccessorDeclaration(node) && !ast.IsSetAccessorDeclaration(node) {
-				symbolTargets[ast.GetSymbolId(symbol)] = index
-			}
-			if binding := sourceCallableBinding(node); binding != nil {
-				if symbol := typeChecker.GetSymbolAtLocation(binding.Name()); symbol != nil {
-					symbolTargets[ast.GetSymbolId(symbol)] = index
-				}
-			}
-		}
-	}
-	bindCallableAliases(sourceFile, symbolTargets, typeChecker)
-	syntacticTargets := collectSyntacticCallableTargets(facts)
-	nodeTargets := make(map[*ast.Node]int, len(facts))
-	for index, fact := range facts {
-		nodeTargets[fact.node] = index
-	}
-	bindSyntacticCallableAliases(
-		sourceFile,
-		syntacticTargets,
-		symbolTargets,
-		typeChecker,
-	)
-	contextBindings := collectContextBindings(sourceFile, typeChecker)
-
-	installBuildingInitializers(owner, sourceFile, facts)
-	for index := range facts {
+		index := task.callable
 		if callableIsInteractiveHandler(facts[index].node) {
 			facts[index].summary.DirectEffectSources = append(
 				facts[index].summary.DirectEffectSources,
@@ -233,7 +171,9 @@ func collectCallableEffects(
 			contextBindings,
 			assets,
 			owner,
+			&work,
 		)
+		work.finishExtraction(facts, index)
 	}
 	for index := range facts {
 		if _, component := componentByStart[facts[index].node.Pos()]; component {
@@ -245,7 +185,9 @@ func collectCallableEffects(
 		facts[index].directOwnedScalarBlocked = facts[index].directOwnedScalarBlocked || !directScalarHelper(&facts[index], typeChecker)
 	}
 	facts = appendComponentBindingCallableFacts(facts, sourceFile, componentBindings)
-	resolveCallableEffects(facts, owner)
+	if pending := resolveCallableEffectsWithWork(facts, owner, &work); len(pending) != 0 {
+		return callableAnalysis{facts: facts, pending: pending}
+	}
 	applyCallableArtifactConstraints(facts)
 
 	summaries := make([]CallableSummary, len(facts))
@@ -363,31 +305,8 @@ func collectProjectCallableEffects(
 	assets assetAnalysis,
 	assetRules []AssetRule,
 ) callableAnalysis {
-	// Asset rules are request-owned. Reuse requires the same declaration contract,
-	// including for dependencies seeded before they become a requested source.
-	cacheNeedsPublication := project.callableCache != nil && !project.callableCache.owned[sourceFile] && project.callableCache.owner != nil && project.callableCache.owner.values != nil && (project.callableCache.owner.values.language == nil || project.callableCache.owner.values.language.disposed)
-	if !project.callableCache.ownsGeneration(project.program, typeChecker) || !sameCallableAssetRules(project.callableCache.assetRules, assetRules) || cacheNeedsPublication || stalePossibleProxyOriginCache(project.callableCache, project.activeGeneration) {
-		project.callableCache = &projectCallableCache{semantics: advisoryAnalysisSemantics, program: project.program, owner: newExecutableBodyOwner(project, typeChecker), assetRules: snapshotCallableAssetRules(assetRules), bySource: make(map[*ast.SourceFile]callableAnalysis), fingerprints: make(map[*ast.SourceFile]string), owned: make(map[*ast.SourceFile]bool)}
-	}
-	cache := project.callableCache
-	// Reused facts never retain the first request's checker lease capability.
-	cache.owner.values.generation = project.activeGeneration
-	cache.owner.values.index(sourceFile)
-	changed := false
-	// Seed the requested source from session-owned facts before discovering dependencies.
-	// This avoids analyzing it once provisionally and again with authoritative binding writes.
-	if !cache.owned[sourceFile] {
-		project.counters.CallableSourceAnalyses++
-		refreshed := collectCallableEffects(sourceFile, typeChecker, components, stateReads, stateWrites, componentBindings, assets, cache.owner)
-		fingerprint := callableAnalysisFingerprint(refreshed)
-		if fingerprint != cache.fingerprints[sourceFile] {
-			cache.bySource[sourceFile] = refreshed
-			cache.fingerprints[sourceFile] = fingerprint
-			changed = true
-		}
-		cache.owned[sourceFile] = true
-	}
-	if ensureProjectCallableSources(project, typeChecker, cache, assetRules) || changed || cache.analyses == nil {
+	cache, changed := prepareProjectCallableContexts(project, sourceFile, typeChecker, components, stateReads, stateWrites, componentBindings, assets, assetRules)
+	if changed {
 		rebuildProjectCallableCache(project.program, cache, cache.owner)
 	}
 	result := projectCallableAnalysisForSource(sourceFile, cache.merged)
@@ -400,6 +319,9 @@ func collectProjectCallableEffects(
 func projectCallableAnalysisForSource(source *ast.SourceFile, merged callableAnalysis) callableAnalysis {
 	result := merged
 	result.summaries = []CallableSummary{}
+	if len(result.pending) != 0 {
+		return result
+	}
 	for _, fact := range merged.facts {
 		if fact.sourceFile == source {
 			result.summaries = append(result.summaries, fact.summary)
@@ -423,11 +345,19 @@ func ensureProjectCallableSources(
 			strings.Contains(strings.ReplaceAll(sourceFile.FileName(), `\`, `/`), "/node_modules/") {
 			continue
 		}
-		if _, exists := cache.bySource[sourceFile]; exists {
+		prior, exists := cache.bySource[sourceFile]
+		if exists && sameSourceJSXMode(prior.sourceContext, project.activeGeneration, sourceFile) {
 			continue
 		}
 		project.counters.CallableSourceAnalyses++
-		analysis := analyzeProjectCallableSource(sourceFile, typeChecker, assetRules, cache.owner)
+		var analysis callableAnalysis
+		if context := prior.sourceContext; exists && context != nil {
+			// Keep the authoritative immutable source inputs while recollecting this
+			// changed semantic mode into a fresh project graph. No old C is edited.
+			analysis = prepareProjectCallableSource(sourceFile, typeChecker, context.components, context.reads, context.writes, context.bindings, context.assets, cache.owner)
+		} else {
+			analysis = analyzeProjectCallableSource(sourceFile, typeChecker, assetRules, cache.owner)
+		}
 		cache.bySource[sourceFile] = analysis
 		cache.fingerprints[sourceFile] = callableAnalysisFingerprint(analysis)
 		changed = true
@@ -449,7 +379,7 @@ func analyzeProjectCallableSource(
 		collectEnhancementImports(sourceFile, typeChecker, nil, 0),
 	)
 	writes = append(writes, bindingWrites...)
-	return collectCallableEffects(
+	return prepareProjectCallableSource(
 		sourceFile,
 		typeChecker,
 		components,
@@ -463,10 +393,14 @@ func analyzeProjectCallableSource(
 
 func callableAnalysisFingerprint(analysis callableAnalysis) string {
 	var result strings.Builder
+	for _, pending := range analysis.pending {
+		result.WriteString(fmt.Sprintf("|staged-pending:%p:%p:%p:%d:%p:%p:%p:%p:%p", pending.consumer, pending.producer, pending.operation, pending.reason, pending.cut.use, pending.cut.reading, pending.cut.initializing, pending.cut.returning, pending.cut.invoking))
+	}
 	for _, fact := range analysis.facts {
 		if fact.initializerDraft != nil {
 			result.WriteString(fact.initializerDraft.signature)
 		}
+		originalMutationBodyFingerprint(fact.staged.mutationBody, &result)
 		result.WriteString(fact.summary.ID)
 		result.WriteByte('|')
 		result.WriteString(fact.summary.Name)
@@ -488,6 +422,276 @@ func callableAnalysisFingerprint(analysis callableAnalysis) string {
 		result.WriteByte('\n')
 		for _, input := range fact.componentCallableInputs {
 			result.WriteString(fmt.Sprintf("|component-call-input:%p:%p:%p:%s", input.declaration, input.slot, input.operation, input.key))
+		}
+		// Sealed source atoms include independent requirements/dispositions, not
+		// merely equal environment donors. Graph IDs/cursors remain excluded.
+		for _, occurrence := range fact.staged.constructedOccurrences {
+			result.WriteString(fmt.Sprintf("|constructed-occurrence:%#v", occurrence))
+		}
+		for _, call := range fact.staged.calls {
+			if call.sourceInputs != nil {
+				result.WriteString(fmt.Sprintf("|source-call-inputs:%#v:%#v", descriptorFingerprintInvocation(call.sourceInputs.invocation, &result), descriptorFingerprintBoundInputs(call.sourceInputs.bindings, &result)))
+			}
+		}
+		for _, recipe := range fact.staged.operationRecipes {
+			for _, alternative := range recipe.delta.exposures {
+				if value := alternative.endpoint.constructionCallable; value != nil {
+					result.WriteString(constructionCallableFingerprint(value))
+				}
+				if value := alternative.endpoint.moduleConstruction; value != nil {
+					result.WriteString(fmt.Sprintf("|module-construction-data:%t", value.pending))
+					for _, field := range value.fields {
+						result.WriteString(fmt.Sprintf("|construction-field-data:%d:%t:%#v", field.ordinal, field.pending, field.alternatives))
+					}
+				}
+			}
+			descriptorTargetFingerprint(recipe.descriptorTarget, &result)
+			if recipe.descriptorSource != nil {
+				result.WriteString(fmt.Sprintf("|descriptor-source:%#v", *recipe.descriptorSource))
+			}
+			if recipe.nativeGet != nil && recipe.nativeGet.descriptorRead != nil {
+				result.WriteString(fmt.Sprintf("|descriptor-retrieval:%#v", *recipe.nativeGet.descriptorRead))
+			}
+			if recipe.nativeGet != nil && len(recipe.nativeGet.observerInputs) != 0 {
+				result.WriteString(fmt.Sprintf("|native-observer-inputs:%#v", recipe.nativeGet.observerInputs))
+			}
+			if source := recipe.declarationCall; source != nil {
+				result.WriteString(fmt.Sprintf("|declaration-call:%#v:%p:%p:%p", descriptorFingerprintInvocation(source.invocation, &result), source.inputs, source.sourceInputs, recipe.declarationCallGeneration))
+				for _, read := range source.ambientReads {
+					if read.reference == nil {
+						result.WriteString("|ambient-argument-read:invalid")
+						continue
+					}
+					result.WriteString(fmt.Sprintf("|ambient-argument-read:%p:%p:%p:%d:%#v:%p:%p:%p:%p:%p:%p", read.call, read.argument, read.owner, read.ordinal, read.cut, read.reference.declaration, read.reference.symbol, read.reference.source, read.reference.program, read.reference.checker, read.reference.config))
+				}
+
+			}
+			if source := recipe.constructionEffects; source != nil {
+				result.WriteString(fmt.Sprintf("|construction-effects:%#v", *source))
+			}
+			if source := recipe.assignment; source != nil {
+				result.WriteString(fmt.Sprintf("|assignment:%#v", *source))
+			}
+			if source := recipe.hasInstance; source != nil {
+				result.WriteString(fmt.Sprintf("|has-instance:%#v", *source))
+			}
+			if source := recipe.nativeGet; source != nil && source.effectsSource != nil {
+				result.WriteString(fmt.Sprintf("|native-effects-source:%#v", source.effectsSource))
+			}
+			fieldMutationDataFingerprint(recipe.mutationData, &result)
+			installedMutationRHSFingerprint(recipe.installedMutationRHS, &result)
+			for _, residual := range recipe.delta.residuals {
+				relativeFieldMutationFingerprint(residual.mutation, &result)
+			}
+			if source := recipe.memberSource; source != nil {
+				originalGetMutationInterestFingerprint(source.originalGetMutationInterest, &result)
+				originalGetMutationSourceFingerprint(source.originalGetMutation, &result)
+				if source.globalWrite != nil {
+					result.WriteString(fmt.Sprintf("|global-write:%#v", source.globalWrite))
+				}
+				if source.targetSource != nil {
+					description := *source.targetSource
+					description.preparation = nil // Fingerprint detached content, not the wrapper address.
+					result.WriteString(fmt.Sprintf("|reflective-target-source:%#v", &description))
+					if p := source.targetSource.preparation; p != nil {
+						result.WriteString(fmt.Sprintf("|reflective-target-preparation:%#v", *p))
+					}
+				}
+				if source.nativeWriter != nil {
+					result.WriteString(fmt.Sprintf("|native-writer-capability:%#v", source.nativeWriter))
+				}
+				if source.hasFreshTarget != nil {
+					result.WriteString(fmt.Sprintf("|has-fresh-target:%#v", source.hasFreshTarget))
+				}
+				if source.protocolSource != nil {
+					result.WriteString(fmt.Sprintf("|member-protocol-source:%#v:%p:%#v:%t:%t", source.protocolSource.required, source.protocolSource.external, source.protocolSource.get, source.protocolSource.setEffects, source.protocolSource.selfRead))
+					result.WriteString(fmt.Sprintf("|evaluation:%#v", source.protocolSource.evaluation))
+					result.WriteString(fmt.Sprintf("|native-argument:%#v", source.protocolSource.nativeArgument))
+				}
+				if source.call != nil {
+					result.WriteString(fmt.Sprintf("|member-call:%#v:%#v:%t:%#v:%#v:%#v", descriptorFingerprintAlternatives(source.call.values, &result), source.call.mapped, source.call.complete, source.call.standard, source.call.storage, source.call.sourceRequest))
+				}
+				if source.getPreparation != nil {
+					result.WriteString(fmt.Sprintf("|get-preparation:%t:%#v:%#v:%#v", source.getPreparation.plain, source.getPreparation.native, source.getPreparation.readings, source.getPreparation.targets))
+					result.WriteString(fmt.Sprintf("|get-preparation-data:%#v", source.getPreparation.data))
+				}
+				reflectiveContributionFingerprint(source.reflectiveContribution, &result)
+				descriptorStrongFingerprint(source.descriptorStrong, &result)
+				if source.getEffects != nil {
+					result.WriteString(fmt.Sprintf("|member-get-effects:%t:%#v", source.getEffects.accounted, source.getEffects.preparation))
+					if d := source.getEffects.descriptor; d != nil {
+						description := *d
+						view := descriptorFingerprintEndpoint(sourceRelativeEndpoint{kind: relativeEndpointDescriptorView, descriptorView: &description.view}, &result)
+						description.view = sourceNativeDescriptorView{}
+						result.WriteString(fmt.Sprintf("|descriptor-record-get:%#v:%#v", description, view))
+					}
+				}
+				candidate := source.candidate
+				candidate.target = descriptorFingerprintEndpoint(candidate.target, &result)
+				candidate.key = descriptorFingerprintEndpoint(candidate.key, &result)
+				candidate.value = descriptorFingerprintEndpoint(candidate.value, &result)
+				result.WriteString(fmt.Sprintf("|member-candidate:%#v:%#v:%#v:%t", source.request, candidate, descriptorFingerprintAlternatives(source.values, &result), source.writeEffects))
+			}
+			if source := recipe.nativeGet; source != nil && len(source.memberSources) != 0 {
+				result.WriteString(fmt.Sprintf("|native-member-sources:%#v:%#v", source.memberSources, source.callAlternatives))
+				result.WriteString(fmt.Sprintf("|member-get-contributions:%#v", source.getContributions))
+			}
+			if source := recipe.memberSource; source != nil && source.coverage != nil {
+				result.WriteString(fmt.Sprintf("|member-source-set:%#v:%p:%#v:%#v:%t", source.coverage.request, source.coverage.origin, source.coverage.cut, source.coverage.required, source.coverage.extracted))
+			}
+			if source := recipe.moduleArgument; source != nil {
+				snapshot := *source
+				snapshot.order = nil
+				result.WriteString(fmt.Sprintf("|module-argument:%#v", snapshot))
+			}
+			if source := recipe.callResult; source != nil {
+				if source.nativeDescriptor != nil {
+					result.WriteString(fmt.Sprintf("|descriptor-result-source:%#v", *source.nativeDescriptor))
+				}
+				getResult := source.getResult
+				if getResult != nil && getResult.frameworkResume != nil {
+					result.WriteString(fmt.Sprintf("|framework-get-resume:%#v", *getResult.frameworkResume))
+					copy := *getResult
+					copy.frameworkResume = nil
+					getResult = &copy
+				}
+				result.WriteString(fmt.Sprintf("|call-result:%#v:%p:%t:%#v:%#v:%#v:%#v:%#v", source.request, source.declaration, source.nativeCall, source.constructedRoot, source.readings, source.readCuts, source.inputReadings, getResult))
+				result.WriteString(fmt.Sprintf("|binding-data:%p|preparation-data:%#v", source.binding, source.preparationData))
+				if construction := source.moduleConstruction; construction != nil {
+					result.WriteString(fmt.Sprintf("|module-construction:%#v:%p:%p:%p:%t", construction.request, construction.binding, construction.initializer, construction.module, construction.unsupported))
+					result.WriteString(fmt.Sprintf("|local-construction:%p:%#v:%#v", construction.localOwner, construction.creationEffects, construction.scalar))
+					result.WriteString(constructionCallableSourceFingerprint(construction.scalarCallable))
+					for _, field := range construction.fields {
+						result.WriteString(fmt.Sprintf("|construction-field:%p:%p:%s:%d:%#v", field.property, field.operand, field.name, field.ordinal, field.required))
+						result.WriteString(constructionCallableSourceFingerprint(field.callable))
+						if field.literal != nil {
+							result.WriteString(fmt.Sprintf("|construction-literal:%#v", *field.literal))
+						}
+					}
+				}
+				if source.freezeReturn != nil {
+					result.WriteString(fmt.Sprintf("|freeze-return:%#v", *source.freezeReturn))
+				}
+				if source.operand != nil {
+					result.WriteString(fmt.Sprintf("|result-operand:%#v", descriptorFingerprintEndpoint(*source.operand, &result)))
+				}
+			}
+			if recipe.writer != nil {
+				result.WriteString(fmt.Sprintf("|writer-source:%#v:%#v:%p:%#v", recipe.writer.request, recipe.writer.parent, recipe.writer.generation, recipe.writer.reads))
+			}
+			if recipe.writer != nil {
+				result.WriteString(fmt.Sprintf("|writer-callable:%t", recipe.writer.callable))
+				for _, projection := range recipe.writer.projections {
+					if projection != nil {
+						result.WriteString(fmt.Sprintf("|writer-projection:%#v:%#v:%t", descriptorFingerprintDelta(projection.delta, &result), projection.pending, projection.resultContext))
+					} else {
+						result.WriteString("|writer-projection:pending")
+					}
+				}
+			}
+			if recipe.mapEntry != nil {
+				result.WriteString(fmt.Sprintf("|map-entry:%#v:%#v", recipe.mapEntry.entry, recipe.mapEntry.read))
+				if recipe.mapEntry.read != nil {
+					result.WriteString(fmt.Sprintf("|map-entry-bound:%#v", recipe.mapEntry.read.bound))
+				}
+			}
+			if recipe.entryLaw != nil {
+				result.WriteString(fmt.Sprintf("|entry-law:%#v", *recipe.entryLaw))
+			}
+			if recipe.mapProtocol != nil {
+				result.WriteString(fmt.Sprintf("|map-protocol:%#v", *recipe.mapProtocol))
+			}
+			result.WriteString(fmt.Sprintf("|writer-required:%#v", recipe.writerRequired))
+			if recipe.constructed != nil {
+				result.WriteString(fmt.Sprintf("|constructed-member:%#v:%#v:%#v", *recipe.constructed, recipe.constructedGroup, recipe.constructedInputs))
+				result.WriteString(fmt.Sprintf("|constructed-disposition:%#v", recipe.constructedDisposition))
+			}
+			result.WriteString(fmt.Sprintf("|operation-recipe:%#v:%p:%p:%#v", recipe.key, recipe.getter, recipe.returning, descriptorFingerprintDelta(recipe.delta, &result)))
+			for _, link := range recipe.fieldMutationLinks {
+				result.WriteString(fmt.Sprintf("|field-mutation-link:%#v:%#v:%#v:%#v:%d:%p", link.candidate, link.field, link.child, link.origin, link.kind, link.generation))
+				if link.nativeComponent != 0 {
+					result.WriteString(fmt.Sprintf("|native-mutation-component:%d", link.nativeComponent))
+				}
+				if link.nativeField != nil {
+					result.WriteString(fmt.Sprintf("|field-mutation-component:%#v", *link.nativeField))
+				}
+			}
+			for _, forward := range recipe.fieldForwards {
+				installedMutationRHSFingerprint(forward.mutationRHS, &result)
+				result.WriteString(fmt.Sprintf("|field-forward:%#v:%#v", forward.request, descriptorFingerprintAlternatives([]sourceStagedOperationAlternative{forward.alternative}, &result)[0]))
+				if forward.source != nil {
+					source := *forward.source
+					source.installation, source.eager, source.input, source.prototype, source.calleeEntry, source.inputInvocation, source.descriptorRead = nil, nil, nil, nil, nil, nil, nil
+					if source.descriptorMap != nil {
+						plan := *source.descriptorMap
+						plan.argumentOrder = nil
+						if plan.argumentSource != nil {
+							result.WriteString(fmt.Sprintf("|native-map-source:%#v", *plan.argumentSource))
+							plan.argumentSource = nil
+						}
+						result.WriteString(fmt.Sprintf("|native-map:%#v", plan))
+						source.descriptorMap = nil
+					}
+					result.WriteString(fmt.Sprintf("|forward-source:%#v", source))
+					if forward.source.inputInvocation != nil {
+						result.WriteString(fmt.Sprintf("|forward-input-invocation:%#v", *forward.source.inputInvocation))
+					}
+					if forward.source.prototype != nil {
+						result.WriteString(fmt.Sprintf("|forward-prototype:%#v", *forward.source.prototype))
+					}
+					if forward.source.input != nil {
+						result.WriteString(fmt.Sprintf("|forward-input:%#v", *forward.source.input))
+					}
+					if forward.source.eager != nil {
+						result.WriteString(fmt.Sprintf("|forward-eager-effects:%#v", *forward.source.eager))
+					}
+					if forward.source.installation != nil {
+						result.WriteString(fmt.Sprintf("|forward-installation:%#v", *forward.source.installation))
+					}
+				}
+			}
+			if recipe.nativeGet != nil {
+				source := *recipe.nativeGet
+				source.installation, source.eager, source.input, source.prototype, source.calleeEntry, source.inputInvocation, source.descriptorRead = nil, nil, nil, nil, nil, nil, nil
+				if source.descriptorMap != nil {
+					plan := *source.descriptorMap
+					plan.argumentOrder = nil
+					if plan.argumentSource != nil {
+						result.WriteString(fmt.Sprintf("|native-map-source:%#v", *plan.argumentSource))
+						plan.argumentSource = nil
+					}
+					result.WriteString(fmt.Sprintf("|native-map:%#v", plan))
+					source.descriptorMap = nil
+				}
+				result.WriteString(fmt.Sprintf("|native-get:%#v", source))
+				if recipe.nativeGet.inputInvocation != nil {
+					result.WriteString(fmt.Sprintf("|native-input-invocation:%#v", *recipe.nativeGet.inputInvocation))
+				}
+				if recipe.nativeGet.prototype != nil {
+					result.WriteString(fmt.Sprintf("|native-prototype:%#v", *recipe.nativeGet.prototype))
+				}
+				if recipe.nativeGet.input != nil {
+					result.WriteString(fmt.Sprintf("|native-input:%#v", *recipe.nativeGet.input))
+				}
+				if recipe.nativeGet.eager != nil {
+					result.WriteString(fmt.Sprintf("|native-eager-effects:%#v", *recipe.nativeGet.eager))
+				}
+				if recipe.nativeGet.installation != nil {
+					result.WriteString(fmt.Sprintf("|native-installation:%#v", *recipe.nativeGet.installation))
+				}
+			}
+		}
+		for _, use := range fact.staged.operationUses {
+			result.WriteString(fmt.Sprintf("|operation-use:%#v:%p", use.request, use.call))
+			if use.installed != nil {
+				result.WriteString(fmt.Sprintf("|installed-get:%#v", *use.installed))
+			}
+		}
+		for _, creation := range fact.staged.returnedCreations {
+			result.WriteString(fmt.Sprintf("|returned-creation:%p:%#v:%p:%#v", creation.binding, creation.recipe, creation.inputs, creation.uses))
+		}
+		for _, invoked := range fact.staged.returnedInvocations {
+			result.WriteString(fmt.Sprintf("|returned-invocation:%#v:%#v", invoked.alternative, invoked.later))
 		}
 		result.WriteString(environmentSourcesSignature(fact.summary.DirectEffectSources))
 		for _, call := range fact.fieldCalls {
@@ -545,9 +749,15 @@ func rebuildProjectCallableCache(
 		}
 		cache.analyses = append(cache.analyses, analysis)
 	}
-	defer func() { sealModuleInitializers(owner, cache.merged.facts) }()
+	defer func() {
+		if len(cache.merged.pending) == 0 {
+			sealModuleInitializers(owner, cache.merged.facts)
+		}
+	}()
 	cache.merged = callableAnalysis{}
-	if len(cache.analyses) == 1 && (owner == nil || owner.selection == nil) {
+	if hasPreparedProjectSources(cache.analyses) {
+		cache.merged = collectPreparedProjectCallableEffects(requested, cache, owner)
+	} else if len(cache.analyses) == 1 && (owner == nil || owner.selection == nil) {
 		cache.merged = cache.analyses[0]
 	} else if len(cache.analyses) > 0 {
 		cache.merged = mergeProjectCallableEffects(requested, cache.analyses, owner)
@@ -573,120 +783,10 @@ func mergeProjectCallableEffects(
 			symbolSummaryIDs[symbol] = summary.ID
 		}
 	}
-	factByNode := make(map[*ast.Node]int, len(facts))
-	factByID := make(map[string]int, len(facts))
-	exportedByModule := make(map[string]int)
-	for index := range facts {
-		factByID[facts[index].summary.ID] = index
-		factByNode[facts[index].node] = index
-		module := callableModuleKey(facts[index].sourceFile.FileName())
-		for _, exportName := range facts[index].summary.ExportNames {
-			exportedByModule[module+"\x00"+exportName] = index
-		}
-		facts[index].targets = nil
-
-		facts[index].summary.StateReads = append(
-			[]StateEffect(nil),
-			facts[index].directReads...,
-		)
-		facts[index].summary.StateWrites = append(
-			[]StateEffect(nil),
-			facts[index].directWrites...,
-		)
-		facts[index].summary.Contexts = append(
-			[]ContextEffect(nil),
-			facts[index].directContext...,
-		)
-		for edgeIndex := range facts[index].summary.Calls {
-			edge := &facts[index].summary.Calls[edgeIndex]
-			if _, symbolOwned := facts[index].callSymbols[edge.ID]; !symbolOwned &&
-				edge.Resolved && edge.TargetID != "" {
-				continue
-			}
-			edge.TargetID = ""
-			edge.Resolved = false
-		}
+	linkProjectCallableFacts(facts, symbolSummaryIDs, owner)
+	if pending := resolveCallableEffects(facts, owner); len(pending) != 0 {
+		return callableAnalysis{facts: facts, pending: pending}
 	}
-	applySourceOwnedObligations(facts, factByNode, owner.values)
-	for index := range facts {
-		facts[index].summary.StateWrites = append([]StateEffect(nil), facts[index].directWrites...)
-	}
-	for factIndex := range facts {
-		fact := &facts[factIndex]
-		for edgeIndex := range fact.summary.Calls {
-			edge := &fact.summary.Calls[edgeIndex]
-			symbol, exists := fact.callSymbols[edge.ID]
-			targetIndex := -1
-			if body, hostOwned := owner.body(fact.callExpressions[edge.ID]); hostOwned {
-				edge.Resolved = false
-				edge.TargetID = ""
-				if index, found := factByNode[body]; found {
-					targetIndex = index
-				}
-				// A selected opaque/missing body cannot inherit typed-stub authority.
-				if targetIndex < 0 {
-					fact.summary.DirectEffectSources = append(fact.summary.DirectEffectSources, environmentSource("unknown", "unresolved call "+edge.Name, fact.summary.Name))
-				}
-			} else {
-				if edge.Resolved && edge.TargetID != "" {
-					if index, present := factByID[edge.TargetID]; present {
-						targetIndex = index
-					}
-				}
-				if exists {
-					if targetID, resolved := symbolSummaryIDs[symbol]; resolved {
-						if index, present := factByID[targetID]; present {
-							targetIndex = index
-						}
-					}
-				}
-				// Legacy inference without a host snapshot does not prove executable identity.
-				// TS-Go does not currently substitute every authored `.js` edge
-				// to a sibling `.tsx` root. The retained project already owns those
-				// source files, so link the same export by normalized module stem.
-				if targetIndex < 0 && edge.ModuleSpecifier != "" &&
-					strings.HasPrefix(edge.ModuleSpecifier, ".") &&
-					edge.ExportName != "" {
-					module := callableModuleKey(filepath.Join(
-						filepath.Dir(fact.sourceFile.FileName()),
-						edge.ModuleSpecifier,
-					))
-					if index, present := exportedByModule[module+"\x00"+edge.ExportName]; present {
-						targetIndex = index
-					}
-				}
-			}
-
-			if targetIndex < 0 {
-				continue
-			}
-			edge.TargetID = facts[targetIndex].summary.ID
-			edge.Resolved = true
-			fact.targets = append(fact.targets, targetIndex)
-		}
-		unresolved := make(map[string]struct{})
-		for _, edge := range fact.summary.Calls {
-			if !edge.Resolved {
-				unresolved["unresolved call "+edge.Name] = struct{}{}
-			}
-		}
-		filtered := fact.summary.DirectEffectSources[:0]
-		for _, source := range fact.summary.DirectEffectSources {
-			if source.Environment == "unknown" &&
-				strings.HasPrefix(source.Description, "unresolved call ") {
-				if _, remains := unresolved[source.Description]; !remains {
-					continue
-				}
-			}
-			filtered = append(filtered, source)
-		}
-		fact.summary.DirectEffectSources = filtered
-		fact.summary.EffectSources = append(
-			[]EnvironmentEffectSource(nil),
-			filtered...,
-		)
-	}
-	resolveCallableEffects(facts, owner)
 	applyCallableArtifactConstraints(facts)
 	return callableAnalysisFromFacts(requested, facts, analyses)
 }
@@ -711,6 +811,15 @@ func callableModuleKey(filename string) string {
 // cloneProjectCallableFact copies mutable graph inputs. Propagated summaries and targets
 // are replaced by the merge before resolution, so copying them would be discarded work.
 func cloneProjectCallableFact(value callableFacts) callableFacts {
+	value.staged = cloneCallableExtraction(value.staged)
+	value.pendingMembers = clonePendingMemberLedger(value.pendingMembers)
+	if value.directExposurePublished != nil {
+		copied := make(map[*ast.Node]bool, len(value.directExposurePublished))
+		for node, done := range value.directExposurePublished {
+			copied[node] = done
+		}
+		value.directExposurePublished = copied
+	}
 	value.callOutcomes = append([]sourceCallOutcome(nil), value.callOutcomes...)
 	value.componentCallableInputs = append([]sourceComponentCallableInput(nil), value.componentCallableInputs...)
 	value.componentInputDemands = append([]sourceComponentInputDemand(nil), value.componentInputDemands...)
@@ -731,7 +840,13 @@ func cloneProjectCallableFact(value callableFacts) callableFacts {
 		[]EnvironmentEffectSource(nil),
 		value.summary.DirectEffectSources...,
 	)
+	for i := range value.summary.DirectEffectSources {
+		value.summary.DirectEffectSources[i].relativeMutation = cloneRelativeFieldMutation(value.summary.DirectEffectSources[i].relativeMutation)
+	}
 	value.summary.Calls = append([]CallEdge(nil), value.summary.Calls...)
+	// Late operation delivery adds original Get/Call phase associations. Each
+	// merged graph owns those additions independently of cached source facts.
+	value.fieldEdgeOperations = maps.Clone(value.fieldEdgeOperations)
 	value.directWrites = append([]StateEffect(nil), value.directWrites...)
 	// Export names and source-reference maps are immutable after source analysis.
 	// Artifact targets and propagated effects are rebuilt before publication.
@@ -743,6 +858,9 @@ func callableAnalysisFromFacts(
 	facts []callableFacts,
 	analyses []callableAnalysis,
 ) callableAnalysis {
+	if pending := stagedPublicationPending(facts); len(pending) != 0 {
+		return callableAnalysis{facts: facts, pending: pending}
+	}
 	finalByID := make(map[string]CallableSummary, len(facts))
 	byNode := make(map[*ast.Node]CallableSummary, len(facts))
 	summaries := []CallableSummary{}
@@ -942,4 +1060,174 @@ func callableAliasTarget(
 		return nil
 	}
 	return callTargetSymbol(initializer, typeChecker)
+}
+
+// linkProjectCallableFacts shares the existing import/export and selected-body
+// relinker. Callers separately own mutable facts, registration and first resolve.
+func linkProjectCallableFacts(facts []callableFacts, symbolSummaryIDs map[ast.SymbolId]string, owner *executableBodyOwner) {
+	factByNode := make(map[*ast.Node]int, len(facts))
+	factByID := make(map[string]int, len(facts))
+	exportedByModule := make(map[string]int)
+	for index := range facts {
+		factByID[facts[index].summary.ID] = index
+		factByNode[facts[index].node] = index
+		// Pending per-file analysis retains source facts but has no published
+		// bySymbol summaries. Body identity does not require settled Effects.
+		fact := &facts[index]
+		if owner != nil && owner.values != nil && owner.checker != nil && fact.sourceFile != nil && owner.values.program.GetSourceFile(fact.sourceFile.FileName()) == fact.sourceFile && !runtimeModuleEvaluation(fact.node) && !ast.IsGetAccessorDeclaration(fact.node) && !ast.IsSetAccessorDeclaration(fact.node) {
+			indexSymbol := func(symbol *ast.Symbol) {
+				if symbol = resolvedCallableSymbol(symbol, owner.checker); symbol != nil {
+					symbolSummaryIDs[ast.GetSymbolId(symbol)] = fact.summary.ID
+				}
+			}
+			indexSymbol(callableDeclarationSymbol(fact.node, owner.checker))
+			if binding := sourceCallableBinding(fact.node); binding != nil {
+				indexSymbol(owner.checker.GetSymbolAtLocation(binding.Name()))
+			}
+		}
+		module := callableModuleKey(facts[index].sourceFile.FileName())
+		for _, exportName := range facts[index].summary.ExportNames {
+			exportedByModule[module+"\x00"+exportName] = index
+		}
+		facts[index].targets = nil
+
+		facts[index].summary.StateReads = append(
+			[]StateEffect(nil),
+			facts[index].directReads...,
+		)
+		facts[index].summary.StateWrites = append(
+			[]StateEffect(nil),
+			facts[index].directWrites...,
+		)
+		facts[index].summary.Contexts = append(
+			[]ContextEffect(nil),
+			facts[index].directContext...,
+		)
+		for edgeIndex := range facts[index].summary.Calls {
+			edge := &facts[index].summary.Calls[edgeIndex]
+			if _, symbolOwned := facts[index].callSymbols[edge.ID]; !symbolOwned &&
+				edge.Resolved && edge.TargetID != "" {
+				continue
+			}
+			edge.TargetID = ""
+			edge.Resolved = false
+		}
+	}
+	applySourceOwnedObligations(facts, factByNode, owner.values)
+	for index := range facts {
+		facts[index].summary.StateWrites = append([]StateEffect(nil), facts[index].directWrites...)
+	}
+	for factIndex := range facts {
+		fact := &facts[factIndex]
+		for edgeIndex := range fact.summary.Calls {
+			edge := &fact.summary.Calls[edgeIndex]
+			symbol, exists := fact.callSymbols[edge.ID]
+			// A bodyless source declaration has no executable summary to recover
+			// through its checker symbol. Preserve the issuing owner's runtime
+			// unknown after graph cloning and cross-source relinking as well.
+			if sourceOpaqueDeclarationCall(fact.fieldEdgeOperations[edge.ID], owner) {
+				edge.Resolved, edge.TargetID = false, ""
+				continue
+			}
+			targetIndex := -1
+			if body, hostOwned := owner.body(fact.callExpressions[edge.ID]); hostOwned {
+				edge.Resolved = false
+				edge.TargetID = ""
+				if index, found := factByNode[body]; found {
+					targetIndex = index
+				}
+				// A selected opaque/missing body cannot inherit typed-stub authority.
+				if targetIndex < 0 {
+					fact.summary.DirectEffectSources = append(fact.summary.DirectEffectSources, environmentSource("unknown", "unresolved call "+edge.Name, fact.summary.Name))
+				}
+			} else {
+				if edge.Resolved && edge.TargetID != "" {
+					if index, present := factByID[edge.TargetID]; present {
+						targetIndex = index
+					}
+				}
+				if exists {
+					if targetID, resolved := symbolSummaryIDs[symbol]; resolved {
+						if index, present := factByID[targetID]; present {
+							targetIndex = index
+						}
+					}
+				}
+				// Legacy inference without a host snapshot does not prove executable identity.
+				// TS-Go does not currently substitute every authored `.js` edge
+				// to a sibling `.tsx` root. The retained project already owns those
+				// source files, so link the same export by normalized module stem.
+				if targetIndex < 0 && edge.ModuleSpecifier != "" &&
+					strings.HasPrefix(edge.ModuleSpecifier, ".") &&
+					edge.ExportName != "" {
+					module := callableModuleKey(filepath.Join(
+						filepath.Dir(fact.sourceFile.FileName()),
+						edge.ModuleSpecifier,
+					))
+					if index, present := exportedByModule[module+"\x00"+edge.ExportName]; present {
+						targetIndex = index
+					}
+				}
+			}
+
+			if targetIndex < 0 {
+				continue
+			}
+			edge.TargetID = facts[targetIndex].summary.ID
+			edge.Resolved = true
+			fact.targets = append(fact.targets, targetIndex)
+		}
+		unresolved := make(map[string]struct{})
+		for _, edge := range fact.summary.Calls {
+			if !edge.Resolved {
+				unresolved["unresolved call "+edge.Name] = struct{}{}
+			}
+		}
+		filtered := fact.summary.DirectEffectSources[:0]
+		for _, source := range fact.summary.DirectEffectSources {
+			if source.Environment == "unknown" &&
+				strings.HasPrefix(source.Description, "unresolved call ") {
+				if _, remains := unresolved[source.Description]; !remains {
+					continue
+				}
+			}
+			filtered = append(filtered, source)
+		}
+		fact.summary.DirectEffectSources = filtered
+		fact.summary.EffectSources = append(
+			[]EnvironmentEffectSource(nil),
+			filtered...,
+		)
+	}
+}
+
+// prepareProjectCallableContexts preserves authoritative requested metadata and
+// existing invalidation/source selection, without collecting source bodies.
+func prepareProjectCallableContexts(project *projectState, sourceFile *ast.SourceFile, typeChecker *checker.Checker, components []Component, stateReads []StateRead, stateWrites []StateWrite, componentBindings map[int]componentBinding, assets assetAnalysis, assetRules []AssetRule) (*projectCallableCache, bool) {
+	// Asset rules are request-owned. Reuse requires the same declaration contract,
+	// including for dependencies seeded before they become a requested source.
+	cacheNeedsPublication := project.callableCache != nil && (!project.callableCache.owned[sourceFile] || sourceJSXPublicationNeeded(project.callableCache, project.activeGeneration)) && project.callableCache.owner != nil && project.callableCache.owner.values != nil && (project.callableCache.owner.values.language == nil || project.callableCache.owner.values.language.disposed)
+	if !project.callableCache.ownsGeneration(project.program, typeChecker) || !sameCallableAssetRules(project.callableCache.assetRules, assetRules) || cacheNeedsPublication || stalePossibleProxyOriginCache(project.callableCache, project.activeGeneration) {
+		project.callableCache = &projectCallableCache{semantics: advisoryAnalysisSemantics, program: project.program, owner: newExecutableBodyOwner(project, typeChecker), assetRules: snapshotCallableAssetRules(assetRules), bySource: make(map[*ast.SourceFile]callableAnalysis), fingerprints: make(map[*ast.SourceFile]string), owned: make(map[*ast.SourceFile]bool)}
+	}
+	cache := project.callableCache
+	// Reused facts never retain the first request's checker lease capability.
+	cache.owner.values.generation = project.activeGeneration
+	cache.owner.values.index(sourceFile)
+	changed := false
+	// Seed the requested source from session-owned facts before discovering dependencies.
+	// This avoids analyzing it once provisionally and again with authoritative binding writes.
+	prior := cache.bySource[sourceFile]
+	if !cache.owned[sourceFile] || !sameSourceJSXMode(prior.sourceContext, project.activeGeneration, sourceFile) {
+		project.counters.CallableSourceAnalyses++
+		refreshed := prepareProjectCallableSource(sourceFile, typeChecker, components, stateReads, stateWrites, componentBindings, assets, cache.owner)
+		fingerprint := callableAnalysisFingerprint(refreshed)
+		if refreshed.sourceContext != nil || fingerprint != cache.fingerprints[sourceFile] {
+			cache.bySource[sourceFile] = refreshed
+			cache.fingerprints[sourceFile] = fingerprint
+			changed = true
+		}
+		cache.owned[sourceFile] = true
+	}
+	return cache, ensureProjectCallableSources(project, typeChecker, cache, assetRules) || changed || cache.analyses == nil
 }

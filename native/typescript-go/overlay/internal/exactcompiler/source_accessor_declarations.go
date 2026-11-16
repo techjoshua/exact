@@ -9,6 +9,9 @@ import (
 // accessorsAtGetOutput admits a producer's initial acquisition exactly once.
 // Later raw/acquired entries read that operation's output without its effects.
 func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []string, name string, mode accessorTraversal, arguments sourceValueBindings, invoke func(*ast.Node, sourceValueBindings, *accessorCandidates), get *sourceGetInputs, producer *sourceNormalOperation, reference *sourceGetReference, alternatives ...sourceValue) (result accessorCandidates) {
+	priorMode, priorKnown := query.traceMode, query.traceModeKnown
+	query.traceMode, query.traceModeKnown = mode, true
+	defer func() { query.traceMode, query.traceModeKnown = priorMode, priorKnown }()
 	restoreDeferredRead := query.beginDeferredRead(get)
 	defer restoreDeferredRead()
 	previousReading := query.reading
@@ -19,7 +22,16 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 	if arguments == nil {
 		arguments = make(sourceValueBindings)
 	}
-	readCut := query.memberWriterReadCut(reference, arguments, &result)
+	var readCut *sourceMemberWriterReadCut
+	if event := query.installedMemberPhase; event != nil && mode == event.getMode() && query.installedMemberReaderOwned(get, event.read) {
+		// An implicit native field retains its original Call operation and the
+		// actual SOURCE return reader. Do not rebuild it from q.reading alone.
+		readCut = event.read
+	} else {
+		readCut = query.memberWriterReadCut(reference, arguments, &result)
+	}
+	restoreReceiverData := query.lendStagedMemberReceiverRead(reference, readCut, path, name, mode)
+	defer restoreReceiverData()
 	typeChecker, owner := query.owner.checker, query.executable
 	deep := mode&accessorReachable != 0
 	enumerable := mode&accessorEnumerate != 0
@@ -32,7 +44,7 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 	if operation := query.protectedMember; operation != nil && ast.IsElementAccessExpression(operation) {
 		selected := sourceMemberKey(operation.AsElementAccessExpression().ArgumentExpression)
 		actualEmptyKey = selected.resolved && selected.name == ""
-		if !selected.resolved {
+		if !selected.resolved && !query.deferStagedAssignmentKey(operation, mode) {
 			result.opaque = true
 			result.cause = operation
 		}
@@ -113,6 +125,39 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 	}
 	visitOrigins = func(values []sourceValue, projection []string, instance bool) {
 		for _, term := range values {
+			if query.projectFreezeLexicalReturn(term, projection, name, mode, arguments, &result, visit) {
+				continue
+			}
+			if term.constructionCallable != nil {
+				query.retainConstructionCallable(term.constructionCallable, append(append([]string(nil), term.path...), projection...), &result)
+				continue
+			}
+			if term.constructionView != nil {
+				path := append(append([]string(nil), term.path...), projection...)
+				func() {
+					actualGet := query.installedConstructionMemberGet(*term.constructionView, get, reference, path, name, mode)
+					restore, owned := query.observeInstalledConstructionMember(*term.constructionView, actualGet, mode, arguments, &result)
+					if owned {
+						defer restore()
+					}
+					query.retainConstructionView(*term.constructionView, path, name, mode, instance, &result)
+				}()
+				continue
+			}
+			if term.descriptorView != nil {
+				if query.observeDescriptorRecordGet(*term.descriptorView, reference, append(append([]string(nil), term.path...), projection...), name, mode, arguments, readCut, &result) {
+					continue
+				}
+				if query.observeDescriptorStrongRead(*term.descriptorView, get, reference, append(append([]string(nil), term.path...), projection...), name, mode, arguments, readCut, &result) {
+					continue
+				}
+				query.retainNativeDescriptorView(*term.descriptorView, append(append([]string(nil), term.path...), projection...), name, mode, instance, &result, arguments)
+				continue
+			}
+			if term.frameworkView != nil {
+				query.retainFrameworkView(*term.frameworkView, append(append([]string(nil), term.path...), projection...), name, mode, instance, &result)
+				continue
+			}
 			if query.calleeWriteInventory != nil {
 				query.recordEstimatedCost(1)
 			}
@@ -299,7 +344,7 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 				result.fieldReceiverIncomplete = true
 			}
 			if term.native != nil {
-				query.nativeMember(term, projection, name, mode, arguments, &result, visit, visitMember)
+				query.nativeMemberKeyAtGet(term, projection, name, nil, mode, arguments, &result, visit, get, visitMember)
 				continue
 			}
 			if term.undefined {
@@ -351,11 +396,21 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 	}
 	visit = func(value *ast.Node, projection []string, instance bool) {
 		value = unwrapSourceCallableReference(value)
+		if mode == accessorSet|accessorNoGet && query.setterInput != nil && query.setterInput.assignment != nil {
+			finishAssignmentAlternative := query.stagedAssignmentAlternativeVisit(mode)
+			defer finishAssignmentAlternative()
+		}
 		if query.calleeWriteInventory != nil && value != nil && (ast.IsCallExpression(value) || ast.IsNewExpression(value) || ast.IsTaggedTemplateExpression(value)) {
 			// Output-producing syntax is not a represented direct method body.
 			// Keep its uncertainty without starting another argument/body driver.
 			query.calleeWriteInventory.unknown = true
 			result.valueIncomplete = true
+			return
+		}
+		if query.deferStagedAssignmentReceiver(value, mode, &result) {
+			return
+		}
+		if query.deferStagedWriterInputOperation(value, &result) {
 			return
 		}
 		if visitProduced(value, projection, instance) {
@@ -369,9 +424,10 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 		}
 
 		acquired := len(result.values)
+		unknownAcquired := query.stagedWriterUnknownSourceCount()
 		defer func() {
 			// Every value branch must contribute a finite origin or retain uncertainty.
-			if mode == accessorAcquire && len(result.values) == acquired {
+			if mode == accessorAcquire && len(result.values) == acquired && query.stagedWriterUnknownSourceCount() == unknownAcquired {
 				result.valueIncomplete = true
 			}
 		}()
@@ -411,6 +467,9 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 		if ast.IsSpreadElement(value) {
 			result.opaque = true
 			visit(value.AsSpreadElement().Expression, append([]string{"*"}, projection...), false)
+			return
+		}
+		if ast.IsCallExpression(value) && len(projection) == 0 && name == "" && mode == accessorAcquire && query.excludeNativeDirectExposure(value, arguments) {
 			return
 		}
 		if ast.IsCallExpression(value) && query.returnObservation != nil && len(projection) == 0 && name == "" && mode == accessorAcquire {
@@ -533,6 +592,7 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 				child := sourceObservedValue{value: term, inputs: acquiredParent.inputs, scope: scope, returned: acquiredParent.returned}
 				term.acquired = &child
 			}
+			query.observeStagedHasInstanceCreation(term)
 			result.values = append(result.values, term)
 			return
 		}
@@ -634,6 +694,7 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 			return
 		}
 		if ast.IsClassDeclaration(value) || ast.IsClassExpression(value) || ast.IsObjectLiteralExpression(value) {
+
 			result.sourceOwned = true
 			if containsString(projection, "*") {
 				result.opaque = true
@@ -646,17 +707,30 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 				actualReceiver = *inheritedReceiver
 			}
 			selectedGet := &sourceGetInputs{operation: query.reading, receiver: actualReceiver}
-			if get != nil && len(projection) == 1 && name == "" && (get.propertyKey == "" || get.propertyKey == projection[0]) && (get.receiver.node == value || inheritedReceiver != nil && get.receiver.node == inheritedReceiver.node && len(get.receiver.path) == 0) {
+			if get == nil && query.installedCallSelectionObservationOwned(query.stagedMember, query.protectedMember) {
+				actualKey := name
+				if len(projection) == 1 && name == "" {
+					actualKey = projection[0]
+				}
+				_, selectedKey := accessorReceiver(query.protectedMember)
+				if actualKey == selectedKey && actualKey != "" {
+					selectedGet.operation, selectedGet.propertyKey = query.protectedMember, actualKey
+					readCut = &sourceMemberWriterReadCut{operation: selectedGet.operation, use: query.reading, scope: readCut.scope}
+				}
+			}
+			var argumentLookup *sourceStagedFieldArgumentLookup
+			if get != nil && len(projection) == 0 && name == "" && query.liveStagedMapObservation(get, mode) {
+				selectedGet = get
+			} else if get != nil && len(projection) == 1 && name == "" && (get.propertyKey == "" || get.propertyKey == projection[0]) && (get.receiver.node == value || inheritedReceiver != nil && get.receiver.node == inheritedReceiver.node && len(get.receiver.path) == 0) {
 				// The selected New/class/heritage route changes lookup origin only.
 				// Preserve this read's receiver tuple, native relation and Has cell.
-				actual := *get
-				selectedGet = &actual
+				selectedGet, argumentLookup = query.copyStagedFieldLookupGet(get, value)
 			} else if get != nil {
 				// An explicit operation cannot be lent to an unrelated child read.
 				result.opaque, result.valueIncomplete = true, true
 				return
 			}
-			if selectedGet.receiver.node != value {
+			if selectedGet.receiver.node != value && !query.liveStagedMapObservation(get, mode) {
 				lookup := sourceValue{node: value}
 				selectedGet.lookupOwner = &lookup
 				if selectedGet.inspection != nil {
@@ -665,14 +739,28 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 					selectedGet.inspection = &local
 				}
 			}
+			if mode == accessorSet|accessorNoGet && query.setterInput != nil && query.setterInput.assignment != nil {
+				releaseAssignmentAlternative := query.beginStagedAssignmentAlternative(value, selectedGet, mode)
+				defer releaseAssignmentAlternative()
+			}
 			if ast.IsObjectLiteralExpression(value) && query.frozenOwnGet(value, projection, name, mode, selectedGet, acquiredParent, &result) {
 				return
 			}
 			// Only a whole anonymous return allocation can bypass prior own writes
 			// at its immediate settlement Get. This is a language transfer fact
 			// supplied by the operation owner, never an indexed-origin certificate.
-			freshGet := get != nil && get.freshReturn && get.receiver.node == value && len(get.receiver.path) == 0 && len(projection) == 1
+			freshGet := get != nil && get.freshReturn && get.receiver.node == value && len(get.receiver.path) == 0 && len(projection) == 1 || query.stagedFreshGetResult(selectedGet, value)
 			if mode != accessorReachable && !freshGet && (get == nil || !get.hasOnly) {
+				if query.dependenciesOnly {
+					key := name
+					if len(projection) == 1 && name == "" {
+						key = projection[0]
+					}
+					if len(projection) == 0 || len(projection) == 1 && name == "" {
+						restorePhase := query.beginAuthoredInstalledMemberPopulation(selectedGet, readCut, mode, key, value)
+						defer restorePhase()
+					}
+				}
 				// The collector already validated this observation before stripping
 				// its wrapper. Lend it only to the synchronous constraint lookup.
 				proofGet := selectedGet
@@ -683,7 +771,31 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 						proofGet = &copy
 					}
 				}
-				if query.memberValuesAtGet(value, projection, name, mode, arguments, &result, visitMember, sourceMemberOperationProof{}, proofGet, readCut) {
+				handled := false
+				func() {
+					revokeLookup := argumentLookup.begin(query, proofGet, mode)
+					defer revokeLookup()
+					visitLookupMember := func(value sourceValue) {
+						restoreLookup := query.suspendStagedFieldArgumentLookup()
+						defer restoreLookup()
+						visitMember(value)
+					}
+					handled = query.memberValuesAtGet(value, projection, name, mode, arguments, &result, visitLookupMember, sourceMemberOperationProof{}, proofGet, readCut)
+				}()
+				if assignment := query.liveStagedAssignment(); assignment != nil {
+					query.recordStagedAssignmentCoverage(assignment.alternative)
+				}
+				if len(projection) == 0 && name == "" && query.observeStagedMapObject(value, sourceValue{node: value}, get, mode) {
+					query.observeStagedMapWriterDisposition(value, get, mode)
+					result.sourceOwned, result.valueIncomplete = true, true
+					return
+				}
+				if query.stagedHasInstance != nil && (ast.IsClassDeclaration(value) || ast.IsClassExpression(value)) {
+					query.withStagedHasInstanceSelectedGet(selectedGet, func() bool {
+						return query.observeStagedHasInstanceClassDefault(value, selectedGet, query.acquireCallableScope(arguments, &result))
+					})
+				}
+				if handled {
 					return
 				}
 			}
@@ -703,6 +815,11 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 				selection = projection[0]
 			}
 			if get != nil && get.presence != nil && get.hasOnly && get.receiver.node == value && len(projection) == 1 && ast.IsObjectLiteralExpression(value) {
+				if query.liveStagedFieldMemberSource(get) {
+					// The original Has owns source discovery independently of
+					// presence. It cannot inherit the later Get's source interval.
+					query.memberValuesAtGet(value, projection, name, mode, arguments, &result, visitMember, sourceMemberOperationProof{}, get, readCut)
+				}
 				ordinary := true
 				owns := false
 				for _, field := range members {
@@ -715,7 +832,15 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 					}
 					owns = owns || field.Name() != nil && !ast.IsComputedPropertyName(field.Name()) && callableNameText(field.Name()) == selection
 				}
-				inherited := query.propertyReferenceEffects(get, selection, arguments, &result)
+				// Has on an already selected ordinary own slot invokes no getter.
+				// Its Effects accounting does not establish property presence or
+				// settle the independent prototype/value precision lookup below.
+				query.recordReflectiveFieldHas(get, projection, name, ordinary && owns, &result)
+				if ordinary {
+					query.observeStagedFieldEntryLaw(get, stagedFieldOrdinaryHasNoUserEntry)
+				}
+				ownHasAccounted := ordinary && owns && !result.opaque && !result.receiverIncomplete
+				inherited := query.propertyReferenceEffects(get, selection, arguments, &result, readCut)
 				if ordinary && !result.opaque && inherited == propertyAbsent {
 					if owns {
 						*get.presence = propertyPresent
@@ -724,6 +849,13 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 					}
 				} else {
 					*get.presence = propertyUnknown
+				}
+				if get.stagedEffects != nil {
+					accounting := sourceEffectsUnaccounted
+					if ownHasAccounted || ordinary && !result.opaque && inherited == propertyAbsent || ordinary && query.liveStagedFieldGet(get) && get.stagedEffects.observation != nil && get.stagedEffects.observation.sourceHas {
+						accounting = sourceEffectsAccounted
+					}
+					query.observeStagedFieldHas(get, *get.presence, accounting, get.stagedEffects.observation)
 				}
 				return
 			}
@@ -740,8 +872,14 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 				// nor a later Get may reconstruct it from a declaration initializer.
 				if (selection != "" || exactEmpty) && member.Name() != nil && !ast.IsComputedPropertyName(member.Name()) && callableNameText(member.Name()) == selection {
 					ownsSelection = true
+					if mode == accessorSet|accessorNoGet {
+						query.observeStagedAssignmentData(member, selectedGet)
+					}
 					ownGetter = ownGetter || ast.IsGetAccessorDeclaration(member)
 					ownSetter = ownSetter || ast.IsSetAccessorDeclaration(member)
+				}
+				if mode == accessorSet|accessorNoGet && query.setterInput != nil && query.setterInput.assignment != nil {
+					query.observeStagedAssignmentAccessor(member, selection)
 				}
 				if ast.IsSpreadAssignment(member) {
 					visit(member.AsSpreadAssignment().Expression, projection, false)
@@ -765,18 +903,45 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 					privateMatch, privateGet := query.sourcePrivateMemberMatch(member, projection)
 					computedMayMatch := !privateGet && member.Name() != nil && ast.IsComputedPropertyName(member.Name()) && sourceLiteralMemberName(member.Name().AsComputedPropertyName().Expression) == ""
 					if member.Name() != nil && (privateMatch || !privateGet && (projection[0] == "" && !exactEmpty || projection[0] == "*" || callableNameText(member.Name()) == projection[0] || computedMayMatch)) {
+						if query.observeStagedGetResultMember(value, member, selectedGet, mode, computedMayMatch, arguments, &result) {
+							continue
+						}
+						if query.stagedHasInstance != nil {
+							if query.withStagedHasInstanceSelectedGet(selectedGet, func() bool {
+								scope := query.acquireCallableScope(arguments, &result)
+								return query.observeStagedHasInstanceMember(value, member, selectedGet, selectedGet.receiver, scope, projection, name, mode, computedMayMatch, &result)
+							}) {
+								continue
+							}
+						}
 						if computedMayMatch {
 							result.opaque = true
 						}
 						if (mode == accessorAcquire || mode == accessorInvoke) && ast.IsMethodDeclaration(member) {
-							visit(member, projection[1:], false)
+							query.recordReflectiveFieldRead(get, projection, name, mode, nil, sourceEffectsAccounted, &result)
+							query.recordStagedFieldRead(get, nil, sourceEffectsAccounted, &result)
+							query.observeStagedFieldOwnDataEntry(get, member, projection, name, mode)
+							if query.stagedFieldDataEffectsOnly(get, projection, name, mode) {
+								query.recordStagedFieldCallable(get, member)
+								result.valueIncomplete = true
+							} else {
+								visit(member, projection[1:], false)
+							}
 						}
 						if ast.IsPropertyAssignment(member) || ast.IsShorthandPropertyAssignment(member) {
+							query.recordReflectiveFieldRead(get, projection, name, mode, nil, sourceEffectsAccounted, &result)
+							query.recordStagedFieldRead(get, nil, sourceEffectsAccounted, &result)
+							query.observeStagedFieldOwnDataEntry(get, member, projection, name, mode)
 							// This selected data read is consumed. Its output owns
 							// any later child read, not this receiver's outer Get.
 							previousGet, previousReference := get, reference
 							get, reference = nil, reference.after(projection, name)
 							if ast.IsPropertyAssignment(member) {
+								query.recordStagedFieldCallable(selectedGet, member.AsPropertyAssignment().Initializer)
+							}
+							if query.stagedFieldDataEffectsOnly(selectedGet, projection, name, mode) {
+								result.valueIncomplete = true
+							} else if ast.IsPropertyAssignment(member) {
 								visit(member.AsPropertyAssignment().Initializer, projection[1:], false)
 							} else {
 								visit(member.Name(), projection[1:], false)
@@ -790,6 +955,8 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 								result.valueIncomplete = true
 							} else if mode&accessorNoGet == 0 {
 								observed := query.acquireGetResult(member, selectedGet, query.acquireCallableScope(arguments, &result), &result)
+								query.recordReflectiveFieldRead(selectedGet, projection, name, mode, member, observed.effects, &result)
+								query.recordStagedFieldRead(selectedGet, member, observed.effects, &result)
 								retainResultUncertainty(observed, &result, query.getProjectionDemand())
 								// Import once before filtering. Only unchanged terminal outputs
 								// can transfer publication to this settlement request.
@@ -888,6 +1055,9 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 								}
 							}
 						} else {
+							if staged := query.liveStagedAssignment(); staged != nil && staged.consume != nil && staged.consume(member, actualReceiver, arguments, &result) {
+								continue
+							}
 							result.retainCallableEffect(selectedGet.operation, member)
 							if !query.consumeSourceSetter(member, selectedGet.operation, actualReceiver, arguments, &result) {
 								query.execute(member, arguments, &result, nil)
@@ -922,7 +1092,7 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 				result.values = append(result.values, sourceValue{undefined: true})
 			}
 			if get != nil && get.propertyKey != "" && ast.IsObjectLiteralExpression(value) && !ownsSelection && len(projection) == 1 {
-				query.propertyReferenceEffects(get, selection, arguments, &result)
+				query.propertyReferenceEffects(get, selection, arguments, &result, readCut)
 			}
 			if ast.IsObjectLiteralExpression(value) && !ownsSelection && selection == "then" && get != nil && get.receiver.node == value && len(projection) == 1 && len(get.thenReferences) > 0 {
 				query.inheritedThenValues(get, arguments, get.thenReferences, get.thenIncomplete, &result)
@@ -930,6 +1100,9 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 			return
 		}
 		if value.Kind == ast.KindThisKeyword {
+			if query.readBoundComponentProtocol(value, projection, name, mode, arguments, &result, visitMember, get, readCut) {
+				return
+			}
 			for _, receiver := range query.receiverOrigins(value, arguments) {
 				// An uninstantiated caller receiver stays symbolic. Rebinding that
 				// same this occurrence cannot manufacture a new getter execution.
@@ -962,6 +1135,14 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 					}
 				}
 			}
+			query.observeStagedAssignmentInputGap(symbol, mode, arguments)
+			query.observeStagedExternalMember(value, projection, name, mode, readCut, &result)
+			query.observeStagedExternalGetValue(value, symbol, projection, name, mode, get, readCut, &result)
+			if query.observeStagedAssignmentExternal(value, symbol, mode) {
+				return
+			}
+			query.observeOriginalExternalSet(value, symbol, mode, &result)
+			query.observeOriginalExternalReceiverGet(value, symbol, projection, name, mode, &result)
 			if symbol.Flags&ast.SymbolFlagsAlias != 0 {
 				symbol = query.sourceAlias(symbol, &result)
 			}
@@ -1020,6 +1201,11 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 				}
 			}
 			if symbol.ValueDeclaration != nil && (ast.IsParameterDeclaration(symbol.ValueDeclaration) || ast.IsBindingElement(symbol.ValueDeclaration)) {
+				if query.stagedMap != nil && len(projection) == 0 && name == "" {
+					// An unresolved original input is a distinct source alternative,
+					// even when another selected literal withheld normal output.
+					query.observeStagedMapUnrepresentedInput(value, symbol.ValueDeclaration, get, mode)
+				}
 				if query.dependenciesOnly && mode == accessorRead && (name != "" || len(projection) > 0) {
 					key := name
 					if key == "" && len(projection) == 1 {
@@ -1123,7 +1309,7 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 					for _, acquired := range values {
 						if acquired.node != value {
 							visit(acquired.node, append(append([]string{}, acquired.path...), projection...), instance)
-						} else {
+						} else if len(projection) != 0 || name != "" || !query.observeStagedWriterAmbientEntry(value, declaration) {
 							result.valueIncomplete = true
 						}
 					}
@@ -1210,7 +1396,10 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 					}()
 				}
 				start := len(result.values)
-				part := query.projectSourceCallReturns(value, arguments, func(returned sourceValue, captures sourceValueBindings) {
+				tracePriorProjection := query.traceProjection
+				query.traceProjection = progressBeginProjection(query, value, projection, name, mode)
+				defer func() { query.traceProjection = tracePriorProjection }()
+				part := query.projectSourceCallReturnsWithViews(value, arguments, sourceCallResultInterest{purpose: resultSourceProjection}, func(returned sourceValue, captures sourceValueBindings) {
 					previous := arguments
 					arguments = captures
 					defer func() { arguments = previous }()
@@ -1219,6 +1408,8 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 					} else {
 						visitOrigins([]sourceValue{returned}, projection, false)
 					}
+				}, func(view sourceFrameworkStorageView, captures sourceValueBindings) {
+					query.retainFrameworkView(view, projection, name, mode, instance, &result)
 				}, func() {
 					result.valueIncomplete = true
 					if len(projection) > 0 || name != "" || mode == accessorInvoke {
@@ -1226,9 +1417,17 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 					} else {
 						result.values = append(result.values, sourceValue{node: value})
 					}
+				}, func(view sourceNativeDescriptorView, captures sourceValueBindings) {
+					// Deliver through the same lexical visitor as other typed
+					// origins. It owns the actual reference/read cut and retains
+					// the old marker fallback when no record rule represents it.
+					visitOrigins([]sourceValue{{descriptorView: &view}}, projection, instance)
 				})
+				traceCurrentProjection := query.traceProjection
+				query.traceProjection = tracePriorProjection
 				mergeAccessorCandidates(&result, part)
 				if query.dependenciesOnly && len(result.values) == start && (len(projection) > 0 || name != "") && (result.opaque || result.receiverIncomplete) {
+					progressMemberRecovery(query, traceCurrentProjection)
 					// An unavailable output still has its original binding origin.
 					// Retain indexed MAY writes through that origin without inventing
 					// an object, a fresh allocation or a completed Call result.

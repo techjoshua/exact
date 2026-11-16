@@ -85,7 +85,7 @@ func TestSourceReturnAcquisitionAuthority(t *testing.T) {
 		query := newSourceDependencyQuery(call, project.callableCache.owner.values.checker, project.callableCache.owner, nil)
 		query.active[body] = false
 		var terms []sourceValue
-		part := query.projectSourceCallReturns(call, nil, func(value sourceValue, _ sourceValueBindings) { terms = append(terms, value) }, func() { t.Fatal("ordinary source return deferred") })
+		part := query.projectSourceCallReturns(call, nil, sourceCallResultInterest{purpose: resultSourceProjection}, func(value sourceValue, _ sourceValueBindings) { terms = append(terms, value) }, func() { t.Fatal("ordinary source return deferred") })
 		if len(terms) == 0 {
 			t.Fatalf("lost source alternatives/residual: %d %v/%v", len(terms), part.opaque, part.valueIncomplete)
 		}

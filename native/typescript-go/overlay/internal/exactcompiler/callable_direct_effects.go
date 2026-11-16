@@ -24,7 +24,9 @@ func collectDirectCallableEffects(
 	contextBindings map[ast.SymbolId]ContextEffect,
 	assets assetAnalysis,
 	owner *executableBodyOwner,
+	work *callableEffectWork,
 ) {
+	erasedPolicy := owner.values.erasedTaskPolicyParameter(fact.node)
 	if ast.IsFunctionLike(fact.node) {
 		if _, valid := functionTaskPolicy(fact.node, sourceFile, importBindings); valid {
 			fact.progressReceiver = taskPolicyHasFacet(fact.node, "progress")
@@ -104,6 +106,11 @@ func collectDirectCallableEffects(
 		moduleFlow = &sourceValueQuery{owner: owner.values, executable: owner, effectOwner: fact.node, dependenciesOnly: true, active: make(map[*ast.Node]bool)}
 	}
 	consumeNode := func(node *ast.Node) bool {
+		recordMutationWriterTemplate(fact, node, owner)
+		recordOriginalMutationBodyOperation(fact, node, owner)
+		if node == erasedPolicy {
+			return false // The authenticated task policy is erased before runtime evaluation.
+		}
 		if moduleFlow != nil {
 			if possible, _ := moduleFlow.reachable(node, nil); !possible {
 				return false
@@ -139,10 +146,116 @@ func collectDirectCallableEffects(
 				}
 			}()
 		}
-		appendDirectReferenceEffects(fact, node, sourceFile, typeChecker)
-		appendAccessorEffects(fact, node, nodeTargets, sourceFile, typeChecker, owner)
-		if demand, dependent := describeNormalOperand(node); !dependent || !demand.pattern {
-			appendImplicitAccessorEffects(fact, node, nodeTargets, sourceFile, typeChecker, nil, owner)
+		for _, occurrence := range fact.staged.constructedOccurrences {
+			if node == occurrence.request.producer.operation.Expression() {
+				return true
+			}
+		}
+		progressWriterInputSource(owner, sourceFile, node)
+		appendDirectReferenceEffects(fact, node, sourceFile, typeChecker, owner)
+		for _, use := range fact.staged.operationUses {
+			if operation := use.request.producer.operation; use.request.producer.declaration == fact.node && operation != nil && ast.IsCallExpression(operation) && node == operation.Expression() && work.operationRecipes[use.request.producer].nativeGet != nil {
+				return true
+			}
+			if use.call == node || use.request.producer.declaration == fact.node && use.request.producer.operation == node {
+				fact.staged.operationSkipped = append(fact.staged.operationSkipped, node)
+				return true // Only this source use is transferred, without a value receipt.
+			}
+		}
+		if ast.IsCallExpression(node) {
+			if work.stageReturnedSavedCall(facts, factIndex, node, owner) || work.stageReturnedCreation(facts, factIndex, node, nodeTargets, owner) {
+				return true
+			}
+			if reference, task := describeTaskEffectsReference(fact, node, owner); task && work.ownTaskReferenceEffects(facts, factIndex, reference, owner) == sourceTaskEffectsOwned {
+				return true // Eager children retain their original collector; no closure DATA is requested.
+			}
+			if work.stageStagedBindingInvocation(facts, factIndex, node, owner) {
+				fact.staged.operationSkipped = append(fact.staged.operationSkipped, node)
+				return true
+			}
+			if plan, supported := describeStagedMemberCall(fact, node, owner); supported {
+				plan.request.edge = fmt.Sprintf("%s:member-exposure:%d", fact.summary.ID, node.Pos())
+				recipe := sourceStagedOperationRecipe{key: plan.request.producer}
+				for _, endpoint := range plan.values {
+					recipe.delta.exposures = append(recipe.delta.exposures, sourceStagedOperationAlternative{endpoint: endpoint})
+				}
+				if work.registerOperationRecipe(facts, recipe) && work.registerOperationUse(facts, sourceStagedOperationUse{request: plan.request, call: plan.call}) {
+					fact.staged.operationSkipped = append(fact.staged.operationSkipped, node)
+					return true
+				}
+			}
+			if use, supported := describeStagedGetterUse(fact, node, facts, nodeTargets, owner); supported {
+				if work.registerOperationRecipe(facts, use.plan.effects) && work.registerOperationRecipe(facts, use.plan.exposure) {
+					get := use.plan.get
+					request := sourceStagedOperationRequest{producer: use.plan.exposure.key, consumer: fact.node, edge: fmt.Sprintf("%s:getter-return:%d", fact.summary.ID, use.call.Pos()), use: use.call, cut: sourceRelativeCut{operation: get, use: get, reading: get}, inputs: use.inputs}
+					if work.registerOperationUse(facts, sourceStagedOperationUse{request: request, call: use.call}) && work.deferDeclarationCall(facts, factIndex, use.factory, use.inputs.request, use.inputs) {
+						edge := fmt.Sprintf("%s:call:%d", fact.summary.ID, node.Pos())
+						fact.summary.Calls = append(fact.summary.Calls, CallEdge{ID: edge, Name: sourceText(sourceFile, node.Expression()), Resolved: true, TargetID: facts[use.factory].summary.ID})
+						fact.targets = append(fact.targets, use.factory)
+						fact.callExpressions[edge] = node
+						// The already-issued getter-return Call keeps its actual source
+						// operation; its Get/body/result owners remain independent.
+						if fact.fieldEdgeOperations == nil {
+							fact.fieldEdgeOperations = make(map[string]*ast.Node)
+						}
+						fact.fieldEdgeOperations[edge] = node
+						if symbol := typeChecker.GetSymbolAtLocation(node.Expression()); symbol != nil {
+							fact.callSymbols[edge] = ast.GetSymbolId(symbol)
+						}
+						fact.staged.operationSkipped = append(fact.staged.operationSkipped, node)
+						return true
+					}
+				}
+			}
+		}
+		if ast.IsPropertyAccessExpression(node) {
+			if plan, supported := describeStagedGetter(fact, owner); supported && plan.get == node {
+				request := sourceStagedOperationRequest{producer: plan.effects.key, consumer: fact.node, edge: fmt.Sprintf("%s:getter-effects:%d", fact.summary.ID, node.Pos()), use: node, cut: sourceRelativeCut{operation: node, use: node, reading: node}}
+				if work.registerOperationRecipe(facts, plan.effects) && work.registerOperationRecipe(facts, plan.exposure) && work.registerOperationUse(facts, sourceStagedOperationUse{request: request}) {
+					fact.staged.operationSkipped = append(fact.staged.operationSkipped, node)
+					return true
+				}
+			}
+		}
+		if stagedGetDataUse(node) && fact.normalInputs == nil && fact.initializerPlan == nil && work.stageStagedGetResult(facts, factIndex, node, owner) {
+			fact.staged.operationSkipped = append(fact.staged.operationSkipped, node)
+			return true
+		}
+		// Creation registration is passive. Original Effects consumers decide
+		// adoption, so unsupported creation protocols keep their legacy owner.
+		work.stageSourceEvaluation(facts, factIndex, node, owner)
+		stagedAssignment := work.stageAssignment(facts, factIndex, node, owner)
+		if (ast.IsPropertyAccessExpression(node) || ast.IsElementAccessExpression(node)) && plainStagedAssignment(node.Parent) && node.Parent.AsBinaryExpression().Left == node {
+			key := sourceStagedOperationKey{declaration: fact.node, operation: node.Parent, kind: relativeDemandEffects}
+			if recipe := work.operationRecipes[key]; recipe.assignment != nil {
+				for _, use := range fact.staged.operationUses {
+					stagedAssignment = stagedAssignment || sameOperationRequest(use.request, recipe.assignment.root)
+				}
+			}
+		}
+		if stagedAssignment && plainStagedAssignment(node) {
+			fact.staged.operationSkipped = append(fact.staged.operationSkipped, node.AsBinaryExpression().Left)
+		}
+		stagedHasInstance := work.stageHasInstance(facts, factIndex, node, owner)
+		stagedConstructed := ast.IsCallExpression(node) && work.stageConstructedResultOccurrence(facts, factIndex, node, owner)
+		stagedSourceCall := !stagedConstructed && ast.IsCallExpression(node) && work.stageSourceDeclarationCall(facts, factIndex, node, owner)
+		stagedNative := !stagedConstructed && !stagedSourceCall && ast.IsCallExpression(node) && (work.stageNativeInputCall(facts, factIndex, node, owner) || work.stageNativeDescriptorCall(facts, factIndex, node, owner))
+		stagedFramework := !stagedConstructed && !stagedSourceCall && !stagedNative && ast.IsCallExpression(node) && work.stageFrameworkEffects(facts, factIndex, node, owner)
+		var capturedDemand sourceRelativeInvokedInput
+		captured := false
+		if ast.IsCallExpression(node) {
+			capturedDemand, captured = stageReturnedCaptureBodyDemand(fact, node, owner)
+			if !captured {
+				capturedDemand, captured = stageFieldGetterCaptureDemand(fact, node, owner)
+			}
+		}
+		opaqueDeclaration := ast.IsCallExpression(node) && fact.normalInputs == nil && sourceOpaqueDeclarationCall(node, owner)
+		if !captured && !stagedAssignment && !stagedHasInstance && !stagedNative && !stagedSourceCall && !stagedConstructed && !stagedFramework && !opaqueDeclaration {
+			registerPendingMemberSource(fact, node, owner, work)
+			appendAccessorEffects(fact, node, nodeTargets, sourceFile, typeChecker, owner, work, facts)
+			if demand, dependent := describeNormalOperand(node); !dependent || !demand.pattern {
+				appendImplicitAccessorEffects(fact, node, nodeTargets, sourceFile, typeChecker, nil, owner, work, facts)
+			}
 		}
 		if !ast.IsCallExpression(node) {
 			return true
@@ -213,25 +326,31 @@ func collectDirectCallableEffects(
 			}
 			edge.ReceiverBindings = receiverBindingsForCall(call, fact.node, typeChecker)
 			_, hostOwned := owner.body(call.Expression)
+			environment := ""
+			if !resolved {
+				if opaqueDeclaration {
+					environment = "unknown" // A declaration supplies no runtime body contract.
+				} else {
+					environment = unresolvedCallEnvironment(call.Expression, sourceFile, typeChecker, contextBindings)
+				}
+			}
 			if resolved {
 				edge.TargetID = facts[targetIndex].summary.ID
 				fact.targets = append(fact.targets, targetIndex)
-			} else if environment := unresolvedCallEnvironment(
-				call.Expression,
-				sourceFile,
-				typeChecker,
-				contextBindings,
-			); !(invocationOwned && environment == "unknown") && !hostOwned && environment != "" && !(environment == "browser" && guardedBrowserCallReference(call.Expression, fact.node, sourceFile, typeChecker)) {
+			} else if !(invocationOwned && environment == "unknown") && (!hostOwned || opaqueDeclaration) && environment != "" && !(environment == "browser" && guardedBrowserCallReference(call.Expression, fact.node, sourceFile, typeChecker)) {
 				description := edge.Name
 				if environment == "unknown" {
 					description = "unresolved call " + edge.Name
 				}
 				source := environmentSource(environment, description, fact.summary.Name)
-				if environment == "unknown" {
-					source.callOrigin = &sourceCallOutcome{declaration: fact.node, operation: node}
+				if opaque, valid := sourceOpaqueDeclarationEffect(node, fact.node, fact.summary.Name, owner); opaqueDeclaration && valid {
+					source = opaque
+				} else {
+					if environment == "unknown" {
+						source.callOrigin = &sourceCallOutcome{declaration: fact.node, operation: node}
+					}
+					source.Opaque = environment == "unknown" && (opaqueDeclaration || opaqueCallExpression(call.Expression, typeChecker))
 				}
-				source.Opaque = environment == "unknown" &&
-					opaqueCallExpression(call.Expression, typeChecker)
 				fact.summary.DirectEffectSources = append(
 					fact.summary.DirectEffectSources,
 					source,
@@ -239,6 +358,68 @@ func collectDirectCallableEffects(
 			}
 			fact.summary.Calls = append(fact.summary.Calls, edge)
 		}
+		if stagedFramework {
+			resolveTarget()
+			registerEdge(accessorCandidates{invocationOwned: true})
+			return true // The original collector still owns argument-expression traversal.
+		}
+		if stagedSourceCall || stagedConstructed {
+			resolveTarget()
+			registerEdge(accessorCandidates{invocationOwned: true})
+			return true // Original child expressions retain eager evaluation ownership.
+		}
+		if stagedNative {
+			if work.nativeGroupOwnsInputCollection(fact, node) {
+				resolveTarget()
+				registerEdge(accessorCandidates{invocationOwned: true})
+				return true // Original eager expressions still descend once.
+			}
+			resolveTarget()
+			registerEdge(accessorCandidates{invocationOwned: true})
+			return false // The original Get and input Effects have separate graph owners.
+		}
+		if opaqueDeclaration {
+			work.registerStagedMemberExternal(facts, factIndex, node, owner)
+			resolveTarget()
+			resolved = false // A declaration-only fact is not an executable callee summary.
+			registerEdge(accessorCandidates{})
+			fact.staged.operationSkipped = append(fact.staged.operationSkipped, node)
+			return false // Zero actuals and a lexical lookup own no skipped input effects.
+		}
+		staged, gap := stageDeclarationCall(fact, node, typeChecker, owner)
+		if gap == stagedCallSupported {
+			resolveTarget()
+			inputs, inputSupported := bindStagedDeclarationInputs(fact, staged, owner)
+			if resolved && inputSupported && work.deferDeclarationCall(facts, factIndex, targetIndex, inputs.request, inputs) {
+				// The canonical edge owns every callee effect. Its source producer
+				// is queued independently, so this consumer yields without selecting
+				// or binding the callee through recursive invocation preparation.
+				registerEdge(accessorCandidates{})
+				return true
+			}
+			gap = stagedCallUnresolvedDeclaration
+		}
+		invoked, supported := stageInvokedFormal(fact, node, owner)
+		if captured {
+			invoked, supported = capturedDemand, true
+		}
+		if supported {
+			// Invocation syntax, not argument presence, issues this requirement.
+			// It remains relative in the definition. Composition edges own actual
+			// input substitution and never mutate the callee's definition facts.
+			resolved, targetSymbol = false, nil
+			registerEdge(accessorCandidates{invocationOwned: true})
+			fact.staged.invoked = append(fact.staged.invoked, invoked)
+			if invoked.role.kind == relativeRoleCapture {
+				fact.staged.operationSkipped = append(fact.staged.operationSkipped, node)
+			}
+			fact.summary.DirectEffectSources = append(fact.summary.DirectEffectSources, relativeInvokedEffect(invoked, fact.summary.Name))
+			return true
+		}
+		if fact.staged.legacy == nil {
+			fact.staged.legacy = make(map[*ast.Node]sourceStagedCallGap)
+		}
+		fact.staged.legacy[node] = gap
 		var definition *sourceDefinitionMAYCall
 		if ast.IsIdentifier(call.Expression) {
 			symbol := typeChecker.GetSymbolAtLocation(call.Expression)
@@ -279,6 +460,8 @@ func collectDirectCallableEffects(
 		return true
 	}
 	consumeOperand := func(demand sourceNormalOperand) {
+		progressWriterInputSource(owner, sourceFile, demand.node)
+		registerPendingMemberSource(fact, demand.node, owner, work)
 		values := newSourceValueOwner(typeChecker)
 		if owner != nil && owner.values != nil {
 			values = owner.values
@@ -300,6 +483,8 @@ func collectDirectCallableEffects(
 		}
 	}
 	consumePhase := func(phase sourceNormalPhase) {
+		progressWriterInputSource(owner, sourceFile, phase.node)
+		registerPendingMemberSource(fact, phase.node, owner, work)
 		query := sourceValueQuery{owner: owner.values, executable: owner, effectOwner: fact.node, remaining: 4096, active: make(map[*ast.Node]bool), inputs: fact.normalInputs, reading: phase.node}
 		query.operation = &sourceOperationContext{node: phase.node, owner: fact.node, inputs: fact.normalInputs}
 		result := accessorCandidates{}
@@ -363,6 +548,7 @@ func collectDirectCallableEffects(
 		// schedules are invoked only by their named refinement consumers.
 		walkCallableNormal(fact.node, consumeNode, nil)
 	}
+	finishOriginalMutationBodyPopulation(fact, owner, precisionRequested)
 	appendReturnSettlementEffects(fact, nodeTargets, sourceFile, typeChecker, owner)
 	applyCallableAnnotations(fact, sourceFile)
 	fact.summary.DirectEffectSources = uniqueEnvironmentSources(
@@ -710,7 +896,7 @@ func walkCallableNormalWithFolds(root *ast.Node, visit func(*ast.Node) bool, ope
 			}
 			// Computed names execute while the owner is constructed. Callable bodies do not.
 			if name := node.Name(); name != nil && ast.IsComputedPropertyName(name) {
-				descend(name.AsComputedPropertyName().Expression)
+				descend(name)
 			}
 			return
 		}

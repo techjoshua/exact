@@ -30,9 +30,7 @@ func (query *sourceValueQuery) admitStaticIntrinsicPreservation(node *ast.Node, 
 	if tag == nil || !ast.IsIdentifier(tag) || !jsxIntrinsic(tag.Text()) {
 		return false
 	}
-	switch tag.Text() {
-	case "p", "div", "span", "strong", "em", "br":
-	default:
+	if !simpleIntrinsicSourceHost(tag.Text()) {
 		return false
 	}
 	attributes := opening.Attributes()
@@ -135,6 +133,16 @@ func (query *sourceValueQuery) preservationFold(fold sourceNormalFold, component
 		}
 	case ast.KindPropertyAccessExpression, ast.KindElementAccessExpression, ast.KindCallExpression:
 		return operation(node)
+	}
+	return false
+}
+
+// simpleIntrinsicSourceHost shares only the finite source-host family. Callers
+// separately own child, property, target and preservation contracts.
+func simpleIntrinsicSourceHost(tag string) bool {
+	switch tag {
+	case "p", "div", "span", "strong", "em", "br":
+		return true
 	}
 	return false
 }

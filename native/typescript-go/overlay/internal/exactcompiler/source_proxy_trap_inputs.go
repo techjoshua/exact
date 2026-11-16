@@ -9,6 +9,24 @@ import "github.com/microsoft/TypeScript/tsc/internal/ast"
 // receiver definedness. Unanchored receivers include possible undefined from
 // reflective callers. Keys remain abstract property keys.
 func (q *sourceValueQuery) bindProxyTrapInputs(body *ast.Node, handler sourceValue, targets []sourceValue, captures sourceValueBindings, result *accessorCandidates, definedReceiver bool) *sourceValueInputs {
+	return q.bindProxyProtocolInputs(body, handler, targets, captures, result, true, true, definedReceiver)
+}
+
+// bindProxyDescriptorInputs binds the two arguments actually supplied by
+// [[GetOwnProperty]]. A third authored parameter is absent and its default
+// remains owned by the ordinary binder. No ordinary property Get is performed.
+func (q *sourceValueQuery) bindProxyDescriptorInputs(operation, body *ast.Node, handler sourceValue, targets []sourceValue, captures sourceValueBindings, result *accessorCandidates) *sourceValueInputs {
+	inputs := q.bindProxyProtocolInputs(body, handler, targets, captures, result, true, true)
+	// The real selected intrinsic supplies this protocol invocation. The source
+	// body consumer receives the installed binder; it must not rebind the trap
+	// as if the authored Object call's receiver were the handler.
+	inputs.invocation = operation
+	return inputs
+}
+
+// bindProxyProtocolInputs shares the existing source-only binding owner while
+// preserving each native protocol's actual vector and default-definedness.
+func (q *sourceValueQuery) bindProxyProtocolInputs(body *ast.Node, handler sourceValue, targets []sourceValue, captures sourceValueBindings, result *accessorCandidates, defined ...bool) *sourceValueInputs {
 	inputs := &sourceValueInputs{declaration: body, invocation: q.invoking, bindings: make(sourceValueBindings, len(captures)+1), defaults: make(map[*ast.Node]sourceDefaultInput)}
 	for id, values := range captures {
 		if !q.charge(result, body) {
@@ -24,7 +42,13 @@ func (q *sourceValueQuery) bindProxyTrapInputs(body *ast.Node, handler sourceVal
 	if len(targets) == 0 {
 		targets = []sourceValue{{}}
 	}
-	actuals := [][]sourceValue{targets, {{}}, {{}}}
+	actuals := make([][]sourceValue, len(defined))
+	for i := range actuals {
+		actuals[i] = []sourceValue{{}}
+	}
+	if len(actuals) != 0 {
+		actuals[0] = targets
+	}
 	position := 0
 	for _, parameter := range body.Parameters() {
 		if !q.charge(result, parameter) {
@@ -47,7 +71,7 @@ func (q *sourceValueQuery) bindProxyTrapInputs(body *ast.Node, handler sourceVal
 			q.installParameterInput(parameter, values, inputs, result)
 			break
 		}
-		if supplied && (position < 2 || position == 2 && definedReceiver) {
+		if supplied && defined[position] {
 			// The native protocol guarantees supplied arguments, not their nested
 			// properties. Pattern binding still owns all nested reads/defaults.
 			q.bindDefinedParameterInput(parameter, values, inputs, result)
@@ -62,4 +86,34 @@ func (q *sourceValueQuery) bindProxyTrapInputs(body *ast.Node, handler sourceVal
 		position++
 	}
 	return inputs
+}
+
+// publishProxySourceInputs publishes the real fixed native vector after its
+// final invocation is installed. Target/key source alternatives already belong
+// to this protocol binder; no ordinary call receiver or actual is reacquired.
+func (q *sourceValueQuery) publishProxySourceInputs(operation, site *ast.Node, handler sourceValue, inputs *sourceValueInputs, supplied int) {
+	if !q.dependenciesOnly || q.operation != nil || operation == nil || !ast.IsCallExpression(operation) || site == nil || !ast.IsNewExpression(site) || inputs == nil || inputs.invocation != operation || supplied < 2 || supplied > 3 {
+		return
+	}
+	request := sourceRelativeInvocation{operation: operation, declaration: inputs.declaration, use: q.effectUse(), cut: q.relativeInputCut(operation), actualsKnown: true}
+	receiver, gap := describeRelativeBoundValues([]sourceValue{handler}, sourceRelativeRole{kind: relativeRoleReceiver, declaration: inputs.declaration}, request.cut)
+	if gap != relativeInputsSupported || receiver.unknown || len(receiver.pending) != 0 || len(receiver.sources) != 1 {
+		return
+	}
+	request.receiver = cloneSourceRelativeEndpoint(receiver.sources[0])
+	target := sourceRelativeEndpoint{kind: relativeEndpointUnknown, cut: request.cut}
+	if actuals := site.AsNewExpression().Arguments; actuals != nil && len(actuals.Nodes) >= 1 && !ast.IsSpreadElement(actuals.Nodes[0]) {
+		target = sourceRelativeEndpoint{kind: relativeEndpointExpression, expression: actuals.Nodes[0], producer: operation, cut: request.cut}
+	}
+	request.actuals = append(request.actuals, sourceRelativeActual{ordinal: 0, endpoint: target})
+	for position := 1; position < supplied; position++ {
+		request.actuals = append(request.actuals, sourceRelativeActual{ordinal: position, endpoint: sourceRelativeEndpoint{kind: relativeEndpointUnknown, cut: request.cut}})
+	}
+	edge := &sourceRelativeInputEdge{}
+	revoke, installed := q.beginSourceRelativeInputRequest(request, edge)
+	if !installed {
+		return
+	}
+	defer revoke()
+	q.publishOriginalSourceInputs(inputs)
 }

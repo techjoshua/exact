@@ -7,6 +7,7 @@ import "github.com/microsoft/TypeScript/tsc/internal/ast"
 // request rather than inheriting its input. It grants no normal output, performed
 // write, descriptor identity or completed invocation authority.
 type sourceSetterInputRequest struct {
+	assignment               *sourceStagedAssignmentBorrow // Exact synchronous original Set observer, never cached.
 	operation, target, right *ast.Node
 	caller                   acquiredCallableScope
 	// writer requests source input mappings only, never body execution.
@@ -55,17 +56,28 @@ func (q *sourceValueQuery) consumeSourceSetter(body, effectOperation *ast.Node, 
 // the setter body or establish that the assignment completed.
 func (q *sourceValueQuery) bindSourceSetterInputs(request *sourceSetterInputRequest, body *ast.Node, receiver sourceValue, captures sourceValueBindings, result *accessorCandidates) *sourceValueInputs {
 	// A nested Get during RHS acquisition cannot consume this assignment's input.
+	staged := q.liveStagedAssignment()
 	q.setterInput = nil
 	defer func() { q.setterInput = request }()
 	part := accessorCandidates{}
 	var values []sourceValue
-	func() {
-		previousCreators := q.creators
-		q.creators = request.caller.creators
-		defer func() { q.creators = previousCreators }()
-		values = q.originsAt(request.right, request.right, request.caller.bindings, &part)
-	}()
+	if staged != nil && staged.request == request {
+		values = append(values, staged.rhs...)
+		if !staged.rhsKnown {
+			part.valueIncomplete = true
+		}
+	} else {
+		func() {
+			previousCreators := q.creators
+			q.creators = request.caller.creators
+			defer func() { q.creators = previousCreators }()
+			values = q.originsAt(request.right, request.right, request.caller.bindings, &part)
+		}()
+	}
 	for i := range values {
+		if staged != nil && sourcePrimitiveValue(values[i].node) {
+			continue // Primitive DATA needs no captured creating association.
+		}
 		if values[i].capture == nil {
 			scope := request.caller
 			values[i].capture = &scope

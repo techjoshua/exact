@@ -8,14 +8,27 @@ import (
 // sourceInvocationDependencies instantiates AST-backed demands at their use point.
 // Bindings and creator contexts are query-local. This path publishes dependencies,
 // never normal values, storage deltas or permission to enter a precise operation.
-func sourceInvocationDependencies(node *ast.Node, c *checker.Checker, owner *executableBodyOwner, consumer *ast.Node) accessorCandidates {
-	return sourceInvocationDependenciesAt(node, node, c, owner, consumer, nil)
+func sourceInvocationDependencies(node *ast.Node, c *checker.Checker, owner *executableBodyOwner, consumer *ast.Node, delivered ...*sourceRelativeInputEdge) accessorCandidates {
+	return sourceInvocationDependenciesAt(node, node, c, owner, consumer, nil, delivered...)
 }
 
 // sourceInvocationDependenciesAt retains the caller's observation and acquired
 // argument associations when a source consumer enters an instantiated body.
-func sourceInvocationDependenciesAt(node, reading *ast.Node, c *checker.Checker, owner *executableBodyOwner, consumer *ast.Node, inputs *sourceValueInputs) accessorCandidates {
+func sourceInvocationDependenciesAt(node, reading *ast.Node, c *checker.Checker, owner *executableBodyOwner, consumer *ast.Node, inputs *sourceValueInputs, delivered ...*sourceRelativeInputEdge) accessorCandidates {
+	return sourceInvocationDependenciesWithBodyEffects(node, reading, c, owner, consumer, inputs, nil, delivered...)
+}
+
+// sourceInvocationDependenciesWithBodyEffects observes the installed source-only
+// binder at its original producer. The callback never enters a prepared cache.
+func sourceInvocationDependenciesWithBodyEffects(node, reading *ast.Node, c *checker.Checker, owner *executableBodyOwner, consumer *ast.Node, inputs *sourceValueInputs, observe func(sourceBodyEffectsObservation), delivered ...*sourceRelativeInputEdge) accessorCandidates {
+	return sourceInvocationDependenciesObserved(node, reading, c, owner, consumer, inputs, sourceEffectsObserver{body: observe}, delivered...)
+}
+
+func sourceInvocationDependenciesObserved(node, reading *ast.Node, c *checker.Checker, owner *executableBodyOwner, consumer *ast.Node, inputs *sourceValueInputs, observe sourceEffectsObserver, delivered ...*sourceRelativeInputEdge) accessorCandidates {
 	query := newSourceDependencyQuery(reading, c, owner, consumer)
+	observe.issuer = query
+	query.sourceEffects = observe
+	defer func() { query.sourceEffects = sourceEffectsObserver{} }()
 	query.dependencyUse = node
 	defer query.publishDependencyStatistics()
 	var bindings sourceValueBindings
@@ -25,6 +38,17 @@ func sourceInvocationDependenciesAt(node, reading *ast.Node, c *checker.Checker,
 		query.invoking = inputs.invocation
 		query.dependencyUse = inputs.dependencyUse
 	}
+
+	// Borrow the binder already owned by this original input consumer. No
+	// second input acquisition or caller scope is constructed for the graph.
+	if inputs == nil && len(delivered) == 1 && delivered[0] != nil && !delivered[0].delivered && delivered[0].request.operation == node {
+		request := cloneStagedWriterInvocation(delivered[0].request)
+		request.use, request.cut = query.effectUse(), query.relativeInputCut(node)
+		if revoke, installed := query.beginSourceRelativeInputRequest(request, delivered[0]); installed {
+			defer revoke()
+		}
+	}
+	progressFrontier(query, query.dependencyUse, 0)
 	return query.invocation(node, bindings)
 }
 
@@ -43,6 +67,8 @@ func newSourceDependencyQuery(node *ast.Node, c *checker.Checker, owner *executa
 	if owner != nil {
 		query.dependencyStatsOwner = owner.values
 	}
+	query.installedMemberIssuer = query
+	progressOpenRoot(query)
 	return query
 }
 
@@ -51,6 +77,7 @@ func newSourceDependencyQuery(node *ast.Node, c *checker.Checker, owner *executa
 func sourceMemberDependencies(node *ast.Node, c *checker.Checker, owner *executableBodyOwner, consumer *ast.Node, bindings sourceValueBindings) accessorCandidates {
 	query := newSourceDependencyQuery(node, c, owner, consumer)
 	defer query.publishDependencyStatistics()
+	progressFrontier(query, query.dependencyUse, 0)
 	return query.evaluatedSourceAccessors(node, bindings)
 }
 
@@ -84,6 +111,7 @@ func refineSourceDependencies(precise accessorCandidates, summary func() accesso
 // publishDependencyStatistics returns advisory counters to the checker owner.
 // No scope, binding, acquisition result or current-write decision is retained.
 func (query *sourceValueQuery) publishDependencyStatistics() {
+	progressCloseRoot(query)
 	parent := query.dependencyStatsOwner
 	if parent == nil || parent == query.owner {
 		return
@@ -131,6 +159,7 @@ func (query *sourceValueQuery) constructDependencyEffects(site *ast.Node, bindin
 	}
 	expression := site.AsNewExpression().Expression
 	selected := query.selectSourceConstruction(site, bindings, &result)
+	query.publishStandardConstruction(site, bindings, selected)
 	query.retainSelectedConstructionDependencies(site, selected, &result)
 	if len(selected.declarations) > 0 || selected.base.selected || selected.base.invocationOwned {
 		// The selected body/field dependency consumer accounts construction
@@ -146,6 +175,15 @@ func (query *sourceValueQuery) constructDependencyEffects(site *ast.Node, bindin
 	}
 	for _, value := range values {
 		target := value.node
+		// Acquisition retains the genuine standard constructor declaration for
+		// source-member publication. Its declaration is not a source body. Keep
+		// the existing host-effect classifier's identifier input instead of
+		// mistaking this representation change for an opaque constructor.
+		if value.native != nil && value.native.kind == sourceNativeWeakMapConstructor && len(value.path) == 0 {
+			if _, kind := query.nativeRootDeclaration(target); kind == sourceNativeWeakMapConstructor {
+				target = target.Name()
+			}
+		}
 		if target == nil || len(value.path) > 0 {
 			result.opaque = true
 			continue
@@ -182,6 +220,7 @@ func (query *sourceValueQuery) sourceCreatorValue(value sourceValue, owner, crea
 // The record accounts effects without granting a normal output or execution receipt.
 func (query *sourceValueQuery) consumeSourceBodyEffects(operation, body *ast.Node, bindings sourceValueBindings, inputs *sourceValueInputs, invocation *ast.Node, result *accessorCandidates) bool {
 	firstField, firstCall := len(result.fieldOutcomes), len(result.callOutcomes)
+	firstInput := len(result.inputs)
 	enumerated := query.executeInputs(body, bindings, result, invocation, inputs)
 	var outcomes []sourceFieldOutcome
 	for _, outcome := range result.fieldOutcomes[firstField:] {
@@ -195,6 +234,17 @@ func (query *sourceValueQuery) consumeSourceBodyEffects(operation, body *ast.Nod
 			calls = append(calls, outcome)
 		}
 	}
-	result.fieldCalls = append(result.fieldCalls, sourceFieldCall{operation: operation, target: body, outcomes: outcomes, calls: calls, complete: enumerated && !result.thenIncomplete, dependencies: true})
+	call := sourceFieldCall{operation: operation, target: body, outcomes: outcomes, calls: calls, complete: enumerated && !result.thenIncomplete, dependencies: true}
+	result.fieldCalls = append(result.fieldCalls, call)
+	if query.dependenciesOnly && query.sourceEffects.body != nil {
+		for _, installed := range result.inputs[firstInput:] {
+			if installed != nil && installed.declaration == body {
+				sourceGet := query.installedSourceGetterObservation(body, operation, installed)
+				if installed.invocation == operation || sourceGet != nil {
+					query.sourceEffects.body(sourceBodyEffectsObservation{sourceGet: sourceGet, inputs: installed, call: call, consumer: query.effectOwner, generation: query.owner.generation, cut: query.relativeInputCut(operation)})
+				}
+			}
+		}
+	}
 	return enumerated
 }

@@ -22,8 +22,9 @@ func (d sourceFieldDemand) identity() string {
 }
 
 type sourceFieldOutcome struct {
-	demand    sourceFieldDemand
-	fulfilled bool
+	installedMember *sourceInstalledMemberRequirement // pending source requirement, never legacy false
+	demand          sourceFieldDemand
+	fulfilled       bool
 }
 
 // sourceFieldCall is a construction result, with no input frame or query retained.

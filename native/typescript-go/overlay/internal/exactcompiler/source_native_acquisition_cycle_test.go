@@ -156,7 +156,7 @@ func TestPendingCalleeAvailabilityLifetime(t *testing.T) {
 		if q.pendingCalleeOutput(other, bindings) {
 			t.Fatal("other original Call withheld")
 		}
-		part := q.projectSourceCallReturns(call, bindings, func(sourceValue, sourceValueBindings) { t.Error("pending output published") }, func() { t.Error("pending output dispatched") })
+		part := q.projectSourceCallReturns(call, bindings, sourceCallResultInterest{purpose: resultSourceProjection}, func(sourceValue, sourceValueBindings) { t.Error("pending output published") }, func() { t.Error("pending output dispatched") })
 		if !part.opaque || !part.valueIncomplete || len(part.normalCalls) != 0 || len(part.nativeCalls) != 0 || len(part.fieldCalls) != 0 {
 			t.Fatal("pending output issued authority")
 		}

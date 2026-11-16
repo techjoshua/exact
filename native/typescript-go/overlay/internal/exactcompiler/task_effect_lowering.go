@@ -163,6 +163,17 @@ func (lowering *jsxLowering) manageTaskWork(
 	callsTaskDefinition bool,
 	directServer bool,
 ) *ast.Node {
+	// Runtime work receives the existing final context even when no frame,
+	// cancellation or mutation transform is needed. Otherwise defineTask infers
+	// the last authored argument as its context and loses the input tuple.
+	// Direct server work has a separate call owner; authored contexts stay exact.
+	// Rest-cardinality diagnostics precede emission; never append after a rest
+	// parameter even if an unconnected caller reaches this shape helper.
+	parameters := work.Parameters()
+	if !directServer && len(parameters) == dependencyCount &&
+		(len(parameters) == 0 || parameters[len(parameters)-1].AsParameterDeclaration().DotDotDotToken == nil) {
+		_, work = lowering.ensureTaskContextParameter(work, dependencyCount)
+	}
 	nativeCleanup := taskContainsNativeCleanup(work)
 	if len(task.Resources) == 0 && len(task.SignalCalls) == 0 &&
 		len(task.Writes) == 0 && !taskContainsAwait(work) &&

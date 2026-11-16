@@ -104,6 +104,9 @@ func (query *sourceValueQuery) memberValuesAtGet(origin *ast.Node, projection []
 // Unfinished interference remains unknown. The candidate cannot close that debt,
 // prove a replacement or supply any normal-operation authority.
 func (query *sourceValueQuery) memberValuesAtGetWithStandard(origin *ast.Node, projection []string, name string, mode accessorTraversal, bindings sourceValueBindings, result *accessorCandidates, visit func(sourceValue), operation sourceMemberOperationProof, get *sourceGetInputs, standard *sourceValue, cuts ...*sourceMemberWriterReadCut) bool {
+	// Publish the conditional source branch and required debts before inventory.
+	// This leaves the original Get, writers and every authored sibling intact.
+	query.publishStagedNativeGetSource(get, standard, projection, name, bindings)
 	var cut *sourceMemberWriterReadCut
 	if len(cuts) > 0 {
 		cut = cuts[0]
@@ -111,296 +114,400 @@ func (query *sourceValueQuery) memberValuesAtGetWithStandard(origin *ast.Node, p
 	if cut == nil {
 		cut = query.memberWriterReadCut(nil, bindings, result, get)
 	}
-	restoreReader := query.memberWriterRead(cut)
+	restoreReader := query.memberWriterRead(get, cut)
 	defer restoreReader()
-	restoreDeferredRead := query.beginDeferredRead(get)
-	defer restoreDeferredRead()
-	// A confined receiver has no alias available to generic call/write/descriptor
-	// candidates. Its field values and ordinary execution effects remain separate.
-	if query.ownsDataSlot(get, origin, projection, name, mode) || query.confinedEnvelope(origin, projection, name, mode, result) {
-		return false
-	}
-	inventory := query.inventoryMemberWrites(origin, projection, name, mode, bindings, result, operation.sources, cut)
-	capture := sourceMemberOperationProof{}
-	if standard != nil {
-		// Standard containers do not need an implementation-integrity proof.
-		// Actual inventory demands remain on their existing view, and indexed
-		// own writers/descriptors below still contribute their own uncertainty.
-		// Ordinary receivers retain their unfinished own-interference debt.
-		// Neither path gains replacement precision from the standard candidate.
-		if !standardNativeLookup(get) {
-			result.opaque = true
+	restoreEntrySource := query.beginNativeEntryMemberGet(get, cut, mode)
+	defer restoreEntrySource()
+	restoreMemberSource := query.enterStagedMemberSource(get, cut, result)
+	defer restoreMemberSource()
+	returned := func() bool {
+		var sourceIndexes [4]sourceValueIndex
+		var indexes []sourceValueIndex
+		sourceInterval := query.liveStagedMemberSource(query.stagedMember, get, cut)
+		if sourceInterval {
+			if query.liveStagedFieldMemberSource(get) {
+				selected, complete := query.stagedFieldDiscoverySources(get)
+				query.stagedMember.represented = query.stagedMember.represented && complete
+				for _, source := range selected {
+					operation.sources = append(operation.sources, source.source)
+				}
+			}
+			indexes = query.occurrenceSourceViewIn(origin, result, operation.sources, sourceIndexes[:0])
+			query.prepareStagedMemberSources(get, cut, origin, projection, name, mode, indexes, result)
+			query.publishOriginalGetMutationSource(get, cut, mode, origin, projection, name, standard)
+			query.acquireConstructedCoverageReceiver(get, cut, mode, result)
+			if query.transferStagedMapMemberEffects(origin, get, cut, mode, result) {
+				return false
+			}
+			if query.liveStagedMapEntryMemberSource(get) {
+				// This original DATA terminal requested source extraction only.
+				// Refusal leaves its registered C child pending, never a request to
+				// recover old values or replay a callable through the legacy owner.
+				return false
+			}
+			if query.transferStagedFieldMemberEffects(origin, get, cut, mode, result) {
+				return false
+			}
+			if query.transferStagedMemberGetEffects(origin, projection, name, mode, standard, get, cut, result) {
+				return false
+			}
 		}
-		inventory = true
-	} else if !inventory {
-		capture = query.interferenceInSources(origin, projection, name, mode, bindings, result, operation.sources, cut)
-	}
-	restoreOperation := query.suspendOperation()
-	defer restoreOperation()
-	var alternatives []sourceValue
-	var replacements []sourceValueReplacement
-	demand := append(append([]string{}, projection...), name)
-	var sourceIndexes [4]sourceValueIndex
-	for _, index := range query.occurrenceSourceViewIn(origin, result, operation.sources, sourceIndexes[:0]) {
-		// The existing source-relative producer and occurrence checks below decide
-		// reachability. Membership in this view alone never proves a write performed.
-		known, dynamic := index.memberOrigins[origin], index.dynamicMembers
-		for i, j := 0, 0; i < len(known) || j < len(dynamic); {
-			var assignment sourceValueAssignment
-			if j == len(dynamic) || i < len(known) && known[i].left.Pos() < dynamic[j].left.Pos() {
-				assignment = known[i]
-				i++
-			} else {
-				assignment = dynamic[j]
-				j++
+		if !sourceInterval {
+			query.publishOriginalGetMutationSource(get, cut, mode, origin, projection, name, standard)
+		}
+		restoreWriterGet := query.enterStagedWriterGet(get, cut)
+		defer restoreWriterGet()
+		restoreDeferredRead := query.beginDeferredRead(get)
+		defer restoreDeferredRead()
+		// A confined receiver has no alias available to generic call/write/descriptor
+		// candidates. Its field values and ordinary execution effects remain separate.
+		if query.ownsDataSlot(get, origin, projection, name, mode) || query.confinedEnvelope(origin, projection, name, mode, result) {
+			return false
+		}
+		inventory := query.inventoryMemberWrites(origin, projection, name, mode, bindings, result, operation.sources, cut)
+		capture := sourceMemberOperationProof{}
+		if standard != nil {
+			// Standard containers do not need an implementation-integrity proof.
+			// Actual inventory demands remain on their existing view, and indexed
+			// own writers/descriptors below still contribute their own uncertainty.
+			// Ordinary receivers retain their unfinished own-interference debt.
+			// Neither path gains replacement precision from the standard candidate.
+			if !standardNativeLookup(get) && !query.stagedStandardAssignmentLookup(get, standard, mode) && !query.stagedConstructedGetLookup(get, standard, mode) && !query.stagedStandardConstructedCallLookup(get, standard, mode) && !query.stagedConstructedResultCoverageLookup(get, standard, mode) {
+				result.opaque = true
 			}
-			// Interference has already been collected. An opaque source acquisition
-			// needs no writer inputs when its static final key cannot occur in the
-			// demanded path. Keep structural and unknown keys on the ordinary route.
-			// Opacity is required: input matching also retains refused writer/setter
-			// scopes. A disjoint RHS key alone cannot exclude those effects.
-			if query.dependenciesOnly && result.opaque && mode == accessorAcquire {
-				_, key := accessorReceiver(assignment.left)
-				if !sourceMemberKeyMaySupply(key, demand) {
+			inventory = true
+		} else if !inventory {
+			capture = query.interferenceInSources(origin, projection, name, mode, bindings, result, operation.sources, cut)
+		}
+		restoreOperation := query.suspendOperation()
+		defer restoreOperation()
+		var alternatives []sourceValue
+		var replacements []sourceValueReplacement
+		demand := append(append([]string{}, projection...), name)
+		if !sourceInterval {
+			indexes = query.occurrenceSourceViewIn(origin, result, operation.sources, sourceIndexes[:0])
+		}
+		for _, index := range indexes {
+			// The existing source-relative producer and occurrence checks below decide
+			// reachability. Membership in this view alone never proves a write performed.
+			cursor := index.memberAssignments(origin)
+			for {
+				assignment, found := cursor.next()
+				if !found {
+					break
+				}
+				// Interference has already been collected. An opaque source acquisition
+				// needs no writer inputs when its static final key cannot occur in the
+				// demanded path. Keep structural and unknown keys on the ordinary route.
+				// Opacity is required: input matching also retains refused writer/setter
+				// scopes. A disjoint RHS key alone cannot exclude those effects.
+				if query.dependenciesOnly && result.opaque && mode == accessorAcquire {
+					_, key := accessorReceiver(assignment.left)
+					if !sourceMemberKeyMaySupply(key, demand) {
+						continue
+					}
+				}
+				operation := assignment.right.Parent
+				if query.afterRead(assignment.left) {
 					continue
 				}
-			}
-			operation := assignment.right.Parent
-			if query.afterRead(assignment.left) {
-				continue
-			}
-			if possible, _ := query.reachable(assignment.left, bindings); !possible {
-				continue
-			}
-			// A completed eager own-data acquisition can exclude deferred writers
-			// outside its actual reached regions. This is no value-completeness or
-			// replacement certificate and failed/exhausted proofs retain may writes.
-			if capture.closed && capture.regions != nil {
-				writer := query.functionOperationOwner(assignment.left, result)
-				if writer != nil && !capture.regions[writer] {
+				if query.moduleWriterExcluded(operation, get, cut) {
 					continue
 				}
-			}
+				if query.excludeStagedPrivateWriter(get, cut, assignment, origin) {
+					continue
+				}
+				if query.transferStagedSetWriterSource(get, cut, assignment, origin) {
+					continue
+				}
+				// Relative effect transfer precedes admission's optional reconstruction
+				// of earlier Call outputs. Only a complete nonmatching receiver can
+				// settle this exact writer obligation here. Matching/unknown receivers
+				// keep their original ordering, branch, donor and input consumers.
+				if _, settled := query.pendingWriterCapture(assignment, origin, bindings, result, get, true); settled {
+					continue
+				}
+				if possible, _ := query.reachable(assignment.left, bindings); !possible {
+					continue
+				}
+				// A completed eager own-data acquisition can exclude deferred writers
+				// outside its actual reached regions. This is no value-completeness or
+				// replacement certificate and failed/exhausted proofs retain may writes.
+				if capture.closed && capture.regions != nil {
+					writer := query.functionOperationOwner(assignment.left, result)
+					if writer != nil && !capture.regions[writer] {
+						continue
+					}
+				}
 
-			for _, input := range query.memberWriterInputs(assignment.left, bindings, result, cut) {
-				query.memberWriterScope(input, func() {
-					assignmentBindings := input.scope.bindings
-					var setterProducer *ast.Node
-					if writer := enclosingCallableNode(assignment.left); writer != nil && ast.IsSetAccessorDeclaration(writer) {
-						setterProducer, assignmentBindings = query.setterWriteProducer(assignment.left, bindings)
+				query.pendingWriterGet(assignment, origin, bindings, get)
+				var inputs []sourceMemberWriterInput
+				if relative, transferred := query.pendingWriterCapture(assignment, origin, bindings, result, get, false); transferred {
+					if relative == nil {
+						continue
 					}
-					root, key := accessorReceiver(assignment.left)
-					if key == "" {
-						key = "*"
-					}
-					temporary := accessorCandidates{opaque: input.incomplete}
-					var receivers []sourceValue
-					if query.dependenciesOnly && get != nil && get.receiver.native == nil && get.receiver.node != nil && ast.IsNewExpression(get.receiver.node) && get.lookupOwner != nil && get.lookupOwner.node == origin && len(get.lookupOwner.path) == 0 {
-						receivers = []sourceValue{get.receiver}
-					}
-					origins := query.occurrenceOrigins(root, assignment.left, origin, assignmentBindings, &temporary, receivers...)
-					for _, value := range origins {
-						if sourceFunctionPrototype(value, query.owner.checker) && query.sourceCallableImplementation(origin, result) && sourceProjectionOverlap([]string{key}, demand) {
-							result.opaque = true
-							result.cause = assignment.left
+					inputs = append(inputs, *relative)
+				} else {
+					inputs = query.memberWriterInputs(assignment.left, bindings, result, cut)
+				}
+				for _, input := range inputs {
+					// Entering an actual input/capture scope creates this migration
+					// debt. Candidate discovery alone supplies no acquired inputs;
+					// reconstruction keeps its own marker even if it returns none.
+					if query.stagedNativeGet != nil {
+						_, key := accessorReceiver(assignment.left)
+						if sourceMemberKeyMaySupply(key, demand) {
+							query.stagedNativeGet.writerDependent = true
 						}
 					}
-					for _, value := range origins {
-						receiverRoute := false
-						for _, receiver := range receivers {
-							creator := query.creators[enclosingCallableNode(receiver.node)].invocation
-							if receiver.node != nil && len(receiver.path) == 0 && (value.node == receiver.node || creator != nil && query.sourceCreatorValue(value, enclosingCallableNode(receiver.node), creator)) {
-								// Keep the selected receiver's relative write route beside
-								// the lookup owner. This MAY association supplies no alias
-								// identity, performed replacement or DATA authority.
-								receiverRoute = true
+					query.memberWriterScope(input, func() {
+						assignmentBindings := input.scope.bindings
+						var setterProducer *ast.Node
+						if writer := enclosingCallableNode(assignment.left); writer != nil && ast.IsSetAccessorDeclaration(writer) {
+							setterProducer, assignmentBindings = query.setterWriteProducer(assignment.left, bindings)
+						}
+						root, key := accessorReceiver(assignment.left)
+						if key == "" {
+							key = "*"
+						}
+						temporary := accessorCandidates{opaque: input.incomplete}
+						var receivers []sourceValue
+						if query.dependenciesOnly && get != nil && get.receiver.native == nil && get.receiver.node != nil && ast.IsNewExpression(get.receiver.node) && get.lookupOwner != nil && get.lookupOwner.node == origin && len(get.lookupOwner.path) == 0 {
+							receivers = []sourceValue{get.receiver}
+						}
+						origins := query.occurrenceOrigins(root, assignment.left, origin, assignmentBindings, &temporary, receivers...)
+						for _, value := range origins {
+							if sourceFunctionPrototype(value, query.owner.checker) && query.sourceCallableImplementation(origin, result) && sourceProjectionOverlap([]string{key}, demand) {
+								result.opaque = true
+								result.cause = assignment.left
+							}
+						}
+						for _, value := range origins {
+							receiverRoute := query.componentAssignmentReceiverSource(input, assignment.left, origin, value, cut)
+							if receiverRoute {
+								// Same-definition SOURCE correspondence is MAY only; keep
+								// original nodes and forbid replacement/own-slot precision.
 								temporary.opaque = true
 							}
-						}
-						if receiverRoute && sourceFieldOwnsDemand(origin, projection, name) {
-							continue // The existing New-field consumer owns these writes.
-						}
-						if get != nil && get.receiver.native != nil && query.nativeReceiverMatches(value, get.descriptorReceiver()) {
-							// The selected native receiver has consumed this acquired prefix.
-							value.node, value.path = origin, nil
-						}
-						if value.node != origin && !receiverRoute {
-							// Two authored references to the same standard binding can carry
-							// a possible prototype write. This never proves it performed or
-							// removes the unknown original member alternative.
-							if len(projection) == 0 || !sourceFunctionPrototype(value, query.owner.checker) || !sourceFunctionPrototype(sourceValue{node: origin, path: projection[:1]}, query.owner.checker) || query.owner.checker.GetSymbolAtLocation(value.node) != query.owner.checker.GetSymbolAtLocation(origin) {
-								continue
-							}
-							result.opaque = true
-						}
-						if frozen := query.nativeFreezeFor(get, origin, assignment.left, result); frozen != nil {
-							blocked := true
-							for _, row := range frozen.nested {
-								if row.key == key && row.fields["set"].presence == propertyPresent {
-									blocked = false
+							for _, receiver := range receivers {
+								creator := query.creators[enclosingCallableNode(receiver.node)].invocation
+								if receiver.node != nil && len(receiver.path) == 0 && (value.node == receiver.node || creator != nil && query.sourceCreatorValue(value, enclosingCallableNode(receiver.node), creator)) {
+									// Keep the selected receiver's relative write route beside
+									// the lookup owner. This MAY association supplies no alias
+									// identity, performed replacement or DATA authority.
+									receiverRoute = true
+									temporary.opaque = true
 								}
 							}
-							if blocked {
-								// RHS effects remain with the original assignment. The native
-								// integrity event forbids a successful data/new-slot write.
-								// Completion remains conservative, never a performed PutValue.
-								result.opaque = true
-								continue
+							if receiverRoute && sourceFieldOwnsDemand(origin, projection, name) {
+								continue // The existing New-field consumer owns these writes.
 							}
-						}
-						written := append(append([]string{}, value.path...), key)
-						producer := setterProducer
-						if sourceProjectionOverlap(written, demand) {
-							var possible bool
-							// Once this receiver route is incomplete, another possible writer lookup
-							// cannot establish performed execution. Keep all RHS alternatives below.
-							possible = true
-							if producer == nil && (!result.opaque || enclosingCallableNode(assignment.left) == nil || query.creators[enclosingCallableNode(assignment.left)].invocation != nil) {
-								if input.incomplete {
-									producer, possible = nil, true
-								} else if input.call != nil {
-									producer, possible = nil, true
-									if !input.incomplete && query.moduleCallWriteProducer(assignment.left, enclosingCallableNode(assignment.left), input.call, assignmentBindings) {
-										producer = input.call
+							if get != nil && get.receiver.native != nil && query.nativeReceiverMatches(value, get.descriptorReceiver()) {
+								// The selected native receiver has consumed this acquired prefix.
+								value.node, value.path = origin, nil
+							}
+							if value.node != origin && !receiverRoute {
+								// Two authored references to the same standard binding can carry
+								// a possible prototype write. This never proves it performed or
+								// removes the unknown original member alternative.
+								if len(projection) == 0 || !sourceFunctionPrototype(value, query.owner.checker) || !sourceFunctionPrototype(sourceValue{node: origin, path: projection[:1]}, query.owner.checker) || query.owner.checker.GetSymbolAtLocation(value.node) != query.owner.checker.GetSymbolAtLocation(origin) {
+									continue
+								}
+								result.opaque = true
+							}
+							if frozen := query.nativeFreezeFor(get, origin, assignment.left, result); frozen != nil {
+								blocked := true
+								for _, row := range frozen.nested {
+									if row.key == key && row.fields["set"].presence == propertyPresent {
+										blocked = false
 									}
-								} else {
-									producer, possible = query.moduleWriteProducer(assignment.left, assignmentBindings)
+								}
+								if blocked {
+									// RHS effects remain with the original assignment. The native
+									// integrity event forbids a successful data/new-slot write.
+									// Completion remains conservative, never a performed PutValue.
+									result.opaque = true
+									continue
 								}
 							}
-							if !possible {
+							written := append(append([]string{}, value.path...), key)
+							producer := setterProducer
+							// A MAY RHS consumer needs the original receiver/key relation,
+							// not a performed module write or replacement proof. Publish
+							// before those stronger value consumers can recover invocation.
+							if len(written) < len(demand) && sourceProjectionOverlap(written, demand) && query.publishStagedWriterSource(get, cut, assignment, input, origin, demand[len(written):len(demand)-1], false, input.incomplete || input.call != nil, func(value sourceValue) { alternatives = append(alternatives, value) }) {
+								result.valueIncomplete = true
 								continue
 							}
-							if producer != nil && len(origins) == 1 && !temporary.opaque && len(written) <= len(demand) && directSourceDataSlot(origin, written, assignment.left, query.owner.checker) {
-								result.producers = append(result.producers, producer)
+							if sourceProjectionOverlap(written, demand) {
+								var possible bool
+								// Once this receiver route is incomplete, another possible writer lookup
+								// cannot establish performed execution. Keep all RHS alternatives below.
+								possible = true
+								if producer == nil && (!result.opaque || enclosingCallableNode(assignment.left) == nil || query.creators[enclosingCallableNode(assignment.left)].invocation != nil) {
+									if input.incomplete {
+										producer, possible = nil, true
+									} else if input.call != nil {
+										producer, possible = nil, true
+										if !input.incomplete && query.moduleCallWriteProducer(assignment.left, enclosingCallableNode(assignment.left), input.call, assignmentBindings) {
+											producer = input.call
+										}
+									} else {
+										producer, possible = query.moduleWriteProducer(assignment.left, assignmentBindings, result)
+									}
+								}
+								if !possible {
+									continue
+								}
+								if producer != nil && len(origins) == 1 && !temporary.opaque && len(written) <= len(demand) && directSourceDataSlot(origin, written, assignment.left, query.owner.checker) {
+									result.producers = append(result.producers, producer)
+								}
 							}
-						}
-						if containsString(written, "*") {
-							result.opaque = true
-							result.cause = assignment.left
-						}
-						if len(written) >= len(demand) {
-							if mode&accessorReachable != 0 && len(projection) == 0 {
-								visit(sourceValue{node: assignment.right, capture: &input.scope})
-							}
-							continue
-						}
-						matches := sourceProjectionOverlap(written, demand)
-						if matches {
-							result.ownOperation = result.ownOperation || len(origins) == 1 && !temporary.opaque && query.functionMemberWrite(origin, written, assignment.left, producer, assignmentBindings, result)
-							if query.moduleRead() != nil && producer == nil {
+							if containsString(written, "*") {
 								result.opaque = true
+								result.cause = assignment.left
 							}
-							at := query.initializing
-							if at == nil {
-								at = query.reading
+							// Enumeration borrows the exact original Get. Each reached writer
+							// supplies its RHS relation before the terminal key branch.
+							// This does not certify key population or enumerability.
+							if len(projection) == 0 && name == "" && query.liveStagedMapObservation(get, mode) {
+								if query.publishStagedWriterSource(get, cut, assignment, input, origin, nil, false, input.incomplete || input.call != nil && producer == nil) {
+									result.valueIncomplete = true
+								}
 							}
-							replacement := !containsString(written, "*") && !containsString(written, "") && len(origins) == 1 && !temporary.opaque && query.replacesSourceValue(origin, written, assignment.left, mode, producer, assignmentBindings)
-							writer := enclosingCallableNode(assignment.left)
-							// This lookup adds only opacity. Existing incompleteness keeps its cause
-							// (or the accessor's receiver fallback), while every RHS is still visited below.
-							if !result.opaque && writer != nil && writer != enclosingCallableNode(at) && !replacement {
-								// A captured write can reach an acquired object even when the call's
-								// receiver is its former container. Index membership is only a may value.
-							writerCalls:
-								for _, call := range query.owner.index(ast.GetSourceFileOfNode(origin)).calls {
-									if query.active[call] || query.pendingWriterInputExcluded(call, result) || query.afterRead(call) {
-										continue
-									}
-									if !query.charge(result, call) {
-										break
-									}
-									candidates := query.receiverCandidates(call, bindings)
-									for _, candidate := range candidates.values {
-										if candidate.node == writer {
-											result.opaque = true
-											result.cause = assignment.left
-											break writerCalls
+							if len(written) >= len(demand) {
+								if mode&accessorReachable != 0 && len(projection) == 0 {
+									visit(sourceValue{node: assignment.right, capture: &input.scope})
+								}
+								continue
+							}
+							matches := sourceProjectionOverlap(written, demand)
+							if matches {
+								result.ownOperation = result.ownOperation || len(origins) == 1 && !temporary.opaque && query.functionMemberWrite(origin, written, assignment.left, producer, assignmentBindings, result)
+								if query.moduleRead() != nil && producer == nil {
+									result.opaque = true
+								}
+								at := query.initializing
+								if at == nil {
+									at = query.reading
+								}
+								replacement := !containsString(written, "*") && !containsString(written, "") && len(origins) == 1 && !temporary.opaque && query.replacesSourceValue(origin, written, assignment.left, mode, producer, assignmentBindings)
+								writer := enclosingCallableNode(assignment.left)
+								// This lookup adds only opacity. Existing incompleteness keeps its cause
+								// (or the accessor's receiver fallback), while every RHS is still visited below.
+								if !result.opaque && writer != nil && writer != enclosingCallableNode(at) && !replacement {
+									// A captured write can reach an acquired object even when the call's
+									// receiver is its former container. Index membership is only a may value.
+								writerCalls:
+									for _, call := range query.owner.index(ast.GetSourceFileOfNode(origin)).calls {
+										if query.active[call] || query.pendingWriterInputExcluded(call, result) || query.afterRead(call) {
+											continue
+										}
+										if !query.charge(result, call) {
+											break
+										}
+										if disposition := query.stagedWriterRelevance(call, result); disposition.handled {
+											continue
+										}
+										candidates := query.receiverCandidates(call, bindings)
+										for _, candidate := range candidates.values {
+											if candidate.node == writer {
+												result.opaque = true
+												result.cause = assignment.left
+												break writerCalls
+											}
 										}
 									}
 								}
-							}
-							var next []sourceValue
-							if setterProducer != nil {
-								for _, acquired := range query.originsAt(assignment.right, assignment.left, assignmentBindings, result) {
-									acquired.path = append(acquired.path, demand[len(written):len(demand)-1]...)
-									next = append(next, acquired)
-								}
-							} else {
-								if input.call != nil {
-									next = query.originsAt(assignment.right, assignment.left, assignmentBindings, result)
-									for i := range next {
-										next[i].path = append(next[i].path, demand[len(written):len(demand)-1]...)
-										if next[i].capture == nil {
+								var next []sourceValue
+								if setterProducer != nil {
+									for _, acquired := range query.originsAt(assignment.right, assignment.left, assignmentBindings, result) {
+										acquired.path = append(acquired.path, demand[len(written):len(demand)-1]...)
+										next = append(next, acquired)
+									}
+								} else {
+									if input.call != nil {
+										next = query.originsAt(assignment.right, assignment.left, assignmentBindings, result)
+										for i := range next {
+											next[i].path = append(next[i].path, demand[len(written):len(demand)-1]...)
+											if next[i].capture == nil {
+												scope := input.scope
+												next[i].capture = &scope
+											}
+										}
+									} else {
+										value := sourceValue{node: assignment.right, path: demand[len(written) : len(demand)-1]}
+										if query.dependenciesOnly && input.incomplete {
+											// A refused invocation has captures, but no performed
+											// Call. Keep that scope on its possible RHS value.
 											scope := input.scope
-											next[i].capture = &scope
+											value.capture = &scope
 										}
+										next = append(next, value)
 									}
-								} else {
-									value := sourceValue{node: assignment.right, path: demand[len(written) : len(demand)-1]}
-									if query.dependenciesOnly && input.incomplete {
-										// A refused invocation has captures, but no performed
-										// Call. Keep that scope on its possible RHS value.
-										scope := input.scope
-										value.capture = &scope
-									}
-									next = append(next, value)
 								}
+								occurrence := operation
+								if input.call != nil {
+									occurrence = input.call
+								}
+								if producer != nil {
+									occurrence = producer
+								}
+								alternatives = append(alternatives, next...)
+								replacements = append(replacements, sourceValueReplacement{at: occurrence, operation: operation, values: next, bindings: assignmentBindings, certain: replacement, unordered: input.incomplete || input.call != nil && producer == nil})
 							}
-							occurrence := operation
-							if input.call != nil {
-								occurrence = input.call
-							}
-							if producer != nil {
-								occurrence = producer
-							}
-							alternatives = append(alternatives, next...)
-							replacements = append(replacements, sourceValueReplacement{at: occurrence, operation: operation, values: next, bindings: assignmentBindings, certain: replacement, unordered: input.incomplete || input.call != nil && producer == nil})
 						}
-					}
-				})
+					})
+				}
 			}
-		}
-		for _, call := range index.calls {
-			// Only the existing descriptor operation can contribute this relation.
-			// Its owner still checks binder identity, receiver, key and descriptor.
-			_, method := restrictedInvocationMember(call.AsCallExpression().Expression, query.owner.checker)
-			if method != "defineProperty" && (get == nil || get.receiver.native == nil) || operation.closed && !operation.calls[call] {
-				continue
-			}
-			fallbackMode := mode
-			if query.convertedMemberAtGet(call, origin, projection, name, mode, get, result) {
-				if mode&accessorSet == 0 {
+			for _, call := range index.calls {
+				// Only the existing descriptor operation can contribute this relation.
+				// Its owner still checks binder identity, receiver, key and descriptor.
+				_, method := restrictedInvocationMember(call.AsCallExpression().Expression, query.owner.checker)
+				if method != "defineProperty" && (get == nil || get.receiver.native == nil) || operation.closed && !operation.calls[call] {
 					continue
 				}
-				// Converted fields handled the Get only. Preserve the separate Set
-				// effect fallback without replaying that Get or installing Get inputs.
-				fallbackMode |= accessorNoGet
-			}
-			values, possible := query.reflectiveMemberValuesAtGet(origin, projection, name, call, fallbackMode, bindings, result, get, cut)
-			if !possible {
-				continue
-			}
-			// Descriptor operations are retained effects, not a native identity or
-			// performed-call certificate. Their possible body uses raw method inputs.
-			result.opaque = true
-			result.ownOperation = true
-			result.cause = call
-			if len(values) > 0 {
-				alternatives = append(alternatives, values...)
-				replacements = append(replacements, sourceValueReplacement{at: call, operation: call, values: values, bindings: bindings})
+				fallbackMode := mode
+				if query.convertedMemberAtGet(call, origin, projection, name, mode, get, result) {
+					if mode&accessorSet == 0 {
+						continue
+					}
+					// Converted fields handled the Get only. Preserve the separate Set
+					// effect fallback without replaying that Get or installing Get inputs.
+					fallbackMode |= accessorNoGet
+				}
+				values, possible := query.reflectiveMemberValuesAtGet(origin, projection, name, call, fallbackMode, bindings, result, get, cut)
+				if !possible {
+					continue
+				}
+				// Descriptor operations are retained effects, not a native identity or
+				// performed-call certificate. Their possible body uses raw method inputs.
+				result.opaque = true
+				result.ownOperation = true
+				result.cause = call
+				if len(values) > 0 {
+					alternatives = append(alternatives, values...)
+					replacements = append(replacements, sourceValueReplacement{at: call, operation: call, values: values, bindings: bindings})
+				}
 			}
 		}
-	}
-	// Pending write inspection cannot remove the old member or a possible RHS.
-	// Its consumer must close interference before using replacement precision.
-	replaced := false
-	if !inventory {
-		alternatives, replaced = query.mergeReplacements(alternatives, replacements, result)
-	}
-	for _, value := range alternatives {
-		visit(value)
-	}
-	return replaced
+		// Pending write inspection cannot remove the old member or a possible RHS.
+		// Its consumer must close interference before using replacement precision.
+		replaced := false
+		if !inventory {
+			alternatives, replaced = query.mergeReplacements(alternatives, replacements, result)
+		}
+		for _, value := range alternatives {
+			visit(value)
+		}
+		query.observeStagedAssignmentStandardSet(origin, get, cut, mode, standard, result)
+		query.observeStagedConstructedGetEffects(origin, get, cut, mode, standard, result)
+		query.observeStagedConstructedResultCoverage(origin, get, cut, mode, standard, result)
+		query.observeStagedStandardConstructedCall(origin, get, cut, mode, standard, result)
+		return replaced
+	}()
+	query.finishGetPreparationDataRead()
+	return returned
 }
 
 // sourceMemberKeyMaySupply rejects only impossible final keys of indexed RHS

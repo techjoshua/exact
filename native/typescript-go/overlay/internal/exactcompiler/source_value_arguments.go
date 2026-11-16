@@ -11,6 +11,31 @@ func (query *sourceValueQuery) boundProjection(values []sourceValue, path []stri
 	var terms []sourceValue
 	appendTerms := func(values []sourceValue, path []string) {
 		for _, value := range values {
+			if value.constructionCallable != nil {
+				value.constructionCallable = cloneConstructionCallableValue(value.constructionCallable)
+				value.path = append(append([]string(nil), value.path...), path...)
+				terms = append(terms, value)
+				continue
+			}
+			if value.constructionView != nil {
+				copy := cloneSourceRelativeEndpoint(*value.constructionView)
+				copy.projection = append(copy.projection, append(append([]string(nil), value.path...), path...)...)
+				value.constructionView, value.path = &copy, nil
+				terms = append(terms, value)
+				continue
+			}
+			if value.descriptorView != nil {
+				view := projectNativeDescriptorView(*value.descriptorView, append(append([]string(nil), value.path...), path...))
+				value.descriptorView, value.path = &view, nil
+				terms = append(terms, value)
+				continue
+			}
+			if value.frameworkView != nil {
+				view := projectFrameworkStorageView(*value.frameworkView, append(append([]string(nil), value.path...), path...))
+				value.frameworkView, value.path = &view, nil
+				terms = append(terms, value)
+				continue
+			}
 			if !query.charge(result, value.node) {
 				return
 			}
@@ -71,6 +96,11 @@ func (query *sourceValueQuery) boundProjection(values []sourceValue, path []stri
 // proves bypass. Active entries retain the earlier bindings used by that initializer.
 // This is neither a runtime environment nor a selected-callee or production certificate.
 type sourceValueInputs struct {
+	constructionCapture        *sourceConstructionCallableValue       // Actual source binder supplied this description; no normal authority.
+	installedMemberDescription *sourceInstalledMemberInputDescription // detached original binder description, no authority
+	writerEdge                 *sourceRelativeInputEdge               // original binder delivery, query-local until source activation owns it
+	writerInvocation           *sourceRelativeInvocation              // query-local adapted vector, only during original writer observation
+
 	// deferredBody separates generator parameter initialization from first resume.
 	deferredBody  bool
 	dependencyUse *ast.Node
@@ -180,6 +210,16 @@ func (query *sourceValueQuery) bindInvocationInputsAtScope(declaration, node *as
 // bindInvocationInputsFromObservation preserves actual argument acquisition in
 // caller context while projecting only the selected result's owned local slots.
 func (query *sourceValueQuery) bindInvocationInputsFromObservation(declaration, node *ast.Node, bindings sourceValueBindings, scope *acquiredCallableScope, observed *sourceObservedValue, result *accessorCandidates, sourceMethod bool, selectedPlans ...*ordinaryInvocationPlan) *sourceValueInputs {
+	if scope != nil && scope.constructionCapture != nil && (!query.dependenciesOnly || query.operation != nil || query.returnObservation != nil || scope.constructionCapture.source == nil || scope.constructionCapture.pending || scope.constructionCapture.source.callable != declaration || scope.constructionCapture.source.generation != query.owner.generation) {
+		result.opaque, result.valueIncomplete = true, true
+		return &sourceValueInputs{declaration: declaration, invocation: node, bindings: make(sourceValueBindings)}
+	}
+	if node == nil || !ast.IsCallExpression(node) && !ast.IsNewExpression(node) && !query.liveImplicitSourceInputs(declaration, node, nil) {
+		if result != nil {
+			result.valueIncomplete = true
+		}
+		return &sourceValueInputs{declaration: declaration, invocation: node, bindings: make(sourceValueBindings)}
+	}
 	captures := bindings
 	callerCreators := query.creators
 	if scope != nil {
@@ -187,6 +227,21 @@ func (query *sourceValueQuery) bindInvocationInputsFromObservation(declaration, 
 	}
 	actualCache := make(map[*ast.Node][]sourceValue)
 	acquireActual := func(value, at *ast.Node) (values []sourceValue) {
+		if query.liveImplicitSourceInputs(declaration, node, nil) {
+			loan := query.implicitSourceInputs
+			if value == loan.request.receiver.expression {
+				return []sourceValue{loan.receiver}
+			}
+			if value == loan.request.actuals[0].expression {
+				return append([]sourceValue(nil), loan.actuals...)
+			}
+		}
+		if borrow := query.stagedWriter; borrow != nil && borrow.issuer == query && borrow.methodReceiver != nil {
+			method := borrow.methodReceiver
+			if method.issuer == query && method.call == node && method.declaration == declaration && method.expression == value && sourceMethod && query.liveStagedWriterSource(borrow, borrow.read) {
+				return []sourceValue{method.receiver}
+			}
+		}
 		defer func() {
 		}()
 		if values, ok := actualCache[value]; ok {
@@ -242,6 +297,9 @@ func (query *sourceValueQuery) bindInvocationInputsFromObservation(declaration, 
 		defer func() { query.creators = callerCreators }()
 	}
 	inputs := &sourceValueInputs{declaration: declaration, invocation: node, bindings: make(sourceValueBindings, len(captures)+len(declaration.Parameters())), defaults: make(map[*ast.Node]sourceDefaultInput)}
+	if query.dependenciesOnly && scope != nil {
+		inputs.constructionCapture = cloneConstructionCallableValue(scope.constructionCapture)
+	}
 	// Binding a generic source relationship is not normal body entry. Existing
 	// actual/capture observations below retain their original owners.
 	if !query.dependenciesOnly {
@@ -256,17 +314,34 @@ func (query *sourceValueQuery) bindInvocationInputsFromObservation(declaration, 
 	}
 	query.installNormalCaptures(inputs, query.inputs, result)
 	query.installSelectedNormalCaptures(inputs, observed, result)
-	call := node.AsCallExpression()
-	expression := unwrapSourceCallableReferenceWithBudget(call.Expression, func(value *ast.Node) bool { return query.charge(result, value) })
-	originalExpression := expression
-	actuals := restrictedInvocationArguments(call)
+	construction := ast.IsNewExpression(node)
+	implicit := query.liveImplicitSourceInputs(declaration, node, nil)
+	var target *ast.Node
+	var actuals []*ast.Node
 	var receiver *ast.Node
-	if !sourceMethod {
+	if implicit {
+		loan := query.implicitSourceInputs
+		target, receiver = loan.request.receiver.expression, loan.request.receiver.expression
+		actuals = []*ast.Node{loan.request.actuals[0].expression}
+	} else if construction {
+		target = node.AsNewExpression().Expression
+		if arguments := node.AsNewExpression().Arguments; arguments != nil {
+			actuals = arguments.Nodes
+		}
+	} else {
+		call := node.AsCallExpression()
+		target, actuals = call.Expression, restrictedInvocationArguments(call)
+	}
+	expression := unwrapSourceCallableReferenceWithBudget(target, func(value *ast.Node) bool { return query.charge(result, value) })
+	originalExpression := expression
+	// New has authored positional arguments but no call/apply adapter or member
+	// receiver. The construction owner supplies its separate MAY this origin.
+	if !sourceMethod && !construction && !implicit {
 		plan := ordinaryInvocationPlan{}
 		if len(selectedPlans) == 1 && selectedPlans[0] != nil {
 			plan = *selectedPlans[0]
 		} else {
-			plan = planOrdinaryInvocation(call.Expression, actuals, query.owner.checker, func(value *ast.Node) bool { return query.charge(result, value) })
+			plan = planOrdinaryInvocation(target, actuals, query.owner.checker, func(value *ast.Node) bool { return query.charge(result, value) })
 		}
 		expression, actuals, receiver = plan.target, plan.actuals, plan.receiver
 	}
@@ -279,7 +354,17 @@ func (query *sourceValueQuery) bindInvocationInputsFromObservation(declaration, 
 	// The existing adapter resolver can withhold positional inputs. Do not turn
 	// that absence of proof into an invocation of a formal's default.
 	unknownVector := receiver != nil && actuals == nil
-	if receiver == nil && expression == originalExpression {
+	if query.stagedWriter != nil && query.stagedWriter.issuer == query {
+		request := sourceRelativeInvocation{declaration: declaration, operation: node, use: query.effectUse(), cut: query.relativeInputCut(node), actualsKnown: !unknownVector}
+		for ordinal, actual := range actuals {
+			request.actuals = append(request.actuals, sourceRelativeActual{expression: actual, ordinal: ordinal, spread: ast.IsSpreadElement(actual), endpoint: sourceRelativeEndpoint{kind: relativeEndpointExpression, expression: actual, producer: node, cut: request.cut}})
+		}
+		if receiver != nil {
+			request.receiver = sourceRelativeEndpoint{kind: relativeEndpointExpression, expression: receiver, producer: node, cut: request.cut}
+		}
+		inputs.writerInvocation = &request
+	}
+	if !construction && receiver == nil && expression == originalExpression {
 		receiver, _ = restrictedInvocationMember(expression, query.owner.checker)
 	}
 	if !ast.IsArrowFunction(declaration) {
@@ -364,6 +449,7 @@ func (query *sourceValueQuery) bindInvocationInputsFromObservation(declaration, 
 			query.owner.maxTerms = len(values)
 		}
 	}
+	query.publishOriginalSourceInputs(inputs)
 	return inputs
 }
 
@@ -385,6 +471,8 @@ func (query *sourceValueQuery) boundInputAcquisition(value, invocation *ast.Node
 // Nested scopes restore the exact prior entry presence and value.
 func (query *sourceValueQuery) withActiveInvocation(invocation *ast.Node, bind func()) {
 	previous, present := query.active[invocation]
+	traceRelease := progressActiveCall(query, invocation, previous)
+	defer traceRelease()
 	query.active[invocation] = true
 	defer func() {
 		if present {

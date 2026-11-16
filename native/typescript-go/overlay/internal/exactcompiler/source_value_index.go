@@ -27,11 +27,39 @@ type sourceValueIndex struct {
 	dynamicCalls     []*ast.Node
 }
 
+// sourceMemberAssignments merges the original known/dynamic source buckets.
+// Publication and recovery use this same ordering without retaining an index or
+// copying its population. The cursor belongs only to the current source phase.
+type sourceMemberAssignments struct {
+	known, dynamic []sourceValueAssignment
+	i, j           int
+}
+
+func (index sourceValueIndex) memberAssignments(origin *ast.Node) sourceMemberAssignments {
+	return sourceMemberAssignments{known: index.memberOrigins[origin], dynamic: index.dynamicMembers}
+}
+func (cursor *sourceMemberAssignments) next() (sourceValueAssignment, bool) {
+	if cursor.i == len(cursor.known) && cursor.j == len(cursor.dynamic) {
+		return sourceValueAssignment{}, false
+	}
+	if cursor.j == len(cursor.dynamic) || cursor.i < len(cursor.known) && cursor.known[cursor.i].left.Pos() < cursor.dynamic[cursor.j].left.Pos() {
+		assignment := cursor.known[cursor.i]
+		cursor.i++
+		return assignment, true
+	}
+	assignment := cursor.dynamic[cursor.j]
+	cursor.j++
+	return assignment, true
+}
+
 func (owner *sourceValueOwner) index(source *ast.SourceFile) sourceValueIndex {
 	if owner.indexPreparing[source] {
 		return sourceValueIndex{incomplete: true}
 	}
 	if index, ok := owner.indexes[source]; ok {
+		if source != nil {
+			progressCachedIndexHit(source.FileName())
+		}
 		if index.importsPrepared || !owner.generation.canPrepareImportElision(source) {
 			return index
 		}
@@ -73,7 +101,9 @@ func (owner *sourceValueOwner) index(source *ast.SourceFile) sourceValueIndex {
 	var members []sourceValueAssignment
 	var writes []*ast.Node
 	if source != nil && !source.IsDeclarationFile {
+		traceSourceName := source.FileName() // existing index source metadata, no parent lookup
 		walkNode(source.AsNode(), func(node *ast.Node) bool {
+			progressIndexSpan(traceSourceName, progressPointer(node), node.Pos(), node.End(), int(node.Kind))
 			owner.indexWork++
 			privateErased := owner.indexPrivateUse(index.privateUses, node)
 			owner.indexNormalOccurrence(&index, source, node, privateErased)

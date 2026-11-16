@@ -9,6 +9,8 @@ import (
 // Adapted is an ordinary invocation relation, not selected native identity, purity
 // or proof that the call performed. A nil actual vector remains incomplete.
 type ordinaryInvocationPlan struct {
+	adapterKinds     uint8 // Original native classifier history: call1/apply2/bind4. Description, not selection.
+	adapterCount     uint8
 	target, receiver *ast.Node
 	actuals          []*ast.Node
 	adapted          bool
@@ -19,9 +21,11 @@ type ordinaryInvocationPlan struct {
 // planOrdinaryInvocation shares adapter routing and actual-vector completeness.
 // Original acquisition ownership remains on the invocation-local input plan.
 func planOrdinaryInvocation(expression *ast.Node, actuals []*ast.Node, c *checker.Checker, charge func(*ast.Node) bool) ordinaryInvocationPlan {
-	var vectors []*ast.Node
-	target, values, receiver := restrictedCallArgumentsPlan(expression, actuals, c, make(map[ast.SymbolId]bool), charge, &vectors)
-	return ordinaryInvocationPlan{target: target, receiver: receiver, actuals: values, adapted: target != nil && target != unwrapSourceCallableReference(expression), vectors: vectors}
+	plan := ordinaryInvocationPlan{}
+	target, values, receiver := restrictedCallArgumentsPlan(expression, actuals, c, make(map[ast.SymbolId]bool), charge, &plan)
+	plan.target, plan.receiver, plan.actuals = target, receiver, values
+	plan.adapted = target != nil && target != unwrapSourceCallableReference(expression)
+	return plan
 }
 
 // restrictedCallArguments resolves native invocation adapters without executing them. Bound
@@ -40,22 +44,34 @@ func restrictedCallArgumentsWithBudget(expression *ast.Node, arguments []*ast.No
 
 // restrictedCallArgumentsPlan retains materialization separately from formal consumption.
 // An apply vector is evaluated even when the target has no demanded parameters.
-func restrictedCallArgumentsPlan(expression *ast.Node, arguments []*ast.Node, typeChecker *checker.Checker, seen map[ast.SymbolId]bool, charge func(*ast.Node) bool, vectors *[]*ast.Node) (*ast.Node, []*ast.Node, *ast.Node) {
+func restrictedCallArgumentsPlan(expression *ast.Node, arguments []*ast.Node, typeChecker *checker.Checker, seen map[ast.SymbolId]bool, charge func(*ast.Node) bool, route *ordinaryInvocationPlan) (*ast.Node, []*ast.Node, *ast.Node) {
 	expression = unwrapSourceCallableReferenceWithBudget(expression, charge)
 	if expression == nil {
 		return expression, arguments, nil
 	}
 	if ast.IsParenthesizedExpression(expression) {
-		return restrictedCallArgumentsPlan(expression.AsParenthesizedExpression().Expression, arguments, typeChecker, seen, charge, vectors)
+		return restrictedCallArgumentsPlan(expression.AsParenthesizedExpression().Expression, arguments, typeChecker, seen, charge, route)
 	}
 	if receiver, name := restrictedInvocationMember(expression, typeChecker); receiver != nil && (name == "call" || name == "apply") && nativeFunctionInvocation(receiver, name, typeChecker) {
+		if route != nil {
+			if route.adapterCount != 255 {
+				route.adapterCount++
+			} else {
+				route.adapterKinds |= 128
+			}
+			if name == "call" {
+				route.adapterKinds |= 1
+			} else {
+				route.adapterKinds |= 2
+			}
+		}
 		if len(arguments) == 0 {
 			return receiver, nil, nil
 		}
 		values := arguments[1:]
 		if name == "apply" {
-			if vectors != nil && len(arguments) > 1 {
-				*vectors = append(*vectors, arguments[1])
+			if route != nil && len(arguments) > 1 {
+				route.vectors = append(route.vectors, arguments[1])
 			}
 			values = nil
 			if len(arguments) == 1 {
@@ -69,7 +85,7 @@ func restrictedCallArgumentsPlan(expression *ast.Node, arguments []*ast.Node, ty
 				values = []*ast.Node{}
 			}
 		}
-		target, values, boundReceiver := restrictedCallArgumentsPlan(receiver, values, typeChecker, seen, charge, vectors)
+		target, values, boundReceiver := restrictedCallArgumentsPlan(receiver, values, typeChecker, seen, charge, route)
 		if boundReceiver == nil {
 			boundReceiver = arguments[0]
 		}
@@ -78,12 +94,20 @@ func restrictedCallArgumentsPlan(expression *ast.Node, arguments []*ast.Node, ty
 	if ast.IsCallExpression(expression) {
 		bound := expression.AsCallExpression()
 		if receiver, name := restrictedInvocationMember(bound.Expression, typeChecker); receiver != nil && name == "bind" && nativeFunctionInvocation(receiver, name, typeChecker) {
+			if route != nil {
+				if route.adapterCount != 255 {
+					route.adapterCount++
+				} else {
+					route.adapterKinds |= 128
+				}
+				route.adapterKinds |= 4
+			}
 			values := append([]*ast.Node(nil), callArguments(expression)...)
 			if len(values) > 0 {
 				values = values[1:]
 			}
 			values = append(values, arguments...)
-			target, values, boundReceiver := restrictedCallArgumentsPlan(receiver, values, typeChecker, seen, charge, vectors)
+			target, values, boundReceiver := restrictedCallArgumentsPlan(receiver, values, typeChecker, seen, charge, route)
 			if boundReceiver == nil && bound.Arguments != nil && len(bound.Arguments.Nodes) > 0 {
 				boundReceiver = bound.Arguments.Nodes[0]
 			}
@@ -101,7 +125,7 @@ func restrictedCallArgumentsPlan(expression *ast.Node, arguments []*ast.Node, ty
 				if ast.IsVariableDeclaration(declaration) && declaration.Parent != nil && ast.IsVariableDeclarationList(declaration.Parent) && declaration.Parent.Flags&ast.NodeFlagsConst != 0 {
 					value := declaration.AsVariableDeclaration().Initializer
 					if value != nil && (ast.IsIdentifier(value) || ast.IsPropertyAccessExpression(value) || ast.IsElementAccessExpression(value) || ast.IsCallExpression(value) || ast.IsParenthesizedExpression(value)) {
-						return restrictedCallArgumentsPlan(value, arguments, typeChecker, seen, charge, vectors)
+						return restrictedCallArgumentsPlan(value, arguments, typeChecker, seen, charge, route)
 					}
 				}
 			}

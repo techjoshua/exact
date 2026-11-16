@@ -42,7 +42,10 @@ type sourceCalleeCreator struct {
 // calleeSyntaxCarrier declines adapted and normal terms. Source capture and
 // container contents need a finite immutable description before comparison.
 func calleeSyntaxCarrier(value sourceValue) bool {
-	return value.instance == nil && value.number == (numberPayload{}) &&
+	if value.freezeLexical != nil {
+		return false
+	}
+	return (value.capture == nil || value.capture.constructionCapture == nil) && value.constructionRole.kind == relativeRoleUnknown && value.constructionRequired.producer.operation == nil && value.constructionGeneration == nil && value.constructionCallable == nil && value.constructionView == nil && value.instance == nil && value.number == (numberPayload{}) &&
 		value.ownedGetRow == nil && value.initializerUse == nil && value.adapter == nil &&
 		value.acquired == nil && value.entrySlot == nil && value.bound == nil && value.normal == nil &&
 		len(value.forwarded) == 0 && value.awaited == nil && value.native == nil
@@ -248,6 +251,7 @@ func (query *sourceValueQuery) beginCalleeAcquisition(call *ast.Node, bindings s
 		return nil
 	}
 	pending.sourceCalleeScope = scope
+	progressObserveScope(query, call, scope)
 	query.pendingCallee = &pending
 	return func() {
 		query.pendingCallee = pending.prior

@@ -3,6 +3,7 @@ package exactcompiler
 import (
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
 	"github.com/microsoft/TypeScript/tsc/internal/checker"
+	"strings"
 )
 
 // checkedComponentProtocolMember proves finite computed keys without granting ordinary receivers
@@ -110,6 +111,48 @@ func checkedNonliteralComponentProtocolGet(node *ast.Node, typeChecker *checker.
 	selected := typeChecker.GetPropertyOfType(typeChecker.GetNonNullableType(value), name)
 	if !portableDeclaredMethod(selected) {
 		return nil
+	}
+	return selected
+}
+
+// componentContextPackage identifies the maintained core primitive contract.
+// Package identity alone supplies neither default selection nor member coverage.
+func componentContextPackage(declaration *ast.Node) string {
+	if declaration == nil {
+		return ""
+	}
+	file := ast.GetSourceFileOfNode(declaration)
+	if file == nil || !file.IsDeclarationFile {
+		return ""
+	}
+	name := strings.ReplaceAll(file.FileName(), "\\", "/")
+	for _, marker := range []string{"/packages/core/", "/@exactjs/core/"} {
+		if i := strings.LastIndex(name, marker); i >= 0 {
+			return name[:i+len(marker)]
+		}
+	}
+	return ""
+}
+
+// conditionalComponentContextMethod recognizes only the declared default arm of
+// the actual canonical receiver. Ordinary overrides remain independent sources.
+func conditionalComponentContextMethod(member, receiver *ast.Node, c *checker.Checker) *ast.Symbol {
+	selected := nativeReceiverMemberSymbol(member, c)
+	if selected == nil || selected.Name != "hasContext" || !portableDeclaredMethod(selected) {
+		return nil
+	}
+	actualType := c.GetTypeAtLocation(receiver)
+	if actualType == nil {
+		return nil
+	}
+	actual := c.GetPropertyOfType(actualType, "hasContext")
+	if !portableDeclaredMethod(actual) || len(actual.Declarations) != len(selected.Declarations) {
+		return nil
+	}
+	for i, declaration := range selected.Declarations {
+		if actual.Declarations[i] != declaration || componentContextPackage(declaration) == "" {
+			return nil
+		}
 	}
 	return selected
 }

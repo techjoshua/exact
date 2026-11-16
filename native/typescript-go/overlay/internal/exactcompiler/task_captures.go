@@ -17,7 +17,7 @@ type taskCaptureRange struct {
 // taskCaptureRanges identifies the default initializers whose reads are
 // generation snapshots rather than task activation dependencies.
 func taskCaptureRanges(work *ast.Node, argumentCount int) []taskCaptureRange {
-	parameters := work.Parameters()
+	parameters := taskRuntimeParameters(work)
 	count := min(argumentCount, len(parameters))
 	result := []taskCaptureRange{}
 	for index, node := range parameters[:count] {
