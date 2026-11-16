@@ -307,14 +307,36 @@ func originalGetMutationRequirements(s *sourceOriginalGetMutationSource) []sourc
 // The authenticated requirements are a finite set. Their stored order follows
 // first publication, so a later provider refinement can only append new debt.
 func validOriginalGetMutationRequirements(s *sourceOriginalGetMutationSource, required []sourceStagedOperationRequest) bool {
+	// Construct the ordered allowed vector once. Small lists keep the original
+	// allocation-light scans; larger lists amortize a local full-identity set.
+	// This count is a conservative cost cutoff, not a SOURCE precision limit.
 	allowed := originalGetMutationRequirements(s)
 	if len(required) != len(allowed) {
 		return false
 	}
-	for index, request := range required {
-		if !operationContainsRequest(allowed, request) || operationContainsRequest(required[:index], request) {
+	const linearRequirementLimit = 64
+	if len(allowed) <= linearRequirementLimit {
+		for index, request := range required {
+			if !operationContainsRequest(allowed, request) || operationContainsRequest(required[:index], request) {
+				return false
+			}
+		}
+		return true
+	}
+	// Request keys retain all seven sameOperationRequest fields. Large-key
+	// map allocations remain local; no validation or graph authority is cached.
+	remaining := make(map[sourceStagedOperationRequest]bool, len(allowed))
+	for _, request := range allowed {
+		remaining[request] = true
+	}
+	if len(remaining) != len(allowed) {
+		return false // Includes the builder's intentionally repeated terminal coverage.
+	}
+	for _, request := range required {
+		if !remaining[request] {
 			return false
 		}
+		delete(remaining, request)
 	}
 	return true
 }
