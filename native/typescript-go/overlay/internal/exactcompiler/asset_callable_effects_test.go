@@ -3,6 +3,7 @@ package exactcompiler
 import (
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -177,6 +178,82 @@ func TestAssetAdjacentImportModes(t *testing.T) {
 				}
 			} else if !strings.Contains(r.Code, "styles.css") || len(r.Diagnostics) != 0 {
 				t.Fatalf("bound CSS value lost: %#v", r)
+			}
+		}
+	}
+}
+
+// A component module's imported initializer follows current request rules even
+// when its unchanged source reuses a Program. Delivery does not decide execution.
+func TestComponentAssetRulesRetainedContext(t *testing.T) {
+	root, err := os.MkdirTemp(".", ".component-asset-rules-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(root) })
+	root, err = filepath.Abs(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	entry, config := filepath.Join(root, "Page.tsx"), filepath.Join(root, "tsconfig.json")
+	const specifier = "@fixture/kit/bootstrap.resource"
+	const source = `import "@fixture/kit/bootstrap.resource";export function Page(){return()=> <output>ready</output>;}`
+	for file, contents := range map[string]string{entry: source, config: `{"compilerOptions":{"module":"NodeNext","moduleResolution":"NodeNext","jsx":"preserve"}}`} {
+		if err := os.WriteFile(file, []byte(contents), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, reset := range []bool{false, true} {
+		session := NewSession()
+		for index, evaluation := range []string{"client", "server", "both", "", "client"} {
+			if reset {
+				if response := session.Execute(Request{Kind: "reset"}); response.Error != "" {
+					t.Fatal(response.Error)
+				}
+			}
+			request := Request{Kind: "compile", ID: entry, Root: root, ConfigFile: config, Source: source, Target: TargetClient}
+			if evaluation != "" {
+				request.AssetRules = []AssetRule{{Extensions: []string{".resource"}, Kind: "custom", EvaluationTarget: evaluation, DeliveryTarget: "embedded"}}
+			}
+			retained, fresh := session.Execute(request), NewSession().Execute(request)
+			if retained.Error != "" || fresh.Error != "" {
+				t.Fatal("component asset entry", retained.Error, fresh.Error)
+			}
+			if !reset && index > 0 && !retained.CacheHit {
+				t.Fatal("unchanged component source did not exercise retained Program")
+			}
+			if retained.Code != fresh.Code || !reflect.DeepEqual(retained.Diagnostics, fresh.Diagnostics) || !reflect.DeepEqual(retained.Analysis.Components, fresh.Analysis.Components) || !reflect.DeepEqual(retained.Analysis.Assets, fresh.Analysis.Assets) {
+				t.Fatalf("reset=%v evaluation=%q retained/fresh component outcome differs", reset, evaluation)
+			}
+			for _, response := range []Response{retained, fresh} {
+				if len(response.Analysis.Components) != 1 || response.Analysis.Components[0].Name != "Page" {
+					t.Fatal("original component consumer was not reached", response.Analysis.Components)
+				}
+				initializers := 0
+				for _, callable := range response.Analysis.Callables {
+					if callable.Kind == "module-initializer" {
+						initializers++
+						want := map[string]string{"client": "browser", "server": "server", "both": "neutral", "": "unknown"}[evaluation]
+						if callable.Effect != want || evaluation != "" && len(callable.Calls) != 0 {
+							t.Fatalf("current initializer contract lost: %#v", callable)
+						}
+					}
+				}
+				if initializers != 1 {
+					t.Fatal("original imported initializer absent or ambiguous", initializers)
+				}
+				if evaluation == "" {
+					if !containsDiagnosticCode(response.Diagnostics, "EXACT2101") || response.Code != "" || len(response.Analysis.Assets) != 0 {
+						t.Fatal("removed rule retained executable asset authority", response.Diagnostics)
+					}
+					continue
+				}
+				if len(response.Diagnostics) != 0 || response.Code == "" || strings.Contains(response.Code, specifier) != (evaluation != "server") {
+					t.Fatalf("current component artifact lost evaluation routing: %q %#v", evaluation, response.Diagnostics)
+				}
+				if len(response.Analysis.Assets) != 1 || response.Analysis.Assets[0].Specifier != specifier || response.Analysis.Assets[0].EvaluationTarget != evaluation || response.Analysis.Assets[0].DeliveryTarget != "embedded" {
+					t.Fatal("current asset request contract lost", response.Analysis.Assets)
+				}
 			}
 		}
 	}
