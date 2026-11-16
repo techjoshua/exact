@@ -977,7 +977,8 @@ func (query *sourceValueQuery) consumeOrdinaryBody(node, body *ast.Node, capture
 	firstReflective := len(result.reflective)
 	firstCall := len(result.callOutcomes)
 	first := len(result.fieldOutcomes)
-	entered := query.executeInputs(body, captures, result, invocation, inputs)
+	execution := query.executeInputDisposition(body, captures, result, invocation, inputs)
+	entered := execution == sourceInputEntered
 	retainedConstruction := false
 	defer func() {
 		if inputs != nil && !retainedConstruction {
@@ -992,6 +993,8 @@ func (query *sourceValueQuery) consumeOrdinaryBody(node, body *ast.Node, capture
 		receipt.raw.effects = sourceEffectsRefused
 		if entered {
 			receipt.raw.effects = sourceEffectsAccounted
+		} else if execution == sourceInputTaskOwned {
+			receipt.raw.effects = sourceEffectsTaskOwned
 		}
 		receipt.raw.incomplete = receipt.raw.incomplete || !entered
 		receipt.fulfilled.incomplete = receipt.fulfilled.incomplete || !entered

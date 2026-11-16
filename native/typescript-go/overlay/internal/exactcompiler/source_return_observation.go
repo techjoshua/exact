@@ -36,7 +36,17 @@ func (query *sourceValueQuery) observeNativeAwait(awaited *ast.Node, bindings so
 		if receipt.operation != awaited || receipt.owner != context.owner {
 			continue
 		}
-		result.opaque = result.opaque || receipt.observed.incomplete
+		// A retained child-task edge can account Effects without supplying the
+		// child's normal result. No value or entered scope is created here.
+		if receipt.observed.effects == sourceEffectsTaskOwned {
+			result.valueIncomplete = true
+			if context.frame.operationLifetime == nil {
+				result.opaque = true
+				return
+			}
+		} else {
+			result.opaque = result.opaque || receipt.observed.incomplete
+		}
 		for _, observed := range receipt.observed.values {
 			if !query.charge(result, awaited) {
 				return

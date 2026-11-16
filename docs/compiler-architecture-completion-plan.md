@@ -1015,6 +1015,8 @@ initializer transformations and the internal replacement experiment retain stric
 source, generation and completion checks. MAY summaries supply no result, binding
 or completed-protocol authority.
 
+An original component task Call can retain child-owned Effects without entering that child as an ordinary body in the caller. The graph-local normal receipt records this distinct ownership disposition while remaining unentered, incomplete and valueless. Direct Await of a checked primitive task payload needs no additional authored assimilation work; its effect consumer validates the original live Call/owner/frame and retained child edge, including an edge already published to that exact live caller fact before the later receipts-only operand consumer. This is not child completion or a primitive result receipt. Non-scalar settlement, unknown child effects, rejection/cancellation, result policy and transport requirements retain their existing owners and guards.
+
 
 1. Finish the consumer inventory and removals begun with each integrated slice. Inventory every remaining destination-specific bridge before deletion.
 2. Migrate each consumer to the shared relationship and prove the same behavior there.

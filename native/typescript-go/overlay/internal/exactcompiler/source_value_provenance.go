@@ -621,7 +621,25 @@ func (query *sourceValueQuery) execute(declaration *ast.Node, bindings sourceVal
 
 // executeInputs keeps direct parameter-effect ownership separate from projected invocation
 // while both consumers use the same binding/default execution plan.
+// sourceInputExecution separates ordinary body entry from a real component
+// task edge retained by its own execution owner. Refusal never supplies either.
+type sourceInputExecution uint8
+
+const (
+	sourceInputRefused sourceInputExecution = iota
+	sourceInputEntered
+	sourceInputTaskOwned
+)
+
+// executeInputs keeps the existing ordinary-entry boolean contract. Only the
+// original Call receipt consumer requests the separate child-task disposition.
 func (query *sourceValueQuery) executeInputs(declaration *ast.Node, bindings sourceValueBindings, result *accessorCandidates, invocation *ast.Node, inputs *sourceValueInputs) bool {
+	return query.executeInputDisposition(declaration, bindings, result, invocation, inputs) == sourceInputEntered
+}
+
+// executeInputDisposition preserves refused normal entry separately from an
+// authenticated component task whose original effect edge was retained.
+func (query *sourceValueQuery) executeInputDisposition(declaration *ast.Node, bindings sourceValueBindings, result *accessorCandidates, invocation *ast.Node, inputs *sourceValueInputs) sourceInputExecution {
 	freshSourceInputs := false
 	if query.dependenciesOnly {
 		releaseEntry, fresh := query.enterDependencyBody(declaration, bindings, inputs, invocation, result)
@@ -638,7 +656,7 @@ func (query *sourceValueQuery) executeInputs(declaration *ast.Node, bindings sou
 			result.opaque = true
 			query.owner.widenings++
 		}
-		return false
+		return sourceInputRefused
 	}
 	query.remaining--
 	query.recordEstimatedCost(1)
@@ -694,7 +712,10 @@ func (query *sourceValueQuery) executeInputs(declaration *ast.Node, bindings sou
 				operation = inputs.invocation
 			}
 			result.retainCallableEffect(operation, declaration)
-			return false
+			if query.owner.erasedTaskPolicyParameter(declaration) != nil {
+				return sourceInputTaskOwned
+			}
+			return sourceInputRefused
 		}
 	}
 	if inputs != nil && query.operation != nil {
@@ -725,7 +746,10 @@ func (query *sourceValueQuery) executeInputs(declaration *ast.Node, bindings sou
 		inputs.dependencyUse = query.effectUse()
 		if observed, owned := query.consumeInstalledCallMemberDemand(declaration, inputs, result); owned {
 			result.inputs = append(result.inputs, inputs)
-			return observed
+			if observed {
+				return sourceInputEntered
+			}
+			return sourceInputRefused
 		}
 		// Source demands describe possible work. They neither execute a storage
 		// recipe nor acquire normal outputs from a previous analysis interval.
@@ -768,7 +792,7 @@ func (query *sourceValueQuery) executeInputs(declaration *ast.Node, bindings sou
 			}
 		}
 		result.inputs = append(result.inputs, inputs)
-		return true
+		return sourceInputEntered
 	}
 	// A requested raw-result observer consumes after body exit. Its caller owns
 	// final release. Effect-only entry has no such later consumer.
@@ -791,7 +815,7 @@ func (query *sourceValueQuery) executeInputs(declaration *ast.Node, bindings sou
 	}
 
 	if query.executeOwnedStorageBody(declaration, inputs, result) {
-		return true
+		return sourceInputEntered
 	}
 
 	for _, demand := range query.owner.summary(declaration).normal {
@@ -867,7 +891,7 @@ func (query *sourceValueQuery) executeInputs(declaration *ast.Node, bindings sou
 	if inputs != nil && len(inputs.defaults) > 0 {
 		result.inputs = append(result.inputs, inputs)
 	}
-	return true
+	return sourceInputEntered
 }
 
 // primitiveRecursiveInputs stops only repeated primitive input substitution. Known
