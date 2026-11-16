@@ -160,3 +160,28 @@ func (query *sourceValueQuery) awaitFacadeEffects(value sourceValue, operation *
 	}
 	return closed
 }
+
+// immediateScalarPromiseAwaitLookup identifies only the constructor lookup of a
+// fresh standard Promise.resolve result consumed directly by its original Await.
+// The installed receipt owns scalar evaluation; standard semantics exclude
+// hypothetical foreign prototype corruption. Actual indexed replacements and
+// descriptor/Get effects still pass through the ordinary member owner. This is
+// lookup admission, never a completed Get, fulfillment or lifetime receipt.
+func (query *sourceValueQuery) immediateScalarPromiseAwaitLookup(get *sourceGetInputs, key string) bool {
+	if get == nil || get.operation == nil || !ast.IsAwaitExpression(get.operation) || key != "constructor" || len(get.receiver.path) != 0 || get.receiver.native == nil || get.receiver.native.kind != sourceNativePromiseFacade {
+		return false
+	}
+	receipt, context := get.receiver.native.resolve, query.returnObservation
+	if receipt == nil || context == nil || context.kind != sourceRawNormalResult || context.reader != get.operation || context.frame != query.inputs || query.inputs == nil || query.inputs.operationLifetime == nil || context.owner != query.inputs.declaration {
+		return false
+	}
+	if receipt.frame != query.inputs || receipt.owner != context.owner || receipt.operation != get.receiver.node || get.receiver.native.acquired != receipt.operation || unwrapSourceCallableReference(get.operation.AsAwaitExpression().Expression) != receipt.operation || receipt.incomplete || !receipt.scalarInput {
+		return false
+	}
+	for _, issued := range context.receipts {
+		if issued == receipt {
+			return true
+		}
+	}
+	return false
+}

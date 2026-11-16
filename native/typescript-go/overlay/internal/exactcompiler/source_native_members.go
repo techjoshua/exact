@@ -383,7 +383,6 @@ func (query *sourceValueQuery) nativeMemberKeyAtGet(value sourceValue, projectio
 	}
 	defer func() { query.reading = previous }()
 	sources, referencesIncomplete := query.nativeSelectionSources(origin, result)
-	seed.native.referencesIncomplete = value.native.referencesIncomplete || referencesIncomplete
 	lookup := value
 	if value.native.kind == sourceNativePromiseFacade || value.native.kind == sourceNativeAsyncFacade {
 		contract := *value.native
@@ -391,6 +390,10 @@ func (query *sourceValueQuery) nativeMemberKeyAtGet(value sourceValue, projectio
 		lookup.node, lookup.native = origin, &contract
 	}
 	get := &sourceGetInputs{operation: query.reading, receiver: value, lookupOwner: &lookup, symbol: symbol}
+	// Only this original fresh scalar Await can use the standard constructor
+	// contract without proving a pristine external reference universe.
+	standardAwait := mode == accessorAcquire && query.immediateScalarPromiseAwaitLookup(get, key)
+	seed.native.referencesIncomplete = value.native.referencesIncomplete || referencesIncomplete && !standardAwait
 	releaseConstruction := query.lendConstructionEffectsGet(external, get, key)
 	defer releaseConstruction()
 	// The genuine constructor's own prototype property is nonwritable and
@@ -407,7 +410,7 @@ func (query *sourceValueQuery) nativeMemberKeyAtGet(value sourceValue, projectio
 		v := query.propertyView()
 		// This actual Get may retain known descriptors even when absence and
 		// constructor closure are unavailable. Unknown is not a named effect.
-		if v == nil || v.state != sourcePropertyComplete || !v.produced || v.incomplete {
+		if !standardAwait && (v == nil || v.state != sourcePropertyComplete || !v.produced || v.incomplete) {
 			result.opaque = true
 		}
 	}

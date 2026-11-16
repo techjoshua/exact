@@ -660,6 +660,8 @@ Trust establishes the operation contract, not purity, NoWrites or successful com
 
 Keep the original receiver evaluation, member Get, saved callable and `this`, then argument order. A saved method survives a later replacement, while a fresh Get observes the replacement. Trust does not authorize removing or repeating those operations.
 
+For an immediately awaited standard `Promise.resolve` with a checked scalar input, the installed original Call receipt supplies scalar settlement and the fresh result's constructor-lookup context. External reference availability is not a thenable-assimilation or pristine-platform requirement. This narrow lookup admission still uses the ordinary member owner for authored replacements and descriptor effects; it supplies no completed Get or caller-frame authority. Saved results, non-scalar inputs and unresolved or foreign receipts retain their independent settlement and member obligations.
+
 #### Proposed shared recognition seam for coordinator adjudication
 
 The smallest shared owner is the existing standard-entry/value acquisition path in `source_native_members.go`, with operation identity represented by `sourceNativeValue`. Reuse `standardLibraryValue`, `standardLibraryCallOwner` in `derived_builtin_operations.go` and `nativeReceiverMemberSymbol` for declaration recognition. These helpers supply declaration candidates, not runtime operation identity or receiver admission. Reuse acquired source origins and current authored replacement selection to identify the selected function/property. Then apply that identified algorithm to the invocation's actual receiver through existing semantic/effect owners. Do not introduce a name-based whitelist, independent interference engine or second algorithm summary system.

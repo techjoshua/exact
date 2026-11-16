@@ -114,3 +114,50 @@ return()=> <button onClick={()=>void run()}>Run</button>}`
 		t.Fatal("Await lost known state donor", run, response.Analysis.Tasks)
 	}
 }
+
+// Standard scalar settlement does not erase argument getters, authored shadows,
+// constructor hooks or the unresolved assimilation work of non-scalar inputs.
+func TestImmediateScalarPromiseAwaitAuthoredEffects(t *testing.T) {
+	for _, row := range []struct{ name, before, operand, effect string }{
+		{"argument-getter", `const input={get value(){return document.title}};`, `Promise.resolve(input.value)`, "browser"},
+		{"shadow", `const Promise={resolve(value:string){document.title=value;return value}};`, `Promise.resolve('next')`, "browser"},
+		{"constructor-hook", `Object.defineProperty(Promise.prototype,'constructor',{get(){document.title='constructor';return Promise}});`, `Promise.resolve('next')`, "browser"},
+		{"unknown-input", "", `Promise.resolve(foreign)`, "unknown"},
+	} {
+		t.Run(row.name, func(t *testing.T) {
+			source := `import {TaskContext,type Component} from '@exactjs/core';
+export function Page(this:Component<{label:string}>,foreign:unknown){
+this.state.label='initial';async function run(task:TaskContext=TaskContext.server()){
+` + row.before + `await ` + row.operand + `;this.state.label='done';}
+return()=> <button onClick={()=>void run()}>{this.state.label}</button>;}`
+			fixture := newExecutableFixture(t, map[string]string{"entry.tsx": source})
+			session := NewSession()
+			response := session.Execute(fixture.request("analyze", "entry.tsx"))
+			if response.Error != "" || len(response.Analysis.Tasks) != 1 {
+				t.Fatal("authored task analysis entry missing", response.Error, response.Diagnostics)
+			}
+			run := findCallable(t, response.Analysis.Callables, "run")
+			for _, sources := range [][]EnvironmentEffectSource{run.EffectSources, response.Analysis.Tasks[0].EffectSources} {
+				found := false
+				for _, effect := range sources {
+					found = found || effect.Environment == row.effect
+				}
+				if !found {
+					t.Fatalf("actual %s obligation missing: %#v", row.effect, sources)
+				}
+			}
+			if row.effect == "browser" {
+				request := fixture.request("compile", "entry.tsx")
+				request.Target = TargetServer
+				compiled := session.Execute(request)
+				denied := false
+				for _, diagnostic := range compiled.Diagnostics {
+					denied = denied || diagnostic.Severity == "error" && strings.Contains(diagnostic.Message, "task requests server placement but references browser-only globals")
+				}
+				if compiled.Error != "" || !denied || compiled.Code != "" {
+					t.Fatal("authored browser work acquired server artifact", compiled.Error, compiled.Diagnostics)
+				}
+			}
+		})
+	}
+}
