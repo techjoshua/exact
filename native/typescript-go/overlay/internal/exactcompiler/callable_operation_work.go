@@ -343,6 +343,7 @@ func (work *callableEffectWork) requireOperation(facts []callableFacts, request 
 			}
 		}
 	}
+	work.demandCallable(producer)
 	work.initializeOperationIdentity()
 	id, exists := work.operationIDs[key]
 	if !exists {

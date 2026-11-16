@@ -93,7 +93,7 @@ type callableAnalysis struct {
 }
 
 // projectCallableCache contains checker-bound facts for one exact program/checker generation.
-const advisoryAnalysisSemantics = 7
+const advisoryAnalysisSemantics = 8
 
 // Analysis semantics is separate from diagnostic threshold policy.
 type projectCallableCache struct {
@@ -323,7 +323,7 @@ func projectCallableAnalysisForSource(source *ast.SourceFile, merged callableAna
 		return result
 	}
 	for _, fact := range merged.facts {
-		if fact.sourceFile == source {
+		if fact.sourceFile == source && fact.staged.ready {
 			result.summaries = append(result.summaries, fact.summary)
 		}
 	}
@@ -873,6 +873,10 @@ func callableAnalysisFromFacts(
 	summaries := []CallableSummary{}
 	for index := range facts {
 		fact := &facts[index]
+		// Inventory alone cannot publish a neutral analyzed body.
+		if !fact.staged.ready {
+			continue
+		}
 		fact.summary.DirectEffect = environmentEffectFor(fact.summary.DirectEffectSources)
 		fact.summary.Effect = environmentEffectFor(fact.summary.EffectSources)
 		fact.summary.ArtifactTargets = artifactTargetsFor(

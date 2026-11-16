@@ -43,6 +43,7 @@ type sourceStagedPending struct {
 }
 
 func (work *callableEffectWork) requireStagedSummary(facts []callableFacts, consumer, producer int, edge string, operation *ast.Node, cut sourceRelativeCut) {
+	work.demandCallable(producer)
 	if work.stagedRequired == nil {
 		work.stagedRequired = make(map[sourceStagedDependencyKey]*sourceStagedDependency)
 	}
@@ -156,7 +157,7 @@ func (work *callableEffectWork) settleStagedPublication(facts []callableFacts, c
 		}
 	}
 	for index := range facts {
-		facts[index].staged.settled = settled[cycles[index]]
+		facts[index].staged.settled = facts[index].staged.ready && settled[cycles[index]]
 	}
 	for key, dependency := range work.stagedRequired {
 		if settled[cycles[key.consumer]] {

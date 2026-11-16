@@ -141,7 +141,21 @@ func beginProjectCallableCollection(cache *projectCallableCache, owner *executab
 		symbolSummaries[symbol] = facts[index].summary.ID
 	}
 	bySource := make(map[*ast.SourceFile]*projectSourceCollection, len(collections))
-	collection := &projectCallableCollection{cache: cache, owner: owner, sources: collections, facts: facts, nodes: nodes, symbols: symbols, symbolSummaries: symbolSummaries, bySource: bySource, work: registerCallableEffectWork(facts)}
+	for i := range collections {
+		bySource[collections[i].context.source] = &collections[i]
+	}
+	collection := &projectCallableCollection{cache: cache, owner: owner, sources: collections, facts: facts, nodes: nodes, symbols: symbols, symbolSummaries: symbolSummaries, bySource: bySource}
+	demand := componentCallableDemand(collection)
+	if demand != nil {
+		for _, group := range collections {
+			for i := group.first; i < group.end && i < group.first+group.context.canonicalCount; i++ {
+				if !demand[i] {
+					facts[i] = cloneProjectCallableFact(group.context.inventory.facts[i-group.first])
+				}
+			}
+		}
+	}
+	collection.work = registerCallableEffectWork(facts, demand)
 	// Live writer callbacks must borrow the final work storage. Copying work
 	// after publication separates its epoch, IDs and slice headers from the
 	// extraction owner even though some source maps still happen to be shared.
@@ -152,7 +166,7 @@ func beginProjectCallableCollection(cache *projectCallableCache, owner *executab
 		group := &collections[i]
 		bySource[group.context.source] = group
 		for index := group.first; index < group.end; index++ {
-			if !group.context.collect || index >= group.first+group.context.canonicalCount {
+			if !group.context.collect && facts[index].staged.ready || index >= group.first+group.context.canonicalCount {
 				// A cache descriptor is not re-executed, and generated property metadata
 				// has no body. Preserve actual ready=false on an unresolved cached source.
 				work.extractionQueue[index].operationDone = true
@@ -175,13 +189,17 @@ func (collection *projectCallableCollection) close() {
 func (collection *projectCallableCollection) collect() {
 	owner := collection.owner
 	collections, facts := collection.sources, collection.facts
-	nodes, symbols, bySource := collection.nodes, collection.symbols, collection.bySource
+	nodes := collection.nodes
 	work := &collection.work
 
 	// Initializer preflight and its publication owner now run after registry
 	// freeze. Direct/per-file collection retains its original ordering.
 	for _, group := range collections {
-		if group.context.collect {
+		collect := group.context.collect
+		for i := group.first; i < group.end; i++ {
+			collect = collect || work.extractionPhases[i] == callableExtractionQueued
+		}
+		if collect && callableSourceDemanded(facts, work, group.context.source) {
 			owner.values.index(group.context.source)
 			initializers := prepareCallableSourceInitializers(group.context.source, owner)
 			for i := group.first; i < group.first+group.context.canonicalCount; i++ {
@@ -189,8 +207,30 @@ func (collection *projectCallableCollection) collect() {
 				facts[i].initializerDeclaration, facts[i].initializerPlan = entry.declaration, entry.plan
 			}
 		}
-		installBuildingInitializers(owner, group.context.source, facts)
+		if callableSourceDemanded(facts, work, group.context.source) {
+			installBuildingInitializers(owner, group.context.source, facts)
+		}
 	}
+	collection.extractQueued()
+	for _, group := range collections {
+		if !group.context.collect {
+			continue
+		}
+		for i := group.first; i < group.first+group.context.canonicalCount; i++ {
+			if _, component := group.context.inventory.componentByStart[facts[i].node.Pos()]; component {
+				facts[i].componentCallableInputs = collectComponentCallableInputs(facts[i].node, owner.checker, owner)
+			}
+		}
+	}
+	sealMapInputs(facts, nodes)
+}
+
+// extractQueued drains the existing owner after roots or summary consumers
+// demand bodies. Late dependencies use the same live publisher interval.
+func (collection *projectCallableCollection) extractQueued() {
+	owner, facts := collection.owner, collection.facts
+	nodes, symbols, bySource := collection.nodes, collection.symbols, collection.bySource
+	work := &collection.work
 	for {
 		task, available := work.nextExtraction()
 		if !available {
@@ -207,20 +247,9 @@ func (collection *projectCallableCollection) collect() {
 			facts[index].summary.DirectEffectSources = append(facts[index].summary.DirectEffectSources, environmentSource("browser", "interactive JSX handler", facts[index].summary.Name))
 		}
 		collectDirectCallableEffects(&facts[index], index, facts, symbols, group.syntacticTargets, nodes, context.source, owner.checker, context.reads, context.writes, context.inventory.importBindings, context.inventory.contextBindings, context.assets, owner, work)
+		facts[index].directOwnedScalarBlocked = facts[index].directOwnedScalarBlocked || !directScalarHelper(&facts[index], owner.checker)
 		work.finishExtraction(facts, index)
 	}
-	for _, group := range collections {
-		if !group.context.collect {
-			continue
-		}
-		for i := group.first; i < group.first+group.context.canonicalCount; i++ {
-			if _, component := group.context.inventory.componentByStart[facts[i].node.Pos()]; component {
-				facts[i].componentCallableInputs = collectComponentCallableInputs(facts[i].node, owner.checker, owner)
-			}
-			facts[i].directOwnedScalarBlocked = facts[i].directOwnedScalarBlocked || !directScalarHelper(&facts[i], owner.checker)
-		}
-	}
-	sealMapInputs(facts, nodes)
 }
 
 func (collection *projectCallableCollection) resolve(requested *ast.SourceFile) callableAnalysis {
@@ -232,7 +261,25 @@ func (collection *projectCallableCollection) resolve(requested *ast.SourceFile) 
 	// This is exactly the generic merge's existing import/export/selected-body
 	// relinker, applied to owned mutable facts before this graph's FIRST resolve.
 	linkProjectCallableFacts(facts, symbolSummaries, owner)
-	pending := resolveCallableEffectsWithWork(facts, owner, work)
+	var pending []sourceStagedPending
+	for {
+		for i := range facts {
+			if work.extractionPhases[i] != callableExtractionRegistered {
+				for _, target := range facts[i].targets {
+					work.demandCallable(target)
+				}
+			}
+		}
+		if work.extractionHead < len(work.extractionQueue) {
+			collection.extractQueued()
+			sealMapInputs(facts, collection.nodes)
+		}
+		linkProjectCallableFacts(facts, symbolSummaries, owner)
+		pending = resolveCallableEffectsWithWork(facts, owner, work)
+		if work.extractionHead == len(work.extractionQueue) {
+			break
+		}
+	}
 	if len(pending) == 0 {
 		applyCallableArtifactConstraints(facts)
 	}
