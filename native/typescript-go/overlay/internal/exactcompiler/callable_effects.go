@@ -173,6 +173,7 @@ func collectCallableEffects(
 			assets,
 			owner,
 			&work,
+			publicCallableEffectPurpose(owner),
 		)
 		work.finishExtraction(facts, index)
 	}

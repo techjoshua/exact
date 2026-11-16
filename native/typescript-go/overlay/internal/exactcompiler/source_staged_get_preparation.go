@@ -294,6 +294,9 @@ func (b *sourceStagedGetPreparationBorrow) live(q *sourceValueQuery) bool {
 // original constructed property-Get owner. Inventory admits only this existing
 // conditional receiver domain; it never selects a constructor or a method.
 func (work *callableEffectWork) beginStagedGetPreparation(facts []callableFacts, q *sourceValueQuery, parent sourceStagedOperationRequest, execution *sourceStagedGetPreparationExecution) (func(), *sourceStagedGetPreparationBorrow) {
+	if work.purpose == callableMayEffects {
+		return func() {}, nil
+	}
 	noop := func() {}
 	if q == nil || q.owner == nil || q.executable == nil || q.executable.values == nil || q.executable.project == nil || q.stagedNativeGet != nil || q.inputs != nil || q.operation != nil || !q.dependenciesOnly || q.reading != parent.producer.operation || !validStagedMemberParent(parent) || !ast.IsPropertyAccessExpression(parent.producer.operation) || !ast.IsIdentifier(parent.producer.operation.Expression()) || q.effectOwner != parent.consumer || q.stagedMember == nil || q.stagedMember.issuer != q || !sameOperationRequest(q.stagedMember.request, parent) || q.owner.generation != work.operationGeneration || q.owner.program != q.executable.values.program || q.owner.checker != q.executable.checker || q.owner.checker != q.executable.values.checker || q.executable.project.activeGeneration != work.operationGeneration {
 		return noop, nil

@@ -5,6 +5,8 @@ import (
 	"github.com/microsoft/TypeScript/tsc/internal/core"
 	"github.com/microsoft/TypeScript/tsc/internal/parser"
 	"github.com/microsoft/TypeScript/tsc/internal/tspath"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -45,6 +47,11 @@ func TestPublicOrdinaryCallablePassThrough(t *testing.T) {
 // browser helper is an independently observable transitive donor: dropping all
 // helpers cannot pass just because the caller syntactically writes result.
 func TestPublicComponentDemandsOrdinaryHelper(t *testing.T) {
+	testRoot, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	testID := filepath.Join(testRoot, "component-helper.tsx")
 	source := `import{TaskContext,type Component}from'@exactjs/core';` + nestedReceiverOriginalSource + `
  function browserDonor(){void document.title}
  ` + strings.Replace(nestedReceiverOriginalSource, "export function run(", "export function neverCalled(", 1) + `
@@ -61,11 +68,11 @@ func TestPublicComponentDemandsOrdinaryHelper(t *testing.T) {
 			session := NewSession()
 			// Reuse the public Session after a no-consumer inventory. A later
 			// component use must not reuse an unextracted/neutral helper summary.
-			warmup := session.Execute(Request{Kind: "compile", ID: "/virtual/component-helper.tsx", Source: nestedReceiverOriginalSource, Target: target, Diagnostics: "semantic"})
+			warmup := session.Execute(Request{Kind: "compile", ID: testID, Source: nestedReceiverOriginalSource, Target: target, Diagnostics: "semantic"})
 			if warmup.Error != "" || hasErrorDiagnostic(warmup.Diagnostics) {
 				t.Fatalf("ordinary inventory warmup failed: %s %#v", warmup.Error, warmup.Diagnostics)
 			}
-			r := session.Execute(Request{Kind: "compile", ID: "/virtual/component-helper.tsx", Source: source, Target: target, Diagnostics: "semantic"})
+			r := session.Execute(Request{Kind: "compile", ID: testID, Source: source, Target: target, Diagnostics: "semantic"})
 			if r.Error != "" || hasErrorDiagnostic(r.Diagnostics) || r.Code == "" {
 				t.Fatalf("demanded helper rejected: %s %#v", r.Error, r.Diagnostics)
 			}
