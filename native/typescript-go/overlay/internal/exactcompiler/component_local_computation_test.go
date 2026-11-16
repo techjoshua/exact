@@ -89,14 +89,10 @@ func TestOpaqueCallbackInputConservesKnownEffects(t *testing.T) {
 	if r.Error != "" || hasErrorDiagnostic(r.Diagnostics) || r.Code == "" {
 		t.Fatalf("host-owned callback: %s %#v", r.Error, r.Diagnostics)
 	}
-	callback := findCallable(t, r.Analysis.Callables, "copy")
-	browser, unknown := false, false
-	for _, effect := range callback.EffectSources {
-		browser = browser || effect.Environment == "browser"
-		unknown = unknown || effect.Environment == "unknown"
-	}
-	if !browser || !unknown || callback.Effect != "unknown" {
-		t.Fatalf("independent callback effects lost: %#v", callback)
+	// This ordinary export has no component consumer. Its authored Get/Call/Throw
+	// remains intact; the component callback below covers summary conservation.
+	if len(r.Analysis.Callables) != 0 {
+		t.Fatal("unrelated ordinary callback became an analysis root", r.Analysis.Callables)
 	}
 	sourceNodeScript(t, r.Code, `const fs=require('node:fs'),vm=require('node:vm');
 let gets=0,calls=0;const order=[];const stop={};
