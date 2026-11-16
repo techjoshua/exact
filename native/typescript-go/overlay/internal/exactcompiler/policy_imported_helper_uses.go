@@ -16,6 +16,7 @@ type importedHelperUse struct {
 	target       Target
 	retained     bool
 	routed       *ast.Node
+	consumptions []*ast.Node
 }
 
 type importedHelperPolicyPlan struct {
@@ -32,6 +33,8 @@ func planImportedHelperPolicy(source *ast.SourceFile, c *checker.Checker, owner 
 		return nil
 	}
 	p := &importedHelperPolicyPlan{source: source, checker: c, owner: owner, uses: make(map[*ast.Node]*importedHelperUse)}
+	// Cache only completed root walks in this pass; cyclic partial results are never cached.
+	consumptions := make(map[*ast.Node][]*ast.Node)
 	for _, component := range components {
 		root := componentSourceNode(source, component)
 		if root == nil {
@@ -50,19 +53,15 @@ func planImportedHelperPolicy(source *ast.SourceFile, c *checker.Checker, owner 
 			}
 			file := ast.GetSourceFileOfNode(helper)
 			if file != nil && file != source && !file.IsDeclarationFile {
-				// Only direct policy consumers need retention evidence. Reuse the
-				// original body inventory instead of tracking ordinary helpers.
-				relevant := false
-				for _, operation := range owner.values.summary(helper).nodes {
-					if ast.IsCallExpression(operation) && isImportedSecretConsume(operation.Expression(), c) {
-						relevant = true
-						break
-					}
+				calls, complete := consumptions[helper]
+				if !complete {
+					calls = p.ordinaryHelperConsumptions(helper)
+					consumptions[helper] = calls
 				}
-				if !relevant {
+				if len(calls) == 0 {
 					return true
 				}
-				p.uses[n] = &importedHelperUse{edge: n, helper: helper, source: file}
+				p.uses[n] = &importedHelperUse{edge: n, helper: helper, source: file, consumptions: calls}
 			}
 			return true
 		})
@@ -71,6 +70,54 @@ func planImportedHelperPolicy(source *ast.SourceFile, c *checker.Checker, owner 
 		return nil
 	}
 	return p
+}
+
+// ordinaryHelperConsumptions follows only stable identifier-bound ordinary
+// declarations, using existing source-owned normal-node inventories. It neither
+// visits unrelated functions nor infers bodies from a callable signature. Task
+// and component boundaries need their own projection and are not inherited.
+func (p *importedHelperPolicyPlan) ordinaryHelperConsumptions(root *ast.Node) []*ast.Node {
+	var calls []*ast.Node
+	seen := make(map[*ast.Node]bool)
+	var visit func(*ast.Node)
+	visit = func(helper *ast.Node) {
+		if seen[helper] {
+			return
+		}
+		seen[helper] = true
+		for _, call := range p.owner.values.summary(helper).nodes {
+			if !ast.IsCallExpression(call) {
+				continue
+			}
+			if isImportedSecretConsume(call.Expression(), p.checker) {
+				calls = append(calls, call)
+				continue
+			}
+			expression := unwrapSourceCallableReference(call.Expression())
+			if !ast.IsIdentifier(expression) {
+				continue
+			}
+			// An explicitly selected opaque edge must not fall back to a typed body.
+			next, owned := p.owner.body(expression)
+			if !owned {
+				symbol := resolvedCallableSymbol(p.checker.GetSymbolAtLocation(expression), p.checker)
+				next, _ = p.owner.uniqueSymbolDefinition(symbol)
+			}
+			if next == nil || !ast.IsFunctionDeclaration(next) || next.Body() == nil || p.owner.values.erasedTaskPolicyParameter(next) != nil {
+				continue
+			}
+			if _, component := p.owner.values.components[next]; component {
+				continue
+			}
+			source := ast.GetSourceFileOfNode(next)
+			if source == nil || source.IsDeclarationFile {
+				continue
+			}
+			visit(next)
+		}
+	}
+	visit(root)
+	return calls
 }
 
 // recordPendingHelper preserves only the exact replacement made by pending
@@ -131,8 +178,8 @@ func (p *importedHelperPolicyPlan) project(file *ast.SourceFile, emit *printer.E
 // audit consumes only client uses surviving final pruning. Helper-local
 // qualification and consumer coordinates remain owned by the helper source;
 // a diagnostic attaches to the requested original edge, never foreign spans.
-// This audits direct consume operations in resolved ordinary helper bodies;
-// nested callable bodies are not certified or invoked by this walk.
+// This audits consumes reached through resolved ordinary direct declarations;
+// callbacks and framework task/component bodies are not inherited by this walk.
 func (p *importedHelperPolicyPlan) audit(file *ast.SourceFile, emit *printer.EmitContext, request Request, policy *policyAnalysis) []Diagnostic {
 	if p == nil {
 		return nil
@@ -142,6 +189,7 @@ func (p *importedHelperPolicyPlan) audit(file *ast.SourceFile, emit *printer.Emi
 	}
 	var diagnostics []Diagnostic
 	seenHelpers := make(map[*ast.Node]bool)
+	seenConsumptions := make(map[*ast.Node]bool)
 	subjects := make(map[string]bool)
 	for _, s := range policy.graph.Subjects {
 		subjects[s.ID] = true
@@ -175,23 +223,28 @@ func (p *importedHelperPolicyPlan) audit(file *ast.SourceFile, emit *printer.Emi
 				policy.graph.Subjects = append(policy.graph.Subjects, s)
 			}
 		}
-		// The existing normal-node inventory includes eager computed names
-		// while excluding deferred method/callback bodies, just as planning does.
-		for _, call := range p.owner.values.summary(use.helper).nodes {
-			if !ast.IsCallExpression(call) || !isImportedSecretConsume(call.Expression(), p.checker) {
+		// Each original consume is qualified in its own callee source. Root
+		// retention still comes exclusively from final component lowering.
+		for _, call := range use.consumptions {
+			if seenConsumptions[call] {
 				continue
+			}
+			seenConsumptions[call] = true
+			callSource := ast.GetSourceFileOfNode(call)
+			if callSource == nil || callSource.IsDeclarationFile {
+				panic("Compiler analysis coverage gap: missing imported policy source")
 			}
 			args := call.AsCallExpression().Arguments
 			if args != nil && len(args.Nodes) > 0 {
-				collectPolicyInputMembers(args.Nodes[0], use.source, p.checker, &local, addSubject)
+				collectPolicyInputMembers(args.Nodes[0], callSource, p.checker, &local, addSubject)
 			}
 			execution := request
 			execution.Target = use.target
 			start := len(local.diagnostics)
-			collectSecretConsumeCall(use.source, p.checker, execution, call, &local)
+			collectSecretConsumeCall(callSource, p.checker, execution, call, &local)
 			for _, d := range local.diagnostics[start:] {
-				line, column := sourceLocation(use.source, call.Pos())
-				d.Message = fmt.Sprintf("%s (imported helper %s:%d:%d)", d.Message, use.source.FileName(), line, column)
+				line, column := sourceLocation(callSource, call.Pos())
+				d.Message = fmt.Sprintf("%s (imported helper %s:%d:%d)", d.Message, callSource.FileName(), line, column)
 				d.Start = use.edge.Pos()
 				d.Length = use.edge.End() - use.edge.Pos()
 				diagnostics = append(diagnostics, d)
