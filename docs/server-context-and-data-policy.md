@@ -274,7 +274,8 @@ Secret consumption inside a component-owned server task is audited as server exe
 client projection contains an invocation capability rather than the secret-consuming body. The
 task result must still satisfy the public transfer contract. Ordinary helper bodies that remain
 in a client artifact cannot consume secrets. For a resolved ordinary imported helper called
-from component code, the consuming compile audits direct consumption in that helper only
+from component code, the consuming compile audits consumption in that helper and its stable identifier-bound
+ordinary function callees only
 when the original Call survives target lowering and final pruning. A server-task body
 replaced by a client continuation does not retain that Call. Qualification and audit
 receipt locations remain owned by the helper source; the diagnostic points to the
@@ -282,8 +283,10 @@ consuming component edge. Pending-helper lowering retains the original edge on i
 exact generated invocation; projection still decides whether that invocation survives.
 The final audit also validates the original function passed to the helper selector.
 A retained member route without that function identity refuses coverage rather than
-borrowing authority from its receiver/key. This check does not certify nested callable bodies or
-unresolved higher-order calls. Captured parameter defaults run on the originating
+borrowing authority from its receiver/key. Callee-owned normal-node inventories preserve
+eager evaluations without invoking dormant nested bodies. Repeated calls and cycles are
+deduplicated by original declaration and consume identity. Task/component boundaries and
+unresolved higher-order calls do not inherit the root's retention authority. Captured parameter defaults run on the originating
 host, so secret resolution belongs inside the server task body.
 
 Secret qualification dominates sharing and placement:
