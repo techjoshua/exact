@@ -12,7 +12,8 @@ import {
 	NormalizationHelperSnapshotProbe,
 	NormalizationExplicitTaskProbe,
 	NormalizationExplicitSetupProbe,
-	NormalizationExplicitHelperProbe
+	NormalizationExplicitHelperProbe,
+	CallableCellTask
 } from './test-support/source-normalization.fixtures.js';
 import {
 	NormalizationProbe as ServerProbe,
@@ -255,3 +256,32 @@ for (const mode of ['mount', 'hydrate'])
 		expect(host.childNodes).toHaveLength(0);
 		expect(reports).toEqual([]);
 	});
+
+it('preserves callable cell task operations and state feedback', async () => {
+	const host = document.createElement('div');
+	const reports: unknown[] = [];
+	try {
+		render(receipt(CallableCellTask, {}), host, {
+			onErrorReport: (report) => reports.push(report)
+		});
+		flushSync();
+		const button = host.querySelector('button');
+		expect(button).not.toBeNull();
+		expect(button?.textContent).toBe('0:0');
+		for (const expected of ['1:1', '2:3']) {
+			button!.click();
+			await expect
+				.poll(() => {
+					flushSync();
+					return host.querySelector('button')?.textContent;
+				})
+				.toBe(expected);
+			expect(host.querySelector('button')).toBe(button);
+			expect(reports).toEqual([]);
+		}
+	} finally {
+		dispose(host, true);
+		expect(host.childNodes).toHaveLength(0);
+		expect(reports).toEqual([]);
+	}
+});

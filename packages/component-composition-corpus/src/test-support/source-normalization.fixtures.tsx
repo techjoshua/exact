@@ -184,3 +184,33 @@ export function NormalizationExplicitHelperProbe(
 		</section>
 	);
 }
+
+/** Keeps an interaction's mutable callable cell in ordinary task evaluation. */
+export function CallableCellTask(this: Component<{ count: number; result: number }>) {
+	this.state.count = 0;
+	this.state.result = 0;
+	const run = (task: TaskContext = TaskContext.client().latest().blocking()) => {
+		void task;
+		let selected = () => this.state.count;
+		const cell = {
+			get work() {
+				return selected;
+			},
+			set work(next: () => number) {
+				selected = next;
+			}
+		};
+		const before = cell.work();
+		cell.work = () => {
+			this.state.count++;
+			return this.state.count;
+		};
+		const after = cell.work();
+		this.state.result = before + after;
+	};
+	return () => (
+		<button onClick={() => run()}>
+			{this.state.count}:{this.state.result}
+		</button>
+	);
+}
