@@ -11,6 +11,7 @@ import (
 // jsxLoweringPlan is the immutable analysis handoff consumed by JSX emission. It keeps session
 // orchestration independent from the mutable traversal state created for one source artifact.
 type jsxLoweringPlan struct {
+	importedPolicy       *importedHelperPolicyPlan
 	helperMutations      helperMutationPlan
 	analysisFacts        *sourceAnalysisFacts
 	nodeIDs              map[*ast.Node]string

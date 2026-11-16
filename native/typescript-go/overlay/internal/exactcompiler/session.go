@@ -798,10 +798,15 @@ func (s *Session) executeProjection(request Request, authored *authoredCheckProg
 	if request.Target == TargetClient {
 		secretArtifact = planSecretArtifactDefinitions(sourceFile, generation.checker, policy.subjects)
 	}
+	var importedPolicy *importedHelperPolicyPlan
+	if request.Target == TargetClient {
+		importedPolicy = planImportedHelperPolicy(sourceFile, generation.checker, callables.owner, components)
+	}
 	transformed, componentUpdates, componentInputUpdates, componentInputTaskIDs, componentRangeOutputs, artifactStructure, componentListOwners := lowerExactJSX(
 		sourceFile,
 		emitContext,
 		jsxLoweringPlan{
+			importedPolicy:       importedPolicy,
 			analysisFacts:        analysisFacts,
 			helperMutations:      helperMutations,
 			nodeIDs:              nodeIDs,
@@ -918,6 +923,16 @@ func (s *Session) executeProjection(request Request, authored *authoredCheckProg
 			remapAuthoredLocations(&response, fileName, normalization, len(response.Diagnostics))
 			return response
 		}
+	}
+	// Reuse original-node links only after task projection and final pruning.
+	// Original parents belong to checker resolution, not transformed ancestry.
+	ast.SetParentInChildren(sourceFile.AsNode())
+	importedDiagnostics := importedPolicy.audit(transformed, emitContext, request, &policy)
+	response.Analysis.Policy = policy.graph
+	response.Diagnostics = append(response.Diagnostics, importedDiagnostics...)
+	if hasErrorDiagnostic(importedDiagnostics) {
+		remapAuthoredLocations(&response, fileName, normalization, len(response.Diagnostics))
+		return response
 	}
 	response.RuntimeDependencies = emittedRuntimeDependencies(transformed)
 	response.Structure = artifactStructure

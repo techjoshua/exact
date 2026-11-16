@@ -273,7 +273,13 @@ server-side trust decision.
 Secret consumption inside a component-owned server task is audited as server execution. Its
 client projection contains an invocation capability rather than the secret-consuming body. The
 task result must still satisfy the public transfer contract. Ordinary helper bodies that remain
-in a client artifact cannot consume secrets. Captured parameter defaults run on the originating
+in a client artifact cannot consume secrets. For a resolved ordinary imported helper called
+from component code, the consuming compile audits direct consumption in that helper only
+when the original Call survives target lowering and final pruning. A server-task body
+replaced by a client continuation does not retain that Call. Qualification and audit
+receipt locations remain owned by the helper source; the diagnostic points to the
+consuming component edge. This check does not certify nested callable bodies or
+unresolved higher-order calls. Captured parameter defaults run on the originating
 host, so secret resolution belongs inside the server task body.
 
 Secret qualification dominates sharing and placement:

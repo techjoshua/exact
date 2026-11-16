@@ -8,6 +8,12 @@ import (
 // collectReferencedMemberPolicies indexes the declaration contracts of selected members,
 // including imported and mapped properties. Public siblings do not inherit a field's policy.
 func collectReferencedMemberPolicies(sourceFile *ast.SourceFile, typeChecker *checker.Checker, analysis *policyAnalysis, addSubject func(PolicySubject)) {
+	collectPolicyInputMembers(sourceFile.AsNode(), sourceFile, typeChecker, analysis, addSubject)
+}
+
+// collectPolicyInputMembers also accepts one original argument. Argument-local
+// reads must index their own declaration annotations, without walking the module.
+func collectPolicyInputMembers(root *ast.Node, sourceFile *ast.SourceFile, typeChecker *checker.Checker, analysis *policyAnalysis, addSubject func(PolicySubject)) {
 	// A function reference does not consume its result contract. Keep calls in a
 	// separate deduplication domain so an earlier reference cannot hide a later call.
 	type memberSelection struct {
@@ -24,7 +30,7 @@ func collectReferencedMemberPolicies(sourceFile *ast.SourceFile, typeChecker *ch
 	policyFromType := func(value *checker.Type) (DataPolicy, bool) {
 		return cachedPolicyFromCheckerType(value, typeChecker, analysis.sourceTypes)
 	}
-	walkNode(sourceFile.AsNode(), func(node *ast.Node) bool {
+	walkNode(root, func(node *ast.Node) bool {
 		if node.Parent != nil && ast.IsPartOfTypeNode(node) {
 			return false
 		}
@@ -37,7 +43,7 @@ func collectReferencedMemberPolicies(sourceFile *ast.SourceFile, typeChecker *ch
 		if policyInvocationTarget(node) != nil {
 			symbols = policyCallSymbols(node, typeChecker)
 		}
-		if identifierRead {
+		if identifierRead && root == sourceFile.AsNode() {
 			// Inferred local values can contain declaration-qualified fields even when
 			// no lexical secret input appears in their initializer. Qualify their selected
 			// type at reads, while function references retain selected-call ownership.
