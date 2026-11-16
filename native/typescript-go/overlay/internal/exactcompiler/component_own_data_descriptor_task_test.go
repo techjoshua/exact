@@ -5,6 +5,8 @@ import (
 	"github.com/microsoft/TypeScript/tsc/internal/core"
 	"github.com/microsoft/TypeScript/tsc/internal/parser"
 	"github.com/microsoft/TypeScript/tsc/internal/tspath"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -12,6 +14,11 @@ import (
 // Exercise an ordinary descriptor installation inside a real public component
 // task. Conservative MAY dependencies suffice; no staged closure is inspected.
 func TestPublicComponentOwnDataDescriptorTask(t *testing.T) {
+	testRoot, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	testID := filepath.Join(testRoot, "own-data-descriptor-task.tsx")
 	for _, c := range []struct {
 		name, descriptor string
 		getter           bool
@@ -32,7 +39,7 @@ export function Page(this:Component<{count:number;result:number}>){
  };
  return()=> <button onClick={()=>run()}>{this.state.count}:{this.state.result}</button>;
 }`
-			r := NewSession().Execute(Request{Kind: "compile", ID: "/virtual/own-data-descriptor-task.tsx", Source: source, Target: TargetClient, Diagnostics: "semantic"})
+			r := NewSession().Execute(Request{Kind: "compile", ID: testID, Source: source, Target: TargetClient, Diagnostics: "semantic"})
 			if r.Error != "" || hasErrorDiagnostic(r.Diagnostics) || r.Code == "" {
 				t.Fatalf("public descriptor component rejected: %s %#v", r.Error, r.Diagnostics)
 			}
