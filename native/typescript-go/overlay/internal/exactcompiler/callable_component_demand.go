@@ -159,6 +159,25 @@ func componentCallableDemand(collection *projectCallableCollection, requested ..
 			}
 		}
 		if componentReturn {
+			// Render functions are indexed deferred regions, not ordinary helper
+			// Calls. Their JSX tags require the child's own component summary for
+			// cross-file planning; no invocation/input edge is created here.
+			index := owner.values.index(f.sourceFile)
+			for _, returned := range summary.returns {
+				render := unwrapRenderExpression(returned)
+				region := index.operationRegions[render]
+				if region == nil {
+					continue
+				}
+				for _, references := range [][]*ast.Node{region.references, region.members} {
+					for _, reference := range references {
+						parent := reference.Parent
+						if parent != nil && (ast.IsJsxOpeningElement(parent) && parent.AsJsxOpeningElement().TagName == reference || ast.IsJsxSelfClosingElement(parent) && parent.AsJsxSelfClosingElement().TagName == reference) {
+							demandReference(reference, accessorInvoke)
+						}
+					}
+				}
+			}
 			for _, site := range summary.returnSites {
 				if ast.IsReturnStatement(site) {
 					site = site.Expression()
