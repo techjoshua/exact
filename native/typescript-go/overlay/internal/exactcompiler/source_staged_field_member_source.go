@@ -242,22 +242,3 @@ func (work *callableEffectWork) publishStagedFieldMemberSources(facts []callable
 	work.publishOriginalNativeFieldMutationSource(facts, query, get, member.read, publication)
 	return query.liveStagedFieldMemberSource(get)
 }
-
-func (q *sourceValueQuery) stagedFirstOwnDataFieldRead(get *sourceGetInputs, cut *sourceMemberWriterReadCut, origin *ast.Node, mode accessorTraversal) bool {
-	return q.liveStagedFieldMemberSource(get) && q.liveStagedMemberSource(q.stagedMember, get, cut) && ((get.hasOnly && mode == accessorNoGet) || (!get.hasOnly && mode == accessorAcquire)) && q.stagedFirstOwnDataField(get, origin)
-}
-
-// Only the first own-data read precedes any descriptor getter/receiver escape.
-// SOURCE mapping borrows this same original field issuer before Has/Get starts.
-func (q *sourceValueQuery) stagedFirstOwnDataField(get *sourceGetInputs, origin *ast.Node) bool {
-	if !q.liveStagedFieldGet(get) || origin != get.receiver.node || get.propertyKey != reflectiveDescriptorKeys[0] {
-		return false
-	}
-	b := get.stagedEffects
-	r, call := b.request, b.operation
-	if q.executable == nil || q.executable.project == nil || b.generation == nil || !b.generation.active || q.executable.project.activeGeneration != b.generation || call == nil || !ast.IsCallExpression(call) || r.producer.kind != relativeDemandEffects || r.producer.operation != call || r.producer.selector.occurrence != origin || r.producer.selector.association != nil || r.producer.selector.field != get.propertyKey || r.consumer != r.producer.declaration || q.effectOwner != r.consumer || r.inputs != nil || r.reading != (sourceStagedOperationKey{}) || r.use != call || r.cut != (sourceRelativeCut{operation: call, use: call, reading: call}) || b.cut != (sourceRelativeCut{operation: call, reading: call}) {
-		return false
-	}
-	actuals := restrictedInvocationArguments(call.AsCallExpression())
-	return len(actuals) == 3 && ast.IsStringLiteralLike(actuals[1]) && actuals[2] == origin && sourceInertDataLiteral(origin, get.propertyKey)
-}

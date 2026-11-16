@@ -105,12 +105,20 @@ func TestStagedFieldDispositionOriginalSourceReceipts(t *testing.T) {
 		{"known getter beside unresolved descriptor fields", `declare const extras:Record<string,unknown>;export function invoke(){return Object.defineProperty({},'run',{...extras,get value(){window.name;return ()=>document.title}})}`, stagedFieldDispositionUnknown, true, true, false},
 	} {
 		t.Run(row.name, func(t *testing.T) {
-			withSourceCalleeWriteQuery(t, row.source, func(query *sourceValueQuery, call *ast.Node) {
-				facts := installationSourceFacts(query)
+			var liveFacts []callableFacts
+			inspect := func(query *sourceValueQuery, call *ast.Node) {
+				facts := liveFacts
+				if facts == nil {
+					facts = installationSourceFacts(query)
+				}
 				declaration := enclosingCallableNode(call)
 				descriptor := restrictedInvocationArguments(call.AsCallExpression())[2]
 				request := sourceStagedNativeRequest{call: call, get: call.Expression(), descriptorGet: descriptor, request: sourceStagedOperationRequest{producer: sourceStagedOperationKey{declaration: declaration, operation: call, kind: relativeDemandEffects}, consumer: declaration, edge: "original-field-disposition", use: call, cut: sourceRelativeCut{operation: call, use: call, reading: call}}}
 				work := callableEffectWork{extracting: -1}
+				if liveFacts != nil {
+					restore := registerWriterInputFacts(query.executable, facts, &work)
+					defer restore()
+				}
 				revoke, installed := beginStagedNativeDescriptorSource(query, &work, facts, request)
 				if !installed {
 					t.Fatal("original source registration refused")
@@ -193,6 +201,32 @@ func TestStagedFieldDispositionOriginalSourceReceipts(t *testing.T) {
 				if window != row.window || document {
 					t.Fatalf("known/dormant donors: window=%t want=%t document=%t", window, row.window, document)
 				}
+			}
+			if row.name != "data callback" {
+				withSourceCalleeWriteQuery(t, row.source, inspect)
+				return
+			}
+			// Keep this original strong field request inside an active Program/checker
+			// interval. The canonical MAY collector supplies real facts; no ready bits,
+			// source receipts or execution authority are copied from a released Session.
+			withReflectiveRelevanceSource(t, row.source, func(owner *executableBodyOwner, file *ast.SourceFile) {
+				analysis := collectCallableEffects(file, owner.checker, nil, nil, nil, nil, assetAnalysis{}, owner)
+				if len(analysis.pending) != 0 {
+					t.Fatal("live canonical fixture has unpaid source work", analysis.pending)
+				}
+				liveFacts = analysis.facts
+				var call *ast.Node
+				walkNode(file.AsNode(), func(node *ast.Node) bool {
+					if ast.IsCallExpression(node) && enclosingCallableNode(node) != nil && callableNameText(enclosingCallableNode(node).Name()) == "invoke" {
+						call = node
+					}
+					return true
+				})
+				if call == nil {
+					t.Fatal("original field Call missing")
+				}
+				query := newSourceDependencyQuery(call, owner.checker, owner, enclosingCallableNode(call))
+				inspect(query, call)
 			})
 		})
 	}
