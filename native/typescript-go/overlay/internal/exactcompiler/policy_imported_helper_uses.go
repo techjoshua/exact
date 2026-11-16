@@ -142,12 +142,11 @@ func (p *importedHelperPolicyPlan) audit(file *ast.SourceFile, emit *printer.Emi
 				policy.graph.Subjects = append(policy.graph.Subjects, s)
 			}
 		}
-		walkNode(use.helper.Body(), func(call *ast.Node) bool {
-			if ast.IsPartOfTypeNode(call) || isCallableNode(call) {
-				return false
-			}
+		// The existing normal-node inventory includes eager computed names
+		// while excluding deferred method/callback bodies, just as planning does.
+		for _, call := range p.owner.values.summary(use.helper).nodes {
 			if !ast.IsCallExpression(call) || !isImportedSecretConsume(call.Expression(), p.checker) {
-				return true
+				continue
 			}
 			args := call.AsCallExpression().Arguments
 			if args != nil && len(args.Nodes) > 0 {
@@ -164,8 +163,7 @@ func (p *importedHelperPolicyPlan) audit(file *ast.SourceFile, emit *printer.Emi
 				d.Length = use.edge.End() - use.edge.Pos()
 				diagnostics = append(diagnostics, d)
 			}
-			return true
-		})
+		}
 		policy.graph.SecretConsumers = append(policy.graph.SecretConsumers, local.graph.SecretConsumers...)
 		policy.graph.Flows = append(policy.graph.Flows, local.graph.Flows...)
 		return true
