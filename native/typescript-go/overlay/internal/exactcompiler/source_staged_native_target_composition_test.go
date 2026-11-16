@@ -844,9 +844,9 @@ func TestStagedNativeForeignSourcesRemainingDescriptorFields(t *testing.T) {
 	}, activeModuleCompleteAnalysis)
 }
 
-// The first inert own-data slot closes its actual Has/Get and own-writer SOURCE,
-// while prototype discovery and every ordinary field/Call debt remain independent.
-func TestStagedNativeFirstOwnDataSourceClosure(t *testing.T) {
+// SOURCE descriptions retain original observations and required work without
+// implying transitive field, prototype or native algorithm completion.
+func TestStagedNativeFieldSourceDescriptions(t *testing.T) {
 	const file = "/virtual/native-target-composition.ts"
 	request := Request{Kind: "analyze", ID: file, Source: stagedNativeTargetCompositionSource, Diagnostics: "semantic", stagedReplacement: true}
 	withActiveModuleSourceWork(t, request, map[string]string{file: stagedNativeTargetCompositionSource}, nil, func(facts []callableFacts, work *callableEffectWork, owner *executableBodyOwner) {
@@ -863,15 +863,25 @@ func TestStagedNativeFirstOwnDataSourceClosure(t *testing.T) {
 			t.Fatal("original direct conversion/current Create association UNREACHED")
 		}
 		closed := work.closedOperationDependencies()
-		paid := func(r sourceStagedOperationRequest) *sourceStagedOperationState {
+		prefix := func(r sourceStagedOperationRequest) *sourceStagedOperationState {
 			id := work.operationIDs[r.producer]
 			if id.epoch != work.operationEpoch || id.index == 0 || int(id.index) >= len(work.operations) {
 				t.Fatal("original required producer UNREACHED", r)
 			}
 			state := &work.operations[id.index]
 			sub := state.subscribers[sourceStagedOperationConsumer{r.consumer, r.edge}]
-			if state.invalid || !state.dependenciesRegistered || state.revision == 0 || !state.delta.extracted || sub == nil || sub.blocked || !sameOperationRequest(sub.request, r) || sub.consumed != state.revision || sub.applied != state.revision || sub.cursor.required != len(state.delta.required) {
-				t.Fatal("original current extracted delivery not consumed/APPLIED", r)
+			if state.invalid || !state.dependenciesRegistered || state.revision == 0 || sub == nil || sub.blocked || !sameOperationRequest(sub.request, r) || sub.consumed != state.revision || sub.applied != state.revision || sub.cursor.required != len(state.delta.required) {
+				t.Fatal("original current SOURCE prefix not consumed/APPLIED", r)
+			}
+			if !state.delta.extracted && closed[id.index] {
+				t.Fatal("unextracted SOURCE prefix acquired closure", r)
+			}
+			return state
+		}
+		paid := func(r sourceStagedOperationRequest) *sourceStagedOperationState {
+			state := prefix(r)
+			if !state.delta.extracted {
+				t.Fatal("original extracted SOURCE description UNREACHED", r)
 			}
 			return state
 		}
@@ -881,9 +891,6 @@ func TestStagedNativeFirstOwnDataSourceClosure(t *testing.T) {
 			t.Fatal("original field SOURCE roles UNREACHED")
 		}
 		own := paid(roles.ownWriters)
-		if !closed[work.operationIDs[roles.ownWriters.producer].index] || len(own.delta.required) != 2 || len(own.dependencies) != 2 {
-			t.Fatal("first own-writer SOURCE closure UNREACHED")
-		}
 		phases := make(map[sourceStagedFieldObservationPhase]bool)
 		for _, dep := range own.dependencies {
 			member := work.operationRecipes[dep.request.producer].memberSource
@@ -892,17 +899,17 @@ func TestStagedNativeFirstOwnDataSourceClosure(t *testing.T) {
 			}
 			parent, phase, valid := stagedFieldMemberParent(member.parent)
 			child := paid(dep.request)
-			if !valid || !sameOperationRequest(parent, field) || dep.producer != work.operationIDs[dep.request.producer] || !operationContainsRequest(own.delta.required, dep.request) || phases[phase] || !closed[dep.producer.index] || !child.memberCoverageObserved || work.memberCoverageObserved[child.key] != work.operationGeneration {
-				t.Fatal("exact original enumerable Has/Get observed closure UNREACHED")
+			if !valid || !sameOperationRequest(parent, field) || dep.producer != work.operationIDs[dep.request.producer] || !operationContainsRequest(own.delta.required, dep.request) || phases[phase] || !child.memberCoverageObserved || work.memberCoverageObserved[child.key] != work.operationGeneration {
+				t.Fatal("exact original enumerable Has/Get observation UNREACHED")
 			}
 			phases[phase] = true
 		}
+		if !phases[stagedFieldObservationHas] || !phases[stagedFieldObservationGet] {
+			t.Fatal("original Has/Get SOURCE observations UNREACHED")
+		}
 		prototype := paid(roles.prototype)
 		paid(field)
-		if !closed[work.operationIDs[roles.prototype.producer].index] || !closed[work.operationIDs[field.producer].index] {
-			t.Fatalf("first own-data prototype/field closure UNREACHED: prototype=%t field=%t", closed[work.operationIDs[roles.prototype.producer].index], closed[work.operationIDs[field.producer].index])
-		}
-		views := [2]int{}
+		views := [2]bool{}
 		for _, dep := range prototype.dependencies {
 			view := work.operationRecipes[dep.request.producer]
 			if view.memberSource == nil || view.memberSource.nativeFieldGet == nil {
@@ -914,15 +921,16 @@ func TestStagedNativeFirstOwnDataSourceClosure(t *testing.T) {
 			}
 			paid(dep.request)
 			if h.nominalCreate {
-				views[1]++
+				views[1] = true
 			} else {
-				views[0]++
+				views[0] = true
 			}
 		}
-		if views != [2]int{4, 1} {
-			t.Fatal("whole-fixture prototype contributions UNREACHED", views)
+		if !views[0] || !views[1] {
+			t.Fatal("typed Get/Create SOURCE contributions UNREACHED", views)
 		}
-		algorithm := paid(nativeRootDebtRequest(source, "algorithm"))
+		// Algorithm delivery owns required fields, independently of its completion.
+		algorithm := prefix(nativeRootDebtRequest(source, "algorithm"))
 		for _, name := range reflectiveDescriptorKeys {
 			if !operationContainsRequest(algorithm.delta.required, nativeDescriptorFieldRequest(source, name)) {
 				t.Fatal("six-field Effects debt lost", name)
@@ -962,7 +970,7 @@ func TestStagedFirstOwnDataLiteralRefusers(t *testing.T) {
 	} {
 		withReflectiveRelevanceSource(t, "export const descriptor="+expression, func(_ *executableBodyOwner, file *ast.SourceFile) {
 			if sourceInertDataLiteral(file.Statements.Nodes[0].AsVariableStatement().DeclarationList.AsVariableDeclarationList().Declarations.Nodes[0].AsVariableDeclaration().Initializer, reflectiveDescriptorKeys[0]) {
-				t.Fatal("unsupported literal supplied first-own-data scope", expression)
+				t.Fatal("unsupported literal supplied inert-data contract", expression)
 			}
 		})
 	}

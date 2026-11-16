@@ -158,8 +158,6 @@ func (q *sourceValueQuery) prepareStagedMemberCoverage(get *sourceGetInputs, cut
 		(get.receiver.native.kind == sourceNativeObjectConstructor || get.receiver.native.kind == sourceNativeReflectObject ||
 			get.receiver.native.kind == sourceNativeGlobalObject && standard != nil && standard.native != nil &&
 				(standard.native.kind == sourceNativeObjectConstructor || standard.native.kind == sourceNativeReflectObject))
-	// Prior activations cannot reach this fresh first own-data slot.
-	firstOwnField := q.stagedFirstOwnDataFieldRead(get, cut, origin, mode)
 	for _, index := range indexes {
 		operations, populated := stagedFieldPrototypeDiscovery(index)
 		complete = complete && populated && index.normalOccurrences != nil && !index.normalDynamicScope
@@ -169,9 +167,6 @@ func (q *sourceValueQuery) prepareStagedMemberCoverage(get *sourceGetInputs, cut
 		sort.SliceStable(operations, func(i, j int) bool { return operations[i].operation.Pos() < operations[j].operation.Pos() })
 		for _, operation := range operations {
 			node := operation.operation
-			if firstOwnField && operation.region != nil {
-				continue
-			}
 			if !q.liveStagedMemberSource(b, get, cut) {
 				return
 			}

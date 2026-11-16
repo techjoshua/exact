@@ -57,7 +57,6 @@ func (work *callableEffectWork) discoverFieldSources(facts []callableFacts, dema
 		issued[identity] = true
 		return []sourceStagedOperationRequest{required}
 	}
-	firstOwnField := query.stagedFirstOwnDataField(get, get.receiver.node)
 	var ownMappings, prototypeMappings []sourceStagedImplicitFieldMapping
 	emitStagedFieldSourceDiscovery(query, get, requests, sources, complete,
 		func(request sourceStagedOperationRequest, operation, region *ast.Node) (out sourceStagedOperationDelta, mapped bool) {
@@ -74,15 +73,6 @@ func (work *callableEffectWork) discoverFieldSources(facts []callableFacts, dema
 			result := accessorCandidates{}
 			if !query.liveStagedFieldGet(get) || !query.charge(&result, operation) {
 				return sourceStagedOperationDelta{}, false
-			}
-			if firstOwnField && region != nil && sameOperationRequest(request, requests.prototype) {
-				source := nativeSources[operation]
-				view := source != nil && source.request.consumer != request.consumer && (operation == source.get || source.kind == sourceNativeObjectCreate && operation == source.request.producer.operation)
-				// Keep the original typed views (and failed admission) below. Other
-				// prior prototype work cannot enter this first own-data Effects read.
-				if !view {
-					return sourceStagedOperationDelta{extracted: true}, true
-				}
 			}
 			reader := work.operationRecipes[demand.request.producer].nativeGet
 			if reader != nil && stagedSourceRegionOwned(operation, region, reader.request.producer.declaration) {
