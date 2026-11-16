@@ -93,10 +93,11 @@ type callableAnalysis struct {
 }
 
 // projectCallableCache contains checker-bound facts for one exact program/checker generation.
-const advisoryAnalysisSemantics = 8
+const advisoryAnalysisSemantics = 9
 
 // Analysis semantics is separate from diagnostic threshold policy.
 type projectCallableCache struct {
+	requested    *ast.SourceFile // Public merged demand scope; no graph execution authority.
 	semantics    int
 	program      *compiler.Program
 	owner        *executableBodyOwner
@@ -306,8 +307,8 @@ func collectProjectCallableEffects(
 	assetRules []AssetRule,
 ) callableAnalysis {
 	cache, changed := prepareProjectCallableContexts(project, sourceFile, typeChecker, components, stateReads, stateWrites, componentBindings, assets, assetRules)
-	if changed {
-		rebuildProjectCallableCache(project.program, cache, cache.owner)
+	if changed || !project.stagedReplacement && cache.requested != sourceFile {
+		rebuildProjectCallableCache(project.program, cache, cache.owner, sourceFile)
 	}
 	result := projectCallableAnalysisForSource(sourceFile, cache.merged)
 	result.owner = cache.owner
@@ -743,9 +744,13 @@ func rebuildProjectCallableCache(
 	program *compiler.Program,
 	cache *projectCallableCache,
 	owner *executableBodyOwner,
+	requestedSources ...*ast.SourceFile,
 ) {
 	cache.analyses = cache.analyses[:0]
 	var requested *ast.SourceFile
+	if len(requestedSources) != 0 {
+		requested = requestedSources[0]
+	}
 	for _, sourceFile := range program.GetSourceFiles() {
 		analysis, exists := cache.bySource[sourceFile]
 		if !exists {
@@ -761,6 +766,7 @@ func rebuildProjectCallableCache(
 			sealModuleInitializers(owner, cache.merged.facts)
 		}
 	}()
+	cache.requested = requested
 	cache.merged = callableAnalysis{}
 	if hasPreparedProjectSources(cache.analyses) {
 		cache.merged = collectPreparedProjectCallableEffects(requested, cache, owner)

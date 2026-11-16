@@ -131,3 +131,49 @@ func TestPublicRequestedComponentRetainsHelperPlacementRefusal(t *testing.T) {
 		t.Fatal("requested task dropped imported browser conflict", response.Error, response.Diagnostics)
 	}
 }
+
+// Switching the selected executable in an unchanged Program must reroot demand.
+func TestPublicRequestedComponentScopeCacheSwitch(t *testing.T) {
+	root, config := formsSourceFixture(t)
+	sources := map[string]string{
+		"one.tsx": `export function One(){return()=> <p>one</p>;}`,
+		"two.tsx": `export function Two(){return()=> <p>two</p>;}`,
+	}
+	for name, source := range sources {
+		if err := os.WriteFile(filepath.Join(root, name), []byte(source), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	session := NewSession()
+	for _, name := range []string{"one.tsx", "two.tsx", "one.tsx"} {
+		expected := "One"
+		other := "Two"
+		if name == "two.tsx" {
+			expected, other = "Two", "One"
+		}
+		r := session.Execute(Request{Kind: "compile", ID: filepath.Join(root, name), Root: root, ConfigFile: config, Source: sources[name], Target: TargetClient, Diagnostics: "semantic"})
+		if r.Error != "" || hasErrorDiagnostic(r.Diagnostics) || r.Code == "" || len(r.Analysis.Components) != 1 || r.Analysis.Components[0].Name != expected {
+			t.Fatal("selected scope lost", name, r.Error, r.Diagnostics)
+		}
+		selected := false
+		for _, project := range session.projects {
+			if project.callableCache == nil {
+				continue
+			}
+			for _, fact := range project.callableCache.merged.facts {
+				if fact.node.Name() == nil {
+					continue
+				}
+				if fact.node.Name().Text() == expected {
+					selected = selected || fact.staged.ready
+				}
+				if fact.node.Name().Text() == other && fact.staged.ready {
+					t.Fatal("cached foreign scope stayed demanded", name, other)
+				}
+			}
+		}
+		if !selected {
+			t.Fatal("selected body was not demanded", name)
+		}
+	}
+}
