@@ -75,6 +75,7 @@ type sourceValueWrite struct {
 	operation string
 }
 type sourceValueSummary struct {
+	erasedPolicy                *ast.Node // checker-bound source erasure, not invocation authority
 	normalSlots                 map[*ast.Node]struct{}
 	nodes, returns, returnSites []*ast.Node
 	normal                      []sourceNormalDemand
@@ -247,6 +248,7 @@ func (owner *sourceValueOwner) summary(node *ast.Node) sourceValueSummary {
 	}
 	summary := sourceValueSummary{returns: directCallableReturns(node), normalSlots: make(map[*ast.Node]struct{})}
 	erasedPolicy := owner.erasedTaskPolicyParameter(node)
+	summary.erasedPolicy = erasedPolicy
 	index := owner.index(ast.GetSourceFileOfNode(node))
 	appendDemand := func(demand sourceNormalDemand) {
 		if entry := index.normalOccurrences[demand.node]; !index.incomplete && entry != nil {
