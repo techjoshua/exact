@@ -77,7 +77,7 @@ func planImportedHelperPolicy(source *ast.SourceFile, c *checker.Checker, owner 
 // declarations, using existing source-owned normal-node inventories. It neither
 // visits unrelated functions nor infers bodies from a callable signature. Task
 // and component boundaries need their own projection and are not inherited.
-// Inline Array.map bodies require their original source-native Effects association.
+// Acquired Array.map bodies require their original source-native Effects association.
 func (p *importedHelperPolicyPlan) ordinaryHelperConsumptions(root *ast.Node) []*ast.Node {
 	var calls []*ast.Node
 	seen := make(map[*ast.Node]bool)
@@ -131,7 +131,7 @@ func (p *importedHelperPolicyPlan) ordinaryHelperConsumptions(root *ast.Node) []
 			// The native producer already acquired this body; argument syntax
 			// cannot recover it when a stable callback value is passed by name.
 			callback := edge.arrayMapBody
-			if !ast.IsArrowFunction(callback) && !ast.IsFunctionExpression(callback) {
+			if callback == nil || !ast.IsFunctionLike(callback) || callback.Body() == nil {
 				continue
 			}
 			if summary, known := p.callables[callback]; known && summary.ID == edge.TargetID {
