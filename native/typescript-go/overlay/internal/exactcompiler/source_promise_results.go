@@ -7,7 +7,10 @@ import "github.com/microsoft/TypeScript/tsc/internal/ast"
 // getters execute with this=value even when exposure prevents later transfer.
 func (query *sourceValueQuery) nativePromiseEffects(receipt *sourceNativeInvocation, result *accessorCandidates) {
 	defer func() { receipt.observed = query.sealInitializerObservation(receipt.observed, result) }()
-	receipt.observed.incomplete = receipt.incomplete || receipt.referencesIncomplete
+	// External reference availability cannot add assimilation to checked scalar
+	// inputs of the acquired standard operation. Actual selection/input refusal
+	// remains incomplete, and non-scalar values still need their then sources.
+	receipt.observed.incomplete = receipt.incomplete || !receipt.scalarInput && receipt.referencesIncomplete
 	previous := query.creators
 	query.creators = receipt.scope.creators
 	defer func() { query.creators = previous }()
