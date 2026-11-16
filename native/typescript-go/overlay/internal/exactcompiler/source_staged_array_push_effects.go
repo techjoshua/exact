@@ -117,7 +117,10 @@ func (work *callableEffectWork) publishArrayPushEffects(facts []callableFacts, o
 	copy.effectsSource = &sourceStagedNativeEffectsRequest{request: request, generation: i.generation, arrayIssuer: i}
 	i.arrayReceipt = copy.effectsSource
 	root.nativeGet = &copy
-	if !work.attachOperationSource(facts, root) || !work.registerOperationUse(facts, sourceStagedOperationUse{request: request}) {
+	// The acquired prefix is available, not an ordinary collector adoption.
+	// Actual protocol and Set read/write consumers require it through their
+	// own dependencies; otherwise the original conservative Call stays owned.
+	if !work.attachOperationSource(facts, root) {
 		return
 	}
 	i.issued = true
