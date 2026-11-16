@@ -34,33 +34,9 @@ func recordOriginalMutationBodyOperation(fact *callableFacts, node *ast.Node, ow
 	if fact == nil || node == nil || owner == nil || owner.values == nil || owner.values.generation == nil || !ast.IsFunctionLike(fact.node) || enclosingCallableNode(node) != fact.node || !sourceStagedOccurrenceOwned(node, fact.node) {
 		return
 	}
-	var kind sourceOriginalMutationBodyOperationKind
-	switch {
-	case ast.IsCallExpression(node):
-		kind = originalMutationBodyCall
-	case ast.IsVariableDeclarationList(node) && node.Flags&ast.NodeFlagsUsing != 0:
-		kind = originalMutationBodyUnsupported
-	case ast.IsPropertyAccessExpression(node), ast.IsElementAccessExpression(node):
-		if node.Parent != nil && ast.IsBinaryExpression(node.Parent) && node.Parent.AsBinaryExpression().Left == node && node.Parent.AsBinaryExpression().OperatorToken.Kind == ast.KindEqualsToken {
-			return
-		}
-		kind = originalMutationBodyGet
-	case ast.IsBinaryExpression(node):
-		switch node.AsBinaryExpression().OperatorToken.Kind {
-		case ast.KindEqualsToken:
-			kind = originalMutationBodyWrite
-		case ast.KindEqualsEqualsEqualsToken, ast.KindExclamationEqualsEqualsToken, ast.KindAmpersandAmpersandToken, ast.KindBarBarToken, ast.KindQuestionQuestionToken, ast.KindCommaToken:
-			return
-		default:
-			kind = originalMutationBodyUnsupported
-		}
-	default:
-		switch node.Kind {
-		case ast.KindNewExpression, ast.KindTaggedTemplateExpression, ast.KindAwaitExpression, ast.KindYieldExpression, ast.KindPrefixUnaryExpression, ast.KindPostfixUnaryExpression, ast.KindDeleteExpression, ast.KindTemplateExpression, ast.KindSpreadElement, ast.KindSpreadAssignment, ast.KindForOfStatement, ast.KindForInStatement, ast.KindObjectBindingPattern, ast.KindArrayBindingPattern, ast.KindComputedPropertyName, ast.KindClassDeclaration, ast.KindClassExpression:
-			kind = originalMutationBodyUnsupported
-		default:
-			return
-		}
+	kind, recorded := originalMutationBodyKind(node)
+	if !recorded {
+		return
 	}
 	population := &fact.staged.mutationBody
 	if population.declaration != fact.node || population.generation != owner.values.generation {
@@ -90,4 +66,38 @@ func originalMutationBodyFingerprint(p sourceOriginalMutationBodyPopulation, out
 	for _, operation := range p.operations {
 		out.WriteString(fmt.Sprintf(":%p:%d", operation.node, operation.kind))
 	}
+}
+
+// originalMutationBodyKind classifies the same original operation for canonical
+// BODY recording and SOURCE effect description; classification grants no coverage.
+func originalMutationBodyKind(node *ast.Node) (sourceOriginalMutationBodyOperationKind, bool) {
+	var kind sourceOriginalMutationBodyOperationKind
+	switch {
+	case ast.IsCallExpression(node):
+		kind = originalMutationBodyCall
+	case ast.IsVariableDeclarationList(node) && node.Flags&ast.NodeFlagsUsing != 0:
+		kind = originalMutationBodyUnsupported
+	case ast.IsPropertyAccessExpression(node), ast.IsElementAccessExpression(node):
+		if node.Parent != nil && ast.IsBinaryExpression(node.Parent) && node.Parent.AsBinaryExpression().Left == node && node.Parent.AsBinaryExpression().OperatorToken.Kind == ast.KindEqualsToken {
+			return 0, false
+		}
+		kind = originalMutationBodyGet
+	case ast.IsBinaryExpression(node):
+		switch node.AsBinaryExpression().OperatorToken.Kind {
+		case ast.KindEqualsToken:
+			kind = originalMutationBodyWrite
+		case ast.KindEqualsEqualsEqualsToken, ast.KindExclamationEqualsEqualsToken, ast.KindAmpersandAmpersandToken, ast.KindBarBarToken, ast.KindQuestionQuestionToken, ast.KindCommaToken:
+			return 0, false
+		default:
+			kind = originalMutationBodyUnsupported
+		}
+	default:
+		switch node.Kind {
+		case ast.KindNewExpression, ast.KindTaggedTemplateExpression, ast.KindAwaitExpression, ast.KindYieldExpression, ast.KindPrefixUnaryExpression, ast.KindPostfixUnaryExpression, ast.KindDeleteExpression, ast.KindTemplateExpression, ast.KindSpreadElement, ast.KindSpreadAssignment, ast.KindForOfStatement, ast.KindForInStatement, ast.KindObjectBindingPattern, ast.KindArrayBindingPattern, ast.KindComputedPropertyName, ast.KindClassDeclaration, ast.KindClassExpression:
+			kind = originalMutationBodyUnsupported
+		default:
+			return 0, false
+		}
+	}
+	return kind, true
 }

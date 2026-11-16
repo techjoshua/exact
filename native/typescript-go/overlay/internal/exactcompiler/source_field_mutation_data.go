@@ -67,6 +67,10 @@ func cloneNativeGetForMutation(s *sourceStagedNativeGetSource) *sourceStagedNati
 		return nil
 	}
 	copy := *s
+	if s.arrayPush != nil {
+		copy.effectsSource = cloneNativeEffectsRequest(s.effectsSource)
+		copy.arrayPush = cloneArrayPushEffects(s.arrayPush)
+	}
 	copy.descriptorRead = cloneDescriptorRetrieval(s.descriptorRead)
 	return &copy
 }

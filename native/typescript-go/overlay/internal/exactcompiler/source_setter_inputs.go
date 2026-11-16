@@ -7,6 +7,7 @@ import "github.com/microsoft/TypeScript/tsc/internal/ast"
 // request rather than inheriting its input. It grants no normal output, performed
 // write, descriptor identity or completed invocation authority.
 type sourceSetterInputRequest struct {
+	numericUpdate            bool                          // Effects-only original prefix/postfix; no authored RHS value.
 	assignment               *sourceStagedAssignmentBorrow // Exact synchronous original Set observer, never cached.
 	operation, target, right *ast.Node
 	caller                   acquiredCallableScope
@@ -17,12 +18,16 @@ type sourceSetterInputRequest struct {
 
 // sourceSetterRequest admits only authored plain assignment references. Other
 // write protocols keep their existing residual path and cannot borrow its RHS.
-func (q *sourceValueQuery) sourceSetterRequest(target *ast.Node, mode accessorTraversal, bindings sourceValueBindings) *sourceSetterInputRequest {
-	if !q.dependenciesOnly || mode&accessorSet == 0 || target == nil || target.Parent == nil || !ast.IsBinaryExpression(target.Parent) {
+func (q *sourceValueQuery) sourceSetterRequest(target *ast.Node, mode accessorTraversal, bindings sourceValueBindings, update ...bool) *sourceSetterInputRequest {
+	if !q.dependenciesOnly || mode&accessorSet == 0 || target == nil || target.Parent == nil {
 		return nil
 	}
-	assignment := target.Parent.AsBinaryExpression()
-	if assignment.Left != target || assignment.OperatorToken.Kind != ast.KindEqualsToken {
+	operation := target.Parent
+	var right *ast.Node
+	numeric := len(update) == 1 && update[0] && checkedNumericUpdate(operation, q.executable) && stagedAssignmentTarget(operation) == target
+	if plainStagedAssignment(operation) && operation.AsBinaryExpression().Left == target {
+		right = operation.AsBinaryExpression().Right
+	} else if !numeric {
 		return nil
 	}
 	part := accessorCandidates{}
@@ -31,7 +36,7 @@ func (q *sourceValueQuery) sourceSetterRequest(target *ast.Node, mode accessorTr
 	if part.opaque || part.valueIncomplete || part.receiverIncomplete {
 		return nil
 	}
-	return &sourceSetterInputRequest{operation: target.Parent, target: target, right: assignment.Right, caller: scope}
+	return &sourceSetterInputRequest{operation: operation, target: target, right: right, numericUpdate: numeric, caller: scope}
 }
 
 // consumeSourceSetter installs the already selected receiver and captures before
@@ -40,7 +45,7 @@ func (q *sourceValueQuery) sourceSetterRequest(target *ast.Node, mode accessorTr
 // Missing RHS alternatives stay unknown alongside every represented alternative.
 func (q *sourceValueQuery) consumeSourceSetter(body, effectOperation *ast.Node, receiver sourceValue, captures sourceValueBindings, result *accessorCandidates) bool {
 	request := q.setterInput
-	if !q.dependenciesOnly || request == nil || request.target != q.protectedMember || !ast.IsSetAccessorDeclaration(body) {
+	if !q.dependenciesOnly || request == nil || request.numericUpdate || request.target != q.protectedMember || !ast.IsSetAccessorDeclaration(body) {
 		return false
 	}
 	inputs := q.bindSourceSetterInputs(request, body, receiver, captures, result)
@@ -107,7 +112,7 @@ func (q *sourceValueQuery) bindSourceSetterInputs(request *sourceSetterInputRequ
 // all other candidates and uncertainty. No body/output driver is entered.
 func (q *sourceValueQuery) retainSourceSetterWriterInputs(body *ast.Node, receiver sourceValue, captures sourceValueBindings, result *accessorCandidates) {
 	request := q.setterInput
-	if !q.dependenciesOnly || request == nil || request.writer != body || request.target != q.protectedMember {
+	if !q.dependenciesOnly || request == nil || request.numericUpdate || request.writer != body || request.target != q.protectedMember {
 		return
 	}
 	inputs := q.bindSourceSetterInputs(request, body, receiver, captures, result)

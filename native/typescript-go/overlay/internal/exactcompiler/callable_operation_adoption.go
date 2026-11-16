@@ -53,7 +53,7 @@ func (work *callableEffectWork) operationSourceRequirementsReady(required []sour
 		// Typed predicates validate the current local disposition. Some sealed
 		// source recipes intentionally remain unextracted after publication.
 		ready[index] = accepted
-		required := recipe.delta.required
+		required := operationRecipeEffectRequirements(recipe)
 		if source := recipe.memberSource; source != nil && source.moduleExcluded != nil {
 			required = append(append([]sourceStagedOperationRequest(nil), required...), source.moduleExcluded.required...)
 		}

@@ -95,6 +95,9 @@ func registerWriterInputFacts(owner *executableBodyOwner, facts []callableFacts,
 		for i := range facts {
 			publisher := owner.pendingMemberPublishers[facts[i].node]
 			publisher.workRegistrar = &sourcePendingMemberWorkRegistrar{
+				arrayPush: func(q *sourceValueQuery, call *ast.Node, selected sourceValue, receiver *ast.Node, origin sourceValue) {
+					work.publishArrayPushEffects(facts, owner, publisher, q, call, selected, receiver, origin)
+				},
 				writerScopeSource: func(q *sourceValueQuery, request *sourceWriterInputRequest) {
 					work.registerDeclarationWriterScope(facts, owner, publisher, q, request)
 				},

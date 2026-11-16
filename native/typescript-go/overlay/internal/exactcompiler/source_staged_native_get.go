@@ -7,6 +7,7 @@ import "github.com/microsoft/TypeScript/tsc/internal/ast"
 // independently of whether own writers replace it. None of its prerequisites is
 // settled by retaining that branch. No query, binding map or acquisition survives.
 type sourceStagedNativeGetSource struct {
+	arrayPush     *sourceStagedArrayPushEffects     // Original conditional mutation, never algorithm completion.
 	effectsSource *sourceStagedNativeEffectsRequest // Root-only original Effects demand; no current Get.
 
 	request           sourceStagedOperationRequest
@@ -403,6 +404,9 @@ func (work *callableEffectWork) registerNativeGetSource(facts []callableFacts, s
 
 func validNativeGetRecipe(recipe sourceStagedOperationRecipe) bool {
 	source := recipe.nativeGet
+	if source != nil && source.kind == sourceNativeArrayPush {
+		return validArrayPushRecipe(recipe)
+	}
 	if source != nil && source.effectsSource != nil && !validNativeEffectsRequest(recipe) {
 		return false
 	}
@@ -555,7 +559,7 @@ func validNativeGetRecipe(recipe sourceStagedOperationRecipe) bool {
 }
 
 func sameNativeGetSource(a, b *sourceStagedNativeGetSource) bool {
-	return a == b || a != nil && b != nil && a.get == b.get && a.kind == b.kind && a.method == b.method && sameOperationRequest(a.request, b.request)
+	return a == b || a != nil && b != nil && a.get == b.get && a.kind == b.kind && a.method == b.method && sameArrayPushEffects(a.arrayPush, b.arrayPush) && sameOperationRequest(a.request, b.request)
 }
 
 func validNativeGetRequest(recipe sourceStagedOperationRecipe, request sourceStagedOperationRequest) bool {

@@ -225,7 +225,7 @@ func collectDirectCallableEffects(
 		// adoption, so unsupported creation protocols keep their legacy owner.
 		work.stageSourceEvaluation(facts, factIndex, node, owner)
 		stagedAssignment := work.stageAssignment(facts, factIndex, node, owner)
-		if (ast.IsPropertyAccessExpression(node) || ast.IsElementAccessExpression(node)) && plainStagedAssignment(node.Parent) && node.Parent.AsBinaryExpression().Left == node {
+		if (ast.IsPropertyAccessExpression(node) || ast.IsElementAccessExpression(node)) && stagedAssignmentOperation(node.Parent) && stagedAssignmentTarget(node.Parent) == node {
 			key := sourceStagedOperationKey{declaration: fact.node, operation: node.Parent, kind: relativeDemandEffects}
 			if recipe := work.operationRecipes[key]; recipe.assignment != nil {
 				for _, use := range fact.staged.operationUses {
@@ -233,8 +233,8 @@ func collectDirectCallableEffects(
 				}
 			}
 		}
-		if stagedAssignment && plainStagedAssignment(node) {
-			fact.staged.operationSkipped = append(fact.staged.operationSkipped, node.AsBinaryExpression().Left)
+		if stagedAssignment && stagedAssignmentOperation(node) {
+			fact.staged.operationSkipped = append(fact.staged.operationSkipped, stagedAssignmentTarget(node))
 		}
 		stagedHasInstance := work.stageHasInstance(facts, factIndex, node, owner)
 		stagedConstructed := ast.IsCallExpression(node) && work.stageConstructedResultOccurrence(facts, factIndex, node, owner)

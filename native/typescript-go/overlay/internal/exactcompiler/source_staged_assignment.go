@@ -12,12 +12,14 @@ type sourceStagedAssignment struct {
 	request, root sourceStagedOperationRequest
 	phase         string
 	generation    *projectGeneration
+	sourceInput   sourceAssignmentEffectsInput // Conditional SOURCE role, never a receiver value.
 }
 
 type sourceStagedAssignmentState struct {
 	generation        *projectGeneration
 	started, observed bool
 	bodies            []*sourceRelativeInputEdge
+	sourceEffects     *sourceStagedSetEffectProjection
 	disposition       *sourceStagedAssignmentDisposition
 	setIssuer         *sourceStagedAssignmentIssuer
 }
@@ -25,22 +27,23 @@ type sourceStagedAssignmentState struct {
 // sourceStagedAssignmentBorrow belongs to the actual sourceSetterRequest.
 // Its acquired RHS and caller mapping expire with that original Set traversal.
 type sourceStagedAssignmentBorrow struct {
-	issuer       *sourceValueQuery
-	request      *sourceSetterInputRequest
-	generation   *projectGeneration
-	cut          sourceRelativeCut
-	finished     bool
-	observed     bool
-	external     bool
-	complete     bool
-	rhs          []sourceValue
-	rhsKnown     bool
-	consume      func(*ast.Node, sourceValue, sourceValueBindings, *accessorCandidates) bool
-	identity     *sourceStagedAssignmentIssuer
-	alternative  *sourceStagedAssignmentAlternativeLoan
-	alternatives []*sourceStagedAssignmentAlternativeLoan
-	covered      []sourceStagedOperationRequest
-	allData      bool
+	issuer        *sourceValueQuery
+	request       *sourceSetterInputRequest
+	generation    *projectGeneration
+	cut           sourceRelativeCut
+	finished      bool
+	observed      bool
+	external      bool
+	complete      bool
+	rhs           []sourceValue
+	rhsKnown      bool
+	consume       func(*ast.Node, sourceValue, sourceValueBindings, *accessorCandidates) bool
+	identity      *sourceStagedAssignmentIssuer
+	alternative   *sourceStagedAssignmentAlternativeLoan
+	alternatives  []*sourceStagedAssignmentAlternativeLoan
+	covered       []sourceStagedOperationRequest
+	allData       bool
+	sourceEffects *sourceStagedSetEffectsBorrow
 }
 
 // The issuer identifies one original source loan without retaining its query,
@@ -52,14 +55,15 @@ type sourceStagedAssignmentIssuer struct {
 	observation    *sourceStagedAssignmentObservation
 }
 
-// A passive observation accounts only for the original local Set phases.
-// Required exits remain in the recipes. Neither this receipt nor its issuer
-// retains a query, selected scope, setter body loan or delivered input packet.
+// An observation authenticates original SOURCE prefixes; local additionally
+// certifies complete local Set phases. Required exits remain in the recipes.
+// Neither form retains a query, selected scope, setter body loan or input packet.
 type sourceStagedAssignmentObservation struct {
 	disposition *sourceStagedAssignmentDisposition
 	root        sourceStagedOperationDelta
 	phases      []sourceStagedOperationDelta
 	local       bool
+	effects     *sourceStagedSetEffectProjection
 }
 
 type sourceStagedAssignmentAlternative struct {
@@ -98,7 +102,10 @@ var stagedAssignmentPhases = [...]string{"receiver", "key-input", "key-coercion"
 func stagedAssignmentRequest(root sourceStagedOperationRequest, phase string) sourceStagedOperationRequest {
 	r := root
 	if phase != "" {
-		r.producer.selector = sourceStagedOperationSelector{occurrence: root.producer.operation.AsBinaryExpression().Left, field: "assignment:" + phase}
+		r.producer.selector = sourceStagedOperationSelector{occurrence: stagedAssignmentTarget(root.producer.operation), association: root.producer.selector.association, field: "assignment:" + phase}
+		if root.producer.selector.field != "" {
+			r.producer.selector.field = root.producer.selector.field + ":" + phase
+		}
 		r.edge += ":" + phase
 	}
 	return r
@@ -108,33 +115,38 @@ func sameStagedAssignment(a, b *sourceStagedAssignment) bool {
 	if a == nil || b == nil {
 		return a == b
 	}
-	return a.phase == b.phase && a.generation == b.generation && sameOperationRequest(a.request, b.request) && sameOperationRequest(a.root, b.root)
+	return sameAssignmentEffectsInput(a.sourceInput, b.sourceInput) && a.phase == b.phase && a.generation == b.generation && sameOperationRequest(a.request, b.request) && sameOperationRequest(a.root, b.root)
 }
 
 func validStagedAssignmentRecipe(recipe sourceStagedOperationRecipe) bool {
 	s := recipe.assignment
-	if s == nil || s.generation == nil || !validStagedMemberParent(s.root) || !plainStagedAssignment(s.root.use) || !sameOperationRequest(s.request, stagedAssignmentRequest(s.root, s.phase)) || recipe.key != s.request.producer || recipe.hasInstance != nil || recipe.memberSource != nil || recipe.nativeGet != nil || recipe.callResult != nil || recipe.writer != nil || recipe.mapEntry != nil || recipe.mapProtocol != nil || recipe.constructed != nil || recipe.getter != nil || recipe.returning != nil || recipe.constructedDisposition != nil || len(recipe.writerRequired)+len(recipe.fieldForwards)+len(recipe.constructedInputs)+len(recipe.constructedGroup) != 0 || len(recipe.delta.exposures)+len(recipe.delta.invoked)+len(recipe.delta.relative)+len(recipe.delta.residuals) != 0 {
+	if s == nil || s.generation == nil || !validAssignmentEffectsInput(s) || !validAssignmentRoot(s) || !stagedAssignmentOperation(s.root.use) || !sameOperationRequest(s.request, stagedAssignmentRequest(s.root, s.phase)) || recipe.key != s.request.producer || recipe.hasInstance != nil || recipe.memberSource != nil || recipe.nativeGet != nil || recipe.callResult != nil || recipe.writer != nil || recipe.mapEntry != nil || recipe.mapProtocol != nil || recipe.constructed != nil || recipe.getter != nil || recipe.returning != nil || recipe.constructedDisposition != nil || len(recipe.writerRequired)+len(recipe.fieldForwards)+len(recipe.constructedInputs)+len(recipe.constructedGroup) != 0 || len(recipe.delta.exposures)+len(recipe.delta.invoked)+len(recipe.delta.relative)+len(recipe.delta.residuals) != 0 {
 		return false
 	}
 	known := s.phase == ""
-	for _, phase := range stagedAssignmentPhases {
+	for _, phase := range stagedAssignmentPhasesFor(s.root) {
 		known = known || phase == s.phase
 	}
 	if !known {
 		return false
 	}
 	if s.phase == "" {
-		if len(recipe.delta.required) != len(stagedAssignmentPhases) {
+		if len(recipe.delta.required) != len(stagedAssignmentPhasesFor(s.root)) {
 			return false
 		}
-		for i, phase := range stagedAssignmentPhases {
+		for i, phase := range stagedAssignmentPhasesFor(s.root) {
 			if !sameOperationRequest(recipe.delta.required[i], stagedAssignmentRequest(s.root, phase)) {
 				return false
 			}
 		}
 	}
 	for _, r := range recipe.delta.required {
-		if r.inputs != nil || r.producer.kind != relativeDemandEffects || r.consumer != r.producer.declaration || r.use != r.producer.operation || r.cut != (sourceRelativeCut{operation: r.use, use: r.use, reading: r.use}) {
+		if r.inputs != nil || r.producer.kind != relativeDemandEffects && !assignmentSourceReadRequirement(s, r) && !assignmentInputReadRequirement(s, r) || r.consumer != r.producer.declaration || r.use != r.producer.operation || r.cut != (sourceRelativeCut{operation: r.use, use: r.use, reading: r.use}) {
+			return false
+		}
+	}
+	for _, access := range recipe.delta.readWrites {
+		if !validSetReadWriteDescription(s, access) {
 			return false
 		}
 	}
@@ -157,8 +169,11 @@ func plainStagedAssignment(node *ast.Node) bool {
 // registerStagedAssignmentEffects describes the original Set and asks its own
 // current source owner for passive phase contributions. Success is registration,
 // not readiness. No ordinary use, selected setter B or body activation is issued.
-func (work *callableEffectWork) registerStagedAssignmentEffects(facts []callableFacts, consumer int, node *ast.Node, owner *executableBodyOwner) (sourceStagedOperationRequest, bool) {
-	if consumer < 0 || consumer >= len(facts) || !plainStagedAssignment(node) || owner == nil || owner.values == nil || facts[consumer].normalInputs != nil || work.operationGeneration != nil && work.operationGeneration != owner.values.generation {
+func (work *callableEffectWork) registerStagedAssignmentEffects(facts []callableFacts, consumer int, node *ast.Node, owner *executableBodyOwner, inputs ...sourceAssignmentEffectsInput) (sourceStagedOperationRequest, bool) {
+	if consumer < 0 || consumer >= len(facts) || !stagedAssignmentOperation(node) || owner == nil || owner.values == nil || facts[consumer].normalInputs != nil || work.operationGeneration != nil && work.operationGeneration != owner.values.generation {
+		return sourceStagedOperationRequest{}, false
+	}
+	if !plainStagedAssignment(node) && !checkedNumericUpdate(node, owner) {
 		return sourceStagedOperationRequest{}, false
 	}
 	file := ast.GetSourceFileOfNode(node)
@@ -170,17 +185,31 @@ func (work *callableEffectWork) registerStagedAssignmentEffects(facts []callable
 	if !ok {
 		return sourceStagedOperationRequest{}, false
 	}
+	var sourceInput sourceAssignmentEffectsInput
+	if len(inputs) != 0 {
+		if len(inputs) != 1 {
+			return sourceStagedOperationRequest{}, false
+		}
+		sourceInput = inputs[0]
+		root = qualifiedAssignmentRequest(root, sourceInput.parent)
+	}
 	work.operationGeneration = owner.values.generation
 	work.indexOperationSources(facts)
-	for _, phase := range append([]string{""}, stagedAssignmentPhases[:]...) {
+	for _, phase := range append([]string{""}, stagedAssignmentPhasesFor(root)...) {
 		r := stagedAssignmentRequest(root, phase)
-		recipe := sourceStagedOperationRecipe{key: r.producer, assignment: &sourceStagedAssignment{request: r, root: root, phase: phase, generation: owner.values.generation}}
+		recipe := sourceStagedOperationRecipe{key: r.producer, assignment: &sourceStagedAssignment{request: r, root: root, phase: phase, generation: owner.values.generation, sourceInput: sourceInput}}
 		if phase == "" {
-			for _, child := range stagedAssignmentPhases {
+			for _, child := range stagedAssignmentPhasesFor(root) {
 				recipe.delta.required = append(recipe.delta.required, stagedAssignmentRequest(root, child))
 			}
 		}
 		if prior, exists := work.operationRecipes[recipe.key]; exists {
+			if prior.assignment != nil {
+				if len(inputs) != 0 && !sameAssignmentEffectsInput(prior.assignment.sourceInput, sourceInput) {
+					return sourceStagedOperationRequest{}, false
+				}
+				recipe.assignment.sourceInput = prior.assignment.sourceInput
+			}
 			if !sameStagedAssignment(prior.assignment, recipe.assignment) {
 				return sourceStagedOperationRequest{}, false
 			}
@@ -211,7 +240,7 @@ func (work *callableEffectWork) stageAssignment(facts []callableFacts, consumer 
 		// operation IDs or summary subscribers for an unrepresented Set.
 		work.observeStagedAssignment(facts, root, owner, true)
 	}
-	for _, phase := range stagedAssignmentPhases {
+	for _, phase := range stagedAssignmentPhasesFor(root) {
 		key := stagedAssignmentRequest(root, phase).producer
 		id, observed := work.operationIDs[key]
 		if !work.operationRecipes[key].delta.extracted || !observed || work.operations[id.index].assignment == nil || !work.operations[id.index].assignment.observed {
@@ -258,7 +287,7 @@ func (work *callableEffectWork) prepareStagedAssignment(facts []callableFacts, i
 		return
 	}
 	source := work.operationRecipes[work.operations[id.index].key].assignment
-	if source == nil || source.generation != owner.values.generation {
+	if source == nil || source.generation != owner.values.generation || source.sourceInput.parent.use != nil && !work.assignmentEffectsInputCurrent(source.sourceInput) {
 		return
 	}
 	root := source.root
@@ -275,13 +304,14 @@ func (work *callableEffectWork) prepareStagedAssignment(facts []callableFacts, i
 		// This graph already received the original no-setter loan. Transfer its
 		// detached phase dispositions, not another query or acquired scope.
 		observation := work.assignmentObserved[root.producer]
-		for index, phase := range stagedAssignmentPhases {
+		for index, phase := range stagedAssignmentPhasesFor(root) {
 			work.publishAssignmentPhase(facts, root, phase, observation.phases[index])
 		}
 		work.publishAssignmentPhase(facts, root, "", observation.root)
 		set := work.operationIDs[stagedAssignmentRequest(root, "set").producer]
 		work.operations[set.index].assignment.setIssuer = observation.disposition.issuer
 		work.operations[set.index].assignment.disposition = observation.disposition
+		state.assignment.sourceEffects = observation.effects
 		return
 	}
 	work.observeStagedAssignment(facts, root, owner, false)
@@ -302,21 +332,36 @@ func (work *callableEffectWork) observeStagedAssignment(facts []callableFacts, r
 	delete(work.assignmentObserved, root.producer)
 	// Fresh local outcomes decide adoption. A cached extracted recipe cannot
 	// stand in for this source loan or make an unobserved phase ready.
-	phases := make(map[string]sourceStagedOperationDelta, len(stagedAssignmentPhases))
+	phases := make(map[string]sourceStagedOperationDelta, len(stagedAssignmentPhasesFor(root)))
 	publish := func(phase string, delta sourceStagedOperationDelta) {
 		phases[phase] = cloneOperationDelta(delta)
 		work.publishAssignmentPhase(facts, root, phase, delta)
 	}
-	binary := root.use.AsBinaryExpression()
-	target := binary.Left
+	target := stagedAssignmentTarget(root.use)
+	var right *ast.Node
+	if plainStagedAssignment(root.use) {
+		right = root.use.AsBinaryExpression().Right
+	}
 	receiver, name := accessorReceiver(target)
 	consumer := work.memberNodes[root.consumer]
 	input := func(expression *ast.Node) sourceStagedOperationDelta {
 		d := sourceStagedOperationDelta{extracted: stagedLiteralInputEffects(expression, owner)}
+		if checkedNumericUpdate(expression, owner) {
+			if child, registered := work.assignmentUnaryInput(facts, consumer, expression, owner, root); registered {
+				d.required = append(d.required, child)
+				d.extracted = true // Original unary update Effects, never a fabricated RHS.
+			}
+		}
 		if ast.IsCallExpression(expression) {
 			if child, registered := work.registerStagedDeclarationCallEffects(facts, consumer, expression, owner); registered {
 				d.required = append(d.required, child)
 				d.extracted = true // Actual entry and body delivery belong to the Call owner.
+			}
+		}
+		if ast.IsPropertyAccessExpression(expression) || ast.IsElementAccessExpression(expression) {
+			if _, registered := work.registerStagedGetResult(facts, consumer, expression, owner); registered {
+				d.required = append(d.required, stagedGetResultRequest(expression, facts[consumer].node, "effects", nil))
+				d.extracted = true // Original Get Effects, not its normal value or Set BODY.
 			}
 		}
 		if ast.IsNewExpression(expression) {
@@ -333,7 +378,14 @@ func (work *callableEffectWork) observeStagedAssignment(facts []callableFacts, r
 		}
 		return d
 	}
-	publish("receiver", input(receiver))
+	receiverDelta := input(receiver)
+	if source := work.operationRecipes[root.producer].assignment; source != nil && source.sourceInput.parent.use != nil {
+		if !work.assignmentEffectsInputCurrent(source.sourceInput) {
+			return
+		}
+		receiverDelta.extracted = true // Conditional SOURCE reference, never a receiver value.
+	}
+	publish("receiver", receiverDelta)
 	keyInput, coercion := sourceStagedOperationDelta{extracted: true}, sourceStagedOperationDelta{extracted: true}
 	if ast.IsElementAccessExpression(target) {
 		key := target.AsElementAccessExpression().ArgumentExpression
@@ -346,11 +398,24 @@ func (work *callableEffectWork) observeStagedAssignment(facts []callableFacts, r
 	}
 	publish("key-input", keyInput)
 	publish("key-coercion", coercion)
-	publish("rhs", input(binary.Right))
+	if plainStagedAssignment(root.use) {
+		publish("rhs", input(right))
+	} else {
+		_, registered := work.registerStagedGetResult(facts, consumer, target, owner)
+		get := stagedGetResultRequest(target, root.consumer, "effects", nil)
+		if source := work.operationRecipes[root.producer].assignment; source.sourceInput.parent.use != nil {
+			get, registered = work.registerQualifiedGetEffects(facts, consumer, target, owner, source.sourceInput)
+		}
+		publish("get", sourceStagedOperationDelta{extracted: registered, required: []sourceStagedOperationRequest{get}})
+		publish("numeric", sourceStagedOperationDelta{extracted: checkedNumericUpdate(root.use, owner), required: []sourceStagedOperationRequest{get}})
+	}
 
 	q := newSourceDependencyQuery(target, owner.checker, owner, root.consumer)
 	defer q.publishDependencyStatistics()
 	memberRequest, ok := sourceStagedOccurrenceRequest(&facts[consumer], target, relativeDemandEffects, root.edge+":target-source")
+	if source := work.operationRecipes[root.producer].assignment; source.sourceInput.parent.use != nil {
+		memberRequest.producer.selector = sourceStagedOperationSelector{occurrence: root.use, association: source.sourceInput.parent.use, field: "assignment-source-member"}
+	}
 	if !ok {
 		return
 	}
@@ -359,26 +424,28 @@ func (work *callableEffectWork) observeStagedAssignment(facts []callableFacts, r
 		return
 	}
 	defer revokeMember()
-	request := q.sourceSetterRequest(target, accessorSet|accessorNoGet, nil)
+	request := q.sourceSetterRequest(target, accessorSet|accessorNoGet, nil, !plainStagedAssignment(root.use))
 	if request == nil {
 		return
 	}
 	b := &sourceStagedAssignmentBorrow{issuer: q, request: request, generation: q.owner.generation, cut: q.relativeInputCut(root.use), complete: true, allData: true, identity: &sourceStagedAssignmentIssuer{operation: root.use, get: target, generation: q.owner.generation}}
 	request.assignment = b
+	work.beginAssignmentSourceEffects(facts, root, q, b, owner)
 	previous, previousTarget := q.setterInput, q.protectedMember
 	q.setterInput, q.protectedMember = request, target
 	defer func() {
+		b.sourceEffects = nil
 		b.finished, b.issuer, b.consume, b.rhs = true, nil, nil, nil
 		request.assignment = nil
 		q.setterInput, q.protectedMember = previous, previousTarget
 	}()
 	// The original binder may borrow these already acquired inert operands, not
 	// replay an arbitrary initializer Call/Get to recover a missing RHS value.
-	if sourceInertValueCreation(binary.Right) {
+	if right != nil && sourceInertValueCreation(right) {
 		// The RHS is a separate original operand. It cannot inherit the
 		// unresolved LHS key's lookup opacity or source reference marker.
 		q.protectedMember = nil
-		acquired := q.accessorsAtGet(binary.Right, nil, "", accessorAcquire, nil, nil, nil)
+		acquired := q.accessorsAtGet(right, nil, "", accessorAcquire, nil, nil, nil)
 		q.protectedMember = target
 		b.rhs = append([]sourceValue(nil), acquired.values...)
 		b.rhsKnown = hasInstanceAcquisitionRepresented(&acquired) && len(acquired.values) != 0
@@ -390,6 +457,12 @@ func (work *callableEffectWork) observeStagedAssignment(facts []callableFacts, r
 			b.alternative.setter = true
 		}
 		q.recordStagedAssignmentCoverage(b.alternative)
+		if !plainStagedAssignment(root.use) {
+			result.retainCallableEffect(target, body)
+			b.complete = false // Numeric SOURCE is not a delivered setter formal value.
+			return true
+		}
+		work.describeSelectedCapturedWrites(facts, root, q, body, owner)
 		setters = append(setters, sourceStagedAssignmentSetterLoan{body: body, receiver: actual, captures: captures})
 		if !assignmentSetterLocallyMapped(body, actual, b, owner) {
 			b.complete = false
@@ -397,6 +470,7 @@ func (work *callableEffectWork) observeStagedAssignment(facts []callableFacts, r
 		return true // Selection transfers only, with no body or speculative B.
 	}
 	result := q.accessorsAtGetOutput(receiver, nil, name, accessorSet|accessorNoGet, nil, nil, nil, nil, sourceGetReferenceFor(target, receiver, nil, name, accessorSet|accessorNoGet))
+	work.finishAssignmentSourceEffects(facts, root, q, b, owner)
 	delta := sourceStagedOperationDelta{extracted: b.observed && b.complete && assignmentSetChannelsRepresented(&result)}
 	if len(b.covered) != 0 {
 		delta.required = append(delta.required, b.covered...)
@@ -404,6 +478,11 @@ func (work *callableEffectWork) observeStagedAssignment(facts []callableFacts, r
 		delta.extracted = false
 	}
 	delta.effects = append(delta.effects, result.environmentEffects...)
+	if b.sourceEffects != nil && b.sourceEffects.receipt != nil {
+		for _, supplier := range b.sourceEffects.receipt.suppliers {
+			delta.readWrites = append(delta.readWrites, supplier.accesses...)
+		}
+	}
 	if b.external {
 		receiverDelta := cloneOperationDelta(phases["receiver"])
 		receiverDelta.extracted = true
@@ -411,13 +490,14 @@ func (work *callableEffectWork) observeStagedAssignment(facts []callableFacts, r
 	}
 	publish("set", delta)
 	rootDelta := work.operationRecipes[root.producer].delta
-	rootDelta.extracted = true
+	rootDelta.extracted = delta.extracted // The Set SOURCE payload may still grow.
+	rootDelta.readWrites = cloneQualifiedReadWrites(delta.readWrites)
 	work.publishAssignmentPhase(facts, root, "", rootDelta)
 	work.recordPassiveAssignmentObservation(root, q, b, phases, len(setters) == 0)
 	_, adopted := work.operationIDs[root.producer]
 	if !adopted && ordinary {
 		ready := true
-		for _, phase := range stagedAssignmentPhases {
+		for _, phase := range stagedAssignmentPhasesFor(root) {
 			ready = ready && phases[phase].extracted
 		}
 		if ready {
@@ -426,7 +506,7 @@ func (work *callableEffectWork) observeStagedAssignment(facts []callableFacts, r
 			// yet contain this loan's new relationships. Only our exact factory
 			// roles may borrow local readiness across their self-cycle.
 			required := []sourceStagedOperationRequest{root}
-			for _, phase := range stagedAssignmentPhases {
+			for _, phase := range stagedAssignmentPhasesFor(root) {
 				required = append(required, phases[phase].required...)
 			}
 			work.refreshStagedMemberSourceReceipts(facts, required, owner)
@@ -438,7 +518,7 @@ func (work *callableEffectWork) observeStagedAssignment(facts []callableFacts, r
 				if key == root.producer {
 					return live, true
 				}
-				for _, phase := range stagedAssignmentPhases {
+				for _, phase := range stagedAssignmentPhasesFor(root) {
 					if key == stagedAssignmentRequest(root, phase).producer {
 						return live && phases[phase].extracted, true
 					}
@@ -474,7 +554,7 @@ func (work *callableEffectWork) observeStagedAssignment(facts []callableFacts, r
 		work.consumeAssignmentSetter(facts, root, q, request, setter.body, setter.receiver, setter.captures, &result, owner)
 	}
 	// Passive phase descriptions gain graph-local observation only after adoption.
-	for _, phase := range stagedAssignmentPhases {
+	for _, phase := range stagedAssignmentPhasesFor(root) {
 		current := phases[phase]
 		if phase == "set" {
 			current.extracted = current.extracted && b.complete
@@ -490,7 +570,7 @@ func (q *sourceValueQuery) liveStagedAssignment() *sourceStagedAssignmentBorrow 
 		return nil
 	}
 	b := q.setterInput.assignment
-	if b == nil || b.issuer != q || b.request != q.setterInput || b.generation != q.owner.generation || b.finished || b.cut != q.relativeInputCut(b.request.operation) || q.protectedMember != b.request.target || !plainStagedAssignment(b.request.operation) {
+	if b == nil || b.issuer != q || b.request != q.setterInput || b.generation != q.owner.generation || b.finished || b.cut != q.relativeInputCut(b.request.operation) || q.protectedMember != b.request.target || !stagedAssignmentOperation(b.request.operation) {
 		return nil
 	}
 	return b
@@ -797,8 +877,16 @@ func (work *callableEffectWork) recordAssignmentDisposition(root sourceStagedOpe
 		receipt = observation.disposition
 	}
 	b.identity.disposition = receipt
+	// A partial SOURCE observation and this adopted disposition belong to the
+	// same original issuer. Keep their pairing without promoting local coverage.
+	if observation := work.assignmentObserved[root.producer]; observation != nil && !observation.local && observation.effects != nil && observation.effects.issuer == b.identity && b.identity.observation == observation {
+		observation.disposition = receipt
+	}
 	work.operations[id.index].assignment.setIssuer = b.identity
 	work.operations[id.index].assignment.disposition = receipt
+	if b.sourceEffects != nil {
+		work.operations[work.operationIDs[root.producer].index].assignment.sourceEffects = b.sourceEffects.receipt
+	}
 }
 
 func stagedAssignmentDisposition(root sourceStagedOperationRequest, b *sourceStagedAssignmentBorrow, accounted bool) *sourceStagedAssignmentDisposition {
@@ -812,28 +900,73 @@ func stagedAssignmentDisposition(root sourceStagedOperationRequest, b *sourceSta
 	return receipt
 }
 
-// Passive accounting is issued before the adoption decision, while the exact
-// original loan still exists. A selected setter needs its real adopted B/body
-// consumer and can never obtain this no-binder local receipt.
+// Original no-binder SOURCE prefixes carry their own graph-local issuer even
+// while a sibling phase remains pending. Only complete phase accounting sets
+// local; prefix storage cannot supply passive readiness or nested input authority.
 func (work *callableEffectWork) recordPassiveAssignmentObservation(root sourceStagedOperationRequest, q *sourceValueQuery, b *sourceStagedAssignmentBorrow, phases map[string]sourceStagedOperationDelta, noSetters bool) {
-	if q.liveStagedAssignment() != b || b.generation != work.operationGeneration || b.request.operation != root.use || b.identity == nil || !b.observed || !b.complete || !noSetters {
+	if q.liveStagedAssignment() != b || b.generation != work.operationGeneration || b.request.operation != root.use || b.identity == nil || !b.observed || !noSetters {
 		return
 	}
-	observation := &sourceStagedAssignmentObservation{root: cloneOperationDelta(work.operationRecipes[root.producer].delta), local: true}
-	for _, phase := range stagedAssignmentPhases {
+	observation := &sourceStagedAssignmentObservation{root: cloneOperationDelta(work.operationRecipes[root.producer].delta), local: b.complete}
+	if b.sourceEffects != nil {
+		observation.effects = b.sourceEffects.receipt
+	}
+	for _, phase := range stagedAssignmentPhasesFor(root) {
 		delta, present := phases[phase]
-		if !present || !delta.extracted {
+		if !present {
 			return
 		}
+		observation.local = observation.local && delta.extracted
 		observation.phases = append(observation.phases, cloneOperationDelta(delta))
 	}
-	observation.disposition = stagedAssignmentDisposition(root, b, true)
+	if !observation.local {
+		// An incomplete ordinary Set has no prefix grant. The original member
+		// publisher and reducer must have issued this exact SOURCE population.
+		effects := observation.effects
+		if effects == nil || effects.work != work || effects.issuer != b.identity || effects.generation != b.generation || !sameOperationRequest(effects.root, root) || len(effects.suppliers) == 0 || len(b.covered) == 0 {
+			return
+		}
+	}
+	observation.disposition = stagedAssignmentDisposition(root, b, observation.local)
 	b.identity.disposition = observation.disposition
 	b.identity.observation = observation
 	if work.assignmentObserved == nil {
 		work.assignmentObserved = make(map[sourceStagedOperationKey]*sourceStagedAssignmentObservation)
 	}
 	work.assignmentObserved[root.producer] = observation
+}
+
+// assignmentEffectPrefixMatches checks the retained original source interval
+// against monotone recipe growth. It confers neither extraction nor completion;
+// the delivery consumer separately validates the issuer and every supplied atom.
+func (work *callableEffectWork) assignmentEffectPrefixMatches(root sourceStagedOperationRequest, observation *sourceStagedAssignmentObservation) bool {
+	if observation == nil || observation.effects == nil || observation.disposition == nil || !sameOperationRequest(observation.effects.root, root) || !sameOperationRequest(observation.disposition.root, root) || observation.disposition.issuer == nil || observation.disposition.issuer.disposition != observation.disposition || observation.disposition.issuer.generation != work.operationGeneration || observation.disposition.issuer.operation != root.use || observation.disposition.issuer.get != stagedAssignmentTarget(root.use) || observation.disposition.generation != work.operationGeneration {
+		return false
+	}
+	cut := sourceRelativeCut{operation: root.use, reading: stagedAssignmentTarget(root.use)}
+	if runtimeModuleEvaluation(root.consumer) {
+		cut.use = cut.reading
+	}
+	if observation.disposition.cut != cut {
+		return false
+	}
+	phases := stagedAssignmentPhasesFor(root)
+	if len(observation.phases) != len(phases) {
+		return false
+	}
+	matches := func(request sourceStagedOperationRequest, snapshot sourceStagedOperationDelta) bool {
+		recipe := work.operationRecipes[request.producer]
+		return validStagedAssignmentRecipe(recipe) && sameOperationRequest(recipe.assignment.root, root) && operationDeltaPrefix(snapshot, recipe.delta) && (!snapshot.extracted || recipe.delta.extracted)
+	}
+	if !matches(root, observation.root) {
+		return false
+	}
+	for i, phase := range phases {
+		if !matches(stagedAssignmentRequest(root, phase), observation.phases[i]) {
+			return false
+		}
+	}
+	return true
 }
 
 // refreshStagedAssignmentSource asks the original Set owner for a fresh passive
@@ -857,11 +990,11 @@ func (work *callableEffectWork) refreshStagedAssignmentSource(facts []callableFa
 // receipt for a different source interval. No IDs or inputs are manufactured.
 func (work *callableEffectWork) passiveAssignmentSourceReady(recipe sourceStagedOperationRecipe) bool {
 	source := recipe.assignment
-	if !validStagedAssignmentRecipe(recipe) || source.generation != work.operationGeneration {
+	if !validStagedAssignmentRecipe(recipe) || source.generation != work.operationGeneration || source.sourceInput.parent.use != nil && !work.assignmentEffectsInputCurrent(source.sourceInput) {
 		return false
 	}
 	observation := work.assignmentObserved[source.root.producer]
-	if observation == nil || !observation.local || observation.disposition == nil || observation.disposition.issuer == nil || observation.disposition.issuer.observation != observation || len(observation.phases) != len(stagedAssignmentPhases) {
+	if observation == nil || !observation.local || observation.disposition == nil || observation.disposition.issuer == nil || observation.disposition.issuer.observation != observation || len(observation.phases) != len(stagedAssignmentPhasesFor(source.root)) {
 		return false
 	}
 	d := observation.disposition
@@ -876,7 +1009,7 @@ func (work *callableEffectWork) passiveAssignmentSourceReady(recipe sourceStaged
 		return false
 	}
 	expected := observation.root
-	for i, phase := range stagedAssignmentPhases {
+	for i, phase := range stagedAssignmentPhasesFor(source.root) {
 		if !match(work.operationRecipes[stagedAssignmentRequest(source.root, phase).producer], observation.phases[i], phase) {
 			return false
 		}
@@ -922,7 +1055,7 @@ func (work *callableEffectWork) stagedAssignmentSourceDisposition(root sourceSta
 // Both graph-local receipt paths share original issuer, physical cut and source
 // alternative validation. This is independent of transitive child completion.
 func (work *callableEffectWork) assignmentDispositionFlags(root sourceStagedOperationRequest, d *sourceStagedAssignmentDisposition, issuer *sourceStagedAssignmentIssuer, recipe sourceStagedOperationRecipe) (valid, dataOnly, external bool) {
-	if !plainStagedAssignment(root.use) || d == nil || d.generation != work.operationGeneration || d.issuer == nil || d.issuer != issuer || d.issuer.disposition != d || d.issuer.generation != d.generation || d.issuer.operation != root.use || d.issuer.get != root.use.AsBinaryExpression().Left || d.cut.operation != root.use || d.cut.reading != d.issuer.get || !sameOperationRequest(d.root, root) || recipe.assignment == nil || !sameOperationRequest(recipe.assignment.request, stagedAssignmentRequest(root, "set")) || !operationPrefix(d.required, recipe.delta.required, sameOperationRequest) || !operationPrefix(recipe.delta.required, d.required, sameOperationRequest) {
+	if !stagedAssignmentOperation(root.use) || d == nil || d.generation != work.operationGeneration || d.issuer == nil || d.issuer != issuer || d.issuer.disposition != d || d.issuer.generation != d.generation || d.issuer.operation != root.use || d.issuer.get != stagedAssignmentTarget(root.use) || d.cut.operation != root.use || d.cut.reading != d.issuer.get || !sameOperationRequest(d.root, root) || recipe.assignment == nil || !sameOperationRequest(recipe.assignment.request, stagedAssignmentRequest(root, "set")) || !operationPrefix(d.required, recipe.delta.required, sameOperationRequest) || !operationPrefix(recipe.delta.required, d.required, sameOperationRequest) {
 		return false, false, false
 	}
 	live := sourceRelativeCut{operation: root.use, reading: d.issuer.get}

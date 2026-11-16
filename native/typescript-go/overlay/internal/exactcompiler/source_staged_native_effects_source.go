@@ -6,8 +6,9 @@ import "github.com/microsoft/TypeScript/tsc/internal/ast"
 // It carries no Get observation, selected result, invocation or current law.
 // Clones retain this description and rebuild their own tasks and observations.
 type sourceStagedNativeEffectsRequest struct {
-	request    sourceStagedOperationRequest
-	generation *projectGeneration
+	arrayIssuer *sourceStagedNativeEffectsIssuer // Graph-owned MAY prefix only; cleared on clone.
+	request     sourceStagedOperationRequest
+	generation  *projectGeneration
 }
 
 type sourceStagedNativeEffectsPending struct {
@@ -18,6 +19,10 @@ type sourceStagedNativeEffectsPending struct {
 // The self-issued interval belongs to the actual collector or an adopted source
 // task. Only detached factories survive it; no query, callback or frame is kept.
 type sourceStagedNativeEffectsIssuer struct {
+	arrayQuery   *sourceValueQuery // Synchronous acquired-Call publisher; never retained.
+	arraySource  *sourceStagedNativeGetSource
+	arrayEpoch   *sourceStagedOperationEpoch
+	arrayReceipt *sourceStagedNativeEffectsRequest
 	self         *sourceStagedNativeEffectsIssuer
 	work         *callableEffectWork
 	owner        *executableBodyOwner
@@ -43,11 +48,12 @@ func cloneNativeEffectsRequest(p *sourceStagedNativeEffectsRequest) *sourceStage
 		return nil
 	}
 	copy := *p
+	copy.arrayIssuer = nil
 	return &copy
 }
 func validNativeEffectsRequest(recipe sourceStagedOperationRecipe) bool {
 	s := recipe.nativeGet
-	return s != nil && s.effectsSource != nil && s.effectsSource.generation != nil && recipe.key == s.request.producer && sameOperationRequest(s.effectsSource.request, s.request) && validStagedMemberParent(s.request) && s.get == s.request.use.Expression() && stagedNativeAlgorithmKind(s.kind) && s.method != nil && standardLibrarySource(ast.GetSourceFileOfNode(s.method))
+	return s != nil && s.effectsSource != nil && s.effectsSource.generation != nil && recipe.key == s.request.producer && sameOperationRequest(s.effectsSource.request, s.request) && validStagedMemberParent(s.request) && s.get == s.request.use.Expression() && (stagedNativeAlgorithmKind(s.kind) || s.kind == sourceNativeArrayPush && validArrayPushSource(s)) && s.method != nil && standardLibrarySource(ast.GetSourceFileOfNode(s.method))
 }
 func (work *callableEffectWork) nativeEffectsTaskSource(id sourceStagedOperationID) *sourceStagedNativeGetSource {
 	if id.epoch != work.operationEpoch || id.index == 0 || int(id.index) >= len(work.operations) {
@@ -69,8 +75,11 @@ func (issuer *sourceStagedNativeEffectsIssuer) live() bool {
 		return false
 	}
 	p := issuer.owner.pendingMemberPublishers[issuer.fact.node]
-	if p == nil || !p.live || p.fact != issuer.fact || issuer.owner.values.program.GetSourceFile(issuer.fact.sourceFile.FileName()) != issuer.fact.sourceFile || !stagedNativeInputSourceOwner(issuer.fact, issuer.call, issuer.owner) {
+	if p == nil || !p.live || p.fact != issuer.fact || issuer.owner.values.program.GetSourceFile(issuer.fact.sourceFile.FileName()) != issuer.fact.sourceFile || issuer.arraySource == nil && !stagedNativeInputSourceOwner(issuer.fact, issuer.call, issuer.owner) {
 		return false
+	}
+	if issuer.arraySource != nil {
+		return issuer.liveArrayPushPublisher()
 	}
 	if issuer.eager != nil {
 		return issuer.eager.liveChild(issuer)

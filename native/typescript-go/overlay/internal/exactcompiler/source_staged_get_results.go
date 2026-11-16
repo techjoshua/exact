@@ -10,6 +10,7 @@ import (
 // Observed source DATA and actual getter inputs belong to the current work,
 // not this cloneable description. No normal property value is retained.
 type sourceStagedGetResultSource struct {
+	sourceInput     sourceAssignmentEffectsInput  // Original Set-use Effects only; never generic receiver/DATA knowledge.
 	frameworkResume *sourceFrameworkGetResumption // Original Get source continuation; no normal Get DATA.
 
 	role        string
@@ -27,6 +28,9 @@ type sourceStagedGetResultBorrow struct {
 	request               sourceStagedOperationRequest
 	cut                   sourceRelativeCut
 	active, own, complete bool
+	sourceInputsOnly      bool      // Authenticated early purpose; never getter binding authority.
+	standardRead          bool      // This original Effects-only standard array member Get; never own-slot/value authority.
+	effectsRoot           *ast.Node // Original Effects-only source relationship; no value DATA.
 	values                []sourceStagedOperationAlternative
 	required              []sourceStagedOperationRequest
 }
@@ -40,7 +44,7 @@ func stagedGetResultBody(source *sourceStagedCallResultSource) bool {
 }
 
 func sameStagedGetResultSource(a, b *sourceStagedGetResultSource) bool {
-	return a == b || a != nil && b != nil && a.role == b.role && a.body == b.body && sameFrameworkGetResumption(a.frameworkResume, b.frameworkResume)
+	return a == b || a != nil && b != nil && sameAssignmentEffectsInput(a.sourceInput, b.sourceInput) && a.role == b.role && a.body == b.body && sameFrameworkGetResumption(a.frameworkResume, b.frameworkResume)
 }
 
 func stagedGetResultRequest(operation, caller *ast.Node, role string, body *ast.Node) sourceStagedOperationRequest {
@@ -71,18 +75,21 @@ func originalStagedGetterCall(call sourceStagedDeclarationCall) bool {
 
 func validStagedGetResultRecipe(recipe sourceStagedOperationRecipe) bool {
 	if recipe.callResult != nil && recipe.callResult.getResult != nil && recipe.callResult.getResult.frameworkResume != nil {
-		return validFrameworkGetResumptionRecipe(recipe)
+		return recipe.callResult.getResult.sourceInput.parent.use == nil && validFrameworkGetResumptionRecipe(recipe)
 	}
 
 	source := recipe.callResult
 	if source == nil || source.getResult == nil || source.generation == nil || source.declaration != recipe.key.declaration || source.operand != nil || source.nativeCall || source.constructedRoot.producer.operation != nil || recipe.memberSource != nil || recipe.nativeGet != nil || recipe.constructed != nil || recipe.getter != nil || recipe.returning != nil || recipe.writer != nil || recipe.mapEntry != nil || recipe.mapProtocol != nil || recipe.assignment != nil || recipe.constructionEffects != nil || recipe.hasInstance != nil || recipe.entryLaw != nil || recipe.constructedDisposition != nil || len(recipe.writerRequired)+len(recipe.constructedInputs)+len(recipe.constructedGroup)+len(recipe.fieldForwards)+len(recipe.delta.invoked)+len(recipe.delta.relative)+len(recipe.delta.residuals) != 0 || !stagedResultExpression(recipe.key.operation) || ast.IsCallExpression(recipe.key.operation) {
 		return false
 	}
+	if source.getResult.sourceInput.parent.use != nil && !validQualifiedGetSource(source) {
+		return false
+	}
 	role := source.getResult.role
 	if role != "value" && role != "effects" && role != "receiver" && role != "key" {
 		return false
 	}
-	if source.getResult.body != nil || recipe.key != source.request.producer || !sameOperationRequest(source.request, stagedGetResultRequest(recipe.key.operation, recipe.key.declaration, role, nil)) {
+	if source.getResult.body != nil || recipe.key != source.request.producer || !sameOperationRequest(source.request, qualifiedGetRequest(recipe.key.operation, recipe.key.declaration, role, source.getResult.sourceInput)) {
 		return false
 	}
 	if role != "value" && len(recipe.delta.exposures) != 0 || role == "value" && (len(recipe.delta.effects) != 0 || recipe.delta.extracted && !source.getResult.represented) {
@@ -137,6 +144,18 @@ func (work *callableEffectWork) prepareStagedGetResult(facts []callableFacts, id
 	if source == nil || source.getResult == nil || owner == nil || source.generation != owner.values.generation {
 		return
 	}
+	if source.getResult.sourceInput.parent.use != nil {
+		work.observeQualifiedGetEffects(facts, source, owner)
+		if work.memberCoverageObserved[source.request.producer] == work.operationGeneration {
+			recipe := work.operationRecipes[source.request.producer]
+			if recipe.delta.extracted && operationDeltaSize(recipe.delta) == 0 {
+				work.publishSourceDisposition(id)
+			} else {
+				work.publishOperation(id, recipe.delta)
+			}
+		}
+		return
+	}
 	caller, known := work.memberNodes[source.request.consumer]
 	if !known {
 		return
@@ -145,7 +164,9 @@ func (work *callableEffectWork) prepareStagedGetResult(facts []callableFacts, id
 		work.prepareFrameworkGetResumption(facts, id, owner)
 		return
 	}
-	work.observeStagedGetResult(facts, caller, source.request.producer.operation, owner)
+	if source.getResult.role != "effects" || !work.observeStagedLocalGetEffects(facts, caller, source.request.producer.operation, owner) {
+		work.observeStagedGetResult(facts, caller, source.request.producer.operation, owner)
+	}
 	if source.getResult.role == "value" && !work.stagedGetResultAdmitted(source.request.producer.operation, source.request.consumer) {
 		owner.project.requireStagedReplacement(stagedReplacementGap{operation: source.request.producer.operation, consumer: source.request.consumer, parent: source.request, demand: "original Get receiver/source DATA producer", transition: "acquireRequiredPropertyAt"})
 		return
@@ -165,7 +186,13 @@ func (work *callableEffectWork) prepareStagedGetResult(facts []callableFacts, id
 		complete := true
 		for _, required := range delta.required[1:] {
 			if data, available := work.stagedCallResultData(required); available {
-				delta.exposures = append(delta.exposures, data.delta.exposures...)
+				// Captured binding DATA supplies the selected getter's lexical context.
+				// Its initializer/writer alternatives are not this Get's return values.
+				// Only the independent body/return producer may publish those outputs.
+				child := work.operationRecipes[required.producer].callResult
+				if child == nil || child.capturedBinding == nil {
+					delta.exposures = append(delta.exposures, data.delta.exposures...)
+				}
 				complete = complete && data.delta.extracted
 			} else {
 				complete = false
@@ -333,7 +360,14 @@ func (work *callableEffectWork) stagedGetResultAdmitted(operation, consumer *ast
 // owner before initializer/result recovery. Getter membership precedes real B.
 func (q *sourceValueQuery) observeStagedGetResultMember(receiver, member *ast.Node, get *sourceGetInputs, mode accessorTraversal, computed bool, arguments sourceValueBindings, result *accessorCandidates) bool {
 	b := q.liveStagedGetResult(get)
-	if b == nil || mode != accessorAcquire || !q.traceModeKnown || q.traceMode != mode || !q.stagedFreshGetResult(get, receiver) {
+	if b == nil || mode != accessorAcquire || !q.traceModeKnown || q.traceMode != mode {
+		return false
+	}
+	if b.effectsRoot != nil {
+		if receiver != b.effectsRoot || q.protectedMember != get.operation {
+			return false
+		}
+	} else if !q.stagedFreshGetResult(get, receiver) {
 		return false
 	}
 	if computed {
@@ -348,6 +382,18 @@ func (q *sourceValueQuery) observeStagedGetResultMember(receiver, member *ast.No
 	if ast.IsGetAccessorDeclaration(member) {
 		target, found := work.memberNodes[member]
 		if !found {
+			b.complete = false
+			return true
+		}
+		// The real selected Get may demand captured lexical SOURCE before its
+		// receiver/capture BODY domain is available. Registration supplies no B,
+		// Get DATA or body completion and does not relax the eligibility refusal.
+		work.requireOriginalGetterBindingSources(facts, b, member)
+		if b.effectsRoot != nil && !work.retainOriginalGetBodySource(facts, b, member) {
+			b.complete = false
+			return true
+		}
+		if b.sourceInputsOnly {
 			b.complete = false
 			return true
 		}
@@ -386,6 +432,11 @@ func (q *sourceValueQuery) observeStagedGetResultMember(receiver, member *ast.No
 			b.complete = false
 		}
 		b.required = appendEntryLawRequirement(b.required, request)
+		return true
+	}
+	if b.effectsRoot != nil {
+		// An ordinary data/method read does not evaluate its stored initializer
+		// or invoke the stored callable. Value precision has its separate owner.
 		return true
 	}
 	var value *ast.Node

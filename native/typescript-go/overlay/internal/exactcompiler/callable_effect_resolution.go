@@ -513,6 +513,7 @@ func resolveCallableEffectsWithWork(facts []callableFacts, mapOwner *executableB
 	changed := true
 	for changed {
 		changed = false
+		setSourcesChanged := false
 		for index := range facts {
 			work.refreshPendingMembers(facts, index)
 			if !work.dirty[index] {
@@ -556,6 +557,9 @@ func resolveCallableEffectsWithWork(facts []callableFacts, mapOwner *executableB
 				for _, edge := range fact.summary.Calls {
 					if !edge.Resolved || edge.TargetID != target.ID {
 						continue
+					}
+					if work.refreshSetSourceBodyRevision(facts, index, targetIndex, edge, mapOwner) {
+						setSourcesChanged, changed = true, true
 					}
 					work.observeStagedSummary(facts, index, targetIndex, edge.ID)
 					sources = appendCallableEdgeEffectSources(sources, fact, &facts[targetIndex], edge, mapOwner, work.installedMemberFieldOutcomeCurrent)
@@ -628,6 +632,10 @@ func resolveCallableEffectsWithWork(facts []callableFacts, mapOwner *executableB
 					changed = changed || caller <= index
 				}
 			}
+		}
+		if setSourcesChanged {
+			work.drainOperationExtractions(facts, mapOwner)
+			work.prepareRelativeSetEffects(facts, mapOwner)
 		}
 		if resultsChanged := work.refreshStagedCallResults(facts, mapOwner); resultsChanged || work.inputDataChanged {
 			// A delivery from any existing operation owner can satisfy a prior

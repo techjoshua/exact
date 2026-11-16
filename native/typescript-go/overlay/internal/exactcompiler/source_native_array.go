@@ -8,7 +8,7 @@ import "github.com/microsoft/TypeScript/tsc/internal/ast"
 // without coercing them. Length/index access, setters, proxies and abrupt exits
 // remain conservative where this source domain has no algorithm-specific model.
 // This consumer emits no output receipt, exact contents or successful completion.
-func (query *sourceValueQuery) nativeArrayPushEffects(node *ast.Node, bindings sourceValueBindings, result *accessorCandidates) {
+func (query *sourceValueQuery) nativeArrayPushEffects(node *ast.Node, selected sourceValue, bindings sourceValueBindings, result *accessorCandidates) {
 	call := node.AsCallExpression()
 	plan := planOrdinaryInvocation(call.Expression, restrictedInvocationArguments(call), query.owner.checker, func(n *ast.Node) bool { return query.charge(result, n) })
 	query.materializeInvocationVectors(node, plan, bindings, result)
@@ -25,5 +25,11 @@ func (query *sourceValueQuery) nativeArrayPushEffects(node *ast.Node, bindings s
 	for _, value := range query.originsAt(receiver, node, bindings, result) {
 		result.writes = append(result.writes, sourceValueWrite{value: value, operation: stateEffectOperation("array-mutation")})
 		query.recordFacts(1)
+		if !plan.adapted && query.executable != nil {
+			p := query.executable.pendingMemberPublishers[query.effectOwner]
+			if p != nil && p.live && p.workRegistrar != nil && p.workRegistrar.arrayPush != nil {
+				p.workRegistrar.arrayPush(query, node, selected, receiver, value)
+			}
+		}
 	}
 }

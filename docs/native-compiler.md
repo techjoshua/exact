@@ -2073,6 +2073,55 @@ as a required dependency. This neither chooses a runtime key nor equates two ins
 Receiver-alternative, own-writer and eager coverage remain pending until their semantic
 owners publish dispositions. Unfinished coverage blocks public artifacts.
 
+An original Set SOURCE supplier can issue a graph-local receipt for its known
+conditional read/write prefix while other local phases remain pending. The writer
+consumes only atoms checked against that issuer's receiver, capture and formal
+substitutions and original recipe snapshots. This receipt does not identify a
+selected setter or provide its binder, receiver value or normal result. Complete
+local accounting is a separate flag: passive readiness, binding-capable nested
+SOURCE inputs and relative BODY preparation still require it, and child/dependency
+closure remains mandatory. Recollection revokes the old receipt; cloned recipes retain descriptions
+without issuer or delivery authority.
+
+An original callee Get precedes eager evaluation of that Call's arguments.
+Source coverage applies the same authenticated before-argument cut to indexed
+assignments and general protocol candidates. Argument Gets, coercions and Sets
+remain owned by their original Call/BODY consumers. Earlier work, callee/receiver
+prefixes, other Calls and deferred bodies retain their source requirements;
+an unborrowed or expired query cannot use this exclusion.
+
+For a direct `push` through a captured const binding initialized by an empty array,
+the original acquired native Call owner can publish a conditional array-mutation
+prefix. The Set writer consumes that original Call and declaring binding together
+with receiver and demanded argument-Get SOURCE dependencies. These are private
+Effects substitutions; they do not supply normal values, a selected binder or a
+current mutation application. The original callee Get, eager arguments and
+algorithm retain independent unpaid roles. Empty-array creation does not prove
+later index/length writes, authored hooks or abrupt alternatives covered. Cloning
+retains the description, clears its graph issuer, and fingerprints semantic
+content independently of the receipt. Legacy source writes remain available.
+
+A Set aggregate stays extensible while demanded SOURCE writes are unaccounted.
+Its existing setter MAY dependency's BODY revision can renew the original Set
+observation; unchanged revisions do not reissue it. Known prefixes remain separate
+from exhaustive SOURCE accounting and from full algorithm or child closure.
+
+For a supported native eager-argument Get under an original Set, the Set owner
+can separately qualify exact receiver, capture and formal SOURCE inputs across
+its return branches and suppliers. This input quorum is issued before BODY and
+native-Call payload accounting; a prefix or one matching receiver is insufficient.
+The native eager principal, original Get, cuts, Program, work and generation must
+also match. This permission admits the existing Effects observer under an early
+SOURCE purpose without supplying a normal Get result, selected binding or
+creating scope. An authored getter retains capture, BODY and possible throw
+SOURCE obligations without delivered getter inputs or BODY DATA. Binding-capable
+consumers keep their complete-local requirement. Clones carry descriptions, not
+live permission, and generation release revokes that permission. Input readiness
+and current SOURCE delivery do not establish exhaustive own-data Get Effects,
+prior Call Effects or native algorithm completion; those obligations remain
+independent. Stronger-phase renewal and unsupported alternatives retain their
+own qualification requirements.
+
 For a private source-constructed receiver, Effects coverage uses the existing complete
 runtime-reference population and checker-owned export identities. Every alias use must
 be represented by its source protocol. Merely finding no indexed writer is insufficient.
@@ -3135,6 +3184,15 @@ capture value recovery. No normal property view or selected value is retained.
 Fresh work reobserves the Get and creates a new getter B before publication,
 while immutable DATA descriptions retain their monotone source prefixes.
 Getter Effects, Throw and returned callback invocation remain independent.
+A captured unwritten empty-array binding can supply the original named `push`
+Get's Effects source through the array member owner. The current Get retains
+its declaring binding/read and member-factory source population, including own
+writers and descriptors, as required dependencies. The established standard
+Array data-member contract accounts only for that conditional read; it supplies
+no normal method value, selected Call, mutation, creating activation or current
+storage. Nonempty or effectful array initializers keep their initializer debt.
+Written bindings, other activations and unpaid authored getter alternatives
+remain pending. This source route does not widen ordinary Get DATA admission.
 A getter's original zero-argument call through an immutable enclosing formal can
 use the existing lexical capture-to-formal association. That description may
 precede canonical getter extraction. The real receiver B remains unchanged, and

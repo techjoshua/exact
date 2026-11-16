@@ -89,13 +89,14 @@ type sourceStagedOperationResidual struct {
 // do not consume this as an output, successful execution or NoWrites receipt.
 // Existing summary edges transport state/context effects from invoked bodies.
 type sourceStagedOperationDelta struct {
-	exposures []sourceStagedOperationAlternative
-	invoked   []sourceStagedOperationInvocation
-	relative  []sourceRelativeInvokedInput
-	effects   []EnvironmentEffectSource
-	required  []sourceStagedOperationRequest
-	residuals []sourceStagedOperationResidual
-	extracted bool
+	readWrites []sourceQualifiedReadWrite // SOURCE-qualified conditional BODY effects, never DATA/current mutation.
+	exposures  []sourceStagedOperationAlternative
+	invoked    []sourceStagedOperationInvocation
+	relative   []sourceRelativeInvokedInput
+	effects    []EnvironmentEffectSource
+	required   []sourceStagedOperationRequest
+	residuals  []sourceStagedOperationResidual
+	extracted  bool
 }
 
 // sourceStagedOperationDelivery is one subscriber's unseen publication prefix.

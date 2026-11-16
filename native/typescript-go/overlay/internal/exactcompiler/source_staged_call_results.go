@@ -11,6 +11,7 @@ import (
 // from current work facts, never recovered by this producer. Operand roles are
 // explicit pending source work and are not runtime-unknown alternatives.
 type sourceStagedCallResultSource struct {
+	capturedBinding        *sourceStagedCapturedBinding    // Conditional lexical SOURCE, never a binding value.
 	moduleConstruction     *sourceStagedModuleConstruction // Original immutable module construction operands.
 	request                sourceStagedOperationRequest
 	declaration            *ast.Node
@@ -77,7 +78,7 @@ func stagedCallResultRequest(call, declaration *ast.Node) sourceStagedOperationR
 }
 
 func sameStagedCallResultSource(a, b *sourceStagedCallResultSource) bool {
-	return a == b || a != nil && b != nil && a.declaration == b.declaration && a.binding == b.binding && sameModuleConstruction(a.moduleConstruction, b.moduleConstruction) && sameDescriptorRetrieval(a.nativeDescriptor, b.nativeDescriptor) && sameFrameworkStorageView(a.frameworkView, b.frameworkView) && sameStagedGetResultSource(a.getResult, b.getResult) && a.nativeCall == b.nativeCall && sameOperationRequest(a.constructedRoot, b.constructedRoot) && operationPrefix(a.constructedPreparation, b.constructedPreparation, sameOperationRequest) && operationPrefix(b.constructedPreparation, a.constructedPreparation, sameOperationRequest) && a.generation == b.generation && sameOperationRequest(a.request, b.request) && (a.operand == nil && b.operand == nil || a.operand != nil && b.operand != nil && sameOperationEndpoint(*a.operand, *b.operand))
+	return a == b || a != nil && b != nil && a.declaration == b.declaration && a.binding == b.binding && sameStagedCapturedBinding(a.capturedBinding, b.capturedBinding) && sameModuleConstruction(a.moduleConstruction, b.moduleConstruction) && sameDescriptorRetrieval(a.nativeDescriptor, b.nativeDescriptor) && sameFrameworkStorageView(a.frameworkView, b.frameworkView) && sameStagedGetResultSource(a.getResult, b.getResult) && a.nativeCall == b.nativeCall && sameOperationRequest(a.constructedRoot, b.constructedRoot) && operationPrefix(a.constructedPreparation, b.constructedPreparation, sameOperationRequest) && operationPrefix(b.constructedPreparation, a.constructedPreparation, sameOperationRequest) && a.generation == b.generation && sameOperationRequest(a.request, b.request) && (a.operand == nil && b.operand == nil || a.operand != nil && b.operand != nil && sameOperationEndpoint(*a.operand, *b.operand))
 }
 
 func validStagedCallResultRecipe(recipe sourceStagedOperationRecipe) bool {
@@ -560,6 +561,10 @@ func (work *callableEffectWork) prepareStagedCallResult(facts []callableFacts, i
 	if source == nil || owner == nil || source.generation != owner.values.generation {
 		return
 	}
+	if source.capturedBinding != nil {
+		work.prepareStagedCapturedBinding(facts, id, owner)
+		return
+	}
 	if source.nativeDescriptor != nil {
 		work.prepareNativeDescriptorResult(facts, id, owner)
 		return
@@ -823,6 +828,9 @@ func cloneStagedCallResultSource(source *sourceStagedCallResultSource) *sourceSt
 	copy.association.invocation = cloneStagedWriterInvocation(source.association.invocation)
 	if source.getResult != nil {
 		get := *source.getResult
+		if get.sourceInput.parent.use != nil {
+			get.sourceInput.access = cloneQualifiedReadWrites([]sourceQualifiedReadWrite{get.sourceInput.access})[0]
+		}
 		get.frameworkResume = cloneFrameworkGetResumption(source.getResult.frameworkResume)
 		copy.getResult = &get
 	}

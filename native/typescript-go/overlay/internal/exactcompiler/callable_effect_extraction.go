@@ -289,6 +289,7 @@ func cloneCallableExtraction(value sourceCallableExtractionFact) sourceCallableE
 	value.operationRecipes = append([]sourceStagedOperationRecipe(nil), value.operationRecipes...)
 	for index := range value.operationRecipes {
 		recipe := &value.operationRecipes[index]
+		recipe.delta.readWrites = cloneQualifiedReadWrites(recipe.delta.readWrites)
 		recipe.mutationData = cloneFieldMutationData(recipe.mutationData)
 		recipe.installedMutationRHS = cloneInstalledMutationRHS(recipe.installedMutationRHS)
 		recipe.installedCall = cloneInstalledCallPhase(recipe.installedCall)
@@ -315,6 +316,9 @@ func cloneCallableExtraction(value sourceCallableExtractionFact) sourceCallableE
 		}
 		if recipe.assignment != nil {
 			source := *recipe.assignment
+			if source.sourceInput.parent.use != nil {
+				source.sourceInput.access = cloneQualifiedReadWrites([]sourceQualifiedReadWrite{source.sourceInput.access})[0]
+			}
 			recipe.assignment = &source
 		}
 		if recipe.hasInstance != nil {
@@ -356,6 +360,12 @@ func cloneCallableExtraction(value sourceCallableExtractionFact) sourceCallableE
 		if recipe.nativeGet != nil && recipe.nativeGet.effectsSource != nil {
 			source := *recipe.nativeGet
 			source.effectsSource = cloneNativeEffectsRequest(source.effectsSource)
+			source.arrayPush = cloneArrayPushEffects(source.arrayPush)
+			recipe.nativeGet = &source
+		}
+		if recipe.nativeGet != nil && recipe.nativeGet.effectsSource == nil && recipe.nativeGet.arrayPush != nil {
+			source := *recipe.nativeGet
+			source.arrayPush = cloneArrayPushEffects(source.arrayPush)
 			recipe.nativeGet = &source
 		}
 		if recipe.nativeGet != nil && recipe.nativeGet.calleeEntry != nil {

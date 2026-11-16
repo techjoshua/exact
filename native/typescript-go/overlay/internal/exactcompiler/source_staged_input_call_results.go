@@ -24,7 +24,7 @@ func (work *callableEffectWork) describeStagedCallResultSource(facts []callableF
 	if ast.IsIdentifier(call) {
 		binding := stagedBindingDataDeclaration(call, facts[caller].node, owner)
 		if binding == nil {
-			return nil, false
+			return describeStagedCapturedBinding(call, facts[caller].node, owner)
 		}
 		source := &sourceStagedCallResultSource{request: stagedBindingResultRequest(call, facts[caller].node), declaration: facts[caller].node, binding: binding, generation: work.operationGeneration}
 		if construction := describeModuleConstruction(binding, call, facts[caller].node, owner); construction != nil {

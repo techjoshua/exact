@@ -29,6 +29,9 @@ func (work *callableEffectWork) operationDependencyReadiness(admission bool) []b
 			ready = ready && work.installedMutationDataCurrent(state)
 		}
 		recipe := work.operationRecipes[state.key]
+		if recipe.callResult != nil && recipe.callResult.getResult != nil && recipe.callResult.getResult.sourceInput.parent.use != nil {
+			ready = ready && work.qualifiedGetEffectsInputCurrent(recipe.callResult)
+		}
 		if recipe.mutationData != nil {
 			ready = ready && work.fieldMutationDataCurrent(recipe)
 		}
@@ -92,7 +95,13 @@ func (work *callableEffectWork) operationDependencyReadiness(admission bool) []b
 			ready = ready && work.passiveConstructionEffectsReady(recipe)
 		}
 		if source := recipe.assignment; source != nil {
+			if source.sourceInput.parent.use != nil {
+				ready = ready && work.assignmentEffectsInputCurrent(source.sourceInput)
+			}
 			ready = ready && source.generation == work.operationGeneration && state.assignment != nil && state.assignment.generation == work.operationGeneration && state.assignment.observed
+			if source.phase == "" && state.assignment != nil && state.assignment.sourceEffects != nil {
+				ready = ready && work.assignmentSourceEffectsCurrent(state.assignment.sourceEffects)
+			}
 			if source.phase == "" && state.assignment != nil {
 				consumer := work.memberNodes[source.root.consumer]
 				for _, inputs := range state.assignment.bodies {
@@ -482,6 +491,9 @@ func (work *callableEffectWork) applyOperationRelative(facts []callableFacts, co
 // channel remains unsupported. The false result blocks ACK/publication. Effects
 // and actual invocations are independent of dormant exposures and residuals.
 func (work *callableEffectWork) applyOperationDelivery(facts []callableFacts, consumer int, use sourceStagedOperationUse, delta sourceStagedOperationDelta, owner *executableBodyOwner) bool {
+	if len(delta.readWrites) != 0 && work.operationRecipes[use.request.producer].assignment == nil {
+		return false // The private SOURCE product never enters DATA/current consumers.
+	}
 	if recipe := work.operationRecipes[use.request.producer]; recipe.memberSource != nil && recipe.memberSource.getPreparation != nil {
 		return work.deliverStagedGetPreparation(use, delta)
 	}
@@ -546,7 +558,7 @@ func (work *callableEffectWork) applyOperationDelivery(facts []callableFacts, co
 		for _, effect := range delta.effects {
 			appendOperationEffect(fact, effect)
 		}
-		return true
+		return work.applySetReadWrites(use, delta.readWrites)
 	}
 	if source := work.operationRecipes[use.request.producer].hasInstance; source != nil {
 		if !sameOperationRequest(use.request, source.request) || use.call != nil || use.installed != nil || len(delta.invoked)+len(delta.relative)+len(delta.residuals) != 0 {
@@ -558,6 +570,9 @@ func (work *callableEffectWork) applyOperationDelivery(facts []callableFacts, co
 		return source.role == "lhs-value" || len(delta.exposures) == 0
 	}
 	if result := work.operationRecipes[use.request.producer].callResult; result != nil {
+		if result.getResult != nil && result.getResult.sourceInput.parent.use != nil && !work.qualifiedGetEffectsInputCurrent(result) {
+			return false
+		}
 		if result.getResult != nil && result.getResult.role != "body" && use.request.producer.kind == relativeDemandEffects {
 			if len(delta.exposures)+len(delta.invoked)+len(delta.relative)+len(delta.residuals) != 0 {
 				return false
@@ -676,4 +691,25 @@ func (work *callableEffectWork) applyOperationDelivery(facts []callableFacts, co
 	}
 	fact.staged.operationDeliveries += uint64(operationDeltaSize(delta))
 	return handled
+}
+
+// Early Get delivery consumes only a genuine Effects member observation plus
+// its exact original input quorum. It cannot admit BODY/DATA or nested writes.
+// Stronger binding-capable input readiness retains its existing complete-local law.
+func (work *callableEffectWork) qualifiedGetEffectsInputCurrent(source *sourceStagedCallResultSource) bool {
+	if source == nil || source.getResult == nil {
+		return false
+	}
+	input := source.getResult.sourceInput
+	if work.assignmentEffectsInputCurrent(input) {
+		return true
+	}
+	if !validQualifiedGetSource(source) || source.generation != work.operationGeneration || !sameOperationRequest(source.request, qualifiedGetRequest(source.request.use, source.declaration, source.getResult.role, input)) {
+		return false
+	}
+	switch source.getResult.role {
+	case "receiver", "key", "effects":
+		return work.memberCoverageObserved[source.request.producer] == work.operationGeneration && work.qualifiedGetSourceInputsCurrent(input)
+	}
+	return false
 }
