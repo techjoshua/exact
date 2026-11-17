@@ -11,16 +11,25 @@ import (
 // acquisitions retain Get effects, but never invoke their bodies
 // or upgrades a matching declaration into a completed mutation certificate.
 func (query *sourceValueQuery) occurrenceOrigins(node, at, origin *ast.Node, bindings sourceValueBindings, result *accessorCandidates, receivers ...sourceValue) []sourceValue {
+	origins := query.originsAt(node, at, bindings, result)
+	// The input outer vector is owned; nested source payloads retain their ownership.
+	// A changed result gets separate storage so expansion cannot overwrite input.
 	var values []sourceValue
-	for _, value := range query.originsAt(node, at, bindings, result) {
+	changed := false
+	for i, value := range origins {
 		// A live instance projection without its actual field Get output is not
 		// another opportunity to reacquire that same constructing receiver.
 		if value.instance != nil && len(value.path) != 0 {
 			result.opaque, result.valueIncomplete = true, true
+			if !changed {
+				values = append(values, origins[:i]...)
+				changed = true
+			}
 			continue
 		}
 		// The same completed factory occurrence can name its directly returned
 		// object without reacquiring all of that object's members or getters.
+		originalNode := value.node
 		if len(value.path) == 0 {
 			for _, creator := range query.creators {
 				if creator.invocation == value.node && creator.returning == origin {
@@ -32,13 +41,23 @@ func (query *sourceValueQuery) occurrenceOrigins(node, at, origin *ast.Node, bin
 		for _, receiver := range receivers {
 			relativeReceiver = relativeReceiver || receiver.node != nil && value.node == receiver.node && len(receiver.path) == 0
 		}
-		if relativeReceiver || value.node == origin || len(value.path) == 0 || value.node != nil && value.node.Kind == ast.KindThisKeyword || sourceFunctionPrototype(value, query.owner.checker) {
-			values = append(values, value)
+		direct := relativeReceiver || value.node == origin || len(value.path) == 0 || value.node != nil && value.node.Kind == ast.KindThisKeyword || sourceFunctionPrototype(value, query.owner.checker)
+		if !changed && (!direct || value.node != originalNode) {
+			values = append(values, origins[:i]...)
+			changed = true
+		}
+		if direct {
+			if changed {
+				values = append(values, value)
+			}
 			continue
 		}
 		acquired := query.accessors(value.node, value.path, "", accessorAcquire, bindings, nil)
 		mergeAccessorCandidates(result, acquired)
 		values = append(values, acquired.values...)
+	}
+	if !changed && len(origins) != 0 {
+		return origins
 	}
 	return values
 }
