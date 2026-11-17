@@ -40,11 +40,28 @@ type sourcePreparedBody struct {
 	scope       acquiredCallableScope
 	observed    *sourceObservedValue
 }
+
+// sourceSelectionProjection stores only the existing retained selection fields.
+// Headers and flags remain value copies; referenced payload ownership is unchanged.
+// invocationOwned is written only by the original constructor selection owner.
+type sourceSelectionProjection struct {
+	installedCallSelections                     []sourceInstalledCallSelectionSource
+	standardMemberTransfers                     []sourceStandardMemberTransfer
+	ownedComponents                             *sourceCandidateComponents
+	ownedGets                                   []*ownedGetPopulation
+	values                                      []sourceValue
+	callableScopes                              map[int]acquiredCallableScope
+	ordinaryBodies                              []sourceInvocationBody
+	sourceCallable, sourceOwned, selected       bool
+	opaque, valueIncomplete, receiverIncomplete bool
+	invocationOwned                             bool
+}
+
 type sourcePreparedInvocation struct {
 	constructionSource *sourceConstructionSelection // Synchronous original New publication only; revoked on publication.
 	bodies             []sourcePreparedBody
 	declarations       []*ast.Node
-	base, acquired     accessorCandidates
+	base, acquired     sourceSelectionProjection
 	scope              acquiredCallableScope
 	remaining          int
 	receiver           *ast.Node
@@ -289,8 +306,29 @@ func normalGetOutput(slot *sourceNormalOperation) sourceResultObservation {
 
 // selectionProjection transfers only retained selection facts. Producer effects
 // have already been published and must not be merged by later lookup.
-func selectionProjection(c accessorCandidates) accessorCandidates {
-	return accessorCandidates{installedCallSelections: cloneInstalledCallSelections(c.installedCallSelections), standardMemberTransfers: c.standardMemberTransfers, ownedComponents: candidateReferenceView(c), ownedGets: c.ownedGets, values: c.values, callableScopes: c.callableScopes, ordinaryBodies: c.ordinaryBodies, sourceCallable: c.sourceCallable, sourceOwned: c.sourceOwned, selected: c.selected, opaque: c.opaque, valueIncomplete: c.valueIncomplete, receiverIncomplete: c.receiverIncomplete}
+func selectionProjection(c accessorCandidates) sourceSelectionProjection {
+	return sourceSelectionProjection{installedCallSelections: cloneInstalledCallSelections(c.installedCallSelections), standardMemberTransfers: c.standardMemberTransfers, ownedComponents: candidateReferenceView(c), ownedGets: c.ownedGets, values: c.values, callableScopes: c.callableScopes, ordinaryBodies: c.ordinaryBodies, sourceCallable: c.sourceCallable, sourceOwned: c.sourceOwned, selected: c.selected, opaque: c.opaque, valueIncomplete: c.valueIncomplete, receiverIncomplete: c.receiverIncomplete}
+}
+
+// candidates restores the original by-value shape at existing generic consumers.
+// Selection already owns its cloned/reference payloads; conversion clones nothing.
+func (c sourceSelectionProjection) candidates() accessorCandidates {
+	return accessorCandidates{
+		installedCallSelections: c.installedCallSelections,
+		standardMemberTransfers: c.standardMemberTransfers,
+		ownedComponents:         c.ownedComponents,
+		ownedGets:               c.ownedGets,
+		values:                  c.values,
+		callableScopes:          c.callableScopes,
+		ordinaryBodies:          c.ordinaryBodies,
+		sourceCallable:          c.sourceCallable,
+		sourceOwned:             c.sourceOwned,
+		selected:                c.selected,
+		opaque:                  c.opaque,
+		valueIncomplete:         c.valueIncomplete,
+		receiverIncomplete:      c.receiverIncomplete,
+		invocationOwned:         c.invocationOwned,
+	}
 }
 
 func (query *sourceValueQuery) consumeNormalPhase(phase sourceNormalPhase, bindings sourceValueBindings, result *accessorCandidates) {
