@@ -305,7 +305,9 @@ func (g *sourceWriterInputGraph) recipe(q *sourceValueQuery, expression *ast.Nod
 type sourceWriterInputRequest struct {
 	descriptorWork   *callableEffectWork // Synchronous original publisher association only.
 	descriptorIssuer *sourceWriterInputRequest
-	descriptorSource sourceStagedOperationRequest
+	// Allocate this descriptive payload only at descriptor attachment; the
+	// original request retains all live authority.
+	descriptorSource *sourceStagedOperationRequest
 
 	nativeIssuer                      *sourceWriterInputRequest // Actual scoped registration, copied requests cannot use the association.
 	nativeReadings                    []sourceStagedOperationRequest
@@ -687,7 +689,7 @@ func (r *sourceWriterInputRequest) revoke() {
 		r.member.phase = memberRevoked
 		r.member = nil
 	}
-	r.descriptorWork, r.descriptorIssuer, r.descriptorSource = nil, nil, sourceStagedOperationRequest{}
+	r.descriptorWork, r.descriptorIssuer, r.descriptorSource = nil, nil, nil
 	r.live = false
 	r.nativeIssuer, r.nativeReadings = nil, nil
 	r.writerSourceWork, r.writerSourceIssuer = nil, nil

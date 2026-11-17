@@ -165,3 +165,78 @@ func TestDescriptorCalleeRecoveryDefaultBehavior(t *testing.T) {
 		})
 	}
 }
+
+// The strict source harness owns this producer; it grants no public MAY authority.
+// Only the original registrar can attach the optional payload observed here.
+func TestDescriptorWriterOptionalPayloadLifetime(t *testing.T) {
+	const id = "/virtual/descriptor-writer-payload.ts"
+	const source = `export{};const box={value:''};function writer(){box.value='written';throw new Error('dormant writer')}export function probe(){Object.getOwnPropertyDescriptor(writer,'name');return box.value}`
+	request := Request{Kind: "analyze", ID: id, Source: source, Diagnostics: "semantic", stagedReplacement: true}
+	var issued sourceStagedOperationRequest
+	var retired *sourceWriterInputRequest
+	var query *sourceValueQuery
+	var copied sourceWriterInputRequest
+	withActiveModuleSourceWorkSetup(t, request, map[string]string{id: source}, nil,
+		func(_ []callableFacts, work *callableEffectWork, owner *executableBodyOwner) {
+			for _, publisher := range owner.pendingMemberPublishers {
+				registrar := publisher.workRegistrar
+				if registrar == nil || registrar.descriptorSource == nil {
+					continue
+				}
+				original := registrar.descriptorSource
+				registrar.descriptorSource = func(q *sourceValueQuery, r *sourceWriterInputRequest) {
+					original(q, r)
+					if retired != nil || r.descriptorSource == nil {
+						return
+					}
+					payload := *r.descriptorSource
+					recipe := work.operationRecipes[payload.producer]
+					if !work.descriptorCalleeSourceCurrent(recipe) {
+						return
+					}
+					if r.descriptorWork != work || r.descriptorIssuer != r || !r.live || r.issuer != q || !sameOperationRequest(recipe.descriptorSource.request, payload) || r.original != ([4]*ast.Node{q.reading, q.initializing, q.returning, q.invoking}) {
+						t.Fatal("original live payload issuer/recipe/cut mismatch")
+					}
+					values, covered := r.component(q, 0, nil)
+					if !covered || len(values) != 1 || values[0].node == nil || values[0].node.Name() == nil || values[0].node.Name().Text() != "writer" {
+						t.Fatal("original callable argument source positive UNREACHED")
+					}
+					foreign := *q
+					if _, covered := r.component(&foreign, 0, nil); covered {
+						t.Fatal("foreign query inherited original input source")
+					}
+					copied = *r
+					if copied.descriptorWriterDisposition(q).handled {
+						t.Fatal("copied request consumed descriptor authority")
+					}
+					issued, retired, query = payload, r, q
+				}
+			}
+		}, func(_ []callableFacts, work *callableEffectWork, _ *executableBodyOwner) {
+			if retired == nil {
+				t.Fatal("original current descriptor payload attachment UNREACHED")
+			}
+			recipe := work.operationRecipes[issued.producer]
+			id, registered := work.operationIDs[issued.producer]
+			if !registered || !recipe.delta.extracted || !work.descriptorCalleeSourceCurrent(recipe) {
+				t.Fatal("original descriptor source delivery/current positive UNREACHED")
+			}
+			state := &work.operations[id.index]
+			subscriber := state.subscribers[sourceStagedOperationConsumer{issued.consumer, issued.edge}]
+			if subscriber == nil || !sameOperationRequest(subscriber.request, issued) || state.revision == 0 || subscriber.consumed != state.revision || subscriber.applied != state.revision || subscriber.blocked {
+				t.Fatal("exact original descriptor consumer APPLIED UNREACHED")
+			}
+			if retired.live || retired.issuer != nil || retired.descriptorWork != nil || retired.descriptorIssuer != nil || retired.descriptorSource != nil {
+				t.Fatal("original collect did not revoke optional payload")
+			}
+			if copied.descriptorSource == nil || !sameOperationRequest(*copied.descriptorSource, issued) {
+				t.Fatal("copy lost descriptive source content")
+			}
+			if retired.descriptorWriterDisposition(query).handled || copied.descriptorWriterDisposition(query).handled {
+				t.Fatal("released or copied request retained descriptor authority")
+			}
+			if _, covered := retired.component(query, 0, nil); covered {
+				t.Fatal("released request retained original input source")
+			}
+		}, activeModuleCompleteAnalysis)
+}

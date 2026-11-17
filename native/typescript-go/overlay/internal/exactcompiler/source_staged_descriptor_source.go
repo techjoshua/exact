@@ -83,7 +83,8 @@ func (work *callableEffectWork) registerDescriptorWriterSource(facts []callableF
 		return
 	}
 	work.queueDescriptorSource(facts, work.operationRecipes[original.producer].nativeGet)
-	r.descriptorWork, r.descriptorIssuer, r.descriptorSource = work, r, request
+	descriptor := request
+	r.descriptorWork, r.descriptorIssuer, r.descriptorSource = work, r, &descriptor
 }
 
 // descriptorCalleeSourceCurrent is deliberately callee-only. Argument,
@@ -163,7 +164,7 @@ func (work *callableEffectWork) queueDescriptorSource(facts []callableFacts, roo
 // descriptorWriterDisposition consumes callee-only source accounting for this
 // exact live original recovery. It never excludes argument/capture discovery.
 func (r *sourceWriterInputRequest) descriptorWriterDisposition(q *sourceValueQuery) sourceStagedWriterCallDisposition {
-	if r == nil || r.descriptorWork == nil || r.descriptorIssuer != r || !r.live || r.issuer != q || q == nil || q.executable == nil || q.owner == nil || r.consumer != q.effectOwner || r.use != q.effectUse() || q.pendingMemberRequest != r || q.initializing != r.call || q.reading != r.original[0] || q.returning != r.original[2] || q.invoking != r.original[3] || r.graph != q.executable.writerInputFacts[r.consumer] {
+	if r == nil || r.descriptorWork == nil || r.descriptorSource == nil || r.descriptorIssuer != r || !r.live || r.issuer != q || q == nil || q.executable == nil || q.owner == nil || r.consumer != q.effectOwner || r.use != q.effectUse() || q.pendingMemberRequest != r || q.initializing != r.call || q.reading != r.original[0] || q.returning != r.original[2] || q.invoking != r.original[3] || r.graph != q.executable.writerInputFacts[r.consumer] {
 		return sourceStagedWriterCallDisposition{}
 	}
 	work := r.descriptorWork
@@ -175,17 +176,18 @@ func (r *sourceWriterInputRequest) descriptorWriterDisposition(q *sourceValueQue
 	if q.currentPendingInvocationSource(r.call) != publisher.fact {
 		return sourceStagedWriterCallDisposition{}
 	}
-	recipe := work.operationRecipes[r.descriptorSource.producer]
-	if !validDescriptorSourceRecipe(recipe) || !sameOperationRequest(recipe.descriptorSource.request, r.descriptorSource) || recipe.descriptorSource.original.use != r.call {
+	request := *r.descriptorSource
+	recipe := work.operationRecipes[request.producer]
+	if !validDescriptorSourceRecipe(recipe) || !sameOperationRequest(recipe.descriptorSource.request, request) || recipe.descriptorSource.original.use != r.call {
 		return sourceStagedWriterCallDisposition{}
 	}
-	id, adopted := work.operationIDs[r.descriptorSource.producer]
+	id, adopted := work.operationIDs[request.producer]
 	if !adopted {
 		return sourceStagedWriterCallDisposition{}
 	}
 	// This factory can only consume an already observed Get; its dispatcher
 	// contains no acquisition/replay path. Required closure remains central.
 	work.extractOperation(work.operationFacts, callableExtractionTask{operation: id}, q.executable)
-	delivery, delivered := work.consumeOperation(id, r.descriptorSource)
+	delivery, delivered := work.consumeOperation(id, request)
 	return sourceStagedWriterCallDisposition{handled: true, calleeOnly: delivered && delivery.delta.extracted && work.descriptorCalleeSourceCurrent(recipe)}
 }
