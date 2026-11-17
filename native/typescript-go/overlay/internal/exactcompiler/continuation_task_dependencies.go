@@ -21,6 +21,10 @@ func continuationTaskDefinitions(factory *printer.NodeFactory, component *ast.No
 			result = append(result, factory.NewVariableDeclaration(function.Name(), nil, nil, value))
 			continue
 		}
+		if ast.IsClassDeclaration(statement) && statement.Name() != nil {
+			result = append(result, statement)
+			continue
+		}
 		if !ast.IsVariableStatement(statement) {
 			continue
 		}
@@ -62,7 +66,11 @@ func continuationTaskDependencies(work *ast.Node, definitions []*ast.Node) []*as
 			}
 			selected[name] = true
 			changed = true
-			for reference := range continuationReferencedNames(definition.AsVariableDeclaration().Initializer) {
+			value := definition
+			if ast.IsVariableDeclaration(definition) {
+				value = definition.AsVariableDeclaration().Initializer
+			}
+			for reference := range continuationReferencedNames(value) {
 				needed[reference] = struct{}{}
 			}
 		}

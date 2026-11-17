@@ -392,6 +392,10 @@ func continuationExecutor(
 		}
 	}
 	for _, dependency := range taskDependencies {
+		if ast.IsClassDeclaration(dependency) {
+			statements = append(statements, visitor.VisitNode(projectContinuationCaptureReferences(factory, dependency, helperReferences)))
+			continue
+		}
 		statements = append(statements, constStatement(factory, dependency.Name(),
 			imports.taskBindings.bind(factory, visitor.VisitNode(projectContinuationCaptureReferences(factory, dependency.AsVariableDeclaration().Initializer, helperReferences)))))
 	}

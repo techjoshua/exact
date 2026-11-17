@@ -10,7 +10,7 @@ import (
 // taskHelperCaptures finds setup values referenced by reconstructed ordinary
 // helpers. Values cross as activation inputs, never by replaying initializers.
 // Symbol identity preserves block shadowing and recursive helper graphs.
-func taskHelperCaptures(work, component *ast.Node, source *ast.SourceFile, typeChecker *checker.Checker, bindings []ReactiveBinding, facts *sourceAnalysisFacts) []invokedTaskCapture {
+func taskHelperCaptures(work, component *ast.Node, source *ast.SourceFile, typeChecker *checker.Checker, bindings []ReactiveBinding, facts *sourceAnalysisFacts, classes []*ast.Node) []invokedTaskCapture {
 	result := []invokedTaskCapture{}
 	var aliases *componentStateAliases
 	seen := map[ast.SymbolId]uint8{}
@@ -100,6 +100,9 @@ func taskHelperCaptures(work, component *ast.Node, source *ast.SourceFile, typeC
 		})
 	}
 	visit(work.Body(), false, false)
+	for _, class := range classes {
+		visit(class, true, false)
+	}
 	return result
 }
 

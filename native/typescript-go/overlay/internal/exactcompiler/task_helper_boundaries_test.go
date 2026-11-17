@@ -1,6 +1,7 @@
 package exactcompiler
 
 import (
+	"os"
 	"strings"
 	"testing"
 )
@@ -41,5 +42,85 @@ this.state.count=this.state.counter.count;
 		if strings.Contains(response.Code, "registerTaskHelper") {
 			t.Fatal("ordinary class acquired a generated companion")
 		}
+	}
+}
+
+// A server executor owns only the needed lexical definitions. Class identity
+// must neither be transported nor replay setup-time work when the task runs.
+func TestServerTaskLocalClassDependencies(t *testing.T) {
+	for _, row := range []struct {
+		name, definitions, body string
+		refuse                  bool
+	}{
+		{"inheritance", `class Parent{read():string{return 'base'}}class Receiver extends Parent{read():string{return super.read()+'-child'}}`, `this.state.label=new Receiver().read()`, false},
+		{"receiver capture", `const seed='captured';class Parent{read():string{return seed}}class Receiver extends Parent{read():string{return this.base()}base():string{return super.read()}}`, `this.state.label=new Receiver().read()`, false},
+		{"shadow", `class Receiver{read():string{return 'outer'}}`, `{class Receiver{read():string{return 'inner'}}this.state.label=new Receiver().read()}`, false},
+		{"computed name", `const key='read';class Receiver{[key]():string{return 'value'}}`, `this.state.label=new Receiver().read()`, true},
+		{"static initializer", `class Receiver{static value=1;read():string{return 'value'}}`, `this.state.label=new Receiver().read()`, true},
+		{"static block", `class Receiver{static{}read():string{return 'value'}}`, `this.state.label=new Receiver().read()`, true},
+		{"heritage call", `class Parent{read():string{return 'value'}}function base(){return Parent}class Receiver extends base(){}`, `this.state.label=new Receiver().read()`, true},
+		{"identity escape", `class Receiver{read():string{return 'value'}}const saved=Receiver;`, `this.state.label=new Receiver().read()`, true},
+		{"binding write", `class Receiver{read():string{return 'value'}}Receiver=class{read():string{return 'changed'}};`, `this.state.label=new Receiver().read()`, true},
+		{"instance escape", `class Receiver{read():string{return 'value'}}`, `const value=new Receiver();this.state.label=value.read()`, true},
+		{"foreign then callable", `const foreign=(resolve:(value:unknown)=>void)=>resolve(undefined);class Receiver{get then(){return foreign}}`, `await new Receiver();this.state.label='done'`, true},
+	} {
+		t.Run(row.name, func(t *testing.T) {
+			source := `import {TaskContext,type Component} from '@exactjs/core';export function Page(this:Component<{label:string}>){this.state.label='initial';` + row.definitions + `;const run=async(task:TaskContext=TaskContext.server())=>{` + row.body + `;};return()=> <button onClick={()=>void run()}>{this.state.label}</button>}`
+			f := newExecutableFixture(t, map[string]string{"entry.tsx": source})
+			config := `{"compilerOptions":{"module":"ESNext","moduleResolution":"Bundler","target":"ES2022","strict":true,"skipLibCheck":true,"allowJs":true,"jsx":"react-jsx","jsxImportSource":"@exactjs/jsx"},"files":["entry.tsx"]}`
+			if err := os.WriteFile(f.request("analyze", "entry.tsx").ConfigFile, []byte(config), 0600); err != nil {
+				t.Fatal(err)
+			}
+			session := NewSession()
+			if row.name == "binding write" {
+				request := f.request("compile", "entry.tsx")
+				request.Target = TargetServer
+				r := session.Execute(request)
+				if r.Error != "" || !hasDiagnosticCode(r.Diagnostics, "TS2629") || r.Code != "" {
+					t.Fatal("ordinary TypeScript class binding immutability lost", r.Error, r.Diagnostics)
+				}
+				return
+			}
+			a := session.Execute(f.request("analyze", "entry.tsx"))
+			if a.Error != "" || len(a.Analysis.Components) != 1 || a.Analysis.Components[0].Name != "Page" || len(a.Analysis.Tasks) != 1 || len(a.Analysis.Tasks[0].Writes) == 0 {
+				t.Fatal("actual component/task/state entry absent", a.Error, a.Diagnostics)
+			}
+			request := f.request("compile", "entry.tsx")
+			request.Target = TargetServer
+			r := session.Execute(request)
+			if r.Error != "" {
+				t.Fatal(r.Error)
+			}
+			refusal := false
+			for _, d := range r.Diagnostics {
+				if d.Severity == "error" {
+					if d.Code != "EXACT2001" || !strings.Contains(d.Message, "cannot safely reconstruct this setup-local class") {
+						t.Fatal("unexpected compile failure", d)
+					}
+					refusal = true
+				}
+			}
+			if refusal != row.refuse || row.refuse && r.Code != "" || !row.refuse && r.Code == "" {
+				t.Fatal("class reconstruction decision", r.Diagnostics, r.Code)
+			}
+			if !row.refuse {
+				if !strings.Contains(r.Code, "execute:") || !strings.Contains(r.Code, "new Receiver()") {
+					t.Fatal("actual executor class use absent", r.Code)
+				}
+				executor := r.Code[strings.Index(r.Code, "execute:"):]
+				if !strings.Contains(executor, "class Receiver") {
+					t.Fatal("required executor-local class absent", executor)
+				}
+				if row.name != "shadow" {
+					parent, child, construct := strings.Index(executor, "class Parent"), strings.Index(executor, "class Receiver"), strings.Index(executor, "new Receiver()")
+					if parent < 0 || child < parent || construct < child {
+						t.Fatal("transitive class declaration order lost", executor)
+					}
+				}
+				if row.name == "receiver capture" && (!strings.Contains(executor, "const seed =") || !strings.Contains(executor, ".dependencies[")) {
+					t.Fatal("setup capture activation absent", executor)
+				}
+			}
+		})
 	}
 }
