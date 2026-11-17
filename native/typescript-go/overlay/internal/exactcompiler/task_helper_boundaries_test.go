@@ -61,6 +61,10 @@ func TestServerTaskLocalClassDependencies(t *testing.T) {
 		{"foreign method", `const foreign=function(this:unknown):string{return String(this)};class Receiver{get read(){return foreign}}`, `this.state.label=new Receiver().read()`, true},
 		{"mixed shadow", `class Parent{read():string{return 'base'}}class Receiver extends Parent{}`, `const shadow=()=>{class Receiver{read():string{return 'inner'}}return new Receiver().read()};this.state.label=new Receiver().read()+shadow()`, false},
 		{"inferred server", `const seed='inferred';class Parent{read():string{return seed}}class Receiver extends Parent{}`, `this.state.label=new Receiver().read()+process.cwd()`, false},
+		{"honest null getter", `class Parent{get then():null{return (null as null)}}class Receiver extends Parent{}`, `await new Receiver();this.state.label='done'`, false},
+		{"getter void effects", `class Parent{get then():undefined{return void touch()}}class Receiver extends Parent{}`, `await new Receiver();this.state.label=String(touches)`, false},
+		{"literal callable then", `class Parent{get then():undefined{return ((resolve:(value:unknown)=>void)=>resolve(undefined)) as unknown as undefined}}class Receiver extends Parent{}`, `await new Receiver();this.state.label='done'`, true},
+		{"module observer then", `class Parent{get then():undefined{return observe as unknown as undefined}}class Receiver extends Parent{}`, `await new Receiver();this.state.label=String(same)`, true},
 		{"computed name", `const key='read';class Receiver{[key]():string{return 'value'}}`, `this.state.label=new Receiver().read()`, true},
 		{"static initializer", `class Receiver{static value=1;read():string{return 'value'}}`, `this.state.label=new Receiver().read()`, true},
 		{"static block", `class Receiver{static{}read():string{return 'value'}}`, `this.state.label=new Receiver().read()`, true},
@@ -72,6 +76,12 @@ func TestServerTaskLocalClassDependencies(t *testing.T) {
 	} {
 		t.Run(row.name, func(t *testing.T) {
 			source := `import {TaskContext,type Component} from '@exactjs/core';export function Page(this:Component<{label:string}>){this.state.label='initial';` + row.definitions + `;const run=async(task:TaskContext=TaskContext.server())=>{` + row.body + `;};return()=> <button onClick={()=>void run()}>{this.state.label}</button>}`
+			if row.name == "getter void effects" {
+				source = "let touches=0;function touch(){touches++;}" + source
+			}
+			if row.name == "module observer then" {
+				source = "let previous:unknown;let same=false;function observe(this:object,resolve:(value:unknown)=>void){const constructor=Object.getPrototypeOf(this).constructor;same=previous===constructor;previous=constructor;resolve(undefined)}" + source
+			}
 			if row.name == "inferred server" {
 				source = strings.Replace(source, "TaskContext.server()", "TaskContext.parallel()", 1)
 			}

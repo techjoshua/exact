@@ -403,7 +403,7 @@ func collectTasks(
 			var classes []*ast.Node
 			if task.Placement == "server" || task.Placement == "isomorphic" {
 				var refusal string
-				classes, refusal = taskReconstructedClasses(work, candidate.node, typeChecker)
+				classes, refusal = taskReconstructedClasses(work, candidate.node, typeChecker, callables.owner)
 				if refusal != "" {
 					task.Diagnostics = append(task.Diagnostics, refusal)
 				}

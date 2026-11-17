@@ -8,7 +8,7 @@ import (
 // taskReconstructedClasses admits only fresh, nonescaping class identities needed
 // by this task. It describes lexical reconstruction, never constructor transport.
 // Replaying definition effects or sharing an identity with setup is not permitted.
-func taskReconstructedClasses(work, component *ast.Node, c *checker.Checker) ([]*ast.Node, string) {
+func taskReconstructedClasses(work, component *ast.Node, c *checker.Checker, owner *executableBodyOwner) ([]*ast.Node, string) {
 	if c == nil || component.Body() == nil {
 		return nil, ""
 	}
@@ -76,6 +76,23 @@ func taskReconstructedClasses(work, component *ast.Node, c *checker.Checker) ([]
 			// Await must not hand this fresh identity to a foreign callable returned
 			// by a then getter. Authored then methods retain their own checked body.
 			if ast.IsGetAccessorDeclaration(member) && member.Name().Text() == "then" {
+				if owner == nil || owner.checker != c || owner.values == nil || owner.values.checker != c {
+					return refuse()
+				}
+				// An annotation cannot hide a represented callable return. These are
+				// original source alternatives, not normal Get results or completion proof.
+				// Unproved shapes withhold only identity-changing reconstruction; void
+				// operands keep all original effects, throws and ordinary Await ownership.
+				for _, returned := range owner.values.summary(member).returns {
+					original := unwrapSourceCallableReference(returned)
+					if sourcePrimitiveValue(original) {
+						continue
+					}
+					if original != nil && standardUndefinedSymbol(c, original, c.GetSymbolAtLocation(original)) {
+						continue
+					}
+					return refuse()
+				}
 				value := c.GetTypeAtLocation(member.Name())
 				if value == nil {
 					return refuse()
