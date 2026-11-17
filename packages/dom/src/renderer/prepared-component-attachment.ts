@@ -19,7 +19,9 @@ import type { Mounted, Root } from '../types.js';
 import { withEffectScope } from '@exactjs/reactive/framework/runtime';
 import { unmountMounted } from './teardown.js';
 
+/** Captured output retains its typed finite root until the receiving presentation consumes it. */
 export type PreparedComponentOutput = Child[] | ExactRenderProgramInvocation;
+/** Projects captured output without executing the component render a second time. */
 export type PreparedComponentProjection = (
 	output: PreparedComponentOutput
 ) => PreparedComponentOutput;
