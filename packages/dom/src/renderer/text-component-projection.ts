@@ -102,7 +102,9 @@ export class TextComponentProjection {
 		if (program !== undefined) return program;
 		const receipt = readClientComponentInput(value);
 		return receipt
-			? this.component(receipt, (output, _mounted, _direct, supplied) => project(output, supplied))
+			? this.component(receipt, (output, _mounted, supplied) =>
+					project(Array.isArray(output) ? output : [output], supplied)
+				)
 			: undefined;
 	};
 
@@ -142,7 +144,7 @@ export class TextComponentProjection {
 				: record.output;
 			return Array.isArray(output)
 				? visit(output, record.mounted)
-				: visit([output], record.mounted, output, this.directResolver(output));
+				: visit(output, record.mounted, this.directResolver(output));
 		} finally {
 			this.finish(record);
 			this.current = parent;

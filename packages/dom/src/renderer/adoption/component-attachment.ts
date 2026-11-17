@@ -125,10 +125,9 @@ class DomClientHydrationTarget {
 		}
 		if (Array.isArray(children) && this.mounted.componentReceipt?.fragmentTarget)
 			children = capability!.projectComponent!(this.mounted, children);
-		const adopted =
-			Array.isArray(children) && capability?.adoptComponent
-				? capability.adoptComponent(this.root, this.mounted, children, this.adopt)
-				: this.adopt(children);
+		const adopted = capability?.adoptComponent
+			? capability.adoptComponent(this.root, this.mounted, children, this.adopt)
+			: this.adopt(children);
 		assertCurrent();
 		if (!adopted) throw new Error('Compiler-owned component output did not match the hydrated DOM');
 		this.mounted.children = adopted;

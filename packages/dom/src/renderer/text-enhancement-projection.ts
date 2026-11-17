@@ -38,13 +38,9 @@ export function createTextEnhancementProjection(
 		root.enhancementCatalog ??= exactEnhancementCatalog;
 		const receipt = readClientComponentInput(value);
 		if (receipt)
-			return component(receipt, (output, mounted, direct, supplied) =>
-				withPreparedEnhancementBindings(
-					root,
-					mounted,
-					[...output],
-					(children) => project(children, supplied),
-					direct
+			return component(receipt, (output, mounted, supplied) =>
+				withPreparedEnhancementBindings(root, mounted, output, (children) =>
+					project(Array.isArray(children) ? children : [children], supplied)
 				)
 			);
 		const entries = orderEnhancementEntries(root, preparedEnhancementEntries(root, value as Child));
@@ -100,7 +96,10 @@ export function createTextEnhancementProjection(
 					{ kind: 'eager', values: [leaf] }
 				);
 				return component(readClientComponentInput(receipt)!, (output, mounted) => {
-					const contribution = readPreparedTargetOutput(output, leaf);
+					const contribution = readPreparedTargetOutput(
+						Array.isArray(output) ? output : [output],
+						leaf
+					);
 					let identity = identities.get(mounted);
 					if (!identity) {
 						identity = Symbol('text contribution');

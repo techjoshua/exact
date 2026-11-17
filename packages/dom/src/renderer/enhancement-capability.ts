@@ -1,4 +1,4 @@
-import type { ExactRenderProgramInvocation } from '@exactjs/core/runtime/render-operations';
+import type { PreparedComponentOutput } from './prepared-component-attachment.js';
 import { componentContractVersion } from '../component-contract-version.js';
 import { type AdmittedClientComponentInput } from './component-input-admission.js';
 import type { AnyComponentInstance, Child } from '@exactjs/core';
@@ -26,9 +26,8 @@ export type EnhancementPatchOperation = (
 export type TextComponentVisitor = (
 	receipt: AdmittedClientComponentInput,
 	visit: (
-		output: readonly Child[],
+		output: PreparedComponentOutput,
 		mounted: Mounted,
-		direct?: ExactRenderProgramInvocation,
 		supplied?: PreparedTextResolver
 	) => string
 ) => string;
@@ -44,8 +43,8 @@ export type DomEnhancementCapability = Readonly<{
 	adoptComponent?(
 		root: Root,
 		mounted: Mounted,
-		children: Child[],
-		adopt: (children: Child[]) => Mounted[] | undefined
+		children: PreparedComponentOutput,
+		adopt: (children: PreparedComponentOutput) => Mounted[] | undefined
 	): Mounted[] | undefined;
 	/** Projects contributed fragment placements within a structural enhancement owner. */
 	projectComponent?(mounted: Mounted, children: Child[]): Child[];
