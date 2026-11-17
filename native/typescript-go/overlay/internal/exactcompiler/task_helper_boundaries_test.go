@@ -55,6 +55,13 @@ func TestServerTaskLocalClassDependencies(t *testing.T) {
 		{"inheritance", `class Parent{read():string{return 'base'}}class Receiver extends Parent{read():string{return super.read()+'-child'}}`, `this.state.label=new Receiver().read()`, false},
 		{"receiver capture", `const seed='captured';class Parent{read():string{return seed}}class Receiver extends Parent{read():string{return this.base()}base():string{return super.read()}}`, `this.state.label=new Receiver().read()`, false},
 		{"shadow", `class Receiver{read():string{return 'outer'}}`, `{class Receiver{read():string{return 'inner'}}this.state.label=new Receiver().read()}`, false},
+		{"client original scope", `class Receiver{static value=1;read():string{return 'value'}}`, `this.state.label=new Receiver().read()`, false},
+		{"parameter decorator", `function stamp(_target:object,_key:string|symbol,_index:number){}class Receiver{read(@stamp value=0):string{return 'value'}}`, `this.state.label=new Receiver().read()`, true},
+		{"leaked receiver", `function leak(value:unknown):string{return String(value)}class Receiver{read():string{return leak(this)}}`, `this.state.label=new Receiver().read()`, true},
+		{"foreign method", `const foreign=function(this:unknown):string{return String(this)};class Receiver{get read(){return foreign}}`, `this.state.label=new Receiver().read()`, true},
+		{"mixed shadow", `class Parent{read():string{return 'base'}}class Receiver extends Parent{}`, `const shadow=()=>{class Receiver{read():string{return 'inner'}}return new Receiver().read()};this.state.label=new Receiver().read()+shadow()`, false},
+		{"inferred isomorphic", `class Parent{read():string{return 'base'}}class Receiver extends Parent{}`, `this.state.label=new Receiver().read()`, false},
+		{"inferred server", `class Parent{read():string{return 'base'}}class Receiver extends Parent{}`, `this.state.label=new Receiver().read()+String(process.pid)`, false},
 		{"computed name", `const key='read';class Receiver{[key]():string{return 'value'}}`, `this.state.label=new Receiver().read()`, true},
 		{"static initializer", `class Receiver{static value=1;read():string{return 'value'}}`, `this.state.label=new Receiver().read()`, true},
 		{"static block", `class Receiver{static{}read():string{return 'value'}}`, `this.state.label=new Receiver().read()`, true},
@@ -66,8 +73,20 @@ func TestServerTaskLocalClassDependencies(t *testing.T) {
 	} {
 		t.Run(row.name, func(t *testing.T) {
 			source := `import {TaskContext,type Component} from '@exactjs/core';export function Page(this:Component<{label:string}>){this.state.label='initial';` + row.definitions + `;const run=async(task:TaskContext=TaskContext.server())=>{` + row.body + `;};return()=> <button onClick={()=>void run()}>{this.state.label}</button>}`
+			if row.name == "inferred isomorphic" || row.name == "inferred server" {
+				source = strings.Replace(source, "TaskContext.server()", "TaskContext.parallel()", 1)
+			}
+			if row.name == "inferred server" {
+				source = "declare const process:{pid:number};" + source
+			}
+			if row.name == "client original scope" {
+				source = strings.Replace(source, "TaskContext.server()", "TaskContext.client()", 1)
+			}
 			f := newExecutableFixture(t, map[string]string{"entry.tsx": source})
 			config := `{"compilerOptions":{"module":"ESNext","moduleResolution":"Bundler","target":"ES2022","strict":true,"skipLibCheck":true,"allowJs":true,"jsx":"react-jsx","jsxImportSource":"@exactjs/jsx"},"files":["entry.tsx"]}`
+			if row.name == "parameter decorator" {
+				config = strings.Replace(config, `"strict":true`, `"strict":true,"experimentalDecorators":true`, 1)
+			}
 			if err := os.WriteFile(f.request("analyze", "entry.tsx").ConfigFile, []byte(config), 0600); err != nil {
 				t.Fatal(err)
 			}
@@ -85,8 +104,21 @@ func TestServerTaskLocalClassDependencies(t *testing.T) {
 			if a.Error != "" || len(a.Analysis.Components) != 1 || a.Analysis.Components[0].Name != "Page" || len(a.Analysis.Tasks) != 1 || len(a.Analysis.Tasks[0].Writes) == 0 {
 				t.Fatal("actual component/task/state entry absent", a.Error, a.Diagnostics)
 			}
+
+			if row.name == "inferred isomorphic" || row.name == "inferred server" {
+				expected := "isomorphic"
+				if row.name == "inferred server" {
+					expected = "server"
+				}
+				if a.Analysis.Tasks[0].RequestedPlacement != "" || a.Analysis.Tasks[0].Placement != expected {
+					t.Fatal("inferred reconstruction entry absent", a.Analysis.Tasks[0])
+				}
+			}
 			request := f.request("compile", "entry.tsx")
 			request.Target = TargetServer
+			if row.name == "client original scope" {
+				request.Target = TargetClient
+			}
 			r := session.Execute(request)
 			if r.Error != "" {
 				t.Fatal(r.Error)
@@ -102,6 +134,12 @@ func TestServerTaskLocalClassDependencies(t *testing.T) {
 			}
 			if refusal != row.refuse || row.refuse && r.Code != "" || !row.refuse && r.Code == "" {
 				t.Fatal("class reconstruction decision", r.Diagnostics, r.Code)
+			}
+			if row.name == "client original scope" {
+				if !strings.Contains(r.Code, "class Receiver") {
+					t.Fatal("client original class scope lost", r.Code)
+				}
+				return
 			}
 			if !row.refuse {
 				if !strings.Contains(r.Code, "execute:") || !strings.Contains(r.Code, "new Receiver()") {

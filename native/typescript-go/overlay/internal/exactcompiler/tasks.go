@@ -285,15 +285,7 @@ func collectTasks(
 					},
 				))
 			}
-			var classes []*ast.Node
-			if task.Placement == "server" || task.Placement == "isomorphic" {
-				var refusal string
-				classes, refusal = taskReconstructedClasses(work, candidate.node, typeChecker)
-				if refusal != "" {
-					task.Diagnostics = append(task.Diagnostics, refusal)
-				}
-			}
-			task.helperCaptures = taskHelperCaptures(work, candidate.node, sourceFile, typeChecker, reactiveBindings, facts, classes)
+
 			task.Contexts = []ContextEffect{}
 			task.EffectSources = []EnvironmentEffectSource{}
 			resources, signalCalls, resourceDiagnostics :=
@@ -408,6 +400,16 @@ func collectTasks(
 			} else {
 				task.Placement = "client"
 			}
+			var classes []*ast.Node
+			if task.Placement == "server" || task.Placement == "isomorphic" {
+				var refusal string
+				classes, refusal = taskReconstructedClasses(work, candidate.node, typeChecker)
+				if refusal != "" {
+					task.Diagnostics = append(task.Diagnostics, refusal)
+				}
+			}
+			task.classDefinitions = classes
+			task.helperCaptures = taskHelperCaptures(work, candidate.node, sourceFile, typeChecker, reactiveBindings, facts, classes)
 			if task.RequestedPlacement == "server" && task.BrowserEffects {
 				task.Diagnostics = append(
 					task.Diagnostics,

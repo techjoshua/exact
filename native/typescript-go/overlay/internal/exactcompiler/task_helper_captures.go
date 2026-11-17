@@ -125,12 +125,14 @@ func (lowering *jsxLowering) taskHelperDependencies(task Task, offset int) []nat
 	return result
 }
 
-// stateHelperCaptures keeps every state alias used by an invoked executor.
+// invokedTaskReconstruction retains state aliases and the same current class plan for an invoked executor.
 // Non-state captures already belong to the operation's activation inputs.
-func stateHelperCaptures(tasks []Task, id string) []invokedTaskCapture {
+func invokedTaskReconstruction(tasks []Task, id string) ([]invokedTaskCapture, []*ast.Node) {
 	result := []invokedTaskCapture{}
+	var classes []*ast.Node
 	for _, task := range tasks {
 		if task.ID == id {
+			classes = task.classDefinitions
 			for _, capture := range task.helperCaptures {
 				if capture.source == "state" {
 					result = append(result, capture)
@@ -138,5 +140,5 @@ func stateHelperCaptures(tasks []Task, id string) []invokedTaskCapture {
 			}
 		}
 	}
-	return result
+	return result, classes
 }

@@ -61,11 +61,11 @@ func taskReconstructedClasses(work, component *ast.Node, c *checker.Checker) ([]
 		return nil, "error: a server continuation cannot safely reconstruct this setup-local class: definition effects, inheritance, captures or escaped class identity are not preserved. Keep the class identity in its original execution scope; no constructor is transported"
 	}
 	for declaration := range selected {
-		if ast.HasDecorators(declaration) {
+		if sourceClassHasDecoratorApplication(declaration) {
 			return refuse()
 		}
 		for _, member := range declaration.Members() {
-			if ast.HasDecorators(member) || ast.HasSyntacticModifier(member, ast.ModifierFlagsStatic) || ast.IsClassStaticBlockDeclaration(member) || member.Name() != nil && ast.IsComputedPropertyName(member.Name()) {
+			if ast.HasSyntacticModifier(member, ast.ModifierFlagsStatic) || ast.IsClassStaticBlockDeclaration(member) || member.Name() != nil && ast.IsComputedPropertyName(member.Name()) {
 				return refuse()
 			}
 			// Instance fields/constructors can retain or expose the new identity. This
@@ -115,16 +115,6 @@ func taskReconstructedClasses(work, component *ast.Node, c *checker.Checker) ([]
 		if secretArtifactDirectEval(n) || ast.IsWithStatement(n) {
 			valid = false
 			return false
-		}
-		// The existing lowered definition selector is name-based. Do not admit a
-		// required class if another lexical declaration could mask that original name.
-		if ast.IsIdentifier(n) && ast.IsDeclarationName(n) {
-			for d := range selected {
-				if n.Text() == d.Name().Text() && c.GetSymbolAtLocation(n) != c.GetSymbolAtLocation(d.Name()) {
-					valid = false
-					return false
-				}
-			}
 		}
 		if ast.IsPartOfTypeNode(n) && !ast.IsExpressionWithTypeArgumentsInClassExtendsClause(n) {
 			return false

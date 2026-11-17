@@ -613,6 +613,9 @@ type SourceSpan struct {
 
 // Task identifies one component task registration and its authored facets.
 type Task struct {
+	// classDefinitions is a current-extraction reconstruction plan, not a value,
+	// transport input or persisted cache certificate. Emission matches original nodes.
+	classDefinitions        []*ast.Node
 	activationSource        *taskActivationSource // Private original source description; never a runtime/graph loan.
 	helperCaptures          []invokedTaskCapture
 	localReads              []taskCaptureRange
@@ -691,6 +694,7 @@ type ContinuationOwnership struct {
 
 // Continuation is the compiler-owned cross-runtime task contract.
 type Continuation struct {
+	classDefinitions    []*ast.Node // Private same-extraction class plan from the actual task.
 	helperCaptures      []invokedTaskCapture
 	helperCaptureOffset int
 	localization        bool
