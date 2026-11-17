@@ -13,17 +13,14 @@ import {
 import { computed, type EffectScope } from '@exactjs/reactive/framework/runtime';
 import type { Mounted, Root } from '../types.js';
 import { prepareComponentReceipt } from './prepare-component-receipt.js';
-import type {
-	PreparedComponentOutput,
-	PreparedComponentAttachment
-} from './prepared-component-attachment.js';
+import type { PreparedComponentAttachment } from './prepared-component-attachment.js';
 
 /** One durable transparent contributor and its current supplied placement. */
 export interface PreparedOwner {
 	identity: symbol;
 	attachment: PreparedComponentAttachment;
 	instance: AnyComponentInstance;
-	output: PreparedComponentOutput;
+	output: Child[];
 	child: Child;
 	tag?: string;
 	mounted: Mounted;
@@ -47,56 +44,43 @@ export function prepareFragmentOwner(
 ): PreparedOwner {
 	const attachment = prepareComponentReceipt(root, receipt, parent, scope, parentNode, mode);
 	try {
+		const output = attachment.output;
+		if (!Array.isArray(output))
+			throw new TypeError(
+				'Fragment contribution preparation requires a single supplied-target placement'
+			);
 		const owner: PreparedOwner = {
 			identity: Symbol(entry.identity),
 			attachment,
 			instance: attachment.owner,
-			output: attachment.output,
+			output,
 			child,
 			mounted: attachment.ownedRange,
 			operation,
 			entry,
 			tag
 		};
-		readPreparedComponentContribution(owner.output, child);
+		readPreparedTargetOutput(output, child);
 		pending.append({
 			operation: receipt.admitted.operation,
 			parent,
 			attachment,
-			project: (output) =>
-				!Array.isArray(output)
-					? output
-					: [
-							createChildRangeReceipt(
-								computed(() =>
-									withComponentDomain(owner.instance.domain, () => {
-										const contribution = readPreparedTargetOutput(output, owner.child);
-										return contribution
-											? withCompiledTargetPresentation(
-													contribution.operation,
-													...contribution.children
-												)
-											: [...output];
-									})
-								)
-							)
-						]
+			project: () => [
+				createChildRangeReceipt(
+					computed(() =>
+						withComponentDomain(owner.instance.domain, () => {
+							const contribution = readPreparedTargetOutput(output, owner.child);
+							return contribution
+								? withCompiledTargetPresentation(contribution.operation, ...contribution.children)
+								: [...output];
+						})
+					)
+				)
+			]
 		});
 		return owner;
 	} catch (error) {
 		attachment.abort();
 		throw error;
 	}
-}
-
-/** Preserves the original supplied-target boundary law independently of output representation. */
-export function readPreparedComponentContribution(
-	output: PreparedComponentOutput,
-	supplied: Child
-) {
-	if (!Array.isArray(output))
-		throw new TypeError(
-			'Fragment contribution preparation requires a single supplied-target placement'
-		);
-	return readPreparedTargetOutput(output, supplied);
 }
