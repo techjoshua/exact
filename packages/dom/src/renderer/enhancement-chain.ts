@@ -93,7 +93,8 @@ export function mountedAuthoredOperation(mounted: Mounted): Child {
 		mounted.componentReceipt ??
 		mounted.intrinsicReceipt ??
 		mounted.fragmentReceipt ??
-		mounted.renderProgramReceipt;
+		mounted.renderProgramReceipt ??
+		mounted.renderProgram?.invocation;
 	if (operation === undefined)
 		throw new Error('Mounted enhancement target does not retain an authored operation');
 	return operation;
