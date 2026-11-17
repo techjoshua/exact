@@ -29,7 +29,7 @@ func TestSourceCalleeWriteWorkAlternatives(t *testing.T) {
 				old.calleeWriteWork = &sourceCalleeWriteWork{fallback: true}
 				want, wantEffects := old.prepareInvocation(call, nil)
 				got, gotEffects := q.prepareInvocation(call, nil)
-				if !reflect.DeepEqual(candidatePublisherPayload(wantEffects), candidatePublisherPayload(gotEffects)) || !reflect.DeepEqual(candidatePublisherPayload(want.acquired), candidatePublisherPayload(got.acquired)) {
+				if !reflect.DeepEqual(candidatePublisherPayload(wantEffects), candidatePublisherPayload(gotEffects)) || !reflect.DeepEqual(candidatePublisherPayload(want.acquired.candidates()), candidatePublisherPayload(got.acquired.candidates())) {
 					t.Fatal("callee preparation lost original effects or independent uncertainty")
 				}
 				if len(want.acquired.values) != len(got.acquired.values) {
@@ -117,7 +117,7 @@ func TestSourceCalleeWriteExtraActiveAncestorFallback(t *testing.T) {
 		old.calleeWriteWork = &sourceCalleeWriteWork{fallback: true}
 		want, wantEffects := old.prepareInvocation(call, nil)
 		got, gotEffects := q.prepareInvocation(call, nil)
-		if !reflect.DeepEqual(candidatePublisherPayload(wantEffects), candidatePublisherPayload(gotEffects)) || !reflect.DeepEqual(candidatePublisherPayload(want.acquired), candidatePublisherPayload(got.acquired)) || !reflect.DeepEqual(want.acquired.values, got.acquired.values) {
+		if !reflect.DeepEqual(candidatePublisherPayload(wantEffects), candidatePublisherPayload(gotEffects)) || !reflect.DeepEqual(candidatePublisherPayload(want.acquired.candidates()), candidatePublisherPayload(got.acquired.candidates())) || !reflect.DeepEqual(want.acquired.values, got.acquired.values) {
 			t.Fatal("active-ancestor refusal lost known payload or alternatives")
 		}
 	})
