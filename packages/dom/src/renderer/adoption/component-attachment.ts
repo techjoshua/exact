@@ -1,9 +1,11 @@
+import type { ExactRenderProgramInvocation } from '@exactjs/core/runtime/render-operations';
 import { captureAdoptionCurrent } from './receiving-lifetime.js';
 import { retainSuppliedPlacement } from '../supplied-placement-capability.js';
 import { domEnhancementCapability } from '../enhancement-capability.js';
 import { type AnyComponentInstance, type Child } from '@exactjs/core';
 import {
 	exactCompiledClientAttachment,
+ exactCompiledDirectProgramAttachment,
 	exactCompatibilityClientAttachment,
 	type ExactClientComponentArtifact
 } from '@exactjs/core/runtime/component-operations';
@@ -16,7 +18,7 @@ import type { PreparedComponentAttachment } from '../prepared-component-attachme
 export function attachPreparedHydratedComponent(
 	root: Root,
 	attachment: PreparedComponentAttachment,
-	adopt: (children: Child[]) => Mounted[] | undefined,
+	adopt: (children: Child[] | ExactRenderProgramInvocation) => Mounted[] | undefined,
 	project?: (children: readonly Child[]) => Child[]
 ): Mounted {
 	const target = new DomClientHydrationTarget(root, attachment.ownedRange, adopt);
@@ -31,7 +33,7 @@ export function attachHydratedComponent(
 	mounted: Mounted,
 	artifact: ExactClientComponentArtifact,
 	instance: AnyComponentInstance,
-	adopt: (children: Child[]) => Mounted[] | undefined
+	adopt: (children: Child[] | ExactRenderProgramInvocation) => Mounted[] | undefined
 ): boolean {
 	const target = new DomClientHydrationTarget(root, mounted, adopt);
 	artifact.attach(instance, target, 'hydrate');
@@ -49,19 +51,23 @@ class DomClientHydrationTarget {
 	constructor(
 		private readonly root: Root,
 		private readonly mounted: Mounted,
-		private readonly adopt: (children: Child[]) => Mounted[] | undefined
+		private readonly adopt: (children: Child[] | ExactRenderProgramInvocation) => Mounted[] | undefined
 	) {}
 
 	[exactCompiledClientAttachment](
 		artifact: ExactClientComponentArtifact,
 		instance: object,
-		children: Child[],
+		children: Child[] | ExactRenderProgramInvocation,
 		mode: 'mount' | 'hydrate'
 	): Mounted {
 		const attached = this.assertAttachment(artifact, instance, mode);
-		retainSuppliedPlacement(this.mounted, children, this.root);
+		if (Array.isArray(children)) retainSuppliedPlacement(this.mounted, children, this.root);
 		return this.attachChildren(attached, children);
 	}
+
+ [exactCompiledDirectProgramAttachment](artifact: ExactClientComponentArtifact, instance: object, invocation: ExactRenderProgramInvocation, mode: 'mount' | 'hydrate'): Mounted {
+  return this[exactCompiledClientAttachment](artifact, instance, invocation, mode);
+ }
 
 	[exactCompatibilityClientAttachment](
 		artifact: ExactClientComponentArtifact,
@@ -97,12 +103,15 @@ class DomClientHydrationTarget {
 		return instance as AnyComponentInstance;
 	}
 
-	private attachChildren(instance: AnyComponentInstance, children: Child[]): Mounted {
+	private attachChildren(instance: AnyComponentInstance, children: Child[] | ExactRenderProgramInvocation): Mounted {
 		const assertCurrent = captureAdoptionCurrent(this.root, this.mounted.scope);
 		const capability = domEnhancementCapability();
-		if (this.mounted.componentReceipt?.fragmentTarget)
+		if (!Array.isArray(children)) {
+ if (children.owner !== instance || this.mounted.componentReceipt?.fragmentTarget) throw new TypeError('Direct hydrated output requires its original finite root owner');
+ }
+		if (Array.isArray(children) && this.mounted.componentReceipt?.fragmentTarget)
 			children = capability!.projectComponent!(this.mounted, children);
-		const adopted = capability?.adoptComponent
+		const adopted = Array.isArray(children) && capability?.adoptComponent
 			? capability.adoptComponent(this.root, this.mounted, children, this.adopt)
 			: this.adopt(children);
 		assertCurrent();

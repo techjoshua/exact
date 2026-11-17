@@ -1,3 +1,5 @@
+import type { ExactRenderProgramInvocation } from '@exactjs/core/runtime/render-operations';
+import { adoptDirectRenderProgram } from '../render-program.js';
 import { captureAdoptionCurrent } from './receiving-lifetime.js';
 import { readClientComponentInput } from '../component-input-admission.js';
 import { type AnyComponentInstance, type Child } from '@exactjs/core';
@@ -83,36 +85,28 @@ export function adoptStaticChildren(
  */
 export function adoptComponentChildren(
 	root: Root,
-	children: Child[],
+	children: Child[] | ExactRenderProgramInvocation,
 	nodes: readonly Node[],
 	parentInstance: AnyComponentInstance | undefined,
 	parentScope: EffectScope,
 	start = 0,
 	end = nodes.length
 ): Mounted[] | undefined {
-	const direct = adoptStaticChildren(
-		root,
-		children,
-		nodes,
-		parentInstance,
-		parentScope,
-		start,
-		end
-	);
+	const adoptOutput = (first: number, last: number): Mounted[] | undefined => {
+  if (Array.isArray(children)) return adoptStaticChildren(root, children, nodes, parentInstance, parentScope, first, last);
+  if (last - first !== 1 || !nodes[first]) return undefined;
+  const scope = createEffectScope(parentScope);
+  const mounted = adoptDirectRenderProgram(root, children, nodes[first]!, scope, parentInstance, (values, currentNodes, owner, childScope, first, last, _compilerOwned, parent) => adoptStaticChildren(root, [...values], currentNodes, owner, childScope, first, last, parent));
+  if (!mounted) { scope.stop(); return undefined; }
+  return [mounted];
+ };
+ const direct = adoptOutput(start, end);
 	if (direct) return direct;
 	const opening = nodes[start];
 	if (!(opening instanceof Comment) || !isChildRangeOpening(opening.data)) return undefined;
 	const closingIndex = closingMarkerIndex(nodes, start, opening.data, end);
 	if (closingIndex !== end - 1) return undefined;
-	const adopted = adoptStaticChildren(
-		root,
-		children,
-		nodes,
-		parentInstance,
-		parentScope,
-		start + 1,
-		closingIndex
-	);
+	const adopted = adoptOutput(start + 1, closingIndex);
 	if (!adopted) return undefined;
 	opening.remove();
 	const closing = nodes[closingIndex];

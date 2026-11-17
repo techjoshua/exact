@@ -1,3 +1,4 @@
+import type { ExactRenderProgramInvocation } from '@exactjs/core/runtime/render-operations';
 import { retainSuppliedPlacement } from './supplied-placement-capability.js';
 import {
 	attachSuppressedCleanupFailure,
@@ -7,6 +8,8 @@ import {
 } from '@exactjs/core';
 import {
 	exactCompiledClientAttachment,
+ exactCompiledDirectProgramAttachment,
+ type ExactCompiledDirectProgramTarget,
 	exactCompatibilityClientAttachment,
 	type ExactClientComponentArtifact,
 	type ExactCompiledClientAttachmentTarget,
@@ -16,7 +19,7 @@ import type { Mounted, Root } from '../types.js';
 import { withEffectScope } from '@exactjs/reactive/framework/runtime';
 import { unmountMounted } from './teardown.js';
 
-type AttachmentTarget = ExactCompiledClientAttachmentTarget &
+type AttachmentTarget = Partial<ExactCompiledDirectProgramTarget> & ExactCompiledClientAttachmentTarget &
 	ExactCompatibilityClientAttachmentTarget;
 
 /**
@@ -32,6 +35,7 @@ export class PreparedComponentAttachment {
 	private mounted?: Mounted;
 	private target?: AttachmentTarget;
 	private children?: Child[];
+ private directProgram?: ExactRenderProgramInvocation;
 	private compatibility = false;
 	private finish?: () => void;
 	private mode: 'mount' | 'hydrate' = 'mount';
@@ -76,7 +80,7 @@ export class PreparedComponentAttachment {
 		this.finish = finish;
 		this.mode = mode;
 		artifact.attach(instance, this, mode);
-		if (!this.children && !this.compatibility)
+		if (!this.children && !this.directProgram && !this.compatibility)
 			throw new Error('Component artifact did not supply an attachment');
 		this.phase = 'ready';
 	}
@@ -93,6 +97,14 @@ export class PreparedComponentAttachment {
 		this.children = children;
 		return this.mounted!;
 	}
+
+ /** Captures a typed finite invocation without turning it into a generic child operation. */
+ [exactCompiledDirectProgramAttachment](artifact: ExactClientComponentArtifact, instance: object, invocation: ExactRenderProgramInvocation, mode: 'mount' | 'hydrate'): Mounted {
+  this.assertCapture(artifact, instance, mode);
+  if (invocation.owner !== instance) throw new TypeError('Direct output capture has a different owner');
+  this.directProgram = invocation;
+  return this.mounted!;
+ }
 
 	/** Retains foreign output as an opaque renderer-owned attachment. */
 	[exactCompatibilityClientAttachment](
@@ -121,6 +133,7 @@ export class PreparedComponentAttachment {
 		const mounted = this.mounted;
 		this.phase = 'committing';
 		try {
+			if (project && this.directProgram) throw new TypeError('Direct region structural projection is not implemented in this private prototype');
 			if (project && this.compatibility)
 				throw new TypeError('Native output projection cannot inspect a compatibility island');
 			const children = project
@@ -128,7 +141,12 @@ export class PreparedComponentAttachment {
 						withComponentDomain(mounted.instance!.domain, () => project(this.children!))
 					)
 				: this.children;
-			if (this.compatibility)
+			if (this.directProgram) {
+ const attach = presentation[exactCompiledDirectProgramAttachment];
+ if (!attach) throw new TypeError('The receiving presentation does not support direct compiled regions');
+ attach.call(presentation, mounted.clientArtifact!, mounted.instance!, this.directProgram, mode);
+ }
+			else if (this.compatibility)
 				presentation[exactCompatibilityClientAttachment](
 					mounted.clientArtifact!,
 					mounted.instance!,
@@ -172,6 +190,7 @@ export class PreparedComponentAttachment {
 		if (
 			this.phase !== 'preparing' ||
 			this.children ||
+ this.directProgram ||
 			this.compatibility ||
 			mode !== this.mode ||
 			artifact !== this.mounted?.clientArtifact ||
@@ -184,6 +203,7 @@ export class PreparedComponentAttachment {
 		this.mounted = undefined;
 		this.target = undefined;
 		this.children = undefined;
+ this.directProgram = undefined;
 		this.finish = undefined;
 	}
 }

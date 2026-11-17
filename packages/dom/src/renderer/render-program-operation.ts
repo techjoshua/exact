@@ -1,5 +1,6 @@
 import type { AnyComponentInstance } from '@exactjs/core';
 import {
+	type ExactRenderProgramInvocation,
 	readRenderProgram,
 	readRenderProgramReceipt,
 	type ExactDirectRenderProgram,
@@ -24,8 +25,21 @@ export function mountRenderProgram(
 	parentInstance?: AnyComponentInstance,
 	parentNode?: Node
 ): Mounted | undefined {
-	const invocation = readRenderProgram(value);
-	if (!invocation) return undefined;
+ const receipt = readRenderProgramReceipt(value);
+ if (!receipt) return undefined;
+ const mounted = mountDirectRenderProgram(root, receipt.invocation, scope, parentInstance, parentNode);
+ if (mounted) mounted.renderProgramReceipt = receipt;
+ return mounted;
+}
+
+/** Attaches a typed component-owned region without receipt redemption or generic execution. */
+export function mountDirectRenderProgram(
+ root: Root,
+ invocation: ExactRenderProgramInvocation,
+ scope: EffectScope,
+ parentInstance?: AnyComponentInstance,
+ parentNode?: Node
+): Mounted | undefined {
 	const bindingOwner = (invocation.owner as AnyComponentInstance | undefined) ?? parentInstance;
 	const program = directProgram(invocation.program);
 	const fragment = materializeProgramTemplate(
@@ -38,10 +52,7 @@ export function mountRenderProgram(
 	if (!(dom instanceof Element)) return undefined;
 	const direct = claimCompiledRenderProgram(program, dom, 'template');
 	if (!direct) return undefined;
-	const receipt = readRenderProgramReceipt(value);
-	if (!receipt) return undefined;
 	const mounted: Mounted = {
-		renderProgramReceipt: receipt,
 		dom,
 		scope,
 		children: [],

@@ -18,6 +18,21 @@ export const exactCompiledClientAttachment = Symbol.for(
 	'@exactjs/compiled-client-component-attachment'
 );
 
+/** Direct finite output cursor, entered only by a compiled component attachment. */
+export const exactCompiledDirectProgramAttachment = Symbol.for(
+ '@exactjs/compiled-direct-program-attachment'
+);
+
+/** A direct region has a lexical component owner; escaped child values use their own contract. */
+export type ExactCompiledDirectProgramTarget = Readonly<{
+ [exactCompiledDirectProgramAttachment](
+  artifact: ExactClientComponentArtifact,
+  instance: object,
+  invocation: import('../render-program.js').ExactRenderProgramInvocation,
+  mode: ExactClientAttachMode
+ ): ExactClientMountedRange;
+}>;
+
 /** DOM protocol key used by a foreign renderer's fixed compiled island artifact. */
 export const exactCompatibilityClientAttachment = Symbol.for(
 	'@exactjs/compatibility-client-component-attachment'

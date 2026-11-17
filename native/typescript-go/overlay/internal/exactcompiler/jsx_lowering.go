@@ -9,8 +9,9 @@ import (
 )
 
 type jsxLowering struct {
-	importedPolicy   *importedHelperPolicyPlan
-	taskMethodOwners map[SourceSpan]taskMethodCreation
+	directComponentPrograms map[string]struct{}
+	importedPolicy          *importedHelperPolicyPlan
+	taskMethodOwners        map[SourceSpan]taskMethodCreation
 
 	helperMutations              helperMutationPlan
 	helperMutationOrder          []string
