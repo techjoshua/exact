@@ -123,6 +123,7 @@ func newSourceValueOwner(c *checker.Checker) *sourceValueOwner {
 // declaration widens after its finite source input relation stops growing. Normal
 // execution retains its declaration guard instead of growing capture contexts.
 type sourceValueQuery struct {
+	awaitThenInputs            *sourceAwaitThenInputs         // original Await-selected protocol binder; synchronous Effects only
 	componentContextSource     *sourceBoundComponentProtocol  // Original bound-member SOURCE interval; never cached.
 	originalGetMutationTarget  *sourceOriginalGetTargetBorrow // Same original native-target SOURCE query only; revoked synchronously.
 	installedCallBody          *sourceInstalledCallBody

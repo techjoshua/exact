@@ -453,3 +453,48 @@ func newPublicAwaitRequiredFixture(t *testing.T, source string) *executableFixtu
 	}
 	return f
 }
+
+// Only Await supplies these protocol roles. Ordinary same-shaped callbacks and
+// an authored replacement keep their own behavior; source membership is not a role.
+func TestPublicAwaitResolverRoleRefusals(t *testing.T) {
+	for _, target := range []Target{TargetClient, TargetServer} {
+		for _, row := range []struct{ name, invoke, replacement string }{
+			{"ordinary call", "outer.then((_value:unknown)=>undefined,(_reason:unknown)=>undefined);await 'quiet'", ""},
+			{"replaced resolve", "await outer", "resolve=(_value:unknown)=>undefined;"},
+		} {
+			t.Run(string(target)+"/"+row.name, func(t *testing.T) {
+				body := `const nested={get then():undefined{void window.name;return undefined}};const input={get value(){void document.title;return nested}};const outer={then(resolve:(value:unknown)=>void,reject:(reason:unknown)=>void){` + row.replacement + `resolve(input.value)}};` + row.invoke + `;this.state.label='done';`
+				f := newPublicAwaitRequiredFixture(t, publicAwaitRequiredPage("", body, target))
+				analysis, _ := checkPublicAwaitRequiredTask(t, NewSession(), f, target, true, false)
+				run := findCallable(t, analysis.Analysis.Callables, "run")
+				for _, effects := range [][]EnvironmentEffectSource{run.EffectSources, analysis.Analysis.Tasks[0].EffectSources} {
+					for _, effect := range effects {
+						if strings.Contains(effect.Description, "window") {
+							t.Fatal("ordinary callback borrowed an Await resolve role", effect)
+						}
+					}
+				}
+			})
+		}
+	}
+}
+
+// A retired Await binder cannot qualify an ordinary callback in the next source
+// generation. The real task loses its browser denial and agrees with a fresh Session.
+func TestPublicAwaitResolverRoleEdit(t *testing.T) {
+	body := `const nested={get then():undefined{void window.name;return undefined}};const input={get value(){return nested}};const outer={then(resolve:(value:unknown)=>void,reject:(reason:unknown)=>void){resolve(input.value)}};await outer;this.state.label='done';`
+	before := publicAwaitRequiredPage("", body, TargetServer)
+	after := strings.Replace(before, "await outer;", "outer.then((_value:unknown)=>undefined,(_reason:unknown)=>undefined);await 'quiet';", 1)
+	f := newPublicAwaitRequiredFixture(t, before)
+	session := NewSession()
+	checkPublicAwaitRequiredTask(t, session, f, TargetServer, true, false)
+	f.files["entry.tsx"] = after
+	if err := os.WriteFile(f.request("analyze", "entry.tsx").ID, []byte(after), 0600); err != nil {
+		t.Fatal(err)
+	}
+	retained, retainedCode := checkPublicAwaitRequiredTask(t, session, f, TargetServer, false, false)
+	fresh, freshCode := checkPublicAwaitRequiredTask(t, NewSession(), f, TargetServer, false, false)
+	if retainedCode.Code != freshCode.Code || retained.Analysis.Tasks[0].EnvironmentEffect != fresh.Analysis.Tasks[0].EnvironmentEffect {
+		t.Fatal("retired Await role changed retained task output")
+	}
+}
