@@ -4,7 +4,10 @@ import {
 	ClipboardProbe,
 	ClipboardNoCatchProbe,
 	ClipboardPromiseProbe,
-	CleanupProbe
+	CleanupProbe,
+	InheritedAwaitProbe,
+	NestedAssimilationProbe,
+	AsyncPrimitiveAwaitProbe
 } from './test-support/cancelled-task-catch.fixtures.js';
 afterEach(() => vi.unstubAllGlobals());
 
@@ -110,3 +113,63 @@ function pendingOperation() {
 	});
 	return { promise, resolve, reject };
 }
+
+it('retains inherited Await getter receiver and abrupt completion through a real task', async () => {
+	const view = await testComponent(InheritedAwaitProbe).mount();
+	const button = view.container.querySelector('button');
+	try {
+		expect(view.getBySelector('output').text()).toBe('initial');
+		await view.getByRole('button', { name: 'Run inherited' }).click();
+		expect(view.getBySelector('output').text()).toBe('receiver');
+		expect(view.root.state().label).toBe('receiver');
+		expect(view.container.querySelector('button')).toBe(button);
+		await view.getByRole('button', { name: 'Throw inherited' }).click();
+		expect(view.getBySelector('output').text()).toBe('caught:inherited');
+	} finally {
+		view.unmount();
+	}
+	expect(view.container.textContent).toBe('');
+});
+
+it('distinguishes nested resolve assimilation from rejection and throwing argument Get', async () => {
+	const view = await testComponent(NestedAssimilationProbe).mount();
+	const button = view.container.querySelector('button');
+	try {
+		await view.getByRole('button', { name: 'Resolve nested' }).click();
+		expect(view.getBySelector('output').text()).toBe('resolved');
+		expect(view.root.state().trace.startsWith('argument|')).toBe(true);
+		expect(view.root.state().trace).toContain('then|');
+		await view.getByRole('button', { name: 'Reject nested' }).click();
+		expect(view.getBySelector('output').text()).toBe('rejected');
+		expect(view.root.state().trace).toBe('argument|');
+		await view.getByRole('button', { name: 'Throw resolve argument' }).click();
+		expect(view.getBySelector('output').text()).toBe('caught:argument');
+		expect(view.root.state().trace).toBe('argument|');
+		await view.getByRole('button', { name: 'Throw reject argument' }).click();
+		expect(view.getBySelector('output').text()).toBe('caught:argument');
+		expect(view.root.state().trace).toBe('argument|');
+		expect(view.container.querySelector('button')).toBe(button);
+	} finally {
+		view.unmount();
+	}
+	expect(view.container.textContent).toBe('');
+});
+
+it('retains constructor Get while awaiting an async primitive and restores its descriptor', async () => {
+	const original = Object.getOwnPropertyDescriptor(Promise.prototype, 'constructor');
+	const view = await testComponent(AsyncPrimitiveAwaitProbe).mount();
+	const button = view.container.querySelector('button');
+	try {
+		await view.getByRole('button', { name: 'Await primitive' }).click();
+		expect(view.getBySelector('output').text()).toBe('primitive');
+		expect(view.root.state().constructorRead).toBe(true);
+		expect(view.getBySelector('data').text()).toBe('true');
+		expect(view.container.querySelector('button')).toBe(button);
+		expect(Object.getOwnPropertyDescriptor(Promise.prototype, 'constructor')).toEqual(original);
+	} finally {
+		view.unmount();
+		if (original) Object.defineProperty(Promise.prototype, 'constructor', original);
+		else Reflect.deleteProperty(Promise.prototype, 'constructor');
+	}
+	expect(view.container.textContent).toBe('');
+});
