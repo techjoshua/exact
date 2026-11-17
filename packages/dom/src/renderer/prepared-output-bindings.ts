@@ -1,3 +1,5 @@
+import type { PreparedComponentOutput } from './prepared-component-attachment.js';
+import type { ExactRenderProgramInvocation } from '@exactjs/core/runtime/render-operations';
 import { acquiredComponentChildren } from './component-receipt-binding.js';
 import { readClientComponentInput } from './component-input-admission.js';
 import {
@@ -32,7 +34,11 @@ import type { Mounted, Root } from '../types.js';
 import { childEnhancementEntries } from './enhancement-chain.js';
 
 /** Incoming namespace entries and the actual boundary that owns their selection. */
-type Binding = { entries: readonly EnhancementEntry[]; boundary: Mounted };
+type Binding = {
+	entries: readonly EnhancementEntry[];
+	boundary: Mounted;
+	output: PreparedComponentOutput;
+};
 // Issued operations retain identity. Validated admitted recipes are temporary renderer views.
 const bindings = new WeakMap<Root, Map<object, Binding>>();
 
@@ -81,16 +87,17 @@ export function preparedEnhancementBinding(root: Root, value: Child): Binding | 
 export function withPreparedEnhancementBindings<T>(
 	root: Root,
 	boundary: Mounted,
-	children: Child[],
-	adopt: (children: Child[]) => T
+	output: PreparedComponentOutput,
+	adopt: (output: PreparedComponentOutput) => T
 ): T {
+	let children = Array.isArray(output) ? output : [output];
 	const receipt = boundary.componentReceipt;
-	if (!receipt) return adopt(children);
+	if (!receipt) return adopt(output);
 	const inherited = preparedEnhancementBinding(
 		root,
 		boundary.operation ?? receipt.admitted.operation
 	);
-	if (!inherited && !receipt.enhancement) return adopt(children);
+	if (!inherited && !receipt.enhancement) return adopt(output);
 	const merged = new Map((inherited?.entries ?? []).map((entry) => [entry.identity, entry]));
 	for (const entry of receipt.enhancement?.entries ?? []) {
 		const previous = merged.get(entry.identity);
@@ -107,9 +114,11 @@ export function withPreparedEnhancementBindings<T>(
 			root.enhancementCatalog?.has(entry.identity) &&
 			!isExactEnhancementPassThrough(root.enhancementCatalog.get(entry.identity))
 	);
-	if (!entries.length) return adopt(children);
+	if (!entries.length) return adopt(output);
 	const restoreFallback = checkpointEnhancementFallback(entries);
-	const closedRoot = children.length === 1 && readRenderProgramReceipt(children[0]);
+	const closedRoot =
+		children.length === 1 &&
+		(!Array.isArray(output) ? { invocation: output } : readRenderProgramReceipt(children[0]));
 	if (closedRoot && !closedRoot.invocation.program.targetSlots?.length) {
 		// With no structural slots, this intrinsic is the only possible destination.
 		// Preserve adoption rollback without allocating a candidate traversal.
@@ -117,9 +126,9 @@ export function withPreparedEnhancementBindings<T>(
 		const routes = bindings.get(root) ?? new Map<object, Binding>();
 		bindings.set(root, routes);
 		const previous = routes.get(key);
-		routes.set(key, { entries, boundary: inherited?.boundary ?? boundary });
+		routes.set(key, { entries, boundary: inherited?.boundary ?? boundary, output });
 		try {
-			const result = adopt(children);
+			const result = adopt(output);
 			if (result === undefined) restoreFallback();
 			return result;
 		} catch (error) {
@@ -207,7 +216,7 @@ export function withPreparedEnhancementBindings<T>(
 		for (const [index, key] of keys.entries()) {
 			if (!previous.has(key)) {
 				previous.set(key, routes.get(key));
-				routes.set(key, { entries: [], boundary: inherited?.boundary ?? boundary });
+				routes.set(key, { entries: [], boundary: inherited?.boundary ?? boundary, output });
 			}
 			const binding = routes.get(key)!;
 			routes.set(key, { ...binding, entries: [...binding.entries, candidates[index]!] });
@@ -229,6 +238,18 @@ export function withPreparedEnhancementBindings<T>(
 	}
 }
 
+/** Reads only the original typed output carried by this still-active preparation row. */
+export function preparedDirectComponentOutput(
+	root: Root,
+	value: Child
+): ExactRenderProgramInvocation | undefined {
+	const row =
+		typeof value === 'object' && value !== null ? bindings.get(root)?.get(value) : undefined;
+	return row && row.boundary.scope.active && !Array.isArray(row.output) && row.output === value
+		? row.output
+		: undefined;
+}
+
 /** Consumes a selected operation while adopting its own wrapper chain, preventing recursive activation. */
 export function consumePreparedEnhancementBinding<T>(root: Root, value: Child, adopt: () => T): T {
 	const key = readClientComponentInput(value)?.admitted.operation ?? value;
@@ -238,7 +259,9 @@ export function consumePreparedEnhancementBinding<T>(root: Root, value: Child, a
 	if (!binding) return adopt();
 	const restoreFallback = checkpointEnhancementFallback(binding.entries);
 	for (const entry of binding.entries) claimEnhancementFallback(entry);
-	routes!.delete(key);
+	if (!Array.isArray(binding.output) && binding.output === value)
+		routes!.set(key, { ...binding, entries: [] });
+	else routes!.delete(key);
 	try {
 		const result = adopt();
 		if (result === undefined) restoreFallback();

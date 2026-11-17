@@ -3,7 +3,10 @@ import type { Child } from '../component/contracts.js';
 import { readSuppliedTargetValue } from '../framework/prepared-target-output.js';
 import { composeTargetProps } from '../framework/target-contributions.js';
 import { readCompiledFragmentReceipt } from './fragment-receipt.js';
-import { readCompiledIntrinsicReceipt } from './intrinsic-receipt.js';
+import {
+	type ExactIntrinsicReceiptData,
+	readCompiledIntrinsicReceipt
+} from './intrinsic-receipt.js';
 import { readCompiledTargetReceipt } from './target-receipt.js';
 import { readCompiledKeyedChildReceipt } from './keyed-child-receipt.js';
 import { readChildRangeReceipt } from './child-range-receipt.js';
@@ -18,7 +21,10 @@ import {
 /** Renderer-owned resolver for prepared component and program output within the same text projection. */
 export type PreparedTextResolver = (
 	value: unknown,
-	project: (children: readonly Child[]) => string
+	project: (
+		children: readonly Child[] | ExactIntrinsicReceiptData,
+		supplied?: PreparedTextResolver
+	) => string
 ) => string | undefined;
 
 type Layer = { props: Readonly<Record<string, unknown>>; consumed: boolean };
@@ -61,9 +67,17 @@ function projectChild(
 	if (typeof value === 'string' || typeof value === 'number')
 		return markup ? escapeProjectedText(String(value)) : String(value);
 	if (Array.isArray(value)) return projectChildren(value, layers, markup, policy, resolve);
-	const prepared = resolve?.(value, (output) =>
-		projectChildren(output, layers, markup, policy, resolve)
-	);
+	const prepared = resolve?.(value, (output, supplied) => {
+		// A renderer may carry one explicitly supplied typed value through authored composition.
+		// This extends the current projection callback, not public Child admission or execution authority.
+		const current = supplied
+			? (((value, project) =>
+					supplied(value, project) ?? resolve?.(value, project)) satisfies PreparedTextResolver)
+			: resolve;
+		return Array.isArray(output)
+			? projectChildren(output, layers, markup, policy, current)
+			: projectIntrinsic(output as ExactIntrinsicReceiptData, layers, policy, current);
+	});
 	if (prepared !== undefined) return prepared;
 	const range = readChildRangeReceipt(value);
 	if (range && !range.dynamicComponent)
@@ -87,28 +101,37 @@ function projectChild(
 	if (fragment && !fragment.enhancement)
 		return projectChildren(fragment.children, layers, markup, policy, resolve);
 	const intrinsic = readCompiledIntrinsicReceipt(value);
-	if (intrinsic && !intrinsic.enhancement) {
-		let props = intrinsic.props;
-		for (let index = layers.length - 1; index >= 0; index--) {
-			const layer = layers[index]!;
-			if (layer.consumed) continue;
-			layer.consumed = true;
-			props = composeTargetProps(props, layer.props);
-		}
-		const tag = intrinsic.tag;
-		const opening = `<${tag}${projectedAttributes(props, tag, policy)}>`;
-		if (projectedVoidTags.has(tag)) return opening;
-		const textHost = tag === 'title' || tag === 'textarea';
-		const rawHost = tag === 'script' || tag === 'style';
-		const content = projectChildren(
-			intrinsic.children,
-			layers,
-			!textHost && !rawHost,
-			policy,
-			resolve
-		);
-		const prefix = tag === 'textarea' && content.startsWith('\n') ? '\n' : '';
-		return `${opening}${prefix}${textHost ? escapeProjectedText(content) : content}</${tag}>`;
-	}
+	if (intrinsic && !intrinsic.enhancement)
+		return projectIntrinsic(intrinsic, layers, policy, resolve);
 	throw new TypeError('Text projection requires prepared intrinsic, fragment, or target output');
+}
+
+/** Shares ordinary prepared-host escaping and contribution semantics with typed finite projection. */
+function projectIntrinsic(
+	intrinsic: ExactIntrinsicReceiptData,
+	layers: Layer[],
+	policy: TextProjectionPolicy,
+	resolve?: PreparedTextResolver
+): string {
+	let props = intrinsic.props;
+	for (let index = layers.length - 1; index >= 0; index--) {
+		const layer = layers[index]!;
+		if (layer.consumed) continue;
+		layer.consumed = true;
+		props = composeTargetProps(props, layer.props);
+	}
+	const tag = intrinsic.tag;
+	const opening = `<${tag}${projectedAttributes(props, tag, policy)}>`;
+	if (projectedVoidTags.has(tag)) return opening;
+	const textHost = tag === 'title' || tag === 'textarea';
+	const rawHost = tag === 'script' || tag === 'style';
+	const content = projectChildren(
+		intrinsic.children,
+		layers,
+		!textHost && !rawHost,
+		policy,
+		resolve
+	);
+	const prefix = tag === 'textarea' && content.startsWith('\n') ? '\n' : '';
+	return `${opening}${prefix}${textHost ? escapeProjectedText(content) : content}</${tag}>`;
 }

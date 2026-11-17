@@ -802,10 +802,12 @@ func (s *Session) executeProjection(request Request, authored *authoredCheckProg
 	if request.Target == TargetClient {
 		importedPolicy = planImportedHelperPolicy(sourceFile, generation.checker, callables.owner, components, callables.byNode)
 	}
+	directRoots := make(map[string]struct{})
 	transformed, componentUpdates, componentInputUpdates, componentInputTaskIDs, componentRangeOutputs, artifactStructure, componentListOwners := lowerExactJSX(
 		sourceFile,
 		emitContext,
 		jsxLoweringPlan{
+			directRoots:          directRoots,
 			importedPolicy:       importedPolicy,
 			analysisFacts:        analysisFacts,
 			helperMutations:      helperMutations,
@@ -868,6 +870,7 @@ func (s *Session) executeProjection(request Request, authored *authoredCheckProg
 		request.ComponentContractProjection,
 		componentUpdates,
 		componentInputUpdates,
+		directRoots,
 	)
 	transformed = lowerEnhancementContextContracts(
 		transformed,

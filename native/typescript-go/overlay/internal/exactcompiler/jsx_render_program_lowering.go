@@ -197,6 +197,22 @@ func (lowering *jsxLowering) lowerRenderProgramWithRootAttributes(
 			contractProperty(lowering.factory, "read", lowering.arrow(values)),
 		))
 	}
+	if component, direct := lowering.directReturnedProgram(identityNode, build, enhancement); direct {
+		lowering.directRoots[component] = struct{}{}
+		fields := []*ast.Node{
+			contractProperty(lowering.factory, "program", arguments[0]),
+			contractProperty(lowering.factory, "readers", arguments[1]),
+			contractProperty(lowering.factory, "owner", arguments[2]),
+		}
+		if propertyWriter != nil {
+			fields = append(fields, contractProperty(lowering.factory, "propertyWriter", propertyWriter))
+		}
+		// The helper-free record still supplies the original callback contextual types.
+		invocationType := lowering.factory.NewImportTypeNode(false,
+			lowering.factory.NewLiteralTypeNode(lowering.factory.NewStringLiteral("@exactjs/core/runtime/render-operations", ast.TokenFlagsNone)),
+			nil, lowering.factory.NewIdentifier("ExactRenderProgramInvocation"), nil)
+		return lowering.factory.NewSatisfiesExpression(contractObject(lowering.factory, false, fields...), invocationType), ""
+	}
 	invocation := lowering.call(prepared, arguments)
 	if !deferred && !lowering.composableRenderProgram && lowering.target == TargetServer && enhancement == nil && staticServerInvocationSlots(build) && lowering.literalServerInvocationValue(arguments[1]) {
 		return lowering.hoistStaticServerInvocation(identityNode.Pos(), programName, invocation), ""
@@ -1151,4 +1167,64 @@ func (lowering *jsxLowering) renderProgramIslandChild(node, opening *ast.Node, c
 		return lowering.lowerServerClientIsland(node, opening, children, island)
 	}
 	return lowering.visitor.VisitNode(node)
+}
+
+// directReturnedProgram accepts only a component's own concise returned render root. A JSX
+// value saved, passed, inspected or returned through another function retains its existing
+// child-composition contract. This local syntactic guarantee does not depend on callers.
+func (lowering *jsxLowering) directReturnedProgram(node *ast.Node, build *renderProgramBuild, enhancement *ast.Node) (string, bool) {
+	if lowering.directRoots == nil || lowering.target != TargetClient || lowering.composableRenderProgram || enhancement != nil || len(build.nodes) != 1 {
+		return "", false
+	}
+	for _, slot := range build.slots {
+		if slot.kind == "child" || slot.kind == "component" || slot.kind == "spread" || slot.kind == "root-attributes" {
+			return "", false
+		}
+	}
+	root := node
+	for root.Parent != nil && ast.IsParenthesizedExpression(root.Parent) {
+		root = root.Parent
+	}
+	arrow := root.Parent
+	if !ast.IsArrowFunction(arrow) || arrow.Body() != root {
+		return "", false
+	}
+	returned := arrow.Parent
+	if returned == nil || !ast.IsReturnStatement(returned) || returned.AsReturnStatement().Expression != arrow {
+		return "", false
+	}
+	body := returned.Parent
+	if body == nil || !ast.IsBlock(body) || body.Parent == nil || !ast.IsFunctionDeclaration(body.Parent) {
+		return "", false
+	}
+	// Do not select a component-wide direct attachment if another outer return can choose
+	// a different representation. This is a finite syntax check, not an escape/dataflow engine.
+	statements := body.AsBlock().Statements.Nodes
+	if len(statements) == 0 || statements[len(statements)-1] != returned {
+		return "", false
+	}
+	for _, statement := range statements[:len(statements)-1] {
+		switch statement.Kind {
+		case ast.KindExpressionStatement, ast.KindVariableStatement, ast.KindFunctionDeclaration, ast.KindClassDeclaration, ast.KindInterfaceDeclaration, ast.KindTypeAliasDeclaration, ast.KindEmptyStatement:
+		default:
+			return "", false
+		}
+	}
+	component, exists := lowering.componentContaining(node)
+	if !exists || body.Parent.Name() == nil || body.Parent.Name().Text() != component.Name {
+		return "", false
+	}
+	// Keys describe sibling identity and are not a substitute for occurrence/escape ownership.
+	opening, _ := composableJsxParts(node)
+	if opening == nil {
+		return "", false
+	}
+	if attributes := opening.Attributes(); attributes != nil {
+		for _, property := range attributes.AsJsxAttributes().Properties.Nodes {
+			if !ast.IsJsxAttribute(property) || jsxAttributeText(property.Name()) == "key" {
+				return "", false
+			}
+		}
+	}
+	return component.Name, true
 }

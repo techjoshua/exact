@@ -23,6 +23,7 @@ func lowerComponentContracts(
 	projection ComponentContractProjection,
 	componentUpdates map[string]string,
 	componentInputUpdates map[string]string,
+	directRoots map[string]struct{},
 ) *ast.SourceFile {
 	if target == TargetDefault {
 		return sourceFile
@@ -41,6 +42,8 @@ func lowerComponentContracts(
 	used := sourceIdentifiers(sourceFile)
 	brandingName := allocateGeneratedName(used, "__exactBrandComponent")
 	constructors := componentConstructorImports{
+		directRoots:             directRoots,
+		directClientAttachName:  allocateGeneratedName(used, "__exactAttachDirectProgramComponent"),
 		taskBindings:            newContinuationTaskBindings(sourceFile, used),
 		localizationContextName: allocateGeneratedName(used, "__exactContinuationLocalizationContext"),
 		renderName:              allocateGeneratedName(used, "__exactConstructRenderComponent"),
@@ -206,6 +209,9 @@ func lowerComponentContracts(
 }
 
 type componentConstructorImports struct {
+	directRoots             map[string]struct{}
+	directClientAttachName  string
+	directClientAttachUsed  bool
 	arrayImports            map[string]string
 	taskBindings            *continuationTaskBindings
 	localizationContextName string
@@ -317,6 +323,9 @@ func (imports *componentConstructorImports) declarations(factory *printer.NodeFa
 	}
 	if imports.localizationContextUsed {
 		declarations = append(declarations, componentConstructorImport(factory, "LocalizationContext", imports.localizationContextName, "@exactjs/core/runtime/localization"))
+	}
+	if imports.directClientAttachUsed {
+		declarations = append(declarations, componentConstructorImport(factory, "attachExactCompiledDirectProgramComponent", imports.directClientAttachName, "@exactjs/dom/runtime/direct-component"))
 	}
 	if imports.clientOperationsUsed {
 		declarations = append(declarations, componentOperationImports(factory, []componentOperationImport{
@@ -833,6 +842,10 @@ func rootComponentContractAttachment(
 	)
 	propsSlots := component.PropsSlots
 	targetOperations := constructors.targetOperations(factory, target)
+	if _, direct := constructors.directRoots[component.Name]; direct && target == TargetClient {
+		constructors.directClientAttachUsed = true
+		targetOperations.attach = factory.NewIdentifier(constructors.directClientAttachName)
+	}
 	artifact := componentArtifactMetadata(
 		factory,
 		component.ID,

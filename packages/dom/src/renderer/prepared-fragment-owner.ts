@@ -20,7 +20,7 @@ export interface PreparedOwner {
 	identity: symbol;
 	attachment: PreparedComponentAttachment;
 	instance: AnyComponentInstance;
-	output: readonly Child[];
+	output: Child[];
 	child: Child;
 	tag?: string;
 	mounted: Mounted;
@@ -44,23 +44,28 @@ export function prepareFragmentOwner(
 ): PreparedOwner {
 	const attachment = prepareComponentReceipt(root, receipt, parent, scope, parentNode, mode);
 	try {
+		const output = attachment.output;
+		if (!Array.isArray(output))
+			throw new TypeError(
+				'Fragment contribution preparation requires a single supplied-target placement'
+			);
 		const owner: PreparedOwner = {
 			identity: Symbol(entry.identity),
 			attachment,
 			instance: attachment.owner,
-			output: attachment.output,
+			output,
 			child,
 			mounted: attachment.ownedRange,
 			operation,
 			entry,
 			tag
 		};
-		readPreparedTargetOutput(owner.output, child);
+		readPreparedTargetOutput(output, child);
 		pending.append({
 			operation: receipt.admitted.operation,
 			parent,
 			attachment,
-			project: (output) => [
+			project: () => [
 				createChildRangeReceipt(
 					computed(() =>
 						withComponentDomain(owner.instance.domain, () => {

@@ -1,3 +1,4 @@
+import type { ExactRenderProgramInvocation } from '@exactjs/core/runtime/render-operations';
 import { retainSuppliedPlacement } from './supplied-placement-capability.js';
 import {
 	attachSuppressedCleanupFailure,
@@ -7,6 +8,8 @@ import {
 } from '@exactjs/core';
 import {
 	exactCompiledClientAttachment,
+	exactCompiledDirectProgramAttachment,
+	type ExactCompiledDirectProgramTarget,
 	exactCompatibilityClientAttachment,
 	type ExactClientComponentArtifact,
 	type ExactCompiledClientAttachmentTarget,
@@ -16,7 +19,15 @@ import type { Mounted, Root } from '../types.js';
 import { withEffectScope } from '@exactjs/reactive/framework/runtime';
 import { unmountMounted } from './teardown.js';
 
-type AttachmentTarget = ExactCompiledClientAttachmentTarget &
+/** Captured output retains its typed finite root until the receiving presentation consumes it. */
+export type PreparedComponentOutput = Child[] | ExactRenderProgramInvocation;
+/** Projects captured output without executing the component render a second time. */
+export type PreparedComponentProjection = (
+	output: PreparedComponentOutput
+) => PreparedComponentOutput;
+
+type AttachmentTarget = Partial<ExactCompiledDirectProgramTarget> &
+	ExactCompiledClientAttachmentTarget &
 	ExactCompatibilityClientAttachmentTarget;
 
 /**
@@ -31,7 +42,8 @@ export class PreparedComponentAttachment {
 
 	private mounted?: Mounted;
 	private target?: AttachmentTarget;
-	private children?: Child[];
+	private children?: PreparedComponentOutput;
+
 	private compatibility = false;
 	private finish?: () => void;
 	private mode: 'mount' | 'hydrate' = 'mount';
@@ -49,7 +61,7 @@ export class PreparedComponentAttachment {
 	}
 
 	/** Returns the captured native output; compatibility islands remain opaque to native planners. */
-	get output(): readonly Child[] {
+	get output(): PreparedComponentOutput {
 		if (this.phase !== 'ready' || !this.children)
 			throw new Error('Native component output is not available for preparation');
 		return this.children;
@@ -94,6 +106,20 @@ export class PreparedComponentAttachment {
 		return this.mounted!;
 	}
 
+	/** Captures a typed finite invocation without turning it into a generic child operation. */
+	[exactCompiledDirectProgramAttachment](
+		artifact: ExactClientComponentArtifact,
+		instance: object,
+		invocation: ExactRenderProgramInvocation,
+		mode: 'mount' | 'hydrate'
+	): Mounted {
+		this.assertCapture(artifact, instance, mode);
+		if (invocation.owner !== instance)
+			throw new TypeError('Direct output capture has a different owner');
+		this.children = invocation;
+		return this.mounted!;
+	}
+
 	/** Retains foreign output as an opaque renderer-owned attachment. */
 	[exactCompatibilityClientAttachment](
 		artifact: ExactClientComponentArtifact,
@@ -113,7 +139,7 @@ export class PreparedComponentAttachment {
 	 */
 	commit(
 		presentation: AttachmentTarget = this.target!,
-		project?: (children: readonly Child[]) => Child[],
+		project?: PreparedComponentProjection,
 		mode: 'mount' | 'hydrate' = this.mode
 	): Mounted {
 		if (this.phase !== 'ready' || !this.mounted || !this.mounted.scope.active)
@@ -128,7 +154,14 @@ export class PreparedComponentAttachment {
 						withComponentDomain(mounted.instance!.domain, () => project(this.children!))
 					)
 				: this.children;
-			if (this.compatibility)
+			if (children && !Array.isArray(children)) {
+				const attach = presentation[exactCompiledDirectProgramAttachment];
+				if (!attach)
+					throw new TypeError(
+						'The receiving presentation does not support direct compiled regions'
+					);
+				attach.call(presentation, mounted.clientArtifact!, mounted.instance!, children, mode);
+			} else if (this.compatibility)
 				presentation[exactCompatibilityClientAttachment](
 					mounted.clientArtifact!,
 					mounted.instance!,
@@ -138,7 +171,7 @@ export class PreparedComponentAttachment {
 				presentation[exactCompiledClientAttachment](
 					mounted.clientArtifact!,
 					mounted.instance!,
-					children!,
+					children as Child[],
 					mode
 				);
 			this.finish!();
@@ -184,6 +217,7 @@ export class PreparedComponentAttachment {
 		this.mounted = undefined;
 		this.target = undefined;
 		this.children = undefined;
+
 		this.finish = undefined;
 	}
 }

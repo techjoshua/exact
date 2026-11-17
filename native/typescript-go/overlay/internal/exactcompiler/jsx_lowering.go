@@ -9,6 +9,7 @@ import (
 )
 
 type jsxLowering struct {
+	directRoots      map[string]struct{}
 	importedPolicy   *importedHelperPolicyPlan
 	taskMethodOwners map[SourceSpan]taskMethodCreation
 

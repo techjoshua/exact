@@ -1,3 +1,6 @@
+import { preparedDirectComponentOutput } from '../prepared-output-bindings.js';
+import type { ExactRenderProgramInvocation } from '@exactjs/core/runtime/render-operations';
+import { adoptDirectRenderProgram } from '../render-program.js';
 import { captureAdoptionCurrent } from './receiving-lifetime.js';
 import { readClientComponentInput } from '../component-input-admission.js';
 import { type AnyComponentInstance, type Child } from '@exactjs/core';
@@ -83,41 +86,66 @@ export function adoptStaticChildren(
  */
 export function adoptComponentChildren(
 	root: Root,
-	children: Child[],
+	children: Child[] | ExactRenderProgramInvocation,
 	nodes: readonly Node[],
 	parentInstance: AnyComponentInstance | undefined,
 	parentScope: EffectScope,
 	start = 0,
 	end = nodes.length
 ): Mounted[] | undefined {
-	const direct = adoptStaticChildren(
-		root,
-		children,
-		nodes,
-		parentInstance,
-		parentScope,
-		start,
-		end
-	);
+	const adoptOutput = (first: number, last: number): Mounted[] | undefined => {
+		if (Array.isArray(children))
+			return adoptStaticChildren(root, children, nodes, parentInstance, parentScope, first, last);
+		if (preparedDirectComponentOutput(root, children))
+			return adoptStaticChildren(root, [children], nodes, parentInstance, parentScope, first, last);
+		if (last - first !== 1 || !nodes[first]) return undefined;
+		const mounted = adoptDirectComponentOutput(
+			root,
+			children,
+			nodes[first]!,
+			parentInstance,
+			parentScope
+		);
+		return mounted ? [mounted] : undefined;
+	};
+	const direct = adoptOutput(start, end);
 	if (direct) return direct;
 	const opening = nodes[start];
 	if (!(opening instanceof Comment) || !isChildRangeOpening(opening.data)) return undefined;
 	const closingIndex = closingMarkerIndex(nodes, start, opening.data, end);
 	if (closingIndex !== end - 1) return undefined;
-	const adopted = adoptStaticChildren(
-		root,
-		children,
-		nodes,
-		parentInstance,
-		parentScope,
-		start + 1,
-		closingIndex
-	);
+	const adopted = adoptOutput(start + 1, closingIndex);
 	if (!adopted) return undefined;
 	opening.remove();
 	const closing = nodes[closingIndex];
 	closing?.parentNode?.removeChild(closing);
 	return adopted;
+}
+
+/** Uses the same finite claim path for own output and a supplied, already captured output. */
+function adoptDirectComponentOutput(
+	root: Root,
+	invocation: ExactRenderProgramInvocation,
+	node: Node,
+	parentInstance: AnyComponentInstance | undefined,
+	parentScope: EffectScope
+): Mounted | undefined {
+	const scope = createEffectScope(parentScope);
+	let mounted: Mounted | undefined;
+	try {
+		mounted = adoptDirectRenderProgram(
+			root,
+			invocation,
+			node,
+			scope,
+			parentInstance,
+			(values, currentNodes, owner, childScope, first, last, _compilerOwned, parent) =>
+				adoptStaticChildren(root, [...values], currentNodes, owner, childScope, first, last, parent)
+		);
+		return mounted;
+	} finally {
+		if (!mounted && scope.active) scope.stop();
+	}
 }
 
 /** Identifies a stable dynamic range or the compact ordered compiler-direct range. */
@@ -175,6 +203,23 @@ export function adoptStaticChildrenRange(
 				mounts.push(enhanced.mounted);
 				acquiring = undefined;
 				cursor = enhanced.next;
+				continue;
+			}
+			const direct = preparedDirectComponentOutput(root, child);
+			if (direct) {
+				const mounted =
+					nodes[cursor] &&
+					adoptDirectComponentOutput(root, direct, nodes[cursor]!, parentInstance, parentScope);
+				acquiring = mounted;
+				assertCurrent();
+				if (!mounted) {
+					unmountMany(mounts.splice(0));
+					return undefined;
+				}
+				mounted.operation = child;
+				mounts.push(mounted);
+				acquiring = undefined;
+				cursor++;
 				continue;
 			}
 			const keyedReceipt = readCompiledKeyedChildReceipt(child);

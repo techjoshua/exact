@@ -51,6 +51,42 @@ beside the generated TypeScript when checking or distributing source artifacts. 
 permit ordinary TypeScript checking without installing a disabled provider; runtime selection and
 authorization still belong to the consuming build adapter.
 
+## Direct finite component roots (prototype)
+
+The private direct-output prototype selects a component-local final return of a concise render
+arrow containing one finite intrinsic root. It excludes child/component ranges, spreads,
+`root-attributes` program contributions, keys and enhancements on that returned intrinsic. Outer control flow
+that can select another return representation is excluded. Saved, supplied, inspected or reused
+values retain the existing composition path; the compiler does not specialize a component for its
+application callers. An enhancement or text presentation at a caller does not change the selected
+component implementation.
+
+A selected client artifact imports `attachExactCompiledDirectProgramComponent` from
+`@exactjs/dom/runtime/direct-component`. Its typed `ExactRenderProgramInvocation` carries the
+actual component owner and readers into the existing finite DOM mount, adoption and update code.
+That fixed region does not issue an intrinsic receipt or enter the generic operation executor.
+SSR retains its existing generated writer. Preparation, text presentation and enhancement adoption
+share one typed output union. Existing captured enhancement bindings, supplied-target claims and
+rollback retain the original invocation during adoption; a claimed binding cannot reapply its
+own enhancement. Arbitrary authored objects do not acquire an execution path from this union.
+
+The DOM facade requires core to export both `attachExactCompiledDirectProgramComponent` and the
+`exactCompiledDirectProgramAttachment` cursor. New output therefore needs a matching core/DOM
+provider capability, including in a published component library. Existing helpers and the prior
+component/render-program layouts remain unchanged. The prototype uses component version 6 and
+render-program version 4; that fact does not select a released provider minimum or establish
+whole-artifact ABI compatibility. The local `0.8.0` manifests alone do not distinguish old and new
+prototype provider sources. Publication must select an available matching provider cohort under
+[release readiness](release-readiness.md). Frozen released fixtures remain unchanged and keep
+their existing generation-acceptance or rejection role.
+
+The bounded consumers cover fixed DOM updates/events, SSR hydration identity, text projection,
+authored enhancement disposal and failed-adoption cleanup, and saved-child Activity parking and
+creation-origin transfer. The keyed move retains one source occurrence; cross-source-site
+key/program compatibility remains unqualified. Application/library comparison uses the same
+component source, logical identity, target and configuration. These source-bound checks do not
+establish a compiler-analysis timeout or performance improvement.
+
 ## Invariant
 
 Every value accepted as a native component by DOM rendering, hydration, SSR, or a component

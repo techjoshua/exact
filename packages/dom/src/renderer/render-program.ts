@@ -1,6 +1,7 @@
 import { releaseUnpublishedAdoption } from './teardown.js';
 import { type AnyComponentInstance, type Child } from '@exactjs/core';
 import {
+	type ExactRenderProgramInvocation,
 	readRenderProgram,
 	readRenderProgramReceipt
 } from '@exactjs/core/runtime/render-operations';
@@ -39,8 +40,38 @@ export function adoptRenderProgram(
 		physicalParent?: Node
 	) => Mounted[] | undefined
 ): Mounted | undefined {
-	const invocation = readRenderProgram(value);
-	if (!invocation) return undefined;
+	const receipt = readRenderProgramReceipt(value);
+	if (!receipt) return undefined;
+	const mounted = adoptDirectRenderProgram(
+		root,
+		receipt.invocation,
+		dom,
+		scope,
+		parentInstance,
+		adoptChildren
+	);
+	if (mounted) mounted.renderProgramReceipt = receipt;
+	return mounted;
+}
+
+/** Claims and binds typed component output without a runtime payload table. */
+export function adoptDirectRenderProgram(
+	root: Root,
+	invocation: ExactRenderProgramInvocation,
+	dom: Node,
+	scope: EffectScope,
+	parentInstance: AnyComponentInstance | undefined,
+	adoptChildren: (
+		children: readonly Child[],
+		nodes: readonly Node[],
+		parentInstance: AnyComponentInstance | undefined,
+		scope: EffectScope,
+		cursor: number,
+		end: number,
+		compilerOwnedComponent?: boolean,
+		physicalParent?: Node
+	) => Mounted[] | undefined
+): Mounted | undefined {
 	const bindingOwner = (invocation.owner as AnyComponentInstance | undefined) ?? parentInstance;
 	const program = directProgram(invocation.program);
 	if (!(dom instanceof Element)) return undefined;
@@ -48,10 +79,7 @@ export function adoptRenderProgram(
 	const direct = claimCompiledRenderProgram(program, dom, 'ssr');
 	finishDomProfile(root, 'program-claim', claimStarted);
 	if (!direct) return undefined;
-	const receipt = readRenderProgramReceipt(value);
-	if (!receipt) return undefined;
 	const mounted: Mounted = {
-		renderProgramReceipt: receipt,
 		dom,
 		scope,
 		children: [],

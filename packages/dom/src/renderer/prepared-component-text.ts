@@ -1,8 +1,11 @@
+import type { PreparedComponentOutput } from './prepared-component-attachment.js';
+import type { ExactRenderProgramInvocation } from '@exactjs/core/runtime/render-operations';
 import { reconcileSelectText } from '../controlled-select.js';
 import type { AnyComponentInstance, Child } from '@exactjs/core';
 import { TextComponentProjection } from './text-component-projection.js';
 import {
 	exactCompiledClientAttachment,
+	exactCompiledDirectProgramAttachment,
 	exactCompatibilityClientAttachment,
 	type ExactClientComponentArtifact
 } from '@exactjs/core/runtime/component-operations';
@@ -27,7 +30,7 @@ export class PreparedComponentTextTarget {
 	[exactCompiledClientAttachment](
 		artifact: ExactClientComponentArtifact,
 		instance: object,
-		children: Child[],
+		children: PreparedComponentOutput,
 		mode: 'mount' | 'hydrate'
 	): Mounted {
 		const owner = instance as AnyComponentInstance;
@@ -40,6 +43,8 @@ export class PreparedComponentTextTarget {
 			mounted.children.length
 		)
 			throw new TypeError('Prepared text attachment does not own this component range');
+		if (!Array.isArray(children) && children.owner !== instance)
+			throw new TypeError('Direct text output has a different component owner');
 		this.claimed = true;
 		const text = this.existing ?? document.createTextNode('');
 		const projection = new TextComponentProjection(this.root, mounted, text);
@@ -64,6 +69,16 @@ export class PreparedComponentTextTarget {
 		mounted.afterPlacement = () => owner.markMounted();
 		mounted.afterPlacementPhase = 'mount';
 		return mounted;
+	}
+
+	/** Uses the same owned Text lifetime for a compiler-selected finite invocation. */
+	[exactCompiledDirectProgramAttachment](
+		artifact: ExactClientComponentArtifact,
+		instance: object,
+		invocation: ExactRenderProgramInvocation,
+		mode: 'mount' | 'hydrate'
+	): Mounted {
+		return this[exactCompiledClientAttachment](artifact, instance, invocation, mode);
 	}
 
 	/** Foreign renderer islands cannot be impersonated by a native text presentation. */

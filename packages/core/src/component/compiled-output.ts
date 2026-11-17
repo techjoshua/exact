@@ -10,6 +10,11 @@ import { componentRenderHandlers } from './lifecycle-handlers.js';
 
 /** Executes one compiler-owned output operation without installing component-wide invalidation. */
 export function executeCompiledComponentOutput(instance: AnyComponentInstance): Child[] {
+	return normalizeRenderResult(executeCompiledComponentOutputValue(instance));
+}
+
+/** Executes original output once; the compiler-selected attachment owns its result representation. */
+export function executeCompiledComponentOutputValue(instance: AnyComponentInstance): RenderResult {
 	let output: RenderResult = null;
 	const start = performanceNow();
 	instance.invalidate = undefined;
@@ -43,7 +48,7 @@ export function executeCompiledComponentOutput(instance: AnyComponentInstance): 
 			}
 		}
 	}
-	return normalizeRenderResult(output);
+	return output;
 }
 
 function performanceNow(): number {
