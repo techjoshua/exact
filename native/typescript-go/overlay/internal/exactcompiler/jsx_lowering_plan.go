@@ -11,33 +11,33 @@ import (
 // jsxLoweringPlan is the immutable analysis handoff consumed by JSX emission. It keeps session
 // orchestration independent from the mutable traversal state created for one source artifact.
 type jsxLoweringPlan struct {
-	directComponentPrograms map[string]struct{}
-	importedPolicy          *importedHelperPolicyPlan
-	helperMutations         helperMutationPlan
-	analysisFacts           *sourceAnalysisFacts
-	nodeIDs                 map[*ast.Node]string
-	checking                bool
-	stateWrites             []StateWrite
-	stateReads              []StateRead
-	reactiveBindings        []ReactiveBinding
-	formBindings            map[int]formBinding
-	componentBindings       map[int]componentBinding
-	components              []Component
-	tasks                   []Task
-	operations              []InvokedTaskOperation
-	continuations           []Continuation
-	contextWrites           map[string][]string
-	clientIslands           map[*ast.Node]clientElementIsland
-	target                  Target
-	contractProjection      ComponentContractProjection
-	serverComponents        bool
-	instrumentInspection    bool
-	typeChecker             *checker.Checker
-	interop                 *JSXInterop
-	enhancementImports      enhancementImports
-	partitionPlan           PartitionPlan
-	dynamicComponents       map[int]dynamicComponentUseKind
-	intl                    intlOperationPlan
+	directRoots          map[string]struct{}
+	importedPolicy       *importedHelperPolicyPlan
+	helperMutations      helperMutationPlan
+	analysisFacts        *sourceAnalysisFacts
+	nodeIDs              map[*ast.Node]string
+	checking             bool
+	stateWrites          []StateWrite
+	stateReads           []StateRead
+	reactiveBindings     []ReactiveBinding
+	formBindings         map[int]formBinding
+	componentBindings    map[int]componentBinding
+	components           []Component
+	tasks                []Task
+	operations           []InvokedTaskOperation
+	continuations        []Continuation
+	contextWrites        map[string][]string
+	clientIslands        map[*ast.Node]clientElementIsland
+	target               Target
+	contractProjection   ComponentContractProjection
+	serverComponents     bool
+	instrumentInspection bool
+	typeChecker          *checker.Checker
+	interop              *JSXInterop
+	enhancementImports   enhancementImports
+	partitionPlan        PartitionPlan
+	dynamicComponents    map[int]dynamicComponentUseKind
+	intl                 intlOperationPlan
 }
 
 // prepare creates the mutable traversal state only when the analyzed module needs JSX-owned work.
@@ -85,7 +85,7 @@ func (plan jsxLoweringPlan) prepare(
 		plan.analysisFacts = newSourceAnalysisFacts(sourceFile, plan.typeChecker)
 	}
 	lowering := &jsxLowering{
-		directComponentPrograms:     plan.directComponentPrograms,
+		directRoots:                 plan.directRoots,
 		importedPolicy:              plan.importedPolicy,
 		analysisFacts:               plan.analysisFacts,
 		helperMutations:             plan.helperMutations,

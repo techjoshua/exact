@@ -198,7 +198,7 @@ func (lowering *jsxLowering) lowerRenderProgramWithRootAttributes(
 		))
 	}
 	if component, direct := lowering.directReturnedProgram(identityNode, build, enhancement); direct {
-		lowering.directComponentPrograms[component] = struct{}{}
+		lowering.directRoots[component] = struct{}{}
 		fields := []*ast.Node{
 			contractProperty(lowering.factory, "program", arguments[0]),
 			contractProperty(lowering.factory, "readers", arguments[1]),
@@ -1169,7 +1169,7 @@ func (lowering *jsxLowering) renderProgramIslandChild(node, opening *ast.Node, c
 // value saved, passed, inspected or returned through another function retains its existing
 // child-composition contract. This local syntactic guarantee does not depend on callers.
 func (lowering *jsxLowering) directReturnedProgram(node *ast.Node, build *renderProgramBuild, enhancement *ast.Node) (string, bool) {
-	if lowering.directComponentPrograms == nil || lowering.target != TargetClient || lowering.composableRenderProgram || enhancement != nil || len(build.nodes) != 1 {
+	if lowering.directRoots == nil || lowering.target != TargetClient || lowering.composableRenderProgram || enhancement != nil || len(build.nodes) != 1 {
 		return "", false
 	}
 	for _, slot := range build.slots {

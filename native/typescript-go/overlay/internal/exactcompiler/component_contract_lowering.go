@@ -23,7 +23,7 @@ func lowerComponentContracts(
 	projection ComponentContractProjection,
 	componentUpdates map[string]string,
 	componentInputUpdates map[string]string,
-	directComponentPrograms map[string]struct{},
+	directRoots map[string]struct{},
 ) *ast.SourceFile {
 	if target == TargetDefault {
 		return sourceFile
@@ -42,7 +42,7 @@ func lowerComponentContracts(
 	used := sourceIdentifiers(sourceFile)
 	brandingName := allocateGeneratedName(used, "__exactBrandComponent")
 	constructors := componentConstructorImports{
-		directComponentPrograms: directComponentPrograms,
+		directRoots:             directRoots,
 		directClientAttachName:  allocateGeneratedName(used, "__exactAttachDirectProgramComponent"),
 		taskBindings:            newContinuationTaskBindings(sourceFile, used),
 		localizationContextName: allocateGeneratedName(used, "__exactContinuationLocalizationContext"),
@@ -209,7 +209,7 @@ func lowerComponentContracts(
 }
 
 type componentConstructorImports struct {
-	directComponentPrograms map[string]struct{}
+	directRoots             map[string]struct{}
 	directClientAttachName  string
 	directClientAttachUsed  bool
 	arrayImports            map[string]string
@@ -842,7 +842,7 @@ func rootComponentContractAttachment(
 	)
 	propsSlots := component.PropsSlots
 	targetOperations := constructors.targetOperations(factory, target)
-	if _, direct := constructors.directComponentPrograms[component.Name]; direct && target == TargetClient {
+	if _, direct := constructors.directRoots[component.Name]; direct && target == TargetClient {
 		constructors.directClientAttachUsed = true
 		targetOperations.attach = factory.NewIdentifier(constructors.directClientAttachName)
 	}
