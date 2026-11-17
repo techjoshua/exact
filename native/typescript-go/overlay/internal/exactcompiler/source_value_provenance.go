@@ -506,9 +506,16 @@ func (query *sourceValueQuery) originsAt(node, at *ast.Node, bindings sourceValu
 				delete(query.active, at)
 			}
 		}()
+		// origins owns this outer slice; nested source payloads keep their ownership.
+		// Preserve it until a term changes instead of copying unchanged alternatives.
 		var acquired []sourceValue
-		for _, value := range values {
+		changed := false
+		for i, value := range values {
 			if value.initializerUse != nil && len(value.path) != 0 {
+				if !changed {
+					acquired = append(acquired, values[:i]...)
+					changed = true
+				}
 				result.valueIncomplete = true
 				acquired = append(acquired, sourceValue{})
 				continue
@@ -529,8 +536,14 @@ func (query *sourceValueQuery) originsAt(node, at *ast.Node, bindings sourceValu
 				}
 			}
 			if value.node == nil || len(value.path) == 0 && !branchingEntry || ast.IsIdentifier(value.node) || value.node.Kind == ast.KindThisKeyword {
-				acquired = append(acquired, value)
+				if changed {
+					acquired = append(acquired, value)
+				}
 				continue
+			}
+			if !changed {
+				acquired = append(acquired, values[:i]...)
+				changed = true
 			}
 			if observation := query.returnObservation; observation != nil && observation.kind == sourceRawNormalResult {
 				// No actual normal Get output was retained for this projected term.
@@ -557,7 +570,9 @@ func (query *sourceValueQuery) originsAt(node, at *ast.Node, bindings sourceValu
 				acquired = append(acquired, candidate)
 			}
 		}
-		values = acquired
+		if changed || len(values) == 0 {
+			values = acquired
+		}
 	}
 	query.initializing = previous
 	return values
