@@ -207,7 +207,11 @@ func (lowering *jsxLowering) lowerRenderProgramWithRootAttributes(
 		if propertyWriter != nil {
 			fields = append(fields, contractProperty(lowering.factory, "propertyWriter", propertyWriter))
 		}
-		return contractObject(lowering.factory, false, fields...), ""
+		// The helper-free record still supplies the original callback contextual types.
+		invocationType := lowering.factory.NewImportTypeNode(false,
+			lowering.factory.NewLiteralTypeNode(lowering.factory.NewStringLiteral("@exactjs/core/runtime/render-operations", ast.TokenFlagsNone)),
+			nil, lowering.factory.NewIdentifier("ExactRenderProgramInvocation"), nil)
+		return lowering.factory.NewSatisfiesExpression(contractObject(lowering.factory, false, fields...), invocationType), ""
 	}
 	invocation := lowering.call(prepared, arguments)
 	if !deferred && !lowering.composableRenderProgram && lowering.target == TargetServer && enhancement == nil && staticServerInvocationSlots(build) && lowering.literalServerInvocationValue(arguments[1]) {
