@@ -10,7 +10,7 @@ import (
 // taskHelperCaptures finds setup values referenced by reconstructed ordinary
 // helpers. Values cross as activation inputs, never by replaying initializers.
 // Symbol identity preserves block shadowing and recursive helper graphs.
-func taskHelperCaptures(work, component *ast.Node, source *ast.SourceFile, typeChecker *checker.Checker, bindings []ReactiveBinding, facts *sourceAnalysisFacts) []invokedTaskCapture {
+func taskHelperCaptures(work, component *ast.Node, source *ast.SourceFile, typeChecker *checker.Checker, bindings []ReactiveBinding, facts *sourceAnalysisFacts, classes []*ast.Node) []invokedTaskCapture {
 	result := []invokedTaskCapture{}
 	var aliases *componentStateAliases
 	seen := map[ast.SymbolId]uint8{}
@@ -100,6 +100,9 @@ func taskHelperCaptures(work, component *ast.Node, source *ast.SourceFile, typeC
 		})
 	}
 	visit(work.Body(), false, false)
+	for _, class := range classes {
+		visit(class, true, false)
+	}
 	return result
 }
 
@@ -122,12 +125,14 @@ func (lowering *jsxLowering) taskHelperDependencies(task Task, offset int) []nat
 	return result
 }
 
-// stateHelperCaptures keeps every state alias used by an invoked executor.
+// invokedTaskReconstruction retains state aliases and the same current class plan for an invoked executor.
 // Non-state captures already belong to the operation's activation inputs.
-func stateHelperCaptures(tasks []Task, id string) []invokedTaskCapture {
+func invokedTaskReconstruction(tasks []Task, id string) ([]invokedTaskCapture, []*ast.Node) {
 	result := []invokedTaskCapture{}
+	var classes []*ast.Node
 	for _, task := range tasks {
 		if task.ID == id {
+			classes = task.classDefinitions
 			for _, capture := range task.helperCaptures {
 				if capture.source == "state" {
 					result = append(result, capture)
@@ -135,5 +140,5 @@ func stateHelperCaptures(tasks []Task, id string) []invokedTaskCapture {
 			}
 		}
 	}
-	return result
+	return result, classes
 }

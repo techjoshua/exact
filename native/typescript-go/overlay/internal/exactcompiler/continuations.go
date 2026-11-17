@@ -128,6 +128,7 @@ func createContinuationContracts(
 			concurrency = "parallel"
 		}
 		continuations = append(continuations, Continuation{
+			classDefinitions:    task.classDefinitions,
 			helperCaptures:      task.helperCaptures,
 			helperCaptureOffset: helperOffset,
 			ID:                  task.ID,
@@ -190,17 +191,19 @@ func createContinuationContracts(
 		for _, capture := range operation.captures {
 			dependencies = append(dependencies, TaskDependency{Index: len(dependencies), Source: capture.source, Path: capture.path})
 		}
+		helperCaptures, classes := invokedTaskReconstruction(tasks, operation.ID)
 		continuations = append(continuations, Continuation{
-			captures:       operation.captures,
-			helperCaptures: stateHelperCaptures(tasks, operation.ID),
-			ID:             operation.ID,
-			Kind:           "task",
-			ComponentID:    component.ID,
-			TaskID:         operation.ID,
-			Placement:      operation.Placement,
-			Readiness:      operation.Readiness,
-			Concurrency:    operation.Concurrency,
-			Async:          true,
+			classDefinitions: classes,
+			captures:         operation.captures,
+			helperCaptures:   helperCaptures,
+			ID:               operation.ID,
+			Kind:             "task",
+			ComponentID:      component.ID,
+			TaskID:           operation.ID,
+			Placement:        operation.Placement,
+			Readiness:        operation.Readiness,
+			Concurrency:      operation.Concurrency,
+			Async:            true,
 			Activation: ContinuationActivation{
 				StateReads:     continuationStateReadContracts(operation.Reads),
 				Dependencies:   dependencies,

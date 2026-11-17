@@ -21,6 +21,10 @@ func continuationTaskDefinitions(factory *printer.NodeFactory, component *ast.No
 			result = append(result, factory.NewVariableDeclaration(function.Name(), nil, nil, value))
 			continue
 		}
+		if ast.IsClassDeclaration(statement) && statement.Name() != nil {
+			result = append(result, statement)
+			continue
+		}
 		if !ast.IsVariableStatement(statement) {
 			continue
 		}
@@ -50,26 +54,50 @@ func continuationTaskDefinitions(factory *printer.NodeFactory, component *ast.No
 
 // continuationTaskDependencies closes references transitively and keeps declaration order stable.
 // Mutually recursive tasks retain lexical bindings without evaluating either body during setup.
-func continuationTaskDependencies(work *ast.Node, definitions []*ast.Node) []*ast.Node {
+func continuationTaskDependencies(work *ast.Node, definitions, classes []*ast.Node, emit *printer.EmitContext) []*ast.Node {
 	needed := continuationReferencedNames(work)
 	selected := make(map[string]bool)
+	// Only the current task's validated original declarations authorize class
+	// reconstruction. An absent plan never admits classes from name reachability.
+	allowed := make(map[*ast.Node]bool, len(classes))
+	for _, class := range classes {
+		allowed[class] = true
+	}
+	matched := make(map[*ast.Node]bool, len(classes))
+	for _, definition := range definitions {
+		if ast.IsClassDeclaration(definition) && allowed[emit.MostOriginal(definition)] {
+			matched[emit.MostOriginal(definition)] = true
+			needed[definition.Name().Text()] = struct{}{}
+		}
+	}
+	if len(matched) != len(allowed) {
+		panic("server continuation lost a validated original class declaration during lowering")
+	}
+
 	for changed := true; changed; {
 		changed = false
 		for _, definition := range definitions {
+			if ast.IsClassDeclaration(definition) && !allowed[emit.MostOriginal(definition)] {
+				continue
+			}
 			name := definition.Name().Text()
 			if _, referenced := needed[name]; !referenced || selected[name] {
 				continue
 			}
 			selected[name] = true
 			changed = true
-			for reference := range continuationReferencedNames(definition.AsVariableDeclaration().Initializer) {
+			value := definition
+			if ast.IsVariableDeclaration(definition) {
+				value = definition.AsVariableDeclaration().Initializer
+			}
+			for reference := range continuationReferencedNames(value) {
 				needed[reference] = struct{}{}
 			}
 		}
 	}
 	result := []*ast.Node{}
 	for _, definition := range definitions {
-		if selected[definition.Name().Text()] {
+		if selected[definition.Name().Text()] && (!ast.IsClassDeclaration(definition) || allowed[emit.MostOriginal(definition)]) {
 			result = append(result, definition)
 		}
 	}

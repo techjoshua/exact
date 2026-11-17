@@ -750,7 +750,7 @@ func rootComponentContractAttachment(
 			constructors.localizationContextUsed = constructors.localizationContextUsed || continuation.localization
 		}
 		executors = continuationExecutorMetadata(
-			factory,
+			emitContext,
 			componentFunction,
 			runtimeContinuations,
 			constructors,

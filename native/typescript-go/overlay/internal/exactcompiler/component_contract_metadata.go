@@ -31,12 +31,13 @@ func continuationsForComponent(
 }
 
 func continuationExecutorMetadata(
-	factory *printer.NodeFactory,
+	emitContext *printer.EmitContext,
 	componentFunction *ast.Node,
 	continuations []Continuation,
 	imports *componentConstructorImports,
 	used map[string]struct{},
 ) *ast.Node {
+	factory := emitContext.Factory
 	workByID := continuationWorkByID(componentFunction, continuations)
 	taskDefinitions := continuationTaskDefinitions(factory, componentFunction, continuations)
 	aliases := componentContextAliases(componentFunction)
@@ -51,7 +52,7 @@ func continuationExecutorMetadata(
 		execute := continuationExecutor(
 			factory,
 			work,
-			continuationTaskDependencies(work, taskDefinitions),
+			continuationTaskDependencies(work, taskDefinitions, continuation.classDefinitions, emitContext),
 			continuation,
 			aliases,
 			stateType,
@@ -392,6 +393,10 @@ func continuationExecutor(
 		}
 	}
 	for _, dependency := range taskDependencies {
+		if ast.IsClassDeclaration(dependency) {
+			statements = append(statements, visitor.VisitNode(projectContinuationCaptureReferences(factory, dependency, helperReferences)))
+			continue
+		}
 		statements = append(statements, constStatement(factory, dependency.Name(),
 			imports.taskBindings.bind(factory, visitor.VisitNode(projectContinuationCaptureReferences(factory, dependency.AsVariableDeclaration().Initializer, helperReferences)))))
 	}

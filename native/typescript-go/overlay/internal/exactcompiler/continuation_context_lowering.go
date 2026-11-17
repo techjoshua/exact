@@ -174,7 +174,7 @@ func continuationReferencedNames(work *ast.Node) map[string]struct{} {
 				}
 			}
 		}
-		if ast.IsFunctionDeclaration(node) && node.Name() != nil {
+		if (ast.IsFunctionDeclaration(node) || ast.IsClassDeclaration(node)) && node.Name() != nil {
 			declared[node.Name().Text()] = struct{}{}
 		}
 		node.ForEachChild(func(child *ast.Node) bool {
