@@ -194,7 +194,7 @@ func (query *sourceValueQuery) consumeInvocation(node *ast.Node, bindings source
 		endPendingMemberPreparation(&memberPreparation, true)
 		mergeAccessorCandidates(&result, effects)
 	}
-	mergeAccessorCandidates(&result, prepared.base)
+	mergeAccessorCandidates(&result, prepared.base.candidates())
 	query.publishPendingMemberSelection(node, bindings, prepared)
 	if consumer.callbackInputs != nil && query.dependenciesOnly {
 		consumer.callbackInputs(node, bindings, prepared, &result)
@@ -204,7 +204,7 @@ func (query *sourceValueQuery) consumeInvocation(node *ast.Node, bindings source
 		return result
 	}
 	if !result.selected {
-		acquired := prepared.acquired
+		acquired := prepared.acquired.candidates()
 		nativeCount := 0
 		for _, value := range acquired.values {
 			if value.native != nil && nativeInvocable(value.native.kind) {

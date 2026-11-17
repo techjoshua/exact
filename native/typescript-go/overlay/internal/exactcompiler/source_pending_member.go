@@ -391,12 +391,12 @@ func (q *sourceValueQuery) publishPendingMemberSelection(call *ast.Node, binding
 		return
 	}
 	ledger := publisher.fact.pendingMembers
-	if !pendingMemberStableActualReads(q, call) && !r.standardMemberAssignmentArguments(q, prepared.acquired) {
+	acquired := prepared.acquired.candidates()
+	if !pendingMemberStableActualReads(q, call) && !r.standardMemberAssignmentArguments(q, acquired) {
 		ledger.stats.Declined++
 		progressPendingMember(q, r, "declined", -1, ledger.stats)
 		return
 	}
-	acquired := prepared.acquired
 	unknown := acquired.opaque || acquired.valueIncomplete || acquired.receiverIncomplete || prepared.base.opaque || prepared.base.valueIncomplete || prepared.base.receiverIncomplete
 	var values []sourceValue
 	known := false
