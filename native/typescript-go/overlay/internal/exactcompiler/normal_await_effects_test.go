@@ -298,7 +298,7 @@ func TestPublicAwaitInheritedThenReceiver(t *testing.T) {
 					declarations = `class Parent{seen=false;marker='receiver';get then():undefined{void document.title;this.seen=true;return undefined}}class Receiver extends Parent{}`
 					body = `const receiver=new Receiver();await (` + row.operand + `);this.state.label=receiver.seen?receiver.marker:'missing getter';`
 				}
-				f := newExecutableFixture(t, map[string]string{"entry.tsx": publicAwaitRequiredPage(declarations, body, target)})
+				f := newPublicAwaitRequiredFixture(t, publicAwaitRequiredPage(declarations, body, target))
 				analysis, _ := checkPublicAwaitRequiredTask(t, NewSession(), f, target, row.browser, row.unknown)
 				if row.name == "quiet-known" {
 					quiet := findCallable(t, analysis.Analysis.Callables, "run")
@@ -335,7 +335,7 @@ func TestPublicAwaitNestedResolveReject(t *testing.T) {
 						argument = "throw new Error('argument')"
 					}
 					body := `const nested={get then():undefined{void window.name;return undefined}};const input={get value(){void document.title;` + argument + `}};const outer={then(resolve:(value:unknown)=>void,reject:(reason:unknown)=>void){` + method + `(input.value)}};try{await (` + operand + `);this.state.label='resolved'}catch{this.state.label='rejected'}`
-					f := newExecutableFixture(t, map[string]string{"entry.tsx": publicAwaitRequiredPage("", body, target)})
+					f := newPublicAwaitRequiredFixture(t, publicAwaitRequiredPage("", body, target))
 					analysis, _ := checkPublicAwaitRequiredTask(t, NewSession(), f, target, true, variant == "mixed")
 					run := findCallable(t, analysis.Analysis.Callables, "run")
 					for _, effects := range [][]EnvironmentEffectSource{run.EffectSources, analysis.Analysis.Tasks[0].EffectSources} {
@@ -360,7 +360,7 @@ func TestPublicAwaitAsyncPrimitiveConstructor(t *testing.T) {
 	for _, target := range []Target{TargetClient, TargetServer} {
 		t.Run(string(target), func(t *testing.T) {
 			body := `const previous=Object.getOwnPropertyDescriptor(Promise.prototype,'constructor');try{Object.defineProperty(Promise.prototype,'constructor',{configurable:true,get(){void document.title;return Promise}});this.state.label=await make()}finally{if(previous)Object.defineProperty(Promise.prototype,'constructor',previous);else Reflect.deleteProperty(Promise.prototype,'constructor')}`
-			f := newExecutableFixture(t, map[string]string{"entry.tsx": publicAwaitRequiredPage(`async function make(){return 'primitive'}`, body, target)})
+			f := newPublicAwaitRequiredFixture(t, publicAwaitRequiredPage(`async function make(){return 'primitive'}`, body, target))
 			checkPublicAwaitRequiredTask(t, NewSession(), f, target, true, false)
 		})
 	}
@@ -371,7 +371,7 @@ func TestPublicAwaitAsyncPrimitiveConstructor(t *testing.T) {
 func TestPublicAwaitInheritedDonorEdit(t *testing.T) {
 	browser := publicAwaitRequiredPage(`class Parent{get then():undefined{void document.title;return undefined}}class Receiver extends Parent{}`, `await new Receiver();this.state.label='done';`, TargetServer)
 	quiet := strings.Replace(browser, "void document.title;", "void 0;", 1)
-	f := newExecutableFixture(t, map[string]string{"entry.tsx": browser})
+	f := newPublicAwaitRequiredFixture(t, browser)
 	session := NewSession()
 	checkPublicAwaitRequiredTask(t, session, f, TargetServer, true, false)
 	f.files["entry.tsx"] = quiet
@@ -439,4 +439,17 @@ func checkPublicAwaitRequiredTask(t *testing.T, session *Session, f *executableF
 		t.Fatal("public Await lost generation-aware lowering")
 	}
 	return analysis, compiled
+}
+
+// These component entries use the real module-scoped JSX contract, not a global
+// ambient shim. Configure once before any request so the body-edit test retains
+// one unchanged owning configuration across its observations.
+func newPublicAwaitRequiredFixture(t *testing.T, source string) *executableFixture {
+	t.Helper()
+	f := newExecutableFixture(t, map[string]string{"entry.tsx": source})
+	config := `{"compilerOptions":{"module":"ESNext","moduleResolution":"Bundler","target":"ES2022","strict":true,"skipLibCheck":true,"allowJs":true,"jsx":"react-jsx","jsxImportSource":"@exactjs/jsx"},"files":["entry.tsx"]}`
+	if err := os.WriteFile(f.request("analyze", "entry.tsx").ConfigFile, []byte(config), 0600); err != nil {
+		t.Fatal(err)
+	}
+	return f
 }
