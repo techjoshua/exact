@@ -97,20 +97,17 @@ func TestServerTaskLocalClassDependencies(t *testing.T) {
 				t.Fatal(err)
 			}
 			session := NewSession()
-			if row.name == "binding write" {
-				request := f.request("compile", "entry.tsx")
-				request.Target = TargetServer
-				r := session.Execute(request)
-				if r.Error != "" || !hasDiagnosticCode(r.Diagnostics, "TS2629") || r.Code != "" {
-					t.Fatal("ordinary TypeScript class binding immutability lost", r.Error, r.Diagnostics)
-				}
-				return
-			}
+
 			a := session.Execute(f.request("analyze", "entry.tsx"))
 			if a.Error != "" || len(a.Analysis.Components) != 1 || a.Analysis.Components[0].Name != "Page" || len(a.Analysis.Tasks) != 1 || len(a.Analysis.Tasks[0].Writes) == 0 {
 				t.Fatal("actual component/task/state entry absent", a.Error, a.Diagnostics)
 			}
 
+			// Authored semantic analysis owns the TypeScript class-binding error.
+			// Compilation may refuse reconstruction before its lowered-typecheck phase.
+			if row.name == "binding write" && !hasDiagnosticCode(a.Diagnostics, "TS2629") {
+				t.Fatal("authored class binding immutability lost", a.Error, a.Diagnostics)
+			}
 			if row.name == "inferred server" {
 				if a.Analysis.Tasks[0].RequestedPlacement != "" || a.Analysis.Tasks[0].Placement != "server" || !a.Analysis.Tasks[0].ServerEffects || a.Analysis.Tasks[0].BrowserEffects {
 					t.Fatal("inferred reconstruction entry absent", a.Analysis.Tasks[0])
