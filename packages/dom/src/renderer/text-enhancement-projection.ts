@@ -38,8 +38,14 @@ export function createTextEnhancementProjection(
 		root.enhancementCatalog ??= exactEnhancementCatalog;
 		const receipt = readClientComponentInput(value);
 		if (receipt)
-			return component(receipt, (output, mounted) =>
-				withPreparedEnhancementBindings(root, mounted, [...output], project)
+			return component(receipt, (output, mounted, direct, supplied) =>
+				withPreparedEnhancementBindings(
+					root,
+					mounted,
+					[...output],
+					(children) => project(children, supplied),
+					direct
+				)
 			);
 		const entries = orderEnhancementEntries(root, preparedEnhancementEntries(root, value as Child));
 		if (!entries.length)

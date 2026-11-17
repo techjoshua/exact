@@ -1,3 +1,4 @@
+import type { PreparedComponentProjection } from './prepared-component-attachment.js';
 import type { AnyComponentInstance, Child } from '@exactjs/core';
 import type { PreparedComponentAttachment } from './prepared-component-attachment.js';
 
@@ -6,7 +7,7 @@ export type PreparedComponentOccurrence = Readonly<{
 	operation: object;
 	parent: AnyComponentInstance | undefined;
 	attachment: PreparedComponentAttachment;
-	project?: (children: readonly Child[]) => Child[];
+	project?: PreparedComponentProjection;
 }>;
 
 /** Synchronous preparation handoff. Nested frames retain their preceding frame's actual cursor. */

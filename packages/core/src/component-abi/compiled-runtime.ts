@@ -1,12 +1,15 @@
 import { flushSync, updateReactiveShallow } from '@exactjs/reactive/framework/runtime';
-import { executeCompiledComponentOutput, executeCompiledComponentOutputValue } from '../component/compiled-output.js';
+import {
+	executeCompiledComponentOutput,
+	executeCompiledComponentOutputValue
+} from '../component/compiled-output.js';
 import { normalizeRenderResult } from '../render-children.js';
 import type { ExactRenderProgramInvocation } from '../render-program.js';
 import type { AnyComponentInstance } from '../component/contracts.js';
 import {
 	exactCompiledClientAttachment,
- exactCompiledDirectProgramAttachment,
- type ExactCompiledDirectProgramTarget,
+	exactCompiledDirectProgramAttachment,
+	type ExactCompiledDirectProgramTarget,
 	type ExactClientAttachMode,
 	type ExactClientComponentArtifact,
 	type ExactClientMountedRange,
@@ -34,19 +37,29 @@ export function attachExactCompiledClientComponent(
 
 /** Attaches a compiler-proven returned finite region without issuing an opaque child operation. */
 export function attachExactCompiledDirectProgramComponent(
- this: ExactClientComponentArtifact,
- instance: AnyComponentInstance,
- target: ExactCompiledDirectProgramTarget & ExactCompiledClientAttachmentTarget,
- mode: ExactClientAttachMode
+	this: ExactClientComponentArtifact,
+	instance: AnyComponentInstance,
+	target: ExactCompiledDirectProgramTarget & ExactCompiledClientAttachmentTarget,
+	mode: ExactClientAttachMode
 ): ExactClientMountedRange {
- if (typeof target[exactCompiledDirectProgramAttachment] !== 'function')
-  throw new TypeError('The installed DOM provider does not support direct compiled regions');
- flushSync('normal');
- const output = executeCompiledComponentOutputValue(instance);
- // Authored error/suspension handling retains its ordinary output and ownership path.
- if (output == null || instance.errorFallback)
-  return target[exactCompiledClientAttachment](this, instance, normalizeRenderResult(output), mode);
- return target[exactCompiledDirectProgramAttachment](this, instance, output as ExactRenderProgramInvocation, mode);
+	if (typeof target[exactCompiledDirectProgramAttachment] !== 'function')
+		throw new TypeError('The installed DOM provider does not support direct compiled regions');
+	flushSync('normal');
+	const output = executeCompiledComponentOutputValue(instance);
+	// Authored error/suspension handling retains its ordinary output and ownership path.
+	if (output == null || instance.errorFallback)
+		return target[exactCompiledClientAttachment](
+			this,
+			instance,
+			normalizeRenderResult(output),
+			mode
+		);
+	return target[exactCompiledDirectProgramAttachment](
+		this,
+		instance,
+		output as ExactRenderProgramInvocation,
+		mode
+	);
 }
 
 /** Applies one final-value-per-slot prop receipt and publishes it to the receiving instance once. */

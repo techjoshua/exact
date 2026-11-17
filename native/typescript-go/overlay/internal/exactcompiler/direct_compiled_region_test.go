@@ -23,7 +23,7 @@ func TestDirectCompiledComponentRegion(t *testing.T) {
 				t.Fatal("public component compile emitted no artifact")
 			}
 			if target == TargetClient {
-				if !strings.Contains(response.Code, "attachExactCompiledDirectProgramComponent") || !strings.Contains(response.Code, "propertyWriter:") {
+				if !strings.Contains(response.Code, "attachExactCompiledDirectProgramComponent") || !strings.Contains(response.Code, "@exactjs/dom/runtime/direct-component") || !strings.Contains(response.Code, "propertyWriter:") {
 					t.Fatalf("fixed component did not select direct owned attachment and property updates:\n%s", response.Code)
 				}
 				for _, forbidden := range []string{"createPreparedRenderProgram", "createCompiledIntrinsicReceipt", "executeOpaqueOperation"} {

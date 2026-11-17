@@ -325,7 +325,7 @@ func (imports *componentConstructorImports) declarations(factory *printer.NodeFa
 		declarations = append(declarations, componentConstructorImport(factory, "LocalizationContext", imports.localizationContextName, "@exactjs/core/runtime/localization"))
 	}
 	if imports.directClientAttachUsed {
-		declarations = append(declarations, componentOperationImports(factory, []componentOperationImport{{imported: "attachExactCompiledDirectProgramComponent", local: imports.directClientAttachName}}))
+		declarations = append(declarations, componentConstructorImport(factory, "attachExactCompiledDirectProgramComponent", imports.directClientAttachName, "@exactjs/dom/runtime/direct-component"))
 	}
 	if imports.clientOperationsUsed {
 		declarations = append(declarations, componentOperationImports(factory, []componentOperationImport{

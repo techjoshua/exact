@@ -11,6 +11,7 @@ import {
 	readIndexedReactiveSlot,
 	unwrap
 } from '@exactjs/reactive/framework/runtime';
+import type { ExactIntrinsicReceiptData } from '@exactjs/core/runtime/component-operations';
 import type { PreparedTextResolver } from '@exactjs/core/framework/render-structure';
 import { materializeProgramTemplate } from './render-program-template.js';
 import { claimCompiledRenderProgram, type ClaimedRenderProgram } from './render-program-claims.js';
@@ -22,12 +23,15 @@ type Snapshot = { element: Element; claims: ClaimedRenderProgram };
  * event, ref, binding, or lifecycle is installed on it. Only captured slot readers are evaluated.
  * The containing text presentation owns reactive tracking and nested component lifetimes.
  */
-export function createTextProgramProjection(ownerDocument: Document): PreparedTextResolver {
+export function createTextProgramProjection(ownerDocument: Document): Readonly<{
+	resolve: PreparedTextResolver;
+	direct(
+		invocation: ExactRenderProgramInvocation,
+		project: Parameters<PreparedTextResolver>[1]
+	): string;
+}> {
 	const snapshots = new WeakMap<object, Snapshot>();
-	return (value, project) => {
-		const receipt = readRenderProgramReceipt(value);
-		if (!receipt) return undefined;
-		const invocation = receipt.invocation;
+	const snapshotFor = (invocation: ExactRenderProgramInvocation): Snapshot => {
 		let snapshot = snapshots.get(invocation.program);
 		if (!snapshot) {
 			if (invocation.program.template === undefined)
@@ -39,11 +43,43 @@ export function createTextProgramProjection(ownerDocument: Document): PreparedTe
 			snapshot = { element, claims };
 			snapshots.set(invocation.program, snapshot);
 		}
-		return project([readSnapshot(snapshot, invocation)]);
+		return snapshot;
+	};
+	return {
+		resolve(value, project) {
+			const receipt = readRenderProgramReceipt(value);
+			return receipt
+				? project([readSnapshot(snapshotFor(receipt.invocation), receipt.invocation)])
+				: undefined;
+		},
+		direct(invocation, project) {
+			// Source selection guarantees a single finite host with no dynamic structural child slots.
+			const described = readSnapshot(
+				snapshotFor(invocation),
+				invocation,
+				(tag, props, ...children) =>
+					({
+						tag,
+						props: props ?? {},
+						children: children as Child[]
+					}) satisfies ExactIntrinsicReceiptData
+			);
+			return project(described as ExactIntrinsicReceiptData);
+		}
 	};
 }
 
-function readSnapshot(snapshot: Snapshot, invocation: ExactRenderProgramInvocation): Child {
+function readSnapshot(
+	snapshot: Snapshot,
+	invocation: ExactRenderProgramInvocation,
+	intrinsic:
+		| typeof createCompiledIntrinsicReceipt
+		| ((
+				tag: string,
+				props: Record<string, unknown> | null,
+				...children: unknown[]
+		  ) => Child) = createCompiledIntrinsicReceipt
+): Child {
 	const replacements = new Map<Node, Child>();
 	const properties = new Map<Element, Record<string, unknown>>();
 	const insertions = new Map<Node, Array<{ before: Node | null; value: Child }>>();
@@ -134,7 +170,7 @@ function readSnapshot(snapshot: Snapshot, invocation: ExactRenderProgramInvocati
 		for (const attribute of node.attributes)
 			if (attribute.name !== 'data-exact-id') props[attribute.name] = attribute.value;
 		Object.assign(props, properties.get(node));
-		return createCompiledIntrinsicReceipt(node.localName, props, ...children(node));
+		return intrinsic(node.localName, props, ...children(node));
 	};
 	return read(snapshot.element);
 }

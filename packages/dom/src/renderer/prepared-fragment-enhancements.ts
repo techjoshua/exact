@@ -1,3 +1,4 @@
+import { readPreparedComponentContribution } from './prepared-fragment-owner.js';
 import { PreparedComponentOccurrences } from './prepared-component-occurrences.js';
 import { readClientComponentInput } from './component-input-admission.js';
 import { movePreparedEnhancement } from './prepared-enhancement-move.js';
@@ -73,7 +74,7 @@ export function mountPreparedFragmentEnhancements(
 						withComponentDomain(domain, () => {
 							void revision.value;
 							const required = owners.flatMap((owner) => {
-								const contribution = readPreparedTargetOutput(owner.output, owner.child);
+								const contribution = readPreparedComponentContribution(owner.output, owner.child);
 								return contribution
 									? [
 											{

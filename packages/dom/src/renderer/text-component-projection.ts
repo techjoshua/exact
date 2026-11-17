@@ -1,14 +1,21 @@
+import type { PreparedComponentOutput } from './prepared-component-attachment.js';
+import type { ExactRenderProgramInvocation } from '@exactjs/core/runtime/render-operations';
 import {
 	readClientComponentInput,
 	type AdmittedClientComponentInput
 } from './component-input-admission.js';
-import type { AnyComponentInstance, Child } from '@exactjs/core';
+import {
+	attachSuppressedCleanupFailure,
+	type AnyComponentInstance,
+	type Child
+} from '@exactjs/core';
 import {
 	projectPreparedText,
 	type PreparedTextResolver
 } from '@exactjs/core/framework/render-structure';
 import {
 	exactCompiledClientAttachment,
+	exactCompiledDirectProgramAttachment,
 	exactCompatibilityClientAttachment
 } from '@exactjs/core/runtime/component-operations';
 import { peek } from '@exactjs/reactive/framework/runtime';
@@ -26,7 +33,10 @@ type Frame = {
 	cursor: number;
 	records: RecordOwner[];
 };
-type RecordOwner = Frame & { receipt: AdmittedClientComponentInput; output: readonly Child[] };
+type RecordOwner = Frame & {
+	receipt: AdmittedClientComponentInput;
+	output: PreparedComponentOutput;
+};
 
 /**
  * Retains native component lifetimes inside one coalesced Text presentation. Preparation captures
@@ -37,7 +47,7 @@ export class TextComponentProjection {
 	private readonly frame: Frame;
 	private current: Frame;
 	private enhancementProjection?: PreparedTextResolver;
-	private readonly programProjection: PreparedTextResolver;
+	private readonly programProjection: ReturnType<typeof createTextProgramProjection>;
 	constructor(
 		private readonly root: Root,
 		mounted: Mounted,
@@ -54,14 +64,30 @@ export class TextComponentProjection {
 	}
 
 	/** Reads only reactive output and receives changed inputs into retained native owners. */
-	read(children: readonly Child[]): string {
+	read(children: readonly Child[] | ExactRenderProgramInvocation): string {
 		this.current = this.frame;
 		this.frame.cursor = 0;
 		try {
-			return projectPreparedText(children, this.root, this.resolve);
+			if (Array.isArray(children)) return projectPreparedText(children, this.root, this.resolve);
+			const direct = children as ExactRenderProgramInvocation;
+			const supplied = this.directResolver(direct);
+			return projectPreparedText(
+				[direct],
+				this.root,
+				(value, project) => supplied(value, project) ?? this.resolve(value, project)
+			);
 		} finally {
 			this.finish(this.frame);
 		}
+	}
+
+	/** Carries only the actual output handed to this presentation by its compiled attachment. */
+	private directResolver(invocation: ExactRenderProgramInvocation): PreparedTextResolver {
+		return (value, project) =>
+			value === invocation
+				? (this.enhancementProjection?.(value, project) ??
+					this.programProjection.direct(invocation, project))
+				: undefined;
 	}
 
 	private readonly resolve: PreparedTextResolver = (value, project) => {
@@ -71,10 +97,13 @@ export class TextComponentProjection {
 		);
 		const enhanced = this.enhancementProjection?.(value, project);
 		if (enhanced !== undefined) return enhanced;
-		const program = this.programProjection(value, project);
+
+		const program = this.programProjection.resolve(value, project);
 		if (program !== undefined) return program;
 		const receipt = readClientComponentInput(value);
-		return receipt ? this.component(receipt, (output) => project(output)) : undefined;
+		return receipt
+			? this.component(receipt, (output, _mounted, _direct, supplied) => project(output, supplied))
+			: undefined;
 	};
 
 	private readonly component: TextComponentVisitor = (receipt, visit) => {
@@ -107,10 +136,13 @@ export class TextComponentProjection {
 		record.cursor = 0;
 		this.current = record;
 		try {
-			const output =
-				domEnhancementCapability()?.projectComponent?.(record.mounted, [...record.output]) ??
-				record.output;
-			return visit(output, record.mounted);
+			const output = Array.isArray(record.output)
+				? (domEnhancementCapability()?.projectComponent?.(record.mounted, [...record.output]) ??
+					record.output)
+				: record.output;
+			return Array.isArray(output)
+				? visit(output, record.mounted)
+				: visit([output], record.mounted, output, this.directResolver(output));
 		} finally {
 			this.finish(record);
 			this.current = parent;
@@ -129,39 +161,46 @@ export class TextComponentProjection {
 				? 'hydrate'
 				: 'mount'
 		);
-		const mounted = attachment.ownedRange;
-		const record: RecordOwner = {
-			mounted,
-			owner: mounted.instance,
-			receipt,
-			output: attachment.output,
-			cursor: 0,
-			records: []
-		};
 		try {
+			const mounted = attachment.ownedRange;
+			const output = attachment.output;
+			const record: RecordOwner = {
+				mounted,
+				owner: mounted.instance,
+				receipt,
+				output,
+				cursor: 0,
+				records: []
+			};
+			const present = (_artifact: unknown, instance: object, output: PreparedComponentOutput) => {
+				record.output = output;
+				mounted.dom = this.text;
+				mounted.end = undefined;
+				mounted.textPresentation = this.text;
+				refreshComponentRoot(
+					this.root,
+					instance as AnyComponentInstance,
+					true,
+					rootIntroduction(this.root)
+				);
+				mounted.afterPlacement = () => (instance as AnyComponentInstance).markMounted();
+				mounted.afterPlacementPhase = 'mount';
+				return mounted;
+			};
 			attachment.commit({
-				[exactCompiledClientAttachment]: (_artifact, instance, output) => {
-					record.output = output;
-					mounted.dom = this.text;
-					mounted.end = undefined;
-					mounted.textPresentation = this.text;
-					refreshComponentRoot(
-						this.root,
-						instance as AnyComponentInstance,
-						true,
-						rootIntroduction(this.root)
-					);
-					mounted.afterPlacement = () => (instance as AnyComponentInstance).markMounted();
-					mounted.afterPlacementPhase = 'mount';
-					return mounted;
-				},
+				[exactCompiledDirectProgramAttachment]: present,
+				[exactCompiledClientAttachment]: present,
 				[exactCompatibilityClientAttachment]: () => {
 					throw new TypeError('Text projection requires native component output');
 				}
 			});
 			return record;
 		} catch (error) {
-			attachment.abort();
+			try {
+				attachment.abort();
+			} catch (cleanup) {
+				attachSuppressedCleanupFailure(error, cleanup);
+			}
 			throw error;
 		}
 	}

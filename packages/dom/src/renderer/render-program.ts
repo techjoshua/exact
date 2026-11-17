@@ -40,11 +40,18 @@ export function adoptRenderProgram(
 		physicalParent?: Node
 	) => Mounted[] | undefined
 ): Mounted | undefined {
- const receipt = readRenderProgramReceipt(value);
- if (!receipt) return undefined;
- const mounted = adoptDirectRenderProgram(root, receipt.invocation, dom, scope, parentInstance, adoptChildren);
- if (mounted) mounted.renderProgramReceipt = receipt;
- return mounted;
+	const receipt = readRenderProgramReceipt(value);
+	if (!receipt) return undefined;
+	const mounted = adoptDirectRenderProgram(
+		root,
+		receipt.invocation,
+		dom,
+		scope,
+		parentInstance,
+		adoptChildren
+	);
+	if (mounted) mounted.renderProgramReceipt = receipt;
+	return mounted;
 }
 
 /** Claims and binds typed component output without a runtime payload table. */

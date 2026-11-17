@@ -1,3 +1,4 @@
+import type { ExactRenderProgramInvocation } from '@exactjs/core/runtime/render-operations';
 import { acquiredComponentChildren } from './component-receipt-binding.js';
 import { readClientComponentInput } from './component-input-admission.js';
 import {
@@ -82,7 +83,8 @@ export function withPreparedEnhancementBindings<T>(
 	root: Root,
 	boundary: Mounted,
 	children: Child[],
-	adopt: (children: Child[]) => T
+	adopt: (children: Child[]) => T,
+	direct?: ExactRenderProgramInvocation
 ): T {
 	const receipt = boundary.componentReceipt;
 	if (!receipt) return adopt(children);
@@ -109,7 +111,11 @@ export function withPreparedEnhancementBindings<T>(
 	);
 	if (!entries.length) return adopt(children);
 	const restoreFallback = checkpointEnhancementFallback(entries);
-	const closedRoot = children.length === 1 && readRenderProgramReceipt(children[0]);
+	const closedRoot =
+		children.length === 1 &&
+		(direct && children[0] === direct
+			? { invocation: direct }
+			: readRenderProgramReceipt(children[0]));
 	if (closedRoot && !closedRoot.invocation.program.targetSlots?.length) {
 		// With no structural slots, this intrinsic is the only possible destination.
 		// Preserve adoption rollback without allocating a candidate traversal.

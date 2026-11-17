@@ -109,6 +109,11 @@
 			"types": "./dist/runtime/text-host.d.ts",
 			"browser": "./dist/client/runtime/text-host.js",
 			"default": "./dist/server/runtime/text-host.js"
+		},
+		"./runtime/direct-component": {
+			"types": "./dist/runtime/direct-component.d.ts",
+			"browser": "./dist/client/runtime/direct-component.js",
+			"default": "./dist/server/runtime/direct-component.js"
 		}
 	},
 	"main": "./dist/index.js",

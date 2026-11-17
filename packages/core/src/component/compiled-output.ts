@@ -10,7 +10,7 @@ import { componentRenderHandlers } from './lifecycle-handlers.js';
 
 /** Executes one compiler-owned output operation without installing component-wide invalidation. */
 export function executeCompiledComponentOutput(instance: AnyComponentInstance): Child[] {
- return normalizeRenderResult(executeCompiledComponentOutputValue(instance));
+	return normalizeRenderResult(executeCompiledComponentOutputValue(instance));
 }
 
 /** Executes original output once; the compiler-selected attachment owns its result representation. */

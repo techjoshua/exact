@@ -25,20 +25,26 @@ export function mountRenderProgram(
 	parentInstance?: AnyComponentInstance,
 	parentNode?: Node
 ): Mounted | undefined {
- const receipt = readRenderProgramReceipt(value);
- if (!receipt) return undefined;
- const mounted = mountDirectRenderProgram(root, receipt.invocation, scope, parentInstance, parentNode);
- if (mounted) mounted.renderProgramReceipt = receipt;
- return mounted;
+	const receipt = readRenderProgramReceipt(value);
+	if (!receipt) return undefined;
+	const mounted = mountDirectRenderProgram(
+		root,
+		receipt.invocation,
+		scope,
+		parentInstance,
+		parentNode
+	);
+	if (mounted) mounted.renderProgramReceipt = receipt;
+	return mounted;
 }
 
 /** Attaches a typed component-owned region without receipt redemption or generic execution. */
 export function mountDirectRenderProgram(
- root: Root,
- invocation: ExactRenderProgramInvocation,
- scope: EffectScope,
- parentInstance?: AnyComponentInstance,
- parentNode?: Node
+	root: Root,
+	invocation: ExactRenderProgramInvocation,
+	scope: EffectScope,
+	parentInstance?: AnyComponentInstance,
+	parentNode?: Node
 ): Mounted | undefined {
 	const bindingOwner = (invocation.owner as AnyComponentInstance | undefined) ?? parentInstance;
 	const program = directProgram(invocation.program);

@@ -93,14 +93,26 @@ export function adoptComponentChildren(
 	end = nodes.length
 ): Mounted[] | undefined {
 	const adoptOutput = (first: number, last: number): Mounted[] | undefined => {
-  if (Array.isArray(children)) return adoptStaticChildren(root, children, nodes, parentInstance, parentScope, first, last);
-  if (last - first !== 1 || !nodes[first]) return undefined;
-  const scope = createEffectScope(parentScope);
-  const mounted = adoptDirectRenderProgram(root, children, nodes[first]!, scope, parentInstance, (values, currentNodes, owner, childScope, first, last, _compilerOwned, parent) => adoptStaticChildren(root, [...values], currentNodes, owner, childScope, first, last, parent));
-  if (!mounted) { scope.stop(); return undefined; }
-  return [mounted];
- };
- const direct = adoptOutput(start, end);
+		if (Array.isArray(children))
+			return adoptStaticChildren(root, children, nodes, parentInstance, parentScope, first, last);
+		if (last - first !== 1 || !nodes[first]) return undefined;
+		const scope = createEffectScope(parentScope);
+		const mounted = adoptDirectRenderProgram(
+			root,
+			children,
+			nodes[first]!,
+			scope,
+			parentInstance,
+			(values, currentNodes, owner, childScope, first, last, _compilerOwned, parent) =>
+				adoptStaticChildren(root, [...values], currentNodes, owner, childScope, first, last, parent)
+		);
+		if (!mounted) {
+			scope.stop();
+			return undefined;
+		}
+		return [mounted];
+	};
+	const direct = adoptOutput(start, end);
 	if (direct) return direct;
 	const opening = nodes[start];
 	if (!(opening instanceof Comment) || !isChildRangeOpening(opening.data)) return undefined;

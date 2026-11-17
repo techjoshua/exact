@@ -23,7 +23,7 @@ import {
 import { withComponentResumption } from '@exactjs/core';
 import {
 	exactCompiledClientAttachment,
- exactCompiledDirectProgramAttachment,
+	exactCompiledDirectProgramAttachment,
 	exactCompatibilityClientAttachment,
 	type ExactClientComponentArtifact
 } from '@exactjs/core/runtime/component-operations';
@@ -266,28 +266,39 @@ class NativeClientAttachmentTarget {
 		mode: 'mount' | 'hydrate'
 	): Mounted {
 		this.assertAttachment(artifact, instance, mode);
-  if (Array.isArray(rendered)) {
-		retainSuppliedPlacement(this.mounted, rendered, this.root);
-		this.mounted.children = mountDetachedChildren(
-			this.root,
-			this.mounted.componentReceipt?.fragmentTarget
-				? domEnhancementCapability()!.projectComponent!(this.mounted, rendered)
-				: rendered,
-			instance as AnyComponentInstance,
-			this.mounted.scope,
-			this.parentNode
-		);
-  } else {
-   if (rendered.owner !== instance || this.mounted.componentReceipt?.fragmentTarget)
-    throw new TypeError('Direct component output requires its original owner and finite root placement');
-   const scope = createEffectScope(this.mounted.scope);
-   try {
-    countDomWork(this.root);
-    const region = mountDirectRenderProgram(this.root, rendered, scope, instance as AnyComponentInstance, this.parentNode);
-    if (!region) throw new Error('Direct compiled region failed its finite DOM claim');
-    this.mounted.children = [region];
-   } catch (error) { scope.stop(); throw error; }
-  }
+		if (Array.isArray(rendered)) {
+			retainSuppliedPlacement(this.mounted, rendered, this.root);
+			this.mounted.children = mountDetachedChildren(
+				this.root,
+				this.mounted.componentReceipt?.fragmentTarget
+					? domEnhancementCapability()!.projectComponent!(this.mounted, rendered)
+					: rendered,
+				instance as AnyComponentInstance,
+				this.mounted.scope,
+				this.parentNode
+			);
+		} else {
+			if (rendered.owner !== instance)
+				throw new TypeError(
+					'Direct component output requires its original owner and finite root placement'
+				);
+			const scope = createEffectScope(this.mounted.scope);
+			try {
+				countDomWork(this.root);
+				const region = mountDirectRenderProgram(
+					this.root,
+					rendered,
+					scope,
+					instance as AnyComponentInstance,
+					this.parentNode
+				);
+				if (!region) throw new Error('Direct compiled region failed its finite DOM claim');
+				this.mounted.children = [region];
+			} catch (error) {
+				scope.stop();
+				throw error;
+			}
+		}
 		if (this.root.suppliedPlacementPlan?.pending && this.root.suppliedPlacementPlan.isCurrent())
 			this.root.suppliedPlacementPlan.present(
 				instance as AnyComponentInstance,
@@ -306,9 +317,14 @@ class NativeClientAttachmentTarget {
 		return this.mounted;
 	}
 
- [exactCompiledDirectProgramAttachment](artifact: ExactClientComponentArtifact, instance: object, invocation: ExactRenderProgramInvocation, mode: 'mount' | 'hydrate'): Mounted {
-  return this[exactCompiledClientAttachment](artifact, instance, invocation, mode);
- }
+	[exactCompiledDirectProgramAttachment](
+		artifact: ExactClientComponentArtifact,
+		instance: object,
+		invocation: ExactRenderProgramInvocation,
+		mode: 'mount' | 'hydrate'
+	): Mounted {
+		return this[exactCompiledClientAttachment](artifact, instance, invocation, mode);
+	}
 
 	[exactCompatibilityClientAttachment](
 		artifact: ExactClientComponentArtifact,

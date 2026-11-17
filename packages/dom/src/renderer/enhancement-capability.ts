@@ -1,3 +1,4 @@
+import type { ExactRenderProgramInvocation } from '@exactjs/core/runtime/render-operations';
 import { componentContractVersion } from '../component-contract-version.js';
 import { type AdmittedClientComponentInput } from './component-input-admission.js';
 import type { AnyComponentInstance, Child } from '@exactjs/core';
@@ -24,7 +25,12 @@ export type EnhancementPatchOperation = (
 /** Prepares an owned native text component before projecting its captured output. */
 export type TextComponentVisitor = (
 	receipt: AdmittedClientComponentInput,
-	visit: (output: readonly Child[], mounted: Mounted) => string
+	visit: (
+		output: readonly Child[],
+		mounted: Mounted,
+		direct?: ExactRenderProgramInvocation,
+		supplied?: PreparedTextResolver
+	) => string
 ) => string;
 
 /** Complete DOM lifecycle implemented when an enhancement-bearing module is reachable. */

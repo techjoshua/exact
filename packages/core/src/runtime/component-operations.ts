@@ -1,6 +1,6 @@
 export {
 	attachExactCompiledClientComponent,
- attachExactCompiledDirectProgramComponent,
+	attachExactCompiledDirectProgramComponent,
 	disposeExactClientComponent,
 	receiveExactClientComponentProps,
 	receiveExactDynamicClientComponentProps
@@ -12,8 +12,8 @@ export {
 } from '../component-abi/server-runtime.js';
 export {
 	exactCompiledClientAttachment,
- exactCompiledDirectProgramAttachment,
- type ExactCompiledDirectProgramTarget,
+	exactCompiledDirectProgramAttachment,
+	type ExactCompiledDirectProgramTarget,
 	exactCompatibilityClientAttachment,
 	type ExactClientAttachMode,
 	type ExactClientComponentArtifact,
