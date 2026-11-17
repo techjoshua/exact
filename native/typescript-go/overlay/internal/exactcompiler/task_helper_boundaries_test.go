@@ -60,8 +60,7 @@ func TestServerTaskLocalClassDependencies(t *testing.T) {
 		{"leaked receiver", `function leak(value:unknown):string{return String(value)}class Receiver{read():string{return leak(this)}}`, `this.state.label=new Receiver().read()`, true},
 		{"foreign method", `const foreign=function(this:unknown):string{return String(this)};class Receiver{get read(){return foreign}}`, `this.state.label=new Receiver().read()`, true},
 		{"mixed shadow", `class Parent{read():string{return 'base'}}class Receiver extends Parent{}`, `const shadow=()=>{class Receiver{read():string{return 'inner'}}return new Receiver().read()};this.state.label=new Receiver().read()+shadow()`, false},
-		{"inferred isomorphic", `class Parent{read():string{return 'base'}}class Receiver extends Parent{}`, `this.state.label=new Receiver().read()`, false},
-		{"inferred server", `class Parent{read():string{return 'base'}}class Receiver extends Parent{}`, `this.state.label=new Receiver().read()+String(process.pid)`, false},
+		{"inferred server", `const seed='inferred';class Parent{read():string{return seed}}class Receiver extends Parent{}`, `this.state.label=new Receiver().read()+process.cwd()`, false},
 		{"computed name", `const key='read';class Receiver{[key]():string{return 'value'}}`, `this.state.label=new Receiver().read()`, true},
 		{"static initializer", `class Receiver{static value=1;read():string{return 'value'}}`, `this.state.label=new Receiver().read()`, true},
 		{"static block", `class Receiver{static{}read():string{return 'value'}}`, `this.state.label=new Receiver().read()`, true},
@@ -73,17 +72,24 @@ func TestServerTaskLocalClassDependencies(t *testing.T) {
 	} {
 		t.Run(row.name, func(t *testing.T) {
 			source := `import {TaskContext,type Component} from '@exactjs/core';export function Page(this:Component<{label:string}>){this.state.label='initial';` + row.definitions + `;const run=async(task:TaskContext=TaskContext.server())=>{` + row.body + `;};return()=> <button onClick={()=>void run()}>{this.state.label}</button>}`
-			if row.name == "inferred isomorphic" || row.name == "inferred server" {
-				source = strings.Replace(source, "TaskContext.server()", "TaskContext.parallel()", 1)
-			}
 			if row.name == "inferred server" {
-				source = "declare const process:{pid:number};" + source
+				source = strings.Replace(source, "TaskContext.server()", "TaskContext.parallel()", 1)
 			}
 			if row.name == "client original scope" {
 				source = strings.Replace(source, "TaskContext.server()", "TaskContext.client()", 1)
 			}
-			f := newExecutableFixture(t, map[string]string{"entry.tsx": source})
+			files := map[string]string{"entry.tsx": source}
+			// The real Node global is declared outside the consumer source, matching
+			// the existing platform-effect owner. A same-source declaration would shadow
+			// that original global identity and would not prove server inference.
+			if row.name == "inferred server" {
+				files["node-globals.d.ts"] = `declare const process:{cwd():string};`
+			}
+			f := newExecutableFixture(t, files)
 			config := `{"compilerOptions":{"module":"ESNext","moduleResolution":"Bundler","target":"ES2022","strict":true,"skipLibCheck":true,"allowJs":true,"jsx":"react-jsx","jsxImportSource":"@exactjs/jsx"},"files":["entry.tsx"]}`
+			if row.name == "inferred server" {
+				config = strings.Replace(config, `"files":["entry.tsx"]`, `"files":["entry.tsx","node-globals.d.ts"]`, 1)
+			}
 			if row.name == "parameter decorator" {
 				config = strings.Replace(config, `"strict":true`, `"strict":true,"experimentalDecorators":true`, 1)
 			}
@@ -105,12 +111,8 @@ func TestServerTaskLocalClassDependencies(t *testing.T) {
 				t.Fatal("actual component/task/state entry absent", a.Error, a.Diagnostics)
 			}
 
-			if row.name == "inferred isomorphic" || row.name == "inferred server" {
-				expected := "isomorphic"
-				if row.name == "inferred server" {
-					expected = "server"
-				}
-				if a.Analysis.Tasks[0].RequestedPlacement != "" || a.Analysis.Tasks[0].Placement != expected {
+			if row.name == "inferred server" {
+				if a.Analysis.Tasks[0].RequestedPlacement != "" || a.Analysis.Tasks[0].Placement != "server" || !a.Analysis.Tasks[0].ServerEffects || a.Analysis.Tasks[0].BrowserEffects {
 					t.Fatal("inferred reconstruction entry absent", a.Analysis.Tasks[0])
 				}
 			}
@@ -155,7 +157,7 @@ func TestServerTaskLocalClassDependencies(t *testing.T) {
 						t.Fatal("transitive class declaration order lost", executor)
 					}
 				}
-				if row.name == "receiver capture" && (!strings.Contains(executor, "const seed =") || !strings.Contains(executor, ".dependencies[")) {
+				if (row.name == "receiver capture" || row.name == "inferred server") && (!strings.Contains(executor, "const seed =") || !strings.Contains(executor, ".dependencies[")) {
 					t.Fatal("setup capture activation absent", executor)
 				}
 			}
