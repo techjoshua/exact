@@ -1209,15 +1209,18 @@ owns key evaluation and coercion; this contribution neither reevaluates the key
 nor supplies its value or a successful field-read result.
 The same original-Call owner retains descriptor getter effects for an acquired
 standard `Object.defineProperty` with three nonspread arguments and a literal
-descriptor. Target and key evaluation and the strong reflective operation keep
-their existing owners and frame/inspection guards. This does not extend that
-source contribution to `Reflect.defineProperty`, invocation aliases/adapters,
-optional Calls or nonliteral descriptors.
+descriptor, including a preceding same-callable `const` whose initializer is that
+literal. The binding is stable; its descriptor fields remain mutable. The original
+argument passes through the shared source normalization, preserving the descriptor
+receiver, creating scope and field writers. Target and key evaluation and the strong
+reflective operation keep their existing owners and frame/inspection guards. This
+does not extend that source contribution to `Reflect.defineProperty`, invocation
+aliases/adapters, optional Calls or other descriptor producers.
 Known environment donors join the component's effects independently of unresolved
 field, validation and Throw obligations. This contribution produces no installed
 value, successful field read, mutation, or completed conversion. Normal/result
 acquisition and nested writer-candidate probes do not enter this original-Call
-route. Aliased maps or descriptors, computed entries in multi-entry maps and
+route. Other aliased maps or descriptors, computed entries in multi-entry maps and
 invocation adapters retain their existing owners and uncertainty; this finite
 contribution does not qualify those cases. Named multi-entry acquisition can
 conservatively retain a getter from an overwritten descriptor; single-entry

@@ -31,10 +31,19 @@ func (query *sourceValueQuery) definePropertiesCallEffects(node *ast.Node, prepa
 			_, method := accessorReceiver(callee)
 			if method == "defineProperty" {
 				descriptor := unwrapSourceCallableReference(actuals[2])
-				if ast.IsObjectLiteralExpression(descriptor) {
-					// The direct literal is supplied in this original Call scope.
-					// Target/key evaluation and the strong reflective operation
-					// keep their existing owners, frame guards and uncertainty.
+				literal := ast.IsObjectLiteralExpression(descriptor)
+				if !literal && ast.IsIdentifier(descriptor) {
+					symbol := query.owner.checker.GetSymbolAtLocation(descriptor)
+					if symbol != nil && len(symbol.Declarations) == 1 {
+						declaration := symbol.Declarations[0]
+						literal = ast.IsVariableDeclaration(declaration) && declaration.Parent != nil && ast.IsVariableDeclarationList(declaration.Parent) && declaration.Parent.Flags&ast.NodeFlagsConst != 0 && declaration.End() < node.Pos() && enclosingCallableNode(declaration) == query.effectOwner && ast.IsObjectLiteralExpression(unwrapSourceCallableReference(declaration.Initializer()))
+					}
+				}
+				if literal {
+					// A local const stabilizes the supplied binding, not its fields.
+					// Pass the original argument so shared source Has/Get preserves
+					// current writers, creating scope and the descriptor receiver.
+					// No normal frame, completed Get or field immutability follows.
 					query.normalizeDescriptorSourceFields(node, sourceValue{node: descriptor}, bindings, result)
 				}
 			}
