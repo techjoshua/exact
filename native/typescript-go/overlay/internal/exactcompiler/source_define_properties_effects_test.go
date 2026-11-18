@@ -1,6 +1,9 @@
 package exactcompiler
 
-import "testing"
+import (
+	"os"
+	"testing"
+)
 
 // A descriptor's value accessor executes during the original native Call,
 // independently of whether the installed target value can be reconstructed.
