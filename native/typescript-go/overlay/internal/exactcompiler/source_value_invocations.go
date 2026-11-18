@@ -374,10 +374,6 @@ func (query *sourceValueQuery) consumeInvocation(node *ast.Node, bindings source
 	return result
 }
 
-func sourceInvocationCandidates(node *ast.Node, c *checker.Checker, owner *executableBodyOwner, consumer *ast.Node) accessorCandidates {
-	return sourceInvocationWithResults(node, c, owner, consumer, nil, nil)
-}
-
 // sourceInvocationWithResults carries this normal owner's earlier operation
 // receipts to later actual input/Get acquisition. Indexed interference suspends
 // observation, and each successful await still checks its original owner.
