@@ -6,7 +6,7 @@ import (
 )
 
 // definePropertiesCallEffects retains ToPropertyDescriptor getter dependencies
-// for an already acquired standard Call alternative. It publishes no installed
+// for acquired standard Object.defineProperty/defineProperties alternatives. It publishes no installed
 // field, returned value, completion, callee coverage or descriptor conversion.
 // The original invocation retains all of its uncertainty and authored siblings.
 func (query *sourceValueQuery) definePropertiesCallEffects(node *ast.Node, prepared sourcePreparedInvocation, bindings sourceValueBindings, result *accessorCandidates) {
@@ -15,15 +15,34 @@ func (query *sourceValueQuery) definePropertiesCallEffects(node *ast.Node, prepa
 	if !query.dependenciesOnly || query.operation != nil || query.sourceEffects.issuer != query || query.dependencyUse != node || query.reading != node || query.effectOwner != enclosingCallableNode(node) {
 		return
 	}
-	selected := false
+	selected, single := false, false
 	for _, value := range prepared.acquired.values {
 		selected = selected || value.native != nil && value.native.kind == sourceNativeObjectDefineProperties
+		single = single || value.native != nil && value.native.kind == sourceNativeObjectDefineProperty
 	}
-	if !selected || !ast.IsCallExpression(node) {
+	if !selected && !single || !ast.IsCallExpression(node) {
 		return
 	}
 	call := node.AsCallExpression()
 	actuals := restrictedInvocationArguments(call)
+	if single && len(actuals) == 3 && !ast.IsSpreadElement(actuals[0]) && !ast.IsSpreadElement(actuals[1]) && !ast.IsSpreadElement(actuals[2]) {
+		callee := unwrapSourceCallableReference(call.Expression)
+		if (ast.IsPropertyAccessExpression(callee) || ast.IsElementAccessExpression(callee)) && call.QuestionDotToken == nil {
+			_, method := accessorReceiver(callee)
+			if method == "defineProperty" {
+				descriptor := unwrapSourceCallableReference(actuals[2])
+				if ast.IsObjectLiteralExpression(descriptor) {
+					// The direct literal is supplied in this original Call scope.
+					// Target/key evaluation and the strong reflective operation
+					// keep their existing owners, frame guards and uncertainty.
+					query.normalizeDescriptorSourceFields(node, sourceValue{node: descriptor}, bindings, result)
+				}
+			}
+		}
+	}
+	if !selected {
+		return
+	}
 	// Adapted and spread vectors retain their existing owner. This finite
 	// direct-Call contribution must not reinterpret an adapter's raw arguments.
 	if call.QuestionDotToken != nil || len(actuals) != 2 || ast.IsSpreadElement(actuals[0]) || ast.IsSpreadElement(actuals[1]) {

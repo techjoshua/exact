@@ -1207,6 +1207,12 @@ A sole computed entry with a checked string, number or symbol key shares this
 Effects-only path when its descriptor is a literal. The original eager expression
 owns key evaluation and coercion; this contribution neither reevaluates the key
 nor supplies its value or a successful field-read result.
+The same original-Call owner retains descriptor getter effects for an acquired
+standard `Object.defineProperty` with three nonspread arguments and a literal
+descriptor. Target and key evaluation and the strong reflective operation keep
+their existing owners and frame/inspection guards. This does not extend that
+source contribution to `Reflect.defineProperty`, invocation aliases/adapters,
+optional Calls or nonliteral descriptors.
 Known environment donors join the component's effects independently of unresolved
 field, validation and Throw obligations. This contribution produces no installed
 value, successful field read, mutation, or completed conversion. Normal/result
