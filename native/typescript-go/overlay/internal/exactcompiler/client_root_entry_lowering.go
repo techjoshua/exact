@@ -154,8 +154,6 @@ func (lowering *jsxLowering) compiledClientRootCallee(
 			operation = deferredClientRootOperation(operation)
 			kind, compiled := lowering.compiledClientRootValue(operation, variables)
 			return lowering.names.hydrateCompiledDeferred, compiled && kind == clientRootComponentOperation
-		case "readPublishedRootProps":
-			return lowering.names.readCompiledRootProps, true
 		}
 	}
 	return "", false

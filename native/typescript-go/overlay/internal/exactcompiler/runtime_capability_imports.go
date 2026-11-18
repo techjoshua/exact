@@ -180,7 +180,6 @@ type jsxRuntimeNames struct {
 	renderCompiledProgramRoot   string
 	hydrateCompiledRoot         string
 	hydrateCompiledDeferred     string
-	readCompiledRootProps       string
 }
 
 type runtimeImportGroupID string
@@ -455,7 +454,6 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		{"renderCompiledProgramRoot", lowering.names.renderCompiledProgramRoot, runtimeCompiledDOMProgramRoot},
 		{"hydrateCompiledComponentInputRoot", lowering.names.hydrateCompiledRoot, runtimeCompiledHydrationRoot},
 		{"hydrateCompiledComponentInputRootAfterNavigation", lowering.names.hydrateCompiledDeferred, runtimeCompiledHydrationRoot},
-		{"readPublishedRootProps", lowering.names.readCompiledRootProps, runtimeCompiledHydrationRoot},
 	}
 	for _, helper := range helpers {
 		used := containsIdentifier(root, helper.local)
@@ -1124,6 +1122,5 @@ func allocateJSXRuntimeNames(sourceFile *ast.SourceFile) jsxRuntimeNames {
 		renderCompiledProgramRoot:   allocate("__exactRenderCompiledProgramRoot"),
 		hydrateCompiledRoot:         allocate("__exactHydrateCompiledRoot"),
 		hydrateCompiledDeferred:     allocate("__exactHydrateCompiledRootAfterNavigation"),
-		readCompiledRootProps:       allocate("__exactReadCompiledRootProps"),
 	}
 }

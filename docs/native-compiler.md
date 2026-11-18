@@ -354,6 +354,9 @@ The Vite adapter authorizes each optional provider in its importing component's 
 equivalent resolved facades one content-derived module identity. Compiler-selected narrow SSR,
 DOM root, and hydration entries use the same catalog-supplying facades as their public entry points. Components that select the same
 provider therefore share one browser module without weakening package-scoped authorization.
+Published-root prop decoding retains its authored `@exactjs/hydrate/root` call and import,
+including calls in ordinary exported and nested helpers. Both root facades re-export the same
+`root-config` decoder, so prop reads need no compiler-specific physical-entry substitution.
 
 `exactc --check --project tsconfig.json` is the no-emit application type-check path. It analyzes and lowers each
 transformable project module before TypeScript semantic validation, so compiler-owned TSX is
