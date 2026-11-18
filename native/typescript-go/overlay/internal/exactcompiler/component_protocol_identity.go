@@ -156,3 +156,53 @@ func conditionalComponentContextMethod(member, receiver *ast.Node, c *checker.Ch
 	}
 	return selected
 }
+
+// componentLifecycleCallName is the direct lifecycle lowering domain. A checked
+// key identifies the operation; its evaluation remains independently required.
+func componentLifecycleCallName(node *ast.Node, typeChecker *checker.Checker) string {
+	if node == nil || !ast.IsCallExpression(node) || node.AsCallExpression().QuestionDotToken != nil {
+		return ""
+	}
+	name, member, dynamic := checkedComponentProtocolMember(node.Expression(), typeChecker)
+	if !member || dynamic {
+		return ""
+	}
+	switch name {
+	case "onMount", "onActivate", "onDeactivate", "onUnmount", "onRender", "own":
+		return name
+	}
+	return ""
+}
+
+// ordinaryComponentLifecycleCall accounts only an inline callback registration
+// in an actually selected component. The ordinary walk owns its key and arrow
+// creation; factory, getter, spread and extracted callback inputs keep generic
+// acquisition. This domain supplies no normal output or callback execution.
+func ordinaryComponentLifecycleCall(node *ast.Node, typeChecker *checker.Checker, owner *executableBodyOwner) bool {
+	if node == nil || !ast.IsCallExpression(node) || owner == nil || owner.values == nil {
+		return false
+	}
+	call := node.AsCallExpression()
+	if call.QuestionDotToken != nil || call.Arguments == nil || len(call.Arguments.Nodes) != 1 || !ast.IsArrowFunction(unwrapRenderExpression(call.Arguments.Nodes[0])) {
+		return false
+	}
+	if _, member, _ := componentProtocolMember(call.Expression); !member {
+		return false
+	}
+	for scope := node.Parent; scope != nil; scope = scope.Parent {
+		if _, selected := owner.values.components[scope]; selected {
+			// This bounded domain needs lexical this only. Ordinary functions
+			// and class receivers keep generic acquisition; no component scan
+			// or import collection is needed at either collector entry.
+			if !helperOwnsReceiver(node, scope) {
+				return false
+			}
+			switch componentLifecycleCallName(node, typeChecker) {
+			case "onMount", "onActivate", "onDeactivate":
+				return true
+			}
+			return false
+		}
+	}
+	return false
+}

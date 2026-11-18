@@ -12,11 +12,8 @@ func (lowering *jsxLowering) lowerComponentLifecycleCall(node *ast.Node) *ast.No
 		return nil
 	}
 	call := node.AsCallExpression()
-	if call.QuestionDotToken != nil {
-		return nil
-	}
-	name, componentMember, dynamic := checkedComponentProtocolMember(call.Expression, lowering.checker)
-	if !componentMember || dynamic {
+	name := componentLifecycleCallName(node, lowering.checker)
+	if name == "" {
 		return nil
 	}
 	arguments := make([]*ast.Node, 0, len(call.Arguments.Nodes)+2)

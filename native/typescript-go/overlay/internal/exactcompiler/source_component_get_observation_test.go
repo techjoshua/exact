@@ -113,3 +113,54 @@ func TestNonliteralComponentGetPreservesKeyEffects(t *testing.T) {
 		t.Fatalf("key browser effect disappeared: %#v", response.Analysis.Components)
 	}
 }
+
+// Non-inline inputs retain their ordinary eager evaluation and cannot borrow
+// the compiler-owned inline lifecycle registration domain.
+func TestComponentLifecycleCallEagerInputFallback(t *testing.T) {
+	for _, test := range []struct {
+		name, setup, argument string
+		browser               bool
+	}{
+		{"getter", `const input={get callback(){document.title;return()=>{}}};`, `input.callback`, true},
+		{"factory", `function make(){document.title;return()=>{}}`, `make()`, true},
+		{"spread", `const callbacks:[()=>void]=[()=>{}];`, `...callbacks`, false},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			source := `import type{Component}from'@exactjs/core';const key='onMount' as const;` + test.setup + `export function Page(this:Component<{}>){this[key](` + test.argument + `);return()=> <p>Ready</p>}`
+			filename, err := normalizeFileName("lifecycle-eager-input.tsx", "")
+			if err != nil {
+				t.Fatal(err)
+			}
+			session := NewSession()
+			response := session.Execute(Request{Kind: "compile", ID: filename, Source: source, Diagnostics: "semantic"})
+			if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) {
+				t.Fatalf("invalid source: %s %#v", response.Error, response.Diagnostics)
+			}
+			if test.browser && (len(response.Analysis.Components) != 1 || response.Analysis.Components[0].Placement != "client") {
+				t.Fatalf("eager input lost browser effect: %#v", response.Analysis.Components)
+			}
+			var project *projectState
+			for _, candidate := range session.projects {
+				project = candidate
+			}
+			if project == nil || project.callableCache == nil {
+				t.Fatal("actual component source owner missing")
+			}
+			file := project.program.GetSourceFile(filename)
+			var call *ast.Node
+			walkNode(file.AsNode(), func(node *ast.Node) bool {
+				if ast.IsCallExpression(node) && ast.IsElementAccessExpression(node.Expression()) && node.Expression().AsElementAccessExpression().Expression.Kind == ast.KindThisKeyword {
+					call = node
+				}
+				return true
+			})
+			if call == nil {
+				t.Fatal("original lifecycle call missing")
+			}
+			owner := project.callableCache.owner
+			if ordinaryComponentLifecycleCall(call, owner.checker, owner) {
+				t.Fatal("non-inline argument acquired inline registration policy")
+			}
+		})
+	}
+}

@@ -277,7 +277,10 @@ func collectDirectCallableEffects(
 		opaqueDeclaration := ast.IsCallExpression(node) && fact.normalInputs == nil && sourceOpaqueDeclarationCall(node, owner)
 		if !captured && !stagedAssignment && !stagedHasInstance && !stagedNative && !stagedSourceCall && !stagedConstructed && !stagedFramework && !opaqueDeclaration {
 			registerPendingMemberSource(fact, node, owner, work)
-			appendAccessorEffects(fact, node, nodeTargets, sourceFile, typeChecker, owner, accessorWork, facts)
+			lifecycleGet := fact.normalInputs == nil && node.Parent != nil && ast.IsCallExpression(node.Parent) && node.Parent.Expression() == node && ordinaryComponentLifecycleCall(node.Parent, typeChecker, owner)
+			if !lifecycleGet {
+				appendAccessorEffects(fact, node, nodeTargets, sourceFile, typeChecker, owner, accessorWork, facts)
+			}
 			if demand, dependent := describeNormalOperand(node); !dependent || !demand.pattern {
 				appendImplicitAccessorEffects(fact, node, nodeTargets, sourceFile, typeChecker, nil, owner, accessorWork, facts)
 			}
@@ -468,7 +471,12 @@ func collectDirectCallableEffects(
 			definition.edge = len(fact.summary.Calls) - 1
 		}
 		invocation := accessorCandidates{}
-		invocation = appendArgumentAccessorEffects(fact, node, nodeTargets, sourceFile, typeChecker, owner, definition)
+		// Direct kernel registration owns the Call, while the ordinary walk
+		// still visits its key and inline callback creation. Keep edge selection
+		// and callback placement on their existing owners below.
+		if fact.normalInputs != nil || !ordinaryComponentLifecycleCall(node, typeChecker, owner) {
+			invocation = appendArgumentAccessorEffects(fact, node, nodeTargets, sourceFile, typeChecker, owner, definition)
+		}
 		fact.nativeCalls = append(fact.nativeCalls, invocation.nativeCalls...)
 		fact.normalCalls = append(fact.normalCalls, invocation.normalCalls...)
 		if definition == nil {

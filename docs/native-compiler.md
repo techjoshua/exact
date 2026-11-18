@@ -696,6 +696,12 @@ callback slots. Callable `thisArg` values and reduction seeds remain data, while
 member callbacks preserve computation identity rather than becoming function-valued data.
 Direct server artifacts link reactive, ref and extracted lifecycle operations through focused
 request-local helpers in both synchronous and compiler-scheduled setup.
+Ordinary MAY analysis recognizes direct `onMount`, `onActivate` and `onDeactivate` registrations
+with one inline arrow callback and a lexically owned receiver inside a selected component, using the same finite-key and
+nonoptional-call eligibility as lifecycle lowering. The original key expression still executes;
+callback bodies retain their target-specific placement. Extracted callbacks, getter or factory
+arguments, spreads and foreign receivers retain ordinary acquisition. This classification supplies
+no acquired result, normal Get completion or callback execution proof.
 DOM subclasses and application-defined types retain their own placement requirements. Native
 component re-exports retain their separately projected implementations instead of inheriting the
 environment of a nested event handler. Opposite-runtime local helpers and executing module
