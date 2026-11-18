@@ -56,11 +56,18 @@ type executableEdgeKey struct {
 // executableSelection contains no checker identities. Program-local queries recover
 // original binding provenance before alias flattening. Whole-generation invalidation
 // keeps the existing fact cache authoritative without a second effect graph.
+// executableSource retains the already revision-checked input without copying it.
+// Checked text cannot replace its original authored identity.
+type executableSource struct {
+	text  string
+	input string
+}
+
 type executableSelection struct {
 	snapshot ExecutableSelection
 	modules  map[string]string
 	edges    map[executableEdgeKey]ExecutableEdge
-	contents map[string]string
+	contents map[string]executableSource
 }
 
 func executableSlots(source *ast.SourceFile) []executableSlot {
@@ -109,7 +116,7 @@ func prepareExecutableSelection(request Request, sources []synchronizedProjectSo
 	for _, source := range sources {
 		prepared[state.fs.canonical(source.fileName)] = source
 	}
-	result := &executableSelection{snapshot: *input, modules: make(map[string]string), edges: make(map[executableEdgeKey]ExecutableEdge), contents: make(map[string]string)}
+	result := &executableSelection{snapshot: *input, modules: make(map[string]string), edges: make(map[executableEdgeKey]ExecutableEdge), contents: make(map[string]executableSource)}
 	result.snapshot.Modules = append([]ExecutableModule(nil), input.Modules...)
 	result.snapshot.Edges = append([]ExecutableEdge(nil), input.Edges...)
 	physical := make(map[string]bool)
@@ -125,7 +132,7 @@ func prepareExecutableSelection(request Request, sources []synchronizedProjectSo
 		}
 		physical[path] = true
 		result.modules[module.ID] = filename
-		result.contents[path] = source.source
+		result.contents[path] = executableSource{text: source.source, input: source.input}
 	}
 	for _, edge := range input.Edges {
 		importer, exists := result.modules[edge.Importer]
@@ -160,7 +167,9 @@ type executableBodyOwner struct {
 	slots        map[*ast.Node]ExecutableEdge
 	resolving    map[string]bool
 	stableBodies map[*ast.Node]bool
-	values       *sourceValueOwner
+	// Current-Program source identity only; no values, effects or execution receipts.
+	normalizedSources map[*ast.SourceFile]bool
+	values            *sourceValueOwner
 }
 
 func newExecutableBodyOwner(project *projectState, c *checker.Checker) *executableBodyOwner {
@@ -173,19 +182,65 @@ func newExecutableBodyOwner(project *projectState, c *checker.Checker) *executab
 	if owner.selection == nil {
 		return owner
 	}
-	for _, filename := range owner.selection.modules {
+	for _, module := range owner.selection.snapshot.Modules {
+		filename := owner.selection.modules[module.ID]
 		source := project.program.GetSourceFile(filename)
 		if source == nil {
 			continue
 		}
 		path := project.fs.canonical(source.FileName())
-		for index, slot := range executableSlots(source) {
+		slots := executableSlots(source)
+		if owner.selection.contents[path].text != source.Text() && owner.normalizedSelectionSource(source, owner.selection.contents[path], slots) {
+			if owner.normalizedSources == nil {
+				owner.normalizedSources = make(map[*ast.SourceFile]bool)
+			}
+			owner.normalizedSources[source] = true
+		}
+		for index, slot := range slots {
 			if edge, exists := owner.selection.edges[executableEdgeKey{path, index}]; exists && slot.specifier == edge.Specifier && slot.kind == edge.Kind {
 				owner.slots[slot.node] = edge
 			}
 		}
 	}
 	return owner
+}
+
+// normalizedSelectionSource admits only a current genuine projection of the exact
+// synchronized input. Reuse the existing slot walk: every reference must retain its
+// original text and order, so inserted/duplicated/unmapped imports cannot shift slots.
+// This identity-input case adds only planNativePropCasing: it renames property keys
+// or replaces a spread identifier with property reads, never removes an expression
+// subtree. Thus no earlier original module slot can disappear. Other source
+// normalization and unmapped slots retain the strict opaque path.
+func (owner *executableBodyOwner) normalizedSelectionSource(source *ast.SourceFile, expected executableSource, slots []executableSlot) bool {
+	normalization, current := owner.project.currentSourceNormalization(source)
+	original, mapped := helperPublicationInput(normalization)
+	if !current || !mapped || original != expected.input || original != expected.text {
+		return false
+	}
+	previous := -1
+	for _, slot := range slots {
+		span, known := normalization.publicationSpan(slot.node)
+		if !known || span.Start < previous || span.Start+span.Length > len(expected.input) || expected.input[span.Start:span.Start+span.Length] != source.Text()[slot.node.Pos():slot.node.End()] {
+			return false
+		}
+		previous = span.Start + span.Length
+	}
+	return true
+}
+
+// currentSelectedSource retains strict byte identity by default. A checked spelling
+// projection is valid only in the Program/generation whose owner proved it; snapshot
+// inputs and revisions are never overwritten with transformed text.
+func (owner *executableBodyOwner) currentSelectedSource(source *ast.SourceFile) bool {
+	if source == nil {
+		return false
+	}
+	expected, owned := owner.selection.contents[owner.project.fs.canonical(source.FileName())]
+	if !owned {
+		return false
+	}
+	return expected.text == source.Text() || owner.normalizedSources[source] && owner.values.program == owner.project.program && owner.values.generation == owner.project.activeGeneration && owner.project.program.GetSourceFile(source.FileName()) == source
 }
 
 func (owner *executableBodyOwner) selectedModule(slot *ast.Node) (*ast.SourceFile, bool) {
@@ -199,11 +254,11 @@ func (owner *executableBodyOwner) selectedModule(slot *ast.Node) (*ast.SourceFil
 	// An explicit snapshot owns all slots in its module closure. Unprovided slots
 	// are opaque. Legacy checker/stem inference remains only outside that closure.
 	path := owner.project.fs.canonical(source.FileName())
-	content, owned := owner.selection.contents[path]
+	_, owned := owner.selection.contents[path]
 	if !owned {
 		return nil, false
 	}
-	if content != source.Text() {
+	if !owner.currentSelectedSource(source) {
 		return nil, true
 	}
 	edge, exists := owner.slots[slot]
@@ -212,7 +267,7 @@ func (owner *executableBodyOwner) selectedModule(slot *ast.Node) (*ast.SourceFil
 	}
 	filename := owner.selection.modules[edge.Selected]
 	selected := owner.project.program.GetSourceFile(filename)
-	if selected == nil || selected.IsDeclarationFile || owner.selection.contents[owner.project.fs.canonical(filename)] != selected.Text() {
+	if selected == nil || selected.IsDeclarationFile || !owner.currentSelectedSource(selected) {
 		return nil, true
 	}
 	return selected, true
@@ -331,7 +386,7 @@ func (owner *executableBodyOwner) declaredExternalContract(slot *ast.Node, symbo
 		return false
 	}
 	source := ast.GetSourceFileOfNode(slot)
-	if source == nil || owner.selection.contents[owner.project.fs.canonical(source.FileName())] != source.Text() {
+	if !owner.currentSelectedSource(source) {
 		return false
 	}
 	symbol = resolvedCallableSymbol(symbol, owner.checker)

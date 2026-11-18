@@ -1,6 +1,6 @@
 import { withExactHostExecutableSelection } from './host-executable-selection.js';
 import { createHash } from 'node:crypto';
-import { appendFile, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { appendFile, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
@@ -13,6 +13,11 @@ import {
 	createTestWorkspace,
 	writeTestFiles
 } from '../test-support/workspace.js';
+import {
+	captureTaskPropertyMutations,
+	takeTaskPropertyMutations
+} from '@exactjs/core/framework/task-frames';
+import { importArtifact } from '../test-support/import-artifact.js';
 import { synchronizeNativeProject } from './project-synchronization.js';
 
 it('keeps authored types while selected effects and session lifecycle cross the native boundary', async () => {
@@ -477,3 +482,206 @@ it('admits only named sibling sources and replaces their authority with each que
 			}) + '\n'
 		);
 });
+
+// The helper is compiled in a replacement selected Program. Original component
+// sources are validation context only; stale/missing/reset descriptions cannot
+// authorize a private companion entry or replace ordinary JS behavior.
+it.each([
+	'canonical onClick',
+	'supported onclick',
+	'finite event spread',
+	'helper declaration spread'
+] as const)(
+	'revalidates component companion work in helper-only selected snapshots: %s',
+	async (form) => {
+		const root = await createCompilerTestWorkspace('.exact-helper-context-', process.cwd());
+		const prefix =
+			form === 'finite event spread'
+				? `const attrs={onclick:()=>{}};function Header(){return()=> <button {...attrs}/>;}`
+				: '';
+		const event = form === 'supported onclick' ? 'onclick' : 'onClick';
+		const helperName = form === 'helper declaration spread' ? 'helper.jsx' : 'helper.js';
+		const typedName = form === 'helper declaration spread' ? 'helper.tsx' : 'helper.ts';
+		const specifier = './' + helperName;
+		const helperView = form === 'helper declaration spread';
+		const source = `import {TaskContext,type Component} from '@exactjs/core';import {apply${helperView ? ',HelperView' : ''}} from '${specifier}';
+${prefix}
+export function Page(this:Component<{value:number}>){this.state.value=0;
+const save=(task:TaskContext=TaskContext.server().blocking())=>{apply(this.state);};
+return()=> <main>${form === 'finite event spread' ? '<Header/>' : helperView ? '<HelperView/>' : ''}<button ${event}={()=>save()}>Save</button><output>{this.state.value}</output></main>;}`;
+		// The real helper's used component precedes apply. Checked event-spread
+		// expansion changes apply's normalized declaration position, not its identity.
+		const helperPrefix = helperView
+			? `const attrs={onclick:()=>{}};export function HelperView(){return()=> <button {...attrs}/>;}`
+			: '';
+		const helper =
+			helperPrefix +
+			`/** @param {{value:number}} state */ export function apply(state){state.value=99;}`;
+		const files = await writeTestFiles(root, {
+			'page.tsx': source,
+			[typedName]:
+				'export function apply(state:{value:number}){state.value=2;}' +
+				(helperView ? 'export function HelperView(){return()=> <button/>;}' : ''),
+			[helperName]: helper
+		});
+		const page = files['page.tsx']!,
+			companion = files[helperName]!;
+		const session = new ExactCompilerSession();
+		onTestFinished(() => session.dispose());
+		const acquisitions: import('../native/process-contracts.js').NativeCompilerRequest[] = [];
+		const native = session.compileNative.bind(session);
+		let corruptCoordinate = false;
+		vi.spyOn(session, 'compileNative').mockImplementation((request) => {
+			// Malform only the coordinates of an actually issued source description;
+			// owner/body hashes stay current, and no synthetic callable/graph is created.
+			const current =
+				corruptCoordinate && request.kind === 'synchronize'
+					? {
+							...request,
+							helperPublicationContext: request.helperPublicationContext?.map((entry) => ({
+								...entry,
+								call: { ...entry.call, start: entry.call.start + 1 }
+							}))
+						}
+					: request;
+			if (current.kind === 'synchronize') acquisitions.push(current);
+			return native(current);
+		});
+		const compile = async (filename: string) =>
+			withExactHostExecutableSelection(
+				session,
+				() => ({
+					filename,
+					source: filename === page ? source : helperSource,
+					root,
+					target: 'server',
+					configFile: path.join(root, 'tsconfig.json'),
+					resolve: async (specifier, importer) => {
+						if (!specifier.startsWith('.')) return undefined;
+						const id = path.resolve(path.dirname(importer), specifier);
+						try {
+							await readFile(id);
+							return { id };
+						} catch {
+							return undefined;
+						}
+					}
+				}),
+				() =>
+					session.compileNative({
+						kind: 'compile',
+						id: filename,
+						source: filename === page ? source : helperSource,
+						root,
+						configFile: path.join(root, 'tsconfig.json'),
+						target: 'server',
+						diagnostics: 'syntax',
+						...(filename === page
+							? {
+									moduleRewrite: {
+										moduleAliases: { [specifier]: './helper-built.js' },
+										replacements: []
+									}
+								}
+							: {})
+					})
+			);
+		let helperSource = helper;
+		const ordinary = await compile(companion);
+		expect(ordinary.error).toBeUndefined();
+		expect(ordinary.diagnostics).toEqual([]);
+		expect(ordinary.code).not.toContain('export function __exact_owned_');
+		const component = await compile(page);
+		expect(component.error).toBeUndefined();
+		expect(component.diagnostics).toEqual([]);
+		expect(component.code).toContain('__exact_owned_');
+		expect(component.code).toContain('./helper-built.js');
+		const owned = await compile(companion);
+		expect(owned.error).toBeUndefined();
+		expect(owned.diagnostics).toEqual([]);
+		expect(owned.code).toContain('export function __exact_owned_');
+		expect(owned.code).toContain('99');
+		const required = component.code!.match(
+			/import\s*\{[^}]*?(__exact_owned_[a-z0-9_]+)[^}]*\}\s*from\s*["']\.\/helper-built\.js["']/i
+		)?.[1];
+		expect(required).toBeDefined();
+		expect(owned.code).toContain('export function ' + required + '(');
+		const snapshot = acquisitions.at(-1)!;
+		expect(snapshot.sources?.some((entry) => entry.id === page)).toBe(true);
+		expect(
+			snapshot.helperPublicationContext?.some(
+				(entry) => entry.owner === page && entry.sourceFile === companion
+			)
+		).toBe(true);
+		const builtPage = path.join(root, 'page.exact.server.ts');
+		await writeFile(builtPage, component.code!);
+		await writeFile(path.join(root, 'helper-built.ts'), owned.code!);
+		const module = await importArtifact(builtPage, path.join(root, 'linked.mjs'));
+		expect(typeof module.Page).toBe('function');
+		const helperModule = await importArtifact(
+			path.join(root, 'helper-built.ts'),
+			path.join(root, 'selected-helper.mjs')
+		);
+		const invoke = helperModule[required!] as (
+			signal: AbortSignal,
+			receiver: unknown,
+			args: unknown[]
+		) => unknown;
+		expect(typeof invoke).toBe('function');
+		const state = { value: 0 };
+		const signal = new AbortController().signal;
+		captureTaskPropertyMutations(signal);
+		try {
+			invoke(signal, undefined, [state]);
+			expect(state.value).toBe(99);
+			expect(takeTaskPropertyMutations(signal)?.(state, 'value')).toBe('set');
+		} finally {
+			takeTaskPropertyMutations(signal);
+		}
+		corruptCoordinate = true;
+		const mismatched = await compile(companion);
+		expect(mismatched.error).toBeUndefined();
+		expect(mismatched.diagnostics).toEqual([]);
+		expect(mismatched.code).not.toContain('export function __exact_owned_');
+		await writeFile(path.join(root, 'helper-built.ts'), mismatched.code!);
+		await expect(importArtifact(builtPage, path.join(root, 'unlinked.mjs'))).rejects.toThrow(
+			/No matching export/
+		);
+		corruptCoordinate = false;
+		if (form !== 'canonical onClick') return;
+		session.clear();
+		const reset = await compile(companion);
+		expect(reset.error).toBeUndefined();
+		expect(reset.diagnostics).toEqual([]);
+		expect(reset.code).not.toContain('export function __exact_owned_');
+		await compile(page);
+		const renewed = await compile(companion);
+		expect(renewed.diagnostics).toEqual([]);
+		expect(renewed.code).toContain('export function __exact_owned_');
+		// Original owner revision changed: its old edge description supplies no work.
+		await writeFile(page, 'export function Page(){return()=> <p>unrelated</p>;}');
+		const staleOwner = await compile(companion);
+		expect(staleOwner.error).toBeUndefined();
+		expect(staleOwner.diagnostics).toEqual([]);
+		expect(staleOwner.code).not.toContain('export function __exact_owned_');
+		await writeFile(page, source);
+		await compile(page);
+		helperSource = helper.replace('99', '77');
+		await writeFile(companion, helperSource);
+		const staleBody = await compile(companion);
+		expect(staleBody.error).toBeUndefined();
+		expect(staleBody.diagnostics).toEqual([]);
+		expect(staleBody.code).not.toContain('export function __exact_owned_');
+		await compile(page);
+		const freshBody = await compile(companion);
+		expect(freshBody.error).toBeUndefined();
+		expect(freshBody.diagnostics).toEqual([]);
+		expect(freshBody.code).toContain('export function __exact_owned_');
+		expect(freshBody.code).toContain('77');
+		await rm(page);
+		const missing = await compile(companion);
+		expect(missing.error).toBeUndefined();
+		expect(missing.diagnostics).toEqual([]);
+		expect(missing.code).not.toContain('export function __exact_owned_');
+	}
+);

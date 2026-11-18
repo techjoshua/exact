@@ -7,6 +7,9 @@ import (
 
 // Response is one newline-delimited result emitted by a Session.
 type Response struct {
+	// HelperPublicationVersion advertises source-only companion planning support.
+	HelperPublicationVersion int `json:"helperPublicationVersion,omitempty"`
+
 	HelperSourceDiscovery  *helperSourceDiscovery              `json:"helperSourceDiscovery,omitempty"`
 	ExecutableSlotsVersion int                                 `json:"executableSlotsVersion"`
 	ExecutableSlots        []ExecutableSlotFact                `json:"executableSlots"`
@@ -32,6 +35,7 @@ type Response struct {
 // NewResponseVersionFields returns the versions required on every response,
 // including malformed-request and early-failure responses.
 func NewResponseVersionFields(response *Response) {
+	response.HelperPublicationVersion = 1
 	response.ExecutableSlotsVersion = ExecutableSlotsVersion
 	response.ProtocolVersion = ProtocolVersion
 	response.TypeScriptVersion = core.Version()

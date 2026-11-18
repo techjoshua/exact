@@ -65,6 +65,7 @@ type Request struct {
 	Extension                   *ExtensionRequest           `json:"extension,omitempty"`
 	ExecutableSelection         *ExecutableSelection        `json:"executableSelection,omitempty"`
 	Sources                     []ProjectSource             `json:"sources,omitempty"`
+	HelperPublicationContext    []HelperPublication         `json:"helperPublicationContext,omitempty"`
 }
 
 // ProjectSource is one complete source overlay installed before project work begins.

@@ -266,6 +266,17 @@ async function compileArtifactPlanEntriesInternal(
 		},
 		sources
 	);
+	// Discovery's old Program is not authority. Reissue only its original
+	// component planning owners after the complete final source synchronization,
+	// before any companion is emitted in deterministic input-path order.
+	for (const owner of dependencyAnalysis.helperOwners) {
+		options.session!.compileNative({
+			kind: 'analyze',
+			id: owner,
+			source: sources.get(owner)!,
+			diagnostics: 'syntax'
+		});
+	}
 	const dependencyGraph = dependencyAnalysis.graph;
 	const localDependencies = dependencyAnalysis.localDependencies;
 	const capabilityOptions = capabilityCompilationOptions(options);

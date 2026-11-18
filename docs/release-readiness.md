@@ -272,6 +272,21 @@ state views. `stateAccess()` and `sameStateTarget()` are additive reactive expor
 change component contract or transport schemas. Rebuild components to receive the narrowed
 helper boundary and its identity, lifetime and class-receiver diagnostics.
 
+Compiler-required private companion names now use the guarded original declaration position
+rather than a checked JSX normalization position. Rebuild the component entry and its helper
+companions together to receive this correction. A declaration shifted by normalization can
+produce a different opaque name, including when an older complete pair had matched names;
+replacing only one member is not a compatible paired rebuild. Existing complete paired
+artifacts, provider signatures, canonical analysis IDs and ABI epoch 6 remain unchanged.
+Frozen release fixtures and their integrity records must not be regenerated. This does not
+claim compatibility for mixing independently rebuilt compiler generations.
+Native source-only helper publication additionally requires an advertised planning capability.
+Process protocol 1.0.0 alone does not establish support. The facade checks actual required-helper
+edges during default/server analysis or compilation even when an older executable omits
+publication descriptions, and refuses an unsupported host before artifact emission. Update compiler/native platform packages together, including any
+`EXACT_COMPILER_EXECUTABLE` override. The additive handshake preserves older requests and does
+not change runtime helper signatures, artifact ABI epochs or frozen fixtures.
+
 The removed helper-companion registry and alternate class/factory emitters were introduced during
 local compiler investigation. Inspection of the published core and reactive 0.7.0 package contents
 confirms that their helper-registration entry points were never published. They therefore do not

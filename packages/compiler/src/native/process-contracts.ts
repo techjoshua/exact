@@ -106,6 +106,8 @@ export type NativeCompilerRequest = Readonly<{
 	sources?: readonly NativeCompilerProjectSource[];
 	/** Internal executable snapshot. Accepted only as part of synchronization. */
 	executableSelection?: NativeExecutableSelection;
+	/** Source-only component companion planning, freshly resolved after synchronization. */
+	helperPublicationContext?: readonly NativeCompilerHelperPublication[];
 }>;
 
 /** One prepared source overlay owned by a project synchronization request. */
@@ -351,11 +353,29 @@ export type NativeCompilerReactiveBinding = Readonly<{
 	length: number;
 }>;
 
+/** Original source-edge description for server companion publication work, never execution authority. */
+export type NativeCompilerHelperPublication = Readonly<{
+	owner: string;
+	ownerRevision: string;
+	component: Readonly<{ start: number; length: number }>;
+	call: Readonly<{ start: number; length: number }>;
+	sourceFile: string;
+	sourceRevision: string;
+	declaration: Readonly<{ start: number; length: number }>;
+	config: string;
+	selected: boolean;
+	purpose: 'server';
+}>;
+
 /** Contains eXact-owned analysis facts which are safe to cross the process boundary. */
 export type NativeCompilerAnalysis = Readonly<{
 	imports: readonly NativeCompilerImport[];
 	/** Exact-paired source-only executable edges. Never published as library metadata. */
-	helperSources?: readonly Readonly<{ moduleSpecifier: string; sourceFile: string }>[];
+	helperSources?: readonly Readonly<{
+		moduleSpecifier: string;
+		sourceFile: string;
+		publication?: readonly NativeCompilerHelperPublication[];
+	}>[];
 	components: readonly NativeCompilerComponent[];
 	jsx: readonly NativeCompilerJSXElement[];
 	stateAliases: readonly NativeCompilerStateAlias[];
@@ -403,6 +423,8 @@ export type NativeCompilerComponentRegistry = Readonly<{
 
 /** Response returned for one native compiler request. */
 export type NativeCompilerResponse = Readonly<{
+	/** Optional source-only component companion planning, independent of runtime artifact ABI. */
+	helperPublicationVersion?: number;
 	/** Optional syntax-only acquisition capability, independent of emitted artifact ABI. */
 	executableSlotsVersion?: number;
 	/** Exact-source negative for helper search only, never an effect/selection result. */

@@ -2036,6 +2036,38 @@ task policy parameter erased by transformation; indexed writer discovery reuses 
 checker-bound erasure for that exact default subtree. Ordinary defaults, policy arguments and
 authored body work remain effect consumers.
 
+Component discovery describes required helper companions before artifact emission. A
+prepared build retains the original component and helper source revisions, original call
+and declaration coordinates, configuration, and selected-source provenance as publication
+work context. After synchronization, the current checker resolves that original component
+edge again before demanding only the requested helper body. The owner source is validation
+context; it does not become an execution root or supply cached writes, values, Get results,
+or transport authority. Current helper eligibility and final artifact linkage remain
+independent checks. Revisions and every component, call and helper-declaration coordinate
+use the original prepared source through its current guarded authored-offset projection.
+Checked intrinsic prop casing and finite event spreads may change the bound text and its
+length; they do not change that original identity. Virtual package suffixes remain part of
+the revision, and inserted, ambiguous or unproven coordinate ranges supply no publication
+work. Missing, changed or reset context cannot publish an owned helper entry.
+Executable selection also retains a current guarded original-source relationship across
+checked prop spelling. The original snapshot text/revision is unchanged: a different authored
+input cannot borrow it merely by normalizing to identical output. Original import/call slot
+text and order must remain mapped; inserted or ambiguous references keep opaque selection.
+This proof belongs only to the current Program/generation, not a retained execution result.
+Private import/export names use that same guarded original declaration identity while
+canonical analysis callable IDs retain their existing graph-local positions. Namespace,
+source path, authored-name collision protection and the signal/receiver/arguments signature
+remain unchanged. Rebuild the component entry and its helper companions together; existing
+complete pairs keep their original matching exports. Normal artifact aliases and input-path
+ordering do not change this planning purpose.
+The native handshake advertises this planning capability independently of the process
+protocol and runtime artifact ABI. The JavaScript facade requires it when supplying planning
+context or consuming a required-helper edge in default/server analysis or compilation, including
+an older response without publication descriptions. Client-only emission and diagnostics remain
+unaffected. An unsupported host fails before its result reaches artifact emission;
+update the compiler/native platform pair or replace an older executable override. Unaffected
+requests and older clients consuming the additive native response remain supported.
+
 Library definition publication is independent of the application's selected invocation inputs.
 Named callable props can qualify a receiving JSX edge through their actual receiver, arguments
 and captures while the exported component retains its unbound MAY contract. Compiling the same

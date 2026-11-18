@@ -305,3 +305,84 @@ describe('native syntax-slot acquisition handshake', () => {
 		}
 	});
 });
+
+describe('native component helper publication handshake', () => {
+	it.each([undefined, 0, 2])('rejects required helper edges without capability %s', (version) => {
+		workerState.closeStalls = false;
+		workerState.response = { ...validWorkerResponse(), helperPublicationVersion: version };
+		const compiler = new NativeCompilerProcess({ executable: 'synthetic-native-compiler' });
+		try {
+			// Older hosts return the existing required edge but no publication description.
+			(workerState.response.analysis as Record<string, unknown>).helperSources = [
+				{ moduleSpecifier: './helper.js', sourceFile: '/helper.js' }
+			];
+			expect(() => compiler.request({ kind: 'analyze', id: '/page.tsx', source: '' })).toThrow(
+				/component helper publication.*EXACT_COMPILER_EXECUTABLE/
+			);
+			// Client-only emission and diagnostics do not publish server companions.
+			expect(
+				compiler.request({ kind: 'compile', target: 'client', id: '/page.tsx', source: '' })
+					.analysis.helperSources
+			).toHaveLength(1);
+			expect(
+				compiler.request({ kind: 'diagnose', id: '/page.tsx', source: '' }).analysis.helperSources
+			).toHaveLength(1);
+			delete (workerState.response.analysis as Record<string, unknown>).helperSources;
+			expect(
+				compiler.request({ kind: 'analyze', id: '/ordinary.ts', source: '' }).protocolVersion
+			).toBe('1.0.0');
+		} finally {
+			compiler.dispose();
+			workerState.response = undefined;
+		}
+	});
+
+	it('rejects supplied planning context before sending it to an old host', () => {
+		workerState.closeStalls = false;
+		workerState.response = validWorkerResponse();
+		const compiler = new NativeCompilerProcess({ executable: 'synthetic-native-compiler' });
+		try {
+			const messages = workerState.instances.at(-1)!.messages.length;
+			expect(() =>
+				compiler.request({
+					kind: 'synchronize',
+					helperPublicationContext: [
+						{
+							owner: '/page.tsx',
+							ownerRevision: 'owner',
+							component: { start: 0, length: 1 },
+							call: { start: 0, length: 1 },
+							sourceFile: '/helper.js',
+							sourceRevision: 'helper',
+							declaration: { start: 0, length: 1 },
+							config: 'config',
+							selected: true,
+							purpose: 'server'
+						}
+					]
+				})
+			).toThrow('does not support component helper publication');
+			expect(workerState.instances.at(-1)!.messages).toHaveLength(messages);
+			expect(compiler.request({ kind: 'version' }).protocolVersion).toBe('1.0.0');
+		} finally {
+			compiler.dispose();
+			workerState.response = undefined;
+		}
+	});
+
+	it('accepts the advertised capability and preserves helper metadata', () => {
+		workerState.closeStalls = false;
+		workerState.response = { ...validWorkerResponse(), helperPublicationVersion: 1 };
+		const compiler = new NativeCompilerProcess({ executable: 'synthetic-native-compiler' });
+		try {
+			const edge = { moduleSpecifier: './helper.js', sourceFile: '/helper.js', publication: [] };
+			(workerState.response.analysis as Record<string, unknown>).helperSources = [edge];
+			expect(
+				compiler.request({ kind: 'analyze', id: '/page.tsx', source: '' }).analysis.helperSources
+			).toEqual([edge]);
+		} finally {
+			compiler.dispose();
+			workerState.response = undefined;
+		}
+	});
+});

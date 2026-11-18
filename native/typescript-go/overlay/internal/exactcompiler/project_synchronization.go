@@ -17,6 +17,7 @@ type synchronizedProjectSource struct {
 	source          string
 	normalization   normalizedSource
 	contentRevision string
+	input           string // Original immutable bytes, already checked against the snapshot revision.
 }
 
 // synchronizeProject installs a complete set of prepared overlays before any
@@ -38,7 +39,7 @@ func (s *Session) synchronizeProject(
 			response.Error = err.Error()
 			return response
 		}
-		prepared = append(prepared, synchronizedProjectSource{fileName: fileName, source: normalized.text, normalization: normalized, contentRevision: preparedContentRevision(source.Source)})
+		prepared = append(prepared, synchronizedProjectSource{fileName: fileName, source: normalized.text, normalization: normalized, contentRevision: preparedContentRevision(source.Source), input: source.Source})
 	}
 	if request.ConfigFile == "" {
 		request.ConfigFile = nearestTypeScriptConfig(prepared[0].fileName)
@@ -98,6 +99,11 @@ func (s *Session) synchronizeProject(
 	countersBefore := project.counters
 	programStarted := time.Now()
 	changed := project.synchronize(prepared)
+	// Context belongs to this complete synchronized snapshot, never its predecessor.
+	if !reflect.DeepEqual(project.helperPublications, request.HelperPublicationContext) {
+		project.callableCache = nil
+	}
+	project.helperPublications = append([]HelperPublication(nil), request.HelperPublicationContext...)
 	s.projects[projectKey] = project
 	response.Counters = project.counters.since(countersBefore)
 	response.CacheHit = !changed && !selectionChanged

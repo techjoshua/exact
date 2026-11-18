@@ -64,6 +64,12 @@ func remapLocationValue(value reflect.Value, source normalizedSource) {
 		}
 		return
 	case reflect.Struct:
+		// Publication descriptions already own guarded authored spans from two
+		// different sources. Mapping them again with the response source corrupts
+		// both their owner coordinates and their companion declaration identity.
+		if value.Type() == reflect.TypeFor[HelperPublication]() {
+			return
+		}
 		for _, prefix := range []string{"", "Work", "Key", "Target"} {
 			start := value.FieldByName(prefix + "Start")
 			length := value.FieldByName(prefix + "Length")

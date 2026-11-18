@@ -2,6 +2,7 @@ package exactcompiler
 
 import (
 	"crypto/sha256"
+	"encoding/json"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -27,10 +28,193 @@ type helperMutationEntry struct {
 	nativeTargets map[SourceSpan]*ast.Node
 }
 
+// HelperPublication describes component-required companion work, not executable
+// authority. Every consumer resolves the original edge again in its current
+// Program/checker; coordinates and hashes alone never authorize a helper body.
+// Revisions/spans describe the authored prepared input via its guarded normalization,
+// including virtual suffix identity, not a particular checked prop-casing stage.
+type HelperPublication struct {
+	Owner          string     `json:"owner"`
+	OwnerRevision  string     `json:"ownerRevision"`
+	Component      SourceSpan `json:"component"`
+	Call           SourceSpan `json:"call"`
+	SourceFile     string     `json:"sourceFile"`
+	SourceRevision string     `json:"sourceRevision"`
+	Declaration    SourceSpan `json:"declaration"`
+	Config         string     `json:"config"`
+	Selected       bool       `json:"selected"`
+	Purpose        Target     `json:"purpose"`
+}
+
+func helperPublicationConfig(project *projectState) string {
+	options, err := json.Marshal(project.config.CompilerOptions())
+	if err != nil {
+		return ""
+	}
+	return preparedContentRevision(project.configFile + "\x00" + string(options))
+}
+
+// helperPublicationInput uses the original prepared input including virtual
+// package suffixes. Checked prop casing may change text/length, never this identity.
+func helperPublicationInput(source normalizedSource) (string, bool) {
+	end := len(source.authoredOffsets) - 1
+	if end < 0 || end > len(source.text) {
+		return "", false
+	}
+	return source.authored + source.text[end:], true
+}
+
+func helperPublicationRevision(source normalizedSource) (string, bool) {
+	input, known := helperPublicationInput(source)
+	if !known {
+		return "", false
+	}
+	return preparedContentRevision(input), true
+}
+
+// publicationSpan refuses inserted/unmapped ranges rather than allowing the
+// diagnostic mapper's clamping to fabricate an original component/call/declaration.
+func (source normalizedSource) publicationSpan(node *ast.Node) (SourceSpan, bool) {
+	if node == nil || node.Pos() < 0 || node.End() <= node.Pos() || node.End() >= len(source.authoredOffsets) {
+		return SourceSpan{}, false
+	}
+	start, length := source.authoredSpan(node.Pos(), node.End()-node.Pos())
+	if length <= 0 || start < 0 || start+length > len(source.authored) {
+		return SourceSpan{}, false
+	}
+	return SourceSpan{Start: start, Length: length}, true
+}
+
+// describeHelperPublication reuses guarded authored provenance for EVERY span.
+// MostOriginal cannot carry identity across a reparse or replacement Program.
+func describeHelperPublication(source *ast.SourceFile, call *ast.Node, entry helperMutationEntry, owner *executableBodyOwner, config string) (HelperPublication, bool) {
+	if owner == nil || owner.project == nil || owner.values == nil {
+		return HelperPublication{}, false
+	}
+	for parent := call.Parent; parent != nil; parent = parent.Parent {
+		if _, component := owner.values.components[parent]; !component || ast.GetSourceFileOfNode(parent) != source {
+			continue
+		}
+		origin, known := owner.project.currentSourceNormalization(source)
+		target, selected := owner.project.currentSourceNormalization(entry.source)
+		if !known || !selected {
+			return HelperPublication{}, false
+		}
+		componentSpan, componentOK := origin.publicationSpan(parent)
+		callSpan, callOK := origin.publicationSpan(call)
+		declaration, declOK := target.publicationSpan(entry.node)
+		ownerRevision, ownerOK := helperPublicationRevision(origin)
+		sourceRevision, sourceOK := helperPublicationRevision(target)
+		if !componentOK || !callOK || !declOK || !ownerOK || !sourceOK {
+			return HelperPublication{}, false
+		}
+		if config == "" {
+			config = helperPublicationConfig(owner.project)
+		}
+		if config == "" {
+			return HelperPublication{}, false
+		}
+		return HelperPublication{Owner: source.FileName(), OwnerRevision: ownerRevision, Component: componentSpan, Call: callSpan, SourceFile: entry.source.FileName(), SourceRevision: sourceRevision, Declaration: declaration, Config: config, Selected: owner.selection != nil, Purpose: TargetServer}, true
+	}
+	return HelperPublication{}, false
+}
+
+// helperPublicationDemand maps the SAME authored coordinates through this
+// Program's genuine projection. Context-only owners never become Effects roots.
+func helperPublicationDemand(collection *projectCallableCollection, requested *ast.SourceFile, add func(int)) {
+	owner := collection.owner
+	if len(owner.project.helperPublications) == 0 {
+		return
+	}
+	target, known := owner.project.currentSourceNormalization(requested)
+	if !known {
+		return
+	}
+	revision, known := helperPublicationRevision(target)
+	if !known {
+		return
+	}
+	config := helperPublicationConfig(owner.project)
+	if config == "" {
+		return
+	}
+	for _, description := range owner.project.helperPublications {
+		if description.SourceFile != requested.FileName() || description.SourceRevision != revision || description.Config != config || description.Purpose != TargetServer || description.Selected != (owner.selection != nil) {
+			continue
+		}
+		source := owner.project.program.GetSourceFile(description.Owner)
+		origin, known := owner.project.currentSourceNormalization(source)
+		if !known {
+			continue
+		}
+		original, known := helperPublicationRevision(origin)
+		if !known || original != description.OwnerRevision {
+			continue
+		}
+		var component, call *ast.Node
+		ambiguous := false
+		for node := range owner.values.components {
+			if ast.GetSourceFileOfNode(node) != source {
+				continue
+			}
+			span, mapped := origin.publicationSpan(node)
+			if mapped && span == description.Component {
+				if component != nil {
+					ambiguous = true
+					break
+				}
+				component = node
+			}
+		}
+		if component == nil || ambiguous {
+			continue
+		}
+		walkNode(component, func(node *ast.Node) bool {
+			if ambiguous {
+				return false
+			}
+			if !ast.IsCallExpression(node) {
+				return true
+			}
+			span, mapped := origin.publicationSpan(node)
+			if mapped && span == description.Call {
+				if call != nil {
+					ambiguous = true
+				}
+				call = node
+			}
+			return true
+		})
+		if call == nil || ambiguous {
+			continue
+		}
+		expression := helperMutationCallCandidate(call)
+		if expression == nil || call.AsCallExpression().QuestionDotToken != nil {
+			continue
+		}
+		body, selected := owner.body(expression)
+		index, known := collection.nodes[body]
+		if !selected {
+			if symbol := selectedHelperSymbol(expression, owner.checker); symbol != nil {
+				index, known = collection.symbols[ast.GetSymbolId(symbol)]
+			}
+		}
+		if !known {
+			continue
+		}
+		fact := collection.facts[index]
+		declaration, mapped := target.publicationSpan(fact.node)
+		if fact.sourceFile == requested && mapped && declaration == description.Declaration {
+			add(index)
+		}
+	}
+}
+
 // HelperSource is an ephemeral resolved executable edge, not package helper metadata.
 type HelperSource struct {
-	ModuleSpecifier string `json:"moduleSpecifier"`
-	SourceFile      string `json:"sourceFile"`
+	ModuleSpecifier string              `json:"moduleSpecifier"`
+	SourceFile      string              `json:"sourceFile"`
+	Publication     []HelperPublication `json:"publication,omitempty"`
 }
 
 // directScalarHelper accepts module-owned immutable bodies whose parameter writes can
@@ -131,10 +315,25 @@ func planHelperMutations(source *ast.SourceFile, analysis callableAnalysis, c *c
 		if !finite {
 			continue
 		}
-		digest := sha256.Sum256([]byte(fact.summary.ID))
+		// Private companion naming uses the same genuine original declaration on
+		// both sides of a checked reparse. Canonical callable/Call IDs remain intact.
+		if analysis.owner == nil || analysis.owner.project == nil {
+			continue
+		}
+		origin, known := analysis.owner.project.currentSourceNormalization(fact.sourceFile)
+		if !known {
+			continue
+		}
+		declaration, mapped := origin.publicationSpan(fact.node)
+		authored, current := helperPublicationInput(origin)
+		if !mapped || !current {
+			continue
+		}
+		identity := fmt.Sprintf("callable:%s:%d", fact.sourceFile.FileName(), declaration.Start)
+		digest := sha256.Sum256([]byte(identity))
 		name := fmt.Sprintf("__exact_owned_%x", digest[:8])
 		// Reserve against authored names rather than assuming the private prefix is unavailable.
-		for strings.Contains(fact.sourceFile.Text(), name) {
+		for strings.Contains(authored, name) {
 			name += "_"
 		}
 		writes := []StateWrite{}
@@ -163,7 +362,8 @@ func planHelperMutations(source *ast.SourceFile, analysis callableAnalysis, c *c
 		})
 		plan.entries[fact.summary.ID] = helperMutationEntry{node: fact.node, source: fact.sourceFile, name: name, writes: writes, nativeTargets: nativeTargets}
 	}
-	seen := map[string]bool{}
+	seen := map[string]int{}
+	publicationConfig := ""
 	walkNode(source.AsNode(), func(node *ast.Node) bool {
 		expression := helperMutationCallCandidate(node)
 		if expression == nil || node.AsCallExpression().QuestionDotToken != nil {
@@ -188,13 +388,36 @@ func planHelperMutations(source *ast.SourceFile, analysis callableAnalysis, c *c
 			return true
 		}
 		plan.calls[nodeSpanKey(node)] = summary.ID
-		if entry.source != source && !seen[entry.source.FileName()] {
-			seen[entry.source.FileName()] = true
-			specifier := helperSourceSpecifier(source, entry.source, plan.selectedSources)
-			plan.sources = append(plan.sources, HelperSource{ModuleSpecifier: specifier, SourceFile: entry.source.FileName()})
+		if entry.source != source {
+			index, exists := seen[entry.source.FileName()]
+			if !exists {
+				index = len(plan.sources)
+				seen[entry.source.FileName()] = index
+				specifier := helperSourceSpecifier(source, entry.source, plan.selectedSources)
+				plan.sources = append(plan.sources, HelperSource{ModuleSpecifier: specifier, SourceFile: entry.source.FileName()})
+			}
+			if description, component := describeHelperPublication(source, node, entry, analysis.owner, publicationConfig); component {
+				publicationConfig = description.Config
+				plan.sources[index].Publication = append(plan.sources[index].Publication, description)
+			}
 		}
 		return true
 	})
+	// Replace only this original owner's descriptions. A later helper request
+	// cannot lend effects back to its caller or retain an obsolete owner revision.
+	if analysis.owner != nil && analysis.owner.project != nil {
+		project := analysis.owner.project
+		kept := project.helperPublications[:0]
+		for _, description := range project.helperPublications {
+			if description.Owner != source.FileName() {
+				kept = append(kept, description)
+			}
+		}
+		for _, edge := range plan.sources {
+			kept = append(kept, edge.Publication...)
+		}
+		project.helperPublications = kept
+	}
 	return plan
 }
 

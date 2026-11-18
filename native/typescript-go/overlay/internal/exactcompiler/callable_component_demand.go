@@ -49,6 +49,9 @@ func componentCallableDemand(collection *projectCallableCollection, requested ..
 			needSource(f.sourceFile)
 		}
 	}
+	if len(requested) != 0 {
+		helperPublicationDemand(collection, requested[0], func(i int) { add(i); needSource(facts[i].sourceFile) })
+	}
 	// Reuse resolved declaration identity. A reference may name an imported
 	// helper or a callable stored in a property; spelling supplies no edge.
 	demandReference := func(node *ast.Node, mode accessorTraversal) {

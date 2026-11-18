@@ -406,12 +406,61 @@ func TestExecutableSelectionSiblingSuffixes(t *testing.T) {
 
 func TestExecutableSelectionMissingAndStaleBodies(t *testing.T) {
 	f := newExecutableFixture(t, map[string]string{
-		"entry.ts":    `import {apply} from './helper.js';export function run(s:{a:number,b:number}){apply(s);}`,
+		"entry.ts":    `import {apply} from './helper.js';import {TaskContext,type Component} from '@exactjs/core';export function run(s:{a:number,b:number}){apply(s);}export function Page(this:Component<{a:number,b:number}>){this.state.a=0;this.state.b=0;const save=(task:TaskContext=TaskContext.server().blocking())=>{run(this.state);};save();return()=>this.state.b;}`,
 		"helper.ts":   `export function apply(s:{a:number,b:number}){s.a=2;}`,
 		"helper.js":   `export function apply(s){s.b=9;}`,
 		"opaque.d.ts": `export declare function apply(s:{a:number,b:number}):void;`,
 		"mutable.js":  `export let apply=(s)=>{s.a=2;};apply=(s)=>{s.b=3;};`,
 	})
+	// The original run/apply path is required by a real component-owned task.
+	// Ordinary exported functions alone intentionally do not demand body closure.
+	requireEntry := func(response Response) {
+		t.Helper()
+		if response.Error != "" {
+			t.Fatal(response.Error)
+		}
+		component, task := false, false
+		for _, candidate := range response.Analysis.Components {
+			component = component || candidate.Name == "Page"
+		}
+		for _, candidate := range response.Analysis.Tasks {
+			task = task || candidate.Component == "Page" && candidate.FunctionDefined && candidate.RequestedPlacement == "server" && candidate.WorkLength > 0
+		}
+		if !component || !task {
+			t.Fatalf("component/task prerequisite not reached: components %#v tasks %#v", response.Analysis.Components, response.Analysis.Tasks)
+		}
+	}
+	// Establish the supported selected body before checking any refusal. The
+	// ordinary helper import remains slot0; core at slot1 cannot validate it.
+	if r := f.synchronize([]ExecutableEdge{{"entry.ts", 0, "./helper.js", "import", "helper.js"}}); r.Error != "" {
+		t.Fatal(r.Error)
+	}
+	positive := f.session.Execute(f.request("analyze", "entry.ts"))
+	requireEntry(positive)
+	summary := executableSummary(t, positive, "run")
+	if len(summary.StateWrites) != 1 || summary.StateWrites[0].Path != "b" || summary.StateWrites[0].Receiver == nil || summary.StateWrites[0].Receiver.Kind != "parameter" {
+		t.Fatalf("selected run body lost: %#v", summary)
+	}
+	if len(positive.Analysis.HelperSources) != 1 || positive.Analysis.HelperSources[0].SourceFile != filepath.Join(f.root, "helper.js") {
+		t.Fatalf("wrong selected source: %#v", positive.Analysis.HelperSources)
+	}
+	typed := false
+	for _, edge := range positive.Analysis.Imports {
+		if edge.ModuleSpecifier == "./helper.js" {
+			typed = edge.ResolvedFile == filepath.Join(f.root, "helper.ts")
+		}
+	}
+	if !typed {
+		t.Fatalf("authored typing identity changed: %#v", positive.Analysis.Imports)
+	}
+	if len(positive.Analysis.Continuations) == 0 {
+		t.Fatalf("missing actual task contracts: %#v", positive.Analysis.Tasks)
+	}
+	for _, continuation := range positive.Analysis.Continuations {
+		if len(continuation.Effects.StateWrites) != 1 || continuation.Effects.StateWrites[0].Path != "b" || continuation.Effects.StateWrites[0].Receiver == nil || continuation.Effects.StateWrites[0].Receiver.Kind != "component" {
+			t.Fatalf("wrong component task write authority: %#v", continuation.Effects)
+		}
+	}
 	for _, edges := range [][]ExecutableEdge{
 		{{"entry.ts", 0, "./helper.js", "import", ""}},
 		{{"entry.ts", 0, "./helper.js", "import", "opaque.d.ts"}},
@@ -422,7 +471,9 @@ func TestExecutableSelectionMissingAndStaleBodies(t *testing.T) {
 		if r := f.synchronize(edges); r.Error != "" {
 			t.Fatal(r.Error)
 		}
-		summary := executableSummary(t, f.session.Execute(f.request("analyze", "entry.ts")), "run")
+		response := f.session.Execute(f.request("analyze", "entry.ts"))
+		requireEntry(response)
+		summary := executableSummary(t, response, "run")
 		if len(summary.StateWrites) != 0 || summary.Effect != "unknown" {
 			t.Fatalf("opaque edge gained authority: %#v", summary)
 		}
@@ -432,7 +483,9 @@ func TestExecutableSelectionMissingAndStaleBodies(t *testing.T) {
 	}
 	f.files["helper.js"] = `export function apply(s){s.a=77;}`
 	f.session.Execute(f.request("analyze", "helper.js"))
-	summary := executableSummary(t, f.session.Execute(f.request("analyze", "entry.ts")), "run")
+	response := f.session.Execute(f.request("analyze", "entry.ts"))
+	requireEntry(response)
+	summary = executableSummary(t, response, "run")
 	if len(summary.StateWrites) != 0 || summary.Effect != "unknown" {
 		t.Fatalf("changed source retained stale authority: %#v", summary)
 	}
@@ -509,7 +562,7 @@ func TestExecutableSelectionPrivateHelperBody(t *testing.T) {
 			request.Diagnostics = "syntax"
 			helper := f.session.Execute(request)
 			if helper.Error != "" || len(helper.Diagnostics) != 0 || !strings.Contains(helper.Code, "export function "+private+"(") {
-				t.Fatalf("helper: %s %#v", helper.Error, helper.Diagnostics)
+				t.Fatalf("helper: %s %#v expected=%q code=%q", helper.Error, helper.Diagnostics, "export function "+private+"(", helper.Code)
 			}
 			expected := "99"
 			if selected == "helper.ts" {
@@ -610,5 +663,42 @@ func TestExecutableSelectionPublishedDeclarationOperations(t *testing.T) {
 				t.Fatal("declaration operation granted a private helper")
 			}
 		})
+	}
+}
+
+// Checked casing must preserve the original selected input, not bless another
+// authored spelling which happens to normalize to the same generated text.
+func TestExecutableSelectionCheckedCasingIdentity(t *testing.T) {
+	f := newExecutableFixture(t, map[string]string{
+		"entry.tsx": `import {TaskContext,type Component} from '@exactjs/core';import {apply} from './helper.js';export function Page(this:Component<{value:number}>){this.state.value=0;const save=(task:TaskContext=TaskContext.server().blocking())=>{apply(this.state);};return()=> <button onclick={()=>save()}>Save</button>;}`,
+		"entry.ts":  `export {};`,
+		"helper.ts": `export function apply(state:{value:number}){state.value=2;}`,
+		"helper.js": `/** @param {{value:number}} state */ export function apply(state){state.value=99;}`,
+	})
+	edges := []ExecutableEdge{{"entry.tsx", 1, "./helper.js", "import", "helper.js"}}
+	if r := f.synchronizeTarget(edges, TargetServer); r.Error != "" {
+		t.Fatal(r.Error)
+	}
+	compile := func() Response {
+		request := f.request("compile", "entry.tsx")
+		request.Target = TargetServer
+		request.Diagnostics = "syntax"
+		return f.session.Execute(request)
+	}
+	initial := compile()
+	if initial.Error != "" || len(initial.Diagnostics) != 0 || !strings.Contains(initial.Code, "__exact_owned_") {
+		t.Fatalf("original checked input lost: %s %#v\n%s", initial.Error, initial.Diagnostics, initial.Code)
+	}
+	f.files["entry.tsx"] = strings.ReplaceAll(f.files["entry.tsx"], "onclick=", "onCLICK=")
+	stale := compile()
+	if stale.Error != "" || strings.Contains(stale.Code, "__exact_owned_") {
+		t.Fatalf("different authored input gained stale selection: %s\n%s", stale.Error, stale.Code)
+	}
+	if r := f.synchronizeTarget(edges, TargetServer); r.Error != "" {
+		t.Fatal(r.Error)
+	}
+	renewed := compile()
+	if renewed.Error != "" || len(renewed.Diagnostics) != 0 || !strings.Contains(renewed.Code, "__exact_owned_") {
+		t.Fatalf("fresh selection not renewed: %s %#v\n%s", renewed.Error, renewed.Diagnostics, renewed.Code)
 	}
 }

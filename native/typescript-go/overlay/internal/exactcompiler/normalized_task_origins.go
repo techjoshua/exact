@@ -50,3 +50,22 @@ func (project *projectState) retainNormalization(fileName string, normalization 
 		project.invalidateChangedProjectSources(fileName)
 	}
 }
+
+// currentSourceNormalization accepts only this Program's source and its guarded
+// authored projection. An untouched filesystem dependency can install the exact
+// identity projection in the same owner; an unproven overlay stays unmappable.
+func (project *projectState) currentSourceNormalization(source *ast.SourceFile) (normalizedSource, bool) {
+	if source == nil || project.program.GetSourceFile(source.FileName()) != source {
+		return normalizedSource{}, false
+	}
+	if normalization, exists := project.normalizations[project.fs.canonical(source.FileName())]; exists {
+		return normalization, normalization.text == source.Text()
+	}
+	original, exists := project.fs.base.ReadFile(source.FileName())
+	if !exists || original != source.Text() {
+		return normalizedSource{}, false
+	}
+	normalization := newNormalizedSource(original)
+	project.retainNormalization(source.FileName(), normalization)
+	return normalization, true
+}
