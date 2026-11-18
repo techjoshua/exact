@@ -196,6 +196,7 @@ func (query *sourceValueQuery) consumeInvocation(node *ast.Node, bindings source
 	}
 	mergeAccessorCandidates(&result, prepared.base.candidates())
 	query.publishPendingMemberSelection(node, bindings, prepared)
+	query.definePropertiesCallEffects(node, prepared, bindings, &result)
 	if consumer.callbackInputs != nil && query.dependenciesOnly {
 		consumer.callbackInputs(node, bindings, prepared, &result)
 	}
