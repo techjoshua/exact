@@ -53,6 +53,21 @@ Only one implementation of a canonical plugin may execute. When several
 dependency branches expose candidates, the host selects a deterministic
 compatible version or fails with provenance explaining the conflict.
 
+## Component transformation
+
+Build adapters use eXact to compile component definitions. For supported scalar helper calls in
+component tasks, generated caller code supplies state access while retaining the helper's ordinary
+import and function identity. The host tool handles ordinary JavaScript and TypeScript syntax.
+An explicit `include` admits a file for consideration; it does not authorize cloning its helpers.
+
+Selected helper sources, checked declarations and supported JSDoc placement and secrecy metadata
+remain available to component analysis. An annotation does not authorize helper rewriting.
+Individually admitted sibling files retain the host resolver's selected module identity.
+
+JSX-returning helpers still depend on legacy lowering. This scalar-call path does not guarantee
+general helper-body preservation in mixed component modules. The `@exactjs/jsx` automatic
+entrypoints are compiler-only and provide no runtime JSX fallback.
+
 ## Configuration
 
 `exact.config.ts` is the canonical application configuration. Plugins augment

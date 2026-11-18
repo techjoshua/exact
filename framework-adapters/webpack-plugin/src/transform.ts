@@ -1,8 +1,4 @@
 import { prepareExactWebpackSource } from './source-preparation.js';
-import {
-	isExactOwnedHelperSource,
-	shouldTransformExactBuildModulePath
-} from '@exactjs/compiler/adapter-support';
 import { createTokenSourceMap, type ExactCompilerSession } from '@exactjs/compiler';
 import {
 	rebindExactPhysicalEnhancementFacade,
@@ -101,17 +97,9 @@ export function transformExactWebpackModule(
 			options,
 			intl,
 			warn,
-			shouldTransformWebpackModule(filename, source, options) ||
-				isExactOwnedHelperSource(filename, session)
+			shouldTransformWebpackModule(filename, source, options)
 		);
-	if (
-		!shouldTransformWebpackModule(filename, analyzedSource, options) &&
-		!(
-			webpackTransformTarget(options) === 'server' &&
-			isExactOwnedHelperSource(filename, session) &&
-			shouldTransformExactBuildModulePath(filename, options)
-		)
-	)
+	if (!shouldTransformWebpackModule(filename, analyzedSource, options))
 		return reachedPublication
 			? {
 					code: reachedPublication.code,

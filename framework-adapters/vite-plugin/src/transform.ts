@@ -19,7 +19,6 @@ import {
 	planExactAdapterProjection,
 	isExactBuildSourceModule,
 	shouldCompileExactBuildModule,
-	isExactOwnedHelperSource,
 	shouldTransformExactBuildModulePath,
 	transformExactAdapterModule
 } from '@exactjs/compiler/adapter-support';
@@ -125,9 +124,7 @@ export function transformExactViteModule(input: TransformExactViteModuleOptions)
 					moduleType: 'js'
 				}
 			: null;
-	const shouldCompile =
-		shouldCompileExactBuildModule(filename, analyzedCode, options) ||
-		(target === 'server' && isExactOwnedHelperSource(filename, input.compilerSession));
+	const shouldCompile = shouldCompileExactBuildModule(filename, analyzedCode, options);
 	const output = transformExactAdapterModule({
 		source: analyzedCode,
 		filename,

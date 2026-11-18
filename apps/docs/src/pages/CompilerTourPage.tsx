@@ -59,14 +59,21 @@ export function CompilerTourPage(this: Component<{}>) {
 					selection uses a conditional or logical expression.
 				</p>
 				<p>
-					Ordinary helpers keep their JavaScript implementation and receive supported state views
-					when called by blocking client tasks. Plain fields, arrays and supported Map and Set
-					operations can participate in pending publication. External captures, private storage and
-					I/O remain outside rollback. A class can keep private configuration on its original
-					receiver and accept state fields or explicit state access as an argument. Views belong to
-					their creating invocation. Readonly checks follow TypeScript's compile-time rules. Native
+					For supported scalar helper calls in a component task, generated caller code supplies
+					state access while keeping the ordinary import and helper function intact. Blocking client
+					tasks can supply views for plain fields, arrays and supported Map and Set operations that
+					participate in pending publication. External captures, private storage and I/O remain
+					outside rollback. A class can keep private configuration on its original receiver and
+					accept state fields or explicit state access as an argument. Views belong to their
+					creating invocation. Readonly checks follow TypeScript's compile-time rules. Native
 					equality still compares object identity, so a view can differ from a captured original
 					reference.
+				</p>
+				<p>
+					Helpers returning native JSX still depend on legacy compiler lowering. The scalar helper
+					path does not guarantee general preservation of helper bodies in modules that also define
+					components. The <code>@exactjs/jsx</code> automatic entrypoints require compiler output;
+					they do not provide a runtime JSX fallback.
 				</p>
 				<p>
 					Awaited mutations keep suspension in the original function. Tasks resolve omitted defaults

@@ -3,7 +3,6 @@ import {
 	exactExplicitBuildSourceFiles,
 	shouldTransformExactBuildModulePath,
 	shouldCompileExactBuildModule,
-	isExactOwnedHelperSource,
 	type ExactHostExecutableSelection
 } from '@exactjs/compiler/adapter-support';
 import type { ExactCompilerSession } from '@exactjs/compiler';
@@ -69,13 +68,12 @@ export async function transformExactWebpackSourceAsync(
 			target: configured.target === 'server' ? 'server' : 'client',
 			sourceRoot: configured.applicationRoot,
 			additionalSourceFiles: exactExplicitBuildSourceFiles(configured),
-			selectSource:
-				shouldCompileExactBuildModule(filename, source, {
-					...configured,
-					compileTestModules: true
-				}) || isExactOwnedHelperSource(filename, session),
+			selectSource: shouldCompileExactBuildModule(filename, source, {
+				...configured,
+				compileTestModules: true
+			}),
 			packageEnhancements: configured.__exactPackageEnhancements,
-			prepare: (source, filename, target, required) => {
+			prepare: (source, filename, target) => {
 				const prepared = preparation.prepare(
 					source,
 					filename,
@@ -83,9 +81,7 @@ export async function transformExactWebpackSourceAsync(
 					configured,
 					intl,
 					warn,
-					shouldTransformWebpackModule(filename, source, configured) ||
-						required ||
-						isExactOwnedHelperSource(filename, session)
+					shouldTransformWebpackModule(filename, source, configured)
 				);
 				return {
 					source: prepared.analyzedSource,

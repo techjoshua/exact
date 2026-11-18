@@ -4,8 +4,7 @@ import {
 	exactExplicitBuildSourceFiles,
 	exactTestHelperTarget,
 	shouldTransformExactBuildModulePath,
-	shouldCompileExactBuildModule,
-	isExactOwnedHelperSource
+	shouldCompileExactBuildModule
 } from '@exactjs/compiler/adapter-support';
 import type { ExactCompilerSession } from '@exactjs/compiler';
 import type { IntlBuildCoordinator } from '@exactjs/intl-build';
@@ -51,11 +50,9 @@ export function withExactBunSourceSelection<Result>(
 				target: targetFor(options),
 				sourceRoot,
 				additionalSourceFiles: exactExplicitBuildSourceFiles(options),
-				selectSource:
-					shouldCompileExactBuildModule(filename, source, options) ||
-					isExactOwnedHelperSource(filename, session),
+				selectSource: shouldCompileExactBuildModule(filename, source, options),
 				packageEnhancements,
-				prepare: (source, filename, target, required) => {
+				prepare: (source, filename, target) => {
 					const prepared = preparation.prepare(
 						source,
 						filename,
@@ -63,9 +60,7 @@ export function withExactBunSourceSelection<Result>(
 						options,
 						intl,
 						console.warn,
-						shouldTransform(filename, source, options) ||
-							required ||
-							isExactOwnedHelperSource(filename, session)
+						shouldTransform(filename, source, options)
 					);
 					return {
 						source: prepared.analyzedSource,

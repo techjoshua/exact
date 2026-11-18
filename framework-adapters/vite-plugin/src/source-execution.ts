@@ -3,7 +3,6 @@ import { existsSync } from 'node:fs';
 import {
 	withExactHostExecutableSelection,
 	exactExplicitBuildSourceFiles,
-	isExactOwnedHelperSource,
 	isExactBuildAssetRequest,
 	shouldCompileExactBuildModule,
 	shouldTransformExactBuildModulePath
@@ -123,9 +122,7 @@ export function executeExactViteSource(
 			target: selectTarget(),
 			sourceRoot: applicationRoot,
 			additionalSourceFiles: exactExplicitBuildSourceFiles(options),
-			selectSource:
-				shouldCompileExactBuildModule(filename, code, options) ||
-				isExactOwnedHelperSource(filename, compiler.current),
+			selectSource: shouldCompileExactBuildModule(filename, code, options),
 			root: applicationRoot,
 			configFile: options.typescriptConfig
 				? path.resolve(applicationRoot, options.typescriptConfig)

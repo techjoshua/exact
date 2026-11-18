@@ -1,9 +1,5 @@
 import { prepareExactBunSource } from './source-compilation/preparation.js';
 import {
-	isExactOwnedHelperSource,
-	shouldTransformExactBuildModulePath
-} from '@exactjs/compiler/adapter-support';
-import {
 	createTokenSourceMap,
 	type ExactCompilerSession,
 	type ExactComponentBuildFacts,
@@ -67,16 +63,9 @@ export function transformExactBunSource(
 			options,
 			intl,
 			warn,
-			shouldTransform(filename, source, options) || isExactOwnedHelperSource(filename, session)
+			shouldTransform(filename, source, options)
 		);
-	if (
-		!shouldTransform(filename, analyzedSource, options) &&
-		!(
-			targetFor(options) === 'server' &&
-			isExactOwnedHelperSource(filename, session) &&
-			shouldTransformExactBuildModulePath(filename, options)
-		)
-	)
+	if (!shouldTransform(filename, analyzedSource, options))
 		return reachedPublication
 			? {
 					code: reachedPublication.code,
