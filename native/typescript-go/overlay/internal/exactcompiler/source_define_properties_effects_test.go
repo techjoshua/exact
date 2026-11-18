@@ -1,0 +1,41 @@
+package exactcompiler
+
+import "testing"
+
+// A descriptor's value accessor executes during the original native Call,
+// independently of whether the installed target value can be reconstructed.
+func TestComponentDefinePropertiesDescriptorGetterEffects(t *testing.T) {
+	for _, row := range []struct {
+		name, descriptor, expression string
+		browser                      bool
+	}{
+		{"browser", "{get value(){return document.title;}}", "target.label", true},
+		{"quiet", "{get value(){return 'quiet';}}", "target.label", false},
+		{"dormant-function-data", "{value:()=>document.title}", "typeof target.label", false},
+		{"getter-receiver", "{read(){return document.title},get value(){return this.read();}}", "target.label", true},
+	} {
+		t.Run(row.name, func(t *testing.T) {
+			fixture := newExecutableFixture(t, map[string]string{"entry.tsx": `import type {Component} from '@exactjs/core';
+export function Page(this:Component<{label:string}>){
+ const target={label:''};
+ Object.defineProperties(target,{label:` + row.descriptor + `});
+ this.state.label=` + row.expression + `;
+ return()=> <p>{this.state.label}</p>;
+}`})
+			request := fixture.request("analyze", "entry.tsx")
+			request.Diagnostics = "syntax"
+			response := NewSession().Execute(request)
+			if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) || len(response.Analysis.Components) != 1 {
+				t.Fatal("original Page entry failed", response.Error, response.Diagnostics)
+			}
+			page := findCallable(t, response.Analysis.Callables, "Page")
+			browser := false
+			for _, effect := range page.EffectSources {
+				browser = browser || effect.Environment == "browser"
+			}
+			if browser != row.browser {
+				t.Fatalf("descriptor getter Page browser=%v; want %v: %#v", browser, row.browser, page.EffectSources)
+			}
+		})
+	}
+}

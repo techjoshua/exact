@@ -1195,6 +1195,18 @@ first implementation slice are specified in the [architecture completion plan](c
 That policy separates acquired function/property identity from algorithm-specific receiver requirements, including generic borrowed methods and branded receiver failures. It is agreed direction, not completed implementation or validation. Existing successful
 output, descriptor and completion authority remains with its current owners.
 
+At an original component Call, an already acquired standard `Object.defineProperties`
+alternative retains the effects of descriptor accessors in direct literal map entries
+with literal descriptor inputs. It shares the source-only ordered `Has`/`Get` owner:
+a descriptor's `value` getter executes with the descriptor receiver, while a function
+stored in a data `value`, `get` or `set` field is not invoked by installation.
+Known environment donors join the component's effects independently of unresolved
+field, validation and Throw obligations. This contribution produces no installed
+value, successful field read, mutation, or completed conversion. Normal/result
+acquisition and nested writer-candidate probes do not enter this original-Call
+route. Aliased maps, dynamic entries and invocation adapters retain their existing
+owners and uncertainty; this finite contribution does not qualify those cases.
+
 Inference uses the supported built-in contracts described by the target's standard libraries,
 including conforming polyfills. It does not validate a polyfill's implementation or require a
 published library and its consumer to use the same constructor implementation. An authored shadow
