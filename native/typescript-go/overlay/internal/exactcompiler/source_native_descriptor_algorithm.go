@@ -24,6 +24,26 @@ func (q *sourceValueQuery) descriptorInvocationEffects(call *ast.Node, callee so
 		if !admitted {
 			values[i] = q.originsAt(actual, q.boundInputAcquisition(actual, call), bindings, &part)
 		}
+		// Target acquisition above is unchanged. Only a raw conditional key can
+		// need its source alternatives before their separate implicit Gets.
+		if i == 1 && !admitted {
+			expression := unwrapSourceCallableReference(actual)
+			unacquired := expression != nil && ast.IsConditionalExpression(expression) &&
+				len(values[i]) == 1 && values[i][0].node == expression &&
+				len(values[i][0].path) == 0 && values[i][0].normal == nil &&
+				values[i][0].acquired == nil
+			if unacquired {
+				selected := q.accessorsAtGetOutput(nil, nil, "", accessorAcquire, bindings, nil, nil, nil, nil, values[i]...)
+				for index := range selected.values {
+					if scope, ok := selected.callableScopes[index]; ok {
+						selected.values[index].capture = &scope
+					}
+				}
+				// The values remain private protocol operands, never Call results.
+				values[i] = selected.values
+				q.publishDescriptorMayEffects(selected, &part)
+			}
+		}
 		mergeAccessorCandidates(result, part)
 	}
 	q.publishDescriptorMutationSource(call)
@@ -35,7 +55,11 @@ func (q *sourceValueQuery) descriptorInvocationEffects(call *ast.Node, callee so
 	result.environmentEffects = append(result.environmentEffects, effect)
 	key := &sourceReflectiveOperation{operation: call, scope: q.acquireCallableScope(bindings, result)}
 	for _, value := range values[1] {
-		key.keys = append(key.keys, sourceObservedValue{value: value, scope: key.scope})
+		scope := key.scope
+		if value.capture != nil {
+			scope = *value.capture
+		}
+		key.keys = append(key.keys, sourceObservedValue{value: value, scope: scope})
 	}
 	// A source symbol/primitive key has no coercion body. The shared coercion
 	// owner retains known callable hooks beside unresolved primitive outcomes.

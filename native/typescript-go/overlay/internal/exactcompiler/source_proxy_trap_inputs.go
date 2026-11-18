@@ -27,18 +27,6 @@ func (q *sourceValueQuery) bindProxyDescriptorInputs(operation, body *ast.Node, 
 // bindProxyProtocolInputs shares the existing source-only binding owner while
 // preserving each native protocol's actual vector and default-definedness.
 func (q *sourceValueQuery) bindProxyProtocolInputs(body *ast.Node, handler sourceValue, targets []sourceValue, captures sourceValueBindings, result *accessorCandidates, defined ...bool) *sourceValueInputs {
-	inputs := &sourceValueInputs{declaration: body, invocation: q.invoking, bindings: make(sourceValueBindings, len(captures)+1), defaults: make(map[*ast.Node]sourceDefaultInput)}
-	for id, values := range captures {
-		if !q.charge(result, body) {
-			return inputs
-		}
-		inputs.bindings[id] = values
-	}
-	if !ast.IsArrowFunction(body) {
-		inputs.bindings[0] = []sourceValue{handler}
-	}
-	_, ordinary := ordinaryResultCategory(body)
-	inputs.deferredBody = !ordinary
 	if len(targets) == 0 {
 		targets = []sourceValue{{}}
 	}
@@ -49,6 +37,24 @@ func (q *sourceValueQuery) bindProxyProtocolInputs(body *ast.Node, handler sourc
 	if len(actuals) != 0 {
 		actuals[0] = targets
 	}
+	return q.bindSourceProtocolInputs(body, handler, captures, result, actuals, defined)
+}
+
+// bindSourceProtocolInputs installs an already acquired fixed native protocol
+// vector. It shares capture/receiver/default/rest binding, never a normal frame.
+func (q *sourceValueQuery) bindSourceProtocolInputs(body *ast.Node, receiver sourceValue, captures sourceValueBindings, result *accessorCandidates, actuals [][]sourceValue, defined []bool) *sourceValueInputs {
+	inputs := &sourceValueInputs{declaration: body, invocation: q.invoking, bindings: make(sourceValueBindings, len(captures)+1), defaults: make(map[*ast.Node]sourceDefaultInput)}
+	for id, values := range captures {
+		if !q.charge(result, body) {
+			return inputs
+		}
+		inputs.bindings[id] = values
+	}
+	if !ast.IsArrowFunction(body) {
+		inputs.bindings[0] = []sourceValue{receiver}
+	}
+	_, ordinary := ordinaryResultCategory(body)
+	inputs.deferredBody = !ordinary
 	position := 0
 	for _, parameter := range body.Parameters() {
 		if !q.charge(result, parameter) {

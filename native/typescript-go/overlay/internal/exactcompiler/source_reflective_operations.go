@@ -471,6 +471,7 @@ func (query *sourceValueQuery) sourcePropertyKeyEffects(op *sourceReflectiveOper
 			path := append(append([]string{}, value.path...), key)
 			acquired := query.accessorsAtGet(value.node, path, "", accessorAcquire, observed.scope.bindings, nil, get)
 			retainCallableThenEffects(&acquired, op.operation)
+			query.sourceKeyMethodEffects(op.operation, value, observed.scope, key == symbolKey, &acquired)
 			mergeAccessorCandidates(result, acquired)
 		}
 		query.creators = previous
@@ -572,4 +573,47 @@ func consumeStagedFieldDispositionSource(query *sourceValueQuery, get *sourceGet
 	effects := observation.effects
 	invoked := cloneOperationDelta(sourceStagedOperationDelta{invoked: effects.invoked}).invoked
 	return sourceStagedFieldDisposition{operation: get.operation, receiver: get.receiver.node, field: get.propertyKey, cut: query.relativeInputCut(get.operation), has: effects.has, get: effects.get, kind: classifyStagedFieldObservation(observation), invoked: invoked}
+}
+
+// sourceKeyMethodEffects consumes only already selected coercion callables. Get
+// acquisition above retains getter effects separately from calling its result.
+// Ordinary hooks receive no arguments; @@toPrimitive receives one defined hint.
+// Its string value remains abstract: no primitive return/completion is inferred.
+func (q *sourceValueQuery) sourceKeyMethodEffects(operation *ast.Node, receiver sourceValue, scope acquiredCallableScope, exotic bool, result *accessorCandidates) {
+	if !q.dependenciesOnly || q.operation != nil {
+		return
+	}
+	for i, value := range result.values {
+		body := value.node
+		if body == nil || len(value.path) != 0 || !ast.IsFunctionLike(body) || body.Body() == nil {
+			continue
+		}
+		// Captures describe method creation; the protocol receiver remains the
+		// separately selected key, including for methods created elsewhere.
+		selected := scope
+		if value.capture != nil {
+			selected = *value.capture
+		} else if captured, ok := result.callableScopes[i]; ok {
+			selected = captured
+		}
+		func() {
+			previous := q.creators
+			q.creators = selected.creators
+			defer func() { q.creators = previous }()
+			var actuals [][]sourceValue
+			var defined []bool
+			if exotic {
+				actuals = [][]sourceValue{{{}}}
+				defined = []bool{true}
+			}
+			effects := accessorCandidates{}
+			inputs := q.bindSourceProtocolInputs(body, receiver, selected.bindings, &effects, actuals, defined)
+			// This protocol is Effects-only, not the authored outer Call's argument vector.
+			inputs.invocation = nil
+			q.withSourceReceiverInputs(operation, body, inputs, &effects, func() {
+				q.consumeSourceBodyEffects(operation, body, inputs.bindings, inputs, nil, &effects)
+			})
+			q.publishDescriptorMayEffects(effects, result)
+		}()
+	}
 }

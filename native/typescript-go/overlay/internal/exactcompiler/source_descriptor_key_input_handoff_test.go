@@ -2,6 +2,8 @@ package exactcompiler
 
 import (
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
+	"os"
+	"strings"
 	"testing"
 )
 
@@ -107,4 +109,86 @@ func TestDescriptorCoercionKeyKeepsOriginalSourceDonor(t *testing.T) {
 			t.Fatal("original object-key algorithm source UNREACHED")
 		}
 	})
+}
+
+// Required ToPropertyKey work belongs to the actual Page even when no descriptor
+// result is inspected. The abrupt row observes analysis donors, not runtime Throw.
+func TestComponentDescriptorKeyEffects(t *testing.T) {
+	for _, row := range []struct {
+		name, before, operand string
+		browser, unknown      bool
+	}{
+		{"primitive-quiet", "", "'label'", false, false},
+		{"key-getter", `const key:any={get toString(){void document.title;return ()=> 'label';}};`, "key", true, false},
+		{"method-receiver", `const key:any={get label(){return document.title;},toString(){return this.label;}};`, "key", true, false},
+		{"abrupt-conversion", `const key:any={toString():string{void document.title;throw new Error('key');}};`, "key", true, false},
+		{"mixed", `const key:any={toString(){return document.title;}};`, "props.useKnown?key:props.foreign", true, true},
+		{"lexical-replacement", `const Object={getOwnPropertyDescriptor(_target:object,_key:unknown){return undefined;}};const key={toString(){return document.title;}};`, "key", false, false},
+	} {
+		t.Run(row.name, func(t *testing.T) {
+			f := componentDescriptorKeyFixture(t, componentDescriptorKeyPage(row.before, row.operand))
+			checkComponentDescriptorKey(t, NewSession(), f, row.browser, row.unknown)
+		})
+	}
+}
+
+func componentDescriptorKeyPage(before, operand string) string {
+	return `import type {Component} from '@exactjs/core';export function Page(this:Component<{label:string}>,props:{useKnown:boolean;foreign:any}){` + before + `try{Object.getOwnPropertyDescriptor({label:1},` + operand + `);}catch{}this.state.label='done';return()=> <p>{this.state.label}</p>;}`
+}
+
+func componentDescriptorKeyFixture(t *testing.T, source string) *executableFixture {
+	t.Helper()
+	f := newExecutableFixture(t, map[string]string{"entry.tsx": source})
+	config := `{"compilerOptions":{"module":"ESNext","moduleResolution":"Bundler","target":"ES2022","strict":true,"skipLibCheck":true,"allowJs":true,"jsx":"react-jsx","jsxImportSource":"@exactjs/jsx"},"files":["entry.tsx"]}`
+	if err := os.WriteFile(f.request("analyze", "entry.tsx").ConfigFile, []byte(config), 0600); err != nil {
+		t.Fatal(err)
+	}
+	return f
+}
+
+func checkComponentDescriptorKey(t *testing.T, session *Session, f *executableFixture, browser, unknown bool) Response {
+	t.Helper()
+	r := session.Execute(f.request("analyze", "entry.tsx"))
+	if r.Error != "" || hasErrorDiagnostic(r.Diagnostics) || len(r.Analysis.Components) != 1 || r.Analysis.Components[0].Name != "Page" {
+		t.Fatal("real key Page entry", r.Error, r.Diagnostics, r.Analysis.Components)
+	}
+	page := findCallable(t, r.Analysis.Callables, "Page")
+	got, unresolved := false, false
+	for _, e := range page.EffectSources {
+		got = got || e.Environment == "browser"
+		unresolved = unresolved || e.Environment == "unknown"
+	}
+	if got != browser || unknown && !unresolved {
+		t.Fatal("key Page donor/independent uncertainty", got, browser, unknown, page.EffectSources)
+	}
+	if len(page.StateWrites) == 0 || len(r.Analysis.StateReads) == 0 {
+		t.Fatal("key Page state/render consumer absent", page, r.Analysis.StateReads)
+	}
+	if browser && r.Analysis.Components[0].Placement != "client" {
+		t.Fatal("browser key Page placement", r.Analysis.Components[0])
+	}
+	request := f.request("compile", "entry.tsx")
+	request.Target = TargetClient
+	c := session.Execute(request)
+	if c.Error != "" || hasErrorDiagnostic(c.Diagnostics) || c.Code == "" {
+		t.Fatal("key Page client artifact", c.Error, c.Diagnostics)
+	}
+	return c
+}
+
+func TestComponentDescriptorKeyEdit(t *testing.T) {
+	browser := componentDescriptorKeyPage(`const key:any={toString(){return document.title;}};`, "key")
+	quiet := strings.Replace(browser, "document.title", "'label'", 1)
+	f := componentDescriptorKeyFixture(t, browser)
+	session := NewSession()
+	checkComponentDescriptorKey(t, session, f, true, false)
+	f.files["entry.tsx"] = quiet
+	if err := os.WriteFile(f.request("analyze", "entry.tsx").ID, []byte(quiet), 0600); err != nil {
+		t.Fatal(err)
+	}
+	retained := checkComponentDescriptorKey(t, session, f, false, false)
+	fresh := checkComponentDescriptorKey(t, NewSession(), f, false, false)
+	if retained.Code != fresh.Code {
+		t.Fatal("key body edit retained/fresh artifact differs")
+	}
 }

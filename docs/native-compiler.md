@@ -1198,6 +1198,23 @@ original-Call contribution below implements one bounded part of that direction; 
 establish full policy implementation or validation. Existing successful output, descriptor
 and completion authority remains with its current owners.
 
+For an acquired standard `Object.getOwnPropertyDescriptor`, original source Effects
+retain coercion-hook retrieval separately from calling an acquired hook. The key
+method receives the original key receiver and its captured scope through the existing
+source-only protocol binder. Ordinary `toString`/`valueOf` hooks receive no arguments;
+`Symbol.toPrimitive` receives one defined, abstract hint argument. Its literal value
+and the hook's primitive result are not inferred. A raw conditional key is acquired
+once into source alternatives before implicit method Gets; each alternative keeps
+its own receiver and scope. Target acquisition is unchanged, and selected key values
+remain private protocol operands rather than invocation results. Existing
+conversion, Proxy, validation and Throw
+uncertainty remains beside known component environment donors. This is conservative
+MAY coverage, not an execution-order, successful conversion or normal-result proof.
+An authored method on a lexical `Object` replacement keeps ordinary Call semantics.
+The focused component controls observe donor/placement and usable client emission;
+the abrupt-hook control does not execute emitted Throw behavior. Retained-session
+body edits are checked against fresh compilation, not treated as cached authority.
+
 At an original component Call, an already acquired standard `Object.defineProperties`
 alternative retains the effects of descriptor accessors in direct literal map entries
 with literal descriptor inputs. It shares the source-only ordered `Has`/`Get` owner:
