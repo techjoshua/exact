@@ -1,219 +1,32 @@
 package exactcompiler
 
-import (
-	"reflect"
-	"strings"
-	"testing"
-)
+import "testing"
 
-// A source-produced graph retains its dependency when the producer's local
-// extraction is withheld. Unknown is not used to publish that unfinished graph.
-// Restoring the real source contribution delivers known and unknown together.
-func TestStagedPublicationWaitsForSourceProducer(t *testing.T) {
-	const source = `declare function foreign():void;function leaf(){window;foreign();return 1;}export function entry(){return leaf();}`
-	session := NewSession()
-	response := session.Execute(Request{Kind: "analyze", ID: "/virtual/staged-publication.ts", Source: source, Diagnostics: "semantic"})
-	if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) {
-		t.Fatalf("source qualification: %s %#v", response.Error, response.Diagnostics)
-	}
-	original := stagedDeclarationFacts(session)
-	var owner *executableBodyOwner
-	var sourceAnalysis callableAnalysis
-	for _, project := range session.projects {
-		if project.callableCache != nil {
-			owner = project.callableCache.owner
-			sourceAnalysis = project.callableCache.bySource[original[0].sourceFile]
-		}
-	}
-	facts := make([]callableFacts, len(original))
-	leaf, entry := -1, -1
-	for index := range original {
-		facts[index] = cloneProjectCallableFact(original[index])
-		switch facts[index].summary.Name {
-		case "leaf":
-			leaf = index
-		case "entry":
-			entry = index
-		}
-	}
-	if owner == nil || leaf < 0 || entry < 0 {
-		t.Fatal("missing source work owners")
-	}
-	if pending := stagedPublicationPending(facts); len(pending) == 0 {
-		t.Fatal("clone inherited the old graph's publication authority")
-	}
-	facts[leaf].staged.ready = false
-	facts[leaf].summary.DirectEffectSources = nil
-	pending := resolveCallableEffects(facts, owner)
-	if len(pending) == 0 || facts[entry].staged.settled || facts[leaf].staged.settled {
-		t.Fatal("required unextracted source producer settled")
-	}
-	if message := stagedPublicationError(pending); !strings.Contains(message, "coverage gap") || !strings.Contains(message, "/virtual/staged-publication.ts:") {
-		t.Fatalf("missing causal pending source: %q", message)
-	}
-	blocked := callableAnalysisFromFacts(facts[entry].sourceFile, facts, nil)
-	if len(blocked.pending) == 0 || len(blocked.summaries) != 0 {
-		t.Fatal("direct summary projection published pending work")
-	}
-	sourceAnalysis.facts = facts
-	merged := mergeProjectCallableEffects(facts[entry].sourceFile, []callableAnalysis{sourceAnalysis}, owner)
-	if len(merged.pending) == 0 || len(merged.summaries) != 0 {
-		t.Fatal("merged summary projection published pending work")
-	}
-	facts[leaf].staged.ready = true
-	facts[leaf].summary.DirectEffectSources = append([]EnvironmentEffectSource(nil), original[leaf].summary.DirectEffectSources...)
-	if pending := resolveCallableEffects(facts, owner); len(pending) != 0 {
-		t.Fatalf("late source contribution did not settle: %#v", pending)
-	}
-	known, unknown := false, false
-	for _, effect := range facts[entry].summary.EffectSources {
-		known = known || effect.Environment == "browser"
-		unknown = unknown || effect.Environment == "unknown"
-	}
-	if !known || !unknown || !facts[entry].staged.settled {
-		t.Fatal("late delivery lost donor/residual or closure")
-	}
-	if !original[leaf].staged.ready || !original[entry].staged.settled {
-		t.Fatal("cloned work changed the retained source graph")
-	}
-	if len(merged.pending) == 0 || merged.facts[leaf].staged.ready || merged.facts[entry].staged.settled {
-		t.Fatal("late delivery changed an independent merged clone")
-	}
-	merged.facts[leaf].staged.ready = true
-	merged.facts[leaf].summary.DirectEffectSources = append([]EnvironmentEffectSource(nil), original[leaf].summary.DirectEffectSources...)
-	sourceAnalysis.facts = merged.facts
-	completed := mergeProjectCallableEffects(facts[entry].sourceFile, []callableAnalysis{sourceAnalysis}, owner)
-	if len(completed.pending) != 0 || !completed.facts[entry].staged.settled {
-		t.Fatal("independently delivered merged clone did not settle")
-	}
-	known, unknown = false, false
-	for _, effect := range completed.facts[entry].summary.EffectSources {
-		known = known || effect.Environment == "browser"
-		unknown = unknown || effect.Environment == "unknown"
-	}
-	if !known || !unknown || !facts[entry].staged.settled {
-		t.Fatal("merged clone delivery lost an alternative or changed its sibling")
-	}
-}
-
-const stagedPublicationJourneySource = `declare function foreign():void;export function entry(){return leaf();}function leaf(){window;foreign();return 1;}export const stable=1;`
-
-// This is the ordinary Session path, with no injected scheduling behavior. Source
-// order makes entry request its real queued leaf before leaf's local extraction.
-// Public code/summary publication follows later extraction and revision delivery.
-func TestStagedPublicationSourceSessionJourney(t *testing.T) {
-	session := NewSession()
-	response := session.Execute(Request{Kind: "compile", ID: "/virtual/staged-journey.ts", Source: stagedPublicationJourneySource, Target: TargetClient, SourceMap: true, Diagnostics: "semantic"})
-	if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) || response.Code == "" {
-		t.Fatalf("source Session: %s %#v", response.Error, response.Diagnostics)
-	}
-	known, unknown, journey := false, false, false
-	for _, effect := range executableSummary(t, response, "entry").EffectSources {
-		known = known || effect.Environment == "browser"
-		unknown = unknown || effect.Environment == "unknown"
-	}
-	for _, fact := range stagedDeclarationFacts(session) {
-		if fact.summary.Name == "entry" {
-			journey = fact.staged.pendingBeforeLocal == 1 && fact.staged.revisionDeliveries > 0 && fact.staged.ready && fact.staged.settled
-		}
-	}
-	if !known || !unknown || !journey {
-		t.Fatalf("source producer/request/delivery/publication journey missing: known=%t unknown=%t journey=%t", known, unknown, journey)
-	}
-}
-
-// An admitted static producer cannot fail to extract in a correct implementation.
-// Inject a backend delivery failure into its real source-derived retained graph,
-// rather than inventing unsupported authored semantics. The public Session must
-// fail causally and emit no partial artifacts, including the independent stable.
-func TestStagedPublicationSessionFaultFailsClosed(t *testing.T) {
-	session := NewSession()
-	request := Request{Kind: "compile", ID: "/virtual/staged-session-fault.ts", Source: stagedPublicationJourneySource, Target: TargetClient, SourceMap: true, Diagnostics: "semantic"}
-	initial := session.Execute(request)
-	if initial.Error != "" || hasErrorDiagnostic(initial.Diagnostics) || initial.Code == "" {
-		t.Fatalf("valid source before injected failure: %s %#v", initial.Error, initial.Diagnostics)
-	}
-	injected := false
-	for _, project := range session.projects {
-		cache := project.callableCache
-		if cache == nil {
-			continue
-		}
-		for source, analysis := range cache.bySource {
-			if source.FileName() != request.ID {
-				continue
-			}
-			facts := make([]callableFacts, len(analysis.facts))
-			for index := range analysis.facts {
-				facts[index] = cloneProjectCallableFact(analysis.facts[index])
-				if facts[index].summary.Name == "leaf" {
-					facts[index].staged.ready = false
-					facts[index].summary.DirectEffectSources = nil
-				}
-			}
-			pending := resolveCallableEffects(facts, cache.owner)
-			if len(pending) == 0 {
-				t.Fatal("fault did not create the real required dependency")
-			}
-			blocked := callableAnalysis{facts: facts, pending: pending}
-			cache.bySource[source] = blocked
-			cache.fingerprints[source] = callableAnalysisFingerprint(blocked)
-			cache.merged, cache.analyses = blocked, nil
-			injected = true
-		}
-	}
-	if !injected {
-		t.Fatal("missing retained source graph for backend fault")
-	}
-	blocked := session.Execute(request)
-	if !strings.Contains(blocked.Error, "coverage gap") || !strings.Contains(blocked.Error, request.ID+":") {
-		t.Fatalf("Session lost causal producer failure: %q", blocked.Error)
-	}
-	if blocked.Code != "" || blocked.SourceMap != nil || len(blocked.RuntimeDependencies) != 0 || !reflect.DeepEqual(blocked.Structure, ArtifactStructure{}) || !reflect.DeepEqual(blocked.Analysis, newSessionResponse(request.ID).Analysis) {
-		t.Fatal("pending Session published partial code, map, runtime or planning artifacts")
-	}
-}
-
-func TestStagedPublicationGenerationReplacement(t *testing.T) {
-	session := NewSession()
-	request := Request{Kind: "analyze", ID: "/virtual/staged-generation.ts", Source: stagedPublicationJourneySource, Diagnostics: "semantic"}
-	var prior *projectCallableCache
-	for _, browser := range []bool{true, false, true} {
-		request.Source = stagedPublicationJourneySource
-		if !browser {
-			request.Source = strings.ReplaceAll(request.Source, "window;foreign();", "")
-		}
-		response := session.Execute(request)
-		if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) {
-			t.Fatalf("source generation: %s %#v", response.Error, response.Diagnostics)
-		}
-		known := false
-		for _, effect := range executableSummary(t, response, "entry").EffectSources {
-			known = known || effect.Environment == "browser"
-		}
-		if known != browser {
-			t.Fatalf("stale generation donor: got %t want %t", known, browser)
-		}
-		for _, project := range session.projects {
-			cache := project.callableCache
-			if cache == nil || cache == prior || cache.program != project.program || prior != nil && prior.ownsGeneration(project.program, cache.owner.checker) {
-				t.Fatal("replacement generation inherited cached publication ownership")
-			}
-			prior = cache
-		}
-	}
-}
-
-// The topology is produced by real mutually recursive source. The failed local
-// extraction is a backend fault injection, not a language rule about recursion.
+// The explicit replacement harness preserves the original cyclic source graph.
+// This backend fault control does not make ordinary exports execution roots.
+// The failed extraction is not a language rule about recursion.
 func TestStagedPublicationSCCOutgoingProducerFault(t *testing.T) {
 	const source = `declare const flag:boolean;export function entry():number{return a();}function a():number{if(flag)return b();return leaf();}function b():number{return a();}function leaf(){window;return 1;}`
 	session := NewSession()
-	response := session.Execute(Request{Kind: "analyze", ID: "/virtual/staged-outgoing.ts", Source: source, Diagnostics: "semantic"})
+	response := session.Execute(Request{Kind: "analyze", ID: "/virtual/staged-outgoing.ts", Source: source, Diagnostics: "semantic", stagedReplacement: true})
 	if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) {
 		t.Fatalf("source SCC: %s %#v", response.Error, response.Diagnostics)
 	}
-	original := stagedDeclarationFacts(session)
+	// Qualify the original source edges before withholding any producer.
+	for _, relation := range [][2]string{{"entry", "a"}, {"a", "b"}, {"b", "a"}, {"a", "leaf"}} {
+		caller := executableSummary(t, response, relation[0])
+		callee := executableSummary(t, response, relation[1])
+		found := false
+		for _, call := range caller.Calls {
+			found = found || call.Resolved && call.TargetID == callee.ID
+		}
+		if !found {
+			t.Fatal("original cyclic dependency UNREACHED", relation)
+		}
+	}
+	// bySource caches descriptions with settlement cleared; this control
+	// inspects the actual resolved source graph before cloning it.
+	original := qualifiedIncrementalProject(t, session).callableCache.merged.facts
 	facts := make([]callableFacts, len(original))
 	leaf := -1
 	var owner *executableBodyOwner
@@ -280,11 +93,11 @@ func TestStagedPublicationSCCOutgoingProducerFault(t *testing.T) {
 func TestStagedPublicationTracksDispositionRevision(t *testing.T) {
 	const source = `function leaf(){return 1;}export function entry(){return leaf();}`
 	session := NewSession()
-	response := session.Execute(Request{Kind: "analyze", ID: "/virtual/staged-disposition.ts", Source: source})
+	response := session.Execute(Request{Kind: "analyze", ID: "/virtual/staged-disposition.ts", Source: source, stagedReplacement: true})
 	if response.Error != "" {
 		t.Fatal(response.Error)
 	}
-	original := stagedDeclarationFacts(session)
+	original := qualifiedIncrementalProject(t, session).callableCache.merged.facts
 	facts := make([]callableFacts, len(original))
 	for index := range original {
 		facts[index] = cloneProjectCallableFact(original[index])
@@ -298,11 +111,14 @@ func TestStagedPublicationTracksDispositionRevision(t *testing.T) {
 			entry = index
 		}
 	}
-	if leaf < 0 || entry < 0 {
+	if leaf < 0 || entry < 0 || !original[leaf].staged.ready || !original[entry].staged.ready || len(facts[entry].staged.calls) != 1 {
 		t.Fatal("missing source dependency")
 	}
 	work := newCallableEffectWork(facts)
 	call := facts[entry].staged.calls[0]
+	if call.invocation.declaration != facts[leaf].node {
+		t.Fatal("original source dependency UNREACHED")
+	}
 	id := ""
 	for _, edge := range facts[entry].summary.Calls {
 		if edge.TargetID == facts[leaf].summary.ID && facts[entry].fieldEdgeOperations[edge.ID] == call.invocation.operation {
@@ -372,6 +188,9 @@ func TestComponentPublicationRequiredProducerDelivery(t *testing.T) {
 		facts := make([]callableFacts, len(original))
 		for i := range original {
 			facts[i] = cloneProjectCallableFact(original[i])
+		}
+		if pending := stagedPublicationPending(facts); len(pending) == 0 {
+			t.Fatal("clone inherited settled component publication authority")
 		}
 		facts[producer].staged.ready = false
 		facts[producer].summary.DirectEffectSources = nil

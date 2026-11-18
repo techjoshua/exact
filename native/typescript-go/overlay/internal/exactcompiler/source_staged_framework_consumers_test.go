@@ -1,6 +1,7 @@
 package exactcompiler
 
 import (
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -83,7 +84,7 @@ func TestStagedFrameworkSummaryConsumers(t *testing.T) {
 			// by runtime MAY. It must stop before any public consumer publishes.
 			request.Source = strings.Replace(stagedFrameworkConsumerSource, "function observe(){window.name;foreign()}", `declare const other:PropertyDescriptor;function observe(){window.name;foreign();let descriptor:PropertyDescriptor={value:1};descriptor=other;Object.freeze(Object.defineProperty(Object.create(null),'x',descriptor))}`, 1)
 			pending := NewSession().Execute(request)
-			if !strings.HasPrefix(pending.Error, "Compiler analysis coverage gap: not yet implemented: member writer input/source delivery") || !strings.Contains(pending.Error, "attempted legacy transition consumeInvocation") || pending.Code != "" || pending.SourceMap != nil || len(pending.Analysis.Tasks) != 0 || len(pending.Analysis.Callables) != 0 {
+			if !strings.HasPrefix(pending.Error, "Compiler analysis coverage gap: not yet implemented: member writer input/source delivery") || !strings.Contains(pending.Error, "attempted legacy transition consumeInvocation") || pending.Code != "" || pending.SourceMap != nil || len(pending.Analysis.Tasks) != 0 || len(pending.Analysis.Callables) != 0 || len(pending.RuntimeDependencies) != 0 || !reflect.DeepEqual(pending.Structure, ArtifactStructure{}) || !reflect.DeepEqual(pending.Analysis, newSessionResponse(request.ID).Analysis) {
 				t.Fatal("compiler debt acquired runtime/policy authority", pending.Error, frameworkConsumerDiagnostics(pending.Diagnostics))
 			}
 		}) {
