@@ -188,6 +188,7 @@ const (
 	runtimeRender                     runtimeImportGroupID = "render"
 	runtimeReactivity                 runtimeImportGroupID = "reactivity"
 	runtimeTasks                      runtimeImportGroupID = "tasks"
+	runtimePendingTasks               runtimeImportGroupID = "pending-tasks"
 	runtimeInspection                 runtimeImportGroupID = "inspection"
 	runtimeRegistry                   runtimeImportGroupID = "registry"
 	runtimeEnhancements               runtimeImportGroupID = "enhancements"
@@ -254,6 +255,7 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		{id: runtimeRender, module: renderRuntimeModule},
 		{id: runtimeReactivity, module: "@exactjs/core/runtime/reactivity"},
 		{id: runtimeTasks, module: taskRuntimeModule},
+		{id: runtimePendingTasks, module: "@exactjs/core/runtime/tasks"},
 		{id: runtimeInspection, module: "@exactjs/core/runtime/inspection"},
 		{id: runtimeRegistry, module: "@exactjs/core/runtime/registry"},
 		{id: runtimeEnhancements, module: "@exactjs/core/runtime/enhancements"},
@@ -521,6 +523,9 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 				continue
 			}
 			group := runtimeTasks
+			if imported == "createTaskState" {
+				group = runtimePendingTasks
+			}
 			if imported == "markExactInspectionSource" {
 				group = runtimeInspection
 			}

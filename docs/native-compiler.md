@@ -14,11 +14,9 @@ those roots do not become execution demands. Real helper and JSX references, run
 and module initialization extend that demand through their original owners. Independently
 compiling a component still supplies its own portable implementation and contract.
 
-Semantic generated-code validation keeps each module at its original identity. Imported finite
-mutation helpers are checked against the same compiler-owned companion bodies and runtime support
-imports emitted by their producer. This dependency view is local to validation. The authored
-program remains unchanged, and retained validation applies the same dependency view as a fresh
-program, including changed or removed producer sources. Relative module aliases also keep already resolved ordinary source imports
+Semantic generated-code validation keeps each module at its original identity. Ordinary helper
+imports retain their authored implementation; generated component callers own pending state views
+and publication. The authored program remains unchanged during validation. Relative module aliases also keep already resolved ordinary source imports
 linked to their original module identity during checking, including type-only edges. This is a
 source-type proof before publication, so a resolved relative alias does not require its output file
 to exist yet. Unresolved original imports and unresolved bare replacement targets remain errors.
@@ -91,7 +89,12 @@ an exact generated-to-compiled suffix map. Host `moduleTransform` callbacks must
 3 map whenever they change code with source maps enabled; an unmapped rewrite is rejected rather
 than approximated line-for-line. Vite, Webpack, and Bun recovery paths use token-position mappings
 and leave generated-only regions unmapped.
-Compiler process protocol 1.0.0 and component-contract version 1 carry the normalized recursive
+The JavaScript SDK and native compiler use exact process protocol 2.0.0. Removing helper
+companion planning changes that internal wire contract; mixed protocol-one/two pairs reject at
+startup before component work. The runtime component ABI and released runtime fixtures retain
+their existing versions. Rebuild and select the matching SDK/native pair together.
+
+Compiler process protocol 2.0.0 and component-contract version 1 carry the normalized recursive
 partition plan, including ordinary enhancement-component owners, structural templates,
 crossing-edge data slots, source evidence, and partition-derived range contracts. It also retains
 `setupExecution` on authored state assignments across source normalization, distinguishing
@@ -183,26 +186,28 @@ the host-selected source graph outside that root. Each file still needs an actua
 edge and final compiler preparation. Pattern filters do not admit outside neighbors, and source
 availability does not grant component-library authorization to another physical package.
 
-Host-selected local server helpers use the adapter's actual resolved module for ordinary calls and
-private task-owned entries. The compiler keeps authored TypeScript diagnostics separate from the
-selected executable body and uses that body's parameter and write facts for publication. The build
-prepares the complete relative/absolute local source graph below its application source root before
-sibling modules load, so an ordinary import cannot race helper ownership acquisition. Snapshot
-installation and dependent compilation share one serialized session operation. The existing native
+Host-selected local helpers use the adapter's actual resolved module. The compiler analyzes that
+implementation's effects and writes while retaining the authored TypeScript signature for checking.
+Generated component tasks pass their owned pending state to the original helper and publish through
+the task's existing completion and cancellation boundary. Helpers retain their ordinary function
+identity, parameters, exports, and body; no task-owned companion is emitted. Supported helper JSDoc
+placement and secret annotations still constrain component callers, including imported helpers.
+This caller-owned path does not establish write ownership for arbitrary fresh accessor envelopes.
+Ordinary helper JSX lowering is separately owned and is outside this task-call contract.
+
+The build prepares its complete relative/absolute local source graph before dependent compilation.
+Snapshot installation and dependent compilation share one serialized session operation. The native
 acknowledgement binds target, generation, content revisions, and syntax slots. Missing or external
-edges cannot fall back to a neighboring TypeScript implementation for private authority. Bare
-package, alias, and virtual-source private authority are outside this local helper selection path.
-Vite and Bun keep require slots opaque because their current selection callbacks do not establish
-require-condition resolution. Webpack supplies its actual commonjs or esm resolver kind. Ordinary
-host execution remains available for opaque sources.
+edges do not authorize a neighboring TypeScript body as the selected executable. Vite and Bun keep
+require slots opaque because their selection callbacks do not establish require-condition resolution.
+Webpack supplies its actual commonjs or esm resolver kind. Ordinary host execution remains available
+for opaque sources.
 
 Vite, Bun, and Webpack use these same contracts. Missing nested dependencies and invalid installed
 providers remain failures rather than silently disabling an enhancement.
 
 Paired `compileFileArtifacts` / `compileProjectArtifacts` output is portable build input.
-`compileFileArtifacts` also publishes compiler-required local helper companions within its output
-root. Keep those paired modules with the entry artifact when bundling or distributing it. Each
-module carries registrations and `exact:optional-enhancement` requests. Consume enhanced paired
+Component artifacts carry registrations and `exact:optional-enhancement` requests. Consume enhanced paired
 output through the eXact Vite, Bun, or Webpack adapter, which resolves those requests in the consuming module's
 scope and target. It applies server authorization before loading providers. Missing providers use
 the shared pass-through; explicitly excluded optional providers follow the configured exclusion
@@ -563,7 +568,7 @@ compiler observations, internationalization analysis, or authorization facts to 
 Webpack excludes the same queries from its installed compiler pre-loader and explicit loader, preserving the host’s
 `asset/source` and `asset/resource` rules. Combined asset queries remain assets. Ordinary cache
 queries and `exact-target` test projections remain executable. Vite evaluates source filters and
-owned-helper identities against the authored filename without host query parameters. An explicit
+executable-source identities against the authored filename without host query parameters. An explicit
 paired test projection owns its matching executable-selection transaction before compilation.
 Bun has no built-in query convention
 for these imports. A host asset plugin can resolve them into a separate namespace and return text
@@ -1076,10 +1081,10 @@ same-protocol binary that ignores the field fails closed. Requests without a sna
 the existing protocol contract. This optional internal acknowledgement does not classify emitted
 artifact ABI compatibility or authorize adapter adoption.
 
-This internal path is limited to analysis. Explicit-selection sessions guard executable compilation
-until private lowering and artifact retention share the same owner. Build adapters do not yet
-supply these snapshots. Host resolution parity, ordinary/private module identity and helper
-publication remain separate acceptance work. General member and higher-order flow, derived-value
+Build adapters install these complete snapshots for component compilation as well as analysis.
+Current source, target, and generation checks bind the selected helper effects to each component
+caller. Ordinary helper imports keep their host module identity without companion publication.
+General member and higher-order flow, derived-value
 reevaluation proof, registry loading and broader source-value provenance are still investigation
 frontiers. The source-value owner now caches declaration-relative return and execution demands
 against one checker generation. Finite creation edges substitute flattened source origins and
@@ -2081,37 +2086,13 @@ task policy parameter erased by transformation; indexed writer discovery reuses 
 checker-bound erasure for that exact default subtree. Ordinary defaults, policy arguments and
 authored body work remain effect consumers.
 
-Component discovery describes required helper companions before artifact emission. A
-prepared build retains the original component and helper source revisions, original call
-and declaration coordinates, configuration, and selected-source provenance as publication
-work context. After synchronization, the current checker resolves that original component
-edge again before demanding only the requested helper body. The owner source is validation
-context; it does not become an execution root or supply cached writes, values, Get results,
-or transport authority. Current helper eligibility and final artifact linkage remain
-independent checks. Revisions and every component, call and helper-declaration coordinate
-use the original prepared source through its current guarded authored-offset projection.
-Checked intrinsic prop casing and finite event spreads may change the bound text and its
-length; they do not change that original identity. Virtual package suffixes remain part of
-the revision, and inserted, ambiguous or unproven coordinate ranges supply no publication
-work. Missing, changed or reset context cannot publish an owned helper entry.
-Executable selection also retains a current guarded original-source relationship across
-checked prop spelling. The original snapshot text/revision is unchanged: a different authored
-input cannot borrow it merely by normalizing to identical output. Original import/call slot
-text and order must remain mapped; inserted or ambiguous references keep opaque selection.
-This proof belongs only to the current Program/generation, not a retained execution result.
-Private import/export names use that same guarded original declaration identity while
-canonical analysis callable IDs retain their existing graph-local positions. Namespace,
-source path, authored-name collision protection and the signal/receiver/arguments signature
-remain unchanged. Rebuild the component entry and its helper companions together; existing
-complete pairs keep their original matching exports. Normal artifact aliases and input-path
-ordering do not change this planning purpose.
-The native handshake advertises this planning capability independently of the process
-protocol and runtime artifact ABI. The JavaScript facade requires it when supplying planning
-context or consuming a required-helper edge in default/server analysis or compilation, including
-an older response without publication descriptions. Client-only emission and diagnostics remain
-unaffected. An unsupported host fails before its result reaches artifact emission;
-update the compiler/native platform pair or replace an older executable override. Unaffected
-requests and older clients consuming the additive native response remain supported.
+Executable selection retains a current guarded original-source relationship across checked prop
+spelling. The original snapshot text and revision stay unchanged: a different authored input cannot
+borrow it merely by normalizing to identical output. Original import/call slot text and order must
+remain mapped; inserted or ambiguous references keep opaque selection. This proof belongs to the
+current Program and generation. It does not grant authority to rewrite an ordinary helper or retain
+an execution result. Component artifact generation uses ordinary source imports and target module
+aliases, with no helper-publication planning protocol.
 
 Library definition publication is independent of the application's selected invocation inputs.
 Named callable props can qualify a receiving JSX edge through their actual receiver, arguments

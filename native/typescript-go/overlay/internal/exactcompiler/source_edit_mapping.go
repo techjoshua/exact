@@ -179,3 +179,16 @@ func sourceLineBreakSize(source string, offset int) int {
 	}
 	return 0
 }
+
+// checkedAuthoredSpan refuses inserted or unmapped ranges; diagnostic clamping
+// alone cannot establish an original source identity for executable selection.
+func (source normalizedSource) checkedAuthoredSpan(node *ast.Node) (SourceSpan, bool) {
+	if node == nil || node.Pos() < 0 || node.End() <= node.Pos() || node.End() >= len(source.authoredOffsets) {
+		return SourceSpan{}, false
+	}
+	start, length := source.authoredSpan(node.Pos(), node.End()-node.Pos())
+	if length <= 0 || start < 0 || start+length > len(source.authored) {
+		return SourceSpan{}, false
+	}
+	return SourceSpan{Start: start, Length: length}, true
+}

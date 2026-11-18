@@ -11,7 +11,6 @@ import type {
 	ExactCompilerSessionOptions,
 	ExactCompilerSessionStats
 } from './session-contracts.js';
-import { clearSourceHelperOwnership } from '../compilation/source-helper-ownership.js';
 import { classifyExactWatchInvalidation } from './watch-invalidation.js';
 
 /** Owns one persistent native compiler process for a compiler or bundler lifecycle. */
@@ -50,7 +49,6 @@ export class ExactCompilerSession {
 			analysis: request.analysis ?? this.analysisPolicy,
 			traceAnalysisCost: request.traceAnalysisCost ?? Boolean(this.onProfile)
 		});
-		if (request.kind === 'reset') clearSourceHelperOwnership(this);
 		this.profile('native-request', started, {
 			cached: response.cacheHit ? 1 : 0,
 			dependencies: response.analysis.imports.length,
@@ -85,7 +83,6 @@ export class ExactCompilerSession {
 		}
 		if (kind === 'project' || removed || !existsSync(absoluteFilename)) {
 			this.nativeCompiler.request({ kind: 'reset' });
-			clearSourceHelperOwnership(this);
 			const removedResult = {
 				affectedFiles: [absoluteFilename],
 				diagnostics: [] as ExactCompilerInvalidation['diagnostics']
@@ -126,7 +123,6 @@ export class ExactCompilerSession {
 		this.assertActive();
 		const started = this.onProfile ? performance.now() : undefined;
 		this.nativeCompiler.request({ kind: 'reset' });
-		clearSourceHelperOwnership(this);
 		this.profile('clear', started);
 	}
 
@@ -134,7 +130,6 @@ export class ExactCompilerSession {
 	dispose(): void {
 		if (this.disposed) return;
 		this.nativeCompiler.dispose();
-		clearSourceHelperOwnership(this);
 		this.disposed = true;
 	}
 

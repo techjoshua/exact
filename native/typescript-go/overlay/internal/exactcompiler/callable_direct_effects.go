@@ -339,7 +339,6 @@ func collectDirectCallableEffects(
 				fact.fieldEdgeOperations = make(map[string]*ast.Node)
 			}
 			fact.fieldEdgeOperations[edge.ID] = node
-			fact.ownedScalarCalls[edge.ID] = selectedHelperSymbol(call.Expression, typeChecker) != nil
 			fact.contextReferences[edge.ID] = stableSourceCallableReference(enhancementCallableReference(call.Expression), typeChecker)
 			if reference, exists := externalImportForExpression(
 				call.Expression,

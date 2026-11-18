@@ -4,19 +4,9 @@ import path from 'node:path';
 import type { ExactCompilerSession } from '../expression/project.js';
 import type { TransformOptions } from '../types.js';
 import type { NativeExecutableSelection } from '../native/process-executable-selection.js';
-import type { NativeCompilerResponse } from '../native/process-contracts.js';
 
 import { preparePackageEnhancementSource } from './package-enhancements.js';
 import { synchronizeNativeProject } from './project-synchronization.js';
-import {
-	withSourceHelperSelection,
-	retainSourceHelperOwnership,
-	sourceHelperPlanningContext
-} from './source-helper-ownership.js';
-
-/** Source and frontend-preparation tuple for one syntax response in this acquisition. */
-type HostHelperDiscovery = NonNullable<NativeCompilerResponse['helperSourceDiscovery']> &
-	Readonly<{ boundary: number }>;
 
 /** Build-owned acquisition options. The host resolves executable identities without evaluating modules. */
 export type ExactHostExecutableSelection<Prepared = undefined> = Readonly<
@@ -34,8 +24,7 @@ export type ExactHostExecutableSelection<Prepared = undefined> = Readonly<
 		prepare?(
 			source: string,
 			filename: string,
-			target: 'client' | 'server',
-			requiredHelper: boolean
+			target: 'client' | 'server'
 		): Readonly<{ source: string; prepared: Prepared; privateSource?: boolean }>;
 		resolve(
 			specifier: string,
@@ -59,7 +48,7 @@ export function withExactHostExecutableSelection<Result, Prepared = undefined>(
 		prepared?: Prepared
 	) => Result | Promise<Result>
 ): Promise<Result> {
-	return withSourceHelperSelection(session, async (nextGeneration) => {
+	return withExecutableSelection(session, async (nextGeneration) => {
 		const options = acquire();
 		const sourceRoot = options.sourceRoot ?? options.root ?? path.dirname(options.filename);
 		const additionalSourceFiles = new Set(
@@ -67,37 +56,19 @@ export function withExactHostExecutableSelection<Result, Prepared = undefined>(
 				.filter(path.isAbsolute)
 				.map((file) => path.resolve(file))
 		);
-		const publicationContext = sourceHelperPlanningContext(session, options.filename);
 		const authoredRoot = localSource(options.filename, sourceRoot, additionalSourceFiles);
 		if (options.selectSource === false && !authoredRoot) return await run(options.target);
-		const collect = async (prepare: boolean, required: ReadonlySet<string>) => {
-			const contextOnly = new Set<string>();
+		const collect = async (prepare: boolean) => {
 			const rawSources = new Map<string, string>([
 				[path.resolve(options.filename), options.source]
 			]);
-			// These original component owners are checker context for validating
-			// descriptions, never reverse execution roots or caller-derived body authority.
-			for (const description of publicationContext) {
-				const owner = path.resolve(description.owner);
-				if (!rawSources.has(owner) && localSource(owner, sourceRoot, additionalSourceFiles)) {
-					try {
-						rawSources.set(owner, await readFile(owner, 'utf8'));
-						contextOnly.add(owner);
-					} catch {
-						/* Missing context cannot grant work. */
-					}
-				}
-			}
 			const sources = new Map<string, string>();
 			const opaque = new Set<string>();
-			const helperDiscovery = new Map<string, HostHelperDiscovery>();
 			let rootPrepared: Prepared | undefined;
 			const edges: NativeExecutableSelection['edges'][number][] = [];
 			const modules: NativeExecutableSelection['modules'][number][] = [];
 			for (const [filename, raw] of rawSources) {
-				const result = prepare
-					? options.prepare?.(raw, filename, options.target, required.has(filename))
-					: undefined;
+				const result = prepare ? options.prepare?.(raw, filename, options.target) : undefined;
 				const source = result?.source ?? raw;
 				if (result?.privateSource === false) opaque.add(filename);
 				sources.set(filename, source);
@@ -120,11 +91,6 @@ export function withExactHostExecutableSelection<Result, Prepared = undefined>(
 						? { packageEnhancementBoundary: prepared.authoredLength }
 						: {})
 				});
-				if (native.helperSourceDiscovery)
-					helperDiscovery.set(filename, {
-						...native.helperSourceDiscovery,
-						boundary: prepared.moduleSpecifiers.size ? prepared.authoredLength : 0
-					});
 				if (!native.executableSlots)
 					throw new Error('Native compiler did not supply executable syntax slots');
 				modules.push({ id: filename, sourceId: filename, contentRevision: hash(prepared.source) });
@@ -159,9 +125,6 @@ export function withExactHostExecutableSelection<Result, Prepared = undefined>(
 							try {
 								const content =
 									rawSources.get(selectedFile) ?? (await readFile(selectedFile, 'utf8'));
-								if (!rawSources.has(selectedFile) && contextOnly.has(filename))
-									contextOnly.add(selectedFile);
-								if (!contextOnly.has(filename)) contextOnly.delete(selectedFile);
 								rawSources.set(selectedFile, content);
 								edge.selected = selectedFile;
 							} catch {
@@ -182,13 +145,11 @@ export function withExactHostExecutableSelection<Result, Prepared = undefined>(
 				modules,
 				edges: authorizedEdges,
 				rootPrepared,
-				opaque,
-				helperDiscovery,
-				contextOnly
+				opaque
 			};
 		};
 		const install = async (
-			{ sources, modules, edges, opaque }: Awaited<ReturnType<typeof collect>>,
+			{ sources, modules, edges }: Awaited<ReturnType<typeof collect>>,
 			target: NativeExecutableSelection['target']
 		) => {
 			const revision = hash(JSON.stringify({ target, modules, edges }));
@@ -198,11 +159,6 @@ export function withExactHostExecutableSelection<Result, Prepared = undefined>(
 					root: options.root,
 					configFile: options.configFile,
 					session,
-					helperPublicationContext: publicationContext.filter(
-						(description) =>
-							sources.has(path.resolve(description.owner)) &&
-							!opaque.has(path.resolve(description.owner))
-					),
 					packageEnhancements: options.packageEnhancements,
 					executableSelection: {
 						generation: nextGeneration(),
@@ -215,76 +171,12 @@ export function withExactHostExecutableSelection<Result, Prepared = undefined>(
 				sources
 			);
 		};
-		const analyzeHelpers = (
-			sources: ReadonlyMap<string, string>,
-			retain: boolean,
-			opaque: ReadonlySet<string>,
-			target: NativeExecutableSelection['target'],
-			contextOnly: ReadonlySet<string>,
-			discovery: ReadonlyMap<string, HostHelperDiscovery>
-		) => {
-			const required = new Set<string>();
-			for (const [filename, source] of sources) {
-				if (contextOnly.has(filename)) continue;
-				if (opaque.has(filename)) {
-					if (retain) retainSourceHelperOwnership(session, filename, []);
-					continue;
-				}
-				const prepared = preparePackageEnhancementSource(
-					source,
-					filename,
-					options.packageEnhancements,
-					options.root
-				);
-				const fact = discovery.get(filename);
-				if (
-					fact?.completeNegative &&
-					fact.sourceRevision === hash(prepared.source) &&
-					fact.boundary === (prepared.moduleSpecifiers.size ? prepared.authoredLength : 0)
-				) {
-					if (retain) retainSourceHelperOwnership(session, filename, []);
-					continue;
-				}
-				const response = session.compileNative({
-					kind: 'analyze',
-					id: filename,
-					source: prepared.source,
-					root: options.root,
-					configFile: options.configFile,
-					target,
-					diagnostics: 'syntax',
-					...(prepared.moduleSpecifiers.size
-						? { packageEnhancementBoundary: prepared.authoredLength }
-						: {})
-				});
-				const helpers = response.analysis.helperSources ?? [];
-				for (const helper of helpers) required.add(path.resolve(helper.sourceFile));
-				if (retain) retainSourceHelperOwnership(session, filename, helpers);
-			}
-			return required;
-		};
-		const raw = await collect(false, new Set());
+		const raw = await collect(false);
 		// Discovery is fenced from client/server lowering even if final preparation throws.
 		const discoveryTarget = options.prepare ? 'default' : options.target;
 		await install(raw, discoveryTarget);
-		const required = analyzeHelpers(
-			raw.sources,
-			false,
-			raw.opaque,
-			discoveryTarget,
-			raw.contextOnly,
-			raw.helperDiscovery
-		);
-		const final = options.prepare ? await collect(true, required) : raw;
+		const final = options.prepare ? await collect(true) : raw;
 		if (options.prepare) await install(final, options.target);
-		analyzeHelpers(
-			final.sources,
-			true,
-			final.opaque,
-			options.target,
-			final.contextOnly,
-			final.helperDiscovery
-		);
 		return await run(options.target, final.rootPrepared);
 	});
 }
@@ -310,4 +202,32 @@ function localSource(
 
 function hash(source: string): string {
 	return createHash('sha256').update(source).digest('hex');
+}
+
+/** Serializes one session's executable selection without retaining callable rewrite authority. */
+const owners = new WeakMap<ExactCompilerSession, { pending: Promise<void>; generation: number }>();
+
+function sessionOwner(session: ExactCompilerSession) {
+	let owner = owners.get(session);
+	if (!owner) owners.set(session, (owner = { pending: Promise.resolve(), generation: 0 }));
+	return owner;
+}
+
+/** Serializes snapshot acquisition, installation, and its dependent compiler work. */
+async function withExecutableSelection<Result>(
+	session: ExactCompilerSession,
+	run: (nextGeneration: () => number) => Result | Promise<Result>
+): Promise<Result> {
+	const owner = sessionOwner(session);
+	const previous = owner.pending;
+	let release!: () => void;
+	owner.pending = new Promise<void>((resolve) => {
+		release = resolve;
+	});
+	await previous;
+	try {
+		return await run(() => ++owner.generation);
+	} finally {
+		release();
+	}
 }

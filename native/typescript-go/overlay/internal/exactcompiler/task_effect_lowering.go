@@ -381,9 +381,6 @@ func (lowering *jsxLowering) manageTaskWork(
 					)
 				}
 			}
-			if owned := lowering.lowerOwnedHelperCall(node, signal, visitor); owned != nil {
-				return owned
-			}
 			if resource := lowering.lowerPlannedTaskResource(node, signal, context, visitor, directServer, resourcePlan); resource != nil {
 				return resource
 			}

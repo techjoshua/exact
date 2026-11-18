@@ -214,13 +214,13 @@ func newExecutableBodyOwner(project *projectState, c *checker.Checker) *executab
 // normalization and unmapped slots retain the strict opaque path.
 func (owner *executableBodyOwner) normalizedSelectionSource(source *ast.SourceFile, expected executableSource, slots []executableSlot) bool {
 	normalization, current := owner.project.currentSourceNormalization(source)
-	original, mapped := helperPublicationInput(normalization)
+	original, mapped := preparedExecutableInput(normalization)
 	if !current || !mapped || original != expected.input || original != expected.text {
 		return false
 	}
 	previous := -1
 	for _, slot := range slots {
-		span, known := normalization.publicationSpan(slot.node)
+		span, known := normalization.checkedAuthoredSpan(slot.node)
 		if !known || span.Start < previous || span.Start+span.Length > len(expected.input) || expected.input[span.Start:span.Start+span.Length] != source.Text()[slot.node.Pos():slot.node.End()] {
 			return false
 		}
@@ -685,4 +685,13 @@ func executableSlotFacts(source *ast.SourceFile) []ExecutableSlotFact {
 		result = append(result, ExecutableSlotFact{index, slot.specifier, slot.kind, typeOnly})
 	}
 	return result
+}
+
+// preparedExecutableInput preserves virtual package suffixes in checked source identity.
+func preparedExecutableInput(source normalizedSource) (string, bool) {
+	end := len(source.authoredOffsets) - 1
+	if end < 0 || end > len(source.text) {
+		return "", false
+	}
+	return source.authored + source.text[end:], true
 }

@@ -10,6 +10,7 @@ import (
 func (lowering *jsxLowering) lowerInvokedTaskOperationWork(
 	work *ast.Node,
 	operation InvokedTaskOperation,
+	task Task,
 ) *ast.Node {
 	facades := &serverTaskFacadeScope{work: work}
 	frame := &mutationFrame{work: work}
@@ -38,6 +39,12 @@ func (lowering *jsxLowering) lowerInvokedTaskOperationWork(
 		)
 		work = lowering.updateTaskWorkParameters(work, parameters)
 	}
+	var pendingState *ast.Node
+	if lowering.target == TargetServer && lowering.taskNeedsPendingState(task) {
+		pendingState = lowering.factory.NewIdentifier(lowering.uniqueMutationName(fmt.Sprintf("__exactTaskState_%d", task.WorkStart)))
+	}
+	lowering.pendingStates = append(lowering.pendingStates, pendingState)
+	defer func() { lowering.pendingStates = lowering.pendingStates[:len(lowering.pendingStates)-1] }()
 	var visitor *ast.NodeVisitor
 	visitor = ast.NewNodeVisitor(
 		func(current *ast.Node) *ast.Node {
@@ -66,6 +73,11 @@ func (lowering *jsxLowering) lowerInvokedTaskOperationWork(
 			}
 			if released := lowering.lowerTaskResourceRelease(current, signal, nil, visitor, resourcePlan); released != nil {
 				return released
+			}
+			if pendingState != nil {
+				if operation := lowering.pendingStateOperation(current, pendingState, visitor); operation != nil {
+					return operation
+				}
 			}
 			if !lowering.checking {
 				if selected := lowering.lowerSelectedTaskWrite(current, signal, false, visitor); selected != nil {
@@ -124,9 +136,6 @@ func (lowering *jsxLowering) lowerInvokedTaskOperationWork(
 					)
 				}
 			}
-			if owned := lowering.lowerOwnedHelperCall(current, signal, visitor); owned != nil {
-				return owned
-			}
 			if resource := lowering.lowerPlannedTaskResource(current, signal, context, visitor, false, resourcePlan); resource != nil {
 				return resource
 			}
@@ -145,7 +154,21 @@ func (lowering *jsxLowering) lowerInvokedTaskOperationWork(
 		&lowering.factory.NodeFactory,
 		ast.NodeVisitorHooks{},
 	)
-	rewrittenWork := facades.finish(lowering, lowering.finishMutationFrame(lowering.visitor.VisitEachChild(visitor.VisitNode(work)), frame))
+	rewritten := visitor.VisitNode(work)
+	if pendingState != nil {
+		root := lowering.factory.NewPropertyAccessExpression(lowering.factory.NewThisExpression(), nil, lowering.factory.NewIdentifier("state"), ast.NodeFlagsNone)
+		initializer := lowering.taskHelperCall("createTaskState", lowering.names.createTaskState, []*ast.Node{signal, root})
+		declaration := lowering.factory.NewVariableStatement(nil, lowering.factory.NewVariableDeclarationList(lowering.factory.NewNodeList([]*ast.Node{lowering.factory.NewVariableDeclaration(pendingState, nil, nil, initializer)}), ast.NodeFlagsConst))
+		body := rewritten.Body()
+		statements := []*ast.Node{declaration}
+		if ast.IsBlock(body) {
+			statements = append(statements, body.AsBlock().Statements.Nodes...)
+		} else {
+			statements = append(statements, lowering.factory.NewReturnStatement(body))
+		}
+		rewritten = lowering.updateTaskWorkBody(rewritten, lowering.factory.NewBlock(lowering.factory.NewNodeList(statements), true))
+	}
+	rewrittenWork := facades.finish(lowering, lowering.finishMutationFrame(lowering.visitor.VisitEachChild(rewritten), frame))
 	if lowering.target == TargetClient && operation.Placement == "server" {
 		rewrittenWork = lowering.clientInvokedTaskContinuationWork(
 			operation,

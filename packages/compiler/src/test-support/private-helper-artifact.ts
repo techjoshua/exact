@@ -8,7 +8,7 @@ import { resolveNativeCompilerExecutable } from '../native/executable.js';
 import { importArtifact } from './import-artifact.js';
 import { createCompilerTestWorkspace } from './workspace.js';
 
-/** Loads authored and compiled controls against the same installed helper registry and runtime. */
+/** Loads authored and emitted ordinary modules against the same installed providers. */
 export async function privateHelperArtifact(source: string, target: 'client' | 'server') {
 	const parent = path.resolve('.tmp/task-private-routing');
 	await mkdir(parent, { recursive: true });

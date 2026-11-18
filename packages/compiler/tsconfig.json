@@ -31,7 +31,6 @@
 		"src/cli.ts",
 		"src/component-library-build.ts",
 		"src/compilation/artifact-compilation.ts",
-		"src/compilation/source-helper-ownership.ts",
 		"src/compilation/host-executable-selection.ts",
 		"src/compilation/analysis-results.ts",
 		"src/compilation/adapter-transformation.ts",

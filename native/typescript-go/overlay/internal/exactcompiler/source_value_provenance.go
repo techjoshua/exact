@@ -1274,7 +1274,6 @@ func appendSourceValueWrites(fact *callableFacts, candidates accessorCandidates,
 		effect := StateEffect{Path: strings.Join(path, "."), pathSegments: path, Kind: "write", Confidence: "unknown", Operation: write.operation, Receiver: &StateReceiver{Kind: "parameter", Root: "value"}}
 		effect = bindStateEffect(effect, ReceiverBinding{Source: source, SourceParameterIndex: index})
 		fact.directWrites = append(fact.directWrites, effect)
-		fact.directOwnedScalarBlocked = true
 	}
 }
 

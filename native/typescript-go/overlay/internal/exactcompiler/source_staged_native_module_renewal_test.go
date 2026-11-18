@@ -26,7 +26,6 @@ func assertNativeInputReceiptRenewal(t *testing.T, sourceText string, selectSour
 		for i := range facts {
 			f := &facts[i]
 			f.callSymbols = make(map[string]ast.SymbolId)
-			f.ownedScalarCalls = make(map[string]bool)
 			f.callExpressions = make(map[string]*ast.Node)
 			f.contextReferences = make(map[string]*ast.Node)
 			if runtimeVariableInitializer(f.node) {
@@ -184,9 +183,6 @@ func assertNativeInputReceiptRenewal(t *testing.T, sourceText string, selectSour
 		// extraction alone has not initialized revision propagation/publication.
 		// This is the first normal resolve of this work, never cached re-resolve.
 		sealMapInputs(facts, work.memberNodes)
-		for i := range facts {
-			facts[i].directOwnedScalarBlocked = facts[i].directOwnedScalarBlocked || !directScalarHelper(&facts[i], owner.checker)
-		}
 		pending := resolveCallableEffectsWithWork(facts, owner, &work)
 		resolved = true
 		t.Logf("first normal source resolution pending=%d", len(pending))

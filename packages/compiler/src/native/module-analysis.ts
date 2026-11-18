@@ -29,10 +29,6 @@ export function nativeModuleAnalysis(
 		version: 1,
 		filename,
 		dependencies: [],
-		helperSources: response.analysis.helperSources?.map(({ moduleSpecifier, sourceFile }) => ({
-			moduleSpecifier,
-			sourceFile
-		})),
 		assets: response.analysis.assets.map((asset) => ({ ...asset })),
 		components,
 		jsx: response.analysis.jsx.map(({ tag, intrinsic, start, length }) => {

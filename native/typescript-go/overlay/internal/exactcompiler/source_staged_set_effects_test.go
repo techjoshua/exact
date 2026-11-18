@@ -35,9 +35,6 @@ func withOriginalSetEffectsCollector(t *testing.T, source string, inspect func(*
 			work.finishExtraction(facts, i)
 		}
 		sealMapInputs(facts, prepared.nodeTargets)
-		for i := range facts {
-			facts[i].directOwnedScalarBlocked = facts[i].directOwnedScalarBlocked || !directScalarHelper(&facts[i], owner.checker)
-		}
 		// Pending remains observable and is not changed into successful analysis.
 		_ = resolveCallableEffectsWithWork(facts, owner, &work)
 		inspect(owner, file, facts, &work)

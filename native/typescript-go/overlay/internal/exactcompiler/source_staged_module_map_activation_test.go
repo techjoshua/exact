@@ -56,7 +56,6 @@ func testStagedModuleMapSourceQueue(t *testing.T, includeImportedFacts bool) {
 	for index := range facts {
 		fact := &facts[index]
 		fact.callSymbols = make(map[string]ast.SymbolId)
-		fact.ownedScalarCalls = make(map[string]bool)
 		fact.callExpressions = make(map[string]*ast.Node)
 		fact.contextReferences = make(map[string]*ast.Node)
 		if runtimeVariableInitializer(fact.node) {

@@ -99,11 +99,6 @@ func (s *Session) synchronizeProject(
 	countersBefore := project.counters
 	programStarted := time.Now()
 	changed := project.synchronize(prepared)
-	// Context belongs to this complete synchronized snapshot, never its predecessor.
-	if !reflect.DeepEqual(project.helperPublications, request.HelperPublicationContext) {
-		project.callableCache = nil
-	}
-	project.helperPublications = append([]HelperPublication(nil), request.HelperPublicationContext...)
 	s.projects[projectKey] = project
 	response.Counters = project.counters.since(countersBefore)
 	response.CacheHit = !changed && !selectionChanged

@@ -38,7 +38,7 @@ const preparedLanguageProjections = new WeakMap<
 	NonNullable<CompileArtifactsResult['client']['inspectionCatalog']>['languageProjection']
 >();
 
-/** Compiles one source entry and its required local helper companions into paired artifacts. */
+/** Compiles one source entry into paired artifacts. */
 export async function compileFileArtifacts(
 	inputFile: string,
 	options: CompileArtifactsOptions
@@ -76,10 +76,6 @@ export async function compileFileArtifacts(
 		generatedValidation: options.generatedValidation,
 		...capabilityOptions
 	});
-	if (analysis.helperSources?.length) {
-		const results = await compileProjectArtifacts([inputFile], { ...options, buildKey });
-		return results.find((result) => path.resolve(result.inputFile) === path.resolve(inputFile))!;
-	}
 	const client = transformSource(source, {
 		filename,
 		buildKey,
@@ -266,17 +262,6 @@ async function compileArtifactPlanEntriesInternal(
 		},
 		sources
 	);
-	// Discovery's old Program is not authority. Reissue only its original
-	// component planning owners after the complete final source synchronization,
-	// before any companion is emitted in deterministic input-path order.
-	for (const owner of dependencyAnalysis.helperOwners) {
-		options.session!.compileNative({
-			kind: 'analyze',
-			id: owner,
-			source: sources.get(owner)!,
-			diagnostics: 'syntax'
-		});
-	}
 	const dependencyGraph = dependencyAnalysis.graph;
 	const localDependencies = dependencyAnalysis.localDependencies;
 	const capabilityOptions = capabilityCompilationOptions(options);

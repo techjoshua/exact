@@ -522,7 +522,6 @@ func resolveCallableEffectsWithWork(facts []callableFacts, mapOwner *executableB
 			work.dirty[index] = false
 			fact := &facts[index]
 			factChanged := false
-			blocked := fact.directOwnedScalarBlocked
 			sources := append(
 				[]EnvironmentEffectSource(nil),
 				fact.summary.DirectEffectSources...,
@@ -546,14 +545,6 @@ func resolveCallableEffectsWithWork(facts []callableFacts, mapOwner *executableB
 					continue
 				}
 				target := facts[targetIndex].summary
-				if len(target.StateWrites) != 0 {
-					blocked = blocked || target.ownedScalarBlocked
-					for _, edge := range fact.summary.Calls {
-						if edge.TargetID == target.ID && !fact.ownedScalarCalls[edge.ID] {
-							blocked = true
-						}
-					}
-				}
 				for _, edge := range fact.summary.Calls {
 					if !edge.Resolved || edge.TargetID != target.ID {
 						continue
@@ -618,10 +609,6 @@ func resolveCallableEffectsWithWork(facts []callableFacts, mapOwner *executableB
 			if signature := contextEffectSetSignature(contexts); signature != work.signatures[index].contexts {
 				work.signatures[index].contexts = signature
 				fact.summary.Contexts = contexts
-				factChanged = true
-			}
-			if fact.summary.ownedScalarBlocked != blocked {
-				fact.summary.ownedScalarBlocked = blocked
 				factChanged = true
 			}
 			if factChanged {

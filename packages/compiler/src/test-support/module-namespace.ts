@@ -15,7 +15,6 @@ export async function assertOrdinaryModuleNamespaces(test: {
 	browser: boolean;
 	placement?: 'unknown';
 	extras?: Record<string, unknown>;
-	compilerOwnedServerFunctions?: number;
 }): Promise<void> {
 	const root = await createCompilerTestWorkspace('.exact-module-namespace-', process.cwd());
 	const session = new ExactCompilerSession();
@@ -50,12 +49,7 @@ export async function assertOrdinaryModuleNamespaces(test: {
 		);
 		expect(result.status, result.stderr).toBe(0);
 		const values: Record<string, unknown> = JSON.parse(result.stdout);
-		const owned = Object.keys(values).filter((key) => key.startsWith('__exact_owned_'));
-		expect(owned).toHaveLength(target === 'server' ? (test.compilerOwnedServerFunctions ?? 0) : 0);
-		for (const key of owned) {
-			expect(values[key]).toBe('function');
-			delete values[key];
-		}
+		expect(Object.keys(values).some((key) => key.startsWith('__exact_owned_'))).toBe(false);
 		expect(values).toEqual(
 			test.browser && target === 'server'
 				? { stable: 'safe' }

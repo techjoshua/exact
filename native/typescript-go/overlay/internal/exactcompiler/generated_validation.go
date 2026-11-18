@@ -118,47 +118,21 @@ func validateGeneratedCodeWithCache(request Request, fileName string, code strin
 // generatedValidationHelpers carries existing checked source authority only across this emission.
 // Its finite dependency view is shared by fresh and retained validation, never the authored program.
 type generatedValidationHelpers struct {
-	plan      helperMutationPlan
 	callables callableAnalysis
 	checker   *checker.Checker
 	imports   []Import
 }
 
 func (helpers generatedValidationHelpers) dependencies(entry string, sources *sourceOverlay, rewrite *ModuleRewrite) *sourceOverlay {
-	if sources == nil || len(helpers.plan.sources) == 0 && (rewrite == nil || len(rewrite.ModuleAliases) == 0) {
+	if sources == nil || (rewrite == nil || len(rewrite.ModuleAliases) == 0) {
 		return sources
 	}
 	projected := &sourceOverlay{base: sources.base, files: maps.Clone(sources.files)}
-	seen := map[string]bool{projected.canonical(entry): true}
-	pending := append([]HelperSource{}, helpers.plan.sources...)
 	owners := make(map[string]*ast.SourceFile)
-	for _, helper := range helpers.plan.entries {
-		owners[projected.canonical(helper.source.FileName())] = helper.source
-	}
-	for len(pending) != 0 {
-		next := pending[0]
-		pending = pending[1:]
-		path := projected.canonical(next.SourceFile)
-		if seen[path] {
-			continue
-		}
-		seen[path] = true
-		source := owners[path]
-		if source == nil {
-			continue
-		}
-		plan := planHelperMutations(source, helpers.callables, helpers.checker)
-		projected.set(source.FileName(), emitValidationHelperSource(source, plan, helpers.checker))
-		pending = append(pending, plan.sources...)
-	}
-	// Module aliases relocate this already selected helper module. Keep the actual
-	// rewritten specifier resolvable without parsing a second nominal copy of its
-	// declarations. The checking-only forwarding module exports the real projected
-	// source namespace, including the generated companion exports. It invents no
-	// declarations and is never published. Export replacements remain independent.
+	// Relative aliases retain original checker module identity without rewriting helpers.
 	if rewrite != nil {
-		selected := append([]HelperSource{}, helpers.plan.sources...)
-		// Ordinary relocated imports need the same nominal checking identity as companions.
+		selected := []struct{ ModuleSpecifier, SourceFile string }{}
+		// Relocated imports retain their original nominal checking identity.
 		// Use resolved local identities in the existing program, never another dependency walk.
 		if helpers.callables.owner != nil {
 			program := helpers.callables.owner.project.program
@@ -187,7 +161,7 @@ func (helpers generatedValidationHelpers) dependencies(entry string, sources *so
 					continue
 				}
 				owners[projected.canonical(source.FileName())] = source
-				selected = append(selected, HelperSource{ModuleSpecifier: specifier, SourceFile: source.FileName()})
+				selected = append(selected, struct{ ModuleSpecifier, SourceFile string }{ModuleSpecifier: specifier, SourceFile: source.FileName()})
 			}
 		}
 		for _, helper := range selected {

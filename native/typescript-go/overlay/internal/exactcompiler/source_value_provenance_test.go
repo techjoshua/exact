@@ -143,7 +143,7 @@ func TestClosureCapturedWrites(t *testing.T) {
 			found = true
 		}
 	}
-	if !found || !summary.ownedScalarBlocked {
+	if !found {
 		t.Fatalf("lost possible write or granted closure lowering: %#v", summary)
 	}
 }
@@ -258,7 +258,7 @@ func TestClosureUnknownCaptureReceiver(t *testing.T) {
 			found = true
 		}
 	}
-	if !found || summary.Effect != "unknown" || !summary.ownedScalarBlocked {
+	if !found || summary.Effect != "unknown" {
 		t.Fatalf("incomplete receiver lost possible write or acquired authority: %#v", summary)
 	}
 }
@@ -416,7 +416,7 @@ func TestClosureArrayCapturedWrites(t *testing.T) {
 		for _, write := range summary.StateWrites {
 			found = found || (write.Path == "b" && write.Confidence == "unknown" && write.Receiver != nil && write.Receiver.Kind == "parameter" && write.Receiver.Index == 0)
 		}
-		if !found || !summary.ownedScalarBlocked {
+		if !found {
 			t.Fatalf("lost possible write or granted closure authority: %#v", summary)
 		}
 	}
@@ -532,7 +532,7 @@ func TestClosureSymbolicProjectionWrites(t *testing.T) {
 				t.Fatal(r.Diagnostics)
 			}
 			run := executableSummary(t, r, "run")
-			if len(run.StateWrites) != 1 || run.StateWrites[0].Path != "inner.b" || run.StateWrites[0].Confidence != "unknown" || !run.ownedScalarBlocked {
+			if len(run.StateWrites) != 1 || run.StateWrites[0].Path != "inner.b" || run.StateWrites[0].Confidence != "unknown" {
 				t.Fatalf("lost symbolic caller write: %#v", run)
 			}
 			if len(r.Analysis.Continuations) == 0 {
@@ -548,7 +548,7 @@ func TestClosureSymbolicProjectionWrites(t *testing.T) {
 			if compiled.Error != "" || hasErrorDiagnostic(compiled.Diagnostics) {
 				t.Fatalf("supported task input view rejected: %s %#v", compiled.Error, compiled.Diagnostics)
 			}
-			if !strings.Contains(compiled.Code, ".helper(make)") || !strings.Contains(compiled.Code, "__exactCreateTaskState(") || len(compiled.Analysis.HelperSources) != 0 {
+			if !strings.Contains(compiled.Code, ".helper(make)") || !strings.Contains(compiled.Code, "__exactCreateTaskState(") {
 				t.Fatalf("symbolic capture lost its task view or acquired scalar private authority:\n%s", compiled.Code)
 			}
 		})
@@ -610,7 +610,7 @@ func TestClosureWriterSearchKeepsAlternatives(t *testing.T) {
 			browser = browser || effect.Environment == "browser"
 			incomplete = incomplete || effect.provenanceIncomplete
 		}
-		if !browser || !incomplete || !summary.ownedScalarBlocked {
+		if !browser || !incomplete {
 			t.Fatalf("lost known effect, completeness or lowering boundary: %#v", summary)
 		}
 	}
@@ -674,7 +674,7 @@ func TestClosureProjectedInvocation(t *testing.T) {
 		for _, write := range summary.StateWrites {
 			found = found || write.Path == "b" && write.Confidence == "unknown" && write.Receiver != nil && write.Receiver.Kind == "parameter" && write.Receiver.Index == 0
 		}
-		if !found || !summary.ownedScalarBlocked {
+		if !found {
 			t.Fatalf("lost possible write or granted closure lowering: %#v", summary)
 		}
 	}
@@ -737,7 +737,7 @@ func TestClosureProjectedBounds(t *testing.T) {
 		for _, effect := range summary.StateWrites {
 			write = write || effect.Path == "b" && effect.Confidence == "unknown"
 		}
-		if !browser || !incomplete || !write || !summary.ownedScalarBlocked {
+		if !browser || !incomplete || !write {
 			t.Fatalf("lost known effects or incomplete authority: %#v", summary)
 		}
 	}
@@ -1053,7 +1053,7 @@ func TestClosureParameterPatternWrites(t *testing.T) {
 		for _, write := range summary.StateWrites {
 			found = found || write.Path == "b" && write.Confidence == "unknown" && write.Receiver != nil && write.Receiver.Kind == "parameter" && write.Receiver.Index == 0
 		}
-		if !found || !summary.ownedScalarBlocked {
+		if !found {
 			t.Fatalf("lost possible binding write or granted closure lowering: %#v", summary)
 		}
 	}

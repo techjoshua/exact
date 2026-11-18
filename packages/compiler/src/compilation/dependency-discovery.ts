@@ -6,9 +6,6 @@ import type { ExactCompilerSession } from '../expression/project.js';
  * Local dependency facts discovered in one compiler-owned source pass.
  */
 export interface PlacementDependencyAnalysis {
-	readonly helperSources: ReadonlySet<string>;
-	/** Original component owners to reissue work after final project synchronization. */
-	readonly helperOwners: ReadonlySet<string>;
 	readonly graph: ReadonlyMap<string, readonly string[]>;
 	readonly localDependencies: ReadonlyMap<string, readonly { specifier: string; file: string }[]>;
 }
@@ -25,8 +22,6 @@ export async function collectPlacementAnalysisDependencies(
 	sources: Map<string, string>,
 	session?: ExactCompilerSession
 ): Promise<PlacementDependencyAnalysis> {
-	const helperSources = new Set<string>();
-	const helperOwners = new Set<string>();
 	const graph = new Map<string, string[]>();
 	const localDependencies = new Map<string, readonly { specifier: string; file: string }[]>();
 	if (!session) throw new Error('Dependency discovery requires a native compiler session');
@@ -71,11 +66,6 @@ export async function collectPlacementAnalysisDependencies(
 			...edge,
 			file: resolved.get(edge.specifier) ?? edge.file
 		}));
-		for (const edge of native.analysis.helperSources ?? []) {
-			if (edge.publication?.length) helperOwners.add(filename);
-			helperSources.add(path.resolve(edge.sourceFile));
-			local.push({ specifier: edge.moduleSpecifier, file: path.resolve(edge.sourceFile) });
-		}
 		for (const [specifier, file] of resolved)
 			if (!local.some((edge) => edge.specifier === specifier)) local.push({ specifier, file });
 		localDependencies.set(filename, [
@@ -104,7 +94,7 @@ export async function collectPlacementAnalysisDependencies(
 		}
 		graph.set(filename, [...new Set(resolvedDependencies)].sort());
 	}
-	return { graph, localDependencies, helperSources, helperOwners };
+	return { graph, localDependencies };
 }
 
 /** Resolves authored relative module specifiers to local source files. */

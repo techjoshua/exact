@@ -91,7 +91,7 @@ func assertExecutablePaths(t *testing.T, response Response, name, path string) {
 // A host-selected body supplies effects while the authored signature still owns assignability.
 func TestExecutableSelectionEffectsAndTyping(t *testing.T) {
 	f := newExecutableFixture(t, map[string]string{
-		"entry.ts":  `import {apply,answer} from './helper.js';export const n:number=answer();export function run(state:{a:number,b:number}){apply(state);}`,
+		"entry.ts":  `import {apply,answer} from './helper.js';export const n:number=answer();export function run(state:{a:number,b:number}){apply(state);}import type {Component} from '@exactjs/core';export function Page(this:Component<{a:number,b:number}>){this.state.a=0;this.state.b=0;run(this.state);return()=>this.state.b;}`,
 		"helper.ts": `export function apply(state:{a:number,b:number}){state.a=2;}export function answer():number{return 2;}`,
 		"helper.js": `/** @param {{a:number,b:number}} state */ export let apply=(state)=>{state.b=99;};export function answer(){return "host";}`,
 	})
@@ -104,11 +104,12 @@ func TestExecutableSelectionEffectsAndTyping(t *testing.T) {
 	if len(response.Diagnostics) != 0 {
 		t.Fatalf("authored number signature changed: %#v", response.Diagnostics)
 	}
-	if len(response.Analysis.HelperSources) != 0 {
-		t.Fatal("analysis selection granted private emission")
-	}
 	// A real type error remains visible in the same augmented program.
 	f.files["entry.ts"] = strings.Replace(f.files["entry.ts"], "n:number", "n:string", 1)
+	// The edited entry needs a fresh snapshot before checking the same selected body.
+	if r := f.synchronize([]ExecutableEdge{{Importer: "entry.ts", Slot: 0, Specifier: "./helper.js", Kind: "import", Selected: "helper.js"}}); r.Error != "" {
+		t.Fatal(r.Error)
+	}
 	response = f.session.Execute(f.request("analyze", "entry.ts"))
 	found := false
 	for _, d := range response.Diagnostics {
@@ -441,9 +442,6 @@ func TestExecutableSelectionMissingAndStaleBodies(t *testing.T) {
 	if len(summary.StateWrites) != 1 || summary.StateWrites[0].Path != "b" || summary.StateWrites[0].Receiver == nil || summary.StateWrites[0].Receiver.Kind != "parameter" {
 		t.Fatalf("selected run body lost: %#v", summary)
 	}
-	if len(positive.Analysis.HelperSources) != 1 || positive.Analysis.HelperSources[0].SourceFile != filepath.Join(f.root, "helper.js") {
-		t.Fatalf("wrong selected source: %#v", positive.Analysis.HelperSources)
-	}
 	typed := false
 	for _, edge := range positive.Analysis.Imports {
 		if edge.ModuleSpecifier == "./helper.js" {
@@ -510,68 +508,6 @@ func TestExecutableSelectionConfigRevision(t *testing.T) {
 	after := f.session.Execute(f.request("analyze", "entry.ts"))
 	if len(after.Diagnostics) != 0 {
 		t.Fatalf("stale configuration proof: %#v", after.Diagnostics)
-	}
-}
-
-// Only task-owned invocation introduces a private import. It must share the
-// selected executable source while ordinary imports retain their host specifier.
-func TestExecutableSelectionPrivateHelperBody(t *testing.T) {
-	for _, selected := range []string{"helper.js", "helper.ts"} {
-		t.Run(selected, func(t *testing.T) {
-			f := newExecutableFixture(t, map[string]string{
-				"entry.ts":  `import {TaskContext,type Component} from '@exactjs/core';import {apply} from './helper.js';export function invoke(state:{a:number,b:number}){apply(state);}export function Page(this:Component<{a:number,b:number}>){this.state.a=0;this.state.b=0;function save(task:TaskContext=TaskContext.server().blocking()){apply(this.state);}save();return()=>this.state.b;}`,
-				"helper.ts": `export function apply(state:{a:number,b:number}){state.a=2;}`,
-				"helper.js": `/** @param {{a:number,b:number}} state */ export function apply(state){state.b=99;}`,
-			})
-			request := f.request("synchronize", "entry.ts")
-			snapshot := &ExecutableSelection{Generation: 1, Revision: "private-helper", Target: TargetServer,
-				Edges: []ExecutableEdge{{Importer: "entry.ts", Slot: 1, Specifier: "./helper.js", Kind: "import", Selected: selected}}}
-			for name, source := range f.files {
-				id := filepath.Join(f.root, name)
-				request.Sources = append(request.Sources, ProjectSource{ID: id, Source: source})
-				snapshot.Modules = append(snapshot.Modules, ExecutableModule{ID: name, SourceID: id, ContentRevision: preparedContentRevision(source)})
-			}
-			request.ExecutableSelection = snapshot
-			if response := f.session.Execute(request); response.Error != "" {
-				t.Fatal(response.Error)
-			}
-			request = f.request("compile", "entry.ts")
-			request.Target = TargetServer
-			request.Diagnostics = "syntax"
-			entry := f.session.Execute(request)
-			if entry.Error != "" || len(entry.Diagnostics) != 0 {
-				t.Fatalf("entry: %s %#v", entry.Error, entry.Diagnostics)
-			}
-			if len(entry.Analysis.HelperSources) != 1 || entry.Analysis.HelperSources[0].SourceFile != filepath.Join(f.root, selected) {
-				t.Fatalf("source %#v", entry.Analysis.HelperSources)
-			}
-			if !containsString(executableImportBindings(entry.Code, "./helper.js"), "apply") {
-				t.Fatal("ordinary import lost its authored host specifier")
-			}
-			private := ""
-			for _, name := range executableImportBindings(entry.Code, "./"+selected) {
-				if strings.HasPrefix(name, "__exact_owned_") {
-					private = name
-				}
-			}
-			if private == "" || !strings.Contains(entry.Code, private+"(task.signal,") {
-				t.Fatal("task invocation lost the selected private entry")
-			}
-			request = f.request("compile", selected)
-			request.Target = TargetServer
-			request.Diagnostics = "syntax"
-			helper := f.session.Execute(request)
-			if helper.Error != "" || len(helper.Diagnostics) != 0 || !strings.Contains(helper.Code, "export function "+private+"(") {
-				t.Fatalf("helper: %s %#v expected=%q code=%q", helper.Error, helper.Diagnostics, "export function "+private+"(", helper.Code)
-			}
-			expected := "99"
-			if selected == "helper.ts" {
-				expected = "2"
-			}
-			if !strings.Contains(helper.Code, expected) {
-				t.Fatal("lost selected implementation")
-			}
-		})
 	}
 }
 
@@ -659,9 +595,6 @@ func TestExecutableSelectionPublishedDeclarationOperations(t *testing.T) {
 			if summary.Effect != example.effect {
 				t.Fatalf("%s lost operation contract: %#v", example.name, summary)
 			}
-			if len(response.Analysis.HelperSources) != 0 {
-				t.Fatal("declaration operation granted a private helper")
-			}
 		})
 	}
 }
@@ -685,20 +618,30 @@ func TestExecutableSelectionCheckedCasingIdentity(t *testing.T) {
 		request.Diagnostics = "syntax"
 		return f.session.Execute(request)
 	}
+	hasSelectedValueWrite := func(response Response) bool {
+		for _, task := range response.Analysis.Tasks {
+			for _, write := range task.Writes {
+				if write.Path == "value" && write.Confidence == "exact" {
+					return true
+				}
+			}
+		}
+		return false
+	}
 	initial := compile()
-	if initial.Error != "" || len(initial.Diagnostics) != 0 || !strings.Contains(initial.Code, "__exact_owned_") {
+	if initial.Error != "" || len(initial.Diagnostics) != 0 || !hasSelectedValueWrite(initial) {
 		t.Fatalf("original checked input lost: %s %#v\n%s", initial.Error, initial.Diagnostics, initial.Code)
 	}
 	f.files["entry.tsx"] = strings.ReplaceAll(f.files["entry.tsx"], "onclick=", "onCLICK=")
 	stale := compile()
-	if stale.Error != "" || strings.Contains(stale.Code, "__exact_owned_") {
+	if stale.Error != "" || hasSelectedValueWrite(stale) {
 		t.Fatalf("different authored input gained stale selection: %s\n%s", stale.Error, stale.Code)
 	}
 	if r := f.synchronizeTarget(edges, TargetServer); r.Error != "" {
 		t.Fatal(r.Error)
 	}
 	renewed := compile()
-	if renewed.Error != "" || len(renewed.Diagnostics) != 0 || !strings.Contains(renewed.Code, "__exact_owned_") {
+	if renewed.Error != "" || len(renewed.Diagnostics) != 0 || !hasSelectedValueWrite(renewed) {
 		t.Fatalf("fresh selection not renewed: %s %#v\n%s", renewed.Error, renewed.Diagnostics, renewed.Code)
 	}
 }

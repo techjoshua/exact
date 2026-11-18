@@ -61,7 +61,6 @@ func legacyResolveCallableEffects(facts []callableFacts, contextSignature func([
 		changed = false
 		for index := range facts {
 			fact := &facts[index]
-			blocked := fact.directOwnedScalarBlocked
 			sources := append(
 				[]EnvironmentEffectSource(nil),
 				fact.summary.DirectEffectSources...,
@@ -77,14 +76,6 @@ func legacyResolveCallableEffects(facts []callableFacts, contextSignature func([
 					continue
 				}
 				target := facts[targetIndex].summary
-				if len(target.StateWrites) != 0 {
-					blocked = blocked || target.ownedScalarBlocked
-					for _, edge := range fact.summary.Calls {
-						if edge.TargetID == target.ID && !fact.ownedScalarCalls[edge.ID] {
-							blocked = true
-						}
-					}
-				}
 				for _, source := range target.EffectSources {
 					path := source.Path
 					if len(path) == 0 || path[0] != fact.summary.Name {
@@ -148,10 +139,6 @@ func legacyResolveCallableEffects(facts []callableFacts, contextSignature func([
 			}
 			if contextSignature(contexts) != contextSignature(fact.summary.Contexts) {
 				fact.summary.Contexts = contexts
-				changed = true
-			}
-			if fact.summary.ownedScalarBlocked != blocked {
-				fact.summary.ownedScalarBlocked = blocked
 				changed = true
 			}
 		}

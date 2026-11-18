@@ -80,7 +80,6 @@ func prepareCallableSourceInventory(sourceFile *ast.SourceFile, typeChecker *che
 				Contexts:            []ContextEffect{},
 			},
 			callSymbols:       make(map[string]ast.SymbolId),
-			ownedScalarCalls:  make(map[string]bool),
 			callExpressions:   make(map[string]*ast.Node),
 			contextReferences: make(map[string]*ast.Node),
 		})

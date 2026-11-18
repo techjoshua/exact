@@ -3,7 +3,7 @@
 		"component": 6,
 		"renderProgram": 4,
 		"componentLibrary": 1,
-		"compilerProcess": "1.0.0"
+		"compilerProcess": "2.0.0"
 	},
 	"component": {
 		"render": 1,

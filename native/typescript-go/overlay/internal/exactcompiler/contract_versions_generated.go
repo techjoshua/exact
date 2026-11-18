@@ -6,5 +6,5 @@ const (
 	componentContractVersion        = 6
 	renderProgramVersion            = 4
 	componentLibraryProtocolVersion = 1
-	compilerProcessVersion          = "1.0.0"
+	compilerProcessVersion          = "2.0.0"
 )

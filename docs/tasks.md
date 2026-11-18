@@ -80,15 +80,16 @@ state through a captured component alias. Their native receivers, defaults, iden
 remain intact. Extracting an original helper does not move it to a later caller's generation.
 Cancellation prevents a later managed state put and preserves effects that already happened.
 
-For reusable server updates, pass a plain state object to a module-level function declaration or
-an immutable function binding whose source is available to the build. Direct calls with finite
-plain-field writes retain the calling task's generation, including through helper chains and
-consumed asynchronous returns. A cancelled generation cannot commit a later helper write.
-Returned objects keep their ordinary identity and remain readable after the invocation ends.
+For reusable server updates, pass the component-owned state to an ordinary helper whose required writes
+can be established by the build. Generated component code supplies a pending state view and invokes
+the original helper. Finite plain-field writes retain the calling task's generation, including
+through helper chains and consumed asynchronous returns. A cancelled generation cannot commit a later helper write.
+A returned pending view still belongs to its creating task and cannot be retained for later use.
+The original helper function, module state, parameters, and exports remain unchanged.
 For relative or absolute local helper imports, build adapters retain the module they actually load.
 If adjacent JavaScript and TypeScript files differ, publication follows the selected implementation.
 Ordinary and task-owned calls share that module's captures. Bare package, alias, and virtual-source
-imports do not establish private helper authority through this local source-selection path.
+imports do not establish a selected executable body through this local source-selection path.
 A helper can also append to a statically typed state Array. This is useful when shared
 asynchronous work adds a result to a component's list:
 

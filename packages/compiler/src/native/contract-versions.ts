@@ -7,4 +7,4 @@ export const componentContractVersion = 6;
 export const componentLibraryProtocolVersion = 1;
 
 /** Exact native process protocol implemented by this compiler host. */
-export const nativeCompilerProtocolVersion = '1.0.0';
+export const nativeCompilerProtocolVersion = '2.0.0';

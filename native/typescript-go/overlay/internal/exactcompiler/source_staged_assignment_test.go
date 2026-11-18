@@ -372,7 +372,6 @@ func withStagedAssignmentSource(t *testing.T, source string, inspect func(*sourc
 	for i := range facts {
 		facts[i].callExpressions = make(map[string]*ast.Node)
 		facts[i].contextReferences = make(map[string]*ast.Node)
-		facts[i].ownedScalarCalls = make(map[string]bool)
 		facts[i].callSymbols = make(map[string]ast.SymbolId)
 	}
 	restore := registerWriterInputFacts(owner, facts)

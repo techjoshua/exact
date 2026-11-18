@@ -1,4 +1,3 @@
-import { retainSourceHelperOwnership } from '../compilation/source-helper-ownership.js';
 import { capabilityCompilationOptions } from '../compilation/capability-options.js';
 import { createExactCompilerExplanation } from '../explanation.js';
 import { composeExactSourceMaps, isExactSourceMap } from '../source-maps.js';
@@ -104,8 +103,6 @@ export function transformSourceWithNativeCompiler(
 	if (response.code === undefined)
 		throw new Error(`Native compiler returned no generated code for ${filename}`);
 	const analysis = nativeModuleAnalysis(filename, response);
-	if (options.session && target === 'server')
-		retainSourceHelperOwnership(options.session, filename, response.analysis.helperSources ?? []);
 	if (options.packageName) analysis.packageName = options.packageName;
 	const needsInspection =
 		shouldEnableInspection(options.emitInspection) ||

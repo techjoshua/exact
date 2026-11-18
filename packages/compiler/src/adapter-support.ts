@@ -3,7 +3,6 @@ export {
 	withExactHostExecutableSelection,
 	type ExactHostExecutableSelection
 } from './compilation/host-executable-selection.js';
-export { isExactOwnedHelperSource } from './compilation/source-helper-ownership.js';
 import { exactGeneratedArtifactTarget } from './artifacts.js';
 export { exactGeneratedArtifactTarget } from './artifacts.js';
 export {
@@ -179,8 +178,8 @@ export function shouldCompileExactBuildModule(
 	if (!isExactBuildSourceModule(id)) return false;
 	if (!options.include && /(?:^|[\\/])(?:node_modules|dist)(?:[\\/]|$)/.test(id)) return false;
 	if (!shouldTransformExactBuildModulePath(id, options)) return false;
-	// An explicit include is an ownership declaration, not merely a path prefilter. It also covers
-	// hand-authored nonvisual TypeScript components that implement the target ABI without JSX.
+	// Include admits a module for checked component discovery. It does not authorize
+	// transformation of ordinary helpers or sibling declarations.
 	if (options.include) return true;
 	return (
 		containsExactBuildJsx(id, source) ||

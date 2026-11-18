@@ -707,11 +707,11 @@ func (lowering *jsxLowering) directServerInvokedTaskWork(
 		work = lowering.eraseTaskCapturedParameterDefaults(work, dependencyCount)
 	}
 	if !lowering.serverTaskHasCaller(task) {
-		return lowering.lowerInvokedTaskOperationWork(work, operation)
+		return lowering.lowerInvokedTaskOperationWork(work, operation, task)
 	}
 	options := lowering.taskDefinitionOptions(lowering.functionTaskLabel(task), work, task, captureArguments, dependencyCount)
 	return lowering.taskHelperCall("defineTask", lowering.names.defineTask, []*ast.Node{
-		options, lowering.lowerInvokedTaskOperationWork(work, operation),
+		options, lowering.lowerInvokedTaskOperationWork(work, operation, task),
 	})
 }
 
@@ -791,7 +791,7 @@ func (lowering *jsxLowering) boundTaskDefinition(
 	useCompiledLatest := lowering.usesCompiledClientLatestLane(task, work, captureArguments)
 	if operation != nil &&
 		(operation.Placement == "server" || operation.Placement == "isomorphic") {
-		work = lowering.lowerInvokedTaskOperationWork(work, *operation)
+		work = lowering.lowerInvokedTaskOperationWork(work, *operation, task)
 	} else {
 		work = lowering.rewriteTaskWork(work, nil, task, dependencyCount, false)
 	}

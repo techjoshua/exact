@@ -13,9 +13,6 @@ type jsxLowering struct {
 	importedPolicy   *importedHelperPolicyPlan
 	taskMethodOwners map[SourceSpan]taskMethodCreation
 
-	helperMutations              helperMutationPlan
-	helperMutationOrder          []string
-	helperMutationImports        map[string]string
 	analysisFacts                *sourceAnalysisFacts
 	phase                        jsxLoweringPhase
 	checking                     bool
@@ -233,7 +230,6 @@ func (lowering *jsxLowering) lowerAuthoredTree(sourceFile *ast.SourceFile) *ast.
 		ast.NodeVisitorHooks{},
 	)
 	transformed := lowering.visitor.VisitEachChild(sourceFile.AsNode()).AsSourceFile()
-	transformed = lowering.emitHelperMutationEntries(transformed, false)
 	transformed = lowering.lowerCompilerClosedSsrCalls(transformed)
 	transformed = lowering.lowerCompiledClientRootCalls(transformed)
 	return lowering.pruneRedirectedRootImports(transformed)

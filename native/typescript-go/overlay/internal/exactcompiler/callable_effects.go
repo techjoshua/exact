@@ -59,26 +59,24 @@ type callableFacts struct {
 	fieldEdgeOperations map[string]*ast.Node
 
 	// normalInputs exists only during this fact's normal demand construction.
-	normalInputs             *sourceValueInputs
-	thenReferences           []sourceThenReference
-	nativeCalls              []*sourceNativeInvocation
-	normalCalls              []*sourceInvocationResult
-	thenIncomplete           bool
-	ownedObligations         []sourceOwnedObligations
-	progressReceiver         bool
-	node                     *ast.Node
-	sourceFile               *ast.SourceFile
-	summary                  CallableSummary
-	directReads              []StateEffect
-	directWrites             []StateEffect
-	directContext            []ContextEffect
-	targets                  []int
-	callSymbols              map[string]ast.SymbolId
-	callExpressions          map[string]*ast.Node
-	contextReferences        map[string]*ast.Node
-	artifactConstraint       uint8
-	directOwnedScalarBlocked bool
-	ownedScalarCalls         map[string]bool
+	normalInputs       *sourceValueInputs
+	thenReferences     []sourceThenReference
+	nativeCalls        []*sourceNativeInvocation
+	normalCalls        []*sourceInvocationResult
+	thenIncomplete     bool
+	ownedObligations   []sourceOwnedObligations
+	progressReceiver   bool
+	node               *ast.Node
+	sourceFile         *ast.SourceFile
+	summary            CallableSummary
+	directReads        []StateEffect
+	directWrites       []StateEffect
+	directContext      []ContextEffect
+	targets            []int
+	callSymbols        map[string]ast.SymbolId
+	callExpressions    map[string]*ast.Node
+	contextReferences  map[string]*ast.Node
+	artifactConstraint uint8
 }
 
 type callableAnalysis struct {
@@ -183,9 +181,6 @@ func collectCallableEffects(
 		}
 	}
 	sealMapInputs(facts, nodeTargets)
-	for index := range facts {
-		facts[index].directOwnedScalarBlocked = facts[index].directOwnedScalarBlocked || !directScalarHelper(&facts[index], typeChecker)
-	}
 	facts = appendComponentBindingCallableFacts(facts, sourceFile, componentBindings)
 	if pending := resolveCallableEffectsWithWork(facts, owner, &work); len(pending) != 0 {
 		return callableAnalysis{facts: facts, pending: pending}
@@ -408,7 +403,6 @@ func callableAnalysisFingerprint(analysis callableAnalysis) string {
 		result.WriteString(fact.summary.Name)
 		result.WriteByte('|')
 		result.WriteString(fact.summary.Kind)
-		result.WriteString(fmt.Sprintf("|owned-scalar-blocked:%t", fact.directOwnedScalarBlocked))
 		result.WriteString(fmt.Sprintf("|descriptor-mode:%x", fact.descriptorMode))
 		for _, c := range fact.mapInputs {
 			result.WriteString(fmt.Sprintf("|map-input:%s:%x:%d:%s:%t:%d:%d", c.mode, c.sourceDigest, c.domain, c.reason, c.futureReadonly, len(c.items), len(c.roles)))
@@ -713,7 +707,6 @@ func callableAnalysisFingerprint(analysis callableAnalysis) string {
 		result.WriteString(contextEffectsSignature(fact.directContext))
 		for _, edge := range fact.summary.Calls {
 			result.WriteString(edge.ID)
-			result.WriteString(fmt.Sprintf("|owned-scalar-call:%t", fact.ownedScalarCalls[edge.ID]))
 			result.WriteByte('|')
 			result.WriteString(edge.Name)
 			result.WriteByte('|')

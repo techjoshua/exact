@@ -247,7 +247,6 @@ func (collection *projectCallableCollection) extractQueued() {
 			facts[index].summary.DirectEffectSources = append(facts[index].summary.DirectEffectSources, environmentSource("browser", "interactive JSX handler", facts[index].summary.Name))
 		}
 		collectDirectCallableEffects(&facts[index], index, facts, symbols, group.syntacticTargets, nodes, context.source, owner.checker, context.reads, context.writes, context.inventory.importBindings, context.inventory.contextBindings, context.assets, owner, work, publicCallableEffectPurpose(owner))
-		facts[index].directOwnedScalarBlocked = facts[index].directOwnedScalarBlocked || !directScalarHelper(&facts[index], owner.checker)
 		work.finishExtraction(facts, index)
 	}
 }

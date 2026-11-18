@@ -65,7 +65,6 @@ type Request struct {
 	Extension                   *ExtensionRequest           `json:"extension,omitempty"`
 	ExecutableSelection         *ExecutableSelection        `json:"executableSelection,omitempty"`
 	Sources                     []ProjectSource             `json:"sources,omitempty"`
-	HelperPublicationContext    []HelperPublication         `json:"helperPublicationContext,omitempty"`
 }
 
 // ProjectSource is one complete source overlay installed before project work begins.
@@ -536,7 +535,6 @@ type ReceiverBinding struct {
 
 // CallableSummary is the process-safe effect graph for one source callable.
 type CallableSummary struct {
-	ownedScalarBlocked  bool
 	ID                  string                    `json:"id"`
 	Name                string                    `json:"name"`
 	Kind                string                    `json:"kind"`
@@ -910,7 +908,6 @@ type PartitionPlanDataSlot struct {
 
 // Analysis contains eXact-owned semantic facts returned by the native host.
 type Analysis struct {
-	HelperSources          []HelperSource          `json:"helperSources,omitempty"`
 	Imports                []Import                `json:"imports"`
 	Components             []Component             `json:"components"`
 	JSX                    []JSXElement            `json:"jsx"`

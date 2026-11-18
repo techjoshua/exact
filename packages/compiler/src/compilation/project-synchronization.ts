@@ -1,4 +1,3 @@
-import type { NativeCompilerHelperPublication } from '../native/process-contracts.js';
 import type { NativeExecutableSelection } from '../native/process-executable-selection.js';
 import { readFile } from 'node:fs/promises';
 import type { ExactCompilerSession } from '../expression/project.js';
@@ -21,8 +20,6 @@ export async function synchronizeNativeProject(
 			session?: ExactCompilerSession;
 			/** Host-resolved executable edges for this complete prepared batch. */
 			executableSelection?: NativeExecutableSelection;
-			/** Current build source context; no body/value/execution permission. */
-			helperPublicationContext?: readonly NativeCompilerHelperPublication[];
 		}
 	>,
 	knownSources?: ReadonlyMap<string, string>
@@ -36,7 +33,6 @@ export async function synchronizeNativeProject(
 	const response = options.session.compileNative({
 		kind: 'synchronize',
 		executableSelection: options.executableSelection,
-		helperPublicationContext: options.helperPublicationContext,
 		root: options.root,
 		configFile: options.configFile,
 		sources: [...sources].map(([id, source]) => {

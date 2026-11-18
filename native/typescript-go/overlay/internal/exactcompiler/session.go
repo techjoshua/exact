@@ -220,19 +220,6 @@ func (s *Session) executeProjection(request Request, authored *authoredCheckProg
 	}
 	defer func() { s.appendAnalysisCost(request, project, &response) }()
 
-	// Capture descriptions only for a proven unchanged original prepared input.
-	// Checked casing/reparse still drops every old graph/checker cache; the fresh
-	// demand consumer must resolve these source-only descriptions independently.
-	publicationContext := project.helperPublications
-	preservePublicationContext := false
-	if previous := project.program.GetSourceFile(fileName); len(publicationContext) != 0 && previous != nil {
-		prior, current := project.currentSourceNormalization(previous)
-		next := normalization
-		next.text = request.Source
-		before, beforeOK := helperPublicationInput(prior)
-		after, afterOK := helperPublicationInput(next)
-		preservePublicationContext = current && beforeOK && afterOK && before == after
-	}
 	countersBefore := project.counters
 	generation, err := project.advance(context.Background(), fileName, request.Source)
 	response.Timings.ProgramMicroseconds = time.Since(programStarted).Microseconds()
@@ -266,9 +253,6 @@ func (s *Session) executeProjection(request Request, authored *authoredCheckProg
 	retainedNormalization := normalization
 	retainedNormalization.text = request.Source
 	project.retainNormalization(fileName, retainedNormalization)
-	if preservePublicationContext {
-		project.helperPublications = publicationContext
-	}
 	if request.Kind == "diagnose" {
 		s.refreshWatchedConsumers(project, fileName, retainedNormalization)
 	}
@@ -488,7 +472,6 @@ func (s *Session) executeProjection(request Request, authored *authoredCheckProg
 		response.Error = stagedPublicationError(callables.pending)
 		return response
 	}
-	helperMutations := planHelperMutations(sourceFile, callables, generation.checker)
 	response.Timings.CallableMicroseconds = time.Since(callableStarted).Microseconds()
 	policyTaskStarted := time.Now()
 	capabilities, capabilityDiagnostics := collectCapabilityRequirements(
@@ -775,7 +758,6 @@ func (s *Session) executeProjection(request Request, authored *authoredCheckProg
 		}
 		response.Timings.CheckMicroseconds = time.Since(checkStarted).Microseconds()
 	}
-	response.Analysis.HelperSources = helperMutations.sources
 	if request.Kind == "analyze" {
 		remapAuthoredLocations(&response, fileName, normalization, len(response.Diagnostics))
 		applySetupAssignmentExecutions(
@@ -827,7 +809,6 @@ func (s *Session) executeProjection(request Request, authored *authoredCheckProg
 			directRoots:          directRoots,
 			importedPolicy:       importedPolicy,
 			analysisFacts:        analysisFacts,
-			helperMutations:      helperMutations,
 			nodeIDs:              nodeIDs,
 			checking:             request.Kind == "check",
 			stateWrites:          stateWrites,
@@ -1019,7 +1000,7 @@ func (s *Session) executeProjection(request Request, authored *authoredCheckProg
 		fileName,
 		response.Code,
 		project.fs,
-		generatedValidationHelpers{plan: helperMutations, callables: callables, checker: generation.checker, imports: imports},
+		generatedValidationHelpers{callables: callables, checker: generation.checker, imports: imports},
 	)
 	response.Timings.CheckMicroseconds += time.Since(
 		validationStarted,

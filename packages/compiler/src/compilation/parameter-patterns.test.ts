@@ -31,8 +31,7 @@ it.each<ParameterPatternTest>([
 	{
 		name: 'default execution finding-default-bypass-identifier-formal',
 		source: `function read(inner:{value:string},value=inner.value){inner={value:"safe"};return value}export const value=read({get value(){return document.title}},"safe");`,
-		browser: false,
-		compilerOwnedServerFunctions: 1
+		browser: false
 	},
 	{
 		name: 'default execution default-direct-missing',

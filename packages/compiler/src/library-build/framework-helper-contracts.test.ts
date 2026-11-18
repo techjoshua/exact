@@ -33,7 +33,7 @@ export function Example(props:{theme:ResolvedTheme}){const colors=deriveDataColo
 	}
 }, 30_000);
 
-it('publishes imported finite helper companions with semantic validation intact', async () => {
+it('preserves ordinary imported helper behavior without companion exports', async () => {
 	const { root } = await createLibraryBuildFixture();
 	await writeFile(
 		path.join(root, 'src/finite.ts'),
@@ -63,8 +63,6 @@ it('publishes imported finite helper companions with semantic validation intact'
 	const producer = await import(
 		/* @vite-ignore */ pathToFileURL(path.join(root, 'dist/server/finite.js')).href
 	);
-	// The private import is an emitted linkage contract, not an authored helper name.
-	const companion = consumer.match(/import \{\s*(__exact_owned_[a-z0-9_]+)/)?.[1];
-	expect(companion).toBeDefined();
-	expect(producer[companion!]).toBeTypeOf('function');
+	expect(consumer).not.toContain('__exact_owned_');
+	expect(Object.keys(producer)).toEqual(['translate']);
 }, 30_000);

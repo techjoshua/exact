@@ -202,7 +202,6 @@ func TestStagedModuleBindingIndependentSourcePending(t *testing.T) {
 		facts := stagedReturnSourceFacts(file)
 		for index := range facts {
 			facts[index].callSymbols = make(map[string]ast.SymbolId)
-			facts[index].ownedScalarCalls = make(map[string]bool)
 			facts[index].callExpressions = make(map[string]*ast.Node)
 			facts[index].contextReferences = make(map[string]*ast.Node)
 		}

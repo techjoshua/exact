@@ -1,5 +1,4 @@
 import { Worker } from 'node:worker_threads';
-import { createHash } from 'node:crypto';
 import { nativeExecutableSlotsVersion } from './process-executable-selection.js';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
@@ -45,7 +44,6 @@ export class NativeCompilerProcess {
 	private typescriptVersion: string | undefined;
 	private backendVersion: string | undefined;
 	private executableSlotsVersion: number | undefined;
-	private helperPublicationVersion: number | undefined;
 	private disposed = false;
 	private workerClosed = false;
 
@@ -78,7 +76,6 @@ export class NativeCompilerProcess {
 			this.typescriptVersion = version.typescriptVersion;
 			this.backendVersion = version.backendVersion;
 			this.executableSlotsVersion = version.executableSlotsVersion;
-			this.helperPublicationVersion = version.helperPublicationVersion;
 		} catch (error) {
 			this.closeWorker(error);
 			this.disposed = true;
@@ -89,7 +86,6 @@ export class NativeCompilerProcess {
 	/** Executes one request through the existing native process. */
 	request(request: NativeCompilerRequest): NativeCompilerResponse {
 		this.assertActive();
-		if (request.helperPublicationContext?.length) this.requireHelperPublication();
 		if (
 			request.kind === 'executable-slots' &&
 			this.executableSlotsVersion !== nativeExecutableSlotsVersion
@@ -137,11 +133,6 @@ export class NativeCompilerProcess {
 		if (
 			request.kind === 'executable-slots' &&
 			(response.executableSlotsVersion !== nativeExecutableSlotsVersion ||
-				typeof response.helperSourceDiscovery?.completeNegative !== 'boolean' ||
-				response.helperSourceDiscovery.sourceRevision !==
-					createHash('sha256')
-						.update(request.source ?? '')
-						.digest('hex') ||
 				!Array.isArray(response.executableSlots) ||
 				response.executableSlots.some(
 					(slot, index) =>
@@ -203,25 +194,7 @@ export class NativeCompilerProcess {
 			!Array.isArray(response.analysis.policy.secretConsumers)
 		)
 			throw new Error(this.withVersions('Native compiler returned an invalid response', response));
-		// The existing required-helper edge is present even when an older host omits
-		// publication descriptions. Refuse before an unusable artifact can escape.
-		if (
-			(request.kind === 'analyze' || request.kind === 'compile') &&
-			request.target !== 'client' &&
-			response.analysis.helperSources?.length
-		)
-			this.requireHelperPublication();
 		return response;
-	}
-
-	/** Refuses only work requiring the native companion-planning capability. */
-	private requireHelperPublication(): void {
-		if (this.helperPublicationVersion !== 1)
-			throw new Error(
-				this.withVersions(
-					'Native compiler does not support component helper publication. Update @exactjs/compiler and its native platform package together, and replace or unset an older EXACT_COMPILER_EXECUTABLE override.'
-				)
-			);
 	}
 
 	/** Releases the worker and native subprocess. */

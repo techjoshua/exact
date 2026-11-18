@@ -1,6 +1,8 @@
 package exactcompiler
 
 import (
+	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
 )
@@ -51,7 +53,11 @@ func TestExecutableSyntaxSlots(t *testing.T) {
 
 func TestExecutableSyntaxSlotsPreserveSemanticPeer(t *testing.T) {
 	session := NewSession()
-	request := Request{Kind: "analyze", ID: "/virtual/slot-peer.ts", Source: `export function read(){return document.title}`}
+	root, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := Request{Kind: "analyze", ID: filepath.Join(root, "syntax-slot-peer.ts"), Source: `import type {Component} from '@exactjs/core';export function read(){return document.title}export function Page(this:Component<{label:string}>){this.state.label=read();return()=>this.state.label}`}
 	before := session.Execute(request)
 	if before.Error != "" || executableSummary(t, before, "read").Effect != "browser" {
 		t.Fatal("semantic peer did not execute normal analysis")
@@ -62,57 +68,11 @@ func TestExecutableSyntaxSlotsPreserveSemanticPeer(t *testing.T) {
 	}
 	cache, validation, counters := project.callableCache, session.validationProgram, project.counters
 	r := session.Execute(Request{Kind: "executable-slots", ID: request.ID, Source: `import './replacement.js';export function read(){return process.cwd()}`})
-	if r.Error != "" || r.HelperSourceDiscovery == nil || !r.HelperSourceDiscovery.CompleteNegative || len(r.ExecutableSlots) != 1 || len(session.projects) != 1 || project.callableCache != cache || session.validationProgram != validation || project.counters != counters {
+	if r.Error != "" || len(r.ExecutableSlots) != 1 || len(session.projects) != 1 || project.callableCache != cache || session.validationProgram != validation || project.counters != counters {
 		t.Fatal("syntax query mutated retained semantic state")
 	}
 	after := session.Execute(request)
 	if after.Error != "" || !reflect.DeepEqual(before.Analysis, after.Analysis) {
 		t.Fatal("syntax query changed analyze outputs")
-	}
-}
-
-// Complete-negative means only that the canonical helper planner cannot emit a
-// foreign helper source from this syntax. Effects and import execution are separate.
-func TestHelperSourceDiscoveryNegative(t *testing.T) {
-	for _, test := range []struct {
-		name, source string
-		negative     bool
-	}{
-		{"barrel", `import './effect.js';export {value} from './value.js';export * from './other.js';`, true},
-		{"mutator-definition", `export function mutate(s:{value:number}){s.value=1}`, true},
-		{"member-effects", `export function read(){return document.title}`, true},
-		{"nested", `export function outer(){return ()=>helper()}`, false},
-		{"alias", `const alias=helper;export function run(){alias()}`, false},
-		{"unknown", `declare function externalWork():void;export function run(){externalWork()}`, false},
-		{"wrapped", `export function run(){(helper as ()=>void)()}`, false},
-		{"optional", `export function run(){helper?.()}`, false},
-		{"optional-member", `export function run(){holder.helper?.()}`, false},
-		{"export-expression", `export default helper()`, false},
-		{"require", `const dependency=require('./effect.cjs')`, false},
-		{"invalid", `export const value=;`, false},
-	} {
-		t.Run(test.name, func(t *testing.T) {
-			r := NewSession().Execute(Request{Kind: "executable-slots", ID: "/virtual/helper-discovery.ts", Source: test.source})
-			if r.Error != "" || r.HelperSourceDiscovery == nil || r.HelperSourceDiscovery.CompleteNegative != test.negative || r.HelperSourceDiscovery.SourceRevision != preparedContentRevision(test.source) {
-				t.Fatalf("discovery mismatch: %s %#v", r.Error, r.HelperSourceDiscovery)
-			}
-		})
-	}
-	before := NewSession().Execute(Request{Kind: "executable-slots", ID: "/virtual/prepare.ts", Source: `export const value=1`})
-	after := NewSession().Execute(Request{Kind: "executable-slots", ID: "/virtual/prepare.ts", Source: `export const value=helper()`})
-	if !before.HelperSourceDiscovery.CompleteNegative || after.HelperSourceDiscovery.CompleteNegative || before.HelperSourceDiscovery.SourceRevision == after.HelperSourceDiscovery.SourceRevision {
-		t.Fatal("prepared source inherited a stale negative")
-	}
-}
-
-func TestHelperSourceDiscoveryNativePreparation(t *testing.T) {
-	source := `export function Page(){return <p>value</p>}`
-	_, normalized, err := normalizeSynchronizedSource(ProjectSource{ID: "/virtual/native-preparation.tsx", Source: source}, "")
-	if err != nil || normalized.text == source {
-		t.Fatal("fixture must have actual canonical source edits", err)
-	}
-	r := NewSession().Execute(Request{Kind: "executable-slots", ID: "/virtual/native-preparation.tsx", Source: source})
-	if r.Error != "" || len(r.Diagnostics) != 0 || r.HelperSourceDiscovery == nil || r.HelperSourceDiscovery.CompleteNegative {
-		t.Fatal("raw negative covered different final planner syntax")
 	}
 }

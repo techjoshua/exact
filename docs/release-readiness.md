@@ -227,8 +227,8 @@ update alone cannot change that emitted contract.
 Direct scalar task lowering now uses the existing native write and delete operations in lean
 server continuations and preserves logical skips and selected references across suspension.
 Helper signatures and the transport schema are unchanged. New compiler output needs providers
-with successful operation-time canonical-key reporting. This does not resolve imported ordinary
-helper publication. Ordinary assignment replacement semantics are already an incompatible change
+with successful operation-time canonical-key reporting. Artifacts from that earlier scalar-only lowering do not gain imported helper publication from a
+runtime update alone; rebuild component callers with the current compiler/SDK pair described below. Ordinary assignment replacement semantics are already an incompatible change
 against published core and reactive releases, including 0.6.0 and 0.7.1. The coordinated epoch,
 provider versions, and compatibility acceptance remain release gates. Do not infer compatibility
 from unchanged helper signatures or regenerate frozen fixtures to satisfy that gate.
@@ -272,20 +272,19 @@ state views. `stateAccess()` and `sameStateTarget()` are additive reactive expor
 change component contract or transport schemas. Rebuild components to receive the narrowed
 helper boundary and its identity, lifetime and class-receiver diagnostics.
 
-Compiler-required private companion names now use the guarded original declaration position
-rather than a checked JSX normalization position. Rebuild the component entry and its helper
-companions together to receive this correction. A declaration shifted by normalization can
-produce a different opaque name, including when an older complete pair had matched names;
-replacing only one member is not a compatible paired rebuild. Existing complete paired
-artifacts, provider signatures, canonical analysis IDs and ABI epoch 6 remain unchanged.
-Frozen release fixtures and their integrity records must not be regenerated. This does not
-claim compatibility for mixing independently rebuilt compiler generations.
-Native source-only helper publication additionally requires an advertised planning capability.
-Process protocol 1.0.0 alone does not establish support. The facade checks actual required-helper
-edges during default/server analysis or compilation even when an older executable omits
-publication descriptions, and refuses an unsupported host before artifact emission. Update compiler/native platform packages together, including any
-`EXACT_COMPILER_EXECUTABLE` override. The additive handshake preserves older requests and does
-not change runtime helper signatures, artifact ABI epochs or frozen fixtures.
+Current components retain the original selected helper and manage pending state and publication
+in generated component callers. Rebuild component artifacts with the matching JavaScript SDK and
+native compiler using exact process protocol 2.0.0. Version-one/two process pairs reject during
+startup before component work; a separate helper-planning capability is no longer used. Update
+compiler/native platform packages together, including any `EXACT_COMPILER_EXECUTABLE` override.
+This process-only change preserves runtime provider signatures, ABI epoch 6, and coordinated
+package versions.
+
+Already-built artifact sets may contain private helper modules from their producing compiler.
+Keep those original modules with their original callers when retaining such a set; do not mix
+independently rebuilt generations. Rebuilding with the current compiler emits caller-owned state
+management and original helper imports. Frozen release fixtures and integrity records remain
+unchanged and must not be regenerated to accommodate this compiler cleanup.
 
 The removed helper-companion registry and alternate class/factory emitters were introduced during
 local compiler investigation. Inspection of the published core and reactive 0.7.0 package contents
@@ -1198,12 +1197,11 @@ Render-program revision 4 independently requires the SSR provider's version asse
 identity preparation or output. A new core provider cannot make an old SSR provider accept that
 contract. Component-input operation exports and compiler-created prop operands also require the
 matching provider graph. Component-library build facts remain revision 1 and the compiler process
-protocol remains 1.0.0. Existing capability bits do not change.
+protocol is independently paired at 2.0.0. Existing capability bits do not change.
 
 Array invocations require scoped completion discriminator 4 before application payload decoding or
 execution. Success echoes it even without a patch. Single, batch and stream operations preserve
-operation-local parser context. Old parsers reject new requests before application work, and
-standalone owned helpers assert the matching capability before their callback. The obsolete
+operation-local parser context. Old parsers reject new requests before application work. The obsolete
 selectedArray method has no compatibility alias.
 
 Released fixtures and their integrity records remain immutable, including old helper and artifact
@@ -1220,7 +1218,7 @@ The current contract versions are:
 | Render program                | 4                      | Core and native compiler                         |
 | Component definition/input    | 6                      | Core, native compiler, framework-owned artifacts |
 | Component-library build facts | 1                      | Compiler, package marker, authorization          |
-| Compiler process protocol     | 1.0.0                  | JavaScript compiler host and native process      |
+| Compiler process protocol     | 2.0.0                  | JavaScript compiler host and native process      |
 | Capability mask               | 1, 2, 4, 8, 16, 32, 64 | Compiler/runtime capabilities                    |
 
 Contract versions and capability bits come from `scripts/contracts/compiler-abi.json`.
@@ -1240,6 +1238,10 @@ dependencies; changing that process protocol alone does not break previously com
 An unchanged ABI epoch must retain its original fixture baseline. Empty provider lists are invalid.
 The additive `project-files` request uses the native TypeScript configuration parser for checking
 root selection. It requires the matching native compiler package and changes no emitted component ABI.
+Process protocol 2.0.0 removes helper-companion planning and requires the matching JavaScript
+compiler host and native executable. The existing exact startup version gate rejects mixed pairs
+before component work. This process-only change does not advance the runtime ABI epoch, alter
+coordinated package versions, or regenerate frozen runtime artifacts.
 
 `check:compiled-abi` bundles preserved 0.5.0 JavaScript against current runtime packages without
 invoking the compiler. For epoch 3 it verifies rejection of epoch-1 and epoch-2 render-program artifacts before component construction or DOM mutation. Integrity hashes and the Git release gate

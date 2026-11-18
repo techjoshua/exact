@@ -1,5 +1,5 @@
+import { nativeCompilerProtocolVersion } from './contract-versions.js';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createHash } from 'node:crypto';
 import { nativeExecutableSlotsVersion } from './process-executable-selection.js';
 
 const workerState = vi.hoisted(() => ({
@@ -86,6 +86,17 @@ describe('native compiler process construction', () => {
 			/protocol 999/
 		);
 
+		expect(workerState.instances[0]).toMatchObject({
+			messages: ['request', 'close'],
+			terminated: false
+		});
+	});
+
+	it('rejects a protocol-one host before sending component work', () => {
+		workerState.response = { ...validWorkerResponse(), protocolVersion: '1.0.0' };
+		expect(() => new NativeCompilerProcess({ executable: 'synthetic-native-compiler' })).toThrow(
+			/protocol 1\.0\.0 is incompatible with 2\.0\.0/
+		);
 		expect(workerState.instances[0]).toMatchObject({
 			messages: ['request', 'close'],
 			terminated: false
@@ -195,7 +206,7 @@ describe('native executable selection acknowledgement', () => {
 /** Builds only the process envelope required by the transport validation tests. */
 function validWorkerResponse(): Record<string, unknown> {
 	return {
-		protocolVersion: '1.0.0',
+		protocolVersion: nativeCompilerProtocolVersion,
 		typescriptVersion: 'test',
 		backendVersion: '1.0.0',
 		diagnostics: [],
@@ -239,150 +250,50 @@ describe('native syntax-slot acquisition handshake', () => {
 					compiler.request({ kind: 'executable-slots', id: '/entry.ts', source: '' })
 				).toThrow('does not support syntax-only executable slots');
 				expect(workerState.instances.at(-1)!.messages).toHaveLength(messages);
-				expect(compiler.request({ kind: 'version' }).protocolVersion).toBe('1.0.0');
+				expect(compiler.request({ kind: 'version' }).protocolVersion).toBe(
+					nativeCompilerProtocolVersion
+				);
 			} finally {
 				compiler.dispose();
 				workerState.response = undefined;
 			}
 		}
 	);
-	it.each([
-		'missing',
-		'ordinal',
-		'kind',
-		'type-only',
-		'capability',
-		'missing-discovery',
-		'discovery-hash',
-		'discovery-shape',
-		'valid'
-	] as const)('validates syntax response %s', (mode) => {
-		workerState.closeStalls = false;
-		workerState.response = {
-			...validWorkerResponse(),
-			executableSlotsVersion: nativeExecutableSlotsVersion
-		};
-		const compiler = new NativeCompilerProcess({ executable: 'synthetic-native-compiler' });
-		try {
-			const slot = { slot: 0, specifier: './real.js', kind: 'import', typeOnly: false };
-			workerState.response.helperSourceDiscovery = {
-				sourceRevision: createHash('sha256').update("import './real.js'").digest('hex'),
-				completeNegative: true
+	it.each(['missing', 'ordinal', 'kind', 'type-only', 'capability', 'valid'] as const)(
+		'validates syntax response %s',
+		(mode) => {
+			workerState.closeStalls = false;
+			workerState.response = {
+				...validWorkerResponse(),
+				executableSlotsVersion: nativeExecutableSlotsVersion
 			};
-			if (mode === 'missing-discovery') delete workerState.response.helperSourceDiscovery;
-			if (mode === 'discovery-hash')
-				workerState.response.helperSourceDiscovery = {
-					sourceRevision: 'wrong',
-					completeNegative: true
-				};
-			if (mode === 'discovery-shape')
-				workerState.response.helperSourceDiscovery = {
-					sourceRevision: createHash('sha256').update("import './real.js'").digest('hex')
-				};
-			workerState.response.executableSlots =
-				mode === 'missing'
-					? null
-					: [
-							{
-								...slot,
-								...(mode === 'ordinal' ? { slot: 1 } : {}),
-								...(mode === 'kind' ? { kind: 'call' } : {}),
-								...(mode === 'type-only' ? { typeOnly: undefined } : {})
-							}
-						];
-			if (mode === 'capability') workerState.response.executableSlotsVersion = 3;
-			const request = () =>
-				compiler.request({
-					kind: 'executable-slots',
-					id: '/entry.ts',
-					source: "import './real.js'"
-				});
-			if (mode === 'valid') expect(request().executableSlots).toEqual([slot]);
-			else expect(request).toThrow('invalid executable syntax slots');
-		} finally {
-			compiler.dispose();
-			workerState.response = undefined;
+			const compiler = new NativeCompilerProcess({ executable: 'synthetic-native-compiler' });
+			try {
+				const slot = { slot: 0, specifier: './real.js', kind: 'import', typeOnly: false };
+				workerState.response.executableSlots =
+					mode === 'missing'
+						? null
+						: [
+								{
+									...slot,
+									...(mode === 'ordinal' ? { slot: 1 } : {}),
+									...(mode === 'kind' ? { kind: 'call' } : {}),
+									...(mode === 'type-only' ? { typeOnly: undefined } : {})
+								}
+							];
+				if (mode === 'capability') workerState.response.executableSlotsVersion = 3;
+				const request = () =>
+					compiler.request({
+						kind: 'executable-slots',
+						id: '/entry.ts',
+						source: "import './real.js'"
+					});
+				if (mode === 'valid') expect(request().executableSlots).toEqual([slot]);
+				else expect(request).toThrow('invalid executable syntax slots');
+			} finally {
+				compiler.dispose();
+				workerState.response = undefined;
+			}
 		}
-	});
-});
-
-describe('native component helper publication handshake', () => {
-	it.each([undefined, 0, 2])('rejects required helper edges without capability %s', (version) => {
-		workerState.closeStalls = false;
-		workerState.response = { ...validWorkerResponse(), helperPublicationVersion: version };
-		const compiler = new NativeCompilerProcess({ executable: 'synthetic-native-compiler' });
-		try {
-			// Older hosts return the existing required edge but no publication description.
-			(workerState.response.analysis as Record<string, unknown>).helperSources = [
-				{ moduleSpecifier: './helper.js', sourceFile: '/helper.js' }
-			];
-			expect(() => compiler.request({ kind: 'analyze', id: '/page.tsx', source: '' })).toThrow(
-				/component helper publication.*EXACT_COMPILER_EXECUTABLE/
-			);
-			// Client-only emission and diagnostics do not publish server companions.
-			expect(
-				compiler.request({ kind: 'compile', target: 'client', id: '/page.tsx', source: '' })
-					.analysis.helperSources
-			).toHaveLength(1);
-			expect(
-				compiler.request({ kind: 'diagnose', id: '/page.tsx', source: '' }).analysis.helperSources
-			).toHaveLength(1);
-			delete (workerState.response.analysis as Record<string, unknown>).helperSources;
-			expect(
-				compiler.request({ kind: 'analyze', id: '/ordinary.ts', source: '' }).protocolVersion
-			).toBe('1.0.0');
-		} finally {
-			compiler.dispose();
-			workerState.response = undefined;
-		}
-	});
-
-	it('rejects supplied planning context before sending it to an old host', () => {
-		workerState.closeStalls = false;
-		workerState.response = validWorkerResponse();
-		const compiler = new NativeCompilerProcess({ executable: 'synthetic-native-compiler' });
-		try {
-			const messages = workerState.instances.at(-1)!.messages.length;
-			expect(() =>
-				compiler.request({
-					kind: 'synchronize',
-					helperPublicationContext: [
-						{
-							owner: '/page.tsx',
-							ownerRevision: 'owner',
-							component: { start: 0, length: 1 },
-							call: { start: 0, length: 1 },
-							sourceFile: '/helper.js',
-							sourceRevision: 'helper',
-							declaration: { start: 0, length: 1 },
-							config: 'config',
-							selected: true,
-							purpose: 'server'
-						}
-					]
-				})
-			).toThrow('does not support component helper publication');
-			expect(workerState.instances.at(-1)!.messages).toHaveLength(messages);
-			expect(compiler.request({ kind: 'version' }).protocolVersion).toBe('1.0.0');
-		} finally {
-			compiler.dispose();
-			workerState.response = undefined;
-		}
-	});
-
-	it('accepts the advertised capability and preserves helper metadata', () => {
-		workerState.closeStalls = false;
-		workerState.response = { ...validWorkerResponse(), helperPublicationVersion: 1 };
-		const compiler = new NativeCompilerProcess({ executable: 'synthetic-native-compiler' });
-		try {
-			const edge = { moduleSpecifier: './helper.js', sourceFile: '/helper.js', publication: [] };
-			(workerState.response.analysis as Record<string, unknown>).helperSources = [edge];
-			expect(
-				compiler.request({ kind: 'analyze', id: '/page.tsx', source: '' }).analysis.helperSources
-			).toEqual([edge]);
-		} finally {
-			compiler.dispose();
-			workerState.response = undefined;
-		}
-	});
+	);
 });

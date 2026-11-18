@@ -5,33 +5,25 @@ const cases = [
 	[
 		'reported browser default',
 		'const Number=(a=0,b=(a=1))=>a;const obj={item:{value:"safe"}};if(Number())obj.item={get value(){return document.title}};export const value=obj.item.value;',
-		'browser',
-		true
+		'browser'
 	],
-	['bare default assignment', 'const work=(a=0,b=(a=1))=>a;export const value=work();', 1, true],
-	['earlier formal read', 'const work=(a=0,b=a)=>b;export const value=work();', 0, false],
-	[
-		'body binding assignment',
-		'const work=(a=0,b=0)=>{a=1;return a};export const value=work();',
-		1,
-		true
-	],
+	['bare default assignment', 'const work=(a=0,b=(a=1))=>a;export const value=work();', 1],
+	['earlier formal read', 'const work=(a=0,b=a)=>b;export const value=work();', 0],
+	['body binding assignment', 'const work=(a=0,b=0)=>{a=1;return a};export const value=work();', 1],
 	[
 		'member default assignment',
 		'const work=(a={value:0},b=(a.value=1))=>a.value;export const value=work();',
-		1,
-		true
+		1
 	],
 	[
 		'native assignment with nested member default',
 		'const work=(a={value:0},b=0,c=(b=(a.value=1)))=>a.value+b;export const value=work();',
-		2,
-		true
+		2
 	]
 ] as const;
 
 for (const target of ['client', 'server'] as const) {
-	for (const [name, source, value, owned] of cases) {
+	for (const [name, source, value] of cases) {
 		it(`preserves ${name} and the complete namespace (${target})`, async () => {
 			const effects: string[] = [];
 			vi.stubGlobal('document', {
@@ -45,22 +37,10 @@ for (const target of ['client', 'server'] as const) {
 					source + 'export const stable="safe";',
 					target
 				);
-				const helpers = Object.keys(compiled).filter((key) => key.startsWith('__exact_owned_'));
-				expect(helpers).toHaveLength(target === 'server' && owned ? 1 : 0);
-				for (const key of helpers) {
-					expect(typeof compiled[key]).toBe('function');
-					if (typeof value === 'number') {
-						const entry = compiled[key] as (
-							signal: AbortSignal,
-							receiver: unknown,
-							args: unknown[]
-						) => unknown;
-						expect(entry(new AbortController().signal, undefined, [])).toBe(value);
-					}
-				}
+				expect(Object.keys(compiled).some((key) => key.startsWith('__exact_owned_'))).toBe(false);
 				const available = target === 'client' || value !== 'browser';
 				expect(Object.keys(compiled).sort()).toEqual(
-					[...helpers, 'stable', ...(available ? ['value'] : [])].sort()
+					['stable', ...(available ? ['value'] : [])].sort()
 				);
 				expect(compiled.stable).toBe('safe');
 				if (available) expect(compiled.value).toBe(value);
@@ -74,13 +54,11 @@ for (const target of ['client', 'server'] as const) {
 		});
 	}
 
-	it(`preserves repeated, skipped and abrupt member defaults through owned invocation (${target})`, async () => {
+	it(`preserves repeated, skipped and abrupt member defaults through ordinary calls (${target})`, async () => {
 		const source =
 			'export const work=(owner:{child:{value:number};trace:string},value=(owner.child["value"]=(owner.trace+="R",1)))=>value;export const stable="safe";';
 		const { compiled, authored } = await privateHelperArtifact(source, target);
-		const helpers = Object.keys(compiled).filter((key) => key.startsWith('__exact_owned_'));
-		expect(Object.keys(compiled).sort()).toEqual([...helpers, 'work', 'stable'].sort());
-		expect(helpers).toHaveLength(target === 'server' ? 1 : 0);
+		expect(Object.keys(compiled).sort()).toEqual(['work', 'stable'].sort());
 		const execute = (invoke: (owner: object, ...args: number[]) => unknown) => {
 			const events: string[] = [];
 			let trace = '',
@@ -139,17 +117,5 @@ for (const target of ['client', 'server'] as const) {
 		expect(execute(compiled.work as (owner: object, ...args: number[]) => unknown)).toEqual(
 			expected
 		);
-		if (target === 'server') {
-			const entry = compiled[helpers[0]!] as (
-				signal: AbortSignal,
-				receiver: unknown,
-				args: unknown[]
-			) => unknown;
-			expect(
-				execute((owner, ...args) =>
-					entry(new AbortController().signal, undefined, [owner, ...args])
-				)
-			).toEqual(expected);
-		}
 	});
 }

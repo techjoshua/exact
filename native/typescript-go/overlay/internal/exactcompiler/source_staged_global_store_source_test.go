@@ -39,7 +39,6 @@ func TestStagedGlobalStoreOriginalHasInstanceSource(t *testing.T) {
 	for i := range facts {
 		fact := &facts[i]
 		fact.callSymbols = make(map[string]ast.SymbolId)
-		fact.ownedScalarCalls = make(map[string]bool)
 		fact.callExpressions = make(map[string]*ast.Node)
 		fact.contextReferences = make(map[string]*ast.Node)
 		if runtimeVariableInitializer(fact.node) {

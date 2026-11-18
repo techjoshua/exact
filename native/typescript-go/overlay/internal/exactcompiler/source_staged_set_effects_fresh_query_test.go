@@ -92,9 +92,6 @@ func TestOriginalSetEffectsFreshQueryOwner(t *testing.T) {
 				work.finishExtraction(facts, i)
 			}
 			sealMapInputs(facts, prepared.nodeTargets)
-			for i := range facts {
-				facts[i].directOwnedScalarBlocked = facts[i].directOwnedScalarBlocked || !directScalarHelper(&facts[i], owner.checker)
-			}
 			_ = resolveCallableEffectsWithWork(facts, owner, &work)
 			if originalQuery == nil {
 				t.Fatal("ENTRY: original Set synchronous registrar loan UNREACHED")

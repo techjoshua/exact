@@ -236,10 +236,9 @@ return()=> <main><button onClick={()=>void run()}>Run</button><output>{this.stat
 	expect(reports).toEqual([]);
 });
 
-// Companion publication is a component dependency, independent of input-path order.
-// Normal artifact module rewriting must preserve the generated private import's link.
+// Components retain their original helper import without requesting an extra helper artifact.
 it.each(['helper-first', 'component-first'] as const)(
-	'links component-required helper artifacts in %s order',
+	'links original component helper imports with %s source names',
 	async (order) => {
 		const root = await createCompilerTestWorkspace('.exact-helper-publication-', process.cwd());
 		const helper = order === 'helper-first' ? 'a-helper' : 'z-helper';
@@ -257,16 +256,16 @@ return()=> <main><button onClick={()=>save()}>Save</button><output>{this.state.v
 			outDir: path.join(root, 'generated')
 		});
 		const page = results.find((result) => result.inputFile === files[component + '.tsx'])!;
-		const companion = results.find((result) => result.inputFile === files[helper + '.ts'])!;
-		expect(results.map((result) => path.basename(result.inputFile))).toEqual(
-			[helper + '.ts', component + '.tsx'].sort()
-		);
-		expect(page.server.code).toContain(helper + '.exact.server.js');
-		expect(page.server.code).toContain('__exact_owned_');
-		// Bundling the real emitted component rejects a missing companion export.
+		expect(results.map((result) => path.basename(result.inputFile))).toEqual([component + '.tsx']);
+		expect(page.server.code).toContain(helper + '.js');
+		expect(page.server.code).not.toContain('__exact_owned_');
+		// The normal host resolves and bundles the unchanged authored helper.
 		const pageModule = await importArtifact(page.serverFile, path.join(root, 'page.mjs'));
 		expect(typeof pageModule.Page).toBe('function');
-		const helperModule = await importArtifact(companion.serverFile, path.join(root, 'helper.mjs'));
+		const helperModule = await importArtifact(
+			files[helper + '.ts']!,
+			path.join(root, 'helper.mjs')
+		);
 		const state = { value: 0 };
 		(helperModule.apply as (state: { value: number }) => void)(state);
 		expect(state.value).toBe(7);

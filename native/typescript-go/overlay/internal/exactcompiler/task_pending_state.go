@@ -20,7 +20,7 @@ func (lowering *jsxLowering) capturePendingStateFacts(tasks []Task) {
 	}
 	needed := false
 	for _, task := range tasks {
-		if task.Readiness != "blocking" {
+		if task.Readiness != "blocking" && !(lowering.target == TargetServer && lowering.serverTaskHasStateHelper(task)) {
 			continue
 		}
 		needed = true
@@ -183,7 +183,13 @@ func (lowering *jsxLowering) capturePendingStateFacts(tasks []Task) {
 }
 
 func (lowering *jsxLowering) taskNeedsPendingState(task Task) bool {
-	if lowering.checking || lowering.target == TargetServer || task.Readiness != "blocking" {
+	if lowering.checking {
+		return false
+	}
+	if lowering.target == TargetServer {
+		return lowering.serverTaskHasStateHelper(task)
+	}
+	if task.Readiness != "blocking" {
 		return false
 	}
 	if lowering.taskHasPendingHelper(task) {
@@ -195,6 +201,55 @@ func (lowering *jsxLowering) taskNeedsPendingState(task Task) bool {
 		}
 	}
 	return false
+}
+
+// serverTaskHasStateHelper enrolls only an original helper call carrying owned state.
+// Direct server collection writes and unrelated nested functions keep their existing timing.
+func (lowering *jsxLowering) serverTaskHasStateHelper(task Task) bool {
+	root := lowering.firstMutationSource(task.WorkStart, task.WorkLength)
+	if root == nil {
+		return false
+	}
+	found := false
+	owned := func(value *ast.Node) bool {
+		return value != nil && (value.Kind == ast.KindThisKeyword || lowering.hasReactiveComponentCapture(value) || lowering.pendingOwnedValues[nodeSourceSpan(value)]) && lowering.checker.GetTypeAtLocation(value).Flags()&(checker.TypeFlagsObject|checker.TypeFlagsUnion|checker.TypeFlagsAny) != 0
+	}
+	walkNode(root, func(node *ast.Node) bool {
+		if found || ast.IsPartOfTypeNode(node) || node != root && ast.IsFunctionLike(node) {
+			return false
+		}
+		if !ast.IsCallExpression(node) {
+			return true
+		}
+		call := node.AsCallExpression()
+		if lowering.taskDefinitionCall(call.Expression) {
+			return true
+		}
+		var receiver *ast.Node
+		if ast.IsPropertyAccessExpression(call.Expression) {
+			member := call.Expression.AsPropertyAccessExpression()
+			receiver = member.Expression
+			typ := lowering.checker.GetTypeAtLocation(receiver)
+			name := member.Name().Text()
+			if nativeCollectionMethod(typ, name, "Array", lowering.checker) || nativeCollectionMethod(typ, name, "ReadonlyArray", lowering.checker) || nativeCollectionMethod(typ, name, "Map", lowering.checker) || nativeCollectionMethod(typ, name, "ReadonlyMap", lowering.checker) || nativeCollectionMethod(typ, name, "Set", lowering.checker) || nativeCollectionMethod(typ, name, "ReadonlySet", lowering.checker) {
+				return true
+			}
+		} else if ast.IsElementAccessExpression(call.Expression) {
+			receiver = call.Expression.AsElementAccessExpression().Expression
+		}
+		if owned(receiver) {
+			found = true
+			return false
+		}
+		for _, arg := range callArguments(node) {
+			if owned(arg) {
+				found = true
+				return false
+			}
+		}
+		return true
+	})
+	return found
 }
 
 // taskHasPendingHelper selects invocation cells when local callable parameters can carry state

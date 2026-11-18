@@ -38,7 +38,6 @@ type projectState struct {
 	moduleImports       map[*ast.SourceFile]projectModuleImports
 	policyTypes         *projectPolicyTypes
 	callableCache       *projectCallableCache
-	helperPublications  []HelperPublication // Current Program source context only; revalidated before work demand.
 	componentCache      map[*ast.SourceFile][]Component
 	componentFacts      map[*ast.SourceFile][]projectComponent
 	componentCandidates map[*ast.SourceFile][]componentCandidate
@@ -273,7 +272,6 @@ func (state *projectState) invalidateAnalysisCaches() {
 	state.moduleImports = nil
 	state.policyTypes = nil
 	state.callableCache = nil
-	state.helperPublications = nil
 	state.componentCache = nil
 	state.componentFacts = nil
 	state.componentCandidates = nil

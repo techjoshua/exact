@@ -14,7 +14,6 @@ import (
 func (state *projectState) invalidateChangedProjectSources(changedFileName string) {
 	// Type IDs and qualification facts belong to a checker in one unchanged program.
 	state.policyTypes = nil
-	state.helperPublications = nil
 	if !state.hasAnalysisCaches() {
 		return
 	}

@@ -59,7 +59,6 @@ func withActiveModuleSourceWorkSetup(t *testing.T, request Request, sources map[
 	for i := range facts {
 		fact := &facts[i]
 		fact.callSymbols = make(map[string]ast.SymbolId)
-		fact.ownedScalarCalls = make(map[string]bool)
 		fact.callExpressions = make(map[string]*ast.Node)
 		fact.contextReferences = make(map[string]*ast.Node)
 		if runtimeVariableInitializer(fact.node) {
@@ -136,9 +135,6 @@ func withActiveModuleSourceWorkSetup(t *testing.T, request Request, sources map[
 		// This is the fresh graph's FIRST normal resolve, following the canonical
 		// declaration collector; no cached/merged fact graph is resolved again.
 		sealMapInputs(facts, nodes)
-		for i := range facts {
-			facts[i].directOwnedScalarBlocked = facts[i].directOwnedScalarBlocked || !directScalarHelper(&facts[i], owner.checker)
-		}
 		pending = resolveCallableEffectsWithWork(facts, owner, &work)
 	}
 	t.Logf("active module source mode=%d canonicalTasks=%d operationTasks=%d stoppedBeforeDeferred=%t remainingQueue=%d pending=%d", mode, canonicalTasks, operationTasks, stoppedDeferred, len(work.extractionQueue)-work.extractionHead, len(pending))

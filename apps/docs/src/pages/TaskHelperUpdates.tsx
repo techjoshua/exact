@@ -72,21 +72,22 @@ export function TaskHelperUpdates(this: Component<{}>) {
 			</p>
 			<p>
 				Private class receivers, reflective writes, prototype changes and incompatible frozen
-				properties cannot be made transparent through a pending view. Pass supported fields or
-				explicit state access, or return data for assignment inside the task. Date readers work
-				through views. Replace a Date value to change its timestamp during pending work.
+				properties cannot be made transparent through a pending view. A fresh wrapper with accessors
+				does not inherit ownership of the state it contains. Pass supported fields or explicit state
+				access, or return data for assignment inside the task. Date readers work through views.
+				Replace a Date value to change its timestamp during pending work.
 			</p>
 			<p>
 				When several server tasks need the same field update, pass the state object to a function in
-				your project. Use direct calls to module-level function declarations or immutable function
-				bindings whose source is part of the build. Known plain-field writes retain the calling
-				task's cancellation boundary, including after an awaited helper returns.
+				your project. The compiler keeps the helper unchanged and supplies task-owned state at the
+				component call. Known plain-field writes retain the calling task's cancellation boundary,
+				including after an awaited helper returns.
 			</p>
 			<p>
 				Relative and absolute local helper imports use the implementation selected by your build
 				adapter. Ordinary calls and task-owned updates share the same module state, including when
 				adjacent JavaScript and TypeScript files differ. Package aliases and virtual modules do not
-				establish helper publication through this local source path.
+				supply a selected executable body through this local source path.
 			</p>
 			<CodeBlock
 				source={taskSources.sharedStateHelperSource}
@@ -95,11 +96,12 @@ export function TaskHelperUpdates(this: Component<{}>) {
 			/>
 			<p>
 				In this example, <code>setLabel</code> keeps its ordinary parameters. Its assignment
-				publishes the label, even when the value is unchanged. Returned objects keep their ordinary
-				identity and remain readable after the task finishes.
+				publishes the label, even when the value is unchanged. The supplied state is a pending view;
+				keep its use within the creating task, including when the helper returns it.
 			</p>
 			<p>
-				A source-owned helper can append a result with an ordinary <code>values.push(result)</code>
+				A helper receiving task-owned state can append a result with an ordinary{' '}
+				<code>values.push(result)</code>
 				call. When the server task succeeds, eXact publishes the Array's final changes. Retained
 				entries keep their browser identity, and a server reorder preserves fields it did not
 				change. Custom methods keep their ordinary JavaScript behavior. If you catch a native error
@@ -120,10 +122,10 @@ export function TaskHelperUpdates(this: Component<{}>) {
 				its Array binding rejects before sending a request.
 			</p>
 			<p>
-				For a helper that declares nested functions, methods, or classes, or uses an arrow's
-				captured <code>this</code>, keep the server state write in the task body. For an external
-				helper without source available to the build, return data for assignment inside the server
-				task. Placement, secrets, and transport authorization still apply.
+				A helper receiving task-owned state may use ordinary nested functions and closures. Views
+				still belong to their creating task, so pass a fresh view when another task invokes retained
+				work. When the build cannot establish the helper's required state writes, return data and
+				assign it inside the task. Placement, secrets, and transport authorization still apply.
 			</p>
 			<p>
 				The bridge functions are optional named exports. Unused functions are removed by a
