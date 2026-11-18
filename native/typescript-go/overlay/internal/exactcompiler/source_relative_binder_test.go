@@ -1,6 +1,9 @@
 package exactcompiler
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 // These source controls distinguish invocation from passing or storing a value.
 // They bind actuals at the use edge, never specialize the reusable definition.
@@ -70,5 +73,68 @@ func TestRelativeBinderUnknownDefault(t *testing.T) {
 	}
 	if !browser || !unknown {
 		t.Fatalf("unknown default lost independent donor: %+v", summary.EffectSources)
+	}
+}
+
+// A browser callback selected by a default constrains server task policy.
+// A supplied quiet callback bypasses that default and leaves its sibling dormant.
+func TestComponentDefaultCallbackPolicyAndDormancy(t *testing.T) {
+	const source = `import {TaskContext,type Component} from '@exactjs/core';
+function browser(){return document.title;}
+function dormant(){return window.name;}
+function safe(){return 'quiet';}
+export function Page(this:Component<{label:string}>,props:{read?:()=>string}){
+ this.state.label='';
+ function invoke(read:()=>string=browser,unused:()=>string=dormant){return read();}
+ const run=(task:TaskContext=TaskContext.server())=>{this.state.label=invoke(props.read,dormant);};
+ return()=> <button onClick={()=>run()}>{this.state.label}</button>;
+}`
+	for _, row := range []struct {
+		name, source string
+		refused      bool
+	}{
+		{"server-default", source, true},
+		{"server-provided-quiet", strings.Replace(source, "invoke(props.read,dormant)", "invoke(safe,dormant)", 1), false},
+	} {
+		if !t.Run(row.name, func(t *testing.T) {
+			r := NewSession().Execute(Request{Kind: "compile", ID: "component-default-input.tsx", Source: row.source, Target: TargetClient, Diagnostics: "semantic"})
+			if row.refused {
+				browserRefusal := false
+				for _, d := range r.Diagnostics {
+					browserRefusal = browserRefusal || d.Code == "EXACT2001" && strings.Contains(d.Message, "browser-only globals")
+				}
+				if r.Error != "" || !browserRefusal || r.Code != "" || r.SourceMap != nil {
+					t.Fatalf("default browser callback escaped server policy: %s %#v", r.Error, r.Diagnostics)
+				}
+				return
+			}
+			if r.Error != "" || hasErrorDiagnostic(r.Diagnostics) || r.Code == "" {
+				t.Fatalf("quiet callback or dormant sibling prevented emission: %s %#v", r.Error, r.Diagnostics)
+			}
+			found := false
+			for _, task := range r.Analysis.Tasks {
+				if !task.FunctionDefined || task.CompilerComputation || task.CompilerSetup {
+					continue
+				}
+				for _, write := range task.Writes {
+					if write.Path != "label" {
+						continue
+					}
+					if task.Placement != "server" || task.BrowserEffects {
+						t.Fatalf("quiet task lost server path: %#v", task)
+					}
+					found = true
+				}
+			}
+			render := false
+			for _, read := range r.Analysis.StateReads {
+				render = render || len(read.Path) == 1 && read.Path[0] == "label"
+			}
+			if !found || !render {
+				t.Fatalf("missing task/state/render consumer: tasks=%#v reads=%#v", r.Analysis.Tasks, r.Analysis.StateReads)
+			}
+		}) {
+			return
+		}
 	}
 }
