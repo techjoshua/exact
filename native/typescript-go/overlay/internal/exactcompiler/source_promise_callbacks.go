@@ -37,12 +37,15 @@ func (query *sourceValueQuery) standardPromiseExecutor(node *ast.Node) *ast.Node
 	return executor
 }
 
-// promiseResolver identifies a parameter supplied by that literal executor contract.
-// Its actual source symbol survives aliases. Live binding replacement remains owned
-// by liveValues, so a reassigned formal cannot borrow its original input identity.
+// promiseResolver recognizes either the standard constructor's supplied parameter
+// or the original Await's live selected-then binder. Actual symbols survive aliases;
+// liveValues still owns replacements before an acquired parameter is classified.
 func (query *sourceValueQuery) promiseResolver(node *ast.Node, result *accessorCandidates) (reject, known bool) {
 	reject, executor := query.promiseResolverParameter(node, result)
-	return reject, executor != nil && query.promiseExecutor(executor.Parent, result) == executor
+	if executor != nil && query.promiseExecutor(executor.Parent, result) == executor {
+		return reject, true
+	}
+	return query.awaitThenResolver(node)
 }
 
 // promiseResolverParameter preserves actual binder identity and supplied input position.
@@ -89,6 +92,12 @@ func (query *sourceValueQuery) promiseResolverParameter(node *ast.Node, result *
 // CallExpression or a caller activation. Remaining formals use the existing default
 // and binding-pattern owners. Ordinary argument evaluation belongs to the constructor.
 func (query *sourceValueQuery) promiseInputs(executor *ast.Node, bindings sourceValueBindings, result *accessorCandidates) *sourceValueInputs {
+	return query.resolverInputs(executor, bindings, sourceValue{undefined: true}, result)
+}
+
+// resolverInputs shares the fixed two supplied arguments with the original Await
+// protocol issuer. Only that live issuer can recognize its parameter values.
+func (query *sourceValueQuery) resolverInputs(executor *ast.Node, bindings sourceValueBindings, receiver sourceValue, result *accessorCandidates) *sourceValueInputs {
 	inputs := &sourceValueInputs{declaration: executor, bindings: make(sourceValueBindings, len(bindings)+2), defaults: make(map[*ast.Node]sourceDefaultInput)}
 	for id, values := range bindings {
 		if !query.charge(result, executor) {
@@ -97,7 +106,7 @@ func (query *sourceValueQuery) promiseInputs(executor *ast.Node, bindings source
 		inputs.bindings[id] = values
 	}
 	if !ast.IsArrowFunction(executor) {
-		inputs.bindings[0] = []sourceValue{{undefined: true}}
+		inputs.bindings[0] = []sourceValue{receiver}
 	}
 	i := 0
 	for _, parameter := range executor.Parameters() {

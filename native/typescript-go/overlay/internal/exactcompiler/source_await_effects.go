@@ -131,7 +131,9 @@ func (query *sourceValueQuery) awaitAcquiredValue(observed sourceObservedValue, 
 	// A raw synchronous object is assimilated at this Await. No successful-value
 	// or private transfer follows merely from a noncallable Get result.
 	if value.node != nil && ast.IsObjectLiteralExpression(value.node) && len(value.path) == 0 {
-		selected := query.settlementThen(&sourceGetInputs{operation: operation, receiver: value}, observed.scope.bindings, result.thenReferences, result.thenIncomplete)
+		get := &sourceGetInputs{operation: operation, receiver: value}
+		selected := query.settlementThen(get, observed.scope.bindings, result.thenReferences, result.thenIncomplete)
+		query.consumeAwaitThenInputs(get, observed.scope, &selected.effects)
 		mergeAccessorCandidates(result, selected.effects)
 	}
 	if value.node != nil && len(value.path) == 0 && !ast.IsCallExpression(value.node) && !ast.IsPropertyAccessExpression(value.node) && !ast.IsElementAccessExpression(value.node) && !ast.IsObjectLiteralExpression(value.node) {
@@ -140,8 +142,10 @@ func (query *sourceValueQuery) awaitAcquiredValue(observed sourceObservedValue, 
 		// Select each original receiver before supplying the implicit Get. A
 		// conditional/logical operand is a relationship, not the actual receiver
 		// of every branch's property read. Keep known effects beside refusals.
-		selected := query.acquireRequiredProperty(observed, &sourceGetInputs{operation: operation, receiver: value, propertyKey: "then"}, accessorAcquire)
+		get := &sourceGetInputs{operation: operation, receiver: value, propertyKey: "then"}
+		selected := query.acquireRequiredProperty(observed, get, accessorAcquire)
 		retainCallableThenEffects(&selected, operation)
+		query.consumeAwaitThenInputs(get, observed.scope, &selected)
 		mergeAccessorCandidates(result, selected)
 	}
 	output.incomplete = true
@@ -192,4 +196,133 @@ func (query *sourceValueQuery) immediateScalarPromiseAwaitLookup(get *sourceGetI
 		}
 	}
 	return false
+}
+
+// sourceAwaitThenInputs lends only this original Await's selected then binder.
+// Parameter nodes denote supplied protocol functions only during this interval;
+// no live issuer or inputs are stored in source values or cached callable facts.
+type sourceAwaitThenInputs struct {
+	issuer      *sourceValueQuery
+	owner       *sourceValueOwner
+	generation  *projectGeneration
+	observation *sourceReturnObservation
+	lifetime    *sourceNormalOperationLifetime
+	get         *sourceGetInputs
+	inputs      *sourceValueInputs
+}
+
+// consumeAwaitThenInputs instantiates conditional Effects, never a normal then
+// invocation or fulfilled result. The existing descriptor observation already
+// selected each callable under its receiver/capture scope. Unknown alternatives
+// and the enclosing Await's incomplete result remain independent.
+func (query *sourceValueQuery) consumeAwaitThenInputs(get *sourceGetInputs, scope acquiredCallableScope, selected *accessorCandidates) {
+	observation := query.returnObservation
+	if get == nil || get.operation == nil || !ast.IsAwaitExpression(get.operation) || observation == nil || observation.kind != sourceRawNormalResult || observation.reader != get.operation || observation.frame == nil || observation.frame != query.inputs || observation.owner != query.inputs.declaration || enclosingCallableNode(get.operation) != observation.owner || query.inputs.operationLifetime == nil {
+		return
+	}
+	generation := query.owner.generation
+	if generation == nil || !generation.active || generation.program != query.owner.program || generation.checker != query.owner.checker || !query.currentAwaitSource(get.operation) {
+		return
+	}
+	// Capture the original selection population before body Effects append values.
+	count := len(selected.values)
+	for index := 0; index < count; index++ {
+		value := selected.values[index]
+		body := value.node
+		if body == nil || len(value.path) != 0 || !ast.IsFunctionLike(body) || body.Body() == nil {
+			continue
+		}
+		if _, ordinary := ordinaryResultCategory(body); !ordinary {
+			continue // A generator's dormant body is not invoked by the protocol.
+		}
+		source := ast.GetSourceFileOfNode(body)
+		if source == nil || source.IsDeclarationFile || query.owner.program.GetSourceFile(source.FileName()) != source || !query.charge(selected, body) {
+			continue
+		}
+		captures := scope
+		if value.capture != nil {
+			captures = *value.capture
+		} else if acquired, present := selected.callableScopes[index]; present {
+			captures = acquired
+		}
+		func() {
+			priorInputs, priorOperation, priorReturn := query.inputs, query.operation, query.returnObservation
+			priorDependency, priorCreators, priorIssuer := query.dependenciesOnly, query.creators, query.awaitThenInputs
+			defer func() {
+				query.inputs, query.operation, query.returnObservation = priorInputs, priorOperation, priorReturn
+				query.dependenciesOnly, query.creators, query.awaitThenInputs = priorDependency, priorCreators, priorIssuer
+			}()
+			// The source body visitor owns its ordinary Gets, arguments and Throws.
+			// It cannot borrow the normal frame's output/storage authority.
+			query.dependenciesOnly, query.operation, query.returnObservation = true, nil, nil
+			query.creators = captures.creators
+			contribution := accessorCandidates{}
+			inputs := query.resolverInputs(body, captures.bindings, get.receiver, &contribution)
+			query.awaitThenInputs = &sourceAwaitThenInputs{issuer: query, owner: query.owner, generation: generation, observation: observation, lifetime: priorInputs.operationLifetime, get: get, inputs: inputs}
+			query.consumeSourceBodyEffects(get.operation, body, inputs.bindings, inputs, nil, &contribution)
+			// Only Effects/debts travel back; no conditional body output is an
+			// Await value or an independently usable callable selection.
+			contribution.values, contribution.callableScopes = nil, nil
+			mergeAccessorCandidates(selected, contribution)
+		}()
+	}
+}
+
+// awaitThenResolver validates the installed binder, not a spelling/signature or
+// generic membership in a then method. Original live-value selection still owns
+// reassignment and unknown alternatives before this acquired parameter arrives.
+func (query *sourceValueQuery) awaitThenResolver(node *ast.Node) (bool, bool) {
+	borrow := query.awaitThenInputs
+	if borrow == nil || borrow.issuer != query || borrow.owner != query.owner || !query.dependenciesOnly || borrow.inputs == nil || query.inputs != borrow.inputs || borrow.inputs.declaration == nil || borrow.get == nil || borrow.get.operation == nil || borrow.observation == nil || borrow.observation.frame == nil || borrow.observation.reader != borrow.get.operation || borrow.observation.frame.operationLifetime != borrow.lifetime || borrow.lifetime == nil {
+		return false, false
+	}
+	generation := borrow.generation
+	if generation == nil || !generation.active || query.owner.generation != generation || query.owner.program != generation.program || query.owner.checker != generation.checker {
+		return false, false
+	}
+	body, operation := borrow.inputs.declaration, borrow.get.operation
+	call := query.normalBindingCall
+	if call == nil || !ast.IsCallExpression(call) || enclosingCallableNode(call) != body || !query.currentAwaitSource(call) {
+		return false, false
+	}
+	source := ast.GetSourceFileOfNode(body)
+	if source == nil || query.owner.program.GetSourceFile(source.FileName()) != source || !query.currentAwaitSource(operation) || !ast.IsAwaitExpression(operation) || enclosingCallableNode(operation) != borrow.observation.owner || borrow.observation.frame.declaration != borrow.observation.owner {
+		return false, false
+	}
+	if node != nil && ast.IsIdentifier(node) {
+		symbol := query.owner.checker.GetSymbolAtLocation(node)
+		if symbol == nil {
+			return false, false
+		}
+		node = symbol.ValueDeclaration
+	}
+	position := 0
+	for _, parameter := range body.Parameters() {
+		if ast.IsIdentifier(parameter.Name()) && parameter.Name().Text() == "this" {
+			continue
+		}
+		if position >= 2 {
+			break
+		}
+		if node == parameter && ast.IsIdentifier(parameter.Name()) && parameter.AsParameterDeclaration().DotDotDotToken == nil {
+			symbol := query.owner.checker.GetSymbolAtLocation(parameter.Name())
+			if symbol == nil {
+				return false, false
+			}
+			values := borrow.inputs.bindings[ast.GetSymbolId(symbol)]
+			return position == 1, len(values) == 1 && values[0].node == parameter && len(values[0].path) == 0
+		}
+		position++
+	}
+	return false, false
+}
+
+// currentAwaitSource rejects a detached or replaced operation before supplying
+// protocol input roles. It describes current source, never Await completion.
+func (query *sourceValueQuery) currentAwaitSource(operation *ast.Node) bool {
+	if operation == nil || query.owner == nil || query.owner.program == nil {
+		return false
+	}
+	source := ast.GetSourceFileOfNode(operation)
+	return source != nil && query.owner.program.GetSourceFile(source.FileName()) == source
 }

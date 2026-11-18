@@ -1,6 +1,7 @@
 package exactcompiler
 
 import (
+	"os"
 	"strings"
 	"testing"
 )
@@ -275,5 +276,225 @@ return()=> <button onClick={()=>run('next')}>{this.state.label}</button>;}`
 	}
 	if checked < 2 {
 		t.Fatal("original cached caller/child lifetime entry absent", checked)
+	}
+}
+
+// A component's retained normal Await owner must expose the actual inherited Get,
+// not just a possible Promise payload or an unresolved task summary.
+func TestPublicAwaitInheritedThenReceiver(t *testing.T) {
+	for _, target := range []Target{TargetClient, TargetServer} {
+		for _, row := range []struct {
+			name, operand    string
+			browser, unknown bool
+		}{
+			{"known", "receiver", true, false},
+			{"mixed", "props.useKnown?receiver:props.foreign", true, true},
+			{"quiet-known", "'quiet'", false, false},
+		} {
+			t.Run(string(target)+"/"+row.name, func(t *testing.T) {
+				declarations := ""
+				body := "await 'quiet';this.state.label='quiet';"
+				if row.browser {
+					declarations = `class Parent{seen=false;marker='receiver';get then():undefined{void document.title;this.seen=true;return undefined}}class Receiver extends Parent{}`
+					body = `const receiver=new Receiver();await (` + row.operand + `);this.state.label=receiver.seen?receiver.marker:'missing getter';`
+				}
+				f := newPublicAwaitRequiredFixture(t, publicAwaitRequiredPage(declarations, body, target))
+				analysis, _ := checkPublicAwaitRequiredTask(t, NewSession(), f, target, row.browser, row.unknown)
+				if row.name == "quiet-known" {
+					quiet := findCallable(t, analysis.Analysis.Callables, "run")
+					if quiet.Effect == "unknown" || analysis.Analysis.Tasks[0].EnvironmentEffect == "unknown" {
+						t.Fatal("known quiet public effect stayed unknown")
+					}
+					for _, sources := range [][]EnvironmentEffectSource{quiet.EffectSources, analysis.Analysis.Tasks[0].EffectSources} {
+						for _, effect := range sources {
+							if effect.Environment == "unknown" {
+								t.Fatal("known quiet Await became opaque", effect)
+							}
+						}
+					}
+				}
+			})
+		}
+	}
+}
+
+// Both supplied protocol arguments evaluate their original operand. Only resolve
+// assimilates its nested then getter; independent uncertainty cannot erase either donor.
+func TestPublicAwaitNestedResolveReject(t *testing.T) {
+	for _, target := range []Target{TargetClient, TargetServer} {
+		for _, method := range []string{"resolve", "reject"} {
+			for _, variant := range []string{"known", "mixed", "argument-throw"} {
+				name := string(target) + "/" + method + "/" + variant
+				operand := "outer"
+				if variant == "mixed" {
+					operand = "props.useKnown?outer:props.foreign"
+				}
+				t.Run(name, func(t *testing.T) {
+					argument := "return nested"
+					if variant == "argument-throw" {
+						argument = "throw new Error('argument')"
+					}
+					body := `const nested={get then():undefined{void window.name;return undefined}};const input={get value(){void document.title;` + argument + `}};const outer={then(resolve:(value:unknown)=>void,reject:(reason:unknown)=>void){` + method + `(input.value)}};try{await (` + operand + `);this.state.label='resolved'}catch{this.state.label='rejected'}`
+					f := newPublicAwaitRequiredFixture(t, publicAwaitRequiredPage("", body, target))
+					analysis, _ := checkPublicAwaitRequiredTask(t, NewSession(), f, target, true, variant == "mixed")
+					run := findCallable(t, analysis.Analysis.Callables, "run")
+					for _, effects := range [][]EnvironmentEffectSource{run.EffectSources, analysis.Analysis.Tasks[0].EffectSources} {
+						argument, assimilation := false, false
+						for _, effect := range effects {
+							argument = argument || strings.Contains(effect.Description, "document")
+							assimilation = assimilation || strings.Contains(effect.Description, "window")
+						}
+						if !argument || variant != "argument-throw" && assimilation != (method == "resolve") {
+							t.Fatal("public argument/assimilation requirements differ from protocol", method, effects)
+						}
+					}
+				})
+			}
+		}
+	}
+}
+
+// An async helper's checked primitive is not the Promise object returned by its
+// Call. Preserve that object's authored constructor Get at the public task boundary.
+func TestPublicAwaitAsyncPrimitiveConstructor(t *testing.T) {
+	for _, target := range []Target{TargetClient, TargetServer} {
+		t.Run(string(target), func(t *testing.T) {
+			body := `const previous=Object.getOwnPropertyDescriptor(Promise.prototype,'constructor');try{Object.defineProperty(Promise.prototype,'constructor',{configurable:true,get(){void document.title;return Promise}});this.state.label=await make()}finally{if(previous)Object.defineProperty(Promise.prototype,'constructor',previous);else Reflect.deleteProperty(Promise.prototype,'constructor')}`
+			f := newPublicAwaitRequiredFixture(t, publicAwaitRequiredPage(`async function make(){return 'primitive'}`, body, target))
+			checkPublicAwaitRequiredTask(t, NewSession(), f, target, true, false)
+		})
+	}
+}
+
+// The same public getter consumer must not retain a retired browser requirement
+// when its body changes, or derive a different decision from a fresh Session.
+func TestPublicAwaitInheritedDonorEdit(t *testing.T) {
+	browser := publicAwaitRequiredPage(`class Parent{get then():undefined{void document.title;return undefined}}class Receiver extends Parent{}`, `await new Receiver();this.state.label='done';`, TargetServer)
+	quiet := strings.Replace(browser, "void document.title;", "void 0;", 1)
+	f := newPublicAwaitRequiredFixture(t, browser)
+	session := NewSession()
+	checkPublicAwaitRequiredTask(t, session, f, TargetServer, true, false)
+	f.files["entry.tsx"] = quiet
+	if err := os.WriteFile(f.request("analyze", "entry.tsx").ID, []byte(quiet), 0600); err != nil {
+		t.Fatal(err)
+	}
+	_, retained := checkPublicAwaitRequiredTask(t, session, f, TargetServer, false, false)
+	_, fresh := checkPublicAwaitRequiredTask(t, NewSession(), f, TargetServer, false, false)
+	if retained.Code != fresh.Code {
+		t.Fatal("retained getter edit differs from fresh public compilation")
+	}
+}
+
+func publicAwaitRequiredPage(declarations, body string, target Target) string {
+	return `import {TaskContext,type Component} from '@exactjs/core';export function Page(this:Component<{label:string}>,props:{useKnown:boolean;foreign:unknown}){this.state.label='initial';` + declarations + `;const run=async(task:TaskContext=TaskContext.` + string(target) + `())=>{` + body + `};return()=> <button onClick={()=>void run()}>{this.state.label}</button>}`
+}
+
+// Validate genuine component/task/state entry before testing an artifact decision.
+// No successful value, hidden closure flag, or source membership is an oracle here.
+func checkPublicAwaitRequiredTask(t *testing.T, session *Session, f *executableFixture, target Target, browser, unknown bool) (Response, Response) {
+	t.Helper()
+	analysis := session.Execute(f.request("analyze", "entry.tsx"))
+	if analysis.Error != "" || len(analysis.Analysis.Tasks) != 1 || len(analysis.Analysis.Components) != 1 || analysis.Analysis.Components[0].Name != "Page" || !analysis.Analysis.Components[0].Exported {
+		t.Fatal("real public Page/task entry absent", analysis.Error, analysis.Diagnostics)
+	}
+	for _, diagnostic := range analysis.Diagnostics {
+		if diagnostic.Severity == "error" && !(browser && target == TargetServer && strings.Contains(diagnostic.Message, "task requests server placement but references browser-only globals")) {
+			t.Fatal("public fixture has unexpected analysis error", diagnostic)
+		}
+	}
+	run := findCallable(t, analysis.Analysis.Callables, "run")
+	write := false
+	for _, effect := range analysis.Analysis.Tasks[0].Writes {
+		write = write || effect.Path == "label" || strings.HasSuffix(effect.Path, ".label")
+	}
+	if !write {
+		t.Fatal("rendered task label has no public state write", analysis.Analysis.Tasks[0])
+	}
+	for _, effects := range [][]EnvironmentEffectSource{run.EffectSources, analysis.Analysis.Tasks[0].EffectSources} {
+		got, unresolved := false, false
+		for _, effect := range effects {
+			got = got || effect.Environment == "browser"
+			unresolved = unresolved || effect.Environment == "unknown"
+		}
+		if got != browser || unknown && !unresolved {
+			t.Fatal("public Await donor/unknown lost", effects, browser, unknown)
+		}
+	}
+	request := f.request("compile", "entry.tsx")
+	request.Target = target
+	compiled := session.Execute(request)
+	denied := false
+	for _, diagnostic := range compiled.Diagnostics {
+		if diagnostic.Severity == "error" {
+			if !strings.Contains(diagnostic.Message, "task requests server placement but references browser-only globals") {
+				t.Fatal("public fixture has unexpected compile error", diagnostic)
+			}
+			denied = true
+		}
+	}
+	if compiled.Error != "" || browser && target == TargetServer && (!denied || compiled.Code != "") || (!browser || target == TargetClient) && (hasErrorDiagnostic(compiled.Diagnostics) || compiled.Code == "") {
+		t.Fatal("public Await artifact decision", compiled.Error, compiled.Diagnostics)
+	}
+	if compiled.Code != "" && (!strings.Contains(compiled.Code, "taskAwait") || !strings.Contains(compiled.Code, ".signal")) {
+		t.Fatal("public Await lost generation-aware lowering")
+	}
+	return analysis, compiled
+}
+
+// These component entries use the real module-scoped JSX contract, not a global
+// ambient shim. Configure once before any request so the body-edit test retains
+// one unchanged owning configuration across its observations.
+func newPublicAwaitRequiredFixture(t *testing.T, source string) *executableFixture {
+	t.Helper()
+	f := newExecutableFixture(t, map[string]string{"entry.tsx": source})
+	config := `{"compilerOptions":{"module":"ESNext","moduleResolution":"Bundler","target":"ES2022","strict":true,"skipLibCheck":true,"allowJs":true,"jsx":"react-jsx","jsxImportSource":"@exactjs/jsx"},"files":["entry.tsx"]}`
+	if err := os.WriteFile(f.request("analyze", "entry.tsx").ConfigFile, []byte(config), 0600); err != nil {
+		t.Fatal(err)
+	}
+	return f
+}
+
+// Only Await supplies these protocol roles. Ordinary same-shaped callbacks and
+// an authored replacement keep their own behavior; source membership is not a role.
+func TestPublicAwaitResolverRoleRefusals(t *testing.T) {
+	for _, target := range []Target{TargetClient, TargetServer} {
+		for _, row := range []struct{ name, invoke, replacement string }{
+			{"ordinary call", "outer.then((_value:unknown)=>undefined,(_reason:unknown)=>undefined);await 'quiet'", ""},
+			{"replaced resolve", "await outer", "resolve=(_value:unknown)=>undefined;"},
+		} {
+			t.Run(string(target)+"/"+row.name, func(t *testing.T) {
+				body := `const nested={get then():undefined{void window.name;return undefined}};const input={get value(){void document.title;return nested}};const outer={then(resolve:(value:unknown)=>void,reject:(reason:unknown)=>void){` + row.replacement + `resolve(input.value)}};` + row.invoke + `;this.state.label='done';`
+				f := newPublicAwaitRequiredFixture(t, publicAwaitRequiredPage("", body, target))
+				analysis, _ := checkPublicAwaitRequiredTask(t, NewSession(), f, target, true, false)
+				run := findCallable(t, analysis.Analysis.Callables, "run")
+				for _, effects := range [][]EnvironmentEffectSource{run.EffectSources, analysis.Analysis.Tasks[0].EffectSources} {
+					for _, effect := range effects {
+						if strings.Contains(effect.Description, "window") {
+							t.Fatal("ordinary callback borrowed an Await resolve role", effect)
+						}
+					}
+				}
+			})
+		}
+	}
+}
+
+// A retired Await binder cannot qualify an ordinary callback in the next source
+// generation. The real task loses its browser denial and agrees with a fresh Session.
+func TestPublicAwaitResolverRoleEdit(t *testing.T) {
+	body := `const nested={get then():undefined{void window.name;return undefined}};const input={get value(){return nested}};const outer={then(resolve:(value:unknown)=>void,reject:(reason:unknown)=>void){resolve(input.value)}};await outer;this.state.label='done';`
+	before := publicAwaitRequiredPage("", body, TargetServer)
+	after := strings.Replace(before, "await outer;", "outer.then((_value:unknown)=>undefined,(_reason:unknown)=>undefined);await 'quiet';", 1)
+	f := newPublicAwaitRequiredFixture(t, before)
+	session := NewSession()
+	checkPublicAwaitRequiredTask(t, session, f, TargetServer, true, false)
+	f.files["entry.tsx"] = after
+	if err := os.WriteFile(f.request("analyze", "entry.tsx").ID, []byte(after), 0600); err != nil {
+		t.Fatal(err)
+	}
+	retained, retainedCode := checkPublicAwaitRequiredTask(t, session, f, TargetServer, false, false)
+	fresh, freshCode := checkPublicAwaitRequiredTask(t, NewSession(), f, TargetServer, false, false)
+	if retainedCode.Code != freshCode.Code || retained.Analysis.Tasks[0].EnvironmentEffect != fresh.Analysis.Tasks[0].EnvironmentEffect {
+		t.Fatal("retired Await role changed retained task output")
 	}
 }

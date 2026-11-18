@@ -117,3 +117,125 @@ export function ArrayRollbackProbe(this: Component<{ items: string[] }>) {
 		</section>
 	);
 }
+
+/** Keeps inherited then lookup on its actual receiver, including abrupt getters. */
+export function InheritedAwaitProbe(this: Component<{ label: string }>) {
+	this.state.label = 'initial';
+	class Parent {
+		seen = false;
+		marker = 'receiver';
+		constructor(readonly fail: boolean) {}
+		get then(): undefined {
+			void document.title;
+			this.seen = true;
+			if (this.fail) throw new Error('inherited');
+			return undefined;
+		}
+	}
+	class Receiver extends Parent {}
+	const run = async (fail: boolean, task: TaskContext = TaskContext.client()) => {
+		const receiver = new Receiver(fail);
+		try {
+			await receiver;
+			this.state.label = receiver.seen ? receiver.marker : 'missing getter';
+		} catch (error) {
+			if (!(error instanceof Error)) throw error;
+			this.state.label = 'caught:' + error.message;
+		}
+	};
+	return () => (
+		<section>
+			<button onClick={() => run(false)}>Run inherited</button>
+			<button onClick={() => run(true)}>Throw inherited</button>
+			<output>{this.state.label}</output>
+		</section>
+	);
+}
+
+/** Resolve assimilates the supplied value; reject and argument throws do not. */
+export function NestedAssimilationProbe(this: Component<{ label: string; trace: string }>) {
+	this.state.label = 'initial';
+	this.state.trace = '';
+	const run = async (
+		mode: 'resolve' | 'reject' | 'resolve-throw' | 'reject-throw',
+		task: TaskContext = TaskContext.client()
+	) => {
+		this.state.trace = '';
+		const append = (step: string) => {
+			this.state.trace += step;
+		};
+		const input = {
+			get value() {
+				void document.title;
+				append('argument|');
+				if (mode === 'resolve-throw' || mode === 'reject-throw') throw new Error('argument');
+				return {
+					get then(): undefined {
+						void window.name;
+						append('then|');
+						return undefined;
+					}
+				};
+			}
+		};
+		const outer = {
+			then(resolve: (value: unknown) => void, reject: (reason: unknown) => void) {
+				if (mode === 'reject' || mode === 'reject-throw') reject(input.value);
+				else resolve(input.value);
+			}
+		};
+		try {
+			await outer;
+			this.state.label = 'resolved';
+		} catch (error) {
+			this.state.label = error instanceof Error ? 'caught:' + error.message : 'rejected';
+		}
+	};
+	return () => (
+		<section>
+			<button onClick={() => run('resolve')}>Resolve nested</button>
+			<button onClick={() => run('reject')}>Reject nested</button>
+			<button onClick={() => run('resolve-throw')}>Throw resolve argument</button>
+			<button onClick={() => run('reject-throw')}>Throw reject argument</button>
+			<output>{this.state.label}</output>
+			<pre>{this.state.trace}</pre>
+		</section>
+	);
+}
+
+/** An async primitive payload still reaches Await as a Promise with constructor Get work. */
+export function AsyncPrimitiveAwaitProbe(
+	this: Component<{ label: string; constructorRead: boolean }>
+) {
+	this.state.label = 'initial';
+	this.state.constructorRead = false;
+	async function make() {
+		return 'primitive';
+	}
+	const run = async (task: TaskContext = TaskContext.client()) => {
+		const previous = Object.getOwnPropertyDescriptor(Promise.prototype, 'constructor');
+		let reads = 0;
+		try {
+			Object.defineProperty(Promise.prototype, 'constructor', {
+				configurable: true,
+				get() {
+					reads++;
+					void document.title;
+					return Promise;
+				}
+			});
+			this.state.label = await make();
+		} finally {
+			if (previous) Object.defineProperty(Promise.prototype, 'constructor', previous);
+			else Reflect.deleteProperty(Promise.prototype, 'constructor');
+			this.state.constructorRead = reads > 0;
+		}
+	};
+	return () => (
+		<section>
+			<button onClick={() => run()}>Await primitive</button>
+			<output>{this.state.label}</output>
+			<data>{String(this.state.constructorRead)}</data>
+		</section>
+	);
+}
