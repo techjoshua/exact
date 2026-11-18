@@ -172,3 +172,67 @@ func assertComponentCallbackPolicy(t *testing.T, r Response, refused bool) {
 		t.Fatalf("missing task/state/render consumer: tasks=%#v reads=%#v", r.Analysis.Tasks, r.Analysis.StateReads)
 	}
 }
+
+// Acquiring and passing the same foreign callback does not invoke it. Only the
+// selected first input can make automatic task placement depend on an opaque call.
+func TestComponentDefaultCallbackUncertainty(t *testing.T) {
+	const source = `import {TaskContext,type Component} from '@exactjs/core';
+function safe(){return 'quiet';}
+export function Page(this:Component<{label:string}>,props:{read?:()=>string}){
+ this.state.label='';
+ function invoke(read:()=>string=safe,unused?:()=>string){return read();}
+ const call=invoke;
+ const supplied=props.read;
+ const run=(task:TaskContext=TaskContext.latest())=>{this.state.label=call(supplied,supplied);};
+ run();
+ return()=> <button onClick={()=>run()}>{this.state.label}</button>;
+}`
+	for _, row := range []struct {
+		name, source string
+		refused      bool
+	}{
+		{"foreign-invoked", source, true},
+		{"foreign-dormant", strings.Replace(source, "call(supplied,supplied)", "call(undefined,supplied)", 1), false},
+	} {
+		if !t.Run(row.name, func(t *testing.T) {
+			r := NewSession().Execute(Request{Kind: "compile", ID: "component-foreign-default.tsx", Source: row.source, Target: TargetClient, Diagnostics: "semantic"})
+			if row.refused {
+				opaqueRefusal := false
+				for _, d := range r.Diagnostics {
+					opaqueRefusal = opaqueRefusal || d.Code == "EXACT2001" && strings.Contains(d.Message, "task placement depends on an opaque call")
+				}
+				if r.Error != "" || !opaqueRefusal || r.Code != "" || r.SourceMap != nil {
+					t.Fatalf("foreign invoked input lost opaque placement refusal: %s %#v", r.Error, r.Diagnostics)
+				}
+				return
+			}
+			if r.Error != "" || hasErrorDiagnostic(r.Diagnostics) || r.Code == "" {
+				t.Fatalf("dormant foreign input prevented emission: %s %#v", r.Error, r.Diagnostics)
+			}
+			found := false
+			for _, task := range r.Analysis.Tasks {
+				if !task.FunctionDefined || task.CompilerComputation || task.CompilerSetup {
+					continue
+				}
+				for _, write := range task.Writes {
+					if write.Path != "label" {
+						continue
+					}
+					if task.RequestedPlacement != "" || task.Placement == "unknown" {
+						t.Fatalf("quiet default lost automatic placement: %#v", task)
+					}
+					found = true
+				}
+			}
+			render := false
+			for _, read := range r.Analysis.StateReads {
+				render = render || len(read.Path) == 1 && read.Path[0] == "label"
+			}
+			if !found || !render {
+				t.Fatalf("missing task/state/render consumer: tasks=%#v reads=%#v", r.Analysis.Tasks, r.Analysis.StateReads)
+			}
+		}) {
+			return
+		}
+	}
+}
