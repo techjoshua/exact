@@ -98,43 +98,77 @@ export function Page(this:Component<{label:string}>,props:{read?:()=>string}){
 	} {
 		if !t.Run(row.name, func(t *testing.T) {
 			r := NewSession().Execute(Request{Kind: "compile", ID: "component-default-input.tsx", Source: row.source, Target: TargetClient, Diagnostics: "semantic"})
-			if row.refused {
-				browserRefusal := false
-				for _, d := range r.Diagnostics {
-					browserRefusal = browserRefusal || d.Code == "EXACT2001" && strings.Contains(d.Message, "browser-only globals")
-				}
-				if r.Error != "" || !browserRefusal || r.Code != "" || r.SourceMap != nil {
-					t.Fatalf("default browser callback escaped server policy: %s %#v", r.Error, r.Diagnostics)
-				}
-				return
-			}
-			if r.Error != "" || hasErrorDiagnostic(r.Diagnostics) || r.Code == "" {
-				t.Fatalf("quiet callback or dormant sibling prevented emission: %s %#v", r.Error, r.Diagnostics)
-			}
-			found := false
-			for _, task := range r.Analysis.Tasks {
-				if !task.FunctionDefined || task.CompilerComputation || task.CompilerSetup {
-					continue
-				}
-				for _, write := range task.Writes {
-					if write.Path != "label" {
-						continue
-					}
-					if task.Placement != "server" || task.BrowserEffects {
-						t.Fatalf("quiet task lost server path: %#v", task)
-					}
-					found = true
-				}
-			}
-			render := false
-			for _, read := range r.Analysis.StateReads {
-				render = render || len(read.Path) == 1 && read.Path[0] == "label"
-			}
-			if !found || !render {
-				t.Fatalf("missing task/state/render consumer: tasks=%#v reads=%#v", r.Analysis.Tasks, r.Analysis.StateReads)
-			}
+			assertComponentCallbackPolicy(t, r, row.refused)
 		}) {
 			return
 		}
+	}
+}
+
+// Ordinary rest inputs keep callback position distinct from task activation
+// inputs: only the selected callback may constrain server task policy.
+func TestComponentRestCallbackPolicy(t *testing.T) {
+	const source = `import {TaskContext,type Component} from '@exactjs/core';
+function browser(){return document.title;}
+function safe(){return 'quiet';}
+export function Page(this:Component<{label:string}>){
+ this.state.label='';
+ function invoke(...reads:(()=>string)[]){return reads[0]();}
+ const run=(task:TaskContext=TaskContext.server())=>{this.state.label=invoke(browser,safe);};
+ return()=> <button onClick={()=>run()}>{this.state.label}</button>;
+}`
+	for _, row := range []struct {
+		name, source string
+		refused      bool
+	}{
+		{"first-browser", source, true},
+		{"second-quiet", strings.Replace(source, "reads[0]()", "reads[1]()", 1), false},
+	} {
+		if !t.Run(row.name, func(t *testing.T) {
+			r := NewSession().Execute(Request{Kind: "compile", ID: "component-rest-input.tsx", Source: row.source, Target: TargetClient, Diagnostics: "semantic"})
+			assertComponentCallbackPolicy(t, r, row.refused)
+		}) {
+			return
+		}
+	}
+}
+
+// assertComponentCallbackPolicy checks the shared server-task policy and state/render consumer.
+func assertComponentCallbackPolicy(t *testing.T, r Response, refused bool) {
+	t.Helper()
+	if refused {
+		browserRefusal := false
+		for _, d := range r.Diagnostics {
+			browserRefusal = browserRefusal || d.Code == "EXACT2001" && strings.Contains(d.Message, "browser-only globals")
+		}
+		if r.Error != "" || !browserRefusal || r.Code != "" || r.SourceMap != nil {
+			t.Fatalf("selected browser callback escaped server policy: %s %#v", r.Error, r.Diagnostics)
+		}
+		return
+	}
+	if r.Error != "" || hasErrorDiagnostic(r.Diagnostics) || r.Code == "" {
+		t.Fatalf("quiet callback or dormant sibling prevented emission: %s %#v", r.Error, r.Diagnostics)
+	}
+	found := false
+	for _, task := range r.Analysis.Tasks {
+		if !task.FunctionDefined || task.CompilerComputation || task.CompilerSetup {
+			continue
+		}
+		for _, write := range task.Writes {
+			if write.Path != "label" {
+				continue
+			}
+			if task.Placement != "server" || task.BrowserEffects {
+				t.Fatalf("quiet task lost server path: %#v", task)
+			}
+			found = true
+		}
+	}
+	render := false
+	for _, read := range r.Analysis.StateReads {
+		render = render || len(read.Path) == 1 && read.Path[0] == "label"
+	}
+	if !found || !render {
+		t.Fatalf("missing task/state/render consumer: tasks=%#v reads=%#v", r.Analysis.Tasks, r.Analysis.StateReads)
 	}
 }
