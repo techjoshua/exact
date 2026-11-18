@@ -1190,15 +1190,18 @@ unavailable, eager module execution remains unknown and receives `EXACT2101`. St
 callable without invoking it does not execute its body. Known source alternatives still contribute
 their own requirements alongside the unresolved alternative.
 
-The agreed extension of standard built-in trust, its runtime-origin requirements and the pending
-first implementation slice are specified in the [architecture completion plan](compiler-architecture-completion-plan.md#agreed-standard-built-in-trust-policy).
-That policy separates acquired function/property identity from algorithm-specific receiver requirements, including generic borrowed methods and branded receiver failures. It is agreed direction, not completed implementation or validation. Existing successful
-output, descriptor and completion authority remains with its current owners.
+The agreed extension of standard built-in trust, its runtime-origin requirements and its remaining
+implementation obligations are specified in the [architecture completion plan](compiler-architecture-completion-plan.md#agreed-standard-built-in-trust-policy).
+That policy separates acquired function/property identity from algorithm-specific receiver
+requirements, including generic borrowed methods and branded receiver failures. The finite
+original-Call contribution below implements one bounded part of that direction; it does not
+establish full policy implementation or validation. Existing successful output, descriptor
+and completion authority remains with its current owners.
 
 At an original component Call, an already acquired standard `Object.defineProperties`
 alternative retains the effects of descriptor accessors in direct literal map entries
 with literal descriptor inputs. It shares the source-only ordered `Has`/`Get` owner:
-a descriptor's `value` getter executes with the descriptor receiver, while a function
+a possible descriptor `value` getter retains its descriptor receiver, while a function
 stored in a data `value`, `get` or `set` field is not invoked by installation.
 Known environment donors join the component's effects independently of unresolved
 field, validation and Throw obligations. This contribution produces no installed
@@ -1206,6 +1209,10 @@ value, successful field read, mutation, or completed conversion. Normal/result
 acquisition and nested writer-candidate probes do not enter this original-Call
 route. Aliased maps, dynamic entries and invocation adapters retain their existing
 owners and uncertainty; this finite contribution does not qualify those cases.
+This is conservative MAY coverage, not a claim that every retained getter executes.
+The source-only field traversal does not prune later donors after an earlier field's
+definite Throw; that can conservatively restrict placement. Successful conversion,
+abrupt-prefix refinement and installed-field precision remain with their existing owners.
 
 Inference uses the supported built-in contracts described by the target's standard libraries,
 including conforming polyfills. It does not validate a polyfill's implementation or require a

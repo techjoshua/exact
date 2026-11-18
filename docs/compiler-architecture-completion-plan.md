@@ -29,6 +29,21 @@ The recent implementation drifted toward proving narrowly recognized source exec
 
 The work is complete only when supported operations compose through their shared contracts, original authored examples work without fixture workarounds, applicable environments are validated, and superseded special-purpose paths have been consolidated. Another isolated prerequisite passing is not completion of the original problem.
 
+### Architecture direction
+
+Prefer direct compiler-generated alternatives whenever feasible. Runtime management must
+serve a demonstrated dynamic component need that generated code and its existing context
+cannot adequately serve. Preserve evaluated values, origin and identity across boundaries,
+together with required ABI, transport authorization and lifecycle contracts; these do not
+require an opaque receipt for every operation.
+
+The integrated [direct finite component-root prototype](compiled-component-artifacts.md#direct-finite-component-roots-prototype)
+applies this direction to selected finite roots. Saved or escaping values retain their
+composition owners. Cross-source-site keyed compatibility, a released matching provider
+minimum and whole-artifact acceptance remain separate obligations. This bounded runtime
+path does not resolve the original ErrorBoundary analysis timeout or establish a performance
+improvement. Existing analysis receipts retain their compiler-side proof roles.
+
 ## 2. Scope and non-goals
 
 This plan covers:
