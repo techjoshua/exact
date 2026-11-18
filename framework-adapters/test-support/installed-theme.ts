@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
+import assert from 'node:assert/strict';
 import { copyInstalledRuntimePackages } from './installed-runtime-packages.js';
 
 /** Creates physical runtime packages and authored or paired SSR input. Caller owns dispose(). */
@@ -28,6 +29,17 @@ export async function createInstalledThemeFixture(
 			'{"name":"installed-theme-fixture","type":"module","private":true}'
 		);
 		await copyInstalledRuntimePackages(root, ['@exactjs/theme', '@exactjs/jsx']);
+		const packageRanges = Object.fromEntries(
+			await Promise.all(
+				['core', 'dom', 'ssr', 'component-library', 'theme'].map(async (name) => {
+					const manifest = JSON.parse(
+						await readFile(path.join(root, 'node_modules/@exactjs', name, 'package.json'), 'utf8')
+					);
+					assert.equal(typeof manifest.version, 'string');
+					return ['@exactjs/' + name, '^' + manifest.version];
+				})
+			)
+		);
 		await writeFile(
 			path.join(root, 'exact.config.mjs'),
 			`export * as theme from '@exactjs/theme/enhancements' with { type: 'exact-enhancement', scope: 'package' }; export default ${excluded ? "{componentLibraries:{deny:['@exactjs/theme'],unauthorizedOptionalEnhancements:'exclude'}}" : '{}'};`
@@ -66,8 +78,10 @@ await compileProjectArtifacts([${JSON.stringify(path.join(root, 'Page.tsx'))}], 
 					version: '1.0.0',
 					type: 'module',
 					exports: './dist/Page.js',
-					dependencies: { '@exactjs/component-library': '^0.7.0' },
-					optionalDependencies: { '@exactjs/theme': '^0.7.0' },
+					dependencies: {
+						'@exactjs/component-library': packageRanges['@exactjs/component-library']
+					},
+					optionalDependencies: { '@exactjs/theme': packageRanges['@exactjs/theme'] },
 					exactComponentLibrary: { protocol: 1, build: './dist/exact-component-build.json' }
 				})
 			);
@@ -137,12 +151,12 @@ await writeExactPublishedComponentBuildFacts(${JSON.stringify(library)}, 'dist/e
 						}
 					},
 					dependencies: {
-						'@exactjs/core': '^0.7.0',
-						'@exactjs/dom': '^0.7.0',
-						'@exactjs/ssr': '^0.7.0',
-						'@exactjs/component-library': '^0.7.0'
+						'@exactjs/core': packageRanges['@exactjs/core'],
+						'@exactjs/dom': packageRanges['@exactjs/dom'],
+						'@exactjs/ssr': packageRanges['@exactjs/ssr'],
+						'@exactjs/component-library': packageRanges['@exactjs/component-library']
 					},
-					optionalDependencies: { '@exactjs/theme': '^0.7.0' },
+					optionalDependencies: { '@exactjs/theme': packageRanges['@exactjs/theme'] },
 					exactCompiledComponents: libraryInput?.components ?? ['Page'],
 					...(libraryInput?.sideEffects ? { sideEffects: libraryInput.sideEffects } : {}),
 					exactComponentLibrary: { protocol: 1, build: './dist/exact-component-build.json' }
