@@ -2044,13 +2044,20 @@ bindings, calls, captures and writes to determine dependencies, effects and plac
 Cells and completion records. Those records are analysis artifacts, not application runtime
 objects or emitted activation identities.
 
+Public body analysis is demanded by requested components, explicit execution or task/policy
+boundaries, their transitive helpers, required module evaluation and authenticated helper
+publication. An unused ordinary export does not by itself trigger body analysis. The source
+inventory records declarations independently of completed summaries.
+
 Framework consumers retain the independent contributions in a stabilized callable summary.
 Task analysis carries state reads and writes, derived activation dependencies and known browser
 effects into the existing placement and concurrency policy. A separate runtime-unknown effect
-does not erase the browser constraint or become unfinished compiler coverage. Public Session
-compilation checks this boundary for both emission targets: an explicit server task with browser
-effects is rejected, and a staged source coverage gap stops publication before tasks or artifacts
-escape. This boundary does not change component state ownership or task execution semantics.
+does not erase the browser constraint or become unfinished compiler coverage. An explicit server
+task with browser effects is rejected for either emission target. The repository's explicit
+`stagedReplacement` harness separately checks that unfinished staged source coverage stops
+publication before tasks or artifacts escape. That private protocol is not a prerequisite for
+ordinary MAY summary collection. Neither path changes component state ownership or task
+execution semantics.
 Both ordinary and precision effect collection exclude the exact component-owned, authenticated
 task policy parameter erased by transformation; indexed writer discovery reuses the same
 checker-bound erasure for that exact default subtree. Ordinary defaults, policy arguments and
