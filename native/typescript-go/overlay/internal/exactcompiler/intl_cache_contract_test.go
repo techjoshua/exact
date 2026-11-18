@@ -125,3 +125,41 @@ func intlCacheGeneration(t *testing.T, source string) *projectGeneration {
 	t.Cleanup(generation.release)
 	return generation
 }
+
+// A native formatter's portable construction must survive source Effects collection.
+// The Page consumes its module-owned formatter, rather than a standalone export.
+func TestFiniteNativeIntlModuleConstructionEffects(t *testing.T) {
+	for _, test := range []struct {
+		name, construction string
+		portable           bool
+	}{
+		{"literal locale", `new Intl.NumberFormat("en-US")`, true},
+		{"literal options", `new Intl.NumberFormat("en-US", {useGrouping:false})`, true},
+		{"authored option getter", `new Intl.NumberFormat("en-US", {get useGrouping(){return document.title.length>0}})`, false},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			source := `const formatter=` + test.construction + `;function label(value:number){return formatter.format(value)}
+/** @exact server */ export function Page(){return()=> <output>{label(1234)}</output>;}`
+			generation := intlCacheGeneration(t, source)
+			response := NewSession().Execute(Request{Kind: "compile", ID: generation.sourceFile.FileName(), Root: filepath.Dir(generation.sourceFile.FileName()), ConfigFile: filepath.Join(filepath.Dir(generation.sourceFile.FileName()), "tsconfig.json"), Target: TargetServer, Source: source})
+			if response.Error != "" {
+				t.Fatal(response.Error)
+			}
+			placementFailure := false
+			for _, diagnostic := range response.Diagnostics {
+				if diagnostic.Severity == "error" && (diagnostic.Code == "EXACT2001" || diagnostic.Code == "EXACT2101") {
+					placementFailure = true
+				}
+				if test.portable && diagnostic.Severity == "error" {
+					t.Fatalf("portable formatter refused: %#v", response.Diagnostics)
+				}
+			}
+			if test.portable && response.Code == "" {
+				t.Fatalf("portable formatter emitted no component: %#v", response.Diagnostics)
+			}
+			if !test.portable && (!placementFailure || response.Code != "") {
+				t.Fatalf("authored work lost its placement refusal: %#v code=%q", response.Diagnostics, response.Code)
+			}
+		})
+	}
+}

@@ -305,6 +305,12 @@ runtime helper call. Localization receiver preparation includes stateless server
 owner reference is introduced by the later Intl pass. Its qualified runtime-module owner type
 avoids capturing an application utility alias. Native duration construction uses core's
 strict localization helper and retains the native formatter type and construction point.
+Finite native Intl construction retains its portable Effects contract before generic source
+constructor recovery. This applies only to checked standard constructors and the existing finite
+Intl lowering arguments: an omitted or literal locale and data-only literal options. The original
+operand walk remains; no instance, normal result or completion is supplied. Authored constructors,
+getters, spreads and dynamic inputs retain their ordinary source obligations.
+
 Generated Intl element factories declare their children parameter from `IntlElementFactory`.
 Element and opaque factory signatures have different first parameters, so their union cannot
 supply that contextual type in a strict TypeScript build.

@@ -153,6 +153,13 @@ func sourceValueRefinementRequired(fact *callableFacts, owner *sourceValueOwner)
 // constructDependencyEffects retains known constructor bodies and existing host
 // contracts without acquiring an instance. Unmodeled alternatives remain opaque.
 func (query *sourceValueQuery) constructDependencyEffects(site *ast.Node, bindings sourceValueBindings) accessorCandidates {
+	// Finite native Intl construction already has a portable operation contract.
+	// Keep the original operand walk, but do not require a source body or instance
+	// output merely to retain its Effects. Authored/dynamic inputs keep fallback.
+	if _, arguments, native := nativeIntlConstructor(site, query.owner.checker); native &&
+		standardLibraryCallRoot(site.Expression(), query.owner.checker) && finiteIntlArguments(arguments) {
+		return accessorCandidates{valueIncomplete: true}
+	}
 	result := query.promiseConstruction(site, bindings)
 	if len(result.effects) > 0 || result.opaque {
 		return result
