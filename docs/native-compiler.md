@@ -1203,12 +1203,19 @@ alternative retains the effects of descriptor accessors in direct literal map en
 with literal descriptor inputs. It shares the source-only ordered `Has`/`Get` owner:
 a possible descriptor `value` getter retains its descriptor receiver, while a function
 stored in a data `value`, `get` or `set` field is not invoked by installation.
+A sole computed entry with a checked string, number or symbol key shares this
+Effects-only path when its descriptor is a literal. The original eager expression
+owns key evaluation and coercion; this contribution neither reevaluates the key
+nor supplies its value or a successful field-read result.
 Known environment donors join the component's effects independently of unresolved
 field, validation and Throw obligations. This contribution produces no installed
 value, successful field read, mutation, or completed conversion. Normal/result
 acquisition and nested writer-candidate probes do not enter this original-Call
-route. Aliased maps, dynamic entries and invocation adapters retain their existing
-owners and uncertainty; this finite contribution does not qualify those cases.
+route. Aliased maps or descriptors, computed entries in multi-entry maps and
+invocation adapters retain their existing owners and uncertainty; this finite
+contribution does not qualify those cases. Named multi-entry acquisition can
+conservatively retain a getter from an overwritten descriptor; single-entry
+computed support does not change that separate precision limitation.
 This is conservative MAY coverage, not a claim that every retained getter executes.
 The source-only field traversal does not prune later donors after an earlier field's
 definite Throw; that can conservatively restrict placement. Successful conversion,

@@ -1,6 +1,9 @@
 package exactcompiler
 
-import "github.com/microsoft/TypeScript/tsc/internal/ast"
+import (
+	"github.com/microsoft/TypeScript/tsc/internal/ast"
+	"github.com/microsoft/TypeScript/tsc/internal/checker"
+)
 
 // definePropertiesCallEffects retains ToPropertyDescriptor getter dependencies
 // for an already acquired standard Call alternative. It publishes no installed
@@ -52,7 +55,30 @@ func (query *sourceValueQuery) definePropertiesCallEffects(node *ast.Node, prepa
 			if !query.charge(result, member) {
 				return
 			}
-			if !ast.IsPropertyAssignment(member) || member.Name() == nil || ast.IsComputedPropertyName(member.Name()) || !ast.IsObjectLiteralExpression(unwrapSourceCallableReference(member.AsPropertyAssignment().Initializer)) {
+			if !ast.IsPropertyAssignment(member) || member.Name() == nil || !ast.IsObjectLiteralExpression(unwrapSourceCallableReference(member.AsPropertyAssignment().Initializer)) {
+				continue
+			}
+			if ast.IsComputedPropertyName(member.Name()) {
+				if len(value.node.AsObjectLiteralExpression().Properties.Nodes) != 1 {
+					continue // Multiple-entry identity/collisions retain the old path.
+				}
+				key := member.Name().AsComputedPropertyName().Expression
+				checked := query.owner.checker.GetTypeAtLocation(key)
+				primitive := checked != nil
+				if primitive {
+					for _, part := range checked.Distributed() {
+						primitive = primitive && part.Flags()&(checker.TypeFlagsStringLike|checker.TypeFlagsNumberLike|checker.TypeFlagsESSymbolLike) != 0
+					}
+				}
+				if primitive {
+					// The sole own entry cannot be overwritten by another key.
+					// Preserve its actual creating scope; the eager owner alone
+					// evaluates the key and any coercion/Throw. No key is acquired.
+					query.withProxySourceScope(value, bindings, func(scope sourceValueBindings) {
+						descriptor := sourceValue{node: unwrapSourceCallableReference(member.Initializer())}
+						query.normalizeDescriptorSourceFields(node, descriptor, scope, result)
+					})
+				}
 				continue
 			}
 			name := callableNameText(member.Name())
