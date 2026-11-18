@@ -36,7 +36,14 @@ func (query *sourceValueQuery) definePropertiesCallEffects(node *ast.Node, prepa
 					symbol := query.owner.checker.GetSymbolAtLocation(descriptor)
 					if symbol != nil && len(symbol.Declarations) == 1 {
 						declaration := symbol.Declarations[0]
-						literal = ast.IsVariableDeclaration(declaration) && declaration.Parent != nil && ast.IsVariableDeclarationList(declaration.Parent) && declaration.Parent.Flags&ast.NodeFlagsConst != 0 && declaration.End() < node.Pos() && enclosingCallableNode(declaration) == query.effectOwner && ast.IsObjectLiteralExpression(unwrapSourceCallableReference(declaration.Initializer()))
+						if ast.IsVariableDeclaration(declaration) {
+							list := declaration.Parent
+							initializer := unwrapSourceCallableReference(declaration.Initializer())
+							literal = list != nil && ast.IsVariableDeclarationList(list) &&
+								list.Flags&ast.NodeFlagsConst != 0 && declaration.End() < node.Pos() &&
+								enclosingCallableNode(declaration) == query.effectOwner &&
+								initializer != nil && ast.IsObjectLiteralExpression(initializer)
+						}
 					}
 				}
 				if literal {

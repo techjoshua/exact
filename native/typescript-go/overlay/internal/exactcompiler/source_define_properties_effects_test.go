@@ -171,3 +171,26 @@ export function Page(this:Component<{label:string}>){
 		})
 	}
 }
+
+// A const loop binding has no initializer and retains the ordinary descriptor
+// path. The real component consumer must remain analyzable without a literal grant.
+func TestComponentAliasedDescriptorLoopFallback(t *testing.T) {
+	fixture := newExecutableFixture(t, map[string]string{"entry.tsx": `import type {Component} from '@exactjs/core';
+export function Page(this:Component<{label:string}>,props:{descriptors:PropertyDescriptor[]}){
+ const target={};
+ for(const descriptor of props.descriptors){Object.defineProperty(target,'label',descriptor);}
+ this.state.label='done';return()=> <p>{this.state.label}</p>;
+}`})
+	config := `{"compilerOptions":{"module":"ESNext","moduleResolution":"Bundler","target":"ES2022","strict":true,"skipLibCheck":true,"allowJs":true,"jsx":"react-jsx","jsxImportSource":"@exactjs/jsx"},"files":["entry.tsx"]}`
+	if err := os.WriteFile(fixture.request("analyze", "entry.tsx").ConfigFile, []byte(config), 0600); err != nil {
+		t.Fatal(err)
+	}
+	response := NewSession().Execute(fixture.request("analyze", "entry.tsx"))
+	if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) || len(response.Analysis.Components) != 1 || response.Analysis.Components[0].Name != "Page" {
+		t.Fatal("loop descriptor Page fallback", response.Error, response.Diagnostics, response.Analysis.Components)
+	}
+	page := findCallable(t, response.Analysis.Callables, "Page")
+	if len(page.StateWrites) == 0 || len(response.Analysis.StateReads) == 0 {
+		t.Fatal("loop fallback lost rendered component state consumer", page, response.Analysis.StateReads)
+	}
+}
