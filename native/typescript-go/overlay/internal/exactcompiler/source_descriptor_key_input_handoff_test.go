@@ -192,3 +192,40 @@ func TestComponentDescriptorKeyEdit(t *testing.T) {
 		t.Fatal("key body edit retained/fresh artifact differs")
 	}
 }
+
+// Preserve original Symbol.for input work independently of primitive key DATA.
+// The mixed hook additionally requires an authored source-attributed unknown,
+// rather than counting mandatory descriptor conversion uncertainty as that debt.
+func TestComponentSelectedNativeRemainingEffects(t *testing.T) {
+	for _, row := range []struct {
+		name, before, operand string
+		browser, mixed        bool
+	}{
+		{"symbol-input-browser", `const input={get key(){return document.title;}};const key=Symbol.for(input.key);`, "key", true, false},
+		{"symbol-input-quiet", `const input={get key(){return 'label';}};const key=Symbol.for(input.key);`, "key", false, false},
+		{"mixed-callable", `const key:any={toString:props.useKnown?()=>document.title:props.foreign};`, "key", true, true},
+	} {
+		t.Run(row.name, func(t *testing.T) {
+			f := componentDescriptorKeyFixture(t, componentDescriptorKeyPage(row.before, row.operand))
+			session := NewSession()
+			r := checkComponentDescriptorKey(t, session, f, row.browser, false)
+			if !row.mixed {
+				return
+			}
+			page := findCallable(t, r.Analysis.Callables, "Page")
+			attributed := false
+			for _, effect := range page.EffectSources {
+				if effect.Environment != "unknown" || effect.fieldOrigin == nil || effect.fieldOrigin.operation == nil {
+					continue
+				}
+				// This proves unresolved field acquisition, not invocation. Native
+				// retrieval's generic MAY cannot supply this authored operation.
+				field := sourceText(ast.GetSourceFileOfNode(effect.fieldOrigin.operation), effect.fieldOrigin.operation)
+				attributed = attributed || field == "props.foreign"
+			}
+			if !attributed {
+				t.Fatal("authored foreign-field debt UNREACHED; generic native uncertainty is not evidence")
+			}
+		})
+	}
+}
