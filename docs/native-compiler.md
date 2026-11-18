@@ -1259,7 +1259,12 @@ Normal Await selects each original receiver alternative before its implicit `the
 logical and saved operands retain known then-body environment and state dependencies alongside
 unknown alternatives in callable and task summaries. These effects constrain artifact placement
 without certifying fulfillment, returned fields or lifetime. Normal result observations and task
-generation fencing retain their existing owners.
+generation fencing retain their existing owners. An original Await-selected authored `then`
+alternative can supply conditional resolve/reject inputs under that alternative's actual receiver
+and capture scope. Only the originating live query and current source generation recognize those
+roles. Ordinary same-shaped callbacks and replaced parameters keep their own behavior. This
+source-only binding preserves argument Get and Throw for both roles and adds nested assimilation
+only for resolve; it issues no normal body entry, fulfilled value or reusable cached authority.
 
 Ordinary invocation analysis shares source acquisition and input binding across direct calls,
 `call`, `apply`, `bind`, immutable aliases and finite returned or projected callables. Known source
