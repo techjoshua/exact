@@ -12,6 +12,7 @@ import path from 'node:path';
 import process from 'node:process';
 import { promisify } from 'node:util';
 import { parseNpmPackOutput } from './npm-pack-output.mjs';
+import { retiredCompilerDependencyChain } from './compiler-distribution-policy.mjs';
 
 const execFileAsync = promisify(execFile);
 const root = path.resolve(import.meta.dirname, '..');
@@ -37,7 +38,7 @@ const failures = [];
 
 for (const packageName of integrationPackages) {
 	for (const retiredPackage of retiredCompilerPackages) {
-		const chain = dependencyChain(packageName, retiredPackage);
+		const chain = retiredCompilerDependencyChain(packages, packageName, retiredPackage);
 		if (chain) failures.push(`${chain.join(' -> ')} reaches the retired compiler`);
 	}
 }
@@ -107,24 +108,6 @@ function readWorkspacePackages() {
 		}
 	}
 	return manifests;
-}
-
-/** Finds a production dependency path between two workspace packages. */
-function dependencyChain(from, target, visited = new Set()) {
-	if (from === target) return [from];
-	if (visited.has(from)) return undefined;
-	visited.add(from);
-	const manifest = packages.get(from);
-	if (!manifest) return undefined;
-	const dependencies = {
-		...(manifest.dependencies ?? {}),
-		...(manifest.optionalDependencies ?? {})
-	};
-	for (const dependency of Object.keys(dependencies)) {
-		const tail = dependencyChain(dependency, target, new Set(visited));
-		if (tail) return [from, ...tail];
-	}
-	return undefined;
 }
 
 /** Returns the exact path list npm would publish for the compiler host package. */

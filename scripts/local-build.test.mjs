@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import test from 'node:test';
+import { retiredCompilerDependencyChain } from './compiler-distribution-policy.mjs';
 import {
 	exactCompileWorkspaces,
 	orderExactCompileWorkspaces
@@ -250,4 +251,50 @@ test('native build staging includes every overlay Go package', async () => {
 			);
 		}
 	}
+});
+
+// These are manifest-only checks and must load before any workspace dist exists.
+test('compiler distribution permits only the pinned config preparation edge', () => {
+	const native = '@typescript/native';
+	const config = '@exactjs/config';
+	const entry = '@exactjs/vite-plugin';
+	const packages = (owner = config, spec = 'npm:typescript@7.0.2', extra = {}) =>
+		new Map([
+			[entry, { dependencies: { [owner]: '0.8.0', ...extra } }],
+			[owner, { dependencies: { [native]: spec } }]
+		]);
+	assert.equal(retiredCompilerDependencyChain(packages(), entry, native), undefined);
+	for (const spec of ['7.0.2', 'npm:typescript@^7.0.2', 'npm:typescript@7.0.3'])
+		assert.deepEqual(retiredCompilerDependencyChain(packages(config, spec), entry, native), [
+			entry,
+			config,
+			native
+		]);
+	assert.deepEqual(retiredCompilerDependencyChain(packages('@exactjs/compiler'), entry, native), [
+		entry,
+		'@exactjs/compiler',
+		native
+	]);
+	const second = packages(config, 'npm:typescript@7.0.2', {
+		'@fixture/tool': '1'
+	});
+	second.set('@fixture/tool', {
+		optionalDependencies: { [native]: 'npm:typescript@7.0.2' }
+	});
+	assert.deepEqual(retiredCompilerDependencyChain(second, entry, native), [
+		entry,
+		'@fixture/tool',
+		native
+	]);
+	second.delete('@fixture/tool');
+	second.get(config).dependencies['@fixture/tool'] = '1';
+	second.set('@fixture/tool', {
+		dependencies: { '@exactjs/expressions': '1' }
+	});
+	assert.deepEqual(retiredCompilerDependencyChain(second, entry, '@exactjs/expressions'), [
+		entry,
+		config,
+		'@fixture/tool',
+		'@exactjs/expressions'
+	]);
 });

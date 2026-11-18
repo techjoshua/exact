@@ -804,7 +804,10 @@ Compiler and bundler-assembly changes trigger a dedicated acceptance workflow. I
 
 The native package matrix separately builds, installs, and executes each supported platform
 package. Publish checks inspect the compiler dependency graph and tarball so retired compiler
-packages cannot re-enter generated applications unnoticed.
+packages cannot re-enter generated applications unnoticed. The dependency check permits only
+`@exactjs/config` to depend on `@typescript/native` as `npm:typescript@7.0.2` for the
+[isolated configuration preparation owner](framework-plugins.md#configuration). Other owners,
+specifications and retired dependency routes remain rejected, including routes beside that edge.
 
 ## Guarded DOM updates
 
