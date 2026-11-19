@@ -14,7 +14,7 @@ func TestStagedMapConversionOrderedSource(t *testing.T) {
 			if len(reads) != 0 {
 				t.Fatal("entry Get preceded completion of source discovery")
 			}
-			if consumeStagedMapConversionSource(query, source, func(sourceStagedMapEntryRead) bool { t.Fatal("enumeration recursively converted map"); return true }) {
+			if represented, _ := consumeStagedMapConversionTerminal(query, source, func(sourceStagedMapEntryRead) bool { t.Fatal("enumeration recursively converted map"); return true }); represented {
 				t.Fatal("enumeration granted conversion")
 			}
 			if entry.member != nil {
@@ -27,7 +27,7 @@ func TestStagedMapConversionOrderedSource(t *testing.T) {
 		}
 		defer revoke()
 		borrow := query.stagedMap
-		if !consumeStagedMapConversionSource(query, source, func(read sourceStagedMapEntryRead) bool {
+		if represented, _ := consumeStagedMapConversionTerminal(query, source, func(read sourceStagedMapEntryRead) bool {
 			if query.traceModeKnown || len(discovered) != 3 {
 				t.Fatal("Get executed during enumeration or before all entry registrations")
 			}
@@ -45,22 +45,25 @@ func TestStagedMapConversionOrderedSource(t *testing.T) {
 				t.Fatal("data initializer replaced by reacquired descriptor")
 			}
 			reads = append(reads, read)
-			if consumeStagedMapConversionSource(query, source, func(sourceStagedMapEntryRead) bool { return true }) {
+			if represented, _ := consumeStagedMapConversionTerminal(query, source, func(sourceStagedMapEntryRead) bool { return true }); represented {
 				t.Fatal("read callback recursively converted original map")
 			}
 			return true
-		}) {
+		}); !represented {
 			t.Fatal("known original entry contributions not represented")
 		}
 		if len(reads) != 3 || reads[0].entry.name != "first" || reads[1].entry.name != "second" || reads[2].entry.name != "third" || !borrow.pending {
 			t.Fatal("ordered prefix lost or source conversion completed protocol debt")
 		}
 		originalWork := query.owner.work
-		if consumeStagedMapConversionSource(query, source, func(sourceStagedMapEntryRead) bool { t.Fatal("finished borrow replayed entry Get"); return true }) || query.owner.work != originalWork {
+		if represented, _ := consumeStagedMapConversionTerminal(query, source, func(sourceStagedMapEntryRead) bool { t.Fatal("finished borrow replayed entry Get"); return true }); represented || query.owner.work != originalWork {
 			t.Fatal("original enumeration demand replayed")
 		}
 		revoke()
-		if borrow.accepted != nil || borrow.entries != nil || consumeStagedMapConversionSource(query, source, func(sourceStagedMapEntryRead) bool { return true }) {
+		if borrow.accepted != nil || borrow.entries != nil {
+			t.Fatal("revoked borrow retained order/membership")
+		}
+		if represented, _ := consumeStagedMapConversionTerminal(query, source, func(sourceStagedMapEntryRead) bool { return true }); represented {
 			t.Fatal("revoked order/membership retained authority")
 		}
 	})
@@ -85,13 +88,13 @@ func TestStagedMapConversionRetainsPendingPrefixes(t *testing.T) {
 				}
 				defer revoke()
 				var names []string
-				if consumeStagedMapConversionSource(query, source, func(read sourceStagedMapEntryRead) bool {
+				if represented, _ := consumeStagedMapConversionTerminal(query, source, func(read sourceStagedMapEntryRead) bool {
 					names = append(names, read.entry.name)
 					if row.name == "capture" && read.entry.name == "middle" && (read.bound.unsupported != relativeInputsUnsupportedCapture || read.accounting != sourceEffectsUnaccounted || read.getter == nil || len(read.bound.bindings) != 1) {
 						t.Fatal("capture gap erased known getter receiver or fabricated creating inputs")
 					}
 					return true
-				}) {
+				}); represented {
 					t.Fatal("unrepresented source sibling became complete conversion")
 				}
 				if len(names) != len(row.names) {
@@ -150,21 +153,21 @@ func TestStagedMapConversionPublicationAndLifetime(t *testing.T) {
 				}
 				defer revoke()
 				borrow := query.stagedMap
-				if consumeStagedMapConversionSource(query, source, nil) {
+				if represented, _ := consumeStagedMapConversionTerminal(query, source, nil); represented {
 					t.Fatal("missing publisher granted conversion")
 				}
 				copied := *query
-				if consumeStagedMapConversionSource(&copied, source, func(sourceStagedMapEntryRead) bool { return true }) || borrow.observed {
+				if represented, _ := consumeStagedMapConversionTerminal(&copied, source, func(sourceStagedMapEntryRead) bool { return true }); represented || borrow.observed {
 					t.Fatal("copied query acquired original issuer")
 				}
 				generation := borrow.generation
 				borrow.generation = &projectGeneration{}
-				if consumeStagedMapConversionSource(query, source, func(sourceStagedMapEntryRead) bool { return true }) || borrow.observed {
+				if represented, _ := consumeStagedMapConversionTerminal(query, source, func(sourceStagedMapEntryRead) bool { return true }); represented || borrow.observed {
 					t.Fatal("expired generation enumerated source")
 				}
 				borrow.generation = generation
 				var names []string
-				if consumeStagedMapConversionSource(query, source, func(read sourceStagedMapEntryRead) bool {
+				if represented, _ := consumeStagedMapConversionTerminal(query, source, func(read sourceStagedMapEntryRead) bool {
 					names = append(names, read.entry.name)
 					if read.entry.name == "middle" && phase == "read refusal" {
 						return false
@@ -173,7 +176,7 @@ func TestStagedMapConversionPublicationAndLifetime(t *testing.T) {
 						revoke()
 					}
 					return true
-				}) {
+				}); represented {
 					t.Fatal("refused/revoked source publication granted conversion")
 				}
 				expected := []string{"first", "middle", "last"}

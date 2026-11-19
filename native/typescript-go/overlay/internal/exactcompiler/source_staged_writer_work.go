@@ -31,24 +31,6 @@ func validWriterRHSRequirement(parent sourceStagedOperationKey, request sourceSt
 	return request.reading == parent && request.producer.declaration == parent.declaration && request.producer.operation == parent.operation && request.producer.kind == relativeDemandDirectExposure && (request.producer.selector.field == "writer-rhs:"+parent.selector.field || request.producer.selector.field == "writer-callable:"+parent.selector.field) && request.producer.selector.association == parent.selector.occurrence && write != nil && ast.IsBinaryExpression(write) && write.AsBinaryExpression().OperatorToken.Kind == ast.KindEqualsToken && request.consumer == parent.declaration && request.inputs == nil
 }
 
-func writerProjectionDelta(reads []sourceStagedWriterRead) sourceStagedOperationDelta {
-	delta := sourceStagedOperationDelta{extracted: len(reads) != 0}
-	for _, read := range reads {
-		projection := describeStagedWriterProjection(read)
-		delta.extracted = delta.extracted && projection.delta.extracted && len(projection.pending) == 0
-		for _, alternative := range projection.delta.exposures {
-			found := false
-			for _, prior := range delta.exposures {
-				found = found || sameOperationAlternative(prior, alternative)
-			}
-			if !found {
-				delta.exposures = append(delta.exposures, alternative)
-			}
-		}
-	}
-	return delta
-}
-
 func validStagedWriterRecipe(recipe sourceStagedOperationRecipe) bool {
 	source := recipe.writer
 	if source == nil || source.generation == nil || recipe.nativeGet != nil || recipe.constructed != nil || recipe.getter != nil || recipe.returning != nil || len(recipe.writerRequired) != 0 || recipe.key != source.request.producer || !validWriterRHSRequirement(source.parent.producer, source.request) || !sameOperationRequest(source.request, stagedWriterSourceRequest(source.parent, source.request.producer.selector.occurrence, source.callable)) || len(source.reads) == 0 {

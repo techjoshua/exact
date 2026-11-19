@@ -644,19 +644,32 @@ its ordering checks still have consumers in enhancement lowering and setup.
 Hidden required tokens, escaping accessor envelopes and source-side opaque
 receipt redemption retain their conservative treatment.
 
-### Item 6 direct caller inventory at `a5c584b62`
+### Item 6 direct caller inventory and first removal cut
 
 | Candidate | Verified direct caller and disposition |
 | --- | --- |
 | All-body `stagedReplacement` mode | The request flag is internal and supplied by Go tests. `newProjectState` copies it, `Session.executeLocked` isolates the project key, and `Session.Execute` handles its gap. `componentCallableDemand`, `publicCallableEffectPurpose` and callable cache refresh consult it. Gap calls remain in original Get/input delivery and staged input consumers. `memberWriterInputs` calls the flag-gated `yieldStagedConstructionWriter`. The mode is private acceptance machinery. Audit shared branches separately before retiring it. |
-| Return and writer projections | `projectSelectedSourceReturns` is called from source return projection, acquired Get execution in `source_operation_inputs.go`, ordinary invocation and the native descriptor algorithm. `reflectiveTargetValues` is called from reflective mutation handling. `writerProjectionDelta` has no caller. The live `writerSourceDelta` is used by writer recipe validation, publication and result delivery. Keep the active receiver and donor paths. |
+| Return and writer projections | `projectSelectedSourceReturns` is called from source return projection, acquired Get execution in `source_operation_inputs.go`, ordinary invocation and the native descriptor algorithm. `reflectiveTargetValues` is called from reflective mutation handling. Removed the unreferenced `writerProjectionDelta`. The live `writerSourceDelta` is used by writer recipe validation, publication and result delivery. Keep the active receiver and donor paths. |
 | Implicit Gets, initializer and constructor | `collectDirectCallableEffects` calls `appendImplicitAccessorEffects`. Eager module definition traversal calls `evaluatedAccessors`. `sourceValueRefinementRequired` is called by direct extraction and admits initializer plans, ordinary async bodies and awaited operands. `constructDependencyEffects` is called by source invocation for construction. Keep these roots while checking whether a given consumer needs effects, authored thenable behavior or an observable acquired value. |
-| Native entry and Symbol prefix | `nativeAlgorithmEntrySupported` has no caller. The live description path calls `nativeAlgorithmEntryShapeSupported` through `nativeAlgorithmDescriptionSupported`. `nativeSymbolSourceFacts` has no caller and is the sole caller of `bindingSymbolWrite`. `sourceSymbolKeyReady` still has a scheduler reference, but the in-tree `symbolCase` field has no producer. Audit the scheduler arm and observer together before removing this prefix experiment. |
-| Private return and descriptor assertions | `describeStagedCreatingInputs` and `describeObservedStagedReturn` have only test callers. `consumeStagedMapConversionSource` also has only test callers. `descriptorTargetFingerprint`, `descriptorStrongFingerprint` and `originalMutationBodyFingerprint` are called only by `callable_analysis_fingerprint_test.go`. These are candidates for test-local support or retirement. Live descriptor acquisition and authored callbacks still need component controls. |
-| Tooling and artifact consumers | The native session publishes callable analysis. SDK `module-analysis.ts` maps it and `shared-artifact.ts` uses it to reject non-neutral shared artifacts. A library path without a serialized-inventory reader is insufficient grounds to remove this public publication. |
+| Native entry and Symbol prefix | Removed the unreferenced `nativeAlgorithmEntrySupported`. The live description path calls `nativeAlgorithmEntryShapeSupported` through `nativeAlgorithmDescriptionSupported`. `nativeSymbolSourceFacts` has no caller and is the sole caller of `bindingSymbolWrite`. `sourceSymbolKeyReady` still has a scheduler reference, but the in-tree `symbolCase` field has no producer. The scheduler arm and observer are still present. Its binding-first getter checks and shared KEY validation also need a coordinated audit before removing this experiment. |
+| Private return and descriptor assertions | `describeStagedCreatingInputs` and `describeObservedStagedReturn` have only test callers. Removed the test-only `consumeStagedMapConversionSource` wrapper. The map tests call `consumeStagedMapConversionTerminal` directly and still check source order, incomplete inputs, publication refusal and revocation. Production map protocol work consumes the terminal inventory. `descriptorTargetFingerprint`, `descriptorStrongFingerprint` and `originalMutationBodyFingerprint` are called only by `callable_analysis_fingerprint_test.go`. The return helpers and fingerprints remain candidates for test-local support or retirement. Live descriptor acquisition and authored callbacks still need component controls. |
+| Tooling and artifact consumers | The native session publishes callable analysis. SDK `module-analysis.ts` maps it and `shared-artifact.ts` uses it to reject non-neutral shared artifacts. The language-tools service uses native analysis for source inspection and diagnostics after edits. The session also checks pending callable contributions before publishing results. |
 
-The earlier full Core, Theme and Intl client builds reached their 30-second request
-deadlines before emitting paired artifacts. The standard-operation and task
+The first cut at `6cf0e6c9c` used the fixed coordinate-validation limits of one CPU
+and 1 GiB. The focused native controls covered descriptor-map ordering and borrow
+lifetime, component descriptor and writer effects, semantic client/server compilation,
+descriptor-key edits against a fresh session, and warm watch lowering after sibling
+declaration changes. Both emitted descriptor/freeze artifacts executed with the original
+JavaScript completion. The reactivity oracle was compiler-visible state ownership and
+dependency tracking. Collection mutations retained their state paths, computed collection
+reads still produced a safely reevaluable derived binding, and the client descriptor
+task retained both state writes and render reads. These checks cover compiler behavior
+and leave mounted render/update and hydration qualification open.
+
+The original frozen Core client build timed out at `error-boundary.tsx`. Theme and
+Intl each timed out at `components.ts`. Each reached the 30-second request deadline
+before emitting paired artifacts. This unreachable-code cut did not repeat those
+builds and establishes no speed improvement. The standard-operation and task
 receipts above are reused within their original source, target and runtime scopes.
 They leave full package client/server qualification, fresh dependents and
 end-to-end acceptance in item 6 open.

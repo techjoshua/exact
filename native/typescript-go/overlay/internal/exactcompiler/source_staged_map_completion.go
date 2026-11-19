@@ -1,6 +1,6 @@
 package exactcompiler
 
-// consumeStagedMapConversionSource enumerates once under the caller's original
+// consumeStagedMapConversionTerminal enumerates once under the caller's original
 // installed map borrow, then publishes conditional entry Get contributions in
 // accepted source order. The discovery callback registers all required entry,
 // getter-body and field producers before any entry read. Reads neither replay
@@ -12,13 +12,7 @@ package exactcompiler
 // capture gaps stay pending. Known contributions survive an unsupported sibling
 // or refused publication. The query, callbacks and ordered membership remain
 // scoped to the borrow and never become graph state.
-func consumeStagedMapConversionSource(query *sourceValueQuery, source *sourceStagedNativeGetSource, publish func(sourceStagedMapEntryRead) bool) bool {
-	represented, _ := consumeStagedMapConversionTerminal(query, source, publish)
-	return represented
-}
-
-// consumeStagedMapConversionTerminal additionally returns the actual post-loop
-// inventory to its live work caller. It retains no callback or query in facts.
+// The terminal records the actual post-loop inventory for the work owner.
 func consumeStagedMapConversionTerminal(query *sourceValueQuery, source *sourceStagedNativeGetSource, publish func(sourceStagedMapEntryRead) bool) (represented bool, terminal sourceStagedMapEnumerationTerminal) {
 	if query == nil || query.stagedMap == nil || source == nil || source.descriptorMap == nil || publish == nil || query.traceModeKnown || !validNativeDescriptorMapRecipe(sourceStagedOperationRecipe{key: source.descriptorMap.protocol.producer, nativeGet: source}) {
 		return false, terminal

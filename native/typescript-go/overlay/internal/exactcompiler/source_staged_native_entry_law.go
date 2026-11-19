@@ -33,11 +33,8 @@ func (work *callableEffectWork) nativeAlgorithmEntryLaw(facts []callableFacts, s
 	return request, true
 }
 
-// This identifies existing semantic algorithms, never a source spelling or a
-// selected category. The original current-graph Get still supplies selection.
-func nativeAlgorithmEntrySupported(source *sourceStagedNativeGetSource) bool {
-	return source != nil && nativeMemberCallRequirementCount(source) == 0 && nativeAlgorithmEntryShapeSupported(source)
-}
+// nativeAlgorithmEntryShapeSupported describes supported algorithm shapes.
+// Selection still comes from the original current-graph Get.
 func nativeAlgorithmEntryShapeSupported(source *sourceStagedNativeGetSource) bool {
 	if source == nil || source.request.use == nil || !ast.IsCallExpression(source.request.use) {
 		return false
