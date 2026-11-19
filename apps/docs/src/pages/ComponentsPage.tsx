@@ -165,7 +165,9 @@ export function ComponentsPage(this: Component<{}>) {
 				<p>
 					eXact starts the task for the current ID and cancels obsolete runs. The compiler can also
 					infer where work belongs: browser globals imply client execution, and server-only imports
-					imply server execution. Work valid in either environment may run in either. A
+					imply server execution. For example, a helper that uses <code>bun:sqlite</code> needs a Bun
+					server. A type-only import leaves placement unchanged. Work valid in either environment
+					may run in either. A
 					<code>TaskContext.client()</code> or <code>TaskContext.server()</code> parameter makes the
 					choice explicit when needed. Renaming a framework import preserves its execution
 					requirements. These requirements also follow a component when another module imports it.

@@ -5,11 +5,11 @@ import (
 	"strings"
 
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
+	"github.com/microsoft/TypeScript/tsc/internal/binder"
 )
 
 type componentComputationLocals struct {
-	props    string
-	reactive map[string]struct{}
+	environment, reactive map[string]struct{}
 }
 
 type componentComputationWrite struct {
@@ -520,10 +520,8 @@ func analyzeComponentComputationLocals(
 	environment map[string]struct{},
 ) componentComputationLocals {
 	locals := componentComputationLocals{
-		reactive: make(map[string]struct{}, len(environment)),
-	}
-	for name := range environment {
-		locals.reactive[name] = struct{}{}
+		environment: environment,
+		reactive:    make(map[string]struct{}),
 	}
 	for _, parameter := range component.Parameters() {
 		name := parameter.Name()
@@ -534,9 +532,6 @@ func analyzeComponentComputationLocals(
 		names := componentBindingNames(name)
 		for _, binding := range names {
 			locals.reactive[binding] = struct{}{}
-		}
-		if ast.IsIdentifier(name) {
-			locals.props = name.Text()
 		}
 		break
 	}
@@ -643,10 +638,7 @@ func inspectComponentComputationStatement(
 		}
 		if ast.IsIdentifier(node) && !assignmentTarget &&
 			!isNonReferenceComponentIdentifier(node) {
-			if node.Text() == locals.props {
-				effects.reactive = true
-			}
-			if _, exists := locals.reactive[node.Text()]; exists {
+			if locals.reactiveReference(node) {
 				effects.reactive = true
 			}
 		}
@@ -657,6 +649,25 @@ func inspectComponentComputationStatement(
 	}
 	visit(statement, false)
 	return effects
+}
+
+// Platform names give setup analysis a cheap candidate filter. Only a real
+// runtime import or unshadowed browser global can make the read reactive.
+func (locals componentComputationLocals) reactiveReference(node *ast.Node) bool {
+	name := node.Text()
+	if _, local := locals.reactive[name]; local {
+		return true
+	}
+	if _, candidate := locals.environment[name]; !candidate {
+		return false
+	}
+	binder.BindSourceFile(ast.GetSourceFileOfNode(node))
+	symbol := componentLexicalSymbol(node, ast.SymbolFlagsValue|ast.SymbolFlagsAlias)
+	if symbol == nil {
+		_, browser := browserGlobals[name]
+		return browser
+	}
+	return serverOnlyImportSymbol(symbol)
 }
 
 func containsComponentReactiveRead(
@@ -677,11 +688,7 @@ func containsComponentReactiveRead(
 			return
 		}
 		if ast.IsIdentifier(node) && !isNonReferenceComponentIdentifier(node) {
-			if node.Text() == locals.props {
-				found = true
-				return
-			}
-			if _, exists := locals.reactive[node.Text()]; exists {
+			if locals.reactiveReference(node) {
 				found = true
 				return
 			}
@@ -721,6 +728,9 @@ func componentComputationEnvironmentBindings(
 			continue
 		}
 		clause := declaration.ImportClause.AsImportClause()
+		if clause.PhaseModifier == ast.KindTypeKeyword {
+			continue
+		}
 		if clause.Name() != nil {
 			bindings[clause.Name().Text()] = struct{}{}
 		}
@@ -733,6 +743,9 @@ func componentComputationEnvironmentBindings(
 			continue
 		}
 		for _, element := range named.AsNamedImports().Elements.Nodes {
+			if element.AsImportSpecifier().IsTypeOnly {
+				continue
+			}
 			name := element.Name()
 			if name != nil {
 				bindings[name.Text()] = struct{}{}

@@ -363,7 +363,7 @@ func serverOnlyImportSymbol(symbol *ast.Symbol) bool {
 }
 
 func serverOnlyModule(specifier string) bool {
-	if strings.HasPrefix(specifier, "node:") {
+	if strings.HasPrefix(specifier, "node:") || specifier == "bun:sqlite" || specifier == "bun:ffi" {
 		return true
 	}
 	root := specifier

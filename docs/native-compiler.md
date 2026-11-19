@@ -743,7 +743,10 @@ component re-exports retain their separately projected implementations instead o
 environment of a nested event handler. Opposite-runtime local helpers and executing module
 statements follow their input dependencies, preventing references to removed initializers.
 Guarded module branches retain their portable fallbacks. Static CommonJS loaders follow their requested module
-placement, preserving portable package replacements while keeping Node built-ins server-owned. Compiler path indexes retain property segments rather than joining them into ambiguous
+placement, preserving portable package replacements while keeping Node built-ins server-owned. Runtime imports of the Bun SQLite and FFI
+modules (`bun:sqlite` and `bun:ffi`) require Bun on the server. Setup normalization checks the
+lexical declaration before treating a platform name as a reactive input. Type-only imports have
+no execution requirement. Compiler path indexes retain property segments rather than joining them into ambiguous
 display labels. Island snapshots and task-local reads therefore distinguish a literal `"a.b"` key
 from the nested `a.b` path without changing emitted artifact signatures.
 

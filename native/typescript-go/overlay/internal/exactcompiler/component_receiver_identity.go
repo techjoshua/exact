@@ -98,9 +98,15 @@ func componentReceiverName(name *ast.Node, seen map[*ast.Symbol]bool) bool {
 // componentReceiverTypeSymbol uses binder scopes rather than reconstructing a
 // type namespace from identifiers or giving value-only shadows type authority.
 func componentReceiverTypeSymbol(name *ast.Node) *ast.Symbol {
+	return componentLexicalSymbol(name, ast.SymbolFlagsType|ast.SymbolFlagsNamespace|ast.SymbolFlagsAlias)
+}
+
+// componentLexicalSymbol looks up the nearest binder-owned declaration in the
+// requested namespace before normalization builds a checker program.
+func componentLexicalSymbol(name *ast.Node, meaning ast.SymbolFlags) *ast.Symbol {
 	for scope := name.Parent; scope != nil; scope = scope.Parent {
 		symbol := scope.Locals()[name.Text()]
-		if symbol != nil && symbol.Flags&(ast.SymbolFlagsType|ast.SymbolFlagsNamespace|ast.SymbolFlagsAlias) != 0 {
+		if symbol != nil && symbol.Flags&meaning != 0 {
 			return symbol
 		}
 	}
