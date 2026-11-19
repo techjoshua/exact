@@ -182,16 +182,56 @@ was emitted before the deadline. This run establishes attribution; it is not a t
 There is a genuine second use: `parseThemeColor` subsequently reads `parsed.l`, `.c`,
 `.h` and `.alpha`. A getter at one of those reads could execute authored work. A
 TypeScript structural type alone does not prove a plain data property. Preserve those
-reads and evaluate their effects at their own use sites. The existing
-`prepareDefinitionMAYCall` shortcut requires a normal definition input and restricts its
-consumer to specific forwarding/return forms. A conditional initializer in ordinary
-effects collection is outside that contract. The first change should use the already
-resolved, stable local function edge for the **effects of this call**, covering eager input
-evaluation, relative writes, unknowns and invoked work. Supply a result-source demand
-separately when an actual later operation needs one. Test a parser that returns plain data
-and a returned object whose getter is browser-only: the first must emit and the second must
-retain its placement conflict in server work. Never assume purity from the parser’s name,
-return type, or the absence of writes through its primitive argument.
+reads and evaluate their effects at their own use sites. The checked primitive forwarding
+case now uses the resolved definition edge for the call. The rendered data and browser-getter
+controls cover that separation through compilation, including a foreign alternative beside a
+known getter. The parser's result type does not establish that any subsequent read is inert.
+
+### Forwarding object inputs through helpers
+
+Theme's other color branch forwards the object input to `parseDtcgColor`, where destructuring
+and indexed reads can invoke getters. Intl passes `formatter.options` to `validateOptions`,
+which forwards it to `requireRecord`. Eager evaluation owns the read of `formatter.options`.
+The record copy separately owns reads of the input's properties, including the supported
+nonenumerable fields. Core's child normalization forwards an input array and a mutable
+destination through a recursive edge. Iteration on the first input and writes through the
+second need separate coverage.
+
+A definition edge can carry input-independent effects once per definition. Formal substitutions
+describe which original argument supplies an input. The relative solver already transports
+invoked callable roles and field mutations in its supported domains. A substitution alone
+does not report which getter an input Get can invoke. The existing field fallback requires a
+completed outcome for the original operation on the direct edge. Forwarded field fallbacks
+remain unresolved. The shared requester already propagates unsupported input uses through
+forwarding edges. For those uses, `prepareSourceInputConsumerDecisions` dispatches the same
+invocation dependency query after extraction. The query can instantiate the Get under a concrete
+argument and recover a known getter beside a foreign alternative. Registering the definition
+edge earlier can therefore move that work without removing it. Removing the query requires an
+equivalent contribution at the original Get or enumeration, with that operation's receiver,
+read cut and residual uncertainty. Placement has no consumer for the exact returned record,
+component children or color channels at the call site.
+
+Two shared-requester trials based on `4dd773d50` reused the existing declaration machinery
+without changing the workloads. The first admitted nonterminal immutable formal forwarding to
+the existing binder. The second enabled the existing source-input planner and terminal binder
+for ordinary collection. In three alternating fresh server compile pairs per control, the first
+retained artifact and placement decisions and changed a callback diagnostic path. The second
+retained those decisions for data and getter inputs, including a getter beside a foreign
+alternative. It settled the known callback input through relative transfer. When that same
+input selected between a known browser callback and a foreign result, a forwarded invocation
+requested an input projection the staged producer could not deliver. The request reported
+pending compiler coverage where the baseline produced the browser placement diagnostic and
+retained the unknown alternative. Keep the original requester for this domain.
+
+Neither trial showed consistent improvement on completed requests. In the broader trial the
+median callable-analysis time moved from 2.04 to 1.72 ms for direct plain data and from
+1.90 to 2.73 ms for the corresponding getter. These cold requests include one compilation
+each. On November 19, the fixed single-CPU, 1 GiB validation service ran the original Core,
+Theme and Intl package commands against the 30 s client request deadline. Command wall times
+to failure in that order were 31.83, 32.64 and 35.56 s at the baseline, 31.86, 32.32 and
+34.66 s for the forwarding trial, and 31.84, 32.36 and 34.91 s for the broader trial.
+Both trials were uncommitted overlays that changed only shared call admission. These
+measurements establish the deadline outcome. They do not measure completed package throughput.
 
 ### Dispositions for the expensive owners
 
@@ -317,22 +357,16 @@ before emission. This measures time to failure and leaves full package acceptanc
    Compare emitted artifacts, complete public analyses and diagnostics across client/server
    and edits. Count removed serializations, traversals and fact comparisons. These are useful
    improvements independently of their contribution to either deadline.
-2. **Replace the broadest measured semantic query at one genuine component use.** Start with the measured direct call to
-   `parseCssColor(value)`. Establish complete definition-effect propagation there, and
-   reserve returned-source selection for its actual downstream readers. For unresolved
-   members that still need writer attribution, examine the interference test in `scanInterferenceInSources`. Its `reaches` predicate enumerates
-   source origins, descends into local containers and tests receiver/path overlap. Try an
-   existing declaration or argument-relative effect summary at the original Call/Get with
-   three outcomes: proven disjoint, possible write with the required effects covered, or
-   insufficient coverage. Use the existing full analysis for the third case. A positive
-   possible overlap does not identify the replacement getter or callback by itself. Keep
-   known platform/secret/state effects and distinguish own-slot from inherited work.
-   First acceptance pair: a real rendered component with an ordinary returned data value,
-   then the same boundary with an effectful returned getter or replaced member. Add a
-   known browser donor alongside a foreign alternative and inspect diagnostics **and** the
-   generated artifact. Run the original Theme request; record eliminated origin queries or
-   reduced allocation for comparable completed work. A new refusal on a supported component
-   is a regression even if compilation becomes fast.
+2. **Use definition effects where the placement consumer needs no occurrence result.**
+   The checked primitive forwarding case and the rendered data, getter and mixed return controls
+   are complete. Ordinary object forwarding still has input-dependent Gets, enumeration and
+   receiver writes. The definition edge carries known body effects and existing relative
+   obligations. Keep the current input query where an original operation has incomplete coverage.
+   For writer attribution that survives, use existing declaration or argument-relative effects
+   to distinguish proven disjoint from possible overlap and insufficient coverage. Possible
+   overlap alone cannot identify a replacement getter or callback. Preserve independently
+   known browser, secret and state effects and the distinction between own and inherited work.
+   Package acceptance requires paired target artifacts within the original deadlines.
 3. **Reduce storage for the analysis that survives.** At the measured reader-cut constructor,
    count empty/nonempty binding and creator inputs and which portions actual consumers read.
    Try a read-only empty representation only where later installation, writes, absence versus

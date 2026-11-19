@@ -330,6 +330,48 @@ export function Page(this:Component<{count:number}>,props:{text:string}){
 	}
 });
 
+it('retains browser and unknown effects through forwarded callable inputs', async () => {
+	const root = await createBrowserTestWorkspace('.exact-forwarded-callback-', process.cwd());
+	const compiler = new NativeCompilerProcess({ executable: resolveNativeCompilerExecutable() });
+	onTestFinished(() => compiler.dispose());
+	const source = `import { TaskContext, type Component } from '@exactjs/core';
+declare function foreign(): () => number;
+type Input = () => number;
+function read(value: Input) { return value(); }
+function copy(value: Input) { const record = read(value); return {field: record}; }
+function describe(value: Input) { const record = copy(value); return record.field; }
+export function Page(this: Component<{count:number}>, props: {choice:boolean}) {
+ this.state.count=0;
+ const run=(task:TaskContext=TaskContext.server())=>{
+   const input=props.choice ? foreign() : () => document.title.length;
+   this.state.count=describe(input);
+ };
+ return ()=> <button onClick={()=>run()}>{this.state.count}</button>;
+}
+`;
+	const files = await writeTestFiles(root, { 'Page.tsx': source });
+	const response = compiler.request({
+		kind: 'compile',
+		id: files['Page.tsx']!,
+		root,
+		source,
+		target: 'server',
+		diagnostics: 'semantic'
+	});
+	expect(response.error).toBeUndefined();
+	expect(response.diagnostics).toContainEqual(
+		expect.objectContaining({
+			code: 'EXACT2001',
+			message: expect.stringContaining('document')
+		})
+	);
+	expect(response.code).toBeFalsy();
+	const run = response.analysis.callables.find((callable) => callable.name === 'run');
+	expect(run?.effectSources.map((effect) => effect.environment)).toEqual(
+		expect.arrayContaining(['browser', 'unknown'])
+	);
+});
+
 it('preserves component placement across fresh array method lookup', async () => {
 	const root = await createBrowserTestWorkspace('.exact-literal-method-', process.cwd());
 	const compiler = new NativeCompilerProcess({ executable: resolveNativeCompilerExecutable() });
