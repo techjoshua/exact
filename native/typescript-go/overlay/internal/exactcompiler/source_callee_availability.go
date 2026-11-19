@@ -45,7 +45,7 @@ func calleeSyntaxCarrier(value sourceValue) bool {
 	if value.freezeLexical != nil {
 		return false
 	}
-	return (value.capture == nil || value.capture.constructionCapture == nil) && value.constructionRole.kind == relativeRoleUnknown && value.constructionRequired.producer.operation == nil && value.constructionGeneration == nil && value.constructionCallable == nil && value.constructionView == nil && value.instance == nil && value.number == (numberPayload{}) &&
+	return (value.capture == nil || value.capture.constructionCapture == nil) && value.constructionBinding == nil && value.constructionCallable == nil && value.constructionView == nil && value.instance == nil && value.number == (numberPayload{}) &&
 		value.ownedGetRow == nil && value.initializerUse == nil && value.adapter == nil &&
 		value.acquired == nil && value.entrySlot == nil && value.bound == nil && value.normal == nil &&
 		len(value.forwarded) == 0 && value.awaited == nil && value.native == nil

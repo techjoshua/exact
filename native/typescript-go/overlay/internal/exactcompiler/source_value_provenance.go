@@ -13,14 +13,11 @@ import (
 // A nil node is an unresolved input term, not an omitted JavaScript argument.
 // Substitution flattens entry roots before installing another callable's parameters.
 type sourceValue struct {
-	freezeLexical          *sourceStagedFreezeReturnRead // SOURCE-only ownership; generic value conversion refuses it.
-	constructionOrdinal    int
-	constructionRole       sourceRelativeRole // Original capture target metadata, never outer-formal substitution.
-	constructionRequired   sourceStagedOperationRequest
-	constructionGeneration *projectGeneration
-	constructionView       *sourceRelativeEndpoint          // Conditional construction operator; no raw object.
-	constructionCallable   *sourceConstructionCallableValue // Deferred SOURCE capture; never normal creating B.
-	descriptorView         *sourceNativeDescriptorView      // Conditional descriptor provenance, never a raw/native object.
+	freezeLexical        *sourceStagedFreezeReturnRead // SOURCE-only ownership; generic value conversion refuses it.
+	constructionBinding  *sourceConstructionBinding
+	constructionView     *sourceRelativeEndpoint          // Conditional construction operator; no raw object.
+	constructionCallable *sourceConstructionCallableValue // Deferred SOURCE capture; never normal creating B.
+	descriptorView       *sourceNativeDescriptorView      // Conditional descriptor provenance, never a raw/native object.
 	// frameworkView is a source-domain marker, never its raw donor/value.
 	// A nil node intentionally prevents ordinary/native-object promotion.
 	frameworkView *sourceFrameworkStorageView

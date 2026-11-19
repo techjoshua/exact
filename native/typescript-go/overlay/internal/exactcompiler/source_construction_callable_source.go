@@ -21,6 +21,15 @@ type sourceConstructionCallSelection struct {
 	cuts     [4]*ast.Node
 }
 
+// sourceConstructionBinding is the immutable capture description shared by the
+// alternatives of one constructed callable binding. Ordinary values carry none.
+type sourceConstructionBinding struct {
+	ordinal    int
+	role       sourceRelativeRole
+	required   sourceStagedOperationRequest
+	generation *projectGeneration
+}
+
 func (q *sourceValueQuery) beginConstructionCallInterest(call *ast.Node) func() {
 	if q == nil || !q.dependenciesOnly || q.operation != nil || q.returnObservation != nil || q.owner == nil || q.executable == nil || q.executable.project == nil || q.owner.generation == nil || !q.owner.generation.active || q.executable.project.activeGeneration != q.owner.generation || call == nil || !ast.IsCallExpression(call) {
 		return func() {}
@@ -92,15 +101,13 @@ func (q *sourceValueQuery) retainConstructionCallable(value *sourceConstructionC
 				return
 			}
 		}
-		for index := range scope.bindings[ast.GetSymbolId(symbol)] {
-			bound := &scope.bindings[ast.GetSymbolId(symbol)][index]
-			bound.constructionRole = capture.role
-			bound.constructionRequired = capture.required
-			bound.constructionGeneration = source.generation
-			bound.constructionOrdinal = i
-		}
-		if len(scope.bindings[ast.GetSymbolId(symbol)]) == 0 {
+		terms := scope.bindings[ast.GetSymbolId(symbol)]
+		if len(terms) == 0 {
 			return
+		}
+		binding := &sourceConstructionBinding{ordinal: i, role: capture.role, required: capture.required, generation: source.generation}
+		for index := range terms {
+			terms[index].constructionBinding = binding
 		}
 	}
 	index := len(result.values)
@@ -176,16 +183,17 @@ func constructionBoundCaptureBindings(q *sourceValueQuery, inputs *sourceValueIn
 		var source sourceStagedOperationRequest
 		marked := false
 		for _, value := range values {
-			if value.constructionRole.kind == relativeRoleUnknown {
+			binding := value.constructionBinding
+			if binding == nil || binding.role.kind == relativeRoleUnknown {
 				continue
 			}
-			if value.constructionRole.kind != relativeRoleCapture || value.constructionRole.declaration != inputs.declaration || value.constructionGeneration != q.owner.generation || value.constructionRole.binding == nil || value.constructionRequired.producer.operation == nil {
+			if binding.role.kind != relativeRoleCapture || binding.role.declaration != inputs.declaration || binding.generation != q.owner.generation || binding.role.binding == nil || binding.required.producer.operation == nil {
 				return nil, nil, false
 			}
-			if marked && (role != value.constructionRole || !sameOperationRequest(source, value.constructionRequired)) {
+			if marked && (role != binding.role || !sameOperationRequest(source, binding.required)) {
 				return nil, nil, false
 			}
-			role, source, marked = value.constructionRole, value.constructionRequired, true
+			role, source, marked = binding.role, binding.required, true
 		}
 		if !marked {
 			continue
@@ -195,7 +203,8 @@ func constructionBoundCaptureBindings(q *sourceValueQuery, inputs *sourceValueIn
 			return nil, nil, false
 		}
 		for _, value := range values {
-			if value.constructionRole != role || value.constructionGeneration != q.owner.generation || !sameOperationRequest(value.constructionRequired, source) {
+			binding := value.constructionBinding
+			if binding == nil || binding.role != role || binding.generation != q.owner.generation || !sameOperationRequest(binding.required, source) {
 				return nil, nil, false
 			}
 		}
@@ -203,7 +212,7 @@ func constructionBoundCaptureBindings(q *sourceValueQuery, inputs *sourceValueIn
 		if gap != relativeInputsSupported {
 			return nil, nil, false
 		}
-		entries = append(entries, entry{ordinal: values[0].constructionOrdinal, binding: binding, required: source})
+		entries = append(entries, entry{ordinal: values[0].constructionBinding.ordinal, binding: binding, required: source})
 	}
 	if len(entries) != len(inputs.constructionCapture.source.captures) {
 		return nil, nil, false

@@ -169,7 +169,11 @@ demand and queued work in one pass. A compile with many project roots previously
 whole registry up to twice per source. Module placement also opens an explicit property-read
 query only for a property or element access. Implicit reads from calls, construction, binding
 patterns and spreads retain their own analysis and normal invocations retain their work accounting.
-These changes have component and placement coverage. Their whole-package timing remains unmeasured.
+Pending reader scopes allocate writable maps when evaluation first needs them. An ordinary
+source value also carries only a pointer to optional construction-capture metadata. All alternatives
+of one constructed binding share its immutable ordinal, role, operation and generation. This
+reduces the size of each ordinary value from 496 to 248 bytes on linux/amd64. Both changes
+preserve the original capture checks. Whole-package completion remains a separate milestone.
 
 1. **Remove demonstrated redundancy in parallel with the hot-path change.** Remove production
    callable fingerprints. Resolve static imports at collection. In `linkProjectComponents`,

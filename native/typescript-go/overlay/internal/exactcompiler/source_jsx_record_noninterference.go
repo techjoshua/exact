@@ -152,7 +152,7 @@ func (q *sourceValueQuery) jsxConstructionDisjointFromRecord(node, origin *ast.N
 	}
 	// The actual visitor constructed a plain source receiver at this branch.
 	// Special normal/native/managed values may not borrow this record category.
-	if get.receiver.frameworkView != nil || get.receiver.descriptorView != nil || get.receiver.constructionView != nil || get.receiver.constructionCallable != nil || get.receiver.instance != nil || get.receiver.native != nil || get.receiver.normal != nil || get.receiver.acquired != nil || get.receiver.adapter != nil || get.receiver.freezeLexical != nil || get.receiver.ownedGetRow != nil || get.receiver.initializerUse != nil || get.receiver.capture != nil || get.receiver.entrySlot != nil || get.receiver.bound != nil || get.receiver.awaited != nil || get.receiver.constructionGeneration != nil {
+	if get.receiver.frameworkView != nil || get.receiver.descriptorView != nil || get.receiver.constructionView != nil || get.receiver.constructionCallable != nil || get.receiver.instance != nil || get.receiver.native != nil || get.receiver.normal != nil || get.receiver.acquired != nil || get.receiver.adapter != nil || get.receiver.freezeLexical != nil || get.receiver.ownedGetRow != nil || get.receiver.initializerUse != nil || get.receiver.capture != nil || get.receiver.entrySlot != nil || get.receiver.bound != nil || get.receiver.awaited != nil || get.receiver.constructionBinding != nil {
 		return false
 	}
 	creator := q.creators[enclosingCallableNode(origin)]
