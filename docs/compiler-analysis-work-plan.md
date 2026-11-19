@@ -253,14 +253,51 @@ definition effects in any of these cases can leave the same recursive dependency
 query in place. The trials did not establish a traversal that could be removed
 with equivalent coverage on the original workloads.
 
-Next, isolate one named parameter Get reached in the original Theme object-color
-branch. Follow it through one lexical forwarding call and determine whether its
-existing getter outcome can carry the receiver, read cut and residual through the
-caller edge. Compare stable own data, a replaced or inherited getter, and a browser
-getter beside a foreign alternative. Count entries to the original dependency
-query and its writer scan. Require a whole query to disappear before repeating
-the original package pair. Keep enumeration and mutation on their current owners
-during that test.
+The selected Theme operation is the `colorSpace` binding element in
+[`parseDtcgColor`](../packages/theme/src/color.ts#L38), reached through
+`parseThemeColor`'s lexical call `parseDtcgColor(value)`. The named Get belongs to
+the binding element. Its receiver is the forwarded `value`, and the read follows
+the earlier `components` binding and precedes the `alpha` default and color-space
+dispatch.
+
+In the original 20-source package command, an observation-only overlay at
+`18fc4a7ab` recorded one dependency-query entry at this forwarding call during
+the client `color.ts` compile. At that use, the Get had one input alternative
+and two field fallbacks. Its field outcome was unfulfilled, with no concrete
+getter or source write contribution. The named interference-scan counter
+recorded zero entries for this Get. Missing input stopped member selection
+before any concrete receiver could reach that scan. The package command then
+reached the 30-second client request deadline in `components.ts` and exited after
+32.32 seconds without paired artifacts. The observation used the fixed one-CPU,
+1 GiB validation service. The executable SHA-256 was
+`ac20ade67aed5befdfcfd5839b0d02dcfce6678da0b27826bfe218e75eb9966c`.
+This run measures reach and time to failure.
+
+The dependency query binds the input at the call, visits the actual Get alternatives
+at that cut, and publishes callable/accessor donors, unresolved alternatives and
+source writes. It also preserves the rest of the call's effects. The field outcome
+records whether that specific Get was fulfilled for the instantiated receiver.
+It can retire a matching field fallback on the direct edge when the required call
+coverage is complete. The outcome is built from the Get traversal and carries no
+independent replacement selection, write payload or proof about other alternatives.
+An installed getter contribution can name and propagate a possible body at its
+own cut. It cannot use that body to certify a foreign receiver or to reconstruct
+the earlier writes that determined which member was selected. A field fallback
+forwarded through another declaration is ineligible for direct-edge discharge.
+
+In separate completed server requests, stable own data emitted and the
+instantiated Get was fulfilled. The inherited getter, earlier descriptor replacement,
+and known browser getter beside a foreign receiver all retained browser and
+unknown effects and reported `EXACT2001` for the explicitly server task.
+The forwarded dependency-query and matching scan entry counts were respectively
+2 and 4 for data, 1 and 4 for inheritance, 1 and 2 for replacement, and 1 and 2
+for the mixed receiver. These are entries across each complete request's compiler
+phases. A single Get may ask for both effects and value acquisition.
+
+Keep the original dependency requester for this operation. Reusing the field outcome
+would either leave the same query in place or lose evidence required by placement.
+This closes the proposed redundancy for the named Get. Enumeration and mutation
+retain their current owners.
 
 
 ### Dispositions for the expensive owners
@@ -397,15 +434,72 @@ before emission. This measures time to failure and leaves full package acceptanc
    overlap alone cannot identify a replacement getter or callback. Preserve independently
    known browser, secret and state effects and the distinction between own and inherited work.
    Package acceptance requires paired target artifacts within the original deadlines.
-3. **Reduce storage for the analysis that survives.** At the measured reader-cut constructor,
-   count empty/nonempty binding and creator inputs and which portions actual consumers read.
-   Try a read-only empty representation only where later installation, writes, absence versus
-   emptiness, expiry and accounting remain correct. On the overlap-only path, a single known
-   origin can be consumed without creating an owned slice if no caller retains or mutates it.
-   The singleton allocation in `origins` accounts for about 1,405 MiB in this profile; the
-   avoidable fraction is unknown. Check reached result and incomplete flag, writes, allocation
-   count and bytes per matched operation. Reprofile after the semantic cut before investing
-   in the next scope-copy or recursion-guard change.
+3. **Reduce storage for the analysis that survives.** Empty reader scopes already defer
+   map allocation (`ec1df3225`). Populated reader scopes already seal entries and defer
+   writable indexes unless the registered consumer needs them (`368bb9fe5`).
+   Branch-order and original writer binding still need an isolated scope. Creator
+   comparisons use that same detached scope. The older matched Theme profile used an
+   instrumented frozen overlay and reported 2,459,749,789 versus 1,692,252,314 sampled
+   bytes attributed to reader cuts through about 25 seconds. Both attempts timed out
+   and reached different amounts of work. In the isolated populated-cut control, the
+   unread path used 7 versus 4 allocations and 1,560 versus 1,008 bytes per cut.
+   The writable control used 7 allocations and 1,560 bytes per cut on both paths.
+
+   A November 19 profile of the original 20-source Theme build at `18fc4a7ab`
+   sampled 3,168 MiB of allocations on stacks containing the interference scan
+   through 25 seconds of the client `components.ts` request. Flat allocation at
+   the two singleton sites in `origins` was 203 MiB for the non-identifier return
+   and 269 MiB for the fallback seed passed to `liveValues`. Of those flat totals,
+   160 and 264 MiB respectively had the scan on the stack. The immediate initial
+   operand acquisition through `occurrenceOrigins` accounted for 83 and 248 MiB
+   respectively. Those allocations include inputs to acquisition that may
+   produce a different result or expand a container. Other stacks include
+   nested acquisition and other callers. These samples show time to failure
+   and allocation attribution through the cutoff.
+
+   The initial operand is consumed synchronously for overlap. One scan-local
+   slot can back either singleton and is cleared after the operand is matched.
+   The fallback binding resolver can use the seed directly or copy it into an
+   owned join. Exact member acquisition and factory-origin replacement still
+   produce their existing alternatives. Container members enter the FIFO through
+   independent acquisitions with owned storage, and recursive scans have their
+   own local slots. No origin storage travels into a write body, graph result or
+   editor cache through this consumer.
+
+   The matched allocation diagnostic reused the checked source and warmed
+   indexes, with a fresh query per completed scan. Each disjoint case scanned
+   48 authored calls with array literals, fallback identifiers, or nested
+   object literals. Two 300-scan samples per host in base/candidate/candidate/base
+   order gave 18,592 → 6,560 bytes and 201 → 154 allocations per scan for the
+   direct return, and 18,216 → 6,184 bytes and 154 → 107 allocations for the
+   fallback. The nested-container case used about 164,072 → 152,040 bytes and
+   1,548 → 1,501 allocations. The short writer and opaque-call control stayed
+   at 4,568 bytes and 30 allocations. Both hosts agreed on query work, opacity,
+   value incompleteness and write outputs in the matched scans. The write
+   control retained opacity and the three disjoint cases completed without it.
+
+   The server component controls returned equal responses aside from timings.
+   Stable own data emitted, while the descriptor replacement, a container
+   passed to a foreign call, and mixed browser and data sources retained their
+   placement diagnostics. The emitted container test passed on both targets,
+   as did graph invalidation and watch tests. Three closure-interference
+   subtests had the same placement failures and diagnostics on both hosts.
+
+   Original package builds used the fixed coordinate-validation service with
+   one CPU, a 1 GiB memory limit and the unchanged 30-second request deadline.
+   In base/candidate order, wall time to exit was 32.17/32.13 s for Theme,
+   31.50/31.49 s for Core and 34.47/34.41 s for Intl. Each run timed out on
+   the client request for `components.ts` (Theme and Intl) or
+   `error-boundary.tsx` (Core). No run emitted a new paired package. These
+   command durations describe censored builds.
+   The base and candidate host SHA-256 values were
+   `93b474031e900a543af61687d2f2d42c782aae704f5425304a2ff6d162790f55` and
+   `768b0d29c11f1f6fe555b9f7bcb971f545e4b990582544b4f240ceaee1971627`.
+   Both used Go 1.27.1, Node 26.11.1, Linux WSL2 on a Ryzen 7 8745HS,
+   and the same frozen SDK, package inputs and native build flags.
+   The candidate overlay contained the production change from `6062cb0c0`
+   on `18fc4a7ab`. The pending accessor edit was outside both overlays.
+
 4. **Reuse stable placement and dependency facts.** Compute definition-local executing
    edges once, solve cycles to convergence and compose formal callback/receiver obligations
    at actual invocations. Retain per-source initializer effects and target-specific package
