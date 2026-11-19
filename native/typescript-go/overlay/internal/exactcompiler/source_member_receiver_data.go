@@ -62,7 +62,7 @@ func (q *sourceValueQuery) memberReceiverPreparationReadMatches(reference *sourc
 		return false
 	}
 	p := q.memberReceiverPreparation
-	return p != nil && p.issuer == q && p.borrower == q.stagedMember && p.reference == reference && reference != nil && read != nil && (p.read == nil || p.read == read) && mode == accessorRead && reference.matches(path, name) && read.operation == reference.operation && read.use == q.reading && maps.Equal(read.scope.creators, q.creators) && p.queryCut == q.relativeInputCut(reference.operation) && memberReceiverCutsCorrespond(p.parent, p.queryCut, p.cut) && p.bindingCall == q.normalBindingCall
+	return p != nil && p.issuer == q && p.borrower == q.stagedMember && p.reference == reference && reference != nil && read != nil && (p.read == nil || p.read == read) && mode == accessorRead && reference.matches(path, name) && read.operation == reference.operation && read.use == q.reading && maps.Equal(read.evaluationScope().creators, q.creators) && p.queryCut == q.relativeInputCut(reference.operation) && memberReceiverCutsCorrespond(p.parent, p.queryCut, p.cut) && p.bindingCall == q.normalBindingCall
 }
 
 // liveStagedMemberReceiverPreparation authenticates the actual original Call
@@ -80,7 +80,7 @@ func (q *sourceValueQuery) liveStagedMemberReceiverPreparation(call *ast.Node) b
 	if b == nil || b.issuer != q || b.owner != q.owner || b.generation != q.owner.generation || b.get != nil || b.read != nil || b.coverage != nil || b.publishing || b.installedMember != nil || b.installedCallSelection != nil || b.receiverDataOwner == nil || b.returnResult == nil || b.publish == nil || b.finish == nil {
 		return false
 	}
-	if !sameOperationRequest(p.parent, b.request) || p.queryCut != q.relativeInputCut(p.reference.operation) || !memberReceiverCutsCorrespond(p.parent, p.queryCut, p.cut) || p.read.operation != p.reference.operation || p.read.use != q.reading || !maps.Equal(p.read.scope.creators, q.creators) || q.reading != p.reference.operation || q.inputs != nil || q.operation != nil || q.returnObservation != nil || q.stagedNativeGet != nil || !q.dependenciesOnly {
+	if !sameOperationRequest(p.parent, b.request) || p.queryCut != q.relativeInputCut(p.reference.operation) || !memberReceiverCutsCorrespond(p.parent, p.queryCut, p.cut) || p.read.operation != p.reference.operation || p.read.use != q.reading || !maps.Equal(p.read.evaluationScope().creators, q.creators) || q.reading != p.reference.operation || q.inputs != nil || q.operation != nil || q.returnObservation != nil || q.stagedNativeGet != nil || !q.dependenciesOnly {
 		return false
 	}
 	if q.owner == nil || q.owner.generation == nil || !q.owner.generation.active || q.executable == nil || q.executable.project == nil || q.executable.project.activeGeneration != q.owner.generation || p.publisher == nil || !p.publisher.live || q.executable.pendingMemberPublishers[q.effectOwner] != p.publisher {

@@ -8,9 +8,18 @@ import "github.com/microsoft/TypeScript/tsc/internal/ast"
 type sourceMemberWriterReadCut struct {
 	operation, use *ast.Node
 	scope          acquiredCallableScope
+	saved          *sourceMemberWriterScopeEntries
 	// afterArguments supplies MAY ordering only for the issuing native array
 	// index Get. Receiver acquisition retains its earlier, original source value.
 	afterArguments *sourceArrayIndexMay
+}
+
+// Sealed entries retain the mappings at the original read. Plain lookup and
+// ordering often use only its source position. Build writable indexes only
+// when a consumer needs the bindings or creator relationships.
+type sourceMemberWriterScopeEntries struct {
+	bindings []sourceDetachedPropertyBinding
+	creators []sourceDetachedPropertyCreator
 }
 
 func (q *sourceValueQuery) memberWriterReadCut(reference *sourceGetReference, bindings sourceValueBindings, result *accessorCandidates, actual ...*sourceGetInputs) *sourceMemberWriterReadCut {
@@ -26,10 +35,30 @@ func (q *sourceValueQuery) memberWriterReadCut(reference *sourceGetReference, bi
 		use = operation
 	}
 	cut := &sourceMemberWriterReadCut{operation: operation, use: use}
-	if len(bindings) != 0 || len(q.creators) != 0 {
+	if len(bindings) == 0 && len(q.creators) == 0 {
+		progressCount(q, tScopeAcquired, 1)
+	} else if q.stagedWriter != nil || q.calleeWriteInventory != nil || q.memberReceiverPreparation != nil {
+		// These registered consumers bind or compare the original source inputs.
 		cut.scope = q.acquireCallableScope(bindings, result)
 	} else {
 		progressCount(q, tScopeAcquired, 1)
+		saved := &sourceMemberWriterScopeEntries{
+			bindings: make([]sourceDetachedPropertyBinding, 0, len(bindings)),
+			creators: make([]sourceDetachedPropertyCreator, 0, len(q.creators)),
+		}
+		for symbol, values := range bindings {
+			if !q.charge(result, nil) {
+				break
+			}
+			saved.bindings = append(saved.bindings, sourceDetachedPropertyBinding{symbol, q.sealInitializerValues(values, result)})
+		}
+		for owner, creator := range q.creators {
+			if !q.charge(result, owner) {
+				break
+			}
+			saved.creators = append(saved.creators, sourceDetachedPropertyCreator{owner, creator})
+		}
+		cut.saved = saved
 	}
 	if len(actual) == 1 && actual[0] != nil && q.arrayIndexMayAtGet(actual[0], actual[0].receiver.node, []string{"*"}, "", accessorAcquire) && operation == actual[0].operation && use == operation {
 		cut.afterArguments = actual[0].arrayIndexMay
@@ -40,7 +69,17 @@ func (q *sourceValueQuery) memberWriterReadCut(reference *sourceGetReference, bi
 // evaluationScope supplies detached writable maps only when the original
 // reader is actually used for branch evaluation or invocation binding.
 func (cut *sourceMemberWriterReadCut) evaluationScope() *acquiredCallableScope {
-	if cut.scope.bindings == nil {
+	if saved := cut.saved; saved != nil {
+		cut.scope.bindings = make(sourceValueBindings, len(saved.bindings))
+		for _, item := range saved.bindings {
+			cut.scope.bindings[item.symbol] = item.values
+		}
+		cut.scope.creators = make(map[*ast.Node]sourceValueCreation, len(saved.creators))
+		for _, item := range saved.creators {
+			cut.scope.creators[item.owner] = item.value
+		}
+		cut.saved = nil
+	} else if cut.scope.bindings == nil {
 		cut.scope.bindings = make(sourceValueBindings)
 		cut.scope.creators = make(map[*ast.Node]sourceValueCreation)
 	}

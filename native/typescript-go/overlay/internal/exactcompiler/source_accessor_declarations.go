@@ -721,7 +721,7 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 				_, selectedKey := accessorReceiver(query.protectedMember)
 				if actualKey == selectedKey && actualKey != "" {
 					selectedGet.operation, selectedGet.propertyKey = query.protectedMember, actualKey
-					readCut = &sourceMemberWriterReadCut{operation: selectedGet.operation, use: query.reading, scope: readCut.scope}
+					readCut = &sourceMemberWriterReadCut{operation: selectedGet.operation, use: query.reading, scope: readCut.scope, saved: readCut.saved}
 				}
 			}
 			var argumentLookup *sourceStagedFieldArgumentLookup

@@ -155,6 +155,7 @@ func TestSourceCalleeWriteInventoryScopeLifetime(t *testing.T) {
 		body := enclosingCallableNode(call)
 		bindings := sourceValueBindings{99999: {{node: body}}}
 		q.creators = map[*ast.Node]sourceValueCreation{body: {invocation: call}}
+		prior := q.memberWriterReadCut(nil, bindings, &accessorCandidates{})
 		view := q.receiverWriteCandidates(call, bindings)
 		if len(view.dependencies) == 0 {
 			t.Fatal("missing pending source use")
@@ -167,6 +168,7 @@ func TestSourceCalleeWriteInventoryScopeLifetime(t *testing.T) {
 				t.Fatal("source mapping changed after ambient context mutation")
 			}
 		}
+		check(*prior.evaluationScope())
 		for _, demand := range view.dependencies {
 			if !demand.supported || demand.cut == nil || demand.cut.use != call || demand.member != call.Expression() {
 				t.Fatal("definition-relative cut or member lost")

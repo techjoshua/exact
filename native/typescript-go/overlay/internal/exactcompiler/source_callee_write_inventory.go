@@ -84,14 +84,14 @@ func (query *sourceValueQuery) inventoryMemberWrites(origin *ast.Node, projectio
 	if demand.supported {
 		demand.supported = query.inventorySourceBindings(bindings)
 		if demand.supported && cut != nil {
-			demand.supported = query.inventorySourceBindings(cut.scope.bindings)
+			demand.supported = query.inventorySourceBindings(cut.evaluationScope().bindings)
 		}
 	}
 	if demand.supported {
 		demand.scope = query.acquireCallableScope(bindings, result)
 		if cut != nil {
 			original := *cut
-			original.scope = query.copyCallableScope(cut.scope, result)
+			original.scope = query.copyCallableScope(*original.evaluationScope(), result)
 			demand.cut = &original
 		}
 	} else {
