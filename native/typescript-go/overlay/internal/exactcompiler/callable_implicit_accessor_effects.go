@@ -84,6 +84,11 @@ func visitImplicitAccessorQueries(node *ast.Node, typeChecker *checker.Checker, 
 	if ast.IsCallExpression(node) {
 		call := node.AsCallExpression()
 		expression := unwrapSourceCallableReference(call.Expression)
+		if method := arrayIncludesIndexConversion(call, typeChecker); method != nil {
+			candidates := accessorCandidates{}
+			candidates.retainCallableEffect(node, method)
+			visit(candidates)
+		}
 		if expression != nil && ast.IsPropertyAccessExpression(expression) && call.Arguments != nil {
 			member := expression.AsPropertyAccessExpression()
 			receiver := unwrapSourceCallableReference(member.Expression)
@@ -109,6 +114,34 @@ func visitImplicitAccessorQueries(node *ast.Node, typeChecker *checker.Checker, 
 		candidates := query(receiver, nil, "", accessorEnumerate)
 		visit(candidates)
 	}
+}
+
+// A nonempty dense array converts fromIndex before comparing elements. A
+// fresh ordinary object with an own valueOf method invokes that method first.
+// Unknown conversion alternatives stay with the ordinary call analysis.
+func arrayIncludesIndexConversion(call *ast.CallExpression, c *checker.Checker) *ast.Node {
+	if call.Arguments == nil || len(call.Arguments.Nodes) != 2 {
+		return nil
+	}
+	index := unwrapSourceCallableReference(call.Arguments.Nodes[1])
+	if !ast.IsObjectLiteralExpression(index) || !directDenseArrayIncludes(call.Expression, c, 2) ||
+		len(call.Expression.AsPropertyAccessExpression().Expression.AsArrayLiteralExpression().Elements.Nodes) == 0 {
+		return nil
+	}
+	var method *ast.Node
+	for _, property := range index.AsObjectLiteralExpression().Properties.Nodes {
+		name := property.Name()
+		if name == nil || ast.IsComputedPropertyName(name) || callableNameText(name) == "__proto__" {
+			return nil
+		}
+		if callableNameText(name) == "valueOf" {
+			if !ast.IsMethodDeclaration(property) || property.AsMethodDeclaration().AsteriskToken != nil {
+				return nil
+			}
+			method = property
+		}
+	}
+	return method
 }
 
 // bindPattern owns binding-time reads for formals and local declarations. Identifier

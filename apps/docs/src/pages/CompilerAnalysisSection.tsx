@@ -227,7 +227,12 @@ export const value = readers[0]!();`}
 				standard libraries. The compiler trusts those contracts without inspecting each polyfill
 				implementation. Published libraries keep the same contract when their consumers select a
 				different implementation. A shadow constructor with the same name keeps its authored
-				behavior. Browser globals such as <code>document</code> still require a browser.
+				behavior. Browser globals such as <code>document</code> still require a browser. For
+				example,
+				<code>[3, 4, 6, 8].includes(value.length)</code> can run on either target when
+				<code>value</code> is a string. Reading <code>document.title.length</code> as its search
+				argument requires the browser. An object supplied as the starting index can also run
+				authored code when JavaScript converts it to a number.
 			</p>
 			<p>
 				When an asynchronous helper stores a standard Promise's resolver for later use, the compiler

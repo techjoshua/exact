@@ -594,6 +594,13 @@ func (query *sourceValueQuery) arrayValues(origin *ast.Node, projection []string
 			}
 		}
 	}
+	// A freshly constructed receiver cannot have its own includes overridden
+	// before this direct lookup. All element and argument effects are independent.
+	if (mode == accessorAcquire && len(projection) == 1 && projection[0] == "includes" && name == "" ||
+		mode == accessorRead && len(projection) == 0 && name == "includes") && directDenseArrayIncludes(origin.Parent, query.owner.checker, 1) {
+		result.values = append(result.values, inherited...)
+		return
+	}
 	if query.memberValuesAtGetWithStandard(origin, projection, name, mode, bindings, result, visitMember, sourceMemberOperationProof{}, indexGet, standard) {
 		return
 	}

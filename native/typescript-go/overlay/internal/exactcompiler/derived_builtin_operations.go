@@ -31,6 +31,30 @@ func standardLibraryCallOwner(call *ast.CallExpression, typeChecker *checker.Che
 	return parent.Name().Text()
 }
 
+// directDenseArrayIncludes identifies the inherited method of an immediately
+// constructed dense array. Its normal operand evaluation remains authored.
+func directDenseArrayIncludes(member *ast.Node, c *checker.Checker, argumentCount int) bool {
+	if member == nil || !ast.IsPropertyAccessExpression(member) || member.Parent == nil || !ast.IsCallExpression(member.Parent) {
+		return false
+	}
+	property := member.AsPropertyAccessExpression()
+	call := member.Parent.AsCallExpression()
+	if call.Expression != member || property.Name().Text() != "includes" || !ast.IsArrayLiteralExpression(property.Expression) || call.Arguments == nil || len(call.Arguments.Nodes) != argumentCount {
+		return false
+	}
+	for _, argument := range call.Arguments.Nodes {
+		if ast.IsSpreadElement(argument) {
+			return false
+		}
+	}
+	for _, element := range property.Expression.AsArrayLiteralExpression().Elements.Nodes {
+		if ast.IsSpreadElement(element) || element.Kind == ast.KindOmittedExpression {
+			return false
+		}
+	}
+	return standardLibraryCallOwner(call, c) == "Array"
+}
+
 // standardLibraryValue excludes imported or local functions that happen to use
 // a built-in name. Placement and reevaluation remain separate decisions.
 func standardLibraryValue(node *ast.Node, typeChecker *checker.Checker) bool {

@@ -1247,6 +1247,14 @@ original-Call contribution below implements one bounded part of that direction; 
 establish full policy implementation or validation. Existing successful output, descriptor
 and completion authority remains with its current owners.
 
+A direct `[3, 4, 6, 8].includes(value.length)` acquires the standard method
+on the immediately constructed dense array. Its elements and search argument
+retain their placement effects. Comparing the search value requires no callback
+or coercion. A second argument supplies an index; a nonempty array converts it
+to an integer, which can invoke an authored `valueOf` method. An empty array
+returns before that conversion. Array aliases and authored replacement methods
+use the ordinary member and call analysis.
+
 For an acquired standard `Object.getOwnPropertyDescriptor`, original source Effects
 retain coercion-hook retrieval separately from calling an acquired hook. The key
 method receives the original key receiver and its captured scope through the existing
