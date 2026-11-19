@@ -5,12 +5,14 @@ import (
 	"strings"
 
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
+	"github.com/microsoft/TypeScript/tsc/internal/checker"
 	"github.com/microsoft/TypeScript/tsc/internal/printer"
 )
 
 type enhancementCallableContextContract struct {
 	effects           EnhancementContextEffects
 	dependencies      []*ast.Node
+	soleHelper        *callableFacts
 	transparentTarget bool
 }
 
@@ -20,11 +22,10 @@ type enhancementCallableContextContract struct {
 func lowerEnhancementContextContracts(
 	sourceFile *ast.SourceFile,
 	factory *printer.NodeFactory,
-	callables callableAnalysis,
+	contracts map[string]enhancementCallableContextContract,
 	target Target,
 	policies policyAnalysis,
 ) *ast.SourceFile {
-	contracts := enhancementCallableContextContracts(sourceFile, callables)
 	if target == TargetClient {
 		// Private context declarations are erased from client artifacts. Context
 		// attachments must describe only capabilities available in this target.
@@ -125,6 +126,9 @@ func enhancementCallableContextContracts(
 			memo,
 			visiting,
 		)
+		if fact.summary.Kind == "component" && contract.soleHelper != nil && len(contract.dependencies) == 1 && enhancementCallableContextEmpty(enhancementCallableContextContract{effects: contract.effects}) && callables.owner != nil {
+			contract = directImportedContextContract(fact.sourceFile, contract, memo[factByID[contract.soleHelper.summary.ID]], callables.owner.checker)
+		}
 		contract.transparentTarget = transparentSuppliedTargetOutput(fact.node, fact.sourceFile, callables)
 		// Optional lookup uses its authored token when invoked. It has no peer-order
 		// prerequisite and does not require attaching metadata to an ordinary helper.
@@ -137,6 +141,79 @@ func enhancementCallableContextContracts(
 		result[fact.summary.Name] = contract
 	}
 	return result
+}
+
+// Substitute a sole leaf-helper obligation only when its module binding and a
+// component value import resolve to the same shared context constant.
+func directImportedContextContract(source *ast.SourceFile, fallback, contract enhancementCallableContextContract, c *checker.Checker) enhancementCallableContextContract {
+	helper := fallback.soleHelper
+	if c == nil {
+		return fallback
+	}
+	if helper.summary.Kind == "component" || len(helper.directContext) != 1 || len(contract.dependencies) != 0 || len(contract.effects.Provides)+len(contract.effects.Requires) != 1 || len(contract.effects.OptionallyConsumes) != 0 {
+		return fallback
+	}
+	effect := helper.directContext[0]
+	symbol := helper.sourceFile.AsNode().Locals()[effect.Token]
+	if symbol == nil || len(symbol.Declarations) != 1 || ast.GetNodeId(symbol.Declarations[0]) != effect.rootDeclaration {
+		return fallback
+	}
+	symbol = c.SkipAlias(symbol)
+	if symbol == nil || len(symbol.Declarations) != 1 {
+		return fallback
+	}
+	token := symbol.Declarations[0]
+	if !ast.IsVariableDeclaration(token) || token.Parent.Flags&ast.NodeFlagsConst == 0 || token.Initializer() == nil || !ast.IsCallExpression(token.Initializer()) {
+		return fallback
+	}
+	call := token.Initializer().AsCallExpression()
+	ref, ok := resolvedCoreImportReference(call.Expression, ast.GetSourceFileOfNode(token), c)
+	if !ok || ref.moduleSpecifier != "@exactjs/core" || ref.exportName != "createContext" || call.Arguments == nil || len(call.Arguments.Nodes) > 1 {
+		return fallback
+	}
+	name := importedContextName(source, c, token)
+	if name == "" {
+		return fallback
+	}
+	if effect.Kind == "write" && len(contract.effects.Provides) == 1 && contract.effects.Provides[0] == effect.Token {
+		return enhancementCallableContextContract{effects: EnhancementContextEffects{Provides: []string{name}}}
+	}
+	if effect.Kind == "read" && len(contract.effects.Requires) == 1 && contract.effects.Requires[0] == effect.Token {
+		return enhancementCallableContextContract{effects: EnhancementContextEffects{Requires: []string{name}}}
+	}
+	return fallback
+}
+
+// Named value imports include renamed and re-exported tokens. Type-only
+// exports and target-qualified imports cannot supply this shared expression.
+func importedContextName(source *ast.SourceFile, c *checker.Checker, token *ast.Node) string {
+	for _, stmt := range source.Statements.Nodes {
+		if !ast.IsImportDeclaration(stmt) {
+			continue
+		}
+		imp := stmt.AsImportDeclaration()
+		if imp.Attributes != nil || imp.ImportClause == nil || imp.ImportClause.AsImportClause().IsTypeOnly() {
+			continue
+		}
+		bindings := imp.ImportClause.AsImportClause().NamedBindings
+		if bindings == nil || !ast.IsNamedImports(bindings) {
+			continue
+		}
+		for _, spec := range bindings.AsNamedImports().Elements.Nodes {
+			if spec.AsImportSpecifier().IsTypeOnly {
+				continue
+			}
+			symbol := c.GetSymbolAtLocation(spec.Name())
+			if symbol == nil || symbol.Flags&ast.SymbolFlagsAlias == 0 || c.GetTypeOnlyAliasDeclaration(symbol) != nil {
+				continue
+			}
+			resolved := c.GetAliasedSymbol(symbol)
+			if resolved != nil && len(resolved.Declarations) == 1 && resolved.Declarations[0] == token {
+				return spec.Name().Text()
+			}
+		}
+	}
+	return ""
 }
 
 func enhancementCallableContextForFact(
@@ -155,6 +232,7 @@ func enhancementCallableContextForFact(
 	visiting[index] = true
 	owner := facts[index].sourceFile
 	effects := []ContextEffect{}
+	var soleHelper *callableFacts
 	dependencies := []*ast.Node{}
 	dependencyKeys := make(map[string]struct{})
 	localVisited := make(map[int]bool)
@@ -194,6 +272,11 @@ func enhancementCallableContextForFact(
 			if reference == nil {
 				continue
 			}
+			if len(dependencies) == 0 {
+				soleHelper = &facts[targetIndex]
+			} else if soleHelper != &facts[targetIndex] {
+				soleHelper = nil
+			}
 			key := strings.TrimSpace(sourceText(fact.sourceFile, reference))
 			if _, exists := dependencyKeys[key]; exists {
 				continue
@@ -206,6 +289,7 @@ func enhancementCallableContextForFact(
 	contract := enhancementCallableContextContract{
 		effects:      enhancementContextEffects(effects, moduleContextTokenRoots(owner)),
 		dependencies: dependencies,
+		soleHelper:   soleHelper,
 	}
 	delete(visiting, index)
 	memo[index] = contract

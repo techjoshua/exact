@@ -791,6 +791,8 @@ func (s *Session) executeProjection(request Request, authored *authoredCheckProg
 	if request.Target == TargetClient {
 		importedPolicy = planImportedHelperPolicy(sourceFile, generation.checker, callables.owner, components, callables.byNode)
 	}
+	// Resolve context imports while the checker still owns the original source parents.
+	enhancementContracts := enhancementCallableContextContracts(sourceFile, callables)
 	directRoots := make(map[string]struct{})
 	transformed, componentUpdates, componentInputUpdates, componentInputTaskIDs, componentRangeOutputs, artifactStructure, componentListOwners := lowerExactJSX(
 		sourceFile,
@@ -863,7 +865,7 @@ func (s *Session) executeProjection(request Request, authored *authoredCheckProg
 	transformed = lowerEnhancementContextContracts(
 		transformed,
 		emitContext.Factory,
-		callables,
+		enhancementContracts,
 		request.Target,
 		policy,
 	)

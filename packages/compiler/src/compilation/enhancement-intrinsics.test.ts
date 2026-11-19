@@ -201,3 +201,71 @@ export function Page(this:Component<{}>){const present=read(this);return()=> <ou
 	);
 	expect(readExactEnhancementContexts(explicit)?.optionallyConsumes).toEqual([explicitToken.id]);
 });
+
+it('delivers provider and consumer contracts through an imported public token alias', async () => {
+	const parent = path.resolve('.tmp/task-private-routing');
+	await mkdir(parent, { recursive: true });
+	const directory = await mkdtemp(path.join(parent, 'public-context-'));
+	onTestFinished(() => rm(directory, { recursive: true, force: true }));
+	const configFile = path.join(directory, 'tsconfig.json');
+	await writeFile(
+		configFile,
+		JSON.stringify({
+			compilerOptions: {
+				module: 'ESNext',
+				moduleResolution: 'Bundler',
+				target: 'ES2022',
+				jsx: 'preserve',
+				jsxImportSource: '@exactjs/jsx',
+				skipLibCheck: true
+			}
+		})
+	);
+	const helper = `import {createContext,type Component} from '@exactjs/core';
+export const Token=createContext<string>('public');
+export function provide(owner:Component<{}>){owner.setContext(Token,'ready');return 'ready'}
+export function read(owner:Component<{}>){return owner.getContext(Token)}`;
+	await writeFile(path.join(directory, 'helper.ts'), helper);
+	await writeFile(
+		path.join(directory, 'public.ts'),
+		"export {Token as published} from './helper.js';"
+	);
+	const compiler = new NativeCompilerProcess({ executable: resolveNativeCompilerExecutable() });
+	onTestFinished(() => compiler.dispose());
+	for (const [name, target, body] of [
+		['Provider', 'client', 'const label=provide(this);return()=> <_target title={label}/>'],
+		['Consumer', 'server', 'const label=read(this);return()=> <_target title={label}/>']
+	] as const) {
+		const id = path.join(directory, name + '.tsx');
+		const source = `import {createContext,type Component} from '@exactjs/core';
+import {published as actual} from './public.js';
+import {provide,read} from './helper.js';
+export {published as expected} from './public.js';
+export const Token=createContext<string>('collision');
+export function ${name}(this:Component<{}>){${body}}`;
+		await writeFile(id, source);
+		const result = compiler.request({
+			kind: 'compile',
+			target,
+			root: directory,
+			configFile,
+			id,
+			source,
+			diagnostics: 'semantic',
+			preserveOrdinaryModules: true
+		});
+		expect(result.error).toBeUndefined();
+		expect(result.diagnostics).toEqual([]);
+		expect(result.code).toContain('actual.id');
+		expect(result.code).not.toContain('readCompiledEnhancementContextDependency');
+		const delivered = path.join(directory, name + '.artifact');
+		await writeFile(delivered, result.code!);
+		const module = await importArtifact(delivered, path.join(directory, name + '.mjs'));
+		const contract = readExactEnhancementContexts(module[name] as AnyComponentFunction);
+		const expected = (module.expected as ContextToken<string>).id;
+		expect(expected).not.toBe((module.Token as ContextToken<string>).id);
+		expect(contract?.provides).toEqual(name === 'Provider' ? [expected] : []);
+		expect(contract?.requires).toEqual(name === 'Consumer' ? [expected] : []);
+	}
+	expect(await readFile(path.join(directory, 'helper.ts'), 'utf8')).toBe(helper);
+});

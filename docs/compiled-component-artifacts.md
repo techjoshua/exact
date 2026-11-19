@@ -420,6 +420,11 @@ An ordinary imported helper's probe does not need a pre-activation metadata atta
 component-owned token identities and explicit `markExactEnhancementContexts()` optional metadata
 remain intact. Enhancement peer ordering uses `provides` and `requires` before setup; optional
 probe metadata does not impose an ordering dependency.
+For a component whose sole ordering dependency is an ordinary helper's single read or write,
+the attachment can use a named value import of the same shared context constant. The compiler
+checks the declaration behind import aliases and re-exports. This direct path covers constants
+initialized with the public `createContext` default policy. Other dependency compositions keep
+their existing order and metadata source.
 Both ordinary and wide update programs resolve that owner through the same rule. A child receipt
 can supply its owner directly, without a render-program wrapper. Programs with more than 64
 operations preserve the same ownership and cleanup behavior as smaller programs.
