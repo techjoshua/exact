@@ -37,8 +37,9 @@ func (q *sourceValueQuery) bindStagedWriterMethodInputs(alternative sourceStaged
 	if !found {
 		return nil, false
 	}
+	reader := borrow.read.evaluationScope()
 	previousCreators := q.creators
-	q.creators = borrow.read.scope.creators
+	q.creators = reader.creators
 	defer func() { q.creators = previousCreators }()
 	receiver, _ := accessorReceiver(call.Expression())
 	method := &sourceStagedWriterMethodReceiver{issuer: q, call: call, declaration: body, expression: receiver, receiver: borrow.get.receiver}
@@ -72,7 +73,7 @@ func (q *sourceValueQuery) bindStagedWriterMethodInputs(alternative sourceStaged
 	defer revoke()
 	part := accessorCandidates{}
 	q.withActiveInvocation(call, func() {
-		q.bindInvocationInputsFromObservation(body, call, borrow.read.scope.bindings, &scope, nil, &part, true)
+		q.bindInvocationInputsFromObservation(body, call, reader.bindings, &scope, nil, &part, true)
 	})
 	if !edge.delivered || !sameSourceRelativeInputEnvelope(edge.request, edge.bound) {
 		return nil, false

@@ -25,11 +25,26 @@ func (q *sourceValueQuery) memberWriterReadCut(reference *sourceGetReference, bi
 	if use == nil {
 		use = operation
 	}
-	cut := &sourceMemberWriterReadCut{operation: operation, use: use, scope: q.acquireCallableScope(bindings, result)}
+	cut := &sourceMemberWriterReadCut{operation: operation, use: use}
+	if len(bindings) != 0 || len(q.creators) != 0 {
+		cut.scope = q.acquireCallableScope(bindings, result)
+	} else {
+		progressCount(q, tScopeAcquired, 1)
+	}
 	if len(actual) == 1 && actual[0] != nil && q.arrayIndexMayAtGet(actual[0], actual[0].receiver.node, []string{"*"}, "", accessorAcquire) && operation == actual[0].operation && use == operation {
 		cut.afterArguments = actual[0].arrayIndexMay
 	}
 	return cut
+}
+
+// evaluationScope supplies detached writable maps only when the original
+// reader is actually used for branch evaluation or invocation binding.
+func (cut *sourceMemberWriterReadCut) evaluationScope() *acquiredCallableScope {
+	if cut.scope.bindings == nil {
+		cut.scope.bindings = make(sourceValueBindings)
+		cut.scope.creators = make(map[*ast.Node]sourceValueCreation)
+	}
+	return &cut.scope
 }
 
 // argumentMayPrecede admits only eager source Calls inside this original Call's
@@ -262,7 +277,7 @@ func (q *sourceValueQuery) memberWriterInputs(left *ast.Node, bindings sourceVal
 			// End this interval before collect owns argument/body acquisition.
 			possible := false
 			q.withActiveInvocation(call, func() {
-				if cut != nil && cut.use != nil && q.precedes(cut.use, call, cut.scope.bindings) {
+				if cut != nil && cut.use != nil && q.precedes(cut.use, call, cut.evaluationScope().bindings) {
 					return
 				}
 				seen[call] = true

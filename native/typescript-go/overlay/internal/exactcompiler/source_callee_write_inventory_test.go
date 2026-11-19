@@ -217,6 +217,37 @@ func TestSourceCalleeWriteInventoryDemandDomain(t *testing.T) {
 	})
 }
 
+// The original member Get supplies the receiver, while the later Call supplies
+// the argument. Acquiring the writer's saved scope must preserve both.
+func TestMemberWriterReadCutMethodInputs(t *testing.T) {
+	const source = `function put(box:{run:(key:string)=>string}){box.run=function(key:string){return key}}
+const box={run:(key:string)=>key};put(box);export function invoke(){return box.run('actual')}`
+	withSourceCalleeWriteQuery(t, source, func(q *sourceValueQuery, call *ast.Node) {
+		revoke, ok := q.beginStagedWriterSource(func(sourceStagedWriterRead) bool { return false })
+		if !ok {
+			t.Fatal("original writer source unavailable")
+		}
+		defer revoke()
+		delivered := false
+		q.stagedWriter.consumeProjection = func(projected sourceStagedWriterProjection) bool {
+			for _, alternative := range projected.delta.exposures {
+				edge, ok := q.bindStagedWriterMethodInputs(alternative, call)
+				if !ok || edge.bound.operation != call || edge.bound.declaration != alternative.endpoint.expression ||
+					edge.request.receiver.expression != call.Expression().Expression() ||
+					len(edge.request.actuals) != 1 || edge.request.actuals[0].expression != call.AsCallExpression().Arguments.Nodes[0] {
+					t.Fatal("original receiver or argument lost at method input delivery")
+				}
+				delivered = true
+			}
+			return false
+		}
+		q.receiverCandidates(call, nil)
+		if !delivered {
+			t.Fatal("stored method never reached the original invocation binder")
+		}
+	})
+}
+
 func TestSourceCalleeWriteInventoryReaderCarrierRefusal(t *testing.T) {
 	withSourceCalleeWriteQuery(t, `const box={run(){}};export function invoke(){box.run()}`, func(q *sourceValueQuery, call *ast.Node) {
 		for _, term := range []sourceValue{
@@ -224,7 +255,7 @@ func TestSourceCalleeWriteInventoryReaderCarrierRefusal(t *testing.T) {
 			{node: call, normal: &sourceNormalValue{}},
 		} {
 			cut := q.memberWriterReadCut(nil, nil, &accessorCandidates{})
-			cut.scope.bindings[1] = []sourceValue{term}
+			cut.evaluationScope().bindings[1] = []sourceValue{term}
 			view, result := sourceCalleeWriteView{}, accessorCandidates{}
 			q.calleeWriteInventory = &view
 			q.inventoryMemberWrites(call.Expression(), []string{"run"}, "", accessorAcquire, nil, &result, nil, cut)
