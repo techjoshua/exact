@@ -2,6 +2,8 @@
 
 Status: execution authorized by the user on 2026-11-01 after the adversarial plan audit. The objective is to fully implement this plan. Work proceeds through local commits and isolated worktrees, with the coordinator integrating on the current branch. Push and publication are not authorized.
 
+For the remaining implementation, apply the [component-consumer completion criteria](#component-consumer-completion-criteria) to the historical operation-family milestones and acceptance tests.
+
 Prepared 2026-11-01 against the inspected working tree. The preserved pre-migration compositional-analysis checkpoint is v30. This is an internal cache revision, not a compiler release, a count of attempts at one problem, or a whole-language completion claim. The previously uncommitted framework work was preserved in local checkpoint `b30c50e45` before worker branches were created. That commit establishes reproducible source, not a validated release baseline. Subsequent implementation and acceptance changes use local commits and isolated worktrees.
 
 The integrated source at `24a616c5b` includes additive renderCapability facts, while runtime
@@ -61,6 +63,81 @@ It does not select a new runtime architecture, a second store or interpreter, a 
 Arbitrary nesting means that the surrounding syntactic destination does not independently determine whether an operation can be represented. It does not mean every operation is pure, every callee is statically known, all programs are portable, or every dynamic program can be analyzed exactly.
 
 Unknown operations must remain representable and conservatively analyzed. A genuine unresolved placement, policy or serialization requirement can still make a requested artifact invalid. The compiler must identify that requirement rather than misreport it as missing syntax support.
+
+### Component-consumer completion criteria
+
+Use the following scope for the remaining implementation and for interpreting the operation-family
+inventory below. An operation-family entry identifies syntax that a component can contain. It
+creates an implementation requirement only when an observable component behavior depends on it.
+An ordinary helper keeps its JavaScript behavior, including object identity, cache hits, exceptions
+and evaluation order. The host may erase types and transform supported JSX. A helper export,
+a JSDoc annotation or an adapter include rule alone gives the compiler no reason to rewrite a body.
+
+#### Work by observable boundary
+
+| Boundary | Required work and owning code | Evidence for closure |
+| --- | --- | --- |
+| Source and module identity | Keep host-selected executable JS distinct from the declarations used for typing. Account for module initialization and reexports separately from invoking a function. Select the actual package export for the target. Honor checked declarations, placement and secret annotations. | A package with client/server variants selects each implementation correctly. Runtime JS and TS declarations may have different bodies. Type-only imports impose no execution requirement. An edit, reexport or loader change invalidates the affected result. |
+| Placement graph | Use the existing callable graph, recursive groups and retained effect sources. Compute eligible targets from local platform uses and executable edges. Treat known Node modules and published placement contracts as leaves. Establish the recognized Bun runtime modules or capabilities against the supported host resolver. Keep restrictions from known descendants when some edges are unknown. Separate task scheduling defaults from eligibility in `tasks.go`; a predicted state write currently influences the default. | An either-side helper can be called from both targets. Explicit incompatible and indivisible mixed work produce an authored diagnostic. Alternative client/server exports remain usable on their respective targets. Explicit server dispatch preserves a client caller. The same component compiled in an application and a library has the same eligible targets. |
+| Callback and implicit execution | Distinguish passing, storing and invoking a callback. Preserve eager argument evaluation, including getters. Include callbacks, accessors, coercions, iteration and thenables that a supported operation actually invokes. Use checked primitive types and established platform contracts. Demand a returned value’s origin only when later component work depends on it. | A dormant callback introduces no execution restriction. An invoked browser callback in a server task retains the conflict. Storing a callback and invoking it later uses the later execution boundary. A getter with an observable effect still executes in the original order. |
+| State and reactive reads | Have component lowering pass the owned state view or the component-authored setter. The transaction observes performed writes. For a subsequent read, maintain invocation-time visibility across a helper carrying that state. Separate runtime-tracked reads from facts needed to construct a render dependency, hydrate state, or send activation inputs before execution. | Direct and nested calls through an unchanged imported helper preserve identity and return value. The following read sees the pending write. A skipped write emits no patch. A render consuming the changed field updates, and unrelated rendered work stays untouched. Test direct scalar, setter and alias cases separately from arrays, Maps and Sets. |
+| Continuations, transport and security | Separate allowed input/output paths, runtime evidence of a performed change, and the value returned by the operation. `createExactContinuationHandler` currently consults static writes to enable capture, prepare containers and project outputs. Policy propagation also uses path overlap. Replace these dependencies only with equivalent component-owned authority. Keep checked transport, secret and residency constraints. | Direct and batch HTTP both deliver the correct result and authorized state. An untouched or secret sibling stays out of the reply. Conditional set/delete, cancellation, stale generations and collection updates preserve their existing contracts. A new broad state or transport grant requires design agreement. |
+| Task, context and lifecycle ownership | Keep explicit task placement, resources, optimistic work, cancellation, disposal, context lookup and enhancement setup order tied to the component instance. Separate optional lookup from mandatory pre-setup ordering. Resolve the private-token case for an imported ordinary provider/consumer without attaching compiler metadata to that helper. | Client and SSR reject contradictory required order before setup and accept correct order with exact disposal. Optional lookup observes absence/presence with the original helper identity. Component-passed setters remain usable. Decide support or a specific limitation for the unresolved fresh accessor envelope and escaping callbacks. |
+| Component and ordinary JSX | Use selected component identity for state-machine lowering. Keep public API calls, ordinary exports, module initialization and helper function identity intact in mixed files. Confine placement-driven partitioning and runtime attachments to real owners. Audit nested functions, arrows, type-only casts and ordinary callable exports separately. | Preserve helper value, identity, name, arity, throw/default/receiver behavior and package public imports. Cover supported ordinary TSX construction of compiled components, keys, children, target and rejected inputs. Current Webpack TSX evidence excludes legacy JSX and nested ordinary callables inside selected components; settle their support and Bun/Vite JSX host behavior explicitly. |
+| Analysis and reuse | At each entry into invocation, Get, prior-write, return, constructor or descriptor reconstruction, identify the output consumer. Keep a shared graph edge or an unknown fact when it suffices. Remove work used only by retired private execution/migration assertions. Reuse stable facts across callers with source, selected dependency, checker and configuration validity. Keep execution-local state out of shared caches. | First migrate the ordinary effects fallback in `appendArgumentAccessorEffectsObserved` on a real component. Cross-check implicit accessor, module-initializer, framework protocol and staged callers before deleting shared machinery. Verify a reused summary after edits and reset, recursive calls, a known platform dependency plus an unknown alternative, and a real component whose output needs greater precision. |
+| Performance and distribution | Qualify the original Theme and Core package compiles on both targets under their existing deadlines. The Theme profile identifies property-read scope copying, value-origin recovery and call preparation; these are cost candidates, not proofs of redundant work. Build fresh affected providers and the SDK, and exercise installed outputs. | Produce usable paired artifacts for the real components, then exercise public rendering or invocation. Compare CPU and allocations for matched completed work where possible. Preserve diagnostics and maps, ABI and process compatibility, and validate affected Webpack, Bun and Vite routes. A timeout, a passing microtest or a retained-provider run cannot close a fresh package-build requirement. |
+
+#### Source boundaries for removing the fallback
+
+Start at the public entry points. The ordinary call collector in
+[`callable_argument_accessors.go`](../native/typescript-go/overlay/internal/exactcompiler/callable_argument_accessors.go)
+already has a registered graph-edge route. Migrate the invocation fallback separately from
+explicit and implicit member reads in `callable_accessor_effects.go` and
+`callable_implicit_accessor_effects.go`. Keep module initialization in
+`module_value_definitions.go` distinct from function invocation. In
+[`source_value_dependencies.go`](../native/typescript-go/overlay/internal/exactcompiler/source_value_dependencies.go),
+both a fresh dependency query and the fallback from an incomplete precise result can do work.
+Removing only the first route leaves the second reachable.
+
+Follow those callers into property interference, function return projection, constructor and
+prototype lookup, descriptor and getter resolution, and scope capture. The staged assignment,
+Get, native operation and framework protocol entry points also construct dependency queries.
+Public reachability and an actual component consumer determine each disposition. A filename
+containing “staged” establishes neither private-only use nor a reason to retain a path.
+Validate the retained source and cache behavior after removing the last consumer. For a
+bounded reproduction of expensive work, require the production component or package compile
+as the final check; faster completion of a helper-only fixture cannot substitute.
+
+#### Decisions and order of implementation
+
+1. Establish the placement result and its reason independently of state writes. Keep the current
+   task scheduling default observable while separating it from eligibility. Compare current
+   unresolved-placement refusers with the proposed conflict-only rule. Where an either-side
+   implementation can safely run, leave irrelevant uncertainty silent. Use a scoped advisory only
+   for a concrete consequence. Document the decision for an unresolved call with no usable target.
+2. Separate the three consumers of helper state facts in the scalar server path: live reads,
+   transport authorization and secret policy. Withhold the stronger helper fact from **one consumer
+   at a time** on the same real component. Check returned value, actual state delivery and a protected
+   sibling independently. Once a replacement passes, remove the old dependency in that consumer.
+   Repeat for supported aliases and collections. Keep genuinely different unsupported cases explicit.
+3. Narrow helper analysis from each component entry point. Retain a stronger query only with a
+   case where weakening it changes supported emitted behavior, authorized transport or a required
+   diagnostic. Record the smallest fact that fixes that case. A purely internal closure assertion
+   or a helper cache test can protect an implementation while it exists; neither obliges the project
+   to keep that implementation. Remove orphaned production paths, flags and implementation-only tests
+   together. Preserve useful ordinary JavaScript and public component behavior tests.
+4. Close host, package and lifecycle gaps alongside the consumers they affect. Finish with the
+   original Core and Theme terminals, fresh distribution and affected environment matrix. Reconcile
+   the later implementation steps and remaining-work inventory against these behavior-based exits
+   before awarding completion. Preserve historical failures as evidence without carrying forward
+   superseded private mechanics as product requirements.
+
+For review, each surviving expensive analysis needs a component entry point, the decision changed
+by its output, the observable consequence of using a weaker fact, and an owner for invalidation
+or runtime observation. Once all consumers are accounted for, either remove an unused path or
+document the specific behavior that still uses it. Changes to security authority, published ABI,
+supported host behavior or diagnostic policy require an explicit contract decision. This inventory
+describes remaining work; passing evidence for one row does not close unrelated rows.
 
 ## 3. The actual current pipeline
 
