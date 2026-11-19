@@ -36,6 +36,38 @@ import { createExactCompiledDynamicBoundaryArtifact } from '../testing/runtime-a
 import { createFrameworkComponentDomain, withComponentDomain } from '../component/domain.js';
 const serverProvider = { version: 6, target: 'server' } as const;
 describe('opaque target operations', () => {
+	it('evaluates authored metadata at construction and defers key and execution callbacks', () => {
+		const readKey = vi.fn(() => 'current');
+		const symbolRead = vi.fn(() => 'snapshot');
+		const ownKeys = vi.fn(Reflect.ownKeys);
+		const metadata = new Proxy(
+			{
+				key: 'initial',
+				readKey,
+				get [Symbol('metadata')]() {
+					return symbolRead();
+				}
+			},
+			{ ownKeys }
+		);
+		const execute = vi.fn(function (this: object, target: object) {
+			return { operation: this, target };
+		});
+		const operation = createOpaqueOperation(execute, metadata);
+		expect(ownKeys).toHaveBeenCalledOnce();
+		expect(symbolRead).toHaveBeenCalledOnce();
+		expect(readKey).not.toHaveBeenCalled();
+		expect(execute).not.toHaveBeenCalled();
+
+		expect(opaqueOperationKey(operation)).toBe('current');
+		expect(readKey).toHaveBeenCalledOnce();
+		expect(execute).not.toHaveBeenCalled();
+		const target = {};
+		const result = executeOpaqueOperation<{ operation: object; target: object }>(operation, target);
+		expect(result?.value.operation).toBe(operation);
+		expect(result?.value.target).toBe(target);
+		expect(execute).toHaveBeenCalledExactlyOnceWith(target);
+	});
 	it('retains independent domains and snapshots authored keys without sharing mutable metadata', () => {
 		const firstDomain = createFrameworkComponentDomain({ target: 'server', executionRoot: 'page' });
 		const secondDomain = createFrameworkComponentDomain({
