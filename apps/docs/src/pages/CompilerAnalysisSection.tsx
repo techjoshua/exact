@@ -63,7 +63,9 @@ export function CompilerAnalysisSection(this: Component<{}>) {
 				<code>typeof window</code> check followed by an early return preserves that fallback.
 				Creating an object with a getter or setter keeps its body deferred. Placement follows the
 				reads and writes that invoke it, while computed property names execute during object
-				creation. Reading a property on the object returned by <code>Object.defineProperty</code>
+				creation. With <code>Object.create(null, {'{ score: { get value() { return document.title } } }'})</code>,
+				the call reads the descriptor’s <code>value</code> immediately, so the creating task needs
+				the browser even if it never reads <code>score</code>. Reading a property on the object returned by <code>Object.defineProperty</code>
 				also invokes its installed getter. If that getter reads <code>document</code>, the task
 				that reads the property needs the browser. When an assignment invokes an authored setter, its parameter carries the assigned
 				value's environment requirements into the setter's use of that value. If a getter returns a

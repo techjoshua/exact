@@ -1467,6 +1467,7 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 				mergeAccessorCandidates(&result, part)
 				if query.dependenciesOnly && len(result.values) == start && (len(projection) > 0 || name != "") && (result.opaque || result.receiverIncomplete) {
 					progressMemberRecovery(query, traceCurrentProjection)
+					query.retainCreatedGetter(value, projection, name, mode, arguments, &result)
 					// An unavailable output still has its original binding origin.
 					// Retain indexed MAY writes through that origin without inventing
 					// an object, a fresh allocation or a completed Call result.

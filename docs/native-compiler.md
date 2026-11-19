@@ -1291,6 +1291,10 @@ alternative retains the effects of descriptor accessors in direct literal map en
 with literal descriptor inputs. It shares the source-only ordered `Has`/`Get` owner:
 a possible descriptor `value` getter retains its descriptor receiver, while a function
 stored in a data `value`, `get` or `set` field is not invoked by installation.
+A direct two-argument standard `Object.create` with a literal descriptor map shares this
+conversion. A named getter on the map runs when the call obtains the descriptor.
+A named getter installed by a literal descriptor contributes its body to a later
+read of that property on the returned object.
 A sole computed entry with a checked string, number or symbol key shares this
 Effects-only path when its descriptor is a literal. The original eager expression
 owns key evaluation and coercion; this contribution neither reevaluates the key

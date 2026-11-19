@@ -6,7 +6,7 @@ import (
 )
 
 // definePropertiesCallEffects retains ToPropertyDescriptor getter dependencies
-// for acquired standard Object.defineProperty/defineProperties alternatives. It publishes no installed
+// for standard property definition and creation calls. It publishes no installed
 // field, returned value, completion, callee coverage or descriptor conversion.
 // The original invocation retains all of its uncertainty and authored siblings.
 func (query *sourceValueQuery) definePropertiesCallEffects(node *ast.Node, prepared sourcePreparedInvocation, bindings sourceValueBindings, result *accessorCandidates) {
@@ -20,7 +20,7 @@ func (query *sourceValueQuery) definePropertiesCallEffects(node *ast.Node, prepa
 		selected = selected || value.native != nil && value.native.kind == sourceNativeObjectDefineProperties
 		single = single || value.native != nil && value.native.kind == sourceNativeObjectDefineProperty
 	}
-	if !selected && !single || !ast.IsCallExpression(node) {
+	if !ast.IsCallExpression(node) {
 		return
 	}
 	call := node.AsCallExpression()
@@ -56,9 +56,7 @@ func (query *sourceValueQuery) definePropertiesCallEffects(node *ast.Node, prepa
 			}
 		}
 	}
-	if !selected {
-		return
-	}
+
 	// Adapted and spread vectors retain their existing owner. This finite
 	// direct-Call contribution must not reinterpret an adapter's raw arguments.
 	if call.QuestionDotToken != nil || len(actuals) != 2 || ast.IsSpreadElement(actuals[0]) || ast.IsSpreadElement(actuals[1]) {
@@ -69,7 +67,8 @@ func (query *sourceValueQuery) definePropertiesCallEffects(node *ast.Node, prepa
 		return
 	}
 	_, method := accessorReceiver(callee)
-	if method != "defineProperties" {
+	create := query.standardCreateDescriptorMap(call) != nil
+	if !create && !(selected && method == "defineProperties") {
 		return // call/apply adapters must use their own supplied-vector owner.
 	}
 	argument := unwrapSourceCallableReference(actuals[1])
@@ -90,11 +89,11 @@ func (query *sourceValueQuery) definePropertiesCallEffects(node *ast.Node, prepa
 			if !query.charge(result, member) {
 				return
 			}
-			if !ast.IsPropertyAssignment(member) || member.Name() == nil || !ast.IsObjectLiteralExpression(unwrapSourceCallableReference(member.AsPropertyAssignment().Initializer)) {
+			if member.Name() == nil || !(ast.IsPropertyAssignment(member) && ast.IsObjectLiteralExpression(unwrapSourceCallableReference(member.Initializer())) || create && ast.IsGetAccessorDeclaration(member)) {
 				continue
 			}
 			if ast.IsComputedPropertyName(member.Name()) {
-				if len(value.node.AsObjectLiteralExpression().Properties.Nodes) != 1 {
+				if !ast.IsPropertyAssignment(member) || len(value.node.AsObjectLiteralExpression().Properties.Nodes) != 1 {
 					continue // Multiple-entry identity/collisions retain the old path.
 				}
 				key := member.Name().AsComputedPropertyName().Expression
@@ -128,6 +127,74 @@ func (query *sourceValueQuery) definePropertiesCallEffects(node *ast.Node, prepa
 					query.normalizeDescriptorSourceFields(node, descriptor, bindings, result)
 				}
 			}
+		}
+	}
+}
+
+// standardCreateDescriptorMap selects the literal map shared by the creation
+// effects and a later named read of the created object.
+func (query *sourceValueQuery) standardCreateDescriptorMap(call *ast.CallExpression) *ast.Node {
+	if call.QuestionDotToken != nil || call.Arguments == nil || len(call.Arguments.Nodes) != 2 || ast.IsSpreadElement(call.Arguments.Nodes[0]) {
+		return nil
+	}
+	mapping := unwrapSourceCallableReference(call.Arguments.Nodes[1])
+	if !ast.IsObjectLiteralExpression(mapping) {
+		return nil
+	}
+	receiver, method := sourceLiteralMemberReference(call.Expression)
+	if method != "create" || !ast.IsIdentifier(receiver) || receiver.Text() != "Object" || !standardLibraryCallRoot(call.Expression, query.owner.checker) {
+		return nil
+	}
+	return mapping
+}
+
+// retainCreatedGetter associates a named read with an installed literal getter.
+// Descriptor conversion has already run at the creating call.
+func (query *sourceValueQuery) retainCreatedGetter(call *ast.Node, projection []string, name string, mode accessorTraversal, bindings sourceValueBindings, result *accessorCandidates) {
+	if !query.dependenciesOnly || mode&accessorNoGet != 0 {
+		return
+	}
+	if len(projection) == 1 && name == "" {
+		name = projection[0]
+	} else if len(projection) != 0 {
+		return
+	}
+	if name == "" || name == "__proto__" {
+		return
+	}
+	mapping := query.standardCreateDescriptorMap(call.AsCallExpression())
+	if mapping == nil {
+		return
+	}
+	for _, entry := range mapping.AsObjectLiteralExpression().Properties.Nodes {
+		if !query.charge(result, entry) {
+			return
+		}
+		if !ast.IsPropertyAssignment(entry) || ast.IsComputedPropertyName(entry.Name()) || callableNameText(entry.Name()) != name {
+			continue
+		}
+		descriptor := unwrapSourceCallableReference(entry.Initializer())
+		if !ast.IsObjectLiteralExpression(descriptor) {
+			continue
+		}
+		for _, field := range descriptor.AsObjectLiteralExpression().Properties.Nodes {
+			if !query.charge(result, field) {
+				return
+			}
+			if field.Name() == nil || ast.IsComputedPropertyName(field.Name()) || callableNameText(field.Name()) != "get" {
+				continue
+			}
+			body := field
+			switch {
+			case ast.IsPropertyAssignment(field):
+				body = unwrapSourceCallableReference(field.Initializer())
+			case ast.IsShorthandPropertyAssignment(field):
+				body = field.Name()
+			case ast.IsMethodDeclaration(field):
+			default:
+				continue
+			}
+			query.reflectiveSourceGet(body, call, name, &sourceGetInputs{operation: query.protectedMember, receiver: sourceValue{node: call}}, bindings, result)
 		}
 	}
 }

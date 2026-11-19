@@ -128,15 +128,21 @@ export function Page(this:Component<{count:number;result:number}>){
 func TestComponentReturnedDescriptorGetter(t *testing.T) {
 	const read = "(box as {value:string}).value.length"
 	for _, row := range []struct {
-		name, define, getter, use, placement string
-		browser                              bool
+		name, creation, use, placement string
+		browser                        bool
 	}{
-		{"direct", "Object.defineProperty", "document.title", read, "server", true},
-		{"alias", "define", "document.title", read, "server", true},
-		{"client", "define", "document.title", read, "client", true},
-		{"mixed", "define", "foreign() || document.title", read, "client", true},
-		{"dormant", "Object.defineProperty", "document.title", "1", "server", false},
-		{"neutral", "define", "'ready'", read, "server", false},
+		{"direct", "Object.defineProperty({},'value',{get(){return document.title}})", read, "server", true},
+		{"alias", "define({},'value',{get(){return document.title}})", read, "server", true},
+		{"client", "define({},'value',{get(){return document.title}})", read, "client", true},
+		{"mixed", "define({},'value',{get(){return foreign() || document.title}})", read, "client", true},
+		{"dormant", "Object.defineProperty({},'value',{get(){return document.title}})", "1", "server", false},
+		{"neutral", "define({},'value',{get(){return 'ready'}})", read, "server", false},
+		{"create-eager", "Object.create(null,{value:{get value(){return document.title}}})", "1", "server", true},
+		{"create-map", "Object.create(null,{get value(){document.title;return {value:1}}})", "1", "server", true},
+		{"create-read", "Object.create(null,{value:{get(){return document.title}}})", read, "server", true},
+		{"create-dormant", "Object.create(null,{value:{get(){return document.title}}})", "1", "server", false},
+		{"create-neutral", "Object.create(null,{value:{get value(){return 'ready'}}})", read, "server", false},
+		{"create-mixed", "Object.create(null,{value:{get value(){return foreign() || document.title}}})", read, "client", true},
 	} {
 		t.Run(row.name, func(t *testing.T) {
 			source := `import {TaskContext,type Component} from '@exactjs/core';
@@ -145,7 +151,7 @@ const define=Object.defineProperty;
 export function Page(this:Component<{value:number}>) {
  this.state.value=0;
  const run=(task:TaskContext=TaskContext.` + row.placement + `())=>{
-  const box=` + row.define + `({},'value',{get(){return ` + row.getter + `}});
+  const box=` + row.creation + `;
   this.state.value=` + row.use + `;
  };
  run();
@@ -172,7 +178,7 @@ export function Page(this:Component<{value:number}>) {
 			}
 			for _, task := range r.Analysis.Tasks {
 				if task.FunctionDefined && task.BrowserEffects == row.browser && task.Placement == row.placement {
-					if row.name == "mixed" {
+					if strings.HasSuffix(row.name, "mixed") {
 						for _, effect := range task.EffectSources {
 							if effect.Environment == "unknown" {
 								return
