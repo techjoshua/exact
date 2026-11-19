@@ -7,11 +7,13 @@ import "github.com/microsoft/TypeScript/tsc/internal/ast"
 type sourceMemberOperationProof struct {
 	// descriptorData requests writer ordering at this native descriptor lookup.
 	descriptorData bool
-	closed         bool
-	cause          *ast.Node
-	calls          map[*ast.Node]bool
-	regions        map[*ast.Node]bool
-	sources        []*ast.SourceFile
+	// freshReceiver excludes prior calls mutating this particular empty return allocation.
+	freshReceiver bool
+	closed        bool
+	cause         *ast.Node
+	calls         map[*ast.Node]bool
+	regions       map[*ast.Node]bool
+	sources       []*ast.SourceFile
 }
 
 // sourceMemberOperationRegion belongs to one existing source callable or the eager module.

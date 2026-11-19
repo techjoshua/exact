@@ -343,6 +343,11 @@ can take. There is no blanket time-budget-to-warning conversion.
   [member visitor](../native/typescript-go/overlay/internal/exactcompiler/source_accessor_declarations.go),
   [interference scan](../native/typescript-go/overlay/internal/exactcompiler/source_value_interference.go)
   and [return projection](../native/typescript-go/overlay/internal/exactcompiler/source_return_projection.go).
+  For an immediate named read of a synchronous factory result, the member visitor can
+  exclude earlier calls from the receiver-write scan on a directly returned empty object
+  literal. It matches the active invocation, selected return expression and conditional
+  arm. Saved results and input aliases retain their writer searches. Descriptor and
+  inherited-property lookup still belong to the original read.
 - [Reader scope](../native/typescript-go/overlay/internal/exactcompiler/source_member_writer_inputs.go),
   [scope capture](../native/typescript-go/overlay/internal/exactcompiler/source_accessor_candidates.go)
   and [pending callee comparison](../native/typescript-go/overlay/internal/exactcompiler/source_callee_availability.go).

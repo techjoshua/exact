@@ -799,7 +799,24 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 						defer restoreLookup()
 						visitMember(value)
 					}
-					handled = query.memberValuesAtGet(value, projection, name, mode, arguments, &result, visitLookupMember, sourceMemberOperationProof{}, proofGet, readCut)
+					// The callee, returned arm and traversal must all describe this
+					// direct Get. Following a saved result starts a different traversal.
+					immediate := false
+					if get == nil && (mode == accessorRead || mode == accessorAcquire) && name == "" && len(projection) == 1 && ast.IsObjectLiteralExpression(value) && len(value.AsObjectLiteralExpression().Properties.Nodes) == 0 {
+						arm := value
+						i := len(seen) - 2
+						for i >= 0 && arm.Parent == seen[i].node && ast.IsConditionalExpression(arm.Parent) && (arm.Parent.AsConditionalExpression().WhenTrue == arm || arm.Parent.AsConditionalExpression().WhenFalse == arm) {
+							arm = arm.Parent
+							i--
+						}
+						if i >= 0 && ast.IsCallExpression(seen[i].node) && arm.Parent != nil && ast.IsReturnStatement(arm.Parent) {
+							call := seen[i].node
+							body := enclosingCallableNode(arm)
+							creator := query.creators[body]
+							immediate = envelopeSynchronousFunction(body) && creator.invocation == call && creator.returning == arm && call.Parent != nil && ast.IsPropertyAccessExpression(call.Parent) && call.Parent.Expression() == call && call.Parent.Name().Text() == projection[0]
+						}
+					}
+					handled = query.memberValuesAtGet(value, projection, name, mode, arguments, &result, visitLookupMember, sourceMemberOperationProof{freshReceiver: immediate}, proofGet, readCut)
 				}()
 				if assignment := query.liveStagedAssignment(); assignment != nil {
 					query.recordStagedAssignmentCoverage(assignment.alternative)

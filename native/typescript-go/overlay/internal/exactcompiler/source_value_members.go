@@ -186,7 +186,7 @@ func (query *sourceValueQuery) memberValuesAtGetWithStandard(origin *ast.Node, p
 				result.opaque = true
 			}
 			inventory = true
-		} else if !inventory {
+		} else if !inventory && !operation.freshReceiver {
 			capture = query.interferenceInSources(origin, projection, name, mode, bindings, result, operation.sources, cut)
 		}
 		restoreOperation := query.suspendOperation()
