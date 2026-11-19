@@ -155,14 +155,15 @@ func directImportedContextContract(source *ast.SourceFile, fallback, contract en
 	}
 	effect := helper.directContext[0]
 	symbol := helper.sourceFile.AsNode().Locals()[effect.Token]
-	if symbol == nil || len(symbol.Declarations) != 1 || ast.GetNodeId(symbol.Declarations[0]) != effect.rootDeclaration {
+	binding := contextRootBinding(symbol, c)
+	if binding == nil || ast.GetNodeId(binding) != effect.rootDeclaration {
 		return fallback
 	}
-	symbol = c.SkipAlias(symbol)
-	if symbol == nil || len(symbol.Declarations) != 1 {
+	symbol = resolvedCallableSymbol(symbol, c)
+	if symbol == nil || symbol.ValueDeclaration == nil {
 		return fallback
 	}
-	token := symbol.Declarations[0]
+	token := symbol.ValueDeclaration
 	if !ast.IsVariableDeclaration(token) || token.Parent.Flags&ast.NodeFlagsConst == 0 || token.Initializer() == nil || !ast.IsCallExpression(token.Initializer()) {
 		return fallback
 	}
@@ -208,7 +209,7 @@ func importedContextName(source *ast.SourceFile, c *checker.Checker, token *ast.
 				continue
 			}
 			resolved := c.GetAliasedSymbol(symbol)
-			if resolved != nil && len(resolved.Declarations) == 1 && resolved.Declarations[0] == token {
+			if resolved != nil && resolved.ValueDeclaration == token {
 				return spec.Name().Text()
 			}
 		}

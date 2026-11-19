@@ -1,6 +1,8 @@
 import { TaskContext, createContext, createRef, type Child, type Component } from '@exactjs/core';
 
-const preparedContext = createContext<string>('prepared-chain-context', true);
+// The context's type and runtime binding share a TypeScript symbol.
+type PreparedContext = string;
+const PreparedContext = createContext<PreparedContext>('prepared-chain-context', true);
 
 /** Self-closing placement receives its implicit child without an authored props parameter. */
 export function ImplicitPreparedEnhancement() {
@@ -15,7 +17,7 @@ export function DestructuredPreparedEnhancement({ label }: { label: string }) {
 /** Supplies context before the chain's dependent component is prepared. */
 export function PreparedContextProvider(this: Component<Record<string, never>>) {
 	preparationAudit.setup++;
-	this.setContext(preparedContext, 'provided');
+	this.setContext(PreparedContext, 'provided');
 	this.onUnmount(() => preparationAudit.disposed++);
 	return () => <_target />;
 }
@@ -23,7 +25,7 @@ export function PreparedContextProvider(this: Component<Record<string, never>>) 
 /** Requires the context owned by the earlier contributor without seeing later peers. */
 export function PreparedContextConsumer(this: Component<Record<string, never>>) {
 	preparationAudit.setup++;
-	const label = this.getContext(preparedContext);
+	const label = this.getContext(PreparedContext);
 	this.onUnmount(() => preparationAudit.disposed++);
 	return () => <_target title={label} />;
 }

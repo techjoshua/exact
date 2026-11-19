@@ -42,8 +42,8 @@ func contextEffect(
 				root = root.AsPropertyAccessExpression().Expression
 			}
 			if ast.IsIdentifier(root) && typeChecker != nil {
-				if symbol := typeChecker.GetSymbolAtLocation(root); symbol != nil && len(symbol.Declarations) == 1 {
-					rootDeclaration = ast.GetNodeId(symbol.Declarations[0])
+				if binding := contextRootBinding(typeChecker.GetSymbolAtLocation(root), typeChecker); binding != nil {
+					rootDeclaration = ast.GetNodeId(binding)
 				}
 			}
 		}
@@ -56,6 +56,21 @@ func contextEffect(
 		kind = "write"
 	}
 	return ContextEffect{rootDeclaration: rootDeclaration, Token: token, Kind: kind, Confidence: confidence}, true
+}
+
+// Keep the physical import binding for aliases. Local type and value declarations
+// may share a symbol, but only the value declaration supplies the runtime token.
+func contextRootBinding(symbol *ast.Symbol, c *checker.Checker) *ast.Node {
+	if symbol == nil {
+		return nil
+	}
+	if symbol.Flags&ast.SymbolFlagsAlias != 0 {
+		if len(symbol.Declarations) == 1 {
+			return symbol.Declarations[0]
+		}
+		return nil
+	}
+	return c.GetExportSymbolOfSymbol(symbol).ValueDeclaration
 }
 
 func componentContextReceiver(

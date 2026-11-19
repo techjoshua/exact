@@ -222,10 +222,15 @@ it('delivers provider and consumer contracts through an imported public token al
 		})
 	);
 	const helper = `import {createContext,type Component} from '@exactjs/core';
-export const Token=createContext<string>('public');
+export type Token=string;
+export const Token=createContext<Token>('public');
 export function provide(owner:Component<{}>){owner.setContext(Token,'ready');return 'ready'}
 export function read(owner:Component<{}>){return owner.getContext(Token)}`;
 	await writeFile(path.join(directory, 'helper.ts'), helper);
+	await writeFile(
+		path.join(directory, 'foreign.ts'),
+		"import {createContext} from '@exactjs/core';export const Token=createContext<string>('public');"
+	);
 	await writeFile(
 		path.join(directory, 'public.ts'),
 		"export {Token as published} from './helper.js';"
@@ -237,11 +242,12 @@ export function read(owner:Component<{}>){return owner.getContext(Token)}`;
 		['Consumer', 'server', 'const label=read(this);return()=> <_target title={label}/>']
 	] as const) {
 		const id = path.join(directory, name + '.tsx');
-		const source = `import {createContext,type Component} from '@exactjs/core';
+		const source = `import type {Component} from '@exactjs/core';
+import {Token} from './foreign.js';
 import {published as actual} from './public.js';
 import {provide,read} from './helper.js';
 export {published as expected} from './public.js';
-export const Token=createContext<string>('collision');
+export {Token};
 export function ${name}(this:Component<{}>){${body}}`;
 		await writeFile(id, source);
 		const result = compiler.request({
