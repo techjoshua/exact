@@ -735,6 +735,9 @@ func sourceBoundReferenceEffects(node, boundary *ast.Node, sourceFile *ast.Sourc
 		sources = append(sources, environmentSource("server", "server-only import "+name, nameOfOwner))
 	}
 
+	if len(sources) == 0 {
+		return sources, contexts
+	}
 	if initializer := sourceParameterDefault(node, boundary); initializer != nil {
 		for i := range sources {
 			sources[i].callOrigin = &sourceCallOutcome{declaration: enclosingCallableNode(initializer), operation: initializer, consumer: boundary, phase: sourceDefaultEvaluation}

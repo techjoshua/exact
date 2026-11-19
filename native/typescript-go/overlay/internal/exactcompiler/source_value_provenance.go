@@ -951,6 +951,23 @@ func (query *sourceValueQuery) executeDemand(node, declaration *ast.Node, bindin
 		query.operation = &sourceOperationContext{node: node, owner: effectOwner, inputs: inputs}
 	}
 	defer func() { query.operation = previousOperation }()
+	// A bare source reference contributes only its environment or context read.
+	// Classify it before reconstructing preceding branches and completions: an
+	// effect-free reference has nothing whose reachability needs deciding.
+	// Its owning Call, Get or assignment still consumes the original operand.
+	var sources []EnvironmentEffectSource
+	var contexts []ContextEffect
+	if query.dependenciesOnly && ast.IsIdentifier(node) {
+		name := "<anonymous>"
+		if declaration.Name() != nil {
+			name = callableNameText(declaration.Name())
+		}
+		sources, contexts = sourceReferenceEffects(node, declaration, ast.GetSourceFileOfNode(node), query.owner.checker, name)
+		if len(sources) == 0 && len(contexts) == 0 && query.operation == nil && query.returnObservation == nil &&
+			query.setterInput == nil && query.installedMemberNativePhase == nil {
+			return
+		}
+	}
 	possible, _ := query.reachable(node, bindings)
 	if !possible {
 		return
@@ -992,12 +1009,7 @@ func (query *sourceValueQuery) executeDemand(node, declaration *ast.Node, bindin
 		effect.callOrigin = nil // This source demand has passed its actual default/phase gate.
 		result.environmentEffects = append(result.environmentEffects, effect)
 	}
-	if query.dependenciesOnly && ast.IsIdentifier(node) {
-		name := "<anonymous>"
-		if declaration.Name() != nil {
-			name = callableNameText(declaration.Name())
-		}
-		sources, contexts := sourceReferenceEffects(node, declaration, ast.GetSourceFileOfNode(node), query.owner.checker, name)
+	if len(sources) != 0 || len(contexts) != 0 {
 		for i := range sources {
 			if origin := sources[i].callOrigin; origin != nil && origin.phase == sourceDefaultEvaluation {
 				sources[i].callOrigin = nil
