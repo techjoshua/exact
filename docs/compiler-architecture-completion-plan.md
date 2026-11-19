@@ -106,7 +106,12 @@ Public reachability and an actual component consumer determine each disposition.
 containing “staged” establishes neither private-only use nor a reason to retain a path.
 Validate the retained source and cache behavior after removing the last consumer. For a
 bounded reproduction of expensive work, require the production component or package compile
-as the final check; faster completion of a helper-only fixture cannot substitute.
+as the final check for package completion. Evaluate an individual optimization on the work it
+changes. With equivalent component behavior, a measured reduction in allocations, CPU, or
+repeated operations on the same input or completed phase can justify integrating it while the
+package still times out. Weigh that saving against the maintenance and common-path cost.
+Two runs stopped at the deadline give lower bounds on completion time; their elapsed times
+cannot establish a speedup or rule one out.
 
 #### Decisions and order of implementation
 
