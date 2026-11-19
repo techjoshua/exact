@@ -51,7 +51,8 @@ export async function prepareHydrationHandoffFixture(adapter: 'vite' | 'webpack'
 					target: 'ESNext',
 					module: 'ESNext',
 					moduleResolution: 'Bundler',
-					jsx: 'preserve',
+					jsx: 'react-jsx',
+					jsxImportSource: '@exactjs/jsx',
 					strict: true
 				},
 				include: ['*.ts', '*.tsx']
