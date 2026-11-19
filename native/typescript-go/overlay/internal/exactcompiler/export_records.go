@@ -76,13 +76,12 @@ func collectExportRecords(
 			kind = "component"
 			placement = value
 		}
-		if kind == "value" {
-			placement = moduleValueDefinitionPlacement(exported, typeChecker, owner)
-		}
 		if value, exists := policyPlacements[localName]; ownedDeclaration && exists {
 			placement = value
 		} else if value, exists := policyPlacements[name]; ownedDeclaration && exists {
 			placement = value
+		} else if kind == "value" {
+			placement = moduleValueDefinitionPlacement(exported, typeChecker, owner)
 		}
 		records = append(records, ExportRecord{
 			Name:      name,
