@@ -185,6 +185,15 @@ materialize them from those detached entries. Calls with no direct declaration s
 caller indexes while preserving selection-time sealing. Callee snapshots reserve their binding
 and creator vectors after admission, and retain detailed term projections only where present.
 
+On Core's ErrorBoundary compile, a possible writer input now stores a separate reading
+record only when a consumer enrolls. At the 25-second mark, this site's sampled allocations
+fell from 3,149 MiB to 1,091 MiB over approximately 5.1 million requests. Both runs reached
+the deadline. Component discovery now assigns portable identities in its original pass, and
+binding analysis resolves a component's props signature when it encounters the first
+namespaced attribute that can use the signature. The opening-element traversal prunes
+subtrees without JSX. Across 360 JSX and TSX source files under packages, apps and examples,
+it visited 83,141 nodes instead of 170,125 and found the same 6,804 openings in order.
+
 The checked native array membership lookup on a fresh literal now reaches the Theme color
 parser. Executable element and argument expressions remain placement inputs. These changes
 reduced individual costs measured on component compiles. The uninstrumented original Theme
@@ -195,10 +204,10 @@ The remaining acceptance criterion is successful compilation and use of both tar
 1. **Remove demonstrated redundancy in parallel with the hot-path change.** Remove production
    callable fingerprints. Resolve static imports at collection. In `linkProjectComponents`,
    retrieve a component’s callable fact once for the linker, `componentInputDemandsFor`
-   and (when required) `componentInputBodyPlacement`. They currently scan the same slice
+   and (when required) `componentInputBodyPlacement`. The original implementation scanned the same slice
    up to three times per component. Preserve the current first/last match behavior if a
    declaration can appear twice, and keep the Program/checker/source checks on input demands.
-   Use the existing graph-local index or a single pass; a persistent new cache is unnecessary.
+   The integrated linker groups matching facts in one pass; a persistent new cache is unnecessary.
    Compare emitted artifacts, complete public analyses and diagnostics across client/server
    and edits. Count removed serializations, traversals and fact comparisons. These are useful
    improvements independently of their contribution to either deadline.

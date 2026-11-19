@@ -16,8 +16,8 @@ func collectOrdinaryEnhancementPrefixDiagnostics(
 	ordinaryBindings map[string]struct{},
 	skippedAttributes map[int]struct{},
 ) {
-	walkNode(sourceFile.AsNode(), func(node *ast.Node) bool {
-		attributes := jsxOpeningAttributes(node)
+	walkJSXOpenings(sourceFile, func(node *ast.Node) bool {
+		attributes := node.Attributes()
 		if attributes == nil {
 			return true
 		}

@@ -9,25 +9,26 @@ import (
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
 )
 
+// walkJSXOpenings visits each authored opening in source order, including JSX
+// nested in attribute values. The parser marks subtrees that contain JSX.
+func walkJSXOpenings(source *ast.SourceFile, visit func(*ast.Node) bool) {
+	walkNode(source.AsNode(), func(node *ast.Node) bool {
+		if node.SubtreeFacts()&ast.SubtreeContainsJsx == 0 {
+			return false
+		}
+		if ast.IsJsxOpeningElement(node) || ast.IsJsxSelfClosingElement(node) {
+			return visit(node)
+		}
+		return true
+	})
+}
+
 // collectJSX records syntax facts used by native reactivity and element
 // lowering. Authored order and spans are preserved as the stable join keys.
 func collectJSX(sourceFile *ast.SourceFile) []JSXElement {
 	var elements []JSXElement
-	walkNode(sourceFile.AsNode(), func(node *ast.Node) bool {
-		var tag *ast.Node
-		var attributes *ast.Node
-		switch {
-		case ast.IsJsxOpeningElement(node):
-			opening := node.AsJsxOpeningElement()
-			tag = opening.TagName
-			attributes = opening.Attributes
-		case ast.IsJsxSelfClosingElement(node):
-			opening := node.AsJsxSelfClosingElement()
-			tag = opening.TagName
-			attributes = opening.Attributes
-		default:
-			return true
-		}
+	walkJSXOpenings(sourceFile, func(node *ast.Node) bool {
+		tag, attributes := openingTag(node), node.Attributes()
 		tagText := sourceText(sourceFile, tag)
 		elements = append(elements, JSXElement{
 			Tag:        tagText,

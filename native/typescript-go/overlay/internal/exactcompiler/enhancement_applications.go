@@ -34,8 +34,8 @@ func collectEnhancementApplications(
 		collectOrdinaryEnhancementPrefixDiagnostics(sourceFile, typeChecker, imports, ordinaryBindings, skippedAttributes)
 		return
 	}
-	walkNode(sourceFile.AsNode(), func(node *ast.Node) bool {
-		attributes := jsxOpeningAttributes(node)
+	walkJSXOpenings(sourceFile, func(node *ast.Node) bool {
+		attributes := node.Attributes()
 		if attributes == nil {
 			return true
 		}

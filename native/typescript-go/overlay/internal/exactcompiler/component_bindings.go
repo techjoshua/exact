@@ -34,13 +34,7 @@ func analyzeComponentBindings(
 	if typeChecker == nil {
 		return bindings, writes, diagnostics
 	}
-	walkNode(sourceFile.AsNode(), func(node *ast.Node) bool {
-		if node.SubtreeFacts()&ast.SubtreeContainsJsx == 0 {
-			return false
-		}
-		if !ast.IsJsxOpeningElement(node) && !ast.IsJsxSelfClosingElement(node) {
-			return true
-		}
+	walkJSXOpenings(sourceFile, func(node *ast.Node) bool {
 		tagNode := openingTag(node)
 		attributes := node.Attributes()
 		if attributes == nil {

@@ -25,16 +25,8 @@ func collectEnhancementTypeDiagnostics(
 	if typeChecker == nil || len(imports.bindings) == 0 {
 		return
 	}
-	walkNode(sourceFile.AsNode(), func(node *ast.Node) bool {
-		var attributes *ast.Node
-		switch {
-		case ast.IsJsxOpeningElement(node):
-			attributes = node.AsJsxOpeningElement().Attributes
-		case ast.IsJsxSelfClosingElement(node):
-			attributes = node.AsJsxSelfClosingElement().Attributes
-		default:
-			return true
-		}
+	walkJSXOpenings(sourceFile, func(node *ast.Node) bool {
+		attributes := node.Attributes()
 		application := imports.applications[attributes.Pos()]
 		if len(application.components) == 0 {
 			return true

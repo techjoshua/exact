@@ -228,13 +228,19 @@ func collectEnhancementImports(
 }
 
 func collectTargetDiagnostics(sourceFile *ast.SourceFile, imports *enhancementImports) {
-	components := activeComponentCandidates(sourceFile)
+	var components []componentCandidate
 	walkNode(sourceFile.AsNode(), func(node *ast.Node) bool {
+		if node.SubtreeFacts()&ast.SubtreeContainsJsx == 0 {
+			return false
+		}
 		missing := false
 		switch {
 		case ast.IsJsxSelfClosingElement(node):
 			missing = sourceText(sourceFile, node.AsJsxSelfClosingElement().TagName) == "_target"
 			if missing {
+				if components == nil {
+					components = activeComponentCandidates(sourceFile)
+				}
 				for _, component := range components {
 					if node.Pos() >= component.node.Pos() && node.End() <= component.node.End() {
 						missing = false

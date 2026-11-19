@@ -80,10 +80,7 @@ func analyzeFormBindings(
 	blockedEnhancements := make(map[int]struct{})
 	diagnostics := []Diagnostic{}
 	propsSymbols := formBindingPropsSymbols(sourceFile, components, typeChecker)
-	walkNode(sourceFile.AsNode(), func(node *ast.Node) bool {
-		if !ast.IsJsxOpeningElement(node) && !ast.IsJsxSelfClosingElement(node) {
-			return true
-		}
+	walkJSXOpenings(sourceFile, func(node *ast.Node) bool {
 		tag := strings.TrimSpace(sourceText(sourceFile, openingTag(node)))
 		if !jsxIntrinsic(tag) {
 			return true
