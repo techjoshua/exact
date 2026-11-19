@@ -259,21 +259,35 @@ func (query *sourceValueQuery) accessorsAtGet(receiver *ast.Node, path []string,
 // Initializer observations are sealed before transfer. Scope allocation identity
 // does not establish source identity, and cost accounting does not bound copying.
 func (query *sourceValueQuery) acquireCallableScope(arguments sourceValueBindings, result *accessorCandidates) acquiredCallableScope {
+	return query.captureCallableScope(arguments, result, true)
+}
+
+// captureCallableScope seals and accounts for the original caller inputs. A Call
+// with no declarations dispatches through independently captured callable
+// alternatives, so its header has no consumer for the writable indexes.
+func (query *sourceValueQuery) captureCallableScope(arguments sourceValueBindings, result *accessorCandidates, retain bool) acquiredCallableScope {
 	progressCount(query, tScopeAcquired, 1)
-	// Both maps remain writable and detached. Reserve their known entry counts
-	// so snapshot publication does not repeatedly grow and rehash them.
-	scope := acquiredCallableScope{bindings: make(sourceValueBindings, len(arguments)), creators: make(map[*ast.Node]sourceValueCreation, len(query.creators))}
+	var scope acquiredCallableScope
+	if retain {
+		scope.bindings = make(sourceValueBindings, len(arguments))
+		scope.creators = make(map[*ast.Node]sourceValueCreation, len(query.creators))
+	}
 	for id, terms := range arguments {
 		if !query.charge(result, nil) {
 			break
 		}
-		scope.bindings[id] = query.sealInitializerValues(terms, result)
+		sealed := query.sealInitializerValues(terms, result)
+		if retain {
+			scope.bindings[id] = sealed
+		}
 	}
 	for owner, creator := range query.creators {
 		if !query.charge(result, owner) {
 			break
 		}
-		scope.creators[owner] = creator
+		if retain {
+			scope.creators[owner] = creator
+		}
 	}
 	return scope
 }

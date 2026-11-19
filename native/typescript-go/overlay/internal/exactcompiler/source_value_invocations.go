@@ -872,7 +872,8 @@ func (query *sourceValueQuery) prepareInvocation(node *ast.Node, bindings source
 		// Only exhaustion refuses the independently acquired alternatives here.
 
 	}
-	scope := query.acquireCallableScope(bindings, &result)
+	// Without a declaration, each possible body already carries its own scope.
+	scope := query.captureCallableScope(bindings, &result, len(declarations) != 0)
 	selected := sourcePreparedInvocation{declarations: append([]*ast.Node(nil), declarations...), base: selectionProjection(result), acquired: selectionProjection(acquired), scope: scope, remaining: query.remaining}
 	// Legacy invocation-only selection consumes the already acquired alternatives,
 	// never raw callee syntax after argument mutation. The callback retains a
