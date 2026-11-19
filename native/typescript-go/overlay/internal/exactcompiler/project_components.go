@@ -25,11 +25,12 @@ type projectComponentLinkFacts struct {
 	demands     []sourceComponentInputDemand
 	inputs      []sourceComponentInputAdoption
 	edges       []RenderEdge
+	targets     []*ast.Node
 	diagnostics []string
 }
 
 // linkProjectComponents resolves JSX component tags by checker symbol across
-// every project source and computes one cross-file placement fixed point.
+// project declarations and computes placement for the requested render closure.
 // Only components from the requested module are returned.
 func linkProjectComponents(
 	project *projectState,
@@ -51,41 +52,14 @@ func linkProjectComponents(
 			return append([]Component(nil), cached...)
 		}
 	}
-	records := projectComponentRecords(
-		project,
-		requested,
-		typeChecker,
-		current,
-		callables,
-		completedPolicyTypes,
-	)
-	// Keep the source order of all matching facts. Input demands come from
-	// the first match, callable inputs from the last, and any match can
-	// establish conditional body placement.
-	componentFacts := make(map[*ast.Node][]*callableFacts, len(records))
-	for i := range records {
-		componentFacts[records[i].candidate.node] = nil
-	}
-	for i := range callables.facts {
-		fact := &callables.facts[i]
-		if matches, component := componentFacts[fact.node]; component {
-			componentFacts[fact.node] = append(matches, fact)
-		}
-	}
-	for i := range records {
-		record := &records[i]
-		matches := componentFacts[record.candidate.node]
-		if len(matches) != 0 {
-			record.callableInputDemands = matches[len(matches)-1].componentCallableInputs
-			record.inputDemands = componentInputDemandsFor(matches[0], callables.owner)
-		}
-		record.conditionalInputPlacement = componentInputBodyPlacement(*record, matches)
-	}
+	records := projectComponentDeclarations(project, requested, current)
+	componentByNode := make(map[*ast.Node]int, len(records))
 	componentBySymbol := make(map[ast.SymbolId]int, len(records))
 	componentByIdentity := make(map[string]int, len(records))
 	componentByImport := make(map[string]int, len(records))
 	importBindingsBySource := make(map[*ast.SourceFile]externalImportBindings)
 	for index := range records {
+		componentByNode[records[index].candidate.node] = index
 		symbol := callableDeclarationSymbol(records[index].candidate.node, typeChecker)
 		symbol = resolvedCallableSymbol(symbol, typeChecker)
 		if symbol != nil {
@@ -94,9 +68,9 @@ func linkProjectComponents(
 				componentByIdentity[identity] = index
 			}
 		}
-		if records[index].component.Exported {
+		if records[index].candidate.exported {
 			module := projectComponentModuleIdentity(records[index].sourceFile.FileName())
-			componentByImport[module+"\x00"+records[index].component.Name] = index
+			componentByImport[module+"\x00"+records[index].candidate.name] = index
 			if ast.HasSyntacticModifier(
 				records[index].candidate.node,
 				ast.ModifierFlagsDefault,
@@ -105,13 +79,40 @@ func linkProjectComponents(
 			}
 		}
 	}
-	for index := range records {
+	// Seed all owned declarations, including unexported and unrendered
+	// components. Dependency sources enter the analysis only through local edges.
+	queue := make([]int, len(current), len(records))
+	queued := make([]bool, len(records))
+	for index := range current {
+		queue[index] = index
+		queued[index] = true
+	}
+	demand := func(index int) *projectComponent {
 		record := &records[index]
+		if !queued[index] {
+			queued[index] = true
+			queue = append(queue, index)
+			facts := materializeProjectComponentSource(project, record.sourceFile, typeChecker, callables, completedPolicyTypes)
+			record.component = cloneProjectComponent(facts[record.candidateIndex])
+		}
+		return record
+	}
+	for cursor := 0; cursor < len(queue); cursor++ {
+		record := &records[queue[cursor]]
 		edges := []RenderEdge{}
-		if facts, exists := project.componentLinks[record.candidate.node]; exists {
+		var targets []*ast.Node
+		if facts, exists := project.componentLinks[record.candidate.node]; exists && projectComponentLinkTargetsIndexed(facts, componentByNode) {
 			record.component.RenderEdges = append([]RenderEdge(nil), facts.edges...)
 			record.component.Diagnostics = append(record.component.Diagnostics, facts.diagnostics...)
+			for _, target := range facts.targets {
+				demand(componentByNode[target])
+			}
 			continue
+		}
+		linkTarget := func(index int) *projectComponent {
+			target := demand(index)
+			targets = append(targets, target.candidate.node)
+			return target
 		}
 		project.counters.ComponentLinkWalks++
 		candidates := projectComponentCandidates(project, record.sourceFile)
@@ -156,7 +157,7 @@ func linkProjectComponents(
 						if !found {
 							continue
 						}
-						target := records[possibleIndex]
+						target := linkTarget(possibleIndex)
 						edgeIndex := len(edges) + 1
 						edges = append(edges, RenderEdge{
 							ID: fmt.Sprintf(
@@ -193,7 +194,7 @@ func linkProjectComponents(
 							if !found {
 								continue
 							}
-							target := records[possibleIndex]
+							target := linkTarget(possibleIndex)
 							edgeIndex := len(edges) + 1
 							edges = append(edges, RenderEdge{
 								ID: fmt.Sprintf(
@@ -289,7 +290,7 @@ func linkProjectComponents(
 					return true
 				}
 			}
-			target := records[targetIndex]
+			target := linkTarget(targetIndex)
 			edgeIndex := len(edges) + 1
 			edges = append(edges, RenderEdge{
 				ID: fmt.Sprintf(
@@ -312,17 +313,46 @@ func linkProjectComponents(
 		record.component.RenderEdges = edges
 		project.componentLinks[record.candidate.node] = projectComponentLinkFacts{
 			edges:       append([]RenderEdge(nil), edges...),
+			targets:     targets,
 			diagnostics: append([]string(nil), record.component.Diagnostics[diagnosticCount:]...),
 		}
 	}
-	attachComponentInputAdoptions(project, records, typeChecker)
-	refreshProjectComponentEdgePlacements(records)
-	applyComponentInputAdoptions(project, records)
-	applyComponentCallableInputs(project, records, typeChecker)
-	resolveProjectComponentSubgraphs(records, project)
+	// Preserve the original project order for fixed-point processing.
+	sort.Ints(queue)
+	reachable := records[:len(queue)]
+	for i, index := range queue {
+		reachable[i] = records[index]
+	}
+	// Keep the source order of all matching facts. Input demands come from
+	// the first match, callable inputs from the last, and any match can
+	// establish conditional body placement.
+	componentFacts := make(map[*ast.Node][]*callableFacts, len(reachable))
+	for i := range reachable {
+		componentFacts[reachable[i].candidate.node] = nil
+	}
+	for i := range callables.facts {
+		fact := &callables.facts[i]
+		if matches, component := componentFacts[fact.node]; component {
+			componentFacts[fact.node] = append(matches, fact)
+		}
+	}
+	for i := range reachable {
+		record := &reachable[i]
+		matches := componentFacts[record.candidate.node]
+		if len(matches) != 0 {
+			record.callableInputDemands = matches[len(matches)-1].componentCallableInputs
+			record.inputDemands = componentInputDemandsFor(matches[0], callables.owner)
+		}
+		record.conditionalInputPlacement = componentInputBodyPlacement(*record, matches)
+	}
+	attachComponentInputAdoptions(project, reachable, typeChecker)
+	refreshProjectComponentEdgePlacements(reachable)
+	applyComponentInputAdoptions(project, reachable)
+	applyComponentCallableInputs(project, reachable, typeChecker)
+	resolveProjectComponentSubgraphs(reachable, project)
 
 	result := []Component{}
-	for _, record := range records {
+	for _, record := range reachable {
 		if record.sourceFile == requested {
 			result = append(result, record.component)
 		}
@@ -852,7 +882,7 @@ func cacheRequestedComponents(
 		project.componentCache = make(map[*ast.SourceFile][]Component)
 		// Empty discovery facts are tied to the same source identity and invalidation
 		// lifecycle as component records. Reuse them instead of rescanning the program.
-		for sourceFile, facts := range project.componentFacts {
+		for sourceFile, facts := range project.componentCandidates {
 			if len(facts) == 0 {
 				project.componentCache[sourceFile] = nil
 			}
@@ -861,22 +891,14 @@ func cacheRequestedComponents(
 	project.componentCache[requested] = append([]Component(nil), components...)
 }
 
-func projectComponentRecords(
-	project *projectState,
-	requested *ast.SourceFile,
-	typeChecker *checker.Checker,
-	current []Component,
-	callables callableAnalysis,
-	completedPolicyTypes map[checker.TypeId]bool,
-) []projectComponent {
-	records := []projectComponent{}
-	currentCandidates := projectComponentCandidates(project, requested)
-	for index := range current {
+// projectComponentDeclarations indexes all admitted declarations using their
+// existing lexical candidates. It leaves dependency records empty until a
+// render edge selects a declaration.
+func projectComponentDeclarations(project *projectState, requested *ast.SourceFile, current []Component) []projectComponent {
+	records := make([]projectComponent, 0, len(current))
+	for index, candidate := range projectComponentCandidates(project, requested) {
 		records = append(records, projectComponent{
-			sourceFile:     requested,
-			candidate:      currentCandidates[index],
-			candidateIndex: index,
-			component:      current[index],
+			sourceFile: requested, candidate: candidate, candidateIndex: index, component: current[index],
 		})
 	}
 	for _, dependency := range project.program.GetSourceFiles() {
@@ -884,78 +906,85 @@ func projectComponentRecords(
 			strings.Contains(strings.ReplaceAll(dependency.FileName(), `\`, `/`), "/node_modules/") {
 			continue
 		}
-		if cached, exists := project.componentFacts[dependency]; exists {
-			for _, record := range cached {
-				record.component = cloneProjectComponent(record.component)
-				records = append(records, record)
-			}
-			continue
+		for index, candidate := range projectComponentCandidates(project, dependency) {
+			records = append(records, projectComponent{
+				sourceFile: dependency, candidate: candidate, candidateIndex: index,
+			})
 		}
-		candidates := projectComponentCandidates(project, dependency)
-		if len(candidates) == 0 {
-			project.componentFacts[dependency] = nil
-			continue
-		}
-		nodeIDs := projectComponentNodeIDs(project, dependency)
-		components := componentsFromCandidates(dependency, nodeIDs, normalizedIdentityFilename(dependency.FileName()), candidates)
-		project.counters.ComponentSourceAnalyses++
-		aliases, reads, writes := collectStateAnalysis(dependency, typeChecker)
-		reactive := collectReactiveBindings(
-			dependency,
-			typeChecker,
-			aliases,
-			reads,
-		)
-		tasks := collectTasks(
-			dependency,
-			typeChecker,
-			reads,
-			writes,
-			reactive,
-			callables,
-		)
-		if normalization, exists := project.normalizations[project.fs.canonical(dependency.FileName())]; exists && normalization.text == dependency.Text() {
-			attachNormalizedTaskOrigins(tasks, dependency, normalization)
-		}
-		policy := collectPolicyAnalysis(
-			dependency,
-			typeChecker,
-			components,
-			reads,
-			tasks,
-			completedPolicyTypes,
-			nil)
-		tasks = applyTaskPolicies(tasks, policy)
-		collectSecretConsumptions(dependency, typeChecker, Request{Target: TargetDefault}, tasks, &policy)
-		components = analyzeComponents(
-			dependency,
-			components,
-			candidates,
-			callables,
-			tasks,
-			typeChecker,
-			nodeIDs,
-			nil,
-		)
-		facts := make([]projectComponent, 0, len(components))
-		for index := range components {
-			record := projectComponent{
-				sourceFile:     dependency,
-				candidate:      candidates[index],
-				candidateIndex: index,
-				component:      components[index],
-			}
-			facts = append(facts, record)
-			records = append(records, record)
-		}
-		project.componentFacts[dependency] = facts
 	}
 	return records
 }
 
+func projectComponentLinkTargetsIndexed(facts projectComponentLinkFacts, byNode map[*ast.Node]int) bool {
+	for _, target := range facts.targets {
+		if _, exists := byNode[target]; !exists {
+			return false
+		}
+	}
+	return true
+}
+
+// materializeProjectComponentSource prepares the source-wide state, task and
+// policy inputs once. The caller clones the records selected by render edges.
+func materializeProjectComponentSource(
+	project *projectState,
+	dependency *ast.SourceFile,
+	typeChecker *checker.Checker,
+	callables callableAnalysis,
+	completedPolicyTypes map[checker.TypeId]bool,
+) []Component {
+	if cached, exists := project.componentFacts[dependency]; exists {
+		return cached
+	}
+	candidates := projectComponentCandidates(project, dependency)
+	nodeIDs := projectComponentNodeIDs(project, dependency)
+	components := componentsFromCandidates(dependency, nodeIDs, normalizedIdentityFilename(dependency.FileName()), candidates)
+	project.counters.ComponentSourceAnalyses++
+	aliases, reads, writes := collectStateAnalysis(dependency, typeChecker)
+	reactive := collectReactiveBindings(
+		dependency,
+		typeChecker,
+		aliases,
+		reads,
+	)
+	tasks := collectTasks(
+		dependency,
+		typeChecker,
+		reads,
+		writes,
+		reactive,
+		callables,
+	)
+	if normalization, exists := project.normalizations[project.fs.canonical(dependency.FileName())]; exists && normalization.text == dependency.Text() {
+		attachNormalizedTaskOrigins(tasks, dependency, normalization)
+	}
+	policy := collectPolicyAnalysis(
+		dependency,
+		typeChecker,
+		components,
+		reads,
+		tasks,
+		completedPolicyTypes,
+		nil)
+	tasks = applyTaskPolicies(tasks, policy)
+	collectSecretConsumptions(dependency, typeChecker, Request{Target: TargetDefault}, tasks, &policy)
+	components = analyzeComponents(
+		dependency,
+		components,
+		candidates,
+		callables,
+		tasks,
+		typeChecker,
+		nodeIDs,
+		nil,
+	)
+	project.componentFacts[dependency] = components
+	return components
+}
+
 func ensureProjectComponentCaches(project *projectState) {
 	if project.componentFacts == nil {
-		project.componentFacts = make(map[*ast.SourceFile][]projectComponent)
+		project.componentFacts = make(map[*ast.SourceFile][]Component)
 	}
 	if project.componentCandidates == nil {
 		project.componentCandidates = make(map[*ast.SourceFile][]componentCandidate)

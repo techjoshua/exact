@@ -424,12 +424,16 @@ reverse-dependent invalidation. Replaced sources and full invalidations release 
 while conservative dynamic/global/path-mapping rules remain unchanged. JSON source syntax
 has no executable import expressions or component declarations, so those discovery passes
 do not traverse its literal data. JSON value typing and secret-policy checks remain intact.
-Dependency discovery runs before identity allocation, and empty component facts
-are retained under the same invalidation rules as component records. Their traversal paths and
-generated identity strings remain unchanged. Requests without owned components defer the
-dependency placement fixed point until a component request needs it. Source invalidation
-still clears affected placement facts before that next request. A zero-argument call to a
-closed function can use its declaration’s effect edge when a strict comparison or checked
+The linker indexes project declarations by checker symbol and import identity before analyzing
+dependency components. A request starts with every component declared in its module, then
+follows local render edges, including finite eager registry and dynamic alternatives. Re-exports
+resolve through the checker and external package edges use the selected target's existing
+resolution. Dependency preparation still works at source-file granularity. Analysis and emit
+publish the requested module's records, including components with no incoming render edge.
+Source invalidation clears affected facts before subsequent compile, check and inspection
+requests. The project file set used for watching is independent of this render graph.
+
+A zero-argument call to a closed function can use its declaration’s effect edge when a strict comparison or checked
 primitive addition consumes the result in a returned expression, or a component render
 function directly returns its checked primitive result. The compiler reuses the
 declaration’s lexical-scope check across those calls. Argument and callback effects still

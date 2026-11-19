@@ -149,23 +149,12 @@ func (state *projectState) pruneComponentCaches(
 			delete(state.componentCache, sourceFile)
 		}
 	}
-	for sourceFile, records := range state.componentFacts {
-		if current[sourceFile] && !affected[state.fs.canonical(sourceFile.FileName())] {
-			continue
-		}
-		for _, record := range records {
-			delete(state.componentLinks, record.candidate.node)
-		}
-		delete(state.componentFacts, sourceFile)
-		delete(state.componentCandidates, sourceFile)
-		delete(state.componentNodeIDs, sourceFile)
-	}
-	// Requested sources are not necessarily present in dependency facts.
 	for sourceFile := range state.componentCandidates {
 		if !current[sourceFile] || affected[state.fs.canonical(sourceFile.FileName())] {
 			for _, candidate := range state.componentCandidates[sourceFile] {
 				delete(state.componentLinks, candidate.node)
 			}
+			delete(state.componentFacts, sourceFile)
 			delete(state.componentCandidates, sourceFile)
 			delete(state.componentNodeIDs, sourceFile)
 		}

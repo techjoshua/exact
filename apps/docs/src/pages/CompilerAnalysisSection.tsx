@@ -23,7 +23,9 @@ export function CompilerAnalysisSection(this: Component<{}>) {
 				proof covers returned render functions with native HTML elements and covered setup and
 				render effects. Child composition can remain unknown. The selected module and its
 				initialization must also be legal for the requested artifact. These rendering facts do not
-				grant hydration or server-operation authority.
+				grant hydration or server-operation authority. Analysis reports all components defined in the
+				module you inspect. Known child components in other modules contribute placement through
+				their render edges.
 			</p>
 			<p>
 				A component can accept a callback and call it while producing its output. For a direct named

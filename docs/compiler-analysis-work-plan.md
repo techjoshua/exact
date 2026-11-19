@@ -526,9 +526,24 @@ before emission. This measures time to failure and leaves full package acceptanc
    now runs discovery once. Both targets retained the same code, source maps, analysis and diagnostics
    in the matched cross-file control, which included an unrelated root, repeated render edges, a
    child edit and a configuration change. The edit refreshed both edges from isomorphic to
-   client placement. Callable body demand already follows executable edges. The component linker
-   still prepares records for unrelated component roots. Separating its reachable records from
-   the project-wide declaration index remains open.
+   client placement. Callable body demand follows executable edges.
+
+   The linker now indexes project declarations before preparing dependency records. Every
+   component declared in the requested module seeds the render graph. Local targets reached
+   through direct and finite JSX edges enter the placement fixed point. Dependency record
+   preparation still runs per source file. Registry metadata, checker resolution, executable
+   imports and watch discovery retain their own project inputs.
+
+   On the same checked sources and configuration, the cold client fixture with an unrelated
+   component root reduced dependency-source preparations from two to one and JSX link walks
+   from five to three. A child edit brought the unrelated root into the render graph. Its client
+   placement appeared in the child analysis. The 15 matched native host responses agreed on
+   emitted code, source maps, analysis and diagnostics across both targets, application and
+   library requests, edits and an alternate configuration. The comparison excluded timings and
+   work counters. The baseline was the `66f368697` host below. The candidate host SHA-256 was
+   `9adb1c972f978444e57ce81a338a4657709732f376e54d2d776e38d5a2590946`.
+   Both used the same toolchain and installed declarations for the fixture, with the fixed
+   one-CPU, 1 GiB validation service. The compared overlays excluded the pending accessor edit.
 
    Original package stacks reached direct extraction before propagation and linking. Sharing
    cached answers across entries would add an invalidation boundary without addressing the
@@ -544,6 +559,7 @@ before emission. This measures time to failure and leaves full package acceptanc
    at `7c6388236`. The candidate executable was
    `ce05b2940a3e4c295ee81c49ebbba882dc105cf92e83e0ad75080aec99f998c4` with the shared
    component discovery change. Both overlays excluded the pending accessor edit.
+   Those packages timed out before project linking and were not rerun for the render-closure cut.
 
 5. **Separate framework decisions still sharing stronger facts.** Migrate live post-helper
    reads independently of HTTP write authorization. Migrate optional versus required context
