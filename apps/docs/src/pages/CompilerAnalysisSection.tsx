@@ -110,7 +110,8 @@ export function CompilerAnalysisSection(this: Component<{}>) {
 				requirement, which can remain unknown to placement analysis. Package export conditions
 				select an implementation. The selected implementation still has its own environment
 				requirements. A browser-only callback passed to a shared helper can restrict that call.
-				Other callers keep their own placement.
+				Other callers keep their own placement. When you edit an imported child component, the
+				compiler updates the affected render edges using the child’s new placement.
 			</p>
 			<p>
 				For a small helper with no captured values, the compiler can connect a conditional field

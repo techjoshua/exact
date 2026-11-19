@@ -1,7 +1,6 @@
 package exactcompiler
 
 import (
-	"sort"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -26,6 +25,7 @@ type componentCandidate struct {
 	name     string
 	node     *ast.Node
 	exported bool
+	signals  []string
 }
 
 // collectComponents discovers the declarations which own eXact component
@@ -40,12 +40,13 @@ func collectComponentsWithIDs(sourceFile *ast.SourceFile, ids map[*ast.Node]stri
 	if usesForeignJSXRuntime(sourceFile) {
 		return nil
 	}
+	return componentsFromCandidates(sourceFile, ids, identityFilename, activeComponentCandidates(sourceFile))
+}
+
+// componentsFromCandidates builds records in the same order as their source index.
+func componentsFromCandidates(sourceFile *ast.SourceFile, ids map[*ast.Node]string, identityFilename string, candidates []componentCandidate) []Component {
 	var components []Component
-	for _, candidate := range componentCandidates(sourceFile) {
-		signals := componentSignals(candidate, sourceFile)
-		if len(signals) == 0 {
-			continue
-		}
+	for _, candidate := range candidates {
 		if ids == nil {
 			ids = expressionNodeIDs(sourceFile)
 		}
@@ -61,7 +62,7 @@ func collectComponentsWithIDs(sourceFile *ast.SourceFile, ids map[*ast.Node]stri
 			Start:             candidate.node.Pos(),
 			Length:            candidate.node.End() - candidate.node.Pos(),
 			Exported:          candidate.exported,
-			Signals:           signals,
+			Signals:           append([]string(nil), candidate.signals...),
 			RenderCapability:  unknownComponentRenderCapability(),
 			Placement:         "isomorphic",
 			SubgraphPlacement: "isomorphic",
@@ -91,9 +92,6 @@ func collectComponentsWithIDs(sourceFile *ast.SourceFile, ids map[*ast.Node]stri
 			Surface:       surface,
 		})
 	}
-	sort.Slice(components, func(left int, right int) bool {
-		return components[left].Start < components[right].Start
-	})
 	return components
 }
 

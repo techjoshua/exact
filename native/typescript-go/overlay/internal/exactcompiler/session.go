@@ -359,7 +359,8 @@ func (s *Session) executeProjection(request Request, authored *authoredCheckProg
 	assets := analyzeAssets(sourceFile, generation.checker, request)
 	ensureProjectComponentCaches(project)
 	nodeIDs := projectComponentNodeIDs(project, sourceFile)
-	components := collectComponentsWithIDs(sourceFile, nodeIDs, normalizedIdentityFilename(request.ID))
+	candidates := projectComponentCandidates(project, sourceFile)
+	components := componentsFromCandidates(sourceFile, nodeIDs, normalizedIdentityFilename(request.ID), candidates)
 	// Build hosts own ordinary bootstrap and test registration. Component definitions in a
 	// test module still compile normally, and known target and data-policy checks remain intact.
 	hostOwnedModule := request.Kind == "compile" && request.PreserveOrdinaryModules &&
@@ -515,6 +516,7 @@ func (s *Session) executeProjection(request Request, authored *authoredCheckProg
 	components = analyzeComponents(
 		sourceFile,
 		components,
+		candidates,
 		callables,
 		tasks,
 		generation.checker,

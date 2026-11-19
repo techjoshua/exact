@@ -414,6 +414,9 @@ retain valid local references. Raw `tsc --noEmit` remains useful for packages th
 source syntax, but it is not authoritative for an eXact application. The current directory's
 `tsconfig.json` is used automatically; `--project` selects a different configuration.
 
+Component records, placement analysis and the project linker use the same source-ordered
+component candidates and discovery signals. The candidate index follows source identity and
+existing project invalidation. Request-specific component IDs are assigned when building records.
 Source-local identity maps are built once and shared by component discovery, placement, island
 planning and lowering. Project caches retain them only while their source identity survives
 invalidation. Import-specifier discovery is cached by immutable source identity during

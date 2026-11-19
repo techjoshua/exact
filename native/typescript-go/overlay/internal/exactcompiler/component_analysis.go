@@ -25,14 +25,14 @@ type componentElement struct {
 func analyzeComponents(
 	sourceFile *ast.SourceFile,
 	components []Component,
+	candidates []componentCandidate,
 	callables callableAnalysis,
 	tasks []Task,
 	typeChecker *checker.Checker,
 	nodeIDs map[*ast.Node]string,
 	transport *sourceAnalysisFacts,
 ) []Component {
-	candidates := activeComponentCandidates(sourceFile)
-	if len(candidates) != len(components) {
+	if len(components) == 0 {
 		return components
 	}
 	elements := collectComponentElements(sourceFile, typeChecker)
@@ -631,7 +631,8 @@ func callableEffectForCall(callables callableAnalysis, sourceFile *ast.SourceFil
 func activeComponentCandidates(sourceFile *ast.SourceFile) []componentCandidate {
 	result := []componentCandidate{}
 	for _, candidate := range componentCandidates(sourceFile) {
-		if len(componentSignals(candidate, sourceFile)) != 0 {
+		candidate.signals = componentSignals(candidate, sourceFile)
+		if len(candidate.signals) != 0 {
 			result = append(result, candidate)
 		}
 	}

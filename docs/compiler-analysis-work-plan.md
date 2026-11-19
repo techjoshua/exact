@@ -511,6 +511,40 @@ before emission. This measures time to failure and leaves full package acceptanc
    an unrelated project root, changed dependency/config/target and an application/library pair.
    Never cache an active binding map, pending output, authorization, or live AST from an old
    generation as a portable definition summary.
+
+   Definition-owned placement reuses executing edges and propagates restrictions to convergence.
+   The recursive, distinct actuals, eager and dormant callback, and application/library controls
+   retain caller-specific effects and either-target exports. Target-specific package selection
+   and per-source initializer effects still participate. Export reporting and pruning share
+   availability within the executable selection and initializer revision of one request.
+   Generated imports still enter transformed-artifact validation. Watch and language-server
+   controls refresh an untouched caller when a helper or declaration changes.
+
+   Cold component linking now shares the existing source-ordered candidates and their lexical
+   signals with record construction and placement. Each admitted dependency used to run those
+   three consumers' identical declaration discovery and signal classification separately. It
+   now runs discovery once. Both targets retained the same code, source maps, analysis and diagnostics
+   in the matched cross-file control, which included an unrelated root, repeated render edges, a
+   child edit and a configuration change. The edit refreshed both edges from isomorphic to
+   client placement. Callable body demand already follows executable edges. The component linker
+   still prepares records for unrelated component roots. Separating its reachable records from
+   the project-wide declaration index remains open.
+
+   Original package stacks reached direct extraction before propagation and linking. Sharing
+   cached answers across entries would add an invalidation boundary without addressing the
+   measured cold request. Occurrence-specific getter and writer work remains necessary where
+   definition edges lack coverage.
+
+   With the fixed coordinate-validation limits and 30-second host deadline, the original
+   Theme, Intl and frozen Core client commands still timed out at `components.ts` (Theme
+   and Intl) and `error-boundary.tsx` (Core). Time to command exit in base/candidate order
+   was 32.27/32.13 s, 34.34/34.36 s and 31.52/31.49 s respectively. No new paired package
+   was produced. Both hosts used the same original package inputs, frozen SDK and toolchain as
+   item 3. The base executable was `768b0d29c11f1f6fe555b9f7bcb971f545e4b990582544b4f240ceaee1971627`
+   at `7c6388236`. The candidate executable was
+   `ce05b2940a3e4c295ee81c49ebbba882dc105cf92e83e0ad75080aec99f998c4` with the shared
+   component discovery change. Both overlays excluded the pending accessor edit.
+
 5. **Separate framework decisions still sharing stronger facts.** Migrate live post-helper
    reads independently of HTTP write authorization. Migrate optional versus required context
    dependencies independently of placement. Reuse checked standard contracts for ordinary

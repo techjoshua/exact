@@ -892,15 +892,12 @@ func projectComponentRecords(
 			continue
 		}
 		candidates := projectComponentCandidates(project, dependency)
-		if len(candidates) == 0 || usesForeignJSXRuntime(dependency) {
+		if len(candidates) == 0 {
 			project.componentFacts[dependency] = nil
 			continue
 		}
 		nodeIDs := projectComponentNodeIDs(project, dependency)
-		components := collectComponentsWithIDs(dependency, nodeIDs, normalizedIdentityFilename(dependency.FileName()))
-		if len(components) == 0 {
-			continue
-		}
+		components := componentsFromCandidates(dependency, nodeIDs, normalizedIdentityFilename(dependency.FileName()), candidates)
 		project.counters.ComponentSourceAnalyses++
 		aliases, reads, writes := collectStateAnalysis(dependency, typeChecker)
 		reactive := collectReactiveBindings(
@@ -933,6 +930,7 @@ func projectComponentRecords(
 		components = analyzeComponents(
 			dependency,
 			components,
+			candidates,
 			callables,
 			tasks,
 			typeChecker,
@@ -974,7 +972,10 @@ func projectComponentCandidates(project *projectState, sourceFile *ast.SourceFil
 	if cached, exists := project.componentCandidates[sourceFile]; exists {
 		return cached
 	}
-	candidates := activeComponentCandidates(sourceFile)
+	var candidates []componentCandidate
+	if !usesForeignJSXRuntime(sourceFile) {
+		candidates = activeComponentCandidates(sourceFile)
+	}
 	project.componentCandidates[sourceFile] = candidates
 	return candidates
 }
