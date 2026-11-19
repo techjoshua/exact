@@ -4,6 +4,7 @@ import (
 	"slices"
 
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
+	"github.com/microsoft/TypeScript/tsc/internal/checker"
 )
 
 // accessorsAtGetOutput admits a producer's initial acquisition exactly once.
@@ -693,7 +694,22 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 		}
 		if ast.IsArrayLiteralExpression(value) {
 			result.sourceOwned = true
-			query.arrayValues(value, projection, name, mode, arguments, &result, visit, visitMember, get)
+			// Only the original callee traversal can descend straight from the
+			// selected member to its literal. Alias and result projections
+			// have a different root or an additional visitor entry.
+			call := query.initializing
+			freshMap := mode == accessorAcquire && query.dependenciesOnly && get == nil && producer == nil &&
+				len(alternatives) == 0 && len(path) == 0 && name == "" && len(projection) == 1 && projection[0] == "map" &&
+				len(seen) == 2 && seen[0].node == receiver && receiver == query.protectedMember &&
+				call != nil && ast.IsCallExpression(call) && query.active[call] && call.Expression() == receiver &&
+				ast.IsPropertyAccessExpression(receiver) && receiver.Expression() == value &&
+				len(value.AsArrayLiteralExpression().Elements.Nodes) == 1 && ast.IsSpreadElement(value.AsArrayLiteralExpression().Elements.Nodes[0])
+			if freshMap {
+				spread := value.AsArrayLiteralExpression().Elements.Nodes[0].AsSpreadElement()
+				operand := typeChecker.GetTypeAtLocation(spread.Expression)
+				freshMap = operand != nil && operand.Flags() == checker.TypeFlagsString
+			}
+			query.arrayValues(value, projection, name, mode, arguments, &result, visit, visitMember, get, freshMap)
 			return
 		}
 		if ast.IsClassDeclaration(value) || ast.IsClassExpression(value) || ast.IsObjectLiteralExpression(value) {

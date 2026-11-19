@@ -551,7 +551,7 @@ func sourceArrayIndex(key string) (uint64, bool) {
 // arrayValues applies the same finite member demand to native array syntax. Holes retain
 // their positions. A spread's iterator and length are unproved, so suffix positions widen.
 // Receiver calls are not append facts: even a method named push can be replaced.
-func (query *sourceValueQuery) arrayValues(origin *ast.Node, projection []string, name string, mode accessorTraversal, bindings sourceValueBindings, result *accessorCandidates, visit func(*ast.Node, []string, bool), sourceVisit func(sourceValue), get *sourceGetInputs) {
+func (query *sourceValueQuery) arrayValues(origin *ast.Node, projection []string, name string, mode accessorTraversal, bindings sourceValueBindings, result *accessorCandidates, visit func(*ast.Node, []string, bool), sourceVisit func(sourceValue), get *sourceGetInputs, freshMap bool) {
 	visitMember := func(value sourceValue) { visit(value.node, value.path, false) }
 	if query.dependenciesOnly {
 		visitMember = sourceVisit
@@ -583,6 +583,17 @@ func (query *sourceValueQuery) arrayValues(origin *ast.Node, projection []string
 					standard = &candidate
 				}
 			}
+		}
+	}
+	// Spread creates indexed data properties only. The iterator cannot
+	// acquire the array under construction. Keep unknown or augmented
+	// method declarations on the ordinary lookup path.
+	if freshMap && len(inherited) == 1 {
+		method := inherited[0].node
+		if method != nil && method.Kind == ast.KindMethodSignature && standardLibrarySource(ast.GetSourceFileOfNode(method)) &&
+			method.Parent != nil && ast.IsInterfaceDeclaration(method.Parent) && callableNameText(method.Parent.Name()) == "Array" {
+			result.values = append(result.values, inherited...)
+			return
 		}
 	}
 	// A freshly constructed receiver cannot have its own includes overridden
