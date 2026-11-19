@@ -108,6 +108,11 @@ func (work *callableEffectWork) stageSourceDeclarationCall(facts []callableFacts
 	}
 	source, ok := describeStagedDeclarationEffectsInputs(call, fact.node, owner)
 	if !ok {
+		// An ordinary Effects request can forward source roles, but cannot
+		// take over the original binder needed by a lexical default.
+		if work.purpose == callableMayEffects {
+			return false
+		}
 		// A nonterminal lexical default Call needs the same original B as a
 		// terminal Call. Neither the passive planner nor its result reader may
 		// select defaults or bind on the collector's behalf.

@@ -692,6 +692,66 @@ package and fresh-dependent builds. The prior deadlines are separate evidence
 for Core, Theme and Intl. Successful package emission, mounted updates,
 hydration and the remaining item 6 boundary controls still need qualification.
 
+### Ordinary callable extraction on Core
+
+The ordinary Call requester in `collectDirectCallableEffects` uses
+`appendArgumentAccessorEffectsObserved` and the source-only invocation query.
+The receiver and writer search serves original callee selection, including
+accessors, authored alternatives and unknown residuals. The requester publishes
+environment and context effects, receiver-relative state writes, and executing
+callable edges. A later Get that depends on the returned source has its own demand.
+
+On the original frozen Core package command with the 30-second host deadline,
+the instrumented `e036418fd` baseline reached the render closure's call to
+`renderErrorBoundary`. An experimental overlay reused the existing declaration
+Effects planner in ordinary extraction. It reached
+`createDefaultBoundaryView(errors, reset)`. Both stopped at the client request
+for `error-boundary.tsx` and emitted no new package. Wall time to exit was
+31.63 and 31.96 seconds. Cumulative CPU in `memberWriterInputs` was 12.27 and
+12.21 seconds within the censored intervals. A second experimental overlay
+also admitted terminal formal forwarding through the source planner. It
+timed out with the sampler still in `createDefaultErrorView` and showed no
+further progress. These samples describe progress through different work.
+They do not establish a completed-build speedup.
+
+The production cut enables the source-planned declaration edge for ordinary
+collection and leaves lexical defaults with the original binder. The
+unprofiled production overlay reached the same package deadline and exited
+after 31.72 seconds. The frozen package, SDK, Node 26.11.1, native build flags
+and fixed one-CPU, 1 GiB service were shared. All overlays excluded the
+uncommitted accessor edit. The observed frontier belongs to the instrumented
+experiments.
+
+The same-file definition edge can carry an ordinary lexical Call and compose its
+known input-relative effects. The default button stores `reset` as `onClick`,
+so passing it to receipt construction does not activate its body. The authored
+custom fallback is invoked during render. Its property Gets and the selected
+callback have separate effect obligations, including any secret access. The
+18 paired component requests agreed on emitted text, source maps, component
+analysis, and diagnostics. They covered stored and invoked callbacks, getter
+effects, receiver writes, captured inputs, state updates, and secret capture
+rejection. Direct effect provenance and call edges changed as the graph began
+propagating those effects through definition edges. The paired state artifacts
+rendered on the server, mounted and updated in the DOM, and adopted the existing
+button during hydration before updating that same node. These fixture runs
+used installed runtimes. The frozen Core build produced no new package artifacts.
+
+At the remaining receipt path, the missing fact is coverage of the effects of
+the operations that consume a particular input at its original cut. For a member
+Call it includes the Get's possible getter and installed callable sources, any
+receiver-relative writer that can change that source, and unresolved alternatives.
+For the receipt constructor it includes the copied property Gets and the rest
+elements later consumed by child normalization. The existing lexical planner
+refuses rest formals and spread actuals. Definition placement supplies the known
+body edge but cannot supply those missing contributions. The next graph slice
+can subscribe a Get or Call to the receiver/key and input roles it actually
+uses. A writer known to target a disjoint receiver or key can be excluded
+before scope recovery. An overlapping writer still supplies its possible
+accessor or callable sources, and an unresolved writer leaves a residual.
+Neither side needs table contents, an exact receipt, or inputs unrelated to
+those effects. Result-dependent reads and redemption keep their independent
+producers.
+
 ### Source entry points
 
 - [Request planning and printing](../native/typescript-go/overlay/internal/exactcompiler/session.go),
