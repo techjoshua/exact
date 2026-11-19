@@ -303,7 +303,9 @@ func (lowering *jsxLowering) pendingStateOperation(node, context *ast.Node, visi
 	if lowering.pendingNamespaceReads[nodeSourceSpan(node)] && !pendingReadIsWriteTarget(node) {
 		return visitor.VisitEachChild(node)
 	}
-	if ast.IsIdentifier(node) && lowering.pendingOwnedValues[nodeSourceSpan(node)] && !pendingReadIsWriteTarget(node) && !isNonReferenceComponentIdentifier(node) {
+	// Activation arguments keep the captured expression span, but their detached
+	// parameter references already carry the selected value, not an authored alias.
+	if ast.IsIdentifier(node) && node.Parent != nil && lowering.pendingOwnedValues[nodeSourceSpan(node)] && !pendingReadIsWriteTarget(node) && !isNonReferenceComponentIdentifier(node) {
 		return lowering.helperContextCall(context, "own", []*ast.Node{node})
 	}
 	if result := lowering.pendingOptionalRead(node, context, visitor); result != nil {

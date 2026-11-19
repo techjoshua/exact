@@ -256,7 +256,8 @@ export function TasksPage(this: Component<{}>) {
 						A defaulted ordinary parameter captures an untracked snapshot once per generation.
 					</li>
 					<li>
-						<code>task.peek(() =&gt; value)</code> handles conditional or mid-body snapshots.
+						A task-local derived read can follow a pending edit made by the task. Use{' '}
+						<code>task.peek(() =&gt; value)</code> when you need a conditional or mid-body snapshot.
 					</li>
 					<li>
 						For a task function with an authored <code>TaskContext</code> parameter, call arguments

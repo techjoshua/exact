@@ -60,7 +60,9 @@ task. Its setup call declares initial and reactive activation, with
 generation. The compiler supplies the task definition, component ownership,
 dependency subscription, scheduling, and cleanup machinery. Selected props and derived inputs
 remain available throughout that generation, including inside cleanup callbacks. Repeated reads
-of a static captured path use the same activation value. An indexed task input also observes the
+of a static captured path use the same activation value. A task-local derived read of a path
+that the task writes follows the pending value. Use a defaulted ordinary parameter when you need
+to retain the value captured at activation. An indexed task input also observes the
 compiler-owned expression or direct-property operand retained in its prop slot. Source replacement
 rebinds that subscription, and task disposal releases both slot and operand subscriptions.
 

@@ -7,6 +7,12 @@ import { createCompiledComponentInputReceipt } from '@exactjs/core/runtime/compo
 import { renderToString } from '@exactjs/ssr';
 import { render, dispose } from '@exactjs/dom';
 import { flushSync } from '@exactjs/reactive';
+import { decodeReactiveProtocolValue } from '@exactjs/reactive/framework/protocol';
+import {
+	composeExactExecutorContract,
+	exactResponseToFetchResponse,
+	handleExactRequest
+} from '@exactjs/server';
 import { NativeCompilerProcess } from '../native/process.js';
 import { resolveNativeCompilerExecutable } from '../native/executable.js';
 import { importArtifact } from '../test-support/import-artifact.js';
@@ -270,3 +276,96 @@ it('rejects erased server collection publication before dispatch', async () => {
 		expect(result.code).toBe('');
 	}
 });
+
+it.each(['reader', 'writer'] as const)(
+	'preserves activation captures around an imported pending helper (%s)',
+	async (helper) => {
+		const compiler = new NativeCompilerProcess({ executable: resolveNativeCompilerExecutable() });
+		onTestFinished(() => compiler.dispose());
+		const directory = path.resolve('.tmp/task-state-regressions/imported-pending-' + helper);
+		await mkdir(directory, { recursive: true });
+		const effect = helper === 'writer' ? "left.value = 'after'" : 'void left.value';
+		await writeFile(
+			path.join(directory, 'helper.ts'),
+			`export function apply(left: { value: string }, enabled: boolean) {
+				if (enabled) ${effect};
+			}`
+		);
+		const current = helper === 'writer' ? 'after' : 'before';
+		for (const target of ['client', 'server'] as const) {
+			const result = compiler.request({
+				kind: 'compile',
+				target,
+				id: path.join(directory, target + '.tsx'),
+				root: process.cwd(),
+				diagnostics: 'semantic',
+				source: `import { TaskContext, type Component } from '@exactjs/core';
+import { apply } from './helper.js';
+export function Page(this: Component<{ left: { value: string; sibling: string }; result: string }>) {
+	this.state.left = { value: 'before', sibling: 'take' };
+	this.state.result = '';
+	async function run(snapshot = this.state.left.value, task: TaskContext = TaskContext.${target}().blocking()) {
+		const entry = this.state.left.value;
+	apply(this.state.left, this.state.left.sibling === 'take');
+		this.state.result = snapshot + ':' + entry + ':' + this.state.left.value + ':' + this.state.left.sibling;
+	}
+	run();
+	return () => <output>{this.state.result}</output>;
+}`
+			});
+			expect(result.error).toBeUndefined();
+			expect(result.diagnostics).toEqual([]);
+			const file = path.join(directory, target + '.ts');
+			await writeFile(file, result.code!);
+			const module = await importArtifact(file, path.join(directory, target + '.mjs'));
+			const Page = module.Page as AnyComponentFunction;
+			if (target === 'server') {
+				const contract = composeExactExecutorContract([Page]);
+				const [invocation] = Object.values(contract.invocations);
+				const paths = helper === 'writer' ? ['left.value', 'result'] : ['result'];
+				expect(invocation.stateWrites.map((write) => write.path).sort()).toEqual(paths);
+				expect(invocation.stateWrites.every((write) => write.confidence === 'exact')).toBe(true);
+				for (const sibling of ['take', 'skip']) {
+					const left = { value: 'before', sibling };
+					const responsePromise = handleExactRequest(
+						{
+							method: 'POST',
+							body: JSON.stringify({
+								type: 'invoke',
+								id: invocation.id,
+								state: { left },
+								payload: { dependencies: [left.value, left, sibling, left.value] }
+							})
+						},
+						{ contract, logger: { log() {} } }
+					);
+					// The browser's committed object can change while the server runs the
+					// already serialized activation against its request-local state.
+					left.sibling = 'committed-later';
+					const response = await responsePromise;
+					expect(response.status).toBe(200);
+					const value = sibling === 'take' ? current : 'before';
+					const write = helper === 'writer' && sibling === 'take' ? { left: { value } } : {};
+					const output = decodeReactiveProtocolValue(
+						await exactResponseToFetchResponse(response).json()
+					);
+					expect((output as { state: unknown }).state).toEqual({
+						result: `before:${value}:${value}:${sibling}`,
+						...write
+					});
+				}
+			} else {
+				const host = document.createElement('div');
+				onTestFinished(() => dispose(host, true));
+				const reports: unknown[] = [];
+				render(createCompiledComponentInputReceipt(Page, {}), host, {
+					onErrorReport: (report) => reports.push(report)
+				});
+				await new Promise((resolve) => setTimeout(resolve, 0));
+				flushSync();
+				expect(reports).toEqual([]);
+				expect(host.querySelector('output')?.textContent).toBe(`before:${current}:${current}:take`);
+			}
+		}
+	}
+);

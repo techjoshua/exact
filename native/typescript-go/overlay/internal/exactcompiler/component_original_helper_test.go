@@ -100,3 +100,39 @@ func TestComponentOriginalImportedInvokedHelper(t *testing.T) {
 		t.Fatal("invoked executor bypassed pending helper/read", r.Code)
 	}
 }
+
+// TestComponentActivationPendingHelperCapture exercises source-spanned activation
+// arguments in pending lowering alongside the authored receiver of a writing helper.
+func TestComponentActivationPendingHelperCapture(t *testing.T) {
+	for _, target := range []Target{TargetClient, TargetServer} {
+		for _, effect := range []string{"void left.value", "left.value='after'"} {
+			t.Run(string(target)+"/"+effect, func(t *testing.T) {
+				source := `import {TaskContext,type Component} from '@exactjs/core';
+import {apply} from './helper.js';
+export function Page(this:Component<{left:{value:string;sibling:string};result:string}>){
+this.state.left={value:'before',sibling:'take'};this.state.result='';
+async function run(snapshot=this.state.left.value,task:TaskContext=TaskContext.` + string(target) + `().blocking()){
+const entry=this.state.left.value;
+apply(this.state.left,this.state.left.sibling==='take');
+this.state.result=snapshot+':'+entry+':'+this.state.left.value+':'+this.state.left.sibling;
+}
+run();return()=> <output>{this.state.result}</output>;
+}`
+				f := newExecutableFixture(t, map[string]string{
+					"entry.ts":  "export {};",
+					"entry.tsx": source,
+					"helper.ts": `export function apply(left:{value:string},enabled:boolean){if(enabled){` + effect + `;}}`,
+				})
+				request := f.request("compile", "entry.tsx")
+				request.Target = target
+				response := f.session.Execute(request)
+				if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) || response.Code == "" {
+					t.Fatal(response.Error, response.Diagnostics)
+				}
+				if !strings.Contains(response.Code, ".helper(apply)(") {
+					t.Fatal("original helper lost its pending caller", response.Code)
+				}
+			})
+		}
+	}
+}

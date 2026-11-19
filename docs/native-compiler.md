@@ -1790,6 +1790,10 @@ provenance or indexed slots. Compiler-owned setup computations, render closures 
 retain their component receiver. Computed member names evaluate in the enclosing scope, and arrows
 inherit its receiver.
 
+Pending helper lowering preserves generated activation arguments even when they retain the source
+span of an owned state expression. Ownership syntax checks apply to authored references with
+source parents. Paths with proven local write effects can still read through the pending journal.
+
 Generated temporaries retain assignment destination types, including empty arrays and contextual
 callbacks. Callback argument context is captured before island extraction changes parent links.
 Copied continuation executors retain component type parameters, constraints and defaults.
