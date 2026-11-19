@@ -653,7 +653,8 @@ contextually typing those whole arguments solely to establish a binding that is 
 Owned arguments still receive type checks so scalar values cannot grant object mutation authority.
 Unknown member-access paths retain their existing analysis metadata.
 
-Receiver paths participate in the incremental analysis fingerprint. Strongly connected callable
+Receiver paths are retained in source-local callable facts. A newly prepared source replaces its
+prior entry when it becomes the requested source or its JSX mode changes. Strongly connected callable
 groups identify recursive edges before effect propagation. A recursive call into a nested receiver
 retains its argument prefix and widens the suffix to an unknown wildcard, preventing branching
 recursion from enumerating exponentially many paths. Whole-receiver recursion and acyclic helper
@@ -2232,7 +2233,7 @@ Effects substitutions; they do not supply normal values, a selected binder or a
 current mutation application. The original callee Get, eager arguments and
 algorithm retain independent unpaid roles. Empty-array creation does not prove
 later index/length writes, authored hooks or abrupt alternatives covered. Cloning
-retains the description, clears its graph issuer, and fingerprints semantic
+retains the description and clears its graph issuer. Clone tests compare the retained semantic
 content independently of the receipt. Legacy source writes remain available.
 
 A Set aggregate stays extensible while demanded SOURCE writes are unaccounted.

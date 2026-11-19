@@ -323,7 +323,6 @@ func (collection *projectCallableCollection) resolve(requested *ast.SourceFile) 
 			entry.sourceContext = &context
 		}
 		cache.bySource[context.source] = entry
-		cache.fingerprints[context.source] = callableAnalysisFingerprint(entry)
 	}
 	cache.analyses = cache.analyses[:0]
 	for _, source := range cache.program.GetSourceFiles() {

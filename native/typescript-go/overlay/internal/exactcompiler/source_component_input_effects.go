@@ -85,31 +85,24 @@ func (query *sourceValueQuery) hasComponentInputDemand(member *ast.Node) bool {
 	return false
 }
 
-func componentInputDemandsFor(node *ast.Node, callables callableAnalysis) []sourceComponentInputDemand {
-	for _, fact := range callables.facts {
-		if fact.node == node {
-			rows := []sourceComponentInputDemand{}
-			for _, row := range fact.componentInputDemands {
-				if row.field.declaration == node && row.authority.valid() && callables.owner != nil && callables.owner.values != nil && row.authority.program == callables.owner.values.program && row.authority.checker == callables.owner.values.checker && row.authority.source == ast.GetSourceFileOfNode(node) && row.authority.prefixMode == fact.descriptorMode {
-					rows = append(rows, row)
-				}
-			}
-			return rows
+func componentInputDemandsFor(fact *callableFacts, owner *executableBodyOwner) []sourceComponentInputDemand {
+	node := fact.node
+	rows := []sourceComponentInputDemand{}
+	for _, row := range fact.componentInputDemands {
+		if row.field.declaration == node && row.authority.valid() && owner != nil && owner.values != nil && row.authority.program == owner.values.program && row.authority.checker == owner.values.checker && row.authority.source == ast.GetSourceFileOfNode(node) && row.authority.prefixMode == fact.descriptorMode {
+			rows = append(rows, row)
 		}
 	}
-	return nil
+	return rows
 }
 
 // Only the private body projection removes its exact own input obligations.
 // Public component and ordinary callable summaries are never rewritten here.
-func componentInputBodyPlacement(record projectComponent, callables callableAnalysis) string {
+func componentInputBodyPlacement(record projectComponent, matches []*callableFacts) string {
 	if len(record.inputDemands) == 0 || record.component.Placement != "unknown" || len(record.component.RenderEdges) != 0 {
 		return ""
 	}
-	for _, fact := range callables.facts {
-		if fact.node != record.candidate.node {
-			continue
-		}
+	for _, fact := range matches {
 		retained := []EnvironmentEffectSource{}
 		for _, effect := range fact.summary.EffectSources {
 			matched := false

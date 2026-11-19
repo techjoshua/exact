@@ -160,6 +160,13 @@ can be removed after the ordinary effects caller migrates.
 
 ## Implementation order and acceptance
 
+The initial cleanup now resolves imports during collection, removes production callable
+fingerprints, and groups the matching callable facts once per cold component link. Clone tests
+retain the content comparison. Existing literal-input, mixed-input and cache-replacement
+placement failures reproduce on the preceding compiler revision; they remain open component
+linking issues. The following steps retain the acceptance criteria for these and subsequent
+changes.
+
 1. **Remove demonstrated redundancy in parallel with the hot-path change.** Remove production
    callable fingerprints. Resolve static imports at collection. In `linkProjectComponents`,
    retrieve a component’s callable fact once for the linker, `componentInputDemandsFor`

@@ -1,6 +1,9 @@
 package exactcompiler
 
-import "github.com/microsoft/TypeScript/tsc/internal/ast"
+import (
+	"github.com/microsoft/TypeScript/tsc/internal/ast"
+	"github.com/microsoft/TypeScript/tsc/internal/compiler"
+)
 
 // Import describes a static declaration, re-export, or literal dynamic import edge.
 type Import struct {
@@ -15,8 +18,7 @@ type Import struct {
 	Length          int    `json:"length"`
 }
 
-func collectImports(sourceFile *ast.SourceFile) []Import {
-	var imports []Import
+func forEachStaticImport(sourceFile *ast.SourceFile, visit func(Import, *ast.Node)) {
 	for _, statement := range sourceFile.Statements.Nodes {
 		if ast.IsImportDeclaration(statement) {
 			declaration := statement.AsImportDeclaration()
@@ -27,7 +29,7 @@ func collectImports(sourceFile *ast.SourceFile) []Import {
 			typeOnly := clause != nil &&
 				clause.AsImportClause().PhaseModifier == ast.KindTypeKeyword
 			sideEffectOnly := clause == nil
-			imports = append(imports, Import{
+			visit(Import{
 				ModuleSpecifier: declaration.ModuleSpecifier.AsStringLiteral().Text,
 				TypeOnly:        typeOnly,
 				SideEffectOnly:  sideEffectOnly,
@@ -35,7 +37,7 @@ func collectImports(sourceFile *ast.SourceFile) []Import {
 				Enhancement:     exactEnhancementImport(declaration),
 				Start:           statement.Pos(),
 				Length:          statement.End() - statement.Pos(),
-			})
+			}, declaration.ModuleSpecifier)
 			continue
 		}
 		if !ast.IsExportDeclaration(statement) {
@@ -47,15 +49,25 @@ func collectImports(sourceFile *ast.SourceFile) []Import {
 			continue
 		}
 		runtimeBinding := exportHasRuntimeBinding(declaration)
-		imports = append(imports, Import{
+		visit(Import{
 			ModuleSpecifier: declaration.ModuleSpecifier.AsStringLiteral().Text,
 			TypeOnly:        !runtimeBinding,
 			SideEffectOnly:  false,
 			RuntimeBinding:  runtimeBinding,
 			Start:           statement.Pos(),
 			Length:          statement.End() - statement.Pos(),
-		})
+		}, declaration.ModuleSpecifier)
 	}
+}
+
+func collectImports(sourceFile *ast.SourceFile, program *compiler.Program) []Import {
+	var imports []Import
+	forEachStaticImport(sourceFile, func(edge Import, specifier *ast.Node) {
+		if resolved := program.GetResolvedModuleFromModuleSpecifier(sourceFile, specifier); resolved != nil && resolved.IsResolved() {
+			edge.ResolvedFile = resolved.ResolvedFileName
+		}
+		imports = append(imports, edge)
+	})
 	// Literal dynamic imports are dependency edges even though their evaluation is deferred.
 	// Project compilation must emit and rewrite their targets before moving artifacts.
 	walkNode(sourceFile.AsNode(), func(node *ast.Node) bool {

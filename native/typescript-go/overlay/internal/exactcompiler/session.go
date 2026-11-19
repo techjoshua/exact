@@ -346,22 +346,7 @@ func (s *Session) executeProjection(request Request, authored *authoredCheckProg
 	}
 	analysisStarted := time.Now()
 	directives := collectDirectives(sourceFile.Text())
-	imports := collectImports(sourceFile)
-	for index := range imports {
-		statement := nodeAtSpan(sourceFile.AsNode(), imports[index].Start, imports[index].Length)
-		var specifier *ast.Node
-		if statement != nil && ast.IsImportDeclaration(statement) {
-			specifier = statement.AsImportDeclaration().ModuleSpecifier
-		}
-		if statement != nil && ast.IsExportDeclaration(statement) {
-			specifier = statement.AsExportDeclaration().ModuleSpecifier
-		}
-		if specifier != nil && ast.IsStringLiteralLike(specifier) {
-			if resolved := project.program.GetResolvedModuleFromModuleSpecifier(sourceFile, specifier); resolved != nil && resolved.IsResolved() {
-				imports[index].ResolvedFile = resolved.ResolvedFileName
-			}
-		}
-	}
+	imports := collectImports(sourceFile, project.program)
 	assets := analyzeAssets(sourceFile, generation.checker, request)
 	ensureProjectComponentCaches(project)
 	nodeIDs := projectComponentNodeIDs(project, sourceFile)

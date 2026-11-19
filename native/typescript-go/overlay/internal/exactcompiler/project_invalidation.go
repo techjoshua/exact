@@ -76,11 +76,9 @@ func projectModuleSpecifiers(sourceFile *ast.SourceFile) ([]string, bool) {
 		return []string{}, false
 	}
 	specifiers := make([]string, 0)
-	for _, imported := range collectImports(sourceFile) {
-		if !imported.Dynamic {
-			specifiers = append(specifiers, imported.ModuleSpecifier)
-		}
-	}
+	forEachStaticImport(sourceFile, func(edge Import, _ *ast.Node) {
+		specifiers = append(specifiers, edge.ModuleSpecifier)
+	})
 	open := false
 	walkNode(sourceFile.AsNode(), func(node *ast.Node) bool {
 		if !ast.IsCallExpression(node) {
@@ -192,7 +190,6 @@ func (state *projectState) pruneCallableCache(
 			continue
 		}
 		delete(state.callableCache.bySource, sourceFile)
-		delete(state.callableCache.fingerprints, sourceFile)
 		delete(state.callableCache.owned, sourceFile)
 	}
 	// The next request rebuilds missing source facts and publishes one merged

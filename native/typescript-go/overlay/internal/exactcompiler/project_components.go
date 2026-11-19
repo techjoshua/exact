@@ -59,14 +59,27 @@ func linkProjectComponents(
 		callables,
 		completedPolicyTypes,
 	)
+	// Keep the source order of all matching facts. Input demands come from
+	// the first match, callable inputs from the last, and any match can
+	// establish conditional body placement.
+	componentFacts := make(map[*ast.Node][]*callableFacts, len(records))
 	for i := range records {
-		for _, fact := range callables.facts {
-			if fact.node == records[i].candidate.node {
-				records[i].callableInputDemands = fact.componentCallableInputs
-			}
+		componentFacts[records[i].candidate.node] = nil
+	}
+	for i := range callables.facts {
+		fact := &callables.facts[i]
+		if matches, component := componentFacts[fact.node]; component {
+			componentFacts[fact.node] = append(matches, fact)
 		}
-		records[i].inputDemands = componentInputDemandsFor(records[i].candidate.node, callables)
-		records[i].conditionalInputPlacement = componentInputBodyPlacement(records[i], callables)
+	}
+	for i := range records {
+		record := &records[i]
+		matches := componentFacts[record.candidate.node]
+		if len(matches) != 0 {
+			record.callableInputDemands = matches[len(matches)-1].componentCallableInputs
+			record.inputDemands = componentInputDemandsFor(matches[0], callables.owner)
+		}
+		record.conditionalInputPlacement = componentInputBodyPlacement(*record, matches)
 	}
 	componentBySymbol := make(map[ast.SymbolId]int, len(records))
 	componentByIdentity := make(map[string]int, len(records))
