@@ -497,10 +497,7 @@ func collectDirectCallableEffects(
 	consumeOperand := func(demand sourceNormalOperand) {
 		progressWriterInputSource(owner, sourceFile, demand.node)
 		registerPendingMemberSource(fact, demand.node, owner, work)
-		values := newSourceValueOwner(typeChecker)
-		if owner != nil && owner.values != nil {
-			values = owner.values
-		}
+		values := owner.sourceValues(typeChecker)
 		query := sourceValueQuery{owner: values, executable: owner, effectOwner: fact.node, remaining: 4096, active: make(map[*ast.Node]bool), reading: demand.node, inputs: fact.normalInputs}
 		query.operation = &sourceOperationContext{node: demand.node, owner: fact.node, inputs: fact.normalInputs}
 		result := accessorCandidates{nativeCalls: fact.nativeCalls, normalCalls: fact.normalCalls}

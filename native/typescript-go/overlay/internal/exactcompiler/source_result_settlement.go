@@ -104,10 +104,7 @@ func appendReturnSettlementEffects(fact *callableFacts, targets map[*ast.Node]in
 	if !async || !ordinary {
 		return
 	}
-	values := newSourceValueOwner(typeChecker)
-	if owner != nil && owner.values != nil {
-		values = owner.values
-	}
+	values := owner.sourceValues(typeChecker)
 	query := sourceValueQuery{owner: values, executable: owner, effectOwner: fact.node, remaining: 4096, active: make(map[*ast.Node]bool)}
 	// Normal Get/call producers have already retained this owner's references.
 	// The current construction frame is still live here. It is cleared by the

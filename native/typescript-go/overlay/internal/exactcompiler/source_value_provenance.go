@@ -116,6 +116,14 @@ func newSourceValueOwner(c *checker.Checker) *sourceValueOwner {
 	return &sourceValueOwner{checker: c, summaries: make(map[*ast.Node]sourceValueSummary), indexes: make(map[*ast.SourceFile]sourceValueIndex)}
 }
 
+// sourceValues reuses the executable's indexes when a source query shares its owner.
+func (owner *executableBodyOwner) sourceValues(c *checker.Checker) *sourceValueOwner {
+	if owner != nil && owner.values != nil {
+		return owner.values
+	}
+	return newSourceValueOwner(c)
+}
+
 // sourceValueQuery bounds all nested invocation and projection demands together. An active
 // declaration widens after its finite source input relation stops growing. Normal
 // execution retains its declaration guard instead of growing capture contexts.

@@ -10,11 +10,11 @@ import (
 // appendAccessorEffects connects property evaluation to the accessor that executes. Accessors
 // retain separate callable identities so creating their owner does not execute their bodies.
 func appendAccessorEffects(fact *callableFacts, node *ast.Node, targets map[*ast.Node]int, source *ast.SourceFile, typeChecker *checker.Checker, owner *executableBodyOwner, work *callableEffectWork, facts []callableFacts) {
-	appendBoundAccessorEffects(fact, node, targets, source, typeChecker, nil, owner, work, facts)
-}
-
-// appendBoundAccessorEffects preserves accessor execution through source-owned argument substitution.
-func appendBoundAccessorEffects(fact *callableFacts, node *ast.Node, targets map[*ast.Node]int, source *ast.SourceFile, typeChecker *checker.Checker, bindings map[ast.SymbolId]*ast.Node, owner *executableBodyOwner, work *callableEffectWork, facts []callableFacts) {
+	// The callable walk visits every expression and statement. Only explicit
+	// member operations can publish a Get or Set through this owner.
+	if !ast.IsPropertyAccessExpression(node) && !ast.IsElementAccessExpression(node) {
+		return
+	}
 	// The normal binding producer acquires value and effects together once.
 	if normalGetBinding(node, fact.node, fact.normalInputs, typeChecker) {
 		return
@@ -23,7 +23,7 @@ func appendBoundAccessorEffects(fact *callableFacts, node *ast.Node, targets map
 	if fact.normalInputs == nil {
 		query := newSourceDependencyQuery(node, typeChecker, owner, fact.node)
 		defer query.publishDependencyStatistics()
-		if work != nil && (ast.IsPropertyAccessExpression(node) || ast.IsElementAccessExpression(node)) {
+		if work != nil {
 			request, issued := stagedMemberGetSourceRequest(fact, node)
 			if issued {
 				revoke, _ := work.beginStagedMemberWork(query, facts, request)
@@ -43,42 +43,32 @@ func appendBoundAccessorEffects(fact *callableFacts, node *ast.Node, targets map
 		appendOwnedGetFact(fact, node, candidates, targets, source, typeChecker)
 		return
 	}
-	read, write := false, false
-	if ast.IsPropertyAccessExpression(node) || ast.IsElementAccessExpression(node) {
-		read, write = accessorEvaluationMode(node)
+	read, write := accessorEvaluationMode(node)
+	if !read && !write {
+		return
 	}
-	if (read || write) && fact.normalInputs != nil {
-		query := sourceValueQuery{owner: owner.values, executable: owner, effectOwner: fact.node, remaining: 4096, active: make(map[*ast.Node]bool), inputs: fact.normalInputs, reading: node, operation: &sourceOperationContext{node: node, owner: fact.node, inputs: fact.normalInputs}}
-		query.returnObservation = &sourceReturnObservation{owner: fact.node, reader: node, frame: fact.normalInputs, receipts: fact.nativeCalls, normalCalls: fact.normalCalls}
-		if read && !write {
-			candidates = query.consumeNormalGet(node, fact.normalInputs.bindings)
-			if c := fact.normalInputs.initializerCursor; c != nil {
-				slot := query.normalOperation(node, false)
-				observed := sourceResultObservation{}
-				kind := initializerObservationAbsent
-				if slot != nil && (slot.state == sourceOperationConsumed || slot.state == sourceOperationRefused) {
-					observed = normalGetOutput(slot)
-					kind = initializerObservationFinalized
-				}
-				c.observe(node, observed, kind)
+	query := sourceValueQuery{owner: owner.values, executable: owner, effectOwner: fact.node, remaining: 4096, active: make(map[*ast.Node]bool), inputs: fact.normalInputs, reading: node, operation: &sourceOperationContext{node: node, owner: fact.node, inputs: fact.normalInputs}}
+	query.returnObservation = &sourceReturnObservation{owner: fact.node, reader: node, frame: fact.normalInputs, receipts: fact.nativeCalls, normalCalls: fact.normalCalls}
+	if read && !write {
+		candidates = query.consumeNormalGet(node, fact.normalInputs.bindings)
+		if c := fact.normalInputs.initializerCursor; c != nil {
+			slot := query.normalOperation(node, false)
+			observed := sourceResultObservation{}
+			kind := initializerObservationAbsent
+			if slot != nil && (slot.state == sourceOperationConsumed || slot.state == sourceOperationRefused) {
+				observed = normalGetOutput(slot)
+				kind = initializerObservationFinalized
 			}
-		} else {
-			finish := query.normalWork(&candidates, node)
-			candidates = query.evaluatedSourceAccessors(node, fact.normalInputs.bindings)
-			finish.finish(&candidates)
+			c.observe(node, observed, kind)
 		}
 	} else {
-		candidates = evaluatedSourceAccessors(node, typeChecker, bindings, owner, fact.node, nil)
+		finish := query.normalWork(&candidates, node)
+		candidates = query.evaluatedSourceAccessors(node, fact.normalInputs.bindings)
+		finish.finish(&candidates)
 	}
-	if read || write {
-		var inputs sourceValueBindings
-		if fact.normalInputs != nil {
-			inputs = fact.normalInputs.bindings
-		}
-		candidates = refineSourceDependencies(candidates, func() accessorCandidates {
-			return sourceMemberDependencies(node, typeChecker, owner, fact.node, inputs)
-		})
-	}
+	candidates = refineSourceDependencies(candidates, func() accessorCandidates {
+		return sourceMemberDependencies(node, typeChecker, owner, fact.node, fact.normalInputs.bindings)
+	})
 	appendOwnedGetFact(fact, node, candidates, targets, source, typeChecker)
 }
 

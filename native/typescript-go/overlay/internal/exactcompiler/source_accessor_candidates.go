@@ -127,10 +127,7 @@ func sourceAccessorBoundCandidates(receiver *ast.Node, path []string, name strin
 // sourceAccessorOperationCandidates retains mutation references at the existing
 // evaluated member owner. A syntax reference is not execution or value authority.
 func sourceAccessorOperationCandidates(receiver *ast.Node, path []string, name string, mode accessorTraversal, typeChecker *checker.Checker, bindings map[ast.SymbolId]*ast.Node, owner *executableBodyOwner, consumer, operation *ast.Node) accessorCandidates {
-	values := newSourceValueOwner(typeChecker)
-	if owner != nil && owner.values != nil {
-		values = owner.values
-	}
+	values := owner.sourceValues(typeChecker)
 	query := &sourceValueQuery{owner: values, executable: owner, effectOwner: consumer, remaining: 4096, active: make(map[*ast.Node]bool)}
 	query.operation = &sourceOperationContext{node: receiver, owner: consumer}
 
@@ -189,28 +186,6 @@ func (query *sourceValueQuery) sourceAccessorOperationCandidates(receiver *ast.N
 	}
 	query.finishInstalledSourceCallSelection(&result)
 	return result
-}
-
-// evaluatedSourceAccessors shares member evaluation provenance with eager module
-// placement. Installed consumers use the same operation and declaration fallback.
-// reading retains the eager consumer across captured body and receiver lookups.
-// A nil boundary keeps definition-only queries in their conservative MAY domain.
-func evaluatedSourceAccessors(node *ast.Node, typeChecker *checker.Checker, bindings map[ast.SymbolId]*ast.Node, owner *executableBodyOwner, consumer, reading *ast.Node) accessorCandidates {
-	values := newSourceValueOwner(typeChecker)
-	if owner != nil && owner.values != nil {
-		values = owner.values
-	}
-	query := sourceValueQuery{owner: values, executable: owner, effectOwner: consumer, remaining: 4096, active: make(map[*ast.Node]bool), reading: reading}
-	receiver := node
-	if ast.IsPropertyAccessExpression(node) || ast.IsElementAccessExpression(node) {
-		receiver, _ = accessorReceiver(node)
-	}
-	query.operation = &sourceOperationContext{node: receiver, owner: consumer}
-	arguments := make(sourceValueBindings)
-	for id, value := range bindings {
-		arguments[id] = []sourceValue{{node: value}}
-	}
-	return query.evaluatedSourceAccessors(node, arguments)
 }
 
 // evaluatedSourceAccessors retains checker-known MAY effects when receiver

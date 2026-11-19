@@ -379,10 +379,7 @@ func (query *sourceValueQuery) consumeInvocation(node *ast.Node, bindings source
 // receipts to later actual input/Get acquisition. Indexed interference suspends
 // observation, and each successful await still checks its original owner.
 func sourceInvocationWithResults(node *ast.Node, c *checker.Checker, owner *executableBodyOwner, consumer *ast.Node, receipts []*sourceNativeInvocation, results []*sourceInvocationResult, normal ...*sourceValueInputs) (result accessorCandidates) {
-	values := newSourceValueOwner(c)
-	if owner != nil && owner.values != nil {
-		values = owner.values
-	}
+	values := owner.sourceValues(c)
 	query := &sourceValueQuery{owner: values, executable: owner, effectOwner: consumer, remaining: 4096, active: make(map[*ast.Node]bool), reading: node}
 	query.operation = &sourceOperationContext{node: node, owner: consumer}
 	if (len(receipts) > 0 || len(results) > 0) && consumer != nil {

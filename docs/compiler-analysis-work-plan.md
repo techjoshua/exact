@@ -27,15 +27,26 @@ sampling, the original 20 Theme sources and no forced GC. Independent runs on ea
 current source hit the deadline with the same five leading allocators. Neither the number
 of identical semantic queries nor the speed of a completed compile follows from those totals.
 
-Core has a different measurement: its ErrorBoundary default reset button reaches intrinsic
-receipt construction, an opaque operation and its prototype cache. Earlier stack sampling
-found callable-effect collection and member-origin reconstruction. On the actual request,
+Core's ErrorBoundary default reset button reaches intrinsic receipt construction and its
+prototype cache. The November 19 request profile on revision `4f7378ad1` sampled 11,765 MiB
+of allocation through 25 seconds of client compilation. Accessor evaluation accounted for
+3,593 MiB and registration of possible writer inputs for 3,149 MiB. During the 30-second
+request, member selection appeared in 71.6% of CPU samples, returned-source projection in
+67.7%, and native member lookup in 64.6%. These cumulative stacks overlap. The compile
+reached the deadline before emitting the component. On the actual request,
 removing the initial demand for one stored executor saved 13 of 495 indexed body-node visits
 in an approximately five-millisecond phase. Later cross-module redemption was unverified
 when both controls hit their test deadline. Keep ordinary indirect invocation conservative.
 A stored executor’s body, a metadata getter executed at construction, and the executor called
 at redemption have three different triggers. Skipping a tagged private helper’s whole body
 would also miss an eager platform dependency newly introduced inside it.
+
+Callable effect collection now opens an explicit property-access query only for property
+and element syntax. Implicit evaluation such as argument coercion has its own consumer.
+Queries sharing an executable's source indexes also avoid constructing replacement maps.
+In two server compiles of the direct state-helper regression per build, allocation attributed
+to constructing dependency queries fell from 159 KiB to 37 KiB. The paired workload
+allocated about 181 MiB overall in each build; this reduction is local to query setup.
 
 ## Request and project work
 

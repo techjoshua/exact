@@ -54,14 +54,18 @@ func sourceInvocationDependenciesObserved(node, reading *ast.Node, c *checker.Ch
 
 // newSourceDependencyQuery owns an uncached source relationship traversal.
 func newSourceDependencyQuery(node *ast.Node, c *checker.Checker, owner *executableBodyOwner, consumer *ast.Node) *sourceValueQuery {
-	values := newSourceValueOwner(c)
+	var values *sourceValueOwner
 	if owner != nil && owner.values != nil {
-		// Share only checker-owned AST templates and static write indexes. No
-		// initializer history, instantiated input or current-read result is reused.
+		// Share checker-owned templates and indexes. The dependency query
+		// keeps its own statistics, initializer history and invocation inputs.
 		prior := owner.values
-		values.program, values.generation = prior.program, prior.generation
-		values.language, values.components = prior.language, prior.components
-		values.indexes, values.summaries = prior.indexes, prior.summaries
+		values = &sourceValueOwner{
+			checker: c, program: prior.program, generation: prior.generation,
+			language: prior.language, components: prior.components,
+			indexes: prior.indexes, summaries: prior.summaries,
+		}
+	} else {
+		values = newSourceValueOwner(c)
 	}
 	query := &sourceValueQuery{owner: values, executable: owner, effectOwner: consumer, reading: node, dependenciesOnly: true, remaining: 4096, active: make(map[*ast.Node]bool), dependencyUse: node}
 	if owner != nil {
