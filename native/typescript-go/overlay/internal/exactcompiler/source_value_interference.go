@@ -184,6 +184,15 @@ func (query *sourceValueQuery) scanInterferenceInSources(origin *ast.Node, proje
 				if returnedObject && (ast.IsNumericLiteral(input) || ast.IsStringLiteral(input)) {
 					return false
 				}
+				// This scan asks only whether the evaluated operand carries the
+				// mutable receiver. Its original Get still owns any getter effects.
+				mayCarryReceiver := func(operand *ast.Node) bool {
+					return !query.dependenciesOnly || query.stagedReturnBinding != nil || query.calleeWriteWork != nil ||
+						stateArgumentMayOwnMutations(query.owner.checker.GetTypeAtLocation(operand))
+				}
+				if !mayCarryReceiver(input) {
+					return false
+				}
 				temporary := accessorCandidates{}
 				relevant := false
 				// Each acquisition owns its returned slice. Queue those slices in FIFO
@@ -201,10 +210,10 @@ func (query *sourceValueQuery) scanInterferenceInSources(origin *ast.Node, proje
 								if !query.charge(&temporary, member) {
 									break
 								}
-								if ast.IsPropertyAssignment(member) {
+								if ast.IsPropertyAssignment(member) && mayCarryReceiver(member.Initializer()) {
 									pending = append(pending, query.occurrenceOrigins(member.Initializer(), node, origin, bindings, &temporary))
 								}
-								if ast.IsShorthandPropertyAssignment(member) {
+								if ast.IsShorthandPropertyAssignment(member) && mayCarryReceiver(member.Name()) {
 									pending = append(pending, query.occurrenceOrigins(member.Name(), node, origin, bindings, &temporary))
 								}
 							}

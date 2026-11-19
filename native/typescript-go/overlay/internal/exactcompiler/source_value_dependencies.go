@@ -89,7 +89,13 @@ func sourceMemberDependencies(node *ast.Node, c *checker.Checker, owner *executa
 // normal outputs or residuals. Only matching contextual field/Call outcomes resolve classified
 // return-output gaps at the owning effect boundary. Unclassified causes survive.
 func refineSourceDependencies(precise accessorCandidates, summary func() accessorCandidates) accessorCandidates {
-	needsSummary := precise.opaque || precise.valueIncomplete || precise.receiverIncomplete || precise.fieldReceiverIncomplete || len(precise.fieldFallbacks) > 0 || len(precise.callFallbacks) > 0
+	return refineSourceDependenciesForOutput(precise, false, summary)
+}
+
+// An accounted operation can lack a runtime value. Retain its output gap
+// for later consumers and refine any independent execution uncertainty.
+func refineSourceDependenciesForOutput(precise accessorCandidates, valueEffectsAccounted bool, summary func() accessorCandidates) accessorCandidates {
+	needsSummary := precise.opaque || precise.valueIncomplete && (!valueEffectsAccounted || precise.thenIncomplete) || precise.receiverIncomplete || precise.fieldReceiverIncomplete || len(precise.fieldFallbacks) > 0 || len(precise.callFallbacks) > 0
 	for _, call := range precise.fieldCalls {
 		needsSummary = needsSummary || !call.complete
 		for _, outcome := range call.outcomes {

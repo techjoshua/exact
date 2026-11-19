@@ -681,6 +681,25 @@ than acquire an opaque effect solely from revisiting an active declaration. Obje
 projected and captured nonprimitive inputs still widen recursive value demands. This supplies
 neither a return value nor purity or performed-execution authority.
 
+For a direct call to a stable local function, definition-level effect collection can use
+the registered call edge when each argument forwards an unassigned required parameter
+with the same checked string or number type as the callee parameter. The edge propagates
+the callee’s execution requirements. A later read of a returned property still selects
+possible getters at that read. Calls with object or callback inputs retain their
+input-sensitive analysis.
+
+When checking whether an earlier call could mutate an object through its inputs, the
+ordinary effects query excludes checked primitive operands and primitive-valued fields
+of literal containers from the receiver search. Evaluating a primitive-valued property
+can still execute a getter; its original read owns that effect.
+
+Definition effects collection uses the standard declaration for checked primitive
+member calls with primitive operands. It also recognizes standard Number predicates
+and their use with `every` or `some` on a fresh dense array literal. Those predicates
+inspect their inputs without coercion. The elements, callee and arguments retain
+their ordinary evaluation, including getters. Authored callbacks, shadowed names,
+spread arguments and potentially replaced array methods retain invocation analysis.
+
 ### Portable build analysis
 
 Project-wide callable facts retain their source-file ownership. Artifact pruning and call-effect
@@ -2138,6 +2157,10 @@ objects or emitted activation identities.
 Public body analysis is demanded by requested components, explicit execution or task/policy
 boundaries, their transitive helpers and required module evaluation. An unused ordinary export does not by itself trigger body analysis. The source
 inventory records declarations independently of completed summaries.
+
+When a completed property read has accounted for its immediate effects, a missing runtime
+value alone does not request another source dependency walk. Later uses retain their
+value demands, and unresolved receiver, accessor and call effects still require refinement.
 
 Framework consumers retain the independent contributions in a stabilized callable summary.
 For ordinary summarized tasks, the graph supplies platform requirements. Native call receiver

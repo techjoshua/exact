@@ -240,8 +240,14 @@ export const value = readers[0]!();`}
 				<code>value</code> is a string. Reading <code>document.title.length</code> as its search
 				argument requires the browser. An object supplied as the starting index can also run
 				authored code when JavaScript converts it to a number.
-				A later property read can also require the browser. For example, if a task pushes a
-				record into a fresh local array, selects the first record, and reads a getter that uses
+			</p>
+			<p>
+				In <code>[record.count, 2].every(Number.isFinite)</code>, the predicate checks each value
+				without coercion. A getter on <code>record.count</code> still contributes its own
+				environment requirements. An authored predicate, including a locally defined
+				<code>Number.isFinite</code>, contributes the requirements of the code it runs. A later
+				property read can also require the browser. For example, if a task pushes a record into a
+				fresh local array, selects the first record, and reads a getter that uses
 				<code>document</code>, that read requires client execution.
 			</p>
 			<p>

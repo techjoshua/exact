@@ -278,7 +278,7 @@ func collectDirectCallableEffects(
 		if !captured && !stagedAssignment && !stagedHasInstance && !stagedNative && !stagedSourceCall && !stagedConstructed && !stagedFramework && !opaqueDeclaration {
 			registerPendingMemberSource(fact, node, owner, work)
 			lifecycleGet := fact.normalInputs == nil && node.Parent != nil && ast.IsCallExpression(node.Parent) && node.Parent.Expression() == node && ordinaryComponentLifecycleCall(node.Parent, typeChecker, owner)
-			if !lifecycleGet {
+			if !lifecycleGet && (protocol || !checkedPrimitiveMemberRead(node, typeChecker)) {
 				appendAccessorEffects(fact, node, nodeTargets, sourceFile, typeChecker, owner, accessorWork, facts)
 			}
 			if demand, dependent := describeNormalOperand(node); !dependent || !demand.pattern {
@@ -473,7 +473,7 @@ func collectDirectCallableEffects(
 		// Direct kernel registration owns the Call, while the ordinary walk
 		// still visits its key and inline callback creation. Keep edge selection
 		// and callback placement on their existing owners below.
-		if fact.normalInputs != nil || !ordinaryComponentLifecycleCall(node, typeChecker, owner) {
+		if fact.normalInputs != nil || !ordinaryComponentLifecycleCall(node, typeChecker, owner) && (protocol || !directInvocationLeaf(call, typeChecker)) {
 			invocation = appendArgumentAccessorEffects(fact, node, nodeTargets, sourceFile, typeChecker, owner, definition)
 		}
 		fact.nativeCalls = append(fact.nativeCalls, invocation.nativeCalls...)

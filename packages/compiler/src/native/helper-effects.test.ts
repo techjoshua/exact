@@ -269,6 +269,67 @@ export function Page(this:Component<{count:number}>){
 	}
 );
 
+it.each([
+	['data', 'return {field:value.length}'],
+	['getter', 'return {get field(){return document.title.length}}'],
+	['mixed', 'return value.length ? foreign() : {get field(){return document.title.length}}'],
+	['async data', 'return {field:value.length}'],
+	[
+		'async mixed',
+		'return value.length ? foreign() : {get field(){return value.length + document.title.length}}'
+	]
+])('preserves the downstream read of a parser result (%s)', async (kind, parser) => {
+	const root = await createBrowserTestWorkspace('.exact-parser-result-', process.cwd());
+	const compiler = new NativeCompilerProcess({ executable: resolveNativeCompilerExecutable() });
+	onTestFinished(() => compiler.dispose());
+	const source = `import {TaskContext,type Component} from '@exactjs/core';
+declare function foreign():{readonly field:number};
+function parse(value:string){${parser}}
+export function read(value:string|number){
+ const parsed=typeof value==='string'?parse(value):{field:0};
+ return parsed.field;
+}
+export function Page(this:Component<{count:number}>,props:{text:string}){
+ this.state.count=0;
+ const run=${kind.startsWith('async ') ? 'async ' : ''}(task:TaskContext=TaskContext.server())=>{this.state.count=read(props.text)};
+ return ()=> <button onClick={()=>run()}>{this.state.count}</button>;
+}`;
+	const files = await writeTestFiles(root, { 'Page.tsx': source });
+	const result = compiler.request({
+		kind: 'compile',
+		id: files['Page.tsx']!,
+		root,
+		source,
+		target: 'server',
+		diagnostics: 'semantic'
+	});
+	expect(result.error).toBeUndefined();
+	const errors = result.diagnostics.filter((diagnostic) => diagnostic.severity === 'error');
+	if (kind.endsWith('data')) {
+		expect(errors).toEqual([]);
+		const emitted = await writeTestFiles(root, { 'emitted.tsx': result.code! });
+		const artifact = await importArtifact(
+			emitted['emitted.tsx']!,
+			path.join(root, 'emitted.mjs'),
+			{},
+			'production'
+		);
+		const read = artifact.read as (input: string | number) => number;
+		expect([read('abc'), read(3)]).toEqual([3, 0]);
+		return;
+	}
+	expect(errors).toContainEqual(
+		expect.objectContaining({ code: 'EXACT2001', message: expect.stringContaining('document') })
+	);
+	expect(result.code).toBeFalsy();
+	if (kind.endsWith('mixed')) {
+		const read = result.analysis.callables.find((callable) => callable.name === 'read');
+		expect(read?.effectSources.map((effect) => effect.environment)).toEqual(
+			expect.arrayContaining(['browser', 'unknown'])
+		);
+	}
+});
+
 it('preserves component placement across fresh array method lookup', async () => {
 	const root = await createBrowserTestWorkspace('.exact-literal-method-', process.cwd());
 	const compiler = new NativeCompilerProcess({ executable: resolveNativeCompilerExecutable() });
@@ -285,6 +346,11 @@ export function ElementGetter() {
 }
 export function Callback() {
  const ok = [1, 2].every(() => document.title.length > 0);
+ return () => <p>{ok ? 'yes' : 'no'}</p>;
+}
+export function ShadowedPredicate() {
+ const Number = { isFinite: () => document.title.length > 0 };
+ const ok = [1, 2].some(Number.isFinite);
  return () => <p>{ok ? 'yes' : 'no'}</p>;
 }
 export function Replaced() {
@@ -312,6 +378,7 @@ export function Replaced() {
 		Neutral: 'isomorphic',
 		ElementGetter: 'client',
 		Callback: 'client',
+		ShadowedPredicate: 'client',
 		Replaced: 'client'
 	});
 });

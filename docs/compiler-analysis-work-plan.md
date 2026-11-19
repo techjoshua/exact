@@ -230,6 +230,22 @@ can be removed after the ordinary effects caller migrates.
 
 ## Implementation order and acceptance
 
+Placement now uses an executable definition edge when a stable lexical call forwards an
+unchanged checked primitive. Standard primitive members and a fresh dense literal's
+`every` or `some` with a standard Number predicate can account for invocation effects
+without reading the elements' values. Original operand expressions still own their
+effects. Later property reads select returned getters, and a completed Get with
+accounted effects can defer a missing runtime value to its later consumer.
+
+The earlier Theme trace measured 8.716 µs to collect the `parseCssColor(value)` edge.
+It then reached `.every(Number.isFinite)` on four returned fields. Their original Gets
+can execute authored work. The Intl trace reached `validateOptions` after collecting
+`requireRecord` in 1.375 ms. An unknown object passed to `validateOptions` may contribute
+getters during initialization. A definition edge alone cannot identify them. An
+earlier parser-result control eliminated two value-only source refinements in the
+ordinary-data case and one in the mixed browser-getter case. Those events were
+absent before the original Theme and Intl client deadlines.
+
 Library compilation needs the callable graph for placement, context and policy.
 The library builder has no semantic reader for the serialized callable inventory.
 Both original client requests stalled during graph rebuilding, before inventory
@@ -269,6 +285,27 @@ reduced individual costs measured on component compiles. The uninstrumented orig
 and Core commands on revision `4f7378ad1` still timed out at 30 seconds on the client
 compile, before producing paired artifacts. That run predates the compact callee-term layout.
 The remaining acceptance criterion is successful compilation and use of both targets.
+
+The November 19 placement run used the dirty integration worktree at `65af12ad0`
+including the prior extraction changes. The native executable’s SHA-256 was
+`b48d116c645a373ad1276cf4dfc30b7d18408d81eeba756f390e143952b43a79`.
+With one CPU and a 1 GiB memory limit, elapsed time from package command start to
+exit was 31.91 s for frozen Core, 32.79 s for Theme and 35.91 s for Intl. Each
+client component request reached its 30 s deadline before emission. Core stopped
+at `error-boundary.tsx`, Theme and Intl at `components.ts`. These are times to
+failure. Earlier stack samples on the same workloads located all three requests
+in direct callable extraction, before fixed-point propagation. Returned member
+reads and possible writer inputs still request invocation-specific dependencies.
+
+The November 19 follow-up used the placement extraction changes based on `097aa17de`
+with executable SHA-256
+`93b474031e900a543af61687d2f2d42c782aae704f5425304a2ff6d162790f55`.
+The native overlay used the base accessor declarations and the placement work staged
+for this change. Under the same coordinate-validation service limits and unchanged
+30 s host deadline, command wall time to exit was 31.83 s for frozen Core,
+32.64 s for Theme and 35.56 s for Intl. The same three client requests timed out
+before emission. This measures time to failure and leaves full package acceptance open.
+
 
 1. **Remove demonstrated redundancy in parallel with the hot-path change.** Remove production
    callable fingerprints. Resolve static imports at collection. In `linkProjectComponents`,

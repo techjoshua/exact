@@ -186,6 +186,109 @@ func nativeNeutralMember(declaration *ast.Node, owner *ast.Symbol) bool {
 	return strings.HasPrefix(name, "lib.es") && strings.HasSuffix(name, ".d.ts")
 }
 
+// checkedPrimitiveMemberRead accounts for the standard Get itself. The
+// receiver and key expressions still evaluate at their original source sites.
+// Boxed primitives and authored members can have their own getters.
+func checkedPrimitiveMemberRead(node *ast.Node, c *checker.Checker) bool {
+	if !ast.IsPropertyAccessExpression(node) && !ast.IsElementAccessExpression(node) {
+		return false
+	}
+	read, write := accessorEvaluationMode(node)
+	if !read || write {
+		return false
+	}
+	receiver, name := restrictedInvocationMember(node, c)
+	return name != "" && checkedPrimitiveOperand(receiver, c) && nativeReceiverMemberDeclarations(node, c)
+}
+
+// directInvocationLeaf recognizes operations whose execution is covered by
+// the standard declaration and ordinary child walk. It grants no result or
+// invocation authority. Calls that can enter authored work through inputs
+// keep the invocation-relative query.
+func directInvocationLeaf(call *ast.CallExpression, c *checker.Checker) bool {
+	if checkedPrimitiveMemberInvocation(call, c) {
+		return true
+	}
+	if standardNumberPredicate(call.Expression, c) {
+		if call.Arguments == nil {
+			return true
+		}
+		for _, argument := range call.Arguments.Nodes {
+			if ast.IsSpreadElement(argument) {
+				return false
+			}
+		}
+		return true
+	}
+	receiver, name := restrictedInvocationMember(unwrapSourceCallableReference(call.Expression), c)
+	if (name != "every" && name != "some") || receiver == nil || call.Arguments == nil || len(call.Arguments.Nodes) != 1 {
+		return false
+	}
+	receiver = unwrapSourceCallableReference(receiver)
+	// A fresh dense literal owns all of its indexed Gets. The original walk
+	// visits its element expressions and the graph still records the Call.
+	return ast.IsArrayLiteralExpression(receiver) &&
+		denseArrayElements(receiver.AsArrayLiteralExpression().Elements.Nodes) &&
+		nativeReceiverMemberDeclarations(call.Expression, c) &&
+		standardNumberPredicate(call.Arguments.Nodes[0], c)
+}
+
+// standardNumberPredicate follows the selected standard declaration. These
+// predicates neither coerce their input nor invoke work through it.
+func standardNumberPredicate(expression *ast.Node, c *checker.Checker) bool {
+	receiver, name := restrictedInvocationMember(unwrapSourceCallableReference(expression), c)
+	switch name {
+	case "isFinite", "isInteger", "isNaN", "isSafeInteger":
+	default:
+		return false
+	}
+	return receiver != nil && ast.IsIdentifier(receiver) && receiver.Text() == "Number" && standardLibraryCallRoot(expression, c)
+}
+
+// checkedPrimitiveMemberInvocation accounts for standard calls with no authored
+// coercion, callback or protocol method supplied by an argument. Consumers of
+// the returned value still select it through their original operation.
+func checkedPrimitiveMemberInvocation(call *ast.CallExpression, c *checker.Checker) bool {
+	if !checkedPrimitiveMemberRead(unwrapSourceCallableReference(call.Expression), c) {
+		return false
+	}
+	if call.Arguments != nil {
+		for _, argument := range call.Arguments.Nodes {
+			if ast.IsSpreadElement(argument) || !checkedPrimitiveOperand(argument, c) {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+// checkedPrimitiveOperand admits only primitive values. A union is primitive
+// when each alternative is primitive, including nullish argument values.
+func checkedPrimitiveOperand(node *ast.Node, c *checker.Checker) bool {
+	if node == nil {
+		return false
+	}
+	return checkedPrimitiveType(c.GetTypeAtLocation(node))
+}
+
+func checkedPrimitiveType(value *checker.Type) bool {
+	if value == nil {
+		return false
+	}
+	if value.Flags()&checker.TypeFlagsPrimitive != 0 {
+		return true
+	}
+	if value.Flags()&checker.TypeFlagsUnion != 0 {
+		for _, alternative := range value.Types() {
+			if !checkedPrimitiveType(alternative) {
+				return false
+			}
+		}
+		return true
+	}
+	return false
+}
+
 // nativeReceiverMemberDeclarations fences display-name fallbacks to selected
 // standard-library members. Application extensions keep their own authority.
 func nativeReceiverMemberDeclarations(expression *ast.Node, typeChecker *checker.Checker) bool {

@@ -83,6 +83,9 @@ func prepareDefinitionMAYCall(caller, callee *callableFacts, node *ast.Node, sym
 		return nil
 	}
 	if caller.normalInputs == nil {
+		if definitionPrimitiveForward(caller.node, callee.node, node, symbol, c, owner) {
+			return &sourceDefinitionMAYCall{caller: caller, callee: callee, call: node, edge: -1}
+		}
 		// A closed zero-input definition has no invocation-specific bindings.
 		// The result-use and capture checks below still apply.
 		directRender := ast.IsArrowFunction(caller.node) && unwrapSourceCallableReference(caller.node.Body()) == node
@@ -276,4 +279,39 @@ func strictComparisonOperand(node *ast.Node) bool {
 	}
 	kind := node.Parent.AsBinaryExpression().OperatorToken.Kind
 	return kind == ast.KindEqualsEqualsEqualsToken || kind == ast.KindExclamationEqualsEqualsToken
+}
+
+// definitionPrimitiveForward recognizes a definition call whose only supplied
+// identities are unresolved primitive parameters. The lexical edge carries
+// the callee's effects, including its unknown alternatives. The caller walk
+// still visits each operand and later member or invocation uses of the result.
+func definitionPrimitiveForward(caller, callee, node *ast.Node, symbol *ast.Symbol, c *checker.Checker, owner *executableBodyOwner) bool {
+	if !ast.IsFunctionDeclaration(caller) || caller.Parent == nil || !ast.IsSourceFile(caller.Parent) || callee.Body() == nil {
+		return false
+	}
+	call := node.AsCallExpression()
+	if !ast.IsIdentifier(call.Expression) || call.QuestionDotToken != nil || call.Arguments == nil || len(call.Arguments.Nodes) == 0 || len(call.Arguments.Nodes) != len(callee.Parameters()) {
+		return false
+	}
+	async, ordinary := ordinaryResultCategory(callee)
+	index := owner.values.index(ast.GetSourceFileOfNode(node))
+	if async || !ordinary || index.incomplete || index.normalDynamicScope || len(index.bindings[ast.GetSymbolId(symbol)]) != 0 {
+		return false
+	}
+	for i, argument := range call.Arguments.Nodes {
+		formal := callee.Parameters()[i]
+		if !ast.IsIdentifier(argument) || !ast.IsIdentifier(formal.Name()) || formal.Initializer() != nil || formal.AsParameterDeclaration().DotDotDotToken != nil {
+			return false
+		}
+		input := c.GetSymbolAtLocation(argument)
+		if input == nil || input.ValueDeclaration == nil || !ast.IsParameterDeclaration(input.ValueDeclaration) || input.ValueDeclaration.Parent != caller || input.ValueDeclaration.Initializer() != nil || len(index.bindings[ast.GetSymbolId(input)]) != 0 {
+			return false
+		}
+		actualType := c.GetTypeAtLocation(argument)
+		formalType := c.GetTypeAtLocation(formal.Name())
+		if actualType == nil || formalType != actualType || (actualType.Flags() != checker.TypeFlagsString && actualType.Flags() != checker.TypeFlagsNumber) {
+			return false
+		}
+	}
+	return true
 }

@@ -49,10 +49,12 @@ func appendAccessorEffects(fact *callableFacts, node *ast.Node, targets map[*ast
 	}
 	query := sourceValueQuery{owner: owner.values, executable: owner, effectOwner: fact.node, remaining: 4096, active: make(map[*ast.Node]bool), inputs: fact.normalInputs, reading: node, operation: &sourceOperationContext{node: node, owner: fact.node, inputs: fact.normalInputs}}
 	query.returnObservation = &sourceReturnObservation{owner: fact.node, reader: node, frame: fact.normalInputs, receipts: fact.nativeCalls, normalCalls: fact.normalCalls}
+	valueEffectsAccounted := false
 	if read && !write {
 		candidates = query.consumeNormalGet(node, fact.normalInputs.bindings)
+		slot := query.normalOperation(node, false)
+		valueEffectsAccounted = slot != nil && slot.state == sourceOperationConsumed && slot.output.effects == sourceEffectsAccounted
 		if c := fact.normalInputs.initializerCursor; c != nil {
-			slot := query.normalOperation(node, false)
 			observed := sourceResultObservation{}
 			kind := initializerObservationAbsent
 			if slot != nil && (slot.state == sourceOperationConsumed || slot.state == sourceOperationRefused) {
@@ -66,7 +68,7 @@ func appendAccessorEffects(fact *callableFacts, node *ast.Node, targets map[*ast
 		candidates = query.evaluatedSourceAccessors(node, fact.normalInputs.bindings)
 		finish.finish(&candidates)
 	}
-	candidates = refineSourceDependencies(candidates, func() accessorCandidates {
+	candidates = refineSourceDependenciesForOutput(candidates, valueEffectsAccounted, func() accessorCandidates {
 		return sourceMemberDependencies(node, typeChecker, owner, fact.node, fact.normalInputs.bindings)
 	})
 	appendOwnedGetFact(fact, node, candidates, targets, source, typeChecker)
