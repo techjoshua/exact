@@ -1,7 +1,7 @@
 import { createServer } from 'node:http';
 import path from 'node:path';
 import ts from 'typescript';
-import { readFile, symlink } from 'node:fs/promises';
+import { mkdir, readFile, symlink } from 'node:fs/promises';
 import { expect, it, onTestFinished, vi } from 'vitest';
 import type { AnyComponentFunction } from '@exactjs/core';
 import { decodeReactiveProtocolValue, encodeReactiveProtocolValue } from '@exactjs/core';
@@ -255,7 +255,7 @@ for (const lane of ['callable', 'lean'])
 		});
 
 for (const route of ['project', 'single file'] as const) {
-	it(`preserves semantic validation for both published helper targets (${route})`, async () => {
+	it(`preserves semantic validation for both published component targets (${route})`, async () => {
 		const root = await createBrowserTestWorkspace('exact-helper-validation-');
 		await symlink(repositoryPath('node_modules'), path.join(root, 'node_modules'), 'dir');
 		const files = await writeTestFiles(root, {
@@ -267,7 +267,8 @@ for (const route of ['project', 'single file'] as const) {
 			nativeCompiler: { executable: resolveNativeCompilerExecutable() }
 		});
 		const requests = vi.spyOn(session, 'compileNative');
-		const outDir = path.join(root, 'out');
+		// Single-file publication preserves the authored helper import beside the entry.
+		const outDir = route === 'project' ? path.join(root, 'out') : root;
 		const options = {
 			session,
 			rootDir: root,
@@ -284,21 +285,20 @@ for (const route of ['project', 'single file'] as const) {
 			const compiles = requests.mock.calls
 				.map(([request]) => request)
 				.filter((request) => request.kind === 'compile');
-			for (const input of [files['page.tsx'], files['helper.ts']])
-				expect(
-					compiles
-						.filter((request) => request.id === input)
-						.map((request) => request.target)
-						.sort()
-				).toEqual(['client', 'server']);
+			expect(
+				compiles
+					.filter((request) => request.id === files['page.tsx'])
+					.map((request) => request.target)
+					.sort()
+			).toEqual(['client', 'server']);
 			expect(compiles.every((request) => request.diagnostics === 'semantic')).toBe(true);
 			for (const result of results) {
 				expect(result.client.diagnostics).toEqual([]);
 				expect(result.server.diagnostics).toEqual([]);
 			}
-			await expect(readFile(path.join(outDir, 'helper.exact.server.ts'), 'utf8')).resolves.not.toBe(
-				''
-			);
+			const page = results.find((result) => result.inputFile === files['page.tsx'])!;
+			const module = await importArtifact(page.serverFile, path.join(root, 'server.mjs'));
+			expect(typeof module.Page).toBe('function');
 		} finally {
 			requests.mockRestore();
 			session.dispose();
@@ -307,14 +307,21 @@ for (const route of ['project', 'single file'] as const) {
 
 	it(`rejects an unresolved generated helper provider before publication (${route})`, async () => {
 		const root = await createBrowserTestWorkspace('exact-missing-helper-provider-');
+		const scope = path.join(root, 'node_modules', '@exactjs');
+		await mkdir(scope, { recursive: true });
+		for (const name of ['core', 'jsx'])
+			await symlink(
+				repositoryPath('node_modules', '@exactjs', name),
+				path.join(scope, name),
+				'dir'
+			);
 		const files = await writeTestFiles(root, {
 			'package.json': '{"type":"module"}',
-			'entry.ts': 'const work=(a=0,b=(a=1))=>a;export const value=work();'
+			'entry.tsx': `import type {Component} from '@exactjs/core'; export function Page(this:Component<{value:string}>){this.state.value='ready';return()=> <span>{this.state.value}</span>;}`
 		});
 		const session = createCompilerSession({
 			nativeCompiler: { executable: resolveNativeCompilerExecutable() }
 		});
-		const requests = vi.spyOn(session, 'compileNative');
 		const outDir = path.join(root, 'out');
 		const options = {
 			session,
@@ -327,29 +334,14 @@ for (const route of ['project', 'single file'] as const) {
 		try {
 			await expect(
 				route === 'project'
-					? compileProjectArtifacts([files['entry.ts']!], options)
-					: compileFileArtifacts(files['entry.ts']!, options)
-			).rejects.toThrow(/TS2307[\s\S]*@exactjs\/core/);
-			const compiles = requests.mock.calls
-				.map(([request]) => request)
-				.filter((request) => request.kind === 'compile');
-			expect(compiles.map((request) => request.target)).toEqual(['client', 'server']);
-			expect(compiles.every((request) => request.diagnostics === 'semantic')).toBe(true);
-			const server = requests.mock.calls.findIndex(
-				([request]) => request.kind === 'compile' && request.target === 'server'
-			);
-			const actual = requests.mock.results[server];
-			expect(actual?.type).toBe('return');
-			if (actual?.type !== 'return') throw new Error('Missing generated semantic response');
-			expect(actual.value.diagnostics).toEqual(
-				expect.arrayContaining([expect.objectContaining({ code: 'TS2307', severity: 'error' })])
-			);
+					? compileProjectArtifacts([files['entry.tsx']!], options)
+					: compileFileArtifacts(files['entry.tsx']!, options)
+			).rejects.toThrow(/TS2307[^\n]*@exactjs\/dom\/runtime\/direct-component/);
 			for (const target of ['client', 'server'])
 				await expect(
 					readFile(path.join(outDir, `entry.exact.${target}.ts`), 'utf8')
 				).rejects.toMatchObject({ code: 'ENOENT' });
 		} finally {
-			requests.mockRestore();
 			session.dispose();
 		}
 	});
@@ -398,6 +390,9 @@ it('rebases transitive inferred types in relocated mutation artifacts', async ()
 		const visit = (node: ts.Node): void => {
 			if (
 				ts.isImportTypeNode(node) &&
+				node.qualifier &&
+				ts.isIdentifier(node.qualifier) &&
+				node.qualifier.text === 'Model' &&
 				ts.isLiteralTypeNode(node.argument) &&
 				ts.isStringLiteral(node.argument.literal)
 			) {
