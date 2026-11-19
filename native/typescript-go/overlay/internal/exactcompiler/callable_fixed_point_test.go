@@ -145,3 +145,33 @@ func legacyResolveCallableEffects(facts []callableFacts, contextSignature func([
 	}
 	return true
 }
+
+// Distinct calls can supply different receiver paths. Interleaved targets may
+// also contribute different confidence for the same path; preserve their order.
+func TestRepeatedCallableTargetsKeepSiteBindingsAndConfidence(t *testing.T) {
+	sharedWrite := StateEffect{Path: "shared", pathSegments: []string{"shared"}, Kind: "write", Confidence: "broad"}
+	unknownWrite := sharedWrite
+	unknownWrite.Confidence = "unknown"
+	paramWrite := StateEffect{Path: "value", pathSegments: []string{"value"}, Kind: "write", Confidence: "exact", Receiver: &StateReceiver{Kind: "parameter", Root: "value"}}
+	facts := []callableFacts{
+		{summary: CallableSummary{ID: "page", Name: "page"}, targets: []int{1, 1, 2, 1}},
+		{summary: CallableSummary{ID: "a", Name: "a"}, directWrites: []StateEffect{sharedWrite, paramWrite}},
+		{summary: CallableSummary{ID: "b", Name: "b"}, directWrites: []StateEffect{unknownWrite}},
+	}
+	for index, id := range []string{"a", "a", "b", "a"} {
+		edge := CallEdge{ID: fmt.Sprint(index), Resolved: true, TargetID: id}
+		if id == "a" {
+			edge.ReceiverBindings = []ReceiverBinding{{ParameterIndex: 0, Source: "component", Path: []string{"state", fmt.Sprint(index)}}}
+		}
+		facts[0].summary.Calls = append(facts[0].summary.Calls, edge)
+	}
+	resolveCallableEffects(facts)
+	actual := map[string]string{}
+	for _, effect := range facts[0].summary.StateWrites {
+		actual[effect.Path] = effect.Confidence
+	}
+	want := map[string]string{"shared": "broad", "0.value": "exact", "1.value": "exact", "3.value": "exact"}
+	if !reflect.DeepEqual(actual, want) {
+		t.Fatalf("repeated caller projected %v; want %v", actual, want)
+	}
+}

@@ -135,8 +135,9 @@ func (work *callableEffectWork) initializePropagation(facts []callableFacts) {
 			contexts:    contextEffectSetSignature(fact.summary.Contexts),
 		}
 		for _, target := range fact.targets {
-			if !facts[target].progressReceiver {
-				work.callers[target] = append(work.callers[target], index)
+			callers := work.callers[target]
+			if !facts[target].progressReceiver && (len(callers) == 0 || callers[len(callers)-1] != index) {
+				work.callers[target] = append(callers, index)
 			}
 		}
 	}

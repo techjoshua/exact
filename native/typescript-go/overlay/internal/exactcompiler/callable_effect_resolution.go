@@ -538,7 +538,14 @@ func resolveCallableEffectsWithWork(facts []callableFacts, mapOwner *executableB
 			writes := append([]StateEffect(nil), fact.directWrites...)
 			writes = append(writes, work.opaque[index]...)
 			contexts := append([]ContextEffect(nil), fact.directContext...)
-			for _, targetIndex := range fact.targets {
+			// A target visit already projects every matching call site. Only
+			// adjacent repeats preserve the merge order of distinct callees.
+			// Staged delivery may change what the next visit can observe.
+			projectOnce := len(work.stagedRequired) == 0 && len(work.operationRecipes) == 0
+			for ordinal, targetIndex := range fact.targets {
+				if projectOnce && ordinal > 0 && fact.targets[ordinal-1] == targetIndex {
+					continue
+				}
 				// A progress call emits an observation. Its receiver's state and environment
 				// effects execute independently on the browser and never enter the producer.
 				if facts[targetIndex].progressReceiver {
