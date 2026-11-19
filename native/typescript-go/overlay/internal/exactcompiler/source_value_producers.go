@@ -21,6 +21,13 @@ func (query *sourceValueQuery) moduleRead() *ast.Node {
 // recursive and indirect routes remain possible, never a certificate for target pruning.
 // The existing generation index and query budget bound the search, with no second source walk.
 func (query *sourceValueQuery) moduleWriteProducer(left *ast.Node, bindings sourceValueBindings, result *accessorCandidates) (*ast.Node, bool) {
+	return query.findModuleWriteProducer(left, bindings, result, true)
+}
+
+// findModuleWriteProducer can omit possible-writer evidence when the caller
+// consumes only a performed producer. Staged queries also publish dependencies.
+func (query *sourceValueQuery) findModuleWriteProducer(left *ast.Node, bindings sourceValueBindings, result *accessorCandidates, includePossible bool) (*ast.Node, bool) {
+	includePossible = includePossible || query.stagedMember != nil
 	if query.deferredCandidateExcluded(left, &accessorCandidates{}) {
 		return nil, false
 	}
@@ -88,7 +95,10 @@ func (query *sourceValueQuery) moduleWriteProducer(left *ast.Node, bindings sour
 			return nil, true
 		}
 		expression := call.AsCallExpression().Expression
-		if call.AsCallExpression().Arguments != nil {
+		if !includePossible && (!ast.IsFunctionDeclaration(writer) || !ast.IsIdentifier(expression) || enclosingCallableNode(call) != nil) {
+			continue
+		}
+		if includePossible && call.AsCallExpression().Arguments != nil {
 			for _, argument := range call.AsCallExpression().Arguments.Nodes {
 				candidates := accessorCandidates{}
 				// Acquiring this argument cannot execute the considered call's body.

@@ -164,7 +164,7 @@ func (query *sourceValueQuery) scanInterferenceInSources(origin *ast.Node, proje
 					// An operation cannot establish its own caller while that caller's
 					// inputs and callee are still being acquired.
 					query.withActiveInvocation(node, func() {
-						producer, _ = query.moduleWriteProducer(node, bindings, result)
+						producer, _ = query.findModuleWriteProducer(node, bindings, result, false)
 					})
 					if producer == nil {
 						continue
