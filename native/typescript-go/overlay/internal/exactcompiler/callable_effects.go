@@ -368,12 +368,14 @@ func analyzeProjectCallableSource(
 ) callableAnalysis {
 	components := collectComponents(sourceFile)
 	_, reads, writes := collectStateAnalysis(sourceFile, typeChecker)
-	bindings, bindingWrites, _ := analyzeComponentBindings(
-		sourceFile,
-		typeChecker,
-		collectEnhancementImports(sourceFile, typeChecker, nil, 0),
-	)
-	writes = append(writes, bindingWrites...)
+	var bindings map[int]componentBinding
+	if sourceFile.SubtreeFacts()&ast.SubtreeContainsJsx != 0 {
+		var bindingWrites []StateWrite
+		bindings, bindingWrites, _ = analyzeComponentBindings(
+			sourceFile, typeChecker, collectEnhancementImports(sourceFile, typeChecker, nil, 0),
+		)
+		writes = append(writes, bindingWrites...)
+	}
 	return prepareProjectCallableSource(
 		sourceFile,
 		typeChecker,

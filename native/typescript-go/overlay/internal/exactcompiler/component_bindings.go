@@ -35,20 +35,20 @@ func analyzeComponentBindings(
 		return bindings, writes, diagnostics
 	}
 	walkNode(sourceFile.AsNode(), func(node *ast.Node) bool {
+		if node.SubtreeFacts()&ast.SubtreeContainsJsx == 0 {
+			return false
+		}
 		if !ast.IsJsxOpeningElement(node) && !ast.IsJsxSelfClosingElement(node) {
 			return true
 		}
 		tagNode := openingTag(node)
-		tag := strings.TrimSpace(sourceText(sourceFile, tagNode))
-		if jsxIntrinsic(tag) || tag == "_" || tag == "_target" {
-			return true
-		}
 		attributes := node.Attributes()
 		if attributes == nil {
 			return true
 		}
-		propsType, reason := componentBindingPropsType(tagNode, typeChecker)
-		generated := make(map[string]*ast.Node)
+		var propsType *checker.Type
+		var reason string
+		var generated map[string]*ast.Node
 		for _, property := range attributes.AsJsxAttributes().Properties.Nodes {
 			if !ast.IsJsxAttribute(property) {
 				continue
@@ -56,6 +56,14 @@ func analyzeComponentBindings(
 			attribute := property.AsJsxAttribute()
 			if !ast.IsJsxNamespacedName(attribute.Name()) {
 				continue
+			}
+			if generated == nil {
+				tag := strings.TrimSpace(sourceText(sourceFile, tagNode))
+				if jsxIntrinsic(tag) || tag == "_" || tag == "_target" {
+					return true
+				}
+				propsType, reason = componentBindingPropsType(tagNode, typeChecker)
+				generated = make(map[string]*ast.Node)
 			}
 			name := attribute.Name().AsJsxNamespacedName()
 			valueProp, callbackProp := name.Namespace.Text(), name.Name().Text()
