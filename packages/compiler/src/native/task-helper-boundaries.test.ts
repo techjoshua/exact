@@ -135,3 +135,51 @@ export function Page(this: Component<{ count: number; counter: Counter }>) {
 	);
 	expect(response.code).not.toContain('registerTaskHelper');
 });
+
+it('places opaque operation construction and redemption at their actual component calls', () => {
+	const compiler = new NativeCompilerProcess({ executable: resolveNativeCompilerExecutable() });
+	onTestFinished(() => compiler.dispose());
+	for (const target of ['client', 'server'] as const) {
+		for (const [name, body] of [
+			['stored', 'issue(browser, {key:"slot"});'],
+			['eager-key', 'issue(browser, {get key(){return document.title}});'],
+			['redeemed', 'const operation=issue(browser); invoke(operation, {});'],
+			['mixed', 'const operation=issue(chooseBrowser ? browser : server); invoke(operation, {});']
+		] as const) {
+			const result = compiler.request({
+				kind: 'compile',
+				id: path.resolve(`.tmp/opaque-operation-${target}-${name}.tsx`),
+				root: process.cwd(),
+				target,
+				diagnostics: 'semantic',
+				source: `import {TaskContext,type Component} from '@exactjs/core';
+					import {createOpaqueOperation as issue,executeOpaqueOperation as invoke} from '@exactjs/core/runtime/component-operations';
+					${name === 'mixed' ? 'import {hostname} from "node:os"; declare const chooseBrowser:boolean; function server(){return hostname()}' : ''}
+					function browser(this:object,target:object){return document.title}
+					export function Page(this:Component<{value:number}>){
+						this.state.value=0;
+						const run=(task:TaskContext=TaskContext.${target}())=>{${body} this.state.value=1};
+						run();
+						return ()=> <output>{this.state.value}</output>;
+					}`
+			});
+			expect(result.error).toBeUndefined();
+			if (name === 'mixed') {
+				const run = result.analysis?.callables.find((callable) => callable.name === 'run');
+				const executors = run?.calls.filter(
+					(call) => call.name === 'browser' || call.name === 'server'
+				);
+				expect(executors?.map((call) => call.name).sort()).toEqual(['browser', 'server']);
+				expect(new Set(executors?.map((call) => call.id)).size).toBe(2);
+			}
+			const errors = result.diagnostics.filter((diagnostic) => diagnostic.severity === 'error');
+			if (name === 'mixed' || (name !== 'stored' && target === 'server')) {
+				expect(errors.map((error) => error.code)).toContain('EXACT2001');
+				expect(result.code ?? '').toBe('');
+			} else {
+				expect(errors).toEqual([]);
+				expect(result.code).toBeTruthy();
+			}
+		}
+	}
+});

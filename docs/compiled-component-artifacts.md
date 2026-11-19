@@ -120,6 +120,16 @@ optional compiler boundary identity through an additive decorator. The DOM adopt
 that matching server placeholder and leaves unrelated parent ranges intact. Ordinary paired
 components retain their existing operation and adoption path.
 
+Core's `createOpaqueOperation(executor, metadata)` stores the executor. Evaluating the arguments
+and reading metadata happen during construction. A metadata getter can therefore require a
+specific execution target even when the executor remains dormant. A later
+`executeOpaqueOperation(operation, target)` calls the stored executor with the operation as its
+receiver and the target as its argument. When the compiler resolves the public Core declaration
+and traces a direct operation or immutable local reference to a known executor, its platform
+requirements apply at that later call. Dynamic operation origins and metadata hooks whose
+execution depends on a runtime value can retain unknown effects. An explicit server task with
+such inputs must still use server-compatible hooks.
+
 Compatibility adapters may own foreign functions and explicitly bridge them into a compiled eXact
 boundary. Genuinely runtime-dependent children remain supported inside compiler-declared dynamic
 ranges. Neither case makes an arbitrary function a native component.

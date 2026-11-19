@@ -483,6 +483,7 @@ func collectDirectCallableEffects(
 			registerEdge(invocation)
 		}
 
+		appendPublicOperationEffects(fact, facts, node, targetSymbol, sourceFile, owner, nodeTargets, symbolTargets, importBindings)
 		if (eagerCallbackCall(call.Expression, typeChecker) || reactiveComputationOperation(call.Expression, typeChecker) || reactivePeekOperation(call.Expression, sourceFile, typeChecker) || isTaskContextCapabilityCall(node, typeChecker, "peek")) && call.Arguments != nil {
 			for argumentIndex, argument := range call.Arguments.Nodes {
 				if !invokedCallbackArgument(node, argumentIndex, typeChecker) {

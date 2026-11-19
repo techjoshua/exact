@@ -11,7 +11,11 @@ import (
 // Invoked callback edges carry local and imported environment effects through the same graph.
 // Unresolved callable inputs remain conservative until project linking establishes their owner.
 func appendInvokedCallbackEffects(fact *callableFacts, facts []callableFacts, call *ast.Node, argument *ast.Node, argumentIndex int, source *ast.SourceFile, typeChecker *checker.Checker, nodeTargets map[*ast.Node]int, symbolTargets map[ast.SymbolId]int, imports externalImportBindings) {
-	for referenceIndex, reference := range eagerCallbackReferences(argument, typeChecker) {
+	appendInvokedCallbackReferences(fact, facts, call, eagerCallbackReferences(argument, typeChecker), argumentIndex, source, typeChecker, nodeTargets, symbolTargets, imports)
+}
+
+func appendInvokedCallbackReferences(fact *callableFacts, facts []callableFacts, call *ast.Node, references []*ast.Node, argumentIndex int, source *ast.SourceFile, typeChecker *checker.Checker, nodeTargets map[*ast.Node]int, symbolTargets map[ast.SymbolId]int, imports externalImportBindings) {
+	for referenceIndex, reference := range references {
 		edge := CallEdge{ID: fmt.Sprintf("%s:callback:%d:%d:%d", fact.summary.ID, call.Pos(), argumentIndex, referenceIndex), Name: strings.TrimSpace(sourceText(source, reference))}
 		symbol := resolvedCallableSymbol(callTargetSymbol(reference, typeChecker), typeChecker)
 		target, resolved := nodeTargets[reference]
