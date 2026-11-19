@@ -268,8 +268,26 @@ func (query *sourceValueQuery) bindingValues(symbol *ast.Symbol, entry []sourceV
 				result.opaque = true
 				continue
 			}
-			creator := query.creators[enclosingCallableNode(declaration)].invocation
-			if creator == nil || writer == nil {
+			owner := enclosingCallableNode(declaration)
+			creator := query.creators[owner].invocation
+			// The original argument and its local closure share this activation.
+			// A prior direct call can contribute a MAY write without a factory.
+			localArgument := query.dependenciesOnly && query.directExposureConsumer != nil && owner != nil && owner == enclosingCallableNode(query.directExposureConsumer) && unwrapSourceCallableReference(query.directExposureArgument) == read
+			if localArgument && writer != nil && ast.IsGetAccessorDeclaration(writer) && enclosingCallableNode(writer.Parent) == owner && ast.IsIdentifier(assignment.right) {
+				// The selected getter can install a saved value before the argument
+				// read. No getter inputs are needed for an unwritten enclosing binding.
+				rhs := query.owner.checker.GetSymbolAtLocation(assignment.right)
+				if rhs != nil && rhs.ValueDeclaration != nil && enclosingCallableNode(rhs.ValueDeclaration) == owner && !query.owner.bindingWritten(rhs) {
+					for _, effect := range query.directExposureCalleeEffects {
+						if effect.operation == query.directExposureConsumer && effect.declaration == writer && query.callableProducer(operation, writer, bindings) {
+							add(effect.operation, operation, query.originsAt(assignment.right, assignment.left, bindings, result), bindings, false)
+							break
+						}
+					}
+				}
+			}
+			localClosure := localArgument && writer != nil && ast.IsArrowFunction(writer) && len(writer.Parameters()) == 0 && writer.Parent != nil && ast.IsVariableDeclaration(writer.Parent) && writer.Parent.Initializer() == writer && enclosingCallableNode(writer.Parent) == owner
+			if (creator == nil && !localClosure) || writer == nil {
 				result.opaque = true
 				continue
 			}
@@ -286,6 +304,9 @@ func (query *sourceValueQuery) bindingValues(symbol *ast.Symbol, entry []sourceV
 				same, complete := false, false
 				method := ast.IsPropertyAccessExpression(expression) || ast.IsElementAccessExpression(expression)
 				if method {
+					if creator == nil {
+						continue
+					}
 					receiver, _ := accessorReceiver(expression)
 					for _, origin := range query.originsAt(receiver, node, bindings, result) {
 						same = same || query.sourceCreatorValue(origin, enclosingCallableNode(declaration), creator)
@@ -300,6 +321,9 @@ func (query *sourceValueQuery) bindingValues(symbol *ast.Symbol, entry []sourceV
 						result.opaque = result.opaque || candidates.opaque
 					}
 				} else if target := callTargetSymbol(expression, query.owner.checker); target != nil {
+					if localClosure && ast.IsIdentifier(expression) && target.ValueDeclaration == writer.Parent && !query.owner.bindingWritten(target) && query.precedes(node, query.directExposureConsumer, bindings) && enclosingCallableNode(node) == owner {
+						same = query.callableProducer(operation, writer, bindings)
+					}
 					for _, candidate := range target.Declarations {
 						if candidate == writer {
 							same = enclosingCallableNode(node) == enclosingCallableNode(declaration)

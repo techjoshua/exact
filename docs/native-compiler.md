@@ -3584,7 +3584,10 @@ must resolve to the same parameter. The single argument and simple method
 receiver leave no earlier argument or closure that could reassign the parameter
 during lookup. Callee acquisition, original evaluation effects and other writer
 exposures keep their existing owners. When a later argument reads a binding,
-writer recovery includes assignments completed by earlier arguments.
+writer recovery includes assignments completed by earlier arguments. A selected
+method getter can install a saved local writer before the argument read. An
+earlier direct call to a local synchronous closure can also supply that write.
+Both contribute possible values to the original call's argument.
 A live original source description can register an unfinished parent before attaching
 its result reading. Only the original Get finish event supplies observation and local
 completion. Refused attachment leaves the live borrower's required prefix unchanged.

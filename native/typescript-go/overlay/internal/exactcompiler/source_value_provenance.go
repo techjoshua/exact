@@ -156,6 +156,7 @@ type sourceValueQuery struct {
 	directWriterExposure, probingDirectExposure bool      // synchronous exposure-only consumer/probe
 	directExposureConsumer                      *ast.Node // original input Call, never output authority
 	directExposureArgument                      *ast.Node
+	directExposureCalleeEffects                 []sourceCallableEffect // Already selected during this original callee lookup.
 	directExposureCuts                          [4]*ast.Node
 	standardConstructionSource                  *ast.Node // synchronous original AST descent, never a result receipt
 

@@ -379,6 +379,14 @@ func TestComponentRefusedWriterPlacement(t *testing.T) {
 		{"earlier argument installs writer", "{get value(){return document.title}}", "let value:object={};accept((value=write,0),value);", true},
 		{"later argument installs writer", "{get value(){return document.title}}", "let value:object={};accept(value,(value=write,0));", false},
 		{"earlier argument installs neutral writer", "{value:'safe'}", "let value:object={};accept((value=write,0),value);", false},
+		{"getter installs writer", "{get value(){return document.title}}", "let value:object={};const holder={get method(){value=write;return invoke}};typeof value==='object' && value!==null ? holder.method(value as ()=>void) : undefined;", true},
+		{"getter installs neutral writer", "{value:'neutral'}", "let value:object={};const holder={get method(){value=write;return invoke}};typeof value==='object' && value!==null ? holder.method(value as ()=>void) : undefined;", false},
+		{"unused getter", "{get value(){return document.title}}", "let value:object={};const holder={get method(){value=write;return invoke}};invoke(value as ()=>void);", false},
+		{"closure installs writer", "{get value(){return document.title}}", "let value:object={};const change=()=>{value=write};change();invoke(value as ()=>void);", true},
+		{"closure installs neutral writer", "{value:'neutral'}", "let value:object={};const change=()=>{value=write};change();invoke(value as ()=>void);", false},
+		{"late closure write", "{get value(){return document.title}}", "let value:object={};const change=()=>{value=write};invoke(value as ()=>void);change();", false},
+		{"dormant closure", "{get value(){return document.title}}", "let value:object={};const change=()=>{value=write};invoke(value as ()=>void);", false},
+		{"callable union", "{get value(){return document.title}}", "function pass(value:string|(()=>void)){if(typeof value==='function')invoke(value)}pass(write);", true},
 		{"reassigned object", "{get value(){return document.title}}", "let value:object={};value=write;invoke(value as ()=>void);", true},
 	} {
 		t.Run(row.name, func(t *testing.T) {

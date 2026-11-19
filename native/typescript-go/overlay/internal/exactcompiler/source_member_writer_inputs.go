@@ -578,8 +578,13 @@ func (q *sourceValueQuery) memberWriterScopes(writer, call *ast.Node, bindings s
 				}
 			})
 		}
+		var calleeEffects []sourceCallableEffect
 		if !calleeCovered {
-			expose(-1, call.Expression(), func() accessorCandidates { return q.receiverCandidates(call, bindings) })
+			expose(-1, call.Expression(), func() accessorCandidates {
+				part := q.receiverCandidates(call, bindings)
+				calleeEffects = part.effects
+				return part
+			})
 		}
 		if args := call.AsCallExpression().Arguments; args != nil {
 			for position, argument := range args.Nodes {
@@ -588,11 +593,14 @@ func (q *sourceValueQuery) memberWriterScopes(writer, call *ast.Node, bindings s
 				}
 				expose(position, argument, func() accessorCandidates {
 					prior, consumer := q.directWriterExposure, q.directExposureConsumer
+					priorEffects := q.directExposureCalleeEffects
+					q.directExposureCalleeEffects = calleeEffects
 					priorArgument, priorCuts := q.directExposureArgument, q.directExposureCuts
 					q.directExposureArgument, q.directExposureCuts = argument, [4]*ast.Node{q.reading, q.initializing, q.returning, q.invoking}
 					q.directWriterExposure, q.directExposureConsumer = true, call
 					defer func() {
 						q.directWriterExposure, q.directExposureConsumer = prior, consumer
+						q.directExposureCalleeEffects = priorEffects
 						q.directExposureArgument, q.directExposureCuts = priorArgument, priorCuts
 					}()
 					// A prior argument may have reassigned this binding. Recover its

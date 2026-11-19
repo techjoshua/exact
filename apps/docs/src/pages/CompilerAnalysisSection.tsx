@@ -214,7 +214,9 @@ export const value = readers[0]!();`}
 				Functions can also carry ordinary properties. Reading a function property or assigning a
 				callback keeps that callback deferred. Calling it contributes its browser or server
 				requirements, including its receiver and default arguments. A saved callback keeps the value
-				selected before later argument evaluation replaces the property.
+				selected before later argument evaluation replaces the property. If a method getter or an
+				earlier argument changes a local callback, a later argument reads the new callback.
+				Calling it can install a getter whose browser requirements apply when the task reads it.
 			</p>
 			<p>
 				When a helper is defined in the compiled source, ordinary direct calls,
