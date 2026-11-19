@@ -133,6 +133,22 @@ package matching the current machine. The host package does not contain six exec
 Set `EXACT_COMPILER_EXECUTABLE` only when a hermetic build or compiler-development workflow must
 provide an explicit executable. No deprecated compiler-name environment alias is accepted.
 
+### Checking installed declarations
+
+The workspace TypeScript compatibility check prepares application artifacts and force-builds the
+project references with both supported compilers. The shared workspace configuration enables
+`skipLibCheck`. To validate the declarations shipped to a consumer, run both compilers against
+the installed package exports with `strict: true`, `skipLibCheck: false` and `noEmit: true`.
+
+The Linux NodeNext consumer passed with TypeScript 6.0.2 and 7.0.2 against retained local 0.8.0
+packages. It checked a call to `compileProjectArtifacts`, the adapter and library build exports,
+the SSR render function and runtime export types, and the hydration exports alongside a typed
+counter using `@exactjs/jsx`. The fixture supplied Node types 22.20.0 and their `undici-types`
+6.21.0 dependency. The SDK distribution came from build `664db55ca`; the SSR and hydrate
+provider packs came from the installation qualified at `0278f01cc`. This result covers the
+declarations reachable from those imports. Fresh workspace and provider builds remain separate
+acceptance checks.
+
 ## Library builds
 
 `exactc build-library` and `buildLibrary()` from `@exactjs/compiler/library-build` own the
