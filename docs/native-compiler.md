@@ -192,7 +192,11 @@ Generated component tasks pass their owned pending state to the original helper 
 the task's existing completion and cancellation boundary. Helpers retain their ordinary function
 identity, parameters, exports, and body; no task-owned companion is emitted. Supported helper JSDoc
 placement and secret annotations still constrain component callers, including imported helpers.
-This caller-owned path does not establish write ownership for arbitrary fresh accessor envelopes.
+For an inline object passed to a helper, a selected setter can update a named scalar through
+an own data property initialized to the calling component's `this.state`. The existing receiver
+and member selection supplies a possible write on that field. The server's generation journal
+determines whether to publish it. Storing the setter alone grants no write. A deeper alias,
+dynamic key or later invocation requires its own receiver and lifetime evidence.
 Ordinary helper JSX remains separate from this task-call contract. In `.tsx`, authored callables
 outside selected component spans retain JSX for host transformation. The runtime's `jsx`, `jsxs`,
 and six-argument `jsxDEV` conventions admit current compiled components through the existing

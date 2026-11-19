@@ -875,6 +875,9 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 				// nor a later Get may reconstruct it from a declaration initializer.
 				if (selection != "" || exactEmpty) && member.Name() != nil && !ast.IsComputedPropertyName(member.Name()) && callableNameText(member.Name()) == selection {
 					ownsSelection = true
+					if query.sourceReceiver != nil && mode == accessorRead && len(projection) == 0 {
+						query.observeSetterStateReceiver(value, member, selection, &result)
+					}
 					if mode == accessorSet|accessorNoGet {
 						query.observeStagedAssignmentData(member, selectedGet)
 					}

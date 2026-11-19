@@ -68,8 +68,11 @@ type sourceValueCreation struct {
 
 type sourceValueBindings map[ast.SymbolId][]sourceValue
 type sourceValueWrite struct {
-	value     sourceValue
-	operation string
+	// Non-nil only for a named component field observed through a selected
+	// setter receiver. Other callers retain their own receiver projections.
+	componentOwner *ast.Node
+	value          sourceValue
+	operation      string
 }
 type sourceValueSummary struct {
 	erasedPolicy                *ast.Node // checker-bound source erasure, not invocation authority
@@ -1286,6 +1289,12 @@ func appendSourceValueWrites(fact *callableFacts, candidates accessorCandidates,
 			}
 		}
 		effect := StateEffect{Path: strings.Join(path, "."), pathSegments: path, Kind: "write", Confidence: "unknown", Operation: write.operation, Receiver: &StateReceiver{Kind: "parameter", Root: "value"}}
+		if write.componentOwner != nil {
+			if write.componentOwner != fact.node {
+				continue
+			}
+			effect.Confidence = "exact"
+		}
 		effect = bindStateEffect(effect, ReceiverBinding{Source: source, SourceParameterIndex: index})
 		fact.directWrites = append(fact.directWrites, effect)
 	}

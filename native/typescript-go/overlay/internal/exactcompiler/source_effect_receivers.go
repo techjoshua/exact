@@ -112,3 +112,56 @@ func joinSourceReceiverBindings(target, source []ReceiverBinding) []ReceiverBind
 	}
 	return target
 }
+
+// detached retains only the source occurrence, finite path and its caller.
+// A property write carries no acquired value or live execution context.
+func (write sourceValueWrite) detached() sourceValueWrite {
+	write.value = sourceValue{node: write.value.node, path: slices.Clone(write.value.path)}
+	return write
+}
+
+// observeSetterStateReceiver maps the selected data property in this.field.leaf = rhs
+// back to component state supplied by the caller. The pending journal determines
+// whether this possible write actually happened in the current generation.
+func (q *sourceValueQuery) observeSetterStateReceiver(literal, member *ast.Node, key string, result *accessorCandidates) {
+	inputs, read := q.inputs, q.protectedMember
+	if inputs == nil || !ast.IsSetAccessorDeclaration(inputs.declaration) || !q.sourceReceiverInputsLive(inputs, inputs.declaration) ||
+		read == nil || !ast.IsPropertyAccessExpression(read) || read.Expression().Kind != ast.KindThisKeyword || read.Name().Text() != key ||
+		inputs.declaration.Parent != literal || !ast.IsObjectLiteralExpression(literal) || !ast.IsPropertyAssignment(member) ||
+		result.opaque || result.receiverIncomplete || result.valueIncomplete {
+		return
+	}
+	target := read.Parent
+	if target == nil || !ast.IsPropertyAccessExpression(target) || target.Expression() != read || !plainStagedAssignment(target.Parent) ||
+		target.Parent.AsBinaryExpression().Left != target || !ast.IsIdentifier(target.Name()) {
+		return
+	}
+	terms := inputs.bindings[0]
+	if len(terms) != 1 || terms[0].node != literal || len(terms[0].path) != 0 || literal.Parent == nil ||
+		!ast.IsCallExpression(literal.Parent) || !slices.Contains(callArguments(literal.Parent), literal) || enclosingCallableNode(literal) != q.effectOwner {
+		return
+	}
+	init := unwrapRenderExpression(member.Initializer())
+	if !ast.IsPropertyAccessExpression(init) || init.Name().Text() != "state" || init.Expression().Kind != ast.KindThisKeyword ||
+		stateArgumentMayOwnMutations(q.owner.checker.GetTypeAtLocation(target)) {
+		return
+	}
+	// A later spread or computed definition can replace the initializer before
+	// the literal even reaches the helper. Only the last known definition counts.
+	for _, later := range slices.Backward(literal.AsObjectLiteralExpression().Properties.Nodes) {
+		if later == member {
+			break
+		}
+		if later.Name() == nil || ast.IsComputedPropertyName(later.Name()) || callableNameText(later.Name()) == key {
+			return
+		}
+	}
+	for owner := q.effectOwner; owner != nil; owner = owner.Parent {
+		if _, component := q.owner.components[owner]; component {
+			if helperOwnsReceiver(init.Expression(), owner) {
+				result.writes = append(result.writes, sourceValueWrite{componentOwner: q.effectOwner, value: sourceValue{node: init, path: []string{target.Name().Text()}}})
+			}
+			return
+		}
+	}
+}

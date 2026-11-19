@@ -2048,6 +2048,50 @@ func TestComponentExecutorPreservesHelperAccessorReceiverType(t *testing.T) {
 	}
 }
 
+// Publication belongs to the task that supplies its own state to the selected
+// setter. An ordinary receiver or a setter that never runs grants no state path.
+func TestComponentSetterWritesSuppliedState(t *testing.T) {
+	root, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	const fixture = `import {TaskContext, type Component} from "@exactjs/core";
+		function apply(box: { value: number; data: { value: number } }) { BODY }
+		export function Page(this: Component<{value: number; sibling: number}>) {
+			this.state.value = 0; this.state.sibling = 17;
+			const save = (task: TaskContext = TaskContext.server()) => {
+				apply({get value(): number {return this.data.value},
+					set value(next: number) {this.data.value = next}, data: INPUT});
+				return this.state.value;
+			};
+			return () => <button onClick={() => save()}>Save</button>;
+		}`
+	for _, row := range []struct {
+		name, body, input string
+		publishes         bool
+	}{
+		{"component", "box.value = 2", "this.state", true},
+		{"ordinary", "box.value = 2", "{value: 0}", false},
+		{"dormant", "return box", "this.state", false},
+	} {
+		t.Run(row.name, func(t *testing.T) {
+			source := strings.NewReplacer("BODY", row.body, "INPUT", row.input).Replace(fixture)
+			r := NewSession().Execute(Request{Kind: "compile", Target: TargetServer, ID: filepath.Join(root, "setter-state.tsx"), ConfigFile: timeSemanticConfig(t), Diagnostics: "semantic", Source: source})
+			if r.Error != "" || len(r.Diagnostics) != 0 || r.Code == "" || len(r.Analysis.Tasks) != 1 {
+				t.Fatalf("compile failed: %s %#v", r.Error, r.Diagnostics)
+			}
+			writes := r.Analysis.Tasks[0].Writes
+			if row.publishes {
+				if len(writes) != 1 || writes[0].Path != "value" || writes[0].Confidence != "exact" {
+					t.Fatalf("unexpected published paths: %#v", writes)
+				}
+			} else if len(writes) != 0 {
+				t.Fatalf("unexpected published paths: %#v", writes)
+			}
+		})
+	}
+}
+
 func TestClientLatestTasksUseCompilerSelectedCompactLane(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID: "compact-latest.tsx", Kind: "compile", Target: TargetClient,

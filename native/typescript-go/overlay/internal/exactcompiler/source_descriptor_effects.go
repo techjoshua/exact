@@ -186,7 +186,7 @@ func (query *sourceValueQuery) descriptorBodyEffects(node, body *ast.Node, input
 			// detached container is evidence only and issues no Get claim/receipt.
 			delta := accessorCandidates{opaque: result.opaque, valueIncomplete: result.valueIncomplete, receiverIncomplete: result.receiverIncomplete, thenIncomplete: result.thenIncomplete, cause: result.cause, effects: append([]sourceCallableEffect(nil), result.effects...), accessorMutations: append([]sourceAccessorMutation(nil), result.accessorMutations...)}
 			for _, write := range result.writes {
-				delta.writes = append(delta.writes, sourceValueWrite{value: sourceValue{node: write.value.node, path: append([]string(nil), write.value.path...)}, operation: write.operation})
+				delta.writes = append(delta.writes, write.detached())
 			}
 			component = &ownedGetContribution{delta: delta}
 		}

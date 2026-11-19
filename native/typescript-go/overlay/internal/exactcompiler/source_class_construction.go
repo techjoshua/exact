@@ -525,7 +525,7 @@ func (q *sourceValueQuery) adoptConstructionMayEffects(field *ast.Node, part acc
 		if !q.descriptorEffectAllocation(len(write.value.path), unsafe.Sizeof(""), result, field) {
 			continue
 		}
-		result.writes = append(result.writes, sourceValueWrite{value: sourceValue{node: write.value.node, path: append([]string(nil), write.value.path...)}, operation: write.operation})
+		result.writes = append(result.writes, write.detached())
 		q.recordFacts(1)
 		q.recordEstimatedCost(len(write.value.path))
 	}

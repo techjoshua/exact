@@ -45,7 +45,7 @@ func candidatePublisherPayload(c accessorCandidates) accessorCandidates {
 		p.fieldCalls = append(p.fieldCalls, cloneSourceFieldCall(f))
 	}
 	for _, w := range c.writes {
-		p.writes = append(p.writes, sourceValueWrite{value: sourceValue{node: w.value.node, path: append([]string(nil), w.value.path...)}, operation: w.operation})
+		p.writes = append(p.writes, w.detached())
 	}
 	return p
 }
