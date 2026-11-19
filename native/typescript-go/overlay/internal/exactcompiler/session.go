@@ -538,12 +538,16 @@ func (s *Session) executeProjection(request Request, authored *authoredCheckProg
 	response.Timings.ProjectLinkMicroseconds = time.Since(
 		projectLinkStarted,
 	).Microseconds()
+	availability := moduleValueAvailability{checker: generation.checker, owner: callables.owner}
+	if request.Kind != "analyze" && sourceFile.Symbol != nil && len(sourceFile.Symbol.Exports) != 0 {
+		availability.placements = make(map[*ast.Symbol]string)
+	}
 	exports := collectExportRecords(
 		sourceFile,
 		generation.checker,
 		components,
 		policy.graph,
-		callables.owner,
+		&availability,
 	)
 	semanticGraph := collectSemanticGraph(
 		sourceFile,
@@ -772,7 +776,7 @@ func (s *Session) executeProjection(request Request, authored *authoredCheckProg
 	}()
 	emitContext := printer.NewEmitContext()
 	// Capture lexical module ownership before lowering can reparent shared source nodes.
-	omittedModuleValues := planModuleValuePruning(sourceFile, generation.checker, request.Target, callables.owner)
+	omittedModuleValues := planModuleValuePruning(sourceFile, generation.checker, request.Target, &availability)
 	// Lowering may reparent originals. Cached receipts remain readable, but
 	// newly demanded sources get no elision proof for the rest of this request.
 	generation.prepareImports = false

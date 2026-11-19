@@ -408,20 +408,42 @@ func moduleDefinitionNodeIsDeferred(node, work *ast.Node) bool {
 	return false
 }
 
-// moduleValueDefinitionPlacement describes artifact availability independently of invocation effects.
-func moduleValueDefinitionPlacement(symbol *ast.Symbol, typeChecker *checker.Checker, owner *executableBodyOwner) string {
-	analysis := newModuleDefinitionAnalysis(typeChecker, owner)
+// moduleValueAvailability belongs to one request and one executable selection.
+// Export reporting and pruning can ask for the same checker's symbol before lowering.
+type moduleValueAvailability struct {
+	checker    *checker.Checker
+	owner      *executableBodyOwner
+	revision   uint64
+	placements map[*ast.Symbol]string
+}
+
+func (availability *moduleValueAvailability) placement(symbol *ast.Symbol) string {
+	revision := uint64(0)
+	if availability.owner != nil && availability.owner.values != nil {
+		revision = availability.owner.values.initializerRevision
+	}
+	if availability.revision != revision {
+		clear(availability.placements)
+		availability.revision = revision
+	}
+	if prior, ok := availability.placements[symbol]; ok {
+		return prior
+	}
+	analysis := newModuleDefinitionAnalysis(availability.checker, availability.owner)
 	analysis.symbol(symbol, false)
+	placement := "isomorphic"
 	switch {
 	case analysis.opaque || (analysis.browser && analysis.server):
 		return "unknown"
 	case analysis.browser:
-		return "client"
+		placement = "client"
 	case analysis.server:
-		return "server"
-	default:
-		return "isomorphic"
+		placement = "server"
 	}
+	if availability.placements != nil && analysis.initializerTransient == 0 {
+		availability.placements[symbol] = placement
+	}
+	return placement
 }
 
 // newModuleDefinitionAnalysis shares execution and capture traversal for export availability

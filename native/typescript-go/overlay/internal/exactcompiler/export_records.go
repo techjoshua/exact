@@ -15,7 +15,7 @@ func collectExportRecords(
 	typeChecker *checker.Checker,
 	components []Component,
 	policy PolicyAnalysis,
-	owner *executableBodyOwner,
+	availability *moduleValueAvailability,
 ) []ExportRecord {
 	if sourceFile.Symbol == nil {
 		return []ExportRecord{}
@@ -81,7 +81,7 @@ func collectExportRecords(
 		} else if value, exists := policyPlacements[name]; ownedDeclaration && exists {
 			placement = value
 		} else if kind == "value" {
-			placement = moduleValueDefinitionPlacement(exported, typeChecker, owner)
+			placement = availability.placement(exported)
 		}
 		records = append(records, ExportRecord{
 			Name:      name,
