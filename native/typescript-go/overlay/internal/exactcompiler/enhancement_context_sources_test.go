@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-// Imported helper contexts retain opaque token ownership through call, apply and aliases.
+// Optional imported lookups retain their authored token without a pre-activation helper contract.
 func TestEnhancementSubsystemImportedContextSources(t *testing.T) {
 	root, err := os.MkdirTemp(".", ".enhancement-context-source-")
 	if err != nil {
@@ -47,6 +47,9 @@ func TestEnhancementSubsystemImportedContextSources(t *testing.T) {
 				if helper.Error != "" || len(helper.Diagnostics) != 0 {
 					t.Fatalf("context producer rejected: %s %#v", helper.Error, helper.Diagnostics)
 				}
+				if strings.Contains(helper.Code, "attachCompiledEnhancementContexts") || strings.Contains(helper.Code, "readCompiledEnhancementContextDependency") {
+					t.Fatalf("optional lookup modified the ordinary helper: %s", helper.Code)
+				}
 				entry := filepath.Join(root, "entry.tsx")
 				source := c.imports + `import type {Component} from '@exactjs/core';export function Page(this:Component<{}>){` + c.setup + `const first=` + c.invocation + `;const second=` + c.invocation + `;return()=> <output>{String(first&&second)}</output>}`
 				if err := os.WriteFile(entry, []byte(source), 0600); err != nil {
@@ -64,8 +67,8 @@ func TestEnhancementSubsystemImportedContextSources(t *testing.T) {
 					}
 					return
 				}
-				if len(response.Analysis.Components) != 1 || response.Analysis.Components[0].Placement != "isomorphic" || !strings.Contains(response.Code, "readCompiledEnhancementContextDependency") {
-					t.Fatalf("helper token ownership was lost: %#v\n%s", response.Analysis.Components, response.Code)
+				if len(response.Analysis.Components) != 1 || response.Analysis.Components[0].Placement != "isomorphic" || strings.Contains(response.Code, "readCompiledEnhancementContextDependency") {
+					t.Fatalf("optional lookup acquired an unnecessary helper contract: %#v\n%s", response.Analysis.Components, response.Code)
 				}
 			})
 		}

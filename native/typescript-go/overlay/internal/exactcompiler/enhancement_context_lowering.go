@@ -126,6 +126,11 @@ func enhancementCallableContextContracts(
 			visiting,
 		)
 		contract.transparentTarget = transparentSuppliedTargetOutput(fact.node, fact.sourceFile, callables)
+		// Optional lookup uses its authored token when invoked. It has no peer-order
+		// prerequisite and does not require attaching metadata to an ordinary helper.
+		if fact.summary.Kind != "component" && enhancementCallableContextProbeOnly(contract) {
+			continue
+		}
 		if enhancementCallableContextEmpty(contract) {
 			continue
 		}
@@ -180,6 +185,11 @@ func enhancementCallableContextForFact(
 			if enhancementCallableContextEmpty(targetContract) {
 				continue
 			}
+			// Kind belongs to the resolved source fact. A component retains its
+			// dependency even before its transparent-target flag is attached.
+			if facts[targetIndex].summary.Kind != "component" && enhancementCallableContextProbeOnly(targetContract) {
+				continue
+			}
 			reference := fact.contextReferences[edge.ID]
 			if reference == nil {
 				continue
@@ -214,6 +224,14 @@ func enhancementCallableReference(expression *ast.Node) *ast.Node {
 		}
 	}
 	return expression
+}
+
+// enhancementCallableContextProbeOnly excludes contracts with independent pre-activation
+// obligations. Runtime hasContext resolves the actual token without consulting this metadata.
+func enhancementCallableContextProbeOnly(contract enhancementCallableContextContract) bool {
+	return !contract.transparentTarget && len(contract.effects.Provides) == 0 &&
+		len(contract.effects.Requires) == 0 && len(contract.dependencies) == 0 &&
+		len(contract.effects.OptionallyConsumes) != 0
 }
 
 func enhancementCallableContextEmpty(contract enhancementCallableContextContract) bool {

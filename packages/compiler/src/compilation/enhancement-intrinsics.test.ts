@@ -1,8 +1,14 @@
 import { expect, it, onTestFinished } from 'vitest';
-import { readExactEnhancementContexts } from '@exactjs/core';
+import {
+	readExactEnhancementContexts,
+	markExactEnhancementContexts,
+	createContext
+} from '@exactjs/core';
+import { createCompiledComponentInputReceipt } from '@exactjs/core/runtime/component-operations';
+import { renderToString } from '@exactjs/ssr';
 import type { AnyComponentFunction, ContextToken } from '@exactjs/core';
 import path from 'node:path';
-import { mkdir, mkdtemp, writeFile, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, writeFile, rm } from 'node:fs/promises';
 import { importArtifact } from '../test-support/import-artifact.js';
 import { NativeCompilerProcess } from '../native/process.js';
 import { resolveNativeCompilerExecutable } from '../native/executable.js';
@@ -124,3 +130,74 @@ export function Page(this:Component<{}>){provide(this);return()=> 'ready';}`;
 		expect(contract.optionallyConsumes).toEqual([]);
 		expect(Object.isFrozen(contract.provides)).toBe(true);
 	});
+
+it('resolves a helper-private optional token without rewriting or attaching to the helper', async () => {
+	const parent = path.resolve('.tmp/task-private-routing');
+	await mkdir(parent, { recursive: true });
+	const directory = await mkdtemp(path.join(parent, 'optional-context-'));
+	onTestFinished(() => rm(directory, { recursive: true, force: true }));
+	const configFile = path.join(directory, 'tsconfig.json');
+	await writeFile(
+		configFile,
+		JSON.stringify({
+			compilerOptions: {
+				strict: true,
+				module: 'ESNext',
+				moduleResolution: 'Bundler',
+				target: 'ES2022',
+				jsx: 'preserve',
+				jsxImportSource: '@exactjs/jsx',
+				skipLibCheck: true
+			}
+		})
+	);
+	const helperFile = path.join(directory, 'helper.ts');
+	const helper = `import {createContext,type Component} from '@exactjs/core';
+const token=createContext<number>('helper-private-optional');
+export function read(owner:Component<{}>){return owner.hasContext(token);}
+export const identity=read;
+export function contextValues(){return new Map([[token.id,1]]);}`;
+	const pageFile = path.join(directory, 'page.tsx');
+	const page = `import type {Component} from '@exactjs/core';import {read} from './helper.js';
+export {read as reader,identity,contextValues} from './helper.js';
+export function Page(this:Component<{}>){const present=read(this);return()=> <output>{String(present)}</output>;}`;
+	await Promise.all([writeFile(helperFile, helper), writeFile(pageFile, page)]);
+	const compiler = new NativeCompilerProcess({ executable: resolveNativeCompilerExecutable() });
+	onTestFinished(() => compiler.dispose());
+	const result = compiler.request({
+		kind: 'compile',
+		target: 'server',
+		serverComponents: true,
+		root: directory,
+		configFile,
+		id: pageFile,
+		source: page,
+		diagnostics: 'semantic'
+	});
+	expect(result.error).toBeUndefined();
+	expect(result.diagnostics).toEqual([]);
+	expect(result.code).not.toContain('readCompiledEnhancementContextDependency');
+	await writeFile(pageFile, result.code!);
+	const module = await importArtifact(pageFile, path.join(directory, 'page.mjs'));
+	expect(module.reader).toBe(module.identity);
+	expect(
+		Object.getOwnPropertyDescriptor(module.reader, Symbol.for('@exactjs/enhancement-contexts'))
+	).toBeUndefined();
+	expect(await readFile(helperFile, 'utf8')).toBe(helper);
+	const input = () => createCompiledComponentInputReceipt(module.Page as AnyComponentFunction, {});
+	expect((await renderToString(input(), { markers: false })).html).toBe('<output>false</output>');
+	const contexts = (module.contextValues as () => Map<symbol, number>)();
+	expect((await renderToString(input(), { markers: false, contexts })).html).toBe(
+		'<output>true</output>'
+	);
+
+	// Explicit component metadata remains an application-owned contract with actual token identity.
+	const explicitToken = createContext<number>('explicit-optional');
+	const explicit = markExactEnhancementContexts(
+		function Explicit() {
+			return () => null;
+		},
+		{ optionallyConsumes: [explicitToken] }
+	);
+	expect(readExactEnhancementContexts(explicit)?.optionallyConsumes).toEqual([explicitToken.id]);
+});
