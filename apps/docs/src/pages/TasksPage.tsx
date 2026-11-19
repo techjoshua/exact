@@ -299,6 +299,12 @@ export function TasksPage(this: Component<{}>) {
 					setup and update it inside the task.
 				</p>
 				<p>
+					A helper can update a plain object through its getters and setters. To send that result
+					back to the client, assign it to a state field in the task, for example
+					<code>this.state.value = apply(input).value</code>. A setter that reaches state through
+					another object can leave the client with its previous value.
+				</p>
+				<p>
 					Server collection mutations require a known Array, Map, or Set type. An
 					<code>any</code> or <code>unknown</code> receiver cannot describe a safe published edit.
 					Preserve the collection type or assign its enclosing state value. Nullable containers can

@@ -2016,6 +2016,38 @@ func TestComponentExecutorPreservesAuthoredStateContextualTypes(t *testing.T) {
 	}
 }
 
+func TestComponentExecutorPreservesHelperAccessorReceiverType(t *testing.T) {
+	root, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	response := NewSession().Execute(Request{
+		ID: filepath.Join(root, "accessor-argument.tsx"), Kind: "compile", Target: TargetServer,
+		ConfigFile: timeSemanticConfig(t), Diagnostics: "semantic",
+		Source: `
+			import {TaskContext, type Component} from "@exactjs/core";
+			function apply(box: {value: number; data: {value: number}}) {
+				box.value = 2;
+				return box.value;
+			}
+			export function Page(this: Component<{value: number}>) {
+				this.state.value = 0;
+				const run = (task: TaskContext = TaskContext.server()) => {
+					this.state.value = apply({
+						get value() { return this.data.value; },
+						set value(next) { this.data.value = next; },
+						data: {value: this.state.value}
+					});
+				};
+				return () => <button onClick={() => run()}>Save</button>;
+			}
+		`,
+	})
+	if response.Error != "" || len(response.Diagnostics) != 0 || response.Code == "" {
+		t.Fatalf("server helper lost its accessor argument's contextual type: %s %#v", response.Error, response.Diagnostics)
+	}
+}
+
 func TestClientLatestTasksUseCompilerSelectedCompactLane(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID: "compact-latest.tsx", Kind: "compile", Target: TargetClient,

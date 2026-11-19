@@ -39,7 +39,7 @@ func (lowering *jsxLowering) pendingHelperArgument(source *ast.Node, visitor *as
 func (lowering *jsxLowering) captureMutationArgumentType(source *ast.Node) {
 	callback := false
 	walkNode(source, func(node *ast.Node) bool {
-		if ast.IsArrowFunction(node) || ast.IsFunctionExpression(node) || ast.IsMethodDeclaration(node) {
+		if ast.IsArrowFunction(node) || ast.IsFunctionExpression(node) || ast.IsMethodOrAccessor(node) {
 			callback = true
 			return false
 		}

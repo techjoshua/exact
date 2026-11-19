@@ -85,6 +85,10 @@ can be established by the build. Generated component code supplies a pending sta
 the original helper. Finite plain-field writes retain the calling task's generation, including
 through helper chains and consumed asynchronous returns. A cancelled generation cannot commit a later helper write.
 A returned pending view still belongs to its creating task and cannot be retained for later use.
+An object literal passed to a helper can use its own getters and setters with their ordinary
+TypeScript receiver type. When the helper updates that object, assign the resulting value to a
+named component state field to publish it. A setter that reaches state indirectly through a
+field of the object can change the server-local value without sending the update to the client.
 The original helper function, module state, parameters, and exports remain unchanged.
 For relative or absolute local helper imports, build adapters retain the module they actually load.
 If adjacent JavaScript and TypeScript files differ, publication follows the selected implementation.
