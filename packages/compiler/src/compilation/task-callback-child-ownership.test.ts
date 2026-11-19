@@ -137,3 +137,42 @@ for (const example of callbackTaskCases) {
 		}
 	});
 }
+
+it.each([
+	{ name: 'explicit value', args: 'input, 5', gets: 0 },
+	{ name: 'omitted value', args: 'input', gets: 1 },
+	{ name: 'explicit undefined', args: 'input, undefined', gets: 1 }
+])('checks a helper default getter at its task invocation ($name)', async ({ args, gets }) => {
+	const root = await createBrowserTestWorkspace('.exact-task-default-', process.cwd());
+	const compile = async (placement: 'client' | 'server') => {
+		const files = await writeTestFiles(root, {
+			'page.tsx': `import {TaskContext, type Component} from '@exactjs/core';
+export let reads = 0;
+const input = { get value() { reads++; return window.innerWidth; } };
+const read = (input: {value: number}, value = input.value) => value;
+export function Page(this: Component<{label:number}>) {
+	this.state.label = 0;
+	const run = (task:TaskContext = TaskContext.${placement}()) => { this.state.label = read(${args}); };
+	return () => <button onClick={() => run()}>{this.state.label}</button>;
+}`
+		});
+		return compileProjectArtifacts([files['page.tsx']!], {
+			rootDir: root,
+			outDir: path.join(root, placement),
+			generatedValidation: 'semantic'
+		});
+	};
+	if (gets) await expect(compile('server')).rejects.toThrow(/EXACT2001.*browser-only globals/);
+	else expect(await compile('server')).toHaveLength(1);
+
+	const [artifact] = await compile('client');
+	const client = await importArtifact(artifact!.clientFile, path.join(root, 'client.mjs'));
+	const host = document.createElement('div');
+	onTestFinished(() => unmount(host));
+	render(receipt(client.Page as AnyComponentFunction, {}), host);
+	expect(client.reads).toBe(0);
+	const button = host.querySelector('button')!;
+	button.click();
+	await expect.poll(() => button.textContent).toBe(String(gets ? window.innerWidth : 5));
+	expect(client.reads).toBe(gets);
+});
