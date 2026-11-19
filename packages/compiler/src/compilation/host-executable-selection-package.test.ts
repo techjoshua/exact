@@ -6,6 +6,8 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { createServer } from 'vite';
 import { expect, it, onTestFinished, vi } from 'vitest';
+import { exactExplicitBuildSourceFiles } from '../adapter-support.js';
+import { createBrowserTestWorkspace, writeTestFiles } from '../test-support/workspace.js';
 import { ExactCompilerSession } from '../expression/project.js';
 import type { NativeCompilerRequest } from '../native/process-contracts.js';
 import { withExactHostExecutableSelection } from './host-executable-selection.js';
@@ -208,6 +210,90 @@ it.each(['client', 'server'] as const)(
 	},
 	60_000
 );
+
+it('places application and library tasks using the selected conditional helper export', async () => {
+	const root = await createBrowserTestWorkspace('.exact-conditional-package-', process.cwd());
+	const name = '@fixture/conditional';
+	const packageRoot = path.join(root, 'node_modules', name);
+	await mkdir(packageRoot, { recursive: true });
+	const files = await writeTestFiles(packageRoot, {
+		'package.json': JSON.stringify({
+			name,
+			type: 'module',
+			exports: { '.': { types: './index.d.ts', browser: './browser.js', node: './node.js' } }
+		}),
+		'index.d.ts': 'export declare function label(): string;',
+		'browser.js': 'export function label() { return document.title; }',
+		'node.js': "import { hostname } from 'node:os'; export function label() { return hostname(); }"
+	});
+	const source = `import { TaskContext, type Component } from '@exactjs/core';
+		import { label } from '@fixture/conditional';
+		export function Page(this: Component<{value: string}>) {
+			this.state.value = '';
+			const run = (task: TaskContext = TaskContext.latest()) => { this.state.value = label(); };
+			return () => <button onClick={() => run()}>{this.state.value}</button>;
+		}`;
+	const { 'entry.tsx': filename } = await writeTestFiles(root, {
+		'package.json': '{"type":"module"}',
+		'entry.tsx': source
+	});
+	const configFile = path.join(root, 'tsconfig.json');
+	const additionalSourceFiles = exactExplicitBuildSourceFiles({
+		include: [files['browser.js'], files['node.js']]
+	});
+	const vite = await createServer({
+		root,
+		configFile: false,
+		appType: 'custom',
+		logLevel: 'silent',
+		server: { middlewareMode: true, watch: null },
+		ssr: { noExternal: [name] },
+		optimizeDeps: { noDiscovery: true, include: [] }
+	});
+	onTestFinished(() => vite.close());
+	const session = new ExactCompilerSession();
+	onTestFinished(() => session.dispose());
+	for (const target of ['client', 'server'] as const) {
+		const browser = target === 'client';
+		const host = browser ? vite.environments.client : vite.environments.ssr;
+		const resolve = async (specifier: string, importer: string) => {
+			const selected = await host.pluginContainer.resolveId(specifier, importer);
+			return selected ? { id: selected.id, external: Boolean(selected.external) } : undefined;
+		};
+		expect(await resolve(name, filename)).toEqual({
+			id: files[browser ? 'browser.js' : 'node.js'],
+			external: false
+		});
+		await withExactHostExecutableSelection(
+			session,
+			() => ({ target, root, filename, source, configFile, additionalSourceFiles, resolve }),
+			() => {
+				for (const packageType of ['application', 'library'] as const) {
+					const result = session.compileNative({
+						kind: 'compile',
+						id: filename,
+						source,
+						root,
+						configFile,
+						target,
+						packageType,
+						diagnostics: 'semantic'
+					});
+					expect(result.error).toBeUndefined();
+					expect(result.diagnostics).toEqual([]);
+					expect(result.code).toContain(name);
+					expect(result.analysis?.tasks).toEqual([
+						expect.objectContaining({
+							placement: target,
+							browserEffects: browser,
+							serverEffects: !browser
+						})
+					]);
+				}
+			}
+		);
+	}
+});
 
 it('uses helper negatives only for exact prepared bytes and retains ordinary import effects', async () => {
 	const parent = path.resolve('.tmp');
