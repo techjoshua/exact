@@ -193,7 +193,29 @@ the task's existing completion and cancellation boundary. Helpers retain their o
 identity, parameters, exports, and body; no task-owned companion is emitted. Supported helper JSDoc
 placement and secret annotations still constrain component callers, including imported helpers.
 This caller-owned path does not establish write ownership for arbitrary fresh accessor envelopes.
-Ordinary helper JSX lowering is separately owned and is outside this task-call contract.
+Ordinary helper JSX remains separate from this task-call contract. In `.tsx`, authored callables
+outside selected component spans retain JSX for host transformation. The runtime's `jsx`, `jsxs`,
+and six-argument `jsxDEV` conventions admit current compiled components through the existing
+component-input receipt. The package-root `createElement` handles the same contract when the host
+uses its key-after-spread convention. Separate automatic keys are defaults to the already-acquired
+prop bag; the host's later prop/key order wins. Explicit variadic children use the existing eager
+children input; childless calls delegate to effective `props.children`. Issuance does not execute
+component bodies or callback values. Provider redemption still checks target and input revision.
+
+This is a host bridge for compiled components, not intrinsic/fragment/uncompiled-function execution.
+Native-selected `.jsx` files keep their previous lowering; ordinary callables nested within selected
+component spans retain their existing compiler treatment. Those paths remain unmigrated. The
+preservation predicate uses the same `.tsx` extension gate as generated validation and actual
+selected component spans, without receiver inference. Nested durable component definitions remain
+subject to existing diagnostics. Normal component render/task and lexical micro-component lowering
+are unchanged. The completed-tree fence permits only preserved host roots; emitted TypeScript is
+parsed first as TS and reparsed as TSX only when a TSX module retains host syntax, preserving generic
+arrow parsing.
+
+Webpack marks output only in its existing native compiler branch and forwards that optional marker
+through the async `{code,map}` handoff. The loader selects automatic `@exactjs/jsx` only for marked
+results. Existing React ownership and host fallback stay intact. The public runtime keeps its opaque
+JSX result type and rejects unsupported types; this introduces no general value interpreter.
 
 The build prepares its complete relative/absolute local source graph before dependent compilation.
 Snapshot installation and dependent compilation share one serialized session operation. The native

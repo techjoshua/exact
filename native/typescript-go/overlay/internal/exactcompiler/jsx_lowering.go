@@ -291,7 +291,7 @@ func (lowering *jsxLowering) assembleModule(
 ) *ast.SourceFile {
 	lowering.advancePhase(jsxLoweringDefinitionsReady, jsxLoweringAssembled)
 	result := lowering.assembleModuleStatements(transformed, sourceStatementCount)
-	assertExecutableTree(result.AsNode())
+	lowering.assertComponentExecutableTree(result.AsNode())
 	return result
 }
 
@@ -353,6 +353,10 @@ func (lowering *jsxLowering) visit(node *ast.Node) *ast.Node {
 func (lowering *jsxLowering) visitNode(node *ast.Node) *ast.Node {
 	if node == nil {
 		return nil
+	}
+	// Ordinary helper JSX belongs to the host transform. Component roots retain native lowering.
+	if (ast.IsJsxElement(node) || ast.IsJsxSelfClosingElement(node) || ast.IsJsxFragment(node)) && lowering.ordinaryHostJSX(node) {
+		return node
 	}
 	// Authored type syntax belongs to the checker. Runtime reference projection must
 	// never turn a type name or typeof query into an executable state read.

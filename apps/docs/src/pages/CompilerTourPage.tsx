@@ -70,10 +70,14 @@ export function CompilerTourPage(this: Component<{}>) {
 					reference.
 				</p>
 				<p>
-					Helpers returning native JSX still depend on legacy compiler lowering. The scalar helper
-					path does not guarantee general preservation of helper bodies in modules that also define
-					components. The <code>@exactjs/jsx</code> automatic entrypoints require compiler output;
-					they do not provide a runtime JSX fallback.
+					An ordinary TSX helper outside a component can instantiate an already-compiled component
+					with the host JSX transform and pass it to public SSR. The component still needs the
+					matching server artifact. Props and children are eager values; creating the input does not
+					invoke the component body or a supplied callback. Intrinsic elements, fragments and
+					enhancements belong inside native component render work. Uncompiled functions are refused.
+					The current preservation path covers TSX helpers outside component definitions. JSX files
+					and ordinary functions declared inside components retain their existing compiler
+					treatment.
 				</p>
 				<p>
 					Awaited mutations keep suspension in the original function. Tasks resolve omitted defaults

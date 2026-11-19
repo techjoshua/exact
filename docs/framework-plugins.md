@@ -64,9 +64,13 @@ Selected helper sources, checked declarations and supported JSDoc placement and 
 remain available to component analysis. An annotation does not authorize helper rewriting.
 Individually admitted sibling files retain the host resolver's selected module identity.
 
-JSX-returning helpers still depend on legacy lowering. This scalar-call path does not guarantee
-general helper-body preservation in mixed component modules. The `@exactjs/jsx` automatic
-entrypoints are compiler-only and provide no runtime JSX fallback.
+Ordinary `.tsx` helpers outside selected component definitions retain their JSX for the host.
+Native-selected Webpack output carries its automatic `@exactjs/jsx` selection through the async
+loader handoff. React-owned and ordinary-host fallback output retain their existing policy.
+The host entries accept only an already-compiled component with a current matching target artifact;
+public SSR and DOM providers retain their normal admission checks. No intrinsic or general JSX
+runtime is supplied. `.jsx` helper lowering and ordinary callables within a selected component span
+remain unmigrated. This bounded path does not establish general helper-body preservation.
 
 ## Configuration
 

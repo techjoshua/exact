@@ -31,7 +31,7 @@ export async function transformExactWebpackSourceAsync(
 	resolveMissingProvider?: (moduleSpecifier: string, importer: string) => string | undefined,
 	resolveExecutable?: ExactHostExecutableSelection['resolve'],
 	preparation = new ExactWebpackSourcePreparation()
-): Promise<{ code: string; map: unknown } | null> {
+): Promise<Pick<ExactWebpackTransformResult, 'code' | 'map' | 'jsxRuntime'> | null> {
 	await intlReady;
 	const configured = await configuredExactWebpackTransformOptions(
 		options,
@@ -57,7 +57,11 @@ export async function transformExactWebpackSourceAsync(
 		if (result.languageProjection) await validateLanguage?.(result.languageProjection);
 		if (record) record(result);
 		else recordWebpackTransformResult(configured, filename, source, result);
-		return { code: result.code, map: result.map };
+		return {
+			code: result.code,
+			map: result.map,
+			...(result.jsxRuntime ? { jsxRuntime: result.jsxRuntime } : {})
+		};
 	};
 	if (!session || !resolveExecutable) return perform();
 	return withExactHostExecutableSelection(

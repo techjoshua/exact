@@ -1,10 +1,10 @@
 # Using `@exactjs/jsx`
 
-See the [README](./README.md) for TypeScript configuration. Applications normally select this
-automatic JSX runtime through their eXact tooling rather than importing it directly.
+Use this package with native eXact TSX. See the [README](./README.md) for configuration and limits.
 
-- Pass application TSX through the eXact compiler.
-- Use ordinary DOM event callbacks; `InteractionHandler` typing carries interaction ownership.
-- Keep registry-selected components as ordinary JSX component values.
-- Use self-closing `_target` to place one supplied logical child with additional properties.
-  Supply an explicit fragment when that child contains several separately authored nodes.
+- Let eXact tooling compile component definitions and select the JSX runtime.
+- In ordinary TSX helpers outside a component, instantiate only already-compiled components with
+  the matching target; keep intrinsic elements and enhancements inside native component render work.
+- Author JSX rather than calling the automatic or key-after-spread host entrypoints manually.
+- Use ordinary DOM event callbacks and finite registry component values.
+- Use self-closing `_target` for one supplied logical child, or an explicit fragment for several.

@@ -23,6 +23,8 @@ import {
 /** Compiler output retained for the owning plugin or cross-module loader bridge. */
 export type ExactWebpackTransformResult = Readonly<{
 	enhancementFacades?: readonly import('@exactjs/compiler/adapter-support').ExactPhysicalEnhancementFacade[];
+	/** Selects the native automatic JSX entry only for already-classified eXact output. */
+	jsxRuntime?: 'exact';
 	code: string;
 	map: unknown;
 	componentBuild?: import('@exactjs/compiler').ExactComponentBuildFacts;
@@ -196,6 +198,7 @@ export function transformExactWebpackModule(
 	return output
 		? {
 				code: output.code,
+				...(componentBuild !== undefined ? { jsxRuntime: 'exact' as const } : {}),
 				enhancementFacades,
 				map: output.map,
 				...(componentBuild ? { componentBuild } : {}),

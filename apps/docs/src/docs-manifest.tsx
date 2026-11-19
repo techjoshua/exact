@@ -314,7 +314,7 @@ export const docGroups: DocGroup[] = [
 				summary:
 					'See how the compiler turns ordinary TypeScript into precise updates and coordinated server work.',
 				keywords:
-					'compiler native TypeScript Go generated output lowering browser server artifact pseudocode reactive helpers task binding continuation executor map JSX',
+					'compiler native TypeScript Go generated output lowering browser server artifact pseudocode reactive helpers task binding continuation executor map JSX host compiled component automatic key children',
 				component: 'CompilerTourPage'
 			},
 			{

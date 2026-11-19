@@ -1243,6 +1243,16 @@ compiler host and native executable. The existing exact startup version gate rej
 before component work. This process-only change does not advance the runtime ABI epoch, alter
 coordinated package versions, or regenerate frozen runtime artifacts.
 
+The compiled-component host JSX bridge adds a scoped `@exactjs/jsx` package-root `createElement`
+export for host key-after-spread output and makes automatic/dev entries accept current compiled
+components. It reuses component/input revision 6, render-program revision 4, library facts revision 1,
+and process protocol 2.0.0; no record, capability bit, or runtime epoch changes. Previously built
+artifacts keep their existing providers. Newly host-transformed helpers require the updated JSX
+package; older compiler-only entrypoints reject those calls and are not supported consumers of the
+new output. The compiler/native and Webpack changes and the JSX runtime belong to this coordinated
+local 0.8.0 preparation. Publication remains subject to the affected-package validation and version
+planner; frozen released ABI fixtures are not regenerated for this additive entrypoint.
+
 `check:compiled-abi` bundles preserved 0.5.0 JavaScript against current runtime packages without
 invoking the compiler. For epoch 3 it verifies rejection of epoch-1 and epoch-2 render-program artifacts before component construction or DOM mutation. Integrity hashes and the Git release gate
 prevent refreshing a published fixture to hide an incompatible runtime change. These fixtures are

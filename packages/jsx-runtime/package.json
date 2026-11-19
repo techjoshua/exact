@@ -47,7 +47,7 @@
 	"bugs": {
 		"url": "https://github.com/techjoshua/exact/issues"
 	},
-	"description": "Compiler-only automatic JSX surface and TypeScript JSX declarations for eXact.",
+	"description": "JSX declarations and compiled-component host entrypoints for eXact.",
 	"keywords": [
 		"exactjs",
 		"jsx",

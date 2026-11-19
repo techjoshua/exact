@@ -26,6 +26,9 @@ export async function transpileExactWebpackResult(
 		format: 'esm',
 		legalComments: 'inline',
 		loader,
+		...(result.jsxRuntime === 'exact'
+			? { jsx: 'automatic' as const, jsxImportSource: '@exactjs/jsx' }
+			: {}),
 		sourcefile: filename,
 		sourcemap: sourceMap ? 'external' : false,
 		sourcesContent: true,

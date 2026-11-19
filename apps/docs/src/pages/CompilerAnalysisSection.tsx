@@ -48,7 +48,8 @@ export function CompilerAnalysisSection(this: Component<{}>) {
 				Before rewriting an expression, the compiler captures its authored type constraints and
 				evaluation requirements. Checking and executable lowering retain those constraints while
 				preserving receiver selection, short-circuiting, suspension, and expression results.
-				Generated helpers also complete JSX lowering before the compiler emits executable code.
+				Component-owned render work completes native JSX lowering. Ordinary TSX helpers outside
+				component definitions can retain host JSX that instantiates an already-compiled component.
 			</p>
 			<p>
 				Import identity follows the declaration that a reference resolves to. A local callback that

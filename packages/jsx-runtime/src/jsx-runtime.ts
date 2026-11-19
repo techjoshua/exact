@@ -1,3 +1,5 @@
+import { createCompiledComponentInputReceipt } from '@exactjs/core/runtime/component-operations';
+import { isExactComponent } from '@exactjs/core/framework/component-contracts';
 import { Fragment } from '@exactjs/core';
 import type {
 	AnyAuthoredComponentFunction,
@@ -43,10 +45,10 @@ declare global {
 type InteropElementType =
 	ExactJsxInteropElementTypeRegistry[keyof ExactJsxInteropElementTypeRegistry];
 
-/** Type-only result consumed and replaced by the eXact compiler before JavaScript emission. */
+/** JSX result lowered by the compiler or issued for an already-compiled component by the host. */
 export type CompiledJsxOperation = Readonly<{ __exactCompiledJsxOperation: never }>;
 
-/** Describes the compiler-only JSX operation for the automatic runtime's single-child entrypoint. */
+/** Issues host JSX for an already-compiled component; intrinsic JSX still requires native lowering. */
 export function jsx<P extends Props>(
 	type: AnyStateAuthoredComponentFunction<P>,
 	props: P | null,
@@ -62,10 +64,10 @@ export function jsx(
 	_props: Props | null,
 	_key?: string | number
 ): CompiledJsxOperation {
-	return rejectUncompiledJsx();
+	return compiledComponentJsx(_type, _props, _key);
 }
 
-/** Describes the compiler-only JSX operation for the automatic runtime's multi-child entrypoint. */
+/** Issues host JSX with eager children already present in the props bag. */
 export function jsxs<P extends Props>(
 	type: AnyStateAuthoredComponentFunction<P>,
 	props: P | null,
@@ -81,21 +83,48 @@ export function jsxs(
 	_props: Props | null,
 	_key?: string | number
 ): CompiledJsxOperation {
-	return rejectUncompiledJsx();
+	return compiledComponentJsx(_type, _props, _key);
 }
 
-/** Rejects development JSX calls that escaped the mandatory native compiler transform. */
+/** Uses the same compiled-component admission for development host JSX. */
 export function jsxDEV(
 	_type: JsxType,
 	_props: Props | null,
-	_key?: string | number
+	_key?: string | number,
+	_isStaticChildren?: boolean,
+	_source?: { fileName?: string; lineNumber?: number; columnNumber?: number },
+	_self?: unknown
 ): CompiledJsxOperation {
-	return rejectUncompiledJsx();
+	return compiledComponentJsx(_type, _props, _key);
+}
+
+/** Implements host key-after-spread JSX for compiled components, not general element creation. */
+export function createElement<P extends Props>(
+	type: AnyStateAuthoredComponentFunction<P>,
+	props: P | null,
+	...children: Child[]
+): CompiledJsxOperation {
+	return compiledComponentJsx(type, props, undefined, children.length ? children : undefined);
+}
+
+/** Admits only a current compiled eXact component and preserves eager host prop acquisition. */
+function compiledComponentJsx(
+	type: JsxType,
+	props: Props | null,
+	key?: string | number,
+	children?: Child[]
+): CompiledJsxOperation {
+	if (!isExactComponent(type)) return rejectUncompiledJsx();
+	return createCompiledComponentInputReceipt(
+		type,
+		key === undefined ? props : { key, ...props },
+		children === undefined ? undefined : { kind: 'eager', values: children }
+	) as unknown as CompiledJsxOperation;
 }
 
 function rejectUncompiledJsx(): never {
 	throw new Error(
-		'Native eXact JSX must be lowered by the eXact compiler; no runtime JSX fallback exists'
+		'Uncompiled or intrinsic eXact JSX must be lowered by the eXact compiler; host JSX requires a compiled component'
 	);
 }
 

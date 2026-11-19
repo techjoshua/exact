@@ -52,6 +52,11 @@ func validateGeneratedCodeWithCache(request Request, fileName string, code strin
 		code,
 		core.ScriptKindTS,
 	)
+	// A preserved ordinary TSX helper is parsed by the host after native component lowering.
+	// Retain the TS-first path for emitted generic arrows in modules with no surviving JSX.
+	if len(parsed.Diagnostics()) != 0 && tspath.FileExtensionIs(fileName, ".tsx") {
+		parsed = parser.ParseSourceFile(ast.SourceFileParseOptions{FileName: generatedFileName, Path: tspath.ToPath(generatedFileName, tspath.GetDirectoryPath(generatedFileName), true)}, code, core.ScriptKindTSX)
+	}
 	diagnostics := make([]Diagnostic, 0, len(parsed.Diagnostics()))
 	for _, diagnostic := range parsed.Diagnostics() {
 		diagnostics = append(diagnostics, projectDiagnostic(diagnostic))
