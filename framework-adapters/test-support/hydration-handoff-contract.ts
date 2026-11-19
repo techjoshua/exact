@@ -72,6 +72,12 @@ export async function prepareHydrationHandoffFixture(adapter: 'vite' | 'webpack'
 						types: './dist/index.d.ts',
 						browser: './dist/client/index.js',
 						default: './dist/server/index.js'
+					},
+					// Keep the replacement control's static import off the resumption entry.
+					'./owner': {
+						types: './dist/Handoff.d.ts',
+						browser: './dist/client/Handoff.js',
+						default: './dist/server/Handoff.js'
 					}
 				},
 				exactCompiledComponents: ['HandoffFold', 'HandoffOwner'],
@@ -144,7 +150,7 @@ export async function prepareHydrationHandoffFixture(adapter: 'vite' | 'webpack'
 				path.join(root, 'entry.tsx'),
 				target === 'server'
 					? "import {Page} from './Page.js';import {renderToHydratableString} from '@exactjs/ssr';export const serverHtml=()=>renderToHydratableString(<Page/>);"
-					: "import {createExactClient,readExactHydrationConfig} from '@exactjs/hydrate';import {HandoffOwner} from '@fixture/handoff-ui';import {render,unmount} from '@exactjs/dom';import {createExactRuntimeInspectionOwner} from '@exactjs/core';export {unmount,createExactRuntimeInspectionOwner};export const replacePage=(root:Element)=>render(<HandoffOwner/>,root);import {exactHydrationRegistration} from './hydration-registration.js';export const mountPage=(root:Element,options={})=>createExactClient(root,{...readExactHydrationConfig(root),...exactHydrationRegistration,...options});"
+					: "import {createExactClient,readExactHydrationConfig} from '@exactjs/hydrate';import {HandoffOwner} from '@fixture/handoff-ui/owner';import {render,unmount} from '@exactjs/dom';import {createExactRuntimeInspectionOwner} from '@exactjs/core';export {unmount,createExactRuntimeInspectionOwner};export const replacePage=(root:Element)=>render(<HandoffOwner/>,root);import {exactHydrationRegistration} from './hydration-registration.js';export const mountPage=(root:Element,options={})=>createExactClient(root,{...readExactHydrationConfig(root),...exactHydrationRegistration,...options});"
 			);
 			const warnings = await buildDiagnosticFixture(
 				adapter,
