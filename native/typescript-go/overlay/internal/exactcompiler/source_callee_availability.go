@@ -187,7 +187,14 @@ func (query *sourceValueQuery) snapshotCalleeScope(bindings sourceValueBindings,
 		if !ok {
 			return sourceCalleeScope{}, false
 		}
+		// A refused first value publishes no binding vector.
+		if scope.bindings == nil {
+			scope.bindings = make([]sourceCalleeBinding, 0, len(bindings))
+		}
 		scope.bindings = append(scope.bindings, sourceCalleeBinding{symbol: symbol, values: terms})
+	}
+	if len(creators) != 0 {
+		scope.creators = make([]sourceCalleeCreator, 0, len(creators))
 	}
 	for body, creation := range creators {
 		query.recordEstimatedCost(1)
