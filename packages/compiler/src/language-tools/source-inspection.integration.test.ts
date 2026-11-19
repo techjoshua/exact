@@ -1,4 +1,6 @@
+import { writeFile } from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';
+import { createBrowserTestWorkspace, writeTestFiles } from '../test-support/workspace.js';
 import { createExactLanguageService, type ExactSourceEntity } from '../index.js';
 
 describe('compiler source inspection', () => {
@@ -343,6 +345,58 @@ export async function Product(
 		}
 	});
 
+	it('updates an untouched server task through an unopened re-export', async () => {
+		const root = await createBrowserTestWorkspace('.exact-placement-edit-', process.cwd());
+		const neutral = "export function read(){return 'ok'}";
+		const source = `import {TaskContext,type Component} from '@exactjs/core';
+			import {read} from './barrel.js';
+			export function Page(this:Component<{label:string}>){
+				this.state.label='';
+				const run=(task:TaskContext=TaskContext.server())=>{this.state.label=read()};
+				return ()=> <button onClick={()=>run()}>{this.state.label}</button>;
+			}`;
+		const files = await writeTestFiles(root, {
+			'Page.tsx': source,
+			'barrel.ts': "export {read} from './helper.js'",
+			'helper.ts': neutral
+		});
+		const service = createExactLanguageService({ root, noEmit: true });
+		try {
+			await service.synchronize([
+				{ kind: 'upsert', filename: files['Page.tsx']!, version: 1, source }
+			]);
+			for (const [index, helper] of [
+				neutral,
+				'export function read(){return document.title}',
+				neutral
+			].entries()) {
+				const update = await service.synchronize([
+					{ kind: 'upsert', filename: files['helper.ts']!, version: index + 1, source: helper }
+				]);
+				expect(update.affectedFiles).toContain(files['Page.tsx']);
+				const inspection = await service.inspect(files['Page.tsx']!);
+				expect(inspection.diagnostics.some((diagnostic) => diagnostic.code === 'EXACT2001')).toBe(
+					index === 1
+				);
+			}
+			const filename = files['helper.ts']!;
+			const browser = 'export function read(){return document.title}';
+			await writeFile(filename, browser);
+			const disk = { kind: 'disk' as const, filename, structural: false };
+			expect((await service.synchronize([disk])).affectedFiles).toEqual([]);
+			await service.synchronize([{ kind: 'close', filename }]);
+			for (const helper of [neutral, browser]) {
+				await writeFile(filename, helper);
+				expect((await service.synchronize([disk])).affectedFiles).toContain(files['Page.tsx']);
+				const inspection = await service.inspect(files['Page.tsx']!);
+				expect(inspection.diagnostics.some((diagnostic) => diagnostic.code === 'EXACT2001')).toBe(
+					helper === browser
+				);
+			}
+		} finally {
+			await service.dispose();
+		}
+	});
 	it('publishes only current framework diagnostics across consecutive edits', async () => {
 		const service = createExactLanguageService({ root: process.cwd(), noEmit: true });
 		const clean =

@@ -64,6 +64,8 @@ export type NativeCompilerRequest = Readonly<{
 	analysis?: import('@exactjs/config').ExactAnalysisOptions;
 	/** Existing explanation requests may include advisory cost statistics. */
 	traceAnalysisCost?: boolean;
+	/** Synchronizes an editor overlay and reports the analyzing project's watched dependencies. */
+	languageOverlay?: boolean;
 	id?: string;
 	kind:
 		| 'version'

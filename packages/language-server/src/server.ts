@@ -1,8 +1,14 @@
 #!/usr/bin/env node
 import { createDocumentSynchronizationPublisher } from './workspace/document-publication.js';
-import type { ExactRefactorKind, ExactSourceInspection } from '@exactjs/compiler';
+import { pathToFileURL } from 'node:url';
+import type {
+	ExactLanguageServiceUpdate,
+	ExactRefactorKind,
+	ExactSourceInspection
+} from '@exactjs/compiler';
 import {
 	CodeActionKind,
+	DidChangeWatchedFilesNotification,
 	createConnection,
 	ProposedFeatures,
 	TextDocuments
@@ -64,6 +70,7 @@ const { sourceForUri, logRequestError } = createServerSourceAccess(documents, co
 const analyses = new ExactDocumentAnalysisState();
 let workspaces: ExactLanguageWorkspaceManager | undefined;
 let workspaceFolderChangesSupported = false;
+let dynamicWatchers = false;
 let shuttingDown = false;
 const publishSynchronization = createDocumentSynchronizationPublisher(
 	connection,
@@ -83,6 +90,9 @@ const inlayPresentation = registerInlayPresentation(
 connection.onInitialize((params: InitializeParams): InitializeResult => {
 	const initialization = (params.initializationOptions ??
 		{}) as ExactLanguageServerInitializationOptions;
+	dynamicWatchers =
+		params.capabilities.workspace?.didChangeWatchedFiles?.dynamicRegistration === true &&
+		initialization.workspaceTrusted === true;
 	workspaceFolderChangesSupported = supportsExactWorkspaceFolderChanges(params);
 	inlayPresentation.setLevel(initialization.inlayHints);
 	const roots = workspaceRoots(params);
@@ -94,6 +104,12 @@ connection.onInitialize((params: InitializeParams): InitializeResult => {
 });
 
 connection.onInitialized(() => {
+	if (dynamicWatchers)
+		void connection.client
+			.register(DidChangeWatchedFilesNotification.type, {
+				watchers: [{ globPattern: '**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}' }]
+			})
+			.catch(logRequestError);
 	if (workspaceFolderChangesSupported)
 		registerExactWorkspaceFolderChanges(
 			connection,
@@ -111,11 +127,28 @@ connection.onInitialized(() => {
 		);
 });
 
+connection.onDidChangeWatchedFiles(({ changes }) => {
+	const manager = workspaces;
+	if (manager)
+		void manager
+			.synchronizeDiskChanges(
+				changes.filter((change) => !documents.get(change.uri)),
+				(update) => refreshAffectedDocuments(manager, undefined, update)
+			)
+			.catch(logPresentationError);
+});
+
 documents.onDidOpen((event) => void synchronize(event.document));
 documents.onDidChangeContent((event) => void synchronize(event.document));
 documents.onDidClose((event) => {
 	analyses.close(event.document.uri);
-	void workspaces?.closeDocument(event.document.uri).catch(logRequestError);
+	const manager = workspaces;
+	if (manager)
+		void manager
+			.closeDocument(event.document.uri, undefined, (update) =>
+				refreshAffectedDocuments(manager, event.document.uri, update)
+			)
+			.catch(logRequestError);
 	void connection.sendDiagnostics({ uri: event.document.uri, diagnostics: [] });
 });
 
@@ -360,11 +393,36 @@ async function synchronize(document: TextDocument): Promise<void> {
 			snapshot.source,
 			controller.signal
 		);
-		if (result) publishSynchronization(snapshot, controller, result);
+		if (!result) return;
+		publishSynchronization(snapshot, controller, result);
+		await refreshAffectedDocuments(manager, snapshot.uri, result.update, controller.signal);
 	} catch (error) {
 		if (!isExpectedSupersession(error)) logRequestError(error);
 	} finally {
 		analyses.finish(snapshot.uri, controller);
+	}
+}
+
+/** Publishes the project’s recomputed open consumers after an overlay edit or close. */
+async function refreshAffectedDocuments(
+	manager: ExactLanguageWorkspaceManager,
+	changedUri: string | undefined,
+	update: ExactLanguageServiceUpdate,
+	signal?: AbortSignal
+): Promise<void> {
+	for (const filename of update.affectedFiles) {
+		const uri = pathToFileURL(filename).href;
+		const affected = documents.get(uri);
+		if (!affected || uri === changedUri) continue;
+		const consumer = captureDocumentSnapshot(affected);
+		const updated = await manager.inspectAffectedDocument(uri, consumer.version, update, signal);
+		if (updated && !shuttingDown && isCurrentDocumentSnapshot(consumer, documents.get(uri))) {
+			publishSynchronization(
+				consumer,
+				analyses.publicationController(uri, consumer.version),
+				updated
+			);
+		}
 	}
 }
 

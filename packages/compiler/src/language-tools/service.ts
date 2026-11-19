@@ -82,6 +82,7 @@ export class ExactCompilerLanguageService implements ExactLanguageService {
 	private readonly snapshots = new Map<string, SourceSnapshot>();
 	private readonly analyses = new Map<string, AnalysisSnapshot>();
 	private readonly imports = new Map<string, ReadonlySet<string>>();
+	private synchronization?: Promise<ExactLanguageServiceUpdate>;
 	private generation = 0;
 	private lastChangedFiles = 0;
 	private lastAffectedFiles = 0;
@@ -117,6 +118,20 @@ export class ExactCompilerLanguageService implements ExactLanguageService {
 		changes: readonly ExactLanguageServiceChange[],
 		signal?: AbortSignal
 	): Promise<ExactLanguageServiceUpdate> {
+		const run = () => this.applyChanges(changes, signal);
+		const pending = this.synchronization ? this.synchronization.then(run, run) : run();
+		this.synchronization = pending;
+		try {
+			return await pending;
+		} finally {
+			if (this.synchronization === pending) this.synchronization = undefined;
+		}
+	}
+
+	private async applyChanges(
+		changes: readonly ExactLanguageServiceChange[],
+		signal?: AbortSignal
+	): Promise<ExactLanguageServiceUpdate> {
 		this.assertActive();
 		const started = performance.now();
 		throwIfAborted(signal);
@@ -134,11 +149,27 @@ export class ExactCompilerLanguageService implements ExactLanguageService {
 				});
 				changedFiles.push(filename);
 				if (isProjectConfiguration(filename)) reset = true;
+			} else if (change.kind === 'disk') {
+				if (this.snapshots.get(filename)?.overlay) continue;
+				if (
+					!(change.structural && filename.startsWith(this.root + path.sep)) &&
+					!this.analyses.has(filename) &&
+					!Array.from(this.imports.values()).some((files) => files.has(filename))
+				)
+					continue;
+				this.snapshots.delete(filename);
+				this.analyses.delete(filename);
+				this.imports.delete(filename);
+				changedFiles.push(filename);
+				if (change.structural || isProjectConfiguration(filename)) reset = true;
 			} else if (change.kind === 'close') {
 				if (!this.snapshots.get(filename)?.overlay) continue;
 				const disk = this.diskSnapshot(filename);
 				if (disk) this.snapshots.set(filename, disk);
-				else this.snapshots.delete(filename);
+				else {
+					this.snapshots.delete(filename);
+					reset = true;
+				}
 				changedFiles.push(filename);
 				if (isProjectConfiguration(filename)) reset = true;
 			} else {
@@ -149,7 +180,15 @@ export class ExactCompilerLanguageService implements ExactLanguageService {
 				reset = true;
 			}
 		}
-		if (reset) await this.client.request({ kind: 'reset' }, signal);
+		if (!changedFiles.length && changes.length && changes.every((change) => change.kind === 'disk'))
+			return { generation: this.generation, changedFiles: [], affectedFiles: [], diagnostics: [] };
+		if (reset) {
+			await this.client.request({ kind: 'reset' }, signal);
+			// Restore every open input before collecting results for dependent callers.
+			for (const [filename, snapshot] of this.snapshots)
+				if (snapshot.overlay && isLanguageSource(filename))
+					await this.analyze(filename, snapshot.source, signal);
+		}
 		const affected = reset
 			? unique([
 					...changedFiles,
@@ -317,6 +356,7 @@ export class ExactCompilerLanguageService implements ExactLanguageService {
 			{
 				id: filename,
 				kind: 'analyze',
+				languageOverlay: true,
 				analysis: this.analysisPolicy,
 				source: prepared.source,
 				...(prepared.moduleSpecifiers.size

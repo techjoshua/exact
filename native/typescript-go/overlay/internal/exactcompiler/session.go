@@ -252,7 +252,12 @@ func (s *Session) executeProjection(request Request, authored *authoredCheckProg
 	retainedNormalization := normalization
 	retainedNormalization.text = request.Source
 	project.retainNormalization(fileName, retainedNormalization)
-	if request.Kind == "diagnose" {
+	if request.Kind == "analyze" && request.LanguageOverlay {
+		files := make(map[string]bool)
+		collectWatchedProjectFiles(project, fileName, files)
+		response.ProjectFiles = sortedWatchedFiles(files)
+	}
+	if request.Kind == "diagnose" || request.Kind == "analyze" && request.LanguageOverlay {
 		s.refreshWatchedConsumers(project, fileName, retainedNormalization)
 	}
 	s.validationProgram = generation.program

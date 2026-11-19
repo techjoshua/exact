@@ -17,7 +17,9 @@ import (
 func TestDefinitionMAYSharedDependencyGrowth(t *testing.T) {
 	for _, leaf := range []struct{ source, placement string }{
 		{"window.innerWidth", "client"},
-		{"process.cwd()", "server"},
+		// This virtual project has no Node declarations. Supply cwd's public
+		// return type so this control measures checked primitive addition.
+		{"process.cwd() as string", "server"},
 		{"typeof window==='undefined'?1:window.innerWidth", "isomorphic"},
 	} {
 		for _, target := range []Target{TargetClient, TargetServer} {
@@ -28,7 +30,7 @@ func TestDefinitionMAYSharedDependencyGrowth(t *testing.T) {
 				for level := 1; level <= depth; level++ {
 					source += fmt.Sprintf("function h%d(){return h%d()+h%d();}", level, level-1, level-1)
 				}
-				source += fmt.Sprintf("export const width=h%d;export const stable=1;", depth)
+				source += fmt.Sprintf("export const width=h%d;export const stable=1;export function Page(){return ()=>h%d()}", depth, depth)
 				session := NewSession()
 				response := session.Execute(Request{Kind: "compile", ID: "/virtual/definition-may-growth.ts", Target: target, Source: source})
 				if response.Error != "" || len(response.Diagnostics) != 0 {

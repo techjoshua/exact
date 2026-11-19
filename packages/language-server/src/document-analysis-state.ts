@@ -23,6 +23,12 @@ export class ExactDocumentAnalysisState {
 		return controller;
 	}
 
+	/** Publishes a completed dependency refresh against the current document lifetime. */
+	publicationController(uri: string, version: number): AbortController {
+		const active = this.#active.get(uri);
+		return active?.version === version ? active.controller : this.start(uri, version)!;
+	}
+
 	/** Reports whether a controller still owns the current generation. */
 	isCurrent(uri: string, controller: AbortController): boolean {
 		return this.#active.get(uri)?.controller === controller;

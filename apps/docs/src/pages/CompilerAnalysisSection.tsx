@@ -109,7 +109,8 @@ export function CompilerAnalysisSection(this: Component<{}>) {
 				resources when its scope ends. Multiple resources in one list keep that shared cleanup
 				requirement, which can remain unknown to placement analysis. Package export conditions
 				select an implementation. The selected implementation still has its own environment
-				requirements.
+				requirements. A browser-only callback passed to a shared helper can restrict that call.
+				Other callers keep their own placement.
 			</p>
 			<p>
 				For a small helper with no captured values, the compiler can connect a conditional field

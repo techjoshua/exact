@@ -171,7 +171,7 @@ export function Page(this:Component<State>){
 
 func TestExecutableSelectionEnvironmentAndTransitions(t *testing.T) {
 	f := newExecutableFixture(t, map[string]string{
-		"entry.ts":  `import {read} from './helper.js';export function run(){return read();}`,
+		"entry.ts":  `import {read} from './helper.js';export function run(){return read();}export function Page(){return ()=>run()}`,
 		"helper.ts": `export function read(){return "typed";}`,
 		"helper.js": `export function read(){return document.title;}`,
 	})

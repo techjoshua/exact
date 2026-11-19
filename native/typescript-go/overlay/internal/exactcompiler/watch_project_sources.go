@@ -15,34 +15,42 @@ import (
 func (session *Session) watchedProjectFiles(fileName string) []string {
 	files := make(map[string]bool)
 	for _, project := range session.projects {
-		root := project.program.GetSourceFile(fileName)
-		if fileName != "" && root == nil {
-			continue
+		collectWatchedProjectFiles(project, fileName, files)
+	}
+	return sortedWatchedFiles(files)
+}
+
+func collectWatchedProjectFiles(project *projectState, fileName string, files map[string]bool) {
+	root := project.program.GetSourceFile(fileName)
+	if fileName != "" && root == nil {
+		return
+	}
+	visited := make(map[*ast.SourceFile]bool)
+	var visit func(*ast.SourceFile)
+	visit = func(sourceFile *ast.SourceFile) {
+		if sourceFile == nil || visited[sourceFile] || project.program.IsSourceFileDefaultLibrary(sourceFile.Path()) {
+			return
 		}
-		visited := make(map[*ast.SourceFile]bool)
-		var visit func(*ast.SourceFile)
-		visit = func(sourceFile *ast.SourceFile) {
-			if sourceFile == nil || visited[sourceFile] || project.program.IsSourceFileDefaultLibrary(sourceFile.Path()) {
-				return
-			}
-			visited[sourceFile] = true
-			if sourceFile != root {
-				files[project.fs.base.Realpath(sourceFile.FileName())] = true
-			}
-			project.program.ForEachResolvedModule(func(resolution *module.ResolvedModule, _ string, _ core.ResolutionMode, _ tspath.Path) {
-				if resolution.IsResolved() {
-					visit(project.program.GetSourceFile(resolution.ResolvedFileName))
-				}
-			}, sourceFile)
+		visited[sourceFile] = true
+		if sourceFile != root {
+			files[project.fs.base.Realpath(sourceFile.FileName())] = true
 		}
-		visit(root)
-		for _, sourceFile := range project.program.GetSourceFiles() {
-			// Globals and declarations can affect types without a runtime import.
-			if fileName == "" || sourceFile.IsDeclarationFile || !ast.IsExternalModule(sourceFile) || strings.Contains(sourceFile.Text(), "declare global") {
-				visit(sourceFile)
+		project.program.ForEachResolvedModule(func(resolution *module.ResolvedModule, _ string, _ core.ResolutionMode, _ tspath.Path) {
+			if resolution.IsResolved() {
+				visit(project.program.GetSourceFile(resolution.ResolvedFileName))
 			}
+		}, sourceFile)
+	}
+	visit(root)
+	for _, sourceFile := range project.program.GetSourceFiles() {
+		// Globals and declarations can affect types without a runtime import.
+		if fileName == "" || sourceFile.IsDeclarationFile || !ast.IsExternalModule(sourceFile) || strings.Contains(sourceFile.Text(), "declare global") {
+			visit(sourceFile)
 		}
 	}
+}
+
+func sortedWatchedFiles(files map[string]bool) []string {
 	result := make([]string, 0, len(files))
 	for file := range files {
 		result = append(result, file)

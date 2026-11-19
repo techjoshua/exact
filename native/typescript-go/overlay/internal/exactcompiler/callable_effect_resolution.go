@@ -682,39 +682,6 @@ func resolveCallableEffectsWithWork(facts []callableFacts, mapOwner *executableB
 	return work.settleStagedPublication(facts, cycles)
 }
 
-func applyCallableArtifactConstraints(facts []callableFacts) {
-	if len(stagedPublicationPending(facts)) != 0 {
-		return
-	}
-	constraints := make([]uint8, len(facts))
-	for index := range facts {
-		for _, source := range facts[index].summary.EffectSources {
-			if source.Environment == "browser" {
-				constraints[index] |= 1
-			}
-			if source.Environment == "server" {
-				constraints[index] |= 2
-			}
-		}
-	}
-	changed := true
-	for changed {
-		changed = false
-		for callerIndex := range facts {
-			for _, targetIndex := range facts[callerIndex].targets {
-				next := constraints[targetIndex] | constraints[callerIndex]
-				if next != constraints[targetIndex] {
-					constraints[targetIndex] = next
-					changed = true
-				}
-			}
-		}
-	}
-	for index := range facts {
-		facts[index].artifactConstraint = constraints[index]
-	}
-}
-
 // appendDirectReferenceEffects classifies an executed source reference for its
 // original effect publisher. Checker identity, context provenance and guarded
 // browser access stay shared by callable and actual field-initializer drivers.
@@ -867,7 +834,6 @@ func environmentEffectFor(sources []EnvironmentEffectSource) string {
 func artifactTargetsFor(
 	effect string,
 	sources []EnvironmentEffectSource,
-	constraint uint8,
 ) []string {
 	switch effect {
 	case "browser":
@@ -877,12 +843,6 @@ func artifactTargetsFor(
 	case "neutral":
 		return []string{"client", "server"}
 	default:
-		if constraint == 1 {
-			return []string{"client"}
-		}
-		if constraint == 2 {
-			return []string{"server"}
-		}
 		browser, server := false, false
 		for _, source := range sources {
 			browser = browser || source.Environment == "browser"

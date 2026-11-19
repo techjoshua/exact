@@ -60,7 +60,9 @@ export function LanguageToolsPage(this: Component<{}>) {
 				<p>
 					Automatic dependency tracking and server placement are easier to work with when you can
 					see what the compiler inferred. The eXact extension shows those decisions beside your
-					source, along with diagnostics and suggested edits.
+					source, along with diagnostics and suggested edits. Editing an imported helper also refreshes
+					placement diagnostics in open files that depend on it. VS Code watches for edits from
+					other tools and uses your editor text while a file is open.
 				</p>
 				<p>
 					Use the eXact Language Tools extension with a project that has{' '}

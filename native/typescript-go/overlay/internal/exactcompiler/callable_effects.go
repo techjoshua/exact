@@ -35,7 +35,9 @@ var universalCallRoots = map[string]struct{}{
 }
 
 type callableFacts struct {
-	staged sourceCallableExtractionFact
+	// These lexical facts belong to the declaration in its current checker generation.
+	definitionScopeChecked, definitionScopeClosed bool
+	staged                                        sourceCallableExtractionFact
 
 	directExposurePublished map[*ast.Node]bool         // immutable original source effect publication events
 	pendingMembers          *sourcePendingMemberLedger // source-only exposure/relative dependencies, no live publication rights
@@ -59,24 +61,23 @@ type callableFacts struct {
 	fieldEdgeOperations map[string]*ast.Node
 
 	// normalInputs exists only during this fact's normal demand construction.
-	normalInputs       *sourceValueInputs
-	thenReferences     []sourceThenReference
-	nativeCalls        []*sourceNativeInvocation
-	normalCalls        []*sourceInvocationResult
-	thenIncomplete     bool
-	ownedObligations   []sourceOwnedObligations
-	progressReceiver   bool
-	node               *ast.Node
-	sourceFile         *ast.SourceFile
-	summary            CallableSummary
-	directReads        []StateEffect
-	directWrites       []StateEffect
-	directContext      []ContextEffect
-	targets            []int
-	callSymbols        map[string]ast.SymbolId
-	callExpressions    map[string]*ast.Node
-	contextReferences  map[string]*ast.Node
-	artifactConstraint uint8
+	normalInputs      *sourceValueInputs
+	thenReferences    []sourceThenReference
+	nativeCalls       []*sourceNativeInvocation
+	normalCalls       []*sourceInvocationResult
+	thenIncomplete    bool
+	ownedObligations  []sourceOwnedObligations
+	progressReceiver  bool
+	node              *ast.Node
+	sourceFile        *ast.SourceFile
+	summary           CallableSummary
+	directReads       []StateEffect
+	directWrites      []StateEffect
+	directContext     []ContextEffect
+	targets           []int
+	callSymbols       map[string]ast.SymbolId
+	callExpressions   map[string]*ast.Node
+	contextReferences map[string]*ast.Node
 }
 
 type callableAnalysis struct {
@@ -184,7 +185,6 @@ func collectCallableEffects(
 	if pending := resolveCallableEffectsWithWork(facts, owner, &work); len(pending) != 0 {
 		return callableAnalysis{facts: facts, pending: pending}
 	}
-	applyCallableArtifactConstraints(facts)
 
 	summaries := make([]CallableSummary, len(facts))
 	byNode := make(map[*ast.Node]CallableSummary, len(facts))
@@ -195,7 +195,6 @@ func collectCallableEffects(
 		fact.summary.ArtifactTargets = artifactTargetsFor(
 			fact.summary.Effect,
 			fact.summary.EffectSources,
-			fact.artifactConstraint,
 		)
 		published := fact.summary
 		published.DirectEffectSources = displayEnvironmentSources(published.DirectEffectSources)
@@ -464,7 +463,6 @@ func mergeProjectCallableEffects(
 	if pending := resolveCallableEffects(facts, owner); len(pending) != 0 {
 		return callableAnalysis{facts: facts, pending: pending}
 	}
-	applyCallableArtifactConstraints(facts)
 	return callableAnalysisFromFacts(requested, facts, analyses)
 }
 
@@ -552,7 +550,6 @@ func callableAnalysisFromFacts(
 		fact.summary.ArtifactTargets = artifactTargetsFor(
 			fact.summary.Effect,
 			fact.summary.EffectSources,
-			fact.artifactConstraint,
 		)
 		published := fact.summary
 		published.DirectEffectSources = displayEnvironmentSources(published.DirectEffectSources)

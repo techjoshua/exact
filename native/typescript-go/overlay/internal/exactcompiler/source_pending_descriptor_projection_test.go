@@ -236,9 +236,9 @@ func TestPendingDescriptorFormalSourceConsumer(t *testing.T) {
 // the declaration's relative facts or activating a merely stored sibling.
 func TestPendingDescriptorFormalAppliedCapture(t *testing.T) {
 	body := strings.Replace(pendingDescriptorBody, `Object.create(prototype)`, `operations.create(prototype)`, 1)
-	source := pendingDescriptorPrefix + pendingDescriptorDynamicPublisher + `const operations={create(prototype:object){(prototype as ()=>unknown)();return {}}};` + body
+	source := pendingDescriptorPrefix + pendingDescriptorDynamicPublisher + `const operations={create(prototype:object){(prototype as ()=>unknown)();return {}}};` + body + `export function Library(){return ()=>read(()=>0)?'present':'empty'}`
 	library := NewSession().Execute(Request{Kind: "analyze", ID: "/virtual/descriptor-formal-application.ts", Source: source, Diagnostics: "semantic"})
-	application := NewSession().Execute(Request{Kind: "analyze", ID: "/virtual/descriptor-formal-application.ts", Source: source + `export function applied(){const captured=()=>document.title;const dormant=()=>document.cookie;return read(()=>captured())}`, Diagnostics: "semantic"})
+	application := NewSession().Execute(Request{Kind: "analyze", ID: "/virtual/descriptor-formal-application.ts", Source: source + `export function applied(){const captured=()=>document.title;const dormant=()=>document.cookie;return read(()=>captured())}export function App(){return ()=>applied()?'present':'empty'}`, Diagnostics: "semantic"})
 	for _, r := range []Response{library, application} {
 		if r.Error != "" || hasErrorDiagnostic(r.Diagnostics) {
 			t.Fatal(r.Error, r.Diagnostics)
@@ -246,13 +246,6 @@ func TestPendingDescriptorFormalAppliedCapture(t *testing.T) {
 	}
 	left := findCallable(t, library.Analysis.Callables, "read")
 	right := findCallable(t, application.Analysis.Callables, "read")
-	// Existing caller-to-callee artifact constraints route this shared function
-	// to the browser caller's target. Baseline has the same sole field change.
-	// Require it explicitly, then compare every declaration/effect field.
-	if len(left.ArtifactTargets) != 0 || len(right.ArtifactTargets) != 1 || right.ArtifactTargets[0] != "client" {
-		t.Fatal("unexpected caller-owned artifact routing", left.ArtifactTargets, right.ArtifactTargets)
-	}
-	left.ArtifactTargets = right.ArtifactTargets
 	a, _ := json.Marshal(left)
 	b, _ := json.Marshal(right)
 	if string(a) != string(b) {

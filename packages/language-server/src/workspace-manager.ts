@@ -24,6 +24,7 @@ import {
 	type ExactLanguageProviderStatus
 } from '@exactjs/language-extension-host';
 import path from 'node:path';
+import { FileChangeType, type FileEvent } from 'vscode-languageserver/node.js';
 import type {
 	DocumentState,
 	WorkspaceState,
@@ -78,6 +79,7 @@ export class ExactLanguageWorkspaceManager {
 		root: string
 	) => Promise<ExactLanguageExtensionHost>;
 	private disposed = false;
+	private readonly updateOwners = new WeakMap<ExactLanguageServiceUpdate, WorkspaceState>();
 
 	constructor(
 		roots: readonly string[],
@@ -190,6 +192,7 @@ export class ExactLanguageWorkspaceManager {
 					)
 				: await workspace.service.synchronize(changes, signal);
 			await finishWorkspacePreparation(workspace);
+			if (update) this.updateOwners.set(update, workspace);
 			return update
 				? await finalizeWorkspaceSynchronization(
 						workspace,
@@ -207,21 +210,84 @@ export class ExactLanguageWorkspaceManager {
 		}
 	}
 
+	/** Recomputes presentation for an unchanged open consumer of an edited dependency. */
+	async inspectAffectedDocument(
+		uri: string,
+		version: number,
+		update: ExactLanguageServiceUpdate,
+		signal?: AbortSignal
+	): Promise<ExactDocumentSynchronization | undefined> {
+		const workspace = this.updateOwners.get(update);
+		if (!workspace || !this.ownsWorkspace(workspace)) return undefined;
+		const filename = fileURLToPath(uri);
+		const document = workspace.documents.get(filename);
+		if (!document || document.version !== version) return undefined;
+		const result = await finalizeWorkspaceSynchronization(
+			workspace,
+			filename,
+			version,
+			update,
+			() => this.ownsDocument(workspace, filename, document),
+			signal
+		);
+		return result && result.inspection.generation === workspace.service.stats().generation
+			? result
+			: undefined;
+	}
+
+	/** Delivers external source changes to active projects with open consumers. */
+	async synchronizeDiskChanges(
+		changes: readonly FileEvent[],
+		refresh: (update: ExactLanguageServiceUpdate) => Promise<void>
+	): Promise<void> {
+		const files = changes
+			.filter((change) => change.uri.startsWith('file:'))
+			.map((change) => ({
+				kind: 'disk' as const,
+				filename: fileURLToPath(change.uri),
+				structural: change.type !== FileChangeType.Changed
+			}))
+			.filter((change) => /\.[cm]?[jt]sx?$/i.test(change.filename));
+		if (!files.length) return;
+		for (const workspace of [...this.workspaces.values()]) {
+			if ('cleanup' in workspace) continue;
+			await finishWorkspacePreparation(workspace);
+			if (!this.ownsWorkspace(workspace)) continue;
+			if (!workspace.documents.size) continue;
+			const inputs = files.filter((file) => !workspace.documents.has(file.filename));
+			if (!inputs.length) continue;
+			const update = await workspace.service.synchronize(inputs);
+			if (this.ownsWorkspace(workspace) && update.affectedFiles.length) {
+				this.updateOwners.set(update, workspace);
+				await refresh(update);
+			}
+		}
+	}
+
 	/** Releases an unsaved overlay and restores the disk-backed project snapshot. */
-	async closeDocument(uri: string, signal?: AbortSignal): Promise<void> {
+	async closeDocument(
+		uri: string,
+		signal?: AbortSignal,
+		publishAffected?: (update: ExactLanguageServiceUpdate) => Promise<void>
+	): Promise<void> {
 		this.assertActive();
 		const workspace = this.workspaceForUri(uri, 'close');
 		if (!workspace) return;
 		const filename = fileURLToPath(uri);
 		workspace.documents.delete(filename);
-		if (workspace.preparation) {
-			await prepareWorkspaceInput(
-				workspace,
-				() => workspace.service.synchronize([{ kind: 'close', filename }], signal),
-				() => this.ownsWorkspace(workspace),
-				() => reserveUnavailableWorkspace(this.workspaces, workspace)
-			);
-		} else await workspace.service.synchronize([{ kind: 'close', filename }], signal);
+		const restore = () => workspace.service.synchronize([{ kind: 'close', filename }], signal);
+		const update = workspace.preparation
+			? await prepareWorkspaceInput(
+					workspace,
+					restore,
+					() => this.ownsWorkspace(workspace),
+					() => reserveUnavailableWorkspace(this.workspaces, workspace)
+				)
+			: await restore();
+		if (update && publishAffected && this.ownsWorkspace(workspace)) {
+			this.updateOwners.set(update, workspace);
+			await publishAffected(update);
+		}
 	}
 
 	/** Returns the current compiler inspection for an open or disk-backed file. */

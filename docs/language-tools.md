@@ -244,7 +244,12 @@ source maps, inspection catalogs, or any other generated project file.
 
 Every synchronization returns one monotonically increasing `generation`,
 `changedFiles`, `affectedFiles`, and eXact diagnostics. Upserts with an older
-document version are ignored. A request observes `AbortSignal` cancellation,
+document version are ignored. When a dependency is edited or its overlay closes, the server
+refreshes diagnostics on affected open documents using the analyzing project’s resolved watch
+inputs, including transitive imports. For external edits, clients must forward
+`workspace/didChangeWatchedFiles` create, change and delete events. The server requests
+source-file watchers from trusted clients advertising dynamic watcher registration, including
+VS Code. An open document supplies the authoritative text until it closes. A request observes `AbortSignal` cancellation,
 and a result whose document was superseded is rejected before publication.
 Closing a document releases its overlay and restores the disk snapshot;
 disposing the service releases the native process and all retained project

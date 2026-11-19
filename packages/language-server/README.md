@@ -20,6 +20,11 @@ are discarded. Ordinary TypeScript diagnostics remain owned by the editor's Type
 Trusted clients should send `initializationOptions.workspaceTrusted: true`. Untrusted workspaces
 do not launch workspace compiler binaries or plugins.
 
+For diagnostics after external module edits, advertise dynamic registration for
+`workspace.didChangeWatchedFiles` and honor the registered source watchers, or forward
+`workspace/didChangeWatchedFiles` notifications directly. Open editor text takes precedence
+over disk until the document closes.
+
 Embedding hosts that change workspace folders should supply all current open inputs to
 `manager.reconcileWorkspaceFolders({ added, removed }, inputs)`. It returns affected input references
 synchronously and a `completion` promise resolving to `{ results, errors }` after reseeding and cleanup.

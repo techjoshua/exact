@@ -284,9 +284,6 @@ func (collection *projectCallableCollection) resolve(requested *ast.SourceFile) 
 			break
 		}
 	}
-	if len(pending) == 0 {
-		applyCallableArtifactConstraints(facts)
-	}
 	result := callableAnalysisFromFacts(requested, facts, cache.analyses)
 	if len(pending) != 0 {
 		result = callableAnalysis{facts: facts, pending: pending}

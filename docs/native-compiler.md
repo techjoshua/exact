@@ -425,7 +425,12 @@ Dependency discovery runs before identity allocation, and empty component facts
 are retained under the same invalidation rules as component records. Their traversal paths and
 generated identity strings remain unchanged. Requests without owned components defer the
 dependency placement fixed point until a component request needs it. Source invalidation
-still clears affected placement facts before that next request.
+still clears affected placement facts before that next request. A zero-argument call to a
+closed function can use its declaration’s effect edge when a strict comparison or checked
+primitive addition consumes the result in a returned expression, or a component render
+function directly returns its checked primitive result. The compiler reuses the
+declaration’s lexical-scope check across those calls. Argument and callback effects still
+belong to their invoking edge.
 Native build staging includes the authored checker extensions alongside the compiler host.
 The mutation runner verifies those checker sources against the same repository overlay before
 building witnesses, and build-script acceptance checks that every owned Go package is selected.

@@ -8,11 +8,13 @@ export function importedLanguageFiles(
 	response: NativeCompilerResponse,
 	root: string
 ): ReadonlySet<string> {
+	if (response.projectFiles) return new Set(response.projectFiles);
 	const directory = path.dirname(filename);
 	return new Set(
 		response.analysis.imports
-			.filter((entry) => entry.moduleSpecifier.startsWith('.'))
+			.filter((entry) => entry.resolvedFile || entry.moduleSpecifier.startsWith('.'))
 			.map((entry) => {
+				if (entry.resolvedFile) return path.resolve(root, entry.resolvedFile);
 				const base = path.resolve(directory, entry.moduleSpecifier);
 				for (const candidate of [
 					base,

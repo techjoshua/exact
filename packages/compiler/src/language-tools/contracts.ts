@@ -277,6 +277,7 @@ export type ExactLanguageServiceChange = Readonly<
 	| { kind: 'upsert'; filename: string; version: number; source: string }
 	| { kind: 'close'; filename: string }
 	| { kind: 'delete'; filename: string }
+	| { kind: 'disk'; filename: string; structural: boolean }
 >;
 
 /** Result of atomically synchronizing an overlay batch. */

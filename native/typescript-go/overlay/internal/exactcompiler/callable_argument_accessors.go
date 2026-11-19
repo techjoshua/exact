@@ -79,10 +79,17 @@ func (domain *sourceDefinitionMAYCall) registered(caller *callableFacts, call *a
 // module execution stay ordinary. Primitive type information decides
 // whether return/coercion opacity is needed, never certifying a result or purity.
 func prepareDefinitionMAYCall(caller, callee *callableFacts, node *ast.Node, symbol *ast.Symbol, c *checker.Checker, owner *executableBodyOwner, parent *callableFacts) *sourceDefinitionMAYCall {
-	if caller == nil || callee == nil || owner == nil || owner.values == nil || owner.values.checker != c || !ast.IsFunctionDeclaration(callee.node) || caller.node.Parent == nil || callee.node.Parent == nil || !ast.IsSourceFile(callee.node.Parent) || ast.GetSourceFileOfNode(caller.node) != ast.GetSourceFileOfNode(callee.node) || enclosingCallableNode(node) != caller.node || caller.normalInputs == nil || caller.normalInputs.invocation != nil || symbol == nil || symbol.ValueDeclaration != callee.node {
+	if caller == nil || callee == nil || owner == nil || owner.values == nil || owner.values.checker != c || !ast.IsFunctionDeclaration(callee.node) || caller.node.Parent == nil || callee.node.Parent == nil || !ast.IsSourceFile(callee.node.Parent) || ast.GetSourceFileOfNode(caller.node) != ast.GetSourceFileOfNode(callee.node) || enclosingCallableNode(node) != caller.node || caller.normalInputs != nil && caller.normalInputs.invocation != nil || symbol == nil || symbol.ValueDeclaration != callee.node {
 		return nil
 	}
-	if caller.normalInputs.declaration != caller.node || caller.normalInputs.ownedFact != caller {
+	if caller.normalInputs == nil {
+		// A closed zero-input definition has no invocation-specific bindings.
+		// The result-use and capture checks below still apply.
+		directRender := ast.IsArrowFunction(caller.node) && unwrapSourceCallableReference(caller.node.Body()) == node
+		if len(callee.node.Parameters()) != 0 || !(definitionPrimitiveOperand(node, c) || directRender) {
+			return nil
+		}
+	} else if caller.normalInputs.declaration != caller.node || caller.normalInputs.ownedFact != caller {
 		return nil
 	}
 	formalOwner := caller.node
@@ -138,7 +145,7 @@ func prepareDefinitionMAYCall(caller, callee *callableFacts, node *ast.Node, sym
 	if call.Arguments != nil {
 		arguments = call.Arguments.Nodes
 	}
-	if len(arguments) != len(calleeFormals) || len(calleeFormals) == 0 && (len(callerFormals) != 0 || render) {
+	if len(arguments) != len(calleeFormals) || len(calleeFormals) == 0 && len(callerFormals) != 0 {
 		return nil
 	}
 	for _, argument := range arguments {
@@ -154,6 +161,9 @@ func prepareDefinitionMAYCall(caller, callee *callableFacts, node *ast.Node, sym
 	primitive := func(expression *ast.Node) bool {
 		value := c.GetTypeAtLocation(expression)
 		return value != nil && value.Flags()&checker.TypeFlagsPrimitive != 0
+	}
+	if render && len(calleeFormals) == 0 && !primitive(node) {
+		return nil
 	}
 	forwarding := len(calleeFormals) != 0
 	if forwarding {
@@ -184,6 +194,10 @@ func prepareDefinitionMAYCall(caller, callee *callableFacts, node *ast.Node, sym
 			outer = parent
 			continue
 		}
+		if strictComparisonOperand(outer) {
+			outer = parent
+			continue
+		}
 		if ast.IsBinaryExpression(parent) && parent.AsBinaryExpression().OperatorToken.Kind == ast.KindPlusToken {
 			valueIncomplete = valueIncomplete || !primitive(parent.AsBinaryExpression().Left) || !primitive(parent.AsBinaryExpression().Right)
 			opaque = opaque || forwarding || valueIncomplete
@@ -195,15 +209,30 @@ func prepareDefinitionMAYCall(caller, callee *callableFacts, node *ast.Node, sym
 	if !(render && unwrapSourceCallableReference(caller.node.Body()) == outer) && (outer.Parent == nil || !ast.IsReturnStatement(outer.Parent) || enclosingCallableNode(outer.Parent) != caller.node) {
 		return nil
 	}
+	if !callee.definitionScopeChecked {
+		callee.definitionScopeClosed = closedDefinitionEffectScope(callee.node, calleeFormals, c, index)
+		callee.definitionScopeChecked = true
+	}
+
+	if !callee.definitionScopeClosed {
+		return nil
+	}
+	return &sourceDefinitionMAYCall{caller: caller, callee: callee, call: node, edge: -1, valueIncomplete: valueIncomplete, opaque: opaque}
+}
+
+// A closed definition can reuse its graph effects without specializing its
+// lexical environment. Invocation and result-use checks still run at each site.
+func closedDefinitionEffectScope(callee *ast.Node, calleeFormals map[ast.SymbolId]bool, c *checker.Checker, index sourceValueIndex) bool {
+	source := ast.GetSourceFileOfNode(callee)
 	closed := true
-	walkCallable(callee.node, func(part *ast.Node) bool {
-		if part.Kind == ast.KindThisKeyword || part.Kind == ast.KindSuperKeyword || ast.IsNewExpression(part) || ast.IsAwaitExpression(part) || ast.IsFunctionLike(part) && part != callee.node {
+	walkCallable(callee, func(part *ast.Node) bool {
+		if part.Kind == ast.KindThisKeyword || part.Kind == ast.KindSuperKeyword || ast.IsNewExpression(part) || ast.IsAwaitExpression(part) || ast.IsFunctionLike(part) && part != callee {
 			closed = false
 			return false
 		}
 		if ast.IsIdentifier(part) && !ast.IsDeclarationName(part) && !isStaticPropertyName(part) {
 			selected := c.GetSymbolAtLocation(part)
-			if selected != nil && selected.ValueDeclaration != nil && ast.GetSourceFileOfNode(selected.ValueDeclaration) == ast.GetSourceFileOfNode(node) {
+			if selected != nil && selected.ValueDeclaration != nil && ast.GetSourceFileOfNode(selected.ValueDeclaration) == source {
 				declaration := selected.ValueDeclaration
 				if calleeFormals[ast.GetSymbolId(selected)] {
 					return closed
@@ -215,8 +244,36 @@ func prepareDefinitionMAYCall(caller, callee *callableFacts, node *ast.Node, sym
 		}
 		return closed
 	})
-	if !closed {
-		return nil
+	return closed
+}
+
+// A checked primitive addition and a strict comparison consume their operands
+// without calling an authored conversion on either value.
+func definitionPrimitiveOperand(node *ast.Node, c *checker.Checker) bool {
+	if strictComparisonOperand(node) {
+		return true
 	}
-	return &sourceDefinitionMAYCall{caller: caller, callee: callee, call: node, edge: -1, valueIncomplete: valueIncomplete, opaque: opaque}
+	if node.Parent == nil || !ast.IsBinaryExpression(node.Parent) {
+		return false
+	}
+	binary := node.Parent.AsBinaryExpression()
+	if binary.OperatorToken.Kind != ast.KindPlusToken {
+		return false
+	}
+	for _, operand := range []*ast.Node{binary.Left, binary.Right} {
+		value := c.GetTypeAtLocation(operand)
+		if value == nil || value.Flags()&checker.TypeFlagsPrimitive == 0 {
+			return false
+		}
+	}
+	return true
+}
+
+// Strict equality evaluates both operands without coercing either result.
+func strictComparisonOperand(node *ast.Node) bool {
+	if node.Parent == nil || !ast.IsBinaryExpression(node.Parent) {
+		return false
+	}
+	kind := node.Parent.AsBinaryExpression().OperatorToken.Kind
+	return kind == ast.KindEqualsEqualsEqualsToken || kind == ast.KindExclamationEqualsEqualsToken
 }

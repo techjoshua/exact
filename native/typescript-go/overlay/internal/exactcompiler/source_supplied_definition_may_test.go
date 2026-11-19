@@ -154,11 +154,11 @@ func TestSuppliedDefinitionMAYRefusalEffects(t *testing.T) {
 // A real formal-forwarding cycle remains a finite graph carrying its reachable
 // effects. It cannot produce a completion or a value from that fixed point.
 func TestSuppliedDefinitionMAYCycleEffects(t *testing.T) {
-	source := `function left(input:{value:string}){document.title;return right(input);}function right(input:{value:string}){process.cwd();return left(input);}export{left,right};`
+	source := `function restricted(){return document.title}function left(input:{value:string}){restricted();return right(input);}function right(input:{value:string}){process.cwd();return left(input);}export function Page(input:{value:string}){left(input);return ()=>null}`
 	session := NewSession()
 	response := session.Execute(Request{Kind: "analyze", ID: "/virtual/supplied-formal-cycle.ts", Source: source})
-	if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) {
-		t.Fatalf("cycle: %s %#v", response.Error, response.Diagnostics)
+	if response.Error != "" || len(response.Diagnostics) != 1 || response.Diagnostics[0].Code != "EXACT2001" || !strings.Contains(response.Diagnostics[0].Message, "indivisible browser and server effects") {
+		t.Fatalf("mixed cycle lost its component placement diagnostic: %s %#v", response.Error, response.Diagnostics)
 	}
 	for _, name := range []string{"left", "right"} {
 		summary := executableSummary(t, response, name)
