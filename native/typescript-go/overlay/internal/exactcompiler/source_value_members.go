@@ -2,6 +2,7 @@ package exactcompiler
 
 import (
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
+	"slices"
 	"strconv"
 )
 
@@ -75,37 +76,23 @@ func (query *sourceValueQuery) occurrenceSourceView(origin *ast.Node, result *ac
 // import-prepared entries. Storage belongs to this caller until consumption ends.
 // Additional sources grow the slice normally, without imposing a source limit.
 func (query *sourceValueQuery) occurrenceSourceViewIn(origin *ast.Node, result *accessorCandidates, selected []*ast.SourceFile, storage []sourceValueIndex) []sourceValueIndex {
-	var sources []*ast.SourceFile
+	var local [4]*ast.SourceFile
+	sources := local[:0]
 	indexes := storage[:0]
-	for _, node := range []*ast.Node{origin, query.initializing, query.reading, query.returning} {
-		if node == nil || !query.charge(result, node) {
-			continue
-		}
-		source := ast.GetSourceFileOfNode(node)
-		if source == nil {
-			continue
-		}
-		found := false
-		for _, previous := range sources {
-			found = found || previous == source
-		}
-		if !found {
+	add := func(source *ast.SourceFile) {
+		if source != nil && !slices.Contains(sources, source) {
 			sources = append(sources, source)
 			indexes = append(indexes, query.owner.index(source))
 		}
 	}
-
+	for _, node := range []*ast.Node{origin, query.initializing, query.reading, query.returning} {
+		if node != nil && query.charge(result, node) {
+			add(ast.GetSourceFileOfNode(node))
+		}
+	}
 	for _, source := range selected {
-		if source == nil || !query.charge(result, source.AsNode()) {
-			continue
-		}
-		found := false
-		for _, previous := range sources {
-			found = found || previous == source
-		}
-		if !found {
-			sources = append(sources, source)
-			indexes = append(indexes, query.owner.index(source))
+		if source != nil && query.charge(result, source.AsNode()) {
+			add(source)
 		}
 	}
 	return indexes
