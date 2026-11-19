@@ -161,3 +161,59 @@ export function Page(props: { known: boolean; foreign: unknown }) {
 		}
 	}
 }, 60_000);
+
+it.each([
+	{ target: 'client', browser: true },
+	{ target: 'server', browser: true },
+	{ target: 'server', browser: false }
+] as const)(
+	'places an array spread with an iterator getter ($target, browser=$browser)',
+	async ({ target, browser }) => {
+		const root = await createBrowserTestWorkspace('.exact-iterator-get-', process.cwd());
+		const compiler = new NativeCompilerProcess({ executable: resolveNativeCompilerExecutable() });
+		onTestFinished(() => compiler.dispose());
+		const source = `import {TaskContext,type Component} from '@exactjs/core';
+function parseCssColor(value:string) {
+ const input={get [Symbol.iterator]() { ${browser ? 'document.title=value;' : ''} return value[Symbol.iterator].bind(value); }};
+ return [...input].map(x=>x+x).join('');
+}
+export function Page(this:Component<{label:string}>,props:{input:string}){
+ ${
+		target === 'server'
+			? 'this.state.label=""; const run=(task:TaskContext=TaskContext.server())=>{this.state.label=parseCssColor(props.input);}; return ()=> <button onClick={()=>run()}>{this.state.label}</button>;'
+			: 'this.state.label=parseCssColor(props.input); return ()=> <span>{this.state.label}</span>;'
+ }
+}`;
+		const files = await writeTestFiles(root, { 'Page.tsx': source });
+		const result = compiler.request({
+			kind: 'compile',
+			id: files['Page.tsx']!,
+			root,
+			source,
+			target,
+			diagnostics: 'semantic'
+		});
+		expect(result.error).toBeUndefined();
+		const helper = result.analysis.callables.find((callable) => callable.name === 'parseCssColor')!;
+		expect(
+			helper.effectSources.some((s) => s.environment === 'browser' && s.description === 'document')
+		).toBe(browser);
+		expect(helper.effectSources.some((s) => s.environment === 'unknown')).toBe(true);
+		const errors = result.diagnostics.filter((diagnostic) => diagnostic.severity === 'error');
+		if (target === 'server' && browser) {
+			expect(errors).toContainEqual(
+				expect.objectContaining({
+					code: 'EXACT2001',
+					message: expect.stringContaining(
+						'task requests server placement but references browser-only globals'
+					)
+				})
+			);
+			expect(result.code).toBeFalsy();
+		} else {
+			expect(errors).toEqual([]);
+			expect(result.code).toBeTruthy();
+			if (target === 'client') expect(result.analysis.components[0]?.placement).toBe('client');
+		}
+	}
+);

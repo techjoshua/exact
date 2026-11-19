@@ -330,9 +330,13 @@ export function TasksPage(this: Component<{}>) {
 					through references to that shared object. Freezing an object also preserves its getters
 					and setters, including the resources they use when you read or assign its properties. An
 					array callback that reads an element's getter also keeps that getter's resource
-					requirements. Placement follows captured inputs and current assignments through helper
-					returns, preserving ordinary JavaScript initialization and thrown errors. Unresolved
-					callbacks or externally supplied values can leave placement uncertain.
+					requirements. Spreading an object into an array also reads its{' '}
+					<code>Symbol.iterator</code>
+					property. If the object's getter writes <code>document.title</code>, the task needs the
+					browser before iteration even begins. Placement follows captured inputs and current
+					assignments through helper returns, preserving ordinary JavaScript initialization and
+					thrown errors. Unresolved callbacks or externally supplied values can leave placement
+					uncertain.
 				</p>
 				<p>
 					<code>immediate()</code>, <code>normal()</code>, and <code>deferred()</code> choose when

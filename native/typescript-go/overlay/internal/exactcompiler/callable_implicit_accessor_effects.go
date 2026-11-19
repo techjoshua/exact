@@ -37,7 +37,7 @@ func visitImplicitAccessors(node *ast.Node, typeChecker *checker.Checker, bindin
 		// Only these expressions and binding patterns can perform an implicit
 		// read here. A normal invocation may still need its enclosing work ledger.
 		switch node.Kind {
-		case ast.KindNewExpression, ast.KindBinaryExpression, ast.KindVariableDeclaration, ast.KindSpreadAssignment, ast.KindJsxSpreadAttribute, ast.KindCallExpression:
+		case ast.KindSpreadElement, ast.KindNewExpression, ast.KindBinaryExpression, ast.KindVariableDeclaration, ast.KindSpreadAssignment, ast.KindJsxSpreadAttribute, ast.KindCallExpression:
 		default:
 			visit(accessorCandidates{})
 			return
@@ -68,13 +68,33 @@ func visitImplicitAccessors(node *ast.Node, typeChecker *checker.Checker, bindin
 	if ast.IsVariableDeclaration(node) && ast.IsObjectBindingPattern(node.Name()) {
 		query.bindPattern(node.Name(), query.originsAt(node.Initializer(), node, bound, &result), bound, &result, accessorRead)
 	}
-	visitImplicitAccessorQueries(node, typeChecker, func(receiver *ast.Node, path []string, name string, mode accessorTraversal) accessorCandidates {
-		return query.accessors(receiver, path, name, mode, bound, nil)
-	}, func(candidates accessorCandidates) { mergeAccessorCandidates(&result, candidates) })
+	query.implicitAccessorQueries(node, bound, &result)
 }
 
-// visitImplicitAccessorQueries shares syntax demands while the caller owns substitution and budget.
-func visitImplicitAccessorQueries(node *ast.Node, typeChecker *checker.Checker, query func(*ast.Node, []string, string, accessorTraversal) accessorCandidates, visit func(accessorCandidates)) {
+// implicitAccessorQueries shares implicit property reads across callable and module effects.
+func (q *sourceValueQuery) implicitAccessorQueries(node *ast.Node, bindings sourceValueBindings, result *accessorCandidates) {
+	typeChecker := q.owner.checker
+	if ast.IsSpreadElement(node) && ast.IsArrayLiteralExpression(node.Parent) {
+		operand := node.AsSpreadElement().Expression
+		t := typeChecker.GetTypeAtLocation(operand)
+		if t != nil && t.Flags()&checker.TypeFlagsStringLike == 0 {
+			// GetMethod first reads the well-known property. Retain the getter's
+			// body independently of the unknown method and subsequent iterator steps.
+			if key, _ := q.nativeWellKnownKey("iterator", result); key != "" {
+				for _, origin := range q.originsAt(operand, node, bindings, result) {
+					if origin.node == nil || len(origin.path) != 0 || !ast.IsObjectLiteralExpression(origin.node) {
+						continue
+					}
+					member := typeChecker.GetPropertyOfType(typeChecker.GetTypeAtLocation(origin.node), key)
+					if member != nil && member.ValueDeclaration != nil && member.ValueDeclaration.Parent == origin.node && ast.IsGetAccessorDeclaration(member.ValueDeclaration) {
+						result.retainCallableEffect(node, member.ValueDeclaration)
+						result.opaque = true
+					}
+				}
+			}
+		}
+		return
+	}
 	var receivers []*ast.Node
 	if ast.IsSpreadAssignment(node) {
 		receivers = append(receivers, node.AsSpreadAssignment().Expression)
@@ -85,9 +105,7 @@ func visitImplicitAccessorQueries(node *ast.Node, typeChecker *checker.Checker, 
 		call := node.AsCallExpression()
 		expression := unwrapSourceCallableReference(call.Expression)
 		if method := arrayIncludesIndexConversion(call, typeChecker); method != nil {
-			candidates := accessorCandidates{}
-			candidates.retainCallableEffect(node, method)
-			visit(candidates)
+			result.retainCallableEffect(node, method)
 		}
 		if expression != nil && ast.IsPropertyAccessExpression(expression) && call.Arguments != nil {
 			member := expression.AsPropertyAccessExpression()
@@ -104,15 +122,15 @@ func visitImplicitAccessorQueries(node *ast.Node, typeChecker *checker.Checker, 
 					}
 				}
 				if receiver.Text() == "JSON" && name == "stringify" && len(call.Arguments.Nodes) > 0 {
-					candidates := query(call.Arguments.Nodes[0], nil, "", accessorSerialize)
-					visit(candidates)
+					candidates := q.accessors(call.Arguments.Nodes[0], nil, "", accessorSerialize, bindings, nil)
+					mergeAccessorCandidates(result, candidates)
 				}
 			}
 		}
 	}
 	for _, receiver := range receivers {
-		candidates := query(receiver, nil, "", accessorEnumerate)
-		visit(candidates)
+		candidates := q.accessors(receiver, nil, "", accessorEnumerate, bindings, nil)
+		mergeAccessorCandidates(result, candidates)
 	}
 }
 

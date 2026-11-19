@@ -1124,9 +1124,7 @@ func (query *sourceValueQuery) executeDemand(node, declaration *ast.Node, bindin
 	if ast.IsVariableDeclaration(node) && (ast.IsObjectBindingPattern(node.Name()) || ast.IsArrayBindingPattern(node.Name())) {
 		query.bindInputPattern(node.Name(), query.originsAt(node.Initializer(), node, bindings, result), bindings, result, accessorAcquire, inputs)
 	}
-	visitImplicitAccessorQueries(node, query.owner.checker, func(receiver *ast.Node, path []string, name string, mode accessorTraversal) accessorCandidates {
-		return query.accessors(receiver, path, name, mode, bindings, nil)
-	}, func(candidates accessorCandidates) { mergeAccessorCandidates(result, candidates) })
+	query.implicitAccessorQueries(node, bindings, result)
 	if ast.IsCallExpression(node) || ast.IsNewExpression(node) {
 		if ast.IsNewExpression(node) && query.operation != nil {
 			result.thenIncomplete = result.thenIncomplete || query.unaccountedConstruction(node, bindings, result)

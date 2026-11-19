@@ -746,6 +746,11 @@ nonoptional-call eligibility as lifecycle lowering. The original key expression 
 callback bodies retain their target-specific placement. Extracted callbacks, getter or factory
 arguments, spreads and foreign receivers retain ordinary acquisition. This classification supplies
 no acquired result, normal Get completion or callback execution proof.
+Array spread reads the well-known `Symbol.iterator` property before invoking the returned
+method. For a source object literal with an authored iterator getter, the read contributes
+the getter body to component and task placement. The returned method and subsequent iterator
+steps can still have unknown effects. Checked primitive strings use standard string iteration.
+
 DOM subclasses and application-defined types retain their own placement requirements. Native
 component re-exports retain their separately projected implementations instead of inheriting the
 environment of a nested event handler. Opposite-runtime local helpers and executing module
