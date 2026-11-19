@@ -197,6 +197,8 @@ func TestComponentComputedWriterGetterEffects(t *testing.T) {
 		{"descriptor through alias", "", "Symbol.for(props.input)", "Object.defineProperty(alias,'value',{get(){return {n:document.title.length}}});Object.defineProperty(box,key,{value:{n:0}});", "box.value"},
 		{"descriptor same symbol", "", "Symbol.for(props.input)", "Object.defineProperty(alias,key,{get(){return {n:document.title.length}}});", "box[key]"},
 		{"descriptor dynamic key", "", "props.key", "Object.defineProperty(alias,key,{get(){return {n:document.title.length}}});", "box.value"},
+		{"disjoint cache write", "", "Symbol.for(props.input)", "const cache={data:0};function update(view:{data:number}){view.data=1}update(cache);Object.defineProperty(alias,'value',{get(){return {n:document.title.length}}});", "box.value"},
+		{"nested dynamic donor", "", "props.key", "const nested={box};function write(){nested.box[key]={get n(){return document.title.length}}}write();", "nested.box.value"},
 		{"same symbol", "", "Symbol.for(props.input)", "", "box[key]"},
 		{"lexical shadow", "const Symbol={for(_:string){return 'value'}};", "Symbol.for(props.input)", "", "box.value"},
 		{"dynamic key", "", "props.key", "", "box.value"},

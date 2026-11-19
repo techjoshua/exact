@@ -258,9 +258,18 @@ func (query *sourceValueQuery) memberValuesAtGetWithStandard(origin *ast.Node, p
 					}
 					inputs = append(inputs, *relative)
 				} else {
-					// This single named acquisition cannot receive the symbol-slot RHS.
+					// A terminal Get observes accessors at its original cut. Once
+					// interference is opaque, a disjoint named RHS supplies neither
+					// a producer nor a value. Keep donor publication above this test.
+					if query.dependenciesOnly && result.opaque && mode == accessorRead && len(projection) == 0 && name != "" {
+						_, key := accessorReceiver(assignment.left)
+						if !sourceMemberKeyMaySupply(key, demand) {
+							continue
+						}
+					}
+					// A path of named Gets cannot acquire an RHS through a symbol slot.
 					// Assignment evaluation and staged effect transfers keep their own cuts.
-					if mode == accessorAcquire && name == "" && len(projection) == 1 && !index.normalDynamicScope && ast.IsElementAccessExpression(assignment.left) && query.symbolKeyDisjointFromName(assignment.left.AsElementAccessExpression().ArgumentExpression, projection[0]) {
+					if mode == accessorAcquire && name == "" && len(projection) > 0 && !index.normalDynamicScope && ast.IsElementAccessExpression(assignment.left) && query.symbolKeyDisjointFromName(assignment.left.AsElementAccessExpression().ArgumentExpression, projection...) {
 						continue
 					}
 					inputs = query.memberWriterInputs(assignment.left, bindings, result, cut)
@@ -538,9 +547,14 @@ func (query *sourceValueQuery) memberValuesAtGetWithStandard(origin *ast.Node, p
 // symbolKeyDisjointFromName identifies a const holding the result of the standard
 // registry operation. Its key domain is enough here, irrespective of registry
 // identity or argument effects. Assertions and authored factories stay unknown.
-func (query *sourceValueQuery) symbolKeyDisjointFromName(key *ast.Node, name string) bool {
-	if !ast.IsIdentifier(key) || !scanner.IsIdentifierText(name, core.LanguageVariantStandard) {
+func (query *sourceValueQuery) symbolKeyDisjointFromName(key *ast.Node, names ...string) bool {
+	if !ast.IsIdentifier(key) || len(names) == 0 {
 		return false
+	}
+	for _, name := range names {
+		if !scanner.IsIdentifierText(name, core.LanguageVariantStandard) {
+			return false
+		}
 	}
 	c := query.owner.checker
 	binding := c.GetSymbolAtLocation(key)

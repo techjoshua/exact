@@ -54,18 +54,30 @@ getter after a disjoint symbol definition. A dynamic-key control remained near 1
 Each pair emitted identical code; the estimated-cost advisory changed. These guarded
 single-CPU diagnostics use instrumented overlays and do not measure completed Core cost.
 
-The reset button's receipt issuer calls `intrinsics.set` and normalizes children. During
-callable effect collection, a source-span probe observed writer-input recovery for all
-three cache updates in `readComposableIntrinsicReceipt` (data, factory and domain)
-against the store's `set` lookup and the normalized array's `push` lookup. Those sampled
-recoveries completed with zero inputs. Other recoveries for `scope[key] = store` inside
-`sharedOpaqueOperationStore` returned two possible inputs for a projected composition
-view. The actual read origin there was `compositionViews.get(value)`. A resolved helper
-edge identifies the helper body, but does not settle which getters or callbacks its
-actual arguments expose. The open question is whether the existing checked source index
-can exclude the composition-reader region before input reconstruction for this call.
-The empty results alone grant no exclusion for aliases or dynamic dispatch. The request
-expired during collection, before a final placement or emitted client artifact was available.
+The reset button's receipt issuer calls `intrinsics.set` and normalizes children. In
+the dependency query for `createCompiledIntrinsicReceipt`, the store lookup demands
+`set` on the result of `sharedOpaqueOperationStore('intrinsic')`. The array lookup
+demands `push` on the normalization array literal. Both are terminal Gets with opaque
+interference. They retain the issuing call as the reader use. The array Get occurs
+during `appendNormalizedChildren`. The indexed writes to `view.data`, `view.factory`
+and `view.domain` belong to `readComposableIntrinsicReceipt`. None supplies either
+terminal name, regardless of which invocation produced the view. The original Get
+still owns installed accessor effects and each original Call owns its argument effects.
+
+A separate acquisition starts at `compositionViews.get(value)` and projects
+`data.key` or `data.domain`. Here the read cut was the call to
+`domainOperationPrototype(prototype, metadata.domain)` during acquisition of the
+`createOpaqueOperation` inputs in `withIntrinsicReceiptChildren`. The shared-store
+writer assigns through a const initialized by the standard `Symbol.for`. Its RHS
+cannot supply any segment of either named path. A computed segment with unknown
+key or an authored symbol factory still requires ordinary writer discovery. The
+matching `view.data` write, invocation of the stored factory and later use of a
+cached field have separate consumers. A helper's resolved declaration alone supplies
+no evidence about argument getters or callback invocation. After excluding these candidates, the original 300-source Core request still reached
+its 30-second deadline on instrumented and uninstrumented single-CPU hosts with Go
+inlining disabled for the compiler package. Seven server task controls emitted
+identical code in matched builds. Client tasks retained the installed getter and
+the getter supplied through a nested dynamic alias as browser effects.
 
 Callable effect collection now opens an explicit property-access query only for property
 and element syntax. Implicit evaluation such as argument coercion has its own consumer.
