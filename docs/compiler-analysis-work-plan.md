@@ -41,6 +41,32 @@ A stored executor’s body, a metadata getter executed at construction, and the 
 at redemption have three different triggers. Skipping a tagged private helper’s whole body
 would also miss an eager platform dependency newly introduced inside it.
 
+The November 19 descriptor-key change at `53bd279d7` excluded most disjoint descriptor
+candidates on the frozen 300-source Core request. In the instrumented before/after hosts
+based on `7a4b7a697`, cumulative CPU in `sourceAccessorOperationCandidates` fell from
+26.92 to 16.32 seconds. Both hosts reached the deadline. The after profile attributed
+12.77 CPU seconds and 7,763 MiB of sampled allocations to `memberWriterBodyCalls`
+(CPU through the deadline, allocation through 25 seconds, overlapping stacks). Total
+allocation through 25 seconds rose from 7.87 to 10.86 GB. Those intervals contain
+different work. Two fresh server compiles per host in before/after/after/before order
+allocated 105.9–106.3 MB before and 101.2 MB after for a task that reads an installed
+getter after a disjoint symbol definition. A dynamic-key control remained near 102.5 MB.
+Each pair emitted identical code; the estimated-cost advisory changed. These guarded
+single-CPU diagnostics use instrumented overlays and do not measure completed Core cost.
+
+The reset button's receipt issuer calls `intrinsics.set` and normalizes children. During
+callable effect collection, a source-span probe observed writer-input recovery for all
+three cache updates in `readComposableIntrinsicReceipt` (data, factory and domain)
+against the store's `set` lookup and the normalized array's `push` lookup. Those sampled
+recoveries completed with zero inputs. Other recoveries for `scope[key] = store` inside
+`sharedOpaqueOperationStore` returned two possible inputs for a projected composition
+view. The actual read origin there was `compositionViews.get(value)`. A resolved helper
+edge identifies the helper body, but does not settle which getters or callbacks its
+actual arguments expose. The open question is whether the existing checked source index
+can exclude the composition-reader region before input reconstruction for this call.
+The empty results alone grant no exclusion for aliases or dynamic dispatch. The request
+expired during collection, before a final placement or emitted client artifact was available.
+
 Callable effect collection now opens an explicit property-access query only for property
 and element syntax. Implicit evaluation such as argument coercion has its own consumer.
 Queries sharing an executable's source indexes also avoid constructing replacement maps.
