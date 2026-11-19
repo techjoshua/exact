@@ -58,12 +58,8 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 		projection []string
 		instance   bool
 	}
-	// Only active visits participate in cycle detection. Keep common shallow
-	// traversals on the stack and grow one trail for deeper paths, rather than
-	// allocating a map and a separate visit slice for each active node.
-	var initialVisits [8]memberVisit
-	seen := initialVisits[:0]
-	depth := 0
+	// Each branch owns its active prefix. Early returns need no cycle trail.
+	var seen []memberVisit
 	// Class heritage changes the declaration being selected, not the Get's
 	// receiver. A NewExpression remains an origin, never a repeated construction.
 	var inheritedReceiver *sourceValue
@@ -445,26 +441,27 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 		if value == nil {
 			return
 		}
-		for _, prior := range seen[:depth] {
+		for _, prior := range seen {
 			if prior.node == value && prior.instance == instance && slices.Equal(prior.projection, projection) {
 				result.opaque = true
 				query.owner.widenings++
 				return
 			}
 		}
-		if depth == 128 {
+		if len(seen) == 128 {
 			result.opaque = true
 			return
 		}
 		query.remaining--
 		query.recordEstimatedCost(1)
 		query.owner.work++
-		depth++
-		defer func() { depth-- }()
 		// A getter can select another member of its original receiver. Only a
 		// repeated receiver/projection lookup is a local cycle. Outer visits
 		// remain active until their own selected output has been consumed.
-		slot := depth - 1
+		slot := len(seen)
+		if seen == nil {
+			seen = make([]memberVisit, 0, 4)
+		}
 		seen = append(seen, memberVisit{value, slices.Clone(projection), instance})
 		defer func() {
 			seen[slot] = memberVisit{}
