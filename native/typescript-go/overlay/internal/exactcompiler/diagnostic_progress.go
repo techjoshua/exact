@@ -664,14 +664,18 @@ func (e *progressEncoded) terms(values []sourceCalleeTerm, group, depth int) boo
 		return false
 	}
 	for _, v := range values {
+		var details sourceCalleeTermDetails
+		if v.details != nil {
+			details = *v.details
+		}
 		u := uint64(0)
 		if v.undefined {
 			u = 1
 		}
-		if !e.scalar(progressPointer(v.node), group) || !e.scalar(u, group) || !e.scalar(uint64(len(v.path)), group) {
+		if !e.scalar(progressPointer(v.node), group) || !e.scalar(u, group) || !e.scalar(uint64(len(details.path)), group) {
 			return false
 		}
-		for _, p := range v.path {
+		for _, p := range details.path {
 			if !e.scalar(uint64(len(p)), group) {
 				return false
 			}
@@ -683,17 +687,17 @@ func (e *progressEncoded) terms(values []sourceCalleeTerm, group, depth int) boo
 		}
 		// Copied maps and rest containers are deliberately incomparable in this small
 		// observer. Do not invent another general source serializer.
-		if v.rest != nil || v.copied != nil {
+		if details.rest != nil || details.copied != nil {
 			return false
 		}
 		c := uint64(0)
-		if v.capture != nil {
+		if details.capture != nil {
 			c = 1
 		}
 		if !e.scalar(c, 2) {
 			return false
 		}
-		if v.capture != nil && !e.scope(*v.capture, 2, depth+1) {
+		if details.capture != nil && !e.scope(*details.capture, 2, depth+1) {
 			return false
 		}
 	}

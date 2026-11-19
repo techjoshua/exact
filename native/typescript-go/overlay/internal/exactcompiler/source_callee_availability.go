@@ -27,11 +27,21 @@ type sourceCalleeBinding struct {
 
 type sourceCalleeTerm struct {
 	node      *ast.Node
-	path      []string
 	undefined bool
-	rest      [][]sourceCalleeTerm
-	copied    map[string][]sourceCalleeTerm
-	capture   *sourceCalleeScope
+	details   *sourceCalleeTermDetails
+}
+
+// Most captured terms are source nodes. Preserve projection and owned child
+// descriptions only on terms that have them, including present empty containers.
+type sourceCalleeTermDetails struct {
+	path    []string
+	rest    [][]sourceCalleeTerm
+	copied  map[string][]sourceCalleeTerm
+	capture *sourceCalleeScope
+}
+
+func calleeTermHasDetails(value sourceValue) bool {
+	return len(value.path) != 0 || value.rest != nil || value.copied != nil || value.capture != nil
 }
 
 type sourceCalleeCreator struct {
@@ -73,6 +83,10 @@ func (query *sourceValueQuery) snapshotCalleeTerms(values []sourceValue, ancesto
 		if !calleeSyntaxCarrier(value) {
 			return nil, false
 		}
+		terms[i] = sourceCalleeTerm{node: value.node, undefined: value.undefined}
+		if !calleeTermHasDetails(value) {
+			continue
+		}
 		parent := ancestors
 		if len(value.rest) > 0 || len(value.copied) > 0 || value.capture != nil && len(value.capture.bindings) > 0 {
 			for ancestor := ancestors; ancestor != nil; ancestor = ancestor.prior {
@@ -83,27 +97,27 @@ func (query *sourceValueQuery) snapshotCalleeTerms(values []sourceValue, ancesto
 			}
 			parent = &sourceCalleeAncestor{node: value.node, rest: value.rest != nil, copied: value.copied != nil, capture: value.capture != nil, prior: ancestors}
 		}
-		term := sourceCalleeTerm{node: value.node, path: append([]string(nil), value.path...), undefined: value.undefined}
+		details := &sourceCalleeTermDetails{path: append([]string(nil), value.path...)}
 		if value.rest != nil {
-			term.rest = make([][]sourceCalleeTerm, len(value.rest))
+			details.rest = make([][]sourceCalleeTerm, len(value.rest))
 			for slot, alternatives := range value.rest {
 				query.recordEstimatedCost(1)
 				copied, ok := query.snapshotCalleeTerms(alternatives, parent)
 				if !ok {
 					return nil, false
 				}
-				term.rest[slot] = copied
+				details.rest[slot] = copied
 			}
 		}
 		if value.copied != nil {
-			term.copied = make(map[string][]sourceCalleeTerm, len(value.copied))
+			details.copied = make(map[string][]sourceCalleeTerm, len(value.copied))
 			for key, alternatives := range value.copied {
 				query.recordEstimatedCost(1)
 				copied, ok := query.snapshotCalleeTerms(alternatives, parent)
 				if !ok {
 					return nil, false
 				}
-				term.copied[key] = copied
+				details.copied[key] = copied
 			}
 		}
 		if value.capture != nil {
@@ -111,9 +125,9 @@ func (query *sourceValueQuery) snapshotCalleeTerms(values []sourceValue, ancesto
 			if !ok {
 				return nil, false
 			}
-			term.capture = &scope
+			details.capture = &scope
 		}
-		terms[i] = term
+		terms[i].details = details
 	}
 	return terms, true
 }
@@ -128,49 +142,59 @@ func (query *sourceValueQuery) matchCalleeTerms(previous []sourceCalleeTerm, val
 	for i, term := range previous {
 		query.recordEstimatedCost(1)
 		value := values[i]
-		if !calleeSyntaxCarrier(value) || term.node != value.node || term.undefined != value.undefined || len(term.path) != len(value.path) ||
-			(term.rest == nil) != (value.rest == nil) || (term.copied == nil) != (value.copied == nil) || len(term.rest) != len(value.rest) || len(term.copied) != len(value.copied) || (term.capture == nil) != (value.capture == nil) {
+		if !calleeSyntaxCarrier(value) || term.node != value.node || term.undefined != value.undefined {
 			return false
 		}
-		for j, key := range term.path {
+		details := term.details
+		if details == nil {
+			if calleeTermHasDetails(value) {
+				return false
+			}
+			continue
+		}
+		if len(details.path) != len(value.path) ||
+			(details.rest == nil) != (value.rest == nil) || (details.copied == nil) != (value.copied == nil) || len(details.rest) != len(value.rest) || len(details.copied) != len(value.copied) || (details.capture == nil) != (value.capture == nil) {
+			return false
+		}
+		for j, key := range details.path {
 			query.recordEstimatedCost(1)
 			if key != value.path[j] {
 				return false
 			}
 		}
-		if term.capture != nil && !query.calleeScopeBoundary(*term.capture, value.capture.bindings, value.capture.creators) {
+		if details.capture != nil && !query.calleeScopeBoundary(*details.capture, value.capture.bindings, value.capture.creators) {
 			return false
 		}
 		// Validate this node's entire container boundary before descending into
 		// any child. Current extra keys/slots/alternatives cannot hide a cycle.
-		for slot, alternatives := range term.rest {
+		for slot, alternatives := range details.rest {
 			query.recordEstimatedCost(1)
 			current := value.rest[slot]
 			if (alternatives == nil) != (current == nil) || len(alternatives) != len(current) {
 				return false
 			}
 		}
-		for key, alternatives := range term.copied {
+		for key, alternatives := range details.copied {
 			query.recordEstimatedCost(1)
 			current, present := value.copied[key]
 			if !present || (alternatives == nil) != (current == nil) || len(alternatives) != len(current) {
 				return false
 			}
 		}
-		for slot, alternatives := range term.rest {
+		for slot, alternatives := range details.rest {
 			query.recordEstimatedCost(1)
 			if !query.matchCalleeTerms(alternatives, value.rest[slot]) {
 				return false
 			}
 		}
-		for key, alternatives := range term.copied {
+		for key, alternatives := range details.copied {
 			query.recordEstimatedCost(1)
 			current, present := value.copied[key]
 			if !present || !query.matchCalleeTerms(alternatives, current) {
 				return false
 			}
 		}
-		if term.capture != nil && !query.matchCalleeScopeBindings(*term.capture, value.capture.bindings) {
+		if details.capture != nil && !query.matchCalleeScopeBindings(*details.capture, value.capture.bindings) {
 			return false
 		}
 	}
