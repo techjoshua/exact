@@ -14,7 +14,7 @@ func TestJSXRecordPortableDefinitionContext(t *testing.T) {
 function select(value:number){return {value}}export function Child(){return()=> <p>{select(1).value}</p>}`
 	for _, target := range []Target{TargetClient, TargetServer} {
 		t.Run(string(target), func(t *testing.T) {
-			for _, row := range []struct{ name, body, placement string }{{"safe", `return <Child/>`, "isomorphic"}, {"browser", `document.title;return <Child/>`, "client"}} {
+			for _, row := range []struct{ name, view, placement string }{{"safe", `<Child/>`, "isomorphic"}, {"browser", `<p>{document.title}<Child/></p>`, "client"}} {
 				t.Run(row.name, func(t *testing.T) {
 					root := t.TempDir()
 					child := filepath.Join(root, "child.tsx")
@@ -25,7 +25,7 @@ function select(value:number){return {value}}export function Child(){return()=> 
 						}
 					}
 					parentSource := `/// <reference path="./jsx-types.d.ts" />
-import{Child}from'./child.js';export function Parent(){return()=>{` + row.body + `}}`
+import{Child}from'./child.js';export function Parent(){return()=>` + row.view + `}`
 					if err := os.WriteFile(parent, []byte(parentSource), 0600); err != nil {
 						t.Fatal(err)
 					}
@@ -45,8 +45,9 @@ import{Child}from'./child.js';export function Parent(){return()=>{` + row.body +
 							t.Fatal("child definition entry", packageType, definition.Error, definition.Diagnostics)
 						}
 						component := findComponent(t, caller.Analysis.Components, "Parent")
-						if component.SubgraphPlacement != row.placement {
-							t.Fatal("parent context not reached", component.SubgraphPlacement, row.placement)
+						// The parent owns the browser read. Its child remains portable on both targets.
+						if component.Placement != row.placement || len(component.RenderEdges) != 1 || component.RenderEdges[0].Placement != "isomorphic" {
+							t.Fatal("parent placement or child availability lost", component.Placement, component.RenderEdges, row.placement)
 						}
 						if baseline.Code != definition.Code || !reflect.DeepEqual(baseline.Analysis.Components, definition.Analysis.Components) || !reflect.DeepEqual(baseline.Diagnostics, definition.Diagnostics) {
 							t.Fatal("parent/package specialized child implementation or portable contract", packageType)
