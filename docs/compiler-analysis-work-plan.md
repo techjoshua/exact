@@ -233,6 +233,36 @@ to failure in that order were 31.83, 32.64 and 35.56 s at the baseline, 31.86, 3
 Both trials were uncommitted overlays that changed only shared call admission. These
 measurements establish the deadline outcome. They do not measure completed package throughput.
 
+The mixed callback failure is an input producer gap. The original `value()`
+issues an invoked-formal effect. Relative transfer carries that obligation through
+the lexical calls until the actual argument is the local `input` read. The staged
+binding producer retains the initializer as one source expression. Its DATA domain
+accepts an inert value or an original Call, Get, or binding read. It does not resolve
+this conditional into a known callable and a foreign alternative. The read remains
+required for publication after the surrounding function facts have been collected.
+The existing dependency query can recover both alternatives. Treating unpublished
+DATA as runtime uncertainty would lose the known browser donor.
+
+A named Get needs the accessor effects for its particular receiver and read cut.
+The direct field outcome can discharge that obligation on its matching edge.
+The forwarded fallback cannot use that outcome as transitive coverage. Enumeration
+also needs the selected key set and per-key reads, including the nonenumerable
+fields used by Intl. Relative mutation already substitutes supported target roles,
+but concrete receiver or writer overlap still needs its own coverage. Reusing the
+definition effects in any of these cases can leave the same recursive dependency
+query in place. The trials did not establish a traversal that could be removed
+with equivalent coverage on the original workloads.
+
+Next, isolate one named parameter Get reached in the original Theme object-color
+branch. Follow it through one lexical forwarding call and determine whether its
+existing getter outcome can carry the receiver, read cut and residual through the
+caller edge. Compare stable own data, a replaced or inherited getter, and a browser
+getter beside a foreign alternative. Count entries to the original dependency
+query and its writer scan. Require a whole query to disappear before repeating
+the original package pair. Keep enumeration and mutation on their current owners
+during that test.
+
+
 ### Dispositions for the expensive owners
 
 | Owner | Why it exists | Narrowing or optimization |
