@@ -381,6 +381,14 @@ func (query *sourceValueQuery) sourceReflectiveMemberCandidate(origin *ast.Node,
 	if query.active[node] || !descriptorCall && (!native || !resolvedReflectiveMutation(call.Expression, query.owner.checker, map[ast.SymbolId]bool{})) {
 		return false
 	}
+	// A definition on a fresh literal changes that object alone. The
+	// original descriptor Call still owns its Get and argument effects.
+	if native && actualGet.receiver.native.kind == sourceNativeGlobalObject && call.Arguments != nil && len(call.Arguments.Nodes) >= 2 && ast.IsObjectLiteralExpression(unwrapSourceCallableReference(call.Arguments.Nodes[0])) {
+		receiver, method := restrictedInvocationMember(call.Expression, query.owner.checker)
+		if descriptorCall || method == "defineProperties" && ast.IsIdentifier(receiver) && receiver.Text() == "Object" && standardLibraryCallRoot(call.Expression, query.owner.checker) {
+			return false
+		}
+	}
 	if descriptorCall {
 		key := name
 		if len(projection) > 0 {

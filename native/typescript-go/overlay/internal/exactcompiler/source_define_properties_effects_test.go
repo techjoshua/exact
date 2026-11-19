@@ -194,3 +194,15 @@ export function Page(this:Component<{label:string}>,props:{descriptors:PropertyD
 		t.Fatal("loop fallback lost rendered component state consumer", page, response.Analysis.StateReads)
 	}
 }
+
+// Descriptor conversion can run browser work even when the freshly allocated
+// target cannot have installed a property on the subsequently read global.
+func TestFreshDescriptorTargetPreservesComponentEffects(t *testing.T) {
+	const source = `import type {Component} from '@exactjs/core';
+export function Page(this:Component<{label:string}>) {
+ Object.defineProperties({}, {label:{get value(){return document.title}}});
+ this.state.label=Object.freeze({label:'ready'}).label;
+ return()=> <output>{this.state.label}</output>;
+}`
+	checkComponentDescriptorKey(t, NewSession(), componentDescriptorKeyFixture(t, source), true, false)
+}
