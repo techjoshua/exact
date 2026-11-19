@@ -19,6 +19,7 @@ type moduleDefinitionNodeVisit struct {
 // Both modes retain captured module bindings. Shared dependency graphs and recursive calls are
 // visited once per mode, so a deferred definition cannot mask a later eager invocation.
 type moduleDefinitionAnalysis struct {
+	placementOnly            bool
 	initializerActiveSymbols map[moduleDefinitionSymbolVisit]bool
 	initializerActiveNodes   map[moduleDefinitionNodeVisit]bool
 	initializerMerged        map[string]bool
@@ -184,6 +185,10 @@ func (analysis *moduleDefinitionAnalysis) expression(work *ast.Node, execute boo
 		guardBoundary = owner.AsNode()
 	}
 	walkNode(work, func(node *ast.Node) bool {
+		// Further effects cannot refine an already unknown placement. Other consumers need the full walk.
+		if analysis.placementOnly && (analysis.opaque || analysis.browser && analysis.server) {
+			return false
+		}
 		if analysis.interceptInitializer(node, true) {
 			return false
 		}
@@ -430,6 +435,7 @@ func (availability *moduleValueAvailability) placement(symbol *ast.Symbol) strin
 		return prior
 	}
 	analysis := newModuleDefinitionAnalysis(availability.checker, availability.owner)
+	analysis.placementOnly = true
 	analysis.symbol(symbol, false)
 	placement := "isomorphic"
 	switch {
