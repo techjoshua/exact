@@ -2,11 +2,40 @@ package exactcompiler
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 )
+
+// The executor runs during construction even when a component helper discards the Promise.
+func TestComponentTaskQualifiedPromiseExecutor(t *testing.T) {
+	root, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, test := range []struct {
+		name, constructor, body string
+		browser                 bool
+	}{
+		{"portable", "globalThis.Promise", "", false},
+		{"browser", "globalThis.Promise", "document.title = 'ready';", true},
+		{"element", "globalThis['Promise']", "document.title = 'ready';", true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			source := fmt.Sprintf(`import {type Component, TaskContext} from '@exactjs/core';
+function select(){void new %s<void>(resolve=>{%s resolve()});return 'done'}
+export function Page(this:Component<{label:string}>){
+	this.state.label='';
+	const run=(task:TaskContext=TaskContext.server())=>{this.state.label=select()};
+	return ()=> <button onClick={()=>run()}>{this.state.label}</button>
+}`, test.constructor, test.body)
+			r := NewSession().Execute(Request{Kind: "compile", Target: TargetServer, ID: filepath.Join(root, "promise-task.tsx"), Source: source, ConfigFile: timeSemanticConfig(t), Diagnostics: "semantic"})
+			assertComponentCallbackPolicy(t, r, test.browser)
+		})
+	}
+}
 
 // Standard executor inputs retain their callable origin across module assignments.
 // Every initial/replacement alternative and the executor's actual body still matters.

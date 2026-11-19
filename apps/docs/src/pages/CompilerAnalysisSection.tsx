@@ -68,12 +68,15 @@ export function CompilerAnalysisSection(this: Component<{}>) {
 				method, calling that result also carries the method's own environment requirements. Reading
 				the getter alone does not invoke the returned method. Portable built-in methods keep their
 				declaration ownership through optional calls, and their callbacks retain their own
-				environment requirements. Reading an object from a finite local container keeps that
-				object's identity when the container slot is later replaced. Reads of the saved object still
-				observe supported writes to its members. Unresolved calls and computed alternatives can
-				remain unknown. A helper that installs a property keeps the object and value inputs from
-				each call together, including getters that capture those inputs. Known environment
-				dependencies remain visible when an unresolved target or key also leaves uncertainty.
+				environment requirements. A Promise executor runs during construction. For example, a helper
+				that reads <code>document</code> inside <code>new globalThis.Promise(...)</code> needs the
+				browser even if the task discards the promise. Reading an object from a finite local
+				container keeps that object's identity when the container slot is later replaced. Reads of
+				the saved object still observe supported writes to its members. Unresolved calls and
+				computed alternatives can remain unknown. A helper that installs a property keeps the object
+				and value inputs from each call together, including getters that capture those inputs. Known
+				environment dependencies remain visible when an unresolved target or key also leaves
+				uncertainty.
 			</p>
 			<p>
 				Reading a property descriptor leaves a stored callback dormant. If a helper uses

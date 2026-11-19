@@ -27,7 +27,7 @@ func (query *sourceValueQuery) standardPromiseExecutor(node *ast.Node) *ast.Node
 	}
 	construction := node.AsNewExpression()
 	target := unwrapSourceCallableReference(construction.Expression)
-	if !ast.IsIdentifier(target) || target.Text() != "Promise" || !standardLibraryCallRoot(target, query.owner.checker) || construction.Arguments == nil || len(construction.Arguments.Nodes) != 1 {
+	if construction.Arguments == nil || len(construction.Arguments.Nodes) != 1 || !query.standardPromiseTarget(target) {
 		return nil
 	}
 	executor := unwrapSourceCallableReference(construction.Arguments.Nodes[0])
@@ -35,6 +35,24 @@ func (query *sourceValueQuery) standardPromiseExecutor(node *ast.Node) *ast.Node
 		return nil
 	}
 	return executor
+}
+
+// A qualified standard constructor invokes the executor just as the bare global does.
+func (query *sourceValueQuery) standardPromiseTarget(target *ast.Node) bool {
+	if ast.IsIdentifier(target) {
+		return target.Text() == "Promise" && standardLibraryCallRoot(target, query.owner.checker)
+	}
+	root, path := effectArgumentRoot(target)
+	if !ast.IsIdentifier(root) || len(path) != 1 || path[0] != "Promise" {
+		return false
+	}
+	c := query.owner.checker
+	global := c.GetGlobalSymbol("globalThis", ast.SymbolFlagsValue, nil)
+	if global == nil || c.GetSymbolAtLocation(root) != global {
+		return false
+	}
+	promise := c.GetGlobalSymbol("Promise", ast.SymbolFlagsValue, nil)
+	return promise != nil && promise.ValueDeclaration != nil && standardLibrarySource(ast.GetSourceFileOfNode(promise.ValueDeclaration))
 }
 
 // promiseResolver recognizes either the standard constructor's supplied parameter
@@ -154,7 +172,7 @@ func (query *sourceValueQuery) promiseConstruction(node *ast.Node, bindings sour
 	executor := query.promiseExecutor(node, &result)
 	if executor == nil {
 		target := unwrapSourceCallableReference(node.AsNewExpression().Expression)
-		if ast.IsIdentifier(target) && target.Text() == "Promise" {
+		if ast.IsIdentifier(target) && target.Text() == "Promise" || query.standardPromiseTarget(target) {
 			result.opaque = true
 			result.cause = node
 		}

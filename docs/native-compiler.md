@@ -1303,7 +1303,7 @@ constructor does not acquire a built-in contract merely from its name. Host-spec
 as `document` retain their target requirements. Source transformations that depend on a particular
 acquired reference or descriptor retain their own mutation and evaluation-order checks.
 
-A direct standard `new Promise` with a literal synchronous executor supplies its first two runtime
+A direct standard `new Promise` or `new globalThis.Promise` with a literal synchronous executor supplies its first two runtime
 parameters with the resolve and reject callable contracts. Their source identity survives aliases,
 ordinary wrappers and mutable bindings alongside the binding's initial and other assigned values.
 An arbitrary function with a compatible `() => void` type receives no such inference. The executor's
