@@ -32,11 +32,11 @@ type componentCandidate struct {
 // lifecycle and state. Signals are retained so differential tests can protect
 // each supported declaration form independently of TypeScript node identity.
 func collectComponents(sourceFile *ast.SourceFile) []Component {
-	return collectComponentsWithIDs(sourceFile, nil)
+	return collectComponentsWithIDs(sourceFile, nil, sourceFile.FileName())
 }
 
 // collectComponentsWithIDs shares one immutable identity traversal across all declarations.
-func collectComponentsWithIDs(sourceFile *ast.SourceFile, ids map[*ast.Node]string) []Component {
+func collectComponentsWithIDs(sourceFile *ast.SourceFile, ids map[*ast.Node]string, identityFilename string) []Component {
 	if usesForeignJSXRuntime(sourceFile) {
 		return nil
 	}
@@ -56,7 +56,7 @@ func collectComponentsWithIDs(sourceFile *ast.SourceFile, ids map[*ast.Node]stri
 			artifactTargets = []string{"client", "server"}
 		}
 		components = append(components, Component{
-			ID:                exactStableID(sourceFile.FileName(), ids[candidate.node]),
+			ID:                exactStableID(identityFilename, ids[candidate.node]),
 			Name:              candidate.name,
 			Start:             candidate.node.Pos(),
 			Length:            candidate.node.End() - candidate.node.Pos(),
@@ -257,25 +257,6 @@ func usesForeignJSXRuntime(sourceFile *ast.SourceFile) bool {
 	return runtime != "" &&
 		runtime != "@exactjs/jsx" &&
 		!strings.HasPrefix(runtime, "@exactjs/")
-}
-
-func assignComponentIDs(
-	sourceFile *ast.SourceFile,
-	components []Component,
-	identityFilename string,
-	ids map[*ast.Node]string,
-) {
-	identityFilename = normalizedIdentityFilename(identityFilename)
-	candidates := activeComponentCandidates(sourceFile)
-	for index := range components {
-		if index >= len(candidates) {
-			return
-		}
-		components[index].ID = exactStableID(
-			identityFilename,
-			ids[candidates[index].node],
-		)
-	}
 }
 
 func normalizedIdentityFilename(filename string) string {

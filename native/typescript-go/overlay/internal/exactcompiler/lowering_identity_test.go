@@ -17,7 +17,7 @@ func TestNodeIdentityIndexPreservesArtifactIdentity(t *testing.T) {
 		if actual := expressionNodeIDs(source); !reflect.DeepEqual(actual, expected) {
 			t.Fatalf("identity changed for %s", filename)
 		}
-		for _, component := range collectComponentsWithIDs(source, expected) {
+		for _, component := range collectComponentsWithIDs(source, expected, source.FileName()) {
 			node := nodeAtSpan(source.AsNode(), component.Start, component.Length)
 			if component.ID != exactStableID(source.FileName(), expected[node]) {
 				t.Fatal("component identity changed")

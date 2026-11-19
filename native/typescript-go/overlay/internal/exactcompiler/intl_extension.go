@@ -269,8 +269,7 @@ func analyzeIntlSourceNative(
 		}
 	}
 	nodeIDs := expressionNodeIDs(sourceFile)
-	components := collectComponentsWithIDs(sourceFile, nodeIDs)
-	assignComponentIDs(sourceFile, components, request.ID, nodeIDs)
+	components := collectComponentsWithIDs(sourceFile, nodeIDs, normalizedIdentityFilename(request.ID))
 	result := intlAnalysis{
 		Protocol:                1,
 		Descriptors:             []intlDescriptor{},
