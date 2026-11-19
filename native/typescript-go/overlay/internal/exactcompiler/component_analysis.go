@@ -29,6 +29,7 @@ func analyzeComponents(
 	tasks []Task,
 	typeChecker *checker.Checker,
 	nodeIDs map[*ast.Node]string,
+	transport *sourceAnalysisFacts,
 ) []Component {
 	candidates := activeComponentCandidates(sourceFile)
 	if len(candidates) != len(components) {
@@ -40,7 +41,7 @@ func analyzeComponents(
 	for index := range components {
 		component := &components[index]
 		candidate := candidates[index]
-		clientLifecycleSpans := componentClientLifecycleCallbackSpans(candidate.node, typeChecker)
+		clientLifecycleSpans := componentClientLifecycleCallbackSpans(candidate.node, typeChecker, transport)
 		dormantCallableSpans := componentDormantCallableSpans(candidate.node, callables, typeChecker)
 		clientEffects, serverEffects := false, false
 		clientTaskEffects := false
@@ -465,7 +466,7 @@ func analyzeComponents(
 	return components
 }
 
-func componentClientLifecycleCallbackSpans(component *ast.Node, typeChecker *checker.Checker) []SourceSpan {
+func componentClientLifecycleCallbackSpans(component *ast.Node, typeChecker *checker.Checker, transport *sourceAnalysisFacts) []SourceSpan {
 	spans := []SourceSpan{}
 	owners := componentStateReceiverScopes(component, typeChecker)
 	walkNode(component, func(node *ast.Node) bool {
@@ -481,6 +482,9 @@ func componentClientLifecycleCallbackSpans(component *ast.Node, typeChecker *che
 		switch name {
 		case "onMount", "onActivate", "onDeactivate", "onUnmount":
 			callback := call.Arguments.Nodes[0]
+			if transport != nil && len(transport.taskArguments) != 0 && name != "onUnmount" {
+				transport.clientLifecycleHandlers = append(transport.clientLifecycleHandlers, callback)
+			}
 			if ast.IsArrowFunction(callback) || ast.IsFunctionExpression(callback) {
 				spans = append(spans, SourceSpan{Start: callback.Pos(), Length: callback.End() - callback.Pos()})
 			}

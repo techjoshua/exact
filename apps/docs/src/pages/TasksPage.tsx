@@ -291,6 +291,12 @@ export function TasksPage(this: Component<{}>) {
 					<code>task.peek()</code>.
 				</p>
 				<p>
+					Send data from a client event by calling <code>save(document.title)</code>. Passing
+					<code>{'save(() => document.title)'}</code> sends a function and produces a compiler error
+					even if the server ignores that parameter. To run client code when the task finishes,
+					await its result and call your function locally.
+				</p>
+				<p>
 					A server task can pass a captured prop to a helper and assign the result to
 					<code>this.state</code>. It can also read server-owned contexts inside its body. A
 					parameter default that reads a server-owned context is rejected because it is captured

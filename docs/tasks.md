@@ -323,6 +323,9 @@ scalar values, including reads through a closure declared before the write. Othe
 committed state until the generation succeeds. These queued expression writes capture their
 selected reference and value, so repeated loop iterations publish in their authored order.
 
+A client event sends data to a server task. For example, `save(document.title)` sends the title.
+Passing a function such as `save(() => document.title)` is a compile-time error when the compiler can identify the function at the client call site. Even an unused argument crosses the transport. This rule also applies when the client selects a function-valued default before dispatch. Supplying a data value bypasses that default. To run client code after completion, await the server task’s result and call the function locally. For updates during the operation, use a [progress reporter](#server-task-progress).
+
 An invoked server task can pass a captured prop to an ordinary helper and assign its result to component state. The executor reads the prop value supplied with that invocation.
 
 Server continuation collection mutations require a statically known Array, Map or Set receiver.

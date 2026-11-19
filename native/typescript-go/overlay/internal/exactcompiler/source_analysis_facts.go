@@ -8,11 +8,13 @@ import (
 // sourceAnalysisFacts shares authored import and alias proofs within one acquired checker.
 // It never survives a request or participates in analysis after executable reparenting.
 type sourceAnalysisFacts struct {
-	taskBindingElision map[*ast.Node]bool // Current source/checker proof only; never copied to Task/cache/graph.
-	source             *ast.SourceFile
-	checker            *checker.Checker
-	imports            externalImportBindings
-	aliases            map[componentAliasKey]componentStateAliases
+	clientLifecycleHandlers []*ast.Node
+	taskArguments           []taskCallArguments
+	taskBindingElision      map[*ast.Node]bool // Current source/checker proof only; never copied to Task/cache/graph.
+	source                  *ast.SourceFile
+	checker                 *checker.Checker
+	imports                 externalImportBindings
+	aliases                 map[componentAliasKey]componentStateAliases
 }
 
 type componentAliasKey struct {

@@ -105,7 +105,7 @@ func projectServerComponentSurface(
 	typeChecker *checker.Checker,
 ) ComponentSurfacePlan {
 	result := component.ForwardedSurface
-	clientLifecycle := componentClientLifecycleCallbackSpans(componentNode, typeChecker)
+	clientLifecycle := componentClientLifecycleCallbackSpans(componentNode, typeChecker, nil)
 	clientTasks := make([]SourceSpan, 0)
 	for _, task := range tasks {
 		if task.Component != component.Name || task.Placement != "client" {

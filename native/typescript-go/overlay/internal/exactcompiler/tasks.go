@@ -215,6 +215,9 @@ func collectTasks(
 				task.Diagnostics = append(task.Diagnostics,
 					"error: application calls must omit the compiler-supplied TaskContext argument")
 			}
+			if facts != nil && task.Invoked && call != nil && (len(actuals) != 0 || len(task.CapturedParameters) != 0) && task.RequestedPlacement != "client" {
+				facts.taskArguments = append(facts.taskArguments, taskCallArguments{node, work, actuals, task.CapturedParameters})
+			}
 			if task.Invoked {
 				if _, duplicate := invokedDefinitions[task.WorkStart]; duplicate {
 					return true

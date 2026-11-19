@@ -509,6 +509,7 @@ func (s *Session) executeProjection(request Request, authored *authoredCheckProg
 		tasks,
 		generation.checker,
 		nodeIDs,
+		analysisFacts,
 	)
 	components = applyComponentPolicies(
 		sourceFile,
@@ -664,6 +665,7 @@ func (s *Session) executeProjection(request Request, authored *authoredCheckProg
 		)...,
 	)
 	if authored == nil {
+		response.Diagnostics = append(response.Diagnostics, analysisFacts.taskFunctionArgumentDiagnostics(tasks, jsx, callables)...)
 		response.Diagnostics = append(
 			response.Diagnostics,
 			taskDiagnostics(sourceFile, generation.checker, tasks, stateWrites, request.Target)...,
