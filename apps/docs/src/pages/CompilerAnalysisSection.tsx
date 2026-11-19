@@ -63,7 +63,9 @@ export function CompilerAnalysisSection(this: Component<{}>) {
 				<code>typeof window</code> check followed by an early return preserves that fallback.
 				Creating an object with a getter or setter keeps its body deferred. Placement follows the
 				reads and writes that invoke it, while computed property names execute during object
-				creation. When an assignment invokes an authored setter, its parameter carries the assigned
+				creation. Reading a property on the object returned by <code>Object.defineProperty</code>
+				also invokes its installed getter. If that getter reads <code>document</code>, the task
+				that reads the property needs the browser. When an assignment invokes an authored setter, its parameter carries the assigned
 				value's environment requirements into the setter's use of that value. If a getter returns a
 				method, calling that result also carries the method's own environment requirements. Reading
 				the getter alone does not invoke the returned method. Portable built-in methods keep their

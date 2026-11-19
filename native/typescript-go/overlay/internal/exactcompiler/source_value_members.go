@@ -474,9 +474,15 @@ func (query *sourceValueQuery) memberValuesAtGetWithStandard(origin *ast.Node, p
 			for _, call := range index.calls {
 				// Only the existing descriptor operation can contribute this relation.
 				// Its owner still checks binder identity, receiver, key and descriptor.
-				_, method := restrictedInvocationMember(call.AsCallExpression().Expression, query.owner.checker)
-				if method != "defineProperty" && (get == nil || get.receiver.native == nil) || operation.closed && !operation.calls[call] {
+				if operation.closed && !operation.calls[call] {
 					continue
+				}
+				if get == nil || get.receiver.native == nil {
+					callee := call.Expression()
+					_, method := restrictedInvocationMember(callee, query.owner.checker)
+					if method != "defineProperty" && !(ast.IsIdentifier(callee) && query.descriptorWriterCall(call.AsCallExpression())) {
+						continue
+					}
 				}
 				fallbackMode := mode
 				if query.convertedMemberAtGet(call, origin, projection, name, mode, get, result) {

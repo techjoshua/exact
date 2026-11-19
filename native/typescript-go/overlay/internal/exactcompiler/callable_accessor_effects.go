@@ -376,7 +376,7 @@ func (query *sourceValueQuery) sourceReflectiveMemberCandidate(origin *ast.Node,
 		return false
 	}
 	call := node.AsCallExpression()
-	descriptorCall := reflectiveDescriptorCall(call, query.owner.checker)
+	descriptorCall := query.descriptorWriterCall(call)
 	native := actualGet != nil && actualGet.receiver.native != nil
 	if query.active[node] || !descriptorCall && (!native || !query.owner.reflectiveMutation(call.Expression)) {
 		return false
@@ -488,7 +488,7 @@ func (query *sourceValueQuery) reflectiveMemberValueInScope(origin *ast.Node, pr
 		return nil, false
 	}
 	call := node.AsCallExpression()
-	descriptorCall := reflectiveDescriptorCall(call, query.owner.checker)
+	descriptorCall := query.descriptorWriterCall(call)
 	if !descriptorCall && (!native || !query.owner.reflectiveMutation(call.Expression)) {
 		return nil, false
 	}
@@ -778,6 +778,23 @@ func sourceArrayPrototype(value sourceValue, c *checker.Checker) bool {
 // reflectiveDescriptorCall classifies the existing binder-owned descriptor
 // operation without acquiring its target, key or caller inputs.
 func reflectiveDescriptorCall(call *ast.CallExpression, c *checker.Checker) bool {
-	receiver, method := restrictedInvocationMember(call.Expression, c)
-	return method == "defineProperty" && ast.IsIdentifier(receiver) && (receiver.Text() == "Object" || receiver.Text() == "Reflect") && standardLibraryCallRoot(call.Expression, c) && call.Arguments != nil && len(call.Arguments.Nodes) == 3
+	return call.Arguments != nil && len(call.Arguments.Nodes) == 3 && standardDescriptorMember(call.Expression, c)
+}
+
+func standardDescriptorMember(expression *ast.Node, c *checker.Checker) bool {
+	receiver, method := restrictedInvocationMember(expression, c)
+	return method == "defineProperty" && ast.IsIdentifier(receiver) && (receiver.Text() == "Object" || receiver.Text() == "Reflect") && standardLibraryCallRoot(expression, c)
+}
+
+// descriptorWriterCall also admits an immutable alias whose original three
+// arguments reach the same standard method without a call/apply/bind adapter.
+func (query *sourceValueQuery) descriptorWriterCall(call *ast.CallExpression) bool {
+	if !ast.IsIdentifier(call.Expression) {
+		return reflectiveDescriptorCall(call, query.owner.checker)
+	}
+	if call.Arguments == nil || len(call.Arguments.Nodes) != 3 || !query.owner.reflectiveMutation(call.Expression) {
+		return false
+	}
+	plan := planOrdinaryInvocation(call.Expression, call.Arguments.Nodes, query.owner.checker, nil)
+	return plan.target != nil && plan.adapterCount == 0 && standardDescriptorMember(plan.target, query.owner.checker)
 }

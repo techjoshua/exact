@@ -38,8 +38,9 @@ func (query *sourceValueQuery) consumeNativeInvocation(node *ast.Node, value sou
 		return
 	}
 	if reflectiveNative(value.native.kind) {
+		var operation *sourceReflectiveOperation
 		query.withActiveInvocation(node, func() {
-			operation := query.acquireReflectiveOperation(node, value, bindings, covered, result)
+			operation = query.acquireReflectiveOperation(node, value, bindings, covered, result)
 			result.reflective = append(result.reflective, operation)
 			if consumer.reflective != nil {
 				consumer.reflective(operation, result)
@@ -47,6 +48,17 @@ func (query *sourceValueQuery) consumeNativeInvocation(node *ast.Node, value sou
 				result.valueIncomplete = true
 			}
 		})
+		// A successful Object.defineProperty returns its original target. Project
+		// after acquisition so a subsequent Get can observe this writer.
+		if query.dependenciesOnly && consumer.sourceReturn != nil && value.native.kind == sourceNativeObjectDefineProperty {
+			for _, target := range operation.targets {
+				term := target.value
+				if term.capture == nil {
+					term.capture = &target.scope
+				}
+				consumer.sourceReturn(term, target.scope.bindings)
+			}
+		}
 		return
 	}
 

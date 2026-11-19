@@ -123,3 +123,67 @@ export function Page(this:Component<{count:number;result:number}>){
 		})
 	}
 }
+
+// Reading the returned target runs the installed getter in the task's placement.
+func TestComponentReturnedDescriptorGetter(t *testing.T) {
+	const read = "(box as {value:string}).value.length"
+	for _, row := range []struct {
+		name, define, getter, use, placement string
+		browser                              bool
+	}{
+		{"direct", "Object.defineProperty", "document.title", read, "server", true},
+		{"alias", "define", "document.title", read, "server", true},
+		{"client", "define", "document.title", read, "client", true},
+		{"mixed", "define", "foreign() || document.title", read, "client", true},
+		{"dormant", "Object.defineProperty", "document.title", "1", "server", false},
+		{"neutral", "define", "'ready'", read, "server", false},
+	} {
+		t.Run(row.name, func(t *testing.T) {
+			source := `import {TaskContext,type Component} from '@exactjs/core';
+declare function foreign():string;
+const define=Object.defineProperty;
+export function Page(this:Component<{value:number}>) {
+ this.state.value=0;
+ const run=(task:TaskContext=TaskContext.` + row.placement + `())=>{
+  const box=` + row.define + `({},'value',{get(){return ` + row.getter + `}});
+  this.state.value=` + row.use + `;
+ };
+ run();
+ return()=> <output>{this.state.value}</output>;
+}`
+			target := TargetServer
+			if row.placement == "client" {
+				target = TargetClient
+			}
+			r := NewSession().Execute(Request{Kind: "compile", ID: "returned-descriptor-" + row.name + ".tsx", Source: source, Target: target, Diagnostics: "semantic"})
+			if row.browser && row.placement == "server" {
+				for _, diagnostic := range r.Diagnostics {
+					if diagnostic.Code == "EXACT2001" && strings.Contains(diagnostic.Message, "document") && r.Code == "" && r.Error == "" {
+						return
+					}
+				}
+				t.Fatal("missing server placement diagnostic naming getter donor", r.Error, r.Diagnostics)
+			}
+			if r.Error != "" || hasErrorDiagnostic(r.Diagnostics) || r.Code == "" {
+				t.Fatal("component failed to emit", r.Error, r.Diagnostics)
+			}
+			if row.name == "dormant" && !strings.Contains(r.Code, "document.title") {
+				t.Fatal("emitted task lost its dormant getter")
+			}
+			for _, task := range r.Analysis.Tasks {
+				if task.FunctionDefined && task.BrowserEffects == row.browser && task.Placement == row.placement {
+					if row.name == "mixed" {
+						for _, effect := range task.EffectSources {
+							if effect.Environment == "unknown" {
+								return
+							}
+						}
+						t.Fatal("missing unknown getter dependency", task.EffectSources)
+					}
+					return
+				}
+			}
+			t.Fatal("missing task with expected getter effects and placement", r.Analysis.Tasks)
+		})
+	}
+}

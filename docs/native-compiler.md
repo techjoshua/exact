@@ -2391,6 +2391,9 @@ supplies no prior value identity or captured-state snapshot. Each graph rebuilds
 Value dispositions from its original owners. Descriptor-integrity metadata remains separate
 from executed effects, including when its source verdict is Top. The target acquisition
 alternative is scoped to its Effects owner and does not brand ordinary prototype reads.
+A successful standard `Object.defineProperty` returns its target. A later component read of that
+returned object includes the installed getter’s dependencies, including through an immutable
+alias of the standard method. Installing the getter alone leaves its body dormant.
 Public Session and client/server artifact controls cover the installed getter's known donor,
 independent unknown, evaluation order, later invocation, Throw and dormant setters.
 Known empty argument vectors can
