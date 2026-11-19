@@ -698,18 +698,21 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 			// selected member to its literal. Alias and result projections
 			// have a different root or an additional visitor entry.
 			call := query.initializing
-			freshMap := mode == accessorAcquire && query.dependenciesOnly && get == nil && producer == nil &&
-				len(alternatives) == 0 && len(path) == 0 && name == "" && len(projection) == 1 && projection[0] == "map" &&
+			freshMember := mode == accessorAcquire && query.dependenciesOnly && get == nil && producer == nil &&
+				len(alternatives) == 0 && len(path) == 0 && name == "" && len(projection) == 1 &&
 				len(seen) == 2 && seen[0].node == receiver && receiver == query.protectedMember &&
 				call != nil && ast.IsCallExpression(call) && query.active[call] && call.Expression() == receiver &&
-				ast.IsPropertyAccessExpression(receiver) && receiver.Expression() == value &&
-				len(value.AsArrayLiteralExpression().Elements.Nodes) == 1 && ast.IsSpreadElement(value.AsArrayLiteralExpression().Elements.Nodes[0])
-			if freshMap {
-				spread := value.AsArrayLiteralExpression().Elements.Nodes[0].AsSpreadElement()
-				operand := typeChecker.GetTypeAtLocation(spread.Expression)
-				freshMap = operand != nil && operand.Flags() == checker.TypeFlagsString
+				ast.IsPropertyAccessExpression(receiver) && receiver.Expression() == value
+			if freshMember {
+				elements := value.AsArrayLiteralExpression().Elements.Nodes
+				spreadMap := projection[0] == "map" && len(elements) == 1 && ast.IsSpreadElement(elements[0])
+				if spreadMap {
+					operand := typeChecker.GetTypeAtLocation(elements[0].AsSpreadElement().Expression)
+					spreadMap = operand != nil && operand.Flags() == checker.TypeFlagsString
+				}
+				freshMember = spreadMap || denseArrayElements(elements)
 			}
-			query.arrayValues(value, projection, name, mode, arguments, &result, visit, visitMember, get, freshMap)
+			query.arrayValues(value, projection, name, mode, arguments, &result, visit, visitMember, get, freshMember)
 			return
 		}
 		if ast.IsClassDeclaration(value) || ast.IsClassExpression(value) || ast.IsObjectLiteralExpression(value) {

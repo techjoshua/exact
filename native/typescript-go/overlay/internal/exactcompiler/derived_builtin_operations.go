@@ -47,12 +47,17 @@ func directDenseArrayIncludes(member *ast.Node, c *checker.Checker, argumentCoun
 			return false
 		}
 	}
-	for _, element := range property.Expression.AsArrayLiteralExpression().Elements.Nodes {
+	return denseArrayElements(property.Expression.AsArrayLiteralExpression().Elements.Nodes) && standardLibraryCallOwner(call, c) == "Array"
+}
+
+// denseArrayElements identifies a literal whose own slots are all explicit indexed values.
+func denseArrayElements(elements []*ast.Node) bool {
+	for _, element := range elements {
 		if ast.IsSpreadElement(element) || element.Kind == ast.KindOmittedExpression {
 			return false
 		}
 	}
-	return standardLibraryCallOwner(call, c) == "Array"
+	return true
 }
 
 // standardLibraryValue excludes imported or local functions that happen to use

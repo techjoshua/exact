@@ -268,3 +268,50 @@ export function Page(this:Component<{count:number}>){
 		}
 	}
 );
+
+it('preserves component placement across fresh array method lookup', async () => {
+	const root = await createBrowserTestWorkspace('.exact-literal-method-', process.cwd());
+	const compiler = new NativeCompilerProcess({ executable: resolveNativeCompilerExecutable() });
+	onTestFinished(() => compiler.dispose());
+	const source = `
+const input = { get size() { return document.title.length; } };
+export function Neutral() {
+ const ok = [1, 2].every(Number.isFinite);
+ return () => <p>{ok ? 'yes' : 'no'}</p>;
+}
+export function ElementGetter() {
+ const ok = [input.size, 2].every(Number.isFinite);
+ return () => <p>{ok ? 'yes' : 'no'}</p>;
+}
+export function Callback() {
+ const ok = [1, 2].every(() => document.title.length > 0);
+ return () => <p>{ok ? 'yes' : 'no'}</p>;
+}
+export function Replaced() {
+ const values = [1, 2];
+ const alias = values;
+ alias.some = () => document.title.length > 0;
+ const ok = values.some(Number.isFinite);
+ return () => <p>{ok ? 'yes' : 'no'}</p>;
+}`;
+	const files = await writeTestFiles(root, { 'Page.tsx': source });
+	const compiled = compiler.request({
+		kind: 'compile',
+		id: files['Page.tsx']!,
+		root,
+		source,
+		target: 'client',
+		diagnostics: 'semantic'
+	});
+	expect(compiled.error).toBeUndefined();
+	expect(compiled.diagnostics.filter((d) => d.severity === 'error')).toEqual([]);
+	expect(compiled.code).toBeTruthy();
+	expect(
+		Object.fromEntries(compiled.analysis.components.map((c) => [c.name, c.placement]))
+	).toEqual({
+		Neutral: 'isomorphic',
+		ElementGetter: 'client',
+		Callback: 'client',
+		Replaced: 'client'
+	});
+});

@@ -230,6 +230,16 @@ can be removed after the ordinary effects caller migrates.
 
 ## Implementation order and acceptance
 
+Library compilation needs the callable graph for placement, context and policy.
+The library builder has no semantic reader for the serialized callable inventory.
+Both original client requests stalled during graph rebuilding, before inventory
+projection, even when a private build omitted the callable array from its response.
+On Theme’s immediate array literal, selecting the inherited `every` method previously
+requested parser results to investigate possible receiver writes. The original
+element reads retain their getter effects independently. On Intl, selecting
+`validateOptions` finished before argument binding requested `formatter.options`
+from the record returned by `requireRecord`. Copying its input can invoke getters.
+
 Static imports are resolved during collection. Production callable fingerprints have been
 removed, and cold component linking groups matching facts once per source. A literal prop
 can refine the caller's render edge while the child keeps its portable definition. The

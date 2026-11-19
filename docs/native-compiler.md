@@ -1237,6 +1237,13 @@ incomplete provenance. Opaque writers and unproven transitive interference also 
 This is an analysis slice, not complete JavaScript closure or heap analysis. Computed and reflective
 writers, escaped sibling methods, exception-sensitive alias timing, arbitrary returned-callable
 arguments and cross-module mutable alias interference still need independent verification.
+When a dense array literal is the immediate receiver of a named method call, its
+elements cannot replace the inherited method on the array being constructed. If
+the checker finds only standard Array method declarations, effect collection can
+select the method without searching earlier calls for writes to this receiver.
+Evaluating the elements and invoking an authored callback still contribute effects.
+A method read through a saved array can observe intervening replacements.
+
 Finite array, object and nested projections of ordinary returned functions now compose the actual
 call's arguments and creating captures through the same source query. Omitted and explicitly
 undefined defaults, finite rest-element reads, ordinary member-call receivers and lexical arrow
