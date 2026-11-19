@@ -211,11 +211,7 @@ func namespaceCallableSymbol(receiver *ast.Node, name string, typeChecker *check
 			if module == nil {
 				return nil
 			}
-			for _, exported := range typeChecker.GetExportsOfModule(module) {
-				if ast.SymbolName(exported) == name {
-					return exported
-				}
-			}
+			return typeChecker.TryGetMemberInModuleExports(name, module)
 		}
 	}
 	return nil

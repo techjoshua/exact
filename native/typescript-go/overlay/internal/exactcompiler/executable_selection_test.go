@@ -123,7 +123,23 @@ func TestExecutableSelectionEffectsAndTyping(t *testing.T) {
 // Import slots sharing one typed declaration can select different physical bodies.
 func TestExecutableSelectionSlotsTransitiveAndBarrels(t *testing.T) {
 	f := newExecutableFixture(t, map[string]string{
-		"entry.ts":  `import {apply as left} from './helper.js';import {apply as right} from './helper.js';import {run as barrel} from './barrel.js';import * as ns from './helper.js';const alias=right;const nsAlias=ns;export function e(s:{a:number,b:number}){nsAlias.apply(s);}export function a(s:{a:number,b:number}){left(s);}export function b(s:{a:number,b:number}){alias(s);}export function c(s:{a:number,b:number}){barrel(s);}export function d(s:{a:number,b:number}){ns.apply(s);}`,
+		"entry.ts": `import {apply as left} from './helper.js';
+import {apply as right} from './helper.js';
+import {run as barrel} from './barrel.js';
+import * as ns from './helper.js';
+import type {Component} from '@exactjs/core';
+type State = {a:number,b:number};
+const alias=right, nsAlias=ns;
+export function a(s:State){left(s);}
+export function b(s:State){alias(s);}
+export function c(s:State){barrel(s);}
+export function d(s:State){ns.apply(s);}
+export function e(s:State){nsAlias.apply(s);}
+export function Page(this:Component<State>){
+	this.state.a=0; this.state.b=0;
+	a(this.state); b(this.state); c(this.state); d(this.state); e(this.state);
+	return ()=>this.state.a+this.state.b;
+}`,
 		"helper.ts": `export function apply(s:{a:number,b:number}){s.a=1;}`,
 		"helper.js": `import {leaf} from './leaf.js';export function apply(s){leaf(s);}`,
 		"other.js":  `export function apply(s){s.a=7;}`,

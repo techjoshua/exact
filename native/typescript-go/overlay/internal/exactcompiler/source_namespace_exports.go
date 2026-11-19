@@ -92,26 +92,22 @@ func (query *sourceValueQuery) namespaceExportReadEffect(node *ast.Node, slot *s
 	if selected == nil || selected.source != source || selected.cyclic || selected.population == nil {
 		return sourceWriteTop
 	}
-	for _, exported := range query.owner.checker.GetExportsOfModule(module) {
-		if !query.charge(result, node) {
-			return sourceWriteTop
-		}
-		if exported.Name != key {
-			continue
-		}
-		if chosen, owned := query.executable.symbol(exported, make(map[ast.SymbolId]bool)); owned {
-			if chosen == nil {
-				return sourceWriteTop
-			}
-			exported = chosen
-		}
-		canonical := resolvedCallableSymbol(exported, query.owner.checker)
-		// Reuse the existing bounded hoisted-export/dependency contract. Written
-		// bindings keep their current value/uncertainty and receive no new purity law.
-		if canonical == nil || !query.selectedAliasProvenance(edge, module, original, canonical, result) {
-			return sourceWriteTop
-		}
-		return sourceWriteNoWrites
+	query.charge(result, nil)
+	exported := query.owner.checker.TryGetMemberInModuleExports(key, module)
+	if exported == nil {
+		return sourceWriteTop
 	}
-	return sourceWriteTop
+	if chosen, owned := query.executable.symbol(exported, make(map[ast.SymbolId]bool)); owned {
+		if chosen == nil {
+			return sourceWriteTop
+		}
+		exported = chosen
+	}
+	canonical := resolvedCallableSymbol(exported, query.owner.checker)
+	// Reuse the existing bounded hoisted-export/dependency contract. Written
+	// bindings keep their current value/uncertainty and receive no new purity law.
+	if canonical == nil || !query.selectedAliasProvenance(edge, module, original, canonical, result) {
+		return sourceWriteTop
+	}
+	return sourceWriteNoWrites
 }

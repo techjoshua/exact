@@ -1218,40 +1218,37 @@ func (query *sourceValueQuery) namespaceCallable(symbol *ast.Symbol, path []stri
 	if symbol == nil || symbol.Flags&ast.SymbolFlagsModule == 0 {
 		return nil, path
 	}
-	for _, exported := range query.owner.checker.GetExportsOfModule(symbol) {
-		if !query.charge(result, nil) {
+	query.charge(result, nil)
+	exported := query.owner.checker.TryGetMemberInModuleExports(path[0], symbol)
+	if exported == nil {
+		return nil, path
+	}
+	if selected, owned := query.executable.symbol(exported, make(map[ast.SymbolId]bool)); owned {
+		result.selected = true
+		if selected == nil {
+			result.opaque = true
 			return nil, path
 		}
-		if exported.Name != path[0] {
-			continue
-		}
-		if selected, owned := query.executable.symbol(exported, make(map[ast.SymbolId]bool)); owned {
-			result.selected = true
-			if selected == nil {
+		exported = selected
+	}
+	exported = sourceCallableSymbol(exported, query.owner.checker)
+	if exported == nil {
+		return nil, path
+	}
+	declaration := exported.ValueDeclaration
+	if declaration != nil && ast.IsVariableDeclaration(declaration) {
+		declaration = unwrapSourceCallableReference(declaration.Initializer())
+	}
+	if declaration != nil && ast.IsFunctionLike(declaration) && declaration.Body() != nil && !ast.GetSourceFileOfNode(declaration).IsDeclarationFile {
+		// Resolving an export keeps its body, but does not account for work in
+		// an intervening module. Match the named-import immediate-edge refusal.
+		for _, selected := range symbol.Declarations {
+			if ast.IsSourceFile(selected) && selected != ast.GetSourceFileOfNode(declaration).AsNode() {
 				result.opaque = true
-				return nil, path
+				result.cause = selected
 			}
-			exported = selected
 		}
-		exported = sourceCallableSymbol(exported, query.owner.checker)
-		if exported == nil {
-			return nil, path
-		}
-		declaration := exported.ValueDeclaration
-		if declaration != nil && ast.IsVariableDeclaration(declaration) {
-			declaration = unwrapSourceCallableReference(declaration.Initializer())
-		}
-		if declaration != nil && ast.IsFunctionLike(declaration) && declaration.Body() != nil && !ast.GetSourceFileOfNode(declaration).IsDeclarationFile {
-			// Resolving an export keeps its body, but does not account for work in
-			// an intervening module. Match the named-import immediate-edge refusal.
-			for _, selected := range symbol.Declarations {
-				if ast.IsSourceFile(selected) && selected != ast.GetSourceFileOfNode(declaration).AsNode() {
-					result.opaque = true
-					result.cause = selected
-				}
-			}
-			return declaration, path[1:]
-		}
+		return declaration, path[1:]
 	}
 	return nil, path
 }

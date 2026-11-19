@@ -501,7 +501,7 @@ func traceEnhancementExport(
 		targetSpecifier := declaration.ModuleSpecifier.AsStringLiteral().Text
 		if declaration.ExportClause == nil {
 			if exactEnhancementExport(declaration) {
-				if moduleExportsName(target, exportName, typeChecker) {
+				if typeChecker.TryGetMemberInModuleExports(exportName, target) != nil {
 					identities = append(identities, moduleSpecifier+"#"+exportName)
 				}
 			} else {
@@ -545,15 +545,6 @@ func moduleSourceFile(module *ast.Symbol) *ast.SourceFile {
 		}
 	}
 	return nil
-}
-
-func moduleExportsName(module *ast.Symbol, name string, typeChecker *checker.Checker) bool {
-	for _, exported := range typeChecker.GetExportsOfModule(module) {
-		if ast.SymbolName(exported) == name {
-			return true
-		}
-	}
-	return false
 }
 
 func cloneVisited(source map[string]struct{}) map[string]struct{} {

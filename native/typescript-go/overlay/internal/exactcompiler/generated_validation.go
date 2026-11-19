@@ -188,11 +188,8 @@ func (helpers generatedValidationHelpers) dependencies(entry string, sources *so
 			}
 			text := "export * from " + strconv.Quote(reference) + ";"
 			if symbol := source.AsNode().Symbol(); symbol != nil {
-				for _, exported := range helpers.checker.GetExportsOfModule(symbol) {
-					if exported.Name == "default" {
-						text += "export {default} from " + strconv.Quote(reference) + ";"
-						break
-					}
+				if helpers.checker.TryGetMemberInModuleExports("default", symbol) != nil {
+					text += "export {default} from " + strconv.Quote(reference) + ";"
 				}
 			}
 			projected.set(filename, text)
