@@ -322,8 +322,7 @@ type sourceWriterInputRequest struct {
 	graph               *sourceWriterInputGraph
 	call, use, consumer *ast.Node
 	original            [4]*ast.Node
-	receiver            *sourceWriterInputNode
-	arguments           []*sourceWriterInputNode
+	*sourceWriterInputCall // Immutable recipes shared by all occurrences of this call.
 }
 
 // The source and its dependent reading exist only after a staged writer is enrolled.
@@ -362,7 +361,7 @@ func (q *sourceValueQuery) registerWriterInputRequest(call *ast.Node) *sourceWri
 		}
 		g.calls[call] = plan
 	}
-	r := &sourceWriterInputRequest{issuer: q, live: true, graph: g, call: call, use: q.effectUse(), consumer: q.effectOwner, original: [4]*ast.Node{q.reading, q.initializing, q.returning, q.invoking}, receiver: plan.receiver, arguments: plan.arguments}
+	r := &sourceWriterInputRequest{issuer: q, live: true, graph: g, call: call, use: q.effectUse(), consumer: q.effectOwner, original: [4]*ast.Node{q.reading, q.initializing, q.returning, q.invoking}, sourceWriterInputCall: plan}
 	r.member = q.registerPendingMember(r)
 	if publisher := q.executable.pendingMemberPublishers[q.effectOwner]; publisher != nil && publisher.workRegistrar != nil && publisher.workRegistrar.descriptorSource != nil {
 		publisher.workRegistrar.descriptorSource(q, r)
