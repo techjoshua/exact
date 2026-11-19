@@ -4279,11 +4279,16 @@ __fixtureTask6();
 	if len(writes) != 4 {
 		t.Fatalf("received %d state writes, expected 4: %#v", len(writes), writes)
 	}
-	expected := []string{"initialization", "initialization", "deferred-reactive", ""}
-	for index, execution := range expected {
-		if writes[index].SetupExecution != execution {
-			t.Fatalf("unexpected setup execution for write %d: %#v", index, writes[index])
+	expected := map[string]string{"initial": "initialization", "snapshot": "initialization", "derived": "deferred-reactive", "task": ""}
+	for index, write := range writes {
+		if len(write.Path) != 1 {
+			t.Fatalf("unexpected assignment path: %#v", write)
 		}
+		execution, found := expected[write.Path[0]]
+		if !found || write.SetupExecution != execution {
+			t.Fatalf("unexpected setup execution for write %d: %#v", index, write)
+		}
+		delete(expected, write.Path[0])
 	}
 }
 
@@ -7438,6 +7443,45 @@ func TestSessionPreservesNarrowedDerivedValuesInsideNestedPrograms(t *testing.T)
 	}
 }
 
+func TestAuthoredSetupAndBindingCoordinates(t *testing.T) {
+	root := t.TempDir()
+	id := filepath.Join(root, "entry.tsx")
+	config := filepath.Join(root, "tsconfig.json")
+	// Expanding the JSX shorthands shifts both setup writes past their
+	// original positions. Adjacent statements make each expected span unique.
+	source := `declare class Component<S extends object>{state:S}
+declare function Dialog(props:{open:boolean;onOpenChanged(open:boolean):void}):unknown;
+export function Prefix({title,id,lang,dir,hidden,tabIndex}:{title:string;id:string;lang:string;dir:string;hidden:boolean;tabIndex:number}){return()=> <div {title} {id} {lang} {dir} {hidden} {tabIndex}/>;}
+export function View(this:Component<{open:boolean}>,props:{value:boolean}){this.state.open=false;this.state.open=props.value;return()=> <Dialog open:onOpenChanged={this.state.open}/>;}`
+	for name, contents := range map[string]string{id: source, config: `{"compilerOptions":{"target":"es2022","jsx":"preserve"},"include":["*.tsx"]}`} {
+		if err := os.WriteFile(name, []byte(contents), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, kind := range []string{"analyze", "compile"} {
+		t.Run(kind, func(t *testing.T) {
+			r := NewSession().Execute(Request{ID: id, ConfigFile: config, Source: source, Kind: kind})
+			if r.Error != "" || hasErrorDiagnostic(r.Diagnostics) || (kind == "compile" && r.Code == "") {
+				t.Fatalf("failed %s: %s %#v", kind, r.Error, r.Diagnostics)
+			}
+			want := map[int]struct{ text, execution string }{}
+			for _, pair := range [][2]string{{"this.state.open=false", "initialization"}, {"this.state.open=props.value", "deferred-reactive"}, {"this.state.open", ""}} {
+				want[strings.LastIndex(source, pair[0])] = struct{ text, execution string }{pair[0], pair[1]}
+			}
+			for _, w := range r.Analysis.StateWrites {
+				expected, ok := want[w.Start]
+				if !ok || w.Length != len(expected.text) || w.Component != "View" || w.Operation != "assignment" || len(w.Path) != 1 || w.Path[0] != "open" || w.SetupExecution != expected.execution {
+					t.Fatalf("unexpected authored write %#v; remaining spans %#v", w, want)
+				}
+				delete(want, w.Start)
+			}
+			if len(want) != 0 {
+				t.Fatalf("missing authored writes %#v", want)
+			}
+		})
+	}
+}
+
 func TestSessionReportsAuthoredLocationsAfterSourceNormalization(t *testing.T) {
 	source := `
 		export function Card(props: { title: string }) {
@@ -10492,6 +10536,15 @@ func TestSessionAttributesComponentBindingWritesToCallbackCallable(t *testing.T)
 	}
 	shorthand := compile(`<Dialog open:onOpenChanged={this.state.open} />`)
 	explicit := compile(`<Dialog open={this.state.open} onOpenChanged={(open) => { this.state.open = open; }} />`)
+	for _, response := range []Response{shorthand, explicit} {
+		if response.Error != "" {
+			t.Fatal(response.Error)
+		}
+		writes := response.Analysis.StateWrites
+		if len(writes) != 1 || writes[0].Operation != "assignment" || writes[0].SetupExecution != "" {
+			t.Fatalf("expected one callback assignment outside setup: %#v", writes)
+		}
+	}
 	callbackShape := func(response Response) (string, string, int) {
 		for _, callable := range response.Analysis.Callables {
 			if callable.Kind != "function" || len(callable.StateWrites) != 1 ||

@@ -171,7 +171,6 @@ func (s *Session) executeProjection(request Request, authored *authoredCheckProg
 		authoredSource = request.Source[:boundary]
 		packageEnhancementSuffix = request.Source[boundary:]
 	}
-	setupAssignmentExecutions := collectAuthoredSetupAssignmentExecutions(fileName, authoredSource)
 	normalization := newNormalizedSource(authoredSource)
 	// Extension-owned source edits use the same authored coordinates as the supplied source.
 	// Framework normalization belongs to compilation and must not shift this analysis tree.
@@ -359,7 +358,8 @@ func (s *Session) executeProjection(request Request, authored *authoredCheckProg
 	jsx := collectJSX(sourceFile)
 	analysisFacts := newSourceAnalysisFacts(sourceFile, generation.checker)
 	stateAliases, stateReads, stateWrites := collectStateAnalysis(sourceFile, generation.checker, analysisFacts)
-	applyNormalizedSetupAssignmentExecutions(stateWrites, setupAssignmentExecutions, normalization)
+	applySetupExecutions := setupAssignmentClassifier(fileName, authoredSource)
+	applySetupExecutions(stateWrites, &normalization)
 	preliminaryEnhancements := collectEnhancementImports(
 		sourceFile,
 		generation.checker,
@@ -750,10 +750,7 @@ func (s *Session) executeProjection(request Request, authored *authoredCheckProg
 	}
 	if request.Kind == "analyze" {
 		remapAuthoredLocations(&response, fileName, normalization, len(response.Diagnostics))
-		applySetupAssignmentExecutions(
-			response.Analysis.StateWrites,
-			setupAssignmentExecutions,
-		)
+		applySetupExecutions(response.Analysis.StateWrites, nil)
 		return response
 	}
 	if hasErrorDiagnostic(response.Diagnostics) {
@@ -1018,10 +1015,7 @@ func (s *Session) executeProjection(request Request, authored *authoredCheckProg
 	}
 	remapAuthoredLocations(&response, fileName, normalization, sourceDiagnosticCount)
 	omitSecretArtifactSourceContent(&response, request.Target, secretArtifact)
-	applySetupAssignmentExecutions(
-		response.Analysis.StateWrites,
-		setupAssignmentExecutions,
-	)
+	applySetupExecutions(response.Analysis.StateWrites, nil)
 	if !request.SourceMap {
 		response.SourceMap = nil
 	}

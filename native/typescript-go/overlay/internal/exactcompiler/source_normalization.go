@@ -267,43 +267,33 @@ func collectAuthoredSetupAssignmentExecutions(
 	return executions
 }
 
-func applySetupAssignmentExecutions(
-	writes []StateWrite,
-	executions []setupAssignmentExecution,
-) {
-	for index := range writes {
-		write := &writes[index]
-		if write.Operation != "assignment" {
-			continue
-		}
-		for _, execution := range executions {
-			if write.Component == execution.component &&
-				write.Start < execution.end &&
-				execution.start < write.Start+write.Length {
-				write.SetupExecution = execution.execution
-				break
+// setupAssignmentClassifier shares authored records within one request. A nil
+// mapping means the caller has already remapped the writes to authored spans.
+func setupAssignmentClassifier(fileName, authoredSource string) func([]StateWrite, *normalizedSource) {
+	var executions []setupAssignmentExecution
+	return func(writes []StateWrite, mapping *normalizedSource) {
+		for index := range writes {
+			write := &writes[index]
+			if write.Operation != "assignment" {
+				continue
 			}
-		}
-	}
-}
-
-// Applies authored setup classification while analysis still uses normalized source offsets.
-func applyNormalizedSetupAssignmentExecutions(
-	writes []StateWrite,
-	executions []setupAssignmentExecution,
-	source normalizedSource,
-) {
-	for index := range writes {
-		write := &writes[index]
-		if write.Operation != "assignment" {
-			continue
-		}
-		start, length := source.authoredSpan(write.Start, write.Length)
-		for _, execution := range executions {
-			if write.Component == execution.component &&
-				start < execution.end && execution.start < start+length {
-				write.SetupExecution = execution.execution
-				break
+			// The collector returns a non-nil slice even for an empty result.
+			if executions == nil {
+				executions = collectAuthoredSetupAssignmentExecutions(fileName, authoredSource)
+			}
+			if len(executions) == 0 {
+				return
+			}
+			start, length := write.Start, write.Length
+			if mapping != nil {
+				start, length = mapping.authoredSpan(start, length)
+			}
+			for _, execution := range executions {
+				if write.Component == execution.component &&
+					start < execution.end && execution.start < start+length {
+					write.SetupExecution = execution.execution
+					break
+				}
 			}
 		}
 	}
