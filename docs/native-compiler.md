@@ -2090,11 +2090,16 @@ Cells and completion records. Those records are analysis artifacts, not applicat
 objects or emitted activation identities.
 
 Public body analysis is demanded by requested components, explicit execution or task/policy
-boundaries, their transitive helpers, required module evaluation and authenticated helper
-publication. An unused ordinary export does not by itself trigger body analysis. The source
+boundaries, their transitive helpers and required module evaluation. An unused ordinary export does not by itself trigger body analysis. The source
 inventory records declarations independently of completed summaries.
 
 Framework consumers retain the independent contributions in a stabilized callable summary.
+For ordinary summarized tasks, the graph supplies platform requirements. Native call receiver
+checks and tasks lacking a usable summary can still require inspection of the authored body.
+For neutral tasks, the scheduler uses the existing state-write contract to choose its initial
+execution default. When lowering substitutes captured activation dependencies, a potentially
+overlapping write can require a later component read to stay live. Invocation paths that keep
+the authored reads already observe them at execution time.
 Task analysis carries state reads and writes, derived activation dependencies and known browser
 effects into the existing placement and concurrency policy. A separate runtime-unknown effect
 does not erase the browser constraint or become unfinished compiler coverage. An explicit server

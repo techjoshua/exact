@@ -36,7 +36,7 @@ type taskReceiverFacts struct{ usesThis, usesArguments bool }
 // Scoped to one collectTasks call and therefore one source/checker/Program.
 // Only source facts are memoized; no invocation or graph authority is cached.
 type taskSourceWorkFacts struct {
-	browser, server                 bool
+	bodyChecked, browser, server    bool
 	receiver                        taskReceiverFacts
 	adapterChecked, ownAdapterWrite bool
 }
@@ -109,6 +109,7 @@ func describeTaskActivationSource(node, work, component *ast.Node, source *ast.S
 	// The canonical source normalizer has already retained native adapter kind.
 	// Do not replace the original stable binding by a reconstructed target AST.
 	d.target = target
+	facts.collectBodyFacts(work, source, c)
 	if facts.receiver.usesArguments {
 		return refuse("task body arguments receiver has no activation owner")
 	}

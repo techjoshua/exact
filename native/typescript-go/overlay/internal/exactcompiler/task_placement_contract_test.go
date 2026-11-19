@@ -73,3 +73,31 @@ return()=> <button onClick={()=>run('next')}>{this.state.label}</button>;}`
 		}
 	}
 }
+
+// A neutral component task has the same platform requirements whether or not
+// it writes state. Only its default initial-work scheduling differs.
+func TestNeutralTaskSchedulingUsesStateWrites(t *testing.T) {
+	for _, row := range []struct {
+		name, work, placement string
+	}{
+		{"read-only", "return value", "client"},
+		{"writes", "this.state.label = value; return value", "isomorphic"},
+	} {
+		t.Run(row.name, func(t *testing.T) {
+			source := `import {TaskContext,type Component} from '@exactjs/core';
+export function Page(this:Component<{label:string}>){
+	this.state.label="initial";
+	const run=(value:string, task:TaskContext=TaskContext.latest())=>{` + row.work + `};
+	return()=> <button onClick={()=>run("next")}>{this.state.label}</button>;
+}`
+			r := NewSession().Execute(Request{Kind: "compile", ID: "neutral-task-scheduling.tsx", Source: source, Target: TargetClient, Diagnostics: "semantic"})
+			if r.Error != "" || hasErrorDiagnostic(r.Diagnostics) || r.Code == "" || len(r.Analysis.Tasks) != 1 {
+				t.Fatalf("component task did not compile: %s %#v tasks=%d", r.Error, r.Diagnostics, len(r.Analysis.Tasks))
+			}
+			task := r.Analysis.Tasks[0]
+			if task.RequestedPlacement != "" || task.EnvironmentEffect != "neutral" || task.BrowserEffects || task.ServerEffects || task.Placement != row.placement {
+				t.Fatalf("unexpected platform effects or default scheduling: %#v", task)
+			}
+		})
+	}
+}

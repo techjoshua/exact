@@ -139,17 +139,19 @@ func taskPotentialLocalReadRanges(work *ast.Node, component string, reads []Stat
 	return result
 }
 
-// taskEffectLocalReadRanges preserves invocation-time reads across proven helper effects.
-// The activation dependency remains intact, including conditional and uncalled writers.
-func taskEffectLocalReadRanges(work *ast.Node, component string, reads []StateRead, effects []StateEffect, result []taskCaptureRange) []taskCaptureRange {
+// taskEffectLocalReadRanges keeps dependency substitution from freezing a state
+// read that may observe a helper's write. Direct authored writes were planned earlier.
+func taskEffectLocalReadRanges(task *Task, reads []StateRead) []taskCaptureRange {
+	// Appends belong to this projection. The task's direct-write plan may be reused.
+	result := task.potentialLocalReads[:len(task.potentialLocalReads):len(task.potentialLocalReads)]
 	for _, read := range reads {
-		if read.Component != component || read.Start < work.Pos() || read.Start+read.Length > work.End() {
+		if read.Component != task.Component || read.Start < task.WorkStart || read.Start+read.Length > task.WorkStart+task.WorkLength {
 			continue
 		}
 		if spanInsideTaskCapture(read.Start, read.Start+read.Length, result) {
 			continue
 		}
-		for _, effect := range effects {
+		for _, effect := range task.Writes {
 			if effect.Confidence == "exact" && effect.pathSegments != nil && statePathsAffectEachOther(read.Path, effect.pathSegments) {
 				result = append(result, taskCaptureRange{start: read.Start, end: read.Start + read.Length})
 				break

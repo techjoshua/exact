@@ -809,6 +809,10 @@ func (lowering *jsxLowering) rewriteTaskWork(
 			liveTypes[span] = dependency.typeNode
 		}
 	}
+	liveReads := task.potentialLocalReads
+	if len(replacements) != 0 && len(task.Writes) != 0 {
+		liveReads = taskEffectLocalReadRanges(&task, lowering.stateReads)
+	}
 	var visitor *ast.NodeVisitor
 	visitor = ast.NewNodeVisitor(
 		func(node *ast.Node) *ast.Node {
@@ -832,7 +836,7 @@ func (lowering *jsxLowering) rewriteTaskWork(
 					}
 					return visitor.VisitEachChild(node)
 				}
-				if spanInsideTaskCapture(node.Pos(), node.End(), task.potentialLocalReads) {
+				if spanInsideTaskCapture(node.Pos(), node.End(), liveReads) {
 					// A live read still needs its state projection when the executor leaves the
 					// setup lexical scope. Retaining a captured alias would reference an absent local.
 					value := liveValues[nodeSpanKey(node)]

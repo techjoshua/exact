@@ -159,26 +159,25 @@ func collectTasks(
 			task.FunctionDefined = true
 			task.WorkStart = work.Pos()
 			task.WorkLength = work.End() - work.Pos()
-			sourceFacts, knownFacts := workFacts[work]
-			if !knownFacts {
-				sourceFacts.browser, sourceFacts.server, sourceFacts.receiver = taskEnvironmentEffects(work, sourceFile, typeChecker)
-				workFacts[work] = sourceFacts
-			}
-			task.BrowserEffects, task.ServerEffects = sourceFacts.browser, sourceFacts.server
+			callable, hasSummary := callables.byNode[work]
+			sourceFacts := workFacts[work]
 			var actuals []*ast.Node
 			if call != nil {
 				actuals = callArguments(node)
-			}
-			if call != nil {
 				task.activationSource = describeTaskActivationSource(node, work, candidate.node, sourceFile, typeChecker, callables.owner, &sourceFacts)
-				workFacts[work] = sourceFacts
 				if task.activationSource != nil {
-					if task.activationSource.hold != "" {
-						tasks = append(tasks, task)
-						return true
-					}
 					actuals = task.activationSource.actuals
 				}
+			}
+			held := task.activationSource != nil && task.activationSource.hold != ""
+			if !hasSummary || held {
+				sourceFacts.collectBodyFacts(work, sourceFile, typeChecker)
+				task.BrowserEffects, task.ServerEffects = sourceFacts.browser, sourceFacts.server
+			}
+			workFacts[work] = sourceFacts
+			if held {
+				tasks = append(tasks, task)
+				return true
 			}
 			if _, explicit := functionTaskPolicy(work, sourceFile, taskPolicyBindings); explicit &&
 				(work.Pos() < candidate.node.Pos() || work.End() > candidate.node.End()) {
@@ -323,8 +322,8 @@ func collectTasks(
 					sourceFile,
 				)
 			}
-			// Environment and receiver facts were collected once above, before activation routing.
-			if callable, exists := callables.byNode[work]; exists {
+			// Reuse the graph summary for platform requirements and exclude nested task boundaries.
+			if hasSummary {
 				task.Reads = uniqueStateEffects(
 					append(
 						task.Reads,
@@ -364,7 +363,6 @@ func collectTasks(
 				task.EnvironmentEffect = environmentEffectFor(task.EffectSources)
 			}
 
-			task.potentialLocalReads = taskEffectLocalReadRanges(work, candidate.name, stateReads, task.Writes, task.potentialLocalReads)
 			switch {
 			case task.EnvironmentEffect != "neutral" && task.EnvironmentEffect != "":
 				// The completed callable graph owns transitive placement.
@@ -379,26 +377,18 @@ func collectTasks(
 			}
 			opaquePlacement := task.EnvironmentEffect == "unknown" &&
 				containsOpaqueEnvironment(task.EffectSources)
-			if task.RequestedPlacement != "" {
-				task.Placement = task.RequestedPlacement
-			} else if task.EnvironmentEffect == "browser" {
-				task.Placement = "client"
-			} else if task.EnvironmentEffect == "server" {
-				task.Placement = "server"
-			} else if task.EnvironmentEffect == "unknown" && task.ServerEffects &&
-				!task.BrowserEffects {
-				task.Placement = "server"
-			} else if task.EnvironmentEffect == "unknown" && task.BrowserEffects &&
-				!task.ServerEffects {
-				task.Placement = "client"
-			} else if task.EnvironmentEffect == "mixed" {
-				task.Placement = "unknown"
-			} else if opaquePlacement {
-				task.Placement = "unknown"
-			} else if len(task.Writes) != 0 {
-				task.Placement = "isomorphic"
-			} else {
-				task.Placement = "client"
+			task.Placement = task.RequestedPlacement
+			if task.Placement == "" {
+				task.Placement = requiredTaskPlacement(task.BrowserEffects, task.ServerEffects, opaquePlacement)
+			}
+			if task.Placement == "" {
+				// Either target is eligible. Writes select the established scheduling
+				// default for initial work and its hydration replay contract.
+				if len(task.Writes) != 0 {
+					task.Placement = "isomorphic"
+				} else {
+					task.Placement = "client"
+				}
 			}
 			var classes []*ast.Node
 			if task.Placement == "server" || task.Placement == "isomorphic" {

@@ -249,20 +249,41 @@ func taskReactiveDependencies(
 	return dependencies, diagnostics
 }
 
-func taskEnvironmentEffects(
+// requiredTaskPlacement returns an inferred platform requirement. An empty
+// result leaves the target to the scheduler. A known platform donor survives
+// an unresolved edge; conflicting donors or opacity alone cannot pick a side.
+func requiredTaskPlacement(browser, server, opaque bool) string {
+	switch {
+	case browser && server:
+		return "unknown"
+	case browser:
+		return "client"
+	case server:
+		return "server"
+	case opaque:
+		return "unknown"
+	default:
+		return ""
+	}
+}
+
+// collectBodyFacts serves native call receiver checks and tasks without a usable
+// callable summary. Ordinary summarized tasks already have platform evidence.
+func (facts *taskSourceWorkFacts) collectBodyFacts(
 	work *ast.Node,
 	sourceFile *ast.SourceFile,
 	typeChecker *checker.Checker,
-) (bool, bool, taskReceiverFacts) {
-	receiverFacts := taskReceiverFacts{}
-	browser := false
-	server := false
+) {
+	if facts.bodyChecked {
+		return
+	}
+	facts.bodyChecked = true
 	walkNode(work, func(node *ast.Node) bool {
 		if node.Kind == ast.KindThisKeyword && helperOwnsReceiver(node, work) {
-			receiverFacts.usesThis = true
+			facts.receiver.usesThis = true
 		}
 		if ast.IsIdentifier(node) && node.Text() == "arguments" && !ast.IsDeclarationName(node) && !isStaticPropertyName(node) && helperOwnsReceiver(node, work) {
-			receiverFacts.usesArguments = true
+			facts.receiver.usesArguments = true
 		}
 		if !ast.IsIdentifier(node) || ast.IsDeclarationName(node) ||
 			isStaticPropertyName(node) {
@@ -272,18 +293,17 @@ func taskEnvironmentEffects(
 		symbol := typeChecker.GetSymbolAtLocation(node)
 		if _, candidate := browserGlobals[name]; candidate &&
 			symbolIsOutsideSource(symbol, sourceFile) {
-			browser = true
+			facts.browser = true
 		}
 		if _, candidate := serverGlobals[name]; candidate &&
 			symbolIsOutsideSource(symbol, sourceFile) {
-			server = true
+			facts.server = true
 		}
 		if serverOnlyImportSymbol(symbol) {
-			server = true
+			facts.server = true
 		}
 		return true
 	})
-	return browser, server, receiverFacts
 }
 
 // isStaticPropertyName excludes property labels from value-reference analysis. A computed
