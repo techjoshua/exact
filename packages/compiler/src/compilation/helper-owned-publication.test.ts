@@ -21,6 +21,15 @@ import { mergeStateForContract, stateForContract } from '../../../hydrate/src/st
 
 const examples = [
 	{
+		name: 'conditional helper followed by supplied and captured reads',
+		conditionalRead: true,
+		helper: `export function apply(left:{value:string},enabled:boolean){if(enabled)left.value='after';}`,
+		setup: 'const original=this.state.left;const readOriginal=()=>original.value;',
+		body: "apply(this.state.left,this.state.left.sibling==='take');return [this.state.left.value,readOriginal()];",
+		value: 'after',
+		published: true
+	},
+	{
 		name: 'async native Array push',
 		nativeArray: true,
 		helper: `export async function apply(state:{values:number[]}){await Promise.resolve();state.values.push(2);}`,
@@ -115,7 +124,7 @@ for (const lane of ['callable', 'lean'])
 				...(barrel ? { 'barrel.ts': "export {apply,normal} from './helper.js';" } : {}),
 				'page.tsx': `import {TaskContext,type Component} from '@exactjs/core';import {${'nativePattern' in example ? 'work as apply' : 'apply'}${example.name === 'ordinary export shares module captures' ? ',normal' : ''}} from '${barrel ? './barrel.js' : './helper.js'}';
  export function Page(this:Component<{values:number[];left:${'nativePattern' in example ? '{value:number;values:number[];trace:string[];sibling:string}' : '{value:string;sibling:string}'}}>){this.state.left=${'nativePattern' in example ? "{value:0,values:[],trace:[],sibling:'keep'}" : "{value:'before',sibling:'keep'}"};
- this.state.values=[0];async function save(task:TaskContext=TaskContext.server().blocking()){task.cleanup(()=>{void this.state.left.value;});${example.body}}
+ this.state.values=[0];${example.setup ?? ''}async function save(task:TaskContext=TaskContext.server().blocking()){task.cleanup(()=>{void this.state.left.value;});${example.body}}
  ${lane === 'lean' ? 'save();return()=>this.state.left.value;' : 'return()=> <button onClick={()=>save()}>save</button>;'}}`
 			});
 			const artifacts = await compileProjectArtifacts([files['page.tsx']!], {
@@ -155,24 +164,30 @@ for (const lane of ['callable', 'lean'])
 			const address = server.address();
 			if (!address || typeof address === 'string') throw new Error('No listener');
 			const origin = `http://127.0.0.1:${address.port}`;
-			const initial = {
-				...('nativeArray' in example ? { values: [0] } : {}),
-				left:
-					'nativePattern' in example
-						? { value: 0, values: [], trace: [], sibling: 'keep' }
-						: { value: 'before', sibling: 'keep' }
-			};
-			const dependencies = operation.dependencies.map((dependency) =>
-				dependency.path
-					?.replace(/^this\.state\./, '')
-					.split('.')
-					.reduce<unknown>(
-						(value, key) =>
-							value && typeof value === 'object' ? Reflect.get(value, key) : undefined,
-						initial
-					)
-			);
-			for (const generation of [1, 2]) {
+			if (example.conditionalRead)
+				expect(operation.stateWrites).toEqual([
+					{ path: 'left.value', kind: 'write', confidence: 'exact' }
+				]);
+			for (const generation of example.conditionalRead ? [1, 2, 3, 4] : [1, 2]) {
+				const taken = generation <= 2;
+				const sibling = example.conditionalRead ? (taken ? 'take' : 'skip') : 'keep';
+				const initial = {
+					...('nativeArray' in example ? { values: [0] } : {}),
+					left:
+						'nativePattern' in example
+							? { value: 0, values: [], trace: [], sibling: 'keep' }
+							: { value: example.conditionalRead ? 'supplied' : 'before', sibling }
+				};
+				const dependencies = operation.dependencies.map((dependency) =>
+					dependency.path
+						?.replace(/^this\.state\./, '')
+						.split('.')
+						.reduce<unknown>(
+							(value, key) =>
+								value && typeof value === 'object' ? Reflect.get(value, key) : undefined,
+							initial
+						)
+				);
 				const input = {
 					type: 'invoke',
 					id: operation.id,
@@ -187,7 +202,7 @@ for (const lane of ['callable', 'lean'])
 					headers: { 'content-type': 'application/json', origin },
 					body: JSON.stringify(
 						encodeReactiveProtocolValue(
-							generation === 1 ? input : { type: 'batch', operations: [input] }
+							generation % 2 === 1 ? input : { type: 'batch', operations: [input] }
 						)
 					),
 					signal: AbortSignal.timeout(5000)
@@ -196,21 +211,23 @@ for (const lane of ['callable', 'lean'])
 				expect(response.status, JSON.stringify({ bytes, reports })).toBe(200);
 				const decoded = decodeReactiveProtocolValue(JSON.parse(bytes)) as Record<string, unknown>;
 				const result = (
-					generation === 1 ? decoded : (decoded.results as Record<string, unknown>[])[0]
+					generation % 2 === 1 ? decoded : (decoded.results as Record<string, unknown>[])[0]
 				)!;
 				expect(result.ok).toBe(true);
 				if (lane === 'callable')
 					expect(result.value).toEqual(
-						example.name === 'ordinary export shares module captures'
-							? String(generation * 2)
-							: example.value
+						example.conditionalRead
+							? [taken ? 'after' : 'supplied', 'supplied']
+							: example.name === 'ordinary export shares module captures'
+								? String(generation * 2)
+								: example.value
 					);
 				expect(result.state).toEqual(
 					'nativeArray' in example
 						? undefined
 						: 'nativePattern' in example
 							? { left: { value: 3, values: { 0: 4 } } }
-							: example.published
+							: (example.conditionalRead ? taken : example.published)
 								? {
 										left: {
 											value:
