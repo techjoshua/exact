@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { importArtifact } from '../test-support/import-artifact.js';
 import { expect, it, onTestFinished } from 'vitest';
 import { NativeCompilerProcess } from './process.js';
 import { resolveNativeCompilerExecutable } from './executable.js';
@@ -214,6 +215,56 @@ export function Page(this:Component<{label:string}>,props:{input:string}){
 			expect(errors).toEqual([]);
 			expect(result.code).toBeTruthy();
 			if (target === 'client') expect(result.analysis.components[0]?.placement).toBe('client');
+		}
+	}
+);
+
+it.each([false, true])(
+	'preserves a primitive getter and a container writer (browser=%s)',
+	async (browser) => {
+		const root = await createBrowserTestWorkspace('.exact-writer-input-', process.cwd());
+		const compiler = new NativeCompilerProcess({ executable: resolveNativeCompilerExecutable() });
+		onTestFinished(() => compiler.dispose());
+		const source = `import {TaskContext,type Component} from '@exactjs/core';
+function make(){return {count:0}}
+export function compute(){
+ const box=make();
+ const input={get amount(){${browser ? "document.title='get';" : 'box.count++;'}return 2}};
+ function write(n:number, container:{box:typeof box},scale:number){container.box.count+=n*scale}
+ write(input.amount,{box},1);
+ return box.count;
+}
+export function Page(this:Component<{count:number}>){
+ this.state.count=0;
+ const run=(task:TaskContext=TaskContext.server())=>{this.state.count=compute()};
+ return ()=> <button onClick={()=>run()}>{this.state.count}</button>;
+}`;
+		const files = await writeTestFiles(root, { 'Page.tsx': source });
+		const result = compiler.request({
+			kind: 'compile',
+			id: files['Page.tsx']!,
+			root,
+			source,
+			target: browser ? 'server' : 'client',
+			diagnostics: 'semantic'
+		});
+		expect(result.error).toBeUndefined();
+		const errors = result.diagnostics.filter((diagnostic) => diagnostic.severity === 'error');
+		if (browser) {
+			expect(errors).toContainEqual(
+				expect.objectContaining({ code: 'EXACT2001', message: expect.stringContaining('document') })
+			);
+			expect(result.code).toBeFalsy();
+		} else {
+			expect(errors).toEqual([]);
+			const emitted = await writeTestFiles(root, { 'emitted.tsx': result.code! });
+			const artifact = await importArtifact(
+				emitted['emitted.tsx']!,
+				path.join(root, 'emitted.mjs'),
+				{},
+				'production'
+			);
+			expect((artifact.compute as () => number)()).toBe(3);
 		}
 	}
 );

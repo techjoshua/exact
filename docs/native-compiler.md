@@ -1198,9 +1198,11 @@ creation sites retain their precision. Demanded array-literal elements use the s
 including finite indexed assignments through aliases and nested array/object projections. Sparse
 holes keep their native positions, and named keys do not select numeric elements. Dynamic indices
 and spread-dependent positions retain incomplete provenance while preserving known candidates.
-Receiver calls and arguments share the receiver-relative interference relation. Calls after a
-same-owner acquisition or read, disjoint projected receivers, and source bodies without relevant
-writes do not revoke its provenance. Native mutation checks use existing declaration-owned write
+Receiver calls and arguments share the receiver-relative interference relation. When the demanded
+object is a directly returned object literal, a numeric or string literal operand cannot carry
+its identity into a writer. A staged return binding still records its original operand.
+Calls after a same-owner acquisition or read, disjoint projected receivers, and source bodies
+without relevant writes do not revoke its provenance. Native mutation checks use existing declaration-owned write
 facts, rather than a method name or an inferred append position. Every possible callable value
 participates in completeness. An authored body does not discharge a native or unresolved alternative.
 Read-only native alternatives retain their existing nonwriter treatment. Relevant source writes

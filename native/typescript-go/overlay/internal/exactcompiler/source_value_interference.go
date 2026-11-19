@@ -85,6 +85,7 @@ func (query *sourceValueQuery) interferenceInSources(origin *ast.Node, projectio
 func (query *sourceValueQuery) scanInterferenceInSources(origin *ast.Node, projection []string, name string, mode accessorTraversal, bindings sourceValueBindings, result *accessorCandidates, sources []*ast.SourceFile, boundary sourceMemberOperationProof, nativeInputs []*sourceNativeInvocation) {
 	// One scan retains the same origin, demand, bindings and restored creator context.
 	// Cache complete predicates only, never a query failure or an acquired mutable cell.
+	returnedObject := query.stagedReturnBinding == nil && ast.IsObjectLiteralExpression(origin) && origin.Parent != nil && ast.IsReturnStatement(origin.Parent)
 	seen := make(map[*ast.Node]bool)
 	_, nativeOriginKind := query.nativeRootDeclaration(origin)
 	visit := func(calls []*ast.Node) {
@@ -178,6 +179,11 @@ func (query *sourceValueQuery) scanInterferenceInSources(origin *ast.Node, proje
 			query.owner.work++
 
 			reaches := func(input *ast.Node, operation string) bool {
+				// A literal number or string cannot carry the returned object. A staged
+				// binding still records the operand at its original producer.
+				if returnedObject && (ast.IsNumericLiteral(input) || ast.IsStringLiteral(input)) {
+					return false
+				}
 				temporary := accessorCandidates{}
 				relevant := false
 				// Each acquisition owns its returned slice. Queue those slices in FIFO
