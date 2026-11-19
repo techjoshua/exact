@@ -187,3 +187,33 @@ export function Page(this:Component<{value:number}>) {
 		})
 	}
 }
+
+// Editing the key's binding or the read must retain the getter actually used by
+// the client task, including writes through an alias of the inspected object.
+func TestComponentComputedWriterGetterEffects(t *testing.T) {
+	session := NewSession()
+	for _, row := range []struct{ name, factory, key, install, read string }{
+		{"installed", "", "Symbol.for(props.input)", "Object.defineProperty(box,'value',{get(){return {n:document.title.length}}});alias[key]={n:0};", "box.value"},
+		{"same symbol", "", "Symbol.for(props.input)", "", "box[key]"},
+		{"lexical shadow", "const Symbol={for(_:string){return 'value'}};", "Symbol.for(props.input)", "", "box.value"},
+		{"dynamic key", "", "props.key", "", "box.value"},
+	} {
+		install := row.install
+		if install == "" {
+			install = "function write(){alias[key]={get n(){return document.title.length}}}write();"
+		}
+		source := `import {TaskContext,type Component} from '@exactjs/core';
+` + row.factory + `export function Page(this:Component<{n:number}>,props:{input:string,key:string|symbol}){
+ this.state.n=0;
+ const run=(task:TaskContext=TaskContext.client())=>{
+  const box:Record<PropertyKey,{n:number}>={};const alias=box;const key=` + row.key + `;
+  ` + install + `this.state.n=` + row.read + `.n;
+ };
+ return()=> <button onClick={()=>run()}>{this.state.n}</button>;
+}`
+		r := session.Execute(Request{Kind: "compile", ID: "computed-writer-getter.tsx", Source: source, Target: TargetClient, Diagnostics: "semantic"})
+		if r.Error != "" || hasErrorDiagnostic(r.Diagnostics) || r.Code == "" || len(r.Analysis.Tasks) != 1 || !r.Analysis.Tasks[0].BrowserEffects {
+			t.Fatalf("%s: missing getter effect on emitted task: %s %v %v", row.name, r.Error, r.Diagnostics, r.Analysis.Tasks)
+		}
+	}
+}

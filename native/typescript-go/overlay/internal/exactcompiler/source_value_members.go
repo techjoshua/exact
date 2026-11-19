@@ -2,6 +2,8 @@ package exactcompiler
 
 import (
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
+	"github.com/microsoft/TypeScript/tsc/internal/core"
+	"github.com/microsoft/TypeScript/tsc/internal/scanner"
 	"slices"
 	"strconv"
 )
@@ -256,6 +258,11 @@ func (query *sourceValueQuery) memberValuesAtGetWithStandard(origin *ast.Node, p
 					}
 					inputs = append(inputs, *relative)
 				} else {
+					// This single named acquisition cannot receive the symbol-slot RHS.
+					// Assignment evaluation and staged effect transfers keep their own cuts.
+					if mode == accessorAcquire && name == "" && len(projection) == 1 && !index.normalDynamicScope && query.symbolWriterDisjointFromName(assignment.left, projection[0]) {
+						continue
+					}
 					inputs = query.memberWriterInputs(assignment.left, bindings, result, cut)
 				}
 				for _, input := range inputs {
@@ -526,6 +533,34 @@ func (query *sourceValueQuery) memberValuesAtGetWithStandard(origin *ast.Node, p
 	}()
 	query.finishGetPreparationDataRead()
 	return returned
+}
+
+// symbolWriterDisjointFromName identifies a const holding the result of the standard
+// registry operation. Its key domain is enough here, irrespective of registry
+// identity or argument effects. Assertions and authored factories stay unknown.
+func (query *sourceValueQuery) symbolWriterDisjointFromName(left *ast.Node, name string) bool {
+	if !ast.IsElementAccessExpression(left) || !scanner.IsIdentifierText(name, core.LanguageVariantStandard) {
+		return false
+	}
+	key := left.AsElementAccessExpression().ArgumentExpression
+	if !ast.IsIdentifier(key) {
+		return false
+	}
+	c := query.owner.checker
+	binding := c.GetSymbolAtLocation(key)
+	if binding == nil || len(binding.Declarations) != 1 {
+		return false
+	}
+	decl := binding.ValueDeclaration
+	if decl == nil || !ast.IsVariableDeclaration(decl) || decl.Parent.Flags&ast.NodeFlagsConst == 0 || decl.Initializer() == nil || !ast.IsCallExpression(decl.Initializer()) {
+		return false
+	}
+	call := decl.Initializer().AsCallExpression()
+	if call.QuestionDotToken != nil || !ast.IsPropertyAccessExpression(call.Expression) {
+		return false
+	}
+	member := call.Expression.AsPropertyAccessExpression()
+	return member.QuestionDotToken == nil && ast.IsIdentifier(member.Expression) && member.Expression.Text() == "Symbol" && member.Name().Text() == "for" && standardLibraryCallRoot(call.Expression, c)
 }
 
 // sourceMemberKeyMaySupply rejects only impossible final keys of indexed RHS
