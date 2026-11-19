@@ -97,7 +97,7 @@ func (s *Session) executeProjection(request Request, authored *authoredCheckProg
 	if request.Kind == "synchronize" {
 		return s.synchronizeProject(request, response, requestStarted)
 	}
-	if request.Kind != "compile" && request.Kind != "check" && request.Kind != "analyze" && request.Kind != "diagnose" && request.Kind != "extension" {
+	if request.Kind != "compile" && request.Kind != "check" && request.Kind != "analyze" && request.Kind != "module-imports" && request.Kind != "diagnose" && request.Kind != "extension" {
 		response.Error = fmt.Sprintf("unsupported native compiler request kind %q", request.Kind)
 		return response
 	}
@@ -344,8 +344,13 @@ func (s *Session) executeProjection(request Request, authored *authoredCheckProg
 		return response
 	}
 	analysisStarted := time.Now()
-	directives := collectDirectives(sourceFile.Text())
 	imports := collectImports(sourceFile, project.program)
+	if request.Kind == "module-imports" {
+		response.Analysis.Imports = nonNilSlice(imports)
+		response.Timings.TotalMicroseconds = time.Since(requestStarted).Microseconds()
+		return response
+	}
+	directives := collectDirectives(sourceFile.Text())
 	assets := analyzeAssets(sourceFile, generation.checker, request)
 	ensureProjectComponentCaches(project)
 	nodeIDs := projectComponentNodeIDs(project, sourceFile)

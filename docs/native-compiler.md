@@ -8,6 +8,10 @@ client, server, shared, source-map, and inspection set before publication. A fil
 restores the prior generation instead of leaving target files mixed. Semantic work and
 deterministic diagnostics remain single-owned by the retained native session.
 
+Artifact dependency discovery uses `module-imports` to collect static imports, re-exports and
+literal dynamic imports from the current program. It uses TypeScript resolution for static
+edges. Component placement, state analysis and security checks run during artifact preparation.
+
 Public callable body demand starts at the requested executable source. TypeScript project roots
 remain available for checking and shared static inventories; unrelated components and tasks in
 those roots do not become execution demands. Real helper and JSX references, runtime imports,

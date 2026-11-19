@@ -74,6 +74,7 @@ export type NativeCompilerRequest = Readonly<{
 		| 'synchronize'
 		| 'diagnose'
 		| 'analyze'
+		| 'module-imports'
 		| 'check'
 		| 'compile'
 		| 'extension';

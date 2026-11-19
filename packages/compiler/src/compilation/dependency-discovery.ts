@@ -32,7 +32,7 @@ export async function collectPlacementAnalysisDependencies(
 		const resolvedDependencies: string[] = [];
 		const native = session.compileNative({
 			id: filename,
-			kind: 'analyze',
+			kind: 'module-imports',
 			source,
 			diagnostics: 'syntax'
 		});
