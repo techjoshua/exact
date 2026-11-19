@@ -62,7 +62,7 @@ declare function foreign():void;const box={run:1};`
 				t.Fatal("main-file semantic preflight", diagnostics)
 			}
 			owner := newExecutableBodyOwner(project, generation.checker)
-			prepareCallableSourceInventory(generation.sourceFile, owner.checker, collectComponents(generation.sourceFile), owner, nil)
+			prepareCallableSourceInventory(generation.sourceFile, owner.checker, callableComponentNames(collectComponents(generation.sourceFile)), owner, nil)
 			// Reuses the qualified real Get/C output+current/APPLIED/closure consumer
 			// and graph-clone refusal; no operation state or receipt is manufactured.
 			assertPrivateCandidateSource(t, owner, generation.sourceFile, row.excluded, row.refused)

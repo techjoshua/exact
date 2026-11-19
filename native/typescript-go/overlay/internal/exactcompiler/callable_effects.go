@@ -350,7 +350,7 @@ func ensureProjectCallableSources(
 		if context := prior.sourceContext; exists && context != nil {
 			// Keep the authoritative immutable source inputs while recollecting this
 			// changed semantic mode into a fresh project graph. No old C is edited.
-			analysis = prepareProjectCallableSource(sourceFile, typeChecker, context.components, context.reads, context.writes, context.bindings, context.assets, cache.owner)
+			analysis = prepareProjectCallableSource(sourceFile, typeChecker, context.inventory.componentByStart, context.reads, context.writes, context.bindings, context.assets, cache.owner)
 		} else {
 			analysis = analyzeProjectCallableSource(sourceFile, typeChecker, assetRules, cache.owner)
 		}
@@ -366,12 +366,22 @@ func analyzeProjectCallableSource(
 	assetRules []AssetRule,
 	owner *executableBodyOwner,
 ) callableAnalysis {
-	components := collectComponents(sourceFile)
+	// Imported sources enter the callable graph before they are requested for
+	// compilation. Their rendering and artifact contracts are computed on request.
+	components := make(map[int]callableComponent)
+	foreignJSX := usesForeignJSXRuntime(sourceFile)
+	if !foreignJSX {
+		for _, candidate := range componentCandidates(sourceFile) {
+			if len(componentSignals(candidate, sourceFile)) != 0 {
+				components[candidate.node.Pos()] = callableComponent{name: candidate.name, exported: candidate.exported}
+			}
+		}
+	}
 	var reads []StateRead
 	var writes []StateWrite
 	// Both passes select the same component signals. Foreign JSX has separate
 	// discovery rules, so keep its original state analysis.
-	if len(components) != 0 || usesForeignJSXRuntime(sourceFile) {
+	if len(components) != 0 || foreignJSX {
 		_, reads, writes = collectStateAnalysis(sourceFile, typeChecker)
 	}
 	var bindings map[int]componentBinding
@@ -617,17 +627,17 @@ func isCallableNode(node *ast.Node) bool {
 
 func callableIdentity(
 	node *ast.Node,
-	componentByStart map[int]Component,
+	componentByStart map[int]callableComponent,
 ) (string, string, []string) {
 	if runtimeModuleEvaluation(node) {
 		return fmt.Sprintf("module@%d", node.Pos()), "module-initializer", nil
 	}
 	if component, ok := componentByStart[node.Pos()]; ok {
 		exports := []string{}
-		if component.Exported {
-			exports = append(exports, component.Name)
+		if component.exported {
+			exports = append(exports, component.name)
 		}
-		return component.Name, "component", exports
+		return component.name, "component", exports
 	}
 	name := ""
 	if declarationName := node.Name(); declarationName != nil {
@@ -891,7 +901,7 @@ func prepareProjectCallableContexts(project *projectState, sourceFile *ast.Sourc
 	prior := cache.bySource[sourceFile]
 	if !cache.owned[sourceFile] || !sameSourceJSXMode(prior.sourceContext, project.activeGeneration, sourceFile) {
 		project.counters.CallableSourceAnalyses++
-		refreshed := prepareProjectCallableSource(sourceFile, typeChecker, components, stateReads, stateWrites, componentBindings, assets, cache.owner)
+		refreshed := prepareProjectCallableSource(sourceFile, typeChecker, callableComponentNames(components), stateReads, stateWrites, componentBindings, assets, cache.owner)
 		cache.bySource[sourceFile] = refreshed
 		changed = true
 		cache.owned[sourceFile] = true

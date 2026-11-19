@@ -7,12 +7,26 @@ import (
 	"sort"
 )
 
+// Callable discovery needs only the component declaration's location and exported name.
+type callableComponent struct {
+	name     string
+	exported bool
+}
+
+func callableComponentNames(components []Component) map[int]callableComponent {
+	byStart := make(map[int]callableComponent, len(components))
+	for _, component := range components {
+		byStart[component.Start] = callableComponent{name: component.Name, exported: component.Exported}
+	}
+	return byStart
+}
+
 // callableSourceFacts is canonical source preparation before any body task or
 // operation observation. Its factories are the ordinary collector's existing
 // factories, not guessed imported callable facts or a current graph receipt.
 type callableSourceFacts struct {
 	facts            []callableFacts
-	componentByStart map[int]Component
+	componentByStart map[int]callableComponent
 	symbolTargets    map[ast.SymbolId]int
 	syntacticTargets map[string]int
 	nodeTargets      map[*ast.Node]int
@@ -25,20 +39,16 @@ type callableSourceFacts struct {
 // extraction, propagation, and publication; preparation performs none of them.
 func prepareCallableSourceFacts(sourceFile *ast.SourceFile, typeChecker *checker.Checker, components []Component, owner *executableBodyOwner) callableSourceFacts {
 	initializers := prepareCallableSourceInitializers(sourceFile, owner)
-	return prepareCallableSourceInventory(sourceFile, typeChecker, components, owner, initializers)
+	return prepareCallableSourceInventory(sourceFile, typeChecker, callableComponentNames(components), owner, initializers)
 }
 
 // prepareCallableSourceInventory has no initializer/source-query preflight.
 // Project collection freezes every canonical producer before that work starts.
-func prepareCallableSourceInventory(sourceFile *ast.SourceFile, typeChecker *checker.Checker, components []Component, owner *executableBodyOwner, initializers map[*ast.Node]callableSourceInitializer) callableSourceFacts {
+func prepareCallableSourceInventory(sourceFile *ast.SourceFile, typeChecker *checker.Checker, componentByStart map[int]callableComponent, owner *executableBodyOwner, initializers map[*ast.Node]callableSourceInitializer) callableSourceFacts {
 	prefixMode := [32]byte{}
 	nodes := collectCallableNodes(sourceFile)
 	sort.Slice(nodes, func(i, j int) bool { return nodes[i].Pos() < nodes[j].Pos() })
 	facts := make([]callableFacts, 0, len(nodes))
-	componentByStart := make(map[int]Component, len(components))
-	for _, component := range components {
-		componentByStart[component.Start] = component
-	}
 	symbolTargets := make(map[ast.SymbolId]int)
 	importBindings := collectExternalImportBindings(sourceFile, typeChecker)
 	// Reuse this analysis's selected components and imports before effect queries.

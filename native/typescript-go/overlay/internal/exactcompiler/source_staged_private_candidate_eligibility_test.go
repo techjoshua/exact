@@ -74,7 +74,7 @@ declare function foreign():void;const box={run:1};`
 			// Real normal inventory publication supplies component identity,
 			// including unexported definitions, without invoking their bodies.
 			if row.name != "component-source-only" {
-				prepareCallableSourceInventory(generation.sourceFile, owner.checker, collectComponents(generation.sourceFile), owner, nil)
+				prepareCallableSourceInventory(generation.sourceFile, owner.checker, callableComponentNames(collectComponents(generation.sourceFile)), owner, nil)
 			}
 			if row.name == "implicit-component" {
 				recognized := false

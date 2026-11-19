@@ -12,7 +12,6 @@ import (
 type callableSourceContext struct {
 	jsxConstruction sourceJSXConstructionKey // Static mode input; no graph/Get authority.
 	source          *ast.SourceFile
-	components      []Component
 	reads           []StateRead
 	writes          []StateWrite
 	bindings        map[int]componentBinding
@@ -25,9 +24,9 @@ type callableSourceContext struct {
 // prepareProjectCallableSource uses the canonical source factory without its
 // initializer preflight. All genuine sources enter the fixed registry before
 // installBuildingInitializers or any original source observation is allowed.
-func prepareProjectCallableSource(source *ast.SourceFile, c *checker.Checker, components []Component, reads []StateRead, writes []StateWrite, bindings map[int]componentBinding, assets assetAnalysis, owner *executableBodyOwner) callableAnalysis {
+func prepareProjectCallableSource(source *ast.SourceFile, c *checker.Checker, components map[int]callableComponent, reads []StateRead, writes []StateWrite, bindings map[int]componentBinding, assets assetAnalysis, owner *executableBodyOwner) callableAnalysis {
 	inventory := prepareCallableSourceInventory(source, c, components, owner, nil)
-	context := &callableSourceContext{jsxConstruction: sourceJSXModeKey(owner.values.generation, source), source: source, components: components, reads: reads, writes: writes, bindings: bindings, assets: assets, inventory: inventory, canonicalCount: len(inventory.facts), collect: true}
+	context := &callableSourceContext{jsxConstruction: sourceJSXModeKey(owner.values.generation, source), source: source, reads: reads, writes: writes, bindings: bindings, assets: assets, inventory: inventory, canonicalCount: len(inventory.facts), collect: true}
 	facts := appendComponentBindingCallableFacts(inventory.facts, source, bindings)
 	// These property-access metadata facts are completed by their existing
 	// generated-binding factory. They have no callable body to dispatch.
