@@ -505,7 +505,7 @@ func insideSourceSpans(position int, spans []SourceSpan) bool {
 
 func enhancementContextEffects(
 	effects []ContextEffect,
-	moduleRoots map[string]struct{},
+	moduleRoots map[ast.NodeId]struct{},
 ) EnhancementContextEffects {
 	optionalSet := make(map[string]struct{})
 	provides := []string{}
@@ -514,7 +514,7 @@ func enhancementContextEffects(
 		if effect.Confidence != "exact" || effect.Token == "unknown" {
 			continue
 		}
-		if !enhancementContextTokenIsModuleScoped(effect.Token, moduleRoots) {
+		if _, bound := moduleRoots[effect.rootDeclaration]; !bound {
 			continue
 		}
 		switch effect.Kind {
@@ -539,17 +539,8 @@ func enhancementContextEffects(
 	}
 }
 
-func enhancementContextTokenIsModuleScoped(
-	token string,
-	moduleRoots map[string]struct{},
-) bool {
-	root := strings.SplitN(token, ".", 2)[0]
-	_, exists := moduleRoots[root]
-	return exists
-}
-
-func moduleContextTokenRoots(sourceFile *ast.SourceFile) map[string]struct{} {
-	result := make(map[string]struct{})
+func moduleContextTokenRoots(sourceFile *ast.SourceFile) map[ast.NodeId]struct{} {
+	result := make(map[ast.NodeId]struct{})
 	for _, statement := range sourceFile.Statements.Nodes {
 		switch {
 		case ast.IsImportDeclaration(statement):
@@ -559,29 +550,29 @@ func moduleContextTokenRoots(sourceFile *ast.SourceFile) map[string]struct{} {
 				continue
 			}
 			if clause.Name() != nil {
-				result[clause.Name().Text()] = struct{}{}
+				result[ast.GetNodeId(clause)] = struct{}{}
 			}
 			bindings := clause.AsImportClause().NamedBindings
 			if bindings == nil {
 				continue
 			}
 			if ast.IsNamespaceImport(bindings) {
-				result[bindings.Name().Text()] = struct{}{}
+				result[ast.GetNodeId(bindings)] = struct{}{}
 			} else if ast.IsNamedImports(bindings) {
 				for _, element := range bindings.AsNamedImports().Elements.Nodes {
-					result[element.Name().Text()] = struct{}{}
+					result[ast.GetNodeId(element)] = struct{}{}
 				}
 			}
 		case ast.IsVariableStatement(statement):
 			for _, declaration := range statement.AsVariableStatement().DeclarationList.AsVariableDeclarationList().Declarations.Nodes {
 				name := declaration.Name()
 				if name != nil && ast.IsIdentifier(name) {
-					result[name.Text()] = struct{}{}
+					result[ast.GetNodeId(declaration)] = struct{}{}
 				}
 			}
 		case ast.IsFunctionDeclaration(statement), ast.IsClassDeclaration(statement):
 			if statement.Name() != nil {
-				result[statement.Name().Text()] = struct{}{}
+				result[ast.GetNodeId(statement)] = struct{}{}
 			}
 		}
 	}

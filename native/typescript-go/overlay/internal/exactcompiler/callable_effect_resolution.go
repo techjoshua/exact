@@ -11,7 +11,7 @@ import (
 
 func contextEffect(
 	call *ast.CallExpression,
-	sourceFile *ast.SourceFile,
+	_ *ast.SourceFile,
 	typeChecker *checker.Checker,
 ) (ContextEffect, bool) {
 	if !ast.IsPropertyAccessExpression(call.Expression) {
@@ -26,11 +26,26 @@ func contextEffect(
 	}
 	token := "unknown"
 	confidence := "unknown"
+	var rootDeclaration ast.NodeId
 	if call.Arguments != nil && len(call.Arguments.Nodes) != 0 {
-		candidate := strings.TrimSpace(sourceText(sourceFile, call.Arguments.Nodes[0]))
+		argument := call.Arguments.Nodes[0]
+		owner := ast.GetSourceFileOfNode(argument)
+		candidate := ""
+		if owner != nil {
+			candidate = strings.TrimSpace(sourceText(owner, argument))
+		}
 		if exactContextToken.MatchString(candidate) {
 			token = candidate
 			confidence = "exact"
+			root := argument
+			for ast.IsPropertyAccessExpression(root) {
+				root = root.AsPropertyAccessExpression().Expression
+			}
+			if ast.IsIdentifier(root) && typeChecker != nil {
+				if symbol := typeChecker.GetSymbolAtLocation(root); symbol != nil && len(symbol.Declarations) == 1 {
+					rootDeclaration = ast.GetNodeId(symbol.Declarations[0])
+				}
+			}
 		}
 	}
 	kind := "read"
@@ -40,7 +55,7 @@ func contextEffect(
 	case "setContext":
 		kind = "write"
 	}
-	return ContextEffect{Token: token, Kind: kind, Confidence: confidence}, true
+	return ContextEffect{rootDeclaration: rootDeclaration, Token: token, Kind: kind, Confidence: confidence}, true
 }
 
 func componentContextReceiver(
@@ -790,13 +805,12 @@ func uniqueEnvironmentSources(
 
 func uniqueContextEffects(values []ContextEffect) []ContextEffect {
 	unique := make([]ContextEffect, 0, len(values))
-	seen := make(map[string]struct{}, len(values))
+	seen := make(map[ContextEffect]struct{}, len(values))
 	for _, value := range values {
-		key := value.Kind + ":" + value.Token
-		if _, exists := seen[key]; exists {
+		if _, exists := seen[value]; exists {
 			continue
 		}
-		seen[key] = struct{}{}
+		seen[value] = struct{}{}
 		unique = append(unique, value)
 	}
 	result := make([]ContextEffect, 0, len(unique))
@@ -1000,6 +1014,9 @@ func contextEffectsSignature(values []ContextEffect) string {
 		result.WriteString(value.Token)
 		result.WriteByte(':')
 		result.WriteString(value.Confidence)
+		if value.rootDeclaration != 0 {
+			fmt.Fprintf(&result, ":%d", value.rootDeclaration)
+		}
 		result.WriteByte('\n')
 	}
 	return result.String()

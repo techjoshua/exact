@@ -502,19 +502,9 @@ func (query *sourceValueQuery) originsAt(node, at *ast.Node, bindings sourceValu
 	values := query.origins(node, bindings, result)
 	// Resolve the acquired finite value while the location still has its source-time
 	// meaning. Later reads retain that origin, so replacing the slot cannot retarget it.
-	if at != nil && !query.active[at] {
-		previousActive, hadActive := query.active[at]
-		traceRelease := progressActiveCall(query, at, previousActive)
-		defer traceRelease()
-		query.active[at] = true
-		// This interval owns only its temporary value, not prior membership.
-		defer func() {
-			if hadActive {
-				query.active[at] = previousActive
-			} else {
-				delete(query.active, at)
-			}
-		}()
+	wasActive, hadEntry := query.active[at]
+	if at != nil && !wasActive {
+		acquiring := false
 		// origins owns this outer slice; nested source payloads keep their ownership.
 		// Preserve it until a term changes instead of copying unchanged alternatives.
 		var acquired []sourceValue
@@ -560,6 +550,20 @@ func (query *sourceValueQuery) originsAt(node, at *ast.Node, bindings sourceValu
 				result.valueIncomplete = true
 				acquired = append(acquired, sourceValue{})
 				continue
+			}
+			// Only recursive member acquisition can observe this interval.
+			// Plain values retain their origin without changing the active map.
+			if !acquiring {
+				acquiring = true
+				query.active[at] = true
+				defer progressActiveCall(query, at, false)()
+				defer func() {
+					if hadEntry {
+						query.active[at] = false
+					} else {
+						delete(query.active, at)
+					}
+				}()
 			}
 			candidates := accessorCandidates{}
 			if value.native != nil {

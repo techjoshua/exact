@@ -74,3 +74,92 @@ func TestEnhancementSubsystemImportedContextSources(t *testing.T) {
 		}
 	}
 }
+
+// A helper's token expression belongs to its declaring module, including when
+// the component has a different token with the same local name.
+func TestComponentEnhancementContextTokenOwnership(t *testing.T) {
+	root, err := os.MkdirTemp(".", ".enhancement-token-owner-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(root) })
+	root, err = filepath.Abs(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	config := filepath.Join(root, "tsconfig.json")
+	helper := `import {createContext,type Component} from '@exactjs/core';
+export const shared=createContext<string>('shared');
+const token=createContext<string>('helper');
+export const tokens={value:token};
+export function readMember(owner:Component<{}>){return owner.getContext(tokens.value)}
+export function provide(owner:Component<{}>){owner.setContext(token,'helper');return 'ready'}
+export function read(owner:Component<{}>){return owner.getContext(token)}`
+	for name, source := range map[string]string{
+		"tsconfig.json": `{"compilerOptions":{"module":"esnext","moduleResolution":"bundler","target":"es2022","jsx":"preserve","skipLibCheck":true},"include":["*.ts","*.tsx"]}`,
+		"helper.ts":     helper,
+	} {
+		if err := os.WriteFile(filepath.Join(root, name), []byte(source), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, control := range []struct {
+		name, declaration, body, kind, token string
+		physical, owned                      int
+		opaque                               bool
+	}{
+		{"provider-source", "", "const label=provide(this);return()=> <_target title={label}/>", "write", "token", 1, 0, false},
+		{"opaque-provider", "", "provide(this);return()=> <_target/>", "write", "token", 1, 0, true},
+		{"consumer-collision", "const token=createContext<string>('different');", "const label=read(this);return()=> <_target title={label}/>", "read", "token", 1, 0, false},
+		{"import-alias", "import {shared as token} from './helper.js';", "const label=this.getContext(token);return()=> <_target title={label}/>", "read", "token", 1, 1, false},
+		{"combined-members", "const tokens={value:createContext<string>('local')};", "const a=readMember(this);const b=this.getContext(tokens.value);return()=> <_target title={a+b}/>", "read", "tokens.value", 2, 1, false},
+	} {
+		t.Run(control.name, func(t *testing.T) {
+			entry := filepath.Join(root, control.name+".tsx")
+			source := `import {createContext,type Component} from '@exactjs/core';
+import {provide,read,readMember} from './helper.js';
+` + control.declaration + `
+export function Example(this:Component<{}>){` + control.body + `}`
+			if err := os.WriteFile(entry, []byte(source), 0600); err != nil {
+				t.Fatal(err)
+			}
+			response := NewSession().Execute(Request{Kind: "compile", ID: entry, Root: root, ConfigFile: config, Source: source, Target: TargetServer, Diagnostics: "semantic"})
+			if response.Error != "" {
+				t.Fatal(response.Error)
+			}
+			if control.opaque {
+				if response.Code != "" || len(response.Diagnostics) != 1 || response.Diagnostics[0].Severity != "error" || response.Diagnostics[0].Code != "EXACT2001" || !strings.Contains(response.Diagnostics[0].Message, "task placement depends on an opaque call") {
+					t.Fatalf("unexpected placement diagnostics: %#v", response.Diagnostics)
+				}
+				return
+			}
+			if len(response.Diagnostics) != 0 || !strings.Contains(response.Code, "function Example") {
+				t.Fatalf("expected emitted component: %#v\n%s", response.Diagnostics, response.Code)
+			}
+			component := findComponent(t, response.Analysis.Components, "Example")
+			if len(component.Contexts) != control.physical {
+				t.Fatalf("unexpected physical effects: %#v", component.Contexts)
+			}
+			for _, effect := range component.Contexts {
+				if effect.Kind != control.kind || effect.Token != control.token || effect.Confidence != "exact" {
+					t.Fatalf("wrong physical token: %#v", effect)
+				}
+			}
+			tokens := component.EnhancementContexts.Requires
+			if control.kind == "write" {
+				tokens = component.EnhancementContexts.Provides
+			}
+			if len(tokens) != control.owned || (control.owned == 1 && tokens[0] != control.token) {
+				t.Fatalf("wrong component binding: %#v", tokens)
+			}
+			property := "requires"
+			if control.kind == "write" {
+				property = "provides"
+			}
+			compact := strings.Join(strings.Fields(response.Code), "")
+			if strings.Contains(compact, property+":["+control.token+".id") != (control.owned == 1) || strings.Contains(compact, "is.on.id") {
+				t.Fatalf("wrong attachment: %s", response.Code)
+			}
+		})
+	}
+}

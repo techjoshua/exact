@@ -486,9 +486,10 @@ type StateReceiver struct {
 
 // ContextEffect describes one callable read, existence probe, or write against a context token.
 type ContextEffect struct {
-	Token      string `json:"token"`
-	Kind       string `json:"kind"`
-	Confidence string `json:"confidence"`
+	rootDeclaration ast.NodeId // Lexical binding for module-scope enhancement contracts.
+	Token           string     `json:"token"`
+	Kind            string     `json:"kind"`
+	Confidence      string     `json:"confidence"`
 }
 
 // EnvironmentEffectSource explains one browser, server, or unresolved placement requirement.

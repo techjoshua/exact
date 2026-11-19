@@ -178,6 +178,9 @@ func contextEffectSetSignature(values []ContextEffect) string {
 		if a.Token != b.Token {
 			return a.Token < b.Token
 		}
+		if a.rootDeclaration != b.rootDeclaration {
+			return a.rootDeclaration < b.rootDeclaration
+		}
 		return strings.Compare(a.Confidence, b.Confidence) < 0
 	})
 	return contextEffectsSignature(ordered)
