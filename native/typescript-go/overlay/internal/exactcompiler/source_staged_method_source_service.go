@@ -318,7 +318,7 @@ func (work *callableEffectWork) registerWriterSource(facts []callableFacts, q *s
 		return
 	}
 	work.attachWriterSourceDependencies(facts, id)
-	r.writerSource, r.writerSourceWork, r.writerSourceIssuer, r.writerSourceReading = request, work, r, reading
+	r.bindWriterReading(request, reading, work)
 	if native != nil {
 		native.sourceEpoch = work.operationEpoch
 		work.bindNativeObserverInput(facts, q, r, recipe, current)

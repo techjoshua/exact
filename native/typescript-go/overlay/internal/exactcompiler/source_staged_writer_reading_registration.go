@@ -77,7 +77,7 @@ func (work *callableEffectWork) registerRetainedWriterSource(facts []callableFac
 	work.attachWriterSourceDependencies(facts, id)
 	consumer := work.memberNodes[q.effectOwner]
 	work.requireWriterSourceAvailability(facts, consumer, recipe, q.stagedMember.request)
-	r.writerSource, r.writerSourceWork, r.writerSourceIssuer, r.writerSourceReading = request, work, r, reading
+	r.bindWriterReading(request, reading, work)
 	if n := q.stagedNativeGet; n != nil {
 		r.nativeReadings = appendEntryLawRequirement(r.nativeReadings, reading)
 		r.nativeIssuer = r

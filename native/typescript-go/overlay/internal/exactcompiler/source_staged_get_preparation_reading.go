@@ -143,7 +143,7 @@ func (work *callableEffectWork) registerGetPreparationWriterSource(facts []calla
 	if !work.getPreparationSourceReadingOwned(entry.reading) || !work.declarationWriterScopeDependency(b.id, id, entry.reading) || !work.getPreparationTaskOwned(b.id) && !work.getPreparationSourceReadingCurrent(entry.reading) {
 		return false
 	}
-	r.writerSource, r.writerSourceWork, r.writerSourceIssuer, r.writerSourceReading = original, work, r, entry.reading
+	r.bindWriterReading(original, entry.reading, work)
 	return true
 }
 

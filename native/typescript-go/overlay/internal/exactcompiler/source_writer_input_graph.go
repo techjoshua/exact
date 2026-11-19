@@ -309,13 +309,13 @@ type sourceWriterInputRequest struct {
 	// original request retains all live authority.
 	descriptorSource *sourceStagedOperationRequest
 
-	nativeIssuer                      *sourceWriterInputRequest // Actual scoped registration, copied requests cannot use the association.
-	nativeReadings                    []sourceStagedOperationRequest
-	writerSourceWork                  *callableEffectWork
-	writerSource, writerSourceReading sourceStagedOperationRequest
-	writerSourceIssuer                *sourceWriterInputRequest
-	member                            *sourcePendingMemberTicket
-	traceReason                       string // observer variant only, never semantic equality or branch input
+	nativeIssuer     *sourceWriterInputRequest // Actual scoped registration, copied requests cannot use the association.
+	nativeReadings   []sourceStagedOperationRequest
+	writerSourceWork *callableEffectWork
+	*sourceRegisteredWriterReading
+	writerSourceIssuer *sourceWriterInputRequest
+	member             *sourcePendingMemberTicket
+	traceReason        string // observer variant only, never semantic equality or branch input
 
 	issuer              *sourceValueQuery // cleared at the synchronous collect's deferred revocation
 	live                bool
@@ -324,6 +324,16 @@ type sourceWriterInputRequest struct {
 	original            [4]*ast.Node
 	receiver            *sourceWriterInputNode
 	arguments           []*sourceWriterInputNode
+}
+
+// The source and its dependent reading exist only after a staged writer is enrolled.
+type sourceRegisteredWriterReading struct {
+	writerSource, writerSourceReading sourceStagedOperationRequest
+}
+
+func (r *sourceWriterInputRequest) bindWriterReading(source, reading sourceStagedOperationRequest, work *callableEffectWork) {
+	r.sourceRegisteredWriterReading = &sourceRegisteredWriterReading{source, reading}
+	r.writerSourceWork, r.writerSourceIssuer = work, r
 }
 
 func (q *sourceValueQuery) registerWriterInputRequest(call *ast.Node) *sourceWriterInputRequest {
@@ -693,7 +703,7 @@ func (r *sourceWriterInputRequest) revoke() {
 	r.live = false
 	r.nativeIssuer, r.nativeReadings = nil, nil
 	r.writerSourceWork, r.writerSourceIssuer = nil, nil
-	r.writerSource, r.writerSourceReading = sourceStagedOperationRequest{}, sourceStagedOperationRequest{}
+	r.sourceRegisteredWriterReading = nil
 	r.issuer = nil
 	r.call, r.use, r.consumer = nil, nil, nil
 	r.original = [4]*ast.Node{}

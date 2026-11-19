@@ -153,7 +153,7 @@ func (work *callableEffectWork) bindNativeObserverInput(facts []callableFacts, q
 		work.attachWriterSourceDependencies(facts, id)
 		// Commit the complete association only after its original Get factory,
 		// exact C membership and real reader adoption have all succeeded.
-		r.writerSource, r.writerSourceWork, r.writerSourceIssuer, r.writerSourceReading = association.source, work, r, association.request
+		r.bindWriterReading(association.source, association.request, work)
 		r.nativeReadings = appendEntryLawRequirement(r.nativeReadings, association.request)
 	}
 	if len(r.nativeReadings) != 0 {

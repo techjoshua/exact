@@ -130,7 +130,7 @@ func (work *callableEffectWork) registerDeclarationWriterScope(facts []callableF
 	}
 	// This transaction names only a root-use source reader. Inherited physical
 	// binders must not substitute a C reading after this adoption succeeds.
-	r.writerSource, r.writerSourceWork, r.writerSourceIssuer, r.writerSourceReading = reading, work, r, reading
+	r.bindWriterReading(reading, reading, work)
 }
 
 // declarationWriterScopeRequirementAllowed is this scope route's admission
