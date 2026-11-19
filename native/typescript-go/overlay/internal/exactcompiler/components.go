@@ -535,30 +535,26 @@ func enclosingVariableStatement(node *ast.Node) *ast.Node {
 }
 
 func componentSignals(candidate componentCandidate, sourceFile *ast.SourceFile) []string {
-	signals := make(map[string]struct{}, 3)
-	if componentName(candidate.name) && containsJSX(candidate.node) {
-		signals["named-jsx"] = struct{}{}
-	}
-	if componentName(candidate.name) && componentReturnsRenderFunction(candidate.node) &&
-		!looksLikeTaskPolicy(candidate.node, sourceFile) {
-		signals["named-render"] = struct{}{}
-	}
-	if hasComponentReceiver(candidate.node, sourceFile) {
-		signals["typed-receiver"] = struct{}{}
-	}
-	// Setup-local ordinary helpers use the enclosing instance. Protocol access
-	// alone must not grant them a second durable component or render identity.
+	// Publish the stable lexical order directly. Each signal has one producer.
+	signals := []string{}
+	typedReceiver := hasComponentReceiver(candidate.node, sourceFile)
 	if componentCandidateIsModuleLevel(candidate) &&
-		(componentReceiverAnnotation(candidate.node) == nil || hasComponentReceiver(candidate.node, sourceFile)) &&
+		(typedReceiver || componentReceiverAnnotation(candidate.node) == nil) &&
 		containsComponentProtocolCall(candidate.node) {
-		signals["component-protocol"] = struct{}{}
+		signals = append(signals, "component-protocol")
 	}
-	result := make([]string, 0, len(signals))
-	for signal := range signals {
-		result = append(result, signal)
+	if componentName(candidate.name) {
+		if containsJSX(candidate.node) {
+			signals = append(signals, "named-jsx")
+		}
+		if componentReturnsRenderFunction(candidate.node) && !looksLikeTaskPolicy(candidate.node, sourceFile) {
+			signals = append(signals, "named-render")
+		}
 	}
-	sort.Strings(result)
-	return result
+	if typedReceiver {
+		signals = append(signals, "typed-receiver")
+	}
+	return signals
 }
 
 func componentName(name string) bool {
@@ -567,36 +563,26 @@ func componentName(name string) bool {
 }
 
 func containsJSX(node *ast.Node) bool {
-	found := false
-	walkNode(node, func(candidate *ast.Node) bool {
-		if ast.IsJsxElement(candidate) || ast.IsJsxSelfClosingElement(candidate) ||
-			ast.IsJsxFragment(candidate) {
-			found = true
-			return false
-		}
-		return true
-	})
-	return found
+	if node == nil || node.SubtreeFacts()&ast.SubtreeContainsJsx == 0 {
+		return false
+	}
+	return ast.IsJsxElement(node) || ast.IsJsxSelfClosingElement(node) ||
+		ast.IsJsxFragment(node) || node.ForEachChild(containsJSX)
 }
 
 func containsComponentProtocolCall(node *ast.Node) bool {
-	found := false
-	walkNode(node, func(candidate *ast.Node) bool {
-		if !ast.IsPropertyAccessExpression(candidate) {
-			return true
+	if node == nil {
+		return false
+	}
+	if ast.IsPropertyAccessExpression(node) {
+		member := node.AsPropertyAccessExpression()
+		if member.Expression != nil && member.Expression.Kind == ast.KindThisKeyword && member.Name() != nil {
+			if _, supported := componentProtocolCalls[member.Name().Text()]; supported {
+				return true
+			}
 		}
-		member := candidate.AsPropertyAccessExpression()
-		if member.Expression == nil || member.Expression.Kind != ast.KindThisKeyword ||
-			member.Name() == nil {
-			return true
-		}
-		if _, supported := componentProtocolCalls[member.Name().Text()]; supported {
-			found = true
-			return false
-		}
-		return true
-	})
-	return found
+	}
+	return node.ForEachChild(containsComponentProtocolCall)
 }
 
 func walkNode(node *ast.Node, visit func(*ast.Node) bool) {
