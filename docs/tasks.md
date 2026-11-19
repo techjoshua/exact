@@ -86,9 +86,12 @@ the original helper. Finite plain-field writes retain the calling task's generat
 through helper chains and consumed asynchronous returns. A cancelled generation cannot commit a later helper write.
 A returned pending view still belongs to its creating task and cannot be retained for later use.
 An object literal passed to a helper can use its own getters and setters with their ordinary
-TypeScript receiver type. When the helper updates that object, assign the resulting value to a
-named component state field to publish it. A setter that reaches state indirectly through a
-field of the object can change the server-local value without sending the update to the client.
+TypeScript receiver type. A server task can pass an object literal with a field initialized to
+`this.state` and a setter that writes a named scalar through that field. When the helper
+invokes the setter, a following task read sees the new value and the response publishes that
+field. For a helper that updates ordinary data, assign the resulting value to a named component
+state field to publish it. Keep callbacks or accessors used for a generation's state updates
+within that generation.
 The original helper function, module state, parameters, and exports remain unchanged.
 For relative or absolute local helper imports, build adapters retain the module they actually load.
 If adjacent JavaScript and TypeScript files differ, publication follows the selected implementation.
@@ -326,7 +329,7 @@ selected reference and value, so repeated loop iterations publish in their autho
 A client event sends data to a server task. For example, `save(document.title)` sends the title.
 Passing a function such as `save(() => document.title)` is a compile-time error when the compiler can identify the function at the client call site. Even an unused argument crosses the transport. This rule also applies when the client selects a function-valued default before dispatch. Supplying a data value bypasses that default. To run client code after completion, await the server task’s result and call the function locally. For updates during the operation, use a [progress reporter](#server-task-progress).
 
-An invoked server task can pass a captured prop to an ordinary helper and assign its result to component state. The executor reads the prop value supplied with that invocation.
+An invoked server task can pass a captured prop to an ordinary helper and assign its result to component state. The executor reads the prop value supplied with that invocation. A read such as `props.title` sends only the selected title, even if another prop is a callback. To use a function-valued prop, call it on the client and send its data. Calling `props.read()` in a server task dispatched by the client would require transmitting the callback.
 
 Server continuation collection mutations require a statically known Array, Map or Set receiver.
 A proven array mutator publishes the complete array at its known state path. The varying set of

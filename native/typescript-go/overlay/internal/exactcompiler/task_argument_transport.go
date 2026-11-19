@@ -40,7 +40,7 @@ func definitelyFunction(t *checker.Type, c *checker.Checker) bool {
 
 // Diagnose function values at the client-to-server transport even when the
 // server parameter is unused. Local invocations preserve their callback values.
-func (facts *sourceAnalysisFacts) taskFunctionArgumentDiagnostics(tasks []Task, jsx []JSXElement, callables callableAnalysis) []Diagnostic {
+func (facts *sourceAnalysisFacts) taskFunctionArgumentDiagnostics(tasks []Task, jsx []JSXElement, callables callableAnalysis, operations []InvokedTaskOperation) []Diagnostic {
 	if len(facts.taskArguments) == 0 {
 		return nil
 	}
@@ -50,7 +50,23 @@ func (facts *sourceAnalysisFacts) taskFunctionArgumentDiagnostics(tasks []Task, 
 			placements[task.WorkStart] = task.Placement
 		}
 	}
-	type transfer struct{ argument, caller *ast.Node }
+	// Use the same property captures that the generated operation serializes.
+	// Checking just the selected slot leaves unrelated props on the client.
+	badCaptures := make(map[int][]*ast.Node)
+	for _, op := range operations {
+		if op.Placement != "server" {
+			continue
+		}
+		for _, capture := range op.captures {
+			if fn := capture.transportedPropFunction(facts.checker); fn != nil {
+				badCaptures[op.Start] = append(badCaptures[op.Start], fn)
+			}
+		}
+	}
+	type transfer struct {
+		argument, caller *ast.Node
+		capture          bool
+	}
 	var candidates []transfer
 	for _, use := range facts.taskArguments {
 		if placements[use.work.Pos()] != "server" {
@@ -60,13 +76,16 @@ func (facts *sourceAnalysisFacts) taskFunctionArgumentDiagnostics(tasks []Task, 
 		if caller == nil || placements[caller.Pos()] == "server" {
 			continue
 		}
+		for _, fn := range badCaptures[use.work.Pos()] {
+			candidates = append(candidates, transfer{fn, caller, true})
+		}
 		firstSpread := len(use.arguments)
 		for index, arg := range use.arguments {
 			if ast.IsSpreadElement(arg) && index < firstSpread {
 				firstSpread = index
 			}
 			if isTaskFunctionArgument(arg, facts.checker) {
-				candidates = append(candidates, transfer{arg, caller})
+				candidates = append(candidates, transfer{arg, caller, false})
 			}
 		}
 		// The client task facade evaluates a selected default before dispatch.
@@ -83,7 +102,7 @@ func (facts *sourceAnalysisFacts) taskFunctionArgumentDiagnostics(tasks []Task, 
 			}
 			value := taskRuntimeParameters(use.work)[index].Initializer()
 			if isTaskFunctionArgument(value, facts.checker) {
-				candidates = append(candidates, transfer{value, caller})
+				candidates = append(candidates, transfer{value, caller, false})
 			}
 		}
 	}
@@ -152,13 +171,19 @@ func (facts *sourceAnalysisFacts) taskFunctionArgumentDiagnostics(tasks []Task, 
 		}
 	}
 	var diagnostics []Diagnostic
+	reported := map[*ast.Node]bool{}
 	for _, use := range candidates {
-		if !clientHandlers[use.caller] {
+		if !clientHandlers[use.caller] || reported[use.argument] {
 			continue
+		}
+		reported[use.argument] = true
+		message := "error: a function cannot be sent from the client as a server task argument. Run the callback on the client and pass its result, or pass data and handle it in the server task"
+		if use.capture {
+			message = "error: this component prop supplies a function that cannot be sent to a server task. Run the callback on the client and pass its data, or use a server-local function"
 		}
 		start := scanner.SkipTrivia(facts.source.Text(), use.argument.Pos())
 		diagnostics = append(diagnostics, Diagnostic{Severity: "error", Code: "EXACT2001",
-			Message: "error: a function cannot be sent from the client as a server task argument. Run the callback on the client and pass its result, or pass data and handle it in the server task",
+			Message: message,
 			Start:   start, Length: use.argument.End() - start})
 	}
 	return diagnostics

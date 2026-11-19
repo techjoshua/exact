@@ -176,3 +176,45 @@ export function Page(this: Component<{label:number}>) {
 	await expect.poll(() => button.textContent).toBe(String(gets ? window.innerWidth : 5));
 	expect(client.reads).toBe(gets);
 });
+
+it('sends only the selected data prop to a server task', async () => {
+	const root = await createBrowserTestWorkspace('.exact-task-prop-', process.cwd());
+	const files = await writeTestFiles(root, {
+		'page.tsx': `import {TaskContext,type Component} from '@exactjs/core';
+function apply(value:string, fn:(value:string)=>string){return fn(value);}
+export function Page(this:Component<{label:string}>,props:{title:string;read:()=>string}){
+	this.state.label='';const save=(task:TaskContext=TaskContext.server())=>{
+		this.state.label=apply(props.title,value=>value+'!');return this.state.label;
+	};
+	return()=> <button onClick={()=>save()}>{this.state.label}</button>;
+}`
+	});
+	const [artifact] = await compileProjectArtifacts([files['page.tsx']!], {
+		rootDir: root,
+		outDir: path.join(root, 'generated'),
+		serverComponents: true,
+		generatedValidation: 'semantic'
+	});
+	const server = await importArtifact(artifact!.serverFile, path.join(root, 'server.mjs'));
+	const contract = composeExactExecutorContract([server.Page as AnyComponentFunction]);
+	const [operation] = Object.values(contract.invocations);
+	expect(operation!.dependencies.map(({ source, path }) => [source, path])).toEqual([
+		['props', 'props.title']
+	]);
+	const response = await handleExactRequest(
+		{
+			method: 'POST',
+			url: 'http://localhost/__exact',
+			headers: { origin: 'http://localhost', 'content-type': 'application/json' },
+			body: {
+				type: 'invoke',
+				id: operation!.id,
+				state: { label: '' },
+				payload: { dependencies: ['title'], generation: 1 }
+			}
+		},
+		{ contract, invocations: {} }
+	);
+	expect(response.status).toBe(200);
+	expect(JSON.parse(response.body as string)).toMatchObject({ ok: true, value: 'title!' });
+});

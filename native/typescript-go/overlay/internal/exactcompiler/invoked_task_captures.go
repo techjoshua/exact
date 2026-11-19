@@ -81,6 +81,31 @@ func invokedTaskCaptures(task Task, source *ast.SourceFile, bindings []ReactiveB
 	return result
 }
 
+// A captured prop value crosses the wire. When the selected expression is a
+// receiver, a directly invoked authored function property is lost in JSON;
+// a standard method such as string.trim remains available on the server.
+func (capture invokedTaskCapture) transportedPropFunction(c *checker.Checker) *ast.Node {
+	expr := capture.expression
+	if capture.source != "props" || expr == nil {
+		return nil
+	}
+	if isTaskFunctionArgument(expr, c) {
+		return expr
+	}
+	member := expr.Parent
+	if member == nil || !(ast.IsPropertyAccessExpression(member) || ast.IsElementAccessExpression(member)) || member.Expression() != expr {
+		return nil
+	}
+	call := member.Parent
+	if call == nil || !ast.IsCallExpression(call) || call.Expression() != member || nativeReceiverMemberDeclarations(member, c) {
+		return nil
+	}
+	if isTaskFunctionArgument(member, c) {
+		return member
+	}
+	return nil
+}
+
 // Capture substitution crosses nested function scopes because lexical ownership was resolved
 // during analysis. Executor rewriting can then preserve those functions' independent this binding.
 func projectInvokedTaskCaptures(factory *printer.NodeFactory, work *ast.Node, continuation Continuation, activation *ast.Node) *ast.Node {

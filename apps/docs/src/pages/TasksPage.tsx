@@ -294,7 +294,9 @@ export function TasksPage(this: Component<{}>) {
 					Send data from a client event by calling <code>save(document.title)</code>. Passing
 					<code>{'save(() => document.title)'}</code> sends a function and produces a compiler error
 					even if the server ignores that parameter. To run client code when the task finishes,
-					await its result and call your function locally.
+					await its result and call your function locally. A server task can read a data prop such
+					as <code>props.title</code>. If a prop supplies a callback, run it on the client and pass
+					its data.
 				</p>
 				<p>
 					A server task can pass a captured prop to a helper and assign the result to
@@ -307,8 +309,10 @@ export function TasksPage(this: Component<{}>) {
 				<p>
 					A helper can update a plain object through its getters and setters. To send that result
 					back to the client, assign it to a state field in the task, for example
-					<code>this.state.value = apply(input).value</code>. A setter that reaches state through
-					another object can leave the client with its previous value.
+					<code>this.state.value = apply(input).value</code>. A task can also pass an object literal
+					with a field initialized to <code>this.state</code>. If its setter assigns a named scalar
+					through that field, the next task read sees the change and the response includes the
+					updated state.
 				</p>
 				<p>
 					Server collection mutations require a known Array, Map, or Set type. An

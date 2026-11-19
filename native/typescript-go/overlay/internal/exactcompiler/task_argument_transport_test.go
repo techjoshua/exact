@@ -67,3 +67,47 @@ func TestClientCallbackServerTaskTransport(t *testing.T) {
 		})
 	}
 }
+
+// Method calls retain their receiver in server work. The transport must still
+// reject an authored callback that would disappear from that receiver in JSON.
+func TestCapturedPropFunctionTransport(t *testing.T) {
+	root, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, row := range []struct{ name, body, placement, rejected string }{
+		{"callback", "props.read()", "server", "props.read"},
+		{"computed-callback", "props['read']()", "server", "props['read']"},
+		{"callback-slot", "invoke(props.read)", "server", "props.read"},
+		{"unused-sibling", "props.title", "server", ""},
+		{"native-method", "props.title.trim()", "server", ""},
+		{"local-callback", "props.read()", "client", ""},
+	} {
+		t.Run(row.name, func(t *testing.T) {
+			src := `import {TaskContext,type Component} from "@exactjs/core";
+function invoke(fn:()=>string){return fn()}
+export function Page(this:Component<{label:string}>,props:{title:string;read:()=>string}){
+ this.state.label="";const save=(task:TaskContext=TaskContext.` + row.placement + `())=>{this.state.label=` + row.body + `;};
+ return()=> <button onClick={()=>save()}>{this.state.label}</button>;}`
+			for _, target := range []Target{TargetClient, TargetServer} {
+				r := NewSession().Execute(Request{Kind: "compile", ID: filepath.Join(root, "task-prop-transport.tsx"), ConfigFile: timeSemanticConfig(t), Source: src, Target: target, Diagnostics: "semantic"})
+				if r.Error != "" {
+					t.Fatal(r.Error)
+				}
+				if row.rejected == "" {
+					if r.Code == "" || hasErrorDiagnostic(r.Diagnostics) {
+						t.Fatalf("%s: expected emitted task: %v", target, r.Diagnostics)
+					}
+					continue
+				}
+				matched := false
+				for _, d := range r.Diagnostics {
+					matched = matched || d.Code == "EXACT2001" && strings.Contains(d.Message, "component prop supplies a function") && src[d.Start:d.Start+d.Length] == row.rejected
+				}
+				if !matched || r.Code != "" || r.SourceMap != nil {
+					t.Fatalf("%s: expected refusal for %s: %v", target, row.rejected, r.Diagnostics)
+				}
+			}
+		})
+	}
+}
