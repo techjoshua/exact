@@ -83,6 +83,7 @@ func (query *sourceValueQuery) interferenceInSources(origin *ast.Node, projectio
 // scanInterferenceInSources is the existing single receiver-write consumer.
 // Write inventory work changes only callee preparation, not this body algorithm.
 func (query *sourceValueQuery) scanInterferenceInSources(origin *ast.Node, projection []string, name string, mode accessorTraversal, bindings sourceValueBindings, result *accessorCandidates, sources []*ast.SourceFile, boundary sourceMemberOperationProof, nativeInputs []*sourceNativeInvocation) {
+	var operandOrigin sourceOriginBuffer
 	// One scan retains the same origin, demand, bindings and restored creator context.
 	// Cache complete predicates only, never a query failure or an acquired mutable cell.
 	returnedObject := query.stagedReturnBinding == nil && ast.IsObjectLiteralExpression(origin) && origin.Parent != nil && ast.IsReturnStatement(origin.Parent)
@@ -195,9 +196,10 @@ func (query *sourceValueQuery) scanInterferenceInSources(origin *ast.Node, proje
 				}
 				temporary := accessorCandidates{}
 				relevant := false
-				// Each acquisition owns its returned slice. Queue those slices in FIFO
-				// order so expanding a container never recopies large sourceValue records.
-				pending := [][]sourceValue{query.occurrenceOrigins(input, node, origin, bindings, &temporary)}
+				// The initial operand is consumed before this call returns and
+				// can borrow the scan's slot. Each queued member is acquired
+				// independently and owns its alternatives until processed.
+				pending := [][]sourceValue{query.occurrenceOriginsInto(input, node, origin, bindings, &temporary, &operandOrigin)}
 				seenValues := make(map[*ast.Node]bool)
 				for next := 0; next < len(pending); next++ {
 					for _, value := range pending[next] {
@@ -247,6 +249,9 @@ func (query *sourceValueQuery) scanInterferenceInSources(origin *ast.Node, proje
 					}
 				}
 
+				if operandOrigin.term != nil {
+					operandOrigin.term[0] = sourceValue{}
+				}
 				return relevant
 			}
 			relevant := false

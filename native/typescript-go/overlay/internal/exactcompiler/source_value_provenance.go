@@ -323,9 +323,31 @@ func (owner *sourceValueOwner) summary(node *ast.Node) sourceValueSummary {
 	return summary
 }
 
-// origins keeps initializer-time values separate from later writes to each binding.
+func (query *sourceValueQuery) origins(node *ast.Node, bindings sourceValueBindings, result *accessorCandidates) []sourceValue {
+	return query.originsInto(node, bindings, result, nil)
+}
+
+// sourceOriginBuffer supplies one temporary term to a synchronous consumer.
+// Only the initial acquisition may borrow the slot. Recursive acquisitions and
+// callers that retain alternatives continue to receive their own storage.
+type sourceOriginBuffer struct {
+	term *[1]sourceValue
+}
+
+func (buffer *sourceOriginBuffer) singleton(value sourceValue) []sourceValue {
+	if buffer == nil {
+		return []sourceValue{value}
+	}
+	if buffer.term == nil {
+		buffer.term = new([1]sourceValue)
+	}
+	buffer.term[0] = value
+	return buffer.term[:]
+}
+
+// originsInto keeps initializer-time values separate from later writes to each binding.
 // Source ordering is relative to the binding's owner, independent of declaration spelling.
-func (query *sourceValueQuery) origins(node *ast.Node, bindings sourceValueBindings, result *accessorCandidates) (terms []sourceValue) {
+func (query *sourceValueQuery) originsInto(node *ast.Node, bindings sourceValueBindings, result *accessorCandidates, buffer *sourceOriginBuffer) (terms []sourceValue) {
 	defer func() {
 		if query.returnObservation == nil || node == nil {
 			return
@@ -402,7 +424,7 @@ func (query *sourceValueQuery) origins(node *ast.Node, bindings sourceValueBindi
 		return query.boundProjection(acquired.values, path, result)
 	}
 	if !ast.IsIdentifier(root) {
-		return []sourceValue{{node: root, path: path}}
+		return buffer.singleton(sourceValue{node: root, path: path})
 	}
 	symbol := sourceCallableReferenceSymbol(root, query.owner.checker)
 	if root.Parent != nil && ast.IsShorthandPropertyAssignment(root.Parent) {
@@ -486,7 +508,7 @@ func (query *sourceValueQuery) origins(node *ast.Node, bindings sourceValueBindi
 			return values
 		}
 	}
-	values := query.liveValues(symbol, []sourceValue{{node: root}}, root, bindings, result)
+	values := query.liveValues(symbol, buffer.singleton(sourceValue{node: root}), root, bindings, result)
 	for i := range values {
 		values[i].path = append(values[i].path, path...)
 	}
@@ -496,18 +518,22 @@ func (query *sourceValueQuery) origins(node *ast.Node, bindings sourceValueBindi
 // originsAt evaluates binding provenance at its authored initialization or argument site.
 // This is a finite source-order filter, not a runtime cell or an object snapshot.
 func (query *sourceValueQuery) originsAt(node, at *ast.Node, bindings sourceValueBindings, result *accessorCandidates) []sourceValue {
+	return query.originsAtInto(node, at, bindings, result, nil)
+}
+
+func (query *sourceValueQuery) originsAtInto(node, at *ast.Node, bindings sourceValueBindings, result *accessorCandidates, buffer *sourceOriginBuffer) []sourceValue {
 	if values, owned := query.stagedReturnBindingOperand(node, at); owned {
 		return values
 	}
 	previous := query.initializing
 	query.initializing = at
-	values := query.origins(node, bindings, result)
+	values := query.originsInto(node, bindings, result, buffer)
 	// Resolve the acquired finite value while the location still has its source-time
 	// meaning. Later reads retain that origin, so replacing the slot cannot retarget it.
 	wasActive, hadEntry := query.active[at]
 	if at != nil && !wasActive {
 		acquiring := false
-		// origins owns this outer slice; nested source payloads keep their ownership.
+		// This outer slice is exclusively writable here. Nested payloads keep their ownership.
 		// Preserve it until a term changes instead of copying unchanged alternatives.
 		var acquired []sourceValue
 		changed := false

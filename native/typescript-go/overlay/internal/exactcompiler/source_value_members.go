@@ -14,8 +14,12 @@ import (
 // acquisitions retain Get effects, but never invoke their bodies
 // or upgrades a matching declaration into a completed mutation certificate.
 func (query *sourceValueQuery) occurrenceOrigins(node, at, origin *ast.Node, bindings sourceValueBindings, result *accessorCandidates, receivers ...sourceValue) []sourceValue {
-	origins := query.originsAt(node, at, bindings, result)
-	// The input outer vector is owned; nested source payloads retain their ownership.
+	return query.occurrenceOriginsInto(node, at, origin, bindings, result, nil, receivers...)
+}
+
+func (query *sourceValueQuery) occurrenceOriginsInto(node, at, origin *ast.Node, bindings sourceValueBindings, result *accessorCandidates, buffer *sourceOriginBuffer, receivers ...sourceValue) []sourceValue {
+	origins := query.originsAtInto(node, at, bindings, result, buffer)
+	// This acquisition has exclusive use of the input outer vector; nested source payloads retain their ownership.
 	// A changed result gets separate storage so expansion cannot overwrite input.
 	var values []sourceValue
 	changed := false

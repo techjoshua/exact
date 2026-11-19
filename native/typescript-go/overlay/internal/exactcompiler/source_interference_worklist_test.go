@@ -15,12 +15,13 @@ func TestInterferenceContainerWorklist(t *testing.T) {
 	}{
 		{"direct", "", "box", true},
 		{"nested", "", "{nested:{box}}", true},
+		{"successive operands", "", "[], {nested:{box}}", true},
 		{"multiple origins", "declare const flag:boolean;", "{first:flag?box:{},second:box}", true},
 		{"shared container", "const nested={box};", "{first:nested,second:nested}", true},
 		{"disjoint", "", "{nested:{other:{}}}", false},
 	} {
 		t.Run(row.name, func(t *testing.T) {
-			source := `declare function foreign(input:unknown):void;function box(){}box.field='safe';` + row.setup + `foreign(` + row.argument + `);export const value=box.field;`
+			source := `declare function foreign(...input:unknown[]):void;function box(){}box.field='safe';` + row.setup + `foreign(` + row.argument + `);export const value=box.field;`
 			_, _, summary := currentProxyCaller(t, source, "export const value")
 			unknown := false
 			for _, effect := range summary.EffectSources {
