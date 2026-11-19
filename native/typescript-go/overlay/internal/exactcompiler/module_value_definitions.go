@@ -242,7 +242,7 @@ func (analysis *moduleDefinitionAnalysis) expression(work *ast.Node, execute boo
 		}
 		boundInvocation := false
 		if !deferred {
-			analysis.evaluatedAccessors(node, nil)
+			analysis.evaluatedAccessors(node)
 			if ast.IsCallExpression(node) {
 				candidates := sourceInvocationDependenciesAt(node, analysis.reading, analysis.checker, analysis.owner, nil, analysis.inputs)
 				boundInvocation = candidates.invocationOwned
@@ -305,27 +305,28 @@ func (analysis *moduleDefinitionAnalysis) expression(work *ast.Node, execute boo
 }
 
 // evaluatedAccessors uses the same explicit and implicit read contracts as callable effects.
-func (analysis *moduleDefinitionAnalysis) evaluatedAccessors(node *ast.Node, bindings map[ast.SymbolId]*ast.Node) {
+func (analysis *moduleDefinitionAnalysis) evaluatedAccessors(node *ast.Node) {
 	analysis.beginInitializerPolicyPass()
 	defer analysis.endInitializerPolicyPass()
 	if analysis.interceptInitializer(node, true) {
 		return
 	}
-	query := newSourceDependencyQuery(analysis.reading, analysis.checker, analysis.owner, nil)
-	defer query.publishDependencyStatistics()
-	bound := make(sourceValueBindings)
-	for id, value := range bindings {
-		bound[id] = []sourceValue{{node: value}}
+	if ast.IsAccessExpression(node) {
+		query := newSourceDependencyQuery(analysis.reading, analysis.checker, analysis.owner, nil)
+		defer query.publishDependencyStatistics()
+		var bound sourceValueBindings
+		if analysis.inputs != nil {
+			bound = analysis.inputs.bindings
+			query.creators = analysis.inputs.dependencyScope.creators
+			query.invoking = analysis.inputs.invocation
+			query.dependencyUse = analysis.inputs.dependencyUse
+		} else {
+			bound = make(sourceValueBindings)
+		}
+		analysis.accessors(query.evaluatedSourceAccessors(node, bound))
 	}
-	if analysis.inputs != nil {
-		bound = analysis.inputs.bindings
-		query.creators = analysis.inputs.dependencyScope.creators
-		query.invoking = analysis.inputs.invocation
-		query.dependencyUse = analysis.inputs.dependencyUse
-	}
-	analysis.accessors(query.evaluatedSourceAccessors(node, bound))
 	analysis.accessors(moduleBindingProducers(node, analysis.reading, analysis.checker, analysis.owner))
-	visitImplicitAccessors(node, analysis.checker, bindings, analysis.owner, nil, nil, analysis.accessors)
+	visitImplicitAccessors(node, analysis.checker, nil, analysis.owner, nil, nil, analysis.accessors)
 }
 
 // accessors executes only the declarations selected by the existing evaluation/provenance owner.
@@ -430,7 +431,7 @@ func newModuleDefinitionAnalysis(c *checker.Checker, owner *executableBodyOwner)
 	if owner != nil && owner.values != nil {
 		flow = &sourceValueQuery{owner: owner.values, executable: owner, remaining: 4096, active: make(map[*ast.Node]bool)}
 	}
-	return moduleDefinitionAnalysis{checker: c, owner: owner, flow: flow, symbols: map[moduleDefinitionSymbolVisit]bool{}, nodes: map[moduleDefinitionNodeVisit]bool{}}
+	return moduleDefinitionAnalysis{checker: c, owner: owner, flow: flow}
 }
 
 // beginInitializerPolicyPass invalidates reusable visits when the detached graph

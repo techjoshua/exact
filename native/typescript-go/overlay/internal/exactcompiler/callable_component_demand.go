@@ -199,15 +199,6 @@ func componentCallableDemand(collection *projectCallableCollection, requested ..
 	return demand
 }
 
-func callableSourceDemanded(facts []callableFacts, work *callableEffectWork, source *ast.SourceFile) bool {
-	for i := range facts {
-		if facts[i].sourceFile == source && work.extractionPhases[i] != callableExtractionRegistered {
-			return true
-		}
-	}
-	return false
-}
-
 // A created callback crossing a real call/render/return boundary can supply
 // component work. An unread local function declaration/initializer does not.
 func callableDemandBoundary(node, owner *ast.Node, componentReturn bool) bool {

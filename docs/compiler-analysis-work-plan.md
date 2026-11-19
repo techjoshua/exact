@@ -164,8 +164,12 @@ The initial cleanup now resolves imports during collection, removes production c
 fingerprints, and groups the matching callable facts once per cold component link. Clone tests
 retain the content comparison. Existing literal-input, mixed-input and cache-replacement
 placement failures reproduce on the preceding compiler revision; they remain open component
-linking issues. The following steps retain the acceptance criteria for these and subsequent
-changes.
+linking issues. Project collection now uses each source’s contiguous range of callable facts to identify
+demand and queued work in one pass. A compile with many project roots previously searched the
+whole registry up to twice per source. Module placement also opens an explicit property-read
+query only for a property or element access. Implicit reads from calls, construction, binding
+patterns and spreads retain their own analysis and normal invocations retain their work accounting.
+These changes have component and placement coverage. Their whole-package timing remains unmeasured.
 
 1. **Remove demonstrated redundancy in parallel with the hot-path change.** Remove production
    callable fingerprints. Resolve static imports at collection. In `linkProjectComponents`,

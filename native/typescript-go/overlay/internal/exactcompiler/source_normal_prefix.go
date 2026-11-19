@@ -78,7 +78,7 @@ func (query *sourceValueQuery) normalWork(result *accessorCandidates, node *ast.
 	}
 	var ledgers []*sourceNormalOperation
 	priorLedgers := query.workLedgers
-	if query.workLedgers == nil {
+	if len(candidates) != 0 && query.workLedgers == nil {
 		query.workLedgers = make(map[*sourceNormalOperation]bool)
 	}
 	for _, slot := range candidates {

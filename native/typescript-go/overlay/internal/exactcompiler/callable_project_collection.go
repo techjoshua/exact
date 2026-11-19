@@ -196,10 +196,18 @@ func (collection *projectCallableCollection) collect() {
 	// freeze. Direct/per-file collection retains its original ordering.
 	for _, group := range collections {
 		collect := group.context.collect
-		for i := group.first; i < group.end; i++ {
-			collect = collect || work.extractionPhases[i] == callableExtractionQueued
+		demanded := false
+		for _, phase := range work.extractionPhases[group.first:group.end] {
+			demanded = demanded || phase != callableExtractionRegistered
+			collect = collect || phase == callableExtractionQueued
+			if demanded && collect {
+				break
+			}
 		}
-		if collect && callableSourceDemanded(facts, work, group.context.source) {
+		if !demanded {
+			continue
+		}
+		if collect {
 			owner.values.index(group.context.source)
 			initializers := prepareCallableSourceInitializers(group.context.source, owner)
 			for i := group.first; i < group.first+group.context.canonicalCount; i++ {
@@ -207,9 +215,7 @@ func (collection *projectCallableCollection) collect() {
 				facts[i].initializerDeclaration, facts[i].initializerPlan = entry.declaration, entry.plan
 			}
 		}
-		if callableSourceDemanded(facts, work, group.context.source) {
-			installBuildingInitializers(owner, group.context.source, facts)
-		}
+		installBuildingInitializers(owner, group.context.source, facts)
 	}
 	collection.extractQueued()
 	for _, group := range collections {

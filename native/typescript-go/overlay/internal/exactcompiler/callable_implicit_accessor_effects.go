@@ -23,18 +23,27 @@ func appendImplicitAccessorEffects(fact *callableFacts, node *ast.Node, targets 
 // visitImplicitAccessors shares value-reading operations with eager module placement.
 // Enumeration of class prototype properties does not execute their accessors.
 func visitImplicitAccessors(node *ast.Node, typeChecker *checker.Checker, bindings map[ast.SymbolId]*ast.Node, owner *executableBodyOwner, consumer *ast.Node, receipts []*sourceNativeInvocation, visit func(accessorCandidates), normal ...*sourceValueInputs) {
-	values := newSourceValueOwner(typeChecker)
-	if owner != nil && owner.values != nil {
-		values = owner.values
-	}
-	query := newSourceDependencyQuery(node, typeChecker, owner, consumer)
-	defer query.publishDependencyStatistics()
+	var query *sourceValueQuery
 	if len(normal) == 1 && normal[0] != nil {
-		query = &sourceValueQuery{owner: values, executable: owner, effectOwner: consumer, remaining: 4096, active: make(map[*ast.Node]bool), reading: node, operation: &sourceOperationContext{node: node, owner: consumer}}
-		if len(normal) == 1 {
-			query.inputs = normal[0]
-			query.operation.inputs = normal[0]
+		var values *sourceValueOwner
+		if owner != nil {
+			values = owner.values
 		}
+		if values == nil {
+			values = newSourceValueOwner(typeChecker)
+		}
+		query = &sourceValueQuery{owner: values, executable: owner, effectOwner: consumer, inputs: normal[0], remaining: 4096, active: make(map[*ast.Node]bool), reading: node, operation: &sourceOperationContext{node: node, owner: consumer, inputs: normal[0]}}
+	} else {
+		// Only these expressions and binding patterns can perform an implicit
+		// read here. A normal invocation may still need its enclosing work ledger.
+		switch node.Kind {
+		case ast.KindNewExpression, ast.KindBinaryExpression, ast.KindVariableDeclaration, ast.KindSpreadAssignment, ast.KindCallExpression:
+		default:
+			visit(accessorCandidates{})
+			return
+		}
+		query = newSourceDependencyQuery(node, typeChecker, owner, consumer)
+		defer query.publishDependencyStatistics()
 	}
 	result := accessorCandidates{}
 	finish := query.normalWork(&result, node)
