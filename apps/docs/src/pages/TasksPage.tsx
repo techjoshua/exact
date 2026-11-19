@@ -402,8 +402,10 @@ export function TasksPage(this: Component<{}>) {
 				/>
 				<p>
 					Parents await children and cleanup, including timers owned while the parent body is
-					pending. Callbacks preserve child placement. Callers evaluate arguments. Cancellation
-					reaches children and fences late writes. Unhandled child failure fails the parent.
+					pending. A browser parent can await a server child that calls a server-only helper, then
+					use its result in the browser. The parent evaluates the arguments, including any getters,
+					before dispatch. Cancellation reaches children and fences late writes. Unhandled child
+					failure fails the parent.
 					<code>.catch()</code> handles it in the same owner. Caller cancellation and inherited
 					native option accessors apply. Children may await external results before state writes.
 				</p>

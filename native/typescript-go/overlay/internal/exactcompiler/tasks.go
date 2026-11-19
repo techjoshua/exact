@@ -478,80 +478,70 @@ func excludeChildTaskEffects(
 	callables callableAnalysis,
 	taskPolicyBindings externalImportBindings,
 ) []EnvironmentEffectSource {
-	children := make(map[string]struct{})
-	walkNode(work.Body(), func(node *ast.Node) bool {
-		if !ast.IsCallExpression(node) {
-			return true
+	// The display path is a shortest witness and can omit an intermediate
+	// callback or task. Decide ownership using the actual operation and target.
+	var caller *callableFacts
+	for i := range callables.facts {
+		if callables.facts[i].node == work {
+			caller = &callables.facts[i]
+			break
 		}
-		symbol := resolvedCallableSymbol(
-			callTargetSymbol(node.AsCallExpression().Expression, typeChecker),
-			typeChecker,
-		)
-		if symbol == nil {
-			return true
+	}
+	if caller == nil || len(caller.targets) == 0 {
+		return sources
+	}
+	targets := make(map[string]*callableFacts, len(caller.targets))
+	for _, index := range caller.targets {
+		target := &callables.facts[index]
+		targets[target.summary.ID] = target
+	}
+	children := map[string]bool{}
+	for _, edge := range caller.summary.Calls {
+		target := targets[edge.TargetID]
+		if !edge.Resolved || target == nil || target.sourceFile != sourceFile {
+			continue
 		}
-		summary, exists := callables.expressionSummary(node.AsCallExpression().Expression, typeChecker)
-		var child *ast.Node
-		if exists {
-			child = callableNodeForSummary(callables, summary.ID)
+		operation := caller.fieldEdgeOperations[edge.ID]
+		if operation == nil || !ast.IsCallExpression(operation) || enclosingCallableNode(operation) != work {
+			continue
 		}
-		_, hostOwned := callables.owner.body(node.AsCallExpression().Expression)
-		if child == nil && !hostOwned {
-			for _, declaration := range symbol.Declarations {
-				if !ast.IsVariableDeclaration(declaration) {
-					continue
-				}
-				initializer := declaration.AsVariableDeclaration().Initializer
-				if initializer == nil {
-					continue
-				}
-				if candidate, found := callables.byNode[initializer]; found {
-					summary, child, exists = candidate, initializer, true
-					break
-				}
-			}
+		if _, explicit := functionTaskPolicy(target.node, sourceFile, taskPolicyBindings); !explicit {
+			continue
 		}
-		if exists && child != nil {
-			if _, explicit := functionTaskPolicy(
-				child,
-				sourceFile,
-				taskPolicyBindings,
-			); explicit {
-				children[summary.Name] = struct{}{}
-			}
+		summary, resolved := callables.expressionSummary(operation.Expression(), typeChecker)
+		if resolved && summary.ID == edge.TargetID {
+			children[edge.ID] = true
 		}
-		return true
-	})
+	}
 	if len(children) == 0 {
 		return sources
 	}
-	filtered := make([]EnvironmentEffectSource, 0, len(sources))
-	for _, source := range sources {
-		childBoundary := false
-		for _, segment := range source.Path[1:] {
-			if _, child := children[segment]; child {
-				childBoundary = true
-				break
-			}
-		}
-		if childBoundary {
+	// A donor shared by a child and its caller stays in the caller: an eager
+	// getter can execute there even if the child body reads the same global.
+	owned := map[string]bool{}
+	key := func(source EnvironmentEffectSource) string {
+		return source.Environment + ":" + source.Description + fieldSourceIdentity(source)
+	}
+	for _, source := range caller.summary.DirectEffectSources {
+		owned[key(source)] = true
+	}
+	for _, edge := range caller.summary.Calls {
+		target := targets[edge.TargetID]
+		if !edge.Resolved || target == nil || target.progressReceiver {
 			continue
 		}
-		filtered = append(filtered, source)
-	}
-	return filtered
-}
-
-func callableNodeForSummary(
-	callables callableAnalysis,
-	id string,
-) *ast.Node {
-	for index := range callables.facts {
-		if callables.facts[index].summary.ID == id {
-			return callables.facts[index].node
+		for _, source := range appendCallableEdgeEffectSources(nil, caller, target, edge, callables.owner) {
+			id := key(source)
+			owned[id] = owned[id] || !children[edge.ID]
 		}
 	}
-	return nil
+	filtered := sources[:0]
+	for _, source := range sources {
+		if keep, recognized := owned[key(source)]; !recognized || keep {
+			filtered = append(filtered, source)
+		}
+	}
+	return filtered
 }
 
 func functionTaskActivationDependencies(

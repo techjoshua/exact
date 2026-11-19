@@ -670,6 +670,8 @@ task does not make Suspense wait for it. A client-only task has no server genera
 its status is idle, with `pending: false` and `pendingCount: 0`. After hydration, its live status
 reflects client-side activations.
 
+A browser task can await a server child that invokes a server-only helper, then use the returned data in the browser. The caller evaluates the child’s arguments before dispatch. A getter used to prepare an argument must therefore run on the caller’s side.
+
 When a server task handles an interaction, its child task facades belong to that
 request. Calling a child's `cancel()` selects the same task definition and owner
 as invoking the child, including when the parent calls it after an `await`.

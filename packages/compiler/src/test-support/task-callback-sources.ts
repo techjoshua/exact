@@ -10,6 +10,7 @@ export const callbackTaskCases = [
 	{ name: 'parent executes callback', form: 'named', invalid: 'parent' },
 	{ name: 'same client task executes callback', form: 'named', invalid: 'same' },
 	{ name: 'server child reads browser', form: 'named', invalid: 'child' },
+	{ name: 'parent and child invoke the same server helper', form: 'named', invalid: 'both' },
 	{ name: 'caller argument getter', form: 'named', invalid: 'argument' }
 ] as const;
 
@@ -53,6 +54,8 @@ export function callbackTaskSource(example: { form: string; invalid?: string }):
  export function Page(this:Component<{revision:number;draft:string}>){this.state.revision=0;this.state.draft='';
  function auditOnServer(input:string,task:TaskContext=TaskContext.server()):Promise<string>{return callbackOnly(${child},task.signal);}
  const refreshAudit=async(revision:number,draft=this.state.draft${invalid === 'same' ? ',task:TaskContext=TaskContext.client()' : ''})=>{
- if(revision===0)return;const result=await ${invocation};if(result!=='')location.assign(result);
+ if(revision===0)return;
+ ${invalid === 'both' ? 'await callbackOnly(draft,new AbortController().signal);' : ''}
+ const result=await ${invocation};if(result!=='')location.assign(result);
  };void refreshAudit(this.state.revision);return()=> <button onClick={()=>this.state.revision++}>Run</button>;}`;
 }
