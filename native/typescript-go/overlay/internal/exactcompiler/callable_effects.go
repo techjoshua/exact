@@ -367,7 +367,13 @@ func analyzeProjectCallableSource(
 	owner *executableBodyOwner,
 ) callableAnalysis {
 	components := collectComponents(sourceFile)
-	_, reads, writes := collectStateAnalysis(sourceFile, typeChecker)
+	var reads []StateRead
+	var writes []StateWrite
+	// Both passes select the same component signals. Foreign JSX has separate
+	// discovery rules, so keep its original state analysis.
+	if len(components) != 0 || usesForeignJSXRuntime(sourceFile) {
+		_, reads, writes = collectStateAnalysis(sourceFile, typeChecker)
+	}
 	var bindings map[int]componentBinding
 	if sourceFile.SubtreeFacts()&ast.SubtreeContainsJsx != 0 {
 		var bindingWrites []StateWrite
