@@ -319,6 +319,8 @@ scalar values, including reads through a closure declared before the write. Othe
 committed state until the generation succeeds. These queued expression writes capture their
 selected reference and value, so repeated loop iterations publish in their authored order.
 
+An invoked server task can pass a captured prop to an ordinary helper and assign its result to component state. The executor reads the prop value supplied with that invocation.
+
 Server continuation collection mutations require a statically known Array, Map or Set receiver.
 A proven array mutator publishes the complete array at its known state path. The varying set of
 edited indices does not broaden that path authority. An `any` or `unknown` receiver cannot establish the collection publication contract. Preserve the

@@ -434,7 +434,10 @@ func (lowering *jsxLowering) pendingStateOperation(node, context *ast.Node, visi
 	if typeNode := lowering.mutationFacts.at(nodeSourceSpan(node)).pending; typeNode != nil && node.Flags&ast.NodeFlagsOptionalChain == 0 && !pendingReadIsWriteTarget(node) && !(node.Parent != nil && ast.IsCallExpression(node.Parent) && node.Parent.AsCallExpression().Expression == node) {
 		receiver, key := memberParts(node)
 		if receiver != nil {
-			return lowering.factory.NewAsExpression(operation("read", []*ast.Node{receiver, key}), typeNode)
+			// Executor reconstruction substitutes transported inputs by their authored span.
+			read := lowering.factory.NewAsExpression(operation("read", []*ast.Node{receiver, key}), typeNode)
+			read.Loc = node.Loc
+			return read
 		}
 	}
 	return nil

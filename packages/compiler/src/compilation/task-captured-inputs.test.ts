@@ -118,3 +118,52 @@ it.each([
 		expect(reports).toEqual([]);
 	}
 );
+
+it('reads a transported prop inside an invoked task that calls a state helper', async () => {
+	const root = await createCompilerTestWorkspace('.exact-task-helper-input-', process.cwd());
+	const entry = path.join(root, 'page.tsx');
+	await writeFile(
+		entry,
+		`import {TaskContext, type Component} from '@exactjs/core';
+function label(value: string | number) { return String(value).trim(); }
+export function Page(this: Component<{label:string}>, props: {input:string | number}) {
+	this.state.label = '';
+	const run = (task:TaskContext = TaskContext.server()) => {
+		this.state.label = label(props.input);
+		return this.state.label;
+	};
+	return () => <button onClick={() => run()}>{this.state.label}</button>;
+}`
+	);
+	const [artifact] = await compileProjectArtifacts([entry], {
+		rootDir: root,
+		outDir: path.join(root, 'generated'),
+		generatedValidation: 'semantic'
+	});
+	const server = await importArtifact(artifact!.serverFile, path.join(root, 'server.mjs'));
+	const contract = composeExactExecutorContract([server.Page as AnyComponentFunction]);
+	const operations = Object.values(contract.invocations);
+	expect(operations).toHaveLength(1);
+	const [operation] = operations;
+	expect(operation!.dependencies.map((input) => input.source)).toEqual(['props']);
+	const response = await handleExactRequest(
+		{
+			method: 'POST',
+			url: 'http://localhost/__exact',
+			headers: { origin: 'http://localhost', 'content-type': 'application/json' },
+			body: {
+				type: 'invoke',
+				id: operation!.id,
+				state: { label: '' },
+				payload: { generation: 1, dependencies: ['  captured  '] }
+			}
+		},
+		{ contract, invocations: {} }
+	);
+	expect(response.status).toBe(200);
+	expect(JSON.parse(response.body as string)).toMatchObject({
+		ok: true,
+		value: 'captured',
+		state: { label: 'captured' }
+	});
+});

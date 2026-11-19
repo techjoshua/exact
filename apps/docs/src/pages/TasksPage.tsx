@@ -291,7 +291,8 @@ export function TasksPage(this: Component<{}>) {
 					<code>task.peek()</code>.
 				</p>
 				<p>
-					Server work can use server-owned contexts inside its body and ordinary local helpers. A
+					A server task can pass a captured prop to a helper and assign the result to
+					<code>this.state</code>. It can also read server-owned contexts inside its body. A
 					parameter default that reads a server-owned context is rejected because it is captured
 					before dispatch. A shared context used only by a default is passed as the captured value.
 					To publish shared context updates to descendants, establish the provider during component
