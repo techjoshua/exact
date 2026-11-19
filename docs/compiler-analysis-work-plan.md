@@ -160,20 +160,26 @@ can be removed after the ordinary effects caller migrates.
 
 ## Implementation order and acceptance
 
-The initial cleanup now resolves imports during collection, removes production callable
-fingerprints, and groups the matching callable facts once per cold component link. Clone tests
-retain the content comparison. Existing literal-input, mixed-input and cache-replacement
-placement failures reproduce on the preceding compiler revision; they remain open component
-linking issues. Project collection now uses each source’s contiguous range of callable facts to identify
-demand and queued work in one pass. A compile with many project roots previously searched the
-whole registry up to twice per source. Module placement also opens an explicit property-read
-query only for a property or element access. Implicit reads from calls, construction, binding
-patterns and spreads retain their own analysis and normal invocations retain their work accounting.
-Pending reader scopes allocate writable maps when evaluation first needs them. An ordinary
-source value also carries only a pointer to optional construction-capture metadata. All alternatives
-of one constructed binding share its immutable ordinal, role, operation and generation. This
-reduces the size of each ordinary value from 496 to 248 bytes on linux/amd64. Both changes
-preserve the original capture checks. Whole-package completion remains a separate milestone.
+Static imports are resolved during collection. Production callable fingerprints have been
+removed, and cold component linking groups matching facts once per source. A literal prop
+can refine the caller's render edge while the child keeps its portable definition. The
+component and callable caches preserve that distinction across a dependency edit.
+Export reporting and pruning share settled declaration availability within one executable
+selection and initializer revision. Named module lookups use the checker's export index.
+
+Ordinary source values carry construction metadata only when a construction binding exists.
+This reduced their size from 496 to 248 bytes on linux/amd64. Member reads retain the original
+bindings and creators when the read occurs. A consumer that needs writable lookup maps can
+materialize them from those detached entries. Calls with no direct declaration skip the unused
+caller indexes while preserving selection-time sealing. Callee snapshots reserve their binding
+and creator vectors after admission, and retain detailed term projections only where present.
+
+The checked native array membership lookup on a fresh literal now reaches the Theme color
+parser. Executable element and argument expressions remain placement inputs. These changes
+reduced individual costs measured on component compiles. The uninstrumented original Theme
+and Core commands on revision `4f7378ad1` still timed out at 30 seconds on the client
+compile, before producing paired artifacts. That run predates the compact callee-term layout.
+The remaining acceptance criterion is successful compilation and use of both targets.
 
 1. **Remove demonstrated redundancy in parallel with the hot-path change.** Remove production
    callable fingerprints. Resolve static imports at collection. In `linkProjectComponents`,
