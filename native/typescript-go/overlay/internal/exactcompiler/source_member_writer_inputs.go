@@ -141,7 +141,11 @@ func (q *sourceValueQuery) memberWriterInputs(left *ast.Node, bindings sourceVal
 		return []sourceMemberWriterInput{input}
 	}
 	writer := enclosingCallableNode(left)
-	if !q.dependenciesOnly || writer == nil || writer == enclosingCallableNode(q.reading) || ast.IsGetAccessorDeclaration(writer) || ast.IsSetAccessorDeclaration(writer) || ast.IsConstructorDeclaration(writer) {
+	if !q.dependenciesOnly || writer == nil || ast.IsGetAccessorDeclaration(writer) || ast.IsSetAccessorDeclaration(writer) || ast.IsConstructorDeclaration(writer) {
+		return []sourceMemberWriterInput{{scope: acquiredCallableScope{bindings: bindings, creators: q.creators}}}
+	}
+	readingOwner := enclosingCallableNode(q.reading)
+	if writer == readingOwner {
 		return []sourceMemberWriterInput{{scope: acquiredCallableScope{bindings: bindings, creators: q.creators}}}
 	}
 	var alternatives []sourceMemberWriterInput
@@ -288,17 +292,22 @@ func (q *sourceValueQuery) memberWriterInputs(left *ast.Node, bindings sourceVal
 
 		}
 	}
+	// Nested recovery restores the outer read position before the next
+	// candidate. Positions are comparable only within its source and callable.
+	at := q.readPosition()
+	atOwner, atFile := enclosingCallableNode(at), ast.GetSourceFileOfNode(at)
 	seen := make(map[*ast.Node]bool)
 	var sourceIndexes [4]sourceValueIndex
 	for _, index := range q.occurrenceSourceView(left, result, sourceIndexes[:0]) {
+		sameFile := len(index.calls) != 0 && ast.GetSourceFileOfNode(index.calls[0]) == atFile
 		for _, call := range index.calls {
-			if q.stagedMapInvocationFollows(call) || seen[call] || q.active[call] || q.pendingWriterInputExcluded(call, result) || q.afterRead(call) && !cut.argumentMayPrecede(q, call, result) {
+			if q.stagedMapInvocationFollows(call) || seen[call] || q.active[call] || q.pendingWriterInputExcluded(call, result) {
 				continue
 			}
-			// Original caller eligibility precedes its ordering/branch queries.
-			// A dormant region cannot establish its own source invocation by
-			// recursively inspecting another dormant writer's precondition.
 			caller := enclosingCallableNode(call)
+			if sameFile && call.Pos() >= at.Pos() && caller == atOwner && !cut.argumentMayPrecede(q, call, result) {
+				continue
+			}
 			// Transformation erases only this authenticated policy default subtree.
 			// Its indexed Calls cannot execute as writers of another input.
 			if caller != nil {
@@ -308,7 +317,7 @@ func (q *sourceValueQuery) memberWriterInputs(left *ast.Node, bindings sourceVal
 					}
 				}
 			}
-			if caller != nil && caller != enclosingCallableNode(q.reading) && q.creators[caller].invocation == nil {
+			if caller != nil && caller != readingOwner && q.creators[caller].invocation == nil {
 				continue
 			}
 			// Eligibility cannot select this same original Call as a separate

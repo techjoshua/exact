@@ -1180,17 +1180,22 @@ func (query *sourceValueQuery) executeDemand(node, declaration *ast.Node, bindin
 	}
 }
 
+// readPosition selects the acquisition whose source order constrains writer discovery.
+func (query *sourceValueQuery) readPosition() *ast.Node {
+	if query.initializing != nil {
+		return query.initializing
+	}
+	if query.returning != nil {
+		return query.returning
+	}
+	return query.reading
+}
+
 // afterRead excludes work that cannot change a value already acquired or read in
 // the same callable. Cross-callable timing remains unproved in this finite relation.
 func (query *sourceValueQuery) afterRead(node *ast.Node) bool {
-	at := query.initializing
-	if at == nil {
-		at = query.returning
-	}
-	if at == nil {
-		at = query.reading
-	}
-	return at != nil && ast.GetSourceFileOfNode(node) == ast.GetSourceFileOfNode(at) && enclosingCallableNode(node) == enclosingCallableNode(at) && node.Pos() >= at.Pos()
+	at := query.readPosition()
+	return node != nil && at != nil && node.Pos() >= at.Pos() && ast.GetSourceFileOfNode(node) == ast.GetSourceFileOfNode(at) && enclosingCallableNode(node) == enclosingCallableNode(at)
 }
 
 // sourceAlias preserves known definition identity without expanding an intermediate

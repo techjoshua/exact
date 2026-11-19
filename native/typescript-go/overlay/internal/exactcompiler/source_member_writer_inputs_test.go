@@ -363,3 +363,45 @@ func TestMemberWriterRefusedCapturedValues(t *testing.T) {
 		})
 	}
 }
+
+// The server placement decision needs the getter captured by a possible
+// writer even when its caller is opaque. A plain captured field can still emit.
+func TestComponentRefusedWriterPlacement(t *testing.T) {
+	for _, row := range []struct {
+		name, value string
+		browser     bool
+	}{
+		{"getter", "{get value(){return document.title}}", true},
+		{"plain", "{value:'safe'}", false},
+	} {
+		t.Run(row.name, func(t *testing.T) {
+			source := `import {TaskContext,type Component} from '@exactjs/core';
+declare function invoke(fn:()=>void):void;
+export function Page(this:Component<{label:string}>){
+ this.state.label='';
+ const run=(task:TaskContext=TaskContext.server())=>{
+  const box={field:{value:'safe'}};
+  function make(v:{value:string}){return ()=>{box.field=v}}
+  const write=make(` + row.value + `);invoke(write);
+  this.state.label=box.field.value;
+ };
+ return()=> <button onClick={()=>run()}>{this.state.label}</button>;
+}`
+			response := NewSession().Execute(Request{Kind: "compile", ID: "refused-writer-placement.tsx", Source: source, Target: TargetServer, Diagnostics: "semantic"})
+			if response.Error != "" {
+				t.Fatal(response.Error)
+			}
+			if row.browser {
+				for _, diagnostic := range response.Diagnostics {
+					if diagnostic.Code == "EXACT2001" && strings.Contains(diagnostic.Message, "document") && response.Code == "" {
+						return
+					}
+				}
+				t.Fatal("expected server placement refusal naming the captured getter", response.Diagnostics)
+			}
+			if response.Code == "" || hasErrorDiagnostic(response.Diagnostics) {
+				t.Fatal("plain captured field failed to emit", response.Diagnostics)
+			}
+		})
+	}
+}

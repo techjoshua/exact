@@ -73,11 +73,32 @@ cannot supply any segment of either named path. A computed segment with unknown
 key or an authored symbol factory still requires ordinary writer discovery. The
 matching `view.data` write, invocation of the stored factory and later use of a
 cached field have separate consumers. A helper's resolved declaration alone supplies
-no evidence about argument getters or callback invocation. After excluding these candidates, the original 300-source Core request still reached
+no evidence about argument getters or callback invocation. After these exclusions,
+the original 300-source Core request still reached
 its 30-second deadline on instrumented and uninstrumented single-CPU hosts with Go
 inlining disabled for the compiler package. Seven server task controls emitted
 identical code in matched builds. Client tasks retained the installed getter and
 the getter supplied through a nested dynamic alias as browser effects.
+
+On the same ErrorBoundary input at `2940abd9d`, recovery for `view.domain`
+at `intrinsics.get(value)` projected the shared store's `get` member and followed
+`value` back to `compositionViews.get(value).factory`. Both projections reached
+4,096 observations before the deadline. Matching a writer needs its callable identity
+and creating scope. The ordinary source return inventory cannot identify a callback
+obtained through an opaque store or determine which getter its closure captured.
+
+This distinction affects server task emission. An opaque caller can invoke a closure
+that installs a captured field on an object. When the task copies that field into
+component state, a captured `document.title` getter requires the browser. A probe
+that kept uncertainty but omitted refused writer scopes lost the getter and emitted
+the server task. A plain captured field emitted on the reference host.
+Writer discovery therefore retains capture recovery and donor publication. It reuses
+the read's source and enclosing callable across each scan of indexed calls. Each
+candidate still gets its original argument-order exception and reachability check.
+In a diagnostic prefix of 100,000 candidate visits on the frozen Core build, the
+old predicate required 200,000 source-file lookups. The scan performed 4,826 for
+the same visits and agreed with the original ordering decision at every visit.
+The original Core package build still times out on the first client component.
 
 Callable effect collection now opens an explicit property-access query only for property
 and element syntax. Implicit evaluation such as argument coercion has its own consumer.
