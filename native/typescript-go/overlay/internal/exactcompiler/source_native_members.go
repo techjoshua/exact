@@ -78,8 +78,14 @@ func standardNativeLookup(get *sourceGetInputs) bool {
 	return false
 }
 
-func (query *sourceValueQuery) nativeEntryRoot(root *ast.Node, path []string) (*ast.Symbol, sourceNativeKind) {
-	symbol := query.owner.checker.GetSymbolAtLocation(root)
+func (query *sourceValueQuery) nativeEntryRoot(symbol *ast.Symbol, fromGlobal bool, path []string) (*ast.Symbol, sourceNativeKind) {
+	if fromGlobal {
+		if len(path) == 0 {
+			return nil, 0
+		}
+	} else if symbol.ValueDeclaration == nil || !standardLibrarySource(ast.GetSourceFileOfNode(symbol.ValueDeclaration)) {
+		return nil, 0
+	}
 	for _, entry := range []struct {
 		name string
 		kind sourceNativeKind
@@ -90,32 +96,42 @@ func (query *sourceValueQuery) nativeEntryRoot(root *ast.Node, path []string) (*
 		if entry.kind == sourceNativeSymbolConstructorExposure && !query.probingDirectExposure {
 			continue
 		}
-		global := query.owner.checker.GetGlobalSymbol(entry.name, ast.SymbolFlagsValue, nil)
-		if global == nil || global.ValueDeclaration == nil || !standardLibrarySource(ast.GetSourceFileOfNode(global.ValueDeclaration)) {
+		if fromGlobal && entry.name != path[0] {
 			continue
 		}
-		direct := symbol != nil && symbol.ValueDeclaration == global.ValueDeclaration
-		fromGlobal := symbol != nil && symbol == query.owner.checker.GetGlobalSymbol("globalThis", ast.SymbolFlagsValue, nil) && len(path) > 0 && path[0] == global.Name
+		global := query.owner.checker.GetGlobalSymbol(entry.name, ast.SymbolFlagsValue, nil)
+		if global == nil || global.ValueDeclaration == nil {
+			continue
+		}
+		if !fromGlobal && symbol.ValueDeclaration != global.ValueDeclaration {
+			continue
+		}
+		if fromGlobal && !standardLibrarySource(ast.GetSourceFileOfNode(global.ValueDeclaration)) {
+			continue
+		}
 		offset := 0
 		if fromGlobal {
 			offset = 1
 		}
-		if (direct || fromGlobal) && query.probingDirectExposure && len(path) > offset && ((entry.kind == sourceNativeObjectConstructor && path[offset] == "create") || (entry.kind == sourceNativeSymbolConstructorExposure && path[offset] == "for")) {
+		if query.probingDirectExposure && len(path) > offset && ((entry.kind == sourceNativeObjectConstructor && path[offset] == "create") || (entry.kind == sourceNativeSymbolConstructorExposure && path[offset] == "for")) {
 			return global, entry.kind
 		}
-		if entry.kind == sourceNativeSymbolConstructor && (direct || fromGlobal) && len(path) == offset+1 && path[offset] == "for" {
+		if entry.kind == sourceNativeSymbolConstructor && len(path) == offset+1 && path[offset] == "for" {
 			return global, entry.kind
 		}
 		if entry.kind == sourceNativeSymbolConstructorExposure || entry.kind == sourceNativeSymbolConstructor {
 			continue
 		}
-		if (direct || fromGlobal) && (entry.kind == sourceNativePossibleProxyConstructor || entry.kind == sourceNativeWeakMapConstructor || entry.kind == sourceNativePromiseConstructor || len(path) > offset && (entry.kind == sourceNativeFunctionConstructor && path[offset] == "prototype" || entry.kind != sourceNativeFunctionConstructor && (path[offset] == "defineProperty" || entry.kind == sourceNativeObjectConstructor && (path[offset] == "freeze" || path[offset] == "defineProperties" || path[offset] == "getOwnPropertyDescriptor" || query.stagedCreateAcquisition() && path[offset] == "create" || query.stagedTargetAcquisition() && path[offset] == "prototype" && len(path) == offset+1)))) {
+		if entry.kind == sourceNativePossibleProxyConstructor || entry.kind == sourceNativeWeakMapConstructor || entry.kind == sourceNativePromiseConstructor || len(path) > offset && (entry.kind == sourceNativeFunctionConstructor && path[offset] == "prototype" || entry.kind != sourceNativeFunctionConstructor && (path[offset] == "defineProperty" || entry.kind == sourceNativeObjectConstructor && (path[offset] == "freeze" || path[offset] == "defineProperties" || path[offset] == "getOwnPropertyDescriptor" || query.stagedCreateAcquisition() && path[offset] == "create" || query.stagedTargetAcquisition() && path[offset] == "prototype" && len(path) == offset+1))) {
 			return global, entry.kind
 		}
 	}
 	return nil, 0
 }
 func (query *sourceValueQuery) nativeRootDeclaration(node *ast.Node) (*ast.Symbol, sourceNativeKind) {
+	if node == nil || !standardLibrarySource(ast.GetSourceFileOfNode(node)) {
+		return nil, 0
+	}
 	for _, entry := range []struct {
 		name string
 		kind sourceNativeKind
@@ -127,7 +143,7 @@ func (query *sourceValueQuery) nativeRootDeclaration(node *ast.Node) (*ast.Symbo
 			continue
 		}
 		global := query.owner.checker.GetGlobalSymbol(entry.name, ast.SymbolFlagsValue, nil)
-		if global != nil && global.ValueDeclaration == node && standardLibrarySource(ast.GetSourceFileOfNode(node)) {
+		if global != nil && global.ValueDeclaration == node {
 			return global, entry.kind
 		}
 	}
@@ -144,21 +160,22 @@ func (query *sourceValueQuery) nativePromiseEntry(node, root *ast.Node, path []s
 	if root == nil {
 		return nil, nil
 	}
-	global, kind := query.nativeEntryRoot(root, path)
+	symbol := query.owner.checker.GetSymbolAtLocation(root)
+	if symbol == nil {
+		return nil, nil
+	}
+	fromGlobal := symbol == query.owner.checker.GetGlobalSymbol("globalThis", ast.SymbolFlagsValue, nil)
+	global, kind := query.nativeEntryRoot(symbol, fromGlobal, path)
 	if global == nil || len(path) == 0 && kind != sourceNativePossibleProxyConstructor && kind != sourceNativeWeakMapConstructor {
 		return nil, nil
 	}
-	if symbol := query.owner.checker.GetSymbolAtLocation(root); symbol != nil && symbol == query.owner.checker.GetGlobalSymbol("globalThis", ast.SymbolFlagsValue, nil) {
+	if fromGlobal {
 		if path[0] != global.Name {
 			return nil, nil
 		}
 		return &sourceValue{node: global.ValueDeclaration, native: &sourceNativeValue{kind: sourceNativeGlobalObject, acquired: root}}, path
 	}
-	symbol := query.owner.checker.GetSymbolAtLocation(root)
-	if symbol == nil || symbol.ValueDeclaration != global.ValueDeclaration {
-		return nil, nil
-	}
-	return &sourceValue{node: symbol.ValueDeclaration, native: &sourceNativeValue{kind: kind, acquired: root}}, path
+	return &sourceValue{node: global.ValueDeclaration, native: &sourceNativeValue{kind: kind, acquired: root}}, path
 }
 
 func (query *sourceValueQuery) nativeMemberSeed(value sourceValue, key string, symbol *ast.Symbol, result *accessorCandidates) (*ast.Node, sourceValue, bool) {
