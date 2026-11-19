@@ -434,7 +434,7 @@ func (availability *moduleValueAvailability) placement(symbol *ast.Symbol) strin
 	placement := "isomorphic"
 	switch {
 	case analysis.opaque || (analysis.browser && analysis.server):
-		return "unknown"
+		placement = "unknown"
 	case analysis.browser:
 		placement = "client"
 	case analysis.server:
