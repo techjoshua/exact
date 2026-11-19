@@ -33,7 +33,7 @@ func (query *sourceValueQuery) consumeNativeInvocation(node *ast.Node, value sou
 		query.withActiveInvocation(node, func() {
 			revoke, _ := query.beginDescriptorSourcePhases(node, value)
 			defer revoke()
-			query.descriptorInvocationEffects(node, value, bindings, result)
+			query.descriptorInvocationEffects(node, value, bindings, result, consumer.descriptorData)
 		})
 		return
 	}

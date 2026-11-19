@@ -1407,6 +1407,9 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 				query.traceProjection = progressBeginProjection(query, value, projection, name, mode)
 				defer func() { query.traceProjection = tracePriorProjection }()
 				interest := sourceCallResultInterest{purpose: resultSourceProjection}
+				if query.dependenciesOnly && !instance && mode == accessorAcquire && name == "" && len(projection) == 1 && projection[0] == "value" && descriptorRetrievalIntent(value) && query.immutableDescriptorValueRead(value) {
+					interest.descriptorData = func(source sourceValue) { result.values = append(result.values, source) }
+				}
 				if query.dependenciesOnly && query.stagedMember != nil && query.stagedMember.returnResult != nil && query.normalBindingCall == nil && len(query.creators) == 0 && len(arguments) == 0 && (len(projection) != 0 || name != "" || mode&(accessorReachable|accessorEnumerate) != 0) {
 					interest.discover = func(source *sourceStagedFreezeReturnSource) bool {
 						if query.projectFreezeReturnPrefix(source, projection, name, mode, arguments, &result, visit) {

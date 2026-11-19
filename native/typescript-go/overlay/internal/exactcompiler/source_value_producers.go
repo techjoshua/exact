@@ -712,3 +712,17 @@ func (query *sourceValueQuery) moduleCallWriteProducer(left, writer, call *ast.N
 	known, taken := query.logicalModuleWrite(left, bindings)
 	return known && taken && ast.IsIdentifier(expression) && ast.IsFunctionDeclaration(writer) && !query.owner.bindingWritten(query.owner.checker.GetSymbolAtLocation(expression)) && enclosingCallableNode(call) == nil && query.precedes(call, at, bindings) && query.callableProducer(left, writer, bindings)
 }
+
+// descriptorWriterPrecedes ties a performed own-slot write to this particular
+// local Call before the descriptor snapshot. Other calls of that function cannot
+// supply its ordering. The member owner checks the actual receiver and data slot.
+func (q *sourceValueQuery) descriptorWriterPrecedes(left, call, lookup *ast.Node, caller, writerBindings sourceValueBindings) bool {
+	writer := enclosingCallableNode(left)
+	target := unwrapSourceCallableReference(call.Expression())
+	if target == nil || !ast.IsIdentifier(target) || writer == nil || !ast.IsFunctionDeclaration(writer) {
+		return false
+	}
+	symbol := q.owner.checker.GetSymbolAtLocation(target)
+	return symbol != nil && symbol.ValueDeclaration == writer && !q.owner.bindingWritten(symbol) &&
+		q.precedes(call, lookup, caller) && q.callableProducer(left, writer, writerBindings)
+}

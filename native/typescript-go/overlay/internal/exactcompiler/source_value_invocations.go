@@ -11,6 +11,7 @@ import (
 // body or intrinsic resolver. A result observer never enrolls execution escapes
 // merely by selecting the same call. Both consumers keep actual input obligations.
 type sourceInvocationConsumer struct {
+	descriptorData func(sourceValue)                                     // Possible callback in the requested descriptor.value field.
 	descriptorView func(sourceNativeDescriptorView, sourceValueBindings) // Typed result channel, never raw receiver/output.
 	// arrayPush consumes MAY mutation effects only, never a native result receipt.
 	arrayPush func(*ast.Node, sourceValue, sourceValueBindings, *accessorCandidates)
@@ -490,10 +491,6 @@ func (query *sourceValueQuery) receiverCandidates(call *ast.Node, bindings sourc
 			// A member callee owns this exact Get. A saved identifier's earlier
 			// binding Get belongs to its initializer, not this later Call.
 			result = query.sourceAccessorOperationCandidates(callee, nil, "", accessorAcquire, bindings, callee)
-			if body := query.localDescriptorValueCallback(callee); body != nil {
-				// Keep all existing selection alternatives and their uncertainty.
-				result.values = append(result.values, sourceValue{node: body})
-			}
 		} else {
 			result = query.accessors(call.AsCallExpression().Expression, nil, "", accessorAcquire, bindings, nil)
 		}

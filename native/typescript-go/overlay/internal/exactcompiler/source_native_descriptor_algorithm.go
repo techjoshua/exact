@@ -6,8 +6,8 @@ import "github.com/microsoft/TypeScript/tsc/internal/ast"
 // Arguments are acquired in supplied order before native conversion. The input
 // relationships, possible protocol bodies and Throw are separate from returned
 // descriptor membership; this path cannot publish an ordinary result receipt.
-func (q *sourceValueQuery) descriptorInvocationEffects(call *ast.Node, callee sourceValue, bindings sourceValueBindings, result *accessorCandidates) {
-	if !q.dependenciesOnly || q.operation != nil || callee.native == nil || callee.native.kind != sourceNativeObjectGetOwnPropertyDescriptor || callee.native.referencesIncomplete || callee.node == nil || !standardLibrarySource(ast.GetSourceFileOfNode(callee.node)) {
+func (q *sourceValueQuery) descriptorInvocationEffects(call *ast.Node, callee sourceValue, bindings sourceValueBindings, result *accessorCandidates, data func(sourceValue)) {
+	if !q.dependenciesOnly || q.operation != nil || callee.native == nil || callee.native.kind != sourceNativeObjectGetOwnPropertyDescriptor || callee.node == nil || !standardLibrarySource(ast.GetSourceFileOfNode(callee.node)) {
 		result.opaque, result.valueIncomplete = true, true
 		return
 	}
@@ -16,8 +16,28 @@ func (q *sourceValueQuery) descriptorInvocationEffects(call *ast.Node, callee so
 		result.opaque, result.valueIncomplete = true, true
 		return
 	}
+	// A partial external source graph retains the ordinary unknown. The
+	// checked native alternative can still supply a possible own-data callback.
+	var literalKey *ast.Node
+	if data != nil {
+		literalKey = unwrapSourceCallableReference(actuals[1])
+	}
+	wantsData := literalKey != nil && ast.IsStringLiteralLike(literalKey) && literalKey.Text() != "__proto__"
+	if callee.native.referencesIncomplete {
+		result.opaque, result.valueIncomplete = true, true
+		if !wantsData {
+			return
+		}
+		root, name := sourceLiteralMemberReference(call.Expression())
+		if name != "getOwnPropertyDescriptor" || root == nil || !ast.IsIdentifier(root) || root.Text() != "Object" || !standardLibraryValue(root, q.owner.checker) || standardLibraryCallOwner(call.AsCallExpression(), q.owner.checker) != "ObjectConstructor" {
+			return
+		}
+	}
 	var values [2][]sourceValue
 	for i, actual := range actuals {
+		if i == 1 && callee.native.referencesIncomplete {
+			break // The projected key is an authored string literal.
+		}
 		part := accessorCandidates{}
 		var admitted bool
 		values[i], admitted = q.actualArgumentValues(call, actual, &part)
@@ -45,6 +65,16 @@ func (q *sourceValueQuery) descriptorInvocationEffects(call *ast.Node, callee so
 			}
 		}
 		mergeAccessorCandidates(result, part)
+	}
+	if wantsData {
+		for _, value := range values[0] {
+			q.withProxySourceScope(value, bindings, func(scope sourceValueBindings) {
+				q.descriptorDataCallbacks(call, value, literalKey.Text(), scope, result, data)
+			})
+		}
+	}
+	if callee.native.referencesIncomplete {
+		return
 	}
 	q.publishDescriptorMutationSource(call)
 	// A genuinely selected builtin permits Proxy/coercion/Throw alternatives.
@@ -81,118 +111,66 @@ func (q *sourceValueQuery) descriptorInvocationEffects(call *ast.Node, callee so
 	result.valueIncomplete = true // Conditional source operator, never normal B.
 }
 
-// localDescriptorValueCallback contributes the function in a fresh own data
-// property only when the returned descriptor's value is actually called.
-// A descriptor lookup alone never invokes the stored function or a target getter.
-func (q *sourceValueQuery) localDescriptorValueCallback(member *ast.Node) *ast.Node {
-	receiver, field := sourceLiteralMemberReference(member)
-	if field != "value" || q.owner.program == nil {
-		return nil
+// immutableDescriptorValueRead requires this actual invocation to read the
+// original snapshot. A write to descriptor.value has its own later writer.
+func (q *sourceValueQuery) immutableDescriptorValueRead(retrieval *ast.Node) bool {
+	ref, key := sourceLiteralMemberReference(q.protectedMember)
+	if key != "value" || q.owner.program == nil {
+		return false
 	}
-	outer := enclosingCallableNode(member)
-	// Follow immutable, unaliased uses up to the original descriptor retrieval.
-	retrieval, _ := q.descriptorOperand(receiver, outer, nil, "")
-	if retrieval == nil || !ast.IsCallExpression(retrieval) {
-		return nil
-	}
-	call := retrieval.AsCallExpression()
-	root, method := sourceLiteralMemberReference(call.Expression)
-	if method != "getOwnPropertyDescriptor" || root == nil || !ast.IsIdentifier(root) || root.Text() != "Object" ||
-		!standardLibraryValue(root, q.owner.checker) || standardLibraryCallOwner(call, q.owner.checker) != "ObjectConstructor" ||
-		call.Arguments == nil || len(call.Arguments.Nodes) != 2 {
-		return nil
-	}
-	key := unwrapSourceCallableReference(call.Arguments.Nodes[1])
-	if key == nil || !ast.IsStringLiteralLike(key) || key.Text() == "__proto__" {
-		return nil
-	}
-	target, replacement := q.descriptorOperand(call.Arguments.Nodes[0], outer, retrieval, key.Text())
-	if target == nil || !ast.IsObjectLiteralExpression(target) {
-		return nil
-	}
-	var body *ast.Node
-	for _, property := range target.AsObjectLiteralExpression().Properties.Nodes {
-		if property.Name() == nil || ast.IsComputedPropertyName(property.Name()) || ast.IsSpreadAssignment(property) {
-			return nil
-		}
-		if callableNameText(property.Name()) == key.Text() {
-			body = nil // A later own property replaces an earlier one.
-			if ast.IsPropertyAssignment(property) {
-				value := unwrapSourceCallableReference(property.Initializer())
-				if value != nil && ast.IsArrowFunction(value) {
-					body = value
-				}
-			}
-		}
-	}
-	if replacement != nil {
-		if !directSourceDataSlot(target, []string{key.Text()}, replacement.Left, q.owner.checker) {
-			return nil
-		}
-		body = unwrapSourceCallableReference(replacement.Right)
-		if !ast.IsArrowFunction(body) {
-			return nil
-		}
-	}
-	return body
-}
-
-// descriptorOperand follows a chain of local consts. A separate statement
-// assigning the same own slot in the retrieval's block can replace the target
-// value. The descriptor snapshots that value when it is read.
-func (q *sourceValueQuery) descriptorOperand(ref, owner, retrieval *ast.Node, key string) (*ast.Node, *ast.BinaryExpression) {
-	var replacement *ast.BinaryExpression
-	var mutationBlock *ast.Node
 	for ref = unwrapSourceCallableReference(ref); ref != nil && ast.IsIdentifier(ref); {
 		symbol := q.owner.checker.GetSymbolAtLocation(ref)
-		if symbol == nil || !localConstructionBinding(symbol.ValueDeclaration, owner, q.owner) || symbol.ValueDeclaration.End() > ref.Pos() {
-			return nil, nil
+		if symbol == nil || symbol.ValueDeclaration == nil {
+			return false
+		}
+		declaration := symbol.ValueDeclaration
+		if !localConstructionBinding(declaration, enclosingCallableNode(declaration), q.owner) || declaration.End() > ref.Pos() {
+			return false
 		}
 		uses := q.owner.index(ast.GetSourceFileOfNode(ref)).privateUses
 		if uses == nil || !uses.complete || len(uses.unresolved[ref.Text()]) != 0 {
-			return nil, nil
+			return false
 		}
-		observed := false
-		for _, use := range uses.uses[ast.GetSymbolId(symbol)] {
-			if use.region != owner {
-				return nil, nil
-			}
-			if use.node == ref {
-				observed = true
-				continue
-			}
-			member := use.node.Parent
-			base, field := sourceLiteralMemberReference(member)
-			if retrieval == nil || base != use.node || field != key || member.Parent == nil || !ast.IsBinaryExpression(member.Parent) {
-				return nil, nil
-			}
-			write := member.Parent.AsBinaryExpression()
-			statement := member.Parent.Parent
-			lookup := enclosingVariableStatement(retrieval)
-			if write.Left != member || write.OperatorToken.Kind != ast.KindEqualsToken || statement == nil ||
-				!ast.IsExpressionStatement(statement) || lookup == nil || statement.Parent != lookup.Parent ||
-				!ast.IsBlock(statement.Parent) || !ast.IsVariableDeclaration(retrieval.Parent) || retrieval.Parent.Initializer() != retrieval {
-				return nil, nil
-			}
-			mutationBlock = statement.Parent
-			if member.Pos() < retrieval.Pos() && (replacement == nil || replacement.Left.Pos() < member.Pos()) {
-				replacement = write
-			}
+		refs := uses.uses[ast.GetSymbolId(symbol)]
+		if len(refs) != 1 || refs[0].node != ref {
+			return false
 		}
-		if !observed {
-			return nil, nil
-		}
-		ref = unwrapSourceCallableReference(symbol.ValueDeclaration.Initializer())
+		ref = unwrapSourceCallableReference(declaration.Initializer())
 	}
-	if mutationBlock != nil {
-		// Each execution of this block needs its own fresh target. A write
-		// after retrieval in a loop could otherwise affect the next iteration.
-		creation := enclosingVariableStatement(ref)
-		if creation == nil || creation.Parent != mutationBlock {
-			return nil, nil
+	return ref == retrieval
+}
+
+// descriptorDataCallbacks observes the own data slot at retrieval. Later
+// descriptor consumers never invoke a getter of the original target.
+func (q *sourceValueQuery) descriptorDataCallbacks(call *ast.Node, target sourceValue, key string, scope sourceValueBindings, result *accessorCandidates, data func(sourceValue)) {
+	if target.node == nil || len(target.path) != 0 || !ast.IsObjectLiteralExpression(target.node) || !directSourceDataSlot(target.node, []string{key}, nil, q.owner.checker) {
+		return
+	}
+	deliver := func(value sourceValue) {
+		if value.node != nil && len(value.path) == 0 && ast.IsArrowFunction(value.node) {
+			if value.capture == nil {
+				capture := q.acquireCallableScope(scope, result)
+				value.capture = &capture
+			}
+			data(value)
 		}
 	}
-	return ref, replacement
+	reading, initializing := q.reading, q.initializing
+	q.reading, q.initializing = call, call
+	defer func() { q.reading, q.initializing = reading, initializing }()
+	if q.memberValuesAtGet(target.node, []string{key}, "", accessorNoGet, scope, result, deliver, sourceMemberOperationProof{descriptorData: true}, nil) {
+		return
+	}
+	properties := target.node.AsObjectLiteralExpression().Properties.Nodes
+	for i := len(properties) - 1; i >= 0; i-- {
+		p := properties[i]
+		if p.Name() != nil && callableNameText(p.Name()) == key {
+			if ast.IsPropertyAssignment(p) {
+				deliver(sourceValue{node: unwrapSourceCallableReference(p.Initializer())})
+			}
+			return
+		}
+	}
 }
 
 // descriptorProxyEffects preserves the native two-argument trap protocol. The

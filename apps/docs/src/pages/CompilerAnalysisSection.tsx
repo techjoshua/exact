@@ -80,12 +80,12 @@ export function CompilerAnalysisSection(this: Component<{}>) {
 			</p>
 			<p>
 				Reading a property descriptor leaves a stored callback dormant. If a helper uses
-				<code>Object.getOwnPropertyDescriptor</code> on its own local object and calls the
-				descriptor's <code>value</code>, a browser read in that arrow function can rule out server
-				placement. A descriptor keeps the callback it held at lookup, including when you call it
-				through a local const alias. If another function receives the target or a conditional
-				assignment changes the callback, keep browser-only work in a client task. The compiler can
-				miss that requirement in those cases.
+				<code>Object.getOwnPropertyDescriptor</code> on its local object and calls the descriptor's
+				<code>value</code>, placement includes the arrow function held at lookup. A helper can
+				replace that callback before lookup. A conditional replacement keeps both possible callbacks
+				in consideration. For example, if either can read <code>document.title</code>, keep the
+				invocation in a client task. Changing the target after lookup leaves the earlier descriptor
+				intact.
 			</p>
 			<p>
 				Placement includes work performed when a module loads, such as class static fields, static

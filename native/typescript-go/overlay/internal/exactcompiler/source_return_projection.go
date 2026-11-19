@@ -48,6 +48,7 @@ func (query *sourceValueQuery) projectSourceCallReturnsWithViews(call *ast.Node,
 		sourceReturn:   project,
 		sourceView:     view,
 		descriptorView: descriptorConsumer,
+		descriptorData: interest.descriptorData,
 		body: func(body *ast.Node, captures sourceValueBindings, inputs *sourceValueInputs, invocation *ast.Node, part *accessorCandidates) {
 			query.projectSelectedSourceReturns(body, call, captures, inputs, part, project, deferred)
 		},

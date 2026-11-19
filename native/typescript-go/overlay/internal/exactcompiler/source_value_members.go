@@ -140,6 +140,7 @@ func (query *sourceValueQuery) memberValuesAtGetWithStandard(origin *ast.Node, p
 	restoreMemberSource := query.enterStagedMemberSource(get, cut, result)
 	defer restoreMemberSource()
 	returned := func() bool {
+		descriptorData := operation.descriptorData
 		var sourceIndexes [4]sourceValueIndex
 		var indexes []sourceValueIndex
 		sourceInterval := query.liveStagedMemberSource(query.stagedMember, get, cut)
@@ -375,6 +376,9 @@ func (query *sourceValueQuery) memberValuesAtGetWithStandard(origin *ast.Node, p
 									} else {
 										producer, possible = query.moduleWriteProducer(assignment.left, assignmentBindings, result)
 									}
+								}
+								if descriptorData && producer == nil && !input.incomplete && input.call != nil && query.descriptorWriterPrecedes(assignment.left, input.call, cut.operation, bindings, assignmentBindings) {
+									producer = input.call
 								}
 								if !possible {
 									continue

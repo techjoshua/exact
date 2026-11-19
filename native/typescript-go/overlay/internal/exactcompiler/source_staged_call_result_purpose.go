@@ -23,6 +23,8 @@ type sourceCallResultInterest struct {
 	// discover is supplied only by the actual SOURCE field visitor. The existing
 	// original issuer calls it synchronously; neither it nor a query is retained.
 	discover func(*sourceStagedFreezeReturnSource) bool
+	// A synchronous callback for the actual descriptor.value source reader only.
+	descriptorData func(sourceValue)
 }
 
 func validSourceCallResultInterest(interest sourceCallResultInterest) bool {

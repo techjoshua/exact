@@ -5,11 +5,13 @@ import "github.com/microsoft/TypeScript/tsc/internal/ast"
 // sourceMemberOperationProof describes effects and call eligibility at one operation.
 // It never certifies returned values, replacement identity or selected native methods.
 type sourceMemberOperationProof struct {
-	closed  bool
-	cause   *ast.Node
-	calls   map[*ast.Node]bool
-	regions map[*ast.Node]bool
-	sources []*ast.SourceFile
+	// descriptorData requests writer ordering at this native descriptor lookup.
+	descriptorData bool
+	closed         bool
+	cause          *ast.Node
+	calls          map[*ast.Node]bool
+	regions        map[*ast.Node]bool
+	sources        []*ast.SourceFile
 }
 
 // sourceMemberOperationRegion belongs to one existing source callable or the eager module.
