@@ -588,6 +588,79 @@ changes on common fast compiles as well as the pathological packages. A warning 
 only by a specific useful emitted path, an observable limitation and an action the author
 can take. There is no blanket time-budget-to-warning conversion.
 
+### Item 5 disposition at `a5c584b62`
+
+The checked-primitive call and Get paths and the fresh dense array predicate path in
+`collectDirectCallableEffects` require effects from the original operands. The
+standard operation needs no separate occurrence result for placement. Theme's
+`parseThemeColor` consumes the result of `[parsed.l, parsed.c, parsed.h,
+parsed.alpha].every(Number.isFinite)` during ordinary execution. Its four Gets
+remain placement inputs. The matched client component comparison retained emitted
+code, analysis and diagnostics for the neutral predicate, browser element getter,
+browser callback, same-name authored method, explicit own replacement and secret
+operand. The own-replacement comparison included TS2352, so it is diagnostic
+evidence only. The [server membership component control](../native/typescript-go/overlay/internal/exactcompiler/component_array_membership_test.go) covers Theme's hex-length
+check, effects in the element and needle, authored `valueOf` for a nonempty array,
+the empty-array case that skips conversion, and an authored method. These controls
+exercise placement and emission. They do not require the compiler to predict the
+boolean or array contents.
+
+The same distinction applies when an algorithm actually enters authored code.
+`implicitAccessorQueries` supplies iterator getter, enumeration, serialization and
+coercion donors to callable and eager module analysis. `consumeNativeInvocation`
+receives selected native alternatives from ordinary invocation, including a
+borrowed target, and preserves applicable receiver writes and independent effects.
+The represented-operation controls in the
+[built-in policy](compiler-architecture-completion-plan.md#agreed-standard-built-in-trust-policy)
+remain scoped to their original inputs. A typed-only receiver, an acquired own
+replacement and an unknown iterator or thenable each retain their existing effect
+obligations. In Intl, an options-record Get during argument binding can still run
+an authored getter. In Core, receipt creation, metadata access and delayed executor
+redemption each have a separate executing consumer. The checked standard entry
+does not discharge those consumers or supply successful completion. The existing
+comparisons did not establish another shared removal on an executing path.
+The pending spread/member edit was excluded from this disposition.
+
+For the task controls, an alias derived from component state follows that live
+source at consumption. A read after the imported helper sees the pending task
+view, including a write performed by that helper. Under that contract the retained
+emitted server writer produced `after:after:take` and `before:before:skip`. A default
+parameter reads the activation input when its arguments are captured. In the
+separate defaulted control, the snapshot therefore stays `before` while both derived
+reads see `after` on the taken writer path. The retained client and server artifact
+checks observed `before:after:after:take` and `before:before:before:skip` for that
+writer. [HTTP publication](../packages/server/src/continuation/execution.ts) independently intersects exact authorized response paths
+with mutations performed by the request generation. The [direct HTTP control](../packages/compiler/src/compilation/task-state-regressions.test.ts)
+authorized `result` for the read-only helper and additionally `left.value` for the
+writer. Only the taken writer returned a `left.value` change. Neither the
+activation input nor the derived reads grant authority for the sibling. These
+are bounded controls for the activation change and leave broader task acceptance
+open.
+
+The [retained context checks](../packages/compiler/src/compilation/enhancement-intrinsics.test.ts)
+cover a helper-private optional lookup and a provider and consumer with an imported
+public token alias. Required-token metadata and
+its ordering checks still have consumers in enhancement lowering and setup.
+Hidden required tokens, escaping accessor envelopes and source-side opaque
+receipt redemption retain their conservative treatment.
+
+### Item 6 direct caller inventory at `a5c584b62`
+
+| Candidate | Verified direct caller and disposition |
+| --- | --- |
+| All-body `stagedReplacement` mode | The request flag is internal and supplied by Go tests. `newProjectState` copies it, `Session.executeLocked` isolates the project key, and `Session.Execute` handles its gap. `componentCallableDemand`, `publicCallableEffectPurpose` and callable cache refresh consult it. Gap calls remain in original Get/input delivery and staged input consumers. `memberWriterInputs` calls the flag-gated `yieldStagedConstructionWriter`. The mode is private acceptance machinery. Audit shared branches separately before retiring it. |
+| Return and writer projections | `projectSelectedSourceReturns` is called from source return projection, acquired Get execution in `source_operation_inputs.go`, ordinary invocation and the native descriptor algorithm. `reflectiveTargetValues` is called from reflective mutation handling. `writerProjectionDelta` has no caller. The live `writerSourceDelta` is used by writer recipe validation, publication and result delivery. Keep the active receiver and donor paths. |
+| Implicit Gets, initializer and constructor | `collectDirectCallableEffects` calls `appendImplicitAccessorEffects`. Eager module definition traversal calls `evaluatedAccessors`. `sourceValueRefinementRequired` is called by direct extraction and admits initializer plans, ordinary async bodies and awaited operands. `constructDependencyEffects` is called by source invocation for construction. Keep these roots while checking whether a given consumer needs effects, authored thenable behavior or an observable acquired value. |
+| Native entry and Symbol prefix | `nativeAlgorithmEntrySupported` has no caller. The live description path calls `nativeAlgorithmEntryShapeSupported` through `nativeAlgorithmDescriptionSupported`. `nativeSymbolSourceFacts` has no caller and is the sole caller of `bindingSymbolWrite`. `sourceSymbolKeyReady` still has a scheduler reference, but the in-tree `symbolCase` field has no producer. Audit the scheduler arm and observer together before removing this prefix experiment. |
+| Private return and descriptor assertions | `describeStagedCreatingInputs` and `describeObservedStagedReturn` have only test callers. `consumeStagedMapConversionSource` also has only test callers. `descriptorTargetFingerprint`, `descriptorStrongFingerprint` and `originalMutationBodyFingerprint` are called only by `callable_analysis_fingerprint_test.go`. These are candidates for test-local support or retirement. Live descriptor acquisition and authored callbacks still need component controls. |
+| Tooling and artifact consumers | The native session publishes callable analysis. SDK `module-analysis.ts` maps it and `shared-artifact.ts` uses it to reject non-neutral shared artifacts. A library path without a serialized-inventory reader is insufficient grounds to remove this public publication. |
+
+The earlier full Core, Theme and Intl client builds reached their 30-second request
+deadlines before emitting paired artifacts. The standard-operation and task
+receipts above are reused within their original source, target and runtime scopes.
+They leave full package client/server qualification, fresh dependents and
+end-to-end acceptance in item 6 open.
+
 ### Source entry points
 
 - [Request planning and printing](../native/typescript-go/overlay/internal/exactcompiler/session.go),
