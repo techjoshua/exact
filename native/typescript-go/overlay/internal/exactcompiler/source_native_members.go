@@ -363,7 +363,14 @@ func (query *sourceValueQuery) nativeMemberKey(value sourceValue, projection []s
 // Only the explicitly borrowed construction Get is transported to this original
 // native-member owner. Other operation markers retain their existing owners.
 func (query *sourceValueQuery) nativeMemberKeyAtGet(value sourceValue, projection []string, name string, symbol *ast.Symbol, mode accessorTraversal, bindings sourceValueBindings, result *accessorCandidates, visit func(*ast.Node, []string, bool), external *sourceGetInputs, sourceVisits ...func(sourceValue)) {
-	path := append(append([]string{}, value.path...), projection...)
+	path := value.path
+	if len(projection) != 0 {
+		if len(path) != 0 {
+			result.opaque = true
+			return
+		}
+		path = projection
+	}
 	if len(path) == 0 && name == "" {
 		if mode == accessorAcquire {
 			result.values = append(result.values, value)
@@ -400,13 +407,15 @@ func (query *sourceValueQuery) nativeMemberKeyAtGet(value sourceValue, projectio
 	}
 	defer func() { query.reading = previous }()
 	sources, referencesIncomplete := query.nativeSelectionSources(origin, result)
-	lookup := value
+	get := &sourceGetInputs{operation: query.reading, receiver: value, symbol: symbol}
+	get.lookupOwner = &get.receiver
 	if value.native.kind == sourceNativePromiseFacade || value.native.kind == sourceNativeAsyncFacade {
 		contract := *value.native
 		contract.kind = sourceNativePromisePrototype
-		lookup.node, lookup.native = origin, &contract
+		prototype := value
+		prototype.node, prototype.native = origin, &contract
+		get.lookupOwner = &prototype
 	}
-	get := &sourceGetInputs{operation: query.reading, receiver: value, lookupOwner: &lookup, symbol: symbol}
 	// Only this original fresh scalar Await can use the standard constructor
 	// contract without proving a pristine external reference universe.
 	standardAwait := mode == accessorAcquire && query.immediateScalarPromiseAwaitLookup(get, key)
@@ -495,7 +504,7 @@ func (query *sourceValueQuery) nativeMemberKeyAtGet(value sourceValue, projectio
 				candidates := query.occurrenceOrigins(receiver, written, origin, bindings, &temporary)
 				unresolved := len(candidates) == 0 || temporary.opaque || temporary.valueIncomplete || temporary.receiverIncomplete
 				for _, candidate := range candidates {
-					if query.nativeReceiverMatches(candidate, lookup) {
+					if query.nativeReceiverMatches(candidate, *get.lookupOwner) {
 						result.opaque = true
 					}
 					finiteOther := candidate.node != nil && len(candidate.path) == 0 && (ast.IsObjectLiteralExpression(candidate.node) || ast.IsArrayLiteralExpression(candidate.node) || ast.IsFunctionExpression(candidate.node) || ast.IsArrowFunction(candidate.node))

@@ -336,8 +336,8 @@ func (query *sourceValueQuery) publishStagedNativeEntrySource(value sourceValue,
 	}
 	_, incomplete := query.nativeSelectionSources(origin, result)
 	seed.native.referencesIncomplete = value.native.referencesIncomplete || incomplete
-	lookup := value
-	get := &sourceGetInputs{operation: query.reading, receiver: value, lookupOwner: &lookup}
+	get := &sourceGetInputs{operation: query.reading, receiver: value}
+	get.lookupOwner = &get.receiver
 	if standardNativeLookup(get) {
 		query.publishStagedNativeGetSource(get, &seed, []string{key}, "", bindings)
 	}
