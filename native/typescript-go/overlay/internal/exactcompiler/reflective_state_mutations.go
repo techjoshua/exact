@@ -13,6 +13,21 @@ func unsupportedReflectiveStateMutation(
 	return resolvedReflectiveMutation(expression, typeChecker, map[ast.SymbolId]bool{})
 }
 
+// reflectiveMutation reuses the complete declaration lookup for one expression
+// in this owner's checker generation. Receiver and writer reachability remain
+// properties of the individual read.
+func (owner *sourceValueOwner) reflectiveMutation(expression *ast.Node) bool {
+	if mutation, found := owner.reflectiveMutations[expression]; found {
+		return mutation
+	}
+	mutation := resolvedReflectiveMutation(expression, owner.checker, map[ast.SymbolId]bool{})
+	if owner.reflectiveMutations == nil {
+		owner.reflectiveMutations = make(map[*ast.Node]bool)
+	}
+	owner.reflectiveMutations[expression] = mutation
+	return mutation
+}
+
 // resolvedReflectiveMutation follows immutable aliases and compares library declaration identity.
 // A user-defined object with the same method names does not acquire reflective write semantics.
 func resolvedReflectiveMutation(expression *ast.Node, typeChecker *checker.Checker, seen map[ast.SymbolId]bool) bool {

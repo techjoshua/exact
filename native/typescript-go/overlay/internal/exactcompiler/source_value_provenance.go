@@ -95,6 +95,7 @@ type sourceNormalDemand struct {
 // sourceValueOwner retains declaration-parametric demands and source assignment indexes only
 // for its checker generation. It is not a heap, selected-callee certificate or lowering plan.
 type sourceValueOwner struct {
+	reflectiveMutations     map[*ast.Node]bool
 	estimatedCostMaximum    int // immutable cached advisory summary, not authority
 	initializerDeclarations map[*ast.Node]*moduleInitializerProjection
 	initializerOccurrences  map[*ast.Node]*moduleInitializerProjection

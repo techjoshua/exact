@@ -378,7 +378,7 @@ func (query *sourceValueQuery) sourceReflectiveMemberCandidate(origin *ast.Node,
 	call := node.AsCallExpression()
 	descriptorCall := reflectiveDescriptorCall(call, query.owner.checker)
 	native := actualGet != nil && actualGet.receiver.native != nil
-	if query.active[node] || !descriptorCall && (!native || !resolvedReflectiveMutation(call.Expression, query.owner.checker, map[ast.SymbolId]bool{})) {
+	if query.active[node] || !descriptorCall && (!native || !query.owner.reflectiveMutation(call.Expression)) {
 		return false
 	}
 	// A definition on a fresh literal changes that object alone. The
@@ -489,7 +489,7 @@ func (query *sourceValueQuery) reflectiveMemberValueInScope(origin *ast.Node, pr
 	}
 	call := node.AsCallExpression()
 	descriptorCall := reflectiveDescriptorCall(call, query.owner.checker)
-	if !descriptorCall && (!native || !resolvedReflectiveMutation(call.Expression, query.owner.checker, map[ast.SymbolId]bool{})) {
+	if !descriptorCall && (!native || !query.owner.reflectiveMutation(call.Expression)) {
 		return nil, false
 	}
 	key := name

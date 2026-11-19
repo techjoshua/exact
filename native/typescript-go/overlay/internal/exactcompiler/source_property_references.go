@@ -621,7 +621,7 @@ func (query *sourceValueQuery) propertyReferenceEffects(get *sourceGetInputs, ke
 // Actual alias/receiver alternatives are retained by normal acquisition.
 func (query *sourceValueQuery) propertyEntryMayReachPrototype(node *ast.Node) bool {
 	if ast.IsCallExpression(node) {
-		return resolvedReflectiveMutation(node.AsCallExpression().Expression, query.owner.checker, make(map[ast.SymbolId]bool))
+		return query.owner.reflectiveMutation(node.AsCallExpression().Expression)
 	}
 	if ast.IsPropertyAccessExpression(node) || ast.IsElementAccessExpression(node) {
 		return true

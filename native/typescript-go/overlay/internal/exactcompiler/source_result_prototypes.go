@@ -228,7 +228,7 @@ func (query *sourceValueQuery) thenMutationSyntax(node *ast.Node) bool {
 	if !ast.IsCallExpression(node) {
 		return false
 	}
-	return resolvedReflectiveMutation(node.AsCallExpression().Expression, query.owner.checker, make(map[ast.SymbolId]bool))
+	return query.owner.reflectiveMutation(node.AsCallExpression().Expression)
 }
 
 func (query *sourceValueQuery) authoredThenDescriptor(node *ast.Node, bindings sourceValueBindings, result *accessorCandidates) (descriptor *ast.Node, possible, uncertain bool) {
