@@ -37,7 +37,7 @@ func visitImplicitAccessors(node *ast.Node, typeChecker *checker.Checker, bindin
 		// Only these expressions and binding patterns can perform an implicit
 		// read here. A normal invocation may still need its enclosing work ledger.
 		switch node.Kind {
-		case ast.KindNewExpression, ast.KindBinaryExpression, ast.KindVariableDeclaration, ast.KindSpreadAssignment, ast.KindCallExpression:
+		case ast.KindNewExpression, ast.KindBinaryExpression, ast.KindVariableDeclaration, ast.KindSpreadAssignment, ast.KindJsxSpreadAttribute, ast.KindCallExpression:
 		default:
 			visit(accessorCandidates{})
 			return
@@ -78,6 +78,8 @@ func visitImplicitAccessorQueries(node *ast.Node, typeChecker *checker.Checker, 
 	var receivers []*ast.Node
 	if ast.IsSpreadAssignment(node) {
 		receivers = append(receivers, node.AsSpreadAssignment().Expression)
+	} else if ast.IsJsxSpreadAttribute(node) {
+		receivers = append(receivers, node.AsJsxSpreadAttribute().Expression)
 	}
 	if ast.IsCallExpression(node) {
 		call := node.AsCallExpression()

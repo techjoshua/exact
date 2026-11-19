@@ -60,16 +60,47 @@ func (query *sourceValueQuery) retainComponentInputDemand(member *ast.Node, pare
 	if value.inputs != inputs || value.value.node != receiver || len(value.value.path) != 1 || value.value.path[0] != key || value.value.acquired != nil || value.value.instance != nil || value.value.native != nil {
 		return false
 	}
+	return query.publishComponentInputDemand(inputs.ownedFact, field, member, result)
+}
+
+// retainComponentPropKey connects the receiver's existing unresolved prop read
+// to one checked lifecycle call. Only an individual JSX delivery can cover it.
+func (query *sourceValueQuery) retainComponentPropKey(fact *callableFacts, key *ast.Node, result *accessorCandidates) {
+	if len(result.fieldFallbacks) == 0 || key.Parent == nil || !ast.IsElementAccessExpression(key.Parent) || key.Parent.AsElementAccessExpression().ArgumentExpression != key {
+		return
+	}
+	member := key.Parent
+	if _, selected := query.owner.components[fact.node]; !selected || !ordinaryComponentLifecycleCall(normalCalleeGetOwner(member), query.owner.checker, query.executable) {
+		return
+	}
+	_, receiver, direct := directPropsRead(key)
+	if !direct || checkedNonliteralComponentProtocolGet(member, query.owner.checker) == nil {
+		return
+	}
+	props := componentPropsSymbol(fact.node, query.owner.checker)
+	if props == nil || props != query.owner.checker.GetSymbolAtLocation(receiver) || query.owner.bindingWritten(props) {
+		return
+	}
+	for _, field := range result.fieldFallbacks {
+		if field.declaration == fact.node && field.operation == key && field.slot == props.ValueDeclaration && ast.IsParameterDeclaration(field.slot) && field.slot.AsParameterDeclaration().QuestionToken == nil {
+			query.publishComponentInputDemand(fact, field, member, result)
+		}
+	}
+}
+
+// publishComponentInputDemand preserves only the original declaration and generation.
+func (query *sourceValueQuery) publishComponentInputDemand(fact *callableFacts, field sourceFieldDemand, member *ast.Node, result *accessorCandidates) bool {
 	row := sourceComponentInputDemand{field: field, member: member, authority: query.descriptorEffectAuthority(member)}
-	if !row.authority.live() || !query.descriptorEffectAllocation(len(inputs.ownedFact.componentInputDemands)+1, unsafe.Sizeof(row), result, member) {
+	row.authority.prefixMode = fact.descriptorMode
+	if !row.authority.live() || !query.descriptorEffectAllocation(len(fact.componentInputDemands)+1, unsafe.Sizeof(row), result, member) {
 		return false
 	}
-	for _, old := range inputs.ownedFact.componentInputDemands {
+	for _, old := range fact.componentInputDemands {
 		if old == row {
 			return true
 		}
 	}
-	inputs.ownedFact.componentInputDemands = append(inputs.ownedFact.componentInputDemands, row)
+	fact.componentInputDemands = append(fact.componentInputDemands, row)
 	return true
 }
 

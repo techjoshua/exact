@@ -228,6 +228,13 @@ export function CompilerTourPage(this: Component<{}>) {
 					interior bindings or ranges become dirty.
 				</p>
 				<p>
+					A child can use a prop to select a lifecycle method. For example, when the child registers
+					an inline callback with <code>this[props.operation]</code>, passing
+					<code>operation=&quot;onMount&quot;</code>
+					lets the compiler place that registration for this use. Other parents can supply different
+					inputs, so the child keeps the same definition wherever it is used.
+				</p>
+				<p>
 					A small helper can decide whether a module produces a value for one environment. When the
 					acquired source helper immediately returns a primitive literal, the compiler can follow
 					that decision while preserving evaluation of its arguments and defaults. An assignment to

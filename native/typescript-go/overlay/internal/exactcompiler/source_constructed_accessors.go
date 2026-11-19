@@ -18,7 +18,7 @@ func (query *sourceValueQuery) visitConstructedAccessor(demand sourceConstructed
 	value, projection, name, mode := demand.source, demand.projection, demand.name, demand.mode
 
 	if query.dependenciesOnly {
-		if len(projection) > 0 || name != "" || demand.reference != nil {
+		if len(projection) > 0 || name != "" || demand.reference != nil || mode == accessorEnumerate {
 			query.sourceProxyGetDependencies(value, projection, name, mode, arguments, result, demand.reference)
 		}
 	} else if (len(projection) > 0 || name != "") && query.possibleProxyGetEffects(value, projection, name, mode, arguments, result) {

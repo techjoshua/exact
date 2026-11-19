@@ -37,6 +37,7 @@ func appendBoundAccessorEffects(fact *callableFacts, node *ast.Node, targets map
 		query.withDescriptorGetEffectsUse(node, func() {
 			candidates = query.evaluatedSourceAccessors(node, nil)
 		})
+		query.retainComponentPropKey(fact, node, &candidates)
 		// The queued original Get source owner completes preparation; this
 		// ordinary source walk retains its known effects and pending work.
 		appendOwnedGetFact(fact, node, candidates, targets, source, typeChecker)

@@ -1769,9 +1769,9 @@ The compiler emits no alternate helper bodies or class registration. It analyzes
 when they establish component effects, placement or data policy, without taking executable ownership
 of their modules. Callable-only modules are left to the host TypeScript/bundler pipeline.
 
-Computed component operation reads can retain exact receiving-prop obligations. A resolved JSX
-delivery with one matching named string-literal input can adopt its own obligation through a
-private body projection. Standalone definitions and unmatched deliveries retain unknown placement.
+When a component uses a prop to select an inline lifecycle registration, its definition retains
+the unresolved prop read. A JSX use supplying the matching string literal can resolve that read
+for its own render edge. Standalone definitions and unmatched deliveries retain unknown placement.
 A qualified edge does not authorize another edge to the same component or its global partition
 node. Spreads, retained expression operands, getters, Proxy inputs and later updates keep their
 independent evaluation effects. Recipe adoption checks the current program, checker, source indexes

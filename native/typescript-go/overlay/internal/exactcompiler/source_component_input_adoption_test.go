@@ -85,7 +85,9 @@ func TestComponentInputDeliveryRefusals(t *testing.T) {
 // adoption. Exact immutable copies keep only the original source recipe.
 func TestComponentInputAdoptionIdentity(t *testing.T) {
 	session := NewSession()
-	r := session.Execute(Request{Kind: "compile", ID: "component-input-identity.tsx", Diagnostics: "semantic", Source: `import{type Component}from'@exactjs/core';function Page(this:Component<{}>,props:{operation:'onMount'}){this[props.operation](()=>{});return()=> <p/>}export function Parent(){return()=> <Page operation="onMount"/>}`})
+	// Inspect the neutral projection itself. Checking an executable target can
+	// subsequently replace its callable cache with the independent authored proof.
+	r := session.Execute(Request{Kind: "compile", ID: "component-input-identity.tsx", Target: TargetDefault, Diagnostics: "semantic", Source: `import{type Component}from'@exactjs/core';function Page(this:Component<{}>,props:{operation:'onMount'}){this[props.operation](()=>{});return()=> <p/>}export function Parent(){return()=> <Page operation="onMount"/>}`})
 	if r.Error != "" || hasErrorDiagnostic(r.Diagnostics) {
 		t.Fatal(r.Error, r.Diagnostics)
 	}
@@ -140,14 +142,16 @@ func TestComponentInputAdoptionIdentity(t *testing.T) {
 // A source recipe belongs to one delivery edge. Its sibling and the exported
 // declaration/global partition node retain unresolved external input authority.
 func TestComponentInputMixedDeliveries(t *testing.T) {
-	for _, test := range []struct{ name, setup string }{
-		{"unresolved", `declare const input:{operation:'onMount'};`},
-		{"getter", `const input={get operation(){document.title;return 'onMount' as const}};`},
-		{"proxy", `const input=new Proxy({operation:'onMount' as const},{get(target,key,receiver){document.title;return Reflect.get(target,key,receiver)}});`},
+	for _, test := range []struct{ name, setup, spread string }{
+		{"unresolved", `declare const input:{operation:'onMount'};`, "input"},
+		{"getter", `const input={get operation(){document.title;return 'onMount' as const}};`, "input"},
+		// Build the Proxy in the render that spreads it. A top-level opaque
+		// initializer is a separate module placement boundary.
+		{"proxy", "", `new Proxy({operation:'onMount' as const},{get(target,key,receiver){document.title;return Reflect.get(target,key,receiver)}})`},
 	} {
 		for _, target := range []Target{TargetClient, TargetServer} {
 			t.Run(test.name+"/"+string(target), func(t *testing.T) {
-				r := NewSession().Execute(Request{Kind: "compile", ID: "component-input-mixed.tsx", Target: target, Diagnostics: "semantic", Source: `import{type Component}from'@exactjs/core';` + test.setup + `export function Page(this:Component<{}>,props:{operation:'onMount'}){this[props.operation](()=>{});return()=> <p>Ready</p>}export function Parent(){return()=> <><Page operation="onMount"/><Page {...input}/></>}`})
+				r := NewSession().Execute(Request{Kind: "compile", ID: "component-input-mixed.tsx", Target: target, Diagnostics: "semantic", Source: `import{type Component}from'@exactjs/core';` + test.setup + `export function Page(this:Component<{}>,props:{operation:'onMount'}){this[props.operation](()=>{});return()=> <p>Ready</p>}export function Parent(){return()=> <><Page operation="onMount"/><Page {...` + test.spread + `}/></>}`})
 				if r.Error != "" || hasErrorDiagnostic(r.Diagnostics) {
 					t.Fatal(r.Error, r.Diagnostics)
 				}
@@ -290,7 +294,9 @@ func TestComponentInputCopiedPriorProgramRefusal(t *testing.T) {
 // by copying the component demand table alongside a mutated recipe.
 func TestComponentInputCurrentLineageRefusals(t *testing.T) {
 	session := NewSession()
-	r := session.Execute(Request{Kind: "compile", ID: "component-input-current-lineage.tsx", Diagnostics: "semantic", Source: `import{type Component}from'@exactjs/core';function Page(this:Component<{}>,props:{operation:'onMount'}){this[props.operation](()=>{});return()=> <p/>}export function Parent(){return()=> <Page operation="onMount"/>}`})
+	// Inspect the neutral projection itself. Checking an executable target can
+	// subsequently replace its callable cache with the independent authored proof.
+	r := session.Execute(Request{Kind: "compile", ID: "component-input-current-lineage.tsx", Target: TargetDefault, Diagnostics: "semantic", Source: `import{type Component}from'@exactjs/core';function Page(this:Component<{}>,props:{operation:'onMount'}){this[props.operation](()=>{});return()=> <p/>}export function Parent(){return()=> <Page operation="onMount"/>}`})
 	if r.Error != "" || hasErrorDiagnostic(r.Diagnostics) {
 		t.Fatal(r.Error, r.Diagnostics)
 	}
