@@ -224,12 +224,12 @@ func (owner *sourceValueOwner) index(source *ast.SourceFile) sourceValueIndex {
 			}
 		}
 	}
-	// Only literal source identity can narrow this write index. Projected, mutable,
-	// returned and symbolic receivers retain the shared dynamic fallback.
+	// Bucket writes by a known allocation site. A computed key stays eligible
+	// for every matching read of that allocation.
 	for _, assignment := range members {
 		root, _ := accessorReceiver(assignment.left)
 		origin := owner.argumentOrigin(root, index.bindings, map[ast.SymbolId]bool{})
-		if origin != nil && (ast.IsObjectLiteralExpression(origin) || ast.IsArrayLiteralExpression(origin)) {
+		if origin != nil && (ast.IsObjectLiteralExpression(origin) || ast.IsArrayLiteralExpression(origin) || owner.localNullRecordAllocation(root, origin)) {
 			index.memberOrigins[origin] = append(index.memberOrigins[origin], assignment)
 		} else {
 			index.dynamicMembers = append(index.dynamicMembers, assignment)
@@ -405,4 +405,27 @@ func (query *sourceValueQuery) numberCallClosed(node *ast.Node, source *ast.Sour
 		}
 	}
 	return body && !candidates.opaque
+}
+
+// localNullRecordAllocation admits the direct const receiver of an ordinary
+// null-prototype allocation to its own assignment bucket. Computed keys stay
+// eligible there, including when the allocation is observed through an alias.
+func (owner *sourceValueOwner) localNullRecordAllocation(root, origin *ast.Node) bool {
+	if !ast.IsIdentifier(root) || !ast.IsCallExpression(origin) {
+		return false
+	}
+	call := origin.AsCallExpression()
+	if !ast.IsPropertyAccessExpression(call.Expression) || call.Expression.Name().Text() != "create" || call.Arguments == nil || len(call.Arguments.Nodes) != 1 || call.Arguments.Nodes[0].Kind != ast.KindNullKeyword {
+		return false
+	}
+	receiver := call.Expression.Expression()
+	if !ast.IsIdentifier(receiver) || receiver.Text() != "Object" || !standardLibraryCallRoot(call.Expression, owner.checker) {
+		return false
+	}
+	symbol := owner.checker.GetSymbolAtLocation(root)
+	if symbol == nil || symbol.ValueDeclaration == nil {
+		return false
+	}
+	decl := symbol.ValueDeclaration
+	return ast.IsVariableDeclaration(decl) && ast.IsIdentifier(decl.Name()) && decl.Parent.Flags&ast.NodeFlagsConst != 0 && decl.Initializer() != nil && unwrapSourceCallableReference(decl.Initializer()) == origin
 }
