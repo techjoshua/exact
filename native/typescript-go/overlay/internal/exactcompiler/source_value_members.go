@@ -678,6 +678,11 @@ func (query *sourceValueQuery) arrayValues(origin *ast.Node, projection []string
 		}
 		return
 	}
+	if query.dependenciesOnly && positional && index == 0 && origin.Parent != nil && ast.IsVariableDeclaration(origin.Parent) && len(origin.AsArrayLiteralExpression().Elements.Nodes) == 0 {
+		if arg := query.localPushArgument(origin, result); arg != nil {
+			visit(arg, rest, false)
+		}
+	}
 	shifted := false
 	for i, element := range origin.AsArrayLiteralExpression().Elements.Nodes {
 		if !query.charge(result, element) {
