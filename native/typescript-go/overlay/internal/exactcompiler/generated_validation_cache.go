@@ -13,12 +13,12 @@ type generatedValidationProject struct {
 	dependencies *validationDependencies
 }
 
-func (entry *generatedValidationProject) reusable(key string, filename string, sources *sourceOverlay) bool {
-	if entry == nil || entry.key != key || !entry.dependencies.unchanged() {
+func (entry *generatedValidationProject) reusable(key string, parse generatedEntryParse, sources *sourceOverlay) bool {
+	if entry == nil || entry.key != key || entry.project.generatedEntry != parse || !entry.dependencies.unchanged() {
 		return false
 	}
 	for path := range entry.project.fs.files {
-		if path == entry.project.fs.canonical(filename) {
+		if path == entry.project.fs.canonical(parse.filename) {
 			continue
 		}
 		if sources == nil {
@@ -30,7 +30,7 @@ func (entry *generatedValidationProject) reusable(key string, filename string, s
 	}
 	if sources != nil {
 		for path, text := range sources.files {
-			if path == entry.project.fs.canonical(filename) {
+			if path == entry.project.fs.canonical(parse.filename) {
 				continue
 			}
 			previous, present := entry.project.fs.files[path]
@@ -51,7 +51,7 @@ func updateValidationOverlays(project *projectState, sources *sourceOverlay) err
 	paths := make([]string, 0, len(sources.files))
 	for path, text := range sources.files {
 		// Authored dependencies must never overwrite this isolated generated entry.
-		if path == project.fs.canonical(project.generatedEntry) {
+		if path == project.fs.canonical(project.generatedEntry.filename) {
 			continue
 		}
 		project.fs.set(path, text)

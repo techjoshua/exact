@@ -12,7 +12,43 @@ import { mkdir, mkdtemp, readFile, writeFile, rm } from 'node:fs/promises';
 import { importArtifact } from '../test-support/import-artifact.js';
 import { NativeCompilerProcess } from '../native/process.js';
 import { resolveNativeCompilerExecutable } from '../native/executable.js';
+import { repositoryPath } from '../test-support/workspace.js';
 import { privateHelperArtifact } from '../test-support/private-helper-artifact.js';
+
+for (const target of ['client', 'server'] as const)
+	it(`checks retained JSX in ordinary enhancement helpers (${target})`, async () => {
+		const root = repositoryPath('packages/component-composition-corpus');
+		const id = path.join(root, 'src/prototypes/preparation.fixtures.tsx');
+		const source = await readFile(id, 'utf8');
+		const compiler = new NativeCompilerProcess({ executable: resolveNativeCompilerExecutable() });
+		onTestFinished(() => compiler.dispose());
+		const request = {
+			kind: 'compile',
+			target,
+			root,
+			configFile: path.join(root, 'tsconfig.json'),
+			diagnostics: 'semantic',
+			preserveOrdinaryModules: true,
+			serverComponents: true,
+			id,
+			source
+		} as const;
+		const valid = compiler.request(request);
+		expect(valid.error).toBeUndefined();
+		expect(valid.diagnostics).toEqual([]);
+		for (const name of ['PreparedEnhancement', 'PreparedPassthrough'])
+			expect(valid.code).toContain(`<${name}>{child}</${name}>`);
+
+		const invalid = compiler.request({
+			...request,
+			source: source + "\nexport const unrelated: number = 'wrong';"
+		});
+		expect(invalid.error).toBeUndefined();
+		expect(invalid.diagnostics).toContainEqual(
+			expect.objectContaining({ code: 'TS2322', severity: 'error', filename: id })
+		);
+		expect(invalid.diagnostics?.some(({ code }) => code === 'TS2749')).toBe(false);
+	});
 
 for (const target of ['client', 'server'] as const)
 	for (const name of ['Object', 'Symbol'] as const)

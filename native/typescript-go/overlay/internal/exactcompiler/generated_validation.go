@@ -36,26 +36,15 @@ func (s *Session) validateGeneratedCode(request Request, fileName string, code s
 }
 
 func validateGeneratedCodeWithCache(request Request, fileName string, code string, sources *sourceOverlay, cache map[Target]*generatedValidationProject) ([]Diagnostic, error) {
-	// JSX has been lowered before this boundary. Parsing the artifact as TSX
-	// would misread ordinary TypeScript generic arrows (`<T>(...) => ...`) as
-	// JSX and reject valid output based on the authored file's syntax kind.
+	// Prefer TS for emitted generic arrows. Ordinary helpers can retain authored JSX.
 	generatedFileName := tspath.NormalizePath(fileName + ".exact.generated.ts")
-	parsed := parser.ParseSourceFile(
-		ast.SourceFileParseOptions{
-			FileName: generatedFileName,
-			Path: tspath.ToPath(
-				generatedFileName,
-				tspath.GetDirectoryPath(generatedFileName),
-				true,
-			),
-		},
-		code,
-		core.ScriptKindTS,
-	)
-	// A preserved ordinary TSX helper is parsed by the host after native component lowering.
-	// Retain the TS-first path for emitted generic arrows in modules with no surviving JSX.
+	options := ast.SourceFileParseOptions{
+		FileName: generatedFileName,
+		Path:     tspath.ToPath(generatedFileName, tspath.GetDirectoryPath(generatedFileName), true),
+	}
+	parsed := parser.ParseSourceFile(options, code, core.ScriptKindTS)
 	if len(parsed.Diagnostics()) != 0 && tspath.FileExtensionIs(fileName, ".tsx") {
-		parsed = parser.ParseSourceFile(ast.SourceFileParseOptions{FileName: generatedFileName, Path: tspath.ToPath(generatedFileName, tspath.GetDirectoryPath(generatedFileName), true)}, code, core.ScriptKindTSX)
+		parsed = parser.ParseSourceFile(options, code, core.ScriptKindTSX)
 	}
 	diagnostics := make([]Diagnostic, 0, len(parsed.Diagnostics()))
 	for _, diagnostic := range parsed.Diagnostics() {
@@ -75,14 +64,15 @@ func validateGeneratedCodeWithCache(request Request, fileName string, code strin
 	key := nativeProjectKey(request, fileName) + "\x00" + generatedFileName
 	entry := cache[request.Target]
 	var project *projectState
-	if entry.reusable(key, fileName, sources) {
+	parse := generatedEntryParse{filename: fileName, kind: parsed.ScriptKind}
+	if entry.reusable(key, parse, sources) {
 		project = entry.project
 		if err := updateValidationOverlays(project, sources); err != nil {
 			return diagnostics, err
 		}
 	} else {
 		observations := newValidationDependencies()
-		created, configDiagnostics, err := newProjectStateWithGeneratedEntry(generatedRequest, fileName, dependencySources, fileName, observations)
+		created, configDiagnostics, err := newProjectStateWithGeneratedEntry(generatedRequest, fileName, dependencySources, parse, observations)
 		for _, diagnostic := range configDiagnostics {
 			diagnostics = append(diagnostics, projectDiagnostic(diagnostic))
 		}

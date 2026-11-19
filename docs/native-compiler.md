@@ -494,7 +494,10 @@ Generated semantic validation owns isolated programs for the last artifact in ea
 checks the virtual file set, changed virtual configuration and package metadata, and observed
 filesystem inputs, including configuration, directory entries,
 real paths and failed resolution probes. Changed or untracked inputs require a fresh validation
-program. Authored and generated type checks remain separate.
+program. Generated entries use TypeScript syntax first to preserve generic arrows. When a TSX
+entry requires JSX parsing for retained helper code, semantic checking uses that same syntax
+under the original module identity. Dependencies keep their own file kinds. Authored and
+generated type checks remain separate.
 Source-map remapping indexes rune boundaries once for repeated UTF-16 conversions. Disjoint
 normalization edits share one text and offset allocation. Invalid or overlapping edits retain
 the sequential recovery path, including equal-position insertion ordering.

@@ -27,7 +27,7 @@ type projectState struct {
 	executableSelection *executableSelection
 	selectionGeneration uint64
 	executionRoots      bool
-	generatedEntry      string
+	generatedEntry      generatedEntryParse
 	currentDirectory    string
 	configFile          string
 	sources             map[string]string
@@ -70,12 +70,12 @@ func newProjectState(request Request, fileName string) (*projectState, []*ast.Di
 // newProjectStateWithSources isolates validation from the retained program while
 // preserving prepared dependencies which need not exist on disk.
 func newProjectStateWithSources(request Request, fileName string, sources map[string]string, observations ...*validationDependencies) (*projectState, []*ast.Diagnostic, error) {
-	return newProjectStateWithGeneratedEntry(request, fileName, sources, "", observations...)
+	return newProjectStateWithGeneratedEntry(request, fileName, sources, generatedEntryParse{}, observations...)
 }
 
 // newProjectStateWithGeneratedEntry keeps generated checking at its authored module identity.
-// Only that isolated entry uses TypeScript parsing after JSX lowering.
-func newProjectStateWithGeneratedEntry(request Request, fileName string, sources map[string]string, generatedEntry string, observations ...*validationDependencies) (*projectState, []*ast.Diagnostic, error) {
+// Only that entry uses the syntax kind selected during generated syntax validation.
+func newProjectStateWithGeneratedEntry(request Request, fileName string, sources map[string]string, generatedEntry generatedEntryParse, observations ...*validationDependencies) (*projectState, []*ast.Diagnostic, error) {
 	currentDirectory := request.Root
 	if currentDirectory == "" {
 		currentDirectory = tspath.GetDirectoryPath(fileName)
@@ -279,29 +279,35 @@ func (state *projectState) invalidateAnalysisCaches() {
 	state.componentLinks = nil
 }
 
+type generatedEntryParse struct {
+	filename string
+	kind     core.ScriptKind
+}
+
 // generatedEntryHost changes parsing only for the generated entry. Module filename/path,
 // dependency resolution and every other host operation retain the existing compiler contract.
 type generatedEntryHost struct {
 	compiler.CompilerHost
 	sources *sourceOverlay
-	entry   string
+	entry   generatedEntryParse
 }
 
-func projectCompilerHost(directory string, sources *sourceOverlay, generatedEntry string) compiler.CompilerHost {
+func projectCompilerHost(directory string, sources *sourceOverlay, generatedEntry generatedEntryParse) compiler.CompilerHost {
 	host := compiler.NewCompilerHost(directory, sources, bundled.LibPath(), nil, nil, nil)
-	if generatedEntry == "" {
+	if generatedEntry.filename == "" {
 		return host
 	}
-	return &generatedEntryHost{CompilerHost: host, sources: sources, entry: sources.canonical(generatedEntry)}
+	generatedEntry.filename = sources.canonical(generatedEntry.filename)
+	return &generatedEntryHost{CompilerHost: host, sources: sources, entry: generatedEntry}
 }
 
 func (host *generatedEntryHost) GetSourceFile(options ast.SourceFileParseOptions) *ast.SourceFile {
-	if host.sources.canonical(options.FileName) != host.entry {
+	if host.sources.canonical(options.FileName) != host.entry.filename {
 		return host.CompilerHost.GetSourceFile(options)
 	}
 	text, exists := host.FS().ReadFile(options.FileName)
 	if !exists {
 		return nil
 	}
-	return parser.ParseSourceFile(options, text, core.ScriptKindTS)
+	return parser.ParseSourceFile(options, text, host.entry.kind)
 }
