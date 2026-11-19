@@ -90,28 +90,8 @@ func (q *sourceValueQuery) localDescriptorValueCallback(member *ast.Node) *ast.N
 		return nil
 	}
 	outer := enclosingCallableNode(member)
-	// These two single-use local consts carry the original object and the
-	// returned descriptor between their creation and use without an alias.
-	initializer := func(ref *ast.Node) *ast.Node {
-		if ref == nil || !ast.IsIdentifier(ref) {
-			return nil
-		}
-		symbol := q.owner.checker.GetSymbolAtLocation(ref)
-		if symbol == nil || !localConstructionBinding(symbol.ValueDeclaration, outer, q.owner) {
-			return nil
-		}
-		index := q.owner.index(ast.GetSourceFileOfNode(ref))
-		uses := index.privateUses
-		if uses == nil || !uses.complete || len(uses.unresolved[ref.Text()]) != 0 {
-			return nil
-		}
-		refs := uses.uses[ast.GetSymbolId(symbol)]
-		if len(refs) != 1 || refs[0].node != ref || refs[0].region != outer || symbol.ValueDeclaration.End() > ref.Pos() {
-			return nil
-		}
-		return unwrapSourceCallableReference(symbol.ValueDeclaration.Initializer())
-	}
-	retrieval := initializer(receiver)
+	// Follow immutable, unaliased uses up to the original descriptor retrieval.
+	retrieval, _ := q.descriptorOperand(receiver, outer, nil, "")
 	if retrieval == nil || !ast.IsCallExpression(retrieval) {
 		return nil
 	}
@@ -126,7 +106,7 @@ func (q *sourceValueQuery) localDescriptorValueCallback(member *ast.Node) *ast.N
 	if key == nil || !ast.IsStringLiteralLike(key) || key.Text() == "__proto__" {
 		return nil
 	}
-	target := initializer(call.Arguments.Nodes[0])
+	target, replacement := q.descriptorOperand(call.Arguments.Nodes[0], outer, retrieval, key.Text())
 	if target == nil || !ast.IsObjectLiteralExpression(target) {
 		return nil
 	}
@@ -145,7 +125,74 @@ func (q *sourceValueQuery) localDescriptorValueCallback(member *ast.Node) *ast.N
 			}
 		}
 	}
+	if replacement != nil {
+		if !directSourceDataSlot(target, []string{key.Text()}, replacement.Left, q.owner.checker) {
+			return nil
+		}
+		body = unwrapSourceCallableReference(replacement.Right)
+		if !ast.IsArrowFunction(body) {
+			return nil
+		}
+	}
 	return body
+}
+
+// descriptorOperand follows a chain of local consts. A separate statement
+// assigning the same own slot in the retrieval's block can replace the target
+// value. The descriptor snapshots that value when it is read.
+func (q *sourceValueQuery) descriptorOperand(ref, owner, retrieval *ast.Node, key string) (*ast.Node, *ast.BinaryExpression) {
+	var replacement *ast.BinaryExpression
+	var mutationBlock *ast.Node
+	for ref = unwrapSourceCallableReference(ref); ref != nil && ast.IsIdentifier(ref); {
+		symbol := q.owner.checker.GetSymbolAtLocation(ref)
+		if symbol == nil || !localConstructionBinding(symbol.ValueDeclaration, owner, q.owner) || symbol.ValueDeclaration.End() > ref.Pos() {
+			return nil, nil
+		}
+		uses := q.owner.index(ast.GetSourceFileOfNode(ref)).privateUses
+		if uses == nil || !uses.complete || len(uses.unresolved[ref.Text()]) != 0 {
+			return nil, nil
+		}
+		observed := false
+		for _, use := range uses.uses[ast.GetSymbolId(symbol)] {
+			if use.region != owner {
+				return nil, nil
+			}
+			if use.node == ref {
+				observed = true
+				continue
+			}
+			member := use.node.Parent
+			base, field := sourceLiteralMemberReference(member)
+			if retrieval == nil || base != use.node || field != key || member.Parent == nil || !ast.IsBinaryExpression(member.Parent) {
+				return nil, nil
+			}
+			write := member.Parent.AsBinaryExpression()
+			statement := member.Parent.Parent
+			lookup := enclosingVariableStatement(retrieval)
+			if write.Left != member || write.OperatorToken.Kind != ast.KindEqualsToken || statement == nil ||
+				!ast.IsExpressionStatement(statement) || lookup == nil || statement.Parent != lookup.Parent ||
+				!ast.IsBlock(statement.Parent) || !ast.IsVariableDeclaration(retrieval.Parent) || retrieval.Parent.Initializer() != retrieval {
+				return nil, nil
+			}
+			mutationBlock = statement.Parent
+			if member.Pos() < retrieval.Pos() && (replacement == nil || replacement.Left.Pos() < member.Pos()) {
+				replacement = write
+			}
+		}
+		if !observed {
+			return nil, nil
+		}
+		ref = unwrapSourceCallableReference(symbol.ValueDeclaration.Initializer())
+	}
+	if mutationBlock != nil {
+		// Each execution of this block needs its own fresh target. A write
+		// after retrieval in a loop could otherwise affect the next iteration.
+		creation := enclosingVariableStatement(ref)
+		if creation == nil || creation.Parent != mutationBlock {
+			return nil, nil
+		}
+	}
+	return ref, replacement
 }
 
 // descriptorProxyEffects preserves the native two-argument trap protocol. The

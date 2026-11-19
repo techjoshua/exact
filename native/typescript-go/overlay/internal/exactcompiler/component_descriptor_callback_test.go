@@ -18,8 +18,8 @@ func TestComponentInvokesStoredDescriptorCallback(t *testing.T) {
 function read(){return document.title;}
 function select(source:string){
 	const capture={read};
-	const target={value:()=>capture.read()+source};
-	const descriptor=Object.getOwnPropertyDescriptor(target,'value');
+	const target={value:()=>INITIAL}; BEFORE
+	const descriptor=Object.getOwnPropertyDescriptor(target,'value'); AFTER
 	return BODY;
 }
 export function Page(this:Component<{label:string,input:string}>,props:{input:string}){
@@ -28,14 +28,18 @@ export function Page(this:Component<{label:string,input:string}>,props:{input:st
 	return()=> <button onClick={()=>run()}>{this.state.label}</button>;
 }`
 	for _, row := range []struct {
-		name, body string
-		invoked    bool
+		name, initial, before, after, body string
+		invoked                            bool
 	}{
-		{"stored", "descriptor ? source : ''", false},
-		{"invoked", "descriptor?.value() ?? source", true},
+		{"stored", "capture.read()+source", "", "", "descriptor ? source : ''", false},
+		{"invoked", "capture.read()+source", "", "", "descriptor?.value() ?? source", true},
+		{"alias", "capture.read()+source", "", "const alias=descriptor;", "alias?.value?.() ?? source", true},
+		{"replacement-browser", "source", "target.value=()=>capture.read()+source;", "", "descriptor?.value() ?? source", true},
+		{"replacement-neutral", "capture.read()+source", "target.value=()=>source;", "", "descriptor?.value() ?? source", false},
+		{"snapshot-before-replacement", "capture.read()+source", "", "target.value=()=>source;", "descriptor?.value() ?? source", true},
 	} {
 		t.Run(row.name, func(t *testing.T) {
-			r := NewSession().Execute(Request{Kind: "compile", Target: TargetServer, ID: filepath.Join(root, "stored-descriptor.tsx"), Source: strings.Replace(source, "BODY", row.body, 1), ConfigFile: timeSemanticConfig(t), Diagnostics: "semantic"})
+			r := NewSession().Execute(Request{Kind: "compile", Target: TargetServer, ID: filepath.Join(root, "stored-descriptor.tsx"), Source: strings.NewReplacer("INITIAL", row.initial, "BEFORE", row.before, "AFTER", row.after, "BODY", row.body).Replace(source), ConfigFile: timeSemanticConfig(t), Diagnostics: "semantic"})
 			assertComponentCallbackPolicy(t, r, row.invoked)
 			for _, summary := range r.Analysis.Callables {
 				if summary.Name != "select" {

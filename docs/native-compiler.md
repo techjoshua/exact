@@ -2425,11 +2425,13 @@ independent. The ordinary collector is not enrolled by this source admission API
 
 For ordinary task placement, a local `Object.getOwnPropertyDescriptor(target, key)` can
 supply the arrow function stored in a fresh object literal's own data property. The
-source owner checks the standard declaration, literal key, and unique uses of both
-local bindings. Obtaining the descriptor leaves the arrow dormant. Calling its
-`value` contributes the arrow's body and captured callees to the task. Reassigning
-the target's property, aliasing the descriptor, or exposing the target before the
-lookup can leave a browser requirement undiscovered during server compilation.
+source owner checks the standard declaration, literal key and indexed uses of local
+const bindings, including single-use aliases. An unconditional assignment to that
+same own data slot in the creation block updates the selection for later lookups.
+Each descriptor retains the arrow selected at its own lookup. Calling its `value`
+contributes the arrow's body and captured callees to the task. Passing the target
+to another function or changing the slot conditionally can still leave a browser
+requirement undiscovered during server compilation.
 
 The reflective field owner records Has and Get effect accounting separately from field
 presence and returned values. A selected ordinary own slot can account for Has effects before
