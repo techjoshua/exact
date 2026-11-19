@@ -3767,6 +3767,9 @@ Earlier getter-selection effects remain with descriptor installation. Literal de
 are compared before caller-input acquisition, avoiding reentry through an unrelated member.
 Active indexed operations and ineligible mutation categories are excluded before projecting
 writer inputs. They cannot reopen the native member acquisition that selected the same Call.
+After dependency-body admission, a wrapper with no indexed nested Call needs no writer scope
+when all its bindings are already resolved. Member paths and pending initializer uses retain
+the original projection and sealing steps because either can contribute uncertainty to fallback.
 Constructor-context disjointness requires the existing allocation law on both alternatives. Source interference uses the same
 original Call's existing performed-write proof rather than losing it at the input boundary.
 

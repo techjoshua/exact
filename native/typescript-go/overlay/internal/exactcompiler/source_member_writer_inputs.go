@@ -608,6 +608,16 @@ func (q *sourceValueQuery) memberWriterBodyCalls(body, call *ast.Node, bindings 
 		result.opaque = true
 		return
 	}
+	// Only a nested writer Call consumes the projected actuals and creator scope.
+	nodes := q.owner.summary(body).nodes
+	for len(nodes) != 0 && !ast.IsCallExpression(nodes[0]) {
+		nodes = nodes[1:]
+	}
+	// Projection and initializer sealing can also contribute uncertainty to
+	// refused-callee recovery, even when no nested Call consumes the scope.
+	if len(nodes) == 0 && !memberWriterInputsNeedResolution(bindings) {
+		return
+	}
 	scope := q.acquireCallableScope(q.memberWriterActualValues(body, call, bindings, result), result)
 	scope.creators[body] = sourceValueCreation{invocation: call}
 	previous, had := q.active[body]
@@ -620,7 +630,7 @@ func (q *sourceValueQuery) memberWriterBodyCalls(body, call *ast.Node, bindings 
 		}
 	}()
 	q.memberWriterScope(sourceMemberWriterInput{scope: scope}, func() {
-		for _, node := range q.owner.summary(body).nodes {
+		for _, node := range nodes {
 			if !ast.IsCallExpression(node) {
 				continue
 			}
@@ -641,6 +651,19 @@ func (q *sourceValueQuery) memberWriterBodyCalls(body, call *ast.Node, bindings 
 			visit(node, bound)
 		}
 	})
+}
+
+// memberWriterInputsNeedResolution reports whether preparing otherwise unused
+// bindings could consult a member or resolve a captured initializer.
+func memberWriterInputsNeedResolution(bindings sourceValueBindings) bool {
+	for _, terms := range bindings {
+		for _, term := range terms {
+			if len(term.path) != 0 || term.initializerUse != nil {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // A source callee Get occurs before this original Call/New evaluates its actuals.
