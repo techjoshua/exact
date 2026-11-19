@@ -76,6 +76,14 @@ export function CompilerAnalysisSection(this: Component<{}>) {
 				dependencies remain visible when an unresolved target or key also leaves uncertainty.
 			</p>
 			<p>
+				Reading a property descriptor leaves a stored callback dormant. If a helper uses
+				<code>Object.getOwnPropertyDescriptor</code> on its own local object and calls the
+				descriptor's <code>value</code>, a browser read in that arrow function can rule out server
+				placement. When the target property changes before lookup or the descriptor passes through
+				another binding, the compiler can miss that requirement. Keep a browser-only callback in a
+				client task when using those forms.
+			</p>
+			<p>
 				Placement includes work performed when a module loads, such as class static fields, static
 				blocks and computed member names. A browser read in a static field still requires the
 				browser. Instance field initializers and method bodies are considered when construction or

@@ -2423,6 +2423,14 @@ exposure or accept field contributions from an unauthenticated prefix. A locally
 algorithm still waits for its six field requirements. Callee Get and eager-input debts remain
 independent. The ordinary collector is not enrolled by this source admission API alone.
 
+For ordinary task placement, a local `Object.getOwnPropertyDescriptor(target, key)` can
+supply the arrow function stored in a fresh object literal's own data property. The
+source owner checks the standard declaration, literal key, and unique uses of both
+local bindings. Obtaining the descriptor leaves the arrow dormant. Calling its
+`value` contributes the arrow's body and captured callees to the task. Reassigning
+the target's property, aliasing the descriptor, or exposing the target before the
+lookup can leave a browser requirement undiscovered during server compilation.
+
 The reflective field owner records Has and Get effect accounting separately from field
 presence and returned values. A selected ordinary own slot can account for Has effects before
 optional inherited-presence precision. Data reads account for their own Get operation separately

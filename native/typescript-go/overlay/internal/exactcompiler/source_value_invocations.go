@@ -490,6 +490,10 @@ func (query *sourceValueQuery) receiverCandidates(call *ast.Node, bindings sourc
 			// A member callee owns this exact Get. A saved identifier's earlier
 			// binding Get belongs to its initializer, not this later Call.
 			result = query.sourceAccessorOperationCandidates(callee, nil, "", accessorAcquire, bindings, callee)
+			if body := query.localDescriptorValueCallback(callee); body != nil {
+				// Keep all existing selection alternatives and their uncertainty.
+				result.values = append(result.values, sourceValue{node: body})
+			}
 		} else {
 			result = query.accessors(call.AsCallExpression().Expression, nil, "", accessorAcquire, bindings, nil)
 		}

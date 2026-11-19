@@ -81,6 +81,73 @@ func (q *sourceValueQuery) descriptorInvocationEffects(call *ast.Node, callee so
 	result.valueIncomplete = true // Conditional source operator, never normal B.
 }
 
+// localDescriptorValueCallback contributes the function in a fresh own data
+// property only when the returned descriptor's value is actually called.
+// A descriptor lookup alone never invokes the stored function or a target getter.
+func (q *sourceValueQuery) localDescriptorValueCallback(member *ast.Node) *ast.Node {
+	receiver, field := sourceLiteralMemberReference(member)
+	if field != "value" || q.owner.program == nil {
+		return nil
+	}
+	outer := enclosingCallableNode(member)
+	// These two single-use local consts carry the original object and the
+	// returned descriptor between their creation and use without an alias.
+	initializer := func(ref *ast.Node) *ast.Node {
+		if ref == nil || !ast.IsIdentifier(ref) {
+			return nil
+		}
+		symbol := q.owner.checker.GetSymbolAtLocation(ref)
+		if symbol == nil || !localConstructionBinding(symbol.ValueDeclaration, outer, q.owner) {
+			return nil
+		}
+		index := q.owner.index(ast.GetSourceFileOfNode(ref))
+		uses := index.privateUses
+		if uses == nil || !uses.complete || len(uses.unresolved[ref.Text()]) != 0 {
+			return nil
+		}
+		refs := uses.uses[ast.GetSymbolId(symbol)]
+		if len(refs) != 1 || refs[0].node != ref || refs[0].region != outer || symbol.ValueDeclaration.End() > ref.Pos() {
+			return nil
+		}
+		return unwrapSourceCallableReference(symbol.ValueDeclaration.Initializer())
+	}
+	retrieval := initializer(receiver)
+	if retrieval == nil || !ast.IsCallExpression(retrieval) {
+		return nil
+	}
+	call := retrieval.AsCallExpression()
+	root, method := sourceLiteralMemberReference(call.Expression)
+	if method != "getOwnPropertyDescriptor" || root == nil || !ast.IsIdentifier(root) || root.Text() != "Object" ||
+		!standardLibraryValue(root, q.owner.checker) || standardLibraryCallOwner(call, q.owner.checker) != "ObjectConstructor" ||
+		call.Arguments == nil || len(call.Arguments.Nodes) != 2 {
+		return nil
+	}
+	key := unwrapSourceCallableReference(call.Arguments.Nodes[1])
+	if key == nil || !ast.IsStringLiteralLike(key) || key.Text() == "__proto__" {
+		return nil
+	}
+	target := initializer(call.Arguments.Nodes[0])
+	if target == nil || !ast.IsObjectLiteralExpression(target) {
+		return nil
+	}
+	var body *ast.Node
+	for _, property := range target.AsObjectLiteralExpression().Properties.Nodes {
+		if property.Name() == nil || ast.IsComputedPropertyName(property.Name()) || ast.IsSpreadAssignment(property) {
+			return nil
+		}
+		if callableNameText(property.Name()) == key.Text() {
+			body = nil // A later own property replaces an earlier one.
+			if ast.IsPropertyAssignment(property) {
+				value := unwrapSourceCallableReference(property.Initializer())
+				if value != nil && ast.IsArrowFunction(value) {
+					body = value
+				}
+			}
+		}
+	}
+	return body
+}
+
 // descriptorProxyEffects preserves the native two-argument trap protocol. The
 // target's stored getter is not read. A trap return instead undergoes the real
 // ordered ToPropertyDescriptor Has/Get/validation owner, including its getters.
