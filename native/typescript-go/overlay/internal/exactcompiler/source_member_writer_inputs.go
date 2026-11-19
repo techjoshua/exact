@@ -595,6 +595,13 @@ func (q *sourceValueQuery) memberWriterScopes(writer, call *ast.Node, bindings s
 						q.directWriterExposure, q.directExposureConsumer = prior, consumer
 						q.directExposureArgument, q.directExposureCuts = priorArgument, priorCuts
 					}()
+					// A prior argument may have reassigned this binding. Recover its
+					// value at the original argument read, after the prior argument.
+					if position > 0 && ast.IsIdentifier(unwrapSourceCallableReference(argument)) {
+						previous := q.initializing
+						q.initializing = argument
+						defer func() { q.initializing = previous }()
+					}
 					return q.accessors(argument, nil, "", accessorAcquire, bindings, nil)
 				})
 			}

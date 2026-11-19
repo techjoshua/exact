@@ -376,10 +376,14 @@ func TestComponentRefusedWriterPlacement(t *testing.T) {
 		{"guarded argument with callee getter", "{value:'safe'}", `const store={get get(){void document.title;return (_:object)=>0}};
    function read(value:unknown){return typeof value==='object' && value!==null ? store.get(value) : undefined}
    read({});invoke(write);`, true},
+		{"earlier argument installs writer", "{get value(){return document.title}}", "let value:object={};accept((value=write,0),value);", true},
+		{"later argument installs writer", "{get value(){return document.title}}", "let value:object={};accept(value,(value=write,0));", false},
+		{"earlier argument installs neutral writer", "{value:'safe'}", "let value:object={};accept((value=write,0),value);", false},
 		{"reassigned object", "{get value(){return document.title}}", "let value:object={};value=write;invoke(value as ()=>void);", true},
 	} {
 		t.Run(row.name, func(t *testing.T) {
 			source := `import {TaskContext,type Component} from '@exactjs/core';
+declare function accept(first:unknown,second:unknown):void;
 declare function invoke(fn:()=>void):void;
 export function Page(this:Component<{label:string}>){
  this.state.label='';
