@@ -2,7 +2,7 @@
 
 Status: execution authorized by the user on 2026-11-01 after the adversarial plan audit. The objective is to fully implement this plan. Work proceeds through local commits and isolated worktrees, with the coordinator integrating on the current branch. Push and publication are not authorized.
 
-For the remaining implementation, apply the [component-consumer completion criteria](#component-consumer-completion-criteria) to the historical operation-family milestones and acceptance tests.
+For the remaining implementation, follow the [analysis audit and work plan](compiler-analysis-work-plan.md) and apply the [component-consumer completion criteria](#component-consumer-completion-criteria) to the historical operation-family milestones and acceptance tests.
 
 Prepared 2026-11-01 against the inspected working tree. The preserved pre-migration compositional-analysis checkpoint is v30. This is an internal cache revision, not a compiler release, a count of attempts at one problem, or a whole-language completion claim. The previously uncommitted framework work was preserved in local checkpoint `b30c50e45` before worker branches were created. That commit establishes reproducible source, not a validated release baseline. Subsequent implementation and acceptance changes use local commits and isolated worktrees.
 
@@ -115,34 +115,12 @@ cannot establish a speedup or rule one out.
 
 #### Decisions and order of implementation
 
-1. Establish the placement result and its reason independently of state writes. Keep the current
-   task scheduling default observable while separating it from eligibility. Compare current
-   unresolved-placement refusers with the proposed conflict-only rule. Where an either-side
-   implementation can safely run, leave irrelevant uncertainty silent. Use a scoped advisory only
-   for a concrete consequence. Document the decision for an unresolved call with no usable target.
-2. Separate the three consumers of helper state facts in the scalar server path: live reads,
-   transport authorization and secret policy. Withhold the stronger helper fact from **one consumer
-   at a time** on the same real component. Check returned value, actual state delivery and a protected
-   sibling independently. Once a replacement passes, remove the old dependency in that consumer.
-   Repeat for supported aliases and collections. Keep genuinely different unsupported cases explicit.
-3. Narrow helper analysis from each component entry point. Retain a stronger query only with a
-   case where weakening it changes supported emitted behavior, authorized transport or a required
-   diagnostic. Record the smallest fact that fixes that case. A purely internal closure assertion
-   or a helper cache test can protect an implementation while it exists; neither obliges the project
-   to keep that implementation. Remove orphaned production paths, flags and implementation-only tests
-   together. Preserve useful ordinary JavaScript and public component behavior tests.
-4. Close host, package and lifecycle gaps alongside the consumers they affect. Finish with the
-   original Core and Theme terminals, fresh distribution and affected environment matrix. Reconcile
-   the later implementation steps and remaining-work inventory against these behavior-based exits
-   before awarding completion. Preserve historical failures as evidence without carrying forward
-   superseded private mechanics as product requirements.
-
-For review, each surviving expensive analysis needs a component entry point, the decision changed
-by its output, the observable consequence of using a weaker fact, and an owner for invalidation
-or runtime observation. Once all consumers are accounted for, either remove an unused path or
-document the specific behavior that still uses it. Changes to security authority, published ABI,
-supported host behavior or diagnostic policy require an explicit contract decision. This inventory
-describes remaining work; passing evidence for one row does not close unrelated rows.
+Use the [compiler analysis work plan](compiler-analysis-work-plan.md) for the audited
+production consumers, work to remove, implementation sequence and acceptance controls.
+It governs which of the historical operation-family and migration steps below are required.
+A private closure test or a potential precision improvement creates no product requirement
+without a component or a supported tool consuming its result. A change to transport authority,
+published ABI or diagnostic policy remains a separate design decision.
 
 ## 3. The actual current pipeline
 
