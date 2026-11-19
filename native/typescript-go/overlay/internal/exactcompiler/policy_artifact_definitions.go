@@ -318,7 +318,9 @@ func pruneDeadSecretDefinitions(file *ast.SourceFile, emit *printer.EmitContext,
 func retainedSecretExpression(node *ast.Node, emit *printer.EmitContext, p secretArtifactPlan) *ast.Node {
 	var found *ast.Node
 	walkNode(node, func(candidate *ast.Node) bool {
-		if found != nil || ast.IsPartOfTypeNode(candidate) {
+		// Generated registry identifiers can lack parents. Type subtrees are erased,
+		// and the plan already keys runtime expressions by their original identity.
+		if found != nil || ast.IsTypeNode(candidate) {
 			return false
 		}
 		original := emit.MostOriginal(candidate)

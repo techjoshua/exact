@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 import { it, expect, onTestFinished } from 'vitest';
-import { writeFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { compileProjectArtifacts } from '../index.js';
 import { createCompilerTestWorkspace } from '../test-support/workspace.js';
@@ -12,6 +12,31 @@ import { createServerBoundaryReceipt } from '@exactjs/core/runtime/component-ope
 import { createCompiledComponentRegistry } from '@exactjs/core/runtime/registry';
 import { hydrate as hydrateOnly } from '@exactjs/hydrate/root';
 import { hydrateCompiledComponentInputRoot } from '@exactjs/hydrate/framework/component-root';
+const panelSource =
+	`import {type Component} from '@exactjs/core'; export function Panel(this:Component<{count:number}>){this.state.count=0;return ()=> <section><input value="original"/><button onClick={()=>this.state.count++}>Count {this.state.count}</button></section>;}`;
+
+it('preserves the lazy Panel artifact when an application registers it', async () => {
+	const root = await createCompilerTestWorkspace('.exact-portable-panel-', process.cwd());
+	const panel = path.join(root, 'panel.tsx');
+	const app = path.join(root, 'app.tsx');
+	const options = { rootDir: root, outDir: path.join(root, 'generated') };
+	await writeFile(panel, panelSource);
+	async function panelArtifacts(entries: string[]) {
+		const results = await compileProjectArtifacts(entries, options);
+		const result = results.find((artifact) => artifact.inputFile === panel)!;
+		return Promise.all((['client', 'server'] as const).map(async (target) => ({
+			code: await readFile(result[target === 'client' ? 'clientFile' : 'serverFile'], 'utf8'),
+			contract: result[target].componentBuild,
+			dependencies: result[target].runtimeDependencies
+		})));
+	}
+	const library = await panelArtifacts([panel]);
+	await writeFile(app, `import {createComponentRegistry} from '@exactjs/core';
+const Views=createComponentRegistry(({lazy})=>({panel:lazy(()=>import('./panel.js').then(({Panel})=>Panel))}));
+export function App(){return ()=> <Views.panel/>;}`);
+	expect(await panelArtifacts([app])).toEqual(library);
+});
+
 it.each([
 	{ only: false, nested: false },
 	{ only: true, nested: false },
@@ -22,10 +47,7 @@ it.each([
 ])('adopts a lazy registry root ($only, nested=$nested)', async ({ only, nested }) => {
 	const root = await createCompilerTestWorkspace('.exact-root-registry-', process.cwd());
 	const entry = path.join(root, 'page.tsx');
-	await writeFile(
-		path.join(root, 'panel.tsx'),
-		`import {type Component} from '@exactjs/core'; export function Panel(this:Component<{count:number}>){this.state.count=0;return ()=> <section><input value="original"/><button onClick={()=>this.state.count++}>Count {this.state.count}</button></section>;}`
-	);
+	await writeFile(path.join(root, 'panel.tsx'), panelSource);
 	if (nested)
 		await writeFile(
 			path.join(root, 'middle.tsx'),

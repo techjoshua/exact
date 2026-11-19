@@ -473,6 +473,9 @@ rejects, cleanup runs once, coalesced committed state remains observable, and th
 without inheriting the cancelled frame. The same probe runs through all three adapters.
 The lazy-registry variant uses an entry named `lazy` to distinguish the property key
 from the scoped loader function through compilation, SSR, hydration, updates, and cleanup.
+The compiler SDK also compiles the hydration fixture’s stateful Panel alone and with a lazy registry
+caller at the same source path. Both builds must emit identical code, component contracts, and runtime
+dependencies for each target.
 The browser bundle also mounts a compiled task beneath Activity, resolves its source while parked,
 and verifies deferred publication, retained DOM identity, and resumption through the bundled runtime.
 It checks two updates, retained DOM identity, and disposal across 21 common modes, including buffered
