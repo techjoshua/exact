@@ -383,7 +383,7 @@ func (query *sourceValueQuery) sourceReflectiveMemberCandidate(origin *ast.Node,
 	}
 	// A definition on a fresh literal changes that object alone. The
 	// original descriptor Call still owns its Get and argument effects.
-	if native && actualGet.receiver.native.kind == sourceNativeGlobalObject && call.Arguments != nil && len(call.Arguments.Nodes) >= 2 && ast.IsObjectLiteralExpression(unwrapSourceCallableReference(call.Arguments.Nodes[0])) {
+	if native && (actualGet.receiver.native.kind == sourceNativeGlobalObject || actualGet.receiver.native.kind == sourceNativeObjectConstructor) && call.Arguments != nil && len(call.Arguments.Nodes) >= 2 && ast.IsObjectLiteralExpression(unwrapSourceCallableReference(call.Arguments.Nodes[0])) {
 		receiver, method := restrictedInvocationMember(call.Expression, query.owner.checker)
 		if descriptorCall || method == "defineProperties" && ast.IsIdentifier(receiver) && receiver.Text() == "Object" && standardLibraryCallRoot(call.Expression, query.owner.checker) {
 			return false
@@ -393,6 +393,14 @@ func (query *sourceValueQuery) sourceReflectiveMemberCandidate(origin *ast.Node,
 		key := name
 		if len(projection) > 0 {
 			key = projection[0]
+		}
+		// A symbol descriptor cannot supply a single named acquisition. The
+		// descriptor operation retains its own target, key and argument effects.
+		if mode == accessorAcquire && name == "" && len(projection) == 1 && (actualGet == nil || actualGet.symbol == nil) && ast.IsIdentifier(call.Arguments.Nodes[1]) {
+			index, indexed := query.owner.indexes[ast.GetSourceFileOfNode(node)]
+			if indexed && !index.incomplete && !index.normalDynamicScope && query.symbolKeyDisjointFromName(call.Arguments.Nodes[1], key) {
+				return false
+			}
 		}
 		selected := sourceLiteralMemberName(unwrapSourceCallableReference(call.Arguments.Nodes[1]))
 		if selected != "" && (!sourceGetKeyMayMatch(selected, key, query.arrayIndexMayAtGet(actualGet, origin, projection, name, mode)) || actualGet != nil && actualGet.symbol != nil) {

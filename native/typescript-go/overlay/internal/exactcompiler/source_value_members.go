@@ -260,7 +260,7 @@ func (query *sourceValueQuery) memberValuesAtGetWithStandard(origin *ast.Node, p
 				} else {
 					// This single named acquisition cannot receive the symbol-slot RHS.
 					// Assignment evaluation and staged effect transfers keep their own cuts.
-					if mode == accessorAcquire && name == "" && len(projection) == 1 && !index.normalDynamicScope && query.symbolWriterDisjointFromName(assignment.left, projection[0]) {
+					if mode == accessorAcquire && name == "" && len(projection) == 1 && !index.normalDynamicScope && ast.IsElementAccessExpression(assignment.left) && query.symbolKeyDisjointFromName(assignment.left.AsElementAccessExpression().ArgumentExpression, projection[0]) {
 						continue
 					}
 					inputs = query.memberWriterInputs(assignment.left, bindings, result, cut)
@@ -535,15 +535,11 @@ func (query *sourceValueQuery) memberValuesAtGetWithStandard(origin *ast.Node, p
 	return returned
 }
 
-// symbolWriterDisjointFromName identifies a const holding the result of the standard
+// symbolKeyDisjointFromName identifies a const holding the result of the standard
 // registry operation. Its key domain is enough here, irrespective of registry
 // identity or argument effects. Assertions and authored factories stay unknown.
-func (query *sourceValueQuery) symbolWriterDisjointFromName(left *ast.Node, name string) bool {
-	if !ast.IsElementAccessExpression(left) || !scanner.IsIdentifierText(name, core.LanguageVariantStandard) {
-		return false
-	}
-	key := left.AsElementAccessExpression().ArgumentExpression
-	if !ast.IsIdentifier(key) {
+func (query *sourceValueQuery) symbolKeyDisjointFromName(key *ast.Node, name string) bool {
+	if !ast.IsIdentifier(key) || !scanner.IsIdentifierText(name, core.LanguageVariantStandard) {
 		return false
 	}
 	c := query.owner.checker

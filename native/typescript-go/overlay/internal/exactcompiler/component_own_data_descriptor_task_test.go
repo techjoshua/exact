@@ -194,6 +194,9 @@ func TestComponentComputedWriterGetterEffects(t *testing.T) {
 	session := NewSession()
 	for _, row := range []struct{ name, factory, key, install, read string }{
 		{"installed", "", "Symbol.for(props.input)", "Object.defineProperty(box,'value',{get(){return {n:document.title.length}}});alias[key]={n:0};", "box.value"},
+		{"descriptor through alias", "", "Symbol.for(props.input)", "Object.defineProperty(alias,'value',{get(){return {n:document.title.length}}});Object.defineProperty(box,key,{value:{n:0}});", "box.value"},
+		{"descriptor same symbol", "", "Symbol.for(props.input)", "Object.defineProperty(alias,key,{get(){return {n:document.title.length}}});", "box[key]"},
+		{"descriptor dynamic key", "", "props.key", "Object.defineProperty(alias,key,{get(){return {n:document.title.length}}});", "box.value"},
 		{"same symbol", "", "Symbol.for(props.input)", "", "box[key]"},
 		{"lexical shadow", "const Symbol={for(_:string){return 'value'}};", "Symbol.for(props.input)", "", "box.value"},
 		{"dynamic key", "", "props.key", "", "box.value"},
