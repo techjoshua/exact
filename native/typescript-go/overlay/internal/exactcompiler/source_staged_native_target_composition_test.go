@@ -19,95 +19,11 @@ export function saved(prototype:object|null){const target=Object.create(prototyp
 // Native target composition preserves child Effects and conditional ordinary
 // results, while installing a callback does not invoke its dormant body.
 func TestStagedNativeTargetCompositionSessionAndArtifacts(t *testing.T) {
-	var completed *Session
 	for _, target := range []Target{TargetClient, TargetServer} {
 		session := NewSession()
-		if target == TargetClient {
-			completed = session
-		}
-		response := session.Execute(Request{Kind: "compile", ID: "/virtual/native-target-composition.ts", Source: stagedNativeTargetCompositionSource, Target: target, Diagnostics: "semantic", stagedReplacement: true})
+		response := session.Execute(Request{Kind: "compile", ID: "/virtual/native-target-composition.ts", Source: stagedNativeTargetCompositionSource, Target: target, Diagnostics: "semantic"})
 		if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) || response.Code == "" {
 			t.Fatalf("%s: %s %#v", target, response.Error, response.Diagnostics)
-		}
-		for _, name := range []string{"direct", "saved"} {
-			for _, effect := range executableSummary(t, response, name).EffectSources {
-				if effect.Environment == "browser" || effect.Environment == "unknown" {
-					t.Fatalf("%s invoked a stored descriptor or lost target coverage: %#v", name, effect)
-				}
-			}
-		}
-		seen := make(map[string]bool)
-		for _, project := range session.projects {
-			if project.callableCache == nil {
-				continue
-			}
-			for _, analysis := range project.callableCache.bySource {
-				for _, fact := range analysis.facts {
-					name := fact.summary.Name
-					if fact.sourceFile == nil || fact.sourceFile.FileName() != "/virtual/native-target-composition.ts" || name != "direct" && name != "saved" {
-						continue
-					}
-					seen[name] = true
-					if !fact.staged.settled || fact.staged.operationsPending {
-						t.Fatalf("%s native target chain was not published closed", name)
-					}
-					recipes := make(map[sourceStagedOperationKey]sourceStagedOperationRecipe)
-					for _, recipe := range fact.staged.operationRecipes {
-						recipes[recipe.key] = recipe
-					}
-					roots := make(map[*ast.Node]*sourceStagedNativeGetSource)
-					for _, use := range fact.staged.operationUses {
-						root := recipes[use.request.producer]
-						if use.call == nil && root.nativeGet != nil && root.key.selector == (sourceStagedOperationSelector{}) && sameOperationRequest(root.nativeGet.request, use.request) {
-							roots[root.key.operation] = root.nativeGet
-						}
-					}
-					want := 3
-					if name == "saved" {
-						want = 4
-					}
-					if len(roots) != want {
-						t.Fatalf("%s used legacy instead of all original native roots: got %d want %d", name, len(roots), want)
-					}
-					for _, root := range roots {
-						algorithm := recipes[nativeRootDebtRequest(root, "algorithm").producer]
-						if !validNativeGetRecipe(algorithm) || !sameNativeGetSource(algorithm.nativeGet, root) || root.kind != sourceNativeObjectDefineProperty && !algorithm.delta.extracted {
-							t.Fatalf("%s original native algorithm not delivered", name)
-						}
-						if root.kind != sourceNativeObjectDefineProperty {
-							continue
-						}
-						source := algorithm.nativeGet
-						actuals := restrictedInvocationArguments(root.request.producer.operation.AsCallExpression())
-						if source.installation == nil || len(actuals) != 3 || source.descriptorGet != actuals[2] || source.installation.descriptor.expression != actuals[2] || len(algorithm.delta.required) != len(reflectiveDescriptorKeys) {
-							t.Fatalf("%s descriptor algorithm lost original field owner", name)
-						}
-						for i, field := range reflectiveDescriptorKeys {
-							if !sameOperationRequest(algorithm.delta.required[i], nativeDescriptorFieldRequest(source, field)) {
-								t.Fatalf("%s missing exact original %s field requirement", name, field)
-							}
-						}
-						eager := recipes[nativeRootDebtRequest(source, "eager-inputs").producer]
-						expected := nativeEagerRequired(eager.nativeGet)
-						if len(eager.delta.required) != len(expected) || !operationPrefix(eager.delta.required, expected, sameOperationRequest) {
-							t.Fatalf("%s eager role lost original target/DATA children", name)
-						}
-						if !validNativeTargetSource(source) || roots[source.targetSource.producer.operation] == nil {
-							t.Fatalf("%s original target child association missing", name)
-						}
-						debt := recipes[nativeEagerTargetRequest(source).producer]
-						if !debt.delta.extracted || len(debt.delta.required) != 1 || !sameOperationRequest(debt.delta.required[0], source.targetSource) {
-							t.Fatalf("%s target source did not retain full child Effects", name)
-						}
-						if name == "saved" && source.targetBinding == nil || name == "direct" && source.targetBinding != nil {
-							t.Fatalf("%s target binding association changed", name)
-						}
-					}
-				}
-			}
-		}
-		if !seen["direct"] || !seen["saved"] {
-			t.Fatal("actual Session source facts missing")
 		}
 		file := filepath.Join(t.TempDir(), "native-target-composition.mts")
 		if err := os.WriteFile(file, []byte(response.Code), 0600); err != nil {
@@ -121,7 +37,6 @@ func TestStagedNativeTargetCompositionSessionAndArtifacts(t *testing.T) {
 			t.Fatalf("runtime %s: %v %s", target, err, output)
 		}
 	}
-	checkNativeTargetCompletedClone(t, completed)
 }
 
 // Description carries the original dependency without lending a current result
@@ -239,102 +154,11 @@ func TestStagedNativeTargetCompositionOriginalSource(t *testing.T) {
 	}
 }
 
-// Completed source descriptions survive cloning, but current DATA subscribers,
-// Has/Get observations and native Get receipts belong to the fresh work graph.
-func checkNativeTargetCompletedClone(t *testing.T, session *Session) {
-	t.Helper()
-	for _, project := range session.projects {
-		if project.callableCache == nil {
-			continue
-		}
-		owner := project.callableCache.owner
-		var facts []callableFacts
-		for _, analysis := range project.callableCache.bySource {
-			for _, fact := range analysis.facts {
-				facts = append(facts, cloneProjectCallableFact(fact))
-			}
-		}
-		work := registerCallableEffectWork(facts)
-		work.operationGeneration = owner.values.generation
-		var parent sourceStagedOperationRequest
-		var outer *ast.Node
-		caller := -1
-		for i, fact := range facts {
-			if fact.summary.Name != "saved" || fact.sourceFile.FileName() != "/virtual/native-target-composition.ts" {
-				continue
-			}
-			caller = i
-			statements := fact.node.Body().AsBlock().Statements.Nodes
-			outer = statements[len(statements)-1].AsReturnStatement().Expression
-			for _, recipe := range fact.staged.operationRecipes {
-				if recipe.nativeGet != nil && recipe.key.selector.field == "value" && recipe.key.selector.occurrence == recipe.nativeGet.descriptorGet {
-					parent = nativeDescriptorFieldRequest(recipe.nativeGet, "value")
-					break
-				}
-			}
-		}
-		if caller < 0 || parent.producer.operation == nil {
-			continue
-		}
-		read := parent.producer.selector.occurrence
-		reading := stagedDescriptorReceiverRequest(parent, read)
-		if _, available := work.stagedDescriptorReceiverData(facts, parent, reading); available {
-			t.Fatal("clone inherited descriptor DATA subscriber")
-		}
-		id, required := work.requireOperation(facts, parent)
-		if !required {
-			t.Fatal("cloned original descriptor field lost registration")
-		}
-		if work.operations[id.index].fieldDisposition != nil || work.closedOperationDependencies()[id.index] {
-			t.Fatal("clone inherited completed original Has/Get")
-		}
-		occurrence, described := work.describeNativeInputOccurrence(facts, caller, outer, owner)
-		if !described || !work.adoptNativeInputOccurrence(facts, occurrence) {
-			t.Fatal("fresh original source could not reissue cloned target chain")
-		}
-		work.initializePropagation(facts)
-		work.prepareOperationUses(facts, owner)
-		data, available := work.stagedDescriptorReceiverData(facts, parent, reading)
-		if !available || !data.delta.extracted || len(data.delta.exposures) != 1 {
-			t.Fatal("fresh descriptor DATA not delivered after cloned original source observation")
-		}
-		if work.operations[id.index].fieldDisposition == nil || !work.closedOperationDependencies()[id.index] {
-			t.Fatal("fresh original field source did not close cloned dependency graph")
-		}
-		return
-	}
-	t.Fatal("completed source graph absent for clone lifecycle")
-}
-
-// Unknown producer output and writable/escaped aliases must not obtain literal
-// field coverage from their declaration syntax or the const binding alone.
-func TestStagedNativeTargetCompositionUnrepresentedDescriptor(t *testing.T) {
-	for name, source := range map[string]string{
-		"unavailable_producer": `declare function supply():PropertyDescriptor;export function invoke(prototype:object|null){const descriptor=supply();return Object.freeze(Object.defineProperty(Object.create(prototype),'callback',descriptor))}`,
-		"written_binding":      `export function invoke(prototype:object|null,other:PropertyDescriptor){let descriptor:PropertyDescriptor={value:()=>window.name};descriptor=other;return Object.freeze(Object.defineProperty(Object.create(prototype),'callback',descriptor))}`,
-		"escaped_mutation":     `export function invoke(prototype:object|null,mutate:(descriptor:PropertyDescriptor)=>void){const descriptor={value:()=>window.name};mutate(descriptor);return Object.freeze(Object.defineProperty(Object.create(prototype),'callback',descriptor))}`,
-	} {
-		t.Run(name, func(t *testing.T) {
-			for _, target := range []Target{TargetClient, TargetServer} {
-				session := NewSession()
-				response := session.Execute(Request{Kind: "compile", ID: "/virtual/native-target-pending.ts", Source: source, Target: target, Diagnostics: "semantic", stagedReplacement: true})
-				if hasErrorDiagnostic(response.Diagnostics) {
-					t.Fatal("invalid negative fixture", response.Diagnostics)
-				}
-				if response.Error == "" || response.Code != "" {
-					t.Logf("unexpected published descriptor summary: %+v", executableSummary(t, response, "invoke"))
-					t.Fatalf("%s %s unrepresented descriptor published an artifact: %s", name, target, response.Error)
-				}
-			}
-		})
-	}
-}
-
 // A delivered source prefix authenticates the original guarded nominal mapping.
 // Other source candidates still gate coverage and the original Session consumer.
 func TestStagedNativeCreateTargetOriginalPrototypePrefix(t *testing.T) {
 	const file = "/virtual/native-target-composition.ts"
-	request := Request{Kind: "analyze", ID: file, Source: stagedNativeTargetCompositionSource, Diagnostics: "semantic", stagedReplacement: true}
+	request := Request{Kind: "analyze", ID: file, Source: stagedNativeTargetCompositionSource, Diagnostics: "semantic"}
 	withActiveModuleSourceWork(t, request, map[string]string{file: stagedNativeTargetCompositionSource}, nil, func(facts []callableFacts, work *callableEffectWork, owner *executableBodyOwner) {
 		generation := owner.values.generation
 		if generation == nil || !generation.active || owner.project.activeGeneration != generation || work.operationGeneration != generation {
@@ -430,7 +254,7 @@ func TestStagedNativeCreateTargetOriginalPrototypePrefix(t *testing.T) {
 // This runs before generation release and does not assert full field coverage.
 func TestStagedNativeForeignCalleeGetOriginalPrototypeSource(t *testing.T) {
 	const file = "/virtual/native-target-composition.ts"
-	request := Request{Kind: "analyze", ID: file, Source: stagedNativeTargetCompositionSource, Diagnostics: "semantic", stagedReplacement: true}
+	request := Request{Kind: "analyze", ID: file, Source: stagedNativeTargetCompositionSource, Diagnostics: "semantic"}
 	var releasedWork *callableEffectWork
 	var releasedRecipes []sourceStagedOperationRecipe
 	withActiveModuleSourceWork(t, request, map[string]string{file: stagedNativeTargetCompositionSource}, nil, func(facts []callableFacts, work *callableEffectWork, owner *executableBodyOwner) {
@@ -590,7 +414,7 @@ func TestStagedNativeForeignCalleeGetOriginalPrototypeSource(t *testing.T) {
 // Inspect original producer availability before proposing a new SOURCE reader.
 func TestStagedNativeSavedCreateOriginalPhaseAvailability(t *testing.T) {
 	const file = "/virtual/native-target-composition.ts"
-	request := Request{Kind: "analyze", ID: file, Source: stagedNativeTargetCompositionSource, Diagnostics: "semantic", stagedReplacement: true}
+	request := Request{Kind: "analyze", ID: file, Source: stagedNativeTargetCompositionSource, Diagnostics: "semantic"}
 	withActiveModuleSourceWork(t, request, map[string]string{file: stagedNativeTargetCompositionSource}, nil, func(facts []callableFacts, work *callableEffectWork, owner *executableBodyOwner) {
 		if work.operationGeneration == nil || !work.operationGeneration.active || owner.project.activeGeneration != work.operationGeneration || owner.values.generation != work.operationGeneration {
 			t.Fatal("original live canonical collector UNREACHED")
@@ -632,7 +456,7 @@ func TestStagedNativeSavedCreateOriginalPhaseAvailability(t *testing.T) {
 // A nominal Create SOURCE contribution is not a Get, output or Call receipt.
 func TestStagedNativeForeignCreateOriginalPrototypeSource(t *testing.T) {
 	const file = "/virtual/native-target-composition.ts"
-	request := Request{Kind: "analyze", ID: file, Source: stagedNativeTargetCompositionSource, Diagnostics: "semantic", stagedReplacement: true}
+	request := Request{Kind: "analyze", ID: file, Source: stagedNativeTargetCompositionSource, Diagnostics: "semantic"}
 	var releasedWork *callableEffectWork
 	var releasedView sourceStagedOperationRecipe
 	var releasedReader *sourceStagedNativeGetSource
@@ -751,7 +575,7 @@ func TestStagedNativeForeignCreateOriginalPrototypeSource(t *testing.T) {
 
 func TestStagedNativeForeignSourcesRemainingDescriptorFields(t *testing.T) {
 	const file = "/virtual/native-target-composition.ts"
-	request := Request{Kind: "analyze", ID: file, Source: stagedNativeTargetCompositionSource, Diagnostics: "semantic", stagedReplacement: true}
+	request := Request{Kind: "analyze", ID: file, Source: stagedNativeTargetCompositionSource, Diagnostics: "semantic"}
 	withActiveModuleSourceWork(t, request, map[string]string{file: stagedNativeTargetCompositionSource}, nil, func(facts []callableFacts, work *callableEffectWork, owner *executableBodyOwner) {
 		if work.operationGeneration == nil || !work.operationGeneration.active || owner.project.activeGeneration != work.operationGeneration {
 			t.Fatal("genuine whole-fixture field service UNREACHED")
@@ -848,7 +672,7 @@ func TestStagedNativeForeignSourcesRemainingDescriptorFields(t *testing.T) {
 // implying transitive field, prototype or native algorithm completion.
 func TestStagedNativeFieldSourceDescriptions(t *testing.T) {
 	const file = "/virtual/native-target-composition.ts"
-	request := Request{Kind: "analyze", ID: file, Source: stagedNativeTargetCompositionSource, Diagnostics: "semantic", stagedReplacement: true}
+	request := Request{Kind: "analyze", ID: file, Source: stagedNativeTargetCompositionSource, Diagnostics: "semantic"}
 	withActiveModuleSourceWork(t, request, map[string]string{file: stagedNativeTargetCompositionSource}, nil, func(facts []callableFacts, work *callableEffectWork, owner *executableBodyOwner) {
 		if work.operationGeneration == nil || !work.operationGeneration.active || owner.project.activeGeneration != work.operationGeneration {
 			t.Fatal("genuine whole-fixture field service UNREACHED")

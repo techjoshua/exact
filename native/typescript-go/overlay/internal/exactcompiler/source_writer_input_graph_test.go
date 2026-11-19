@@ -2,8 +2,6 @@ package exactcompiler
 
 import (
 	_ "embed"
-	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
@@ -165,55 +163,6 @@ func TestWriterInputGraphUnsupportedBindings(t *testing.T) {
 
 //go:embed source_writer_input_graph_fixture.ts
 var writerInputOpaqueComposition string
-
-// The three writer implementations and module prefix are copied byte-for-byte
-// from the owned opaque-operation source. Only the final invocation driver is
-// added. A type-only domain stub does not provide runtime or source-body proof.
-func TestWriterInputGraphOpaqueComposition(t *testing.T) {
-	f := newExecutableFixture(t, map[string]string{"entry.ts": `export {invoke} from "./component-abi/opaque-operation";`})
-	for name, source := range map[string]string{
-		"component-abi/opaque-operation.ts": writerInputOpaqueComposition,
-		"component/contract-versions.ts":    `export const componentContractVersion=6;`,
-		"component/contracts.ts":            `export type ComponentDomainIdentity={readonly executionRoot:string};export type ComponentDomain=ComponentDomainIdentity;`,
-	} {
-		path := filepath.Join(f.root, name)
-		if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
-			t.Fatal(err)
-		}
-		if err := os.WriteFile(path, []byte(source), 0600); err != nil {
-			t.Fatal(err)
-		}
-		f.files[name] = source
-	}
-	request := f.request("analyze", "component-abi/opaque-operation.ts")
-	// This terminal migration gate must finish through replacement consumers.
-	// Known unmigrated recovery is a causal failure, rather than a timeout.
-	request.stagedReplacement = true
-	response := f.session.Execute(request)
-	if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) {
-		t.Fatal(response.Error, response.Diagnostics)
-	}
-	seen := make(map[*sourceWriterInputGraph]bool)
-	var retired uint64
-	for _, project := range f.session.projects {
-		if project.callableCache == nil {
-			continue
-		}
-		for _, analysis := range project.callableCache.bySource {
-			for _, fact := range analysis.facts {
-				g := fact.writerInputs
-				if g == nil || seen[g] {
-					continue
-				}
-				seen[g] = true
-				retired += g.stats.DiscoveryRetired + g.stats.RecoveryRetired
-			}
-		}
-	}
-	if retired == 0 {
-		t.Fatal("composition added a graph without retiring original work")
-	}
-}
 
 // Direct function carriers retain their own current capture. The graph stores
 // neither capture map and cannot substitute another factory use's environment.

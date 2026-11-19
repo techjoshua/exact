@@ -278,7 +278,7 @@ function createErrorContextWithLimit(errors:object[]){reactiveObjects(errors)}
 export function invoke(){createErrorContextWithLimit([])}`
 	const root = "/home/techj/.t3/worktrees/exact/t3-5179cb70/.tmp/staged-analysis-first-slice/m08-fresh-runtime-provider-build/source/packages/core"
 	id := filepath.Join(root, "src/component/g5-framework-bound-control.ts")
-	request := Request{Kind: "analyze", Root: root, ConfigFile: filepath.Join(root, "tsconfig.json"), ID: id, Source: source, Diagnostics: "semantic", stagedReplacement: true}
+	request := Request{Kind: "analyze", Root: root, ConfigFile: filepath.Join(root, "tsconfig.json"), ID: id, Source: source, Diagnostics: "semantic"}
 	withActiveModuleSourceWork(t, request, map[string]string{id: source}, nil, func(facts []callableFacts, work *callableEffectWork, owner *executableBodyOwner) {
 		var outer, nested *ast.Node
 		walkNode(owner.values.program.GetSourceFile(id).AsNode(), func(n *ast.Node) bool {

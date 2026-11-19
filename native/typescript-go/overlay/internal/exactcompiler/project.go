@@ -17,8 +17,6 @@ import (
 )
 
 type projectState struct {
-	stagedReplacement bool // Internal replacement analysis refuses unmigrated source recovery.
-
 	// activeGeneration is request-scoped even when callable facts are reused.
 	activeGeneration *projectGeneration
 	// abandoned rejects reuse after interrupted checker mutation. The next advance
@@ -161,10 +159,9 @@ func newProjectStateWithGeneratedEntry(request Request, fileName string, sources
 		)
 	}
 	state := &projectState{
-		stagedReplacement: request.stagedReplacement,
-		currentDirectory:  currentDirectory,
-		generatedEntry:    generatedEntry,
-		configFile:        configFile,
+		currentDirectory: currentDirectory,
+		generatedEntry:   generatedEntry,
+		configFile:       configFile,
 		sources: map[string]string{
 			overlay.canonical(fileName): request.Source,
 		},

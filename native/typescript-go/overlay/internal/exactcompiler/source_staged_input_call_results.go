@@ -231,7 +231,6 @@ func (work *callableEffectWork) prepareStagedInputCallResult(facts []callableFac
 		}
 		work.observeStagedGetResult(facts, caller, producing, owner)
 		if !work.stagedGetResultAdmitted(producing, facts[caller].node) {
-			owner.project.requireStagedReplacement(stagedReplacementGap{operation: producing, consumer: facts[caller].node, parent: source.request, demand: "original Get receiver/source DATA producer", transition: "appendArgumentAccessorEffects"})
 			return sourceStagedOperationRequest{}, false
 		}
 	}

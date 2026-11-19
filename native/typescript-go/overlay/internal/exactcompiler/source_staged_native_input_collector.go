@@ -140,7 +140,7 @@ func (work *callableEffectWork) stageNativeInputOperation(facts []callableFacts,
 	if work.adoptNativeEffectsInputContinuation(facts, occurrence, issuer) || work.adoptPendingNativeEffects(facts, occurrence, issuer) {
 		return true
 	}
-	work.requireStagedNativeEffectsConsumer(occurrence, owner)
+
 	return false
 }
 

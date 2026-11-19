@@ -191,3 +191,21 @@ func (r *sourceWriterInputRequest) descriptorWriterDisposition(q *sourceValueQue
 	delivery, delivered := work.consumeOperation(id, request)
 	return sourceStagedWriterCallDisposition{handled: true, calleeOnly: delivered && delivery.delta.extracted && work.descriptorCalleeSourceCurrent(recipe)}
 }
+
+// currentPendingInvocationSource authenticates the original live writer ticket.
+// It supplies source ownership only, never an invocation or result receipt.
+func (q *sourceValueQuery) currentPendingInvocationSource(node *ast.Node) *callableFacts {
+	r := q.pendingMemberRequest
+	if r == nil || !r.live || r.issuer != q || r.call != node || r.consumer != q.effectOwner || r.use != q.effectUse() || q.reading != r.original[0] || q.initializing != node || q.returning != r.original[2] || q.invoking != r.original[3] || r.member == nil || q.owner == nil || q.owner.generation == nil || q.executable == nil || q.executable.values == nil || q.executable.project == nil || q.owner.generation != q.executable.values.generation || q.owner.generation != q.executable.project.activeGeneration || q.owner.program == nil || q.owner.program != q.executable.values.program || r.graph != q.executable.writerInputFacts[q.effectOwner] {
+		return nil
+	}
+	publisher, ticket := q.executable.pendingMemberPublishers[q.effectOwner], r.member
+	if publisher == nil || publisher != ticket.publisher || !publisher.live || publisher.fact == nil || ticket.phase == memberRevoked || ticket.demand == nil {
+		return nil
+	}
+	fact, source := publisher.fact, ticket.demand
+	if fact.node != q.effectOwner || fact.writerInputs != r.graph || fact.normalInputs != nil || fact.sourceFile == nil || q.owner.program.GetSourceFile(fact.sourceFile.FileName()) != fact.sourceFile || ast.GetSourceFileOfNode(node) != fact.sourceFile || fact.pendingMembers == nil || fact.pendingMembers.sites[node] != source || source.declaration != q.effectOwner || source.call != node || source.get != unwrapSourceCallableReference(node.Expression()) {
+		return nil
+	}
+	return fact
+}

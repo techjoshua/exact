@@ -246,7 +246,7 @@ func getterDescriptorPayload(d languageDescriptor) bool {
 	f := d.value.callable
 	return d.accessor && !d.writable && d.enumerable && d.configurable && f != nil && f.proof != nil && ast.IsGetAccessorDeclaration(f.proof.arrow) && d.value == (languageValue{callable: f, node: f.proof.arrow})
 }
-func (o *languageOwner) defineGetter(b languageBranch, object *languageObject, v languageValue, r *storageRecipe, pc int, ready []bool) languageAlternative {
+func (o *languageOwner) defineGetter(b languageBranch, object *languageObject, v languageValue, r *storageRecipe, pc int) languageAlternative {
 	if !o.canAdvance(b, 1) {
 		return storageResidual(b, "Getter installation identity/cursor capacity")
 	}
@@ -254,12 +254,11 @@ func (o *languageOwner) defineGetter(b languageBranch, object *languageObject, v
 		return storageResidual(b, "Getter definition event unavailable")
 	}
 	e := r.events[pc]
-	key, valid := storageKeyOperand(r, pc, e, ready)
+	key, valid := storageKeyOperand(r, pc, e)
 	if !valid || e.kind != "DefineAccessorSlot" || e.node == nil || !ast.IsGetAccessorDeclaration(e.node) || e.node.Name() == nil {
 		return storageResidual(b, "Getter key role unavailable")
 	}
-	computed := ast.IsComputedPropertyName(e.node.Name())
-	if computed && !storageComputedGetterDefinition(r, pc) || !computed && (e.keyProducerPC != -1 || key != languageStringKey(e.node.Name().Text())) {
+	if ast.IsComputedPropertyName(e.node.Name()) || key != languageStringKey(e.node.Name().Text()) {
 		return storageResidual(b, "Getter definition key association")
 	}
 	d := languageDescriptor{accessor: true, value: v, enumerable: true, configurable: true}
@@ -344,9 +343,6 @@ func suspendedOwnGetterInputs(r *storageRecipe, a languageAlternative) bool {
 		return false
 	}
 	if r.binding != nil {
-		if bindingGetterRole(r, t.getPC) == bindingFirstGetterRole {
-			return bindingFirstGetterSuspended(r, t.getPC, a)
-		}
 		if bindingGetterRole(r, t.getPC) == bindingCloseGetterRole {
 			return bindingReturnGetterSuspended(r, t.getPC, a)
 		}

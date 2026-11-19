@@ -14,7 +14,7 @@ func bodyObjectGetPC(r *storageRecipe) int {
 		return -1
 	}
 	m := r.events[g].a
-	if m != g-1 || r.events[m].kind != "Member" || r.events[m].node != r.events[g].node || r.events[m].keyProducerPC != -1 || r.events[m].key.kind != languageStringKeyKind {
+	if m != g-1 || r.events[m].kind != "Member" || r.events[m].node != r.events[g].node || r.events[m].key.kind != languageStringKeyKind {
 		return -1
 	}
 	t := r.events[m].a

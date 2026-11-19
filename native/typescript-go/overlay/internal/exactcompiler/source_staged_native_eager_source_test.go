@@ -14,7 +14,7 @@ const stagedNativeEagerSymbolChildSource = `const metadata=Symbol.for('metadata'
 func TestStagedNativeEagerSymbolChildOriginalSource(t *testing.T) {
 	const id = "/virtual/eager-wait-scope.ts"
 	const source = stagedNativeEagerSymbolChildSource
-	request := Request{Kind: "analyze", ID: id, Source: source, Diagnostics: "semantic", stagedReplacement: true}
+	request := Request{Kind: "analyze", ID: id, Source: source, Diagnostics: "semantic"}
 	withActiveModuleSourceWork(t, request, map[string]string{id: source}, nil, func(facts []callableFacts, work *callableEffectWork, owner *executableBodyOwner) {
 		file := owner.values.program.GetSourceFile(id)
 		var child, define, formalRead *ast.Node
@@ -229,7 +229,7 @@ func TestStagedNativeEagerSymbolChildOriginalSource(t *testing.T) {
 // pre-resolution wait experiment; neither manufactures selection or receipts.
 func TestStagedNativeKeySourceRoleCurrent(t *testing.T) {
 	const id = "/virtual/eager-wait-scope.ts"
-	request := Request{Kind: "analyze", ID: id, Source: stagedNativeEagerSymbolChildSource, Diagnostics: "semantic", stagedReplacement: true}
+	request := Request{Kind: "analyze", ID: id, Source: stagedNativeEagerSymbolChildSource, Diagnostics: "semantic"}
 	withActiveModuleSourceWork(t, request, map[string]string{id: stagedNativeEagerSymbolChildSource}, nil, func(facts []callableFacts, work *callableEffectWork, owner *executableBodyOwner) {
 		reached := 0
 		for _, recipe := range work.operationRecipes {

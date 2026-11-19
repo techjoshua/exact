@@ -161,7 +161,7 @@ func numericNegateReady(r *storageRecipe, pc int, ready []bool) bool {
 		return false
 	}
 	e := r.events[pc]
-	return e.kind == "NumberNegate" && e.out == pc && e.out < len(ready) && e.node != nil && ast.IsPrefixUnaryExpression(e.node) && e.node.AsPrefixUnaryExpression().Operator == ast.KindMinusToken && e.a >= 0 && e.a < pc && e.a < len(ready) && ready[e.a] && expressionValueProducer(r.events[e.a].kind) && !storageKeyRegister(r, e.a)
+	return e.kind == "NumberNegate" && e.out == pc && e.out < len(ready) && e.node != nil && ast.IsPrefixUnaryExpression(e.node) && e.node.AsPrefixUnaryExpression().Operator == ast.KindMinusToken && e.a >= 0 && e.a < pc && e.a < len(ready) && ready[e.a] && expressionValueProducer(r.events[e.a].kind)
 }
 
 // negateSuccessor preserves all nonnormal/family metadata and consumes only its

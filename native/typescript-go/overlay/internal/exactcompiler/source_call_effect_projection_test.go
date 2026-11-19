@@ -53,7 +53,7 @@ func componentCallProjectionInputs(t *testing.T, id, source string) (Request, ma
 	if err != nil {
 		t.Fatal(err)
 	}
-	request := Request{Kind: "analyze", ID: id, Source: source, ConfigFile: configID, Target: TargetClient, Diagnostics: "semantic", stagedReplacement: true}
+	request := Request{Kind: "analyze", ID: id, Source: source, ConfigFile: configID, Target: TargetClient, Diagnostics: "semantic"}
 	return request, map[string]string{id: source, configID: string(config)}
 }
 

@@ -33,8 +33,6 @@ type storageBindingRecipe struct {
 // The H owner shares complete selected rows and child receipts. It never clones
 // parent contexts recursively and is independent of expression pendingValue.
 type languageBindingContext struct {
-	// Actual sealed noncallable acquisition only, never a completed Call.
-	firstMethod                                      *languageCallInputs
 	plan                                             *storageBindingRecipe
 	elementIndex                                     int
 	completed                                        *bindingElementCompletion
@@ -106,7 +104,7 @@ func bindingReturnGetPlan(r *storageRecipe, pc int) bool {
 		return false
 	}
 	member, route := r.events[p.close.member], r.events[p.route]
-	return member.a == p.iterator && member.key == languageStringKey("return") && member.keyProducerPC == -1 && route.kind == "RouteIteratorClose" && route.node == p.declaration && route.a == p.close.invoke
+	return member.a == p.iterator && member.key == languageStringKey("return") && route.kind == "RouteIteratorClose" && route.node == p.declaration && route.a == p.close.invoke
 }
 
 // bindingNormalUnusedMetadata checks sealed completion data only. Unlike the
@@ -403,130 +401,6 @@ func bindingCloseRole(p *storageBindingRecipe, s *bindingCallSite) bool {
 // bindingFirstRole is the selected source-owned pre-record site, not Call authority.
 func bindingFirstRole(p *storageBindingRecipe, site *bindingCallSite) bool {
 	return p != nil && p.recipe != nil && p.valid(p.recipe) && site == &p.first && site.role == 0
-}
-
-// bindingFirstMethodNumber names only the selected canonical numeric9 domain.
-// Header completeness and a reference target alone never prove noncallability.
-func bindingFirstMethodNumber(v languageValue) bool {
-	n, known := numericNumberPayload(v)
-	return known && n == 9 && !v.undefined && v.object == nil && v.callable == nil
-}
-
-// bindingFirstMethodOrigin is immutable recipe/reference geometry. It cannot
-// issue a Get, validate a live namespace or activate the acquired value.
-func bindingFirstMethodOrigin(r *storageRecipe, t *languageCallTargetOrigin) bool {
-	if r == nil || r.binding == nil || len(r.binding.elements) > 1 || !r.binding.valid(r) || t == nil || t.getterInstall != nil {
-		return false
-	}
-	p := r.binding
-	return t.recipe == r && t.referencePC == p.first.member && t.getPC == p.first.get && t.acquirePC == p.first.acquire &&
-		t.reference.id.owner != nil && t.reference.id.serial != 0 && t.reference.cell == (languageCell{}) &&
-		t.reference.receiver.object != nil && t.reference.receiver.object.id.owner == t.reference.id.owner &&
-		t.reference.key == languageIteratorKey() && bindingFirstMethodNumber(t.value) &&
-		t.input == t.output && t.output.owner == t.reference.id.owner
-}
-
-// bindingFirstMethodReady consumes only the existing actual register vector.
-// It cannot substitute header completeness for the paid Get/acquire stages.
-func bindingFirstMethodReady(r *storageRecipe, pc int, ready []bool) bool {
-	if r == nil || r.binding == nil || len(r.binding.elements) > 1 || !r.binding.valid(r) || r.symbolCase == nil || len(ready) != r.registers {
-		return false
-	}
-	p, source := r.binding, r.symbolCase
-	for _, keyPC := range []int{source.firstPC, source.lastPC, r.events[p.first.member].keyProducerPC, p.first.member, p.first.get} {
-		if keyPC < 0 || keyPC >= len(ready) || !ready[keyPC] {
-			return false
-		}
-	}
-	if ready[p.first.finalize] || ready[p.first.invoke] {
-		return false
-	}
-	for _, later := range []int{p.record, p.next, p.park, p.close.member, p.close.get, p.close.acquire, p.close.finalize, p.close.invoke, p.route} {
-		if later < 0 || later >= len(ready) || ready[later] {
-			return false
-		}
-	}
-	if d := p.elementAt(0); d != nil {
-		for _, later := range []int{d.step.invoke, d.doneGet, d.doneSelect, d.valueGet, d.selectValue, d.initialize} {
-			if later < 0 || later >= len(ready) || ready[later] {
-				return false
-			}
-		}
-	}
-	if pc == p.first.get {
-		return !ready[p.first.acquire]
-	}
-	return pc == p.first.finalize && ready[p.first.acquire]
-}
-
-// bindingFirstMethodInputs inspects the sealed acquired header and caller
-// lexicals historically. It does not require a callable proof or live lease.
-func bindingFirstMethodInputs(r *storageRecipe, in *languageCallInputs, branch languageBranch) bool {
-	if r == nil || r.binding == nil || in == nil || branch.owner == nil || branch.env == nil || branch.state == nil ||
-		!bindingFirstRole(r.binding, in.bindingSite) || in.call != r.binding.declaration ||
-		in.category != callReferenceTarget || in.valueOrigin != nil || !in.calleeReady || !in.complete || len(in.arguments) != 0 ||
-		!bindingFirstMethodOrigin(r, in.targetOrigin) || in.callee != in.targetOrigin.value || in.reference != in.targetOrigin.reference ||
-		in.receiver != in.reference.receiver || in.calleeBranch != in.targetOrigin.output || branch != in.calleeBranch ||
-		len(in.lexicals) != len(r.declarations) {
-		return false
-	}
-	for i, lexical := range in.lexicals {
-		if lexical.declaration != r.declarations[i] {
-			return false
-		}
-	}
-	if r.binding.elementNode(0) != nil {
-		_, ok := bindingUninitializedTarget(r.binding.elementAt(0), branch, in.lexicals)
-		return ok
-	}
-	return true
-}
-
-// bindingFirstMethodReceipt binds the one issued Normal Get to this header.
-// The enclosing TypeError is separate. No disposed live validator is used.
-func bindingFirstMethodReceipt(a languageAlternative, r *storageRecipe, in *languageCallInputs) bool {
-	if !bindingFirstMethodInputs(r, in, a.branch) {
-		return false
-	}
-	t := in.targetOrigin
-	found := false
-	for _, record := range a.objects {
-		if record.recipe != r || record.pc != r.binding.first.get {
-			continue
-		}
-		receipt := record.receipt
-		if found || record.node != r.binding.declaration || record.reference != in.reference.id || receipt == nil ||
-			receipt.input != t.input || receipt.occurrence.owner != a.branch.owner || receipt.occurrence.serial == 0 ||
-			receipt.occurrence.serial > a.branch.owner.next || len(receipt.alternatives) != 1 {
-			return false
-		}
-		bare := receipt.alternatives[0]
-		if bare.branch != t.output || bare.completion != languageNormal || bare.value != in.callee || bare.remaining != "" ||
-			bare.pending != languageNormal || bare.pendingValue != (languageValue{}) || bare.pendingReturnBoundary != (languageID{}) ||
-			bare.returnBoundary != (languageID{}) || bare.binding != nil || bare.storage != nil || bare.callInputs != nil || bare.callHistory != nil ||
-			len(bare.objects) != 0 || len(bare.effects) != 0 || len(bare.obligations) != 0 || !sameLanguageFinallyContext(bare.finally, a.finally) {
-			return false
-		}
-		found = true
-	}
-	return found
-}
-
-// firstMethodNumberErrorOutput is a detached source terminal, not activation
-// permission. Its parent is the genuine pre-record nil binding context and the
-// Normal Get's exact branch/F context. Later protocol fields remain untouched.
-func (c *languageBindingContext) firstMethodNumberErrorOutput(a languageAlternative) bool {
-	if c == nil || c.firstMethod == nil || c.plan == nil || len(c.plan.elements) > 1 || c.elementIndex != 0 || c.completed != nil || a.binding != c || c.parent != nil ||
-		a.completion != languageThrow || a.value != (languageValue{text: "TypeError"}) || a.remaining != "" ||
-		a.pending != languageNormal || a.pendingValue != (languageValue{}) || a.pendingReturnBoundary != (languageID{}) || a.returnBoundary != (languageID{}) ||
-		a.storage != nil || a.callInputs != nil || a.callHistory != nil || c.first != nil || c.step != nil || c.close != nil ||
-		c.iterator != (languageValue{}) || c.result != (languageValue{}) || c.next != (languageValue{}) ||
-		c.nextReference != (languageReference{}) || c.nextBranch != (languageBranch{}) || c.nextReceipt != nil ||
-		c.done || c.doneKnown || c.doneReceipt != nil || c.valueReceipt != nil || c.selected != nil || c.target != (languageCell{}) ||
-		c.origin != nil || c.initialization != nil || c.returnGet != nil || c.interrupted != nil || c.routed {
-		return false
-	}
-	return bindingFirstMethodReceipt(a, c.plan.recipe, c.firstMethod)
 }
 
 // bindingFirstNumberResult recognizes the one selected pre-record role, not
@@ -958,12 +832,6 @@ func bindingCloseThrowRouteReady(r *storageRecipe, pc int, a languageAlternative
 // Binding completion has its own selected-row authority. B2's object result
 // certificate never authorizes the parent's Normal-unused result.
 func (c *languageBindingContext) complete(a languageAlternative) bool {
-	if c != nil && c.firstGetterThrowOutput(a) {
-		return true
-	}
-	if c != nil && c.firstMethod != nil {
-		return c.firstMethodNumberErrorOutput(a)
-	}
 	if c == nil || c.plan == nil {
 		return false
 	}
@@ -1359,22 +1227,12 @@ func bindingSuccessor(r *storageRecipe, pc int, a languageAlternative) int {
 }
 
 const bindingCloseGetterRole = 3
-const bindingFirstGetterRole = 4
-
-// This pre-record role has no iterator record or parked binding completion.
-// The scheduler checks the actual pre-loan header and source register separately.
-func bindingFirstGetterContext(r *storageRecipe, pc int, a languageAlternative) bool {
-	return r != nil && r.binding != nil && len(r.binding.elements) <= 1 && r.binding.valid(r) && pc == r.binding.first.get && r.symbolCase != nil && a.branch.owner != nil && a.branch.env != nil && a.completion == languageNormal && a.remaining == "" && a.binding == nil && a.callHistory == nil && a.returnBoundary == (languageID{}) && a.pending == languageNormal && a.pendingValue == (languageValue{}) && a.pendingReturnBoundary == (languageID{})
-}
 
 // bindingGetterRole is a finite source role, never permission for arbitrary
 // declaration-shaped Get. The real binding plan owns each implicit read site.
 func bindingGetterRole(r *storageRecipe, pc int) int {
 	if r == nil || r.binding == nil {
 		return 0
-	}
-	if len(r.binding.elements) <= 1 && r.binding.valid(r) && pc == r.binding.first.get {
-		return bindingFirstGetterRole
 	}
 	if pc == r.binding.close.get && bindingReturnGetPlan(r, pc) {
 		return bindingCloseGetterRole
@@ -1392,9 +1250,6 @@ func bindingGetterRole(r *storageRecipe, pc int) int {
 }
 func bindingGetterContext(r *storageRecipe, pc int, a languageAlternative) bool {
 	role := bindingGetterRole(r, pc)
-	if role == bindingFirstGetterRole {
-		return bindingFirstGetterContext(r, pc, a) && a.branch.owner.live(a.branch)
-	}
 	c := a.binding
 	if role == bindingCloseGetterRole {
 		return c != nil && c.plan == r.binding && c.returnGet == nil && !c.routed && bindingReturnGetParent(c, a)
@@ -1415,9 +1270,6 @@ func bindingGetterSourceRegister(r *storageRecipe, pc int) (int, bool) {
 	if role == 0 {
 		return 0, false
 	}
-	if role == bindingFirstGetterRole {
-		return r.events[r.binding.first.member].a, true
-	}
 	if role == bindingCloseGetterRole {
 		return r.binding.iterator, true
 	}
@@ -1431,9 +1283,6 @@ func bindingGetterReceiver(r *storageRecipe, pc int, a languageAlternative) (int
 	reg, ok := bindingGetterSourceRegister(r, pc)
 	if !ok || !bindingGetterContext(r, pc, a) {
 		return 0, languageValue{}, false
-	}
-	if bindingGetterRole(r, pc) == bindingFirstGetterRole {
-		return reg, a.value, a.value.object != nil && a.value.object.id.owner == a.branch.owner
 	}
 	if bindingGetterRole(r, pc) == bindingCloseGetterRole {
 		return reg, a.binding.iterator, true
@@ -1449,11 +1298,6 @@ func bindingGetterInputs(r *storageRecipe, a languageAlternative, in *languageCa
 	if !ok || in.call != r.binding.declaration || in.bindingSite != nil || in.receiver != receiver || t.referencePC != r.events[t.getPC].a || r.events[t.referencePC].a != reg {
 		return false
 	}
-	if bindingGetterRole(r, t.getPC) == bindingFirstGetterRole && r.binding.elementNode(0) != nil {
-		// This is the source caller's frame before Getter activation, not its scope.
-		_, mapped := bindingUninitializedTarget(r.binding.elementAt(0), a.branch, in.lexicals)
-		return mapped
-	}
 	return true
 }
 
@@ -1464,15 +1308,6 @@ func bindingGetThrowTarget(r *storageRecipe, pc int, child languageAlternative, 
 		return languageCell{}, false
 	}
 	descriptor := r.binding.elementAtPC(pc)
-	if bindingGetterRole(r, pc) == bindingFirstGetterRole {
-		if len(r.binding.elements) == 0 {
-			return languageCell{}, true
-		}
-		if len(r.binding.elements) != 1 {
-			return languageCell{}, false
-		}
-		descriptor = r.binding.elementAt(0)
-	}
 	if descriptor == nil {
 		return languageCell{}, false
 	}
@@ -1488,26 +1323,6 @@ func bindingGetThrowTarget(r *storageRecipe, pc int, child languageAlternative, 
 func adoptBindingGetThrow(parent, a languageAlternative, r *storageRecipe, pc int, target languageCell) (languageAlternative, bool) {
 	if !bindingGetterContext(r, pc, parent) || a.completion != languageThrow || a.callHistory == nil || len(a.objects) == 0 {
 		return a, false
-	}
-	if bindingGetterRole(r, pc) == bindingFirstGetterRole {
-		if a.binding != nil {
-			return a, false
-		}
-		if r.binding.elementNode(0) == nil {
-			if target != (languageCell{}) {
-				return a, false
-			}
-		} else {
-			if a.callHistory.entry == nil || a.callHistory.entry.inputs == nil {
-				return a, false
-			}
-			if _, ok := bindingUninitializedTarget(r.binding.elementAt(0), a.branch, a.callHistory.entry.inputs.lexicals, target); !ok {
-				return a, false
-			}
-		}
-		// The source target is authenticated but not installed as a selected binding.
-		a.binding = &languageBindingContext{plan: r.binding}
-		return a, a.binding.firstGetterThrowOutput(a)
 	}
 	if bindingGetterRole(r, pc) == bindingCloseGetterRole {
 		return a, target == (languageCell{}) && a.binding == parent.binding && a.binding.closeGetterInnerOutput(a)
@@ -1675,103 +1490,4 @@ func bindingReturnGetterSuspended(r *storageRecipe, pc int, a languageAlternativ
 	}
 	d, present, _, record := a.branch.owner.readOwnRecord(t.input, c.iterator.object, languageStringKey("next"))
 	return present && record != nil && record.initialized && !record.deleted && !d.accessor && d.value == c.next
-}
-
-// firstGetterThrowOutput inspects an already issued finished Get. It never
-// validates disposed live authority or invents a factory Call/iterator record.
-func (c *languageBindingContext) firstGetterThrowOutput(a languageAlternative) bool {
-	if c == nil || c.plan == nil || len(c.plan.elements) > 1 || c.elementIndex != 0 || c.completed != nil || a.binding != c || c.parent != nil || c.firstMethod != nil || c.first != nil || c.step != nil || c.close != nil || c.iterator != (languageValue{}) || c.result != (languageValue{}) || c.next != (languageValue{}) || c.nextReference != (languageReference{}) || c.nextBranch != (languageBranch{}) || c.nextReceipt != nil || c.origin != nil || c.initialization != nil || c.returnGet != nil || c.done || c.doneKnown || c.doneReceipt != nil || c.valueReceipt != nil || c.selected != nil || c.interrupted != nil || c.routed || c.target != (languageCell{}) || a.completion != languageThrow || a.remaining != "" || a.storage != nil || a.callInputs != nil || a.returnBoundary != (languageID{}) || a.callHistory == nil || a.branch.owner == nil {
-		return false
-	}
-	h := a.callHistory
-	if h.entry == nil || h.entry.inputs == nil || h.entry.acquisition == nil || len(h.entry.acquisition.alternatives) != 1 || h.raw == nil || len(h.raw.alternatives) != 1 || h.converted || h.completion != languageThrow || h.value != a.value || h.outward != a.branch || h.id.owner != a.branch.owner || h.id.serial == 0 || h.id.serial > a.branch.owner.next {
-		return false
-	}
-	e, in := h.entry, h.entry.inputs
-	t := in.targetOrigin
-	parent := e.acquisition.alternatives[0]
-	r := c.plan.recipe
-	if t == nil || t.recipe != r || bindingGetterRole(r, t.getPC) != bindingFirstGetterRole || t.referencePC != c.plan.first.member || t.acquirePC != -1 || t.input != t.output || t.input != parent.branch || !bindingFirstGetterContext(r, t.getPC, parent) || parent.callInputs != in || in.call != c.plan.declaration || in.bindingSite != nil || in.category != callReferenceTarget || in.valueOrigin != nil || !in.complete || !in.calleeReady || len(in.arguments) != 0 || in.reference != t.reference || in.receiver != parent.value || in.receiver != t.reference.receiver || in.receiver.object == nil || in.reference.cell != (languageCell{}) || in.reference.key != languageIteratorKey() || t.getterInstall == nil || t.getterInstall.object != in.receiver.object || t.getterInstall.key != in.reference.key || in.callee != t.getterInstall.descriptor.value || !getterDescriptorPayload(t.getterInstall.descriptor) || !ownGetterInstallationKey(r, t.getterInstall) || e.callable != in.callee.callable || e.proof != e.callable.proof || e.proof.parameters != 0 || e.proof.namespace != a.branch.owner || e.proof.generation != a.branch.generation || e.proof.source == nil || e.proof.source.AsNode() != r.body || e.proof.entry == nil || e.proof.entry.body != e.proof.arrow || e.boundary.owner != a.branch.owner || e.boundary.serial == 0 || e.boundary.serial > a.branch.owner.next || h.raw.occurrence.owner != a.branch.owner || h.raw.occurrence.serial == 0 || h.raw.occurrence.serial > a.branch.owner.next || e.acquisition.occurrence.owner != a.branch.owner || e.acquisition.occurrence.serial == 0 || e.acquisition.occurrence.serial > a.branch.owner.next || !sameLanguageFinallyContext(a.finally, parent.finally) || a.pending != parent.pending || a.pendingValue != parent.pendingValue || a.pendingReturnBoundary != parent.pendingReturnBoundary {
-		return false
-	}
-	raw := h.raw.alternatives[0]
-	if h.raw.input != e.activation || raw.completion != languageThrow || raw.returnBoundary != (languageID{}) || raw.value != h.value || raw.branch.state != a.branch.state || raw.branch.env != e.activation.env || e.activation.state != parent.branch.state || e.activation.env == nil || parent.branch.cursor == ^uint64(0) || e.activation.cursor != parent.branch.cursor+1 || a.branch.env != e.caller || e.caller != parent.branch.env || raw.branch.cursor == ^uint64(0) || raw.branch.cursor+1 != a.branch.cursor || !callBodySnapshot(e, raw) || !sameLanguageCallInputs(raw.callInputs, in) || raw.finally == nil || !raw.finally.routed {
-		return false
-	}
-	found := false
-	for _, record := range a.objects {
-		if record.recipe != r || record.pc != c.plan.first.get {
-			continue
-		}
-		if found || record.node != c.plan.declaration || record.reference != in.reference.id || record.receipt == nil || record.receipt.input != t.input || record.receipt.occurrence.owner != a.branch.owner || record.receipt.occurrence.serial <= in.reference.id.serial || record.receipt.occurrence.serial > a.branch.owner.next || len(record.receipt.alternatives) != 1 {
-			return false
-		}
-		row := record.receipt.alternatives[0]
-		if row.branch != a.branch || row.completion != languageThrow || row.value != a.value || row.callHistory != h || row.binding != nil || row.callInputs != nil || row.storage != nil || !sameLanguageFinallyContext(row.finally, parent.finally) {
-			return false
-		}
-		found = true
-	}
-	if !found {
-		return false
-	}
-	if c.plan.elementNode(0) != nil {
-		// The checked exit restored e.caller. Never inspect a Getter formal as x.
-		_, ok := bindingUninitializedTarget(c.plan.elementAt(0), a.branch, in.lexicals)
-		return ok
-	}
-	return true
-}
-
-// This fence recognizes the suspended first Get's actual loaned header and
-// source buffers. It grants neither activation nor finished-Get permission.
-func bindingFirstGetterSuspended(r *storageRecipe, pc int, a languageAlternative) bool {
-	s, in := a.storage, a.callInputs
-	if bindingGetterRole(r, pc) != bindingFirstGetterRole || a.branch.owner == nil || s == nil || s.recipe != r || s.pc != pc || in == nil || in.targetOrigin == nil || s.callInputs != nil || s.targetOrigin != nil || a.binding != nil {
-		return false
-	}
-	t := in.targetOrigin
-	reg := r.events[r.binding.first.member].a
-	if t.recipe != r || t.getPC != pc || t.referencePC != r.binding.first.member || t.acquirePC != -1 || t.input != t.output || in.call != r.binding.declaration || in.bindingSite != nil || in.reference != t.reference || in.receiver != t.reference.receiver || in.reference.key != languageIteratorKey() || t.getterInstall == nil || t.getterInstall.object != in.receiver.object || t.getterInstall.key != in.reference.key || in.callee != t.getterInstall.descriptor.value || !getterDescriptorPayload(t.getterInstall.descriptor) || reg < 0 || reg >= len(s.values) || reg >= len(s.ready) || !s.ready[reg] || s.values[reg] != in.receiver || t.referencePC >= len(s.references) || s.references[t.referencePC] != in.reference {
-		return false
-	}
-	parent := a
-	if a.callHistory != nil {
-		h := a.callHistory
-		if h.entry == nil || h.entry.inputs == nil || h.entry.inputs.targetOrigin != t || h.entry.acquisition == nil || len(h.entry.acquisition.alternatives) != 1 || !sameLanguageCallInputs(in, h.entry.inputs) {
-			return false
-		}
-		parent = h.entry.acquisition.alternatives[0]
-		if parent.callInputs != h.entry.inputs {
-			return false
-		}
-	} else {
-		parent.branch = t.input
-	}
-	if parent.branch != t.input || !bindingFirstGetterContext(r, pc, parent) || !sameLanguageFinallyContext(s.finally, parent.finally) {
-		return false
-	}
-	if r.binding.elementNode(0) != nil {
-		slot := r.events[r.binding.elementLabels(0).initialize].cell
-		if slot < 0 || slot >= len(s.cells) {
-			return false
-		}
-		caller := a.branch
-		// Transport may still carry an unfinished Getter activation. Select only
-		// the real caller authenticated by its acquisition, retaining actual state.
-		if a.callHistory != nil {
-			entry := a.callHistory.entry
-			if entry.caller != parent.branch.env || (a.branch.env != entry.caller && a.branch.env != entry.activation.env) {
-				return false
-			}
-			caller.env = entry.caller
-		} else if a.branch.env != parent.branch.env {
-			return false
-		}
-		if _, ok := bindingUninitializedTarget(r.binding.elementAt(0), caller, in.lexicals, s.cells[slot]); !ok {
-			return false
-		}
-	}
-	d, present, _, record := a.branch.owner.readOwnRecord(t.input, in.receiver.object, in.reference.key)
-	return present && record == t.getterInstall && d.value == in.callee
 }

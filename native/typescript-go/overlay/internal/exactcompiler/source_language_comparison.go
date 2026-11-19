@@ -293,7 +293,7 @@ func numericBinaryReady(r *storageRecipe, pc int, ready []bool) bool {
 		return false
 	}
 	for _, reg := range [2]int{e.a, e.b} {
-		if reg < 0 || reg >= pc || reg >= len(ready) || !ready[reg] || !expressionValueProducer(r.events[reg].kind) || storageKeyRegister(r, reg) {
+		if reg < 0 || reg >= pc || reg >= len(ready) || !ready[reg] || !expressionValueProducer(r.events[reg].kind) {
 			return false
 		}
 	}

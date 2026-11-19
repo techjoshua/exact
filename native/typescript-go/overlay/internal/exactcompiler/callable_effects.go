@@ -301,7 +301,7 @@ func collectProjectCallableEffects(
 	assetRules []AssetRule,
 ) callableAnalysis {
 	cache, changed := prepareProjectCallableContexts(project, sourceFile, typeChecker, components, stateReads, stateWrites, componentBindings, assets, assetRules)
-	if changed || !project.stagedReplacement && cache.requested != sourceFile {
+	if changed || cache.requested != sourceFile {
 		rebuildProjectCallableCache(project.program, cache, cache.owner, sourceFile)
 	}
 	result := projectCallableAnalysisForSource(sourceFile, cache.merged)

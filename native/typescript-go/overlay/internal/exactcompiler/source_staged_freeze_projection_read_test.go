@@ -31,7 +31,7 @@ function domainOperationPrototype(prototype:object,domain:object):object{
  return owned;
 }
 export function invoke(){return domainOperationPrototype({},{});}`
-	request := Request{Kind: "analyze", ID: id, Source: source, Diagnostics: "semantic", stagedReplacement: true}
+	request := Request{Kind: "analyze", ID: id, Source: source, Diagnostics: "semantic"}
 	wrapped := make(map[*sourceStagedMemberBorrow]bool)
 	var loans []*sourceStagedFreezeProjectionLoan
 	observed := 0

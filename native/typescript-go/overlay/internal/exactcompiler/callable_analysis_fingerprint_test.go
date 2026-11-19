@@ -354,3 +354,72 @@ func callableAnalysisFingerprint(analysis callableAnalysis) string {
 	}
 	return result.String()
 }
+
+// descriptorTargetFingerprint emits semantic descriptions rather than cloned
+// carrier allocation addresses. It retains each original child and field order.
+func descriptorTargetFingerprint(source *sourceDescriptorTargetSource, result *strings.Builder) {
+	if source == nil {
+		return
+	}
+	result.WriteString(fmt.Sprintf("|descriptor-target:%#v:%#v:%p:%#v:%t", source.request, source.algorithm, source.generation, source.cut, source.represented))
+	result.WriteString(fmt.Sprintf("|target-native:%p:%p:%#v", source.source.method, source.source.get, source.source.request))
+	for _, input := range source.inputs {
+		descriptorFingerprintInput(input, result)
+	}
+
+	for _, field := range source.fields {
+		result.WriteString(fmt.Sprintf("|target-field:%d:%p:%#v", field.field, field.writer, field.data))
+		result.WriteString(fmt.Sprintf("|target-receiver:%#v", field.receiver))
+		endpoint := descriptorFingerprintEndpoint(field.target, result)
+		result.WriteString(fmt.Sprintf("|target-receiver-construction:%#v", endpoint))
+	}
+	for _, required := range source.required {
+		result.WriteString(fmt.Sprintf("|target-required:%#v", required))
+	}
+}
+
+func descriptorStrongFingerprint(source *sourceDescriptorStrongReader, result *strings.Builder) {
+	if source == nil {
+		return
+	}
+	result.WriteString(fmt.Sprintf("|descriptor-strong:%#v:%#v:%d:%s:%#v", source.parent, source.cut, source.mode, source.field, source.target))
+	descriptorFingerprintEndpoint(sourceRelativeEndpoint{kind: relativeEndpointDescriptorView, descriptorView: &source.view}, result)
+}
+
+func originalMutationBodyFingerprint(p sourceOriginalMutationBodyPopulation, out *strings.Builder) {
+	out.WriteString(fmt.Sprintf("|mutation-body:%p:%p:%t", p.declaration, p.generation, p.complete))
+	for _, operation := range p.operations {
+		out.WriteString(fmt.Sprintf(":%p:%d", operation.node, operation.kind))
+	}
+}
+
+func descriptorFingerprintDelta(delta sourceStagedOperationDelta, result *strings.Builder) sourceStagedOperationDelta {
+	delta.exposures = descriptorFingerprintAlternatives(delta.exposures, result)
+	copied := false
+	for i, invocation := range delta.invoked {
+		if invocation.alternative.endpoint.nativePrimitive == nil && invocation.alternative.endpoint.descriptorView == nil && invocation.alternative.endpoint.moduleConstruction == nil && invocation.alternative.endpoint.constructionCallable == nil {
+			continue
+		}
+		if !copied {
+			delta.invoked = append([]sourceStagedOperationInvocation(nil), delta.invoked...)
+			copied = true
+		}
+		delta.invoked[i].alternative.endpoint = descriptorFingerprintEndpoint(invocation.alternative.endpoint, result)
+	}
+	return delta
+}
+
+func descriptorFingerprintBoundInputs(inputs sourceRelativeBoundInputs, result *strings.Builder) sourceRelativeBoundInputs {
+	inputs.bindings = descriptorFingerprintBindings(inputs.bindings, result)
+	return inputs
+}
+
+func reflectiveContributionFingerprint(d *sourceStagedReflectiveContribution, result *strings.Builder) {
+	if d == nil {
+		return
+	}
+	result.WriteString(fmt.Sprintf("|reflective-contribution:%d:%p:%p:%d:%#v:%#v:%#v:%#v:%#v:%#v", d.purpose, d.generation, d.method, d.kind, d.request, d.parent, d.root, d.algorithm, d.reader, d.data))
+	descriptorFingerprintEndpoint(d.installation.target, result)
+	descriptorFingerprintEndpoint(d.installation.key, result)
+	descriptorFingerprintEndpoint(d.installation.descriptor, result)
+}

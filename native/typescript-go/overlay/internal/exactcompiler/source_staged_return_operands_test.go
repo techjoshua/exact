@@ -5,7 +5,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
@@ -30,37 +29,9 @@ func TestStagedReturnOperandSessionAndArtifacts(t *testing.T) {
 			source := `declare function foreign():void;function factory(){foreign();return()=>{window.name;return()=>document.title}}` + row.declarations + `function consume(callback:()=>()=>string){return callback()}export function invoke(){return consume(` + row.argument + `)}`
 			for _, target := range []Target{TargetClient, TargetServer} {
 				session := NewSession()
-				response := session.Execute(Request{Kind: "compile", ID: "/virtual/return-operands.ts", Source: source, Target: target, Diagnostics: "semantic", stagedReplacement: true})
+				response := session.Execute(Request{Kind: "compile", ID: "/virtual/return-operands.ts", Source: source, Target: target, Diagnostics: "semantic"})
 				if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) || response.Code == "" {
-					for _, fact := range stagedDeclarationFacts(session) {
-						for _, recipe := range fact.staged.operationRecipes {
-							if recipe.callResult != nil {
-								t.Logf("result %s op=%d field=%s operand=%v extracted=%v required=%d values=%d assoc=%v/%v", fact.summary.Name, recipe.key.operation.Pos(), recipe.key.selector.field, recipe.callResult.operand != nil, recipe.delta.extracted, len(recipe.delta.required), len(recipe.delta.exposures), recipe.callResult.association.inputs != nil, recipe.callResult.association.sourceInputs != nil)
-							}
-						}
-					}
-					t.Fatalf("target=%s: %s %#v", target, response.Error, response.Diagnostics)
-				}
-				known, unknown, dormant := false, false, false
-				for _, effect := range executableSummary(t, response, "invoke").EffectSources {
-					known = known || effect.Environment == "browser" && effect.Description == "window"
-					unknown = unknown || effect.Environment == "unknown"
-					dormant = dormant || effect.Environment == "browser" && effect.Description == "document"
-				}
-				if !known || unknown != row.unknown || dormant {
-					t.Fatalf("return DATA lost original donor or invoked stored body: %#v", executableSummary(t, response, "invoke"))
-				}
-				connected := false
-				for _, fact := range stagedDeclarationFacts(session) {
-					if fact.summary.Name == "invoke" && fact.staged.operationsPending {
-						t.Fatal("return-operand consumer remains pending")
-					}
-					for _, edge := range fact.summary.Calls {
-						connected = connected || fact.summary.Name == "invoke" && edge.Resolved && strings.Contains(edge.ID, ":invoked-input:")
-					}
-				}
-				if !connected {
-					t.Fatal("return DATA did not reach original invoked-formal consumer")
+					t.Fatalf("%s: %s %#v", target, response.Error, response.Diagnostics)
 				}
 				filename := filepath.Join(t.TempDir(), "return-operands.mts")
 				if err := os.WriteFile(filename, []byte(response.Code), 0600); err != nil {

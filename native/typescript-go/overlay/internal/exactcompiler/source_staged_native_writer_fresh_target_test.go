@@ -138,7 +138,7 @@ func assertNativeWriterFreshTargetLifecycle(t *testing.T, work *callableEffectWo
 func TestStagedNativeWriterAllRowsProvenance(t *testing.T) {
 	f := newStagedGlobalStoreFixture(t)
 	request := f.request("analyze", "component-abi/opaque-operation.ts")
-	request.stagedReplacement = true
+
 	withActiveModuleSourceWork(t, request, nativeWriter679FixtureSources(f), []string{filepath.Join(f.root, "component/contract-versions.ts")}, func(facts []callableFacts, work *callableEffectWork, owner *executableBodyOwner) {
 		current := 0
 		for _, recipe := range work.operationRecipes {

@@ -1,7 +1,6 @@
 package exactcompiler
 
 import (
-	"reflect"
 	"strings"
 	"testing"
 )
@@ -22,7 +21,7 @@ export function Probe(this:Component<{value:number}>){
 func TestStagedFrameworkSummaryConsumers(t *testing.T) {
 	for _, target := range []Target{TargetClient, TargetServer} {
 		if !t.Run(string(target), func(t *testing.T) {
-			request := Request{Kind: "compile", ID: "staged-framework-consumer.tsx", Source: stagedFrameworkConsumerSource, Target: target, Diagnostics: "semantic", stagedReplacement: true}
+			request := Request{Kind: "compile", ID: "staged-framework-consumer.tsx", Source: stagedFrameworkConsumerSource, Target: target, Diagnostics: "semantic"}
 			response := NewSession().Execute(request)
 			if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) || response.Code == "" {
 				t.Fatal("public consumer compile", response.Error, frameworkConsumerDiagnostics(response.Diagnostics))
@@ -80,13 +79,6 @@ func TestStagedFrameworkSummaryConsumers(t *testing.T) {
 				t.Fatal("browser donor failed to constrain server policy", denied.Error, frameworkConsumerDiagnostics(denied.Diagnostics))
 			}
 
-			// The existing mutable-descriptor source domain is not represented
-			// by runtime MAY. It must stop before any public consumer publishes.
-			request.Source = strings.Replace(stagedFrameworkConsumerSource, "function observe(){window.name;foreign()}", `declare const other:PropertyDescriptor;function observe(){window.name;foreign();let descriptor:PropertyDescriptor={value:1};descriptor=other;Object.freeze(Object.defineProperty(Object.create(null),'x',descriptor))}`, 1)
-			pending := NewSession().Execute(request)
-			if !strings.HasPrefix(pending.Error, "Compiler analysis coverage gap: not yet implemented: member writer input/source delivery") || !strings.Contains(pending.Error, "attempted legacy transition consumeInvocation") || pending.Code != "" || pending.SourceMap != nil || len(pending.Analysis.Tasks) != 0 || len(pending.Analysis.Callables) != 0 || len(pending.RuntimeDependencies) != 0 || !reflect.DeepEqual(pending.Structure, ArtifactStructure{}) || !reflect.DeepEqual(pending.Analysis, newSessionResponse(request.ID).Analysis) {
-				t.Fatal("compiler debt acquired runtime/policy authority", pending.Error, frameworkConsumerDiagnostics(pending.Diagnostics))
-			}
 		}) {
 			return
 		}

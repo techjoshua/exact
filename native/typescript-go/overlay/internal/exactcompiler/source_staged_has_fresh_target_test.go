@@ -78,30 +78,3 @@ func assertGlobalStoreHasFreshTargets(t *testing.T, work *callableEffectWork, fa
 		}
 	}
 }
-
-// Cached local extraction is checked separately from the actual source test's
-// current graph proof. This assertion grants no currency from cached metadata.
-func assertGlobalStoreSessionHasFreshTargets(t *testing.T, session *Session) {
-	t.Helper()
-	found := false
-	for _, project := range session.projects {
-		if project.callableCache == nil {
-			continue
-		}
-		for _, fact := range project.callableCache.merged.facts {
-			for _, recipe := range fact.staged.operationRecipes {
-				s := recipe.memberSource
-				if s == nil || s.hasFreshTarget == nil || s.candidate.operation.Pos() != 745 {
-					continue
-				}
-				found = true
-				if !validHasFreshTargetRecipe(recipe) || !recipe.delta.extracted || !operationContainsRequest(recipe.delta.required, s.hasFreshTarget.native) || !operationContainsRequest(recipe.delta.required, hasFreshTargetReading(s)) {
-					t.Fatal("actual Session Has relevance reader was not refined with full sources")
-				}
-			}
-		}
-	}
-	if !found {
-		t.Fatal("actual Session original Has fresh-target reader missing")
-	}
-}

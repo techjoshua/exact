@@ -28,7 +28,7 @@ function domainOperationPrototype(prototype:object,domain:object):object{
  return owned;
 }
 export function invoke(){return domainOperationPrototype({},{});}`
-	request := Request{Kind: "analyze", ID: id, Source: source, Diagnostics: "semantic", stagedReplacement: true}
+	request := Request{Kind: "analyze", ID: id, Source: source, Diagnostics: "semantic"}
 	checkFreezePrefixOriginalEntry(t, request, map[string]string{id: source}, nil, false)
 }
 
@@ -37,7 +37,7 @@ export function invoke(){return domainOperationPrototype({},{});}`
 func TestStagedFreezePrefixPreparationOriginalConsumer(t *testing.T) {
 	fixture := newStagedOriginalCacheFixture(t)
 	request := fixture.request("analyze", "component-abi/opaque-operation.ts")
-	request.stagedReplacement = true
+
 	sources := make(map[string]string, len(fixture.files))
 	for name, source := range fixture.files {
 		sources[filepath.Join(fixture.root, name)] = source

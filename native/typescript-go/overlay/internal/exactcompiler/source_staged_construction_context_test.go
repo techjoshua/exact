@@ -14,7 +14,7 @@ func withOriginalCacheConstructionSources(t *testing.T, inspect func([]callableF
 	t.Helper()
 	fixture := newStagedOriginalCacheFixture(t)
 	request := fixture.request("analyze", "component-abi/opaque-operation.ts")
-	request.stagedReplacement = true
+
 	sources := make(map[string]string, len(fixture.files))
 	for name, source := range fixture.files {
 		sources[filepath.Join(fixture.root, name)] = source

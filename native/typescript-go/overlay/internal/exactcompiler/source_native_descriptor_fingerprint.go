@@ -135,27 +135,6 @@ func descriptorFingerprintAlternatives(values []sourceStagedOperationAlternative
 	return out
 }
 
-func descriptorFingerprintDelta(delta sourceStagedOperationDelta, result *strings.Builder) sourceStagedOperationDelta {
-	delta.exposures = descriptorFingerprintAlternatives(delta.exposures, result)
-	copied := false
-	for i, invocation := range delta.invoked {
-		if invocation.alternative.endpoint.nativePrimitive == nil && invocation.alternative.endpoint.descriptorView == nil && invocation.alternative.endpoint.moduleConstruction == nil && invocation.alternative.endpoint.constructionCallable == nil {
-			continue
-		}
-		if !copied {
-			delta.invoked = append([]sourceStagedOperationInvocation(nil), delta.invoked...)
-			copied = true
-		}
-		delta.invoked[i].alternative.endpoint = descriptorFingerprintEndpoint(invocation.alternative.endpoint, result)
-	}
-	return delta
-}
-
-func descriptorFingerprintBoundInputs(inputs sourceRelativeBoundInputs, result *strings.Builder) sourceRelativeBoundInputs {
-	inputs.bindings = descriptorFingerprintBindings(inputs.bindings, result)
-	return inputs
-}
-
 func descriptorFingerprintInput(input sourceDescriptorInputData, result *strings.Builder) {
 	alternatives := descriptorFingerprintAlternatives(input.alternatives, result)
 	result.WriteString(fmt.Sprintf("|descriptor-input:%#v:%t:%#v", input.request, input.construction, alternatives))

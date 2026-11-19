@@ -203,7 +203,6 @@ func (work *callableEffectWork) consumeNativeCreateTarget(facts []callableFacts,
 				adopted = work.adoptPendingNativeEffects(facts, child, issuer)
 			}
 			if !adopted || child == nil || child.source == nil || child.source.kind != sourceNativeObjectCreate {
-				work.requireStagedNativeEffectsConsumer(child, owner)
 				return
 			}
 			if issuer.issued {

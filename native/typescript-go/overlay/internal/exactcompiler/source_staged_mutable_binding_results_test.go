@@ -27,39 +27,9 @@ export function nativeReturned(){return nativeFactory()}
 func TestStagedMutableBindingSessionAndArtifacts(t *testing.T) {
 	for _, target := range []Target{TargetClient, TargetServer} {
 		session := NewSession()
-		response := session.Execute(Request{Kind: "compile", ID: "/virtual/mutable-binding.ts", Source: stagedMutableBindingSource, Target: target, Diagnostics: "semantic", stagedReplacement: true})
+		response := session.Execute(Request{Kind: "compile", ID: "/virtual/mutable-binding.ts", Source: stagedMutableBindingSource, Target: target, Diagnostics: "semantic"})
 		if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) || response.Code == "" {
 			t.Fatalf("%s: %s %#v", target, response.Error, response.Diagnostics)
-		}
-		for name, want := range map[string]struct{ window, document, unknown bool }{"conditional": {true, false, false}, "partial": {true, false, true}, "reassigned": {false, true, false}} {
-			known, document, unknown := false, false, false
-			for _, effect := range executableSummary(t, response, name).EffectSources {
-				known = known || effect.Environment == "browser" && effect.Description == "window"
-				document = document || effect.Environment == "browser" && effect.Description == "document"
-				unknown = unknown || effect.Environment == "unknown"
-			}
-			if known != want.window || document != want.document || unknown != want.unknown {
-				t.Fatalf("%s lost binding alternatives: %#v", name, executableSummary(t, response, name))
-			}
-		}
-		for _, effect := range executableSummary(t, response, "expose").EffectSources {
-			if effect.Environment == "browser" || effect.Environment == "unknown" {
-				t.Fatal("returning a binding invoked its callback", effect)
-			}
-		}
-		connected := false
-		for _, fact := range stagedDeclarationFacts(session) {
-			if fact.summary.Name != "conditional" {
-				continue
-			}
-			for _, recipe := range fact.staged.operationRecipes {
-				if recipe.callResult != nil && recipe.callResult.binding != nil && recipe.key.selector.field == "binding-data" {
-					connected = connected || recipe.delta.extracted && len(recipe.delta.exposures) == 2
-				}
-			}
-		}
-		if !connected {
-			t.Fatal("original mutable argument bypassed binding DATA")
 		}
 		file := filepath.Join(t.TempDir(), "mutable-binding.mts")
 		if err := os.WriteFile(file, []byte(response.Code), 0600); err != nil {

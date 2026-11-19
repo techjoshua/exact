@@ -14,7 +14,7 @@ func TestOriginalMapEntryCoveragePointwiseSource(t *testing.T) {
 	} {
 		t.Run(row.name, func(t *testing.T) {
 			const id = "/virtual/entry-coverage.ts"
-			request := Request{Kind: "analyze", ID: id, Source: row.source, Diagnostics: "semantic", stagedReplacement: true}
+			request := Request{Kind: "analyze", ID: id, Source: row.source, Diagnostics: "semantic"}
 			withActiveModuleSourceWork(t, request, map[string]string{id: row.source}, nil, func(facts []callableFacts, work *callableEffectWork, owner *executableBodyOwner) {
 				work.prepareOperationUses(facts, owner)
 				entries, described := 0, 0

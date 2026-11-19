@@ -16,9 +16,9 @@ const (
 	callableMayEffects
 )
 
-// publicCallableEffectPurpose preserves the explicit replacement experiment.
+// Public project analysis collects MAY effects. Standalone operation owners may transfer protocol work.
 func publicCallableEffectPurpose(owner *executableBodyOwner) callableEffectPurpose {
-	if owner != nil && owner.project != nil && !owner.project.stagedReplacement {
+	if owner != nil && owner.project != nil {
 		return callableMayEffects
 	}
 	return callableProtocolEffects

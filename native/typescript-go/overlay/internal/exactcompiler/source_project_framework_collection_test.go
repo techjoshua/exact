@@ -76,7 +76,7 @@ export function cycle(){return readerLabel}`
 	write("reader.ts", `export function DiskOnly(){return 0}`)
 	write("producer.ts", producer(true))
 	entry, dependency := filepath.Join(root, "reader.ts"), filepath.Join(root, "producer.ts")
-	request := Request{Kind: "analyze", Root: root, ConfigFile: filepath.Join(root, "tsconfig.json"), ID: entry, Source: reader, Diagnostics: "semantic", stagedReplacement: true}
+	request := Request{Kind: "analyze", Root: root, ConfigFile: filepath.Join(root, "tsconfig.json"), ID: entry, Source: reader, Diagnostics: "semantic"}
 	session := NewSession()
 	t.Cleanup(func() { session.Execute(Request{Kind: "reset"}) })
 	var oldWork *callableEffectWork
@@ -87,13 +87,13 @@ export function cycle(){return readerLabel}`
 	}{{"initial", true}, {"edited-generation", false}} {
 		if !t.Run(row.name, func(t *testing.T) {
 			batch := []ProjectSource{{ID: entry, Source: reader}, {ID: dependency, Source: producer(row.browser)}}
-			response := session.Execute(Request{Kind: "synchronize", Root: root, ConfigFile: request.ConfigFile, Sources: batch, stagedReplacement: true})
+			response := session.Execute(Request{Kind: "synchronize", Root: root, ConfigFile: request.ConfigFile, Sources: batch})
 			if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) {
 				t.Fatal("real two-file synchronization", response.Error, response.Diagnostics)
 			}
 			project := session.projects[nativeProjectKey(request, entry)]
-			if project == nil || !project.stagedReplacement {
-				t.Fatal("synchronized strict project absent")
+			if project == nil {
+				t.Fatal("synchronized project absent")
 			}
 			generation, err := project.advance(context.Background(), entry, reader)
 			if err != nil {

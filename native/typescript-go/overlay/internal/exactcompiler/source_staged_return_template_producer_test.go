@@ -237,3 +237,59 @@ func TestStagedReturnedCaptureInvocationSource(t *testing.T) {
 		})
 	}
 }
+
+// describeStagedCreatingInputs is C0, a source recipe for an already selected
+// ordinary direct Call. It never runs the binder or acquires an argument. Rich
+// adapters must instead provide their original synchronous B/C response.
+func describeStagedCreatingInputs(request sourceRelativeInvocation, bodyOwner *executableBodyOwner) sourceRelativeBoundInputs {
+	bound := sourceRelativeBoundInputs{declaration: request.declaration, operation: request.operation, use: request.use, cut: request.cut}
+	if bodyOwner == nil {
+		bound.unsupported = relativeInputsInvalidOwner
+		return bound
+	}
+	owner := bodyOwner.values
+	call := request.operation
+	if owner == nil || owner.checker == nil || call == nil || !ast.IsCallExpression(call) || call.AsCallExpression().QuestionDotToken != nil || !ast.IsIdentifier(call.Expression()) || request.cut.operation != call || request.cut.use != request.use {
+		bound.unsupported = relativeInputsInvalidOwner
+		return bound
+	}
+	symbol, implementation := stagedLexicalFunctionImplementation(call.Expression(), bodyOwner)
+	if symbol == nil || implementation != request.declaration || owner.bindingWritten(symbol) {
+		bound.unsupported = relativeInputsInvalidOwner
+		return bound
+	}
+	request.actualsKnown, request.actuals = true, nil
+	for index, actual := range restrictedInvocationArguments(call.AsCallExpression()) {
+		request.actuals = append(request.actuals, sourceRelativeActual{expression: actual, ordinal: index, spread: ast.IsSpreadElement(actual), endpoint: sourceRelativeEndpoint{kind: relativeEndpointExpression, expression: actual, cut: request.cut}})
+	}
+	plan := planSourceRelativeInputs(request, owner)
+	bound.bindings, bound.unsupported = plan.bindings, plan.unsupported
+	// C0 supplies source endpoints, not a binder-observed missing-value or
+	// default decision. Omitted inputs need their original binder handoff.
+	for index := range bound.bindings {
+		binding := &bound.bindings[index]
+		if binding.target.kind == relativeRoleFormal && binding.target.slot >= len(request.actuals) {
+			binding.sources, binding.unknown = nil, true
+			if bound.unsupported == relativeInputsSupported {
+				bound.unsupported = relativeInputsUnsupportedActual
+			}
+		}
+	}
+	return bound
+}
+
+// describeObservedStagedReturn detaches only a matching original observation.
+// The borrowed inputs and capture maps are checked synchronously and never kept.
+func describeObservedStagedReturn(observed sourceObservedValue, template sourceStagedReturnTemplate, creating sourceRelativeBoundInputs) (sourceStagedReturnedCallable, bool) {
+	if observed.returned != template.returning || observed.value.node != template.callable {
+		return sourceStagedReturnedCallable{}, false
+	}
+	creation := observed.scope.creators[template.declaration]
+	if observed.value.capture != nil {
+		creation = observed.value.capture.creators[template.declaration]
+	}
+	if creation.invocation != creating.operation {
+		return sourceStagedReturnedCallable{}, false
+	}
+	return instantiateStagedReturnTemplate(template, creating)
+}

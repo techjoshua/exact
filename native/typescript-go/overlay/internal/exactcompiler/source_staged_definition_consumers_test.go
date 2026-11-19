@@ -28,7 +28,7 @@ export function View(props:{label:string;read(this:{label:string},suffix:string)
 				t.Fatal(err)
 			}
 			session := NewSession()
-			request := Request{Kind: "compile", Root: root, ConfigFile: config, ID: library, Source: librarySource, Target: target, Diagnostics: "semantic", stagedReplacement: true}
+			request := Request{Kind: "compile", Root: root, ConfigFile: config, ID: library, Source: librarySource, Target: target, Diagnostics: "semantic"}
 			baseline := session.Execute(request)
 			assertDefinitionConsumerCompile(t, baseline)
 			original := definitionConsumerSemantics(t, session, baseline)

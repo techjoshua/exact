@@ -14,7 +14,7 @@ func TestStagedDescriptorCalleeOriginalSource(t *testing.T) {
 	// independently remains the public compile/artifact terminal.
 	fixture := newStagedOriginalCacheFixture(t)
 	request := fixture.request("analyze", "component-abi/opaque-operation.ts")
-	request.stagedReplacement = true
+
 	sources := make(map[string]string, len(fixture.files))
 	for name, source := range fixture.files {
 		sources[filepath.Join(fixture.root, name)] = source
@@ -119,7 +119,7 @@ func TestStagedDescriptorCalleeAuthoredPending(t *testing.T) {
 		t.Run(row.name, func(t *testing.T) {
 			id := "/virtual/g2-descriptor-callee-" + row.name + ".ts"
 			source := `declare const choose:boolean;const stores=new WeakMap<object,unknown>();export let donor=0;Object.defineProperty=` + row.selection + `;export function invoke(key:object,item:object){let owned=stores.get(key);if(!owned){owned=Object.defineProperty(Object.create(null),'value',{value:item});stores.set(key,owned)}return owned}`
-			request := Request{Kind: "analyze", ID: id, Source: source, Diagnostics: "semantic", stagedReplacement: true}
+			request := Request{Kind: "analyze", ID: id, Source: source, Diagnostics: "semantic"}
 			withActiveModuleSourceWork(t, request, map[string]string{id: source}, nil, func(_ []callableFacts, work *callableEffectWork, _ *executableBodyOwner) {
 				reached := false
 				for _, recipe := range work.operationRecipes {
@@ -154,7 +154,7 @@ func TestStagedDescriptorCalleeImplicitDonors(t *testing.T) {
 		t.Run(row.name, func(t *testing.T) {
 			id := "/virtual/g2-descriptor-callee-" + row.name + ".ts"
 			source := `const store=new WeakMap<object,unknown>();export function invoke(key:object,item:object){let owned=store.get(key);if(!owned){` + row.operation + `;store.set(key,owned)}return owned}`
-			request := Request{Kind: "analyze", ID: id, Source: source, Diagnostics: "semantic", stagedReplacement: true}
+			request := Request{Kind: "analyze", ID: id, Source: source, Diagnostics: "semantic"}
 			withActiveModuleSourceWork(t, request, map[string]string{id: source}, nil, func(facts []callableFacts, work *callableEffectWork, _ *executableBodyOwner) {
 				callee, donor := false, false
 				for _, recipe := range work.operationRecipes {

@@ -1,10 +1,6 @@
 package exactcompiler
 
-import (
-	"fmt"
-	"github.com/microsoft/TypeScript/tsc/internal/ast"
-	"strings"
-)
+import "github.com/microsoft/TypeScript/tsc/internal/ast"
 
 // sourceStagedReflectiveContribution is a conditional SOURCE membership for one
 // original member reader. It is not an executed installation, a selected value,
@@ -130,16 +126,4 @@ func (work *callableEffectWork) publishReflectiveContribution(id sourceStagedOpe
 	}
 	recipe := work.operationRecipes[work.operations[id.index].key]
 	return work.reflectiveContributionCurrent(recipe) && recipe.delta.extracted && work.publishOperation(id, recipe.delta)
-}
-
-// Fingerprinting retains detached reader/source correspondence only. Live
-// publisher observations remain generation-local and are not serialized here.
-func reflectiveContributionFingerprint(d *sourceStagedReflectiveContribution, result *strings.Builder) {
-	if d == nil {
-		return
-	}
-	result.WriteString(fmt.Sprintf("|reflective-contribution:%d:%p:%p:%d:%#v:%#v:%#v:%#v:%#v:%#v", d.purpose, d.generation, d.method, d.kind, d.request, d.parent, d.root, d.algorithm, d.reader, d.data))
-	descriptorFingerprintEndpoint(d.installation.target, result)
-	descriptorFingerprintEndpoint(d.installation.key, result)
-	descriptorFingerprintEndpoint(d.installation.descriptor, result)
 }

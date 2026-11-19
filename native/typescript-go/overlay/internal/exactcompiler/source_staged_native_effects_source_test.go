@@ -1,9 +1,7 @@
 package exactcompiler
 
 import (
-	"fmt"
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
-	"runtime/debug"
 	"testing"
 )
 
@@ -11,59 +9,6 @@ import (
 // another resolution of cached merged facts or a fabricated pending recipe.
 func TestStagedNativeEffectsOriginalPendingSource(t *testing.T) {
 	withOriginalCacheConstructionSources(t, func(facts []callableFacts, work *callableEffectWork, owner *executableBodyOwner) {
-		phase := "ordinary initial demand"
-		defer func() {
-			if failure := recover(); failure != nil {
-				if gap, ok := failure.(stagedReplacementGap); ok {
-					for key, recipe := range work.operationRecipes {
-						if recipe.nativeGet == nil || key.operation.Pos() != 1407 || (key.selector.field != "" && key.selector.field != "callee-get") {
-							continue
-						}
-						id := work.operationIDs[key]
-						if id.index == 0 {
-							t.Logf("pending role %s not adopted", key.selector.field)
-							continue
-						}
-						st := &work.operations[id.index]
-						t.Logf("pending role %s id=%d taskSource=%v owned=%v invalid=%v registered=%v revision=%d required=%d deps=%d", key.selector.field, id.index, work.nativeEffectsTaskSource(id) != nil, work.nativeEffectsTaskOwned(id), st.invalid, st.dependenciesRegistered, st.revision, len(recipe.delta.required), len(st.dependencies))
-						var visit func(sourceStagedOperationID, map[sourceStagedOperationID]bool)
-						visit = func(parent sourceStagedOperationID, seen map[sourceStagedOperationID]bool) {
-							if seen[parent] {
-								return
-							}
-							seen[parent] = true
-							state := &work.operations[parent.index]
-							for _, required := range work.operationRecipes[state.key].delta.required {
-								actual := false
-								for _, d := range state.dependencies {
-									if sameOperationRequest(d.request, required) {
-										actual = true
-										if work.operations[d.producer.index].invalid {
-											visit(d.producer, seen)
-										}
-									}
-								}
-								if !actual {
-									if child, exists := work.operationIDs[required.producer]; exists && child.index != 0 {
-										producer := &work.operations[child.index]
-										subscriber := producer.subscribers[sourceStagedOperationConsumer{required.consumer, required.edge}]
-										if subscriber != nil {
-											t.Logf("unadmitted subscriber same=%v prior=%+v blocked=%v applied=%d revision=%d describedNative=%v currentProducer=%v", sameOperationRequest(subscriber.request, required), subscriber.request, subscriber.blocked, subscriber.applied, producer.revision, work.describedNativeInputInvocationReading(required), work.nativeObserverProducerCurrent(work.operationRecipes[required.producer]))
-										} else {
-											t.Logf("unadmitted subscriber absent; describedNative=%v currentProducer=%v", work.describedNativeInputInvocationReading(required), work.nativeObserverProducerCurrent(work.operationRecipes[required.producer]))
-										}
-									}
-									t.Logf("unadmitted exact required parent=%+v child=%+v childFactory=%v", state.key, required, validOperationEnvelope(work.operationRecipes[required.producer]))
-								}
-							}
-						}
-						visit(id, map[sourceStagedOperationID]bool{})
-					}
-					t.Fatalf("original source continuation during %s: %s\n%s", phase, gap.Error(), debug.Stack())
-				}
-				panic(failure)
-			}
-		}()
 		caller := -1
 		var call *ast.Node
 		for i, f := range facts {
@@ -88,7 +33,7 @@ func TestStagedNativeEffectsOriginalPendingSource(t *testing.T) {
 		if !work.stageNativeInputCall(facts, caller, call, owner) {
 			t.Fatal("owned pending original native Effects request refused")
 		}
-		phase = "pending original demand adopted"
+
 		request, _ := stagedNativeInputOccurrenceRequest(&facts[caller], call)
 		root := work.operationRecipes[request.producer]
 		if !validNativeEffectsRequest(root) {
@@ -220,7 +165,7 @@ func TestStagedNativeEffectsOriginalPendingSource(t *testing.T) {
 					continue
 				}
 				work.extractionQueue[i].operationDone = true
-				phase = fmt.Sprintf("adopted source task id=%d field=%s op=%d delivery=%v nativeRefresh=%d", next.operation.index, work.operations[next.operation.index].key.selector.field, work.operations[next.operation.index].key.operation.Pos(), next.delivery, next.nativeInputRevision)
+
 				work.extractOperation(facts, next, owner)
 				for _, dependency := range work.operations[getID.index].dependencies {
 					method := work.operationRecipes[dependency.request.producer]

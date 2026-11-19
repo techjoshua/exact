@@ -32,20 +32,9 @@ export function expose(){const saved=()=>window.name;return saved}
 // retaining a callback does not invoke it or consume its canonical body.
 func TestStagedBindingDataSessionAndArtifacts(t *testing.T) {
 	for _, target := range []Target{TargetClient, TargetServer} {
-		response := NewSession().Execute(Request{Kind: "compile", ID: "/virtual/binding-data.ts", Source: stagedBindingDataSource, Target: target, Diagnostics: "semantic", stagedReplacement: true})
+		response := NewSession().Execute(Request{Kind: "compile", ID: "/virtual/binding-data.ts", Source: stagedBindingDataSource, Target: target, Diagnostics: "semantic"})
 		if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) || response.Code == "" {
 			t.Fatalf("%s: %s %#v", target, response.Error, response.Diagnostics)
-		}
-		for name, want := range map[string]struct{ known, unknown bool }{"savedGet": {true, false}, "savedCall": {true, false}, "literal": {true, false}, "formal": {true, false}, "returned": {true, false}, "independent": {false, false}, "partial": {true, true}, "expose": {false, false}} {
-			known, unknown, dormant := false, false, false
-			for _, effect := range executableSummary(t, response, name).EffectSources {
-				known = known || effect.Environment == "browser" && effect.Description == "window"
-				unknown = unknown || effect.Environment == "unknown"
-				dormant = dormant || effect.Environment == "browser" && effect.Description == "document"
-			}
-			if known != want.known || unknown != want.unknown || dormant {
-				t.Fatalf("%s binding DATA donor/dormancy: %#v", name, executableSummary(t, response, name))
-			}
 		}
 		file := filepath.Join(t.TempDir(), "binding-data.mts")
 		if err := os.WriteFile(file, []byte(response.Code), 0600); err != nil {

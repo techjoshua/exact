@@ -11,7 +11,7 @@ func TestStagedNativeWriterPreselectionOriginalSource(t *testing.T) {
 	const source = `const stores=new WeakMap<object,WeakMap<object,unknown>>();export function invoke(key:object,item:object){let inner=stores.get(key);if(!inner)stores.set(key,(inner=new WeakMap<object,unknown>()));let owned=inner.get(item);if(!owned){const descriptor=Object.create(null);owned=Object.freeze(Object.defineProperty(descriptor,'value',{value:item}));inner.set(item,owned)}return owned}`
 	var released *callableEffectWork
 	var releasedRecipe sourceStagedOperationRecipe
-	request := Request{Kind: "analyze", ID: id, Source: source, Diagnostics: "semantic", stagedReplacement: true}
+	request := Request{Kind: "analyze", ID: id, Source: source, Diagnostics: "semantic"}
 	withActiveModuleSourceWork(t, request, map[string]string{id: source}, nil, func(facts []callableFacts, work *callableEffectWork, owner *executableBodyOwner) {
 		reached := 0
 		for key, recipe := range work.operationRecipes {
@@ -108,7 +108,7 @@ func TestStagedNativeWriterPreselectionOriginalSource(t *testing.T) {
 func TestStagedNativeWriterPreselectionAuthoredPending(t *testing.T) {
 	const id = "/virtual/g2-native-writer-authored.ts"
 	const source = `const store=new WeakMap<object,object>();export let donor=0;Object.freeze=function<T>(value:T):Readonly<T>{donor++;return value};export function invoke(key:object){let owned=store.get(key);if(!owned){owned=Object.freeze({});store.set(key,owned)}return owned}`
-	request := Request{Kind: "analyze", ID: id, Source: source, Diagnostics: "semantic", stagedReplacement: true}
+	request := Request{Kind: "analyze", ID: id, Source: source, Diagnostics: "semantic"}
 	withActiveModuleSourceWork(t, request, map[string]string{id: source}, nil, func(_ []callableFacts, work *callableEffectWork, _ *executableBodyOwner) {
 		reached := 0
 		for _, recipe := range work.operationRecipes {

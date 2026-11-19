@@ -12,7 +12,7 @@ func TestStagedNativeWriterCapabilityActiveModuleControls(t *testing.T) {
 	if !t.Run("original-G4-positive", func(t *testing.T) {
 		f := newStagedGlobalStoreFixture(t)
 		request := f.request("analyze", "component-abi/opaque-operation.ts")
-		request.stagedReplacement = true
+
 		sources := nativeWriter679FixtureSources(f)
 		withActiveModuleSourceWork(t, request, sources, []string{filepath.Join(f.root, "component/contract-versions.ts")}, func(facts []callableFacts, work *callableEffectWork, owner *executableBodyOwner) {
 			whole, eagerCurrent := 0, 0

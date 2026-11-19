@@ -11,7 +11,7 @@ import (
 // Get/input/current receipts. Detached branch cases test key encoding only.
 func TestStagedNativeScopeRequestIdentityOriginalSource(t *testing.T) {
 	const id = "/virtual/eager-wait-scope.ts"
-	request := Request{Kind: "analyze", ID: id, Source: stagedNativeEagerSymbolChildSource, Diagnostics: "semantic", stagedReplacement: true}
+	request := Request{Kind: "analyze", ID: id, Source: stagedNativeEagerSymbolChildSource, Diagnostics: "semantic"}
 	withActiveModuleSourceWork(t, request, map[string]string{id: stagedNativeEagerSymbolChildSource}, nil, func(_ []callableFacts, work *callableEffectWork, _ *executableBodyOwner) {
 		parents, registered, cases := 0, 0, 0
 		for _, recipe := range work.operationRecipes {

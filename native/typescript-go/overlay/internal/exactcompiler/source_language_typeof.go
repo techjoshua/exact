@@ -46,7 +46,7 @@ func typeofReady(r *storageRecipe, pc int, ready []bool) bool {
 		return false
 	}
 	e := r.events[pc]
-	return e.kind == "Typeof" && e.out == pc && pc < len(ready) && e.node != nil && ast.IsTypeOfExpression(e.node) && e.a >= 0 && e.a < pc && e.a < len(ready) && ready[e.a] && expressionValueProducer(r.events[e.a].kind) && !storageKeyRegister(r, e.a)
+	return e.kind == "Typeof" && e.out == pc && pc < len(ready) && e.node != nil && ast.IsTypeOfExpression(e.node) && e.a >= 0 && e.a < pc && e.a < len(ready) && ready[e.a] && expressionValueProducer(r.events[e.a].kind)
 }
 
 // typeofSuccessor leaves abrupt/residual operands untouched. Sequence owns paid

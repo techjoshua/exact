@@ -15,7 +15,7 @@ func TestStagedConstructedAssignmentResultOriginalSource(t *testing.T) {
 	var releasedWork *callableEffectWork
 	var releasedRecipe, releasedLookup, releasedGet, releasedReceiverRoot sourceStagedOperationRecipe
 	var releasedUpstream *ast.Node
-	request := Request{Kind: "analyze", ID: id, Source: source, Diagnostics: "semantic", stagedReplacement: true}
+	request := Request{Kind: "analyze", ID: id, Source: source, Diagnostics: "semantic"}
 	withActiveModuleSourceWork(t, request, map[string]string{id: source}, nil, func(facts []callableFacts, work *callableEffectWork, owner *executableBodyOwner) {
 		// A source result is demand-driven. Ask its ordinary semantic factory
 		// for this actual Get, after real collection; no result subscription is

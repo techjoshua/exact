@@ -7,11 +7,10 @@ import "github.com/microsoft/TypeScript/tsc/internal/ast"
 // framework task/policy boundary in the requested source, or its transitive
 // references demand bodies. Program roots retain type context, not body demand.
 // Omitted scope preserves full-registry inspection for existing private harnesses.
-// The private replacement harness deliberately retains its all-facts experiment.
 func componentCallableDemand(collection *projectCallableCollection, requested ...*ast.SourceFile) []bool {
 	facts, owner := collection.facts, collection.owner
 	nodes, symbols := collection.nodes, collection.symbols
-	if owner == nil || owner.project == nil || owner.project.stagedReplacement {
+	if owner == nil || owner.project == nil {
 		return nil
 	}
 	demand := make([]bool, len(facts))

@@ -293,11 +293,6 @@ func (work *callableEffectWork) prepareSourceInputConsumerDecisions(facts []call
 			if work.legacySourceInputs[operation] {
 				continue
 			}
-			owner.project.requireStagedReplacement(stagedReplacementGap{
-				operation: operation, consumer: fact.node,
-				parent: sourceStagedOperationRequest{producer: sourceStagedOperationKey{declaration: fact.node, operation: operation, kind: relativeDemandDirectExposure}},
-				demand: "input DATA/relative projection", transition: "appendArgumentAccessorEffects",
-			})
 			work.legacySourceInputs[operation] = true
 			// This is the original, explicitly unmigrated input owner. Its result is
 			// consumed for MAY effects only. Normal outputs/identity stay independent.

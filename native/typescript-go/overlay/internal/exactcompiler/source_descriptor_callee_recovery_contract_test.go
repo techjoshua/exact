@@ -171,7 +171,7 @@ func TestDescriptorCalleeRecoveryDefaultBehavior(t *testing.T) {
 func TestDescriptorWriterOptionalPayloadLifetime(t *testing.T) {
 	const id = "/virtual/descriptor-writer-payload.ts"
 	const source = `export{};const box={value:''};function writer(){box.value='written';throw new Error('dormant writer')}export function probe(){Object.getOwnPropertyDescriptor(writer,'name');return box.value}`
-	request := Request{Kind: "analyze", ID: id, Source: source, Diagnostics: "semantic", stagedReplacement: true}
+	request := Request{Kind: "analyze", ID: id, Source: source, Diagnostics: "semantic"}
 	var issued sourceStagedOperationRequest
 	var retired *sourceWriterInputRequest
 	var query *sourceValueQuery

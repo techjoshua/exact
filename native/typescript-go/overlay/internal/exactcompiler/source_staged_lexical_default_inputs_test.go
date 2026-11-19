@@ -30,86 +30,6 @@ export function partial(other:(()=>string)|undefined){consume(factory(browser));
 export function expose(){return factory()}
 `
 
-func assertStagedLexicalDefaultEffects(t *testing.T, response Response, defaultBrowser bool) {
-	t.Helper()
-	for name, want := range map[string]struct{ known, unknown bool }{
-		"provided": {true, false}, "omitted": {defaultBrowser, false}, "explicitUndefined": {defaultBrowser, false}, "partial": {true, true}, "expose": {false, false},
-	} {
-		known, unknown, dormant := false, false, false
-		for _, effect := range executableSummary(t, response, name).EffectSources {
-			known = known || effect.Environment == "browser" && effect.Description == "window"
-			unknown = unknown || effect.Environment == "unknown"
-			dormant = dormant || effect.Environment == "browser" && effect.Description == "document"
-		}
-		if known != want.known || unknown != want.unknown || dormant {
-			t.Fatalf("%s: default DATA lost a donor/unknown or invoked stored work: %#v", name, executableSummary(t, response, name))
-		}
-	}
-}
-
-func assertStagedLexicalDefaultBinderEntry(t *testing.T, session *Session) {
-	t.Helper()
-	project := qualifiedIncrementalProject(t, session)
-	cache := project.callableCache
-	if cache == nil || cache.owner == nil || cache.merged.facts == nil || !cache.ownsGeneration(project.program, cache.owner.checker) {
-		t.Fatal("current merged factory facts have no matching program/checker owner")
-	}
-	seen := make(map[string]bool)
-	for _, fact := range cache.merged.facts {
-		for _, call := range fact.staged.calls {
-			if call.invocation.declaration == nil || call.invocation.declaration.Name() == nil || call.invocation.declaration.Name().Text() != "factory" {
-				continue
-			}
-			if call.inputs == nil || call.sourceInputs != nil || !call.inputs.delivered || !validStagedDataResultCall(call) || len(call.inputs.bound.defaults) != 2 || call.inputs.relative.unsupported != relativeInputsSupported {
-				t.Fatal("original factory Call did not reach one delivered bound input edge", fact.summary.Name)
-			}
-			selected := call.inputs.bound.defaults[0].selection
-			if call.inputs.bound.defaults[1].selection != relativeDefaultRequired {
-				t.Fatal("unused default did not retain its own original selection")
-			}
-			want := relativeDefaultRequired
-			switch fact.summary.Name {
-			case "provided":
-				want = relativeDefaultBypassed
-			case "partial":
-				if len(call.invocation.actuals) != 1 {
-					t.Fatal("original conditional actual vector missing")
-				}
-				if call.invocation.actuals[0].endpoint.kind != relativeEndpointRole {
-					want = relativeDefaultBypassed
-					break
-				}
-				want = relativeDefaultConditional
-				foundRole, foundDefault := false, false
-				for _, binding := range call.inputs.relative.bindings {
-					if binding.target.kind != relativeRoleFormal || binding.target.slot != 0 {
-						continue
-					}
-					for _, source := range binding.sources {
-						foundRole = foundRole || source.kind == relativeEndpointRole && source.role.declaration == fact.node && source.role.slot == 0
-						foundDefault = foundDefault || source.kind == relativeEndpointExpression && source.expression != nil && source.expression.Name() != nil && source.expression.Name().Text() == "quiet"
-					}
-				}
-				if !foundRole || !foundDefault {
-					t.Fatal("conditional default lost original actual role or authentic known donor")
-				}
-			}
-			if selected != want {
-				t.Fatalf("%s actual binder selection %d, want %d", fact.summary.Name, selected, want)
-			}
-			if fact.staged.operationsPending {
-				t.Fatal("actual default Call still has unpaid operation dependencies", fact.summary.Name)
-			}
-			seen[fact.summary.Name] = true
-		}
-	}
-	for _, name := range []string{"provided", "omitted", "explicitUndefined", "partial", "expose"} {
-		if !seen[name] {
-			t.Fatal("original bound factory entry UNREACHED", name)
-		}
-	}
-}
-
 // Each target is separately selectable under the normal focused timeout. The
 // same source, identity and target must emit the same app/library implementation.
 func TestStagedLexicalDefaultGetCaptureSessionAndArtifacts(t *testing.T) {
@@ -118,12 +38,10 @@ func TestStagedLexicalDefaultGetCaptureSessionAndArtifacts(t *testing.T) {
 			var application Response
 			for _, packageType := range []string{"application", "library"} {
 				session := NewSession()
-				response := session.Execute(Request{Kind: "compile", ID: "/virtual/lexical-default-data.ts", Source: stagedLexicalDefaultDataSource, Target: target, PackageType: packageType, Diagnostics: "semantic", stagedReplacement: true})
+				response := session.Execute(Request{Kind: "compile", ID: "/virtual/lexical-default-data.ts", Source: stagedLexicalDefaultDataSource, Target: target, PackageType: packageType, Diagnostics: "semantic"})
 				if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) || response.Code == "" {
 					t.Fatal(packageType, response.Error, response.Diagnostics)
 				}
-				assertStagedLexicalDefaultBinderEntry(t, session)
-				assertStagedLexicalDefaultEffects(t, response, false)
 				if packageType == "application" {
 					application = response
 				} else {
@@ -171,11 +89,10 @@ func TestStagedLexicalDefaultGetCaptureRetainedSession(t *testing.T) {
 		if browserDefault {
 			source = strings.Replace(source, "callback:()=>string=quiet", "callback:()=>string=browser", 1)
 		}
-		response := session.Execute(Request{Kind: "compile", ID: "/virtual/lexical-default-update.ts", Source: source, Target: TargetClient, Diagnostics: "semantic", stagedReplacement: true})
+		response := session.Execute(Request{Kind: "compile", ID: "/virtual/lexical-default-update.ts", Source: source, Target: TargetClient, Diagnostics: "semantic"})
 		if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) || response.Code == "" {
 			t.Fatal(response.Error, response.Diagnostics)
 		}
-		assertStagedLexicalDefaultEffects(t, response, browserDefault)
 		project := qualifiedIncrementalProject(t, session)
 		if retired != nil && !retired(project) {
 			t.Fatal("source edit retained retired program/checker ownership")

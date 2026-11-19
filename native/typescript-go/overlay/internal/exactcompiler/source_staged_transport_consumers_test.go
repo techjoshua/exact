@@ -27,7 +27,7 @@ func TestStagedTransportConsumers(t *testing.T) {
 	for _, target := range []Target{TargetClient, TargetServer} {
 		if !t.Run(string(target), func(t *testing.T) {
 			session := NewSession()
-			request := Request{Kind: "compile", ID: "staged-transport-consumer.tsx", Source: stagedTransportConsumerSource, Target: target, Diagnostics: "semantic", SourceMap: true, stagedReplacement: true}
+			request := Request{Kind: "compile", ID: "staged-transport-consumer.tsx", Source: stagedTransportConsumerSource, Target: target, Diagnostics: "semantic", SourceMap: true}
 			response := session.Execute(request)
 			assertDefinitionConsumerCompile(t, response)
 			// Definition MAY retains its uninstantiated input-Get obligation. Capture

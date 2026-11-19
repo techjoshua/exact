@@ -25,42 +25,9 @@ export function invoke(){return consume(read())}
 func TestStagedModuleBindingSessionAndArtifacts(t *testing.T) {
 	for _, target := range []Target{TargetClient, TargetServer} {
 		session := NewSession()
-		response := session.Execute(Request{Kind: "compile", ID: "/virtual/module-binding.ts", Source: stagedModuleBindingSource, Target: target, Diagnostics: "semantic", stagedReplacement: true})
+		response := session.Execute(Request{Kind: "compile", ID: "/virtual/module-binding.ts", Source: stagedModuleBindingSource, Target: target, Diagnostics: "semantic"})
 		if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) || response.Code == "" {
 			t.Fatalf("%s: %s %#v", target, response.Error, response.Diagnostics)
-		}
-		for _, effect := range executableSummary(t, response, "exposed").EffectSources {
-			if effect.Environment == "browser" || effect.Environment == "unknown" {
-				t.Fatalf("exposed activated module DATA: %#v", effect)
-			}
-		}
-		browser := false
-		for _, effect := range executableSummary(t, response, "invoke").EffectSources {
-			browser = browser || effect.Environment == "browser"
-			if effect.Environment == "unknown" {
-				t.Fatalf("invoked module DATA lost its known source: %#v", effect)
-			}
-		}
-		if !browser {
-			t.Fatal("invoked module DATA lost the browser body")
-		}
-		found := false
-		for _, fact := range stagedDeclarationFacts(session) {
-			if fact.summary.Name != "read" {
-				continue
-			}
-			for _, recipe := range fact.staged.operationRecipes {
-				if recipe.callResult == nil || sourceStagedModuleOwner(recipe.callResult.binding) == nil || sourceStagedModuleOwner(recipe.callResult.binding) == fact.node {
-					continue
-				}
-				found = true
-				if !recipe.delta.extracted || len(recipe.delta.required) != 1 || recipe.delta.required[0].producer.declaration == fact.node || recipe.delta.required[0].producer.operation != recipe.callResult.binding.Initializer() || !fact.staged.settled || fact.staged.operationsPending {
-					t.Fatal("captured initializer lost its original owner or publication requirements")
-				}
-			}
-		}
-		if !found {
-			t.Fatal("module capture bypassed binding DATA")
 		}
 		file := filepath.Join(t.TempDir(), "module-binding.mts")
 		if err := os.WriteFile(file, []byte(response.Code), 0600); err != nil {

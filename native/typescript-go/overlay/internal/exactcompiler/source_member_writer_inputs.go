@@ -183,12 +183,6 @@ func (q *sourceValueQuery) memberWriterInputs(left *ast.Node, bindings sourceVal
 			progressWriterEvent(q, "discovery-retired", 0)
 			return
 		}
-		// A method-source attempt may itself walk this receiver's own writers.
-		// Let its already-owned constructor continuation run before that attempt.
-		if q.yieldStagedConstructionWriter(call, request) {
-			result.valueIncomplete = true
-			return
-		}
 		if request != nil {
 			if method := q.stagedWriterCall(call); method.handled {
 				if method.excluded {

@@ -9,7 +9,7 @@ import "testing"
 func TestOriginalIntrinsicFreezeReadSource(t *testing.T) {
 	const source = `export function invoke(){const value=Object.defineProperties({}, {x:{value:1}});return Object.freeze(value)}`
 	const name = "/virtual/implicit-freeze-read.ts"
-	request := Request{Kind: "analyze", ID: name, Source: source, Diagnostics: "semantic", stagedReplacement: true}
+	request := Request{Kind: "analyze", ID: name, Source: source, Diagnostics: "semantic"}
 	withActiveModuleSourceWork(t, request, map[string]string{name: source}, nil, func(facts []callableFacts, work *callableEffectWork, _ *executableBodyOwner) {
 		found := 0
 		for _, root := range work.operationRecipes {

@@ -11,7 +11,7 @@ import (
 func TestOriginalFunctionImplicitWriterConnected(t *testing.T) {
 	const source = `export function invoke(){const value=Object.defineProperties({}, {x:{value:1}});return Object.freeze(value)}`
 	const id = "/virtual/function-implicit-writer.ts"
-	request := Request{Kind: "analyze", ID: id, Source: source, Diagnostics: "semantic", stagedReplacement: true}
+	request := Request{Kind: "analyze", ID: id, Source: source, Diagnostics: "semantic"}
 	withActiveModuleSourceWork(t, request, map[string]string{id: source}, nil, func(facts []callableFacts, work *callableEffectWork, owner *executableBodyOwner) {
 		current := 0
 		for key, recipe := range work.operationRecipes {
@@ -121,16 +121,8 @@ func TestOriginalFunctionImplicitWriterBoundaries(t *testing.T) {
 	} {
 		t.Run(row.name, func(t *testing.T) {
 			const id = "/virtual/function-implicit-boundary.ts"
-			request := Request{Kind: "analyze", ID: id, Source: row.source, Diagnostics: "semantic", stagedReplacement: true}
+			request := Request{Kind: "analyze", ID: id, Source: row.source, Diagnostics: "semantic"}
 			reached := false
-			defer func() {
-				if value := recover(); value != nil {
-					if _, supported := value.(stagedReplacementGap); supported {
-						t.Skipf("UNREACHED downstream source owner: %v", value)
-					}
-					panic(value)
-				}
-			}()
 			withActiveModuleSourceWork(t, request, map[string]string{id: row.source}, nil, func(facts []callableFacts, work *callableEffectWork, owner *executableBodyOwner) {
 				reached = true
 				knownBody := false

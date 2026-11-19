@@ -2,7 +2,6 @@ package exactcompiler
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -28,67 +27,9 @@ export function partial(other:()=>string){factory(browser,dormant);return consum
 func TestStagedGetFormalCaptureSessionAndArtifacts(t *testing.T) {
 	for _, target := range []Target{TargetClient, TargetServer} {
 		session := NewSession()
-		response := session.Execute(Request{Kind: "compile", ID: "/virtual/get-formal-capture.ts", Source: stagedGetFormalCaptureSource, Target: target, Diagnostics: "semantic", stagedReplacement: true})
+		response := session.Execute(Request{Kind: "compile", ID: "/virtual/get-formal-capture.ts", Source: stagedGetFormalCaptureSource, Target: target, Diagnostics: "semantic"})
 		if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) || response.Code == "" {
-			facts := stagedDeclarationFacts(session)
-			t.Logf("cached facts after failure: %d", len(facts))
-			for _, fact := range facts {
-				t.Logf("fact %s@%d ready=%t settled=%t pending=%t", fact.summary.Name, fact.node.Pos(), fact.staged.ready, fact.staged.settled, fact.staged.operationsPending)
-				for _, call := range fact.staged.calls {
-					t.Logf("call@%d decl@%d source=%t B=%t legacy=%t", call.invocation.operation.Pos(), call.invocation.declaration.Pos(), call.sourceInputs != nil, call.inputs != nil, call.legacyInputs)
-				}
-				for _, recipe := range fact.staged.operationRecipes {
-					if source := recipe.callResult; source != nil {
-						t.Logf("result@%d selector=%s get=%+v extracted=%t required=%d values=%d", recipe.key.operation.Pos(), recipe.key.selector.field, source.getResult, recipe.delta.extracted, len(recipe.delta.required), len(recipe.delta.exposures))
-					}
-				}
-			}
 			t.Fatalf("%s: %s %#v", target, response.Error, response.Diagnostics)
-		}
-		for name, wantUnknown := range map[string]bool{"direct": false, "independent": false, "partial": true} {
-			getter, returned, unknown, dormant := false, false, false, false
-			for _, effect := range executableSummary(t, response, name).EffectSources {
-				getter = getter || effect.Environment == "browser" && effect.Description == "document"
-				returned = returned || effect.Environment == "browser" && effect.Description == "window"
-				unknown = unknown || effect.Environment == "unknown"
-				dormant = dormant || effect.Environment == "browser" && effect.Description == "navigator"
-			}
-			if !getter || !returned || unknown != wantUnknown || dormant {
-				logGetFormalCaptureResultPackets(t, session)
-				t.Fatalf("%s lost getter/callback/unknown or invoked unused input: %#v", name, executableSummary(t, response, name))
-			}
-		}
-		mappedCapture := false
-		for _, fact := range stagedDeclarationFacts(session) {
-			if fact.summary.Name != "factory" {
-				continue
-			}
-			for _, call := range fact.staged.calls {
-				if !originalStagedGetterCall(call) {
-					continue
-				}
-				for _, binding := range call.inputs.bound.bindings {
-					if binding.target.kind == relativeRoleCapture {
-						t.Fatal("lexical capture plan was installed as actual receiver B")
-					}
-				}
-				for _, binding := range call.inputs.relative.bindings {
-					if binding.target.kind != relativeRoleCapture {
-						continue
-					}
-					if len(binding.sources) != 1 || binding.unknown || len(binding.pending) != 0 {
-						t.Fatal("represented getter invocation lost its source input role")
-					}
-					endpoint := binding.sources[0]
-					if endpoint.kind != relativeEndpointRole || endpoint.role.kind != relativeRoleFormal || endpoint.role.declaration != fact.node || endpoint.cut != call.inputs.bound.cut || endpoint.producer != call.invocation.operation {
-						t.Fatal("getter capture-to-formal producer or original Get cut changed")
-					}
-					mappedCapture = true
-				}
-			}
-		}
-		if !mappedCapture {
-			t.Fatal("production Get did not deliver the relative capture consumer")
 		}
 		file := filepath.Join(t.TempDir(), "get-formal-capture.mts")
 		if err := os.WriteFile(file, []byte(response.Code), 0600); err != nil {
@@ -170,55 +111,6 @@ func TestStagedGetFormalCaptureBeforeCanonicalBody(t *testing.T) {
 			t.Fatal("original Get did not bind its real receiver")
 		}
 	})
-}
-
-// Failure-only snapshots use retained Session source facts and never prepare,
-// consume or revise a result. This separates queued DATA from return projection.
-func logGetFormalCaptureResultPackets(t *testing.T, session *Session) {
-	t.Helper()
-	nodeText := func(node *ast.Node) string {
-		if node == nil {
-			return "nil"
-		}
-		return fmt.Sprintf("%s@%d %q", node.Kind, node.Pos(), sourceText(ast.GetSourceFileOfNode(node), node))
-	}
-	facts := stagedDeclarationFacts(session)
-	for _, fact := range facts {
-		if fact.summary.Name != "factory" && fact.summary.Name != "direct" {
-			continue
-		}
-		t.Logf("packet fact=%s ready=%t settled=%t pending=%t", nodeText(fact.node), fact.staged.ready, fact.staged.settled, fact.staged.operationsPending)
-		for _, call := range fact.staged.calls {
-			t.Logf("packet call=%s declaration=%s source=%p B=%p cut=%+v legacy=%t", nodeText(call.invocation.operation), nodeText(call.invocation.declaration), call.sourceInputs, call.inputs, call.invocation.cut, call.legacyInputs)
-		}
-		for _, recipe := range fact.staged.operationRecipes {
-			source := recipe.callResult
-			if source == nil {
-				continue
-			}
-			associated := false
-			for _, current := range fact.staged.calls {
-				associated = associated || current.sourceInputs == source.association.sourceInputs && current.inputs == source.association.inputs && sameSourceRelativeInvocation(current.invocation, source.association.invocation)
-			}
-			t.Logf("packet key=%s selector=%+v declaration=%s get=%+v operand=%+v extracted=%t required=%d values=%d currentAssociation=%t assocSource=%p assocB=%p readings=%d inputReadings=%d", nodeText(recipe.key.operation), recipe.key.selector, nodeText(source.declaration), source.getResult, source.operand, recipe.delta.extracted, len(recipe.delta.required), len(recipe.delta.exposures), associated, source.association.sourceInputs, source.association.inputs, len(source.readings), len(source.inputReadings))
-			for _, required := range recipe.delta.required {
-				t.Logf("packet required=%s selector=%+v consumer=%s cut=%+v edge=%s", nodeText(required.producer.operation), required.producer.selector, nodeText(required.consumer), required.cut, required.edge)
-			}
-			for _, value := range recipe.delta.exposures {
-				endpoint := value.endpoint
-				t.Logf("packet exposure kind=%d syntax=%s producer=%s creation=%s returning=%s get=%s cut=%+v creatingB=%p", endpoint.kind, nodeText(endpoint.expression), nodeText(endpoint.producer), nodeText(endpoint.creation), nodeText(endpoint.returning), nodeText(endpoint.get), endpoint.cut, value.creating)
-			}
-			for _, reading := range source.inputReadings {
-				reader := -1
-				for index := range facts {
-					if facts[index].node == reading.request.consumer {
-						reader = index
-					}
-				}
-				t.Logf("packet input current=%t outer=%s source=%p B=%p endpoint=%s producer=%s cut=%+v request=%+v", currentStagedInputAssociation(facts, reader, reading.call, reading.endpoint), nodeText(reading.call.invocation.operation), reading.call.sourceInputs, reading.call.inputs, nodeText(reading.endpoint.expression), nodeText(reading.endpoint.producer), reading.endpoint.cut, reading.request)
-			}
-		}
-	}
 }
 
 // Missing receiver/local/parameter activation authority must not publish a

@@ -41,7 +41,7 @@ func (p *storageBuilder) arrayExpression(node *ast.Node) (storageOperand, bool) 
 		if !p.insertDomain(domain, key, v.domain) {
 			return storageOperand{}, false
 		}
-		p.event(storageEvent{kind: "DefineArraySlot", node: child, a: reg, b: v.register, key: languageStringKey(key), keyProducerPC: -1})
+		p.event(storageEvent{kind: "DefineArraySlot", node: child, a: reg, b: v.register, key: languageStringKey(key)})
 	}
 	p.event(storageEvent{kind: "ArrayComplete", node: node, a: reg})
 	return storageOperand{register: reg, domain: domain}, !p.exhausted

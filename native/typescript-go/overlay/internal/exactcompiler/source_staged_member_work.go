@@ -386,9 +386,6 @@ func (work *callableEffectWork) beginStagedMemberWorkAtEntry(query *sourceValueQ
 		query.stagedMember.reflectiveTarget = func(operation *ast.Node, target sourceValue) sourceStagedReflectiveTargetTransfer {
 			return work.prepareStagedReflectiveTarget(facts, query, operation, target)
 		}
-		query.stagedMember.yieldConstruction = func(operation *ast.Node) bool {
-			return work.yieldStagedConstructionConsumer(facts, query, operation)
-		}
 		query.stagedMember.nativeInputCall = func(call *ast.Node) sourceStagedWriterCallDisposition {
 			return work.consumeStagedNativeInputInvocation(facts, query, call)
 		}

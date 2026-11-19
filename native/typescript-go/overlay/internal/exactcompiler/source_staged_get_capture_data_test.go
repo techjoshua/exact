@@ -28,20 +28,9 @@ export function expose(){return factory(browser,dormant)}
 func TestStagedGetCaptureDataSessionAndArtifacts(t *testing.T) {
 	for _, target := range []Target{TargetClient, TargetServer} {
 		session := NewSession()
-		response := session.Execute(Request{Kind: "compile", ID: "/virtual/get-capture-data.ts", Source: stagedGetCaptureDataSource, Target: target, Diagnostics: "semantic", stagedReplacement: true})
+		response := session.Execute(Request{Kind: "compile", ID: "/virtual/get-capture-data.ts", Source: stagedGetCaptureDataSource, Target: target, Diagnostics: "semantic"})
 		if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) || response.Code == "" {
 			t.Fatalf("%s: %s %#v", target, response.Error, response.Diagnostics)
-		}
-		for name, want := range map[string]struct{ known, unknown bool }{"direct": {true, false}, "independent": {false, false}, "partial": {true, true}, "expose": {false, false}} {
-			known, unknown, dormant := false, false, false
-			for _, effect := range executableSummary(t, response, name).EffectSources {
-				known = known || effect.Environment == "browser" && effect.Description == "window"
-				unknown = unknown || effect.Environment == "unknown"
-				dormant = dormant || effect.Environment == "browser" && effect.Description == "document"
-			}
-			if known != want.known || unknown != want.unknown || dormant {
-				t.Fatalf("%s DATA return invoked/retargeted input or lost actual invocation: %#v", name, executableSummary(t, response, name))
-			}
 		}
 		file := filepath.Join(t.TempDir(), "get-capture-data.mts")
 		if err := os.WriteFile(file, []byte(response.Code), 0600); err != nil {

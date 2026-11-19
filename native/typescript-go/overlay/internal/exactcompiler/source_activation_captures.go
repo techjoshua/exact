@@ -159,7 +159,7 @@ func activationInnerRecipe(p *closedCallableProof) bool {
 	}
 	base := p.arrow.Body().Expression()
 	a, b, c, d := r.events[0], r.events[1], r.events[2], r.events[3]
-	return a.kind == "ReadCapturedCell" && a.cell == 0 && a.node == base && a.out == 0 && b.kind == "Member" && b.node == p.arrow.Body() && b.a == 0 && b.out == 1 && b.key == languageStringKey(p.arrow.Body().Name().Text()) && b.keyProducerPC == -1 && c.kind == "GetValue" && c.node == p.arrow.Body() && c.a == 1 && c.out == 2 && d.kind == "Return" && d.node == p.arrow.Body() && d.a == 2 && d.out == 3
+	return a.kind == "ReadCapturedCell" && a.cell == 0 && a.node == base && a.out == 0 && b.kind == "Member" && b.node == p.arrow.Body() && b.a == 0 && b.out == 1 && b.key == languageStringKey(p.arrow.Body().Name().Text()) && c.kind == "GetValue" && c.node == p.arrow.Body() && c.a == 1 && c.out == 2 && d.kind == "Return" && d.node == p.arrow.Body() && d.a == 2 && d.out == 3
 }
 
 // activationParameterProof recognizes only the original creator's checker

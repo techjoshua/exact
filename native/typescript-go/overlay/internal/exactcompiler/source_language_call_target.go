@@ -111,26 +111,13 @@ func validOwnGetterTarget(o *languageOwner, in *languageCallInputs) bool {
 	}
 	ref, get := r.events[t.referencePC], r.events[t.getPC]
 	bindingSource, bindingRole := bindingGetterSourceRegister(r, t.getPC)
-	return ref.kind == "Member" && ref.out == t.referencePC && get.kind == "GetValue" && get.a == t.referencePC && get.out == t.getPC && get.node == in.call && ((r.binding == nil && (ast.IsPropertyAccessExpression(in.call) || ast.IsElementAccessExpression(in.call))) || (bindingRole && in.call == r.binding.declaration && ref.node == r.binding.declaration && ref.a == bindingSource)) && ownGetterInstallationKey(r, row)
+	return ref.kind == "Member" && ref.out == t.referencePC && get.kind == "GetValue" && get.a == t.referencePC && get.out == t.getPC && get.node == in.call && ((r.binding == nil && (ast.IsPropertyAccessExpression(in.call) || ast.IsElementAccessExpression(in.call))) || (bindingRole && in.call == r.binding.declaration && ref.node == r.binding.declaration && ref.a == bindingSource)) && ownGetterInstallationKey(row)
 }
 
-// Match a computed Getter to its actual emitted definition. Static Getters
-// retain the original name law. This shape check does not issue source trust.
-func ownGetterInstallationKey(r *storageRecipe, row *languageStorage) bool {
-	if r == nil || row == nil || !getterDescriptorPayload(row.descriptor) {
+func ownGetterInstallationKey(row *languageStorage) bool {
+	if row == nil || !getterDescriptorPayload(row.descriptor) {
 		return false
 	}
 	node := row.descriptor.value.callable.proof.arrow
-	if node.Name() == nil {
-		return false
-	}
-	if !ast.IsComputedPropertyName(node.Name()) {
-		return row.key == languageStringKey(node.Name().Text())
-	}
-	for pc, e := range r.events {
-		if e.node == node && e.kind == "DefineAccessorSlot" {
-			return e.key == row.key && storageComputedGetterDefinition(r, pc)
-		}
-	}
-	return false
+	return node.Name() != nil && !ast.IsComputedPropertyName(node.Name()) && row.key == languageStringKey(node.Name().Text())
 }

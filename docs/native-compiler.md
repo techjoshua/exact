@@ -2183,11 +2183,10 @@ the authored reads already observe them at execution time.
 Task analysis carries state reads and writes, derived activation dependencies and known browser
 effects into the existing placement and concurrency policy. A separate runtime-unknown effect
 does not erase the browser constraint or become unfinished compiler coverage. An explicit server
-task with browser effects is rejected for either emission target. The repository's explicit
-`stagedReplacement` harness separately checks that unfinished staged source coverage stops
-publication before tasks or artifacts escape. That private protocol is not a prerequisite for
-ordinary MAY summary collection. Neither path changes component state ownership or task
-execution semantics.
+task with browser effects is rejected for either emission target. Pending
+callable contributions required by the request block publication. Ordinary MAY
+summary collection retains conservative effects and its existing recovery when
+a staged source result is unavailable.
 Both ordinary and precision effect collection exclude the exact component-owned, authenticated
 task policy parameter erased by transformation; indexed writer discovery reuses the same
 checker-bound erasure for that exact default subtree. Ordinary defaults, policy arguments and
@@ -3504,8 +3503,7 @@ closure remain separate. Written, local, receiver, default and rest inputs keep
 their unsupported or independently pending source requirements.
 Aliased receivers, computed keys and unprovided receiver or capture inputs stay
 explicit producer gaps. Ordinary requests keep their previous owner when this
-source producer is unadmitted. The private replacement gate reports that DATA gap
-before legacy recovery. Other unavailable Get results and capture relationships
+source producer is unadmitted. Other unavailable Get results and capture relationships
 remain explicit pending work.
 A matched returned literal can retain its original delivered creating B for
 unwritten factory-formal captures. The reached creating-call collector owns that

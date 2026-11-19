@@ -34,26 +34,15 @@ func NewSession() *Session {
 }
 
 // Execute handles one request while retaining reusable native source state.
-func (s *Session) Execute(request Request) (response Response) {
+func (s *Session) Execute(request Request) Response {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	defer func() {
-		if failure := recover(); failure != nil {
-			gap, owned := failure.(stagedReplacementGap)
-			if !owned {
-				panic(failure)
-			}
-			gap.project.abandoned = true
-			response = newSessionResponse(request.ID)
-			response.Error = gap.Error()
-		}
-	}()
 	if request.Kind == "executable-slots" {
 		return executableSyntaxSlots(request, newSessionResponse(request.ID), time.Now())
 	}
 	defer s.pruneAuthoredValidations()
 	started := time.Now()
-	response = s.executeLocked(request)
+	response := s.executeLocked(request)
 	if s.checkExecutableAuthoredTypes(request, &response) {
 		response.Timings.TotalMicroseconds = time.Since(started).Microseconds()
 	}
@@ -194,10 +183,6 @@ func (s *Session) executeProjection(request Request, authored *authoredCheckProg
 	}
 
 	projectKey := nativeProjectKey(request, fileName)
-	if request.stagedReplacement {
-		// Replacement runs cannot reuse facts accepted through legacy recovery.
-		projectKey += ":staged-replacement"
-	}
 	programStarted := time.Now()
 	project := s.projects[projectKey]
 	if project == nil {

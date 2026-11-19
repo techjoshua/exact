@@ -133,7 +133,7 @@ func (p *storageBuilder) initializeBinding(name *ast.Node, v storageOperand) boo
 				return false
 			}
 			excluded = append(excluded, key)
-			ref := p.event(storageEvent{kind: "Member", node: node, a: v.register, key: languageStringKey(key), keyProducerPC: -1})
+			ref := p.event(storageEvent{kind: "Member", node: node, a: v.register, key: languageStringKey(key)})
 			value := p.event(storageEvent{kind: "GetValue", node: node, a: ref})
 			operand := storageOperand{register: value, domain: domain}
 			if e.Initializer != nil {

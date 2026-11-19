@@ -8,7 +8,7 @@ import "testing"
 func TestOriginalDescriptorFieldPointwiseEvents(t *testing.T) {
 	const source = `export function invoke(){const value=Object.defineProperties({}, {x:{value:1}});return Object.freeze(value)}`
 	const id = "/virtual/descriptor-field-events.ts"
-	request := Request{Kind: "analyze", ID: id, Source: source, Diagnostics: "semantic", stagedReplacement: true}
+	request := Request{Kind: "analyze", ID: id, Source: source, Diagnostics: "semantic"}
 	withActiveModuleSourceWork(t, request, map[string]string{id: source}, nil, func(facts []callableFacts, work *callableEffectWork, owner *executableBodyOwner) {
 		entries := 0
 		for _, recipe := range work.operationRecipes {

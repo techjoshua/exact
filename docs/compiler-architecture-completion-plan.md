@@ -472,7 +472,7 @@ Keep these questions separate: Can the operation be represented? What may it dep
 
 ### 5.4 Function and closure contract
 
-Public callable analysis is rooted in component execution consumers. Retain reusable source and symbol inventories, but demand body summaries from components, task/render/callback entry points and required module or policy boundaries, following their transitive helper references. An ordinary unused declaration or export does not require staged body or value closure merely to preserve its TypeScript. A missing summary is not a neutral analyzed body. Required helpers and module effects retain their ownership, placement, transport and security checks; the internal replacement harness may explicitly inspect all producers as a diagnostic experiment.
+Public callable analysis is rooted in component execution consumers. Retain reusable source and symbol inventories, but demand body summaries from components, task/render/callback entry points and required module or policy boundaries, following their transitive helper references. An ordinary unused declaration or export does not require staged body or value closure merely to preserve its TypeScript. A missing summary is not a neutral analyzed body. Required helpers and module effects retain their ownership, placement, transport and security checks.
 
 For generation, resolve free references to their lexical declarations and record which bindings must remain available. The compiler does not need the captured runtime values. Reuse the TypeScript checker's resolved symbols and existing scope ownership. A lexical context-chain lookup is the underlying model, but identifier-text searches must not replace bound-symbol identity or mishandle shadowing, hoisting, block scope and TDZ.
 
@@ -1097,10 +1097,9 @@ This is partial consolidation, not completion of the remaining bridge inventory.
 
 Ordinary task and helper effect collection keeps authored operations on the existing
 semantic collector. Syntax alone does not transfer them to staged result or protocol
-consumers. Such a transfer requires an explicit operation purpose; required results,
-initializer transformations and the internal replacement experiment retain strict
-source, generation and completion checks. MAY summaries supply no result, binding
-or completed-protocol authority.
+consumers. A transfer requires an explicit operation purpose. Required results
+and initializer transformations retain source, generation and completion checks.
+MAY summaries carry effects only.
 
 An original component task Call can retain child-owned Effects without entering that child as an ordinary body in the caller. The graph-local normal receipt records this distinct ownership disposition while remaining unentered, incomplete and valueless. Direct Await of a checked primitive task payload needs no additional authored assimilation work; its effect consumer validates the original live Call/owner/frame and retained child edge, including an edge already published to that exact live caller fact before the later receipts-only operand consumer. This is not child completion or a primitive result receipt. Non-scalar settlement, unknown child effects, rejection/cancellation, result policy and transport requirements retain their existing owners and guards.
 

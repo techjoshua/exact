@@ -10,7 +10,6 @@ const storageNullKind = ast.KindNullKeyword
 // storageEvent is a nonexecuting operation recipe. Register numbers refer only to
 // acquired operands in this occurrence. Nodes are provenance, not evaluators.
 type storageEvent struct {
-	keyProducerPC     int
 	kind              string
 	node              *ast.Node
 	out, a, b, cell   int
@@ -23,9 +22,7 @@ type storageEvent struct {
 }
 
 type storageRecipe struct {
-	binding      *storageBindingRecipe
-	sourceSymbol bool              // discovery demand marker, never admission authority
-	symbolCase   *sourceSymbolCase // immutable shared native S association, no VALUE
+	binding *storageBindingRecipe
 
 	choiceSlots  int // prepaid discovered expression-choice capacity
 	body         *ast.Node
@@ -120,7 +117,7 @@ func (p *storageBuilder) event(e storageEvent) int {
 		return -1
 	}
 	p.hasAllocation = p.hasAllocation || (e.kind == "AllocateObject" || e.kind == "AllocateArray")
-	e.keyProducerPC = -1
+
 	e.out = p.recipe.registers
 	p.recipe.registers++
 	p.recipe.events = append(p.recipe.events, e)
@@ -156,7 +153,7 @@ func (p *storageBuilder) member(node *ast.Node) (storageOperand, bool) {
 	if !ok || !present {
 		return storageOperand{}, false
 	}
-	operand := storageOperand{register: p.event(storageEvent{kind: "Member", node: node, a: v.register, key: languageStringKey(key), keyProducerPC: -1}), domain: domain}
+	operand := storageOperand{register: p.event(storageEvent{kind: "Member", node: node, a: v.register, key: languageStringKey(key)}), domain: domain}
 	if v.domain.object != nil && v.domain.object.array && key == "length" {
 		operand.arrayLength = v.domain.object
 	}
@@ -226,7 +223,7 @@ func (p *storageBuilder) expression(node *ast.Node) (storageOperand, bool) {
 			if !p.insertDomain(domain, key, v.domain) {
 				return storageOperand{}, false
 			}
-			p.event(storageEvent{kind: "DefineSlot", node: field, a: reg, b: v.register, key: languageStringKey(key), keyProducerPC: -1})
+			p.event(storageEvent{kind: "DefineSlot", node: field, a: reg, b: v.register, key: languageStringKey(key)})
 		}
 		p.event(storageEvent{kind: "ObjectComplete", node: node, a: reg})
 		return storageOperand{register: reg, domain: domain}, true
@@ -661,7 +658,7 @@ func (o *languageOwner) executeStorageScheduleEntry(recipe *storageRecipe, budge
 		step := func(prior languageAlternative) []languageAlternative {
 			b := prior.branch
 			out := languageAlternative{branch: b}
-			needA := e.kind != "SourceWellKnownIteratorKey" && e.kind != "StaticWellKnownIteratorKey" && e.kind != "Literal" && e.kind != "AllocateObject" && e.kind != "AllocateArray"
+			needA := e.kind != "Literal" && e.kind != "AllocateObject" && e.kind != "AllocateArray"
 			needB := numberBinaryOperator(e.kind) != ast.KindUnknown || e.kind == "InstallIteratorRecord" || e.kind == "AcquireCallCallee" || e.kind == "DefineSlot" || e.kind == "DefineAccessorSlot" || e.kind == "DefineArraySlot" || e.kind == "PutArrayLength" || e.kind == "PutValue" || e.kind == "CopyDataProperties"
 			// Cells use a separate preallocated namespace, not an operand register.
 			if e.kind == "ReadThisValue" || e.kind == "ReadCell" || e.kind == "ReadCapturedCell" || e.kind == "ResolveLexicalReference" || e.kind == "CreateClosedCallable" || e.kind == "InstantiateModuleFunction" || e.kind == "ReadAcquiredArgument" {
@@ -669,9 +666,6 @@ func (o *languageOwner) executeStorageScheduleEntry(recipe *storageRecipe, budge
 			}
 			if e.out < 0 || e.out >= len(values) || (needA && !acquired(e.a)) || (needB && !acquired(e.b)) {
 				return []languageAlternative{storageResidual(b, "storage operand unavailable")}
-			}
-			if needA && storageKeyRegister(recipe, e.a) || needB && storageKeyRegister(recipe, e.b) {
-				return []languageAlternative{storageResidual(b, "KEY used as VALUE or Reference")}
 			}
 			switch e.kind {
 			case "ReadAcquiredArgument":
@@ -844,7 +838,7 @@ func (o *languageOwner) executeStorageScheduleEntry(recipe *storageRecipe, budge
 				case "AllocateArray":
 					out = o.allocateArray(b, e.node, &work)
 				case "DefineArraySlot":
-					key, valid := storageKeyOperand(recipe, pc, e, ready)
+					key, valid := storageKeyOperand(recipe, pc, e)
 					if !valid {
 						return []languageAlternative{storageResidual(b, "Array define key role unavailable")}
 					}
@@ -856,9 +850,9 @@ func (o *languageOwner) executeStorageScheduleEntry(recipe *storageRecipe, budge
 				}
 				used = estimatedCostSum(used, work.used)
 			case "DefineAccessorSlot":
-				out = o.defineGetter(b, values[e.a].object, values[e.b], recipe, pc, ready)
+				out = o.defineGetter(b, values[e.a].object, values[e.b], recipe, pc)
 			case "DefineSlot":
-				key, valid := storageKeyOperand(recipe, pc, e, ready)
+				key, valid := storageKeyOperand(recipe, pc, e)
 				if !valid {
 					return []languageAlternative{storageResidual(b, "Define key role unavailable")}
 				}
@@ -890,7 +884,7 @@ func (o *languageOwner) executeStorageScheduleEntry(recipe *storageRecipe, budge
 				}
 				out = o.readLocal(b, cells[e.cell])
 			case "Member":
-				key, valid := storageKeyOperand(recipe, pc, e, ready)
+				key, valid := storageKeyOperand(recipe, pc, e)
 				if !valid {
 					return []languageAlternative{storageResidual(b, "Member key role unavailable")}
 				}
@@ -933,28 +927,7 @@ func (o *languageOwner) executeStorageScheduleEntry(recipe *storageRecipe, budge
 			}
 			return []languageAlternative{out}
 		}
-		if (prefixChoiceSelector(e.kind) || e.kind == "SelectDefault") && storageKeyRegister(recipe, e.a) {
-			a = cutAt("KEY used as predicate VALUE", pc)
-			break
-		}
-		if e.kind == "SourceWellKnownIteratorKey" {
-			work := languageCopyWork{remaining: budget - used}
-			if !sourceSymbolKeyReady(recipe, pc, a.branch, &work) {
-				used = estimatedCostSum(used, work.used)
-				a = cutAt("source KEY association/read budget", pc)
-				break
-			}
-			used = estimatedCostSum(used, work.used)
-		}
-		if e.kind == "StaticWellKnownIteratorKey" || e.kind == "SourceWellKnownIteratorKey" {
-			a = languageSequence([]languageAlternative{a}, func(prior languageAlternative) []languageAlternative {
-				if e.out != pc || e.out < 0 || e.out >= len(ready) || ready[e.out] || e.keyProducerPC != -1 || !e.key.valid() || e.key != languageIteratorKey() || e.node == nil {
-					return []languageAlternative{storageResidual(prior.branch, "KEY issuer unavailable")}
-				}
-				ready[e.out] = true
-				return []languageAlternative{shortCircuitHeader(prior)}
-			})[0]
-		} else if e.kind == "SelectConditional" {
+		if e.kind == "SelectConditional" {
 			a = languageSequence([]languageAlternative{a}, func(prior languageAlternative) []languageAlternative {
 				out, next := conditionalSelect(prior, recipe, pc, values, ready, &choices, &expressionDisposition)
 				nextPC = next
@@ -1065,9 +1038,6 @@ func (o *languageOwner) executeStorageScheduleEntry(recipe *storageRecipe, budge
 		}
 		// short circuit event observation
 		// conditional event observation
-		if recipe.symbolCase != nil && sourceSymbolObserve != nil {
-			sourceSymbolObserve(recipe, pc, nextPC, a, ready, used+baseSetup, targetOrigin)
-		}
 		if recipe.binding != nil && emptyBindingObserve != nil {
 			emptyBindingObserve(recipe, pc, a, used+baseSetup)
 		}

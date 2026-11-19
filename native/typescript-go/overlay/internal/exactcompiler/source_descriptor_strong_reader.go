@@ -1,10 +1,5 @@
 package exactcompiler
 
-import (
-	"fmt"
-	"strings"
-)
-
 // sourceDescriptorStrongReader describes the actual SOURCE field/provenance
 // reader. Target C belongs here; the nominal descriptor result is unchanged.
 // The description retains no Get pointer, query, bindings or live callback.
@@ -81,14 +76,6 @@ func (work *callableEffectWork) descriptorStrongReadingCurrent(request, parent s
 	}
 	d := recipe.memberSource.descriptorStrong
 	return work.descriptorRecordViewDelivered(&d.view) && work.descriptorRecordReadingOwned(d.view, parent, cut)
-}
-
-func descriptorStrongFingerprint(source *sourceDescriptorStrongReader, result *strings.Builder) {
-	if source == nil {
-		return
-	}
-	result.WriteString(fmt.Sprintf("|descriptor-strong:%#v:%#v:%d:%s:%#v", source.parent, source.cut, source.mode, source.field, source.target))
-	descriptorFingerprintEndpoint(sourceRelativeEndpoint{kind: relativeEndpointDescriptorView, descriptorView: &source.view}, result)
 }
 
 // descriptorStrongRequiredCurrent verifies the complete receiver/RHS tail from

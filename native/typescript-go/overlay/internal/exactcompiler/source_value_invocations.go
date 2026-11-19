@@ -114,7 +114,7 @@ func (query *sourceValueQuery) consumeInvocation(node *ast.Node, bindings source
 		result.opaque, result.valueIncomplete, result.cause = true, true, node
 		return
 	}
-	query.requireStagedInvocationConsumer(node, consumer)
+
 	var memberPreparation sourcePendingMemberPreparation
 	complete := false
 	enrolled := false

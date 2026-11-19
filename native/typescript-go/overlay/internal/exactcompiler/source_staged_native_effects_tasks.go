@@ -459,7 +459,6 @@ func (work *callableEffectWork) prepareNativeEffectsSource(facts []callableFacts
 	child, supported := work.describeNativeInputOccurrenceInEntry(facts, caller, childCall, owner, entry, argumentIssuer, childIssuer)
 	if !supported {
 		if !work.adoptNativeEffectsInputContinuation(facts, child, childIssuer) && !work.adoptPendingNativeEffects(facts, child, childIssuer) {
-			work.requireStagedNativeEffectsConsumer(child, owner)
 			return
 		}
 	} else if !work.adoptNativeInputSourceRequirements(facts, child) {

@@ -1,10 +1,5 @@
 package exactcompiler
 
-import (
-	"fmt"
-	"strings"
-)
-
 // afterDescriptorTargetPrerequisite runs at the existing actual APPLIED
 // notification. It queues local completion only; it never replays the source
 // appender, target acquisition or native selection, nor changes an observation.
@@ -47,27 +42,4 @@ func (work *callableEffectWork) queueDescriptorTargetTask(key sourceStagedOperat
 		}
 	}
 	work.extractionQueue = append(work.extractionQueue, callableExtractionTask{callable: work.memberNodes[key.declaration], operation: id})
-}
-
-// descriptorTargetFingerprint emits semantic descriptions rather than cloned
-// carrier allocation addresses. It retains each original child and field order.
-func descriptorTargetFingerprint(source *sourceDescriptorTargetSource, result *strings.Builder) {
-	if source == nil {
-		return
-	}
-	result.WriteString(fmt.Sprintf("|descriptor-target:%#v:%#v:%p:%#v:%t", source.request, source.algorithm, source.generation, source.cut, source.represented))
-	result.WriteString(fmt.Sprintf("|target-native:%p:%p:%#v", source.source.method, source.source.get, source.source.request))
-	for _, input := range source.inputs {
-		descriptorFingerprintInput(input, result)
-	}
-
-	for _, field := range source.fields {
-		result.WriteString(fmt.Sprintf("|target-field:%d:%p:%#v", field.field, field.writer, field.data))
-		result.WriteString(fmt.Sprintf("|target-receiver:%#v", field.receiver))
-		endpoint := descriptorFingerprintEndpoint(field.target, result)
-		result.WriteString(fmt.Sprintf("|target-receiver-construction:%#v", endpoint))
-	}
-	for _, required := range source.required {
-		result.WriteString(fmt.Sprintf("|target-required:%#v", required))
-	}
 }

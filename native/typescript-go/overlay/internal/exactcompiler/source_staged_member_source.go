@@ -103,7 +103,6 @@ type sourceStagedMemberBorrow struct {
 	writerCall              func(*ast.Node) sourceStagedWriterCallDisposition
 	registerWriterSource    func(*sourceWriterInputRequest)
 	reflectiveTarget        func(*ast.Node, sourceValue) sourceStagedReflectiveTargetTransfer
-	yieldConstruction       func(*ast.Node) bool
 	prepareNativeInputs     func()
 	nativeInputCall         func(*ast.Node) sourceStagedWriterCallDisposition
 	checkingCall            *ast.Node
@@ -183,7 +182,6 @@ func (q *sourceValueQuery) installStagedMemberSource(request sourceStagedOperati
 		borrow.reflectiveDisjoint = nil
 		borrow.nativeInputCall = nil
 		borrow.reflectiveTarget = nil
-		borrow.yieldConstruction = nil
 		borrow.prepareNativeInputs = nil
 		borrow.selectionRequired = nil
 		borrow.transferSetWriter = nil

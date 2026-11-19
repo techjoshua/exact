@@ -454,8 +454,8 @@ func (query *sourceValueQuery) executeGetEffects(body *ast.Node, get *sourceGetI
 // Discarded body values do not describe that return. Source projections grant no
 // normal output authority. A callable return is never a promise-job interpretation.
 func (query *sourceValueQuery) acquireGetResult(body *ast.Node, get *sourceGetInputs, scope acquiredCallableScope, result *accessorCandidates) sourceResultObservation {
-	if borrow := query.liveStagedGetResult(get); borrow != nil {
-		query.executable.project.requireStagedReplacement(stagedReplacementGap{operation: get.operation, consumer: borrow.request.consumer, parent: borrow.request, demand: "original Get DATA consumer", transition: "acquireGetResult"})
+	if query.liveStagedGetResult(get) != nil {
+
 		return sourceResultObservation{incomplete: true, effects: sourceEffectsUnaccounted}
 	}
 	if query.transferStagedFieldGetter(body, get, scope, result) {

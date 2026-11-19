@@ -36,8 +36,6 @@ const (
 // Request is one newline-delimited command accepted by a Session.
 type Request struct {
 	LanguageOverlay bool `json:"languageOverlay,omitempty"`
-	// stagedReplacement is an internal migration harness gate, never a wire option.
-	stagedReplacement bool
 
 	Analysis                    AnalysisOptions             `json:"analysis,omitempty"`
 	TraceAnalysisCost           bool                        `json:"traceAnalysisCost,omitempty"`

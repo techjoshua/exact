@@ -158,13 +158,13 @@ func TestEmptyArrayDataOriginalBinding(t *testing.T) {
 // withFrameworkViewProgram owns a genuine active generation until inspection
 // returns. Resolver inputs are the retained real package fixture; this helper
 // performs no Session fallback or post-release currentness inspection.
-func withFrameworkViewProgram(t *testing.T, source string, inspect func(*executableBodyOwner, *projectGeneration), strict ...bool) {
+func withFrameworkViewProgram(t *testing.T, source string, inspect func(*executableBodyOwner, *projectGeneration)) {
 	t.Helper()
 	const root = "/home/techj/.t3/worktrees/exact/t3-5179cb70/.tmp/staged-analysis-first-slice/m08-fresh-runtime-provider-build/source/packages/core"
 
 	id := filepath.Join(root, "src/component/g5-framework-view-control.ts")
 	request := Request{Kind: "analyze", ID: id, Source: source, Root: root, ConfigFile: filepath.Join(root, "tsconfig.json"), Diagnostics: "semantic"}
-	request.stagedReplacement = len(strict) != 0 && strict[0]
+
 	project, ds, err := newProjectStateWithSources(request, id, map[string]string{id: source})
 	if err != nil || len(ds) != 0 {
 		t.Fatal(err, ds)
@@ -280,5 +280,5 @@ import {reactiveObjects} from '@exactjs/reactive/framework/objects';
 				t.Fatal("changed original cut accepted")
 			}
 		}
-	}, true)
+	})
 }

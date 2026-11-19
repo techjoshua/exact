@@ -32,7 +32,7 @@ func sourceArrayInitializerCallLayout(r *storageRecipe) (*ast.Node, int, bool) {
 	}
 	pc := len(r.events) - 4
 	invoke, define, complete, init, finish := r.events[pc], r.events[pc+1], r.events[pc+2], r.events[pc+3], r.events[pc-1]
-	if invoke.kind != "InvokeAcquiredCall" || invoke.node != r.call || invoke.out != pc || finish.kind != "FinalizeCallInputs" || finish.node != r.call || finish.cell != 1 || invoke.a != finish.a || invoke.a < 0 || invoke.a >= pc || define.kind != "DefineArraySlot" || define.node != r.call || define.out != pc+1 || define.b != pc || define.a < 0 || define.a >= pc || define.key != languageStringKey("0") || define.keyProducerPC != -1 || complete.kind != "ArrayComplete" || complete.node != d.Initializer() || complete.a != define.a || complete.out != pc+2 || init.kind != "InitializeCell" || init.node != d || init.a != pc+2 || init.out != pc+3 || init.cell < 0 || init.cell >= r.locals || r.declarations[init.cell] != d {
+	if invoke.kind != "InvokeAcquiredCall" || invoke.node != r.call || invoke.out != pc || finish.kind != "FinalizeCallInputs" || finish.node != r.call || finish.cell != 1 || invoke.a != finish.a || invoke.a < 0 || invoke.a >= pc || define.kind != "DefineArraySlot" || define.node != r.call || define.out != pc+1 || define.b != pc || define.a < 0 || define.a >= pc || define.key != languageStringKey("0") || complete.kind != "ArrayComplete" || complete.node != d.Initializer() || complete.a != define.a || complete.out != pc+2 || init.kind != "InitializeCell" || init.node != d || init.a != pc+2 || init.out != pc+3 || init.cell < 0 || init.cell >= r.locals || r.declarations[init.cell] != d {
 		return nil, 0, false
 	}
 	allocation := r.events[define.a]

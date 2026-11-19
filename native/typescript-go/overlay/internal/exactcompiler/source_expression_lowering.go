@@ -253,7 +253,7 @@ func (p *expressionLowerer) reference(n *ast.Node) (int, bool) {
 			return 0, false
 		}
 
-		return p.event(storageEvent{kind: "Member", node: n, a: v, key: languageStringKey(key), keyProducerPC: -1}), !p.exhausted
+		return p.event(storageEvent{kind: "Member", node: n, a: v, key: languageStringKey(key)}), !p.exhausted
 	}
 	if !ast.IsIdentifier(n) {
 		return 0, false

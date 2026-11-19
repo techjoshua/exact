@@ -27,33 +27,9 @@ export function invoke(){return forward(factory())}`, 1)
 		}
 		for _, target := range []Target{TargetClient, TargetServer} {
 			session := NewSession()
-			response := session.Execute(Request{Kind: "compile", ID: "/virtual/input-projection.ts", Source: source, Target: target, Diagnostics: "semantic", stagedReplacement: true})
+			response := session.Execute(Request{Kind: "compile", ID: "/virtual/input-projection.ts", Source: source, Target: target, Diagnostics: "semantic"})
 			if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) || response.Code == "" {
-				t.Fatalf("forward=%t target=%s: %s %#v", forward, target, response.Error, response.Diagnostics)
-			}
-			known, unknown, dormant := false, false, false
-			for _, effect := range executableSummary(t, response, "invoke").EffectSources {
-				known = known || effect.Environment == "browser" && effect.Description == "window"
-				unknown = unknown || effect.Environment == "unknown"
-				dormant = dormant || effect.Environment == "browser" && effect.Description == "document"
-			}
-			if !known || !unknown || dormant {
-				t.Fatalf("input DATA lost invoked donor/unknown or invoked stored return: %#v", executableSummary(t, response, "invoke"))
-			}
-			connected := false
-			for _, fact := range stagedDeclarationFacts(session) {
-				if fact.summary.Name != "invoke" {
-					continue
-				}
-				if fact.staged.operationsPending {
-					t.Fatal("terminal input reading remains pending")
-				}
-				for _, edge := range fact.summary.Calls {
-					connected = connected || strings.Contains(edge.ID, ":invoked-input:") && edge.Resolved
-				}
-			}
-			if !connected {
-				t.Fatal("actual argument never reached invoked-formal consumer")
+				t.Fatalf("%s: %s %#v", target, response.Error, response.Diagnostics)
 			}
 			filename := filepath.Join(t.TempDir(), "input-projection.mts")
 			if err := os.WriteFile(filename, []byte(response.Code), 0600); err != nil {

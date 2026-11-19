@@ -1,9 +1,7 @@
 package exactcompiler
 
 import (
-	"fmt"
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
-	"strings"
 )
 
 // sourceOriginalMutationBodyPopulation describes operations encountered by the
@@ -59,13 +57,6 @@ func finishOriginalMutationBodyPopulation(fact *callableFacts, owner *executable
 		*p = sourceOriginalMutationBodyPopulation{declaration: fact.node, generation: owner.values.generation}
 	}
 	p.complete = !refined && !ast.HasSyntacticModifier(fact.node, ast.ModifierFlagsAsync) && !(ast.IsFunctionExpression(fact.node) && fact.node.AsFunctionExpression().AsteriskToken != nil) && !(ast.IsFunctionDeclaration(fact.node) && fact.node.AsFunctionDeclaration().AsteriskToken != nil)
-}
-
-func originalMutationBodyFingerprint(p sourceOriginalMutationBodyPopulation, out *strings.Builder) {
-	out.WriteString(fmt.Sprintf("|mutation-body:%p:%p:%t", p.declaration, p.generation, p.complete))
-	for _, operation := range p.operations {
-		out.WriteString(fmt.Sprintf(":%p:%d", operation.node, operation.kind))
-	}
 }
 
 // originalMutationBodyKind classifies the same original operation for canonical

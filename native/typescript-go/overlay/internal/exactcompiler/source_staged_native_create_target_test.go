@@ -26,7 +26,7 @@ func TestStagedNativeCreateTargetPendingOriginalConsumer(t *testing.T) {
 func checkNativeCreateTargetConsumer(t *testing.T, requirePending bool) {
 	t.Helper()
 	const file = "/virtual/native-create-target-source.ts"
-	request := Request{Kind: "analyze", ID: file, Source: stagedNativeCreateTargetSource, Diagnostics: "semantic", stagedReplacement: true}
+	request := Request{Kind: "analyze", ID: file, Source: stagedNativeCreateTargetSource, Diagnostics: "semantic"}
 	reached := make(map[string]bool)
 	pending := false
 	var expired []*sourceStagedNativeEffectsIssuer
@@ -258,7 +258,7 @@ func checkNativeCreateTargetConsumer(t *testing.T, requirePending bool) {
 // Effects closure. The original full-closure consumer above remains unchanged.
 func TestStagedNativeCreateTargetLocalSourceHandoff(t *testing.T) {
 	const file = "/virtual/native-create-target-source.ts"
-	request := Request{Kind: "analyze", ID: file, Source: stagedNativeCreateTargetSource, Diagnostics: "semantic", stagedReplacement: true}
+	request := Request{Kind: "analyze", ID: file, Source: stagedNativeCreateTargetSource, Diagnostics: "semantic"}
 	type path struct {
 		kind  sourceNativeKind
 		saved bool
@@ -408,7 +408,7 @@ export function reflectSaved(prototype:object|null){const target=Object.create(p
 	} {
 		t.Run(row.name, func(t *testing.T) {
 			const file = "/virtual/native-create-target-source.ts"
-			request := Request{Kind: "analyze", ID: file, Source: row.source, Diagnostics: "semantic", stagedReplacement: true}
+			request := Request{Kind: "analyze", ID: file, Source: row.source, Diagnostics: "semantic"}
 			type path struct {
 				kind  sourceNativeKind
 				saved bool

@@ -168,7 +168,6 @@ func (work *callableEffectWork) prepareStagedGetResult(facts []callableFacts, id
 		work.observeStagedGetResult(facts, caller, source.request.producer.operation, owner)
 	}
 	if source.getResult.role == "value" && !work.stagedGetResultAdmitted(source.request.producer.operation, source.request.consumer) {
-		owner.project.requireStagedReplacement(stagedReplacementGap{operation: source.request.producer.operation, consumer: source.request.consumer, parent: source.request, demand: "original Get receiver/source DATA producer", transition: "acquireRequiredPropertyAt"})
 		return
 	}
 	recipe := work.operationRecipes[work.operations[id.index].key]

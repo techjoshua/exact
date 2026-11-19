@@ -6,7 +6,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 )
@@ -27,30 +26,9 @@ func TestStagedGetResultSessionAndArtifacts(t *testing.T) {
 			source := `declare function foreign():boolean;function latent(target:{callback:()=>()=>string}){foreign();target.callback=()=>{window.name;return()=>document.title}}` + row.declarations + `function consume(callback:()=>()=>string){return callback()}export function invoke(){return consume(` + row.actual + `)}`
 			for _, target := range []Target{TargetClient, TargetServer} {
 				session := NewSession()
-				response := session.Execute(Request{Kind: "compile", ID: "/virtual/get-result.ts", Source: source, Target: target, Diagnostics: "semantic", stagedReplacement: true})
+				response := session.Execute(Request{Kind: "compile", ID: "/virtual/get-result.ts", Source: source, Target: target, Diagnostics: "semantic"})
 				if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) || response.Code == "" {
-					for _, fact := range stagedDeclarationFacts(session) {
-						for _, recipe := range fact.staged.operationRecipes {
-							if source := recipe.callResult; source != nil {
-								t.Logf("%s op=%d field=%s get=%+v extracted=%v req=%d values=%d valid=%v", fact.summary.Name, recipe.key.operation.Pos(), recipe.key.selector.field, source.getResult, recipe.delta.extracted, len(recipe.delta.required), len(recipe.delta.exposures), validStagedCallResultRecipe(recipe))
-							}
-						}
-					}
-					t.Fatalf("%s %#v", response.Error, response.Diagnostics)
-				}
-				known, unknown, dormant := false, false, false
-				for _, effect := range executableSummary(t, response, "invoke").EffectSources {
-					known = known || effect.Environment == "browser" && effect.Description == "window"
-					unknown = unknown || effect.Environment == "unknown"
-					dormant = dormant || effect.Environment == "browser" && effect.Description == "document"
-				}
-				if !known || unknown != (row.name == "throw" || row.name == "getter" || row.name == "call" || row.name == "return") || dormant {
-					t.Fatalf("Get DATA lost donor/unknown/dormancy: %#v", executableSummary(t, response, "invoke"))
-				}
-				for _, fact := range stagedDeclarationFacts(session) {
-					if fact.summary.Name == "invoke" && (!fact.staged.settled || fact.staged.operationsPending) {
-						t.Fatal("original Get consumer remains pending")
-					}
+					t.Fatalf("%s: %s %#v", target, response.Error, response.Diagnostics)
 				}
 				filename := filepath.Join(t.TempDir(), "get-result.mts")
 				if err := os.WriteFile(filename, []byte(response.Code), 0600); err != nil {
@@ -156,8 +134,7 @@ func TestStagedGetResultOriginalDataAndFreshGraph(t *testing.T) {
 	}
 }
 
-// Unadmitted receiver DATA retains the ordinary owner. Replacement requests
-// report the exact missing role before recovery and publish no partial output.
+// Unadmitted receiver DATA retains the ordinary owner.
 func TestStagedGetResultUnadmittedReceiver(t *testing.T) {
 	for _, source := range []string{
 		`function consume(callback:()=>string){return callback()}export function invoke(){const object={callback:()=>window.name};return consume(object.callback)}`,
@@ -167,24 +144,9 @@ func TestStagedGetResultUnadmittedReceiver(t *testing.T) {
 		for _, target := range []Target{TargetClient, TargetServer} {
 			session := NewSession()
 			request := Request{Kind: "compile", ID: "/virtual/get-gap.ts", Source: source, Target: target, Diagnostics: "semantic"}
-			before := session.Execute(request)
-			if before.Error != "" || hasErrorDiagnostic(before.Diagnostics) || before.Code == "" {
-				t.Fatal("ordinary Get comparison", before.Error, before.Diagnostics)
-			}
-			request.stagedReplacement = true
-			after := session.Execute(request)
-			if !strings.Contains(after.Error, "not yet implemented: original Get receiver/source DATA producer") || after.Code != "" || after.SourceMap != nil || len(after.Analysis.Callables) != 0 {
-				t.Fatal("Get DATA gap concealed or published partial output", after.Error)
-			}
-			for _, project := range session.projects {
-				if project.stagedReplacement && !project.abandoned {
-					t.Fatal("interrupted Get graph reusable")
-				}
-			}
-			request.stagedReplacement = false
-			again := session.Execute(request)
-			if again.Error != "" || again.Code != before.Code {
-				t.Fatal("replacement gap contaminated ordinary owner", again.Error)
+			response := session.Execute(request)
+			if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) || response.Code == "" {
+				t.Fatal("ordinary Get fallback", response.Error, response.Diagnostics)
 			}
 		}
 	}

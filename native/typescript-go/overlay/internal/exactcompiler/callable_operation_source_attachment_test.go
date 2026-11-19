@@ -286,7 +286,7 @@ func TestStagedReflectiveEagerBlueprintAttachmentPreservesOriginalReceipts(t *te
 		{"authored_call", "/virtual/eager-binding.ts", stagedEagerCallWitness, map[string]bool{"invoke": true}, 1},
 	} {
 		t.Run(row.name, func(t *testing.T) {
-			request := Request{Kind: "analyze", ID: row.file, Source: row.source, Diagnostics: "semantic", stagedReplacement: true}
+			request := Request{Kind: "analyze", ID: row.file, Source: row.source, Diagnostics: "semantic"}
 			withActiveModuleSourceWork(t, request, map[string]string{row.file: row.source}, nil, func(facts []callableFacts, work *callableEffectWork, owner *executableBodyOwner) {
 				generation := owner.values.generation
 				if generation == nil || !generation.active || owner.project.activeGeneration != generation || work.operationGeneration != generation || owner.values.language == nil || owner.values.language.disposed {

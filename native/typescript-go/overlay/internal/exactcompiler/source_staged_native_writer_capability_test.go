@@ -265,7 +265,7 @@ func assertOriginalNativePopulationCapability(t *testing.T, work *callableEffect
 func TestStagedNativeWriterPopulationCurrentOriginal(t *testing.T) {
 	f := newStagedGlobalStoreFixture(t)
 	request := f.request("analyze", "component-abi/opaque-operation.ts")
-	request.stagedReplacement = true
+
 	withActiveModuleSourceWork(t, request, nativeWriter679FixtureSources(f), []string{filepath.Join(f.root, "component/contract-versions.ts")}, func(_ []callableFacts, work *callableEffectWork, _ *executableBodyOwner) {
 		assertOriginalNativePopulationCapability(t, work)
 	}, activeModuleCompleteAnalysis)

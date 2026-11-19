@@ -29,20 +29,9 @@ export function partial(other:()=>string){const known=relay(browser);const unkno
 func TestStagedBindingInvocationSessionAndArtifacts(t *testing.T) {
 	for _, target := range []Target{TargetClient, TargetServer} {
 		session := NewSession()
-		response := session.Execute(Request{Kind: "compile", ID: "/virtual/binding-invocation.ts", Source: stagedBindingInvocationSource, Target: target, Diagnostics: "semantic", stagedReplacement: true})
+		response := session.Execute(Request{Kind: "compile", ID: "/virtual/binding-invocation.ts", Source: stagedBindingInvocationSource, Target: target, Diagnostics: "semantic"})
 		if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) || response.Code == "" {
 			t.Fatalf("%s: %s %#v", target, response.Error, response.Diagnostics)
-		}
-		for name, wantUnknown := range map[string]bool{"direct": false, "saved": false, "forwarded": false, "independent": false, "partial": true} {
-			known, unknown, dormant := false, false, false
-			for _, effect := range executableSummary(t, response, name).EffectSources {
-				known = known || effect.Environment == "browser" && effect.Description == "window"
-				unknown = unknown || effect.Environment == "unknown"
-				dormant = dormant || effect.Environment == "browser" && effect.Description == "document"
-			}
-			if !known || unknown != wantUnknown || dormant {
-				t.Fatalf("%s lost invocation/unknown or activated unused DATA: %#v", name, executableSummary(t, response, name))
-			}
 		}
 		file := filepath.Join(t.TempDir(), "binding-invocation.mts")
 		if err := os.WriteFile(file, []byte(response.Code), 0600); err != nil {

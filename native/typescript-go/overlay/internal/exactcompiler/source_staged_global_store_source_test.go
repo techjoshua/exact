@@ -14,7 +14,7 @@ import (
 func TestStagedGlobalStoreOriginalHasInstanceSource(t *testing.T) {
 	f := newStagedGlobalStoreFixture(t)
 	request := f.request("analyze", "component-abi/opaque-operation.ts")
-	request.stagedReplacement = true
+
 	sources := make(map[string]string, len(f.files))
 	for name, source := range f.files {
 		sources[filepath.Join(f.root, name)] = source

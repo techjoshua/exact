@@ -16,7 +16,7 @@ func TestStagedNativeWriterInertModuleCapability(t *testing.T) {
 	if !t.Run("original-named-module-positive", func(t *testing.T) {
 		f := newExecutableFixture(t, map[string]string{"entry.ts": nativeWriterInertModuleSource})
 		request := f.request("analyze", "entry.ts")
-		request.stagedReplacement = true
+
 		withActiveModuleSourceWork(t, request, nativeWriter679FixtureSources(f), nil, func(facts []callableFacts, work *callableEffectWork, owner *executableBodyOwner) {
 			var source, rawSource *sourceStagedNativeGetSource
 			var freeze *ast.Node
@@ -119,7 +119,7 @@ func TestStagedNativeWriterInertModuleCapability(t *testing.T) {
 		if !t.Run(row.name, func(t *testing.T) {
 			f := newExecutableFixture(t, map[string]string{"entry.ts": row.source})
 			request := f.request("analyze", "entry.ts")
-			request.stagedReplacement = true
+
 			if !nativeWriterInertPublicCompile(t, f, request) {
 				return
 			}
@@ -156,7 +156,7 @@ func testNativeWriterInertInheritedGetter(t *testing.T) {
 	}
 	f := newExecutableFixture(t, map[string]string{"entry.ts": source})
 	request := f.request("analyze", "entry.ts")
-	request.stagedReplacement = true
+
 	if !nativeWriterInertPublicCompile(t, f, request) {
 		return
 	}

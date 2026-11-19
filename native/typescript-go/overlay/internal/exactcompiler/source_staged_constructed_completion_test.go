@@ -20,19 +20,10 @@ export function invoke(execute:object,domain:object){return domainOperationProto
 // actual key/instance behavior, which analysis must preserve without reconstructing
 // a table. Closed Effects must neither invoke stored data nor imply normal output.
 func TestStagedConstructedReducedChainSession(t *testing.T) {
-	testStagedConstructedReducedChainSession(t, false)
-}
-
-func TestStagedConstructedReducedChainReplacement(t *testing.T) {
-	testStagedConstructedReducedChainSession(t, true)
-}
-
-func testStagedConstructedReducedChainSession(t *testing.T, replacement bool) {
-	t.Helper()
 	for _, target := range []Target{TargetClient, TargetServer} {
 		t.Run(string(target), func(t *testing.T) {
 			session := NewSession()
-			response := session.Execute(Request{Kind: "compile", ID: "/virtual/staged-complete-domains.ts", Source: stagedConstructedReducedChain, Target: target, Diagnostics: "semantic", stagedReplacement: replacement})
+			response := session.Execute(Request{Kind: "compile", ID: "/virtual/staged-complete-domains.ts", Source: stagedConstructedReducedChain, Target: target, Diagnostics: "semantic"})
 			if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) || response.Code == "" {
 				for _, fact := range stagedDeclarationFacts(session) {
 					for _, recipe := range fact.staged.operationRecipes {
