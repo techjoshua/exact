@@ -565,6 +565,11 @@ func (q *sourceValueQuery) memberWriterScopes(writer, call *ast.Node, bindings s
 			}
 			atRecovery(func() {
 				progressWriterFallback(q, request, call, position)
+				if position >= 0 && q.guardedObjectArgument(call, expression) {
+					// Only equality is settled. Other input provenance may remain unknown.
+					result.valueIncomplete = result.valueIncomplete || calleeCovered
+					return
+				}
 				part := acquire()
 				retain(part)
 				if calleeCovered {
@@ -602,6 +607,45 @@ func (q *sourceValueQuery) memberWriterScopes(writer, call *ast.Node, bindings s
 	})
 	progressWriterEvent(q, "recovery-result", len(scopes))
 	return scopes
+}
+
+// guardedObjectArgument proves only that the original argument cannot equal
+// a writer function. In this single-return module function no prior statement,
+// parameter initializer or earlier argument could hand a closure over this
+// parameter to a getter. Looking up the method can still execute authored code.
+func (q *sourceValueQuery) guardedObjectArgument(call, argument *ast.Node) bool {
+	parent := call.Parent
+	if parent == nil || !ast.IsConditionalExpression(parent) || parent.AsConditionalExpression().WhenTrue != call ||
+		!ast.IsIdentifier(argument) || len(call.AsCallExpression().Arguments.Nodes) != 1 || call.AsCallExpression().Arguments.Nodes[0] != argument {
+		return false
+	}
+	condition := parent.AsConditionalExpression().Condition
+	if !ast.IsBinaryExpression(condition) || condition.AsBinaryExpression().OperatorToken.Kind != ast.KindAmpersandAmpersandToken {
+		return false
+	}
+	left, right := condition.AsBinaryExpression().Left, condition.AsBinaryExpression().Right
+	if !ast.IsBinaryExpression(left) || !ast.IsBinaryExpression(right) {
+		return false
+	}
+	category, present := left.AsBinaryExpression(), right.AsBinaryExpression()
+	if category.OperatorToken.Kind != ast.KindEqualsEqualsEqualsToken || !ast.IsTypeOfExpression(category.Left) ||
+		!ast.IsIdentifier(category.Left.Expression()) || !ast.IsStringLiteral(category.Right) || category.Right.Text() != "object" ||
+		present.OperatorToken.Kind != ast.KindExclamationEqualsEqualsToken || !ast.IsIdentifier(present.Left) || present.Right.Kind != ast.KindNullKeyword {
+		return false
+	}
+	method, statement := call.Expression(), parent.Parent
+	if !ast.IsPropertyAccessExpression(method) || !ast.IsIdentifier(method.Expression()) || statement == nil || !ast.IsReturnStatement(statement) ||
+		statement.Parent == nil || !ast.IsBlock(statement.Parent) || len(statement.Parent.AsBlock().Statements.Nodes) != 1 {
+		return false
+	}
+	fn := statement.Parent.Parent
+	if fn == nil || !ast.IsFunctionDeclaration(fn) || len(fn.Parameters()) != 1 || !ast.IsExternalModule(ast.GetSourceFileOfNode(fn)) {
+		return false
+	}
+	parameter := fn.Parameters()[0]
+	symbol := q.owner.checker.GetSymbolAtLocation(argument)
+	return symbol != nil && symbol.ValueDeclaration == parameter && parameter.Initializer() == nil && ast.IsIdentifier(parameter.Name()) &&
+		q.owner.checker.GetSymbolAtLocation(category.Left.Expression()) == symbol && q.owner.checker.GetSymbolAtLocation(present.Left) == symbol
 }
 
 // memberWriterBodyCalls follows only reached Call demands under the selected

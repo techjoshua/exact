@@ -3577,6 +3577,13 @@ are represented; a known inner allocation alone cannot pay those requirements.
 Refused writer exposure recovery issues these readings before installing an earlier
 Call's temporary acquisition cut. A transferred callee or actual remains pending
 source data. Other actuals still retain their known callable and capture relationships.
+For a module function whose sole parameter is read in its sole return, the
+true arm of `typeof value === 'object' && value !== null ? store.get(value) : fallback`
+can exclude that argument from direct writer identity recovery. All three reads
+must resolve to the same parameter. The single argument and simple method
+receiver leave no earlier argument or closure that could reassign the parameter
+during lookup. Callee acquisition, original evaluation effects and other writer
+exposures keep their existing owners.
 A live original source description can register an unfinished parent before attaching
 its result reading. Only the original Get finish event supplies observation and local
 completion. Refused attachment leaves the live borrower's required prefix unchanged.

@@ -368,11 +368,15 @@ func TestMemberWriterRefusedCapturedValues(t *testing.T) {
 // writer even when its caller is opaque. A plain captured field can still emit.
 func TestComponentRefusedWriterPlacement(t *testing.T) {
 	for _, row := range []struct {
-		name, value string
-		browser     bool
+		name, value, invoke string
+		browser             bool
 	}{
-		{"getter", "{get value(){return document.title}}", true},
-		{"plain", "{value:'safe'}", false},
+		{"getter", "{get value(){return document.title}}", "invoke(write);", true},
+		{"plain", "{value:'safe'}", "invoke(write);", false},
+		{"guarded argument with callee getter", "{value:'safe'}", `const store={get get(){void document.title;return (_:object)=>0}};
+   function read(value:unknown){return typeof value==='object' && value!==null ? store.get(value) : undefined}
+   read({});invoke(write);`, true},
+		{"reassigned object", "{get value(){return document.title}}", "let value:object={};value=write;invoke(value as ()=>void);", true},
 	} {
 		t.Run(row.name, func(t *testing.T) {
 			source := `import {TaskContext,type Component} from '@exactjs/core';
@@ -382,7 +386,7 @@ export function Page(this:Component<{label:string}>){
  const run=(task:TaskContext=TaskContext.server())=>{
   const box={field:{value:'safe'}};
   function make(v:{value:string}){return ()=>{box.field=v}}
-  const write=make(` + row.value + `);invoke(write);
+  const write=make(` + row.value + `);` + row.invoke + `
   this.state.label=box.field.value;
  };
  return()=> <button onClick={()=>run()}>{this.state.label}</button>;
