@@ -1292,7 +1292,7 @@ versus fresh sessions. The standalone reflective evaluation fixture failed
 on both hosts because its request supplied no callable summary for `invoke`.
 
 
-### Captured setter effects and corrected package acceptance
+### Captured setter effects and package qualification
 
 The pinned Theme audit at `3024421b7` records a `66dc05d2f` pass and an
 `a693a97e9` failure of `TestMemberKeyAcquisitionRetainsCapturedSetterUnknown`.
@@ -1319,6 +1319,45 @@ The member read now keeps input recovery while it can still contribute
 uncertainty. It skips direct RHS projection for a disjoint key and retains
 the cheap reconstruction cut where opacity has already been established.
 Matching setter-body writes and staged transfers keep their existing routes.
+
+A matched rerun rebuilt the exact `a693a97e9` and `7b3ae6c8b` hosts and
+used fresh copies of the same pinned Core inputs. The fast host completed
+the package command in 34.68 seconds and produced 3,598 output files. The
+corrected host reached the first client deadline in 32.28 seconds of package
+wall time and produced only the 1,200 prerequisite files. Both used the
+same 30-second per-request deadline. In retained client and server sessions,
+the corrected host recovered the field Get uncertainty after editing away
+the setter and reverting. The fast host omitted that uncertainty on both
+visits. Client code emitted by the corrected host, mounted against the
+fresh fast-host Core runtime, showed the browser getter result for both
+escaped and direct setter invocations and the original field value for a
+disjoint data write.
+
+The reopened work is the indexed assignment's input scan. For a disjoint
+named acquisition or terminal read whose result has yet to become opaque,
+the correction runs `memberWriterInputs` before dropping direct RHS
+projection. That scan selects and binds candidate Calls and follows reached
+wrapper Calls before refused-scope recovery can establish whether the
+original writer was exposed. An indexed key or receiver type alone cannot
+establish that those Calls or a setter have no relevant effect.
+
+The Core observer located the first reopened entries within the
+`createOpaqueOperation` Call from `issueIntrinsicReceipt`. While acquiring
+`domain` from the inline `{ key, domain }` argument for
+`domainOperationPrototype`, the writer scan entered the indexed assignments
+to `view.data` and `view.factory` in `readComposableIntrinsicReceipt`.
+Those writes are in the dynamic receiver bucket because `view` comes from
+`compositionViews.get(value)`. Neither key can directly supply the
+`domain` value. The second writer entry was the final logged event before
+the request deadline. The existing private standard call filter can retire
+particular candidate Calls, while the Set disposition applies to its exact
+original issuer and observation. Neither establishes that these dynamic
+writes have no setter relevant to this Get. A private trial gated the
+disjoint cut on an authenticated standard global acquisition. It still
+timed out at the first client request in 32.29 seconds of package wall time.
+The trial was discarded from integration. The blocked metadata receiver is
+an ordinary object literal and needs its own proof or a narrower effect
+collector.
 
 The original Core command used the same 8,447-input manifest
 (`958e586c6817e51a1b64698c0a1f4c3c552a42a1c26e73bb854ca0f7fe232051`),
