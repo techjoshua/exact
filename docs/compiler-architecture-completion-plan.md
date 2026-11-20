@@ -576,9 +576,16 @@ binding and the loop's member Get supply possible origins. The later member
 lookup uses its own writer cut and the selected origin's captures. Repeated
 origins and unavailable inputs retain unresolved alternatives. The relation
 supplies no index or length guarantee, and it grants no mutation, normal-output,
-or effect-completion authority. The shape occurs in Theme scope ancestry
-capture. A component-owned derived cell with an inline producer and only
-direct reads supplies possible producer returns through the existing source
+or effect-completion authority. Theme scope ancestry uses this relation at
+two points. At the original loop increment Get, direct extraction and
+instantiated body analysis acquire the initial value at its initializer,
+then follow possible successful results at the original Get cut. The existing
+member writer lookup preserves possible getter replacements. Repeated source origins end that branch with independent
+uncertainty. This cutoff does not identify captured values or certify that any
+iteration completes. The indexed reader continues to use its own cut.
+
+A component-owned derived cell with an inline producer and only direct reads
+supplies possible producer returns through the existing source
 return projection at the consumer. Callback effects remain on the reactive
 registration and the emitted read retains ordinary dependency tracking.
 The projection does not create a normal result or a reusable captured value.

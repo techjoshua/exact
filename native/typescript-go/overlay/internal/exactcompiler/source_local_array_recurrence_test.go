@@ -29,6 +29,15 @@ function resolve(input: Scope, index: number) {
 `
 
 func TestLocalArrayRecurrenceComponentDonors(t *testing.T) {
+	testAncestryComponentDonors(t, false)
+}
+
+func TestLoopMemberBackedgeComponentDonors(t *testing.T) {
+	testAncestryComponentDonors(t, true)
+}
+
+func testAncestryComponentDonors(t *testing.T, backedge bool) {
+	t.Helper()
 	for _, row := range []struct {
 		name, selection string
 		direct          bool
@@ -90,8 +99,25 @@ export function Stored(this: Component<{ preference: boolean }>, props: { foreig
 			if err := os.WriteFile(config, []byte(`{"compilerOptions":{"module":"esnext","moduleResolution":"bundler","target":"es2022","lib":["esnext","dom"],"jsx":"preserve","skipLibCheck":true,"strict":true}}`), 0600); err != nil {
 				t.Fatal(err)
 			}
+			if backedge {
+				component = strings.ReplaceAll(component, "Object.defineProperty(tail, 'source', { get: () => ({color: 'steady'}) });",
+					"Object.defineProperty(tail, 'parent', { get: () => { void 'steady'; return props.foreign ?? tail; } });")
+				// Keep the indexed later read out of this control. The browser
+				// donor is exclusively a Get at the original loop increment.
+				component = strings.ReplaceAll(component, "ancestry[props.index]?.source.color", "ancestry.length")
+				component = strings.ReplaceAll(component, "ancestry[index]?.source.color", "ancestry.length")
+				for i := range sources {
+					sources[i].Source = strings.ReplaceAll(sources[i].Source, "ancestry[index]?.source.color", "ancestry.length")
+					if err := os.WriteFile(sources[i].ID, []byte(sources[i].Source), 0600); err != nil {
+						t.Fatal(err)
+					}
+				}
+			}
 			neutral := `/// <reference path="./jsx-types.d.ts" />` + "\n" + component
 			browser := strings.Replace(neutral, "color: 'steady'", "color: document.title", 1)
+			if backedge {
+				browser = strings.Replace(neutral, "void 'steady'", "void document.title", 1)
+			}
 			for _, target := range []Target{TargetClient, TargetServer} {
 				var application [3]string
 				for _, packageType := range []string{"application", "library"} {
@@ -106,10 +132,13 @@ export function Stored(this: Component<{ preference: boolean }>, props: { foreig
 						} else if application[edit] != result.Code {
 							t.Fatal(target, edit, "package mode changed the generated component")
 						}
-						var known, browserDonor, residual bool
+						var known, browserDonor, residual, incrementEdge bool
 						for _, fact := range result.Analysis.Callables {
 							if row.direct && fact.Name != "Stored" || !row.direct && !strings.HasPrefix(fact.Name, "<anonymous@") {
 								continue
+							}
+							for _, edge := range fact.Calls {
+								incrementEdge = incrementEdge || edge.Resolved && edge.Name == "current.parent"
 							}
 							var browserEffect, unknownEffect bool
 							sources := fact.EffectSources
@@ -123,6 +152,9 @@ export function Stored(this: Component<{ preference: boolean }>, props: { foreig
 							browserDonor = browserDonor || browserEffect
 							known = known || browserEffect && unknownEffect
 							residual = residual || unknownEffect
+						}
+						if backedge && !incrementEdge {
+							t.Fatalf("%s %s edit %d: original increment did not publish a resolved edge", target, packageType, edit)
 						}
 						if known != (edit == 1) || browserDonor != (edit == 1) || !residual {
 							t.Fatalf("%s %s edit %d: browser+unknown=%v, unknown=%v", target, packageType, edit, known, residual)

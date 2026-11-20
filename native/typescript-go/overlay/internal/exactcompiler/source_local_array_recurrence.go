@@ -66,75 +66,122 @@ func (q *sourceValueQuery) localArrayRecurrence(origin *ast.Node, result *access
 	}
 	loop := body.Parent.AsForStatement()
 	args := push.AsCallExpression().Arguments.Nodes
-	if loop.Statement != body || len(args) != 1 || !ast.IsIdentifier(args[0]) || loop.Initializer == nil || !ast.IsVariableDeclarationList(loop.Initializer) || loop.Incrementor == nil || !ast.IsBinaryExpression(loop.Incrementor) {
+	if loop.Statement != body || len(args) != 1 || !ast.IsIdentifier(args[0]) || loop.Incrementor == nil || !ast.IsBinaryExpression(loop.Incrementor) {
 		return nil, nil
 	}
-	current := q.owner.checker.GetSymbolAtLocation(args[0])
-	decls := loop.Initializer.AsVariableDeclarationList().Declarations.Nodes
-	if current == nil || len(decls) != 1 || current.ValueDeclaration != decls[0] || decls[0].Initializer() == nil {
-		return nil, nil
-	}
-	step := loop.Incrementor.AsBinaryExpression()
-	get = unwrapSourceCallableReference(step.Right)
-	if step.OperatorToken.Kind != ast.KindEqualsToken || !ast.IsIdentifier(step.Left) || q.owner.checker.GetSymbolAtLocation(step.Left) != current || !ast.IsPropertyAccessExpression(get) || !ast.IsIdentifier(get.Expression()) || q.owner.checker.GetSymbolAtLocation(get.Expression()) != current {
-		return nil, nil
-	}
-	writes := index.bindings[ast.GetSymbolId(current)]
-	if len(writes) != 1 || writes[0].left != step.Left {
+	get = unwrapSourceCallableReference(loop.Incrementor.AsBinaryExpression().Right)
+	entry = q.loopMemberBackedge(get, result)
+	if entry == nil || q.owner.checker.GetSymbolAtLocation(args[0]) != q.owner.checker.GetSymbolAtLocation(get.Expression()) {
 		return nil, nil
 	}
 	// A source read inside or before capture can still use ordinary analysis.
 	if at := q.readPosition(); at != nil && enclosingCallableNode(at) == enclosingCallableNode(d) && at.Pos() < body.Parent.End() {
 		return nil, nil
 	}
-	return decls[0].Initializer(), get
+	return entry, get
 }
 
-// visitLocalArrayRecurrence forwards known source alternatives beside an
-// unresolved tail. Each member edge uses the existing Get visitor. Following a
-// repeated source origin widens the tail instead of unrolling runtime iterations.
+// loopMemberBackedge recognizes a loop-local binding whose sole reassignment
+// gets a member of its previous value. Entry acquisition belongs to the loop
+// initializer. Subsequent alternatives belong to the original increment Get.
+func (q *sourceValueQuery) loopMemberBackedge(get *ast.Node, result *accessorCandidates) *ast.Node {
+	if get == nil || !ast.IsPropertyAccessExpression(get) || !ast.IsIdentifier(get.Expression()) {
+		return nil
+	}
+	rhs := get
+	for rhs.Parent != nil && unwrapSourceCallableReference(rhs.Parent) == get {
+		rhs = rhs.Parent
+	}
+	stepNode := rhs.Parent
+	if stepNode == nil || !ast.IsBinaryExpression(stepNode) || stepNode.AsBinaryExpression().Right != rhs ||
+		stepNode.Parent == nil || !ast.IsForStatement(stepNode.Parent) {
+		return nil
+	}
+	step, loop := stepNode.AsBinaryExpression(), stepNode.Parent.AsForStatement()
+	if loop.Incrementor != stepNode || step.OperatorToken.Kind != ast.KindEqualsToken || !ast.IsIdentifier(step.Left) ||
+		loop.Initializer == nil || !ast.IsVariableDeclarationList(loop.Initializer) {
+		return nil
+	}
+	current := q.owner.checker.GetSymbolAtLocation(get.Expression())
+	decls := loop.Initializer.AsVariableDeclarationList().Declarations.Nodes
+	if current == nil || len(decls) != 1 || current.ValueDeclaration != decls[0] || !ast.IsIdentifier(decls[0].Name()) ||
+		q.owner.checker.GetSymbolAtLocation(step.Left) != current {
+		return nil
+	}
+	entry := decls[0].Initializer()
+	if entry == nil {
+		return nil
+	}
+	index := q.owner.index(ast.GetSourceFileOfNode(get))
+	if index.incomplete || index.normalDynamicScope || !q.charge(result, get) {
+		return nil
+	}
+	writes := index.bindings[ast.GetSymbolId(current)]
+	if len(writes) != 1 || writes[0].left != step.Left {
+		return nil
+	}
+	return entry
+}
+
+// visitLocalArrayRecurrence forwards MAY origins to the later indexed reader.
+// Its own member lookup retains the later read's writer cut.
 func (q *sourceValueQuery) visitLocalArrayRecurrence(origin *ast.Node, rest []string, bindings sourceValueBindings, result *accessorCandidates, visit func(sourceValue)) {
 	entry, get := q.localArrayRecurrence(origin, result)
 	if entry == nil {
 		return
 	}
-	result.opaque, result.valueIncomplete = true, true
-	if q.active[origin] {
-		return
-	}
-	q.active[origin] = true
-	defer delete(q.active, origin)
-
-	acquire := func(receiver *ast.Node, path []string, at *ast.Node, alternatives ...sourceValue) accessorCandidates {
-		previousRead, previousInit, previousMember := q.reading, q.initializing, q.protectedMember
-		q.reading, q.initializing, q.protectedMember = at, at, nil
-		defer func() {
-			q.reading, q.initializing, q.protectedMember = previousRead, previousInit, previousMember
-		}()
-		values := q.accessorsAtGetOutput(receiver, path, "", accessorAcquire, bindings, nil, nil, nil, nil, alternatives...)
-		mergeAccessorCandidates(result, values)
-		return values
-	}
-	active := make(map[*ast.Node]bool)
-	var follow func(sourceValue, int)
-	follow = func(value sourceValue, depth int) {
-		if value.node == nil || !q.charge(result, value.node) {
-			return
-		}
+	q.visitLoopMemberReceivers(entry, get, bindings, result, func(value sourceValue) {
 		for _, projected := range q.boundProjection([]sourceValue{value}, rest, result) {
 			visit(projected)
 		}
-		if active[value.node] || depth == 128 {
+	})
+}
+
+// visitLoopMemberReceivers follows source origins through successful Get
+// outputs. Repetition on a branch leaves the runtime continuation unknown.
+// The guard bounds exploration by source syntax and never identifies captures.
+func (q *sourceValueQuery) visitLoopMemberReceivers(entry, get *ast.Node, bindings sourceValueBindings, result *accessorCandidates, visit func(sourceValue)) {
+	result.opaque, result.valueIncomplete = true, true
+	if q.active[get] {
+		return
+	}
+	q.active[get] = true
+	defer delete(q.active, get)
+
+	acquire := func(at, receiver *ast.Node, path []string, reference *sourceGetReference, alternatives ...sourceValue) accessorCandidates {
+		previousRead, previousInit, previousMember := q.reading, q.initializing, q.protectedMember
+		q.reading, q.initializing, q.protectedMember = at, at, nil
+		if reference != nil {
+			q.protectedMember = get
+		}
+		defer func() {
+			q.reading, q.initializing, q.protectedMember = previousRead, previousInit, previousMember
+		}()
+		values := q.accessorsAtGetOutput(receiver, path, "", accessorAcquire, bindings, nil, nil, nil, reference, alternatives...)
+		mergeAccessorCandidates(result, values)
+		return values
+	}
+	key := get.Name().Text()
+	reference := sourceGetReferenceFor(get, get.Expression(), nil, key, accessorRead)
+	active := make(map[*ast.Node]bool)
+	var follow func(sourceValue)
+	follow = func(value sourceValue) {
+		if value.node == nil || !q.charge(result, value.node) {
+			return
+		}
+		if visit != nil {
+			visit(value)
+		}
+		if active[value.node] {
 			return
 		}
 		active[value.node] = true
 		defer delete(active, value.node)
-		next := acquire(nil, []string{get.Name().Text()}, get, value)
-		for _, alternative := range next.values {
-			follow(alternative, depth+1)
+		for _, alternative := range acquire(get, nil, []string{key}, reference, value).values {
+			follow(alternative)
 		}
 	}
-	for _, value := range acquire(entry, nil, entry).values {
-		follow(value, 0)
+	for _, value := range acquire(entry, entry, nil, nil).values {
+		follow(value)
 	}
 }

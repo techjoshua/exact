@@ -184,6 +184,10 @@ export function ComponentsPage(this: Component<{}>) {
 					For example, a getter that reads <code>document.title</code> can
 					cause the compiler to reject an explicitly server-placed task.
 				</p>
+				<p>
+					A helper that walks parent links can pick up a getter’s browser requirement in a later
+					iteration. Links supplied at runtime can still leave some of the walk uncertain.
+				</p>
 				<Link theme:action="secondary" className="secondary-link" to="/learn/tasks">
 					Learn about task status, cancellation, and cleanup
 				</Link>

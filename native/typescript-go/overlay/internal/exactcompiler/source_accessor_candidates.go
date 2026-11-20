@@ -155,6 +155,15 @@ func (query *sourceValueQuery) sourceAccessorOperationCandidates(receiver *ast.N
 			return result
 		}
 	}
+	// Both graph owners retain these dependencies at the original increment.
+	// The recurrence is an effect source, with no staged DATA or normal output.
+	if query.dependenciesOnly && mode == accessorRead && len(path) == 0 {
+		var result accessorCandidates
+		if entry := query.loopMemberBackedge(operation, &result); entry != nil && ast.IsIdentifier(entry) && operation.AsPropertyAccessExpression().QuestionDotToken == nil {
+			query.visitLoopMemberReceivers(entry, operation, arguments, &result, nil)
+			return result
+		}
+	}
 	previous := query.protectedMember
 	query.protectedMember = operation
 	defer func() { query.protectedMember = previous }()
