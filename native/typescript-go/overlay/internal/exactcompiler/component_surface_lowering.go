@@ -13,11 +13,21 @@ func (lowering *jsxLowering) lowerComponentLifecycleCall(node *ast.Node) *ast.No
 	}
 	call := node.AsCallExpression()
 	name := componentLifecycleCallName(node, lowering.checker)
+	var owner *ast.Node
 	if name == "" {
-		return nil
+		owner = aliasedUnmountReceiver(node, lowering.checker, func(root *ast.Node) bool {
+			component, _ := lowering.componentContaining(node)
+			return componentOwnsReceiver(root, lowering.componentReceiverScopes[component.Name])
+		})
+		if owner == nil {
+			return nil
+		}
+		name = "onUnmount"
+	} else {
+		owner = lowering.factory.NewThisExpression()
 	}
 	arguments := make([]*ast.Node, 0, len(call.Arguments.Nodes)+2)
-	arguments = append(arguments, lowering.factory.NewThisExpression())
+	arguments = append(arguments, owner)
 	helper := ""
 	directServer := lowering.target == TargetServer && lowering.directServerArtifactComponent(node)
 	switch name {

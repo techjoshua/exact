@@ -174,6 +174,23 @@ func componentLifecycleCallName(node *ast.Node, typeChecker *checker.Checker) st
 	return ""
 }
 
+// aliasedUnmountReceiver recognizes a registration through an immutable local owner alias.
+// The caller still evaluates the authored receiver and callback at the registration site.
+func aliasedUnmountReceiver(node *ast.Node, c *checker.Checker, owns func(*ast.Node) bool) *ast.Node {
+	if node == nil || !ast.IsCallExpression(node) || node.AsCallExpression().QuestionDotToken != nil || !ast.IsPropertyAccessExpression(node.Expression()) {
+		return nil
+	}
+	member := node.Expression().AsPropertyAccessExpression()
+	if member.QuestionDotToken != nil || member.Name().Text() != "onUnmount" || !ast.IsIdentifier(member.Expression) {
+		return nil
+	}
+	root := componentProtocolCallMember(member.Expression, c)
+	if root != nil && root.Kind == ast.KindThisKeyword && owns(root) {
+		return member.Expression
+	}
+	return nil
+}
+
 // ordinaryComponentLifecycleCall accounts only an inline callback registration
 // in an actually selected component. The ordinary walk owns its key and arrow
 // creation; factory, getter, spread and extracted callback inputs keep generic

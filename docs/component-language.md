@@ -1990,7 +1990,10 @@ Nested lifecycle registrations belong to the same durable instance. This ambient
 not extend across an `await`; asynchronous resources should use the lifecycle signal or explicit ownership.
 Canonical mount, activate, and deactivate handlers belong to client activation and are not
 evaluated by the server artifact. `onRender`, `onUnmount`, and `own` retain server semantics where
-SSR rendering or request cleanup can exercise them.
+SSR rendering or request cleanup can exercise them. During setup, an immutable local alias
+such as `const owner = this` can register cleanup with `owner.onUnmount(makeCleanup())`.
+Each server or browser instance evaluates the factory at registration and calls its returned
+callback when that instance is disposed.
 Unmount attempts the remaining owned cleanup after a failure and retains the first thrown value,
 including `null` or `undefined`.
 Final cleanup can read derived props, including callback props used only by an unmount handler.

@@ -316,3 +316,29 @@ func TestAmbientCallableDoesNotEnterComponentAliasResolution(t *testing.T) {
 		}
 	}
 }
+
+// An immutable component receiver keeps the instance lifetime. A local object's
+// identically named method still executes with its original receiver.
+func TestUnmountRegistrationThroughLocalOwner(t *testing.T) {
+	for _, target := range []Target{TargetClient, TargetServer} {
+		response := NewSession().Execute(Request{Kind: "compile", ID: "owner.tsx", Target: target, Source: `
+			declare class Component<State> { onUnmount(cleanup: () => void): void }
+			export function Leaf(this: Component<{}>) {
+				const owner = this;
+				const local = { onUnmount(cleanup: () => void) { cleanup(); } };
+				const make = () => () => undefined;
+				{ const owner = local; owner.onUnmount(make()); }
+				let moving = owner;
+				moving = local;
+				moving.onUnmount(make());
+				owner.onUnmount(make());
+				return () => <output>live</output>;
+			}`})
+		if response.Error != "" || len(response.Diagnostics) != 0 ||
+			strings.Count(response.Code, `(owner, "unmount", make())`) != 1 ||
+			!strings.Contains(response.Code, "owner.onUnmount(make())") ||
+			!strings.Contains(response.Code, "moving.onUnmount(make())") {
+			t.Fatalf("%s registration lost receiver identity: %s %#v\n%s", target, response.Error, response.Diagnostics, response.Code)
+		}
+	}
+}

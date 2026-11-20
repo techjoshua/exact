@@ -130,6 +130,9 @@ func projectServerComponentSurface(
 		}
 		name, member, dynamic := componentProtocolMember(node)
 		if !member {
+			if !result.ServerLifecycle && aliasedUnmountReceiver(node, typeChecker, func(root *ast.Node) bool { return helperOwnsReceiver(root, componentNode) }) != nil {
+				result.ServerLifecycle = true
+			}
 			return true
 		}
 		mergeComponentSurfaceMember(&result, name, dynamic)
