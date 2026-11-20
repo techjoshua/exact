@@ -210,16 +210,16 @@ func (query *sourceValueQuery) memberValuesAtGetWithStandard(origin *ast.Node, p
 				if !found {
 					break
 				}
-				// Interference has already been collected. An opaque source acquisition
-				// needs no writer inputs when its static final key cannot occur in the
-				// demanded path. Keep structural and unknown keys on the ordinary route.
-				// Opacity is required: input matching also retains refused writer/setter
-				// scopes. A disjoint RHS key alone cannot exclude those effects.
-				if query.dependenciesOnly && result.opaque && mode == accessorAcquire {
+				// A disjoint final key excludes the direct RHS. Input recovery
+				// can still expose a refused invocation that may write through
+				// a setter. Keep that recovery until the read is already opaque.
+				disjointRHS := false
+				if query.dependenciesOnly && (mode == accessorAcquire || mode == accessorRead && len(projection) == 0 && name != "") {
 					_, key := accessorReceiver(assignment.left)
-					if !sourceMemberKeyMaySupply(key, demand) {
-						continue
-					}
+					disjointRHS = !sourceMemberKeyMaySupply(key, demand)
+				}
+				if result.opaque && mode == accessorAcquire && disjointRHS {
+					continue
 				}
 				operation := assignment.right.Parent
 				if query.afterRead(assignment.left) {
@@ -262,15 +262,8 @@ func (query *sourceValueQuery) memberValuesAtGetWithStandard(origin *ast.Node, p
 					}
 					inputs = append(inputs, *relative)
 				} else {
-					// Named source reads only need assignments that can supply
-					// an RHS on the requested path. Keep interference and staged
-					// donor publication above this test. The assignment and Call
-					// owners still account for receiver, setter and operand effects.
-					if query.dependenciesOnly && (mode == accessorAcquire || mode == accessorRead && len(projection) == 0 && name != "") {
-						_, key := accessorReceiver(assignment.left)
-						if !sourceMemberKeyMaySupply(key, demand) {
-							continue
-						}
+					if result.opaque && disjointRHS {
+						continue
 					}
 					// A path of named Gets cannot acquire an RHS through a symbol slot.
 					// Assignment evaluation and staged effect transfers keep their own cuts.
@@ -278,6 +271,9 @@ func (query *sourceValueQuery) memberValuesAtGetWithStandard(origin *ast.Node, p
 						continue
 					}
 					inputs = query.memberWriterInputs(assignment.left, bindings, result, cut)
+					if disjointRHS {
+						continue
+					}
 				}
 				for _, input := range inputs {
 					// Entering an actual input/capture scope creates this migration

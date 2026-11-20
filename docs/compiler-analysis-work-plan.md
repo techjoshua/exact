@@ -1261,14 +1261,11 @@ had disjoint assignment keys. Their 16,327 entries accounted for 7.73 of
 reconstruction work within a fixed observed prefix. It does not estimate all
 nested work dependent on those entries.
 
-The member query now applies that key predicate before reconstructing writer
-inputs for an acquired source value or a terminal named Get. A disjoint
-assignment cannot supply an RHS on that path. The independent interference
-and staged donor owners retain their original positions. The assignment and
-Call effect owners retain executable receivers, setters and operands.
-Computed, structural and matching keys keep their recovery route. The rule
-applies at the named read and does not depend on the receiver or method that
-the writer scan would encounter.
+The `a693a97e9` trial applied the key predicate before reconstructing writer
+inputs for an acquired source value or a terminal named Get. This excludes a
+direct RHS on that path, but it also excluded the input recovery that could
+discover an escaped callback and its setter effects. Computed, structural and
+matching keys stayed on their recovery route.
 
 A phase-labeled trial changed only that admission test. The previously
 blocked `createOpaqueOperation` query completed in 0.50 s wall time.
@@ -1293,3 +1290,67 @@ The installed-SDK native comparison passed the same 22 focused tests on both
 hosts, including matching getter donors, emitted writer behavior and retained
 versus fresh sessions. The standalone reflective evaluation fixture failed
 on both hosts because its request supplied no callable summary for `invoke`.
+
+
+### Captured setter effects and corrected package acceptance
+
+The pinned Theme audit at `3024421b7` records a `66dc05d2f` pass and an
+`a693a97e9` failure of `TestMemberKeyAcquisitionRetainsCapturedSetterUnknown`.
+The fixture passes `install` to an opaque function. When invoked, `install`
+assigns `box.other`, whose setter writes `this.field`. The disjoint key
+excludes the direct RHS from `box.field`. It does not exclude the setter or
+the uncertainty discovered when recovering the escaped writer's inputs.
+
+A compiled component that saves `box.field` and then uses `selected.value`
+to update its task's state shows the same difference on both targets.
+`66dc05d2f` and the correction report incomplete accessor provenance at
+the original field Get. `a693a97e9` reports the opaque call itself but
+drops the separate field effect. The explicitly placed task emits on all
+three hosts with the same diagnostic codes. This witness establishes
+preservation of uncertainty. A separate analysis with a directly invoked
+setter retained the browser getter when the later field read used the
+assigned object. A direct disjoint data write contributed no field effects.
+The neighboring `TestSetterModuleGetKnownBrowserAndUnknown` still fails
+on both `66dc05d2f` and the correction. The later `selected.value` read
+retains the unknown effect, but its browser donor remains unresolved.
+The setter invocation uniqueness controls passed on both hosts.
+
+The member read now keeps input recovery while it can still contribute
+uncertainty. It skips direct RHS projection for a disjoint key and retains
+the cheap reconstruction cut where opacity has already been established.
+Matching setter-body writes and staged transfers keep their existing routes.
+
+The original Core command used the same 8,447-input manifest
+(`958e586c6817e51a1b64698c0a1f4c3c552a42a1c26e73bb854ca0f7fe232051`),
+with one CPU, 1 GiB and the original 30-second per-request deadline. On
+the corrected host, the TypeScript prerequisite completed in 6.53 seconds.
+The package command took 32.33 seconds and timed out at the first client
+request for `error-boundary.tsx`. Its 1,200 output files were the TypeScript
+prerequisites. Paired Core artifacts and their behavior remain unqualified
+on this host. A separate phase-labeled run took 32.27 seconds and
+completed 33 callable extractions and 44 source Call queries. It reached
+`createOpaqueOperation` in `issueIntrinsicReceipt`, the same internal
+frontier as `66dc05d2f`.
+
+The original 20-source Theme command used its pinned 8,447-input manifest
+(`948120dcfb9df7537b23211f31d39a085720973c0e8650d40b2491ef5c48b6f5`).
+With the corrected compiler and the preserved paired Core provider artifacts
+from the prior successful build, Theme's TypeScript prerequisite passed.
+The package command took 32.02 seconds and hit the same client deadline at
+`components.ts` as `a693a97e9` (32.16 seconds). Neither target emitted.
+The separate phase-labeled run took 32.12 seconds. It completed the prior
+`color.ts` client request, passed `parseThemeColor` and completed the
+indexed `map` query in `createTone` in 27.85 seconds. Extraction of
+`createTone` remained unfinished at the deadline, the same recorded
+extraction frontier as the `a693a97e9` observer.
+
+The private Theme audit profiled the `a693a97e9` request after it passed
+`parseThemeColor`. The blocked `createTone` query collects dependencies for
+`themeSurfaceBundles.map((bundle) => surfaces[bundle]!.background)`. Reading
+an indexed background can invoke an authored getter, and the result supplies
+ThemeScope's contrast calculation. The private prefix trial moved past that
+query and timed out later in the same request while analyzing
+`structuralTokens(tokens, source)` in `createThemeTokens`. It inherited the
+captured-setter regression and emitted neither target. Its focused emitted
+controls executed client updates and server initial renders. Paired Theme
+artifacts, including mounted resolution and hydration, remain unqualified.
