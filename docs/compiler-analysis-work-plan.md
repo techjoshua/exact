@@ -1084,3 +1084,41 @@ The observed prefix gives no qualifying repeated placement obligation to
 coalesce. The largest measured cost remains rediscovery of receiver writers
 through nested native lookups and return projection. Neither run emitted a
 client or server package artifact.
+
+A clean host rebuilt at `879ede513` verified all 8,447 frozen inputs, emitted
+the TypeScript prerequisites, and ran the stock Core package command in the same
+coordinate-validation service. The package command exited after 32.29 seconds at
+the first client request for `error-boundary.tsx`. The files in `dist` came from
+the prerequisite stage. Core still needs a usable client/server artifact pair.
+
+The preceding CPU profile uses the same native source. Assigning each writer
+sample to its innermost writer recovery separates work that otherwise appears in
+several inclusive totals. Of 20.29 sampled writer seconds, roughly 0.79 s went
+to scanning and eligibility, 6.30 s to eligible invocation, 3.42 s to selected
+wrapper descent, and 9.33 s to fallback callee and argument exposure. The rest
+was other recovery work. Formal-value projection accounted for only 0.11 s
+inclusively. The graph already shares the immutable call and actual recipes.
+The repeated expensive part acquires what a callee or argument can expose with
+the bindings, creators and receiver at that occurrence. In particular, a
+refused invocation can still expose a captured writer through an argument.
+The earlier receiver-role probe matched zero candidates. Indexing the same call
+scan again or narrowing the final binder projection would leave this cost in
+place.
+
+A different decision is available at the authentic private WeakMap method
+request. In `operationPrototype`, the lexical `operationPrototypes` allocation
+has two uses as a receiver, `get(execute)` and `set(execute, prototype)`.
+Test whether the existing construction and private-use source inventory can
+route the method's no-direct-input-invocation effect to the ordinary MAY
+collector before generic receiver-writer reconstruction. The current early
+constructed-member transfer requires a live staged request with no installed
+inputs or creators. Share only the indexed lexical-use inventory for the current
+source generation and keep proof delivery in the ordinary request. Each original Get
+still needs its own receiver, ordering and source coverage. The key and value
+retain their evaluation effects. Downstream prototype construction still needs
+the possible stored payload with its original origin and capture. An escaped
+receiver, an own method write, or a receiver supplied by another Get can require
+more coverage and fall through to ordinary recovery. This first experiment
+covers the direct `operationPrototypes` path. Advance only if it retires
+reconstruction in the pinned client request and the unchanged package command
+completes paired output.
