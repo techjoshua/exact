@@ -786,6 +786,11 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 				// The collector already validated this observation before stripping
 				// its wrapper. Lend it only to the synchronous constraint lookup.
 				proofGet := selectedGet
+				// The ordinary Call publishes this authored Get's effects. Retain its
+				// identity for writer ordering after the independent staged admission.
+				if get == nil && query.installedMemberPhase == nil && reference != nil && readCut != nil && query.forwardedGetterWriteRead(reference.operation) && reference.operation == readCut.operation && (mode == accessorRead || mode == accessorAcquire) && len(projection) == 0 && name != "" {
+					proofGet.operation, proofGet.propertyKey = reference.operation, name
+				}
 				if acquiredParent != nil && acquiredParent.inputs == query.inputs && acquiredParent.value.node == value {
 					copy := *selectedGet
 					copy.receiver.acquired = acquiredParent

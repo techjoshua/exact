@@ -178,7 +178,8 @@ export function ComponentsPage(this: Component<{}>) {
 				<p>
 					Property reads can also have placement requirements. If one read runs a getter that
 					installs another getter on the same local object, a later read can pick up the new
-					getter’s requirements. For example, a getter that reads <code>document.title</code> can
+					getter’s requirements, including when both reads occur inside a directly called helper.
+					For example, a getter that reads <code>document.title</code> can
 					cause the compiler to reject an explicitly server-placed task.
 				</p>
 				<Link theme:action="secondary" className="secondary-link" to="/learn/tasks">

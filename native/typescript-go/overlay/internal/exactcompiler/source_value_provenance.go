@@ -801,6 +801,12 @@ func (query *sourceValueQuery) executeInputDisposition(declaration *ast.Node, bi
 		defer restoreField()
 		inputs.dependencyScope = query.acquireCallableScope(bindings, result)
 		inputs.dependencyUse = query.effectUse()
+		var selectedWrites sourceSelectedGetterWrites
+		if query.lexicalGetterWriteBody() {
+			previousWrites := query.selectedGetterWrites
+			query.selectedGetterWrites = &selectedWrites
+			defer func() { query.selectedGetterWrites = previousWrites }()
+		}
 		if observed, owned := query.consumeInstalledCallMemberDemand(declaration, inputs, result); owned {
 			result.inputs = append(result.inputs, inputs)
 			if observed {

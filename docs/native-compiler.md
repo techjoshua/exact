@@ -2179,8 +2179,10 @@ value demands, and unresolved receiver, accessor and call effects still require 
 The callable Effects walk retains a receiver-relative descriptor write when it reaches
 the write through an earlier reflective getter with its original member read and local
 object receiver. A later read of that object can use the recorded write alongside other
-indexed alternatives. This relationship is scoped to the current walk and supplies possible
-effects without certifying that the write replaced the property's previous value.
+indexed alternatives. A direct lexical helper can carry this relationship across its own
+reads through the actual argument binder and ordinary Call effects publisher. The relationship
+is scoped to the current walk and supplies possible effects without certifying that the write
+replaced the property's previous value.
 
 Framework consumers retain the independent contributions in a stabilized callable summary.
 For ordinary summarized tasks, the graph supplies platform requirements. Native call receiver
