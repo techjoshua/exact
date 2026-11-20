@@ -1017,6 +1017,8 @@ locations through the native protocol and editor projection. A reevaluation fail
 an operation in an imported helper rather than attributing the whole failure to its caller.
 Build errors include those related filenames and locations. Placement diagnostics include the
 known effect paths and distinguish unresolved operations from incompatible browser/server work.
+Task records explain the client or isomorphic scheduling default only when the scheduler selects it,
+before data policy is applied.
 An unresolved Get or rest copy in a supported input-relative object pattern retains the authored
 binding location in that path. Each call can discharge its own binding effects using its actual
 inputs. Inspection without an actual input retains the unresolved effect.

@@ -15,6 +15,11 @@ export function CompilerAnalysisSection(this: Component<{}>) {
 				environment requirements can still prevent a client or server artifact from being emitted.
 			</p>
 			<p>
+				When a task has no platform requirement or explicit placement, its analysis explains the
+				scheduling default. Writing component state lets initial work run on the server. Without a
+				state write, the default is the client. Data residency can further constrain that choice.
+			</p>
+			<p>
 				Rendering and task execution have separate requirements. A component can render on the
 				server while its event callbacks run in the browser and invoke server tasks through the
 				framework's transport. Isomorphic rendering means that the component can render correctly on

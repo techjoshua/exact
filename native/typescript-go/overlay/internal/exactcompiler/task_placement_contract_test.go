@@ -2,6 +2,7 @@ package exactcompiler
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 )
 
@@ -99,5 +100,41 @@ export function Page(this:Component<{label:string}>){
 				t.Fatalf("unexpected platform effects or default scheduling: %#v", task)
 			}
 		})
+	}
+}
+
+// Each package mode reports the decision that actually selected or refused placement.
+func TestTaskPlacementReasons(t *testing.T) {
+	for _, row := range []struct{ policy, work, placement, reason string }{
+		{"latest", "return 1", "client", "client scheduling default"},
+		{"latest", "this.state.n=1", "isomorphic", "isomorphic scheduling default"},
+		{"server", "return foreign()", "server", "explicitly requested as server"},
+		{"latest", "return foreign()", "unknown", "placement depends on an opaque call"},
+	} {
+		for _, kind := range []string{"application", "library"} {
+			t.Run(kind+"/"+row.placement, func(t *testing.T) {
+				source := `import {TaskContext,type Component} from '@exactjs/core';
+declare function foreign():number;
+export function Page(this:Component<{n:number}>){
+ this.state.n=0;
+ function run(task:TaskContext=TaskContext.` + row.policy + `()){` + row.work + `}
+ return()=> <button onClick={()=>run()}>Run</button>;
+}`
+				r := NewSession().Execute(Request{Kind: "compile", ID: "task-reasons.tsx", Source: source, Target: TargetServer, PackageType: kind})
+				if r.Error != "" || len(r.Analysis.Tasks) != 1 {
+					t.Fatalf("missing task: %s %#v", r.Error, r.Diagnostics)
+				}
+				task := r.Analysis.Tasks[0]
+				reasons := strings.Join(task.Diagnostics, "\n")
+				if task.Placement != row.placement || hasErrorDiagnostic(r.Diagnostics) != (row.placement == "unknown") || !strings.Contains(reasons, row.reason) {
+					t.Fatalf("unexpected decision: %s %q %#v", task.Placement, reasons, r.Diagnostics)
+				}
+				if row.placement == "unknown" || row.policy == "server" {
+					if strings.Contains(reasons, "scheduling default") || strings.Contains(reasons, "on the client") {
+						t.Fatalf("contradictory explanation: %s", reasons)
+					}
+				}
+			})
+		}
 	}
 }

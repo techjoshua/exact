@@ -389,8 +389,10 @@ func collectTasks(
 				// default for initial work and its hydration replay contract.
 				if len(task.Writes) != 0 {
 					task.Placement = "isomorphic"
+					task.Diagnostics = append(task.Diagnostics, "state writes select the isomorphic scheduling default before data policy")
 				} else {
 					task.Placement = "client"
+					task.Diagnostics = append(task.Diagnostics, "work without component state writes selects the client scheduling default before data policy")
 				}
 			}
 			var classes []*ast.Node
@@ -429,27 +431,6 @@ func collectTasks(
 				task.Diagnostics = append(
 					task.Diagnostics,
 					"error: task placement depends on an opaque call"+placementDiagnosticContext(task.EffectSources),
-				)
-			}
-			if task.BrowserEffects && len(task.Writes) != 0 {
-				task.Diagnostics = append(
-					task.Diagnostics,
-					"task writes component state and references browser-only globals. The compiler places this work on the client",
-				)
-			}
-			if task.RequestedPlacement == "" &&
-				!task.BrowserEffects && !task.ServerEffects &&
-				len(task.Writes) != 0 {
-				task.Diagnostics = append(
-					task.Diagnostics,
-					"task writes component state without environment-specific effects. The compiler permits server execution and skips completed initial work during hydration",
-				)
-			}
-			if !task.BrowserEffects && !task.ServerEffects &&
-				len(task.Writes) == 0 {
-				task.Diagnostics = append(
-					task.Diagnostics,
-					"task has no detected state writes or environment-specific effects. The compiler places this lifecycle work on the client",
 				)
 			}
 			if task.RequestedPlacement != "" {
