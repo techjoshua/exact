@@ -1023,5 +1023,27 @@ deadline, compared with 32.34 s for the matched uninstrumented baseline.
 Neither produced a new Core target. Six completed component requests across
 the two targets preserved code, maps, placement and top-level diagnostics.
 Their component diagnostics changed the provenance reported for an unknown
-binding. Single-request callable timings were mixed. Keep the existing
-fallback and omit the trial from production.
+binding. The concrete call lost the `receipt` edge and pointed into its caller's
+object literal. The nullish call retained the edge but lost the source location.
+
+The binding now keeps a separate field obligation for each named Get and for
+rest. Its fallback names the authored binding occurrence. Actual invocation
+analysis records Copy coverage at that same occurrence when it can account for
+every receiver alternative. An external input keeps its authored Get diagnostic.
+Concrete and nullish inputs in the two-target control settle the obligations
+and emit paired component artifacts. Getter and source-edit controls retain
+the reached browser effects and agree between retained and fresh compilation.
+
+The prerequisite-complete Core command still exits at the first client request
+after 32.32 s with this binding change. A separate counterfactual kept the
+current imported `createOpaqueOperation` body on the original Call edge and
+skipped local traversal of that Call. It left `intrinsics.set` and the key
+consumer active and also exited after 32.32 s. Neither run produced a new Core
+target. A separate observer confirmed that the `intrinsics.set` collector
+returned. The last entered collector was the outer `createCompiledIntrinsicReceipt`
+call in `createDefaultErrorView`. A stack sample in the counterfactual found
+receiver writer recovery under an instantiated binding. An effects-only
+transfer for the imported body needs to carry reached metadata hooks and
+other input-relative effects at the actual call. The WeakMap key use separately
+requires the allocated operation identity under its original creating context.
+Both contracts still require independent validation.

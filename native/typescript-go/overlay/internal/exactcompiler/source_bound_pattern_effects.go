@@ -5,10 +5,14 @@ import "github.com/microsoft/TypeScript/tsc/internal/ast"
 // sourceFlatInputPattern identifies reads whose keys and exclusions are fixed
 // by a local binding. Defaults and nested patterns need their own consumers.
 func (q *sourceValueQuery) sourceFlatInputPattern(node *ast.Node) (*ast.Symbol, bool) {
-	if !ast.IsVariableDeclaration(node) || !ast.IsObjectBindingPattern(node.Name()) || node.Initializer() == nil || !ast.IsIdentifier(node.Initializer()) {
+	if !ast.IsVariableDeclaration(node) || !ast.IsObjectBindingPattern(node.Name()) {
 		return nil, false
 	}
-	input := q.owner.checker.GetSymbolAtLocation(node.Initializer())
+	receiver := flatPatternReceiver(node.Initializer())
+	if receiver == nil || !ast.IsIdentifier(receiver) {
+		return nil, false
+	}
+	input := q.owner.checker.GetSymbolAtLocation(receiver)
 	if input == nil || input.ValueDeclaration == nil || !ast.IsParameterDeclaration(input.ValueDeclaration) ||
 		input.ValueDeclaration.Parent != enclosingCallableNode(node) {
 		return nil, false
@@ -31,11 +35,29 @@ func (q *sourceValueQuery) sourceFlatInputPattern(node *ast.Node) (*ast.Symbol, 
 	return input, true
 }
 
+// flatPatternReceiver recognizes a direct slot with an optional empty nullish
+// arm. The arm contributes no copy entries and has no authored initializers.
+func flatPatternReceiver(initializer *ast.Node) *ast.Node {
+	receiver := unwrapSourceCallableReference(initializer)
+	if receiver != nil && ast.IsBinaryExpression(receiver) {
+		choice := receiver.AsBinaryExpression()
+		right := unwrapSourceCallableReference(choice.Right)
+		if choice.OperatorToken.Kind == ast.KindQuestionQuestionToken && right != nil && ast.IsObjectLiteralExpression(right) &&
+			len(right.AsObjectLiteralExpression().Properties.Nodes) == 0 {
+			return unwrapSourceCallableReference(choice.Left)
+		}
+	}
+	return receiver
+}
+
 // deferUnboundPatternEffects records the original binding operations separately.
 // A supplied object can settle these debts only with matching edge coverage.
 func (q *sourceValueQuery) deferUnboundPatternEffects(node *ast.Node, bindings sourceValueBindings, result *accessorCandidates) bool {
+	if !q.dependenciesOnly || q.inputs != nil && (q.inputs.invocation != nil || q.inputs.get != nil) {
+		return false
+	}
 	input, ok := q.sourceFlatInputPattern(node)
-	if !ok || !q.dependenciesOnly || q.inputs != nil && q.inputs.invocation != nil {
+	if !ok {
 		return false
 	}
 	if _, supplied := bindings[ast.GetSymbolId(input)]; supplied {
@@ -53,6 +75,34 @@ func (q *sourceValueQuery) deferUnboundPatternEffects(node *ast.Node, bindings s
 
 func (q *sourceValueQuery) boundPatternDemand(binding *ast.Node, input *ast.Symbol, key string) sourceFieldDemand {
 	return sourceFieldDemand{declaration: input.ValueDeclaration.Parent, operation: binding, slot: input.ValueDeclaration, key: key, use: q.effectUse(), consumer: q.effectOwner}
+}
+
+// bindingRestOperation publishes Copy coverage only when the ordinary copy
+// consumer accounted for all receiver alternatives at this binding occurrence.
+func (q *sourceValueQuery) bindingRestOperation(binding *ast.Node, values []sourceValue, excluded map[string]bool, bound sourceValueBindings, result *accessorCandidates) []sourceValue {
+	if !q.dependenciesOnly || !ast.IsVariableDeclaration(binding.Parent.Parent) {
+		return q.bindingRest(values, excluded, bound, result)
+	}
+	input, relative := q.sourceFlatInputPattern(binding.Parent.Parent)
+	if !relative {
+		return q.bindingRest(values, excluded, bound, result)
+	}
+	previous := q.protectedMember
+	q.protectedMember = binding
+	part := accessorCandidates{}
+	selected := q.bindingRest(values, excluded, bound, &part)
+	q.protectedMember = previous
+	if part.opaque && part.cause == nil {
+		part.cause = binding
+	}
+	part.fieldOutcomes = append(part.fieldOutcomes, sourceFieldOutcome{
+		demand: q.boundPatternDemand(binding, input, ""),
+		fulfilled: len(values) != 0 && !part.opaque && !part.valueIncomplete &&
+			!part.receiverIncomplete && !part.fieldReceiverIncomplete && !part.thenIncomplete &&
+			len(part.fieldFallbacks)+len(part.callFallbacks)+len(part.descriptorFallbacks) == 0,
+	})
+	mergeAccessorCandidates(result, part)
+	return selected
 }
 
 // completeBoundPatternEffects answers the operations of a terminal flat binding

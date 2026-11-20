@@ -1017,6 +1017,9 @@ locations through the native protocol and editor projection. A reevaluation fail
 an operation in an imported helper rather than attributing the whole failure to its caller.
 Build errors include those related filenames and locations. Placement diagnostics include the
 known effect paths and distinguish unresolved operations from incompatible browser/server work.
+An unresolved Get or rest copy in a supported input-relative object pattern retains the authored
+binding location in that path. Each call can discharge its own binding effects using its actual
+inputs. Inspection without an actual input retains the unresolved effect.
 Diagnostic guidance must preserve the rejected contract. In particular, purity assertions do
 not authorize placement or release secret data, and wrapping an effect in a reactive calculation
 does not remove that effect.

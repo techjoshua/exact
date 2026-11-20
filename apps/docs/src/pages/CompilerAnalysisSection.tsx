@@ -82,7 +82,8 @@ export function CompilerAnalysisSection(this: Component<{}>) {
 				computed alternatives can remain unknown. A helper that installs a property keeps the object
 				and value inputs from each call together, including getters that capture those inputs. Known
 				environment dependencies remain visible when an unresolved target or key also leaves
-				uncertainty.
+				uncertainty. If placement depends on a property read or rest copy in a destructuring
+				binding, the diagnostic can point to that binding in the helper.
 			</p>
 			<p>
 				Reading a property descriptor leaves a stored callback dormant. If a helper uses

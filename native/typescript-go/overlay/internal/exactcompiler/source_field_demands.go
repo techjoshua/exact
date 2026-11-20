@@ -226,7 +226,7 @@ func sourceLocalPatternGetReceiver(operation *ast.Node, key string) *ast.Node {
 			if declaration.Name() != pattern || declaration.Initializer() == nil {
 				return nil
 			}
-			return unwrapSourceCallableReference(declaration.Initializer())
+			return flatPatternReceiver(declaration.Initializer())
 		}
 		if !ast.IsBindingElement(declaration) || declaration.Name() != pattern {
 			return nil

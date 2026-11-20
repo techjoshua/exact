@@ -242,7 +242,13 @@ func appendOpaqueAccessorEffect(fact *callableFacts, candidates accessorCandidat
 	}
 	for _, demand := range candidates.fieldFallbacks {
 		demand := demand
-		effect := environmentSource("unknown", "accessor provenance incomplete", fact.summary.Name)
+		description := "accessor provenance incomplete"
+		if demand.operation != nil && ast.IsBindingElement(demand.operation) {
+			if source := ast.GetSourceFileOfNode(demand.operation); source != nil {
+				description = fmt.Sprintf("%s at %s:%d", description, source.FileName(), demand.operation.Pos())
+			}
+		}
+		effect := environmentSource("unknown", description, fact.summary.Name)
 		effect.Opaque, effect.provenanceIncomplete, effect.fieldOrigin = true, true, &demand
 		fact.summary.DirectEffectSources = append(fact.summary.DirectEffectSources, effect)
 	}

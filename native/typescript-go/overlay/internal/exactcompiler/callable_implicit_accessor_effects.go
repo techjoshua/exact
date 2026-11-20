@@ -254,7 +254,7 @@ func (query *sourceValueQuery) bindInputPatternUsing(pattern *ast.Node, values [
 					mergeAccessorCandidates(result, query.accessors(value.node, value.path, "", accessorEnumerate, bound, nil))
 				}
 			} else {
-				selected = query.bindingRest(values, excluded, bound, result)
+				selected = query.bindingRestOperation(binding, values, excluded, bound, result)
 			}
 		} else {
 			if !finite {
