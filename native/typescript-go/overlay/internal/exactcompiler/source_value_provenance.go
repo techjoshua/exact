@@ -132,6 +132,7 @@ func (owner *executableBodyOwner) sourceValues(c *checker.Checker) *sourceValueO
 // declaration widens after its finite source input relation stops growing. Normal
 // execution retains its declaration guard instead of growing capture contexts.
 type sourceValueQuery struct {
+	selectedGetterWrites       *sourceSelectedGetterWrites
 	awaitThenInputs            *sourceAwaitThenInputs         // original Await-selected protocol binder; synchronous Effects only
 	componentContextSource     *sourceBoundComponentProtocol  // Original bound-member SOURCE interval; never cached.
 	originalGetMutationTarget  *sourceOriginalGetTargetBorrow // Same original native-target SOURCE query only; revoked synchronously.
@@ -1035,6 +1036,7 @@ func (query *sourceValueQuery) executeDemand(node, declaration *ast.Node, bindin
 			return
 		}
 	}
+	query.recordSelectedGetterWrite(node, inputs, result)
 	query.publishSourceSetterWrite(node, inputs)
 	query.publishInstalledMutationRHS(node, inputs)
 	if query.dependenciesOnly && query.sourceDisposalMayBeAcquired(node) {

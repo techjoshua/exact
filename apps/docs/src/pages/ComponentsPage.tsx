@@ -175,6 +175,12 @@ export function ComponentsPage(this: Component<{}>) {
 					augmentations. An application-added method needs its own proven implementation or
 					execution contract. Contradictory placement is a compiler error.
 				</p>
+				<p>
+					Property reads can also have placement requirements. If one read runs a getter that
+					installs another getter on the same local object, a later read can pick up the new
+					getter’s requirements. For example, a getter that reads <code>document.title</code> can
+					cause the compiler to reject an explicitly server-placed task.
+				</p>
 				<Link theme:action="secondary" className="secondary-link" to="/learn/tasks">
 					Learn about task status, cancellation, and cleanup
 				</Link>

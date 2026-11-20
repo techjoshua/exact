@@ -2176,6 +2176,12 @@ When a completed property read has accounted for its immediate effects, a missin
 value alone does not request another source dependency walk. Later uses retain their
 value demands, and unresolved receiver, accessor and call effects still require refinement.
 
+The callable Effects walk retains a receiver-relative descriptor write when it reaches
+the write through an earlier reflective getter with its original member read and local
+object receiver. A later read of that object can use the recorded write alongside other
+indexed alternatives. This relationship is scoped to the current walk and supplies possible
+effects without certifying that the write replaced the property's previous value.
+
 Framework consumers retain the independent contributions in a stabilized callable summary.
 For ordinary summarized tasks, the graph supplies platform requirements. Native call receiver
 checks and tasks lacking a usable summary can still require inspection of the authored body.

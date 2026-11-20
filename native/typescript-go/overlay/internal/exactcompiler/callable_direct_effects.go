@@ -86,6 +86,7 @@ func collectDirectCallableEffects(
 	if !protocol {
 		accessorWork = nil
 	}
+	var getterWrites sourceSelectedGetterWrites
 	var frame *sourceValueInputs
 	if precisionRequested {
 		fact.normalInputs = &sourceValueInputs{declaration: fact.node, bindings: make(sourceValueBindings)}
@@ -281,7 +282,7 @@ func collectDirectCallableEffects(
 			registerPendingMemberSource(fact, node, owner, work)
 			lifecycleGet := fact.normalInputs == nil && node.Parent != nil && ast.IsCallExpression(node.Parent) && node.Parent.Expression() == node && ordinaryComponentLifecycleCall(node.Parent, typeChecker, owner)
 			if !lifecycleGet && (protocol || !checkedPrimitiveMemberRead(node, typeChecker)) {
-				appendAccessorEffects(fact, node, nodeTargets, sourceFile, typeChecker, owner, accessorWork, facts)
+				appendAccessorEffects(fact, node, nodeTargets, sourceFile, typeChecker, owner, accessorWork, facts, &getterWrites)
 			}
 			if demand, dependent := describeNormalOperand(node); !dependent || !demand.pattern {
 				appendImplicitAccessorEffects(fact, node, nodeTargets, sourceFile, typeChecker, nil, owner, accessorWork, facts)

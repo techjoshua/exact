@@ -9,7 +9,7 @@ import (
 
 // appendAccessorEffects connects property evaluation to the accessor that executes. Accessors
 // retain separate callable identities so creating their owner does not execute their bodies.
-func appendAccessorEffects(fact *callableFacts, node *ast.Node, targets map[*ast.Node]int, source *ast.SourceFile, typeChecker *checker.Checker, owner *executableBodyOwner, work *callableEffectWork, facts []callableFacts) {
+func appendAccessorEffects(fact *callableFacts, node *ast.Node, targets map[*ast.Node]int, source *ast.SourceFile, typeChecker *checker.Checker, owner *executableBodyOwner, work *callableEffectWork, facts []callableFacts, getterWrites *sourceSelectedGetterWrites) {
 	// The callable walk visits every expression and statement. Only explicit
 	// member operations can publish a Get or Set through this owner.
 	if !ast.IsPropertyAccessExpression(node) && !ast.IsElementAccessExpression(node) {
@@ -22,6 +22,7 @@ func appendAccessorEffects(fact *callableFacts, node *ast.Node, targets map[*ast
 	var candidates accessorCandidates
 	if fact.normalInputs == nil {
 		query := newSourceDependencyQuery(node, typeChecker, owner, fact.node)
+		query.selectedGetterWrites = getterWrites
 		defer query.publishDependencyStatistics()
 		if work != nil {
 			request, issued := stagedMemberGetSourceRequest(fact, node)
@@ -333,6 +334,7 @@ func (query *sourceValueQuery) reflectiveMemberValuesAtGet(origin *ast.Node, pro
 	var values []sourceValue
 	possible := false
 	rows := query.memberWriterInputs(node, bindings, result, cut)
+	rows = query.selectedGetterWriterInputs(node, origin, actualGet, cut, rows)
 	allDirectExcluded := len(rows) != 0
 	for _, row := range rows {
 		query.memberWriterScope(row, func() {
@@ -562,7 +564,7 @@ func (query *sourceValueQuery) reflectiveMemberValueInScope(origin *ast.Node, pr
 	possible := true
 	// A projected row is only a MAY alternative. This descriptor fallback never
 	// publishes strong replacement. Other paths retain their existing producer law.
-	if input == nil || input.call == nil {
+	if input == nil || input.call == nil && input.implicitGet == nil {
 		_, possible = query.moduleWriteProducer(node, bindings, result)
 	}
 	if !possible {
@@ -641,6 +643,10 @@ func (query *sourceValueQuery) reflectiveMemberValueInScope(origin *ast.Node, pr
 		return nil, false
 	}
 	matching = matching || prototype
+	if !matching && query.prototypeGetterShadowed(args[0], actualGet, key, result) {
+		keyRelevanceUncertain = false
+		return nil, false
+	}
 	if !matching {
 		if disjoint {
 			for _, required := range conditionalRequired {
