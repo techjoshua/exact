@@ -271,6 +271,9 @@ func (query *sourceValueQuery) memberValuesAtGetWithStandard(origin *ast.Node, p
 					if mode == accessorAcquire && name == "" && len(projection) > 0 && !index.normalDynamicScope && ast.IsElementAccessExpression(assignment.left) && query.symbolKeyDisjointFromName(assignment.left.AsElementAccessExpression().ArgumentExpression, projection...) {
 						continue
 					}
+					if query.dependenciesOnly && query.privateDirectAssignmentExcluded(&index, operation, result) {
+						continue
+					}
 					inputs = query.memberWriterInputs(assignment.left, bindings, result, cut)
 					if disjointRHS {
 						continue

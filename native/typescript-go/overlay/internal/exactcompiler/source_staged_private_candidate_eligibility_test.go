@@ -36,6 +36,8 @@ declare function foreign():void;const box={run:1};`
 		{"component-source-only", componentBody, "", false, false},
 		{"private-after-component", body, "", true, false},
 		{"direct", body, `Install();`, false, false},
+		{"captured", body, `const start=()=>Install();`, false, false},
+		{"recursive", `function Install():any{box.run=2;Install();Object.defineProperty(box,'run',{value:3});return 0}`, "", false, false},
 		{"private-again", body, "", true, false},
 		{"exported", `export ` + body, "", false, false},
 		{"private-after-export", body, "", true, false},
@@ -130,6 +132,18 @@ func assertPrivateCandidateSource(t *testing.T, owner *executableBodyOwner, file
 		t.Fatal("original Get request absent")
 	}
 	q := newSourceDependencyQuery(read, owner.checker, owner, facts[caller].node)
+	for _, operation := range operations {
+		want := excluded && plainStagedAssignment(operation)
+		if q.privateDirectAssignmentExcluded(&index, operation, &accessorCandidates{}) != want {
+			t.Fatalf("direct writer admission at %v: exclude=%t", operation.Kind, want)
+		}
+		if want {
+			own := newSourceDependencyQuery(operation, owner.checker, owner, install)
+			if own.privateDirectAssignmentExcluded(&index, operation, &accessorCandidates{}) {
+				t.Fatal("lost the writer from its own activation's analysis")
+			}
+		}
+	}
 	revoke, installed := work.beginStagedMemberWork(q, facts, request)
 	if !installed {
 		t.Fatal("original Get source interval refused")

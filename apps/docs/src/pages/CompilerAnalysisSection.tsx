@@ -106,7 +106,10 @@ export function CompilerAnalysisSection(this: Component<{}>) {
 				requires both the captured value and the work in its body to be available. A server-created
 				value captured by a browser-reading helper prevents that eager call from being emitted for
 				either target. Independent declarations can still be assigned to their own target, and a
-				dormant function keeps its body deferred. Several declarations in one <code>const</code>
+				dormant function keeps its body deferred. When the compiler can prove that a private
+				function cannot be called or exposed, it can rule out direct property assignments in
+				that function when analyzing a separate read. Possible calls and callbacks still
+				contribute their effects to placement. Several declarations in one <code>const</code>
 				statement keep their independent target placement. A single initializer expression that
 				requires both environments remains a conflict. A <code>using</code> declaration releases its
 				resources when its scope ends. Multiple resources in one list keep that shared cleanup

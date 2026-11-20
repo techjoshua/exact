@@ -107,6 +107,35 @@ In two server compiles of the direct state-helper regression per build, allocati
 to constructing dependency queries fell from 159 KiB to 37 KiB. The paired workload
 allocated about 181 MiB overall in each build; this reduction is local to query setup.
 
+Direct property-assignment discovery can reuse the generation's private-definition
+proof before reconstructing writer inputs for a member read. The indexed assignment
+must belong directly to an ordinary top-level function, and the complete source-use
+population must show that it cannot be invoked or exposed. The writer's own
+activation keeps its ordinary analysis. Component entry, aliases, captures, recursion,
+exports, dynamic scope and incomplete coverage retain possible writes. The proof
+does not change the original source inventory or grant a completed write outcome.
+
+On November 20, 2026, the original scaling fixture at `5f39cac3f` rose from about
+11,600 to 1,363,000 estimated work units as 24 dormant writers were added. Its static
+imports are outside the current private-use syntax coverage, so the admission rule
+left that scaling unchanged. A paired component control used an erased type import
+and an ordinary event callback. With 24 dormant writers, the client compile fell
+from 1,358,422 to 16,038 estimated work units and median process CPU from 1.313 to
+0.263 seconds. Client and server code, diagnostics and public analysis agreed.
+The uninstrumented hosts used the committed integration tree and that tree with the change
+in this section, without the pending accessor edit. Each timing is a median of
+three fresh native CLI processes with semantic diagnostics and installed Core
+0.8.0 declarations. The exclusive coordinator used one CPU and 1 GiB with no
+swap on a Ryzen 7 8745HS, Linux WSL2, Go 1.27.1 and the pinned TypeScript Go source.
+
+A separate instrumented trial applied the proof earlier in the same direct
+writer path. In the covered control it counted 16,288 writer-input entries before
+exclusion and 256 after. The pinned 8,447-input Core package replay on Node
+26.11.1 recorded zero eligible candidates through 655,360 checks in each observed
+prefix. Both runs reached the client deadline compiling `error-boundary.tsx`.
+This leaves Core artifact acceptance open. The prefix counts do not measure the
+cost of a completed package build.
+
 ## Request and project work
 
 | Source and consumer | Minimum justified work and disposition | Change and verification |

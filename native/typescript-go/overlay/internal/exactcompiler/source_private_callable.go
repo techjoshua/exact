@@ -376,3 +376,22 @@ func (query *sourceValueQuery) privateDeferredDefinitionExcluded(node *ast.Node,
 	definition := region.Parent
 	return definition != nil && ast.IsClassDeclaration(definition) && query.privateDefinitionObserved(definition, result)
 }
+
+// privateDirectAssignmentExcluded applies the source-use proof only to a plain
+// assignment in a directly owning top-level function. A nested callable or
+// initializer has a different activation. Keep analysis within the writer's own
+// activation even when other source code cannot enter it.
+func (query *sourceValueQuery) privateDirectAssignmentExcluded(index *sourceValueIndex, operation *ast.Node, result *accessorCandidates) bool {
+	if pop := index.privateUses; pop == nil || !pop.complete || pop.refused || index.incomplete || index.normalDynamicScope || !plainStagedAssignment(operation) {
+		return false
+	}
+	entry := index.normalOccurrences[operation]
+	if entry == nil || entry.region == nil || !ast.IsFunctionDeclaration(entry.region) {
+		return false
+	}
+	writer := entry.region
+	if writer.Contains(query.effectOwner) || writer.Contains(query.reading) {
+		return false
+	}
+	return query.privateDeferredDefinitionExcluded(operation, result)
+}
