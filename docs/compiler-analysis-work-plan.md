@@ -1373,6 +1373,54 @@ through a setter argument and read back afterwards ran on the client
 without being reported as a browser effect. This is a separate value
 projection gap in the corrected baseline.
 
+The compiler delta between the matched hosts is confined to the
+disjoint-key gate and its recovery at the original Get. A diagnostic
+replay of the same first client request with the fast host completed
+in 29.821 seconds, with 29.65 sampled CPU seconds. A separate replay with
+the corrected host did not complete even with a 180-second diagnostic
+deadline. That replay hit the 1 GiB limit without an OOM kill. The package
+acceptance deadline remains 30 seconds.
+
+A 28-second corrected request profile labeled the interval introduced
+by the disjoint-key recovery, including nested work. Of 27.84 sampled CPU
+seconds, 21.54 carried the label. Assigning each labeled sample to its
+nearest identifiable phase gives 10.87 seconds for callee receiver and
+member selection, 4.22 for remaining invocation selection and
+consumption, 3.24 for refused input exposure and staged component
+recovery, 2.18 for wrapper descent, 0.80 for argument binding, 0.16 for
+staged candidate enrollment, and 0.07 for actual projection and
+initializer sealing. The 6.30 seconds outside the label include ordinary
+request work and background GC. The earlier saved profile combines
+matching and disjoint writers. Neither profile measures the entire
+corrected request or isolates downstream work after the labeled interval.
+
+A scratch trial replaced the disjoint-key input scan with an opaque
+Get and retained the matching RHS path. With the original deadline it
+completed the Core package command in 30.64 seconds and emitted 3,598
+files. Its paired ErrorBoundary artifacts passed mount, error delivery,
+reset, authored fallback and SSR. The server check also preserved eager
+operand order and callback identity without invoking the callback.
+Retained native requests on both targets still reported the captured
+setter's field uncertainty and denied the known browser setter under
+server policy. They also changed three public controls from neutral to
+unknown: a neutral setter, a disjoint data write, and an aliased write
+after the read. The fallback was discarded. Published effect sources
+consume opacity directly, and staged Get publication uses it when
+deciding whether the original effect work is complete.
+
+The separation point is the original Get. Direct value acquisition can
+ignore a disjoint RHS. An interference check needs evidence that an
+earlier operation can expose a writer and that its selected setter or
+trap may reach the observed receiver. The source write inventory,
+selected Set effects and writer exposure recipes already describe
+parts of this question. They do not currently represent a complete
+population for the dynamic Core writer at the metadata read. A known
+literal allocation alone does not prove confinement through a call or
+past an earlier potentially effectful Get. A proof that closes those
+routes can answer the interference question without recovering writer
+values. Unresolved routes still need the existing effect and compiler
+obligations.
+
 The original Core command used the same 8,447-input manifest
 (`958e586c6817e51a1b64698c0a1f4c3c552a42a1c26e73bb854ca0f7fe232051`),
 with one CPU, 1 GiB and the original 30-second per-request deadline. On
