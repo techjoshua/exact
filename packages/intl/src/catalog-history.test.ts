@@ -1,9 +1,11 @@
 import { verifyIntlCatalogOwnership } from '../../component-composition-corpus/test-support/intl-measurement-journey.mjs';
 import { captureReactiveMutations } from '@exactjs/reactive';
-import { describe, expect, it } from 'vitest';
+import { intl } from '@exactjs/core';
+import { describe, expect, it, vi } from 'vitest';
+import * as artifacts from './artifacts.js';
 import { registerIntlArtifacts, snapshotIntlArtifacts } from './artifacts.js';
 import type { IntlRuntimeDescriptorV1 } from './contracts.js';
-import { createIntlEnvironment } from './environment.js';
+import { createDefaultIntlEnvironment, createIntlEnvironment } from './environment.js';
 
 const descriptor: IntlRuntimeDescriptorV1 = {
 	protocol: 1,
@@ -56,6 +58,43 @@ describe('owned catalog history', () => {
 	});
 });
 
+it('reuses the providerless setup snapshot unless locale canonicalization registers artifacts', ({
+	onTestFinished
+}) => {
+	const moduleId = 'history-providerless-setup';
+	const conflictId = 'history-providerless-conflict';
+	const generated = { ...descriptor, contract: 'DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD' };
+	const snapshot = vi.spyOn(artifacts, 'snapshotIntlArtifacts');
+	onTestFinished(() => {
+		snapshot.mockRestore();
+		registerIntlArtifacts(moduleId, 2, [], []);
+		registerIntlArtifacts(conflictId, 2, [], []);
+	});
+	registerIntlArtifacts(moduleId, 1, [generated], [catalog('Bonjour')]);
+	const environment = createDefaultIntlEnvironment('fr');
+	expect(snapshot).toHaveBeenCalledTimes(1);
+	expect(environment.sourceLocale).toBe('en-US');
+	expect(text(environment)).toEqual([{ kind: 'text', value: 'Bonjour' }]);
+
+	const canonicalize = intl.getCanonicalLocales;
+	const hook = vi.spyOn(intl, 'getCanonicalLocales').mockImplementationOnce((locales) => {
+		registerIntlArtifacts(
+			conflictId,
+			1,
+			[{ ...generated, source: [{ kind: 'text', value: 'Conflicting source' }] }],
+			[]
+		);
+		return canonicalize(locales);
+	});
+	try {
+		// Setup must validate the newer revision before returning an environment.
+		expect(() => createDefaultIntlEnvironment('fr')).toThrow(/conflicting definitions/);
+	} finally {
+		hook.mockRestore();
+	}
+	expect(snapshot).toHaveBeenCalledTimes(3);
+});
+
 it('keeps the last accepted registry when a generated replacement conflicts', () => {
 	registerIntlArtifacts('history-conflict-first', 0, [], []);
 	const stable = {
@@ -69,7 +108,7 @@ it('keeps the last accepted registry when a generated replacement conflicts', ()
 		[stable],
 		[{ ...catalog('Bonjour'), owner: stable.owner }]
 	);
-	const environment = createIntlEnvironment({ locale: 'fr' });
+	const environment = createDefaultIntlEnvironment('fr');
 	const other = {
 		...descriptor,
 		owner: 'history-conflict-owner',

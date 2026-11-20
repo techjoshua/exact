@@ -83,7 +83,14 @@ export interface IntlEnvironment {
 
 /** Creates a locale environment whose updates participate in eXact reactivity. */
 export function createIntlEnvironment(options: IntlEnvironmentOptions): IntlEnvironment {
-	const generated = snapshotIntlArtifacts();
+	return initializeIntlEnvironment(options, snapshotIntlArtifacts());
+}
+
+/** Builds an isolated environment from a captured artifact revision. */
+function initializeIntlEnvironment(
+	options: IntlEnvironmentOptions,
+	generated: ReturnType<typeof snapshotIntlArtifacts>
+): IntlEnvironment {
 	const sourceLocale = canonicalLocale(options.sourceLocale ?? options.locale);
 	const state = reactive<IntlEnvironmentState>({
 		locale: canonicalLocale(options.locale),
@@ -271,7 +278,11 @@ export function createDefaultIntlEnvironment(locale?: IntlLocaleString): IntlEnv
 		sourceLocales.length === 1
 			? canonicalLocale(sourceLocales[0]!)
 			: canonicalLocale(locale ?? 'en');
-	return createIntlEnvironment({ locale: locale ?? sourceLocale, sourceLocale });
+	// Canonicalization can reenter registration through the public Intl facade.
+	return initializeIntlEnvironment(
+		{ locale: locale ?? sourceLocale, sourceLocale },
+		currentIntlArtifactRevision() === generated.revision ? generated : snapshotIntlArtifacts()
+	);
 }
 
 const rightToLeftScripts = new Set([
