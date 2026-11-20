@@ -82,37 +82,67 @@ export function Page(this:Component<{label:string}>){
  this.state.label='';
  const run=(task:TaskContext=TaskContext.server())=>{
   const box={field:{value:"safe"},SLOT};
-  function install(){box.other={get value(){return document.title}}}
+  ALIAS
+  function install(){RECEIVER.other={get value(){return document.title}}}
   EXECUTE
   const selected=box.field;
   this.state.label=selected.value;
+  AFTER
  };
  return()=> <button onClick={()=>run()}>{this.state.label}</button>;
 }`
 	for _, target := range []Target{TargetClient, TargetServer} {
 		t.Run(string(target), func(t *testing.T) {
 			session := NewSession()
+			const setter = `set other(value:{value:string}){this.field=value}`
 			for _, row := range []struct {
 				name, slot, execute string
+				alias, after        string
 				fieldUnknown        bool
+				browser             bool
 			}{
-				{"escaped setter", `set other(value:{value:string}){this.field=value}`, "foreign(install);", true},
-				{"neutral setter", `set other(value:{value:string}){this.field={value:"neutral"}}`, "install();", false},
-				{"disjoint data", `other:{value:"initial"}`, "install();", false},
-				{"revert", `set other(value:{value:string}){this.field=value}`, "foreign(install);", true},
+				{name: "escaped setter", slot: setter, execute: "foreign(install);", fieldUnknown: true},
+				{name: "neutral setter", slot: `set other(value:{value:string}){this.field={value:"neutral"}}`, execute: "install();"},
+				{name: "disjoint data", slot: `other:{value:"initial"}`, execute: "install();"},
+				{name: "escaped alias", slot: setter, alias: "const alias=box;", execute: "foreign(install);", fieldUnknown: true},
+				{name: "later alias write", slot: setter, alias: "const alias=box;", after: "install();"},
+				{name: "known setter with independent unknown", slot: `set other(value:{value:string}){this.field={value:document.title}}`, execute: "install();foreign(()=>{});", browser: true},
+				{name: "revert", slot: setter, execute: "foreign(install);", fieldUnknown: true},
 			} {
 				t.Run(row.name, func(t *testing.T) {
-					source := strings.NewReplacer("SLOT", row.slot, "EXECUTE", row.execute).Replace(fixture)
+					receiver := "box"
+					if row.alias != "" {
+						receiver = "alias"
+					}
+					source := strings.NewReplacer("SLOT", row.slot, "EXECUTE", row.execute, "AFTER", row.after, "ALIAS", row.alias, "RECEIVER", receiver).Replace(fixture)
 					response := session.Execute(Request{Kind: "compile", ID: id, Source: source, Target: target, Diagnostics: "semantic"})
-					if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) || response.Code == "" || len(response.Analysis.Tasks) != 1 {
+					if response.Error != "" || len(response.Analysis.Tasks) != 1 || len(response.Analysis.Components) != 1 {
 						t.Fatal(response.Error, response.Diagnostics, response.Analysis.Tasks)
 					}
 					task := response.Analysis.Tasks[0]
-					fieldUnknown := false
+					if task.Placement != "server" || response.Analysis.Components[0].Placement != "isomorphic" {
+						t.Fatal("unexpected public placement", task.Placement, response.Analysis.Components[0].Placement)
+					}
+					if row.browser {
+						denied := false
+						for _, diagnostic := range response.Diagnostics {
+							denied = denied || diagnostic.Code == "EXACT2001"
+						}
+						if !denied || response.Code != "" {
+							t.Fatal("known browser setter did not block server placement", response.Diagnostics)
+						}
+					} else if hasErrorDiagnostic(response.Diagnostics) || response.Code == "" {
+						t.Fatal(response.Diagnostics)
+					}
+					fieldUnknown, independentUnknown, namedSetter := false, false, false
 					for _, effect := range task.EffectSources {
 						fieldUnknown = fieldUnknown || effect.Environment == "unknown" && strings.HasSuffix(effect.Description, fmt.Sprintf(":%d", strings.Index(source, "box.field")))
+						independentUnknown = independentUnknown || effect.Environment == "unknown" && strings.HasSuffix(effect.Description, fmt.Sprintf(":%d", strings.Index(source, "foreign(()=>")))
+						namedSetter = namedSetter || effect.Environment == "browser" && effect.Description == "document" && strings.Join(effect.Path, "/") == "run/other/document"
 					}
-					if fieldUnknown != row.fieldUnknown || task.BrowserEffects {
+					if fieldUnknown != row.fieldUnknown || task.BrowserEffects != row.browser ||
+						row.browser && (!independentUnknown || !namedSetter) ||
+						!row.fieldUnknown && !row.browser && task.EnvironmentEffect != "neutral" {
 						t.Fatal("unexpected field or browser effects", task.EffectSources)
 					}
 				})

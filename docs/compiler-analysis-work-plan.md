@@ -1359,6 +1359,20 @@ The trial was discarded from integration. The blocked metadata receiver is
 an ordinary object literal and needs its own proof or a narrower effect
 collector.
 
+The disjoint-key branch discards reconstructed writer inputs. Refused
+scope recovery can make the original Get opaque, and staged transfers can
+leave registered compiler work pending. The Put and callable-effect
+edges still own concrete setter effects. A matching write in a selected
+setter body can independently supply a value to a later Get.
+
+The client and server component controls cover uncertainty at the read
+through an escaped alias, an aliased write after the read, and a known
+browser effect in a setter alongside an independently unknown call.
+A separate observation on the corrected host found that a getter passed
+through a setter argument and read back afterwards ran on the client
+without being reported as a browser effect. This is a separate value
+projection gap in the corrected baseline.
+
 The original Core command used the same 8,447-input manifest
 (`958e586c6817e51a1b64698c0a1f4c3c552a42a1c26e73bb854ca0f7fe232051`),
 with one CPU, 1 GiB and the original 30-second per-request deadline. On
