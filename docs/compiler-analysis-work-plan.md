@@ -912,8 +912,29 @@ that belonged to the original binding path. These counts describe a completed
 component request. They do not measure Core performance.
 
 The frozen Core package still reached the original 30-second client deadline
-in `error-boundary.tsx` under the fixed one-CPU, 1 GiB validation service. An
-instrumented run recorded no selective completions before the deadline. The
-original receipt calls still have work outside this domain, including variadic
-inputs and downstream consumers of acquired values. No new paired Core output
-was produced.
+in `error-boundary.tsx` under the fixed one-CPU, 1 GiB validation service.
+The package command exited after 31.48 seconds without new client artifacts.
+It builds the client first, so server compilation did not start.
+
+An admission observer reached the live binder at all six receipt calls in
+`component/error-view.ts`. Each selected the current implementation and
+installed all three formal bindings. Each passed the invocation-context checks
+and first failed the terminal-body check. The selected implementation has an
+initial validation branch and calls another function with the destructured
+values. No observed receipt call completed the selective path. The original
+package command with this observer exited after 31.36 seconds at the same
+client deadline.
+
+A separate coverage observer found two unprojected object literal inputs and
+four unprojected null inputs for `props`. The source effects consumer returned
+five completed argument relationships and one completed callee relationship
+for each call, plus an incomplete, opaque body contribution. It returned zero
+field outcomes for the metadata Gets or copy. The existing edge solver requires
+coverage for the matching operation and input slot. The relation for a
+binding Get expects a direct input and does not name `props ?? {}`, and the
+ordinary copy consumer publishes no corresponding field outcome. The checked
+input facts can select the nullish arm at these sites. They supply neither
+missing effect coverage nor the acquired values passed to the downstream key
+coercion and child normalization. The coverage run exited after 31.42 seconds
+at the same client deadline. Neither observer run produced client or server
+package artifacts.
