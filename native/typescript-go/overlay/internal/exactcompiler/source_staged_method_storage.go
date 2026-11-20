@@ -95,27 +95,16 @@ func (work *callableEffectWork) constructedStandardMethodStorage(facts []callabl
 	}
 	var storage []sourceStagedMethodStorage
 	var stored *sourceStagedConstructedMember
-	private := func(construction sourceStandardConstructionContribution) bool {
-		parent := construction.site.Parent
-		if parent == nil || !ast.IsVariableDeclaration(parent) || parent.Initializer() != construction.site {
-			return false
-		}
-		if owner.standardConstructions[construction.site] != construction || !construction.selectionComplete {
-			return false
-		}
-		_, covered := stagedConstructionUseAliases(construction, owner, func(*ast.Node) bool { return false })
-		return covered
-	}
 	allocation := func(construction sourceStandardConstructionContribution) bool {
 		if construction != source.construction {
 			return false
 		} // A different endpoint needs its own original Get event.
 		site := construction.site
 		if parent := site.Parent; parent != nil && ast.IsVariableDeclaration(parent) && parent.Initializer() == site {
-			return private(construction)
+			return owner.privateStandardConstruction(construction)
 		}
 		container := work.constructedSourceContainer(source, owner)
-		if container == nil || methodStorageAllocation(container) != site || !work.currentStandardMethodSource(container, owner) || !private(container.construction) || !work.constructedContainerReadsObserved(source, container, owner) {
+		if container == nil || methodStorageAllocation(container) != site || !work.currentStandardMethodSource(container, owner) || !owner.privateStandardConstruction(container.construction) || !work.constructedContainerReadsObserved(source, container, owner) {
 			return false
 		}
 		root := work.operationRecipes[container.request.producer]
@@ -134,7 +123,7 @@ func (work *callableEffectWork) constructedStandardMethodStorage(facts []callabl
 	}
 	check := &sourceConstructedMethodCheck{allocation: allocation}
 	check.container = func(read sourceStagedConstructedMember) bool {
-		return private(read.construction) && work.currentStandardMethodSource(&read, owner)
+		return owner.privateStandardConstruction(read.construction) && work.currentStandardMethodSource(&read, owner)
 	}
 	check.payload = func(read, write sourceStagedConstructedMember) bool {
 		if methodStorageAllocation(&write) != source.construction.site || !work.currentStandardMethodSource(&write, owner) {
@@ -177,4 +166,31 @@ func (work *callableEffectWork) constructedStandardMethodStorage(facts []callabl
 		}
 	}
 	return storage, true
+}
+
+// privateStandardConstruction shares the closed source-use proof across
+// method consumers. The Program owns the indexed uses. Recheck the original
+// construction contribution before consulting the memoized classification.
+func (owner *executableBodyOwner) privateStandardConstruction(construction sourceStandardConstructionContribution) bool {
+	site := construction.site
+	if site == nil || !construction.selectionComplete || owner.standardConstructions[site] != construction {
+		return false
+	}
+	if covered, known := owner.privateConstructionUses[site]; known {
+		return covered
+	}
+	parent := site.Parent
+	if parent == nil || !ast.IsVariableDeclaration(parent) || parent.Initializer() != site {
+		return false
+	}
+	_, covered := stagedConstructionUseAliases(construction, owner, func(*ast.Node) bool { return false })
+	// Only a complete index can settle the source-use classification.
+	index := owner.values.index(ast.GetSourceFileOfNode(site))
+	if !index.incomplete && index.privateUses != nil && index.privateUses.complete {
+		if owner.privateConstructionUses == nil {
+			owner.privateConstructionUses = make(map[*ast.Node]bool)
+		}
+		owner.privateConstructionUses[site] = covered
+	}
+	return covered
 }

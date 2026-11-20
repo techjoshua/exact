@@ -156,7 +156,8 @@ type executableBodyOwner struct {
 
 	constructionSubscribers map[*ast.Node]map[sourcePendingConstructionDependency]struct{} // finite source endpoints, no query borrows
 
-	standardConstructions map[*ast.Node]sourceStandardConstructionContribution // detached original-New contributions only
+	standardConstructions   map[*ast.Node]sourceStandardConstructionContribution // detached original-New contributions only
+	privateConstructionUses map[*ast.Node]bool                                   // Program-local source-use classification for completed contributions
 
 	pendingMemberPublishers map[*ast.Node]*sourcePendingMemberPublisher // active original fact publishers only
 	writerInputFacts        map[*ast.Node]*sourceWriterInputGraph       // active owning facts, restored after recursive collection

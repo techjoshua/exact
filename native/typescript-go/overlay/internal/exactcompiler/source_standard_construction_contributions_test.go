@@ -244,6 +244,47 @@ func withStandardConstructionSource(t *testing.T, source string, inspect func(*s
 // through original New/Get inspection. Facts come from the shared source-fact
 // collector, including module initializer/source-file ownership. The older
 // wrapper and its other callers retain their separate setup unchanged.
+// Writer discovery can omit reconstruction only after the reached original
+// construction and its closed source-use relation identify the whole callee.
+func TestPrivateStandardWriterDiscovery(t *testing.T) {
+	const table = `const table=new WeakMap<object,()=>string>();`
+	for _, tc := range []struct {
+		name, setup, invocation string
+		excluded                bool
+	}{
+		{"stored callback", table, "table.set(key,()=>document.title);", true},
+		{"private get", table, "return table.get(key);", true},
+		{"authored override", table + "table.set=(_key,fn)=>{fn();return table};", "table.set(key,()=>document.title);", false},
+		{"escaped receiver", table + "declare function expose(value: typeof table): void; expose(table);", "return table.get(key);", false},
+		{"alternative receiver", table + "declare const other: typeof table; declare const flag:boolean; const chosen=flag ? table : other;", "return chosen.get(key);", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			source := tc.setup + "export function invoke(key:object){" + tc.invocation + "}"
+			withActiveStandardConstructionSource(t, source, func(q *sourceValueQuery, call *ast.Node, _ *sourceWriterInputGraph) {
+				if q.privateStandardWriterCall(call, nil) {
+					t.Fatal("unreached construction supplied a writer exclusion")
+				}
+				walkNode(ast.GetSourceFileOfNode(call).AsNode(), func(node *ast.Node) bool {
+					if ast.IsNewExpression(node) {
+						visitImplicitAccessors(node, q.owner.checker, nil, q.executable, sourceStagedModuleOwner(node), nil, func(accessorCandidates) {})
+					}
+					return true
+				})
+				if got := q.privateStandardWriterCall(call, nil); got != tc.excluded {
+					t.Fatalf("writer excluded = %t, want %t", got, tc.excluded)
+				}
+				if tc.excluded {
+					receiver, _ := accessorReceiver(call.Expression())
+					symbol := q.owner.checker.GetSymbolAtLocation(receiver)
+					if q.privateStandardWriterCall(call, sourceValueBindings{ast.GetSymbolId(symbol): nil}) {
+						t.Fatal("private lexical receiver proof accepted a substituted receiver")
+					}
+				}
+			})
+		})
+	}
+}
+
 func withActiveStandardConstructionSource(t *testing.T, source string, inspect func(*sourceValueQuery, *ast.Node, *sourceWriterInputGraph)) {
 	t.Helper()
 	withReflectiveRelevanceSource(t, source, func(owner *executableBodyOwner, file *ast.SourceFile) {

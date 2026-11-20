@@ -1119,9 +1119,9 @@ retain their evaluation effects. Downstream prototype construction still needs
 the possible stored payload with its original origin and capture. An escaped
 receiver, an own method write, or a receiver supplied by another Get can require
 more coverage and fall through to ordinary recovery. This first experiment
-covers the direct `operationPrototypes` path. Advance only if it retires
-reconstruction in the pinned client request and the unchanged package command
-completes paired output.
+covers the direct `operationPrototypes` path. Measure reconstruction in the
+pinned client request. Package acceptance still requires paired output from the
+unchanged command.
 
 The private method experiment used native source at `879ede513`, the frozen
 8,447-input manifest above, fresh prerequisite-complete copies, and the
@@ -1172,3 +1172,47 @@ arguments, distinguish work that evaluates an expression from work that
 recovers a callable value the selected operation could invoke. Only the
 latter can yield to a current no-direct-input-invocation result. The original
 operand and downstream data consumers still own their effects and values.
+
+Initial selection and refusal recovery use the same Call node and compiler
+generation. The collector passes the same binding map and restores the creating
+scopes before recovery. Their requests have different cuts.
+Initial selection uses the enclosing member reader and installs its writer
+request. Refusal recovery resets the read and initialization to the Call,
+clears the return cut, and runs after the installed request has been restored.
+Both callee lookups use the Call for source order. The later `originsAt` lookup
+collects receiver provenance for invocation input binding and carries no
+selected member alternatives. In the pinned Core samples neither callee
+lookup shared the other's read or installed requester. Replaying the acquired
+alternatives across those boundaries would need a new equivalence check and
+would still pay for the first reconstruction.
+
+Writer discovery now reuses the standard method selection and private source-use
+proof for a direct, unsubstituted receiver of a reached module allocation. The
+memo holds only the indexed-use classification for the current Program. The
+writer scan can omit both callee reconstruction and recovery of callable
+argument values because the selected operation cannot invoke or forward them
+during the Call. Eager evaluation, membership, storage, return values, and
+later invocation keep their existing owners. An override, escape, unknown
+receiver alternative, or an incomplete contribution keeps ordinary recovery.
+This adds one source-use memo shared with the method-storage consumer and one
+admission check at writer discovery, without adding a transfer protocol.
+
+A matched run used one instrumented native binary with only the early route
+toggled. At 14,000 writer requests per Call, `get` fell from 1.54 s of
+aggregate writer reconstruction and recovery to 0.037 s, and `set` fell
+from 3.56 s to 0.038 s. The candidate retained one original `get` recovery
+and excluded all 14,000 `set` requests in that interval. The aggregate time
+includes nested work and the cost of the candidate's proof. Both variants
+reached the same first-client deadline, so these timings establish a local
+saving only.
+
+The uninstrumented candidate based on `60363e175` used the same 8,447-input
+manifest, limits, prerequisite and deadline, with the unrelated accessor
+worktree edit excluded. The package command stopped after 32.28 seconds at
+the first client request for `error-boundary.tsx`. It produced no paired Core
+artifacts. The completed fixture emitted both targets and ran in DOM and SSR.
+The compiled fixture preserved eager getter order, a throw before the value
+write, the successful write, and stored callback identity. A client artifact
+for the authored method override invoked its callback once. The language
+session retained unknown placement for the original and reverted source, and
+selected client placement for the authored method override.

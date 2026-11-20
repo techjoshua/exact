@@ -158,24 +158,37 @@ func (q *sourceValueQuery) standardConstructionMember(demand sourceConstructedMe
 }
 
 func (q *sourceValueQuery) standardConstructionMemberSeed(value sourceValue, key string) (*ast.Node, sourceValue, bool) {
-	if q.executable == nil || key != "get" && key != "set" {
+	if q.executable == nil {
 		return nil, sourceValue{}, false
 	}
 	contribution, exists := q.executable.standardConstructions[value.node]
 	if !exists || value.native.acquired != contribution.site {
 		return nil, sourceValue{}, false
 	}
+	member, method := q.standardConstructionMethod(contribution, key)
+	if member == nil {
+		return nil, sourceValue{}, false
+	}
+	return contribution.site, sourceValue{node: member, native: &sourceNativeValue{kind: method, acquired: contribution.site}}, true
+}
+
+// standardConstructionMethod identifies the standard contract for one reached
+// construction. Callers still own proof that their receiver and member select it.
+func (q *sourceValueQuery) standardConstructionMethod(contribution sourceStandardConstructionContribution, key string) (*ast.Node, sourceNativeKind) {
+	if key != "get" && key != "set" {
+		return nil, 0
+	}
 	global, kind := q.nativeRootDeclaration(contribution.constructor)
 	if global == nil || kind != sourceNativeWeakMapConstructor {
-		return nil, sourceValue{}, false
+		return nil, 0
 	}
 	prototype := q.owner.checker.GetPropertyOfType(q.owner.checker.GetTypeOfSymbol(global), "prototype")
 	if prototype == nil {
-		return nil, sourceValue{}, false
+		return nil, 0
 	}
 	member := q.owner.checker.GetPropertyOfType(q.owner.checker.GetTypeOfSymbol(prototype), key)
 	if member == nil || member.ValueDeclaration == nil || !standardLibrarySource(ast.GetSourceFileOfNode(member.ValueDeclaration)) {
-		return nil, sourceValue{}, false
+		return nil, 0
 	}
 	method := sourceNativeWeakMapGetEffect
 	if key == "set" {
@@ -183,7 +196,7 @@ func (q *sourceValueQuery) standardConstructionMemberSeed(value sourceValue, key
 	}
 	// Neither kind is nativeInvocable. Existing invocation/effect consumers
 	// continue to own mutation, argument protocols, brand failures and Throw.
-	return contribution.site, sourceValue{node: member.ValueDeclaration, native: &sourceNativeValue{kind: method, acquired: contribution.site}}, true
+	return member.ValueDeclaration, method
 }
 
 func (q *sourceValueQuery) publishStandardMemberGet(receiver, selected sourceValue, result *accessorCandidates) {
@@ -317,4 +330,46 @@ func standardConstructionSelectionComplete(selected *sourcePreparedInvocation, c
 		}
 	}
 	return true
+}
+
+// privateStandardWriterCall recognizes the existing standard member effect law
+// on a private module allocation. The lexical receiver has one source even
+// when the writer reader and the original callee Get have different cuts.
+// This answers direct invocation discovery only. Eager operands, later
+// invocations of stored data, and the original Call still have their own owners.
+func (q *sourceValueQuery) privateStandardWriterCall(call *ast.Node, bindings sourceValueBindings) bool {
+	owner := q.executable
+	if owner == nil || owner.values == nil || q.owner.generation == nil || owner.values.generation != q.owner.generation ||
+		owner.values.program != q.owner.program || q.inputs != nil || q.operation != nil ||
+		!ast.IsPropertyAccessExpression(call.Expression()) || call.AsCallExpression().QuestionDotToken != nil {
+		return false
+	}
+	receiver, name := accessorReceiver(call.Expression())
+	if !ast.IsIdentifier(receiver) {
+		return false
+	}
+	symbol := q.owner.checker.GetSymbolAtLocation(receiver)
+	if symbol == nil || symbol.ValueDeclaration == nil || !ast.IsVariableDeclaration(symbol.ValueDeclaration) {
+		return false
+	}
+	if _, substituted := bindings[ast.GetSymbolId(symbol)]; substituted {
+		return false
+	}
+	declaration := symbol.ValueDeclaration
+	site := declaration.Initializer()
+	construction, published := owner.standardConstructions[site]
+	if !published || !construction.selectionComplete || !runtimeModuleEvaluation(construction.owner) ||
+		declaration.Parent == nil || declaration.Parent.Flags&ast.NodeFlagsConst == 0 || q.owner.bindingWritten(symbol) {
+		return false
+	}
+	if args := site.AsNewExpression().Arguments; args != nil && len(args.Nodes) != 0 {
+		return false
+	}
+	for _, arg := range restrictedInvocationArguments(call.AsCallExpression()) {
+		if ast.IsSpreadElement(arg) {
+			return false
+		}
+	}
+	member, method := q.standardConstructionMethod(construction, name)
+	return member != nil && standardMemberEffect(method) && owner.privateStandardConstruction(construction)
 }
