@@ -1047,3 +1047,40 @@ transfer for the imported body needs to carry reached metadata hooks and
 other input-relative effects at the actual call. The WeakMap key use separately
 requires the allocated operation identity under its original creating context.
 Both contracts still require independent validation.
+
+The landed binding tree was rerun with the same prerequisite-complete inputs
+and service limits, using a CPU sampler and a separate Call observer. Neither
+observer changed the Call dispatch. Both commands exited at the first client
+deadline in 32.39–32.40 s. The CPU profile covered the first 28 s of the
+request and attributed 20.29 of 27.21 sampled CPU seconds to stacks containing
+`memberWriterInputs`, 20.26 s to native member lookup, and 6.76 s to source
+return projection. These inclusive samples overlap and exclude the end of the
+request.
+
+The Call observer covered the intrinsic receipt, opaque operation and error
+view modules. It recorded 34 placement roots, of which 33 finished, and 40
+placement invocation entries. No placement invocation at the same operation
+under the same root repeated in the observed prefix. The stalled root was
+`createOpaqueOperation` inside `issueIntrinsicReceipt`, which entered
+`operationPrototype` with an installed receiver and input context. The
+enclosing error view receipt calls had yet to start in this run.
+
+Earlier body results were compared with later requests naming the same
+operation. The two shared-store calls requested placement from separate
+initializers, kept opaque and incomplete body contributions, and were later
+encountered during projection or writer recovery under another requester. The
+completed `currentComponentDomain` effect analysis shared the project
+generation and lexical requester with later visits, but those visits occurred
+under the factory root during receiver recovery at different protected
+members. Its effect result does not supply the input and writer relationships
+those reads require. The receipt allocation also has a separate return/key
+consumer at the WeakMap write, and enclosing calls supply their own ordered
+actuals, including the rest children and the result of the binding copy.
+Reusing a declaration result would require evidence from the original input
+and evaluation cut for the requested relationship, with any unresolved
+effects retained.
+
+The observed prefix gives no qualifying repeated placement obligation to
+coalesce. The largest measured cost remains rediscovery of receiver writers
+through nested native lookups and return projection. Neither run emitted a
+client or server package artifact.
