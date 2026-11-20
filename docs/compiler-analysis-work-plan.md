@@ -938,3 +938,51 @@ missing effect coverage nor the acquired values passed to the downstream key
 coercion and child normalization. The coverage run exited after 31.42 seconds
 at the same client deadline. Neither observer run produced client or server
 package artifacts.
+
+A forwarding trial at `d05399be7` let the original body walk evaluate the
+validation and downstream Call. At the binding it selected the installed
+literal or the empty nullish default, issued the named Gets and enumerable
+copy, and installed the acquired locals for the downstream invocation. The
+trial kept the separate return consumer. On the frozen command without
+pre-emitted support files, the observer saw all six receipt sites publish three
+matching field outcomes apiece. The downstream `issueIntrinsicReceipt` and
+`normalizeRenderResult` bodies still reported incomplete coverage, so those
+field outcomes did not settle the full edge. The
+instrumented client and server requests returned in 26.48 s and 0.17 s,
+respectively. Export inspection failed because the command expects pre-emitted
+support modules and no staged client `index.js` was available. The
+uninstrumented command reached the same failure in 28.21 s.
+
+The package acceptance run first emitted the standard TypeScript support files
+from the same frozen inputs using `tsc6 -b packages/core`. With the unchanged
+30 s host deadline, one CPU, 1 GiB and Node 26.11.1, the stock command then
+exited after 32.30 s at the client request, without publishing either target.
+The matched baseline exited after 32.34 s at the same deadline. The observed rerun reached no forwarding binding. A separate stack sample at
+25 s was in receiver writer recovery during ordinary callable extraction,
+before the forwarding trial could supply any field outcomes. A separate
+entry observer reached the definition's
+`createOpaqueOperation(executeIntrinsicOperation, { key, domain })` call in
+`issueIntrinsicReceipt` and remained there at the deadline. The writer
+recovery sample and entry trace came from separate runs.
+
+A forwarding component's emitted client mount and SSR both observed the key
+and copied callback getters before key coercion, left the stored callback
+dormant, and observed the supplied rest-child count and the nullish case. Its
+invalid-tag control threw before the metadata Get. The runtime fixture retained
+unknown placement in both hosts. In a separate matched
+invoked-callback control, six alternating cold requests per target agreed on
+code, source maps, diagnostics and component contracts. Median callable
+analysis fell from 2.81 to 2.25 ms for client and from 2.87 to 2.30 ms for
+server. A second six-pair run measured 2.92 to 2.27 ms and 2.82 to 2.30 ms,
+respectively. Retained and fresh compilation agreed across helper edits and
+reverts, and the client secret control retained its rejection. The timings
+cover completed component requests only.
+
+The applicable acceptance test is a usable paired package under the original
+deadline with its build prerequisites present. The forwarding trial leaves
+receiver writer recovery on that path and does not complete the downstream
+child-normalization obligation. Keep the existing fallback and omit the
+experimental forwarding path from production. The next change needs evidence
+that it removes work on the earlier writer-recovery path in the pre-emitted
+build, or independently settles a downstream operation an actual component
+requires.
