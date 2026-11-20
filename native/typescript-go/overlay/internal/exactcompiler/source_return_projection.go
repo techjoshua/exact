@@ -38,6 +38,9 @@ func (query *sourceValueQuery) projectSourceCallReturnsWithViews(call *ast.Node,
 		progressPendingTrue(query, call)
 		return accessorCandidates{opaque: true, valueIncomplete: true}
 	}
+	if result, handled := query.projectReactiveRead(call, bindings, project, deferred); handled {
+		return result
+	}
 	var descriptorConsumer func(sourceNativeDescriptorView, sourceValueBindings)
 	if len(descriptor) == 1 {
 		descriptorConsumer = descriptor[0]

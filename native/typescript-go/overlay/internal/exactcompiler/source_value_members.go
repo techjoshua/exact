@@ -689,6 +689,9 @@ func (query *sourceValueQuery) arrayValues(origin *ast.Node, projection []string
 			visit(arg, rest, false)
 		}
 	}
+	if query.dependenciesOnly && (mode == accessorRead || mode == accessorAcquire) && (unknown || positional) && stagedEmptyArrayDataConstruction(origin) {
+		query.visitLocalArrayRecurrence(origin, rest, bindings, result, visitMember)
+	}
 	shifted := false
 	for i, element := range origin.AsArrayLiteralExpression().Elements.Nodes {
 		if !query.charge(result, element) {

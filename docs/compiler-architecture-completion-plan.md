@@ -570,6 +570,21 @@ Query-local advisory work is accumulated into the checker owner's existing cost 
 without retaining a query or its binding maps. Binding-write and member-write relations remain
 owned by `source_value_bindings.go` and `source_value_members.go`.
 
+A local array populated at one standard append site with a loop-carried value can
+contribute source alternatives to a later indexed member demand. The entry
+binding and the loop's member Get supply possible origins. The later member
+lookup uses its own writer cut and the selected origin's captures. Repeated
+origins and unavailable inputs retain unresolved alternatives. The relation
+supplies no index or length guarantee, and it grants no mutation, normal-output,
+or effect-completion authority. The shape occurs in Theme scope ancestry
+capture. A component-owned derived cell with an inline producer and only
+direct reads supplies possible producer returns through the existing source
+return projection at the consumer. Callback effects remain on the reactive
+registration and the emitted read retains ordinary dependency tracking.
+The projection does not create a normal result or a reusable captured value.
+The pinned Theme package is still blocked by setup analysis cost and the
+separately reproduced initializer diagnostic.
+
 Callee selection has a separate synchronous availability boundary. While an original Call
 acquires its callee and receiver, a return demand for that same pending selection remains
 unknown when its syntax inputs, creator endpoints and read cuts match. These descriptions

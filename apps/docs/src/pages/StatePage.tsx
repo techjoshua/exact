@@ -297,6 +297,10 @@ export function StatePage(this: Component<{}>) {
 				</p>
 				<CodeBlock source={explicitDerivedSource} language="tsx" title="Explicit derived value" />
 				<p>
+					Calling <code>get()</code> inside another reactive calculation reads the current
+					result and tracks changes to it. You can pass that result straight to a helper.
+				</p>
+				<p>
 					For a value owned by another store, <code>createExternalSource()</code> from
 					<code>@exactjs/reactive</code> connects snapshot reads and change subscriptions to a
 					reactive value. Its equality policy selects the current snapshot and preserves its
