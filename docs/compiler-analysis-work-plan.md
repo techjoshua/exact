@@ -1433,6 +1433,23 @@ completed 33 callable extractions and 44 source Call queries. It reached
 `createOpaqueOperation` in `issueIntrinsicReceipt`, the same internal
 frontier as `66dc05d2f`.
 
+After the forwarded and imported getter fixes at `d49eb5d88`, the same
+Core manifest and service limits reproduced the timeout. The TypeScript
+prerequisite took 5.78 seconds. The uninstrumented package command took
+32.37 seconds and timed out on the first client request for
+`error-boundary.tsx`, with 1,200 prerequisite output files.
+
+A separate run counted at least 19,456 entries into disjoint writer input
+recovery before the same deadline. The first 24 entries and every 1,024th
+entry were sampled. All 43 samples lacked the live staged member owner
+required by the existing Set transfer. The periodic samples were at the
+`intrinsics.set(...)` call in `issueIntrinsicReceipt`, where source input
+acquisition revisits earlier receiver and writer relationships. Staged Set
+transfer coverage elsewhere therefore cannot establish avoided recovery at
+this consumer. A cut at this site needs evidence that the original Call
+and Set effects cover the particular writer-exposure question, including
+authored or unresolved alternatives.
+
 The original 20-source Theme command used its pinned 8,447-input manifest
 (`948120dcfb9df7537b23211f31d39a085720973c0e8650d40b2491ef5c48b6f5`).
 With the corrected compiler and the preserved paired Core provider artifacts
