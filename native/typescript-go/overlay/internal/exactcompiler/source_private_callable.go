@@ -96,6 +96,16 @@ func privateUseCovered(node *ast.Node) bool {
 		return node.Kind != ast.KindUnknown && node.Kind != ast.KindWithKeyword
 	}
 	switch node.Kind {
+	case ast.KindImportClause:
+		phase := node.AsImportClause().PhaseModifier
+		return phase == ast.KindUnknown || phase == ast.KindTypeKeyword
+	// Static imports may run arbitrary initialization, including through a
+	// cycle. A dependency can reach a private binding only through this
+	// module's exports or a local use that exposes it. Those uses still
+	// require checker identity and observation-only coverage. Module
+	// resolution and initialization effects stay with their existing owners.
+	case ast.KindImportDeclaration, ast.KindNamedImports, ast.KindImportSpecifier, ast.KindNamespaceImport:
+		return true
 	// These declaration roots are erased too. The existing traversal still
 	// accounts for their children and all runtime references in the source.
 	case ast.KindInterfaceDeclaration, ast.KindTypeAliasDeclaration, ast.KindTypeParameter:

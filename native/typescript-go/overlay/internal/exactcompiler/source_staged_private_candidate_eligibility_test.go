@@ -12,6 +12,9 @@ import (
 // unknown coverage retains the assignment, reflective and protocol siblings.
 func TestStagedPrivateCandidateEligibilityAndGeneration(t *testing.T) {
 	const id = "/virtual/private-source-eligibility.tsx"
+	const depID = "/virtual/private-source-dependency.ts"
+	const cycleID = "/virtual/private-source-cycle.ts"
+	const barrelID = "/virtual/private-source-barrel.ts"
 	const jsxID = "/virtual/private-source-jsx.d.ts"
 	const jsxSource = `declare namespace JSX {
 interface Element {}
@@ -32,6 +35,16 @@ declare function foreign():void;const box={run:1};`
 		excluded, refused          bool
 	}{
 		{"private", body, "", true, false},
+		{"named-and-inline-type-import", body, `import {Install as dependencyInstall, type Input} from './private-source-dependency';`, true, false},
+		{"namespace-import", body, `import * as dep from './private-source-dependency';`, true, false},
+		{"type-only-import", body, `import type {Input} from "./private-source-dependency";`, true, false},
+		{"side-effect-import", body, `import './private-source-dependency';`, true, false},
+		{"unrelated-cycle", body, `import './private-source-cycle';export function enter(){}`, true, false},
+		{"initialization-through-cycle", body, `import './private-source-cycle';export function enter(){Install()}`, false, false},
+		{"initialization-through-barrel", body, `import './private-source-barrel';export function enter(){Install()}`, false, false},
+		{"local-reexport", body, `import './private-source-dependency';export {Install as start};`, false, true},
+		{"invoked-with-import", body, `import './private-source-dependency';Install();`, false, false},
+		{"escaped-to-import", body, `import {retain} from './private-source-dependency';retain(Install);`, false, false},
 		{"implicit-component", componentBody, "", false, false},
 		{"component-source-only", componentBody, "", false, false},
 		{"private-after-component", body, "", true, false},
@@ -54,7 +67,11 @@ declare function foreign():void;const box={run:1};`
 		{"final-private", body, "", true, false},
 	}
 	first := prefix + body + decoration + suffix
-	project, diagnostics, err := newProjectStateWithSources(Request{Kind: "analyze", ID: id, Source: first, Diagnostics: "semantic"}, id, map[string]string{id: first, jsxID: jsxSource})
+	project, diagnostics, err := newProjectStateWithSources(Request{Kind: "analyze", ID: id, Source: first, Diagnostics: "semantic"}, id, map[string]string{id: first, jsxID: jsxSource,
+		depID:    `export type Input = unknown; export function retain(value: unknown){} export function Install(){}`,
+		cycleID:  `import {enter} from './private-source-eligibility';enter();`,
+		barrelID: `export * from './private-source-cycle';`,
+	})
 	if err != nil || len(diagnostics) != 0 {
 		t.Fatal(err, diagnostics)
 	}

@@ -117,8 +117,8 @@ does not change the original source inventory or grant a completed write outcome
 
 On November 20, 2026, the original scaling fixture at `5f39cac3f` rose from about
 11,600 to 1,363,000 estimated work units as 24 dormant writers were added. Its static
-imports are outside the current private-use syntax coverage, so the admission rule
-left that scaling unchanged. A paired component control used an erased type import
+imports fell outside private-use syntax coverage at that revision, leaving that
+scaling unchanged. A paired component control used an erased type import
 and an ordinary event callback. With 24 dormant writers, the client compile fell
 from 1,358,422 to 16,038 estimated work units and median process CPU from 1.313 to
 0.263 seconds. Client and server code, diagnostics and public analysis agreed.
@@ -135,6 +135,35 @@ exclusion and 256 after. The pinned 8,447-input Core package replay on Node
 prefix. Both runs reached the client deadline compiling `error-boundary.tsx`.
 This leaves Core artifact acceptance open. The prefix counts do not measure the
 cost of a completed package build.
+
+Ordinary static imports now participate in the source-use proof. The named import
+in the original fixture reached the coverage veto at the import declaration,
+clause, named binding list, and specifiers. The inline type specifier's
+children are erased, but that erasure does not cover its enclosing import. The
+existing source index checks the private binding's own checker symbol. A
+dependency may execute as soon as it is loaded, including through a cycle or
+barrel, but cannot name that binding from its own lexical scope. The proof still refuses local exports of the writer,
+wrapper and callback references to it, top-level calls, and incomplete or dynamic
+source coverage. Dependency resolution and initializer analysis keep their
+existing responsibilities. The proof does not traverse the dependency graph or
+assume an imported initializer is effect-free.
+
+On the original import-bearing fixture with 24 dormant writers, estimated
+analysis work fell from 1,363,157 to 16,089 on the client and from 1,363,122 to
+16,017 on the server. Median process CPU fell from 1.280 to 0.265 seconds and
+from 1.284 to 0.271 seconds, respectively. The comparison used three fresh
+semantic-diagnostics CLI processes per row and target under the same exclusive
+coordinator and installed Core declarations described above. The baseline was
+the committed `99b414cde` tree. The candidate added only the static-import
+refinement, excluding the integration worktree's pending accessor edit.
+
+The pinned Core replay used the same instrumented host with the import rule
+toggled between runs. Both variants recorded zero direct-assignment exclusions
+through at least 13,312 admission checks. Both reached the first client
+`error-boundary.tsx` deadline and left 1,200 prerequisite files. Other syntax
+coverage vetoes remained, including binding patterns in the receipt
+implementation. This sample gives no Core coverage or throughput gain and
+does not justify extending the rule to exported writers.
 
 ## Request and project work
 
