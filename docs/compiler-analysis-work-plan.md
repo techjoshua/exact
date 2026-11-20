@@ -763,14 +763,16 @@ an individual indexed invocation. It supplies neither call-spread iteration
 nor whole-rest consumption by child normalization. A copied or stored
 callback contributes invocation effects only at an actual Call.
 
-The ordinary definition-edge admission still requires a same-file declaration.
-The six receipt Calls in `error-view.ts` use an imported implementation, so
-coverage of property copies or rest would leave that guard in place. The
-same-file `createDefaultBoundaryView(errors, reset)` Call also falls back in
-ordinary MAY collection. Its formals are nonprimitive and the deeper Calls
-still need separate effect and result consumers. In particular, the result of
-the metadata Get flows into key coercion. The return-source consumer remains
-independent of the effects-only definition edge.
+The ordinary definition-edge admission currently requires a same-file
+declaration. All six receipt Calls in `component/error-view.ts` also fail
+the simple input-shape check because their selected implementation declares
+`...children`. This includes calls with only fixed actuals, such as the
+heading with literal children. The outer section Call has two spread actuals
+and needs their eager iteration accounted for before binding. The same-file
+`createDefaultBoundaryView(errors, reset)` Call also falls back in ordinary
+MAY collection. Its formals are nonprimitive and the deeper Calls still need
+separate effect and result consumers. The result of the metadata Get flows
+into key coercion, so the Effects edge alone cannot retire that acquisition.
 
 A probe based on `259f95661` used the writer input graph's formal-to-actual
 relationship to reject a direct assignment writer whose actual receiver was a
@@ -815,11 +817,47 @@ stored reset handler. It also checked metadata and enumerable string and symbol
 Get order against argument spread and child normalization. The harness does not
 qualify a newly emitted package.
 
-The observed costs do not justify a coverage-only admission change. The largest
-receipt roots fail same-file admission independently of copy or rest coverage.
-The costly metadata reads already overlap an independent result demand. Keep
-those acquisitions on their current path until a result consumer can use a
-narrower source relationship while retaining the original getter effects.
+A follow-up at `09846cdee` tested a cross-file candidate in the existing
+Effects planner. A module-level imported function can use the same graph edge
+as a lexical function if the current executable owner identifies its body
+and the graph has that producer. A prepared import slot and its re-export
+chain determine the executable declaration under target selection. A
+checker signature supplies typing, and an opaque executable slot cannot
+borrow its body. Caller and callee checks must use their own source indexes
+for binding writes and dynamic scope. Same-file identity still matters to
+lexical nesting, relative source offsets and the existing return-source
+proof. Each declaration and operation must belong to the current Program,
+and graph deliveries must use the current generation. The import's module
+initializers and the call's eager actuals keep their own effect producers.
+
+Matched component wrappers with an invoked zero-argument callback formal
+used the existing graph in both file layouts. The imported helper avoided
+the original occurrence requester after admission, through a re-export as
+well as a directly imported checker-resolved implementation without a host
+snapshot. A direct formal
+property read still entered the existing input fallback in both file
+layouts. Direct imports, re-exports, both conditional selections,
+edit/revert compared with fresh sessions, and app/library compilation
+preserved emitted code, maps, diagnostics and component contracts against
+the baseline for each fixture. Callable effect provenance changed where
+the graph replaced the recursive requester. Opaque selection kept its
+unknown outcome.
+The eager module control retained its browser effect independently of
+the component and emitted the initializer only on the client.
+
+The probe widened only the definition Effects input planner
+to a current named import. An observer at the existing requester entry
+recorded all six original sites reaching their legacy requester. The frozen
+Core client hit its original deadline in 31.52 seconds and produced no new
+artifacts. The uninstrumented host from `3056827ef` repeated the same
+client timeout in 31.44 seconds. Both runs excluded the pending accessor
+edit and used the same frozen corpus and service limits. For the receipt
+calls, the binder needs ordered rest and spread inputs, and their consumers still need
+metadata Gets, enumerable copy and child-normalization effects. The
+independent result projection must also retain the key value and its coercion
+effects. The admission change alone therefore removes none of the six
+observed requester entries. The inclusive profiles measure attribution
+under the original request.
 
 ### Source entry points
 
