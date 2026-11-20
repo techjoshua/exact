@@ -1450,6 +1450,40 @@ this consumer. A cut at this site needs evidence that the original Call
 and Set effects cover the particular writer-exposure question, including
 authored or unresolved alternatives.
 
+The writer-only receipt exclusion uses the current selected Core issuer and
+store implementation revisions. A matching body or WeakMap annotation alone
+cannot establish this identity. The original second-binding witness adds a
+call to the internal store helper and assigns the same table's `set` method
+inside a modified issuer. Core's package exports provide receipt operations
+without exporting the store helper. A selected override or generator
+replacement therefore retains ordinary analysis. Unmodified Core copies
+share the table and redeem one another's receipts. Direct modification of
+the private realm slot from outside Core is outside that contract.
+
+On the pinned 8,447-input Core workload at `c3fc9ca1f`, the same instrumented
+host reached the first matching writer candidate at entry 3,344 in both
+runs. With the exclusion, it ended at entry 3,344. Without it, the candidate
+was still active at entry 802,816, a lower bound of 799,472 nested writer
+visits avoided at that occurrence. The exclusion applies only to writer
+discovery. Eager operands, stored values and later invocations keep their
+existing evaluation sites.
+
+Package qualification remains open. The original package command with the
+uninstrumented candidate reached the first client `error-boundary.tsx`
+compile deadline after 32.24 seconds and left 1,200 prerequisite files.
+Both instrumented runs reached the same deadline under the same resource
+cap. These runs establish avoided discovery work at one occurrence.
+
+The next shared contract to qualify is direct writer exclusion for the
+private dispatch-prototype WeakMaps in `operationPrototype` and
+`domainOperationPrototype`. They recur in the remaining
+`createOpaqueOperation` input requester. Reuse the existing private
+standard construction proof for the module allocations and check whether
+the nested map can retain its provenance through the private cache's
+lookup-or-create branch. Measure at the original requester before widening
+the proof. Preserve domain identity, eager metadata reads, authored child
+normalization and deferred callbacks under their existing owners.
+
 The original 20-source Theme command used its pinned 8,447-input manifest
 (`948120dcfb9df7537b23211f31d39a085720973c0e8650d40b2491ef5c48b6f5`).
 With the corrected compiler and the preserved paired Core provider artifacts

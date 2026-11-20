@@ -194,7 +194,8 @@ func (q *sourceValueQuery) memberWriterInputs(left *ast.Node, bindings sourceVal
 				return
 			}
 		}
-		if (request == nil || request.descriptorWork == nil) && q.privateStandardWriterCall(call, bindings) {
+		if (request == nil || request.descriptorWork == nil) &&
+			(q.intrinsicReceiptRegistration(call, bindings) || q.privateStandardWriterCall(call, bindings)) {
 			progressWriterEvent(q, "discovery-retired", 0)
 			return
 		}

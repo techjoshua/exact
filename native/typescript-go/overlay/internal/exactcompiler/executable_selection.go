@@ -169,8 +169,9 @@ type executableBodyOwner struct {
 	resolving    map[string]bool
 	stableBodies map[*ast.Node]bool
 	// Current-Program source identity only; no values, effects or execution receipts.
-	normalizedSources map[*ast.SourceFile]bool
-	values            *sourceValueOwner
+	normalizedSources      map[*ast.SourceFile]bool
+	intrinsicReceiptStores map[*ast.Node]bool
+	values                 *sourceValueOwner
 }
 
 func newExecutableBodyOwner(project *projectState, c *checker.Checker) *executableBodyOwner {
