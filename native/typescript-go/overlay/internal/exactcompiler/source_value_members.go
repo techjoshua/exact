@@ -262,10 +262,11 @@ func (query *sourceValueQuery) memberValuesAtGetWithStandard(origin *ast.Node, p
 					}
 					inputs = append(inputs, *relative)
 				} else {
-					// A terminal Get observes accessors at its original cut. Once
-					// interference is opaque, a disjoint named RHS supplies neither
-					// a producer nor a value. Keep donor publication above this test.
-					if query.dependenciesOnly && result.opaque && mode == accessorRead && len(projection) == 0 && name != "" {
+					// Named source reads only need assignments that can supply
+					// an RHS on the requested path. Keep interference and staged
+					// donor publication above this test. The assignment and Call
+					// owners still account for receiver, setter and operand effects.
+					if query.dependenciesOnly && (mode == accessorAcquire || mode == accessorRead && len(projection) == 0 && name != "") {
 						_, key := accessorReceiver(assignment.left)
 						if !sourceMemberKeyMaySupply(key, demand) {
 							continue

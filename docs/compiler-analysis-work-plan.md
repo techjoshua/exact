@@ -1216,3 +1216,80 @@ write, the successful write, and stored callback identity. A client artifact
 for the authored method override invoked its callback once. The language
 session retained unknown placement for the original and reverted source, and
 selected client placement for the authored method override.
+
+The request-wide follow-up compared `60363e175` and `66dc05d2f` from tracked
+native source, with the accessor worktree edit excluded. Each stock command used
+a fresh copy selected by the 8,447-input manifest and ran the TypeScript
+prerequisite first. The CPU sampler started inside the first client compile
+request and stopped after 28 seconds. Writer reconstruction appeared on stacks
+accounting for 21.58 of 27.87 sampled CPU seconds before the change and 21.67 of
+27.85 after it. Native member lookup remained at 20.47 and 20.45 seconds
+respectively. The inclusive totals overlap. Assigning each sample to its
+innermost writer recovery put 9.50 and 9.55 seconds in eligible invocation,
+9.42 and 8.38 in fallback exposure, and 1.38 and 2.09 in selected wrapper
+descent. Those are costs of the respective prefixes at the cutoff.
+
+Separate phase-labeled runs completed the same 33 callable extractions and 44
+observed source Call queries in the same order. Both remained in extraction of
+`issueIntrinsicReceipt`, at its Call to `createOpaqueOperation`. This body
+accounted for 21.76 of 27.86 sampled CPU seconds before and 21.55 of 27.85
+after. The labels identify the phase even when recursive stacks omit the
+outer frames. The earlier matched savings were absorbed by work inside the
+same source Call query. The observed prefix never advanced to a later
+extraction or Call root.
+
+The CPU-only commands exited after 32.22 and 32.29 seconds of package command
+wall time. Both hit the unchanged 30-second native deadline for the first
+client compile of `error-boundary.tsx`. The 1,200 files in Core's ordinary
+`dist` are prerequisite output. This comparison establishes no completed
+client or server package result.
+
+A separate observer on `66dc05d2f` attributed wall time to completed writer
+collection entries by indexed write and candidate Call. It subtracted each
+completed entry's nested collection time and excluded active entries at the
+last checkpoint. At 786,432 completed entries, the twelve highest-cost pairs
+accounted for 8.08 of 28.91 seconds of measured self wall time. Eleven pairs
+involved `domains.set(domain, owned)` in `domainOperationPrototype`, accounting
+for 7.47 seconds across 14,570 entries. The other pair involved
+`domains.get(domain)`, accounting for 0.62 seconds across 1,757 entries.
+These are observer-domain wall times and cannot be added to the CPU profile.
+
+A second observer applied the existing named path key predicate without
+changing dispatch. At the same checkpoint, the twelve highest-cost pairs all
+had disjoint assignment keys. Their 16,327 entries accounted for 7.73 of
+29.09 seconds of measured self wall time. This identifies candidate
+reconstruction work within a fixed observed prefix. It does not estimate all
+nested work dependent on those entries.
+
+The member query now applies that key predicate before reconstructing writer
+inputs for an acquired source value or a terminal named Get. A disjoint
+assignment cannot supply an RHS on that path. The independent interference
+and staged donor owners retain their original positions. The assignment and
+Call effect owners retain executable receivers, setters and operands.
+Computed, structural and matching keys keep their recovery route. The rule
+applies at the named read and does not depend on the receiver or method that
+the writer scan would encounter.
+
+A phase-labeled trial changed only that admission test. The previously
+blocked `createOpaqueOperation` query completed in 0.50 s wall time.
+`issueIntrinsicReceipt` accounted for 0.43 of 27.87 sampled CPU seconds,
+compared with 21.55 of 27.85 seconds on the censored `66dc05d2f` run.
+The trial completed 55 callable extractions and 88 observed source Call
+queries. The stock command completed both targets in 34.64 s wall time and
+left 3,598 output files including TypeScript prerequisites. This is a full
+package result under a per-request deadline, whereas the prior timings
+are censored first-client attempts.
+
+The uninstrumented host with the same guard completed the pinned command in
+34.54 s and produced the same output inventory. The emitted Core client
+artifact mounted ErrorBoundary, reported an owned child event failure, restored
+the child after reset, and invoked the custom fallback. The emitted server
+artifact rendered the child and preserved receipt operand order and stored
+callback identity. The harness bundled the corresponding Core target's
+artifacts with the existing neighboring runtimes. The LSP's retained component
+placement followed an imported helper edit from unknown to client and
+returned to unknown on revert.
+The installed-SDK native comparison passed the same 22 focused tests on both
+hosts, including matching getter donors, emitted writer behavior and retained
+versus fresh sessions. The standalone reflective evaluation fixture failed
+on both hosts because its request supplied no callable summary for `invoke`.
