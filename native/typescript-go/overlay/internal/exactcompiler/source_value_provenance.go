@@ -690,12 +690,12 @@ const (
 // executeInputs keeps the existing ordinary-entry boolean contract. Only the
 // original Call receipt consumer requests the separate child-task disposition.
 func (query *sourceValueQuery) executeInputs(declaration *ast.Node, bindings sourceValueBindings, result *accessorCandidates, invocation *ast.Node, inputs *sourceValueInputs) bool {
-	return query.executeInputDisposition(declaration, bindings, result, invocation, inputs) == sourceInputEntered
+	return query.executeInputDisposition(declaration, bindings, result, invocation, inputs, false) == sourceInputEntered
 }
 
 // executeInputDisposition preserves refused normal entry separately from an
 // authenticated component task whose original effect edge was retained.
-func (query *sourceValueQuery) executeInputDisposition(declaration *ast.Node, bindings sourceValueBindings, result *accessorCandidates, invocation *ast.Node, inputs *sourceValueInputs) sourceInputExecution {
+func (query *sourceValueQuery) executeInputDisposition(declaration *ast.Node, bindings sourceValueBindings, result *accessorCandidates, invocation *ast.Node, inputs *sourceValueInputs, completeEffects bool) sourceInputExecution {
 	freshSourceInputs := false
 	if query.dependenciesOnly {
 		releaseEntry, fresh := query.enterDependencyBody(declaration, bindings, inputs, invocation, result)
@@ -807,6 +807,12 @@ func (query *sourceValueQuery) executeInputDisposition(declaration *ast.Node, bi
 			}
 			return sourceInputRefused
 		}
+		if completeEffects && query.completeBoundPatternEffects(declaration, inputs, result) {
+			progressCount(query, tBoundPatternCompleted, 1)
+			result.inputs = append(result.inputs, inputs)
+			return sourceInputEntered
+		}
+		progressCount(query, tSourceBodyTraversal, 1)
 		// Source demands describe possible work. They neither execute a storage
 		// recipe nor acquire normal outputs from a previous analysis interval.
 		visited := make(map[*ast.Node]bool)
@@ -1150,7 +1156,9 @@ func (query *sourceValueQuery) executeDemand(node, declaration *ast.Node, bindin
 		}
 	}
 	if ast.IsVariableDeclaration(node) && (ast.IsObjectBindingPattern(node.Name()) || ast.IsArrayBindingPattern(node.Name())) {
-		query.bindInputPattern(node.Name(), query.originsAt(node.Initializer(), node, bindings, result), bindings, result, accessorAcquire, inputs)
+		if !query.deferUnboundPatternEffects(node, bindings, result) {
+			query.bindInputPattern(node.Name(), query.originsAt(node.Initializer(), node, bindings, result), bindings, result, accessorAcquire, inputs)
+		}
 	}
 	query.implicitAccessorQueries(node, bindings, result)
 	if ast.IsCallExpression(node) || ast.IsNewExpression(node) {

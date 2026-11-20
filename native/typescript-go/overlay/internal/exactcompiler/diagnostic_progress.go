@@ -35,10 +35,12 @@ const (
 	tFallbackNone
 	tOuterFallbackFinished
 	tOuterFallbackWork
+	tBoundPatternCompleted
+	tSourceBodyTraversal
 	tCount
 )
 
-var progressNames = [...]string{"rootOpened", "rootClosed", "bodyAttempts", "activeWithoutEntryBlocked", "entryOpened", "entryClosed", "firstAlternative", "newAlternativeWithinInterval", "existingAlternativeBlocked", "admittedFactOccurrencesNotUnique", "writerEntries", "collectedCalls", "prepareInvocation", "scopeAcquired", "fallbackEntries", "fallbackGuardRefused", "fallbackFinished", "fallbackMatchingScopes", "fallbackZeroYield", "outerFallbackFinished", "outerFallbackOwnerWork"}
+var progressNames = [...]string{"rootOpened", "rootClosed", "bodyAttempts", "activeWithoutEntryBlocked", "entryOpened", "entryClosed", "firstAlternative", "newAlternativeWithinInterval", "existingAlternativeBlocked", "admittedFactOccurrencesNotUnique", "writerEntries", "collectedCalls", "prepareInvocation", "scopeAcquired", "fallbackEntries", "fallbackGuardRefused", "fallbackFinished", "fallbackMatchingScopes", "fallbackZeroYield", "outerFallbackFinished", "outerFallbackOwnerWork", "boundPatternCompleted", "sourceBodyTraversal"}
 
 type progressRoot struct {
 	state          *progressState

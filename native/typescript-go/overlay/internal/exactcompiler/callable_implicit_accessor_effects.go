@@ -66,7 +66,9 @@ func visitImplicitAccessors(node *ast.Node, typeChecker *checker.Checker, bindin
 		return
 	}
 	if ast.IsVariableDeclaration(node) && ast.IsObjectBindingPattern(node.Name()) {
-		query.bindPattern(node.Name(), query.originsAt(node.Initializer(), node, bound, &result), bound, &result, accessorRead)
+		if !query.deferUnboundPatternEffects(node, bound, &result) {
+			query.bindPattern(node.Name(), query.originsAt(node.Initializer(), node, bound, &result), bound, &result, accessorRead)
+		}
 	}
 	query.implicitAccessorQueries(node, bound, &result)
 }

@@ -973,7 +973,7 @@ func (query *sourceValueQuery) consumeOrdinaryBody(node, body *ast.Node, capture
 	firstReflective := len(result.reflective)
 	firstCall := len(result.callOutcomes)
 	first := len(result.fieldOutcomes)
-	execution := query.executeInputDisposition(body, captures, result, invocation, inputs)
+	execution := query.executeInputDisposition(body, captures, result, invocation, inputs, false)
 	entered := execution == sourceInputEntered
 	retainedConstruction := false
 	defer func() {

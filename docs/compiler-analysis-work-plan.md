@@ -881,3 +881,39 @@ under the original request.
   [server state delivery](../packages/server/src/continuation/execution.ts),
   [public operation placement](../native/typescript-go/overlay/internal/exactcompiler/public_opaque_operation_effects.go)
   and [SDK component consumers](../packages/compiler/src/compilation/component-build-facts.ts).
+
+### Selective binding effects
+
+The original source Call binder can settle the Gets and enumerable copy of a
+terminal flat object binding when the supplied value is the call's own fresh
+object literal. The binding must return a selected local and have no other body
+work. The admitted reads have known own keys and an ordinary receiver that the
+getters cannot expose. Each selected getter keeps its existing body effect
+consumer. The call publishes coverage for the individual binding occurrences on
+the existing effect graph. Acquired inputs and getter scopes stay local to the
+request. Expressions that create the argument and later uses of the returned
+value keep their original consumers.
+
+In the stored-callback component, a scalar log made the getter order observable
+without introducing the independent effects of an exported trace array.
+The refined witness emitted both targets as isomorphic. The client mount and
+SSR observed the named Gets followed by the enumerable symbol Get. The reset
+closure stayed dormant during the copy. The invoked control observed the same
+reset reference and could call it after copying. A separate foreign effect
+remained unknown, and a browser effect in the symbol getter changed placement
+to client through an open editor session. Reverting the edit restored shared
+placement. The retained trace-array witness still had unknown effects.
+
+A matched string-key copy compiled to the same code, maps and component
+contracts with the cut enabled and disabled. Each target recorded two
+completed binding entries. The number of entries into the legacy source-body
+traversal declined from 30 to 24 per target, including the nested traversals
+that belonged to the original binding path. These counts describe a completed
+component request. They do not measure Core performance.
+
+The frozen Core package still reached the original 30-second client deadline
+in `error-boundary.tsx` under the fixed one-CPU, 1 GiB validation service. An
+instrumented run recorded no selective completions before the deadline. The
+original receipt calls still have work outside this domain, including variadic
+inputs and downstream consumers of acquired values. No new paired Core output
+was produced.

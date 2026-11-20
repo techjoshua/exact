@@ -238,7 +238,7 @@ func (query *sourceValueQuery) sourceCreatorValue(value sourceValue, owner, crea
 func (query *sourceValueQuery) consumeSourceBodyEffects(operation, body *ast.Node, bindings sourceValueBindings, inputs *sourceValueInputs, invocation *ast.Node, result *accessorCandidates) bool {
 	firstField, firstCall := len(result.fieldOutcomes), len(result.callOutcomes)
 	firstInput := len(result.inputs)
-	enumerated := query.executeInputs(body, bindings, result, invocation, inputs)
+	enumerated := query.executeInputDisposition(body, bindings, result, invocation, inputs, true) == sourceInputEntered
 	var outcomes []sourceFieldOutcome
 	for _, outcome := range result.fieldOutcomes[firstField:] {
 		if outcome.demand.declaration == body {
