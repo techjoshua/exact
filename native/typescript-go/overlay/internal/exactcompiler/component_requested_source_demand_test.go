@@ -3,6 +3,7 @@ package exactcompiler
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -174,6 +175,78 @@ func TestPublicRequestedComponentScopeCacheSwitch(t *testing.T) {
 		}
 		if !selected {
 			t.Fatal("selected body was not demanded", name)
+		}
+	}
+}
+
+// A parent links each child's portable task placement even after another parent
+// has materialized the same module with a different set of demanded components.
+func TestImportedTaskValuePlacementAcrossParentRequests(t *testing.T) {
+	root, config := formsSourceFixture(t)
+	if err := os.WriteFile(config, []byte(`{"compilerOptions":{"target":"ESNext","module":"ESNext","moduleResolution":"Bundler","jsx":"preserve","jsxImportSource":"@exactjs/jsx","skipLibCheck":true,"types":["node"]}}`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	children := `import {TaskContext, type Component} from '@exactjs/core';
+
+export function Stored(this:Component<{}>) {
+	function run(task:TaskContext=TaskContext.latest()){const cb=()=>process.cwd();void cb}
+	const bag={run};void bag;return()=> <span/>;
+}
+export function Invoked(this:Component<{}>) {
+	function run(task:TaskContext=TaskContext.latest()){const cb=()=>process.cwd();cb()}
+	const bag={run};void bag;return()=> <span/>;
+}`
+	if err := os.WriteFile(filepath.Join(root, "children.tsx"), []byte(children), 0600); err != nil {
+		t.Fatal(err)
+	}
+	var requests []Request
+	for _, child := range []string{"Invoked", "Stored"} {
+		entry := filepath.Join(root, child+"Parent.tsx")
+		source := "import {" + child + "} from './children';export function Parent(){return()=> <" + child + "/>}"
+		if err := os.WriteFile(entry, []byte(source), 0600); err != nil {
+			t.Fatal(err)
+		}
+		requests = append(requests, Request{Kind: "compile", Root: root, ConfigFile: config, ID: entry, Source: source, Target: TargetClient, Diagnostics: "semantic"})
+	}
+	childFile := filepath.Join(root, "children.tsx")
+	check := func(session *Session, req Request, want string) {
+		t.Helper()
+		r := session.Execute(req)
+		if r.Error != "" || hasErrorDiagnostic(r.Diagnostics) || r.Code == "" {
+			t.Fatalf("%v %v", r.Error, r.Diagnostics)
+		}
+		parent := findComponent(t, r.Analysis.Components, "Parent")
+		if len(parent.RenderEdges) != 1 || parent.RenderEdges[0].Placement != want {
+			t.Fatalf("want %s got %+v", want, parent.RenderEdges)
+		}
+	}
+	for _, order := range [][]int{{0, 1, 0}, {1, 0, 1}} {
+		session := NewSession()
+		for _, i := range order {
+			want := []string{"server", "isomorphic"}[i]
+			check(NewSession(), requests[i], want)
+			check(session, requests[i], want)
+		}
+		for _, source := range []string{strings.Replace(children, ";cb()", ";void cb", 1), children} {
+			if err := os.WriteFile(childFile, []byte(source), 0600); err != nil {
+				t.Fatal(err)
+			}
+			want := "isomorphic"
+			if source == children {
+				want = "server"
+			}
+			req := requests[0]
+			req.ID, req.Source = childFile, source
+			for _, current := range []*Session{session, NewSession()} {
+				r := current.Execute(req)
+				if r.Error != "" || hasErrorDiagnostic(r.Diagnostics) {
+					t.Fatal(r.Error, r.Diagnostics)
+				}
+				if c := findComponent(t, r.Analysis.Components, "Invoked"); c.Placement != want {
+					t.Fatalf("canonical want %s got %s", want, c.Placement)
+				}
+				check(current, requests[0], want)
+			}
 		}
 	}
 }

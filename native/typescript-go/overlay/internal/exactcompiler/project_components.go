@@ -92,8 +92,8 @@ func linkProjectComponents(
 		if !queued[index] {
 			queued[index] = true
 			queue = append(queue, index)
-			facts := materializeProjectComponentSource(project, record.sourceFile, typeChecker, callables, completedPolicyTypes)
-			record.component = cloneProjectComponent(facts[record.candidateIndex])
+			component := materializeProjectComponentSource(project, record.sourceFile, record.candidateIndex, typeChecker, callables, completedPolicyTypes)
+			record.component = cloneProjectComponent(component)
 		}
 		return record
 	}
@@ -929,12 +929,14 @@ func projectComponentLinkTargetsIndexed(facts projectComponentLinkFacts, byNode 
 func materializeProjectComponentSource(
 	project *projectState,
 	dependency *ast.SourceFile,
+	selected int,
 	typeChecker *checker.Checker,
 	callables callableAnalysis,
 	completedPolicyTypes map[checker.TypeId]bool,
-) []Component {
-	if cached, exists := project.componentFacts[dependency]; exists {
-		return cached
+) Component {
+	cached := project.componentFacts[dependency]
+	if cached != nil && cached[selected].ID != "" {
+		return cached[selected]
 	}
 	candidates := projectComponentCandidates(project, dependency)
 	nodeIDs := projectComponentNodeIDs(project, dependency)
@@ -978,8 +980,18 @@ func materializeProjectComponentSource(
 		nodeIDs,
 		nil,
 	)
-	project.componentFacts[dependency] = components
-	return components
+	// Another parent may later demand a different component in the same file.
+	// Retain only records whose component bodies were selected for analysis.
+	if cached == nil {
+		cached = make([]Component, len(components))
+		project.componentFacts[dependency] = cached
+	}
+	for i, candidate := range candidates {
+		if _, ready := callables.byNode[candidate.node]; ready {
+			cached[i] = components[i]
+		}
+	}
+	return components[selected]
 }
 
 func ensureProjectComponentCaches(project *projectState) {

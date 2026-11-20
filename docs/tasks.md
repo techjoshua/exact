@@ -76,6 +76,10 @@ Component-local helper closures can read setup values. The activation carries th
 rerunning their initializers. Parentheses and type-only annotations preserve callable identity and
 state, context, and placement effects. State aliases retain their selected instance state path, and called
 helpers contribute their context lookup authority, including through recursive call graphs.
+Project linking uses the same component-owned task summary when a parent renders an imported
+component that retains a task as a value. Invoking a callback or reading an accessor in that task
+contributes its platform requirements. Merely defining the callback or accessor defers its body.
+Unresolved task operations retain the existing conservative placement rules.
 Ordinary local functions and arrows created during a task retain that generation, including across
 awaits. Finite synchronous methods grouped in a named const object directly in the task can update
 state through a captured component alias. Their native receivers, defaults, identity and call order

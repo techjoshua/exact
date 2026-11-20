@@ -329,7 +329,9 @@ export function TasksPage(this: Component<{}>) {
 				<p>
 					These settings answer different questions. <code>client()</code> and <code>server()</code>
 					choose where a task runs. Without either, eXact infers placement from the resources the
-					task uses. Caching an object does not remove the resource requirements of getters read
+					task uses. When the compiler can trace a callback, invoking it contributes the resources its body uses.
+					The same rule applies when a parent imports the component that owns the task.
+					Caching an object does not remove the resource requirements of getters read
 					through references to that shared object. Freezing an object also preserves its getters
 					and setters, including the resources they use when you read or assign its properties. An
 					array callback that reads an element's getter also keeps that getter's resource

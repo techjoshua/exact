@@ -189,7 +189,9 @@ func componentCallableDemand(collection *projectCallableCollection, requested ..
 		region := owner.values.index(f.sourceFile).operationRegions[f.node]
 		if region != nil {
 			for _, child := range region.lexicalChildren {
-				if callableIsInteractiveHandler(child) || callableDemandBoundary(child, f.node, componentReturn) {
+				// A component-owned policy task can be retained as a value. Its
+				// placement is needed when linking an imported component too.
+				if componentReturn && owner.values.erasedTaskPolicyParameter(child) != nil || callableIsInteractiveHandler(child) || callableDemandBoundary(child, f.node, componentReturn) {
 					demandReference(child, accessorInvoke)
 				}
 			}
