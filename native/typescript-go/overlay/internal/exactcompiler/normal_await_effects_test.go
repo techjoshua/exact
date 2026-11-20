@@ -498,3 +498,46 @@ func TestPublicAwaitResolverRoleEdit(t *testing.T) {
 		t.Fatal("retired Await role changed retained task output")
 	}
 }
+
+// A task activation settles its own return even when the event discards it.
+func TestSynchronousTaskReturnSettlementPlacement(t *testing.T) {
+	for _, row := range []struct {
+		name, body string
+		browser    bool
+	}{
+		{"ignored-helper", "function make(){return known};void make();return 1", false},
+		{"returned-object", "return known", true},
+		{"ignored-getter", "const box={get value(){return props.selected ? known : props.foreign}};void box.value;return 1", false},
+		{"returned-getter", "const box={get value(){return props.selected ? known : props.foreign}};return box.value", true},
+		{"mixed-return", "return props.selected ? known : props.foreign", true},
+	} {
+		for _, target := range []Target{TargetClient, TargetServer} {
+			t.Run(row.name+"/"+string(target), func(t *testing.T) {
+				source := "import {TaskContext} from '@exactjs/core';" + `
+export function Page(props:{selected:boolean;foreign:unknown}){
+ const run=(task:TaskContext=TaskContext.` + string(target) + `())=>{
+ const known={get then(){document.title;return undefined}};
+ ` + row.body + `
+ };
+ return()=> <button onClick={()=>void run()}>Run</button>
+}`
+				fixture := newExecutableFixture(t, map[string]string{"entry.tsx": source})
+				request := fixture.request("compile", "entry.tsx")
+				request.Target = target
+				response := NewSession().Execute(request)
+				if response.Error != "" || len(response.Analysis.Tasks) != 1 {
+					t.Fatal(response.Error, response.Diagnostics)
+				}
+				task := response.Analysis.Tasks[0]
+				unknown := false
+				for _, effect := range task.EffectSources {
+					unknown = unknown || effect.Environment == "unknown"
+				}
+				denied := row.browser && target == TargetServer
+				if task.BrowserEffects != row.browser || (row.name == "mixed-return" || row.name == "returned-getter") && !unknown || hasErrorDiagnostic(response.Diagnostics) != denied || (response.Code == "") != denied {
+					t.Fatal(task.EffectSources, response.Diagnostics)
+				}
+			})
+		}
+	}
+}

@@ -200,7 +200,12 @@ effects path can still request that value **as an intermediate step**. Consider 
 
 - `helper(input)` with its result discarded needs eager argument/callee effects, possible
   executed bodies, state effects relevant to the component and surviving control flow.
-  The helper’s exact result is irrelevant to this use.
+  An ignored ordinary return does not read the returned object's `then`. An async helper
+  settles its return even when the caller discards its promise. An explicit `await` also
+  performs settlement. The task runtime settles a function-defined task's return, including
+  a synchronous return. Placement must retain a known `then` getter beside an unknown
+  alternative in each settling case. A later state assignment or render reader needs the
+  actual fulfilled value at runtime. Placement alone needs no retained fulfillment payload.
 - `helper(input).field` can execute an authored getter on a returned object. The field name
   and possible getter bodies on that receiver can matter to placement or secrecy. The
   getter’s numeric/string result usually does not. A user-defined thenable, iterator or

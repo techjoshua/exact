@@ -10,12 +10,9 @@ import (
 // or borrow another call's activation. The cached sites and shared completion
 // projection include bare returns and discard definitely replaced alternatives.
 func (query *sourceValueQuery) settlementReturnEffects(declaration *ast.Node, bindings sourceValueBindings, result *accessorCandidates) {
-	async, ordinary := ordinaryResultCategory(declaration)
-	if !ordinary || !async {
-		return
-	}
 	observed := &sourceResultObservation{}
-	if query.inputs != nil && query.inputs.declaration == declaration && query.inputs.fulfilled != nil {
+	retainValue := query.inputs != nil && query.inputs.declaration == declaration && query.inputs.fulfilled != nil
+	if retainValue {
 		observed = query.inputs.fulfilled
 	}
 	var references []sourceThenReference
@@ -25,12 +22,16 @@ func (query *sourceValueQuery) settlementReturnEffects(declaration *ast.Node, bi
 			observed.values = append(observed.values, sourceObservedValue{value: term, scope: scope, returned: site})
 		}
 		if expression == nil {
-			appendValue(sourceValue{undefined: true}, query.acquireCallableScope(bindings, result))
+			if retainValue {
+				appendValue(sourceValue{undefined: true}, query.acquireCallableScope(bindings, result))
+			}
 			return
 		}
 		expression = unwrapSourceCallableReference(expression)
 		if sourcePrimitiveValue(expression) || query.primitiveSettlementValue(expression) {
-			appendValue(sourceValue{node: expression}, query.acquireCallableScope(bindings, result))
+			if retainValue {
+				appendValue(sourceValue{node: expression}, query.acquireCallableScope(bindings, result))
+			}
 			return
 		}
 		observation := &sourceReturnObservation{owner: declaration, reader: site, receipts: result.nativeCalls, normalCalls: result.normalCalls, frame: query.inputs}
@@ -79,7 +80,9 @@ func (query *sourceValueQuery) settlementReturnEffects(declaration *ast.Node, bi
 			if value.value.native != nil && value.value.native.async != nil {
 				query.settleAsyncFacade(value.value, site, value.scope.bindings, result, observed)
 			} else if query.settlementAcquiredValue(value, site, value.scope.bindings, result, &references, &referencesReady, observation) {
-				appendValue(value.value, value.scope)
+				if retainValue {
+					appendValue(value.value, value.scope)
+				}
 			} else {
 				observed.incomplete = true
 			}
@@ -90,7 +93,7 @@ func (query *sourceValueQuery) settlementReturnEffects(declaration *ast.Node, bi
 
 // appendReturnSettlementEffects uses the same implicit Get producer for direct
 // callable collection. Child task analysis invokes it on its own lexical host.
-func appendReturnSettlementEffects(fact *callableFacts, targets map[*ast.Node]int, source *ast.SourceFile, typeChecker *checker.Checker, owner *executableBodyOwner) {
+func appendReturnSettlementEffects(fact *callableFacts, targets map[*ast.Node]int, source *ast.SourceFile, typeChecker *checker.Checker, owner *executableBodyOwner, componentTask bool) {
 	// This is a source-construction accumulator, consumed before fingerprinting.
 	// It is never a second project cache or an effect propagation graph.
 	defer func() {
@@ -101,7 +104,8 @@ func appendReturnSettlementEffects(fact *callableFacts, targets map[*ast.Node]in
 	}()
 
 	async, ordinary := ordinaryResultCategory(fact.node)
-	if !async || !ordinary {
+	// The task runtime settles a synchronous task result even if its caller discards it.
+	if !ordinary || !async && !componentTask {
 		return
 	}
 	values := owner.sourceValues(typeChecker)

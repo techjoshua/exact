@@ -28,8 +28,10 @@ func collectDirectCallableEffects(
 	purposes ...callableEffectPurpose,
 ) {
 	erasedPolicy := owner.values.erasedTaskPolicyParameter(fact.node)
+	componentTask := false
 	if ast.IsFunctionLike(fact.node) {
 		if _, valid := functionTaskPolicy(fact.node, sourceFile, importBindings); valid {
+			_, componentTask = owner.values.components[enclosingCallableNode(fact.node)]
 			fact.progressReceiver = taskPolicyHasFacet(fact.node, "progress")
 		}
 	}
@@ -587,7 +589,7 @@ func collectDirectCallableEffects(
 		walkCallableNormal(fact.node, consumeNode, nil)
 	}
 	finishOriginalMutationBodyPopulation(fact, owner, precisionRequested)
-	appendReturnSettlementEffects(fact, nodeTargets, sourceFile, typeChecker, owner)
+	appendReturnSettlementEffects(fact, nodeTargets, sourceFile, typeChecker, owner, componentTask)
 	applyCallableAnnotations(fact, sourceFile)
 	fact.summary.DirectEffectSources = uniqueEnvironmentSources(
 		fact.summary.DirectEffectSources,

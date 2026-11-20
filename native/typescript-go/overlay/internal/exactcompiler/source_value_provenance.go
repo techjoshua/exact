@@ -956,7 +956,9 @@ func (query *sourceValueQuery) executeInputDisposition(declaration *ast.Node, bi
 		}
 		result.writeBodies = append(result.writeBodies, sourceWriteBody{alternative: inputs.writeAlternative, verdict: verdict})
 	}
-	query.settlementReturnEffects(declaration, bindings, result)
+	if async, ordinary := ordinaryResultCategory(declaration); async && ordinary {
+		query.settlementReturnEffects(declaration, bindings, result)
+	}
 	if inputs != nil && len(inputs.defaults) > 0 {
 		result.inputs = append(result.inputs, inputs)
 	}
