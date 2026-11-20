@@ -752,6 +752,49 @@ Neither side needs table contents, an exact receipt, or inputs unrelated to
 those effects. Result-dependent reads and redemption keep their independent
 producers.
 
+The boundary owns a reactive error-list proxy created during setup. The
+render closure acquires the list from the context's ordinary `errors` field.
+The list lookup with `at(-1)` and any iteration for the default view observe
+that proxy during render. Report field reads in the mapper also occur during
+render, through whichever values the proxy yields. The fallback and children
+props are parent-owned inputs observed on their render branches. The default
+button stores the boundary-owned reset closure during receipt creation. The
+list mutation in that closure belongs to the later click.
+
+The executing definition needs distinct demands for the member Get and
+invocation, iterator acquisition and steps, the mapper, and the spread of
+actions. Receipt creation reads the key and enhancement properties before
+copying remaining own enumerable properties. Each of those Gets can execute
+an accessor even when the copied value is only stored. Rest children preserve
+their original order through normalization. A forwarded input role needs to
+carry each operation's own observation cut to the corresponding producer.
+Unknown keys, receivers or invocation alternatives leave their own residuals.
+A later consumer of copied props or a callback body needs its own observation.
+These input effects remain a gap in the relative planner for this path.
+
+A probe based on `259f95661` used the writer input graph's formal-to-actual
+relationship to reject a direct assignment writer whose actual receiver was a
+distinct object or array literal. It retained eager evaluation with the original
+collector. The frozen Core client request recorded zero such retirements across
+105,434 entries into writer scope recovery by the 30-second sample. The probe and
+its counter were discarded. The uninstrumented candidate ran the original
+`node scripts/compile-exact-package.mjs packages/core` command under the fixed
+one-CPU, 1 GiB service with Node 26.11.1 and the frozen package and SDK. It exited
+after 31.58 seconds at the same client deadline as the 31.72-second baseline.
+Neither run staged a new Core package. The instrumented candidate exited after
+31.76 seconds. The repository's separate uncommitted accessor edit was excluded
+from both candidate hosts.
+
+The candidate agreed with the uninstrumented baseline on 26 paired client and
+server component responses for emitted code, source maps, diagnostics and
+analysis. Controls included disjoint and overlapping direct writes, an eager
+getter in an otherwise unused actual, object copy with rest inputs, stored and
+invoked callbacks, state effects, and secret rejection. A retained compile
+also agreed with a fresh session after switching an imported helper from a
+disjoint writer to an overlapping one and back, for each host and target.
+These comparisons establish response parity for the fixtures. The Core counter
+measures whether the receiver filter retired recovery work on the package path.
+
 ### Source entry points
 
 - [Request planning and printing](../native/typescript-go/overlay/internal/exactcompiler/session.go),
