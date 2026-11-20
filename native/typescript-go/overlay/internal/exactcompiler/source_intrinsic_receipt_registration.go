@@ -1,8 +1,6 @@
 package exactcompiler
 
 import (
-	"crypto/sha256"
-	"fmt"
 	"path"
 	"strings"
 
@@ -50,21 +48,7 @@ func (q *sourceValueQuery) intrinsicReceiptRegistration(call *ast.Node, bindings
 // category and other bindings to the same slot within those modules. Supported
 // Core copies cooperate through the private realm slot.
 func (owner *executableBodyOwner) selectedIntrinsicReceiptStore(binding *ast.Node, issuer *ast.SourceFile) bool {
-	const issuerRevision = "f02ab213691b30cd964d362cebd1eb37cb33d600f30dfe77ec5cefd1d3e773e9"
-	const storeRevision = "fdd6a3c77876329f1db33897ca058201c5496f5e82ff2bd9295a3f74733f19d9"
-	const issuerPath = "src/component-abi/intrinsic-receipt.ts"
-	filename := strings.ReplaceAll(issuer.FileName(), "\\", "/")
-	if !strings.HasSuffix(filename, "/"+issuerPath) || ast.GetSourceFileOfNode(binding) != issuer {
-		return false
-	}
-	program := owner.values.program
-	root := program.GetNearestAncestorDirectoryWithPackageJson(path.Dir(filename))
-	if root == "" || filename != path.Join(root, issuerPath) ||
-		owner.selection != nil && !owner.currentSelectedSource(issuer) {
-		return false
-	}
-	manifest := program.GetPackageJsonInfo(path.Join(root, "package.json")).GetContents()
-	if manifest == nil || manifest.Name.Value != "@exactjs/core" || fmt.Sprintf("%x", sha256.Sum256([]byte(issuer.Text()))) != issuerRevision {
+	if ast.GetSourceFileOfNode(binding) != issuer {
 		return false
 	}
 	initializer := binding.Initializer().Expression()
@@ -79,8 +63,33 @@ func (owner *executableBodyOwner) selectedIntrinsicReceiptStore(binding *ast.Nod
 		body.Name().Text() != "sharedOpaqueOperationStore" {
 		return false
 	}
-	source := ast.GetSourceFileOfNode(body)
-	return program.GetSourceFile(source.FileName()) == source &&
-		strings.ReplaceAll(source.FileName(), "\\", "/") == path.Join(root, "src/component-abi/opaque-operation.ts") &&
-		fmt.Sprintf("%x", sha256.Sum256([]byte(source.Text()))) == storeRevision
+	return owner.selectedIntrinsicReceiptModules(issuer, ast.GetSourceFileOfNode(body))
+}
+
+// selectedIntrinsicReceiptModules authenticates the reviewed Core implementation
+// pair in this Program. A selected override retains ordinary source analysis.
+func (owner *executableBodyOwner) selectedIntrinsicReceiptModules(issuer, store *ast.SourceFile) bool {
+	const issuerRevision = "f02ab213691b30cd964d362cebd1eb37cb33d600f30dfe77ec5cefd1d3e773e9"
+	const storeRevision = "fdd6a3c77876329f1db33897ca058201c5496f5e82ff2bd9295a3f74733f19d9"
+	const issuerPath = "src/component-abi/intrinsic-receipt.ts"
+	if issuer == nil || store == nil {
+		return false
+	}
+	filename := strings.ReplaceAll(issuer.FileName(), "\\", "/")
+	if !strings.HasSuffix(filename, "/"+issuerPath) {
+		return false
+	}
+	program := owner.values.program
+	root := program.GetNearestAncestorDirectoryWithPackageJson(path.Dir(filename))
+	if root == "" || filename != path.Join(root, issuerPath) ||
+		strings.ReplaceAll(store.FileName(), "\\", "/") != path.Join(root, "src/component-abi/opaque-operation.ts") ||
+		program.GetSourceFile(issuer.FileName()) != issuer ||
+		program.GetSourceFile(store.FileName()) != store ||
+		owner.selection != nil && (!owner.currentSelectedSource(issuer) || !owner.currentSelectedSource(store)) {
+		return false
+	}
+	manifest := program.GetPackageJsonInfo(path.Join(root, "package.json")).GetContents()
+	return manifest != nil && manifest.Name.Value == "@exactjs/core" &&
+		preparedContentRevision(issuer.Text()) == issuerRevision &&
+		preparedContentRevision(store.Text()) == storeRevision
 }

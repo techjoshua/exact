@@ -171,6 +171,7 @@ type executableBodyOwner struct {
 	// Current-Program source identity only; no values, effects or execution receipts.
 	normalizedSources      map[*ast.SourceFile]bool
 	intrinsicReceiptStores map[*ast.Node]bool
+	coreOpaqueAllocations  map[*ast.Node]bool
 	values                 *sourceValueOwner
 }
 

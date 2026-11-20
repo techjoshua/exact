@@ -136,7 +136,7 @@ func componentCallableDemand(collection *projectCallableCollection, requested ..
 			if ast.IsJsxSelfClosingElement(node) {
 				demandReference(node.AsJsxSelfClosingElement().TagName, accessorInvoke)
 			}
-			if ast.IsCallExpression(node) || ast.IsNewExpression(node) {
+			if ast.IsNewExpression(node) || ast.IsCallExpression(node) && !owner.coreOpaqueAllocation(node) {
 				demandReference(unwrapSourceCallableReference(node.Expression()), accessorInvoke)
 			}
 			if ast.IsPropertyAccessExpression(node) || ast.IsElementAccessExpression(node) {

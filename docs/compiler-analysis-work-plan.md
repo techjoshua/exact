@@ -1532,6 +1532,31 @@ compile deadline after 32.24 seconds and left 1,200 prerequisite files.
 Both instrumented runs reached the same deadline under the same resource
 cap. These runs establish avoided discovery work at one occurrence.
 
+On `02dd9e92a`, the component's highest shared receipt boundary is
+`createCompiledIntrinsicReceipt`. It retains authored property reads and
+copying, key coercion, spread iteration, and child normalization. Inside
+that boundary the selected issuer calls `createOpaqueOperation` with an
+already acquired key and domain, a fresh metadata record, and the Core
+executor reference. The reviewed allocation performs private cache and
+descriptor work and stores the executor for later dispatch. Ordinary
+callable extraction and the instantiated dependency query use that Effects
+contract. Writer discovery can skip the same allocation since its operands
+cannot expose a writer. Explicit result queries remain independent. The
+runtime retains the original allocation, registration, identity, dispatch,
+and callback execution.
+
+Replacing the full receipt body in a diagnostic replay completed both
+targets in 5.58 seconds. Replacing only the opaque allocator completed in
+6.18 seconds with the outer eager operations still present. Those
+counterfactuals changed runtime semantics and were used for attribution.
+Spelling the private operations as explicit standard WeakMap calls and
+isolating only the prototype-cache routines each left the first client
+deadline unresolved. The effects-only implementation completed the same
+capped package command in 11.74 seconds on the original corpus and
+produced 3,598 files including both target trees and the TypeScript
+prerequisites. The stock command reached the first client deadline in
+32.28 seconds and produced only the 1,200 prerequisite files.
+
 The next shared contract to qualify is direct writer exclusion for the
 private dispatch-prototype WeakMaps in `operationPrototype` and
 `domainOperationPrototype`. They recur in the remaining

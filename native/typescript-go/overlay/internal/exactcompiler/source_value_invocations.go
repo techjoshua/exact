@@ -11,8 +11,9 @@ import (
 // body or intrinsic resolver. A result observer never enrolls execution escapes
 // merely by selecting the same call. Both consumers keep actual input obligations.
 type sourceInvocationConsumer struct {
-	descriptorData func(sourceValue)                                     // Possible callback in the requested descriptor.value field.
-	descriptorView func(sourceNativeDescriptorView, sourceValueBindings) // Typed result channel, never raw receiver/output.
+	coreAllocationEffects bool                                                  // Actual Effects owner, independent of normal output consumers.
+	descriptorData        func(sourceValue)                                     // Possible callback in the requested descriptor.value field.
+	descriptorView        func(sourceNativeDescriptorView, sourceValueBindings) // Typed result channel, never raw receiver/output.
 	// arrayPush consumes MAY mutation effects only, never a native result receipt.
 	arrayPush func(*ast.Node, sourceValue, sourceValueBindings, *accessorCandidates)
 	// native consumes an already acquired alternative, never a declaration lookup.
@@ -75,9 +76,10 @@ func (query *sourceValueQuery) invocation(node *ast.Node, bindings sourceValueBi
 		}
 	}()
 	return query.consumeInvocation(node, bindings, sourceInvocationConsumer{
-		selection:      func(value bool) { ownedComplete = value },
-		callbackInputs: query.declaredCallbackInputEffects,
-		arrayPush:      query.nativeArrayPushEffects,
+		coreAllocationEffects: true,
+		selection:             func(value bool) { ownedComplete = value },
+		callbackInputs:        query.declaredCallbackInputEffects,
+		arrayPush:             query.nativeArrayPushEffects,
 		construction: func(body sourceInvocationBody, result *accessorCandidates) {
 			query.boundConstructionGets(node, body, result)
 			if query.inputs == nil || !query.invocationValueConsumed(node, result) || !query.charge(result, node) {
@@ -179,6 +181,12 @@ func (query *sourceValueQuery) consumeInvocation(node *ast.Node, bindings source
 			return result
 		}
 		return query.promiseConstruction(node, bindings)
+	}
+	if consumer.coreAllocationEffects && query.dependenciesOnly && query.executable.coreOpaqueAllocation(node) {
+		// This is selection coverage only. A later output request keeps its
+		// own owner, and no successful completion or runtime identity is published.
+		complete = true
+		return accessorCandidates{invocationOwned: true, valueIncomplete: true}
 	}
 	call := node.AsCallExpression()
 	selected := query.normalOperation(node, false)

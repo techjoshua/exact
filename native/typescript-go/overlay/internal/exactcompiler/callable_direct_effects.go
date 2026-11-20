@@ -291,6 +291,9 @@ func collectDirectCallableEffects(
 		if !ast.IsCallExpression(node) {
 			return true
 		}
+		if owner.coreOpaqueAllocation(node) {
+			return true
+		}
 		call := node.AsCallExpression()
 		var targetSymbol *ast.Symbol
 		targetIndex, resolved := 0, false

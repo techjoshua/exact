@@ -152,7 +152,7 @@ func (q *sourceValueQuery) memberWriterInputs(left *ast.Node, bindings sourceVal
 	var alternatives []sourceMemberWriterInput
 	var collect func(*ast.Node, sourceValueBindings)
 	collect = func(call *ast.Node, bindings sourceValueBindings) {
-		if q.stagedMapInvocationFollows(call) {
+		if q.stagedMapInvocationFollows(call) || q.executable.coreOpaqueAllocation(call) {
 			return
 		}
 		trace := progressWriterBegin(q, call, writer)
