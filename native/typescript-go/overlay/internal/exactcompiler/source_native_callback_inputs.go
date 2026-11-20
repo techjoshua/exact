@@ -35,8 +35,14 @@ func (query *sourceValueQuery) nativeCallbackInputEffects(node *ast.Node, bindin
 		}
 	}
 	actuals := restrictedInvocationArguments(node.AsCallExpression())
-	freshPrivateEntries := len(actuals) == 1 && query.owner.directEntriesMap(node.Expression()) == declaration &&
-		entriesMapIdentityCallback(actuals[0], query.owner.checker)
+	var entryPattern *ast.Node
+	freshPrivateEntries := false
+	if len(actuals) == 1 && query.owner.directEntriesMap(node.Expression()) == declaration {
+		freshPrivateEntries = entriesMapIdentityCallback(actuals[0], query.owner.checker)
+		if !freshPrivateEntries {
+			entryPattern, freshPrivateEntries = query.owner.directEntriesMapReturnPair(node, actuals[0])
+		}
+	}
 	part := accessorCandidates{}
 	query.withActiveInvocation(node, func() {
 		// This is the real native argument vector, acquired before callback
@@ -131,7 +137,15 @@ func (query *sourceValueQuery) nativeCallbackInputEffects(node *ast.Node, bindin
 					}
 					values = []sourceValue{{node: parameter.Name(), rest: groups}}
 				}
-				if parameter.AsParameterDeclaration().DotDotDotToken == nil && (position == 1 || position == 2) {
+				if freshPrivateEntries && entryPattern != nil && body == argument && parameter.Name() == entryPattern {
+					// The standard entries algorithm creates the pair and supplies
+					// both slots. Its value can remain unknown until it is used.
+					for _, element := range entryPattern.AsBindingPattern().Elements.Nodes {
+						if ast.IsBindingElement(element) {
+							query.bindInputPattern(element.Name(), []sourceValue{{}}, inputs.bindings, &part, accessorAcquire, inputs)
+						}
+					}
+				} else if parameter.AsParameterDeclaration().DotDotDotToken == nil && (position == 1 || position == 2) {
 					query.bindDefinedParameterInput(parameter, values, inputs, &part)
 				} else {
 					query.installParameterInput(parameter, values, inputs, &part)
@@ -153,7 +167,16 @@ func (query *sourceValueQuery) nativeCallbackInputEffects(node *ast.Node, bindin
 	// normal output obligation. Keep donor edges address-only and independent.
 	if freshPrivateEntries {
 		result.valueIncomplete = true
-		result.opaque = result.opaque || part.opaque || part.receiverIncomplete || part.fieldReceiverIncomplete
+		if part.opaque || part.receiverIncomplete || part.fieldReceiverIncomplete ||
+			len(part.fieldFallbacks) != 0 || len(part.callFallbacks) != 0 || len(part.descriptorFallbacks) != 0 {
+			result.opaque = true
+			if result.cause == nil {
+				result.cause = part.cause
+				if result.cause == nil {
+					result.cause = node
+				}
+			}
+		}
 		query.adoptSourceMayEffects(node, part, result)
 	} else {
 		query.adoptConstructionMayEffects(node, part, result)

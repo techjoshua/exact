@@ -98,6 +98,85 @@ func (owner *sourceValueOwner) directEntriesMap(member *ast.Node) *ast.Node {
 	return c.GetResolvedSignature(member.Parent).Declaration()
 }
 
+// directEntriesMapReturnPair admits a fresh two-slot result when its immediate
+// consumer is the standard fromEntries algorithm. The first slot is a known
+// property key. The second slot is read as data without inspecting its contents.
+// The callback body still owns all effects that compute those slots.
+func (owner *sourceValueOwner) directEntriesMapReturnPair(node, callback *ast.Node) (*ast.Node, bool) {
+	c := owner.checker
+	if !ast.IsArrowFunction(callback) || ast.HasSyntacticModifier(callback, ast.ModifierFlagsAsync) {
+		return nil, false
+	}
+	consumerInput := node
+	for consumerInput.Parent != nil && unwrapSourceCallableReference(consumerInput.Parent) == node {
+		consumerInput = consumerInput.Parent
+	}
+	consumer := consumerInput.Parent
+	if consumer == nil || !ast.IsCallExpression(consumer) {
+		return nil, false
+	}
+	args := callArguments(consumer)
+	if len(args) != 1 || args[0] != consumerInput {
+		return nil, false
+	}
+	callee := unwrapSourceCallableReference(consumer.Expression())
+	root, name := restrictedInvocationMember(callee, c)
+	if name != "fromEntries" || root == nil || !ast.IsIdentifier(root) || root.Text() != "Object" ||
+		!standardLibraryCallRoot(callee, c) || standardLibraryCallOwner(consumer.AsCallExpression(), c) != "ObjectConstructor" {
+		return nil, false
+	}
+	index := owner.index(ast.GetSourceFileOfNode(callee))
+	if index.incomplete || index.objectFromEntriesWritten {
+		return nil, false
+	}
+	pair := unwrapSourceCallableReference(callback.Body())
+	if !ast.IsArrayLiteralExpression(pair) {
+		return nil, false
+	}
+	slots := pair.AsArrayLiteralExpression().Elements.Nodes
+	if len(slots) != 2 || !denseArrayElements(slots) {
+		return nil, false
+	}
+	parameters := callback.Parameters()
+	if len(parameters) > 1 {
+		return nil, false
+	}
+	key := unwrapSourceCallableReference(slots[0])
+	literalKey := ast.IsStringLiteral(key) || ast.IsNumericLiteral(key)
+	if len(parameters) == 0 {
+		return nil, literalKey
+	}
+	parameter := parameters[0].AsParameterDeclaration()
+	if parameter.Initializer != nil || parameter.DotDotDotToken != nil {
+		return nil, false
+	}
+	pattern := parameter.Name()
+	if ast.IsIdentifier(pattern) {
+		return nil, literalKey
+	}
+	if !ast.IsArrayBindingPattern(pattern) {
+		return nil, false
+	}
+	elements := pattern.AsBindingPattern().Elements.Nodes
+	if len(elements) < 1 || len(elements) > 2 {
+		return nil, false
+	}
+	for _, node := range elements {
+		if node.Kind == ast.KindOmittedExpression {
+			continue
+		}
+		element := node.AsBindingElement()
+		if element.DotDotDotToken != nil || element.Initializer != nil || !ast.IsIdentifier(element.Name()) {
+			return nil, false
+		}
+	}
+	if literalKey {
+		return pattern, true
+	}
+	return pattern, ast.IsBindingElement(elements[0]) && ast.IsIdentifier(key) &&
+		c.GetSymbolAtLocation(key) == c.GetSymbolAtLocation(elements[0].Name())
+}
+
 // denseArrayElements identifies a literal whose own slots are all explicit indexed values.
 func denseArrayElements(elements []*ast.Node) bool {
 	for _, element := range elements {

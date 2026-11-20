@@ -261,10 +261,14 @@ func TestEntriesMapModulePlacement(t *testing.T) {
 		}{
 			{"direct", `{ a: 'safe' }`, "", false, false},
 			{"map identity", `{ a: 'safe' }`, `.map(pair => pair)`, false, false},
+			{"map fresh entry", `{ a: 'safe' }`, `.map(([id, value]) => [id, value])`, false, false},
+			{"map literal key", `{ a: 'safe' }`, `.map(() => ['key', { get data() { return document.title; } }])`, false, false},
+			{"map authored effects", `{ a: 'safe' }`, `.map(([id, value]) => [id, (document.title, process.version, value)])`, false, true},
 			{"open input", `foreignEntriesInput`, `.map(pair => pair)`, false, true},
 			{"mixed getters", `{ get a() { return document.title; }, get b() { return process.version; } }`, `.map(pair => pair)`, false, true},
 			{"eager getter", `{ get a() { return document.title; } }`, `.map(pair => pair)`, true, false},
 			{"deferred getter in callback result", `{ a: 'safe' }`, `.map(() => ({get 0() { return document.title; }, 1: 'safe'}) as unknown as [string, string])`, false, true},
+			{"map fresh entry after edits", `{ a: 'safe' }`, `.map(([id, value]) => [id, value])`, false, false},
 			{"map identity after edits", `{ a: 'safe' }`, `.map(pair => pair)`, false, false},
 		} {
 			t.Run(string(target)+"/"+test.name, func(t *testing.T) {
@@ -313,5 +317,31 @@ func TestEntriesMapExplicitReplacement(t *testing.T) {
 				}
 			})
 		}
+	}
+}
+
+// A replacement can read beyond the two entry slots and invoke an authored getter.
+func TestEntriesMapFromEntriesReplacement(t *testing.T) {
+	for _, member := range []string{"Object.fromEntries", "Object['fromEntries']"} {
+		t.Run(member, func(t *testing.T) {
+			source := member + ` = ((entries: Iterable<readonly [PropertyKey, unknown]>) => {
+                const entry = Array.from(entries)[0]!;
+                return {a: (entry[1] as {data: string}).data};
+            }) as typeof Object.fromEntries;
+            export const observation = Object.fromEntries(
+                Object.entries({a: 'safe'}).map(() => ['a', {get data() { return document.title; }}])
+            );`
+			response := NewSession().Execute(Request{Kind: "compile", ID: "/virtual/from-entries-replaced.ts", Source: source, Target: TargetServer, Diagnostics: "semantic"})
+			for _, diagnostic := range response.Diagnostics {
+				if diagnostic.Severity == "error" && strings.HasPrefix(diagnostic.Code, "TS") {
+					t.Fatalf("invalid source: %#v", response.Diagnostics)
+				}
+			}
+			if response.Error != "" ||
+				(hasErrorDiagnostic(response.Diagnostics) && !containsDiagnosticCode(response.Diagnostics, "EXACT2101")) ||
+				strings.Contains(response.Code, "const observation") {
+				t.Fatalf("a replacement reaches the browser getter: %s %#v", response.Error, response.Diagnostics)
+			}
+		})
 	}
 }

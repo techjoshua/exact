@@ -12,20 +12,21 @@ type sourceValueIndex struct {
 	normalExportUnknown, normalDynamicScope bool
 	privateUses                             *sourcePrivateUses
 	// incomplete prevents a reentrant consumer from treating an unpublished index as empty.
-	incomplete           bool
-	importsPrepared      bool
-	erasedImports        map[*ast.Node]bool
-	operationRegions     map[*ast.Node]*sourceMemberOperationRegion
-	runtimeImports       []*ast.Node
-	bindings             map[ast.SymbolId][]sourceValueAssignment
-	memberOrigins        map[*ast.Node][]sourceValueAssignment
-	dynamicMembers       []sourceValueAssignment
-	numberReplaced       bool
-	objectEntriesWritten bool
-	numberOpenCalls      []*ast.Node
-	calls                []*ast.Node
-	originCalls          map[*ast.Node][]*ast.Node
-	dynamicCalls         []*ast.Node
+	incomplete               bool
+	importsPrepared          bool
+	erasedImports            map[*ast.Node]bool
+	operationRegions         map[*ast.Node]*sourceMemberOperationRegion
+	runtimeImports           []*ast.Node
+	bindings                 map[ast.SymbolId][]sourceValueAssignment
+	memberOrigins            map[*ast.Node][]sourceValueAssignment
+	dynamicMembers           []sourceValueAssignment
+	numberReplaced           bool
+	objectEntriesWritten     bool
+	objectFromEntriesWritten bool
+	numberOpenCalls          []*ast.Node
+	calls                    []*ast.Node
+	originCalls              map[*ast.Node][]*ast.Node
+	dynamicCalls             []*ast.Node
 }
 
 // sourceMemberAssignments merges the original known/dynamic source buckets.
@@ -210,8 +211,13 @@ func (owner *sourceValueOwner) index(source *ast.SourceFile) sourceValueIndex {
 			region.thenOperations = append(region.thenOperations, write)
 			base, name := accessorReceiver(write)
 			base = unwrapSourceCallableReference(base)
-			if !index.objectEntriesWritten && name == "entries" && ast.IsIdentifier(base) && base.Text() == "Object" && standardLibraryCallRoot(base, owner.checker) {
-				index.objectEntriesWritten = true
+			if (name == "entries" || name == "fromEntries") && ast.IsIdentifier(base) &&
+				base.Text() == "Object" && standardLibraryCallRoot(base, owner.checker) {
+				if name == "entries" {
+					index.objectEntriesWritten = true
+				} else {
+					index.objectFromEntriesWritten = true
+				}
 			}
 		}
 	}

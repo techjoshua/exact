@@ -76,8 +76,11 @@ export function CompilerAnalysisSection(this: Component<{}>) {
 				declaration ownership through optional calls, and their callbacks retain their own
 				environment requirements. For example, <code>Object.entries(input).map(pair =&gt; pair)</code>
 				runs any getters it reads while enumerating <code>input</code>, so a getter that reads
-				<code>document.title</code> makes the initializer browser-only. A Promise executor runs
-				during construction. A helper that reads <code>document</code> inside <code>new globalThis.Promise(...)</code> needs the
+				<code>document.title</code> makes the initializer browser-only. If the standard
+				<code>Object.fromEntries</code> immediately consumes the mapped array, a callback can
+				return a fresh pair such as
+				<code>([key, value]) =&gt; [key, value]</code>. Computing either slot still contributes its own effects.
+				A Promise executor runs during construction. A helper that reads <code>document</code> inside <code>new globalThis.Promise(...)</code> needs the
 				browser even if the task discards the promise. Reading an object from a finite local
 				container keeps that object's identity when the container slot is later replaced. Reads of
 				the saved object still observe supported writes to its members. Unresolved calls and

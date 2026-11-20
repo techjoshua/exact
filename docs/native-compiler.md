@@ -1280,10 +1280,14 @@ A method read through a saved array can observe intervening replacements.
 For a direct `Object.entries` call on an object literal or a const initialized
 with one, the fresh result owns its entry slots. Placement accounts for input
 getters during enumeration and the callback’s work. An identity arrow
-(`pair => pair`) returns the original entry. A callback that produces a new
-value can leave later property reads unresolved. A direct write to the standard
-`Object.entries` member in the same file keeps this expression on ordinary
-effect analysis.
+(`pair => pair`) returns the original entry. When standard `Object.fromEntries`
+consumes the mapped array immediately, a synchronous arrow can also return a
+two-slot array literal with a literal string or numeric key, or forward the key
+from a simple entry destructure. Reading those two fresh data slots adds no
+authored accessor work. Computing the slots still contributes effects, and a
+callback that reads properties of an unresolved entry value can still require
+additional provenance. A direct write to `Object.entries` or `Object.fromEntries`
+in the same file keeps the affected call on ordinary effect analysis.
 
 Finite array, object and nested projections of ordinary returned functions now compose the actual
 call's arguments and creating captures through the same source query. Omitted and explicitly
