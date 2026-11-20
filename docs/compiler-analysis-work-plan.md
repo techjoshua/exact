@@ -1122,3 +1122,53 @@ more coverage and fall through to ordinary recovery. This first experiment
 covers the direct `operationPrototypes` path. Advance only if it retires
 reconstruction in the pinned client request and the unchanged package command
 completes paired output.
+
+The private method experiment used native source at `879ede513`, the frozen
+8,447-input manifest above, fresh prerequisite-complete copies, and the
+same coordinate-validation limits. Both original Calls had a current standard
+construction and passed the existing private-use and receiver proof. The two
+direct lookups took 21 and 27 microseconds in the observation run. Ordinary
+MAY collection issued no staged method transfer for either Call. Each Call
+nevertheless reached generic writer reconstruction at least 14,000 times
+before the deadline. All those entries reached refusal recovery.
+
+A trial reused the existing proof before writer-callee reconstruction and
+kept argument recovery, original operand evaluation, and result and storage
+consumers in place. At 14,000 writer requests per method, aggregate elapsed
+time in the instrumented reconstruction and refusal interval was as follows.
+
+| Call | Observation | Skip repeated callee recovery after refusal | Route before reconstruction |
+| --- | ---: | ---: | ---: |
+| `get` | 1.55 s | 0.93 s | 0.03 s |
+| `set` | 3.42 s | 3.22 s | 2.43 s |
+
+These are single-run, matched-count timings of the writer interval. They
+include nested work and describe neither total compiler CPU nor end-to-end
+build savings. The early trial avoided generic writer selection at least
+17,000 times per method. The remaining `set` interval was almost entirely
+argument recovery. The unchanged package command took 32.29 s on the clean
+host, 32.23 s with observation, 32.26 s with the refusal-only cut, and 32.22 s
+with the early cut. Each hit the 30 s first-client request deadline at
+`error-boundary.tsx`, leaving prerequisite output without a client/server
+artifact pair. The trial remains outside the compiler.
+
+The trial matched baseline DOM and SSR checks for key and value evaluation
+order, returned and stored payload identity, and a subsequent invocation.
+An own-method override and a lexical subclass retained their browser effect,
+as did eager key and value work and later callback execution. The alias,
+escape, and opaque existing-store cases retained baseline unknown placement.
+In the language session the own-method edit changed placement from unknown
+to client, and reverting the edit restored unknown in the next generation.
+The private fixture itself also had baseline unknown placement and an analysis
+cost diagnostic, so those controls establish behavior parity within the
+observed paths.
+
+The next investigation belongs at `memberWriterScopes` and
+`prepareInvocation`. Measure the second callee acquisition against the
+already acquired alternatives from the same Call and the later
+`originsAt` recovery of the receiver. Check which paths have identical
+bindings, creators and cuts and which still need a separate recovery. For
+arguments, distinguish work that evaluates an expression from work that
+recovers a callable value the selected operation could invoke. Only the
+latter can yield to a current no-direct-input-invocation result. The original
+operand and downstream data consumers still own their effects and values.
