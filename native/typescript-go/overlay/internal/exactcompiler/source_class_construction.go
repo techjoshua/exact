@@ -510,9 +510,13 @@ func (q *sourceValueQuery) constructMayField(instance *sourceConstructedInstance
 // adoptConstructionMayEffects transfers only conservative effects and write
 // addresses into the requesting original New. No execution authority survives.
 func (q *sourceValueQuery) adoptConstructionMayEffects(field *ast.Node, part accessorCandidates, result *accessorCandidates) {
-	// Keep conservative graph edges and address-only writes, not any execution
-	// fulfilment or returned-value/descriptor/Has/Get authority from inventory.
 	result.opaque, result.valueIncomplete = true, true
+	q.adoptSourceMayEffects(field, part, result)
+}
+
+// adoptSourceMayEffects transfers graph edges and write addresses from a
+// possible execution. The caller owns the remaining effect uncertainty.
+func (q *sourceValueQuery) adoptSourceMayEffects(field *ast.Node, part accessorCandidates, result *accessorCandidates) {
 	result.thenIncomplete = result.thenIncomplete || part.thenIncomplete
 	if !q.descriptorEffectAllocation(len(part.effects), unsafe.Sizeof(sourceCallableEffect{}), result, field) || !q.descriptorEffectAllocation(len(part.writes), unsafe.Sizeof(sourceValueWrite{}), result, field) {
 		return

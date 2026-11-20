@@ -74,8 +74,10 @@ export function CompilerAnalysisSection(this: Component<{}>) {
 				method, calling that result also carries the method's own environment requirements. Reading
 				the getter alone does not invoke the returned method. Portable built-in methods keep their
 				declaration ownership through optional calls, and their callbacks retain their own
-				environment requirements. A Promise executor runs during construction. For example, a helper
-				that reads <code>document</code> inside <code>new globalThis.Promise(...)</code> needs the
+				environment requirements. For example, <code>Object.entries(input).map(pair =&gt; pair)</code>
+				runs any getters it reads while enumerating <code>input</code>, so a getter that reads
+				<code>document.title</code> makes the initializer browser-only. A Promise executor runs
+				during construction. A helper that reads <code>document</code> inside <code>new globalThis.Promise(...)</code> needs the
 				browser even if the task discards the promise. Reading an object from a finite local
 				container keeps that object's identity when the container slot is later replaced. Reads of
 				the saved object still observe supported writes to its members. Unresolved calls and

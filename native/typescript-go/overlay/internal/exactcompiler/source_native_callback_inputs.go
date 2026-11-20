@@ -1,6 +1,9 @@
 package exactcompiler
 
-import "github.com/microsoft/TypeScript/tsc/internal/ast"
+import (
+	"github.com/microsoft/TypeScript/tsc/internal/ast"
+	"github.com/microsoft/TypeScript/tsc/internal/checker"
+)
 
 // nativeCallbackInputEffects instantiates a selected library callback's source
 // demands with possible actual receiver elements. It adds MAY effects only.
@@ -31,6 +34,9 @@ func (query *sourceValueQuery) nativeCallbackInputEffects(node *ast.Node, bindin
 			return
 		}
 	}
+	actuals := restrictedInvocationArguments(node.AsCallExpression())
+	freshPrivateEntries := len(actuals) == 1 && query.owner.directEntriesMap(node.Expression()) == declaration &&
+		entriesMapIdentityCallback(actuals[0], query.owner.checker)
 	part := accessorCandidates{}
 	query.withActiveInvocation(node, func() {
 		// This is the real native argument vector, acquired before callback
@@ -42,7 +48,7 @@ func (query *sourceValueQuery) nativeCallbackInputEffects(node *ast.Node, bindin
 		}
 		callbacks := native.bindings[ast.GetSymbolId(callbackSymbol)]
 		var argument *ast.Node
-		if actuals := restrictedInvocationArguments(node.AsCallExpression()); len(actuals) > 0 {
+		if len(actuals) > 0 {
 			argument = actuals[0]
 		}
 		acquired, noSuccessfulArgument := query.acquireNativeCallbackArgument(node, argument, callbacks, bindings)
@@ -53,6 +59,9 @@ func (query *sourceValueQuery) nativeCallbackInputEffects(node *ast.Node, bindin
 		noncallable := !acquired.opaque && !acquired.valueIncomplete && !acquired.receiverIncomplete && !acquired.fieldReceiverIncomplete && !acquired.thenIncomplete && sourceValuesNoncallable(acquired.values)
 		var elements []sourceValue
 		for _, receiver := range native.bindings[0] {
+			if freshPrivateEntries {
+				break
+			}
 			if !query.charge(&part, receiver.node) {
 				break
 			}
@@ -142,9 +151,30 @@ func (query *sourceValueQuery) nativeCallbackInputEffects(node *ast.Node, bindin
 	})
 	// The possible callback cannot fulfill any Call, Get, field, descriptor or
 	// normal output obligation. Keep donor edges address-only and independent.
-	query.adoptConstructionMayEffects(node, part, result)
+	if freshPrivateEntries {
+		result.valueIncomplete = true
+		result.opaque = result.opaque || part.opaque || part.receiverIncomplete || part.fieldReceiverIncomplete
+		query.adoptSourceMayEffects(node, part, result)
+	} else {
+		query.adoptConstructionMayEffects(node, part, result)
+	}
 	result.environmentEffects = append(result.environmentEffects, part.environmentEffects...)
 	result.contextEffects = append(result.contextEffects, part.contextEffects...)
+}
+
+// entriesMapIdentityCallback keeps the private numeric Gets separate from the
+// enclosing use of map's result. Returning the entry unchanged preserves its
+// data slots. Other callback results may carry authored getters to a consumer.
+func entriesMapIdentityCallback(callback *ast.Node, c *checker.Checker) bool {
+	if !ast.IsArrowFunction(callback) || len(callback.Parameters()) != 1 || ast.HasSyntacticModifier(callback, ast.ModifierFlagsAsync) {
+		return false
+	}
+	parameter := callback.Parameters()[0].AsParameterDeclaration()
+	if parameter.DotDotDotToken != nil || !ast.IsIdentifier(parameter.Name()) || parameter.Initializer != nil {
+		return false
+	}
+	value := unwrapSourceCallableReference(callback.Body())
+	return ast.IsIdentifier(value) && c.GetSymbolAtLocation(value) == c.GetSymbolAtLocation(parameter.Name())
 }
 
 // sourceArgumentGetProjection borrows one original callback argument Get. The

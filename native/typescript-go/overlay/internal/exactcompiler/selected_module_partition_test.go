@@ -249,3 +249,69 @@ func TestSelectedModuleRepeatedDeclarators(t *testing.T) {
 		})
 	}
 }
+
+// A shared initializer can map a fresh entries array without leaving an opaque
+// indexed read. The original enumeration and callback still determine placement.
+func TestEntriesMapModulePlacement(t *testing.T) {
+	for _, target := range []Target{TargetClient, TargetServer} {
+		session := NewSession()
+		for _, test := range []struct {
+			name, input, entries string
+			browser, reject      bool
+		}{
+			{"direct", `{ a: 'safe' }`, "", false, false},
+			{"map identity", `{ a: 'safe' }`, `.map(pair => pair)`, false, false},
+			{"open input", `foreignEntriesInput`, `.map(pair => pair)`, false, true},
+			{"mixed getters", `{ get a() { return document.title; }, get b() { return process.version; } }`, `.map(pair => pair)`, false, true},
+			{"eager getter", `{ get a() { return document.title; } }`, `.map(pair => pair)`, true, false},
+			{"deferred getter in callback result", `{ a: 'safe' }`, `.map(() => ({get 0() { return document.title; }, 1: 'safe'}) as unknown as [string, string])`, false, true},
+			{"map identity after edits", `{ a: 'safe' }`, `.map(pair => pair)`, false, false},
+		} {
+			t.Run(string(target)+"/"+test.name, func(t *testing.T) {
+				source := `declare const foreignEntriesInput: Record<string, string>; const input = ` + test.input + `; export const observation = Object.fromEntries(Object.entries(input)` + test.entries + `);`
+				response := session.Execute(Request{Kind: "compile", ID: "/virtual/entries-map.ts", Source: source, Target: target, Diagnostics: "semantic"})
+				for _, diagnostic := range response.Diagnostics {
+					if diagnostic.Severity == "error" && strings.HasPrefix(diagnostic.Code, "TS") {
+						t.Fatalf("invalid source: %#v", response.Diagnostics)
+					}
+				}
+				if test.reject {
+					if response.Error != "" || !containsDiagnosticCode(response.Diagnostics, "EXACT2101") {
+						t.Fatal("expected placement diagnostic", response.Error, response.Diagnostics)
+					}
+					return
+				}
+				if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) {
+					t.Fatal(response.Error, response.Diagnostics)
+				}
+				if retained := strings.Contains(response.Code, "const observation"); retained != (!test.browser || target == TargetClient) {
+					t.Fatalf("incorrect initializer projection: %s", response.Code)
+				}
+			})
+		}
+	}
+}
+
+func TestEntriesMapExplicitReplacement(t *testing.T) {
+	for _, target := range []Target{TargetClient, TargetServer} {
+		for _, member := range []string{"Object.entries", "Object['entries']"} {
+			t.Run(string(target)+"/"+member, func(t *testing.T) {
+				source := member + ` = (() => ({
+					length: 1, 0: ['a', 'safe'],
+					get map() { void document.title; return Array.prototype.map; }
+				})) as unknown as typeof Object.entries;
+				const input = {a: 'safe'};
+				export const observation = Object.entries(input).map(pair => pair);`
+				response := NewSession().Execute(Request{Kind: "compile", ID: "/virtual/entries-replaced.ts", Source: source, Target: target, Diagnostics: "semantic"})
+				for _, diagnostic := range response.Diagnostics {
+					if diagnostic.Severity == "error" && strings.HasPrefix(diagnostic.Code, "TS") {
+						t.Fatalf("invalid source: %#v", response.Diagnostics)
+					}
+				}
+				if response.Error != "" || !containsDiagnosticCode(response.Diagnostics, "EXACT2101") {
+					t.Fatalf("the replacement must retain unresolved placement: %s %#v", response.Error, response.Diagnostics)
+				}
+			})
+		}
+	}
+}

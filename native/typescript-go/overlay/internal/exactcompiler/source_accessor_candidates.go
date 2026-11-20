@@ -141,6 +141,20 @@ func sourceAccessorOperationCandidates(receiver *ast.Node, path []string, name s
 // sourceAccessorOperationCandidates owns the member's key identity and mutation
 // retention for direct, eager, and installed-input consumers on the same query.
 func (query *sourceValueQuery) sourceAccessorOperationCandidates(receiver *ast.Node, path []string, name string, mode accessorTraversal, arguments sourceValueBindings, operation *ast.Node, setter ...*sourceSetterInputRequest) accessorCandidates {
+	// The immediate built-in result has no authored own map property. This
+	// covers only the Get, without querying the entries call's returned values.
+	member := operation
+	if query.dependenciesOnly && len(path) == 0 && member != nil && ast.IsPropertyAccessExpression(member) &&
+		(mode == accessorRead && name == "map" && receiver == member.Expression() ||
+			mode == accessorAcquire && name == "" && receiver == member) {
+		if declaration := query.owner.directEntriesMap(member); declaration != nil {
+			result := accessorCandidates{sourceOwned: true}
+			if mode == accessorAcquire {
+				result.values = []sourceValue{{node: declaration}}
+			}
+			return result
+		}
+	}
 	previous := query.protectedMember
 	query.protectedMember = operation
 	defer func() { query.protectedMember = previous }()

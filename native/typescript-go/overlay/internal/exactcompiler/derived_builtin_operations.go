@@ -50,6 +50,54 @@ func directDenseArrayIncludes(member *ast.Node, c *checker.Checker, argumentCoun
 	return denseArrayElements(property.Expression.AsArrayLiteralExpression().Elements.Nodes) && standardLibraryCallOwner(call, c) == "Array"
 }
 
+// directEntriesMap identifies the standard inherited map on the immediate
+// result of Object.entries. A successful entries call creates a fresh array.
+// Its input enumeration and the map callback keep their original effect owners.
+func (owner *sourceValueOwner) directEntriesMap(member *ast.Node) *ast.Node {
+	c := owner.checker
+	if member == nil || !ast.IsPropertyAccessExpression(member) || member.Parent == nil || !ast.IsCallExpression(member.Parent) {
+		return nil
+	}
+	property := member.AsPropertyAccessExpression()
+	call := member.Parent.AsCallExpression()
+	entries := unwrapSourceCallableReference(property.Expression)
+	if call.Expression != member || property.Name().Text() != "map" || !ast.IsCallExpression(entries) {
+		return nil
+	}
+	callee := unwrapSourceCallableReference(entries.Expression())
+	base, name := restrictedInvocationMember(callee, c)
+	if name != "entries" || base == nil || !ast.IsIdentifier(base) || base.Text() != "Object" || !ast.IsPropertyAccessExpression(callee) ||
+		!standardLibraryCallRoot(callee, c) || standardLibraryCallOwner(entries.AsCallExpression(), c) != "ObjectConstructor" ||
+		standardLibraryCallOwner(call, c) != "Array" {
+		return nil
+	}
+	args := callArguments(entries)
+	if len(args) != 1 {
+		return nil
+	}
+	input := unwrapSourceCallableReference(args[0])
+	if ast.IsIdentifier(input) {
+		symbol := c.GetSymbolAtLocation(input)
+		if symbol == nil || symbol.ValueDeclaration == nil || !ast.IsVariableDeclaration(symbol.ValueDeclaration) ||
+			symbol.ValueDeclaration.Parent.Flags&ast.NodeFlagsConst == 0 {
+			return nil
+		}
+		input = unwrapSourceCallableReference(symbol.ValueDeclaration.Initializer())
+	}
+	// Keep unknown inputs with the existing enumeration and result analysis.
+	if input == nil || !ast.IsObjectLiteralExpression(input) {
+		return nil
+	}
+	// Direct writes to this standard global member in the same source file
+	// keep the Get on the ordinary effect path. The file index is unordered
+	// for this purpose, so writes inside helpers also exclude this shortcut.
+	index := owner.index(ast.GetSourceFileOfNode(callee))
+	if index.incomplete || index.objectEntriesWritten {
+		return nil
+	}
+	return c.GetResolvedSignature(member.Parent).Declaration()
+}
+
 // denseArrayElements identifies a literal whose own slots are all explicit indexed values.
 func denseArrayElements(elements []*ast.Node) bool {
 	for _, element := range elements {
