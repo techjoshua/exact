@@ -199,7 +199,8 @@ func (query *sourceValueQuery) memberValuesAtGetWithStandard(origin *ast.Node, p
 		var replacements []sourceValueReplacement
 		demand := append(append([]string{}, projection...), name)
 		if !sourceInterval {
-			indexes = query.occurrenceSourceViewIn(origin, result, operation.sources, sourceIndexes[:0])
+			sources := query.lexicalGetterWriterSources(operation.sources, get, bindings, result)
+			indexes = query.occurrenceSourceViewIn(origin, result, sources, sourceIndexes[:0])
 		}
 		for _, index := range indexes {
 			// The existing source-relative producer and occurrence checks below decide

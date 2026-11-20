@@ -1,6 +1,10 @@
 package exactcompiler
 
-import "github.com/microsoft/TypeScript/tsc/internal/ast"
+import (
+	"slices"
+
+	"github.com/microsoft/TypeScript/tsc/internal/ast"
+)
 
 // sourceSelectedGetterWrites belongs to one callable Effects walk. Entries are
 // MAY writers from an actual member Get's binder, with no normal input authority.
@@ -157,4 +161,48 @@ func (q *sourceValueQuery) firstForwardedGetterActual(formal, get *ast.Node) *as
 		return nil
 	}
 	return actuals[ordinal].expression
+}
+
+// lexicalGetterWriterSources adds the executable sources of earlier direct
+// calls in the reader's caller. The indexed writer consumer still requires
+// the actual invocation and its binder before a descriptor can contribute.
+func (q *sourceValueQuery) lexicalGetterWriterSources(sources []*ast.SourceFile, get *sourceGetInputs, bindings sourceValueBindings, result *accessorCandidates) []*ast.SourceFile {
+	if get == nil || !q.forwardedGetterWriteRead(get.operation) {
+		return sources
+	}
+	at := q.dependencyUse
+	file := ast.GetSourceFileOfNode(at)
+	region := q.owner.index(file).operationRegions[enclosingCallableNode(at)]
+	if region == nil {
+		return sources
+	}
+	for _, call := range region.calls {
+		if call.Pos() >= at.Pos() {
+			break
+		}
+		if call.End() > at.Pos() {
+			continue
+		}
+		if !q.charge(result, call) {
+			break
+		}
+		expr := call.Expression()
+		if !ast.IsIdentifier(expr) {
+			continue
+		}
+		symbol := q.owner.checker.GetSymbolAtLocation(expr)
+		if symbol == nil || symbol.Flags&ast.SymbolFlagsAlias == 0 {
+			continue
+		}
+		if possible, _ := q.reachable(call, bindings); !possible {
+			continue
+		}
+		for _, target := range q.callDeclarations(expr, &accessorCandidates{}) {
+			source := ast.GetSourceFileOfNode(target)
+			if source != nil && source != file && !source.IsDeclarationFile && !slices.Contains(sources, source) {
+				sources = append(sources, source)
+			}
+		}
+	}
+	return sources
 }

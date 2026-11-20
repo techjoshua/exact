@@ -2180,7 +2180,10 @@ The callable Effects walk retains a receiver-relative descriptor write when it r
 the write through an earlier reflective getter with its original member read and local
 object receiver. A later read of that object can use the recorded write alongside other
 indexed alternatives. A direct lexical helper can carry this relationship across its own
-reads through the actual argument binder and ordinary Call effects publisher. The relationship
+reads through the actual argument binder and ordinary Call effects publisher. Earlier direct
+calls to statically imported installers can supply the same indexed descriptor operations.
+Executable selection identifies the body, and writer discovery still checks whether the original
+call can reach the installation before the read. The relationship
 is scoped to the current walk and supplies possible effects without certifying that the write
 replaced the property's previous value.
 
