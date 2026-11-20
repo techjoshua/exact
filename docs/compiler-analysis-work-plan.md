@@ -978,11 +978,50 @@ respectively. Retained and fresh compilation agreed across helper edits and
 reverts, and the client secret control retained its rejection. The timings
 cover completed component requests only.
 
-The applicable acceptance test is a usable paired package under the original
-deadline with its build prerequisites present. The forwarding trial leaves
-receiver writer recovery on that path and does not complete the downstream
-child-normalization obligation. Keep the existing fallback and omit the
-experimental forwarding path from production. The next change needs evidence
-that it removes work on the earlier writer-recovery path in the pre-emitted
-build, or independently settles a downstream operation an actual component
-requires.
+The acceptance test is a usable paired package under the original deadline.
+From the frozen workspace with its SDK installed, use Node 26.11.1 and run:
+
+```sh
+node node_modules/typescript/bin/tsc6 -b packages/core
+node scripts/compile-exact-package.mjs packages/core
+```
+
+Use the fixed coordinate-validation service with one CPU, 1 GiB and the
+unchanged 30 s native request deadline. The matched corpus manifest identifies
+8,447 inputs and has SHA-256
+`958e586c6817e51a1b64698c0a1f4c3c552a42a1c26e73bb854ca0f7fe232051`.
+The SDK synchronized one source and requested `component/error-boundary.tsx`
+for the client first. Neither run supplied an executable selection snapshot.
+The native Program had the same 300 configured roots, 300 callable source files,
+1,806 callable facts and 54 initial body demands before and after pre-emission.
+Pre-emission resolved 89 Core import slots to Reactive declarations and added
+46 Program files. A fresh diagnostic copy with only those declarations added
+reproduced the supported build's first blocked operation. Core's emitted
+JavaScript and declarations were absent from that control. The evidence gives
+no basis for pruning project roots or changing conditional executable resolution.
+
+On clean integration `8ac90ad52`, the client reached ordinary MAY callable
+extraction before component placement linking. At 24 seconds it was in
+`visitImplicitAccessors` → `bindInputPatternUsing` → `bindingProperty` for
+`createCompiledIntrinsicReceipt`. Receiver writer recovery was nested under
+that read. This definition had a current canonical source identity, a stable
+formal `props`, a fresh empty nullish arm, two finite named Gets and a separate
+rest copy. No actual `props` value was installed. The earlier Call sample came
+from the forwarding variant and does not establish the first owner on clean
+integration.
+
+An owner-level trial treated the unbound formal's Gets and copy as the existing
+relative input-effect obligations. The observed definition extraction finished
+in 0.13 ms. The request then stopped at the ordinary Call collector for
+`createOpaqueOperation(executeIntrinsicOperation, { key, domain })` inside
+`issueIntrinsicReceipt`. The project had already extracted the imported
+callee's canonical body. The caller had a lexical executor and a fresh
+metadata literal, but the direct declaration-effects admission still rejected
+the imported binding. Its separate `receipt` value is used as the WeakMap key.
+The uninstrumented owner trial exited after 32.32 s at the original client
+deadline, compared with 32.34 s for the matched uninstrumented baseline.
+Neither produced a new Core target. Six completed component requests across
+the two targets preserved code, maps, placement and top-level diagnostics.
+Their component diagnostics changed the provenance reported for an unknown
+binding. Single-request callable timings were mixed. Keep the existing
+fallback and omit the trial from production.
