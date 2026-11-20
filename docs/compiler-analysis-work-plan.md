@@ -736,41 +736,41 @@ rendered on the server, mounted and updated in the DOM, and adopted the existing
 button during hydration before updating that same node. These fixture runs
 used installed runtimes. The frozen Core build produced no new package artifacts.
 
-At the remaining receipt path, the missing fact is coverage of the effects of
-the operations that consume a particular input at its original cut. For a member
-Call it includes the Get's possible getter and installed callable sources, any
-receiver-relative writer that can change that source, and unresolved alternatives.
-For the receipt constructor it includes the copied property Gets and the rest
-elements later consumed by child normalization. The existing lexical planner
-refuses rest formals and spread actuals. Definition placement supplies the known
-body edge but cannot supply those missing contributions. The next graph slice
-can subscribe a Get or Call to the receiver/key and input roles it actually
-uses. A writer known to target a disjoint receiver or key can be excluded
-before scope recovery. An overlapping writer still supplies its possible
-accessor or callable sources, and an unresolved writer leaves a residual.
-Neither side needs table contents, an exact receipt, or inputs unrelated to
-those effects. Result-dependent reads and redemption keep their independent
-producers.
-
 The boundary owns a reactive error-list proxy created during setup. The
-render closure acquires the list from the context's ordinary `errors` field.
-The list lookup with `at(-1)` and any iteration for the default view observe
-that proxy during render. Report field reads in the mapper also occur during
-render, through whichever values the proxy yields. The fallback and children
-props are parent-owned inputs observed on their render branches. The default
-button stores the boundary-owned reset closure during receipt creation. The
-list mutation in that closure belongs to the later click.
+render closure reads the list from the context. The list lookup with `at(-1)`,
+default-view iteration, report field reads, and parent-owned fallback and children
+reads occur during render. The default button stores the reset closure and its
+list mutation runs on click. A custom function fallback runs during render.
 
-The executing definition needs distinct demands for the member Get and
-invocation, iterator acquisition and steps, the mapper, and the spread of
-actions. Receipt creation reads the key and enhancement properties before
-copying remaining own enumerable properties. Each of those Gets can execute
-an accessor even when the copied value is only stored. Rest children preserve
-their original order through normalization. A forwarded input role needs to
-carry each operation's own observation cut to the corresponding producer.
-Unknown keys, receivers or invocation alternatives leave their own residuals.
-A later consumer of copied props or a callback body needs its own observation.
-These input effects remain a gap in the relative planner for this path.
+The source-only field consumer can name an explicit finite Get on a formal, such
+as `props.children`, `props.fallback` or `errors.at`, and account for it against
+the original supplied receiver. An unresolved alternative keeps its fallback.
+That coverage supplies neither the callable from a member Get nor an invocation
+of it. The relative formal Call planner handles a bare formal with no arguments.
+It does not cover `props.fallback({ errors, error, reset })`. The collector
+recognizes the standard `Array.from` mapper as an invoked callback. Iterator
+acquisition and steps, the mapper's reads of each yielded report, and iteration
+of `options.actions` have their own effect obligations.
+
+The receipt constructor reads `key` and `__exactEnhancements` before copying
+the remaining own enumerable properties. Source binding analysis visits those
+Gets and the copy. The finite pattern Get can name a direct formal initializer,
+but `props ?? {}` cannot currently name that input in the field demand. The
+copy has no corresponding relative demand for ordered own enumerable Gets
+with exclusions. The live binder describes ordered rest groups and preserves
+unknown positions after a spread. Relative substitution can use that data for
+an individual indexed invocation. It supplies neither call-spread iteration
+nor whole-rest consumption by child normalization. A copied or stored
+callback contributes invocation effects only at an actual Call.
+
+The ordinary definition-edge admission still requires a same-file declaration.
+The six receipt Calls in `error-view.ts` use an imported implementation, so
+coverage of property copies or rest would leave that guard in place. The
+same-file `createDefaultBoundaryView(errors, reset)` Call also falls back in
+ordinary MAY collection. Its formals are nonprimitive and the deeper Calls
+still need separate effect and result consumers. In particular, the result of
+the metadata Get flows into key coercion. The return-source consumer remains
+independent of the effects-only definition edge.
 
 A probe based on `259f95661` used the writer input graph's formal-to-actual
 relationship to reject a direct assignment writer whose actual receiver was a
@@ -794,6 +794,32 @@ also agreed with a fresh session after switching an imported helper from a
 disjoint writer to an overlapping one and back, for each host and target.
 These comparisons establish response parity for the fixtures. The Core counter
 measures whether the receiver filter retired recovery work on the package path.
+
+A phase-labeled replay at `3056827ef` reached all six receipt Calls in the
+default error view on the frozen Core client request. Those Call roots accounted
+for 13.46 of 29.85 sampled CPU seconds. The same-file default-boundary Call root
+accounted for 2.88 seconds. The two receipt metadata binding Gets were active
+for 7.24 seconds across the request, with 7.08 seconds also inside returned-source
+projection. The enumerable-copy phase accounted for 0.14 seconds. These are
+inclusive measurements of the original operations, including work nested
+under them. They do not estimate savings from transferring effects. The
+profile supplies no measured bound on rest consumption in a completed build.
+
+On the same fixed one-CPU, 1 GiB service with Node 26.11.1 and the frozen package
+and SDK, the uninstrumented `node scripts/compile-exact-package.mjs packages/core`
+exited after 31.50 seconds at the original client deadline. The operation-labeled
+run exited after 31.55 seconds. Both excluded the uncommitted accessor edit and
+emitted no new Core package. A source runtime harness exercised the real boundary
+with reactive parent props and error reports, both fallback branches, and the
+stored reset handler. It also checked metadata and enumerable string and symbol
+Get order against argument spread and child normalization. The harness does not
+qualify a newly emitted package.
+
+The observed costs do not justify a coverage-only admission change. The largest
+receipt roots fail same-file admission independently of copy or rest coverage.
+The costly metadata reads already overlap an independent result demand. Keep
+those acquisitions on their current path until a result consumer can use a
+narrower source relationship while retaining the original getter effects.
 
 ### Source entry points
 
