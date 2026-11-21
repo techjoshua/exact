@@ -47,6 +47,12 @@ The baseline native inventory lists 2,299 groups at `1b31bc5b0`. Of those, 506 f
 
 Of the 465 failures, 176 occur in staged source tests, 196 in other source tests, 23 in session tests, 18 in component tests and 52 elsewhere. File ownership locates the failures. To settle a family, identify the component operation, reproduce its public outcome and compare the asserted fact with the seven rules. When a private assertion inspects graph state, verify the phase and cache lifetime in which that state is valid. Preserve a public control for any behavior still required after an obsolete assertion is retired.
 
+The one-argument native `Object.create` conformance control makes the component
+setup call and retain the created object. Its public effect summary checks that
+construction leaves inherited getters and stored callables dormant. The emitted
+ordinary helper separately verifies the supplied prototype, Proxy behavior and
+native throw. Original staged source admission keeps its own phase-specific test.
+
 The follow-up native snapshot at `2d642dc7f` ran 2,318 groups with 1,874 passes and 444 failures. Compared with `293f657a5`, 24 former failures passed, eight new or replacement groups passed, and four former passes failed. A host JSX assertion was replaced by its ordinary-caller control. The four regressions identify ordinary host JSX and the receiver scope of three keyed collection paths. The derived and imported-key witnesses trace the receiver of a materialized map back to its authored occurrence.
 
 The unified `da2de7f49` snapshot ran 2,321 groups with 1,885 passes and 436 failures. Eight former failures passed, including all four new failures from the previous snapshot. All three added groups passed. The same snapshot passed 22 focused SDK cases and 24 warm and fresh request pairs. Chromium preserved the authored assignment-list owner across fresh mount, retained mount, fresh hydration and retained hydration. Packaged enhancement adoption, recovery and disposal passed on Node, Bun, Deno and Cloudflare with retained providers. The wider runtime run reached the native deadline on `cancelled-task-catch.tsx`. The separate composition corpus also reaches the deadline on that source family.
