@@ -210,6 +210,17 @@ inside an uninvoked method remains dormant. The module-initializer case still
 reports `EXACT2101` when the direct descriptor install retains opaque startup
 effects.
 
+The unchanged Theme package on `6172d820a` stops at the client `components.ts`
+deadline in 32.16 seconds. Neither target has emitted artifacts. On the same
+frozen source, nested writer-body discovery accounts for 13.02 of 23.95 sampled
+CPU seconds. Replaying the captured request with an ordered Call list removes
+most incidental syntax visits and leaves `components.ts` incomplete. On the
+package run, the checked-arithmetic bound bypasses 12,304 selected candidates
+before input preparation and reaches the same deadline. Suppressing all
+selected nested writer expansion advances from palette
+conversion to temperament and copy analysis, and the package still hits the
+deadline. The bound omits real candidate work and stays private.
+
 The cumulative private receiver-inventory cut also advances past `copyThemeData` to
 the `resolveThemeScopeData` loop. During effect collection for its `resolveThemeData`
 call, the local binding query reprojects an earlier destructuring acquisition through
