@@ -180,7 +180,7 @@ func TestModuleDecoratorEvaluation(t *testing.T) {
 		{"unknown application", `declare const decorate:(...args:unknown[])=>void;@decorate class C{}export const value=1;`, false, true},
 		{"factory", `function factory(){document.title;return (...args:unknown[]):void=>{}}@factory() class C{}export const value=1;`, true, true},
 		{"method factory", `function factory(){document.title;return (...args:unknown[]):void=>{}}class C{@factory() method(){document.title}}export const value=1;`, true, true},
-		{"pure method", `function factory(){document.title;return(...args:unknown[]):void=>{}}class C{@factory() method(){return 1}}export const value=1;`, true, true},
+		{"pure method", `function factory(){document.title;return(...args:unknown[]):void=>{}}class C{@factory() method(){return 1}}export const value=1;export function Page(){return()=>new C().method()}`, true, true},
 		{"accessor", `function decorate(...args:unknown[]):void{}class C{@decorate get value(){return document.title}}export const value=1;`, false, true},
 		{"member get", `const decorators={get apply(){document.title;return (...args:unknown[]):void=>{}}};class C{@decorators.apply method(){}}export const value=1;`, true, true},
 		{"called helper", `function decorate(...args:unknown[]):void{}function run(){@decorate class C{}}run();export const value=1;`, false, true},
@@ -287,8 +287,12 @@ func TestModuleLegacyParameterDecorators(t *testing.T) {
 				if browser != test.browser || opaque != test.opaque {
 					t.Fatalf("browser=%v opaque=%v want=%v/%v", browser, opaque, test.browser, test.opaque)
 				}
-				if test.name == "pure method" && executableSummary(t, r, "method").Effect != "neutral" {
-					t.Fatal("parameter decorator repeated at method invocation")
+				if test.name == "pure method" {
+					const component = "export function Page(){return()=>new C().method()}"
+					used := NewSession().Execute(Request{Kind: "analyze", ID: file, Source: source + component, ConfigFile: configFile, Diagnostics: "semantic"})
+					if used.Error != "" || hasErrorDiagnostic(used.Diagnostics) || executableSummary(t, used, "method").Effect != "neutral" {
+						t.Fatal("parameter decorator repeated at method invocation", used.Error, used.Diagnostics)
+					}
 				}
 				if legacy && test.browser {
 					baselineDir := filepath.Join(dir, "official")
