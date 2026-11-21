@@ -15,7 +15,12 @@ func browserGlobalReferenceIsGuarded(node *ast.Node, name string, callable *ast.
 	if operand.Parent != nil && ast.IsTypeOfExpression(operand.Parent) {
 		return true
 	}
-	for current := node; current != nil && current != callable; current = current.Parent {
+	for current := node; current != nil; current = current.Parent {
+		// Eager module facts own individual statements and declarators. A
+		// preceding guard still controls whether execution reaches that owner.
+		if current == callable && !runtimeModuleEvaluation(current) {
+			break
+		}
 		parent := current.Parent
 		if parent == nil {
 			break
