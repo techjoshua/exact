@@ -375,8 +375,8 @@ func (query *sourceValueQuery) bindingValues(symbol *ast.Symbol, entry []sourceV
 }
 
 // sourceLocalBindingValues projects a local pattern's value relationship at its
-// authored acquisition cut under its selected creating scope. Uninstantiated
-// summaries retain their relative demand. The ordinary binder owns Get/default selection.
+// authored acquisition cut in its own body or its selected creating scope.
+// Other uninstantiated bodies retain their relative demand. The ordinary binder owns Get/default selection.
 // Only values and uncertainty escape, so earlier Get/body effects are not
 // republished at a later captured read. No normal output or receipt is issued.
 func (query *sourceValueQuery) sourceLocalBindingValues(symbol *ast.Symbol, bindings sourceValueBindings, result *accessorCandidates) ([]sourceValue, bool) {
@@ -392,7 +392,7 @@ func (query *sourceValueQuery) sourceLocalBindingValues(symbol *ast.Symbol, bind
 	}
 	owner := enclosingCallableNode(declaration)
 	creator := query.creators[owner].invocation
-	if owner == nil || creator == nil {
+	if owner == nil || creator == nil && owner != query.effectOwner {
 		return nil, false
 	}
 	part := accessorCandidates{}
@@ -402,16 +402,36 @@ func (query *sourceValueQuery) sourceLocalBindingValues(symbol *ast.Symbol, bind
 	defer func() { query.reading, query.initializing, query.returning = reading, initializing, returning }()
 	// The creating Call is not an external writer while matching its own input.
 	// Same-owner indexed writes still use their original before/after cut.
-	query.withPendingWriterInput(creator, &part, func() {
+	project := func() {
 		query.withActiveInvocation(declaration, func() {
 			values := query.originsAt(declaration.Initializer(), declaration, bindings, &part)
 			// This transient default plan has no normal operations or receipts.
 			inputs := &sourceValueInputs{declaration: owner, bindings: scope.bindings, defaults: make(map[*ast.Node]sourceDefaultInput)}
 			query.bindInputPattern(declaration.Name(), values, scope.bindings, &part, accessorAcquire, inputs)
 		})
-	})
+	}
+	if creator == nil {
+		project()
+	} else {
+		query.withPendingWriterInput(creator, &part, project)
+	}
 	values, acquired := scope.bindings[ast.GetSymbolId(symbol)]
 	incomplete := part.opaque || part.valueIncomplete || part.receiverIncomplete || part.fieldReceiverIncomplete
+	if creator == nil && incomplete {
+		// A projection of only unbound inputs stays relative to the eventual
+		// caller. Publishing it as a local value would turn its input demand
+		// into a spurious opaque operation on the definition itself.
+		concrete := false
+		for _, value := range values {
+			if value.undefined || !sourceReceiverOriginUnresolved(value) {
+				concrete = true
+				break
+			}
+		}
+		if !concrete {
+			return nil, false
+		}
+	}
 	result.valueIncomplete = result.valueIncomplete || incomplete
 	if acquired && (len(values) == 0 || incomplete) {
 		values = append(append([]sourceValue(nil), values...), sourceValue{})

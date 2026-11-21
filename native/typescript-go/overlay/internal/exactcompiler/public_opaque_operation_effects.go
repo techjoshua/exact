@@ -155,7 +155,7 @@ func directOpaqueOperationCall(node *ast.Node) bool {
 // Core can only take its no-metadata or domain-only paths.
 // A local literal exclusively consumed here has the same shape as an inline one.
 func inertOperationMetadata(metadata *ast.Node, owner *executableBodyOwner) bool {
-	metadata = singleUseObjectLiteral(metadata, owner)
+	metadata = singleUseLiteral(metadata, owner.values, ast.KindObjectLiteralExpression)
 	if metadata == nil {
 		return false
 	}

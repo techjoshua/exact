@@ -82,6 +82,8 @@ export function CompilerTourPage(this: Component<{}>) {
 				<p>
 					Awaited mutations keep suspension in the original function. Tasks resolve omitted defaults
 					once, including destructured parameters and defaults that reference earlier parameters.
+					A task may store a browser callback in a local object or array. Calling that callback
+					after destructuring still requires client placement.
 					Server preparation distinguishes task inputs from values written earlier within that task,
 					so a task can consume its own work without waiting on its unfinished output. Blocking
 					tasks retain assignment and update results for later scalar reads within the same

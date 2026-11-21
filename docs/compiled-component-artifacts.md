@@ -120,6 +120,12 @@ optional compiler boundary identity through an additive decorator. The DOM adopt
 that matching server placeholder and leaves unrelated parent ranges intact. Ordinary paired
 components retain their existing operation and adoption path.
 
+A task that destructures a local object acquires the current field value, including the result
+of an authored getter. Calling a known function from that binding imposes the function's
+platform requirements even if the original field is subsequently replaced. A direct dense
+array literal, or a private constant used only as the pattern input, can supply positional
+values through the standard iterator. Custom iterators require separate effect analysis.
+
 Core's `createOpaqueOperation(executor, metadata)` stores the executor. Evaluating the arguments
 and reading metadata happen during construction. A metadata getter can therefore require a
 specific execution target even when the executor remains dormant. Looking up the domain can

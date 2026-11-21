@@ -2,11 +2,11 @@ package exactcompiler
 
 import "github.com/microsoft/TypeScript/tsc/internal/ast"
 
-// singleUseObjectLiteral returns an inline object literal or the initializer of
+// singleUseLiteral returns an inline literal of the requested kind or the initializer of
 // a private constant whose only authored reference is this operand. The operand
 // may execute repeatedly. A consumer must still account for mutation through
 // this use, including a getter or coercion hook that exposes its receiver.
-func singleUseObjectLiteral(expression *ast.Node, owner *executableBodyOwner) *ast.Node {
+func singleUseLiteral(expression *ast.Node, owner *sourceValueOwner, kind ast.Kind) *ast.Node {
 	value := unwrapSourceCallableReference(expression)
 	if value != nil && ast.IsIdentifier(value) {
 		symbol := owner.checker.GetSymbolAtLocation(value)
@@ -18,7 +18,7 @@ func singleUseObjectLiteral(expression *ast.Node, owner *executableBodyOwner) *a
 		if decl.Parent.Flags&ast.NodeFlagsConst == 0 || ast.GetSourceFileOfNode(decl) != source {
 			return nil
 		}
-		index := owner.values.index(source)
+		index := owner.index(source)
 		pop := index.privateUses
 		if index.incomplete || index.normalDynamicScope || pop == nil || !pop.complete || len(pop.unresolved[value.Text()]) != 0 {
 			return nil
@@ -35,7 +35,7 @@ func singleUseObjectLiteral(expression *ast.Node, owner *executableBodyOwner) *a
 		}
 		value = unwrapSourceCallableReference(decl.Initializer())
 	}
-	if value != nil && ast.IsObjectLiteralExpression(value) {
+	if value != nil && value.Kind == kind {
 		return value
 	}
 	return nil

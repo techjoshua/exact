@@ -207,7 +207,16 @@ func (query *sourceValueQuery) bindInputPatternUsing(pattern *ast.Node, values [
 	if len(values) == 0 {
 		result.opaque = true
 	}
-	if ast.IsArrayBindingPattern(pattern) {
+	var literal *ast.Node
+	if ast.IsArrayBindingPattern(pattern) && query.dependenciesOnly && mode == accessorAcquire && inputs != nil {
+		if decl := pattern.Parent; decl != nil && ast.IsVariableDeclaration(decl) && decl.Name() == pattern {
+			literal = singleUseLiteral(decl.Initializer(), query.owner, ast.KindArrayLiteralExpression)
+			if literal != nil && !denseArrayElements(literal.AsArrayLiteralExpression().Elements.Nodes) {
+				literal = nil
+			}
+		}
+	}
+	if ast.IsArrayBindingPattern(pattern) && literal == nil {
 		if mode == accessorRead {
 			return
 		}
@@ -253,7 +262,16 @@ func (query *sourceValueQuery) bindInputPatternUsing(pattern *ast.Node, values [
 			finite = key != ""
 		}
 		var selected []sourceValue
-		if ast.IsArrayBindingPattern(pattern) {
+		if literal != nil && element.DotDotDotToken == nil {
+			// A fresh dense array uses the standard iterator. Acquire the element at
+			// array creation, before defaults or intervening writes at the binding.
+			elements := literal.AsArrayLiteralExpression().Elements.Nodes
+			if index < len(elements) {
+				selected = query.originsAt(elements[index], elements[index], bound, result)
+			} else {
+				selected = []sourceValue{{undefined: true}}
+			}
+		} else if ast.IsArrayBindingPattern(pattern) {
 			// There is no positional proof for a custom or inherited iterator here.
 			selected = []sourceValue{{}}
 		} else if element.DotDotDotToken != nil {

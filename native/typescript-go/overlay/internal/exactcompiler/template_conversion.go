@@ -16,7 +16,7 @@ func templateNeedsConversionEffects(span *ast.Node, c *checker.Checker, owner *e
 	if checkedPrimitiveOperand(operand, c) {
 		return false
 	}
-	return owner == nil || owner.values == nil || !inertLiteralStringConversion(singleUseObjectLiteral(operand, owner))
+	return owner == nil || owner.values == nil || !inertLiteralStringConversion(singleUseLiteral(operand, owner.values, ast.KindObjectLiteralExpression))
 }
 
 // A private plain literal with no exotic hook uses its own toString or the
