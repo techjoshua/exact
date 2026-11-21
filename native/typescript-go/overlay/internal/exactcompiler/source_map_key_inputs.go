@@ -174,12 +174,11 @@ func (q *sourceValueQuery) frozenMapKeyElements(receiver sourceValue, wantKeys b
 	if !q.dependenciesOnly || q.operation != nil || q.returnObservation != nil || call == nil || !ast.IsCallExpression(call) || len(receiver.path) != 0 || q.active[call] {
 		return nil, false
 	}
-	base, method := restrictedInvocationMember(call.Expression(), q.owner.checker)
-	arguments := restrictedInvocationArguments(call.AsCallExpression())
-	if base == nil || !ast.IsIdentifier(base) || base.Text() != "Object" || method != "freeze" || !standardLibraryCallRoot(call.Expression(), q.owner.checker) || len(arguments) != 1 {
-		return nil, false
+	literal := q.frozenModuleArray(call)
+	observed := literal != nil
+	if !observed {
+		literal = q.frozenMapKeyLiteral(call)
 	}
-	literal := q.mapKeyArraySyntax(arguments[0], true)
 	if literal == nil {
 		return nil, false
 	}
@@ -187,10 +186,8 @@ func (q *sourceValueQuery) frozenMapKeyElements(receiver sourceValue, wantKeys b
 	if len(entries) != 0 && !wantKeys {
 		return nil, false
 	}
-	for _, entry := range entries {
-		if key := mapLiteralKey(entry); key == "" || key == "*" {
-			return nil, false
-		}
+	if observed {
+		return frozenMapKeyValues(entries), true
 	}
 	priorCreators, priorRead, priorInit, priorReturn := q.creators, q.reading, q.initializing, q.returning
 	defer func() {
@@ -219,9 +216,36 @@ func (q *sourceValueQuery) frozenMapKeyElements(receiver sourceValue, wantKeys b
 		}
 		mergeAccessorCandidates(result, part)
 		known = true
-		for _, entry := range entries {
-			elements = append(elements, sourceValue{node: unwrapSourceCallableReference(entry)})
-		}
+		elements = frozenMapKeyValues(entries)
 	})
 	return elements, known
+}
+
+// frozenMapKeyLiteral finds the confined primitive syntax used by an original
+// Freeze producer or by a callback preparing to acquire that producer.
+func (q *sourceValueQuery) frozenMapKeyLiteral(call *ast.Node) *ast.Node {
+	base, method := restrictedInvocationMember(call.Expression(), q.owner.checker)
+	arguments := restrictedInvocationArguments(call.AsCallExpression())
+	if base == nil || !ast.IsIdentifier(base) || base.Text() != "Object" || method != "freeze" ||
+		!standardLibraryCallRoot(call.Expression(), q.owner.checker) || len(arguments) != 1 {
+		return nil
+	}
+	literal := q.mapKeyArraySyntax(arguments[0], true)
+	if literal == nil {
+		return nil
+	}
+	for _, entry := range literal.AsArrayLiteralExpression().Elements.Nodes {
+		if key := mapLiteralKey(entry); key == "" || key == "*" {
+			return nil
+		}
+	}
+	return literal
+}
+
+func frozenMapKeyValues(entries []*ast.Node) []sourceValue {
+	var elements []sourceValue
+	for _, entry := range entries {
+		elements = append(elements, sourceValue{node: unwrapSourceCallableReference(entry)})
+	}
+	return elements
 }

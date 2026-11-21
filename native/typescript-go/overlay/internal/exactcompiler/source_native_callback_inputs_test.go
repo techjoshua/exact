@@ -55,6 +55,52 @@ func TestNativeMapCapturedKeyTaskPlacement(t *testing.T) {
 	}
 }
 
+// Both actual callback readers use the same eager module binding. Updating the
+// selected key must move the browser getter requirement in the retained session.
+func TestNativeMapFrozenModuleKeyEdits(t *testing.T) {
+	root, config := formsSourceFixture(t)
+	keys := filepath.Join(root, "keys.ts")
+	page := filepath.Join(root, "Page.tsx")
+	const source = `import {type Component,TaskContext} from '@exactjs/core';
+import {keys} from './keys.js';
+type Rows=Record<number,{label:string}>;
+function palette(rows:Rows){return keys.map(index=>rows[index]!.label).join()}
+function tokens(rows:Rows){return ['start',...keys.map(index=>rows[index]!.label)].join()}
+export function Page(this:Component<{result:string}>,props:{tokens:boolean}){
+  this.state.result='ready';
+  function show(task:TaskContext=TaskContext.server()){
+    const rows={1:{label:'safe'},2:{get label(){return document.title}}};
+    this.state.result=props.tokens?tokens(rows):palette(rows);
+  }
+  return ()=> <button onClick={show}>{this.state.result}</button>
+}`
+	session := NewSession()
+	original := map[Target]string{}
+	for _, key := range []int{1, 2, 1} {
+		initializer := fmt.Sprintf("const raw=[%d];export const keys=Object.freeze(raw);", key)
+		synced := session.Execute(Request{Kind: "synchronize", Root: root, ConfigFile: config, Sources: []ProjectSource{
+			{ID: keys, Source: initializer},
+			{ID: page, Source: source},
+		}})
+		if synced.Error != "" || hasErrorDiagnostic(synced.Diagnostics) {
+			t.Fatal("synchronize frozen module fixture", synced.Error, synced.Diagnostics)
+		}
+		for _, target := range []Target{TargetClient, TargetServer} {
+			result := session.Execute(Request{Kind: "compile", Target: target, ID: page, Root: root, ConfigFile: config, Source: source, Diagnostics: "semantic"})
+			reached := containsDiagnosticCode(result.Diagnostics, "EXACT2001") && strings.Contains(strings.Join(formsDiagnosticDetails(result.Diagnostics), " "), "document")
+			if result.Error != "" || reached != (key == 2) || (result.Code == "") != reached || !reached && hasErrorDiagnostic(result.Diagnostics) {
+				t.Fatalf("%s key %d emitted=%t error=%s diagnostics=%v", target, key, result.Code != "", result.Error, formsDiagnosticDetails(result.Diagnostics))
+			}
+			if key == 1 {
+				if prior := original[target]; prior != "" && result.Code != prior {
+					t.Fatalf("%s output changed after restoring the original key", target)
+				}
+				original[target] = result.Code
+			}
+		}
+	}
+}
+
 // A selected library callback slot retains effects from actual supplied source
 // elements. This is separate from proving native method identity or map output.
 func TestNativeMapCallbackElementEffects(t *testing.T) {

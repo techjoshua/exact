@@ -20,6 +20,8 @@ const (
 type sourceCallResultInterest struct {
 	purpose   sourceCallResultPurpose
 	operation *ast.Node
+	// An ordinary member reader can project a detached eager array endpoint.
+	frozenModuleArray bool
 	// discover is supplied only by the actual SOURCE field visitor. The existing
 	// original issuer calls it synchronously; neither it nor a query is retained.
 	discover func(*sourceStagedFreezeReturnSource) bool

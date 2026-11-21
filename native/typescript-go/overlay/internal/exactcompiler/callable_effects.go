@@ -890,7 +890,10 @@ func prepareProjectCallableContexts(project *projectState, sourceFile *ast.Sourc
 	}
 	cache := project.callableCache
 	// Reused facts never retain the first request's checker lease capability.
-	cache.owner.values.generation = project.activeGeneration
+	if values := cache.owner.values; values.generation != project.activeGeneration {
+		values.frozenModuleArrays = nil
+		values.generation = project.activeGeneration
+	}
 	cache.owner.values.index(sourceFile)
 	changed := false
 	// Seed the requested source from session-owned facts before discovering dependencies.

@@ -23,7 +23,7 @@ func (query *sourceValueQuery) consumeNativeInvocation(node *ast.Node, value sou
 	}
 	if value.native.kind == sourceNativeObjectFreeze {
 		if query.dependenciesOnly {
-			query.sourceFreezeRelationship(node, value, bindings, complete, consumer.sourceReturn, result)
+			query.projectSelectedFreezeSource(node, value, bindings, complete, exclusive, consumer.sourceReturn, result)
 			return
 		}
 		query.consumeNativeFreeze(node, value, exclusive, result)

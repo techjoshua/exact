@@ -67,6 +67,8 @@ With `8e798aa87`, the broader runtime acceptance build completes the cancellatio
 
 The collection profile traces the growth to repeated writer scans around the directly destructured literal `{ rows: [...this.state.items] }`. The temporary record has one unexposed own data field. Acquiring that field keeps the selected array and the dependencies of its later consumers. With `dff7ce6e9`, the unchanged cancellation and collection fixtures pass all 24 cases together at the default compiler deadline. The collection request uses about 5.93 million estimated operations per target.
 
+The retained collection request also retries the earlier `count(rows)` call while looking for a writer to the selected array member. The immutable reader only accesses the native Array's own `length`. Reusing the direct binding proof excludes that call from writer recovery. The original retained analysis drops from 5.93 to 3.83 million estimated operations and takes 6.66 seconds in the matched replay, compared with 11.61 seconds on the control. The analysis is identical. The paired native controls retain effects of authored getters, Proxy traps and a replaced reader. Post-collection heap remains about 1.53 GB after forced collection. The retained allocations are concentrated in checker symbol-table instantiation, which remains a separate cost.
+
 The broader runtime build advances to the authored page that imports both fixtures. Two explicit server tasks gain the browser effect of the imported cancellation fixture's client-only `Promise.prototype.constructor` getter. A reduced pair reproduces on `7a85c2499` and `dff7ce6e9` with the writer in the same file or an imported module, on both artifact targets. The constructor reader now excludes descriptor writers in tasks with an established opposite execution target. Same-target writers and browser optimistic work retain their effects. The paired native controls exercise both targets, imported writers, local writers and the original constructor and state-write operations. A synchronized replay of the original page has no placement errors with this correction. The retained SDK build of the combined page graph reaches the default compile deadline on `mutation-contract.tsx`. Broad runtime acceptance remains open.
 
 The stored-descriptor fixture now observes a typed task that publishes its result to component state. On both targets, the placement decision preserves dormant retrieval, absent properties, and the browser effect of direct invocation. A direct call through a single-use local const retains the stored getter or method's browser effect alongside independent unknowns. Adapter invocations through `call`, `apply`, or `Reflect.apply` and a Proxy descriptor-normalization getter still lose browser effects in the public task controls.
@@ -102,13 +104,23 @@ omitting the entire `createTone` inquiry moved the unchanged request to the sepa
 `themeSurfaceBundles.map` member read in `createThemeTokens`. Both reached the same
 package request deadline.
 
-Both maps recover the same eagerly acquired `token-contract.ts` Freeze input. A private
-trial reused the original literal source endpoint across 350 reads on the captured
-request. Both palette bodies finished, and later construction and copy requests kept
-`components.ts` open. The matched package attempts reached the deadline at 31.56 and
-31.46 seconds, with zero output on either target. The paired component tests retain
-known, unused and uncertain getter behavior, including through a synchronized edit and
-revert of the imported key array. Each map operation keeps its original publisher.
+Both maps read the same eagerly selected Freeze input in `token-contract.ts`. The
+integrated trace measures about 0.22 ms at the initializer's own selection and 2.99 s
+for the first reconstruction in `createTone`. The array input acquisition itself
+takes under a millisecond at that first descendant read. The selected eager binding
+now retains the confined primitive array's lexical endpoint for source member
+projection and map-key discovery. The fact belongs to the checker generation and
+expires when that generation changes. Each actual Get and callback retains its
+original selection, effects and placement obligations.
+
+The captured request used the same endpoint three times in `createTone` and 307 times
+in `createThemeTokens`. Both body extractions finished. The corresponding package
+comparison still reached the client request deadline at 31.83 seconds with reuse and
+32.42 seconds without it. The production-shaped replay reached the same deadline
+at 31.73 seconds. All three emitted zero files on each target. The paired component
+controls retain known, unused and uncertain getter behavior. A synchronized edit
+reaches a browser getter on both targets and restoring the original key restores
+the original emitted code.
 
 Constraining the receiver-history work on direct Throws of the original
 `ThemeResolutionError` moved the private request to `copyThemeData(found)` in
