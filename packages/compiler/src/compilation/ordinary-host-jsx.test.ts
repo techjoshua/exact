@@ -26,7 +26,9 @@ it('preserves compiled component host JSX inputs, rejection boundaries and publi
 	const root = await createCompilerTestWorkspace('.exact-host-jsx-', process.cwd());
 	const source = `import {renderToString} from '@exactjs/ssr';import type {Child} from '@exactjs/core';
  export function Page(props:{label:string,children?:Child}){return()=> <section>{props.label}{props.children}</section>}
- export function localHtml(){return renderToString(<Page label="host"/>)}`;
+ export function localHtml(){return renderToString(<Page label="host"/>)}
+ export function spreadHtml(props:{label:string}){return renderToString(<Page {...props}/>)}
+ export function otherRenderer(renderToString:(value:unknown)=>unknown){return renderToString(<Page label="ordinary"/>)}`;
 	await writeTestFiles(root, {
 		'page.tsx': source,
 		'tsconfig.json': JSON.stringify({
@@ -56,6 +58,11 @@ it('preserves compiled component host JSX inputs, rejection boundaries and publi
 		expect(result.error).toBeUndefined();
 		expect(result.diagnostics).toEqual([]);
 		expect(result.code).toBeTruthy();
+		if (target === 'server') {
+			expect(result.code).toContain('renderCompilerClosedToString as');
+			expect(result.code).toMatch(/<Page\s+\{\.\.\.props\}/);
+			expect(result.code).toMatch(/<Page\s+label="ordinary"/);
+		}
 		const input = path.join(root, `page.exact.${target}.tsx`);
 		await writeFile(input, result.code!);
 		modules[target] = await importArtifact(

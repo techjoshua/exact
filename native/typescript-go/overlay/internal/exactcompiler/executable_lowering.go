@@ -30,7 +30,7 @@ func (lowering *jsxLowering) ordinaryHostJSX(node *ast.Node) bool {
 		return false
 	}
 	_, component := lowering.componentContaining(original)
-	return !component
+	return !component && !lowering.directServerRenderRoot(original)
 }
 
 // assertComponentExecutableTree still fences component JSX, permitting only preserved host roots.

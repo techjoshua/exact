@@ -65,6 +65,10 @@ remain available to component analysis. An annotation does not authorize helper 
 Individually admitted sibling files retain the host resolver's selected module identity.
 
 Ordinary `.tsx` helpers outside selected component definitions retain their JSX for the host.
+A direct call to an imported eXact server renderer can issue its own input when its first argument
+is a self-closing compiled component with ordinary named props. Keyed inputs, spreads, children,
+and other JSX expressions retain host evaluation. The renderer still selects its entry point from
+the supplied options.
 Native-selected Webpack output carries its automatic `@exactjs/jsx` selection through the async
 loader handoff. React-owned and ordinary-host fallback output retain their existing policy.
 The host entries accept only an already-compiled component with a current matching target artifact;

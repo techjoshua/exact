@@ -71,7 +71,8 @@ export function CompilerTourPage(this: Component<{}>) {
 				</p>
 				<p>
 					An ordinary TSX helper outside a component can instantiate an already-compiled component
-					with the host JSX transform and pass it to public SSR. The component still needs the
+					with the host JSX transform and pass it to public SSR. A direct server renderer call can
+					compile a simple component input and use the smaller server renderer. The component still needs the
 					matching server artifact. Props and children are eager values; creating the input does not
 					invoke the component body or a supplied callback. Intrinsic elements, fragments and
 					enhancements belong inside native component render work. Uncompiled functions are refused.

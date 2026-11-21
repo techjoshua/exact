@@ -2,6 +2,30 @@ package exactcompiler
 
 import "github.com/microsoft/TypeScript/tsc/internal/ast"
 
+// directServerRenderRoot identifies the compiled component operand of a public server renderer
+// in an ordinary host function. The caller owns only this input operation. Other JSX, including
+// nested authored callbacks and unknown tags, keeps the host transform.
+func (lowering *jsxLowering) directServerRenderRoot(node *ast.Node) bool {
+	if lowering.target != TargetServer || node.Parent == nil || !ast.IsCallExpression(node.Parent) ||
+		!ast.IsJsxSelfClosingElement(node) {
+		return false
+	}
+	call := node.Parent.AsCallExpression()
+	if call.Arguments == nil || len(call.Arguments.Nodes) == 0 || call.Arguments.Nodes[0] != node {
+		return false
+	}
+	if _, renderer := lowering.compilerClosedSsrCallee(call.Expression); !renderer {
+		return false
+	}
+	// Spread getters, key precedence, and child construction belong to the host JSX factory.
+	for _, attribute := range node.Attributes().AsJsxAttributes().Properties.Nodes {
+		if !ast.IsJsxAttribute(attribute) || !ast.IsIdentifier(attribute.Name()) || attribute.Name().Text() == "key" {
+			return false
+		}
+	}
+	return lowering.compiledNativeComponentTag(openingTag(node))
+}
+
 // lowerCompilerClosedSsrCalls selects the narrow physical renderer only after JSX lowering has
 // proven both the local root component and its successful server writer. Authored imports remain
 // unchanged and are pruned normally once their binding has no surviving calls.
