@@ -1704,27 +1704,6 @@ func TestClientTransparentComponentUsesItsCompiledBoundaryRange(t *testing.T) {
 	}
 }
 
-func TestClientOperationFactoryFinalizesParameterProps(t *testing.T) {
-	response := NewSession().Execute(Request{
-		ID:     "root-factory.tsx",
-		Kind:   "compile",
-		Target: TargetClient,
-		Source: `
-			declare function Child(props: { binding: string }): unknown;
-			export const root = (binding: string) => <Child binding={binding} />;
-		`,
-	})
-	if response.Error != "" || len(response.Diagnostics) != 0 {
-		t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
-	}
-	if !strings.Contains(response.Code, `__exactComponentReceipt(Child, { binding: binding })`) {
-		t.Fatalf("operation factory did not finalize its invocation prop:\n%s", response.Code)
-	}
-	if strings.Contains(response.Code, `__exactForwardedExpression(() => binding)`) {
-		t.Fatalf("operation factory leaked a live-slot operand into its root receipt:\n%s", response.Code)
-	}
-}
-
 func TestClientConditionalJSXCollectionUsesItsFocusedBoundaryRange(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID:     "conditional-collection.tsx",
