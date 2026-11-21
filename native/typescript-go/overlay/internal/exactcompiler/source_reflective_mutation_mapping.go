@@ -16,6 +16,24 @@ func (work *callableEffectWork) reflectiveMutationFieldContribution(facts []call
 	if !known || actor < 0 || actor >= len(facts) {
 		return sourceStagedOperationDelta{}, false
 	}
+	if runtimeModuleEvaluation(demand.request.consumer) {
+		source := work.operationRecipes[demand.request.producer].nativeGet
+		if source != nil && source.installation != nil && reflectiveNative(source.kind) && get.operation == source.request.use && get.receiver.node == source.descriptorGet {
+			selfWrite := operation == source.request.use && disjointDefinitionLiteralTarget(operation, get.receiver.node)
+			if operation == source.get || selfWrite {
+				// This exact callee may still be pending delivery. Retain the
+				// original all-MAY no-user proof as a required dependency.
+				callee, described := stagedEntryLawRequest(nativeRootDebtRequest(source, "callee-get"), stagedEntryLawNativeGet)
+				if described && validStagedEntryLawRecipe(work.operationRecipes[callee.producer]) {
+					required := []sourceStagedOperationRequest{callee}
+					if selfWrite {
+						required = append(required, nativeRootDebtRequest(source, "eager-inputs"))
+					}
+					return sourceStagedOperationDelta{extracted: true, required: required}, true
+				}
+			}
+		}
+	}
 	if ast.IsCallExpression(operation) {
 		original, issued := stagedNativeInputOccurrenceRequest(&facts[actor], operation)
 		if !issued {
@@ -52,4 +70,15 @@ func (work *callableEffectWork) reflectiveMutationFieldContribution(facts []call
 		return work.declareFieldMutationData(facts, demand, q, get, field, originalGetMutationRequest(source), nil, nil, source)
 	}
 	return sourceStagedOperationDelta{}, false
+}
+
+// disjointDefinitionLiteralTarget applies to the original three-argument
+// definition during its own descriptor read. Callers authenticate the selected
+// operation separately. Each literal evaluation creates its own receiver.
+func disjointDefinitionLiteralTarget(operation, descriptor *ast.Node) bool {
+	if !ast.IsObjectLiteralExpression(descriptor) {
+		return false
+	}
+	arguments := restrictedInvocationArguments(operation.AsCallExpression())
+	return len(arguments) == 3 && arguments[2] == descriptor && ast.IsObjectLiteralExpression(arguments[0]) && arguments[0] != descriptor
 }

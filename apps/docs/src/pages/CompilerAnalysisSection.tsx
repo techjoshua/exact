@@ -80,7 +80,10 @@ export function CompilerAnalysisSection(this: Component<{}>) {
 				created with <code>Object.create</code> can also run a getter inherited from its supplied
 				prototype. When an assignment invokes an
 				authored setter, its parameter carries the assigned value's environment requirements into the
-				setter's use of that value. If a getter returns a
+				setter's use of that value. A module binding initialized with
+				<code>Object.defineProperty</code> on an ordinary object literal can store a browser
+				callback as a descriptor value. A component that invokes the callback needs the browser.
+				If a getter returns a
 				method, calling that result also carries the method's own environment requirements. Reading
 				the getter alone does not invoke the returned method. Portable built-in methods keep their
 				declaration ownership through optional calls, and their callbacks retain their own

@@ -372,6 +372,16 @@ For literal receivers that already had a source term, descriptor recovery now
 uses the receiver's saved factory scope. The paired artifacts preserve an unread
 copy passed beside a distinct selected argument.
 
+A component reading a module binding initialized by direct `Object.defineProperty`
+exposed a separate admission gap. The existing staged descriptor owner now handles
+fresh literal targets and inert data descriptors for that initializer. Its earlier
+descriptor-field Value mapping keeps the original callee and eager input requirements
+while excluding the current definition's disjoint target write. Application and
+library artifacts render stored callbacks on either target and route a reached
+browser callback or getter to the client. The prior eager descriptor getter and
+Create-target cases still depend on separate source coverage. The unchanged Intl
+build still reaches the `components.ts` deadline and emits neither target.
+
 Acceptance also covers mounted reads, control bindings, lifecycle, portals, registry identity, task settlement, protected transport, paired artifact selection, selected host implementations and source inspection. Use the existing [composition corpus](component-composition-corpus.md) and [package decision audit](#requester-disposition-against-the-component-contracts) for their scoped evidence. Treat interrupted suites and original packages that still reach the request deadline as open.
 
 ### Acceptance by traversal rule

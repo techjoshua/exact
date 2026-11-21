@@ -303,7 +303,14 @@ func collectDirectCallableEffects(
 		// The declaration Effects edge also serves ordinary collection when its
 		// source-input plan can be installed without acquiring normal values.
 		stagedSourceCall := !stagedConstructed && ast.IsCallExpression(node) && work.stageSourceDeclarationCall(facts, factIndex, node, owner)
-		stagedNative := protocol && !stagedConstructed && !stagedSourceCall && ast.IsCallExpression(node) && (work.stageNativeInputCall(facts, factIndex, node, owner) || work.stageNativeDescriptorCall(facts, factIndex, node, owner))
+		stagedNative := false
+		if !stagedConstructed && !stagedSourceCall && ast.IsCallExpression(node) {
+			if protocol {
+				stagedNative = work.stageNativeInputCall(facts, factIndex, node, owner) || work.stageNativeDescriptorCall(facts, factIndex, node, owner)
+			} else {
+				stagedNative = work.stageModuleLiteralDefinition(facts, factIndex, node, owner)
+			}
+		}
 		stagedFramework := !stagedConstructed && !stagedSourceCall && !stagedNative && ast.IsCallExpression(node) && work.stageFrameworkEffects(facts, factIndex, node, owner)
 		var capturedDemand sourceRelativeInvokedInput
 		captured := false

@@ -30,6 +30,24 @@ func (work *callableEffectWork) stageNativeInputCall(facts []callableFacts, cons
 	return work.stageNativeInputOperation(facts, consumer, call, owner)
 }
 
+// stageModuleLiteralDefinition lends the existing selected-operation protocol
+// to a module binding's direct definition. Its literal arguments bound eager
+// acquisition. The original callee and each descriptor phase still own their
+// effects and the field Value owner retains any stored callable.
+func (work *callableEffectWork) stageModuleLiteralDefinition(facts []callableFacts, consumer int, call *ast.Node, owner *executableBodyOwner) bool {
+	if !ast.IsVariableDeclaration(call.Parent) || call.Parent.Initializer() != call || !runtimeModuleEvaluation(call.Parent) || !reflectiveNative(stagedNativeInputIntent(call.Expression())) {
+		return false
+	}
+	arguments := restrictedInvocationArguments(call.AsCallExpression())
+	if len(arguments) != 3 || !ast.IsObjectLiteralExpression(arguments[0]) || !sourceInertValueCreation(arguments[0]) || !sourcePrimitiveValue(arguments[1]) || !sourceInertDataLiteral(arguments[2], "") {
+		return false
+	}
+	prior := work.purpose
+	work.purpose = callableProtocolEffects
+	defer func() { work.purpose = prior }()
+	return work.stageNativeInputCall(facts, consumer, call, owner)
+}
+
 // stagedNativeInputSourceOwner is shared by ordinary collection and a demanded
 // passive source task. It grants neither ordinary membership nor selection.
 func stagedNativeInputSourceOwner(fact *callableFacts, call *ast.Node, owner *executableBodyOwner) bool {
