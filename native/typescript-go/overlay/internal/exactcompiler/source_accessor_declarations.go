@@ -601,6 +601,11 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 			return
 		}
 		if ast.IsNewExpression(value) {
+			// Authored instance properties can replace standard methods. Retain
+			// their actual source writers before considering the constructor.
+			if query.dependenciesOnly && len(projection) > 0 && standardByteStorageConstruction(value, typeChecker) {
+				query.memberValuesAtGet(value, projection, name, mode, arguments, &result, visitMember, sourceMemberOperationProof{}, get, readCut)
+			}
 			previousReceiver := inheritedReceiver
 			inheritedReceiver = &sourceValue{node: value}
 			defer func() { inheritedReceiver = previousReceiver }()

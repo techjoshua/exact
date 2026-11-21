@@ -30,12 +30,7 @@ func localByteStorageOperation(node *ast.Node, owner *sourceValueOwner) bool {
 	if value == nil || !ast.IsNewExpression(value) || decl.Parent.Flags&ast.NodeFlagsConst == 0 || enclosingCallableNode(decl) == nil {
 		return false
 	}
-	name := unwrapSourceCallableReference(value.Expression())
-	if !ast.IsIdentifier(name) || !standardByteStorageName(name.Text()) {
-		return false
-	}
-	constructor := owner.checker.GetSymbolAtLocation(name)
-	if constructor == nil || constructor.ValueDeclaration == nil || !standardLibrarySource(ast.GetSourceFileOfNode(constructor.ValueDeclaration)) {
+	if !standardByteStorageConstruction(value, owner.checker) {
 		return false
 	}
 	index := owner.index(ast.GetSourceFileOfNode(decl))
@@ -54,6 +49,16 @@ func localByteStorageOperation(node *ast.Node, owner *sourceValueOwner) bool {
 	}
 	owner.byteStorageOperations[decl] = valid
 	return valid
+}
+
+// Classify the selected constructor independently of authored same-name classes.
+func standardByteStorageConstruction(value *ast.Node, c *checker.Checker) bool {
+	name := unwrapSourceCallableReference(value.Expression())
+	if !ast.IsIdentifier(name) || !standardByteStorageName(name.Text()) {
+		return false
+	}
+	symbol := c.GetSymbolAtLocation(name)
+	return symbol != nil && symbol.ValueDeclaration != nil && standardLibrarySource(ast.GetSourceFileOfNode(symbol.ValueDeclaration))
 }
 
 // Each allowed use keeps the receiver private. fill returns its receiver, so

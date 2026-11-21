@@ -66,6 +66,8 @@ func TestTaskByteStorageArgumentEffects(t *testing.T) {
 		browser    bool
 	}{
 		{"fill-value", "const b=new Uint8Array(2);b.fill(1)", false},
+		{"own-method", "const b=new Uint8Array(2);b.fill=function(){document.title;return this};b.fill(1)", true},
+		{"not-yet-replaced", "const b=new Uint8Array(2);b.fill(1);b.fill=function(){document.title;return this}", false},
 		{"fill-conversion", "const b=new Uint8Array(2);b.fill({valueOf(){document.title;return 1}} as any)", true},
 		{"offset", "const v=new DataView(new ArrayBuffer(4));v.getUint8({valueOf(){document.title;return 0}} as any)", true},
 		{"endian", "const v=new DataView(new ArrayBuffer(4));v.getUint16(0,{valueOf(){document.title;return 1}} as any)", false},
