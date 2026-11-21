@@ -60,6 +60,14 @@ library analysis.
 Literal Freeze fixtures likewise anchor their EffectSources in component setup.
 Their emitted helper probes check preserved object identity and call order, as
 well as stored getters and callbacks that execute only when later consumed.
+These replacements apply **Start from the consumer** to standalone helper
+settlement assertions and **Visit what executes** to the descriptor and Freeze
+effects. Foreign calls remain unknown beside known browser effects under
+**Carry relationships to their reader**. Paired component compiles retain the
+original runtime order, throw and identity controls. The warm collector control
+checks code and effect stability under **Give facts an expiry**. Tests that
+exercise the original staged owner still check admission and source authority
+at that phase.
 
 The follow-up native snapshot at `2d642dc7f` ran 2,318 groups with 1,874 passes and 444 failures. Compared with `293f657a5`, 24 former failures passed, eight new or replacement groups passed, and four former passes failed. A host JSX assertion was replaced by its ordinary-caller control. The four regressions identify ordinary host JSX and the receiver scope of three keyed collection paths. The derived and imported-key witnesses trace the receiver of a materialized map back to its authored occurrence.
 
@@ -477,9 +485,13 @@ fresh literal targets and inert data descriptors for that initializer. Its earli
 descriptor-field Value mapping keeps the original callee and eager input requirements
 while excluding the current definition's disjoint target write. Application and
 library artifacts render stored callbacks on either target and route a reached
-browser callback or getter to the client. The prior eager descriptor getter and
-Create-target cases still depend on separate source coverage. The unchanged Intl
-build still reaches the `components.ts` deadline and emits neither target.
+browser callback or getter to the client. A direct `Object.create(null)` target
+keeps its original child Get and Call through descriptor conversion. The paired
+artifacts render the defined data property, preserve a held callback and route
+reached browser callbacks and getters to the client. The prior eager descriptor
+getter and the inherited Get on a non-null created prototype still require
+separate source coverage. The unchanged Intl build still reaches the
+`components.ts` deadline and emits neither target.
 The ordinary analysis of an earlier authored replacement exposed a premature
 summary requirement during that optional callee observation. The original binder
 still records its input association. The writer source requires the method body

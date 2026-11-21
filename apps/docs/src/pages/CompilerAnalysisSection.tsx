@@ -87,8 +87,9 @@ export function CompilerAnalysisSection(this: Component<{}>) {
 				prototype. When an assignment invokes an
 				authored setter, its parameter carries the assigned value's environment requirements into the
 				setter's use of that value. A module binding initialized with
-				<code>Object.defineProperty</code> on an ordinary object literal can store a browser
-				callback as a descriptor value. A component that invokes the callback needs the browser.
+				<code>Object.defineProperty</code> can store a browser callback on a fresh object literal
+				or on the direct result of <code>Object.create(null)</code>. A component that invokes
+				the callback needs the browser.
 				Freezing an ordinary object just created in that initializer keeps its stored callbacks
 				and installed getters dormant.
 				If a getter returns a

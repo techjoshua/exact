@@ -3934,11 +3934,12 @@ keeps the dependent source contribution pending. Empty Effects, selected native
 categories and stored callable summaries do not supply these laws. This protocol
 grants no field value, property absence, runtime key order or normal output.
 A direct module binding initialized with a standard `Object.defineProperty` or
-`Reflect.defineProperty` can use the same staged owner when its target and data
-descriptor are separate fresh literals and its key is primitive. The nominal
-target write cannot supply an earlier descriptor field. Field Value mapping
-keeps the exact callee no-user-entry and eager-input dependencies, and a later
-component read or invocation still observes the installed getter or callback.
+`Reflect.defineProperty` can use the same staged owner with a primitive key, a
+fresh data descriptor and a fresh target from an ordinary literal or selected
+`Object.create(null)`. The nominal target write cannot supply an earlier
+descriptor field. Field Value mapping keeps the original callee and eager input
+dependencies. A later component read or invocation observes the installed getter
+or callback on that target.
 Member alternatives keep their acquired source bindings and creator context through subsequent
 container and getter projection. Returning only their AST node would lose a writer-created
 closure's formal captures.

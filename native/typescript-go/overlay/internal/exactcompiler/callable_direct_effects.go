@@ -308,7 +308,7 @@ func collectDirectCallableEffects(
 			if protocol {
 				stagedNative = work.stageNativeInputCall(facts, factIndex, node, owner) || work.stageNativeDescriptorCall(facts, factIndex, node, owner)
 			} else {
-				stagedNative = work.stageModuleLiteralDefinition(facts, factIndex, node, owner)
+				stagedNative = work.stageModuleDescriptorDefinition(facts, factIndex, node, owner)
 			}
 		}
 		stagedFramework := !stagedConstructed && !stagedSourceCall && !stagedNative && ast.IsCallExpression(node) && work.stageFrameworkEffects(facts, factIndex, node, owner)

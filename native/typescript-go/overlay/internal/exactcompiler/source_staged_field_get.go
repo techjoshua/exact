@@ -29,6 +29,7 @@ type sourceStagedFieldEntryEvent struct {
 // existing work graph before any normal lifetime, body or returned-value query.
 // Only detached input descriptions survive this borrow.
 type sourceStagedFieldGetBorrow struct {
+	freshCreateTarget    *sourceStagedNativeGetSource // Current original Create target for this field read.
 	intrinsicMutation    func(*sourceValueQuery, *sourceGetInputs, *sourceMemberWriterReadCut) bool
 	intrinsicPublication *sourceStagedIntrinsicMutationEvent
 	mutationHas          func(*sourceValueQuery, *sourceGetInputs, *sourceStagedFieldObservation) // Source-only actual Has event.
@@ -95,6 +96,10 @@ func (work *callableEffectWork) consumeFieldGetterSource(facts []callableFacts, 
 	defer query.publishDependencyStatistics()
 	borrow := &sourceStagedFieldGetBorrow{argumentOrder: argumentOrder, argumentEpoch: work.operationEpoch, issuer: query, owner: query.owner, generation: query.owner.generation, operation: demand.request.producer.operation, receiver: demand.receiver.expression, field: demand.request.producer.selector.field, cut: query.relativeInputCut(demand.request.producer.operation)}
 	borrow.request = demand.request
+	if runtimeModuleEvaluation(demand.request.consumer) {
+		source := work.operationRecipes[demand.request.producer].nativeGet
+		borrow.freshCreateTarget = work.currentDirectCreateDefinitionTarget(source)
+	}
 	borrow.intrinsicMutation = func(issuer *sourceValueQuery, input *sourceGetInputs, physical *sourceMemberWriterReadCut) bool {
 		return work.publishOriginalIntrinsicFieldMutationSource(facts, issuer, input, physical)
 	}

@@ -30,17 +30,25 @@ func (work *callableEffectWork) stageNativeInputCall(facts []callableFacts, cons
 	return work.stageNativeInputOperation(facts, consumer, call, owner)
 }
 
-// stageModuleLiteralDefinition lends the existing selected-operation protocol
-// to a module binding's direct definition. Its literal arguments bound eager
-// acquisition. The original callee and each descriptor phase still own their
-// effects and the field Value owner retains any stored callable.
-func (work *callableEffectWork) stageModuleLiteralDefinition(facts []callableFacts, consumer int, call *ast.Node, owner *executableBodyOwner) bool {
+// stageModuleDescriptorDefinition lends the selected-operation protocol to a
+// module binding's direct definition with an inert data descriptor. The original
+// callee, target and field phases retain their independent effects and values.
+func (work *callableEffectWork) stageModuleDescriptorDefinition(facts []callableFacts, consumer int, call *ast.Node, owner *executableBodyOwner) bool {
 	if !ast.IsVariableDeclaration(call.Parent) || call.Parent.Initializer() != call || !runtimeModuleEvaluation(call.Parent) || !reflectiveNative(stagedNativeInputIntent(call.Expression())) {
 		return false
 	}
 	arguments := restrictedInvocationArguments(call.AsCallExpression())
-	if len(arguments) != 3 || !ast.IsObjectLiteralExpression(arguments[0]) || !sourceInertValueCreation(arguments[0]) || !sourcePrimitiveValue(arguments[1]) || !sourceInertDataLiteral(arguments[2], "") {
+	if len(arguments) != 3 || !sourcePrimitiveValue(arguments[1]) || !sourceInertDataLiteral(arguments[2], "") {
 		return false
+	}
+	target := arguments[0]
+	if !ast.IsObjectLiteralExpression(target) || !sourceInertValueCreation(target) {
+		if !ast.IsCallExpression(target) || stagedNativeInputIntent(target.Expression()) != sourceNativeObjectCreate || !stagedNativeInputEligible(target, &facts[consumer], owner) {
+			return false
+		}
+		if restrictedInvocationArguments(target.AsCallExpression())[0].Kind != ast.KindNullKeyword {
+			return false
+		}
 	}
 	prior := work.purpose
 	work.purpose = callableProtocolEffects

@@ -11,6 +11,8 @@ import { importArtifact } from '../test-support/import-artifact.js';
 
 const storedCallback =
 	'Object.defineProperty({value:()=>"before"},"value",{value:()=>document.title})';
+const createdCallback =
+	'Object.defineProperty(Object.create(null),"value",{value:()=>document.title})';
 
 it.each([
 	{
@@ -48,6 +50,34 @@ it.each([
 		name: 'a reached installed getter',
 		declaration:
 			'const record = Object.defineProperty({value:"before"},"value",{get:()=>document.title});',
+		value: 'record.value',
+		browser: true,
+		expected: 'browser value'
+	},
+	{
+		name: 'a data descriptor on a fresh null-prototype target',
+		declaration:
+			'const record = Object.defineProperty(Object.create(null),"value",{value:"created"});',
+		value: 'record.value',
+		expected: 'created'
+	},
+	{
+		name: 'a stored callback on a fresh null-prototype target',
+		declaration: `const record = ${createdCallback};`,
+		value: 'typeof record.value',
+		expected: 'function'
+	},
+	{
+		name: 'an invoked callback on a fresh null-prototype target',
+		declaration: `const record = ${createdCallback};`,
+		value: 'record.value()',
+		browser: true,
+		expected: 'browser value'
+	},
+	{
+		name: 'a reached installed getter on a fresh null-prototype target',
+		declaration:
+			'const record = Object.defineProperty(Object.create(null),"value",{get:()=>document.title});',
 		value: 'record.value',
 		browser: true,
 		expected: 'browser value'

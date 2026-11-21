@@ -17,7 +17,11 @@ type sourceStagedCreatePrototype struct {
 func describeStagedCreatePrototypeInput(input sourceRelativeEndpoint, declaration *ast.Node, owner *sourceValueOwner) (sourceStagedCreatePrototype, bool) {
 	var association sourceStagedCreatePrototype
 	call := input.producer
-	if owner == nil || owner.checker == nil || owner.program == nil || declaration == nil || !ast.IsFunctionLike(declaration) || call == nil || !ast.IsCallExpression(call) || call.AsCallExpression().QuestionDotToken != nil || enclosingCallableNode(call) != declaration {
+	if owner == nil || owner.checker == nil || owner.program == nil || declaration == nil || call == nil || !ast.IsCallExpression(call) || call.AsCallExpression().QuestionDotToken != nil {
+		return association, false
+	}
+	function := ast.IsFunctionLike(declaration)
+	if function && enclosingCallableNode(call) != declaration || !function && !sourceStagedOccurrenceOwned(call, declaration) {
 		return association, false
 	}
 	arguments := restrictedInvocationArguments(call.AsCallExpression())
@@ -30,10 +34,10 @@ func describeStagedCreatePrototypeInput(input sourceRelativeEndpoint, declaratio
 	}
 	expression := input.expression
 	association.input = cloneSourceRelativeEndpoint(input)
-	if expression.Kind == ast.KindNullKeyword || ast.IsObjectLiteralExpression(expression) && sourceInertValueCreation(expression) {
+	if expression.Kind == ast.KindNullKeyword || function && ast.IsObjectLiteralExpression(expression) && sourceInertValueCreation(expression) {
 		return association, true
 	}
-	if !ast.IsIdentifier(expression) {
+	if !function || !ast.IsIdentifier(expression) {
 		return sourceStagedCreatePrototype{}, false
 	}
 	symbol := owner.checker.GetSymbolAtLocation(expression)

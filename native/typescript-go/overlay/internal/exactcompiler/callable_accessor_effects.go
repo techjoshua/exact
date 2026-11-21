@@ -443,10 +443,12 @@ func (query *sourceValueQuery) sourceReflectiveMemberCandidate(origin *ast.Node,
 	call := node.AsCallExpression()
 	descriptorCall := query.descriptorWriterCall(call)
 	native := actualGet != nil && actualGet.receiver.native != nil
-	// The current definition's nominal target write cannot change its distinct
-	// descriptor literal. Its argument and field readers still own earlier work.
-	if descriptorCall && actualGet != nil && actualGet.operation == node && runtimeModuleEvaluation(query.effectOwner) && query.liveStagedFieldMemberSource(actualGet) && disjointDefinitionLiteralTarget(node, origin) {
-		return false
+	// The nominal write to a fresh target cannot change this descriptor.
+	// Its argument and field readers still own preceding effects.
+	if descriptorCall && actualGet != nil && actualGet.operation == node && runtimeModuleEvaluation(query.effectOwner) && query.liveStagedFieldMemberSource(actualGet) {
+		if disjointDefinitionLiteralTarget(node, origin) || query.stagedFieldGet.freshCreateTarget != nil && origin == actualGet.receiver.node {
+			return false
+		}
 	}
 	if query.active[node] || !descriptorCall && (!native || !query.owner.reflectiveMutation(call.Expression)) {
 		return false

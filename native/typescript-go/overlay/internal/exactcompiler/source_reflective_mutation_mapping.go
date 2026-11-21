@@ -19,7 +19,13 @@ func (work *callableEffectWork) reflectiveMutationFieldContribution(facts []call
 	if runtimeModuleEvaluation(demand.request.consumer) {
 		source := work.operationRecipes[demand.request.producer].nativeGet
 		if source != nil && source.installation != nil && reflectiveNative(source.kind) && get.operation == source.request.use && get.receiver.node == source.descriptorGet {
-			selfWrite := operation == source.request.use && disjointDefinitionLiteralTarget(operation, get.receiver.node)
+			create := get.stagedEffects.freshCreateTarget
+			if create != nil && (operation == create.get || operation == create.request.use) {
+				if delta, represented := work.directCreateMutationContribution(create, operation); represented {
+					return delta, true
+				}
+			}
+			selfWrite := operation == source.request.use && (disjointDefinitionLiteralTarget(operation, get.receiver.node) || create != nil)
 			if operation == source.get || selfWrite {
 				// This exact callee may still be pending delivery. Retain the
 				// original all-MAY no-user proof as a required dependency.
@@ -70,6 +76,43 @@ func (work *callableEffectWork) reflectiveMutationFieldContribution(facts []call
 		return work.declareFieldMutationData(facts, demand, q, get, field, originalGetMutationRequest(source), nil, nil, source)
 	}
 	return sourceStagedOperationDelta{}, false
+}
+
+// currentDirectCreateDefinitionTarget reuses the selected original Create
+// result relationship. The enclosing definition retains its target dependency
+// and the original Create Get and Call retain their own Effects requirements.
+func (work *callableEffectWork) currentDirectCreateDefinitionTarget(source *sourceStagedNativeGetSource) *sourceStagedNativeGetSource {
+	if !validNativeTargetSource(source) || source.targetBinding != nil {
+		return nil
+	}
+	root := work.currentNativeResultRoot(source.targetSource.producer)
+	if root == nil || root.kind != sourceNativeObjectCreate || !sameOperationRequest(root.request, source.targetSource) {
+		return nil
+	}
+	return root
+}
+
+// directCreateMutationContribution retains the original Get and creation
+// requirements for the fresh target. The callee entry law can still be awaiting
+// delivery when the descriptor's Value mapper first sees it.
+func (work *callableEffectWork) directCreateMutationContribution(create *sourceStagedNativeGetSource, operation *ast.Node) (sourceStagedOperationDelta, bool) {
+	callee := nativeRootDebtRequest(create, "callee-get")
+	law, described := stagedEntryLawRequest(callee, stagedEntryLawNativeGet)
+	if described && validStagedEntryLawRecipe(work.operationRecipes[law.producer]) {
+		required := []sourceStagedOperationRequest{law}
+		if operation == create.request.use {
+			required = append(required, nativeRootDebtRequest(create, "eager-inputs"), nativeRootDebtRequest(create, "algorithm"))
+		}
+		return sourceStagedOperationDelta{extracted: true, required: required}, true
+	}
+	proof := work.currentNativeCalleeEffects(create)
+	if proof == nil || !proof.noUserEntry || !work.nativeEffectsGetCurrent(create) {
+		return sourceStagedOperationDelta{}, false
+	}
+	if operation == create.request.use {
+		return sourceStagedOperationDelta{extracted: true, required: []sourceStagedOperationRequest{create.request}}, true
+	}
+	return sourceStagedOperationDelta{extracted: true, required: []sourceStagedOperationRequest{callee}}, true
 }
 
 // disjointDefinitionLiteralTarget applies to the original three-argument
