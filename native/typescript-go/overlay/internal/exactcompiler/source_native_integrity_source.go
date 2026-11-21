@@ -62,7 +62,7 @@ func (q *sourceValueQuery) sourceFreezeRelationshipObserved(site *ast.Node, call
 		}
 		// An ordinary literal has intrinsic own-property integrity operations. This
 		// environmental effect contract does not prove its descriptors or identity.
-		if !q.ordinaryFreezeInput(argument) || len(values) == 0 {
+		if !q.ordinaryLiteralInput(argument) || len(values) == 0 {
 			refuse()
 		}
 		if project != nil {
@@ -85,11 +85,10 @@ func (q *sourceValueQuery) sourceFreezeRelationshipObserved(site *ast.Node, call
 	}
 }
 
-// ordinaryFreezeInput recognizes a literal allocation even after its fields
-// escape or change. Standard freeze operates on its own descriptors and never
-// reads accessor values. A Proxy constructed around the object has a different
-// identity and can execute traps when frozen.
-func (q *sourceValueQuery) ordinaryFreezeInput(argument *ast.Node) bool {
+// ordinaryLiteralInput identifies the object allocated by a literal, including
+// through its direct const binding. Its properties may change or escape, but
+// the allocation cannot be a Proxy or a preexisting standard constructor.
+func (q *sourceValueQuery) ordinaryLiteralInput(argument *ast.Node) bool {
 	value := unwrapSourceCallableReference(argument)
 	if value != nil && ast.IsIdentifier(value) {
 		symbol := q.owner.checker.GetSymbolAtLocation(value)

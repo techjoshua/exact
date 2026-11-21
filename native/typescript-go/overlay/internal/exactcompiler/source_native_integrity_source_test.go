@@ -232,6 +232,9 @@ func TestGlobalRegistryKeyKeepsComponentFreezeAvailable(t *testing.T) {
 		name, registration string
 		opaque             bool
 	}{
+		{"record descriptor", `const record={};return Object.defineProperty(record,String(Math.random()),{value:1})`, false},
+		{"array descriptor", `const items:number[]=[];return Object.defineProperty(items,String(Math.random()),{value:1})`, false},
+		{"global descriptor", `return Object.defineProperty(Object,'freeze',{get(){return document.title}})`, true},
 		{"registry", `const key=Symbol.for('registry');return (globalThis as any)[key]??={}`, false},
 		{"delete", `const key=Symbol.for('registry');return delete (globalThis as any)[key]`, false},
 		{"string", `const key='freeze';return delete (Object as any)[key]`, true},

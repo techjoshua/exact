@@ -104,7 +104,8 @@ export function CompilerAnalysisSection(this: Component<{}>) {
 			</p>
 			<p>
 				A library can keep a registry in a global slot keyed by <code>Symbol.for</code>. Creating
-				or deleting that symbol slot preserves named standard methods such as <code>Object.freeze</code>.
+				or deleting that symbol slot preserves named standard methods such as <code>Object.freeze</code>. A helper can
+				also define properties on its own object or array literal without changing those methods.
 				Reading a property descriptor leaves a stored callback dormant. If a helper uses
 				<code>Object.getOwnPropertyDescriptor</code> on a local object, it can return the descriptor to its caller.
 				Calling the descriptor's <code>value</code> includes the function held at lookup in placement.
