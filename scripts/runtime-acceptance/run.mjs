@@ -71,6 +71,9 @@ try {
 		const { materializeExactPhysicalEnhancementFacades } = await import(
 			'@exactjs/compiler/adapter-support'
 		);
+		const { implementationFile } = await import(
+			'../../packages/compiler/dist/compilation/module-output.js'
+		);
 		const { createControl } = await import('./control.mjs');
 		const { withNativeHost } = await import('./host.mjs');
 		const { progressSource } = await import(
@@ -239,10 +242,12 @@ try {
 		// Select installed providers through the shared physical-facade implementation instead.
 		for (const artifact of pages) {
 			for (const target of ['client', 'server']) {
-				const outputFile = artifact[target + 'File'];
+				const output = artifact[target];
+				if (!output.rendererEnhancements?.length) continue;
+				const outputFile = implementationFile(artifact[target + 'File'], output);
 				const physical = materializeExactPhysicalEnhancementFacades(
 					await readFile(outputFile, 'utf8'),
-					artifact[target].rendererEnhancements,
+					output.rendererEnhancements,
 					artifact.inputFile,
 					temporary,
 					target === 'client' ? '@exactjs/dom/framework/enhancements' : undefined,
