@@ -16,21 +16,28 @@ func sourceInertValueCreation(node *ast.Node) bool {
 		return sourceInertClassCreation(node)
 	}
 	if ast.IsObjectLiteralExpression(node) {
-		for _, property := range node.AsObjectLiteralExpression().Properties.Nodes {
-			if property.Name() == nil || ast.IsComputedPropertyName(property.Name()) {
-				return false
-			}
-			if ast.IsPropertyAssignment(property) {
-				if !sourceInertValueCreation(property.AsPropertyAssignment().Initializer) {
-					return false
-				}
-			} else if !ast.IsMethodDeclaration(property) && !ast.IsGetAccessorDeclaration(property) && !ast.IsSetAccessorDeclaration(property) {
-				return false
-			}
-		}
-		return true
+		return sourceInertObjectFields(node, nil)
 	}
 	return false
+}
+
+// sourceInertObjectFields leaves computed-name evaluation to the caller's
+// narrower proof. Field initializers and deferred bodies use the same bound.
+func sourceInertObjectFields(node *ast.Node, computedNameAllowed func(*ast.Node) bool) bool {
+	for _, property := range node.AsObjectLiteralExpression().Properties.Nodes {
+		name := property.Name()
+		if name == nil || ast.IsComputedPropertyName(name) && (computedNameAllowed == nil || !computedNameAllowed(name)) {
+			return false
+		}
+		if ast.IsPropertyAssignment(property) {
+			if !sourceInertValueCreation(property.AsPropertyAssignment().Initializer) {
+				return false
+			}
+		} else if !ast.IsMethodDeclaration(property) && !ast.IsGetAccessorDeclaration(property) && !ast.IsSetAccessorDeclaration(property) {
+			return false
+		}
+	}
+	return true
 }
 
 // sourceInertClassCreation excludes eager heritage, decorators, static work and

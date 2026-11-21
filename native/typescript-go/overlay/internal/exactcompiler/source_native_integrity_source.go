@@ -144,7 +144,10 @@ func (q *sourceValueQuery) freezeArgumentFromNativeAllocation(
 		q.reflectiveCopy = &projection
 		defer func() { q.reflectiveCopy = prior }()
 	case sourceNativeObjectDefineProperties:
-		if len(actuals) != 2 || !ast.IsObjectLiteralExpression(actuals[0]) || !sourceInertValueCreation(actuals[0]) || !q.freezeChildPlainDescriptorMap(actuals[1]) {
+		if len(actuals) != 2 || !ast.IsObjectLiteralExpression(actuals[0]) ||
+			!sourceInertObjectFields(actuals[0], func(name *ast.Node) bool {
+				return q.freezeChildInertComputedName(name, result)
+			}) || !q.freezeChildPlainDescriptorMap(actuals[1]) {
 			return false
 		}
 	}
@@ -160,6 +163,26 @@ func (q *sourceValueQuery) freezeArgumentFromNativeAllocation(
 	}
 	native := selected.values[0].native
 	return native != nil && native.kind == kind && !native.referencesIncomplete
+}
+
+// freezeChildInertComputedName admits represented primitive keys. Checked
+// assertions alone cannot exclude an authored conversion on the actual value.
+func (q *sourceValueQuery) freezeChildInertComputedName(name *ast.Node, result *accessorCandidates) bool {
+	key := q.enumerationKeyExpression(name, result)
+	if key == nil {
+		return false
+	}
+	if ast.IsStringLiteral(key) || ast.IsNumericLiteral(key) {
+		return true
+	}
+	if !q.standardEnumerationSymbol(key) {
+		return false
+	}
+	if !ast.IsCallExpression(key) {
+		return true
+	}
+	args := restrictedInvocationArguments(key.AsCallExpression())
+	return len(args) == 0 || len(args) == 1 && ast.IsStringLiteral(unwrapSourceCallableReference(args[0]))
 }
 
 // freezeChildPlainDescriptorMap limits the proof to selected child applications

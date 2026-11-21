@@ -657,6 +657,19 @@ still records its input association. The writer source requires the method body
 when its graph reader adopts the source, and ordinary collection keeps the
 authored call when native admission declines.
 
+An enclosing `Object.freeze` previously made a module definition unavailable
+when the original selected `Object.defineProperties` target used a computed
+Symbol key. The original eager initializer remains responsible for key
+effects. The ordinary-target proof now recognizes represented primitive names
+while retaining uncertainty about authored coercion and Proxy targets. Paired
+component artifacts preserve the object through a helper return, its frozen
+data, its dormant callable and two independent `WeakMap` stores. A read of a
+computed getter routes to the browser, while reading the disjoint data field
+renders on the server. These controls replace the standalone requirement that
+every module declaration settle with an exact construction recipe. They cover
+rules 1, 2, 3, 4 and 6. Eager module `WeakMap#set` still reaches `EXACT2101`
+in a separate component fixture and remains open.
+
 Acceptance also covers mounted reads, control bindings, lifecycle, portals, registry identity, task settlement, protected transport, paired artifact selection, selected host implementations and source inspection. Use the existing [composition corpus](component-composition-corpus.md) and [package decision audit](#requester-disposition-against-the-component-contracts) for their scoped evidence. Treat interrupted suites and original packages that still reach the request deadline as open.
 
 ### Acceptance by traversal rule

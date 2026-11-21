@@ -2555,6 +2555,10 @@ operation that installs an own data descriptor map on a fresh ordinary target. T
 reach Freeze through a previously evaluated binding. The selected allocation supplies the
 ordinary-target premise. Authored descriptor accessors and unresolved computed keys retain their
 existing Effects obligations. This classification carries no completed integrity event.
+The fresh DefineProperties target may have a computed string or number literal name or an
+original standard Symbol name, including through an earlier source-local `const`. The source form
+establishes the key without trusting an assertion that could hide authored coercion. A later
+component read still determines whether a getter or stored callback runs.
 
 One-argument `Object.create` preserves its original null, inert object-literal or unmodified
 formal prototype association. It neither reads that prototype's properties nor invokes it.

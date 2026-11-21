@@ -18,6 +18,8 @@ func TestComponentFreezeKeepsChildDescriptorEffects(t *testing.T) {
 		opaque        bool
 	}{
 		{"ordinary", `Object.defineProperties({}, {value:{value:7}})`, false},
+		{"computed target key", `Object.defineProperties({[Symbol.for('key')]:0}, {value:{value:7}})`, false},
+		{"target key with authored coercion", `Object.defineProperties({[({[Symbol.toPrimitive](){void document.title;return 'x'}} as unknown as string)]:0}, {value:{value:7}})`, true},
 		{"map getter", `Object.defineProperties({}, {get value(){void document.title;return {value:7}}})`, true},
 		{"descriptor getter", `Object.defineProperties({}, {value:{get value(){void document.title;return 7}}})`, true},
 		{"proxy target", `Object.defineProperties(new Proxy({}, {ownKeys(){void document.title;return []}}), {value:{value:7}})`, true},
