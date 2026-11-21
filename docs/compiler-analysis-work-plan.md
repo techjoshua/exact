@@ -190,6 +190,18 @@ and produced `EXACT2101` for the now-opaque initializer. The build emitted neith
 target. Callable extraction and module availability both need a supported effect
 result for the actual operation. The private omissions qualify neither path.
 
+A private module-availability trial reused a neutral verdict only after the current
+graph had settled the original standard `Object.freeze` of a fresh string array.
+The paired SDK control retained the authored array at runtime and rendered a value
+on the server. Synchronized edits introducing and then removing a getter selected
+isomorphic, client and isomorphic placement in order. Lexical shadows, authored
+selectors and opaque inputs remained under ordinary analysis. The unchanged Intl
+package still reached the deadline at 32.96 seconds. With the earlier diagnostic
+bounds held constant, the existing graph supplied the correct verdict to three
+late queries, but the original request still timed out at 32.06 seconds with reuse
+and 32.08 seconds without it. The render helper's module availability walk still
+reached legacy writer recovery through dependency queries for that same binding.
+
 An inline factory-result control independently exposed a lost callable stored in a
 descriptor. The selected factory inputs and returned local object literal already
 identify a possible writer for the inline member read. The compiler can retain that
@@ -197,6 +209,12 @@ source relationship without reacquiring the creator as a prior call. The browser
 control now emits a client boundary, and the neutral control renders on the server.
 The unchanged Intl build with this fix reaches the same deadline at 32.43 seconds
 and emits neither target.
+
+An independent SSR control still throws when the factory installs a browser getter
+on a local object and returns it under a nested `state` field. Rendering
+`environment.state.locale` calls that getter in the server artifact. Reading the
+getter directly from the same receiver already emits a client boundary. The nested
+receiver relationship remains a separate placement failure.
 
 Acceptance also covers mounted reads, control bindings, lifecycle, portals, registry identity, task settlement, protected transport, paired artifact selection, selected host implementations and source inspection. Use the existing [composition corpus](component-composition-corpus.md) and [package decision audit](#requester-disposition-against-the-component-contracts) for their scoped evidence. Treat interrupted suites and original packages that still reach the request deadline as open.
 
