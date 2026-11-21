@@ -144,7 +144,7 @@ func TestClientComponentReadsCompilerIndexedStateSlots(t *testing.T) {
 		"__exactWriteState(this.state, 0, 0)",
 		"[[0, 0, [0, 0], true]",
 		"__exactApplyProgramText(__exactTarget0, 0, 0, 0)",
-		"__exactPreparedRenderProgram(__exact_render_program_1, [], this)",
+		"program: __exact_render_program_1, readers: [], owner: this",
 		`state: [`,
 		`"count"`,
 	} {
