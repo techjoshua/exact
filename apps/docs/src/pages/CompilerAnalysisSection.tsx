@@ -90,7 +90,9 @@ export function CompilerAnalysisSection(this: Component<{}>) {
 				<code>Object.defineProperty</code> adds a different property to the created object.
 				When an assignment invokes an
 				authored setter, its parameter carries the assigned value's environment requirements into the
-				setter's use of that value. A module binding initialized with
+				setter's use of that value. When a setter on a local object stores the assigned object in
+				another field, a later read can invoke a getter on the stored object. That getter’s
+				requirements follow the read. A module binding initialized with
 				<code>Object.defineProperty</code> can store a browser callback on a fresh object literal
 				or on the direct result of <code>Object.create(null)</code>. A component that invokes
 				the callback needs the browser.

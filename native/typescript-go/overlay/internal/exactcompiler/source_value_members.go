@@ -294,6 +294,7 @@ func (query *sourceValueQuery) memberValuesAtGetWithStandard(origin *ast.Node, p
 					if disjointRHS {
 						continue
 					}
+					inputs = query.localSetterWriterInputs(assignment.left, origin, cut, bindings, result, inputs)
 				}
 				for _, input := range inputs {
 					// Entering an actual input/capture scope creates this migration
@@ -308,7 +309,7 @@ func (query *sourceValueQuery) memberValuesAtGetWithStandard(origin *ast.Node, p
 					query.memberWriterScope(input, func() {
 						assignmentBindings := input.scope.bindings
 						var setterProducer *ast.Node
-						if writer := enclosingCallableNode(assignment.left); writer != nil && ast.IsSetAccessorDeclaration(writer) {
+						if writer := enclosingCallableNode(assignment.left); input.implicitMember == nil && writer != nil && ast.IsSetAccessorDeclaration(writer) {
 							setterProducer, assignmentBindings = query.setterWriteProducer(assignment.left, bindings)
 						}
 						root, key := accessorReceiver(assignment.left)
@@ -501,8 +502,15 @@ func (query *sourceValueQuery) memberValuesAtGetWithStandard(origin *ast.Node, p
 								if producer != nil {
 									occurrence = producer
 								}
+								unordered := input.incomplete || input.call != nil && producer == nil
+								// The enclosing original Set or Call bounds a possible
+								// write even when execution of the write is uncertain.
+								if input.implicitMember != nil {
+									occurrence = input.implicitMember
+									unordered = false
+								}
 								alternatives = append(alternatives, next...)
-								replacements = append(replacements, sourceValueReplacement{at: occurrence, operation: operation, values: next, bindings: assignmentBindings, certain: replacement, unordered: input.incomplete || input.call != nil && producer == nil})
+								replacements = append(replacements, sourceValueReplacement{at: occurrence, operation: operation, values: next, bindings: assignmentBindings, certain: replacement, unordered: unordered})
 							}
 						}
 					})

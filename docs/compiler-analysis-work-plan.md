@@ -2131,6 +2131,14 @@ uncertainty. It skips direct RHS projection for a disjoint key and retains
 the cheap reconstruction cut where opacity has already been established.
 Matching setter-body writes and staged transfers keep their existing routes.
 
+For a local object literal setter that stores its input through `this`, a
+subsequent field Get joins the captured RHS from the original Set. A directly
+called synchronous local installer supplies the Set's bindings from that Call.
+The Set or Call bounds when the write could have occurred. A later definite
+own-field overwrite can supersede that value, and a field saved before the Set
+retains its earlier origin. Each recovered scope supplies a possible value
+dependency. The original operations still own their effects and execution.
+
 A matched rerun rebuilt the exact `a693a97e9` and `7b3ae6c8b` hosts and
 used fresh copies of the same pinned Core inputs. The fast host completed
 the package command in 34.68 seconds and produced 3,598 output files. The
