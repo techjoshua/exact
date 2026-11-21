@@ -249,6 +249,24 @@ client boundary. The original `9384684d6` full run encountered temporary
 storage exhaustion, process kills and harness timeouts. Those rows require
 replay before they can count in a compiler differential.
 
+The completed accessor-only replay, isolated key-write patch and integrated
+`c346cb72c` checkpoint agree on each native group. All three pass 1,965 of
+2,336 groups. Relative to `b42dc2c01`, every pass remains green and
+`TestMapKnownEffectProjection` recovers the browser effect of the computed
+item getter. The inventory has one fewer group because `052dc947d` replaced
+the failing standalone native algorithm entry assertion with Freeze
+component coverage. The 371 remaining failures belong to 119 historical
+families. Their unchanged group outcomes do not establish component-level
+qualification for every inherited case. The replay used disk-backed scratch
+space and the existing test deadline. The sole accessor-only closure-array
+timeout reproduced the existing diagnostic failure in an isolated rerun.
+
+For the integrated build, native application and library compiles have
+identical code and placement on each target for the same-property,
+disjoint-getter, unknown-descriptor and Proxy controls. The first remains
+isomorphic and the other three retain browser placement. The paired SDK
+controls exercise the emitted targets and preserve the runtime distinction.
+
 The authored root factory passes its parameter to a real component through the paired SDK artifacts. The binding lifecycle and collection identity suites pass all 45 cases with the wrapped Map correction. The root factory control renders distinct inputs, adopts the server DOM under strict hydration and updates the retained owner on new props. This replaces the native assertion about a particular receipt helper for a declaration without a component body.
 
 The focused `7a85c2499` checkpoint passed 22 of 28 native groups, including the assigned-getter and recursive-projection controls. Six staged-source failures reproduced from `43fa437ca`. The checkpoint passed 21 paired SDK cases covering forwarded setup, context, retained props and host rendering. Direct browser and server task compilation also passed the scalar-or-thenable checking cases with rebuilt Core declarations. At this checkpoint, the canonical cancellation corpus reached the 30-second compile deadline.
