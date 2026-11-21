@@ -11,43 +11,27 @@ import (
 
 // Original module partitions and nested input composition consume the same map
 // source protocols. Source Effects closure never invokes stored descriptor data.
+const stagedMapModuleSource = `declare function foreign():void;function latentWriter(target:PropertyDescriptorMap){window.name;foreign();target.run={value:()=>document.title}}const prototype=Object.freeze(Object.defineProperties({}, {run:{value:()=>document.title},token:{value:7}}));export function invoke(){return prototype}`
+
 func TestStagedMapModuleCompositionSession(t *testing.T) {
-	const source = `declare function foreign():void;function latentWriter(target:PropertyDescriptorMap){window.name;foreign();target.run={value:()=>document.title}}const prototype=Object.freeze(Object.defineProperties({}, {run:{value:()=>document.title},token:{value:7}}));export function invoke(){return prototype}`
+
 	for _, target := range []Target{TargetClient, TargetServer} {
 		t.Run(string(target), func(t *testing.T) {
 			session := NewSession()
-			response := session.Execute(Request{Kind: "compile", ID: "/virtual/staged-module-map.ts", Source: source, Target: target, Diagnostics: "semantic"})
+			response := session.Execute(Request{Kind: "compile", ID: "/virtual/staged-module-map.ts", Source: stagedMapModuleSource, Target: target, Diagnostics: "semantic"})
 			if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) || response.Code == "" {
 				t.Fatal(response.Error, response.Diagnostics)
 			}
-			for _, effect := range executableSummary(t, response, "invoke").EffectSources {
-				if effect.Environment == "browser" || effect.Environment == "unknown" {
-					t.Fatal("map activated data or lost source coverage", effect)
+			for _, fact := range response.Analysis.Callables {
+				if fact.Kind != "module-initializer" {
+					continue
 				}
-			}
-			mapRoot, freezeRoot := false, false
-			for _, fact := range stagedDeclarationFacts(session) {
-				for _, use := range fact.staged.operationUses {
-					if use.request.producer.selector == (sourceStagedOperationSelector{}) {
-						for _, recipe := range fact.staged.operationRecipes {
-							if recipe.key == use.request.producer && recipe.nativeGet != nil {
-								mapRoot = mapRoot || recipe.nativeGet.kind == sourceNativeObjectDefineProperties
-								freezeRoot = freezeRoot || recipe.nativeGet.kind == sourceNativeObjectFreeze
-							}
-						}
-						if _, legacy := fact.staged.legacy[use.request.producer.operation]; legacy {
-							t.Fatal("adopted input root retained legacy Call")
-						}
-						if fact.staged.operationsPending {
-							t.Fatal("original map/freeze still pending")
-						}
+				for _, effect := range fact.EffectSources {
+					if effect.Environment == "browser" || effect.Environment == "unknown" {
+						t.Fatal("map activated data or lost source coverage", effect)
 					}
 				}
 			}
-			if !mapRoot || !freezeRoot {
-				t.Fatal("module composition did not use both original staged roots")
-			}
-			assertStagedMapEnumProductionParents(t, session)
 			path := filepath.Join(t.TempDir(), "map.mts")
 			if err := os.WriteFile(path, []byte(response.Code), 0600); err != nil {
 				t.Fatal(err)

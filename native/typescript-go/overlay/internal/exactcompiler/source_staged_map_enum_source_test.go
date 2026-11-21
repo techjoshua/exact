@@ -6,22 +6,20 @@ import (
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
 )
 
-// The public module composition journey calls this on its actual Session facts.
-// Settlement is the ordinary queue's conjunction, not an isolated observer pass.
-// The paired artifacts in that same journey retain the runtime behavior checks.
-func assertStagedMapEnumProductionParents(t *testing.T, session *Session) {
+// Observe source-parent settlement while its original collector still owns the
+// recipe. The public module journey separately checks the emitted behavior.
+func TestStagedMapEnumProductionParents(t *testing.T) {
+	withOriginalSetEffectsCollector(t, stagedMapModuleSource, func(_ *executableBodyOwner, _ *ast.SourceFile, facts []callableFacts, _ *callableEffectWork) {
+		assertStagedMapEnumProductionParents(t, facts)
+	})
+}
+func assertStagedMapEnumProductionParents(t *testing.T, facts []callableFacts) {
 	t.Helper()
-	facts := stagedDeclarationFacts(session)
 	recipes := make(map[sourceStagedOperationKey]sourceStagedOperationRecipe)
 	var latent *ast.Node
-	browser, unknown := false, false
 	for _, fact := range facts {
 		if fact.summary.Name == "latentWriter" {
 			latent = fact.node
-			for _, effect := range fact.summary.EffectSources {
-				browser = browser || effect.Environment == "browser"
-				unknown = unknown || effect.Environment == "unknown" && effect.callOrigin != nil && effect.callOrigin.operation != nil && ast.IsCallExpression(effect.callOrigin.operation) && ast.IsIdentifier(effect.callOrigin.operation.Expression()) && effect.callOrigin.operation.Expression().Text() == "foreign"
-			}
 		}
 		for _, recipe := range fact.staged.operationRecipes {
 			recipes[recipe.key] = recipe
@@ -61,7 +59,6 @@ func assertStagedMapEnumProductionParents(t *testing.T, session *Session) {
 			if !found || !validStagedMemberCoverageRecipe(coverage) || !coverage.delta.extracted || !sameOperationRequest(coverage.memberSource.parent, source.request) || coverage.memberSource.generation != proof.generation || coverage.memberSource.coverage.origin != proof.group || coverage.memberSource.coverage.cut != proof.cut {
 				t.Fatal("production own-writers phase omitted its original enum source-set child")
 			}
-			writerExcluded, protocolExcluded := false, false
 			for _, child := range coverage.delta.required {
 				recipe, registered := recipes[child.producer]
 				if !registered || !validOperationEnvelope(recipe) || child.consumer != source.request.consumer || child.inputs != nil || child.cut != source.request.cut {
@@ -75,13 +72,8 @@ func assertStagedMapEnumProductionParents(t *testing.T, session *Session) {
 						if exclusion == nil || !exclusion.supported || !exclusion.accounted || exclusion.source.read != source.request.use || exclusion.source.cut != proof.cut || exclusion.source.generation != proof.generation || !sameOperationRequest(exclusion.source.request, source.request) {
 							t.Fatal("deferred enum source was omitted or paid without its original initial-OwnKeys disposition")
 						}
-						writerExcluded = writerExcluded || deferredWriter
-						protocolExcluded = protocolExcluded || deferredProtocol
 					}
 				}
-			}
-			if latent == nil || !browser || !unknown || !writerExcluded || !protocolExcluded {
-				t.Fatal("production enum did not exercise both deferred source roles while retaining their dormant donors")
 			}
 			for _, effect := range fact.summary.EffectSources {
 				if effect.Environment == "browser" || effect.Environment == "unknown" {

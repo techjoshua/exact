@@ -87,6 +87,17 @@ accessor uncertainty. These checks qualify the member groups and their
 existing delta lifecycle controls. Other inventoried families need their own
 reachable consumer and phase qualification.
 
+The module descriptor-map composition now checks the executed initializer
+under rules 1 and 2. The paired Node artifacts preserve the frozen object,
+its stored function, and its identity. The SDK renderer reads the sibling
+data field as `7` without triggering the stored browser function. The old
+public assertion expected an unused export's summary and live operation
+recipes in the retained Session. The compiler's original collector now
+checks the selected map parent, writer disposition, and exact entry
+relationships under rules 3, 4 and 7. The compiler need not enroll a dormant
+writer to avoid invoking it. Seven other map family groups still need
+qualification of their requested relationships.
+
 The full native `9898a1cba` checkpoint ran 2,329 groups with 1,903 passes, 425 test failures and one compiler panic. Relative to `43fa437ca`, three prior failures pass and all seven added groups pass. The prior render-effects suite reproduces the panic on a parenthesized Array `map` member. The source key lookup now unwraps that member and leaves absent source syntax to ordinary analysis. The complete render-effects matrix and the Map key placement tests pass on a focused rerun using the checkpoint plus that correction. The historical inventory still contains 131 failure families. Their exit status and source owners guide triage, while distinct public consumers require separate qualification.
 
 The full native `db1cb6832` checkpoint ran 2,330 groups with 1,910 passes and 420 failures. Every prior pass remains green. Five prior failures pass, covering wrapped array calls, the captured-write consumer and three constructor and writer groups. Both added groups pass. The authored root-factory coverage replaces one former standalone assertion.
