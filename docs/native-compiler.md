@@ -699,6 +699,9 @@ during analysis. Repeated primitive-input calls reuse the resolved callable effe
 than acquire an opaque effect solely from revisiting an active declaration. Object, unknown,
 projected and captured nonprimitive inputs still widen recursive value demands. This supplies
 neither a return value nor purity or performed-execution authority.
+A member projection stops when the only source is the same unresolved recursive parameter
+with the same prefix added on the next visit. The read retains an unknown alternative.
+Other acquired inputs and their getter effects continue to be visited.
 
 For a direct call to a stable local function, definition-level effect collection can use
 the registered call edge when each argument forwards an unassigned required parameter

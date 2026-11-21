@@ -55,6 +55,7 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 	}()
 	var acquiredParent *sourceObservedValue
 	type memberVisit struct {
+		self       *sourceValue
 		node       *ast.Node
 		projection []string
 		instance   bool
@@ -463,7 +464,7 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 		if seen == nil {
 			seen = make([]memberVisit, 0, 4)
 		}
-		seen = append(seen, memberVisit{value, slices.Clone(projection), instance})
+		seen = append(seen, memberVisit{node: value, projection: slices.Clone(projection), instance: instance})
 		defer func() {
 			seen[slot] = memberVisit{}
 			seen = seen[:slot]
@@ -1226,6 +1227,26 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 			}
 			if argument, exists := arguments[ast.GetSymbolId(symbol)]; exists {
 				argument = query.liveValues(symbol, argument, value, arguments, &result)
+				// An unresolved formal can be its own only source in a recursive
+				// call. Substituting it again cannot advance the original Get.
+				// Retain uncertainty while keeping other terms and acquired scopes.
+				if query.dependenciesOnly && (mode == accessorRead || mode == accessorAcquire) &&
+					symbol.ValueDeclaration != nil && ast.IsParameterDeclaration(symbol.ValueDeclaration) &&
+					len(argument) == 1 && argument[0].node == value && len(argument[0].path) != 0 &&
+					argument[0].capture == nil && argument[0].normal == nil && argument[0].acquired == nil {
+					self := &argument[0]
+					if slot > 0 && seen[slot-1].self == self {
+						prior := seen[slot-1].projection
+						if len(projection) == len(self.path)+len(prior) &&
+							slices.Equal(projection[:len(self.path)], self.path) &&
+							slices.Equal(projection[len(self.path):], prior) {
+							result.opaque, result.valueIncomplete = true, true
+							query.owner.widenings++
+							return
+						}
+					}
+					seen[slot].self = self
+				}
 				// Reading a rest-array slot does not read that element's members.
 				if len(projection) == 0 && name != "" && len(argument) == 1 && argument[0].rest != nil {
 					return
