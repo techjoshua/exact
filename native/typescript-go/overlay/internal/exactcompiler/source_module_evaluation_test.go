@@ -173,6 +173,8 @@ func TestModuleDecoratorEvaluation(t *testing.T) {
 		name, source    string
 		browser, opaque bool
 	}{
+		{"identity", `function decorate<T extends new(...args:never[])=>object>(value:T){return value}@decorate class C{}export const value=1;`, false, false},
+		{"identity with work", `function decorate<T extends new(...args:never[])=>object>(value:T){document.title;return value}@decorate class C{}export const value=1;`, false, true},
 		{"class", `function decorate(...args:unknown[]):void{document.title}@decorate class C{}export const value=1;`, false, true},
 		{"safe application", `function decorate(...args:unknown[]):void{}@decorate class C{}export const value=1;`, false, true},
 		{"unknown application", `declare const decorate:(...args:unknown[])=>void;@decorate class C{}export const value=1;`, false, true},

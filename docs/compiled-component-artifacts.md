@@ -131,6 +131,10 @@ can execute authored traps and retains its separate placement requirements. Miss
 metadata from an imported provider limits value projection. The standard operation on a known
 literal still has the same execution effects.
 
+A local synchronous class decorator that only returns its single class argument preserves the
+class identity and adds no definition-time work. Reassigned decorators, replacement classes,
+initializer registration and member decorators keep their independent application obligations.
+
 A callback passed through a helper can capture that helper's parameter. Its known platform
 requirements apply when the receiving helper invokes it, along with the contribution of any
 callback that it calls. Passing or returning the closure alone preserves its deferred body.

@@ -117,7 +117,8 @@ export function CompilerAnalysisSection(this: Component<{}>) {
 				Placement includes work performed when a module loads, such as class static fields, static
 				blocks and computed member names. A browser read in a static field still requires the
 				browser. Instance field initializers and method bodies are considered when construction or
-				invocation consumes them. Unresolved decorator application and disposal operations can
+				invocation consumes them. A synchronous, locally declared class decorator whose only statement returns its class
+				argument preserves that class for component tasks. Unresolved decorator application and disposal operations can
 				retain unknown effects.
 			</p>
 			<p>

@@ -73,11 +73,17 @@ func (query *sourceValueQuery) sourceDisposalMayBeAcquired(node *ast.Node) bool 
 // Decorator expressions execute at definition. Their implicit application and
 // possible replacement/initializers have no ordinary source execution contract.
 func sourceClassHasDecoratorApplication(node *ast.Node) bool {
+	return sourceClassHasUnresolvedDecorators(node, nil)
+}
+
+func sourceClassHasUnresolvedDecorators(node *ast.Node, owner *sourceValueOwner) bool {
 	if !ast.IsClassDeclaration(node) && !ast.IsClassExpression(node) {
 		return false
 	}
-	if len(sourceDefinitionDecorators(node)) > 0 {
-		return true
+	for _, decorator := range sourceDefinitionDecorators(node) {
+		if !sourceIdentityClassDecorator(decorator, owner) {
+			return true
+		}
 	}
 	for _, member := range node.Members() {
 		if len(sourceDefinitionDecorators(member)) > 0 {
@@ -85,6 +91,37 @@ func sourceClassHasDecoratorApplication(node *ast.Node) bool {
 		}
 	}
 	return false
+}
+
+// A synchronous declaration that returns its first argument leaves the class
+// identity intact. Other decorators retain their application and initializer obligations.
+func sourceIdentityClassDecorator(decorator *ast.Node, owner *sourceValueOwner) bool {
+	expression := unwrapSourceCallableReference(decorator.AsDecorator().Expression)
+	if owner == nil || !ast.IsIdentifier(expression) {
+		return false
+	}
+	symbol := owner.checker.GetSymbolAtLocation(expression)
+	if symbol == nil || symbol.ValueDeclaration == nil || !ast.IsFunctionDeclaration(symbol.ValueDeclaration) {
+		return false
+	}
+	function := symbol.ValueDeclaration
+	source := ast.GetSourceFileOfNode(decorator)
+	if ast.GetSourceFileOfNode(function) != source || function.Body() == nil || len(function.Parameters()) != 1 ||
+		function.AsFunctionDeclaration().AsteriskToken != nil || ast.HasSyntacticModifier(function, ast.ModifierFlagsAsync) {
+		return false
+	}
+	parameter := function.Parameters()[0].AsParameterDeclaration()
+	statements := function.Body().AsBlock().Statements.Nodes
+	if !ast.IsIdentifier(parameter.Name()) || parameter.Initializer != nil || parameter.DotDotDotToken != nil ||
+		len(statements) != 1 || !ast.IsReturnStatement(statements[0]) {
+		return false
+	}
+	value := unwrapSourceCallableReference(statements[0].AsReturnStatement().Expression)
+	if value == nil || !ast.IsIdentifier(value) || owner.checker.GetSymbolAtLocation(value) != owner.checker.GetSymbolAtLocation(parameter.Name()) {
+		return false
+	}
+	index := owner.index(source)
+	return !index.incomplete && !index.normalDynamicScope && !owner.bindingWritten(symbol)
 }
 
 // Definition decorators include legacy parameter modifiers, but never parameter

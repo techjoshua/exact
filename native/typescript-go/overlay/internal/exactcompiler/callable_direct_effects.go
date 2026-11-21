@@ -154,7 +154,7 @@ func collectDirectCallableEffects(
 			}
 			appendAccessorTargets(fact, node, part, nodeTargets, sourceFile)
 		}
-		if sourceClassHasDecoratorApplication(node) {
+		if sourceClassHasUnresolvedDecorators(node, owner.values) {
 			flow := moduleFlow
 			if flow == nil {
 				flow = &sourceValueQuery{owner: owner.values, executable: owner, effectOwner: fact.node, dependenciesOnly: true, active: make(map[*ast.Node]bool)}

@@ -232,7 +232,7 @@ func (work *callableEffectWork) refreshStagedEvaluations(facts []callableFacts, 
 					add(operation.operation)
 				}
 			}
-			if sourceClassHasDecoratorApplication(e.node) {
+			if sourceClassHasUnresolvedDecorators(e.node, owner.values) {
 				pending("decorators", false, nil)
 			}
 			var clause *ast.NodeList

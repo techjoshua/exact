@@ -1057,7 +1057,7 @@ func (query *sourceValueQuery) executeDemand(node, declaration *ast.Node, bindin
 		effect.callOrigin = nil
 		result.environmentEffects = append(result.environmentEffects, effect)
 	}
-	if query.dependenciesOnly && sourceClassHasDecoratorApplication(node) {
+	if query.dependenciesOnly && sourceClassHasUnresolvedDecorators(node, query.owner) {
 		name := "<anonymous>"
 		if declaration.Name() != nil {
 			name = callableNameText(declaration.Name())
