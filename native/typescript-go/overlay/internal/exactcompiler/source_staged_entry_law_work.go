@@ -15,6 +15,7 @@ const (
 	stagedEntryLawNativeGet
 	stagedEntryLawNativeAlgorithm
 	stagedEntryLawConstruction
+	stagedEntryLawFieldNoMutation
 )
 
 // This immutable plan names an original implicit protocol contribution. A plan
@@ -75,6 +76,14 @@ func stagedEntryLawRequest(base sourceStagedOperationRequest, kind sourceStagedE
 		if kind == stagedEntryLawFieldGet {
 			role = "get:" + base.producer.selector.field
 		}
+	case stagedEntryLawFieldNoMutation:
+		if _, valid := fieldSourceRequests(base); !valid {
+			return sourceStagedOperationRequest{}, false
+		}
+		request := base
+		request.producer.selector.field = "descriptor-no-mutation:" + base.producer.selector.field
+		request.edge += ":" + request.producer.selector.field
+		return request, true
 	case stagedEntryLawConstruction:
 		if !ast.IsNewExpression(base.producer.operation) || base.producer.selector != (sourceStagedOperationSelector{}) {
 			return sourceStagedOperationRequest{}, false
@@ -113,7 +122,7 @@ func validStagedEntryLawRecipe(recipe sourceStagedOperationRecipe) bool {
 			return false
 		}
 	}
-	if source.kind == stagedEntryLawNativeGet && (len(recipe.delta.required) != 1 || !sameOperationRequest(recipe.delta.required[0], source.base)) {
+	if (source.kind == stagedEntryLawNativeGet || source.kind == stagedEntryLawFieldNoMutation) && (len(recipe.delta.required) != 1 || !sameOperationRequest(recipe.delta.required[0], source.base)) {
 		return false
 	}
 	mapEntry := source.kind == stagedEntryLawMapGet || source.kind == stagedEntryLawMapConversion
@@ -169,7 +178,7 @@ func (work *callableEffectWork) registerEntryLawSource(facts []callableFacts, ba
 		plan.entry = &copy
 	}
 	recipe := sourceStagedOperationRecipe{key: request.producer, entryLaw: plan}
-	if kind == stagedEntryLawNativeGet {
+	if kind == stagedEntryLawNativeGet || kind == stagedEntryLawFieldNoMutation {
 		recipe.delta.required = []sourceStagedOperationRequest{base}
 	}
 	return request, work.registerOperationSourcePrefix(facts, recipe)
@@ -194,6 +203,12 @@ func (work *callableEffectWork) registerFieldEntryLawSources(facts []callableFac
 	for _, field := range reflectiveDescriptorKeys {
 		base := nativeDescriptorFieldRequest(source, field)
 		receiver := sourceRelativeEndpoint{kind: relativeEndpointExpression, expression: source.descriptorGet, producer: source.request.producer.operation, get: source.descriptorGet, cut: base.cut}
+		get, _ := stagedEntryLawRequest(base, stagedEntryLawFieldGet)
+		if work.operationRecipes[get.producer].entryLaw == nil && nativeDescriptorGetterMutationEligible(source, field) {
+			if _, registered := work.registerEntryLawSource(facts, base, receiver, stagedEntryLawFieldNoMutation); !registered {
+				return false
+			}
+		}
 		for _, kind := range []sourceStagedEntryLawKind{stagedEntryLawFieldHas, stagedEntryLawFieldGet} {
 			if _, registered := work.registerEntryLawSource(facts, base, receiver, kind); !registered {
 				return false
@@ -273,8 +288,15 @@ func (work *callableEffectWork) fieldEntryLawPredecessors(source *sourceStagedNa
 		if index < 0 {
 			return nil, false
 		}
-		if index != 0 && !appendLaw(nativeDescriptorFieldRequest(source, reflectiveDescriptorKeys[index-1]), stagedEntryLawFieldGet) {
-			return nil, false
+		if index != 0 {
+			previous := nativeDescriptorFieldRequest(source, reflectiveDescriptorKeys[index-1])
+			kind := stagedEntryLawFieldGet
+			if work.descriptorFieldMutationLawDescribed(previous) {
+				kind = stagedEntryLawFieldNoMutation
+			}
+			if !appendLaw(previous, kind) {
+				return nil, false
+			}
 		}
 	}
 	return required, true
@@ -399,12 +421,15 @@ func (work *callableEffectWork) attachFieldEntryLawPrefix(facts []callableFacts,
 		return
 	}
 	previous = appendEntryLawRequirement(previous, coverage)
-	if !work.attachEntryLawRequirements(facts, request, previous) {
+	// An authored Get can have an ordered mutation prerequisite without
+	// making NoUserEntry a required result of that Get.
+	adopt := phase != stagedFieldObservationGet || !work.descriptorFieldMutationLawDescribed(demand.request)
+	if !work.attachEntryLawRequirements(facts, request, previous, adopt) {
 		return
 	}
 	work.consumeStagedModuleActivation(facts, query, get, member.read)
 	if member.moduleReceipt != nil {
-		work.attachEntryLawRequirements(facts, request, member.moduleReceipt.required)
+		work.attachEntryLawRequirements(facts, request, member.moduleReceipt.required, adopt)
 	}
 	work.rememberEntryLawPrefix(request, borrow.cut, member.moduleReceipt, member.moduleImports)
 }
@@ -578,6 +603,9 @@ func (work *callableEffectWork) entryLawLocallyAccounted(recipe sourceStagedOper
 		return false
 	}
 	plan := recipe.entryLaw
+	if plan.kind == stagedEntryLawFieldNoMutation {
+		return work.currentEagerDescriptorGetterNoMutation(plan.base, plan.receiver)
+	}
 	if plan.kind == stagedEntryLawConstruction {
 		root := work.operationRecipes[plan.base.producer]
 		observation := work.constructionEffectsObserved[plan.base.producer]

@@ -3942,6 +3942,14 @@ descriptor field. Field Value mapping keeps the original callee and eager input
 dependencies. A later component read or invocation observes the installed getter
 or callback on that target.
 
+A recognized own getter on an ordinary module descriptor runs during conversion.
+An earlier field can satisfy the next field's ordered prerequisite when its
+original Get effects have settled and the canonical mutation inventory for its
+bound body is complete and empty. The no-entry law remains independent from
+that inventory. Receiver mutations and unfinished bodies retain the existing
+fallback. A component that reads the initialized binding uses its canonical
+artifact target when the ordinary module placement query leaves it unresolved.
+
 At a selected standard `Object.defineProperties` call with a fresh literal
 target and a single own descriptor-map entry, the original operation retains
 the map getter and the getter on a recognized descriptor field. The same

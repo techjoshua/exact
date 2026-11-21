@@ -466,7 +466,7 @@ func (s *Session) executeProjection(request Request, authored *authoredCheckProg
 	// bindings. The executable request has already checked which bindings it can use.
 	var availability *moduleValueAvailability
 	if authored == nil || request.Kind != "check" {
-		availability = &moduleValueAvailability{checker: generation.checker, owner: callables.owner, placements: make(map[*ast.Symbol]string)}
+		availability = &moduleValueAvailability{checker: generation.checker, owner: callables.owner, callables: callables.byNode, placements: make(map[*ast.Symbol]string)}
 	}
 	tasks := collectTasks(
 		sourceFile,

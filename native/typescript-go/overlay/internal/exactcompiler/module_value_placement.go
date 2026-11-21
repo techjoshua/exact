@@ -83,7 +83,20 @@ func (availability *moduleValueAvailability) componentReferencePlacement(node *a
 	if top == nil || top.Parent == nil || !ast.IsSourceFile(top.Parent) || top.Parent.AsSourceFile().IsDeclarationFile {
 		return ""
 	}
-	return availability.placement(symbol)
+	placement := availability.placement(symbol)
+	if placement == "client" || placement == "server" || !ast.IsVariableDeclaration(declaration) {
+		return placement
+	}
+	// Artifact pruning consumes the canonical initializer's target. A read of
+	// its stored value needs the same binding on the component's target.
+	initializer, known := availability.callables[declaration]
+	if !known {
+		initializer = availability.callables[top]
+	}
+	if initializer.Kind == "module-initializer" && len(initializer.ArtifactTargets) == 1 {
+		return initializer.ArtifactTargets[0]
+	}
+	return placement
 }
 
 // taskCallBindingRequirement carries the real module binding into task placement.

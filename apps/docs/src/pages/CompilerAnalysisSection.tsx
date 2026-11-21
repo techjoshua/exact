@@ -92,6 +92,9 @@ export function CompilerAnalysisSection(this: Component<{}>) {
 				<code>Object.defineProperty</code> can store a browser callback on a fresh object literal
 				or on the direct result of <code>Object.create(null)</code>. A component that invokes
 				the callback needs the browser.
+				An ordinary descriptor can also compute its value with <code>get value()</code>.
+				When that getter reads <code>document</code> during the module initializer, a component
+				that uses the resulting binding renders in the browser.
 				Freezing an ordinary object just created in that initializer keeps its stored callbacks
 				and installed getters dormant.
 				If a getter returns a

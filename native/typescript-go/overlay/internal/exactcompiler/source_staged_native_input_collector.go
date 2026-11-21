@@ -38,7 +38,7 @@ func (work *callableEffectWork) stageModuleDescriptorDefinition(facts []callable
 		return false
 	}
 	arguments := restrictedInvocationArguments(call.AsCallExpression())
-	if len(arguments) != 3 || !sourcePrimitiveValue(arguments[1]) || !sourceInertDataLiteral(arguments[2], "") {
+	if len(arguments) != 3 || !sourcePrimitiveValue(arguments[1]) || !stagedModuleDescriptorLiteral(arguments[2], owner) {
 		return false
 	}
 	target := arguments[0]
@@ -54,6 +54,39 @@ func (work *callableEffectWork) stageModuleDescriptorDefinition(facts []callable
 	work.purpose = callableProtocolEffects
 	defer func() { work.purpose = prior }()
 	return work.stageNativeInputCall(facts, consumer, call, owner)
+}
+
+// stagedModuleDescriptorLiteral bounds the original collector's input domain.
+// The selected field and its canonical body still supply the mutation proof.
+func stagedModuleDescriptorLiteral(descriptor *ast.Node, owner *executableBodyOwner) bool {
+	if sourceInertDataLiteral(descriptor, "") {
+		return true
+	}
+	if !ast.IsObjectLiteralExpression(descriptor) || !sourceInertValueCreation(descriptor) {
+		return false
+	}
+	var fields [6]bool
+	for _, member := range descriptor.AsObjectLiteralExpression().Properties.Nodes {
+		name := callableNameText(member.Name())
+		if name == "__proto__" {
+			return false
+		}
+		index := stagedDescriptorFieldIndex(name)
+		if index >= 0 {
+			if fields[index] {
+				return false
+			}
+			fields[index] = true
+		}
+		if ast.IsGetAccessorDeclaration(member) {
+			if index < 0 || !stagedFieldGetterInputsMapped(member, nil, owner) || !descriptorGetterHasEmptyMutationSyntax(member) {
+				return false
+			}
+		} else if !ast.IsPropertyAssignment(member) {
+			return false
+		}
+	}
+	return true
 }
 
 // stagedNativeInputSourceOwner is shared by ordinary collection and a demanded

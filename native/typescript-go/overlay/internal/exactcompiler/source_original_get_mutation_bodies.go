@@ -59,6 +59,67 @@ func finishOriginalMutationBodyPopulation(fact *callableFacts, owner *executable
 	p.complete = !refined && !ast.HasSyntacticModifier(fact.node, ast.ModifierFlagsAsync) && !(ast.IsFunctionExpression(fact.node) && fact.node.AsFunctionExpression().AsteriskToken != nil) && !(ast.IsFunctionDeclaration(fact.node) && fact.node.AsFunctionDeclaration().AsteriskToken != nil)
 }
 
+// descriptorGetterHasEmptyMutationSyntax bounds eligibility before the getter
+// has an original BODY publication. It borrows the canonical operation classes.
+func descriptorGetterHasEmptyMutationSyntax(getter *ast.Node) bool {
+	empty := true
+	walkNode(getter.Body(), func(node *ast.Node) bool {
+		if !empty || !sourceStagedOccurrenceOwned(node, getter) {
+			return false
+		}
+		_, recorded := originalMutationBodyKind(node)
+		empty = !recorded
+		return empty
+	})
+	return empty
+}
+
+func nativeDescriptorGetterMutationEligible(source *sourceStagedNativeGetSource, field string) bool {
+	if source.installation == nil || !runtimeModuleEvaluation(source.request.consumer) || !ast.IsObjectLiteralExpression(source.descriptorGet) {
+		return false
+	}
+	for _, member := range source.descriptorGet.AsObjectLiteralExpression().Properties.Nodes {
+		if ast.IsGetAccessorDeclaration(member) && !ast.IsComputedPropertyName(member.Name()) && callableNameText(member.Name()) == field {
+			return descriptorGetterHasEmptyMutationSyntax(member)
+		}
+	}
+	return false
+}
+
+func (work *callableEffectWork) descriptorFieldMutationLawDescribed(field sourceStagedOperationRequest) bool {
+	request, valid := stagedEntryLawRequest(field, stagedEntryLawFieldNoMutation)
+	recipe := work.operationRecipes[request.producer]
+	return valid && validStagedEntryLawRecipe(recipe) && sameOperationRequest(recipe.entryLaw.request, request)
+}
+
+// currentEagerDescriptorGetterNoMutation reads the canonical operation
+// population of the earlier Get's actual bound body. The separate field
+// Effects requirement retains propagation and all of its other dependencies.
+func (work *callableEffectWork) currentEagerDescriptorGetterNoMutation(field sourceStagedOperationRequest, receiver sourceRelativeEndpoint) bool {
+	id := work.operationIDs[field.producer]
+	recipe := work.operationRecipes[field.producer]
+	if id.epoch != work.operationEpoch || id.index == 0 || int(id.index) >= len(work.operations) || !validNativeGetRequest(recipe, field) || !stagedLiteralStandardPrototype(recipe.nativeGet, receiver.expression) {
+		return false
+	}
+	state := &work.operations[id.index]
+	disposition := state.fieldDisposition
+	if state.invalid || disposition == nil || disposition.kind != stagedFieldDispositionGetter || disposition.receiver != receiver.expression || disposition.operation != field.producer.operation || disposition.field != field.producer.selector.field || len(disposition.invoked) != 1 || len(state.getters) != 1 {
+		return false
+	}
+	getter := state.getters[0]
+	if getter.declaration.Parent != receiver.expression || getter.declaration != disposition.invoked[0].declaration || getter.demand.producer != id || !sameOperationRequest(getter.demand.request, field) || !sameOperationEndpoint(getter.demand.receiver, receiver) || getter.inputs == nil || !getter.inputs.delivered || !getter.bodyReady || !getter.bodyTransferred {
+		return false
+	}
+	actor, known := work.memberNodes[getter.declaration]
+	consumer, owned := work.memberNodes[field.consumer]
+	if !known || !owned {
+		return false
+	}
+	dependency := work.stagedRequired[sourceStagedDependencyKey{consumer, getter.edge}]
+	body := work.operationFacts[actor].staged.mutationBody
+	return dependency != nil && dependency.producer == actor && dependency.operation == field.use && dependency.cut == field.cut && !dependency.invalid && !dependency.projectionPending && body.generation == work.operationGeneration && body.declaration == getter.declaration && body.complete && len(body.operations) == 0
+}
+
 // originalMutationBodyKind classifies the same original operation for canonical
 // BODY recording and SOURCE effect description; classification grants no coverage.
 func originalMutationBodyKind(node *ast.Node) (sourceOriginalMutationBodyOperationKind, bool) {

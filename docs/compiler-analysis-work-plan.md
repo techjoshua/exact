@@ -552,10 +552,14 @@ library artifacts render stored callbacks on either target and route a reached
 browser callback or getter to the client. A direct `Object.create(null)` target
 keeps its original child Get and Call through descriptor conversion. The paired
 artifacts render the defined data property, preserve a held callback and route
-reached browser callbacks and getters to the client. The prior eager descriptor
-getter and the inherited Get on a non-null created prototype still require
-separate source coverage. The unchanged Intl build still reaches the
-`components.ts` deadline and emits neither target.
+reached browser callbacks and getters to the client. An earlier ordinary
+descriptor getter can now contribute its actual Get effects and a complete,
+empty body mutation inventory for the original receiver before the next field
+is analyzed. The consuming component uses the binding's canonical artifact
+target, which routes the browser getter and preserves the neutral SSR contrast.
+Earlier receiver mutations and an inherited Get on a non-null created prototype
+still require separate source coverage. The unchanged Intl build still reaches
+the `components.ts` deadline and emits neither target.
 The ordinary analysis of an earlier authored replacement exposed a premature
 summary requirement during that optional callee observation. The original binder
 still records its input association. The writer source requires the method body

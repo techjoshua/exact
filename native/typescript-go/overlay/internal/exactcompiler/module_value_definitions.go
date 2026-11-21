@@ -418,6 +418,7 @@ func moduleDefinitionNodeIsDeferred(node, work *ast.Node) bool {
 type moduleValueAvailability struct {
 	checker    *checker.Checker
 	owner      *executableBodyOwner
+	callables  map[*ast.Node]CallableSummary
 	revision   uint64
 	placements map[*ast.Symbol]string
 }

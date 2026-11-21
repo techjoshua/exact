@@ -976,7 +976,7 @@ func materializeProjectComponentSource(
 		aliases,
 		reads,
 	)
-	availability := &moduleValueAvailability{checker: typeChecker, owner: callables.owner, placements: make(map[*ast.Symbol]string)}
+	availability := &moduleValueAvailability{checker: typeChecker, owner: callables.owner, callables: callables.byNode, placements: make(map[*ast.Symbol]string)}
 	tasks := collectTasks(
 		dependency,
 		typeChecker,

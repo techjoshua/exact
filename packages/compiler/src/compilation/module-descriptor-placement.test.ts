@@ -56,6 +56,29 @@ it.each([
 		expected: 'browser value'
 	},
 	{
+		name: 'an eager neutral descriptor getter',
+		declaration:
+			'const record = Object.defineProperty({value:"before"},"value",{get value(){return "ready"}});',
+		value: 'record.value',
+		expected: 'ready'
+	},
+	{
+		name: 'an eager browser descriptor getter',
+		declaration:
+			'const record = Object.defineProperty({value:"before"},"value",{get value(){return document ? "browser value" : "missing"}});',
+		value: 'record.value',
+		browser: true,
+		expected: 'browser value'
+	},
+	{
+		name: 'an eager browser descriptor getter before the Reflect result',
+		declaration:
+			'const installed = Reflect.defineProperty({},"value",{get value(){return document ? 1 : 0}});',
+		value: 'String(installed)',
+		browser: true,
+		expected: 'true'
+	},
+	{
 		name: 'a data descriptor on a fresh null-prototype target',
 		declaration:
 			'const record = Object.defineProperty(Object.create(null),"value",{value:"created"});',
@@ -158,14 +181,34 @@ it.each([
 	expect(host.textContent).toBe(test.expected);
 });
 
-it('requires placement evidence for a descriptor installed on an unknown module receiver', async () => {
+it.each([
+	{
+		name: 'an unknown module receiver',
+		declaration: `declare function foreign(): object;
+		const record = Object.defineProperty(foreign(), 'value', {value: 'ready'});`,
+		value: 'typeof record'
+	},
+	{
+		name: 'an eager getter that changes its descriptor',
+		declaration: `const record = Object.defineProperty({value:'before'}, 'value', {
+			writable:false, get value(){this.writable=true; return 'ready'}
+		});`,
+		value: 'record.value'
+	},
+	{
+		name: 'an eager getter with an unresolved call',
+		declaration: `declare function foreign(): void;
+		const record = Object.defineProperty({value:'before'}, 'value', {
+			get value(){document; foreign(); return 'ready'}
+		});`,
+		value: 'record.value'
+	}
+])('requires module descriptor placement evidence for $name', async ({ declaration, value }) => {
 	const root = await createCompilerTestWorkspace('.exact-module-descriptor-', process.cwd());
 	const entry = path.join(root, 'page.tsx');
 	await writeFile(
 		entry,
-		`declare function foreign(): object;
-		const record = Object.defineProperty(foreign(), 'value', {value: 'ready'});
-		export function Page() { return () => <p>{typeof record}</p>; }`
+		`${declaration}\nexport function Page() { return () => <p>{${value}}</p>; }`
 	);
 	await expect(
 		compileProjectArtifacts([entry], { rootDir: root, outDir: path.join(root, 'generated') })
