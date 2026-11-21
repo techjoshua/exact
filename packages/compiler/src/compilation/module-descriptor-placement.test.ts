@@ -17,8 +17,47 @@ const definitionMap = (entry: string) => `Object.defineProperties({value:"before
 
 const inheritedBrowser = 'Object.create({get inherited(){return document.title}})';
 const definedPrototype = `const record = Object.defineProperty(${inheritedBrowser}, 'label', {value:'ready'});`;
+const descriptorWithEagerGetter = `const record = Object.defineProperty({value:()=>''}, 'value', {
+	get enumerable(){return true}, value:()=>document.title
+});`;
 
 it.each([
+	{
+		name: 'a frozen defined Symbol field beside independent stores',
+		declaration: `const key = Symbol.for('module-key');
+		const record = Object.freeze(Object.defineProperties(
+			{tag:false, [key]:0, callback:()=>''},
+			{tag:{value:true}, [key]:{value:7}, callback:{value:()=>document.title}}
+		));
+		const first = new WeakMap<object,unknown>();
+		const second = new WeakMap<object,unknown>();
+		const owner = {};
+		function acquired(){return record}`,
+		value: `[acquired() === record, Object.isFrozen(record), record.tag, record[key],
+			typeof record.callback, first !== second, first.get(owner), second.has(owner)].map(String).join(':')`,
+		expected: 'true:true:true:7:function:true:undefined:false'
+	},
+	{
+		name: 'a frozen defined record holding its other getter',
+		declaration: `const key = 'other';
+		const record = Object.freeze(Object.defineProperties(
+			{value:'before', get [key](){return document.title}},
+			{value:{value:'ready'}}
+		));`,
+		value: 'record.value',
+		expected: 'ready'
+	},
+	{
+		name: 'a frozen defined record reading its other getter',
+		declaration: `const key = 'other';
+		const record = Object.freeze(Object.defineProperties(
+			{value:'before', get [key](){return document.title}},
+			{value:{value:'ready'}}
+		));`,
+		value: 'record.other',
+		browser: true,
+		expected: 'browser value'
+	},
 	{
 		name: 'a module Create target with a reached inherited getter',
 		declaration: `const record = ${inheritedBrowser};`,
@@ -123,6 +162,19 @@ it.each([
 			'const record = Object.defineProperty({value:"before"},"value",{get value(){return "ready"}});',
 		value: 'record.value',
 		expected: 'ready'
+	},
+	{
+		name: 'a stored callback invoked after an eager descriptor field read',
+		declaration: descriptorWithEagerGetter,
+		value: 'record.value()',
+		browser: true,
+		expected: 'browser value'
+	},
+	{
+		name: 'a stored callback held after an eager descriptor field read',
+		declaration: descriptorWithEagerGetter,
+		value: 'typeof record.value',
+		expected: 'function'
 	},
 	{
 		name: 'an eager browser descriptor getter',
@@ -250,6 +302,12 @@ it.each([
 });
 
 it.each([
+	{
+		name: 'a frozen defined record with an opaque computed key coercion',
+		declaration: `const key = {[Symbol.toPrimitive](){document.title;return 'other'}} as unknown as string;
+		const record = Object.freeze(Object.defineProperties({[key]:0,value:'before'},{value:{value:'ready'}}));`,
+		value: 'record.value'
+	},
 	{
 		name: 'an unknown module receiver',
 		declaration: `declare function foreign(): object;

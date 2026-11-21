@@ -3984,6 +3984,9 @@ bound body is complete and empty. The no-entry law remains independent from
 that inventory. Receiver mutations and unfinished bodies retain the existing
 fallback. A component that reads the initialized binding uses its canonical
 artifact target when the ordinary module placement query leaves it unresolved.
+The later component can select a stored callable from the descriptor's own
+`value` field after an unrelated eager getter with no mutation syntax. The
+descriptor conversion still owns that getter's effects.
 
 At a selected standard `Object.defineProperties` call with a fresh literal
 target and a single own descriptor-map entry, the original operation retains

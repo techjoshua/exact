@@ -640,6 +640,10 @@ descriptor getter can now contribute its actual Get effects and a complete,
 empty body mutation inventory for the original receiver before the next field
 is analyzed. The consuming component uses the binding's canonical artifact
 target, which routes the browser getter and preserves the neutral SSR contrast.
+The returned property also retains its stored callable when an earlier
+unrelated descriptor getter contributes no mutation syntax. The paired
+component invokes the callback in the browser and renders the held value
+on the server.
 A single named use of a private module `Object.create` result can also retain
 its inline prototype getter after the original `Object.defineProperty` returns
 that target. The paired component keeps its own definition ahead of any

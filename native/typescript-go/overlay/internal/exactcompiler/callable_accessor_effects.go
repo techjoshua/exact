@@ -863,6 +863,12 @@ func (query *sourceValueQuery) reflectiveMemberValueInScope(origin *ast.Node, pr
 			continue
 		}
 		if !ast.IsPropertyAssignment(member) {
+			// The descriptor conversion owns this eager Get. An unrelated
+			// getter with no mutation syntax leaves the own Value donor eligible.
+			if query.dependenciesOnly && field != "value" && stagedDescriptorFieldIndex(field) >= 0 &&
+				ast.IsGetAccessorDeclaration(member) && descriptorGetterHasEmptyMutationSyntax(member) {
+				continue
+			}
 			return nil, true
 		}
 		if field == "value" {
