@@ -193,7 +193,8 @@ export function ComponentsPage(this: Component<{}>) {
 					<code>makeOptions().label</code> can carry the getter’s placement requirements.
 					The requirements also follow the read when the object is returned in a field, such
 					as <code>makeOptions().labels.title</code>.
-					This can include a local object initialized by a copy operation.
+					This can include a local object initialized by a copy operation or read through a
+					helper parameter.
 					For example, a getter that reads <code>document.title</code> can
 					cause the compiler to reject an explicitly server-placed task.
 				</p>

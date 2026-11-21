@@ -115,6 +115,26 @@ it.each([
 		browser: true
 	},
 	{
+		name: 'literal receiver read through a helper parameter',
+		value: 'readLocale(make().state)',
+		expected: 'browser title',
+		browser: true
+	},
+	{
+		name: 'copied receiver read through a helper parameter',
+		initializer: copiedStateInitializer,
+		value: 'readLocale(make().state)',
+		expected: 'browser title',
+		browser: true
+	},
+	{
+		name: 'different helper parameter',
+		initializer: copiedStateInitializer,
+		value: "readSecondLocale(make().state, {locale:'separate'})",
+		expected: 'separate',
+		browser: false
+	},
+	{
 		name: 'dormant getter on a copied record',
 		initializer: copiedStateInitializer,
 		value: 'make().sourceLocale',
@@ -192,6 +212,10 @@ function make(${guard ? 'active:boolean' : ''}) {
 	const state = ${initializer ?? "{locale:'initial'}"};
 	${guard ?? ''}Object.defineProperty(state, 'locale', {get: () => ${getter ?? 'document.title'}});
 	return ${factoryResult ?? "{sourceLocale:'en',state}"};
+}
+function readLocale(state: {locale:string}) { return state.locale; }
+function readSecondLocale(_unread: {locale:string}, state: {locale:string}) {
+	return readLocale(state);
 }
 export function Page() { ${body ?? ''} return () => <p>{${value}}</p>; }
 `

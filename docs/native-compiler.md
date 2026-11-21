@@ -771,6 +771,8 @@ A member read can also retain a descriptor installed before a factory returns it
 receiver, including when a field in the returned record carries the object. The selected
 factory's return and immutable binding supply a possible writer for an ordinary literal or an
 unresolved initializer call. This source relationship carries effects only.
+Passing that receiver through a helper retains the original factory scope and its
+possible writers. The later helper owns its own input acquisition and read.
 A property read can inherit getter effects from earlier assignments to a local declared without an
 initializer in the same helper body.
 Computed member names still execute while the owner is created. Provenance searches retain

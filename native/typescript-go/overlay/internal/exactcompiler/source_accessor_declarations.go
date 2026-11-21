@@ -1536,6 +1536,9 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 				traceCurrentProjection := query.traceProjection
 				query.traceProjection = tracePriorProjection
 				mergeAccessorCandidates(&result, part)
+				if query.dependenciesOnly && mode == accessorAcquire && len(result.values) == start && len(projection) == 0 && name == "" && (part.opaque || part.valueIncomplete) {
+					query.retainFactoryInitializerSource(value, arguments, &result)
+				}
 				if query.dependenciesOnly && len(result.values) == start && (len(projection) > 0 || name != "") && (result.opaque || result.receiverIncomplete) {
 					progressMemberRecovery(query, traceCurrentProjection)
 					query.retainCreatedGetter(value, projection, name, mode, arguments, &result)
@@ -1566,6 +1569,25 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 		result.cause = receiver
 	}
 	return result
+}
+
+// retainFactoryInitializerSource carries a selected factory's local receiver
+// through a source argument acquisition. Its value and completion remain unresolved.
+func (query *sourceValueQuery) retainFactoryInitializerSource(call *ast.Node, arguments sourceValueBindings, result *accessorCandidates) {
+	creator := query.creators[enclosingCallableNode(call)]
+	if creator.invocation == nil || creator.returning == nil {
+		return
+	}
+	outer := query.envelopeOuterExpression(call, result)
+	if outer == nil || outer.Parent == nil || !ast.IsVariableDeclaration(outer.Parent) {
+		return
+	}
+	binding := outer.Parent
+	if binding.Initializer() != outer || !ast.IsIdentifier(binding.Name()) || binding.Parent == nil || binding.Parent.Flags&ast.NodeFlagsConst == 0 {
+		return
+	}
+	scope := query.acquireCallableScope(arguments, result)
+	result.values = append(result.values, sourceValue{node: call, capture: &scope})
 }
 
 // sourcePrivateMemberMatch selects only the declaration of an authored private

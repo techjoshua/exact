@@ -290,6 +290,13 @@ unresolved, and its enclosing factory supplies the local binding and the return 
 for the source writer. The compiler retains that writer in the nested read, and the
 paired checks preserve the dormant getter and distinct copy.
 
+The selected copy also reaches a getter when the returned field supplies a helper
+parameter. The original argument acquisition had dropped its source term when the
+copy result was unresolved. It now keeps the local initializer's source scope.
+For literal receivers that already had a source term, descriptor recovery now
+uses the receiver's saved factory scope. The paired artifacts preserve an unread
+copy passed beside a distinct selected argument.
+
 Acceptance also covers mounted reads, control bindings, lifecycle, portals, registry identity, task settlement, protected transport, paired artifact selection, selected host implementations and source inspection. Use the existing [composition corpus](component-composition-corpus.md) and [package decision audit](#requester-disposition-against-the-component-contracts) for their scoped evidence. Treat interrupted suites and original packages that still reach the request deadline as open.
 
 ### Acceptance by traversal rule
