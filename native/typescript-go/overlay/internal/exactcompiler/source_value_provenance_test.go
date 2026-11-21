@@ -134,7 +134,7 @@ func TestClosureReceiverInterference(t *testing.T) {
 }
 
 func TestClosureCapturedWrites(t *testing.T) {
-	source := `function make(input:{a:number,b:number}){return {get value(){input.b=2;return input.b}}}export function run(s:{a:number,b:number}){return make(s).value}`
+	source := `function make(input:{a:number,b:number}){return {get value(){input.b=2;return input.b}}}export function run(s:{a:number,b:number}){return make(s).value}export function Page(this:{state:{a:number,b:number}}){return()=>run(this.state)}`
 	response := NewSession().Execute(Request{Kind: "analyze", ID: "/virtual/capture-write.ts", Source: source})
 	summary := executableSummary(t, response, "run")
 	found := false
@@ -249,7 +249,7 @@ func logClosureProvenance(t *testing.T, session *Session, label string) {
 }
 
 func TestClosureUnknownCaptureReceiver(t *testing.T) {
-	source := `declare function provide():{b:number};function make(input:{b:number}){return {get value(){input.b=2;return input.b}}}export function run(){return make(provide()).value}`
+	source := `declare function provide():{b:number};function make(input:{b:number}){return {get value(){input.b=2;return input.b}}}export function run(){return make(provide()).value}export function Page(){return()=>run()}`
 	response := NewSession().Execute(Request{Kind: "analyze", ID: "/virtual/unknown-capture.ts", Source: source})
 	summary := executableSummary(t, response, "run")
 	found := false
