@@ -732,6 +732,10 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 		if ast.IsClassDeclaration(value) || ast.IsClassExpression(value) || ast.IsObjectLiteralExpression(value) {
 
 			result.sourceOwned = true
+			if mode == accessorInvoke && len(projection) == 0 && name == "" {
+				// Invoking a selected value does not read the object's unrelated members.
+				return
+			}
 			if containsString(projection, "*") {
 				result.opaque = true
 				result.cause = value

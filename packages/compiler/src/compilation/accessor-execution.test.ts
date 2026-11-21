@@ -423,3 +423,43 @@ export function Page(){
 	expect(host.textContent).toBe(test.expected);
 	expect(reports).toEqual([]);
 });
+
+it.each([
+	{
+		name: 'an ordinary object',
+		definition: "const value = { get metric() { return document.title; } };"
+	},
+	{
+		name: 'a class instance',
+		definition: "class Holder { get metric() { return document.title; } } const value = new Holder();"
+	}
+])('keeps unrelated getters dormant when invoking $name', async ({ definition }) => {
+	const root = await createCompilerTestWorkspace('.exact-noncallable-getter-', process.cwd());
+	const entry = path.join(root, 'page.tsx');
+	await writeFile(
+		entry,
+		`
+function attempt() {
+	${definition}
+	try {
+		(value as unknown as () => void)();
+		return 'unexpected';
+	} catch (failure) {
+		if (!(failure instanceof TypeError)) throw failure;
+		return 'not callable';
+	}
+}
+export function Page() {
+	const result = attempt();
+	return () => <p>{result}</p>;
+}
+`
+	);
+	const [artifact] = await compileProjectArtifacts([entry], {
+		rootDir: root,
+		outDir: path.join(root, 'generated')
+	});
+	const server = await importArtifact(artifact!.serverFile, path.join(root, 'server.mjs'));
+	const { html } = await renderToString(receipt(server.Page as never, {}), { markers: false });
+	expect(html).toBe('<p>not callable</p>');
+});

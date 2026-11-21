@@ -710,6 +710,9 @@ effects path can still request that value **as an intermediate step**. Consider 
 - `helper(input)()` needs to know which returned closure can execute and what it captures.
   A later call through another module, a changed receiver or a prior assignment can alter
   the answer. A cache of “helper is either-side” cannot, by itself, discharge that call.
+  Invoking a plain object can throw without reading an unrelated getter. An
+  actual member Get that supplies a callable still contributes its original
+  effects before invocation.
 
 In public compile mode, `appendArgumentAccessorEffectsObserved` can already accept a
 registered definition-call edge. In its ordinary fallback it requests invocation dependencies,
