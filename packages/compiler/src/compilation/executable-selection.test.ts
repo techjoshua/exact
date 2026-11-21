@@ -165,7 +165,7 @@ it.each([
 	]
 ])('keeps CJS %s execution separate from unproven write authority', async (_name, body, exact) => {
 	const directory = await createTestWorkspace('.exact-export-ownership-', process.cwd());
-	const source = `import {TaskContext,type Component} from '@exactjs/core';import {apply} from './helper.cjs';export function run(s:{a:number,b:number}){apply(s);}export function Page(this:Component<{a:number,b:number}>){this.state.a=0;this.state.b=0;function save(task:TaskContext=TaskContext.server().blocking()){apply(this.state);}save();return()=>this.state.b;}`;
+	const source = `import {TaskContext,type Component} from '@exactjs/core';import {apply} from './helper.cjs';export function run(s:{a:number,b:number}){apply(s);}export function Page(this:Component<{a:number,b:number}>){this.state.a=0;this.state.b=0;function save(task:TaskContext=TaskContext.server().blocking()){run(this.state);}save();return()=>this.state.b;}`;
 	const files = new Map([
 		['entry.ts', source],
 		['helper.cts', 'export function apply(s:{a:number,b:number}){s.a=0;}'],
