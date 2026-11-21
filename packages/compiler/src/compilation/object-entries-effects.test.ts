@@ -47,6 +47,18 @@ it.each([
 		browser: false
 	},
 	{
+		name: 'string asserted as a symbol',
+		data: "const key='metric' as unknown as symbol;const data={get [key](){document.title;return 1}};",
+		copy: inspectChild,
+		browser: true
+	},
+	{
+		name: 'string asserted as a symbol at the key site',
+		data: "const data={get ['metric' as unknown as symbol](){document.title;return 1}};",
+		copy: inspectChild,
+		browser: true
+	},
+	{
 		name: 'known child beside an unresolved value',
 		data: 'const data={surface:{get metric(){document.title;return 1}},foreign:(globalThis as { exactEntriesValue?: object }).exactEntriesValue};',
 		copy: inspectChild,

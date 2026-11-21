@@ -298,7 +298,9 @@ or never stored. Both it and the restored comparison reach the unchanged Theme
 client deadline at 31.56 and 32.02 seconds, with zero artifacts on either target.
 A standard `Object.entries` loop retains possible own string-key values for a
 consumer of its yielded pair. The iterator and original enumeration own their
-effects. A confined array can connect an earlier selected native append to the
+effects. A computed key proven to hold a standard symbol stays outside string
+enumeration. A type assertion alone can leave the original string key in place.
+A confined array can connect an earlier selected native append to the
 saved input read. When an observed child reaches that same append supplier and
 the counted loop can continue, the shared loop traversal considers the child
 as a possible later receiver. The original Theme copy now preserves reached

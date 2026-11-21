@@ -1,9 +1,9 @@
 package exactcompiler
 
 import (
-	"github.com/microsoft/TypeScript/tsc/internal/ast"
 	"strconv"
 
+	"github.com/microsoft/TypeScript/tsc/internal/ast"
 	"github.com/microsoft/TypeScript/tsc/internal/checker"
 )
 
@@ -149,18 +149,46 @@ func (q *sourceValueQuery) entriesIterationSource(binding, declaration *ast.Node
 	return call, input
 }
 
+// enumerationSymbolKey excludes only a represented standard symbol value.
+// A type assertion can leave a string or number at the computed key site.
 func (q *sourceValueQuery) enumerationSymbolKey(name *ast.Node, result *accessorCandidates) bool {
-	if !q.charge(result, name) {
-		return false
-	}
-	key := q.owner.checker.GetTypeAtLocation(name.AsComputedPropertyName().Expression)
-	if key == nil {
-		return false
-	}
-	for _, member := range key.Distributed() {
-		if member.Flags()&checker.TypeFlagsESSymbolLike == 0 {
+	key := unwrapSourceCallableReference(name.AsComputedPropertyName().Expression)
+	c := q.owner.checker
+	for key != nil && ast.IsIdentifier(key) {
+		if !q.charge(result, key) {
 			return false
 		}
+		symbol := c.GetSymbolAtLocation(key)
+		if symbol == nil {
+			return false
+		}
+		declaration := symbol.ValueDeclaration
+		if declaration == nil || !ast.IsVariableDeclaration(declaration) || declaration.Parent.Flags&ast.NodeFlagsConst == 0 ||
+			ast.GetSourceFileOfNode(declaration) != ast.GetSourceFileOfNode(key) || declaration.End() > key.Pos() {
+			return false
+		}
+		key = unwrapSourceCallableReference(declaration.Initializer())
 	}
-	return true
+	if key == nil || !q.charge(result, key) {
+		return false
+	}
+	if ast.IsCallExpression(key) {
+		call := key.AsCallExpression()
+		callee := unwrapSourceCallableReference(call.Expression)
+		if callee == nil || ast.IsOptionalChain(key) || !standardLibraryCallRoot(callee, c) ||
+			standardLibraryCallOwner(call, c) != "SymbolConstructor" {
+			return false
+		}
+		if ast.IsIdentifier(callee) {
+			return callee.Text() == "Symbol"
+		}
+		root, member := restrictedInvocationMember(callee, c)
+		return root != nil && ast.IsIdentifier(root) && root.Text() == "Symbol" && member == "for"
+	}
+	if !ast.IsPropertyAccessExpression(key) || ast.IsOptionalChain(key) || !ast.IsIdentifier(key.Expression()) ||
+		key.Expression().Text() != "Symbol" || !standardLibraryCallRoot(key, c) {
+		return false
+	}
+	t := c.GetTypeAtLocation(key)
+	return t != nil && t.Flags()&checker.TypeFlagsUniqueESSymbol != 0
 }
