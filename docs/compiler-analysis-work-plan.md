@@ -39,6 +39,18 @@ The return-site loop in `componentCallableDemand` enrolls component render retur
 
 Acceptance also covers mounted reads, control bindings, lifecycle, portals, registry identity, task settlement, protected transport, paired artifact selection, selected host implementations and source inspection. Use the existing [composition corpus](component-composition-corpus.md) and [package decision audit](#requester-disposition-against-the-component-contracts) for their scoped evidence. Treat interrupted suites and original packages that still reach the request deadline as open.
 
+### Acceptance by traversal rule
+
+| Rule | Established on a component consumer | Remaining acceptance |
+| --- | --- | --- |
+| Start from the consumer | Forwarded definitions keep the depth-28 supplied-child proof and its replacement control within one second in the focused native suite. The ordinary callback remains dormant until invoked. | Qualify the original Core, Theme and Intl requests on the same integrated compiler. Trace costs against calls that change a component decision. |
+| Visit what executes | Placement controls distinguish instance-key evaluation, metadata getter reads, generator advancement and closing, string interpolation, addition and strict comparison. | Qualify async-from-sync thenable values, actual event dispatch and WebIDL option reads, and nested implicit operations on both targets. |
+| Carry relationships to their reader | Local binding controls preserve a destructured callback despite a subsequent property write. Registered cleanup can release a resource after cancellation on the mounted remote owner. | Resolve returned callback construction and component reads of selected module values. Verify known browser donors as well as positive portable paths. |
+| Keep acquisitions and paths distinct | The constructor and iterator checks preserve the dormant path. Unchanged forwarding retains receiver changes and cycle boundaries. | Verify terminal module guards, guarded property acquisition and recursive actuals on the original request. |
+| Emit the owner's minimum contract | Direct server task writes reach dependent HTML. Paired-owner runs deliver committed collection deltas and preserve the mounted owner through retries and cancellation. | Verify the original list with setup aliases, the installed host matrix and generated ABI fixtures on the integrated artifacts. |
+| Choose the supported boundary outcome | Sibling module initializers have independent secret-consumer allowances. Positive and negative task controls check emitted code together with diagnostics. | Triage remaining SDK and native failures using reachable source, selected target, effect and runtime outcome. Resolve each consequential disagreement. |
+| Give facts an expiry | The local-pattern edit/revert controls agree across warm and fresh application and library compiles. | Repeat representative invalidation, ordering, manifest and cross-package cases on the combined build, including changes to returned and captured inputs. |
+
 ## Discarded helper results and forwarded getter effects
 
 At `c61f59c9b`, a button invokes a server task whose synchronous block calls
