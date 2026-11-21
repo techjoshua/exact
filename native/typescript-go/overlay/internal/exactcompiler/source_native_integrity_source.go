@@ -65,9 +65,9 @@ func (q *sourceValueQuery) sourceFreezeRelationshipObserved(site *ast.Node, call
 		if !q.ordinaryLiteralInput(argument) || len(values) == 0 {
 			refuse()
 		}
-		if project != nil || observed != nil {
+		if project != nil {
 			for _, value := range values {
-				if project != nil && value.capture == nil {
+				if value.capture == nil {
 					scope := q.acquireCallableScope(bindings, result)
 					value.capture = &scope
 				}
@@ -76,9 +76,7 @@ func (q *sourceValueQuery) sourceFreezeRelationshipObserved(site *ast.Node, call
 				}
 				// Matching this alternative's own input/output cannot enroll the
 				// same Call as an independent writer. This borrow issues no proof.
-				if project != nil {
-					q.withPendingWriterInput(site, result, func() { project(value, bindings) })
-				}
+				q.withPendingWriterInput(site, result, func() { project(value, bindings) })
 			}
 		}
 	}

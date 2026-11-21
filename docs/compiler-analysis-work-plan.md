@@ -109,11 +109,9 @@ package request deadline.
 Both maps read the same eagerly selected Freeze input in `token-contract.ts`. The
 integrated trace measures about 0.22 ms at the initializer's own selection and 2.99 s
 for the first reconstruction in `createTone`. The array input acquisition itself
-takes under a millisecond at that first descendant read. The selected eager binding
-now retains the confined primitive array's lexical endpoint for source member
-projection and map-key discovery. The fact belongs to the checker generation and
-expires when that generation changes. Each actual Get and callback retains its
-original selection, effects and placement obligations.
+takes under a millisecond at that first descendant read. The comparison reused
+the confined primitive array's lexical endpoint for source member projection and
+map-key discovery.
 
 The captured request used the same endpoint three times in `createTone` and 307 times
 in `createThemeTokens`. Both body extractions finished. The corresponding package
@@ -123,6 +121,15 @@ at 31.73 seconds. All three emitted zero files on each target. The paired compon
 controls retain known, unused and uncertain getter behavior. A synchronized edit
 reaches a browser getter on both targets and restoring the original key restores
 the original emitted code.
+
+The eager endpoint shortcut was withdrawn after `TestFrozenModuleArrayComponentEdits`
+reproduced a lost browser donor. The initializer can select the standard Freeze when
+analyzed alone, while an earlier sibling dependency selected by the component can
+install an authored replacement before the initializer actually runs. Reloading
+the source invalidates the old fact, but the provider's new fact still lacks that
+initialization context. The reader now uses the original selection and writer
+analysis. Reuse would require a matching selected initialization prefix or independent
+evidence that the additional sources cannot replace the acquired method.
 
 Constraining the receiver-history work on direct Throws of the original
 `ThemeResolutionError` moved the private request to `copyThemeData(found)` in

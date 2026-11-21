@@ -38,14 +38,6 @@ func (query *sourceValueQuery) projectSourceCallReturnsWithViews(call *ast.Node,
 		progressPendingTrue(query, call)
 		return accessorCandidates{opaque: true, valueIncomplete: true}
 	}
-	if interest.purpose == resultSourceProjection && interest.frozenModuleArray &&
-		interest.discover == nil && interest.descriptorData == nil {
-		if literal := query.frozenModuleArray(call); literal != nil {
-			result := accessorCandidates{}
-			query.withPendingWriterInput(call, &result, func() { project(sourceValue{node: literal}, nil) })
-			return result
-		}
-	}
 	if result, handled := query.projectReactiveRead(call, bindings, project, deferred); handled {
 		return result
 	}
