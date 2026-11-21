@@ -13,6 +13,49 @@ stronger query. Changes in that category must demonstrate that the weaker answer
 the consumer. “Keep” identifies an observable requirement. The measured costs below apply to
 one package request. No totals are available for an uncensored whole build.
 
+## Discarded helper results and forwarded getter effects
+
+At `c61f59c9b`, a button invokes a server task whose synchronous block calls
+`invoke(this.state, this.state.input);`. The wrapper returns
+`service.forward(dest, text, actual)`. The method writes `dest.label = text` and
+returns its third formal. The component renders `this.state.label`. Evaluating
+the arguments reads the component input before the write. The method receiver
+is `service`, the write destination is the first evaluated actual, and the
+third actual is an object with a browser-only getter. Passing or returning that
+object leaves the getter dormant. Both targets emitted with an exact input
+read and a single exact component write to `label`.
+
+Adding `.value` to the outer invocation leaves the call and write intact and
+executes the getter afterward. The accessor requester passes the remaining
+member selection through `projectSourceCallReturnsWithViews`. Its invocation
+fallback keeps the selected body's input bindings installed while visiting
+the return source. This associates the returned formal with the original third
+actual. The getter's browser effect reaches the task's effect sources and
+both target compiles refuse server placement with EXACT2001.
+
+A diagnostic build withheld only the inner method's return projection,
+reporting an opaque, incomplete value at that call. With a getter declared
+on a returned object literal, the remaining analysis still delivered
+`document`, with a changed diagnostic path and additional uncertainty. With
+the getter on the returned actual, the same intervention lost `document`
+and both targets emitted. The exact write survived in both cases. Moving the
+getter read to the text argument made both builds refuse placement even with
+the final result discarded. A conditional text argument selecting that Get or
+`props.foreign()` retained both the known browser source and the independent
+unresolved call.
+
+Stop at the discarded outer result once the evaluated operands, executed
+body and component write are accounted for. Preserve an intermediate return
+source when a later Get uses it to select a receiver. Removing that source
+requires equivalent delivery of every applicable getter, write and independent
+uncertainty through the forwarding path. The discarded row did not exercise
+the withheld projection, so it gives no evidence of redundant work there.
+Native compile controls used both targets with and without an importing
+module. Code, diagnostics and public analysis agreed across those contexts
+and after reverting the reader and argument edits in the same session. This
+control covers compile-time placement and write authority. Mounted updates,
+package publication and package-level cost remain outside its evidence.
+
 ## Where the time goes
 
 On the original client compile of Theme’s `components.ts`, allocation through 25 seconds
@@ -706,6 +749,26 @@ public token alias. Required-token metadata and
 its ordering checks still have consumers in enhancement lowering and setup.
 Hidden required tokens, escaping accessor envelopes and source-side opaque
 receipt redemption retain their conservative treatment.
+
+At `f15345310`, a server enhancement chain using a module-local token rejected
+consumer-before-provider with zero setups. Provider-before-consumer rendered
+`<span title="provided">context</span>` and ran two setups and two disposals.
+The order check compares token IDs before constructing peers. For an external
+provider the instance resolves the token during the authored lookup. A separate
+component with a local required token rendered an ambient value and raised the
+ordinary missing-context error when that value was absent.
+
+The helper-private required lookup has a delivery defect even in a standalone
+page with no peer chain. With ordinary modules preserved, server compilation
+reported no diagnostics, but the emitted page read the helper's enhancement
+descriptor at module initialization. The ordinary helper had no descriptor,
+so import failed on the first dependency field, `provides`, before the page
+could read its ambient context. Requesting all three dependency fields exceeds
+this page's runtime lookup needs. Returning empty fields would also hide real
+peer-order obligations. Under the same controls the private `hasContext` helper
+required no attachment and rendered true with the token present and false with
+it absent. Delivery of private required IDs for co-targeted enhancements remains
+open under ordinary-module preservation.
 
 ### Item 6 direct caller dispositions
 
@@ -1513,6 +1576,65 @@ this consumer. A cut at this site needs evidence that the original Call
 and Set effects cover the particular writer-exposure question, including
 authored or unresolved alternatives.
 
+The qualified intrinsic-registration trial compared the same instrumented
+host with the classification enabled and disabled. Both reached the same
+first writer candidate at entry 3,344, while acquiring inputs for
+`createOpaqueOperation` in `issueIntrinsicReceipt`. The candidate asked
+whether processing the receipt registration could expose a writer from
+`readComposableIntrinsicReceipt`. With the classification enabled, that
+candidate completed with zero nested writer visits. With it disabled,
+the candidate remained active at entry 802,816, a lower bound of 799,472
+nested visits avoided at that occurrence. The enabled run completed
+13,877 such writer exclusions. The separate method Get and Call cuts
+recorded no hits. Both package commands reached the original first-client
+deadline and left 1,200 prerequisite files. These counts describe the
+matched occurrence and the observed prefix of the enabled run.
+
+The trial remains outside the compiler. The initializer body check also
+accepted a generator with the same body and an authored `set` on its
+iterator prototype. Restricting the initializer to a synchronous
+ordinary function addresses that case. The local use index still cannot
+establish ownership of a realm-shared receiver. A second call to the
+initializer with the same key passed qualification after replacing
+`set` through the other binding. The runtime control confirmed that the
+original call reached the replacement and installed a getter. The
+writer-only trial with the initializer category guard also reached the
+original deadline at 32.37 seconds. The installed LSP control retained
+unknown, client, and unknown placement across an edit and revert.
+
+The remaining samples in the enabled run still belong to the original
+`createOpaqueOperation` input requester. The component decisions separate
+into three groups:
+
+- Core owns receipt registration, dispatch prototype caches, and active
+  domain bookkeeping. The compiler's interference question is whether
+  the selected operation can expose a writer to the observed receiver.
+  The runtime owns allocation, storage, and domain identity.
+- Original eager operations can execute authored code. Receipt metadata
+  binding reads `key` and `__exactEnhancements`, copies enumerable
+  properties, and may coerce a key. Child normalization and the default
+  error view can run iterators and read authored properties. A selected
+  fallback callback runs during render. These effects can affect placement,
+  policy, or reactivity at their original evaluation sites.
+- The stored receipt payload, the selected domain and prototype objects,
+  and the reset callback's identity feed runtime construction, dispatch,
+  and reconciliation. The reset callback runs on interaction. A
+  composition factory runs on explicit redemption. Preserve those values
+  and their execution sites. The constructor's placement query needs the
+  reached effects of acquiring them.
+
+The existing private standard construction proof can supply a
+writer-discovery answer for a selected method and its original receiver.
+Share that answer where receiver ownership and the method selection are
+complete for the source generation and read cut. A realm slot requires
+separate evidence about what can reach the receiver through the slot.
+Eager operand effects and later value consumers retain their original
+owners. Prototype cache and domain bookkeeping are possible consumers of
+this answer. Theme's indexed
+background reads and Intl's option validation still require input-relative
+getter effects. The earlier cross-package admission trials supplied evidence
+for those distinctions and left all three package deadlines unresolved.
+
 The writer-only receipt exclusion uses the current selected Core issuer and
 store implementation revisions. A matching body or WeakMap annotation alone
 cannot establish this identity. The original second-binding witness adds a
@@ -1562,15 +1684,18 @@ produced 3,598 files including both target trees and the TypeScript
 prerequisites. The stock command reached the first client deadline in
 32.28 seconds and produced only the 1,200 prerequisite files.
 
-The next shared contract to qualify is direct writer exclusion for the
-private dispatch-prototype WeakMaps in `operationPrototype` and
-`domainOperationPrototype`. They recur in the remaining
-`createOpaqueOperation` input requester. Reuse the existing private
-standard construction proof for the module allocations and check whether
-the nested map can retain its provenance through the private cache's
-lookup-or-create branch. Measure at the original requester before widening
-the proof. Preserve domain identity, eager metadata reads, authored child
-normalization and deferred callbacks under their existing owners.
+The private dispatch cache ceiling at `5f39cac3f` supersedes the proposed
+next cache-specific trial. The matched diagnostic forced direct writer exclusions for the
+six tagged reads and writes across the outer and nested WeakMaps, preserving descriptor
+requests and the normal Get, Call and value routes. It passed roughly 76,000 forced exclusions
+by the 524,288-entry checkpoint. Both runs still stopped during the same `createOpaqueOperation`
+input request in `issueIntrinsicReceipt`, at 33 started callable extractions and 44 started
+invocation dependency queries. The phase runs exited at 32.32 and 32.30 seconds (stock and
+ceiling), before Core component emission. These are prefix counts and times to failure.
+The assumption about the selected receiver was deliberately stronger than production proof.
+The trial bounds that writer-discovery route only. Source runtime controls confirmed cache
+hit and creation identity, eager evaluation, and deferred callbacks independently of fresh
+package emission.
 
 The original 20-source Theme command used its pinned 8,447-input manifest
 (`948120dcfb9df7537b23211f31d39a085720973c0e8650d40b2491ef5c48b6f5`).
@@ -1594,3 +1719,265 @@ query and timed out later in the same request while analyzing
 captured-setter regression and emitted neither target. Its focused emitted
 controls executed client updates and server initial renders. Paired Theme
 artifacts, including mounted resolution and hydration, remain unqualified.
+
+### Cross-workload decision audit at `5f39cac3f`
+
+The audited source is the committed tree. The pending accessor edit is outside this binding.
+Earlier profiles establish where work accumulated on their recorded inputs and revisions.
+For requests that stopped before emission, the decision column names the downstream consumer
+in source. It does not claim a completed placement result or measured artifact cost.
+
+| Workload and material query | Component or tooling decision | Eager effects, runtime values and later identity | Evidence and gap |
+| --- | --- | --- | --- |
+| Core ErrorBoundary → receipt Call, metadata Get/copy, child iteration, prototype/cache writer discovery | Render dependencies constrain the portable target and whether known authored donors must remain in its graph. Receipt construction and redemption keep their existing component ABI and identity. | Acquire the original metadata `key` and `__exactEnhancements`, preserve enumerable Gets, coercion and iteration, and account for the selected render fallback. Payload, prototype and domain values belong to runtime. The reset callback runs on interaction and the composition factory at redemption. Discover writers only when required to settle an actual receiver read. | The six receipt roots accounted for 13.46 of 29.85 sampled CPU seconds at `3056827ef`. The binding Gets accounted for 7.24 seconds, including 7.08 overlapping returned-source projection. The selected registration exclusion and the cache ceiling establish local savings or exclusions. Neither settles the remaining input request or qualifies fresh paired artifacts. |
+| ThemeScope → color parser, `createTone` indexed `map` callback, structural token fields | The placement graph needs the reached getter and callback donors. Reactive lowering needs the component's definition, presentation and resolved readers and the paths that can update them. | Keep the checked primitive parser edge and standard Number predicate where already admitted. The returned color field Gets and `surfaces[bundle].background` can execute authored getters. Keep the live context/token identities and the runtime color, contrast and CSS computations. | Older Theme stacks put member/Call/return work on 65.3% of CPU samples. The corrected retained-provider trace took 27.85 seconds through the indexed `map` and stopped inside `createTone`. The structural-token frontier came from a separate, regressing prefix trial. Fresh Theme resolution, mounted updates and hydration remain open. |
+| Intl component graph → formatter validation and record capture | Reached donors affect component placement and retained render availability. Protocol validation and finite formatter policy still apply where their existing consumers require them. | The initial `formatter.options` Get and the capture of enumerable and supported nonenumerable fields are distinct. Account for proxy/reflective effects where possible and preserve validation errors and order. A keys-only observation does not execute a value Get. The copied record and formatted text belong to runtime; a selected render target or structure factory is invoked at its actual use. | In the retained shared-demand client capture, of 26.92 sampled CPU seconds, 16.83 were inclusive in `accessorsAtGetOutput`, 15.63 in writer inputs and 15.02 in return projection. These overlap. Focused keys/Get and mixed-donor controls discriminate effects. They do not prove forwarded coverage for `requireRecord` or completed Intl artifacts. |
+| ShippingCalculatorPage → blocking `loadInitialRates`, provider registry, array callbacks and await | Preserve the server task and credential containment, cancellation, and authorized model state publication to `CalculatorWorkspace`. The setup invocation returning `void` and the task's internal awaited `Promise.all` have different output consumers. | Keep environment and provider method reads, actual map callbacks and thenable effects, and carrier and signal identity where invoked. Provider selection, quote cache contents, cooldowns and quote payloads are runtime data. Their concrete values are unnecessary to select this explicitly server-owned task. State path and transport decisions still need policy and reachable writes. | The full-page protocol replays returned 43 of 44 responses and reached the 90-second external stop during default Analyze of `components/page.tsx`. A local array trial reached a registry Get but supplied no measured contribution to completed Page cost. Reduced imported server-task controls emit and execute; paired credential controls reject client use with `EXACT2001` and `EXACT3004`. Full task HTTP, cancellation and fresh Page artifacts remain open. |
+| All four → effect graph and inspection publication | The same graph supplies placement, policy and reactive facts to lowering and SDK consumers. Public Analyze and inspection can also consume callable facts, source locations and diagnostics. | Use canonical definition/source identities and known donors with independent uncertainty. Text, settings, prices and quotes need no concrete preview value for inspection. Preserve existing report contracts. | Theme and Intl still stalled in graph rebuilding with the serialized callable array suppressed. Shipping's blocked request is Analyze with inspection instrumentation enabled; the replay does not isolate the cost of instrumentation. No material inspection-only cost has been established. |
+
+The highest shared effect requester is `appendArgumentAccessorEffectsObserved`, reached
+during direct extraction and from the forwarded-input fallback in
+`prepareSourceInputConsumerDecisions`. It publishes accessor donors, state writes and
+opacity, then the graph resolves them; it does not publish normal runtime output.
+`sourceMemberDependencies` is the sibling requester for original Gets. In a normal-input
+frame the Call appender can first acquire results, then ask `refineSourceDependencies` to
+instantiate the same source operation again for effects. The Get appender already has a
+narrower refinement predicate when the original read accounts for effects. Source proves
+this possible repeat at the Call requester and shows the legacy input fallback deduplicates
+by operation within its own path. The retained profiles do not pair deliveries across the
+direct and fallback paths or identify equivalent receiver contexts. Counting repeated AST
+locations or merging graph-local authority would overstate the removable work.
+
+Ranked follow-up by measured reach and available proof:
+
+1. **Qualify effect coverage at the original Call and Get requesters.** The shared
+   member/Call/return families dominate the retained prefixes. Start with one original
+   effect-only call to an already selected operation and identify which residual caused a
+   fresh traversal. The first candidate rule is to keep the current contribution and defer
+   its value gap when the same original operation already covers the needed effects.
+   Use the existing refinement predicate and publisher, with proof for the operation's
+   receiver, argument association, read cut, executable source and generation. Require the
+   rule to retain known donors, state writes and execution uncertainty independently.
+   Theme's parser data/Get contrast and Intl's keys/Get contrast are controls. Neither
+   currently demonstrates a material matching Call-refinement hit on an original workload.
+2. **Discharge one forwarded input operation.** If the first matching residual is a
+   missing input read, use the existing source-relative consumer at the original Get
+   before retiring its fallback. A named Get with a complete receiver and read-cut
+   association is the smallest candidate. Confirm that it retires the legacy traversal
+   where the cost was sampled. Keep rest, spread, iteration, dynamic enumeration and
+   mixed-callable DATA on their current producers until each has evidence of complete
+   coverage. Earlier call-admission trials reached the same package deadlines and one
+   lost publication of a known browser donor beside a foreign callback.
+3. **Investigate normal async or inspection work only on a demonstrated hit.** The
+   async function-wide trigger in `sourceValueRefinementRequired` is broader than an
+   ignored result consumer, but changing it can lose thenable assimilation or task
+   continuation facts. The Shipping replay supplies no attributable async-result cost.
+   Likewise, suppressing response serialization leaves the measured Theme/Intl graph
+   demand in place.
+
+The recursive writer cuts at `c3fc9ca1f` do not qualify a shared rule. The broad diagnostic
+returned opacity and no inputs for nested writer discovery. It emitted 3,598 staged
+files in 26.10 seconds, while its stock observer exited deliberately at 400,000 visits.
+That comparison has no matched completion timing or proof of known donors for the
+broader cut. The narrowed exposure-only variant cut 13 requests and still reached the
+Core deadline. Its corrected installed client controls matched the baseline for direct,
+escaped and disjoint setters, but do not qualify the broad variant. Separate server
+controls demonstrate why known captured browser getter donors matter even alongside
+opacity. The private-cache ceiling tested a different, much narrower path and left the
+same parent requester active. Neither provides a reason to add a depth limit, force a
+private receiver proof, or repeat package runs with the same inputs.
+
+Before changing the first shared rule, require one retained or newly observed source occurrence
+to identify both the effect delivery and the subsequent fallback, with their original owner,
+cut and reason for re-entry. Record counts at that requester and compare the existing response
+and behavior oracles for eager getters, known plus opaque alternatives, overlapping writes,
+stored versus invoked callbacks, and later value or policy use. Include app/library and
+edit/revert controls when the rule shares a definition across requests. Proceed to one matched
+original-workload replay only if the focused change demonstrably retires work, preserves those
+decisions, and has a reason to change the sampled frontier. Bind any such replay to the fixed
+coordinator and fresh positive-selection scratch roots. This audit did not establish that
+precondition for a production change or a new heavy run.
+
+#### First criterion closed without a qualifying Call pair
+
+The retained Intl and Theme client profiles charged 0.12 of 26.92 and 0.15 of
+27.85 sampled CPU seconds, respectively, to
+`appendArgumentAccessorEffectsObserved`. Both report the same inclusive time
+under its dependency-only route. Those figures put the larger Get and return
+totals in context. They provide timing attribution without matching effect
+deliveries.
+
+An observation-only overlay of `5f39cac3f` timed normal acquisition and
+dependency refinement separately at that requester within each occurrence.
+The fixed exclusive one-CPU, 1 GiB coordinator ran the Core client prefix from
+a fresh copy of the pinned 8,447-input corpus. The package command stopped at
+the `error-boundary.tsx` client deadline in 32.29 seconds. It had started 45
+dependency-only requests and finished 44 in 16.31 ms combined. It recorded
+zero normal entries and zero paired refinements. The unfinished request was
+the original `createOpaqueOperation` Call in
+[the intrinsic receipt issuer](../packages/core/src/component-abi/intrinsic-receipt.ts#L159).
+It entered with no normal frame, and its completion time is unknown. These
+counts apply to the observed prefix of this requester.
+
+The normal Call branch runs with a frame and the refinement branch currently
+opens a separate dependency query without that frame. The dependency-only
+path can also deliver a staged input association to the graph. Sharing an AST
+occurrence and generation alone cannot establish equivalent receiver and
+argument associations, input obligations, uncertainty, or publication. This
+run supplied no candidate for component parity controls or a payoff replay.
+
+Rank the original named Get input obligation next. Core's two metadata
+binding Gets have the strongest direct attribution, with 7.24 inclusive
+sampled seconds and 7.08 overlapping return projection at `3056827ef`.
+The dependency path can name the formal behind `props ?? {}`, but the
+initializer is outside the normal direct-slot proof. Qualify one original
+read and its receiver and cut before
+attempting to discharge the forwarded request. Preserve the returned-value
+consumer and measure whether the input traversal actually retires. The
+retained Theme `colorSpace` case reached an unresolved input before a concrete
+receiver scan, and the async and inspection rows still lack attributable
+removable work.
+
+#### Named Core metadata Get closed at the current frontier
+
+The `key: authoredKey` binding in
+[`createCompiledIntrinsicReceipt`](../packages/core/src/component-abi/intrinsic-receipt.ts#L91)
+owns the read. Its receiver is the second actual, `props`, or the fresh empty
+object selected by the nullish initializer. For example, the
+[article receipt](../packages/core/src/component/error-view.ts#L21) evaluates
+`error.id` while building its props object. That is an earlier, separate read.
+After the actuals and tag check, the binding reads `key`, then
+`__exactEnhancements`, then copies the remaining enumerable own properties.
+An earlier getter can affect the later reads. On the default
+[ErrorBoundary render path](../packages/core/src/component/error-boundary.tsx#L44),
+the Get contributes reached getter donors, writes and unresolved alternatives
+to the render dependency graph used for portable placement. No final Core
+placement was observed in the timed-out request.
+[`issueIntrinsicReceipt`](../packages/core/src/component-abi/intrinsic-receipt.ts#L149)
+separately reads the acquired value through `unwrap(authoredKey)` and, for a
+non-nullish result, `String(rawKey)`. Those operations can themselves invoke
+authored code. The key is then carried into the opaque operation and stored
+receipt data.
+
+The original dependency Get can account for a forwarded field obligation
+once within a matching root instantiation. `flatPatternReceiver` names the
+formal for this pattern, and the bound-pattern collector emits separate
+obligations for the two Gets and Copy. `sourceObligationCoveredOnEdge`
+requires a complete dependency instantiation at the actual root and checks
+the original binding, slot and key under that root's consumer and use.
+Every matching alternative must be fulfilled. This requires the current
+executable source and generation, the same substituted receiver alternatives
+and ordered read cut, and publication of reached donors and writes alongside
+independent uncertainty. The direct-edge `fieldFallbackFulfilled` check
+rejects forwarded obligations. Neither a declaration-local outcome nor a
+returned-value projection with the same AST location supplies the missing
+root instantiation. The current dependency instantiation can resolve the
+obligation, but its own result cannot justify skipping the traversal that
+produced it. The later key value and separate Copy obligation still have
+consumers.
+
+The 7.24 sampled CPU seconds at `3056827ef` aggregate both metadata binding
+Gets. The 7.08 seconds inside returned-source projection are part of that
+total. Neither number measures a second, removable effect delivery. The
+landed binding change at `3c5cfeade` deferred unbound effects and preserved
+binding provenance. The later imported installer change at `d49eb5d88`
+preserved forwarded getter writes without demonstrating a Core payoff.
+The Theme `colorSpace` experiment recorded one unresolved forwarding entry
+and zero concrete interference scans at the original Get. The earlier
+mixed-receiver controls required retaining a known browser donor alongside
+foreign uncertainty, and the installed-getter experiments showed that
+pending producer work cannot substitute for a published placement effect.
+
+A single observation-only replay at `5f39cac3f` excluded the pending accessor
+edit. Under the fixed exclusive one-CPU, 1 GiB coordinator, a fresh copy of the
+pinned 8,447-input corpus completed the TypeScript prerequisite in 6.38 seconds.
+The original package command reached the first `error-boundary.tsx` client
+deadline in 32.32 seconds and left 1,200 prerequisite files. The observer
+recorded zero entries for the selected `key` at the ordinary binding Get
+requester and zero fallback dispatches targeting
+`createCompiledIntrinsicReceipt`. A small observer control on the same host
+recorded two complete dependency Gets for concrete and nullish actuals. The
+terminal flat-binding shortcut cannot match the three-formal receipt issuer.
+The adjacent Call observation at the same base located the unfinished
+`createOpaqueOperation` dependency request. These counts cover the client
+prefix and selected requesters. They place no bound on work after that deadline
+or on a fallback dispatched for an ancestor declaration.
+
+There is no matching, materially reached pair to retire at this frontier.
+Keep the current publishers and the authored getter, mixed donor, provenance
+and edit/revert controls. This observation introduced no compiler behavior
+change, so no candidate parity, LSP replay, equal-work timing or completed
+package payoff comparison was run. Close this named Get as a Core optimization
+candidate at the measured frontier.
+
+### Requester disposition against the component contracts
+
+Use the [necessity tests](compiler-architecture-completion-plan.md#necessity-tests-for-component-decisions) before selecting a requester. Source review at `97951da4e` covers the decisions below. The local accessor implementation edit is outside this review. “Traced” identifies a control-flow path in source. The workload observations above retain their own revision and execution limits.
+
+| Requester and scope | Demand, authority and discrepancy |
+| --- | --- |
+| Original Get and Call effect extraction; forwarded input preparation (previously traced) | `sourceMemberDependencies` and `appendArgumentAccessorEffectsObserved` request reached accessor donors, writes and residual execution effects. A later selected callee or read can separately need return origin. Concrete normal output exceeds the first demand if all possible outputs induce the same obligations. The named Core Call/Get repeat hypotheses above have no matching observed retirement. Neither a general return cut nor a new fallback is justified. |
+| Module initializer diagnostic (source traced) | The session asks `moduleInitializerDiagnostics` about the current file and target. It joins reached sources with browser/server requirements of referenced definitions. Mixed known requirements produce EXACT2101. For an opaque unknown initializer it examines host preservation, explicit artifact targets, then server secret-consumer policy within the initializer's source lines. Default analysis skips this diagnostic. The result owns this diagnostic only. It cannot authorize a capture or publish a write. Whether line overlap always identifies the intended policy subject is untraced. |
+| Task capture and mutation lowering (source traced, bounded) | `taskOptimisticCaptureDiagnostics` resolves declaration origin, including shorthand value symbols and destructured inputs. It can reject an unavailable server-local capture at its use. `taskNeedsPendingState` selects server helper enrollment or client blocking work with a pending helper or collection write. It needs operand ownership and task phase. Actual branch outcomes belong to the active generation. The retained direct-helper controls leave escaping accessor ownership open. |
+| Setup, reactive render, callback invocation and composition (inventory and scoped earlier controls) | State readers and guarded DOM lowering need invalidation relations; context ordering needs required token origins; receipt creation/redemption needs creation origin and occurrence. Hidden required tokens lack established delivery. Optional lookup is no substitute. Registration effects and later execution have separate readers. Complete event and disposer paths, nested mounted dependency switching, cross-site keys and paired hydration ownership have no new end-to-end trace here. |
+| Public Analyze, SDK artifact selection and inspection | The paired SDK decision below consumes callable neutrality. Analyze also promises published records independently of that decision. Live inspection and all individual tooling fields have not been traced back to their producers. Suppressing their serialization has not isolated inspection-only analysis. |
+
+**Published task concurrency.** For a button invoking a component-owned function task, changing the final parameter policy from `TaskContext.client().latest()` to `TaskContext.client().queue()` must change three independently observable results. Changing only the number assigned to component state inside the queued task from 1 to 9 must preserve its concurrency. Omitting the concurrency facet on this invoked task selects parallel.
+
+| Decision | Trigger, minimum fact and stopping rule |
+| --- | --- |
+| Client emission | When lowering the invoked task definition, pass the effective concurrency string to the task helper. The scheduler uses it when invocations overlap. Stop once the policy is known. Computing the assigned number or predicting overlap adds nothing to this option. |
+| Public Analyze | When publishing the component's task, retain its native concurrency field on the corresponding SDK task. The SDK structurally copies a present value and omits an absent one. No overlapping invocation, generated code or runtime outcome is needed. |
+| Editor inspection | When projecting the authored region, associate the component's native task with its source range and show its effective mode in the task hover. Source inspection matches the native work range and falls back to component task order. Classification uses the native mode, falling back to parallel for an invoked record and latest otherwise. Stop at the matched record and mode. |
+
+`applyFunctionTaskPolicy` defaults invoked work to parallel and other work to latest. It validates the policy root and reads concurrency facets along the final parameter initializer's call chain. Invoked-task lowering, `nativeModuleAnalysis`, and `createExactSourceInspection` → `entityFacts` all yielded latest, queue, queue and parallel in the four controls. Each native Compile and Analyze request returned zero diagnostics. Native execution reused the instrumented `97951da4e` host. Source comparison at `f15345310` found the same concurrency producer and invoked-task option. SDK and editor projections ran from integration source. These checks cover the client helper option and the matching single-task hover text. Runtime overlap, server continuations, unmatched or multiple regions, live LSP synchronization, other policy fields and inspection cost remain unaudited here.
+
+**Initial component-key adoption.** At `f15345310`, an ordinary button component compiled separately for server and client retained its server DOM under strict element-root hydration for both `saved → saved` and `saved → different`. Subsequent client deliveries retained the button for the adopted client key and replaced it on a changed key or a changed client domain. The native host used the committed overlay, excluding the pending accessor edit. The SDK sources matched this revision and the runtime bundle resolved integration provider sources. These controls exercise a marked component root, with no claim about list-item reconciliation, islands or document adoption.
+
+The marked adopter checks the complete comment pair and artifact ID. Live component receipt compatibility also compares the normalized key and domain object. A domain belongs to the execution root and has no identity token in the component marker. JSX accepts string and number keys. Numeric 1 and string "1" share a receipt key. Keyless and empty-string component markers coincide, and UTF-8 conversion collapses lone surrogates to the replacement character. Markers escape separators in well-formed strings. Markerless roots and omitted nested wrappers lack an independent component-key field. Released fixtures exercise live keyed DOM identity and hydration without specifying first-delivery component-key disagreement. The public mismatch policy specifies default element replacement and strict rejection once a root mismatch is identified. It leaves initial key agreement unspecified.
+
+An initial agreement requirement needs a product decision. Retaining artifact/shape adoption leaves current recovery and wire behavior intact. Comparing the existing marker representation can classify distinguishable keys as mismatches, changing strict and default behavior without a layout change. Exact normalized-string agreement additionally needs a lossless representation, an explicit absence rule and a compatibility policy for old and omitted markers. Nested adoption already distinguishes local replacement from root mismatch and can encounter a child's marker where a parent wrapper was omitted. Any change belongs with SSR marker production and DOM adoption, with no new compiler analysis.
+
+**Mounted reactive reads.** A child renders `props.left ? props.a.n : props.b.n` alongside `saved.n`, where setup saves `peek(() => props.a)`. The first expression observes the selector and the current branch. The second retains the original object and observes its field. Starting at `1/1`, six parent button writes incremented inactive `b.n`, selected B, incremented the saved object's field, replaced A, selected A, and changed unrelated state. After each click and synchronous flush the same output element read `1/1, 9/1, 9/2, 9/2, 5/2, 5/2`. Counters added at entry to the two emitted child readers observed respectively zero, first only, second only, zero, first only, zero executions on those writes, on mount and after strict adoption of server HTML.
+
+The scalar control binds the conditional to `selected` and renders `twice = selected * 2`. With no direct input in the multiplication, the local-symbol dependency walk in `collectReactiveBindings` records `twice → selected → props`; its classification fallback propagates derived provenance. Both targets reported these edges. Client planning fused both safe calculations into one slot reader, where indexed prop reads and ordinary conditional evaluation subscribe to the selected object's field. All six writes delivered the doubled first value. In the existing reactive-provenance fixture, `peek(() => state.value) + state.other` instead needs its own subscription boundary: the emitted slot reads `mixed.get()`. Two value increments left mixed at 11; setting other to 20 sampled the then-current value 3 and produced 23. The aliased helper version agreed. These controls required the executed reads and preserved identity, without reconstructing the selected object or the helper's numerical result.
+
+Controls used a native build of the local integration overlay at `97951da4e`, separate client/server compile requests, the corpus runtime source aliases, and explicit compiled root input receipts. The installed SDK's protocol mismatch precluded using its Vitest transform. All three component controls passed mount and strict hydration. Reader counts apply only to the direct conditional control. These pairs establish neither complete effect delivery through arbitrary getter/callback fallback paths nor a redundant production requester that can be removed.
+
+**Function-defined task placement.** For a component-owned task invoked by a button, the decision concerns work reached when the task executes. The following obligations precede capture, residency and transport checks.
+
+| Reached task work | Inferred | Explicit client | Explicit server |
+| --- | --- | --- | --- |
+| Neutral | Client by default; a component state write selects isomorphic scheduling | Client | Server |
+| Opaque invocation alone | Refuse | Client | Server |
+| Browser, with or without an opaque invocation | Client | Client | Refuse |
+| Server, with or without an opaque invocation | Server | Refuse | Server |
+| Indivisible browser and server work | Refuse | Refuse | Refuse |
+
+Storing an arrow that reads `document.title` imposes no browser requirement. Calling the saved arrow introduces it at the Call. A getter returning that arrow runs at Get, but the browser requirement still arrives at Call. Moving the document read into the getter moves the requirement to Get even if the result is an ordinary number. Changing that number alone cannot change placement. The value of an opaque Call can also remain native when the chosen target is legal and existing result transport suffices. A subsequent property selection, callback invocation, state write or boundary crossing has its own input obligations.
+
+In `collectTasks`, callable sources supply transitive donors after exclusion of owned child-task work. Source-specific browser/server flags survive an unknown aggregate. The inferred scheduler consumes these flags, opacity and neutral writes; explicit placement consumes conflicting donors. `applyTaskPolicies` then joins body, state-path, context and capture policies. A client request reading a server-kept state field failed on both targets. `task_diagnostics.go` promotes placement errors to EXACT2001. For invoked declarations, `lowerInvokedTaskDeclaration` substitutes the server-side callable for client work. Server work retains its executor on the server and a continuation on the client. The SDK transforms both targets and publishes only after preparation succeeds.
+
+Paired SDK controls on the local overlay at `97951da4e` exercised the stored/invoked arrows directly and through a getter, the getter-body read, neutral inference, the state-policy conflict, and all three placement requests for opaque-only work, each platform joined with opacity, and both platforms joined with opacity. Accepted pairs produced two files. The executing body containing `document.title; return foreign()` or `process.cwd(); return foreign()` appeared only on its selected target. Each refused pair also failed both individual target transforms. These were compile controls with workspace dependency declarations. Separate native component controls passed for scheduling with and without writes, suspension and nested tasks, private captures, context ownership, returned-getter effects, held adapter refusal and application/library parity for a standard-call activation. Mounted behavior and parity of every SDK pair remain unverified.
+
+The public task record previously explained both explicit server work and opaque refusal as a client scheduling decision. Recording a default reason where the scheduler actually selects it corrects the common producer. At the original Get/Call boundary, a concrete return prediction exceeds placement demand for the stored callback and ordinary result. The controls showed no missing platform donor on those ordinary paths. The no-summary fallback walks body identifiers and lacks the graph's invocation edges and independent opacity evidence. Native adapter receiver admission shares this walk. A held activation reaches the session coverage gate before emission, but dependency analysis in `project_components.go` also consumes collected tasks. The necessity of its platform scan and a reachable no-summary misplacement through that route remain unverified; these controls do not justify retiring it.
+
+**Server task submission and publication at `2214cc83a`.** A mounted button invokes a latest server task that consumes a mocked credential and writes a public label. The [task contract](tasks.md) gives each activation its own arguments, pending state view, signal and lifetime. The discriminating pairs are a default argument versus a state-derived read after a helper write, a read-only versus a conditionally writing helper, a taken versus skipped write under the same declaration, an authorized label versus a label accompanied by an undeclared sibling, and a current versus superseded reply. Changing only the credential or the public text needs no new placement or path authority. [Item 5](#item-5-disposition-at-a5c584b62) supplies the default/live and reader/writer pairs at its recorded revision. Its constructed POST tests server projection; it does not measure browser submission.
+
+[Native continuation construction](../native/typescript-go/overlay/internal/exactcompiler/continuations.go) assigns ordered dependency slots, state reads and separate possible writes to the component-owned operation. During dispatch, the [client](../packages/hydrate/src/runtime/operations.ts) takes the projected state after the optimistic prelude and sends the activation dependencies and generation. The [executor](../packages/server/src/continuation/execution.ts) checks identity and dependency arity, links cancellation to the request-local frame and projects exact scalar writes after success. For an already-present input path it requires a recorded set on the final receiver; a newly present authorized output can be projected directly. The [response planner](../packages/hydrate/src/runtime/continuation-response.ts) validates the response before staged application. State-only publication checks component write ordering. A generation number alone grants no write authority.
+
+Two strict-hydration controls used the integration SDK source, a freshly built exactc with the committed integration Go overlay, workspace dependency declarations and source runtime aliases. The SDK version handshake passed and `compileFileArtifacts` produced both imported target files. An unbatched fetch mock passed the actual serialized requests to the generated server handler. With no state read, three clicks sent the same opaque operation ID, empty dependencies and generations 1, 2 and 3, with no state field. The credential acquisition call appeared in server code only. The mock credential stayed out of rendered resumption data and request and response bytes. The unmodified reply published “Public result” to the hydrated output. Holding the first response across the next click aborted its signal. Distinct mock reply labels made the second generation observable; releasing the first response preserved the second label. Adding an undeclared sibling to the third reply produced `invalid-response` and left the same output node and second label intact.
+
+For the computed-read fallback, selecting a lane after the server await required the submitted `lanes` record. The request included both lane values and omitted an unrelated state sentinel. The server returned only the selected public label (“Ground”). This matches [native read-prefix selection](../native/typescript-go/overlay/internal/exactcompiler/continuation_state_reads.go): a dynamic segment can require the containing record, while the output still has finite scalar authority. These controls showed neither a missing input nor a removable acquisition for this decision. They do not establish minimal input for every selector. Full Shipping Page emission, collection correspondence, context/progress publication, batched cancellation and broad root reads remain open here. The run excludes the pending accessor edit and does not qualify a published SDK/native installation.
+
+**Setup-owned unmount registration at `2214cc83a`.** For a component returning a static output, compare `this.onUnmount(make())` with `const owner = this; owner.onUnmount(make())`. The factory records acquisition and returns a callback that records release. Definition-time planning needs the component receiver, the unmount phase and a teardown-capable target. During setup the factory runs once and the owner stores the actual callback. Its return value at release and the identity of the particular closure need no compiler prediction for this decision. Effects of evaluating the argument still belong to setup. Effects inside the callback belong to teardown and must survive projection on every target that creates the owner.
+
+The direct server helper stores the callback on the request frame and disposes it at the end of rendering. Strict hydration establishes a separate client registration while claiming the server element. A second receipt for the same component kept that element and registered nothing more. Rendering a different component released the first registration once, including after disposal of the stale hydration handle. These decisions use the renderer’s existing component identity and lifetime. They require no callback transfer in resumptions.
+
+The paired SDK artifact route on the committed integration compiler passed the direct control. The alias retained an authored method lookup on a direct server frame without that method and threw before producing HTML. Server surface projection and lifecycle lowering now recognize this immutable receiver for a plain unmount call and pass the evaluated owner to the existing registration helper. Repeating the same controls on both generated targets passed. Both builds used the integration SDK source and committed Go overlay, with only the lifecycle correction added in the second build; mounted checks used integration runtime sources. This evidence covers synchronous factories, same-component receipt updates, replacement and repeated disposal. It leaves mutable receivers, dynamic keys, asynchronous cleanup and callback placement under their existing contracts. It does not establish that an analysis traversal can be removed.
+
+**One complete output decision.** The SDK paired artifact route acquires base analysis and both target transforms. Preparation erases adapter helper types and links enhancements before comparing target code. Source maps bypass sharing. Otherwise unequal code, an asset, a boundary, an invocation continuation, component tasks/contexts/islands, any non-neutral callable, a secret or non-shared policy subject, or a runtime import suffices to select separate files. Once any exclusion holds, this decision has no demand for further exclusions. That short circuit says nothing about other consumers of base analysis. If all checks pass, preparation retains the shared client result and both target records. Publication writes a shared implementation and two relative re-export facades, including a default re-export when declared. On the separate path publication writes each target's code with its applicable map URL and schedules removal of an obsolete shared file in the same transaction. Validation precedes publication. This traces selection through both filesystem outputs; it does not verify the completeness of native effect or policy inputs to that selection. [Paired entry points](../packages/compiler/src/compilation/artifact-compilation.ts), [eligibility and facade](../packages/compiler/src/compilation/shared-artifact.ts), [preparation and publication](../packages/compiler/src/compilation/artifact-entry-output.ts).
+
+**Priority and closure.** First distinguish a missing known effect or relative write from genuine uncertainty at the shared Get/Call input boundary. The installed-getter and mixed-receiver controls above demonstrate what an incomplete delivery can lose. Establish the original executing operation, phase, possible receiver/callback associations and intervening writes. Show which observable decision would differ if the known alternative disappeared. Then distinguish normal result demand by following its next reader. Retire stronger analysis only where preserving native evaluation and the existing effect delivery discharges every remaining obligation, including the forwarded fallback. A repeatable failing pair warrants a correctness repair; a matched redundant request with unchanged decisions warrants removal. Neither has been established for the current original Core frontier.
+
+Use Core's saved versus redeemed child, Theme's indexed callback versus primitive parser result, Intl's keys versus value Gets, and Shipping's ignored invocation versus awaited server effects as independent counterchecks. None defines the rule. Acceptance needs paired target outputs or diagnostics, source reasons, reachable updates and authorized writes for the affected boundary, plus app/library equivalence and edit/revert where definition facts are reused. Hydration, lifecycle, policy or inspection closure requires exercising the corresponding consumer. Existing prefix profiles and reduced controls do not close those rows.
