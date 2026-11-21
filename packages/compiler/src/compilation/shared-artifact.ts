@@ -1,5 +1,4 @@
 import { unlink } from 'node:fs/promises';
-import path from 'node:path';
 import type { TransformResult } from '../types.js';
 import type { ExactModuleAnalysis } from '../contracts/module-analysis.js';
 
@@ -37,19 +36,4 @@ export async function removeGeneratedArtifact(filename: string): Promise<void> {
 	} catch (error) {
 		if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
 	}
-}
-
-/** Performs the shared artifact facade domain operation. */
-export function sharedArtifactFacade(
-	analysis: ExactModuleAnalysis,
-	sharedFile: string,
-	targetFile: string
-): string {
-	let specifier = path.relative(path.dirname(targetFile), sharedFile).replaceAll(path.sep, '/');
-	if (!specifier.startsWith('.')) specifier = `./${specifier}`;
-	const lines = [`export * from ${JSON.stringify(specifier)};`];
-	if (analysis.exports.some((exported) => exported.name === 'default')) {
-		lines.push(`export { default } from ${JSON.stringify(specifier)};`);
-	}
-	return `${lines.join('\n')}\n`;
 }

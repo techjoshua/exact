@@ -11,8 +11,8 @@ import { publishLibraryFacts } from './exports.js';
 import { readLibraryManifest } from './manifest.js';
 import { withLibraryOutput } from './output.js';
 import { emitLibraryDeclarations } from './declarations.js';
-import { transform } from 'esbuild';
-import { isUnpublishedTestFile, libraryProjectSources } from './sources.js';
+import { build, transform } from 'esbuild';
+import { isUnpublishedTestFile, libraryCompilationProject } from './sources.js';
 import { withOwnedNativeCompilationSession } from '../compilation/native-session.js';
 import { loadExactPackageEnhancements } from '@exactjs/config/node';
 
@@ -47,14 +47,14 @@ export async function buildLibrary(options: LibraryBuildOptions = {}): Promise<v
 		(entry) => entry.startsWith('!') && entry.includes('.fixtures.')
 	);
 	// Validate the publication closure even when lowering only declared modules.
-	const projectInputs = libraryProjectSources(
+	const project = libraryCompilationProject(
 		packageRoot,
 		options.project ?? 'tsconfig.json',
 		excludesFixtureArtifacts
 	);
 	const inputs = manifest.exactCompileModules
 		? declaredCompileModules(manifest.exactCompileModules)
-		: projectInputs;
+		: project.inputs;
 	for (const input of inputs)
 		if (/\.c[jt]s$/i.test(input))
 			throw new Error(`Library build does not support CommonJS source module ${input}`);
@@ -96,13 +96,6 @@ export async function buildLibrary(options: LibraryBuildOptions = {}): Promise<v
 							generatedValidation: 'semantic'
 						});
 						for (const result of results) {
-							for (const specifier of result.runtimeDependencies) {
-								const dependency = packageNameForSpecifier(specifier);
-								if (!dependency || dependency === manifest.name) continue;
-								const targets = emittedRuntimeDependencies.get(dependency) ?? new Set();
-								targets.add(target);
-								emittedRuntimeDependencies.set(dependency, targets);
-							}
 							if (!result.outputFile) continue;
 							const relative = path.relative(generatedRoot, result.outputFile);
 							const outputFile = path
@@ -112,7 +105,7 @@ export async function buildLibrary(options: LibraryBuildOptions = {}): Promise<v
 								path.join('dist', path.relative(outputRoot, outputFile)).replaceAll('\\', '/'),
 								result.componentBuild
 							);
-							const generated = await readFile(result.outputFile, 'utf8');
+							const generated = result.code;
 							if (target === 'client' && result.componentBuild.components.length) {
 								const pairedModule = (selected: 'client' | 'server') =>
 									path
@@ -132,14 +125,49 @@ export async function buildLibrary(options: LibraryBuildOptions = {}): Promise<v
 									for (const selected of ['client', 'server'] as const)
 										artifactModules.set(pairedModule(selected), products);
 							}
-							const emitted = await transform(generated, {
-								format: 'esm',
-								loader: result.outputFile.endsWith('x') ? 'tsx' : 'ts',
-								sourcemap: false,
-								target: 'es2022'
-							});
+							let code: string;
+							let dependencies = result.runtimeDependencies;
+							if (result.preservesHostJsx) {
+								const emitted = await build({
+									stdin: {
+										contents: generated,
+										loader: 'tsx',
+										resolveDir: path.dirname(result.inputFile),
+										sourcefile: result.inputFile
+									},
+									tsconfig: path.resolve(packageRoot, options.project ?? 'tsconfig.json'),
+									...(project.consumePreservedJsx
+										? ({ jsx: 'automatic', jsxImportSource: project.jsxImportSource } as const)
+										: {}),
+									format: 'esm',
+									target: 'es2022',
+									write: false,
+									metafile: true
+								});
+								code = emitted.outputFiles[0]!.text;
+								dependencies = Object.values(emitted.metafile.outputs).flatMap((output) =>
+									output.imports.map((entry) => entry.path)
+								);
+							} else {
+								code = (
+									await transform(generated, {
+										format: 'esm',
+										loader: 'ts',
+										sourcemap: false,
+										target: 'es2022'
+									})
+								).code;
+							}
+							for (const specifier of dependencies) {
+								if (specifier.startsWith('.') || path.isAbsolute(specifier)) continue;
+								const dependency = packageNameForSpecifier(specifier);
+								if (!dependency || dependency === manifest.name) continue;
+								const targets = emittedRuntimeDependencies.get(dependency) ?? new Set();
+								targets.add(target);
+								emittedRuntimeDependencies.set(dependency, targets);
+							}
 							await mkdir(path.dirname(outputFile), { recursive: true });
-							await writeFile(outputFile, emitted.code);
+							await writeFile(outputFile, code);
 							// A pre-emitted TypeScript map describes the replaced code, not the lowered module.
 							await rm(`${outputFile}.map`, { force: true });
 						}

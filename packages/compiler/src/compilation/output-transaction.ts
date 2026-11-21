@@ -2,7 +2,12 @@ import { lstat, mkdir, readFile, rename, unlink, writeFile } from 'node:fs/promi
 import path from 'node:path';
 
 /** Describes one file replacement or deletion in a compiler publication transaction. */
-export type CompilerOutputMutation = Readonly<{ file: string; content?: string }>;
+export type CompilerOutputMutation = Readonly<{
+	file: string;
+	content?: string;
+	/** An existing sibling belongs to this publisher only when it carries this marker. */
+	ownerMarker?: string;
+}>;
 
 type OutputTransactionHost = Readonly<{
 	rename: typeof rename;
@@ -52,7 +57,7 @@ async function publishLockedOutputTransaction(
 		for (let index = 0; index < mutations.length; index++) {
 			const mutation = mutations[index]!;
 			const file = path.resolve(mutation.file);
-			if (await outputAlreadyMatches(file, mutation.content)) continue;
+			if (await outputMutationIsUnnecessary(file, mutation)) continue;
 			await mkdir(path.dirname(file), { recursive: true });
 			const content = mutation.content;
 			let stageFile: string | undefined;
@@ -103,13 +108,20 @@ async function publishLockedOutputTransaction(
 	await cleanupTransactionFiles(staged);
 }
 
-/** Compares under the publication lock, preserving links as replacements rather than following them. */
-async function outputAlreadyMatches(file: string, content: string | undefined): Promise<boolean> {
+/** Checks generated sibling ownership under the publication lock before staging any change. */
+async function outputMutationIsUnnecessary(
+	file: string,
+	{ content, ownerMarker }: CompilerOutputMutation
+): Promise<boolean> {
 	try {
 		const info = await lstat(file);
-		return (
-			content !== undefined && info.isFile() && (await readFile(file)).equals(Buffer.from(content))
-		);
+		const existing =
+			info.isFile() && (content !== undefined || ownerMarker) ? await readFile(file) : undefined;
+		if (ownerMarker && !existing?.includes(ownerMarker)) {
+			if (content === undefined) return true;
+			throw new Error(`Compiler output would overwrite a file it does not own: ${file}`);
+		}
+		return content !== undefined && existing?.equals(Buffer.from(content)) === true;
 	} catch (error) {
 		if ((error as NodeJS.ErrnoException).code === 'ENOENT') return content === undefined;
 		throw error;

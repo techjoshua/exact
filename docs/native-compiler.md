@@ -236,8 +236,11 @@ for opaque sources.
 Vite, Bun, and Webpack use these same contracts. Missing nested dependencies and invalid installed
 providers remain failures rather than silently disabling an enhancement.
 
-Paired `compileFileArtifacts` / `compileProjectArtifacts` output is portable build input.
-A module that retains ordinary host JSX has a JSX-bearing implementation beside its planned artifact entry. Keep the generated files together. Package exports and compilation results retain their planned client and server paths. The consuming host applies its JSX configuration to the implementation, and any source map identifies that implementation and its authored source.
+`compileFile`, `compileProject`, and their paired artifact counterparts publish modules that retain
+ordinary host JSX with a JSX-bearing implementation beside the planned entry. Keep those files
+together when copying or packaging the generated output. Package exports and compilation results
+retain their planned entry paths. The consuming host applies its JSX configuration to the
+implementation, and any source map identifies that implementation and its authored source.
 Component artifacts carry registrations and `exact:optional-enhancement` requests. Consume enhanced paired
 output through the eXact Vite, Bun, or Webpack adapter, which resolves those requests in the consuming module's
 scope and target. It applies server authorization before loading providers. Missing providers use

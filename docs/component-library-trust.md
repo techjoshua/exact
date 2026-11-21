@@ -301,6 +301,12 @@ authored signatures. Function-defined tasks can access their component state in 
 they can in an application. Invalid state assignments and ordinary TypeScript errors still fail
 the build.
 
+When library code contains ordinary JSX that instantiates a compiled component, the builder
+applies the library's TypeScript JSX configuration to the retained expressions. If the project
+preserves JSX, the builder uses the automatic JSX transform and the configured `jsxImportSource`,
+which defaults to `@exactjs/jsx`. Declare the resulting JSX runtime as a runtime dependency or
+peer dependency.
+
 Custom pipelines can call the same implementation:
 
 ```ts

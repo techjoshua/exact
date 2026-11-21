@@ -29,7 +29,8 @@ import { classifyExactJsxInteropImports } from './jsx-interop-classification.js'
 export function transformSourceWithNativeCompiler(
 	normalized: string,
 	filename: string,
-	options: TransformOptions
+	options: TransformOptions,
+	observeExports?: (exports: ExactModuleAnalysis['exports']) => void
 ): TransformResult {
 	const session = options.session;
 	if (!session?.hasNativeCompiler())
@@ -103,6 +104,7 @@ export function transformSourceWithNativeCompiler(
 	if (response.code === undefined)
 		throw new Error(`Native compiler returned no generated code for ${filename}`);
 	const analysis = nativeModuleAnalysis(filename, response);
+	observeExports?.(analysis.exports);
 	if (options.packageName) analysis.packageName = options.packageName;
 	const needsInspection =
 		shouldEnableInspection(options.emitInspection) ||

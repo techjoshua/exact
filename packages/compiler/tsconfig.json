@@ -63,6 +63,7 @@
 		"src/compilation/physical-enhancement-facades.ts",
 		"src/compilation/project-synchronization.ts",
 		"src/compilation/file-compilation.ts",
+		"src/compilation/module-output.ts",
 		"src/compilation/language-validation.ts",
 		"src/compilation/native-session.ts",
 		"src/compilation/output-transaction.ts",

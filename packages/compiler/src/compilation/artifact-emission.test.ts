@@ -1,5 +1,5 @@
 import { stateWriteFacts } from '../test-support/generated-contracts.js';
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
@@ -9,7 +9,8 @@ import {
 	compileProjectArtifacts,
 	createPackageExportMap
 } from '../index.js';
-import { createTestWorkspace } from '../test-support/workspace.js';
+import { createCompilerTestWorkspace, createTestWorkspace } from '../test-support/workspace.js';
+import { importArtifact } from '../test-support/import-artifact.js';
 import { artifactAnalysis } from './analysis-results.js';
 
 describe('@exactjs/compiler: artifacts', () => {
@@ -25,6 +26,49 @@ describe('@exactjs/compiler: artifacts', () => {
 
 		expect(result.outputFile).toBe(path.join(outDir, 'view.ts'));
 		expect(output).toContain('__exactPreparedRenderProgram(__exact_render_program_1');
+	});
+
+	it('publishes single-target host JSX behind its planned entry and guards authored siblings', async () => {
+		const root = await createCompilerTestWorkspace('.exact-compiler-host-jsx-', process.cwd());
+		const input = path.join(root, 'view.tsx');
+		const options = { outDir: root, sourceMap: true, target: 'server' } as const;
+		const host = path.join(root, 'view.host-jsx.tsx');
+		const map = `${host}.map`;
+		const original = 'export const authored = true;';
+		const plain = 'export default 1;';
+		await writeFile(input, plain);
+		await writeFile(host, original);
+		await writeFile(map, '{}');
+		const initial = await compileFile(input, options);
+		expect(await readFile(host, 'utf8')).toBe(original);
+		expect(await readFile(map, 'utf8')).toBe('{}');
+
+		await writeFile(
+			input,
+			'export function View(){return()=> <p>Hello</p>;} export default () => <View />;'
+		);
+		await expect(compileFile(input, options)).rejects.toThrow(
+			'Compiler output would overwrite a file'
+		);
+		expect(await readFile(initial.outputFile!, 'utf8')).toContain(plain);
+		await Promise.all([rm(host), rm(map)]);
+
+		const result = await compileFile(input, options);
+		expect(result.outputFile).toBe(initial.outputFile);
+		expect(result.sourceMapFile).toBe(map);
+		expect(await readFile(host, 'utf8')).toContain('//# sourceMappingURL=view.host-jsx.tsx.map');
+		expect(JSON.parse(await readFile(map, 'utf8'))).toMatchObject({
+			file: 'view.host-jsx.tsx',
+			sources: [expect.stringContaining('view.tsx')]
+		});
+		const namespace = await importArtifact(result.outputFile!, path.join(root, 'view.mjs'));
+		expect(namespace.View).toBeTypeOf('function');
+		expect((namespace.default as () => unknown)()).toBeTruthy();
+
+		await writeFile(input, plain);
+		await compileFile(input, options);
+		for (const stale of [host, map])
+			await expect(readFile(stale)).rejects.toMatchObject({ code: 'ENOENT' });
 	});
 
 	it('writes source maps beside compiled files', async () => {

@@ -1,5 +1,6 @@
 import { createLibraryBuildFixture as fixture } from './test-support/library-build.fixture.js';
-import { mkdir, readFile, readdir, rm, symlink, writeFile } from 'node:fs/promises';
+import { appendFile, mkdir, readFile, readdir, rm, symlink, writeFile } from 'node:fs/promises';
+import { pathToFileURL } from 'node:url';
 import path from 'node:path';
 import { expect, it, vi } from 'vitest';
 import { buildLibrary } from './library-build.js';
@@ -61,6 +62,37 @@ it('reports missing generated dependencies across both targets in one failure', 
 	const { root, manifest, json } = await fixture();
 	await json('package.json', { ...manifest, dependencies: {} });
 	await expect(buildLibrary({ root })).rejects.toThrow('@exactjs/core (client, server)');
+});
+
+it('publishes ordinary JSX with the inherited host transform and validates its runtime dependency', async () => {
+	const { root, manifest, json } = await fixture();
+	await json('tsconfig.build.json', {
+		extends: './tsconfig.host.json'
+	});
+	await json('tsconfig.host.json', {
+		extends: './tsconfig.json',
+		compilerOptions: { jsx: 'react-jsxdev' }
+	});
+	await appendFile(path.join(root, 'src/Example.tsx'), '\nexport const view = () => <Example />;');
+	await appendFile(path.join(root, 'src/index.ts'), "\nexport {view} from './Example.js';");
+	const options = { root, project: 'tsconfig.build.json' };
+	await expect(buildLibrary(options)).rejects.toThrow('@exactjs/jsx (client, server)');
+	await json('package.json', {
+		...manifest,
+		dependencies: { ...manifest.dependencies, '@exactjs/jsx': '^0.8.0' }
+	});
+	await buildLibrary(options);
+	for (const target of ['client', 'server']) {
+		const directory = path.join(root, 'dist', target);
+		expect(await readFile(path.join(directory, 'Example.js'), 'utf8')).toContain(
+			'@exactjs/jsx/jsx-dev-runtime'
+		);
+		expect(await readFile(path.join(directory, 'index.js'), 'utf8')).not.toContain('jsx-runtime');
+		const published = await import(
+			/* @vite-ignore */ pathToFileURL(path.join(directory, 'index.js')).href
+		);
+		expect(published.view()).toBeTruthy();
+	}
 });
 
 it('stages only inside the ignored package cache and releases its lock', async () => {

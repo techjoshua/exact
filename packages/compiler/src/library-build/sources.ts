@@ -21,11 +21,7 @@ export function isProductionSourceFile(name: string, excludeFixtures: boolean) {
 	);
 }
 /** Selects production project roots and their imported source dependencies using TypeScript rules. */
-export function libraryProjectSources(
-	root: string,
-	project: string,
-	excludeFixtures: boolean
-): string[] {
+export function libraryCompilationProject(root: string, project: string, excludeFixtures: boolean) {
 	const filename = path.resolve(root, project);
 	const config = typescript.readConfigFile(filename, typescript.sys.readFile);
 	const parsed = typescript.parseJsonConfigFileContent(
@@ -72,9 +68,18 @@ export function libraryProjectSources(
 				`Library production code imports unpublished support source ${relative}. Move shared production code into a published source module.`
 			);
 	}
-	return program
+	const inputs = program
 		.getSourceFiles()
 		.map((source) => source.fileName)
 		.filter(production)
 		.sort();
+	return {
+		inputs,
+		// Published JavaScript must consume JSX left for a host by the declaration project.
+		consumePreservedJsx:
+			parsed.options.jsx == null ||
+			parsed.options.jsx === typescript.JsxEmit.Preserve ||
+			parsed.options.jsx === typescript.JsxEmit.ReactNative,
+		jsxImportSource: parsed.options.jsxImportSource ?? '@exactjs/jsx'
+	};
 }

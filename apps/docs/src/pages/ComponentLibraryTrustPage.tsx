@@ -82,6 +82,11 @@ export function ComponentLibraryTrustPage(this: Component<{}>) {
 					consumer&apos;s own authorization and do not inherit the library&apos;s delegated trust.
 				</p>
 				<p>
+					If the library exports ordinary JSX that instantiates a compiled component, the builder
+					applies the library project&apos;s JSX transform before publishing JavaScript. Declare any
+					runtime that transform imports, such as <code>@exactjs/jsx</code>.
+				</p>
+				<p>
 					An interactive library owner may need an SSR publication import even when its source does
 					not import SSR. Declare <code>@exactjs/ssr</code> as a compatible runtime peer when the
 					builder reports that requirement.

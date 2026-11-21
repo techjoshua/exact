@@ -5,8 +5,7 @@ import {
 	artifactEnhancementDeclarations,
 	linkArtifactEnhancements
 } from './artifact-enhancements.js';
-import path from 'node:path';
-import { sourceMapPathFor, withSourceMapFile, withSourceMappingUrl } from '../source-maps.js';
+import { sourceMapPathFor } from '../source-maps.js';
 import type {
 	CompileArtifactsResult,
 	ExactArtifactPlanEntry,
@@ -14,9 +13,9 @@ import type {
 	ModuleRewriteOptions
 } from '../types.js';
 import type { ExactModuleAnalysis } from '../contracts/module-analysis.js';
-import { sharedArtifactFacade, sharedArtifactResult } from './shared-artifact.js';
-import { retainArtifactAnalysis } from './analysis-results.js';
-import { artifactAnalysis } from './analysis-results.js';
+import { sharedArtifactResult } from './shared-artifact.js';
+import { prepareModuleOutput, implementationFile, moduleFacade } from './module-output.js';
+import { retainArtifactAnalysis, artifactAnalysis } from './analysis-results.js';
 import { createArtifactBuildProducts } from './build-products.js';
 import { publishOutputTransaction, type CompilerOutputMutation } from './output-transaction.js';
 
@@ -70,16 +69,6 @@ export function prepareArtifactPlanEntry(
 	);
 }
 
-/** Gives a JSX-bearing implementation its host parser while retaining target recognition and relative imports. */
-function hostJsxFile(file: string): string {
-	if (!/\.[jt]s$/i.test(file)) return file;
-	return file.replace(/(\.exact\.(?:client|server|shared))?(\.[jt]s)$/i, '.host-jsx$1$2x');
-}
-
-function implementationFile(planned: string, output: TransformResult): string {
-	return output.preservesHostJsx ? hostJsxFile(planned) : planned;
-}
-
 /** Publishes a previously prepared artifact pair after every validation gate accepts it. */
 export async function publishArtifactPlanEntry(
 	entry: ExactArtifactPlanEntry,
@@ -109,44 +98,18 @@ export function artifactOutputMutations(
 ): CompilerOutputMutation[] {
 	const mutations: CompilerOutputMutation[] = [];
 	const analysis = artifactAnalysis(result);
-	const prepare = (
-		planned: string,
-		output?: TransformResult,
-		mapFile?: string,
-		facade?: string
-	) => {
-		const host = hostJsxFile(planned);
-		const actual = output && !facade ? implementationFile(planned, output) : planned;
-		const code =
-			output && mapFile ? withSourceMappingUrl(output.code, path.basename(mapFile)) : output?.code;
-		mutations.push({
-			file: planned,
-			content:
-				facade ?? (actual !== planned ? sharedArtifactFacade(analysis, actual, planned) : code)
-		});
-		if (actual !== planned) mutations.push({ file: actual, content: code });
-		else if (host !== planned) mutations.push({ file: host });
-		if (mapFile && output?.map) {
-			mutations.push({
-				file: mapFile,
-				content: `${JSON.stringify(withSourceMapFile(output.map, path.basename(actual)), null, 2)}\n`
-			});
-		}
-		if (mapFile !== sourceMapPathFor(planned)) mutations.push({ file: sourceMapPathFor(planned) });
-		if (host !== planned && mapFile !== sourceMapPathFor(host))
-			mutations.push({ file: sourceMapPathFor(host) });
-	};
+	const hasDefault = analysis.exports.some((item) => item.name === 'default');
 	for (const [planned, output, mapFile] of [
 		[entry.clientFile, result.client, result.clientMapFile],
 		[entry.serverFile, result.server, result.serverMapFile]
 	] as const) {
-		const facade = result.shared && sharedArtifactFacade(analysis, result.sharedFile!, planned);
-		prepare(planned, output, mapFile, facade);
+		const facade = result.shared && moduleFacade(hasDefault, result.sharedFile!, planned);
+		prepareModuleOutput(mutations, planned, hasDefault, output, mapFile, { facade });
 		mutations.push({
 			file: planned + '.enhancements.d.ts',
 			content: artifactEnhancementDeclarations(output)
 		});
 	}
-	prepare(entry.sharedFile, result.shared);
+	prepareModuleOutput(mutations, entry.sharedFile, hasDefault, result.shared, undefined, {});
 	return mutations;
 }

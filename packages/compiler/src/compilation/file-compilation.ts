@@ -5,13 +5,12 @@ import { collectInputFiles, commonRoot, outputPathFor } from '../paths.js';
 import {
 	composeExactSourceMaps,
 	createGeneratedSuffixSourceMap,
-	sourceMapPathFor,
-	withSourceMapFile,
-	withSourceMappingUrl
+	sourceMapPathFor
 } from '../source-maps.js';
 import type { CompileFileOptions, CompileFileResult, CompileProjectOptions } from '../types.js';
 import { capabilityCompilationOptions } from './capability-options.js';
-import { transformSource } from './transformation.js';
+import { transformSourceWithNativeCompiler } from '../native/transformation.js';
+import { implementationFile, prepareModuleOutput } from './module-output.js';
 import { createOwnedNativeCompilationSession } from './native-session.js';
 import { validateExactLanguageProjections } from './language-validation.js';
 import { loadExactPackageEnhancements } from '@exactjs/config/node';
@@ -52,28 +51,36 @@ async function prepareFile(
 		loadExactPackageEnhancements({
 			applicationRoot: options.root ?? path.dirname(inputFile)
 		}).packageEnhancements;
-	const result = transformSource(source, {
-		filename: options.filename ?? inputFile,
-		root: options.root,
-		configFile: options.configFile,
-		session: options.session,
-		packageEnhancements,
-		target,
-		serverComponents: options.serverComponents,
-		sourceMap: options.sourceMap,
-		moduleRewrite: options.moduleRewrite,
-		moduleTransform: options.moduleTransform,
-		jsxInterop: options.jsxInterop,
-		assetRules: options.assetRules,
-		preserveClientAssetImports: options.preserveClientAssetImports,
-		generatedValidation: options.generatedValidation,
-		emitInspection: true,
-		...capabilityCompilationOptions(options)
-	});
+	let hasDefault = false;
+	const result = transformSourceWithNativeCompiler(
+		source,
+		options.filename ?? inputFile,
+		{
+			root: options.root,
+			configFile: options.configFile,
+			session: options.session,
+			packageEnhancements,
+			target,
+			serverComponents: options.serverComponents,
+			sourceMap: options.sourceMap,
+			moduleRewrite: options.moduleRewrite,
+			moduleTransform: options.moduleTransform,
+			jsxInterop: options.jsxInterop,
+			assetRules: options.assetRules,
+			preserveClientAssetImports: options.preserveClientAssetImports,
+			generatedValidation: options.generatedValidation,
+			emitInspection: true,
+			...capabilityCompilationOptions(options)
+		},
+		(exports) => {
+			hasDefault = exports.some((item) => item.name === 'default');
+		}
+	);
 	const outputFile = options.outDir
 		? outputPathFor(inputFile, options.outDir, options.rootDir)
 		: undefined;
-	const sourceMapFile = outputFile && result.map ? sourceMapPathFor(outputFile) : undefined;
+	const sourceMapFile =
+		outputFile && result.map ? sourceMapPathFor(implementationFile(outputFile, result)) : undefined;
 
 	const rendererEnhancements = result.rendererEnhancements ?? [];
 	const executable =
@@ -98,6 +105,7 @@ async function prepareFile(
 					)
 				: result.map,
 		source,
+		hasDefault,
 		inputFile,
 		outputFile,
 		sourceMapFile
@@ -110,24 +118,16 @@ async function publishPreparedFile(prepared: PreparedCompileFile): Promise<void>
 
 /** Prepares code and map replacements so they publish as one generation. */
 function preparedFileMutations(prepared: PreparedCompileFile): CompilerOutputMutation[] {
-	const { outputFile, sourceMapFile, map } = prepared;
-	if (!outputFile) return [];
-	return [
-		{
-			file: outputFile,
-			content: sourceMapFile
-				? withSourceMappingUrl(prepared.code, path.basename(sourceMapFile))
-				: prepared.code
-		},
-		...(sourceMapFile && map
-			? [
-					{
-						file: sourceMapFile,
-						content: `${JSON.stringify(withSourceMapFile(map, path.basename(outputFile)), null, 2)}\n`
-					}
-				]
-			: [])
-	];
+	const mutations: CompilerOutputMutation[] = [];
+	if (prepared.outputFile)
+		prepareModuleOutput(
+			mutations,
+			prepared.outputFile,
+			prepared.hasDefault,
+			prepared,
+			prepared.sourceMapFile
+		);
+	return mutations;
 }
 
 /** Compiles all transformable files found under the provided input paths. */
@@ -271,13 +271,13 @@ export async function collectProjectCheckDiagnostics(
 	return diagnostics;
 }
 
-type PreparedCompileFile = CompileFileResult & Readonly<{ source: string }>;
+type PreparedCompileFile = CompileFileResult & Readonly<{ source: string; hasDefault: boolean }>;
 
 function publicPreparedResult(
 	prepared: PreparedCompileFile,
 	emitInspection: CompileFileOptions['emitInspection']
 ): CompileFileResult {
-	const { source: _source, inspectionCatalog, ...result } = prepared;
+	const { source: _source, hasDefault: _hasDefault, inspectionCatalog, ...result } = prepared;
 	return {
 		...result,
 		...(emitInspection === true || emitInspection === 'auto' ? { inspectionCatalog } : {})
