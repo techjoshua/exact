@@ -298,7 +298,9 @@ func TestPublicAwaitInheritedThenReceiver(t *testing.T) {
 					declarations = `class Parent{seen=false;marker='receiver';get then():undefined{void document.title;this.seen=true;return undefined}}class Receiver extends Parent{}`
 					body = `const receiver=new Receiver();await (` + row.operand + `);this.state.label=receiver.seen?receiver.marker:'missing getter';`
 				}
-				f := newPublicAwaitRequiredFixture(t, publicAwaitRequiredPage(declarations, body, target))
+				// The Await owns the inherited Get. Module scope keeps the class's identity
+				// available before continuation capture considers the task.
+				f := newPublicAwaitRequiredFixture(t, declarations+publicAwaitRequiredPage("", body, target))
 				analysis, _ := checkPublicAwaitRequiredTask(t, NewSession(), f, target, row.browser, row.unknown)
 				if row.name == "quiet-known" {
 					quiet := findCallable(t, analysis.Analysis.Callables, "run")

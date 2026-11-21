@@ -7484,19 +7484,23 @@ func TestSessionLowersTaskAwaitWithGenerationSignal(t *testing.T) {
 		ID:   "component.tsx",
 		Kind: "compile",
 		Source: `
-			import { TaskContext } from "@exactjs/core";
-			function Panel() {
-				const __fixtureTask35 = async (_task: TaskContext = TaskContext.latest()) => {
+			import { TaskContext, type Component } from "@exactjs/core";
+			async function loadValue() { return document.title; }
+			export function Panel(this: Component<{ value: string }>) {
+				this.state.value = "";
+				const run = async (_task: TaskContext = TaskContext.client().latest()) => {
 					const value = await loadValue();
-					consume(value);
+					this.state.value = value;
 				};
-__fixtureTask35();
-				return () => <output />;
+				return () => <button onClick={() => run()}>{this.state.value}</button>;
 			}
 		`,
 	})
 	if response.Error != "" {
 		t.Fatal(response.Error)
+	}
+	if len(response.Diagnostics) != 0 {
+		t.Fatalf("generation-aware task had diagnostics: %#v", response.Diagnostics)
 	}
 	for _, expected := range []string{
 		`taskAwait as __exactTaskAwait`,
