@@ -10,15 +10,16 @@ import (
 )
 
 type collectionMapPlan struct {
-	nativeArray bool
-	callbackKey bool
-	member      string
-	primitive   bool
-	keyed       bool
-	explicitKey *ast.Node
-	declarative bool
-	renderChild bool
-	renderArray bool
+	nativeArray    bool
+	callbackKey    bool
+	member         string
+	primitive      bool
+	keyed          bool
+	explicitKey    *ast.Node
+	declarative    bool
+	renderChild    bool
+	renderArray    bool
+	componentOwned bool
 }
 
 var exactKeyArgument = regexp.MustCompile(
@@ -26,25 +27,23 @@ var exactKeyArgument = regexp.MustCompile(
 )
 
 func (lowering *jsxLowering) lowerAnnotatedMap(node *ast.Node) *ast.Node {
-	// The checking projection retains Array.map's contextual callback types outside a
-	// component. Executable targets own their keyed operations without inventing this.map.
-	if lowering.target == TargetDefault {
-		if !lowering.insideComponent(node) {
-			return nil
-		}
-	}
 	if lowering.checker == nil {
 		return nil
 	}
 	plan, planned := lowering.collectionMaps[nodeSpanKey(node)]
+	// The checking projection retains Array.map's contextual callback types outside a
+	// component. Executable targets own their keyed operations without inventing this.map.
+	if !planned || lowering.target == TargetDefault && !plan.componentOwned {
+		return nil
+	}
 	// Materializing a compiler-proven derived value clones its sole render expression into the
 	// retained binding closure. Synthesized parent links no longer lead back to authored JSX, so
 	// retain the source classification recorded before lowering rather than losing keyed identity.
-	if !insideJSXChildExpression(node) && (!planned || !plan.renderChild) {
+	if !plan.renderChild && !insideJSXChildExpression(node) {
 		// Rendered array literals preserve inferred keys, while explicitly keyed JSX
 		// projections can also feed ordinary array consumers.
 		// Keep its array result and keyed item receipts instead of dropping authored keys.
-		if planned && plan.keyed && (plan.explicitKey != nil || plan.renderArray) && !plan.declarative {
+		if plan.keyed && (plan.explicitKey != nil || plan.renderArray) && !plan.declarative {
 			return lowering.lowerRenderProgramKeyedMap(node, plan)
 		}
 		return nil
@@ -54,7 +53,7 @@ func (lowering *jsxLowering) lowerAnnotatedMap(node *ast.Node) *ast.Node {
 	if collection == nil {
 		return nil
 	}
-	if !planned || plan.declarative {
+	if plan.declarative {
 		return nil
 	}
 	render := collectionMapRender(call)
@@ -71,7 +70,7 @@ func (lowering *jsxLowering) lowerAnnotatedMap(node *ast.Node) *ast.Node {
 	}
 	// Ordinary functions have their own receiver even inside a component. Their keyed
 	// children carry identity directly, including when the surrounding host falls back.
-	if !lowering.insideComponent(node) {
+	if !plan.componentOwned {
 		return lowering.lowerRenderProgramKeyedMap(node, plan)
 	}
 	// Request-local server frames carry keyed identity in their output. They do not
@@ -215,7 +214,7 @@ func (lowering *jsxLowering) lowerRenderProgramKeyedMap(
 	render = lowering.collectionMapBindingRender(render)
 	parameter := render.Parameters()[0].Name()
 	key := lowering.collectionMapKeyExpression(plan, parameter)
-	if lowering.target == TargetClient && plan.nativeArray && lowering.insideComponent(node) && !lowering.insideNativeMapCallback(node) {
+	if lowering.target == TargetClient && plan.nativeArray && plan.componentOwned && !lowering.insideNativeMapCallback(node) {
 		lowering.listCapabilityUsed = true
 		lowering.markComponentListCapability(node)
 		selector := lowering.factory.NewArrowFunction(
@@ -359,6 +358,11 @@ func (lowering *jsxLowering) indexCollectionMaps() {
 			declarative: lowering.moduleDeclarativeCollection(node),
 			renderChild: insideJSXChildExpression(node),
 			renderArray: jsxChildValuePath(node, true),
+		}
+		// Materialized render closures have synthetic parents. The authored occurrence
+		// supplies the receiver scope for both direct and enclosing-range lowering.
+		if keyed && !plan.declarative {
+			plan.componentOwned = lowering.insideComponent(node)
 		}
 		lowering.collectionMaps[nodeSpanKey(node)] = plan
 		if lowering.target == TargetClient && plan.keyed && (plan.renderArray || plan.explicitKey != nil) && !plan.declarative {

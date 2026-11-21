@@ -26,14 +26,18 @@ it.each(
 			'default-destructured',
 			'rows.map(({id,label="fallback"}={id:"empty",label:""})=><li>{label}</li>)'
 		],
-		['quoted-field', 'rows.map(row => <li>{row.label}</li>)']
+		['quoted-field', 'rows.map(row => <li>{row.label}</li>)'],
+		['derived-imported', 'rows.map(row => <li>{row.label}</li>)']
 	].flatMap(([name, expression]) =>
-		['mount', 'hydrate'].map((mode) => [name!, expression!, mode!] as const)
+		['mount', 'hydrate'].map((mode) => [name!, mode, expression!] as const)
 	)
 )(
 	'preserves keyed item identity through %s array mapping in %s',
-	async (_name, expression, mode) => {
+	async (_name, mode, expression) => {
 		const root = await createTestWorkspace('.exact-collection-source-', process.cwd());
+		const derived = _name === 'derived-imported';
+		const key = _name === 'quoted-field' ? '"id-key"' : 'id';
+		const row = `interface Row{/** @exact key */ ${key}:string;label:string}`;
 		const files = await writeTestFiles(root, {
 			'tsconfig.json': JSON.stringify({
 				compilerOptions: {
@@ -45,7 +49,10 @@ it.each(
 					skipLibCheck: true
 				}
 			}),
-			'list.tsx': `interface Row{/** @exact key */ ${_name === 'quoted-field' ? '"id-key"' : 'id'}:string;label:string} export function Lists(props:{rows:Row[]}){const rows=props.rows;return()=> <ul>{${expression}}</ul>} export const listRoot=(rows:Row[])=> <Lists rows={rows}/>`
+			...(derived ? { 'model.ts': `export ${row}` } : {}),
+			'list.tsx': `${derived ? "import type {Row} from './model.js';" : row}
+export function Lists(props:{rows:Row[]}){const rows=${derived ? 'props.rows.filter(row=>row.label!=="")' : 'props.rows'};return()=> <ul>{${expression}}</ul>}
+export const listRoot=(rows:Row[])=> <Lists rows={rows}/>`
 		});
 		const [artifact] = await compileProjectArtifacts([files['list.tsx']!], {
 			rootDir: root,
