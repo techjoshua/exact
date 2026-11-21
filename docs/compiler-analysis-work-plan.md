@@ -164,6 +164,28 @@ Its reflective scan attempted about 341,000 original Call collections across 33,
 requests for `requireRecord` writer inputs without selecting that writer body. The
 initializer’s own body cannot account for the cost under this consumer.
 
+The placement consumer in `IntlLocale` needs the original setup effects, the eager
+read of `sourceLocale`, and the later read of `state.locale`. The runtime environment
+object carries the catalog and locale values. The paired server control renders plain
+locale data and keeps an unread nested getter dormant. Reading an authored getter in
+either setup or render instead produces a client boundary.
+
+Private cumulative bounds kept the package source and SDK command unchanged. Skipping
+generic interference alone still timed out in formatter validation. Skipping legacy
+indexed writer recovery as well reached the independent measurement formatting path
+through `IntlMessage`. It also lost a known installed getter in the paired SSR control.
+Skipping cold return projection after the existing staged transfer reached the end of
+initial component extraction and still emitted neither target at 32.11 seconds. This
+last trace counted at least 311,296 cold member requests and 131,072 cold return
+projections inside Intl, with zero staged transfers in those scoped counters.
+Extending the same bound to all named effect owners left a separate pass in
+`moduleDefinitionAnalysis`. That pass uses unnamed dependency queries to decide
+whether the `intlPropertyNames` module binding can initialize on a requested target.
+Removing its cold projections as well reached the compiler verdict in 11.25 seconds
+and produced `EXACT2101` for the now-opaque initializer. The build emitted neither
+target. Callable extraction and module availability both need a supported effect
+result for the actual operation. The private omissions qualify neither path.
+
 An inline factory-result control independently exposed a lost callable stored in a
 descriptor. The selected factory inputs and returned local object literal already
 identify a possible writer for the inline member read. The compiler can retain that
