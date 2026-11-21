@@ -129,7 +129,8 @@ export function CompilerTourPage(this: Component<{}>) {
 					The server context and browser <code>document</code> access tell the compiler where each
 					task runs. Standard JavaScript byte arrays, <code>ArrayBuffer</code> and
 					<code>DataView</code> operations can execute in either environment. Custom methods retain
-					the requirements of the code they call. A mapper passed to <code>Array.from()</code> or a
+					the requirements of the code they call. This includes a custom string conversion that runs
+					when an object is interpolated into a template string. A mapper passed to <code>Array.from()</code> or a
 					typed-array factory contributes those requirements too. Core operations can store a callback
 					for later execution. Creating an operation can run a domain getter or read enumerable values when copying
 					keyed metadata. Executing the

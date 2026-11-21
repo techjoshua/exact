@@ -1327,6 +1327,10 @@ to an integer, which can invoke an authored `valueOf` method. An empty array
 returns before that conversion. Array aliases and authored replacement methods
 use the ordinary member and call analysis.
 
+Untagged template substitutions apply string-hint conversion to their evaluated operands.
+A known authored conversion getter or method contributes its target effects. A tag receives
+the substitution directly. Checked primitive substitutions need no hook lookup.
+
 For an acquired standard `Object.getOwnPropertyDescriptor`, original source Effects
 retain coercion-hook retrieval separately from calling an acquired hook. The key
 method receives the original key receiver and its captured scope through the existing

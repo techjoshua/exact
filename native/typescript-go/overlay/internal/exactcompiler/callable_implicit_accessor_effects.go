@@ -23,6 +23,10 @@ func appendImplicitAccessorEffects(fact *callableFacts, node *ast.Node, targets 
 // visitImplicitAccessors shares value-reading operations with eager module placement.
 // Enumeration of class prototype properties does not execute their accessors.
 func visitImplicitAccessors(node *ast.Node, typeChecker *checker.Checker, bindings map[ast.SymbolId]*ast.Node, owner *executableBodyOwner, consumer *ast.Node, receipts []*sourceNativeInvocation, visit func(accessorCandidates), normal ...*sourceValueInputs) {
+	if ast.IsTemplateSpan(node) && !templateNeedsConversionEffects(node, typeChecker, owner) {
+		visit(accessorCandidates{})
+		return
+	}
 	var query *sourceValueQuery
 	if len(normal) == 1 && normal[0] != nil {
 		var values *sourceValueOwner
@@ -37,7 +41,7 @@ func visitImplicitAccessors(node *ast.Node, typeChecker *checker.Checker, bindin
 		// Only these expressions and binding patterns can perform an implicit
 		// read here. A normal invocation may still need its enclosing work ledger.
 		switch node.Kind {
-		case ast.KindSpreadElement, ast.KindNewExpression, ast.KindBinaryExpression, ast.KindVariableDeclaration, ast.KindSpreadAssignment, ast.KindJsxSpreadAttribute, ast.KindCallExpression:
+		case ast.KindTemplateSpan, ast.KindSpreadElement, ast.KindNewExpression, ast.KindBinaryExpression, ast.KindVariableDeclaration, ast.KindSpreadAssignment, ast.KindJsxSpreadAttribute, ast.KindCallExpression:
 		default:
 			visit(accessorCandidates{})
 			return
@@ -76,6 +80,10 @@ func visitImplicitAccessors(node *ast.Node, typeChecker *checker.Checker, bindin
 // implicitAccessorQueries shares implicit property reads across callable and module effects.
 func (q *sourceValueQuery) implicitAccessorQueries(node *ast.Node, bindings sourceValueBindings, result *accessorCandidates) {
 	typeChecker := q.owner.checker
+	if ast.IsTemplateSpan(node) {
+		q.templateConversionEffects(node, bindings, result)
+		return
+	}
 	if ast.IsSpreadElement(node) && ast.IsArrayLiteralExpression(node.Parent) {
 		operand := node.AsSpreadElement().Expression
 		t := typeChecker.GetTypeAtLocation(operand)

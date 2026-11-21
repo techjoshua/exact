@@ -444,8 +444,14 @@ func (query *sourceValueQuery) reflectiveKeyEffects(op *sourceReflectiveOperatio
 // requesting its primitive result. Precision consumers add their unchanged
 // conversion refusal above; the selected descriptor algorithm needs Effects.
 func (query *sourceValueQuery) sourcePropertyKeyEffects(op *sourceReflectiveOperation, result *accessorCandidates) bool {
-	for _, observed := range op.keys {
-		if !query.charge(result, op.operation) {
+	return query.stringHintEffects(op.operation, op.keys, result)
+}
+
+// stringHintEffects accounts for user code during string-hint primitive conversion.
+// The caller owns the eventual string or property key.
+func (query *sourceValueQuery) stringHintEffects(operation *ast.Node, values []sourceObservedValue, result *accessorCandidates) bool {
+	for _, observed := range values {
+		if !query.charge(result, operation) {
 			return false
 		}
 		value := observed.value
@@ -464,14 +470,14 @@ func (query *sourceValueQuery) sourcePropertyKeyEffects(op *sourceReflectiveOper
 				result.opaque = true
 				continue
 			}
-			get := &sourceGetInputs{operation: op.operation, receiver: value, propertyKey: key}
+			get := &sourceGetInputs{operation: operation, receiver: value, propertyKey: key}
 			if key == symbolKey {
 				get.symbol = symbol
 			}
 			path := append(append([]string{}, value.path...), key)
 			acquired := query.accessorsAtGet(value.node, path, "", accessorAcquire, observed.scope.bindings, nil, get)
-			retainCallableThenEffects(&acquired, op.operation)
-			query.sourceKeyMethodEffects(op.operation, value, observed.scope, key == symbolKey, &acquired)
+			retainCallableThenEffects(&acquired, operation)
+			query.sourceKeyMethodEffects(operation, value, observed.scope, key == symbolKey, &acquired)
 			mergeAccessorCandidates(result, acquired)
 		}
 		query.creators = previous
