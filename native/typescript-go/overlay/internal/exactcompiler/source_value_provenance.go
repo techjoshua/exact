@@ -259,7 +259,7 @@ func (owner *sourceValueOwner) summary(node *ast.Node) sourceValueSummary {
 		return summary
 	}
 	summary := sourceValueSummary{returns: directCallableReturns(node), normalSlots: make(map[*ast.Node]struct{})}
-	erasedPolicy := owner.erasedTaskPolicyParameter(node)
+	erasedPolicy := owner.inertTaskPolicyParameter(node, true)
 	summary.erasedPolicy = erasedPolicy
 	index := owner.index(ast.GetSourceFileOfNode(node))
 	appendDemand := func(demand sourceNormalDemand) {

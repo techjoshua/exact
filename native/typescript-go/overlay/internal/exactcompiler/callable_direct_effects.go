@@ -27,7 +27,7 @@ func collectDirectCallableEffects(
 	work *callableEffectWork,
 	purposes ...callableEffectPurpose,
 ) {
-	erasedPolicy := owner.values.erasedTaskPolicyParameter(fact.node)
+	erasedPolicy := owner.values.inertTaskPolicyParameter(fact.node, true)
 	componentTask := false
 	if ast.IsFunctionLike(fact.node) {
 		if _, valid := functionTaskPolicy(fact.node, sourceFile, importBindings); valid {

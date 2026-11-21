@@ -330,6 +330,7 @@ export function TasksPage(this: Component<{}>) {
 					These settings answer different questions. <code>client()</code> and <code>server()</code>
 					choose where a task runs. Without either, eXact infers placement from the resources the
 					task uses. When the compiler can trace a callback, invoking it contributes the resources its body uses.
+					A literal lane key such as <code>key("search")</code> adds no platform requirement.
 					The same rule applies when a parent imports the component that owns the task.
 					Caching an object does not remove the resource requirements of getters read
 					through references to that shared object. Freezing an object also preserves its getters

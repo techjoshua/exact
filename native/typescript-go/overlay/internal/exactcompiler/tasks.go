@@ -1157,6 +1157,12 @@ func joinTaskFacets(facets []string) string {
 // native value. Ordinary defaults, aliases, argument-bearing policies and work
 // bodies retain their existing execution owners.
 func (owner *sourceValueOwner) erasedTaskPolicyParameter(work *ast.Node) *ast.Node {
+	return owner.inertTaskPolicyParameter(work, false)
+}
+
+// inertTaskPolicyParameter also admits literal concurrency keys for placement.
+// Consumers that authorize task invocations still require zero-argument policy syntax.
+func (owner *sourceValueOwner) inertTaskPolicyParameter(work *ast.Node, allowLiteralKey bool) *ast.Node {
 	if work == nil || !ast.IsFunctionLike(work) || owner.checker == nil {
 		return nil
 	}
@@ -1173,10 +1179,21 @@ func (owner *sourceValueOwner) erasedTaskPolicyParameter(work *ast.Node) *ast.No
 	for ast.IsCallExpression(policy) {
 		owner.summaryWork++
 		call := policy.AsCallExpression()
-		if call.Arguments != nil && len(call.Arguments.Nodes) != 0 || !ast.IsPropertyAccessExpression(call.Expression) {
+		if !ast.IsPropertyAccessExpression(call.Expression) {
 			return nil
 		}
 		member := call.Expression.AsPropertyAccessExpression()
+		if call.Arguments != nil && len(call.Arguments.Nodes) != 0 {
+			if !allowLiteralKey || member.Name().Text() != "key" || len(call.Arguments.Nodes) != 1 {
+				return nil
+			}
+			switch unwrapRenderExpression(call.Arguments.Nodes[0]).Kind {
+			case ast.KindStringLiteral, ast.KindNumericLiteral, ast.KindTrueKeyword, ast.KindFalseKeyword, ast.KindNullKeyword, ast.KindBigIntLiteral, ast.KindNoSubstitutionTemplateLiteral:
+				policy = unwrapRenderExpression(member.Expression)
+				continue
+			}
+			return nil
+		}
 		switch member.Name().Text() {
 		case "client", "server", "parallel", "latest", "queue", "immediate", "normal", "deferred", "blocking", "nonblocking", "detached", "progress":
 		default:

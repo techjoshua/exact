@@ -79,6 +79,7 @@ helpers contribute their context lookup authority, including through recursive c
 Project linking uses the same component-owned task summary when a parent renders an imported
 component that retains a task as a value. Invoking a callback or reading an accessor in that task
 contributes its platform requirements. Merely defining the callback or accessor defers its body.
+A literal concurrency key adds no platform requirement. Explicit invocation evaluates the authored key to select its lane.
 Unresolved task operations retain the existing conservative placement rules.
 Ordinary local functions and arrows created during a task retain that generation, including across
 awaits. Finite synchronous methods grouped in a named const object directly in the task can update
