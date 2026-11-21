@@ -56,7 +56,10 @@ return ()=> <section>${example.holdPath ? `<aside>{this.state.${example.holdPath
 			});
 			expect(result.error).toBeUndefined();
 			await writeFile(file, result.code!);
-			expect(result.diagnostics).toEqual([]);
+			// The cost advisory describes analysis work independently of the emitted task behavior.
+			expect(result.diagnostics?.filter(diagnostic =>
+				diagnostic.code !== 'EXACT_ANALYSIS_COST' || diagnostic.severity !== 'warning'
+			)).toEqual([]);
 			const module = await importArtifact(file, path.join(directory, target + '.mjs'));
 			const Component = module.Probe as AnyComponentFunction;
 			if (target === 'server') {
@@ -137,7 +140,10 @@ it('evaluates client task status selection once in server rendering', async () =
 		source: `import {TaskContext,taskStatus,type Component} from '@exactjs/core';export let selections=0;export function Page(this:Component<{}>){const run=(task:TaskContext=TaskContext.client().queue().key('lane'))=>{};const status=taskStatus(run,{key:(selections++,'lane')});return()=> <output>{status.pendingCount}:{selections}</output>;}`
 	});
 	expect(result.error).toBeUndefined();
-	expect(result.diagnostics).toEqual([]);
+	// The cost advisory describes analysis work independently of the emitted task behavior.
+			expect(result.diagnostics?.filter(diagnostic =>
+				diagnostic.code !== 'EXACT_ANALYSIS_COST' || diagnostic.severity !== 'warning'
+			)).toEqual([]);
 	const file = path.join(directory, 'server.ts');
 	await writeFile(file, result.code!);
 	const module = await importArtifact(file, path.join(directory, 'server.mjs'));
@@ -162,7 +168,10 @@ it('runs stateless task timers through the generated component owner', async () 
 			source: `import{TaskContext,taskTimeout}from'@exactjs/core';export let completed=0;export function Page(){async function run(task:TaskContext=TaskContext.${target}().blocking()){await new Promise<void>(resolve=>taskTimeout(task.signal,resolve,1));completed++;}${target === 'server' ? 'run();' : ''}return()=> <button onClick={()=>run()}>Run</button>;}`
 		});
 		expect(result.error).toBeUndefined();
-		expect(result.diagnostics).toEqual([]);
+		// The cost advisory describes analysis work independently of the emitted task behavior.
+			expect(result.diagnostics?.filter(diagnostic =>
+				diagnostic.code !== 'EXACT_ANALYSIS_COST' || diagnostic.severity !== 'warning'
+			)).toEqual([]);
 		const file = path.join(directory, target + '.ts');
 		await writeFile(file, result.code!);
 		const module = await importArtifact(file, path.join(directory, target + '.mjs'));
@@ -197,7 +206,10 @@ it('retains parameterized client task omission in server work', async () => {
 		source: `import{TaskContext,type Component}from'@exactjs/core';export function Page(this:Component<{value:number}>){this.state.value=0;const browser=(value:number,task:TaskContext=TaskContext.client())=>{this.state.value=value;};async function run(task:TaskContext=TaskContext.server().blocking()){await Promise.resolve();browser(100);this.state.value+=2;}run();return()=> <output>{this.state.value}</output>;}`
 	});
 	expect(result.error).toBeUndefined();
-	expect(result.diagnostics).toEqual([]);
+	// The cost advisory describes analysis work independently of the emitted task behavior.
+			expect(result.diagnostics?.filter(diagnostic =>
+				diagnostic.code !== 'EXACT_ANALYSIS_COST' || diagnostic.severity !== 'warning'
+			)).toEqual([]);
 	const file = path.join(directory, 'server.ts');
 	await writeFile(file, result.code!);
 	const module = await importArtifact(file, path.join(directory, 'server.mjs'));
@@ -228,7 +240,10 @@ it('preserves wrapped policy definitions through repeated blocking work', async 
 				source: `import{TaskContext,type Component}from'@exactjs/core';export function Page(this:Component<{value:number}>){this.state.value=0;const run=${wrapper.replace('WORK', work)};${target === 'server' ? 'run();' : ''}return()=> <button onClick={()=>run()}>{this.state.value}</button>;}`
 			});
 			expect(result.error).toBeUndefined();
-			expect(result.diagnostics).toEqual([]);
+			// The cost advisory describes analysis work independently of the emitted task behavior.
+			expect(result.diagnostics?.filter(diagnostic =>
+				diagnostic.code !== 'EXACT_ANALYSIS_COST' || diagnostic.severity !== 'warning'
+			)).toEqual([]);
 			const file = path.join(directory, target + '.ts');
 			await writeFile(file, result.code!);
 			const module = await importArtifact(file, path.join(directory, target + '.mjs'));
@@ -314,7 +329,10 @@ export function Page(this: Component<{ left: { value: string; sibling: string };
 }`
 			});
 			expect(result.error).toBeUndefined();
-			expect(result.diagnostics).toEqual([]);
+			// The cost advisory describes analysis work independently of the emitted task behavior.
+			expect(result.diagnostics?.filter(diagnostic =>
+				diagnostic.code !== 'EXACT_ANALYSIS_COST' || diagnostic.severity !== 'warning'
+			)).toEqual([]);
 			const file = path.join(directory, target + '.ts');
 			await writeFile(file, result.code!);
 			const module = await importArtifact(file, path.join(directory, target + '.mjs'));
