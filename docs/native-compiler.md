@@ -787,6 +787,10 @@ an object made by `Object.create(null)`, a descriptor installed on that alias ca
 contribute its getter to a later read through the original target. The source
 projection requires the same allocation and creating invocation. The original
 copy, input effects and unresolved alternatives retain their own analysis.
+An immediate read of an object created with a literal `Object.create` prototype
+can invoke that prototype's getter. The same direct read can follow a helper's
+single return, including a selected `Object.freeze` around the created object.
+Creating or freezing the object alone leaves the inherited getter dormant.
 A property read can inherit getter effects from earlier assignments to a local declared without an
 initializer in the same helper body.
 Computed member names still execute while the owner is created. Provenance searches retain

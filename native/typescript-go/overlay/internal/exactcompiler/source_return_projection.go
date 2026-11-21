@@ -52,6 +52,11 @@ func (query *sourceValueQuery) projectSourceCallReturnsWithViews(call *ast.Node,
 	if len(descriptor) == 1 {
 		descriptorConsumer = descriptor[0]
 	}
+	if interest.createdGetter != nil && query.reflectiveCopy == nil {
+		projection := sourceReflectiveCopyProjection{issuer: query, calls: []*ast.Node{call}, createdGetter: interest.createdGetter}
+		query.reflectiveCopy = &projection
+		defer func() { query.reflectiveCopy = nil }()
+	}
 	selected := false
 	result := query.consumeInvocation(call, bindings, sourceInvocationConsumer{
 		selection:      func(complete bool) { selected = complete },

@@ -76,7 +76,9 @@ export function CompilerAnalysisSection(this: Component<{}>) {
 				also invokes its installed getter. If that getter reads <code>document</code>, the task
 				that reads the property needs the browser. Standard <code>Object.assign(target, input)</code>
 				returns the same target object. A getter installed on that result can also run when a
-				component reads the property through the original target. When an assignment invokes an
+				component reads the property through the original target. An immediate read on an object
+				created with <code>Object.create</code> can also run a getter inherited from its supplied
+				prototype. When an assignment invokes an
 				authored setter, its parameter carries the assigned value's environment requirements into the
 				setter's use of that value. If a getter returns a
 				method, calling that result also carries the method's own environment requirements. Reading

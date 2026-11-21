@@ -8,11 +8,13 @@ import (
 )
 
 // sourceReflectiveCopyProjection lends selection only to the original Call
-// currently producing a possible descriptor target. Its creating scope belongs
-// to the reader. The copy's input and mutation effects retain their original owner.
+// currently producing a possible descriptor target or fresh prototype Get. Its
+// creating scope belongs to the reader. Input and mutation effects retain their
+// original owners.
 type sourceReflectiveCopyProjection struct {
-	issuer *sourceValueQuery
-	calls  []*ast.Node
+	issuer        *sourceValueQuery
+	calls         []*ast.Node
+	createdGetter *sourceCreatedGetter
 }
 
 func (projection *sourceReflectiveCopyProjection) beginCall(call *ast.Node) (func(), bool) {
@@ -103,6 +105,10 @@ func (q *sourceValueQuery) publishReflectiveCopyTarget(site *ast.Node, kind sour
 	}
 	args := restrictedInvocationArguments(site.AsCallExpression())
 	if kind == sourceNativeObjectCreate {
+		if getter := q.reflectiveCopy.createdGetter; getter != nil && getter.creation == site {
+			q.sourceCreatedGetterRead(getter, bindings, result)
+			return
+		}
 		if len(args) == 1 && unwrapSourceCallableReference(args[0]).Kind == ast.KindNullKeyword {
 			scope := q.acquireCallableScope(bindings, result)
 			project(sourceValue{node: site, capture: &scope}, bindings)
