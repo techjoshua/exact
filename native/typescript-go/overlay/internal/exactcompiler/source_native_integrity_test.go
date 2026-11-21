@@ -175,6 +175,33 @@ func TestNativeFreezeSetterEffectBoundaries(t *testing.T) {
 	}
 }
 
+// Recovering a standard member's direct writer inputs must retain the original
+// Set effects and explicit replacements selected through a receiver alias.
+func TestStandardMemberWriterKeyIsolation(t *testing.T) {
+	root, config := formsSourceFixture(t)
+	const component = `export function Page(){return()=> <p>{label()}</p>}`
+	const body = `return Object.freeze({label:'safe'}).label;`
+	const setter = `const cell={set write(value:string){document.title=value}};const alias=cell;`
+	for _, row := range []struct {
+		name, source, placement string
+	}{
+		{"active setter", `function label(){` + setter + `alias.write='new';` + body + `}`, "client"},
+		{"dormant setter", `function label(){` + setter + `const dormant=()=>{alias.write='new'};void dormant;` + body + `}`, "isomorphic"},
+		{"setter installs matching descriptor", `const saved=Object.freeze;const cell={set mode(value:string){Object.defineProperty(Object,'freeze',{get(){document.title;return saved}})}};function label(){const alias=cell;alias.mode='changed';` + body + `}`, "client"},
+	} {
+		t.Run(row.name, func(t *testing.T) {
+			r := formsCompileSource(t, root, config, row.source+component, TargetServer)
+			if r.Error != "" || hasErrorDiagnostic(r.Diagnostics) || r.Code == "" {
+				t.Fatal("compile:", r.Error, r.Diagnostics)
+			}
+			page := findComponent(t, r.Analysis.Components, "Page")
+			if page.Placement != row.placement {
+				t.Fatalf("placement=%s want %s", page.Placement, row.placement)
+			}
+		})
+	}
+}
+
 // Missing external RHS values stay incomplete in both property spellings.
 // Independently evaluated browser work must survive that refusal.
 func TestNativeFreezeShorthandUnknownRHS(t *testing.T) {

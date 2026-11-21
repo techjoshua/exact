@@ -2228,6 +2228,10 @@ inventory records declarations independently of completed summaries.
 When a completed property read has accounted for its immediate effects, a missing runtime
 value alone does not request another source dependency walk. Later uses retain their
 value demands, and unresolved receiver, accessor and call effects still require refinement.
+When the original acquisition reads a named entry of a standard container, an assignment
+with a disjoint key can skip legacy writer-input recovery. The Set's original effect
+consumer still accounts for authored setters. Matching keys and structural writes retain
+their existing writer analysis.
 
 The callable Effects walk retains a receiver-relative descriptor write when it reaches
 the write through an earlier reflective getter with its original member read and local

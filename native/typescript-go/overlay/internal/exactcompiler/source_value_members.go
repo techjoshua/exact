@@ -198,6 +198,7 @@ func (query *sourceValueQuery) memberValuesAtGetWithStandard(origin *ast.Node, p
 		var alternatives []sourceValue
 		var replacements []sourceValueReplacement
 		demand := append(append([]string{}, projection...), name)
+		standardEntry := mode == accessorAcquire && standardNativeLookup(get) && get.receiver.node != nil && standardLibrarySource(ast.GetSourceFileOfNode(get.receiver.node))
 		if !sourceInterval {
 			sources := query.lexicalGetterWriterSources(operation.sources, get, bindings, result)
 			indexes = query.occurrenceSourceViewIn(origin, result, sources, sourceIndexes[:0])
@@ -263,7 +264,11 @@ func (query *sourceValueQuery) memberValuesAtGetWithStandard(origin *ast.Node, p
 					}
 					inputs = append(inputs, *relative)
 				} else {
-					if disjointRHS && (result.opaque || query.owner.initialComponentStateDefault(assignment.left)) {
+					// A distinct assignment key cannot supply the acquired standard
+					// entry. The original Set and its authored effects retain their
+					// own consumers above. Avoid recovering unrelated caller inputs
+					// solely to check for unproven replacement of the standard entry.
+					if disjointRHS && (standardEntry || result.opaque || query.owner.initialComponentStateDefault(assignment.left)) {
 						continue
 					}
 					// A path of named Gets cannot acquire an RHS through a symbol slot.
