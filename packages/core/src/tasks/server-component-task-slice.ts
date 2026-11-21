@@ -1,3 +1,4 @@
+import { publishTaskMutations } from './task-publication.js';
 import { disposeSymbolicTaskResource } from './resource-disposal.js';
 import { attachSuppressedCleanupFailure } from '../cleanup.js';
 import { registerTaskResourceOwner, settleTaskResourceLifetime } from './resource-lifetime.js';
@@ -87,6 +88,15 @@ export async function executeServerComponentTaskSlice<Args extends unknown[], Re
 		failure = signal.reason;
 		generation?.abort(signal.reason);
 		throw signal.reason;
+	}
+	// Output ports read the host immediately after this slice settles.
+	if (generation) {
+		try {
+			publishTaskMutations(generation.signal);
+		} catch (error) {
+			generation.abort(error);
+			throw error;
+		}
 	}
 	return result;
 }

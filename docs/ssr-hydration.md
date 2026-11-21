@@ -537,7 +537,9 @@ Node full-response adaptation materializes buffered chunks once and calls `respo
 The body-only writer retains ordered chunk writes and backpressure for handlers that own subsequent
 content. Asynchronous producers and Web Streams retain progressive publication and cancellation.
 
-Task execution belongs to the core task system. A component frame exposes pending work and a
+A direct server task publishes its staged state after its producer and cleanup succeed, before
+its dependent tasks and HTML read that state. Failure or cancellation discards pending writes.
+A component frame exposes pending work and a
 completion revision to rendering. The renderer checks that state, waits only when necessary, and
 retries if a relevant task completed while descendants were rendered. Hydration treats writers of
 compiler-selected shared contexts as publication dependencies, even when their authored task is

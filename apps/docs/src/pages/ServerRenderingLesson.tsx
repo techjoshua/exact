@@ -11,7 +11,8 @@ export function ServerRenderingLesson() {
 				stays in place while hydration adopts the DOM. Live client inputs drive subsequent updates.
 			</p>
 			<p>
-				Later changes still use the same task. Selecting another product loads its data and updates
+				When a blocking server task updates component state, the first HTML includes those changes
+				after the task succeeds. Later changes still use the same task. Selecting another product loads its data and updates
 				the existing component. Independent tasks can start while earlier tasks are waiting, subject
 				to request concurrency limits, while HTML stays in page order. Mixing component calls with
 				ordinary child expressions preserves that order in string and streaming output.

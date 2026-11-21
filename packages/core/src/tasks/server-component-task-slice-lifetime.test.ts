@@ -1,6 +1,7 @@
 import { expect, it, vi } from 'vitest';
 import { executeTaskFrame } from './frame-runtime.js';
 import { executeServerComponentTaskSlice } from './server-component-task-slice.js';
+import { createTaskState } from './pending-state.js';
 import { ownTaskResource } from './resources.js';
 import type { TaskContext } from './contracts.js';
 
@@ -163,3 +164,34 @@ it('drains asynchronous cleanup but rejects a response cancelled during that dra
 	await expect(result).rejects.toBe('cancel during cleanup');
 	expect(cleanup).toHaveBeenCalledTimes(1);
 });
+
+it.each(['success', 'throw', 'cleanup', 'abort'] as const)(
+	'publishes pending slice state only after successful cleanup: %s',
+	async (outcome) => {
+		const request = new AbortController();
+		const state = { count: 0 };
+		const failure = new Error(outcome);
+		const result = executeServerComponentTaskSlice<[], void>(
+			request.signal,
+			undefined,
+			(task) => {
+				const pending = createTaskState(task.signal, state);
+				pending.write(state, 'count', 9);
+				task.cleanup(() => {
+					expect(state.count).toBe(0);
+					if (outcome === 'cleanup') throw failure;
+					if (outcome === 'abort') request.abort(failure);
+				});
+				if (outcome === 'throw') throw failure;
+			},
+			[]
+		);
+		if (outcome === 'success') {
+			await result;
+			expect(state.count).toBe(9);
+		} else {
+			await expect(result).rejects.toBe(failure);
+			expect(state.count).toBe(0);
+		}
+	}
+);
