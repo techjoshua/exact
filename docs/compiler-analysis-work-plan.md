@@ -103,7 +103,13 @@ projection control, `666f0e660` bounds the use of the same unresolved formal and
 known browser getters in nested actuals. Each of three component compiles finishes within
 0.30 seconds. Their previous builds reach the six-second stop.
 
-The original Intl library build uses retained SDK providers and the native source at
+The earlier Intl SDK timings below used the package before `fee91a826`, which split
+`initializeIntlEnvironment` from `createIntlEnvironment`. The captured native
+requests below used the package with that split. A fresh SDK build of the checked-in
+Intl sources on `be8603e50` reached the same `components.ts` deadline in 32.11 seconds
+and emitted neither target.
+
+The earlier Intl library build uses retained SDK providers and the native source at
 `43fa437ca` with the recursive projection fix from `666f0e660`. TypeScript prerequisites
 complete. The package command reaches the native request deadline on `components.ts` after
 32.89 seconds of wall time and publishes no client or server artifact. Sampled reflective
@@ -148,6 +154,15 @@ catalog synchronization and lookup bodies. A bounded trace of six hot call sites
 found no demanded receiver or active creator among more than 65,000 acquisitions.
 The direct fresh-array shortcut leaves the package deadline in place and loses an
 explicitly installed descriptor effect in its control, so it remains diagnostic only.
+
+Another private comparison omitted the whole `initializeIntlEnvironment` demand from
+canonical and late extraction and refused its dynamic body entry. With the checked-in
+Intl sources and original SDK command, `components.ts` still timed out and emitted
+neither target after 32.63 seconds. The remaining setup path visits
+`createDefaultIntlEnvironment` and its `canonicalLocale(sourceLocales[0]!)` call.
+Its reflective scan attempted about 341,000 original Call collections across 33,214
+requests for `requireRecord` writer inputs without selecting that writer body. The
+initializer’s own body cannot account for the cost under this consumer.
 
 An inline factory-result control independently exposed a lost callable stored in a
 descriptor. The selected factory inputs and returned local object literal already
