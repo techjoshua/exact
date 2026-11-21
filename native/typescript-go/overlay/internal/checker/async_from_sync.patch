@@ -1,0 +1,20 @@
+--- a/tsc/internal/checker/checker.go
++++ b/tsc/internal/checker/checker.go
+@@ -6607,9 +6607,15 @@
+ 	if errorNode != nil {
+ 		c.getGlobalAwaitedSymbol()
+ 	}
++	awaitPresent := func(t *Type) *Type {
++		if t == nil {
++			return nil
++		}
++		return core.OrElse(c.getAwaitedTypeEx(t, errorNode, nil), c.anyType)
++	}
+ 	return IterationTypes{
+-		yieldType:  core.OrElse(c.getAwaitedTypeEx(iterationTypes.yieldType, errorNode, nil), c.anyType),
+-		returnType: core.OrElse(c.getAwaitedTypeEx(iterationTypes.returnType, errorNode, nil), c.anyType),
++		yieldType:  awaitPresent(iterationTypes.yieldType),
++		returnType: awaitPresent(iterationTypes.returnType),
+ 		nextType:   iterationTypes.nextType,
+ 	}
+ }

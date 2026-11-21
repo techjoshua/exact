@@ -42,7 +42,7 @@ test('native release targets share preparation and host validation', async (cont
 	await put('LICENSE', 'fixture license');
 	await put('NOTICE', 'fixture notice');
 	const source = path.join(root, 'upstream');
-	for (const owner of ['compiler', 'checker', 'exactcompiler']) {
+	for (const owner of ['compiler', 'checker', 'exactcompiler', 'printer']) {
 		await put(`upstream/tsc/internal/${owner}/fixture.go`, 'old\n');
 		await put(`native/typescript-go/overlay/internal/${owner}/fixture.go`, 'old\n');
 	}
@@ -50,9 +50,10 @@ test('native release targets share preparation and host validation', async (cont
 	await put('native/typescript-go/overlay/cmd/exactc/fixture.go', 'old\n');
 	for (const patch of [
 		'internal/compiler/program.patch',
+		'internal/checker/async_from_sync.patch',
 		'internal/printer/optional_chain.patch'
 	]) {
-		const file = patch.includes('program') ? 'compiler' : 'checker';
+		const file = path.basename(path.dirname(patch));
 		await put(
 			`native/typescript-go/overlay/${patch}`,
 			`diff --git a/tsc/internal/${file}/fixture.go b/tsc/internal/${file}/fixture.go\n--- a/tsc/internal/${file}/fixture.go\n+++ b/tsc/internal/${file}/fixture.go\n@@ -1 +1 @@\n-old\n+new\n`

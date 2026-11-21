@@ -84,6 +84,13 @@ The build applies the patch to the verified pinned checkout and hashes it with t
 patch application fails the build. Regression tests check unaffected source identity, synthetic-node
 ownership, changed imports, and incremental output against a fresh compilation.
 
+## Asynchronous iteration over synchronous iterators
+
+The pinned checker can infer a synchronous iterator with only a return type or only
+a yield type. Its async adapter awaits the types that exist and preserves the absent
+alternative. The overlay patch in `internal/checker/async_from_sync.patch` keeps a
+valid component loop using either form from terminating the compiler process.
+
 ## Optional-chain printer correction
 
 `overlay/internal/printer/optional_chain.patch` preserves optional-chain precedence through a

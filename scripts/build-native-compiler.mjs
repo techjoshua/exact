@@ -122,6 +122,7 @@ if (current) {
 
 	for (const patch of [
 		'internal/compiler/program.patch',
+		'internal/checker/async_from_sync.patch',
 		'internal/printer/optional_chain.patch'
 	]) {
 		await run(
