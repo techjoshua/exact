@@ -5,8 +5,8 @@ import (
 	"testing"
 )
 
-// This is an enrollment boundary, not primitive/result DATA or descriptor
-// closure. The unchanged original Symbol positive owns those later gates.
+// This is the descriptor algorithm enrollment boundary. Paired SDK tests
+// exercise the selected and edited module key through a component task.
 func TestDescriptorAlgorithmOriginalInputEnvelope(t *testing.T) {
 	withSymbolPrimitiveCollection(t, symbolPrimitiveModuleInput, func(collection *projectCallableCollection, file *ast.SourceFile) {
 		caller, call, binding := descriptorAlgorithmInputFixture(t, file)

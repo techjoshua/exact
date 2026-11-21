@@ -1,9 +1,10 @@
 import path from 'node:path';
-import { expect, it, vi } from 'vitest';
+import { expect, it, onTestFinished, vi } from 'vitest';
 import { writeFile } from 'node:fs/promises';
 import { renderToString } from '@exactjs/ssr';
 import { createCompiledComponentInputReceipt as receipt } from '@exactjs/core/runtime/component-operations';
 import { compileProjectArtifacts } from '../index.js';
+import { ExactCompilerSession } from '../expression/project.js';
 import { createCompilerTestWorkspace } from '../test-support/workspace.js';
 import { importArtifact } from '../test-support/import-artifact.js';
 import { analyzeSource } from './source-analysis.js';
@@ -225,3 +226,58 @@ export function Page() { return () => <p>{showError()}</p>; }`
 		}
 	}
 );
+
+
+it('reads the module symbol selected by a component task after a retained edit', async () => {
+	const root = await createCompilerTestWorkspace('.exact-symbol-descriptor-', process.cwd());
+	const filename = path.join(root, 'page.tsx');
+	const session = new ExactCompilerSession();
+	onTestFinished(() => session.dispose());
+	for (const [name, declarations, use, expected] of [
+		['literal', "const key=Symbol.for('selected');", 'key', 17],
+		['alias', "const key=Symbol.for('selected');const alias=key;", 'alias', 17],
+		['variable', "const spelling='selected';const key=Symbol.for(spelling);", 'key', 17],
+		['edited', "const key=Symbol.for('other');", 'key', 31],
+		['absent', "const key=Symbol.for('absent');", 'key', -1]
+	] as const) {
+		const source = `import {TaskContext,type Component} from '@exactjs/core';
+${declarations}
+function read(value:object){return Object.getOwnPropertyDescriptor(value,${use})?.value}
+export function Page(this:Component<{result:number}>){
+	this.state.result=0;
+	const run=(task:TaskContext=TaskContext.server().blocking())=>{
+		void task;
+		const fields={[Symbol.for('selected')]:17,[Symbol.for('other')]:31};
+		const value=read(fields);
+		this.state.result=typeof value==='number'?value:-1;
+	};
+	run();
+	return()=> <output>{this.state.result}</output>;
+}`;
+		await writeFile(filename, source);
+		for (const target of ['client', 'server'] as const) {
+			const compiled = session.compileNative({
+				kind: 'compile',
+				id: filename,
+				source,
+				root,
+				configFile: path.join(root, 'tsconfig.json'),
+				target,
+				diagnostics: 'semantic'
+			});
+			expect(compiled.error).toBeUndefined();
+			expect(compiled.diagnostics).toEqual([]);
+			expect(compiled.analysis?.tasks).toMatchObject([
+				{ placement: 'server', browserEffects: false }
+			]);
+			expect(compiled.code).toBeTruthy();
+			if (target === 'server') {
+				const executable = path.join(root, name + '.tsx');
+				await writeFile(executable, compiled.code!);
+				const server = await importArtifact(executable, path.join(root, name + '.mjs'));
+				const output = await renderToString(receipt(server.Page as never, {}), { markers: false });
+				expect(output.html).toBe(`<output>${expected}</output>`);
+			}
+		}
+	}
+});
