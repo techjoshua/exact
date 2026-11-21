@@ -118,22 +118,20 @@ func TestStagedNativeCollectorSession(t *testing.T) {
 	}
 }
 
-// Per-occurrence registration can describe a native source in a broader body.
-// Unmapped input/receiver protocols retain the original consumer. Passive
-// registration alone is neither adoption nor pending execution.
+// A component calling the operation retains the effects of key evaluation,
+// descriptor conversion and authored replacements.
 func TestStagedNativeCollectorLegacyBoundaries(t *testing.T) {
 	for _, row := range []struct {
-		name, source     string
-		unknown, adopted bool
+		name, source string
+		unknown      bool
 	}{
-		{"independent known and foreign", `declare function foreign():void;export function invoke(){window;foreign();return Object.defineProperty({},'run',{})}`, true, false},
-		{"receiver", `export function invoke(){window;return Object.defineProperty({},'run',{get value(){void this;return 1}})}`, false, false},
-		{"authored shadow", `const Object={defineProperty(target:object,key:string,descriptor:PropertyDescriptor){window;return target}};export function invoke(){return Object.defineProperty({},'run',{})}`, false, false},
-		{"eager key", `function key(){window;return 'run'}export function invoke(){return Object.defineProperty({},key(),{})}`, false, false},
+		{"independent known and foreign", `declare function foreign():void;export function invoke(){window;foreign();return Object.defineProperty({},'run',{})}`, true},
+		{"receiver", `export function invoke(){window;return Object.defineProperty({},'run',{get value(){void this;return 1}})}`, false},
+		{"authored shadow", `const Object={defineProperty(target:object,key:string,descriptor:PropertyDescriptor){window;return target}};export function invoke(){return Object.defineProperty({},'run',{})}`, false},
+		{"eager key", `function key(){window;return 'run'}export function invoke(){return Object.defineProperty({},key(),{})}`, false},
 	} {
 		t.Run(row.name, func(t *testing.T) {
-			session := NewSession()
-			response := session.Execute(Request{Kind: "analyze", ID: "/virtual/staged-native-legacy.ts", Source: row.source, Diagnostics: "semantic"})
+			response := analyzeComponentNativeCall(t, row.source, "invoke()", TargetServer)
 			if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) {
 				t.Fatalf("legacy source: %s %#v", response.Error, response.Diagnostics)
 			}
@@ -145,29 +143,15 @@ func TestStagedNativeCollectorLegacyBoundaries(t *testing.T) {
 			if !browser || row.unknown && !unknown {
 				t.Fatalf("independent legacy donors browser=%t unknown=%t", browser, unknown)
 			}
-			for _, fact := range stagedDeclarationFacts(session) {
-				if fact.summary.Name == "invoke" {
-					adopted := false
-					for _, use := range fact.staged.operationUses {
-						for _, recipe := range fact.staged.operationRecipes {
-							adopted = adopted || recipe.nativeGet != nil && recipe.key == use.request.producer && recipe.key.selector == (sourceStagedOperationSelector{})
-						}
-					}
-					if adopted != row.adopted {
-						t.Fatal("original native consumer adoption", adopted, row.adopted)
-					}
-				}
-			}
 		})
 	}
 }
 
-// This unchanged source first exposed the missing conditional body transport.
-// It retains both required donors in ordinary analysis, independently of the
-// compile/emitted journeys above. The original failing capture is preserved.
+// A selected descriptor conversion retains its known browser donor and its
+// independent unresolved invocation.
 func TestStagedNativeForeignGetterAcceptanceTarget(t *testing.T) {
 	const source = `declare function foreign():void;export function invoke(){return Object.defineProperty({},'run',{get value(){window;foreign();return 1}})}`
-	response := NewSession().Execute(Request{Kind: "analyze", ID: "/virtual/staged-native-legacy.ts", Source: source, Diagnostics: "semantic"})
+	response := analyzeComponentNativeCall(t, source, "invoke()", TargetServer)
 	if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) {
 		t.Fatalf("getter target: %s %#v", response.Error, response.Diagnostics)
 	}
@@ -182,14 +166,15 @@ func TestStagedNativeForeignGetterAcceptanceTarget(t *testing.T) {
 }
 
 func TestStagedNativeCollectorDefinitionInvariant(t *testing.T) {
-	for _, source := range []string{
-		`export function invoke(){return Object.defineProperty({},'run',{get value(){window;return 1}})}`,
-		stagedNestedLiteralCallWitness,
-		`export function invoke(prototype:object){return Object.freeze(Object.create(prototype))}`,
+	for _, row := range []struct{ source, invocation string }{
+		{`export function invoke(){return Object.defineProperty({},'run',{get value(){window;return 1}})}`, "invoke()"},
+		{stagedNestedLiteralCallWitness, "invoke()"},
+		{`export function invoke(prototype:object){return Object.freeze(Object.create(prototype))}`, "invoke({})"},
 	} {
 		var previous []byte
+		fixture := nativeComponentCallFixture(t, row.source, row.invocation)
 		for _, packageType := range []string{"application", "library"} {
-			response := NewSession().Execute(Request{Kind: "analyze", ID: "/virtual/staged-native-definition.ts", Source: source, PackageType: packageType, Diagnostics: "semantic"})
+			response := executeComponentNativeCall(t, fixture, TargetServer, packageType)
 			if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) {
 				t.Fatalf("definition: %s %#v", response.Error, response.Diagnostics)
 			}

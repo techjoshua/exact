@@ -52,6 +52,11 @@ setup call and retain the created object. Its public effect summary checks that
 construction leaves inherited getters and stored callables dormant. The emitted
 ordinary helper separately verifies the supplied prototype, Proxy behavior and
 native throw. Original staged source admission keeps its own phase-specific test.
+The descriptor controls also use a component setup Call. Authored replacement,
+key evaluation and eager descriptor conversion retain their browser effects.
+A foreign invocation in a descriptor getter retains uncertainty beside its known
+browser effect. The same component definition reports those effects in app and
+library analysis.
 
 The follow-up native snapshot at `2d642dc7f` ran 2,318 groups with 1,874 passes and 444 failures. Compared with `293f657a5`, 24 former failures passed, eight new or replacement groups passed, and four former passes failed. A host JSX assertion was replaced by its ordinary-caller control. The four regressions identify ordinary host JSX and the receiver scope of three keyed collection paths. The derived and imported-key witnesses trace the receiver of a materialized map back to its authored occurrence.
 
