@@ -303,6 +303,52 @@ func sourceMemberKey(node *ast.Node) sourceKeySelection {
 	return sourceKeySelection{}
 }
 
+// checkedPropKeyDisjoint excludes a finite string domain from the component's
+// own typed input. Local aliases and assertions do not supply that contract.
+// The construction's key expression retains its own evaluation and effects.
+func (q *sourceValueQuery) checkedPropKeyDisjoint(expression *ast.Node, selected string) bool {
+	if expression == nil {
+		return false
+	}
+	_, receiver, direct := directPropsRead(expression)
+	if !direct {
+		return false
+	}
+	c := q.owner.checker
+	symbol := c.GetSymbolAtLocation(receiver)
+	if symbol == nil || symbol.ValueDeclaration == nil || !ast.IsParameterDeclaration(symbol.ValueDeclaration) {
+		return false
+	}
+	parameter := symbol.ValueDeclaration
+	component := parameter.Parent
+	if _, owned := q.owner.components[component]; !owned ||
+		componentPropsParameterIdentifier(component) != parameter.Name() || q.owner.bindingWritten(symbol) {
+		return false
+	}
+	key := c.GetTypeAtLocation(expression)
+	if key == nil {
+		return false
+	}
+	if key.Flags()&checker.TypeFlagsUnion == 0 {
+		return stringLiteralKeyDisjoint(key, selected)
+	}
+	alternatives := key.Types()
+	for _, alternative := range alternatives {
+		if !stringLiteralKeyDisjoint(alternative, selected) {
+			return false
+		}
+	}
+	return len(alternatives) > 0
+}
+
+func stringLiteralKeyDisjoint(key *checker.Type, selected string) bool {
+	if key.Flags()&checker.TypeFlagsStringLiteral == 0 {
+		return false
+	}
+	text, ok := key.AsLiteralType().Value().(string)
+	return ok && text != selected
+}
+
 // reflectiveMemberValuesAtGet keeps each source writer Call's target, key and
 // descriptor contributions in the same symbolic scope. Normal descriptor reads
 // retain their original owner. Projecting inputs does not replay the writer.

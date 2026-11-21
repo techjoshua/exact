@@ -298,3 +298,122 @@ it.each(
 		expect(reports).toEqual([]);
 	}
 );
+
+it.each([
+	{
+		name: 'a computed name read by the render callback',
+		key: 'row.id',
+		body: '<li>{row.label}</li>',
+		field: 'props.fieldName',
+		browser: true,
+		text: 'browser value'
+	},
+	{
+		name: 'a computed name read by the key callback',
+		key: 'row.label ?? row.id',
+		body: '<li>{row.id}</li>',
+		field: 'props.fieldName',
+		browser: true,
+		text: 'a'
+	},
+	{
+		name: 'a computed key disjoint from both eager callbacks',
+		key: 'row.id',
+		body: '<li>{row.id}</li>',
+		field: 'props.fieldName',
+		browser: false,
+		text: 'a'
+	},
+	{
+		name: 'an asserted local key whose value can reach the getter',
+		key: 'row.id',
+		body: '<li>{row.id}</li>',
+		field: 'fieldName',
+		setup: 'const fieldName = "id" as "other";',
+		browser: true,
+		text: 'browser value'
+	},
+	{
+		name: 'a getter replaced by the key callback',
+		key: '{ Object.defineProperty(row, "label", {value:"safe"}); return row.id; }',
+		body: '<li>{row.label}</li>',
+		field: '"label"',
+		browser: false,
+		text: 'safe',
+		verifyMount: true
+	},
+	{
+		name: 'a getter reached only by an event handler',
+		key: 'row.id',
+		body: '<li><button onClick={() => { document.title = "clicked " + row.label; }}>{row.id}</button></li>',
+		field: '"label"',
+		browser: false,
+		text: 'a',
+		click: true
+	}
+])(
+	'accounts for $name in a component list',
+	async ({ key, body, field, setup, browser, text, click, verifyMount }) => {
+		const root = await createCompilerTestWorkspace('.exact-collection-get-', process.cwd());
+		const files = await writeTestFiles(root, {
+			'list.tsx': `import type {Component} from '@exactjs/core';
+export function List(this:Component<{}>,props:{fieldName: 'label'|'other'}) {
+	${setup ?? ''}
+	const rows:Array<{id:string;label?:string}> = [
+		{id:'a', get [${field}](){return document.title}}
+	];
+	return () => <ul>{this.map(rows,row=>${key},row=>${body})}</ul>;
+}
+export const listRoot = () => <List fieldName="label"/>;`
+		});
+		const [artifact] = await compileProjectArtifacts([files['list.tsx']!], {
+			rootDir: root,
+			outDir: path.join(root, 'generated')
+		});
+
+		const previousTitle = document.title;
+		const container = document.createElement('div');
+		onTestFinished(() => {
+			unmount(container);
+			document.title = previousTitle;
+		});
+		document.title = 'browser value';
+
+		const server = await importArtifact(artifact!.serverFile, path.join(root, 'server.mjs'));
+		const serverRoot = server.listRoot as () => Parameters<typeof renderToHydratableString>[0];
+		const result = await renderToHydratableString(serverRoot());
+		if (browser) expect(result.html).toContain('data-exact-client-boundary=');
+		else expect(result.html).toContain('<li');
+		const client = await importArtifact(artifact!.clientFile, path.join(root, 'client.mjs'));
+		const clientRoot = client.listRoot as () => Parameters<typeof render>[0];
+		const reports: unknown[] = [];
+		if (browser) render(clientRoot(), container, { onErrorReport: (r) => reports.push(r.error) });
+		else {
+			container.innerHTML = result.html;
+			expect(container.textContent).toBe(text);
+			const original = container.querySelector('li');
+			hydrate(clientRoot(), container, {
+				resumptions: result.resumptions,
+				onMismatch: 'throw',
+				onErrorReport: (r) => reports.push(r.error)
+			});
+			expect(container.querySelector('li')).toBe(original);
+		}
+		flushSync();
+		expect(reports).toEqual([]);
+		expect(container.textContent).toBe(text);
+		if (verifyMount) {
+			const fresh = document.createElement('div');
+			onTestFinished(() => unmount(fresh));
+			const mountReports: unknown[] = [];
+			render(clientRoot(), fresh, { onErrorReport: (r) => mountReports.push(r.error) });
+			flushSync();
+			expect(mountReports).toEqual([]);
+			expect(fresh.textContent).toBe(text);
+		}
+		if (click) {
+			container.querySelector('button')!.click();
+			expect(document.title).toBe('clicked browser value');
+		}
+	}
+);

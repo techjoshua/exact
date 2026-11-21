@@ -138,6 +138,12 @@ export function ListsPage(this: Component<{}>) {
 					The key selector runs before the render callback for each item. If selecting the key
 					throws, that item’s render callback does not run.
 				</p>
+				<p>
+					When an array literal supplies the list, item getters read by the key selector or
+					render callback contribute to the component’s placement. A browser-only getter read
+					during rendering can require a client boundary. A getter read only by an event handler
+					runs when that event is handled.
+				</p>
 			</section>
 		</Article>
 	);

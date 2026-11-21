@@ -193,8 +193,26 @@ The list callback edit check exercises inferred placement in both emitted
 targets. Repeated compiles, a browser-to-portable edit and reset agree with
 fresh sessions on diagnostics and artifacts. That covers rules 1, 5 and 7
 for the component output and replaces an assertion about a retained input
-contribution. Open item domains and computed item getter effects remain
-separate qualifications.
+contribution. The full `b42dc2c01` checkpoint passes 1,964 of 2,337 groups,
+including the reassigned-callable group. No previous group fails. The
+remaining 373 failures belong to the historical inventory.
+
+A confined item array exposes a separate placement defect under rules 1, 2,
+3, 4 and 6. A real `this.map` key or render callback reads the browser getter
+of its supplied item even when the callback's checked parameter type hides
+that getter. The original selected list Call now passes possible literal
+items to the existing callback read machinery. The ordinary Get uses the
+existing computed-name selection to exclude unrelated accessors. Paired
+artifacts carry the reached getter to the browser, render disjoint reads on
+the server and adopt the DOM. An event callback reaches its getter only
+after the click. Both targets evaluate a list item's key before rendering.
+A key callback that replaces the getter supplies the new data value on the
+server, at mount and through hydration. When the key's effects cannot prove
+that the initial item is still current, the renderer keeps its original
+source analysis. An authored replacement of the list method keeps its
+existing placement. The original shared stateless SSR frame still rejects
+assignment to that method before activation. Open collection domains and
+disjoint writes through key callbacks still need their own input proof.
 
 The authored root factory passes its parameter to a real component through the paired SDK artifacts. The binding lifecycle and collection identity suites pass all 45 cases with the wrapped Map correction. The root factory control renders distinct inputs, adopts the server DOM under strict hydration and updates the retained owner on new props. This replaces the native assertion about a particular receipt helper for a declaration without a component body.
 

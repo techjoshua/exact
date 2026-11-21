@@ -936,6 +936,7 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 			}
 			ownsSelection := false
 			ownGetter, ownSetter := false, false
+			enumerating := mode == accessorEnumerateEntries || get != nil && get.enumerableString
 			for _, member := range members {
 				memberName := member.Name()
 				memberKey := ""
@@ -943,7 +944,7 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 					memberKey = callableNameText(memberName)
 				}
 				computed := memberName != nil && ast.IsComputedPropertyName(memberName)
-				if computed && (mode == accessorEnumerateEntries || get != nil && get.enumerableString) {
+				if computed && enumerating {
 					key := query.enumerationKeyExpression(memberName, &result)
 					if query.standardEnumerationSymbol(key) {
 						continue
@@ -993,9 +994,18 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 				if deep && ast.IsShorthandPropertyAssignment(member) {
 					visit(member.Name(), projection, false)
 				}
+				if computed && !enumerating {
+					key := memberName.AsComputedPropertyName().Expression
+					if selected := sourceMemberKey(key); selected.resolved {
+						memberKey, computed = selected.name, false
+					} else if query.dependenciesOnly && mode == accessorRead && ast.IsObjectLiteralExpression(value) &&
+						selection != "" && selection != "*" && query.checkedPropKeyDisjoint(key, selection) {
+						continue
+					}
+				}
 				if len(projection) > 0 {
 					privateMatch, privateGet := query.sourcePrivateMemberMatch(member, projection)
-					computedMayMatch := !privateGet && computed && sourceLiteralMemberName(member.Name().AsComputedPropertyName().Expression) == ""
+					computedMayMatch := !privateGet && computed
 					if member.Name() != nil && (privateMatch || !privateGet && (projection[0] == "" && !exactEmpty || projection[0] == "*" || memberKey == projection[0] || computedMayMatch)) {
 						if query.observeStagedGetResultMember(value, member, selectedGet, mode, computedMayMatch, arguments, &result) {
 							continue
@@ -1105,7 +1115,7 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 					}
 					continue
 				}
-				if ((ast.IsGetAccessorDeclaration(member) && mode&accessorNoGet == 0) || (ast.IsSetAccessorDeclaration(member) && mode&accessorSet != 0)) && member.Name() != nil && (name == "" && !exactEmpty || callableNameText(member.Name()) == name || ast.IsComputedPropertyName(member.Name())) {
+				if ((ast.IsGetAccessorDeclaration(member) && mode&accessorNoGet == 0) || (ast.IsSetAccessorDeclaration(member) && mode&accessorSet != 0)) && member.Name() != nil && (name == "" && !exactEmpty || memberKey == name || computed) {
 
 					query.remaining--
 					query.recordEstimatedCost(1)

@@ -42,6 +42,7 @@ func (q *sourceValueQuery) frameworkInputSymbol(view sourceFrameworkStorageView,
 // or result projection is performed. Native callback handling remains unchanged.
 func (q *sourceValueQuery) declaredCallbackInputEffects(call *ast.Node, bindings sourceValueBindings, prepared sourcePreparedInvocation, result *accessorCandidates) {
 	q.nativeCallbackInputEffects(call, bindings, prepared, result)
+	q.componentMapCallbackEffects(call, bindings, prepared, result)
 	if !q.dependenciesOnly || q.operation != nil || q.returnObservation != nil {
 		return
 	}
@@ -105,4 +106,146 @@ func (q *sourceValueQuery) declaredCallbackInputEffects(call *ast.Node, bindings
 	// Keep all original known getter/Proxy/capture/environment contributions and
 	// uncertainty in the very same result consumed by the three fact appenders.
 	mergeAccessorCandidates(result, part)
+}
+
+// componentMapCallbackEffects supplies possible items to the original list
+// callbacks. This uses the existing array and callback readers and publishes
+// only Effects. It grants no iterator closure, completion or result identity.
+func (q *sourceValueQuery) componentMapCallbackEffects(call *ast.Node, bindings sourceValueBindings, prepared sourcePreparedInvocation, result *accessorCandidates) {
+	if !q.dependenciesOnly || q.operation != nil || q.returnObservation != nil ||
+		q.dependencyUse != call || q.reading != call || q.sourceEffects.issuer != q {
+		return
+	}
+	access := unwrapSourceCallableReference(call.Expression())
+	name, member, dynamic := checkedComponentProtocolMember(access, q.owner.checker)
+	if name != "map" || !member || dynamic || prepared.acquired.sourceCallable {
+		return
+	}
+	args := restrictedInvocationArguments(call.AsCallExpression())
+	if len(args) != 3 {
+		return
+	}
+	array := q.confinedArrayArgumentSyntax(args[0], false)
+	if array == nil {
+		return
+	}
+	hasGetter := false
+	for _, item := range array.AsArrayLiteralExpression().Elements.Nodes {
+		if !q.charge(result, item) || !ast.IsObjectLiteralExpression(item) {
+			return
+		}
+		for _, field := range item.AsObjectLiteralExpression().Properties.Nodes {
+			if !q.charge(result, field) {
+				return
+			}
+			hasGetter = hasGetter || ast.IsGetAccessorDeclaration(field)
+		}
+	}
+	if !hasGetter || !q.componentMapUsesDeclaredMethod(access, result) {
+		return
+	}
+	part := accessorCandidates{}
+	var items []sourceValue
+	for _, receiver := range q.originsAt(args[0], call, bindings, &part) {
+		if receiver.node != array || len(receiver.path) != 0 || receiver.normal != nil ||
+			receiver.native != nil || receiver.acquired != nil {
+			continue
+		}
+		get := &sourceGetInputs{operation: call, receiver: receiver, propertyKey: "*",
+			arrayIndexMay: &sourceArrayIndexMay{owner: q, operation: call, receiver: array}}
+		items = append(items, q.bindingPropertyAtGet(receiver, "*", bindings, &part, accessorAcquire, get)...)
+	}
+	if len(items) == 0 {
+		return
+	}
+	q.withActiveInvocation(call, func() {
+		// A possible initial item contributes effects. A body probe cannot
+		// publish a completed invocation to an original source observer.
+		prior := q.sourceEffects
+		q.sourceEffects = sourceEffectsObserver{}
+		defer func() { q.sourceEffects = prior }()
+		for ordinal, argument := range args[1:] {
+			body := unwrapSourceCallableReference(argument)
+			if body == nil || !ast.IsArrowFunction(body) || len(body.Parameters()) != 1 ||
+				body.Parameters()[0].AsParameterDeclaration().DotDotDotToken != nil {
+				return
+			}
+			inputs := &sourceValueInputs{declaration: body, invocation: call,
+				bindings: make(sourceValueBindings), defaults: make(map[*ast.Node]sourceDefaultInput)}
+			for id, values := range bindings {
+				inputs.bindings[id] = values
+			}
+			callback := accessorCandidates{}
+			q.installParameterInput(body.Parameters()[0], items, inputs, &callback)
+			q.consumeOrdinaryBody(call, body, inputs.bindings, inputs, nil, &callback)
+			q.adoptSourceMayEffects(call, callback, result)
+			result.environmentEffects = append(result.environmentEffects, callback.environmentEffects...)
+			result.contextEffects = append(result.contextEffects, callback.contextEffects...)
+			// Item selection precedes rendering. The initial item still
+			// describes the render input when the key preserves it.
+			if ordinal == 0 {
+				if !componentMapCallbackPreservesItems(body, callback) {
+					return
+				}
+				if block := body.Body(); ast.IsBlock(block) &&
+					q.completionFor(block, inputs.bindings, true).outcomes == sourceReturnThrow {
+					return
+				}
+			}
+		}
+	})
+}
+
+// componentMapUsesDeclaredMethod checks the selected component's own receiver
+// references through the existing source index. A mutable or escaped receiver
+// retains ordinary callee analysis.
+func (q *sourceValueQuery) componentMapUsesDeclaredMethod(access *ast.Node, result *accessorCandidates) bool {
+	var component *ast.Node
+	for scope := access.Parent; scope != nil; scope = scope.Parent {
+		if _, owned := q.owner.components[scope]; owned {
+			component = scope
+			break
+		}
+	}
+	if component == nil || !helperOwnsReceiver(access, component) ||
+		!portableDeclaredMethod(nativeReceiverMemberSymbol(access, q.owner.checker)) {
+		return false
+	}
+	index := q.owner.index(ast.GetSourceFileOfNode(component))
+	if index.incomplete {
+		return false
+	}
+	for _, region := range index.operationRegions {
+		for _, receiver := range region.receivers {
+			if receiver.Pos() < component.Pos() || receiver.End() > component.End() ||
+				!helperOwnsReceiver(receiver, component) {
+				continue
+			}
+			if !q.charge(result, receiver) {
+				return false
+			}
+			member := receiver.Parent
+			if member == nil || !ast.IsAccessExpression(member) || member.Expression() != receiver {
+				return false
+			}
+			_, key := accessorReceiver(member)
+			if key == "" || key == "map" {
+				read, write := accessorEvaluationMode(member)
+				if !read || write {
+					return false
+				}
+			}
+		}
+	}
+	return true
+}
+
+// componentMapCallbackPreservesItems uses the already observed callback body.
+// Borrowing the initial item must preserve possible writes and user entry.
+func componentMapCallbackPreservesItems(body *ast.Node, callback accessorCandidates) bool {
+	return !callback.opaque && !callback.receiverIncomplete && !callback.fieldReceiverIncomplete &&
+		len(callback.fieldFallbacks) == 0 && len(callback.callFallbacks) == 0 &&
+		len(callback.writes) == 0 && len(callback.reflective) == 0 && len(callback.nativeCalls) == 0 &&
+		len(callback.effects) == 1 && callback.effects[0].declaration == body &&
+		len(callback.fieldCalls) == 1 && callback.fieldCalls[0].target == body && callback.fieldCalls[0].complete
 }

@@ -124,6 +124,7 @@ func TestMapKnownEffectProjection(t *testing.T) {
 		{"render-role", `const rows=[{id:'a',label:'A'}];`, `<ul>{this.map(rows,row=>row.id,row=><li>{document.title}{row.label}</li>)}</ul>`, true},
 		{"collection-get", `const items=[{id:'a',label:'A'}];const box={get rows(){document.title;return items}};`, `<ul>{this.map(box.rows,row=>row.id,row=><li>{row.label}</li>)}</ul>`, true},
 		{"key-argument-get", `const rows=[{id:'a',label:'A'}];const box={get key(){document.title;return (row:{id:string})=>row.id}};`, `<ul>{this.map(rows,box.key,row=><li>{row.label}</li>)}</ul>`, true},
+		{"throwing-key", `const rows:Array<{id:string;label?:string}>=[{id:'a',get ['label'](){return document.title}}];`, `<ul>{this.map(rows,row=>{throw 'key failed'},row=><li>{row.label}</li>)}</ul>`, false},
 		{"plain", `const rows=[{id:'a',label:'A'}];`, `<ul>{this.map(rows,row=>row.id,row=><li>{row.label}</li>)}</ul>`, false},
 		{"event-inside-render", `const rows=[{id:'a',label:'A'}];`, `<ul>{this.map(rows,row=>row.id,row=><li onClick={()=>{document.title='clicked'}}>{row.label}</li>)}</ul>`, false},
 		{"map-inside-event", `const rows=[{id:'a',label:'A'}];`, `<button onClick={()=>{this.map(rows,row=>row.id,row=>document.title)}}>run</button>`, false},
@@ -147,6 +148,21 @@ func TestMapKnownEffectProjection(t *testing.T) {
 			}
 		})
 	}
+	t.Run("replaced-component-method", func(t *testing.T) {
+		const source = `import type {Component} from '@exactjs/core';
+const rows:Array<{id:string;label?:string}>=[{id:'a',get ['label'](){return document.title}}];
+export function Lists(this:Component<{}>){this.map=()=>[];return()=> <ul>{this.map(rows,row=>row.id,row=><li>{row.label}</li>)}</ul>}`
+		for _, target := range []Target{TargetClient, TargetServer} {
+			response := collectionCompileSource(t, root, config, source, target)
+			if hasErrorDiagnostic(response.Diagnostics) || len(response.Analysis.Components) != 1 {
+				t.Fatal(response.Diagnostics)
+			}
+			if response.Analysis.Components[0].EnvironmentEffect == "browser" {
+				t.Fatal("the authored method did not execute the browser getter")
+			}
+		}
+	})
+
 }
 
 // Retained compiles must agree with fresh output when a list callback changes

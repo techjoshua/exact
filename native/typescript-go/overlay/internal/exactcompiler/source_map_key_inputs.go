@@ -108,9 +108,9 @@ func (q *sourceValueQuery) mapKeySourceUses(symbol *ast.Symbol, declaration *ast
 	return index.privateUses.uses[id], !index.normalExported[id]
 }
 
-// mapKeyArraySyntax names a confined literal candidate. A freeze call still
+// confinedArrayArgumentSyntax names a confined literal candidate. A freeze call still
 // needs the actual selected native alternative and source input relationship.
-func (q *sourceValueQuery) mapKeyArraySyntax(operand *ast.Node, iterationOnly bool) *ast.Node {
+func (q *sourceValueQuery) confinedArrayArgumentSyntax(operand *ast.Node, iterationOnly bool) *ast.Node {
 	operand = unwrapSourceCallableReference(operand)
 	if operand == nil {
 		return nil
@@ -154,7 +154,7 @@ func (q *sourceValueQuery) confinedMapArray(call *ast.Node, receivers []sourceVa
 		return nil
 	}
 	receiver, _ := restrictedInvocationMember(unwrapSourceCallableReference(call.Expression()), q.owner.checker)
-	literal := q.mapKeyArraySyntax(receiver, false)
+	literal := q.confinedArrayArgumentSyntax(receiver, false)
 	if literal == nil || literal != unwrapSourceCallableReference(receivers[0].node) {
 		return nil
 	}
@@ -179,7 +179,7 @@ func (q *sourceValueQuery) frozenMapKeyElements(receiver sourceValue, wantKeys b
 	if base == nil || !ast.IsIdentifier(base) || base.Text() != "Object" || method != "freeze" || !standardLibraryCallRoot(call.Expression(), q.owner.checker) || len(arguments) != 1 {
 		return nil, false
 	}
-	literal := q.mapKeyArraySyntax(arguments[0], true)
+	literal := q.confinedArrayArgumentSyntax(arguments[0], true)
 	if literal == nil {
 		return nil, false
 	}

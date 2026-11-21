@@ -1491,6 +1491,11 @@ For each item, the key selector runs before the render callback in both
 server rendering and the browser. If the selector throws, the framework
 leaves that item's render callback uncalled.
 
+When an array literal supplies the list directly or through a local constant,
+an item getter read by the key selector or render callback contributes to
+component placement. A browser-only getter reached only by an event handler
+runs when that event is handled.
+
 Keys must be stable and unique among siblings. They preserve component
 instances, DOM nodes, form values, refs, and local state across insertion,
 removal, and reordering. Array indexes are appropriate only when position

@@ -4121,7 +4121,18 @@ The reader checks source, program, checker, generation, mode and the sealed sign
 
 An entered ordinary helper can fulfill a declaration-local read demand on a direct parameter property only from that exact Call's completed normal Get. The proof checks the installed supplied argument, current source population, original operation and caller edge. It covers the read's effects without granting descriptor, mutation or value-completion authority. Uninstalled parameters retain their relative origin and incomplete value, and getter, Proxy, forwarded or independently opaque alternatives retain their own effects and uncertainty. Local temporaries keep the value observed before a later property replacement.
 
-A selected component `map` retains a separate MAY-effect contribution from its original collection observation and key/render callback roles. Placement preserves known callee-key, argument, callback and possible item-getter effects, including computed getter names that may match. Dormant event bodies do not become eager setup work. Contributions retain exact source, operation, generation, analysis mode and immutable publication identity across copies.
+A selected component `map` keeps callee and operand effects with their original
+operations. Its original Call can supply possible items from a confined array
+literal to inline key and render callbacks through the existing source readers.
+Authored callee replacements and exposed component receivers keep their
+existing acquisition paths. The key receives the initial item, and the render callback can borrow it
+when the observed key effects preserve that input and the key can return. A
+computed item getter contributes effects when its name may match the actual
+read. Exact spellings and disjoint checked string props exclude that getter
+while key evaluation stays with object creation. Event bodies retain their
+own activation. The original normal collection observation can also carry
+its source, operation, generation, analysis mode and immutable publication
+identity across copies.
 
 Every currently produced map input domain remains open. A finite literal list, an empty list or observation-only future uses do not prove inherited iterator behavior, later item membership or complete property coverage. The contribution therefore cannot discharge abstract item reads or manufacture a callback invocation, normal Get, native preservation or descriptor receipt. Known effects survive beside that uncertainty. Ordinary methods named `map` receive no framework contribution.
 
