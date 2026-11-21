@@ -23,6 +23,40 @@ const descriptorWithEagerGetter = `const record = Object.defineProperty({value:(
 
 it.each([
 	{
+		name: 'a Create map storing a browser callback',
+		declaration: 'const record = Object.create(null, {value:{value:()=>document.title}});',
+		value: 'typeof record.value',
+		expected: 'function'
+	},
+	{
+		name: 'a Create map callback invoked by a named read',
+		declaration: 'const record = Object.create(null, {value:{value:()=>document.title}});',
+		value: 'record.value()',
+		browser: true,
+		expected: 'browser value'
+	},
+	{
+		name: 'a Create map converting an eager descriptor field',
+		declaration: `const record = Object.create(null, {value:{get value(){return document ? 'browser value' : ''}}});`,
+		value: 'record.value',
+		browser: true,
+		expected: 'browser value'
+	},
+	{
+		name: 'a Create map reading an eager descriptor entry',
+		declaration: `const record = Object.create(null, {get value(){return {value:document ? 'browser value' : ''}}});`,
+		value: 'record.value',
+		browser: true,
+		expected: 'browser value'
+	},
+	{
+		name: 'an authored Create method receiving an unread descriptor entry',
+		declaration: `const Object = {create(_prototype:null, _map:object){return {value:'authored'}}};
+		const record = Object.create(null, {get value(){return {value:document.title}}});`,
+		value: 'record.value',
+		expected: 'authored'
+	},
+	{
 		name: 'a frozen defined Symbol field beside independent stores',
 		declaration: `const key = Symbol.for('module-key');
 		const record = Object.freeze(Object.defineProperties(

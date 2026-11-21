@@ -225,29 +225,37 @@ func (query *sourceValueQuery) retainCreatedGetter(call *ast.Node, projection []
 // selection opaque while leaving the originally acquired native alternative
 // visible. Retain that alternative's effects alongside the uncertainty.
 func (q *sourceValueQuery) retainSoleDescriptorMapGetter(node *ast.Node, acquired sourceSelectionProjection, bindings sourceValueBindings, result *accessorCandidates) bool {
-	if len(acquired.values) != 1 || acquired.receiverIncomplete || acquired.valueIncomplete {
-		return false
-	}
-	native := acquired.values[0].native
-	if native == nil || native.kind != sourceNativeObjectDefineProperties {
-		return false
-	}
 	call := node.AsCallExpression()
-	callee := unwrapSourceCallableReference(call.Expression)
-	if !ast.IsAccessExpression(callee) {
-		return false
-	}
-	_, method := accessorReceiver(callee)
-	if method != "defineProperties" {
-		return false // Adapters have their own original argument vector.
-	}
-	actuals := restrictedInvocationArguments(call)
-	if call.QuestionDotToken != nil || len(actuals) != 2 {
-		return false
-	}
-	target, mapping := unwrapSourceCallableReference(actuals[0]), unwrapSourceCallableReference(actuals[1])
-	if !ast.IsObjectLiteralExpression(target) || !sourceInertValueCreation(target) || !ast.IsObjectLiteralExpression(mapping) {
-		return false
+	var mapping *ast.Node
+	create := q.standardCreateDescriptorMap(call)
+	if create != nil {
+		actuals := restrictedInvocationArguments(call)
+		if unwrapSourceCallableReference(actuals[0]).Kind != ast.KindNullKeyword {
+			return false
+		}
+		mapping = create
+	} else {
+		if len(acquired.values) != 1 || acquired.receiverIncomplete || acquired.valueIncomplete {
+			return false
+		}
+		native := acquired.values[0].native
+		if native == nil || native.kind != sourceNativeObjectDefineProperties {
+			return false
+		}
+		callee := unwrapSourceCallableReference(call.Expression)
+		if !ast.IsAccessExpression(callee) {
+			return false
+		}
+		_, method := accessorReceiver(callee)
+		actuals := restrictedInvocationArguments(call)
+		if method != "defineProperties" || call.QuestionDotToken != nil || len(actuals) != 2 {
+			return false
+		}
+		target := unwrapSourceCallableReference(actuals[0])
+		mapping = unwrapSourceCallableReference(actuals[1])
+		if !ast.IsObjectLiteralExpression(target) || !sourceInertValueCreation(target) || !ast.IsObjectLiteralExpression(mapping) {
+			return false
+		}
 	}
 	entries := mapping.AsObjectLiteralExpression().Properties.Nodes
 	if len(entries) != 1 {
@@ -255,6 +263,9 @@ func (q *sourceValueQuery) retainSoleDescriptorMapGetter(node *ast.Node, acquire
 	}
 	entry := entries[0]
 	if ast.IsGetAccessorDeclaration(entry) {
+		if create != nil && !simpleCreatedDescriptorEntry(entry) {
+			return false
+		}
 		get := &sourceGetInputs{operation: node, receiver: sourceValue{node: mapping}}
 		observed := q.acquireGetResult(entry, get, q.acquireCallableScope(bindings, result), result)
 		for _, returned := range observed.values {
@@ -263,6 +274,9 @@ func (q *sourceValueQuery) retainSoleDescriptorMapGetter(node *ast.Node, acquire
 				if getter := soleDescriptorFieldGetter(value.node); getter != nil {
 					get := &sourceGetInputs{operation: node, receiver: value}
 					q.executeGetEffects(getter, get, returned.scope, result)
+					if create != nil && !descriptorGetterHasEmptyMutationSyntax(getter) {
+						result.opaque = true
+					}
 				}
 			}
 		}
@@ -270,7 +284,7 @@ func (q *sourceValueQuery) retainSoleDescriptorMapGetter(node *ast.Node, acquire
 	}
 	if ast.IsPropertyAssignment(entry) && callableNameText(entry.Name()) != "__proto__" {
 		desc := unwrapSourceCallableReference(entry.Initializer())
-		if getter := soleDescriptorFieldGetter(desc); getter != nil {
+		if getter := soleDescriptorFieldGetter(desc); getter != nil && (create == nil || descriptorGetterHasEmptyMutationSyntax(getter)) {
 			get := &sourceGetInputs{operation: node, receiver: sourceValue{node: desc}}
 			q.executeGetEffects(getter, get, q.acquireCallableScope(bindings, result), result)
 			return true
@@ -294,4 +308,24 @@ func soleDescriptorFieldGetter(descriptor *ast.Node) *ast.Node {
 		}
 	}
 	return nil
+}
+
+// simpleCreatedDescriptorEntry bounds the map Get to a plain returned descriptor.
+// The Get still contributes its original body effects and acquired return scope.
+func simpleCreatedDescriptorEntry(entry *ast.Node) bool {
+	if entry.Body() == nil || !ast.IsBlock(entry.Body()) || ast.IsComputedPropertyName(entry.Name()) || !descriptorGetterHasEmptyMutationSyntax(entry) {
+		return false
+	}
+	statements := entry.Body().AsBlock().Statements.Nodes
+	if len(statements) != 1 || !ast.IsReturnStatement(statements[0]) {
+		return false
+	}
+	descriptor := unwrapSourceCallableReference(statements[0].Expression())
+	if descriptor == nil || !ast.IsObjectLiteralExpression(descriptor) {
+		return false
+	}
+	fields := descriptor.AsObjectLiteralExpression().Properties.Nodes
+	return len(fields) == 1 && (soleDescriptorFieldGetter(descriptor) != nil ||
+		ast.IsPropertyAssignment(fields[0]) && !ast.IsComputedPropertyName(fields[0].Name()) &&
+			callableNameText(fields[0].Name()) == "value")
 }

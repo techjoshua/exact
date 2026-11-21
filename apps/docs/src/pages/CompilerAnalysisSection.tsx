@@ -78,8 +78,12 @@ export function CompilerAnalysisSection(this: Component<{}>) {
 				reads and writes that invoke it, while computed property names execute during object
 				creation. With <code>Object.create(null, {'{ score: { get value() { return document.title } } }'})</code>,
 				the call reads the descriptor’s <code>value</code> immediately, so the creating task needs
-				the browser even if it never reads <code>score</code>. A getter in a descriptor map runs
-				when <code>Object.defineProperties</code> reads its entry. Reading a property on the
+				the browser even if it never reads <code>score</code>. A getter in a descriptor map runs when
+				<code>Object.create</code> or <code>Object.defineProperties</code> reads its entry. With
+				a single literal descriptor passed to <code>Object.create(null, …)</code> in a module
+				initializer, a simple getter that reads a browser global while converting the descriptor puts components
+				that use the resulting binding on the client. A callback stored as a data value runs
+				when a component calls it through a single named read of the private binding. Reading a property on the
 				object returned by <code>Object.defineProperty</code>
 				also invokes its installed getter. If that getter reads <code>document</code>, the task
 				that reads the property needs the browser. Standard <code>Object.assign(target, input)</code>

@@ -8,9 +8,10 @@ type sourceCreatedGetter struct {
 	creation, read, receiver, body *ast.Node
 	name                           string
 	reflected                      *sourceGetInputs
+	stored                         func(sourceValue)
 }
 
-func (q *sourceValueQuery) sourceCreatedGetter(call *ast.Node, projection []string, name string, actual *sourceGetInputs, result *accessorCandidates) *sourceCreatedGetter {
+func (q *sourceValueQuery) sourceCreatedGetter(call *ast.Node, projection []string, name string, actual *sourceGetInputs, result *accessorCandidates, stored func(sourceValue)) *sourceCreatedGetter {
 	if q.reflectiveCopy != nil {
 		return nil
 	}
@@ -34,11 +35,44 @@ func (q *sourceValueQuery) sourceCreatedGetter(call *ast.Node, projection []stri
 	if sourceCopyMember(call) != "create" {
 		return q.sourceReturnedDescriptorGetter(call, args, name, nil, result)
 	}
+	if len(args) == 2 && stored != nil {
+		mapping := q.standardCreateDescriptorMap(call.AsCallExpression())
+		if mapping != nil && unwrapSourceCallableReference(args[0]).Kind == ast.KindNullKeyword &&
+			q.sourceCreatedReadInput(call, q.protectedMember, mapping, false, result) == mapping {
+			if body := createdLiteralDataCallback(mapping, name); body != nil {
+				return &sourceCreatedGetter{creation: call, read: q.protectedMember, receiver: call, body: body, name: name, stored: stored}
+			}
+		}
+	}
 	if len(args) != 1 || ast.IsSpreadElement(args[0]) {
 		return nil
 	}
 	input := q.sourceCreatedReadInput(call, q.protectedMember, args[0], true, result)
 	return createdPrototypeGetter(call, q.protectedMember, input, name)
+}
+
+// createdLiteralDataCallback identifies a stored arrow in a sole inert own
+// descriptor. Dynamic keys and earlier field getters can change the source.
+func createdLiteralDataCallback(mapping *ast.Node, name string) *ast.Node {
+	entries := mapping.AsObjectLiteralExpression().Properties.Nodes
+	if name == "__proto__" || len(entries) != 1 || !ast.IsPropertyAssignment(entries[0]) ||
+		ast.IsComputedPropertyName(entries[0].Name()) || callableNameText(entries[0].Name()) != name {
+		return nil
+	}
+	descriptor := unwrapSourceCallableReference(entries[0].Initializer())
+	if !ast.IsObjectLiteralExpression(descriptor) {
+		return nil
+	}
+	fields := descriptor.AsObjectLiteralExpression().Properties.Nodes
+	if len(fields) != 1 || !ast.IsPropertyAssignment(fields[0]) ||
+		ast.IsComputedPropertyName(fields[0].Name()) || callableNameText(fields[0].Name()) != "value" {
+		return nil
+	}
+	body := unwrapSourceCallableReference(fields[0].Initializer())
+	if !ast.IsArrowFunction(body) {
+		return nil
+	}
+	return body
 }
 
 // createdPrototypeGetter describes the own getter on the received prototype

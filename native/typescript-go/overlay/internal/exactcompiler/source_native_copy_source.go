@@ -106,7 +106,12 @@ func (q *sourceValueQuery) publishReflectiveCopyTarget(site *ast.Node, kind sour
 	args := restrictedInvocationArguments(site.AsCallExpression())
 	if kind == sourceNativeObjectCreate {
 		if getter := q.reflectiveCopy.createdGetter; getter != nil && getter.creation == site {
-			q.sourceCreatedGetterRead(getter, bindings, result)
+			if getter.stored != nil {
+				scope := q.acquireCallableScope(bindings, result)
+				getter.stored(sourceValue{node: getter.body, capture: &scope})
+			} else {
+				q.sourceCreatedGetterRead(getter, bindings, result)
+			}
 			return
 		}
 		if len(args) == 1 && unwrapSourceCallableReference(args[0]).Kind == ast.KindNullKeyword {

@@ -652,6 +652,16 @@ target and can read a callback installed on it. Earlier receiver mutations and
 escaped created targets still require separate coverage. The unchanged Intl
 build still reaches the `components.ts` deadline and emits neither target.
 
+For the two-argument `Object.create(null, map)` module case, the sole plain
+descriptor entry or descriptor-field getter contributes its eager Get effects
+during creation. The named read of a private allocation can retain the arrow
+stored by a sole literal data descriptor. The actual later Call consumes that
+source. Merely holding the same arrow leaves the component available for SSR.
+Authored `create` methods keep their own argument evaluation and body.
+Property Gets inside an eager getter still need a receiver-mutation proof. The
+library export inspection executes client modules in Node, so the eager
+browser-global controls require a browser-global test fixture for that process.
+
 The earlier receiver-mutation witness writes a callable through `this.value`
 in the descriptor's `enumerable` getter. A private loan of its actual bound
 receiver and earlier BODY publishes the existing RHS alternative. The later
