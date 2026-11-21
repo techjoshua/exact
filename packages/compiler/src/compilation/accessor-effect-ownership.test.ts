@@ -281,3 +281,31 @@ export function Page(this:Component<{result:number}>){
 		}
 	}
 });
+
+
+it.each([
+	['descriptor map', '', 'Object.defineProperties({}, {token:{value:7},run:{value:()=>document.title}})', '.token'],
+	['retained target', 'const draft=Object.defineProperties({}, {token:{value:7},run:{value:()=>document.title}});', 'draft', '.token'],
+	['symbol key', "const key=Symbol.for('fixture-token');", 'Object.defineProperties({}, {[key]:{value:7},run:{value:()=>document.title}})', '[key]'],
+	['created object', '', 'Object.create({token:7,get run(){return document.title}})', '.token']
+] as const)('renders a frozen module value from a %s', async (_name, definitions, input, read) => {
+	const root = await createCompilerTestWorkspace('.exact-frozen-module-value-', process.cwd());
+	const entry = path.join(root, 'page.tsx');
+	await writeFile(
+		entry,
+		`${definitions}const value=Object.freeze(${input});
+export function inspect(){return value}
+export function Page(){return()=> <output>{(value as {token:number;[key:symbol]:number})${read}}</output>}`
+	);
+	const [artifact] = await compileProjectArtifacts([entry], {
+		rootDir: root,
+		outDir: path.join(root, 'generated')
+	});
+	const server = await importArtifact(artifact!.serverFile, path.join(root, 'server.mjs'));
+	const inspect = server.inspect as () => object;
+	const value = inspect();
+	const output = await renderToString(receipt(server.Page as never, {}), { markers: false });
+	expect(output.html).toBe('<output>7</output>');
+	expect(Object.isFrozen(value)).toBe(true);
+	expect(inspect()).toBe(value);
+});

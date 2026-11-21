@@ -11,6 +11,35 @@ import (
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
 )
 
+// Keep the enclosing Freeze conservative when a child map can execute authored Gets.
+func TestComponentFreezeKeepsChildDescriptorEffects(t *testing.T) {
+	for _, row := range []struct {
+		name, operand string
+		opaque        bool
+	}{
+		{"ordinary", `Object.defineProperties({}, {value:{value:7}})`, false},
+		{"map getter", `Object.defineProperties({}, {get value(){void document.title;return {value:7}}})`, true},
+		{"descriptor getter", `Object.defineProperties({}, {value:{get value(){void document.title;return 7}}})`, true},
+		{"proxy target", `Object.defineProperties(new Proxy({}, {ownKeys(){void document.title;return []}}), {value:{value:7}})`, true},
+	} {
+		t.Run(row.name, func(t *testing.T) {
+			source := `const input=Object.freeze(` + row.operand + `);
+export function Page(){return()=> <output>{(input as {value:number}).value}</output>}`
+			result := NewSession().Execute(Request{Kind: "compile", ID: "freeze-module-child.tsx", Source: source, Target: TargetServer, Diagnostics: "semantic"})
+			if result.Error != "" {
+				t.Fatal(result.Error)
+			}
+			if row.opaque {
+				if !hasDiagnosticCode(result.Diagnostics, "EXACT2101") || result.Code != "" {
+					t.Fatalf("unproven input Effects became portable: %#v", result.Diagnostics)
+				}
+			} else if hasErrorDiagnostic(result.Diagnostics) || result.Code == "" {
+				t.Fatalf("ordinary descriptor input did not emit: %#v", result.Diagnostics)
+			}
+		})
+	}
+}
+
 // Child creation and parent freeze must compose as source obligations without
 // executing prototype properties or freezing the supplied prototype itself.
 func TestStagedNativeCreateFreezeCompositionSession(t *testing.T) {

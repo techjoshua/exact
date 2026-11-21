@@ -2513,6 +2513,12 @@ can read source-bound lexical bindings/formals and use supported zero-argument s
 Calls. Those Calls require their actual binder associations and canonical summaries.
 Their returned values remain independent of eager effect transfer.
 
+The portable Freeze path can use an original selected one-argument Create or a DefineProperties
+operation that installs an own data descriptor map on a fresh ordinary target. The argument may
+reach Freeze through a previously evaluated binding. The selected allocation supplies the
+ordinary-target premise. Authored descriptor accessors and unresolved computed keys retain their
+existing Effects obligations. This classification carries no completed integrity event.
+
 One-argument `Object.create` preserves its original null, inert object-literal or unmodified
 formal prototype association. It neither reads that prototype's properties nor invokes it.
 This source association grants no exact prototype or returned-object identity. A selected

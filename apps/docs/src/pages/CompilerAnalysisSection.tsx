@@ -83,6 +83,8 @@ export function CompilerAnalysisSection(this: Component<{}>) {
 				setter's use of that value. A module binding initialized with
 				<code>Object.defineProperty</code> on an ordinary object literal can store a browser
 				callback as a descriptor value. A component that invokes the callback needs the browser.
+				Freezing an ordinary object just created in that initializer keeps its stored callbacks
+				and installed getters dormant.
 				If a getter returns a
 				method, calling that result also carries the method's own environment requirements. Reading
 				the getter alone does not invoke the returned method. Portable built-in methods keep their

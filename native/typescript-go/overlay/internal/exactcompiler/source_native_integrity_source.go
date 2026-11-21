@@ -1,6 +1,9 @@
 package exactcompiler
 
-import "github.com/microsoft/TypeScript/tsc/internal/ast"
+import (
+	"github.com/microsoft/TypeScript/tsc/internal/ast"
+	"github.com/microsoft/TypeScript/tsc/internal/checker"
+)
 
 // sourceFreezeRelationship describes a selected native alternative's input and
 // return relationship. It cannot publish integrity, descriptor or normal-output
@@ -62,7 +65,8 @@ func (q *sourceValueQuery) sourceFreezeRelationshipObserved(site *ast.Node, call
 		}
 		// An ordinary literal has intrinsic own-property integrity operations. This
 		// environmental effect contract does not prove its descriptors or identity.
-		if !q.ordinaryLiteralInput(argument) || len(values) == 0 {
+		if len(values) == 0 || !q.ordinaryLiteralInput(argument) &&
+			(!calleeComplete || !q.freezeArgumentFromNativeAllocation(site, values, acquired, bindings, result)) {
 			refuse()
 		}
 		if project != nil {
@@ -102,4 +106,91 @@ func (q *sourceValueQuery) ordinaryLiteralInput(argument *ast.Node) bool {
 		value = unwrapSourceCallableReference(decl.Initializer())
 	}
 	return value != nil && (ast.IsArrayLiteralExpression(value) || ast.IsObjectLiteralExpression(value))
+}
+
+// freezeArgumentFromNativeAllocation uses the conditional result of an original
+// selected child. It grants no descriptor or result authority and does not pay
+// the child's eager inputs, coercions or any of its performed effects.
+func (q *sourceValueQuery) freezeArgumentFromNativeAllocation(
+	site *ast.Node,
+	values []sourceValue,
+	acquired accessorCandidates,
+	bindings sourceValueBindings,
+	result *accessorCandidates,
+) bool {
+	if len(values) != 1 || acquired.opaque || acquired.valueIncomplete || acquired.receiverIncomplete || q.reflectiveCopy != nil {
+		return false
+	}
+	value := values[0]
+	child := value.node
+	if child == nil || len(value.path) != 0 || !ast.IsCallExpression(child) || ast.IsOptionalChain(child) {
+		return false
+	}
+	kind := stagedNativeInputIntent(child.Expression())
+	if kind != sourceNativeObjectCreate && kind != sourceNativeObjectDefineProperties {
+		return false
+	}
+	if !standardLibraryCallRoot(child.Expression(), q.owner.checker) {
+		return false
+	}
+	actuals := restrictedInvocationArguments(child.AsCallExpression())
+	switch kind {
+	case sourceNativeObjectCreate:
+		if len(actuals) != 1 || ast.IsSpreadElement(actuals[0]) || sourceCopyMember(child) != "create" {
+			return false
+		}
+		prior := q.reflectiveCopy
+		projection := sourceReflectiveCopyProjection{issuer: q, calls: []*ast.Node{child}}
+		q.reflectiveCopy = &projection
+		defer func() { q.reflectiveCopy = prior }()
+	case sourceNativeObjectDefineProperties:
+		if len(actuals) != 2 || !ast.IsObjectLiteralExpression(actuals[0]) || !sourceInertValueCreation(actuals[0]) || !q.freezeChildPlainDescriptorMap(actuals[1]) {
+			return false
+		}
+	}
+	priorReading := q.reading
+	q.reading = child
+	defer func() { q.reading = priorReading }()
+	var selected accessorCandidates
+	q.withPendingWriterInput(site, result, func() {
+		selected = q.receiverCandidates(child, bindings)
+	})
+	if len(selected.values) != 1 || selected.opaque || selected.valueIncomplete || selected.receiverIncomplete || selected.ownOperation {
+		return false
+	}
+	native := selected.values[0].native
+	return native != nil && native.kind == kind && !native.referencesIncomplete
+}
+
+// freezeChildPlainDescriptorMap limits the proof to selected child applications
+// whose descriptor options are data. An authored accessor or unknown key must
+// first receive coverage in the child's owner.
+func (q *sourceValueQuery) freezeChildPlainDescriptorMap(input *ast.Node) bool {
+	input = unwrapSourceCallableReference(input)
+	if input == nil || !ast.IsObjectLiteralExpression(input) {
+		return false
+	}
+	for _, property := range input.AsObjectLiteralExpression().Properties.Nodes {
+		if !ast.IsPropertyAssignment(property) || property.Name() == nil ||
+			!sourceInertDataLiteral(unwrapSourceCallableReference(property.Initializer()), "") {
+			return false
+		}
+		name := property.Name()
+		if !ast.IsComputedPropertyName(name) {
+			if callableNameText(name) == "__proto__" {
+				return false
+			}
+			continue
+		}
+		key := q.owner.checker.GetTypeAtLocation(name.AsComputedPropertyName().Expression)
+		if key == nil {
+			return false
+		}
+		for _, alternative := range key.Distributed() {
+			if alternative.Flags()&(checker.TypeFlagsStringLike|checker.TypeFlagsNumberLike|checker.TypeFlagsESSymbolLike) == 0 {
+				return false
+			}
+		}
+	}
+	return true
 }
