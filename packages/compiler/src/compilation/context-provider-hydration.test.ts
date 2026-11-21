@@ -101,7 +101,9 @@ export function Read(props:{input:{initial:number}}){return()=> <Provider initia
 		host.innerHTML = server.htmlWithHydration;
 		expect(host.querySelectorAll('[data-exact-client-boundary]')).toHaveLength(1);
 		const boundary = host.querySelector('[data-exact-client-boundary]')!;
-		onTestFinished(() => unmount(boundary));
+		onTestFinished(() => {
+			unmount(boundary);
+		});
 		const button = host.querySelector('button')!;
 		expect(button.textContent).toBe('1');
 		hydrateClientIslands(host, registry);
