@@ -54,3 +54,31 @@ func planModuleValuePruning(sourceFile *ast.SourceFile, typeChecker *checker.Che
 	}
 	return result
 }
+
+// componentReferencePlacement reuses the availability of a top-level runtime binding.
+// Its initializer's performed writes stay at module execution, outside component setup.
+func (availability *moduleValueAvailability) componentReferencePlacement(node *ast.Node, symbol *ast.Symbol) string {
+	if symbol == nil || ast.IsJsxTagName(node) {
+		return ""
+	}
+	if symbol.Flags&ast.SymbolFlagsAlias != 0 {
+		symbol = availability.checker.SkipAlias(symbol)
+	}
+	if symbol == nil || symbol.ValueDeclaration == nil {
+		return ""
+	}
+	declaration := symbol.ValueDeclaration
+	for ast.IsBindingElement(declaration) || ast.IsObjectBindingPattern(declaration) || ast.IsArrayBindingPattern(declaration) {
+		declaration = declaration.Parent
+	}
+	top := declaration
+	if ast.IsVariableDeclaration(declaration) && declaration.Parent != nil && ast.IsVariableDeclarationList(declaration.Parent) {
+		top = declaration.Parent.Parent
+	} else if !ast.IsFunctionDeclaration(declaration) && !ast.IsClassDeclaration(declaration) {
+		return ""
+	}
+	if top == nil || top.Parent == nil || !ast.IsSourceFile(top.Parent) || top.Parent.AsSourceFile().IsDeclarationFile {
+		return ""
+	}
+	return availability.placement(symbol)
+}

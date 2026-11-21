@@ -498,6 +498,7 @@ func (s *Session) executeProjection(request Request, authored *authoredCheckProg
 	propagateComponentSurfacePlans(sourceFile, components, callables, generation.checker)
 	planTaskLocalization(sourceFile, tasks, intlPlan)
 	operations := invokedTaskOperations(tasks, sourceFile, reactiveBindings, generation.checker)
+	availability := moduleValueAvailability{checker: generation.checker, owner: callables.owner, placements: make(map[*ast.Symbol]string)}
 	components = analyzeComponents(
 		sourceFile,
 		components,
@@ -507,6 +508,7 @@ func (s *Session) executeProjection(request Request, authored *authoredCheckProg
 		generation.checker,
 		nodeIDs,
 		analysisFacts,
+		&availability,
 	)
 	components = applyComponentPolicies(
 		sourceFile,
@@ -535,10 +537,6 @@ func (s *Session) executeProjection(request Request, authored *authoredCheckProg
 	response.Timings.ProjectLinkMicroseconds = time.Since(
 		projectLinkStarted,
 	).Microseconds()
-	availability := moduleValueAvailability{checker: generation.checker, owner: callables.owner}
-	if request.Kind != "analyze" && sourceFile.Symbol != nil && len(sourceFile.Symbol.Exports) != 0 {
-		availability.placements = make(map[*ast.Symbol]string)
-	}
 	exports := collectExportRecords(
 		sourceFile,
 		generation.checker,

@@ -979,6 +979,7 @@ func materializeProjectComponentSource(
 		typeChecker,
 		nodeIDs,
 		nil,
+		&moduleValueAvailability{checker: typeChecker, owner: callables.owner, placements: make(map[*ast.Symbol]string)},
 	)
 	// Another parent may later demand a different component in the same file.
 	// Retain only records whose component bodies were selected for analysis.

@@ -7,7 +7,9 @@ record the binding inspected from the completed generation. They do not assert t
 helper can execute on either target. Known target constraints, package authorization and concrete
 registration owners still apply. A focused interactive range can coexist with the complete client
 artifact used for direct mounting. Empty inferred targets alone cannot turn that owner into a
-server-boundary reference. See [component library trust](component-library-trust.md) for
+server-boundary reference. If rendering reads a module value computed by a browser-only initializer,
+the consuming component requires that binding on the client. A helper returning the same
+already-computed value carries that requirement without rerunning the initializer. See [component library trust](component-library-trust.md) for
 publication and consumption requirements.
 
 Render-program version 4 requires the matching SSR operation provider. Its generated preparation

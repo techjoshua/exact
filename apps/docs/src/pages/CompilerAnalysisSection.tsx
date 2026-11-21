@@ -81,7 +81,8 @@ export function CompilerAnalysisSection(this: Component<{}>) {
 				declaration ownership through optional calls, and their callbacks retain their own
 				environment requirements. For example, <code>Object.entries(input).map(pair =&gt; pair)</code>
 				runs any getters it reads while enumerating <code>input</code>, so a getter that reads
-				<code>document.title</code> makes the initializer browser-only. If the standard
+				<code>document.title</code> makes the initializer browser-only. A component that renders the resulting module value
+				needs the browser too, including when a helper returns the saved value. If the standard
 				<code>Object.fromEntries</code> immediately consumes the mapped array, a callback can
 				return a fresh pair such as
 				<code>([key, value]) =&gt; [key, value]</code>. Computing either slot still contributes its own effects.

@@ -31,6 +31,7 @@ func analyzeComponents(
 	typeChecker *checker.Checker,
 	nodeIDs map[*ast.Node]string,
 	transport *sourceAnalysisFacts,
+	availability *moduleValueAvailability,
 ) []Component {
 	if len(components) == 0 {
 		return components
@@ -44,6 +45,7 @@ func analyzeComponents(
 		clientLifecycleSpans := componentClientLifecycleCallbackSpans(candidate.node, typeChecker, transport)
 		dormantCallableSpans := componentDormantCallableSpans(candidate.node, callables, typeChecker)
 		clientEffects, serverEffects := false, false
+		moduleRequirement := ""
 		clientTaskEffects := false
 		summaryClientEffect := false
 		renderUnknown := false
@@ -207,6 +209,16 @@ func analyzeComponents(
 				!isStaticPropertyName(node) {
 				name := node.Text()
 				symbol := typeChecker.GetSymbolAtLocation(node)
+				// An emitted reference needs its module binding on this target even when
+				// reading its previously evaluated value has no execution effects.
+				switch availability.componentReferencePlacement(node, symbol) {
+				case "client":
+					clientEffects = true
+					moduleRequirement = name
+				case "server":
+					serverEffects = true
+					moduleRequirement = name
+				}
 				// Rendering retains server-global requirements independently of the
 				// legacy coordination walk and any extracted setup summary.
 				if _, server := serverGlobals[name]; server && symbolIsOutsideSource(symbol, sourceFile) {
@@ -337,6 +349,10 @@ func analyzeComponents(
 			renderUnknown = renderUnknown || task.EnvironmentEffect == "unknown" || containsEnvironment(task.EffectSources, "unknown")
 		}
 		component.RenderCapability = componentRenderCapability(renderBrowser, renderServer, renderUnknown)
+		if moduleRequirement != "" && renderBrowser && renderServer {
+			indivisible = "mixed"
+			diagnostics = append(diagnostics, "error: component rendering requires both browser and server values (module binding "+moduleRequirement+")")
+		}
 
 		for _, task := range tasks {
 			if task.Component != component.Name ||

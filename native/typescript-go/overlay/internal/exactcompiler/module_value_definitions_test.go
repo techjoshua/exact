@@ -45,6 +45,27 @@ func TestModuleDefinitionAndExecutionBoundaries(t *testing.T) {
 	}
 }
 
+// Render input availability follows the already-evaluated module cell, including indirect captures.
+func TestComponentRenderRequiresRetainedModuleBinding(t *testing.T) {
+	for _, test := range []struct{ name, module, render, placement string }{
+		{"eager getter", `const n=Object.freeze({get n(){return document.title}}).n;`, `<div>{n}</div>`, "client"},
+		{"helper capturing evaluated call", `function make(){return ()=>document.title}function run(){const fn=make();return fn()}const n=run();function invoke(){return n}`, `<div>{invoke()}</div>`, "client"},
+		{"neutral sibling", `const n=Object.freeze({get n(){return document.title}}).n, value="safe";`, `<div>{value}</div>`, "isomorphic"},
+		{"handler", `const n=Object.freeze({get n(){return document.title}}).n;`, `<button onClick={()=>console.log(n)}>ok</button>`, "isomorphic"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			source := test.module + `export function Page(){return()=>` + test.render + `}`
+			for _, target := range []Target{TargetClient, TargetServer} {
+				response := NewSession().Execute(Request{ID: "/virtual/component.tsx", Kind: "compile", Target: target, Source: source})
+				component := findComponent(t, response.Analysis.Components, "Page")
+				if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) || component.Placement != test.placement {
+					t.Fatalf("%s: placement=%s diagnostics=%v error=%s", target, component.Placement, response.Diagnostics, response.Error)
+				}
+			}
+		})
+	}
+}
+
 // Browser names in erased annotations must not change a component's environment availability.
 func TestBrowserTypesRemainErasedAtIslandBoundary(t *testing.T) {
 	for _, annotation := range []string{"HTMLElement", "HTMLElement|SVGElement", "typeof HTMLElement"} {
