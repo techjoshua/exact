@@ -94,7 +94,10 @@ export function EnhancementsPage(this: Component<{}>) {
 					independently. A <code>_target</code> placement does not override those roots. Duplicate
 					active roots are errors. An explicitly selected empty component waits for its own output
 					instead of falling back to another element. Peer wrappers follow source order, and
-					required context providers must precede their consumers. These choices also apply when a
+					required context providers must precede their consumers. Register the context during
+					provider setup so the next enhancement can read it immediately. If you see{' '}
+					<code>EXACT6022</code>, import the context token into the component, perform the lookup or
+					registration there, and pass the value to your helper. These choices also apply when a
 					selected component places its child through <code>_target</code>, including during
 					hydration.
 				</p>

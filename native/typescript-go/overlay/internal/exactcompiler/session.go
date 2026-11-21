@@ -756,6 +756,14 @@ func (s *Session) executeProjection(request Request, authored *authoredCheckProg
 		return response
 	}
 
+	// Resolve context imports while the checker still owns the original source parents.
+	enhancementContracts, contextDiagnostics := enhancementCallableContextContracts(sourceFile, callables)
+	if len(contextDiagnostics) != 0 {
+		response.Diagnostics = append(response.Diagnostics, contextDiagnostics...)
+		remapAuthoredLocations(&response, fileName, normalization, len(response.Diagnostics))
+		return response
+	}
+
 	// Lowering reuses authored nodes in synthesized trees whose parent links are
 	// temporarily reassigned by native transformation helpers. Restore the
 	// checker-owned tree before returning so the retained program and its
@@ -786,8 +794,6 @@ func (s *Session) executeProjection(request Request, authored *authoredCheckProg
 	if request.Target == TargetClient {
 		importedPolicy = planImportedHelperPolicy(sourceFile, generation.checker, callables.owner, components, callables.byNode)
 	}
-	// Resolve context imports while the checker still owns the original source parents.
-	enhancementContracts := enhancementCallableContextContracts(sourceFile, callables)
 	directRoots := make(map[string]struct{})
 	transformed, componentUpdates, componentInputUpdates, componentInputTaskIDs, componentRangeOutputs, artifactStructure, componentListOwners := lowerExactJSX(
 		sourceFile,

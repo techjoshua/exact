@@ -39,6 +39,7 @@ Use the [scenario catalog and traversal rules](compiler-architecture-completion-
 | A component uses a browser-only module initializer through a helper. Partitioning can omit the initializer or helper while emitting its reference. A list with setup-local aliases can also become an unusable server proxy. | Share selected dependency availability with artifact selection, preserve opaque portable component paths, and mount the original repeated owners on both sides. |
 | A component task reassigns a captured callback before forwarding a scalar through helpers. Its browser effect disappears from the caller summary. | Check captured bindings before reusing a definition's effects. Verify both the browser donor and the remaining unknown alternative on the original server task, alongside the depth-28 forwarding control. |
 | Converting a typed state field with `+` introduces an opaque dependency after setup extraction or inside a function task. | Preserve the component receiver's checked field type at the conversion. Exercise string, server, opaque and mixed inputs after extraction, and numeric state in the task transport case. |
+| A mutable context provider initializes state directly from a numeric prop. Its declaration and both edges stay unknown when one parent supplies a literal and another spreads an external input. The literal use has no standalone provider activation in the published plan. | Keep the declaration portable. Prove delivery at the selected use and qualify SSR publication, hydration and descendant updates without granting the same authority to a getter or open spread. Compare the constant-state provider and the two caller edges on both targets. |
 
 The return-site loop in `componentCallableDemand` enrolls component render returns under the `componentReturn` guard. It does not enroll every returned helper as invoked. Original Core and Theme requester cost still needs a bound consumer experiment before removing a return query. The original Core request subsequently completed on the integrated compiler at `083bed985` in 12.97 seconds, producing all 300 client and 300 server JavaScript artifacts. The earlier [forwarded getter controls](#discarded-helper-results-and-forwarded-getter-effects) demonstrate why.
 
@@ -803,17 +804,15 @@ provider the instance resolves the token during the authored lookup. A separate
 component with a local required token rendered an ambient value and raised the
 ordinary missing-context error when that value was absent.
 
-The helper-private required lookup has a delivery defect even in a standalone
-page with no peer chain. With ordinary modules preserved, server compilation
-reported no diagnostics, but the emitted page read the helper's enhancement
-descriptor at module initialization. The ordinary helper had no descriptor,
-so import failed on the first dependency field, `provides`, before the page
-could read its ambient context. Requesting all three dependency fields exceeds
-this page's runtime lookup needs. Returning empty fields would also hide real
-peer-order obligations. Under the same controls the private `hasContext` helper
-required no attachment and rendered true with the token present and false with
-it absent. Delivery of private required IDs for co-targeted enhancements remains
-open under ordinary-module preservation.
+The ordinary helper can retain a private optional lookup. With the token installed it
+renders true, and with the token absent it renders false. Required peer ordering needs
+the actual token before either component starts setup. The compiler can use a named
+import of the same default-policy token, or bind the component’s existing value re-export
+for a direct initial provider registration. If a required dependency would instead read
+metadata from an ordinary module that can be preserved verbatim, compile and check
+report `EXACT6022` at the helper call. The unsupported private-token case previously
+threw while importing the emitted page on both targets. The component can perform
+the lookup or registration itself and pass its value to ordinary code.
 
 ### Item 6 direct caller dispositions
 

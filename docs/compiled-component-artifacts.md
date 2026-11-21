@@ -449,9 +449,14 @@ remain intact. Enhancement peer ordering uses `provides` and `requires` before s
 probe metadata does not impose an ordering dependency.
 For a component whose sole ordering dependency is an ordinary helper's single read or write,
 the attachment can use a named value import of the same shared context constant. The compiler
-checks the declaration behind import aliases and re-exports. This direct path covers constants
-initialized with the public `createContext` default policy. Other dependency compositions keep
-their existing order and metadata source.
+checks the declaration behind import aliases and re-exports. For a forwarded registration,
+a named value re-export in the component module also identifies a token it can bind directly.
+An initial setup statement can pass the component directly to a synchronous helper whose body
+only calls its `setContext` method. That registration runs immediately. This direct path covers constants
+initialized with the public `createContext` default policy. If a required token is private to an
+ordinary imported helper and no binding can supply its identity, `EXACT6022` identifies the call
+before emission. Move the lookup or registration into the component and pass the selected
+value to the helper. Optional presence checks need no peer-order dependency.
 Both ordinary and wide update programs resolve that owner through the same rule. A child receipt
 can supply its owner directly, without a render-program wrapper. Programs with more than 64
 operations preserve the same ownership and cleanup behavior as smaller programs.

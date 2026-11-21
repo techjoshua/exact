@@ -134,9 +134,6 @@ export function Example(this:Component<{}>){` + control.body + `}`
 				}
 				return
 			}
-			if len(response.Diagnostics) != 0 || !strings.Contains(response.Code, "function Example") {
-				t.Fatalf("expected emitted component: %#v\n%s", response.Diagnostics, response.Code)
-			}
 			component := findComponent(t, response.Analysis.Components, "Example")
 			if len(component.Contexts) != control.physical {
 				t.Fatalf("unexpected physical effects: %#v", component.Contexts)
@@ -152,6 +149,16 @@ export function Example(this:Component<{}>){` + control.body + `}`
 			}
 			if len(tokens) != control.owned || (control.owned == 1 && tokens[0] != control.token) {
 				t.Fatalf("wrong component binding: %#v", tokens)
+			}
+			if control.owned == 0 {
+				if response.Code != "" || len(response.Diagnostics) != 1 || response.Diagnostics[0].Code != "EXACT6022" ||
+					response.Diagnostics[0].Severity != "error" || !strings.Contains(response.Diagnostics[0].Message, "context order") {
+					t.Fatal("missing source diagnostic for inaccessible token", response.Diagnostics)
+				}
+				return
+			}
+			if len(response.Diagnostics) != 0 || response.Code == "" {
+				t.Fatal("public token rejected", response.Diagnostics)
 			}
 			property := "requires"
 			if control.kind == "write" {

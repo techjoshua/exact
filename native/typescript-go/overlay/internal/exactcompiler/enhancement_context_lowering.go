@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
-	"github.com/microsoft/TypeScript/tsc/internal/checker"
 	"github.com/microsoft/TypeScript/tsc/internal/printer"
 )
 
@@ -13,6 +12,8 @@ type enhancementCallableContextContract struct {
 	effects           EnhancementContextEffects
 	dependencies      []*ast.Node
 	soleHelper        *callableFacts
+	reexportedToken   *ast.Node
+	unpublishedHelper *ast.Node
 	transparentTarget bool
 }
 
@@ -83,11 +84,29 @@ func lowerEnhancementContextContracts(
 		names = append(names, name)
 	}
 	sort.Strings(names)
+	tokenAliases := make(map[*ast.Node]string)
 	for _, name := range names {
+		contract := contracts[name]
+		if spec := contract.reexportedToken; spec != nil {
+			alias := tokenAliases[spec]
+			if alias == "" {
+				alias = allocateGeneratedName(used, "__exactEnhancementToken")
+				tokenAliases[spec] = alias
+				imported := spec.AsExportSpecifier().PropertyName
+				if imported == nil {
+					imported = spec.Name()
+				}
+				module := spec.Parent.Parent.AsExportDeclaration().ModuleSpecifier
+				slot := factory.NewImportSpecifier(false, factory.NewIdentifier(imported.Text()), factory.NewIdentifier(alias))
+				bindings := factory.NewNamedImports(factory.NewNodeList([]*ast.Node{slot}))
+				statements = append(statements, factory.NewImportDeclaration(nil, factory.NewImportClause(ast.KindUnknown, nil, bindings), factory.NewStringLiteral(module.Text(), ast.TokenFlagsNone), nil))
+			}
+			contract.effects.Provides = []string{alias}
+		}
 		statements = append(
 			statements,
 			factory.NewExpressionStatement(
-				enhancementContextAttachment(factory, name, contracts[name], attach, read),
+				enhancementContextAttachment(factory, name, contract, attach, read),
 			),
 		)
 	}
@@ -103,7 +122,8 @@ func lowerEnhancementContextContracts(
 func enhancementCallableContextContracts(
 	sourceFile *ast.SourceFile,
 	callables callableAnalysis,
-) map[string]enhancementCallableContextContract {
+) (map[string]enhancementCallableContextContract, []Diagnostic) {
+	var diagnostics []Diagnostic
 	result := make(map[string]enhancementCallableContextContract)
 	factByID := make(map[string]int, len(callables.facts))
 	for index := range callables.facts {
@@ -111,6 +131,10 @@ func enhancementCallableContextContracts(
 	}
 	memo := make(map[int]enhancementCallableContextContract)
 	visiting := make(map[int]bool)
+	ordinaryModule := func(source *ast.SourceFile) bool {
+		return source.AsNode().SubtreeFacts()&ast.SubtreeContainsJsx == 0 && callables.owner != nil && callables.owner.project != nil &&
+			len(projectComponentCandidates(callables.owner.project, source)) == 0
+	}
 	for index := range callables.facts {
 		fact := &callables.facts[index]
 		if fact.sourceFile.FileName() != sourceFile.FileName() ||
@@ -124,10 +148,17 @@ func enhancementCallableContextContracts(
 			callables.facts,
 			factByID,
 			memo,
-			visiting,
+			visiting, ordinaryModule,
 		)
 		if fact.summary.Kind == "component" && contract.soleHelper != nil && len(contract.dependencies) == 1 && enhancementCallableContextEmpty(enhancementCallableContextContract{effects: contract.effects}) && callables.owner != nil {
-			contract = directImportedContextContract(fact.sourceFile, contract, memo[factByID[contract.soleHelper.summary.ID]], callables.owner.checker)
+			contract = directImportedContextContract(fact, contract, memo[factByID[contract.soleHelper.summary.ID]], callables.owner.checker)
+		}
+		if contract.unpublishedHelper != nil && fact.summary.Kind == "component" {
+			ref := contract.unpublishedHelper
+			diagnostics = append(diagnostics, enhancementDiagnostic(sourceFile, ref, "EXACT6022",
+				"Cannot establish enhancement context order for "+fact.summary.Name+" through ordinary helper "+sourceText(sourceFile, ref)+
+					". Perform the required lookup or registration in the component with the actual context token, and pass the resulting value to the helper."))
+			continue
 		}
 		contract.transparentTarget = transparentSuppliedTargetOutput(fact.node, fact.sourceFile, callables)
 		// Optional lookup uses its authored token when invoked. It has no peer-order
@@ -140,81 +171,7 @@ func enhancementCallableContextContracts(
 		}
 		result[fact.summary.Name] = contract
 	}
-	return result
-}
-
-// Substitute a sole leaf-helper obligation only when its module binding and a
-// component value import resolve to the same shared context constant.
-func directImportedContextContract(source *ast.SourceFile, fallback, contract enhancementCallableContextContract, c *checker.Checker) enhancementCallableContextContract {
-	helper := fallback.soleHelper
-	if c == nil {
-		return fallback
-	}
-	if helper.summary.Kind == "component" || len(helper.directContext) != 1 || len(contract.dependencies) != 0 || len(contract.effects.Provides)+len(contract.effects.Requires) != 1 || len(contract.effects.OptionallyConsumes) != 0 {
-		return fallback
-	}
-	effect := helper.directContext[0]
-	symbol := helper.sourceFile.AsNode().Locals()[effect.Token]
-	binding := contextRootBinding(symbol, c)
-	if binding == nil || ast.GetNodeId(binding) != effect.rootDeclaration {
-		return fallback
-	}
-	symbol = resolvedCallableSymbol(symbol, c)
-	if symbol == nil || symbol.ValueDeclaration == nil {
-		return fallback
-	}
-	token := symbol.ValueDeclaration
-	if !ast.IsVariableDeclaration(token) || token.Parent.Flags&ast.NodeFlagsConst == 0 || token.Initializer() == nil || !ast.IsCallExpression(token.Initializer()) {
-		return fallback
-	}
-	call := token.Initializer().AsCallExpression()
-	ref, ok := resolvedCoreImportReference(call.Expression, ast.GetSourceFileOfNode(token), c)
-	if !ok || ref.moduleSpecifier != "@exactjs/core" || ref.exportName != "createContext" || call.Arguments == nil || len(call.Arguments.Nodes) > 1 {
-		return fallback
-	}
-	name := importedContextName(source, c, token)
-	if name == "" {
-		return fallback
-	}
-	if effect.Kind == "write" && len(contract.effects.Provides) == 1 && contract.effects.Provides[0] == effect.Token {
-		return enhancementCallableContextContract{effects: EnhancementContextEffects{Provides: []string{name}}}
-	}
-	if effect.Kind == "read" && len(contract.effects.Requires) == 1 && contract.effects.Requires[0] == effect.Token {
-		return enhancementCallableContextContract{effects: EnhancementContextEffects{Requires: []string{name}}}
-	}
-	return fallback
-}
-
-// Named value imports include renamed and re-exported tokens. Type-only
-// exports and target-qualified imports cannot supply this shared expression.
-func importedContextName(source *ast.SourceFile, c *checker.Checker, token *ast.Node) string {
-	for _, stmt := range source.Statements.Nodes {
-		if !ast.IsImportDeclaration(stmt) {
-			continue
-		}
-		imp := stmt.AsImportDeclaration()
-		if imp.Attributes != nil || imp.ImportClause == nil || imp.ImportClause.AsImportClause().IsTypeOnly() {
-			continue
-		}
-		bindings := imp.ImportClause.AsImportClause().NamedBindings
-		if bindings == nil || !ast.IsNamedImports(bindings) {
-			continue
-		}
-		for _, spec := range bindings.AsNamedImports().Elements.Nodes {
-			if spec.AsImportSpecifier().IsTypeOnly {
-				continue
-			}
-			symbol := c.GetSymbolAtLocation(spec.Name())
-			if symbol == nil || symbol.Flags&ast.SymbolFlagsAlias == 0 || c.GetTypeOnlyAliasDeclaration(symbol) != nil {
-				continue
-			}
-			resolved := c.GetAliasedSymbol(symbol)
-			if resolved != nil && resolved.ValueDeclaration == token {
-				return spec.Name().Text()
-			}
-		}
-	}
-	return ""
+	return result, diagnostics
 }
 
 func enhancementCallableContextForFact(
@@ -223,6 +180,7 @@ func enhancementCallableContextForFact(
 	factByID map[string]int,
 	memo map[int]enhancementCallableContextContract,
 	visiting map[int]bool,
+	ordinaryModule func(*ast.SourceFile) bool,
 ) enhancementCallableContextContract {
 	if contract, exists := memo[index]; exists {
 		return contract
@@ -234,6 +192,7 @@ func enhancementCallableContextForFact(
 	owner := facts[index].sourceFile
 	effects := []ContextEffect{}
 	var soleHelper *callableFacts
+	var unpublished *ast.Node
 	dependencies := []*ast.Node{}
 	dependencyKeys := make(map[string]struct{})
 	localVisited := make(map[int]bool)
@@ -259,7 +218,7 @@ func enhancementCallableContextForFact(
 				facts,
 				factByID,
 				memo,
-				visiting,
+				visiting, ordinaryModule,
 			)
 			if enhancementCallableContextEmpty(targetContract) {
 				continue
@@ -272,6 +231,11 @@ func enhancementCallableContextForFact(
 			reference := fact.contextReferences[edge.ID]
 			if reference == nil {
 				continue
+			}
+			// Ordinary modules may be delivered verbatim. A required dependency
+			// needs an actual component-visible token before it can be emitted.
+			if unpublished == nil && facts[targetIndex].summary.Kind != "component" && ordinaryModule(facts[targetIndex].sourceFile) {
+				unpublished = reference
 			}
 			if len(dependencies) == 0 {
 				soleHelper = &facts[targetIndex]
@@ -290,7 +254,7 @@ func enhancementCallableContextForFact(
 	contract := enhancementCallableContextContract{
 		effects:      enhancementContextEffects(effects, moduleContextTokenRoots(owner)),
 		dependencies: dependencies,
-		soleHelper:   soleHelper,
+		soleHelper:   soleHelper, unpublishedHelper: unpublished,
 	}
 	delete(visiting, index)
 	memo[index] = contract

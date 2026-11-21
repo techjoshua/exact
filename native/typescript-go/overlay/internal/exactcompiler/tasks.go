@@ -646,7 +646,7 @@ func functionTaskActivation(
 		sourceFile,
 		taskPolicyBindings,
 	)
-	if !nested && !explicit && setupCallConsumesSynchronousResult(node) {
+	if !nested && !explicit && (setupCallConsumesSynchronousResult(node) || immediateContextProviderCall(call, work, component.node, typeChecker)) {
 		return nil, nil, false
 	}
 	classified := explicit || looksLikeTaskPolicy(work, sourceFile) ||

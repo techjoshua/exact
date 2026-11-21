@@ -132,6 +132,7 @@ const Object={freeze(){throw new Error('authored freeze');},defineProperty(){thr
 export function provide(owner:Component<{}>){owner.setContext(Token,1);}`;
 		const page = `import type {Component} from '@exactjs/core';import {provide} from './helper.js';export {Token} from './context.js';
 const Reflect={get(){throw new Error('authored dependency read');}};void Reflect;
+const __exactEnhancementToken_1='local';void __exactEnhancementToken_1;
 export function Page(this:Component<{}>){provide(this);return()=> 'ready';}`;
 		await Promise.all(
 			[
@@ -152,8 +153,23 @@ export function Page(this:Component<{}>){provide(this);return()=> 'ready';}`;
 			});
 			expect(result.error).toBeUndefined();
 			expect(result.diagnostics).toEqual([]);
+			if (name === 'page') expect(result.analysis?.tasks).toEqual([]);
 			return { name, code: result.code! };
 		});
+		const replaced = compiler.request({
+			kind: 'compile',
+			configFile,
+			target,
+			root: process.cwd(),
+			diagnostics: 'semantic',
+			id: path.join(directory, 'page.ts'),
+			source: page.replace('provide(this);', 'this.setContext=()=>{document.title};provide(this);')
+		});
+		expect(replaced.error).toBeUndefined();
+		expect(replaced.diagnostics).toContainEqual(
+			expect.objectContaining({ code: 'EXACT2001', severity: 'error' })
+		);
+		expect(replaced.code ?? '').toBe('');
 		for (const result of results)
 			await writeFile(path.join(directory, result.name + '.ts'), result.code);
 		const module = await importArtifact(
@@ -165,6 +181,32 @@ export function Page(this:Component<{}>){provide(this);return()=> 'ready';}`;
 		expect(contract.requires).toEqual([]);
 		expect(contract.optionallyConsumes).toEqual([]);
 		expect(Object.isFrozen(contract.provides)).toBe(true);
+		const privateHelper = `import {createContext,type Component} from '@exactjs/core';
+const Hidden=createContext<number>('private');
+export function provide(owner:Component<{}>){owner.setContext(Hidden,1);return 'ready'}`;
+		await writeFile(path.join(directory, 'private-helper.ts'), privateHelper);
+		const privateSource = `import type {Component} from '@exactjs/core';
+import {provide} from './private-helper.js';
+export function Page(this:Component<{}>){const text=provide(this);return()=>text}`;
+		const hidden = compiler.request({
+			kind: 'compile',
+			configFile,
+			target,
+			root: process.cwd(),
+			id: path.join(directory, 'private-page.ts'),
+			source: privateSource,
+			diagnostics: 'semantic'
+		});
+		expect(hidden.error).toBeUndefined();
+		expect(hidden.diagnostics).toMatchObject([
+			{
+				code: 'EXACT6022',
+				severity: 'error',
+				start: privateSource.indexOf('provide(this)'),
+				length: 'provide'.length
+			}
+		]);
+		expect(hidden.code ?? '').toBe('');
 	});
 
 it('resolves a helper-private optional token without rewriting or attaching to the helper', async () => {
