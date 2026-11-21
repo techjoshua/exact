@@ -318,6 +318,10 @@ export function TasksPage(this: Component<{}>) {
 					setup and update it inside the task.
 				</p>
 				<p>
+					Call a helper on the client if it uses a value initialized from the browser. Then pass
+					the needed data to the server task.
+				</p>
+				<p>
 					A helper can update a plain object through its getters and setters. To send that result
 					back to the client, assign it to a state field in the task, for example
 					<code>this.state.value = apply(input).value</code>. A task can also pass an object literal

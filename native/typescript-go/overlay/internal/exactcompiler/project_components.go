@@ -976,6 +976,7 @@ func materializeProjectComponentSource(
 		aliases,
 		reads,
 	)
+	availability := &moduleValueAvailability{checker: typeChecker, owner: callables.owner, placements: make(map[*ast.Symbol]string)}
 	tasks := collectTasks(
 		dependency,
 		typeChecker,
@@ -983,6 +984,7 @@ func materializeProjectComponentSource(
 		writes,
 		reactive,
 		callables,
+		availability,
 	)
 	if normalization, exists := project.normalizations[project.fs.canonical(dependency.FileName())]; exists && normalization.text == dependency.Text() {
 		attachNormalizedTaskOrigins(tasks, dependency, normalization)
@@ -1006,7 +1008,7 @@ func materializeProjectComponentSource(
 		typeChecker,
 		nodeIDs,
 		nil,
-		&moduleValueAvailability{checker: typeChecker, owner: callables.owner, placements: make(map[*ast.Symbol]string)},
+		availability,
 		projectComponentRenders(project, dependency),
 	)
 	// Another parent may later demand a different component in the same file.

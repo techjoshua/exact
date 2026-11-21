@@ -349,6 +349,10 @@ Passing a function such as `save(() => document.title)` is a compile-time error 
 
 An invoked server task can pass a captured prop to an ordinary helper and assign its result to component state. The executor reads the prop value supplied with that invocation. A read such as `props.title` sends only the selected title, even if another prop is a callback. To use a function-valued prop, call it on the client and send its data. Calling `props.read()` in a server task dispatched by the client would require transmitting the callback.
 
+A task can call a module helper when its module bindings are available on that task's target.
+For a helper that reads a value initialized from the browser, call the helper on the client and
+pass the needed data to the server task.
+
 Server continuation collection mutations require a statically known Array, Map or Set receiver.
 A proven array mutator publishes the complete array at its known state path. The varying set of
 edited indices does not broaden that path authority. An `any` or `unknown` receiver cannot establish the collection publication contract. Preserve the

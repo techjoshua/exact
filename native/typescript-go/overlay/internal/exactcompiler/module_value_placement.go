@@ -85,3 +85,32 @@ func (availability *moduleValueAvailability) componentReferencePlacement(node *a
 	}
 	return availability.placement(symbol)
 }
+
+// taskCallBindingRequirement carries the real module binding into task placement.
+// A direct Call can refer to code that target-local module pruning would otherwise
+// erase. This does not execute the module initializer in the task.
+func (availability *moduleValueAvailability) taskCallBindingRequirement(work, operation *ast.Node, name string) (EnvironmentEffectSource, bool) {
+	if availability == nil || availability.owner == nil || availability.owner.values == nil || !nodeInside(operation, work.Body()) {
+		return EnvironmentEffectSource{}, false
+	}
+	expression := unwrapSourceCallableReference(operation.Expression())
+	if expression == nil || !ast.IsIdentifier(expression) {
+		return EnvironmentEffectSource{}, false
+	}
+	symbol := availability.checker.GetSymbolAtLocation(expression)
+	var environment string
+	switch availability.componentReferencePlacement(expression, symbol) {
+	case "client":
+		environment = "browser"
+	case "server":
+		environment = "server"
+	default:
+		return EnvironmentEffectSource{}, false
+	}
+	// The summary may retain calls from lexically unreachable branches.
+	query := sourceValueQuery{owner: availability.owner.values, executable: availability.owner, remaining: 4096}
+	if possible, _ := query.reachableWithin(operation, work.Body(), nil); !possible {
+		return EnvironmentEffectSource{}, false
+	}
+	return environmentSource(environment, "module binding "+expression.Text(), name), true
+}

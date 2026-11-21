@@ -121,3 +121,48 @@ func TestModuleOptionalAbsentInvocationRetainsFallback(t *testing.T) {
 		})
 	}
 }
+
+// Task placement must retain the same executable dependency as module pruning.
+func TestComponentTaskRequiresRetainedModuleHelper(t *testing.T) {
+	const portable = "const key=Symbol.for('selected');"
+	const browser = "const source={get name(){void document.title;return 'selected'}};const key=Symbol.for(source.name);"
+	for _, row := range []struct {
+		name, module, selected, realm string
+		needsBrowser, refused         bool
+	}{
+		{"portable", portable, "read(fields)", "server", false, false},
+		{"pruned browser helper", browser, "read(fields)", "server", true, true},
+		{"forwarded pruned helper", browser, "forward(fields)", "server", true, true},
+		{"receiver available in browser task", browser, "read(fields)", "client", true, false},
+		{"unrelated eager binding", browser, "17", "server", false, false},
+	} {
+		for _, target := range []Target{TargetClient, TargetServer} {
+			t.Run(row.name+"/"+string(target), func(t *testing.T) {
+				source := `import {TaskContext,type Component} from '@exactjs/core';` + row.module + `
+function read(value:object){return Object.getOwnPropertyDescriptor(value,key)?.value}
+function forward(value:object){return read(value)}
+export function Page(this:Component<{result:number}>){
+	this.state.result=0;
+	const run=(task:TaskContext=TaskContext.` + row.realm + `().blocking())=>{
+		void task;
+		const fields={[Symbol.for('selected')]:17};
+		const result=` + row.selected + `;
+		this.state.result=typeof result==='number'?result:-1;
+	};
+	run();return()=> <output>{this.state.result}</output>;
+}`
+				result := NewSession().Execute(Request{Kind: "compile", ID: "task-module-reference.tsx", Source: source, Target: target, Diagnostics: "semantic"})
+				if result.Error != "" || len(result.Analysis.Tasks) != 1 || result.Analysis.Tasks[0].BrowserEffects != row.needsBrowser {
+					t.Fatalf("task lost module availability: %s %#v", result.Error, result.Analysis.Tasks)
+				}
+				if row.refused {
+					if !hasDiagnosticCode(result.Diagnostics, "EXACT2001") || result.Code != "" {
+						t.Fatalf("task retained a server call to an unavailable module helper: %#v", result.Diagnostics)
+					}
+				} else if hasErrorDiagnostic(result.Diagnostics) || result.Code == "" {
+					t.Fatalf("available task no longer compiles: %#v", result.Diagnostics)
+				}
+			})
+		}
+	}
+}

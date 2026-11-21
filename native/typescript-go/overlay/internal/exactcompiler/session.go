@@ -462,6 +462,12 @@ func (s *Session) executeProjection(request Request, authored *authoredCheckProg
 		generation.checker,
 		request,
 	)
+	// The independent authored type proof retains the neutral tree and all its module
+	// bindings. The executable request has already checked which bindings it can use.
+	var availability *moduleValueAvailability
+	if authored == nil || request.Kind != "check" {
+		availability = &moduleValueAvailability{checker: generation.checker, owner: callables.owner, placements: make(map[*ast.Symbol]string)}
+	}
 	tasks := collectTasks(
 		sourceFile,
 		generation.checker,
@@ -469,6 +475,7 @@ func (s *Session) executeProjection(request Request, authored *authoredCheckProg
 		stateWrites,
 		reactiveBindings,
 		callables,
+		availability,
 		analysisFacts,
 	)
 	if gap := taskActivationCoverageError(tasks, sourceFile, generation.checker); gap != "" {
@@ -501,12 +508,6 @@ func (s *Session) executeProjection(request Request, authored *authoredCheckProg
 	propagateComponentSurfacePlans(sourceFile, components, callables, generation.checker)
 	planTaskLocalization(sourceFile, tasks, intlPlan)
 	operations := invokedTaskOperations(tasks, sourceFile, reactiveBindings, generation.checker)
-	// The independent authored type proof retains the neutral tree and all its module
-	// bindings. The executable request has already checked which bindings it can use.
-	var availability *moduleValueAvailability
-	if authored == nil || request.Kind != "check" {
-		availability = &moduleValueAvailability{checker: generation.checker, owner: callables.owner, placements: make(map[*ast.Symbol]string)}
-	}
 	components = analyzeComponents(
 		sourceFile,
 		components,
