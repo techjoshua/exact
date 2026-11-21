@@ -130,6 +130,16 @@ original 131-family inventory. Group counts record the executed suite, while
 public qualification requires the component and operation evidence for each
 family.
 
+The full `b13a851cc` checkpoint passes 1,955 of 2,337 groups. Seven former
+failures pass, both new groups pass, and the previous failing alias control
+is replaced. The overwritten descriptor callee still fails. One further
+previous pass loses its generated client artifact. A repeated `var` binding
+has independent browser and server initializers. The server-side field load
+has accessor uncertainty, while native pruning already keeps the matching
+initializer and preserves the shared binding. The host diagnostic had applied
+the opaque invocation rule to that accessor uncertainty. The qualification
+keeps the independently pruned initializer under rules 1, 2 and 6.
+
 The authored root factory passes its parameter to a real component through the paired SDK artifacts. The binding lifecycle and collection identity suites pass all 45 cases with the wrapped Map correction. The root factory control renders distinct inputs, adopts the server DOM under strict hydration and updates the retained owner on new props. This replaces the native assertion about a particular receipt helper for a declaration without a component body.
 
 The focused `7a85c2499` checkpoint passed 22 of 28 native groups, including the assigned-getter and recursive-projection controls. Six staged-source failures reproduced from `43fa437ca`. The checkpoint passed 21 paired SDK cases covering forwarded setup, context, retained props and host rendering. Direct browser and server task compilation also passed the scalar-or-thenable checking cases with rebuilt Core declarations. At this checkpoint, the canonical cancellation corpus reached the 30-second compile deadline.
@@ -462,6 +472,11 @@ library artifacts render stored callbacks on either target and route a reached
 browser callback or getter to the client. The prior eager descriptor getter and
 Create-target cases still depend on separate source coverage. The unchanged Intl
 build still reaches the `components.ts` deadline and emits neither target.
+The ordinary analysis of an earlier authored replacement exposed a premature
+summary requirement during that optional callee observation. The original binder
+still records its input association. The writer source requires the method body
+when its graph reader adopts the source, and ordinary collection keeps the
+authored call when native admission declines.
 
 Acceptance also covers mounted reads, control bindings, lifecycle, portals, registry identity, task settlement, protected transport, paired artifact selection, selected host implementations and source inspection. Use the existing [composition corpus](component-composition-corpus.md) and [package decision audit](#requester-disposition-against-the-component-contracts) for their scoped evidence. Treat interrupted suites and original packages that still reach the request deadline as open.
 

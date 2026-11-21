@@ -43,11 +43,9 @@ func (work *callableEffectWork) recordWriterMethodInputs(facts []callableFacts, 
 	if !known {
 		return
 	}
-	consumer := work.memberNodes[source.request.consumer]
 	edge := fmt.Sprintf("%s:invoked:%d:%d", source.request.edge, body.Pos(), len(packet.methods))
-	work.requireStagedSummary(facts, consumer, target, edge, source.parent.producer.operation, source.parent.cut)
 	requirement := sourceStagedWriterInvocation{alternative: alternative, declaration: body, edge: edge}
-	// Original summary membership precedes the real receiver/argument binder.
+	// Preserve the original binder's observation for a later source adopter.
 	inputs, delivered := q.bindStagedWriterMethodInputs(alternative, source.parent.producer.operation)
 	requirement.inputs = inputs
 	if current := q.stagedWriter.currentInput; current != nil && current.writerInputs != nil {
@@ -61,8 +59,8 @@ func (work *callableEffectWork) recordWriterMethodInputs(facts []callableFacts, 
 }
 
 // adoptWriterSourceInputs transfers graph-local input receipts onto the already
-// issued operation. Required membership was registered before the original B.
-// It does not reacquire a callee, receiver, argument or creating invocation.
+// issued operation and requires its selected method summaries. An unadopted
+// candidate leaves the original Call collector responsible for its summary.
 func (work *callableEffectWork) adoptWriterSourceInputs(facts []callableFacts, id sourceStagedOperationID) {
 	state := &work.operations[id.index]
 	source := work.operationRecipes[state.key].writer
@@ -71,12 +69,15 @@ func (work *callableEffectWork) adoptWriterSourceInputs(facts []callableFacts, i
 		return
 	}
 	state.writerProjectionSeen = true
+	consumer := work.memberNodes[source.request.consumer]
 	for _, method := range packet.methods {
 		present := false
 		for _, prior := range state.writerMethods {
 			present = present || sameOperationAlternative(prior.alternative, method.alternative)
 		}
 		if !present {
+			producer := work.memberNodes[method.declaration]
+			work.requireStagedSummary(facts, consumer, producer, method.edge, source.parent.producer.operation, source.parent.cut)
 			state.writerMethods = append(state.writerMethods, method)
 		}
 	}
