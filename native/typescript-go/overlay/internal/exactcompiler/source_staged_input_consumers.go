@@ -303,7 +303,7 @@ func (work *callableEffectWork) prepareSourceInputConsumerDecisions(facts []call
 				}
 				symbol := owner.checker.GetSymbolAtLocation(operation.Expression())
 				definition := prepareDefinitionMAYCall(fact, &facts[target], operation, symbol, owner.checker, owner, parent)
-				if definition != nil && !definition.opaque {
+				if definition != nil && !definition.opaque && forwardsDefinitionResult(operation) {
 					continue
 				}
 			}

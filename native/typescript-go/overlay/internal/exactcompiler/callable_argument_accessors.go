@@ -251,6 +251,21 @@ func closedDefinitionEffectScope(callee *ast.Node, calleeFormals map[ast.SymbolI
 	return closed
 }
 
+// An input binder can reuse definition effects only while the result is
+// forwarded. Storing it in an object or branching before returning it keeps
+// the invocation-specific consumer and its mutable captures.
+func forwardsDefinitionResult(call *ast.Node) bool {
+	for node := call; node.Parent != nil; node = node.Parent {
+		parent := node.Parent
+		if ast.IsParenthesizedExpression(parent) || strictComparisonOperand(node) ||
+			ast.IsBinaryExpression(parent) && parent.AsBinaryExpression().OperatorToken.Kind == ast.KindPlusToken {
+			continue
+		}
+		return ast.IsReturnStatement(parent) || ast.IsArrowFunction(parent) && parent.Body() == node
+	}
+	return false
+}
+
 // Strict equality evaluates both operands without coercing either result.
 func strictComparisonOperand(node *ast.Node) bool {
 	if node.Parent == nil || !ast.IsBinaryExpression(node.Parent) {
