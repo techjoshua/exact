@@ -1659,12 +1659,10 @@ func TestSessionSemanticallyValidatesGeneratedNativeArtifact(t *testing.T) {
 }
 
 func TestSessionDiscoversComponentDeclarationSignals(t *testing.T) {
-	root, config := formsSourceFixture(t)
 	response := NewSession().Execute(Request{
-		ID: filepath.Join(root, "component.tsx"), ConfigFile: config,
+		ID:   "component.tsx",
 		Kind: "compile",
 		Source: `
-			import type {Component} from "@exactjs/core";
 			export function Named() {
 				return () => <main />;
 			}
@@ -7750,96 +7748,36 @@ func TestSessionEmitsEnhancementContextTokenContracts(t *testing.T) {
 	}
 }
 
+// The component owns the optional lookup and provider registration. Its
+// ordinary imported helper receives only the value needed for its computation.
 func TestSessionComposesImportedCallableEnhancementContexts(t *testing.T) {
-	root := t.TempDir()
-	configFile := filepath.Join(root, "tsconfig.json")
-	if err := os.WriteFile(
-		configFile,
-		[]byte(`{
-			"compilerOptions": {
-				"module": "ESNext",
-				"moduleResolution": "Bundler",
-				"target": "ES2022",
-				"jsx": "preserve"
-			},
-			"include": ["*.ts", "*.tsx"]
-		}`),
-		0o600,
-	); err != nil {
-		t.Fatal(err)
-	}
-	contextsFile := filepath.Join(root, "contexts.ts")
-	if err := os.WriteFile(
-		contextsFile,
-		[]byte(`export const HiddenContext = { id: Symbol("hidden") };`),
-		0o600,
-	); err != nil {
-		t.Fatal(err)
-	}
-	helperFile := filepath.Join(root, "helper.ts")
-	helperSource := `
-		import { HiddenContext } from "./contexts.js";
-		export function readHidden(owner: Component<{}>) {
-			if (!owner.hasContext(HiddenContext)) return;
-			owner.getContext(HiddenContext);
-		}
-		export function publishHidden(owner: Component<{}>) {
-			owner.setContext(HiddenContext, "ready");
-		}
-	`
-	if err := os.WriteFile(helperFile, []byte(helperSource), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	entryFile := filepath.Join(root, "entry.tsx")
-	entrySource := `
-		import { publishHidden, readHidden } from "./helper.js";
-		export function Consumer(this: Component<{}>) {
-			readHidden(this);
-			publishHidden(this);
-			return () => <button />;
-		}
-	`
-	if err := os.WriteFile(entryFile, []byte(entrySource), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	session := NewSession()
-	helper := session.Execute(Request{
-		ID: helperFile, Root: root, ConfigFile: configFile,
-		Kind: "compile", Source: helperSource, Target: TargetClient,
-	})
-	if helper.Error != "" {
-		t.Fatal(helper.Error)
-	}
-	entry := session.Execute(Request{
-		ID: entryFile, Root: root, ConfigFile: configFile,
-		Kind: "compile", Source: entrySource, Target: TargetClient,
-	})
-	if entry.Error != "" {
-		t.Fatal(entry.Error)
-	}
-	helperCode := strings.Join(strings.Fields(helper.Code), "")
-	for _, expected := range []string{
-		`__exactAttachEnhancementContexts_1(readHidden,`,
-		`optionallyConsumes:[HiddenContext.id]`,
-		`__exactAttachEnhancementContexts_1(publishHidden,`,
-		`provides:[HiddenContext.id]`,
+	root, config := formsSourceFixture(t)
+	for file, source := range map[string]string{
+		"contexts.ts": `import {createContext} from '@exactjs/core';export const Status=createContext<string>('status');export const Result=createContext<string>('result');`,
+		"helper.ts":   `export function label(present:boolean){return present?'available':'absent'}`,
 	} {
-		if !strings.Contains(helperCode, expected) {
-			t.Fatalf("helper output is missing %q:\n%s", expected, helper.Code)
+		if err := os.WriteFile(filepath.Join(root, file), []byte(source), 0600); err != nil {
+			t.Fatal(err)
 		}
 	}
-	entryCode := strings.Join(strings.Fields(entry.Code), "")
-	for _, expected := range []string{
-		`__exactReadEnhancementDependency_1(readHidden,"optionallyConsumes")`,
-		`__exactReadEnhancementDependency_1(publishHidden,"provides")`,
-	} {
-		if !strings.Contains(entryCode, expected) {
-			t.Fatalf(
-				"component output is missing %q:\ncode=%q\nanalysis=%#v",
-				expected,
-				entry.Code,
-				entry.Analysis,
-			)
+	const source = `import type {Component} from '@exactjs/core';
+import {Status,Result} from './contexts.js';
+import {label} from './helper.js';
+export function Consumer(this:Component<{}>){
+	const value=label(this.hasContext(Status));
+	this.setContext(Result,value);
+	return()=> <output>{value}</output>;
+}`
+	for _, target := range []Target{TargetClient, TargetServer} {
+		r := formsCompileSource(t, root, config, source, target)
+		if hasErrorDiagnostic(r.Diagnostics) || r.Code == "" {
+			t.Fatal(target, formsDiagnosticDetails(r.Diagnostics))
+		}
+		contexts := findComponent(t, r.Analysis.Components, "Consumer").EnhancementContexts
+		if len(contexts.OptionallyConsumes) != 1 || contexts.OptionallyConsumes[0] != "Status" ||
+			len(contexts.Provides) != 1 || contexts.Provides[0] != "Result" || len(contexts.Requires) != 0 ||
+			strings.Contains(r.Code, "readCompiledEnhancementContextDependency") {
+			t.Fatalf("%s: unexpected component or helper context requirements: %#v", target, contexts)
 		}
 	}
 }
