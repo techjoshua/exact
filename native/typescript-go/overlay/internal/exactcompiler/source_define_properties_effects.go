@@ -234,6 +234,9 @@ func (q *sourceValueQuery) retainSoleDescriptorMapGetter(node *ast.Node, acquire
 	}
 	call := node.AsCallExpression()
 	callee := unwrapSourceCallableReference(call.Expression)
+	if !ast.IsAccessExpression(callee) {
+		return false
+	}
 	_, method := accessorReceiver(callee)
 	if method != "defineProperties" {
 		return false // Adapters have their own original argument vector.

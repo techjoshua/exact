@@ -179,6 +179,16 @@ The remaining 376 failing groups map to the historical inventory. That count
 records exercised native groups, while each family still needs qualification
 against its actual component consumer.
 
+The full `6d52397d7` checkpoint passes 1,962 of 2,337 groups. The getter
+recursion and getter-returned-method emission groups recover. A client
+TypeScript erasure process was killed during the reassigned-callable group.
+Both targets pass on the same frozen binary in isolation, leaving 374
+reproduced failures from the historical inventory. A separate paired
+adapter task exposed a native panic when it called a saved
+`Object.defineProperties` alias. The original Get rule now requires direct
+member syntax before adding descriptor-map effects. Both targets retain the
+portable saved-call path under rules 2 and 4.
+
 The authored root factory passes its parameter to a real component through the paired SDK artifacts. The binding lifecycle and collection identity suites pass all 45 cases with the wrapped Map correction. The root factory control renders distinct inputs, adopts the server DOM under strict hydration and updates the retained owner on new props. This replaces the native assertion about a particular receipt helper for a declaration without a component body.
 
 The focused `7a85c2499` checkpoint passed 22 of 28 native groups, including the assigned-getter and recursive-projection controls. Six staged-source failures reproduced from `43fa437ca`. The checkpoint passed 21 paired SDK cases covering forwarded setup, context, retained props and host rendering. Direct browser and server task compilation also passed the scalar-or-thenable checking cases with rebuilt Core declarations. At this checkpoint, the canonical cancellation corpus reached the 30-second compile deadline.

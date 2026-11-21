@@ -161,12 +161,16 @@ export async function verifyCompilerDiagnostics(
 /** Keeps an eager browser Get in the task summary after host executable selection. */
 async function verifyDescriptorMapTaskPlacement(adapter: 'vite' | 'webpack' | 'bun', root: string) {
 	const entry = path.join(root, 'entry.tsx');
-	const source = (value: string) => `import {TaskContext,type Component} from '@exactjs/core';
+	const source = (
+		value: string,
+		saved = false
+	) => `import {TaskContext,type Component} from '@exactjs/core';
 export function Page(this:Component<{label:string}>) {
 	this.state.label='initial';
 	const run=(task:TaskContext=TaskContext.server().blocking())=>{
 		void task;
-		const record=Object.defineProperties({value:'before'},{get value(){return {value:${value}}}});
+		${saved ? 'const define = Object.defineProperties;' : ''}
+		const record=${saved ? 'define' : 'Object.defineProperties'}({value:'before'},{get value(){return {value:${value}}}});
 		this.state.label=record.value;
 	};
 	run();
@@ -179,6 +183,8 @@ export function Page(this:Component<{label:string}>) {
 			/EXACT2001.*references browser-only globals/
 		);
 		await writeFile(entry, source("'ready'"));
+		await build(adapter, root, target);
+		await writeFile(entry, source("'ready'", true));
 		await build(adapter, root, target);
 	}
 }
