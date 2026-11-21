@@ -98,7 +98,9 @@ func TestPatternFormalRestDefaultEffects(t *testing.T) {
 
 func TestPatternFormalDefaultUnknownEffect(t *testing.T) {
 	source := `declare function foreign():string;function read({inner}:{inner:{value:string}},value=inner.value){return value}/** @exact pure */ export function run(flag:boolean){return [read][0]!({inner:{get value(){document.title;return foreign()}}},flag?undefined:"safe")}`
-	response := NewSession().Execute(Request{Kind: "analyze", ID: "/virtual/pattern-default-unknown.ts", Source: source, Diagnostics: "semantic"})
+	root, config := formsSourceFixture(t)
+	source += `import {type Component} from '@exactjs/core';export function Page(this:Component<{}>, props:{flag:boolean}){return()=> <button onClick={()=>run(props.flag)}>read</button>}`
+	response := formsCompileSource(t, root, config, source, TargetClient)
 	if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) {
 		t.Fatal(response.Error, response.Diagnostics)
 	}

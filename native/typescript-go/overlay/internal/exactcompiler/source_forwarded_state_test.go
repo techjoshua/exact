@@ -8,6 +8,21 @@ import (
 	"testing"
 )
 
+// forwardedStateComponent gives the helper an event that can mutate two
+// different component-state paths, including through a reordered argument.
+func forwardedStateComponent(t *testing.T, source, arguments string) Response {
+	t.Helper()
+	root, config := formsSourceFixture(t)
+	source += `
+import {type Component} from '@exactjs/core';
+type Box={value:number,inner:{value:number}};
+export function Page(this:Component<{left:Box,right:Box}>){
+ this.state={left:{value:0,inner:{value:0}},right:{value:1,inner:{value:1}}};
+ return()=> <button onClick={()=>run(` + arguments + `)}>{this.state.right.value}</button>
+}`
+	return formsCompileSource(t, root, config, source, TargetClient)
+}
+
 // Source effect traversal must preserve the caller's parameter relation. A known
 // write must not gain an unrelated unknown receiver when helpers forward it.
 func TestForwardedStateEffectBindings(t *testing.T) {
@@ -26,7 +41,7 @@ func TestForwardedStateEffectBindings(t *testing.T) {
 		{"ordinary-object", `const ordinary={value:0};function write(value:{value:number}){value.value=1}export function run(left:{value:number},right:{value:number}){write(ordinary)}`, nil, "value"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			response := NewSession().Execute(Request{Kind: "analyze", ID: "/virtual/forwarded-state.ts", Source: test.source, Diagnostics: "semantic"})
+			response := forwardedStateComponent(t, test.source, "this.state.left,this.state.right")
 			if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) {
 				t.Fatalf("analysis: %s %#v", response.Error, response.Diagnostics)
 			}
@@ -57,7 +72,7 @@ func TestForwardedStateEffectBindings(t *testing.T) {
 func TestForwardedStateUnknownAlternative(t *testing.T) {
 	for _, argument := range []string{"flag?right:ordinary", "flag?ordinary:right"} {
 		source := `const ordinary={value:0};function write(value:{value:number}){value.value=1}function forward(value:{value:number}){write(value)}export function run(left:{value:number},right:{value:number},flag:boolean){forward(` + argument + `)}`
-		response := NewSession().Execute(Request{Kind: "analyze", ID: "/virtual/forwarded-alternative.ts", Source: source, Diagnostics: "semantic"})
+		response := forwardedStateComponent(t, source, "this.state.left,this.state.right,this.state.left.value>0")
 		if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) {
 			t.Fatalf("analysis: %s %#v", response.Error, response.Diagnostics)
 		}

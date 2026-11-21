@@ -158,7 +158,7 @@ func TestParameterHelperCallerPair(t *testing.T) {
 								for _, call := range caller.fieldCalls {
 									if call.operation == caller.fieldEdgeOperations[edge.ID] && call.target == target.node {
 										for _, outcome := range call.outcomes {
-											if outcome.demand == *source.fieldOrigin {
+											if sameFieldObligation(outcome.demand, *source.fieldOrigin) {
 												count++
 											}
 										}
