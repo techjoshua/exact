@@ -206,6 +206,7 @@ func (query *sourceValueQuery) memberValuesAtGetWithStandard(origin *ast.Node, p
 			sources := query.lexicalGetterWriterSources(operation.sources, get, bindings, result)
 			indexes = query.occurrenceSourceViewIn(origin, result, sources, sourceIndexes[:0])
 		}
+		constructorTask := query.promiseConstructorTaskPlacement(get, projection, name, mode)
 		for _, index := range indexes {
 			// The existing source-relative producer and occurrence checks below decide
 			// reachability. Membership in this view alone never proves a write performed.
@@ -510,6 +511,12 @@ func (query *sourceValueQuery) memberValuesAtGetWithStandard(origin *ast.Node, p
 					callee := call.Expression()
 					_, method := restrictedInvocationMember(callee, query.owner.checker)
 					if method != "defineProperty" && !(ast.IsIdentifier(callee) && query.descriptorWriterCall(call.AsCallExpression())) {
+						continue
+					}
+				}
+				if constructorTask != "" {
+					writerTask := query.owner.sourceTaskBodyPlacement(call)
+					if writerTask != "" && writerTask != constructorTask {
 						continue
 					}
 				}

@@ -543,3 +543,75 @@ export function Page(props:{selected:boolean;foreign:unknown}){
 		}
 	}
 }
+
+// A prototype writer applies only to its execution target. The other task's
+// selected constructor Get retains its own placement and original state write.
+func TestPublicAwaitConstructorWriterTaskPlacement(t *testing.T) {
+	const imports = `import {TaskContext,type Component} from '@exactjs/core';`
+	const getter = `Object.defineProperty(Promise.prototype,'constructor',{configurable:true,get(){void document.title;return Promise}});`
+	const reader = `async function make(){return 'value'};this.state.label=await make()`
+	const writer = `const previous=Object.getOwnPropertyDescriptor(Promise.prototype,'constructor');try{` + getter + `async function create(){return 'own'};this.state.label=await create()}finally{if(previous)Object.defineProperty(Promise.prototype,'constructor',previous);else Reflect.deleteProperty(Promise.prototype,'constructor')}`
+	// Optimistic work uses the invoking browser even for a server task.
+	const optimistic = `task.optimistic(()=>{` + getter + `});this.state.label='server'`
+	component := func(name, task, body string, placement Target) string {
+		return `export function ` + name + `(this:Component<{label:string}>){this.state.label='';const ` + task + `=async(task:TaskContext=TaskContext.` + string(placement) + `())=>{` + body + `};return()=> <button onClick={()=>void ` + task + `() }>{this.state.label}</button>}`
+	}
+	for _, row := range []struct {
+		name, write           string
+		reader, writer        Target
+		sameFile              bool
+		readDonor, writeDonor bool
+	}{
+		{"imported-client-writer", writer, TargetServer, TargetClient, false, false, true},
+		{"same-file-client-writer", writer, TargetServer, TargetClient, true, false, true},
+		{"same-realm-server-writer", writer, TargetServer, TargetServer, true, true, true},
+		{"same-realm-optimistic-writer", optimistic, TargetClient, TargetServer, true, true, false},
+	} {
+		t.Run(row.name, func(t *testing.T) {
+			page := imports + component("Page", "read", reader, row.reader)
+			peer := component("Peer", "write", row.write, row.writer)
+			if row.sameFile {
+				page += "\n" + peer
+			} else {
+				page = `export {Peer} from './peer.js';` + page
+			}
+			f := newPublicAwaitRequiredFixture(t, page)
+			if !row.sameFile {
+				f.files["peer.tsx"] = imports + peer
+				if err := os.WriteFile(f.request("compile", "peer.tsx").ID, []byte(imports+peer), 0600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			for _, target := range []Target{TargetClient, TargetServer} {
+				session := NewSession()
+				compile := func(file string, denied bool) Response {
+					t.Helper()
+					request := f.request("compile", file)
+					request.Target = target
+					r := session.Execute(request)
+					if r.Error != "" || hasErrorDiagnostic(r.Diagnostics) != denied || (r.Code == "") != denied {
+						t.Fatal(target, r.Error, r.Diagnostics)
+					}
+					return r
+				}
+				check := func(r Response, name string, browser bool) {
+					t.Helper()
+					c := findCallable(t, r.Analysis.Callables, name)
+					got := false
+					for _, effect := range c.EffectSources {
+						got = got || effect.Environment == "browser" && strings.Contains(effect.Description, "document")
+					}
+					if got != browser {
+						t.Fatal(target, name, got, c.EffectSources)
+					}
+				}
+				r := compile("entry.tsx", row.reader == TargetServer && row.readDonor || row.sameFile && row.writer == TargetServer && row.writeDonor)
+				check(r, "read", row.readDonor)
+				if !row.sameFile {
+					r = compile("peer.tsx", row.writer == TargetServer && row.writeDonor)
+				}
+				check(r, "write", row.writeDonor)
+			}
+		})
+	}
+}

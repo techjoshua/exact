@@ -1468,6 +1468,12 @@ roles. Ordinary same-shaped callbacks and replaced parameters keep their own beh
 source-only binding preserves argument Get and Throw for both roles and adds nested assimilation
 only for resolve; it issues no normal body entry, fulfilled value or reusable cached authority.
 
+An acquired native Promise's constructor Get considers descriptor writes on the reader's
+execution target. The writer lookup omits an explicitly placed component task on the opposite
+target when both source occurrences belong to task bodies. Task defaults, keys, and server
+optimistic callbacks retain their caller-side analysis. Each writer still owns its original
+descriptor evaluation and placement effects.
+
 Ordinary invocation analysis shares source acquisition and input binding across direct calls,
 `call`, `apply`, `bind`, immutable aliases and finite returned or projected callables. Known source
 bodies retain their environment, receiver, arguments and creating scopes independently of extra

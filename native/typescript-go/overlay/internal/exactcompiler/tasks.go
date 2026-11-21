@@ -1224,3 +1224,31 @@ func (owner *sourceValueOwner) inertTaskPolicyParameter(work *ast.Node, allowLit
 	}
 	return parameter
 }
+
+// sourceTaskBodyPlacement identifies the original work of a directly placed
+// component task. Defaults and keys run at the caller. Optimistic callbacks
+// in server tasks run in the browser prelude and need that separate owner.
+func (owner *sourceValueOwner) sourceTaskBodyPlacement(operation *ast.Node) string {
+	insideOptimistic := false
+	for node := operation; node != nil; node = node.Parent {
+		if ast.IsCallExpression(node) && node != operation {
+			insideOptimistic = insideOptimistic || isTaskOptimisticCapabilityCall(node, owner.checker)
+		}
+		if !ast.IsFunctionLike(node) || owner.inertTaskPolicyParameter(node, true) == nil {
+			continue
+		}
+		body := node.Body()
+		if body == nil || operation.Pos() < body.Pos() || operation.End() > body.End() {
+			return ""
+		}
+		switch client, server := taskPolicyFacetCount(node, "client"), taskPolicyFacetCount(node, "server"); {
+		case client == 1 && server == 0:
+			return "client"
+		case client == 0 && server == 1 && !insideOptimistic:
+			return "server"
+		default:
+			return ""
+		}
+	}
+	return ""
+}

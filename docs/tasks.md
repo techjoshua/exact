@@ -687,6 +687,10 @@ task does not make Suspense wait for it. A client-only task has no server genera
 its status is idle, with `pending: false` and `pendingCount: 0`. After hydration, its live status
 reflects client-side activations.
 
+Placement analysis follows the side that executes each task body. When an awaited Promise
+reads its constructor, a descriptor installed by a client-only task affects browser work.
+The compiler still considers possible writes from the awaited task's own execution target.
+
 A browser task can await a server child that invokes a server-only helper, then use the returned data in the browser. The caller evaluates the child’s arguments before dispatch. A getter used to prepare an argument must therefore run on the caller’s side.
 
 When a server task handles an interaction, its child task facades belong to that

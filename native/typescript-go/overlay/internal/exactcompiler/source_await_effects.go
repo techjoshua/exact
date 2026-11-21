@@ -326,3 +326,18 @@ func (query *sourceValueQuery) currentAwaitSource(operation *ast.Node) bool {
 	source := ast.GetSourceFileOfNode(operation)
 	return source != nil && query.owner.program.GetSourceFile(source.FileName()) == source
 }
+
+// promiseConstructorTaskPlacement limits realm separation to the selected
+// constructor Get of an acquired Promise. The source writer still executes at
+// its original task site and keeps its own descriptor and conversion effects.
+func (query *sourceValueQuery) promiseConstructorTaskPlacement(get *sourceGetInputs, projection []string, name string, mode accessorTraversal) string {
+	if mode != accessorAcquire || name != "" || len(projection) != 1 || projection[0] != "constructor" ||
+		get == nil || get.operation == nil || get.receiver.native == nil {
+		return ""
+	}
+	switch get.receiver.native.kind {
+	case sourceNativePromiseFacade, sourceNativeAsyncFacade:
+		return query.owner.sourceTaskBodyPlacement(get.operation)
+	}
+	return ""
+}

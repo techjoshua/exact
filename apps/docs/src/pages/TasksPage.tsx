@@ -412,7 +412,9 @@ export function TasksPage(this: Component<{}>) {
 				</p>
 				<p>
 					A client-only task reports idle status during SSR. Its body runs in the browser, where its
-					status reflects client calls after hydration.
+					status reflects client calls after hydration. Promise constructor getters installed by a
+					client-only task contribute to browser task placement. Server work uses the effects of
+					possible writes on the server.
 				</p>
 			</details>
 			<details>
