@@ -159,6 +159,40 @@ func envelopeSynchronousFunction(node *ast.Node) bool {
 	return node != nil && ast.IsFunctionDeclaration(node) && node.Body() != nil && !ast.HasSyntacticModifier(node, ast.ModifierFlagsAsync) && node.AsFunctionDeclaration().AsteriskToken == nil
 }
 
+// ownsLiteralBindingSlot recognizes the original single-field binding Get on
+// a directly initialized literal. The container has no other reference.
+// The selected value and its later uses retain their ordinary ownership.
+func (query *sourceValueQuery) ownsLiteralBindingSlot(origin *ast.Node, projection []string, name string, mode accessorTraversal) bool {
+	element := query.protectedMember
+	if mode != accessorRead && mode != accessorAcquire || !ast.IsObjectLiteralExpression(origin) ||
+		element == nil || !ast.IsBindingElement(element) {
+		return false
+	}
+	if name == "" && len(projection) == 1 {
+		name = projection[0]
+	} else if name == "" || len(projection) != 0 {
+		return false
+	}
+	pattern := element.Parent
+	if pattern == nil || !ast.IsObjectBindingPattern(pattern) || len(pattern.AsBindingPattern().Elements.Nodes) != 1 ||
+		pattern.Parent == nil || !ast.IsVariableDeclaration(pattern.Parent) || pattern.Parent.Initializer() != origin {
+		return false
+	}
+	binding := element.AsBindingElement()
+	if !ast.IsIdentifier(binding.Name()) || binding.DotDotDotToken != nil || binding.Initializer != nil ||
+		binding.PropertyName != nil && ast.IsComputedPropertyName(binding.PropertyName) {
+		return false
+	}
+	key, known := bindingSegment(pattern, element, 0)
+	if !known || key != name || key == "__proto__" {
+		return false
+	}
+	fields := origin.AsObjectLiteralExpression().Properties.Nodes
+	return len(fields) == 1 && ast.IsPropertyAssignment(fields[0]) &&
+		fields[0].Name() != nil && !ast.IsComputedPropertyName(fields[0].Name()) &&
+		callableNameText(fields[0].Name()) == key
+}
+
 // confinedLocalGetter excludes unrelated receiver writers for one own getter.
 // The Get and its result still go through their original value and effect consumers.
 func (query *sourceValueQuery) confinedLocalGetter(origin *ast.Node, projection []string, name string, mode accessorTraversal, result *accessorCandidates) bool {

@@ -764,6 +764,9 @@ keys retain their ordinary write analysis.
 Getter and setter bodies retain their own execution ownership. Creating their object does not
 execute them. Reads, writes, updates and value enumeration carry the appropriate accessor effects,
 including structural annotations, source factory returns, nested projections and helper arguments.
+A selected two-argument standard `Reflect.get` visits its known property keys at the
+original read and carries the selected value into later calls. Unresolved keys or receivers
+remain incomplete alongside the known alternatives.
 A property read can inherit getter effects from earlier assignments to a local declared without an
 initializer in the same helper body.
 Computed member names still execute while the owner is created. Provenance searches retain
@@ -3918,6 +3921,10 @@ local const and every indexed use is a direct read of that getter. References in
 participate in the same check. Receiver escape, property writes or deletion, invocation through
 the member, dynamic lexical evaluation, and access to `this` or `super` in the getter retain the
 ordinary writer search. The original getter and its returned value keep their usual consumers.
+A binding such as `const { rows } = { rows: [...this.state.items] }` can acquire its one
+own data field without searching for writes to the temporary literal. The selected array
+keeps its normal source relationships and later collection updates. Nested bindings, rest,
+defaults, computed fields, and accessors retain ordinary pattern analysis.
 After dependency-body admission, a wrapper with no indexed nested Call needs no writer scope
 when all its bindings are already resolved. Member paths and pending initializer uses retain
 the original projection and sealing steps because either can contribute uncertainty to fallback.

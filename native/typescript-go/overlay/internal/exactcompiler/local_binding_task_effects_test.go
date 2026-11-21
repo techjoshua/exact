@@ -11,6 +11,8 @@ func TestLocalPatternTaskEffects(t *testing.T) {
 		refused    bool
 	}{
 		{"stored", "const {fn}={fn:browser};void fn", false},
+		{"invoked", "const {fn}={fn:browser};fn()", true},
+		{"renamed", "const {fn:invoke}={fn:portable};invoke()", false},
 		{"original getter result", "const {fn}={get fn(){return browser}};fn()", true},
 		{"acquired before overwrite", "const box={fn:browser};const {fn}=box;box.fn=portable;fn()", true},
 		{"replaced before acquisition", "const box={fn:browser};box.fn=portable;const {fn}=box;fn()", false},

@@ -175,6 +175,7 @@ func (query *sourceValueQuery) memberValuesAtGetWithStandard(origin *ast.Node, p
 		// A confined receiver has no alias available to generic call/write/descriptor
 		// candidates. Its field values and ordinary execution effects remain separate.
 		if query.ownsDataSlot(get, origin, projection, name, mode) ||
+			query.ownsLiteralBindingSlot(origin, projection, name, mode) ||
 			query.confinedEnvelope(origin, projection, name, mode, result) ||
 			query.confinedLocalGetter(origin, projection, name, mode, result) {
 			return false

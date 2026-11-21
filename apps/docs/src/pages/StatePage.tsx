@@ -174,9 +174,10 @@ export function StatePage(this: Component<{}>) {
 					When you need a separate array of the same objects,
 					<code>const rows = [...this.state.items]</code> creates a shallow copy. A derived copy
 					follows insertions, removals, replacements, and changes in order. Its objects still refer
-					to the original objects, so this does not create a deep snapshot of their fields. When a
-					calculation returns several values, a destructuring declaration can name them separately.
-					Those derived names also follow their inputs. A <code>peek()</code>
+					to the original objects, so this does not create a deep snapshot of their fields. You can
+					also name the copy with <code>{'const { rows } = { rows: [...this.state.items] }'}</code>.
+					When a calculation returns several values, a destructuring declaration can name them
+					separately. Those derived names also follow their inputs. A <code>peek()</code>
 					initializer keeps an intentional setup snapshot. Import <code>peek</code> from{' '}
 					<code>@exactjs/core</code>. Renaming that import or using a namespace member preserves the
 					boundary. Only reads inside its callback are untracked. Other inputs in the surrounding
