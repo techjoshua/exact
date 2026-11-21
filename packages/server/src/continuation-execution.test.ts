@@ -277,6 +277,47 @@ describe('@exactjs/server generated continuation execution', () => {
 		).resolves.toEqual({ state: { title: 'Settled' } });
 	});
 
+	it('publishes only authorized pending native collection operations in mutation order', async () => {
+		const { createTaskState } = await import('@exactjs/core/runtime/tasks');
+		const selected: ExactComponentContinuationContract = {
+			...contract,
+			stateWrites: [
+				{ path: 'lookup', kind: 'write', confidence: 'exact', operation: 'map' },
+				{ path: 'selected', kind: 'write', confidence: 'exact', operation: 'set' }
+			]
+		};
+		const handler = createExactContinuationHandler(selected, {
+			id: selected.id,
+			componentId: selected.componentId,
+			execute(activation, execution) {
+				const state = activation.state;
+				const pending = createTaskState(execution.signal, state);
+				const lookup = pending.read(state, 'lookup') as Map<string, number>;
+				const selected = pending.read(state, 'selected') as Set<string>;
+				const other = pending.read(state, 'other') as Map<string, number>;
+				pending.method(lookup, 'set')('a', 2);
+				pending.method(selected, 'add')('x');
+				pending.method(selected, 'add')('x');
+				pending.method(lookup, 'delete')('a');
+				pending.method(other, 'set')('hidden', 1);
+				expect(lookup.get('a')).toBe(1);
+				return { state };
+			}
+		});
+		const state = { lookup: new Map([['a', 1]]), selected: new Set(), other: new Map() };
+		await expect(
+			handler(
+				{ type: 'invoke', id: selected.id, payload: { dependencies: ['p1'] }, state },
+				context()
+			)
+		).resolves.toEqual({
+			mutations: [
+				{ path: 'lookup', operation: 'map-set', key: 'a', value: 2 },
+				{ path: 'selected', operation: 'set-add', value: 'x' },
+				{ path: 'lookup', operation: 'map-delete', key: 'a' }
+			]
+		});
+	});
 	it('returns ordered Map and Set deltas without projecting whole collections', async () => {
 		const collectionContract: ExactComponentContinuationContract = {
 			...contract,

@@ -111,7 +111,9 @@ export function TaskHelperUpdates(this: Component<{}>) {
 				An in-place change that is fully reverted sends no Array update, preserving newer browser
 				edits. Explicit assignments and replacements keep their normal publication behavior. Use
 				task keys and concurrency policies to coordinate work on the same entity. Independent entity
-				fields can complete without resetting the list's current browser order.
+				fields can complete without resetting the list's current browser order. When a server task
+				updates a named Map or Set in component state, the browser applies the changed entries in
+				order and keeps unrelated edits.
 			</p>
 			<p>
 				Framework integrations can also invoke a server task against explicit client root state.

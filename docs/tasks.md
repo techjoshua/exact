@@ -360,7 +360,9 @@ records the operation that ran, so a conditional task branch that skips a write 
 value unchanged, including an edit made while the server response was pending. An assignment that
 runs still publishes when its value equals the captured input. Deleting an array cell retains the array length and creates a hole, matching
 ordinary TypeScript deletion. Owned child tasks publish their executed deletes with the enclosing
-server invocation. Owned child collection mutations follow that invocation too. A complete
+server invocation. Owned child collection mutations follow that invocation too. A task using a
+pending state view publishes native Map and Set changes at its declared collection paths in the
+order they were applied. An unchanged member produces no delta. A complete
 object or collection assignment publishes its final value, including subsequent mutations, and
 supersedes earlier deltas within that subtree. A write to a nested field retains its other fields when a conditional branch
 skips an enclosing object assignment. An enclosing assignment still replaces that subtree.

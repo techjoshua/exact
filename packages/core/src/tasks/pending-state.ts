@@ -2,7 +2,7 @@ import {
 	createPendingReactiveTransaction,
 	type PendingReactiveState
 } from '@exactjs/reactive/framework/transactions';
-import { stageTaskMutation } from './task-publication.js';
+import { pendingTaskCollectionObserver, stageTaskMutation } from './task-publication.js';
 import { taskAwait } from './resources.js';
 import { TaskCancellation } from './cancellation.js';
 import { retainPendingTaskTransaction } from './pending-transactions.js';
@@ -15,6 +15,7 @@ export function createTaskState(signal: AbortSignal, root: object): PendingReact
 		assertCurrent: () => {
 			if (signal.aborted) throw new TaskCancellation(signal.reason);
 		},
+		beforeCollectionWrite: pendingTaskCollectionObserver(signal),
 		stage: (mutation) => stageTaskMutation(signal, mutation),
 		await: (value) => taskAwait(signal, value),
 		owns: (value, state) => Reflect.getOwnPropertyDescriptor(value, 'state')?.value === state

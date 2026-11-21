@@ -6,6 +6,8 @@ export interface PendingTransactionOptions {
 	assertCurrent?(): void;
 	/** Transfers ordered publication callbacks to a host journal. The host must batch publication. */
 	stage?(mutation: () => void): void;
+	/** Observes a staged native collection operation as it reaches committed storage. */
+	beforeCollectionWrite?(receiver: object, method: PropertyKey, args: readonly unknown[]): void;
 	/** Supplies framework-specific suspension and cancellation without an ambient transaction. */
 	await?<Value>(value: Value | PromiseLike<Value>): Promise<Value>;
 	/** Recognizes a host facade that exposes the root without adopting unrelated mutable objects. */

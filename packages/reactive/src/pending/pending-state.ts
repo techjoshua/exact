@@ -262,7 +262,9 @@ class InvocationState implements PendingReactiveTransaction {
 	stageCollectionWrite(target: object, key: PropertyKey, args: unknown[]): void {
 		const receiver = this.policyReceiver(target);
 		this.journal.stage(() => {
-			applyNativeReactiveCollection(this.publication.resolve(receiver), key, args);
+			const published = this.publication.resolve(receiver);
+			this.options.beforeCollectionWrite?.(published, key, args);
+			applyNativeReactiveCollection(published, key, args);
 			this.publication.associateCollection(receiver);
 		});
 	}

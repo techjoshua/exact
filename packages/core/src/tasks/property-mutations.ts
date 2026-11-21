@@ -6,6 +6,7 @@ import { frameForTaskSignal } from './frame-continuation.js';
 type Capture = {
 	readonly root?: AbortSignal;
 	readonly requestInvocations?: true;
+	readonly collectionPaths?: WeakMap<object, string[]>;
 	retire?: (this: AbortSignal) => void;
 	receivers: WeakMap<object, Map<PropertyKey, 'set' | 'delete'>>;
 	observer: (receiver: object, key: PropertyKey, operation: 'set' | 'delete') => void;
@@ -24,13 +25,17 @@ const { captures } = state;
 /** Captures performed writes until take or discard. Request captures also admit explicit same-owner invocations without attaching their lifetime. */
 export function captureTaskPropertyMutations(
 	signal: AbortSignal,
-	options?: { readonly requestInvocations: true }
+	options?: {
+		readonly requestInvocations: true;
+		readonly collectionPaths?: WeakMap<object, string[]>;
+	}
 ): void {
 	if (signal.aborted) return;
 	releaseTaskPropertyMutationCaptureAlias(signal);
 	if (captures.has(signal)) return;
 	const capture: Capture = {
 		root: signal,
+		collectionPaths: options?.collectionPaths,
 		...(options?.requestInvocations ? { requestInvocations: true as const } : {}),
 		receivers: new WeakMap(),
 		changed: false,
@@ -55,6 +60,15 @@ export function captureTaskPropertyMutations(
 		};
 		signal.addEventListener('abort', capture.retire, { once: true });
 	}
+}
+
+/** Supplies only the request-authorized paths for submitted native collection identities. */
+export function taskCollectionMutationPaths(
+	signal: AbortSignal
+): WeakMap<object, string[]> | undefined {
+	return state.count
+		? captures.get(taskPublicationCaptureOwner(signal))?.collectionPaths
+		: undefined;
 }
 
 /** Pins the caller's exact live request capture before a generation can queue or detach. */

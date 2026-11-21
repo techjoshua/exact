@@ -4,7 +4,8 @@ import type { ExactCollectionMutation } from '../component-contracts.js';
 import {
 	discardTaskPropertyMutations,
 	withTaskPropertyMutationCapture,
-	taskPublicationCaptureOwner
+	taskPublicationCaptureOwner,
+	taskCollectionMutationPaths
 } from './property-mutations.js';
 import {
 	discardPendingTaskTransactions,
@@ -74,16 +75,41 @@ export function mutateTaskCollection(
 	const raw = unwrap(collection);
 	const changed = collectionMutationChanges(raw, kind, method, input);
 	const result = mutateReactiveCollection(target, path, kind, method, input);
-	if (changed) {
-		let mutations = taskCollectionMutations.get(owner);
-		if (!mutations) {
-			mutations = [];
-			taskCollectionMutations.set(owner, mutations);
-			owner.addEventListener('abort', () => discardTaskMutations(owner), { once: true });
-		}
-		mutations.push(collectionMutation(path, kind, method, input));
-	}
+	if (changed) recordCollectionMutation(owner, path.map(String).join('.'), kind, method, input);
 	return result;
+}
+
+/** Records only committed native operations against a request's submitted collection identities. */
+export function pendingTaskCollectionObserver(signal: AbortSignal) {
+	const allowed = taskCollectionMutationPaths(signal);
+	if (!allowed) return;
+	return (receiver: object, method: PropertyKey, args: readonly unknown[]) => {
+		const raw = unwrap(receiver);
+		const paths = allowed.get(raw);
+		if (!paths || typeof method !== 'string') return;
+		if (signal.aborted || taskCollectionMutationPaths(signal) !== allowed) return;
+		const owner = taskPublicationCaptureOwner(signal);
+		const kind = raw instanceof Map ? 'map' : 'set';
+		if (collectionMutationChanges(raw, kind, method, args))
+			for (const path of paths) recordCollectionMutation(owner, path, kind, method, args);
+	};
+}
+
+/** Appends one observed change to the active owner's response in publication order. */
+function recordCollectionMutation(
+	owner: AbortSignal,
+	path: string,
+	kind: 'map' | 'set',
+	method: string,
+	input: readonly unknown[]
+): void {
+	let mutations = taskCollectionMutations.get(owner);
+	if (!mutations) {
+		mutations = [];
+		taskCollectionMutations.set(owner, mutations);
+		owner.addEventListener('abort', () => discardTaskMutations(owner), { once: true });
+	}
+	mutations.push(collectionMutation(path, kind, method, input));
 }
 
 /** Takes the ordered collection deltas produced by one successful task generation. */
@@ -122,12 +148,11 @@ function collectionMutationChanges(
 }
 
 function collectionMutation(
-	path: readonly PropertyKey[],
+	location: string,
 	kind: 'map' | 'set',
 	method: string,
 	args: readonly unknown[]
 ): ExactCollectionMutation {
-	const location = path.map(String).join('.');
 	if (kind === 'map') {
 		if (method === 'set')
 			return { path: location, operation: 'map-set', key: unwrap(args[0]), value: unwrap(args[1]) };

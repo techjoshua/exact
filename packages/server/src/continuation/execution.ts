@@ -64,6 +64,12 @@ export function createExactContinuationHandler(
 				write.operation !== 'set'
 		)
 		.map((write) => write.path);
+	const collectionWrites = contract.stateWrites.filter(
+		(write) =>
+			write.kind === 'write' &&
+			write.confidence === 'exact' &&
+			(write.operation === 'map' || write.operation === 'set')
+	);
 	const writePathSet = new Set(writePaths);
 	const deletionPaths = writePaths.includes('*') ? [] : writePaths;
 	const handler: ExactGeneratedContinuationHandler = async (input, context) => {
@@ -83,6 +89,18 @@ export function createExactContinuationHandler(
 						before: executor.array.capture(found.value)
 					});
 			}
+		let collectionPaths: WeakMap<object, string[]> | undefined;
+		for (const write of collectionWrites) {
+			const found = readPath(state, write.path);
+			if (!found.present) continue;
+			const raw = unwrap(found.value);
+			if (!(write.operation === 'map' ? raw instanceof Map : raw instanceof Set)) continue;
+			const collection = raw as object;
+			collectionPaths ??= new WeakMap();
+			const paths = collectionPaths.get(collection);
+			if (!paths) collectionPaths.set(collection, [write.path]);
+			else if (!paths.includes(write.path)) paths.push(write.path);
+		}
 		prepareContinuationWriteContainers(state, contract.stateWrites);
 		// Inputs and prepared parent containers are not evidence that a conditional write ran.
 		const inputWritePaths = new Set(
@@ -105,7 +123,10 @@ export function createExactContinuationHandler(
 					work: (task) => {
 						mutationSignal = task.signal;
 						if (contract.stateWrites.length)
-							captureTaskPropertyMutations(task.signal, { requestInvocations: true });
+							captureTaskPropertyMutations(task.signal, {
+								requestInvocations: true,
+								collectionPaths
+							});
 						if (context.reportTaskProgress)
 							attachTaskProgressReporter(task, (receiver, snapshot) => {
 								if (!contract.progress?.some((entry) => entry.id === receiver))
