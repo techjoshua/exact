@@ -124,3 +124,86 @@ func (query *sourceValueQuery) visitConstructedAccessor(demand sourceConstructed
 	return
 
 }
+
+// visitImportedPrototypeWriters contributes eager, selected module descriptors
+// on the class's prototype to an actual instance Set. The New and its executable
+// dependencies delimit the source's placement. The descriptor owner retains
+// ordering, evaluation effects and unresolved alternatives.
+func (q *sourceValueQuery) visitImportedPrototypeWriters(class, site *ast.Node, projection []string, name string, result *accessorCandidates, yield func(*ast.Node)) {
+	if len(projection) > 1 || len(projection) == 1 && name != "" {
+		return
+	}
+	if len(projection) == 1 {
+		name = projection[0]
+	}
+	root := ast.GetSourceFileOfNode(site)
+	if root == nil {
+		return
+	}
+	index := q.owner.index(root)
+	if len(index.runtimeImports) == 0 {
+		return
+	}
+	classSource := ast.GetSourceFileOfNode(class)
+	seen := map[*ast.SourceFile]bool{root: true}
+	var visit func(sourceValueIndex)
+	visit = func(index sourceValueIndex) {
+		for _, edge := range index.runtimeImports {
+			dependency, state := q.operationDependencyState(edge, result)
+			if state != sourceDependencyAvailable || dependency == nil || seen[dependency] {
+				continue
+			}
+			seen[dependency] = true
+			producer := q.owner.index(dependency)
+			visit(producer)
+			if dependency == classSource {
+				continue
+			}
+			region := producer.operationRegions[nil]
+			if region == nil {
+				continue
+			}
+			for _, member := range region.calls {
+				if q.matchesImportedPrototypeWriter(member, class, name, result) {
+					yield(member)
+				}
+			}
+		}
+	}
+	visit(index)
+}
+
+// matchesImportedPrototypeWriter admits direct class-prototype targets before
+// the descriptor owner reads its inputs. Both the class and key constrain this
+// extra module search, so an unrelated imported setter supplies no candidate.
+func (q *sourceValueQuery) matchesImportedPrototypeWriter(operation, class *ast.Node, name string, result *accessorCandidates) bool {
+	if !q.charge(result, operation) || !q.descriptorWriterCall(operation.AsCallExpression()) {
+		return false
+	}
+	arguments := restrictedInvocationArguments(operation.AsCallExpression())
+	key := sourceLiteralMemberName(unwrapSourceCallableReference(arguments[1]))
+	if key != "" && name != "" && key != name {
+		return false
+	}
+	target := unwrapSourceCallableReference(arguments[0])
+	if target == nil || !ast.IsPropertyAccessExpression(target) && !ast.IsElementAccessExpression(target) {
+		return false
+	}
+	receiver, slot := accessorReceiver(target)
+	if slot != "prototype" {
+		return false
+	}
+	expression := unwrapSourceCallableReference(receiver)
+	if selected, owned := q.executable.definition(expression); owned {
+		return selected == class
+	}
+	symbol := resolvedCallableSymbol(sourceCallableReferenceSymbol(expression, q.owner.checker), q.owner.checker)
+	if symbol == nil {
+		return false
+	}
+	declaration := symbol.ValueDeclaration
+	if declaration != nil && ast.IsVariableDeclaration(declaration) {
+		declaration = unwrapSourceCallableReference(declaration.Initializer())
+	}
+	return declaration == class
+}

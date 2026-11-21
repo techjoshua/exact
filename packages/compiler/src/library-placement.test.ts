@@ -2,8 +2,81 @@ import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { expect, it } from 'vitest';
 import { buildLibrary } from './library-build.js';
-import { transform } from './index.js';
+import { compileProjectArtifacts, transform } from './index.js';
+import { artifactAnalysis } from './compilation/analysis-results.js';
 import { createLibraryBuildFixture } from './test-support/library-build.fixture.js';
+
+it.each(['component', 'caller'] as const)(
+	'keeps class setter placement portable when the %s imports its installer',
+	async (owner) => {
+		const { root, json, manifest } = await createLibraryBuildFixture();
+		const config = JSON.parse(await readFile(path.join(root, 'tsconfig.json'), 'utf8'));
+		await json('tsconfig.json', {
+			...config,
+			compilerOptions: { ...config.compilerOptions, lib: ['ES2022', 'DOM'], types: ['node'] }
+		});
+		await json('package.json', {
+			...manifest,
+			dependencies: { ...manifest.dependencies, '@exactjs/ssr': '^0.6.0' },
+			exactCompileModules: ['src/Example.tsx']
+		});
+		const source = path.join(root, 'src');
+		const entry = path.join(source, 'Example.tsx');
+		const app = path.join(source, 'App.tsx');
+		await writeFile(
+			path.join(source, 'error.ts'),
+			`export class DisplayError extends Error { constructor() { super('error'); this.name = 'DisplayError'; } }`
+		);
+		await writeFile(
+			path.join(source, 'install.ts'),
+			`import { DisplayError } from './error.js';
+Object.defineProperty(DisplayError.prototype, 'name', { set(value: string) { document.title = value; } });`
+		);
+		await writeFile(
+			entry,
+			`${owner === 'component' ? "import './install.js';" : ''}
+import { DisplayError } from './error.js';
+function paint() {
+	try { throw new DisplayError(); }
+	catch (error) { if (error instanceof DisplayError) return error.message; throw error; }
+}
+export function Example() { return () => <p>{paint()}</p>; }`
+		);
+		await writeFile(
+			app,
+			`${owner === 'caller' ? "import './install.js';" : ''}
+import { Example } from './Example.js';
+export function App() { return () => <Example />; }`
+		);
+		const options = { rootDir: root, outDir: path.join(root, 'application') };
+		const artifacts = await compileProjectArtifacts([app, entry], options);
+		const example = artifacts.find((artifact) => artifact.inputFile === entry)!;
+		const application = artifactAnalysis(example).components[0]!;
+		if (owner === 'component') {
+			expect(application.placement).toBe('client');
+		} else {
+			const [isolated] = await compileProjectArtifacts([entry], options);
+			const standalone = artifactAnalysis(isolated!).components[0]!;
+			expect(application.placement).toBe(standalone.placement);
+			expect(application.artifactTargets).toEqual(standalone.artifactTargets);
+			expect(application.placement).not.toBe('client');
+		}
+		await buildLibrary({ root });
+		const library = JSON.parse(
+			await readFile(path.join(root, 'dist/exact-component-build.json'), 'utf8')
+		);
+		for (const target of ['client', 'server']) {
+			const module = library.modules.find(
+				(module: { path: string }) => module.path === `dist/${target}/Example.js`
+			);
+			expect(module?.facts.components[0]).toMatchObject({
+				placement: application.placement,
+				artifactTargets: application.artifactTargets
+			});
+		}
+	},
+	30_000
+);
 
 it('keeps browser timer placement with Node ambient declarations loaded', async () => {
 	const { root, json } = await createLibraryBuildFixture();

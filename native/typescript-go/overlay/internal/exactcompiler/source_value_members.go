@@ -541,6 +541,19 @@ func (query *sourceValueQuery) memberValuesAtGetWithStandard(origin *ast.Node, p
 				}
 			}
 		}
+		if !sourceInterval && query.dependenciesOnly && mode&accessorSet != 0 && mode != accessorSetAcquire && get != nil && get.receiver.node != nil && ast.IsNewExpression(get.receiver.node) && ast.IsClassLike(origin) {
+			query.visitImportedPrototypeWriters(origin, get.receiver.node, projection, name, result, func(call *ast.Node) {
+				// The source Set owns the setter effects. The imported source population
+				// supplies a possible setter without changing the ordinary receiver slots.
+				_, possible := query.reflectiveMemberValuesAtGet(origin, projection, name, call, accessorSet|accessorNoGet, bindings, result, get, cut)
+				if possible {
+					result.opaque = true
+					if result.cause == nil {
+						result.cause = call
+					}
+				}
+			})
+		}
 		// Pending write inspection cannot remove the old member or a possible RHS.
 		// Its consumer must close interference before using replacement precision.
 		replaced := false

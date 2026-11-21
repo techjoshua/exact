@@ -284,6 +284,16 @@ func unresolvedCallEnvironment(
 	if standardLibraryCallRoot(expression, typeChecker) {
 		return ""
 	}
+	// Classify the lexical standard base before ambient platform types on
+	// super's construct signature. The constructor argument walk and actual
+	// superclass selection still own their effects independently.
+	if expression != nil && expression.Kind == ast.KindSuperKeyword {
+		if class := ast.GetContainingClass(expression); class != nil {
+			if base := ast.GetClassExtendsHeritageElement(class); base != nil && standardLibraryCallRoot(base.Expression(), typeChecker) {
+				return ""
+			}
+		}
+	}
 	if _, contextBinding := contextBindingCallEffect(expression, contextBindings, typeChecker); contextBinding {
 		return ""
 	}

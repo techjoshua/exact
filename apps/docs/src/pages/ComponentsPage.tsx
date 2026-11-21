@@ -195,6 +195,11 @@ export function ComponentsPage(this: Component<{}>) {
 					cause the compiler to reject an explicitly server-placed task.
 				</p>
 				<p>
+					A constructor assignment can run a setter installed on the class prototype by a module
+					dependency. The setter’s requirements follow the component that constructs the instance
+					through that dependency.
+				</p>
+				<p>
 					A helper that walks parent links can pick up a getter’s browser requirement in a later
 					iteration. Links supplied at runtime can still leave some of the walk uncertain.
 				</p>

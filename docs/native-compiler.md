@@ -4138,6 +4138,14 @@ cannot borrow it, and callee-write inventory refuses these live construction con
 member selection follows the original Get's checker symbol, keeping public string keys with
 the same spelling distinct.
 
+A source Set on a constructed class instance checks direct prototype descriptors installed by
+selected eager module dependencies of the construction source. The existing reflective writer
+consumer matches those candidates against the selected class, key and operation. A possible
+setter supplies effects while the original Set retains runtime evaluation and ordering. The
+component's module and its dependencies define the placement boundary. A direct
+`super` call uses its lexical standard base for environment classification before ambient
+construct-signature declarations. The constructor and argument effects retain their source owners.
+
 A proven abrupt initializer stops the field sequence. An unavailable Normal value keeps construction incomplete while subsequent ordinary demands contribute only possible effects. Their borrowed prefix retains mutation uncertainty and creates no field values, Get receipts, or complete instance. A conditional nested `new` can retain cached field effects from one authenticated implicit class in the same source and creating lexical region. This effects-only projection preserves arguments and genuine captures without allocating an inner instance or supplying its `this`, prior-field values, prototype proof, or normal receipts. Unknown targets and receiver-dependent work remain incomplete, while independently known effects are retained.
 
 Source effects and return relationships use the canonically selected native alternative and

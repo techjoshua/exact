@@ -159,3 +159,69 @@ export function Page() { return () => <p>{paint()}</p>; }`
 		else expect(html).toBe('<p>safe</p>');
 	}
 );
+
+it.each(['portable', 'browser'] as const)(
+	'retains the %s setter installed by a construction dependency',
+	async (kind) => {
+		const root = await createCompilerTestWorkspace('.exact-construction-setter-', process.cwd());
+		const entry = path.join(root, 'page.tsx');
+		await writeFile(
+			path.join(root, 'error.ts'),
+			`export const events: string[] = [];
+export class DisplayError extends Error {
+	readonly code: string;
+	readonly path: string;
+	constructor(code: string, path: string, message: string) {
+		super(message);
+		this.name = 'DisplayError';
+		this.code = code;
+		this.path = path;
+	}
+}`
+		);
+		await writeFile(
+			path.join(root, 'install.ts'),
+			`import { DisplayError, events } from './error.js';
+events.push('installed');
+Object.defineProperty(DisplayError.prototype, 'name', {
+	configurable: true,
+	set(value: string) {
+		events.push('set:' + value);
+		${kind === 'browser' ? 'document.title = value;' : ''}
+	}
+});`
+		);
+		await writeFile(path.join(root, 'initialize.ts'), `import './install.js';`);
+		await writeFile(
+			entry,
+			`import './initialize.js';
+import { DisplayError, events } from './error.js';
+export function observations() { return events; }
+function fail(): never { throw new DisplayError('invalid', 'appearance', 'Invalid appearance'); }
+function showError() {
+	try {
+		fail();
+	} catch (error) {
+		if (error instanceof DisplayError) return error.code + ':' + error.path + ':' + error.message;
+		throw error;
+	}
+}
+export function Page() { return () => <p>{showError()}</p>; }`
+		);
+		const [artifact] = await compileProjectArtifacts([entry], {
+			rootDir: root,
+			outDir: path.join(root, 'generated')
+		});
+		const server = await importArtifact(artifact!.serverFile, path.join(root, 'server.mjs'));
+		const observations = server.observations as () => string[];
+		expect(observations()).toEqual(['installed']);
+		const { html } = await renderToString(receipt(server.Page as never, {}), { markers: false });
+		if (kind === 'browser') {
+			expect(html).toContain('data-exact-client-boundary=');
+			expect(observations()).toEqual(['installed']);
+		} else {
+			expect(html).toBe('<p>invalid:appearance:Invalid appearance</p>');
+			expect(observations()).toEqual(['installed', 'set:DisplayError']);
+		}
+	}
+);
