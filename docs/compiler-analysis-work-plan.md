@@ -13,6 +13,22 @@ stronger query. Changes in that category must demonstrate that the weaker answer
 the consumer. “Keep” identifies an observable requirement. The measured costs below apply to
 one package request. No totals are available for an uncensored whole build.
 
+## Conformance to the minimum-analysis rules
+
+Use the [scenario catalog and traversal rules](compiler-architecture-completion-plan.md#final-traversal-and-persistence-rules) as the design target. The combined control build uses the committed production tree at `1b31bc5b0`, identical to `eb234c6b3` apart from documentation. It excludes the unrelated accessor edit. Existing tests, source traceability and passing public behavior are distinct kinds of evidence.
+
+| Observable discrepancy on the control build | Correction and acceptance |
+| --- | --- |
+| A component renders an opaque module-initialized label. Placing an independent server secret consumer on the same line lets the module emit; inserting a newline yields EXACT2101 for the label. | Bind the existing policy allowance to the particular initializer. Compare adjacent statements, adjacent declarators, and an authorized consumer beside ordinary public data. |
+| A server task explicitly invoked from a browser event rejects a browser-safe concurrency key using `location.pathname`. An inferred argument key can acquire spurious opacity from its policy builder. | Separate invocation-site key evaluation from executor body placement. Preserve independent body requirements. Exercise local and cross-target callers, dormant definitions, mixed keys and parameter transport. |
+| A server task stores a public opaque operation. A browser-only getter on its domain or on an enumerable field copied during creation passes target checks. | Attribute actual metadata Gets to creation. Preserve the skipped-copy control and defer the executor to redemption. Use both SDK targets and a component invocation. |
+| Explicit server tasks accept browser work in the body of an async generator consumed by `for await`, including a close path on early exit. | Follow iterator acquisition, advancement and applicable closing effects in their executing phase. Compare neutral and unadvanced generators and verify the selected task artifacts. |
+| An explicit server task accepts untagged interpolation of an object whose own string conversion accesses the browser. | Include applicable coercion hooks at untagged substitutions. A tag receiving the unconverted object and checked primitive substitutions are separate controls. |
+
+The return-site loop in `componentCallableDemand` enrolls component render returns under the `componentReturn` guard. It does not enroll every returned helper as invoked. Original Core and Theme requester cost still needs a bound consumer experiment before removing a return query. The earlier [forwarded getter controls](#discarded-helper-results-and-forwarded-getter-effects) demonstrate why.
+
+Acceptance also covers mounted reads, control bindings, lifecycle, portals, registry identity, task settlement, protected transport, paired artifact selection, selected host implementations and source inspection. Use the existing [composition corpus](component-composition-corpus.md) and [package decision audit](#requester-disposition-against-the-component-contracts) for their scoped evidence. Treat interrupted suites and original packages that still reach the request deadline as open.
+
 ## Discarded helper results and forwarded getter effects
 
 At `c61f59c9b`, a button invokes a server task whose synchronous block calls
