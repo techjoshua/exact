@@ -3960,6 +3960,15 @@ descriptor field. Field Value mapping keeps the original callee and eager input
 dependencies. A later component read or invocation observes the installed getter
 or callback on that target.
 
+A private module binding can also supply one named read of a target created
+from an inline ordinary prototype literal. `Object.defineProperty` can install
+an own property on that exact `Object.create` target. The original read visits
+the own property when the definition supplies its key. A reached inherited
+getter uses the created object as its receiver, including the newly defined
+properties. The definition and creation keep separate native callee and input
+requirements. Aliased targets and opaque prototype relationships retain their
+existing analysis.
+
 A recognized own getter on an ordinary module descriptor runs during conversion.
 An earlier field can satisfy the next field's ordered prerequisite when its
 original Get effects have settled and the canonical mutation inventory for its

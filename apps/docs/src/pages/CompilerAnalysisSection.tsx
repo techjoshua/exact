@@ -84,9 +84,11 @@ export function CompilerAnalysisSection(this: Component<{}>) {
 				also invokes its installed getter. If that getter reads <code>document</code>, the task
 				that reads the property needs the browser. Standard <code>Object.assign(target, input)</code>
 				returns the same target object. A getter installed on that result can also run when a
-				component reads the property through the original target. An immediate read on an object
-				created with <code>Object.create</code> can also run a getter inherited from its supplied
-				prototype. When an assignment invokes an
+				component reads the property through the original target. An object created with
+				<code>Object.create</code> can inherit a getter from its prototype. A single named read
+				of a private module binding can invoke that getter, including when
+				<code>Object.defineProperty</code> adds a different property to the created object.
+				When an assignment invokes an
 				authored setter, its parameter carries the assigned value's environment requirements into the
 				setter's use of that value. A module binding initialized with
 				<code>Object.defineProperty</code> can store a browser callback on a fresh object literal

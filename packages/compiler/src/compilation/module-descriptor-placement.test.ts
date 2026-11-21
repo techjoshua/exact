@@ -1,7 +1,7 @@
 /** @vitest-environment jsdom */
 import path from 'node:path';
 import { writeFile } from 'node:fs/promises';
-import { expect, it, onTestFinished } from 'vitest';
+import { expect, it, onTestFinished, vi } from 'vitest';
 import { createCompiledComponentInputReceipt as receipt } from '@exactjs/core/runtime/component-operations';
 import { render, unmount } from '@exactjs/dom';
 import { renderToString } from '@exactjs/ssr';
@@ -15,7 +15,69 @@ const createdCallback =
 	'Object.defineProperty(Object.create(null),"value",{value:()=>document.title})';
 const definitionMap = (entry: string) => `Object.defineProperties({value:"before"},{${entry}})`;
 
+const inheritedBrowser = 'Object.create({get inherited(){return document.title}})';
+const definedPrototype = `const record = Object.defineProperty(${inheritedBrowser}, 'label', {value:'ready'});`;
+
 it.each([
+	{
+		name: 'a module Create target with a reached inherited getter',
+		declaration: `const record = ${inheritedBrowser};`,
+		value: 'record.inherited',
+		browser: true,
+		expected: 'browser value'
+	},
+	{
+		name: 'a defined Create target with a reached inherited getter',
+		declaration: definedPrototype,
+		value: 'record.inherited',
+		browser: true,
+		expected: 'browser value'
+	},
+	{
+		name: 'a defined Create target holding an inherited getter',
+		declaration: definedPrototype,
+		value: 'record.label',
+		expected: 'ready'
+	},
+	{
+		name: 'an own definition ahead of its inherited getter',
+		declaration: `const record = Object.defineProperty(${inheritedBrowser}, 'inherited', {value:'ready'});`,
+		value: 'record.inherited',
+		expected: 'ready'
+	},
+	{
+		name: 'an installed getter on the literal Create target',
+		declaration: `const record = Object.defineProperty(Object.create({get inherited(){return 'held'}}), 'value', {get:()=>document.title});`,
+		value: 'record.value',
+		browser: true,
+		expected: 'browser value'
+	},
+	{
+		name: 'a defined Create target with a portable inherited getter',
+		declaration: `const record = Object.defineProperty(Object.create({get inherited(){return 'portable'}}), 'label', {value:'ready'});`,
+		value: 'record.inherited',
+		expected: 'portable'
+	},
+	{
+		name: 'an inherited getter reading the actual defined target',
+		declaration: `const record = Object.defineProperty(
+			Object.create({ get inherited(){return (this as unknown as {label:()=>string}).label()} }),
+			'label', {value:()=>document.title}
+		);`,
+		value: 'record.inherited',
+		browser: true,
+		expected: 'browser value'
+	},
+	{
+		name: 'an authored constructor and descriptor method',
+		declaration: `const Object = {
+			create(_prototype:object) { return {inherited:'authored'}; },
+			defineProperty(target:{inherited:string}, _key:string, _descriptor:PropertyDescriptor) { return target; }
+		};
+		const record = Object.defineProperty(${inheritedBrowser}, 'label', {value:'ready'});`,
+		value: 'record.inherited',
+		expected: 'authored'
+	},
 	{
 		name: 'a data value with the same key as the descriptor field',
 		declaration: 'const record = Object.defineProperty({value:"before"},"value",{value:"ready"});',
@@ -165,8 +227,14 @@ it.each([
 	onTestFinished(() => {
 		document.title = priorTitle;
 	});
-	const server = await importArtifact(artifact!.serverFile, path.join(root, 'server.mjs'));
-	const { html } = await renderToString(receipt(server.Page as never, {}), { markers: false });
+	let html: string;
+	vi.stubGlobal('document', undefined);
+	try {
+		const server = await importArtifact(artifact!.serverFile, path.join(root, 'server.mjs'));
+		({ html } = await renderToString(receipt(server.Page as never, {}), { markers: false }));
+	} finally {
+		vi.unstubAllGlobals();
+	}
 	if (test.browser) expect(html).toContain('data-exact-client-boundary=');
 	else expect(html).toBe(`<p>${test.expected}</p>`);
 
@@ -187,6 +255,18 @@ it.each([
 		declaration: `declare function foreign(): object;
 		const record = Object.defineProperty(foreign(), 'value', {value: 'ready'});`,
 		value: 'typeof record'
+	},
+	{
+		name: 'an aliased Create binding',
+		declaration: `${definedPrototype}\nconst saved = record;`,
+		value: 'saved.inherited'
+	},
+	{
+		name: 'a getter on a further prototype',
+		declaration: `const record = Object.defineProperty(
+			Object.create({__proto__:{get inherited(){return document.title}}}), 'label', {value:'ready'}
+		);`,
+		value: 'record.inherited'
 	},
 	{
 		name: 'an eager getter that changes its descriptor',

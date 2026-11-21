@@ -46,8 +46,17 @@ func (work *callableEffectWork) stageModuleDescriptorDefinition(facts []callable
 		if !ast.IsCallExpression(target) || stagedNativeInputIntent(target.Expression()) != sourceNativeObjectCreate || !stagedNativeInputEligible(target, &facts[consumer], owner) {
 			return false
 		}
-		if restrictedInvocationArguments(target.AsCallExpression())[0].Kind != ast.KindNullKeyword {
-			return false
+		prototype := restrictedInvocationArguments(target.AsCallExpression())[0]
+		if prototype.Kind != ast.KindNullKeyword {
+			read := privateCreatedModuleRead(call.Parent, owner.values)
+			if read == nil || stagedNativeInputIntent(call.Expression()) != sourceNativeObjectDefineProperty || !sourceInertDataLiteral(arguments[2], "") {
+				return false
+			}
+			name := read.Name().Text()
+			if sourceLiteralMemberName(arguments[1]) != name &&
+				(!sourceInertDataLiteral(arguments[2], "value") || namedPrototypeGetter(prototype, name) == nil) {
+				return false
+			}
 		}
 	}
 	prior := work.purpose

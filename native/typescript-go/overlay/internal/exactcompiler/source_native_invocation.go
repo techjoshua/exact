@@ -72,7 +72,11 @@ func (query *sourceValueQuery) consumeNativeInvocation(node *ast.Node, value sou
 				getter := projection.createdGetter
 				for _, target := range operation.targets {
 					if target.value.node == getter.receiver && len(target.value.path) == 0 {
-						query.sourceCreatedGetterRead(getter, bindings, result)
+						if ast.IsCallExpression(getter.receiver) {
+							query.sourceDefinedCreateTargetRead(getter, target.scope, result)
+						} else {
+							query.sourceCreatedGetterRead(getter, bindings, result)
+						}
 						break
 					}
 				}

@@ -34,7 +34,7 @@ func describeStagedCreatePrototypeInput(input sourceRelativeEndpoint, declaratio
 	}
 	expression := input.expression
 	association.input = cloneSourceRelativeEndpoint(input)
-	if expression.Kind == ast.KindNullKeyword || function && ast.IsObjectLiteralExpression(expression) && sourceInertValueCreation(expression) {
+	if expression.Kind == ast.KindNullKeyword || ast.IsObjectLiteralExpression(expression) && sourceInertValueCreation(expression) {
 		return association, true
 	}
 	if !function || !ast.IsIdentifier(expression) {

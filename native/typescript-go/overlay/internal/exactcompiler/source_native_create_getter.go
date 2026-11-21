@@ -38,6 +38,20 @@ func (q *sourceValueQuery) sourceCreatedGetter(call *ast.Node, projection []stri
 		return nil
 	}
 	input := q.sourceCreatedReadInput(call, q.protectedMember, args[0], true, result)
+	return createdPrototypeGetter(call, q.protectedMember, input, name)
+}
+
+// createdPrototypeGetter describes the own getter on the received prototype
+// literal. The selected native Create and actual named read still own its use.
+func createdPrototypeGetter(call, read, input *ast.Node, name string) *sourceCreatedGetter {
+	getter := namedPrototypeGetter(input, name)
+	if getter == nil {
+		return nil
+	}
+	return &sourceCreatedGetter{creation: call, read: read, receiver: call, body: getter, name: name}
+}
+
+func namedPrototypeGetter(input *ast.Node, name string) *ast.Node {
 	if input == nil || !ast.IsObjectLiteralExpression(input) {
 		return nil
 	}
@@ -54,10 +68,7 @@ func (q *sourceValueQuery) sourceCreatedGetter(call *ast.Node, projection []stri
 		}
 		getter = member
 	}
-	if getter == nil {
-		return nil
-	}
-	return &sourceCreatedGetter{creation: call, read: q.protectedMember, receiver: call, body: getter, name: name}
+	return getter
 }
 
 // sourceCreatedGetterRead follows the getter on the selected returned receiver.
@@ -74,6 +85,23 @@ func (q *sourceValueQuery) sourceCreatedGetterRead(getter *sourceCreatedGetter, 
 	q.reflectiveSourceGet(getter.body, getter.creation, getter.name, &get, bindings, result)
 }
 
+// sourceDefinedCreateTargetRead follows the original target only after the
+// definition has selected that alternative. The child's own callee must still
+// select native Create before the named Get can enter the getter's body.
+func (q *sourceValueQuery) sourceDefinedCreateTargetRead(getter *sourceCreatedGetter, scope acquiredCallableScope, result *accessorCandidates) {
+	child := *getter
+	child.creation = child.receiver
+	prior := q.reflectiveCopy
+	q.reflectiveCopy = nil
+	defer func() { q.reflectiveCopy = prior }()
+	q.memberWriterScope(sourceMemberWriterInput{scope: scope}, func() {
+		part := q.projectSourceCallReturns(child.creation, scope.bindings,
+			sourceCallResultInterest{purpose: resultSourceProjection, createdGetter: &child},
+			func(sourceValue, sourceValueBindings) {}, func() {})
+		mergeAccessorCandidates(result, part)
+	})
+}
+
 // sourceCreatedReadInput admits a direct read after allocation. A single-return
 // helper may supply the prototype from its exact literal argument. Additional
 // statements or arguments can mutate or escape the prototype before the Get.
@@ -88,6 +116,12 @@ func (q *sourceValueQuery) sourceCreatedReadInput(call, read, argument *ast.Node
 		}
 		if unwrapSourceCallableReference(parent) == unwrapSourceCallableReference(current) {
 			continue
+		}
+		if ast.IsVariableDeclaration(parent) && unwrapSourceCallableReference(parent.Initializer()) == call {
+			if privateCreatedModuleRead(parent, q.owner) == read {
+				return unwrapSourceCallableReference(argument)
+			}
+			return nil
 		}
 		if allowFreeze && ast.IsCallExpression(parent) {
 			callee := parent.Expression()
@@ -132,15 +166,59 @@ func (q *sourceValueQuery) sourceCreatedReadInput(call, read, argument *ast.Node
 	return nil
 }
 
+// privateCreatedModuleRead keeps a single original named read of a private
+// module value. An alias, write, export or second observation leaves it open.
+func privateCreatedModuleRead(declaration *ast.Node, owner *sourceValueOwner) *ast.Node {
+	if !ast.IsVariableDeclaration(declaration) || !runtimeModuleEvaluation(declaration) || !ast.IsIdentifier(declaration.Name()) || declaration.Parent.Flags&ast.NodeFlagsConst == 0 {
+		return nil
+	}
+	symbol := owner.checker.GetSymbolAtLocation(declaration.Name())
+	if symbol == nil || symbol.ValueDeclaration != declaration {
+		return nil
+	}
+	index := owner.index(ast.GetSourceFileOfNode(declaration))
+	if index.privateUses == nil {
+		return nil
+	}
+	uses := index.privateUses.uses[ast.GetSymbolId(symbol)]
+	if len(uses) != 1 {
+		return nil
+	}
+	use := uses[0].node
+	field := use.Parent
+	if !ast.IsPropertyAccessExpression(field) || field.Expression() != use || !privateSingleUse(use, symbol, declaration.Parent.Parent, owner) {
+		return nil
+	}
+	read, write := accessorEvaluationMode(field)
+	if !read || write {
+		return nil
+	}
+	return field
+}
+
 // sourceReturnedDescriptorGetter describes the exact named read of a selected
 // DefineProperty target. Source syntax supplies no callee or write authority.
 func (q *sourceValueQuery) sourceReturnedDescriptorGetter(call *ast.Node, args []*ast.Node, name string, reflected *sourceGetInputs, result *accessorCandidates) *sourceCreatedGetter {
-	if len(args) != 3 || !standardDescriptorMember(call.Expression(), q.owner.checker) ||
-		sourceLiteralMemberName(args[1]) != name {
+	if len(args) != 3 || !standardDescriptorMember(call.Expression(), q.owner.checker) {
 		return nil
 	}
 	target := unwrapSourceCallableReference(args[0])
 	descriptor := unwrapSourceCallableReference(args[2])
+	if own := sourceLiteralMemberName(args[1]); own != name {
+		if own == "" || reflected != nil || sourceCopyMember(target) != "create" || !sourceInertDataLiteral(descriptor, "value") ||
+			q.sourceCreatedReadInput(call, q.protectedMember, args[0], false, result) != target {
+			return nil
+		}
+		prototype := restrictedInvocationArguments(target.AsCallExpression())
+		if len(prototype) != 1 || ast.IsSpreadElement(prototype[0]) {
+			return nil
+		}
+		getter := createdPrototypeGetter(target, q.protectedMember, unwrapSourceCallableReference(prototype[0]), name)
+		if getter != nil {
+			getter.creation = call
+		}
+		return getter
+	}
 	if !ast.IsObjectLiteralExpression(target) || !ast.IsObjectLiteralExpression(descriptor) {
 		return nil
 	}
