@@ -9,26 +9,24 @@ import (
 	"testing"
 )
 
-// Nullable context selection keeps the context's execution authority. A local
-// shadow with the same name must not acquire that authority.
+// A shared token permits reading the value. Invoking a method still depends on
+// its implementation, including when a local binding shadows the selected value.
 func TestNullableContextCallableBinding(t *testing.T) {
+	root, config := formsSourceFixture(t)
 	for _, initializer := range []string{"this.getContext(Token)", "this.hasContext(Token)?this.getContext(Token):undefined", "this.hasContext(Token)?this.getContext(Token):null", "this.hasContext(Token)?undefined:this.getContext(Token)", "this.hasContext(Token)?null:this.getContext(Token)"} {
-		for _, shadow := range []bool{false, true} {
-			body := `parent?.run();`
-			if shadow {
-				body = `{const parent={run(){return document.title}};parent.run();}`
+		for _, row := range []struct{ body, placement string }{
+			{"void parent;", "isomorphic"},
+			{"parent?.run();", "unknown"},
+			{"{const parent={run(){return document.title}};parent.run();}", "client"},
+		} {
+			source := `import{createContext,type Component}from'@exactjs/core';const Token=createContext<{run():void}>('portable',{keep:'shared'});export function Page(this:Component<{}>){const parent=` + initializer + `;` + row.body + `return()=> <p/>;}`
+			r := formsCompileSource(t, root, config, source, TargetServer)
+			if r.Code == "" || hasErrorDiagnostic(r.Diagnostics) {
+				t.Fatal(r.Error, formsDiagnosticDetails(r.Diagnostics))
 			}
-			source := `import{createContext,type Component}from'@exactjs/core';const Token=createContext<{run():void}>('portable',{keep:'shared'});export function Page(this:Component<{}>){const parent=` + initializer + `;` + body + `return()=> <p/>;}`
-			r := NewSession().Execute(Request{Kind: "compile", ID: "nullable-context.tsx", Target: TargetServer, Source: source})
-			if r.Error != "" {
-				t.Fatal(r.Error)
-			}
-			if len(r.Analysis.Components) != 1 {
-				t.Fatal(r.Analysis.Components)
-			}
-			placement := r.Analysis.Components[0].Placement
-			if (!shadow && placement != "isomorphic") || (shadow && placement != "client") {
-				t.Fatalf("%s shadow=%v placement=%s diagnostics=%#v", initializer, shadow, placement, r.Diagnostics)
+			component := findComponent(t, r.Analysis.Components, "Page")
+			if component.Placement != row.placement || !containsContextEffect(component.Contexts, "Token", "read") {
+				t.Fatalf("%s / %s: placement=%s contexts=%v", initializer, row.body, component.Placement, component.Contexts)
 			}
 		}
 	}
