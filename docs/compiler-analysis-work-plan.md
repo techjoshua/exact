@@ -139,6 +139,9 @@ In that diagnostic the next sampled consumer was `initializeIntlEnvironment`. It
 `registry.current = next` batch writer prompted about 61,000 candidate acquisitions
 across 4,633 reads without reaching that writer body. Three nearby environment writers
 prompted about 57,000 more acquisitions over the same interval.
+Skipping those four inventory paths as well still leaves the original request pending
+at 32 seconds. The independent interference scan accounts for 14.91 of 29.95 sampled
+CPU seconds in that diagnostic. Both routes need qualification for the original consumer.
 
 An inline factory-result control independently exposed a lost callable stored in a
 descriptor. The selected factory inputs and returned local object literal already
