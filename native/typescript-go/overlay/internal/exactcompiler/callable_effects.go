@@ -78,6 +78,8 @@ type callableFacts struct {
 	callSymbols       map[string]ast.SymbolId
 	callExpressions   map[string]*ast.Node
 	contextReferences map[string]*ast.Node
+
+	opaqueModuleInvocation bool // Original module Call lost runtime selection or its execution effects.
 }
 
 type callableAnalysis struct {

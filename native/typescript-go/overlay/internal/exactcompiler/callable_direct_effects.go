@@ -373,6 +373,9 @@ func collectDirectCallableEffects(
 			}
 		}
 		registerEdge := func(invocation accessorCandidates) {
+			if fact.summary.Kind == "module-initializer" && invocation.opaque && invocation.cause == node {
+				fact.opaqueModuleInvocation = true
+			}
 			invocationOwned := invocation.invocationOwned
 			if invocation.replacedInvocation {
 				targetSymbol = nil
@@ -426,6 +429,9 @@ func collectDirectCallableEffects(
 						source.callOrigin = &sourceCallOutcome{declaration: fact.node, operation: node}
 					}
 					source.Opaque = environment == "unknown" && (opaqueDeclaration || opaqueCallExpression(call.Expression, typeChecker))
+				}
+				if fact.summary.Kind == "module-initializer" && source.Opaque {
+					fact.opaqueModuleInvocation = true
 				}
 				fact.summary.DirectEffectSources = append(
 					fact.summary.DirectEffectSources,

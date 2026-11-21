@@ -1374,12 +1374,13 @@ unavailable, eager module execution remains unknown and receives `EXACT2101`. St
 callable without invoking it does not execute its body. Known source alternatives still contribute
 their own requirements alongside the unresolved alternative.
 
-A build adapter can retain an opaque initializer in an ordinary host module. If the
-initializer also has an independently known browser or server requirement, the
-opposite target still receives `EXACT2101`. For example, passing `document.title`
-as an argument performs the browser read during module initialization, even
-when the called implementation is unavailable. A property getter is evaluated
-when the callee actually reads the property.
+A build adapter can retain an opaque initializer in an ordinary host module.
+When a retained opaque invocation has an independently known browser or server
+requirement, the opposite target still receives `EXACT2101`. For example, passing
+`document.title` as an argument performs the browser read during module
+initialization, even when the called implementation is unavailable. A property
+getter is evaluated when the callee actually reads the property. Independent
+declarators still partition by their original target requirements.
 
 The agreed extension of standard built-in trust, its runtime-origin requirements and its remaining
 implementation obligations are specified in the [architecture completion plan](compiler-architecture-completion-plan.md#agreed-standard-built-in-trust-policy).
