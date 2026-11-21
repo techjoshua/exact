@@ -66,7 +66,9 @@ func (query *sourceValueQuery) consumeNativeInvocation(node *ast.Node, value sou
 		// after acquisition so a subsequent Get can observe this writer.
 		if query.dependenciesOnly && consumer.sourceReturn != nil && value.native.kind == sourceNativeObjectDefineProperty {
 			projection := query.reflectiveCopy
-			if exclusive && projection != nil && projection.issuer == query && projection.createdGetter != nil && projection.createdGetter.creation == node {
+			// The selected reflected read can keep a getter's source effects from
+			// this native alternative even when its independent siblings remain open.
+			if projection != nil && projection.issuer == query && projection.createdGetter != nil && projection.createdGetter.creation == node && (exclusive || projection.createdGetter.reflected != nil) {
 				getter := projection.createdGetter
 				for _, target := range operation.targets {
 					if target.value.node == getter.receiver && len(target.value.path) == 0 {

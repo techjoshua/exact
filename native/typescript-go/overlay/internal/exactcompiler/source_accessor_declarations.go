@@ -1525,7 +1525,7 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 				defer func() { query.traceProjection = tracePriorProjection }()
 				interest := sourceCallResultInterest{purpose: resultSourceProjection}
 				if query.dependenciesOnly && !instance && mode&accessorNoGet == 0 {
-					interest.createdGetter = query.sourceCreatedGetter(value, projection, name, &result)
+					interest.createdGetter = query.sourceCreatedGetter(value, projection, name, get, &result)
 				}
 				if query.dependenciesOnly && !instance && mode == accessorAcquire && name == "" && len(projection) == 1 && (projection[0] == "value" || projection[0] == "get" || projection[0] == "set") && descriptorRetrievalIntent(value) && query.immutableDescriptorCallbackRead(value, projection[0]) {
 					interest.descriptorData = &descriptorCallbackDemand{field: projection[0], publish: func(source sourceValue) { result.values = append(result.values, source) }}

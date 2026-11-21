@@ -7,10 +7,17 @@ import "github.com/microsoft/TypeScript/tsc/internal/ast"
 type sourceCreatedGetter struct {
 	creation, read, receiver, body *ast.Node
 	name                           string
+	reflected                      *sourceGetInputs
 }
 
-func (q *sourceValueQuery) sourceCreatedGetter(call *ast.Node, projection []string, name string, result *accessorCandidates) *sourceCreatedGetter {
-	if q.reflectiveCopy != nil || q.protectedMember == nil || !ast.IsAccessExpression(q.protectedMember) {
+func (q *sourceValueQuery) sourceCreatedGetter(call *ast.Node, projection []string, name string, actual *sourceGetInputs, result *accessorCandidates) *sourceCreatedGetter {
+	if q.reflectiveCopy != nil {
+		return nil
+	}
+	if actual != nil && actual.originalReflectRead && actual.receiver.node == call && len(actual.receiver.path) == 0 && len(projection) == 1 && name == "" && projection[0] == actual.propertyKey {
+		return q.sourceReturnedDescriptorGetter(call, restrictedInvocationArguments(call.AsCallExpression()), actual.propertyKey, actual, result)
+	}
+	if q.protectedMember == nil || !ast.IsAccessExpression(q.protectedMember) {
 		return nil
 	}
 	switch {
@@ -25,7 +32,7 @@ func (q *sourceValueQuery) sourceCreatedGetter(call *ast.Node, projection []stri
 	}
 	args := restrictedInvocationArguments(call.AsCallExpression())
 	if sourceCopyMember(call) != "create" {
-		return q.sourceReturnedDescriptorGetter(call, args, name, result)
+		return q.sourceReturnedDescriptorGetter(call, args, name, nil, result)
 	}
 	if len(args) != 1 || ast.IsSpreadElement(args[0]) {
 		return nil
@@ -60,6 +67,10 @@ func (q *sourceValueQuery) sourceCreatedGetterRead(getter *sourceCreatedGetter, 
 	q.reflectiveCopy = nil
 	defer func() { q.reflectiveCopy = prior }()
 	get := sourceGetInputs{operation: getter.read, receiver: sourceValue{node: getter.receiver}}
+	if getter.reflected != nil {
+		get = *getter.reflected
+		get.receiver.node = getter.receiver
+	}
 	q.reflectiveSourceGet(getter.body, getter.creation, getter.name, &get, bindings, result)
 }
 
@@ -123,7 +134,7 @@ func (q *sourceValueQuery) sourceCreatedReadInput(call, read, argument *ast.Node
 
 // sourceReturnedDescriptorGetter describes the exact named read of a selected
 // DefineProperty target. Source syntax supplies no callee or write authority.
-func (q *sourceValueQuery) sourceReturnedDescriptorGetter(call *ast.Node, args []*ast.Node, name string, result *accessorCandidates) *sourceCreatedGetter {
+func (q *sourceValueQuery) sourceReturnedDescriptorGetter(call *ast.Node, args []*ast.Node, name string, reflected *sourceGetInputs, result *accessorCandidates) *sourceCreatedGetter {
 	if len(args) != 3 || !standardDescriptorMember(call.Expression(), q.owner.checker) ||
 		sourceLiteralMemberName(args[1]) != name {
 		return nil
@@ -138,8 +149,8 @@ func (q *sourceValueQuery) sourceReturnedDescriptorGetter(call *ast.Node, args [
 		ast.IsComputedPropertyName(properties[0].Name()) || callableNameText(properties[0].Name()) != "get" {
 		return nil
 	}
-	if q.sourceCreatedReadInput(call, q.protectedMember, args[0], false, result) != target {
+	if reflected == nil && q.sourceCreatedReadInput(call, q.protectedMember, args[0], false, result) != target {
 		return nil
 	}
-	return &sourceCreatedGetter{creation: call, read: q.protectedMember, receiver: target, body: properties[0].Initializer(), name: name}
+	return &sourceCreatedGetter{creation: call, read: q.protectedMember, receiver: target, body: properties[0].Initializer(), name: name, reflected: reflected}
 }

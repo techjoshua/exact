@@ -6,6 +6,7 @@ import "github.com/microsoft/TypeScript/tsc/internal/ast"
 // neither a CallExpression nor the numeric-conversion implicit input contract.
 // The enclosing installed plan retains captures and the zero-argument defaults.
 type sourceGetInputs struct {
+	originalReflectRead bool                               // Selected two-argument Reflect.get source read.
 	resultSource        *sourceStagedGetResultBorrow       // One original Get SOURCE/Effects loan, revoked synchronously.
 	constructionEffects *sourceStagedConstructionGetBorrow // Exact original New prototype Get, revoked synchronously.
 	hasInstance         *sourceStagedHasInstanceGetBorrow  // One original operator Get, revoked synchronously.

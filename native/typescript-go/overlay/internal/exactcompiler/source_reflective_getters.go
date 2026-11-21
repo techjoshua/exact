@@ -42,7 +42,9 @@ func (query *sourceValueQuery) reflectiveSourceGet(expression, definition *ast.N
 			// Arrows retain lexical this through the shared Get input owner.
 			var operation *ast.Node
 			receiver := sourceValue{}
-			if actualGet != nil && actualGet.operation != nil && (ast.IsPropertyAccessExpression(actualGet.operation) || ast.IsElementAccessExpression(actualGet.operation)) {
+			if actualGet != nil && actualGet.originalReflectRead && actualGet.propertyKey == key {
+				operation, receiver = actualGet.operation, actualGet.receiver
+			} else if actualGet != nil && actualGet.operation != nil && (ast.IsPropertyAccessExpression(actualGet.operation) || ast.IsElementAccessExpression(actualGet.operation)) {
 				_, observedKey := accessorReceiver(actualGet.operation)
 				if observedKey != "" && observedKey == key {
 					operation, receiver = actualGet.operation, actualGet.receiver

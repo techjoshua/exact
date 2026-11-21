@@ -776,6 +776,11 @@ including structural annotations, source factory returns, nested projections and
 A selected two-argument standard `Reflect.get` visits its known property keys at the
 original read and carries the selected value into later calls. Unresolved keys or receivers
 remain incomplete alongside the known alternatives.
+The read keeps the getter of a fresh target from an original `Object.defineProperty`
+alternative through a forwarding helper. A simple immutable loop key from
+`Object.getOwnPropertyNames` on the same captured input can supply a possible own
+getter key to that read. The enumeration and the Get retain their separate effects.
+Recursive writer recovery of the same live reflected Get leaves its nested value open.
 A member read can also retain a descriptor installed before a factory returns its local
 receiver, including when a field in the returned record carries the object. The selected
 factory's return and immutable binding supply a possible writer for an ordinary literal or an

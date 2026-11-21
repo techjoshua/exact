@@ -25,6 +25,7 @@ type sourceValueIndex struct {
 	numberReplaced           bool
 	objectEntriesWritten     bool
 	objectFromEntriesWritten bool
+	objectOwnNamesWritten    bool
 	numberOpenCalls          []*ast.Node
 	calls                    []*ast.Node
 	originCalls              map[*ast.Node][]*ast.Node
@@ -220,12 +221,15 @@ func (owner *sourceValueOwner) index(source *ast.SourceFile) sourceValueIndex {
 			region.thenOperations = append(region.thenOperations, write)
 			base, name := accessorReceiver(write)
 			base = unwrapSourceCallableReference(base)
-			if (name == "entries" || name == "fromEntries") && ast.IsIdentifier(base) &&
+			if (name == "entries" || name == "fromEntries" || name == "getOwnPropertyNames") && ast.IsIdentifier(base) &&
 				base.Text() == "Object" && standardLibraryCallRoot(base, owner.checker) {
-				if name == "entries" {
+				switch name {
+				case "entries":
 					index.objectEntriesWritten = true
-				} else {
+				case "fromEntries":
 					index.objectFromEntriesWritten = true
+				case "getOwnPropertyNames":
+					index.objectOwnNamesWritten = true
 				}
 			}
 		}

@@ -12,6 +12,12 @@ func (q *sourceValueQuery) sourceReflectGetRelationship(node *ast.Node, selected
 		result.opaque, result.valueIncomplete = true, true
 		return
 	}
+	// Recovering a writer's operands can revisit this original Get. Its live
+	// reader retains the owned work, while the nested projection remains open.
+	if q.active[node] {
+		result.opaque, result.valueIncomplete = true, true
+		return
+	}
 	result.opaque = result.opaque || !complete
 	result.valueIncomplete = result.valueIncomplete || selected.native.referencesIncomplete
 	var values []sourceValue
@@ -42,6 +48,28 @@ func (q *sourceValueQuery) reflectGetSources(node *ast.Node, actuals []*ast.Node
 		mode = accessorAcquire
 	}
 	var sources []sourceValue
+	read := func(target sourceValue, key string) {
+		if key == "" || key == "*" {
+			return
+		}
+		get := &sourceGetInputs{operation: node, receiver: target, propertyKey: key, originalReflectRead: true}
+		part := q.accessorsAtGet(nil, []string{key}, "", mode, bindings, nil, get, target)
+		mergeAccessorCandidates(result, part)
+		if !acquire {
+			return
+		}
+		for i, value := range part.values {
+			if scope, captured := part.callableScopes[i]; captured && value.capture == nil {
+				value.capture = &scope
+			}
+			sources = append(sources, value)
+		}
+	}
+	if q.usesOwnPropertyNamesLoopBinding(actuals) {
+		for _, target := range targets {
+			q.readOwnPropertyNamesOrigins(target, read)
+		}
+	}
 	for _, source := range keys.values {
 		key := sourceLiteralMemberName(unwrapSourceCallableReference(source.node))
 		if len(source.path) != 0 || key == "" || key == "*" {
@@ -49,19 +77,58 @@ func (q *sourceValueQuery) reflectGetSources(node *ast.Node, actuals []*ast.Node
 			continue
 		}
 		for _, target := range targets {
-			get := &sourceGetInputs{operation: node, receiver: target, propertyKey: key}
-			part := q.accessorsAtGet(nil, []string{key}, "", mode, bindings, nil, get, target)
-			mergeAccessorCandidates(result, part)
-			if !acquire {
-				continue
-			}
-			for i, value := range part.values {
-				if scope, captured := part.callableScopes[i]; captured && value.capture == nil {
-					value.capture = &scope
-				}
-				sources = append(sources, value)
-			}
+			read(target, key)
 		}
 	}
 	return sources
+}
+
+// usesOwnPropertyNamesLoopBinding recognizes the immutable key of the original
+// loop over this same captured operand. Enumeration still owns its own effects.
+func (q *sourceValueQuery) usesOwnPropertyNamesLoopBinding(actuals []*ast.Node) bool {
+	target, key := unwrapSourceCallableReference(actuals[0]), unwrapSourceCallableReference(actuals[1])
+	if !ast.IsIdentifier(target) || !ast.IsIdentifier(key) {
+		return false
+	}
+	c := q.owner.checker
+	keySymbol, input := c.GetSymbolAtLocation(key), c.GetSymbolAtLocation(target)
+	if keySymbol == nil || input == nil || input.ValueDeclaration == nil {
+		return false
+	}
+	call := standardArrayLoopSource(keySymbol.ValueDeclaration, c)
+	if !ast.IsCallExpression(call) || ast.IsOptionalChain(call) {
+		return false
+	}
+	callee := call.Expression()
+	owner, name := restrictedInvocationMember(callee, c)
+	if name != "getOwnPropertyNames" || !ast.IsIdentifier(owner) || owner.Text() != "Object" || !standardLibraryCallRoot(callee, c) || standardLibraryCallOwner(call.AsCallExpression(), c) != "ObjectConstructor" {
+		return false
+	}
+	args := restrictedInvocationArguments(call.AsCallExpression())
+	if len(args) != 1 || !ast.IsIdentifier(args[0]) || c.GetSymbolAtLocation(args[0]) != input {
+		return false
+	}
+	index := q.owner.index(ast.GetSourceFileOfNode(call))
+	return !index.incomplete && !index.objectOwnNamesWritten && !q.owner.bindingWritten(input)
+}
+
+// readOwnPropertyNamesOrigins retains possible getter keys from acquired
+// source origins. Only the actual Get and writer owners select property values.
+func (q *sourceValueQuery) readOwnPropertyNamesOrigins(target sourceValue, read func(sourceValue, string)) {
+	if len(target.path) != 0 || target.node == nil {
+		return
+	}
+	if ast.IsCallExpression(target.node) && stagedNativeInputIntent(target.node.Expression()) == sourceNativeObjectDefineProperty && reflectiveDescriptorCall(target.node.AsCallExpression(), q.owner.checker) {
+		actuals := restrictedInvocationArguments(target.node.AsCallExpression())
+		if len(actuals) == 3 && ast.IsObjectLiteralExpression(unwrapSourceCallableReference(actuals[0])) {
+			read(target, sourceLiteralMemberName(unwrapSourceCallableReference(actuals[1])))
+		}
+	}
+	if ast.IsObjectLiteralExpression(target.node) {
+		for _, member := range target.node.AsObjectLiteralExpression().Properties.Nodes {
+			if ast.IsGetAccessorDeclaration(member) && !ast.IsComputedPropertyName(member.Name()) {
+				read(target, callableNameText(member.Name()))
+			}
+		}
+	}
 }

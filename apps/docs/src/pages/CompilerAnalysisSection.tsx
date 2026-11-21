@@ -95,6 +95,9 @@ export function CompilerAnalysisSection(this: Component<{}>) {
 				An ordinary descriptor can also compute its value with <code>get value()</code>.
 				When that getter reads <code>document</code> during the module initializer, a component
 				that uses the resulting binding renders in the browser.
+				<code>Object.getOwnPropertyNames</code> collects names without running their getters.
+				If a helper then uses <code>Reflect.get</code> to read those properties, its placement
+				includes the getters that the reads can invoke, including nonenumerable ones.
 				Freezing an ordinary object just created in that initializer keeps its stored callbacks
 				and installed getters dormant.
 				If a getter returns a

@@ -463,6 +463,14 @@ selected native read now carries its eager getter effects and any known callable
 through the original cut. The paired SSR test emits a client boundary for the browser
 callback and renders the neutral callback on the server. The unchanged Intl SDK build
 with this fix still reaches the request deadline on `components.ts` at 32.94 seconds.
+The existing returned-descriptor Get owner also retains the browser getter on a
+fresh input forwarded through a helper. In the original record capture shape,
+the immutable loop key from `Object.getOwnPropertyNames(input)` feeds the later
+`Reflect.get(input, key)`. The focused SSR and DOM controls retain nonenumerable
+getters that execute during capture, even when the render result uses a different
+property. A names-only read keeps the getter deferred. A nested projection of
+the same already active reflected Get stays open instead of recursively acquiring
+the writer again. The original package still reaches the `components.ts` deadline.
 An independent repeat reached the same request deadline in 31.99 seconds. A private
 diagnostic also skipped recovery of the single `requireRecord` descriptor writer at
 each queried member. The unchanged package request sequence still returned seven of
