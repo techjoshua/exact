@@ -75,6 +75,27 @@ The canonical SDK run used source and built adapters at `85cbeccc6`, native inpu
 
 The full original Core package build emitted 300 JavaScript modules per target at `43fa437ca`. Its 16.07-second elapsed time is one observation with retained providers and other audit jobs active. The deep placement test reported 1,863,065 JSON characters against a limit of 750,000 on both the control and unified compilers under the same SDK configuration.
 
+The unchanged Theme package reaches the client `components.ts` request deadline in
+31.71 seconds with `330af2ff4`, with no emitted files for either target. The focused
+`createTone` control passes for application and library targets. Its selected map
+callback retains browser effects from the reached getter, excludes an unvisited getter
+when the lookup keys are known, and keeps the possible effect when the key array or
+callback parameter can change.
+
+The unchanged request repeatedly acquires `resolveSolid(...).onSolid` while discovering
+downstream Gets in `createTone`. A frozen observer saw one source Call and one formal
+origin and path signature over 356 samples, with no new summary or index work. Their
+live frames and read cuts varied. A private comparison on `8e798aa87` projected the two
+authored return envelopes directly and supplied the original literal `undefined` for
+the `forcedForeground` parameter. The matching comparison with ordinary binding took
+31.61 seconds and the input shortcut took 31.66 seconds. Both had the envelope shortcut
+enabled, reached the package request deadline, and emitted zero files for each target.
+An additional private bound supplied the native `every` method directly for the known
+fresh RGB tuple inside `resolveColor`. It removed over 6,000 receiver projections over
+40 seconds. The same captured request remained unanswered with the first client module
+unchanged. The isolated receiver acquisition leaves other descendant Gets and source
+binding work on the same request.
+
 The reduced Intl reactive setter request completes in 0.91 seconds with `819594709` after
 reaching the eight-second stop on the baseline. Active and dormant aliased setters preserve
 their target effects, including a setter that installs a matching descriptor. In the recursive
