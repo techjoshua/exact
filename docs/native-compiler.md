@@ -767,6 +767,9 @@ including structural annotations, source factory returns, nested projections and
 A selected two-argument standard `Reflect.get` visits its known property keys at the
 original read and carries the selected value into later calls. Unresolved keys or receivers
 remain incomplete alongside the known alternatives.
+A member read on an inline factory result can also retain a descriptor installed before the
+factory returns its local object literal. The original factory inputs supply a possible writer
+without treating the descriptor as a guaranteed replacement.
 A property read can inherit getter effects from earlier assignments to a local declared without an
 initializer in the same helper body.
 Computed member names still execute while the owner is created. Provenance searches retain

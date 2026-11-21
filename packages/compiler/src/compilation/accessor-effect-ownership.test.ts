@@ -114,17 +114,18 @@ it.each([
 });
 
 it.each([
-	{ expression: 'document.title', browser: true },
-	{ expression: "'safe'", browser: false }
-])(
-	'retains callable placement through Reflect.get and descriptor data',
-	async ({ expression, browser }) => {
+	{ expression: 'document.title', owner: 'existing receiver', browser: true },
+	{ expression: "'safe'", owner: 'existing receiver', browser: false },
+	{ expression: 'document.title', owner: 'inline factory result', browser: true },
+	{ expression: "'safe'", owner: 'inline factory result', browser: false }
+] as const)(
+	'retains callable placement through Reflect.get and descriptor data on an $owner ($expression)',
+	async ({ expression, owner, browser }) => {
 		const root = await createCompilerTestWorkspace('.exact-reflect-get-', process.cwd());
 		const entry = path.join(root, 'page.tsx');
-		await writeFile(
-			entry,
-			`
-type Callback = () => string;
+		const definitions =
+			owner === 'existing receiver'
+				? `
 function install(cell: {field: Callback}, input: {payload: Callback}, key: string) {
 	Object.defineProperty(cell, 'field', {value: Reflect.get(input, key)});
 }
@@ -133,6 +134,19 @@ function paint() {
 	install(cell, {payload: () => ${expression}}, 'payload');
 	return cell.field();
 }
+`
+				: `
+function make(input: {payload: Callback}, key: string) {
+	const cell = {field: () => 'initial'};
+	Object.defineProperty(cell, 'field', {value: Reflect.get(input, key)});
+	return cell;
+}
+function paint() { return make({payload: () => ${expression}}, 'payload').field(); }
+`;
+		await writeFile(
+			entry,
+			`type Callback = () => string;
+${definitions}
 export function Page() { return () => <p>{paint()}</p>; }`
 		);
 		const [artifact] = await compileProjectArtifacts([entry], {

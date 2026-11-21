@@ -189,6 +189,8 @@ export function ComponentsPage(this: Component<{}>) {
 					The compiler can follow an earlier call to a statically imported helper that installs
 					the first getter.
 					This also applies to a standard <code>Reflect.get</code> with a known property key.
+					If a helper installs a getter on a local object and returns it, a read like
+					<code>makeOptions().label</code> can carry the getter’s placement requirements.
 					For example, a getter that reads <code>document.title</code> can
 					cause the compiler to reject an explicitly server-placed task.
 				</p>

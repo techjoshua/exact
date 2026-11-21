@@ -96,3 +96,42 @@ export function Page(props: {keyName: string; pick: boolean}) {
 		})
 	}
 }
+
+// An inline member read consumes only the possible descriptor for that local
+// field. A shadowed writer or another field does not attach the callback.
+func TestReflectiveInlineReturnedLiteral(t *testing.T) {
+	root, config := formsSourceFixture(t)
+	const fixture = `
+function make(donor: () => string) {
+	const record = {field: () => 'initial', other: () => 'other'};
+	WRITER
+	return record;
+}
+function paint() { return make(() => DONOR).FIELD(); }
+export function Page() { return () => <p>{paint()}</p>; }
+`
+	const writer = "Object.defineProperty(record, 'field', {value: donor});"
+	for _, row := range []struct {
+		name, write, donor, field string
+		browser                   bool
+	}{
+		{"installed field", writer, "document.title", "field", true},
+		{"neutral donor", writer, "'safe'", "field", false},
+		{"other field", writer, "document.title", "other", false},
+		{"unreachable writer", "if (false) " + writer, "document.title", "field", false},
+		{"shadowed writer", "const Object={defineProperty(_target:object,_key:string,_descriptor:PropertyDescriptor){}}; " + writer, "document.title", "field", false},
+	} {
+		t.Run(row.name, func(t *testing.T) {
+			source := strings.NewReplacer("WRITER", row.write, "DONOR", row.donor, "FIELD", row.field).Replace(fixture)
+			response := formsCompileSource(t, root, config, source, TargetServer)
+			if hasErrorDiagnostic(response.Diagnostics) || response.Code == "" {
+				t.Fatal(response.Diagnostics)
+			}
+			paint := findCallable(t, response.Analysis.Callables, "paint")
+			browser := containsEnvironment(paint.EffectSources, "browser")
+			if browser != row.browser {
+				t.Fatalf("browser=%v want=%v effects=%v", browser, row.browser, paint.EffectSources)
+			}
+		})
+	}
+}

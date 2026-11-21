@@ -109,6 +109,23 @@ selected native read now carries its eager getter effects and any known callable
 through the original cut. The paired SSR test emits a client boundary for the browser
 callback and renders the neutral callback on the server. The unchanged Intl SDK build
 with this fix still reaches the request deadline on `components.ts` at 32.94 seconds.
+An independent repeat reached the same request deadline in 31.99 seconds. A private
+diagnostic also skipped recovery of the single `requireRecord` descriptor writer at
+each queried member. The unchanged package request sequence still returned seven of
+eight responses after 36 seconds. This confirms that eliminating that writer alone
+would leave a further cost, even though its recovery dominates the sampled interval.
+In that diagnostic the next sampled consumer was `initializeIntlEnvironment`. Its
+`registry.current = next` batch writer prompted about 61,000 candidate acquisitions
+across 4,633 reads without reaching that writer body. Three nearby environment writers
+prompted about 57,000 more acquisitions over the same interval.
+
+An inline factory-result control independently exposed a lost callable stored in a
+descriptor. The selected factory inputs and returned local object literal already
+identify a possible writer for the inline member read. The compiler can retain that
+source relationship without reacquiring the creator as a prior call. The browser
+control now emits a client boundary, and the neutral control renders on the server.
+The unchanged Intl build with this fix reaches the same deadline at 32.43 seconds
+and emits neither target.
 
 Acceptance also covers mounted reads, control bindings, lifecycle, portals, registry identity, task settlement, protected transport, paired artifact selection, selected host implementations and source inspection. Use the existing [composition corpus](component-composition-corpus.md) and [package decision audit](#requester-disposition-against-the-component-contracts) for their scoped evidence. Treat interrupted suites and original packages that still reach the request deadline as open.
 
