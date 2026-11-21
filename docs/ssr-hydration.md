@@ -539,6 +539,8 @@ content. Asynchronous producers and Web Streams retain progressive publication a
 
 A direct server task publishes its staged state after its producer and cleanup succeed, before
 its dependent tasks and HTML read that state. Failure or cancellation discards pending writes.
+A synchronous setup computation uses the component's state directly, including reads taken with
+`peek()`. Pending transactions belong to scheduled task generations.
 A component frame exposes pending work and a
 completion revision to rendering. The renderer checks that state, waits only when necessary, and
 retries if a relevant task completed while descendants were rendered. Hydration treats writers of

@@ -5,6 +5,23 @@ import (
 	"testing"
 )
 
+func TestNormalizationImmediateServerSnapshot(t *testing.T) {
+	const source = `import {peek,type Component} from '@exactjs/core';
+export function Page(this:Component<{input:number;output:number}>){
+  this.state.input=1;this.state.output=0;
+  this.state.output=peek(()=>this.state.output)+this.state.input;
+  return()=> <section><output>{this.state.output}</output><button onClick={()=>this.state.input++}>Next</button></section>;
+}`
+	root, config := formsSourceFixture(t)
+	response := formsCompileSource(t, root, config, source, TargetServer)
+	if hasErrorDiagnostic(response.Diagnostics) || response.Code == "" {
+		t.Fatal(response.Diagnostics)
+	}
+	if strings.Contains(response.Code, "createTaskState") {
+		t.Fatal("immediate server setup has no signal for a pending state transaction")
+	}
+}
+
 // Source witnesses cross normalizer decisions with actual checking and executable lowering.
 func TestNormalizationSetupSourceWitnesses(t *testing.T) {
 	for _, c := range []struct{ name, prefix, setup string }{

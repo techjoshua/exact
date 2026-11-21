@@ -789,7 +789,7 @@ func (lowering *jsxLowering) rewriteTaskWork(
 	dependencies []nativeTaskDependency,
 	task Task,
 	dependencyCount int,
-	directServer bool,
+	mode taskWorkMode,
 ) *ast.Node {
 	callsTaskDefinition := lowering.taskWorkCallsDefinition(work)
 	facades := &serverTaskFacadeScope{work: work}
@@ -887,7 +887,7 @@ func (lowering *jsxLowering) rewriteTaskWork(
 		task,
 		dependencyCount,
 		callsTaskDefinition,
-		directServer,
+		mode,
 	)
 	return facades.finish(lowering, lowering.finishMutationFrame(lowering.visitor.VisitEachChild(rewritten), frame))
 }

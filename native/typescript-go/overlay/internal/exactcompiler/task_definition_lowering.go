@@ -192,6 +192,12 @@ func (lowering *jsxLowering) lowerTask(node *ast.Node, task Task) *ast.Node {
 			),
 		)
 	}
+	mode := taskRuntimeWork
+	if directServerComputation {
+		mode = taskImmediateServerSetupWork
+	} else if directServerSlice {
+		mode = taskServerSliceWork
+	}
 	rewrittenWork := lowering.rewriteTaskWork(
 		work,
 		dependencies,
@@ -199,7 +205,7 @@ func (lowering *jsxLowering) lowerTask(node *ast.Node, task Task) *ast.Node {
 		// Runtime task context follows every activation dependency, including
 		// authored dependencies that do not appear in the inferred plan.
 		runtimeArgumentCount,
-		directServerComputation || directServerSlice,
+		mode,
 	)
 	// Policy key parameters belong to the activation callable before inspection or
 	// continuation wrappers decorate its value. Those wrappers need not be callable AST nodes.
@@ -754,7 +760,7 @@ func (lowering *jsxLowering) boundTaskDefinition(
 	dependencyCount int,
 ) *ast.Node {
 	if task.Progress {
-		work = lowering.rewriteTaskWork(work, nil, task, dependencyCount, false)
+		work = lowering.rewriteTaskWork(work, nil, task, dependencyCount, taskRuntimeWork)
 		return lowering.taskHelperCall("registerTaskProgressReceiver", lowering.names.progressReceiver, []*ast.Node{
 			lowering.factory.NewThisExpression(),
 			lowering.factory.NewStringLiteral(task.ID, ast.TokenFlagsNone), work,
@@ -783,7 +789,7 @@ func (lowering *jsxLowering) boundTaskDefinition(
 		(operation.Placement == "server" || operation.Placement == "isomorphic") {
 		work = lowering.lowerInvokedTaskOperationWork(work, *operation, task)
 	} else {
-		work = lowering.rewriteTaskWork(work, nil, task, dependencyCount, false)
+		work = lowering.rewriteTaskWork(work, nil, task, dependencyCount, taskRuntimeWork)
 	}
 	if (operation == nil || operation.Placement == "client") && useCompiledLatest {
 		return lowering.taskHelperCall(
@@ -1049,7 +1055,7 @@ func (lowering *jsxLowering) lowerSetupResourceTask(
 		task,
 		0,
 		lowering.taskWorkCallsDefinition(work),
-		false,
+		taskRuntimeWork,
 	)
 	callee := lowering.factory.NewPropertyAccessExpression(
 		lowering.factory.NewPropertyAccessExpression(

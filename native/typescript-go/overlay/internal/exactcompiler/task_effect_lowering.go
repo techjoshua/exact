@@ -156,13 +156,23 @@ func taskContextCapabilityDeclaration(declaration *ast.Node, method string) bool
 	return strings.Contains(name, "/packages/core/") || strings.Contains(name, "/@exactjs/core/")
 }
 
+// taskWorkMode describes the execution owner that lowers this body.
+type taskWorkMode uint8
+
+const (
+	taskRuntimeWork taskWorkMode = iota
+	taskServerSliceWork
+	taskImmediateServerSetupWork
+)
+
 func (lowering *jsxLowering) manageTaskWork(
 	work *ast.Node,
 	task Task,
 	dependencyCount int,
 	callsTaskDefinition bool,
-	directServer bool,
+	mode taskWorkMode,
 ) *ast.Node {
+	directServer := mode != taskRuntimeWork
 	// Runtime work receives the existing final context even when no frame,
 	// cancellation or mutation transform is needed. Otherwise defineTask infers
 	// the last authored argument as its context and loses the input tuple.
@@ -198,7 +208,9 @@ func (lowering *jsxLowering) manageTaskWork(
 		context = taskContextExpression(work, dependencyCount)
 	}
 	var pendingState *ast.Node
-	if lowering.taskNeedsPendingState(task) {
+	// Immediate setup writes directly to its component. It has no task
+	// generation or signal against which to stage a pending transaction.
+	if mode != taskImmediateServerSetupWork && lowering.taskNeedsPendingState(task) {
 		pendingState = lowering.factory.NewIdentifier(lowering.uniqueMutationName(fmt.Sprintf("__exactTaskState_%d", task.WorkStart)))
 	}
 	lowering.pendingStates = append(lowering.pendingStates, pendingState)
