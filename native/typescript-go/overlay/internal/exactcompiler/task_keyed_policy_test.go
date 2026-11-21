@@ -54,6 +54,7 @@ var keyedTransportControls = []struct{ name, definition, argument, key string }{
 	{"declaration", `async function run(key:string,value:number,task:TaskContext=TaskContext.server().latest().key(key).blocking()){return value;}`, `'a',1`, `(key, value) => key`},
 	{"destructured-arrow", `const run=async({key}:{key:string},value:number,task:TaskContext=TaskContext.server().latest().key(prefix+key).blocking())=>value;`, `{key:'a'},1`, `({ key }, value) => prefix + key`},
 	{"captured-default-expression", `const run=async function(key:string=defaultKey(),value:number,task:TaskContext=TaskContext.server().queue().key(prefix+key).blocking()){return value;};`, `undefined,1`, `(key, value) => prefix + key`},
+	{"computed-current", `async function run(key:string,value:number,task:TaskContext=TaskContext.latest().key(prefix+key).blocking()){return value;}`, `'a',1`, `(key, value) => prefix + key`},
 	{"current", `async function run(key:string,value:number,task:TaskContext=TaskContext.latest().key(key).blocking()){return value;}`, `'a',1`, `(key, value) => key`},
 }
 

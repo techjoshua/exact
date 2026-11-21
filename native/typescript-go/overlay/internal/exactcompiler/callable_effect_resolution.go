@@ -301,17 +301,21 @@ func unresolvedCallEnvironment(
 	); classified {
 		return environment
 	}
-	root := text
-	if separator := strings.IndexAny(root, ".("); separator >= 0 {
-		root = root[:separator]
+	// Host identity belongs to the base binding. A missing or external member
+	// declaration cannot turn an authored receiver named process into Node's global.
+	base := unwrapSourceCallableReference(expression)
+	for ast.IsAccessExpression(base) {
+		base = unwrapSourceCallableReference(base.Expression())
 	}
-	if _, server := serverGlobals[root]; server &&
-		symbolIsOutsideSource(symbol, sourceFile) {
-		return "server"
-	}
-	if _, browser := browserGlobals[root]; browser &&
-		symbolIsOutsideSource(symbol, sourceFile) {
-		return "browser"
+	if ast.IsIdentifier(base) {
+		_, server := serverGlobals[base.Text()]
+		_, browser := browserGlobals[base.Text()]
+		if (server || browser) && symbolIsOutsideSource(typeChecker.GetSymbolAtLocation(base), sourceFile) {
+			if server {
+				return "server"
+			}
+			return "browser"
+		}
 	}
 	return "unknown"
 }
@@ -721,7 +725,7 @@ func sourceBoundReferenceEffects(node, boundary *ast.Node, sourceFile *ast.Sourc
 	if _, candidate := browserGlobals[name]; candidate && symbolIsOutsideSource(symbol, sourceFile) && !browserGlobalReferenceIsGuarded(node, name, boundary) {
 		sources = append(sources, environmentSource("browser", name, nameOfOwner))
 	}
-	if _, candidate := serverGlobals[name]; candidate && symbolIsOutsideSource(symbol, sourceFile) {
+	if _, candidate := serverGlobals[name]; candidate && symbolIsOutsideSource(symbol, sourceFile) && !browserGlobalReferenceIsGuarded(node, name, boundary) {
 		sources = append(sources, environmentSource("server", name, nameOfOwner))
 	}
 	if serverOnlyImportSymbol(symbol) {

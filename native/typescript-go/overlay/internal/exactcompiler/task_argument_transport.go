@@ -38,21 +38,22 @@ func definitelyFunction(t *checker.Type, c *checker.Checker) bool {
 		len(c.GetSignaturesOfType(t, checker.SignatureKindCall)) != 0
 }
 
-// Check the work performed by a client task facade before dispatch and the arguments it sends.
+// Check key evaluation on the calling target and arguments transferred by a client facade.
 func (facts *sourceAnalysisFacts) clientTaskInvocationDiagnostics(tasks []Task, jsx []JSXElement, callables callableAnalysis, operations []InvokedTaskOperation) []Diagnostic {
 	if len(facts.taskArguments) == 0 {
 		return nil
 	}
 	placements := make(map[int]string, len(tasks))
-	var keys map[int]*ast.Node
-	for _, task := range tasks {
+	var keys map[int]*Task
+	for i := range tasks {
+		task := &tasks[i]
 		if task.FunctionDefined {
 			placements[task.WorkStart] = task.Placement
-			if task.Placement == "server" && taskKeyRequiresServerBinding(task.keyOperand, facts) {
+			if task.keyNeedsBrowser || task.keyNeedsServer {
 				if keys == nil {
-					keys = make(map[int]*ast.Node)
+					keys = make(map[int]*Task)
 				}
-				keys[task.WorkStart] = task.keyOperand
+				keys[task.WorkStart] = task
 			}
 		}
 	}
@@ -72,24 +73,32 @@ func (facts *sourceAnalysisFacts) clientTaskInvocationDiagnostics(tasks []Task, 
 	type transfer struct {
 		argument, caller *ast.Node
 		message          string
+		serverCaller     bool
 	}
 	const argumentMessage = "error: a function cannot be sent from the client as a server task argument. Run the callback on the client and pass its result, or pass data and handle it in the server task"
 	const captureMessage = "error: this component prop supplies a function that cannot be sent to a server task. Run the callback on the client and pass its data, or use a server-local function"
-	const keyMessage = "error: this task key uses a server-only resource before client dispatch. Select its lane with a value available to the invoking client"
+	const keyMessage = "error: this task key uses a server-only resource at a client invocation. Select its lane with a value available to the invoking client"
+	const serverKeyMessage = "error: this task key uses a browser-only resource at a server invocation. Select its lane with a value available to the invoking server"
 	var candidates []transfer
 	for _, use := range facts.taskArguments {
-		if placements[use.work.Pos()] != "server" {
-			continue
-		}
 		caller := enclosingCallableNode(use.call)
-		if caller == nil || placements[caller.Pos()] == "server" {
+		if caller == nil {
 			continue
 		}
-		if key := keys[use.work.Pos()]; key != nil {
-			candidates = append(candidates, transfer{key, caller, keyMessage})
+		placement := placements[use.work.Pos()]
+		if key, ok := keys[use.work.Pos()]; ok {
+			if key.keyNeedsServer {
+				candidates = append(candidates, transfer{key.keyOperand, caller, keyMessage, false})
+			}
+			if key.keyNeedsBrowser {
+				candidates = append(candidates, transfer{key.keyOperand, caller, serverKeyMessage, true})
+			}
+		}
+		if placement != "server" || placements[caller.Pos()] == "server" {
+			continue
 		}
 		for _, fn := range badCaptures[use.work.Pos()] {
-			candidates = append(candidates, transfer{fn, caller, captureMessage})
+			candidates = append(candidates, transfer{fn, caller, captureMessage, false})
 		}
 		firstSpread := len(use.arguments)
 		for index, arg := range use.arguments {
@@ -97,7 +106,7 @@ func (facts *sourceAnalysisFacts) clientTaskInvocationDiagnostics(tasks []Task, 
 				firstSpread = index
 			}
 			if isTaskFunctionArgument(arg, facts.checker) {
-				candidates = append(candidates, transfer{arg, caller, argumentMessage})
+				candidates = append(candidates, transfer{arg, caller, argumentMessage, false})
 			}
 		}
 		// The client task facade evaluates a selected default before dispatch.
@@ -114,7 +123,7 @@ func (facts *sourceAnalysisFacts) clientTaskInvocationDiagnostics(tasks []Task, 
 			}
 			value := taskRuntimeParameters(use.work)[index].Initializer()
 			if isTaskFunctionArgument(value, facts.checker) {
-				candidates = append(candidates, transfer{value, caller, argumentMessage})
+				candidates = append(candidates, transfer{value, caller, argumentMessage, false})
 			}
 		}
 	}
@@ -154,7 +163,8 @@ func (facts *sourceAnalysisFacts) clientTaskInvocationDiagnostics(tasks []Task, 
 	// Follow existing direct, resolved calls made by an event or client task.
 	// A server task starts a new execution realm, even when the event reaches it.
 	byID := make(map[string]*callableFacts)
-	var pending []*callableFacts
+	var clientRoots, serverRoots []*callableFacts
+	serverHandlers := make(map[*ast.Node]bool)
 	for i := range callables.facts {
 		fact := &callables.facts[i]
 		if fact.sourceFile != facts.source || fact.node == nil {
@@ -162,30 +172,42 @@ func (facts *sourceAnalysisFacts) clientTaskInvocationDiagnostics(tasks []Task, 
 		}
 		byID[fact.summary.ID] = fact
 		if clientHandlers[fact.node] || placements[fact.node.Pos()] == "client" {
+			clientRoots = append(clientRoots, fact)
 			clientHandlers[fact.node] = true
-			pending = append(pending, fact)
+		}
+		if placements[fact.node.Pos()] == "server" {
+			serverRoots = append(serverRoots, fact)
+			serverHandlers[fact.node] = true
 		}
 	}
-	for len(pending) > 0 {
-		fact := pending[len(pending)-1]
-		pending = pending[:len(pending)-1]
-		for _, edge := range fact.summary.Calls {
-			target := byID[edge.TargetID]
-			if !edge.Resolved || target == nil || clientHandlers[target.node] || placements[target.node.Pos()] == "server" {
-				continue
+	follow := func(pending []*callableFacts, reached map[*ast.Node]bool) {
+		for len(pending) > 0 {
+			fact := pending[len(pending)-1]
+			pending = pending[:len(pending)-1]
+			for _, edge := range fact.summary.Calls {
+				target := byID[edge.TargetID]
+				if !edge.Resolved || target == nil || reached[target.node] || placements[target.node.Pos()] == "server" || placements[target.node.Pos()] == "client" {
+					continue
+				}
+				expr := fact.callExpressions[edge.ID]
+				if expr == nil || expr.Parent == nil || !ast.IsCallExpression(expr.Parent) || expr.Parent.Expression() != expr || enclosingCallableNode(expr) != fact.node {
+					continue
+				}
+				reached[target.node] = true
+				pending = append(pending, target)
 			}
-			expr := fact.callExpressions[edge.ID]
-			if expr == nil || expr.Parent == nil || !ast.IsCallExpression(expr.Parent) || expr.Parent.Expression() != expr || enclosingCallableNode(expr) != fact.node {
-				continue
-			}
-			clientHandlers[target.node] = true
-			pending = append(pending, target)
 		}
 	}
+	follow(clientRoots, clientHandlers)
+	follow(serverRoots, serverHandlers)
 	var diagnostics []Diagnostic
 	reported := map[*ast.Node]bool{}
 	for _, use := range candidates {
-		if !clientHandlers[use.caller] || reported[use.argument] {
+		reachable := clientHandlers[use.caller]
+		if use.serverCaller {
+			reachable = serverHandlers[use.caller]
+		}
+		if !reachable || reported[use.argument] {
 			continue
 		}
 		reported[use.argument] = true
@@ -195,24 +217,4 @@ func (facts *sourceAnalysisFacts) clientTaskInvocationDiagnostics(tasks []Task, 
 			Start:   start, Length: use.argument.End() - start})
 	}
 	return diagnostics
-}
-
-// A member or call chain evaluates its base binding before selecting the key.
-// Classify only the acquired binding. Guards, callbacks and opaque calls need
-// their own execution evidence and cannot establish this obligation by spelling.
-func taskKeyRequiresServerBinding(key *ast.Node, facts *sourceAnalysisFacts) bool {
-	for key != nil {
-		key = unwrapSourceCallableReference(key)
-		switch {
-		case ast.IsAccessExpression(key), ast.IsCallExpression(key):
-			key = key.Expression()
-		case ast.IsIdentifier(key):
-			symbol := facts.checker.GetSymbolAtLocation(key)
-			_, global := serverGlobals[key.Text()]
-			return global && symbolIsOutsideSource(symbol, facts.source) || serverOnlyImportSymbol(symbol)
-		default:
-			return false
-		}
-	}
-	return false
 }

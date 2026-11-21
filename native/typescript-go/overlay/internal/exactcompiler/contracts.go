@@ -659,6 +659,8 @@ type Task struct {
 	ArgumentCount           int                       `json:"argumentCount,omitempty"`
 	ActivationArgumentCount int                       `json:"activationArgumentCount,omitempty"`
 	CapturedParameters      []int                     `json:"capturedParameters"`
+	keyNeedsServer          bool                      // Known requirement of the invocation-time key, independent of executor placement.
+	keyNeedsBrowser         bool
 	keyOperand              *ast.Node
 	KeyStart                int `json:"keyStart,omitempty"`
 	KeyLength               int `json:"keyLength,omitempty"`

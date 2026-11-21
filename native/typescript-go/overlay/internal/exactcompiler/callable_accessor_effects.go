@@ -266,6 +266,7 @@ func appendOpaqueAccessorEffect(fact *callableFacts, candidates accessorCandidat
 		effect := environmentSource("unknown", description, fact.summary.Name)
 		effect.Opaque = true
 		effect.provenanceIncomplete = true
+		effect = sourceDefaultPhaseEffect(effect, candidates.cause, fact.node)
 		fact.summary.DirectEffectSources = append(fact.summary.DirectEffectSources, effect)
 	}
 }

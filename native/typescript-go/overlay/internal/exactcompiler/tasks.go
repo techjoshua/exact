@@ -215,7 +215,7 @@ func collectTasks(
 				task.Diagnostics = append(task.Diagnostics,
 					"error: application calls must omit the compiler-supplied TaskContext argument")
 			}
-			if facts != nil && task.Invoked && call != nil && task.RequestedPlacement != "client" {
+			if facts != nil && task.Invoked && call != nil && (task.RequestedPlacement != "client" || taskPolicyHasFacet(work, "key")) {
 				facts.taskArguments = append(facts.taskArguments, taskCallArguments{node, work, actuals, task.CapturedParameters})
 			}
 			if task.Invoked {
@@ -343,13 +343,9 @@ func collectTasks(
 					append(task.Writes, componentStateEffects(callable.StateWrites)...),
 				)
 				task.Contexts = taskBodyContextEffects(work, sourceFile, typeChecker, callables)
-				task.EffectSources = append(
-					[]EnvironmentEffectSource(nil),
-					callable.EffectSources...,
-				)
-				task.EffectSources = excludeChildTaskEffects(
-					work,
-					task.EffectSources,
+				task.EffectSources = taskBodyEffectSources(
+					&task, work,
+					callable.EffectSources,
 					sourceFile,
 					typeChecker,
 					callables,
@@ -451,8 +447,10 @@ func collectTasks(
 	return tasks
 }
 
-func excludeChildTaskEffects(
-	work *ast.Node,
+// taskBodyEffectSources keeps task invocation-key requirements at the calling site.
+// Inspect original phase identities before public effect sources collapse matching reasons.
+func taskBodyEffectSources(
+	task *Task, work *ast.Node,
 	sources []EnvironmentEffectSource,
 	sourceFile *ast.SourceFile,
 	typeChecker *checker.Checker,
@@ -468,8 +466,26 @@ func excludeChildTaskEffects(
 			break
 		}
 	}
-	if caller == nil || len(caller.targets) == 0 {
-		return sources
+	if caller == nil || task.keyOperand == nil && len(caller.targets) == 0 {
+		return sources[:len(sources):len(sources)]
+	}
+	published := sources[:len(sources):len(sources)]
+	sources = caller.summary.EffectSources
+	if task.keyOperand != nil {
+		policy := work.Parameters()[len(work.Parameters())-1].Initializer()
+		var body []EnvironmentEffectSource
+		for _, source := range sources {
+			if origin := source.callOrigin; origin != nil && origin.phase == sourceDefaultEvaluation && origin.declaration == work && origin.operation == policy {
+				task.keyNeedsBrowser = task.keyNeedsBrowser || source.Environment == "browser"
+				task.keyNeedsServer = task.keyNeedsServer || source.Environment == "server"
+				continue
+			}
+			body = append(body, source)
+		}
+		sources = body
+	}
+	if len(caller.targets) == 0 {
+		return displayEnvironmentSources(sources)
 	}
 	targets := make(map[string]*callableFacts, len(caller.targets))
 	for _, index := range caller.targets {
@@ -495,7 +511,10 @@ func excludeChildTaskEffects(
 		}
 	}
 	if len(children) == 0 {
-		return sources
+		if task.keyOperand == nil {
+			return published
+		}
+		return displayEnvironmentSources(sources)
 	}
 	// A donor shared by a child and its caller stays in the caller: an eager
 	// getter can execute there even if the child body reads the same global.
@@ -516,13 +535,13 @@ func excludeChildTaskEffects(
 			owned[id] = owned[id] || !children[edge.ID]
 		}
 	}
-	filtered := sources[:0]
+	filtered := make([]EnvironmentEffectSource, 0, len(sources))
 	for _, source := range sources {
 		if keep, recognized := owned[key(source)]; !recognized || keep {
 			filtered = append(filtered, source)
 		}
 	}
-	return filtered
+	return displayEnvironmentSources(filtered)
 }
 
 func functionTaskActivationDependencies(
