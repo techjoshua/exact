@@ -319,7 +319,7 @@ export function RuntimeScope(
 	this.onMount(() => {
 		this.state.mounted = true;
 	});
-	const value = props.value ?? readFragmentScope(this);
+	const value = props.value ?? fragmentScopeLabel(this.getContext(FragmentScope));
 	this.setContext(FragmentScope, value);
 	return () => <_target data-scope={value} data-runtime-enhancement-mounted={this.state.mounted} />;
 }
@@ -348,7 +348,7 @@ function RuntimeScopeLeaf(
 		id: string;
 	}
 ) {
-	const value = readFragmentScope(this);
+	const value = fragmentScopeLabel(this.getContext(FragmentScope));
 	return () => <output id={props.id}>{value}</output>;
 }
 function scopedFragment(child: Child, value?: string): Child {
@@ -391,14 +391,9 @@ export function RuntimeDeadline(
 	prepare();
 	return () => <output id="deadline-result">{this.state.text}</output>;
 }
-/** Reads the inherited scope through ordinary helpers without giving the helper a component this. */
-function readFragmentScope(owner: Component<{}>): string {
-	const receiver = owner;
-	return resolveFragmentScope(receiver);
-}
-/** Keeps the shared native-host context check on the parameter-forwarding boundary. */
-function resolveFragmentScope(owner: Component<{}>): string {
-	return owner.getContext(FragmentScope);
+/** Consumes the context value the component selected. */
+function fragmentScopeLabel(value: string): string {
+	return value;
 }
 /** Provides a small compiled native owner for browser inspection identity checks. */
 export function InspectionPanel(

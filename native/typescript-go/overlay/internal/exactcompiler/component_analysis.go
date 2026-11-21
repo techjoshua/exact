@@ -39,6 +39,7 @@ func analyzeComponents(
 	}
 	elements := collectComponentElements(sourceFile, typeChecker)
 	contextRoots := moduleContextTokenRoots(sourceFile)
+	preparedSetup := componentPreparedSetupEffects(sourceFile, callables, typeChecker)
 
 	// A component executes its returned callable to produce the view. Creating
 	// that callable during setup does not execute its getters or conversions.
@@ -92,6 +93,10 @@ func analyzeComponents(
 		// task bodies, whose distributed effects must not become indivisible setup.
 		if setup, exists := callables.byNode[candidate.node]; exists {
 			contexts = append(contexts, setup.Contexts...)
+			if effects, prepared := preparedSetup[candidate.node]; prepared {
+				setup.EffectSources = effects
+				setup.Effect = environmentEffectFor(effects)
+			}
 			if len(taskActivations) == 0 {
 				if setup.Effect == "mixed" || setup.Effect == "unknown" {
 					browser, server := knownEffectEnvironments(setup.EffectSources)
@@ -347,7 +352,7 @@ func analyzeComponents(
 		// the legacy coordination label. New capability grants no runtime authority.
 		renderUnknown = renderUnknown || indivisible != "" || componentRenderProofIncomplete(
 			*component, candidate.node, callables, tasks, clientLifecycleSpans,
-			dormantCallableSpans, ownedElements,
+			dormantCallableSpans, ownedElements, typeChecker,
 		)
 		renderBrowser, renderServer := clientEffects || renderBrowserRequirements, serverEffects || renderServerRequirements
 		for _, task := range tasks {

@@ -23,6 +23,60 @@ type sourceComponentInputAdoption struct {
 	edge                string
 }
 
+// componentPreparedSetupEffects projects original Get obligations for component
+// placement. The public callable summary still describes ordinary calls.
+func componentPreparedSetupEffects(source *ast.SourceFile, callables callableAnalysis, c *checker.Checker) map[*ast.Node][]EnvironmentEffectSource {
+	var prepared map[*ast.Node][]EnvironmentEffectSource
+	for _, fact := range callables.facts {
+		if fact.sourceFile != source || fact.summary.Kind != "component" || fact.summary.Effect != "unknown" {
+			continue
+		}
+		var retained []EnvironmentEffectSource
+		for index, effect := range fact.summary.EffectSources {
+			if isPreparedScalarPropRead(fact.node, effect, callables.owner, c) {
+				if retained == nil {
+					retained = make([]EnvironmentEffectSource, 0, len(fact.summary.EffectSources)-1)
+					retained = append(retained, fact.summary.EffectSources[:index]...)
+				}
+			} else if retained != nil {
+				retained = append(retained, effect)
+			}
+		}
+		if retained != nil {
+			if prepared == nil {
+				prepared = make(map[*ast.Node][]EnvironmentEffectSource)
+			}
+			prepared[fact.node] = retained
+		}
+	}
+	return prepared
+}
+
+// isPreparedScalarPropRead recognizes a direct read of delivered component data.
+// The input producer still owns any authored getter or operand evaluation.
+func isPreparedScalarPropRead(node *ast.Node, effect EnvironmentEffectSource, owner *executableBodyOwner, c *checker.Checker) bool {
+	field := effect.fieldOrigin
+	if field == nil || field.operation == nil || field.declaration != node || field.consumer != node || effect.fieldForwarded || effect.Environment != "unknown" || !effect.Opaque || !effect.provenanceIncomplete || owner == nil || owner.values == nil {
+		return false
+	}
+	_, receiver, direct := directPropsRead(field.operation)
+	if !direct {
+		return false
+	}
+	// A selected component operation still needs its original selector proof.
+	value := field.operation
+	for value.Parent != nil && unwrapSourceCallableReference(value.Parent) == field.operation {
+		value = value.Parent
+	}
+	if value.Parent != nil && ast.IsElementAccessExpression(value.Parent) && value.Parent.AsElementAccessExpression().ArgumentExpression == value {
+		return false
+	}
+	read, write := accessorEvaluationMode(field.operation)
+	props := componentPropsSymbol(node, c)
+	return read && !write && props != nil && props.ValueDeclaration == field.slot && c.GetSymbolAtLocation(receiver) == props &&
+		!owner.values.bindingWritten(props) && intrinsicConstructionScalar(c.GetTypeAtLocation(field.operation), c)
+}
+
 // namedJSXStringInput is the ordinary lowering producer's exact literal rule.
 func namedJSXStringInput(node *ast.Node) (string, bool) {
 	if node == nil || !ast.IsJsxAttribute(node) {

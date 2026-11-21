@@ -62,8 +62,8 @@ export function TasksPage(this: Component<{}>) {
 				</p>
 				<p>
 					Reactive setup assignments keep independent ownership when statements are adjacent. Task
-					bodies support ordinary destructuring and function or arrow helpers. The compiler follows
-					helper calls, including recursion, to determine context access. Parentheses and type-only
+					bodies support ordinary destructuring and function or arrow helpers. When a helper needs
+					context, read it on the component and pass the value or reactive handle. Parentheses and type-only
 					annotations preserve helper state reads and placement requirements. Tasks support
 					optional, defaulted, and destructured inputs, and authored overloads. A compatible tuple
 					can be spread into a setup call. For variable-length inputs, pass one array to the task

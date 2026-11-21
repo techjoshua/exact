@@ -1,6 +1,9 @@
 package exactcompiler
 
-import "github.com/microsoft/TypeScript/tsc/internal/ast"
+import (
+	"github.com/microsoft/TypeScript/tsc/internal/ast"
+	"github.com/microsoft/TypeScript/tsc/internal/checker"
+)
 
 func unknownComponentRenderCapability() ComponentRenderCapability {
 	return ComponentRenderCapability{Server: "unknown", Client: "unknown"}
@@ -24,7 +27,7 @@ func componentRenderCapability(browser, server, incomplete bool) ComponentRender
 // componentRenderProofIncomplete requires a known render shape and direct-effect coverage.
 // Deferred task, lifecycle and dormant bodies do not execute as ordinary render work.
 // Child composition is deliberately unknown until its target-local proof is available.
-func componentRenderProofIncomplete(component Component, node *ast.Node, callables callableAnalysis, tasks []Task, lifecycle, dormant []SourceSpan, elements []componentElement) bool {
+func componentRenderProofIncomplete(component Component, node *ast.Node, callables callableAnalysis, tasks []Task, lifecycle, dormant []SourceSpan, elements []componentElement, c *checker.Checker) bool {
 	if !component.CompiledRender || !component.ClientCompiledRender {
 		return true
 	}
@@ -46,7 +49,8 @@ func componentRenderProofIncomplete(component Component, node *ast.Node, callabl
 		for _, source := range fact.summary.DirectEffectSources {
 			// Keep every untagged/unpaid unknown. Only the same completed local
 			// SOURCE obligation already removed by canonical propagation is paid.
-			if source.Environment == "unknown" && (!projected || !sourceObligationCoveredLocally(&fact, source)) {
+			if source.Environment == "unknown" && !isPreparedScalarPropRead(node, source, callables.owner, c) &&
+				(!projected || !sourceObligationCoveredLocally(&fact, source)) {
 				return true
 			}
 		}

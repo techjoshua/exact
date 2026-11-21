@@ -326,8 +326,12 @@ the same source wrappers, including sorting and iteration callbacks.
 Resolved helpers receiving the component through ordinary parameters retain its focused
 capabilities. Ownership follows immutable aliases, helper chains and captured parameters using
 symbol identity. Passing an unrelated receiver does not select component capabilities. Ordinary
-helper bodies remain unchanged. Context read methods carry the framework's pure-read contract,
-while context writes remain effects.
+helper bodies remain unchanged. A component owns its context lookup and can pass the selected
+value or reactive handle to a helper. Context writes remain effects of the owner.
+
+Component setup reads of a checked scalar prop use the value delivered by the input receipt. A
+getter or expression that supplies the prop keeps its effects at the producing use. A reassigned
+props parameter, a nested field lookup and an untyped value still require ordinary source analysis.
 
 Direct server clock ranges defer value reads until their enhancement selects the provider clock.
 The additive `createDeferredServerChildRange` helper retains the existing prepared-range shape

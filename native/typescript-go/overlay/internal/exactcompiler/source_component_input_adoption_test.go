@@ -10,6 +10,54 @@ import (
 	"testing"
 )
 
+func TestPreparedScalarPropSetupPlacement(t *testing.T) {
+	const component = `export function Consumer(props:{value?:string}){const value=props.value??'fallback';this.onMount(()=>{});return()=> <output>{value}</output>}`
+	for _, row := range []struct {
+		name, source, consumer, host string
+		protected                    bool
+	}{
+		{"no caller", component, "isomorphic", "", false},
+		{"plain spread", component + `export function Host(){return()=> <Consumer {...{value:'plain'}}/>}`, "isomorphic", "isomorphic", false},
+		{"getter spread", component + `export function Host(){return()=> <Consumer {...{get value(){return document.title}}}/>}`, "isomorphic", "client", false},
+		{"proxy spread", component + `export function Host(){const input=new Proxy({value:'plain'},{get(target,key,receiver){document.title;return Reflect.get(target,key,receiver)}});return()=> <Consumer {...input}/>}`, "isomorphic", "client", false},
+		{"reassigned", `export function Consumer(props:{value:string}){props={get value(){return document.title}};const value=props.value;return()=> <output>{value}</output>}`, "unknown", "", false},
+		{"nested", `export function Consumer(props:{value:{label:string}}){const value=props.value.label;return()=> <output>{value}</output>}`, "unknown", "", false},
+		{"unknown", `export function Consumer(props:{value:unknown}){const value=String(props.value);return()=> <output>{value}</output>}`, "unknown", "", false},
+		{"protected", `declare const brand:unique symbol;
+/** @exact keep=secret */
+type Private=string&{readonly[brand]:true};export function Consumer(props:{value:Private}){const value=props.value;return()=> <output>{value}</output>}`, "isomorphic", "", true},
+	} {
+		t.Run(row.name, func(t *testing.T) {
+			const framework = `import{type Component}from'@exactjs/core';`
+			source := framework + strings.Replace(row.source, "function Consumer(props", "function Consumer(this:Component<{}>,props", 1)
+			fixture := newPublicAwaitRequiredFixture(t, source)
+			for _, target := range []Target{TargetClient, TargetServer} {
+				request := fixture.request("compile", "entry.tsx")
+				request.Target = target
+				request.PackageType = "application"
+				application := NewSession().Execute(request)
+				request.PackageType = "library"
+				library := NewSession().Execute(request)
+				for _, response := range []Response{application, library} {
+					if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) != row.protected || containsDiagnosticCode(response.Diagnostics, "EXACT3020") != row.protected || (response.Code == "") != row.protected {
+						t.Fatal(target, response.Error, response.Diagnostics)
+					}
+					placements := map[string]string{}
+					for _, c := range response.Analysis.Components {
+						placements[c.Name] = c.Placement
+					}
+					if placements["Consumer"] != row.consumer || placements["Host"] != row.host {
+						t.Fatal(target, placements)
+					}
+				}
+				if application.Code != library.Code {
+					t.Fatal(target, "application and library emitted different implementations")
+				}
+			}
+		})
+	}
+}
+
 func TestComponentInputLiteralDelivery(t *testing.T) {
 	for _, target := range []Target{TargetClient, TargetServer} {
 		t.Run(string(target), func(t *testing.T) {
