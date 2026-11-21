@@ -128,6 +128,9 @@ export function transformSourceWithNativeCompiler(
 	}
 	return {
 		code: output,
+		...((transformed?.preservesHostJsx ?? response.preservesHostJsx)
+			? { preservesHostJsx: true }
+			: {}),
 		map: options.sourceMap
 			? transformedMap && nativeMap
 				? composeExactSourceMaps(transformedMap, nativeMap)

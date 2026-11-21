@@ -16,6 +16,7 @@ type Response struct {
 	TypeScriptVersion      string                              `json:"typescriptVersion"`
 	BackendVersion         string                              `json:"backendVersion"`
 	Code                   string                              `json:"code"`
+	PreservesHostJSX       bool                                `json:"preservesHostJsx,omitempty"`
 	RuntimeDependencies    []string                            `json:"runtimeDependencies,omitempty"`
 	SourceMap              *sourcemap.RawSourceMap             `json:"sourceMap,omitempty"`
 	Diagnostics            []Diagnostic                        `json:"diagnostics"`

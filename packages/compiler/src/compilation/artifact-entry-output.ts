@@ -46,8 +46,12 @@ export function prepareArtifactPlanEntry(
 	const shared = !sourceMap && sharedArtifactResult(base, client, server);
 	client = retainArtifactComponentFacts(client, rewrites?.client);
 	server = retainArtifactComponentFacts(server, rewrites?.server);
-	const clientMapFile = client.map ? sourceMapPathFor(entry.clientFile) : undefined;
-	const serverMapFile = server.map ? sourceMapPathFor(entry.serverFile) : undefined;
+	const clientMapFile = client.map
+		? sourceMapPathFor(implementationFile(entry.clientFile, client))
+		: undefined;
+	const serverMapFile = server.map
+		? sourceMapPathFor(implementationFile(entry.serverFile, server))
+		: undefined;
 
 	return retainArtifactAnalysis(
 		{
@@ -64,6 +68,16 @@ export function prepareArtifactPlanEntry(
 		},
 		base
 	);
+}
+
+/** Gives a JSX-bearing implementation its host parser while retaining target recognition and relative imports. */
+function hostJsxFile(file: string): string {
+	if (!/\.[jt]s$/i.test(file)) return file;
+	return file.replace(/(\.exact\.(?:client|server|shared))?(\.[jt]s)$/i, '.host-jsx$1$2x');
+}
+
+function implementationFile(planned: string, output: TransformResult): string {
+	return output.preservesHostJsx ? hostJsxFile(planned) : planned;
 }
 
 /** Publishes a previously prepared artifact pair after every validation gate accepts it. */
@@ -93,49 +107,46 @@ export function artifactOutputMutations(
 	entry: ExactArtifactPlanEntry,
 	result: CompileArtifactsResult
 ): CompilerOutputMutation[] {
-	return [
-		{
-			file: result.clientFile + '.enhancements.d.ts',
-			content: artifactEnhancementDeclarations(result.client)
-		},
-		{
-			file: result.serverFile + '.enhancements.d.ts',
-			content: artifactEnhancementDeclarations(result.server)
-		},
-		{
-			file: result.clientFile,
-			content: result.shared
-				? sharedArtifactFacade(artifactAnalysis(result), result.sharedFile!, result.clientFile)
-				: result.clientMapFile
-					? withSourceMappingUrl(result.client.code, path.basename(result.clientMapFile))
-					: result.client.code
-		},
-		{
-			file: result.serverFile,
-			content: result.shared
-				? sharedArtifactFacade(artifactAnalysis(result), result.sharedFile!, result.serverFile)
-				: result.serverMapFile
-					? withSourceMappingUrl(result.server.code, path.basename(result.serverMapFile))
-					: result.server.code
-		},
-		result.shared
-			? { file: result.sharedFile!, content: result.shared.code }
-			: { file: entry.sharedFile },
-		...(result.clientMapFile && result.client.map
-			? [
-					{
-						file: result.clientMapFile,
-						content: `${JSON.stringify(withSourceMapFile(result.client.map, path.basename(result.clientFile)), null, 2)}\n`
-					}
-				]
-			: []),
-		...(result.serverMapFile && result.server.map
-			? [
-					{
-						file: result.serverMapFile,
-						content: `${JSON.stringify(withSourceMapFile(result.server.map, path.basename(result.serverFile)), null, 2)}\n`
-					}
-				]
-			: [])
-	];
+	const mutations: CompilerOutputMutation[] = [];
+	const analysis = artifactAnalysis(result);
+	const prepare = (
+		planned: string,
+		output?: TransformResult,
+		mapFile?: string,
+		facade?: string
+	) => {
+		const host = hostJsxFile(planned);
+		const actual = output && !facade ? implementationFile(planned, output) : planned;
+		const code =
+			output && mapFile ? withSourceMappingUrl(output.code, path.basename(mapFile)) : output?.code;
+		mutations.push({
+			file: planned,
+			content:
+				facade ?? (actual !== planned ? sharedArtifactFacade(analysis, actual, planned) : code)
+		});
+		if (actual !== planned) mutations.push({ file: actual, content: code });
+		else if (host !== planned) mutations.push({ file: host });
+		if (mapFile && output?.map) {
+			mutations.push({
+				file: mapFile,
+				content: `${JSON.stringify(withSourceMapFile(output.map, path.basename(actual)), null, 2)}\n`
+			});
+		}
+		if (mapFile !== sourceMapPathFor(planned)) mutations.push({ file: sourceMapPathFor(planned) });
+		if (host !== planned && mapFile !== sourceMapPathFor(host))
+			mutations.push({ file: sourceMapPathFor(host) });
+	};
+	for (const [planned, output, mapFile] of [
+		[entry.clientFile, result.client, result.clientMapFile],
+		[entry.serverFile, result.server, result.serverMapFile]
+	] as const) {
+		const facade = result.shared && sharedArtifactFacade(analysis, result.sharedFile!, planned);
+		prepare(planned, output, mapFile, facade);
+		mutations.push({
+			file: planned + '.enhancements.d.ts',
+			content: artifactEnhancementDeclarations(output)
+		});
+	}
+	prepare(entry.sharedFile, result.shared);
+	return mutations;
 }

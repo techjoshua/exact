@@ -3,7 +3,7 @@ import { composeExactSourceMaps, isExactSourceMap } from '../source-maps.js';
 
 const requireBackend = createRequire(import.meta.url);
 
-type AdapterOutput = { code: string; map?: unknown };
+type AdapterOutput = { code: string; map?: unknown; preservesHostJsx?: boolean };
 
 /**
  * Erases compiler-owned companion types before a JavaScript artifact or adapter module reaches its host parser.
@@ -20,7 +20,8 @@ export function eraseAdapterJavaScriptHelperTypes(
 	const { transformSync } = requireBackend('esbuild') as typeof import('esbuild');
 	const compilerMap = isExactSourceMap(output.map) ? output.map : undefined;
 	const executable = transformSync(output.code, {
-		loader: 'ts',
+		loader: output.preservesHostJsx ? 'tsx' : 'ts',
+		jsx: 'preserve',
 		format: 'esm',
 		legalComments: 'inline',
 		sourcefile: filename,

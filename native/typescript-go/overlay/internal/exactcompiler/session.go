@@ -310,6 +310,7 @@ func (s *Session) executeProjection(request Request, authored *authoredCheckProg
 	if usesForeignJSXRuntime(sourceFile) {
 		if request.Kind == "compile" || request.Kind == "check" {
 			response.Code = authoredSource
+			response.PreservesHostJSX = sourceFile.AsNode().SubtreeFacts()&ast.SubtreeContainsJsx != 0
 			if request.Diagnostics == "semantic" {
 				validationStarted := time.Now()
 				validated, validationErr := s.validateGeneratedCode(request, fileName, response.Code, project.fs, generatedValidationHelpers{})
@@ -929,6 +930,7 @@ func (s *Session) executeProjection(request Request, authored *authoredCheckProg
 		remapAuthoredLocations(&response, fileName, normalization, len(response.Diagnostics))
 		return response
 	}
+	response.PreservesHostJSX = transformed.AsNode().SubtreeFacts()&ast.SubtreeContainsJsx != 0
 	response.RuntimeDependencies = emittedRuntimeDependencies(transformed)
 	response.Structure = artifactStructure
 	for _, dependency := range response.RuntimeDependencies {

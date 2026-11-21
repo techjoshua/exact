@@ -154,7 +154,8 @@ export function List(props:{rows:Row[]}) {
 				onMismatch: 'throw',
 				onErrorReport: (r) => errors.push(r.error)
 			});
-			expect([...host.querySelectorAll('li')]).toEqual(before);
+			expect(host.querySelectorAll('li')[0]).toBe(before[0]);
+			expect(host.querySelectorAll('li')[1]).toBe(before[1]);
 		} else render(view(client.List), host, { onErrorReport: (r) => errors.push(r.error) });
 		flushSync();
 		const [a, b] = host.querySelectorAll('li');

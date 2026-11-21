@@ -315,7 +315,9 @@ export function CompilerTourPage(this: Component<{}>) {
 				</p>
 				<p>
 					Paired output includes the local helper modules needed by generated work. Keep those
-					modules with the entry artifacts in your build pipeline. Paired artifacts carry their own
+					modules with the entry artifacts in your build pipeline. When a view helper keeps ordinary
+					JSX, the entry loads a sibling module so your bundler can apply its JSX settings.
+					Paired artifacts carry their own
 					optional enhancement requests. The consuming eXact Vite adapter selects available
 					providers and checks server authorization. Absent providers retain the ordinary markup
 					through a no-op. Enhanced paired output requires that build step. Unbundled Node pipelines

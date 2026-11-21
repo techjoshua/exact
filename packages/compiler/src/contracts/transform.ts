@@ -148,6 +148,8 @@ export type ModuleTransform = (
 	}>
 ) => Readonly<{
 	code: string;
+	/** Overrides the native syntax fact when this transform adds or consumes host JSX. */
+	preservesHostJsx?: boolean;
 	/** Maps transformed output back to the supplied pre-transform source. */
 	map?: unknown;
 }>;
@@ -299,6 +301,8 @@ export type TransformResult = {
 	/** Structured authored diagnostics retained independently of inspection output. */
 	diagnostics?: readonly NativeCompilerDiagnostic[];
 	code: string;
+	/** The emitted artifact still requires the host JSX transform. */
+	preservesHostJsx?: boolean;
 	map: ExactSourceMap | null;
 	filename: string;
 	/** Bare package specifiers imported by the final target-local artifact. */

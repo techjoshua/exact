@@ -425,6 +425,8 @@ export type NativeCompilerResponse = Readonly<{
 	typescriptVersion: string;
 	backendVersion: string;
 	code?: string;
+	/** The emitted artifact still requires the host JSX transform. */
+	preservesHostJsx?: boolean;
 	/** Bare package specifiers that survive target lowering in the emitted module. */
 	runtimeDependencies?: readonly string[];
 	sourceMap?: NativeCompilerSourceMap;

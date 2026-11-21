@@ -7,7 +7,7 @@ import { TextEncoder as NodeTextEncoder } from 'node:util';
  * Bundles artifacts against external workspace runtimes, retaining authored callable names for semantic controls.
  * Preserves the artifact target on the bundle URL for hosts with compileTestModules enabled.
  * Explicit aliases select paired providers when Node defaults differ from the artifact target.
- * Optional host JSX mode transforms preserved compiled-component expressions with the public JSX entry.
+ * The public JSX entry transforms preserved host expressions in entries and their dependencies.
  */
 export async function importArtifact(
 	entry: string,
@@ -32,7 +32,7 @@ export async function importArtifact(
 		await build({
 			stdin: {
 				contents: source,
-				loader: hostJsx ? 'tsx' : 'ts',
+				loader: hostJsx || /\.[jt]sx$/i.test(entry) ? 'tsx' : 'ts',
 				resolveDir: path.dirname(entry),
 				sourcefile: path.basename(entry)
 			},
@@ -40,13 +40,9 @@ export async function importArtifact(
 			footer: { js: facts.join('\n') },
 			bundle: true,
 			keepNames: true,
-			...(hostJsx
-				? {
-						jsx: 'automatic' as const,
-						jsxImportSource: '@exactjs/jsx',
-						jsxDev: hostJsx === 'development'
-					}
-				: {}),
+			jsx: 'automatic',
+			jsxImportSource: '@exactjs/jsx',
+			jsxDev: hostJsx === 'development',
 			format: 'esm',
 			platform: 'node',
 			target: 'node22',
