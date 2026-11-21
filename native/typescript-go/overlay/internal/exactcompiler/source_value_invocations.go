@@ -12,7 +12,7 @@ import (
 // merely by selecting the same call. Both consumers keep actual input obligations.
 type sourceInvocationConsumer struct {
 	coreAllocationEffects bool                                                  // Actual Effects owner, independent of normal output consumers.
-	descriptorData        func(sourceValue)                                     // Possible callback in the requested descriptor.value field.
+	descriptorData        *descriptorCallbackDemand                             // Possible callback in the requested descriptor field.
 	descriptorView        func(sourceNativeDescriptorView, sourceValueBindings) // Typed result channel, never raw receiver/output.
 	// arrayPush consumes MAY mutation effects only, never a native result receipt.
 	arrayPush func(*ast.Node, sourceValue, sourceValueBindings, *accessorCandidates)

@@ -2538,8 +2538,10 @@ exposure or accept field contributions from an unauthenticated prefix. A locally
 algorithm still waits for its six field requirements. Callee Get and eager-input debts remain
 independent. The ordinary collector is not enrolled by this source admission API alone.
 
-For ordinary task placement, a call through `descriptor.value` can activate an arrow
-stored in an own data property of a local object. The selected standard
+For ordinary task placement, a call through `descriptor.value` activates a known
+function stored in an own data property of a local object, including a named function
+or an object method. An invocation through `descriptor.get` or `descriptor.set`
+can activate the matching accessor of a fresh object literal. The selected standard
 `Object.getOwnPropertyDescriptor` call supplies the possible data callbacks and their
 creating inputs at lookup. Reading the descriptor leaves a target getter or stored
 callback dormant. Reading a getter on the object returned by a helper can, in turn,
@@ -2547,7 +2549,8 @@ invoke that captured callback. The original writer relation keeps conditional wr
 and removes the old callback only for a definite replacement. This includes an
 unconditional write in a directly called synchronous helper with a known receiver.
 A later target write cannot change an earlier descriptor. The reader follows
-single-use local const aliases, including a lexical capture. A reassignment of the
+single-use local const aliases, including a lexical capture, and direct helper returns
+that preserve the snapshot. A reassignment of the
 descriptor's `value` uses the existing analysis of writes to the descriptor itself.
 Dynamic property names and unrepresented callable sources can remain unresolved.
 

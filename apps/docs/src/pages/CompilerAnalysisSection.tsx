@@ -98,8 +98,10 @@ export function CompilerAnalysisSection(this: Component<{}>) {
 			</p>
 			<p>
 				Reading a property descriptor leaves a stored callback dormant. If a helper uses
-				<code>Object.getOwnPropertyDescriptor</code> on its local object and calls the descriptor's
-				<code>value</code>, placement includes the arrow function held at lookup. A helper can
+				<code>Object.getOwnPropertyDescriptor</code> on a local object, it can return the descriptor to its caller.
+				Calling the descriptor's <code>value</code> includes the function held at lookup in placement.
+				Calling <code>get</code> or <code>set</code> on a descriptor taken from a fresh object literal
+				includes the corresponding accessor. A helper can
 				replace that callback before lookup. A conditional replacement keeps both possible callbacks
 				in consideration. For example, if either can read <code>document.title</code>, keep the
 				invocation in a client task. Changing the target after lookup leaves the earlier descriptor

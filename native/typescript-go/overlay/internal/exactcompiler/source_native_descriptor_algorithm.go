@@ -2,11 +2,17 @@ package exactcompiler
 
 import "github.com/microsoft/TypeScript/tsc/internal/ast"
 
+// descriptorCallbackDemand identifies the actual property read from a retrieved descriptor.
+type descriptorCallbackDemand struct {
+	field   string
+	publish func(sourceValue)
+}
+
 // descriptorInvocationEffects belongs to the original selected Object Call.
 // Arguments are acquired in supplied order before native conversion. The input
 // relationships, possible protocol bodies and Throw are separate from returned
 // descriptor membership; this path cannot publish an ordinary result receipt.
-func (q *sourceValueQuery) descriptorInvocationEffects(call *ast.Node, callee sourceValue, bindings sourceValueBindings, result *accessorCandidates, data func(sourceValue)) {
+func (q *sourceValueQuery) descriptorInvocationEffects(call *ast.Node, callee sourceValue, bindings sourceValueBindings, result *accessorCandidates, data *descriptorCallbackDemand) {
 	if !q.dependenciesOnly || q.operation != nil || callee.native == nil || callee.native.kind != sourceNativeObjectGetOwnPropertyDescriptor || callee.node == nil || !standardLibrarySource(ast.GetSourceFileOfNode(callee.node)) {
 		result.opaque, result.valueIncomplete = true, true
 		return
@@ -111,11 +117,11 @@ func (q *sourceValueQuery) descriptorInvocationEffects(call *ast.Node, callee so
 	result.valueIncomplete = true // Conditional source operator, never normal B.
 }
 
-// immutableDescriptorValueRead requires this actual invocation to read the
-// original snapshot. A write to descriptor.value has its own later writer.
-func (q *sourceValueQuery) immutableDescriptorValueRead(retrieval *ast.Node) bool {
+// immutableDescriptorCallbackRead follows the selected return and private aliases
+// from the native snapshot to the original callback invocation.
+func (q *sourceValueQuery) immutableDescriptorCallbackRead(retrieval *ast.Node, field string) bool {
 	ref, key := sourceLiteralMemberReference(q.protectedMember)
-	if key != "value" || q.owner.program == nil {
+	if key != field || q.owner.program == nil {
 		return false
 	}
 	for ref = unwrapSourceCallableReference(ref); ref != nil && ast.IsIdentifier(ref); {
@@ -137,37 +143,80 @@ func (q *sourceValueQuery) immutableDescriptorValueRead(retrieval *ast.Node) boo
 		}
 		ref = unwrapSourceCallableReference(declaration.Initializer())
 	}
-	return ref == retrieval
+	// Directly returning the fresh native descriptor also preserves its identity.
+	// Each step follows the active selected return, not a declaration's signature.
+	current := retrieval
+	for remaining := len(q.creators); current != nil && remaining >= 0; remaining-- {
+		if ref == current {
+			return true
+		}
+		creator := q.creators[enclosingCallableNode(current)]
+		if creator.returning == nil || unwrapSourceCallableReference(creator.returning) != current || creator.invocation == current {
+			return false
+		}
+		current = creator.invocation
+	}
+	return false
 }
 
-// descriptorDataCallbacks observes the own data slot at retrieval. Later
-// descriptor consumers never invoke a getter of the original target.
-func (q *sourceValueQuery) descriptorDataCallbacks(call *ast.Node, target sourceValue, key string, scope sourceValueBindings, result *accessorCandidates, data func(sourceValue)) {
-	if target.node == nil || len(target.path) != 0 || !ast.IsObjectLiteralExpression(target.node) || !directSourceDataSlot(target.node, []string{key}, nil, q.owner.checker) {
+// descriptorDataCallbacks selects the stored function at retrieval. Reading the
+// descriptor preserves an accessor body until a later invocation selects it.
+func (q *sourceValueQuery) descriptorDataCallbacks(call *ast.Node, target sourceValue, key string, scope sourceValueBindings, result *accessorCandidates, data *descriptorCallbackDemand) {
+	if target.node == nil || len(target.path) != 0 || !ast.IsObjectLiteralExpression(target.node) {
 		return
 	}
 	deliver := func(value sourceValue) {
-		if value.node != nil && len(value.path) == 0 && ast.IsArrowFunction(value.node) {
+		if value.node != nil && len(value.path) == 0 && ast.IsFunctionLike(value.node) && value.node.Body() != nil {
 			if value.capture == nil {
 				capture := q.acquireCallableScope(scope, result)
 				value.capture = &capture
 			}
-			data(value)
+			data.publish(value)
 		}
 	}
 	reading, initializing := q.reading, q.initializing
 	q.reading, q.initializing = call, call
 	defer func() { q.reading, q.initializing = reading, initializing }()
-	if q.memberValuesAtGet(target.node, []string{key}, "", accessorNoGet, scope, result, deliver, sourceMemberOperationProof{descriptorData: true}, nil) {
+	if data.field == "value" {
+		if !directSourceDataSlot(target.node, []string{key}, nil, q.owner.checker) {
+			return
+		}
+		if q.memberValuesAtGet(target.node, []string{key}, "", accessorNoGet, scope, result, deliver, sourceMemberOperationProof{descriptorData: true}, nil) {
+			return
+		}
+	} else if singleUseLiteral(call.AsCallExpression().Arguments.Nodes[0], q.owner, ast.KindObjectLiteralExpression) != target.node {
+		// An aliased target could have had its accessor descriptor redefined.
 		return
 	}
 	properties := target.node.AsObjectLiteralExpression().Properties.Nodes
 	for i := len(properties) - 1; i >= 0; i-- {
 		p := properties[i]
-		if p.Name() != nil && callableNameText(p.Name()) == key {
-			if ast.IsPropertyAssignment(p) {
-				deliver(sourceValue{node: unwrapSourceCallableReference(p.Initializer())})
+		if ast.IsSpreadAssignment(p) || p.Name() != nil && ast.IsComputedPropertyName(p.Name()) {
+			return
+		}
+		if p.Name() == nil || callableNameText(p.Name()) != key {
+			continue
+		}
+		if data.field == "value" {
+			switch {
+			case ast.IsMethodDeclaration(p):
+				deliver(sourceValue{node: p})
+			case ast.IsPropertyAssignment(p), ast.IsShorthandPropertyAssignment(p):
+				operand := p.Name()
+				if ast.IsPropertyAssignment(p) {
+					operand = p.Initializer()
+				}
+				for _, value := range q.originsAt(operand, operand, scope, result) {
+					deliver(value)
+				}
 			}
+			return
+		}
+		if data.field == "get" && ast.IsGetAccessorDeclaration(p) || data.field == "set" && ast.IsSetAccessorDeclaration(p) {
+			deliver(sourceValue{node: p})
+			return
+		}
+		if !ast.IsGetAccessorDeclaration(p) && !ast.IsSetAccessorDeclaration(p) {
 			return
 		}
 	}
