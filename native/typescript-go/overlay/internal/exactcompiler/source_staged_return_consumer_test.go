@@ -20,14 +20,41 @@ export function savedQuiet(){const saved=factory(quiet);const fresh=factory(brow
 export function partial(callback:()=>string){const known=factory(browser);const other=factory(callback);known();return other()}
 `
 
+const returnedCaptureTaskExpression = "savedBrowser() + savedQuiet() + partial(props.callback)"
+
+func returnedCaptureTaskSource(source, expression string) string {
+	return "import { type Component, TaskContext } from '@exactjs/core';\n" + source + `
+export function Page(this: Component<{ display: string }>, props: { callback: () => string }) {
+	this.state.display = '';
+	const refresh = (_task: TaskContext = TaskContext.client()) => {
+		this.state.display = ` + expression + `;
+	};
+	return () => <button onClick={() => refresh()}>{this.state.display}</button>;
+}`
+}
+
+func returnedCaptureTaskFixture(t *testing.T, source, expression string) *executableFixture {
+	t.Helper()
+	fixture := newExecutableFixture(t, map[string]string{"entry.tsx": returnedCaptureTaskSource(source, expression)})
+	const config = `{"compilerOptions":{"module":"ESNext","moduleResolution":"Bundler","target":"ES2022","strict":true,"skipLibCheck":true,"jsx":"preserve","jsxImportSource":"@exactjs/jsx"},"files":["entry.tsx"]}`
+	if err := os.WriteFile(fixture.request("analyze", "entry.tsx").ConfigFile, []byte(config), 0600); err != nil {
+		t.Fatal(err)
+	}
+	return fixture
+}
+
 func TestStagedReturnedCapturePublicBaseline(t *testing.T) {
 	var prior []byte
+	fixture := returnedCaptureTaskFixture(t, stagedReturnedCaptureSource, returnedCaptureTaskExpression)
+	request := fixture.request("analyze", "entry.tsx")
 	for _, application := range []bool{false, true} {
-		source := stagedReturnedCaptureSource
+		source, expression := stagedReturnedCaptureSource, returnedCaptureTaskExpression
 		if application {
 			source += `export function applied(){return partial(quiet)}`
+			expression += " + applied()"
 		}
-		response := NewSession().Execute(Request{Kind: "analyze", ID: "/virtual/returned-capture.ts", Source: source, Diagnostics: "semantic"})
+		request.Source = returnedCaptureTaskSource(source, expression)
+		response := NewSession().Execute(request)
 		if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) {
 			t.Fatalf("source: %s %#v", response.Error, response.Diagnostics)
 		}

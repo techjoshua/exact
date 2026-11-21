@@ -30,10 +30,7 @@ func TestConstructedSourceResiduals(t *testing.T) {
 		`const C:any=()=>document.title;export function read(){return new C()}`,
 		`export function read(){class Holder{nested={get value(){return document.title}};constructor(){throw 9}}return JSON.stringify(new Holder())}`,
 	} {
-		response := NewSession().Execute(Request{Kind: "analyze", ID: "/virtual/constructed-phase.ts", Source: source, Diagnostics: "semantic"})
-		if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) {
-			t.Fatal(response.Error, response.Diagnostics)
-		}
+		response := analyzeDefaultClassComponent(t, source, TargetDefault)
 		summary := executableSummary(t, response, "read")
 		if summary.Effect != "neutral" {
 			t.Fatalf("unperformed body effect: %+v", summary)
