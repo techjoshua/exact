@@ -241,6 +241,8 @@ lookalike values do not receive this treatment. Recognized policy facets are:
 - readiness: `blocking()` or `nonblocking()`; and
 - lifetime: attached by default or explicitly `detached()`.
 
+An explicit invocation evaluates the lane key on the invoking target after capturing arguments and before applying concurrency or dispatching server work. A browser event therefore needs a key it can compute locally, such as the document ID passed to `saveDocument`. Dependency-driven activations use the activation site for their lane.
+
 `server().deferred()` selects server execution at deferred priority. It does not select a
 streaming transport, imply `nonblocking()`, or authorize work to outlive its request. A deferred
 task can still be blocking, and its execution remains subject to cancellation, render deadlines,

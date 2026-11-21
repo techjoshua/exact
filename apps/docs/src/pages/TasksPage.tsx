@@ -129,6 +129,8 @@ export function TasksPage(this: Component<{}>) {
 				<p>
 					When one component saves several documents, <code>key(documentId)</code> gives each
 					document its own queue. Saving one document then does not delay a different document.
+					When a click starts a server task, the browser selects the queue before sending the
+					request. Use a key the browser can compute, such as the document ID passed to the task.
 				</p>
 				<CodeBlock
 					source={taskSources.schedulingSource}

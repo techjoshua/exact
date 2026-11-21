@@ -38,16 +38,22 @@ func definitelyFunction(t *checker.Type, c *checker.Checker) bool {
 		len(c.GetSignaturesOfType(t, checker.SignatureKindCall)) != 0
 }
 
-// Diagnose function values at the client-to-server transport even when the
-// server parameter is unused. Local invocations preserve their callback values.
-func (facts *sourceAnalysisFacts) taskFunctionArgumentDiagnostics(tasks []Task, jsx []JSXElement, callables callableAnalysis, operations []InvokedTaskOperation) []Diagnostic {
+// Check the work performed by a client task facade before dispatch and the arguments it sends.
+func (facts *sourceAnalysisFacts) clientTaskInvocationDiagnostics(tasks []Task, jsx []JSXElement, callables callableAnalysis, operations []InvokedTaskOperation) []Diagnostic {
 	if len(facts.taskArguments) == 0 {
 		return nil
 	}
 	placements := make(map[int]string, len(tasks))
+	var keys map[int]*ast.Node
 	for _, task := range tasks {
 		if task.FunctionDefined {
 			placements[task.WorkStart] = task.Placement
+			if task.Placement == "server" && taskKeyRequiresServerBinding(task.keyOperand, facts) {
+				if keys == nil {
+					keys = make(map[int]*ast.Node)
+				}
+				keys[task.WorkStart] = task.keyOperand
+			}
 		}
 	}
 	// Use the same property captures that the generated operation serializes.
@@ -65,8 +71,11 @@ func (facts *sourceAnalysisFacts) taskFunctionArgumentDiagnostics(tasks []Task, 
 	}
 	type transfer struct {
 		argument, caller *ast.Node
-		capture          bool
+		message          string
 	}
+	const argumentMessage = "error: a function cannot be sent from the client as a server task argument. Run the callback on the client and pass its result, or pass data and handle it in the server task"
+	const captureMessage = "error: this component prop supplies a function that cannot be sent to a server task. Run the callback on the client and pass its data, or use a server-local function"
+	const keyMessage = "error: this task key uses a server-only resource before client dispatch. Select its lane with a value available to the invoking client"
 	var candidates []transfer
 	for _, use := range facts.taskArguments {
 		if placements[use.work.Pos()] != "server" {
@@ -76,8 +85,11 @@ func (facts *sourceAnalysisFacts) taskFunctionArgumentDiagnostics(tasks []Task, 
 		if caller == nil || placements[caller.Pos()] == "server" {
 			continue
 		}
+		if key := keys[use.work.Pos()]; key != nil {
+			candidates = append(candidates, transfer{key, caller, keyMessage})
+		}
 		for _, fn := range badCaptures[use.work.Pos()] {
-			candidates = append(candidates, transfer{fn, caller, true})
+			candidates = append(candidates, transfer{fn, caller, captureMessage})
 		}
 		firstSpread := len(use.arguments)
 		for index, arg := range use.arguments {
@@ -85,7 +97,7 @@ func (facts *sourceAnalysisFacts) taskFunctionArgumentDiagnostics(tasks []Task, 
 				firstSpread = index
 			}
 			if isTaskFunctionArgument(arg, facts.checker) {
-				candidates = append(candidates, transfer{arg, caller, false})
+				candidates = append(candidates, transfer{arg, caller, argumentMessage})
 			}
 		}
 		// The client task facade evaluates a selected default before dispatch.
@@ -102,7 +114,7 @@ func (facts *sourceAnalysisFacts) taskFunctionArgumentDiagnostics(tasks []Task, 
 			}
 			value := taskRuntimeParameters(use.work)[index].Initializer()
 			if isTaskFunctionArgument(value, facts.checker) {
-				candidates = append(candidates, transfer{value, caller, false})
+				candidates = append(candidates, transfer{value, caller, argumentMessage})
 			}
 		}
 	}
@@ -177,14 +189,30 @@ func (facts *sourceAnalysisFacts) taskFunctionArgumentDiagnostics(tasks []Task, 
 			continue
 		}
 		reported[use.argument] = true
-		message := "error: a function cannot be sent from the client as a server task argument. Run the callback on the client and pass its result, or pass data and handle it in the server task"
-		if use.capture {
-			message = "error: this component prop supplies a function that cannot be sent to a server task. Run the callback on the client and pass its data, or use a server-local function"
-		}
 		start := scanner.SkipTrivia(facts.source.Text(), use.argument.Pos())
 		diagnostics = append(diagnostics, Diagnostic{Severity: "error", Code: "EXACT2001",
-			Message: message,
+			Message: use.message,
 			Start:   start, Length: use.argument.End() - start})
 	}
 	return diagnostics
+}
+
+// A member or call chain evaluates its base binding before selecting the key.
+// Classify only the acquired binding. Guards, callbacks and opaque calls need
+// their own execution evidence and cannot establish this obligation by spelling.
+func taskKeyRequiresServerBinding(key *ast.Node, facts *sourceAnalysisFacts) bool {
+	for key != nil {
+		key = unwrapSourceCallableReference(key)
+		switch {
+		case ast.IsAccessExpression(key), ast.IsCallExpression(key):
+			key = key.Expression()
+		case ast.IsIdentifier(key):
+			symbol := facts.checker.GetSymbolAtLocation(key)
+			_, global := serverGlobals[key.Text()]
+			return global && symbolIsOutsideSource(symbol, facts.source) || serverOnlyImportSymbol(symbol)
+		default:
+			return false
+		}
+	}
+	return false
 }

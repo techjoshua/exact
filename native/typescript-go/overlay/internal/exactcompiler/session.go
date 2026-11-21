@@ -662,7 +662,7 @@ func (s *Session) executeProjection(request Request, authored *authoredCheckProg
 		)...,
 	)
 	if authored == nil {
-		response.Diagnostics = append(response.Diagnostics, analysisFacts.taskFunctionArgumentDiagnostics(tasks, jsx, callables, operations)...)
+		response.Diagnostics = append(response.Diagnostics, analysisFacts.clientTaskInvocationDiagnostics(tasks, jsx, callables, operations)...)
 		response.Diagnostics = append(
 			response.Diagnostics,
 			taskDiagnostics(sourceFile, generation.checker, tasks, stateWrites, request.Target)...,

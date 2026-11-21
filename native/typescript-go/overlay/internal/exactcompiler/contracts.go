@@ -659,8 +659,9 @@ type Task struct {
 	ArgumentCount           int                       `json:"argumentCount,omitempty"`
 	ActivationArgumentCount int                       `json:"activationArgumentCount,omitempty"`
 	CapturedParameters      []int                     `json:"capturedParameters"`
-	KeyStart                int                       `json:"keyStart,omitempty"`
-	KeyLength               int                       `json:"keyLength,omitempty"`
+	keyOperand              *ast.Node
+	KeyStart                int `json:"keyStart,omitempty"`
+	KeyLength               int `json:"keyLength,omitempty"`
 }
 
 // ContinuationActivation describes values accepted by one server transition.
