@@ -349,6 +349,8 @@ export function TasksPage(this: Component<{}>) {
 					browser before iteration even begins. Creating a generator defers its body. If a task loops
 					over that generator and its body reads the DOM, the task needs the browser. The same
 					applies when an iterator reads the DOM while advancing or closing on early exit.
+					When <code>for await</code> consumes a synchronous iterator, it also awaits the value
+					supplied with each step.
 					Placement follows captured inputs and current
 					assignments through helper returns, preserving ordinary JavaScript initialization and
 					thrown errors. Unresolved callbacks or externally supplied values can leave placement

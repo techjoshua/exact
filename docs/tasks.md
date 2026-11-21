@@ -81,7 +81,7 @@ a scalar derived before the call passes its value as evaluated for that invocati
 Project linking uses the same component-owned task summary when a parent renders an imported
 component that retains a task as a value. Invoking a callback or reading an accessor in that task
 contributes its platform requirements. Merely defining the callback or accessor defers its body.
-Creating a generator defers its body. A task that advances it in a loop takes on its state and platform effects. For authored iterators, placement also accounts for acquiring the iterator, advancing it, reading each yielded value, and closing it on early exit.
+Creating a generator defers its body. A task that advances it in a loop takes on its state and platform effects. For authored iterators, placement also accounts for acquiring the iterator, advancing it, reading each yielded value, and closing it on early exit. When `for await` consumes a synchronous iterator, it awaits each step’s value, which can run a thenable’s getter or method.
 A literal concurrency key adds no platform requirement. Explicit invocation evaluates the authored key to select its lane.
 Unresolved task operations retain the existing conservative placement rules.
 Ordinary local functions and arrows created during a task retain that generation, including across

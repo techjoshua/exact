@@ -17,6 +17,7 @@ func TestTaskIterationPlacement(t *testing.T) {
 	}{
 		{"saved generator", generator, "const rows=generate();" + iterate, true},
 		{"bypassed generator", generator, "if(false) { const rows=generate();" + iterate + " }", false},
+		{"dead callback", "function invoke(f:()=>void){f()}", "if(false){invoke(()=>{document.title})}", false},
 		{"after return", "function focus(){return document.title}", "return;focus()", false},
 		{"after throw", "function focus(){return document.title}", "throw 1;focus()", false},
 		{"unknown condition", "function focus(){return document.title}", "if(Math.random()){focus()}", true},
@@ -28,6 +29,9 @@ func TestTaskIterationPlacement(t *testing.T) {
 		{"close", "const rows={ [Symbol.asyncIterator](){return {next:async()=>({done:false as const,value:0}),return:async()=>{document.title;return {done:true as const,value:0}}}} };", iterate, true},
 		{"sync return only", "const rows={ [Symbol.iterator](){document.title;return {next:()=>({done:true as const,value:0})}} };", iterate, true},
 		{"sync yield only", "const rows={ [Symbol.iterator](){return {next:()=>({done:false as const,value:1})}} };", iterate, false},
+		{"sync yielded then getter", "const rows={ [Symbol.iterator](){return {next:()=>({done:false as const,value:{get then(){document.title;return undefined}}})}} };", iterate, true},
+		{"plain sync skips then", "const rows={ [Symbol.iterator](){return {next:()=>({done:false as const,value:{get then(){document.title;return undefined}}})}} };", "for(const item of rows){break}", false},
+		{"sync close value", "const rows={ [Symbol.iterator](){return {next:()=>({done:false as const,value:0}),return:()=>({done:true as const,value:{get then(){document.title;return undefined}}})}} };", iterate, true},
 		{"async preferred", "const rows={ [Symbol.asyncIterator](){return {next:async()=>({done:true as const,value:0})}},[Symbol.iterator](){document.title;return {next:()=>({done:true as const,value:0})}} };", iterate, false},
 	} {
 		t.Run(row.name, func(t *testing.T) {

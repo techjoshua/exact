@@ -92,21 +92,31 @@ func (e *iterationEffects) iterator(c *checker.Checker, symbol *ast.Symbol, loop
 	for _, factory := range e.method(c, symbol) {
 		for _, iterator := range c.GetReturnTypeOfSignature(factory).Distributed() {
 			mayYield := false
+			asyncFromSync := !async && loop.AsForInOrOfStatement().AwaitModifier != nil
 			for _, next := range e.method(c, c.GetPropertyOfType(iterator, "next")) {
 				step := c.GetReturnTypeOfSignature(next)
 				if async {
+					e.await(c, step)
 					if settled := c.GetPromisedTypeOfPromise(step); settled != nil {
 						step = settled
 					}
 				}
-				asyncFromSync := !async && loop.AsForInOrOfStatement().AwaitModifier != nil
 				for _, record := range step.Distributed() {
 					yielded := e.step(c, record, asyncFromSync)
 					mayYield = mayYield || yielded
 				}
 			}
 			if mayYield && iterationMayClose(loop) {
-				e.method(c, c.GetPropertyOfType(iterator, "return"))
+				for _, close := range e.method(c, c.GetPropertyOfType(iterator, "return")) {
+					result := c.GetReturnTypeOfSignature(close)
+					if async {
+						e.await(c, result)
+					} else if asyncFromSync {
+						for _, record := range result.Distributed() {
+							e.step(c, record, true)
+						}
+					}
+				}
 			}
 		}
 	}
@@ -122,9 +132,28 @@ func (e *iterationEffects) step(c *checker.Checker, record *checker.Type, asyncF
 	}
 	// AsyncFromSyncIteratorContinuation also acquires a completed step's value.
 	if !finished || asyncFromSync {
-		e.getter(c.GetPropertyOfType(record, "value"))
+		value := c.GetPropertyOfType(record, "value")
+		e.getter(value)
+		if asyncFromSync && value != nil {
+			e.await(c, c.GetTypeOfSymbol(value))
+		}
 	}
 	return !finished
+}
+
+// Await reads then and invokes it when callable. A standard Promise supplies
+// its own settlement; an authored getter or method remains an executable edge.
+func (e *iterationEffects) await(c *checker.Checker, value *checker.Type) {
+	for _, v := range value.Distributed() {
+		then := c.GetPropertyOfType(v, "then")
+		if then == nil {
+			continue
+		}
+		if decl := then.ValueDeclaration; decl != nil && standardLibrarySource(ast.GetSourceFileOfNode(decl)) && decl.Parent != nil && ast.IsInterfaceDeclaration(decl.Parent) && decl.Parent.Name().Text() == "Promise" {
+			continue
+		}
+		e.method(c, then)
+	}
 }
 
 func (e *iterationEffects) method(c *checker.Checker, symbol *ast.Symbol) []*checker.Signature {
