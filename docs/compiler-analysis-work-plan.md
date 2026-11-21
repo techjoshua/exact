@@ -2139,6 +2139,16 @@ own-field overwrite can supersede that value, and a field saved before the Set
 retains its earlier origin. Each recovered scope supplies a possible value
 dependency. The original operations still own their effects and execution.
 
+A return projection still loses the browser requirement when that helper
+returns the stored field or the containing object and the component reads the
+getter after the Call. Both application and library compilation classify those
+components as isomorphic, and the server artifact executes the browser getter.
+Reading the getter within the helper preserves client placement. A private
+experiment recovered the original Set scope during return projection, but
+extending the read boundary and resolving its captured RHS earlier did not
+restore placement. The transfer from the recovered writer to the caller's Get
+remains open.
+
 A matched rerun rebuilt the exact `a693a97e9` and `7b3ae6c8b` hosts and
 used fresh copies of the same pinned Core inputs. The fast host completed
 the package command in 34.68 seconds and produced 3,598 output files. The
