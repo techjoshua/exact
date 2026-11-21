@@ -3943,6 +3943,10 @@ A binding such as `const { rows } = { rows: [...this.state.items] }` can acquire
 own data field without searching for writes to the temporary literal. The selected array
 keeps its normal source relationships and later collection updates. Nested bindings, rest,
 defaults, computed fields, and accessors retain ordinary pattern analysis.
+When that private binding supplies its array literal to a local function whose sole statement
+returns the parameter's `length`, writer recovery can omit the call. A native Array has a non-configurable
+own data `length`. The original call, array construction and later member reads keep their
+effects. Other argument sources and mutable callable bindings follow ordinary writer recovery.
 After dependency-body admission, a wrapper with no indexed nested Call needs no writer scope
 when all its bindings are already resolved. Member paths and pending initializer uses retain
 the original projection and sealing steps because either can contribute uncertainty to fallback.

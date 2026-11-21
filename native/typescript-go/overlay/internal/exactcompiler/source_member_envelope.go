@@ -164,8 +164,7 @@ func envelopeSynchronousFunction(node *ast.Node) bool {
 // The selected value and its later uses retain their ordinary ownership.
 func (query *sourceValueQuery) ownsLiteralBindingSlot(origin *ast.Node, projection []string, name string, mode accessorTraversal) bool {
 	element := query.protectedMember
-	if mode != accessorRead && mode != accessorAcquire || !ast.IsObjectLiteralExpression(origin) ||
-		element == nil || !ast.IsBindingElement(element) {
+	if mode != accessorRead && mode != accessorAcquire || element == nil || !ast.IsBindingElement(element) {
 		return false
 	}
 	if name == "" && len(projection) == 1 {
@@ -173,24 +172,88 @@ func (query *sourceValueQuery) ownsLiteralBindingSlot(origin *ast.Node, projecti
 	} else if name == "" || len(projection) != 0 {
 		return false
 	}
+	key, value := literalBindingField(element, origin)
+	return value != nil && key == name
+}
+
+// literalBindingField follows an original binding Get to its sole data field.
+func literalBindingField(element, origin *ast.Node) (string, *ast.Node) {
+	if origin == nil || !ast.IsObjectLiteralExpression(origin) {
+		return "", nil
+	}
 	pattern := element.Parent
 	if pattern == nil || !ast.IsObjectBindingPattern(pattern) || len(pattern.AsBindingPattern().Elements.Nodes) != 1 ||
 		pattern.Parent == nil || !ast.IsVariableDeclaration(pattern.Parent) || pattern.Parent.Initializer() != origin {
-		return false
+		return "", nil
 	}
 	binding := element.AsBindingElement()
 	if !ast.IsIdentifier(binding.Name()) || binding.DotDotDotToken != nil || binding.Initializer != nil ||
 		binding.PropertyName != nil && ast.IsComputedPropertyName(binding.PropertyName) {
-		return false
+		return "", nil
 	}
 	key, known := bindingSegment(pattern, element, 0)
-	if !known || key != name || key == "__proto__" {
-		return false
+	if !known || key == "__proto__" {
+		return "", nil
 	}
 	fields := origin.AsObjectLiteralExpression().Properties.Nodes
-	return len(fields) == 1 && ast.IsPropertyAssignment(fields[0]) &&
+	if len(fields) == 1 && ast.IsPropertyAssignment(fields[0]) &&
 		fields[0].Name() != nil && !ast.IsComputedPropertyName(fields[0].Name()) &&
-		callableNameText(fields[0].Name()) == key
+		callableNameText(fields[0].Name()) == key {
+		return key, fields[0].Initializer()
+	}
+	return "", nil
+}
+
+// localArrayLengthRead excludes writer recovery through a direct local reader
+// of the native array's non-configurable own length. The original Call and
+// array initialization still evaluate normally.
+func (query *sourceValueQuery) localArrayLengthRead(call *ast.Node, bindings sourceValueBindings) bool {
+	expression, arguments := call.Expression(), call.AsCallExpression().Arguments
+	if !ast.IsIdentifier(expression) || arguments == nil || len(arguments.Nodes) != 1 || !ast.IsIdentifier(arguments.Nodes[0]) {
+		return false
+	}
+	source := ast.GetSourceFileOfNode(call)
+	c := query.owner.checker
+	callee := c.GetSymbolAtLocation(expression)
+	if callee == nil || len(callee.Declarations) != 1 || !envelopeSynchronousFunction(callee.ValueDeclaration) {
+		return false
+	}
+	function := callee.ValueDeclaration
+	parameters, statements := function.Parameters(), function.Body().AsBlock().Statements.Nodes
+	if ast.GetSourceFileOfNode(function) != source || len(parameters) != 1 || len(statements) != 1 || !ast.IsReturnStatement(statements[0]) {
+		return false
+	}
+	parameter := parameters[0].AsParameterDeclaration()
+	member := statements[0].AsReturnStatement().Expression
+	if !ast.IsIdentifier(parameter.Name()) || parameter.DotDotDotToken != nil || parameter.Initializer != nil ||
+		member == nil || !ast.IsPropertyAccessExpression(member) || member.Name().Text() != "length" || !ast.IsIdentifier(member.Expression()) {
+		return false
+	}
+	if receiver := c.GetSymbolAtLocation(member.Expression()); receiver == nil || receiver.ValueDeclaration != parameters[0] {
+		return false
+	}
+	argument := c.GetSymbolAtLocation(arguments.Nodes[0])
+	if argument == nil || argument.ValueDeclaration == nil || !ast.IsBindingElement(argument.ValueDeclaration) {
+		return false
+	}
+	if _, substituted := bindings[ast.GetSymbolId(argument)]; substituted {
+		return false
+	}
+	element := argument.ValueDeclaration
+	if element.Parent == nil || element.Parent.Parent == nil {
+		return false
+	}
+	declaration := element.Parent.Parent
+	if !ast.IsVariableDeclaration(declaration) || declaration.Parent == nil || declaration.Parent.Flags&ast.NodeFlagsConst == 0 || ast.GetSourceFileOfNode(declaration) != source ||
+		enclosingCallableNode(declaration) != enclosingCallableNode(call) || declaration.End() > call.Pos() {
+		return false
+	}
+	_, array := literalBindingField(element, declaration.Initializer())
+	if array == nil || !ast.IsArrayLiteralExpression(array) || !ast.IsExternalModule(source) {
+		return false
+	}
+	index := query.owner.index(source)
+	return !index.incomplete && !index.normalDynamicScope && !query.owner.bindingWritten(callee) && !query.owner.bindingWritten(argument)
 }
 
 // confinedLocalGetter excludes unrelated receiver writers for one own getter.
