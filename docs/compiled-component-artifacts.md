@@ -127,7 +127,9 @@ components retain their existing operation and adoption path.
 An eager module initializer may freeze an object or array literal, including a named constant
 initialized with that literal, before supplying a component. Standard freeze reads own
 descriptors. An accessor body runs when a later operation reads its value. Freezing a Proxy
-can execute authored traps and retains its separate placement requirements.
+can execute authored traps and retains its separate placement requirements. Missing reference
+metadata from an imported provider limits value projection. The standard operation on a known
+literal still has the same execution effects.
 
 A callback passed through a helper can capture that helper's parameter. Its known platform
 requirements apply when the receiving helper invokes it, along with the contribution of any

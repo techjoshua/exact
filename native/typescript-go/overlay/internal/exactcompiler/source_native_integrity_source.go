@@ -35,9 +35,12 @@ func (q *sourceValueQuery) sourceFreezeRelationshipObserved(site *ast.Node, call
 	for i, argument := range plan.actuals {
 		sameVector = sameVector && i < len(actuals) && argument == actuals[i]
 	}
-	if !calleeComplete || plan.adapted && (!sameVector || plan.receiver != nil || len(plan.vectors) > 0) || len(plan.actuals) != 1 || callee.native.referencesIncomplete {
+	if !calleeComplete || plan.adapted && (!sameVector || plan.receiver != nil || len(plan.vectors) > 0) || len(plan.actuals) != 1 {
 		refuse()
 	}
+	// Missing dependency reference metadata withholds a complete value projection.
+	// It cannot make the selected standard freeze execute a getter on a literal.
+	result.valueIncomplete = result.valueIncomplete || callee.native.referencesIncomplete
 	for i, argument := range plan.actuals {
 		if !q.charge(result, argument) {
 			return

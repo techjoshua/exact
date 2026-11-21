@@ -83,7 +83,7 @@ export function CompilerTourPage(this: Component<{}>) {
 					Awaited mutations keep suspension in the original function. Tasks resolve omitted defaults
 					once, including destructured parameters and defaults that reference earlier parameters.
 					A component can share module-level lookup tables created with <code>Object.freeze</code>
-					on an object or array literal.
+					on an object or array literal, including in a module that imports a framework provider.
 					A task may store a browser callback in a local object or array. Calling that callback
 					after destructuring still requires client placement. The same rule applies when another
 					helper invokes a callback that captures it.

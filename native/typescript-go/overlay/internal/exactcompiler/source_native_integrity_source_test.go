@@ -91,7 +91,7 @@ func TestSourceFreezeSelectionControls(t *testing.T) {
 		{"unknown target", `declare const external:object;`, `Object.freeze(external);return 1`, "unknown", false},
 	} {
 		t.Run(row.name, func(t *testing.T) {
-			r := NewSession().Execute(Request{Kind: "analyze", ID: "/virtual/freeze-selection.ts", Source: row.prefix + `export function read(){` + row.body + `}`, Diagnostics: "semantic"})
+			r := NewSession().Execute(Request{Kind: "analyze", ID: "/virtual/freeze-selection.ts", Source: row.prefix + `export function read(){` + row.body + `}export function Page(){return()=>read()}`, Diagnostics: "semantic"})
 			if r.Error != "" || hasErrorDiagnostic(r.Diagnostics) {
 				t.Fatal(r.Error, r.Diagnostics)
 			}
@@ -132,7 +132,7 @@ func TestSourceFreezeReplacementAndProxy(t *testing.T) {
 		`export function read(){return Object.freeze({get value(){return document.title}}).value}`,
 	}
 	for i, source := range sources {
-		r := session.Execute(Request{Kind: "analyze", ID: "/virtual/freeze-replacement.ts", Source: source, Diagnostics: "semantic"})
+		r := session.Execute(Request{Kind: "analyze", ID: "/virtual/freeze-replacement.ts", Source: source + `export function Page(){return()=>read()}`, Diagnostics: "semantic"})
 		if r.Error != "" || hasErrorDiagnostic(r.Diagnostics) {
 			t.Fatal(r.Error, r.Diagnostics)
 		}
@@ -180,7 +180,7 @@ func TestSourceFreezeArgumentEffectOwnership(t *testing.T) {
 // A fixed spread tuple retains its getter donor through an authored native alias.
 func TestSourceFreezeTupleSpreadDonor(t *testing.T) {
 	const source = `export function read(){const freeze=Object.freeze;const args=[{get value(){return document.title}}] as const;return freeze(...args).value}`
-	r := NewSession().Execute(Request{Kind: "analyze", ID: "/virtual/freeze-tuple-argument.ts", Source: source, Diagnostics: "semantic"})
+	r := NewSession().Execute(Request{Kind: "analyze", ID: "/virtual/freeze-tuple-argument.ts", Source: source + `export function Page(){return()=>read()}`, Diagnostics: "semantic"})
 	if r.Error != "" || hasErrorDiagnostic(r.Diagnostics) {
 		t.Fatal(r.Error, r.Diagnostics)
 	}
@@ -208,9 +208,9 @@ func TestFrozenLiteralComponentInitializer(t *testing.T) {
 		{"foreign target", "Object.freeze(foreign).n", true},
 	} {
 		t.Run(row.name, func(t *testing.T) {
-			source := `import {type Component} from '@exactjs/core';declare const foreign:{n:number};
+			source := `import {createContext,type Component} from '@exactjs/core';const C=createContext<number>('frozen');declare const foreign:{n:number};
 const xs=[1,2];const record={n:2};const n=` + row.initializer + `;
-export function Page(this:Component<{}>){return()=> <div>{n}</div>}`
+export function Page(this:Component<{}>){this.setContext(C,1);return()=> <div>{n}</div>}`
 			for _, target := range []Target{TargetClient, TargetServer} {
 				result := formsCompileSource(t, root, config, source, target)
 				if row.opaque {
