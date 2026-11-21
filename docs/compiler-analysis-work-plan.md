@@ -65,6 +65,21 @@ The canonical SDK run used source and built adapters at `85cbeccc6`, native inpu
 
 The full original Core package build emitted 300 JavaScript modules per target at `43fa437ca`. Its 16.07-second elapsed time is one observation with retained providers and other audit jobs active. The deep placement test reported 1,863,065 JSON characters against a limit of 750,000 on both the control and unified compilers under the same SDK configuration.
 
+The reduced Intl reactive setter request completes in 0.91 seconds with `819594709` after
+reaching the eight-second stop on the baseline. Active and dormant aliased setters preserve
+their target effects, including a setter that installs a matching descriptor. In the recursive
+projection control, `666f0e660` bounds the use of the same unresolved formal and preserves
+known browser getters in nested actuals. Each of three component compiles finishes within
+0.30 seconds. Their previous builds reach the six-second stop.
+
+The original Intl library build uses retained SDK providers and the native source at
+`43fa437ca` with the recursive projection fix from `666f0e660`. TypeScript prerequisites
+complete. The package command reaches the native request deadline on `components.ts` after
+32.89 seconds of wall time and publishes no client or server artifact. Sampled reflective
+writer recovery still acquires named data paths through the actual protocol record builder.
+Those data slots can carry callable sources, so the remaining cost needs a source relationship
+that retains applicable writer and captured callable effects.
+
 Acceptance also covers mounted reads, control bindings, lifecycle, portals, registry identity, task settlement, protected transport, paired artifact selection, selected host implementations and source inspection. Use the existing [composition corpus](component-composition-corpus.md) and [package decision audit](#requester-disposition-against-the-component-contracts) for their scoped evidence. Treat interrupted suites and original packages that still reach the request deadline as open.
 
 ### Acceptance by traversal rule
