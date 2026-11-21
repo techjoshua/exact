@@ -63,12 +63,12 @@ func isPreparedScalarPropRead(node *ast.Node, effect EnvironmentEffectSource, ow
 	if !direct {
 		return false
 	}
-	// A selected component operation still needs its original selector proof.
+	// A later member operation still needs its original receiver or selector proof.
 	value := field.operation
 	for value.Parent != nil && unwrapSourceCallableReference(value.Parent) == field.operation {
 		value = value.Parent
 	}
-	if value.Parent != nil && ast.IsElementAccessExpression(value.Parent) && value.Parent.AsElementAccessExpression().ArgumentExpression == value {
+	if value.Parent != nil && (ast.IsPropertyAccessExpression(value.Parent) || ast.IsElementAccessExpression(value.Parent)) {
 		return false
 	}
 	read, write := accessorEvaluationMode(field.operation)

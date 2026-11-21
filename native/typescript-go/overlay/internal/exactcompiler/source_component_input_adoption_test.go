@@ -21,6 +21,7 @@ func TestPreparedScalarPropSetupPlacement(t *testing.T) {
 		{"getter spread", component + `export function Host(){return()=> <Consumer {...{get value(){return document.title}}}/>}`, "isomorphic", "client", false},
 		{"proxy spread", component + `export function Host(){const input=new Proxy({value:'plain'},{get(target,key,receiver){document.title;return Reflect.get(target,key,receiver)}});return()=> <Consumer {...input}/>}`, "isomorphic", "client", false},
 		{"reassigned", `export function Consumer(props:{value:string}){props={get value(){return document.title}};const value=props.value;return()=> <output>{value}</output>}`, "unknown", "", false},
+		{"member receiver", `export function Consumer(props:{value:string}){const value=props.value.slice(1);return()=> <output>{value}</output>}`, "unknown", "", false},
 		{"nested", `export function Consumer(props:{value:{label:string}}){const value=props.value.label;return()=> <output>{value}</output>}`, "unknown", "", false},
 		{"unknown", `export function Consumer(props:{value:unknown}){const value=String(props.value);return()=> <output>{value}</output>}`, "unknown", "", false},
 		{"protected", `declare const brand:unique symbol;

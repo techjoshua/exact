@@ -331,7 +331,8 @@ value or reactive handle to a helper. Context writes remain effects of the owner
 
 Component setup reads of a checked scalar prop use the value delivered by the input receipt. A
 getter or expression that supplies the prop keeps its effects at the producing use. A reassigned
-props parameter, a nested field lookup and an untyped value still require ordinary source analysis.
+props parameter, a subsequent member receiver or key, and an untyped value still require ordinary
+source analysis.
 
 Direct server clock ranges defer value reads until their enhancement selects the provider clock.
 The additive `createDeferredServerChildRange` helper retains the existing prepared-range shape
