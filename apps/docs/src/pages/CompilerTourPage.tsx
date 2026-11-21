@@ -85,7 +85,8 @@ export function CompilerTourPage(this: Component<{}>) {
 					A component can share module-level lookup tables created with <code>Object.freeze</code>
 					on an object or array literal.
 					A task may store a browser callback in a local object or array. Calling that callback
-					after destructuring still requires client placement.
+					after destructuring still requires client placement. The same rule applies when another
+					helper invokes a callback that captures it.
 					Server preparation distinguishes task inputs from values written earlier within that task,
 					so a task can consume its own work without waiting on its unfinished output. Blocking
 					tasks retain assignment and update results for later scalar reads within the same

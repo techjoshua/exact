@@ -125,6 +125,10 @@ initialized with that literal, before supplying a component. Standard freeze rea
 descriptors. An accessor body runs when a later operation reads its value. Freezing a Proxy
 can execute authored traps and retains its separate placement requirements.
 
+A callback passed through a helper can capture that helper's parameter. Its known platform
+requirements apply when the receiving helper invokes it, along with the contribution of any
+callback that it calls. Passing or returning the closure alone preserves its deferred body.
+
 A task that destructures a local object acquires the current field value, including the result
 of an authored getter. Calling a known function from that binding imposes the function's
 platform requirements even if the original field is subsequently replaced. A direct dense

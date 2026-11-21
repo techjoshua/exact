@@ -225,6 +225,19 @@ func (work *callableEffectWork) prepareStagedInputCallResult(facts []callableFac
 	work.operationGeneration = owner.values.generation
 	producing := endpoint.expression
 	source, supported := work.describeStagedCallResultSource(facts, caller, producing, owner)
+	// A callback that captures an unbound formal still has a known body. Its
+	// ordinary invocation summary carries that body's effects and relative input
+	// demand. Registering DATA for a construction that cannot supply its captures
+	// would keep this caller pending permanently.
+	if supported && source.binding != nil && localConstructionBindingSyntax(source.binding, facts[caller].node) {
+		initializer := source.binding.Initializer()
+		if isWriterInputCallable(initializer) {
+			closure := describeLocalConstructionCallable(initializer, initializer, facts[caller].node, owner.values)
+			if closure == nil || closure.unsupported {
+				return sourceStagedOperationRequest{}, false
+			}
+		}
+	}
 	if supported && source.getResult != nil {
 		if _, registered := work.registerStagedGetResult(facts, caller, producing, owner); !registered {
 			return sourceStagedOperationRequest{}, false

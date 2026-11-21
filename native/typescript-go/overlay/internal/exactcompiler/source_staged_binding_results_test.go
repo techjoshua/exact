@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -162,27 +163,35 @@ func TestStagedBindingDataKnownPrefix(t *testing.T) {
 	})
 }
 
-func TestStagedBindingDataCapturedPrefix(t *testing.T) {
-	const source = `function factory(callback:()=>string){return callback()}export function invoke(callback:()=>string){const saved=()=>{window.name;return callback()};return factory(saved)}`
-	withStagedReturnProgram(t, source, func(owner *executableBodyOwner, call *ast.Node) {
-		facts := stagedReturnSourceFacts(ast.GetSourceFileOfNode(call))
-		work := registerCallableEffectWork(facts)
-		caller := work.memberNodes[enclosingCallableNode(call)]
-		work.prepareOperationUses(facts, owner)
-		read := call.AsCallExpression().Arguments.Nodes[0]
-		dataSource, valid := work.describeStagedCallResultSource(facts, caller, read, owner)
-		if !valid || !work.registerOperationRecipe(facts, sourceStagedOperationRecipe{key: dataSource.request.producer, callResult: dataSource}) {
-			t.Fatal("captured binding source refused")
+// A forwarded closure can have a known prefix before it invokes a caller-supplied
+// callback. Placement must retain that prefix only when the helper invokes it.
+func TestForwardedClosurePrefixTaskPlacement(t *testing.T) {
+	root, config := formsSourceFixture(t)
+	for _, row := range []struct {
+		result  string
+		invoked bool
+	}{{"callback()", true}, {"callback", false}} {
+		source := `import {TaskContext,type Component} from '@exactjs/core';
+declare function externalCall():string;
+function factory(callback:()=>string){return ` + row.result + `}
+function invoke(callback:()=>string){const saved=()=>{window.name;return callback()};return factory(saved)}
+export function Page(this:Component<{}>){function run(task:TaskContext=TaskContext.server()){void invoke(externalCall)}
+return()=> <button onClick={()=>run()}>run</button>}`
+		for _, target := range []Target{TargetClient, TargetServer} {
+			r := formsCompileSource(t, root, config, source, target)
+			if row.invoked {
+				found := false
+				for _, diag := range r.Diagnostics {
+					found = found || diag.Code == "EXACT2001" && strings.Contains(diag.Message, "window")
+				}
+				if !found || r.Code != "" {
+					t.Fatalf("%s lost invoked closure prefix: %v", target, formsDiagnosticDetails(r.Diagnostics))
+				}
+			} else if hasErrorDiagnostic(r.Diagnostics) || r.Code == "" {
+				t.Fatalf("%s charged stored prefix: %v", target, formsDiagnosticDetails(r.Diagnostics))
+			}
 		}
-		if _, valid := work.requireOperation(facts, dataSource.request); !valid {
-			t.Fatal("captured binding demand refused")
-		}
-		resolveCallableEffectsWithWork(facts, owner, &work)
-		data, available := work.stagedCallResultData(dataSource.request)
-		if !available || data.delta.extracted || len(data.delta.exposures) != 1 || !ast.IsArrowFunction(data.delta.exposures[0].endpoint.expression) || data.delta.exposures[0].creating != nil {
-			t.Fatal("unprovided capture erased source prefix or fabricated creator")
-		}
-	})
+	}
 }
 
 // Only an actual ordinary callee-use wakes the relative invocation consumer.
