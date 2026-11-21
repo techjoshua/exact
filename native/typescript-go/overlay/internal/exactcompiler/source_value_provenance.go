@@ -1135,6 +1135,14 @@ func (query *sourceValueQuery) executeDemand(node, declaration *ast.Node, bindin
 				candidates = query.consumeNormalGet(node, bindings)
 			} else {
 				query.withDescriptorGetEffectsUse(node, func() {
+					if name == "" && read && !write && ast.IsElementAccessExpression(node) {
+						if keys := query.sourceMapKeys(node.AsElementAccessExpression().ArgumentExpression); len(keys) != 0 {
+							for _, key := range keys {
+								mergeAccessorCandidates(&candidates, query.sourceAccessorOperationCandidates(receiver, nil, key, mode, bindings, node))
+							}
+							return
+						}
+					}
 					candidates = query.sourceAccessorOperationCandidates(receiver, nil, name, mode, bindings, node)
 				})
 			}

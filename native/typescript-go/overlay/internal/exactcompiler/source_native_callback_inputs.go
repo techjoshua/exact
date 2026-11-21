@@ -63,10 +63,31 @@ func (query *sourceValueQuery) nativeCallbackInputEffects(node *ast.Node, bindin
 			return
 		}
 		noncallable := !acquired.opaque && !acquired.valueIncomplete && !acquired.receiverIncomplete && !acquired.fieldReceiverIncomplete && !acquired.thenIncomplete && sourceValuesNoncallable(acquired.values)
+		var keyParameter, confinedArray *ast.Node
+		inlineCallback := len(actuals) == 1 && ast.IsArrowFunction(unwrapSourceCallableReference(argument))
+		if len(actuals) == 1 && len(acquired.values) == 1 && len(acquired.values[0].path) == 0 && query.operation == nil && query.returnObservation == nil {
+			keyParameter = query.mapIndexParameter(acquired.values[0].node)
+		}
+		if (inlineCallback || keyParameter != nil) && query.operation == nil && query.returnObservation == nil {
+			confinedArray = query.confinedMapArray(node, native.bindings[0])
+			if inlineCallback && confinedArray != nil && len(confinedArray.AsArrayLiteralExpression().Elements.Nodes) == 0 {
+				return
+			}
+		}
 		var elements []sourceValue
+		frozenKeys := false
 		for _, receiver := range native.bindings[0] {
 			if freshPrivateEntries {
 				break
+			}
+			if (inlineCallback || keyParameter != nil) && len(native.bindings[0]) == 1 {
+				if frozen, known := query.frozenMapKeyElements(receiver, keyParameter != nil, &part); known {
+					if len(frozen) == 0 {
+						return
+					}
+					elements, frozenKeys = frozen, true
+					break
+				}
 			}
 			if !query.charge(&part, receiver.node) {
 				break
@@ -98,7 +119,10 @@ func (query *sourceValueQuery) nativeCallbackInputEffects(node *ast.Node, bindin
 			if len(value.path) != 0 || !query.sourceCallableImplementation(body, &part) {
 				continue
 			}
-			scope := acquired.callableScopes[index]
+			scope, scoped := acquired.callableScopes[index]
+			if !scoped && value.capture != nil {
+				scope = *value.capture
+			}
 			prior := query.creators
 			query.creators = scope.creators
 			inputs := &sourceValueInputs{declaration: body, invocation: node, bindings: make(sourceValueBindings), defaults: make(map[*ast.Node]sourceDefaultInput)}
@@ -150,6 +174,9 @@ func (query *sourceValueQuery) nativeCallbackInputEffects(node *ast.Node, bindin
 				} else {
 					query.installParameterInput(parameter, values, inputs, &part)
 				}
+			}
+			if keyParameter != nil && body == keyParameter.Parent && (frozenKeys || confinedArray != nil) {
+				inputs.mapKey = mapKeyInput(keyParameter, elements)
 			}
 			first := len(part.effects)
 			query.consumeOrdinaryBody(node, body, inputs.bindings, inputs, nil, &part)

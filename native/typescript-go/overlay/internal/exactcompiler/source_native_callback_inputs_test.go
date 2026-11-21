@@ -2,10 +2,58 @@ package exactcompiler
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
 )
+
+// Placement follows the actual key producer of a native map callback's
+// captured read. An unused getter beside a reached slot adds no requirement.
+func TestNativeMapCapturedKeyTaskPlacement(t *testing.T) {
+	root, config := formsSourceFixture(t)
+	keys := `const raw=[1, 3, 'border'] as const;export const keys=Object.freeze(raw);export function readKeys(){for(const _ of raw){}}`
+	if err := os.WriteFile(filepath.Join(root, "keys.ts"), []byte(keys), 0600); err != nil {
+		t.Fatal(err)
+	}
+	const lookup = `i=>rows[i]!.background.css`
+	for _, row := range []struct {
+		name, setup, callback, browserKey string
+		browser                           bool
+	}{
+		{"imported reached", ``, lookup, "3", true},
+		{"imported unused", ``, lookup, "2", false},
+		{"aliased callback unused", `const keys=Object.freeze([1]);const callback=(i:number)=>rows[i]!.background.css`, `callback`, "2", false},
+		{"read-only parameter unused", `const keys=Object.freeze([1])`, `i=>{const label=String(i);return rows[i]!.background.css+label}`, "2", false},
+		{"empty", `const keys=Object.freeze([] as number[])`, `()=>rows[2]!.background.css`, "2", false},
+		{"unknown input", `const keys=Object.freeze([key])`, lookup, "2", true},
+		{"write before freeze", `const raw=[1];const alias=raw;alias[0]=2;const keys=Object.freeze(raw)`, lookup, "2", true},
+		{"shadowed freeze", `const Object={freeze(_:number[]){return [2]}};const keys=Object.freeze([1])`, lookup, "2", true},
+		{"updated parameter", `const keys=Object.freeze([1])`, `i=>{i++;return rows[i]!.background.css}`, "2", true},
+		{"callback write", `const keys=[1,1]`, `(i,offset)=>{if(offset===0)keys[1]=2;return rows[i]!.background.css}`, "2", true},
+	} {
+		t.Run(row.name, func(t *testing.T) {
+			fields := []string{}
+			for _, key := range []string{"1", "2", "3", "border"} {
+				value := `{background:{css:'safe'}}`
+				if key == row.browserKey {
+					value = `{get background(){return {css:document.title}}}`
+				}
+				fields = append(fields, key+":"+value)
+			}
+			source := `import {type Component,TaskContext} from '@exactjs/core';import {keys} from './keys.js';function read(key:number,rows:Record<string,{background:{css:string}}>){` + row.setup + `;return keys.map(` + row.callback + `).join()}export function Page(this:Component<{result:string}>,props:{index:number}){this.state.result='ready';function save(task:TaskContext=TaskContext.server()){this.state.result=read(props.index,{` + strings.Join(fields, ",") + `})}return()=> <button onClick={save}>{this.state.result}</button>}`
+			for _, target := range []Target{TargetClient, TargetServer} {
+				result := formsCompileSource(t, root, config, source, target)
+				refused := containsDiagnosticCode(result.Diagnostics, "EXACT2001") && strings.Contains(strings.Join(formsDiagnosticDetails(result.Diagnostics), " "), "document")
+				if refused != row.browser || (result.Code == "") != row.browser || !row.browser && hasErrorDiagnostic(result.Diagnostics) {
+					t.Fatalf("%s emitted=%t diagnostics=%v", target, result.Code != "", formsDiagnosticDetails(result.Diagnostics))
+				}
+			}
+		})
+	}
+}
 
 // A selected library callback slot retains effects from actual supplied source
 // elements. This is separate from proving native method identity or map output.

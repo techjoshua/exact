@@ -544,6 +544,14 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 			member := value.AsElementAccessExpression()
 			selected := sourceMemberKey(member.ArgumentExpression)
 			if !selected.resolved {
+				if keys := query.sourceMapKeys(member.ArgumentExpression); len(keys) != 0 {
+					for _, key := range keys {
+						visit(member.Expression, append([]string{key}, projection...), false)
+					}
+					return
+				}
+			}
+			if !selected.resolved {
 				// Children already evaluated this key under the actual original
 				// scope. Possible named members do not cover unknown lookup,
 				// inherited alternatives or traps. Keep that effect obligation.

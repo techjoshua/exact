@@ -96,6 +96,8 @@ func (query *sourceValueQuery) boundProjection(values []sourceValue, path []stri
 // proves bypass. Active entries retain the earlier bindings used by that initializer.
 // This is neither a runtime environment nor a selected-callee or production certificate.
 type sourceValueInputs struct {
+	mapKey *sourceMapKeyInput
+
 	constructionCapture        *sourceConstructionCallableValue       // Actual source binder supplied this description; no normal authority.
 	installedMemberDescription *sourceInstalledMemberInputDescription // detached original binder description, no authority
 	writerEdge                 *sourceRelativeInputEdge               // original binder delivery, query-local until source activation owns it

@@ -350,6 +350,8 @@ export function TasksPage(this: Component<{}>) {
 					and setters, including the resources they use when you read or assign its properties. An
 					array callback that reads an element's getter also keeps that getter's resource
 					requirements. A closure that reads a local object's getter has the same requirements.
+					When an <code>Array.map()</code> callback indexes a captured object using a fixed array
+					of keys, getters on entries outside that proven set add no placement requirement.
 					Spreading an object into an array also reads its{' '}
 					<code>Symbol.iterator</code>
 					property. If the object's getter writes <code>document.title</code>, the task needs the

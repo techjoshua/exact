@@ -782,6 +782,10 @@ Local classes, method overrides and application-added methods do not gain author
 names. Unrelated interface augmentation does not remove authority from selected standard methods.
 Standard `Array.from()` and typed-array `from()` calls carry the mapper callback's execution
 requirements. Callable input values and `thisArg` values remain data rather than invoked callbacks.
+For native `Array.map()`, a callback keeps the original scope of its captured values. A confined
+literal array or a selected `Object.freeze()` of a confined literal array can supply the possible
+primitive keys for indexing through an unchanged callback parameter. Other inputs retain their existing
+unknown alternatives. The callback's returned value remains a separate source demand.
 Execution placement does not imply that mutation is safe inside a reactive derived calculation.
 Optional native receiver calls retain the selected method's declaration after excluding nullish
 receiver alternatives. Authored union members do not acquire native authority, and invoked callback
