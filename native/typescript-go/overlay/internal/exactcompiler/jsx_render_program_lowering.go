@@ -1186,7 +1186,7 @@ func (lowering *jsxLowering) directReturnedProgram(node *ast.Node, build *render
 		root = root.Parent
 	}
 	arrow := root.Parent
-	if !ast.IsArrowFunction(arrow) || arrow.Body() != root {
+	if arrow == nil || !ast.IsArrowFunction(arrow) || arrow.Body() != root {
 		return "", false
 	}
 	returned := arrow.Parent
