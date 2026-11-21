@@ -24,8 +24,42 @@ export function invoke(){return consume(read())}
 // required for availability, rather than invoked or rebound in the function.
 func TestStagedModuleBindingSessionAndArtifacts(t *testing.T) {
 	for _, target := range []Target{TargetClient, TargetServer} {
-		session := NewSession()
-		response := session.Execute(Request{Kind: "compile", ID: "/virtual/module-binding.ts", Source: stagedModuleBindingSource, Target: target, Diagnostics: "semantic"})
+		for _, use := range []struct {
+			expression string
+			browser    bool
+		}{{"typeof exposed()", false}, {"invoke()", true}} {
+			source := "import { type Component, TaskContext } from '@exactjs/core';\n" + stagedModuleBindingSource + `
+export function Page(this: Component<{ display: string }>) {
+	this.state.display = '';
+	const refresh = (_task: TaskContext = TaskContext.client()) => {
+		this.state.display = ` + use.expression + `;
+	};
+	return () => <button onClick={() => refresh()}>{this.state.display}</button>;
+}`
+			fixture := newExecutableFixture(t, map[string]string{"entry.tsx": source})
+			request := fixture.request("compile", "entry.tsx")
+			request.Target = target
+			const config = `{"compilerOptions":{"module":"ESNext","moduleResolution":"Bundler","target":"ES2022","strict":true,"skipLibCheck":true,"jsx":"preserve","jsxImportSource":"@exactjs/jsx"},"files":["entry.tsx"]}`
+			if err := os.WriteFile(request.ConfigFile, []byte(config), 0600); err != nil {
+				t.Fatal(err)
+			}
+			response := fixture.session.Execute(request)
+			if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) || response.Code == "" {
+				t.Fatalf("%s/%s: %s %#v", target, use.expression, response.Error, response.Diagnostics)
+			}
+			task := executableSummary(t, response, "refresh")
+			browser := false
+			for _, effect := range task.EffectSources {
+				browser = browser || effect.Environment == "browser"
+			}
+			if browser != use.browser {
+				t.Fatalf("%s/%s: task browser effect=%v, want %v: %v", target, use.expression, browser, use.browser, task.EffectSources)
+			}
+			if target == TargetClient && use.browser {
+				checkStagedModuleBindingClone(t, fixture.session, request.ID)
+			}
+		}
+		response := NewSession().Execute(Request{Kind: "compile", ID: "/virtual/module-binding.ts", Source: stagedModuleBindingSource, Target: target, Diagnostics: "semantic"})
 		if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) || response.Code == "" {
 			t.Fatalf("%s: %s %#v", target, response.Error, response.Diagnostics)
 		}
@@ -39,9 +73,6 @@ func TestStagedModuleBindingSessionAndArtifacts(t *testing.T) {
 		cancel()
 		if err != nil {
 			t.Fatalf("%s emitted module binding: %v %s", target, err, output)
-		}
-		if target == TargetClient {
-			checkStagedModuleBindingClone(t, session)
 		}
 	}
 }
@@ -250,7 +281,7 @@ func TestStagedModuleBindingIndependentSourcePending(t *testing.T) {
 
 // Cached descriptions preserve original module ownership, but not a DATA
 // subscriber, source projection or consumed module revision in a fresh graph.
-func checkStagedModuleBindingClone(t *testing.T, session *Session) {
+func checkStagedModuleBindingClone(t *testing.T, session *Session, sourceID string) {
 	t.Helper()
 	for _, project := range session.projects {
 		if project.callableCache == nil {
@@ -266,7 +297,7 @@ func checkStagedModuleBindingClone(t *testing.T, session *Session) {
 		work := registerCallableEffectWork(facts)
 		work.operationGeneration = owner.values.generation
 		for caller, fact := range facts {
-			if fact.summary.Name != "read" || fact.sourceFile.FileName() != "/virtual/module-binding.ts" {
+			if fact.summary.Name != "read" || fact.sourceFile.FileName() != sourceID {
 				continue
 			}
 			read := fact.node.Body().AsBlock().Statements.Nodes[0].AsReturnStatement().Expression

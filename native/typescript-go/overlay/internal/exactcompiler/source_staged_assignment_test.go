@@ -293,42 +293,49 @@ func TestStagedAssignmentBorrowLifetime(t *testing.T) {
 }
 
 func TestStagedAssignmentSessionAndArtifacts(t *testing.T) {
-	for _, row := range []struct{ source, runner string }{
-		{`export function invoke(){const target={slot:0};target.slot=1;return 2}`, `assert.equal(m.invoke(),2);`},
-		{`const target={set slot(_value:number){window.name},get slot():number{throw 'getter'}};export function invoke(){target.slot=1;return 2}`, `let reads=0;globalThis.window={get name(){reads++;return 'name'}};assert.equal(m.invoke(),2);assert.equal(reads,1);`},
-		{`const key=Symbol.for('assignment-probe');export function invoke(){const scope=globalThis as Record<PropertyKey,unknown>;scope[key]=()=>document.title;return 2}`, `let reads=0;globalThis.document={get title(){reads++;return 'title'}};const key=Symbol.for('assignment-probe');const old=Object.getOwnPropertyDescriptor(globalThis,key);try{assert.equal(m.invoke(),2);assert.equal(typeof globalThis[key],'function');assert.equal(reads,0)}finally{if(old)Object.defineProperty(globalThis,key,old);else delete globalThis[key]}`},
+	for _, row := range []struct {
+		source, runner string
+		browser        bool
+	}{
+		{`export function invoke(){const target={slot:0};target.slot=1;return 2}`, `assert.equal(m.invoke(),2);`, false},
+		{`const target={set slot(_value:number){window.name},get slot():number{throw 'getter'}};export function invoke(){target.slot=1;return 2}`, `let reads=0;globalThis.window={get name(){reads++;return 'name'}};assert.equal(m.invoke(),2);assert.equal(reads,1);`, true},
+		{`const key=Symbol.for('assignment-probe');export function invoke(){const scope=globalThis as Record<PropertyKey,unknown>;scope[key]=()=>document.title;return 2}`, `let reads=0;globalThis.document={get title(){reads++;return 'title'}};const key=Symbol.for('assignment-probe');const old=Object.getOwnPropertyDescriptor(globalThis,key);try{assert.equal(m.invoke(),2);assert.equal(typeof globalThis[key],'function');assert.equal(reads,0)}finally{if(old)Object.defineProperty(globalThis,key,old);else delete globalThis[key]}`, false},
 	} {
+		source := "import { type Component, TaskContext } from '@exactjs/core';\n" + row.source + `
+export function Page(this: Component<{ display: number }>) {
+	this.state.display = 0;
+	const refresh = (_task: TaskContext = TaskContext.client()) => {
+		this.state.display = invoke();
+	};
+	return () => <button onClick={() => refresh()}>{this.state.display}</button>;
+}`
+		fixture := newExecutableFixture(t, map[string]string{"entry.tsx": source})
+		const config = `{"compilerOptions":{"module":"ESNext","moduleResolution":"Bundler","target":"ES2022","strict":true,"skipLibCheck":true,"jsx":"preserve","jsxImportSource":"@exactjs/jsx"},"files":["entry.tsx"]}`
+		request := fixture.request("compile", "entry.tsx")
+		if err := os.WriteFile(request.ConfigFile, []byte(config), 0600); err != nil {
+			t.Fatal(err)
+		}
 		for _, target := range []Target{TargetClient, TargetServer} {
-			session := NewSession()
-			response := session.Execute(Request{Kind: "compile", ID: "/virtual/assignment-public.ts", Source: row.source, Target: target, Diagnostics: "semantic"})
+			request.Target = target
+			response := NewSession().Execute(request)
 			if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) || response.Code == "" {
-				for _, fact := range stagedDeclarationFacts(session) {
-					for _, recipe := range fact.staged.operationRecipes {
-						if recipe.assignment != nil {
-							t.Logf("phase=%q extracted=%v required=%#v", recipe.assignment.phase, recipe.delta.extracted, recipe.delta.required)
-						}
-					}
-				}
 				t.Fatal(response.Error, response.Diagnostics)
 			}
-			covered := false
-			for _, fact := range stagedDeclarationFacts(session) {
-				if fact.summary.Name != "invoke" {
-					continue
-				}
-				for _, use := range fact.staged.operationUses {
-					for _, recipe := range fact.staged.operationRecipes {
-						if recipe.key == use.request.producer && recipe.assignment != nil && recipe.assignment.phase == "" {
-							covered = fact.staged.settled && !fact.staged.operationsPending
-						}
-					}
-				}
+			task := executableSummary(t, response, "refresh")
+			browser := false
+			for _, effect := range task.EffectSources {
+				browser = browser || effect.Environment == "browser"
 			}
-			if !covered {
-				t.Fatal("ordinary assignment did not settle through original source owner")
+			if browser != row.browser {
+				t.Fatalf("%s: task browser effect=%v, want %v: %v", target, browser, row.browser, task.EffectSources)
+			}
+
+			ordinary := NewSession().Execute(Request{Kind: "compile", ID: "/virtual/assignment-public.ts", Source: row.source, Target: target, Diagnostics: "semantic"})
+			if ordinary.Error != "" || hasErrorDiagnostic(ordinary.Diagnostics) || ordinary.Code == "" {
+				t.Fatal(ordinary.Error, ordinary.Diagnostics)
 			}
 			file := filepath.Join(t.TempDir(), "assignment.mts")
-			if err := os.WriteFile(file, []byte(response.Code), 0600); err != nil {
+			if err := os.WriteFile(file, []byte(ordinary.Code), 0600); err != nil {
 				t.Fatal(err)
 			}
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)

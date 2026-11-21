@@ -4,10 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"strings"
 	"testing"
-
-	"github.com/microsoft/TypeScript/tsc/internal/ast"
 )
 
 // Unchanged source must not reuse semantic admission from a different request
@@ -23,17 +20,17 @@ function select(value:number){return {value}}export function Panel(){return()=> 
 	session := NewSession()
 	var prior *projectCallableCache
 	for _, row := range []struct {
-		name, kind                 string
-		interop, provider, pending bool
+		name, kind                        string
+		interop, provider, withoutProfile bool
 	}{
-		{name: "analyze", kind: "analyze", pending: true},
+		{name: "analyze", kind: "analyze", withoutProfile: true},
 		{name: "compile-after-analyze", kind: "compile"},
 		{name: "unchanged-native-reuse", kind: "compile"},
-		{name: "interop", kind: "compile", interop: true, pending: true},
+		{name: "interop", kind: "compile", interop: true, withoutProfile: true},
 		{name: "native-after-interop", kind: "compile"},
-		{name: "provider", kind: "compile", provider: true, pending: true},
+		{name: "provider", kind: "compile", provider: true, withoutProfile: true},
 		{name: "native-after-provider", kind: "compile"},
-		{name: "analyze-after-native", kind: "analyze", pending: true},
+		{name: "analyze-after-native", kind: "analyze", withoutProfile: true},
 		{name: "final-native", kind: "compile"},
 	} {
 		t.Run(row.name, func(t *testing.T) {
@@ -49,13 +46,10 @@ function select(value:number){return {value}}export function Panel(){return()=> 
 			if fresh.Error != response.Error || fresh.Code != response.Code || !reflect.DeepEqual(fresh.Diagnostics, response.Diagnostics) || !reflect.DeepEqual(fresh.Analysis.Components, response.Analysis.Components) {
 				t.Fatal("retained/fresh mode result mismatch")
 			}
-			if row.pending {
-				if !strings.Contains(response.Error, "required staged effect contribution") {
-					t.Fatal("ineligible mode lost original pending contract", response.Error, response.Diagnostics)
-				}
-			} else if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) || response.Code == "" {
-				t.Fatal("canonical compile after mode change", response.Error, response.Diagnostics)
+			if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) || (response.Code != "") != (row.kind == "compile") {
+				t.Fatal("invalid public response after mode change", response.Error, response.Diagnostics)
 			}
+			findComponent(t, response.Analysis.Components, "Panel")
 			project := session.projects[nativeProjectKey(request, id)]
 			if project == nil || project.callableCache == nil {
 				t.Fatal("UNREACHED: actual retained source cache")
@@ -63,7 +57,7 @@ function select(value:number){return {value}}export function Panel(){return()=> 
 			cache := project.callableCache
 			file := project.program.GetSourceFile(id)
 			context := cache.bySource[file].sourceContext
-			if context == nil || (context.jsxConstruction == (sourceJSXConstructionKey{})) != row.pending {
+			if context == nil || (context.jsxConstruction == (sourceJSXConstructionKey{})) != row.withoutProfile {
 				t.Fatal("cached source mode input stale or absent")
 			}
 			if row.name == "unchanged-native-reuse" && cache != prior {
@@ -80,13 +74,15 @@ function select(value:number){return {value}}export function Panel(){return()=> 
 	}
 }
 
-// A bootstrap with no JSX still owns a canonical compile request; an imported
-// component uses its own source/pragma/component context, never the primary's.
+// Rendering an imported component retains its source and component context
+// across different request modes.
 func TestJSXRecordImportedModeTransitions(t *testing.T) {
 	root := t.TempDir()
-	entry := filepath.Join(root, "entry.ts")
+	entry := filepath.Join(root, "entry.tsx")
 	child := filepath.Join(root, "child.tsx")
-	const source = "import{Child}from'./child.js';export const reference=Child;"
+	const source = `/// <reference path="./jsx-types.d.ts" />
+import { Child } from './child.js';
+export function Parent() { return () => <Child />; }`
 	const childSource = `/// <reference path="./jsx-types.d.ts" />
 function select(value:number){return {value}}export function Child(){return()=> <p>{select(1).value}</p>}`
 	for name, text := range map[string]string{child: childSource, filepath.Join(root, "jsx-types.d.ts"): `declare namespace JSX{interface Element{}interface IntrinsicElements{p:{children?:unknown}}}`} {
@@ -98,12 +94,12 @@ function select(value:number){return {value}}export function Child(){return()=> 
 	for _, kind := range []string{"analyze", "compile", "analyze", "compile"} {
 		request := Request{Kind: kind, ID: entry, Root: root, Source: source, Target: TargetClient, PackageType: "application"}
 		response := session.Execute(request)
-		if kind == "analyze" {
-			if !strings.Contains(response.Error, "required staged effect contribution") {
-				t.Fatal("analysis mode bypassed imported source debt", response.Error, response.Diagnostics)
-			}
-		} else if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) || response.Code == "" {
-			t.Fatal("imported canonical source failed", response.Error, response.Diagnostics)
+		if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) || (response.Code != "") != (kind == "compile") {
+			t.Fatal("invalid response for imported component", response.Error, response.Diagnostics)
+		}
+		fresh := NewSession().Execute(request)
+		if fresh.Error != response.Error || fresh.Code != response.Code || !reflect.DeepEqual(fresh.Diagnostics, response.Diagnostics) || !reflect.DeepEqual(fresh.Analysis.Components, response.Analysis.Components) {
+			t.Fatal("retained/fresh imported mode result mismatch")
 		}
 		project := session.projects[nativeProjectKey(request, entry)]
 		if project == nil || project.callableCache == nil {
@@ -117,17 +113,15 @@ function select(value:number){return {value}}export function Child(){return()=> 
 		if context == nil || (context.jsxConstruction == (sourceJSXConstructionKey{})) != (kind == "analyze") {
 			t.Fatal("imported source mode input was not renewed")
 		}
+		parent := findComponent(t, response.Analysis.Components, "Parent")
+		if len(parent.RenderEdges) != 1 || parent.RenderEdges[0].Placement != "isomorphic" {
+			t.Fatal("lost the child's portable render contract", parent.RenderEdges)
+		}
 		if kind == "compile" {
-			mode := project.callableCache.owner.values.generation.sourceJSXConstruction
-			if mode == nil {
-				t.Fatal("UNREACHED: actual imported native profile")
-			}
-			observed := false
-			for node, profile := range mode.profiles {
-				observed = observed || profile && ast.GetSourceFileOfNode(node) == file
-			}
-			if !observed {
-				t.Fatal("UNREACHED: imported Get construction profile")
+			generation := project.callableCache.owner.values.generation
+			mode := generation.sourceJSXConstruction
+			if mode == nil || mode.generation != generation || context.jsxConstruction.source != file {
+				t.Fatal("imported source reused another source or request's construction mode")
 			}
 		}
 	}
