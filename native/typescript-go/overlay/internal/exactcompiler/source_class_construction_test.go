@@ -349,25 +349,35 @@ func TestDefaultClassConstructionInputs(t *testing.T) {
 		{"source-constructor", `class Holder{constructor(){document.title='kept'}}return JSON.stringify(new Holder());`, "browser", true},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			response := NewSession().Execute(Request{Kind: "analyze", ID: "/virtual/class-inputs.ts", Source: `declare function foreign():unknown;declare function mutate(value:unknown):unknown;export function read(){` + test.body + `}`, Diagnostics: "semantic"})
+			source := `import type { Component } from '@exactjs/core';
+declare function foreign(): unknown;
+declare function mutate(value: unknown): unknown;
+function read() {` + test.body + `}
+export function Page(this: Component<{}>) {
+	const display = read();
+	return () => display;
+}`
+			fixture := newExecutableFixture(t, map[string]string{"entry.ts": source})
+			response := fixture.session.Execute(fixture.request("analyze", "entry.ts"))
 			if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) {
-				t.Fatalf("invalid input: %s %#v", response.Error, response.Diagnostics)
+				t.Fatalf("invalid component: %s %#v", response.Error, response.Diagnostics)
 			}
-			found := false
-			for _, callable := range response.Analysis.Callables {
-				if callable.Name == "read" {
-					found = true
-					browser := false
-					for _, effect := range callable.EffectSources {
-						browser = browser || effect.Environment == "browser"
-					}
-					if callable.Effect != test.effect || browser != test.browser {
-						t.Fatalf("effect=%s browser=%v, want %s/%v: %#v", callable.Effect, browser, test.effect, test.browser, callable)
-					}
-				}
+			read := findCallable(t, response.Analysis.Callables, "read")
+			browser := false
+			for _, source := range read.EffectSources {
+				browser = browser || source.Environment == "browser"
 			}
-			if !found {
-				t.Fatal("missing original callable")
+			if read.Effect != test.effect || browser != test.browser {
+				t.Fatalf("effect=%s browser=%v, want %s/%v: %v", read.Effect, browser, test.effect, test.browser, read.EffectSources)
+			}
+			want := "isomorphic"
+			if test.browser {
+				want = "client"
+			} else if test.effect == "unknown" {
+				want = "unknown"
+			}
+			if page := findComponent(t, response.Analysis.Components, "Page"); page.Placement != want {
+				t.Fatalf("Page placement=%s, want %s", page.Placement, want)
 			}
 		})
 	}
