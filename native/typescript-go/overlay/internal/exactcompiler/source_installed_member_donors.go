@@ -144,7 +144,7 @@ func installedMemberDonorCounts(fact *callableFacts) [5]int {
 }
 
 func sameInstalledMemberFieldCall(a, b sourceFieldCall) bool {
-	if a.operation != b.operation || a.target != b.target || a.dependencies != b.dependencies || a.complete != b.complete || a.descriptorOccurrence != nil || b.descriptorOccurrence != nil || len(a.descriptorEffects)+len(b.descriptorEffects) != 0 || !slices.Equal(a.calls, b.calls) || len(a.outcomes) != len(b.outcomes) {
+	if a.operation != b.operation || a.target != b.target || a.use != b.use || a.dependencies != b.dependencies || a.complete != b.complete || a.descriptorOccurrence != nil || b.descriptorOccurrence != nil || len(a.descriptorEffects)+len(b.descriptorEffects) != 0 || !slices.Equal(a.calls, b.calls) || len(a.outcomes) != len(b.outcomes) {
 		return false
 	}
 	for i, outcome := range a.outcomes {

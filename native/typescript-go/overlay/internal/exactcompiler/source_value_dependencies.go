@@ -260,7 +260,7 @@ func (query *sourceValueQuery) consumeSourceBodyEffects(operation, body *ast.Nod
 			calls = append(calls, outcome)
 		}
 	}
-	call := sourceFieldCall{operation: operation, target: body, outcomes: outcomes, calls: calls, complete: enumerated && !result.thenIncomplete, dependencies: true}
+	call := sourceFieldCall{operation: operation, target: body, use: query.nestedModuleEffectUse(operation), outcomes: outcomes, calls: calls, complete: enumerated && !result.thenIncomplete, dependencies: true}
 	result.fieldCalls = append(result.fieldCalls, call)
 	if query.dependenciesOnly && query.sourceEffects.body != nil {
 		for _, installed := range result.inputs[firstInput:] {

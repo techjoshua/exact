@@ -937,10 +937,14 @@ func (query *sourceValueQuery) consumeOrdinaryBody(node, body *ast.Node, capture
 		result.retainCallableEffect(node, body)
 		// Retain parent-use description before any original body callback can
 		// publish this contribution. The actual child operation stays unchanged.
-		result.effects[len(result.effects)-1].use = query.componentAssignmentEffectUse(node)
+		index := len(result.effects) - 1
+		effect := &result.effects[index]
+		effect.use = query.componentAssignmentEffectUse(node)
 		if query.dependenciesOnly {
-			index := len(result.effects) - 1
-			receivers := query.sourceEffectReceiverBindings(result.effects[index], inputs, result)
+			if effect.use == nil {
+				effect.use = query.nestedModuleEffectUse(node)
+			}
+			receivers := query.sourceEffectReceiverBindings(*effect, inputs, result)
 			result.effects[index].receivers = receivers
 		}
 	}

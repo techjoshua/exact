@@ -254,3 +254,48 @@ func TestComponentUsesBoundModuleInput(t *testing.T) {
 		}
 	}
 }
+
+// The rendered module initializer observes a factory return and its executed
+// nested call. The forwarded read must keep the initializer's actual input.
+func TestComponentUsesForwardedModuleInput(t *testing.T) {
+	root, config := formsSourceFixture(t)
+	for _, row := range []struct {
+		name, input string
+		browser     bool
+	}{
+		{"direct-data", `{value:'safe'}`, false},
+		{"portable-getter", `{get value(){return 'safe'}}`, false},
+		{"browser-getter", `{get value(){return document.title}}`, true},
+		{"conditional-getter", `Math.random() ? {value:'safe'} : {get value(){return document.title}}`, true},
+	} {
+		t.Run(row.name, func(t *testing.T) {
+			source := `import type {Component} from '@exactjs/core';
+function make(input:{value:string}) {
+  function read(v:{value:string}) {return v.value;}
+  function forward(v:{value:string}) {return read(v);}
+  forward(input);
+  return {get label(){return 'retained'}};
+}
+export const label=make(` + row.input + `).label;
+export function Page(this:Component<{}>){return()=> <p>{label}</p>}`
+			for _, target := range []Target{TargetClient, TargetServer} {
+				result := formsCompileSource(t, root, config, source, target)
+				if result.Code == "" || hasErrorDiagnostic(result.Diagnostics) {
+					t.Fatalf("%s forwarded module input: %s %#v", target, result.Error, result.Diagnostics)
+				}
+				placement := "isomorphic"
+				if row.browser {
+					placement = "client"
+				}
+				components := result.Analysis.Components
+				if len(components) != 1 || components[0].Placement != placement {
+					t.Fatalf("%s expected %s placement: %#v", target, placement, components)
+				}
+				local := !row.browser || target == TargetClient
+				if strings.Contains(result.Code, "export const label = make(") != local || strings.Contains(result.Code, "document.title") != (row.browser && local) {
+					t.Fatalf("%s selected the wrong initializer: %s", target, result.Code)
+				}
+			}
+		})
+	}
+}

@@ -14,6 +14,19 @@ func (q *sourceValueQuery) effectUse() *ast.Node {
 	return q.reading
 }
 
+// nestedModuleEffectUse associates a nested operation with its eager owner.
+// The child operation keeps its own identity and can occur under several uses.
+func (q *sourceValueQuery) nestedModuleEffectUse(operation *ast.Node) *ast.Node {
+	if !q.dependenciesOnly || q.effectOwner == nil || ast.IsFunctionLike(q.effectOwner) {
+		return nil
+	}
+	use := q.effectUse()
+	if use == nil || use == operation || !q.effectOwner.Contains(use) {
+		return nil
+	}
+	return use
+}
+
 func (q *sourceValueQuery) returnOutcome(operation *ast.Node, complete bool) sourceCallOutcome {
 	return sourceCallOutcome{declaration: enclosingCallableNode(operation), operation: operation, use: q.effectUse(), consumer: q.effectOwner, phase: sourceReturnRelationship, complete: complete, dependencies: q.dependenciesOnly}
 }
@@ -138,9 +151,13 @@ func sourceObligationCoveredOnEdge(caller, target *callableFacts, edge CallEdge,
 	if origin := source.fieldOrigin; origin != nil && len(installed) == 1 && installedCallFieldCoveredOnEdge(caller, target, root, *origin, installed[0]) {
 		return true
 	}
+	use := root
+	if edge.sourceUse != nil && caller.summary.Kind == "module-initializer" {
+		use = edge.sourceUse
+	}
 	rootCovered := false
 	for _, call := range caller.fieldCalls {
-		if call.dependencies && call.operation == root && call.target == target.node {
+		if call.dependencies && call.operation == root && call.target == target.node && (use == root || use == call.use) {
 			if !call.complete {
 				return false
 			}
@@ -152,12 +169,12 @@ func sourceObligationCoveredOnEdge(caller, target *callableFacts, edge CallEdge,
 	}
 	if origin := source.callOrigin; origin != nil {
 		contextual := *origin
-		contextual.use, contextual.consumer = root, caller.node
+		contextual.use, contextual.consumer = use, caller.node
 		return localCallCovered(contextual, caller.callOutcomes)
 	}
 	if origin := source.fieldOrigin; origin != nil {
 		contextual := *origin
-		contextual.use, contextual.consumer = root, caller.node
+		contextual.use, contextual.consumer = use, caller.node
 		return localFieldCovered(contextual, caller.fieldCalls, installed...)
 	}
 	return false

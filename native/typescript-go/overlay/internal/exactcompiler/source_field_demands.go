@@ -34,6 +34,7 @@ type sourceFieldCall struct {
 	// It supplies no normal output, descriptor or execution authority.
 	dependencies         bool
 	operation, target    *ast.Node
+	use                  *ast.Node // Original dependency consumer for a nested operation.
 	calls                []sourceCallOutcome
 	outcomes             []sourceFieldOutcome
 	complete             bool
