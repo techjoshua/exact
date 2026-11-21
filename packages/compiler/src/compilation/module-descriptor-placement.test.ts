@@ -9,7 +9,8 @@ import { compileProjectArtifacts } from '../index.js';
 import { createCompilerTestWorkspace } from '../test-support/workspace.js';
 import { importArtifact } from '../test-support/import-artifact.js';
 
-const storedCallback = 'Object.defineProperty({value:()=>"before"},"value",{value:()=>document.title})';
+const storedCallback =
+	'Object.defineProperty({value:()=>"before"},"value",{value:()=>document.title})';
 
 it.each([
 	{
@@ -45,7 +46,8 @@ it.each([
 	},
 	{
 		name: 'a reached installed getter',
-		declaration: 'const record = Object.defineProperty({value:"before"},"value",{get:()=>document.title});',
+		declaration:
+			'const record = Object.defineProperty({value:"before"},"value",{get:()=>document.title});',
 		value: 'record.value',
 		browser: true,
 		expected: 'browser value'
@@ -62,12 +64,20 @@ it.each([
 ])('preserves module descriptor placement for $name', async (test) => {
 	const root = await createCompilerTestWorkspace('.exact-module-descriptor-', process.cwd());
 	const entry = path.join(root, 'page.tsx');
-	await writeFile(entry, `${test.declaration}\nexport function Page() { return () => <p>{${test.value}}</p>; }`);
-	const [artifact] = await compileProjectArtifacts([entry], { rootDir: root, outDir: path.join(root, 'generated') });
+	await writeFile(
+		entry,
+		`${test.declaration}\nexport function Page() { return () => <p>{${test.value}}</p>; }`
+	);
+	const [artifact] = await compileProjectArtifacts([entry], {
+		rootDir: root,
+		outDir: path.join(root, 'generated')
+	});
 
 	const priorTitle = document.title;
 	document.title = 'browser value';
-	onTestFinished(() => { document.title = priorTitle; });
+	onTestFinished(() => {
+		document.title = priorTitle;
+	});
 	const server = await importArtifact(artifact!.serverFile, path.join(root, 'server.mjs'));
 	const { html } = await renderToString(receipt(server.Page as never, {}), { markers: false });
 	if (test.browser) expect(html).toContain('data-exact-client-boundary=');
@@ -77,7 +87,9 @@ it.each([
 	const host = document.createElement('div');
 	onTestFinished(() => unmount(host));
 	const errors: unknown[] = [];
-	render(receipt(client.Page as never, {}), host, { onErrorReport: (report) => errors.push(report.error) });
+	render(receipt(client.Page as never, {}), host, {
+		onErrorReport: (report) => errors.push(report.error)
+	});
 	expect(errors).toEqual([]);
 	expect(host.textContent).toBe(test.expected);
 });
@@ -85,8 +97,13 @@ it.each([
 it('requires placement evidence for a descriptor installed on an unknown module receiver', async () => {
 	const root = await createCompilerTestWorkspace('.exact-module-descriptor-', process.cwd());
 	const entry = path.join(root, 'page.tsx');
-	await writeFile(entry, `declare function foreign(): object;
+	await writeFile(
+		entry,
+		`declare function foreign(): object;
 		const record = Object.defineProperty(foreign(), 'value', {value: 'ready'});
-		export function Page() { return () => <p>{typeof record}</p>; }`);
-	await expect(compileProjectArtifacts([entry], { rootDir: root, outDir: path.join(root, 'generated') })).rejects.toThrow('EXACT2101');
+		export function Page() { return () => <p>{typeof record}</p>; }`
+	);
+	await expect(
+		compileProjectArtifacts([entry], { rootDir: root, outDir: path.join(root, 'generated') })
+	).rejects.toThrow('EXACT2101');
 });
