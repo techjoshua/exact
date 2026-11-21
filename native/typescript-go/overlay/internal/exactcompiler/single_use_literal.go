@@ -44,3 +44,35 @@ func singleUseLiteral(expression *ast.Node, owner *sourceValueOwner, kind ast.Ki
 	}
 	return nil
 }
+
+// finalNamedObjectProperty selects a final explicit property with a nonnumeric
+// name. A later spread or dynamic key may have replaced that property.
+func finalNamedObjectProperty(expression *ast.Node, requested string) (*ast.Node, bool) {
+	properties := expression.AsObjectLiteralExpression().Properties.Nodes
+	for index := len(properties) - 1; index >= 0; index-- {
+		property := properties[index]
+		if ast.IsSpreadAssignment(property) {
+			return nil, false
+		}
+		name := property.Name()
+		if ast.IsComputedPropertyName(name) {
+			name = unwrapRenderExpression(name.AsComputedPropertyName().Expression)
+			if !ast.IsStringLiteral(name) && !ast.IsNoSubstitutionTemplateLiteral(name) && !ast.IsNumericLiteral(name) {
+				return nil, false
+			}
+		}
+		// These named properties cannot be numeric keys. Avoid applying
+		// text access to syntax nodes that do not carry a literal name.
+		if ast.IsNumericLiteral(name) {
+			continue
+		}
+		if name == nil || (!ast.IsIdentifier(name) && !ast.IsStringLiteral(name) && !ast.IsNoSubstitutionTemplateLiteral(name)) {
+			return nil, false
+		}
+		if name.Text() != requested {
+			continue
+		}
+		return property, true
+	}
+	return nil, true
+}

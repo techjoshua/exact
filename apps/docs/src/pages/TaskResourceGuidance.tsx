@@ -25,7 +25,8 @@ export function TaskResourceGuidance() {
 			</p>
 			<p>
 				A task can create an <code>EventTarget</code> and dispatch an <code>Event</code> on either
-				platform. Dispatch runs matching listeners synchronously. If a listener reads
+				platform. Dispatch runs matching listeners synchronously. For an object listener, it reads
+				and calls <code>handleEvent</code>. If a listener reads
 				<code>document</code>, run that work in a client task. A getter in event options such as
 				<code>bubbles</code> runs when you construct the event.
 			</p>

@@ -153,7 +153,7 @@ func eventDispatchCallbacks(call *ast.Node, owner *executableBodyOwner) []*ast.N
 			}
 			var callbacks []*ast.Node
 			for _, l := range active[registration{statement.Parent, name.Text()}] {
-				callbacks = append(callbacks, eagerCallbackReferences(l.value, owner.checker)...)
+				callbacks = append(callbacks, eventListenerReferences(l.value, owner)...)
 			}
 			owner.eventCallbacks[op] = callbacks
 			continue
@@ -181,4 +181,43 @@ func eventDispatchCallbacks(call *ast.Node, owner *executableBodyOwner) []*ast.N
 		}
 	}
 	return owner.eventCallbacks[call]
+}
+
+// Dispatch invokes callable listeners directly. For a private object listener it
+// first reads handleEvent, then invokes the callable produced by that Get.
+func eventListenerReferences(value *ast.Node, owner *executableBodyOwner) []*ast.Node {
+	literal := singleUseLiteral(value, owner.values, ast.KindObjectLiteralExpression)
+	if literal == nil {
+		return eagerCallbackReferences(value, owner.checker)
+	}
+	member, _ := finalNamedObjectProperty(literal, "handleEvent")
+	if member == nil {
+		return nil
+	}
+	// A later setter declaration preserves its paired getter on an object literal.
+	if ast.IsSetAccessorDeclaration(member) {
+		if symbol := owner.checker.GetSymbolAtLocation(member.Name()); symbol != nil {
+			for _, declaration := range symbol.Declarations {
+				if declaration.Parent == literal && ast.IsGetAccessorDeclaration(declaration) {
+					member = declaration
+					break
+				}
+			}
+		}
+	}
+	switch member.Kind {
+	case ast.KindMethodDeclaration:
+		return []*ast.Node{member}
+	case ast.KindGetAccessor:
+		references := []*ast.Node{member}
+		for _, returned := range owner.values.summary(member).returns {
+			references = append(references, eagerCallbackReferences(returned, owner.checker)...)
+		}
+		return references
+	case ast.KindPropertyAssignment:
+		return eagerCallbackReferences(member.Initializer(), owner.checker)
+	case ast.KindShorthandPropertyAssignment:
+		return eagerCallbackReferences(member.Name(), owner.checker)
+	}
+	return nil
 }
