@@ -99,6 +99,26 @@ The full `c031c7e6a` checkpoint passes 1,915 of 2,334 groups. The added scalar p
 
 The full `07c7f1682` checkpoint passes 1,917 of 2,335 groups. The collection authority group recovers and the new immediate setup snapshot group passes. The full `23d0f07e8` checkpoint passes 1,920 of 2,336 groups. Both finite registry groups and the component construction-input group recover. The new registry key-effect group passes. The append optimization loses the distinct-array and replaced wrapper-field cases in the push placement group. Both pass in the focused `a5d4de984` replay. That correction is outside the full `23d0f07e8` checkpoint.
 
+The full `6172d820a` checkpoint passes 1,928 of 2,336 groups and recovers eight
+groups, including the repaired append cases. The full `9fe066f0e` checkpoint
+passes 1,936 of 2,335. Seven old failures and the new task module-availability
+group pass. A paired SDK compile and real SSR replace two standalone Symbol
+staged assertions. The SSR control renders the same key for literal, aliased
+and dynamic spellings and observes updates after a source edit and a missing key.
+
+The full `1fef127a6` checkpoint passes 1,947 of 2,336 groups. Eleven prior
+failures and the new Freeze composition group pass. The authored
+`Object.defineProperty` replacement loses the previously passing module
+initializer case because its staged Call remains pending. The original group
+passes at `53153686c` and fails at `71eaa16bd` after early staged admission.
+The selected authored alternative owns the reached Call and browser effect
+under rules 2, 4 and 6. Of the 465 original
+failure rows, 71 pass, six have been removed or replaced, and 388 still fail
+across 121 families. The overwritten callee is the one failure outside the
+original 131-family inventory. Group counts record the executed suite, while
+public qualification requires the component and operation evidence for each
+family.
+
 The authored root factory passes its parameter to a real component through the paired SDK artifacts. The binding lifecycle and collection identity suites pass all 45 cases with the wrapped Map correction. The root factory control renders distinct inputs, adopts the server DOM under strict hydration and updates the retained owner on new props. This replaces the native assertion about a particular receipt helper for a declaration without a component body.
 
 The focused `7a85c2499` checkpoint passed 22 of 28 native groups, including the assigned-getter and recursive-projection controls. Six staged-source failures reproduced from `43fa437ca`. The checkpoint passed 21 paired SDK cases covering forwarded setup, context, retained props and host rendering. Direct browser and server task compilation also passed the scalar-or-thenable checking cases with rebuilt Core declarations. At this checkpoint, the canonical cancellation corpus reached the 30-second compile deadline.
