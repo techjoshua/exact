@@ -734,6 +734,9 @@ func containsComponentSurfaceUse(root *ast.Node, names ...string) bool {
 	}
 	found := false
 	walkNode(root, func(node *ast.Node) bool {
+		if found {
+			return false
+		}
 		name, componentMember, dynamic := componentProtocolMember(node)
 		if !componentMember {
 			return true

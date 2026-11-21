@@ -830,6 +830,9 @@ callback slots. Callable `thisArg` values and reduction seeds remain data, while
 member callbacks preserve computation identity rather than becoming function-valued data.
 Direct server artifacts link reactive, ref and extracted lifecycle operations through focused
 request-local helpers in both synchronous and compiler-scheduled setup.
+An extracted lifecycle method invoked with its component receiver retains the
+client compatibility surface. Later reads of other component members leave
+that runtime import in the artifact.
 Ordinary MAY analysis recognizes direct `onMount`, `onActivate` and `onDeactivate` registrations
 with one inline arrow callback and a lexically owned receiver inside a selected component, using the same finite-key and
 nonoptional-call eligibility as lifecycle lowering. The original key expression still executes;

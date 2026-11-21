@@ -156,6 +156,16 @@ The retained Core server export lacked the existing task-publication correction.
 
 The composed application next replaced its parsed DOM during hydration. The setup alias for a lazy registry entry made the application contract unknown, which caused the server shell to publish ordinary descendant controls as independent islands. The compiler now recognizes the registry entry as an own data field while retaining the effects of the original key expression. The application retains its mount-work template across buffered and streamed hydration. The separate server-only parent control publishes a registered island and preserves its parsed parent, child and sibling. All 14 SDK registry hydration cases pass. The application journeys pass on Node, Bun, both Deno abort modes and Cloudflare with the retained SDK and runtime providers and a rebuilt paired Core.
 
+One component acquires `this.onMount`, reads its ref registry and invokes the
+saved method with its receiver. A later ref read used to erase the earlier
+lifecycle match from the runtime import plan. The paired SDK and Vite
+artifacts now keep both capabilities. The server returns the initial label
+and the browser mount publishes the label from the ref. This is an
+implementation defect under rules 3 and 5. A bare call to a saved `this.own`
+method still differs by target: the direct server frame binds it and disposes
+the resource, while the browser method requires its receiver. The bare alias
+contract and the corresponding historical placement assertions remain open.
+
 The separate installed-island gate fails all eight cases before browser activation. The source-removed producer receives EXACT2101 for the `createIntlEnvironment` initializer. The physical package supplies both runtime artifacts, its checked declaration and publication metadata for compiled components. The ordinary factory has no published analysis record. Component definitions and portable contracts follow the same rules in applications and libraries. Missing ordinary-call evidence stays missing in either mode. This audit requires no new package metadata or library-specific selection policy.
 
 At `9fe066f0e`, matched paired SDK application and library requests produce byte-identical component artifacts for each target, with the same logical identity, imports, configuration and installed dependencies. Both diagnose the ordinary initializer. The Vite adapter requests host preservation of ordinary modules and renders the literal-options case. Its server output fails with a directly eager browser read and with a browser getter read by the installed callee. Separate installed fixtures with the same declaration and exports use literal arguments, including a no-argument control, and alternate portable and browser-dependent server bodies. They show that inert arguments account for the caller's eager evaluation, while the callee and required server-render availability remain uncertain. The same authored getter remains dormant when the selected implementation ignores it. This is an implementation gap at the component's required module boundary under rules 1, 2, 4 and 6 of the [final traversal and persistence rules](compiler-architecture-completion-plan.md#final-traversal-and-persistence-rules).

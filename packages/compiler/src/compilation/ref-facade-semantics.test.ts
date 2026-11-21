@@ -10,6 +10,44 @@ import { compileFileArtifacts } from '../index.js';
 import { createCompilerTestWorkspace } from '../test-support/workspace.js';
 import { importArtifact } from '../test-support/import-artifact.js';
 import ts from 'typescript';
+
+it('retains an extracted lifecycle operation alongside a later ref lookup', async () => {
+	const workspace = await createCompilerTestWorkspace('component-surface-', process.cwd());
+	const input = path.join(workspace, 'page.tsx');
+	await writeFile(
+		input,
+		`import {createRef,type Component} from '@exactjs/core';
+const token=createRef<{label:string}>('value');
+export function Page(this:Component<{label:string}>) {
+	this.state.label='starting';
+	const register=this.onMount;
+	this.ref(token).fulfill({label:'mounted'});
+	const refs=this.refs;
+	register.call(this,()=>{this.state.label=refs.get(token)?.label??'missing'});
+	return()=> <output>{this.state.label}</output>;
+}`
+	);
+	const artifact = await compileFileArtifacts(input, {
+		rootDir: workspace,
+		outDir: path.join(workspace, 'generated')
+	});
+	const server = await importArtifact(artifact.serverFile, path.join(workspace, 'server.mjs'));
+	expect(
+		(await renderToString(receipt(server.Page as AnyComponentFunction, {}), { markers: false }))
+			.html
+	).toBe('<output>starting</output>');
+
+	const client = await importArtifact(artifact.clientFile, path.join(workspace, 'client.mjs'));
+	const host = document.createElement('div');
+	onTestFinished(() => dispose(host));
+	const errors: unknown[] = [];
+	render(receipt(client.Page as AnyComponentFunction, {}), host, {
+		onErrorReport: (report) => errors.push(report.error)
+	});
+	await expect.poll(() => host.textContent).toBe('mounted');
+	expect(errors).toEqual([]);
+});
+
 for (const access of ['direct', 'literal', 'extracted', 'binding', 'root'] as const)
 	it(`retains keyed ref values in strict TypeScript through ${access} access`, async () => {
 		await mkdir(path.resolve('.tmp'), { recursive: true });

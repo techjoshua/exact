@@ -355,7 +355,9 @@ export function ComponentsPage(this: Component<{}>) {
 					A helper can select an operation with a statically known key, such as
 					<code>this['own'](resource)</code>, with the same lifetime and cleanup rules. Ordinary
 					objects and classes declared inside a component keep their own JavaScript receiver and
-					method behavior. Refs and reactive values stay attached to their owner. When a view runs
+					method behavior. If you save <code>this.onMount</code> as <code>register</code>, use
+					<code>register.call(this, callback)</code> to retain the component receiver. Refs and
+					reactive values stay attached to their owner. When a view runs
 					as a client island, eXact recreates those values for the client owner and transfers the
 					ordinary inputs they need.
 				</p>
