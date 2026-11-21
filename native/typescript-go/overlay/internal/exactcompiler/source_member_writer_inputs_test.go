@@ -421,3 +421,41 @@ export function Page(this:Component<{label:string}>){
 		})
 	}
 }
+
+// Growing the number of independent scalar helpers must preserve the original
+// argument Get's placement without replaying earlier helper inputs combinatorially.
+func TestComponentStateDefaultsAndGetterArguments(t *testing.T) {
+	root, config := formsSourceFixture(t)
+	entry := filepath.Join(root, "Forms.tsx")
+	source := func(count int) string {
+		var calls, helpers strings.Builder
+		for i := 0; i < count; i++ {
+			fmt.Fprintf(&calls, "measure%d(captured.value.length);", i)
+			fmt.Fprintf(&helpers, "function measure%d(n:number){ return Math.imul(n,7); }\n", i)
+		}
+		return `import {TaskContext,type Component} from '@exactjs/core';
+export function Page(this:Component<{label:string,choose:boolean}>){
+	this.state.label='start'; this.state.choose=false;
+	const run=(task:TaskContext=TaskContext.server())=>{
+		const captured={get value(){return document.title}};
+		` + calls.String() + `
+	};
+	return()=> <button onClick={()=>run()}>{this.state.label}</button>;
+}
+` + helpers.String()
+	}
+	small := 0
+	for _, width := range []int{2, 6} {
+		input := source(width)
+		if err := os.WriteFile(entry, []byte(input), 0600); err != nil {
+			t.Fatal(err)
+		}
+		response := NewSession().Execute(Request{ID: entry, Kind: "compile", Target: TargetServer, Source: input, ConfigFile: config, Diagnostics: "semantic", TraceAnalysisCost: true})
+		assertComponentCallbackPolicy(t, response, true)
+		cost := response.Counters.EstimatedAnalysisCost
+		if cost <= 0 || small > 0 && cost > 8*small {
+			t.Fatalf("growing independent scalar helpers from 2 to %d: estimated work %d to %d", width, small, cost)
+		}
+		small = cost
+	}
+}

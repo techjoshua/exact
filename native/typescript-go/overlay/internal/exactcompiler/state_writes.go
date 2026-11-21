@@ -131,6 +131,72 @@ func collectStateAnalysis(
 	return aliases, reads, writes
 }
 
+// initialComponentStateDefault identifies a direct slot default before the fresh
+// component can expose its state. A Get for a different key keeps the original
+// write effects and has no receiver or value to recover from ordinary callers.
+func (owner *sourceValueOwner) initialComponentStateDefault(left *ast.Node) bool {
+	if !ast.IsPropertyAccessExpression(left) || left.Parent == nil {
+		return false
+	}
+	component := enclosingCallableNode(left)
+	if _, owned := owner.components[component]; !owned || !directComponentStateDefault(left.Parent, component) || left.Parent.AsBinaryExpression().Left != left {
+		return false
+	}
+	if end, known := owner.componentStatePrefix[component]; known {
+		return left.Pos() < end
+	}
+	index := owner.index(ast.GetSourceFileOfNode(component))
+	if index.incomplete || index.normalDynamicScope {
+		return false
+	}
+	var exposed func(*ast.Node) bool
+	exposed = func(node *ast.Node) bool {
+		if node.Kind != ast.KindThisKeyword {
+			return node.ForEachChild(exposed)
+		}
+		member := node.Parent
+		return member == nil || !ast.IsPropertyAccessExpression(member) || member.Parent == nil || !ast.IsCallExpression(member.Parent) ||
+			member.Parent.Expression() != member || (member.Name().Text() != "getContext" && member.Name().Text() != "hasContext") ||
+			!componentContextOperation(member, owner.checker)
+	}
+	end := component.End()
+	for _, param := range component.Parameters() {
+		if param.Initializer() != nil && exposed(param.Initializer()) || ast.IsBindingPattern(param.Name()) && exposed(param.Name()) {
+			end = component.Pos()
+			break
+		}
+	}
+	for _, statement := range component.Body().AsBlock().Statements.Nodes {
+		if end == component.Pos() {
+			break
+		}
+		if ast.IsExpressionStatement(statement) && directComponentStateDefault(statement.Expression(), component) {
+			continue
+		}
+		if exposed(statement) {
+			end = statement.Pos()
+			break
+		}
+	}
+	if owner.componentStatePrefix == nil {
+		owner.componentStatePrefix = make(map[*ast.Node]int)
+	}
+	owner.componentStatePrefix[component] = end
+	return left.Pos() < end
+}
+
+func directComponentStateDefault(write, component *ast.Node) bool {
+	if _, ok := unconditionalPrimitiveStateDefault(write, component); !ok {
+		return false
+	}
+	left := write.AsBinaryExpression().Left
+	if !ast.IsPropertyAccessExpression(left) {
+		return false
+	}
+	state := left.Expression()
+	return ast.IsPropertyAccessExpression(state) && state.Expression().Kind == ast.KindThisKeyword && state.Name().Text() == "state"
+}
+
 // Recognizes only a direct top-level assignment whose primitive value is safe to retain as
 // immutable compiler metadata. Nested control flow and reference-bearing values remain captured.
 func unconditionalPrimitiveStateDefault(write *ast.Node, component *ast.Node) (StateDefault, bool) {

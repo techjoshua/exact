@@ -2219,7 +2219,9 @@ calls to statically imported installers can supply the same indexed descriptor o
 Executable selection identifies the body, and writer discovery still checks whether the original
 call can reach the installation before the read. The relationship
 is scoped to the current walk and supplies possible effects without certifying that the write
-replaced the property's previous value.
+replaced the property's previous value. An unconditional primitive default writes one component
+state slot. Before setup exposes the state facade, a read for a different property can omit
+ordinary caller discovery for that write. Context lookups keep the receiver private.
 
 Framework consumers retain the independent contributions in a stabilized callable summary.
 For ordinary summarized tasks, the graph supplies platform requirements. Native call receiver

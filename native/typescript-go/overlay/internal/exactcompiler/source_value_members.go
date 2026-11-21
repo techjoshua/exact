@@ -263,7 +263,7 @@ func (query *sourceValueQuery) memberValuesAtGetWithStandard(origin *ast.Node, p
 					}
 					inputs = append(inputs, *relative)
 				} else {
-					if result.opaque && disjointRHS {
+					if disjointRHS && (result.opaque || query.owner.initialComponentStateDefault(assignment.left)) {
 						continue
 					}
 					// A path of named Gets cannot acquire an RHS through a symbol slot.
