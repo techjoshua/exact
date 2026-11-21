@@ -2295,7 +2295,9 @@ their existing writer analysis.
 
 A standard `Object.entries` loop can supply possible original property values to
 a simple, consumed pair binding. Source enumeration accounts for its own getters
-and selects enumerable string keys. An unrepresented value keeps its uncertainty.
+and selects enumerable string keys. The literal value of a computed name or its
+earlier local constant can identify an own string key. An unrepresented key or
+value keeps its uncertainty.
 For a confined array read at a saved index, the original selected native append
 can supply a possible receiver. A counted loop carries that relationship through
 a later append of its yielded child when the loop can continue. JavaScript

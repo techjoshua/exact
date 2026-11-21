@@ -65,6 +65,29 @@ it.each([
 		local: true,
 		browser: true
 	},
+	{
+		name: 'literal computed child key',
+		data: "const data={['surface']:{get metric(){document.title;return 1}}};",
+		copy: inspectChild,
+		browser: true
+	},
+	{
+		name: 'earlier constant child key',
+		data: "const key='surface';const data={[key]:{get metric(){document.title;return 1}}};",
+		copy: inspectChild,
+		browser: true
+	},
+	{
+		name: 'computed getter produces a child',
+		data: "const data={get ['surface'](){return {get metric(){document.title;return 1}}}};",
+		copy: inspectChild,
+		browser: true
+	},
+	{
+		name: 'computed prototype spelling is an own key',
+		data: "const data={['__proto__']:{get metric(){document.title;return 1}}};",
+		browser: true
+	},
 	{ name: 'original Theme copy', data: nestedGetter, browser: true },
 	{
 		name: 'copy stops after the first iteration',

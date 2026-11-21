@@ -348,6 +348,10 @@ A standard `Object.entries` loop retains possible own string-key values for a
 consumer of its yielded pair. The iterator and original enumeration own their
 effects. A computed key proven to hold a standard symbol stays outside string
 enumeration. A type assertion alone can leave the original string key in place.
+A computed literal or an earlier immutable local constant can identify the
+original own field. The paired SSR controls preserve nested getter effects
+through those fields, including a computed `__proto__` own field in the
+original Theme copy. Computed names whose key is unavailable retain uncertainty.
 A confined array can connect an earlier selected native append to the
 saved input read. When an observed child reaches that same append supplier and
 the counted loop can continue, the shared loop traversal considers the child

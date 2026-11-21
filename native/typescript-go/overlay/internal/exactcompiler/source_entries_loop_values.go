@@ -88,11 +88,29 @@ func (q *sourceValueQuery) enumeratedEntryValues(value *ast.Node, bindings sourc
 		if !q.charge(result, member) {
 			return
 		}
-		if member.Name() == nil || ast.IsComputedPropertyName(member.Name()) {
+		name := member.Name()
+		if name == nil || ast.IsSetAccessorDeclaration(member) {
 			continue
 		}
-		key := callableNameText(member.Name())
-		if key != "__proto__" && key != "" && key != "*" && !ast.IsSetAccessorDeclaration(member) {
+		key := callableNameText(name)
+		if ast.IsComputedPropertyName(name) {
+			expression := q.enumerationKeyExpression(name, result)
+			if q.standardEnumerationSymbol(expression) {
+				continue
+			}
+			selected := sourceMemberKey(expression)
+			if !selected.resolved {
+				result.valueIncomplete = true
+				continue
+			}
+			key = selected.name
+		}
+		if key == "" || key == "*" {
+			result.valueIncomplete = true
+			continue
+		}
+		// Only the noncomputed property assignment changes the prototype.
+		if key != "__proto__" || ast.IsComputedPropertyName(name) || !ast.IsPropertyAssignment(member) {
 			collect(key)
 		}
 	}
@@ -149,29 +167,39 @@ func (q *sourceValueQuery) entriesIterationSource(binding, declaration *ast.Node
 	return call, input
 }
 
-// enumerationSymbolKey excludes only a represented standard symbol value.
-// A type assertion can leave a string or number at the computed key site.
-func (q *sourceValueQuery) enumerationSymbolKey(name *ast.Node, result *accessorCandidates) bool {
+// enumerationKeyExpression follows an immutable earlier local key initializer.
+// The original object-literal evaluation still owns the computed key effects.
+func (q *sourceValueQuery) enumerationKeyExpression(name *ast.Node, result *accessorCandidates) *ast.Node {
 	key := unwrapSourceCallableReference(name.AsComputedPropertyName().Expression)
 	c := q.owner.checker
 	for key != nil && ast.IsIdentifier(key) {
 		if !q.charge(result, key) {
-			return false
+			return nil
 		}
 		symbol := c.GetSymbolAtLocation(key)
 		if symbol == nil {
-			return false
+			return nil
 		}
 		declaration := symbol.ValueDeclaration
 		if declaration == nil || !ast.IsVariableDeclaration(declaration) || declaration.Parent.Flags&ast.NodeFlagsConst == 0 ||
 			ast.GetSourceFileOfNode(declaration) != ast.GetSourceFileOfNode(key) || declaration.End() > key.Pos() {
-			return false
+			return nil
 		}
 		key = unwrapSourceCallableReference(declaration.Initializer())
 	}
-	if key == nil || !q.charge(result, key) {
+	if key != nil && q.charge(result, key) {
+		return key
+	}
+	return nil
+}
+
+// standardEnumerationSymbol excludes only a represented standard symbol value.
+// A type assertion can leave a string or number at the computed key site.
+func (q *sourceValueQuery) standardEnumerationSymbol(key *ast.Node) bool {
+	if key == nil {
 		return false
 	}
+	c := q.owner.checker
 	if ast.IsCallExpression(key) {
 		call := key.AsCallExpression()
 		callee := unwrapSourceCallableReference(call.Expression)

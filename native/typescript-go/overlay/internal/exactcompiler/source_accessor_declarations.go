@@ -932,8 +932,20 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 			ownsSelection := false
 			ownGetter, ownSetter := false, false
 			for _, member := range members {
-				if mode == accessorEnumerateEntries && member.Name() != nil && ast.IsComputedPropertyName(member.Name()) && query.enumerationSymbolKey(member.Name(), &result) {
-					continue
+				memberName := member.Name()
+				memberKey := ""
+				if memberName != nil {
+					memberKey = callableNameText(memberName)
+				}
+				computed := memberName != nil && ast.IsComputedPropertyName(memberName)
+				if computed && (mode == accessorEnumerateEntries || get != nil && get.enumerableString) {
+					key := query.enumerationKeyExpression(memberName, &result)
+					if query.standardEnumerationSymbol(key) {
+						continue
+					}
+					if selected := sourceMemberKey(key); selected.resolved {
+						memberKey, computed = selected.name, false
+					}
 				}
 				if !ast.IsObjectLiteralExpression(value) && ast.HasSyntacticModifier(member, ast.ModifierFlagsStatic) == instance {
 					continue
@@ -943,7 +955,7 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 				}
 				// Instance initialization belongs to actual construction. Neither Has
 				// nor a later Get may reconstruct it from a declaration initializer.
-				if (selection != "" || exactEmpty) && member.Name() != nil && !ast.IsComputedPropertyName(member.Name()) && callableNameText(member.Name()) == selection ||
+				if (selection != "" || exactEmpty) && member.Name() != nil && !computed && memberKey == selection ||
 					!instance && sourceOwnByteStorageSpecies(member, selectedGet, typeChecker) {
 					ownsSelection = true
 					if query.sourceReceiver != nil && mode == accessorRead && len(projection) == 0 {
@@ -978,11 +990,8 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 				}
 				if len(projection) > 0 {
 					privateMatch, privateGet := query.sourcePrivateMemberMatch(member, projection)
-					computedMayMatch := !privateGet && member.Name() != nil && ast.IsComputedPropertyName(member.Name()) && sourceLiteralMemberName(member.Name().AsComputedPropertyName().Expression) == ""
-					if computedMayMatch && get != nil && get.enumerableString && query.enumerationSymbolKey(member.Name(), &result) {
-						continue
-					}
-					if member.Name() != nil && (privateMatch || !privateGet && (projection[0] == "" && !exactEmpty || projection[0] == "*" || callableNameText(member.Name()) == projection[0] || computedMayMatch)) {
+					computedMayMatch := !privateGet && computed && sourceLiteralMemberName(member.Name().AsComputedPropertyName().Expression) == ""
+					if member.Name() != nil && (privateMatch || !privateGet && (projection[0] == "" && !exactEmpty || projection[0] == "*" || memberKey == projection[0] || computedMayMatch)) {
 						if query.observeStagedGetResultMember(value, member, selectedGet, mode, computedMayMatch, arguments, &result) {
 							continue
 						}

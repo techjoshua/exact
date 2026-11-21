@@ -109,8 +109,8 @@ export function CompilerAnalysisSection(this: Component<{}>) {
 				return a fresh pair such as
 				<code>([key, value]) =&gt; [key, value]</code>. Computing either slot still contributes its own effects.
 				A <code>for...of</code> loop over <code>Object.entries(input)</code> can also carry a
-				yielded value to a later property read. If that read runs a browser getter, the component
-				or task that performs it needs the browser.
+				yielded value to a later property read, including a value stored under a known computed
+				key. If that read runs a browser getter, the component or task that performs it needs the browser.
 				A Promise executor runs during construction. A helper that reads <code>document</code> inside <code>new globalThis.Promise(...)</code> needs the
 				browser even if the task discards the promise. Reading an object from a finite local
 				container keeps that object's identity when the container slot is later replaced. Reads of
