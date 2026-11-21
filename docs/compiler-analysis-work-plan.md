@@ -2060,6 +2060,28 @@ by operation within its own path. The retained profiles do not pair deliveries a
 direct and fallback paths or identify equivalent receiver contexts. Counting repeated AST
 locations or merging graph-local authority would overstate the removable work.
 
+In the unchanged Intl package request at `c031c7e6a`, public MAY collection reaches
+`requireRecord` and visits its copy, allocation and descriptor definition. The first
+observed recovery of the descriptor writer comes from its own `ToPropertyDescriptor`
+field Effects on the fresh descriptor literal. At that point no staged member source
+is active. Moving the existing nonnative source-order test ahead of writer inputs
+removes that recovery site. The same writer is then reconsidered while selecting
+`Reflect.get` in the descriptor value initializer. The original key is a loop binding,
+the target requires the selected copy's first-argument relationship, and the initializer
+requires its own reflected value Get. The existing staged collector needs those
+independent inputs before it can replace the legacy Effects walk. The trace shows work
+before staging, with no registered backedge required to explain it.
+
+Private promotions using the existing native operation owner, and the separate
+source-order comparison, each still reached the native `components.ts` deadline.
+Promoting both original Create and DefineProperty entered the staged collector,
+which declined both without registering root recipes or enqueueing their work.
+The unchanged package's command exited in 32.10 to 32.61 seconds in those runs and
+published neither target. The ordering comparison passed 14 accessor and recursive
+placement controls. A separate copy-alias trial retained some reached getters, but
+over-attributed getters to unrelated receivers and lost the known getter beside an
+unknown source alternative. No trial qualified a production throughput change.
+
 Ranked follow-up by measured reach and available proof:
 
 1. **Qualify effect coverage at the original Call and Get requesters.** The shared
