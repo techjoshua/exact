@@ -5,11 +5,11 @@ import { compileProjectArtifacts } from '../index.js';
 import { createTestWorkspace } from '../test-support/workspace.js';
 
 const source =
-	'import { TaskContext } from "@exactjs/core";\n\nfunction Page(this: Component<{ count: number }>) {\n\tconst runFixtureTask = async (_task: TaskContext = TaskContext.latest()) => {\n\t\tthis.state.count = await Promise.resolve(1);\n\t};\nrunFixtureTask();\n\treturn () => <button>{this.state.count}</button>;\n}\n';
+	'import { TaskContext, type Component } from "@exactjs/core";\n\nfunction Page(this: Component<{ count: number }>) {\n\tconst runFixtureTask = async (_task: TaskContext = TaskContext.latest()) => {\n\t\tthis.state.count = await Promise.resolve(1);\n\t};\nrunFixtureTask();\n\treturn () => <button>{this.state.count}</button>;\n}\n';
 
 describe('@exactjs/compiler: inspection artifact packaging', () => {
 	it('collects source inspection once and writes one server-only immutable catalog', async () => {
-		const root = await createTestWorkspace('exact-inspection-artifact-');
+		const root = await createTestWorkspace('.exact-inspection-artifact-', process.cwd());
 		const sourceRoot = path.join(root, 'src');
 		const input = path.join(sourceRoot, 'page.tsx');
 		const outDir = path.join(root, 'dist', 'server');
@@ -42,7 +42,7 @@ describe('@exactjs/compiler: inspection artifact packaging', () => {
 	});
 
 	it('keeps catalog-only client output byte-identical and derives a deterministic build key', async () => {
-		const root = await createTestWorkspace('exact-catalog-only-');
+		const root = await createTestWorkspace('.exact-catalog-only-', process.cwd());
 		const sourceRoot = path.join(root, 'src');
 		const input = path.join(sourceRoot, 'page.tsx');
 		await mkdir(sourceRoot, { recursive: true });
@@ -74,7 +74,7 @@ describe('@exactjs/compiler: inspection artifact packaging', () => {
 	});
 
 	it('creates no catalog or inspection-only symbol in hardened output', async () => {
-		const root = await createTestWorkspace('exact-hardened-inspection-');
+		const root = await createTestWorkspace('.exact-hardened-inspection-', process.cwd());
 		const sourceRoot = path.join(root, 'src');
 		const input = path.join(sourceRoot, 'page.tsx');
 		const outDir = path.join(root, 'dist');
