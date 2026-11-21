@@ -80,7 +80,7 @@ func collectExportRecords(
 			placement = value
 		} else if value, exists := policyPlacements[name]; ownedDeclaration && exists {
 			placement = value
-		} else if kind == "value" {
+		} else if kind == "value" && availability != nil {
 			placement = availability.placement(exported)
 		}
 		records = append(records, ExportRecord{

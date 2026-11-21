@@ -14,6 +14,9 @@ type moduleValuePruning struct {
 // planModuleValuePruning captures initializer and consumer ownership before transformed nodes
 // lose checker identity. JSX projection retains its separate compiler-owned execution boundary.
 func planModuleValuePruning(sourceFile *ast.SourceFile, typeChecker *checker.Checker, target Target, availability *moduleValueAvailability) moduleValuePruning {
+	if target == TargetDefault {
+		return moduleValuePruning{}
+	}
 	result := moduleValuePruning{bindings: make(map[string]struct{}), statements: make(map[int]struct{})}
 	components := make(map[string]struct{})
 	for _, candidate := range activeComponentCandidates(sourceFile) {
@@ -58,7 +61,7 @@ func planModuleValuePruning(sourceFile *ast.SourceFile, typeChecker *checker.Che
 // componentReferencePlacement reuses the availability of a top-level runtime binding.
 // Its initializer's performed writes stay at module execution, outside component setup.
 func (availability *moduleValueAvailability) componentReferencePlacement(node *ast.Node, symbol *ast.Symbol) string {
-	if symbol == nil || ast.IsJsxTagName(node) {
+	if availability == nil || symbol == nil || ast.IsJsxTagName(node) {
 		return ""
 	}
 	if symbol.Flags&ast.SymbolFlagsAlias != 0 {

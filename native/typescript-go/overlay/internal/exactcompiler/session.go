@@ -501,7 +501,12 @@ func (s *Session) executeProjection(request Request, authored *authoredCheckProg
 	propagateComponentSurfacePlans(sourceFile, components, callables, generation.checker)
 	planTaskLocalization(sourceFile, tasks, intlPlan)
 	operations := invokedTaskOperations(tasks, sourceFile, reactiveBindings, generation.checker)
-	availability := moduleValueAvailability{checker: generation.checker, owner: callables.owner, placements: make(map[*ast.Symbol]string)}
+	// The independent authored type proof retains the neutral tree and all its module
+	// bindings. The executable request has already checked which bindings it can use.
+	var availability *moduleValueAvailability
+	if authored == nil || request.Kind != "check" {
+		availability = &moduleValueAvailability{checker: generation.checker, owner: callables.owner, placements: make(map[*ast.Symbol]string)}
+	}
 	components = analyzeComponents(
 		sourceFile,
 		components,
@@ -511,7 +516,7 @@ func (s *Session) executeProjection(request Request, authored *authoredCheckProg
 		generation.checker,
 		nodeIDs,
 		analysisFacts,
-		&availability,
+		availability,
 		renders,
 	)
 	components = applyComponentPolicies(
@@ -546,7 +551,7 @@ func (s *Session) executeProjection(request Request, authored *authoredCheckProg
 		generation.checker,
 		components,
 		policy.graph,
-		&availability,
+		availability,
 	)
 	semanticGraph := collectSemanticGraph(
 		sourceFile,
@@ -782,7 +787,7 @@ func (s *Session) executeProjection(request Request, authored *authoredCheckProg
 	}()
 	emitContext := printer.NewEmitContext()
 	// Capture lexical module ownership before lowering can reparent shared source nodes.
-	omittedModuleValues := planModuleValuePruning(sourceFile, generation.checker, request.Target, &availability)
+	omittedModuleValues := planModuleValuePruning(sourceFile, generation.checker, request.Target, availability)
 	// Lowering may reparent originals. Cached receipts remain readable, but
 	// newly demanded sources get no elision proof for the rest of this request.
 	generation.prepareImports = false

@@ -1179,7 +1179,9 @@ and existing synchronization batches source loading rather than creating a check
 
 Execution roots also belong to a different diagnostic universe. Synchronized semantic analysis
 uses the existing target-neutral checking projection and isolated generated validation for
-TypeScript, cached per retained program and request. JavaScript analysis checks an isolated
+TypeScript, cached per retained program and request. The private TypeScript proof keeps module
+bindings in its checking tree and leaves their executable placement to the requested artifact.
+Public checks still report module availability. JavaScript analysis checks an isolated
 authored source with its original script kind, `checkJs` policy and checking pragmas. It does not
 promote unchecked JavaScript to generated TypeScript. Watch diagnostics check authored project
 roots in an isolated validation program. These boundaries preserve the tested ambient-name and

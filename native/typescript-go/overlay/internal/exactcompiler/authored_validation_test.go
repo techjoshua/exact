@@ -138,3 +138,36 @@ func TestAuthoredValidationContinuesAfterWarnings(t *testing.T) {
 		t.Fatalf("warning prevented ordinary type checking: %s %#v", response.Error, response.Diagnostics)
 	}
 }
+
+func TestAuthoredValidationChecksClientOnlyComponentBody(t *testing.T) {
+	const source = `import { type Component } from '@exactjs/core';
+const captured = Object.freeze({ get title() { return document.title; } }).title;
+function readTitle() { return captured; }
+function Child(props: { title: string }) { return () => <strong>{props.title}</strong>; }
+export function Page(this: Component<{ count: number }>) {
+  this.state.count = 0;
+  return () => <Child title={readTitle()}/>;
+}`
+	const assignment = "this.state.count"
+	for _, target := range []Target{TargetClient, TargetServer} {
+		t.Run(string(target), func(t *testing.T) {
+			session := NewSession()
+			request := Request{Kind: "compile", ID: "authored-client-body.tsx", Source: source, Target: target, Diagnostics: "semantic", SourceMap: true}
+			valid := session.Execute(request)
+			if valid.Error != "" || hasErrorDiagnostic(valid.Diagnostics) || valid.Code == "" || valid.SourceMap == nil || findComponent(t, valid.Analysis.Components, "Page").Placement != "client" {
+				t.Fatalf("client placement or artifact changed: %s %#v", valid.Error, valid.Diagnostics)
+			}
+			request.Source = strings.Replace(source, assignment+" = 0", assignment+" = readTitle()", 1)
+			invalid := session.Execute(request)
+			found := false
+			for _, diagnostic := range invalid.Diagnostics {
+				if diagnostic.Code == "TS2322" && diagnostic.Start == strings.Index(request.Source, assignment) && diagnostic.Length == len(assignment) {
+					found = true
+				}
+			}
+			if invalid.Error != "" || !found || findComponent(t, invalid.Analysis.Components, "Page").Placement != "client" {
+				t.Fatalf("authored assignment was not checked: %s %#v", invalid.Error, invalid.Diagnostics)
+			}
+		})
+	}
+}

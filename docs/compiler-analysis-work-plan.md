@@ -230,6 +230,14 @@ bounds held constant, the existing graph supplied the correct verdict to three
 late queries, but the original request still timed out at 32.06 seconds with reuse
 and 32.08 seconds without it. The render helper's module availability walk still
 reached legacy writer recovery through dependency queries for that same binding.
+This second pass belonged to the independent authored TypeScript proof. Its neutral
+checking tree retains module definitions and checks authored types. The requested
+executable target already owns module placement. With the earlier private bounds
+held constant, removing module availability from the neutral proof completed
+`components.ts` and reached the deliberately opaque `environment.ts` initializer
+in 11.46 seconds. The client, server and public check controls kept matching source
+diagnostics, generated code and maps. The unchanged package without those earlier
+bounds still reached the `components.ts` deadline and emitted neither target.
 
 An inline factory-result control independently exposed a lost callable stored in a
 descriptor. The selected factory inputs and returned local object literal already
