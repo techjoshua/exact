@@ -46,7 +46,7 @@ func (q *sourceValueQuery) selectedGetterWriterInputs(writer, origin *ast.Node, 
 	}
 	for _, write := range (*q.selectedGetterWrites)[writer] {
 		if write.receiver == origin && enclosingCallableNode(write.get) == enclosingCallableNode(get.operation) && write.get.End() <= get.operation.Pos() {
-			rows = append(rows, sourceMemberWriterInput{implicitGet: write.get, scope: write.scope, incomplete: true})
+			rows = append(rows, sourceMemberWriterInput{implicitMember: write.get, scope: write.scope, incomplete: true})
 		}
 	}
 	return rows

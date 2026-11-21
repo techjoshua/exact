@@ -127,7 +127,7 @@ type sourceMemberWriterInput struct {
 	directTargetExcluded bool // Query-local disjoint outcome; never a complete writer disposition.
 	writerInputs         *sourceStagedWriterInputs
 	call                 *ast.Node
-	implicitGet          *ast.Node // Earlier original Get owning a receiver-relative descriptor write.
+	implicitMember       *ast.Node // Earlier original Get or Set owning a receiver-relative descriptor write.
 	scope                acquiredCallableScope
 	incomplete           bool
 }

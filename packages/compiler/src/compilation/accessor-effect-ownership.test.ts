@@ -228,6 +228,92 @@ export function Page() { return () => <p>{showError()}</p>; }`
 );
 
 
+const installedCodeSetter = `Object.defineProperty(this, 'code', {
+	configurable: true,
+	set(value: string) { document.title = value; }
+});`;
+
+it.each([
+	{
+		name: 'selected own field',
+		beforeCode: "this.name = 'DisplayError';",
+		install: installedCodeSetter,
+		browser: true
+	},
+	{
+		name: 'unwritten own field',
+		beforeCode: "this.name = 'DisplayError';",
+		install: installedCodeSetter.replace("'code'", "'dormant'")
+	},
+	{
+		name: 'installation after the field write',
+		afterCode: "this.name = 'DisplayError';",
+		install: installedCodeSetter
+	},
+	{
+		name: 'a removed descriptor',
+		beforeCode: "this.name = 'DisplayError'; Reflect.deleteProperty(this, 'code');",
+		install: installedCodeSetter
+	},
+	{
+		name: 'a replacement inside the installer',
+		beforeCode: "this.name = 'DisplayError';",
+		install:
+			installedCodeSetter +
+			"Object.defineProperty(this, 'code', { configurable: true, value: 'initial', writable: true });"
+	},
+	{
+		name: 'a descriptor removed by the assignment value',
+		beforeCode: "this.name = 'DisplayError';",
+		assigned: "(Reflect.deleteProperty(this, 'code'), code)",
+		install: installedCodeSetter
+	}
+])('retains construction-time setter effects for $name', async (test) => {
+	const root = await createCompilerTestWorkspace('.exact-construction-own-setter-', process.cwd());
+	const entry = path.join(root, 'page.tsx');
+	await writeFile(
+		path.join(root, 'error.ts'),
+		`export class DisplayError extends Error {
+		readonly code: string;
+		constructor(code: string, message: string) {
+			super(message);
+			${test.beforeCode ?? ''}
+			this.code = ${test.assigned ?? 'code'};
+			${test.afterCode ?? ''}
+		}
+	}`
+	);
+	await writeFile(
+		path.join(root, 'install.ts'),
+		`import { DisplayError } from './error.js';
+		Object.defineProperty(DisplayError.prototype, 'name', {
+			set() { ${test.install} }
+		});`
+	);
+	await writeFile(
+		entry,
+		`import './install.js';
+		import { DisplayError } from './error.js';
+		function fail(): never { throw new DisplayError('invalid', 'Invalid appearance'); }
+		function label() {
+			try { fail(); }
+			catch (error) {
+				if (error instanceof DisplayError) return error.message;
+				throw error;
+			}
+		}
+		export function Page() { return () => <p>{label()}</p>; }`
+	);
+	const [artifact] = await compileProjectArtifacts([entry], {
+		rootDir: root,
+		outDir: path.join(root, 'generated')
+	});
+	const server = await importArtifact(artifact!.serverFile, path.join(root, 'server.mjs'));
+	const { html } = await renderToString(receipt(server.Page as never, {}), { markers: false });
+	if (test.browser) expect(html).toContain('data-exact-client-boundary=');
+	else expect(html).toBe('<p>Invalid appearance</p>');
+});
+
 it('reads the module symbol selected by a component task after a retained edit', async () => {
 	const root = await createCompilerTestWorkspace('.exact-symbol-descriptor-', process.cwd());
 	const filename = path.join(root, 'page.tsx');

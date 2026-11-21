@@ -202,6 +202,8 @@ export function ComponentsPage(this: Component<{}>) {
 					A constructor assignment can run a setter installed on the class prototype by a module
 					dependency. The setter’s requirements follow the component that constructs the instance
 					through that dependency.
+					The compiler also follows a direct descriptor installation in that setter when
+					the constructor’s next assignment writes the installed property.
 				</p>
 				<p>
 					A helper that walks parent links can pick up a getter’s browser requirement in a later

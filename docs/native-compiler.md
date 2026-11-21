@@ -2903,6 +2903,14 @@ MAY join keeps the original callable and independent unknown effects. It supplie
 replacement or unconditional exported-library fact. Filtering unreachable inner setter writes
 is deferred precision, tracked in the architecture completion plan.
 
+Within an authored constructor, a selected reflective setter can install a descriptor
+directly on its receiver. The next plain assignment to that same receiver can retain the
+installed setter's effects when the initializer body contains a single direct descriptor
+write and the assigning value is a literal or a constructor parameter. The constructor's
+source inputs and descriptor owner supply this conditional relationship for the original
+construction. The relation keeps independent uncertainty and supplies no descriptor
+completion or output for a later construction.
+
 Active source-body reentry compares finite relationships between source endpoints, formal
 positions, captures, creating sites and member edges. New relationships may reach the existing
 summary consumer. Repeated or saturated contexts retain uncertainty and previously discovered

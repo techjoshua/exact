@@ -555,6 +555,7 @@ func (query *sourceValueQuery) memberValuesAtGetWithStandard(origin *ast.Node, p
 				}
 			}
 		}
+		query.retainConstructionSetterWrites(origin, projection, name, mode, get, result)
 		if !sourceInterval && query.dependenciesOnly && mode&accessorSet != 0 && mode != accessorSetAcquire && get != nil && get.receiver.node != nil && ast.IsNewExpression(get.receiver.node) && ast.IsClassLike(origin) {
 			query.visitImportedPrototypeWriters(origin, get.receiver.node, projection, name, result, func(call *ast.Node) {
 				// The source Set owns the setter effects. The imported source population

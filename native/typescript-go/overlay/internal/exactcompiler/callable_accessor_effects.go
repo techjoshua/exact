@@ -672,7 +672,7 @@ func (query *sourceValueQuery) reflectiveMemberValueInScope(origin *ast.Node, pr
 	possible := true
 	// A projected row is only a MAY alternative. This descriptor fallback never
 	// publishes strong replacement. Other paths retain their existing producer law.
-	if input == nil || input.call == nil && input.implicitGet == nil {
+	if input == nil || input.call == nil && input.implicitMember == nil {
 		_, possible = query.moduleWriteProducer(node, bindings, result)
 	}
 	if !possible {
@@ -842,6 +842,8 @@ func (query *sourceValueQuery) reflectiveMemberValueInScope(origin *ast.Node, pr
 					} else {
 						query.executeGetEffects(body, actualGet, scope, result)
 					}
+				} else if set && query.consumeConstructionReflectiveSetter(body, actualGet, bindings, result) {
+					// The selected source operation owns this binder.
 				} else if get && query.nativePromiseDeclaration(origin) {
 					actual := sourceValue{node: origin, native: &sourceNativeValue{kind: sourceNativePromiseConstructor, acquired: query.reading}}
 					query.executeGetEffects(body, &sourceGetInputs{operation: node, receiver: actual}, query.acquireCallableScope(bindings, result), result)

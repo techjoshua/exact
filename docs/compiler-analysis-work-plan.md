@@ -433,7 +433,19 @@ The diagnostic Theme comparison passes `sizePowers[index]` and reaches all
 subsequent structural token Sets. In a longer native replay with the same
 bounds, the next reader is the thrown `ThemeResolutionError` construction in
 `source-resolution.ts`. The unchanged package still stops at the client
-deadline without either artifact set.
+deadline without either artifact set. An observer of the same bounded
+request ran 58 seconds and reached the original `this.name` and `this.code`
+assignments. Their receiver-interference checks entered unrelated copy-helper
+operand projections over 24,000 times. The captured request issued responses
+through `color.ts` only.
+
+An SSR control for that constructor order reached a browser setter installed on
+the current receiver by a selected prototype setter. Instantiating the existing
+Set binder preserves the descriptor writer for the next qualifying assignment
+in the same construction. Dormant, removed, replaced and late-installed
+descriptors render on the server. A descriptor removed during RHS evaluation
+also stays on the existing path. Writer discovery still blocks the original
+package.
 
 Computed method and accessor names run in the surrounding evaluation region. A
 setup-local name can call a helper that installs a getter before the component
