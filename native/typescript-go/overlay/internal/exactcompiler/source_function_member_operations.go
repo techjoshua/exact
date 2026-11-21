@@ -549,3 +549,42 @@ func (q *sourceValueQuery) descriptorOwnsAdapter(origin, writer, invocation *ast
 	}
 	return true
 }
+
+// privateBindCapture excludes a bind construction from earlier writers when
+// the ordinary function's only use is this bind. Its name and length are
+// original own data. Capturing a receiver or prefix does not write into it.
+func (q *sourceValueQuery) privateBindCapture(expression *ast.Node, call *ast.CallExpression) bool {
+	if !ast.IsPropertyAccessExpression(expression) || expression.Name().Text() != "bind" {
+		return false
+	}
+	target := unwrapSourceCallableReference(expression.Expression())
+	if !nativeFunctionInvocation(target, "bind", q.owner.checker) {
+		return false
+	}
+	for _, input := range restrictedInvocationArguments(call) {
+		if ast.IsIdentifier(input) {
+			symbol := q.owner.checker.GetSymbolAtLocation(input)
+			if symbol == nil || symbol.ValueDeclaration == nil {
+				return false
+			}
+			decl := symbol.ValueDeclaration
+			if ast.GetSourceFileOfNode(decl).IsDeclarationFile || !ast.IsVariableDeclaration(decl) && decl.Kind != ast.KindParameter && !ast.IsBindingElement(decl) {
+				return false
+			}
+		} else if !ast.IsLiteralExpression(input) && input.Kind != ast.KindNullKeyword && input.Kind != ast.KindFalseKeyword && input.Kind != ast.KindTrueKeyword {
+			return false
+		}
+	}
+	if ast.IsIdentifier(target) {
+		symbol := q.owner.checker.GetSymbolAtLocation(target)
+		if symbol == nil || symbol.ValueDeclaration == nil {
+			return false
+		}
+		decl := symbol.ValueDeclaration
+		if ast.IsFunctionDeclaration(decl) {
+			return decl.Body() != nil && privateSingleUse(target, symbol, decl, q.owner)
+		}
+		return singleUseLiteral(target, q.owner, ast.KindFunctionExpression) != nil || singleUseLiteral(target, q.owner, ast.KindArrowFunction) != nil
+	}
+	return ast.IsFunctionExpression(target) || ast.IsArrowFunction(target)
+}

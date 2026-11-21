@@ -236,3 +236,21 @@ export function Page(this:Component<{label:string}>,props:{read?:()=>string}){
 		}
 	}
 }
+
+// Capturing a module input with an unexposed function cannot mutate its value
+// before a component later reads the bound result.
+func TestComponentUsesBoundModuleInput(t *testing.T) {
+	root, config := formsSourceFixture(t)
+	for _, source := range []string{
+		"function read(this:{value:string}){return this.value};const base={value:'safe'};const bound=read.bind(base);",
+		"const read=(v:{value:string})=>v.value;let base={value:'safe'};const bound=read.bind(null,base);base={get value(){return document.title}};",
+	} {
+		source = "import type {Component} from '@exactjs/core';" + source + "const value=bound(); export function Page(this:Component<{}>){return()=> <p>{value}</p>}"
+		for _, target := range []Target{TargetClient, TargetServer} {
+			result := formsCompileSource(t, root, config, source, target)
+			if result.Code == "" || hasErrorDiagnostic(result.Diagnostics) {
+				t.Fatalf("%s bound module input: %s %#v", target, result.Error, result.Diagnostics)
+			}
+		}
+	}
+}

@@ -18,23 +18,7 @@ func singleUseLiteral(expression *ast.Node, owner *sourceValueOwner, kind ast.Ki
 		if initializer == nil || initializer.Kind != kind {
 			return nil
 		}
-		source := ast.GetSourceFileOfNode(value)
-		if decl.Parent.Flags&ast.NodeFlagsConst == 0 || ast.GetSourceFileOfNode(decl) != source {
-			return nil
-		}
-		index := owner.index(source)
-		pop := index.privateUses
-		if index.incomplete || index.normalDynamicScope || pop == nil || !pop.complete || len(pop.unresolved[value.Text()]) != 0 {
-			return nil
-		}
-		id := ast.GetSymbolId(symbol)
-		if enclosingCallableNode(decl) == nil && (!ast.IsExternalModule(source) ||
-			decl.Parent.Parent == nil || decl.Parent.Parent.Parent != source.AsNode() ||
-			index.normalExportUnknown || index.normalExported[id] || ast.GetCombinedModifierFlags(decl)&ast.ModifierFlagsExport != 0) {
-			return nil
-		}
-		uses := pop.uses[id]
-		if len(uses) != 1 || uses[0].node != value {
+		if decl.Parent.Flags&ast.NodeFlagsConst == 0 || !privateSingleUse(value, symbol, decl.Parent.Parent, owner) {
 			return nil
 		}
 		value = initializer
@@ -43,6 +27,28 @@ func singleUseLiteral(expression *ast.Node, owner *sourceValueOwner, kind ast.Ki
 		return value
 	}
 	return nil
+}
+
+// privateSingleUse checks the program's complete reference inventory for a
+// local binding or private module declaration. Its use still owns its effects.
+func privateSingleUse(value *ast.Node, symbol *ast.Symbol, statement *ast.Node, owner *sourceValueOwner) bool {
+	decl := symbol.ValueDeclaration
+	source := ast.GetSourceFileOfNode(value)
+	if statement == nil || ast.GetSourceFileOfNode(decl) != source {
+		return false
+	}
+	index := owner.index(source)
+	pop := index.privateUses
+	if index.incomplete || index.normalDynamicScope || pop == nil || !pop.complete || len(pop.unresolved[value.Text()]) != 0 {
+		return false
+	}
+	id := ast.GetSymbolId(symbol)
+	if enclosingCallableNode(decl) == nil && (!ast.IsExternalModule(source) || statement.Parent != source.AsNode() ||
+		index.normalExportUnknown || index.normalExported[id] || ast.GetCombinedModifierFlags(decl)&ast.ModifierFlagsExport != 0) {
+		return false
+	}
+	uses := pop.uses[id]
+	return len(uses) == 1 && uses[0].node == value
 }
 
 // finalNamedObjectProperty selects a final explicit property with a nonnumeric

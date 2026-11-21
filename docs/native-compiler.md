@@ -1445,7 +1445,9 @@ uses its actual receiver and raw arguments instead of inheriting the base functi
 bindings retain uncertainty alongside any reached replacement body's requirements. Constructing a
 bound function acquires its method, receiver and prefix without executing the target body. Later
 invocation retains those original capture sites, including when a helper immediately invokes
-the result of `bind` or returns the bound function to the component. Unproved capture
+the result of `bind` or returns the bound function to the component. When a private function’s only
+use is an ordinary `bind` with local inputs, creating the bound value cannot write through
+those inputs before a later module or component read. Unproved capture
 completion remains unknown. A possible reflective override retains both the inherited adapter and
 the authored alternative. Removing the inherited route requires a preceding installation on the
 same function and key that still holds when the component reads the method.

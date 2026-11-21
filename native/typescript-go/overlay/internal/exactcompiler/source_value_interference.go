@@ -131,6 +131,9 @@ func (query *sourceValueQuery) scanInterferenceInSources(origin *ast.Node, proje
 			}
 			call := node.AsCallExpression()
 			expression := unwrapSourceCallableReference(call.Expression)
+			if query.privateBindCapture(expression, call) {
+				continue
+			}
 			// A direct immutable source body with no demands cannot write an input.
 			// Nested argument calls have their own indexed occurrences and remain visited.
 			constructed := query.constructedModuleCall(node)
