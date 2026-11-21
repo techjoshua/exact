@@ -722,7 +722,8 @@ func applyFunctionTaskPolicy(
 			}
 			member := call.Expression.AsPropertyAccessExpression()
 			if member.Name() != nil && member.Name().Text() == "key" {
-				task.KeyStart = call.Arguments.Nodes[0].Pos()
+				task.keyOperand = call.Arguments.Nodes[0]
+				task.KeyStart = task.keyOperand.Pos()
 				task.KeyLength = call.Arguments.Nodes[0].End() -
 					call.Arguments.Nodes[0].Pos()
 				return false
