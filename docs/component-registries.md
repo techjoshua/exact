@@ -80,8 +80,11 @@ different props contract.
 
 ## Identity and lifecycle
 
-Each registry key exposes a stable component facade. Rendering the same key
-retains the component instance. Selecting a different key replaces that
+Reading a registry entry during setup selects its stable component facade. For a lazy entry,
+the loader starts when the selection is rendered or explicitly preloaded. An expression that
+computes the key still runs normally at the point of selection.
+
+Rendering the same key retains the component instance. Selecting a different key replaces that
 component range even when two keys refer to the same underlying implementation.
 This makes state, tasks, refs, resources, and cleanup follow the authored
 selection.

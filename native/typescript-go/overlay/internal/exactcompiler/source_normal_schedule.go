@@ -610,11 +610,16 @@ func (query *sourceValueQuery) consumeNormalGet(node *ast.Node, bindings sourceV
 		return result
 	}
 	slot := query.normalOperation(node, true)
-	if slot == nil {
-		return query.accessors(node, nil, "", accessorAcquire, bindings, nil)
-	}
-	if slot.state != sourceOperationPending {
+	if slot != nil && slot.state != sourceOperationPending {
 		return normalOutputCandidates(normalGetOutput(slot))
+	}
+	read, write := accessorEvaluationMode(node)
+	registryDataRead := read && !write && componentRegistryDataRead(node, query.owner.checker)
+	if slot == nil {
+		if registryDataRead {
+			return accessorCandidates{sourceOwned: true, valueIncomplete: true}
+		}
+		return query.accessors(node, nil, "", accessorAcquire, bindings, nil)
 	}
 	produced = slot
 	ownedResult, adopted := query.tryOwnedGet(node, slot)
@@ -627,6 +632,10 @@ func (query *sourceValueQuery) consumeNormalGet(node *ast.Node, bindings sourceV
 	acquire := func() {
 		if adopted {
 			result = ownedResult
+			return
+		}
+		if registryDataRead {
+			result = accessorCandidates{sourceOwned: true, valueIncomplete: true}
 			return
 		}
 		if query.observeComponentProtocolGet(node, slot, bindings, &result) {

@@ -70,6 +70,40 @@ func collectComponentRegistries(
 	return registries
 }
 
+// componentRegistryDataRead recognizes the original Get of an immutable registry entry.
+// The registry creates own data fields. Selection does not run a lazy loader or
+// supply a callable result to a different operation.
+func componentRegistryDataRead(member *ast.Node, typeChecker *checker.Checker) bool {
+	receiver, name := accessorReceiver(member)
+	receiver = unwrapSourceCallableReference(receiver)
+	if receiver == nil || (!ast.IsIdentifier(receiver) && !ast.IsPropertyAccessExpression(receiver)) {
+		return false
+	}
+	definition := componentRegistryDefinition(receiver, ast.GetSourceFileOfNode(receiver), typeChecker)
+	if definition == nil {
+		return false
+	}
+	if ast.IsPropertyAccessExpression(member) {
+		for _, property := range definition.AsObjectLiteralExpression().Properties.Nodes {
+			key, _, valid := componentRegistryProperty(property)
+			if valid && key == name {
+				_, unsafe := unsafeComponentRegistryKeys[key]
+				return key != "" && !unsafe
+			}
+		}
+		return false
+	}
+	keys := make(map[string]struct{})
+	for _, property := range definition.AsObjectLiteralExpression().Properties.Nodes {
+		key, _, valid := componentRegistryProperty(property)
+		if _, unsafe := unsafeComponentRegistryKeys[key]; valid && key != "" && !unsafe {
+			keys[key] = struct{}{}
+		}
+	}
+	argument := unwrapSourceCallableReference(member.AsElementAccessExpression().ArgumentExpression)
+	return argument != nil && registrySelectionKeyIsFinite(typeChecker.GetTypeAtLocation(argument), keys)
+}
+
 func componentRegistryEntry(
 	key string,
 	value *ast.Node,

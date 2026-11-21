@@ -2,6 +2,7 @@ package exactcompiler
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 
@@ -513,8 +514,17 @@ func componentRegistryDefinition(
 	sourceFile *ast.SourceFile,
 	typeChecker *checker.Checker,
 ) *ast.Node {
-	expression = stableSourceCallableReference(expression, typeChecker)
-	if expression == nil {
+	return resolveComponentRegistryDefinition(expression, sourceFile, typeChecker, nil)
+}
+
+func resolveComponentRegistryDefinition(
+	expression *ast.Node,
+	sourceFile *ast.SourceFile,
+	typeChecker *checker.Checker,
+	seen []*ast.Symbol,
+) *ast.Node {
+	expression = unwrapSourceCallableReference(expression)
+	if expression == nil || (!ast.IsIdentifier(expression) && !ast.IsPropertyAccessExpression(expression)) {
 		return nil
 	}
 	symbol := typeChecker.GetSymbolAtLocation(expression)
@@ -524,6 +534,9 @@ func componentRegistryDefinition(
 	if symbol.Flags&ast.SymbolFlagsAlias != 0 {
 		symbol = typeChecker.GetAliasedSymbol(symbol)
 	}
+	if symbol == nil || slices.Contains(seen, symbol) {
+		return nil
+	}
 	for _, declaration := range symbol.Declarations {
 		if !ast.IsVariableDeclaration(declaration) ||
 			declaration.Parent == nil ||
@@ -531,11 +544,23 @@ func componentRegistryDefinition(
 			declaration.Parent.Flags&ast.NodeFlagsConst == 0 {
 			continue
 		}
-		call := unwrapRegistryDefinitionBody(declaration.AsVariableDeclaration().Initializer)
-		if call == nil || !ast.IsCallExpression(call) {
+		initializer := unwrapRegistryDefinitionBody(declaration.AsVariableDeclaration().Initializer)
+		if initializer == nil {
 			continue
 		}
-		invocation := call.AsCallExpression()
+		if ast.IsIdentifier(initializer) || ast.IsPropertyAccessExpression(initializer) {
+			owner := ast.GetSourceFileOfNode(declaration)
+			body := resolveComponentRegistryDefinition(initializer, owner, typeChecker, append(seen, symbol))
+			// Scan for writes only on aliases that actually reach a registry.
+			if body != nil && !componentValueSymbolIsWrittenAfter(symbol, declaration.End(), owner, typeChecker) {
+				return body
+			}
+			continue
+		}
+		if !ast.IsCallExpression(initializer) || !componentRegistryDeclarationIsModuleLevel(declaration) {
+			continue
+		}
+		invocation := initializer.AsCallExpression()
 		if !componentRegistryFactoryCall(invocation.Expression, sourceFile, typeChecker) ||
 			invocation.Arguments == nil ||
 			len(invocation.Arguments.Nodes) != 1 {

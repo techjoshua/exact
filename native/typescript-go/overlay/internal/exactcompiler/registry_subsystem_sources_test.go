@@ -26,6 +26,7 @@ func TestRegistrySubsystemSources(t *testing.T) {
 		{"quoted-export-binding", `createComponentRegistry(({lazy})=>({row:lazy(()=>import('./Row.js').then(({'Row':Chosen})=>Chosen))}))`, "row", true},
 		{"wrapped-lazy-definition", `createComponentRegistry((({lazy})=>({row:lazy(()=>import('./Row.js').then(module=>module.Row))})))`, "row", true},
 		{"direct-lazy", `createComponentRegistry(({lazy})=>({row:lazy(()=>import('./Row.js').then(module=>module.Row))}))`, "row", true},
+		{"named-lazy", `createComponentRegistry(({lazy})=>({row:lazy(()=>import('./Row.js').then(module=>module.Row))}))`, "row", true},
 		{"renamed-lazy", `createComponentRegistry(({lazy:load})=>({row:load(()=>import('./Row.js').then(module=>module.Row))}))`, "row", true},
 		{"parenthesized-lazy", `createComponentRegistry(({lazy})=>({row:(lazy(()=>import('./Row.js').then(module=>module.Row)))}))`, "row", true},
 		{"wrapped-lazy-reference", `createComponentRegistry(({lazy})=>({row:(lazy)(()=>import('./Row.js').then(module=>module.Row))}))`, "row", true},
@@ -53,7 +54,9 @@ func TestRegistrySubsystemSources(t *testing.T) {
 					registryName = "Alias"
 				}
 				selection := registryName + "[props.key]"
-				if c.name == "wrapped-selection" {
+				if c.name == "named-lazy" {
+					selection = registryName + ".row"
+				} else if c.name == "wrapped-selection" {
 					selection = "(" + selection + ")"
 				} else if c.name == "asserted-selection" {
 					selection = "(" + selection + " as typeof Row)"
@@ -85,6 +88,32 @@ func TestRegistrySubsystemSources(t *testing.T) {
 				}
 				if !strings.Contains(response.Code, "__exactComponentRegistry") {
 					t.Fatalf("registry escaped compiler lowering: %s", response.Code)
+				}
+			})
+		}
+	}
+}
+
+// Registry field ownership does not make the original key evaluation portable.
+func TestRegistrySetupPreservesKeyEffects(t *testing.T) {
+	root, config := registrySourceFixture(t)
+	entry := filepath.Join(root, "Page.tsx")
+	for _, test := range []struct {
+		name, definition, selection string
+	}{
+		{"key-getter", `const Views=createComponentRegistry(()=>({row:Row}));`,
+			`const Key={get value(): 'row' { void location.href; return 'row' }};const Current=Views[Key.value];`},
+		{"ordinary-getter", `const Views={get row(){void location.href;return Row}};`, `const Current=Views.row;`},
+	} {
+		for _, target := range []Target{TargetClient, TargetServer} {
+			t.Run(test.name+"/"+string(target), func(t *testing.T) {
+				source := `import {createComponentRegistry} from '@exactjs/core';import {Row} from './Row.js';` + test.definition + `export function Page(){` + test.selection + `return()=> <Current/>}`
+				if err := os.WriteFile(entry, []byte(source), 0600); err != nil {
+					t.Fatal(err)
+				}
+				result := NewSession().Execute(Request{Kind: "compile", ID: entry, Source: source, ConfigFile: config, Target: target, Diagnostics: "semantic"})
+				if result.Error != "" || len(result.Analysis.Components) != 1 || result.Analysis.Components[0].Placement != "client" {
+					t.Fatalf("lost evaluated browser getter: %s %#v", result.Error, result.Analysis.Components)
 				}
 			})
 		}

@@ -37,6 +37,64 @@ export function App(){return ()=> <Views.panel/>;}`);
 	expect(await panelArtifacts([app])).toEqual(library);
 });
 
+it('retains nested controls under a registry root and under a server-only parent', async () => {
+	const root = await createCompilerTestWorkspace('.exact-registry-resumption-', process.cwd());
+	const entry = path.join(root, 'page.tsx');
+	await writeFile(
+		path.join(root, 'panel.tsx'),
+		panelSource +
+			`export function PanelWithSibling(){return()=> <main><Panel/><strong>Sibling</strong></main>}`
+	);
+	await writeFile(
+		entry,
+		`import {createComponentRegistry,type Component} from '@exactjs/core';
+import {Panel} from './panel.js';
+const Views=createComponentRegistry(({lazy})=>({panel:lazy(()=>import('./panel.js').then(m=>m.PanelWithSibling))}));
+export function RegistryOwner(this:Component<{}>){const Current=Views.panel;return()=> <Current/>}
+export function ServerParent(){return()=> <main data-platform={process.platform}><section><Panel/><strong>Server sibling</strong></section></main>}`
+	);
+	const artifacts = await compileProjectArtifacts([entry], {
+		rootDir: root,
+		outDir: path.join(root, 'generated'),
+		serverComponents: true
+	});
+	const owner = artifacts.find((artifact) => artifact.inputFile === entry)!;
+	const panel = artifacts.find((artifact) => artifact.inputFile === path.join(root, 'panel.tsx'))!;
+	const server = await importArtifact(owner.serverFile, path.join(root, 'server.mjs'));
+	const client = await importArtifact(owner.clientFile, path.join(root, 'client.mjs'));
+	const clientPanel = await importArtifact(panel.clientFile, path.join(root, 'client-panel.mjs'));
+	const islands = Object.fromEntries(
+		panel.build.clientRegistrations.map(({ name, exportName }) => [
+			name,
+			clientPanel[exportName] as never
+		])
+	);
+	for (const name of ['RegistryOwner', 'ServerParent'] as const) {
+		const output = await renderToHydratableString(receipt(server[name] as never, {}));
+		const container = document.createElement('div');
+		container.innerHTML = output.htmlWithHydration;
+		const outer = container.querySelector('main');
+		const button = container.querySelector('button');
+		const sibling = container.querySelector('strong');
+		expect(button?.textContent).toBe('Count 0');
+		expect(!!container.querySelector('[data-exact-client-boundary]')).toBe(name === 'ServerParent');
+		const view =
+			name === 'ServerParent'
+				? createExactClient(container, { islands, hydration: { strategy: 'eager' } })
+				: hydrate(receipt(client.RegistryOwner as never, {}), container, { onMismatch: 'throw' });
+		try {
+			await view.whenSettled();
+			expect(container.querySelector('main')).toBe(outer);
+			expect(container.querySelector('button')).toBe(button);
+			expect(container.querySelector('strong')).toBe(sibling);
+			button!.click();
+			await expect.poll(() => button!.textContent).toBe('Count 1');
+		} finally {
+			view.dispose();
+		}
+	}
+});
+
 it.each([
 	{ only: false, nested: false },
 	{ only: true, nested: false },

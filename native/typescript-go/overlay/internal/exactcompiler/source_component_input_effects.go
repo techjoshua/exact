@@ -68,7 +68,9 @@ func isPreparedScalarPropRead(node *ast.Node, effect EnvironmentEffectSource, ow
 	for value.Parent != nil && unwrapSourceCallableReference(value.Parent) == field.operation {
 		value = value.Parent
 	}
-	if value.Parent != nil && (ast.IsPropertyAccessExpression(value.Parent) || ast.IsElementAccessExpression(value.Parent)) {
+	parent := value.Parent
+	if parent != nil && (ast.IsPropertyAccessExpression(parent) || ast.IsElementAccessExpression(parent)) &&
+		(!ast.IsElementAccessExpression(parent) || parent.AsElementAccessExpression().ArgumentExpression != value || !componentRegistryDataRead(parent, c)) {
 		return false
 	}
 	read, write := accessorEvaluationMode(field.operation)

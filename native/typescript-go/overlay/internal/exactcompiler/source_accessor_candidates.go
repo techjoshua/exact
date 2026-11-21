@@ -221,6 +221,9 @@ func (query *sourceValueQuery) evaluatedSourceAccessors(node *ast.Node, bindings
 	if !read && !write {
 		return accessorCandidates{}
 	}
+	if read && !write && componentRegistryDataRead(node, query.owner.checker) {
+		return accessorCandidates{sourceOwned: true}
+	}
 	receiver, name := accessorReceiver(node)
 	mode := accessorRead
 	if write {

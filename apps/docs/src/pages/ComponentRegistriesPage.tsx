@@ -134,8 +134,9 @@ export function ComponentRegistriesPage(this: Component<{}>) {
 					to the matching client or server output. You do not need generated artifact paths.
 				</p>
 				<p>
-					Concurrent reads deduplicate one lazy load. Failed loads may retry, and a stale candidate
-					cannot commit after the selected key changes. <code>preloadComponent()</code> starts a
+					Reading a registry entry in setup selects the view. Rendering a lazy entry or preloading
+					it starts the import. Concurrent requests for that entry share the load. Failed loads may
+					retry, and a stale candidate cannot commit after the selected key changes. <code>preloadComponent()</code> starts a
 					known entry early, while <code>inspectComponentRegistry()</code> reports mode, status, and
 					generation without exposing loaders. Inspection returns a separate snapshot with readonly
 					TypeScript fields.
