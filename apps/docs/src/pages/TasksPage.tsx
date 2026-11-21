@@ -310,6 +310,7 @@ export function TasksPage(this: Component<{}>) {
 					<code>this.state</code>. It can also read server-owned contexts inside its body. A
 					parameter default that reads a server-owned context is rejected because it is captured
 					before dispatch. A shared context used only by a default is passed as the captured value.
+					If the body also reads the context, the executor receives one shared context binding.
 					To publish shared context updates to descendants, establish the provider during component
 					setup and update it inside the task.
 				</p>

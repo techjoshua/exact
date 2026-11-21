@@ -6764,30 +6764,29 @@ __fixtureTask30();
 }
 
 func TestSessionTreatsContextValueMethodsAsContextEffects(t *testing.T) {
-	response := NewSession().Execute(Request{
-		ID:   "component.tsx",
-		Kind: "compile",
-		Source: `
-			declare const BoardContext: unknown;
-			declare class Component<State> {
-				getContext<T>(token: unknown): T;
-				onUnmount(handler: () => void): void;
+	for _, row := range []struct{ name, shape, work, effect string }{
+		{"passed value", "boolean", "void board", "neutral"},
+		{"authored work", "boolean", "if(board){document.title}", "browser"},
+		{"unavailable method", "{clear():void}", "board.clear()", "unknown"},
+	} {
+		t.Run(row.name, func(t *testing.T) {
+			r := NewSession().Execute(Request{ID: "component.tsx", Kind: "compile", Diagnostics: "semantic", Source: `
+				import {createContext,type Component} from "@exactjs/core";
+				const BoardContext=createContext<` + row.shape + `>("board");
+				export function Panel(this: Component<{}>) {
+					const board=this.getContext(BoardContext);
+					const cleanup=()=>{` + row.work + `};
+					this.onUnmount(cleanup);
+					return ()=> <output/>;
+				}`})
+			if r.Error != "" || hasErrorDiagnostic(r.Diagnostics) {
+				t.Fatal(r.Error, r.Diagnostics)
 			}
-			function Panel(this: Component<{}>) {
-				const board = this.getContext<{ clear(): void }>(BoardContext);
-				const cleanup = () => board.clear();
-				this.onUnmount(cleanup);
-				return () => <output />;
+			cleanup := findCallable(t, r.Analysis.Callables, "cleanup")
+			if cleanup.Effect != row.effect || !containsContextEffect(cleanup.Contexts, "BoardContext", "read") {
+				t.Fatalf("context input or callback effect changed: %#v", cleanup)
 			}
-		`,
-	})
-	if response.Error != "" {
-		t.Fatal(response.Error)
-	}
-	cleanup := findCallable(t, response.Analysis.Callables, "cleanup")
-	if cleanup.Effect != "neutral" ||
-		!containsContextEffect(cleanup.Contexts, "BoardContext", "read") {
-		t.Fatalf("context value method remained opaque: %#v", cleanup)
+		})
 	}
 }
 

@@ -81,6 +81,15 @@ func createContinuationContracts(
 				Kind:       "read",
 				Confidence: "exact",
 			}
+			// The body may already identify this activation input through its
+			// lexical declaration. Use the existing read in the dependency slot so
+			// the same public token appears once, in dependency order.
+			for _, bodyRead := range task.Contexts {
+				if bodyRead.Kind == effect.Kind && bodyRead.Token == effect.Token && bodyRead.Confidence == effect.Confidence {
+					effect = bodyRead
+					break
+				}
+			}
 			if contextResidency(dependency.ContextToken, policies) == "shared" {
 				dependencyPublicContexts = append(dependencyPublicContexts, effect)
 			} else {

@@ -12,12 +12,13 @@ import (
 
 const derivedTaskPolicyFixture = `
 import { TaskContext } from "@exactjs/core";
-declare class Component<State> { state: State }
+import type { Component } from "@exactjs/core";
 function consume(value:string){return value}
-function Search(this: Component<{ query: string }>) {
+export function Search(this: Component<{ query: string }>) {
  const label = this.state.query + "!";
  const __fixtureTask10 = (_task: TaskContext = TaskContext.latest()) => consume(label);
  __fixtureTask10();
+ return () => label;
 }`
 
 // Genuine compiler syntax has no runtime Get, unlike ordinary defaults and the
@@ -39,7 +40,7 @@ func TestTaskErasedPolicySources(t *testing.T) {
 				t.Fatalf("task dependency contract lost: %#v", task)
 			}
 			// Retain the original unresolved consumer as a rejected fixture.
-			request.Source = `import { TaskContext } from "@exactjs/core";declare class Component<S>{state:S}function Search(this:Component<{query:string}>){const label=this.state.query+"!";const run=(task:TaskContext=TaskContext.latest())=>missing(label);run();}`
+			request.Source = strings.Replace(derivedTaskPolicyFixture, "=> consume(label)", "=> missing(label)", 1)
 			refused := session.Execute(request)
 			if !containsDiagnosticCode(refused.Diagnostics, "EXACT2001") || refused.Code != "" {
 				t.Fatalf("unresolved body acquired placement: %#v", refused)
@@ -63,7 +64,7 @@ func TestTaskErasedPolicySources(t *testing.T) {
 		browser      bool
 		refused      bool
 	}{
-		{"ordinary-default", `function value(){return document.title}export function read(input=value()){return input}`, true, false},
+		{"ordinary-default", `import type {Component} from "@exactjs/core";function value(){return document.title}function read(input=value()){return input}export function Page(this:Component<{}>){const label=read();return()=>label}`, true, false},
 		{"shadowed-marker", `import {TaskContext as Framework,type Component}from"@exactjs/core";export function Page(this:Component<{}>){const TaskContext={latest(){return document.title}};const read=(input=TaskContext.latest())=>input;read();}`, true, true},
 		{"replaced-local-marker", `import {TaskContext as Framework,type Component}from"@exactjs/core";export function Page(this:Component<{}>){let TaskContext={latest(){return "safe"}};TaskContext={latest(){return document.title}};const read=(input=TaskContext.latest())=>input;read();}`, true, true},
 		{"body-browser", `import {TaskContext,type Component}from'@exactjs/core';export function Page(this:Component<{}>){const run=(task:TaskContext=TaskContext.latest())=>document.title;run();}`, true, false},
@@ -170,7 +171,7 @@ func TestTaskErasedPolicyRuntime(t *testing.T) {
 					t.Fatal(err)
 				}
 				module := filepath.Join(directory, "emitted.mts")
-				if err = os.WriteFile(module, []byte(r.Code+"\nexport {Search};\n"), 0600); err != nil {
+				if err = os.WriteFile(module, []byte(r.Code), 0600); err != nil {
 					t.Fatal(err)
 				}
 				config, _ := json.Marshal(map[string]any{"compilerOptions": map[string]any{"target": "ES2022", "module": "NodeNext", "moduleResolution": "NodeNext", "noCheck": true, "outDir": "erased"}, "include": []string{"emitted.mts"}})

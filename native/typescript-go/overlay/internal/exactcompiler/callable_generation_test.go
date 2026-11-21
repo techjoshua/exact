@@ -4,7 +4,6 @@ import (
 	"context"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 )
 
@@ -22,8 +21,8 @@ func TestCallableGenerationOwnerLifecycle(t *testing.T) {
 	config := filepath.Join(root, "tsconfig.json")
 	helper := filepath.Join(root, "helper.ts")
 	entry := filepath.Join(root, "entry.tsx")
-	helperSource := `import {createContext,type Component} from '@exactjs/core';const Token=createContext<number>('private-probe');export function read(owner:Component<{}>){return owner.hasContext(Token)}`
-	entrySource := `import {read} from './helper.js';import type {Component} from '@exactjs/core';export function Page(this:Component<{}>){const first=read.call(undefined,this);const second=read.call(undefined,this);return()=> <output>{String(first&&second)}</output>}`
+	helperSource := `import {createContext} from '@exactjs/core';export const Token=createContext<number>('private-probe');export function read(value:boolean){return value?document.title:'absent'}`
+	entrySource := `import {read,Token} from './helper.js';import type {Component} from '@exactjs/core';export function Page(this:Component<{}>){const first=read.call(undefined,this.hasContext(Token));const second=read.call(undefined,this.hasContext(Token));return()=> <output>{String(first&&second)}</output>}`
 	for name, source := range map[string]string{config: `{"compilerOptions":{"module":"esnext","moduleResolution":"bundler","target":"es2022","jsx":"preserve","skipLibCheck":true},"include":["*.ts","*.tsx"]}`, helper: helperSource} {
 		if err = os.WriteFile(name, []byte(source), 0600); err != nil {
 			t.Fatal(err)
@@ -70,9 +69,9 @@ func TestCallableGenerationOwnerLifecycle(t *testing.T) {
 	if cache.ownsGeneration(project.program, originalOwner.checker) || cache.ownsGeneration(originalProgram, cache.owner.checker) {
 		t.Fatal("a mixed program/checker pair was admitted")
 	}
-	// A fresh checker recovers the source helper's context requirement without
+	// A fresh checker recovers the imported helper's platform requirement and the component's own context probe without
 	// inheriting any retired generation's proof or descriptor-history refusal.
-	if len(response.Analysis.Components) != 1 || response.Analysis.Components[0].Placement != "isomorphic" || !strings.Contains(response.Code, "readCompiledEnhancementContextDependency") {
+	if len(response.Analysis.Components) != 1 || response.Analysis.Components[0].Placement != "client" || !containsString(response.Analysis.Components[0].EnhancementContexts.OptionallyConsumes, "Token") {
 		t.Fatalf("current generation lost imported source requirements: %#v", response.Analysis.Components)
 	}
 
