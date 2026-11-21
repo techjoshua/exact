@@ -86,10 +86,11 @@ func prepareDefinitionMAYCall(caller, callee *callableFacts, node *ast.Node, sym
 		if definitionPrimitiveForward(caller.node, callee.node, node, symbol, c, owner) {
 			return &sourceDefinitionMAYCall{caller: caller, callee: callee, call: node, edge: -1}
 		}
-		// A closed zero-input definition has no invocation-specific bindings.
-		// The result-use and capture checks below still apply.
+		// A zero-input call needs a recognized result use. Parameterized calls
+		// proceed to the unchanged-formal and closed-definition checks below.
 		directRender := ast.IsArrowFunction(caller.node) && unwrapSourceCallableReference(caller.node.Body()) == node
-		if len(callee.node.Parameters()) != 0 || !(definitionPrimitiveOperand(node, c) || directRender) {
+		addition := node.Parent != nil && ast.IsBinaryExpression(node.Parent) && node.Parent.AsBinaryExpression().OperatorToken.Kind == ast.KindPlusToken
+		if len(callee.node.Parameters()) == 0 && !(addition || strictComparisonOperand(node) || directRender) {
 			return nil
 		}
 	} else if caller.normalInputs.declaration != caller.node || caller.normalInputs.ownedFact != caller {
@@ -248,28 +249,6 @@ func closedDefinitionEffectScope(callee *ast.Node, calleeFormals map[ast.SymbolI
 		return closed
 	})
 	return closed
-}
-
-// A checked primitive addition and a strict comparison consume their operands
-// without calling an authored conversion on either value.
-func definitionPrimitiveOperand(node *ast.Node, c *checker.Checker) bool {
-	if strictComparisonOperand(node) {
-		return true
-	}
-	if node.Parent == nil || !ast.IsBinaryExpression(node.Parent) {
-		return false
-	}
-	binary := node.Parent.AsBinaryExpression()
-	if binary.OperatorToken.Kind != ast.KindPlusToken {
-		return false
-	}
-	for _, operand := range []*ast.Node{binary.Left, binary.Right} {
-		value := c.GetTypeAtLocation(operand)
-		if value == nil || value.Flags()&checker.TypeFlagsPrimitive == 0 {
-			return false
-		}
-	}
-	return true
 }
 
 // Strict equality evaluates both operands without coercing either result.

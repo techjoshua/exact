@@ -293,6 +293,20 @@ func (work *callableEffectWork) prepareSourceInputConsumerDecisions(facts []call
 			if work.legacySourceInputs[operation] {
 				continue
 			}
+			// A direct return forwarding unchanged formals already has a canonical
+			// effect edge. Re-entering its body here would bind the same unresolved
+			// inputs once per path. Concrete argument uses keep the actual binder.
+			if fact.normalInputs == nil && len(call.invocation.actuals) != 0 && ast.IsCallExpression(operation) && ast.IsIdentifier(operation.Expression()) {
+				var parent *callableFacts
+				if outer, ok := nodes[enclosingCallableNode(fact.node)]; ok {
+					parent = &facts[outer]
+				}
+				symbol := owner.checker.GetSymbolAtLocation(operation.Expression())
+				definition := prepareDefinitionMAYCall(fact, &facts[target], operation, symbol, owner.checker, owner, parent)
+				if definition != nil && !definition.opaque {
+					continue
+				}
+			}
 			work.legacySourceInputs[operation] = true
 			// This is the original, explicitly unmigrated input owner. Its result is
 			// consumed for MAY effects only. Normal outputs/identity stay independent.

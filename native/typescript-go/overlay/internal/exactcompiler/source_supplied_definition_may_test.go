@@ -134,7 +134,7 @@ func TestSuppliedDefinitionMAYRefusalEffects(t *testing.T) {
 		{"capture", `declare const captured:{value:string};function leaf(input:{value:string}){return captured.value;}export function run(input:{value:string}){return leaf(input);}`},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			response := NewSession().Execute(Request{Kind: "analyze", ID: "/virtual/supplied-refusal-" + test.name + ".ts", Source: test.source, Diagnostics: "semantic"})
+			response := NewSession().Execute(Request{Kind: "analyze", ID: "/virtual/supplied-refusal-" + test.name + ".ts", Source: test.source + "export function Panel(props:Parameters<typeof run>[0]){return ()=>run(props)}", Diagnostics: "semantic"})
 			if response.Error != "" {
 				t.Fatal(response.Error)
 			}
@@ -170,5 +170,35 @@ func TestSuppliedDefinitionMAYCycleEffects(t *testing.T) {
 		if !browser || !server {
 			t.Fatalf("lost cycle effect: %#v", summary)
 		}
+	}
+}
+
+// An actual receiver at a task invocation supplies precisely the getter or
+// callback effects demanded through multiple definitions forwarding that input.
+func TestSuppliedDefinitionComponentArgumentEffects(t *testing.T) {
+	root, config := formsSourceFixture(t)
+	for _, row := range []struct {
+		name, operation, field string
+		browser                bool
+	}{
+		{"read-getter", "input.children", "get children(){document.title;return ()=>1}", true},
+		{"store-method", "input.children", "children(){document.title;return 1}", false},
+		{"invoke-method", "input.children()", "children(){document.title;return 1}", true},
+		{"skip-getter", "1", "get children(){document.title;return ()=>1}", false},
+	} {
+		t.Run(row.name, func(t *testing.T) {
+			source := "import {type Component,TaskContext} from '@exactjs/core';type Input={children():number};" +
+				"function leaf(input:Input){return " + row.operation + "}function middle(input:Input){return leaf(input)}" +
+				"function outer(input:Input){return middle(input)}export function Page(this:Component<{}>){" +
+				"function run(task:TaskContext=TaskContext.server()){const input={" + row.field + "};outer(input)}" +
+				"return ()=> <button onClick={()=>run()}>run</button>}"
+			for _, target := range []Target{TargetClient, TargetServer} {
+				result := formsCompileSource(t, root, config, source, target)
+				refused := containsDiagnosticCode(result.Diagnostics, "EXACT2001") && strings.Contains(strings.Join(formsDiagnosticDetails(result.Diagnostics), " "), "document")
+				if refused != row.browser || (result.Code == "") != row.browser || !row.browser && hasErrorDiagnostic(result.Diagnostics) {
+					t.Fatalf("%s emitted=%t diagnostics=%v", target, result.Code != "", formsDiagnosticDetails(result.Diagnostics))
+				}
+			}
+		})
 	}
 }

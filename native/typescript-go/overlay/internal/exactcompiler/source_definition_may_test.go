@@ -106,7 +106,7 @@ func TestDefinitionMAYUnknownCoercionRemainsOpaque(t *testing.T) {
 		for level := 1; level <= depth; level++ {
 			source += fmt.Sprintf("function h%d(){return h%d()+h%d();}", level, level-1, level-1)
 		}
-		source += fmt.Sprintf("export const width=h%d;export const stable=1;", depth)
+		source += fmt.Sprintf("export const width=h%d;export const stable=1;export function Panel(){return ()=>h%d()}", depth, depth)
 		session := NewSession()
 		response := session.Execute(Request{Kind: "compile", ID: "/virtual/definition-may-unknown.ts", Target: TargetClient, Source: source})
 		if response.Error != "" || len(response.Diagnostics) != 0 {
@@ -179,7 +179,7 @@ func TestDefinitionMAYDepth28GraphConservation(t *testing.T) {
 			for depth := 1; depth <= 28; depth++ {
 				source += fmt.Sprintf("function h%d(){return h%d()+h%d();}", depth, depth-1, depth-1)
 			}
-			source += "export const width=h28;export const stable=1;"
+			source += "export const width=h28;export const stable=1;export function Panel(){return ()=>h28()}"
 			session := NewSession()
 			response := session.Execute(Request{Kind: "compile", ID: "/virtual/dependency-diamond.ts", Target: target, Source: source})
 			if response.Error != "" || len(response.Diagnostics) != 0 {
