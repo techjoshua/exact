@@ -119,6 +119,11 @@ export function ComponentsPage(this: Component<{}>) {
 					output stays connected to reactive inputs, and each use has its own output while remaining
 					owned by the surrounding component.
 				</p>
+				<p>
+					A component can return the view prepared by a setup helper that accepts props and
+					additional arguments. Call it with <code>setup.call(this, props, initialValue)</code> to
+					give the helper access to the component’s state and lifecycle.
+				</p>
 			</section>
 			<ComponentChildComposition />
 			<section>

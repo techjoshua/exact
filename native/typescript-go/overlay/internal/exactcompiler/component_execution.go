@@ -46,7 +46,10 @@ func attachComponentStateSlots(
 			slots = append(slots, key)
 		}
 		sort.Strings(slots)
-		components[index].StateSlots = slots
+		// A setup helper borrows a receiver and cannot address its own indexed layout.
+		if components[index].TargetArtifact {
+			components[index].StateSlots = slots
+		}
 		components[index].Collections = componentNeedsCollections(
 			components[index], sourceFile, typeChecker,
 		)

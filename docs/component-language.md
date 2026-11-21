@@ -295,6 +295,13 @@ or lifecycle work, schedule asynchronous work, or perform known DOM, storage,
 timer, or other external effects. Interaction callbacks nested in JSX are
 deferred work and may mutate state normally.
 
+To extract render preparation into a module-level setup helper, type its `this` as
+`Component<State>` and give it the props and additional arguments it needs. Return
+`setup.call(this, props, initialValue)` from the component when `setup` returns the
+render function. State written by the helper and lifecycle work it registers belong
+to the receiving component. That owner also reads the resulting view during SSR and
+keeps the view attached to its state and props in the browser.
+
 ### Lexical micro-components
 
 The component body may name small view-only arrows and compose them as JSX tags:

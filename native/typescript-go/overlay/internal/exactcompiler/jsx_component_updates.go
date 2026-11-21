@@ -32,7 +32,7 @@ func (lowering *jsxLowering) registerComponentUpdates(
 		return 0, "", nil, false
 	}
 	component, exists := lowering.componentContaining(identityNode)
-	if !exists {
+	if !exists || !component.TargetArtifact {
 		return 0, "", nil, false
 	}
 	if island := lowering.clientCaptureIsland; island != nil {

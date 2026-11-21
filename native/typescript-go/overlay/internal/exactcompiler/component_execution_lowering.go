@@ -69,7 +69,7 @@ func planComponentTargets(
 			DeferredTaskProps:    deferredServerTaskProps(*component, execution, componentNode, tasks),
 			DirectServer:         directServer,
 			DirectServerFrame:    directServerFrame,
-			DirectServerExecutor: directServerFrame && directServerExecutorSupported(componentNode),
+			DirectServerExecutor: component.TargetArtifact && directServerFrame && directServerExecutorSupported(componentNode),
 			UsesCompatibility:    usesCompatibility,
 		}
 	}

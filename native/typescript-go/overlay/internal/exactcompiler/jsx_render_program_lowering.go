@@ -1211,7 +1211,7 @@ func (lowering *jsxLowering) directReturnedProgram(node *ast.Node, build *render
 		}
 	}
 	component, exists := lowering.componentContaining(node)
-	if !exists || body.Parent.Name() == nil || body.Parent.Name().Text() != component.Name {
+	if !exists || !component.TargetArtifact || body.Parent.Name() == nil || body.Parent.Name().Text() != component.Name {
 		return "", false
 	}
 	// Keys describe sibling identity and are not a substitute for occurrence/escape ownership.
