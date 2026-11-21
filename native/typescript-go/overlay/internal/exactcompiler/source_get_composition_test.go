@@ -142,13 +142,19 @@ func TestGetterMemberProjectionRecursion(t *testing.T) {
 		{"static to instance", `class Helper{run(){window.name;return 1}get selected():()=>number{return this.run}static get selected():()=>number{return new Helper().selected}}export function read(){return Helper.selected()}`, "browser", true},
 	} {
 		t.Run(row.name, func(t *testing.T) {
-			r := NewSession().Execute(Request{Kind: "analyze", ID: "getter-member-projection.ts", Source: row.source, Diagnostics: "semantic"})
+			source := "import type { Component } from '@exactjs/core'; " + row.source + `
+export function Page(this: Component<{}>) {
+	const display = read();
+	return () => display;
+}`
+			fixture := newExecutableFixture(t, map[string]string{"entry.ts": source})
+			r := fixture.session.Execute(fixture.request("analyze", "entry.ts"))
 			if r.Error != "" || hasErrorDiagnostic(r.Diagnostics) {
 				t.Fatalf("invalid fixture: %s %#v", r.Error, r.Diagnostics)
 			}
-			read := findCallable(t, r.Analysis.Callables, "read")
-			if read.Effect != row.effect || settlementBrowser(read) != row.browser {
-				t.Fatalf("member projection changed effects: %#v", read)
+			page := findCallable(t, r.Analysis.Callables, "Page")
+			if page.Effect != row.effect || settlementBrowser(page) != row.browser {
+				t.Fatalf("member projection changed effects: effect=%s browser=%v", page.Effect, settlementBrowser(page))
 			}
 		})
 	}

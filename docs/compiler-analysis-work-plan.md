@@ -73,7 +73,11 @@ The getter-returned method control follows **Start from the consumer** and
 **Visit what executes**. Setup acquires the same getter in each case. Only the
 case that invokes the returned method requires a browser placement. The emitted
 Node helper still checks the original receiver, one Get per attempt and an
-abrupt Get that suppresses invocation.
+abrupt Get that suppresses invocation. A separate setup test preserves the
+same receiver through chained getter results. A recursive read keeps unknown
+beside a reached browser donor, while a dormant sibling contributes no browser
+effect. The eight fixtures agree on both targets in application and library
+compiles under **Carry relationships to their reader**.
 
 The follow-up native snapshot at `2d642dc7f` ran 2,318 groups with 1,874 passes and 444 failures. Compared with `293f657a5`, 24 former failures passed, eight new or replacement groups passed, and four former passes failed. A host JSX assertion was replaced by its ordinary-caller control. The four regressions identify ordinary host JSX and the receiver scope of three keyed collection paths. The derived and imported-key witnesses trace the receiver of a materialized map back to its authored occurrence.
 
