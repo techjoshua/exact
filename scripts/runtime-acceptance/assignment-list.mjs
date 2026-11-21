@@ -56,6 +56,8 @@ export async function state(retained){const result=await renderToHydratableStrin
 		outfile: clientFile,
 		bundle: true,
 		platform: 'browser',
+		jsx: 'automatic',
+		jsxImportSource: '@exactjs/jsx',
 		format: 'esm',
 		logLevel: 'silent'
 	});
@@ -64,6 +66,8 @@ export async function state(retained){const result=await renderToHydratableStrin
 		outfile: serverFile,
 		bundle: true,
 		platform: 'node',
+		jsx: 'automatic',
+		jsxImportSource: '@exactjs/jsx',
 		format: 'esm',
 		logLevel: 'silent'
 	});
