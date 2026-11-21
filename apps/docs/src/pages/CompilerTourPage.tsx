@@ -131,7 +131,8 @@ export function CompilerTourPage(this: Component<{}>) {
 					<code>DataView</code> operations can execute in either environment. Custom methods retain
 					the requirements of the code they call. A mapper passed to <code>Array.from()</code> or a
 					typed-array factory contributes those requirements too. Core operations can store a callback
-					for later execution. Creating an operation can run getters on its metadata. Executing the
+					for later execution. Creating an operation can run a domain getter or read enumerable values when copying
+					keyed metadata. Executing the
 					operation runs the stored callback, so a known browser callback belongs on the client at
 					that point.
 				</p>

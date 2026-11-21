@@ -69,18 +69,18 @@ func appendPublicOperationEffects(fact *callableFacts, facts []callableFacts, no
 	}
 	args := call.Arguments.Nodes
 	if operation == "createOpaqueOperation" {
-		if len(args) > 1 && !plainOperationMetadata(unwrapSourceCallableReference(args[1])) {
+		if len(args) > 1 && !inertOperationMetadata(args[1], owner) {
 			metadata := args[1]
 			q := newSourceDependencyQuery(node, owner.checker, owner, fact.node)
 			defer q.publishDependencyStatistics()
 			part := accessorCandidates{}
-			// Both keys are read on a normally completing metadata lookup. Inherited
-			// domain and other fields are conditional, including on a proxy.
-			for _, key := range []string{"readKey", "key"} {
+			// Native metadata lookup includes inherited fields, while snapshotting
+			// the selected metadata copies only enumerable own values.
+			for _, key := range []string{"readKey", "key", "domain"} {
 				mergeAccessorCandidates(&part, q.accessors(metadata, nil, key, accessorRead, nil, nil))
 			}
-			// Domain lookup and enumerable-property copying depend on runtime
-			// values. The key reads above cannot establish those effects.
+			mergeAccessorCandidates(&part, q.accessors(metadata, nil, "", accessorEnumerate, nil, nil))
+			// Unknown getters and proxy hooks remain alongside the known ones.
 			unknown()
 			appendOpaqueAccessorEffect(fact, part)
 			appendSourceValueWrites(fact, part, owner.checker)
@@ -147,15 +147,39 @@ func appendPublicOperationEffects(fact *callableFacts, facts []callableFacts, no
 }
 
 func directOpaqueOperationCall(node *ast.Node) bool {
-	return !ast.IsOptionalChain(node) && (node.AsCallExpression().Arguments == nil ||
-		!slices.ContainsFunc(node.AsCallExpression().Arguments.Nodes, ast.IsSpreadElement))
+	return node.AsCallExpression().Arguments == nil ||
+		!slices.ContainsFunc(node.AsCallExpression().Arguments.Nodes, ast.IsSpreadElement)
 }
 
-// A fresh literal consisting of ordinary data properties and methods has no
-// accessor or proxy hooks. Evaluating property initializers stays on the caller.
-func plainOperationMetadata(metadata *ast.Node) bool {
-	return ast.IsObjectLiteralExpression(metadata) && !slices.ContainsFunc(metadata.AsObjectLiteralExpression().Properties.Nodes, func(p *ast.Node) bool {
-		return !(ast.IsPropertyAssignment(p) || ast.IsShorthandPropertyAssignment(p) || ast.IsMethodDeclaration(p)) ||
-			p.Name() == nil || ast.IsComputedPropertyName(p.Name()) || p.Name().Text() == "__proto__"
-	})
+// Metadata cannot execute a getter when all its own properties are data, or when
+// Core can only take its no-metadata or domain-only paths.
+// A local literal exclusively consumed here has the same shape as an inline one.
+func inertOperationMetadata(metadata *ast.Node, owner *executableBodyOwner) bool {
+	metadata = singleUseObjectLiteral(metadata, owner)
+	if metadata == nil {
+		return false
+	}
+	hasAccessor, mayCopy := false, false
+	for _, field := range metadata.AsObjectLiteralExpression().Properties.Nodes {
+		if ast.IsSpreadAssignment(field) || field.Name() == nil || ast.IsComputedPropertyName(field.Name()) || field.Name().Text() == "__proto__" {
+			return false
+		}
+		isAccessor := ast.IsGetAccessorDeclaration(field) || ast.IsSetAccessorDeclaration(field)
+		hasAccessor = hasAccessor || isAccessor
+		switch field.Name().Text() {
+		case "readKey", "key", "domain":
+			if !ast.IsPropertyAssignment(field) {
+				mayCopy = true
+				continue
+			}
+			value := unwrapSourceCallableReference(field.Initializer())
+			if value != nil && field.Name().Text() == "domain" && ast.IsObjectLiteralExpression(value) {
+				continue // A defined domain alone selects the unkeyed domain prototype.
+			}
+			if value == nil || !ast.IsIdentifier(value) || value.Text() != "undefined" || !owner.checker.IsUndefinedSymbol(owner.checker.GetSymbolAtLocation(value)) {
+				mayCopy = true
+			}
+		}
+	}
+	return !hasAccessor || !mayCopy
 }

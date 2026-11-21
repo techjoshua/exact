@@ -122,7 +122,9 @@ components retain their existing operation and adoption path.
 
 Core's `createOpaqueOperation(executor, metadata)` stores the executor. Evaluating the arguments
 and reading metadata happen during construction. A metadata getter can therefore require a
-specific execution target even when the executor remains dormant. A later
+specific execution target even when the executor remains dormant. Looking up the domain can
+run an inherited getter. When construction snapshots keyed metadata, it reads enumerable own
+values, including additional fields. An ordinary unkeyed domain alone needs no such copy. A later
 `executeOpaqueOperation(operation, target)` calls the stored executor with the operation as its
 receiver and the target as its argument. When the compiler resolves the public Core declaration
 and traces a direct operation or immutable local reference to a known executor, its platform
