@@ -1,4 +1,4 @@
-import { readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import assert from 'node:assert/strict';
 import { compileProjectArtifacts } from '@exactjs/compiler';
@@ -68,8 +68,25 @@ export function hostIdentityCapability(unsafeHtml:(value:string)=>string){return
 		''
 	);
 	source += '\nexport { StatePublicationProbe as StateClearExecutorPage };\n';
+	const sourceRoot = path.join(temporary, 'task-capture-source');
+	await mkdir(sourceRoot);
+	// The shadowed render calls retain authored JSX for the host to compile.
 	await writeFile(
-		path.join(temporary, 'state-publication-helper.ts'),
+		path.join(sourceRoot, 'tsconfig.json'),
+		JSON.stringify({
+			compilerOptions: {
+				target: 'ES2022',
+				module: 'ESNext',
+				moduleResolution: 'Bundler',
+				jsx: 'react-jsx',
+				jsxImportSource: '@exactjs/jsx',
+				skipLibCheck: true
+			},
+			files: ['TaskCaptures.tsx']
+		})
+	);
+	await writeFile(
+		path.join(sourceRoot, 'state-publication-helper.ts'),
 		await readFile(
 			path.join(
 				root,
@@ -78,11 +95,11 @@ export function hostIdentityCapability(unsafeHtml:(value:string)=>string){return
 			'utf8'
 		)
 	);
-	const entry = path.join(temporary, 'TaskCaptures.tsx');
+	const entry = path.join(sourceRoot, 'TaskCaptures.tsx');
 	await writeFile(entry, source);
 	const artifacts = await compileProjectArtifacts([entry], {
-		rootDir: temporary,
-		outDir: path.join(temporary, 'task-captures'),
+		rootDir: sourceRoot,
+		outDir: path.join(sourceRoot, 'artifacts'),
 		generatedValidation: 'semantic'
 	});
 	const artifact = artifacts.find((artifact) => artifact.inputFile === entry);
