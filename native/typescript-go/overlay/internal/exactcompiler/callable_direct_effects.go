@@ -123,7 +123,8 @@ func collectDirectCallableEffects(
 	if runtimeModuleEvaluation(fact.node) {
 		moduleFlow = &sourceValueQuery{owner: owner.values, executable: owner, effectOwner: fact.node, dependenciesOnly: true, active: make(map[*ast.Node]bool)}
 	}
-	possibleEvent := owner.values.index(sourceFile).possibleEventConstructor
+	localIndex := owner.values.index(sourceFile)
+	possibleEvent := localIndex.possibleEventConstructor
 	consumeNode := func(node *ast.Node) bool {
 		recordMutationWriterTemplate(fact, node, owner)
 		recordOriginalMutationBodyOperation(fact, node, owner)
@@ -197,6 +198,12 @@ func collectDirectCallableEffects(
 			if callbacks := eventDispatchCallbacks(node, owner); len(callbacks) != 0 {
 				appendInvokedCallbackReferences(fact, facts, node, callbacks, 0, sourceFile, typeChecker, nodeTargets, symbolTargets, importBindings)
 			}
+		}
+		if localIndex.possibleByteStorage && (ast.IsCallExpression(node) || ast.IsPropertyAccessExpression(node)) && localByteStorageOperation(node, owner.values) {
+			if ast.IsCallExpression(node) && hasByteStorageConversion(node, typeChecker) {
+				appendImplicitAccessorEffects(fact, node, nodeTargets, sourceFile, typeChecker, nil, owner, accessorWork, facts)
+			}
+			return true
 		}
 		if possibleEvent && (ast.IsCallExpression(node) || ast.IsAccessExpression(node)) && freshEventMember(node, owner) {
 			return true

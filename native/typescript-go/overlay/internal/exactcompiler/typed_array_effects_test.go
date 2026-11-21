@@ -56,3 +56,29 @@ func TestStandardByteStorageMemberEffects(t *testing.T) {
 		})
 	}
 }
+
+// Numeric conversion belongs to the task using the byte storage. DataView
+// converts its endian flag to a boolean without invoking an object method.
+func TestTaskByteStorageArgumentEffects(t *testing.T) {
+	root, config := formsSourceFixture(t)
+	for _, row := range []struct {
+		name, body string
+		browser    bool
+	}{
+		{"fill-value", "const b=new Uint8Array(2);b.fill(1)", false},
+		{"fill-conversion", "const b=new Uint8Array(2);b.fill({valueOf(){document.title;return 1}} as any)", true},
+		{"offset", "const v=new DataView(new ArrayBuffer(4));v.getUint8({valueOf(){document.title;return 0}} as any)", true},
+		{"endian", "const v=new DataView(new ArrayBuffer(4));v.getUint16(0,{valueOf(){document.title;return 1}} as any)", false},
+	} {
+		t.Run(row.name, func(t *testing.T) {
+			source := "import {type Component,TaskContext} from '@exactjs/core';export function Page(this:Component<{}>){function run(task:TaskContext=TaskContext.server()){" + row.body + "}return ()=> <button onClick={()=>run()}>run</button>}"
+			for _, target := range []Target{TargetClient, TargetServer} {
+				result := formsCompileSource(t, root, config, source, target)
+				refused := containsDiagnosticCode(result.Diagnostics, "EXACT2001") && strings.Contains(strings.Join(formsDiagnosticDetails(result.Diagnostics), " "), "document")
+				if refused != row.browser || (result.Code == "") != row.browser || !row.browser && hasErrorDiagnostic(result.Diagnostics) {
+					t.Fatalf("%s emitted=%t diagnostics=%v", target, result.Code != "", formsDiagnosticDetails(result.Diagnostics))
+				}
+			}
+		})
+	}
+}

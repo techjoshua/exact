@@ -20,6 +20,7 @@ type sourceValueIndex struct {
 	bindings                 map[ast.SymbolId][]sourceValueAssignment
 	memberOrigins            map[*ast.Node][]sourceValueAssignment
 	dynamicMembers           []sourceValueAssignment
+	possibleByteStorage      bool
 	possibleEventConstructor bool // Syntax prefilter for source-local Event and EventTarget allocations.
 	numberReplaced           bool
 	objectEntriesWritten     bool
@@ -144,9 +145,12 @@ func (owner *sourceValueOwner) index(source *ast.SourceFile) sourceValueIndex {
 				return false
 			}
 			if ast.IsNewExpression(node) || ast.IsTaggedTemplateExpression(node) {
-				if !index.possibleEventConstructor && ast.IsNewExpression(node) {
+				if ast.IsNewExpression(node) && (!index.possibleEventConstructor || !index.possibleByteStorage) {
 					name := unwrapSourceCallableReference(node.Expression())
-					index.possibleEventConstructor = ast.IsIdentifier(name) && (name.Text() == "Event" || name.Text() == "EventTarget")
+					if ast.IsIdentifier(name) {
+						index.possibleEventConstructor = index.possibleEventConstructor || name.Text() == "Event" || name.Text() == "EventTarget"
+						index.possibleByteStorage = index.possibleByteStorage || standardByteStorageName(name.Text())
+					}
 				}
 				// These executable forms do not have call-index ownership proof.
 				index.numberOpenCalls = append(index.numberOpenCalls, node)

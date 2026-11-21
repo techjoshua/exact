@@ -12,8 +12,15 @@ import (
 // Callers must still prove declaration ownership before granting execution authority.
 func portableNativeContainerName(name string) bool {
 	switch name {
-	case "Map", "Set", "Array", "ReadonlyMap", "ReadonlySet", "ReadonlyArray",
-		"Int8Array", "Uint8Array", "Uint8ClampedArray", "Int16Array", "Uint16Array", "Int32Array", "Uint32Array",
+	case "Map", "Set", "Array", "ReadonlyMap", "ReadonlySet", "ReadonlyArray":
+		return true
+	}
+	return standardByteStorageName(name)
+}
+
+func standardByteStorageName(name string) bool {
+	switch name {
+	case "Int8Array", "Uint8Array", "Uint8ClampedArray", "Int16Array", "Uint16Array", "Int32Array", "Uint32Array",
 		"Float32Array", "Float64Array", "BigInt64Array", "BigUint64Array", "ArrayBuffer", "DataView":
 		return true
 	default:

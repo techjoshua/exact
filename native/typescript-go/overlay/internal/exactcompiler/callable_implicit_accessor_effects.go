@@ -80,6 +80,18 @@ func visitImplicitAccessors(node *ast.Node, typeChecker *checker.Checker, bindin
 // implicitAccessorQueries shares implicit property reads across callable and module effects.
 func (q *sourceValueQuery) implicitAccessorQueries(node *ast.Node, bindings sourceValueBindings, result *accessorCandidates) {
 	typeChecker := q.owner.checker
+	if ast.IsCallExpression(node) && ast.IsPropertyAccessExpression(node.Expression()) && q.owner.index(ast.GetSourceFileOfNode(node)).possibleByteStorage && localByteStorageOperation(node, q.owner) {
+		args := node.AsCallExpression().Arguments
+		if args != nil {
+			count := byteStorageNumericArguments(node.Expression().Name().Text())
+			for _, arg := range args.Nodes[:min(count, len(args.Nodes))] {
+				if !checkedPrimitiveOperand(arg, typeChecker) {
+					q.primitiveConversionEffects(node, arg, bindings, false, result)
+				}
+			}
+		}
+		return
+	}
 	if ast.IsTemplateSpan(node) {
 		q.primitiveConversionEffects(node, node.AsTemplateSpan().Expression, bindings, true, result)
 		return

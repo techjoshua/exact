@@ -133,7 +133,9 @@ export function CompilerTourPage(this: Component<{}>) {
 				<p>
 					The server context and browser <code>document</code> access tell the compiler where each
 					task runs. Standard JavaScript byte arrays, <code>ArrayBuffer</code> and
-					<code>DataView</code> operations can execute in either environment. Custom methods retain
+					<code>DataView</code> operations can execute in either environment. A numeric offset can
+					call an object’s conversion method. A boolean option such as a <code>DataView</code>
+					endianness flag uses the object’s truthiness. Custom methods retain
 					the requirements of the code they call. This includes a custom string conversion that runs
 					when an object is interpolated into a template string. Adding two helper results can also
 					call an object’s <code>valueOf()</code> method. If that method reads <code>document</code>,

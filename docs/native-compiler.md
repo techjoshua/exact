@@ -1333,6 +1333,10 @@ the substitution directly. Checked primitive substitutions need no hook lookup. 
 conversion hint and queries the returned object when a helper call supplies the operand. Strict
 comparison preserves object identity without entering these hooks.
 
+For local standard byte-storage allocations, numeric arguments to typed-array fill, subarray and slice
+and DataView reads and writes can run an authored conversion on the executing target. DataView endianness
+flags use boolean conversion. Scalar operations on private, unmodified receivers retain portable placement.
+
 For an acquired standard `Object.getOwnPropertyDescriptor`, original source Effects
 retain coercion-hook retrieval separately from calling an acquired hook. The key
 method receives the original key receiver and its captured scope through the existing
