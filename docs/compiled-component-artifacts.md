@@ -120,6 +120,11 @@ optional compiler boundary identity through an additive decorator. The DOM adopt
 that matching server placeholder and leaves unrelated parent ranges intact. Ordinary paired
 components retain their existing operation and adoption path.
 
+An eager module initializer may freeze an object or array literal, including a named constant
+initialized with that literal, before supplying a component. Standard freeze reads own
+descriptors. An accessor body runs when a later operation reads its value. Freezing a Proxy
+can execute authored traps and retains its separate placement requirements.
+
 A task that destructures a local object acquires the current field value, including the result
 of an authored getter. Calling a known function from that binding imposes the function's
 platform requirements even if the original field is subsequently replaced. A direct dense

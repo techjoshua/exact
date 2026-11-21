@@ -192,3 +192,35 @@ func TestSourceFreezeTupleSpreadDonor(t *testing.T) {
 	}
 	t.Fatal("tuple spread lost its getter donor")
 }
+
+// Real components can read their module's frozen lookup tables on either target.
+// Foreign objects still carry their integrity traps into initializer placement.
+func TestFrozenLiteralComponentInitializer(t *testing.T) {
+	root, config := formsSourceFixture(t)
+	for _, row := range []struct {
+		name, initializer string
+		opaque            bool
+	}{
+		{"inline array", "Object.freeze([1,2]).length", false},
+		{"named array", "Object.freeze(xs).length", false},
+		{"named object", "Object.freeze(record).n", false},
+		{"unused getter", "Object.freeze({n:2,get other(){return document.title}}).n", false},
+		{"foreign target", "Object.freeze(foreign).n", true},
+	} {
+		t.Run(row.name, func(t *testing.T) {
+			source := `import {type Component} from '@exactjs/core';declare const foreign:{n:number};
+const xs=[1,2];const record={n:2};const n=` + row.initializer + `;
+export function Page(this:Component<{}>){return()=> <div>{n}</div>}`
+			for _, target := range []Target{TargetClient, TargetServer} {
+				result := formsCompileSource(t, root, config, source, target)
+				if row.opaque {
+					if !containsDiagnosticCode(result.Diagnostics, "EXACT2101") {
+						t.Fatalf("%s lost opaque target: %v", target, formsDiagnosticDetails(result.Diagnostics))
+					}
+				} else if result.Code == "" || hasErrorDiagnostic(result.Diagnostics) {
+					t.Fatalf("%s refused ordinary freeze: %v", target, formsDiagnosticDetails(result.Diagnostics))
+				}
+			}
+		})
+	}
+}
