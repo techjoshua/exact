@@ -169,6 +169,17 @@ resource check now requires the owning receiver at the invocation under rules
 3, 5 and 6. The paired controls use direct or computed receiver-preserving
 calls, and the bare alias receives the existing ownership diagnostic.
 
+The remaining computed lifecycle fixtures now check the literal JSX use
+separately from the placement of its portable component definition. The
+client callback stays outside SSR, and a computed key still runs at
+registration. The ref and reactive checks retain their focused server helpers
+and cell provenance. Paired SDK rendering and strict hydration keep the
+original button, read its mounted ref and update the reactive text from
+`2` to `3`. The Vite Activity control observes an empty server callback log
+and activation, deactivation and reactivation in Chromium. These controls
+replace unrestricted placement assertions with
+observed use-site and runtime contracts under rules 1, 2, 3 and 7.
+
 The separate installed-island gate fails all eight cases before browser activation. The source-removed producer receives EXACT2101 for the `createIntlEnvironment` initializer. The physical package supplies both runtime artifacts, its checked declaration and publication metadata for compiled components. The ordinary factory has no published analysis record. Component definitions and portable contracts follow the same rules in applications and libraries. Missing ordinary-call evidence stays missing in either mode. This audit requires no new package metadata or library-specific selection policy.
 
 At `9fe066f0e`, matched paired SDK application and library requests produce byte-identical component artifacts for each target, with the same logical identity, imports, configuration and installed dependencies. Both diagnose the ordinary initializer. The Vite adapter requests host preservation of ordinary modules and renders the literal-options case. Its server output fails with a directly eager browser read and with a browser getter read by the installed callee. Separate installed fixtures with the same declaration and exports use literal arguments, including a no-argument control, and alternate portable and browser-dependent server bodies. They show that inert arguments account for the caller's eager evaluation, while the callee and required server-render availability remain uncertain. The same authored getter remains dormant when the selected implementation ignores it. This is an implementation gap at the component's required module boundary under rules 1, 2, 4 and 6 of the [final traversal and persistence rules](compiler-architecture-completion-plan.md#final-traversal-and-persistence-rules).

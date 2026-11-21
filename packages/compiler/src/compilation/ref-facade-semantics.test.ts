@@ -3,8 +3,10 @@ import path from 'node:path';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { expect, it, onTestFinished } from 'vitest';
 import type { AnyComponentFunction } from '@exactjs/core';
+import { composeExactComponentContracts } from '@exactjs/core/framework/component-contracts';
 import { createCompiledComponentInputReceipt as receipt } from '@exactjs/core/runtime/component-operations';
-import { renderToString } from '@exactjs/ssr';
+import { hydrate } from '@exactjs/hydrate';
+import { renderToHydratableString, renderToString } from '@exactjs/ssr';
 import { render, dispose } from '@exactjs/dom';
 import { compileFileArtifacts } from '../index.js';
 import { createCompilerTestWorkspace } from '../test-support/workspace.js';
@@ -46,6 +48,64 @@ export function Page(this:Component<{label:string}>) {
 	});
 	await expect.poll(() => host.textContent).toBe('mounted');
 	expect(errors).toEqual([]);
+});
+
+it('adopts computed lifecycle and ref selections and retains reactive updates', async () => {
+	const workspace = await createCompilerTestWorkspace('computed-component-surface-', process.cwd());
+	const input = path.join(workspace, 'page.tsx');
+	await writeFile(
+		input,
+		`import {createRef,type Component} from '@exactjs/core';
+export const events:string[]=[];
+const reactive='reactive' as const;
+const ref='ref' as const;
+const token=createRef<HTMLButtonElement>('counter');
+function key(){ events.push('key'); return 'onMount' as const; }
+function Child(this:Component<{label:string;count:number}>,props:{operation:'onMount'}) {
+	this.state.label='starting';
+	this.state.count=1;
+	this[props.operation](()=>{this.state.label='mounted'});
+	const callback=()=>{events.push(this.refs.get(token)?.id??'missing');};
+	this[key()](callback);
+	const acquire=this[reactive];
+	const value=acquire(()=>this.state.count+1);
+	const binding=this[ref]?.(token);
+	return()=> <section><p>{this.state.label}</p><button id="counter" ref={binding} onClick={()=>this.state.count++}>{value.get()}</button></section>;
+}
+export function Page(){return()=> <Child operation="onMount"/>}`
+	);
+	const artifact = await compileFileArtifacts(input, {
+		rootDir: workspace,
+		outDir: path.join(workspace, 'generated')
+	});
+	const server = await importArtifact(artifact.serverFile, path.join(workspace, 'server.mjs'));
+	const output = await renderToHydratableString(receipt(server.Page as AnyComponentFunction, {}));
+	expect(output.html).toContain('<p>starting</p>');
+	expect(server.events).toEqual(['key']);
+
+	const client = await importArtifact(artifact.clientFile, path.join(workspace, 'client.mjs'));
+	const root = document.createElement('div');
+	root.innerHTML = output.html;
+	const button = root.querySelector('button')!;
+	const errors: unknown[] = [];
+	const component = client.Page as AnyComponentFunction;
+	const view = hydrate(receipt(component, {}), root, {
+		...composeExactComponentContracts([component], 'client'),
+		resumptions: output.resumptions,
+		onMismatch: 'throw',
+		onErrorReport: (report) => errors.push(report.error)
+	});
+	try {
+		expect(root.querySelector('button')).toBe(button);
+		await expect.poll(() => root.querySelector('p')?.textContent).toBe('mounted');
+		expect(client.events).toEqual(['key', 'counter']);
+		expect(button.textContent).toBe('2');
+		button.click();
+		await expect.poll(() => button.textContent).toBe('3');
+		expect(errors).toEqual([]);
+	} finally {
+		view.dispose();
+	}
 });
 
 for (const access of ['direct', 'literal', 'extracted', 'binding', 'root'] as const)

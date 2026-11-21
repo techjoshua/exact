@@ -45,24 +45,42 @@ func TestComponentOwnedComputedMembers(t *testing.T) {
 }
 
 // Client lifecycle callbacks remain outside server execution regardless of member spelling.
+// A literal JSX selection belongs to its specific use of a prop-dependent component.
 func TestComponentComputedClientLifecyclePlacement(t *testing.T) {
 	for _, phase := range []string{"onMount", "onActivate", "onDeactivate"} {
 		for _, member := range []string{"this." + phase, "this['" + phase + "']", "this[key]", "this[props.operation]"} {
 			for _, target := range []Target{TargetClient, TargetServer} {
 				t.Run(phase+"/"+member+"/"+string(target), func(t *testing.T) {
-					response := NewSession().Execute(Request{
-						Kind: "compile", ID: "computed-client-lifecycle.tsx", Target: target, Diagnostics: "semantic",
-						Source: `import {type Component} from '@exactjs/core';
+					source := `import {type Component} from '@exactjs/core';
 						const key='` + phase + `' as const;
 						export function Page(this:Component<{}>,props:{operation:'` + phase + `'}) {
 						 ` + member + `(()=>window.alert('mounted'));
 						 return()=> <p>Ready</p>;
-						}`,
+						}`
+					response := NewSession().Execute(Request{
+						Kind: "compile", ID: "computed-client-lifecycle.tsx", Target: target, Diagnostics: "semantic",
+						Source: source,
 					})
 					if response.Error != "" || len(response.Diagnostics) != 0 {
 						t.Fatalf("lifecycle compile failed: %s %#v", response.Error, response.Diagnostics)
 					}
-					if len(response.Analysis.Components) != 1 || response.Analysis.Components[0].Placement != "isomorphic" {
+					if len(response.Analysis.Components) != 1 {
+						t.Fatalf("lifecycle component missing: %#v", response.Analysis.Components)
+					}
+					placement := response.Analysis.Components[0].Placement
+					if member == "this[props.operation]" {
+						withCaller := NewSession().Execute(Request{
+							Kind: "compile", ID: "computed-client-lifecycle.tsx", Target: target, Diagnostics: "semantic",
+							Source: source + `export function Parent(){return()=> <Page operation="` + phase + `"/>}`,
+						})
+						if withCaller.Error != "" || len(withCaller.Diagnostics) != 0 {
+							t.Fatalf("literal lifecycle use failed: %s %#v", withCaller.Error, withCaller.Diagnostics)
+						}
+						if len(withCaller.Analysis.Components) != 2 || withCaller.Analysis.Components[0].Placement != placement ||
+							withCaller.Analysis.Components[1].Placement != "isomorphic" {
+							t.Fatalf("literal lifecycle delivery changed the component definition: %#v", withCaller.Analysis.Components)
+						}
+					} else if placement != "isomorphic" {
 						t.Fatalf("member syntax changed placement: %#v", response.Analysis.Components)
 					}
 					if strings.Contains(response.Code, "window.alert") != (target == TargetClient) {
@@ -130,7 +148,8 @@ func TestComputedRefAndReactiveMemberLowering(t *testing.T) {
 					if response.Error != "" || len(response.Diagnostics) != 0 {
 						t.Fatalf("computed method compile failed: %s %#v", response.Error, response.Diagnostics)
 					}
-					if len(response.Analysis.Components) != 1 || response.Analysis.Components[0].Placement != "isomorphic" {
+					if len(response.Analysis.Components) != 1 ||
+						member != "this[key]" && response.Analysis.Components[0].Placement != "isomorphic" {
 						t.Fatalf("computed operation lost native placement: %#v", response.Analysis.Components)
 					}
 					if target == TargetServer && !strings.Contains(response.Code, method.helper) {
@@ -206,9 +225,6 @@ func TestComputedLifecycleKeyEvaluationSurvivesServerErasure(t *testing.T) {
 		if response.Error != "" || len(response.Diagnostics) != 0 {
 			t.Fatalf("valid finite lifecycle rejected: %s %#v", response.Error, response.Diagnostics)
 		}
-		if response.Analysis.Components[0].Placement != "isomorphic" {
-			t.Fatalf("named lifecycle callback changed placement: %#v", response.Analysis.Components)
-		}
 		if !strings.Contains(response.Code, "void key()") {
 			t.Fatalf("key evaluation erased: %s", response.Code)
 		}
@@ -254,9 +270,6 @@ func TestComputedServerMethodAccessForms(t *testing.T) {
 			response := NewSession().Execute(Request{Kind: "compile", ID: "computed-access-forms.tsx", Target: TargetServer, Diagnostics: "semantic", Source: source})
 			if response.Error != "" || len(response.Diagnostics) != 0 {
 				t.Fatalf("valid method access rejected: %s %#v", response.Error, response.Diagnostics)
-			}
-			if response.Analysis.Components[0].Placement != "isomorphic" {
-				t.Fatalf("method access lost placement: %#v", response.Analysis.Components)
 			}
 			if !strings.Contains(response.Code, operation.helper) || !strings.Contains(response.Code, "void key") {
 				t.Fatalf("request-local lookup lost: %s", response.Code)
