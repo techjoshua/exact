@@ -381,9 +381,9 @@ func (query *sourceValueQuery) reflectiveMemberValuesAtGet(origin *ast.Node, pro
 }
 
 // returnedLiteralReflectiveWriter preserves a possible descriptor on the local
-// literal that the selected factory returned directly into this member read.
-// The creator's Call is inside the read, so indexed discovery cannot reopen it
-// as an earlier occurrence. The selected inputs contribute a MAY row only.
+// literal reached while projecting a selected factory return. The current
+// creator identifies this allocation and its return cut even when an outer
+// record carries the receiver. The selected inputs contribute a MAY row only.
 func (q *sourceValueQuery) returnedLiteralReflectiveWriter(operation, origin *ast.Node, mode accessorTraversal, bindings sourceValueBindings, result *accessorCandidates) (sourceMemberWriterInput, bool) {
 	if mode != accessorRead && mode != accessorAcquire || !ast.IsObjectLiteralExpression(origin) || q.inputs == nil || !q.descriptorWriterCall(operation.AsCallExpression()) {
 		return sourceMemberWriterInput{}, false
@@ -393,16 +393,15 @@ func (q *sourceValueQuery) returnedLiteralReflectiveWriter(operation, origin *as
 		return sourceMemberWriterInput{}, false
 	}
 	creator := q.creators[writer]
-	if creator.invocation == nil || creator.returning == nil || q.inputs.invocation != creator.invocation || !q.inlineMemberReceiver(creator.invocation) || operation.End() > creator.returning.Pos() {
+	if creator.invocation == nil || creator.returning == nil || q.inputs.invocation != creator.invocation || operation.End() > creator.returning.Pos() {
 		return sourceMemberWriterInput{}, false
 	}
 	target := unwrapSourceCallableReference(operation.AsCallExpression().Arguments.Nodes[0])
-	returned := unwrapSourceCallableReference(creator.returning)
-	if !ast.IsIdentifier(target) || !ast.IsIdentifier(returned) {
+	if !ast.IsIdentifier(target) {
 		return sourceMemberWriterInput{}, false
 	}
 	symbol := q.owner.checker.GetSymbolAtLocation(target)
-	if symbol == nil || symbol != q.owner.checker.GetSymbolAtLocation(returned) {
+	if symbol == nil {
 		return sourceMemberWriterInput{}, false
 	}
 	local := symbol.ValueDeclaration
@@ -413,19 +412,6 @@ func (q *sourceValueQuery) returnedLiteralReflectiveWriter(operation, origin *as
 		return sourceMemberWriterInput{}, false
 	}
 	return sourceMemberWriterInput{call: creator.invocation, scope: q.acquireCallableScope(bindings, result), incomplete: true}, true
-}
-
-// inlineMemberReceiver ties the selected creator to its original receiver
-// expression even when the lookup is part of an invocation.
-func (q *sourceValueQuery) inlineMemberReceiver(creator *ast.Node) bool {
-	member := q.reading
-	if ast.IsCallExpression(member) {
-		member = unwrapSourceCallableReference(member.Expression())
-	}
-	if !ast.IsPropertyAccessExpression(member) && !ast.IsElementAccessExpression(member) {
-		return false
-	}
-	return unwrapSourceCallableReference(member.Expression()) == creator
 }
 
 // sourceReflectiveMemberCandidate is shared by early source publication and

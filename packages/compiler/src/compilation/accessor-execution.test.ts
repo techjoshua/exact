@@ -4,6 +4,7 @@ import { writeFile } from 'node:fs/promises';
 import { expect, it, onTestFinished } from 'vitest';
 import { createCompiledComponentInputReceipt as receipt } from '@exactjs/core/runtime/component-operations';
 import { render, unmount } from '@exactjs/dom';
+import { renderToString } from '@exactjs/ssr';
 import { compileProjectArtifacts } from '../index.js';
 import { createCompilerTestWorkspace } from '../test-support/workspace.js';
 import { importArtifact } from '../test-support/import-artifact.js';
@@ -93,3 +94,92 @@ it.each([
 	expect(host.textContent).toBe(window.location.href);
 	expect(reports).toEqual([]);
 });
+
+it.each([
+	{
+		name: 'nested browser Get',
+		body: 'const environment=make();',
+		value: 'environment.state.locale',
+		expected: 'browser title',
+		browser: true
+	},
+	{
+		name: 'direct receiver Get',
+		factoryResult: 'state.locale',
+		value: 'make()',
+		expected: 'browser title',
+		browser: true
+	},
+	{
+		name: 'nested neutral Get',
+		getter: "'installed'",
+		value: 'make().state.locale',
+		expected: 'installed',
+		browser: false
+	},
+	{ name: 'dormant getter', value: 'make().sourceLocale', expected: 'en', browser: false },
+	{
+		name: 'different receiver',
+		factoryResult: "{state:{locale:'separate'},other:state}",
+		value: 'make().state.locale',
+		expected: 'separate',
+		browser: false
+	},
+	{
+		name: 'other invocation of the same factory',
+		guard: 'if (active) ',
+		body: 'const other=make(true); const environment=make(false);',
+		value: 'environment.state.locale',
+		expected: 'initial',
+		browser: false
+	},
+	{
+		name: 'lexically shadowed installer',
+		setup:
+			'const Object={defineProperty(_target:object,_name:string,_descriptor:PropertyDescriptor){}};',
+		value: 'make().state.locale',
+		expected: 'initial',
+		browser: false
+	}
+])(
+	'retains factory descriptor ownership for $name in both artifacts',
+	async ({ name, setup, guard, getter, factoryResult, body, value, expected, browser }) => {
+		const root = await createCompilerTestWorkspace('.exact-nested-descriptor-', process.cwd());
+		const entry = path.join(root, 'page.tsx');
+		await writeFile(
+			entry,
+			`
+function make(${guard ? 'active:boolean' : ''}) {
+	${setup ?? ''}
+	const state = {locale:'initial'};
+	${guard ?? ''}Object.defineProperty(state, 'locale', {get: () => ${getter ?? 'document.title'}});
+	return ${factoryResult ?? "{sourceLocale:'en',state}"};
+}
+export function Page() { ${body ?? ''} return () => <p>{${value}}</p>; }
+`
+		);
+		const [artifact] = await compileProjectArtifacts([entry], {
+			rootDir: root,
+			outDir: path.join(root, 'generated')
+		});
+		const title = document.title;
+		document.title = 'browser title';
+		onTestFinished(() => {
+			document.title = title;
+		});
+		const server = await importArtifact(artifact!.serverFile, path.join(root, 'server.mjs'));
+		const { html } = await renderToString(receipt(server.Page as never, {}), { markers: false });
+		if (browser) expect(html, name).toContain('data-exact-client-boundary=');
+		else expect(html, name).toBe(`<p>${expected}</p>`);
+
+		const client = await importArtifact(artifact!.clientFile, path.join(root, 'client.mjs'));
+		const host = document.createElement('div');
+		onTestFinished(() => unmount(host));
+		const reports: unknown[] = [];
+		render(receipt(client.Page as never, {}), host, {
+			onErrorReport: (report) => reports.push(report.error)
+		});
+		expect(reports).toEqual([]);
+		expect(host.textContent).toBe(expected);
+	}
+);

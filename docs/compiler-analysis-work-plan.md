@@ -251,11 +251,15 @@ control now emits a client boundary, and the neutral control renders on the serv
 The unchanged Intl build with this fix reaches the same deadline at 32.43 seconds
 and emits neither target.
 
-An independent SSR control still throws when the factory installs a browser getter
-on a local object and returns it under a nested `state` field. Rendering
-`environment.state.locale` calls that getter in the server artifact. Reading the
-getter directly from the same receiver already emits a client boundary. The nested
-receiver relationship remains a separate placement failure.
+An independent SSR control reproduced a browser getter running on the server when
+its factory returned the local receiver under a nested `state` field. The descriptor
+writer now follows the literal receiver and the selected factory invocation through
+that field. Both artifacts retain the reached getter. SSR emits a client boundary for
+the browser case, which mounts with the browser value. Dormant, shadowed and
+different-receiver controls still render on the server, and another invocation of
+the same factory leaves the selected receiver's value intact. With the correction,
+the unchanged Intl package still reaches the `components.ts` deadline and emits
+neither target.
 
 Acceptance also covers mounted reads, control bindings, lifecycle, portals, registry identity, task settlement, protected transport, paired artifact selection, selected host implementations and source inspection. Use the existing [composition corpus](component-composition-corpus.md) and [package decision audit](#requester-disposition-against-the-component-contracts) for their scoped evidence. Treat interrupted suites and original packages that still reach the request deadline as open.
 
