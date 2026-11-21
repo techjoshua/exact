@@ -416,6 +416,11 @@ export function TasksPage(this: Component<{}>) {
 					client-only task contribute to browser task placement. Server work uses the effects of
 					possible writes on the server.
 				</p>
+				<p>
+					An invoked server task can publish a computed value by assigning it to component state,
+					for example <code>this.state.counter.value = calculateNext(this.state.counter.value)</code>.
+					A returned getter that writes through a captured state parameter produces <code>EXACT2001</code>.
+				</p>
 			</details>
 			<details>
 				<summary>Results, child tasks, and failures</summary>

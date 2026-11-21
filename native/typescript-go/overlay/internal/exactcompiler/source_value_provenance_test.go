@@ -429,26 +429,62 @@ func TestClosureGeneratorBindingDoesNotProvePerformedReplacement(t *testing.T) {
 	t.Fatal("missing value export")
 }
 
-// Only source-traceable capture receivers enter possible writes, with lowering blocked.
+// The actual task consumer keeps its possible write visible. An explicit remote
+// task must refuse this captured mutation until its compiler-owned write can run.
 func TestClosureArrayCapturedWrites(t *testing.T) {
-	for _, body := range []string{
-		`const xs=[make(s)];return xs[0]!.value;`,
-		`const xs:{value:number}[]=[];const alias=xs;alias[0]=make(s);return xs[0]!.value;`,
-		`const xs=[[make(s)]];return xs[0]![0]!.value;`,
+	const captured = `const xs=[make(input)];return xs[0]!.value;`
+	for _, row := range []struct {
+		name, body, taskWrite string
+		possible              bool
+	}{
+		{"array", captured, "", true},
+		{"aliased-array-write", `const xs:{value:number}[]=[];const alias=xs;alias[0]=make(input);return xs[0]!.value;`, "", true},
+		{"nested-array", `const xs=[[make(input)]];return xs[0]![0]!.value;`, "", true},
+		{"exact-sibling", captured, `this.state.counter.sibling=8;`, true},
+		{"exact-same-path", captured, `this.state.counter.b=1;`, true},
+		{"direct-helper", `input.b=2;return input.b;`, "", false},
+		{"dormant-getter", `make(input);return 2;`, "", false},
 	} {
-		source := `function make(input:{b:number}){return {get value(){input.b=2;return input.b}}}export function run(s:{b:number}){` + body + `}`
-		response := NewSession().Execute(Request{Kind: "analyze", ID: "/virtual/array-write.ts", Source: source, Diagnostics: "semantic"})
-		if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) {
-			t.Fatalf("%s %#v", response.Error, response.Diagnostics)
-		}
-		summary := executableSummary(t, response, "run")
-		found := false
-		for _, write := range summary.StateWrites {
-			found = found || (write.Path == "b" && write.Confidence == "unknown" && write.Receiver != nil && write.Receiver.Kind == "parameter" && write.Receiver.Index == 0)
-		}
-		if !found {
-			t.Fatalf("lost possible write or granted closure authority: %#v", summary)
-		}
+		t.Run(row.name, func(t *testing.T) {
+			for _, placement := range []Target{TargetClient, TargetServer} {
+				source := `import {TaskContext,type Component} from '@exactjs/core';
+function make(input:{b:number}){return {get value(){input.b=2;return input.b}}}
+function read(input:{b:number}){` + row.body + `}
+export function Page(this:Component<{counter:{b:number;sibling:number};label:number}>){
+	this.state.counter={b:0,sibling:7};this.state.label=0;
+	const run=(task:TaskContext=TaskContext.` + string(placement) + `())=>{` + row.taskWrite + `this.state.label=read(this.state.counter)};
+	return()=> <button onClick={()=>void run()}>{this.state.label}:{this.state.counter.b}:{this.state.counter.sibling}</button>;
+}`
+				fixture := newPublicAwaitRequiredFixture(t, source)
+				for _, target := range []Target{TargetClient, TargetServer} {
+					request := fixture.request("compile", "entry.tsx")
+					request.Target = target
+					response := NewSession().Execute(request)
+					denied := row.possible && placement == TargetServer
+					if response.Error != "" || len(response.Analysis.Tasks) != 1 || (response.Code == "") != denied {
+						t.Fatal(placement, target, response.Error, response.Diagnostics)
+					}
+					possible := false
+					for _, write := range response.Analysis.Tasks[0].Writes {
+						possible = possible || write.Path == "counter.b" && write.Confidence == "unknown"
+					}
+					if possible != row.possible {
+						t.Fatal(placement, target, response.Analysis.Tasks[0].Writes)
+					}
+					if denied {
+						found := false
+						for _, diagnostic := range response.Diagnostics {
+							found = found || diagnostic.Code == "EXACT2001" && strings.Contains(diagnostic.Message, "cannot publish the possible state write to counter.b")
+						}
+						if !found {
+							t.Fatal(placement, target, response.Diagnostics)
+						}
+					} else if hasErrorDiagnostic(response.Diagnostics) {
+						t.Fatal(placement, target, response.Diagnostics)
+					}
+				}
+			}
+		})
 	}
 }
 

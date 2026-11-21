@@ -42,6 +42,16 @@ func taskDiagnostics(
 					diagnostics = append(diagnostics, Diagnostic{Severity: "error", Code: "EXACT2001", Message: "error: a server continuation cannot publish Map or Set mutations through a parameter helper. Mutate the component collection directly in the task", Start: task.Start, Length: task.Length})
 				}
 				if !strings.Contains(write.Path, "*") {
+					// A captured possible write has no performed remote lowering.
+					// An independently authorized write to this path does not perform it.
+					if task.Invoked && task.RequestedPlacement == "server" && write.Confidence == "unknown" &&
+						write.Operation == "" && len(write.pathSegments) != 0 {
+						diagnostics = append(diagnostics, Diagnostic{
+							Severity: "error", Code: "EXACT2001",
+							Message: "error: a server continuation cannot publish the possible state write to " + write.Path + " through this helper. Return the value and assign it directly in the task, or keep the mutation client-side",
+							Start:   task.Start, Length: task.Length,
+						})
+					}
 					continue
 				}
 				diagnostics = append(diagnostics, Diagnostic{

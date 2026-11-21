@@ -146,6 +146,11 @@ policy as authored task parameters. Server invocations carry a proven
 receiver for a computed state read, while dynamic state writes still need an exact authorized
 destination. Opaque helper effects cannot establish that transport input.
 
+When a returned getter would write through a captured state parameter, an explicitly invoked
+server task reports `EXACT2001` for the possible destination. Return the computed value and
+assign it at a statically named path in the task, such as
+`this.state.counter.value = calculateNext(this.state.counter.value)`.
+
 Every generation has an `AbortSignal`. The compiler supplies it automatically
 to calls whose visible TypeScript signature accepts an optional direct
 `AbortSignal` or an options value with `signal?: AbortSignal`. It recognizes

@@ -1769,7 +1769,9 @@ parameter-pattern or module-projection acceptance.
 
 Capture-relative writes are materialized as existing caller, component or unknown receiver facts.
 Possible writes through returned getters and projected ordinary calls remain visible in caller and task summaries with unknown
-confidence while lowering is incomplete. They cannot supply finite publication authority. Captured closures
+confidence while lowering is incomplete. They cannot supply finite publication authority. An explicitly
+invoked server task reports `EXACT2001` for a possible scalar write through a captured state parameter
+when the known path has no performed-write lowering. Captured closures
 remain blocked from scalar private-entry lowering, even when their finite paths are known.
 May alternatives do not prove selected implementations, performed writes or transport authority.
 Task publication still requires environment-preserving lowering and actual invocation evidence.
