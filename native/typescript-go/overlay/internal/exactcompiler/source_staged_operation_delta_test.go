@@ -1,22 +1,25 @@
 package exactcompiler
 
-import "testing"
+import (
+	"slices"
+	"testing"
+
+	"github.com/microsoft/TypeScript/tsc/internal/ast"
+)
 
 // These are protocol controls over natural source-produced keys and binder
 // associations. Extended envelopes are injected here to exercise lifecycle
-// channels. They do not claim descriptor/native/capture source admission.
+// channels. The original operation collector supplies the required recipes;
+// the public project MAY summary need not produce them.
 func stagedDeltaFacts(t *testing.T, source string) []callableFacts {
 	t.Helper()
-	session := NewSession()
-	response := session.Execute(Request{Kind: "analyze", ID: "/virtual/operation-delta.ts", Source: source, Diagnostics: "semantic"})
-	if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) {
-		t.Fatalf("source: %s %#v", response.Error, response.Diagnostics)
-	}
-	originals := stagedDeclarationFacts(session)
-	facts := make([]callableFacts, len(originals))
-	for i := range originals {
-		facts[i] = cloneProjectCallableFact(originals[i])
-	}
+	var facts []callableFacts
+	withOriginalSetEffectsCollector(t, source, func(_ *executableBodyOwner, _ *ast.SourceFile, originals []callableFacts, _ *callableEffectWork) {
+		facts = make([]callableFacts, len(originals))
+		for i := range originals {
+			facts[i] = cloneProjectCallableFact(originals[i])
+		}
+	})
 	return facts
 }
 
@@ -156,7 +159,14 @@ func TestStagedOperationRelativeDelta(t *testing.T) {
 	facts := stagedDeltaFacts(t, stagedMemberWitness(t))
 	index := stagedDeltaFact(t, facts, "selectMember")
 	use := facts[index].staged.operationUses[0]
-	recipe := facts[index].staged.operationRecipes[0]
+	recipes := facts[index].staged.operationRecipes
+	producer := slices.IndexFunc(recipes, func(recipe sourceStagedOperationRecipe) bool {
+		return recipe.key == use.request.producer
+	})
+	if producer < 0 {
+		t.Fatal("relative use has no source producer")
+	}
+	recipe := recipes[producer]
 	var role sourceRelativeRole
 	for _, alternative := range recipe.delta.exposures {
 		if alternative.endpoint.kind == relativeEndpointRole {
@@ -164,9 +174,12 @@ func TestStagedOperationRelativeDelta(t *testing.T) {
 		}
 	}
 	recipe.delta = cloneOperationDelta(recipe.delta)
-	demand := sourceRelativeInvokedInput{kind: relativeDemandEffects, role: role, origin: use.call, cut: sourceRelativeCut{operation: use.call, reading: use.call}}
+	demand := sourceRelativeInvokedInput{kind: relativeDemandEffects, role: role, origin: use.call, cut: sourceRelativeCut{operation: use.call, use: use.call, reading: use.call}}
 	recipe.delta.relative = []sourceRelativeInvokedInput{demand}
-	facts[index].staged.operationRecipes[0] = recipe
+	if !validOperationEnvelope(recipe) {
+		t.Fatal("relative contribution has no valid source role and cut")
+	}
+	recipes[producer] = recipe
 	work := callableEffectWork{extracting: -1}
 	work.prepareOperationUses(facts)
 	if facts[index].staged.operationsPending {
