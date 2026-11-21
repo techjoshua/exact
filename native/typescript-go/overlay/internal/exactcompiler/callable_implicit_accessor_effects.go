@@ -92,6 +92,13 @@ func (q *sourceValueQuery) implicitAccessorQueries(node *ast.Node, bindings sour
 		}
 		return
 	}
+	if ast.IsCallExpression(node) {
+		receiver, method := restrictedInvocationMember(node.Expression(), typeChecker)
+		if (method == "subarray" || method == "slice" || method == "map" || method == "filter") &&
+			standardByteStorageName(standardLibraryCallOwner(node.AsCallExpression(), typeChecker)) {
+			q.byteStorageSpeciesEffects(node, receiver, method, bindings, result)
+		}
+	}
 	if ast.IsTemplateSpan(node) {
 		q.primitiveConversionEffects(node, node.AsTemplateSpan().Expression, bindings, true, result)
 		return

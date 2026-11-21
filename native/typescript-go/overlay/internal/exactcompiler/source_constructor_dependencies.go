@@ -34,8 +34,13 @@ func (q *sourceValueQuery) retainSelectedConstructionDependencies(site *ast.Node
 			q.active[target] = true
 			defer delete(q.active, target)
 			previousCreators := q.creators
-			scope := q.acquireCallableScope(selected.scope.bindings, result)
-			scope.bindings[0] = []sourceValue{{node: site}}
+			scope := q.copyCallableScope(selected.scope, result)
+			// A species-producing Call has no authored allocation expression or
+			// source actuals for its implicit constructor.
+			scope.bindings[0] = []sourceValue{{}}
+			if ast.IsNewExpression(site) {
+				scope.bindings[0][0].node = site
+			}
 			q.creators = scope.creators
 			defer func() { q.creators = previousCreators }()
 			for _, member := range target.Members() {
@@ -100,6 +105,25 @@ func (q *sourceValueQuery) retainSelectedConstructionDependencies(site *ast.Node
 // plan with the original New's ordered actuals. It grants neither an instance
 // nor normal completion/output, and does not activate merely stored callbacks.
 func (q *sourceValueQuery) retainConstructorInputDependencies(site, constructor *ast.Node, selected *sourcePreparedInvocation, bindings sourceValueBindings, result *accessorCandidates) {
+	if q.dependenciesOnly && site != nil && ast.IsCallExpression(site) {
+		// Native construction supplies its own inputs. Keep only the lexical
+		// capture. No source parameter or receiver came from the outer method call.
+		scope := q.copyCallableScope(selected.scope, result)
+		for _, parameter := range constructor.Parameters() {
+			for _, name := range bindingIdentifiers(parameter.Name()) {
+				if symbol := q.owner.checker.GetSymbolAtLocation(name); symbol != nil {
+					delete(scope.bindings, ast.GetSymbolId(symbol))
+				}
+			}
+		}
+		delete(scope.creators, constructor)
+		scope.bindings[0] = []sourceValue{{}}
+		previous := q.creators
+		q.creators = scope.creators
+		defer func() { q.creators = previous }()
+		q.executeInputs(constructor, scope.bindings, result, nil, &sourceValueInputs{declaration: constructor, bindings: scope.bindings})
+		return
+	}
 	if !q.dependenciesOnly || site == nil || !ast.IsNewExpression(site) {
 		return
 	}

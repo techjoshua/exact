@@ -155,7 +155,7 @@ func (query *sourceValueQuery) awaitAcquiredValue(observed sourceObservedValue, 
 // realm intrinsic identity uses internal PerformPromiseThen, not public then or
 // species. A possible mismatch adds wrapping/assimilation MAY effects and unknown.
 func (query *sourceValueQuery) awaitFacadeEffects(value sourceValue, operation *ast.Node, bindings sourceValueBindings, result *accessorCandidates) bool {
-	constructor := query.asyncFacadeGet(value, "constructor", nil, bindings, result)
+	constructor := query.acquireImplicitMember(value, "constructor", nil, bindings, result)
 	closed := len(constructor.values) > 0 && !constructor.opaque && !constructor.valueIncomplete && !constructor.receiverIncomplete && len(constructor.effects) == 0
 	for _, selected := range constructor.values {
 		if !query.charge(result, operation) {

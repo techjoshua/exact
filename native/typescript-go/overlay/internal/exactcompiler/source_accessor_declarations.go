@@ -575,7 +575,7 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 				}
 			}
 			term := sourceValue{node: value}
-			if query.dependenciesOnly && (ast.IsObjectLiteralExpression(value) || ast.IsArrayLiteralExpression(value) || ast.IsFunctionLike(value) || ast.IsNewExpression(value)) {
+			if query.dependenciesOnly && (ast.IsObjectLiteralExpression(value) || ast.IsArrayLiteralExpression(value) || ast.IsFunctionLike(value) || ast.IsClassExpression(value) || ast.IsNewExpression(value)) {
 				scope := query.acquireCallableScope(arguments, &result)
 				term.capture = &scope
 			}

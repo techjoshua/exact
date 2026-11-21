@@ -74,7 +74,7 @@ func (query *sourceValueQuery) settleAsyncFacade(value sourceValue, site *ast.No
 // capability operations. It does not interpret authored callbacks or supply a
 // fulfilled result. Await wrapping and async return use the same actual Get owner.
 func (query *sourceValueQuery) promiseFacadeThenEffects(value sourceValue, site *ast.Node, bindings sourceValueBindings, result *accessorCandidates) bool {
-	then := query.asyncFacadeGet(value, "then", nil, bindings, result)
+	then := query.acquireImplicitMember(value, "then", nil, bindings, result)
 	retainCallableThenEffects(&then, site)
 	for _, effect := range then.effects {
 		result.effects = append(result.effects, effect)
@@ -93,7 +93,7 @@ func (query *sourceValueQuery) promiseFacadeThenEffects(value sourceValue, site 
 	// Only an intrinsic then invokes these capability operations. Authored then
 	// alternatives keep their known body effects but no resolving callbacks are invented.
 	if nativeThen {
-		constructor := query.asyncFacadeGet(value, "constructor", nil, bindings, result)
+		constructor := query.acquireImplicitMember(value, "constructor", nil, bindings, result)
 		closed = closed && len(constructor.values) > 0 && !constructor.opaque && !constructor.valueIncomplete && !constructor.receiverIncomplete && len(constructor.effects) == 0
 		for _, selected := range constructor.values {
 			if !query.charge(result, site) {
@@ -115,7 +115,7 @@ func (query *sourceValueQuery) promiseFacadeThenEffects(value sourceValue, site 
 				closed = false
 				continue
 			}
-			species := query.asyncFacadeGet(selected, key, symbol, bindings, result)
+			species := query.acquireImplicitMember(selected, key, symbol, bindings, result)
 			closed = closed && len(species.values) > 0 && !species.opaque && !species.valueIncomplete && !species.receiverIncomplete && len(species.effects) == 0
 			for _, capability := range species.values {
 				if !query.charge(result, site) {
@@ -136,15 +136,15 @@ func (query *sourceValueQuery) promiseFacadeThenEffects(value sourceValue, site 
 	return closed
 }
 
-// asyncFacadeGet shares actual receiver and descriptor acquisition with native
+// acquireImplicitMember shares actual receiver and descriptor acquisition with native
 // members. It creates no CallExpression, callback arguments or fake constructor.
-func (query *sourceValueQuery) asyncFacadeGet(receiver sourceValue, key string, symbol *ast.Symbol, bindings sourceValueBindings, result *accessorCandidates) accessorCandidates {
+func (query *sourceValueQuery) acquireImplicitMember(receiver sourceValue, key string, symbol *ast.Symbol, bindings sourceValueBindings, result *accessorCandidates) accessorCandidates {
 	if receiver.native == nil {
 		if receiver.node == nil {
 			return accessorCandidates{opaque: true}
 		}
 		get := &sourceGetInputs{operation: query.reading, receiver: receiver, symbol: symbol}
-		selected := query.accessorsAtGet(receiver.node, append(receiver.path, key), "", accessorAcquire, bindings, nil, get)
+		selected := query.accessorsAtGet(receiver.node, []string{key}, "", accessorAcquire, bindings, nil, get, receiver)
 		mergeAccessorCandidates(result, selected)
 		return selected
 	}

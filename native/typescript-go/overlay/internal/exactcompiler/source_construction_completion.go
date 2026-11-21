@@ -17,6 +17,9 @@ func (q *sourceValueQuery) withConstructionFieldRead(site, target *ast.Node, inp
 	previousInputs, previousField := q.inputs, q.constructionFieldRead
 	field := sourceConstructionFieldRead{owner: q, site: site, target: target, field: inputs.declaration, inputs: inputs}
 	q.inputs, q.constructionFieldRead = inputs, &field
+	if !ast.IsNewExpression(site) {
+		q.constructionFieldRead = nil
+	}
 	defer func() {
 		field = sourceConstructionFieldRead{}
 		q.inputs, q.constructionFieldRead = previousInputs, previousField

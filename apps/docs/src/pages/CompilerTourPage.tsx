@@ -149,6 +149,11 @@ export function CompilerTourPage(this: Component<{}>) {
 					operation runs the stored callback, so a known browser callback belongs on the client at
 					that point.
 				</p>
+				<p>
+					<code>subarray()</code> can read an authored <code>Symbol.species</code> getter to choose
+					a result constructor. That getter, the selected constructor and its instance field
+					initializers run on the same target as the method call.
+				</p>
 			</section>
 			<section>
 				<h2>What the compiler generates</h2>
