@@ -768,8 +768,9 @@ A selected two-argument standard `Reflect.get` visits its known property keys at
 original read and carries the selected value into later calls. Unresolved keys or receivers
 remain incomplete alongside the known alternatives.
 A member read can also retain a descriptor installed before a factory returns its local
-object literal, including when a field in the returned record carries the object. The selected
-factory invocation and the receiver's literal identity supply a possible writer.
+receiver, including when a field in the returned record carries the object. The selected
+factory's return and immutable binding supply a possible writer for an ordinary literal or an
+unresolved initializer call. This source relationship carries effects only.
 A property read can inherit getter effects from earlier assignments to a local declared without an
 initializer in the same helper body.
 Computed member names still execute while the owner is created. Provenance searches retain

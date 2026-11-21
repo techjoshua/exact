@@ -9,6 +9,7 @@ import { compileProjectArtifacts } from '../index.js';
 import { createCompilerTestWorkspace } from '../test-support/workspace.js';
 import { importArtifact } from '../test-support/import-artifact.js';
 import { analyzeSource } from './source-analysis.js';
+
 it.each([
 	{
 		name: 'captured factory input',
@@ -95,6 +96,9 @@ it.each([
 	expect(reports).toEqual([]);
 });
 
+const copiedStateInitializer =
+	"Object.assign(Object.create(null) as {locale:string}, {locale:'initial'})";
+
 it.each([
 	{
 		name: 'nested browser Get',
@@ -102,6 +106,29 @@ it.each([
 		value: 'environment.state.locale',
 		expected: 'browser title',
 		browser: true
+	},
+	{
+		name: 'nested browser Get on a copied record',
+		initializer: copiedStateInitializer,
+		value: 'make().state.locale',
+		expected: 'browser title',
+		browser: true
+	},
+	{
+		name: 'dormant getter on a copied record',
+		initializer: copiedStateInitializer,
+		value: 'make().sourceLocale',
+		expected: 'en',
+		browser: false
+	},
+	{
+		name: 'different copied record from the same factory',
+		initializer: copiedStateInitializer,
+		guard: 'if (active) ',
+		body: 'const other=make(true); const environment=make(false);',
+		value: 'environment.state.locale',
+		expected: 'initial',
+		browser: false
 	},
 	{
 		name: 'direct receiver Get',
@@ -143,7 +170,18 @@ it.each([
 	}
 ])(
 	'retains factory descriptor ownership for $name in both artifacts',
-	async ({ name, setup, guard, getter, factoryResult, body, value, expected, browser }) => {
+	async ({
+		name,
+		setup,
+		guard,
+		initializer,
+		getter,
+		factoryResult,
+		body,
+		value,
+		expected,
+		browser
+	}) => {
 		const root = await createCompilerTestWorkspace('.exact-nested-descriptor-', process.cwd());
 		const entry = path.join(root, 'page.tsx');
 		await writeFile(
@@ -151,7 +189,7 @@ it.each([
 			`
 function make(${guard ? 'active:boolean' : ''}) {
 	${setup ?? ''}
-	const state = {locale:'initial'};
+	const state = ${initializer ?? "{locale:'initial'}"};
 	${guard ?? ''}Object.defineProperty(state, 'locale', {get: () => ${getter ?? 'document.title'}});
 	return ${factoryResult ?? "{sourceLocale:'en',state}"};
 }

@@ -335,7 +335,7 @@ func (query *sourceValueQuery) reflectiveMemberValuesAtGet(origin *ast.Node, pro
 	var values []sourceValue
 	possible := false
 	rows := query.memberWriterInputs(node, bindings, result, cut)
-	if input, selected := query.returnedLiteralReflectiveWriter(node, origin, mode, bindings, result); selected {
+	if input, selected := query.returnedReceiverReflectiveWriter(node, origin, mode, bindings, result); selected {
 		rows = append(rows, input)
 	}
 	rows = query.selectedGetterWriterInputs(node, origin, actualGet, cut, rows)
@@ -380,20 +380,26 @@ func (query *sourceValueQuery) reflectiveMemberValuesAtGet(origin *ast.Node, pro
 	return values, possible
 }
 
-// returnedLiteralReflectiveWriter preserves a possible descriptor on the local
-// literal reached while projecting a selected factory return. The current
-// creator identifies this allocation and its return cut even when an outer
-// record carries the receiver. The selected inputs contribute a MAY row only.
-func (q *sourceValueQuery) returnedLiteralReflectiveWriter(operation, origin *ast.Node, mode accessorTraversal, bindings sourceValueBindings, result *accessorCandidates) (sourceMemberWriterInput, bool) {
-	if mode != accessorRead && mode != accessorAcquire || !ast.IsObjectLiteralExpression(origin) || q.inputs == nil || !q.descriptorWriterCall(operation.AsCallExpression()) {
+// returnedReceiverReflectiveWriter preserves a possible descriptor on a local
+// receiver reached while projecting a selected factory return. An unresolved
+// child Call clears the live inputs, while the lexical creator retains its
+// source scope and return cut. The writer contributes a source-only MAY effect.
+func (q *sourceValueQuery) returnedReceiverReflectiveWriter(operation, origin *ast.Node, mode accessorTraversal, bindings sourceValueBindings, result *accessorCandidates) (sourceMemberWriterInput, bool) {
+	if mode != accessorRead && mode != accessorAcquire {
 		return sourceMemberWriterInput{}, false
 	}
-	writer := q.inputs.declaration
-	if enclosingCallableNode(operation) != writer || enclosingCallableNode(origin) != writer {
+	if !(ast.IsObjectLiteralExpression(origin) && q.inputs != nil || ast.IsCallExpression(origin) && q.dependenciesOnly) {
+		return sourceMemberWriterInput{}, false
+	}
+	writer := enclosingCallableNode(operation)
+	if writer == nil || enclosingCallableNode(origin) != writer {
 		return sourceMemberWriterInput{}, false
 	}
 	creator := q.creators[writer]
-	if creator.invocation == nil || creator.returning == nil || q.inputs.invocation != creator.invocation || operation.End() > creator.returning.Pos() {
+	if creator.invocation == nil || creator.returning == nil || operation.End() > creator.returning.Pos() {
+		return sourceMemberWriterInput{}, false
+	}
+	if q.inputs != nil && (q.inputs.declaration != writer || q.inputs.invocation != creator.invocation) || !q.descriptorWriterCall(operation.AsCallExpression()) {
 		return sourceMemberWriterInput{}, false
 	}
 	target := unwrapSourceCallableReference(operation.AsCallExpression().Arguments.Nodes[0])

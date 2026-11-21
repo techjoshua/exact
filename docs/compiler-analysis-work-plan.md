@@ -275,6 +275,12 @@ the same factory leaves the selected receiver's value intact. With the correctio
 the unchanged Intl package still reaches the `components.ts` deadline and emits
 neither target.
 
+The corresponding copy control initially still ran its getter on the server when
+`Object.assign` initialized the selected receiver. The initializer's normal result is
+unresolved, and its enclosing factory supplies the local binding and the return cut
+for the source writer. The compiler retains that writer in the nested read, and the
+paired checks preserve the dormant getter and distinct copy.
+
 Acceptance also covers mounted reads, control bindings, lifecycle, portals, registry identity, task settlement, protected transport, paired artifact selection, selected host implementations and source inspection. Use the existing [composition corpus](component-composition-corpus.md) and [package decision audit](#requester-disposition-against-the-component-contracts) for their scoped evidence. Treat interrupted suites and original packages that still reach the request deadline as open.
 
 ### Acceptance by traversal rule
