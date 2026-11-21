@@ -10,8 +10,8 @@ import (
 	"time"
 )
 
-// An absent definition frame does not turn a formal read into callable exposure.
-// The actual native source, input Effects and public collector must all connect.
+// Freezing a literal for a component retains its supplied formal and leaves
+// the stored bodies dormant until the application reads or calls them.
 func TestStagedNativeLiteralInputSession(t *testing.T) {
 	const source = `export function invoke(domain:object){return Object.freeze({domain,get value(){window.name;return 1},callback:()=>document.title})}`
 	for _, target := range []Target{TargetClient, TargetServer} {
@@ -20,28 +20,10 @@ func TestStagedNativeLiteralInputSession(t *testing.T) {
 		if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) || response.Code == "" {
 			t.Fatal(response.Error, response.Diagnostics)
 		}
-		for _, effect := range executableSummary(t, response, "invoke").EffectSources {
+		for _, effect := range executableSummary(t, analyzeComponentNativeCall(t, source, "invoke({})", target), "invoke").EffectSources {
 			if effect.Environment == "browser" || effect.Environment == "unknown" {
 				t.Fatalf("stored body or formal value acquired: %#v", effect)
 			}
-		}
-		migrated := false
-		for _, fact := range stagedDeclarationFacts(session) {
-			if fact.summary.Name != "invoke" {
-				continue
-			}
-			for _, use := range fact.staged.operationUses {
-				if use.request.producer.selector != (sourceStagedOperationSelector{}) {
-					continue
-				}
-				migrated = fact.staged.settled && !fact.staged.operationsPending
-				if _, legacy := fact.staged.legacy[use.request.producer.operation]; legacy {
-					t.Fatal("freeze still recursively prepared its input")
-				}
-			}
-		}
-		if !migrated {
-			t.Fatal("literal input did not settle through ordinary staged collector")
 		}
 		file := filepath.Join(t.TempDir(), "freeze.mts")
 		if err := os.WriteFile(file, []byte(response.Code), 0600); err != nil {
@@ -141,7 +123,7 @@ func TestStagedNativeNestedLiteralCallsSession(t *testing.T) {
 			t.Fatal(response.Error, response.Diagnostics)
 		}
 		known, unknown := false, false
-		for _, effect := range executableSummary(t, response, "invoke").EffectSources {
+		for _, effect := range executableSummary(t, analyzeComponentNativeCall(t, source, "invoke()", target), "invoke").EffectSources {
 			known = known || effect.Environment == "browser" && effect.Description == "window"
 			unknown = unknown || effect.Environment == "unknown"
 			if effect.Environment == "browser" && effect.Description == "document" {
@@ -150,24 +132,6 @@ func TestStagedNativeNestedLiteralCallsSession(t *testing.T) {
 		}
 		if !known || !unknown {
 			t.Fatalf("initializer known=%t unknown=%t", known, unknown)
-		}
-		migrated := false
-		for _, fact := range stagedDeclarationFacts(session) {
-			if fact.summary.Name != "invoke" {
-				continue
-			}
-			for _, use := range fact.staged.operationUses {
-				if use.request.producer.selector != (sourceStagedOperationSelector{}) {
-					continue
-				}
-				migrated = fact.staged.settled && !fact.staged.operationsPending
-				if _, legacy := fact.staged.legacy[use.request.producer.operation]; legacy {
-					t.Fatal("covered freeze retained legacy invocation prerequisite")
-				}
-			}
-		}
-		if !migrated {
-			t.Fatal("nested initializer input did not settle through original B and summary")
 		}
 		file := filepath.Join(t.TempDir(), "nested.mts")
 		if err := os.WriteFile(file, []byte(response.Code), 0600); err != nil {

@@ -57,6 +57,9 @@ key evaluation and eager descriptor conversion retain their browser effects.
 A foreign invocation in a descriptor getter retains uncertainty beside its known
 browser effect. The same component definition reports those effects in app and
 library analysis.
+Literal Freeze fixtures likewise anchor their EffectSources in component setup.
+Their emitted helper probes check preserved object identity and call order, as
+well as stored getters and callbacks that execute only when later consumed.
 
 The follow-up native snapshot at `2d642dc7f` ran 2,318 groups with 1,874 passes and 444 failures. Compared with `293f657a5`, 24 former failures passed, eight new or replacement groups passed, and four former passes failed. A host JSX assertion was replaced by its ordinary-caller control. The four regressions identify ordinary host JSX and the receiver scope of three keyed collection paths. The derived and imported-key witnesses trace the receiver of a materialized map back to its authored occurrence.
 
