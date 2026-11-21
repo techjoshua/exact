@@ -11,6 +11,7 @@ import { importArtifact } from '../test-support/import-artifact.js';
 
 const browserValue = '{ get value() { return document.title; } }';
 const assign = `box.other = ${browserValue};`;
+const forwarded = `function install(value: { value: string }) { box.other = value; } install(${browserValue});`;
 const scenarios = [
 	{ name: 'direct Set', before: assign, browser: true },
 	{ name: 'literal index Get', before: assign, browser: true, read: "selected['value']" },
@@ -27,10 +28,22 @@ const scenarios = [
 		before: `function install() { ${assign} } install();`,
 		browser: true
 	},
+	{ name: 'forwarded setter input', before: forwarded, browser: true },
 	{
-		name: 'forwarded setter input',
-		before: `function install(value: { value: string }) { box.other = value; } install(${browserValue});`,
-		browser: true
+		name: 'definite overwrite after the forwarded Set',
+		before: `${forwarded} box.field = { value: 'safe' };`
+	},
+	{ name: 'field saved before the forwarded Set', after: forwarded },
+	{
+		name: 'forwarded Set on a distinct receiver',
+		before: `
+			const other = {
+				field: { value: 'other' },
+				set other(value: { value: string }) { this.field = value; }
+			};
+			function install(value: { value: string }) { other.other = value; }
+			install(${browserValue});
+		`
 	},
 	{ name: 'dormant helper', before: `function install() { ${assign} }` },
 	{ name: 'later overwrite', before: `${assign} box.field = { value: 'safe' };` },
