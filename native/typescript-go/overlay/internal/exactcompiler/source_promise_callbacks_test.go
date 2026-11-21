@@ -199,9 +199,11 @@ func TestRejectedFiniteVectorDoesNotAssimilateStoredValue(t *testing.T) {
 // Conditional own-method replacement keeps the original native-adapter path as
 // well as the authored path. Completed replacement removes only that old path.
 func TestOrdinaryAdapterMayReplacementRetainsRequirements(t *testing.T) {
+	root, config := formsSourceFixture(t)
 	for _, method := range []string{"call", "apply"} {
 		for _, conditional := range []bool{true, false} {
-			setup := `declare const choose:boolean;declare const process:{cwd():string};let notify:(value:unknown)=>void=()=>{process.cwd()};`
+			setup := `/// <reference types="node"/>
+declare const choose:boolean;let notify:(value:unknown)=>void=()=>{process.cwd()};`
 			if conditional {
 				setup += `if(choose)`
 			}
@@ -216,7 +218,7 @@ func TestOrdinaryAdapterMayReplacementRetainsRequirements(t *testing.T) {
 			}
 			source := setup + `notify.` + method + `(undefined,` + argument + `);export {};`
 			for _, target := range []Target{TargetClient, TargetServer} {
-				request := Request{Kind: "analyze", ID: "/virtual/adapter-alternatives.ts", Source: source, Target: target, Diagnostics: "semantic"}
+				request := Request{Kind: "analyze", ID: filepath.Join(root, "adapter-alternatives.ts"), ConfigFile: config, Source: source, Target: target, Diagnostics: "semantic"}
 				response := NewSession().Execute(request)
 				raw, _ := json.Marshal(struct {
 					Request  Request

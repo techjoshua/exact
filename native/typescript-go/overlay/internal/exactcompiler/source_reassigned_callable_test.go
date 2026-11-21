@@ -1,10 +1,14 @@
 package exactcompiler
 
-import "testing"
+import (
+	"path/filepath"
+	"testing"
+)
 
 // A mutable callable's current acquired alternatives own invocation effects.
 // Its declaration initializer is neither a permanent target nor a performed body.
 func TestReassignedCallableRequirements(t *testing.T) {
+	root, config := formsSourceFixture(t)
 	for _, row := range []struct {
 		name, source, required string
 		unknown                bool
@@ -17,11 +21,12 @@ func TestReassignedCallableRequirements(t *testing.T) {
 		{"conditional foreign", `declare const choose:boolean;declare const foreign:()=>string;let notify:()=>string=()=>document.title;if(choose)notify=foreign;export const value=notify();`, "browser", true},
 		{"reassigned formal", `function run(notify:()=>string){notify=()=>document.title;return notify()}export const value=run(()=>"safe");`, "browser", false},
 		{"reordered formal", `function run(other:()=>string,notify:()=>string){notify=()=>document.title;return notify()}export const value=run(()=>"other",()=>"safe");`, "browser", false},
-		{"server replacement", `declare const process:{cwd():string};let notify:()=>string=()=>"safe";notify=()=>process.cwd();export const value=notify();`, "server", true},
+		{"server replacement", `/// <reference types="node"/>
+let notify:()=>string=()=>"safe";notify=()=>process.cwd();export const value=notify();`, "server", true},
 	} {
 		for _, target := range []Target{TargetClient, TargetServer} {
 			t.Run(row.name+"/"+string(target), func(t *testing.T) {
-				r := NewSession().Execute(Request{Kind: "analyze", ID: "/virtual/reassigned-callable.ts", Source: row.source, Target: target, Diagnostics: "semantic"})
+				r := NewSession().Execute(Request{Kind: "analyze", ID: filepath.Join(root, "reassigned-callable.ts"), ConfigFile: config, Source: row.source, Target: target, Diagnostics: "semantic"})
 				if r.Error != "" {
 					t.Fatal(r.Error, r.Diagnostics)
 				}
