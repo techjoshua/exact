@@ -312,7 +312,7 @@ it.each([
 	{ member: 'get [patch()]() { return 1; }', browser: true },
 	{ member: 'set [patch()](value: number) { void value; }', browser: true },
 	{ member: 'deferred() { const object = { [patch()]() {} }; }', browser: false }
-])('uses the evaluation owner of $member before the next component read', async ({ member, browser }) => {
+])('places the downstream Get for $member', async ({ member, browser }) => {
 	const root = await createCompilerTestWorkspace('.exact-computed-writer-', process.cwd());
 	const entry = path.join(root, 'page.tsx');
 	await writeFile(
