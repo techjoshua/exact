@@ -35,7 +35,7 @@ describe('direct server map', () => {
 			}
 		}
 	);
-	it('snapshots iterable input before invoking item render and key callbacks', () => {
+	it('snapshots iterable input before invoking the key and render callbacks for each item', () => {
 		const reads: string[] = [];
 		function* input() {
 			reads.push('iterate:first');
@@ -57,11 +57,29 @@ describe('direct server map', () => {
 		expect(reads).toEqual([
 			'iterate:first',
 			'iterate:second',
-			'render:first',
 			'key:first',
-			'render:second',
-			'key:second'
+			'render:first',
+			'key:second',
+			'render:second'
 		]);
+	});
+	it('skips rendering an item when its key callback throws', () => {
+		const failure = new Error('key failed');
+		const rendered: string[] = [];
+		expect(() =>
+			createDirectSsrComponentFrame().map(
+				['first', 'second', 'third'],
+				(value) => {
+					if (value === 'second') throw failure;
+					return value;
+				},
+				(value) => {
+					rendered.push(value);
+					return value;
+				}
+			)
+		).toThrow(failure);
+		expect(rendered).toEqual(['first']);
 	});
 	it.each([false, true])(
 		'releases scheduled children after list completion or abort=%s',
@@ -105,7 +123,7 @@ describe('direct server map', () => {
 			'items'
 		);
 		const result = await renderToString(output as Child);
-		expect(reads).toEqual(['render:first', 'key:first', 'render:second', 'key:second']);
+		expect(reads).toEqual(['key:first', 'render:first', 'key:second', 'render:second']);
 		expect(result.html).toContain('<span>first</span>');
 		expect(result.html).toContain('<span>second</span>');
 		expect(result.html.indexOf('first')).toBeLessThan(result.html.indexOf('second'));

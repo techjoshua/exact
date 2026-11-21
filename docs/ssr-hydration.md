@@ -500,6 +500,10 @@ slots, while JSON serialization retains its normal sparse-array null representat
 
 ## Server rendering
 
+A direct server list snapshots its iterable before invoking item callbacks.
+For each item, it runs the key selector before the render callback. A thrown
+key stops the render callback for that item and aborts list materialization.
+
 `renderToString()` and `renderToHydratableString()` return promises. `renderKeyedListSnapshot()`
 also returns a promise because item components may depend on pending tasks. String and stream
 entry points share one traversal, component executor, and hydration capture. There is no separate

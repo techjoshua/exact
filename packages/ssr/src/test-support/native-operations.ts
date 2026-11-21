@@ -33,9 +33,10 @@ export function createOperation(
 		if (list)
 			return createCompiledFragmentReceipt(
 				props,
-				...[...list.collection].map((item) =>
-					createCompiledKeyedChildReceipt(list.render(item), String(list.key(item)))
-				)
+				...[...list.collection].map((item) => {
+					const key = String(list.key(item));
+					return createCompiledKeyedChildReceipt(list.render(item), key);
+				})
 			);
 		return createCompiledFragmentReceipt(props, ...children);
 	}

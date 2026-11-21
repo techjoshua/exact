@@ -88,9 +88,10 @@ function directSsrMap<T>(
 	id?: string
 ): object {
 	return createServerList(
-		[...(unwrap(collection) as Iterable<T>)].map((item) =>
-			createPreparedServerKeyedChild(render(item), key(item))
-		),
+		[...(unwrap(collection) as Iterable<T>)].map((item) => {
+			const itemKey = key(item);
+			return createPreparedServerKeyedChild(render(item), itemKey);
+		}),
 		id
 	);
 }

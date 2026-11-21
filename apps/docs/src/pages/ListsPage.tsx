@@ -134,6 +134,10 @@ export function ListsPage(this: Component<{}>) {
 					or outside the component.
 				</p>
 				<CodeBlock source={explicitMapSource} language="tsx" title="Explicit keyed rendering" />
+				<p>
+					The key selector runs before the render callback for each item. If selecting the key
+					throws, that item’s render callback does not run.
+				</p>
 			</section>
 		</Article>
 	);
