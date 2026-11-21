@@ -11,38 +11,61 @@ import (
 
 const stagedEagerCallWitness = `declare function foreign():void;function makeValue(){window.name;foreign();return()=>document.title}export function invoke(){return Object.defineProperty({},'run',{value:makeValue()})}`
 
+// stagedEagerTaskFixture selects the original descriptor initializer through a
+// browser task. Reading the stored method and invoking it are independent uses.
+func stagedEagerTaskFixture(t *testing.T, use string) *executableFixture {
+	t.Helper()
+	source := "import { type Component, TaskContext } from '@exactjs/core';\n" + stagedEagerCallWitness + `
+export function Page(this: Component<{ display: string }>) {
+	this.state.display = '';
+	const refresh = (_task: TaskContext = TaskContext.client()) => {
+		const value = invoke() as { run: () => string };
+		this.state.display = ` + use + `;
+	};
+	return () => <button onClick={() => refresh()}>{this.state.display}</button>;
+}`
+	fixture := newExecutableFixture(t, map[string]string{"entry.tsx": source})
+	const config = `{"compilerOptions":{"module":"ESNext","moduleResolution":"Bundler","target":"ES2022","strict":true,"skipLibCheck":true,"jsx":"preserve","jsxImportSource":"@exactjs/jsx"},"files":["entry.tsx"]}`
+	if err := os.WriteFile(fixture.request("analyze", "entry.tsx").ConfigFile, []byte(config), 0600); err != nil {
+		t.Fatal(err)
+	}
+	return fixture
+}
+
 func TestStagedNativeEagerCallSession(t *testing.T) {
 	for _, target := range []Target{TargetClient, TargetServer} {
-		session := NewSession()
-		response := session.Execute(Request{Kind: "compile", ID: "/virtual/eager-source-call.ts", Source: stagedEagerCallWitness, Target: target, Diagnostics: "semantic"})
-		if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) || response.Code == "" {
-			t.Fatalf("compile %s: %s %#v", target, response.Error, response.Diagnostics)
-		}
-		known, unknown := false, false
-		for _, effect := range executableSummary(t, response, "invoke").EffectSources {
-			known = known || effect.Environment == "browser" && effect.Description == "window"
-			unknown = unknown || effect.Environment == "unknown"
-			if effect.Environment == "browser" && effect.Description == "document" {
-				t.Fatal("returned stored callback became eager")
+		for _, use := range []struct {
+			expression string
+			callsValue bool
+		}{{"typeof value.run", false}, {"value.run()", true}} {
+			fixture := stagedEagerTaskFixture(t, use.expression)
+			request := fixture.request("compile", "entry.tsx")
+			request.Target = target
+			response := fixture.session.Execute(request)
+			if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) || response.Code == "" {
+				t.Fatalf("compile %s: %s %#v", target, response.Error, response.Diagnostics)
+			}
+			findComponent(t, response.Analysis.Components, "Page")
+			for _, name := range []string{"invoke", "refresh"} {
+				known, opaque, callback := false, false, false
+				for _, effect := range executableSummary(t, response, name).EffectSources {
+					known = known || effect.Environment == "browser" && effect.Description == "window"
+					opaque = opaque || effect.Environment == "unknown"
+					callback = callback || effect.Environment == "browser" && effect.Description == "document"
+				}
+				if !known || !opaque || callback != (name == "refresh" && use.callsValue) {
+					t.Fatalf("%s/%s eager=%t opaque=%t callback=%t", use.expression, name, known, opaque, callback)
+				}
 			}
 		}
-		if !known || !unknown {
-			t.Fatalf("eager donors known=%t unknown=%t", known, unknown)
-		}
-		issued := false
-		for _, fact := range stagedDeclarationFacts(session) {
-			if fact.summary.Name != "invoke" {
-				continue
-			}
-			for _, use := range fact.staged.operationUses {
-				issued = issued || use.request.producer.selector == (sourceStagedOperationSelector{}) && fact.staged.settled && !fact.staged.operationsPending
-			}
-		}
-		if !issued {
-			t.Fatal("eager initializer Call did not yield through original binder/summary graph")
+
+		// Execute the ordinary module export to observe descriptor evaluation order.
+		ordinary := NewSession().Execute(Request{Kind: "compile", ID: "/virtual/eager-source-call.ts", Source: stagedEagerCallWitness, Target: target, Diagnostics: "semantic"})
+		if ordinary.Error != "" || hasErrorDiagnostic(ordinary.Diagnostics) || ordinary.Code == "" {
+			t.Fatalf("ordinary module %s: %s %#v", target, ordinary.Error, ordinary.Diagnostics)
 		}
 		file := filepath.Join(t.TempDir(), "eager.mts")
-		if err := os.WriteFile(file, []byte(response.Code), 0600); err != nil {
+		if err := os.WriteFile(file, []byte(ordinary.Code), 0600); err != nil {
 			t.Fatal(err)
 		}
 		const runner = `import assert from'node:assert/strict';import{pathToFileURL}from'node:url';const events=[];globalThis.window={get name(){events.push('eager');return 'name'}};globalThis.document={get title(){events.push('callback');return 'title'}};globalThis.foreign=()=>events.push('foreign');const m=await import(pathToFileURL(process.argv[1]).href);const saved=m.invoke().run;assert.deepEqual(events,['eager','foreign']);assert.equal(saved(),'title');assert.deepEqual(events,['eager','foreign','callback']);const failure=new Error('foreign');globalThis.foreign=()=>{events.push('throw');throw failure};assert.throws(()=>m.invoke(),error=>error===failure);assert.deepEqual(events,['eager','foreign','callback','eager','throw']);`
