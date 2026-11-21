@@ -353,6 +353,25 @@ excluded 1,563 oversized fact samples from encoding. The replay used
 deadline still fired. A separate 100-second native replay returned the
 retained setup and `color.ts` responses while `components.ts` was pending.
 
+Paired component controls reused an indexed map definition with different actual
+receivers and keys. A reached getter retained its browser effect, a disjoint
+getter stayed dormant, and an open actual kept uncertainty beside the browser
+effect. A private direct-index trial also distinguished literal actuals at the
+same formal. Treating the source alternatives as a complete key domain lost a
+browser effect when only the fallback literal was represented. Requiring the
+literal at the original Call kept that control and rendered the dormant case
+on the server. This narrower trial still reached the unchanged Theme deadline.
+
+A diagnostic bound supplied the two original native map selections at the Call
+and the separately visited callee Get. The compiler advanced to
+`structuralTokens(tokens, source)` in `createThemeTokens`, which accounted
+for 94,000 of 102,162 body attempts at 24 seconds on the unchanged binder.
+This run stopped at the client deadline in 31.86 seconds without either target's
+artifacts. A reduced reactive Page executing the unchanged structural helper
+emits both targets and preserves the reached source getter and target setter
+beside unknown. A separate direct setup request for that helper reports an opaque
+placement error. Its policy result cannot establish the original package verdict.
+
 Computed method and accessor names run in the surrounding evaluation region. A
 setup-local name can call a helper that installs a getter before the component
 reads the target. Writer discovery now uses the indexed region of that Call
