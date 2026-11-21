@@ -107,8 +107,28 @@ func TestCapturedArrayGetEffectsSourceRefusers(t *testing.T) {
 				}
 				work.observeStagedLocalGetEffects(facts, caller, get, owner)
 				request := stagedGetResultRequest(get, facts[caller].node, "effects", nil)
-				if work.operationRecipes[request.producer].delta.extracted {
-					t.Fatal("unsupported source/own getter lost mandatory work")
+				recipe := work.operationRecipes[request.producer]
+				if !recipe.delta.extracted {
+					return
+				}
+				if !row.eligible {
+					t.Fatal("unsupported receiver extracted original Get Effects")
+				}
+				// Extracting the receiver, key and candidate inventory may leave the
+				// original reflective writer as a required unresolved contribution.
+				writer := false
+				for _, required := range recipe.delta.required {
+					for _, child := range work.operationRecipes[required.producer].delta.required {
+						descriptor := work.operationRecipes[child.producer]
+						if m := descriptor.memberSource; m != nil && m.candidate.reflective &&
+							m.candidate.operation != nil && sourceText(file, m.candidate.operation) == "Object.defineProperty(events,'push',{get(){throw 9}})" {
+							writer = !descriptor.delta.extracted
+						}
+					}
+				}
+				value := work.operationRecipes[stagedGetResultRequest(get, facts[caller].node, "value", nil).producer]
+				if !writer || value.delta.extracted || len(value.delta.exposures) != 0 {
+					t.Fatal("own getter lost its writer requirement or gained normal Get DATA")
 				}
 			})
 		})
