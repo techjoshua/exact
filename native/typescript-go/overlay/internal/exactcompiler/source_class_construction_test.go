@@ -158,8 +158,9 @@ func TestDefaultClassConstructionRuntimeInputs(t *testing.T) {
 				if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) || response.Code == "" {
 					t.Fatalf("compile: %s %#v", response.Error, response.Diagnostics)
 				}
+				component := analyzeDefaultClassComponent(t, test.source, target)
 				browser := false
-				for _, callable := range response.Analysis.Callables {
+				for _, callable := range component.Analysis.Callables {
 					if callable.Name == "read" {
 						browser = settlementBrowser(callable)
 					}
@@ -200,8 +201,9 @@ func TestDefaultClassConstructionAbruptField(t *testing.T) {
 			if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) || response.Code == "" {
 				t.Fatalf("compile: %s %#v", response.Error, response.Diagnostics)
 			}
-			read := executableSummary(t, response, "read")
-			stop := executableSummary(t, response, "stop")
+			component := analyzeDefaultClassComponent(t, source, target)
+			read := executableSummary(t, component, "read")
+			stop := executableSummary(t, component, "stop")
 			browser, donor := false, false
 			for _, effect := range read.EffectSources {
 				browser = browser || effect.Environment == "browser"
@@ -238,8 +240,9 @@ func TestDefaultClassConstructionConditionalRuntime(t *testing.T) {
 			if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) || response.Code == "" {
 				t.Fatalf("compile: %s %#v", response.Error, response.Diagnostics)
 			}
+			component := analyzeDefaultClassComponent(t, fixture.source, target)
 			unknown, browser := false, false
-			for _, callable := range response.Analysis.Callables {
+			for _, callable := range component.Analysis.Callables {
 				if callable.Name == "read" {
 					unknown = callable.Effect == "unknown"
 					for _, effect := range callable.EffectSources {
@@ -279,8 +282,9 @@ func TestDefaultClassConstructionJSON(t *testing.T) {
 			if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) || response.Code == "" {
 				t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
 			}
+			component := analyzeDefaultClassComponent(t, source, target)
 			found := false
-			for _, callable := range response.Analysis.Callables {
+			for _, callable := range component.Analysis.Callables {
 				if callable.Name == "read" {
 					found = true
 					if !settlementBrowser(callable) {
@@ -349,19 +353,10 @@ func TestDefaultClassConstructionInputs(t *testing.T) {
 		{"source-constructor", `class Holder{constructor(){document.title='kept'}}return JSON.stringify(new Holder());`, "browser", true},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			source := `import type { Component } from '@exactjs/core';
-declare function foreign(): unknown;
+			source := `declare function foreign(): unknown;
 declare function mutate(value: unknown): unknown;
-function read() {` + test.body + `}
-export function Page(this: Component<{}>) {
-	const display = read();
-	return () => display;
-}`
-			fixture := newExecutableFixture(t, map[string]string{"entry.ts": source})
-			response := fixture.session.Execute(fixture.request("analyze", "entry.ts"))
-			if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) {
-				t.Fatalf("invalid component: %s %#v", response.Error, response.Diagnostics)
-			}
+function read() {` + test.body + `}`
+			response := analyzeDefaultClassComponent(t, source, TargetDefault)
 			read := findCallable(t, response.Analysis.Callables, "read")
 			browser := false
 			for _, source := range read.EffectSources {
@@ -381,6 +376,27 @@ export function Page(this: Component<{}>) {
 			}
 		})
 	}
+}
+
+// analyzeDefaultClassComponent selects the runtime helper through actual setup.
+// The runtime controls separately execute the emitted ordinary module export.
+func analyzeDefaultClassComponent(t *testing.T, source string, target Target) Response {
+	t.Helper()
+	const component = `
+export function Page(this: Component<{}>) {
+	const display = read();
+	return () => typeof display === 'string' ? display : '';
+}`
+	source = "import type { Component } from '@exactjs/core';\n" + source + component
+	fixture := newExecutableFixture(t, map[string]string{"entry.ts": source})
+	request := fixture.request("analyze", "entry.ts")
+	request.Target = target
+	response := fixture.session.Execute(request)
+	if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) {
+		t.Fatalf("invalid component: %s %#v", response.Error, response.Diagnostics)
+	}
+	findComponent(t, response.Analysis.Components, "Page")
+	return response
 }
 
 // A MAY-only nested constructor contributes effects without publishing an Inner
