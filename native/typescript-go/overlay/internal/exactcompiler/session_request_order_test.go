@@ -1,6 +1,8 @@
 package exactcompiler
 
 import (
+	"bytes"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -34,7 +36,17 @@ func TestSessionCrossModuleRequestOrder(t *testing.T) {
 				if retained.Error != "" || fresh.Error != "" {
 					t.Fatalf("retained %s, fresh %s", retained.Error, fresh.Error)
 				}
-				if retained.Code != fresh.Code || !reflect.DeepEqual(retained.SourceMap, fresh.SourceMap) || !reflect.DeepEqual(retained.Analysis, fresh.Analysis) || !reflect.DeepEqual(retained.Diagnostics, fresh.Diagnostics) {
+				// Generation-local AST and checker identities are private. Compare
+				// the analysis contract delivered by the session protocol.
+				retainedAnalysis, err := json.Marshal(retained.Analysis)
+				if err != nil {
+					t.Fatal(err)
+				}
+				freshAnalysis, err := json.Marshal(fresh.Analysis)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if retained.Code != fresh.Code || !reflect.DeepEqual(retained.SourceMap, fresh.SourceMap) || !bytes.Equal(retainedAnalysis, freshAnalysis) || !reflect.DeepEqual(retained.Diagnostics, fresh.Diagnostics) {
 					t.Fatalf("request order changed %s %s", name, target)
 				}
 			}
