@@ -352,7 +352,8 @@ export function StatePage(this: Component<{}>) {
 					write path, so publish an enclosing state value instead of a dynamic path such as{' '}
 					<code>rows[index].value</code> at that boundary. Selecting a collection dynamically, such
 					as <code>rows[index].set(key, value)</code>, has the same restriction in both named
-					function tasks and arrow tasks.
+					function tasks and arrow tasks. During server-only setup, a local write can select its
+					destination with a prop such as <code>rows[props.index]</code>.
 				</p>
 				<p>
 					Array methods preserve native getter and setter behavior. When an indexed accessor could

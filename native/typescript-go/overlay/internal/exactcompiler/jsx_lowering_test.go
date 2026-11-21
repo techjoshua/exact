@@ -1,6 +1,7 @@
 package exactcompiler
 
 import (
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -103,9 +104,10 @@ func TestJSXLoweringEmitsNativeRuntimeOperations(t *testing.T) {
 	}
 }
 
-func TestJSXLoweringPreservesOrdinaryCallerLocalsMaterializedIntoComponentProps(t *testing.T) {
+func TestJSXLoweringPreservesOrdinaryHostComponentProps(t *testing.T) {
+	root, config := formsSourceFixture(t)
 	response := NewSession().Execute(Request{
-		ID:     "C:/tmp/ordinary-caller-local.tsx",
+		ID: filepath.Join(root, "ordinary-caller-local.tsx"), ConfigFile: config,
 		Kind:   "compile",
 		Target: TargetClient,
 		Source: `
@@ -121,10 +123,10 @@ func TestJSXLoweringPreservesOrdinaryCallerLocalsMaterializedIntoComponentProps(
 			}
 		`,
 	})
-	if response.Error != "" {
-		t.Fatal(response.Error)
+	if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) {
+		t.Fatal(response.Error, response.Diagnostics)
 	}
-	for _, expected := range []string{`const next = [...base];`, `mutate(next);`, `__exactComponentPropExpression(() => next)`} {
+	for _, expected := range []string{`const next = [...base];`, `mutate(next);`, `<KeyedList items={next}/>`} {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf("ordinary caller local was not preserved at %q:\n%s", expected, response.Code)
 		}
@@ -135,21 +137,22 @@ func TestJSXLoweringPreservesOrdinaryCallerLocalsMaterializedIntoComponentProps(
 }
 
 func TestClientRootLoweringRetainsMixedGenericRenderImport(t *testing.T) {
+	root, config := formsSourceFixture(t)
 	response := NewSession().Execute(Request{
-		ID:     "C:/tmp/mixed-client-root.tsx",
+		ID: filepath.Join(root, "mixed-client-root.tsx"), ConfigFile: config,
 		Kind:   "compile",
 		Target: TargetClient,
 		Source: `
 			import { render } from "@exactjs/dom";
 			function Panel() { return () => <p>ready</p>; }
-			export function mount(container: Element, operation: unknown) {
-				render(<Panel />, container);
-				render(operation, container);
-			}
+			declare const operation: Parameters<typeof render>[0];
+			const container = document.createElement("main");
+			render(<Panel />, container);
+			render(operation, container);
 		`,
 	})
-	if response.Error != "" {
-		t.Fatal(response.Error)
+	if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) {
+		t.Fatal(response.Error, response.Diagnostics)
 	}
 	for _, expected := range []string{
 		`import { render } from "@exactjs/dom";`,
@@ -163,20 +166,22 @@ func TestClientRootLoweringRetainsMixedGenericRenderImport(t *testing.T) {
 }
 
 func TestClientRootLoweringSelectsCompiledProgramAlias(t *testing.T) {
+	root, config := formsSourceFixture(t)
 	response := NewSession().Execute(Request{
-		ID:     "C:/tmp/intrinsic-client-root.tsx",
+		ID: filepath.Join(root, "intrinsic-client-root.tsx"), ConfigFile: config,
 		Kind:   "compile",
 		Target: TargetClient,
 		Source: `
 			import { render } from "@exactjs/dom";
-			export function mount(container: Element) {
+			{
+				const container = document.createElement("main");
 				const tree = (<section><button>ready</button></section>);
 				render(tree, container);
 			}
 		`,
 	})
-	if response.Error != "" {
-		t.Fatal(response.Error)
+	if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) {
+		t.Fatal(response.Error, response.Diagnostics)
 	}
 	if !strings.Contains(response.Code, `__exactRenderCompiledProgramRoot(tree, container);`) ||
 		strings.Contains(response.Code, `render(tree, container);`) {
@@ -185,25 +190,28 @@ func TestClientRootLoweringSelectsCompiledProgramAlias(t *testing.T) {
 }
 
 func TestClientRootLoweringScopesSameNamedOperationAliases(t *testing.T) {
+	root, config := formsSourceFixture(t)
 	response := NewSession().Execute(Request{
-		ID:     "C:/tmp/scoped-client-roots.tsx",
+		ID: filepath.Join(root, "scoped-client-roots.tsx"), ConfigFile: config,
 		Kind:   "compile",
 		Target: TargetClient,
 		Source: `
 			import { render } from "@exactjs/dom";
 			function Panel() { return () => <p>ready</p>; }
-			export function mountComponent(container: Element) {
+			{
+				const container = document.createElement("main");
 				const tree = <Panel />;
 				render(tree, container);
 			}
-			export function mountIntrinsic(container: Element) {
+			{
+				const container = document.createElement("main");
 				const tree = <section>ready</section>;
 				render(tree, container);
 			}
 		`,
 	})
-	if response.Error != "" {
-		t.Fatal(response.Error)
+	if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) {
+		t.Fatal(response.Error, response.Diagnostics)
 	}
 	if strings.Count(response.Code, `__exactRenderCompiledRoot(tree, container);`) != 1 ||
 		strings.Count(response.Code, `__exactRenderCompiledProgramRoot(tree, container);`) != 1 ||
@@ -213,22 +221,23 @@ func TestClientRootLoweringScopesSameNamedOperationAliases(t *testing.T) {
 }
 
 func TestClientRootLoweringSelectsEnhancedIntrinsicRoot(t *testing.T) {
+	root, config := formsSourceFixture(t)
 	response := NewSession().Execute(Request{
-		ID:     "C:/tmp/enhanced-intrinsic-root.tsx",
+		ID: filepath.Join(root, "enhanced-intrinsic-root.tsx"), ConfigFile: config,
 		Kind:   "compile",
 		Target: TargetClient,
 		Source: `
 			import { createEnhancementNode } from "@exactjs/core";
 			import { render } from "@exactjs/dom";
-			export function mount(container: Element, root: unknown) {
-				const marker = createEnhancementNode([{ identity: "./motion#motion", props: {}, root }]);
-				const tree = (<section {...{ __exactEnhancements: marker }}><button>ready</button></section>);
-				render(tree, container, { enhancementCatalog: new Map() });
-			}
+			const container = document.createElement("main");
+			const root = container;
+			const marker = createEnhancementNode([{ identity: "./motion#motion", props: {}, root }]);
+			const tree = (<section {...{ __exactEnhancements: marker }}><button>ready</button></section>);
+			render(tree, container, { enhancementCatalog: new Map() });
 		`,
 	})
-	if response.Error != "" {
-		t.Fatal(response.Error)
+	if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) {
+		t.Fatal(response.Error, response.Diagnostics)
 	}
 	if !strings.Contains(response.Code, `__exactRenderCompiledIntrinsicRoot(tree, container,`) ||
 		strings.Contains(response.Code, `render(tree, container,`) {

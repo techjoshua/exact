@@ -349,7 +349,9 @@ A proven array mutator publishes the complete array at its known state path. The
 edited indices does not broaden that path authority. An `any` or `unknown` receiver cannot establish the collection publication contract. Preserve the
 collection type or assign its enclosing statically named state value. Server Map keys must be
 `null`, booleans, finite numbers, or strings. Object, Array, function, symbol, bigint and
-undefined keys cannot cross that publication boundary. Guarded nullable containers
+undefined keys cannot cross that publication boundary. When setup runs entirely on the server, a
+local task can select its write destination with an input such as `props.index`. An invokable server
+continuation needs a representable publication path on both targets. Guarded nullable containers
 keep their guard inside the task body, including in named function tasks. Optional reads transport
 the short-circuit receiver. Server state inputs preserve an own `undefined` value and the numeric constants `NaN`,
 `Infinity`, `-Infinity`, and `-0` through the shared transport codec. Value-only reads of missing leaf properties are captured as `undefined`. Reads of an enclosing

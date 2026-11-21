@@ -1659,10 +1659,12 @@ func TestSessionSemanticallyValidatesGeneratedNativeArtifact(t *testing.T) {
 }
 
 func TestSessionDiscoversComponentDeclarationSignals(t *testing.T) {
+	root, config := formsSourceFixture(t)
 	response := NewSession().Execute(Request{
-		ID:   "component.tsx",
+		ID: filepath.Join(root, "component.tsx"), ConfigFile: config,
 		Kind: "compile",
 		Source: `
+			import type {Component} from "@exactjs/core";
 			export function Named() {
 				return () => <main />;
 			}
@@ -1672,7 +1674,7 @@ func TestSessionDiscoversComponentDeclarationSignals(t *testing.T) {
 			const protocolOnly = function () {
 				this.onMount(() => undefined);
 			};
-			const typedOnly = (this: Component<{ ready: boolean }>) => 1;
+			const typedOnly = function(this: Component<{ ready: boolean }>){ return 1; };
 			function helper() {
 				return <aside />;
 			}
@@ -4595,11 +4597,12 @@ func TestSessionAppliesRenderPurityToLexicalMicroComponents(t *testing.T) {
 }
 
 func TestSessionRejectsSharedRenderCallables(t *testing.T) {
+	root, config := formsSourceFixture(t)
 	response := NewSession().Execute(Request{
-		ID:   "shared-arrow.tsx",
+		ID: filepath.Join(root, "shared-arrow.tsx"), ConfigFile: config,
 		Kind: "compile",
 		Source: `
-			declare class Component<State> { state: State }
+			import type {Component} from "@exactjs/core";
 			const renderPanel = () => <p />;
 			function renderStatus() { return <output />; }
 			function Panel(this: Component<{}>) {
@@ -4703,36 +4706,34 @@ func TestSessionPreservesChainedAndMixedAssignmentResults(t *testing.T) {
 }
 
 func TestSessionRejectsDynamicContinuationWriteContract(t *testing.T) {
-	response := NewSession().Execute(Request{
-		ID:   "dynamic-continuation.tsx",
-		Kind: "compile",
-		Source: `
-			import { TaskContext } from "@exactjs/core";
-			declare class Component<State> {
-				state: State;
-				task(work: () => void): void;
+	root, config := formsSourceFixture(t)
+	const component = `import {TaskContext,type Component} from "@exactjs/core";
+export function Editor(this: Component<{rows: {value:number}[]}>, props:{index:number}) {
+	this.state.rows=[{value:0}];
+	const write = (_task:TaskContext=TaskContext.server().latest()) => {
+		this.state.rows[props.index].value=7;
+	};
+	ACTIVATE
+}`
+	for _, target := range []Target{TargetClient, TargetServer} {
+		source := strings.Replace(component, "ACTIVATE", "return ()=> <button onClick={()=>write()}/>;", 1)
+		response := formsCompileSource(t, root, config, source, target)
+		found := false
+		for _, diagnostic := range response.Diagnostics {
+			if diagnostic.Code == "EXACT2001" && strings.Contains(diagnostic.Message, "dynamic computed path") {
+				found = true
 			}
-			function Editor(
-				this: Component<{ rows: Array<{ value: number }> }>,
-				props: { index: number },
-			) {
-				const __fixtureTask9 = (_task: TaskContext = TaskContext.latest()) => {
-					this.state.rows[props.index].value = calculate();
-				};
-__fixtureTask9();
-				return () => <output />;
-			}
-		`,
-	})
-	found := false
-	for _, diagnostic := range response.Diagnostics {
-		if diagnostic.Code == "EXACT2001" &&
-			strings.Contains(diagnostic.Message, "dynamic computed path") {
-			found = true
+		}
+		if !found || response.Code != "" {
+			t.Fatalf("%s published an unrepresentable continuation: %v", target, response.Diagnostics)
 		}
 	}
-	if !found {
-		t.Fatalf("missing dynamic continuation diagnostic: %#v", response.Diagnostics)
+	// A server-local setup invocation can use a dynamic destination. Its index
+	// is an input to the generated executor and must resolve in that scope.
+	source := strings.Replace(component, "ACTIVATE", "write();return ()=> <output/>;", 1)
+	response := formsCompileSource(t, root, config, source, TargetServer)
+	if response.Code == "" || hasErrorDiagnostic(response.Diagnostics) {
+		t.Fatalf("server-local computed key lost its input: %v", response.Diagnostics)
 	}
 }
 

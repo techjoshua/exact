@@ -489,6 +489,9 @@ func insideStateWriteTarget(node *ast.Node) bool {
 	for current := node; current.Parent != nil; current = current.Parent {
 		parent := current.Parent
 		switch {
+		case ast.IsElementAccessExpression(parent) && parent.AsElementAccessExpression().ArgumentExpression == current, ast.IsComputedPropertyName(parent):
+			// Computing the destination key reads its operands before the write.
+			return false
 		case ast.IsBinaryExpression(parent):
 			expression := parent.AsBinaryExpression()
 			return expression.OperatorToken.Kind == ast.KindEqualsToken &&

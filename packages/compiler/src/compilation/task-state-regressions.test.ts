@@ -128,6 +128,39 @@ return ()=> <section>${example.holdPath ? `<aside>{this.state.${example.holdPath
 			}
 		}
 	});
+it('uses the captured prop index for server-local setup writes', async () => {
+	const compiler = new NativeCompilerProcess({ executable: resolveNativeCompilerExecutable() });
+	onTestFinished(() => compiler.dispose());
+	const directory = path.resolve('.tmp/task-state/server-local-index');
+	await mkdir(directory, { recursive: true });
+	const result = compiler.request({
+		kind: 'compile',
+		target: 'server',
+		id: path.join(directory, 'Page.tsx'),
+		root: process.cwd(),
+		diagnostics: 'semantic',
+		source: `import {TaskContext,type Component} from '@exactjs/core';
+export function Page(this:Component<{rows:{value:number}[]}>, props:{index:number}){
+	this.state.rows=[{value:0},{value:0}];
+	const write=(_task:TaskContext=TaskContext.server().blocking())=>{
+		this.state.rows[props.index].value=7;
+	};
+	write();
+	return()=> <output>{this.state.rows[0].value},{this.state.rows[1].value}</output>;
+}`
+	});
+	expect(result.error).toBeUndefined();
+	expect(result.diagnostics).toEqual([]);
+	const file = path.join(directory, 'server.ts');
+	await writeFile(file, result.code!);
+	const module = await importArtifact(file, path.join(directory, 'server.mjs'));
+	for (const [index, expected] of ['7,0', '0,7'].entries()) {
+		const html = await renderToString(
+			createCompiledComponentInputReceipt(module.Page as AnyComponentFunction, { index })
+		);
+		expect(html.html).toContain(`<output>${expected}</output>`);
+	}
+});
 it('evaluates client task status selection once in server rendering', async () => {
 	const compiler = new NativeCompilerProcess({ executable: resolveNativeCompilerExecutable() });
 	onTestFinished(() => compiler.dispose());
