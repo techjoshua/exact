@@ -13,6 +13,7 @@ const storedCallback =
 	'Object.defineProperty({value:()=>"before"},"value",{value:()=>document.title})';
 const createdCallback =
 	'Object.defineProperty(Object.create(null),"value",{value:()=>document.title})';
+const definitionMap = (entry: string) => `Object.defineProperties({value:"before"},{${entry}})`;
 
 it.each([
 	{
@@ -83,6 +84,39 @@ it.each([
 		expected: 'browser value'
 	},
 	{
+		name: 'a portable descriptor-map getter',
+		declaration: `const record=${definitionMap('get value(){return {value:"ready"}}')};`,
+		value: 'record.value',
+		expected: 'ready'
+	},
+	{
+		name: 'a stored descriptor-map callback',
+		declaration: `const record=${definitionMap('value:{value:()=>document.title}')};`,
+		value: 'typeof record.value',
+		expected: 'function'
+	},
+	{
+		name: 'an eager descriptor-map getter',
+		declaration: `const record=${definitionMap('get value(){return {value:document.title}}')};`,
+		value: 'record.value',
+		browser: true,
+		expected: 'browser value'
+	},
+	{
+		name: 'a getter on the original descriptor field',
+		declaration: `const record=${definitionMap('value:{get value(){return document.title}}')};`,
+		value: 'record.value',
+		browser: true,
+		expected: 'browser value'
+	},
+	{
+		name: 'a computed map getter returning a descriptor with its own getter',
+		declaration: `const key="value" as const;const record=${definitionMap('get [key](){return {get value(){return document.title}}}')};`,
+		value: 'record.value',
+		browser: true,
+		expected: 'browser value'
+	},
+	{
 		name: 'an authored Object replacement',
 		declaration: `const Object = {defineProperty(_target: object, _key: string, descriptor: {value: string}) {
 			return {value: descriptor.value + ' replacement'};
@@ -136,4 +170,26 @@ it('requires placement evidence for a descriptor installed on an unknown module 
 	await expect(
 		compileProjectArtifacts([entry], { rootDir: root, outDir: path.join(root, 'generated') })
 	).rejects.toThrow('EXACT2101');
+});
+
+it('refuses explicit server execution of an eager browser descriptor-map getter', async () => {
+	const root = await createCompilerTestWorkspace('.exact-task-descriptor-map-', process.cwd());
+	const entry = path.join(root, 'page.tsx');
+	await writeFile(
+		entry,
+		`import {TaskContext,type Component} from '@exactjs/core';
+export function Page(this:Component<{label:string}>) {
+	this.state.label="initial";
+	const run=(task:TaskContext=TaskContext.server().blocking())=>{
+		void task;
+		const record=${definitionMap('get value(){return {value:document.title}}')};
+		this.state.label=record.value;
+	};
+	run();
+	return()=> <output>{this.state.label}</output>;
+}`
+	);
+	await expect(
+		compileProjectArtifacts([entry], { rootDir: root, outDir: path.join(root, 'generated') })
+	).rejects.toThrow(/EXACT2001.*references browser-only globals/);
 });

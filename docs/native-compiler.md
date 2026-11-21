@@ -3941,6 +3941,13 @@ fresh data descriptor and a fresh target from an ordinary literal or selected
 descriptor field. Field Value mapping keeps the original callee and eager input
 dependencies. A later component read or invocation observes the installed getter
 or callback on that target.
+
+At a selected standard `Object.defineProperties` call with a fresh literal
+target and a single own descriptor-map entry, the original operation retains
+the map getter and the getter on a recognized descriptor field. The same
+source effects inform module availability and task placement. Stored callback
+values remain deferred. Authored callee alternatives or unresolved input
+relationships retain their existing analysis.
 Member alternatives keep their acquired source bindings and creator context through subsequent
 container and getter projection. Returning only their AST node would lose a writer-created
 closure's formal captures.

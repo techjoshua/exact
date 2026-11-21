@@ -5,14 +5,34 @@ import (
 	"github.com/microsoft/TypeScript/tsc/internal/checker"
 )
 
-// definePropertiesCallEffects retains ToPropertyDescriptor getter dependencies
-// for standard property definition and creation calls. It publishes no installed
-// field, returned value, completion, callee coverage or descriptor conversion.
+// definePropertiesCallEffects retains getter dependencies for standard property
+// definition and creation calls. It supplies neither an installed field nor a
+// completed descriptor conversion.
 // The original invocation retains all of its uncertainty and authored siblings.
 func (query *sourceValueQuery) definePropertiesCallEffects(node *ast.Node, prepared sourcePreparedInvocation, bindings sourceValueBindings, result *accessorCandidates) {
 	// This is the top-level original dependency Call only. Nested writer
 	// probes and normal/result acquisition retain their existing paths.
-	if !query.dependenciesOnly || query.operation != nil || query.sourceEffects.issuer != query || query.dependencyUse != node || query.reading != node || query.effectOwner != enclosingCallableNode(node) {
+	if !query.dependenciesOnly || query.operation != nil || query.sourceEffects.issuer != query || query.dependencyUse != node {
+		return
+	}
+	callable := enclosingCallableNode(node)
+	switch {
+	case callable != nil:
+		if query.reading != node || query.effectOwner != callable {
+			return
+		}
+	case query.reading == node:
+		if query.effectOwner != nil && !sourceStagedOccurrenceOwned(node, query.effectOwner) {
+			return
+		}
+	default:
+		// Definition availability asks for effects on the direct initializer.
+		if query.effectOwner != nil || query.reading == nil ||
+			!ast.IsVariableDeclaration(query.reading) || query.reading.Initializer() != node {
+			return
+		}
+	}
+	if query.retainSoleDescriptorMapGetter(node, prepared.acquired, bindings, result) || callable == nil && (query.effectOwner != nil || query.reading != node) {
 		return
 	}
 	selected, single := false, false
@@ -197,4 +217,78 @@ func (query *sourceValueQuery) retainCreatedGetter(call *ast.Node, projection []
 			query.reflectiveSourceGet(body, call, name, &sourceGetInputs{operation: query.protectedMember, receiver: sourceValue{node: call}}, bindings, result)
 		}
 	}
+}
+
+// retainSoleDescriptorMapGetter retains the actual selector and the sole
+// enumerable entry of a fresh map. The original Call still controls writes,
+// throws, and descriptor completion. An unavailable module can make the
+// selection opaque while leaving the originally acquired native alternative
+// visible. Retain that alternative's effects alongside the uncertainty.
+func (q *sourceValueQuery) retainSoleDescriptorMapGetter(node *ast.Node, acquired sourceSelectionProjection, bindings sourceValueBindings, result *accessorCandidates) bool {
+	if len(acquired.values) != 1 || acquired.receiverIncomplete || acquired.valueIncomplete {
+		return false
+	}
+	native := acquired.values[0].native
+	if native == nil || native.kind != sourceNativeObjectDefineProperties {
+		return false
+	}
+	call := node.AsCallExpression()
+	callee := unwrapSourceCallableReference(call.Expression)
+	_, method := accessorReceiver(callee)
+	if method != "defineProperties" {
+		return false // Adapters have their own original argument vector.
+	}
+	actuals := restrictedInvocationArguments(call)
+	if call.QuestionDotToken != nil || len(actuals) != 2 {
+		return false
+	}
+	target, mapping := unwrapSourceCallableReference(actuals[0]), unwrapSourceCallableReference(actuals[1])
+	if !ast.IsObjectLiteralExpression(target) || !sourceInertValueCreation(target) || !ast.IsObjectLiteralExpression(mapping) {
+		return false
+	}
+	entries := mapping.AsObjectLiteralExpression().Properties.Nodes
+	if len(entries) != 1 {
+		return false
+	}
+	entry := entries[0]
+	if ast.IsGetAccessorDeclaration(entry) {
+		get := &sourceGetInputs{operation: node, receiver: sourceValue{node: mapping}}
+		observed := q.acquireGetResult(entry, get, q.acquireCallableScope(bindings, result), result)
+		for _, returned := range observed.values {
+			value := returned.value
+			if len(value.path) == 0 && value.native == nil && value.normal == nil {
+				if getter := soleDescriptorFieldGetter(value.node); getter != nil {
+					get := &sourceGetInputs{operation: node, receiver: value}
+					q.executeGetEffects(getter, get, returned.scope, result)
+				}
+			}
+		}
+		return true
+	}
+	if ast.IsPropertyAssignment(entry) && callableNameText(entry.Name()) != "__proto__" {
+		desc := unwrapSourceCallableReference(entry.Initializer())
+		if getter := soleDescriptorFieldGetter(desc); getter != nil {
+			get := &sourceGetInputs{operation: node, receiver: sourceValue{node: desc}}
+			q.executeGetEffects(getter, get, q.acquireCallableScope(bindings, result), result)
+			return true
+		}
+	}
+	return false
+}
+
+// soleDescriptorFieldGetter recognizes an original plain descriptor field.
+func soleDescriptorFieldGetter(descriptor *ast.Node) *ast.Node {
+	if !ast.IsObjectLiteralExpression(descriptor) {
+		return nil
+	}
+	fields := descriptor.AsObjectLiteralExpression().Properties.Nodes
+	if len(fields) != 1 || !ast.IsGetAccessorDeclaration(fields[0]) || ast.IsComputedPropertyName(fields[0].Name()) {
+		return nil
+	}
+	for _, key := range reflectiveDescriptorKeys {
+		if callableNameText(fields[0].Name()) == key {
+			return fields[0]
+		}
+	}
+	return nil
 }

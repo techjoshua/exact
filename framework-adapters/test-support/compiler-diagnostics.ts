@@ -36,6 +36,7 @@ export const compilerDiagnosticContracts = [
 	'component child inputs',
 	'symbol state snapshot',
 	'callable property effects',
+	'descriptor-map task placement',
 	'library selection evidence',
 	'detached server advisory',
 	'state patterns',
@@ -103,6 +104,7 @@ export async function verifyCompilerDiagnostics(
 				'component child inputs': verifyComponentChildInputContract,
 				'symbol state snapshot': verifySymbolStateContract,
 				'callable property effects': verifyCallablePropertyContract,
+				'descriptor-map task placement': verifyDescriptorMapTaskPlacement,
 				'library selection evidence': verifyLibrarySelectionEvidenceContract,
 				'detached server advisory': verifyDetachedServerAdvisory,
 				'state patterns': verifyDestructuredStateBuild,
@@ -153,6 +155,31 @@ export async function verifyCompilerDiagnostics(
 		}
 	} finally {
 		await rm(root, { recursive: true, force: true });
+	}
+}
+
+/** Keeps an eager browser Get in the task summary after host executable selection. */
+async function verifyDescriptorMapTaskPlacement(adapter: 'vite' | 'webpack' | 'bun', root: string) {
+	const entry = path.join(root, 'entry.tsx');
+	const source = (value: string) => `import {TaskContext,type Component} from '@exactjs/core';
+export function Page(this:Component<{label:string}>) {
+	this.state.label='initial';
+	const run=(task:TaskContext=TaskContext.server().blocking())=>{
+		void task;
+		const record=Object.defineProperties({value:'before'},{get value(){return {value:${value}}}});
+		this.state.label=record.value;
+	};
+	run();
+	return()=> <output>{this.state.label}</output>;
+}`;
+	for (const target of ['client', 'server'] as const) {
+		await writeFile(entry, source('document.title'));
+		await assert.rejects(
+			() => build(adapter, root, target),
+			/EXACT2001.*references browser-only globals/
+		);
+		await writeFile(entry, source("'ready'"));
+		await build(adapter, root, target);
 	}
 }
 

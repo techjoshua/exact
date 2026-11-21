@@ -116,6 +116,20 @@ relationships under rules 3, 4 and 7. The compiler need not enroll a dormant
 writer to avoid invoking it. Seven other map family groups still need
 qualification of their requested relationships.
 
+A fresh descriptor creation with one map entry exposed a separate placement
+defect. Vite emitted module initialization and an explicit server task that
+read the entry's browser getter, then threw while rendering. The existing
+definition-availability query and task summary now retain the effects of the
+selected standard operation. A known map getter supplies its real receiver,
+and a returned literal descriptor can supply its own field getter. The
+module publishes a browser boundary and an explicitly server task receives
+the browser-placement diagnostic. Vite's synchronized executable selection
+also retains the known browser getter alongside unresolved import uncertainty.
+Stored callbacks, neutral getters and authored replacements retain their
+ordinary behavior. This correction
+applies rules 1, 2, 4 and 6 to the executed Get. The separate unresolved
+map input and wider multi-entry cases retain their own qualification.
+
 The full native `9898a1cba` checkpoint ran 2,329 groups with 1,903 passes, 425 test failures and one compiler panic. Relative to `43fa437ca`, three prior failures pass and all seven added groups pass. The prior render-effects suite reproduces the panic on a parenthesized Array `map` member. The source key lookup now unwraps that member and leaves absent source syntax to ordinary analysis. The complete render-effects matrix and the Map key placement tests pass on a focused rerun using the checkpoint plus that correction. The historical inventory still contains 131 failure families. Their exit status and source owners guide triage, while distinct public consumers require separate qualification.
 
 The full native `db1cb6832` checkpoint ran 2,330 groups with 1,910 passes and 420 failures. Every prior pass remains green. Five prior failures pass, covering wrapped array calls, the captured-write consumer and three constructor and writer groups. Both added groups pass. The authored root-factory coverage replaces one former standalone assertion.
@@ -157,6 +171,13 @@ has accessor uncertainty, while native pruning already keeps the matching
 initializer and preserves the shared binding. The host diagnostic had applied
 the opaque invocation rule to that accessor uncertainty. The qualification
 keeps the independently pruned initializer under rules 1, 2 and 6.
+
+The full `9580d7360` checkpoint passes 1,961 of 2,337 groups. All previous
+passes stay green. Six prior failures recover, including the overwritten
+descriptor callee, repeated declarators and four computed lifecycle groups.
+The remaining 376 failing groups map to the historical inventory. That count
+records exercised native groups, while each family still needs qualification
+against its actual component consumer.
 
 The authored root factory passes its parameter to a real component through the paired SDK artifacts. The binding lifecycle and collection identity suites pass all 45 cases with the wrapped Map correction. The root factory control renders distinct inputs, adopts the server DOM under strict hydration and updates the retained owner on new props. This replaces the native assertion about a particular receipt helper for a declaration without a component body.
 
