@@ -2,6 +2,7 @@ package exactcompiler
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
@@ -82,7 +83,7 @@ func TestPendingConstructionNaturalTraversalOrder(t *testing.T) {
 // by the ordinary New/assignment path, including the unknown sibling.
 func TestPendingConstructionSetArgumentDonor(t *testing.T) {
 	const source = `declare const choose:boolean;declare const other:()=>void;function writer(){document.title}class Box{constructor(callback:()=>void){callback()}}const table=new WeakMap<object,object>();export function invoke(prototype:object){let domains:Box|undefined;table.set(prototype,(domains=new Box(choose?writer:other)));return domains}`
-	pendingConstructionSummary(t, source, true, true)
+	checkPendingConstructionTask(t, source, true, true)
 }
 
 // The shared New binder preserves defaults and positional rest groups. Passing
@@ -104,7 +105,7 @@ func TestPendingConstructionConstructorInputBoundaries(t *testing.T) {
 				name = "Constructor"
 			}
 			source := `function writer(){document.title}function quiet(){}` + row.constructor + `const table=new WeakMap<object,object>();export function invoke(prototype:object){let domains:object|undefined;table.set(prototype,(domains=new ` + name + `(` + row.actuals + `)));return domains}`
-			pendingConstructionSummary(t, source, row.browser, true)
+			checkPendingConstructionTask(t, source, row.browser, false)
 		})
 	}
 }
@@ -124,6 +125,45 @@ func TestPendingConstructionRelativeDefinitionInvariant(t *testing.T) {
 		actual := pendingConstructionSummary(t, definition+use, false, true)
 		if !reflect.DeepEqual(baseline, actual) {
 			t.Fatal("application input changed declaration-relative definition", baseline, actual)
+		}
+	}
+}
+
+// checkPendingConstructionTask observes New and writer effects through the
+// authored task that needs them. Its result publishes to rendered state.
+func checkPendingConstructionTask(t *testing.T, source string, wantBrowser, requireUnknown bool) {
+	t.Helper()
+	const publish = `this.state.label=invoke({})===undefined?'missing':'found'`
+	for _, placement := range []Target{TargetClient, TargetServer} {
+		fixture := newPublicAwaitRequiredFixture(t, source+publicAwaitRequiredPage("", publish, placement))
+		for _, target := range []Target{TargetClient, TargetServer} {
+			request := fixture.request("compile", "entry.tsx")
+			request.Target = target
+			response := NewSession().Execute(request)
+			denied := placement == TargetServer && wantBrowser
+			if response.Error != "" || len(response.Analysis.Tasks) != 1 || (response.Code == "") != denied {
+				t.Fatal(placement, target, response.Error, response.Diagnostics)
+			}
+			task := response.Analysis.Tasks[0]
+			browser, unknown := false, false
+			for _, effect := range task.EffectSources {
+				browser = browser || effect.Environment == "browser" && strings.Contains(effect.Description, "document")
+				unknown = unknown || effect.Environment == "unknown"
+			}
+			if browser != wantBrowser || requireUnknown && !unknown {
+				t.Fatal(placement, target, task.EffectSources)
+			}
+			if denied {
+				refused := false
+				for _, diagnostic := range response.Diagnostics {
+					refused = refused || diagnostic.Code == "EXACT2001" && strings.Contains(diagnostic.Message, "task requests server placement but references browser-only globals")
+				}
+				if !refused {
+					t.Fatal(placement, target, response.Diagnostics)
+				}
+			} else if hasErrorDiagnostic(response.Diagnostics) {
+				t.Fatal(placement, target, response.Diagnostics)
+			}
 		}
 	}
 }

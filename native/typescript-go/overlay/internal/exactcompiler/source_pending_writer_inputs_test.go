@@ -78,5 +78,5 @@ func TestPendingWriterSetterLateDelivery(t *testing.T) {
 // The reached source producer still owns its eager work and independent effects.
 func TestPendingWriterAdmissionRetainsReachedProducer(t *testing.T) {
 	const source = `const table=new WeakMap<object,object>();function publish(name:string){document.title;const scope=globalThis as Record<PropertyKey,unknown>;scope[name]=new WeakMap()}export function invoke(key:object){publish('fixture');return table.get(key)}`
-	pendingConstructionSummary(t, source, true, true)
+	checkPendingConstructionTask(t, source, true, false)
 }
