@@ -166,6 +166,15 @@ func (query *sourceValueQuery) constructDependencyEffects(site *ast.Node, bindin
 	// Finite native Intl construction already has a portable operation contract.
 	// Keep the original operand walk, but do not require a source body or instance
 	// output merely to retain its Effects. Authored/dynamic inputs keep fallback.
+	if eventConstructor(site, query.owner.checker) != "" {
+		result := accessorCandidates{valueIncomplete: true}
+		if args := site.AsNewExpression().Arguments; args != nil && len(args.Nodes) == 2 {
+			for _, key := range eventInitFields {
+				mergeAccessorCandidates(&result, query.accessors(args.Nodes[1], nil, key, accessorRead, bindings, nil))
+			}
+		}
+		return result
+	}
 	if _, arguments, native := nativeIntlConstructor(site, query.owner.checker); native &&
 		standardLibraryCallRoot(site.Expression(), query.owner.checker) && finiteIntlArguments(arguments) {
 		return accessorCandidates{valueIncomplete: true}

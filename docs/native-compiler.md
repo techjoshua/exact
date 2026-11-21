@@ -761,7 +761,7 @@ receiver alternatives. Authored union members do not acquire native authority, a
 effects remain independent.
 Standard-library `Event` and `EventTarget` methods remain portable across supported runtimes,
 including aliases and mapped type views such as `Readonly<EventTarget>`. Method declaration
-ownership preserves this placement without making DOM-specific methods portable.
+ownership preserves this placement without making DOM-specific methods portable. For a fresh event target, dispatch with no listeners needs no platform resource. A directly registered local listener contributes its effects when its event is dispatched. Matching removal before dispatch releases the listener, including its capture flag. Creating an event reads its initialization dictionary fields for bubbling, cancellation and composition. A getter for one of those fields can add its own platform requirement.
 DOM exports retain browser-only execution through renamed imports, namespace selection and
 immutable aliases. Placement follows the resolved export declaration, including the implementation
 behind a public re-export. Ordinary authored functions with the same name retain their own effects.

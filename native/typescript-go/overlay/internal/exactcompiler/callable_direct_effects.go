@@ -123,6 +123,7 @@ func collectDirectCallableEffects(
 	if runtimeModuleEvaluation(fact.node) {
 		moduleFlow = &sourceValueQuery{owner: owner.values, executable: owner, effectOwner: fact.node, dependenciesOnly: true, active: make(map[*ast.Node]bool)}
 	}
+	possibleEvent := owner.values.index(sourceFile).possibleEventConstructor
 	consumeNode := func(node *ast.Node) bool {
 		recordMutationWriterTemplate(fact, node, owner)
 		recordOriginalMutationBodyOperation(fact, node, owner)
@@ -192,6 +193,14 @@ func collectDirectCallableEffects(
 		}
 		progressWriterInputSource(owner, sourceFile, node)
 		appendDirectReferenceEffects(fact, node, sourceFile, typeChecker, owner)
+		if possibleEvent && ast.IsCallExpression(node) {
+			if callbacks := eventDispatchCallbacks(node, owner); len(callbacks) != 0 {
+				appendInvokedCallbackReferences(fact, facts, node, callbacks, 0, sourceFile, typeChecker, nodeTargets, symbolTargets, importBindings)
+			}
+		}
+		if possibleEvent && (ast.IsCallExpression(node) || ast.IsAccessExpression(node)) && freshEventMember(node, owner) {
+			return true
+		}
 		for _, use := range fact.staged.operationUses {
 			if !protocol {
 				break

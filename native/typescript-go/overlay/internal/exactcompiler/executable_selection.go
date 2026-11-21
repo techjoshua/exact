@@ -149,6 +149,7 @@ func prepareExecutableSelection(request Request, sources []synchronizedProjectSo
 // executableBodyOwner is acquired with one checker and never survives its Program.
 // The boolean result distinguishes an explicitly owned opaque edge from no host proof.
 type executableBodyOwner struct {
+	eventCallbacks            map[*ast.Node][]*ast.Node        // Selected local EventTarget dispatch sites in this generation.
 	iterations                map[*ast.Node]iterationEffects   // Checker- and selection-bound loop sources only.
 	ambientArgumentReferences *sourceAmbientArgumentReferences // Lazy semantic classification; never graph/Call authority.
 	descriptorProducer        *sourceDescriptorProducer        // synchronous original collector borrow only

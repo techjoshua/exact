@@ -20,6 +20,7 @@ type sourceValueIndex struct {
 	bindings                 map[ast.SymbolId][]sourceValueAssignment
 	memberOrigins            map[*ast.Node][]sourceValueAssignment
 	dynamicMembers           []sourceValueAssignment
+	possibleEventConstructor bool // Syntax prefilter for source-local Event and EventTarget allocations.
 	numberReplaced           bool
 	objectEntriesWritten     bool
 	objectFromEntriesWritten bool
@@ -143,6 +144,10 @@ func (owner *sourceValueOwner) index(source *ast.SourceFile) sourceValueIndex {
 				return false
 			}
 			if ast.IsNewExpression(node) || ast.IsTaggedTemplateExpression(node) {
+				if !index.possibleEventConstructor && ast.IsNewExpression(node) {
+					name := unwrapSourceCallableReference(node.Expression())
+					index.possibleEventConstructor = ast.IsIdentifier(name) && (name.Text() == "Event" || name.Text() == "EventTarget")
+				}
 				// These executable forms do not have call-index ownership proof.
 				index.numberOpenCalls = append(index.numberOpenCalls, node)
 				region := owner.memberOperationRegion(&index, node)

@@ -14,6 +14,10 @@ func singleUseLiteral(expression *ast.Node, owner *sourceValueOwner, kind ast.Ki
 			return nil
 		}
 		decl := symbol.ValueDeclaration
+		initializer := unwrapSourceCallableReference(decl.Initializer())
+		if initializer == nil || initializer.Kind != kind {
+			return nil
+		}
 		source := ast.GetSourceFileOfNode(value)
 		if decl.Parent.Flags&ast.NodeFlagsConst == 0 || ast.GetSourceFileOfNode(decl) != source {
 			return nil
@@ -33,7 +37,7 @@ func singleUseLiteral(expression *ast.Node, owner *sourceValueOwner, kind ast.Ki
 		if len(uses) != 1 || uses[0].node != value {
 			return nil
 		}
-		value = unwrapSourceCallableReference(decl.Initializer())
+		value = initializer
 	}
 	if value != nil && value.Kind == kind {
 		return value

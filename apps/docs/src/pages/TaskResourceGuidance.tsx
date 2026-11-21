@@ -24,6 +24,12 @@ export function TaskResourceGuidance() {
 				the fetch options.
 			</p>
 			<p>
+				A task can create an <code>EventTarget</code> and dispatch an <code>Event</code> on either
+				platform. Dispatch runs matching listeners synchronously. If a listener reads
+				<code>document</code>, run that work in a client task. A getter in event options such as
+				<code>bubbles</code> runs when you construct the event.
+			</p>
+			<p>
 				When a custom async factory declares <code>@exact own</code> or <code>@exact cleanup</code>,
 				awaiting it gives the resolved resource the task's lifetime. Its result must expose a
 				recognized disposal method. An ordinary async factory can instead register its resource

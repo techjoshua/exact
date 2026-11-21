@@ -129,7 +129,27 @@ func componentCallableDemand(collection *projectCallableCollection, requested ..
 		}
 		_, componentReturn := owner.values.components[f.node]
 		summary := owner.values.summary(f.node)
+		possibleEvent := owner.values.index(f.sourceFile).possibleEventConstructor
 		for _, node := range summary.nodes {
+			if possibleEvent && ast.IsCallExpression(node) {
+				for _, callback := range eventDispatchCallbacks(node, owner) {
+					demandReference(callback, accessorInvoke)
+				}
+			}
+			if possibleEvent && ast.IsNewExpression(node) && eventConstructor(node, owner.checker) == "Event" && len(node.AsNewExpression().Arguments.Nodes) == 2 {
+				t := owner.checker.GetTypeAtLocation(node.AsNewExpression().Arguments.Nodes[1])
+				for _, v := range t.Distributed() {
+					for _, key := range eventInitFields {
+						if sym := owner.checker.GetPropertyOfType(v, key); sym != nil {
+							for _, decl := range sym.Declarations {
+								if ast.IsGetAccessorDeclaration(decl) {
+									demandReference(decl, accessorRead)
+								}
+							}
+						}
+					}
+				}
+			}
 			if ast.IsForOfStatement(node) {
 				for _, body := range owner.loopEffects(node).bodies {
 					demandReference(body, accessorInvoke)
