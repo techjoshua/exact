@@ -74,8 +74,10 @@ The activation contract and generated work use that same receiver and dependency
 Calls on captured objects retain their method receivers.
 Component-local helper closures can read setup values. The activation carries those values without
 rerunning their initializers. Parentheses and type-only annotations preserve callable identity and
-state, context, and placement effects. State aliases retain their selected instance state path, and called
-helpers contribute their context lookup authority, including through recursive call graphs.
+state, context, and placement effects. State aliases retain their selected instance state path.
+The component owns context lookup. An ordinary helper can receive the selected value or a reactive
+handle. Reading the handle inside a tracked computation establishes the dependency there. Passing
+a scalar derived before the call passes its value as evaluated for that invocation.
 Project linking uses the same component-owned task summary when a parent renders an imported
 component that retains a task as a value. Invoking a callback or reading an accessor in that task
 contributes its platform requirements. Merely defining the callback or accessor defers its body.
