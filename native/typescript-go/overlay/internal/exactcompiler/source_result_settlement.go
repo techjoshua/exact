@@ -143,14 +143,7 @@ func appendReturnSettlementEffects(fact *callableFacts, targets map[*ast.Node]in
 // effects have been collected. Primitive unions perform no implicit then Get.
 // Object, any, unknown and unconstrained generic values supply no such fact.
 func (query *sourceValueQuery) primitiveSettlementValue(node *ast.Node) bool {
-	value := query.owner.checker.GetTypeAtLocation(node)
-	// Only recover an otherwise unknown task receiver. An ordinary object type
-	// remains authoritative and may carry a real then getter.
-	if value == nil || value.Flags()&(checker.TypeFlagsAny|checker.TypeFlagsUnknown) != 0 {
-		if owned := query.settlementComponentStateType(node); owned != nil {
-			value = owned
-		}
-	}
+	value := query.componentOperandType(node)
 	if value == nil {
 		return false
 	}
@@ -160,6 +153,18 @@ func (query *sourceValueQuery) primitiveSettlementValue(node *ast.Node) bool {
 		}
 	}
 	return true
+}
+
+// componentOperandType keeps checked object types and recovers the declared
+// state field type when TypeScript lacks the bound function task receiver.
+func (query *sourceValueQuery) componentOperandType(node *ast.Node) *checker.Type {
+	value := query.owner.checker.GetTypeAtLocation(node)
+	if value == nil || value.Flags()&(checker.TypeFlagsAny|checker.TypeFlagsUnknown) != 0 {
+		if owned := query.settlementComponentStateType(node); owned != nil {
+			return owned
+		}
+	}
+	return value
 }
 
 // settlementComponentStateType uses the existing analysis-owned component/input

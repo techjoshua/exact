@@ -13,7 +13,10 @@ func attachNormalizedTaskOrigins(tasks []Task, sourceFile *ast.SourceFile, norma
 	for index := range tasks {
 		task := &tasks[index]
 		work := nodeAtSpan(sourceFile.AsNode(), task.WorkStart, task.WorkLength)
-		if work == nil || !ast.IsFunctionDeclaration(work) || work.Name() == nil {
+		if work != nil && ast.IsArrowFunction(work) && work.Parent != nil && ast.IsVariableDeclaration(work.Parent) && work.Parent.Initializer() == work {
+			work = work.Parent
+		}
+		if work == nil || !(ast.IsFunctionDeclaration(work) || ast.IsVariableDeclaration(work)) || work.Name() == nil {
 			continue
 		}
 		name := work.Name()

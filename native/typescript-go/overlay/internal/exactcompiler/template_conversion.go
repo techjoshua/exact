@@ -69,6 +69,9 @@ func inertLiteralConversion(literal *ast.Node, stringHint bool) bool {
 
 // Retain implicit conversion effects at the consuming operation.
 func (q *sourceValueQuery) primitiveConversionEffects(node, operand *ast.Node, bindings sourceValueBindings, stringHint bool, result *accessorCandidates) {
+	if ast.IsPropertyAccessExpression(operand) && checkedPrimitiveType(q.componentOperandType(operand)) {
+		return
+	}
 	origins := q.originsAt(operand, node, bindings, result)
 	if len(origins) == 0 {
 		result.opaque = true

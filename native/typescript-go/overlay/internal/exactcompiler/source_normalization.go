@@ -369,6 +369,7 @@ func planComponentComputationEdits(
 		}
 		start := nodeTokenStart(sourceFile, computation.statement)
 		name := normalizationGeneratedName(sourceFile, fmt.Sprintf("__exactComponentComputation_%d", start))
+		// An extracted computation inherits the component receiver and arguments.
 		// At a shared boundary, apply the next opening first so the prior
 		// closing is prepended before it instead of nesting adjacent work.
 		*edits = append(
@@ -376,13 +377,13 @@ func planComponentComputationEdits(
 			sourceEdit{
 				start: start,
 				end:   start,
-				text:  "function " + name + "() { ",
+				text:  "const " + name + " = () => { ",
 				order: 1,
 			},
 			sourceEdit{
 				start: computation.statement.End(),
 				end:   computation.statement.End(),
-				text:  " } " + name + "();",
+				text:  " }; " + name + "();",
 				order: 0,
 			},
 		)

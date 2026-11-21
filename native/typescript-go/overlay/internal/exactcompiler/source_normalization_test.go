@@ -82,8 +82,8 @@ func TestNormalizeAuthoredSourceOwnsDerivedComponentWork(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, expected := range []string{
-		`function __exactComponentComputation_`,
-		`this.state.subtotal = this.state.quantity * this.state.price; } __exactComponentComputation_`,
+		`const __exactComponentComputation_`,
+		`this.state.subtotal = this.state.quantity * this.state.price; }; __exactComponentComputation_`,
 	} {
 		if !strings.Contains(normalized.text, expected) {
 			t.Fatalf("derived setup work is missing %q:\n%s", expected, normalized.text)
