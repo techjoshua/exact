@@ -614,6 +614,8 @@ type SourceSpan struct {
 type Task struct {
 	// classDefinitions is a current-extraction reconstruction plan, not a value,
 	// transport input or persisted cache certificate. Emission matches original nodes.
+	// Free calls with scalar inputs in registered cleanup need no pending-state view.
+	cleanupScalarCalls      []SourceSpan
 	classDefinitions        []*ast.Node
 	activationSource        *taskActivationSource // Private original source description; never a runtime/graph loan.
 	helperCaptures          []invokedTaskCapture

@@ -113,7 +113,9 @@ export function TasksPage(this: Component<{}>) {
 					is removed first, eXact releases the old socket and listeners. A resource stays alive only
 					for the task's lifetime, so a task that immediately returns also immediately runs its
 					cleanup. Completing that cleanup preserves the successful task result and any state
-					updates waiting for publication.
+					updates waiting for publication. If a service returns a subscription number, you can
+					register <code>task.cleanup(() =&gt; unsubscribe(number))</code> to release it even when
+					the task is cancelled.
 				</p>
 				<TaskResourceGuidance />
 			</section>

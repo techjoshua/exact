@@ -28,13 +28,14 @@ func collectTaskResources(
 	sourceFile *ast.SourceFile,
 	typeChecker *checker.Checker,
 	owner *executableBodyOwner,
+	cleanupScalarCalls *[]SourceSpan,
 ) ([]TaskResource, []TaskSignalCall, []string) {
 	resources := []TaskResource{}
 	signalCalls := []TaskSignalCall{}
 	diagnostics := []string{}
 	walkNode(work, func(node *ast.Node) bool {
 		if node != work && isCallableNode(node) && taskResourceCleanupCallable(node, work, typeChecker) {
-			cleanupSignals, cleanupDiagnostics := collectTaskCleanupResources(node, sourceFile, typeChecker, owner)
+			cleanupSignals, cleanupDiagnostics := collectTaskCleanupResources(node, sourceFile, typeChecker, owner, cleanupScalarCalls)
 			signalCalls = append(signalCalls, cleanupSignals...)
 			diagnostics = append(diagnostics, cleanupDiagnostics...)
 			return false

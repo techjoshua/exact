@@ -180,6 +180,14 @@ func (lowering *jsxLowering) capturePendingStateFacts(tasks []Task) {
 		}
 		return true
 	})
+	// Registered cleanup releases external resources after cancellation. A free call
+	// carrying only scalars needs no pending receiver or argument view. Its argument
+	// expressions and any captured state operations retain their normal lowering.
+	for _, task := range tasks {
+		for _, call := range task.cleanupScalarCalls {
+			delete(lowering.pendingHelperCalls, call)
+		}
+	}
 }
 
 func (lowering *jsxLowering) taskNeedsPendingState(task Task) bool {

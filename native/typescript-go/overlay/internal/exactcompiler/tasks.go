@@ -291,7 +291,7 @@ func collectTasks(
 			task.Contexts = []ContextEffect{}
 			task.EffectSources = []EnvironmentEffectSource{}
 			resources, signalCalls, resourceDiagnostics :=
-				collectTaskResources(work, sourceFile, typeChecker, callables.owner)
+				collectTaskResources(work, sourceFile, typeChecker, callables.owner, &task.cleanupScalarCalls)
 			task.Resources = resources
 			task.SignalCalls = signalCalls
 			task.Diagnostics = append(task.Diagnostics, resourceDiagnostics...)
