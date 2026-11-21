@@ -142,6 +142,12 @@ prompted about 57,000 more acquisitions over the same interval.
 Skipping those four inventory paths as well still leaves the original request pending
 at 32 seconds. The independent interference scan accounts for 14.91 of 29.95 sampled
 CPU seconds in that diagnostic. Both routes need qualification for the original consumer.
+Within that scan, the original setup lookup is the spread array’s `sort` in
+`initializeIntlEnvironment`. It leads to repeated operand acquisition in deferred
+catalog synchronization and lookup bodies. A bounded trace of six hot call sites
+found no demanded receiver or active creator among more than 65,000 acquisitions.
+The direct fresh-array shortcut leaves the package deadline in place and loses an
+explicitly installed descriptor effect in its control, so it remains diagnostic only.
 
 An inline factory-result control independently exposed a lost callable stored in a
 descriptor. The selected factory inputs and returned local object literal already
