@@ -61,6 +61,7 @@ func TestStandardByteStorageMemberEffects(t *testing.T) {
 // converts its endian flag to a boolean without invoking an object method.
 func TestTaskByteStorageArgumentEffects(t *testing.T) {
 	root, config := formsSourceFixture(t)
+	const lateField = `let input={value:'safe'};class Child extends Uint8Array{field=input.value;/* species */};const b=new Child(2);input={get value(){return document.title}};`
 	for _, row := range []struct {
 		name, body string
 		browser    bool
@@ -75,6 +76,7 @@ func TestTaskByteStorageArgumentEffects(t *testing.T) {
 		{"own-subarray", `const b=new Uint8Array(2);b.subarray=()=>new Uint8Array(0);Object.defineProperty(b,"constructor",{get(){document.title;return Uint8Array}});b.subarray(0,1)`, false},
 		{"defined-subarray", `const b=new Uint8Array(2);Object.defineProperty(b,"constructor",{get(){document.title;return Uint8Array}});Object.defineProperty(b,"subarray",{value:()=>new Uint8Array(0)});b.subarray(0,1)`, false},
 		{"bracket-subarray", `const b=new Uint8Array(2);Object.defineProperty(b,"constructor",{get(){document.title;return Uint8Array}});b["subarray"](0,1)`, true},
+		{"constructor-alias", `const Base=Uint8Array;const b=new Base(2);Object.defineProperty(b,"constructor",{get(){document.title;return Uint8Array}});b.subarray(0,1)`, true},
 		{"species-get", `const b=new Uint8Array(2);Object.defineProperty(b,"constructor",{value:{get [Symbol.species](){document.title;return Uint8Array}}});b.subarray(0,1)`, true},
 		{"species-new", `const b=new Uint8Array(2);Object.defineProperty(b,"constructor",{value:{[Symbol.species]:class extends Uint8Array{constructor(...args:any[]){super(1);document.title}}}});b.subarray(0,1)`, true},
 		{"delete", `const b=new Uint8Array(2);b.subarray=()=>new Uint8Array(0);delete (b as any).subarray;Object.defineProperty(b,"constructor",{get(){document.title;return Uint8Array}});b.subarray(0,1)`, true},
@@ -87,6 +89,10 @@ func TestTaskByteStorageArgumentEffects(t *testing.T) {
 		{"conditional-constructor", `class Child extends Uint8Array{static get [Symbol.species](){document.title;return Uint8Array}};const b=new Child(2);if(Math.random()>0.5)Object.defineProperty(b,"constructor",{value:Uint8Array});b.subarray(0,1)`, true},
 		{"defined-constructor", `class Child extends Uint8Array{static get [Symbol.species](){document.title;return Uint8Array}};const b=new Child(2);Object.defineProperty(b,"constructor",{value:Uint8Array});b.subarray(0,1)`, false},
 		{"inherited-map", `class Base extends Uint8Array{static get [Symbol.species](){document.title;return Uint8Array}};class Child extends Base{};new Child(2).map(value=>value)`, true},
+		{"inherited-aliased-base", `const Base=Uint8Array;class Child extends Base{static get [Symbol.species](){document.title;return Uint8Array}};new Child(2).subarray(0,1)`, true},
+		{"default-species-current-field", lateField + `b.map(value=>value)`, true},
+		{"default-species-dormant", lateField, false},
+		{"explicit-species-bypasses-current-field", strings.Replace(lateField, "/* species */", `static get [Symbol.species](){return Uint8Array}`, 1) + `b.map(value=>value)`, false},
 		{"factory-subclass", `function make(v:{value:string}){return new (class extends Uint8Array{static get [Symbol.species](){void v.value;return Uint8Array}})(2)};const b=make({get value(){return document.title}});b.subarray(0,1)`, true},
 		{"quiet-factory-subclass", `function make(v:{value:string}){return new (class extends Uint8Array{static get [Symbol.species](){void v.value;return Uint8Array}})(2)};const b=make({value:'safe'});b.subarray(0,1)`, false},
 		{"safe-field", `function make(obj:{v:string}){return class extends Uint8Array{tag=obj.v;}}; const C=make({v:'ok'});const b=new Uint8Array(2);Object.defineProperty(b,"constructor",{value:{[Symbol.species]:C}});b.subarray(0,1);`, false},

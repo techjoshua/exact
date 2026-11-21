@@ -919,7 +919,8 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 				}
 				// Instance initialization belongs to actual construction. Neither Has
 				// nor a later Get may reconstruct it from a declaration initializer.
-				if (selection != "" || exactEmpty) && member.Name() != nil && !ast.IsComputedPropertyName(member.Name()) && callableNameText(member.Name()) == selection {
+				if (selection != "" || exactEmpty) && member.Name() != nil && !ast.IsComputedPropertyName(member.Name()) && callableNameText(member.Name()) == selection ||
+					!instance && sourceOwnByteStorageSpecies(member, selectedGet, typeChecker) {
 					ownsSelection = true
 					if query.sourceReceiver != nil && mode == accessorRead && len(projection) == 0 {
 						query.observeSetterStateReceiver(value, member, selection, &result)
@@ -1202,6 +1203,9 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 				symbol = query.sourceAlias(symbol, &result)
 			}
 			if symbol == nil {
+				return
+			}
+			if !instance && query.inheritedByteStorageSpecies(value, inheritedReceiver, get, projection, name, mode, arguments, &result) {
 				return
 			}
 			nativePath := projection

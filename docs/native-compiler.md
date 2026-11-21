@@ -1355,11 +1355,11 @@ comparison preserves object identity without entering these hooks.
 For local standard byte-storage allocations, numeric arguments to typed-array fill, subarray and slice
 and DataView reads and writes can run an authored conversion on the executing target. DataView endianness
 flags use boolean conversion. Scalar operations on private, unmodified receivers retain portable placement.
-Species-producing operations such as typed-array `subarray()` read the selected instance
-constructor and its `Symbol.species` property. Authored getters, selected construction,
-and its instance field initializers contribute effects at the method call. A definite
-private method override can bypass the standard operation. Native construction supplies
-its own inputs.
+Species-producing operations such as typed-array `subarray()` read the instance constructor
+and its `Symbol.species` property. The standard inherited getter returns the subclass
+constructor. Authored getters and selected construction, including instance field initializers,
+contribute effects at the current method call. A definite private method override can bypass
+the standard operation. Native construction supplies its own inputs.
 
 For an acquired standard `Object.getOwnPropertyDescriptor`, original source Effects
 retain coercion-hook retrieval separately from calling an acquired hook. The key

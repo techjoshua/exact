@@ -53,12 +53,27 @@ func localByteStorageOperation(node *ast.Node, owner *sourceValueOwner) bool {
 
 // Classify the selected constructor independently of authored same-name classes.
 func standardByteStorageConstruction(value *ast.Node, c *checker.Checker) bool {
-	name := unwrapSourceCallableReference(value.Expression())
-	if !ast.IsIdentifier(name) || !standardByteStorageName(name.Text()) {
-		return false
+	return standardByteStorageConstructorReference(value.Expression(), c)
+}
+
+// An earlier const in the same source can retain the native constructor. Strict
+// source ordering excludes cycles and keeps unresolved imports on their owner.
+func standardByteStorageConstructorReference(reference *ast.Node, c *checker.Checker) bool {
+	for reference = unwrapSourceCallableReference(reference); reference != nil && ast.IsIdentifier(reference); {
+		symbol := c.GetSymbolAtLocation(reference)
+		if symbol == nil || symbol.ValueDeclaration == nil {
+			return false
+		}
+		declaration := symbol.ValueDeclaration
+		if standardByteStorageName(reference.Text()) && standardLibrarySource(ast.GetSourceFileOfNode(declaration)) {
+			return true
+		}
+		if !ast.IsVariableDeclaration(declaration) || declaration.Parent.Flags&ast.NodeFlagsConst == 0 || declaration.End() > reference.Pos() || ast.GetSourceFileOfNode(declaration) != ast.GetSourceFileOfNode(reference) {
+			return false
+		}
+		reference = unwrapSourceCallableReference(declaration.Initializer())
 	}
-	symbol := c.GetSymbolAtLocation(name)
-	return symbol != nil && symbol.ValueDeclaration != nil && standardLibrarySource(ast.GetSourceFileOfNode(symbol.ValueDeclaration))
+	return false
 }
 
 // Each allowed use keeps the receiver private. fill returns its receiver, so
@@ -292,7 +307,7 @@ func (q *sourceValueQuery) byteStorageSubclass(decl, site *ast.Node, bindings so
 		return false
 	}
 	base := h.Expression()
-	if ast.IsIdentifier(base) && standardByteStorageName(base.Text()) && standardLibraryValue(base, q.owner.checker) {
+	if standardByteStorageConstructorReference(base, q.owner.checker) {
 		return true
 	}
 	for _, parent := range q.selectSourceConstructionReference(base, site, bindings, result).declarations {
@@ -301,4 +316,35 @@ func (q *sourceValueQuery) byteStorageSubclass(decl, site *ast.Node, bindings so
 		}
 	}
 	return false
+}
+
+// The inherited standard species getter returns the original constructor
+// receiver. This is a dependency value for the native construction, with no
+// normal getter output or instance receipt.
+func (q *sourceValueQuery) inheritedByteStorageSpecies(value *ast.Node, receiver *sourceValue, get *sourceGetInputs, projection []string, name string, mode accessorTraversal, bindings sourceValueBindings, result *accessorCandidates) bool {
+	if !q.dependenciesOnly || receiver == nil || receiver.node == nil || !ast.IsClassDeclaration(receiver.node) && !ast.IsClassExpression(receiver.node) ||
+		get == nil || get.symbol == nil || get.symbol.Name != "species" || get.symbol.ValueDeclaration == nil || !standardLibrarySource(ast.GetSourceFileOfNode(get.symbol.ValueDeclaration)) ||
+		len(projection) != 1 || name != "" || mode != accessorAcquire || !standardByteStorageConstructorReference(value, q.owner.checker) {
+		return false
+	}
+	constructor := *receiver
+	scope := q.acquireCallableScope(bindings, result)
+	constructor.capture = &scope
+	result.values = append(result.values, constructor)
+	return true
+}
+
+// An authored declaration for the actual well-known symbol owns that slot and
+// bypasses the native inherited getter. Structural SymbolConstructor types do
+// not certify a shadowed Symbol value.
+func sourceOwnByteStorageSpecies(member *ast.Node, get *sourceGetInputs, c *checker.Checker) bool {
+	if get == nil || get.symbol == nil || get.symbol.Name != "species" || member.Name() == nil || !ast.IsComputedPropertyName(member.Name()) {
+		return false
+	}
+	key := member.Name().AsComputedPropertyName().Expression
+	if !ast.IsPropertyAccessExpression(key) {
+		return false
+	}
+	root := key.Expression()
+	return ast.IsIdentifier(root) && root.Text() == "Symbol" && standardLibraryValue(root, c) && c.GetSymbolAtLocation(key) == get.symbol
 }

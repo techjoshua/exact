@@ -9,6 +9,13 @@ func (q *sourceValueQuery) retainSelectedConstructionDependencies(site *ast.Node
 	if selected == nil {
 		return
 	}
+	if q.dependenciesOnly && ast.IsCallExpression(site) {
+		// The implicit construction observes live captures at the native Call.
+		// A previous source New of the same class owns a different read cut.
+		previous := q.initializing
+		q.initializing = site
+		defer func() { q.initializing = previous }()
+	}
 	q.retainSourceConstructorEffects(site, selected, result)
 	for _, target := range selected.declarations {
 		if !q.charge(result, site) || !sourceConstructorDefinition(target) {
