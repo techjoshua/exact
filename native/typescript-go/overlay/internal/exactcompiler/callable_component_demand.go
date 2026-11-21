@@ -130,6 +130,11 @@ func componentCallableDemand(collection *projectCallableCollection, requested ..
 		_, componentReturn := owner.values.components[f.node]
 		summary := owner.values.summary(f.node)
 		for _, node := range summary.nodes {
+			if ast.IsForOfStatement(node) {
+				for _, body := range owner.loopEffects(node).bodies {
+					demandReference(body, accessorInvoke)
+				}
+			}
 			if ast.IsJsxOpeningElement(node) {
 				demandReference(node.AsJsxOpeningElement().TagName, accessorInvoke)
 			}

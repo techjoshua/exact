@@ -285,7 +285,7 @@ func (owner *sourceValueOwner) summary(node *ast.Node) sourceValueSummary {
 			summary.returnSites = append(summary.returnSites, child)
 		}
 		executable := false
-		if sourceClassHasDecoratorApplication(child) || ast.IsVariableDeclarationList(child) && child.Flags&ast.NodeFlagsUsing != 0 {
+		if ast.IsForOfStatement(child) || sourceClassHasDecoratorApplication(child) || ast.IsVariableDeclarationList(child) && child.Flags&ast.NodeFlagsUsing != 0 {
 			summary.nodes = append(summary.nodes, child)
 		}
 		if ast.IsIdentifier(child) && !ast.IsDeclarationName(child) && !isStaticPropertyName(child) {

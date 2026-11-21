@@ -134,6 +134,24 @@ func collectDirectCallableEffects(
 				return false
 			}
 		}
+		if ast.IsForOfStatement(node) {
+			effects := owner.loopEffects(node)
+			if effects.opaque {
+				e := environmentSource("unknown", "unresolved iterator protocol", fact.summary.Name)
+				e.Opaque = true
+				fact.summary.DirectEffectSources = append(fact.summary.DirectEffectSources, e)
+			}
+			var part accessorCandidates
+			for _, body := range effects.bodies {
+				part.retainCallableEffect(node, body)
+			}
+			if call := effects.generatorCall; call != nil && enclosingCallableNode(call) == fact.node {
+				part.effects[0].receivers = &sourceEffectReceivers{
+					owner: fact.node, bindings: receiverBindingsForCall(call.AsCallExpression(), fact.node, typeChecker),
+				}
+			}
+			appendAccessorTargets(fact, node, part, nodeTargets, sourceFile)
+		}
 		if sourceClassHasDecoratorApplication(node) {
 			flow := moduleFlow
 			if flow == nil {
@@ -1026,6 +1044,32 @@ func walkCallableNormalWithFolds(root *ast.Node, visit func(*ast.Node) bool, ope
 			descend(demand.value)
 			operand(demand)
 			descend(node.AsBinaryExpression().Left)
+			return
+		}
+		// Schedule only executed statements. The condition and the operand of
+		// an abrupt completion still belong to the enclosing callable.
+		if ast.IsIfStatement(node) {
+			branch := node.AsIfStatement()
+			switch unwrapSourceCallableReference(branch.Expression).Kind {
+			case ast.KindTrueKeyword:
+				descend(branch.Expression)
+				descend(branch.ThenStatement)
+				return
+			case ast.KindFalseKeyword:
+				descend(branch.Expression)
+				if branch.ElseStatement != nil {
+					descend(branch.ElseStatement)
+				}
+				return
+			}
+		}
+		if ast.IsBlock(node) {
+			for _, statement := range node.AsBlock().Statements.Nodes {
+				descend(statement)
+				if ast.IsReturnStatement(statement) || ast.IsThrowStatement(statement) || ast.IsBreakStatement(statement) || ast.IsContinueStatement(statement) {
+					break
+				}
+			}
 			return
 		}
 		node.ForEachChild(func(child *ast.Node) bool {

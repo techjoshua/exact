@@ -344,7 +344,10 @@ export function TasksPage(this: Component<{}>) {
 					requirements. Spreading an object into an array also reads its{' '}
 					<code>Symbol.iterator</code>
 					property. If the object's getter writes <code>document.title</code>, the task needs the
-					browser before iteration even begins. Placement follows captured inputs and current
+					browser before iteration even begins. Creating a generator defers its body. If a task loops
+					over that generator and its body reads the DOM, the task needs the browser. The same
+					applies when an iterator reads the DOM while advancing or closing on early exit.
+					Placement follows captured inputs and current
 					assignments through helper returns, preserving ordinary JavaScript initialization and
 					thrown errors. Unresolved callbacks or externally supplied values can leave placement
 					uncertain.
