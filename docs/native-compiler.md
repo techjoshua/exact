@@ -1329,7 +1329,9 @@ use the ordinary member and call analysis.
 
 Untagged template substitutions apply string-hint conversion to their evaluated operands.
 A known authored conversion getter or method contributes its target effects. A tag receives
-the substitution directly. Checked primitive substitutions need no hook lookup.
+the substitution directly. Checked primitive substitutions need no hook lookup. Addition uses the default
+conversion hint and queries the returned object when a helper call supplies the operand. Strict
+comparison preserves object identity without entering these hooks.
 
 For an acquired standard `Object.getOwnPropertyDescriptor`, original source Effects
 retain coercion-hook retrieval separately from calling an acquired hook. The key

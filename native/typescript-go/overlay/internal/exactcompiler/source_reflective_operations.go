@@ -444,12 +444,11 @@ func (query *sourceValueQuery) reflectiveKeyEffects(op *sourceReflectiveOperatio
 // requesting its primitive result. Precision consumers add their unchanged
 // conversion refusal above; the selected descriptor algorithm needs Effects.
 func (query *sourceValueQuery) sourcePropertyKeyEffects(op *sourceReflectiveOperation, result *accessorCandidates) bool {
-	return query.stringHintEffects(op.operation, op.keys, result)
+	return query.primitiveHintEffects(op.operation, op.keys, true, result)
 }
 
-// stringHintEffects accounts for user code during string-hint primitive conversion.
-// The caller owns the eventual string or property key.
-func (query *sourceValueQuery) stringHintEffects(operation *ast.Node, values []sourceObservedValue, result *accessorCandidates) bool {
+// Collect authored hook effects in primitive-conversion order. The consumer owns the result.
+func (query *sourceValueQuery) primitiveHintEffects(operation *ast.Node, values []sourceObservedValue, stringHint bool, result *accessorCandidates) bool {
 	for _, observed := range values {
 		if !query.charge(result, operation) {
 			return false
@@ -461,7 +460,11 @@ func (query *sourceValueQuery) stringHintEffects(operation *ast.Node, values []s
 		previous := query.creators
 		query.creators = observed.scope.creators
 		symbolKey, symbol := query.nativeWellKnownKey("toPrimitive", result)
-		for _, key := range []string{symbolKey, "toString", "valueOf"} {
+		keys := [...]string{symbolKey, "valueOf", "toString"}
+		if stringHint {
+			keys[1], keys[2] = keys[2], keys[1]
+		}
+		for _, key := range keys {
 			if key == "" {
 				result.opaque = true
 				continue

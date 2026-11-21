@@ -81,7 +81,16 @@ func visitImplicitAccessors(node *ast.Node, typeChecker *checker.Checker, bindin
 func (q *sourceValueQuery) implicitAccessorQueries(node *ast.Node, bindings sourceValueBindings, result *accessorCandidates) {
 	typeChecker := q.owner.checker
 	if ast.IsTemplateSpan(node) {
-		q.templateConversionEffects(node, bindings, result)
+		q.primitiveConversionEffects(node, node.AsTemplateSpan().Expression, bindings, true, result)
+		return
+	}
+	if ast.IsBinaryExpression(node) && node.AsBinaryExpression().OperatorToken.Kind == ast.KindPlusToken {
+		binary := node.AsBinaryExpression()
+		for _, operand := range []*ast.Node{binary.Left, binary.Right} {
+			if !checkedPrimitiveOperand(operand, typeChecker) && !inertLiteralConversion(singleUseLiteral(operand, q.owner, ast.KindObjectLiteralExpression), false) {
+				q.primitiveConversionEffects(node, operand, bindings, false, result)
+			}
+		}
 		return
 	}
 	if ast.IsSpreadElement(node) && ast.IsArrayLiteralExpression(node.Parent) {

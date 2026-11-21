@@ -198,3 +198,31 @@ func TestDefinitionMAYDepth28GraphConservation(t *testing.T) {
 		}
 	}
 }
+
+// Adding values returned from a helper may call an authored conversion even when
+// collecting the helper's unconditional body effects needs no concrete input.
+func TestDefinitionMAYAuthoredResultConversion(t *testing.T) {
+	root, config := formsSourceFixture(t)
+	for _, row := range []struct {
+		name, expression string
+		browser          bool
+	}{
+		{"call-return", "item()+item()", true},
+		{"strict-comparison", "item()===item()", false},
+		{"first-ordinary-method", "0+({valueOf(){return 1},toString(){document.title;return 'x'}} as any)", false},
+		{"first-method-work", "0+({valueOf(){return void document.title}} as any)", true},
+	} {
+		t.Run(row.name, func(t *testing.T) {
+			source := "import {type Component,TaskContext} from '@exactjs/core';" +
+				"function item():any{return {valueOf(){document.title;return 1}}}function sum(){return " + row.expression + "}" +
+				"export function Page(this:Component<{}>){function run(task:TaskContext=TaskContext.server()){return sum()}return ()=> <button onClick={()=>run()}>run</button>}"
+			for _, target := range []Target{TargetClient, TargetServer} {
+				result := formsCompileSource(t, root, config, source, target)
+				refused := containsDiagnosticCode(result.Diagnostics, "EXACT2001") && strings.Contains(strings.Join(formsDiagnosticDetails(result.Diagnostics), " "), "document")
+				if refused != row.browser || (result.Code == "") != row.browser || !row.browser && hasErrorDiagnostic(result.Diagnostics) {
+					t.Fatalf("%s emitted=%t diagnostics=%v", target, result.Code != "", formsDiagnosticDetails(result.Diagnostics))
+				}
+			}
+		})
+	}
+}
