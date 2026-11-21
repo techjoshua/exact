@@ -35,90 +35,69 @@ func stagedMemberWitness(t *testing.T) string {
 	return ""
 }
 
+// A component task executes the helper and publishes its result to rendered state.
+const memberOperationTask = `
+import { TaskContext, type Component } from "@exactjs/core";
+declare function unbound(): string;
+export function Page(this: Component<{label: string}>, props: {flag: boolean}) {
+	this.state.label = "initial";
+	const updateLabel = (task: TaskContext = TaskContext.client()) => {
+		this.state.label = MEMBER;
+	};
+	return () => <button onClick={() => updateLabel()}>{this.state.label}</button>;
+}
+`
+
+func memberOperationTaskEffects(t *testing.T, declaration, expression, packageType string, target Target) []EnvironmentEffectSource {
+	t.Helper()
+	response := NewSession().Execute(Request{
+		Kind: "compile", ID: "/virtual/component-member.tsx", Target: target, PackageType: packageType,
+		Source: declaration + strings.Replace(memberOperationTask, "MEMBER", expression, 1),
+	})
+	if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) || response.Code == "" {
+		t.Fatalf("member component %s/%s: %s %#v", packageType, target, response.Error, response.Diagnostics)
+	}
+	return executableSummary(t, response, "updateLabel").EffectSources
+}
+
 func TestStagedOperationSelectMember(t *testing.T) {
-	source := stagedMemberWitness(t)
-	var definition []byte
-	for _, application := range []bool{false, true} {
-		text := source
-		if application {
-			text += `function known(){return window.name;}export function apply(flag:boolean){return selectMember(flag,known);}`
-		}
-		session := NewSession()
-		response := session.Execute(Request{Kind: "analyze", ID: "/virtual/staged-member.ts", Source: text, Diagnostics: "semantic"})
-		if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) {
-			t.Fatalf("member source: %s %#v", response.Error, response.Diagnostics)
-		}
-		for _, diagnostic := range response.Diagnostics {
-			if diagnostic.Severity == "warning" && diagnostic.Code != "EXACT_ANALYSIS_COST" {
-				t.Fatalf("ordinary relative input acquired a warning: %#v", diagnostic)
+	for _, target := range []Target{TargetClient, TargetServer} {
+		var application []byte
+		for _, packageType := range []string{"application", "library"} {
+			effects := memberOperationTaskEffects(t, stagedMemberWitness(t), "selectMember(props.flag, unbound)", packageType, target)
+			assertMemberOperationEffects(t, effects, true, false, true)
+			// Compare public EffectSources fields. Private source identities
+			// legitimately differ between native sessions.
+			public, err := json.Marshal(effects)
+			if err != nil {
+				t.Fatal(err)
 			}
-		}
-		selected := executableSummary(t, response, "selectMember")
-		known, unknown := false, false
-		for _, effect := range selected.EffectSources {
-			known = known || effect.Environment == "browser" && effect.Description == "document"
-			unknown = unknown || effect.Environment == "unknown"
-		}
-		if !known || !unknown {
-			t.Fatalf("lost known/relative contributions: %#v", selected.EffectSources)
-		}
-		public, err := json.Marshal(selected.EffectSources)
-		if err != nil {
-			t.Fatal(err)
-		}
-		// Native records also carry private AST pointers, which legitimately
-		// differ across Sessions. Compare every public EffectSources field.
-		if definition != nil && !bytes.Equal(definition, public) {
-			t.Fatalf("application changed public EffectSources: before=%s after=%s", definition, public)
-		}
-		definition = public
-		connected := false
-		for _, fact := range stagedDeclarationFacts(session) {
-			if fact.summary.Name != "selectMember" {
-				continue
+			if application != nil && !bytes.Equal(application, public) {
+				t.Fatalf("package mode changed task effects: before=%s after=%s", application, public)
 			}
-			connected = len(fact.staged.operationUses) == 1 && fact.staged.operationDeliveries == 2 && !fact.staged.operationsPending && fact.staged.settled
-			for _, plan := range fact.staged.operationUses {
-				if _, legacy := fact.staged.legacy[plan.call]; legacy {
-					t.Fatal("covered member Call entered recursive legacy recovery")
-				}
-				if plan.request.producer.operation.Expression() == nil || plan.request.use != plan.call {
-					t.Fatal("member producer lost its original Get/Call occurrence")
-				}
-			}
-		}
-		if !connected {
-			t.Fatal("source producer did not reach the issuing consumer and publication")
-		}
-		if application {
-			knownActual, unresolved := false, false
-			for _, effect := range executableSummary(t, response, "apply").EffectSources {
-				knownActual = knownActual || effect.Environment == "browser" && effect.Description == "window"
-				unresolved = unresolved || effect.Environment == "unknown"
-			}
-			if !knownActual || unresolved {
-				t.Fatal("real composition edge did not use demanded-role substitution")
-			}
+			application = public
 		}
 	}
 }
 
 func TestStagedOperationDormantSibling(t *testing.T) {
-	const source = `export function select(flag:boolean,foreign:()=>string){const table={run:flag?()=>document.title:foreign,unused:()=>window.name};return table.run();}`
-	response := NewSession().Execute(Request{Kind: "analyze", ID: "/virtual/staged-member-dormant.ts", Source: source, Diagnostics: "semantic"})
-	if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) {
-		t.Fatalf("dormant source: %s %#v", response.Error, response.Diagnostics)
+	const source = `function select(flag:boolean,foreign:()=>string){const table={run:flag?()=>document.title:foreign,unused:()=>window.name};return table.run();}`
+	for _, target := range []Target{TargetClient, TargetServer} {
+		effects := memberOperationTaskEffects(t, source, "select(props.flag, unbound)", "application", target)
+		assertMemberOperationEffects(t, effects, true, false, true)
 	}
-	known, unknown := false, false
-	for _, effect := range executableSummary(t, response, "select").EffectSources {
-		known = known || effect.Description == "document" && effect.Environment == "browser"
-		unknown = unknown || effect.Environment == "unknown"
-		if effect.Description == "window" {
-			t.Fatal("storage activated the unrelated sibling")
-		}
+}
+
+func assertMemberOperationEffects(t *testing.T, effects []EnvironmentEffectSource, document, window, unknown bool) {
+	t.Helper()
+	hasDocument, hasWindow, hasUnknown := false, false, false
+	for _, effect := range effects {
+		hasDocument = hasDocument || effect.Environment == "browser" && effect.Description == "document"
+		hasWindow = hasWindow || effect.Environment == "browser" && effect.Description == "window"
+		hasUnknown = hasUnknown || effect.Environment == "unknown"
 	}
-	if !known || !unknown {
-		t.Fatal("dormancy filtering discarded a selected contribution")
+	if hasDocument != document || hasWindow != window || hasUnknown != unknown {
+		t.Fatalf("task browser document/window and unknown, want %t/%t/%t: %#v", document, window, unknown, effects)
 	}
 }
 
@@ -143,31 +122,26 @@ func TestStagedOperationMemberEmission(t *testing.T) {
 }
 
 func TestStagedOperationUnmigratedMembers(t *testing.T) {
-	for _, control := range []struct{ name, source string }{
-		{"captured-input", `export function read(callback:()=>string){const table={run:()=>{document.title;return callback()}};return table.run();}`},
-		{"getter", `export function read(){const table={get run(){window.name;return ()=>document.title}};return table.run();}`},
-		{"write", `export function read(){const table={run:()=>''};table.run=()=>document.title;return table.run();}`},
-		{"rest", `export function read(...callbacks:(()=>string)[]){const table={run:callbacks[0]};return table.run();}`},
-		{"new-target", `export function read(){const table={run:()=>new.target?document.title:''};return table.run();}`},
+	for _, control := range []struct {
+		name, source, call        string
+		document, window, unknown bool
+	}{
+		{"captured-input", `export function read(callback:()=>string){const table={run:()=>{document.title;return callback()}};return table.run();}`, "read(unbound)", true, false, true},
+		{"getter", `export function read(){const table={get run(){window.name;return ()=>document.title}};return table.run();}`, "read()", true, true, false},
+		{"write", `export function read(){const table={run:()=>''};table.run=()=>document.title;return table.run();}`, "read()", true, false, false},
+		{"rest", `export function read(...callbacks:(()=>string)[]){const table={run:callbacks[0]};return table.run();}`, "read(unbound)", false, false, true},
+		{"new-target", `export function read(){const table={run:()=>new.target?document.title:''};return table.run();}`, "", false, false, false},
 	} {
 		t.Run(control.name, func(t *testing.T) {
-			session := NewSession()
-			response := session.Execute(Request{Kind: "analyze", ID: "/virtual/staged-member-" + control.name + ".ts", Source: control.source, Diagnostics: "semantic"})
-			if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) {
-				t.Fatalf("existing member owner: %s %#v", response.Error, response.Diagnostics)
+			facts := stagedDeltaFacts(t, control.source)
+			read := facts[stagedDeltaFact(t, facts, "read")]
+			if len(read.staged.operationUses) != 0 {
+				t.Fatal("unsupported member capability acquired staged coverage")
 			}
-			for _, fact := range stagedDeclarationFacts(session) {
-				if fact.summary.Name == "read" && len(fact.staged.operationUses) != 0 {
-					t.Fatal("unsupported member capability acquired staged coverage")
-				}
-			}
-			if control.name != "rest" && control.name != "new-target" {
-				known := false
-				for _, effect := range executableSummary(t, response, "read").EffectSources {
-					known = known || effect.Environment == "browser" && effect.Description == "document"
-				}
-				if !known {
-					t.Fatal("unmigrated owner lost the independent known donor")
+			if control.call != "" {
+				for _, target := range []Target{TargetClient, TargetServer} {
+					effects := memberOperationTaskEffects(t, control.source, control.call, "application", target)
+					assertMemberOperationEffects(t, effects, control.document, control.window, control.unknown)
 				}
 			}
 		})
@@ -175,101 +149,64 @@ func TestStagedOperationUnmigratedMembers(t *testing.T) {
 }
 
 func TestStagedOperationReceiverActualRetainsOwner(t *testing.T) {
-	source := stagedMemberWitness(t) + `function observe(this:{run?:unknown}){return this.run?window.name:window.name;}export function apply(flag:boolean){return selectMember(flag,observe);}`
-	session := NewSession()
-	response := session.Execute(Request{Kind: "analyze", ID: "/virtual/staged-member-receiver.ts", Source: source, Diagnostics: "semantic"})
-	if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) {
-		t.Fatalf("receiver source: %s %#v", response.Error, response.Diagnostics)
-	}
-	known := false
-	for _, effect := range executableSummary(t, response, "apply").EffectSources {
-		known = known || effect.Environment == "browser" && effect.Description == "window"
-	}
-	if !known {
-		t.Fatal("original receiver/effect owner lost its known donor")
-	}
-	for _, fact := range stagedDeclarationFacts(session) {
-		if fact.summary.Name != "apply" {
-			continue
+	source := stagedMemberWitness(t) + `function observe(this:{run?:unknown}){return this.run?window.name:window.name;}`
+	for _, target := range []Target{TargetClient, TargetServer} {
+		effects := memberOperationTaskEffects(t, source, "selectMember(props.flag, observe)", "application", target)
+		browser := false
+		for _, effect := range effects {
+			browser = browser || effect.Environment == "browser" && effect.Description == "window"
 		}
-		retained := len(fact.staged.legacy) != 0
-		for _, call := range fact.staged.calls {
-			if !call.legacyInputs {
-				t.Fatal("receiver-dependent actual silently used formal-only substitution")
-			}
-			retained = true
-		}
-		if !retained {
-			t.Fatal("receiver-dependent actual lost its original input consumer")
+		if !browser {
+			t.Fatalf("receiver-dependent actual lost its browser effect: %#v", effects)
 		}
 	}
 }
 
 func TestStagedOperationMergedCloneRebuild(t *testing.T) {
-	session := NewSession()
-	response := session.Execute(Request{Kind: "analyze", ID: "/virtual/staged-member-clone.ts", Source: stagedMemberWitness(t), Diagnostics: "semantic"})
-	if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) {
-		t.Fatalf("clone source: %s %#v", response.Error, response.Diagnostics)
-	}
-	for _, project := range session.projects {
-		cache := project.callableCache
-		if cache == nil {
-			continue
+	withOriginalSetEffectsCollector(t, stagedMemberWitness(t), func(owner *executableBodyOwner, source *ast.SourceFile, originals []callableFacts, _ *callableEffectWork) {
+		analysis := callableAnalysisFromFacts(source, originals, nil)
+		cloned := analysis
+		cloned.facts = make([]callableFacts, len(analysis.facts))
+		for index, fact := range analysis.facts {
+			cloned.facts[index] = cloneProjectCallableFact(fact)
 		}
-		for source, analysis := range cache.bySource {
-			if source.FileName() != "/virtual/staged-member-clone.ts" {
-				continue
-			}
-			cloned := analysis
-			cloned.facts = make([]callableFacts, len(analysis.facts))
-			for index, fact := range analysis.facts {
-				cloned.facts[index] = cloneProjectCallableFact(fact)
-			}
-			if blocked := callableAnalysisFromFacts(source, cloned.facts, nil); len(blocked.pending) == 0 || len(blocked.summaries) != 0 {
-				t.Fatal("clone inherited member publication rights")
-			}
-			merged := mergeProjectCallableEffects(source, []callableAnalysis{cloned}, cache.owner)
-			if len(merged.pending) != 0 {
-				t.Fatal("real merged operation graph did not settle")
-			}
-			known, unknown, delivered := false, false, false
-			for _, summary := range merged.summaries {
-				if summary.Name == "selectMember" {
-					for _, effect := range summary.EffectSources {
-						known = known || effect.Environment == "browser"
-						unknown = unknown || effect.Environment == "unknown"
-					}
-				}
-			}
-			for _, fact := range merged.facts {
-				if fact.summary.Name == "selectMember" {
-					delivered = fact.staged.operationDeliveries == 2 && fact.staged.settled && !fact.staged.operationsPending
-				}
-			}
-			if !known || !unknown || !delivered {
-				t.Fatal("merged source alternatives did not reach independent publication")
-			}
-			for _, fact := range analysis.facts {
-				if fact.summary.Name == "selectMember" && (fact.staged.operationDeliveries != 2 || !fact.staged.settled) {
-					t.Fatal("merged delivery changed retained source graph")
-				}
-			}
-			return
+		if blocked := callableAnalysisFromFacts(source, cloned.facts, nil); len(blocked.pending) == 0 || len(blocked.summaries) != 0 {
+			t.Fatal("clone inherited member publication rights")
 		}
-	}
-	t.Fatal("missing source analysis for independent graph")
+		merged := mergeProjectCallableEffects(source, []callableAnalysis{cloned}, owner)
+		if len(merged.pending) != 0 {
+			t.Fatal("real merged operation graph did not settle")
+		}
+		known, unknown, delivered := false, false, false
+		for _, summary := range merged.summaries {
+			if summary.Name == "selectMember" {
+				for _, effect := range summary.EffectSources {
+					known = known || effect.Environment == "browser"
+					unknown = unknown || effect.Environment == "unknown"
+				}
+			}
+		}
+		for _, fact := range merged.facts {
+			if fact.summary.Name == "selectMember" {
+				delivered = fact.staged.operationDeliveries == 2 && fact.staged.settled && !fact.staged.operationsPending
+			}
+		}
+		if !known || !unknown || !delivered {
+			t.Fatal("merged source alternatives did not reach independent publication")
+		}
+		for _, fact := range analysis.facts {
+			if fact.summary.Name == "selectMember" && (fact.staged.operationDeliveries != 2 || !fact.staged.settled) {
+				t.Fatal("merged delivery changed retained source graph")
+			}
+		}
+	})
 }
 
 // Native issuer/disposition negatives use the real source-produced recipe. They
 // protect graph ownership and empty-vs-unimplemented boundaries, independently
 // of the ordinary Session journey above.
 func TestStagedOperationSourceProtocol(t *testing.T) {
-	session := NewSession()
-	response := session.Execute(Request{Kind: "analyze", ID: "/virtual/staged-member-protocol.ts", Source: stagedMemberWitness(t), Diagnostics: "semantic"})
-	if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) {
-		t.Fatalf("protocol source: %s %#v", response.Error, response.Diagnostics)
-	}
-	facts := stagedDeclarationFacts(session)
+	facts := stagedDeltaFacts(t, stagedMemberWitness(t))
 	for index, fact := range facts {
 		if fact.summary.Name != "selectMember" {
 			continue

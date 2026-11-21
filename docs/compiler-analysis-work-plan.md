@@ -67,6 +67,26 @@ The unified `da2de7f49` snapshot ran 2,321 groups with 1,885 passes and 436 fail
 
 The full native `43fa437ca` checkpoint ran 2,322 groups with 1,894 passes and 428 failures. Eight previous failures passed, including the seven staged delta groups and the returned-capture issuer control. The added standard writer-key group passed. Every prior pass remained a pass. The two subsequent Await fixture repairs also passed on the same native production source.
 
+Six historical staged member groups used a public analysis of an ordinary
+declaration to demand a staged summary or live graph. For the public behavior, a
+component task selects the member, invokes it with the original receiver and
+writes the result to the button's rendered label. The paired app and library
+controls retain the browser alternative beside an opaque callback, exclude a
+dormant sibling and retain the browser effect of a receiver-dependent argument.
+The fallback controls preserve reached getter and mutation effects and retain
+unknown captured and rest callables. These fixtures replace obsolete setup under
+rules 1 through 4 of the
+[final traversal and persistence rules](compiler-architecture-completion-plan.md#final-traversal-and-persistence-rules).
+The original emitted Node control continues to check both selected branches,
+their order and the foreign method's receiver. In Chromium, real button clicks
+publish the two selected results and preserve the foreign method's receiver.
+Source admission, consumer cuts,
+publication and retained-copy isolation stay with the original staged collector
+under rules 4 and 7. The known-callback specialization still reports residual
+accessor uncertainty. These checks qualify the member groups and their
+existing delta lifecycle controls. Other inventoried families need their own
+reachable consumer and phase qualification.
+
 The full native `9898a1cba` checkpoint ran 2,329 groups with 1,903 passes, 425 test failures and one compiler panic. Relative to `43fa437ca`, three prior failures pass and all seven added groups pass. The prior render-effects suite reproduces the panic on a parenthesized Array `map` member. The source key lookup now unwraps that member and leaves absent source syntax to ordinary analysis. The complete render-effects matrix and the Map key placement tests pass on a focused rerun using the checkpoint plus that correction. The historical inventory still contains 131 failure families. Their exit status and source owners guide triage, while distinct public consumers require separate qualification.
 
 The full native `db1cb6832` checkpoint ran 2,330 groups with 1,910 passes and 420 failures. Every prior pass remains green. Five prior failures pass, covering wrapped array calls, the captured-write consumer and three constructor and writer groups. Both added groups pass. The authored root-factory coverage replaces one former standalone assertion.
