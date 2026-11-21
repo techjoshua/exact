@@ -346,3 +346,80 @@ export function Page() {
 	render(receipt(client.Page as never, {}), host);
 	expect(host.textContent).toBe(browser ? 'string' : 'function');
 });
+
+it.each([
+	{
+		name: 'reached factory getter',
+		helper: "Object.defineProperty({value:'safe'}, 'value', {get:makeGetter()})",
+		expression: 'make().value',
+		browser: true,
+		expected: 'browser title'
+	},
+	{
+		name: 'reached inline getter',
+		helper: "Object.defineProperty({value:'safe'}, 'value', {get:()=>document.title})",
+		expression: 'make().value',
+		browser: true,
+		expected: 'browser title'
+	},
+	{
+		name: 'unread installed getter',
+		helper: "Object.defineProperty({value:'safe'}, 'value', {get:makeGetter()})",
+		expression: 'typeof make()',
+		browser: false,
+		expected: 'object'
+	},
+	{
+		name: 'separate property',
+		helper: "Object.defineProperty({value:'safe',other:''}, 'other', {get:makeGetter()})",
+		expression: 'make().value',
+		browser: false,
+		expected: 'safe'
+	},
+	{
+		name: 'authored lexical replacement',
+		setup: 'const Object={defineProperty<T>(target:T,_key:string,_descriptor:PropertyDescriptor){return target}};',
+		helper: "Object.defineProperty({value:'safe'}, 'value', {get:makeGetter()})",
+		expression: 'make().value',
+		browser: false,
+		expected: 'safe'
+	}
+])('retains $name when a helper returns the descriptor target', async (test) => {
+	const root = await createCompilerTestWorkspace('.exact-returned-descriptor-', process.cwd());
+	const entry = path.join(root, 'page.tsx');
+	await writeFile(
+		entry,
+		`
+${test.setup ?? ''}
+function makeGetter(){return()=>document.title}
+function make(){return ${test.helper}}
+export function Page(){
+	const value=${test.expression};
+	return () => <p>{value}</p>;
+}
+`
+	);
+	const [artifacts] = await compileProjectArtifacts([entry], {
+		rootDir: root,
+		outDir: path.join(root, 'generated')
+	});
+	const server = await importArtifact(artifacts!.serverFile, path.join(root, 'server.mjs'));
+	const priorTitle = document.title;
+	document.title = 'browser title';
+	onTestFinished(() => {
+		document.title = priorTitle;
+	});
+	const { html } = await renderToString(receipt(server.Page as never, {}), { markers: false });
+	if (test.browser) expect(html).toContain('data-exact-client-boundary=');
+	else expect(html).toBe(`<p>${test.expected}</p>`);
+
+	const client = await importArtifact(artifacts!.clientFile, path.join(root, 'client.mjs'));
+	const host = document.createElement('div');
+	const reports: unknown[] = [];
+	onTestFinished(() => unmount(host));
+	render(receipt(client.Page as never, {}), host, {
+		onErrorReport: (report) => reports.push(report.error)
+	});
+	expect(host.textContent).toBe(test.expected);
+	expect(reports).toEqual([]);
+});

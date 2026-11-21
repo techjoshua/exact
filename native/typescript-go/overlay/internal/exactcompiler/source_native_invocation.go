@@ -65,6 +65,16 @@ func (query *sourceValueQuery) consumeNativeInvocation(node *ast.Node, value sou
 		// A successful Object.defineProperty returns its original target. Project
 		// after acquisition so a subsequent Get can observe this writer.
 		if query.dependenciesOnly && consumer.sourceReturn != nil && value.native.kind == sourceNativeObjectDefineProperty {
+			projection := query.reflectiveCopy
+			if exclusive && projection != nil && projection.issuer == query && projection.createdGetter != nil && projection.createdGetter.creation == node {
+				getter := projection.createdGetter
+				for _, target := range operation.targets {
+					if target.value.node == getter.receiver && len(target.value.path) == 0 {
+						query.sourceCreatedGetterRead(getter, bindings, result)
+						break
+					}
+				}
+			}
 			for _, target := range operation.targets {
 				term := target.value
 				if term.capture == nil {
