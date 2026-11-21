@@ -354,7 +354,7 @@ func (lowering *jsxLowering) visitNode(node *ast.Node) *ast.Node {
 	if node == nil {
 		return nil
 	}
-	// Ordinary helper JSX belongs to the host transform. Component roots retain native lowering.
+	// Ordinary value tags can reach the host transform. Native render helpers keep their lowering.
 	if (ast.IsJsxElement(node) || ast.IsJsxSelfClosingElement(node) || ast.IsJsxFragment(node)) && lowering.ordinaryHostJSX(node) {
 		return node
 	}

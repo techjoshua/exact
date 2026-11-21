@@ -1240,6 +1240,11 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 				visitOrigins(values, projection, instance)
 				return
 			}
+			if query.dependenciesOnly && mode == accessorRead && (name != "" || len(projection) != 0) {
+				if iterable := standardArrayLoopSource(symbol.ValueDeclaration, typeChecker); iterable != nil {
+					visit(iterable, append([]string{"*"}, projection...), instance)
+				}
+			}
 			if query.dependenciesOnly && symbol.ValueDeclaration != nil && ast.IsBindingElement(symbol.ValueDeclaration) && !sourcePatternParameter(value, typeChecker) {
 				// Local pattern slots obey the same live writer cut as lexical aliases.
 				// An uninstalled initializer remains a demand, not an acquired value.

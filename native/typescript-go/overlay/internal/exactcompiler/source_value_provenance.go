@@ -459,6 +459,14 @@ func (query *sourceValueQuery) originsInto(node *ast.Node, bindings sourceValueB
 		values = query.liveValues(symbol, values, root, bindings, result)
 		return query.boundProjection(values, path, result)
 	}
+	if query.dependenciesOnly {
+		if iterable := standardArrayLoopSource(symbol.ValueDeclaration, query.owner.checker); iterable != nil {
+			// Recursive helpers can receive an element or one of its fields. Keep
+			// the origins available for effect demands without claiming a value.
+			result.valueIncomplete = true
+			return query.boundProjection(query.origins(iterable, bindings, result), append([]string{"*"}, path...), result)
+		}
+	}
 	if !query.dependenciesOnly && query.missingNormalInput(symbol, root, bindings, result) {
 		return []sourceValue{{node: root, path: path, entrySlot: symbol.ValueDeclaration}}
 	}

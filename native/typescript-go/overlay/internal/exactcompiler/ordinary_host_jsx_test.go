@@ -10,10 +10,11 @@ import (
 
 // Ordinary helpers retain host JSX while actual component render roots remain native.
 func TestOrdinaryCompiledComponentHostJSX(t *testing.T) {
-	source := `import {renderToString} from '@exactjs/ssr';import type {Child} from '@exactjs/core';
+	source := `import type {Child} from '@exactjs/core';
 export function Page(props:{label:string,children?:Child}){return()=> <section>{props.label}{props.children}</section>}
 export const identity=<T,>(value:T)=>value;
-export function localHtml(){function nested(){return renderToString(<Page label="nested"/>)}const arrow=()=>renderToString(<Page label="arrow"/>);void[nested,arrow];return renderToString(<Page label="host"/>)}
+export function renderValue(text:string){return <><p>{text}</p></>}
+export function localInputs(render:(value:Child)=>unknown){function nested(){return render(<Page label="nested"/>)}const arrow=()=>render(<Page label="arrow"/>);void[nested,arrow];return render(<Page label="host"/>)}
 `
 	for _, target := range []Target{TargetClient, TargetServer} {
 		t.Run(string(target), func(t *testing.T) {
@@ -35,8 +36,21 @@ export function localHtml(){function nested(){return renderToString(<Page label=
 				}
 				return true
 			})
-			if strings.Count(r.Code, "<Page label=") != 3 || remaining != 3 || !strings.Contains(r.Code, "function localHtml") || !strings.Contains(r.Code, "function nested") || !strings.Contains(r.Code, "const arrow") || !strings.Contains(r.Code, "identity") {
+			if strings.Count(r.Code, "<Page label=") != 3 || remaining != 3 || !strings.Contains(r.Code, "function localInputs") || !strings.Contains(r.Code, "function nested") || !strings.Contains(r.Code, "const arrow") || !strings.Contains(r.Code, "identity") {
 				t.Fatalf("host/helper or component lowering changed: %s", r.Code)
+			}
+		})
+	}
+}
+
+func TestOrdinaryIntrinsicHelperKeepsNativeLowering(t *testing.T) {
+	const source = `export function renderLabBox(props:{text:string}){return <p>{props.text}</p>}
+export function renderFragment(text:string){return <><b>{text}</b><em>tail</em></>}`
+	for _, target := range []Target{TargetClient, TargetServer} {
+		t.Run(string(target), func(t *testing.T) {
+			r := NewSession().Execute(Request{Kind: "compile", ID: "ordinary-native-helper.tsx", Source: source, Target: target, Diagnostics: "syntax"})
+			if r.Error != "" || hasErrorDiagnostic(r.Diagnostics) || r.Code == "" || r.PreservesHostJSX {
+				t.Fatalf("ordinary render helper did not produce native JSX output: %s %v\n%s", r.Error, r.Diagnostics, r.Code)
 			}
 		})
 	}

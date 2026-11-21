@@ -1,5 +1,5 @@
 import { execFile } from 'node:child_process';
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { appendFile, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { promisify } from 'node:util';
@@ -60,14 +60,28 @@ export async function verifyProjectSourceIsolation(
 			)
 		]);
 		for (const target of ['client', 'server'] as const) {
+			if (target === 'server')
+				await appendFile(
+					path.join(root, 'entry.ts'),
+					"\nexport { renderToString as verifyServerView } from '@exactjs/ssr';"
+				);
 			const output = await buildProjectSourceArtifact(adapter, root, target);
 			const verifier = path.join(root, 'verify.mjs');
 			await writeFile(
 				verifier,
-				`import { renderLabBox, loadBox, Counter, bind, immediate, JavaScriptCounter, bindJavaScript, immediateJavaScript, CommonJSCounter, bindCommonJS, immediateCommonJS, createPendingReactiveTransaction, reactive } from ${JSON.stringify(pathToFileURL(output).href)};
+				`import { renderLabBox, loadBox, Counter, bind, immediate, JavaScriptCounter, bindJavaScript, immediateJavaScript, CommonJSCounter, bindCommonJS, immediateCommonJS, createPendingReactiveTransaction, reactive${target === 'server' ? ', verifyServerView' : ''} } from ${JSON.stringify(pathToFileURL(output).href)};
 import assert from "node:assert/strict";
-if (typeof renderLabBox !== 'function' || !renderLabBox({text:'visible'})) throw new Error('Missing executable JSX helper');
-if (!await loadBox()) throw new Error('Missing executable lazy JSX helper');
+assert.equal(typeof renderLabBox, 'function');
+const directView = renderLabBox({text:'visible'});
+const lazyView = await loadBox();
+assert.ok(directView, 'Missing executable JSX helper');
+assert.ok(lazyView, 'Missing executable lazy JSX helper');
+${
+	target === 'server'
+		? `assert.ok((await verifyServerView(directView)).html.includes('>visible</p>'));
+assert.ok((await verifyServerView(lazyView)).html.includes('>lazy</section>'));`
+		: ''
+}
 for(const [Constructor,bindWork,immediateWork] of [[Counter,bind,immediate],[JavaScriptCounter,bindJavaScript,immediateJavaScript],[CommonJSCounter,bindCommonJS,immediateCommonJS]]) {
 const helper=new Constructor(),counter={count:1},alias=reactive(counter),root={counter,alias};
 for(const settlement of ['discard','commit']) {

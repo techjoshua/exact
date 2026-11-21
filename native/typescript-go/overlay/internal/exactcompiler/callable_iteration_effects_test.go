@@ -5,6 +5,39 @@ import (
 	"testing"
 )
 
+// The loop's member reads need the original possible element sources, including
+// when an element field becomes another invocation's iterable input.
+func TestComponentArrayIterationElementPlacement(t *testing.T) {
+	root, config := formsSourceFixture(t)
+	const browser = "{get label(){return document.title}}"
+	for _, row := range []struct {
+		name, parameter, loop, input string
+		browser                      bool
+	}{
+		{"mutable array", "Node[]", "for(const item of rows)return item.label;", "[" + browser + "]", true},
+		{"readonly alias", "Rows", "for(const item of rows)return item.label;", "[" + browser + "]", true},
+		{"readonly tuple", "readonly [Node]", "for(const item of rows)return item.label;", "[" + browser + "]", true},
+		{"recursive", "Rows", "let text='';for(const item of rows){text+=item.label;if(item.children)text+=read(item.children)}return text;", "[{label:'outer',children:[" + browser + "]}]", true},
+		{"unread getter", "Rows", "for(const item of rows)return item.selected??'default';", "[" + browser + "]", false},
+		{"custom iterator", "Iterable<Node>", "for(const item of rows)return item.label;", "{*[Symbol.iterator](){yield {label:'authored'}}}", false},
+	} {
+		t.Run(row.name, func(t *testing.T) {
+			source := `import type {Component} from '@exactjs/core';
+type Node={label:string,selected?:string,children?:Node[]};type Rows=readonly Node[];
+function read(rows:` + row.parameter + `):string{` + row.loop + `return 'none';}
+export function Page(this:Component<{}>){return()=> <p>{read(` + row.input + `)}</p>}`
+			r := formsCompileSource(t, root, config, source, TargetServer)
+			page := findComponent(t, r.Analysis.Components, "Page")
+			if r.Error != "" || hasErrorDiagnostic(r.Diagnostics) || r.Code == "" {
+				t.Fatalf("server compile failed: %s %v", r.Error, formsDiagnosticDetails(r.Diagnostics))
+			}
+			if row.browser != (page.Placement == "client" && page.RenderCapability.Server == "unsupported") {
+				t.Fatalf("browser requirement=%v, placement=%s, capability=%+v", row.browser, page.Placement, page.RenderCapability)
+			}
+		})
+	}
+}
+
 // The task executor sees effects at iteration, including sync fallback and
 // accessor reads on yielded steps. Merely acquiring a generator cannot run it.
 func TestTaskIterationPlacement(t *testing.T) {

@@ -53,6 +53,12 @@ is supported. Both supported entries mean isomorphic rendering. Task placement a
 defaults remain independent. Client event and mount callbacks can belong to a component with a
 server render path without executing during server rendering.
 
+For render placement, a synchronous `for...of` with a simple `const` binding can carry
+possible array or tuple element origins to a member read or a recursive helper argument.
+The original iterator operation still owns iterator acquisition and advancement. The
+element origins contribute getter effects. Returned values and callable identities
+require their existing independent proof.
+
 The first proof covers compiler-recognized returned render functions with intrinsic JSX and
 covered setup/render effects. Child composition and missing effect coverage remain unknown.
 Neutral callable effects alone do not establish rendering support. Module initialization,
@@ -241,6 +247,8 @@ ordinary host JSX with a JSX-bearing implementation beside the planned entry. Ke
 together when copying or packaging the generated output. Package exports and compilation results
 retain their planned entry paths. The consuming host applies its JSX configuration to the
 implementation, and any source map identifies that implementation and its authored source.
+Intrinsic elements and structural fragments in ordinary eXact render helpers still produce
+compiler-lowered render values.
 Component artifacts carry registrations and `exact:optional-enhancement` requests. Consume enhanced paired
 output through the eXact Vite, Bun, or Webpack adapter, which resolves those requests in the consuming module's
 scope and target. It applies server authorization before loading providers. Missing providers use

@@ -72,13 +72,12 @@ export function CompilerTourPage(this: Component<{}>) {
 				<p>
 					An ordinary TSX helper outside a component can instantiate an already-compiled component
 					with the host JSX transform and pass it to public SSR. A direct server renderer call can
-					compile a simple component input and use the smaller server renderer. The component still needs the
-					matching server artifact. Props and children are eager values; creating the input does not
-					invoke the component body or a supplied callback. Intrinsic elements, fragments and
-					enhancements belong inside native component render work. Uncompiled functions are refused.
-					The current preservation path covers TSX helpers outside component definitions. JSX files
-					and ordinary functions declared inside components retain their existing compiler
-					treatment.
+					compile a simple component input and use the smaller server renderer. The component still
+					needs the matching server artifact. Props and children are eager values. Creating the input
+					does not invoke the component body or a supplied callback. The compiler lowers intrinsic and
+					fragment roots in ordinary eXact render helpers. Within host JSX, use compiled component
+					tags and pass intrinsic children as values returned by render helpers. The preservation
+					path covers TSX helpers outside component definitions.
 				</p>
 				<p>
 					Awaited mutations keep suspension in the original function. Tasks resolve omitted defaults
@@ -86,7 +85,8 @@ export function CompilerTourPage(this: Component<{}>) {
 					A component can share module-level lookup tables created with <code>Object.freeze</code>
 					on an object or array literal, including in a module that imports a framework provider.
 					If the view reads a getter that uses the browser, the component needs the browser to render
-					that value. This also applies when a local setup helper returns the render function.
+					that value. This applies to reads in a render function returned by a helper and to reads
+					from array or tuple elements visited by a render helper&apos;s <code>for...of</code> loop.
 					A task may store a browser callback in a local object or array. Calling that callback
 					after destructuring still requires client placement. The same rule applies when another
 					helper invokes a callback that captures it.

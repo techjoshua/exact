@@ -15,6 +15,35 @@ type iterationEffects struct {
 	opaque        bool
 }
 
+// standardArrayLoopSource supplies possible origins for a simple, read-only
+// loop binding. The actual iterator operation keeps its own effect owner.
+func standardArrayLoopSource(declaration *ast.Node, c *checker.Checker) *ast.Node {
+	if declaration == nil || !ast.IsVariableDeclaration(declaration) || !ast.IsIdentifier(declaration.Name()) {
+		return nil
+	}
+	list := declaration.Parent
+	if list == nil || !ast.IsVariableDeclarationList(list) || list.Flags&ast.NodeFlagsConst == 0 {
+		return nil
+	}
+	loop := list.Parent
+	if loop == nil || !ast.IsForOfStatement(loop) || list != loop.Initializer() {
+		return nil
+	}
+	iteration := loop.AsForInOrOfStatement()
+	if iteration.AwaitModifier != nil {
+		return nil
+	}
+	t := c.GetTypeAtLocation(iteration.Expression)
+	if !c.IsArrayType(t) && !t.IsTupleType() {
+		return nil
+	}
+	iterator := c.GetPropertyOfType(t, taskResourceDisposalSymbolKey(c, "iterator"))
+	if iterator == nil || iterator.ValueDeclaration == nil || !standardLibrarySource(ast.GetSourceFileOfNode(iterator.ValueDeclaration)) {
+		return nil
+	}
+	return iteration.Expression
+}
+
 func (e *iterationEffects) add(body *ast.Node) {
 	if !slices.Contains(e.bodies, body) {
 		e.bodies = append(e.bodies, body)

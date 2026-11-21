@@ -19,14 +19,27 @@ func assertExecutableTree(source *ast.Node) {
 	})
 }
 
-// ordinaryHostJSX preserves host syntax only in authored callables outside selected components.
-// Component tasks/render callbacks keep their existing lowering; receiver inference grants nothing here.
+// ordinaryHostJSX reserves authored value tags outside components for the host.
+// Intrinsics and structural nodes still produce eXact render values in ordinary render helpers.
 func (lowering *jsxLowering) ordinaryHostJSX(node *ast.Node) bool {
-	if !tspath.FileExtensionIs(lowering.sourceFile.FileName(), ".tsx") {
+	if !tspath.FileExtensionIs(lowering.sourceFile.FileName(), ".tsx") || ast.IsJsxFragment(node) {
 		return false
 	}
 	original := lowering.emitContext.MostOriginal(node)
 	if original == nil || enclosingCallableNode(original) == nil {
+		return false
+	}
+	var opening *ast.Node
+	switch {
+	case ast.IsJsxElement(original):
+		opening = original.AsJsxElement().OpeningElement
+	case ast.IsJsxSelfClosingElement(original):
+		opening = original
+	default:
+		return false
+	}
+	tag := sourceText(lowering.sourceFile, openingTag(opening))
+	if tag == "_" || tag == "_target" || jsxIntrinsic(tag) {
 		return false
 	}
 	_, component := lowering.componentContaining(original)
