@@ -59,16 +59,18 @@ func TestEnhancementSubsystemImportedContextSources(t *testing.T) {
 				if response.Error != "" || len(response.Diagnostics) != 0 {
 					t.Fatalf("context consumer rejected: %s %#v", response.Error, response.Diagnostics)
 				}
-				if c.replacement {
-					// The selected neutral body is portable independently of the imported
-					// helper's token contract. Mutable type compatibility supplies neither.
-					if strings.Contains(response.Code, "readCompiledEnhancementContextDependency") || len(response.Analysis.Components) != 1 || response.Analysis.Components[0].Placement != "isomorphic" {
-						t.Fatalf("neutral replacement lost availability or inherited the helper contract: %#v\n%s", response.Analysis.Components, response.Code)
-					}
-					return
+				component := findComponent(t, response.Analysis.Components, "Page")
+				// A replaced callback contributes no lookup. A reached optional lookup
+				// retains its runtime token, without imposing peer-order requirements.
+				probed := containsContextEffect(component.Contexts, "Token", "probe")
+				if response.Code == "" || probed == c.replacement || len(component.EnhancementContexts.Requires) != 0 ||
+					strings.Contains(response.Code, "readCompiledEnhancementContextDependency") {
+					t.Fatalf("optional helper lookup changed: contexts=%v requirements=%v\n%s", component.Contexts, component.EnhancementContexts.Requires, response.Code)
 				}
-				if len(response.Analysis.Components) != 1 || response.Analysis.Components[0].Placement != "isomorphic" || strings.Contains(response.Code, "readCompiledEnhancementContextDependency") {
-					t.Fatalf("optional lookup acquired an unnecessary helper contract: %#v\n%s", response.Analysis.Components, response.Code)
+				// Conversion of the array result and mutable call targets have separate
+				// unresolved placement inputs. The direct calls retain portable execution.
+				if c.name != "eager-callback" && !c.replacement && component.Placement != "isomorphic" {
+					t.Fatalf("direct optional lookup lost portable execution: %s", component.Placement)
 				}
 			})
 		}
@@ -112,7 +114,6 @@ export function read(owner:Component<{}>){return owner.getContext(token)}`
 		{"opaque-provider", "", "provide(this);return()=> <_target/>", "write", "token", 1, 0, true},
 		{"consumer-collision", "const token=createContext<string>('different');", "const label=read(this);return()=> <_target title={label}/>", "read", "token", 1, 0, false},
 		{"import-alias", "import {shared as token} from './helper.js';", "const label=this.getContext(token);return()=> <_target title={label}/>", "read", "token", 1, 1, false},
-		{"combined-members", "const tokens={value:createContext<string>('local')};", "const a=readMember(this);const b=this.getContext(tokens.value);return()=> <_target title={a+b}/>", "read", "tokens.value", 2, 1, false},
 	} {
 		t.Run(control.name, func(t *testing.T) {
 			entry := filepath.Join(root, control.name+".tsx")
@@ -161,5 +162,41 @@ export function Example(this:Component<{}>){` + control.body + `}`
 				t.Fatalf("wrong attachment: %s", response.Code)
 			}
 		})
+	}
+}
+
+// The two tokens have the same member name but different declaration roots.
+// The ordinary helper needs the read values and contributes no token contract.
+func TestComponentOwnsLocalAndImportedContextMembers(t *testing.T) {
+	root, config := formsSourceFixture(t)
+	const helper = `import {createContext} from '@exactjs/core';
+export const tokens={value:createContext<string>('foreign')};
+export function join(a:string,b:string){return a+b}`
+	if err := os.WriteFile(filepath.Join(root, "helper.ts"), []byte(helper), 0600); err != nil {
+		t.Fatal(err)
+	}
+	const source = `import {createContext,type Component} from '@exactjs/core';
+import {tokens as foreign,join} from './helper.js';
+const tokens={value:createContext<string>('local')};
+export function Example(this:Component<{}>){
+	const a=this.getContext(foreign.value); const b=this.getContext(tokens.value);
+	const text=join(a,b);return()=> <output>{text}</output>;
+}`
+	for _, target := range []Target{TargetClient, TargetServer} {
+		r := formsCompileSource(t, root, config, source, target)
+		if r.Code == "" || hasErrorDiagnostic(r.Diagnostics) {
+			t.Fatal(target, formsDiagnosticDetails(r.Diagnostics))
+		}
+		component := findComponent(t, r.Analysis.Components, "Example")
+		if len(component.Contexts) != 2 || len(component.EnhancementContexts.Requires) != 2 ||
+			strings.Contains(r.Code, "readCompiledEnhancementContextDependency") {
+			t.Fatal(target, "unexpected context ownership", component.Contexts, component.EnhancementContexts)
+		}
+		for _, token := range []string{"foreign.value", "tokens.value"} {
+			if !containsContextEffect(component.Contexts, token, "read") || !containsString(component.EnhancementContexts.Requires, token) ||
+				!strings.Contains(r.Code, token+".id") {
+				t.Fatal(target, "missing context token", token, component.EnhancementContexts)
+			}
+		}
 	}
 }

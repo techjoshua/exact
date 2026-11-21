@@ -1659,10 +1659,12 @@ func TestSessionSemanticallyValidatesGeneratedNativeArtifact(t *testing.T) {
 }
 
 func TestSessionDiscoversComponentDeclarationSignals(t *testing.T) {
+	root, config := formsSourceFixture(t)
 	response := NewSession().Execute(Request{
-		ID:   "component.tsx",
+		ID: filepath.Join(root, "component.tsx"), ConfigFile: config,
 		Kind: "compile",
 		Source: `
+			import type {Component} from "@exactjs/core";
 			export function Named() {
 				return () => <main />;
 			}
