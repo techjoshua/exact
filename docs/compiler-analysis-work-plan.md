@@ -636,7 +636,10 @@ effects path can still request that value **as an intermediate step**. Consider 
   and possible getter bodies on that receiver can matter to placement or secrecy. The
   getter’s numeric/string result usually does not. A user-defined thenable, iterator or
   coercion can produce the same distinction between identifying executed work and computing
-  a value.
+  a value. An immediate named read on a fresh literal returned by a selected
+  `Object.defineProperty` call can retain the installed getter as a possible
+  effect. The native invocation owns the original descriptor inputs and the
+  read uses their known getter without acquiring a completed result.
 - `helper(input)()` needs to know which returned closure can execute and what it captures.
   A later call through another module, a changed receiver or a prior assignment can alter
   the answer. A cache of “helper is either-side” cannot, by itself, discharge that call.
