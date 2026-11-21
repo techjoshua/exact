@@ -521,7 +521,11 @@ func (query *sourceValueQuery) memberValuesAtGetWithStandard(origin *ast.Node, p
 				// Descriptor operations are retained effects, not a native identity or
 				// performed-call certificate. Their possible body uses raw method inputs.
 				result.opaque = true
-				result.ownOperation = true
+				var adapter *ast.Node
+				if ast.IsFunctionLike(origin) {
+					_, adapter = query.ordinaryFunctionMember(origin, projection, name, mode)
+				}
+				result.ownOperation = result.ownOperation || adapter == nil || query.descriptorOwnsAdapter(origin, call, adapter, bindings)
 				result.cause = call
 				if len(values) > 0 {
 					alternatives = append(alternatives, values...)

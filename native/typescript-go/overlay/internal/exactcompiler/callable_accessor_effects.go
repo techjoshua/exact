@@ -623,7 +623,7 @@ func (query *sourceValueQuery) reflectiveMemberValueInScope(origin *ast.Node, pr
 		prototypeOnly = prototypeOnly && sourceFunctionPrototype(value, query.owner.checker)
 		// Fresh source allocations and distinct acquired native entries cannot
 		// be this selected standard object. An unresolved origin is not disjoint.
-		different := value.node != nil && len(value.path) == 0 && (ast.IsObjectLiteralExpression(value.node) || ast.IsArrayLiteralExpression(value.node) || ast.IsFunctionExpression(value.node) || ast.IsArrowFunction(value.node))
+		different := value.node != nil && len(value.path) == 0 && (ast.IsObjectLiteralExpression(value.node) || ast.IsArrayLiteralExpression(value.node) || ast.IsFunctionExpression(value.node) || ast.IsArrowFunction(value.node) || ast.IsFunctionDeclaration(value.node) && value.node.Body() != nil)
 		if native && value.native != nil {
 			different = value.native.kind != actualGet.receiver.native.kind
 		}

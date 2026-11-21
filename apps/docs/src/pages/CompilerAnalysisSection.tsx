@@ -99,6 +99,8 @@ export function CompilerAnalysisSection(this: Component<{}>) {
 			<p>
 				Binding a function captures its receiver and leading arguments. Its body contributes to
 				placement when the bound function is called, including when a helper returns it to a task.
+				If code conditionally replaces a function’s <code>bind</code> method, both possible
+				implementations contribute their placement requirements.
 			</p>
 			<p>
 				Reading a property descriptor leaves a stored callback dormant. If a helper uses

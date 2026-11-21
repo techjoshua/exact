@@ -507,3 +507,45 @@ func (query *sourceValueQuery) functionMemberWrite(origin *ast.Node, written []s
 	}
 	return query.charge(result, left) && nativeFunctionInvocation(origin, written[0], query.owner.checker) && query.sourceCallableImplementation(origin, result) && query.sourceWritePrecedes(left, producer, bindings)
 }
+
+// descriptorOwnsAdapter removes the inherited route only after Object installs
+// the named slot on this target and execution reaches its Get without another
+// possible mutation. Conditional target or writer alternatives keep both routes.
+func (q *sourceValueQuery) descriptorOwnsAdapter(origin, writer, invocation *ast.Node, bindings sourceValueBindings) bool {
+	call := writer.AsCallExpression()
+	if !q.descriptorWriterCall(call) || !q.precedes(writer, invocation, bindings) {
+		return false
+	}
+	method := call.Expression
+	if ast.IsIdentifier(method) {
+		method = planOrdinaryInvocation(method, call.Arguments.Nodes, q.owner.checker, nil).target
+	}
+	receiver, _ := restrictedInvocationMember(method, q.owner.checker)
+	_, key := restrictedInvocationMember(invocation.Expression(), q.owner.checker)
+	if receiver == nil || !ast.IsIdentifier(receiver) || receiver.Text() != "Object" || key == "" || sourceLiteralMemberName(unwrapSourceCallableReference(call.Arguments.Nodes[1])) != key {
+		return false
+	}
+	index := q.owner.index(ast.GetSourceFileOfNode(writer))
+	region := index.operationRegions[enclosingCallableNode(writer)]
+	if index.incomplete || region == nil {
+		return false
+	}
+	for _, group := range [][]*ast.Node{region.members, region.hazards, region.writes} {
+		for _, op := range group {
+			if op.Pos() >= writer.End() && op.End() <= invocation.Pos() {
+				return false
+			}
+		}
+	}
+	var facts accessorCandidates
+	values := q.originsAt(call.Arguments.Nodes[0], writer, bindings, &facts)
+	if facts.opaque || facts.valueIncomplete || facts.receiverIncomplete || len(values) == 0 {
+		return false
+	}
+	for _, v := range values {
+		if v.node != origin || len(v.path) != 0 {
+			return false
+		}
+	}
+	return true
+}

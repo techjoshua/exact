@@ -1439,7 +1439,9 @@ bindings retain uncertainty alongside any reached replacement body's requirement
 bound function acquires its method, receiver and prefix without executing the target body. Later
 invocation retains those original capture sites, including when a helper immediately invokes
 the result of `bind` or returns the bound function to the component. Unproved capture
-completion remains unknown.
+completion remains unknown. A possible reflective override retains both the inherited adapter and
+the authored alternative. Removing the inherited route requires a preceding installation on the
+same function and key that still holds when the component reads the method.
 
 Definition requirements belong to the compilation-owned source and existing supported package
 contracts. A published component does not need to prove arbitrary future consumer implementations

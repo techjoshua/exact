@@ -10881,35 +10881,41 @@ func TestSessionBoundCallableAcquisition(t *testing.T) {
 
 // Ordinary construction alternatives cannot hide reached authored methods or lookup effects.
 func TestSessionBoundCallableAlternatives(t *testing.T) {
-	for _, test := range []struct {
-		name, source      string
-		browser, authored bool
+	root, config := formsSourceFixture(t)
+	const start = `import {TaskContext,type Component} from '@exactjs/core';
+declare const choice:boolean;
+export function Page(this:Component<{label:string}>){
+	this.state.label='';
+	const run=(task:TaskContext=TaskContext.server())=>{
+		function read(){return document.title}
+		function quiet(){return "ok"}
+	`
+	const end = `
+	};
+	return()=> <button onClick={()=>run()}>{this.state.label}</button>;
+}`
+	for _, row := range []struct {
+		name, setup, expr string
+		browser           bool
 	}{
-		{"mixed", `function ordinary(){return "safe"}function custom(){return "safe"}Object.defineProperty(custom,"bind",{value:()=>document.title});export function run(choice:boolean){const f=choice?ordinary:custom;return f.bind(null)}`, true, true},
-		{"own-only", `function custom(){return "safe"}Object.defineProperty(custom,"bind",{value:()=>document.title});export function run(){return custom.bind(null)}`, true, true},
-		{"ordinary-only", `function read(){return document.title}export function run(){return read.bind(null)}`, false, false},
-		{"mixed-arguments", `function ordinary(input:string){return input}function custom(input:string){return input}Object.defineProperty(custom,"bind",{value:()=>"safe"});export function run(choice:boolean){const f=choice?ordinary:custom;return f.bind(null,document.title)}`, true, true},
+		{"dormant", "", "read.bind(null)", false},
+		{"selected", "", "read.bind(null)()", true},
+		{"own", `Object.defineProperty(read,"bind",{value:()=>()=>"ok"});`, "read.bind(null)()", false},
+		{"authored", `Object.defineProperty(quiet,"bind",{value:()=>document.title});`, "quiet.bind(null)", true},
+		{"independent", `Object.defineProperty(quiet,"bind",{value:()=>()=>"ok"});`, "read.bind(null)()", true},
+		{"conditional", `if(choice)Object.defineProperty(read,"bind",{value:()=>()=>"ok"});`, "read.bind(null)()", true},
+		{"mixed-target", `Object.defineProperty(choice?read:quiet,"bind",{value:()=>()=>"ok"});`, "read.bind(null)()", true},
+		{"mixed-callable", `Object.defineProperty(quiet,"bind",{value:()=>()=>"ok"});const f=choice?read:quiet;`, "f.bind(null)()", true},
+		{"argument", `function consume(value:string){return value}`, "consume.bind(null,document.title)", true},
+		{"unknown-key", `Object.defineProperty(read,choice?"bind":"other",{value:()=>()=>"ok"});`, "read.bind(null)()", true},
+		{"failed-definition", `Object.preventExtensions(read);Reflect.defineProperty(read,"bind",{value:()=>()=>"ok"});`, "read.bind(null)()", true},
+		{"removed", `Object.defineProperty(read,"bind",{configurable:true,value:()=>()=>"ok"});Reflect.deleteProperty(read,"bind");`, "read.bind(null)()", true},
 	} {
-		t.Run(test.name, func(t *testing.T) {
+		t.Run(row.name, func(t *testing.T) {
 			for _, target := range []Target{TargetClient, TargetServer} {
-				r := NewSession().Execute(Request{Kind: "compile", ID: "review.ts", Source: test.source, Target: target, Diagnostics: "semantic"})
-				if r.Error != "" || hasErrorDiagnostic(r.Diagnostics) {
-					t.Fatalf("compile: %s %#v", r.Error, r.Diagnostics)
-				}
-				run := findCallable(t, r.Analysis.Callables, "run")
-				browser, authored := false, false
-				for _, effect := range run.EffectSources {
-					browser = browser || effect.Environment == "browser"
-				}
-				for _, edge := range run.Calls {
-					authored = authored || edge.Resolved
-				}
-				if browser != test.browser || authored != test.authored {
-					t.Fatalf("%s lost invocation alternative: %#v", target, run)
-				}
-				if test.browser && (len(run.ArtifactTargets) != 1 || run.ArtifactTargets[0] != string(TargetClient)) {
-					t.Fatalf("lost browser target restriction: %#v", run)
-				}
+				source := start + row.setup + "const result=" + row.expr + ";this.state.label=String(result);" + end
+				response := formsCompileSource(t, root, config, source, target)
+				assertComponentCallbackPolicy(t, response, row.browser)
 			}
 		})
 	}
