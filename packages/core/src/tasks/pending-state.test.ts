@@ -1,5 +1,6 @@
 import { expect, it } from 'vitest';
 import { reactive, flushSync, unwrap } from '@exactjs/reactive';
+import { captureTaskPropertyMutations } from './property-mutations.js';
 import { createTaskState } from './pending-state.js';
 import { discardTaskMutations, publishTaskMutations } from './resources.js';
 
@@ -23,6 +24,43 @@ it.each(['publish', 'discard'] as const)('closes read-only task journals after %
 	createTaskState(next.signal, root).write(root, 'count', 1);
 	publishTaskMutations(next.signal);
 	expect(root.count).toBe(1);
+});
+
+it('retains submitted scalar reads for the cancelled request while fencing its mutations and helpers', () => {
+	const controller = new AbortController();
+	const child = { n: 1 };
+	const root = { child, secret: () => 42, other: { n: 2 } };
+	const unrelated = { n: 3 };
+	const receivers = new WeakSet<object>([root, child]);
+	captureTaskPropertyMutations(controller.signal, {
+		requestInvocations: true,
+		requestReads: { root, receivers }
+	});
+	const pending = createTaskState(controller.signal, root);
+	const separate = createTaskState(controller.signal, unrelated);
+	pending.read(root, 'child');
+	const escaped = pending.view(child);
+	pending.write(child, 'n', 7);
+	let getters = 0;
+	Object.defineProperty(child, 'derived', {
+		get() {
+			getters++;
+			return 9;
+		}
+	});
+	controller.abort();
+	const retained = pending.read(root, 'child') as object;
+	expect(pending.read(retained, 'n')).toBe(7);
+	expect(child.n).toBe(1);
+	expect(() => pending.write(retained, 'n', 11)).toThrow();
+	expect(() => {
+		escaped.n = 11;
+	}).toThrow();
+	expect(() => pending.read(retained, 'derived')).toThrow();
+	expect(() => pending.read(root, 'secret')).toThrow();
+	expect(() => pending.read(root, 'other')).toThrow();
+	expect(() => separate.read(unrelated, 'n')).toThrow();
+	expect(getters).toBe(0);
 });
 
 it('keeps Map reads and results coherent until publication without changing receiver identity', () => {

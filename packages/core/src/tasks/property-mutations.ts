@@ -6,6 +6,7 @@ import { frameForTaskSignal } from './frame-continuation.js';
 type Capture = {
 	readonly root?: AbortSignal;
 	readonly requestInvocations?: true;
+	readonly requestReads?: { root: object; receivers: WeakSet<object> };
 	readonly collectionPaths?: WeakMap<object, string[]>;
 	retire?: (this: AbortSignal) => void;
 	receivers: WeakMap<object, Map<PropertyKey, 'set' | 'delete'>>;
@@ -27,6 +28,7 @@ export function captureTaskPropertyMutations(
 	signal: AbortSignal,
 	options?: {
 		readonly requestInvocations: true;
+		readonly requestReads?: { root: object; receivers: WeakSet<object> };
 		readonly collectionPaths?: WeakMap<object, string[]>;
 	}
 ): void {
@@ -36,6 +38,7 @@ export function captureTaskPropertyMutations(
 	const capture: Capture = {
 		root: signal,
 		collectionPaths: options?.collectionPaths,
+		requestReads: options?.requestReads,
 		...(options?.requestInvocations ? { requestInvocations: true as const } : {}),
 		receivers: new WeakMap(),
 		changed: false,
@@ -60,6 +63,15 @@ export function captureTaskPropertyMutations(
 		};
 		signal.addEventListener('abort', capture.retire, { once: true });
 	}
+}
+
+/** Selects read-only data receivers from this exact submitted activation. */
+export function taskRequestReadReceivers(
+	signal: AbortSignal,
+	root: object
+): WeakSet<object> | undefined {
+	const request = state.count && captures.get(taskPublicationCaptureOwner(signal))?.requestReads;
+	return request && request.root === root ? request.receivers : undefined;
 }
 
 /** Supplies only the request-authorized paths for submitted native collection identities. */

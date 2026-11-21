@@ -17,7 +17,7 @@ it('isolates overlapping helper owners and fences cancelled HTTP work after susp
  export async function apply(state:{request:string;left:{value:string}}){const label=state.request;await wait(label);state.left.value=label;commits+=label;return state.left;}`,
 		'page.tsx': `import {TaskContext,type Component} from '@exactjs/core';import {apply} from './helper.js';export {gates,committed} from './helper.js';export const cleaned:string[]=[];
  export function Page(this:Component<{request:string;left:{value:string}}>){this.state.request='';this.state.left={value:'before'};
- async function save(task:TaskContext=TaskContext.server().parallel()){task.cleanup(()=>{cleaned.push(this.state.request);void this.state.left.value;});const result=await apply(this.state);return result.value;}
+ async function save(task:TaskContext=TaskContext.server().parallel()){task.cleanup(()=>{void this.state.left.value;cleaned.push(this.state.request);});const result=await apply(this.state);return result.value;}
  return()=> <button onClick={()=>save()}>save</button>;}`
 	});
 	const artifacts = await compileProjectArtifacts([files['page.tsx']!], {

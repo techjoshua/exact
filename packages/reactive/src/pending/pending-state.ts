@@ -45,6 +45,10 @@ class InvocationState implements PendingReactiveTransaction {
 	private collectionMembers?: PendingCollectionMembers;
 	private helpers?: PendingHelperCalls;
 	private readonly journal: PendingTransactionJournal;
+	private cancelledReads?: {
+		receivers: WeakSet<object>;
+		properties: PendingInvocationCells['properties'];
+	};
 	private readonly owned = new WeakSet<object>();
 
 	constructor(
@@ -67,6 +71,9 @@ class InvocationState implements PendingReactiveTransaction {
 	}
 
 	discard(): void {
+		const receivers = this.options.cancelledReadReceivers?.();
+		if (receivers && !this.cancelledReads)
+			this.cancelledReads = { receivers, properties: this.cells.properties };
 		this.journal.discard();
 		this.publication.clearSelections();
 	}
@@ -87,6 +94,19 @@ class InvocationState implements PendingReactiveTransaction {
 		key = this.key(key);
 		const raw = unwrap(target);
 		if (!this.owned.has(raw)) return readUnownedPendingProperty(this, target, key);
+		const retained = this.cancelledReads;
+		if (retained?.receivers.has(raw)) {
+			const pending = retained.properties?.get(raw)?.get(key);
+			const descriptor = Reflect.getOwnPropertyDescriptor(raw, key);
+			if (!pending?.deleted && (!descriptor || 'value' in descriptor) && (pending || descriptor)) {
+				const value = pending ? pending.value : descriptor!.value;
+				if (value === null || (typeof value !== 'object' && typeof value !== 'function'))
+					return value;
+				// A child stays behind its original pending facade. Escaped methods,
+				// helpers and writes keep their existing generation checks.
+				if (retained.receivers.has(value)) return this.view(this.adopt(value));
+			}
+		}
 		this.assertCurrent();
 		const descriptor = pendingPropertyDescriptor(raw, key);
 		if (

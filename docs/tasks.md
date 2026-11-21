@@ -748,7 +748,7 @@ Framework continuation dispatch, task waiting, and staged publication retain the
 signal as their ownership identity. Compiler-inferred cancellation for external resources uses
 a separate cleanup signal, so successful resource cleanup cannot discard a staged response.
 A registered cleanup can call an ordinary release helper with a scalar token after cancellation.
-Passing component-owned state into a helper still subjects that state to the generation fence.
+A cancelled server invocation can also read ordinary scalar data from its own submitted state paths. A retained reader sees that invocation’s last pending scalar value. Component mutations, helper execution through pending views, and accessor evaluation still require a live generation.
 
 The delay helper cooperates with the same task signal:
 

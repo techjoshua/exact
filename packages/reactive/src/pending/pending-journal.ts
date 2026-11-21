@@ -4,6 +4,8 @@ import { batch } from '../internal/deps.js';
 export interface PendingTransactionOptions {
 	/** Rejects work whose framework owner is no longer current. */
 	assertCurrent?(): void;
+	/** Supplies the original request's data receivers only when its generation is cancelled. */
+	cancelledReadReceivers?(): WeakSet<object> | undefined;
 	/** Transfers ordered publication callbacks to a host journal. The host must batch publication. */
 	stage?(mutation: () => void): void;
 	/** Observes a staged native collection operation as it reaches committed storage. */

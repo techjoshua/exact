@@ -101,6 +101,13 @@ export function createExactContinuationHandler(
 			if (!paths) collectionPaths.set(collection, [write.path]);
 			else if (!paths.includes(write.path)) paths.push(write.path);
 		}
+		// Cleanup reads are limited to the original activation's submitted receivers.
+		const receivers = contract.stateReads.length ? new WeakSet<object>([state]) : undefined;
+		if (receivers) {
+			for (const read of contract.stateReads) {
+				if (read.path !== '*') retainSubmittedReadReceivers(state, read.path, receivers);
+			}
+		}
 		prepareContinuationWriteContainers(state, contract.stateWrites);
 		// Inputs and prepared parent containers are not evidence that a conditional write ran.
 		const inputWritePaths = new Set(
@@ -122,9 +129,10 @@ export function createExactContinuationHandler(
 				{
 					work: (task) => {
 						mutationSignal = task.signal;
-						if (contract.stateWrites.length)
+						if (receivers || contract.stateWrites.length)
 							captureTaskPropertyMutations(task.signal, {
 								requestInvocations: true,
+								requestReads: receivers && { root: state, receivers },
 								collectionPaths
 							});
 						if (context.reportTaskProgress)
@@ -422,6 +430,28 @@ function readPath(
 		cursor = (cursor as Record<string, unknown>)[segment];
 	}
 	return { present: true, value: cursor };
+}
+
+/** Retains only submitted own-data receivers along the declared read, without invoking accessors. */
+function retainSubmittedReadReceivers(
+	state: object,
+	path: string,
+	receivers: WeakSet<object>
+): void {
+	let current = state;
+	for (const key of path.split('.')) {
+		if (!safeSegment(key)) return;
+		const descriptor = Reflect.getOwnPropertyDescriptor(current, key);
+		if (
+			!descriptor ||
+			!('value' in descriptor) ||
+			!descriptor.value ||
+			typeof descriptor.value !== 'object'
+		)
+			return;
+		current = descriptor.value;
+		receivers.add(current);
+	}
 }
 
 /** Materializes a validated dotted path into a partial response tree. */
