@@ -333,7 +333,15 @@ func nativePortableEventMember(declaration *ast.Node, owner *ast.Symbol) bool {
 // nativeReceiverMemberSymbol resolves literal and narrowed computed keys without
 // using receiver spelling as execution authority.
 func nativeReceiverMemberSymbol(expression *ast.Node, typeChecker *checker.Checker) *ast.Symbol {
-	receiver, name := restrictedInvocationMember(unwrapSourceCallableReference(expression), typeChecker)
+	reference := unwrapSourceCallableReference(expression)
+	receiver, name := restrictedInvocationMember(reference, typeChecker)
+	if receiver != nil && ast.IsPropertyAccessExpression(reference) && ast.IsArrayLiteralExpression(receiver) {
+		// The original named access already resolves against this fresh array.
+		// Reuse that symbol instead of instantiating its receiver type again.
+		if symbol := typeChecker.GetSymbolAtLocation(reference); symbol != nil {
+			return symbol
+		}
+	}
 	if receiver != nil && name != "" {
 		// Optional evaluation skips nullish values, but the selected member still needs
 		// its declaration proof. A remaining authored union member cannot gain native authority.

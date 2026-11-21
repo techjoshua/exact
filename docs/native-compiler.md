@@ -1314,6 +1314,9 @@ When a dense array literal is the immediate receiver of a named method call, its
 elements cannot replace the inherited method on the array being constructed. If
 the checker finds only standard Array method declarations, effect collection can
 select the method without searching earlier calls for writes to this receiver.
+The original named property access supplies its checker-resolved symbol when
+available. Unresolved symbols use the receiver-type lookup. Both paths check the
+member declarations before recognizing a standard operation.
 Evaluating the elements and invoking an authored callback still contribute effects.
 A method read through a saved array can observe intervening replacements.
 For a direct `Object.entries` call on an object literal or a const initialized

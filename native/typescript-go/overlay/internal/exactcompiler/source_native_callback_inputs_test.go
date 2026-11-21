@@ -10,6 +10,43 @@ import (
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
 )
 
+// A named access on a fresh array can reuse the actual checker symbol while
+// preserving callback placement and authored member alternatives.
+func TestLiteralArrayNamedMemberTaskEffects(t *testing.T) {
+	for _, row := range []struct {
+		name, declarations, expression string
+		browser, unknown               bool
+	}{
+		{"native", "", `[1].map(value=>String(value))[0]!`, false, false},
+		{"named", "", `[1].map(()=>document.title)[0]!`, true, false},
+		{"computed", "", `[1]['map'](()=>document.title)[0]!`, true, false},
+		{"optional", "", `[1].map?.(()=>document.title)[0]??''`, true, false},
+		{"authored-augmentation", `declare global{interface Array<T>{extra():string}}`, `[1].extra()`, false, true},
+	} {
+		t.Run(row.name, func(t *testing.T) {
+			const body = "this.state.label="
+			source := row.declarations + publicAwaitRequiredPage("", body+row.expression, TargetServer)
+			fixture := newPublicAwaitRequiredFixture(t, source)
+			for _, target := range []Target{TargetClient, TargetServer} {
+				request := fixture.request("compile", "entry.tsx")
+				request.Target = target
+				response := NewSession().Execute(request)
+				if response.Error != "" || len(response.Analysis.Tasks) != 1 || hasErrorDiagnostic(response.Diagnostics) != row.browser || (response.Code == "") != row.browser {
+					t.Fatal(target, response.Error, response.Diagnostics)
+				}
+				browser, unknown := false, false
+				for _, effect := range response.Analysis.Tasks[0].EffectSources {
+					browser = browser || effect.Environment == "browser" && strings.Contains(effect.Description, "document")
+					unknown = unknown || effect.Environment == "unknown"
+				}
+				if browser != row.browser || row.unknown && !unknown {
+					t.Fatal(target, response.Analysis.Tasks[0].EffectSources)
+				}
+			}
+		})
+	}
+}
+
 // Placement follows the actual key producer of a native map callback's
 // captured read. An unused getter beside a reached slot adds no requirement.
 func TestNativeMapCapturedKeyTaskPlacement(t *testing.T) {
