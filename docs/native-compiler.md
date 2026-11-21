@@ -481,6 +481,10 @@ discovery filters primitive local bindings before qualifying selected types, sin
 inference own their assignment contracts. Inferred local aggregates also inspect checker-resolved
 field declaration policy, including inherited and mapped members. Public sibling selection retains
 its own selected type. Imported values, members and instantiated call results retain their checks.
+An application or dependency can merge declarations into standard browser types. For these
+types, qualification inspects stored fields, type arguments, indices and authored declarations.
+Wholly standard methods are checked when selected. An empty compatibility declaration does
+not make the type of a browser event secret through a recursive family of native methods.
 Client artifact containment separately plans qualified initializers and assertions against authored
 AST identities before lowering. Qualified parameter defaults, including constructor parameter
 properties, retain the same obligation even when their body is deferred. Destructuring defaults

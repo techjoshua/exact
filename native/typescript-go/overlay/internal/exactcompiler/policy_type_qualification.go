@@ -111,7 +111,8 @@ func checkerTypeContainsSecret(value *checker.Type, typeChecker *checker.Checker
 		}
 	}
 	nativeCarrier := policyNativeDataCarrier(value, typeChecker)
-	if nativeCarrier || value.ObjectFlags()&checker.ObjectFlagsMapped == 0 && policyStandardLibraryType(value, typeChecker) {
+	nativeAPI := value.ObjectFlags()&checker.ObjectFlagsMapped == 0 && typeChecker.IsLibSymbolForHoverVerbosity(value.Symbol())
+	if nativeCarrier || nativeAPI {
 		if value.ObjectFlags()&checker.ObjectFlagsReference != 0 {
 			for _, argument := range typeChecker.GetTypeArguments(value) {
 				if checkerTypeContainsSecret(argument, typeChecker, obligation) {
@@ -119,15 +120,15 @@ func checkerTypeContainsSecret(value *checker.Type, typeChecker *checker.Checker
 				}
 			}
 		}
-		// Native API graphs are not payloads. Augmented data carriers still
-		// retain every authored property beside the payload/index obligations.
-		if !nativeCarrier {
+		if !nativeCarrier && policyStandardLibraryType(value, typeChecker) {
 			return false
 		}
 	}
 
 	for _, property := range typeChecker.GetPropertiesOfType(value) {
-		if nativeCarrier && policyStandardLibraryProperty(property, typeChecker) {
+		// A compatibility augmentation should not make a standard API's method
+		// families structural data. Inspect stored fields and authored overloads.
+		if (nativeCarrier || nativeAPI && property.Flags&ast.SymbolFlagsMethod != 0) && policyStandardLibraryProperty(property, typeChecker) {
 			continue
 		}
 		if checkerPropertyHasSecretPolicy(property) {

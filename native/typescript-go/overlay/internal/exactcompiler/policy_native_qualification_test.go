@@ -69,3 +69,46 @@ func TestPolicyNativeAugmentedPublicRuntime(t *testing.T) {
 	}
 	sourceNodeScript(t, response.Code, `const fs=require('node:fs'),vm=require('node:vm');const sandbox={exports:{}};vm.runInNewContext(fs.readFileSync(process.argv[1],'utf8'),sandbox);if(sandbox.exports.work()!=='2,4,6'||sandbox.exports.work()!=='2,4,6,6')throw Error('readonly alias was frozen or detached');`)
 }
+
+// Compatibility declarations for browser objects keep authored qualifications
+// visible without manufacturing one from recursive native methods.
+func TestPolicyNativeAugmentedEventInput(t *testing.T) {
+	const compatibility = `declare global {interface HTMLInputElement{} interface File{} interface Blob{} interface ReadableStream<R=any>{}}`
+	for _, row := range []struct {
+		name, declarations, expression string
+		secret                         bool
+	}{
+		{"public", "", `target.name`, false},
+		{"authored field", `declare global {interface HTMLInputElement {
+/** @exact keep=secret */
+authToken:string}}`, `target.authToken`, true},
+		{"merged field", `declare global {interface HTMLInputElement {
+/** @exact keep=secret */
+name:string}}`, `target.name`, true},
+		{"authored method", `declare global {interface HTMLInputElement {authToken():Tagged}}`, `target.authToken()`, true},
+		{"authored payload", `declare global {interface File {authToken:Tagged}}`, `target.files?.[0]?.authToken`, true},
+		{"stream payload", `declare const stream:ReadableStream<Tagged>;`, `stream`, true},
+	} {
+		t.Run(row.name, func(t *testing.T) {
+			root, config := formsSourceFixture(t)
+			source := `import {type Component} from '@exactjs/core';
+type Tagged={
+/** @exact keep=secret */
+value:string};
+` + compatibility + "\n" + row.declarations + `
+export function Page(this:Component<{}>){
+  function report(target:HTMLInputElement){console.log(` + row.expression + `);}
+  return ()=> <input onClick={event=>{
+    if(event.currentTarget instanceof HTMLInputElement)report(event.currentTarget);
+  }}/>;
+}`
+			for _, target := range []Target{TargetClient, TargetServer} {
+				response := formsCompileSource(t, root, config, source, target)
+				protected := hasDiagnosticCode(response.Diagnostics, "EXACT3003") || hasDiagnosticCode(response.Diagnostics, "EXACT3020")
+				if protected != row.secret || hasErrorDiagnostic(response.Diagnostics) != row.secret || (response.Code == "") != row.secret {
+					t.Fatal(target, response.Diagnostics)
+				}
+			}
+		})
+	}
+}
