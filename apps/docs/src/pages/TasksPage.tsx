@@ -361,6 +361,12 @@ export function TasksPage(this: Component<{}>) {
 					uncertain.
 				</p>
 				<p>
+					An <code>await</code> in a task keeps its ordinary TypeScript result type. If
+					<code>loadLabel()</code> resolves to a string, then
+					<code>await (enabled &amp;&amp; loadLabel())</code> can produce
+					<code>false</code> or a string.
+				</p>
+				<p>
 					<code>immediate()</code>, <code>normal()</code>, and <code>deferred()</code> choose when
 					eligible work runs. Normal priority is the default for invoked tasks.
 				</p>

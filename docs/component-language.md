@@ -1599,6 +1599,10 @@ async function searchPage(
 searchPage(this.state.query, this.state.page);
 ```
 
+Task cancellation preserves TypeScript's ordinary `await` result type. For example,
+`await (enabled && loadLabel())` has type `false | string` when `enabled` is
+boolean and `loadLabel()` resolves to a string.
+
 When a reactive value should be sampled for each generation but should not
 schedule one, put it in a defaulted non-context parameter:
 

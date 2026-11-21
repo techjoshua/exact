@@ -1,6 +1,14 @@
 import { raceTaskCancellation } from './cancellation.js';
 
 /** Awaits compiler-closed server work with request cancellation and no durable task frame. */
+export function awaitServerComponentTask<Value>(
+	signal: AbortSignal,
+	value: Value
+): Promise<Awaited<Value>>;
+export function awaitServerComponentTask<T>(
+	signal: AbortSignal,
+	value: T | PromiseLike<T>
+): Promise<T>;
 export function awaitServerComponentTask<T>(
 	signal: AbortSignal,
 	value: T | PromiseLike<T>

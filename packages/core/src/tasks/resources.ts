@@ -264,9 +264,12 @@ function ignoreSettlement(): void {}
 /**
  * Awaits a value while retaining task cancellation and Activity parking semantics.
  *
+ * The inferred result follows the authored Await, including unions of scalars and thenables.
  * The source promise continues while its component scope is paused. Its authored continuation
  * remains parked until the scope resumes, and cancellation can still reject during that wait.
  */
+export function taskAwait<Value>(signal: AbortSignal, value: Value): Promise<Awaited<Value>>;
+export function taskAwait<T>(signal: AbortSignal, value: T | PromiseLike<T>): Promise<T>;
 export function taskAwait<T>(signal: AbortSignal, value: T | PromiseLike<T>): Promise<T> {
 	if (signal.aborted) {
 		// The source expression has already executed and still owns a possible rejection.

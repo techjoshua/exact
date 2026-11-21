@@ -7,9 +7,60 @@ import { renderToHydratableString } from '@exactjs/ssr';
 import type { AnyComponentFunction } from '@exactjs/core';
 import { createCompiledComponentInputReceipt as receipt } from '@exactjs/core/runtime/component-operations';
 import { composeExactComponentContracts } from '@exactjs/core/framework/component-contracts';
+import { ExactCompilerSession } from '../expression/project.js';
 import { compileProjectArtifacts } from '../index.js';
 import { createCompilerTestWorkspace, writeTestFiles } from '../test-support/workspace.js';
 import { importArtifact } from '../test-support/import-artifact.js';
+
+it.each(['client', 'server'] as const)(
+	'preserves authored unions of scalars and thenables when awaiting in a %s task',
+	async (target) => {
+		const root = await createCompilerTestWorkspace('.exact-task-await-', process.cwd());
+		const policy = target === 'client' ? 'client()' : 'server().blocking()';
+		const source = `import {TaskContext,type Component} from '@exactjs/core';
+const thenable = { then(resolve:(value:string)=>void) { resolve('settled'); } };
+export function Panel(this: Component<{label:false|string}>, props:{enabled:boolean}) {
+	this.state.label = '';
+	const run = async (task:TaskContext = TaskContext.${policy}) => {
+		const value: false|string = await (props.enabled && thenable);
+		this.state.label = value;
+	};
+	${target === 'server' ? 'void run();' : ''}
+	return () => <button onClick={${target === 'client' ? '()=>void run()' : 'undefined'}}>{this.state.label}</button>;
+}`;
+		const files = await writeTestFiles(root, {
+			'page.tsx': source,
+			'tsconfig.json': JSON.stringify({
+				compilerOptions: {
+					strict: true,
+					module: 'ESNext',
+					moduleResolution: 'Bundler',
+					target: 'ES2022',
+					jsx: 'preserve',
+					jsxImportSource: '@exactjs/jsx'
+				}
+			})
+		});
+		const session = new ExactCompilerSession();
+		onTestFinished(() => session.dispose());
+		const result = session.compileNative({
+			kind: 'compile',
+			target,
+			root,
+			source,
+			id: files['page.tsx']!,
+			configFile: files['tsconfig.json']!,
+			diagnostics: 'semantic',
+			serverComponents: true
+		});
+		expect(result.error).toBeUndefined();
+		expect(result.diagnostics).toEqual([]);
+		expect(result.code).toContain(
+			target === 'client' ? '__exactTaskAwait(task.signal' : '__exactServerTaskAwait(task.signal'
+		);
+	}
+);
+
 it.each(
 	[
 		'manual',
