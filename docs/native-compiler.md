@@ -2590,9 +2590,11 @@ invoke that captured callback. The original writer relation keeps conditional wr
 and removes the old callback only for a definite replacement. This includes an
 unconditional write in a directly called synchronous helper with a known receiver.
 A later target write cannot change an earlier descriptor. The reader follows
-single-use local const aliases, including a lexical capture, and direct helper returns
-that preserve the snapshot. A reassignment of the
-descriptor's `value` uses the existing analysis of writes to the descriptor itself.
+single-use local const aliases of the descriptor, including a lexical capture, and direct
+helper returns that preserve the snapshot. A direct call through a single-use chain of local
+const bindings also follows the stored callable when its descriptor field was read in the
+same function. Reassigning the descriptor's `value` uses the existing analysis of writes
+to the descriptor itself.
 Dynamic property names and unrepresented callable sources can remain unresolved.
 
 The reflective field owner records Has and Get effect accounting separately from field

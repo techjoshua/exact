@@ -337,7 +337,9 @@ export function TasksPage(this: Component<{}>) {
 				<p>
 					These settings answer different questions. <code>client()</code> and <code>server()</code>
 					choose where a task runs. Without either, eXact infers placement from the resources the
-					task uses. When the compiler can trace a callback, invoking it contributes the resources its body uses.
+					task uses. When the compiler can trace a callback, invoking it contributes the resources
+					its body uses. This includes calling a getter saved into a local constant from a property
+					descriptor.
 					A literal lane key such as <code>key("search")</code> adds no platform requirement.
 					A button can call a server task with <code>key(location.pathname)</code> because the
 					browser selects the lane before dispatch. Use an argument like a document ID when

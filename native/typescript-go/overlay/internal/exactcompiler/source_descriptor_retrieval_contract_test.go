@@ -60,6 +60,11 @@ func TestDescriptorContractStoredFieldsAndAbsence(t *testing.T) {
 		{"captured-data-invoked", `export{};const capture={read(){return document.title}};function stored(){return capture.read()}const target={value:stored};export function probe(){const descriptor=Object.getOwnPropertyDescriptor(target,'value');return descriptor?.value()}`, true},
 		{"accessor-dormant", `export{};const target={get value(){return document.title}};export function probe(){return Object.getOwnPropertyDescriptor(target,'value')?.get}`, false},
 		{"accessor-invoked", `export{};const target={get value(){return document.title}};export function probe(){const descriptor=Object.getOwnPropertyDescriptor(target,'value');return descriptor?.get?.()}`, true},
+		{"saved-accessor", `export function probe(){const target={get value(){return document.title}};const descriptor=Object.getOwnPropertyDescriptor(target,'value');const getter=descriptor?.get;return getter?.()}`, true},
+		{"forwarded-accessor", `export function probe(){const target={get value(){return document.title}};const descriptor=Object.getOwnPropertyDescriptor(target,'value');const getter=descriptor!.get!;const read=getter;return read()}`, true},
+		{"saved-data-function", `export function probe(){const target={value(){return document.title}};const descriptor=Object.getOwnPropertyDescriptor(target,'value');const invoke=descriptor!.value;return invoke()}`, true},
+		{"saved-dormant", `export function probe(){const target={get value(){return document.title}};const descriptor=Object.getOwnPropertyDescriptor(target,'value');const getter=descriptor?.get;return getter}`, false},
+		{"replaced-alias", `export function probe(){const target={get value(){return document.title}};const descriptor=Object.getOwnPropertyDescriptor(target,'value');let getter=descriptor!.get!;getter=()=>'replacement';return getter()}`, false},
 		{"absent-optional", `export{};const target={};export function probe(){return Object.getOwnPropertyDescriptor(target,'missing')?.value}`, false},
 	} {
 		t.Run(row.name, func(t *testing.T) {

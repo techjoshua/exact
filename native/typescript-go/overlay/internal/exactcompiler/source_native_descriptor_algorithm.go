@@ -120,28 +120,36 @@ func (q *sourceValueQuery) descriptorInvocationEffects(call *ast.Node, callee so
 // immutableDescriptorCallbackRead follows the selected return and private aliases
 // from the native snapshot to the original callback invocation.
 func (q *sourceValueQuery) immutableDescriptorCallbackRead(retrieval *ast.Node, field string) bool {
-	ref, key := sourceLiteralMemberReference(q.protectedMember)
-	if key != field || q.owner.program == nil {
+	if q.owner.program == nil {
+		return false
+	}
+	member := q.protectedMember
+	if member == nil {
+		// An active direct Call can consume a saved descriptor field. Its
+		// immutable initializer owns the earlier Get and its lexical scope.
+		use := q.reading
+		if use == nil || !ast.IsCallExpression(use) || !q.active[use] {
+			return false
+		}
+		alias := unwrapSourceCallableReference(use.Expression())
+		if alias == nil || !ast.IsIdentifier(alias) {
+			return false
+		}
+		owner := enclosingCallableNode(use)
+		for ast.IsIdentifier(alias) {
+			alias = q.descriptorPrivateInitializer(alias)
+			if alias == nil || enclosingCallableNode(alias) != owner {
+				return false
+			}
+		}
+		member = alias
+	}
+	ref, key := sourceLiteralMemberReference(member)
+	if key != field {
 		return false
 	}
 	for ref = unwrapSourceCallableReference(ref); ref != nil && ast.IsIdentifier(ref); {
-		symbol := q.owner.checker.GetSymbolAtLocation(ref)
-		if symbol == nil || symbol.ValueDeclaration == nil {
-			return false
-		}
-		declaration := symbol.ValueDeclaration
-		if !localConstructionBinding(declaration, enclosingCallableNode(declaration), q.owner) || declaration.End() > ref.Pos() {
-			return false
-		}
-		uses := q.owner.index(ast.GetSourceFileOfNode(ref)).privateUses
-		if uses == nil || !uses.complete || len(uses.unresolved[ref.Text()]) != 0 {
-			return false
-		}
-		refs := uses.uses[ast.GetSymbolId(symbol)]
-		if len(refs) != 1 || refs[0].node != ref {
-			return false
-		}
-		ref = unwrapSourceCallableReference(declaration.Initializer())
+		ref = q.descriptorPrivateInitializer(ref)
 	}
 	// Directly returning the fresh native descriptor also preserves its identity.
 	// Each step follows the active selected return, not a declaration's signature.
@@ -157,6 +165,28 @@ func (q *sourceValueQuery) immutableDescriptorCallbackRead(retrieval *ast.Node, 
 		current = creator.invocation
 	}
 	return false
+}
+
+// descriptorPrivateInitializer follows an earlier local const at its only source use.
+func (q *sourceValueQuery) descriptorPrivateInitializer(reference *ast.Node) *ast.Node {
+	symbol := q.owner.checker.GetSymbolAtLocation(reference)
+	if symbol == nil || symbol.ValueDeclaration == nil {
+		return nil
+	}
+	declaration := symbol.ValueDeclaration
+	if !localConstructionBinding(declaration, enclosingCallableNode(declaration), q.owner) ||
+		declaration.End() > reference.Pos() {
+		return nil
+	}
+	uses := q.owner.index(ast.GetSourceFileOfNode(reference)).privateUses
+	if uses == nil || !uses.complete || len(uses.unresolved[reference.Text()]) != 0 {
+		return nil
+	}
+	refs := uses.uses[ast.GetSymbolId(symbol)]
+	if len(refs) != 1 || refs[0].node != reference {
+		return nil
+	}
+	return unwrapSourceCallableReference(declaration.Initializer())
 }
 
 // descriptorDataCallbacks selects the stored function at retrieval. Reading the
