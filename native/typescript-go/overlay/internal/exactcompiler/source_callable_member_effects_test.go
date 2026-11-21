@@ -20,10 +20,22 @@ func TestSourceCallablePropertyEffects(t *testing.T) {
 		{"conditional foreign", `declare const foreign:typeof f;declare const choose:boolean;function f(){return 0}f.run=()=>document.title.length;const saved=choose?f:foreign;export function probe(){return saved.run()}`, "probe", "browser", true},
 	} {
 		t.Run(test.name, func(t *testing.T) {
+			source := `import type { Component } from '@exactjs/core';
+` + test.source + `
+export function Page(this: Component<{}>) {
+	const value = probe();
+	return () => value;
+}`
+			fixture := newExecutableFixture(t, map[string]string{"entry.ts": source})
+			request := fixture.request("compile", "entry.ts")
 			for _, target := range []Target{TargetClient, TargetServer} {
-				response := NewSession().Execute(Request{Kind: "compile", ID: "/virtual/callable-property.ts", Source: test.source, Target: target, Diagnostics: "semantic"})
-				if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) {
+				request.Target = target
+				response := NewSession().Execute(request)
+				if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) || response.Code == "" {
 					t.Fatalf("%s: %s %#v", target, response.Error, response.Diagnostics)
+				}
+				if page := findComponent(t, response.Analysis.Components, "Page"); page.Placement != "client" {
+					t.Fatalf("%s: selected browser property Page placement=%s", target, page.Placement)
 				}
 				var caller *CallableSummary
 				bodies := map[string]bool{}

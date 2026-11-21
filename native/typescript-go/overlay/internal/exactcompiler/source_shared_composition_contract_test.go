@@ -136,36 +136,36 @@ func sharedCompositionCurrentFact(t *testing.T, source, statement string) Callab
 // A selected DATA argument cannot prove a general exported member read pure.
 // The annotation also admits getters and proxies supplied by future callers.
 func TestSharedCompositionExportedInputBoundary(t *testing.T) {
-	const helper = `export function read(input:{value:string}){return input.value}`
-	for _, test := range []struct{ name, use, placement string }{
-		{"library", `export const value="stable";`, "isomorphic"},
-		{"safe use", `export const value=read({value:"safe"});`, "isomorphic"},
-		{"browser use", `export const value=read({get value(){return document.title}});`, "client"},
+	const setup = `import type { Component } from '@exactjs/core';
+export function read(input: { value: string }) { return input.value; }
+export function Page(this: Component<{}>, props: { input: { value: string } }) {
+	const value = read(INPUT);
+	return () => value;
+}`
+	for _, test := range []struct{ name, input, placement string }{
+		{"open component input", `props.input`, "unknown"},
+		{"concrete data", `{value:"safe"}`, "isomorphic"},
+		{"reached browser getter", `{get value(){return document.title}}`, "client"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			source := helper + test.use
-			response := NewSession().Execute(Request{Kind: "analyze", ID: "/virtual/exported-input.ts", Source: source, Diagnostics: "semantic"})
+			source := strings.Replace(setup, "INPUT", test.input, 1)
+			fixture := newExecutableFixture(t, map[string]string{"entry.ts": source})
+			response := fixture.session.Execute(fixture.request("analyze", "entry.ts"))
 			if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) {
-				t.Fatal(response.Error, response.Diagnostics)
+				t.Fatalf("invalid component: %s %#v", response.Error, response.Diagnostics)
 			}
-			found := false
-			for _, fact := range response.Analysis.Callables {
-				if fact.Name != "read" {
-					continue
-				}
-				found = true
-				unknown := false
-				for _, effect := range fact.EffectSources {
-					unknown = unknown || effect.Environment == "unknown"
-				}
-				if !unknown {
-					t.Fatalf("selected use erased open exported input uncertainty: %#v", fact)
-				}
+			read := findCallable(t, response.Analysis.Callables, "read")
+			unknown := false
+			for _, effect := range read.EffectSources {
+				unknown = unknown || effect.Environment == "unknown"
 			}
-			if !found {
-				t.Fatal("missing exported helper fact")
+			if !unknown {
+				t.Fatalf("selected use erased the exported helper's independent input uncertainty: %v", read.EffectSources)
 			}
-			assertSharedCompositionPlacement(t, source, test.placement)
+			page := findComponent(t, response.Analysis.Components, "Page")
+			if page.Placement != test.placement {
+				t.Fatalf("Page placement=%s, want %s", page.Placement, test.placement)
+			}
 		})
 	}
 }
