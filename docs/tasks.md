@@ -4,7 +4,8 @@ eXact has one authored unit of coordinated work: the task. In source, a task
 begins as an ordinary TypeScript function. The compiler promotes it to a
 stable, owner-bound task definition when its effects, activation host,
 placement, capabilities, or transitive calls require framework coordination.
-A pure helper remains ordinary JavaScript.
+A pure helper remains ordinary JavaScript. A component can own a scheduled activation of a shared
+module helper. Its exported function remains callable by other module consumers.
 
 Each reason the definition runs is an activation. Each scheduled run is a
 generation with its own cancellation, status, result, effects, structural

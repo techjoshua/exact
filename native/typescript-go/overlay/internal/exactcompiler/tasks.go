@@ -157,6 +157,7 @@ func collectTasks(
 			task.Start = node.Pos()
 			task.Length = node.End() - node.Pos()
 			task.FunctionDefined = true
+			task.sharedWork = ast.GetSourceFileOfNode(work) != sourceFile || !nodeInside(work, candidate.node)
 			task.WorkStart = work.Pos()
 			task.WorkLength = work.End() - work.Pos()
 			callable, hasSummary := callables.byNode[work]

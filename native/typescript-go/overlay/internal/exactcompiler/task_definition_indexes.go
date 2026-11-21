@@ -12,7 +12,7 @@ import (
 func indexInvokedTasks(tasks []Task) map[int]Task {
 	result := make(map[int]Task)
 	for _, task := range tasks {
-		if task.Invoked {
+		if task.Invoked && !task.sharedWork {
 			result[task.WorkStart] = task
 		}
 	}
@@ -22,7 +22,7 @@ func indexInvokedTasks(tasks []Task) map[int]Task {
 func indexFunctionTasks(tasks []Task) map[int]Task {
 	result := make(map[int]Task)
 	for _, task := range tasks {
-		if task.FunctionDefined {
+		if task.FunctionDefined && !task.sharedWork {
 			if previous, exists := result[task.WorkStart]; !exists || !previous.Invoked {
 				result[task.WorkStart] = task
 			}

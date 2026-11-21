@@ -612,6 +612,7 @@ type SourceSpan struct {
 
 // Task identifies one component task registration and its authored facets.
 type Task struct {
+	sharedWork bool // The component owns the activation but not this authored callable binding.
 	// classDefinitions is a current-extraction reconstruction plan, not a value,
 	// transport input or persisted cache certificate. Emission matches original nodes.
 	// Free calls with scalar inputs in registered cleanup need no pending-state view.

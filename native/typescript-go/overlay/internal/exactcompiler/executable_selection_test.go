@@ -581,14 +581,23 @@ func TestExecutableSelectionPublishedDeclarationOperations(t *testing.T) {
 	for _, example := range []struct{ name, source, effect, selected string }{
 		{"browser", `import {render} from '@exactjs/dom'; export function run(input:Parameters<typeof render>[0],root:Element){render(input,root)}`, "browser", ""},
 		{"browser-namespace", `import * as DOM from '@exactjs/dom'; export function run(input:Parameters<typeof DOM.render>[0],root:Element){DOM['render'](input,root)}`, "browser", ""},
-		{"policy-value", `import {TaskContext} from '@exactjs/core'; export function run(){return TaskContext.latest()}`, "neutral", ""},
+		{"policy-value", `import {TaskContext} from '@exactjs/core';export function Page(){function run(task:TaskContext=TaskContext.latest()){return 1}return ()=>run()}`, "neutral", ""},
 		{"neutral", `import {reactive} from '@exactjs/reactive'; export function run(){return reactive({value:1})}`, "neutral", ""},
 		{"server", `import {platform} from 'node:os'; export function run(){return platform()}`, "server", ""},
 		{"unowned-local", `import {read} from './unowned.js'; export function run(){return read()}`, "unknown", ""},
 		{"selected-replacement", `import {render} from '@exactjs/dom'; export function run(input:Parameters<typeof render>[0],root:Element){render(input,root)}`, "server", "replacement.js"},
 	} {
 		t.Run(example.name, func(t *testing.T) {
-			f := newExecutableFixture(t, map[string]string{"entry.ts": example.source, "unowned.d.ts": `export declare function read():number;`, "replacement.js": `export function render(){void process.version;}`})
+			source := example.source
+			switch example.name {
+			case "browser", "browser-namespace", "selected-replacement":
+				source += "export function Page(props:{input:Parameters<typeof run>[0],root:Element}){run(props.input,props.root);return ()=>null}"
+			case "policy-value":
+				// The policy default is consumed by its owning component task.
+			default:
+				source += "export function Page(){return ()=>run()}"
+			}
+			f := newExecutableFixture(t, map[string]string{"entry.ts": source, "unowned.d.ts": `export declare function read():number;`, "replacement.js": `export function render(){void process.version;}`})
 			if example.name == "server" {
 				config := `{"compilerOptions":{"module":"ESNext","moduleResolution":"Bundler","target":"ES2022","strict":true,"skipLibCheck":true,"types":["node"]},"files":["entry.ts"]}`
 				if err := os.WriteFile(filepath.Join(f.root, "tsconfig.json"), []byte(config), 0600); err != nil {

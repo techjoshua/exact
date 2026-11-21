@@ -56,7 +56,9 @@ export function TasksPage(this: Component<{}>) {
 				<p>
 					The final <code>TaskContext</code> parameter gives the function access to the current run.
 					Its default chooses client execution. Application code calls <code>search(query)</code>{' '}
-					without passing that final argument. eXact supplies it.
+					without passing that final argument. eXact supplies it. When setup schedules a shared module
+					helper, the component owns that activation. Other callers can still invoke the exported
+					helper normally.
 				</p>
 				<p>
 					Reactive setup assignments keep independent ownership when statements are adjacent. Task
