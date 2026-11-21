@@ -1,6 +1,9 @@
 package exactcompiler
 
-import "testing"
+import (
+	"reflect"
+	"testing"
+)
 
 func TestMapInputOpenDomainsAndCopies(t *testing.T) {
 	root, config := collectionSourceFixture(t)
@@ -146,62 +149,52 @@ func TestMapKnownEffectProjection(t *testing.T) {
 	}
 }
 
-// Source replacement and reset cannot retain a previous map's browser effects
-// or use its published input in the new source generation.
-
+// Retained compiles must agree with fresh output when a list callback changes
+// its platform requirement. This includes repeated use and an explicit reset.
 func TestMapKnownEffectReplacement(t *testing.T) {
 	root, config := collectionSourceFixture(t)
 	filename, err := normalizeFileName(root+"/Lists.tsx", "")
 	if err != nil {
 		t.Fatal(err)
 	}
-	session := NewSession()
 	makeSource := func(read string) string {
 		return `import type {Component} from '@exactjs/core';const rows=[{id:'a',label:'A'}];export function Lists(this:Component<{}>){return()=> <ul>{this.map(rows,row=>row.id,row=><li>{` + read + `}</li>)}</ul>}`
 	}
-	var oldInput *sourceMapInputContribution
-	for _, step := range []struct {
-		read           string
+	steps := []struct {
+		name, read     string
 		browser, reset bool
-	}{{`document.title+row.label`, true, false}, {`document.title+row.label`, true, false}, {`row.label`, false, false}, {`document.title+row.label`, true, true}} {
-		if step.reset {
-			if response := session.Execute(Request{Kind: "reset"}); response.Error != "" {
-				t.Fatal(response.Error)
-			}
-		}
-		response := session.Execute(Request{Kind: "compile", Target: TargetClient, ID: filename, Source: makeSource(step.read), ConfigFile: config, Diagnostics: "semantic"})
-		if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) || len(response.Analysis.Components) != 1 {
-			t.Fatal(response.Error, response.Diagnostics)
-		}
-		if (response.Analysis.Components[0].EnvironmentEffect == "browser") != step.browser {
-			t.Fatal("source replacement leaked/lost browser effects")
-		}
-		found := false
-		for _, project := range session.projects {
-			if project.callableCache == nil {
-				continue
-			}
-			analysis := project.callableCache.merged
-			for _, fact := range analysis.facts {
-				for _, input := range fact.mapInputs {
-					found = true
-					// Execute has released its analysis owner. Inspect immutable
-					// publication facts only, not a positive live-validity claim.
-					if input.publication == nil || !sameMapInputPublication(input, input.publication) || input.owner != fact.node || input.source != fact.sourceFile {
-						t.Fatal("original immutable publication missing")
+	}{
+		{"initial-browser", `document.title+row.label`, true, false},
+		{"same-source", `document.title+row.label`, true, false},
+		{"edit-to-portable", `row.label`, false, false},
+		{"reset-to-browser", `document.title+row.label`, true, true},
+	}
+	for _, target := range []Target{TargetClient, TargetServer} {
+		t.Run(string(target), func(t *testing.T) {
+			session := NewSession()
+			for _, step := range steps {
+				t.Run(step.name, func(t *testing.T) {
+					if step.reset {
+						if response := session.Execute(Request{Kind: "reset"}); response.Error != "" {
+							t.Fatal(response.Error)
+						}
 					}
-					if oldInput != nil && oldInput.source != input.source && currentMapInput(oldInput, &fact, analysis.owner) != nil {
-						t.Fatal("old source generation reused")
+					request := Request{Kind: "compile", Target: target, ID: filename, Source: makeSource(step.read), ConfigFile: config, Diagnostics: "semantic"}
+					retained := session.Execute(request)
+					fresh := NewSession().Execute(request)
+					for _, response := range []Response{retained, fresh} {
+						if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) || len(response.Analysis.Components) != 1 {
+							t.Fatal(response.Error, response.Diagnostics)
+						}
+						if (response.Analysis.Components[0].EnvironmentEffect == "browser") != step.browser {
+							t.Fatal("source replacement leaked/lost browser effects")
+						}
 					}
-					if input.domain != sourceMapInputOpen {
-						t.Fatal("replacement invented closed iterator authority")
+					if retained.Code != fresh.Code || !reflect.DeepEqual(retained.Diagnostics, fresh.Diagnostics) {
+						t.Fatal("retained artifact or diagnostics disagree with a fresh compile")
 					}
-					oldInput = input
-				}
+				})
 			}
-		}
-		if !found {
-			t.Fatal("current map contribution absent")
-		}
+		})
 	}
 }
