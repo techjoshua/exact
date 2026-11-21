@@ -69,6 +69,8 @@ The broader runtime build advances to the authored page that imports both fixtur
 
 The stored-descriptor fixture now observes a typed task that publishes its result to component state. On both targets, the placement decision preserves dormant retrieval, absent properties, and the browser effect of direct invocation. A direct call through a single-use local const retains the stored getter or method's browser effect alongside independent unknowns. Adapter invocations through `call`, `apply`, or `Reflect.apply` and a Proxy descriptor-normalization getter still lose browser effects in the public task controls.
 
+A typed task consuming a getter through an array exposes the capture-write consequence. After strict hydration, the client task updates the rendered result and the captured counter. A server task formerly returned the result while leaving the counter unchanged because the possible write supplied no performed remote lowering. The test now uses the actual component and checks refusal of the unsupported remote work. A direct scalar helper publishes both declared writes through the server handler. A reply containing a forged sibling field is discarded by the existing browser continuation validator, leaving both fields unchanged.
+
 The staged delta family has separate observations at the component and operation owners. A task invoking an acquired callback publishes the browser effect through both ready callable summaries. Both the project collection and its source cache have no staged recipe or use for that MAY query. All seven focused delta controls use the original operation collector, which supplies the recipes for their delivery checks. The relative-input control selects its producer by the source request and retains the original Call use and read. These results distinguish graph purpose from loss of a required public effect.
 
 The focused `3157ce705` checkpoint passed 29 of 36 native groups. The seven staged delta controls, byte-storage species and authored array iterator checks passed. Seven Promise and await groups failed at that checkpoint. The inherited-then fixture now declares the class at module scope to exercise the actual Await placement decision. A separate continuation control retains the refusal to transport a setup-local inherited class. The generation-signal fixture now exercises a resolved browser helper whose awaited value updates rendered state. Its old undeclared calls correctly refused opaque task placement before code generation. The remaining source-level Promise and await tests require qualification against the actual component operation and the standard built-in trust policy.
@@ -86,19 +88,46 @@ callback retains browser effects from the reached getter, excludes an unvisited 
 when the lookup keys are known, and keeps the possible effect when the key array or
 callback parameter can change.
 
-The unchanged request repeatedly acquires `resolveSolid(...).onSolid` while discovering
-downstream Gets in `createTone`. A frozen observer saw one source Call and one formal
-origin and path signature over 356 samples, with no new summary or index work. Their
-live frames and read cuts varied. A private comparison on `8e798aa87` projected the two
-authored return envelopes directly and supplied the original literal `undefined` for
-the `forcedForeground` parameter. The matching comparison with ordinary binding took
-31.61 seconds and the input shortcut took 31.66 seconds. Both had the envelope shortcut
-enabled, reached the package request deadline, and emitted zero files for each target.
-An additional private bound supplied the native `every` method directly for the known
-fresh RGB tuple inside `resolveColor`. It removed over 6,000 receiver projections over
-40 seconds. The same captured request remained unanswered with the first client module
-unchanged. The isolated receiver acquisition leaves other descendant Gets and source
-binding work on the same request.
+Theme's reactive scope resolution requests `createTone` and `createThemeTokens` through
+ordinary possible-effect collection. In `createTone`, writer discovery repeatedly
+projects `resolveSolid(...).onSolid` to check receiver overlap. The source summary and
+index are already available, and the live frames and read cuts differ. Privately
+omitting the entire `createTone` inquiry moved the unchanged request to the separate
+`themeSurfaceBundles.map` member read in `createThemeTokens`. Both reached the same
+package request deadline.
+
+Both maps recover the same eagerly acquired `token-contract.ts` Freeze input. A private
+trial reused the original literal source endpoint across 350 reads on the captured
+request. Both palette bodies finished, and later construction and copy requests kept
+`components.ts` open. The matched package attempts reached the deadline at 31.56 and
+31.46 seconds, with zero output on either target. The paired component tests retain
+known, unused and uncertain getter behavior, including through a synchronized edit and
+revert of the imported key array. Each map operation keeps its original publisher.
+
+Constraining the receiver-history work on direct Throws of the original
+`ThemeResolutionError` moved the private request to `copyThemeData(found)` in
+`resolveTemperament`. The emitted constructor and thrown payload were identical in the
+matched controls. A separate component exposed a correctness defect when an eager
+import installed a browser setter on the error's prototype. The uncorrected server
+artifact ran the setter and threw `ReferenceError`. With `b381e9a28`, SSR emits a client
+boundary and the neutral setter still executes once and renders the caught error fields.
+Application and selective library facts agree when the component owns the import and
+when only its caller imports the installer. The unchanged Theme package reaches the
+same client request deadline with that fix, at 31.76 seconds and zero target files.
+The compiler still places the Set on the client when an own field shadows the setter.
+A lexical-heritage shortcut failed the selected-import control in which an authored
+replacement superclass returned a proxy and the Set reached the inherited setter.
+The optimization needs the actual receiver's initialized own data field.
+
+The cumulative private receiver-inventory cut also advances past `copyThemeData` to
+the `resolveThemeScopeData` loop. During effect collection for its `resolveThemeData`
+call, the local binding query reprojects an earlier destructuring acquisition through
+the selected return body. The existing eager binder owns that acquisition's effects.
+The matched original package runs still reach the client deadline at 31.62 and 31.66
+seconds with zero target files. Both variants preserve the same getter controls.
+A further private omission of captured local results encounters repeated Call-return
+projection and a stack overflow in the unchanged package input. Its production
+reachability remains unverified.
 
 The reduced Intl reactive setter request completes in 0.91 seconds with `819594709` after
 reaching the eight-second stop on the baseline. Active and dormant aliased setters preserve
