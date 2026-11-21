@@ -1313,19 +1313,22 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 					return
 				}
 			}
-			// Source reads of an initializer-free module cell consume its MAY
-			// writer origins in every member mode. Acquisition alone cannot own
-			// later getter effects, and no normal slot/output is supplied here.
-			if query.dependenciesOnly && symbol.ValueDeclaration != nil && ast.IsVariableDeclaration(symbol.ValueDeclaration) && symbol.ValueDeclaration.Initializer() == nil && enclosingCallableNode(symbol.ValueDeclaration) == nil && !ast.GetSourceFileOfNode(symbol.ValueDeclaration).IsDeclarationFile && symbol.ValueDeclaration.Flags&ast.NodeFlagsAmbient == 0 {
-				values := query.liveValues(symbol, []sourceValue{{node: value}}, value, arguments, &result)
-				for _, term := range values {
-					if term.node == value {
-						result.opaque, result.valueIncomplete = true, true
-						continue
+			// Dependency property reads can reach writers of a local declared
+			// without an initializer. Reuse the source-cell recovery at this read
+			// without supplying a normal slot or output.
+			if declaration := symbol.ValueDeclaration; query.dependenciesOnly && declaration != nil && ast.IsVariableDeclaration(declaration) && declaration.Initializer() == nil && !ast.GetSourceFileOfNode(declaration).IsDeclarationFile && declaration.Flags&ast.NodeFlagsAmbient == 0 {
+				owner := enclosingCallableNode(declaration)
+				if owner == nil || mode == accessorRead && (len(projection) != 0 || name != "") && owner == enclosingCallableNode(value) && query.owner.bindingWritten(symbol) {
+					values := query.liveValues(symbol, []sourceValue{{node: value}}, value, arguments, &result)
+					for _, term := range values {
+						if term.node == value {
+							result.opaque, result.valueIncomplete = true, true
+							continue
+						}
+						visitOrigins([]sourceValue{term}, projection, instance)
 					}
-					visitOrigins([]sourceValue{term}, projection, instance)
+					return
 				}
-				return
 			}
 			// An ambient authored receiver is not a proven ordinary source object.
 			// Library globals retain their existing environment owner.

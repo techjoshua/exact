@@ -761,6 +761,8 @@ keys retain their ordinary write analysis.
 Getter and setter bodies retain their own execution ownership. Creating their object does not
 execute them. Reads, writes, updates and value enumeration carry the appropriate accessor effects,
 including structural annotations, source factory returns, nested projections and helper arguments.
+A property read can inherit getter effects from earlier assignments to a local declared without an
+initializer in the same helper body.
 Computed member names still execute while the owner is created. Provenance searches retain
 structural safeguards, including 128 nested value or origin steps. Estimated work is advisory
 and accumulates across nested callable and projection demands. Structural refusal retains known
