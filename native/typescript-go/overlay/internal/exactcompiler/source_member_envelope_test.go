@@ -1,6 +1,7 @@
 package exactcompiler
 
 import (
+	"os"
 	"strings"
 	"testing"
 
@@ -30,12 +31,30 @@ func TestFreshEnvelopeConfinement(t *testing.T) {
 		{"member-this", `function make(payload:{value:string}){return {audit:payload,error:'',invoke:function(){return this.error}}}export function run(payload:{value:string}){const update=make(payload);update.invoke();return update.error}`, "run", false, false, false},
 	} {
 		t.Run(c.name, func(t *testing.T) {
-			id := "/virtual/fresh-envelope-" + c.name + ".ts"
-			session := NewSession()
-			response := session.Execute(Request{Kind: "analyze", ID: id, Source: c.source, Diagnostics: "semantic"})
-			if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) {
-				t.Fatalf("invalid control: %s %#v", response.Error, response.Diagnostics)
+			inputs := "props.payload"
+			if c.name == "borrowed-alternative" {
+				inputs += ", props.fresh"
 			}
+			source := "import { type Component, TaskContext } from '@exactjs/core';\n" + c.source + `
+export function Page(this: Component<{ display: string }>, props: { payload: { value: string }; fresh: boolean }) {
+	this.state.display = '';
+	const refresh = (_task: TaskContext = TaskContext.client()) => {
+		this.state.display = run(` + inputs + `);
+	};
+	return () => <button onClick={() => refresh()}>{this.state.display}</button>;
+}`
+			fixture := newExecutableFixture(t, map[string]string{"entry.tsx": source})
+			request := fixture.request("analyze", "entry.tsx")
+			const config = `{"compilerOptions":{"module":"ESNext","moduleResolution":"Bundler","target":"ES2022","strict":true,"skipLibCheck":true,"jsx":"preserve","jsxImportSource":"@exactjs/jsx"},"files":["entry.tsx"]}`
+			if err := os.WriteFile(request.ConfigFile, []byte(config), 0600); err != nil {
+				t.Fatal(err)
+			}
+			session := fixture.session
+			response := session.Execute(request)
+			if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) {
+				t.Fatalf("invalid component task: %s %#v", response.Error, response.Diagnostics)
+			}
+			findComponent(t, response.Analysis.Components, "Page")
 			found := false
 			for _, summary := range response.Analysis.Callables {
 				if summary.Name != c.effectOwner {
@@ -60,7 +79,7 @@ func TestFreshEnvelopeConfinement(t *testing.T) {
 				t.Fatalf("missing effect consumer %q", c.effectOwner)
 			}
 			for _, project := range session.projects {
-				file := project.program.GetSourceFile(id)
+				file := project.program.GetSourceFile(request.ID)
 				if file == nil {
 					continue
 				}
