@@ -1040,10 +1040,10 @@ func TestSessionKeepsExplicitlyKeyedJSXHelpersIndependentOfAComponentReceiver(t 
 		ComponentContractProjection: ComponentContractProjectionHydrate,
 		Source: `
 			interface Item { id: string; label: string; }
-			function rows(items: Item[]) {
-				return <ul>{items.map((item) => <li key={item.id}>{item.label}</li>)}</ul>;
-			}
 			export function List(props: { items: Item[] }) {
+				function rows(items: Item[]) {
+					return <ul>{items.map((item) => <li key={item.id}>{item.label}</li>)}</ul>;
+				}
 				return () => rows(props.items);
 			}
 		`,

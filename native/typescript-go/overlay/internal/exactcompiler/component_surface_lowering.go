@@ -326,7 +326,10 @@ func (lowering *jsxLowering) insideComponent(node *ast.Node) bool {
 		if definition == nil {
 			return false
 		}
-		owners = componentStateReceiverScopes(definition, lowering.checker)
+		owners = componentReceiverScopesForTasks(definition, lowering.checker, func(scope *ast.Node) bool {
+			task, found := lowering.functionTasks[scope.Pos()]
+			return found && task.WorkLength == scope.End()-scope.Pos()
+		})
 		lowering.componentReceiverScopes[component.Name] = owners
 	}
 	return componentOwnsReceiver(node, owners)

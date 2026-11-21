@@ -8,6 +8,12 @@ import (
 // componentStateReceiverScopes distinguishes compiler-owned receivers from ordinary functions,
 // object methods and class instances that happen to expose a property named state.
 func componentStateReceiverScopes(component *ast.Node, typeChecker *checker.Checker) map[*ast.Node]bool {
+	return componentReceiverScopesForTasks(component, typeChecker, nil)
+}
+
+// Inference admits standalone setup definitions as candidates. Emission has
+// the selected task table and binds only functions that actually became tasks.
+func componentReceiverScopesForTasks(component *ast.Node, typeChecker *checker.Checker, selected func(*ast.Node) bool) map[*ast.Node]bool {
 	owners := map[*ast.Node]bool{component: true}
 	for _, returned := range directCallableReturns(component) {
 		value := unwrapRenderExpression(returned)
@@ -31,7 +37,7 @@ func componentStateReceiverScopes(component *ast.Node, typeChecker *checker.Chec
 			}
 			// Standalone setup functions without a receiver annotation participate in inferred
 			// task ownership. Object members and explicitly typed ordinary receivers do not.
-			if _, valid := functionTaskPolicy(node, sourceFile, bindings); valid || standalone && !ownThis {
+			if _, valid := functionTaskPolicy(node, sourceFile, bindings); valid || standalone && !ownThis && (selected == nil || selected(node)) {
 				owners[node] = true
 			}
 		}

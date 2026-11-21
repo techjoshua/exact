@@ -29,7 +29,7 @@ func (lowering *jsxLowering) lowerAnnotatedMap(node *ast.Node) *ast.Node {
 	// The checking projection retains Array.map's contextual callback types outside a
 	// component. Executable targets own their keyed operations without inventing this.map.
 	if lowering.target == TargetDefault {
-		if _, owned := lowering.componentContaining(node); !owned {
+		if !lowering.insideComponent(node) {
 			return nil
 		}
 	}
@@ -69,9 +69,9 @@ func (lowering *jsxLowering) lowerAnnotatedMap(node *ast.Node) *ast.Node {
 	if !plan.nativeArray || plan.callbackKey {
 		return lowering.lowerRenderProgramKeyedMap(node, plan)
 	}
-	// Module-scope view helpers have no durable component receiver. Their keyed
+	// Ordinary functions have their own receiver even inside a component. Their keyed
 	// children carry identity directly, including when the surrounding host falls back.
-	if _, owned := lowering.componentContaining(node); !owned {
+	if !lowering.insideComponent(node) {
 		return lowering.lowerRenderProgramKeyedMap(node, plan)
 	}
 	// Request-local server frames carry keyed identity in their output. They do not
@@ -215,8 +215,7 @@ func (lowering *jsxLowering) lowerRenderProgramKeyedMap(
 	render = lowering.collectionMapBindingRender(render)
 	parameter := render.Parameters()[0].Name()
 	key := lowering.collectionMapKeyExpression(plan, parameter)
-	if _, componentOwned := lowering.componentContaining(node); lowering.target == TargetClient &&
-		componentOwned && plan.nativeArray && !lowering.insideNativeMapCallback(node) {
+	if lowering.target == TargetClient && plan.nativeArray && lowering.insideComponent(node) && !lowering.insideNativeMapCallback(node) {
 		lowering.listCapabilityUsed = true
 		lowering.markComponentListCapability(node)
 		selector := lowering.factory.NewArrowFunction(

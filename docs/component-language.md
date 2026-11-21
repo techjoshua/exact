@@ -1445,7 +1445,7 @@ The same inferred identity is available with a destructured callback parameter o
 identity field such as `"item-id"`. Parenthesized callees and callbacks, type-only wrappers,
 and literal member access such as `items['map'](...)` preserve collection ownership. This
 lowering applies to the standard array method. An application-defined method named `map`
-retains its own invocation and ordering semantics.
+retains its own invocation and ordering semantics. A keyed JSX list can also be returned by an ordinary function declared inside or outside the component. Items keep their DOM identity when that function prepares a reordered list.
 
 String and number items, including literal unions of those types, use their values as inferred
 keys. Boolean, bigint, symbol, and unknown items retain ordinary array mapping. Choose an

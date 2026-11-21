@@ -130,7 +130,8 @@ export function ListsPage(this: Component<{}>) {
 					when a data transform appears directly inside JSX. Rendered array literals and spreads
 					preserve inferred keys as well as explicit keys. An explicitly keyed JSX map retains its
 					keys when its result passes through an array spread, a slice, or a helper before
-					rendering.
+					rendering. You can also put the JSX list itself in an ordinary helper declared inside
+					or outside the component.
 				</p>
 				<CodeBlock source={explicitMapSource} language="tsx" title="Explicit keyed rendering" />
 			</section>

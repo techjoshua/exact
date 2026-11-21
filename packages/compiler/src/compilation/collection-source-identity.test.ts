@@ -2,6 +2,8 @@
 import path from 'node:path';
 import { expect, it, onTestFinished } from 'vitest';
 import { render, unmount } from '@exactjs/dom';
+import type { AnyComponentFunction } from '@exactjs/core';
+import { createCompiledComponentInputReceipt } from '@exactjs/core/runtime/component-operations';
 import { flushSync } from '@exactjs/reactive';
 import { hydrate } from '@exactjs/hydrate/enhanced';
 import { renderToHydratableString } from '@exactjs/ssr/enhanced';
@@ -112,6 +114,57 @@ it.each(
 		expect(container.querySelector('li')).toBe(b);
 		expect(container.contains(a!)).toBe(false);
 		expect(reports).toEqual([]);
+	}
+);
+
+it.each(['mount', 'hydrate'])(
+	'keeps existing keyed nodes in a component-local view helper on %s',
+	async (mode) => {
+		const root = await createCompilerTestWorkspace('.exact-local-keyed-', process.cwd());
+		const files = await writeTestFiles(root, {
+			'list.tsx': `interface Row {id:string;label:string}
+export function List(props:{rows:Row[]}) {
+ function view(rows:Row[]){return <ul>{rows.map(row=><li key={row.id}>{row.label}</li>)}</ul>}
+ return ()=>view(props.rows);
+}`
+		});
+		const [artifact] = await compileProjectArtifacts([files['list.tsx']!], {
+			rootDir: root,
+			outDir: path.join(root, 'generated')
+		});
+		const client = await importArtifact(artifact!.clientFile, path.join(root, 'client.mjs'));
+		const rows = [
+			{ id: 'a', label: 'A' },
+			{ id: 'b', label: 'B' }
+		];
+		const view = (component: unknown, items = rows) =>
+			createCompiledComponentInputReceipt(component as AnyComponentFunction, { rows: items });
+		const host = document.createElement('div'),
+			errors: unknown[] = [];
+		onTestFinished(() => {
+			unmount(host);
+		});
+		if (mode === 'hydrate') {
+			const server = await importArtifact(artifact!.serverFile, path.join(root, 'server.mjs'));
+			const rendered = await renderToHydratableString(view(server.List));
+			host.innerHTML = rendered.html;
+			const before = [...host.querySelectorAll('li')];
+			hydrate(view(client.List), host, {
+				resumptions: rendered.resumptions,
+				onMismatch: 'throw',
+				onErrorReport: (r) => errors.push(r.error)
+			});
+			expect([...host.querySelectorAll('li')]).toEqual(before);
+		} else render(view(client.List), host, { onErrorReport: (r) => errors.push(r.error) });
+		flushSync();
+		const [a, b] = host.querySelectorAll('li');
+		expect(host.textContent).toBe('AB');
+		render(view(client.List, rows.slice().reverse()), host);
+		flushSync();
+		expect(host.textContent).toBe('BA');
+		expect(host.querySelectorAll('li')[0]).toBe(b);
+		expect(host.querySelectorAll('li')[1]).toBe(a);
+		expect(errors).toEqual([]);
 	}
 );
 
