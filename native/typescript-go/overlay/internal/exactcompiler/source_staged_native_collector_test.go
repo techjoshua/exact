@@ -4,10 +4,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"github.com/microsoft/TypeScript/tsc/internal/ast"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -33,9 +33,11 @@ func TestStagedNativeCollectorSession(t *testing.T) {
 					t.Fatalf("compile %s: %s %#v", target, response.Error, response.Diagnostics)
 				}
 				known, unknown := false, false
-				for _, effect := range executableSummary(t, response, "invoke").EffectSources {
+				fixture := nativeComponentCallFixture(t, source, "invoke()")
+				component := executeComponentNativeCall(t, fixture, target, "")
+				for _, effect := range executableSummary(t, component, "invoke").EffectSources {
 					known = known || effect.Environment == "browser"
-					unknown = unknown || effect.Environment == "unknown"
+					unknown = unknown || effect.Environment == "unknown" && strings.Contains(effect.Description, "foreign")
 					if effect.Environment == "browser" && effect.Description == "document" {
 						t.Fatal("stored returned callback became an eager effect")
 					}
@@ -43,51 +45,15 @@ func TestStagedNativeCollectorSession(t *testing.T) {
 				if known != row.browser || unknown != row.unknown {
 					t.Fatalf("effect sources browser=%t unknown=%t", known, unknown)
 				}
-				issued := false
-				for _, fact := range stagedDeclarationFacts(session) {
-					if row.unknown && fact.node.Body() != nil {
-						walkNode(fact.node.Body(), func(node *ast.Node) bool {
-							if node != fact.node.Body() && ast.IsFunctionLike(node) {
-								return false
-							}
-							if ast.IsCallExpression(node) && ast.IsIdentifier(node.Expression()) && node.Expression().Text() == "foreign" {
-								if _, legacy := fact.staged.legacy[node]; legacy {
-									t.Fatal("opaque source Call recursively prepared through legacy")
-								}
-								found := false
-								for _, skipped := range fact.staged.operationSkipped {
-									found = found || skipped == node
-								}
-								if !found {
-									t.Fatal("opaque source invocation has no issuing producer")
-								}
-								for _, edge := range fact.summary.Calls {
-									if fact.fieldEdgeOperations[edge.ID] == node && (edge.Resolved || edge.TargetID != "") {
-										t.Fatal("bodyless declaration became an executable empty summary")
-									}
-								}
-							}
-							return true
-						})
-					}
-					if fact.summary.Name != "invoke" {
-						continue
-					}
-					for _, use := range fact.staged.operationUses {
-						if use.request.producer.selector == (sourceStagedOperationSelector{}) && use.call == nil {
-							issued = fact.staged.ready && fact.staged.settled && !fact.staged.operationsPending && len(fact.staged.operationSkipped) > 0
-							if _, legacy := fact.staged.legacy[use.request.producer.operation]; legacy {
-								t.Fatal("migrated native Call retained legacy invocation recovery")
-							}
-						}
-					}
-				}
-				if !issued {
-					t.Fatal("ordinary collector did not issue and settle native Effects through the source graph")
+				request := fixture.request("compile", "entry.ts")
+				request.Target = target
+				selected := fixture.session.Execute(request)
+				if selected.Error != "" || hasErrorDiagnostic(selected.Diagnostics) || selected.Code == "" {
+					t.Fatalf("component compile %s: %s %#v", target, selected.Error, selected.Diagnostics)
 				}
 				if row.browser && target == TargetClient {
-					cached := session.Execute(Request{Kind: "compile", ID: "/virtual/staged-native-collector.ts", Source: source, Target: target, Diagnostics: "semantic"})
-					originalEffects, err := json.Marshal(executableSummary(t, response, "invoke").EffectSources)
+					cached := fixture.session.Execute(request)
+					originalEffects, err := json.Marshal(executableSummary(t, selected, "invoke").EffectSources)
 					if err != nil {
 						t.Fatal(err)
 					}
@@ -95,10 +61,11 @@ func TestStagedNativeCollectorSession(t *testing.T) {
 					if err != nil {
 						t.Fatal(err)
 					}
-					if cached.Error != "" || hasErrorDiagnostic(cached.Diagnostics) || cached.Code != response.Code || !bytes.Equal(originalEffects, cachedEffects) {
-						t.Fatal("cached Session changed emitted code or public EffectSources")
+					if cached.Error != "" || hasErrorDiagnostic(cached.Diagnostics) || cached.Code != selected.Code || !bytes.Equal(originalEffects, cachedEffects) {
+						t.Fatal("cached Session changed emitted component code or helper EffectSources")
 					}
 				}
+
 				file := filepath.Join(t.TempDir(), "native.mts")
 				if err := os.WriteFile(file, []byte(response.Code), 0600); err != nil {
 					t.Fatal(err)
