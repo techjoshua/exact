@@ -97,6 +97,10 @@ export function CompilerAnalysisSection(this: Component<{}>) {
 				binding, the diagnostic can point to that binding in the helper.
 			</p>
 			<p>
+				Binding a function captures its receiver and leading arguments. Its body contributes to
+				placement when the bound function is called, including when a helper returns it to a task.
+			</p>
+			<p>
 				Reading a property descriptor leaves a stored callback dormant. If a helper uses
 				<code>Object.getOwnPropertyDescriptor</code> on a local object, it can return the descriptor to its caller.
 				Calling the descriptor's <code>value</code> includes the function held at lookup in placement.

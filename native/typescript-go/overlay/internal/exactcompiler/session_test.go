@@ -1938,55 +1938,30 @@ func TestSessionEmitsCompactComponentRuntimeABI(t *testing.T) {
 }
 
 func TestSessionPropagatesComponentSurfaceThroughBoundLocalHelpers(t *testing.T) {
-	response := NewSession().Execute(Request{
-		ID:     "component-helper.tsx",
-		Kind:   "compile",
-		Target: TargetClient,
-		Source: `
-			declare const FormContext: unknown;
-			interface Component<State = {}> {
-				getContext<T>(token: unknown): T;
-				onUnmount(handler: () => void): void;
+	root, config := formsSourceFixture(t)
+	const component = `import {TaskContext,createContext,type Component} from '@exactjs/core';
+const Status=createContext<number>('status');
+function leaf(state:{count:number}){return document.title.length + state.count}
+function middle(this:{count:number}){return leaf(this)}
+export function Panel(this:Component<{count:number}>){
+	this.state.count=1;
+	const run=(_task:TaskContext=TaskContext.latest())=>this.setContext(Status,CALL);
+	run();
+	return()=> <output/>;
+}`
+	for _, call := range []string{"leaf(this.state)", "middle.call(this.state)", "middle.bind(this.state)()"} {
+		t.Run(call, func(t *testing.T) {
+			for _, target := range []Target{TargetClient, TargetServer} {
+				response := formsCompileSource(t, root, config, strings.Replace(component, "CALL", call, 1), target)
+				if hasErrorDiagnostic(response.Diagnostics) || response.Code == "" || len(response.Analysis.Components) != 1 {
+					t.Fatalf("component context task failed: %v", formsDiagnosticDetails(response.Diagnostics))
+				}
+				panel := response.Analysis.Components[0]
+				if len(response.Analysis.Tasks) != 1 || response.Analysis.Tasks[0].Placement != "client" || !response.Analysis.Tasks[0].BrowserEffects || panel.Name != "Panel" || !containsString(panel.EnhancementContexts.Provides, "Status") {
+					t.Fatalf("context writer lost selected helper placement: %#v", panel)
+				}
 			}
-			function control(this: Component) {
-				this.getContext(FormContext);
-				this.onUnmount(() => undefined);
-				return () => <input />;
-			}
-			export function Input(this: Component) {
-				return control.call(this);
-			}
-		`,
-	})
-	if response.Error != "" || len(response.Diagnostics) != 0 {
-		t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
-	}
-	receiverResolved := false
-	for _, callable := range response.Analysis.Callables {
-		for _, edge := range callable.Calls {
-			if strings.Contains(edge.Name, "control.call") && edgeForwardsComponentReceiver(edge) {
-				receiverResolved = true
-			}
-		}
-	}
-	if !receiverResolved {
-		t.Fatalf("bound helper receiver was not resolved: %#v", response.Analysis.Callables)
-	}
-	inputStart := strings.Index(response.Code, "const __exactImplementation_Input_")
-	if inputStart < 0 {
-		t.Fatalf("compiled Input implementation is missing:\n%s", response.Code)
-	}
-	inputContract := response.Code[inputStart:]
-	if next := strings.Index(inputContract[1:], "const __exactImplementation_"); next >= 0 {
-		inputContract = inputContract[:next+1]
-	}
-	if !strings.Contains(inputContract, `construct: __exactConstructDurableComponent`) ||
-		!strings.Contains(inputContract, `"contexts"`) {
-		t.Fatalf("bound helper requirements did not widen the owning component ABI:\n%s", response.Code)
-	}
-	if !strings.Contains(inputContract, `return control.call(this)`) ||
-		strings.Contains(inputContract, `return () => control.call(this)`) {
-		t.Fatalf("bound setup helper gained an extra render callable layer:\n%s", response.Code)
+		})
 	}
 }
 

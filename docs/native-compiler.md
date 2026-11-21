@@ -1437,7 +1437,9 @@ relation, not selected native identity, purity or proof that a call performed. A
 uses its actual receiver and raw arguments instead of inheriting the base function's body. Mutable
 bindings retain uncertainty alongside any reached replacement body's requirements. Constructing a
 bound function acquires its method, receiver and prefix without executing the target body. Later
-invocation retains those original capture sites. Unproved capture completion remains unknown.
+invocation retains those original capture sites, including when a helper immediately invokes
+the result of `bind` or returns the bound function to the component. Unproved capture
+completion remains unknown.
 
 Definition requirements belong to the compilation-owned source and existing supported package
 contracts. A published component does not need to prove arbitrary future consumer implementations

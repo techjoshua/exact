@@ -52,6 +52,17 @@ func (query *sourceValueQuery) projectSourceCallReturnsWithViews(call *ast.Node,
 		sourceView:     view,
 		descriptorView: descriptorConsumer,
 		descriptorData: interest.descriptorData,
+		construction: func(body sourceInvocationBody, part *accessorCandidates) {
+			if interest.purpose != resultSourceProjection {
+				part.valueIncomplete = true
+				return
+			}
+			// Bind creates a callable even when no normal input frame is active.
+			// Keep the original receiver and prefix acquisition on the bind Call.
+			body.binding = call
+			body.scope = query.copyCallableScope(body.scope, part)
+			project(sourceValue{node: call, bound: &body}, bindings)
+		},
 		body: func(body *ast.Node, captures sourceValueBindings, inputs *sourceValueInputs, invocation *ast.Node, part *accessorCandidates) {
 			query.projectSelectedSourceReturns(body, call, captures, inputs, part, project, deferred)
 		},
