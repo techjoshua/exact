@@ -5,7 +5,9 @@ An unknown component can have a real target-local compiled artifact while its in
 `artifactTargets` remain empty. Published export targets and direct relative-edge destinations
 record the binding inspected from the completed generation. They do not assert that every
 helper can execute on either target. Known target constraints, package authorization and concrete
-registration owners still apply. See [component library trust](component-library-trust.md) for
+registration owners still apply. A focused interactive range can coexist with the complete client
+artifact used for direct mounting. Empty inferred targets alone cannot turn that owner into a
+server-boundary reference. See [component library trust](component-library-trust.md) for
 publication and consumption requirements.
 
 Render-program version 4 requires the matching SSR operation provider. Its generated preparation

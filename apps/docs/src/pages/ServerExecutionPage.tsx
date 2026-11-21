@@ -198,6 +198,11 @@ export function ServerExecutionPage(this: Component<{}>) {
 					responses stream, including when several calls share a batch.
 				</p>
 				<p>
+					When a list component owns several keyed controls, mounting that component in the browser
+					gives the controls one shared state owner. You can give the items a local TypeScript type
+					and hold them in a setup variable before rendering the list.
+				</p>
+				<p>
 					A visible control can be used while its island code is still loading. Once the hydration
 					bootstrap has installed its listeners, eXact captures compiler-supported interactions for
 					both eager and interaction-triggered islands and delivers them after adoption. Repeated

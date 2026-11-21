@@ -583,6 +583,11 @@ func componentOmittedFromClient(component Component, serverComponents bool) bool
 	if component.ClientIslandCount == 0 {
 		return false
 	}
+	// An opaque structural input leaves inferred targets empty. A focused
+	// island can coexist with a complete client owner for direct mounting.
+	if len(component.ArtifactTargets) == 0 {
+		return component.RenderCapability.Client == "unsupported"
+	}
 	for _, target := range component.ArtifactTargets {
 		if target == "client" {
 			return false
