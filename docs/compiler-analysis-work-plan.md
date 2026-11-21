@@ -69,6 +69,12 @@ checks code and effect stability under **Give facts an expiry**. Tests that
 exercise the original staged owner still check admission and source authority
 at that phase.
 
+The getter-returned method control follows **Start from the consumer** and
+**Visit what executes**. Setup acquires the same getter in each case. Only the
+case that invokes the returned method requires a browser placement. The emitted
+Node helper still checks the original receiver, one Get per attempt and an
+abrupt Get that suppresses invocation.
+
 The follow-up native snapshot at `2d642dc7f` ran 2,318 groups with 1,874 passes and 444 failures. Compared with `293f657a5`, 24 former failures passed, eight new or replacement groups passed, and four former passes failed. A host JSX assertion was replaced by its ordinary-caller control. The four regressions identify ordinary host JSX and the receiver scope of three keyed collection paths. The derived and imported-key witnesses trace the receiver of a materialized map back to its authored occurrence.
 
 The unified `da2de7f49` snapshot ran 2,321 groups with 1,885 passes and 436 failures. Eight former failures passed, including all four new failures from the previous snapshot. All three added groups passed. The same snapshot passed 22 focused SDK cases and 24 warm and fresh request pairs. Chromium preserved the authored assignment-list owner across fresh mount, retained mount, fresh hydration and retained hydration. Packaged enhancement adoption, recovery and disposal passed on Node, Bun, Deno and Cloudflare with retained providers. The wider runtime run reached the native deadline on `cancelled-task-catch.tsx`. The separate composition corpus also reaches the deadline on that source family.

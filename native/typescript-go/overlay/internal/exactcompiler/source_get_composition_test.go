@@ -158,12 +158,11 @@ func TestGetterMemberProjectionRecursion(t *testing.T) {
 // Get and abrupt prefix must survive emission without a normal analysis receipt.
 func TestGetterReturnedMethodEmission(t *testing.T) {
 	source := `let gets=0,calls=0,fail=false;const helper={label:'safe',run():string{calls++;window.name;return this.label},get selected():()=>string{gets++;if(fail)throw 'stop';return this.run}};export function read(throwing:boolean){fail=throwing;return helper.selected()}export function counts(){return {gets,calls}}`
+	checkFormalGetterComponent(t, source, "read(false)", true)
+	checkFormalGetterComponent(t, source, "helper.selected", false)
 	r := NewSession().Execute(Request{Kind: "compile", ID: "getter-returned-method.ts", Source: source, Diagnostics: "semantic", Target: TargetClient, PreserveOrdinaryModules: true})
 	if r.Error != "" || hasErrorDiagnostic(r.Diagnostics) || r.Code == "" {
 		t.Fatalf("getter emission: %s %#v", r.Error, r.Diagnostics)
-	}
-	if !settlementBrowser(findCallable(t, r.Analysis.Callables, "read")) {
-		t.Fatal("selected method lost browser dependency")
 	}
 	sourceNodeScript(t, r.Code, `const fs=require('node:fs'),vm=require('node:vm');let reads=0;
 const sandbox={exports:{},window:{get name(){reads++;return 'browser'}}};
