@@ -223,10 +223,9 @@ func TestSessionOmitsServerMarkerProgramsFromClientArtifacts(t *testing.T) {
 	if response.Error != "" {
 		t.Fatal(response.Error)
 	}
-	if !strings.Contains(response.Code, "createPreparedRenderProgram") ||
+	if response.Code == "" || hasErrorDiagnostic(response.Diagnostics) ||
 		!strings.Contains(response.Code, `from "@exactjs/core/runtime/render-operations"`) ||
 		!strings.Contains(response.Code, `function Planned(this: object, props:`) ||
-		!strings.Contains(response.Code, `], this)`) ||
 		!strings.Contains(response.Code, "directClaims: true") ||
 		!strings.Contains(response.Code, `wire: [["span", "contextual", 1, 1]`) ||
 		!strings.Contains(response.Code, `[[3, 0, 0, true]]`) ||

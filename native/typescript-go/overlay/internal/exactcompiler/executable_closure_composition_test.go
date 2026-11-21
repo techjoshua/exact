@@ -23,8 +23,9 @@ func TestExecutableClosureSelectionComposition(t *testing.T) {
 					typed, runtime = runtime, typed
 					want = "client"
 				}
+				entry := `import {make} from './helper.js';const input={get value(){return document.title}};` + destination.setup + `export const value=` + destination.call + `;export function run(){return ` + destination.call + `}`
 				f := newExecutableFixture(t, map[string]string{
-					"entry.ts":  `import {make} from './helper.js';const input={get value(){return document.title}};` + destination.setup + `export const value=` + destination.call + `;export function run(){return ` + destination.call + `}`,
+					"entry.ts":  entry + "export function Page(){return ()=>run()}",
 					"helper.ts": `export function make(input:{value:string}){return ()=>` + typed + `}`,
 					"helper.js": `export function make(input){return ()=>` + runtime + `}`,
 				})
@@ -62,6 +63,11 @@ func TestExecutableClosureSelectionComposition(t *testing.T) {
 				// import must omit the client initializer without calling deferred run.
 				if destination.name != "array" {
 					return
+				}
+				// Exercise the library entry without a local component caller.
+				f.files["entry.ts"] = entry
+				if r := f.synchronize([]ExecutableEdge{edge}); r.Error != "" {
+					t.Fatal(r.Error)
 				}
 				for _, target := range []Target{TargetClient, TargetServer} {
 					if r := f.synchronizeTarget([]ExecutableEdge{edge}, target); r.Error != "" {
