@@ -98,7 +98,7 @@ func TestExecutableSelectionCommonJSAuthority(t *testing.T) {
 	} {
 		t.Run(name, func(t *testing.T) {
 			f := newExecutableFixture(t, map[string]string{
-				"entry.ts":   `import {TaskContext,type Component} from '@exactjs/core';import {apply} from './helper.cjs';export function run(s:{a:number,b:number}){apply(s);}export function Page(this:Component<{a:number,b:number}>){this.state.a=0;this.state.b=0;function save(task:TaskContext=TaskContext.server().blocking()){apply(this.state);}save();return()=>this.state.b;}`,
+				"entry.ts":   `import {TaskContext,type Component} from '@exactjs/core';import {apply} from './helper.cjs';export function run(s:{a:number,b:number}){apply(s);}export function Page(this:Component<{a:number,b:number}>){this.state.a=0;this.state.b=0;function save(task:TaskContext=TaskContext.server().blocking()){run(this.state);}save();return()=>this.state.b;}`,
 				"helper.cts": `export function apply(s:{a:number,b:number}){s.a=0;}`, "helper.cjs": body,
 			})
 			if r := f.synchronize([]ExecutableEdge{{"entry.ts", 1, "./helper.cjs", "import", "helper.cjs"}}); r.Error != "" {
@@ -124,7 +124,7 @@ func TestExecutableSelectionCommonJSAuthority(t *testing.T) {
 		})
 	}
 	// Overload declarations are type contracts. One implementation still owns execution.
-	f := newExecutableFixture(t, map[string]string{"entry.ts": `import {apply} from './helper.js';export function run(s:{a:number,b:number}){apply(s);}`, "helper.ts": `export function apply(s:{a:number,b:number}){s.a=0;}`, "selected.ts": `export function apply(s:{a:number,b:number}):void;export function apply(s:{a:number,b:number}){s.b=2;}`})
+	f := newExecutableFixture(t, map[string]string{"entry.ts": `import {apply} from './helper.js';export function run(s:{a:number,b:number}){apply(s);}export function Page(){const state={a:0,b:0};run(state);return ()=>state.b}`, "helper.ts": `export function apply(s:{a:number,b:number}){s.a=0;}`, "selected.ts": `export function apply(s:{a:number,b:number}):void;export function apply(s:{a:number,b:number}){s.b=2;}`})
 	if r := f.synchronize([]ExecutableEdge{{"entry.ts", 0, "./helper.js", "import", "selected.ts"}}); r.Error != "" {
 		t.Fatal(r.Error)
 	}
@@ -185,7 +185,7 @@ func TestExecutableSelectionAccessorArguments(t *testing.T) {
 				want = "browser"
 			}
 			f := newExecutableFixture(t, map[string]string{
-				"entry.ts":  `import {read} from './helper.js';export function run(){return read({get value(){return document.title;}});}`,
+				"entry.ts":  `import {read} from './helper.js';export function run(){return read({get value(){return document.title;}});}export function Page(){return ()=>run()}`,
 				"helper.ts": `export function read(input:{value:string}){` + typed + `}`,
 				"helper.js": `export function read(input){` + selected + `}`,
 			})
@@ -221,7 +221,7 @@ func TestExecutableSelectionReturnedAccessors(t *testing.T) {
 				want = "browser"
 			}
 			f := newExecutableFixture(t, map[string]string{
-				"entry.ts":  `import {make} from './helper.js';export function run(){return make().value;}`,
+				"entry.ts":  `import {make} from './helper.js';export function run(){return make().value;}export function Page(){return ()=>run()}`,
 				"helper.ts": `export function make(){return {get value(){` + typed + `}}}`,
 				"helper.js": `export function make(){return {get value(){` + selected + `}}}`,
 			})

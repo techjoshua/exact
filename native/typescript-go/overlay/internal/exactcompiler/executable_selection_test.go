@@ -409,7 +409,7 @@ func TestExecutableSelectionSiblingSuffixes(t *testing.T) {
 	} {
 		t.Run(pair.selected, func(t *testing.T) {
 			f := newExecutableFixture(t, map[string]string{
-				"entry.ts":    `import {apply} from './` + pair.selected + `';export function run(s:{a:number,b:number}){apply(s);}`,
+				"entry.ts":    `import {apply} from './` + pair.selected + `';export function run(s:{a:number,b:number}){apply(s);}export function Page(){const state={a:0,b:0};run(state);return ()=>state.b}`,
 				pair.typed:    `export function apply(s:{a:number,b:number}){s.a=2;}`,
 				pair.selected: pair.source,
 			})
