@@ -163,6 +163,17 @@ func (q *sourceValueQuery) visitLoopMemberReceivers(entry, get *ast.Node, bindin
 	}
 	key := get.Name().Text()
 	reference := sourceGetReferenceFor(get, get.Expression(), nil, key, accessorRead)
+	q.walkLoopReceiverOrigins(acquire(entry, entry, nil, nil).values, result, visit, func(value sourceValue, next func(sourceValue)) {
+		for _, alternative := range acquire(get, nil, []string{key}, reference, value).values {
+			next(alternative)
+		}
+	})
+}
+
+// walkLoopReceiverOrigins follows possible source receivers through a selected
+// loop's original update. Repeated syntax widens a branch without equating its
+// captures or determining which runtime iterations execute.
+func (q *sourceValueQuery) walkLoopReceiverOrigins(roots []sourceValue, result *accessorCandidates, visit func(sourceValue), successors func(sourceValue, func(sourceValue))) {
 	active := make(map[*ast.Node]bool)
 	var follow func(sourceValue)
 	follow = func(value sourceValue) {
@@ -177,11 +188,9 @@ func (q *sourceValueQuery) visitLoopMemberReceivers(entry, get *ast.Node, bindin
 		}
 		active[value.node] = true
 		defer delete(active, value.node)
-		for _, alternative := range acquire(get, nil, []string{key}, reference, value).values {
-			follow(alternative)
-		}
+		successors(value, follow)
 	}
-	for _, value := range acquire(entry, entry, nil, nil).values {
+	for _, value := range roots {
 		follow(value)
 	}
 }

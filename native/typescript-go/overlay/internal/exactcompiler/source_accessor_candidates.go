@@ -117,6 +117,9 @@ const (
 	accessorNoGet     accessorTraversal = 32
 	// accessorSetAcquire selects an authored setter without executing its body.
 	accessorSetAcquire accessorTraversal = accessorSet | accessorNoGet | 64
+	// The value slot of an observed entries pair may consume own enumeration origins.
+	accessorEnumerateEntries accessorTraversal = accessorEnumerate | 128
+	accessorEnumerateValues  accessorTraversal = accessorEnumerateEntries | accessorAcquire
 )
 
 // sourceAccessorBoundCandidates substitutes source-owned arguments without granting authority to structural types.

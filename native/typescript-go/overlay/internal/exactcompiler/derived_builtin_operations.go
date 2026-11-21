@@ -64,18 +64,11 @@ func (owner *sourceValueOwner) directEntriesMap(member *ast.Node) *ast.Node {
 	if call.Expression != member || property.Name().Text() != "map" || !ast.IsCallExpression(entries) {
 		return nil
 	}
-	callee := unwrapSourceCallableReference(entries.Expression())
-	base, name := restrictedInvocationMember(callee, c)
-	if name != "entries" || base == nil || !ast.IsIdentifier(base) || base.Text() != "Object" || !ast.IsPropertyAccessExpression(callee) ||
-		!standardLibraryCallRoot(callee, c) || standardLibraryCallOwner(entries.AsCallExpression(), c) != "ObjectConstructor" ||
-		standardLibraryCallOwner(call, c) != "Array" {
+	input := owner.standardEntriesArgument(entries)
+	if input == nil || standardLibraryCallOwner(call, c) != "Array" {
 		return nil
 	}
-	args := callArguments(entries)
-	if len(args) != 1 {
-		return nil
-	}
-	input := unwrapSourceCallableReference(args[0])
+	input = unwrapSourceCallableReference(input)
 	if ast.IsIdentifier(input) {
 		symbol := c.GetSymbolAtLocation(input)
 		if symbol == nil || symbol.ValueDeclaration == nil || !ast.IsVariableDeclaration(symbol.ValueDeclaration) ||
@@ -88,14 +81,31 @@ func (owner *sourceValueOwner) directEntriesMap(member *ast.Node) *ast.Node {
 	if input == nil || !ast.IsObjectLiteralExpression(input) {
 		return nil
 	}
-	// Direct writes to this standard global member in the same source file
-	// keep the Get on the ordinary effect path. The file index is unordered
-	// for this purpose, so writes inside helpers also exclude this shortcut.
+	return c.GetResolvedSignature(member.Parent).Declaration()
+}
+
+// standardEntriesArgument recognizes the immediately called standard method.
+// Authored selections and same-source replacements remain with normal analysis.
+func (owner *sourceValueOwner) standardEntriesArgument(node *ast.Node) *ast.Node {
+	if node == nil || !ast.IsCallExpression(node) || node.AsCallExpression().QuestionDotToken != nil {
+		return nil
+	}
+	c := owner.checker
+	callee := unwrapSourceCallableReference(node.Expression())
+	base, name := restrictedInvocationMember(callee, c)
+	if name != "entries" || base == nil || !ast.IsIdentifier(base) || base.Text() != "Object" || !ast.IsPropertyAccessExpression(callee) || ast.IsOptionalChain(callee) ||
+		!standardLibraryCallRoot(callee, c) || standardLibraryCallOwner(node.AsCallExpression(), c) != "ObjectConstructor" {
+		return nil
+	}
+	args := restrictedInvocationArguments(node.AsCallExpression())
+	if len(args) != 1 || ast.IsSpreadElement(args[0]) {
+		return nil
+	}
 	index := owner.index(ast.GetSourceFileOfNode(callee))
 	if index.incomplete || index.objectEntriesWritten {
 		return nil
 	}
-	return c.GetResolvedSignature(member.Parent).Declaration()
+	return args[0]
 }
 
 // directEntriesMapReturnPair admits a fresh two-slot result when its immediate

@@ -2292,6 +2292,14 @@ with a disjoint key can skip legacy writer-input recovery. The Set's original ef
 consumer still accounts for authored setters. Matching keys and structural writes retain
 their existing writer analysis.
 
+A standard `Object.entries` loop can supply possible original property values to
+a simple, consumed pair binding. Source enumeration accounts for its own getters
+and selects enumerable string keys. An unrepresented value keeps its uncertainty.
+For a confined array read at a saved index, the original selected native append
+can supply a possible receiver. A counted loop carries that relationship through
+a later append of its yielded child when the loop can continue. JavaScript
+executes the original iterator, calls and indexed reads.
+
 The callable Effects walk retains a receiver-relative descriptor write when it reaches
 the write through an earlier reflective getter with its original member read and local
 object receiver. A later read of that object can use the recorded write alongside other

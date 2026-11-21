@@ -21,6 +21,10 @@ func standardArrayLoopSource(declaration *ast.Node, c *checker.Checker) *ast.Nod
 	if declaration == nil || !ast.IsVariableDeclaration(declaration) || !ast.IsIdentifier(declaration.Name()) {
 		return nil
 	}
+	return standardArrayLoopIterable(declaration, c)
+}
+
+func standardArrayLoopIterable(declaration *ast.Node, c *checker.Checker) *ast.Node {
 	list := declaration.Parent
 	if list == nil || !ast.IsVariableDeclarationList(list) || list.Flags&ast.NodeFlagsConst == 0 {
 		return nil

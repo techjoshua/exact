@@ -288,9 +288,17 @@ The private dynamic-index comparison preserves browser placement for a reached
 getter and renders the same server output when the element is unread, removed,
 or never stored. Both it and the restored comparison reach the unchanged Theme
 client deadline at 31.56 and 32.02 seconds, with zero artifacts on either target.
-The nested copy still lacks an observed value origin for the child of a reached
-`Object.entries` pair. A direct loop with no array append also loses that origin.
-A cyclic copy containing a dormant class getter renders on the server.
+A standard `Object.entries` loop retains possible own string-key values for a
+consumer of its yielded pair. The iterator and original enumeration own their
+effects. A confined array can connect an earlier selected native append to the
+saved input read. When an observed child reaches that same append supplier and
+the counted loop can continue, the shared loop traversal considers the child
+as a possible later receiver. The original Theme copy now preserves reached
+getters across nested and cyclic inputs. Single-iteration and early-exit cases
+keep unvisited children dormant, as do replaced appends and class instances
+bypassed by the copy. Application and library compiles agree through a retained
+edit and revert on both targets. The unchanged package comparison still reaches
+the client request deadline, with no artifacts on either target.
 
 Computed method and accessor names run in the surrounding evaluation region. A
 setup-local name can call a helper that installs a getter before the component

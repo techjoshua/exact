@@ -155,6 +155,12 @@ func (q *sourceValueQuery) implicitAccessorQueries(node *ast.Node, bindings sour
 					if name == "assign" {
 						start = 1
 					}
+					if q.dependenciesOnly && name == "entries" {
+						if input := q.owner.standardEntriesArgument(node); input != nil {
+							q.enumerateEntryEffects(node, input, bindings, result)
+							return
+						}
+					}
 					if start < len(call.Arguments.Nodes) {
 						receivers = append(receivers, call.Arguments.Nodes[start:]...)
 					}

@@ -387,8 +387,11 @@ func (query *sourceValueQuery) sourceLocalBindingValues(symbol *ast.Symbol, bind
 	for declaration != nil && (ast.IsBindingElement(declaration) || ast.IsObjectBindingPattern(declaration) || ast.IsArrayBindingPattern(declaration)) {
 		declaration = declaration.Parent
 	}
-	if declaration == nil || !ast.IsVariableDeclaration(declaration) || declaration.Initializer() == nil || query.active[declaration] {
+	if declaration == nil || !ast.IsVariableDeclaration(declaration) || query.active[declaration] {
 		return nil, false
+	}
+	if declaration.Initializer() == nil {
+		return query.entriesLoopBindingValues(symbol.ValueDeclaration, declaration, bindings, result)
 	}
 	owner := enclosingCallableNode(declaration)
 	creator := query.creators[owner].invocation

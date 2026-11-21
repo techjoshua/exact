@@ -23,6 +23,9 @@ type sourceGetInputs struct {
 	// prototype-only descriptor cannot supply this operation's getter.
 	// It supplies no own-slot presence, value or completeness certificate.
 	ownConditional bool
+	// enumerableString is the original entries algorithm's conditional own
+	// enumerable string-key Get, separate from result and completion.
+	enumerableString bool
 	// Presence is an actual HasProperty result, distinct from a Get value.
 	presence      *sourcePropertyPresence
 	propertyKey   string

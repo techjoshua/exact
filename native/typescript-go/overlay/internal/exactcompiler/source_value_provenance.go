@@ -1185,7 +1185,7 @@ func (query *sourceValueQuery) executeDemand(node, declaration *ast.Node, bindin
 		}
 	}
 	if ast.IsVariableDeclaration(node) && (ast.IsObjectBindingPattern(node.Name()) || ast.IsArrayBindingPattern(node.Name())) {
-		if !query.deferUnboundPatternEffects(node, bindings, result) {
+		if !query.lazyEntriesIterationBinding(node) && !query.deferUnboundPatternEffects(node, bindings, result) {
 			query.bindInputPattern(node.Name(), query.originsAt(node.Initializer(), node, bindings, result), bindings, result, accessorAcquire, inputs)
 		}
 	}

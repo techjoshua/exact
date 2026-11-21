@@ -723,6 +723,9 @@ func (query *sourceValueQuery) arrayValues(origin *ast.Node, projection []string
 			query.visitLocalAppendValue(origin, bindings, result, visitMember)
 		}
 	}
+	if query.dependenciesOnly && mode == accessorAcquire && len(projection) == 1 && name == "" && (unknown || positional) && stagedEmptyArrayDataConstruction(origin) {
+		query.visitEnumeratedAppendValue(origin, bindings, result, visitMember)
+	}
 	if query.dependenciesOnly && (mode == accessorRead || mode == accessorAcquire) && (unknown || positional) && stagedEmptyArrayDataConstruction(origin) {
 		query.visitLocalArrayRecurrence(origin, rest, bindings, result, visitMember)
 	}

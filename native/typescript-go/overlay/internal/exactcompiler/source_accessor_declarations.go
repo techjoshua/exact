@@ -726,6 +726,10 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 				}
 				freshMember = spreadMap || denseArrayElements(elements)
 			}
+			if mode == accessorEnumerateValues && len(projection) == 0 && name == "" {
+				query.enumeratedEntryValues(value, arguments, &result)
+				return
+			}
 			query.arrayValues(value, projection, name, mode, arguments, &result, visit, visitMember, get, freshMember)
 			return
 		}
@@ -861,6 +865,10 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 					return
 				}
 			}
+			if mode == accessorEnumerateValues && len(projection) == 0 && name == "" {
+				query.enumeratedEntryValues(value, arguments, &result)
+				return
+			}
 			var members []*ast.Node
 			if ast.IsObjectLiteralExpression(value) {
 				members = value.AsObjectLiteralExpression().Properties.Nodes
@@ -924,6 +932,9 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 			ownsSelection := false
 			ownGetter, ownSetter := false, false
 			for _, member := range members {
+				if mode == accessorEnumerateEntries && member.Name() != nil && ast.IsComputedPropertyName(member.Name()) && query.enumerationSymbolKey(member.Name(), &result) {
+					continue
+				}
 				if !ast.IsObjectLiteralExpression(value) && ast.HasSyntacticModifier(member, ast.ModifierFlagsStatic) == instance {
 					continue
 				}
@@ -968,6 +979,9 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 				if len(projection) > 0 {
 					privateMatch, privateGet := query.sourcePrivateMemberMatch(member, projection)
 					computedMayMatch := !privateGet && member.Name() != nil && ast.IsComputedPropertyName(member.Name()) && sourceLiteralMemberName(member.Name().AsComputedPropertyName().Expression) == ""
+					if computedMayMatch && get != nil && get.enumerableString && query.enumerationSymbolKey(member.Name(), &result) {
+						continue
+					}
 					if member.Name() != nil && (privateMatch || !privateGet && (projection[0] == "" && !exactEmpty || projection[0] == "*" || callableNameText(member.Name()) == projection[0] || computedMayMatch)) {
 						if query.observeStagedGetResultMember(value, member, selectedGet, mode, computedMayMatch, arguments, &result) {
 							continue
