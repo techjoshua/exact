@@ -158,3 +158,76 @@ func (query *sourceValueQuery) envelopeOuterExpression(node *ast.Node, result *a
 func envelopeSynchronousFunction(node *ast.Node) bool {
 	return node != nil && ast.IsFunctionDeclaration(node) && node.Body() != nil && !ast.HasSyntacticModifier(node, ast.ModifierFlagsAsync) && node.AsFunctionDeclaration().AsteriskToken == nil
 }
+
+// confinedLocalGetter excludes unrelated receiver writers for one own getter.
+// The Get and its result still go through their original value and effect consumers.
+func (query *sourceValueQuery) confinedLocalGetter(origin *ast.Node, projection []string, name string, mode accessorTraversal, result *accessorCandidates) bool {
+	if mode != accessorAcquire && mode != accessorRead || !ast.IsObjectLiteralExpression(origin) {
+		return false
+	}
+	if name == "" && len(projection) == 1 {
+		name = projection[0]
+	} else if name == "" || len(projection) != 0 {
+		return false
+	}
+	properties := origin.AsObjectLiteralExpression().Properties.Nodes
+	if len(properties) != 1 || !ast.IsGetAccessorDeclaration(properties[0]) {
+		return false
+	}
+	getter := properties[0]
+	if getter.Name() == nil || ast.IsComputedPropertyName(getter.Name()) || callableNameText(getter.Name()) != name {
+		return false
+	}
+	local := origin.Parent
+	if local == nil || !ast.IsVariableDeclaration(local) || local.Initializer() != origin ||
+		!ast.IsIdentifier(local.Name()) || local.Parent == nil || !ast.IsVariableDeclarationList(local.Parent) ||
+		local.Parent.Flags&ast.NodeFlagsConst == 0 || enclosingCallableNode(local) == nil {
+		return false
+	}
+	file := ast.GetSourceFileOfNode(origin)
+	if !ast.IsExternalModule(file) {
+		return false
+	}
+	index := query.owner.index(file)
+	references := index.privateUses
+	if index.incomplete || index.normalDynamicScope || references == nil || !references.complete {
+		return false
+	}
+	symbol := query.owner.checker.GetSymbolAtLocation(local.Name())
+	if symbol == nil || len(symbol.Declarations) != 1 || symbol.Declarations[0] != local ||
+		len(references.unresolved[local.Name().Text()]) != 0 {
+		return false
+	}
+	uses := references.uses[ast.GetSymbolId(symbol)]
+	if len(uses) == 0 {
+		return false
+	}
+	for _, use := range uses {
+		ref := use.node
+		field := ref.Parent
+		if !query.charge(result, ref) || field == nil || !ast.IsPropertyAccessExpression(field) ||
+			field.Expression() != ref || field.Name().Text() != name {
+			return false
+		}
+		read, write := accessorEvaluationMode(field)
+		if !read || write {
+			return false
+		}
+		outer := query.envelopeOuterExpression(field, result)
+		if outer == nil {
+			return false
+		}
+		if parent := outer.Parent; parent != nil && (ast.IsCallExpression(parent) && parent.Expression() == outer ||
+			ast.IsNewExpression(parent) && parent.Expression() == outer ||
+			ast.IsTaggedTemplateExpression(parent) && parent.AsTaggedTemplateExpression().Tag == outer) {
+			return false // A member invocation can pass the literal as its receiver.
+		}
+	}
+	confined := true
+	walkNode(getter, func(node *ast.Node) bool {
+		confined = confined && query.charge(result, node) &&
+			node.Kind != ast.KindThisKeyword && node.Kind != ast.KindSuperKeyword
+		return confined
+	})
+	return confined
+}

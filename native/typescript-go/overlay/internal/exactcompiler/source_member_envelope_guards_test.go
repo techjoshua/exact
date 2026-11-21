@@ -60,6 +60,72 @@ func checkEnvelopeGuard(t *testing.T, query *sourceValueQuery, origin *ast.Node,
 	return query.estimatedCost - before
 }
 
+// A local accessor's effect stays on the original task. Only its unexposed receiver
+// can skip unrelated member writer recovery.
+func TestComponentLocalGetterConfinement(t *testing.T) {
+	const getter = `get value(){return document.title}`
+	for _, row := range []struct {
+		name, shape, extra string
+		confined           bool
+	}{
+		{"local read", getter, "", true},
+		{"captured read", getter, "const read=()=>box.value;void read();", true},
+		{"bare alias", getter, "const alias=box;void alias;", false},
+		{"delete", getter, "delete (box as {value?:string}).value;", false},
+		{"descriptor replacement", getter, "Object.defineProperty(box,'value',{value:'changed'});", false},
+		{"getter receiver", "get value(){void this;return document.title}", "", false},
+		{"inherited getter", "get value(){return super.toString()+document.title}", "", false},
+		{"member invocation", "get value(){return ()=>document.title}", "void box.value();", false},
+		{"dynamic lexical source", getter, "void eval('box');", false},
+	} {
+		t.Run(row.name, func(t *testing.T) {
+			body := `const box={` + row.shape + `};` + row.extra + `const value=box.value;this.state.label=String(value);`
+			fixture := newPublicAwaitRequiredFixture(t, publicAwaitRequiredPage("", body, TargetClient))
+			request := fixture.request("analyze", "entry.tsx")
+			session := NewSession()
+			response := session.Execute(request)
+			if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) || len(response.Analysis.Tasks) != 1 {
+				t.Fatalf("invalid component control: %s %#v", response.Error, response.Diagnostics)
+			}
+			if row.confined {
+				found := false
+				for _, effect := range response.Analysis.Tasks[0].EffectSources {
+					found = found || effect.Environment == "browser" && strings.Contains(effect.Description, "document")
+				}
+				if !found {
+					t.Fatal("confinement lost the getter's browser effect")
+				}
+			}
+			for _, project := range session.projects {
+				file := project.program.GetSourceFile(request.ID)
+				if file == nil {
+					continue
+				}
+				var origin *ast.Node
+				walkNode(file.AsNode(), func(node *ast.Node) bool {
+					if ast.IsVariableDeclaration(node) && ast.IsIdentifier(node.Name()) && node.Name().Text() == "box" {
+						origin = node.Initializer()
+					}
+					return origin == nil
+				})
+				if origin == nil {
+					t.Fatal("missing local receiver")
+				}
+				query := sourceValueQuery{owner: project.callableCache.owner.values, remaining: 4096}
+				result := accessorCandidates{}
+				if got := query.confinedLocalGetter(origin, []string{"value"}, "", accessorAcquire, &result); got != row.confined {
+					t.Fatalf("confinement=%v want=%v", got, row.confined)
+				}
+				if query.confinedLocalGetter(origin, nil, "unrelated", accessorRead, &result) {
+					t.Fatal("confinement supplied a different member")
+				}
+				return
+			}
+			t.Fatal("missing source program")
+		})
+	}
+}
+
 // Static slot names follow the scanner, while every envelope transfer, write
 // and member invocation stays outside the non-invoking data-read subset.
 func TestFreshEnvelopeSafetyFrontiers(t *testing.T) {

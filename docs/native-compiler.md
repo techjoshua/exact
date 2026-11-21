@@ -3911,6 +3911,11 @@ Earlier getter-selection effects remain with descriptor installation. Literal de
 are compared before caller-input acquisition, avoiding reentry through an unrelated member.
 Active indexed operations and ineligible mutation categories are excluded before projecting
 writer inputs. They cannot reopen the native member acquisition that selected the same Call.
+A literal with one own getter can also exclude unrelated receiver writers when it initializes a
+local const and every indexed use is a direct read of that getter. References in nested closures
+participate in the same check. Receiver escape, property writes or deletion, invocation through
+the member, dynamic lexical evaluation, and access to `this` or `super` in the getter retain the
+ordinary writer search. The original getter and its returned value keep their usual consumers.
 After dependency-body admission, a wrapper with no indexed nested Call needs no writer scope
 when all its bindings are already resolved. Member paths and pending initializer uses retain
 the original projection and sealing steps because either can contribute uncertainty to fallback.
