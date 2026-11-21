@@ -42,7 +42,7 @@ func componentCallableDemand(collection *projectCallableCollection, requested ..
 		}
 		_, component := owner.values.components[f.node]
 		annotations := callableNodeAnnotations(f.node, f.sourceFile)
-		task := owner.values.erasedTaskPolicyParameter(f.node) != nil
+		task := owner.values.inertTaskPolicyParameter(f.node, true) != nil
 		if component || task || annotations.client || annotations.server || annotations.policy != nil {
 			add(i)
 			needSource(f.sourceFile)
@@ -191,7 +191,7 @@ func componentCallableDemand(collection *projectCallableCollection, requested ..
 			for _, child := range region.lexicalChildren {
 				// A component-owned policy task can be retained as a value. Its
 				// placement is needed when linking an imported component too.
-				if componentReturn && owner.values.erasedTaskPolicyParameter(child) != nil || callableIsInteractiveHandler(child) || callableDemandBoundary(child, f.node, componentReturn) {
+				if componentReturn && owner.values.inertTaskPolicyParameter(child, true) != nil || callableIsInteractiveHandler(child) || callableDemandBoundary(child, f.node, componentReturn) {
 					demandReference(child, accessorInvoke)
 				}
 			}

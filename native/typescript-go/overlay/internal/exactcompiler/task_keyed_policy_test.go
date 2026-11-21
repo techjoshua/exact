@@ -2,6 +2,7 @@ package exactcompiler
 
 import (
 	"fmt"
+	"os"
 	"strings"
 	"testing"
 )
@@ -76,6 +77,29 @@ func TestKeyedTransportRetainsAuthoredParameterBindings(t *testing.T) {
 					t.Fatalf("key resolver omitted its authored parameters: %s", response.Code)
 				}
 			})
+		}
+	}
+}
+
+// A retained task contributes the authored concurrency key and executable task work
+// to its component's placement. A nested callback's platform read is deferred.
+func TestRetainedKeyedTaskPlacement(t *testing.T) {
+	root, config := formsSourceFixture(t)
+	if err := os.WriteFile(config, []byte(`{"compilerOptions":{"target":"ESNext","module":"ESNext","moduleResolution":"Bundler","jsx":"preserve","jsxImportSource":"@exactjs/jsx","skipLibCheck":true,"types":["node"]}}`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range []struct{ key, use, placement string }{
+		{"'lane'", "void cb", "isomorphic"},
+		{"'lane'", "cb()", "server"},
+		{"process.cwd()", "void cb", "server"},
+	} {
+		source := "import {TaskContext,type Component} from '@exactjs/core';export function Page(this:Component<{}>){function run(task:TaskContext=TaskContext.latest().key(" + c.key + ")){const cb=()=>process.cwd();" + c.use + "}const bag={run};void bag;return()=> <span/>}"
+		for _, target := range []Target{TargetClient, TargetServer} {
+			r := formsCompileSource(t, root, config, source, target)
+			got := findComponent(t, r.Analysis.Components, "Page").Placement
+			if hasErrorDiagnostic(r.Diagnostics) || r.Code == "" || got != c.placement {
+				t.Fatalf("%s %s on %s: want %s, got %+v, %v", c.key, c.use, target, c.placement, got, formsDiagnosticDetails(r.Diagnostics))
+			}
 		}
 	}
 }
