@@ -3,6 +3,7 @@ package exactcompiler
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -53,8 +54,15 @@ export function Page(this:Component<{count:number}>){
 						task = &r.Analysis.Tasks[i]
 					}
 				}
-				if task == nil || task.Placement != "client" || task.Concurrency != "latest" || task.Readiness != "blocking" || !task.BrowserEffects {
+				if task == nil || task.Placement != "client" || task.Concurrency != "latest" || task.Readiness != "blocking" || task.BrowserEffects != (c.policy == "") {
 					t.Fatal("erasure lost task policy or real default/body browser effect", r.Analysis.Tasks)
+				}
+				if c.policy != "" {
+					const key = "document.title"
+					if task.KeyStart != strings.Index(source, key) || task.KeyLength != len(key) ||
+						strings.Contains(r.Code, key) != (target == TargetClient) || r.Analysis.Components[0].Placement != "isomorphic" {
+						t.Fatalf("%s: invocation key lost its source span, client artifact or component placement", target)
+					}
 				}
 				read, write := false, false
 				for _, e := range task.Reads {
