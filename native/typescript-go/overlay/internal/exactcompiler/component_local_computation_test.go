@@ -1,6 +1,7 @@
 package exactcompiler
 
 import (
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -146,5 +147,19 @@ func TestSessionBrandsBrowserComponentWithOpaqueSetupCalls(t *testing.T) {
 		!strings.Contains(strings.Join(component.Diagnostics, "\n"), "opaque call") ||
 		!strings.Contains(response.Code, `, "`+component.ID+`"`) || !strings.Contains(response.Code, `placement: "unknown"`) || !knownBrowser || !unknownInput || copy.Effect != "unknown" {
 		t.Fatalf("local artifact lost opaque availability or its known browser callback: %#v %#v\n%s", component, copy, response.Code)
+	}
+}
+
+// The neutral authored check and the hydration artifact use the synchronous computation
+// callback signature. A continuation wrapper would infer its trailing signal input as never.
+func TestHydrateDerivedStateComputationContext(t *testing.T) {
+	root, config := formsSourceFixture(t)
+	source := `import {type Component} from '@exactjs/core';
+ export function Counter(this:Component<{count:number}>,props:{initial:number}){
+   const initial=props.initial;this.state.count=initial;return()=> <output>{this.state.count}</output>;
+ }`
+	r := NewSession().Execute(Request{Kind: "compile", ID: filepath.Join(root, "counter.tsx"), Root: root, ConfigFile: config, Source: source, Diagnostics: "semantic", Target: TargetClient, ComponentContractProjection: ComponentContractProjectionHydrate})
+	if r.Error != "" || hasErrorDiagnostic(r.Diagnostics) || !strings.Contains(r.Code, "activateComputationForHost as") {
+		t.Fatalf("hydration computation: %s %#v", r.Error, r.Diagnostics)
 	}
 }

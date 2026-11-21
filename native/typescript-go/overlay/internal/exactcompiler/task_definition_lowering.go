@@ -325,17 +325,7 @@ func (lowering *jsxLowering) lowerTask(node *ast.Node, task Task) *ast.Node {
 				rewrittenWork,
 			},
 		)
-	} else if lowering.target == TargetServer &&
-		(task.Placement == "server" || task.Placement == "isomorphic") {
-		rewrittenWork = lowering.taskHelperCall(
-			"markComponentContinuationTask",
-			lowering.names.taskContinuation,
-			[]*ast.Node{
-				lowering.factory.NewStringLiteral(task.ID, ast.TokenFlagsNone),
-				rewrittenWork,
-			},
-		)
-	} else if lowering.target == TargetDefault &&
+	} else if !synchronousComputation && (lowering.target == TargetServer || lowering.target == TargetDefault) &&
 		(task.Placement == "server" || task.Placement == "isomorphic") {
 		rewrittenWork = lowering.taskHelperCall(
 			"markComponentContinuationTask",
