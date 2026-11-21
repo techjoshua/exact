@@ -88,6 +88,26 @@ writer recovery still acquires named data paths through the actual protocol reco
 Those data slots can carry callable sources, so the remaining cost needs a source relationship
 that retains applicable writer and captured callable effects.
 
+On the frozen `7a85c2499` native source, setup placement for `IntlLocale` reaches the
+formatter through default environment creation, descriptor validation and the pattern
+callback. In a 24-second profile of the unchanged request, 18.39 seconds include candidate
+Call collection and 18.46 include the full writer-input scan. Occurrence indexing alone
+would address little of this cost. A source-scope observer saw repeated inputs at ten hot
+call sites. After accounting for the active and pending context, one private replay retired
+about 4,050 empty results before its stored-context limit and still reached the deadline.
+The paired render control keeps a browser callback stored as descriptor data and the
+independently unknown dynamic key. Removing only the default-locale calls in a diagnostic
+source variant removes that formatter demand. The variant still stalls at the separate
+eager freeze of `accentedCharacters` while recovering environment writer inputs.
+
+The known-key data path also revealed a placement defect. A component stored a browser
+callback from `Reflect.get` in a descriptor and invoked it during rendering. Its original
+server artifact threw because the callback had been left available on the server. The
+selected native read now carries its eager getter effects and any known callable value
+through the original cut. The paired SSR test emits a client boundary for the browser
+callback and renders the neutral callback on the server. The unchanged Intl SDK build
+with this fix still reaches the request deadline on `components.ts` at 32.94 seconds.
+
 Acceptance also covers mounted reads, control bindings, lifecycle, portals, registry identity, task settlement, protected transport, paired artifact selection, selected host implementations and source inspection. Use the existing [composition corpus](component-composition-corpus.md) and [package decision audit](#requester-disposition-against-the-component-contracts) for their scoped evidence. Treat interrupted suites and original packages that still reach the request deadline as open.
 
 ### Acceptance by traversal rule

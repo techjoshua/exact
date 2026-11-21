@@ -112,3 +112,36 @@ it.each([
 	);
 	expect(output.html).toContain('prototype:' + expected);
 });
+
+it.each([
+	{ expression: 'document.title', browser: true },
+	{ expression: "'safe'", browser: false }
+])(
+	'retains callable placement through Reflect.get and descriptor data',
+	async ({ expression, browser }) => {
+		const root = await createCompilerTestWorkspace('.exact-reflect-get-', process.cwd());
+		const entry = path.join(root, 'page.tsx');
+		await writeFile(
+			entry,
+			`
+type Callback = () => string;
+function install(cell: {field: Callback}, input: {payload: Callback}, key: string) {
+	Object.defineProperty(cell, 'field', {value: Reflect.get(input, key)});
+}
+function paint() {
+	const cell = {field: () => 'initial'};
+	install(cell, {payload: () => ${expression}}, 'payload');
+	return cell.field();
+}
+export function Page() { return () => <p>{paint()}</p>; }`
+		);
+		const [artifact] = await compileProjectArtifacts([entry], {
+			rootDir: root,
+			outDir: path.join(root, 'generated')
+		});
+		const server = await importArtifact(artifact!.serverFile, path.join(root, 'server.mjs'));
+		const { html } = await renderToString(receipt(server.Page as never, {}), { markers: false });
+		if (browser) expect(html).toContain('data-exact-client-boundary=');
+		else expect(html).toBe('<p>safe</p>');
+	}
+);

@@ -29,6 +29,16 @@ func (query *sourceValueQuery) consumeNativeInvocation(node *ast.Node, value sou
 		query.consumeNativeFreeze(node, value, exclusive, result)
 		return
 	}
+	if value.native.kind == sourceNativeReflectGet {
+		if !query.dependenciesOnly {
+			result.opaque, result.valueIncomplete = true, true
+			return
+		}
+		if consumer.sourceReturn != nil || consumer.native != nil {
+			query.sourceReflectGetRelationship(node, value, bindings, complete, consumer.sourceReturn, result)
+		}
+		return
+	}
 	if value.native.kind == sourceNativeObjectGetOwnPropertyDescriptor {
 		query.withActiveInvocation(node, func() {
 			revoke, _ := query.beginDescriptorSourcePhases(node, value)

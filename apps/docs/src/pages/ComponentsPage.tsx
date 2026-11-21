@@ -188,6 +188,7 @@ export function ComponentsPage(this: Component<{}>) {
 					getter’s requirements, including when both reads occur inside a directly called helper.
 					The compiler can follow an earlier call to a statically imported helper that installs
 					the first getter.
+					This also applies to a standard <code>Reflect.get</code> with a known property key.
 					For example, a getter that reads <code>document.title</code> can
 					cause the compiler to reject an explicitly server-placed task.
 				</p>

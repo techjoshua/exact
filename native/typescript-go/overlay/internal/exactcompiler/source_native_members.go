@@ -36,6 +36,7 @@ const (
 	sourceNativeDefaultHasInstance             // Conditional original Function.prototype protocol, never output.
 	sourceNativeWeakMapPrototype               // Original standard prototype slot Effects, not instance/result identity.
 	sourceNativeObjectGetOwnPropertyDescriptor // Selected Object retrieval, not a raw descriptor/result object.
+	sourceNativeReflectGet                     // Selected property read, without a normal output receipt.
 )
 
 // sourceNativeValue is one trusted standard-entry alternative. The declaration
@@ -121,6 +122,9 @@ func (query *sourceValueQuery) nativeEntryRoot(symbol *ast.Symbol, fromGlobal bo
 		}
 		if entry.kind == sourceNativeSymbolConstructorExposure || entry.kind == sourceNativeSymbolConstructor {
 			continue
+		}
+		if entry.kind == sourceNativeReflectObject && len(path) > offset && path[offset] == "get" {
+			return global, entry.kind
 		}
 		if entry.kind == sourceNativePossibleProxyConstructor || entry.kind == sourceNativeWeakMapConstructor || entry.kind == sourceNativePromiseConstructor || len(path) > offset && (entry.kind == sourceNativeFunctionConstructor && path[offset] == "prototype" || entry.kind != sourceNativeFunctionConstructor && (path[offset] == "defineProperty" || entry.kind == sourceNativeObjectConstructor && (path[offset] == "freeze" || path[offset] == "defineProperties" || path[offset] == "getOwnPropertyDescriptor" || query.stagedCreateAcquisition() && path[offset] == "create" || query.stagedTargetAcquisition() && path[offset] == "prototype" && len(path) == offset+1))) {
 			return global, entry.kind
@@ -253,6 +257,12 @@ func (query *sourceValueQuery) nativeMemberSeed(value sourceValue, key string, s
 					// slot alternative. Authored properties of that object still
 					// use ordinary member/writer owners.
 					return value.node, sourceValue{node: member.ValueDeclaration, native: &sourceNativeValue{kind: sourceNativeObjectPrototype, acquired: value.native.acquired}}, true
+				}
+			}
+			if value.native.kind == sourceNativeReflectObject && key == "get" {
+				member := query.owner.checker.GetPropertyOfType(query.owner.checker.GetTypeOfSymbol(global), key)
+				if member != nil && member.ValueDeclaration != nil && standardLibrarySource(ast.GetSourceFileOfNode(member.ValueDeclaration)) {
+					return value.node, sourceValue{node: member.ValueDeclaration, native: &sourceNativeValue{kind: sourceNativeReflectGet, acquired: value.native.acquired}}, true
 				}
 			}
 			memberName := "defineProperty"

@@ -62,3 +62,37 @@ export function Page(this: Component<{}>, props: {keyName: string}) {
 		})
 	}
 }
+
+// The selected Reflect.get owns its eager getter. The callable it reads keeps
+// its own invocation effects and the original cut through later assignments.
+func TestReflectGetSelectedSourceEffects(t *testing.T) {
+	root, config := formsSourceFixture(t)
+	const component = `
+export function Page(props: {keyName: string; pick: boolean}) {
+	return () => <p>{paint(props.keyName, props.pick)}</p>;
+}`
+	for _, row := range []struct {
+		name, body       string
+		browser, unknown bool
+	}{
+		{"eager getter", "const box={get x(){return document.title}}; return Reflect.get(box,'x');", true, false},
+		{"stored callback", "const box={x:()=>document.title}; const saved=Reflect.get(box,'x'); return typeof saved;", false, false},
+		{"captured before replacement", "const box={x:()=>document.title}; const saved=Reflect.get(box,'x'); box.x=()=> 'safe'; return saved();", true, true},
+		{"mixed keys", "const box={x:()=>document.title}; return Reflect.get(box,pick?'x':input)();", true, true},
+		{"shadowed Reflect", "const Reflect={get(box:{use:()=>string},_key:string){return box.use}}; const box={use:()=> 'safe',x:()=>document.title}; return Reflect.get(box,'x')();", false, false},
+	} {
+		t.Run(row.name, func(t *testing.T) {
+			source := "function paint(input:string,pick:boolean){" + row.body + "}" + component
+			response := formsCompileSource(t, root, config, source, TargetServer)
+			if hasErrorDiagnostic(response.Diagnostics) || response.Code == "" {
+				t.Fatal(response.Diagnostics)
+			}
+			paint := findCallable(t, response.Analysis.Callables, "paint")
+			browser := containsEnvironment(paint.EffectSources, "browser")
+			unknown := containsEnvironment(paint.EffectSources, "unknown")
+			if browser != row.browser || unknown != row.unknown {
+				t.Fatalf("browser=%v unknown=%v effects=%v", browser, unknown, paint.EffectSources)
+			}
+		})
+	}
+}
