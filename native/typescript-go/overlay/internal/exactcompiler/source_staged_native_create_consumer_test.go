@@ -7,8 +7,6 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
-
-	"github.com/microsoft/TypeScript/tsc/internal/ast"
 )
 
 // The ordinary public collector must settle source input relationships without
@@ -66,47 +64,50 @@ func TestStagedNativeCreateConsumerSession(t *testing.T) {
 	}
 }
 
-// Unsupported consumers keep their original path. A possible native MAY
-// alternative never erases an authored donor or licenses native-only completion.
-func TestStagedNativeCreateConsumerLegacyControls(t *testing.T) {
+// Component task placement uses the executed constructor and freeze effects.
+// Authored replacements and an opaque producer keep their independent requirements.
+func TestComponentNativeObjectConstructionTaskEffects(t *testing.T) {
 	for _, row := range []struct {
-		name, source string
-		authored     bool
+		name, declarations, body, effect string
 	}{
-		{"shadow", `const Object={create(_prototype:object|null){window.name;return {}}};export function invoke(){return Object.create(null)}`, true},
-		{"own authored", `const owner={create:Object.create};owner.create=function replacement(_prototype:object|null){window.name;return {}};export function invoke(){return owner.create(null)}`, true},
-		{"two arguments", `export function invoke(prototype:object){return Object.create(prototype,{value:{value:1}})}`, false},
-		{"spread", `export function invoke(prototypes:[object]){return Object.create(...prototypes)}`, false},
-		{"nonformal", `const prototype={};export function invoke(){return Object.create(prototype)}`, false},
+		{"shadowed create", `const Object={create(_prototype:object|null){window.name;return {value:1}}};`, `this.state.label=String(Object.create(null).value)`, "browser"},
+		{"replaced create", ``, `const owner={create:Object.create};owner.create=function replacement(_prototype:object|null){window.name;return {value:1}};this.state.label=String(owner.create(null).value)`, "browser"},
+		{"descriptor argument", ``, `const candidate=Object.create(null,{value:{value:1}});this.state.label=String(candidate.value)`, ""},
+		{"spread create", ``, `const proto={};const params:[object]=[proto];this.state.label=String(Object.getPrototypeOf(Object.create(...params))===proto)`, ""},
+		{"module prototype", `const proto={};`, `this.state.label=String(Object.getPrototypeOf(Object.create(proto))===proto)`, ""},
+		{"freeze descriptor result", ``, `const candidate=Object.freeze(Object.create(null,{value:{value:1}}));this.state.label=String(candidate.value)`, ""},
+		{"freeze opaque result", `declare function make():object;`, `this.state.label=String(Object.isFrozen(Object.freeze(make())))`, "unknown"},
+		{"replaced freeze", ``, `const owner={freeze:Object.freeze};owner.freeze=function replacement<T>(value:T){window.name;return value};this.state.label=String(owner.freeze(Object.create(null,{value:{value:1}})).value)`, "browser"},
+		{"authored freeze", `const owner={freeze(value:object){window.name;return value}};`, `this.state.label=String(Object.isFrozen(owner.freeze(Object.create(null))))`, "browser"},
+		{"saved freeze", ``, `const freeze=Object.freeze;this.state.label=String(Object.isFrozen(freeze(Object.create(null))))`, ""},
 	} {
 		t.Run(row.name, func(t *testing.T) {
-			session := NewSession()
-			response := session.Execute(Request{Kind: "analyze", ID: "/virtual/create-legacy.ts", Source: row.source, Diagnostics: "semantic"})
-			if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) {
-				t.Fatal(response.Error, response.Diagnostics)
-			}
-			retained := false
-			for _, fact := range stagedDeclarationFacts(session) {
-				if fact.summary.Name != "invoke" {
-					continue
+			source := `import {type Component,TaskContext} from '@exactjs/core';
+` + row.declarations + `
+export function Page(this:Component<{label:string}>){
+  this.state.label='ready';
+  function show(task:TaskContext=TaskContext.server()){` + row.body + `}
+  return ()=> <button onClick={show}>{this.state.label}</button>;
+}`
+			fixture := newPublicAwaitRequiredFixture(t, source)
+			for _, target := range []Target{TargetClient, TargetServer} {
+				request := fixture.request("compile", "entry.tsx")
+				request.Target = target
+				response := NewSession().Execute(request)
+				denied := row.effect == "browser"
+				if response.Error != "" || len(response.Analysis.Tasks) != 1 ||
+					hasErrorDiagnostic(response.Diagnostics) != denied ||
+					containsDiagnosticCode(response.Diagnostics, "EXACT2001") != denied ||
+					(response.Code == "") != denied {
+					t.Fatal(target, response.Error, response.Diagnostics)
 				}
-				walkNode(fact.node.Body(), func(node *ast.Node) bool {
-					if ast.IsReturnStatement(node) && ast.IsCallExpression(node.Expression()) {
-						_, retained = fact.staged.legacy[node.Expression()]
-					}
-					return !ast.IsFunctionLike(node)
-				})
-			}
-			if !retained {
-				t.Fatal("unsupported create consumer lost its original legacy Call")
-			}
-			if row.authored {
-				browser := false
-				for _, effect := range findCallable(t, response.Analysis.Callables, "invoke").EffectSources {
+				browser, opaque := false, false
+				for _, effect := range response.Analysis.Tasks[0].EffectSources {
 					browser = browser || effect.Environment == "browser" && effect.Description == "window"
+					opaque = opaque || effect.Environment == "unknown" && effect.Description == "unresolved call make"
 				}
-				if !browser {
-					t.Fatal("authored original Call donor erased")
+				if browser != denied || row.effect == "unknown" && !opaque {
+					t.Fatal(target, response.Analysis.Tasks[0].EffectSources)
 				}
 			}
 		})
