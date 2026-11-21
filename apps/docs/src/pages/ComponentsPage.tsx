@@ -353,7 +353,8 @@ export function ComponentsPage(this: Component<{}>) {
 				</p>
 				<p>
 					A helper can select an operation with a statically known key, such as
-					<code>this['own'](resource)</code>, with the same lifetime and cleanup rules. Ordinary
+					<code>this['own'](resource)</code>, with the same lifetime and cleanup rules. Use that
+					call form or <code>this.own(resource)</code> to register a resource created in setup. Ordinary
 					objects and classes declared inside a component keep their own JavaScript receiver and
 					method behavior. If you save <code>this.onMount</code> as <code>register</code>, use
 					<code>register.call(this, callback)</code> to retain the component receiver. Refs and

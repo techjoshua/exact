@@ -162,9 +162,12 @@ lifecycle match from the runtime import plan. The paired SDK and Vite
 artifacts now keep both capabilities. The server returns the initial label
 and the browser mount publishes the label from the ref. This is an
 implementation defect under rules 3 and 5. A bare call to a saved `this.own`
-method still differs by target: the direct server frame binds it and disposes
-the resource, while the browser method requires its receiver. The bare alias
-contract and the corresponding historical placement assertions remain open.
+method loses its JavaScript receiver. Before the ownership correction, SSR
+used the direct frame's extracted helper and recorded creation and disposal.
+Chromium created the resource, then failed to register cleanup. The setup
+resource check now requires the owning receiver at the invocation under rules
+3, 5 and 6. The paired controls use direct or computed receiver-preserving
+calls, and the bare alias receives the existing ownership diagnostic.
 
 The separate installed-island gate fails all eight cases before browser activation. The source-removed producer receives EXACT2101 for the `createIntlEnvironment` initializer. The physical package supplies both runtime artifacts, its checked declaration and publication metadata for compiled components. The ordinary factory has no published analysis record. Component definitions and portable contracts follow the same rules in applications and libraries. Missing ordinary-call evidence stays missing in either mode. This audit requires no new package metadata or library-specific selection policy.
 

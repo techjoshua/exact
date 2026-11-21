@@ -153,7 +153,9 @@ func componentOwnsResource(node *ast.Node, component *ast.Node, typeChecker *che
 			continue
 		}
 		call := parent.AsCallExpression()
-		operation := componentProtocolCallMember(call.Expression, typeChecker)
+		// Acquiring an instance method as a value does not preserve the
+		// receiver of a later bare call.
+		operation := unwrapSourceCallableReference(call.Expression)
 		name, member, dynamic := checkedComponentProtocolMember(operation, typeChecker)
 		if member && !dynamic && name == "own" && componentOwnsReceiver(operation, componentStateReceiverScopes(component, typeChecker)) {
 			return true

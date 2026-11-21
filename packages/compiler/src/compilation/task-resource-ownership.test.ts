@@ -11,6 +11,49 @@ import { flushSync } from '@exactjs/reactive';
 import { compileProjectArtifacts } from '../index.js';
 import { createBrowserTestWorkspace, writeTestFiles } from '../test-support/workspace.js';
 import { importArtifact } from '../test-support/import-artifact.js';
+
+it('registers setup resources only when the call keeps its component receiver', async () => {
+	const root = await createBrowserTestWorkspace('.exact-component-resource-', process.cwd());
+	const writePage = (setup: string) =>
+		writeTestFiles(root, {
+			'page.tsx': `import {type Component} from '@exactjs/core';
+export const events:string[]=[];
+class Resource {
+	constructor(){events.push('created')}
+	dispose(){events.push('disposed')}
+}
+const key='own' as const;
+export function Page(this:Component<{}>) {
+	${setup}
+	return()=> <output>{value instanceof Resource?'owned':'missing'}</output>;
+}`
+		});
+	const compilePage = (input: string) =>
+		compileProjectArtifacts([input], { rootDir: root, outDir: path.join(root, 'generated') });
+	const unbound = await writePage(
+		'const method=this[key];const alias=method;const value=alias(new Resource());'
+	);
+	await expect(compilePage(unbound['page.tsx']!)).rejects.toThrow('EXACT2001');
+
+	const owned = await writePage('const value=this[key](new Resource());');
+	const [artifact] = await compilePage(owned['page.tsx']!);
+	const server = await importArtifact(artifact!.serverFile, path.join(root, 'server.mjs'));
+	const markup = await renderToHydratableString(receipt(server.Page as never, {}));
+	expect(markup.html).toContain('owned');
+	expect(server.events).toEqual(['created', 'disposed']);
+
+	const client = await importArtifact(artifact!.clientFile, path.join(root, 'client.mjs'));
+	const host = document.createElement('div');
+	try {
+		render(receipt(client.Page as never, {}), host);
+		expect(host.textContent).toBe('owned');
+		expect(client.events).toEqual(['created']);
+	} finally {
+		unmount(host);
+	}
+	expect(client.events).toEqual(['created', 'disposed']);
+});
+
 it.each(
 	['boolean', 'options', 'external'].flatMap((options) =>
 		['direct', 'shared'].flatMap((lane) =>

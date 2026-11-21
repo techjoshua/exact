@@ -265,14 +265,16 @@ func TestComputedServerMethodAccessForms(t *testing.T) {
 	}
 }
 
-// Immutable method aliases retain ownership, while mutable or foreign aliases grant no authority.
-func TestComponentMethodAliasOwnershipControls(t *testing.T) {
+// Resource ownership follows the receiver at invocation, including computed member access.
+func TestComponentResourceOwnershipUsesCallReceiver(t *testing.T) {
 	for _, scenario := range []struct {
 		binding, call string
 		valid         bool
 	}{
-		{"const own=this['own'];", "own", true},
-		{"const key='own' as const;const own=this[key];const alias=own;", "alias", true},
+		{"", "this.own", true},
+		{"const key='own' as const;", "this[key]", true},
+		{"const own=this['own'];", "own", false},
+		{"const key='own' as const;const own=this[key];const alias=own;", "alias", false},
 		{"let own=this.own;", "own", false},
 		{"const foreign={own(value:Session){return value}};const own=foreign.own;", "own", false},
 	} {
@@ -289,13 +291,13 @@ func TestComponentMethodAliasOwnershipControls(t *testing.T) {
 				rejected = rejected || diagnostic.Code == "EXACT2001"
 			}
 			if rejected == scenario.valid {
-				t.Fatalf("method alias ownership changed: %#v", response.Diagnostics)
+				t.Fatalf("receiver ownership mismatch for %s%s on %s: %#v", scenario.binding, scenario.call, target, response.Diagnostics)
 			}
-			if scenario.valid && response.Analysis.Components[0].Placement != "isomorphic" {
-				t.Fatalf("valid alias lost placement: %#v", response.Analysis.Components)
+			if scenario.valid && (len(response.Diagnostics) != 0 || response.Code == "") {
+				t.Fatalf("valid component resource did not emit: %#v", response.Diagnostics)
 			}
-			if scenario.valid && target == TargetServer && !strings.Contains(response.Code, "directSsrLifecycleMethod") {
-				t.Fatalf("method alias missed server helper: %s", response.Code)
+			if !scenario.valid && response.Code != "" {
+				t.Fatalf("resource without an owning receiver emitted: %s", response.Code)
 			}
 		}
 	}

@@ -2022,7 +2022,9 @@ and keys narrowed to one operation preserve ownership and lifecycle placement. A
 key is evaluated once before the call arguments, including its side effects and binding errors.
 Mount, activation, and deactivation registrations remain client work through computed access.
 Server callback removal retains key evaluation. Immutable local method aliases preserve the same
-operation identity. Mutable aliases remain opaque to placement and ownership analysis.
+operation identity, and invocation follows JavaScript receiver rules. For setup resources,
+`this.own(resource)` and `this['own'](resource)` establish cleanup on that component instance.
+Mutable aliases remain opaque to placement and ownership analysis.
 Ref and reactive operations retain their request-local server behavior and durable client identity.
 When the compiler extracts a client island, it recreates these executable values under that owner
 and transports their ordinary inputs. Ref bindings and reactive cells do not enter JSON captures.
