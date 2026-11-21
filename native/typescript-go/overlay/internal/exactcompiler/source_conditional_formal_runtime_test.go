@@ -55,36 +55,15 @@ func sourceNodeScript(t *testing.T, code, script string, args ...string) {
 }
 
 func TestConditionalFormalBrowserGetterSource(t *testing.T) {
+	const definitions = `const read=(take:boolean,input:{value:number})=>take?input.value:0;`
 	for _, take := range []bool{true, false} {
 		t.Run(fmt.Sprint(take), func(t *testing.T) {
-			source := fmt.Sprintf(`export {};const read=(take:boolean,input:{value:number})=>take?input.value:0;read(%v,{get value(){return window.innerWidth}});`, take)
-			session := NewSession()
-			r := session.Execute(Request{Kind: "compile", ID: "/virtual/conditional-browser-getter.ts", Source: source, Diagnostics: "semantic"})
+			use := fmt.Sprintf(`read(%v,{get value(){return window.innerWidth}})`, take)
+			checkFormalGetterComponent(t, definitions, use, take)
+
+			r := NewSession().Execute(Request{Kind: "compile", ID: "/virtual/conditional-browser-getter.ts", Source: "export {};" + definitions + use + ";", Diagnostics: "semantic"})
 			if r.Error != "" || hasErrorDiagnostic(r.Diagnostics) || r.Code == "" {
 				t.Fatal(r.Error, r.Diagnostics)
-			}
-			browser := false
-			for _, fact := range r.Analysis.Callables {
-				for _, effect := range fact.EffectSources {
-					browser = browser || effect.Environment == "browser"
-				}
-			}
-			if !browser {
-				t.Fatal("browser getter known effect lost")
-			}
-			for _, project := range session.projects {
-				if project.callableCache == nil {
-					continue
-				}
-				for _, fact := range project.callableCache.merged.facts {
-					for _, call := range fact.fieldCalls {
-						for _, outcome := range call.outcomes {
-							if outcome.demand.key == "value" && outcome.fulfilled {
-								t.Fatal("accessor received DATA field coverage")
-							}
-						}
-					}
-				}
 			}
 			want, gets := 0, 0
 			if take {
@@ -92,6 +71,45 @@ func TestConditionalFormalBrowserGetterSource(t *testing.T) {
 			}
 			conditionalNodeCompletion(t, r.Code, want, gets)
 		})
+	}
+}
+
+// checkFormalGetterComponent tests the original branch/default in component
+// setup. Dependency coverage retains effects without granting normal DATA.
+func checkFormalGetterComponent(t *testing.T, definitions, use string, wantBrowser bool) {
+	t.Helper()
+	source := "import type { Component } from '@exactjs/core';\n" + definitions + `
+export function Page(this: Component<{}>) {
+	const display = ` + use + `;
+	return () => display;
+}`
+	fixture := newExecutableFixture(t, map[string]string{"entry.ts": source})
+	r := fixture.session.Execute(fixture.request("analyze", "entry.ts"))
+	if r.Error != "" || hasErrorDiagnostic(r.Diagnostics) {
+		t.Fatal(r.Error, r.Diagnostics)
+	}
+	page := findComponent(t, r.Analysis.Components, "Page")
+	callable := findCallable(t, r.Analysis.Callables, "Page")
+	browser := false
+	for _, effect := range callable.EffectSources {
+		browser = browser || effect.Environment == "browser"
+	}
+	if browser != wantBrowser || (page.Placement == "client") != wantBrowser {
+		t.Fatalf("Page placement=%s and browser=%v, want browser=%v", page.Placement, browser, wantBrowser)
+	}
+	for _, project := range fixture.session.projects {
+		if project.callableCache == nil {
+			continue
+		}
+		for _, fact := range project.callableCache.merged.facts {
+			for _, call := range fact.fieldCalls {
+				for _, outcome := range call.outcomes {
+					if outcome.demand.key == "value" && outcome.fulfilled && !call.dependencies {
+						t.Fatal("getter received normal DATA coverage")
+					}
+				}
+			}
+		}
 	}
 }
 
