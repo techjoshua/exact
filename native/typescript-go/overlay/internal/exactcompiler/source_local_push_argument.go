@@ -82,21 +82,24 @@ func (q *sourceValueQuery) localPushArgument(origin *ast.Node, result *accessorC
 	return arg
 }
 
-// visitLocalAppendValue retains a possible source argument for an observed
-// element read after a selected append on a confined empty array. The Get and
-// Call owners retain their original effects and incomplete alternatives.
-func (q *sourceValueQuery) visitLocalAppendValue(origin *ast.Node, path []string, bindings sourceValueBindings, result *accessorCandidates, visit func(sourceValue)) {
+// visitLocalAppendValue retains a possible bound argument for a direct element
+// binding after a selected append on a confined empty array. Wrapper member
+// paths keep their own lifetime and writer checks. The Get and Call owners
+// retain their original effects and incomplete alternatives.
+func (q *sourceValueQuery) visitLocalAppendValue(origin *ast.Node, bindings sourceValueBindings, result *accessorCandidates, visit func(sourceValue)) {
 	d := origin.Parent
-	if q.initializing == nil || !ast.IsVariableDeclaration(q.initializing) || d == nil || !ast.IsVariableDeclaration(d) ||
-		d.Initializer() != origin || !ast.IsIdentifier(d.Name()) || d.Parent.Flags&ast.NodeFlagsConst == 0 || enclosingCallableNode(d) == nil {
+	if q.initializing == nil || !ast.IsVariableDeclaration(q.initializing) ||
+		d == nil || !ast.IsVariableDeclaration(d) || d.Initializer() != origin || !ast.IsIdentifier(d.Name()) ||
+		d.Parent.Flags&ast.NodeFlagsConst == 0 || enclosingCallableNode(d) == nil {
 		return
 	}
 	symbol := q.owner.checker.GetSymbolAtLocation(d.Name())
 	if symbol == nil {
 		return
 	}
-	reader := q.localPushRead(unwrapSourceCallableReference(q.initializing.Initializer()), symbol, result)
-	if reader == nil || enclosingCallableNode(reader) != enclosingCallableNode(d) {
+	reader := unwrapSourceCallableReference(q.initializing.Initializer())
+	if reader == nil || !ast.IsElementAccessExpression(reader) || !ast.IsIdentifier(reader.Expression()) ||
+		q.owner.checker.GetSymbolAtLocation(reader.Expression()) != symbol || enclosingCallableNode(reader) != enclosingCallableNode(d) {
 		return
 	}
 	key := reader.AsElementAccessExpression().ArgumentExpression
@@ -140,7 +143,11 @@ func (q *sourceValueQuery) visitLocalAppendValue(origin *ast.Node, path []string
 		return
 	}
 	args := push.AsCallExpression().Arguments.Nodes
-	if len(args) != 1 || ast.IsSpreadElement(args[0]) {
+	if len(args) != 1 || !ast.IsIdentifier(args[0]) {
+		return
+	}
+	operand := q.owner.checker.GetSymbolAtLocation(args[0])
+	if operand == nil || operand.ValueDeclaration == nil || enclosingCallableNode(operand.ValueDeclaration) != enclosingCallableNode(d) {
 		return
 	}
 	previousRead, previousInit, previousMember := q.reading, q.initializing, q.protectedMember
@@ -156,7 +163,7 @@ func (q *sourceValueQuery) visitLocalAppendValue(origin *ast.Node, path []string
 	q.reading, q.initializing, q.protectedMember = previousRead, previousInit, previousMember
 	if allowed {
 		result.opaque, result.valueIncomplete = true, true
-		for _, value := range q.boundProjection(values, path, result) {
+		for _, value := range values {
 			visit(value)
 		}
 	}

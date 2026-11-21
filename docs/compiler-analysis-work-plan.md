@@ -166,10 +166,12 @@ An imported copy helper can execute a browser getter even when the component use
 only a scalar result and discards the copied object. SSR of the unchanged nested
 `copyThemeData` case and a shorter `Object.entries` loop both reached the getter
 in a server artifact. The direct append control now retains the selected
-`Array.prototype.push` argument at a later observed element read on the confined
-local array. The SSR cases cover an authored `push` replacement and binding
-reassignment in both directions. The observed argument uses its acquisition
-cut. Ordinary read and invocation owners retain their effects and uncertainty.
+`Array.prototype.push` argument at a direct element binding on the same confined
+local array. The original argument acquisition supplies the bound value from
+that callable. Inline wrapper fields keep their original writer and creator
+checks, including separate arrays and field replacement after capture. The SSR
+cases cover an authored `push` replacement and reassignment in both directions.
+Ordinary read and invocation owners retain their effects and uncertainty.
 
 The private dynamic-index comparison preserves browser placement for a reached
 getter and renders the same server output when the element is unread, removed,
