@@ -651,6 +651,16 @@ inherited getter on the same key. A reached inherited getter uses the created
 target and can read a callback installed on it. Earlier receiver mutations and
 escaped created targets still require separate coverage. The unchanged Intl
 build still reaches the `components.ts` deadline and emits neither target.
+
+The earlier receiver-mutation witness writes a callable through `this.value`
+in the descriptor's `enumerable` getter. A private loan of its actual bound
+receiver and earlier BODY publishes the existing RHS alternative. The later
+field prerequisite then demands `document.title` inside that stored callback
+as a prototype writer during conversion. That body belongs to a later
+invocation. The outstanding contract must retain the original RHS as deferred
+source for the later field and record any exact replacement separately from
+the existing possible mutation outputs. The retained, replaced and
+receiver-disjoint callback controls distinguish those requirements.
 The ordinary analysis of an earlier authored replacement exposed a premature
 summary requirement during that optional callee observation. The original binder
 still records its input association. The writer source requires the method body
