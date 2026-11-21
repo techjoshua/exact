@@ -162,6 +162,23 @@ A lexical-heritage shortcut failed the selected-import control in which an autho
 replacement superclass returned a proxy and the Set reached the inherited setter.
 The optimization needs the actual receiver's initialized own data field.
 
+An imported copy helper can execute a browser getter even when the component uses
+only a scalar result and discards the copied object. SSR of the unchanged nested
+`copyThemeData` case and a shorter `Object.entries` loop both reached the getter
+in a server artifact. The direct append control now retains the selected
+`Array.prototype.push` argument at a later observed element read on the confined
+local array. The SSR cases cover an authored `push` replacement and binding
+reassignment in both directions. The observed argument uses its acquisition
+cut. Ordinary read and invocation owners retain their effects and uncertainty.
+
+The private dynamic-index comparison preserves browser placement for a reached
+getter and renders the same server output when the element is unread, removed,
+or never stored. Both it and the restored comparison reach the unchanged Theme
+client deadline at 31.56 and 32.02 seconds, with zero artifacts on either target.
+The nested copy still lacks an observed value origin for the child of a reached
+`Object.entries` pair. A direct loop with no array append also loses that origin.
+A cyclic copy containing a dormant class getter renders on the server.
+
 The cumulative private receiver-inventory cut also advances past `copyThemeData` to
 the `resolveThemeScopeData` loop. During effect collection for its `resolveThemeData`
 call, the local binding query reprojects an earlier destructuring acquisition through

@@ -719,6 +719,8 @@ func (query *sourceValueQuery) arrayValues(origin *ast.Node, projection []string
 	if query.dependenciesOnly && positional && index == 0 && origin.Parent != nil && ast.IsVariableDeclaration(origin.Parent) && len(origin.AsArrayLiteralExpression().Elements.Nodes) == 0 {
 		if arg := query.localPushArgument(origin, result); arg != nil {
 			visit(arg, rest, false)
+		} else {
+			query.visitLocalAppendValue(origin, rest, bindings, result, visitMember)
 		}
 	}
 	if query.dependenciesOnly && (mode == accessorRead || mode == accessorAcquire) && (unknown || positional) && stagedEmptyArrayDataConstruction(origin) {

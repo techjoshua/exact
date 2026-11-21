@@ -245,3 +245,64 @@ export function Page() { ${body ?? ''} return () => <p>{${value}}</p>; }
 		expect(host.textContent).toBe(expected);
 	}
 );
+
+it.each([
+	{
+		name: 'selected append',
+		operations: 'pending.push(input);',
+		browser: true
+	},
+	{
+		name: 'stored input survives reassignment',
+		operations: 'let value:object = input; pending.push(value); value = {};',
+		browser: true
+	},
+	{
+		name: 'reassignment after storing a different input',
+		operations: 'let value:object = {}; pending.push(value); value = input;',
+		browser: false
+	},
+	{
+		name: 'authored push replacement',
+		operations: 'pending.push = () => 1; pending.push(input);',
+		browser: false
+	}
+])('keeps reached entry effects after $name', async ({ operations, browser }) => {
+	const root = await createCompilerTestWorkspace('.exact-append-entry-effects-', process.cwd());
+	const entry = path.join(root, 'page.tsx');
+	await writeFile(
+		path.join(root, 'collect.ts'),
+		`
+export function collect(input: object) {
+	const pending: object[] = [];
+	${operations}
+	const source = pending[0];
+	if (source) Object.entries(source);
+}
+`
+	);
+	await writeFile(
+		entry,
+		`
+import { type Component } from '@exactjs/core';
+import { collect } from './collect.js';
+/** @exact pure */
+function measure() {
+	collect({ get value() { return document.title; } });
+	return 1;
+}
+export function Page(this: Component<{}>) {
+	const measured = this.reactive(() => measure());
+	return () => <p>{measured.get()}</p>;
+}
+`
+	);
+	const [artifact] = await compileProjectArtifacts([entry], {
+		rootDir: root,
+		outDir: path.join(root, 'generated')
+	});
+	const server = await importArtifact(artifact!.serverFile, path.join(root, 'server.mjs'));
+	const { html } = await renderToString(receipt(server.Page as never, {}), { markers: false });
+	if (browser) expect(html).toContain('data-exact-client-boundary=');
+	else expect(html).toBe('<p>1</p>');
+});

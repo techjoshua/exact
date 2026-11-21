@@ -82,6 +82,86 @@ func (q *sourceValueQuery) localPushArgument(origin *ast.Node, result *accessorC
 	return arg
 }
 
+// visitLocalAppendValue retains a possible source argument for an observed
+// element read after a selected append on a confined empty array. The Get and
+// Call owners retain their original effects and incomplete alternatives.
+func (q *sourceValueQuery) visitLocalAppendValue(origin *ast.Node, path []string, bindings sourceValueBindings, result *accessorCandidates, visit func(sourceValue)) {
+	d := origin.Parent
+	if q.initializing == nil || !ast.IsVariableDeclaration(q.initializing) || d == nil || !ast.IsVariableDeclaration(d) ||
+		d.Initializer() != origin || !ast.IsIdentifier(d.Name()) || d.Parent.Flags&ast.NodeFlagsConst == 0 || enclosingCallableNode(d) == nil {
+		return
+	}
+	symbol := q.owner.checker.GetSymbolAtLocation(d.Name())
+	if symbol == nil {
+		return
+	}
+	reader := q.localPushRead(unwrapSourceCallableReference(q.initializing.Initializer()), symbol, result)
+	if reader == nil || enclosingCallableNode(reader) != enclosingCallableNode(d) {
+		return
+	}
+	key := reader.AsElementAccessExpression().ArgumentExpression
+	if !ast.IsNumericLiteral(key) || key.Text() != "0" {
+		return
+	}
+	index := q.owner.index(ast.GetSourceFileOfNode(origin))
+	if index.incomplete || index.normalDynamicScope || index.privateUses == nil || !index.privateUses.complete || len(index.privateUses.unresolved[d.Name().Text()]) != 0 {
+		return
+	}
+	var push *ast.Node
+	for _, use := range index.privateUses.uses[ast.GetSymbolId(symbol)] {
+		n := use.node
+		if !q.charge(result, n) || enclosingCallableNode(n) != enclosingCallableNode(d) {
+			return
+		}
+		member := n.Parent
+		if member == reader && member.Expression() == n {
+			continue
+		}
+		if !ast.IsPropertyAccessExpression(member) || member.Expression() != n {
+			return
+		}
+		call := member.Parent
+		if member.Name().Text() == "length" {
+			read, write := accessorEvaluationMode(member)
+			if read && !write && !nativeAssignmentPatternTarget(member) {
+				continue
+			}
+			return
+		}
+		if push != nil || member.Name().Text() != "push" || member.AsPropertyAccessExpression().QuestionDotToken != nil ||
+			!ast.IsCallExpression(call) || call.Expression() != member || call.AsCallExpression().QuestionDotToken != nil ||
+			!ast.IsExpressionStatement(call.Parent) || call.Parent.Parent != d.Parent.Parent.Parent ||
+			d.End() > call.Pos() || call.End() > reader.Pos() {
+			return
+		}
+		push = call
+	}
+	if push == nil || q.active[push] {
+		return
+	}
+	args := push.AsCallExpression().Arguments.Nodes
+	if len(args) != 1 || ast.IsSpreadElement(args[0]) {
+		return
+	}
+	previousRead, previousInit, previousMember := q.reading, q.initializing, q.protectedMember
+	q.reading, q.initializing, q.protectedMember = push, push, nil
+	q.active[push] = true
+	selected := q.receiverCandidates(push, bindings)
+	allowed := len(selected.values) == 1 && selected.values[0].native != nil && selected.values[0].native.kind == sourceNativeArrayPush
+	var values []sourceValue
+	if allowed {
+		values = q.originsAt(args[0], push, bindings, result)
+	}
+	delete(q.active, push)
+	q.reading, q.initializing, q.protectedMember = previousRead, previousInit, previousMember
+	if allowed {
+		result.opaque, result.valueIncomplete = true, true
+		for _, value := range q.boundProjection(values, path, result) {
+			visit(value)
+		}
+	}
+}
+
 // The element selection and the descriptor writer can observe the wrapper at
 // different times. Leave a possibly replaced field with the ordinary writers.
 func (q *sourceValueQuery) localPushFieldStable(index sourceValueIndex, arg *ast.Node, array *ast.Symbol, result *accessorCandidates) bool {
