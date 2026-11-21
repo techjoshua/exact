@@ -2297,6 +2297,11 @@ When the original acquisition reads a named entry of a standard container, an as
 with a disjoint key can skip legacy writer-input recovery. The Set's original effect
 consumer still accounts for authored setters. Matching keys and structural writes retain
 their existing writer analysis.
+A direct Get on an object literal with explicit data fields, or on a dense array
+literal, can exclude prior writes to that freshly allocated receiver. The original
+receiver and key still evaluate, and inherited property effects retain their
+existing lookup. Saved or exposed receivers and literals with object spreads,
+computed definitions or authored accessors keep ordinary writer recovery.
 
 A standard `Object.entries` loop can supply possible original property values to
 a simple, consumed pair binding. Source enumeration accounts for its own getters

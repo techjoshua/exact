@@ -180,7 +180,11 @@ func (query *sourceValueQuery) memberValuesAtGetWithStandard(origin *ast.Node, p
 			query.confinedLocalGetter(origin, projection, name, mode, result) {
 			return false
 		}
-		inventory := query.inventoryMemberWrites(origin, projection, name, mode, bindings, result, operation.sources, cut)
+		excludeOwnWrites := operation.firstLiteralRead && !sourceInterval && query.calleeWriteInventory == nil && query.calleeWriteWork == nil
+		inventory := false
+		if !excludeOwnWrites {
+			inventory = query.inventoryMemberWrites(origin, projection, name, mode, bindings, result, operation.sources, cut)
+		}
 		capture := sourceMemberOperationProof{}
 		if standard != nil {
 			// Standard containers do not need an implementation-integrity proof.
@@ -193,7 +197,7 @@ func (query *sourceValueQuery) memberValuesAtGetWithStandard(origin *ast.Node, p
 				result.opaque = true
 			}
 			inventory = true
-		} else if !inventory && !operation.freshReceiver {
+		} else if !inventory && !operation.freshReceiver && !excludeOwnWrites {
 			capture = query.interferenceInSources(origin, projection, name, mode, bindings, result, operation.sources, cut)
 		}
 		restoreOperation := query.suspendOperation()
@@ -210,7 +214,10 @@ func (query *sourceValueQuery) memberValuesAtGetWithStandard(origin *ast.Node, p
 		for _, index := range indexes {
 			// The existing source-relative producer and occurrence checks below decide
 			// reachability. Membership in this view alone never proves a write performed.
-			cursor := index.memberAssignments(origin)
+			var cursor sourceMemberAssignments
+			if !excludeOwnWrites {
+				cursor = index.memberAssignments(origin)
+			}
 			for {
 				assignment, found := cursor.next()
 				if !found {
@@ -639,7 +646,7 @@ func sourceArrayIndex(key string) (uint64, bool) {
 // arrayValues applies the same finite member demand to native array syntax. Holes retain
 // their positions. A spread's iterator and length are unproved, so suffix positions widen.
 // Receiver calls are not append facts: even a method named push can be replaced.
-func (query *sourceValueQuery) arrayValues(origin *ast.Node, projection []string, name string, mode accessorTraversal, bindings sourceValueBindings, result *accessorCandidates, visit func(*ast.Node, []string, bool), sourceVisit func(sourceValue), get *sourceGetInputs, freshMember bool) {
+func (query *sourceValueQuery) arrayValues(origin *ast.Node, projection []string, name string, mode accessorTraversal, bindings sourceValueBindings, result *accessorCandidates, visit func(*ast.Node, []string, bool), sourceVisit func(sourceValue), get *sourceGetInputs, freshMember, firstRead bool) {
 	visitMember := func(value sourceValue) { visit(value.node, value.path, false) }
 	if query.dependenciesOnly {
 		visitMember = sourceVisit
@@ -692,7 +699,7 @@ func (query *sourceValueQuery) arrayValues(origin *ast.Node, projection []string
 		result.values = append(result.values, inherited...)
 		return
 	}
-	if query.memberValuesAtGetWithStandard(origin, projection, name, mode, bindings, result, visitMember, sourceMemberOperationProof{}, indexGet, standard) {
+	if query.memberValuesAtGetWithStandard(origin, projection, name, mode, bindings, result, visitMember, sourceMemberOperationProof{firstLiteralRead: get == nil && firstRead}, indexGet, standard) {
 		return
 	}
 	selection, rest := name, []string(nil)

@@ -7,6 +7,9 @@ import "github.com/microsoft/TypeScript/tsc/internal/ast"
 type sourceMemberOperationProof struct {
 	// descriptorData requests writer ordering at this native descriptor lookup.
 	descriptorData bool
+	// firstLiteralRead excludes prior writes to this exact unescaped receiver.
+	// Prototype effects and the original operation retain their lookups.
+	firstLiteralRead bool
 	// freshReceiver excludes prior calls mutating this particular empty return allocation.
 	freshReceiver bool
 	closed        bool

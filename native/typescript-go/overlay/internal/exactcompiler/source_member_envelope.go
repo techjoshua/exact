@@ -159,6 +159,32 @@ func envelopeSynchronousFunction(node *ast.Node) bool {
 	return node != nil && ast.IsFunctionDeclaration(node) && node.Body() != nil && !ast.HasSyntacticModifier(node, ast.ModifierFlagsAsync) && node.AsFunctionDeclaration().AsteriskToken == nil
 }
 
+// firstLiteralMemberRead recognizes only the original immediate Get on a
+// plain literal allocation. Wrappers that save or expose the allocation keep
+// ordinary writer discovery. The key may run user code, but the anonymous
+// receiver has no reference it can use before this Get. This supplies no key,
+// value or inherited-lookup proof.
+func (query *sourceValueQuery) firstLiteralMemberRead(origin *ast.Node, projection []string, name string, mode accessorTraversal, reference *sourceGetReference, result *accessorCandidates) bool {
+	if !query.dependenciesOnly || query.operation != nil || query.returnObservation != nil || mode != accessorRead ||
+		len(projection) != 0 || reference == nil || reference.operation != query.protectedMember ||
+		!reference.matches(projection, name) || unwrapSourceCallableReference(reference.receiver) != origin {
+		return false
+	}
+	if ast.IsArrayLiteralExpression(origin) {
+		return denseArrayElements(origin.AsArrayLiteralExpression().Elements.Nodes)
+	}
+	if !ast.IsObjectLiteralExpression(origin) {
+		return false
+	}
+	for _, member := range origin.AsObjectLiteralExpression().Properties.Nodes {
+		if !query.charge(result, member) || !ast.IsPropertyAssignment(member) || member.Name() == nil ||
+			ast.IsComputedPropertyName(member.Name()) || callableNameText(member.Name()) == "__proto__" {
+			return false
+		}
+	}
+	return true
+}
+
 // ownsLiteralBindingSlot recognizes the original single-field binding Get on
 // a directly initialized literal. The container has no other reference.
 // The selected value and its later uses retain their ordinary ownership.

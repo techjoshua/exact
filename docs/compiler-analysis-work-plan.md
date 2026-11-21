@@ -393,6 +393,18 @@ emits both targets and preserves the reached source getter and target setter
 beside unknown. A separate direct setup request for that helper reports an opaque
 placement error. Its policy result cannot establish the original package verdict.
 
+The structural reader spends its first interval on the computed density lookup
+in a fresh object literal, then the analogous height lookup. Direct literal
+Get confinement excludes prior own-writer discovery while preserving the key
+walk, literal values, and reflective and inherited checks. Under the same
+diagnostic map-selection bound, the compiler passed both density reads, the
+shape table, and the fresh array's `.entries` lookup. It reached the later
+`sizePowers[index]` read and recorded 65,679 body attempts for the structural
+reader at 24 seconds, compared with 94,000 before the new exclusion. The full
+unchanged package without the diagnostic bound still reached the client deadline.
+The saved array is allocated before the loop, so one indexed source reference
+does not establish its first-read boundary across iterations.
+
 Computed method and accessor names run in the surrounding evaluation region. A
 setup-local name can call a helper that installs a getter before the component
 reads the target. Writer discovery now uses the indexed region of that Call

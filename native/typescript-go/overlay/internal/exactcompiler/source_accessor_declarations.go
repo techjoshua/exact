@@ -730,7 +730,8 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 				query.enumeratedEntryValues(value, arguments, &result)
 				return
 			}
-			query.arrayValues(value, projection, name, mode, arguments, &result, visit, visitMember, get, freshMember)
+			firstRead := query.firstLiteralMemberRead(value, projection, name, mode, reference, &result)
+			query.arrayValues(value, projection, name, mode, arguments, &result, visit, visitMember, get, freshMember, firstRead)
 			return
 		}
 		if ast.IsClassDeclaration(value) || ast.IsClassExpression(value) || ast.IsObjectLiteralExpression(value) {
@@ -846,7 +847,11 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 							immediate = envelopeSynchronousFunction(body) && creator.invocation == call && creator.returning == arm && call.Parent != nil && ast.IsPropertyAccessExpression(call.Parent) && call.Parent.Expression() == call && call.Parent.Name().Text() == projection[0]
 						}
 					}
-					handled = query.memberValuesAtGet(value, projection, name, mode, arguments, &result, visitLookupMember, sourceMemberOperationProof{freshReceiver: immediate}, proofGet, readCut)
+					proof := sourceMemberOperationProof{
+						freshReceiver:    immediate,
+						firstLiteralRead: get == nil && query.firstLiteralMemberRead(value, projection, name, mode, reference, &result),
+					}
+					handled = query.memberValuesAtGet(value, projection, name, mode, arguments, &result, visitLookupMember, proof, proofGet, readCut)
 				}()
 				if assignment := query.liveStagedAssignment(); assignment != nil {
 					query.recordStagedAssignmentCoverage(assignment.alternative)
