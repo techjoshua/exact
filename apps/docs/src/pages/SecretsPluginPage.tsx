@@ -85,7 +85,7 @@ export function SecretsPluginPage(this: Component<{}>) {
 					ordinary public sibling field through a record alias or static destructuring, including a
 					literal computed property name. An explicit keep annotation on the whole record still
 					protects every field. <code>consume()</code> ends tracking at a deliberate server
-					boundary. For dependency code, the package containing that call must also appear in
+					boundary. Other module initializers are checked independently. For dependency code, the package containing that call must also appear in
 					<code>allowPackages</code>. Trust does not automatically spread to its downstream
 					consumers.
 				</p>

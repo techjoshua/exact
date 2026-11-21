@@ -923,12 +923,19 @@ func policyConstrainsModuleInitializer(
 	sourceFile *ast.SourceFile,
 	policy PolicyAnalysis,
 ) bool {
-	startLine, _ := sourceLocation(sourceFile, node.Pos())
-	endLine, _ := sourceLocation(sourceFile, node.End())
+	if len(policy.SecretConsumers) == 0 {
+		return false
+	}
+	startLine, startColumn := sourceLocation(sourceFile, node.Pos())
+	endLine, endColumn := sourceLocation(sourceFile, node.End())
 	for _, consumer := range policy.SecretConsumers {
-		if consumer.Target == "server" &&
-			consumer.Line >= startLine &&
-			consumer.Line <= endLine {
+		if consumer.Target != "server" || consumer.Source != sourceFile.FileName() {
+			continue
+		}
+		// Several independent initializers can occupy one authored line.
+		afterStart := consumer.Line > startLine || consumer.Line == startLine && consumer.Column >= startColumn
+		beforeEnd := consumer.Line < endLine || consumer.Line == endLine && consumer.Column < endColumn
+		if afterStart && beforeEnd {
 			return true
 		}
 	}

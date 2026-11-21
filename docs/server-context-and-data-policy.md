@@ -241,7 +241,7 @@ Available imported helper bodies retain this inferred result policy even when th
 return type contains only ordinary literals. A direct
 public object field can be selected without releasing a sibling secret. Private indexed collections
 remain protected, including observations of their iteration and keys. Explicit server-owned
-`consume()` is the application trust boundary for deliberately public results.
+`consume()` is the application trust boundary for deliberately public results. Each separate module initializer still needs its own placement eligibility.
 
 Native console calls are disclosure sinks, including immutable receiver and method aliases,
 `node:console` imports, constructed Node consoles and tagged calls. Secret-controlled logging

@@ -84,3 +84,25 @@ func TestPolicySubsystemPlacementDiagnostics(t *testing.T) {
 		}
 	}
 }
+
+// A server consumer in a component module only constrains its own initializer.
+func TestServerConsumerAdjacentInitializer(t *testing.T) {
+	const declarations = `import {consume} from '@exactjs/secrets'; import type {Component} from '@exactjs/core';
+/** @exact keep=secret */ declare const credential:string;
+declare function read():string;
+`
+	const page = `export function Page(this:Component<{}>){return()=> <span>{label}</span>}`
+	for _, row := range []struct {
+		initializers string
+		refuse       bool
+	}{
+		{`const label=read(); const used=consume(credential);`, true},
+		{`const used=consume(credential), label=read();`, true},
+		{`const used=consume(credential); const label="public";`, false},
+	} {
+		r := NewSession().Execute(Request{Kind: "compile", ID: "consumer-scope.tsx", Source: declarations + row.initializers + page, Target: TargetServer})
+		if r.Error != "" || len(r.Analysis.Policy.SecretConsumers) != 1 || containsDiagnosticCode(r.Diagnostics, "EXACT2101") != row.refuse || (r.Code == "") != row.refuse {
+			t.Fatalf("initializer %s: code emitted=%v, diagnostics=%v, error=%s", row.initializers, r.Code != "", r.Diagnostics, r.Error)
+		}
+	}
+}
