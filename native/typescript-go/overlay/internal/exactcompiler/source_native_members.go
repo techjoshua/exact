@@ -492,6 +492,12 @@ func (query *sourceValueQuery) nativeMemberKeyAtGet(value sourceValue, projectio
 				if receiver == nil || writtenKey != "" && writtenKey != key {
 					continue
 				}
+				// A symbol-keyed compound assignment or delete cannot replace a named
+				// standard entry. Its own receiver, key, and operation still execute.
+				if get.symbol == nil && !index.incomplete && !index.normalDynamicScope && ast.IsElementAccessExpression(written) &&
+					query.symbolKeyDisjointFromName(written.AsElementAccessExpression().ArgumentExpression, key) {
+					continue
+				}
 				// Plain assignments, including computed keys, already belong to
 				// memberValuesAtGet's ordered memberOrigins/dynamicMembers walk.
 				// Its original-use cut and writer inputs own their admission. Do

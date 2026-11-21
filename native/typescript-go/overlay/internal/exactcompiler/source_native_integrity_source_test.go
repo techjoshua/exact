@@ -224,3 +224,32 @@ export function Page(this:Component<{}>){this.setContext(C,1);return()=> <div>{n
 		})
 	}
 }
+
+// A module registry can occupy a global symbol slot while its component uses Object.freeze.
+func TestGlobalRegistryKeyKeepsComponentFreezeAvailable(t *testing.T) {
+	root, config := formsSourceFixture(t)
+	for _, row := range []struct {
+		name, registration string
+		opaque             bool
+	}{
+		{"registry", `const key=Symbol.for('registry');return (globalThis as any)[key]??={}`, false},
+		{"delete", `const key=Symbol.for('registry');return delete (globalThis as any)[key]`, false},
+		{"string", `const key='freeze';return delete (Object as any)[key]`, true},
+		{"shadowed", `const Symbol={for:(_name:string)=>'freeze'};const key=Symbol.for('registry');return delete (Object as any)[key]`, true},
+	} {
+		t.Run(row.name, func(t *testing.T) {
+			call := ""
+			if row.opaque {
+				call = "register();"
+			}
+			source := `import type {Component} from '@exactjs/core';export function register(){` + row.registration +
+				`}` + call + `const tags=Object.freeze(['ready']);export function Page(this:Component<{}>){return()=> <p>{tags[0]}</p>}`
+			for _, target := range []Target{TargetClient, TargetServer} {
+				result := formsCompileSource(t, root, config, source, target)
+				if containsDiagnosticCode(result.Diagnostics, "EXACT2101") != row.opaque || !row.opaque && (result.Code == "" || hasErrorDiagnostic(result.Diagnostics)) {
+					t.Fatalf("%s: %v", target, formsDiagnosticDetails(result.Diagnostics))
+				}
+			}
+		})
+	}
+}

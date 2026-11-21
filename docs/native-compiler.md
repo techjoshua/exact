@@ -743,6 +743,9 @@ A component executes its returned render arrow when producing a view, including 
 returned by a local setup factory. Known environment requirements of that arrow constrain
 the component even when the operation is an implicit getter or conversion. Event handlers
 retain their own deferred execution.
+A registry stored under a constant standard `Symbol.for` key may initialize or delete that slot
+without replacing a named standard method used elsewhere by the component. String and unknown
+keys retain their ordinary write analysis.
 Getter and setter bodies retain their own execution ownership. Creating their object does not
 execute them. Reads, writes, updates and value enumeration carry the appropriate accessor effects,
 including structural annotations, source factory returns, nested projections and helper arguments.
