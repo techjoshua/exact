@@ -2385,6 +2385,20 @@ placement controls. A separate copy-alias trial retained some reached getters, b
 over-attributed getters to unrelated receivers and lost the known getter beside an
 unknown source alternative. No trial qualified a production throughput change.
 
+The later reflected-read repair retains the possible key and reached getter for
+the original own-name loop in focused component artifacts. The staged key and
+target prerequisites remain independently open. At `6c11c4166`, using the
+existing active Call interval during the selected conversion preserves the
+paired getter and module controls. Matched samples still spend about eight of
+fourteen CPU seconds in writer-input discovery and return seven of eight
+original responses. At `cead8d4e0`, the most frequent candidate Calls during
+`requireRecord` writer recovery are the original property and array checks.
+A private `Array.isArray` discovery bound reduces the count from 187,136 to
+139,776 in twenty seconds, while the unchanged SDK build still reaches its
+`components.ts` deadline. The property checks retain possible Proxy work. The
+proof needed to exclude an unrelated candidate before acquiring its inputs
+remains with its original selected operation and receiver.
+
 Ranked follow-up by measured reach and available proof:
 
 1. **Qualify effect coverage at the original Call and Get requesters.** The shared
