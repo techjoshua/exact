@@ -96,7 +96,7 @@ func (q *sourceValueQuery) usesOwnPropertyNamesLoopBinding(actuals []*ast.Node) 
 		return false
 	}
 	call := standardArrayLoopSource(keySymbol.ValueDeclaration, c)
-	if !ast.IsCallExpression(call) || ast.IsOptionalChain(call) {
+	if call == nil || !ast.IsCallExpression(call) || ast.IsOptionalChain(call) {
 		return false
 	}
 	callee := call.Expression()
