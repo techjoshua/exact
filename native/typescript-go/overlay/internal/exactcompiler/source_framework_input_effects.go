@@ -185,7 +185,9 @@ func (q *sourceValueQuery) componentMapCallbackEffects(call *ast.Node, bindings 
 			// describes the render input when the key preserves it.
 			if ordinal == 0 {
 				if !componentMapCallbackPreservesItems(body, callback) {
-					return
+					if !q.componentMapKeepsGetterAlternatives(body, inputs, callback, items, result) {
+						return
+					}
 				}
 				if block := body.Body(); ast.IsBlock(block) &&
 					q.completionFor(block, inputs.bindings, true).outcomes == sourceReturnThrow {
@@ -248,4 +250,54 @@ func componentMapCallbackPreservesItems(body *ast.Node, callback accessorCandida
 		len(callback.writes) == 0 && len(callback.reflective) == 0 && len(callback.nativeCalls) == 0 &&
 		len(callback.effects) == 1 && callback.effects[0].declaration == body &&
 		len(callback.fieldCalls) == 1 && callback.fieldCalls[0].target == body && callback.fieldCalls[0].complete
+}
+
+// componentMapKeepsGetterAlternatives carries initial getter effects as MAY
+// alternatives through a descriptor write observed in the key callback. A direct,
+// unconditional data replacement on the item keeps the existing render lookup.
+func (q *sourceValueQuery) componentMapKeepsGetterAlternatives(body *ast.Node, inputs *sourceValueInputs, key accessorCandidates, items []sourceValue, result *accessorCandidates) bool {
+	if len(key.reflective) != 1 || !ast.IsBlock(body.Body()) {
+		return false
+	}
+	write := key.reflective[0]
+	if !reflectiveNative(write.native) || write.frame != inputs || enclosingCallableNode(write.operation) != body {
+		return false
+	}
+
+	statements := body.Body().AsBlock().Statements.Nodes
+	// Only the selected Object operation in an unconditional leading statement
+	// can exclude the initial getter. Reflect can also return false.
+	if write.native == sourceNativeObjectDefineProperty && len(statements) > 0 &&
+		ast.IsExpressionStatement(statements[0]) && statements[0].Expression() == write.operation &&
+		!write.referencesIncomplete && len(write.targets) == 1 && len(write.descriptors) == 1 &&
+		write.key != "" && len(write.nested) == 0 {
+		target, descriptor := write.targets[0].value, write.descriptors[0].value
+		if target.node != nil && len(target.path) == 0 && descriptor.node != nil &&
+			len(descriptor.path) == 0 && ast.IsObjectLiteralExpression(descriptor.node) {
+			fields := descriptor.node.AsObjectLiteralExpression().Properties.Nodes
+			if len(fields) == 1 && ast.IsPropertyAssignment(fields[0]) &&
+				ast.IsIdentifier(fields[0].Name()) && fields[0].Name().Text() == "value" {
+				for _, item := range items {
+					if target.node != item.node {
+						continue
+					}
+					for _, field := range item.node.AsObjectLiteralExpression().Properties.Nodes {
+						if !q.charge(result, field) {
+							return false
+						}
+						if ast.IsGetAccessorDeclaration(field) &&
+							(callableNameText(field.Name()) == write.key ||
+								ast.IsComputedPropertyName(field.Name()) &&
+									sourceLiteralMemberName(field.Name().AsComputedPropertyName().Expression) == write.key) {
+							return false
+						}
+					}
+				}
+			}
+		}
+	}
+	// Descriptor conversion and Proxy entry remain on the original key walk.
+	// Carry its residual uncertainty beside any surviving initial getter.
+	result.opaque = result.opaque || key.opaque
+	return true
 }

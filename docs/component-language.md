@@ -1493,7 +1493,9 @@ leaves that item's render callback uncalled.
 
 When an array literal supplies the list directly or through a local constant,
 an item getter read by the key selector or render callback contributes to
-component placement. A browser-only getter reached only by an event handler
+component placement. A property write in the key selector can affect which getter
+the render callback reads. A getter that can still run after the write still
+contributes to placement. A browser-only getter reached only by an event handler
 runs when that event is handled.
 
 Keys must be stable and unique among siblings. They preserve component

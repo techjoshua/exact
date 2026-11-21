@@ -343,6 +343,40 @@ it.each([
 		verifyMount: true
 	},
 	{
+		name: 'a key callback writing a different property on the same item',
+		key: '{ Object.defineProperty(row, "other", {value:"safe"}); return row.id; }',
+		body: '<li>{row.label}</li>',
+		field: '"label"',
+		browser: true,
+		text: 'browser value'
+	},
+	{
+		name: 'a key callback writing the same property on a different object',
+		key: '{ Object.defineProperty(other, "label", {value:"safe"}); return row.id; }',
+		body: '<li>{row.label}</li>',
+		field: '"label"',
+		setup: 'const other = {};',
+		browser: true,
+		text: 'browser value'
+	},
+	{
+		name: 'an unknown key write descriptor',
+		key: '{ Object.defineProperty(row, "other", props.descriptor!); return row.id; }',
+		body: '<li>{row.label}</li>',
+		field: '"label"',
+		descriptorProp: ' descriptor={{value: 1}}',
+		browser: true,
+		text: 'browser value'
+	},
+	{
+		name: 'a key callback writing through a proxy for the item',
+		key: '{ Object.defineProperty(new Proxy(row, {defineProperty: () => true}), "label", {value:"safe"}); return row.id; }',
+		body: '<li>{row.label}</li>',
+		field: '"label"',
+		browser: true,
+		text: 'browser value'
+	},
+	{
 		name: 'a getter reached only by an event handler',
 		key: 'row.id',
 		body: '<li><button onClick={() => { document.title = "clicked " + row.label; }}>{row.id}</button></li>',
@@ -353,18 +387,18 @@ it.each([
 	}
 ])(
 	'accounts for $name in a component list',
-	async ({ key, body, field, setup, browser, text, click, verifyMount }) => {
+	async ({ key, body, field, setup, browser, text, click, verifyMount, descriptorProp }) => {
 		const root = await createCompilerTestWorkspace('.exact-collection-get-', process.cwd());
 		const files = await writeTestFiles(root, {
 			'list.tsx': `import type {Component} from '@exactjs/core';
-export function List(this:Component<{}>,props:{fieldName: 'label'|'other'}) {
+export function List(this:Component<{}>,props:{fieldName: 'label'|'other'; descriptor?:PropertyDescriptor}) {
 	${setup ?? ''}
 	const rows:Array<{id:string;label?:string}> = [
 		{id:'a', get [${field}](){return document.title}}
 	];
 	return () => <ul>{this.map(rows,row=>${key},row=>${body})}</ul>;
 }
-export const listRoot = () => <List fieldName="label"/>;`
+export const listRoot = () => <List fieldName="label"${descriptorProp ?? ''}/>;`
 		});
 		const [artifact] = await compileProjectArtifacts([files['list.tsx']!], {
 			rootDir: root,

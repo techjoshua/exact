@@ -4140,9 +4140,12 @@ A selected component `map` keeps callee and operand effects with their original
 operations. Its original Call can supply possible items from a confined array
 literal to inline key and render callbacks through the existing source readers.
 Authored callee replacements and exposed component receivers keep their
-existing acquisition paths. The key receives the initial item, and the render callback can borrow it
-when the observed key effects preserve that input and the key can return. A
-computed item getter contributes effects when its name may match the actual
+existing acquisition paths. The key receives the initial item. Its original effect
+walk supplies descriptor-write observations before render analysis. The render
+callback can retain initial getters as possible effects across disjoint or
+unresolved writes when key selection can return. A leading direct data
+replacement on the same item and key leaves selection to the ordinary render
+lookup. A computed item getter contributes effects when its name may match the actual
 read. Exact spellings and disjoint checked string props exclude that getter
 while key evaluation stays with object creation. Event bodies retain their
 own activation. The original normal collection observation can also carry

@@ -211,8 +211,35 @@ server, at mount and through hydration. When the key's effects cannot prove
 that the initial item is still current, the renderer keeps its original
 source analysis. An authored replacement of the list method keeps its
 existing placement. The original shared stateless SSR frame still rejects
-assignment to that method before activation. Open collection domains and
-disjoint writes through key callbacks still need their own input proof.
+assignment to that method before activation. Open collection domains still need
+their own input proof.
+
+The paired SDK control distinguishes the key callback's leading replacement
+of the rendered getter from a write to another property or object. The
+original key effect walk can retain the getter after either disjoint write,
+and beside a descriptor supplied through props or a Proxy write that may
+leave the getter in place. The same-item replacement still renders its new
+data value on the server and preserves mount and strict hydration behavior.
+This applies rules 1 through 4 and 6 to the actual callback and descriptor
+operation. The control using a dynamic Function constructor reaches the
+file-wide dynamic-scope confinement cutoff and remains outside this proof.
+
+The full `306a8d71a` checkpoint passed 1,962 of 2,337 groups and recovered
+the list getter projection. Two previously passing Proxy fixtures reached the
+same nil loop-source read in `Reflect.get`. The isolated `9384684d6` correction
+restores both tests. The unchanged task-closure evaluation passed in 0.56 seconds
+at `b42dc2c01` and reached the 160-second native test deadline at `306a8d71a`.
+That regression is separate from the cancelled-task and collection-projection
+corpus, which passed all 24 cases on the frozen `306a8d71a` compiler and the
+key-first runtime in 27.42 seconds total with the native deadline unchanged.
+
+The list patch replayed on the frozen `9384684d6` overlay passed all 11 focused
+native groups, including the two Proxy groups, the Freeze key-edit control,
+and the original task-closure group. The paired SDK suite passed 41 cases.
+On the accessor-only control, the four new key-write cases all missed the
+client boundary. The original `9384684d6` full run encountered temporary
+storage exhaustion, process kills and harness timeouts. Those rows require
+replay before they can count in a compiler differential.
 
 The authored root factory passes its parameter to a real component through the paired SDK artifacts. The binding lifecycle and collection identity suites pass all 45 cases with the wrapped Map correction. The root factory control renders distinct inputs, adopts the server DOM under strict hydration and updates the retained owner on new props. This replaces the native assertion about a particular receipt helper for a declaration without a component body.
 

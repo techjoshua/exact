@@ -140,9 +140,10 @@ export function ListsPage(this: Component<{}>) {
 				</p>
 				<p>
 					When an array literal supplies the list, item getters read by the key selector or
-					render callback contribute to the component’s placement. A browser-only getter read
-					during rendering can require a client boundary. A getter read only by an event handler
-					runs when that event is handled.
+					render callback contribute to the component’s placement. A write by the key selector
+					can change which getter runs during rendering. If a browser-only getter can still run,
+					it can require a client boundary. A getter read only by an event handler runs when
+					that event is handled.
 				</p>
 			</section>
 		</Article>
