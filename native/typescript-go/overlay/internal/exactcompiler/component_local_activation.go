@@ -1,10 +1,10 @@
 package exactcompiler
 
-// componentPublishesLocalActivation selects an independent client owner only when its
-// activation has not already been partitioned into compiler-generated element islands.
+// componentPublishesLocalActivation selects an independent client owner. A delivered provider
+// island is the selective fallback for a whole-component owner under a server parent.
 func componentPublishesLocalActivation(component Component, serverComponents bool) bool {
-	return component.Placement == "isomorphic" && (!serverComponents || component.ClientIslandCount == 0) &&
-		(component.Interactions || component.Lifecycle || componentOwnsMutableContext(component))
+	return component.Placement == "isomorphic" && (!serverComponents || component.ClientIslandCount == 0 || component.ownsDeliveredProvider) &&
+		(component.Interactions || component.Lifecycle || component.ownsDeliveredProvider || componentOwnsMutableContext(component))
 }
 
 // A stateful context provider must recreate its durable owner for descendant commands.

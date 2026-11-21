@@ -1161,6 +1161,12 @@ server-only child graphs remain eager. Eager classification does not discard ind
 replay targets. Unsupported events are not queued. Interactions before the hydration bootstrap
 installs its listeners cannot be recovered by this mechanism.
 
+A provider that initializes state from a literal component input can activate together with its
+descendants. An unpartitioned client-capable parent can own the whole subtree. Under a server
+parent, the input site can supply an island around the provider. The client recreates the context
+value and its commands on that owner, preserving the original server DOM. A computed property
+read on an external object does not establish the same literal-input proof.
+
 ## Server exchanges and patches
 
 The endpoint supports individual invocation/refresh operations and same-tick

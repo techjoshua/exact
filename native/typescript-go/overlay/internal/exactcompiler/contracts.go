@@ -163,6 +163,8 @@ type ComponentRenderCapability struct {
 
 // Component identifies a native eXact component declaration.
 type Component struct {
+	ownsDeliveredProvider bool
+
 	ID                         string                    `json:"id"`
 	Name                       string                    `json:"name"`
 	Start                      int                       `json:"start"`
@@ -237,6 +239,8 @@ type EnhancementContextEffects struct {
 
 // RenderEdge describes one local component dependency authored as a JSX tag.
 type RenderEdge struct {
+	providerActivationInputs []string
+
 	ID              string `json:"id"`
 	NodeID          string `json:"nodeId,omitempty"`
 	Tag             string `json:"tag"`

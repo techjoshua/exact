@@ -18,6 +18,7 @@ func indexClientElementIslands(
 	reactiveBindings []ReactiveBinding,
 	typeChecker *checker.Checker,
 	nodeIDs map[*ast.Node]string,
+	serverComponents bool,
 ) map[*ast.Node]clientElementIsland {
 	result := make(map[*ast.Node]clientElementIsland)
 	candidates := activeComponentCandidates(sourceFile)
@@ -29,9 +30,28 @@ func indexClientElementIslands(
 		if component.ClientIslandCount == 0 && componentOwnsMutableContext(component) {
 			continue
 		}
+		var providerSites map[string][]string
+		if serverComponents {
+			for _, edge := range component.RenderEdges {
+				if len(edge.providerActivationInputs) > 0 {
+					if providerSites == nil {
+						providerSites = make(map[string][]string)
+					}
+					providerSites[edge.Path] = edge.providerActivationInputs
+				}
+			}
+		}
+		promotedProvider := false
 		owned := make([]componentElement, 0)
 		for _, element := range elements {
 			if componentOwnerIndex(element.node, candidates) == componentIndex {
+				if !element.interactive && len(providerSites) > 0 && suppliedProviderStateInputs(element.node, providerSites[strconv.Itoa(element.node.Pos())]) {
+					if component.Placement == "isomorphic" && component.ClientIslandCount == 0 {
+						components[componentIndex].ownsDeliveredProvider = true
+					}
+					element.interactive = true
+					promotedProvider = true
+				}
 				owned = append(owned, element)
 			}
 		}
@@ -42,7 +62,12 @@ func indexClientElementIslands(
 			renderedIslandStateReads(owned, component.Name, stateReads, reactiveBindings),
 			islandCapturedStateWrites(owned, candidates[componentIndex].node, stateWrites, typeChecker),
 		)
-		for index, element := range outerClientIslandElements(owned) {
+		islands := outerClientIslandElements(owned)
+		if promotedProvider {
+			component.ClientIslandCount = len(islands)
+			components[componentIndex].ClientIslandCount = len(islands)
+		}
+		for index, element := range islands {
 			node := fullJSXElementNode(element.node)
 			finiteSpreads := make(map[int][]finiteSpreadProperty)
 			if !ast.IsJsxFragment(element.node) {

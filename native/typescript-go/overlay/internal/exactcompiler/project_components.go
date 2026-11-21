@@ -17,6 +17,7 @@ type projectComponent struct {
 	component                 Component
 	inputDemands              []sourceComponentInputDemand
 	conditionalInputPlacement string
+	providerActivationInputs  []string
 	callableInputDemands      []sourceComponentCallableInput
 	callableInputRequirements componentInputRequirements
 }
@@ -344,6 +345,7 @@ func linkProjectComponents(
 			record.inputDemands = componentInputDemandsFor(matches[0], callables.owner)
 		}
 		record.conditionalInputPlacement = componentInputBodyPlacement(*record, matches)
+		record.providerActivationInputs = providerStateActivationInputs(*record, matches)
 	}
 	attachComponentInputAdoptions(project, reachable, typeChecker)
 	refreshProjectComponentEdgePlacements(reachable)
@@ -1053,16 +1055,17 @@ func cloneProjectComponent(component Component) Component {
 }
 
 func refreshProjectComponentEdgePlacements(records []projectComponent) {
-	placements := make(map[string]string, len(records))
-	for _, record := range records {
-		placements[record.component.ID] = record.component.Placement
+	targets := make(map[string]*projectComponent, len(records))
+	for i := range records {
+		targets[records[i].component.ID] = &records[i]
 	}
 	for index := range records {
 		for edgeIndex := range records[index].component.RenderEdges {
 			edge := &records[index].component.RenderEdges[edgeIndex]
-			if placement, exists := placements[edge.ComponentID]; exists {
-				edge.Placement = placement
-				edge.Boundary = placement
+			if target, exists := targets[edge.ComponentID]; exists {
+				edge.providerActivationInputs = target.providerActivationInputs
+				edge.Placement = target.component.Placement
+				edge.Boundary = target.component.Placement
 			} else if edge.ModuleSpecifier != "" {
 				edge.Placement = records[index].component.Placement
 				edge.Boundary = records[index].component.Placement

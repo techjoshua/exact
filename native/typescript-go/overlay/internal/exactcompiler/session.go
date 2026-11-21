@@ -570,6 +570,7 @@ func (s *Session) executeProjection(request Request, authored *authoredCheckProg
 		reactiveBindings,
 		generation.checker,
 		nodeIDs,
+		request.ServerComponents,
 	)
 	symbols, boundaries := createArtifactRecords(
 		sourceFile,

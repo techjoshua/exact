@@ -76,7 +76,9 @@ export function ComponentsPage(this: Component<{}>) {
 				<p>
 					<code>props.children</code> contains the content placed between a component’s opening and
 					closing tags. The card displays it when open. A component may also return those children
-					directly, which is useful for providing context without adding an HTML wrapper.
+					directly, which is useful for providing context without adding an HTML wrapper. When a
+					provider shares commands that update its state, hydrated descendants run those commands on
+					the provider instance.
 				</p>
 				<details>
 					<summary>Destructuring props and choosing mutable types</summary>
