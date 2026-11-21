@@ -40,6 +40,18 @@ func TestComponentRenderCapabilitySeparatesTaskAndActivation(t *testing.T) {
 	}
 }
 
+// The setup factory creates a view whose own getter executes on each rendered target.
+func TestComponentReturnedFactoryGetterPlacement(t *testing.T) {
+	root, config := formsSourceFixture(t)
+	source := `import type { Component } from '@exactjs/core';const record={get n(){return document.title}};function makeView(){return()=> <p>{record.n}</p>}
+export function Page(this:Component<{}>){return makeView()}`
+	response := formsCompileSource(t, root, config, source, TargetServer)
+	page := findComponent(t, response.Analysis.Components, "Page")
+	if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) || page.Placement != "client" || page.RenderCapability.Server != "unsupported" {
+		t.Fatalf("factory render placement=%s capability=%v diagnostics=%v error=%s", page.Placement, page.RenderCapability, response.Diagnostics, response.Error)
+	}
+}
+
 func TestComponentRenderCapabilityKeepsRequirementsAndUnknown(t *testing.T) {
 	for _, witness := range []struct {
 		name, declarations, expression string

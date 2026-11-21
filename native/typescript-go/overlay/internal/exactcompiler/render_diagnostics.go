@@ -50,6 +50,7 @@ type componentRender struct {
 	component componentCandidate
 	callable  *ast.Node
 	returned  *ast.Node
+	micro     bool
 }
 
 // renderDiagnostics keeps the returned view declarative. Component-owned
@@ -59,6 +60,7 @@ func renderDiagnostics(
 	sourceFile *ast.SourceFile,
 	typeChecker *checker.Checker,
 	stateWrites []StateWrite,
+	renders []componentRender,
 ) []Diagnostic {
 	var diagnostics []Diagnostic
 	candidates := rawComponentCandidates(sourceFile)
@@ -71,7 +73,7 @@ func renderDiagnostics(
 		}
 		writeStarts[write.Start] = struct{}{}
 	}
-	for _, render := range resolveComponentRenders(sourceFile) {
+	for _, render := range renders {
 		if _, micro := microTargets[render.callable]; micro &&
 			!immutableMicroComponent(render.callable) {
 			diagnostics = append(diagnostics, renderDiagnostic(
@@ -196,6 +198,7 @@ func resolveComponentRenders(sourceFile *ast.SourceFile) []componentRender {
 		}
 		result = append(result, componentRender{
 			component: owner,
+			micro:     true,
 			callable:  candidate.node,
 			returned:  candidate.node,
 		})

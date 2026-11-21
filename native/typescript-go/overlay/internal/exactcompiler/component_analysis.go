@@ -32,6 +32,7 @@ func analyzeComponents(
 	nodeIDs map[*ast.Node]string,
 	transport *sourceAnalysisFacts,
 	availability *moduleValueAvailability,
+	renders []componentRender,
 ) []Component {
 	if len(components) == 0 {
 		return components
@@ -39,12 +40,26 @@ func analyzeComponents(
 	elements := collectComponentElements(sourceFile, typeChecker)
 	contextRoots := moduleContextTokenRoots(sourceFile)
 
+	// A component executes its returned callable to produce the view. Creating
+	// that callable during setup does not execute its getters or conversions.
+	renderEffects := make(map[*ast.Node]componentInputRequirements)
+	for _, render := range renders {
+		summary, found := callables.byNode[render.callable]
+		if !found || render.micro || render.callable == render.component.node {
+			continue
+		}
+		browser, server := knownEffectEnvironments(summary.EffectSources)
+		required := componentInputRequirements{browser: browser, server: server}
+		renderEffects[render.component.node] = renderEffects[render.component.node].join(required)
+	}
+
 	for index := range components {
 		component := &components[index]
 		candidate := candidates[index]
 		clientLifecycleSpans := componentClientLifecycleCallbackSpans(candidate.node, typeChecker, transport)
 		dormantCallableSpans := componentDormantCallableSpans(candidate.node, callables, typeChecker)
-		clientEffects, serverEffects := false, false
+		renderInput := renderEffects[candidate.node]
+		clientEffects, serverEffects := renderInput.browser, renderInput.server
 		moduleRequirement := ""
 		clientTaskEffects := false
 		summaryClientEffect := false

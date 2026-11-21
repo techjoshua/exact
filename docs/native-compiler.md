@@ -739,6 +739,10 @@ reuse that proof, while recursive returns and receiver substitution remain opaqu
 Existing `typeof` guards keep portable fallbacks available in both targets. An unavailable branch
 that exits with `return` or `throw` also guards later reads in that block. Partial exits, later
 checks and checks of another global do not establish availability.
+A component executes its returned render arrow when producing a view, including an arrow
+returned by a local setup factory. Known environment requirements of that arrow constrain
+the component even when the operation is an implicit getter or conversion. Event handlers
+retain their own deferred execution.
 Getter and setter bodies retain their own execution ownership. Creating their object does not
 execute them. Reads, writes, updates and value enumeration carry the appropriate accessor effects,
 including structural annotations, source factory returns, nested projections and helper arguments.

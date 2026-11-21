@@ -403,10 +403,12 @@ func (s *Session) executeProjection(request Request, authored *authoredCheckProg
 		analysisFacts,
 	)
 	classNameDiagnostics := analyzeClassNames(sourceFile)
+	renders := projectComponentRenders(project, sourceFile)
 	renderContractDiagnostics := renderDiagnostics(
 		sourceFile,
 		generation.checker,
 		stateWrites,
+		renders,
 	)
 	registryDiagnostics := componentRegistryDiagnostics(
 		sourceFile,
@@ -509,6 +511,7 @@ func (s *Session) executeProjection(request Request, authored *authoredCheckProg
 		nodeIDs,
 		analysisFacts,
 		&availability,
+		renders,
 	)
 	components = applyComponentPolicies(
 		sourceFile,
@@ -790,6 +793,7 @@ func (s *Session) executeProjection(request Request, authored *authoredCheckProg
 		sourceFile,
 		emitContext,
 		jsxLoweringPlan{
+			renders:              renders,
 			directRoots:          directRoots,
 			importedPolicy:       importedPolicy,
 			analysisFacts:        analysisFacts,

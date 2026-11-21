@@ -84,6 +84,8 @@ export function CompilerTourPage(this: Component<{}>) {
 					once, including destructured parameters and defaults that reference earlier parameters.
 					A component can share module-level lookup tables created with <code>Object.freeze</code>
 					on an object or array literal, including in a module that imports a framework provider.
+					If the view reads a getter that uses the browser, the component needs the browser to render
+					that value. This also applies when a local setup helper returns the render function.
 					A task may store a browser callback in a local object or array. Calling that callback
 					after destructuring still requires client placement. The same rule applies when another
 					helper invokes a callback that captures it.

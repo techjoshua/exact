@@ -980,6 +980,7 @@ func materializeProjectComponentSource(
 		nodeIDs,
 		nil,
 		&moduleValueAvailability{checker: typeChecker, owner: callables.owner, placements: make(map[*ast.Symbol]string)},
+		projectComponentRenders(project, dependency),
 	)
 	// Another parent may later demand a different component in the same file.
 	// Retain only records whose component bodies were selected for analysis.
@@ -1020,6 +1021,20 @@ func projectComponentCandidates(project *projectState, sourceFile *ast.SourceFil
 	}
 	project.componentCandidates[sourceFile] = candidates
 	return candidates
+}
+
+// projectComponentRenders shares the source-local render definitions with body
+// selection, diagnostics, placement and emission for the same source generation.
+func projectComponentRenders(project *projectState, source *ast.SourceFile) []componentRender {
+	if rows, found := project.componentRenders[source]; found {
+		return rows
+	}
+	if project.componentRenders == nil {
+		project.componentRenders = make(map[*ast.SourceFile][]componentRender)
+	}
+	rows := resolveComponentRenders(source)
+	project.componentRenders[source] = rows
+	return rows
 }
 
 func projectComponentNodeIDs(project *projectState, sourceFile *ast.SourceFile) map[*ast.Node]string {

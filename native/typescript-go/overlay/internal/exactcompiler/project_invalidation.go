@@ -156,6 +156,7 @@ func (state *projectState) pruneComponentCaches(
 			}
 			delete(state.componentFacts, sourceFile)
 			delete(state.componentCandidates, sourceFile)
+			delete(state.componentRenders, sourceFile)
 			delete(state.componentNodeIDs, sourceFile)
 		}
 	}

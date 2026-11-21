@@ -50,6 +50,8 @@ func TestComponentRenderRequiresRetainedModuleBinding(t *testing.T) {
 	for _, test := range []struct{ name, module, render, placement string }{
 		{"eager getter", `const n=Object.freeze({get n(){return document.title}}).n;`, `<div>{n}</div>`, "client"},
 		{"helper capturing evaluated call", `function make(){return ()=>document.title}function run(){const fn=make();return fn()}const n=run();function invoke(){return n}`, `<div>{invoke()}</div>`, "client"},
+		{"getter read during render", `const value={get n(){return document.title}};`, `<div>{value.n}</div>`, "client"},
+		{"getter in a dormant handler", `const value={get n(){return document.title}};`, `<button onClick={()=>console.log(value.n)}>ok</button>`, "isomorphic"},
 		{"neutral sibling", `const n=Object.freeze({get n(){return document.title}}).n, value="safe";`, `<div>{value}</div>`, "isomorphic"},
 		{"handler", `const n=Object.freeze({get n(){return document.title}}).n;`, `<button onClick={()=>console.log(n)}>ok</button>`, "isomorphic"},
 	} {

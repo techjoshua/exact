@@ -9,6 +9,7 @@ import (
 // jsxLoweringPlan is the immutable analysis handoff consumed by JSX emission. It keeps session
 // orchestration independent from the mutable traversal state created for one source artifact.
 type jsxLoweringPlan struct {
+	renders              []componentRender
 	directRoots          map[string]struct{}
 	importedPolicy       *importedHelperPolicyPlan
 	analysisFacts        *sourceAnalysisFacts
@@ -175,7 +176,7 @@ func (plan jsxLoweringPlan) prepare(
 	lowering.captureComponentPropTypes()
 	lowering.capturePendingStateFacts(plan.tasks)
 	lowering.mutationFacts.seal()
-	lowering.indexComponentRangeOutputs()
+	lowering.indexComponentRangeOutputs(plan.renders)
 	lowering.indexCollectionMaps()
 	return lowering, true
 }
@@ -183,7 +184,7 @@ func (plan jsxLoweringPlan) prepare(
 // indexComponentRangeOutputs gives an output without finite JSX topology one focused dynamic
 // range. The client uses the range as the reactive replacement boundary; the server must emit the
 // same boundary so hydration can claim that target-local structure without rebuilding it.
-func (lowering *jsxLowering) indexComponentRangeOutputs() {
+func (lowering *jsxLowering) indexComponentRangeOutputs(renders []componentRender) {
 	record := func(expression *ast.Node) {
 		expression = unwrapRenderExpression(expression)
 		if expression == nil || ast.IsJsxElement(expression) ||
@@ -204,7 +205,7 @@ func (lowering *jsxLowering) indexComponentRangeOutputs() {
 			lowering.componentRangeReaders[nodeSpanKey(expression)] = struct{}{}
 		}
 	}
-	for _, render := range resolveComponentRenders(lowering.sourceFile) {
+	for _, render := range renders {
 		if ast.IsArrowFunction(render.callable) {
 			body := unwrapRenderExpression(render.callable.Body())
 			if body != nil && !ast.IsBlock(body) {

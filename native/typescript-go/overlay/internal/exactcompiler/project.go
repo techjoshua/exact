@@ -38,6 +38,7 @@ type projectState struct {
 	callableCache       *projectCallableCache
 	componentCache      map[*ast.SourceFile][]Component
 	componentFacts      map[*ast.SourceFile][]Component
+	componentRenders    map[*ast.SourceFile][]componentRender
 	componentCandidates map[*ast.SourceFile][]componentCandidate
 	componentNodeIDs    map[*ast.SourceFile]map[*ast.Node]string
 	componentLinks      map[*ast.Node]projectComponentLinkFacts
@@ -272,6 +273,7 @@ func (state *projectState) invalidateAnalysisCaches() {
 	state.componentCache = nil
 	state.componentFacts = nil
 	state.componentCandidates = nil
+	state.componentRenders = nil
 	state.componentNodeIDs = nil
 	state.componentLinks = nil
 }
