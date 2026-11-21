@@ -411,13 +411,24 @@ func (q *sourceValueQuery) returnedReceiverReflectiveWriter(operation, origin *a
 		return sourceMemberWriterInput{}, false
 	}
 	local := symbol.ValueDeclaration
-	if !ast.IsVariableDeclaration(local) || local.Parent == nil || local.Parent.Flags&ast.NodeFlagsConst == 0 || unwrapSourceCallableReference(local.Initializer()) != origin {
+	if !ast.IsVariableDeclaration(local) || local.Parent == nil || local.Parent.Flags&ast.NodeFlagsConst == 0 {
+		return sourceMemberWriterInput{}, false
+	}
+	source := unwrapSourceCallableReference(local.Initializer())
+	if source != origin && (!q.dependenciesOnly || !sourceHasCopyInitializer(source, q.owner.checker)) {
 		return sourceMemberWriterInput{}, false
 	}
 	if possible, _ := q.reachable(operation, bindings); !possible {
 		return sourceMemberWriterInput{}, false
 	}
-	return sourceMemberWriterInput{call: creator.invocation, scope: q.acquireCallableScope(bindings, result), incomplete: true}, true
+	var copyTarget *sourceValue
+	if source != origin {
+		copyTarget = q.reflectiveCopiedReceiver(target, operation, origin, writer, creator.invocation, bindings)
+		if copyTarget == nil {
+			return sourceMemberWriterInput{}, false
+		}
+	}
+	return sourceMemberWriterInput{call: creator.invocation, scope: q.acquireCallableScope(bindings, result), incomplete: true, copyTarget: copyTarget}, true
 }
 
 // sourceReflectiveMemberCandidate is shared by early source publication and
@@ -617,10 +628,15 @@ func (query *sourceValueQuery) reflectiveMemberValueInScope(origin *ast.Node, pr
 	matching := false
 	temporary := accessorCandidates{}
 	prototype := false
-	values := query.occurrenceOrigins(args[0], node, origin, bindings, &temporary)
+	var values []sourceValue
+	if input != nil && input.copyTarget != nil {
+		values = []sourceValue{*input.copyTarget}
+	} else {
+		values = query.occurrenceOrigins(args[0], node, origin, bindings, &temporary)
+	}
 	var conditionalTargets map[int]sourceStagedReflectiveTargetTransfer
 	pendingTarget := false
-	if input != nil {
+	if input != nil && input.copyTarget == nil {
 		keyExcluded := false
 		values, conditionalTargets, pendingTarget, keyExcluded = query.reflectiveTargetValues(values, bindings, &temporary, node)
 		if keyExcluded {

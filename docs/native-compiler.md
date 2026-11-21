@@ -782,6 +782,11 @@ factory's return and immutable binding supply a possible writer for an ordinary 
 unresolved initializer call. This source relationship carries effects only.
 Passing that receiver through a helper retains the original factory scope and its
 possible writers. The later helper owns its own input acquisition and read.
+When the selected standard `Object.assign` returns a factory's literal target or
+an object made by `Object.create(null)`, a descriptor installed on that alias can
+contribute its getter to a later read through the original target. The source
+projection requires the same allocation and creating invocation. The original
+copy, input effects and unresolved alternatives retain their own analysis.
 A property read can inherit getter effects from earlier assignments to a local declared without an
 initializer in the same helper body.
 Computed member names still execute while the owner is created. Provenance searches retain

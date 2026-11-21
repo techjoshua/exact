@@ -134,6 +134,7 @@ func (owner *executableBodyOwner) sourceValues(c *checker.Checker) *sourceValueO
 // declaration widens after its finite source input relation stops growing. Normal
 // execution retains its declaration guard instead of growing capture contexts.
 type sourceValueQuery struct {
+	reflectiveCopy             *sourceReflectiveCopyProjection // Scoped original writer target SOURCE, never a result receipt.
 	selectedGetterWrites       *sourceSelectedGetterWrites
 	awaitThenInputs            *sourceAwaitThenInputs         // original Await-selected protocol binder; synchronous Effects only
 	componentContextSource     *sourceBoundComponentProtocol  // Original bound-member SOURCE interval; never cached.

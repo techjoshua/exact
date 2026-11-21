@@ -121,6 +121,7 @@ func (q *sourceValueQuery) memberWriterRead(get *sourceGetInputs, cut *sourceMem
 // sourceMemberWriterInput retains one original Call's symbolic source bindings.
 // It is query-local projection data, never a normal frame or completed Call.
 type sourceMemberWriterInput struct {
+	copyTarget      *sourceValue                    // Exact selected copy alternative for the original writer.
 	componentSource *sourceComponentAssignmentInput // Ephemeral same-definition MAY relation, never an invocation/normal input.
 
 	directTargetExcluded bool // Query-local disjoint outcome; never a complete writer disposition.

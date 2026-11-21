@@ -217,7 +217,7 @@ func (query *sourceValueQuery) consumeInvocation(node *ast.Node, bindings source
 		acquired := prepared.acquired.candidates()
 		nativeCount := 0
 		for _, value := range acquired.values {
-			if value.native != nil && nativeInvocable(value.native.kind) {
+			if value.native != nil && (nativeInvocable(value.native.kind) || query.reflectiveCopyInvocation(node, value.native.kind)) {
 				nativeCount++
 			}
 		}

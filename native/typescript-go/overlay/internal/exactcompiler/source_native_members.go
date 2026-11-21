@@ -37,6 +37,7 @@ const (
 	sourceNativeWeakMapPrototype               // Original standard prototype slot Effects, not instance/result identity.
 	sourceNativeObjectGetOwnPropertyDescriptor // Selected Object retrieval, not a raw descriptor/result object.
 	sourceNativeReflectGet                     // Selected property read, without a normal output receipt.
+	sourceNativeObjectAssign                   // Selected original copy target, scoped to reflective writer source projection.
 )
 
 // sourceNativeValue is one trusted standard-entry alternative. The declaration
@@ -123,6 +124,9 @@ func (query *sourceValueQuery) nativeEntryRoot(symbol *ast.Symbol, fromGlobal bo
 		if entry.kind == sourceNativeSymbolConstructorExposure || entry.kind == sourceNativeSymbolConstructor {
 			continue
 		}
+		if entry.kind == sourceNativeObjectConstructor && len(path) == offset+1 && query.reflectiveCopyMember(path[offset]) {
+			return global, entry.kind
+		}
 		if entry.kind == sourceNativeReflectObject && len(path) > offset && path[offset] == "get" {
 			return global, entry.kind
 		}
@@ -195,14 +199,18 @@ func (query *sourceValueQuery) nativeMemberSeed(value sourceValue, key string, s
 			}
 		}
 	}
-	if query.probingDirectExposure && ((value.native.kind == sourceNativeObjectConstructor && key == "create") || (value.native.kind == sourceNativeSymbolConstructorExposure && key == "for")) || query.stagedCreateAcquisition() && value.native.kind == sourceNativeObjectConstructor && key == "create" {
+	copyMember := value.native.kind == sourceNativeObjectConstructor && query.reflectiveCopyMember(key)
+	if copyMember || query.probingDirectExposure && ((value.native.kind == sourceNativeObjectConstructor && key == "create") || (value.native.kind == sourceNativeSymbolConstructorExposure && key == "for")) || query.stagedCreateAcquisition() && value.native.kind == sourceNativeObjectConstructor && key == "create" {
 		global, _ := query.nativeRootDeclaration(value.node)
 		if global != nil {
 			member := query.owner.checker.GetPropertyOfType(query.owner.checker.GetTypeOfSymbol(global), key)
 			if member != nil && member.ValueDeclaration != nil && standardLibrarySource(ast.GetSourceFileOfNode(member.ValueDeclaration)) {
 				kind := sourceNativeObjectCreateExposure
-				if query.stagedCreateAcquisition() && key == "create" {
+				if key == "create" && (copyMember || query.stagedCreateAcquisition()) {
 					kind = sourceNativeObjectCreate
+				}
+				if copyMember && key == "assign" {
+					kind = sourceNativeObjectAssign
 				}
 				if key == "for" {
 					kind = sourceNativeSymbolForExposure

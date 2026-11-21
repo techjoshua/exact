@@ -21,6 +21,10 @@ func (query *sourceValueQuery) consumeNativeInvocation(node *ast.Node, value sou
 		}
 		return
 	}
+	if query.reflectiveCopyInvocation(node, value.native.kind) {
+		query.publishReflectiveCopyTarget(node, value.native.kind, bindings, consumer.sourceReturn, result)
+		return
+	}
 	if value.native.kind == sourceNativeObjectFreeze {
 		if query.dependenciesOnly {
 			query.sourceFreezeRelationship(node, value, bindings, complete, consumer.sourceReturn, result)

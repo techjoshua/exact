@@ -15,6 +15,13 @@ func (query *sourceValueQuery) projectSourceCallReturns(call *ast.Node, bindings
 // when they lack a view-aware rule. Selection and missing result work stay
 // incomplete independently of a delivered conditional MAY description.
 func (query *sourceValueQuery) projectSourceCallReturnsWithViews(call *ast.Node, bindings sourceValueBindings, interest sourceCallResultInterest, project func(sourceValue, sourceValueBindings), view func(sourceFrameworkStorageView, sourceValueBindings), deferred func(), descriptor ...func(sourceNativeDescriptorView, sourceValueBindings)) accessorCandidates {
+	if projection := query.reflectiveCopy; projection != nil && projection.issuer == query && sourceCopyMember(call) != "" {
+		restore, fresh := projection.beginCall(call)
+		if !fresh {
+			return accessorCandidates{opaque: true, valueIncomplete: true}
+		}
+		defer restore()
+	}
 	if transfer := query.transferStagedCallReturn(call, interest); transfer.accepted {
 		if transfer.source != nil && interest.purpose == resultSourceProjection {
 			project(sourceValue{node: transfer.source.source.endpoint.expression, freezeLexical: transfer.source}, bindings)

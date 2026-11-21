@@ -74,8 +74,11 @@ export function CompilerAnalysisSection(this: Component<{}>) {
 				the call reads the descriptor’s <code>value</code> immediately, so the creating task needs
 				the browser even if it never reads <code>score</code>. Reading a property on the object returned by <code>Object.defineProperty</code>
 				also invokes its installed getter. If that getter reads <code>document</code>, the task
-				that reads the property needs the browser. When an assignment invokes an authored setter, its parameter carries the assigned
-				value's environment requirements into the setter's use of that value. If a getter returns a
+				that reads the property needs the browser. Standard <code>Object.assign(target, input)</code>
+				returns the same target object. A getter installed on that result can also run when a
+				component reads the property through the original target. When an assignment invokes an
+				authored setter, its parameter carries the assigned value's environment requirements into the
+				setter's use of that value. If a getter returns a
 				method, calling that result also carries the method's own environment requirements. Reading
 				the getter alone does not invoke the returned method. Portable built-in methods keep their
 				declaration ownership through optional calls, and their callbacks retain their own
