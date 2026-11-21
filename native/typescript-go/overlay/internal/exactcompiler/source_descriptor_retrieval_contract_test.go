@@ -1,6 +1,7 @@
 package exactcompiler
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
@@ -62,9 +63,37 @@ func TestDescriptorContractStoredFieldsAndAbsence(t *testing.T) {
 		{"absent-optional", `export{};const target={};export function probe(){return Object.getOwnPropertyDescriptor(target,'missing')?.value}`, false},
 	} {
 		t.Run(row.name, func(t *testing.T) {
-			descriptorContractCollection(t, row.source, func(_ *projectCallableCollection, result callableAnalysis) {
-				descriptorContractBrowser(t, result, row.browser)
-			})
+			for _, target := range []Target{TargetClient, TargetServer} {
+				const consume = `const value=probe();this.state.label=typeof value==='string'?value:typeof value`
+				source := row.source + publicAwaitRequiredPage("", consume, target)
+				fixture := newPublicAwaitRequiredFixture(t, source)
+				request := fixture.request("compile", "entry.tsx")
+				request.Target = target
+				response := NewSession().Execute(request)
+				if response.Error != "" || len(response.Analysis.Tasks) != 1 {
+					t.Fatalf("%s component task was absent: %s %#v", target, response.Error, response.Diagnostics)
+				}
+				task := response.Analysis.Tasks[0]
+				browser := false
+				for _, effect := range task.EffectSources {
+					browser = browser || effect.Environment == "browser" && strings.Contains(effect.Description, "document")
+				}
+				if browser != row.browser {
+					t.Fatalf("%s recorded browser effect=%v want=%v: %#v", target, browser, row.browser, task.EffectSources)
+				}
+				if row.browser && target == TargetServer {
+					denied := false
+					for _, diagnostic := range response.Diagnostics {
+						denied = denied || diagnostic.Code == "EXACT2001" &&
+							strings.Contains(diagnostic.Message, "task requests server placement but references browser-only globals")
+					}
+					if !denied || response.Code != "" {
+						t.Fatalf("server must refuse the actual browser invocation: %#v", response.Diagnostics)
+					}
+				} else if hasErrorDiagnostic(response.Diagnostics) || response.Code == "" {
+					t.Fatalf("%s descriptor consumer did not emit: %#v", target, response.Diagnostics)
+				}
+			}
 		})
 	}
 }
