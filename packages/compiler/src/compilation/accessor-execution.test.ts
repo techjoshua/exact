@@ -306,3 +306,43 @@ export function Page(this: Component<{}>) {
 	if (browser) expect(html).toContain('data-exact-client-boundary=');
 	else expect(html).toBe('<p>1</p>');
 });
+
+it.each([
+	{ member: '[patch()]() {}', browser: true },
+	{ member: 'get [patch()]() { return 1; }', browser: true },
+	{ member: 'set [patch()](value: number) { void value; }', browser: true },
+	{ member: 'deferred() { const object = { [patch()]() {} }; }', browser: false }
+])('uses the evaluation owner of $member before the next component read', async ({ member, browser }) => {
+	const root = await createCompilerTestWorkspace('.exact-computed-writer-', process.cwd());
+	const entry = path.join(root, 'page.tsx');
+	await writeFile(
+		entry,
+		`
+function holder() {}
+holder.value = () => 0;
+function patch(): string {
+	Object.defineProperty(holder, 'value', { get() { return document.title; } });
+	return 'key';
+}
+export function Page() {
+	const object = { ${member} };
+	const value = typeof holder.value;
+	return () => <p>{value}</p>;
+}
+`
+	);
+	const [artifact] = await compileProjectArtifacts([entry], {
+		rootDir: root,
+		outDir: path.join(root, 'generated')
+	});
+	const server = await importArtifact(artifact!.serverFile, path.join(root, 'server.mjs'));
+	const { html } = await renderToString(receipt(server.Page as never, {}), { markers: false });
+	if (browser) expect(html).toContain('data-exact-client-boundary=');
+	else expect(html).toBe('<p>function</p>');
+
+	const client = await importArtifact(artifact!.clientFile, path.join(root, 'client.mjs'));
+	const host = document.createElement('div');
+	onTestFinished(() => unmount(host));
+	render(receipt(client.Page as never, {}), host);
+	expect(host.textContent).toBe(browser ? 'string' : 'function');
+});

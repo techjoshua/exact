@@ -306,6 +306,13 @@ func (q *sourceValueQuery) memberWriterInputs(left *ast.Node, bindings sourceVal
 				continue
 			}
 			caller := enclosingCallableNode(call)
+			if caller != nil && caller.Name() != nil && ast.IsComputedPropertyName(caller.Name()) && caller.Name().Contains(call) {
+				// A computed name runs in the surrounding evaluation region.
+				// The method or accessor body is still deferred.
+				if entry := index.normalOccurrences[call]; entry != nil {
+					caller = entry.region
+				}
+			}
 			if sameFile && call.Pos() >= at.Pos() && caller == atOwner && !cut.argumentMayPrecede(q, call, result) {
 				continue
 			}

@@ -179,6 +179,15 @@ The nested copy still lacks an observed value origin for the child of a reached
 `Object.entries` pair. A direct loop with no array append also loses that origin.
 A cyclic copy containing a dormant class getter renders on the server.
 
+Computed method and accessor names run in the surrounding evaluation region. A
+setup-local name can call a helper that installs a getter before the component
+reads the target. Writer discovery now uses the indexed region of that Call
+and keeps the deferred member body separate. The SSR controls place the reached
+getter on the client for computed methods, getters, and setters. A computed name
+inside an uninvoked method remains dormant. The module-initializer case still
+reports `EXACT2101` when the direct descriptor install retains opaque startup
+effects.
+
 The cumulative private receiver-inventory cut also advances past `copyThemeData` to
 the `resolveThemeScopeData` loop. During effect collection for its `resolveThemeData`
 call, the local binding query reprojects an earlier destructuring acquisition through
