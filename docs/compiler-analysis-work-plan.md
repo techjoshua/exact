@@ -320,6 +320,18 @@ bypassed by the copy. Application and library compiles agree through a retained
 edit and revert on both targets. The unchanged package comparison still reaches
 the client request deadline, with no artifacts on either target.
 
+A subsequent observer on the unchanged request identified the original
+`themeSurfaceBundles.map((bundle) => surfaces[bundle]!.background)` Call in
+`createTone`. At 24 seconds its still-open dependency query contained
+101,478 of 104,833 body attempts. Within that query, 53,701 opened an interval,
+33,427 added an alternative to an existing interval, and 14,350 matched an
+active alternative already blocked by the existing guard. Two bounded encoded
+comparisons matched across intervals within the same reader. The observer
+excluded 1,563 oversized fact samples from encoding. The replay used
+`9580d7360` with the symbol-key correction from `aa58c02fe`. The package
+deadline still fired. A separate 100-second native replay returned the
+retained setup and `color.ts` responses while `components.ts` was pending.
+
 Computed method and accessor names run in the surrounding evaluation region. A
 setup-local name can call a helper that installs a getter before the component
 reads the target. Writer discovery now uses the indexed region of that Call
