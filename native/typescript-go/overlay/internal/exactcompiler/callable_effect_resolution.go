@@ -908,7 +908,12 @@ func moduleInitializerDiagnostics(
 		case "mixed":
 			message = "executable module initializer has indivisible browser and server effects"
 		case "unknown":
-			if !preserveOpaqueInitializers && containsOpaqueEnvironment(callable.EffectSources) &&
+			// Ordinary host emission may keep an unknown callee. It cannot
+			// waive an independently known requirement of its initializer.
+			oppositeDefinition := (target == TargetServer && definition.browser) ||
+				(target == TargetClient && definition.server)
+			hostMayPreserve := preserveOpaqueInitializers && len(callable.ArtifactTargets) == 0 && !oppositeDefinition
+			if !hostMayPreserve && containsOpaqueEnvironment(callable.EffectSources) &&
 				!artifactTargetsInclude(callable.ArtifactTargets, target) &&
 				!(target == TargetServer &&
 					policyConstrainsModuleInitializer(

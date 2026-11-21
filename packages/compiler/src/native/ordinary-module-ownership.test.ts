@@ -44,6 +44,32 @@ for (const target of ['client', 'server'] as const)
 		}
 	});
 
+it.each([
+	{ expression: 'document.title', owner: 'client', opposite: 'server' },
+	{ expression: 'process.platform', owner: 'server', opposite: 'client' }
+] as const)('keeps the $owner requirement of an opaque host initializer', (test) => {
+	const compiler = new NativeCompilerProcess({ executable: resolveNativeCompilerExecutable() });
+	onTestFinished(() => compiler.dispose());
+	const options = {
+		kind: 'compile' as const,
+		id: path.resolve('.tmp/helper-eager-argument.ts'),
+		root: process.cwd(),
+		source: `declare function make(value: string): string;
+		export const label = make(${test.expression});`,
+		preserveOrdinaryModules: true
+	};
+	const owner = compiler.request({ ...options, target: test.owner });
+	expect(owner.diagnostics).toEqual([]);
+	expect(owner.code).toContain(`make(${test.expression})`);
+	expect(
+		owner.analysis.callables.find((callable) => callable.kind === 'module-initializer')
+			?.artifactTargets
+	).toEqual([test.owner]);
+	const opposite = compiler.request({ ...options, target: test.opposite });
+	expect(opposite.diagnostics.map(({ code }) => code)).toContain('EXACT2101');
+	expect(opposite.code).toBeFalsy();
+});
+
 for (const target of ['client', 'server'] as const)
 	it(`retains secret consumption policy in host-owned helpers (${target})`, () => {
 		const compiler = new NativeCompilerProcess({ executable: resolveNativeCompilerExecutable() });

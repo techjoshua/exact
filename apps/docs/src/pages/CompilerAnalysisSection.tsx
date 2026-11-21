@@ -15,6 +15,12 @@ export function CompilerAnalysisSection(this: Component<{}>) {
 				environment requirements can still prevent a client or server artifact from being emitted.
 			</p>
 			<p>
+				Passing <code>document.title</code> to an imported function reads the browser value
+				before the function runs. An initializer that performs this read and calls an
+				unavailable implementation can only emit for the client. A getter passed in an object
+				runs if the function reads that property.
+			</p>
+			<p>
 				When a task has no platform requirement or explicit placement, its analysis explains the
 				scheduling default. Writing component state lets initial work run on the server. Without a
 				state write, the default is the client. Data residency can further constrain that choice.
