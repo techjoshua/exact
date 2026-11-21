@@ -19,7 +19,7 @@ func (q *sourceValueQuery) sourceMapKeys(operand *ast.Node) []string {
 		return nil
 	}
 	operand = unwrapSourceCallableReference(operand)
-	if !ast.IsIdentifier(operand) || enclosingCallableNode(operand) != q.inputs.declaration {
+	if operand == nil || !ast.IsIdentifier(operand) || enclosingCallableNode(operand) != q.inputs.declaration {
 		return nil
 	}
 	if symbol := q.owner.checker.GetSymbolAtLocation(operand); symbol != nil && symbol.ValueDeclaration == q.inputs.mapKey.parameter {
@@ -29,7 +29,7 @@ func (q *sourceValueQuery) sourceMapKeys(operand *ast.Node) []string {
 }
 
 func (q *sourceValueQuery) mapIndexParameter(callback *ast.Node) *ast.Node {
-	if !ast.IsArrowFunction(callback) || len(callback.Parameters()) != 1 {
+	if callback == nil || !ast.IsArrowFunction(callback) || len(callback.Parameters()) != 1 {
 		return nil
 	}
 	parameter := callback.Parameters()[0]
@@ -90,7 +90,7 @@ func mapKeyInput(parameter *ast.Node, elements []sourceValue) *sourceMapKeyInput
 
 func mapLiteralKey(node *ast.Node) string {
 	node = unwrapSourceCallableReference(node)
-	if ast.IsStringLiteral(node) || ast.IsNumericLiteral(node) {
+	if node != nil && (ast.IsStringLiteral(node) || ast.IsNumericLiteral(node)) {
 		return node.Text()
 	}
 	return ""
@@ -112,6 +112,9 @@ func (q *sourceValueQuery) mapKeySourceUses(symbol *ast.Symbol, declaration *ast
 // needs the actual selected native alternative and source input relationship.
 func (q *sourceValueQuery) mapKeyArraySyntax(operand *ast.Node, iterationOnly bool) *ast.Node {
 	operand = unwrapSourceCallableReference(operand)
+	if operand == nil {
+		return nil
+	}
 	if ast.IsArrayLiteralExpression(operand) {
 		return operand
 	}
@@ -140,7 +143,7 @@ func (q *sourceValueQuery) mapKeyArraySyntax(operand *ast.Node, iterationOnly bo
 		}
 	}
 	literal := unwrapSourceCallableReference(declaration.Initializer())
-	if ast.IsArrayLiteralExpression(literal) {
+	if literal != nil && ast.IsArrayLiteralExpression(literal) {
 		return literal
 	}
 	return nil
@@ -150,7 +153,7 @@ func (q *sourceValueQuery) confinedMapArray(call *ast.Node, receivers []sourceVa
 	if len(receivers) != 1 || len(receivers[0].path) != 0 {
 		return nil
 	}
-	receiver, _ := restrictedInvocationMember(call.Expression(), q.owner.checker)
+	receiver, _ := restrictedInvocationMember(unwrapSourceCallableReference(call.Expression()), q.owner.checker)
 	literal := q.mapKeyArraySyntax(receiver, false)
 	if literal == nil || literal != unwrapSourceCallableReference(receivers[0].node) {
 		return nil
