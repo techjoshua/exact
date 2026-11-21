@@ -5188,39 +5188,27 @@ func TestSessionCachesRepeatedDerivedReadsForControlFlowNarrowing(t *testing.T) 
 }
 
 func TestSessionReadsDerivedValuesForInferredTaskDependencies(t *testing.T) {
-	request := Request{
-		ID:   "derived-task.ts",
-		Kind: "compile",
-		Source: `
-			import { TaskContext } from "@exactjs/core";
-			declare class Component<State> { state: State }
-			function Search(this: Component<{ query: string }>) {
-				const label = this.state.query + "!";
-				const __fixtureTask10 = (_task: TaskContext = TaskContext.latest()) => consume(label);
-__fixtureTask10();
-			}
-		`,
-	}
-	session := NewSession()
-	unresolved := session.Execute(request)
-	if !containsDiagnosticCode(unresolved.Diagnostics, "EXACT2001") || unresolved.Code != "" {
-		t.Fatal("unresolved consumer was accepted", unresolved.Diagnostics)
-	}
-	// Complete the fixture's consumer without changing its authored task or
-	// derived expression. The original missing consumer remains a refusal above.
-	request.Source = "function consume(value:string){return value}\n" + request.Source
-	request.Diagnostics = "semantic"
-	response := session.Execute(request)
-	if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) {
-		t.Fatal(response.Error)
-	}
-	for _, expected := range []string{
-		`const label = __exactDerived(() => this.state.query + "!")`,
-		`__exactActivationDependency(() => label.get())`,
-		`(__exactDependency: string, _task: TaskContext) => consume(__exactDependency)`,
-	} {
-		if !strings.Contains(response.Code, expected) {
-			t.Fatalf("native derived task output is missing %q:\n%s", expected, response.Code)
+	root, config := formsSourceFixture(t)
+	const source = `import {TaskContext,type Component} from '@exactjs/core';
+export function Search(this:Component<{query:string,seen:string}>){
+	this.state.query='hi';this.state.seen='';
+	const label=this.state.query+'!';
+	const run=(_task:TaskContext=TaskContext.latest())=>{this.state.seen=consume(label)};
+	run();
+	return()=> <output>{this.state.seen}</output>;
+}`
+	for _, target := range []Target{TargetClient, TargetServer} {
+		unknown := formsCompileSource(t, root, config, "declare function consume(value:string):string;"+source, target)
+		if unknown.Code != "" || !containsDiagnosticCode(unknown.Diagnostics, "EXACT2001") {
+			t.Fatalf("%s accepted the unresolved consumer: %v", target, unknown.Diagnostics)
+		}
+		known := formsCompileSource(t, root, config, "function consume(value:string){return value}"+source, target)
+		if hasErrorDiagnostic(known.Diagnostics) || known.Code == "" || len(known.Analysis.Tasks) != 1 {
+			t.Fatalf("%s lost the derived input: %v", target, known.Diagnostics)
+		}
+		task := known.Analysis.Tasks[0]
+		if task.Component != "Search" || task.Placement != "isomorphic" || !equalStrings(task.ReactiveDependencies, []string{"label"}) {
+			t.Fatalf("%s published the wrong task dependencies: %v", target, task.ReactiveDependencies)
 		}
 	}
 }
