@@ -134,6 +134,7 @@ func (owner *executableBodyOwner) sourceValues(c *checker.Checker) *sourceValueO
 // declaration widens after its finite source input relation stops growing. Normal
 // execution retains its declaration guard instead of growing capture contexts.
 type sourceValueQuery struct {
+	componentMapKeyReplacement *sourceReflectiveOperation      // Scoped render effect probe; no normal value authority.
 	reflectiveCopy             *sourceReflectiveCopyProjection // Scoped original writer target SOURCE, never a result receipt.
 	selectedGetterWrites       *sourceSelectedGetterWrites
 	constructionSetterWrites   *sourceConstructionSetterWrites

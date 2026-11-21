@@ -1003,6 +1003,11 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 						continue
 					}
 				}
+				if replacement := query.componentMapKeyReplacement; replacement != nil &&
+					!computed && ast.IsGetAccessorDeclaration(member) &&
+					replacement.targets[0].value.node == value && replacement.key == memberKey {
+					continue
+				}
 				if len(projection) > 0 {
 					privateMatch, privateGet := query.sourcePrivateMemberMatch(member, projection)
 					computedMayMatch := !privateGet && computed && sourceLiteralMemberName(member.Name().AsComputedPropertyName().Expression) == ""

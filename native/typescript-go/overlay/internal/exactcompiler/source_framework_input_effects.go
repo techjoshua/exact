@@ -161,9 +161,11 @@ func (q *sourceValueQuery) componentMapCallbackEffects(call *ast.Node, bindings 
 	q.withActiveInvocation(call, func() {
 		// A possible initial item contributes effects. A body probe cannot
 		// publish a completed invocation to an original source observer.
-		prior := q.sourceEffects
+		prior, priorReplacement := q.sourceEffects, q.componentMapKeyReplacement
 		q.sourceEffects = sourceEffectsObserver{}
-		defer func() { q.sourceEffects = prior }()
+		defer func() {
+			q.sourceEffects, q.componentMapKeyReplacement = prior, priorReplacement
+		}()
 		for ordinal, argument := range args[1:] {
 			body := unwrapSourceCallableReference(argument)
 			if body == nil || !ast.IsArrowFunction(body) || len(body.Parameters()) != 1 ||
@@ -181,13 +183,16 @@ func (q *sourceValueQuery) componentMapCallbackEffects(call *ast.Node, bindings 
 			q.adoptSourceMayEffects(call, callback, result)
 			result.environmentEffects = append(result.environmentEffects, callback.environmentEffects...)
 			result.contextEffects = append(result.contextEffects, callback.contextEffects...)
-			// Item selection precedes rendering. The initial item still
-			// describes the render input when the key preserves it.
+			// Only a key that can return reaches the render callback. A
+			// descriptor write can replace one getter and leave others live.
 			if ordinal == 0 {
 				if !componentMapCallbackPreservesItems(body, callback) {
-					if !q.componentMapKeepsGetterAlternatives(body, inputs, callback, items, result) {
+					write := componentMapObservedKeyWrite(body, inputs, callback)
+					if write == nil {
 						return
 					}
+					result.opaque = result.opaque || callback.opaque
+					q.componentMapKeyReplacement = componentMapDataReplacement(body, write, items)
 				}
 				if block := body.Body(); ast.IsBlock(block) &&
 					q.completionFor(block, inputs.bindings, true).outcomes == sourceReturnThrow {
@@ -252,52 +257,43 @@ func componentMapCallbackPreservesItems(body *ast.Node, callback accessorCandida
 		len(callback.fieldCalls) == 1 && callback.fieldCalls[0].target == body && callback.fieldCalls[0].complete
 }
 
-// componentMapKeepsGetterAlternatives carries initial getter effects as MAY
-// alternatives through a descriptor write observed in the key callback. A direct,
-// unconditional data replacement on the item keeps the existing render lookup.
-func (q *sourceValueQuery) componentMapKeepsGetterAlternatives(body *ast.Node, inputs *sourceValueInputs, key accessorCandidates, items []sourceValue, result *accessorCandidates) bool {
+// componentMapObservedKeyWrite borrows only the write observed in the original
+// key binder. Unresolved conversion or Proxy entry can leave initial getters live.
+func componentMapObservedKeyWrite(body *ast.Node, inputs *sourceValueInputs, key accessorCandidates) *sourceReflectiveOperation {
 	if len(key.reflective) != 1 || !ast.IsBlock(body.Body()) {
-		return false
+		return nil
 	}
 	write := key.reflective[0]
 	if !reflectiveNative(write.native) || write.frame != inputs || enclosingCallableNode(write.operation) != body {
-		return false
+		return nil
 	}
+	return write
+}
 
+// componentMapDataReplacement recognizes a leading, exclusively selected data
+// definition. The render probe may omit only the replaced item's getter effects.
+func componentMapDataReplacement(body *ast.Node, write *sourceReflectiveOperation, items []sourceValue) *sourceReflectiveOperation {
 	statements := body.Body().AsBlock().Statements.Nodes
-	// Only the selected Object operation in an unconditional leading statement
-	// can exclude the initial getter. Reflect can also return false.
-	if write.native == sourceNativeObjectDefineProperty && len(statements) > 0 &&
-		ast.IsExpressionStatement(statements[0]) && statements[0].Expression() == write.operation &&
-		!write.referencesIncomplete && len(write.targets) == 1 && len(write.descriptors) == 1 &&
-		write.key != "" && len(write.nested) == 0 {
-		target, descriptor := write.targets[0].value, write.descriptors[0].value
-		if target.node != nil && len(target.path) == 0 && descriptor.node != nil &&
-			len(descriptor.path) == 0 && ast.IsObjectLiteralExpression(descriptor.node) {
-			fields := descriptor.node.AsObjectLiteralExpression().Properties.Nodes
-			if len(fields) == 1 && ast.IsPropertyAssignment(fields[0]) &&
-				ast.IsIdentifier(fields[0].Name()) && fields[0].Name().Text() == "value" {
-				for _, item := range items {
-					if target.node != item.node {
-						continue
-					}
-					for _, field := range item.node.AsObjectLiteralExpression().Properties.Nodes {
-						if !q.charge(result, field) {
-							return false
-						}
-						if ast.IsGetAccessorDeclaration(field) &&
-							(callableNameText(field.Name()) == write.key ||
-								ast.IsComputedPropertyName(field.Name()) &&
-									sourceLiteralMemberName(field.Name().AsComputedPropertyName().Expression) == write.key) {
-							return false
-						}
-					}
-				}
-			}
+	if write.native != sourceNativeObjectDefineProperty || !write.calleeExclusive ||
+		len(statements) == 0 || !ast.IsExpressionStatement(statements[0]) || statements[0].Expression() != write.operation ||
+		write.referencesIncomplete || len(write.targets) != 1 || len(write.descriptors) != 1 ||
+		write.key == "" || len(write.nested) != 0 {
+		return nil
+	}
+	target, descriptor := write.targets[0].value, write.descriptors[0].value
+	if target.node == nil || len(target.path) != 0 || descriptor.node == nil ||
+		len(descriptor.path) != 0 || !ast.IsObjectLiteralExpression(descriptor.node) {
+		return nil
+	}
+	fields := descriptor.node.AsObjectLiteralExpression().Properties.Nodes
+	if len(fields) != 1 || !ast.IsPropertyAssignment(fields[0]) ||
+		!ast.IsIdentifier(fields[0].Name()) || fields[0].Name().Text() != "value" {
+		return nil
+	}
+	for _, item := range items {
+		if target.node == item.node {
+			return write
 		}
 	}
-	// Descriptor conversion and Proxy entry remain on the original key walk.
-	// Carry its residual uncertainty beside any surviving initial getter.
-	result.opaque = result.opaque || key.opaque
-	return true
+	return nil
 }

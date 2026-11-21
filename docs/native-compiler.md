@@ -4143,9 +4143,11 @@ Authored callee replacements and exposed component receivers keep their
 existing acquisition paths. The key receives the initial item. Its original effect
 walk supplies descriptor-write observations before render analysis. The render
 callback can retain initial getters as possible effects across disjoint or
-unresolved writes when key selection can return. A leading direct data
-replacement on the same item and key leaves selection to the ordinary render
-lookup. A computed item getter contributes effects when its name may match the actual
+unresolved writes when key selection can return. A leading data replacement
+by the exclusively selected standard operation suppresses the initial getter
+effects for that item and property. The ordinary render lookup retains the
+remaining value and effect obligations. A computed item getter contributes
+effects when its name may match the actual
 read. Exact spellings and disjoint checked string props exclude that getter
 while key evaluation stays with object creation. Event bodies retain their
 own activation. The original normal collection observation can also carry

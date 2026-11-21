@@ -377,6 +377,15 @@ it.each([
 		text: 'browser value'
 	},
 	{
+		name: 'a disjoint getter replacement',
+		key: '{ Object.defineProperty(row, "other", {value:"safe"}); return row.id; }',
+		body: '<li>{row.label}</li>',
+		field: '"label"',
+		otherGetter: ", get other(){return 'other'}",
+		browser: true,
+		text: 'browser value'
+	},
+	{
 		name: 'a getter reached only by an event handler',
 		key: 'row.id',
 		body: '<li><button onClick={() => { document.title = "clicked " + row.label; }}>{row.id}</button></li>',
@@ -387,14 +396,25 @@ it.each([
 	}
 ])(
 	'accounts for $name in a component list',
-	async ({ key, body, field, setup, browser, text, click, verifyMount, descriptorProp }) => {
+	async ({
+		key,
+		body,
+		field,
+		setup,
+		browser,
+		text,
+		click,
+		verifyMount,
+		descriptorProp,
+		otherGetter
+	}) => {
 		const root = await createCompilerTestWorkspace('.exact-collection-get-', process.cwd());
 		const files = await writeTestFiles(root, {
 			'list.tsx': `import type {Component} from '@exactjs/core';
 export function List(this:Component<{}>,props:{fieldName: 'label'|'other'; descriptor?:PropertyDescriptor}) {
 	${setup ?? ''}
-	const rows:Array<{id:string;label?:string}> = [
-		{id:'a', get [${field}](){return document.title}}
+	const rows:Array<{id:string;label?:string;other?:string}> = [
+		{id:'a', get [${field}](){return document.title}${otherGetter ?? ''}}
 	];
 	return () => <ul>{this.map(rows,row=>${key},row=>${body})}</ul>;
 }

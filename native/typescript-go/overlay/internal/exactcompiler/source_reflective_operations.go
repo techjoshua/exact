@@ -14,6 +14,7 @@ type sourceReflectiveOperation struct {
 	keys                                   []sourceObservedValue
 	key                                    string
 	covered, referencesIncomplete          bool
+	calleeExclusive                        bool // Original callee choice, independent of descriptor completion.
 	finalized                              bool
 	conversionIncomplete, residualMutation bool
 	normal, abrupt, falseResult            bool

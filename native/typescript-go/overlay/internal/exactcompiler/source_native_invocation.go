@@ -55,6 +55,7 @@ func (query *sourceValueQuery) consumeNativeInvocation(node *ast.Node, value sou
 		var operation *sourceReflectiveOperation
 		query.withActiveInvocation(node, func() {
 			operation = query.acquireReflectiveOperation(node, value, bindings, covered, result)
+			operation.calleeExclusive = exclusive
 			result.reflective = append(result.reflective, operation)
 			if consumer.reflective != nil {
 				consumer.reflective(operation, result)

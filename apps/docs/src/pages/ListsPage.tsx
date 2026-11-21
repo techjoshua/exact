@@ -130,8 +130,8 @@ export function ListsPage(this: Component<{}>) {
 					when a data transform appears directly inside JSX. Rendered array literals and spreads
 					preserve inferred keys as well as explicit keys. An explicitly keyed JSX map retains its
 					keys when its result passes through an array spread, a slice, or a helper before
-					rendering. You can also put the JSX list itself in an ordinary helper declared inside
-					or outside the component.
+					rendering. You can also put the JSX list itself in an ordinary helper declared inside or
+					outside the component.
 				</p>
 				<CodeBlock source={explicitMapSource} language="tsx" title="Explicit keyed rendering" />
 				<p>
@@ -139,11 +139,10 @@ export function ListsPage(this: Component<{}>) {
 					throws, that item’s render callback does not run.
 				</p>
 				<p>
-					When an array literal supplies the list, item getters read by the key selector or
-					render callback contribute to the component’s placement. A write by the key selector
-					can change which getter runs during rendering. If a browser-only getter can still run,
-					it can require a client boundary. A getter read only by an event handler runs when
-					that event is handled.
+					When an array literal supplies the list, item getters read by the key selector or render
+					callback contribute to the component’s placement. A write by the key selector can change
+					which getter runs during rendering. If a browser-only getter can still run, it can require
+					a client boundary. A getter read only by an event handler runs when that event is handled.
 				</p>
 			</section>
 		</Article>

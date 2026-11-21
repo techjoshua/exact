@@ -224,6 +224,14 @@ This applies rules 1 through 4 and 6 to the actual callback and descriptor
 operation. The control using a dynamic Function constructor reaches the
 file-wide dynamic-scope confinement cutoff and remains outside this proof.
 
+A follow-up fixture replaces a second getter on the same item. The initial
+patch omitted the browser getter on the untouched property. The render effect
+probe now excludes only the replaced item and property when the original key
+walk selected the standard operation exclusively. Uncertain descriptor or
+Proxy writes retain possible getter effects. The paired integration suite
+passes all 42 controls, including the new disjoint getter and the original
+same-property SSR and strict hydration case.
+
 The full `306a8d71a` checkpoint passed 1,962 of 2,337 groups and recovered
 the list getter projection. Two previously passing Proxy fixtures reached the
 same nil loop-source read in `Reflect.get`. The isolated `9384684d6` correction
