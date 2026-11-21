@@ -235,7 +235,7 @@ func (query *sourceValueQuery) evaluatedSourceAccessors(node *ast.Node, bindings
 	if !read {
 		mode |= accessorNoGet
 	}
-	candidates := query.sourceAccessorOperationCandidates(receiver, nil, name, mode, bindings, node)
+	candidates := query.sourceKeyedMemberCandidates(node, receiver, name, mode, bindings)
 	if !candidates.selected && (!candidates.sourceOwned || candidates.opaque) {
 		if symbol := sourceCallableReferenceSymbol(node, query.owner.checker); symbol != nil {
 			for _, declaration := range symbol.Declarations {
@@ -246,6 +246,23 @@ func (query *sourceValueQuery) evaluatedSourceAccessors(node *ast.Node, bindings
 		}
 	}
 	return candidates
+}
+
+// sourceKeyedMemberCandidates keeps finite keys with the actual source reader.
+// A represented empty iterator contributes no field alternatives. The original
+// key expression and receiver evaluation retain their existing effect walk.
+func (query *sourceValueQuery) sourceKeyedMemberCandidates(operation, receiver *ast.Node, name string, mode accessorTraversal, bindings sourceValueBindings) accessorCandidates {
+	if name == "" && mode == accessorRead && ast.IsElementAccessExpression(operation) {
+		keys := query.sourceFinitePropertyKeys(operation.AsElementAccessExpression().ArgumentExpression)
+		if keys != nil {
+			candidates := accessorCandidates{sourceOwned: len(keys) == 0}
+			for _, key := range keys {
+				mergeAccessorCandidates(&candidates, query.sourceAccessorOperationCandidates(receiver, nil, key, mode, bindings, operation))
+			}
+			return candidates
+		}
+	}
+	return query.sourceAccessorOperationCandidates(receiver, nil, name, mode, bindings, operation)
 }
 
 // accessors instantiates relative roots through this query's source acquisition owners.

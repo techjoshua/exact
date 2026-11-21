@@ -405,6 +405,18 @@ unchanged package without the diagnostic bound still reached the client deadline
 The saved array is allocated before the loop, so one indexed source reference
 does not establish its first-read boundary across iterations.
 
+The standard `Array.prototype.entries` Call on an immediate dense literal can supply
+possible indices to the bound key in a later property read. The new consumer
+uses the selected original method and simple const loop binding. It keeps
+iteration and key effects where they execute. Application and library controls
+retain reached getters, omit an unused index, and leave an authored iterator,
+receiver growth and independent unknown on their existing paths.
+The diagnostic Theme comparison passes `sizePowers[index]` and reaches all
+subsequent structural token Sets. In a longer native replay with the same
+bounds, the next reader is the thrown `ThemeResolutionError` construction in
+`source-resolution.ts`. The unchanged package still stops at the client
+deadline without either artifact set.
+
 Computed method and accessor names run in the surrounding evaluation region. A
 setup-local name can call a helper that installs a getter before the component
 reads the target. Writer discovery now uses the indexed region of that Call

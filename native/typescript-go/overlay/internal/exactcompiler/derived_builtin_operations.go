@@ -50,6 +50,30 @@ func directDenseArrayIncludes(member *ast.Node, c *checker.Checker, argumentCoun
 	return denseArrayElements(property.Expression.AsArrayLiteralExpression().Elements.Nodes) && standardLibraryCallOwner(call, c) == "Array"
 }
 
+// directArrayEntriesLiteral identifies the original standard inherited Call
+// of a dense array allocated directly as its receiver. The checked declaration
+// alone cannot establish this operation. No other code can acquire that literal
+// or install an own entries method before iteration gets its private iterator.
+func (owner *sourceValueOwner) directArrayEntriesLiteral(node *ast.Node) *ast.Node {
+	if node == nil || !ast.IsCallExpression(node) || ast.IsOptionalChain(node) ||
+		len(restrictedInvocationArguments(node.AsCallExpression())) != 0 {
+		return nil
+	}
+	callee := unwrapSourceCallableReference(node.Expression())
+	if callee == nil || !ast.IsPropertyAccessExpression(callee) || ast.IsOptionalChain(callee) ||
+		callee.Name().Text() != "entries" {
+		return nil
+	}
+	literal := unwrapSourceCallableReference(callee.Expression())
+	if literal == nil || !ast.IsArrayLiteralExpression(literal) ||
+		!denseArrayElements(literal.AsArrayLiteralExpression().Elements.Nodes) ||
+		standardLibraryCallOwner(node.AsCallExpression(), owner.checker) != "Array" ||
+		!nativeReceiverMemberDeclarations(callee, owner.checker) {
+		return nil
+	}
+	return literal
+}
+
 // directEntriesMap identifies the standard inherited map on the immediate
 // result of Object.entries. A successful entries call creates a fresh array.
 // Its input enumeration and the map callback keep their original effect owners.

@@ -2313,6 +2313,12 @@ can supply a possible receiver. A counted loop carries that relationship through
 a later append of its yielded child when the loop can continue. JavaScript
 executes the original iterator, calls and indexed reads.
 
+A `for...of` loop over the selected standard `.entries()` of an immediate
+dense array literal can supply the possible indices from its const pair
+binding to a later computed Get in that loop body. The iterator and key
+expression run as written. An aliased array, a saved iterator or an authored replacement keeps
+its existing effects and open key domain.
+
 The callable Effects walk retains a receiver-relative descriptor write when it reaches
 the write through an earlier reflective getter with its original member read and local
 object receiver. A later read of that object can use the recorded write alongside other

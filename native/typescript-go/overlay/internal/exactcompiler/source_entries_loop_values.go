@@ -220,3 +220,66 @@ func (q *sourceValueQuery) standardEnumerationSymbol(key *ast.Node) bool {
 	t := c.GetTypeAtLocation(key)
 	return t != nil && t.Flags()&checker.TypeFlagsUniqueESSymbol != 0
 }
+
+// sourceFinitePropertyKeys carries key facts to the original source read.
+// The key expression, Call and iteration retain their own effect owners.
+func (q *sourceValueQuery) sourceFinitePropertyKeys(operand *ast.Node) []string {
+	if keys := q.sourceMapKeys(operand); len(keys) != 0 {
+		return keys
+	}
+	return q.sourceArrayIterationKeys(operand)
+}
+
+// sourceArrayIterationKeys names possible ordinals from a selected standard
+// entries Call on its immediate dense literal. The iterator can observe length
+// changes on other receivers, so aliases and authored methods stay open.
+func (q *sourceValueQuery) sourceArrayIterationKeys(operand *ast.Node) []string {
+	if !q.dependenciesOnly || q.operation != nil || q.returnObservation != nil {
+		return nil
+	}
+	operand = unwrapSourceCallableReference(operand)
+	if operand == nil || !ast.IsIdentifier(operand) {
+		return nil
+	}
+	symbol := q.owner.checker.GetSymbolAtLocation(operand)
+	if symbol == nil || symbol.ValueDeclaration == nil || !ast.IsBindingElement(symbol.ValueDeclaration) {
+		return nil
+	}
+	binding := symbol.ValueDeclaration
+	element := binding.AsBindingElement()
+	if element.Initializer != nil || element.DotDotDotToken != nil || !ast.IsIdentifier(element.Name()) {
+		return nil
+	}
+	pattern := binding.Parent
+	if pattern == nil || !ast.IsArrayBindingPattern(pattern) {
+		return nil
+	}
+	elements := pattern.AsBindingPattern().Elements.Nodes
+	if len(elements) == 0 || elements[0] != binding {
+		return nil
+	}
+	declaration := pattern.Parent
+	if declaration == nil || !ast.IsVariableDeclaration(declaration) || declaration.Name() != pattern ||
+		declaration.Initializer() != nil || declaration.Parent == nil || !ast.IsVariableDeclarationList(declaration.Parent) ||
+		declaration.Parent.Flags&ast.NodeFlagsConst == 0 {
+		return nil
+	}
+	loop := declaration.Parent.Parent
+	if loop == nil || !ast.IsForOfStatement(loop) || enclosingCallableNode(operand) != enclosingCallableNode(loop) {
+		return nil
+	}
+	iteration := loop.AsForInOrOfStatement()
+	if iteration.AwaitModifier != nil || iteration.Initializer != declaration.Parent || !nodeInside(operand, iteration.Statement) {
+		return nil
+	}
+	call := unwrapSourceCallableReference(iteration.Expression)
+	origin := q.owner.directArrayEntriesLiteral(call)
+	if origin == nil {
+		return nil
+	}
+	keys := make([]string, len(origin.AsArrayLiteralExpression().Elements.Nodes))
+	for index := range keys {
+		keys[index] = strconv.Itoa(index)
+	}
+	return keys
+}

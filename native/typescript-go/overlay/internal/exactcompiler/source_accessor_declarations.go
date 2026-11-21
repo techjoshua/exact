@@ -544,7 +544,7 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 			member := value.AsElementAccessExpression()
 			selected := sourceMemberKey(member.ArgumentExpression)
 			if !selected.resolved {
-				if keys := query.sourceMapKeys(member.ArgumentExpression); len(keys) != 0 {
+				if keys := query.sourceFinitePropertyKeys(member.ArgumentExpression); keys != nil {
 					for _, key := range keys {
 						visit(member.Expression, append([]string{key}, projection...), false)
 					}
