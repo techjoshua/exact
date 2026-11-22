@@ -1165,6 +1165,12 @@ The existing A–L inventory remains a historical scope crosswalk. It mixes four
 | K: Foreign/dynamic behavior  | Preserve runtime syntax where the supported source mode permits it.                                | Invalidate exposed dependency facts conservatively. If a moved-code or safety boundary cannot be established, diagnose that boundary.           | Executing foreign functions or resolving arbitrary eval/with behavior.                           |
 | L: TypeScript                | Reuse upstream erasure and configured runtime-syntax transforms.                                   | Retain bound source/policy identities and any runtime work introduced by the selected transform.                                                | Reimplementing the TypeScript checker, transformer or emitted helper semantics.                  |
 
+For a fresh ordinary target returned from a helper, a named call can retain a
+callback stored in a confined descriptor literal, including a private local
+constant used only for that definition. Holding the callback does not execute
+its body. The placement relationship preserves unknown alternatives and applies
+in both application and library builds.
+
 Some optional precision becomes required for a specific optimization or public behavior. In that case name the consumer and requirement explicitly. It does not become a prerequisite for unrelated ordinary syntax or every family in this table.
 
 For example, an ordinary generator on an authorized target can remain native generator code. A generator feeding reactive dependencies or crossing a task/transport boundary has additional obligations. Exact compile-time simulation of all its iterator states is a separate precision project.

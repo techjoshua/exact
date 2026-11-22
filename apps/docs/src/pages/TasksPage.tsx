@@ -401,6 +401,13 @@ export function TasksPage(this: Component<{}>) {
 					uses plain properties such as <code>{'{ value: 2 }'}</code>. Argument evaluation,
 					including class static initialization, and any authored descriptor getters still contribute
 					the resources they use.
+				</p>
+				<p>
+					A callback stored in a descriptor's <code>value</code> contributes its body's
+					resource requirements when the task calls it. Holding the callback leaves its
+					body dormant.
+				</p>
+				<p>
 					A literal lane key such as <code>key("search")</code> adds no platform requirement.
 					A button can call a server task with <code>key(location.pathname)</code> because the
 					browser selects the lane before dispatch. Use an argument like a document ID when

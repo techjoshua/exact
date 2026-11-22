@@ -89,6 +89,8 @@ func (query *sourceValueQuery) consumeNativeInvocation(node *ast.Node, value sou
 					if target.value.node == getter.receiver && len(target.value.path) == 0 {
 						if ast.IsCallExpression(getter.receiver) {
 							query.sourceDefinedCreateTargetRead(getter, target.scope, result)
+						} else if getter.stored != nil {
+							getter.stored(sourceValue{node: getter.body, capture: &target.scope})
 						} else {
 							query.sourceCreatedGetterRead(getter, bindings, result)
 						}

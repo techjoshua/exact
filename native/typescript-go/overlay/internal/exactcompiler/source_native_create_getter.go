@@ -16,7 +16,7 @@ func (q *sourceValueQuery) sourceCreatedGetter(call *ast.Node, projection []stri
 		return nil
 	}
 	if actual != nil && actual.originalReflectRead && actual.receiver.node == call && len(actual.receiver.path) == 0 && len(projection) == 1 && name == "" && projection[0] == actual.propertyKey {
-		return q.sourceReturnedDescriptorGetter(call, restrictedInvocationArguments(call.AsCallExpression()), actual.propertyKey, actual, result)
+		return q.sourceReturnedDescriptorGetter(call, restrictedInvocationArguments(call.AsCallExpression()), actual.propertyKey, actual, result, nil)
 	}
 	if q.protectedMember == nil || !ast.IsAccessExpression(q.protectedMember) {
 		return nil
@@ -33,7 +33,7 @@ func (q *sourceValueQuery) sourceCreatedGetter(call *ast.Node, projection []stri
 	}
 	args := restrictedInvocationArguments(call.AsCallExpression())
 	if sourceCopyMember(call) != "create" {
-		return q.sourceReturnedDescriptorGetter(call, args, name, nil, result)
+		return q.sourceReturnedDescriptorGetter(call, args, name, nil, result, stored)
 	}
 	if len(args) == 2 && stored != nil {
 		mapping := q.standardCreateDescriptorMap(call.AsCallExpression())
@@ -300,7 +300,7 @@ func privateCreatedModuleRead(declaration *ast.Node, owner *sourceValueOwner) *a
 
 // sourceReturnedDescriptorGetter describes the exact named read of a selected
 // DefineProperty target. Source syntax supplies no callee or write authority.
-func (q *sourceValueQuery) sourceReturnedDescriptorGetter(call *ast.Node, args []*ast.Node, name string, reflected *sourceGetInputs, result *accessorCandidates) *sourceCreatedGetter {
+func (q *sourceValueQuery) sourceReturnedDescriptorGetter(call *ast.Node, args []*ast.Node, name string, reflected *sourceGetInputs, result *accessorCandidates, stored func(sourceValue)) *sourceCreatedGetter {
 	if len(args) != 3 || !standardDescriptorMember(call.Expression(), q.owner.checker) {
 		return nil
 	}
@@ -321,6 +321,11 @@ func (q *sourceValueQuery) sourceReturnedDescriptorGetter(call *ast.Node, args [
 		}
 		return getter
 	}
+	if stored != nil && ast.IsObjectLiteralExpression(target) && len(target.AsObjectLiteralExpression().Properties.Nodes) == 0 {
+		if body := q.returnedDescriptorDataCallback(call, args[2], result); body != nil {
+			return &sourceCreatedGetter{creation: call, read: q.protectedMember, receiver: target, body: body, name: name, stored: stored}
+		}
+	}
 	if !ast.IsObjectLiteralExpression(target) || !ast.IsObjectLiteralExpression(descriptor) {
 		return nil
 	}
@@ -333,4 +338,52 @@ func (q *sourceValueQuery) sourceReturnedDescriptorGetter(call *ast.Node, args [
 		return nil
 	}
 	return &sourceCreatedGetter{creation: call, read: q.protectedMember, receiver: target, body: properties[0].Initializer(), name: name, reflected: reflected}
+}
+
+// returnedDescriptorDataCallback follows a fresh target through the immediate
+// named read of a helper's result. Its private descriptor literal supplies a
+// possible own callback. The original conversion and its residuals are separate.
+func (q *sourceValueQuery) returnedDescriptorDataCallback(call, operand *ast.Node, result *accessorCandidates) *ast.Node {
+	descriptor := singleUseLiteral(operand, q.owner, ast.KindObjectLiteralExpression)
+	owner := enclosingCallableNode(call)
+	if descriptor == nil || owner == nil || !ast.IsBlock(owner.Body()) || !ast.IsReturnStatement(call.Parent) {
+		return nil
+	}
+	scope := q.creators[owner]
+	if scope.invocation != unwrapSourceCallableReference(q.protectedMember.Expression()) || unwrapSourceCallableReference(scope.returning) != call {
+		return nil
+	}
+	statements := owner.Body().AsBlock().Statements.Nodes
+	if descriptor == unwrapSourceCallableReference(operand) {
+		if len(statements) != 1 || statements[0] != call.Parent {
+			return nil
+		}
+	} else {
+		declaration := descriptor.Parent
+		if !ast.IsVariableDeclaration(declaration) || len(declaration.Parent.AsVariableDeclarationList().Declarations.Nodes) != 1 ||
+			len(statements) != 2 || statements[0] != declaration.Parent.Parent || statements[1] != call.Parent {
+			return nil
+		}
+	}
+	var body *ast.Node
+	for _, field := range descriptor.AsObjectLiteralExpression().Properties.Nodes {
+		if !q.charge(result, field) || !ast.IsPropertyAssignment(field) || ast.IsComputedPropertyName(field.Name()) {
+			return nil
+		}
+		value := unwrapSourceCallableReference(field.Initializer())
+		switch callableNameText(field.Name()) {
+		case "value":
+			if body != nil || !ast.IsFunctionLike(value) || value.Body() == nil {
+				return nil
+			}
+			body = value
+		case "enumerable", "configurable", "writable":
+			if value.Kind != ast.KindTrueKeyword && value.Kind != ast.KindFalseKeyword {
+				return nil
+			}
+		default:
+			return nil
+		}
+	}
+	return body
 }
