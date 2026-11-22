@@ -72,13 +72,13 @@ func (lowering *jsxLowering) withoutTaskOptimisticStatements(
 			statements = append(statements, statement)
 		}
 	}
-	return lowering.updateTaskWorkBody(
-		work,
-		lowering.factory.NewBlock(
-			lowering.factory.NewNodeList(statements),
-			true,
-		),
-	)
+	if len(statements) == len(body.AsBlock().Statements.Nodes) {
+		return work
+	}
+	// The continuation visitor checks authored block ancestry to give local
+	// closures the enclosing task's cancellation signal.
+	body = lowering.factory.UpdateBlock(body.AsBlock(), lowering.factory.NewNodeList(statements), body.AsBlock().MultiLine)
+	return lowering.updateTaskWorkBody(work, body)
 }
 
 // taskOptimisticStatement moves only the framework capability's selected method.
