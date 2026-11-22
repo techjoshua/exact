@@ -13,6 +13,12 @@ stronger query. Changes in that category must demonstrate that the weaker answer
 the consumer. “Keep” identifies an observable requirement. The measured costs below apply to
 one package request. No totals are available for an uncensored whole build.
 
+## Deadlines during the correctness audit
+
+For a correctness check or prerequisite already known to exceed its normal deadline, use a longer, bounded deadline on the first run. Use the last successful duration with headroom when available. Set the limit at the layer that ends the run (for example, the native host request) and allow the outer test runner enough time to collect its result. Record elapsed time, the limit used, and the semantic outcome. An extended run establishes correctness only; the normal performance gate retains its original limit.
+
+Keep the existing two-lane limit and serialize heavy builds. If the extended run still expires, preserve the input and last completed operation and continue independent correctness work. Return a case to its ordinary deadline once representative runs consistently finish inside it. Diagnose remaining timeouts in the performance phase.
+
 ## Conformance to the minimum-analysis rules
 
 Use the [scenario catalog and traversal rules](compiler-architecture-completion-plan.md#final-traversal-and-persistence-rules) as the design target. The combined control build uses the committed production tree at `1b31bc5b0`, identical to `eb234c6b3` apart from documentation. It excludes the unrelated accessor edit. Existing tests, source traceability and passing public behavior are distinct kinds of evidence.
