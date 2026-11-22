@@ -49,6 +49,9 @@ func descriptorContractBrowser(t *testing.T, analysis callableAnalysis, want boo
 	}
 }
 
+// A task calling probe owns both Proxy construction and descriptor retrieval.
+const proxyDescriptorNormalizationSource = `export function probe(){const target={value:1};const proxy=new Proxy(target,{getOwnPropertyDescriptor(){return {configurable:true,get value(){return document.title}}}});return Object.getOwnPropertyDescriptor(proxy,'value')?.value}`
+
 // Retrieval preserves callable source relationships without executing the stored
 // target getter or data function. A later explicit invocation is a new demand.
 func TestDescriptorContractStoredFieldsAndAbsence(t *testing.T) {
@@ -66,6 +69,7 @@ func TestDescriptorContractStoredFieldsAndAbsence(t *testing.T) {
 		{"saved-dormant", `export function probe(){const target={get value(){return document.title}};const descriptor=Object.getOwnPropertyDescriptor(target,'value');const getter=descriptor?.get;return getter}`, false},
 		{"replaced-alias", `export function probe(){const target={get value(){return document.title}};const descriptor=Object.getOwnPropertyDescriptor(target,'value');let getter=descriptor!.get!;getter=()=>'replacement';return getter()}`, false},
 		{"absent-optional", `export{};const target={};export function probe(){return Object.getOwnPropertyDescriptor(target,'missing')?.value}`, false},
+		{"proxy-normalization-getter", proxyDescriptorNormalizationSource, true},
 	} {
 		t.Run(row.name, func(t *testing.T) {
 			for _, target := range []Target{TargetClient, TargetServer} {
@@ -79,12 +83,16 @@ func TestDescriptorContractStoredFieldsAndAbsence(t *testing.T) {
 					t.Fatalf("%s component task was absent: %s %#v", target, response.Error, response.Diagnostics)
 				}
 				task := response.Analysis.Tasks[0]
-				browser := false
+				browser, unknown := false, false
 				for _, effect := range task.EffectSources {
 					browser = browser || effect.Environment == "browser" && strings.Contains(effect.Description, "document")
+					unknown = unknown || effect.Environment == "unknown"
 				}
 				if browser != row.browser {
 					t.Fatalf("%s recorded browser effect=%v want=%v: %#v", target, browser, row.browser, task.EffectSources)
+				}
+				if row.name == "proxy-normalization-getter" && !unknown {
+					t.Fatalf("%s Proxy descriptor uncertainty lost: %#v", target, task.EffectSources)
 				}
 				if row.browser && target == TargetServer {
 					denied := false

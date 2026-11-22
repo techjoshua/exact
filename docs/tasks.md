@@ -76,7 +76,9 @@ Calls on captured objects retain their method receivers.
 Property reads and method calls on a fresh `Object.create` receiver can carry
 placement requirements from the prototype member they reach. A prototype getter
 or method body stays dormant during construction. An own property with the same
-name takes precedence.
+name takes precedence. Calling `Object.getOwnPropertyDescriptor` on a `Proxy`
+can execute its descriptor trap and getters on the descriptor returned by the
+trap. Those operations can contribute their own placement requirements.
 Component-local helper closures can read setup values. The activation carries those values without
 rerunning their initializers. Parentheses and type-only annotations preserve callable identity and
 state, context, and placement effects. State aliases retain their selected instance state path.

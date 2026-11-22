@@ -85,6 +85,30 @@ const probes: {
 		`,
 		trace: [],
 		output: 'own'
+	},
+	{
+		name: 'Proxy descriptor normalization',
+		body: `
+			const target = { value: 'target' };
+			const handler = {
+				getOwnPropertyDescriptor(actual: typeof target, key: PropertyKey) {
+					trace.push(this === handler && actual === target && key === 'value'
+						? 'trap:receiver and arguments' : 'trap:wrong receiver or arguments');
+					const descriptor = {
+						configurable: true,
+						get value(): string {
+							trace.push(this === descriptor ? 'descriptor:receiver' : 'descriptor:wrong receiver');
+							return document.title;
+						}
+					};
+					return descriptor;
+				}
+			};
+			const proxy = new Proxy(target, handler);
+			const descriptor = Object.getOwnPropertyDescriptor(proxy, 'value');
+			this.state.label = typeof descriptor?.value === 'string' ? descriptor.value : 'missing';
+		`,
+		trace: ['trap:receiver and arguments', 'descriptor:receiver']
 	}
 ];
 

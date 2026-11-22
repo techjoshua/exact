@@ -337,6 +337,11 @@ export function TasksPage(this: Component<{}>) {
 					calls a method that uses <code>window</code>, keep that operation on the client.
 				</p>
 				<p>
+					A call to <code>Object.getOwnPropertyDescriptor</code> on a proxy can run its
+					descriptor trap and getters on the descriptor it returns. Keep the call on the client if
+					that code uses browser globals.
+				</p>
+				<p>
 					Call a helper on the client if it uses a value initialized from the browser. Then pass
 					the needed data to the server task.
 				</p>

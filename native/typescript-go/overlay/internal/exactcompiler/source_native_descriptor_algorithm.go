@@ -22,8 +22,9 @@ func (q *sourceValueQuery) descriptorInvocationEffects(call *ast.Node, callee so
 		result.opaque, result.valueIncomplete = true, true
 		return
 	}
-	// A partial external source graph retains the ordinary unknown. The
-	// checked native alternative can still supply a possible own-data callback.
+	// Incomplete reference coverage retains uncertainty. A directly checked
+	// standard alternative still supplies possible protocol effects and stored
+	// callbacks, without admitting a current native result.
 	var literalKey *ast.Node
 	if data != nil {
 		literalKey = unwrapSourceCallableReference(actuals[1])
@@ -31,9 +32,6 @@ func (q *sourceValueQuery) descriptorInvocationEffects(call *ast.Node, callee so
 	wantsData := literalKey != nil && ast.IsStringLiteralLike(literalKey) && literalKey.Text() != "__proto__"
 	if callee.native.referencesIncomplete {
 		result.opaque, result.valueIncomplete = true, true
-		if !wantsData {
-			return
-		}
 		root, name := sourceLiteralMemberReference(call.Expression())
 		if name != "getOwnPropertyDescriptor" || root == nil || !ast.IsIdentifier(root) || root.Text() != "Object" || !standardLibraryValue(root, q.owner.checker) || standardLibraryCallOwner(call.AsCallExpression(), q.owner.checker) != "ObjectConstructor" {
 			return
@@ -41,9 +39,6 @@ func (q *sourceValueQuery) descriptorInvocationEffects(call *ast.Node, callee so
 	}
 	var values [2][]sourceValue
 	for i, actual := range actuals {
-		if i == 1 && callee.native.referencesIncomplete {
-			break // The projected key is an authored string literal.
-		}
 		part := accessorCandidates{}
 		var admitted bool
 		values[i], admitted = q.actualArgumentValues(call, actual, &part)
@@ -79,10 +74,9 @@ func (q *sourceValueQuery) descriptorInvocationEffects(call *ast.Node, callee so
 			})
 		}
 	}
-	if callee.native.referencesIncomplete {
-		return
+	if !callee.native.referencesIncomplete {
+		q.publishDescriptorMutationSource(call)
 	}
-	q.publishDescriptorMutationSource(call)
 	// A genuinely selected builtin permits Proxy/coercion/Throw alternatives.
 	// This residual does not replace any source flags, donors or pending input.
 	effect := environmentSource("unknown", "Object.getOwnPropertyDescriptor conversion, Proxy descriptor normalization or invariant may execute user code or throw", "descriptor retrieval")
