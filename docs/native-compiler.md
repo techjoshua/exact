@@ -1560,9 +1560,19 @@ same function and key that still holds when the component reads the method.
 
 For a selected standard `Reflect.apply`, a hole-free literal vector keeps the
 fixed inputs before its first spread. The shared binder treats the following
-positions as possible inputs. A zero-argument, unreassigned local function call
-in a spread operand that is proven to throw prevents callback entry while retaining
-the effects of the evaluated operand.
+positions as possible inputs. When a zero-argument, unreassigned local function call
+in a spread operand is proven to throw, the callback remains dormant and the
+operand's effects still contribute to placement.
+
+Both standard apply forms can run authored code while converting an array-like
+input's acquired `length`. The compiler supplies the number hint to
+`Symbol.toPrimitive` when analyzing its body. Ordinary conversion checks
+`valueOf` before `toString`. An acquired hook with a source-proven primitive
+or abrupt completion ends that fallback chain. When all possible acquired
+lengths are proven to throw during conversion, the compiler retains the length
+read and reached hook effects. Indexed getters and the callback remain dormant.
+Unresolved alternatives keep their possible effects. JavaScript determines the argument count and execution
+outcome.
 
 When a component stores `helper.bind(this)` in a setup constant and calls it from its server
 tasks, the compiler can omit the bound function from the client. This projection requires a

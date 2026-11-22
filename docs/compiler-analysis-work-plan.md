@@ -541,10 +541,16 @@ existing conservative source path.
 Standard `Reflect.apply` contributes possible effects from a stored getter or
 data function using the original target argument, receiver, and argument vector.
 The ordinary input binder retains fixed positions before the first spread in
-a hole-free literal vector. When a spread operand
-is a zero-argument call to an unreassigned local function with a proven
-throw-only body, operand effects are retained and the callback remains dormant. Unresolved vectors and callable alternatives retain uncertainty, with
-no native result authority. Private conditional aliases keep the stored
+a hole-free literal vector. Spreads, unresolved vectors and callable alternatives
+retain uncertainty. A zero-argument call to an unreassigned local function with a
+source-proven throw-only body in a spread operand prevents callback entry.
+Operand effects remain part of placement. For array-like inputs to either
+standard apply form, the shared materializer uses each acquired length value.
+It passes the number hint to an authored `Symbol.toPrimitive` and only visits
+ordinary fallback hooks on paths that can reach them. A conversion proven to
+throw for every possible length retains its reached effects and skips indexed
+Gets and callback entry. Unresolved alternatives keep their possible effects. Object conversion leaves the argument count and
+native result with JavaScript. Private conditional aliases keep the stored
 function's placement requirements alongside independent alternatives. The
 application and library controls exercise live tasks, receiver and argument
 evaluation, dormant callbacks, and lexical shadows and authored own methods.

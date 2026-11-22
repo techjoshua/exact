@@ -488,8 +488,8 @@ func (query *sourceValueQuery) withActiveInvocation(invocation *ast.Node, bind f
 
 // materializeInvocationVectors preserves apply's length and indexed Gets independently
 // of whether any formal consumes an input. Literal vectors and finite source lengths bound the required Gets.
-// Other values retain known Get effects and incompleteness. The disposition
-// prevents callback entry only for a source-proven abrupt literal operand.
+// Other values retain known Get effects and incompleteness. A proven abrupt
+// operand or conversion prevents indexed Gets and callback entry.
 func (query *sourceValueQuery) materializeInvocationVectors(node *ast.Node, plan ordinaryInvocationPlan, bindings sourceValueBindings, result *accessorCandidates) (abrupt bool) {
 	for _, vector := range plan.vectors {
 		if !query.charge(result, vector) {
@@ -521,18 +521,37 @@ func (query *sourceValueQuery) materializeInvocationVectors(node *ast.Node, plan
 		previous := query.initializing
 		query.initializing = node
 		mergeAccessorCandidates(result, query.accessors(vector, nil, "length", accessorRead, bindings, nil))
-		length := query.accessors(vector, []string{"length"}, "", accessorAcquire, bindings, nil)
+		length := query.collectAccessorsAtGet(vector, []string{"length"}, "", accessorAcquire, bindings, nil, nil, nil, nil, &result.opaque)
 		mergeAccessorCandidates(result, length)
-		complete := !length.opaque && len(length.values) > 0
-		for _, value := range length.values {
+		complete := !length.opaque && !length.valueIncomplete && !length.receiverIncomplete &&
+			!length.fieldReceiverIncomplete && !length.thenIncomplete && len(length.values) > 0
+		allAbrupt := complete
+		for i, value := range length.values {
 			if !query.charge(result, value.node) {
-				complete = false
+				complete, allAbrupt = false, false
 				break
 			}
 			if value.node == nil || len(value.path) != 0 || !ast.IsNumericLiteral(value.node) {
-				complete = false
+				// ToLength uses the number hint before any indexed Get. Reuse
+				// the acquired length and its scope, without replaying the getter
+				// or inferring a count from the possible coercion calls.
+				if !value.undefined && (value.node == nil || len(value.path) != 0 || !sourcePrimitiveValue(value.node)) {
+					scope := acquiredCallableScope{bindings: bindings, creators: query.creators}
+					if observed, ok := length.callableScopes[i]; ok {
+						scope = observed
+					}
+					if value.capture != nil {
+						scope = *value.capture
+					}
+					_, throws := query.primitiveHintEffects(node, []sourceObservedValue{{value: value, scope: scope}}, false, true, result)
+					if throws {
+						continue
+					}
+				}
+				complete, allAbrupt = false, false
 				continue
 			}
+			allAbrupt = false
 			count, finite := sourceArrayIndex(value.node.Text())
 			if !finite {
 				complete = false
@@ -545,6 +564,10 @@ func (query *sourceValueQuery) materializeInvocationVectors(node *ast.Node, plan
 				}
 				mergeAccessorCandidates(result, query.accessors(vector, nil, strconv.FormatUint(i, 10), accessorRead, bindings, nil))
 			}
+		}
+		if allAbrupt {
+			query.initializing = previous
+			return true
 		}
 		if !complete {
 			// Unknown length cannot certify a vector. Retain finite known cell Gets

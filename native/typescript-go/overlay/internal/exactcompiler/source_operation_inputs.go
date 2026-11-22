@@ -6,6 +6,11 @@ import "github.com/microsoft/TypeScript/tsc/internal/ast"
 // neither a CallExpression nor the numeric-conversion implicit input contract.
 // The enclosing installed plan retains captures and the zero-argument defaults.
 type sourceGetInputs struct {
+	// applyLengthHook requests exact well-known symbol matching for the
+	// ordered source-only apply length conversion.
+	applyLengthHook bool
+	// This apply read owns reached effects independently of length alternatives.
+	lengthEffectsOpaque *bool
 	originalReflectRead bool                               // Selected two-argument Reflect.get source read.
 	resultSource        *sourceStagedGetResultBorrow       // One original Get SOURCE/Effects loan, revoked synchronously.
 	constructionEffects *sourceStagedConstructionGetBorrow // Exact original New prototype Get, revoked synchronously.
@@ -484,6 +489,12 @@ func (query *sourceValueQuery) acquireGetResult(body *ast.Node, get *sourceGetIn
 		priorValueIncomplete := result.valueIncomplete
 		query.consumeGetInputs(body, get, scope, &execution, func(inputs *sourceValueInputs) {
 			entered := query.consumeSourceBodyEffects(get.operation, body, inputs.bindings, inputs, nil, &execution)
+			if entered && get.lengthEffectsOpaque != nil {
+				// Any successful Get must return along the existing projection.
+				// Keep effects uncertainty on the materializer's original result.
+				*get.lengthEffectsOpaque = *get.lengthEffectsOpaque || execution.opaque
+				execution.opaque = result.opaque
+			}
 			// Defaults, patterns and discarded body values retain their effects,
 			// but only the selected return describes this Get's output. Preserve
 			// caller uncertainty and any refusal before this consumer is entered.

@@ -127,6 +127,11 @@ func (query *sourceValueQuery) branchDecision(node *ast.Node, bindings sourceVal
 	if ast.IsBinaryExpression(node) {
 		binary := node.AsBinaryExpression()
 		op := binary.OperatorToken.Kind
+		if op == ast.KindEqualsEqualsEqualsToken || op == ast.KindExclamationEqualsEqualsToken {
+			if equal, fixed := query.applyNumberHintEquality(binary.Left, binary.Right, bindings); fixed {
+				return true, equal == (op == ast.KindEqualsEqualsEqualsToken), false
+			}
+		}
 		if op == ast.KindBarBarToken || op == ast.KindAmpersandAmpersandToken || op == ast.KindQuestionQuestionToken {
 			known, truthy, nullish = query.branchDecision(binary.Left, bindings)
 			if !known {

@@ -345,7 +345,11 @@ export function TasksPage(this: Component<{}>) {
 					possible callback.
 				</p>
 				<p>
-					With <code>Reflect.apply</code>, a callback can read arguments that precede a spread.
+					With <code>Reflect.apply</code>, check what the callback reads on arguments before a
+					spread. Both forms of <code>apply</code> can also run authored code when JavaScript
+					reads an array-like argument list’s <code>length</code> and converts it to a number.
+					Keep the call on the client if a callback or conversion hook that can run uses
+					browser globals.
 				</p>
 				<p>
 					The returned record has its own property lookup. If code installs an inherited getter on

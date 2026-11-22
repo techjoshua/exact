@@ -445,17 +445,22 @@ func (query *sourceValueQuery) reflectiveKeyEffects(op *sourceReflectiveOperatio
 // requesting its primitive result. Precision consumers add their unchanged
 // conversion refusal above; the selected descriptor algorithm needs Effects.
 func (query *sourceValueQuery) sourcePropertyKeyEffects(op *sourceReflectiveOperation, result *accessorCandidates) bool {
-	return query.primitiveHintEffects(op.operation, op.keys, true, result)
+	complete, _ := query.primitiveHintEffects(op.operation, op.keys, true, false, result)
+	return complete
 }
 
-// Collect authored hook effects in primitive-conversion order. The consumer owns the result.
-func (query *sourceValueQuery) primitiveHintEffects(operation *ast.Node, values []sourceObservedValue, stringHint bool, result *accessorCandidates) bool {
+// Collect authored hook effects in primitive-conversion order. For apply, abrupt
+// means no acquired length can finish conversion. Unknown alternatives retain
+// both successful conversion and any reachable later hooks.
+func (query *sourceValueQuery) primitiveHintEffects(operation *ast.Node, values []sourceObservedValue, stringHint, ordered bool, result *accessorCandidates) (complete, abrupt bool) {
+	abrupt = ordered && len(values) > 0
 	for _, observed := range values {
 		if !query.charge(result, operation) {
-			return false
+			return false, false
 		}
 		value := observed.value
 		if value.undefined || value.node != nil && len(value.path) == 0 && sourcePrimitiveValue(value.node) {
+			abrupt = false
 			continue
 		}
 		previous := query.creators
@@ -465,28 +470,39 @@ func (query *sourceValueQuery) primitiveHintEffects(operation *ast.Node, values 
 		if stringHint {
 			keys[1], keys[2] = keys[2], keys[1]
 		}
-		for _, key := range keys {
+		for i, key := range keys {
 			if key == "" {
 				result.opaque = true
+				abrupt = false
 				continue
 			}
 			if value.node == nil {
 				result.opaque = true
+				abrupt = false
 				continue
 			}
-			get := &sourceGetInputs{operation: operation, receiver: value, propertyKey: key}
+			get := &sourceGetInputs{operation: operation, receiver: value, propertyKey: key, applyLengthHook: ordered}
 			if key == symbolKey {
 				get.symbol = symbol
 			}
 			path := append(append([]string{}, value.path...), key)
 			acquired := query.accessorsAtGet(value.node, path, "", accessorAcquire, observed.scope.bindings, nil, get)
-			retainCallableThenEffects(&acquired, operation)
-			query.sourceKeyMethodEffects(operation, value, observed.scope, key == symbolKey, &acquired)
+			// A specialized exotic entry supplies its reached effects below.
+			// A generic raw body edge would also import branches for other hints.
+			if !ordered || key != symbolKey || !query.dependenciesOnly || query.operation != nil {
+				retainCallableThenEffects(&acquired, operation)
+			}
+			hasLaterHook := ordered && i+1 < len(keys)
+			flow := query.sourceKeyMethodEffects(operation, value, observed.scope, key == symbolKey, &acquired, ordered, hasLaterHook)
+			abrupt = abrupt && !flow.completes
 			mergeAccessorCandidates(result, acquired)
+			if hasLaterHook && !flow.later {
+				break
+			}
 		}
 		query.creators = previous
 	}
-	return true
+	return true, abrupt
 }
 
 // Only an already acquired standard native alternative supplies this ordinary
@@ -585,17 +601,38 @@ func consumeStagedFieldDispositionSource(query *sourceValueQuery, get *sourceGet
 	return sourceStagedFieldDisposition{operation: get.operation, receiver: get.receiver.node, field: get.propertyKey, cut: query.relativeInputCut(get.operation), has: effects.has, get: effects.get, kind: classifyStagedFieldObservation(observation), invoked: invoked}
 }
 
+// lengthHookFlow keeps the alternatives that can advance to the next hook
+// or finish conversion. Throwing alternatives contribute effects only.
+type lengthHookFlow struct {
+	later, completes bool
+}
+
 // sourceKeyMethodEffects consumes only already selected coercion callables. Get
 // acquisition above retains getter effects separately from calling its result.
 // Ordinary hooks receive no arguments; @@toPrimitive receives one defined hint.
-// Its string value remains abstract: no primitive return/completion is inferred.
-func (q *sourceValueQuery) sourceKeyMethodEffects(operation *ast.Node, receiver sourceValue, scope acquiredCallableScope, exotic bool, result *accessorCandidates) {
+// For apply length, the supplied hint is "number" and the existing successful
+// completion owner checks whether an ordinary hook can require a later hook.
+// Other conversion consumers retain their existing effect-only behavior.
+func (q *sourceValueQuery) sourceKeyMethodEffects(operation *ast.Node, receiver sourceValue, scope acquiredCallableScope, exotic bool, result *accessorCandidates, ordered, hasLaterHook bool) (flow lengthHookFlow) {
 	if !q.dependenciesOnly || q.operation != nil {
-		return
+		return lengthHookFlow{later: true, completes: true}
+	}
+	if ordered {
+		incomplete := result.opaque || result.valueIncomplete || result.receiverIncomplete ||
+			result.fieldReceiverIncomplete || result.thenIncomplete
+		flow = lengthHookFlow{later: incomplete || len(result.values) == 0, completes: incomplete}
 	}
 	for i, value := range result.values {
 		body := value.node
 		if body == nil || len(value.path) != 0 || !ast.IsFunctionLike(body) || body.Body() == nil {
+			if ordered {
+				// An absent exotic hook and a noncallable ordinary hook allow
+				// fallback. Unknown values may also complete conversion.
+				absent := value.undefined || body != nil && len(value.path) == 0 && body.Kind == ast.KindNullKeyword
+				noncallable := sourceValuesNoncallable(result.values[i : i+1])
+				flow.later = flow.later || !exotic || absent || !noncallable
+				flow.completes = flow.completes || !noncallable
+			}
 			continue
 		}
 		// Captures describe method creation; the protocol receiver remains the
@@ -614,16 +651,102 @@ func (q *sourceValueQuery) sourceKeyMethodEffects(operation *ast.Node, receiver 
 			var defined []bool
 			if exotic {
 				actuals = [][]sourceValue{{{}}}
+				if ordered {
+					actuals[0][0].node = sourceApplyNumberHint
+				}
 				defined = []bool{true}
 			}
 			effects := accessorCandidates{}
 			inputs := q.bindSourceProtocolInputs(body, receiver, selected.bindings, &effects, actuals, defined)
 			// This protocol is Effects-only, not the authored outer Call's argument vector.
 			inputs.invocation = nil
+			entered := false
 			q.withSourceReceiverInputs(operation, body, inputs, &effects, func() {
-				q.consumeSourceBodyEffects(operation, body, inputs.bindings, inputs, nil, &effects)
+				entered = q.consumeSourceBodyEffects(operation, body, inputs.bindings, inputs, nil, &effects)
+				if ordered {
+					if !entered {
+						flow.completes = true
+						flow.later = flow.later || !exotic
+					} else {
+						outcome := q.lengthHookCompletion(body, inputs.bindings, &effects, hasLaterHook && !exotic)
+						flow.completes = flow.completes || outcome.completes
+						flow.later = flow.later || outcome.later
+					}
+				}
 			})
+			if ordered && exotic && !entered {
+				effects.retainCallableEffect(operation, body)
+			}
 			q.publishDescriptorMayEffects(effects, result)
 		}()
 	}
+	if ordered && !hasLaterHook && flow.later {
+		// Missing or unresolved last hook grants no new abruptness proof.
+		flow.completes = true
+	}
+	return flow
+}
+
+// lengthHookCompletion uses the existing return walk only when another ordinary
+// hook is reachable. Other hooks need only a throw-only completion proof.
+func (q *sourceValueQuery) lengthHookCompletion(body *ast.Node, bindings sourceValueBindings, effects *accessorCandidates, hasFallback bool) lengthHookFlow {
+	async, ordinary := ordinaryResultCategory(body)
+	if async || !ordinary {
+		return lengthHookFlow{later: hasFallback, completes: true}
+	}
+	if !hasFallback {
+		throws := ast.IsBlock(body.Body()) && q.completionFor(body.Body(), bindings, true).outcomes == sourceReturnThrow
+		return lengthHookFlow{completes: !throws}
+	}
+	observed := sourceResultObservation{}
+	flow := lengthHookFlow{}
+	projection := q.consumeSuccessfulCompletions(body, bindings, &observed, effects, func(_, expression *ast.Node) {
+		expression = unwrapSourceCallableReference(expression)
+		if expression == nil || sourcePrimitiveValue(expression) ||
+			ast.IsIdentifier(expression) && q.owner.checker.IsUndefinedSymbol(q.owner.checker.GetSymbolAtLocation(expression)) {
+			flow.completes = true
+			return
+		}
+		flow.later = true
+		// A return expression may complete with a primitive even when its
+		// exact value is unknown. Only direct object creation proves otherwise.
+		if !ast.IsObjectLiteralExpression(expression) && !ast.IsArrayLiteralExpression(expression) && !ast.IsFunctionLike(expression) {
+			flow.completes = true
+		}
+	})
+	if !projection.assessed || projection.unknown {
+		return lengthHookFlow{later: true, completes: true}
+	}
+	return flow
+}
+
+// sourceApplyNumberHint is a compiler-owned literal for the native fixed input.
+var sourceApplyNumberHint = ast.NewNodeFactory(ast.NodeFactoryHooks{}).NewStringLiteral("number", ast.TokenFlagsNone)
+
+// applyNumberHintEquality refines strict string comparisons against a stable
+// formal holding this protocol's fixed hint. Reassigned or dynamically scoped
+// formals keep both outcomes possible.
+func (q *sourceValueQuery) applyNumberHintEquality(left, right *ast.Node, bindings sourceValueBindings) (equal, fixed bool) {
+	if len(bindings) == 0 {
+		return false, false
+	}
+	if !ast.IsStringLiteral(right) {
+		left, right = right, left
+	}
+	if !ast.IsIdentifier(left) || !ast.IsStringLiteral(right) {
+		return false, false
+	}
+	symbol := q.owner.checker.GetSymbolAtLocation(left)
+	if symbol == nil || symbol.ValueDeclaration == nil || !ast.IsParameterDeclaration(symbol.ValueDeclaration) {
+		return false, false
+	}
+	values := bindings[ast.GetSymbolId(symbol)]
+	if len(values) != 1 || values[0].node != sourceApplyNumberHint || len(values[0].path) != 0 {
+		return false, false
+	}
+	source := ast.GetSourceFileOfNode(left)
+	if !ast.IsExternalModule(source) || !q.stableApplyBinding(source, symbol) {
+		return false, false
+	}
+	return sourceApplyNumberHint.Text() == right.Text(), true
 }

@@ -213,6 +213,223 @@ const probes: {
 		browserOutput: 'from browser'
 	},
 	{
+		name: 'Reflect.apply coerces an object length before reading any indexed arguments',
+		body: `
+			const target = { value(...args: unknown[]) {
+				trace.push('callback:' + args.length);
+				return 'ready';
+			} };
+			const callback = Object.getOwnPropertyDescriptor(target, 'value')!.value as typeof target.value;
+			const length = {
+				valueOf() {
+					trace.push('valueOf:' + document.title);
+					return 0;
+				},
+				toString() { trace.push('unexpected toString'); return '1'; }
+			};
+			const vector = {
+				get length() { trace.push('length'); return length; },
+				get 0() { trace.push('unexpected index'); return 'unused'; }
+			};
+			this.state.label = Reflect.apply(callback, undefined, vector as unknown as []);
+		`,
+		trace: ['length', 'valueOf:from browser', 'callback:0'],
+		browserOutput: 'ready'
+	},
+	{
+		name: 'Reflect.apply falls back to toString for an object returned by valueOf',
+		body: `
+			const target = { value(...args: unknown[]) { trace.push('callback:' + args.length); return 'ready'; } };
+			const callback = Object.getOwnPropertyDescriptor(target, 'value')!.value as typeof target.value;
+			const vector = { length: {
+				valueOf() { trace.push('valueOf'); return this; },
+				toString() { trace.push('toString:' + document.title); return '0'; }
+			} };
+			this.state.label = Reflect.apply(callback, undefined, vector as unknown as []);
+		`,
+		trace: ['valueOf', 'toString:from browser', 'callback:0'],
+		browserOutput: 'ready'
+	},
+	{
+		name: 'Reflect.apply passes the number hint to an exotic length hook',
+		body: `
+			const target = { value(...args: unknown[]) { trace.push('callback:' + args.length); return 'ready'; } };
+			const callback = Object.getOwnPropertyDescriptor(target, 'value')!.value as typeof target.value;
+			const vector = { length: {
+				[Symbol.toPrimitive](hint: string) {
+					trace.push(hint + ':' + document.title);
+					return 0;
+				},
+				valueOf() { trace.push('unexpected valueOf'); return 1; }
+			} };
+			this.state.label = Reflect.apply(callback, undefined, vector as unknown as []);
+		`,
+		trace: ['number:from browser', 'callback:0'],
+		browserOutput: 'ready'
+	},
+	...(['Reflect.apply', 'apply'] as const).flatMap((adapter) =>
+		[
+			{
+				name: 'primitive valueOf skips toString',
+				hooks: `valueOf() { trace.push('valueOf'); return 0; },
+					toString() { return document.title; }`,
+				trace: ['length', 'valueOf', 'callback:0'],
+				output: 'ready'
+			},
+			{
+				name: 'exotic hook skips valueOf',
+				hooks: `[Symbol.toPrimitive](hint: string) { trace.push(hint); return 0; },
+					valueOf() { return document.title; }`,
+				trace: ['length', 'number', 'callback:0'],
+				output: 'ready'
+			},
+			{
+				name: 'exotic number hint skips a string-only branch',
+				hooks: `[Symbol.toPrimitive](hint: string) {
+					trace.push(hint);
+					if (hint === 'string') return document.title;
+					return 0;
+				}`,
+				trace: ['length', 'number', 'callback:0'],
+				output: 'ready'
+			},
+			{
+				name: 'exotic hint can reach an authored effect',
+				hooks: `[Symbol.toPrimitive](hint: string) {
+					trace.push(hint);
+					if (hint === 'number') return document.title;
+					return 0;
+				}`,
+				trace: ['length', 'number', 'callback:0'],
+				browserOutput: 'ready'
+			},
+			{
+				name: 'reassigned exotic hint retains possible effects',
+				hooks: `[Symbol.toPrimitive](hint: string) {
+					trace.push(hint);
+					({ hint } = { hint: 'string' });
+					if (hint === 'string') return document.title;
+					return 0;
+				}`,
+				trace: ['length', 'number', 'callback:0'],
+				browserOutput: 'ready'
+			},
+			{
+				name: 'throwing valueOf skips toString',
+				hooks: `valueOf() { trace.push('valueOf'); throw new Error('stop'); },
+					toString() { return document.title; }`,
+				trace: ['length', 'valueOf'],
+				output: 'stopped'
+			},
+			{
+				name: 'unresolved return retains possible toString effects',
+				hooks: `valueOf() { return trace.length > 0 ? this : 0; },
+					toString() { trace.push(document.title); return '0'; }`,
+				trace: ['length', 'from browser', 'callback:0'],
+				browserOutput: 'ready'
+			}
+		].map(({ name, hooks, ...expected }) => ({
+			name: `${adapter} ${name}`,
+			body: `
+				const target = { value(...args: unknown[]) {
+					trace.push('callback:' + args.length);
+					return 'ready';
+				} };
+				const callback = Object.getOwnPropertyDescriptor(target, 'value')!.value as typeof target.value;
+				const length = { ${hooks} };
+				const vector = { get length() { trace.push('length'); return length; } };
+				try {
+					this.state.label = ${
+						adapter === 'apply'
+							? 'callback.apply(undefined, vector as unknown as [])'
+							: 'Reflect.apply(callback, undefined, vector as unknown as [])'
+					};
+				} catch (error) {
+					if (!(error instanceof Error) || error.message !== 'stop') throw error;
+					this.state.label = 'stopped';
+				}
+			`,
+			...expected
+		}))
+	),
+	...(['Reflect.apply', 'apply'] as const).flatMap((adapter) =>
+		[
+			{ name: 'throwing valueOf skips indexed Gets', phase: 'index' },
+			{ name: 'throwing valueOf skips callback entry', phase: 'callback' },
+			{
+				name: 'throwing exotic hook skips indexed Gets and callback entry',
+				phase: 'both',
+				exotic: true
+			},
+			{ name: 'throwing valueOf retains its reached effects', phase: 'hook' },
+			{ name: 'normal length sibling keeps indexed Gets', phase: 'index', sibling: '1' },
+			{
+				name: 'unknown length sibling keeps callback entry',
+				phase: 'callback',
+				sibling: 'Number(trace.length - 1)'
+			}
+		].map(({ name, phase, exotic, sibling }) => ({
+			name: `${adapter} ${name}`,
+			body: `
+				const target = { value(...args: unknown[]) {
+					trace.push('callback:' + args.length${phase === 'callback' || phase === 'both' ? ' + document.title' : ''});
+					return 'ready';
+				} };
+				const callback = Object.getOwnPropertyDescriptor(target, 'value')!.value as typeof target.value;
+				const length = {
+					${exotic ? '[Symbol.toPrimitive](hint: string)' : 'valueOf()'} {
+						trace.push(${exotic ? 'hint' : "'valueOf'"}${phase === 'hook' ? ' + document.title' : ''});
+						${exotic ? "if (hint !== 'number') return 1;" : ''}
+						throw new Error('stop');
+					}
+				};
+				const vector = {
+					get length() {
+						trace.push('length');
+						return ${sibling ? `trace.length === 2 ? ${sibling} : length` : 'length'};
+					},
+					get 0() {
+						trace.push('index'${phase === 'index' || phase === 'both' ? ' + document.title' : ''});
+						return 'cell';
+					}
+				};
+				try {
+					this.state.label = ${
+						adapter === 'apply'
+							? 'callback.apply(undefined, vector as unknown as [])'
+							: 'Reflect.apply(callback, undefined, vector as unknown as [])'
+					};
+				} catch (error) {
+					if (!(error instanceof Error) || error.message !== 'stop') throw error;
+					this.state.label = 'stopped';
+				}
+			`,
+			trace: sibling
+				? [
+						'length',
+						phase === 'index' ? 'indexfrom browser' : 'index',
+						phase === 'callback' ? 'callback:1from browser' : 'callback:1'
+					]
+				: ['length', exotic ? 'number' : phase === 'hook' ? 'valueOffrom browser' : 'valueOf'],
+			...(sibling
+				? { browserOutput: 'ready' }
+				: phase === 'hook'
+					? { browserOutput: 'stopped' }
+					: { output: 'stopped', serverExecution: true })
+		}))
+	),
+	{
+		name: 'Reflect.apply skips indexed reads at primitive zero length',
+		body: `
+			const target = { value(...args: unknown[]) { trace.push('callback:' + args.length); return 'ready'; } };
+			const callback = Object.getOwnPropertyDescriptor(target, 'value')!.value as typeof target.value;
+			const vector = { length: 0, get 0() { return document.title; } };
+			this.state.label = Reflect.apply(callback, undefined, vector as unknown as []);
+		`,
+		trace: ['callback:0'],
+		output: 'ready'
+	},
+	{
 		name: 'Reflect.apply throws on a primitive argument vector before calling the target',
 		body: `
 			const descriptor = Object.getOwnPropertyDescriptor({ get value() { return document.title; } }, 'value');

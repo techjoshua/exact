@@ -86,7 +86,10 @@ placement requirements, including through standard `call`, `apply`, and
 bound function leaves the body dormant. If a local conditional selects between
 callbacks, keep the task on a target that can run the possible callbacks.
 With `Reflect.apply`, a callback can read properties on arguments that precede
-a spread.
+a spread. An array-like argument list passed to either apply form can also
+run authored code while JavaScript reads its `length` and converts it to a
+number. Keep the call on the client if a callback or conversion hook that
+can run uses browser globals.
 A read of the returned descriptor can also reach a getter inherited by the descriptor
 record itself. For an immediate optional `value` read of a descriptor taken from a
 fresh object literal, an own data descriptor supplies that field and an absent

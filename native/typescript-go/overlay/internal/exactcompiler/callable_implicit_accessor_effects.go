@@ -716,7 +716,7 @@ func (q *sourceValueQuery) retainPrivateDescriptorKeyMethod(name, literal *ast.N
 		return
 	}
 	selected := accessorCandidates{values: []sourceValue{{node: method}}}
-	q.sourceKeyMethodEffects(name, sourceValue{node: literal}, q.acquireCallableScope(bindings, result), true, &selected)
+	q.sourceKeyMethodEffects(name, sourceValue{node: literal}, q.acquireCallableScope(bindings, result), true, &selected, false, false)
 	selected.values = nil
 	mergeAccessorCandidates(result, selected)
 }

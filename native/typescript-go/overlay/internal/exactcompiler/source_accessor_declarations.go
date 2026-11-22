@@ -9,7 +9,13 @@ import (
 
 // accessorsAtGetOutput admits a producer's initial acquisition exactly once.
 // Later raw/acquired entries read that operation's output without its effects.
-func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []string, name string, mode accessorTraversal, arguments sourceValueBindings, invoke func(*ast.Node, sourceValueBindings, *accessorCandidates), get *sourceGetInputs, producer *sourceNormalOperation, reference *sourceGetReference, alternatives ...sourceValue) (result accessorCandidates) {
+func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []string, name string, mode accessorTraversal, arguments sourceValueBindings, invoke func(*ast.Node, sourceValueBindings, *accessorCandidates), get *sourceGetInputs, producer *sourceNormalOperation, reference *sourceGetReference, alternatives ...sourceValue) accessorCandidates {
+	return query.collectAccessorsAtGet(receiver, path, name, mode, arguments, invoke, get, producer, reference, nil, alternatives...)
+}
+
+// collectAccessorsAtGet can separate effects opacity from the acquired value
+// coverage of an apply vector's length. Nested Gets keep their own acquisition.
+func (query *sourceValueQuery) collectAccessorsAtGet(receiver *ast.Node, path []string, name string, mode accessorTraversal, arguments sourceValueBindings, invoke func(*ast.Node, sourceValueBindings, *accessorCandidates), get *sourceGetInputs, producer *sourceNormalOperation, reference *sourceGetReference, lengthEffectsOpaque *bool, alternatives ...sourceValue) (result accessorCandidates) {
 	priorMode, priorKnown := query.traceMode, query.traceModeKnown
 	query.traceMode, query.traceModeKnown = mode, true
 	defer func() { query.traceMode, query.traceModeKnown = priorMode, priorKnown }()
@@ -757,6 +763,9 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 				actualReceiver = *inheritedReceiver
 			}
 			selectedGet := &sourceGetInputs{operation: query.reading, receiver: actualReceiver}
+			if lengthEffectsOpaque != nil && mode == accessorAcquire && len(projection) == 1 && projection[0] == "length" {
+				selectedGet.lengthEffectsOpaque = lengthEffectsOpaque
+			}
 			if get == nil && query.installedCallSelectionObservationOwned(query.stagedMember, query.protectedMember) {
 				actualKey := name
 				if len(projection) == 1 && name == "" {
@@ -941,6 +950,10 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 			}
 			ownsSelection := false
 			ownGetter, ownSetter := false, false
+			// An ordinary literal's standard prototype has no @@toPrimitive.
+			// The preceding member acquisition still owns indexed own writers.
+			standardApplyPrototype := get != nil && get.applyLengthHook && get.symbol != nil &&
+				len(projection) == 1 && ast.IsObjectLiteralExpression(value)
 			enumerating := mode == accessorEnumerateEntries || get != nil && get.enumerableString
 			for _, member := range members {
 				memberName := member.Name()
@@ -949,6 +962,19 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 					memberKey = callableNameText(memberName)
 				}
 				computed := memberName != nil && ast.IsComputedPropertyName(memberName)
+				if computed && get != nil && get.applyLengthHook && len(projection) == 1 {
+					key := memberName.AsComputedPropertyName().Expression
+					if query.standardEnumerationSymbol(key) {
+						if get.symbol == nil || typeChecker.GetSymbolAtLocation(key) != get.symbol {
+							continue
+						}
+						memberKey, computed = selection, false
+					}
+				}
+				if standardApplyPrototype && (computed || ast.IsSpreadAssignment(member) ||
+					ast.IsPropertyAssignment(member) && memberKey == "__proto__") {
+					standardApplyPrototype = false
+				}
 				if computed && enumerating {
 					key := query.enumerationKeyExpression(memberName, &result)
 					if query.standardEnumerationSymbol(key) {
@@ -1209,7 +1235,11 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 				result.values = append(result.values, sourceValue{undefined: true})
 			}
 			if get != nil && get.propertyKey != "" && ast.IsObjectLiteralExpression(value) && !ownsSelection && len(projection) == 1 {
-				query.propertyReferenceEffects(get, selection, arguments, &result, readCut)
+				if standardApplyPrototype {
+					result.values = append(result.values, sourceValue{undefined: true})
+				} else {
+					query.propertyReferenceEffects(get, selection, arguments, &result, readCut)
+				}
 			}
 			if ast.IsObjectLiteralExpression(value) && !ownsSelection && selection == "then" && get != nil && get.receiver.node == value && len(projection) == 1 && len(get.thenReferences) > 0 {
 				query.inheritedThenValues(get, arguments, get.thenReferences, get.thenIncomplete, &result)
