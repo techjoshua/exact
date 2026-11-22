@@ -255,6 +255,12 @@ export function TasksPage(this: Component<{}>) {
 					another. Calls from event handlers, lifecycle callbacks, router callbacks, or other tasks
 					run once with their supplied arguments.
 				</p>
+				<p>
+					You can pass an inline callback that calls a server task to a render helper, such as a
+					helper that returns a button. Use that callback only for DOM events in the helper. The
+					task runs when the hydrated button receives the event. If the helper calls it while
+					rendering, move the invocation to component setup or an event handler.
+				</p>
 				<ul>
 					<li>
 						<code>refresh(this.state.revision)</code> tracks <code>revision</code>.

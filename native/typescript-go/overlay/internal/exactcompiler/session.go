@@ -507,6 +507,12 @@ func (s *Session) executeProjection(request Request, authored *authoredCheckProg
 	planComponentIntlSurfaces(sourceFile, components, intlPlan)
 	propagateComponentSurfacePlans(sourceFile, components, callables, generation.checker)
 	planTaskLocalization(sourceFile, tasks, intlPlan)
+	var serverRenderTaskCallbacks map[*ast.Node]struct{}
+	if request.JSXInterop == nil {
+		callbacks, diagnostics := planRenderHelperTaskCallbacks(renders, tasks, callables.owner.values)
+		serverRenderTaskCallbacks = callbacks
+		renderContractDiagnostics = append(renderContractDiagnostics, diagnostics...)
+	}
 	operations := invokedTaskOperations(tasks, sourceFile, reactiveBindings, generation.checker)
 	components = analyzeComponents(
 		sourceFile,
@@ -834,6 +840,8 @@ func (s *Session) executeProjection(request Request, authored *authoredCheckProg
 			partitionPlan:        partitionPlan,
 			dynamicComponents:    dynamicComponents.uses,
 			intl:                 intlPlan,
+
+			serverRenderTaskCallbacks: serverRenderTaskCallbacks,
 		},
 	)
 	if request.Target == TargetClient && len(componentInputTaskIDs) != 0 {

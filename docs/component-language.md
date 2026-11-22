@@ -1614,6 +1614,14 @@ async function searchPage(
 searchPage(this.state.query, this.state.page);
 ```
 
+A component's returned render function can pass an inline task callback to a
+statically resolved render helper. When the helper uses that argument only in
+intrinsic event attributes, server rendering retains the helper call and the
+evaluation of its other arguments. The server projects out the callback body
+while retaining the task's executor. Hydration installs the event handler with
+the component's task owner. An eager call to the callback from the helper's
+render body is a render error. Start tasks in component setup or from an event.
+
 Task cancellation preserves TypeScript's ordinary `await` result type. For example,
 `await (enabled && loadLabel())` has type `false | string` when `enabled` is
 boolean and `loadLabel()` resolves to a string.
