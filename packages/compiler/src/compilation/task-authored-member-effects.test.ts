@@ -591,6 +591,112 @@ const probes: {
 	}
 ];
 
+for (const adapter of ['Reflect.apply', 'Function.prototype.apply']) {
+	const apply = (vector: string) =>
+		adapter === 'Reflect.apply'
+			? `Reflect.apply(callback, undefined, ${vector} as unknown as [string])`
+			: `callback.apply(undefined, ${vector} as unknown as [string])`;
+	const callback = `
+		const target = { value(cell: string) { trace.push('callback:' + cell); return cell; } };
+		const callback = Object.getOwnPropertyDescriptor(target, 'value')!.value as typeof target.value;
+	`;
+	const vector = (hook: string, index = "'ready'", own = '') => `({
+		get 0() { trace.push('index'); return ${index}; },
+		length: { __proto__: { ${hook} }, tag: 'length', ${own} }
+	})`;
+	const invoke = (operand: string) => `
+		try { this.state.label = ${apply(operand)}; }
+		catch { this.state.label = 'stopped'; }
+	`;
+	probes.push(
+		{
+			name: `${adapter} reads a fresh inherited length method`,
+			body:
+				callback +
+				invoke(
+					vector(`
+				[Symbol.toPrimitive](this: {tag: string}, hint: string) {
+					trace.push(this.tag + ':' + hint);
+					if (hint === 'number') return Number(document.title.length > 0);
+					return 0;
+				}
+			`)
+				),
+			trace: ['length:number', 'index', 'callback:ready'],
+			browserOutput: 'ready'
+		},
+		{
+			name: `${adapter} reads a fresh inherited length getter`,
+			body:
+				callback +
+				invoke(
+					vector(`
+				get [Symbol.toPrimitive]() {
+					const length = this as unknown as {tag: string};
+					trace.push(length.tag + ':getter');
+					return function(this: {tag: string}, hint: string) {
+						trace.push(this.tag + ':' + hint);
+						return Number(document.title.length > 0);
+					};
+				}
+			`)
+				),
+			trace: ['length:getter', 'length:number', 'index', 'callback:ready'],
+			browserOutput: 'ready'
+		},
+		{
+			name: `${adapter} stops before the index after a fresh inherited hook throws`,
+			body:
+				callback +
+				invoke(
+					vector(
+						`
+				[Symbol.toPrimitive](this: {tag: string}, hint: string) {
+					trace.push(this.tag + ':' + hint);
+					throw Error('stop conversion');
+				}
+			`,
+						'document.title'
+					)
+				),
+			trace: ['length:number'],
+			output: 'stopped',
+			serverExecution: true
+		},
+		{
+			name: `${adapter} runs normal siblings after a fresh inherited hook returns`,
+			body:
+				callback +
+				invoke(
+					vector(`
+				[Symbol.toPrimitive](this: {tag: string}, hint: string) {
+					trace.push(this.tag + ':' + hint);
+					return 1;
+				}
+			`)
+				),
+			trace: ['length:number', 'index', 'callback:ready'],
+			output: 'ready',
+			serverExecution: true
+		},
+		{
+			name: `${adapter} masks a fresh inherited hook with an own slot`,
+			body:
+				callback +
+				invoke(
+					vector(
+						'[Symbol.toPrimitive]() { return document.title; }',
+						"'ready'",
+						'[Symbol.toPrimitive]() { return 1; }'
+					)
+				),
+			trace: ['index', 'callback:ready'],
+			output: 'ready',
+			serverExecution: true
+		}
+	);
+}
+
 const products = probes.flatMap((probe) =>
 	(['application', 'library'] as const).map((packageType) => ({
 		probe,

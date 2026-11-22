@@ -346,10 +346,15 @@ export function TasksPage(this: Component<{}>) {
 				</p>
 				<p>
 					With <code>Reflect.apply</code>, check what the callback reads on arguments before a
-					spread. Both forms of <code>apply</code> can also run authored code when JavaScript
-					reads an array-like argument list’s <code>length</code> and converts it to a number.
-					Keep the call on the client if a callback or conversion hook that can run uses
-					browser globals.
+					spread. Both forms of <code>apply</code> can also run authored code when JavaScript reads
+					an array-like argument list’s <code>length</code> and converts it to a number. An
+					inherited <code>Symbol.toPrimitive</code> hook receives the length object as its receiver
+					and <code>&quot;number&quot;</code> as its hint. If conversion throws, JavaScript skips
+					the indexed reads and callback. The compiler can follow a single inherited hook on an
+					inline prototype when the call directly evaluates an argument-list literal whose final data
+					field creates the length object. If own-property selection is unresolved, the compiler
+					cannot establish that the inherited hook runs. Keep the call on the client if any reached
+					callback or conversion hook uses browser globals.
 				</p>
 				<p>
 					The returned record has its own property lookup. If code installs an inherited getter on

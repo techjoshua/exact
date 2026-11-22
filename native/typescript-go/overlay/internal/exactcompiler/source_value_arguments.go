@@ -543,7 +543,7 @@ func (query *sourceValueQuery) materializeInvocationVectors(node *ast.Node, plan
 					if value.capture != nil {
 						scope = *value.capture
 					}
-					_, throws := query.primitiveHintEffects(node, []sourceObservedValue{{value: value, scope: scope}}, false, true, result)
+					_, throws := query.primitiveHintEffects(node, []sourceObservedValue{{value: value, scope: scope}}, false, vector, result)
 					if throws {
 						continue
 					}
@@ -656,4 +656,20 @@ func (query *sourceValueQuery) stableApplyBinding(source *ast.SourceFile, symbol
 		}
 	}
 	return true
+}
+
+// freshApplyLength recognizes the final own data field of a vector allocated
+// as an apply operand. The vector and length allocations have no aliases
+// before conversion, and the final field masks any earlier definitions.
+func freshApplyLength(vector, length *ast.Node) bool {
+	if vector == nil || length == nil || !ast.IsObjectLiteralExpression(vector) || !ast.IsObjectLiteralExpression(length) {
+		return false
+	}
+	fields := vector.AsObjectLiteralExpression().Properties.Nodes
+	if len(fields) == 0 {
+		return false
+	}
+	field := fields[len(fields)-1]
+	return ast.IsPropertyAssignment(field) && !ast.IsComputedPropertyName(field.Name()) &&
+		callableNameText(field.Name()) == "length" && unwrapSourceCallableReference(field.Initializer()) == length
 }

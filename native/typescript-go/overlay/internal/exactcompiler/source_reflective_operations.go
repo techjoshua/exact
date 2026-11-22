@@ -445,14 +445,15 @@ func (query *sourceValueQuery) reflectiveKeyEffects(op *sourceReflectiveOperatio
 // requesting its primitive result. Precision consumers add their unchanged
 // conversion refusal above; the selected descriptor algorithm needs Effects.
 func (query *sourceValueQuery) sourcePropertyKeyEffects(op *sourceReflectiveOperation, result *accessorCandidates) bool {
-	complete, _ := query.primitiveHintEffects(op.operation, op.keys, true, false, result)
+	complete, _ := query.primitiveHintEffects(op.operation, op.keys, true, nil, result)
 	return complete
 }
 
 // Collect authored hook effects in primitive-conversion order. For apply, abrupt
 // means no acquired length can finish conversion. Unknown alternatives retain
 // both successful conversion and any reachable later hooks.
-func (query *sourceValueQuery) primitiveHintEffects(operation *ast.Node, values []sourceObservedValue, stringHint, ordered bool, result *accessorCandidates) (complete, abrupt bool) {
+func (query *sourceValueQuery) primitiveHintEffects(operation *ast.Node, values []sourceObservedValue, stringHint bool, vector *ast.Node, result *accessorCandidates) (complete, abrupt bool) {
+	ordered := vector != nil
 	abrupt = ordered && len(values) > 0
 	for _, observed := range values {
 		if !query.charge(result, operation) {
@@ -484,6 +485,7 @@ func (query *sourceValueQuery) primitiveHintEffects(operation *ast.Node, values 
 			get := &sourceGetInputs{operation: operation, receiver: value, propertyKey: key, applyLengthHook: ordered}
 			if key == symbolKey {
 				get.symbol = symbol
+				get.freshApplyLength = len(value.path) == 0 && freshApplyLength(vector, value.node)
 			}
 			path := append(append([]string{}, value.path...), key)
 			acquired := query.accessorsAtGet(value.node, path, "", accessorAcquire, observed.scope.bindings, nil, get)

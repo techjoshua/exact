@@ -9,6 +9,8 @@ type sourceGetInputs struct {
 	// applyLengthHook requests exact well-known symbol matching for the
 	// ordered source-only apply length conversion.
 	applyLengthHook bool
+	// freshApplyLength permits prototype lookup only on the original inline length.
+	freshApplyLength bool
 	// This apply read owns reached effects independently of length alternatives.
 	lengthEffectsOpaque *bool
 	originalReflectRead bool                               // Selected two-argument Reflect.get source read.

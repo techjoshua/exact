@@ -89,5 +89,5 @@ func (q *sourceValueQuery) primitiveConversionEffects(node, operand *ast.Node, b
 		}
 		values = append(values, sourceObservedValue{value: origin, scope: scope})
 	}
-	q.primitiveHintEffects(node, values, stringHint, false, result)
+	q.primitiveHintEffects(node, values, stringHint, nil, result)
 }

@@ -73,8 +73,8 @@ func (query *sourceValueQuery) collectAccessorsAtGet(receiver *ast.Node, path []
 	}
 	// Each branch owns its active prefix. Early returns need no cycle trail.
 	var seen []memberVisit
-	// Class heritage changes the declaration being selected, not the Get's
-	// receiver. A NewExpression remains an origin, never a repeated construction.
+	// Heritage and confined prototype lookups retain the original Get receiver.
+	// A NewExpression remains an origin, never a repeated construction.
 	var inheritedReceiver *sourceValue
 	var visit func(*ast.Node, []string, bool)
 	// Unknown origins constrain a consumer. Acquiring an unused input has no effects.
@@ -759,7 +759,7 @@ func (query *sourceValueQuery) collectAccessorsAtGet(receiver *ast.Node, path []
 			// Member interference and descriptor lookup consume this same actual Get.
 			// The lookup origin never replaces an inherited getter's receiver.
 			actualReceiver := sourceValue{node: value}
-			if !ast.IsObjectLiteralExpression(value) && inheritedReceiver != nil {
+			if inheritedReceiver != nil && (!ast.IsObjectLiteralExpression(value) || get != nil && get.freshApplyLength) {
 				actualReceiver = *inheritedReceiver
 			}
 			selectedGet := &sourceGetInputs{operation: query.reading, receiver: actualReceiver}
@@ -954,6 +954,8 @@ func (query *sourceValueQuery) collectAccessorsAtGet(receiver *ast.Node, path []
 			// The preceding member acquisition still owns indexed own writers.
 			standardApplyPrototype := get != nil && get.applyLengthHook && get.symbol != nil &&
 				len(projection) == 1 && ast.IsObjectLiteralExpression(value)
+			freshApplyPrototype := standardApplyPrototype && get.freshApplyLength && inheritedReceiver == nil
+			var applyPrototype *ast.Node
 			enumerating := mode == accessorEnumerateEntries || get != nil && get.enumerableString
 			for _, member := range members {
 				memberName := member.Name()
@@ -971,9 +973,13 @@ func (query *sourceValueQuery) collectAccessorsAtGet(receiver *ast.Node, path []
 						memberKey, computed = selection, false
 					}
 				}
-				if standardApplyPrototype && (computed || ast.IsSpreadAssignment(member) ||
-					ast.IsPropertyAssignment(member) && memberKey == "__proto__") {
+				if (standardApplyPrototype || freshApplyPrototype) && (computed || ast.IsSpreadAssignment(member)) {
+					standardApplyPrototype, freshApplyPrototype = false, false
+				} else if standardApplyPrototype && ast.IsPropertyAssignment(member) && memberKey == "__proto__" {
 					standardApplyPrototype = false
+					if freshApplyPrototype {
+						applyPrototype = unwrapSourceCallableReference(member.Initializer())
+					}
 				}
 				if computed && enumerating {
 					key := query.enumerationKeyExpression(memberName, &result)
@@ -1235,7 +1241,12 @@ func (query *sourceValueQuery) collectAccessorsAtGet(receiver *ast.Node, path []
 				result.values = append(result.values, sourceValue{undefined: true})
 			}
 			if get != nil && get.propertyKey != "" && ast.IsObjectLiteralExpression(value) && !ownsSelection && len(projection) == 1 {
-				if standardApplyPrototype {
+				if freshApplyPrototype && query.freshApplyPrototypeHook(applyPrototype, get) {
+					// The nested prototype has no separate reference before this Get.
+					inheritedReceiver = &selectedGet.receiver
+					visit(applyPrototype, projection, false)
+					inheritedReceiver = nil
+				} else if standardApplyPrototype {
 					result.values = append(result.values, sourceValue{undefined: true})
 				} else {
 					query.propertyReferenceEffects(get, selection, arguments, &result, readCut)
@@ -1749,4 +1760,22 @@ func (query *sourceValueQuery) sourcePrivateMemberMatch(member *ast.Node, projec
 	}
 	original := query.owner.checker.GetSymbolAtLocation(name)
 	return original != nil && original == query.owner.checker.GetSymbolAtLocation(member.Name()), true
+}
+
+// freshApplyPrototypeHook bounds the new lookup to a single authored hook on a
+// new prototype. There are no competing slots, spreads or further heritage.
+func (query *sourceValueQuery) freshApplyPrototypeHook(prototype *ast.Node, get *sourceGetInputs) bool {
+	if prototype == nil || !ast.IsObjectLiteralExpression(prototype) {
+		return false
+	}
+	fields := prototype.AsObjectLiteralExpression().Properties.Nodes
+	if len(fields) != 1 || !ast.IsMethodDeclaration(fields[0]) && !ast.IsGetAccessorDeclaration(fields[0]) {
+		return false
+	}
+	name := fields[0].Name()
+	if !ast.IsComputedPropertyName(name) {
+		return false
+	}
+	key := name.AsComputedPropertyName().Expression
+	return query.standardEnumerationSymbol(key) && query.owner.checker.GetSymbolAtLocation(key) == get.symbol
 }

@@ -88,8 +88,15 @@ callbacks, keep the task on a target that can run the possible callbacks.
 With `Reflect.apply`, a callback can read properties on arguments that precede
 a spread. An array-like argument list passed to either apply form can also
 run authored code while JavaScript reads its `length` and converts it to a
-number. Keep the call on the client if a callback or conversion hook that
-can run uses browser globals.
+number. A length object can inherit a `Symbol.toPrimitive` hook. JavaScript
+calls the hook with the length object as its receiver and `"number"` as its
+hint. If conversion throws, JavaScript skips the indexed reads and callback.
+The compiler can follow an inherited method or getter on an inline prototype
+literal with a single hook when the call directly evaluates a fresh
+argument-list literal whose final data field creates the length object.
+The inherited lookup requires the compiler to resolve own-property selection
+and establish that no own hook takes precedence. Keep the call on the client if
+any reached callback or conversion hook uses browser globals.
 A read of the returned descriptor can also reach a getter inherited by the descriptor
 record itself. For an immediate optional `value` read of a descriptor taken from a
 fresh object literal, an own data descriptor supplies that field and an absent
