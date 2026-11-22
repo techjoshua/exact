@@ -327,7 +327,7 @@ disjoint-getter, unknown-descriptor and Proxy controls. The first remains
 isomorphic and the other three retain browser placement. The paired SDK
 controls exercise the emitted targets and preserve the runtime distinction.
 
-**Family qualification through `563fb63e1`**
+**Family qualification through `65e139c80`**
 
 The fixed review population is the 366 failing groups in the restored-recipe
 `8c1125377` replay. Joining the matched inventory by test group to the
@@ -337,15 +337,16 @@ and supplies routing labels. Count each historical family once.
 
 | Disposition from recorded evidence | Families |
 | --- | ---: |
-| Scoped family requirements verified through component controls | 4 |
-| Open with a demonstrated component defect | 3 |
-| Partial evidence with remaining qualification or replay | 4 |
+| Scoped family requirements verified through component controls | 5 |
+| Open with a demonstrated component defect | 1 |
+| Partial evidence with remaining qualification or replay | 5 |
 | Still needs a component witness or replay | 107 |
 
 The verified families cover receiver forwarding at the agreed component
-boundary, tracked helper-forwarded inputs, selected Await alternatives, and artifact projection.
-Reached descriptor invocations and later Gets or Calls on created prototypes
-still have demonstrated placement gaps in public task controls. The adversarial
+boundary, tracked helper-forwarded inputs, selected Await alternatives, artifact projection, and task activation and result publication.
+Descriptor invocation adapters remain open after the Proxy normalization repair.
+The staged native protocol family has partial evidence: task consumers of created
+prototype getters and methods pass, with other native protocol groups awaiting qualification. The adversarial
 getter replacement, real Core receiver work, deferred root coverage and isolated
 Intl wrappers supply partial evidence for their respective families. The count of families with demonstrated defects is a lower bound. Other historical failures still
 need their own dispositions, and the focused runs leave the current native
