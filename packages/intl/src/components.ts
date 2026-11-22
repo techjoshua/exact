@@ -131,12 +131,34 @@ export function IntlMessage(this: Component<{}>, props: IntlPreparedMessageProps
 
 /** Explicit plural component backed by the shared prepared-message renderer. */
 export function IntlPlural(this: Component<{}>, props: IntlPluralProps) {
-	return IntlMessage.call(this, props);
+	const environment = this.hasContext(IntlEnvironmentContext)
+		? this.getContext(IntlEnvironmentContext)
+		: undefined;
+	if (environment && this.hasContext(IntlScalarPresentationContext)) {
+		const release = publishIntlScalarPresentation(
+			props,
+			environment,
+			this.getContext(IntlScalarPresentationContext)
+		);
+		if (release) this.onUnmount(({ reason }) => releaseScalarPresentation(release, reason));
+	}
+	return () => renderIntlMessage(props, environment);
 }
 
 /** Explicit exact-selection component backed by the shared prepared-message renderer. */
 export function IntlSelect(this: Component<{}>, props: IntlSelectProps) {
-	return IntlMessage.call(this, props);
+	const environment = this.hasContext(IntlEnvironmentContext)
+		? this.getContext(IntlEnvironmentContext)
+		: undefined;
+	if (environment && this.hasContext(IntlScalarPresentationContext)) {
+		const release = publishIntlScalarPresentation(
+			props,
+			environment,
+			this.getContext(IntlScalarPresentationContext)
+		);
+		if (release) this.onUnmount(({ reason }) => releaseScalarPresentation(release, reason));
+	}
+	return () => renderIntlMessage(props, environment);
 }
 
 /** Explicit currency component backed by the shared prepared-message renderer. */
@@ -157,7 +179,18 @@ export function IntlCurrency(this: Component<{}>, props: IntlCurrencyProps) {
 
 /** Explicit semantic-unit component backed by the shared prepared-message renderer. */
 export function IntlUnit(this: Component<{}>, props: IntlUnitProps) {
-	return IntlMessage.call(this, props);
+	const environment = this.hasContext(IntlEnvironmentContext)
+		? this.getContext(IntlEnvironmentContext)
+		: undefined;
+	if (environment && this.hasContext(IntlScalarPresentationContext)) {
+		const release = publishIntlScalarPresentation(
+			props,
+			environment,
+			this.getContext(IntlScalarPresentationContext)
+		);
+		if (release) this.onUnmount(({ reason }) => releaseScalarPresentation(release, reason));
+	}
+	return () => renderIntlMessage(props, environment);
 }
 
 const intlPropertyNames = Object.freeze([

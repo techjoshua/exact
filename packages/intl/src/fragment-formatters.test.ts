@@ -34,6 +34,9 @@ import { createIntlEnvironment } from './environment.js';
 import { prepareIntlActivation } from './prepared.js';
 import { renderIntlActivation } from './render.js';
 import type { IntlRuntimeDescriptorV1 } from './contracts.js';
+import type { IntlScalarPresentation } from './scalar-presentation.js';
+import { IntlScalarScope } from './test-support/preparation.fixtures.js';
+import { IntlScalarScope as ServerScalarScope } from './test-support/preparation.fixtures.js?exact-target=server';
 import { measurementDescriptor } from './test-support/measurement-descriptor.js';
 const base: IntlRuntimeDescriptorV1 = {
 	protocol: 1,
@@ -100,8 +103,12 @@ describe('intl fragment formatter presentation', () => {
 				const environment = createIntlEnvironment({ locale: 'en-US', descriptors: [descriptor] });
 				const state = reactive({ value: 1 });
 				const activation = computed(() => prepareIntlActivation(descriptor, [state.value]));
+				const clientConsumer = reactive<{ presentation?: IntlScalarPresentation }>({});
+				const serverConsumer = reactive<{ presentation?: IntlScalarPresentation }>({});
 				const operation = (
 					provider: typeof IntlProvider,
+					scope: typeof IntlScalarScope,
+					consumer: typeof clientConsumer,
 					formatter: (typeof cases)[number]['client']
 				) =>
 					createCompiledComponentInputReceipt(
@@ -110,26 +117,37 @@ describe('intl fragment formatter presentation', () => {
 						{
 							kind: 'eager',
 							values: [
-								createCompiledIntrinsicReceipt(
-									tag,
-									null,
-									createCompiledFragmentReceipt(
-										{
-											__exactEnhancements: createEnhancementNode([
-												{ identity: 'locale', props: { locale: true } }
-											])
-										},
-										createCompiledComponentInputReceipt(formatter, { [kind]: activation })
-									)
+								createCompiledComponentInputReceipt(
+									scope,
+									{ consumer },
+									{
+										kind: 'eager',
+										values: [
+											createCompiledIntrinsicReceipt(
+												tag,
+												null,
+												createCompiledFragmentReceipt(
+													{
+														__exactEnhancements: createEnhancementNode([
+															{ identity: 'locale', props: { locale: true } }
+														])
+													},
+													createCompiledComponentInputReceipt(formatter, { [kind]: activation })
+												)
+											)
+										]
+									}
 								)
 							]
 						}
 					);
 				const options = { enhancementCatalog: new Map([['locale', ServerLocale]]) };
-				const rendered = await renderToHydratableString(operation(ServerProvider, server), options);
-				const streamed = await new Response(
-					renderToStream(operation(ServerProvider, server), options)
-				).text();
+				const serverOperation = () =>
+					operation(ServerProvider, ServerScalarScope, serverConsumer, server);
+				const rendered = await renderToHydratableString(serverOperation(), options);
+				const initialScalar = renderIntlActivation(activation.get(), environment).join('');
+				expect(serverConsumer.presentation?.value).toBe(initialScalar);
+				const streamed = await new Response(renderToStream(serverOperation(), options)).text();
 				const container = document.createElement('div');
 				container.innerHTML = rendered.html;
 				const streamedContainer = document.createElement('div');
@@ -143,16 +161,21 @@ describe('intl fragment formatter presentation', () => {
 						? [...span!.childNodes].find((node) => node.nodeType === 3)
 						: host.firstChild;
 				try {
-					hydrate(operation(IntlProvider, client), container, {
+					hydrate(operation(IntlProvider, IntlScalarScope, clientConsumer, client), container, {
 						enhancementCatalog: new Map([['locale', IntlLocale]]),
 						resumptions: rendered.resumptions,
 						onMismatch: 'throw'
 					});
 					expect(container.querySelector(tag)).toBe(host);
+					const presentation = clientConsumer.presentation;
+					expect(presentation?.value).toBe(initialScalar);
 					state.value = 2;
 					environment.setLocale('de-DE');
 					flushSync();
 					const expected = renderIntlActivation(activation.get(), environment).join('');
+					expect(clientConsumer.presentation).toBe(presentation);
+					expect(presentation?.value).toBe(expected);
+					expect(presentation?.locale).toBe('de-DE');
 					if (tag === 'div') {
 						expect(host.querySelector('span')).toBe(span);
 						expect(span?.lang).toBe('de-DE');
@@ -167,6 +190,7 @@ describe('intl fragment formatter presentation', () => {
 				} finally {
 					unmount(container);
 				}
+				expect(clientConsumer.presentation).toBeUndefined();
 			}
 		}
 	);

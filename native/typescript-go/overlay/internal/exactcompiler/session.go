@@ -716,6 +716,7 @@ func (s *Session) executeProjection(request Request, authored *authoredCheckProg
 	response.Diagnostics = append(response.Diagnostics, classNameDiagnostics...)
 	response.Diagnostics = append(response.Diagnostics, renderContractDiagnostics...)
 	response.Diagnostics = append(response.Diagnostics, registryDiagnostics...)
+	response.Diagnostics = append(response.Diagnostics, borrowedComponentDiagnostics(project, sourceFile, callables.owner.values)...)
 	response.Diagnostics = append(response.Diagnostics, dynamicComponents.diagnostics...)
 	response.Diagnostics = append(response.Diagnostics, nestedComponentDiagnostics(sourceFile)...)
 	response.Diagnostics = append(response.Diagnostics, partitionPlanDiagnostics(partitionPlan)...)

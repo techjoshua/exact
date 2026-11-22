@@ -90,11 +90,7 @@ func planCanonicalComponentReturns(fileName string, source string) []sourceEdit 
 				!ast.IsArrowFunction(body) &&
 				!ast.IsFunctionExpression(body) &&
 				!obviouslyCallableReturn(body, callables) {
-				edits = append(edits, sourceEdit{
-					start: nodeTokenStart(sourceFile, body),
-					end:   body.End(),
-					text:  "() => (" + normalizationNodeText(sourceFile, body) + ")",
-				})
+				edits = appendCanonicalRenderWrapper(edits, sourceFile, body)
 			}
 			continue
 		}
@@ -106,14 +102,21 @@ func planCanonicalComponentReturns(fileName string, source string) []sourceEdit 
 				obviouslyCallableReturn(expression, callables) {
 				continue
 			}
-			edits = append(edits, sourceEdit{
-				start: nodeTokenStart(sourceFile, expression),
-				end:   expression.End(),
-				text:  "() => (" + normalizationNodeText(sourceFile, expression) + ")",
-			})
+			edits = appendCanonicalRenderWrapper(edits, sourceFile, expression)
 		}
 	}
 	return edits
+}
+
+// appendCanonicalRenderWrapper inserts the closure around the original expression
+// so diagnostics within the expression retain their authored spans.
+func appendCanonicalRenderWrapper(edits []sourceEdit, sourceFile *ast.SourceFile, expression *ast.Node) []sourceEdit {
+	start := nodeTokenStart(sourceFile, expression)
+	end := expression.End()
+	return append(edits,
+		sourceEdit{start: start, end: start, text: "() => ("},
+		sourceEdit{start: end, end: end, text: ")"},
+	)
 }
 
 // obviouslyCallableReturn preserves rejected callable syntax until semantic

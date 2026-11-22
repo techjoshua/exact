@@ -302,6 +302,12 @@ render function. State written by the helper and lifecycle work it registers bel
 to the receiving component. That owner also reads the resulting view during SSR and
 keeps the view attached to its state and props in the browser.
 
+Use a JSX tag such as `<Setup value={props.value} />` when the child needs its own
+state and lifecycle. Calling a compiler-recognized component through
+`Setup.call(this, props)` or `Setup.apply(this, [props])` produces
+`EXACT_BORROWED_COMPONENT` when the compiler can identify the component directly.
+Extract an ordinary setup helper when both components need the same setup code.
+
 ### Lexical micro-components
 
 The component body may name small view-only arrows and compose them as JSX tags:

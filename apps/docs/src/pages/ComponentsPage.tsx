@@ -124,6 +124,13 @@ export function ComponentsPage(this: Component<{}>) {
 					additional arguments. Call it with <code>setup.call(this, props, initialValue)</code> to
 					give the helper access to the component’s state and lifecycle.
 				</p>
+				<p>
+					Use JSX such as <code>{'<Setup value={props.value} />'}</code> to give a child component
+					its own state and lifecycle. The compiler reports <code>EXACT_BORROWED_COMPONENT</code>
+					when it sees a direct <code>Setup.call(this, props)</code> or
+					<code>Setup.apply(this, [props])</code> on a recognized component. Extract an ordinary
+					setup helper when both components need the same setup code.
+				</p>
 			</section>
 			<ComponentChildComposition />
 			<section>

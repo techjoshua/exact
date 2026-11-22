@@ -1,7 +1,20 @@
-import type { Child } from '@exactjs/core';
+import type { Child, Component } from '@exactjs/core';
 import { IntlLocale, IntlMessage, IntlProvider } from '../components.js';
 import type { IntlEnvironment } from '../environment.js';
 import type { PreparedIntlActivation } from '../prepared.js';
+import {
+	IntlScalarPresentationContext,
+	type IntlScalarPresentationConsumer
+} from '../scalar-presentation.js';
+
+/** Exposes a caller-owned scalar slot to formatter fixtures through the public context. */
+export function IntlScalarScope(
+	this: Component<{}>,
+	props: { consumer: IntlScalarPresentationConsumer; children?: Child | Child[] }
+) {
+	this.setContext(IntlScalarPresentationContext, props.consumer);
+	return () => props.children;
+}
 
 /** Supplies the real provider context to independently prepared message components. */
 export function preparedIntlProvider(environment: IntlEnvironment) {

@@ -14,17 +14,18 @@ import (
 	"github.com/microsoft/TypeScript/tsc/internal/tspath"
 )
 
-func TestExportedComponentReceiverForwardingRetainsContextSurface(t *testing.T) {
+func TestSetupHelperReceiverForwardingRetainsContextSurface(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID: "forwarded-context.tsx", Kind: "compile", Target: TargetServer,
 		Source: `
-			declare class Component { getContext(token: unknown): unknown }
-			export function Message(this: Component, props: { value: string }) {
-				const context = this.getContext(Symbol.for("locale"));
+			import {createContext, type Component} from '@exactjs/core';
+			const locale = createContext('locale');
+			function prepareMessage(this: Component<{}>, props: { value: string }, token: typeof locale) {
+				const context = this.getContext(token);
 				return () => <span>{props.value}{context}</span>;
 			}
-			export function Unit(this: Component, props: { value: string }) {
-				return Message.call(this, props);
+			export function Unit(this: Component<{}>, props: { value: string }) {
+				return prepareMessage.call(this, props, locale);
 			}
 		`,
 	})
@@ -32,7 +33,7 @@ func TestExportedComponentReceiverForwardingRetainsContextSurface(t *testing.T) 
 		t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
 	}
 	unit := findCallable(t, response.Analysis.Callables, "Unit")
-	message := findCallable(t, response.Analysis.Callables, "Message")
+	message := findCallable(t, response.Analysis.Callables, "prepareMessage")
 	forwarded := false
 	for _, edge := range unit.Calls {
 		if !edge.Resolved || edge.TargetID != message.ID {
@@ -52,7 +53,7 @@ func TestExportedComponentReceiverForwardingRetainsContextSurface(t *testing.T) 
 		}
 	}
 	if !forwarded {
-		t.Fatalf("exported receiver forwarding was not resolved: %#v", unit)
+		t.Fatalf("setup helper receiver forwarding was not resolved: %#v", unit)
 	}
 	for _, component := range response.Analysis.Components {
 		if component.Name == "Unit" {

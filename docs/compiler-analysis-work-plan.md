@@ -425,6 +425,15 @@ updates for the dual-role composition. The matching two-argument helper passes
 strict hydration, retains both child nodes through a parent-driven prop update,
 and observes the receiving component and its state at setup and mount.
 
+The agreed ownership boundary is JSX for independent components and ordinary
+setup helpers for shared receiver work. Audit the authored
+`EXACT_BORROWED_COMPONENT` error on direct `.call(this, …)` and
+`.apply(this, …)` with different state layouts in client and server targets,
+for both application and library builds. Positive controls cover JSX and ordinary
+helper forwarding. Rerun the paired SSR, strict hydration, mount, and prop-update
+controls from the original reproduction and validate Intl scalar presentation
+and resource release with freshly compiled client and server artifacts.
+
 The canonical SDK run used source and built adapters at `85cbeccc6`, native inputs equal to `2d642dc7f`, and retained runtime providers. It reported 2,535 passes, 364 failures and one skip. All 160 Time cases that failed on missing runtime entries passed on a focused rerun with the complete retained distribution. A fresh Time library compile reached the request deadline on `packages/time/src/components.ts`. The control compiler at `1b31bc5b0` reproduces native process exits in server-bundle isolation and task parameter defaults under the same SDK setup. Distributed continuation setup also failed when transforming Microfrontends.
 
 The full original Core package build emitted 300 JavaScript modules per target at `43fa437ca`. Its 16.07-second elapsed time is one observation with retained providers and other audit jobs active. The deep placement test reported 1,863,065 JSON characters against a limit of 750,000 on both the control and unified compilers under the same SDK configuration.
