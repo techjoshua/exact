@@ -4,6 +4,7 @@ import path from 'node:path';
 import type { AnyComponentFunction } from '@exactjs/core';
 import { createCompiledComponentInputReceipt } from '@exactjs/core/runtime/component-operations';
 import { createExactClient, readExactHydrationConfig } from '@exactjs/hydrate';
+import { findElementOwner } from '@exactjs/dom/testing';
 import { flushSync } from '@exactjs/reactive';
 import { renderToHydratableString } from '@exactjs/ssr';
 import { expect, it } from 'vitest';
@@ -16,11 +17,12 @@ import { importArtifact } from '../test-support/import-artifact.js';
 import { createTestWorkspace, writeTestFiles } from '../test-support/workspace.js';
 import { artifactAnalysis } from './analysis-results.js';
 
-it.each(['helper', 'direct', 'inert'] as const)(
+it.each(['helper', 'direct', 'inert', 'state-filter', 'original'] as const)(
 	'bootstraps the Workspace view under Page (%s)',
 	async (kind) => {
 		const root = await createTestWorkspace('.exact-helper-page-', process.cwd());
 		await mkdir(path.join(root, 'components'));
+		const filter = kind === 'state-filter' || kind === 'original';
 		const update = `
 			const previous = this.state.items[0];
 			this.state.items = [previous === 'one' ? 'two' : previous === 'two' ? 'three' : 'unexpected'];
@@ -56,19 +58,28 @@ it.each(['helper', 'direct', 'inert'] as const)(
 			'components/workspace.tsx': `
 				import type { Component } from '@exactjs/core';
 				${kind === 'direct' ? '' : "import { renderWorkspace } from './workspace-view.js';"}
-				export function Workspace(this: Component<{ items: string[] }>) {
-					this.state.items = ['one'];
+				export function Workspace(this: Component<{ count: number; items: string[] }>) {
+					this.state.count = 0;
+					this.state.items = ${kind === 'original' ? "['one', 'two']" : "['one']"};
 					return () => ${
 						kind === 'direct'
 							? `<button onClick={() => { ${update} }}>{this.state.items}</button>`
-							: `renderWorkspace(this.state, (received) => { if (received === this.state) { ${update} } })`
+							: filter
+								? kind === 'original'
+									? 'renderWorkspace(this.state, () => this.state.count++)'
+									: `renderWorkspace(this.state, () => { ${update} })`
+								: `renderWorkspace(this.state, (received) => { if (received === this.state) { ${update} } })`
 					};
 				}
 			`,
 			'components/workspace-view.tsx': `
-				export function renderWorkspace(state: { items: string[] }, click: (received: { items: string[] }) => void) {
+				export function renderWorkspace(state: { items: string[] }, click: ${filter ? '() => void' : '(received: { items: string[] }) => void'}) {
 					${kind === 'inert' ? 'const unused = () => <button onClick={() => click(state)} />; void unused;' : ''}
-					return <button ${kind === 'inert' ? '' : 'onClick={() => click(state)}'}>{state.items}</button>;
+					${
+						filter
+							? `const visible = state.items.filter(value => value.length !== 0); return <div>{visible.map(value => <button onClick={click}>{value}</button>)}</div>;`
+							: `return <button ${kind === 'inert' ? '' : 'onClick={() => click(state)}'}>{state.items}</button>;`
+					}
 				}
 			`
 		});
@@ -86,6 +97,10 @@ it.each(['helper', 'direct', 'inert'] as const)(
 					packageName: 'helper-page-fixture',
 					generatedValidation: 'semantic'
 				});
+				const page = artifacts.find(
+					(artifact) => artifact.inputFile === files['components/page.tsx']
+				)!;
+				expect(artifactAnalysis(page).components[0]?.tasks[0]?.placement).toBe('server');
 				const workspace = artifacts.find(
 					(artifact) => artifact.inputFile === files['components/workspace.tsx']
 				)!;
@@ -123,8 +138,13 @@ it.each(['helper', 'direct', 'inert'] as const)(
 				);
 				const container = document.createElement('div');
 				container.innerHTML = output.htmlWithHydration;
-				const button = container.querySelector('button')!;
-				expect(button.textContent).toBe('one');
+				const buttons = [...container.querySelectorAll('button')];
+				const button = buttons[0]!;
+				expect(container.querySelector('main')?.firstChild?.textContent).toBe('ready');
+				expect(buttons.map((node) => node.textContent)).toEqual(
+					kind === 'original' ? ['one', 'two'] : ['one']
+				);
+
 				expect(Object.keys(registration?.islands ?? {})).toHaveLength(kind === 'inert' ? 0 : 1);
 				expect(Boolean(button.closest('[data-exact-client-boundary], [data-xh]'))).toBe(
 					kind !== 'inert'
@@ -142,12 +162,27 @@ it.each(['helper', 'direct', 'inert'] as const)(
 				try {
 					await view.whenSettled();
 					expect(container.querySelector('button')).toBe(button);
-					for (const next of kind === 'inert' ? ['one', 'one'] : ['two', 'three']) {
-						button.click();
-						flushSync();
-						await view.whenSettled();
-						expect(container.querySelector('button')).toBe(button);
-						expect(button.textContent).toBe(next);
+					if (kind === 'original') {
+						const owner = findElementOwner(button);
+						expect(owner?.state.count).toBe(0);
+						for (const [index, original] of buttons.entries()) {
+							original.click();
+							flushSync();
+							await view.whenSettled();
+							const current = container.querySelectorAll('button');
+							expect(current).toHaveLength(buttons.length);
+							buttons.forEach((node, position) => expect(current[position]).toBe(node));
+							expect(owner?.state.count).toBe(index + 1);
+						}
+					} else {
+						for (const next of kind === 'inert' ? ['one', 'one'] : ['two', 'three']) {
+							container.querySelector('button')!.click();
+							flushSync();
+							await view.whenSettled();
+							const current = container.querySelector('button');
+							if (kind !== 'state-filter') expect(current).toBe(button);
+							expect(current?.textContent).toBe(next);
+						}
 					}
 					expect(reports).toEqual([]);
 				} finally {

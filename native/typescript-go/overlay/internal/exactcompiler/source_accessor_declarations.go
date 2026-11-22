@@ -1371,8 +1371,17 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 					result.values = append(result.values, sourceValue{node: value})
 				} else if mode == accessorAcquire {
 					demand := sourceFieldDemand{}
-					if name == "" && len(projection) == 1 {
-						demand = query.operationFieldDemand(query.protectedMember, projection[0])
+					if name == "" {
+						if len(projection) == 1 {
+							demand = query.operationFieldDemand(query.protectedMember, projection[0])
+						} else if query.dependenciesOnly && query.protectedMember != nil && ast.IsAccessExpression(query.protectedMember) {
+							// A finite nested callee Get on an uninstalled input
+							// has the same source effect obligation as a direct Get.
+							root, path := effectArgumentRoot(query.protectedMember)
+							if root == value && slices.Equal(path, projection) && !slices.Contains(path, "*") {
+								demand = query.operationFieldDemand(query.protectedMember, projection[len(projection)-1])
+							}
+						}
 					}
 					if demand.declaration != nil {
 						result.fieldFallbacks = append(result.fieldFallbacks, demand)

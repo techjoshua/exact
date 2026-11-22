@@ -1113,31 +1113,33 @@ reads retain their own effects. In the reduced Workspace fixture, application
 and library builds agree on identity, placement and targets. Explicit hydration
 adopts the SSR button and preserves the facade across two successive updates.
 
-A fresh dense array with an inline callback that cannot access the receiver
-supplies its elements to the callback-effects analysis. Each element retains
-its original source, including authored getters reached by the callback. A
-terminal indexed read can also account for a fresh literal filter result
-that has a single local use. The predicate retains its own effects, and an
-empty result is allowed. Neither rule models the collection's exact contents.
+An inline callback on a confined dense array can consume possible element
+origins. A sole consumer of a fresh standard filter result can read an index
+or map those same possible inputs. The predicate and mapper retain the authored
+operations they may execute, including element getters. Known empty inputs supply
+no element origins. The compiler leaves predicate results and emitted list
+contents to JavaScript.
 
-Original Workspace acceptance remains open. Semantically validated direct
-and barrel entries in application and library modes render `ready` and both
-buttons on the server. The original `state.items.filter(...).map(...)` still
-has unknown placement and empty artifact targets. The state facade proof
-covers its first field lookup. The downstream filter still needs the array
-origin across that field, and the map still needs the possible elements of
-the filtered array. The local `filter().map()` control isolates the second
-gap without state.
+The original Workspace helper reads `state.items`, acquires `filter`, and
+maps its private result to buttons. The actual render call supplies the state
+facade. The component's own source supplies the array written during setup and
+any confined replacement arrays from deferred writes. The original click
+writes `count`. A replacement control writes `items` to exercise the render
+dependency independently. A state field's array annotation supplies no method
+identity. An opaque write, an own method replacement, or an exposed receiver
+keeps the ordinary uncertainty. The helper's unresolved member demands remain
+relative to its actual input, so the analysis can retain authored alternatives
+for other uses.
 
 A returned call to a compiler-owned render helper contributes local interaction
-ownership when its returned intrinsic JSX contains an authored event binding.
-The component publishes the existing whole-component activation contract under a
-server-owned Page. The helper lowers its JSX and handler through the existing
-render program. The reduced Page and barrel entries exercise generated bootstrap,
-SSR button adoption, state identity, and two updates in application and library
-builds. Their direct JSX control follows the same activation contract. A helper
-that returns inert JSX and contains an unused event-bearing closure contributes
-no client registration.
+ownership from returned intrinsic JSX and from JSX returned by a reached
+standard map callback in that markup. The existing callback-effects edge
+supplies the original map and callback. Discarded JSX supplies no activation.
+Direct and barrel entries in application and library modes use the same
+Workspace identity and targets. Page runs its server task during SSR and
+publishes the Workspace bootstrap. Strict hydration adopts both original
+buttons and activates their handlers. The replacement control checks
+subsequent list updates.
 
 Theme's other color branch forwards the object input to `parseDtcgColor`, where destructuring
 and indexed reads can invoke getters. Intl passes `formatter.options` to `validateOptions`,

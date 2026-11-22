@@ -144,16 +144,39 @@ func sourceAccessorOperationCandidates(receiver *ast.Node, path []string, name s
 // sourceAccessorOperationCandidates owns the member's key identity and mutation
 // retention for direct, eager, and installed-input consumers on the same query.
 func (query *sourceValueQuery) sourceAccessorOperationCandidates(receiver *ast.Node, path []string, name string, mode accessorTraversal, arguments sourceValueBindings, operation *ast.Node, setter ...*sourceSetterInputRequest) accessorCandidates {
-	// The immediate built-in result has no authored own map property. This
-	// covers only the Get, without querying the entries call's returned values.
+	// A confined built-in result has no authored own map property.
+	// The original producer and callback retain their own effects.
 	member := operation
 	if query.dependenciesOnly && len(path) == 0 && member != nil && ast.IsPropertyAccessExpression(member) &&
 		(mode == accessorRead && name == "map" && receiver == member.Expression() ||
 			mode == accessorAcquire && name == "" && receiver == member) {
-		if declaration := query.owner.directEntriesMap(member); declaration != nil {
+		declaration := query.owner.directEntriesMap(member)
+		if declaration == nil {
+			_, declaration = query.confinedFilterMap(member, arguments)
+		}
+		if declaration != nil {
 			result := accessorCandidates{sourceOwned: true}
 			if mode == accessorAcquire {
 				result.values = []sourceValue{{node: declaration}}
+			}
+			return result
+		}
+		if query.inputs == nil && len(arguments) == 0 && enclosingCallableNode(member) == query.effectOwner &&
+			query.relativeFilterMapReceiver(member, member.Expression()) != nil {
+			if demand := query.operationFieldDemand(member, "map"); demand.slot != nil && ast.IsParameterDeclaration(demand.slot) {
+				return accessorCandidates{valueIncomplete: true, fieldFallbacks: []sourceFieldDemand{demand}}
+			}
+		}
+	}
+	// The helper's actual state-slot producers establish an inherited filter.
+	// Original field evaluation and argument evaluation retain their owners.
+	if query.dependenciesOnly && len(path) == 0 && member != nil && ast.IsPropertyAccessExpression(member) && member.Name().Text() == "filter" &&
+		(mode == accessorRead && receiver == member.Expression() || mode == accessorAcquire && name == "" && receiver == member) {
+		call := normalCalleeGetOwner(member)
+		if query.componentFilterInputs(call, arguments) != nil {
+			result := accessorCandidates{sourceOwned: true}
+			if mode == accessorAcquire {
+				result.values = []sourceValue{{node: query.owner.checker.GetResolvedSignature(call).Declaration()}}
 			}
 			return result
 		}

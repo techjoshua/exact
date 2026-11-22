@@ -49,7 +49,7 @@ func analyzeComponents(
 		if render.micro || render.callable == render.component.node {
 			continue
 		}
-		if !helperInteractions[render.component.node] && renderCallsInteractiveHelper(render.callable, typeChecker) {
+		if !helperInteractions[render.component.node] && renderCallsInteractiveHelper(render.callable, typeChecker, callables.byNode[render.callable].Calls) {
 			helperInteractions[render.component.node] = true
 		}
 		summary, found := callables.byNode[render.callable]

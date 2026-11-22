@@ -120,7 +120,7 @@ func appendAccessorTargets(fact *callableFacts, node *ast.Node, candidates acces
 		}
 		targetID := fmt.Sprintf("callable:%s:%d", owner.FileName(), declaration.Pos())
 		edge := CallEdge{ID: sourceAccessorEffectEdgeID(fact.summary.ID, operationSource.FileName(), operation.Pos(), targetID, contribution.use), Name: strings.TrimSpace(sourceText(operationSource, operation)), Resolved: true, TargetID: targetID}
-		if contribution.arrayMapCall != nil && enclosingCallableNode(contribution.arrayMapCall) == fact.node {
+		if contribution.arrayMapCall != nil {
 			edge.arrayMapCall = contribution.arrayMapCall
 			edge.arrayMapBody = declaration
 		}

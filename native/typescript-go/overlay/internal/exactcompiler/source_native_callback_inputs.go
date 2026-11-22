@@ -29,8 +29,20 @@ func (query *sourceValueQuery) nativeCallbackInputEffects(node *ast.Node, bindin
 	if method != "map" && method != "filter" {
 		return
 	}
+	if method == "map" && query.inputs == nil && len(bindings) == 0 {
+		for _, demand := range result.fieldFallbacks {
+			if demand.operation == node.Expression() && query.relativeFilterMapReceiver(demand.operation, demand.operation.Expression()) != nil {
+				return
+			}
+		}
+	}
 	literal := directDenseArrayCallbackReceiver(node, method, query.owner.checker)
-	if method == "filter" && !confinedArrayCallback(node, literal) {
+	var stateArrays []*ast.Node
+	if method == "filter" && literal == nil {
+		stateArrays = query.componentFilterInputs(node, bindings)
+	}
+	confinedLiteral := literal != nil && arrayCallbackCannotAccessReceiver(node)
+	if method == "filter" && !confinedLiteral && stateArrays == nil {
 		return
 	}
 	if prepared.acquired.sourceCallable {
@@ -51,6 +63,16 @@ func (query *sourceValueQuery) nativeCallbackInputEffects(node *ast.Node, bindin
 			entryPattern, freshPrivateEntries = query.owner.directEntriesMapReturnPair(node, actuals[0])
 		}
 	}
+	var filter *ast.Node
+	if method == "map" {
+		filter, _ = query.confinedFilterMap(node.Expression(), bindings)
+	}
+	if filter != nil {
+		literal = directDenseArrayCallbackReceiver(filter, "filter", query.owner.checker)
+		if literal == nil {
+			stateArrays = query.componentFilterInputs(filter, bindings)
+		}
+	}
 	var items []*ast.Node
 	if literal != nil {
 		items = literal.AsArrayLiteralExpression().Elements.Nodes
@@ -59,7 +81,6 @@ func (query *sourceValueQuery) nativeCallbackInputEffects(node *ast.Node, bindin
 	// mutate its array argument. Keep non-primitive inputs with the existing
 	// member visitor, which owns their identity and possible accessor work.
 	accountedInput := literal != nil && len(items) == 0
-	confinedLiteral := confinedArrayCallback(node, literal)
 	primitiveSingleton := len(items) == 1 && checkedPrimitiveOperand(items[0], query.owner.checker)
 	part := accessorCandidates{}
 	query.withActiveInvocation(node, func() {
@@ -97,8 +118,25 @@ func (query *sourceValueQuery) nativeCallbackInputEffects(node *ast.Node, bindin
 		}
 		var elements []sourceValue
 		frozenKeys := false
+		for _, array := range stateArrays {
+			accountedInput = true
+			for _, item := range array.AsArrayLiteralExpression().Elements.Nodes {
+				if !query.charge(&part, item) {
+					break
+				}
+				elements = append(elements, sourceValue{node: item})
+			}
+		}
+		if stateArrays != nil && len(elements) == 0 {
+			return
+		}
 		for _, receiver := range native.bindings[0] {
-			if (primitiveSingleton || confinedLiteral) && len(native.bindings[0]) == 1 && receiver.node == literal && len(receiver.path) == 0 && receiver.normal == nil && receiver.native == nil && receiver.acquired == nil {
+			if stateArrays != nil {
+				break
+			}
+			if (primitiveSingleton || confinedLiteral || filter != nil && literal != nil) && len(native.bindings[0]) == 1 &&
+				(receiver.node == literal || filter != nil && receiver.node == filter) && len(receiver.path) == 0 &&
+				receiver.normal == nil && receiver.native == nil && receiver.acquired == nil {
 				accountedInput = true
 				for _, item := range items {
 					if !query.charge(&part, item) {

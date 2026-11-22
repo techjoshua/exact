@@ -126,9 +126,10 @@ export function StatePage(this: Component<{}>) {
 				</p>
 				<p>
 					You can pass <code>this.state</code> to a render helper. The helper receives the
-					component's live state object, and the view follows the fields the helper reads. When the
-					view calls a compiled helper that directly returns a button with an event handler,
-					hydration attaches the handler to the existing server-rendered button.
+					component's live state object, and the view follows the fields the helper reads. The
+					helper can filter a state array and map the result to buttons with event handlers.
+					Hydration attaches the handlers to the existing server-rendered buttons. Replacing the
+					state array updates the view.
 				</p>
 				<p>
 					For dynamic records, expressions such as <code>Object.keys(this.state.record)</code>

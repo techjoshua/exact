@@ -48,6 +48,9 @@ func (query *sourceValueQuery) fieldDemand(operation, receiver *ast.Node, key st
 	}
 	receiver = unwrapSourceCallableReference(receiver)
 	root := receiver
+	if input := query.relativeFilterMapReceiver(operation, receiver); input != nil {
+		root = input
+	}
 	// Source obligations name the exact Get even when its receiver is a
 	// projection of an input. Exact descriptor coverage keeps its direct-slot law.
 	if query.dependenciesOnly {

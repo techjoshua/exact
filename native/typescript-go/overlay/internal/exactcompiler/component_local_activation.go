@@ -40,11 +40,13 @@ func retainMutableContextOwners(components []Component) {
 // renderCallsInteractiveHelper follows the compiled view's returned helper call.
 // The caller owns activation of that view. The helper still owns its JSX lowering,
 // and the caller cannot slice helper-authored JSX into lexical element islands.
-func renderCallsInteractiveHelper(render *ast.Node, c *checker.Checker) bool {
+func renderCallsInteractiveHelper(render *ast.Node, c *checker.Checker, calls []CallEdge) bool {
 	return callableReturnsMatching(render, func(value *ast.Node) bool {
 		helper := compilerOwnedRenderHelper(value, c)
 		return helper != nil && !usesForeignJSXRuntime(ast.GetSourceFileOfNode(helper)) &&
-			callableReturnsMatching(helper, renderedIntrinsicHasEvent)
+			callableReturnsMatching(helper, func(markup *ast.Node) bool {
+				return renderedIntrinsicHasEvent(markup, calls)
+			})
 	})
 }
 
@@ -63,7 +65,7 @@ func callableReturnsMatching(callable *ast.Node, match func(*ast.Node) bool) boo
 // renderedIntrinsicHasEvent follows returned markup and its emitted children.
 // JSX used inside an attribute or a discarded computation supplies no event
 // evidence for the component's view.
-func renderedIntrinsicHasEvent(value *ast.Node) bool {
+func renderedIntrinsicHasEvent(value *ast.Node, calls []CallEdge) bool {
 	value = unwrapRenderExpression(value)
 	if value == nil {
 		return false
@@ -79,7 +81,19 @@ func renderedIntrinsicHasEvent(value *ast.Node) bool {
 	case ast.KindJsxFragment:
 		children = value.AsJsxFragment().Children
 	case ast.KindJsxExpression:
-		return renderedIntrinsicHasEvent(value.AsJsxExpression().Expression)
+		return renderedIntrinsicHasEvent(value.AsJsxExpression().Expression, calls)
+	case ast.KindCallExpression:
+		// Only a map callback observed by the original eager effect owner can
+		// contribute markup. Discarded calls and authored overrides have no such edge.
+		for _, edge := range calls {
+			if edge.Resolved && edge.arrayMapCall == value && edge.arrayMapBody != nil &&
+				callableReturnsMatching(edge.arrayMapBody, func(markup *ast.Node) bool {
+					return renderedIntrinsicHasEvent(markup, nil)
+				}) {
+				return true
+			}
+		}
+		return false
 	default:
 		return false
 	}
@@ -96,7 +110,7 @@ func renderedIntrinsicHasEvent(value *ast.Node) bool {
 	}
 	if children != nil {
 		for _, child := range children.Nodes {
-			if renderedIntrinsicHasEvent(child) {
+			if renderedIntrinsicHasEvent(child, calls) {
 				return true
 			}
 		}
