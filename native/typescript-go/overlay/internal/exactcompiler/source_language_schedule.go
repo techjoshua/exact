@@ -360,7 +360,7 @@ func (o *languageOwner) executeStorageRecipe(recipe *storageRecipe, budget int) 
 func (o *languageOwner) executeStorageSchedule(recipe *storageRecipe, budget int, a languageAlternative) (languageAlternative, int) {
 	input := a.branch
 	out, used := o.executeStorageScheduleEntry(recipe, budget, a, nil)
-	if _, _, initializer := sourceInitializerCallLayout(recipe); !initializer && recipe != nil && recipe.prefix && out.completion == languageNormal && out.callInputs != nil && out.callInputs.complete {
+	if recipe != nil && recipe.prefix && out.completion == languageNormal && out.callInputs != nil && out.callInputs.complete {
 		result, spent := o.consumeClosedCallInputs(input, out, budget-used)
 		return result, used + spent
 	}
@@ -388,9 +388,6 @@ func (o *languageOwner) executeStorageScheduleEntry(recipe *storageRecipe, budge
 		return callEntryRefusal(a, "Call body mode/context association"), 0
 	}
 
-	if _, _, initializer := sourceInitializerCallLayout(recipe); initializer {
-		return callEntryRefusal(a, "initializer source candidate unavailable"), 0
-	}
 	if recipe.binding != nil {
 		return callEntryRefusal(a, "Binding recipe/context association"), 0
 	}
@@ -1043,12 +1040,6 @@ func (o *languageOwner) executeStorageScheduleEntry(recipe *storageRecipe, budge
 		}
 		// storage event observation
 		pc = nextPC
-	}
-	if _, _, initializer := sourceInitializerCallLayout(recipe); initializer && a.completion == languageNormal {
-		// The extra sealed caller snapshot owns another register/cell vector.
-		// Reuse the existing conservative storage allocation quotation.
-		used = estimatedCostSum(used, storageScheduleSetup(recipe))
-		a.storage = snapshot(len(recipe.events), nil)
 	}
 	if (recipe.prefix || recipe.callBody) && !suspendedOwnGetterInputs(recipe, a) {
 		a.callInputs = copyLanguageCallInputs(callInputs)

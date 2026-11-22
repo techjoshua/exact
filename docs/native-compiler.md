@@ -4267,22 +4267,15 @@ export and dependency route. It does not certify module initialization, snapshot
 values or authorize the returned function's body. CommonJS, declaration-only and incomplete
 selected routes receive no such component.
 
-A finite closed module prefix can retain one initialized module `const` object cell in a zero-parameter ordinary arrow. Capture creation obtains the actual lexical cell from the defining prefix. Body reads use that same cell and the current storage branch, while own writable data-field assignment uses the existing reference and Set owners. The local-cell environment rule remains separate. Exactly two consecutive indexed zero-argument Calls to the same captured arrow can continue on the first actual Call's output branch. Each enters a fresh activation and retains its own receipt, while both use the original captured cell and object. Continuation requires the next original installed operation in the same live generation. Cached or released history cannot resume it. Unknown, external, mutable or multiple captured bindings receive no such source entry. This bounded driver does not admit asynchronous bodies, general closure captures, arbitrary repeated source Calls or new Promise result authority.
-
-A final module `const` initializer can bind the scalar Return of one original zero-argument Call to an admitted zero-formal closed body. The caller allocates the real destination cell before evaluation. It retains the original Call receipt and initializes the destination once on that Call's output storage branch. Throw, residual and unavailable output do not initialize the binding. Other returned-callable shapes, array projection and later invocation keep their separate admission.
-
-A separate finite construction path admits a one-formal module function whose only statement returns a zero-parameter arrow reading a direct member of that formal. The original Call acquires a genuine module object and initializes the original formal cell in its fresh activation. Creation retains that cell and defining environment, with an actual storage marker. The original tagged Return and creation ancestry can bind this callable to the final caller cell. The inner member-read body stays deferred during creation. One immediately following zero-argument Call through that initialized destination can enter the exact inner body from the post-initialization caller branch. It creates a fresh activation and reads the original captured formal cell from current storage before the ordinary member Reference/Get and Return. The original creator Call receipt remains separate from destination initialization. A completed own-DATA Get can cover only its exact captured-field effect demand on that resolved Call edge. Generic summaries, unmatched input obligations and independent effects remain conservative. This finite two-site path does not admit intervening mutation, array projection, arbitrary repeated Calls or general escaping captured-member reads.
-
-A creation-only module prefix can initialize one const with a dense, one-element array
-whose element is that same creator Call. Array allocation precedes the original callee and
-argument acquisition. The genuine callable Return resumes the same caller storage schedule
-through the existing array slot definition, length update and final cell initialization.
-The original Call receipt remains distinct from the post-container receipt. Its source Call
-slot projects the original pre-container receipt. The inner member-read body stays deferred.
-This finite destination adds no later array Get/Call, spread, hole, iterator, exported result
-or intervening captured-mutation authority.
-
-A zero-parameter module function declaration is instantiated before lexical initializers. Its actual defining environment retains the original captured Cell while that Cell is still uninitialized. This finite path admits one private synchronous zero-parameter declaration with the same one-const capture and direct one or two no-argument Calls, including Calls before the declaration's text. Instantiation executes no function body. The function binding keeps ordinary mutable storage semantics, and later captured reads use the current initialized Cell. Calls before the captured initializer remain outside this prefix slice.
+The closed module-prefix driver previously used fixed schedules for final Call
+initializers, single-element array initializers, hoisted capture creation and
+adjacent Calls. The prefix driver and its initializer layout checks are retired.
+Ordinary authored initialization and invocation remain on the emission path.
+Source return projection follows the creating Call, its acquired arguments and
+the captured dependencies through bindings and container slots. Later reads
+apply the applicable mutation facts at the consuming program point. This
+analysis supplies the required dependencies without evaluating the initializer
+again or granting a completed storage receipt.
 
 A qualified closed two-formal arrow can use its actual boolean argument to select a direct read of the second argument's own data field, with a literal alternative. The original acquired Call enters the finalized conditional body schedule before generic traversal. The selected Reference/Get and exact skipped interval produce only their own field-demand coverage after matching body completion. Current descriptor and storage state remain authoritative. Static conditional index entries remain false-once. A consumed generic Get or a lexical reachability result cannot replace the selected continuation. Defaulted formals, typeof predicates, general ordinary-function bodies, accessors, Proxy/unknown receivers and arbitrary conditional nesting receive no additional admission from this finite path. The field outcome is not a normal value, descriptor, target-wide or public-policy proof. Validation observations are optional and inert without a test observer.
 
