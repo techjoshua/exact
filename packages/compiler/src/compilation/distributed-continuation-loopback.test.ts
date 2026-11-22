@@ -7,10 +7,7 @@ import '@exactjs/core/runtime/refs';
 import { composeExactComponentContracts } from '@exactjs/core/framework/component-contracts';
 import { render, unmount } from '@exactjs/dom';
 import { createExactClient, hydrate, type FetchLike } from '@exactjs/hydrate';
-import {
-	RemoteComponent as RemoteComponentDefinition,
-	registerExactRemoteClientBindings
-} from '../../../../plugins/microfrontends/src/client.js';
+import { createExactRoot } from '@exactjs/hydrate/internal';
 import {
 	exactResponseToFetchResponse,
 	composeExactExecutorContract,
@@ -21,7 +18,6 @@ import {
 	type ExactServerContext
 } from '@exactjs/server';
 import { createExactServerRuntime, renderToHydratableString } from '@exactjs/ssr';
-import { createTestOperation, markTestComponent } from '@exactjs/testing/internal/fixtures';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { describe, expect, it, vi, onTestFinished } from 'vitest';
@@ -495,26 +491,6 @@ return()=> <button onClick={()=>load()}>{this.state.value}</button>;}`
 		const billing = await compileRemoteTask(root, 'billing');
 		const branding = await compileRemoteTask(root, 'branding');
 		const buildKey = '0123456789abcdef0123456789abcdef01234567';
-		const moduleHost = globalThis as Record<string, unknown>;
-		const bindings = Object.fromEntries(
-			[billing, branding].map((fixture) => {
-				const key = `__exactHiddenRoot${fixture.name}`;
-				moduleHost[key] = Object.freeze({
-					buildKey,
-					root: fixture.root,
-					component: fixture.client,
-					registration: fixture.registration
-				});
-				const source = `export default globalThis[${JSON.stringify(key)}];`;
-				return [
-					fixture.name,
-					{
-						clientEntry: `data:text/javascript;base64,${Buffer.from(source).toString('base64')}`
-					}
-				];
-			})
-		);
-		registerExactRemoteClientBindings(bindings);
 		const exchanges: Array<{
 			body: ExactInvocationRequest;
 			binding: string | null;
@@ -556,32 +532,51 @@ return()=> <button onClick={()=>load()}>{this.state.value}</button>;}`
 				);
 			return responseLike(response);
 		};
-		const originalFetch = globalThis.fetch;
-		globalThis.fetch = fetch as typeof globalThis.fetch;
 		const container = document.createElement('main');
 		const billingContainer = document.createElement('div');
 		const brandingContainer = document.createElement('div');
 		container.append(billingContainer, brandingContainer);
 		document.body.append(container);
+		const hiddenRoots = [
+			{ fixture: billing, host: billingContainer },
+			{ fixture: branding, host: brandingContainer }
+		];
+		const clients: ReturnType<typeof createExactClient>[] = [];
+		// Use the same hidden-root boundary as the remote wrapper with a controlled transport.
 		const mountHiddenRoots = () => {
-			render(
-				createTestOperation(RemoteComponent, {
-					binding: 'billing',
-					props: { name: 'billing' }
-				}),
-				billingContainer
-			);
-			render(
-				createTestOperation(RemoteComponent, {
-					binding: 'branding',
-					props: { name: 'branding' }
-				}),
-				brandingContainer
-			);
+			for (const { fixture, host } of hiddenRoots) {
+				const client = createExactClient(host, {
+					endpoint: '/__exact',
+					executionRoot: fixture.root,
+					binding: fixture.name,
+					buildKey,
+					fetch,
+					onErrorReport: ({ error }) => {
+						throw error;
+					}
+				});
+				clients.push(client);
+				client.registerComponents(fixture.registration);
+				render(createExactRoot(client, fixture.client, { name: fixture.name }), host);
+			}
 		};
 		const unmountHiddenRoots = () => {
-			unmount(billingContainer);
-			unmount(brandingContainer);
+			for (const { host } of hiddenRoots) unmount(host);
+			for (const client of clients.splice(0)) client.dispose();
+		};
+		const expectedRoutes = hiddenRoots.map(({ fixture }) => ({
+			root: fixture.root,
+			binding: fixture.name,
+			build: buildKey
+		}));
+		const assertRoutes = () => {
+			const routes = exchanges.map(({ body, binding, build }) => ({
+				root: body.root,
+				binding,
+				build
+			}));
+			expect(routes).toHaveLength(expectedRoutes.length);
+			expect(routes).toEqual(expect.arrayContaining(expectedRoutes));
 		};
 		try {
 			mountHiddenRoots();
@@ -594,6 +589,7 @@ return()=> <button onClick={()=>load()}>{this.state.value}</button>;}`
 					'BRANDING-READY'
 				);
 			});
+			assertRoutes();
 			exchanges.length = 0;
 			click(container, '[data-task="billing"]');
 			click(container, '[data-task="branding"]');
@@ -605,38 +601,24 @@ return()=> <button onClick={()=>load()}>{this.state.value}</button>;}`
 					'BRANDING-NEXT'
 				);
 			});
-			expect(
-				exchanges.map(({ body, binding, build }) => ({
-					root: body.root,
-					binding,
-					build
-				}))
-			).toEqual(
-				expect.arrayContaining([
-					{ root: billing.root, binding: 'billing', build: buildKey },
-					{ root: branding.root, binding: 'branding', build: buildKey }
-				])
-			);
+			assertRoutes();
 			// Exercise disposal while the requests are still owned. Settled task frames deliberately
 			// release their controllers so completed requests do not remain retained until unmount.
 			unmountHiddenRoots();
 			holdResponsesUntilAbort = true;
 			exchanges.length = 0;
 			mountHiddenRoots();
-			await vi.waitFor(() => expect(exchanges).toHaveLength(2));
+			await vi.waitFor(assertRoutes);
 			const signals = exchanges.map((exchange) => exchange.signal);
+			expect(signals.map((signal) => signal?.aborted)).toEqual([false, false]);
 			unmountHiddenRoots();
-			expect(signals.every((signal) => signal?.aborted)).toBe(true);
+			expect(signals.map((signal) => signal?.aborted)).toEqual([true, true]);
 		} finally {
-			globalThis.fetch = originalFetch;
 			unmountHiddenRoots();
 			container.remove();
-			delete moduleHost.__exactHiddenRootbilling;
-			delete moduleHost.__exactHiddenRootbranding;
 		}
 	});
 });
-const RemoteComponent = markTestComponent(RemoteComponentDefinition);
 async function compileRemoteTask(root: string, name: string) {
 	const sourceRoot = path.join(root, name, 'src');
 	const generatedRoot = path.join(root, name, 'generated');
@@ -644,12 +626,40 @@ async function compileRemoteTask(root: string, name: string) {
 	await mkdir(sourceRoot, { recursive: true });
 	await writeFile(
 		source,
-		'import { TaskContext } from "@exactjs/core";\n\n\t\t\timport type { Component } from "@exactjs/core";\n\t\t\texport function RemoteTask(\n\t\t\t\tthis: Component<{ query: string; result: string }>,\n\t\t\t\tprops: { name: string }\n\t\t\t) {\n\t\t\t\tthis.state.query = props.name + "-ready";\n\t\t\t\tthis.state.result = "waiting";\n\t\t\t\tconst runFixtureTask = async (query: string, _task: TaskContext = TaskContext.server()) => {\n\t\t\t\t\t\n\t\t\t\t\tawait Promise.resolve();\n\t\t\t\t\tthis.state.result = query.toUpperCase();\n\t\t\t\t};\nrunFixtureTask(this.state.query);\n\t\t\t\treturn () => (\n\t\t\t\t\t<section>\n\t\t\t\t\t\t<button\n\t\t\t\t\t\t\tdata-task={props.name}\n\t\t\t\t\t\t\tonClick={() => this.state.query = props.name + "-next"}\n\t\t\t\t\t\t>\n\t\t\t\t\t\t\tRun\n\t\t\t\t\t\t</button>\n\t\t\t\t\t\t<output data-result={props.name}>{this.state.result}</output>\n\t\t\t\t\t</section>\n\t\t\t\t);\n\t\t\t}\n\t\t'
+		`import { TaskContext, type Component } from '@exactjs/core';
+
+		export function RemoteTask(
+			this: Component<{ query: string; result: string }>,
+			props: { name: string }
+		) {
+			this.state.query = props.name + '-ready';
+			this.state.result = 'waiting';
+			const runFixtureTask = async (query: string, _task: TaskContext = TaskContext.server()) => {
+				await Promise.resolve();
+				this.state.result = query.toUpperCase();
+			};
+			runFixtureTask(this.state.query);
+			return () => (
+				<section>
+					<button data-task={props.name} onClick={() => this.state.query = props.name + '-next'}>
+						Run
+					</button>
+					<output data-result={props.name}>{this.state.result}</output>
+				</section>
+			);
+		}`
 	);
 	const compiled = await compileFileArtifacts(source, {
 		outDir: generatedRoot,
 		rootDir: sourceRoot
 	});
+	expect(artifactAnalysis(compiled).components).toEqual([
+		expect.objectContaining({
+			name: 'RemoteTask',
+			placement: 'isomorphic',
+			artifactTargets: ['client', 'server']
+		})
+	]);
 	const clientModule = await importArtifact(
 		compiled.clientFile,
 		path.join(root, name, 'client.mjs')
