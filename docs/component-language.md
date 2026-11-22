@@ -659,7 +659,12 @@ Use `peek()` to request a deliberate one-time snapshot:
 ```tsx
 this.state.initialCurrency = peek(() => props.currency);
 const initialQuery = peek(() => this.state.query);
+const initialItems = peek(() => this.state.items);
 ```
+
+A derived setup declaration such as `const items = this.state.items` follows slot
+replacement when a task reads it. `initialItems` retains the array selected during
+setup by reference. Its elements can still change through that array.
 
 Import `peek` from `@exactjs/core`. Renamed imports, namespace members, and immutable local
 aliases preserve its snapshot boundary. An unrelated helper named `peek` has ordinary helper

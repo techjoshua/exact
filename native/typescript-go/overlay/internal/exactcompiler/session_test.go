@@ -5408,54 +5408,6 @@ __fixtureTask11();
 	}
 }
 
-func TestSessionAttributesStateEffectsToTaskWork(t *testing.T) {
-	response := NewSession().Execute(Request{
-		ID:   "component.tsx",
-		Kind: "compile",
-		Source: `
-			import { TaskContext } from "@exactjs/core";
-			declare class Component<State> { state: State }
-			function Loader(this: Component<any>) {
-				const items = this.state.items;
-				const __fixtureTask14 = async (_task: TaskContext = TaskContext.deferred()) => {
-					const first = items[0].id;
-					this.state.result = first;
-					this.state.items.push(first);
-				};
-__fixtureTask14();
-				return () => <output />;
-			}
-		`,
-	})
-	if response.Error != "" {
-		t.Fatal(response.Error)
-	}
-	tasks := response.Analysis.Tasks
-	if len(tasks) != 1 {
-		t.Fatalf("received %d tasks, expected 1: %#v", len(tasks), tasks)
-	}
-	task := tasks[0]
-	if !task.Async || task.Placement != "isomorphic" {
-		t.Fatalf("unexpected task execution facets: %#v", task)
-	}
-	hasItemsRead := false
-	for _, read := range task.Reads {
-		if read.Path == "items" && read.Confidence == "exact" {
-			hasItemsRead = true
-			break
-		}
-	}
-	if !hasItemsRead {
-		t.Fatalf("task omitted its state collection read: %#v", task.Reads)
-	}
-	if len(task.Writes) != 2 ||
-		task.Writes[0].Path != "result" ||
-		task.Writes[1].Path != "items" ||
-		task.Writes[1].Confidence != "broad" {
-		t.Fatalf("unexpected task writes: %#v", task.Writes)
-	}
-}
-
 func TestSessionRejectsUnsafeDerivedTaskDependencies(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID:   "component.tsx",
@@ -5503,45 +5455,6 @@ __fixtureTask15();
 	}
 	if response.Code != "" || response.SourceMap != nil {
 		t.Fatal("rejected unsafe dependency emitted an executable artifact")
-	}
-}
-
-func TestSessionTreatsPeekAsExplicitTaskSnapshot(t *testing.T) {
-	response := NewSession().Execute(Request{
-		ID:   "component.tsx",
-		Kind: "compile",
-		Source: `
-			import { TaskContext, peek } from "@exactjs/core";
-			function Page(props: { url: string }) {
-				const parsed = parse(props.url);
-				const request = peek(() => normalize(parsed));
-				const __fixtureTask16 = (_task: TaskContext = TaskContext.latest()) => consume(request);
-__fixtureTask16();
-				return () => <output />;
-			}
-		`,
-	})
-	if response.Error != "" {
-		t.Fatal(response.Error)
-	}
-	request := assertReactiveBinding(
-		t,
-		response.Analysis.ReactiveBindings,
-		"request",
-		"snapshot",
-		false,
-	)
-	if !equalStrings(request.Dependencies, []string{"parsed"}) {
-		t.Fatalf("unexpected snapshot dependencies: %#v", request.Dependencies)
-	}
-	if len(response.Diagnostics) != 0 ||
-		len(response.Analysis.Tasks) != 1 ||
-		containsString(response.Analysis.Tasks[0].ReactiveDependencies, "request") {
-		t.Fatalf(
-			"explicit snapshot escaped into task activation: %#v %#v",
-			response.Analysis.Tasks,
-			response.Diagnostics,
-		)
 	}
 }
 

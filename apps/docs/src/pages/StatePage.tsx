@@ -191,6 +191,13 @@ export function StatePage(this: Component<{}>) {
 					calculation remain reactive.
 				</p>
 				<p>
+					A task that reads the setup declaration <code>const items = this.state.items</code>
+					sees the current array after a slot replacement. Use
+					<code>const initialItems = peek(() =&gt; this.state.items)</code> to keep the array
+					selected during setup. The snapshot holds that array by reference, so changes to its
+					elements are still visible.
+				</p>
+				<p>
 					Replacing a Map value stores the supplied object even when its fields match the old value.
 					When several parts of a view need the same Map or Set contents, a declaration such as
 					<code>const rows = Array.from(this.state.rows.values())</code> can share a reactive

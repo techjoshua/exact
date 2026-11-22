@@ -1,6 +1,10 @@
 package exactcompiler
 
-import "github.com/microsoft/TypeScript/tsc/internal/ast"
+import (
+	"slices"
+
+	"github.com/microsoft/TypeScript/tsc/internal/ast"
+)
 
 // componentStateFieldRead accounts for the first field lookup on the state facade
 // of a lexical component receiver. The same origin and path reach this visitor
@@ -26,6 +30,242 @@ func (q *sourceValueQuery) componentStateFieldRead(receiver *ast.Node, path []st
 		}
 	}
 	return false
+}
+
+// componentStateCaptureOrigins projects a directly initialized setup binding.
+// An ordinary derived value observes the live slot. An imported root peek with
+// a direct read callback observes only setup writes that precede the snapshot.
+// Array member selection still belongs to the ordinary writer and Get visitors.
+func (q *sourceValueQuery) componentStateCaptureOrigins(binding *ast.Node, result *accessorCandidates) []sourceValue {
+	if binding.Parent.Flags&ast.NodeFlagsConst == 0 {
+		return nil
+	}
+	if cached := q.owner.stateCaptureOrigins[binding]; cached != nil {
+		return cached
+	}
+	read := unwrapSourceCallableReference(binding.Initializer())
+	if read == nil || !ast.IsAccessExpression(read) && !ast.IsCallExpression(read) {
+		return nil
+	}
+	component := enclosingCallableNode(binding)
+	if _, owned := q.owner.components[component]; !owned ||
+		binding.Parent.Parent == nil || binding.Parent.Parent.Parent != component.Body() {
+		return nil
+	}
+	source := ast.GetSourceFileOfNode(binding)
+	snapshot := reactiveSnapshotInitializer(read, source, q.owner.checker)
+	if snapshot {
+		args := read.AsCallExpression().Arguments
+		if args == nil || len(args.Nodes) != 1 {
+			return nil
+		}
+		callback := unwrapSourceCallableReference(args.Nodes[0])
+		if callback == nil || !ast.IsArrowFunction(callback) || ast.HasSyntacticModifier(callback, ast.ModifierFlagsAsync) ||
+			len(callback.Parameters()) != 0 || ast.IsBlock(callback.Body()) {
+			return nil
+		}
+		read = unwrapSourceCallableReference(callback.Body())
+		if !q.componentSnapshotSetupPrefix(component.Body(), binding.Parent.Parent, result) {
+			return nil
+		}
+	}
+	receiver, field := componentStateSlotReceiver(read)
+	if receiver == nil || !helperOwnsReceiver(receiver, component) {
+		return nil
+	}
+	index := q.owner.index(source)
+	if index.incomplete || index.normalDynamicScope || index.privateUses == nil || !index.privateUses.complete {
+		return nil
+	}
+	symbol := q.owner.checker.GetSymbolAtLocation(binding.Name())
+	if symbol == nil {
+		return nil
+	}
+	scopes := componentStateReceiverScopes(component, q.owner.checker)
+	var alternatives []sourceValue
+	var initial *ast.Node
+	minElements := int(^uint(0) >> 1)
+	for _, region := range index.operationRegions {
+		for _, site := range region.receivers {
+			if site.Pos() < component.Pos() || site.End() > component.End() {
+				continue
+			}
+			if !q.charge(result, site) {
+				return nil
+			}
+			if !componentOwnsReceiver(site, scopes) {
+				continue
+			}
+			facade := site.Parent
+			if facade == nil || !ast.IsPropertyAccessExpression(facade) || facade.Expression() != site {
+				return nil
+			}
+			if facade.Name().Text() != "state" {
+				if !readComponentInstanceMember(facade, site) {
+					return nil
+				}
+				continue
+			}
+			slot := facade.Parent
+			_, key := componentStateSlotReceiver(slot)
+			if key == "" {
+				return nil
+			}
+			if key != field {
+				continue
+			}
+			assignment := slot.Parent
+			_, write := accessorEvaluationMode(slot)
+			if !write {
+				if slot != read && !q.componentArrayRead(slot, true, -1) {
+					return nil
+				}
+				continue
+			}
+			if snapshot && (enclosingCallableNode(site) != component || slot.Pos() >= binding.End()) {
+				// The prefix proof excludes any entry into deferred writers before
+				// this snapshot. Later slot replacement cannot retarget its origin.
+				continue
+			}
+			if !plainStagedAssignment(assignment) || assignment.AsBinaryExpression().Left != slot ||
+				assignment.Parent == nil || !ast.IsExpressionStatement(assignment.Parent) {
+				return nil
+			}
+			array := unwrapSourceCallableReference(assignment.AsBinaryExpression().Right)
+			if array == nil || !ast.IsArrayLiteralExpression(array) ||
+				!denseArrayElements(array.AsArrayLiteralExpression().Elements.Nodes) {
+				return nil
+			}
+			if assignment.Parent.Parent == component.Body() && assignment.End() <= binding.Pos() {
+				if initial == nil || initial.Pos() < array.Pos() {
+					initial = array
+				}
+			}
+			minElements = min(minElements, len(array.AsArrayLiteralExpression().Elements.Nodes))
+			alternatives = append(alternatives, sourceValue{node: array})
+		}
+	}
+	if initial == nil {
+		return nil
+	}
+	for _, use := range index.privateUses.uses[ast.GetSymbolId(symbol)] {
+		if !q.charge(result, use.node) || !q.componentArrayRead(use.node, false, minElements) {
+			return nil
+		}
+	}
+	if snapshot {
+		alternatives = []sourceValue{{node: initial}}
+	} else {
+		slices.SortFunc(alternatives, func(a, b sourceValue) int { return a.node.Pos() - b.node.Pos() })
+	}
+	if q.owner.stateCaptureOrigins == nil {
+		q.owner.stateCaptureOrigins = make(map[*ast.Node][]sourceValue)
+	}
+	q.owner.stateCaptureOrigins[binding] = alternatives
+	return alternatives
+}
+
+// componentArrayRead limits the source projection to unescaped arrays and
+// elements. Unrepresented writes keep the original conservative demand. A
+// selected standard push on the slot can append data without replacing any
+// original element or changing its descriptor.
+func (q *sourceValueQuery) componentArrayRead(value *ast.Node, direct bool, elements int) bool {
+	if elements >= 0 {
+		member := value.Parent
+		for member != nil && unwrapSourceCallableReference(member) == value {
+			member = member.Parent
+		}
+		if member == nil || !ast.IsAccessExpression(member) {
+			return false
+		}
+		_, key := accessorReceiver(member)
+		if key != "length" {
+			index, indexed := sourceArrayIndex(key)
+			if !indexed || index >= uint64(elements) {
+				return false
+			}
+		}
+	}
+	for current := value; current.Parent != nil; {
+		parent := current.Parent
+		if unwrapSourceCallableReference(parent) == current {
+			current = parent
+			continue
+		}
+		if ast.IsAccessExpression(parent) && parent.Expression() == current {
+			current = parent
+			continue
+		}
+		if direct && ast.IsCallExpression(parent) && parent.Expression() == current &&
+			ast.IsPropertyAccessExpression(current) && current.Expression() == value && current.Name().Text() == "push" {
+			// The caller requires dense array literals and excludes authored
+			// member writes and exposure before accepting this confined receiver.
+			return true
+		}
+		if current == value {
+			return false
+		}
+		if ast.IsConditionalExpression(parent) && parent.AsConditionalExpression().Condition == current {
+			return true
+		}
+		read, write := accessorEvaluationMode(current)
+		return read && !write && !stateArgumentMayOwnMutations(q.owner.checker.GetTypeAtLocation(current))
+	}
+	return false
+}
+
+// componentSnapshotSetupPrefix proves that setup executes only ordinary
+// state data assignments before the root peek. A nested writer cannot enter
+// during this prefix. Authored reads inside element getters remain deferred.
+func (q *sourceValueQuery) componentSnapshotSetupPrefix(body, end *ast.Node, result *accessorCandidates) bool {
+	if body == nil || !ast.IsBlock(body) {
+		return false
+	}
+	for _, statement := range body.AsBlock().Statements.Nodes {
+		if statement == end {
+			return true
+		}
+		if !q.charge(result, statement) || !ast.IsExpressionStatement(statement) {
+			return false
+		}
+		assignment := statement.Expression()
+		if !plainStagedAssignment(assignment) {
+			return false
+		}
+		binary := assignment.AsBinaryExpression()
+		if receiver, _ := componentStateSlotReceiver(binary.Left); receiver == nil {
+			return false
+		}
+		right := unwrapSourceCallableReference(binary.Right)
+		if ast.IsArrayLiteralExpression(right) {
+			for _, element := range right.AsArrayLiteralExpression().Elements.Nodes {
+				if !q.charge(result, element) || !sourceInertValueCreation(element) {
+					return false
+				}
+			}
+		} else if !sourceInertValueCreation(right) {
+			return false
+		}
+	}
+	return false
+}
+
+// componentStateSlotReceiver accepts a finite slot with its original state
+// receiver. A computed key with eager work stays with ordinary acquisition.
+func componentStateSlotReceiver(slot *ast.Node) (*ast.Node, string) {
+	if slot == nil || !ast.IsAccessExpression(slot) || ast.IsOptionalChain(slot) {
+		return nil, ""
+	}
+	facade, key := accessorReceiver(slot)
+	if facade == nil || !ast.IsPropertyAccessExpression(facade) || ast.IsOptionalChain(facade) ||
+		facade.Name().Text() != "state" || facade.Expression().Kind != ast.KindThisKeyword ||
+		key == "" || key == "*" || key == "__proto__" {
+		return nil, ""
+	}
+	if ast.IsElementAccessExpression(slot) && !sourceInertValueCreation(slot.AsElementAccessExpression().ArgumentExpression) {
+		return nil, ""
+	}
+	return facade.Expression(), key
 }
 
 // stableComponentStateFacade checks the existing receiver index once per

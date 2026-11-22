@@ -96,6 +96,7 @@ type sourceNormalDemand struct {
 // for its checker generation. It is not a heap, selected-callee certificate or lowering plan.
 type sourceValueOwner struct {
 	componentStatePrefix    map[*ast.Node]int                      // First setup statement that can expose the fresh state facade.
+	stateCaptureOrigins     map[*ast.Node][]sourceValue            // Generation-local literal origins, without acquired values.
 	stateArraySources       map[componentArrayFieldUse][]*ast.Node // Generation-local write syntax, without acquired values.
 	stateFacadeReads        map[*ast.Node]bool                     // Stable lexical component state facade within this source generation.
 	byteStorageOperations   map[*ast.Node]bool                     // Per-program private receiver use classification.
@@ -470,6 +471,14 @@ func (query *sourceValueQuery) originsInto(node *ast.Node, bindings sourceValueB
 			// the origins available for effect demands without claiming a value.
 			result.valueIncomplete = true
 			return query.boundProjection(query.origins(iterable, bindings, result), append([]string{"*"}, path...), result)
+		}
+	}
+	// Component setup can provide source alternatives even when a deferred
+	// consumer has no synchronous caller frame.
+	if binding := symbol.ValueDeclaration; binding != nil && ast.IsVariableDeclaration(binding) && binding.Initializer() != nil &&
+		enclosingCallableNode(binding) != enclosingCallableNode(root) {
+		if origins := query.componentStateCaptureOrigins(binding, result); len(origins) != 0 {
+			return query.boundProjection(query.liveValues(symbol, origins, root, bindings, result), path, result)
 		}
 	}
 	if !query.dependenciesOnly && query.missingNormalInput(symbol, root, bindings, result) {

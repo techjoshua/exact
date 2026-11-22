@@ -362,14 +362,17 @@ hydration. The snapshot fixture emits an unbound identifier on the server.
 The compiler matched the revision's source. The SDK used retained providers
 from a candidate build. Recheck the fixes with revision-matched providers.
 
-Four of the five original task activation sources pass in both application and
-library modes with the checked primitive member fix and revision-matched
-providers. The [startup regression](../packages/compiler/src/compilation/task-primitive-startup.test.ts)
-checks one startup publication, strict adoption, an input change and fresh
-mount. Nonblocking startup permits SSR fallback. An explicit blocking control
-publishes the result during SSR and skips replay on adoption. The remaining
-captured index and length reads stop at the saved receiver's unresolved field
-origin before reaching its array producer.
+The [task activation regression](../packages/compiler/src/compilation/task-activation-publication.test.ts)
+exercises all five original component sources in application and library builds.
+The deferred array row adopts the SSR node and publishes the startup result and a later click.
+Placement follows the confined array literals assigned to the live state slot, including
+replacement candidates. A directly imported `peek` with an inert setup prefix can retain the
+original array. Indexed reads preserve authored element getter effects. Possible writes through
+an alias or an opaque exposure retain the ordinary unresolved placement path.
+The [startup regression](../packages/compiler/src/compilation/task-primitive-startup.test.ts)
+checks a single startup publication, strict adoption, an input change and a fresh mount.
+Nonblocking startup permits SSR fallback. Blocking startup publishes the result during SSR
+and skips replay on adoption.
 
 The artifact projection family has three component-backed acceptance checks on integration
 `4e5adf90f`. An ordinary JSX helper renders a host-classified native import through a
