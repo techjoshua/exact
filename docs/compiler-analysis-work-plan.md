@@ -360,6 +360,19 @@ The focused `3157ce705` checkpoint passed 29 of 36 native groups. The seven stag
 
 A typed component that returns a setup helper called with the same receiver used to compile with no diagnostics even when server output and client state disagreed with the receiving artifact. The two-argument helper has no standalone artifact and now uses the receiving owner's named state, ordinary returned render function, and tracked JSX reads. The paired-artifact test exercises SSR, hydration, client lifecycle, and prop delivery on a retained DOM node. A helper that also qualifies as a standalone component still reproduces the contract disagreement. A private experiment used a receiver-relative body for the authored function and retained the component's optimized artifact entry. It preserved the authored `.call` getter, strict hydration, mount and prop updates. The owned executor and portable contract agreed in application and library builds whether a local forwarded use was present. Adoption of the extra emitted entry requires architectural agreement.
 
+At `fc71e2f5f`, a paired SDK fixture renders the same helper independently and
+through a receiver-preserving call in one parent. Semantic compilation succeeds
+in application and library modes. The independent component passes SSR and strict
+hydration. In the forwarded call the helper receives the intended component and
+state object. Its indexed write uses the standalone slot for `count`, which
+overwrites the receiver's `alternate` field. The helper's direct server program
+also replaces the render function that the forwarded server artifact expects.
+Client mounting rejects the standalone invocation payload before the receiving
+component's mount callbacks run. These failures prevent hydration and prop
+updates for the dual-role composition. The matching two-argument helper passes
+strict hydration, retains both child nodes through a parent-driven prop update,
+and observes the receiving component and its state at setup and mount.
+
 The canonical SDK run used source and built adapters at `85cbeccc6`, native inputs equal to `2d642dc7f`, and retained runtime providers. It reported 2,535 passes, 364 failures and one skip. All 160 Time cases that failed on missing runtime entries passed on a focused rerun with the complete retained distribution. A fresh Time library compile reached the request deadline on `packages/time/src/components.ts`. The control compiler at `1b31bc5b0` reproduces native process exits in server-bundle isolation and task parameter defaults under the same SDK setup. Distributed continuation setup also failed when transforming Microfrontends.
 
 The full original Core package build emitted 300 JavaScript modules per target at `43fa437ca`. Its 16.07-second elapsed time is one observation with retained providers and other audit jobs active. The deep placement test reported 1,863,065 JSON characters against a limit of 750,000 on both the control and unified compilers under the same SDK configuration.
