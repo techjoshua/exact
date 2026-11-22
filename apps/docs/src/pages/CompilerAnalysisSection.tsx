@@ -212,6 +212,14 @@ export function CompilerAnalysisSection(this: Component<{}>) {
 				compiler updates the affected render edges using the child’s new placement.
 			</p>
 			<p>
+				A component can use a CommonJS dependency through a call such as
+				<code>require('./labels.cjs')</code> when the bundler can include that module for the
+				component’s target. Node built-ins such as <code>node:path</code> stay on the server.
+				Passing the ambient loader around or supplying its module name dynamically also requires the
+				server. A local function named <code>require</code> follows the same placement rules as any
+				other authored function.
+			</p>
+			<p>
 				For a small helper with no captured values, the compiler can connect a conditional field
 				read to the arguments of that particular call. In this example the false branch returns zero
 				without reading <code>input.value</code>.

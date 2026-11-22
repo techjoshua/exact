@@ -362,14 +362,22 @@ hydration. The snapshot fixture emits an unbound identifier on the server.
 The compiler matched the revision's source. The SDK used retained providers
 from a candidate build. Recheck the fixes with revision-matched providers.
 
-At `5115d38b9` the artifact projection family has three component witnesses.
-A host-classified native JSX import renders through an ordinary helper and a
-compiled root. A consumer of a portable CommonJS module renders during SSR
-but receives a server boundary on client mount. The Node built-in and lexical
-shadow controls behave as expected. A hydrated root updates when its initial
-items were supplied. When they were omitted, clicking Add leaves the output
-at `0:chosen:missing`. These results used the baseline native compiler and
-retained integration provider outputs.
+The artifact projection family has three component-backed acceptance checks on integration
+`4e5adf90f`. An ordinary JSX helper renders a host-classified native import through a
+compiled root. The portable CommonJS consumer renders in document-free SSR and mounts
+without a client ambient loader. Node built-ins, dynamic loads and opaque loader references
+retain server placement. The lexically shadowed call renders on both targets.
+
+The published-root-props fixture mounts and strictly adopts server markup with supplied and
+omitted inputs. Its Add handler updates the retained output in both cases. Published prop
+values supply sparse state, while omitted props exercise the array fallback and the `peek()`
+snapshot. The initial omitted-props failure came from reusing a container after disposing
+only its DOM root. Disposing the hydration root before the next run exercises adoption on
+each iteration. The paired fixture replaces the native state-input spelling assertion.
+
+This closes the three scoped cases against a rebuilt native compiler and retained integration
+providers in Node/jsdom. A fresh provider build and broader artifact acceptance remain
+part of the integrated gate.
 
 Track newer component findings separately. Forwarded event dispatch and
 private-context continuation lookup have scoped fixes. Standalone Workspace

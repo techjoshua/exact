@@ -300,10 +300,7 @@ func (analysis *moduleDefinitionAnalysis) expression(work *ast.Node, execute boo
 			if _, global := browserGlobals[node.Text()]; global && symbolIsOutsideSource(reference, owner) && !browserGlobalReferenceIsGuarded(node, node.Text(), guardBoundary) {
 				analysis.browser = true
 			}
-			if _, global := serverGlobals[node.Text()]; global && symbolIsOutsideSource(reference, owner) {
-				module, loader := requireModule(node.Parent, func(value *ast.Node) bool { return nativeModuleLoaderExpression(value, analysis.checker) })
-				analysis.server = analysis.server || node.Text() != "require" || !loader || serverOnlyModule(module)
-			}
+			analysis.server = analysis.server || serverGlobalReference(node, reference, owner)
 		}
 		analysis.symbol(reference, false)
 		return true

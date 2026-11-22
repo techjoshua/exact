@@ -12,6 +12,13 @@ Artifact dependency discovery uses `module-imports` to collect static imports, r
 literal dynamic imports from the current program. It uses TypeScript resolution for static
 edges. Component placement, state analysis and security checks run during artifact preparation.
 
+Direct calls to an ambient CommonJS loader with a literal specifier use the same server-only
+module classification as static imports. A portable dependency can be bundled into either
+artifact. The host still owns module resolution and must provide the dependency on each target
+that uses it. Node built-ins, dynamic specifiers and references to the ambient loader value
+retain their server requirement. Lexically bound functions named `require` use ordinary callable
+analysis.
+
 Public callable body demand starts at the requested executable source. TypeScript project roots
 remain available for checking and shared static inventories; unrelated components and tasks in
 those roots do not become execution demands. Real helper and JSX references, runtime imports,

@@ -225,7 +225,10 @@ func nativeModuleLoaderExpression(expression *ast.Node, typeChecker *checker.Che
 	if !ast.IsParseTreeNode(expression) {
 		return true
 	}
-	symbol := typeChecker.GetSymbolAtLocation(expression)
+	return nativeModuleLoaderSymbol(typeChecker.GetSymbolAtLocation(expression))
+}
+
+func nativeModuleLoaderSymbol(symbol *ast.Symbol) bool {
 	if symbol == nil {
 		return true
 	}

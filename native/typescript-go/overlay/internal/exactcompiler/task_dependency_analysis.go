@@ -295,8 +295,7 @@ func (facts *taskSourceWorkFacts) collectBodyFacts(
 			symbolIsOutsideSource(symbol, sourceFile) {
 			facts.browser = true
 		}
-		if _, candidate := serverGlobals[name]; candidate &&
-			symbolIsOutsideSource(symbol, sourceFile) {
+		if serverGlobalReference(node, symbol, sourceFile) {
 			facts.server = true
 		}
 		if serverOnlyImportSymbol(symbol) {
@@ -360,6 +359,27 @@ func serverOnlyImportSymbol(symbol *ast.Symbol) bool {
 		}
 	}
 	return false
+}
+
+// serverGlobalReference applies the module provider policy to direct literal
+// CommonJS loads. Dynamic loads and references to the loader value retain the
+// Node global requirement.
+func serverGlobalReference(node *ast.Node, symbol *ast.Symbol, sourceFile *ast.SourceFile) bool {
+	if _, global := serverGlobals[node.Text()]; !global || !symbolIsOutsideSource(symbol, sourceFile) {
+		return false
+	}
+	return !portableAmbientRequireReference(node, symbol)
+}
+
+// portableAmbientRequireReference accepts only an ambient loader in callee
+// position so passing require as a value retains its original placement.
+func portableAmbientRequireReference(node *ast.Node, symbol *ast.Symbol) bool {
+	if node.Text() != "require" || node.Parent == nil || !ast.IsCallExpression(node.Parent) ||
+		node.Parent.AsCallExpression().Expression != node {
+		return false
+	}
+	module, literal := requireModule(node.Parent, func(*ast.Node) bool { return nativeModuleLoaderSymbol(symbol) })
+	return literal && !serverOnlyModule(module)
 }
 
 func serverOnlyModule(specifier string) bool {

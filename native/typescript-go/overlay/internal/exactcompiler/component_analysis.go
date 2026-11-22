@@ -252,7 +252,7 @@ func analyzeComponents(
 				}
 				// Rendering retains server-global requirements independently of the
 				// legacy coordination walk and any extracted setup summary.
-				if _, server := serverGlobals[name]; server && symbolIsOutsideSource(symbol, sourceFile) {
+				if serverGlobalReference(node, symbol, sourceFile) {
 					renderServerRequirements = true
 				}
 				if _, browser := browserGlobals[name]; browser &&

@@ -302,6 +302,13 @@ func unresolvedCallEnvironment(
 	} else if environment != "" {
 		return environment
 	}
+	// Classify the authored loader binding before resolving callable aliases.
+	if ast.IsIdentifier(expression) && expression.Text() == "require" && expression.Parent != nil {
+		symbol := typeChecker.GetSymbolAtLocation(expression)
+		if symbolIsOutsideSource(symbol, sourceFile) && portableAmbientRequireReference(expression, symbol) {
+			return ""
+		}
+	}
 	symbol := callTargetSymbol(expression, typeChecker)
 	if serverOnlyImportSymbol(symbol) {
 		return "server"
@@ -735,7 +742,7 @@ func sourceBoundReferenceEffects(node, boundary *ast.Node, sourceFile *ast.Sourc
 	if _, candidate := browserGlobals[name]; candidate && symbolIsOutsideSource(symbol, sourceFile) && !browserGlobalReferenceIsGuarded(node, name, boundary) {
 		sources = append(sources, environmentSource("browser", name, nameOfOwner))
 	}
-	if _, candidate := serverGlobals[name]; candidate && symbolIsOutsideSource(symbol, sourceFile) && !browserGlobalReferenceIsGuarded(node, name, boundary) {
+	if serverGlobalReference(node, symbol, sourceFile) && !browserGlobalReferenceIsGuarded(node, name, boundary) {
 		sources = append(sources, environmentSource("server", name, nameOfOwner))
 	}
 	if serverOnlyImportSymbol(symbol) {
