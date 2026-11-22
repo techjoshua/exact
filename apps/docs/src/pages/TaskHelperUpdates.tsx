@@ -32,9 +32,10 @@ export function TaskHelperUpdates(this: Component<{}>) {
 				title="Excerpt: share an update within one task generation"
 			/>
 			<p>
-				Cancellation prevents a later managed state write, including after an await. Earlier effects
-				remain. Saving an original helper and calling it during another task does not transfer it to
-				that newer generation.
+				Cancelling an invoked server task also interrupts a pending await in its local async
+				helper, including when the task uses <code>task.optimistic()</code>. Earlier effects remain.
+				Saving an original helper and calling it during another task keeps it on the generation
+				that created it.
 			</p>
 			<p>
 				Shared helpers can live in your project or an external package. They execute their ordinary

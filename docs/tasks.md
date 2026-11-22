@@ -130,7 +130,11 @@ Ordinary local functions and arrows created during a task retain that generation
 awaits. Finite synchronous methods grouped in a named const object directly in the task can update
 state through a captured component alias. Their native receivers, defaults, identity and call order
 remain intact. Extracting an original helper does not move it to a later caller's generation.
-Cancellation prevents a later managed state put and preserves effects that already happened.
+In an invoked server task, cancellation rejects a managed await inside a task-local async helper,
+so it cannot resume along the success path after the awaited promise settles. This applies when
+the task includes a client-side optimistic callback. A separately defined child task uses its own
+generation signal, with cancellation propagation determined by its lifetime policy. Cancellation
+prevents later managed state writes and preserves effects that already happened.
 
 For reusable server updates, pass the component-owned state to an ordinary helper whose required writes
 can be established by the build. Generated component code supplies a pending state view and invokes

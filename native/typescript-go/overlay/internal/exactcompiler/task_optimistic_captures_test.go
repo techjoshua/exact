@@ -89,3 +89,55 @@ export function Panel(this: Component<{ value: string }>) {
 		})
 	}
 }
+
+// Filtering client-owned work must preserve the parent body's authored ancestry
+// so ordinary local helpers and separately owned tasks use their own generations.
+func TestInvokedServerAwaitAfterOptimisticFiltering(t *testing.T) {
+	for _, tc := range []struct{ name, optimistic string }{
+		{"unchanged body", ""},
+		{"filtered body", `task.optimistic(() => { this.state.value = "optimistic await " + "witness"; });`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			source := `import { TaskContext, type Component } from "@exactjs/core";
+export function Panel(this: Component<{ value: string }>) {
+	this.state.value = "initial";
+	const run = async (task: TaskContext = TaskContext.server().blocking()) => {
+		` + tc.optimistic + `
+		async function helper() {
+			return await Promise.resolve("local helper");
+		}
+		async function child(childTask: TaskContext = TaskContext.server().blocking()) {
+			return await Promise.resolve("child task");
+		}
+		const value = await helper();
+		this.state.value = value + await child();
+	};
+	return () => <button onClick={() => run()}>{this.state.value}</button>;
+}`
+			for _, target := range []Target{TargetClient, TargetServer} {
+				result := NewSession().Execute(Request{ID: "optimistic-await.tsx", Kind: "compile", Target: target, Source: source})
+				if result.Error != "" || result.Code == "" || len(result.Diagnostics) != 0 {
+					t.Fatalf("%s compilation failed: %s %#v", target, result.Error, result.Diagnostics)
+				}
+				wantOptimistic := target == TargetClient && tc.optimistic != ""
+				wantCount := 0
+				if wantOptimistic {
+					wantCount = 1
+				}
+				if count := strings.Count(result.Code, `"optimistic await " + "witness"`); count != wantCount {
+					t.Fatalf("%s wrong optimistic callback ownership:\n%s", target, result.Code)
+				}
+				if target == TargetServer {
+					for _, want := range []string{
+						`await __exactTaskAwait(task.signal, Promise.resolve("local helper"))`,
+						`await __exactTaskAwait(childTask.signal, Promise.resolve("child task"))`,
+					} {
+						if !strings.Contains(result.Code, want) {
+							t.Fatalf("missing %q:\n%s", want, result.Code)
+						}
+					}
+				}
+			}
+		})
+	}
+}
