@@ -3,8 +3,16 @@ import { hydrate } from '@exactjs/hydrate';
 import { renderToHydratableString } from '@exactjs/ssr';
 import { flushSync } from '@exactjs/reactive';
 import { expect, it, onTestFinished } from 'vitest';
-import { reactiveProvenanceRoot } from './test-support/reactive-provenance.fixtures.js';
-import { reactiveProvenanceRoot as serverRoot } from './test-support/reactive-provenance.fixtures.js?exact-target=server';
+import {
+	reactiveProvenanceRoot,
+	reactiveScalarPropRoot,
+	scalarPropGetterReads
+} from './test-support/reactive-provenance.fixtures.js';
+import {
+	reactiveProvenanceRoot as serverRoot,
+	reactiveScalarPropRoot as serverScalarRoot,
+	scalarPropGetterReads as serverGetterReads
+} from './test-support/reactive-provenance.fixtures.js?exact-target=server';
 
 for (const mode of ['mount', 'hydrate'])
 	it(`preserves lexical snapshots and live helper captures through ${mode}`, async () => {
@@ -45,3 +53,31 @@ for (const mode of ['mount', 'hydrate'])
 		expect(host.childNodes).toHaveLength(0);
 		expect(reports).toEqual([]);
 	});
+
+it('hydrates a scalar prop producer in place and updates it from parent state', async () => {
+	const host = document.createElement('div');
+	onTestFinished(() => {
+		dispose(host, true);
+	});
+	const serverBefore = serverGetterReads();
+	const ssr = await renderToHydratableString(serverScalarRoot());
+	expect(serverGetterReads() - serverBefore).toBe(1);
+	host.innerHTML = ssr.html;
+	const output = host.querySelector('output')!;
+	expect(output.textContent).toBe('40');
+
+	const clientBefore = scalarPropGetterReads();
+	hydrate(reactiveScalarPropRoot(), host, {
+		resumptions: ssr.resumptions,
+		onMismatch: 'throw'
+	});
+	expect(host.querySelector('output')).toBe(output);
+	expect(output.textContent).toBe('40');
+	expect(scalarPropGetterReads() - clientBefore).toBe(1);
+
+	host.querySelector('button')!.click();
+	flushSync();
+	expect(host.querySelector('output')).toBe(output);
+	expect(output.textContent).toBe('41');
+	expect(scalarPropGetterReads() - clientBefore).toBe(2);
+});

@@ -28,6 +28,7 @@ func appendCallableEdgeEffectSources(into []EnvironmentEffectSource, caller, tar
 			continue
 		}
 		transferred := source
+		transferred.componentReactiveField = false
 		operation := caller.callExpressions[edge.ID]
 		if operation == nil {
 			operation = caller.fieldEdgeOperations[edge.ID]
@@ -44,6 +45,8 @@ func appendCallableEdgeEffectSources(into []EnvironmentEffectSource, caller, tar
 		}
 		if transferred.fieldOrigin != nil {
 			transferred.fieldForwarded = true
+			transferred.componentReactiveField = edge.componentReactiveProducer && !source.fieldForwarded &&
+				source.fieldOrigin.declaration == target.node && source.fieldOrigin.consumer == target.node
 		}
 		into = append(into, transferred)
 	}

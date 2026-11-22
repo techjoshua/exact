@@ -52,11 +52,19 @@ func componentPreparedSetupEffects(source *ast.SourceFile, callables callableAna
 	return prepared
 }
 
-// isPreparedScalarPropRead recognizes a direct read of delivered component data.
-// The input producer still owns any authored getter or operand evaluation.
+// isPreparedScalarPropRead recognizes delivered component data read during
+// setup or by its reactive producer. The input producer still owns authored
+// getters and operand evaluation.
 func isPreparedScalarPropRead(node *ast.Node, effect EnvironmentEffectSource, owner *executableBodyOwner, c *checker.Checker) bool {
 	field := effect.fieldOrigin
-	if field == nil || field.operation == nil || field.declaration != node || field.consumer != node || effect.fieldForwarded || effect.Environment != "unknown" || !effect.Opaque || !effect.provenanceIncomplete || owner == nil || owner.values == nil {
+	if field == nil || field.operation == nil || effect.Environment != "unknown" || !effect.Opaque || !effect.provenanceIncomplete || owner == nil || owner.values == nil {
+		return false
+	}
+	if effect.fieldForwarded {
+		if !effect.componentReactiveField || enclosingCallableNode(field.declaration) != node {
+			return false
+		}
+	} else if field.declaration != node || field.consumer != node {
 		return false
 	}
 	_, receiver, direct := directPropsRead(field.operation)

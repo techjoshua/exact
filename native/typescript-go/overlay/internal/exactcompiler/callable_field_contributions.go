@@ -68,6 +68,9 @@ func fieldSourceIdentity(source EnvironmentEffectSource) string {
 	if source.fieldForwarded {
 		key += ":forwarded"
 	}
+	if source.componentReactiveField {
+		key += ":component-reactive"
+	}
 	return relative + key + callSourceIdentity(source) + descriptorSourceIdentity(source)
 }
 
@@ -83,6 +86,7 @@ func displayEnvironmentSources(values []EnvironmentEffectSource) []EnvironmentEf
 		display[i].callForwarded = false
 		display[i].fieldOrigin = nil
 		display[i].fieldForwarded = false
+		display[i].componentReactiveField = false
 		display[i].descriptorOrigin = nil
 		display[i].descriptorForwarded = false
 	}

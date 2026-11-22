@@ -26,7 +26,10 @@ func appendInvokedCallbackReferences(fact *callableFacts, facts []callableFacts,
 			}
 		}
 		if resolved {
-			retainMapInputRole(fact, call, facts[target].node, argumentIndex, edge.ID)
+			targetNode := facts[target].node
+			retainMapInputRole(fact, call, targetNode, argumentIndex, edge.ID)
+			edge.componentReactiveProducer = argumentIndex == 0 && fact.summary.Kind == "component" &&
+				enclosingCallableNode(targetNode) == fact.node && componentReactiveMember(call.Expression(), typeChecker)
 			edge.TargetID = facts[target].summary.ID
 			edge.Resolved = true
 			fact.targets = append(fact.targets, target)

@@ -42,3 +42,38 @@ export function ReactiveProvenanceProbe(this: Component<{ value: number; other: 
 export function reactiveProvenanceRoot() {
 	return <ReactiveProvenanceProbe />;
 }
+
+let scalarGetterReads = 0;
+
+/** Counts original getter evaluations in the parent that supplies the scalar input. */
+export function scalarPropGetterReads() {
+	return scalarGetterReads;
+}
+
+/** Reads a changing scalar prop inside a component-owned producer. */
+export function ReactiveScalarProp(this: Component<{}>, props: { value: number }) {
+	const cell = this.reactive(() => props.value);
+	return () => <output>{cell.get()}</output>;
+}
+
+/** Delivers the getter result and changes the child prop from parent state. */
+export function ReactiveScalarPropParent(this: Component<{ increment: number }>) {
+	this.state.increment = 0;
+	const input = {
+		get value() {
+			scalarGetterReads++;
+			return 40;
+		}
+	};
+	return () => (
+		<section>
+			<button onClick={() => this.state.increment++}>Increment</button>
+			<ReactiveScalarProp value={input.value + this.state.increment} />
+		</section>
+	);
+}
+
+/** Supplies paired roots for the scalar delivery and hydration regression. */
+export function reactiveScalarPropRoot() {
+	return <ReactiveScalarPropParent />;
+}

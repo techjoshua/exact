@@ -298,8 +298,13 @@ export function StatePage(this: Component<{}>) {
 				</p>
 				<CodeBlock source={explicitDerivedSource} language="tsx" title="Explicit derived value" />
 				<p>
-					Calling <code>get()</code> inside another reactive calculation reads the current
-					result and tracks changes to it. You can pass that result straight to a helper.
+					Calling <code>get()</code> inside another reactive calculation reads the current result
+					and tracks changes to it. You can pass that result straight to a helper.
+				</p>
+				<p>
+					A producer such as <code>{'this.reactive(() => props.quantity)'}</code> tracks changes to
+					the parent’s prop. A checked scalar prop can be read during server rendering. A producer
+					that reads a browser API such as <code>document.title</code> runs on the client.
 				</p>
 				<p>
 					For a value owned by another store, <code>createExternalSource()</code> from

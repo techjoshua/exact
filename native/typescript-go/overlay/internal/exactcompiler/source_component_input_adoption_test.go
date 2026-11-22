@@ -17,6 +17,9 @@ func TestPreparedScalarPropSetupPlacement(t *testing.T) {
 		protected                    bool
 	}{
 		{"no caller", component, "isomorphic", "", false},
+		{"reactive scalar", `export function Consumer(props:{value:string}){const cell=this.reactive(()=>props.value);return()=> <output>{cell.get()}</output>}`, "isomorphic", "", false},
+		{"reactive scalar and browser", `export function Consumer(props:{value:string}){const cell=this.reactive(()=>props.value+document.title);return()=> <output>{cell.get()}</output>}`, "client", "", false},
+		{"reactive scalar and getter spread", `export function Consumer(props:{value:string}){const cell=this.reactive(()=>props.value);return()=> <output>{cell.get()}</output>}export function Host(){return()=> <Consumer {...{get value(){return document.title}}}/>}`, "isomorphic", "client", false},
 		{"plain spread", component + `export function Host(){return()=> <Consumer {...{value:'plain'}}/>}`, "isomorphic", "isomorphic", false},
 		{"getter spread", component + `export function Host(){return()=> <Consumer {...{get value(){return document.title}}}/>}`, "isomorphic", "client", false},
 		{"proxy spread", component + `export function Host(){const input=new Proxy({value:'plain'},{get(target,key,receiver){document.title;return Reflect.get(target,key,receiver)}});return()=> <Consumer {...input}/>}`, "isomorphic", "client", false},
@@ -50,12 +53,43 @@ type Private=string&{readonly[brand]:true};export function Consumer(props:{value
 					if placements["Consumer"] != row.consumer || placements["Host"] != row.host {
 						t.Fatal(target, placements)
 					}
+					if row.name == "reactive scalar and browser" && strings.Contains(response.Code, "document.title") != (target == TargetClient) {
+						t.Fatal(target, "browser producer crossed its placement boundary")
+					}
 				}
 				if application.Code != library.Code {
 					t.Fatal(target, "application and library emitted different implementations")
 				}
 			}
 		})
+	}
+}
+
+// An owned producer edge does not grant delivery proof to an ordinary call of the same function.
+func TestReactiveScalarPropOrdinaryCall(t *testing.T) {
+	fixture := newPublicAwaitRequiredFixture(t, `import{type Component}from'@exactjs/core';
+export function Consumer(this:Component<{}>,props:{value:string}){
+	const read=()=>props.value;
+	const cell=this.reactive(read);
+	read();
+	return()=> <output>{cell.get()}</output>;
+}`)
+	for _, target := range []Target{TargetClient, TargetServer} {
+		for _, mode := range []string{"application", "library"} {
+			request := fixture.request("compile", "entry.tsx")
+			request.Target, request.PackageType = target, mode
+			response := NewSession().Execute(request)
+			if response.Error != "" || !containsDiagnosticCode(response.Diagnostics, "EXACT2001") || response.Code != "" {
+				t.Fatal(target, mode, response.Error, response.Diagnostics)
+			}
+			unknownRead := false
+			for _, summary := range response.Analysis.Callables {
+				unknownRead = unknownRead || summary.Name == "read" && summary.Effect == "unknown"
+			}
+			if !unknownRead {
+				t.Fatal(target, mode, "ordinary producer summary lost the unknown prop read")
+			}
+		}
 	}
 }
 

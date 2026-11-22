@@ -497,27 +497,29 @@ type ContextEffect struct {
 
 // EnvironmentEffectSource explains one browser, server, or unresolved placement requirement.
 type EnvironmentEffectSource struct {
-	relativeMutation     *sourceRelativeFieldMutation // Private typed SOURCE obligation; not invoked input or normal output.
-	relativeCoercion     *sourceRelativeCoercion      // implicit input operation, independent from invocation
-	relativeInput        *sourceRelativeInvokedInput  // declaration-relative effect requirement, never a value receipt
-	Environment          string                       `json:"environment"`
-	Description          string                       `json:"description"`
-	Path                 []string                     `json:"path"`
-	Opaque               bool                         `json:"-"`
-	provenanceIncomplete bool
-	callOrigin           *sourceCallOutcome
-	callForwarded        bool
-	fieldOrigin          *sourceFieldDemand
-	fieldForwarded       bool
-	descriptorOrigin     *sourceDescriptorEffectOrigin
-	descriptorForwarded  bool
+	relativeMutation       *sourceRelativeFieldMutation // Private typed SOURCE obligation; not invoked input or normal output.
+	relativeCoercion       *sourceRelativeCoercion      // implicit input operation, independent from invocation
+	relativeInput          *sourceRelativeInvokedInput  // declaration-relative effect requirement, never a value receipt
+	Environment            string                       `json:"environment"`
+	Description            string                       `json:"description"`
+	Path                   []string                     `json:"path"`
+	Opaque                 bool                         `json:"-"`
+	provenanceIncomplete   bool
+	callOrigin             *sourceCallOutcome
+	callForwarded          bool
+	fieldOrigin            *sourceFieldDemand
+	fieldForwarded         bool
+	componentReactiveField bool // Forwarded once to the component that owns the reactive producer.
+	descriptorOrigin       *sourceDescriptorEffectOrigin
+	descriptorForwarded    bool
 }
 
 // CallEdge describes one statically resolved or unresolved callable dependency.
 type CallEdge struct {
-	arrayMapCall *ast.Node // Original source-native callback EFFECT parent, never invocation authority.
-	arrayMapBody *ast.Node // Exact acquired callback declaration paired with arrayMapCall and TargetID.
-	sourceUse    *ast.Node // Private original source EFFECT parent; no target/value/execution authority.
+	componentReactiveProducer bool      // This edge invokes a lexically owned component reactive producer.
+	arrayMapCall              *ast.Node // Original source-native callback EFFECT parent, never invocation authority.
+	arrayMapBody              *ast.Node // Exact acquired callback declaration paired with arrayMapCall and TargetID.
+	sourceUse                 *ast.Node // Private original source EFFECT parent; no target/value/execution authority.
 
 	ID               string            `json:"id"`
 	Name             string            `json:"name"`

@@ -10,6 +10,7 @@ import (
 func TestFrameworkReactiveValuePlacementSources(t *testing.T) {
 	config := timeSemanticConfig(t)
 	for _, c := range []struct{ name, module, setup, view, placement string }{
+		{"constant", "", `const cell=this.reactive(()=>42);`, `cell.get()`, "isomorphic"},
 		{"direct", "", `const cell=this.reactive(()=>props.value);`, `cell.get()`, "isomorphic"},
 		{"alias", "", `const cell=this.reactive(()=>props.value);const alias=cell;`, `alias.get()`, "isomorphic"},
 		{"readonly", "", `const cell=this.reactive(()=>props.value);const alias:Readonly<typeof cell>=cell;`, `alias.get()`, "isomorphic"},
@@ -28,6 +29,7 @@ func TestFrameworkReactiveValuePlacementSources(t *testing.T) {
 		{"computed-browser", "", `const cell=computed(()=>document.title);`, `cell.get()`, "client"},
 		{"derived-browser", "", `const cell=createDerived(()=>document.title);`, `cell.get()`, "client"},
 		{"browser-helper", "", `function read(){return document.title}const calculate=read;const cell=this.reactive(calculate);`, `cell.get()`, "client"},
+		{"browser-with-scalar", "", `const cell=this.reactive(()=>props.value+document.title);`, `cell.get()`, "client"},
 		{"browser-compute", "", `const cell=this.reactive(()=>document.title);`, `cell.get()`, "client"},
 		{"native-producer", "", `const cell=this.reactive(Math.random);`, `cell.get()`, "isomorphic"},
 		{"member-producer-browser", "", `const table={read:()=>document.title};const cell=this.reactive(table['read']);`, `cell.get()`, "client"},

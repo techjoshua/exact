@@ -329,10 +329,11 @@ symbol identity. Passing an unrelated receiver does not select component capabil
 helper bodies remain unchanged. A component owns its context lookup and can pass the selected
 value or reactive handle to a helper. Context writes remain effects of the owner.
 
-Component setup reads of a checked scalar prop use the value delivered by the input receipt. A
-getter or expression that supplies the prop keeps its effects at the producing use. A reassigned
-props parameter, a subsequent member receiver or key, and an untyped value still require ordinary
-source analysis.
+A direct read of a checked scalar prop in component setup or its `this.reactive()` producer uses
+the delivered value for component placement. A getter or expression that supplies the prop keeps
+its effects at the producing use. Other effects in the producer, such as reading
+`document.title`, still inform placement. A reassigned props parameter, a subsequent member
+receiver or key, and an untyped value still require ordinary source analysis.
 
 Direct server clock ranges defer value reads until their enhancement selects the provider clock.
 The additive `createDeferredServerChildRange` helper retains the existing prepared-range shape
