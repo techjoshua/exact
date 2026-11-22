@@ -18,11 +18,19 @@ func (query *sourceValueQuery) nativeCallbackInputEffects(node *ast.Node, bindin
 		return
 	}
 	declaration := signature.Declaration()
-	if declaration == nil || declaration.Kind != ast.KindMethodSignature || callableNameText(declaration.Name()) != "map" || !standardLibrarySource(ast.GetSourceFileOfNode(declaration)) {
+	if declaration == nil || declaration.Kind != ast.KindMethodSignature || !standardLibrarySource(ast.GetSourceFileOfNode(declaration)) {
 		return
 	}
 	parent := declaration.Parent
 	if parent == nil || !ast.IsInterfaceDeclaration(parent) || (callableNameText(parent.Name()) != "Array" && callableNameText(parent.Name()) != "ReadonlyArray") || len(declaration.Parameters()) == 0 {
+		return
+	}
+	method := callableNameText(declaration.Name())
+	if method != "map" && method != "filter" {
+		return
+	}
+	literal := directDenseArrayCallbackReceiver(node, method, query.owner.checker)
+	if method == "filter" && !confinedArrayCallback(node, literal) {
 		return
 	}
 	if prepared.acquired.sourceCallable {
@@ -37,13 +45,12 @@ func (query *sourceValueQuery) nativeCallbackInputEffects(node *ast.Node, bindin
 	actuals := restrictedInvocationArguments(node.AsCallExpression())
 	var entryPattern *ast.Node
 	freshPrivateEntries := false
-	if len(actuals) == 1 && query.owner.directEntriesMap(node.Expression()) == declaration {
+	if method == "map" && len(actuals) == 1 && query.owner.directEntriesMap(node.Expression()) == declaration {
 		freshPrivateEntries = entriesMapIdentityCallback(actuals[0], query.owner.checker)
 		if !freshPrivateEntries {
 			entryPattern, freshPrivateEntries = query.owner.directEntriesMapReturnPair(node, actuals[0])
 		}
 	}
-	literal := directDenseArrayMap(node, query.owner.checker)
 	var items []*ast.Node
 	if literal != nil {
 		items = literal.AsArrayLiteralExpression().Elements.Nodes
@@ -52,6 +59,7 @@ func (query *sourceValueQuery) nativeCallbackInputEffects(node *ast.Node, bindin
 	// mutate its array argument. Keep non-primitive inputs with the existing
 	// member visitor, which owns their identity and possible accessor work.
 	accountedInput := literal != nil && len(items) == 0
+	confinedLiteral := confinedArrayCallback(node, literal)
 	primitiveSingleton := len(items) == 1 && checkedPrimitiveOperand(items[0], query.owner.checker)
 	part := accessorCandidates{}
 	query.withActiveInvocation(node, func() {
@@ -78,10 +86,10 @@ func (query *sourceValueQuery) nativeCallbackInputEffects(node *ast.Node, bindin
 		noncallable := !acquired.opaque && !acquired.valueIncomplete && !acquired.receiverIncomplete && !acquired.fieldReceiverIncomplete && !acquired.thenIncomplete && sourceValuesNoncallable(acquired.values)
 		var keyParameter, confinedArray *ast.Node
 		inlineCallback := len(actuals) == 1 && ast.IsArrowFunction(unwrapSourceCallableReference(argument))
-		if len(actuals) == 1 && len(acquired.values) == 1 && len(acquired.values[0].path) == 0 && query.operation == nil && query.returnObservation == nil {
+		if method == "map" && len(actuals) == 1 && len(acquired.values) == 1 && len(acquired.values[0].path) == 0 && query.operation == nil && query.returnObservation == nil {
 			keyParameter = query.mapIndexParameter(acquired.values[0].node)
 		}
-		if (inlineCallback || keyParameter != nil) && query.operation == nil && query.returnObservation == nil {
+		if method == "map" && (inlineCallback || keyParameter != nil) && query.operation == nil && query.returnObservation == nil {
 			confinedArray = query.confinedMapArray(node, native.bindings[0])
 			if inlineCallback && confinedArray != nil && len(confinedArray.AsArrayLiteralExpression().Elements.Nodes) == 0 {
 				return
@@ -90,9 +98,14 @@ func (query *sourceValueQuery) nativeCallbackInputEffects(node *ast.Node, bindin
 		var elements []sourceValue
 		frozenKeys := false
 		for _, receiver := range native.bindings[0] {
-			if primitiveSingleton && len(native.bindings[0]) == 1 && receiver.node == literal && len(receiver.path) == 0 && receiver.normal == nil && receiver.native == nil && receiver.acquired == nil {
+			if (primitiveSingleton || confinedLiteral) && len(native.bindings[0]) == 1 && receiver.node == literal && len(receiver.path) == 0 && receiver.normal == nil && receiver.native == nil && receiver.acquired == nil {
 				accountedInput = true
-				elements = append(elements, sourceValue{node: items[0], capture: receiver.capture})
+				for _, item := range items {
+					if !query.charge(&part, item) {
+						break
+					}
+					elements = append(elements, sourceValue{node: item, capture: receiver.capture})
+				}
 				break
 			}
 			if freshPrivateEntries {
@@ -201,7 +214,7 @@ func (query *sourceValueQuery) nativeCallbackInputEffects(node *ast.Node, bindin
 			// Keep only the actual acquired callback's effect association. Its
 			// scope/bindings/throw handling above remain owned by this producer.
 			for i := first; i < len(part.effects); i++ {
-				if part.effects[i].declaration == body && part.effects[i].operation == node {
+				if method == "map" && part.effects[i].declaration == body && part.effects[i].operation == node {
 					part.effects[i].arrayMapCall = node
 				}
 			}
@@ -225,7 +238,7 @@ func (query *sourceValueQuery) nativeCallbackInputEffects(node *ast.Node, bindin
 		query.adoptSourceMayEffects(node, part, result)
 	} else if accountedInput {
 		// Keep callback effects and unresolved input alternatives independent
-		// of the intentionally unmodeled map result.
+		// of the intentionally unmodeled callback operation result.
 		result.valueIncomplete = true
 		result.opaque = result.opaque || part.opaque || part.receiverIncomplete || part.fieldReceiverIncomplete
 		result.fieldFallbacks = append(result.fieldFallbacks, part.fieldFallbacks...)

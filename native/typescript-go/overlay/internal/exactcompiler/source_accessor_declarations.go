@@ -1485,6 +1485,10 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 			return
 		}
 		if ast.IsCallExpression(value) {
+			if get == nil && query.confinedFilterIndexRead(value, projection, name, mode, reference) {
+				result.sourceOwned = true
+				return
+			}
 			for parent := value.Parent; parent != nil && !ast.IsFunctionLike(parent); parent = parent.Parent {
 				if ast.IsForStatement(parent) || ast.IsForOfStatement(parent) || ast.IsWhileStatement(parent) || ast.IsDoStatement(parent) {
 					result.opaque = true

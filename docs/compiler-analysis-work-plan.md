@@ -1113,14 +1113,21 @@ reads retain their own effects. In the reduced Workspace fixture, application
 and library builds agree on identity, placement and targets. Explicit hydration
 adopts the SSR button and preserves the facade across two successive updates.
 
-Original Workspace acceptance remains open. With the reactive-producer map fix
-and the state field proof together, semantically validated direct and barrel
-entries in both package modes render `ready` and the two buttons on the server.
-Workspace placement is still unknown and the hydration registration is empty.
-A helper containing only a literal array map still has unknown placement.
-Reading a local filter result without map is also unknown, while an ignored
-literal filter result is isomorphic. These controls isolate remaining collection
-analysis from the component state field proof.
+A fresh dense array with an inline callback that cannot access the receiver
+supplies its elements to the callback-effects analysis. Each element retains
+its original source, including authored getters reached by the callback. A
+terminal indexed read can also account for a fresh literal filter result
+that has a single local use. The predicate retains its own effects, and an
+empty result is allowed. Neither rule models the collection's exact contents.
+
+Original Workspace acceptance remains open. Semantically validated direct
+and barrel entries in application and library modes render `ready` and both
+buttons on the server. The original `state.items.filter(...).map(...)` still
+has unknown placement and empty artifact targets. The state facade proof
+covers its first field lookup. The downstream filter still needs the array
+origin across that field, and the map still needs the possible elements of
+the filtered array. The local `filter().map()` control isolates the second
+gap without state.
 
 A returned call to a compiler-owned render helper contributes local interaction
 ownership when its returned intrinsic JSX contains an authored event binding.

@@ -77,6 +77,12 @@ func (owner *sourceValueOwner) directArrayEntriesLiteral(node *ast.Node) *ast.No
 // directDenseArrayMap proves the standard method on a fresh dense array. The
 // actual receiver, key, and arguments keep their original evaluation owners.
 func directDenseArrayMap(node *ast.Node, c *checker.Checker) *ast.Node {
+	return directDenseArrayCallbackReceiver(node, "map", c)
+}
+
+// directDenseArrayCallbackReceiver identifies a standard method on its fresh
+// literal receiver before any argument can expose that receiver.
+func directDenseArrayCallbackReceiver(node *ast.Node, method string, c *checker.Checker) *ast.Node {
 	if node == nil || !ast.IsCallExpression(node) || ast.IsOptionalChain(node) {
 		return nil
 	}
@@ -94,7 +100,7 @@ func directDenseArrayMap(node *ast.Node, c *checker.Checker) *ast.Node {
 		}
 	}
 	literal := unwrapSourceCallableReference(receiver)
-	if name != "map" || literal == nil || !ast.IsArrayLiteralExpression(literal) || !denseArrayElements(literal.AsArrayLiteralExpression().Elements.Nodes) ||
+	if name != method || literal == nil || !ast.IsArrayLiteralExpression(literal) || !denseArrayElements(literal.AsArrayLiteralExpression().Elements.Nodes) ||
 		standardLibraryCallOwner(node.AsCallExpression(), c) != "Array" || !nativeReceiverMemberDeclarations(callee, c) {
 		return nil
 	}
