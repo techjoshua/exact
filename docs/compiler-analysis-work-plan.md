@@ -1122,11 +1122,15 @@ Reading a local filter result without map is also unknown, while an ignored
 literal filter result is isomorphic. These controls isolate remaining collection
 analysis from the component state field proof.
 
-Automatic Page hydration also remains open for the reduced helper. It has
-isomorphic placement and both artifact targets, but the render capability
-remains unknown in both targets. Page publishes no resumption or registration
-for that child. In the same Page, direct JSX publishes a resumption, adopts the
-server button and updates it on click in both routes and package modes.
+A returned call to a compiler-owned render helper contributes local interaction
+ownership when its returned intrinsic JSX contains an authored event binding.
+The component publishes the existing whole-component activation contract under a
+server-owned Page. The helper lowers its JSX and handler through the existing
+render program. The reduced Page and barrel entries exercise generated bootstrap,
+SSR button adoption, state identity, and two updates in application and library
+builds. Their direct JSX control follows the same activation contract. A helper
+that returns inert JSX and contains an unused event-bearing closure contributes
+no client registration.
 
 Theme's other color branch forwards the object input to `parseDtcgColor`, where destructuring
 and indexed reads can invoke getters. Intl passes `formatter.options` to `validateOptions`,

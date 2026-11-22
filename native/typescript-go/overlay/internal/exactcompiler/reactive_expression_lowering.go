@@ -359,24 +359,28 @@ func spanInsideNestedCallable(source *ast.Node, start int, length int) bool {
 	return inside
 }
 
-// compilerOwnedRenderHelperCall proves that a direct call resolves to authored JSX which the
+func (lowering *jsxLowering) compilerOwnedRenderHelperCall(source *ast.Node) bool {
+	return compilerOwnedRenderHelper(source, lowering.checker) != nil
+}
+
+// compilerOwnedRenderHelper proves that a direct call resolves to authored JSX which the
 // project compiler will lower for the same target. Declaration-only and opaque package functions
 // remain conservative because their implementation artifact cannot be proven from this program.
-func (lowering *jsxLowering) compilerOwnedRenderHelperCall(source *ast.Node) bool {
-	if lowering.checker == nil {
-		return false
+func compilerOwnedRenderHelper(source *ast.Node, c *checker.Checker) *ast.Node {
+	if c == nil {
+		return nil
 	}
 	expression := unwrapRenderExpression(source)
 	if !ast.IsCallExpression(expression) {
-		return false
+		return nil
 	}
 	call := expression.AsCallExpression()
 	symbol := resolvedCallableSymbol(
-		callTargetSymbol(call.Expression, lowering.checker),
-		lowering.checker,
+		callTargetSymbol(call.Expression, c),
+		c,
 	)
 	if symbol == nil {
-		return false
+		return nil
 	}
 	for _, declaration := range symbol.Declarations {
 		callable := declaration
@@ -391,10 +395,10 @@ func (lowering *jsxLowering) compilerOwnedRenderHelperCall(source *ast.Node) boo
 		}
 		file := ast.GetSourceFileOfNode(callable)
 		if file != nil && !file.IsDeclarationFile && directlyReturnsRenderedValue(callable) {
-			return true
+			return callable
 		}
 	}
-	return false
+	return nil
 }
 
 func (lowering *jsxLowering) liveSlotForwarding(source *ast.Node) bool {

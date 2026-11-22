@@ -44,9 +44,16 @@ func analyzeComponents(
 	// A component executes its returned callable to produce the view. Creating
 	// that callable during setup does not execute its getters or conversions.
 	renderEffects := make(map[*ast.Node]componentInputRequirements)
+	helperInteractions := make(map[*ast.Node]bool)
 	for _, render := range renders {
+		if render.micro || render.callable == render.component.node {
+			continue
+		}
+		if !helperInteractions[render.component.node] && renderCallsInteractiveHelper(render.callable, typeChecker) {
+			helperInteractions[render.component.node] = true
+		}
 		summary, found := callables.byNode[render.callable]
-		if !found || render.micro || render.callable == render.component.node {
+		if !found {
 			continue
 		}
 		browser, server := knownEffectEnvironments(summary.EffectSources)
@@ -157,6 +164,10 @@ func analyzeComponents(
 			}
 		}
 		component.ClientIslandCount = outerClientIslandCount(ownedElements)
+		if helperInteractions[candidate.node] {
+			component.Interactions = true
+			splitBoundaries["event-handler"] = struct{}{}
+		}
 
 		walkNode(candidate.node, func(node *ast.Node) bool {
 			// Types can describe browser/server values without executing or importing them.
