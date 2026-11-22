@@ -1,12 +1,12 @@
 /**
  * @vitest-environment jsdom
  */
-import { type AnyComponentFunction } from '@exactjs/core';
+import { type AnyComponentFunction, type ContextToken } from '@exactjs/core';
 import { createCompiledComponentInputReceipt } from '@exactjs/core/runtime/component-operations';
 import '@exactjs/core/runtime/refs';
 import { composeExactComponentContracts } from '@exactjs/core/framework/component-contracts';
 import { render, unmount } from '@exactjs/dom';
-import { hydrate, type FetchLike } from '@exactjs/hydrate';
+import { createExactClient, hydrate, type FetchLike } from '@exactjs/hydrate';
 import {
 	RemoteComponent as RemoteComponentDefinition,
 	registerExactRemoteClientBindings
@@ -15,11 +15,12 @@ import {
 	exactResponseToFetchResponse,
 	composeExactExecutorContract,
 	handleExactRequest,
+	runWithExactRequestScope,
 	type ExactInvocationRequest,
 	type ExactResponseLike,
 	type ExactServerContext
 } from '@exactjs/server';
-import { renderToHydratableString } from '@exactjs/ssr';
+import { createExactServerRuntime, renderToHydratableString } from '@exactjs/ssr';
 import { createTestOperation, markTestComponent } from '@exactjs/testing/internal/fixtures';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -27,6 +28,7 @@ import { describe, expect, it, vi, onTestFinished } from 'vitest';
 import { compileFileArtifacts } from '../index.js';
 import { importArtifact } from '../test-support/import-artifact.js';
 import { createCompilerTestWorkspace } from '../test-support/workspace.js';
+import { artifactAnalysis } from './analysis-results.js';
 describe('@exactjs/compiler distributed continuation loopback', () => {
 	it.each([
 		{ invocation: 'optimistic()', clientEffect: false },
@@ -391,6 +393,103 @@ return()=> <button onClick={()=>load()}>{this.state.value}</button>;}`
 		});
 		client.dispose();
 	});
+	it('keeps direct server-context dependencies out of client activation records', async () => {
+		const root = await createCompilerTestWorkspace('.exact-continuation-context-', process.cwd());
+		const source = path.join(root, 'panel.tsx');
+		await writeFile(
+			source,
+			`import { createContext, TaskContext, type Component } from '@exactjs/core';
+
+			/** @exact server */
+			export const DatabaseContext = createContext<{
+				find(id: string): Promise<{ title: string }>;
+			}>('panel database', { scope: 'request' });
+
+			export function Panel(this: Component<{ id: string; title: string }>) {
+				this.state.id = 'first';
+				this.state.title = 'Loading';
+				const load = async (_task: TaskContext = TaskContext.server().blocking()) => {
+					const row = await this.getContext(DatabaseContext).find(this.state.id);
+					this.state.title = row.title;
+				};
+				load();
+				return () => <button onClick={() => this.state.id = 'next'}>{this.state.title}</button>;
+			}`
+		);
+
+		const compiled = await compileFileArtifacts(source, { rootDir: root, outDir: root });
+		const analysis = artifactAnalysis(compiled);
+		expect(analysis.continuations).toEqual([
+			expect.objectContaining({
+				placement: 'server',
+				activation: expect.objectContaining({
+					dependencies: [{ index: 0, source: 'state', path: 'this.state.id' }],
+					stateReads: [{ path: 'id', kind: 'read', confidence: 'exact' }],
+					serverContexts: [{ token: 'DatabaseContext', kind: 'read', confidence: 'exact' }],
+					publicContexts: []
+				}),
+				effects: expect.objectContaining({
+					stateWrites: [{ path: 'title', kind: 'write', confidence: 'exact' }]
+				})
+			})
+		]);
+
+		const clientModule = await importArtifact(compiled.clientFile, path.join(root, 'client.mjs'));
+		const serverModule = await importArtifact(compiled.serverFile, path.join(root, 'server.mjs'));
+		const ClientPanel = componentExport(clientModule, 'Panel');
+		const ServerPanel = componentExport(serverModule, 'Panel');
+		const database = serverModule.DatabaseContext as ContextToken<{
+			find(id: string): Promise<{ title: string }>;
+		}>;
+		const find = vi
+			.fn<(id: string) => Promise<{ title: string }>>()
+			.mockResolvedValueOnce({ title: 'Initial title' })
+			.mockResolvedValueOnce({ title: 'Title from continuation' });
+		const registration = composeExactComponentContracts([ClientPanel], 'client');
+		const server = createExactServerRuntime({
+			contract: composeExactExecutorContract([ServerPanel], { endpoint: '/__exact' }),
+			requestContexts: [[database, { create: () => ({ find }) }]]
+		});
+		onTestFinished(() => server.dispose?.());
+
+		const rendered = await runWithExactRequestScope(
+			{ method: 'GET', url: 'https://example.test/' },
+			server,
+			(context) =>
+				renderToHydratableString(createCompiledComponentInputReceipt(ServerPanel, {}), {
+					contexts: context.contexts?.componentValues,
+					signal: context.signal
+				})
+		);
+		expect(rendered.html).toContain('Initial title');
+		expect(find.mock.calls).toEqual([['first']]);
+		expect(clientModule).not.toHaveProperty('DatabaseContext');
+
+		const requests: ExactInvocationRequest[] = [];
+		const container = document.createElement('main');
+		const client = createExactClient(container, {
+			...registration,
+			resumptions: [],
+			endpoint: '/__exact',
+			batch: false,
+			fetch: loopbackFetch(server, requests)
+		});
+		onTestFinished(() => client.dispose());
+		onTestFinished(() => unmount(container));
+		render(createCompiledComponentInputReceipt(ClientPanel, {}), container, {
+			componentDomain: client.domain
+		});
+		await expect
+			.poll(() => container.querySelector('button')?.textContent)
+			.toBe('Title from continuation');
+		expect(find.mock.calls).toEqual([['first'], ['first']]);
+		expect(requests).toHaveLength(1);
+		expect(requests[0]?.id).toBe(analysis.continuations[0]?.id);
+		expect(requests[0]?.payload).toEqual({ dependencies: ['first'], generation: 1 });
+		expect(requests[0]?.state).toEqual({ id: 'first' });
+		expect(requests[0]?.publicContext).toBeUndefined();
+	});
+
 	it('routes compiled server tasks through the client owned by each hidden root', async () => {
 		const root = await createCompilerTestWorkspace('.exact-hidden-root-loopback-', process.cwd());
 		const billing = await compileRemoteTask(root, 'billing');

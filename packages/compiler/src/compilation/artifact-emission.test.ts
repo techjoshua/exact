@@ -471,36 +471,6 @@ describe('@exactjs/compiler: artifacts', () => {
 		}
 	});
 
-	it('keeps direct server-context dependencies out of client activation records', async () => {
-		const root = await createTestWorkspace('exact-continuation-context-');
-		const input = path.join(root, 'src', 'panel.tsx');
-		const outDir = path.join(root, 'dist');
-		await mkdir(path.dirname(input), { recursive: true });
-		await writeFile(
-			input,
-			'import { TaskContext } from "@exactjs/core";\n\n      import type { Component, ContextToken } from "@exactjs/core";\n      declare const DatabaseContext: ContextToken<{\n        find(id: string): Promise<{ title: string }>;\n      }>;\n      export function Panel(this: Component<{ id: string; title?: string }>) {\n        const runFixtureTask = async (_task: TaskContext = TaskContext.server()) => {\n          const row = await this.getContext(DatabaseContext).find(this.state.id);\n          this.state.title = row.title;\n        };\nrunFixtureTask();\n        return () => <button onClick={() => this.state.id = "next"}>{this.state.title}</button>;\n      }\n    '
-		);
-
-		const result = await compileFileArtifacts(input, {
-			outDir,
-			rootDir: path.join(root, 'src')
-		});
-		const client = await readFile(result.clientFile, 'utf8');
-		const server = await readFile(result.serverFile, 'utf8');
-
-		expect(client).not.toContain('this.reactive(() => this.getContext(DatabaseContext))');
-		expect(client).toContain('__exactActivateTaskOnce(this, __exactDefineTask({');
-		expect(client).toContain('(...__exactTaskArgs: any[]) => {');
-		expect(client).toContain(
-			'__exactTaskArgs, __exactTaskContext.signal, [], __exactTaskContext.generation'
-		);
-		expect(client).toContain('__exactActivationDependency(() => this.state.id)');
-		expect(server).toMatch(
-			/__exactExecution_\d+\.getContext\(DatabaseContext, "DatabaseContext"\)\.find\(__exactDependency\)/
-		);
-		expect(server).toMatch(/serverContexts:\s*\[\s*"DatabaseContext"/);
-	});
-
 	it('does not retain continuation machinery for components without a client machine', async () => {
 		const root = await createTestWorkspace('exact-server-only-continuation-');
 		const input = path.join(root, 'src', 'page.tsx');
