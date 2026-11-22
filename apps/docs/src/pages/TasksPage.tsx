@@ -337,6 +337,12 @@ export function TasksPage(this: Component<{}>) {
 					calls a method that uses <code>window</code>, keep that operation on the client.
 				</p>
 				<p>
+					Reading a property descriptor on an ordinary object leaves its stored getter or callback
+					dormant. If the task later calls that function, keep the call on the client when the
+					function uses browser globals. This applies to <code>call</code> and <code>apply</code>,
+					as well as calls to functions created with <code>bind</code>.
+				</p>
+				<p>
 					A call to <code>Object.getOwnPropertyDescriptor</code> on a proxy can run its
 					descriptor trap and getters on the descriptor it returns. Keep the call on the client if
 					that code uses browser globals.

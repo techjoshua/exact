@@ -113,8 +113,9 @@ func (q *sourceValueQuery) descriptorInvocationEffects(call *ast.Node, callee so
 
 // immutableDescriptorCallbackRead follows the selected return and private aliases
 // from the native snapshot to the original callback invocation.
-func (q *sourceValueQuery) immutableDescriptorCallbackRead(retrieval *ast.Node, field string) bool {
-	if q.owner.program == nil {
+func (q *sourceValueQuery) immutableDescriptorCallbackRead(retrieval *ast.Node, projection []string) bool {
+	field := projection[0]
+	if q.owner.program == nil || (field != "value" && field != "get" && field != "set") {
 		return false
 	}
 	member := q.protectedMember
@@ -122,21 +123,30 @@ func (q *sourceValueQuery) immutableDescriptorCallbackRead(retrieval *ast.Node, 
 		// An active direct Call can consume a saved descriptor field. Its
 		// immutable initializer owns the earlier Get and its lexical scope.
 		use := q.reading
-		if use == nil || !ast.IsCallExpression(use) || !q.active[use] {
+		if len(projection) != 1 || use == nil || !ast.IsCallExpression(use) || !q.active[use] {
 			return false
 		}
-		alias := unwrapSourceCallableReference(use.Expression())
-		if alias == nil || !ast.IsIdentifier(alias) {
+		member = use.Expression()
+	} else if receiver, key := restrictedInvocationMember(member, q.owner.checker); receiver != nil &&
+		(key == "call" || key == "apply" || key == "bind") &&
+		(len(projection) == 1 || key == projection[1]) && q.active[normalCalleeGetOwner(member)] &&
+		nativeFunctionInvocation(receiver, key, q.owner.checker) {
+		// The final Get belongs to the adapter. Its receiver may acquire the
+		// stored function separately through an earlier immutable binding.
+		member = receiver
+	} else if len(projection) != 1 {
+		return false
+	}
+	member = unwrapSourceCallableReference(member)
+	if member == nil {
+		return false
+	}
+	owner := enclosingCallableNode(member)
+	for ast.IsIdentifier(member) {
+		member = q.descriptorPrivateInitializer(member)
+		if member == nil || enclosingCallableNode(member) != owner {
 			return false
 		}
-		owner := enclosingCallableNode(use)
-		for ast.IsIdentifier(alias) {
-			alias = q.descriptorPrivateInitializer(alias)
-			if alias == nil || enclosingCallableNode(alias) != owner {
-				return false
-			}
-		}
-		member = alias
 	}
 	ref, key := sourceLiteralMemberReference(member)
 	if key != field {

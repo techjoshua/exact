@@ -66,6 +66,14 @@ func TestDescriptorContractStoredFieldsAndAbsence(t *testing.T) {
 		{"saved-accessor", `export function probe(){const target={get value(){return document.title}};const descriptor=Object.getOwnPropertyDescriptor(target,'value');const getter=descriptor?.get;return getter?.()}`, true},
 		{"forwarded-accessor", `export function probe(){const target={get value(){return document.title}};const descriptor=Object.getOwnPropertyDescriptor(target,'value');const getter=descriptor!.get!;const read=getter;return read()}`, true},
 		{"saved-data-function", `export function probe(){const target={value(){return document.title}};const descriptor=Object.getOwnPropertyDescriptor(target,'value');const invoke=descriptor!.value;return invoke()}`, true},
+		{"accessor-call", `export function probe(){const target={get value(){return document.title}};const receiver={};const descriptor=Object.getOwnPropertyDescriptor(target,'value');return descriptor!.get!.call(receiver)}`, true},
+		{"accessor-saved-apply", `export function probe(){const target={get value(){return document.title}};const receiver={};const descriptor=Object.getOwnPropertyDescriptor(target,'value');const getter=descriptor!.get!;return getter.apply(receiver,[])}`, true},
+		{"accessor-bound", `export function probe(){const target={get value(){return document.title}};const receiver={};const descriptor=Object.getOwnPropertyDescriptor(target,'value');const bound=descriptor!.get!.bind(receiver);return bound()}`, true},
+		{"data-call", `export function probe(){const target={value(){return document.title}};const receiver={};const descriptor=Object.getOwnPropertyDescriptor(target,'value');return (descriptor!.value as typeof target.value).call(receiver)}`, true},
+		{"data-call-mixed-target", `declare const choice:boolean;declare const foreign:{value():string};export function probe(){const target=choice?{value(){return document.title}}:foreign;const descriptor=Object.getOwnPropertyDescriptor(target,'value');return (descriptor!.value as typeof target.value).call({})}`, true},
+		{"data-apply", `export function probe(){const target={value(){return document.title}};const receiver={};const descriptor=Object.getOwnPropertyDescriptor(target,'value');return (descriptor!.value as typeof target.value).apply(receiver,[])}`, true},
+		{"data-bound", `export function probe(){const target={value(){return document.title}};const receiver={};const descriptor=Object.getOwnPropertyDescriptor(target,'value');const bound=(descriptor!.value as typeof target.value).bind(receiver);return bound()}`, true},
+		{"accessor-dormant-bind", `export function probe(){const target={get value(){return document.title}};const receiver={};const descriptor=Object.getOwnPropertyDescriptor(target,'value');return descriptor!.get!.bind(receiver)}`, false},
 		{"saved-dormant", `export function probe(){const target={get value(){return document.title}};const descriptor=Object.getOwnPropertyDescriptor(target,'value');const getter=descriptor?.get;return getter}`, false},
 		{"replaced-alias", `export function probe(){const target={get value(){return document.title}};const descriptor=Object.getOwnPropertyDescriptor(target,'value');let getter=descriptor!.get!;getter=()=>'replacement';return getter()}`, false},
 		{"absent-optional", `export{};const target={};export function probe(){return Object.getOwnPropertyDescriptor(target,'missing')?.value}`, false},
@@ -91,8 +99,11 @@ func TestDescriptorContractStoredFieldsAndAbsence(t *testing.T) {
 				if browser != row.browser {
 					t.Fatalf("%s recorded browser effect=%v want=%v: %#v", target, browser, row.browser, task.EffectSources)
 				}
-				if row.name == "proxy-normalization-getter" && !unknown {
-					t.Fatalf("%s Proxy descriptor uncertainty lost: %#v", target, task.EffectSources)
+				switch row.name {
+				case "proxy-normalization-getter", "accessor-call", "data-apply", "data-call-mixed-target":
+					if !unknown {
+						t.Fatalf("%s descriptor uncertainty lost: %#v", target, task.EffectSources)
+					}
 				}
 				if row.browser && target == TargetServer {
 					denied := false

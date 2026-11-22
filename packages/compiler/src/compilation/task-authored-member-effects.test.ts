@@ -15,6 +15,7 @@ const probes: {
 	body: string;
 	trace: string[];
 	output?: string;
+	browserOutput?: string;
 }[] = [
 	{
 		name: 'inherited getter',
@@ -85,6 +86,63 @@ const probes: {
 		`,
 		trace: [],
 		output: 'own'
+	},
+	...(
+		[
+			['call', 'callback.call(receiver, first(), second())'],
+			['apply', 'callback.apply(receiver, [first(), second()])'],
+			['bind', 'bound(second())']
+		] as const
+	).map(([adapter, invocation]) => ({
+		name: `stored descriptor callback via ${adapter}`,
+		body: `
+			const receiver = { prefix: 'from ' };
+			const target = {
+				value(this: typeof receiver, a: string, b: string) {
+					trace.push(this === receiver ? 'callback:receiver' : 'callback:wrong receiver');
+					return this.prefix + a + b + window.name;
+				}
+			};
+			const callback = Object.getOwnPropertyDescriptor(target, 'value')!.value as typeof target.value;
+			function first() { trace.push('first'); return 'the '; }
+			function second() { trace.push('second'); return 'client: '; }
+			${adapter === 'bind' ? "const bound = callback.bind(receiver, first()); trace.push('bound');" : ''}
+			this.state.label = ${invocation};
+		`,
+		trace:
+			adapter === 'bind'
+				? ['first', 'bound', 'second', 'callback:receiver']
+				: ['first', 'second', 'callback:receiver'],
+		browserOutput: 'from the client: from browser'
+	})),
+	{
+		name: 'stored descriptor getter via call',
+		body: `
+			const receiver = { label: 'from browser' };
+			const descriptor = Object.getOwnPropertyDescriptor({
+				get value() {
+					trace.push(this === (receiver as object) ? 'getter:receiver' : 'getter:wrong receiver');
+					return document.title;
+				}
+			}, 'value');
+			this.state.label = descriptor!.get!.call(receiver);
+		`,
+		trace: ['getter:receiver']
+	},
+	{
+		name: 'dormant bound descriptor getter',
+		body: `
+			const descriptor = Object.getOwnPropertyDescriptor({
+				get value() {
+					trace.push('unexpected getter');
+					return document.title;
+				}
+			}, 'value');
+			const bound = descriptor!.get!.bind({});
+			this.state.label = typeof bound;
+		`,
+		trace: [],
+		output: 'function'
 	},
 	{
 		name: 'Proxy descriptor normalization',
@@ -190,7 +248,9 @@ export function Page(this: Component<{label: string}>) {
 		expect(button.textContent).toBe('initial');
 		expect(client.trace).toEqual([]);
 		button.click();
-		await expect.poll(() => button.textContent).toBe(probe.output ?? browserValue);
+		await expect
+			.poll(() => button.textContent)
+			.toBe(probe.output ?? probe.browserOutput ?? browserValue);
 		expect(client.trace).toEqual(['before', ...probe.trace, 'after']);
 		expect(errors).toEqual([]);
 		expect(server.trace).toEqual([]);

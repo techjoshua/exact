@@ -1582,8 +1582,22 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 					}
 					interest.createdGetter = query.sourceCreatedGetter(value, projection, name, get, &result, stored)
 				}
-				if query.dependenciesOnly && !instance && mode == accessorAcquire && name == "" && len(projection) == 1 && (projection[0] == "value" || projection[0] == "get" || projection[0] == "set") && descriptorRetrievalIntent(value) && query.immutableDescriptorCallbackRead(value, projection[0]) {
-					interest.descriptorData = &descriptorCallbackDemand{field: projection[0], publish: func(source sourceValue) { result.values = append(result.values, source) }}
+				if query.dependenciesOnly && !instance && mode == accessorAcquire && name == "" &&
+					len(projection) >= 1 && len(projection) <= 2 && descriptorRetrievalIntent(value) &&
+					query.immutableDescriptorCallbackRead(value, projection) {
+					reading, initializing := query.reading, query.initializing
+					interest.descriptorData = &descriptorCallbackDemand{field: projection[0], publish: func(source sourceValue) {
+						if len(projection) == 1 {
+							result.values = append(result.values, source)
+						} else {
+							// Member lookup belongs to the outer adapter and its
+							// pre-argument cut, not the descriptor producer.
+							producerRead, producerInit := query.reading, query.initializing
+							query.reading, query.initializing = reading, initializing
+							visitOrigins([]sourceValue{source}, projection[1:], false)
+							query.reading, query.initializing = producerRead, producerInit
+						}
+					}}
 				}
 				if query.dependenciesOnly && query.stagedMember != nil && query.stagedMember.returnResult != nil && query.normalBindingCall == nil && len(query.creators) == 0 && len(arguments) == 0 && (len(projection) != 0 || name != "" || mode&(accessorReachable|accessorEnumerate) != 0) {
 					interest.discover = func(source *sourceStagedFreezeReturnSource) bool {

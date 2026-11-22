@@ -468,11 +468,20 @@ func (query *sourceValueQuery) ordinaryFunctionMember(origin *ast.Node, projecti
 	if at == nil {
 		return nil, nil
 	}
-	_, method := restrictedInvocationMember(at.AsCallExpression().Expression, query.owner.checker)
-	if method != key || !nativeFunctionInvocation(origin, key, query.owner.checker) {
+	receiver, method := restrictedInvocationMember(at.AsCallExpression().Expression, query.owner.checker)
+	if method != key {
 		return nil, nil
 	}
-	return query.owner.checker.GetPropertyOfType(query.owner.checker.GetTypeAtLocation(origin), key), at
+	checked := origin
+	if ast.IsGetAccessorDeclaration(origin) || ast.IsSetAccessorDeclaration(origin) {
+		// A stored accessor body is a function value. The declaration's type
+		// describes the property, so use the adapter's checked receiver here.
+		checked = receiver
+	}
+	if !nativeFunctionInvocation(checked, key, query.owner.checker) {
+		return nil, nil
+	}
+	return query.owner.checker.GetPropertyOfType(query.owner.checker.GetTypeAtLocation(checked), key), at
 }
 
 // ordinaryAdapterDataGet proves only this Get's mutation component. The routing
