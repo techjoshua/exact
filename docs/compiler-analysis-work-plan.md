@@ -327,7 +327,7 @@ disjoint-getter, unknown-descriptor and Proxy controls. The first remains
 isomorphic and the other three retain browser placement. The paired SDK
 controls exercise the emitted targets and preserve the runtime distinction.
 
-**Family qualification through `bb3425ab3`**
+**Family qualification through `4137fbb01`**
 
 The fixed review population is the 366 failing groups in the restored-recipe
 `8c1125377` replay. Joining the matched inventory by test group to the
@@ -338,19 +338,29 @@ and supplies routing labels. Count each historical family once.
 | Disposition from recorded evidence | Families |
 | --- | ---: |
 | Scoped family requirements verified through component controls | 3 |
-| Open with a demonstrated component defect | 2 |
+| Open with a demonstrated component defect | 3 |
 | Partial evidence with remaining qualification or replay | 4 |
-| Still needs a component witness or replay | 109 |
+| Still needs a component witness or replay | 108 |
 
 The verified families cover receiver forwarding at the agreed component
 boundary, tracked helper-forwarded inputs, and selected Await alternatives.
 Reached descriptor invocations and later Gets or Calls on created prototypes
 still have demonstrated placement gaps in public task controls. The adversarial
 getter replacement, real Core receiver work, deferred root coverage and isolated
-Intl wrappers supply partial evidence for their respective families. The two
-demonstrated defect counts are a lower bound. Other historical failures still
+Intl wrappers supply partial evidence for their respective families. The count of families with demonstrated defects is a lower bound. Other historical failures still
 need their own dispositions, and the focused runs leave the current native
 suite total unmeasured.
+
+The task activation and result publication family has five component witnesses
+at `4137fbb01`. A client task calling a server task through an array mapper
+inherits the child's server requirement. Its direct-call control retains the
+SSR node and dispatches two successful requests. Paired compilation also
+rejects a computed compound state write after Await and a deferred task using
+a setup alias and an array mutation. The startup fixture fails placement at
+`toUpperCase()`; removing that operation reveals a duplicate startup during
+hydration. The snapshot fixture emits an unbound identifier on the server.
+The compiler matched the revision's source. The SDK used retained providers
+from a candidate build. Recheck the fixes with revision-matched providers.
 
 Track newer component findings separately. Forwarded event dispatch and
 private-context continuation lookup have scoped fixes. Standalone Workspace
