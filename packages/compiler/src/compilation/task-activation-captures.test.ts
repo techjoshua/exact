@@ -456,15 +456,17 @@ export function readLabel(label: string) { return publish(label); }
 		if (mode === 'resource-signal')
 			source =
 				'async function selected(signal?:AbortSignal){if(arguments.length!==1 || !(signal instanceof AbortSignal))throw new Error("expected one task signal");return signal;}\n' +
-				'function choose(active:boolean){return active ? {selected} : undefined;}\n' +
+				'function choose(active:boolean){return active ? {selected,unrelated} : undefined;}\n' +
 				'async function unrelated(value?:number){if(arguments.length!==0 || value!==undefined)throw new Error("unexpected task signal");}\n' +
 				source.replace(
 					'void resource;',
-					'void resource;const controller=new AbortController();let reads=0;const nextSignal=()=>{reads++;return controller.signal;};' +
-						'await selected();const explicit=await selected(nextSignal());controller.abort();' +
-						'if(!explicit.aborted)throw new Error("expected authored signal cancellation");' +
+					'void resource;const controller=new AbortController();let reads=0;let receivers=0;const nextSignal=()=>{reads++;return controller.signal;};' +
+						'await selected();const explicit=await choose(true)?.selected(nextSignal());controller.abort();' +
+						'if(!explicit?.aborted)throw new Error("expected authored signal cancellation");' +
 						'const present=choose(true);await present?.selected();' +
-						'const absent=choose(false);await absent?.selected(nextSignal());await unrelated();' +
+						'await choose((receivers++,true))?.selected();' +
+						'await choose((receivers++,false))?.selected(nextSignal());await choose(true)?.unrelated();' +
+						'if(receivers!==2)throw new Error("expected each receiver to evaluate once");' +
 						'if(reads!==1)throw new Error("expected one authored signal evaluation");'
 				);
 		if (mode === 'resource-timer')

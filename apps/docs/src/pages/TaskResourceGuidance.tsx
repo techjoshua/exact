@@ -19,8 +19,10 @@ export function TaskResourceGuidance() {
 				<code>AbortSignal</code> or an options parameter with <code>signal?: AbortSignal</code>.
 				Existing signals and event options are combined or extended, including Boolean capture flags
 				on typed DOM event targets. The compiler uses the selected overload when deciding whether to
-				supply a signal. Fetch cancellation remains connected while the response body is being read.
-				A Request carries its cancellation signal unless you replace it with an explicit signal in
+				supply a signal. In <code>getClient()?.load()</code>, the method receives the signal when
+				the receiver is present and the signature accepts it. Fetch cancellation remains connected
+				while the response body is being read. A Request carries its cancellation signal unless
+				you replace it with an explicit signal in
 				the fetch options.
 			</p>
 			<p>

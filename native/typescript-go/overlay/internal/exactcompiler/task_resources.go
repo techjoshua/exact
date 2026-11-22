@@ -541,7 +541,15 @@ func taskSignalCall(
 func signatureSignalCall(node *ast.Node, typeChecker *checker.Checker) (TaskSignalCall, bool) {
 	call := node.AsCallExpression()
 	if !safeCallableTypeQuery(call.Expression) {
-		return TaskSignalCall{}, false
+		if !ast.IsPropertyAccessExpression(call.Expression) {
+			return TaskSignalCall{}, false
+		}
+		// Query the authored optional method call so the checker resolves the
+		// signature on the receiver's present branch.
+		access := call.Expression.AsPropertyAccessExpression()
+		if access.QuestionDotToken == nil || !ast.IsCallExpression(access.Expression) {
+			return TaskSignalCall{}, false
+		}
 	}
 	signature := typeChecker.GetResolvedSignature(node)
 	if signature == nil {

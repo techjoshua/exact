@@ -159,8 +159,10 @@ the generation signal with an authored signal or event options rather than
 discarding either. Boolean capture flags are preserved for typed DOM event targets as well as
 global listeners. Signal injection follows the selected call overload, so an unrelated overload
 or a same-named method cannot authorize changing a call. This also applies to helpers called
-during server task startup and later server invocations. An optional call that short-circuits
-skips evaluation of its arguments. Resource signals close when their generation settles, while
+during server task startup and later server invocations. For a call such as
+`getClient()?.load()`, the compiler uses the method signature for a present receiver. If the
+receiver is absent, JavaScript skips the call and its arguments. Resource signals close when
+their generation settles, while
 a successfully completed task retains its successful outcome.
 Fetch cancellation remains connected while a response body is being read,
 even after headers have arrived. A signal carried by a Request is retained unless an explicit

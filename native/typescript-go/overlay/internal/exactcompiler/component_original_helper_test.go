@@ -16,7 +16,7 @@ func TestComponentOriginalHelperMutation(t *testing.T) {
 		{"collection-direct", `function apply(state:{value:number}){state.value=2;return state;}`, `this.state.values.push(2);return this.state.values.length`},
 		{"nested-only", `function apply(state:{value:number}){state.value=2;return state;}`, `function scalar(value:number){return value+1}return scalar(this.state.value)`},
 		{"async", `async function apply(state:{value:number}){await Promise.resolve();state.value=2;return state;}`, `await apply(this.state);return this.state.value`},
-		{"signal", `function observe(state:{value:number}){return state.value;}async function apply(signal?:AbortSignal){await Promise.resolve();return signal?.aborted;}function unrelated(value?:number){return value;}function choose(active:boolean){return active?{apply}:undefined;}`, `observe(this.state);await apply();await apply(task.signal);const present=choose(true);await present?.apply();unrelated();return this.state.value`},
+		{"signal", `function observe(state:{value:number}){return state.value;}async function apply(signal?:AbortSignal){await Promise.resolve();return signal?.aborted;}function unrelated(value?:number){return value;}function choose(active:boolean){return active?{apply,unrelated}:undefined;}`, `observe(this.state);await apply();await apply(task.signal);const present=choose(true);await present?.apply();await choose(true)?.apply();await choose(false)?.apply(task.signal);choose(true)?.unrelated();unrelated();return this.state.value`},
 		{"subscription", `function apply(state:{value:number}){return state.value;}`, `apply(this.state);const store={subscribe(){return ()=>{};},ordinary(){return ()=>{};}};const owned=store.subscribe();void owned;const ordinary=store.ordinary();void ordinary;return this.state.value`},
 	} {
 		t.Run(row.name, func(t *testing.T) {
@@ -56,10 +56,11 @@ func TestComponentOriginalHelperMutation(t *testing.T) {
 				t.Fatal("component lost pending invocation/read", r.Code)
 			}
 			if row.name == "signal" {
-				if len(r.Analysis.Tasks) != 1 || len(r.Analysis.Tasks[0].SignalCalls) != 3 ||
+				if len(r.Analysis.Tasks) != 1 || len(r.Analysis.Tasks[0].SignalCalls) != 5 ||
 					strings.Count(r.Code, ".helper(apply)(") < 2 ||
 					strings.Contains(r.Code, ".helper(apply)()") ||
 					strings.Contains(r.Code, "?.apply()") ||
+					!strings.Contains(r.Code, "?.unrelated()") ||
 					!strings.Contains(r.Code, ".helper(unrelated)()") {
 					t.Fatal("pending helper lost task cancellation", r.Analysis.Tasks, r.Code)
 				}
