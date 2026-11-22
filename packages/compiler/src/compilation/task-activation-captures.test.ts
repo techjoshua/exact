@@ -44,6 +44,30 @@ it.each([
 	{ name: 'aliased context default', statement: '', value: undefined, mode: 'alias' },
 	{ name: 'helper context read', statement: '', value: undefined, mode: 'helper-read' },
 	{ name: 'helper context write', statement: '', value: undefined, mode: 'helper-write' },
+	{
+		name: 'stored server bind in an application',
+		statement: 'return result;',
+		value: 'result',
+		mode: 'bind-setup'
+	},
+	{
+		name: 'stored server bind in a library',
+		statement: 'return result;',
+		value: 'result',
+		mode: 'bind-setup-library'
+	},
+	{
+		name: 'stored server bind with a same-name export',
+		statement: 'return result;',
+		value: 'result',
+		mode: 'bind-shadow'
+	},
+	{
+		name: 'task-local server bind',
+		statement: 'return result;',
+		value: 'result',
+		mode: 'bind-run'
+	},
 	...[
 		'call-application',
 		'call-library',
@@ -138,6 +162,7 @@ it.each([
 	'preserves captured defaults with local helpers and server context ($name result)',
 	async ({ statement, value, mode }) => {
 		const root = await createCompilerTestWorkspace('.exact-activation-captures-', process.cwd());
+		const bindMode = mode.startsWith('bind-');
 		const entry = path.join(root, 'page.tsx');
 		let source = await readFile(
 			repositoryPath(
@@ -177,7 +202,7 @@ it.each([
 		].includes(mode);
 		const receiverHelper = mode.startsWith('receiver-');
 		const receiverSSR = mode.startsWith('receiver-ssr-');
-		const receiverInteraction = receiverHelper && !receiverSSR;
+		const receiverInteraction = (receiverHelper && !receiverSSR) || bindMode;
 		const initial = capturedContext ? 19 : mode === 'helper-props' ? 27 : helperValue ? 26 : 24;
 		const directReceiverRead = mode === 'receiver-context-only';
 		const directContextWrite = mode === 'receiver-state-only';
@@ -203,6 +228,38 @@ it.each([
 					'const read = () => this.state.revision;const publish=(value:number)=>this.setContext(CaptureStatus,{value});'
 				)
 				.replace('this.setContext(CaptureStatus, { value: result });', 'publish(result);');
+		if (bindMode) {
+			const bind = 'const publish = publishBound.bind(this);';
+			source =
+				`import { existsSync } from 'node:fs';
+type CaptureOwner = Component<{ revision: number; draft: number; result: number }>;
+function publishBound(this: CaptureOwner, input: number, next: number): number {
+	const offset = existsSync('.') ? 7 : 0;
+	const result = input + next + this.state.revision + offset;
+	this.setContext(CaptureStatus, { value: result });
+	return result;
+}
+` +
+				source
+					.replace('const read = () => this.state.revision;', mode === 'bind-run' ? '' : bind)
+					.replace('TaskContext.server().blocking()', 'TaskContext.blocking()')
+					.replace(
+						'const privateValue = this.getContext(CapturePrivate);',
+						mode === 'bind-run' ? bind : ''
+					)
+					.replace(
+						'const result = value + next + read() + shared + privateValue;',
+						'const result = publish(value + shared, next);'
+					)
+					.replace('this.setContext(CaptureStatus, { value: result });', '')
+					.replace('void run();', '');
+			if (mode === 'bind-shadow') {
+				source += `
+export function publish(label: string) { return label; }
+export function readLabel(label: string) { return publish(label); }
+`;
+			}
+		}
 		if (receiverHelper)
 			source =
 				`import { existsSync } from 'node:fs';
@@ -353,19 +410,41 @@ it.each([
 			entry,
 			source.replace('this.state.result = result;', `this.state.result = result;${statement}`)
 		);
-		const session = receiverHelper
-			? createCompilerSession({
-					nativeCompiler: { executable: resolveNativeCompilerExecutable(), timeoutMs: 120_000 }
-				})
-			: undefined;
+		const emitted = new Map<string, string>();
+		const session =
+			receiverHelper || bindMode
+				? createCompilerSession({
+						nativeCompiler: { executable: resolveNativeCompilerExecutable(), timeoutMs: 120_000 }
+					})
+				: undefined;
 		const [artifact] = await compileProjectArtifacts([entry], {
 			rootDir: root,
 			outDir: path.join(root, 'generated'),
 			instrumentInspection: true,
 			generatedValidation: 'semantic',
-			packageType: receiverHelper && mode.endsWith('-library') ? 'library' : 'application',
+			moduleTransform: bindMode
+				? ({ id, source, target }) => {
+						if (path.resolve(id) === entry) {
+							emitted.set(target, source);
+						}
+						return { code: source };
+					}
+				: undefined,
+			packageType:
+				(receiverHelper || bindMode) && mode.endsWith('-library') ? 'library' : 'application',
 			session
 		}).finally(() => session?.dispose());
+		if (bindMode) {
+			expect(emitted.get('server')).toMatch(/\bfunction\s+publishBound\s*\(/);
+			const clientSource = emitted.get('client');
+			expect(typeof clientSource).toBe('string');
+			expect(clientSource).not.toMatch(/['"]node:fs['"]/);
+			expect(clientSource).not.toMatch(/\bpublishBound\b/);
+			if (mode === 'bind-shadow') {
+				expect(clientSource).toMatch(/\bfunction\s+publish\s*\(label\b/);
+				expect(clientSource).toMatch(/\breturn\s+publish\s*\(label\)/);
+			}
+		}
 		if (receiverHelper) {
 			const inputs = artifactAnalysis(artifact!).components.find(
 				({ name }) => name === 'ActivationCaptureInputs'
@@ -375,6 +454,10 @@ it.each([
 		}
 		const client = await importArtifact(artifact!.clientFile, path.join(root, 'client.mjs'));
 		const server = await importArtifact(artifact!.serverFile, path.join(root, 'server.mjs'));
+		if (mode === 'bind-shadow') {
+			const readLabel = client.readLabel as (publish: string) => string;
+			expect(readLabel('label')).toBe('label');
+		}
 		const Client = client.ActivationCaptureShell as AnyComponentFunction;
 		const Server = server.ActivationCaptureShell as AnyComponentFunction;
 		const serverComponents = [

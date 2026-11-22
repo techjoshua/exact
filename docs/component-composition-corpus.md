@@ -213,7 +213,10 @@ values, removal, and retired event cleanup. Its Node/jsdom journey uses a truste
 and explicit public context projection. The application and library variants also invoke
 an ordinary helper through `.call(this)`. State read only by that helper reaches the server
 on each invocation, and context published only by that helper updates the retained descendant.
-Separate controls put either the read or publication in the task body.
+Separate controls put either the read or publication in the task body. The stored-bind variant
+places a private server-only helper’s receiver-only bind in setup. The client artifact excludes
+the helper and its server import, and request dispatch reads the current revision and publishes
+context across repeated calls. The task-local bind uses the same observable checks.
 Adapter checks compile both targets and reject direct
 private-context defaults and protected helper inputs. The same adapter fixtures compile awaited annotated factories, guarded nullable collections,
 adjacent reactive setup assignments, and reject erased collection publication and known object Map keys.

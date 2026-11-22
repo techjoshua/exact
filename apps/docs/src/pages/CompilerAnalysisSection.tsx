@@ -153,6 +153,9 @@ export function CompilerAnalysisSection(this: Component<{}>) {
 			<p>
 				Binding a function captures its receiver and leading arguments. Its body contributes to
 				placement when the bound function is called, including when a helper returns it to a task.
+				If you store <code>helper.bind(this)</code> in a setup constant used only by server tasks,
+				eXact can keep a private server-only helper on the server and let the task read current
+				state and publish shared context updates.
 				If code conditionally replaces a function’s <code>bind</code> method, both possible
 				implementations contribute their placement requirements.
 			</p>

@@ -794,6 +794,10 @@ func (s *Session) executeProjection(request Request, authored *authoredCheckProg
 	emitContext := printer.NewEmitContext()
 	// Capture lexical module ownership before lowering can reparent shared source nodes.
 	omittedModuleValues := planModuleValuePruning(sourceFile, generation.checker, request.Target, availability)
+	var boundTaskSetup map[*ast.Node]boundTaskSetupBinding
+	if request.Kind != "check" && (request.Target == TargetClient || request.Target == TargetServer && len(continuations) != 0) {
+		boundTaskSetup = planBoundTaskSetup(sourceFile, candidates, tasks, callables, availability)
+	}
 	// Lowering may reparent originals. Cached receipts remain readable, but
 	// newly demanded sources get no elision proof for the rest of this request.
 	generation.prepareImports = false
@@ -861,6 +865,10 @@ func (s *Session) executeProjection(request Request, authored *authoredCheckProg
 			_, components[index].Lists = componentListOwners[components[index].Name]
 		}
 	}
+	if request.Target == TargetClient && len(boundTaskSetup) != 0 {
+		ast.SetParentInChildren(sourceFile.AsNode())
+		transformed = pruneClientBoundTaskSetup(transformed, sourceFile, emitContext, generation.checker, boundTaskSetup)
+	}
 	transformed, targetImportUses := lowerComponentContracts(
 		transformed,
 		emitContext,
@@ -877,6 +885,7 @@ func (s *Session) executeProjection(request Request, authored *authoredCheckProg
 		componentInputUpdates,
 		directRoots,
 		serverTaskSourceBindings,
+		boundTaskSetup,
 	)
 	transformed = lowerEnhancementContextContracts(
 		transformed,

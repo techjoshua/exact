@@ -1549,6 +1549,13 @@ completion remains unknown. A possible reflective override retains both the inhe
 the authored alternative. Removing the inherited route requires a preceding installation on the
 same function and key that still holds when the component reads the method.
 
+When a component stores `helper.bind(this)` in a setup constant and calls it only from its
+server tasks, the compiler can omit the binding from the client. This projection requires a
+private, server-only module function and the standard receiver-only bind. Server rendering keeps
+the authored setup binding. A separate task executor reconstructs the binding against its current
+activation receiver, using the state and context contract published for the task. Other uses of
+the binding, authored bind methods, and leading arguments retain their existing setup semantics.
+
 Definition requirements belong to the compilation-owned source and existing supported package
 contracts. A published component does not need to prove arbitrary future consumer implementations
 or mutation history. Actual callers add their receiver, key, argument, Get and invocation effects.

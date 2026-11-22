@@ -39,7 +39,7 @@ func continuationExecutorMetadata(
 ) *ast.Node {
 	factory := emitContext.Factory
 	workByID := continuationWorkByID(componentFunction, continuations)
-	taskDefinitions := continuationTaskDefinitions(factory, componentFunction, continuations)
+	taskDefinitions := continuationTaskDefinitions(factory, componentFunction, continuations, emitContext, imports.boundTaskSetup)
 	aliases := componentContextAliases(componentFunction)
 	stateType := continuationExecutorStateType(factory, componentFunction)
 	typeParameters := continuationExecutorTypeParameters(factory, componentFunction)
@@ -52,7 +52,7 @@ func continuationExecutorMetadata(
 		execute := continuationExecutor(
 			factory,
 			work,
-			continuationTaskDependencies(work, taskDefinitions, continuation.classDefinitions, emitContext),
+			continuationTaskDependencies(work, taskDefinitions, continuation, emitContext, imports.boundTaskSetup),
 			continuation,
 			aliases,
 			stateType,
@@ -349,6 +349,17 @@ func continuationExecutor(
 			),
 		)
 	}
+	// Rewriting dependencies can expose another use of the executor receiver.
+	// Determine its capabilities before emitting the receiver declaration.
+	var dependencyStatements []*ast.Node
+	for _, dependency := range taskDependencies {
+		if ast.IsClassDeclaration(dependency) {
+			dependencyStatements = append(dependencyStatements, visitor.VisitNode(projectContinuationCaptureReferences(factory, dependency, helperReferences)))
+			continue
+		}
+		dependencyStatements = append(dependencyStatements, constStatement(factory, dependency.Name(),
+			imports.taskBindings.bind(factory, visitor.VisitNode(projectContinuationCaptureReferences(factory, dependency.AsVariableDeclaration().Initializer, helperReferences)))))
+	}
 	statements := []*ast.Node{
 		constStatement(
 			factory,
@@ -397,14 +408,7 @@ func continuationExecutor(
 			appendCapture(capture, len(continuation.Invocation.Arguments)+index)
 		}
 	}
-	for _, dependency := range taskDependencies {
-		if ast.IsClassDeclaration(dependency) {
-			statements = append(statements, visitor.VisitNode(projectContinuationCaptureReferences(factory, dependency, helperReferences)))
-			continue
-		}
-		statements = append(statements, constStatement(factory, dependency.Name(),
-			imports.taskBindings.bind(factory, visitor.VisitNode(projectContinuationCaptureReferences(factory, dependency.AsVariableDeclaration().Initializer, helperReferences)))))
-	}
+	statements = append(statements, dependencyStatements...)
 	resultProperties := []*ast.Node{
 		contractProperty(
 			factory,

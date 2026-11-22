@@ -8,7 +8,7 @@ import (
 // continuationTaskDefinitions retains task and ordinary callable definitions for
 // executor closures. Only referenced definitions are reconstructed. Setup effects
 // and non-callable initializers are not replayed when a continuation runs.
-func continuationTaskDefinitions(factory *printer.NodeFactory, component *ast.Node, continuations []Continuation) []*ast.Node {
+func continuationTaskDefinitions(factory *printer.NodeFactory, component *ast.Node, continuations []Continuation, emit *printer.EmitContext, boundSetup map[*ast.Node]boundTaskSetupBinding) []*ast.Node {
 	result := []*ast.Node{}
 	if component.Body() == nil || !ast.IsBlock(component.Body()) {
 		return result
@@ -26,6 +26,10 @@ func continuationTaskDefinitions(factory *printer.NodeFactory, component *ast.No
 			continue
 		}
 		if !ast.IsVariableStatement(statement) {
+			continue
+		}
+		if _, bound := boundSetup[emit.MostOriginal(statement)]; bound {
+			result = append(result, statement)
 			continue
 		}
 		for _, declaration := range statement.AsVariableStatement().DeclarationList.AsVariableDeclarationList().Declarations.Nodes {
@@ -54,7 +58,8 @@ func continuationTaskDefinitions(factory *printer.NodeFactory, component *ast.No
 
 // continuationTaskDependencies closes references transitively and keeps declaration order stable.
 // Mutually recursive tasks retain lexical bindings without evaluating either body during setup.
-func continuationTaskDependencies(work *ast.Node, definitions, classes []*ast.Node, emit *printer.EmitContext) []*ast.Node {
+func continuationTaskDependencies(work *ast.Node, definitions []*ast.Node, continuation Continuation, emit *printer.EmitContext, boundSetup map[*ast.Node]boundTaskSetupBinding) []*ast.Node {
+	classes := continuation.classDefinitions
 	needed := continuationReferencedNames(work)
 	selected := make(map[string]bool)
 	// Only the current task's validated original declarations authorize class
@@ -72,6 +77,30 @@ func continuationTaskDependencies(work *ast.Node, definitions, classes []*ast.No
 	}
 	if len(matched) != len(allowed) {
 		panic("server continuation lost a validated original class declaration during lowering")
+	}
+
+	// A setup bind is an executor dependency only for the exact server task
+	// whose authored call proved ownership before lowering.
+	if len(boundSetup) != 0 {
+		prepared := make([]*ast.Node, 0, len(definitions))
+		for _, definition := range definitions {
+			if ast.IsVariableStatement(definition) {
+				if !boundSetup[emit.MostOriginal(definition)].tasks[continuation.TaskID] {
+					continue
+				}
+				declaration := definition.AsVariableStatement().DeclarationList.AsVariableDeclarationList().Declarations.Nodes[0]
+				call := declaration.Initializer().AsCallExpression()
+				factory := emit.Factory
+				// Authored checking already validated the component receiver. The executor
+				// supplies only the capabilities proved for this task. Confine erasure to
+				// the receiver argument, so bind still infers the callable's signature.
+				receiver := factory.NewAsExpression(call.Arguments.Nodes[0], factory.NewKeywordTypeNode(ast.KindNeverKeyword))
+				initializer := factory.NewCallExpression(call.Expression, nil, call.TypeArguments, factory.NewNodeList([]*ast.Node{receiver}), ast.NodeFlagsNone)
+				definition = factory.NewVariableDeclaration(declaration.Name(), nil, declaration.Type(), initializer)
+			}
+			prepared = append(prepared, definition)
+		}
+		definitions = prepared
 	}
 
 	for changed := true; changed; {

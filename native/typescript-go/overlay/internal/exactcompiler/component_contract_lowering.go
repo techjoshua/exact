@@ -25,6 +25,7 @@ func lowerComponentContracts(
 	componentInputUpdates map[string]string,
 	directRoots map[string]struct{},
 	serverTaskSourceBindings map[*ast.Node]*ast.Node,
+	boundTaskSetup map[*ast.Node]boundTaskSetupBinding,
 ) (*ast.SourceFile, map[string]struct{}) {
 	if target == TargetDefault {
 		return sourceFile, nil
@@ -48,6 +49,7 @@ func lowerComponentContracts(
 	brandingName := allocateGeneratedName(used, "__exactBrandComponent")
 	constructors := componentConstructorImports{
 		directRoots:             directRoots,
+		boundTaskSetup:          boundTaskSetup,
 		directClientAttachName:  allocateGeneratedName(used, "__exactAttachDirectProgramComponent"),
 		taskBindings:            newContinuationTaskBindings(sourceFile, used),
 		localizationContextName: allocateGeneratedName(used, "__exactContinuationLocalizationContext"),
@@ -217,6 +219,7 @@ func lowerComponentContracts(
 }
 
 type componentConstructorImports struct {
+	boundTaskSetup          map[*ast.Node]boundTaskSetupBinding
 	directRoots             map[string]struct{}
 	directClientAttachName  string
 	directClientAttachUsed  bool
