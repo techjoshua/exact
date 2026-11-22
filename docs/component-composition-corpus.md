@@ -210,7 +210,11 @@ The activation-capture fixture pairs direct SSR with client invocation through t
 request handler. It covers local helper closure reconstruction, public defaults with body-only
 server contexts, shared context publication, repeated captures, retained prop updates, returned
 values, removal, and retired event cleanup. Its Node/jsdom journey uses a trusted request provider
-and explicit public context projection. Adapter checks compile both targets and reject direct
+and explicit public context projection. The application and library variants also invoke
+an ordinary helper through `.call(this)`. State read only by that helper reaches the server
+on each invocation, and context published only by that helper updates the retained descendant.
+Separate controls put either the read or publication in the task body.
+Adapter checks compile both targets and reject direct
 private-context defaults and protected helper inputs. The same adapter fixtures compile awaited annotated factories, guarded nullable collections,
 adjacent reactive setup assignments, and reject erased collection publication and known object Map keys.
 Native runtime acceptance also executes captured helper constants, helper context reads, publication, and awaited annotated resource disposal through

@@ -43,12 +43,17 @@ func continuationExecutorStateType(
 	return nil
 }
 
+// continuationComponentValue reconstructs the request-local owner with only the
+// capabilities needed by the emitted continuation.
 func continuationComponentValue(
 	factory *printer.NodeFactory,
 	activation *ast.Node,
 	stateType *ast.Node,
 	continuation Continuation,
 	localizationContextName string,
+	contextWrites *ast.Node,
+	passesReceiver bool,
+	used map[string]struct{},
 ) *ast.Node {
 	state := factory.NewPropertyAccessExpression(activation, nil, factory.NewIdentifier("state"), ast.NodeFlagsNone)
 	if stateType != nil {
@@ -57,6 +62,11 @@ func continuationComponentValue(
 	properties := []*ast.Node{contractProperty(factory, "state", state)}
 	if continuation.localization {
 		properties = append(properties, continuationLocalizationOwner(factory, activation, len(continuation.Activation.Dependencies)-1, localizationContextName)...)
+	}
+	if passesReceiver && len(continuation.Effects.ContextWrites) != 0 {
+		if writer := continuationSharedContextWriter(factory, continuation.Effects.ContextWrites, contextWrites, used); writer != nil {
+			properties = append(properties, writer)
+		}
 	}
 	return contractObject(factory, false, properties...)
 }

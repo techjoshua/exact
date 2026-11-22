@@ -122,9 +122,11 @@ export function ComponentsPage(this: Component<{}>) {
 				<p>
 					A component can return the view prepared by a setup helper that accepts props and
 					additional arguments. Call it with <code>setup.call(this, props, initialValue)</code> to
-					give the helper access to the component’s state and lifecycle. A lowercase helper
-					with a typed <code>Component</code> receiver can also compute and return an ordinary
-					value for use in setup or a task.
+					give the helper access to the component’s state and lifecycle. A lowercase helper with a
+					typed <code>Component</code> receiver can also compute and return an ordinary value for
+					use in setup or a task. When a server task passes its component receiver to such a helper,
+					the helper can read the state it needs and publish to a shared context declared at module
+					scope in the same file. Descendants receive the value when the task completes.
 				</p>
 				<p>
 					Use JSX such as <code>{'<Setup value={props.value} />'}</code> to give a child component

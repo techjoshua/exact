@@ -31,6 +31,20 @@ func (query *sourceValueQuery) sourceEffectReceiverBindings(effect sourceCallabl
 		}
 	}
 	relation := &sourceEffectReceivers{owner: query.effectOwner}
+	if explicitStateEffectReceiver(effect.declaration) {
+		for _, value := range inputs.bindings[0] {
+			binding := ReceiverBinding{ParameterIndex: dynamicStateEffectReceiver, Source: "unknown"}
+			if value.node != nil && value.node.Kind == ast.KindThisKeyword && len(value.path) == 0 {
+				switch {
+				case explicitStateEffectReceiver(query.effectOwner) && helperOwnsReceiver(value.node, query.effectOwner):
+					binding.Source, binding.SourceParameterIndex = "parameter", dynamicStateEffectReceiver
+				case componentProtocolReceiverOwned(value.node, query.owner.checker):
+					binding.Source = "component"
+				}
+			}
+			relation.bindings = append(relation.bindings, binding)
+		}
+	}
 	for index, parameter := range effect.declaration.Parameters() {
 		if !query.charge(result, parameter) {
 			return nil

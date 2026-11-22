@@ -106,11 +106,17 @@ func forwardedComponentReceiver(fact *callableFacts, receiver *componentSurfaceR
 			continue
 		}
 		owned := binding.Source == "component" && receiver.this
-		if binding.Source == "parameter" && binding.SourceParameterIndex < len(fact.node.Parameters()) {
+		if binding.Source == "parameter" && binding.SourceParameterIndex == dynamicStateEffectReceiver {
+			owned = receiver.this
+		} else if binding.Source == "parameter" && binding.SourceParameterIndex < len(fact.node.Parameters()) {
 			name := fact.node.Parameters()[binding.SourceParameterIndex].Name()
 			if symbol := typeChecker.GetSymbolAtLocation(name); symbol != nil {
 				owned = receiver.symbols[ast.GetSymbolId(symbol)]
 			}
+		}
+		if binding.ParameterIndex == dynamicStateEffectReceiver {
+			result.this = result.this || owned
+			continue
 		}
 		// A closure's captured owner is not one of its own formal parameters. Resolve
 		// that argument against lexical identity already proven by its enclosing callable.

@@ -7,6 +7,15 @@ import (
 	"github.com/microsoft/TypeScript/tsc/internal/checker"
 )
 
+// A dynamic receiver is separate from both runtime arguments and TypeScript's
+// synthetic this parameter position.
+const dynamicStateEffectReceiver = -1
+
+func explicitStateEffectReceiver(callable *ast.Node) bool {
+	parameters := callable.Parameters()
+	return len(parameters) != 0 && ast.IsIdentifier(parameters[0].Name()) && parameters[0].Name().Text() == "this"
+}
+
 // effectArgumentRoot retains property boundaries without treating an authored dotted key as a path.
 func effectArgumentRoot(node *ast.Node) (*ast.Node, []string) {
 	path := []string{}

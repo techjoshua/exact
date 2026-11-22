@@ -44,7 +44,15 @@ it.each([
 	{ name: 'aliased context default', statement: '', value: undefined, mode: 'alias' },
 	{ name: 'helper context read', statement: '', value: undefined, mode: 'helper-read' },
 	{ name: 'helper context write', statement: '', value: undefined, mode: 'helper-write' },
-	...['call-application', 'call-library', 'ssr-application', 'ssr-library'].map((variant) => ({
+	...[
+		'call-application',
+		'call-library',
+		'state-only',
+		'context-only',
+		'direct-bind',
+		'ssr-application',
+		'ssr-library'
+	].map((variant) => ({
 		name: 'receiver task helper ' + variant,
 		statement: '',
 		value: undefined,
@@ -171,7 +179,9 @@ it.each([
 		const receiverSSR = mode.startsWith('receiver-ssr-');
 		const receiverInteraction = receiverHelper && !receiverSSR;
 		const initial = capturedContext ? 19 : mode === 'helper-props' ? 27 : helperValue ? 26 : 24;
-		const resultAfterFirstCall = receiverInteraction ? 25 : initial;
+		const directReceiverRead = mode === 'receiver-context-only';
+		const directContextWrite = mode === 'receiver-state-only';
+		const resultAfterFirstCall = directReceiverRead ? 25 : initial;
 		if (capturedContext)
 			source = source
 				.replace(
@@ -200,7 +210,7 @@ it.each([
 				function publishBound(this: CaptureOwner, input: number, next: number) {
 					const offset = existsSync('.') ? 7 : 0;
 				const result = input + next + this.state.revision + offset;
-					${receiverSSR ? 'this.setContext(CaptureStatus, { value: result });' : ''}
+					${directContextWrite ? '' : 'this.setContext(CaptureStatus, { value: result });'}
 					return result;
 				}
 				function forwardBound(this: CaptureOwner, input: number, next: number) {
@@ -213,15 +223,17 @@ it.each([
 					.replace('const privateValue = this.getContext(CapturePrivate);', '')
 					.replace(
 						'const result = value + next + read() + shared + privateValue;',
-						receiverSSR
-							? 'const result = forwardBound.call(this, value + shared, next);'
-							: 'const result = forwardBound.call(this, value + shared, next) + this.state.revision;'
+						mode === 'receiver-direct-bind'
+							? 'const publish = publishBound.bind(this); const result = publish(value + shared, next);'
+							: `const result = forwardBound.call(this, value + shared, next)${directReceiverRead ? ' + this.state.revision' : ''};`
 					)
 					.replace(
 						'this.setContext(CaptureStatus, { value: result });',
-						receiverSSR ? '' : 'this.setContext(CaptureStatus, { value: result });'
+						directContextWrite ? 'this.setContext(CaptureStatus, { value: result });' : ''
 					)
 					.replace('void run();', receiverSSR ? 'void run();' : '');
+		if (directReceiverRead)
+			source = source.replaceAll(/\bCaptureStatus\b/g, '__exactContextToken_1');
 		const helperVariants: Record<string, string> = {
 			'helper-constant': 'const offset=2;const read=()=>this.state.revision+offset;',
 			'helper-parenthesized': 'const offset=2;const read=((()=>this.state.revision+offset));',
@@ -359,6 +371,7 @@ it.each([
 				({ name }) => name === 'ActivationCaptureInputs'
 			);
 			expect(inputs?.tasks.map(({ placement }) => placement)).toContain('server');
+			expect(await readFile(artifact!.clientFile, 'utf8')).not.toContain('node:fs');
 		}
 		const client = await importArtifact(artifact!.clientFile, path.join(root, 'client.mjs'));
 		const server = await importArtifact(artifact!.serverFile, path.join(root, 'server.mjs'));
@@ -382,8 +395,6 @@ it.each([
 		const initialHTML = String(receiverInteraction ? 0 : initial);
 		expect(host.querySelector('[data-result]')?.textContent).toBe(initialHTML);
 		expect(host.querySelector('[data-status]')?.textContent).toBe(initialHTML);
-		// The receiver's context method is exercised during SSR. Live continuations
-		// publish from the task body and use revision independently of the helper.
 		if (receiverSSR) return;
 		const contract = composeExactExecutorContract(serverComponents);
 		const contextRuntime = createExactContextRuntime({
@@ -408,6 +419,10 @@ it.each([
 			},
 			handle: async (request) => {
 				requests++;
+				if (receiverInteraction) {
+					const submitted = decodeReactiveProtocolValue(request.body) as { state: unknown };
+					expect(submitted.state).toEqual({ revision: requests < 5 ? 1 : 2 });
+				}
 				const response = await handleExactRequest(request, {
 					contract,
 					contextRuntime,
@@ -425,7 +440,8 @@ it.each([
 						result: unknown;
 					};
 				};
-				expect(response.status).toBe(200);
+				expect(response.status, JSON.stringify(result.error)).toBe(200);
+				if (receiverInteraction) expect(Number.isFinite(result.state?.result)).toBe(true);
 				expect(result.value).toBe(value === 'result' ? result.state!.result : value);
 				return response;
 			}
@@ -455,7 +471,7 @@ it.each([
 			expect(host.querySelector('[data-collection]')?.textContent).toBe(
 				String(resultAfterFirstCall)
 			);
-		expect(status?.textContent).toBe(String(resultAfterFirstCall));
+		expect(status?.textContent).toBe(String(initial));
 		expect(reports).toEqual([]);
 		for (const expected of [String(resultAfterFirstCall + 2), String(resultAfterFirstCall + 4)]) {
 			const before = requests;
@@ -468,9 +484,10 @@ it.each([
 			await view.action(() => run.click());
 			expect(requests).toBeGreaterThan(before);
 			await expect.poll(() => result?.textContent).toBe(expected);
-			expect(status?.textContent).toBe(expected);
+			expect(status?.textContent).toBe(String(Number(expected) - (directReceiverRead ? 1 : 0)));
 			expect(reports).toEqual([]);
 			expect(host.querySelector('[data-result]')).toBe(result);
+			expect(host.querySelector('[data-status]')).toBe(status);
 		}
 		await view.action(() => host.querySelector<HTMLButtonElement>('[data-props]')!.click());
 		await view.settle();
@@ -484,13 +501,13 @@ it.each([
 		await view.settle();
 		await view.action(() => run.click());
 		const nextStep =
-			receiverInteraction ||
+			directReceiverRead ||
 			['helper-props', 'helper-derived', 'helper-derived-object'].includes(mode)
 				? 8
 				: 7;
 		const nextResult = String(resultAfterFirstCall + nextStep);
 		await expect.poll(() => result?.textContent).toBe(nextResult);
-		expect(status?.textContent).toBe(nextResult);
+		expect(status?.textContent).toBe(String(Number(nextResult) - (directReceiverRead ? 2 : 0)));
 		if (mode === 'nullable-absent' || mode === 'nullable-null')
 			expect(host.querySelector('[data-collection]')?.textContent).toBe('');
 		if (mode.endsWith('collection'))

@@ -153,6 +153,7 @@ func continuationExecutor(
 	authoredWork := work
 	work = projectInvokedTaskCaptures(factory, work, continuation, activation)
 
+	passesReceiver := false
 	var visitor *ast.NodeVisitor
 	visitor = ast.NewNodeVisitor(
 		func(node *ast.Node) *ast.Node {
@@ -262,6 +263,10 @@ func continuationExecutor(
 				}
 			}
 			if node.Kind == ast.KindThisKeyword {
+				parent := node.Parent
+				if parent == nil || !(ast.IsPropertyAccessExpression(parent) || ast.IsElementAccessExpression(parent)) || parent.Expression() != node {
+					passesReceiver = true
+				}
 				return factory.NewIdentifier(componentName)
 			}
 			return visitor.VisitEachChild(node)
@@ -348,7 +353,7 @@ func continuationExecutor(
 		constStatement(
 			factory,
 			component,
-			continuationComponentValue(factory, activation, stateType, continuation, imports.localizationContextName),
+			continuationComponentValue(factory, activation, stateType, continuation, imports.localizationContextName, contextWrites, passesReceiver, used),
 		),
 		constStatement(
 			factory,

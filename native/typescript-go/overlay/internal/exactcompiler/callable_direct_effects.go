@@ -732,7 +732,8 @@ func collectParameterStateEffects(
 		return nil, nil
 	}
 	parameters := parameterStateSymbols(callable, typeChecker)
-	if len(parameters) == 0 {
+	dynamicReceiver := explicitStateEffectReceiver(callable)
+	if len(parameters) == 0 && !dynamicReceiver {
 		return nil, nil
 	}
 	reads := []StateEffect{}
@@ -777,6 +778,16 @@ func collectParameterStateEffects(
 			typeChecker,
 		); exists {
 			reads = append(reads, effect)
+		} else if dynamicReceiver {
+			root, path := effectArgumentRoot(optionalStateReadReceiver(target))
+			if root.Kind == ast.KindThisKeyword && helperOwnsReceiver(root, callable) &&
+				len(path) > 1 && path[0] == "state" && !containsString(path, "*") {
+				reads = append(reads, StateEffect{
+					Path: strings.Join(path[1:], "."), pathSegments: path[1:],
+					Kind: "read", Confidence: "exact",
+					Receiver: &StateReceiver{Kind: "parameter", Index: dynamicStateEffectReceiver},
+				})
+			}
 		}
 		return true
 	})

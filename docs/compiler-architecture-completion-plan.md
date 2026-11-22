@@ -517,6 +517,10 @@ authenticated declarations, including multilevel inheritance. Symbol visitation 
 For a lowercase callable with a Core receiver, component discovery also requires an authored
 view return. A scalar receiver helper can read state or write context through the calling
 instance. Canonical return normalization leaves its result and evaluation timing intact.
+For a server continuation, receiver-relative state reads follow the original Call edges into
+the activation projection when those edges bind the component receiver. A helper that publishes
+shared context through that receiver receives a server-local writer limited to the continuation's
+declared shared tokens. The existing context response applies the values to the invoking component.
 Custom interfaces, structural receivers and shadowing type parameters supply no component identity. An explicitly ordinary receiver cannot regain identity through a protocol
 method's spelling. The unchanged `namedSpellingBrowser` source is an ordinary-callable control.
 Optional/computed callee access, aliases of invoked props and call/apply forwarding remain

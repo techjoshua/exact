@@ -205,3 +205,38 @@ func continuationReferencedNames(work *ast.Node) map[string]struct{} {
 	collectReferences(root)
 	return referenced
 }
+
+// continuationSharedContextWriter exposes only the selected shared tokens on a
+// receiver passed to ordinary authored code. Token identity stays server-local.
+func continuationSharedContextWriter(factory *printer.NodeFactory, effects []ContextEffect, writes *ast.Node, used map[string]struct{}) *ast.Node {
+	token := factory.NewIdentifier(allocateGeneratedName(used, "__exactContextToken"))
+	value := factory.NewIdentifier(allocateGeneratedName(used, "__exactContextValue"))
+	statements := []*ast.Node{}
+	for _, effect := range effects {
+		if !effect.receiverWrite {
+			continue
+		}
+		parts := strings.Split(effect.Token, ".")
+		expected := factory.NewIdentifier(parts[0])
+		for _, part := range parts[1:] {
+			expected = factory.NewPropertyAccessExpression(expected, nil, factory.NewIdentifier(part), ast.NodeFlagsNone)
+		}
+		match := factory.NewBinaryExpression(nil, token, nil, factory.NewToken(ast.KindEqualsEqualsEqualsToken), expected)
+		target := factory.NewElementAccessExpression(writes, nil, contractString(factory, effect.Token), ast.NodeFlagsNone)
+		set := factory.NewBinaryExpression(nil, target, nil, factory.NewToken(ast.KindEqualsToken), value)
+		statements = append(statements, factory.NewIfStatement(match, factory.NewBlock(factory.NewNodeList([]*ast.Node{
+			factory.NewExpressionStatement(set), factory.NewReturnStatement(nil),
+		}), true), nil))
+	}
+	if len(statements) == 0 {
+		return nil
+	}
+	statements = append(statements, factory.NewThrowStatement(factory.NewNewExpression(factory.NewIdentifier("TypeError"), nil,
+		factory.NewNodeList([]*ast.Node{contractString(factory, "Continuation wrote an undeclared shared context")}))))
+	parameters := factory.NewNodeList([]*ast.Node{
+		factory.NewParameterDeclaration(nil, nil, token, nil, factory.NewKeywordTypeNode(ast.KindUnknownKeyword), nil),
+		factory.NewParameterDeclaration(nil, nil, value, nil, factory.NewKeywordTypeNode(ast.KindUnknownKeyword), nil),
+	})
+	return contractProperty(factory, "setContext", factory.NewArrowFunction(nil, nil, parameters, nil, nil,
+		factory.NewToken(ast.KindEqualsGreaterThanToken), factory.NewBlock(factory.NewNodeList(statements), true)))
+}

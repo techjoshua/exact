@@ -491,6 +491,7 @@ type StateReceiver struct {
 // ContextEffect describes one callable read, existence probe, or write against a context token.
 type ContextEffect struct {
 	rootDeclaration ast.NodeId // Lexical binding for module-scope enhancement contracts.
+	receiverWrite   bool       // The executor can compare the original module token by identity.
 	Token           string     `json:"token"`
 	Kind            string     `json:"kind"`
 	Confidence      string     `json:"confidence"`
