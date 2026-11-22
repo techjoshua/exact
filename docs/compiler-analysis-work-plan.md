@@ -1105,27 +1105,28 @@ known getter. The parser's result type does not establish that any subsequent re
 
 ### Forwarding object inputs through helpers
 
-The reduced Workspace render helper reads the top-level `items` field of the
-component's original state facade, passed as lexical `this` with the path
-`state`. The direct and substituted Get use the same state receiver proof.
-A replaced or exposed component instance cannot supply that proof. The read
-contributes effects coverage for that field alone. Authored getters,
-independent unknown fields and nested Gets keep their own obligations.
-The reduced application and library artifacts agree on identity, placement
-and targets. Explicit hydration adopts the SSR button, preserves the
-facade received by the helper and applies two successive clicks.
+A render helper that reads a top-level field of the original component state
+facade receives that facade through its actual argument. The direct and
+substituted field reads use the same receiver proof. Replacing the state root
+during setup or in an event invalidates the proof. Authored getters and nested
+reads retain their own effects. In the reduced Workspace fixture, application
+and library builds agree on identity, placement and targets. Explicit hydration
+adopts the SSR button and preserves the facade across two successive updates.
 
-Original Workspace acceptance remains open. Recheck the full direct and
-barrel routes in application and library modes, including semantic validation,
-automatic registration, SSR adoption and a live update. The original
-`filter().map()` control still reports unknown placement. The saved
-`.tmp/workspace-placement.2NdjOj/differential-effects.log` shows the first
-collection opacity at possible-element acquisition, before callback body
-consumption. Follow the first name-form `bindingPropertyAtGet` read,
-`arrayValues` wildcard handling, and the `nativeCallbackInputEffects`
-construction-opacity join. The filter result still takes the ordinary
-call-return route. Compare literal map and local filtered map before composing
-the fixes with Workspace.
+Original Workspace acceptance remains open. With the reactive-producer map fix
+and the state field proof together, semantically validated direct and barrel
+entries in both package modes render `ready` and the two buttons on the server.
+Workspace placement is still unknown and the hydration registration is empty.
+A helper containing only a literal array map still has unknown placement.
+Reading a local filter result without map is also unknown, while an ignored
+literal filter result is isomorphic. These controls isolate remaining collection
+analysis from the component state field proof.
+
+Automatic Page hydration also remains open for the reduced helper. It has
+isomorphic placement and both artifact targets, but the render capability
+remains unknown in both targets. Page publishes no resumption or registration
+for that child. In the same Page, direct JSX publishes a resumption, adopts the
+server button and updates it on click in both routes and package modes.
 
 Theme's other color branch forwards the object input to `parseDtcgColor`, where destructuring
 and indexed reads can invoke getters. Intl passes `formatter.options` to `validateOptions`,

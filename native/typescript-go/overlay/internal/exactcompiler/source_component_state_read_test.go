@@ -17,6 +17,7 @@ func TestComponentStateFieldReadPlacement(t *testing.T) {
 		{"independent-unknown-field", "", "withUnknown(this.state, props.other, click)", "unknown", ""},
 		{"nested-value", "", "nested(this.state, click)", "unknown", ""},
 		{"whole-state-replacement", "this.state={get items(){return [document.title]}};", "view(this.state, click)", "unknown", ""},
+		{"deferred-state-replacement", "", "view(this.state, () => { this.state={get items(){return [document.title]}}; })", "unknown", ""},
 		{"reflective-replacement", "Object.defineProperty(this.state,'items',{get(){return [document.title]}});", "view(this.state, click)", "", "EXACT_STATE_WRITE"},
 	} {
 		for _, target := range []Target{TargetClient, TargetServer} {
