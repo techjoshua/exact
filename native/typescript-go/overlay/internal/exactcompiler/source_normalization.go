@@ -40,27 +40,33 @@ type setupAssignmentExecution struct {
 // JavaScript never parses or reconstructs the compiler AST on the native path.
 func normalizeAuthoredSource(fileName string, source string) (normalizedSource, error) {
 	result := newNormalizedSource(source)
-	result.apply(planJSXAttributeSyntax(fileName, result.text))
-	result.apply(planCanonicalComponentReturns(fileName, result.text))
-	propsEdits, suppliedPropsRoots, err := planSuppliedPropsNormalization(fileName, result.text)
+	sourceFile := parseNormalizationSource(fileName, result.text)
+	// All planners read syntax. Reparse only when the next planner needs
+	// to see edits made by an earlier planner.
+	applyAndParse := func(edits []sourceEdit) {
+		if len(edits) != 0 {
+			result.apply(edits)
+			sourceFile = parseNormalizationSource(fileName, result.text)
+		}
+	}
+	applyAndParse(planJSXAttributeSyntax(sourceFile))
+	applyAndParse(planCanonicalComponentReturns(sourceFile))
+	propsEdits, suppliedPropsRoots, err := planSuppliedPropsNormalization(sourceFile)
 	if err != nil {
 		return normalizedSource{}, err
 	}
-	result.apply(propsEdits)
+	applyAndParse(propsEdits)
 	for {
-		destructuringEdits, err := planComponentStateDestructuring(
-			fileName,
-			result.text,
-		)
+		destructuringEdits, err := planComponentStateDestructuring(sourceFile)
 		if err != nil {
 			return normalizedSource{}, err
 		}
 		if len(destructuringEdits) == 0 {
 			break
 		}
-		result.apply(destructuringEdits)
+		applyAndParse(destructuringEdits)
 	}
-	computationEdits, err := planComponentComputations(fileName, result.text, suppliedPropsRoots)
+	computationEdits, err := planComponentComputations(sourceFile, suppliedPropsRoots)
 	if err != nil {
 		return normalizedSource{}, err
 	}
@@ -72,15 +78,17 @@ func normalizeAuthoredSource(fileName string, source string) (normalizedSource, 
 // authoring convenience while ensuring every compiled durable component
 // reaches analysis and runtime with a synchronous render closure. Lexical
 // micro-components remain direct view helpers and are intentionally excluded.
-func planCanonicalComponentReturns(fileName string, source string) []sourceEdit {
-	sourceFile := parseNormalizationSource(fileName, source)
+func planCanonicalComponentReturns(sourceFile *ast.SourceFile) []sourceEdit {
+	if ast.IsJsonSourceFile(sourceFile) {
+		return nil
+	}
 	candidates := rawComponentCandidates(sourceFile)
 	callables := make(map[string]*ast.Node)
 	for _, candidate := range candidates {
 		callables[candidate.name] = candidate.node
 	}
 	edits := []sourceEdit{}
-	for _, candidate := range componentCandidates(sourceFile) {
+	for _, candidate := range filterDurableComponentCandidates(candidates, sourceFile) {
 		if len(componentSignals(candidate, sourceFile)) == 0 {
 			continue
 		}
@@ -196,11 +204,9 @@ func callableReturnsCallable(
 }
 
 func planComponentComputations(
-	fileName string,
-	source string,
+	sourceFile *ast.SourceFile,
 	suppliedPropsRoots map[string]struct{},
 ) ([]sourceEdit, error) {
-	sourceFile := parseNormalizationSource(fileName, source)
 	environment := componentComputationEnvironmentBindings(sourceFile)
 	edits := []sourceEdit{}
 	var normalizationError error

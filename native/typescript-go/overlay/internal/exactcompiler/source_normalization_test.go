@@ -59,7 +59,7 @@ func TestPlanPropPunningRejectsNonShorthandBraceForms(t *testing.T) {
 		"const text = `<Card {value} />`;",
 		`// <Card {value} />`,
 	} {
-		edits := planJSXAttributeSyntax(normalizationTestFile(t, "unchanged.tsx"), source)
+		edits := planJSXAttributeSyntax(parseNormalizationSource(normalizationTestFile(t, "unchanged.tsx"), source))
 		if len(edits) != 0 {
 			t.Fatalf("non-shorthand source produced edits %#v:\n%s", edits, source)
 		}
@@ -400,5 +400,106 @@ func TestNormalizeCoreReceiverReturns(t *testing.T) {
 		if !strings.Contains(normalized.text, expected) {
 			t.Fatalf("canonical receiver returns lost %q:\n%s", expected, normalized.text)
 		}
+	}
+}
+
+func TestNormalizationPreservesRecoveredJSXShorthandDiagnostic(t *testing.T) {
+	for _, source := range []string{
+		`type F = (x = <Card {value} />) => void;`,
+		`type F = (x = <Card {value} />) => void; const view = <Card {value} />;`,
+	} {
+		fileName := normalizationTestFile(t, "recovered.tsx")
+		normalized, err := normalizeAuthoredSource(fileName, source)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if want := strings.ReplaceAll(source, "{value}", "value={value}"); normalized.text != want {
+			t.Fatalf("recovered shorthand normalization = %q, want %q", normalized.text, want)
+		}
+		result := NewSession().Execute(Request{
+			ID: fileName, Kind: "diagnose", Source: source, Diagnostics: "semantic",
+		})
+		if result.Error != "" {
+			t.Fatal(result.Error)
+		}
+		found := false
+		for _, diagnostic := range result.Diagnostics {
+			switch diagnostic.Code {
+			case "TS1005":
+				t.Fatalf("shorthand surfaced a parser diagnostic: %#v", diagnostic)
+			case "TS2371":
+				if diagnostic.Start != strings.Index(source, "x =") ||
+					diagnostic.Length != len("x = <Card {value} />") {
+					t.Fatalf("recovered initializer diagnostic lost its authored span: %#v", diagnostic)
+				}
+				found = true
+			}
+		}
+		if !found {
+			t.Fatalf("expected the type-signature initializer diagnostic: %#v", result.Diagnostics)
+		}
+	}
+}
+
+func TestNormalizationComposesEditsAcrossSessionGenerations(t *testing.T) {
+	const source = `import type { Component } from "@exactjs/core";
+		function Card(props: { value: number }) { return () => <span>{props.value}</span>; }
+		export function View(this: Component<{ count: number }>, { step }: { step: number }) {
+			[this.state.count] = [1];
+			const value = this.state.count + step;
+			return <section CLASSNAME="first"><Card {value} /></section>;
+		}`
+	for _, target := range []Target{TargetClient, TargetServer} {
+		t.Run(string(target), func(t *testing.T) {
+			session := NewSession()
+			fileName := normalizationTestFile(t, "composed.tsx")
+			edited := strings.NewReplacer(
+				"[1]", "[123]",
+				"count + step", "count * step",
+				`CLASSNAME="first"`, `CLASSNAME="edited😀"`,
+			).Replace(source)
+			for index, authored := range []string{source, edited, edited} {
+				result := session.Execute(Request{
+					ID: fileName, Kind: "compile", Source: authored, Target: target, SourceMap: true,
+				})
+				if result.Error != "" || hasErrorDiagnostic(result.Diagnostics) {
+					t.Fatalf("generation %d failed: %s %#v", index, result.Error, result.Diagnostics)
+				}
+				marker := "first"
+				operation := " + "
+				if index > 0 {
+					marker = "edited"
+					operation = " * "
+				}
+				for _, expected := range []string{marker, operation, "className", "value"} {
+					if !strings.Contains(result.Code, expected) {
+						t.Fatalf("generation %d output missing %q:\n%s", index, expected, result.Code)
+					}
+				}
+				if index > 0 && strings.Contains(result.Code, "first") {
+					t.Fatalf("stale output after editing:\n%s", result.Code)
+				}
+				if result.CacheHit != (index == 2) {
+					t.Fatalf("unexpected cache hit at generation %d: %t", index, result.CacheHit)
+				}
+				if result.SourceMap == nil || len(result.SourceMap.SourcesContent) != 1 ||
+					result.SourceMap.SourcesContent[0] == nil ||
+					*result.SourceMap.SourcesContent[0] != authored {
+					t.Fatalf("generation %d source map lost its authored content: %#v", index, result.SourceMap)
+				}
+				const card = "<Card {value} />"
+				start := strings.Index(authored, card)
+				found := false
+				for _, jsx := range result.Analysis.JSX {
+					if jsx.Start == start && jsx.Length == len(card) {
+						found = true
+					}
+				}
+				if !found {
+					t.Fatalf("generation %d lost the authored Card span %d:%d: %#v",
+						index, start, start+len(card), result.Analysis.JSX)
+				}
+			}
+		})
 	}
 }

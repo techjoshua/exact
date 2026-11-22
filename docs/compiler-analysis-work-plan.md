@@ -1272,6 +1272,64 @@ does not justify extending the rule to exported writers.
 
 ## Request and project work
 
+### Ordered Intl request prefix
+
+The captured Intl client request first repeats work when the session creates an authored offset
+table that normalization immediately replaces. The revised path creates one table. The planners
+share a syntax tree until an edit changes the text. Canonical return planning filters the
+callable candidates it already gathered.
+
+Both JSX walks remain. TypeScript subtree facts are lazy and can omit JSX recovered in type
+syntax, including a parameter initializer in a function type. The syntax planner must still
+find shorthand in that initializer so the checker can report the authored initializer
+diagnostic. A false JSX root fact does not establish that either whole-tree JSX walk is redundant.
+
+For the captured no-edit `components.ts` input, the cold normalization schedule goes from five
+parses and eight root walk entries to one parse and seven root walk entries. Both variants still
+enter the checker-backed JSX casing walk after program advance. These counts describe the
+normalization prefix and exclude binder, checker, callable analysis, and emitted-artifact work. A fresh Go benchmark at `a41384e86` compared the baseline with the
+revised patch on the captured bytes. Across three samples of 200 operations each, median
+normalization time was 1.774 ms before and 0.562 ms after. Median allocated bytes per
+operation were 1,155,031 and 342,033. Text and authored offsets matched. This benchmark
+measures normalization on one input. The earlier SDK replay and full-build timeout describe
+their original compiler revisions.
+
+In the same SDK session sequence, the callable demand queue links `IntlLocale` setup through
+catalog initialization and pattern validation to `validateFormatter`. The first observed
+`requireRecord` writer search begins while collecting effects of `validateOptions`. It
+reconstructs a possible writer before resolving the argument read of `formatter.options`.
+The argument analysis publishes reached effects and possible writes. The callable solver
+propagates reached environment effects, which `analyzeComponents` uses to select the
+component setup placement. An input getter or Proxy trap can contribute such an effect.
+A validated field read needs exact identity only when a later operation consumes that identity.
+A component task that invokes a retrieved descriptor's browser callback requires its placement
+edge. A task that only stores that callback or tests descriptor presence emits ordinary
+JavaScript and leaves the callback dormant. The paired placement controls preserve both outcomes.
+
+The fixed replay observed 20,000 writer collections and 16,666 refused operand recoveries.
+The recoveries map to five source rows, 310 recorded binding and creator signatures and 4,191
+when active calls and nodes are included. Every recovery has a different live request pointer.
+The most frequent fallback rereads the first operand of `Array.isArray(input)`. Two visits at
+the same cuts and with the same recorded bindings carry different creator return occurrences.
+The member matcher uses that occurrence and the active calls to select source candidates.
+These observations do not establish reusable recovery results. Those bounded counts and
+timings describe the earlier SDK replay on `caf20d50e`.
+
+On the revised no-edit path, the first whole-source revisit follows the retained JSX syntax
+walk. Canonical return planning walks the same tree to discover callable declarations, then
+examines the candidate regions for lexical micro-component shape, task policy, component
+signals and direct returns. Supplied props planning starts the next whole-source candidate
+search on the same tree. Record facts for each consumer during the common traversal before
+replacing a walk, and revalidate generation ownership at edit boundaries. Later destructuring,
+computation, native prop casing, executable slot and callable preparation revisits remain.
+TypeScript parsing, binding and the checker lease remain upstream services.
+
+Continue from the earliest proven avoidable operation in the forward execution prefix. For
+formatter validation, qualify the independent effects of the native copy's input Gets and
+descriptor operations before narrowing lookup of the copy's own data field. Preserve authored
+getter, callback and shadowed-builtin controls. The captured 720-second deadline remains the
+terminal full-build result. Fresh paired Intl artifacts and mounted formatter acceptance remain open.
+
 | Source and consumer | Minimum justified work and disposition | Change and verification |
 | --- | --- | --- |
 | Host selection, project synchronization and authored typing | **Keep** executable JS identity, checker declarations, target conditions, source generation and config. The selected executable can differ from its typing sibling. A type-only import has no runtime initializer. | Reuse selected source and bound symbols under those same inputs. Preserve runtime-JS/typing-TS disagreement, conditional package exports, edits and stale-source refusal in both library and application builds. Keep the existing foreign-JSX passthrough and compiler-aware semantic check. |

@@ -9,8 +9,8 @@ import (
 
 // planSuppliedPropsNormalization exposes destructured component inputs before dependency analysis.
 // Named derived locals then use the ordinary reactive compiler path instead of setup snapshots.
-func planSuppliedPropsNormalization(fileName, source string) ([]sourceEdit, map[string]struct{}, error) {
-	sourceFile := parseNormalizationSource(fileName, source)
+func planSuppliedPropsNormalization(sourceFile *ast.SourceFile) ([]sourceEdit, map[string]struct{}, error) {
+	source := sourceFile.Text()
 	edits := []sourceEdit{}
 	roots := make(map[string]struct{})
 	for _, candidate := range componentCandidates(sourceFile) {

@@ -160,10 +160,12 @@ func (s *Session) executeProjection(request Request, authored *authoredCheckProg
 		authoredSource = request.Source[:boundary]
 		packageEnhancementSuffix = request.Source[boundary:]
 	}
-	normalization := newNormalizedSource(authoredSource)
+	var normalization normalizedSource
 	// Extension-owned source edits use the same authored coordinates as the supplied source.
 	// Framework normalization belongs to compilation and must not shift this analysis tree.
-	if request.Kind != "extension" {
+	if request.Kind == "extension" {
+		normalization = newNormalizedSource(authoredSource)
+	} else {
 		normalization, err = normalizeAuthoredSource(fileName, authoredSource)
 	}
 	if err != nil {

@@ -8,8 +8,8 @@ import "github.com/microsoft/TypeScript/tsc/internal/ast"
 // spread attribute with a missing `...`; the exact raw span distinguishes that
 // recoverable shorthand from a valid spread or another malformed expression. Standard DOM
 // casing shares this syntax pass so synchronized and individual sources bind identically.
-func planJSXAttributeSyntax(fileName string, source string) []sourceEdit {
-	sourceFile := parseNormalizationSource(fileName, source)
+func planJSXAttributeSyntax(sourceFile *ast.SourceFile) []sourceEdit {
+	source := sourceFile.Text()
 	edits := []sourceEdit{}
 	native := !usesForeignJSXRuntime(sourceFile)
 	walkNode(sourceFile.AsNode(), func(node *ast.Node) bool {

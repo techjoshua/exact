@@ -14,11 +14,7 @@ type destructuredStateBinding struct {
 	temporary string
 }
 
-func planComponentStateDestructuring(
-	fileName string,
-	source string,
-) ([]sourceEdit, error) {
-	sourceFile := parseNormalizationSource(fileName, source)
+func planComponentStateDestructuring(sourceFile *ast.SourceFile) ([]sourceEdit, error) {
 	edits := []sourceEdit{}
 	suspensions := destructuringSuspension{}
 	rewritten := map[string]struct{}{}
