@@ -327,7 +327,7 @@ disjoint-getter, unknown-descriptor and Proxy controls. The first remains
 isomorphic and the other three retain browser placement. The paired SDK
 controls exercise the emitted targets and preserve the runtime distinction.
 
-**Family qualification through `4137fbb01`**
+**Family qualification through `5115d38b9`**
 
 The fixed review population is the 366 failing groups in the restored-recipe
 `8c1125377` replay. Joining the matched inventory by test group to the
@@ -338,9 +338,9 @@ and supplies routing labels. Count each historical family once.
 | Disposition from recorded evidence | Families |
 | --- | ---: |
 | Scoped family requirements verified through component controls | 3 |
-| Open with a demonstrated component defect | 3 |
+| Open with a demonstrated component defect | 4 |
 | Partial evidence with remaining qualification or replay | 4 |
-| Still needs a component witness or replay | 108 |
+| Still needs a component witness or replay | 107 |
 
 The verified families cover receiver forwarding at the agreed component
 boundary, tracked helper-forwarded inputs, and selected Await alternatives.
@@ -361,6 +361,15 @@ a setup alias and an array mutation. The startup fixture fails placement at
 hydration. The snapshot fixture emits an unbound identifier on the server.
 The compiler matched the revision's source. The SDK used retained providers
 from a candidate build. Recheck the fixes with revision-matched providers.
+
+At `5115d38b9` the artifact projection family has three component witnesses.
+A host-classified native JSX import renders through an ordinary helper and a
+compiled root. A consumer of a portable CommonJS module renders during SSR
+but receives a server boundary on client mount. The Node built-in and lexical
+shadow controls behave as expected. A hydrated root updates when its initial
+items were supplied. When they were omitted, clicking Add leaves the output
+at `0:chosen:missing`. These results used the baseline native compiler and
+retained integration provider outputs.
 
 Track newer component findings separately. Forwarded event dispatch and
 private-context continuation lookup have scoped fixes. Standalone Workspace
